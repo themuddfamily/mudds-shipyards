@@ -74,6 +74,52 @@ stay open. No runtime gap was established by either definition; no tests or new
 build were needed. No qualification successor is selected. Remaining definitions
 must identify an actual finite contract or production gap before implementation.
 
+### Activity-write planning result
+
+ACT-WRITES-DEFINE is DONE as a definition: the
+[finite roster](docs/ROADMAP_BACKLOG.md#activity-write-boundary-roster--act-writes-define)
+maps12 activities to their actual session/summary/reward owners and existing
+checks. Terminal-only behavior is recorded without waiving broader original
+recovery promises. Existing coverage and parked failures remain intact.
+A concrete build/release gap is identified: the exported interruption driver
+cannot select Heavy Breach/Torpedo terminal debt, although source memory-backed
+checks already cover the gameplay owner. No implementation or engine run yet.
+
+### BREACH-INTERRUPTION — exported real-file terminal recovery
+
+- **Kind/parent:** executable build/release capability,13/31/32; SELECTED for
+  next implementation. Extend the existing release interruption path with one
+  Heavy Breach selector. Torpedo remains a separate required scenario; it is
+  not accepted by shared-code coverage. No new gameplay or active-combat resume.
+- **Owners/files:** one high-effort implementer in an isolated worktree owns
+  scripts/game/startup_loader.gd, scripts/diagnostics/in_world_interruption_probe.gd,
+  tools/release/run_package_probes.sh and tests/startup_cli_privacy_test.gd.
+  One high-effort independent reviewer checks exact source and process/data
+  ownership; root runs checks/integrates/packages. Extend existing helpers;
+  no new validator/schema, duplicate harness or runtime board/authority edits.
+- **Finish:** genuine production board/director completion yields the exact
+  saved Heavy Breach earned debt while the existing delegated real-filesystem
+  reward fault refuses payment. The owned live arm process is actually killed
+  and reaped; its document remains byte-identical. A distinct Boot/Main using
+  the same private profile recovers debt and retries through the production
+  board/reward owner, saving exactly one Heavy Breach receipt/acknowledgement.
+  A further distinct cold process retains paid state without another receipt.
+  Preserve unrelated settings/activity payload, save authority, admission and
+  secret-free diagnostics. Setup/target-damage fixtures must be disclosed;
+  this proves terminal recovery, not ordinary flight/combat/hardware acceptance.
+- **Checks/budget:**60–90min implementation/review, split before90 if necessary.
+  Compile, existing startup privacy and both existing Heavy Breach production
+  suites at original300s caps, plus one real-file source arm/kill/recover/paid
+  replay and the exact archive-extracted packaged transaction at original300s
+  per-process caps. Headless/Dummy/private profiles and complete owned cleanup.
+  First unexpected failure stops for separately selected repair; original plus
+  one repair requires cumulative priority review, no third automatic attempt.
+- **Delivery/alternative:** fresh clean paired checkpoints/three strict startups/
+  actual package audit, concise limits, commit/push and scratch cleanup. No
+  parked route is reopened. Independent alternative is Cinder supply terminal
+  summary real-file qualification, with its existing terminal-only contract;
+  it is not selected. No automatic adjacent Torpedo/recovery chain.
+
 ## Parked failures and dependent work
 
 These are unfinished outcomes, not candidates for an unchanged retry. Exact

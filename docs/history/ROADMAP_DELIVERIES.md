@@ -8176,3 +8176,35 @@ Windows execution, audible output or CI dispatch. Stop when each write/read or
 send/receive seam and remaining case is known. This is planning progress only;
 no new build is required. These definitions are independent alternatives to an
 adjacent audio repair and do not schedule a qualification chain.
+
+
+## Activity write boundaries — finite definition, 2026-10-18
+
+ACT-WRITES-DEFINE parents13/31 closes as a source definition on3e87af961.
+One medium-effort read-only agent traced12 activity durable owners; root checked
+production reset/debt gates, generic injection-only capture helper, terminal
+supply-manifest expectations, physical breach board and exported probe selectors.
+The existing backlog now maps actual namespaces and acceptance files, with active
+session vs summary/debt distinctions. These describe implementation, not waivers
+of original recovery scope. No source-established gameplay defect was found.
+
+Concrete executable release gap: startup/probe/supervisor selectors omit the
+physical breach/Torpedo terminal owner. Existing same-Main/recreated-Main memory
+checks cannot establish actual-file OS-interruption recovery. One explicitly
+selected scenario can extend existing release machinery; no new validator needed.
+No unchanged parked source journey, timeout change or automatic recovery chain.
+
+No engines/tests/CI/native Windows/audio ran. Static file/seam/link checks and
+whitespace validation only; no playable build needed for definition. Completed
+within30min budget. All original parent/gate acceptance remains open. Selected
+scope retained below.
+
+### Selected definition — ACT-WRITES-DEFINE
+
+Parent13/31: one medium-effort read-only agent maps the actual activity/write
+roster and existing ACTIVE, earned-unpaid, paid/reset and refused/reset checks;
+root verifies production callers and integrates the finite result. Limit30min,
+stop once owner, durable/reward seam and uncovered cases are known. No engine
+runs, new validators, invented activities or unchanged parked route retries.
+Any actual runtime defect requires a separately frozen implementation card;
+definition success alone does not select a qualification chain or require a build.

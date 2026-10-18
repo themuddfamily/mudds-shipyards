@@ -51,7 +51,7 @@ These are **36 parent outcomes**, not 36 executable jobs. They remain open until
 | 10 | Finish fleet art, character animation and role acceptance | CRAFT-ART, CRAFT-ROLE, CRAFT-ACCEPT | Nine current craft plus eight missing originals explicitly named. Each SPEC/BUILD-SPLIT/CRAFT-ACCEPT outcome remains distinct; component gaps DEFINE. |
 | 11 | Complete the combat-and-recovery slice across supported craft | COMBAT-SLICE, CRAFT-ACCEPT, NET-DAMAGE | Six COMBAT-* encounters named. WEAPONS-DEFINE/DAMAGE-DEFINE resolve actual supported cells; no duplicated network-damage assignment. |
 | 12 | Complete the whole-game art-direction pass | ART-FINDING, STATION-ART, CRAFT-ART, CAPTURE | ART-FINDINGS, ACCESS-* and13 named capture sets; each actual repair needs its own view/behavior proof. |
-| 13 | Close the complete nearby-activity roster | ACT-HUD/WRITE/PLAY/REPEAT, TRAVEL-LIMIT, HULK | Twelve PLAY-* and four HUD-* rows named; ACT-WRITES/REPEAT-DEFINE and TRAVEL-LIMIT still needed. HULK revisit PARKED. |
+| 13 | Close the complete nearby-activity roster | ACT-HUD/WRITE/PLAY/REPEAT, TRAVEL-LIMIT, HULK | Twelve PLAY-* and four HUD-* rows named; ACT-WRITES-DEFINE maps actual durable owners below; REPEAT-DEFINE and TRAVEL-LIMIT remain. HULK revisit PARKED. |
 | 14 | Qualify each implemented world's full physical round trip | WORLD-SOLO/ABANDON/SAVE/EDGE | Three SOLO-* returns named; Ember source abandonment DONE. WORLD-ABANDON/SAVE/EDGE-DEFINE resolve uncovered cases. |
 | 15 | Resolve remaining planetary content and presentation gaps | WORLD-CONTENT, ART-FINDING | CONTENT-EMBER/AURORA/RIME definitions DONE in inspected authored-content scopes with no missing implementation identified. Presentation and original journey acceptance remain open; no assumed new planets/features. |
 | 16 | Close remaining fleet/crew replication gaps | NET-CREW, NET-CAPACITY | Jovian boarding/departure DONE in recorded scopes. Eight named role routes, NET-SEATS-FINAL and bomber role contract remain separate. |
@@ -290,7 +290,7 @@ First-play proof: ordinary outbound/start/activity, once-only durable reward and
 | HUD-PATROL | Patrol durable reset/select/start/fresh-Main UI | 13 | UNSCHEDULED; correct existing owner only on actual discrepancy |
 | HUD-CARGO | Cargo durable reset/select/start/fresh-Main UI | 13 | Supply-status child DONE0c2dc2e: depleted hold reports insufficient kits after reset/reselection; cargo127/nearby HUD13 and paired checkpoint pass. Broader durable UI/restart remains open; KIT-RELOAD stays parked |
 | HUD-CONVOY | Convoy durable reset/select/start/fresh-Main UI | 13 | UNSCHEDULED; correct existing owner only on actual discrepancy |
-| ACT-WRITES-DEFINE | Uncovered activity/write-boundary cells | 13,31 | DEFINE; ACTIVE, earned-unpaid, paid/reset, refused/reset |
+| ACT-WRITES-DEFINE | Uncovered activity/write-boundary cells | 13,31 | DONE definition only; finite durable owner/boundary map below, with terminal-only owners distinguished; exact-package/real-file/ordinary recovery acceptance remains open |
 | ACT-REPEAT-DEFINE | Exact applicable ten-run activity scenarios | 13 | DEFINE; bind existing repeatable activities, do not invent repetitions |
 | TRAVEL-LIMIT | Numeric ordinary nearby-travel envelope | 13 | DEFINE; design/runtime basis and scope decision |
 | HULK-REVISIT | Home-return/reload/revisit retains restored bus and single claimed cell | 13 | PARKED; failed route plus repair, original 300s |
@@ -695,6 +695,56 @@ Scope: original §3, retained abandonment milestone and Phase 8/10.4 specificati
 | WORLD-EDGE[one world/case] | GATED on baseline route and scenario definition | One solo cancellation, refusal, failure, repeat visit or interruption case preserves physics, rewards and return to use. Stop at one case; shared late join/disconnect belongs to WORLD-SHARED. |
 
 Route anchors include `tests/ember_transit_movement_soak.gd`, `tests/aurora_physical_return_soak.gd --aurora-full-roundtrip`, `tests/ember_abandon_return_manual_override_test.gd` and the existing Rime landing/survey routes. Resolve the exact existing command in the task card before running; never substitute a staged route for a canonical one.
+
+### Activity write-boundary roster — ACT-WRITES-DEFINE
+
+Source inspection on3e87af961, definition only. Each qualification card chooses
+one activity and one actual write boundary; the four boundary labels are not a
+blanket48-test cross product. No new runtime defect was established. Existing
+checks below are coverage anchors, not newly executed passes or a final-source
+qualification. The generic NearbySectorActivitySessionAdapter/Binding capture
+helper is caller-injected; it does not automatically resume every production
+activity or replace the actual owners below.
+
+| Activity / production owner | Durable state and existing acceptance anchors | Applicable remaining qualification |
+| --- | --- | --- |
+| Checkpoint Race / GameFlow + CinderRaceSessionPersistence | `cinder_timed_race_session`; `cinder_race_session_save_restore_test.gd` covers active/progress outage, earned payment retry and refused unpaid reset | Final candidate/required distinct-process case; retained full-suite timeout is not permission for an unchanged retry |
+| Platform Patrol / GameFlow + CinderPatrolSessionPersistence | `cinder_patrol_session`; `cinder_patrol_session_save_restore_test.gd` covers unpaid restart, terminal refusal, write recovery/reset retention | Same exact-source distinction; parked Patrol failure remains |
+| Jovian kit delivery / GameFlow + JovianCargoSessionPersistence | `jovian_cargo_session`; `cargo_delivery_production_integration_test.gd` covers inventory/receipt, interrupted payment and missed start/save/reset | Ordinary KIT-RELOAD remains parked at its unchanged30s cap |
+| Cinder platform supply / NearbySectorActivityBinding + CinderCargoDeliveryPersistence | `cinder_cargo_delivery` stores terminal delivery/receipt only. `cinder_cargo_delivery_persistence_roundtrip_test.gd` explicitly reloads the terminal receipt after discarding a later incomplete manifest; reward-handoff test covers refusal/retry in memory | Actual-file distinct-process terminal summary and refused summary write. Active manifest resume is absent from this owner; do not infer Jovian behavior |
+| Mining/extraction / GameFlow + CinderMiningCapacityPersistence | `cinder_mining_capacity`; `cinder_mining_durable_recovery_test.gd` covers real-file active/unpaid/paid capacity, reset/write refusal and published-sync case | Required final/installed/ordinary cases; capacity is the durable outcome, not an invented ore or credit grant |
+| Structure Scan / GameFlow + scan activity/discovery persistence | `cinder_structure_scan_session` + `cinder_scan_discovery`; `game_flow_scan_durable_recovery_test.gd` covers real-file debt/payment/discovery retry, paid reset and progress/terminal saving | Retained full Scan failure stays parked; no automatic probe/retry |
+| Beacon Traversal / GameFlow + beacon activity | `cinder_beacon_session`; `game_flow_beacon_durable_recovery_test.gd` covers real-file active/unpaid/paid recovery, refused resets, owner fence, published payment and write outage | Required ordinary/installed/final-candidate interruption remains distinct from covered source cases |
+| Asteroid Threading / GameFlow + NearbySectorActivitySessionAdapter's strict asteroid record | `cinder_asteroid_session`; `cinder_asteroid_field_test.gd` covers actual Main active/debt/payment/reset, backup/newer refusal, callback fence and paid floor | Actual OS-interruption/distinct-process and complete ordinary-play cases remain separate |
+| Convoy / GameFlow + CinderConvoySessionPersistence | `cinder_convoy_session`, arrival summary separately `cinder_convoy_safe_arrival`; `cinder_convoy_session_save_restore_test.gd` already includes unpaid/reset/write outage | Preserve ca0 pilot/Convoy package result and parked full-suite failure; no unchanged retry |
+| Station Defense / physical StationDefenseActivityBoard | `station_defense_session` stores earned terminal/debt. `station_defense_production_placement_test.gd` covers real-file refusal, recreated Main and once-only acknowledgement | Active actors/damage/leases are explicitly excluded from this owner. Final/installed/ordinary terminal cases remain separate |
+| Heavy Breach / physical HeavyBreachActivityBoard | `heavy_breach_session`, reward `shipyard_heavy_breach`; `heavy_breach_activity_board_production_test.gd` and `heavy_breach_game_flow_production_route_test.gd` cover earned/refused payment, recreated board/Main and paid acknowledgement with MemoryFilesystem | Actual-file distinct-process earned debt→one payment and paid restart; no active encounter reconstruction in this owner |
+| Torpedo Run / same physical board, distinct scenario/reward | Same session owner, reward `shipyard_torpedo_run`; production route test earns the actual rotated Torpedo terminal and retries its debt with MemoryFilesystem | Separate Torpedo actual-file fresh-process debt/receipt/paid restart; shared code is not scenario acceptance |
+
+All test filenames above are under `tests/`. GameFlow._commit_game_flow_activity_reward
+delegates to GameFlowRewardAuthority.commit: genuine earned state must precede
+payment, and authority owns activity/generation/receipt identity. A refused reset
+must retain durable debt and live state; an accepted paid reset must not create a
+second reward or erase unrelated payload. Published-but-refused filesystem sync
+has existing owner-specific reconciliation; do not invent another shared layer.
+
+"Terminal-only" describes existing behavior, not an owner-approved scope cut.
+It does not waive broader original crash/re-entry promises. Any requirement for
+an active resume beyond these actual owners remains an uncovered capability to
+specify explicitly; tests expecting discarded active state cannot close that
+broader requirement. Full ordinary travel/reward/home/re-entry remains ACT-PLAY,
+with ACT-REPEAT separate. HULK revisit remains parked; its one-shot power receipt
+and planetary survey/world persistence retain their own owners/contracts.
+
+Executable release seam: the existing startup loader, in_world_interruption_probe
+and run_package_probes support convoy/beacon/mining/stationdefense/scan/hulk/ember,
+but no Heavy Breach or Torpedo selector. A bounded release-driver extension can
+therefore deliver actual-file OS-interruption qualification for one missing
+terminal owner without changing gameplay or introducing another validator. Select
+one scenario explicitly before implementation; retain startup admission/privacy,
+real owned kill/reap, distinct restart, exact document and once-only receipt checks.
+No engine or package checks were run for this definition; all original failures,
+external decisions and final gates retain status.
 
 ## Multiplayer
 
