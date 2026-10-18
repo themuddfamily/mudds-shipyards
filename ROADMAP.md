@@ -248,6 +248,18 @@ switching/package checks only if it passes. Required independent review and
 cumulative priority review follow; no automatic third or renamed retry. Failed
 candidate/raw results retained; stock choice remains pending and independent.
 
+### Hauler access — cumulative review and exact compile correction
+
+Repaireddf7b026 import passes6.650s; compile fails5.337s because the new diagnostic
+predicate `completed` cannot infer a bool from Dictionary Variants. Its full
+route is NOT_RUN. Original landing failure51.179s and this compile failure are
+retained: cumulative failed-stage56.516s; no geometry cause established.
+Independent high-effort cumulative priority review explicitly permits exactly
+`var completed: bool = ...`, then remaining mandatory import/compile/full access
+under unchanged caps/route/predicate. Root selects that one-line correction;
+no deadline, tolerance, geometry, source grant or test expansion. Any new failure
+STOPs for cumulative review; no automatic next repair or renamed task budget.
+
 ## Parked failures and dependent work
 
 These are unfinished outcomes, not candidates for an unchanged retry. Exact
