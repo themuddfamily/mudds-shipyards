@@ -3897,3 +3897,48 @@ not prove rendered screenshots, an unstaged ordinary full route, packaged
 play, real disk interruption or native GPU/audio/device behavior. This closes
 only LIFE-VISIBLE, not its broad parent, full matrix or any phase gate. Latest
 playable checkpoint6262749 is unchanged; no unchanged export is warranted.
+
+
+## LIFE-REUSE — twelve-cycle source qualification passed
+
+LIFE-REUSE is DONE on the same clean frozen
+`d7be014872bdddeb0e3bb762b467a77b396b126a` (accepted runtime6262749aa).
+Exactly one unchanged `tests/long_session_soak_test.gd` run through the existing
+headless matrix passes: actual exit0, exactly one `LONG_SESSION_SOAK_TEST_OK`,
+80 assertions, original diagnostics0 and205.716s under the original900s suite
+cap. The already imported clean source/cache were reused; no repeated import,
+prior phantom rerun, source edit, filter, exception or timing relaxation.
+
+`SOAK_SUMMARY` proves cycles12/warmup4/craft_rotation9/failures0, all nine
+physical berth returns and no obstructed-return entries,12 activity starts and
+abandons,12 weapon uses and three Main re-entries. Three distinct craft IDs
+undergo destruction/recovery (the twelve-cycle rotation includes repeated IDs).
+Original retained-resource tolerance checks pass; final OBJECT_NODE_COUNT is
+1→1 with zero orphan nodes, and material census remains default boundary/1002
+at both sampled boundaries. These facts do not claim zero transient orphans
+inside an attached live Main.
+
+Runner source/cache guards and independent full tracked/cache hashes match;
+all owned supervisors are terminal/exit0 and observed PID/start identities absent.
+Root independently inspected the original result row, summary/teardown output
+and guard results. Every engine invocation remains headless/Dummy, with original
+HOME/CODEX_HOME and isolated XDG/TMP. The stock root notice remains raw under the
+existing diagnostic contract. Pinned engine SHA256 is unchanged.
+
+Raw root: `/srv/mudds-work/lifecycle-visible-20261018/`; this result is
+`reuse-results/20261018T020021Z/`, with original suite log, results.tsv and
+run-manifest.txt; `reuse-matrix.status.json`, reuse source/cache before/after
+hashes and terminal observation retain independent closure. LIFE-VISIBLE raw
+remains separately under `results/20261018T015529Z/`. Task-owned clean checkout,
+XDG/TMP directories and disposable launch environment input are removed after
+terminal acceptance; `cleanup.json` records exact removed paths and identities.
+Unique raw, sanitized environment and engine records remain.
+
+Limits stay unchanged: staged approach/return positions, in-memory saves,
+shortened presentation motions and completed-guide setup. This is existing
+source production-loop qualification, not an unstaged full journey, packaged
+ordinary play, real disk interruption, multiplayer endurance or native hardware
+acceptance. No runtime/build artifact changes; checkpoint6262749 remains latest.
+Only these two lifecycle cards close; all36 broad parents and ten phase gates
+remain open. One slice card remains: the original single Jovian pilot-state
+probe. No unknown runtime correction or extra diagnostic run is scheduled.

@@ -6,8 +6,9 @@ They preserve scope; they are not an executable queue or a remaining-job count.
 Select a named instance in the [working roadmap](../ROADMAP.md) before starting.
 The current slice separates LIFE-VISIBLE (four-cycle visible-effect cleanup),
 LIFE-REUSE (twelve-cycle resource/reuse qualification) and one bounded Jovian
-pilot-state diagnostic. These are three scheduled cards, not three remaining
-project requirements; no new runtime feature or phase completion is implied.
+pilot-state diagnostic. Both lifecycle cards now pass on frozen d7be01487; the Jovian diagnostic is
+the one remaining slice card. These are not project-wide remaining counts;
+no new runtime feature or phase completion is implied.
 The original specifications remain binding in
 [the preserved scope](history/ROADMAP_SCOPE_20261017.md).
 

@@ -26,9 +26,9 @@ mandatory gates, factually NOT_RUN. Other hardware/release gates remain open.
 [concrete child inventory](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes)
 separates named outcomes from missing definitions; it is not a remaining-job
 count. **The physical Jovian passenger-seat repair is delivered. The ordinary
-two-client boarding attempt FAILED. LIFE-VISIBLE now PASSES on frozen d7be01487.**
-**Two cards remain in this slice: LIFE-REUSE and the Jovian diagnostic.**
-Its full route is still unqualified.
+two-client boarding attempt FAILED. Both lifecycle cards PASS on frozen d7be01487.**
+**One card remains in this slice: the bounded Jovian pilot-state diagnostic.**
+The full ordinary two-client boarding route is still unqualified.
 VIP remains FAILED/parked after its first attempt and one syntax repair.
 Only the named passenger-seat outcome closes; no parent or phase gate closes.
 
@@ -36,13 +36,14 @@ Only the named passenger-seat outcome closes; no parent or phase gate closes.
   with one retained roster, confirmed passenger UI and normal supported stand.
   Independent host/client component65 and engineer67 pass; paired development
   checkpoint6262749 has strict startup/artifact acceptance.
-- **Latest qualification:** LIFE-VISIBLE completes four cycles/24 rest-state
-  snapshots, four cabin/bunk returns, four destruction/regenerations and four
-  Main re-entries; zero phantom failures, actual exit0, original diagnostics0
-  in211.028s. This is staged headless source behavior, not packaged ordinary play.
-- **Next:** LIFE-REUSE runs once: twelve sortie cycles must retain usable craft
-  and stable resources. The Jovian diagnostic follows its finite result; a
-  failure ends the card and does not authorize an automatic repair chain.
+- **Latest qualifications:** LIFE-VISIBLE completes four cycles/24 rest-state
+  snapshots with zero phantom failures in211.028s. LIFE-REUSE completes twelve
+  sorties/all nine physical berth returns/three Main re-entries in205.716s,
+  stable resources and teardown1→1 nodes/zero orphans. Both actual exit0 and
+  original diagnostics0. Staged headless source behavior, not packaged ordinary play.
+- **Next:** preserve the first Jovian pilot-confirmation failure state, then
+  run one unchanged original300s route probe. Identify the unsatisfied condition
+  or exact missing fact; no automatic runtime repair or further probe.
 - **Earlier delivered:** browser per-session generations and accurate defense
   briefing on9be5c83 retain their source/UI scopes.
 - **Parked:** Fire restart, Rime shared arrival, HULK revisit, Sandbox recovery
@@ -50,8 +51,8 @@ Only the named passenger-seat outcome closes; no parent or phase gate closes.
 - **External waits:** original Settings artifacts, original Aurora arrival bundle
   and final capacity choice. The original server/two-client baseline remains
   authorized independently; do not ask settled questions again.
-- **Cleanup:** owned clean Ember, VIP and Jovian source checkouts are removed; unique
-  raw results/public builds remain. Three older checkouts with unique uncommitted
+- **Cleanup:** owned clean Ember, VIP, Jovian and lifecycle source checkouts are
+  removed; unique raw results/public builds remain. Three older checkouts with unique uncommitted
   work stay protected. Scratch belongs under `/srv/mudds-work/`.
 
 Report the named result, actual proof, next action and estimate. Source checks,
@@ -60,74 +61,32 @@ planning or test totals do not establish whole-parent or hardware completion.
 ## Current slice — three bounded tasks
 
 The breakdown pass is DONE; [its result and limits](docs/history/ROADMAP_DELIVERIES.md#roadmap-next-slice--three-bounded-cards)
-are recorded. **Two cards remain in this slice; LIFE-VISIBLE is DONE.** This is not the project-wide
-remaining count. The36 parents and all ten phase gates remain open.
+are recorded. **One card remains in this slice; both lifecycle cards are DONE.**
+This is not the project-wide remaining count. The36 parents and all ten phase gates remain open.
 
 | Order / task | Type / status / owner | Observable finish | Preparation / check budget |
 | --- | --- | --- | --- |
 | 1. LIFE-VISIBLE | Qualification / DONE / root | Four cycles/24 snapshots, no phantom failures; actual exit0/diagnostics0 on d7be01487. | Actual211.028s; original900s cap retained. |
-| 2. LIFE-REUSE | Qualification / IN PROGRESS / root | Twelve sortie cycles cover all nine craft with stable resources, supported returns and clean Main teardown. | 5–10min preparation/results after shared setup; historical check2–3min, original900s cap. |
-| 3. NET-JOVIAN-PILOT-STATE | Diagnostic / READY after lifecycle cards close / root | One preserved failure snapshot identifies the failed pilot condition or the exact missing fact. | 20–30min fixture edits/review; one unchanged route probe, original300s cap. |
+| 2. LIFE-REUSE | Qualification / DONE / root | Twelve sorties/all nine physical returns, stable resources and clean teardown; exit0/diagnostics0 on d7be01487. | Actual205.716s; original900s cap retained. |
+| 3. NET-JOVIAN-PILOT-STATE | Diagnostic / READY / root | One preserved failure snapshot identifies the failed pilot condition or the exact missing fact. | 20–30min fixture edits/review; one unchanged route probe, original300s cap. |
 
 The first two cards split the existing LIFECYCLE parent into **visible cleanup**
 and **resource/reuse** acceptance. They exercise existing suites, not new test
 infrastructure. A pass closes that card on its exact source only. It does not
 close the whole normal-controls, multiplayer or release requirement.
 
-LIFE-VISIBLE is closed with its exact source, proof and limits in
-[delivery history](docs/history/ROADMAP_DELIVERIES.md#life-visible--four-cycle-source-qualification-passed).
-The clean imported source/profile are retained only for the in-progress
-LIFE-REUSE card; unique raw results remain after disposable cleanup.
-
-### LIFE-REUSE — twelve usable sorties without resource growth
-
-- **Parent/result:** parents6/7, original Phase10§1; qualify existing all-nine-craft
-  rotation, actual boarding/launch/weapon/landing/disembark, activity abandon,
-  damage/regeneration and Main re-entry with bounded retained resources.
-- **Boundary/owner:** root runs unchanged `tests/long_session_soak_test.gd`;
-  no runtime change, new soak or extra evidence format. Source is clean frozen
-  d7be014872bdddeb0e3bb762b467a77b396b126a (accepted runtime6262749aa), with its
-  unchanged imported cache and pinned engine. Preserve HOME/CODEX_HOME, isolate
-  XDG/TMP and own process/input cleanup; do not reuse the player profile.
-- **Proof:** actual exit0, exactly one `LONG_SESSION_SOAK_TEST_OK`, zero diagnostics;
-  `SOAK_SUMMARY` cycles12/failures0/craft_rotation9, original warmup4 and existing
-  counter tolerances, no obstructed-return exemption, original teardown checks,
-  unchanged source/cache. Unset `KETH_SOAK_CYCLES` and
-  `KETH_SOAK_MATERIAL_CENSUS` so defaults12 and boundary apply.
-- **Budget/next:** 5–10min setup/results with shared prepared source, historical
-  check2–3min and hard900s cap. Run once after LIFE-VISIBLE closes. If that earlier
-  result invalidates this fixture, mark this card GATED with the exact reason;
-  do not repeatedly execute a known broken common path.
-- **Failure/close:** retain original failure and close FAILED, without automatic
-  diagnosis/repair/rerun. Record result/commit and clean owned disposable files.
-  The fixture stages approach positions and uses an in-memory save store: it
-  does not qualify an unstaged ordinary route, real-disk interruption, packaged
-  acceptance, multiplayer endurance or the unfiltered full matrix.
-
-### Existing command for LIFE-REUSE
-
-Run once from the already imported frozen disposable checkout. The existing runner supplies suite process supervision
-and per-suite user data; keep the outer task supervisor and abort path. The
-suite headers retain900s even though the runner default is300s. Use the pinned
-`/tmp/mudds-tools/godot-4.7.1/godot` (SHA256
-`32f8d7596c4b41185512b1c49d69f2da3be018fd784a53e349fa92a98a97bcde`).
-Set `TEST_MATRIX_RESULTS_ROOT` to the task-owned directory under
-`/srv/mudds-work/` before execution; clear inherited matrix scope/filter/shard
-and cycle overrides. Do not run against the user's active desktop.
-
-```bash
-bash tools/release/run_test_matrix.sh \
-  --godot /tmp/mudds-tools/godot-4.7.1/godot \
-  --mode headless --audio-driver Dummy --jobs 1 --timeout 300 \
-  --scope tests/long_session_soak_test.gd
-```
+The two lifecycle cards are closed with exact proof and limits in delivery
+history: [visible cleanup](docs/history/ROADMAP_DELIVERIES.md#life-visible--four-cycle-source-qualification-passed)
+and [twelve-sortie reuse](docs/history/ROADMAP_DELIVERIES.md#life-reuse--twelve-cycle-source-qualification-passed).
+Both ran once under the original900s caps; no game source, test, tolerance or
+cycle count changed. Owned disposable checkout/profiles are removed; raw logs,
+results and terminal source/cache/process checks remain.
 
 ### NET-JOVIAN-PILOT-STATE — identify the failed pilot confirmation
 
-
 | Task | Status / owner | Observable finish | Budget |
 | --- | --- | --- | --- |
-| NET-JOVIAN-PILOT-STATE | READY after lifecycle cards close / root | One preserved first-failure snapshot identifies the unsatisfied pilot confirmation condition, or names the exact still-missing fact. | 20–30min fixture edits/review, one original300s route probe separately; stop after that probe. |
+| NET-JOVIAN-PILOT-STATE | READY / root | One preserved first-failure snapshot identifies the unsatisfied pilot confirmation condition, or names the exact still-missing fact. | 20–30min fixture edits/review, one original300s route probe separately; stop after that probe. |
 
 - **Parent/result:** the same NET-JOVIAN-BOARD/Phase7 first slice. This is one
   diagnostic, not gameplay delivery. Candidate27879aa62 remains on
@@ -176,10 +135,10 @@ failure and runtime failure remain in
 **Priority review:** the bounded failure-state probe above is the supported
 Jovian candidate; an unchanged boarding rerun or speculative runtime patch is
 not justified. The owner has requested smaller roadmap goals, so schedule the
-planning pass first. That pass now selects the two finite lifecycle checks
-before this diagnostic, so the current slice has an achievable close beyond the
-blocked boarding route. No supported missing runtime feature was found in the
-bounded source read; do not invent a repair. VIP/Ember investigations stay parked.
+planning pass first. Both selected lifecycle checks now pass on frozen d7be01487,
+so this single diagnostic is next. No supported missing runtime feature was found
+in the bounded source read; do not invent a repair. VIP/Ember investigations stay
+parked, and earlier boarding failures/repair limits remain counted.
 
 ## Parked VIP round trip — first runtime guard failure
 
