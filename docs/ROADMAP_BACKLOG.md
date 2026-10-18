@@ -10,11 +10,12 @@ The original ordinary two-client boarding qualification is DONE on fff5f7221:
 consumed HUD, final host confirmation and all three actual peer exits0. It adds
 only the accepted caller/harness; playable checkpoint b6196a1 contains its exact
 game runtime. Earlier boarding and initial export failures remain retained in
-history. Shared-flight definition is DONE; one departure capability attempt on
-cad7f3aac fails before throttle because its caller reads the wire owner field
-from a normalized sample. Next is one caller-only field repair and unchanged
-original qualification; physical departure/brake remain NOT_RUN;
-broader flight/return/endurance remain unqualified. Both lifecycle qualifications retain
+history. Ordinary shared departure/braking is now DONE on96c96312f after its one
+caller-field correction:132.562s, host5.004m departure/berth release/zero-speed
+stop, both clients retained and converged, all actual exits0. Game runtime is
+unchanged from checkpointb6196a1; this is source-route qualification. Next is one
+bounded static definition of ordinary shared return to berth. Broader flight,
+landing/return/endurance remain unqualified; both lifecycle qualifications retain
 their accepted source scopes.
 These are not project-wide remaining counts; no phase completion is implied.
 The original specifications remain binding in

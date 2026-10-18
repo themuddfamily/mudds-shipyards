@@ -21,8 +21,11 @@ Linux archive/Windows ZIP contents and metadata pass. Focused source HUD51/role3
 were already accepted on this exact source and were not rerun unchanged.
 Later source qualification fff5f7221, with identical game runtime, passes the
 original ordinary two-client boarding route in127.937s with all peers exit0.
-This is source qualification, not a packaged route test. Flight/return/endurance
-remain open. Native Windows/GPU/device/audio/human/full-release gates remain
+Source96c96312f also passes ordinary shared departure/braking in132.562s:
+host5.004m departure/berth release/zero-speed stop, retained crew and converged
+client hulls. These are source qualifications on identical game runtime, not
+packaged route tests. Broader flight/landing/return/endurance remain open.
+Native Windows/GPU/device/audio/human/full-release gates remain
 open/NOT_RUN. See notes for the source-fixture limits and actual checks.
 
 ## Earlier development checkpoint: `ad596e4` — 2026-10-18

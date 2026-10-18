@@ -17,7 +17,9 @@ with no diagnostics. The repaired private export profile now produces checkpoint
 b6196a1: both safe exports, three strict menu startups and exact artifact checks
 pass. Original failed export logs remain retained. Ordinary two-client boarding
 now PASS on fff5f7221 in127.937s: both real seats, current identities/authority/
-consumed HUD, host confirmation and all three actual exits0. Flight/return and
+consumed HUD, host confirmation and all three actual exits0. Shared departure/
+braking now PASS on96c96312f in132.562s: host5.004m physical departure, freed
+berth and zero-speed stop with both clients retained. Broader flight/return and
 endurance remain unqualified.
 Current full matrix: NOT_RUN;
 last unfiltered matrix `f85957f` failed 11 of 1,045 suites. Focused passes do not
@@ -35,7 +37,8 @@ lifecycle cards PASS on frozen d7be01487.**
 **Pilot HUD ownership is repaired and checkpointad596e4 is published.**
 **The passenger craft-label source repair and checkpoint b6196a1 are delivered.**
 The original ordinary two-client boarding route PASS on fff5f7221; this closes
-boarding only, not flight, return, dedicated headless server or endurance.
+boarding only. The added departure/brake qualification passes on96c96312f;
+return, dedicated headless server and endurance stay open.
 VIP remains FAILED/parked after its first attempt and one syntax repair.
 The passenger-seat and pilot-HUD outcomes close only their named scope; no
 parent or phase gate closes.
@@ -59,11 +62,14 @@ parent or phase gate closes.
   consumed HUD, producer/host authority and final host dual-seat confirmation.
   All three actual peer exits0/.done failures0; source/cache guards unchanged.
   The unchanged held caller is now integrated; independent contract/result review GO.
-- **Latest departure attempt:** cad7f3aac FAIL before throttle on an incorrect
-  caller field; both seat confirmations pass. Physical departure/braking remain
-  NOT_RUN. The failed flight capability stays pushed and unmerged.
-- **Next:** one bounded caller-only field correction and unchanged original
-  qualification. No speculative runtime/authority repair or extra diagnostic.
+- **Latest departure qualification:**96c96312f PASS in132.562s after the one
+  caller-field repair. Host moves5.004238m forward, physically releases berth,
+  consumes throttle/brake and stops at0m/s. Pilot/passenger hull errors are
+  0.489777m/0m against the stopped host; both seat-anchor errors0m. Exact
+  identities/authority/HUD remain current; all peers actualexit0, marker1, diag0.
+  Capability integrated; no game runtime change or unchanged checkpoint rebuild.
+- **Next:** define one ordinary shared return-to-berth segment from this accepted
+  departure endpoint. Stop at one executable card; no speculative runtime repair.
 - **Earlier delivered:** browser per-session generations and accurate defense
   briefing on9be5c83 retain their source/UI scopes.
 - **Parked:** Fire restart, Rime shared arrival, HULK revisit, Sandbox recovery
@@ -76,50 +82,46 @@ parent or phase gate closes.
   failed export; the separate successful checkpoint checkout/profiles are also
   removed after publication. The accepted boarding checkout/profile/helpers are
   also removed after integration; the failed departure checkout/profile/helpers
-  are removed with raw/source refs retained. Three older checkouts with
+  are removed with raw/source refs retained. The successful caller-repair
+  checkout/profile/helpers are also removed. Three older checkouts with
   unique uncommitted work stay protected. Scratch belongs under `/srv/mudds-work/`.
 
 Report the named result, actual proof, next action and estimate. Source checks,
 planning or test totals do not establish whole-parent or hardware completion.
 
-## Next slice — repair the departure caller's consumed-pose field
+## Next slice — define the ordinary shared return to berth
 
-NET-JOVIAN-DEPART is FAILED on held cad7f3aac after one135.794s route.
-The original join/walk/seat stages and host dual-seat confirmation complete.
-The new flight hook fails before throttle because it checks the wire field
-owner_peer_id on a consumed sample that exposes pilot_peer_id. This is an agent
-caller error; no departure or game defect is established. [Actual first failure
-and frozen contract](docs/history/ROADMAP_DELIVERIES.md#ordinary-jovian-departure--caller-field-failure-before-throttle).
-Main does not include the held flight caller; accepted boarding/checkpoint stay valid.
+NET-JOVIAN-DEPART-CALLER and the underlying departure/brake outcome are DONE on
+96c96312f in their named source scopes. [Actual result and executed repair card](docs/history/ROADMAP_DELIVERIES.md#ordinary-jovian-departure--accepted-after-consumed-pose-caller-repair).
+The first cad7f3aac attempt stays FAILED; its one caller repair passes without
+changing the original scenario or game runtime. Checkpointb6196a1 still contains
+identical game code; this is source qualification, not packaged route acceptance.
 
 | Task | Type / status / owner | Observable finish | Budget |
 | --- | --- | --- | --- |
-| NET-JOVIAN-DEPART-CALLER | Caller repair / READY / root | The original departure/brake scenario checks the actual consumed pilot identity, then passes one unchanged original route or stops on its first failure. | Correction/review10–20min; original import/compile/route caps separately. |
+| NET-JOVIAN-RETURN-DEFINE | Definition / READY / root | One executable card for ordinary shared return/landing from the accepted departure endpoint. | Static definition20–30min; no engine probe. |
 
-### NET-JOVIAN-DEPART-CALLER — use the existing consumed pose contract
+### NET-JOVIAN-RETURN-DEFINE — bound the next physical return outcome
 
-- **Parent/result:** parents16/26; correct only the held flight caller on pushed
-  cad7f3aac87d9335b74c2a741f8fec1995e9fee7, composed with current main docs.
-  Source/runtime and accepted ordinary boarding behavior remain unchanged.
-- **Known owner:** NetworkRemoteCraftPoseStream.latest_sample returns normalized
-  history (331); normalization676 maps wire owner_peer_id to pilot_peer_id.
-  Change initial readiness, continuous-owner and convergence reads to the actual
-  pilot_peer_id field; retain it in existing allowlisted receipts/failure snapshots.
-  Compare the same exact host pilot ID. No aliases, runtime field/schema changes,
-  weakened identity criteria or additional evidence framework.
-- **Proof:** static review of the consumed contract, explicit compile then one
-  unchanged NET-JOVIAN-DEPART flight route. The full original5m departure/brake,
-  berth release, exact seat/entity generations, physical anchor alignment and
-  client pose convergence criteria remain binding in the frozen card linked above.
-  Same real joins/all13+interior goals, input-only Xvfb/x11/Dummy, original300s
-  route/360s outer,10/10/5s flight phases and8s initial readiness. No extra probe.
-- **Budget/stop:**10–20min caller correction/review, source import/compile costs
-  separate. Exactly one repair attempt; any failure ends FAILED and requires
-  priority review before more diagnosis/repair/rerun. Earlier failed attempt and
-  pre-engine review corrections remain counted; this name does not reset limits.
-- **Close:** integrate only after full acceptance; otherwise keep candidate held.
-  Commit/push exact outcome, clean owned checkout/profile/helpers, preserve raw.
-  No unchanged runtime export; latest playable checkpoint remains b6196a1.
+- **Parent/result:** parents16/26; use the existing two independent seated actors
+  and accepted departure/stop as prerequisites. Define the next ordinary pilot
+  action that returns this craft to a usable berth while the passenger remains
+  aboard. Do not assume landing, stand, exterior exit or reuse already pass.
+- **Boundary:** inspect the existing production landing input, remote landing/
+  berth handoff and existing relevant qualification checks only. Establish whether
+  this endpoint supports ordinary landing input, which berth may be selected and
+  which host/client consumers prove physical arrival and retained crew identity.
+  No pose writes, private landing request, direct ownership change or rescue.
+- **Proof/deliverable:** one executable implementation/qualification card with
+  exact ordinary actions, visible endpoint, actual host berth/landing and client
+  body/pose/HUD criteria, source seam/files and existing command/limits. Preserve
+  the original300s source-route cap and any longer established required landing
+  checks in their own scope. Name any missing runtime capability separately.
+- **Budget/stop:**20–30min static definition, no engine probe. Stop at known owner,
+  seam/acceptance or one exact missing fact. Split implementation over90min;
+  do not turn return into a full planetary/activity/endurance investigation.
+- **Close:** commit/push the next actionable card; planning does not qualify a
+  landing or count as a gameplay delivery. Implementation/qualification is next.
 
 ## Earlier ordinary Jovian boarding attempt — FAILED (retained history)
 

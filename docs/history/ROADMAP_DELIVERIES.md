@@ -4692,3 +4692,79 @@ parent/phase, native-hardware/human/full-matrix/release acceptance is implied.
   owned checkout/profile/helpers and retain unique raw. Existing checkpointb6196a1
   contains unchanged game runtime; any demonstrated runtime repair is a separate
   production card and requires its own fresh working checkpoint.
+
+
+## Ordinary Jovian departure — accepted after consumed-pose caller repair
+
+NET-JOVIAN-DEPART-CALLER and the original departure/brake outcome are DONE on
+clean `96c96312f48f8da3c8446bf79aeed3d713061e18`, integrated/pushed to main.
+The exact held capability was cherry-picked onto main; its only repair changes
+three consumed-sample lookups and two receipt allowlists to pilot_peer_id, matching
+production normalization. Authoritative owned-ship owner_peer_id checks remain
+unchanged. Independent bounded static review GO and actual-result review GO.
+The first cad7f3aac caller failure remains FAILED with raw retained.
+
+One unchanged original flight route passes in132.562s, actual0, exactly one
+JOVIAN_NETWORK_TWO_CLIENT_FLIGHT_OK and zero diagnostics. Cold import600 and
+explicit compile300 pass before the same input-only private-Xvfb/x11/Dummy
+route300/outer360. Original normal menus, all13 approach plus interior goals,
+real pilot/passenger chairs and host dual-seat confirmation remain prerequisites.
+No shortened route, command/pose/velocity/claim write, deadline or predicate change.
+
+Host starts at station-relative(-53,1.63,57.299999), consumes current pilot throttle
+and measures5.004238m along the initial nose to z62.304237. It physically leaves
+landed state and frees its original berth through production GameFlow. Pilot then
+releases forward and supplies brake: unchanged predicate requires authoritative
+speed<=0.5m/s continuously for1s within10s, actual stopped speed0m/s at
+z68.568970. Host consumes brake from the same current source; exact ownership,
+seat/entity/frame generations and both occupants remain current throughout.
+
+Actual stopped client hull errors are0.489776611m pilot/0m passenger against the
+host pose (original<=0.5m tolerance); both real Player-to-original-chair errors
+are0m (stopped<=0.05m). Consumed pose ticks advance beyond start4589 and both
+normalized pilot IDs equal the authenticated host pilot. Host manifests, client
+Players/anchors, original roles/HUD and source/authority rules remain unchanged.
+All three actual OS exits0 and .done failures[]; no abort or first-failure files.
+
+Full private/main source and cache guards pass and observed PID/start identities
+are absent after terminal completion. Raw
+`/srv/mudds-work/jovian-departure-caller-20261018/results/` retains exact preparation,
+commands/statuses, matrix/peer logs, immutable receipts, live-process isolation
+observations, source/cache comparisons, terminal review and cleanup. Owned clean
+checkout/profile/helpers removed after integration; unique raw/source refs remain.
+No new export: capability changes tests only; checkpointb6196a1 contains identical
+game runtime. Source-route acceptance does not transfer to a packaged journey,
+landing/return, broader flight or original30-minute endurance. All36 parents/ten
+phase gates and native Windows/GPU/device/audio/human/full-matrix/release gates
+remain open. No active desktop, audible test, Downloads or hosted CI.
+
+Next selected task is one20–30min static definition of ordinary shared return
+to berth from the accepted departure endpoint. It ends at one executable card
+or exact missing fact, with no new engine probe or speculative runtime repair.
+
+### Executed departure caller repair card — frozen contract
+
+### NET-JOVIAN-DEPART-CALLER — use the existing consumed pose contract
+
+- **Parent/result:** parents16/26; correct only the held flight caller on pushed
+  cad7f3aac87d9335b74c2a741f8fec1995e9fee7, composed with current main docs.
+  Source/runtime and accepted ordinary boarding behavior remain unchanged.
+- **Known owner:** NetworkRemoteCraftPoseStream.latest_sample returns normalized
+  history (331); normalization676 maps wire owner_peer_id to pilot_peer_id.
+  Change initial readiness, continuous-owner and convergence reads to the actual
+  pilot_peer_id field; retain it in existing allowlisted receipts/failure snapshots.
+  Compare the same exact host pilot ID. No aliases, runtime field/schema changes,
+  weakened identity criteria or additional evidence framework.
+- **Proof:** static review of the consumed contract, explicit compile then one
+  unchanged NET-JOVIAN-DEPART flight route. The full original5m departure/brake,
+  berth release, exact seat/entity generations, physical anchor alignment and
+  client pose convergence criteria remain binding in the frozen card linked above.
+  Same real joins/all13+interior goals, input-only Xvfb/x11/Dummy, original300s
+  route/360s outer,10/10/5s flight phases and8s initial readiness. No extra probe.
+- **Budget/stop:**10–20min caller correction/review, source import/compile costs
+  separate. Exactly one repair attempt; any failure ends FAILED and requires
+  priority review before more diagnosis/repair/rerun. Earlier failed attempt and
+  pre-engine review corrections remain counted; this name does not reset limits.
+- **Close:** integrate only after full acceptance; otherwise keep candidate held.
+  Commit/push exact outcome, clean owned checkout/profile/helpers, preserve raw.
+  No unchanged runtime export; latest playable checkpoint remains b6196a1.
