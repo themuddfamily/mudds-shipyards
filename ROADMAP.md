@@ -110,6 +110,54 @@ commit assertion in69.957s. No terminal recovery OK or third paid cold replay;
 no export/merge/checkpoint. Prior71.004s is retained: cumulative140.961s. No
 further repair/run is selected. [Reopening result and retained scope](docs/history/ROADMAP_DELIVERIES.md#breach-interruption-after-fixed-startup--failed-and-parked).
 
+### Selected definitions — controls/help and remaining UI views
+
+CONTROL-FINDINGS (parent8) is assigned to one medium-effort read-only agent;
+root owns ACCESS-VIEWS-DEFINE (parents12/29) and integration into this existing
+roadmap/backlog. Limit30min total; source reading only, no engine/capture/physical
+input or unchanged test reruns. Name the actual ordinary actions/view states,
+current owner and existing coverage before assigning any repair. Existing mixed
+prompts, camera-distance help, sprint toggle and16:10 pause acceptance remain
+accepted in their recorded scope. Do not invent control/tow semantics or missing
+options, repeat parked work, add a tracker/validator or turn qualification into
+missing gameplay. Stop when the finite roster and any concrete discrepancy are
+known; a real repair needs its separate fixed card. No definition implies whole
+UI/device acceptance. These are independent of the parked breach recovery work.
+
+### GAMEPAD-LOOK — make the advertised camera control work
+
+- **Kind/parents:** production input repair,8/29; SELECTED from CONTROL-FINDINGS.
+  HUD advertises Right Stick LOOK on foot/aboard/driving, but PlayerController
+  and TowTractor consume mouse motion only. Deliver actual stick camera look;
+  removing the hint would leave the required controller route unavailable.
+- **Owner/files:** one high-effort implementer owns
+  scripts/player/player_controller.gd, scripts/vehicles/tow_tractor.gd, optional
+  shared scripts/player/gamepad_look_input.gd plus its unique UID, and existing
+  tests/first_person_view_test.gd / tests/tow_tractor_test.gd. One independent
+  high-effort reviewer checks lifecycle/authority. Root runs/integrates/packages.
+  No ship steering, movement/tow handling, InputMap/binding/settings schema, HUD
+  promise reduction, network authority or parked-route changes.
+- **Finish:** standard right-stick axes continuously rotate the actual local
+  camera at a fixed authored2.5rad/s with radial0.2 deadzone/normalized diagonal,
+  using delta, existing yaw wrap and pitch clamps. Player uses existing on-foot
+  inversion; tractor retains its existing pitch direction. Existing mouse look
+  remains. Only the active local camera/control owner consumes look; clear held
+  input on control/camera/driver loss, rest/remote handoff, tree exit, pause,
+  application focus loss and active-device disconnect. Modal focused UI must not
+  keep rotating a camera from retained stick input. No physical-feel claim.
+- **Checks/budget:**60–90min, split before90. Test-only commits first: existing
+  two suites must reproduce only intended actual camera-look failures on old
+  code at original300s caps; preserve original assertions/waits. Final import/
+  compile/full same suites, existing tow integration and glyph HUD tests once,
+  private/headless/Dummy. Synthetic events/actual camera nodes are focused proof;
+  real-device/full Settings/ordinary controller routes stay open. First unexpected
+  failure stops for separate selection; original+one repair requires cumulative
+  review, no automatic third or changed deadline.
+- **Delivery/alternative:** clean paired checkpoint/three strict startups/actual
+  payload audit, notes/commit/push/owned cleanup. UI-view definition is independent
+  useful work; root completes it while implementation proceeds. No new option,
+  validator, generic input framework or adjacent control chain is selected.
+
 ## Parked failures and dependent work
 
 These are unfinished outcomes, not candidates for an unchanged retry. Exact
