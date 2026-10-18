@@ -908,7 +908,7 @@ No engine, playback, new asset, renewed check or audible quality acceptance.
 | Station machinery/doors | Code-authored hum/servo/latch → StationMachineryAmbience positional voices → ShipyardWorld operational lattice/door state and completion callbacks. |
 | Player/UI | AudioDirector resident procedural confirmation/canopy/footstep/impact/alert bank → actual GameFlow action/presentation calls. |
 | Aurora environment | Authored temperate wind/cabin/coastal assets → AuroraExteriorAmbienceMixer/scene voices → surface visit streaming bootstrap and authored scene snapshots. Coast playback already implemented. |
-| Ember generic environmental foundation | Owned playback binding/catalog exists, but weather/solar wrapper methods have no ordinary-game callers. Empty observations prevent playback presentation; injected observations also pass zero elapsed fade time. This is dormant integration, not a delta-only running-game repair. |
+| Ember generic environmental foundation | Dormant temperate/Aurora catalog and weather/solar wrappers have no ordinary-game callers. Ember is explicitly airless and its active production audio forbids atmospheric wind; positive use of this generic feed has no specified Ember sound/listener contract. [Definition and exact boundary below](#ember-environment-feed--source-definition). Do not activate it or count a zero-delta patch as gameplay. |
 
 Finite remaining source findings:
 
@@ -924,10 +924,11 @@ Finite remaining source findings:
   before Ember/piloting fallbacks. Combat/landing priority, transit/restoration,
   current activity composition and unchanged gameplay state pass controlled tests.
   Paired checkpoint accepted; ordinary planetary journeys/listening remain open.
-- **AUDIO-EMBER-FEED-DEFINE:** identify the intended world-specific audible
-  environment and real observation owner before selecting integration. No new
-  temperate wind requirement is inferred for Ember. A zero-delta helper patch
-  alone would leave ordinary gameplay unchanged.
+- **AUDIO-EMBER-FEED-DEFINE — definition DONE:** source inspection on `17f92907c`
+  resolves the actual airless contract and production owners below. No required
+  missing sound was established. A positive role for the dormant generic feed
+  remains unspecified; implementation is unselected, not a delivered playback
+  feature or an approved scope deferral.
 
 At inventory, phase/activity tests covered direct selection/forwarding/combat
 precedence without the combined per-frame/same-generation lifecycle. The current
@@ -940,6 +941,48 @@ semantic forwarding never proves a sound was played; optional semantic bindings
 are not absent sound banks without a specific audible contract. Real-device mix,
 transition quality, voice budgets and human listening remain separately open;
 no audible output is authorized by this source definition.
+
+### Ember environment feed — source definition
+
+Source-only AUDIO-EMBER-FEED-DEFINE, parent30, on `17f92907c`. No engines,
+playback, tests, assets, runtime changes or fresh checkpoint were needed.
+
+- **Authoritative world intent:** [Ember world](../assets/world/planets/ember_moon_world.tres)
+  has `has_atmosphere=false` and an empty atmosphere ID. The
+  [authored definition](EMBER_MOON_AUTHORED_DEFINITIONS.md#exact-authored-join)
+  requires null atmosphere input. This is an airless moon, not Aurora.
+- **Actual running-game owner:** GameFlow `_ensure_ember_surface_presentations()`
+  attaches `EmberSurfaceLoopAudioComposition` to the retained surface-loop owner.
+  `EmberSurfaceLoopAudioProductionBinding` consumes that owner’s prepared actor/
+  loaded-root/phase observations: shipborne hull resonance below20km and supported
+  landing/takeoff thruster/regolith modes. On-foot or missing actor/root evidence
+  silences hull resonance. Its airless entry branch immediately clears atmospheric
+  wind/heat; `_apply_altitude_transition()` explicitly forbids invented Ember wind.
+  Existing `tests/audio/ember_surface_loop_audio_production_test.gd` asserts these
+  boundaries; this definition did not rerun or newly qualify that suite.
+- **Dormant generic path:** `EmberPlanetarySurfaceProductionBinding` hardcodes
+  Aurora’s atmosphere resource and temperate exterior-wind/interior-cabin catalog.
+  Its outer `submit_planetary_weather_exposure()` / `submit_planetary_solar_observation()`
+  wrappers exist in `EmberSurfaceLoopProductionBinding`, but scripts/scenes have no
+  ordinary callers. Empty solar/weather prevents presentation. Manually injected
+  observations forward zero fade delta and cannot establish ordinary positive gain.
+- **Observation contract:** generic exposure derives from weather intensity × gust
+  × `(1 − 0.75 × shelter)`, bounded to0–1; shelter≥0.75 selects cabin. Solar is an
+  availability gate. Validated wind velocity is not used in that exposure formula.
+  These caller-owned values are not authenticated Ember listener/weather truth.
+  The separate authored Relay Arc hazard route already forwards the admitted
+  on-foot actor envelope; it does not supply this atmospheric feed.
+- **Exact missing intended-use fact:** whether this dormant generic feed should
+  play any additional sound on airless Ember, which world-specific sound it would
+  represent, and its physically valid listener/exposure source. No checked-in
+  contract selects such a positive use. Do not infer Aurora wind/cabin playback,
+  invent weather/solar/shelter observations, or patch delta alone. Any future
+  integration first needs that explicit contract plus its actual caller and clock.
+
+This closes the bounded definition with a precise unresolved intent, not the
+parent audio/mix or planetary journey acceptance. Existing shipborne audio and
+exact-zero atmospheric wind remain the contract. Native listening, transition
+quality and final audio qualification stay open; no audible output is authorized.
 
 ## Phase-wide acceptance still required
 

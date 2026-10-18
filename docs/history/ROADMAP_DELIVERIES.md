@@ -11626,3 +11626,24 @@ not three extra features.
   implementation will exceed 90 minutes, split the remaining production capability
   before continuing. No new protocol/version/validator family, weapon behavior,
   role authority, full multiplayer endurance or parked-route retry belongs here.
+
+## AUDIO-EMBER-FEED-DEFINE — airless boundary and exact missing intent
+
+Source definition complete on17f92907c, parent30, within the selected15–20min
+source-only budget. Independent content/contract review plus root production-call
+trace identifies Ember’s explicit absent atmosphere and active shipborne audio
+owner; atmospheric wind/entry heat remain zero. The generic environmental path
+uses Aurora temperate resources, has no ordinary solar/weather callers and passes
+zero fade delta when injected. No required missing Ember sound was established.
+
+The exact unresolved positive-use intent is which additional world-specific
+sound, if any, that dormant path should represent and its valid listener/exposure
+source. This is not an approved scope deferral or playback delivery. No automatic
+activation, invented observations or delta-only patch is selected. Existing
+hazard/landing/shipborne paths remain separate. The finite source/owner map and
+existing acceptance seam are in COMPLETION_SCOPE.md#ember-environment-feed--source-definition.
+No engine/playback/test/runtime change, checkpoint or scratch artifact was
+created. Source review corrected “optional intent” to “positive-use intent” so no
+owner decision is inferred. All36 parents/ten phase gates stay OPEN. Next single
+action is existing AUDIO-MIX-DEFINE: finite scenario/device/expected-output roster;
+actual audible/device qualification remains separately gated.

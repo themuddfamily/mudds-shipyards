@@ -40,14 +40,16 @@ is selected. All four station service runtime passes retain their recorded scope
 
 | Remaining work | Readiness | Next bounded action / estimate |
 | --- | --- | --- |
-| AUDIO-EMBER-FEED-DEFINE | DEFINE; existing dormant-feed boundary | Trace the intended Ember environment/observation owner to actual production callers. End with one concrete playback/integration gap and owner, or the exact missing intended-use fact. Source-only, 15–20 min, no engine/audio/device run or automatic activation of dormant content. |
+| AUDIO-MIX-DEFINE | DEFINE; source-only preparation for actual audio acceptance | Name a finite scenario/device mix roster from existing production audio families, with expected audible result and the source’s actual silent checks. Separate explicit audible/device prerequisites from preparation. End with executable listening cases or exact missing device facts; 15–20 min, no playback/device run by definition. |
 | HAULER-CARGO-MANIFEST | Production gap; GATED on HAULER-CARGO-STOCK | Binding still rejects Hauler; generation-floor API already exists. [Stock prerequisite and conserved-source proof](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries). 60–90 min implementation/focused checks after decision, checkpoint additional; split before 90 min. |
 
-The Hauler stock/custody decision remains the concrete missing prerequisite for
-the independent cargo alternative. Do not invent stock, a duplicate generation
-API or repeat the pending question. The next single action is the finite Ember
-feed definition above, before selecting an implementation. This is a local queue,
-not a project estimate.
+AUDIO-EMBER-FEED-DEFINE is complete as a source definition: Ember is explicitly
+airless, active production audio forbids atmospheric wind, and the dormant Aurora
+feed has no specified positive Ember use. [Exact owners and missing intended-use fact](docs/COMPLETION_SCOPE.md#ember-environment-feed--source-definition)
+are recorded; no runtime change or new playback qualification is claimed. The
+next single action is the finite AUDIO-MIX-DEFINE roster above. Hauler’s pending
+stock/custody choice remains unchanged; do not repeat the question or invent stock.
+This is a local queue, not a project estimate.
 
 ## Turning the remaining scope into executable work
 
