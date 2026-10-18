@@ -312,6 +312,42 @@ proof and implementation budget before changing the existing release driver.
 No busy-exit/ordinary-route chain, installed qualification or parked retry is
 implicitly selected. All36 parents and ten phase gates remain open.
 
+### Selected build/release capability — DOCK-RECOVERY-PROBE
+
+- **Outcome/parents:**2/31/32. Existing release driver can select one actual
+  accepted solo Bulwark landing-assist interruption, owned SIGKILL/reap and
+  distinct Resume/Begin Shift with fresh usable home-pilot recovery. Preserve
+  exact durable Convoy/activity/debt/reward boundary and once-only continuation.
+  This is executable release capability, not installed/final docking acceptance.
+- **Ownership:** one high-effort implementer owns scripts/game/startup_loader.gd,
+  scripts/diagnostics/in_world_interruption_probe.gd,
+  tools/release/run_package_probes.sh and existing tests/startup_cli_privacy_test.gd.
+  Root owns execution/integration/docs/packages; one high-effort independent
+  reviewer checks actual cut, ownership, privacy and shared-path regressions.
+  No GameFlow/HeroShip gameplay, save format, validators or new probe family.
+- **Frozen cut:** convoy + docking selector only. Reuse real pilot/Convoy owners;
+  disclose initial escort/approach fixture placements. Acquire an actual target
+  berth lease via normal landing request, advance real assist physics, require
+  landing still active/uncompleted with exact live berth/claim and saved four-
+  field **pilot/home** preference before READY; then pause without more mutation.
+  No direct landing/lease/seat flags or fabricated context. Keep normal driver
+  OS-kill, journal, private profiles, cleanup and unchanged300s stage caps.
+  Fresh process must preserve exact pre-kill boundary, acquire current supported
+  home craft/berth/hatch/seat, have no active old assist, accept ordinary throttle,
+  then finish existing escort fixture once (receipt1→2, crash1). No ordinary full
+  approach/dock/exit journey, busy-exit or saved approach-pose entitlement claimed.
+- **Proof/delivery:** compile/import600s, existing startup privacy300s and complete
+  landing_clearance_test300s; existing driver --source with docking/convoy (each
+  leg300s). Independent GO before one source sequence; first failure STOP, no
+  automatic retry/timeout relaxation or acceptance narrowing. If all pass,
+  paired clean exports/three strict silent --startup-check menu checks and actual
+  archive-extracted native ELF docking interruption at same original leg caps,
+  artifact audit/notes, owned cleanup, commit/push. Engines headless/Dummy.
+- **Budget:**45–60min implementation, split before90min. Stop once this one cut
+  is delivered or fails; no successor recovery/evidence chain. Independent
+  production alternative is the identified Habitat ordinary journey definition;
+  Hauler stock/Titan choices remain unresolved and are not inferred here.
+
 ## Parked failures and dependent work
 
 These are unfinished outcomes, not candidates for an unchanged retry. Exact
