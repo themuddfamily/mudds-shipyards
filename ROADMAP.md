@@ -405,6 +405,24 @@ run. No engines/exports/native route have run. Independent clean-pin GO remains
 required before the original engine sequence; any new failure STOPs for cumulative
 review, no automatic second correction or renamed runtime acceptance.
 
+### Habitat loop — compile stop and exact type repair
+
+Clean582d2c73b: importPASS19.560s, observer compileFAIL1.304s; Godot cannot infer
+`current` at native_sortie_observer.gd:556 because the boolean chain contains
+Variant-returning owner.call("get_main"). Privacy/export/startup/full route
+NOT_RUN. Initial unit5 fixture failures7.123s and reviewed correction/48PASS7.319s
+remain; cumulative unexpected failed stages8.427s, not a runtime journey failure.
+
+Independent cumulative review GO for ONE line only: `var current :=` becomes
+`var current: bool =`, full expression and all behavior/criteria unchanged.
+Root freezes this before editing; new clean pin, explicit compile300 follow-up,
+then original full privacy/paired exports/strict startups/audit/one full native
+route only if each passes. Source/Python inputs/route assertions do not change;
+reuse the accepted unchanged Python checks, no gratuitous test replay. At review
+16:53UTC, total elapsed from16:41:58 selection is≈12min; original45–60min/split-
+before90 budget remains cumulative. Any new failure STOP; no automatic further
+annotation/driver repair or timeout/route relaxation.
+
 ## Parked failures and dependent work
 
 These are unfinished outcomes, not candidates for an unchanged retry. Exact
