@@ -57,38 +57,52 @@ Do not skip offers, count ten mixed sorties as ten each or replay the parked
 BREACH-INTERRUPTION probe. The physical-defense contract retains all three waves
 and fresh-reset cycles; failed-wave continuation is not another successful run.
 
-No execution card is selected by this definition. Next scheduling action is to
-freeze **one first-play card**, after identifying its supported ordinary route
-and a bounded command; avoid launching an unbounded repeat/recovery sequence.
-The definition changed only existing backlog/roadmap documentation. One medium
-read-only mapper covered the independent board scenarios; root defined the six
-other activities and integrated review. No engines, tests, builds or scratch
-files were needed. All original broad parents/phase gates remain OPEN.
+### Next work: three bounded steps
 
-### UI-BOARD-FOCUS — component result and next causal gate
+These are three different outcomes, not one expanding investigation. Only the
+first is ready for selection; each ends before the next is scheduled. Parent
+UI-BOARD-FOCUS remains unresolved until the production behavior is repaired and
+verified. PLAY-MINING remains parked under its original contract.
 
-One focused real-key HUD component run completed the page transition without the
-original errors (69 samples, exit0,4.673s guarded). It never established GUI
-hover, a visible popup or root popup-parent connections. **NOT_REPRODUCED**, not a
-repair or Main acceptance. [Detailed result and original card](docs/history/ROADMAP_DELIVERIES.md#activity-board-popup-lifecycle--component-did-not-reproduce-main-failure).
-The test fixture stays unmerged; production HUD remains unchanged.
+| Step | Deliverable | Completion check | Dependency / limit |
+| --- | --- | --- | --- |
+| 1. Establish a tooltip during the keyboard transition | One changed real-input HUD reproduction, observing the actual popup and its root connections | Establish the existing Destination Board tooltip with real OS mouse motion; identify the same visible PopupPanel in root connection recipients; then Tab→Tab→Enter and record exact errors, popup teardown and visible focus | Source-backed candidate only. One attempt, CAP60/outer90, within the original UI investigation budget; freeze source/driver pins before execution. No popup or no target error ends the attempt without a fix claim |
+| 2. Repair the established production cause | A bounded HUD lifecycle change, if step1 establishes the cause | Existing focused navigation coverage plus the reproducer pass with valid visible focus and no engine errors; independent lifecycle review; fresh checkpoint for accepted runtime change | GATED: observing an error alone is insufficient. Freeze exact runtime files and estimate after identifying the faulty owner/event. No speculative focus deferral, signal suppression or engine change |
+| 3. Complete the ordinary mining sortie | Full actual packaged route and once-only saved capacity reward, followed by home return | Original walk/board/flight→Cinder→ordinary SELECT/START→six real extraction seconds→receipt→strict home landing/offline/exit walk | GATED on concrete production repair. Re-select the original PLAY-MINING contract; retain failed-stage61.925s/CAP300. No automatic flight retry or ten-run chain |
 
-Next bounded source task / parents8,13,29: identify the normal mouse/capture
-history or Main-only lifecycle that creates the original popup and its root
-connections. Engine Popup teardown owns the exact signal pair, but the missing
-popup identity/earlier connection event prevents a justified repair. Match that
-condition from actual driver/Main/engine source before selecting a changed
-reproduction; freeze its command, ownership and deadline first. Do not merely
-repeat the key-only component, suppress diagnostics, defer focus speculatively,
-change engine/platform or replay mining. Stop when that specific causal condition
-is established or name the exact missing fact; no broad menu audit.
+Step1 extends the existing UI investigation; it is not a fresh budget or a
+replacement acceptance contract. If it does not identify a cause, park the UI
+investigation with its exact missing fact and select independent product work.
+Do not turn an inconclusive attempt into another menu audit or tooltip variant.
 
+### UI-BOARD-FOCUS — source investigation closed, candidate condition identified
+
+The first real-key HUD component completed the transition (69 samples, exit0,
+4.673s guarded), but never created hover, a visible popup or root popup-parent
+connections. **NOT_REPRODUCED**, not a repair or Main acceptance. The fixture
+remains unmerged and production HUD unchanged.
+
+The follow-up source review found a precise omitted event: switching mouse
+capture to visible does not itself synthesize mouse motion or start a tooltip.
+The existing Destination Board button has authored tooltip text; real motion
+onto it can start the engine timer and create an embedded PopupPanel. Opening
+Activity Board hides its parent pause page, which can cancel and queue that
+popup for deletion. Popup parent cleanup owns the exact reported signal pair.
+This justifies step1 as a changed candidate condition; it does **not** establish
+that the original mining run had that tooltip or identify a faulty disconnect.
+[Source findings and limits](docs/history/ROADMAP_DELIVERIES.md#activity-board-tooltip--source-backed-candidate-condition).
+
+Original missing fact: which popup held the original root connections, and what
+removed or mismatched those connections before teardown. No runtime repair is
+justified yet. No unchanged key-only component or mining replay is selected.
 The original UI investigation budget20–30min from19:07UTC remains cumulative;
-first component attempt4.673s. Further runtime work needs explicit cumulative
-priority review and a concrete changed condition. PLAY-MINING remains parked,
-original failed-stage total61.925s/CAP300 intact. Its candidate20bd1ab remains
-unmerged and checkpoint withheld. No new playable build; latest acceptedf8b5f86.
-CI disabled; all original broad parents/phase gates retain status.
+first component4.673s. Source review ended19:25UTC, without another engine run.
+Next runtime selection requires a clean pin, exact driver and cumulative priority
+review; the table is not authorization for automatic adjacent attempts.
+
+PLAY-MINING candidate20bd1ab remains unmerged/checkpoint withheld. Latest accepted
+playable remainsf8b5f86. All original broad parents/phase gates remain OPEN;
+CI stays disabled. This queue clarification changes no gameplay acceptance.
 
 At most three executable cards belong here. A definition ends with a finite
 answer or exact missing fact; it does not automatically launch its qualifications.

@@ -10550,3 +10550,44 @@ reproduction outcome; no speculative production edit or automatic second attempt
 A component reproduction is causal evidence only, not ordinary Main/mining
 acceptance. Budget20–30min remains cumulative from19:07UTC; exact runtime repair
 scope/estimate requires an established cause first. No new validator/tracker.
+
+
+### Activity Board tooltip — source-backed candidate condition
+
+Source-only follow-up ended2026-10-18 19:25UTC. One high-effort read-only mapper
+checked the actual driver and exact enginea13da4feb. No edits, engines or retries
+were performed by that mapper. Root records the result and separates the next
+three steps in the working queue; no gameplay repair or qualification is claimed.
+
+- `_XDesktop.mouse` emits relative OS motion only for nonzero dx/dy. The key-only
+  component emitted none; mining's paused key sequence also emits none. Earlier
+  captured flight aiming does not prove a paused tooltip existed.
+- [X11 mouse-mode update](https://github.com/godotengine/godot/blob/a13da4feb/platform/linuxbsd/x11/display_server_x11.cpp#L536-L604)
+  restores the visible cursor without synthesizing the GUI mouse-motion event
+  needed to start a tooltip timer.
+- [Viewport motion](https://github.com/godotengine/godot/blob/a13da4feb/scene/main/viewport.cpp#L2116-L2146)
+  starts that timer. The production Destination Board button has nonempty
+  authored tooltip text in `scripts/ui/hud.gd`; tooltip creation parents an
+  embedded PopupPanel under its owner.
+- `_show_activity_selection_page` hides PauseMainPage. Engine hover removal
+  cancels its tooltip, queuing popup deletion. [Popup cleanup](https://github.com/godotengine/godot/blob/a13da4feb/scene/gui/popup.cpp#L52-L103)
+  owns the exact root focus_entered/tree_exited pair. Sequential cleanup clears
+  its parent cache; this lifecycle alone does not establish a bug.
+
+One changed candidate condition is therefore concrete: after ordinary E→Escape,
+move the real OS pointer onto PlanetaryDestinationOpenButton, release buttons,
+and wait for observations identifying both its visible embedded PopupPanel and
+that same popup's root connection recipients. Keep pointer stationary, then use
+ordinary Tab→Tab→Return. Require those preconditions before interpreting a
+negative result. Do not invoke page methods or synthesize pressed signals.
+
+This is a proposed bounded component reproduction, not the original popup's
+identity or proven cause. Original mining lacks hovered control/popup/connection
+samples; no Main-only causal condition was established. The missing fact is the
+popup identity plus the event that removed/mismatched its root connections.
+No runtime repair is selected from source reasoning alone.
+
+Cumulative UI budget remains20–30min from19:07UTC, first component4.673s. Mining
+remains failed/parked61.925s/CAP300, source20bd1ab unmerged/checkpoint withheld.
+No new playable build; latest acceptedf8b5f86. Root changed only the three existing
+roadmap/history files, created no scratch, and preserved all parent/phase gates.
