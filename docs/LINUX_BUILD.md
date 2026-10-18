@@ -19,8 +19,10 @@ this is focused source component acceptance. Both exports, three strict menu
 startups, all1515 identical actual PCK entry bytes, stock PE .text and exact
 Linux archive/Windows ZIP identity pass. Direct and archive-extracted Linux
 binaries were startup-checked; Windows payload ran through Linux Godot.
-Ordinary two-client boarding is not rerun here, and native Windows/GPU/device/
-audio, endurance, human/full-matrix/release gates remain open/NOT_RUN as applicable.
+A later source-only ordinary boarding runcbbebd715 on identical runtime advances
+A’s real pilot seating/HUD, but fails B’s passenger craft label; full boarding
+remains unqualified. This is not packaged route acceptance. Native Windows/GPU/
+device/audio, endurance, human/full-matrix/release gates remain open/NOT_RUN.
 
 ## Earlier development checkpoint: `6262749` — 2026-10-18
 
