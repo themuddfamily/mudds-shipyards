@@ -1317,6 +1317,16 @@ cue; no generic cue echo. Existing source gains/UI bus/reduced-range/driver guar
 remain in force. Correctly applied transport is evidence of server publication,
 not a licence to skip exact source/identity/lifetime checks.
 
+**Caption identity detail selected before implementation:** the existing presenter
+suppresses consecutive identical cue tuples unless its already-supported
+`transition_id` metadata differs. Within owned `game_flow.gd`, preserve the real
+command identity during synchronous client navigator dispatch and forward a
+bounded identity-derived transition ID through the existing HUD metadata argument.
+Restore prior dispatch context afterward. This distinguishes two genuine accepted
+receipts without changing the presenter/Director, transport records or unrelated
+cues. Focused coverage must prove both distinct captions and replay silence.
+No additional file owner or acceptance reduction is selected.
+
 **Focused source tests before the route:** extend existing optional/navigator
 fixtures for two distinct accepted receipts in one client context, exact replay,
 malformed/unrelated source, matching/unknown/duplicate clear, assignment-empty
