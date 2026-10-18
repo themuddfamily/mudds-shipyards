@@ -1134,7 +1134,7 @@ func _finish() -> void:
 
 func _check_gamepad_camera_look() -> void:
 	var tractor := TRACTOR_SCENE.instantiate() as TowTractor
-	tractor.position = Vector3(0.0, 0.2, OPEN_LANE_Z)
+	tractor.position = Vector3(6.0, 0.2, OPEN_LANE_Z)
 	_root.add_child(tractor)
 	await process_frame
 	tractor.set_physics_process(false)
@@ -1151,6 +1151,16 @@ func _check_gamepad_camera_look() -> void:
 	tractor._physics_process(0.1)
 	_check(is_equal_approx(yaw.rotation.y, -0.5),
 		"GAMEPAD_LOOK_TRACTOR: held stick continues without another motion event")
+	Input.action_press(&"move_forward")
+	var driving_yaw := yaw.rotation.y
+	tractor._physics_process(0.1)
+	_check(tractor.get_drive_speed() > 0.5
+		and is_equal_approx(yaw.rotation.y, driving_yaw - 0.25),
+		"GAMEPAD_LOOK_TRACTOR: held stick keeps its authored rate while driving")
+	Input.action_release(&"move_forward")
+	Input.action_press(&"brake")
+	tractor._physics_process(0.1)
+	Input.action_release(&"brake")
 	_gamepad_look_axes(Vector2.ZERO)
 	var stopped := yaw.rotation.y
 	tractor._physics_process(0.1)
