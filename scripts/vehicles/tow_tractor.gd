@@ -61,6 +61,8 @@ signal exit_requested()
 ## [method recover_to_home_transform].
 signal deck_recovery_required(reason: StringName)
 
+const GamepadLookInput := preload("res://scripts/player/gamepad_look_input.gd")
+
 ## Palette shared with the station hub so the tractor still reads as yard plant.
 const CHASSIS_COLOR := Color("ff9f43")
 const CAB_COLOR := Color("dce8e4")
@@ -165,6 +167,7 @@ const BOARDING_ENTRY_OFFSET := Vector3(-1.95, 0.0, 0.4)
 ## the same way they walk to a craft.
 const BOARDING_APPROACH_OFFSET := Vector3(-3.0, 0.0, 0.4)
 
+var _gamepad_look := GamepadLookInput.new()
 var _driven := false
 var _forward_speed := 0.0
 var _airborne_seconds := 0.0
@@ -190,6 +193,15 @@ var _wheel_mesh: Mesh = null
 @onready var _camera_yaw: Node3D = $CameraRig
 @onready var _camera_pitch_pivot: Node3D = $CameraRig/CameraPitch
 @onready var _camera: Camera3D = $CameraRig/CameraPitch/CameraArm/Camera3D
+
+
+func _enter_tree() -> void:
+	_gamepad_look.attach(get_viewport())
+
+
+func _notification(what: int) -> void:
+	if _gamepad_look != null:
+		_gamepad_look.handle_notification(what)
 
 
 func _ready() -> void:
@@ -228,9 +240,10 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	if not is_finite(delta) or delta <= 0.0:
 		return
+	var gamepad_looking := _update_gamepad_look(delta)
 	_update_deck_normal(delta)
 	if _driven:
-		_read_drive_input(delta)
+		_read_drive_input(delta, gamepad_looking)
 	else:
 		_forward_speed = move_toward(_forward_speed, 0.0, brake_deceleration * delta)
 
@@ -256,6 +269,25 @@ func _physics_process(delta: float) -> void:
 	if is_on_wall() and absf(_forward_speed) > 0.0:
 		_forward_speed = move_toward(_forward_speed, 0.0, brake_deceleration * delta)
 	_check_recovery_conditions()
+
+
+func _input(event: InputEvent) -> void:
+	_gamepad_look.observe(event, _owns_gamepad_look())
+
+
+func _owns_gamepad_look() -> bool:
+	return _can_mutate_live_vehicle() and _driven and not get_tree().paused \
+		and is_instance_valid(_camera) and _camera.current
+
+
+func _update_gamepad_look(delta: float) -> bool:
+	var step := _gamepad_look.angular_step(delta, _owns_gamepad_look())
+	if step.is_zero_approx():
+		return false
+	_camera_yaw_offset = wrapf(_camera_yaw_offset - step.x, -PI, PI)
+	_camera_pitch = clampf(_camera_pitch - step.y, deg_to_rad(-46.0), deg_to_rad(38.0))
+	_camera_pitch_pivot.rotation.x = _camera_pitch
+	return true
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -286,6 +318,7 @@ func set_driven(value: bool) -> void:
 		return
 	if _driven == value:
 		return
+	_gamepad_look.clear()
 	_driven = value
 	_camera.current = value
 	if not value:
@@ -682,7 +715,7 @@ func _refresh_driver_station_availability() -> void:
 		_driver_station.set_available(is_boardable())
 
 
-func _read_drive_input(delta: float) -> void:
+func _read_drive_input(delta: float, gamepad_looking: bool = false) -> void:
 	var throttle := Input.get_axis(&"move_back", &"move_forward")
 	var braking := Input.is_action_pressed(&"brake") or Input.is_action_pressed(&"jump")
 	if Input.is_action_just_pressed(&"interact"):
@@ -721,9 +754,9 @@ func _read_drive_input(delta: float) -> void:
 			* deg_to_rad(maximum_steer_rate_degrees) * delta
 		_apply_deck_yaw(yaw)
 
-	# Ease the mouse orbit back behind the tractor while it is actually driving,
-	# so a player who looked sideways is not left steering blind.
-	if absf(_forward_speed) > 0.5:
+	# Retain the driving recenter when the stick is idle. A held look owns the
+	# orbit at its authored angular rate instead of fighting the recenter.
+	if absf(_forward_speed) > 0.5 and not gamepad_looking:
 		_camera_yaw_offset = move_toward(
 			_camera_yaw_offset,
 			0.0,
@@ -1071,6 +1104,7 @@ func _transformed_mesh_bounds(
 
 
 func _exit_tree() -> void:
+	_gamepad_look.detach()
 	var viewport := get_viewport()
 	if viewport != null and viewport.size_changed.is_connected(_on_viewport_size_changed):
 		viewport.size_changed.disconnect(_on_viewport_size_changed)

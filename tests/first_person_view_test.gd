@@ -48,6 +48,7 @@ func _run() -> void:
 	await _test_seat_suspends_and_restores_without_losing_the_choice()
 	await _test_binding_is_bound_and_documented()
 	await _test_focused_gameplay_camera_input()
+	await _test_gamepad_camera_look()
 	await _test_ultrawide_policy_reaches_the_on_foot_rig()
 	await process_frame
 	_finish()
@@ -745,3 +746,172 @@ func _test_ultrawide_policy_reaches_the_on_foot_rig() -> void:
 	root.content_scale_size = restore_content_size
 	root.size = restore_size
 	await process_frame
+
+
+## Synthetic standard right-stick events feed the real owner; only the clock is
+## manual, so response is measured against authored radians rather than wall time.
+func _test_gamepad_camera_look() -> void:
+	var player := await _spawn_player()
+	player.set_physics_process(false)
+	player.set_process(false)
+	player.set_control_enabled(true)
+	player.set_camera_active(true)
+	var yaw := player.get_node("%CameraYaw") as Node3D
+	var pitch := player.get_node("%CameraPitch") as Node3D
+	var camera := player.get_camera() as Camera3D
+	var before_basis := camera.global_basis
+	var start_yaw := yaw.rotation.y
+	_gamepad_look_axes(Vector2.RIGHT)
+	player._physics_process(0.1)
+	_check(is_equal_approx(yaw.rotation.y, start_yaw - 0.25)
+		and not camera.global_basis.is_equal_approx(before_basis),
+		"GAMEPAD_LOOK_PLAYER: right stick rotates the actual camera at 2.5 rad/s")
+	player._physics_process(0.1)
+	_check(is_equal_approx(yaw.rotation.y, start_yaw - 0.5),
+		"GAMEPAD_LOOK_PLAYER: held stick continues without another motion event")
+	_gamepad_look_axes(Vector2.ZERO)
+	var stopped := yaw.rotation.y
+	player._physics_process(0.1)
+	_check(is_equal_approx(yaw.rotation.y, stopped), "GAMEPAD_LOOK_PLAYER: released stick stops look")
+	_gamepad_look_axes(Vector2.RIGHT)
+	player._physics_process(0.05)
+	player._physics_process(0.05)
+	_check(is_equal_approx(yaw.rotation.y, stopped - 0.25),
+		"GAMEPAD_LOOK_PLAYER: split physics delta preserves angular speed")
+	_gamepad_look_axes(Vector2(0.1, 0.1))
+	var deadzone_pose := Vector2(yaw.rotation.y, pitch.rotation.x)
+	player._physics_process(0.1)
+	_check(Vector2(yaw.rotation.y, pitch.rotation.x).is_equal_approx(deadzone_pose),
+		"GAMEPAD_LOOK_PLAYER: radial deadzone suppresses small diagonal drift")
+	_gamepad_look_axes(Vector2.ONE)
+	var diagonal_pose := Vector2(yaw.rotation.y, pitch.rotation.x)
+	player._physics_process(0.1)
+	_check(is_equal_approx(Vector2(yaw.rotation.y, pitch.rotation.x).distance_to(diagonal_pose), 0.25),
+		"GAMEPAD_LOOK_PLAYER: diagonal look has normalized total angular speed")
+	_gamepad_look_axes(Vector2.DOWN)
+	var before_pitch := pitch.rotation.x
+	player._physics_process(0.1)
+	_check(is_equal_approx(pitch.rotation.x, before_pitch - 0.25),
+		"GAMEPAD_LOOK_PLAYER: default stick pitch follows existing mouse direction")
+	player.invert_mouse_y = true
+	before_pitch = pitch.rotation.x
+	player._physics_process(0.1)
+	_check(is_equal_approx(pitch.rotation.x, before_pitch + 0.25),
+		"GAMEPAD_LOOK_PLAYER: existing on-foot inversion reverses stick pitch")
+	player.invert_mouse_y = false
+	_gamepad_look_axes(Vector2.LEFT)
+	yaw.rotation.y = PI - 0.01
+	player._physics_process(0.1)
+	_check(is_equal_approx(yaw.rotation.y, -PI + 0.24),
+		"GAMEPAD_LOOK_PLAYER: stick yaw wraps at the existing boundary")
+	_gamepad_look_axes(Vector2.DOWN)
+	player._physics_process(2.0)
+	_check(is_equal_approx(pitch.rotation.x, deg_to_rad(player.minimum_pitch_degrees)),
+		"GAMEPAD_LOOK_PLAYER: third-person stick pitch respects the existing clamp")
+	player.toggle_camera_view_mode()
+	player._physics_process(2.0)
+	_check(is_equal_approx(pitch.rotation.x, deg_to_rad(-85.0)),
+		"GAMEPAD_LOOK_PLAYER: first-person stick pitch uses the existing wider clamp")
+	_gamepad_look_axes(Vector2.UP)
+	player._physics_process(2.0)
+	_check(is_equal_approx(pitch.rotation.x, deg_to_rad(85.0)),
+		"GAMEPAD_LOOK_PLAYER: first-person upper pitch remains clamped")
+	# Every loss is tested as a loss-and-return without a fresh stick event.
+	_gamepad_look_axes(Vector2.RIGHT)
+	player.set_control_enabled(false)
+	player.set_control_enabled(true)
+	_gamepad_player_stays_still(player, yaw, "control handoff clears held look")
+	_gamepad_look_axes(Vector2.RIGHT)
+	player.set_camera_active(false)
+	player.set_camera_active(true)
+	_gamepad_player_stays_still(player, yaw, "camera handoff clears held look")
+	_gamepad_look_axes(Vector2.RIGHT)
+	camera.clear_current()
+	player._physics_process(0.1)
+	camera.make_current()
+	_gamepad_player_stays_still(player, yaw, "external current-camera loss clears held look")
+	_gamepad_look_axes(Vector2.RIGHT)
+	paused = true
+	paused = false
+	_gamepad_player_stays_still(player, yaw, "pause and resume clear held look")
+	_gamepad_look_axes(Vector2.RIGHT)
+	player.notification(MainLoop.NOTIFICATION_APPLICATION_FOCUS_OUT)
+	player._physics_process(0.1)
+	player.notification(MainLoop.NOTIFICATION_APPLICATION_FOCUS_IN)
+	_gamepad_player_stays_still(player, yaw, "application focus loss clears held look")
+	_gamepad_look_axes(Vector2.RIGHT)
+	Input.joy_connection_changed.emit(0, false)
+	_gamepad_player_stays_still(player, yaw, "active pad disconnect clears held look")
+	var menu := Button.new()
+	root.add_child(menu)
+	_gamepad_look_axes(Vector2.RIGHT)
+	menu.grab_focus()
+	var menu_yaw := yaw.rotation.y
+	player._physics_process(0.1)
+	menu.release_focus()
+	player._physics_process(0.1)
+	_check(is_equal_approx(yaw.rotation.y, menu_yaw),
+		"GAMEPAD_LOOK_PLAYER: focused modal UI clears held look before and after closing")
+	menu.queue_free()
+	_gamepad_look_axes(Vector2.RIGHT)
+	player.set_remote_drive_enabled(true)
+	player.set_remote_drive_enabled(false)
+	player.set_control_enabled(true)
+	player.set_camera_active(true)
+	_gamepad_player_stays_still(player, yaw, "remote handoff clears local held look")
+	_gamepad_look_axes(Vector2.RIGHT)
+	root.remove_child(player)
+	root.add_child(player)
+	player.set_camera_active(true)
+	_gamepad_player_stays_still(player, yaw, "tree exit clears held look")
+	var seat := Node3D.new()
+	root.add_child(seat)
+	player.begin_boarding(player.global_transform, seat, 0.0)
+	player.set_station_seated_context(true)
+	player.set_control_enabled(true)
+	_gamepad_look_axes(Vector2.RIGHT)
+	var seated_yaw := yaw.rotation.y
+	player._physics_process(0.1)
+	_check(is_equal_approx(yaw.rotation.y, wrapf(seated_yaw - 0.25, -PI, PI)),
+		"GAMEPAD_LOOK_PLAYER: awake local station seating retains camera look")
+	_gamepad_look_axes(Vector2.RIGHT)
+	player.set_sleeping_context(true)
+	var sleeping_yaw := yaw.rotation.y
+	player._physics_process(0.1)
+	player.set_sleeping_context(false)
+	player.set_station_seated_context(true)
+	player.set_control_enabled(true)
+	player._physics_process(0.1)
+	_check(is_equal_approx(yaw.rotation.y, sleeping_yaw),
+		"GAMEPAD_LOOK_PLAYER: resting clears held look through wake handoff")
+	seat.queue_free()
+	# A new pad's first axis must not borrow the previous pad's other axis.
+	_gamepad_look_axes(Vector2.RIGHT, 0)
+	var start_device_yaw := yaw.rotation.y
+	_gamepad_look_axis(JOY_AXIS_RIGHT_Y, -1.0, 1)
+	player._physics_process(0.1)
+	_check(is_equal_approx(yaw.rotation.y, start_device_yaw),
+		"GAMEPAD_LOOK_PLAYER: switching devices never mixes right-stick axes")
+	_gamepad_look_axes(Vector2.ZERO, 1)
+	player.queue_free()
+	await process_frame
+
+
+func _gamepad_player_stays_still(player: Node3D, yaw: Node3D, description: String) -> void:
+	var before := yaw.rotation.y
+	player._physics_process(0.1)
+	_check(is_equal_approx(yaw.rotation.y, before), "GAMEPAD_LOOK_PLAYER: " + description)
+
+
+func _gamepad_look_axes(axes: Vector2, device: int = 0) -> void:
+	_gamepad_look_axis(JOY_AXIS_RIGHT_X, axes.x, device)
+	_gamepad_look_axis(JOY_AXIS_RIGHT_Y, axes.y, device)
+
+
+func _gamepad_look_axis(axis: JoyAxis, value: float, device: int) -> void:
+	var event := InputEventJoypadMotion.new()
+	event.device = device
+	event.axis = axis
+	event.axis_value = value
+	Input.parse_input_event(event)
+	Input.flush_buffered_events()
