@@ -46,8 +46,9 @@ class NativeSortieSafetyTests(unittest.TestCase):
         if movers: s['service']['movers'][0]['pose'][0][0] += frames*.001
         return pilot.update(copy.deepcopy(s), s['frame']/60)
 
-    def life_walking_pilot(self):
-        pilot, s = native.LifeTowPilot(), self.life_observation()
+    def life_walking_pilot(self, route="life-tow"):
+        pilot = native.LifeTowPilot(route)
+        s = self.gantry_observation() if pilot.gantry else self.life_observation()
         s['menu_ready'] = True
         pilot.update(copy.deepcopy(s), 0)
         s.update(phase='APPROACH_SHIP', native_interact=True)
@@ -223,6 +224,169 @@ class NativeSortieSafetyTests(unittest.TestCase):
             b['movers'][0]['pose'][0][0] = pose
             with self.assertRaises(AssertionError):
                 native.LifeTowPilot.require_service_interval(a, b, 'nearby walking')
+
+    def gantry_observation(self):
+        s = self.life_observation()
+        s.update(mode='life-gantry', ship_name='JovianLightFreighter',
+                 engine='OFFLINE', parked_exact=True, home_lease=True,
+                 home_berth_id='freight', home_berth_instance_id=80,
+                 boarding=[-42, .38, 65])
+        s['service'].update(profile='gantry',
+                            path='OperationalLattice/Activities/FreightApproachGantry',
+                            origin=[-53, .38, 29.7])
+        s['service']['movers'] = s['service']['movers'][:2]
+        return s
+
+    def gantry_tick(self, pilot, s, **kwargs):
+        # Both actual transform owners advance independently of the clock.
+        if kwargs.get('movers', True) and len(s['service']['movers']) > 1:
+            s['service']['movers'][1]['pose'][0][2] += .001
+        return self.life_tick(pilot, s, **kwargs)
+
+    def gantry_finish_goal(self, pilot, s):
+        name, target = pilot.route[pilot.index]
+        while native.norm(native.sub(target, s['player'])) > .09:
+            delta = native.sub(target, s['player'])
+            step = [v*.09/native.norm(delta) for v in delta]
+            s['player'] = [a+b for a, b in zip(s['player'], step)]
+            s['position'] = s['player'][:]
+            self.gantry_tick(pilot, s)
+        s['player'], s['position'] = target[:], target[:]
+        for _ in range(15):
+            if pilot.visited and pilot.visited[-1]['waypoint'] == name: break
+            self.gantry_tick(pilot, s)
+        self.assertEqual(pilot.visited[-1]['waypoint'], name)
+
+    def test_life_gantry_ordered_physical_goals_local_interval_and_real_boarding(self):
+        pilot, s = self.life_walking_pilot('life-gantry')
+        expected = [[0, 0, 13.5], [-35, 0, 13.5], [-35, 0, 22], [-48, 0, 22],
+                    [-48, .38, 24], [-49, .38, 26], [-51.5, .38, 26],
+                    [-53, .38, 27.5], [-53, .38, 33.5], [-53, .38, 40],
+                    [-42, .38, 40], [-42, .38, 65], [-39, .38, 65]]
+        self.assertGreater(native.norm(native.sub(s['player'], s['service']['origin'])), 12)
+        s['boarding'][2] = 60
+        for index, target in enumerate(expected):
+            self.assertEqual(pilot.route[0][1], target)
+            if index == 11:
+                # The penultimate goal reads the current marker on phase entry.
+                self.assertEqual(pilot.route[0][1][2], s['boarding'][2])
+            if index == 10: s['boarding'][2] = 65
+            if index == 11: s['boarding'][0] = -39
+            self.gantry_finish_goal(pilot, s)
+        self.assertEqual(pilot.stage, 'approach_ship')
+        self.assertFalse(pilot.near_active)
+        self.assertGreater(pilot.near_walked, 11)
+        self.assertLess(pilot.near_walked, 13)
+        self.assertGreater(pilot.walked, 100)
+        s.update(candidate=True, walk_offset=[0, 0, 0])
+        self.gantry_tick(pilot, s)
+        self.assertEqual(pilot.stage, 'board')
+        s.update(phase='BOARDING', candidate=False, native_interact=True,
+                 transition_busy=True, control_enabled=False)
+        self.gantry_tick(pilot, s)
+        s.update(phase='START_ENGINES', seated=True, seated_at_pilot=True, piloted=True,
+                 grounded=False, supported=False, capsule_enabled=False, transition_busy=False)
+        self.gantry_tick(pilot, s)
+        self.assertEqual(pilot.stage, 'seated_observe')
+        s['native_interact'] = False
+        for _ in range(89): self.gantry_tick(pilot, s)
+        self.assertIsNone(pilot.result)
+        self.gantry_tick(pilot, s)
+        self.assertEqual(pilot.result['completion_marker'], 'NATIVE_LIFE_GANTRY_OK')
+        self.assertEqual(pilot.result['seated_physics_frames'], 90)
+        self.assertIn('BOARDING', pilot.result['phases'])
+        self.assertEqual(len(pilot.result['visited']), 13)
+
+    def test_life_gantry_goals_require_fifteen_consecutive_settled_samples(self):
+        pilot, s = self.life_walking_pilot('life-gantry')
+        # Move by legal supported increments to the first goal.
+        target = pilot.route[0][1]
+        while native.norm(native.sub(target, s['player'])) > .09:
+            delta = native.sub(target, s['player'])
+            s['player'] = [a+v*.09/native.norm(delta) for a, v in zip(s['player'], delta)]
+            s['position'] = s['player'][:]
+            s['velocity'] = [.1, 0, 0]  # Strictly less than .1 is required.
+            self.gantry_tick(pilot, s)
+        s['player'], s['position'] = target[:], target[:]
+        s['velocity'] = [0, 0, 0]
+        for _ in range(14): self.gantry_tick(pilot, s)
+        self.assertEqual(pilot.visited, [])
+        s['velocity'] = [.1, 0, 0]
+        self.gantry_tick(pilot, s)
+        self.assertEqual(pilot.settled_frames, 0)
+        s['velocity'] = [0, 0, 0]
+        # Read-only batch admission counts each emitted sample, stages no goal.
+        for _ in range(15):
+            s['frame'] += 1
+            s['service']['clock'] += 1/60
+            pilot.validate_observation(copy.deepcopy(s))
+        self.assertEqual(pilot.visited, [])
+        pilot.update(pilot.observed_previous, s['frame']/60)
+        self.assertEqual(len(pilot.visited), 1)
+
+    def test_life_gantry_rejects_mutated_actors_profile_lease_support_and_defaults(self):
+        mutations = [lambda s: s.update(ship_name='TorrentInterceptor'),
+                     lambda s: s.update(ship_id=99), lambda s: s.update(player_id=99),
+                     lambda s: s.update(home_lease=False), lambda s: s.update(parked_exact=False),
+                     lambda s: s.update(engine='ONLINE'), lambda s: s.update(home_berth_instance_id=99),
+                     lambda s: s.update(default_sampler=False), lambda s: s.update(default_controls=False),
+                     lambda s: s.update(supported=False), lambda s: s.update(grounded=False),
+                     lambda s: s['service'].update(profile='full'),
+                     lambda s: s['service'].update(path='OperationalLattice/Activities/CentralTowServiceActivity'),
+                     lambda s: s['service']['movers'].pop(),
+                     lambda s: s['service']['movers'][0].update(id=999),
+                     lambda s: s['service']['movers'][1].update(drawn_mesh_ids=[999]),
+                     lambda s: s['walk_tuning'].update(sprint=20)]
+        for mutate in mutations:
+            with self.subTest(mutate=mutate):
+                pilot, s = self.life_walking_pilot('life-gantry')
+                mutate(s)
+                with self.assertRaises(AssertionError): self.gantry_tick(pilot, s)
+
+    def test_life_gantry_retains_all_samples_and_bounds_only_local_walk(self):
+        pilot, s = self.life_walking_pilot('life-gantry')
+        # The hub is deliberately farther than 12m; it is not the near interval.
+        self.gantry_tick(pilot, s)
+        with self.assertRaisesRegex(AssertionError, 'consecutive'):
+            self.gantry_tick(pilot, s, frames=2)
+        pilot, s = self.life_walking_pilot('life-gantry')
+        pilot.near_active = True
+        with self.assertRaisesRegex(AssertionError, 'within 12m'):
+            self.gantry_tick(pilot, s)
+        pilot, s = self.life_walking_pilot('life-gantry')
+        intermediate = copy.deepcopy(s)
+        intermediate['frame'] += 1
+        intermediate['service']['enabled'] = False
+        with self.assertRaises(AssertionError): pilot.validate_observation(intermediate)
+
+    def test_life_gantry_goal_and_board_deadlines_do_not_retry(self):
+        pilot, s = self.life_walking_pilot('life-gantry')
+        s['frame'] += 1
+        with self.assertRaisesRegex(AssertionError, '15-second'):
+            pilot.update(copy.deepcopy(s), pilot.goal_started + 15.001)
+        pilot, s = self.life_walking_pilot('life-gantry')
+        pilot.stage, pilot.board_started = 'board', 0
+        s['frame'] += 1
+        with self.assertRaisesRegex(AssertionError, '12-second'):
+            pilot.update(copy.deepcopy(s), 12.001)
+
+    def test_life_gantry_pilot_requires_actual_authenticated_boarding(self):
+        pilot, s = self.life_walking_pilot('life-gantry')
+        pilot.stage, pilot.board_started = 'board', s['frame']/60
+        pilot.receipts['board_press'] = pilot.receipt(copy.deepcopy(s))
+        s.update(phase='START_ENGINES', seated=True, seated_at_pilot=True, piloted=True,
+                 grounded=False, supported=False, capsule_enabled=False)
+        with self.assertRaisesRegex(AssertionError, 'authenticated BOARDING'):
+            self.gantry_tick(pilot, s)
+
+    def test_life_gantry_both_movers_and_clock_change_for_each_interval(self):
+        a = self.gantry_observation()['service']
+        for clock, changed in [(False, [0, 1]), (True, []), (True, [0]), (True, [1])]:
+            b = copy.deepcopy(a)
+            if clock: b['clock'] += 1
+            for index in changed: b['movers'][index]['pose'][0][0] += .1
+            with self.subTest(clock=clock, changed=changed), self.assertRaises(AssertionError):
+                native.LifeTowPilot.require_service_interval(a, b, 'gantry', all_movers=True)
 
     def habitat_observation(self):
         return {'mode': 'habitat-loop', 'actors_current': True, 'frame': 100, 'phase': 'INTRO',
