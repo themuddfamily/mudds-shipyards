@@ -88,7 +88,8 @@ class NativeSortieSafetyTests(unittest.TestCase):
         self.life_tick(pilot, s)
         self.assertEqual(pilot.stage, 'board')
         # Candidate can clear on the very frame that accepts Interact.
-        s.update(native_interact=True, candidate=False, transition_busy=True)
+        s.update(phase='BOARDING', native_interact=True, candidate=False,
+                 transition_busy=True, control_enabled=False)
         self.life_tick(pilot, s)
         s.update(phase='START_ENGINES', seated=True, seated_at_pilot=True, piloted=True,
                  grounded=False, supported=False, capsule_enabled=False, transition_busy=False)
@@ -103,6 +104,46 @@ class NativeSortieSafetyTests(unittest.TestCase):
         self.assertEqual([v['waypoint'] for v in pilot.visited],
                          [name for name, _point in pilot.OUTBOUND + pilot.RETURN])
         self.assertGreater(pilot.result['nearby_walked_m'], 10)
+
+    def test_life_tow_boarding_requires_prior_candidate_and_actual_board_edge(self):
+        def boarding_fixture():
+            pilot, s = self.life_walking_pilot()
+            self.life_tick(pilot, s)  # Observe release of the earlier Start Shift press.
+            s.update(candidate=True)
+            pilot.receipts['board_press'] = pilot.receipt(copy.deepcopy(s))
+            pilot.stage = 'board'
+            s.update(phase='BOARDING', native_interact=True, candidate=False,
+                     transition_busy=True, control_enabled=False)
+            return pilot, s
+
+        # The first observed pressed sample may already be normal BOARDING.
+        pilot, s = boarding_fixture()
+        self.life_tick(pilot, s)
+        self.assertEqual(pilot.native_edges[-1]['stage'], 'board')
+        self.assertEqual(pilot.phases[-1], 'BOARDING')
+        # A held press continues to authorize only this same busy transition.
+        self.life_tick(pilot, s)
+        self.assertEqual(pilot.stage, 'board')
+        mutations = [lambda p, s: setattr(p, 'stage', 'approach_ship'),
+                     lambda p, s: p.receipts.pop('board_press'),
+                     lambda p, s: p.receipts['board_press'].update(candidate=False),
+                     lambda p, s: p.receipts['board_press'].update(ship_id=999),
+                     lambda p, s: p.receipts['board_press'].update(player_id=999),
+                     lambda p, s: p.receipts['board_press'].update(frame=s['frame']+1),
+                     lambda p, s: s.update(native_interact=False),
+                     lambda p, s: s.update(transition_busy=False),
+                     lambda p, s: s.update(control_enabled=True)]
+        for mutate in mutations:
+            with self.subTest(mutate=mutate):
+                pilot, s = boarding_fixture()
+                mutate(pilot, s)
+                with self.assertRaisesRegex(AssertionError, 'BOARDING only follows'):
+                    self.life_tick(pilot, s)
+        pilot, s = boarding_fixture()
+        s['native_interact'] = False
+        pilot.native_edges.append({'pressed': True, 'stage': 'begin_shift', 'frame': s['frame']+1})
+        with self.assertRaisesRegex(AssertionError, 'BOARDING only follows'):
+            self.life_tick(pilot, s)
 
     def test_life_tow_rejects_frozen_clock_or_frozen_drawn_movers(self):
         for clock, movers, message in [(False, True, 'strictly increasing'),

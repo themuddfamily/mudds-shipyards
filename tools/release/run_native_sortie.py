@@ -1470,7 +1470,8 @@ class LifeTowPilot(Pilot):
 
     def receipt(self, s):
         return {k: s[k] for k in ('frame', 'player', 'grounded', 'supported',
-                'support_collider', 'seated', 'piloted', 'active_ship', 'seated_at_pilot', 'candidate', 'service')}
+                'support_collider', 'seated', 'piloted', 'active_ship', 'seated_at_pilot', 'candidate',
+                'player_id', 'ship_id', 'service')}
 
     def begin_walk(self, stage, route, s):
         self.route, self.index = list(route), 0
@@ -1555,8 +1556,6 @@ class LifeTowPilot(Pilot):
         require(s['walk_tuning'] == self.DEFAULT_WALK and s['physics_ticks'] == 60 and s['time_scale'] == 1
                 and s['default_controls'] and s['default_sampler'] and s['tuning_unchanged']
                 and s['ship_tuning'] == initial['ship_tuning'], 'default controls and unchanged authored tuning')
-        require(s['phase'] in ('INTRO', 'APPROACH_SHIP', 'START_ENGINES'), 'no Guided flight or recovery')
-        if not self.phases or self.phases[-1] != s['phase']: self.phases.append(s['phase'])
         frames = self.frame - self.observed_previous['frame'] if self.observed_previous else 1
         require(frames > 0, 'fresh LIFE-TOW physics observation')
         self.observe_service(s)
@@ -1564,6 +1563,20 @@ class LifeTowPilot(Pilot):
             self.native_edges.append({'frame': self.frame, 'pressed': bool(s['native_interact']),
                                       'stage': self.stage, 'candidate': s['candidate']})
         self.native_previous = bool(s['native_interact'])
+        # Production accepts the ordinary press by entering BOARDING on that
+        # same physics sample. Record the real edge before judging that phase.
+        if s['phase'] == 'BOARDING':
+            press = self.receipts.get('board_press', {})
+            require(self.stage == 'board' and press.get('candidate')
+                    and press.get('player_id') == s['player_id'] and press.get('ship_id') == s['ship_id']
+                    and press.get('frame', self.frame) < self.frame
+                    and any(e['pressed'] and e['stage'] == 'board'
+                            and press['frame'] < e['frame'] <= self.frame for e in self.native_edges)
+                    and s['transition_busy'] and not s['control_enabled'],
+                    'BOARDING only follows the original candidate receipt and actual board-stage OS press')
+        else:
+            require(s['phase'] in ('INTRO', 'APPROACH_SHIP', 'START_ENGINES'), 'no Guided flight or recovery')
+        if not self.phases or self.phases[-1] != s['phase']: self.phases.append(s['phase'])
         walking = self.stage in ('walk_outbound', 'walk_return', 'approach_ship')
         if walking or (self.stage == 'board' and not s['transition_busy'] and not s['seated']):
             self.require_walking(s)
