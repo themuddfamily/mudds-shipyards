@@ -24,7 +24,7 @@ mandatory gates, factually NOT_RUN. Other hardware/release gates remain open.
 **36 broad parents and all ten phase gates remain open.** The
 [concrete child inventory](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes)
 separates named outcomes from missing definitions; it is not a remaining-job
-count. **One Jovian boarding milestone is READY below.** The original
+count. **One Jovian passenger-seat repair is READY below.** The original
 server/two-client definition is complete with a precise missing caller. VIP
 qualification is FAILED/parked after its first attempt and one syntax repair.
 The caller is test capability; no new gameplay feature or parent closure is claimed.
@@ -33,10 +33,10 @@ The caller is test capability; no new gameplay feature or parent closure is clai
   actual active-craft/lifecycle observations and read-only source checks232/20 pass.
   Paired development checkpoint4270d71 is published. Native window-close smoke
   FAILED and stays open; no physical journey is qualified.
-- **Next:** extend the existing independent-peer harness for two ordinary
-  Jovian boarding clients: remote pilot and passenger, with no staged approaches.
-  Existing Halyard two-crew evidence is narrower than the original baseline;
-  do not rerun it unchanged or restart VIP/Ember diagnostics.
+- **Next:** wire the authored Jovian passenger chair through the existing
+  host body/seat/replica lifecycle. The two-client caller stopped before edits
+  because this physical passenger path is absent. Keep the full boarding
+  requirement gated; do not replace a seat with a standing cabin berth.
 - **Earlier delivered:** browser per-session generations and accurate defense
   briefing on9be5c83 retain their source/UI scopes.
 - **Parked:** Fire restart, Rime shared arrival, HULK revisit, Sandbox recovery
@@ -51,6 +51,45 @@ The caller is test capability; no new gameplay feature or parent closure is clai
 Report the named result, actual proof, next action and estimate. Source checks,
 planning or test totals do not establish whole-parent or hardware completion.
 
+## Next repair — Jovian physical passenger seat
+
+NET-JOVIAN-BOARD stopped at its first missing production seam without edits or
+engine runs. `GameFlow._network_physical_crew_seat_is_wired`, confirmation and
+replica selection admit Jovian engineer only. `NetworkJovianEngineerBinding`
+owns Jovian's roster but has no passenger provider; Halyard's passenger binding
+cannot attach as a second Jovian authority. The existing copilot passenger anchor
+and roster entry are authored. A standing cabin berth does not meet acceptance.
+
+| Task | Status / owner | Observable finish | Budget |
+| --- | --- | --- | --- |
+| NET-JOVIAN-PASSENGER | READY / root + implementer/reviewer | A remote boarded player uses Interact to sit in Jovian's existing passenger chair, sees the confirmed seated state, and stands through the same authority. | 60–90min implementation; focused check under existing300s cap, import/preflight separately. Stop at90min or first failure. |
+
+- **Ownership:** one implementer owns Jovian's existing passenger contract and
+  discovery (`jovian_light_freighter.gd`, `ship_crew_seat.gd`), existing network
+  engineer/passenger binding integration and GameFlow client confirmation/view.
+  One independent reviewer checks authority identity and teardown. No geometry,
+  craft tuning, global network protocol or extra seat authority is introduced.
+- **Acceptance:** reuse Jovian's one roster, actual physical host body/overlap,
+  existing peer/entity/seat generations and passenger replica transport. A
+  normal press claims the authored chair once; another press stands supported.
+  Stale/unadmitted/wrong-body claims cannot acquire it. Disconnect/teardown must
+  release it without disturbing engineer or existing Halyard/Cinder profiles.
+- **Proof:** extend the smallest relevant runtime test or add one focused
+  physical passenger regression. A staged hatch start may isolate this repair
+  but must be labelled component scope; it cannot pass NET-JOVIAN-BOARD, which
+  still requires two independent clients walking from ordinary spawn. Check
+  source compilation explicitly; cold import alone does not prove it.
+- **Execution/stop:** implement this supported gap now, review before the first
+  focused run; commit clean source before qualification. A failed check ends
+  this repair attempt and invokes priority review (the boarding task already
+  ended at its missing prerequisite). Do not repair successive failures in an
+  unbounded chain or lower physical/authority criteria.
+- **Close:** a working runtime change requires a fresh safe Windows checkpoint
+  with relevant checks, strict startup exit0 plus STARTUP_MENU_READY_OK, notes
+  disclosing actual scope and the unchanged external gates. Commit/push regularly,
+  remove owned clean checkout/profile and retain raw failures. Full baseline,
+  flight/landing/return and endurance stay open.
+
 ## Next milestone — two remote clients board Jovian
 
 NET-BASELINE-DEFINE is complete as a source-only definition on `b96580bde`.
@@ -64,7 +103,7 @@ retain those limits. No engine ran for this definition.
 
 | Task | Status / owner | Observable finish | Budget |
 | --- | --- | --- | --- |
-| NET-JOVIAN-BOARD | READY / root | Two independent remote clients walk to the same Jovian and obtain distinct pilot/passenger occupancy through ordinary controls. | 60–90min implementation; one existing300s-cap focused run separately, plus up to15min import/preflight. Stop at90min or first concrete failure. |
+| NET-JOVIAN-BOARD | GATED on passenger-seat repair / root | Two independent remote clients walk to the same Jovian and obtain distinct pilot/passenger occupancy through ordinary controls. | 60–90min implementation; one existing300s-cap focused run separately, plus up to15min import/preflight. Stop at90min or first concrete failure. |
 
 - **Parent/result:** original Phase7 server/two-client first slice, parents16/24/26.
   This first milestone ends at supported distinct seats. Flight, landing and both

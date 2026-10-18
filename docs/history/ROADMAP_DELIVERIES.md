@@ -3578,3 +3578,21 @@ is in ROADMAP.md.
   schedule a long test. Preserve existing600-step/2s, endurance and capacity
   requirements where applicable; the baseline does not depend on the already-
   asked larger-capacity choice. Commit/push the definition before execution.
+
+## Jovian two-client caller — stopped at missing physical passenger binding
+
+2026-10-18, source74509a3d0: bounded implementation source inspection found
+that Jovian's existing copilot passenger anchor/roster is not wired through
+GameFlow's remote physical crew-seat admission, assignment confirmation or
+replica selection. NetworkJovianEngineerBinding owns Jovian's roster but only
+claims its engineer seat. Halyard/Cinder passenger binding installs its own
+roster and cannot simply become a second Jovian authority. No code edits or
+engines occurred before stopping at this prerequisite. A supported standing
+cabin berth was explicitly rejected as a substitute for distinct physical seats.
+
+Select one production repair, NET-JOVIAN-PASSENGER, before resuming the unchanged
+two-client caller. It must reuse the authored chair and single roster plus the
+existing host overlap/peer/replica lifecycle. Focused component proof will not
+close the original normal-spawn/two-independent-client milestone. An additional
+failed repair check triggers priority review; the new name does not reset the
+original stop boundary. No parent/phase gate closes.
