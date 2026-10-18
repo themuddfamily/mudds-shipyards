@@ -217,6 +217,26 @@ Cold import20.807s, compile16.457s and full selected33.402s pass at original cap
 Rendered/human/device and other aspect groups remain separate; latest playable
 checkpoint staysa43ae4b. No successor is selected by this closure.
 
+### Selected — remaining pause/options aspect groups
+
+- **Outcomes/parents:** ACCESS-PAUSE-16X9 at1920x1080, ACCESS-PAUSE-21X9 at3440x1440
+  and ACCESS-PAUSE-32X9 at5120x1440, parents12/29. Each is a separate qualification
+  of the same32 production states at requested0.75/1/1.6; original criteria stay.
+- **Owner/files:** root extends only tests/ultrawide_layout_test.gd with the three
+  selectors in the existing finite fixture. Shared fixture edits stay with one
+  owner. One independent source reader resolves TORPEDO-AUTH-DEFINE in parallel;
+  no overlap/runtime implementation implied by that review.
+- **Proof/budget:**10–20min selector work; cold import600s, compile300s once, then
+  one full run per aspect at original300s each, in listed order/headless/Dummy,
+  private profiles. Each requires exit0/exactly one success marker/no diagnostics,
+  all96 observations in the existing state order, bounds/font/focus/scroll criteria
+  and unchanged source/index/cache/process closure. Existing4:3/16:10 acceptance
+  is retained on recorded sources, not rerun. First new defect stops sequence;
+  no automatic repair or subsequent aspect run after failure.
+- **Delivery:** record each named actual result, commit/push and owned cleanup.
+  No runtime change is currently proposed; latest playablea43ae4b remains. Human,
+  rendered/device/persistence/final-candidate acceptance remains separate.
+
 ## Parked failures and dependent work
 
 These are unfinished outcomes, not candidates for an unchanged retry. Exact
