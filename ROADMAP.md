@@ -136,6 +136,21 @@ open. [Result and retained card](docs/history/ROADMAP_DELIVERIES.md#gamepad-came
 No successor is selected by this closure; remaining definitions and original
 qualification routes retain their named boundaries.
 
+### Selected craft definitions — Arrow and Jovian
+
+CRAFT-GAPS-ARROW and CRAFT-GAPS-JOVIAN (parents10/11) are selected as independent
+source-only definitions,30min total. One medium-effort read-only agent owns Arrow;
+root owns Jovian and integration into the existing backlog/completion roster.
+Read the actual authored ship/definition, shared role/weapon/damage contracts and
+relevant existing test callers. Finish with a finite component/role/content map,
+actual coverage and concrete missing behavior or exact missing definition. Do not
+invent reconstruction facts, new mechanics, additional roles or hardware passes.
+No engine/capture/test rerun, runtime edit, new tracker/validator, parked route
+retry or automatic full-craft qualification. Stop once owners, implementation
+seams and acceptance distinctions are known; any real repair needs its separately
+frozen card. Existing solo/crew/return and component passes remain accepted in
+scope. Commit/push the definitions and retain original full-craft gates.
+
 ## Parked failures and dependent work
 
 These are unfinished outcomes, not candidates for an unchanged retry. Exact
