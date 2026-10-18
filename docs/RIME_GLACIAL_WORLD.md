@@ -113,7 +113,16 @@ clipmap (about 40k triangles) plus authored props, most of the scatter in four
 MultiMeshes. It has two shadowless lights. `get_streamed_cost()` reports the
 exact numbers and `audit()` enforces the budgets.
 
-## Tests (not yet run)
+<a id="tests-not-yet-run"></a>
+
+## Test inventory and qualification boundaries
+
+The list below originated as planned coverage. It does not describe current
+run status or establish a pass. Source-specific accepted and failed results,
+including the parked arrival/landing/pad-control cases, remain in the
+[roadmap backlog](ROADMAP_BACKLOG.md) and [delivery history](history/ROADMAP_DELIVERIES.md).
+The 2026-10-18 content comparison reads these sources only and renews no test,
+journey, package, rendering or hardware qualification.
 
 - `tests/rime_glacial_authored_scene_test.gd`: resources, terrain, atmosphere
   identity, landmarks, grounding, heat shelter, cost budgets, root-translation

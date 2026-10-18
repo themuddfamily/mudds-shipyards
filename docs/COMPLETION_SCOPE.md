@@ -235,6 +235,15 @@ loop is inferred. See the [source boundary](ROADMAP_BACKLOG.md#aurora-authored-c
 The old jump-only narrative is now explicitly superseded. Existing ordinary/shared,
 package, presentation and hardware acceptance remains unchanged; no tests rerun.
 
+Rime authored-content comparison on `30968aeda` identified no missing
+implementation within the inspected Phase 10.4 promise: authored icefall
+landmarks/trails, heater-based survey failure/restart, existing once-only reward
+and interrupted/retry recovery are composed in production. See the
+[source boundary](ROADMAP_BACKLOG.md#rime-authored-content-boundary).
+All three world content definitions are now resolved in that limited source
+scope; ordinary/shared/repeat/package/presentation/hardware acceptance remains
+open. No engine or parked Rime probe was run, and no new content is inferred.
+
 For repeatable activities, accept ten same-world runs without resource growth or stranded objectives; for the one-shot hulk, accept repeated visits without a second reward. Test accepted starts followed by rejected writes, fresh process load and OS interruption. None of this permits persistence to recreate combat actors or infer legacy reward entitlement.
 
 ## Roles, supported session limits and desktop targets

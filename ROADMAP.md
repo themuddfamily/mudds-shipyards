@@ -33,33 +33,37 @@ Only the selected card below is executable. A missing definition, failed route
 or full-craft qualification is not an implementation assignment. Do not create
 a successor chain just because a nearby check can be added.
 
-CONTENT-RIME is selected as an independent bounded definition under parent 15.
+WEAPONS-DEFINE is selected as a bounded definition under parent 11.
 NET-OPERATION-HUD is accepted in the current checkpoint; its full contract and
 actual checks are in [delivery history](docs/history/ROADMAP_DELIVERIES.md#remote-operation-hud--acceptedda1ae60).
-Ember and Aurora definitions found no missing implementation within their
-inspected authored-content scopes. The [Titan proposal](docs/design/TITAN_IMPLEMENTATION_PROPOSAL.md) remains
+Ember, Aurora and Rime definitions found no missing implementation within their
+inspected authored-content scopes; full-world acceptance remains open. The [Titan proposal](docs/design/TITAN_IMPLEMENTATION_PROPOSAL.md) remains
 unapproved; parked failures remain outside the queue.
 
 | Task / parent | Kind / state | Observable finish | Next action |
 | --- | --- | --- | --- |
-| CONTENT-RIME /15 | Definition; SELECTED, not started | Finite actual content gaps or exact missing fact | One source comparison capped at 15 minutes; no engine/probe or automatic successor. |
+| WEAPONS-DEFINE /11 | Definition; SELECTED, not started | Finite actual craft/role weapon roster and uncovered original cases | One source inventory capped at 20 minutes; no engine/probe or automatic successor. |
 
-### CONTENT-RIME — resolve one world's remaining authored content
+### WEAPONS-DEFINE — finite actual craft and role weapon bindings
 
-- **Result:** compare original Phase 10.4 authored-content promises against Rime's
-  actual production composition. End with finite missing capabilities and exact
-  owners/checks, or none identified within the inspected scope.
-- **Owner/files:** root; COMPLETION_SCOPE.md and retained Phase 10.4 versus
-  assets/world/planets/rime_glacial_world.tres,
-  scenes/world/planets/rime_glacial_world.tscn, referenced authored runtime and
-  tests/rime_glacial_authored_scene_test.gd. Follow only owners needed for a named
-  criterion; no broad weather/terrain/performance audit.
-- **Proof/stop:** source comparison capped at 15 minutes; map silhouette, landing
-  area, landmarks/routes, survey/reward, recovery and reason to return. Separate
-  absent implementation from ordinary/shared/repeat/visual/hardware acceptance.
-  Write findings into existing CONTENT-RIME/backlog; no new tracker or validator.
-  No engines, captures, parked arrival/landing/pad-controls probe or automatic
-  implementation/qualification successor. Definition does not accept a world.
+- **Result/parent:** definition, 11. Replace the broad weapon roster unknown with
+  actual implemented craft→role→weapon bindings, relevant production owners and
+  finite uncovered acceptance cases. Retain all 17 eventual craft; eight missing
+  originals stay UNKNOWN, not implicitly unarmed or delivered.
+- **Owner/files:** root; original Phase 2/5/6 combat promises and COMPLETION_SCOPE.md
+  versus nine definitions in assets/ships/, their assets/weapons/ resources,
+  scripts/ships/hero_ship.gd, actual subclass/crew firing owners and
+  scripts/combat/combat_resolver.gd. Read existing focused weapon/payload tests
+  only where needed to distinguish an actual runtime binding from detached data.
+- **Acceptance:** each existing binding names the craft, actual role, weapon,
+  production fire path and supported target/refusal/heat-or-ammunition behavior.
+  Identify uncovered original cases and actual absent capabilities separately.
+  Preserve Bomber crew-role decision and all original encounter acceptance; no
+  invented craft×encounter Cartesian matrix, extra weapon or new role.
+- **Budget/stop:** source inventory capped at 20 minutes; no engine, benchmark,
+  capture, parked Torpedo/Emberline/handback route or automatic successor. End at
+  finite rows or an exact missing definition. Update existing WEAPONS-DEFINE/
+  backlog, no new tracking file or validator; no gameplay or test-pass claim.
 
 ## Parked failures and dependent work
 

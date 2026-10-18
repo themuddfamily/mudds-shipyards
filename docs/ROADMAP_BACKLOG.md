@@ -53,7 +53,7 @@ These are **36 parent outcomes**, not 36 executable jobs. They remain open until
 | 12 | Complete the whole-game art-direction pass | ART-FINDING, STATION-ART, CRAFT-ART, CAPTURE | ART-FINDINGS, ACCESS-* and13 named capture sets; each actual repair needs its own view/behavior proof. |
 | 13 | Close the complete nearby-activity roster | ACT-HUD/WRITE/PLAY/REPEAT, TRAVEL-LIMIT, HULK | Twelve PLAY-* and four HUD-* rows named; ACT-WRITES/REPEAT-DEFINE and TRAVEL-LIMIT still needed. HULK revisit PARKED. |
 | 14 | Qualify each implemented world's full physical round trip | WORLD-SOLO/ABANDON/SAVE/EDGE | Three SOLO-* returns named; Ember source abandonment DONE. WORLD-ABANDON/SAVE/EDGE-DEFINE resolve uncovered cases. |
-| 15 | Resolve remaining planetary content and presentation gaps | WORLD-CONTENT, ART-FINDING | CONTENT-EMBER/AURORA/RIME each ends with finite actual content findings or none found; no assumed new planets/features. |
+| 15 | Resolve remaining planetary content and presentation gaps | WORLD-CONTENT, ART-FINDING | CONTENT-EMBER/AURORA/RIME definitions DONE in inspected authored-content scopes with no missing implementation identified. Presentation and original journey acceptance remain open; no assumed new planets/features. |
 | 16 | Close remaining fleet/crew replication gaps | NET-CREW, NET-CAPACITY | Jovian boarding/departure DONE in recorded scopes. Eight named role routes, NET-SEATS-FINAL and bomber role contract remain separate. |
 | 17 | Complete remote engine and landing/dock presentation | NET-POSE, NET-BUDGET | NET-POSE-DEFINE resolves craft/operation views; NET-FULL-SNAPSHOT is one aggregate original-budget check. |
 | 18 | Complete supported remote helm actions and their real local-input prerequisite | NET-HELM, INPUT-DEVICE | HELM-EDGE-REPRO/REPAIR DONE on recorded source; HELM-ACTIONS-DEFINE now names six uncovered held-action cases; devices remain separate. Physical-device proof stays separate. |
@@ -161,7 +161,7 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | CRAFT-GAPS-CINDER-LIGHT | Cinder Light Interceptor remaining authored components/roles | 10,11 | DEFINE; finite actual gaps only, preserve existing content |
 | CRAFT-GAPS-CINDER-HAULER | Cinder Cargo Hauler remaining authored components/roles | 10,11 | DEFINE; finite actual gaps only, preserve existing content |
 | CRAFT-GAPS-CINDER-BOMBER | Cinder Long-Range Bomber remaining authored components/roles | 10,11 | DEFINE; finite actual gaps only, preserve existing content |
-| WEAPONS-DEFINE | Actual craft/role to weapon acceptance roster | 11 | DEFINE; finite bindings and uncovered cases, no Cartesian invention |
+| WEAPONS-DEFINE | Actual craft/role to weapon acceptance roster | 11 | SELECTED bounded definition in ROADMAP.md; nine implemented craft/actual roles, eight missing originals retained UNKNOWN; no Cartesian invention or engine run |
 | DAMAGE-DEFINE | Uncovered craft/role component-damage/recovery cells | 11,21 | DEFINE; share solo/network ownership, existing checks first |
 | ART-FINDINGS | Finite actual UI/animation/effect/lighting/terrain/weather defects | 12,15 | DEFINE; named before/after view and affected route |
 | CRAFT-ACCEPT-TORRENT | Torrent full solo craft loop | 7,10,11 | GATED; craft capabilities and exact full-route command |
@@ -246,7 +246,7 @@ First-play proof: ordinary outbound/start/activity, once-only durable reward and
 | SOLO-AURORA | Aurora canonical physical survey round trip | 14 | GATED; freeze uncovered candidate/scenario, prior source passes retained |
 | CONTENT-AURORA | Aurora finite remaining authored content/presentation findings | 15 | Definition DONE on 9d2d467e0: no missing implementation identified within inspected authored-content scope; see boundary below. Qualitative adequacy and existing journey/visual/hardware acceptance unproven |
 | SOLO-RIME | Rime canonical physical survey round trip | 14 | GATED; freeze uncovered candidate/scenario, prior source passes retained |
-| CONTENT-RIME | Rime finite remaining authored content/presentation findings | 15 | SELECTED definition in ROADMAP.md; source comparison capped at 15 minutes, not started; no engine/probe |
+| CONTENT-RIME | Rime finite remaining authored content/presentation findings | 15 | Definition DONE on 30968aeda: no missing implementation identified within inspected authored-content scope; see boundary below. Existing ordinary/shared/visual/hardware acceptance remains open |
 
 ### Ember authored-content boundary
 
@@ -313,6 +313,41 @@ remain in their existing outcomes. No new mandatory human gate or owner approval
 is introduced. The original Aurora arrival bundle remains WAITING; its parked
 failure and limits are unchanged. The authored-scene document now explicitly marks
 its early jump-only account as superseded by physical travel.
+
+### Rime authored-content boundary
+
+CONTENT-RIME source comparison, 2026-10-18, on `30968aeda`: **no missing
+implementation identified within the inspected Phase 10.4 authored-content
+promise**. This closes the finite definition only. No engine, capture, landing
+probe or test rerun occurred; no previous result is renewed.
+
+| Original criterion | Production owner inspected |
+| --- | --- |
+| Recognisable orbital silhouette | `shipyard_world.gd` assigns Rime's material to destination-tagged `CelestialGreyBody`; `rime_orbital_silhouette.gdshader` supplies ice bands/fractures/caps/cloud streaks/limb. Streamed scene has `BodyVisual`. Actual recognisability remains unqualified. |
+| Substantial landing region | `rime_icefall_landing.tres` supplies small/medium craft pad, corridor and five egress/surface anchors. Scene has a shelf visual and 96×96 m central collision patch; authored runtime builds surrounding relief collision with 750 m flattened surroundings. Source presence does not decide qualitative adequacy. |
+| Multiple navigable landmarks | `rime_glacial_authored_scene.gd` builds survey beacon/sign, drill/core crate/heated hut, seracs/viewpoint and pressure-ridge gauge, with authored collision where appropriate. |
+| Surface routes | Same owner builds the 2.4 m orange survey route through those landmarks and a cyan return path. GlacierExploration is under the real LandingRegion Node3D, so placements follow region rebases. |
+| Activities/rewards via existing authority | `rime_expedition.gd` binds `rime_ice_core_survey.gd` to the shared visit. Actual scene anchors supply two ActivityDirector checkpoints; beacon/drill/gauge interactions use existing reward adapter and GameFlow reward authority/UserDataStore. Payment is once-only. |
+| Recoverable failures | Survey heater drains outside craft/hut warmth; cold failure and beacon restart preserve player/craft/lease/return. Completed readings survive rejected reward-save retry; existing persistence captures/restores interrupted survey/visit state. |
+| Reason to return | Failed/unfinished survey, unique discovery and unpaid retry provide continuation across visits. Paid discovery suppresses further reward runs; no renewable reward loop is required or invented. Post-completion return incentives remain qualitative, not an absent capability proved here. |
+| Bounded authored content | One shelf with fixed landmarks/trails, deterministic scatter, pad/route clearance and existing node/light/triangle budgets. No station-service replacement or new settlement economy is implied. |
+
+Names resolve under `scripts/world/`, `scripts/rendering/`, `scripts/game/`,
+`scripts/activities/`, `assets/world/planets/` and `scenes/world/planets/`.
+Main composes Rime's streaming pair; its bootstrap preloads the actual scene,
+GameFlow registers the destination, and its expedition profile attaches the survey
+through the shared visit owner. The static scene and detached content metadata
+are incomplete inventories of runtime-built content. Metadata disclaiming route
+or traversal authority does not mean physical walking is absent.
+
+Existing authored-scene test source covers composition, landmarks/routes, terrain
+support, warmth, placement and budgets; it does not establish a full journey or
+reward lifecycle. Ordinary/shared journeys, repeated/interrupted visits, fresh
+reward-save recovery, readability, weather/terrain presentation and applicable
+native hardware acceptance remain in their existing outcomes. No new mandatory
+human gate is introduced. Parked Rime arrival/landing/pad-control failures and
+original limits remain unchanged. The world document now separates its initial
+test inventory from current source-specific results in backlog/history.
 
 ### Multiplayer children
 

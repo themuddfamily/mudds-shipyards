@@ -7518,3 +7518,35 @@ parent 15/all phase gates stay open. Frozen contract follows.
   Write findings into existing CONTENT-AURORA row/backlog, no new tracker.
   No engines, captures, parked original-arrival bundle reconstruction or automatic
   implementation/qualification successor. Source comparison cannot accept a world.
+
+## Rime authored-content definition — no missing implementation identified
+
+Bounded comparison on `30968aeda` (2026-10-18) completes CONTENT-RIME's
+finite definition. Production composes silhouette, landing shelf/terrain,
+beacon/drill/hut/seracs/ridge landmarks, survey and return trails, existing
+activity/reward authority, heater failure/restart and interrupted/retry recovery.
+No missing implementation was identified within the inspected authored-content
+promise. The exact criterion/owner map remains in the existing backlog.
+All three world definitions now have finite source conclusions; this is not
+whole-world or parent 15 completion. Qualitative adequacy, ordinary/shared/
+repeat/package/visual/hardware acceptance remains unproven. Parked arrival/
+landing/pad-control failures and limits remain unchanged. No engine, test rerun,
+new validator, runtime edit or build. Rime's old test heading now distinguishes
+initial coverage inventory from actual results in backlog/history. Frozen card:
+
+### CONTENT-RIME — resolve one world's remaining authored content
+
+- **Result:** compare original Phase 10.4 authored-content promises against Rime's
+  actual production composition. End with finite missing capabilities and exact
+  owners/checks, or none identified within the inspected scope.
+- **Owner/files:** root; COMPLETION_SCOPE.md and retained Phase 10.4 versus
+  assets/world/planets/rime_glacial_world.tres,
+  scenes/world/planets/rime_glacial_world.tscn, referenced authored runtime and
+  tests/rime_glacial_authored_scene_test.gd. Follow only owners needed for a named
+  criterion; no broad weather/terrain/performance audit.
+- **Proof/stop:** source comparison capped at 15 minutes; map silhouette, landing
+  area, landmarks/routes, survey/reward, recovery and reason to return. Separate
+  absent implementation from ordinary/shared/repeat/visual/hardware acceptance.
+  Write findings into existing CONTENT-RIME/backlog; no new tracker or validator.
+  No engines, captures, parked arrival/landing/pad-controls probe or automatic
+  implementation/qualification successor. Definition does not accept a world.
