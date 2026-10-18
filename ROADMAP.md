@@ -28,7 +28,7 @@ explicit owner decision.
 
 ## Execution now
 
-NET-THROTTLE-INSTRUMENTS is accepted and packaged; no task currently running.
+NET-HULL-INSTRUMENTS is selected. The throttle repair remains accepted in8f17b02.
 SPEC-TITAN proposal awaits the owner interpretation choice; implementation remains gated.
 WALK-SALVAGE-ACCESS is parked after its original attempt and one caller repair. Reverse qualification and the bounded Torrent
 definition are closed below. Completed and parked work does not occupy the
@@ -36,6 +36,7 @@ executable queue. Root owns review, integration, checks and closure.
 
 | Task / parents | State | Observable finish | Next action |
 | --- | --- | --- | --- |
+| NET-HULL-INSTRUMENTS / 21 | IN PROGRESS implementation | Remote physical hull gauge matches authoritative health through damage/destruction/revival and restores current solo health on clear. | Test-only reproduction first, bounded display repair, real-peer checks and paired checkpoint. |
 | NET-THROTTLE-INSTRUMENTS / 17 | DONE; checkpoint8f17b02 | Remote physical Jovian gauge shows signed host throttle, shutdown neutral and current solo restore. | Pose91, real-peer fixture203, paired exports/three strict startups/actual1515-entry audit pass; broader parent17 OPEN. |
 | SPEC-TITAN / 10,36 | Proposal DONE; WAITING interpretation decision | Concrete one-pilot/two-passenger/four-unit modern candidate and bounded build tasks. | Owner decision on linked proposal before runtime implementation; historical model gate stays open. |
 | WALK-SALVAGE-ACCESS / 7,9 | FAILED/PARKED | Same supported Player must walk hub→inspection row→hub without staging. | Both attempts fail at outbound20; no further diagnosis/fix/run selected. |
@@ -46,6 +47,35 @@ Completed reverse/Torrent definitions and the full failed Salvage contracts now
 live in [retained task closures](docs/history/ROADMAP_DELIVERIES.md#task-closures-after-remote-throttle-checkpoint--2026-10-18).
 Repair8f17b02 is a named player-visible delivery, not whole-project completion.
 Titan decision remains pending; no further parked-route work is selected.
+
+### NET-HULL-INSTRUMENTS — physical remote hull gauge
+
+- **Player result/parents:**21; remote physical cockpit HullReadout reflects
+  current authoritative hull health, not the replica's retained solo value.
+  Existing damage rig/transport already receives health and maximum health;
+  common instrument consumer still uses local `_hull / maximum_hull`.
+- **Owner/boundary:** one high-effort implementation agent owns HeroShip and
+  existing remote-pose/station-frame tests; root plus independent high-risk review.
+  Display-only normalized authoritative health, immediate clear/retirement restore
+  from current local health, destruction0/new-life revival. Preserve local health,
+  component/physics/command authority and throttle prediction. No wire/schema,
+  unrelated speed/HUD/engine/other gauge or parked-route changes.
+- **Proof/next:** old-runtime test-only physical Jovian regression with exact new
+  expected failures first; then reviewed clean runtime candidate, compile once
+  and full existing remote-pose and independent Main station-frame tests. Actual
+  current/late HullReadout after local presentation, damage/destruction/new-life
+  and clear restoration; local authority and original snapshot budgets retained.
+  Headless/Dummy; original300s tests/per-wait60s. Exit0/one exact existing marker/
+  fullraw diagnostics0; no native/ordinary full-voyage claim from these fixtures.
+- **Budget/stop:**30–60min implementation/review, split before90; checks separate.
+  First unexpected failure stops for exact owner and at most one bounded static
+  diagnosis before separate repair. Original plus one repair requires cumulative
+  priority review; no automatic retry or acceptance relaxation.
+- **Package/close:** fresh clean paired Windows/Linux exports, direct/archive/
+  actual Windows-payload strict startup exit0/one STARTUP_MENU_READY_OK/diagnostics0,
+  existing actual package/archive audit. Publish in repository builds/ with honest
+  notes; commit/push, retain unique raw/source refs and clean owned scratch. Current
+  playable8f17b02 remains until acceptance. Titan decision is still pending.
 
 ### SPEC-TITAN — concrete interpretation proposal before building
 
