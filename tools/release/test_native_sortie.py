@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Focused native-driver safety regressions; no Godot or display is launched."""
+import copy
 import importlib.util
 import json
 import math
@@ -17,6 +18,145 @@ spec.loader.exec_module(native)
 
 
 class NativeSortieSafetyTests(unittest.TestCase):
+    def habitat_observation(self):
+        return {'mode': 'habitat-loop', 'actors_current': True, 'frame': 100, 'phase': 'INTRO',
+                'main_id': 1, 'world_id': 2, 'player_id': 3, 'capsule_id': 4, 'shape_id': 5,
+                'player': [-8.5, .18, 11], 'position': [-8.5, .18, 11], 'spawn': [-8.5, .18, 11],
+                'menu_ready': False, 'walk_forward': [1, 0, 0], 'walk_right': [0, 0, 1],
+                'velocity': [0, 0, 0], 'walk_tuning': {'walk': 5.8, 'sprint': 9.2,
+                    'deceleration': 42, 'mouse': .0025}, 'physics_ticks': 60, 'time_scale': 1,
+                'control_enabled': True, 'seated': False, 'station_seated': False,
+                'game_station_seated': False, 'sleeping': False, 'transition_busy': False,
+                'mouse_captured': True, 'capsule_enabled': True, 'native_interact': False,
+                'grounded': True, 'supported': True, 'support_collider': '/Main/World/Deck',
+                'door': {'id': 6, 'position': [49.72, 0, 15.5], 'state': 0,
+                         'open': False, 'candidate': False},
+                'bunk': {'id': 7, 'position': [54.1, 1.14, 18.15], 'wake': [54.1, .04, 17.5],
+                         'candidate': False, 'occupant_id': 0, 'reserved': False,
+                         'available': True, 'active': False, 'active_seat_id': 0,
+                         'seated_at_bunk': False, 'transitioning': False}, 'common_occupied': False}
+
+    def habitat_pilot(self, stage):
+        pilot = native.HabitatLoopPilot()
+        s = self.habitat_observation()
+        pilot.update(copy.deepcopy(s), 0)
+        s.update(frame=110, phase='APPROACH_SHIP')
+        pilot.stage = stage
+        pilot.previous = dict(s, frame=109)
+        return pilot, s
+
+    def habitat_sleep_state(self, s):
+        s.update(sleeping=True, seated=True, station_seated=True, game_station_seated=True,
+                 grounded=False, supported=False, support_collider='')
+        s['door'].update(open=True, state=2)
+        s['bunk'].update(reserved=True, occupant_id=s['player_id'], active=True,
+                         active_seat_id=s['bunk']['id'], seated_at_bunk=True, available=False)
+
+    def test_habitat_requires_fresh_start_and_current_same_actor(self):
+        for change in ({'actors_current': False}, {'phase': 'APPROACH_SHIP'},
+                       {'player': [54.1, .04, 17.5]}):
+            with self.subTest(change=change):
+                s = self.habitat_observation()
+                s.update(change)
+                with self.assertRaises(AssertionError): native.HabitatLoopPilot().update(s, 0)
+        pilot, s = self.habitat_pilot('begin_shift')
+        s['player_id'] += 1
+        with self.assertRaisesRegex(AssertionError, 'same current Main'):
+            pilot.update(copy.deepcopy(s), 1)
+
+    def test_habitat_rejects_pose_only_or_unsupported_common_arrival(self):
+        for field in ('supported', 'grounded', 'common_occupied'):
+            with self.subTest(field=field):
+                pilot, s = self.habitat_pilot('walk_common')
+                pilot.route = [('common_occupied', [67.8, 0, 15.5])]
+                s.update(player=[67.8, 0, 15.5], position=[67.8, 0, 15.5], common_occupied=True)
+                s['door'].update(open=True, state=2)
+                pilot.previous = dict(s, frame=109)
+                s[field] = False
+                with self.assertRaises(AssertionError): pilot.update(copy.deepcopy(s), 1)
+                self.assertIsNone(pilot.result)
+
+    def test_habitat_walking_rejects_teleport(self):
+        pilot, s = self.habitat_pilot('walk_outbound')
+        pilot.route = list(pilot.OUTBOUND)
+        s['player'] = [48, 0, 15.5]
+        with self.assertRaisesRegex(AssertionError, 'without placement'):
+            pilot.update(copy.deepcopy(s), 1)
+
+    def test_habitat_door_press_requires_exact_current_candidate(self):
+        pilot, s = self.habitat_pilot('door_aim')
+        s.update(player=[48, 0, 15.5], position=[48, 0, 15.5])
+        pilot.previous = dict(s, frame=109)
+        keys, *_ = pilot.update(copy.deepcopy(s), 1)
+        self.assertNotIn('e', keys)
+        s.update(frame=111)
+        s['door']['candidate'] = True
+        keys, *_ = pilot.update(copy.deepcopy(s), 1.1)
+        self.assertIn('e', keys)
+        self.assertEqual(pilot.stage, 'door_wait')
+        s.update(frame=120, native_interact=True)
+        keys, *_ = pilot.update(copy.deepcopy(s), 1.3)
+        self.assertNotIn('e', keys)
+        self.assertEqual(pilot.stage, 'door_wait')
+        self.assertIsNone(pilot.result)
+
+    def test_habitat_sleep_requires_real_exact_reservation_and_anchor(self):
+        for field, value in (('reserved', False), ('occupant_id', 99),
+                             ('active', False), ('seated_at_bunk', False), ('transitioning', True)):
+            with self.subTest(field=field):
+                pilot, s = self.habitat_pilot('sleep_wait')
+                self.habitat_sleep_state(s)
+                s['bunk'][field] = value
+                with self.assertRaisesRegex(AssertionError, 'actual sleep on exact'):
+                    pilot.update(copy.deepcopy(s), 1)
+
+    def test_habitat_wake_waits_for_observed_release_then_distinct_press(self):
+        pilot, s = self.habitat_pilot('sleep_release')
+        self.habitat_sleep_state(s)
+        s['native_interact'] = True
+        keys, *_ = pilot.update(copy.deepcopy(s), 1)
+        self.assertNotIn('e', keys)
+        self.assertIsNone(pilot.sleep_release_frame)
+        s.update(frame=111, native_interact=False)
+        keys, *_ = pilot.update(copy.deepcopy(s), 1.1)
+        self.assertNotIn('e', keys)
+        self.assertEqual(pilot.sleep_release_frame, 111)
+        s.update(frame=116)
+        keys, *_ = pilot.update(copy.deepcopy(s), 1.2)
+        self.assertNotIn('e', keys)
+        s.update(frame=117)
+        keys, *_ = pilot.update(copy.deepcopy(s), 1.3)
+        self.assertIn('e', keys)
+        self.assertEqual(pilot.stage, 'wake_wait')
+        self.assertIsNone(pilot.result)
+
+    def test_habitat_start_and_wake_wait_for_natural_floor_contact(self):
+        for stage in ('begin_shift', 'wake_wait'):
+            with self.subTest(stage=stage):
+                pilot, s = self.habitat_pilot(stage)
+                if stage == 'wake_wait':
+                    s['door'].update(open=True, state=2)
+                    s['player'] = s['bunk']['wake']
+                    pilot.sleep_release_frame = 95
+                    pilot.native_edges = [{'pressed': True, 'stage': 'wake_wait'}]
+                s.update(grounded=False, supported=False)
+                keys, *_ = pilot.update(copy.deepcopy(s), 1)
+                self.assertEqual(pilot.stage, stage)
+                self.assertNotIn('w', keys)
+                s.update(frame=111, grounded=True, supported=True)
+                pilot.update(copy.deepcopy(s), 1.1)
+                self.assertEqual(pilot.stage, 'walk_outbound' if stage == 'begin_shift' else 'walk_common')
+
+    def test_habitat_wake_rejects_retained_claim_or_missing_repress(self):
+        for retained in (False, True):
+            with self.subTest(retained=retained):
+                pilot, s = self.habitat_pilot('wake_wait')
+                s['door'].update(open=True, state=2)
+                s['player'] = s['bunk']['wake']
+                if retained: s['bunk'].update(reserved=True, occupant_id=s['player_id'])
+                with self.assertRaises(AssertionError): pilot.update(copy.deepcopy(s), 1)
+                self.assertIsNone(pilot.result)
+
     def walk_observation(self):
         return {'frame': 100, 'phase': 'APPROACH_SHIP', 'player_id': 1,
                 'position': [0, 1.15, -10], 'player': [0, 0, 15.5],
