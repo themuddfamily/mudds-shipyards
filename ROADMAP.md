@@ -35,21 +35,34 @@ feature. Do not invent a project percentage from rows, tests or commits.
 LIFE-PATROL is accepted on `ea8fe43`. All four station service runtime cards
 have passed on their recorded sources. The source is merged, a fresh checkpoint
 is published and owned scratch is cleaned. The remote-power source definition is
-complete; its bounded implementation card below is IN PROGRESS. Source work
-started from `d08d4f355` in an isolated owned worktree; no checks have run yet.
+complete. Its candidate `9a3e16604` passes the full pose regression but fails
+Main/ENet’s existing nine-craft live-delta ceiling. The attempt is STOPPED after
+one fixture repair; source is pushed, unmerged and no checkpoint is published.
 
 | Remaining work | Readiness | Next bounded action / estimate |
 | --- | --- | --- |
-| NET-COMPONENT-POWERS | IN PROGRESS; source definition complete | Show the observed craft’s actual host engine/weapon/targeting percentages. Exact implementation and acceptance below; 45–75 min implementation, 10–20 min focused checks, 15–25 min checkpoint work, estimated rather than guaranteed. |
+| NET-COMPONENT-POWERS | STOPPED after one fixture repair; integration failure | Full pose302 passes, Main/ENet live delta12408 bytes fails unchanged ceiling. [Cumulative result](docs/history/ROADMAP_DELIVERIES.md#net-component-powers--network-envelope-stop-and-priority-review). Next selection must identify a bounded production encoding fix that retains the actual powers and existing size limit before another run. Original card/acceptance retained below. |
 | HAULER-CARGO-MANIFEST | Production gap; GATED on HAULER-CARGO-STOCK | Binding still rejects Hauler; generation-floor API already exists. [Stock prerequisite and conserved-source proof](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries). 60–90 min implementation/focused checks after decision, checkpoint additional; split before 90 min. |
 
 The Hauler stock/custody decision remains the concrete missing prerequisite for
 the reviewed independent production alternative. Do not invent stock, a duplicate
-generation API or a whole-game absence-of-defects claim. The next definition must
-identify a real production gap before implementation, rather than extend a service
-qualification chain. This is a local queue, not a project estimate.
+generation API or a whole-game absence-of-defects claim. The observed remote-power
+network-size failure is the next concrete production boundary to resolve before
+implementation; do not extend a service qualification chain. This is a local queue,
+not a project estimate.
 
 ## Next executable card: NET-COMPONENT-POWERS
+
+**Retained contract, currently STOPPED.** Do not execute unchanged. Initial
+42.010s pose failure had one exact fixture sequence repair; repaired pose passed
+302 assertions in42.149s, then Main/ENet failed173.347s at live-delta size12408.
+Cumulative guarded execution346.467s includes every import/compile/failed run.
+Remaining Halyard/local HUD runtime suites and all exports/startups are NOT_RUN.
+The estimates below were the original selection, not a renewed budget. Root
+priority review stops further diagnosis/repair/runs in this attempt. A separately
+frozen production encoding proposal addressing this observed budget failure is
+required to reopen; do not remove power channels, raise the ceiling or rename
+this card to reset its acceptance/time. No accepted runtime delivery is claimed.
 
 **Player result:** when observing another craft, HUD ENGINE OUTPUT, WEAPONS and
 TARGETING percentages agree with that craft’s accepted host telemetry, including

@@ -337,8 +337,12 @@ the last pose tick and already advance operation tick, allowing fresh display
 facts without fresh movement. Integrity alone cannot reconstruct live powers.
 
 [The executable card](../ROADMAP.md#next-executable-card-net-component-powers)
-freezes the next implementation and focused proof; implementation/runtime checks
-remain NOT_RUN. Keep its detached power projection separate from the accepted
+retains the selected implementation and focused proof. Candidate `9a3e16604`
+implements the projection and passes the full pose302 regression after one
+fixture sequence repair. Main/ENet then fails the existing nine-craft live-delta
+ceiling at12408 bytes. The candidate remains unmerged/withheld; a production
+encoding fix is required before acceptance. Remaining Halyard/local runtime
+checks and all checkpoint work are NOT_RUN. Keep its detached power projection separate from the accepted
 component-row report and local repair ledger. Host display eligibility must
 preserve client/session and locally-flown exclusions, accepted generation/tick
 order, destruction fencing and clear/re-entry. A newer missing-power row must

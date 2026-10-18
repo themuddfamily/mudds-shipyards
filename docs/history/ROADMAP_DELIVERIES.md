@@ -11436,3 +11436,42 @@ requires cumulative priority review before further work; another unexpected
 failure stops for that review, not an automatic second repair. Raw original
 source/configs/stage logs/results remain under
 `/srv/mudds-work/net-component-powers-20261018/results/`.
+
+## NET-COMPONENT-POWERS — network envelope stop and priority review
+
+Candidate `9a3e16604ae16bfc1168d756e9f7b68ed8a29f01` is clean and pushed on
+`feat/net-component-powers-20261018`, UNMERGED/withheld. Independent review confirms
+its only repair after29389ff93 is the frozen fixture action sequence1→2; runtime
+code, assertions and stutter phases are unchanged. Changed pose compile
+PASS16.546s; full original pose PASS302 assertions/42.149s. This demonstrates
+actual retained HUD power values, real admitted routing/stutter fixture and
+ordering/local-authority/legacy/clear boundaries in that scope.
+
+The next original full Main/ENet station-frame check FAIL173.347s. Its sole
+reported failure is the existing nine-operated-craft varied parked-damage
+current/late full/live-delta envelope assertion: full4648 bytes, live delta12408.
+The unchanged ceiling assertion fails; successful source HUD projection is not
+integration acceptance. Halyard/local HUD runtime checks, all exports, package
+startups/audit and checkpoint publication remain NOT_RUN. No native/human/full
+multiplayer qualification is claimed. Original failure and repaired pose remain
+separate raw results; guarded execution total **346.466756606s** includes all
+nine stages, not just the latest run.
+
+**Root cumulative priority decision:** STOP/PARK this attempt after one fixture
+repair and the integration failure. No additional diagnosis/edit/run or second
+automatic repair is selected. Reopening requires a separately frozen bounded
+production encoding proposal addressing this observed delta budget while retaining
+the complete live power contract and original size ceiling. Do not weaken the
+assertion, drop power channels, raise limits, retry unchanged or reset cumulative
+time under a new name. Original full card acceptance stays binding. Approximately
+17 minutes selection-to-stop, inside the original implementation estimate; the
+stop is evidence-driven rather than an elapsed-budget extension. All36 parents/
+ten phase gates remain OPEN. Next action is to define that encoding repair from
+the actual failure, not another service qualification or whole-game audit.
+
+Cleanup verified nine terminal owners/40 observed PID+start identities absent.
+All96 private-profile files and original/current helper/config snapshots are
+retained beside raw results. Normal owned worktree removal completed; temporary
+profile/helpers removed. Only `/srv/mudds-work/net-component-powers-20261018/results/`
+remains. No playable artifact was created or overwritten. Unrelated worktrees and
+latest accepted ea8fe43 checkpoint remain untouched.

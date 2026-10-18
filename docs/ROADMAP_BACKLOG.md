@@ -305,7 +305,7 @@ Finite uncovered work is shared by parents11/21:
 | Outcome | Exact scope / status |
 | --- | --- |
 | NET-COMPONENT-ROW | DONE39a2ad709, packaged. Actual retained row now uses accepted host facts with source/role/lifecycle fences; local HUD29/30, pose216 and Main ENet382 pass. Original compile failure and one annotation repair retained; full parent OPEN. |
-| NET-COMPONENT-POWERS | Definition DONE; implementation READY in the [executable card](../ROADMAP.md#next-executable-card-net-component-powers). Per-craft pose building/packing/decoding omit live powers; host-active canonical telemetry already carries them. Existing optional primitive fields suffice; preserve packed layout and ordering. Actual HUD/power projection and checkpoint remain NOT_RUN. |
+| NET-COMPONENT-POWERS | Definition DONE; candidate9a3e16604 UNMERGED/STOPPED after one fixture repair. Actual packed powers/HUD full pose302 PASS; Main/ENet nine-craft live delta12408 bytes fails unchanged ceiling. Cumulative346.467s; Halyard/local runtime suites and packages NOT_RUN. [Retained card/reopen condition](../ROADMAP.md#next-executable-card-net-component-powers): bounded production encoding proposal addressing actual size failure, no unchanged retry/ceiling relaxation. |
 | Existing full-craft/role recovery acceptance | Preserve existing CRAFT-ACCEPT and NET-DAMAGE scenarios; nine-craft parity is not every role/contact route. No new Cartesian matrix. |
 | Missing-original components/roles | UNKNOWN for the eight missing originals; original specification prerequisites remain. |
 
