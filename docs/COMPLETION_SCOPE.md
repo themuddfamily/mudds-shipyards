@@ -1012,7 +1012,7 @@ Do not replay every activity/craft for an unrelated shared music change.
 | MIX-AURORA | Surface arrival, cockpit→outside→shore→cabin/return; wind/cabin/coastal output changes coherently and retires on unload | AuroraSurfaceAudioBinding/AuroraExteriorAmbienceMixer; `audio/aurora_surface_audio_binding_test.gd`; original arrival artifacts remain gated |
 | MIX-RIME | Arrival→surface/on-foot→reboard/return; existing travel/surface music and craft cues follow current visit; no unapproved new glacial ambience inferred | GameFlow/retained Rime visit/planetary travel bindings; `audio/music_phase_integration_test.gd`, `audio/planetary_travel_audio_production_integration_test.gd`; parked arrival unchanged |
 | MIX-CREW | Halyard admitted role join/leave, engineer repair start/interruption/completion, readiness and handoff; critical repair/crew cues must have actual playback, not captions alone | HalyardCrewSemanticAudioBinding→SemanticAudioCueRouter→AudioDirector; `audio/game_flow_halyard_crew_audio_integration_test.gd`, `audio/halyard_engineer_audio_integration_test.gd`; repair dispatch repaired9b7b46a below, physical route gates retained |
-| MIX-NAVIGATOR | Cargo navigator accepted/rejected ping and stale replay during supported crew use; distinct relevant cue once, no replay spam; source currently proves semantic/caption forwarding only | CinderNavigatorPingAudioComposition; `audio/cinder_navigator_ping_audio_test.gd`; determine actual playback before claiming audible pass |
+| MIX-NAVIGATOR | Cargo navigator accepted/rejected/cleared ping and stale replay during supported crew use; host sound requests/captions delivered on81f885b; solo/recipient and audible acceptance remain open | CinderNavigatorPingAudioComposition; `audio/cinder_navigator_ping_audio_test.gd`; actual GameFlow host bridge fixture; Dummy dispatch does not establish listening |
 | MIX-SETTINGS | At fixed scene/output setting vary Master and each of Ambience/Engines/Weapons/UI/Music, then reduced range and restart/reset; category controls and saved values respected, critical cues/captions retained at agreed non-muted levels | RuntimeSettings/AudioDirector/DynamicAudioMix; `audio/reduced_dynamic_range_production_persistence_test.gd`, `audio/reduced_dynamic_range_audio_integration_test.gd` |
 | MIX-CONTENTION | One real combat interval combines music, sustained fire, alarm and UI/crew alert at recorded default and low mix; no clipping, lost critical cue, excessive repetition or unexplained delay | Existing music/ship/combat/AudioDirector playback owners; `audio/ship_audio_priority_preemption_test.gd`, `audio/dynamic_audio_mix_test.gd`; silent plans do not prove native headroom/latency |
 | MIX-CLEANUP | Finish one selected craft/world episode, unload→Main re-entry→same source; no stuck tail, duplicate loop, retained old-source alert or voice/resource growth beyond existing budgets | Existing owner detach/re-entry and [audio budget boundaries](PERFORMANCE_BUDGET_AUDIO_VOICES.md); `audio/semantic_audio_source_unbind_test.gd` plus that case’s actual playback lifecycle checks |
@@ -1125,11 +1125,13 @@ Do not change the network authority or invent another schema/version.
 
 | Child outcome | Observable result / remaining boundary | Acceptance and stopping point |
 | --- | --- | --- |
-| AUDIO-NAVIGATOR-HOST — READY | On the existing host presentation path, each fresh accepted ping, genuine rejected result and matching active clear selects its distinct existing resident one-shot and keeps the navigator caption. | Actual bridge/GameFlow fixture plus Director request spy under Dummy; consecutive distinct accepted receipts both dispatch; exact replay/stale/malformed/unbound results do not; generation replacement and exact detach preserve existing fences. Stop after focused suites and fresh paired checkpoint; no listening claim. |
+| AUDIO-NAVIGATOR-HOST — DONE81f885b | On the existing host presentation path, each fresh accepted ping, genuine rejected result and matching active clear selects its distinct existing resident one-shot and keeps the navigator caption. | Actual bridge/GameFlow fixture plus Director request spy under Dummy; consecutive distinct accepted receipts both dispatch; exact replay/stale/malformed/unbound results do not; generation replacement and exact detach preserve existing fences. Stop after focused suites and fresh paired checkpoint; no listening claim. |
 | AUDIO-NAVIGATOR-SOLO — unfinished | Ordinary solo navigator FIRE currently calls `CinderCargoHauler.submit_navigator_ping` and drops its result; it does not traverse the bridge presentation path. | Separate integration card must consume actual solo authority outcomes and clear on ordinary seat/ship lifetime changes without fabricating network receipts. Prove ordinary input-to-request/caption and replay/stand/re-entry behavior with the real ship. Freeze exact files/budget before implementation. Host completion does not close this child. |
 | AUDIO-NAVIGATOR-RECIPIENT — definition still required | Client navigator input sends `navigator_ping` through the loadmaster intent route and reads navigator state from its seat view. Host result forwarding alone does not establish feedback on the initiating client or other supported recipients. | Trace actual receipt/rejection/tombstone transport and recipient ownership before selecting a change. Preserve authority and original supported crew scope; do not broadcast rejected feedback or invent recipient policy. End with a concrete runtime integration card or exact missing policy fact. No host-only pass closes this child. |
 
-**Frozen next implementation: AUDIO-NAVIGATOR-HOST.** Parent MIX-NAVIGATOR /
+**Delivered host implementation, frozen contract retained below.**
+[Actual result](history/ROADMAP_DELIVERIES.md#audio-navigator-host--host-sound-requests-and-captions-delivered): all six focused suites and paired package gates PASS first attempt on81f885b.
+Parent MIX-NAVIGATOR /
 original audio scope remains open. One implementer owns
 `scripts/audio/audio_director.gd`, `cinder_navigator_ping_audio_binding.gd`,
 `semantic_audio_cue_router.gd`, existing
@@ -1153,7 +1155,8 @@ and review, 10–20 min focused checks, 10–15 min checkpoint. First unexpected
 failure stops execution; freeze any causal repair before editing/rerunning.
 Failed task plus one repair requires cumulative priority review, with no automatic
 second repair or expansion into solo/recipient changes. This source definition
-has not consumed an engine attempt or accepted any runtime change.
+itself consumed no engine attempt; the later host implementation and its actual
+execution results are recorded in the linked delivery. Solo/recipient remain open.
 
 ## Phase-wide acceptance still required
 

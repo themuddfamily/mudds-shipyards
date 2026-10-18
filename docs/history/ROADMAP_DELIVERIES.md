@@ -11840,3 +11840,86 @@ resource debit and role authority remain with the existing owners.
   causal repair; failure plus one repair requires cumulative priority review.
   Split remaining capability before90min implementation. Do not broaden into all
   semantic cue playback, new audio architecture or listening qualification.
+
+## AUDIO-NAVIGATOR-HOST — host sound requests and captions delivered
+
+**DONE81f885b**, full source `81f885b16db11bc59aa6e5bd4fbbf9fbc098efab`,
+merged by `c200345cb`. Original frozen host/solo/recipient split and contract:
+[completion scope](../COMPLETION_SCOPE.md#navigator-playback--bounded-delivery-contracts).
+Source definition on `d1f297f19`, published by `376d8dd6f`, found no navigator
+playback owner: real host bridge results ended at captions. Router tuple dedup
+also suppressed distinct consecutive accepted receipts, and arbitrary rejected
+dictionaries could emit an alert cue. Those three concrete production gaps are
+repaired together in the existing binding/router/Director path.
+
+Accepted uses resident `ui_confirm` UI/-7 dB, rejected `combat_alert_primary`
+UI/-4 dB, cleared `canopy_close` UI/-5 dB. Existing reduced-range attenuation,
+resource bank and bounded effect pool remain in use. No generic caption echo,
+new voice/timer/asset, authority or transport change. Genuine bridge rejection
+shape is required; exact rejection replay and receipt sequence/peer/seat/ship/
+migration/tombstone fences remain. Navigator binding owns identity dedup; the
+router permits its distinct accepted receipts while retaining tuple dedup for
+other sources and exact-source unbind retirement.
+
+One medium implementer owned the three runtime files and two existing tests;
+one high independent lifecycle reviewer returned GO before engines and after
+focused results. Root inspected, integrated, ran guarded checks and packaged.
+No agent ran engines. The actual host fixture uses real Cinder/role authority/
+network adapter/bridge/composition/GameFlow, consecutive accepted pings,
+replacement tombstones, re-entry, physical assignment handoff and genuine
+rejection. Director request spies retain the real Dummy guard; real caption
+presenter labels all three outcomes. This does not prove ordinary physical
+boarding/seat admission, remote delivery or audible output.
+
+All fifteen stages PASS first attempt; no causal repair or retry:
+
+| Stage | Actual seconds | Result |
+| --- | ---: | --- |
+| import | 20.722 | PASS |
+| navigator_compile | 3.538 | PASS |
+| game_flow_compile | 15.545 | PASS |
+| navigator | 3.825 | PASS; 65 checks |
+| game_flow | 16.153 | PASS; 38 assertions |
+| director | 1.840 | PASS; 60 assertions |
+| crew_router | 0.893 | PASS; 19 assertions |
+| unbind | 0.902 | PASS; 18 assertions |
+| reduced_range | 15.739 | PASS; 10 assertions |
+| windows_export | 26.750 | PASS |
+| linux_export | 25.776 | PASS |
+| linux_startup | 22.176 | PASS |
+| archive_startup | 23.549 | PASS |
+| windows_payload_startup | 25.792 | PASS |
+| audit | 5.701 | PASS |
+
+Cumulative guarded execution **208.899s**. About **9.6min** from task
+branch creation through publication/hash recheck/cleanup, against estimated
+45–60min implementation/review +10–20min checks +10–15min packaging. This
+small source change finished below the estimate; broader roadmap time remains
+unknown. No failure budgets were consumed or parked work reopened.
+
+Fresh paired exports; direct Linux/archive and Windows-payload startup each exit0
+and exactly one `STARTUP_MENU_READY_OK`; matching 1521-entry actual PCKs,
+stock PE text and exact archive binary/icon/installer bytes/modes/epoch metadata
+PASS. Windows-payload check uses Linux Godot, not native Windows.
+[Windows ZIP](../../builds/windows/MuddsShipyards-81f885b-checkpoint.zip),
+[Windows notes](../../builds/windows/MuddsShipyards-81f885b-notes.txt) and
+[Linux notes](../../builds/linux/MuddsShipyards-81f885b-linux-notes.txt) are public
+in the repository build directories. Eleven files and exact EXE+notes ZIP
+reverified. Artifact hashes:
+
+- `MuddsShipyards-81f885b.exe`: 184640320 bytes; SHA256 `e9a388de984df54f1d8a3dd556ed948131f3b1164341f0d1aa84e8822f4b7690`.
+- `MuddsShipyards-81f885b.x86_64`: 148882032 bytes; SHA256 `1c9ad24c661d0835fb74de52b0851e2c9808ce3026ed4446f75c3cc1044b15eb`.
+- `MuddsShipyards-81f885b-linux-x86_64.tar.gz`: 95297542 bytes; SHA256 `15b022e7f8a819c22f27dc82d96c6124e628d2c54993edea787d3f54e9ed8fed`.
+
+All 15 owners terminal; all 85 observed PID/start identities absent.
+18 profile files and exact helpers/configs preserved; owned worktree/profile/
+helpers removed. Only `/srv/mudds-work/navigator-host-audio-20261019/results/` remains. Original source pin/commands,
+raw logs/guards/reviews/audit/publication/cleanup are retained there.
+
+**Remaining:** solo input drops its result; remote-client presentation/recipient
+ownership needs its bounded definition. All28 listening cases/native/device/
+human/final gates remain OPEN/NOT_RUN as applicable; all36 parents/ten phases
+remain open. No full-matrix or audible mix result. Next single action is the
+15–20min source-only AUDIO-NAVIGATOR-SOLO definition: actual solo authority
+outcome and seat/ship lifecycle to presentation, without fabricated network
+receipts. Stop at an implementable card or exact missing fact, no engines.
