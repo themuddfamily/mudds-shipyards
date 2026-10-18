@@ -92,6 +92,12 @@ acceptance and budgets. This failure and repair remain cumulative; any further
 unexpected failure requires priority review before diagnosis/fix/run. Estimate
 one minute edit/review, checks separate. No extra diagnostic probe selected.
 
+**Repaired baseline:** test-only1fd8d662e compiles16.283s. Actual normal
+physics→HUD regression then reproduces exactly two expected host25% bar/frame
+failures in31.230s, exit1/no unrelated diagnostics. Runtime HUD-only repair may
+proceed. Initial compile failure remains retained and cumulative; another
+unexpected failure requires priority review, not an automatic second caller fix.
+
 ### SPEC-TITAN — concrete interpretation proposal before building
 
 - **Owner/boundary:** one medium-effort documentation agent owns only
