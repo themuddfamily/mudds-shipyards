@@ -239,7 +239,7 @@ class NativeSortieSafetyTests(unittest.TestCase):
 
     def gantry_tick(self, pilot, s, **kwargs):
         # Both actual transform owners advance independently of the clock.
-        if kwargs.get('movers', True):
+        if kwargs.get('movers', True) and len(s['service']['movers']) > 1:
             s['service']['movers'][1]['pose'][0][2] += .001
         return self.life_tick(pilot, s, **kwargs)
 
