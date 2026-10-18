@@ -42,6 +42,8 @@ class NativeSortieSafetyTests(unittest.TestCase):
 
     def life_tick(self, pilot, s, frames=1, clock=True, movers=True):
         s['frame'] += frames
+        if s['mode'] == 'life-arm':
+            self.arm_motion(s, pilot.observed_previous)
         if clock: s['service']['clock'] += frames/60
         if movers: s['service']['movers'][0]['pose'][0][0] += frames*.001
         return pilot.update(copy.deepcopy(s), s['frame']/60)
@@ -323,6 +325,7 @@ class NativeSortieSafetyTests(unittest.TestCase):
                 for _ in range(15):
                     s['frame'] += 1
                     s['service']['clock'] += 1/60
+                    if route == 'life-arm': self.arm_motion(s, pilot.observed_previous)
                     pilot.validate_observation(copy.deepcopy(s))
                 self.assertEqual(pilot.visited, [])
                 pilot.update(pilot.observed_previous, s['frame']/60)
@@ -370,11 +373,13 @@ class NativeSortieSafetyTests(unittest.TestCase):
             with self.subTest(route=route):
                 pilot, s = self.life_walking_pilot(route)
                 s['frame'] += 1
+                if route == 'life-arm': self.arm_motion(s, pilot.observed_previous)
                 with self.assertRaisesRegex(AssertionError, '15-second'):
                     pilot.update(copy.deepcopy(s), pilot.goal_started + 15.001)
                 pilot, s = self.life_walking_pilot(route)
                 pilot.stage, pilot.board_started = 'board', 0
                 s['frame'] += 1
+                if route == 'life-arm': self.arm_motion(s, pilot.observed_previous)
                 with self.assertRaisesRegex(AssertionError, '12-second'):
                     pilot.update(copy.deepcopy(s), 12.001)
 
@@ -408,7 +413,120 @@ class NativeSortieSafetyTests(unittest.TestCase):
                             path='OperationalLattice/Activities/AftOperationsActivity',
                             origin=[5.8, 4.99, 61.2])
         s['service']['movers'] = self.life_observation()['service']['movers'][:3]
+        s['capsule_geometry'] = [.38, 1.94]
+        self.arm_motion(s)
         return s
+
+    @staticmethod
+    def arm_motion(s, previous=None, event=None, lag=1):
+        s['completed_motion'] = {'frame': s['frame']-lag,
+                                 'start': (previous or s)['player'][:],
+                                 'end': s['player'][:], 'step_up': event or {}}
+
+    def arm_step_fixture(self, lag=1):
+        pilot, s = self.life_walking_pilot('life-arm')
+        # Match either valid observer order without changing its scheduling.
+        pilot.motion_lag = lag
+        pilot.observed_previous['completed_motion']['frame'] = s['frame']-lag
+        previous = copy.deepcopy(pilot.observed_previous)
+        s['frame'] += 1
+        s['service']['clock'] += 1/60
+        s['player'] = [s['player'][0], s['player'][1]+.146, s['player'][2]+.4]
+        s['position'] = s['player'][:]
+        event = {'frame': s['frame']-lag, 'player_id': s['player_id'],
+                 'capsule_id': s['capsule_id'], 'shape_id': s['shape_id'],
+                 'start': previous['player'][:], 'tick_start': previous['player'][:],
+                 'landing': s['player'][:], 'tick_end': s['player'][:],
+                 'intended': [0, 0, .0966667], 'up': [0, 1, 0],
+                 'collision_transform': [[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1]],
+                 'bounds': {'max_step_height': .30, 'min_clearance': .02, 'min_advance': .01,
+                            'probe_reach': .40, 'capsule_radius': .38, 'capsule_height': 1.94,
+                            'floor_max_angle_rad': .872665, 'safe_margin': .002,
+                            'movement_up': [0, 1, 0], 'requires_floor_contact': True,
+                            'requires_wall_contact': True, 'requires_walkable_landing': True,
+                            'within_capsule_radius': True, 'steps_into_void': False}}
+        self.arm_motion(s, previous, event, lag)
+        return pilot, s
+
+    def test_life_arm_actual_step_event_accepts_exact_point_four_advance_and_point_146_rise(self):
+        for lag in (0, 1):
+            with self.subTest(lag=lag):
+                pilot, s = self.arm_step_fixture(lag)
+                # Actual Godot Resource instance IDs can be signed.
+                for sample in (pilot.initial, pilot.observed_previous, s):
+                    sample['shape_id'] = -9223371935033849953
+                s['completed_motion']['step_up']['shape_id'] = s['shape_id']
+                pilot.validate_observation(s)
+                self.assertEqual(pilot.consumed_step_frames, {s['frame']-lag})
+                self.assertGreater(pilot.walked, .4)
+
+    def test_life_arm_step_receipt_rejects_missing_stale_replayed_malformed_or_geometry_only_motion(self):
+        mutations = {
+            'missing event': lambda s, p, e: s['completed_motion'].update(step_up={}),
+            'missing epoch': lambda s, p, e: s.pop('completed_motion'),
+            'malformed event': lambda s, p, e: s['completed_motion'].update(step_up=[]),
+            'malformed bounds': lambda s, p, e: e.update(bounds=None),
+            'stale event': lambda s, p, e: e.update(frame=e['frame']-1),
+            'replayed event': lambda s, p, e: p.consumed_step_frames.add(e['frame']),
+            'wrong player': lambda s, p, e: e.update(player_id=99),
+            'wrong capsule': lambda s, p, e: e.update(capsule_id=99),
+            'wrong shape': lambda s, p, e: e.update(shape_id=99),
+            'zero shape': lambda s, p, e: e.update(shape_id=0),
+            'wrong start': lambda s, p, e: e['start'].__setitem__(0, 4),
+            'wrong landing': lambda s, p, e: e['landing'].__setitem__(0, 4),
+            'wrong tick start': lambda s, p, e: e['tick_start'].__setitem__(0, 4),
+            'wrong tick end': lambda s, p, e: e['tick_end'].__setitem__(0, 4),
+            'wrong epoch end': lambda s, p, e: s['completed_motion']['end'].__setitem__(0, 4),
+            'epoch lag changed': lambda s, p, e: s['completed_motion'].update(frame=s['frame']),
+            'epoch gap': lambda s, p, e: s['completed_motion'].update(frame=s['frame']-2),
+            'shifted collision': lambda s, p, e: e['collision_transform'][0].__setitem__(0, .1),
+            'rotated collision': lambda s, p, e: e['collision_transform'][1].__setitem__(0, -1),
+            'nonunit up': lambda s, p, e: e.update(up=[0, 2, 0]),
+            'nonworld up': lambda s, p, e: e.update(up=[1, 0, 0]),
+            'no intended motion': lambda s, p, e: e.update(intended=[0, 0, 0]),
+            'reverse intended': lambda s, p, e: e.update(intended=[0, 0, -.1]),
+            'vertical intended': lambda s, p, e: e.update(intended=[0, .01, .1]),
+            'excess intended': lambda s, p, e: e.update(intended=[0, 0, 1]),
+            'unsupported before': lambda s, p, e: p.observed_previous.update(supported=False),
+            'uncontrolled before': lambda s, p, e: p.observed_previous.update(control_enabled=False),
+            'seated before': lambda s, p, e: p.observed_previous.update(seated=True),
+            'unsupported after': lambda s, p, e: s.update(supported=False),
+            'nondefault controls before': lambda s, p, e: p.observed_previous.update(default_controls=False),
+            'invented grounded before': lambda s, p, e: p.observed_previous.update(grounded=False),
+            'changed bound up': lambda s, p, e: e['bounds'].update(movement_up=[1, 0, 0]),
+            'unwalkable bound': lambda s, p, e: e['bounds'].update(requires_walkable_landing=False),
+            'nonfinite collision': lambda s, p, e: e['collision_transform'][0].__setitem__(0, math.inf),
+            'additional displacement': lambda s, p, e: (s['player'].__setitem__(0, s['player'][0]+.01),
+                s['completed_motion']['end'].__setitem__(0, s['player'][0])),
+        }
+        for key in ('max_step_height', 'min_clearance', 'min_advance', 'probe_reach',
+                    'capsule_radius', 'capsule_height', 'floor_max_angle_rad', 'safe_margin'):
+            mutations['changed '+key] = lambda s, p, e, k=key: e['bounds'].update({k: 10})
+        for key in ('start', 'landing', 'intended', 'up', 'tick_start', 'tick_end'):
+            for value in (math.nan, math.inf):
+                mutations['nonfinite '+key+str(value)] = lambda s, p, e, k=key, v=value: e[k].__setitem__(0, v)
+        for name, mutate in mutations.items():
+            with self.subTest(name=name):
+                pilot, s = self.arm_step_fixture()
+                mutate(s, pilot, s['completed_motion']['step_up'])
+                with self.assertRaises(AssertionError): pilot.validate_observation(s)
+
+    def test_life_arm_step_event_cannot_account_for_extra_displacement_or_broaden_other_routes(self):
+        for rise, advance in ((0, .4), (.302, .4), (.146, .411), (.146, .009)):
+            with self.subTest(rise=rise, advance=advance):
+                pilot, s = self.arm_step_fixture()
+                event = s['completed_motion']['step_up']
+                start = event['start']
+                end = [start[0], start[1]+rise, start[2]+advance]
+                s['player'] = s['position'] = end[:]
+                s['completed_motion']['end'] = end[:]
+                event['tick_end'] = event['landing'] = end[:]
+                with self.assertRaises(AssertionError): pilot.validate_observation(s)
+        for route in ('life-tow', 'life-gantry'):
+            pilot, s = self.life_walking_pilot(route)
+            s['player'][2] += .4
+            with self.assertRaisesRegex(AssertionError, 'continuous real walking'):
+                self.life_tick(pilot, s)
 
     def test_life_arm_exact_route_local_interval_and_original_zenith_pilot(self):
         pilot, s = self.life_walking_pilot('life-arm')

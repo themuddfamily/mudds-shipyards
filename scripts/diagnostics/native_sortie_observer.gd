@@ -723,6 +723,24 @@ func _habitat_restart_observation() -> Dictionary:
 
 ## Narrow live station service/walking/helm reads. No Habitat or fleet audit,
 ## service simulation mutator, synthetic input or actor placement is involved.
+## Serialization only: retain the controller's completed epoch rather than
+## assuming this observer runs after Player in the current physics frame.
+func _life_completed_motion() -> Dictionary:
+	var motion: Dictionary = _player.get_step_up_assist_audit().get("completed_motion", {})
+	if motion.is_empty():
+		return motion
+	motion["start"] = _v(motion.start)
+	motion["end"] = _v(motion.end)
+	var event: Dictionary = motion.step_up
+	if not event.is_empty():
+		for key: String in ["start", "landing", "intended", "up", "tick_start", "tick_end"]:
+			event[key] = _v(event[key])
+		var frame: Transform3D = event.collision_transform
+		event["collision_transform"] = [_v(frame.origin), _v(frame.basis.x), _v(frame.basis.y), _v(frame.basis.z)]
+		event.bounds["movement_up"] = _v(event.bounds.movement_up)
+	return motion
+
+
 func _life_observation() -> Dictionary:
 	var ship_path: NodePath = _life_config.ship
 	var activity_path: NodePath = _life_config.activity
@@ -792,6 +810,7 @@ func _life_observation() -> Dictionary:
 		"menu_ready": StartupLoader.is_title_menu_ready(_game) and not is_instance_valid(owner.call("get_loading_screen")),
 		"main_id": _game.get_instance_id(), "world_id": _game.world.get_instance_id(),
 		"player_id": _player.get_instance_id(), "ship_id": _ship.get_instance_id(),
+		"completed_motion": _life_completed_motion(),
 		"player": _v(_player.global_position), "position": _v(_player.global_position), "spawn": _v(_spawn),
 		"walk_forward": _v(-yaw.global_basis.z), "walk_right": _v(yaw.global_basis.x),
 		"velocity": _v(_player.velocity), "walk_offset": _v(_ship.get_boarding_position() - _player.get_interaction_origin()),

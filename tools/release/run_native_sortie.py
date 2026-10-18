@@ -1521,6 +1521,8 @@ class LifeTowPilot(Pilot):
         self.walk_service = self.seated_service = None
         self.seated_frame = None
         self.near_walked = 0
+        self.motion_lag = None
+        self.consumed_step_frames = set()
 
     def receipt(self, s):
         fields = ('frame', 'player', 'grounded', 'supported',
@@ -1618,6 +1620,87 @@ class LifeTowPilot(Pilot):
                 and not s['game_station_seated'] and not s['sleeping'],
                 'actual local seated pilot ownership of the original '+self.craft_label)
 
+    @staticmethod
+    def finite_vector(value):
+        return isinstance(value, list) and len(value) == 3 and all(
+            isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(x) for x in value)
+
+    def require_motion_epoch(self, s):
+        motion = s.get('completed_motion')
+        require(isinstance(motion, dict) and type(motion.get('frame')) is int
+                and motion['frame'] >= 0 and isinstance(motion.get('step_up'), dict)
+                and self.finite_vector(motion.get('start')) and self.finite_vector(motion.get('end'))
+                and self.finite_vector(s['player']) and motion['end'] == s['player'],
+                'LIFE-ARM finite completed actor motion epoch matches observed position')
+        lag = s['frame'] - motion['frame']
+        require(lag in (0, 1) and (self.motion_lag is None or lag == self.motion_lag),
+                'LIFE-ARM consistent completed actor epoch lag zero or one')
+        if self.observed_previous:
+            previous_motion = self.observed_previous['completed_motion']
+            require(motion['frame'] == previous_motion['frame'] + 1,
+                    'LIFE-ARM consecutive completed actor motion epochs')
+        self.motion_lag = lag
+        return motion
+
+    def require_step_event(self, s, motion):
+        """Admit only a retained successful solver return for this exact tick."""
+        previous = self.observed_previous
+        event = motion['step_up']
+        require(previous is not None and event, 'LIFE-ARM actual successful step-up event required')
+        self.require_walking(previous)
+        self.require_walking(s)
+        require(previous['default_controls'] and s['default_controls'], 'ordinary step-up endpoint controls')
+        require(type(event.get('frame')) is int and event['frame'] == motion['frame']
+                and event['frame'] not in self.consumed_step_frames,
+                'fresh once-consumed LIFE-ARM actual step-up frame')
+        require(all(type(event.get(k)) is int and event[k] != 0 and event[k] == s[k] == previous[k]
+                    for k in ('player_id', 'capsule_id', 'shape_id')),
+                'actual step-up current Player capsule and shape identities')
+        require(all(self.finite_vector(event.get(k))
+                    for k in ('start', 'landing', 'intended', 'up', 'tick_start', 'tick_end')),
+                'finite actual step-up vectors')
+        require(event['tick_start'] == motion['start'] == previous['player'] == event['start']
+                and event['tick_end'] == motion['end'] == s['player'] == event['landing'],
+                'exact observed step-up tick start end and committed landing')
+        collision_frame = event.get('collision_transform')
+        require(isinstance(collision_frame, list) and len(collision_frame) == 4
+                and all(self.finite_vector(v) for v in collision_frame)
+                and collision_frame == [[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1]],
+                'LIFE-ARM step-up uses identity collision frame')
+        require(event['up'] == [0, 1, 0], 'LIFE-ARM unit world-up actual step-up')
+        bounds = event.get('bounds')
+        expected = {'max_step_height': .30, 'min_clearance': .02, 'min_advance': .01,
+                    'probe_reach': .40, 'capsule_radius': .38, 'capsule_height': 1.94,
+                    'floor_max_angle_rad': .872665, 'safe_margin': .002}
+        require(isinstance(bounds, dict) and all(
+                    isinstance(bounds.get(k), (int, float)) and not isinstance(bounds[k], bool)
+                    and math.isfinite(bounds[k]) and abs(bounds[k]-v) <= .000001
+                    for k, v in expected.items())
+                and self.finite_vector(bounds.get('movement_up')) and bounds['movement_up'] == [0, 1, 0]
+                and all(bounds.get(k) is True for k in ('requires_floor_contact', 'requires_wall_contact',
+                                                       'requires_walkable_landing', 'within_capsule_radius'))
+                and bounds.get('steps_into_void') is False,
+                'actual step-up default capsule-derived live bounds')
+        geometry = s['capsule_geometry']
+        require(isinstance(geometry, list) and len(geometry) == 2
+                and all(isinstance(a, (int, float)) and not isinstance(a, bool) and math.isfinite(a)
+                        and abs(a-b) <= .000001 for a, b in zip(geometry, [.38, 1.94]))
+                and abs(bounds['probe_reach']-bounds['capsule_radius']-bounds['min_clearance']) <= .000001,
+                'actual step-up live capsule matches default geometry and probe reach')
+        intended = event['intended']
+        offset = sub(event['landing'], event['start'])
+        tangent = [offset[0], 0, offset[2]]
+        advance = norm(tangent)
+        require(abs(intended[1]) <= .000001 and norm(intended) > bounds['safe_margin']
+                and norm(intended) <= self.DEFAULT_WALK['sprint']/60+.000001
+                and dot(tangent, intended) > 0,
+                'actual step-up positive intended tangent forward motion')
+        # These are the solver's existing .001 rise and min-advance tolerances.
+        require(.001 < offset[1] <= bounds['max_step_height']+.001
+                and bounds['min_advance'] <= advance <= bounds['probe_reach']+bounds['min_advance'],
+                'actual step-up rise and advance remain inside original probe tolerances')
+        self.consumed_step_frames.add(event['frame'])
+
     def validate_observation(self, s):
         """Check every emitted physics sample without staging unsent OS input."""
         self.last_state = s
@@ -1642,6 +1725,7 @@ class LifeTowPilot(Pilot):
         require(frames > 0, 'fresh '+self.mode.upper()+' physics observation')
         if self.bounded:
             require(frames == 1, 'every consecutive '+self.mode.upper()+' physics sample retained')
+        motion = self.require_motion_epoch(s) if self.mode == 'life-arm' else None
         self.observe_service(s)
         if self.bounded:
             require(s['ship_name'] == self.config['ship_name'] and s['engine'] == 'OFFLINE'
@@ -1678,8 +1762,14 @@ class LifeTowPilot(Pilot):
             self.require_walking(s)
             if self.observed_previous:
                 step = norm(sub(s['player'], self.observed_previous['player']))
-                require(step <= (initial['walk_tuning']['sprint']/60*1.25+.02)*frames,
-                        'continuous real walking without teleport or placement')
+                ordinary_limit = (initial['walk_tuning']['sprint']/60*1.25+.02)*frames
+                if motion is not None and motion['step_up']:
+                    self.require_step_event(s, motion)
+                else:
+                    require(step <= ordinary_limit, 'continuous real walking without teleport or placement')
+                if motion is not None:
+                    require(motion['start'] == self.observed_previous['player'],
+                            'continuous LIFE-ARM actual tick starts at previous observed position')
                 self.walked += step
                 if (self.near_active if self.bounded else
                         self.walk_service is not None and walking and self.stage != 'approach_ship'):
@@ -1696,6 +1786,9 @@ class LifeTowPilot(Pilot):
             self.settled_frames = self.settled_frames + 1 if settled and frames == 1 else 0
         if self.stage == 'seated_observe':
             self.require_pilot(s)
+        if motion is not None and motion['step_up']:
+            require(motion['frame'] in self.consumed_step_frames,
+                    'LIFE-ARM actual step-up event admitted only during supported ordinary walking')
         self.observed_previous = s
 
     def update(self, s, now):
