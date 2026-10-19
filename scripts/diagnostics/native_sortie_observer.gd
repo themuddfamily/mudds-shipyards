@@ -21,6 +21,7 @@ const LIFE_ROUTES := {
 		"door": ^"HabitatSpine/MainAccess"},
 }
 var _beacon_entry := false
+var _beacon_mode := "beacon-entry"
 var _beacon_sequence := 0
 var _life_mode := ""
 var _life_config: Dictionary = {}
@@ -57,7 +58,8 @@ func on_startup_completed(main: Node) -> void:
 	_game = main as GameFlow
 	_player = _game.get_node("Player") as PlayerController
 	_spawn = _player.global_position
-	_beacon_entry = "--native-sortie-observer=beacon-entry" in OS.get_cmdline_args()
+	_beacon_mode = "beacon-settlement" if "--native-sortie-observer=beacon-settlement" in OS.get_cmdline_args() else "beacon-entry"
+	_beacon_entry = "--native-sortie-observer=" + _beacon_mode in OS.get_cmdline_args()
 	if _beacon_entry:
 		process_mode = Node.PROCESS_MODE_ALWAYS
 	_habitat_restart = "--native-sortie-observer=habitat-restart" in OS.get_cmdline_args()
@@ -273,6 +275,8 @@ func _physics_process(delta: float) -> void:
 			paused_sample["frame"] = Engine.get_physics_frames()
 			paused_sample["player_id"] = _player.get_instance_id()
 			paused_sample["ship_id"] = _ship.get_instance_id()
+			if _beacon_mode == "beacon-settlement":
+				paused_sample["settlement"] = _beacon_settlement_observation()
 			print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(paused_sample))
 			return
 	if _habitat_restart:
@@ -344,6 +348,8 @@ func _physics_process(delta: float) -> void:
 	}
 	if _beacon_entry:
 		observation.merge(_beacon_entry_observation())
+		if _beacon_mode == "beacon-settlement":
+			observation["settlement"] = _beacon_settlement_observation()
 	if _hulk_arrival:
 		observation["hulk"] = _hulk_arrival_observation()
 	if _hulk_home:
@@ -392,7 +398,12 @@ func _beacon_entry_observation() -> Dictionary:
 					beacon.merge(activity.call(&"get_snapshot") as Dictionary, true)
 					beacon.merge({"available": true, "binding_id": binding.get_instance_id(),
 						"owner_id": activity.get_instance_id()}, true)
-	return {"mode": "beacon-entry", "sequence": _beacon_sequence,
+	if _beacon_mode == "beacon-settlement":
+		var points: Array = []
+		for point: Vector3 in CinderBeaconTraversalActivity.BEACONS:
+			points.append(_v(_game._cinder_authored_frame_to_world(point)))
+		beacon["beacons_world"] = points
+	return {"mode": _beacon_mode, "sequence": _beacon_sequence,
 		"pid": OS.get_process_id(), "main_id": _game.get_instance_id(),
 		"paused": get_tree().paused, "beacon": beacon,
 		"native_keys": {"escape": Input.is_physical_key_pressed(KEY_ESCAPE),
@@ -406,6 +417,24 @@ func _beacon_entry_observation() -> Dictionary:
 			"focus_activity": str(row.get_meta(&"activity_id", &"")) if is_instance_valid(row) else "",
 			"focus_visible": is_instance_valid(focus) and focus.is_visible_in_tree(),
 			"focus_enabled": focus is BaseButton and not (focus as BaseButton).disabled}}
+
+
+## Pure live snapshots only; the external driver independently reads the real
+## primary file. Telemetry neither loads nor commits a store or requests rewards.
+func _beacon_settlement_observation() -> Dictionary:
+	var store := _game.get("_runtime_settings_user_data_store") as UserDataStore
+	var authority := _game.get("_game_flow_reward_authority") as RefCounted
+	var payload := store.get_snapshot() if store != null else {}
+	var snapshot: Dictionary = authority.call(&"get_snapshot") as Dictionary if is_instance_valid(authority) else {}
+	return {"configured": bool(snapshot.get("configured", false)) and store != null,
+		"authority_id": authority.get_instance_id() if is_instance_valid(authority) else 0,
+		"store_id": store.get_instance_id() if store != null else 0,
+		"store": {"path": ProjectSettings.globalize_path(str(store.get("_path"))) if store != null else "",
+			"source": str(store.get_loaded_source()) if store != null else "",
+			"generation": store.get_generation() if store != null else -1},
+		"record": (snapshot.get("record", {}) as Dictionary).duplicate(true),
+		"terminal": (payload.get("cinder_beacon_session", {}) as Dictionary).duplicate(true),
+		"handoff": (_game.get("_last_cinder_beacon_traversal_reward_result") as Dictionary).duplicate(true)}
 
 
 func _sandbox_observation() -> Dictionary:

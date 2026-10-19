@@ -3,6 +3,7 @@
 
 Usage: run_native_sortie.py GAME.x86_64 --output NEW_RESULT_DIRECTORY
 Use --route beacon-entry for normal Torrent departure and actual first Beacon HUD start.
+Use --route beacon-settlement to continue through all four beacons and durable settlement.
 Use --route sandbox for the full five-branch/eight-craft/crash/reuse scenario.
 Use --route sandbox-walk for the on-foot prerequisite only.
 Use --route hulk-arrival for the Guided prelude then the streamed HULK dock/exit.
@@ -415,6 +416,7 @@ class Pilot:
 class BeaconEntryPilot(Pilot):
     """Ordinary Torrent departure, physical Beacon 1 approach and actual HUD start."""
     MARKER = 'NATIVE_BEACON_ENTRY_OK'
+    MODE = 'beacon-entry'
     ACTIVITY = 'cinder_debris_beacon_traversal'
 
     def __init__(self):
@@ -533,7 +535,7 @@ class BeaconEntryPilot(Pilot):
 
     def update(self, s, now):
         self.last_state = s
-        require(s.get('mode') == 'beacon-entry' and s['sequence'] > self.sequence,
+        require(s.get('mode') == self.MODE and s['sequence'] > self.sequence,
                 'fresh explicit Beacon entry observation including paused UI')
         self.sequence = s['sequence']
         identity = (s['pid'], s['main_id'], s['player_id'], s['ship_id'])
@@ -639,6 +641,153 @@ class BeaconEntryPilot(Pilot):
             self.receipts['approached'] = s
             self.beacon_stage('beacon_pause', s)
             return self.ui_update(s, now)
+        return keys, dx, dy, False
+
+
+class BeaconSettlementPilot(BeaconEntryPilot):
+    """Retain the accepted entry, then fly and observe the real settlement."""
+    MODE = 'beacon-settlement'
+    SETTLEMENT_MARKER = 'NATIVE_BEACON_SETTLEMENT_OK'
+    REWARD = 'debris_route_navigation_data'
+
+    def __init__(self):
+        super().__init__()
+        self.entry_result = None
+        self.paid_state = None
+        self.settlement_identity = None
+        self.previous_cursor = 1
+        self.previous_frame = None
+        self.physical_beacons = []
+
+    @classmethod
+    def require_zero(cls, s):
+        settlement = s['settlement']
+        record = settlement['record']
+        require(settlement['configured'] and settlement['store']['source'] == 'primary'
+                and record['receipt_serial'] == 0 and record['total_receipts'] == 0
+                and record['reward_counts'] == {} and record['last_receipt'] == {},
+                'actual fresh zero-receipt production baseline')
+
+    @classmethod
+    def require_paid(cls, s):
+        settlement = s['settlement']
+        record, terminal = settlement['record'], settlement['terminal']
+        receipt = {'receipt_id': 1, 'activity_id': cls.ACTIVITY, 'activity_generation': 1,
+                   'reward_id': cls.REWARD, 'reward_label': 'Debris navigation data recorded',
+                   'granted': True, 'replay_allowed': False}
+        require(record == {'schema_version': 1, 'payload_kind': 'game_flow_reward_store',
+                           'authority_id': 'game_flow_reward_authority',
+                           'store_id': 'game_flow_reward_store', 'receipt_serial': 1,
+                           'total_receipts': 1, 'reward_counts': {cls.REWARD: 1},
+                           'last_receipt': receipt}, 'exact once-only generation-one navigation receipt')
+        require(terminal['schema_version'] == 1 and len(terminal['activities']) == 1,
+                'actual single Beacon persisted session')
+        entry = terminal['activities'][0]
+        require(entry['activity_id'] == cls.ACTIVITY and entry['generation'] == 1
+                and entry['state'] == 2 and entry['reward_requested'] is True
+                and entry['reward_granted'] is True
+                and entry['progress']['state'] == 2 and entry['progress']['generation'] == 1
+                and entry['progress']['next_beacon_index'] == 4
+                and entry['progress']['reward_requested'] is True,
+                'paid terminal and raw progress acknowledge the actual completed generation')
+        handoff = settlement['handoff']
+        authority = handoff['authority_result']
+        require(handoff['accepted'] is True and handoff['reward_committed'] is True
+                and authority['accepted'] is True and authority['granted'] is True
+                and authority['receipt'] == receipt
+                and authority['reason'] == 'reward_receipt_committed',
+                'retained actual accepted production reward handoff')
+
+    def update(self, s, now):
+        if self.entry_result is None:
+            controls = super().update(s, now)
+            if self.result is not None:
+                self.entry_result = json.loads(json.dumps(self.result))
+                self.result = None
+                self.require_zero(s)
+                self.receipts['settlement_baseline'] = s
+                self.previous_frame = s['frame']
+                self.beacon_braking = False
+                self.beacon_stage('settlement_flight', s)
+            return controls
+        self.last_state = s
+        require(s.get('mode') == self.MODE and s['sequence'] > self.sequence,
+                'fresh settlement observation')
+        self.sequence = s['sequence']
+        identity = (s['pid'], s['main_id'], s['player_id'], s['ship_id'])
+        beacon, settlement = s['beacon'], s['settlement']
+        require(identity == self.process_identity and beacon['available']
+                and (beacon['binding_id'], beacon['owner_id']) == self.beacon_identity
+                and beacon['activity_id'] == self.ACTIVITY and beacon['generation'] == 1
+                and beacon['beacon_count'] == 4, 'same generation-one process and physical Beacon owners')
+        reward_identity = (settlement['authority_id'], settlement['store_id'])
+        require(settlement['configured'] and all(reward_identity)
+                and settlement['store']['source'] == 'primary', 'actual configured primary reward owners')
+        if self.settlement_identity is None:
+            baseline = self.receipts['settlement_baseline']['settlement']
+            self.settlement_identity = (baseline['authority_id'], baseline['store_id'])
+        require(reward_identity == self.settlement_identity, 'same live reward authority and store')
+        require(not s['paused'] and s['frame'] > self.previous_frame
+                and self.identities == (s['player_id'], s['ship_id'])
+                and s['default_sampler'] and s['tuning_unchanged']
+                and s['tuning'] == self.receipts['settlement_baseline']['tuning'],
+                'normal advancing unpaused physics and unchanged authored controls')
+        self.previous_frame = s['frame']
+        require(s['phase'] not in ('FAILED', 'RECOVERING') and not s['destroyed']
+                and s['piloted'] and s['seated'] and s['active_ship']
+                and s['lease_free'] and not s['landed'], 'live departed seated Torrent without recovery')
+        cursor = beacon['next_beacon_index']
+        require(cursor in (self.previous_cursor, self.previous_cursor + 1) and 1 <= cursor <= 4,
+                'each remaining physical beacon observed in order without skips')
+        points = beacon['beacons_world']
+        require(len(points) == 4 and all(len(p) == 3 and all(math.isfinite(v) for v in p) for p in points),
+                'four finite actual transformed beacon positions')
+        if cursor > self.previous_cursor:
+            require(norm(sub(s['position'], points[cursor-1])) <= 32,
+                    'same actual craft physically reaches the newly observed beacon')
+            self.physical_beacons.append(s)
+            self.beacon_braking = False
+        self.previous_cursor = cursor
+        if cursor == 4:
+            require(beacon['state'] == 2 and beacon['reward_requested'] is True,
+                    'actual physical completion and raw paid acknowledgement')
+            self.require_paid(s)
+            if self.paid_state is None:
+                self.paid_state = s
+                self.receipts['settlement_paid'] = s
+                self.beacon_stage('settlement_stable', s)
+            require(settlement['record'] == self.paid_state['settlement']['record']
+                    and settlement['terminal'] == self.paid_state['settlement']['terminal'],
+                    'complete reward record and paid terminal remain unchanged')
+            if s['frame'] - self.paid_state['frame'] >= 60:
+                self.receipts['settlement_stable'] = s
+                self.beacon_stage('complete', s)
+                self.result = {'completion_marker': self.SETTLEMENT_MARKER,
+                               'scope': 'ordinary four physical beacons and once-only durable settlement',
+                               'entry': self.entry_result, 'receipts': self.receipts,
+                               'physical_beacons': self.physical_beacons, 'stages': self.stages,
+                               'stable_physics_frames': s['frame'] - self.paid_state['frame'],
+                               'remaining': ['home return and exit']}
+            return {'Prior'}, 0, 0, False
+        require(beacon['state'] == 1 and not beacon['reward_requested'],
+                'unpaid active route until actual fourth physical beacon')
+        self.require_zero(s)
+        speed = norm(s['velocity'])
+        require(math.isfinite(speed), 'finite current physical flight speed')
+        off = sub(points[cursor], s['position'])
+        distance = norm(off)
+        dx, dy, align = self.aim(s, [s['camera'][i]+off[i] for i in range(3)])
+        stopping = speed*speed/(2*s['tuning']['brake']) + speed*.18
+        if distance < stopping+10: self.beacon_braking = True
+        if speed <= .45 and distance > 10: self.beacon_braking = False
+        keys = set()
+        if distance <= 10 or self.beacon_braking: keys.add('Prior')
+        elif align > .72: keys.add('w')
+        facing = s['back']
+        if self.mouse_pending is not None:
+            if norm(sub(facing, self.mouse_pending)) < .00001: dx = dy = 0
+            else: self.mouse_pending = None
+        if dx or dy: self.mouse_pending = facing[:]
         return keys, dx, dy, False
 
 
@@ -2335,6 +2484,41 @@ class HabitatRestartFiles:
                 'cold title retains accepted unavailable station rest context')
 
 
+class BeaconSettlementFiles(HabitatRestartFiles):
+    MUTABLE = HabitatRestartFiles.MUTABLE | {'cinder_beacon_session', 'game_flow_reward_store'}
+
+    def observe(self, s, pilot):
+        if pilot.entry_result is None: return
+        require(s['pid'] == pilot.process_identity[0], 'real-file observation belongs to the same game')
+        label = None
+        if 'baseline' not in self.snapshots: label = 'baseline'
+        elif pilot.paid_state is not None and 'paid' not in self.snapshots: label = 'paid'
+        elif pilot.result is not None: label = 'stable'
+        if label is None: return
+        settlement = s['settlement']
+        document = self.capture(label, settlement['store'])
+        payload = document['payload']
+        # The authority exposes its empty record before the first ledger slot
+        # exists on disk. An absent baseline slot is the genuine zero ledger.
+        ledger_matches = payload.get('game_flow_reward_store') == settlement['record']
+        if label == 'baseline' and 'game_flow_reward_store' not in payload:
+            pilot.require_zero(s)
+            ledger_matches = True
+        require(ledger_matches
+                and payload.get('cinder_beacon_session', {}) == settlement['terminal'],
+                'independent actual file exactly matches live reward record and terminal')
+        if label == 'baseline':
+            pilot.require_zero(s)
+        else:
+            pilot.require_paid(s)
+            self.require_preserved(self.snapshots['baseline']['document'], document)
+            if label == 'stable':
+                paid = self.snapshots['paid']['document']['payload']
+                require(payload['game_flow_reward_store'] == paid['game_flow_reward_store']
+                        and payload['cinder_beacon_session'] == paid['cinder_beacon_session'],
+                        'independent actual disk retains the same once-only receipt and paid terminal')
+
+
 class HabitatRestartPilot(HabitatLoopPilot):
     """Accepted ordinary admission, UI shutdown, and a fresh process continuation."""
     MARKER = 'NATIVE_HABITAT_RESTART_OK'
@@ -3205,11 +3389,12 @@ def stop(process):
 
 
 def run(binary, output, route="guided"):
-    require(route in ("guided", "beacon-entry", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
+    require(route in ("guided", "beacon-entry", "beacon-settlement", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
     output.mkdir(parents=True, exist_ok=False)
     game = xvfb = desktop = pilot = None
     temporary_profile = None
     restart_files = None
+    settlement_files = None
     result = {'driver_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(), 'success': False, 'cap_seconds': CAP, 'binary': str(binary), 'native_gpu': 'NOT_RUN',
               'human_review': 'NOT_RUN', 'route': route, 'input_route': 'OS XTest → X11 → Godot Input → default sampler'}
     start = time.monotonic()
@@ -3262,6 +3447,7 @@ def run(binary, output, route="guided"):
                         '--native-sortie-observer' if route == 'guided' else '--native-sortie-observer='+route]
                 result.update(arguments=args, display=env['DISPLAY'], xvfb_pid=xvfb.pid,
                               binary_sha256=hashlib.file_digest(binary.open('rb'),'sha256').hexdigest())
+                settlement_files = BeaconSettlementFiles(profile, output) if route == 'beacon-settlement' else None
                 restart_files = HabitatRestartFiles(profile, output) if route == 'habitat-restart' else None
                 result['game_legs'] = []
                 for leg in range(2 if restart_files else 1):
@@ -3294,7 +3480,7 @@ def run(binary, output, route="guided"):
                     leg_result['window'] = hex(window)
                     desktop.focus(window)
                     pilot = HabitatRestartPilot(cold=bool(leg)) if restart_files else {
-                        "guided": Pilot, "beacon-entry": BeaconEntryPilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
+                        "guided": Pilot, "beacon-entry": BeaconEntryPilot, "beacon-settlement": BeaconSettlementPilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
                         "hulk-arrival": HulkArrivalPilot, "hulk-breaker": HulkBreakerPilot,
                         "hulk-home": HulkHomePilot, "habitat-loop": HabitatLoopPilot, "life-tow": LifeTowPilot, "life-gantry": lambda: LifeTowPilot("life-gantry"), "life-arm": lambda: LifeTowPilot("life-arm"), "life-patrol": lambda: LifeTowPilot("life-patrol")}[route]()
                     with selectors.DefaultSelector() as selector:
@@ -3331,6 +3517,7 @@ def run(binary, output, route="guided"):
                                                 restart_files.require_cold(cold_title, closed)
                                                 restart_files.require_preserved(closed, cold_title)
                                         keys,dx,dy,fire=pilot.update(state,time.monotonic())
+                                        if settlement_files: settlement_files.observe(state, pilot)
                                         if restart_files:
                                             if not leg and 'sleep_press' in pilot.receipts and 'before-sleep' not in restart_files.snapshots:
                                                 before = restart_files.capture('before-sleep', state['save'])
@@ -3383,6 +3570,8 @@ def run(binary, output, route="guided"):
                                         'same_xvfb_pid': xvfb.pid}
                     result['success'] = True
     except Exception as error:
+        if settlement_files is not None:
+            result['actual_file_snapshots'] = settlement_files.snapshots
         if restart_files is not None:
             result['actual_file_snapshots'] = restart_files.snapshots
         if pilot is not None:
@@ -3403,6 +3592,8 @@ def run(binary, output, route="guided"):
                                                last_state=pilot.last_state, deliberate_crash=pilot.crash_receipt)
         result['error'] = f'{type(error).__name__}: {error}'
     finally:
+        if settlement_files is not None:
+            result['actual_file_snapshots'] = settlement_files.snapshots
         signal.setitimer(signal.ITIMER_REAL,0)
         # A second cancel must not strand the other owned child midway through
         # bounded cleanup. Each independent cleanup runs even if another fails.
@@ -3450,8 +3641,8 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('binary')
     parser.add_argument('--output',required=True,type=Path)
-    parser.add_argument('--route', choices=('guided', 'beacon-entry', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
-                        help='beacon-entry departs normally and physically reaches/starts the first Beacon through actual pause controls; life-patrol walks Habitat through the real door beside patrol drones and boards Torrent; life-arm walks Aft stairs past the live service arm and boards Zenith; life-gantry walks Freight past the live gantry and boards Jovian; life-tow walks Central beside live tow service and boards Torrent; hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
+    parser.add_argument('--route', choices=('guided', 'beacon-entry', 'beacon-settlement', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
+                        help='beacon-settlement continues the accepted entry through four physical beacons and durable reward; beacon-entry departs normally and physically reaches/starts the first Beacon through actual pause controls; life-patrol walks Habitat through the real door beside patrol drones and boards Torrent; life-arm walks Aft stairs past the live service arm and boards Zenith; life-gantry walks Freight past the live gantry and boards Jovian; life-tow walks Central beside live tow service and boards Torrent; hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
     args=parser.parse_args()
     try: binary=validate_binary(args.binary)
     except ValueError as error: parser.error(str(error))
