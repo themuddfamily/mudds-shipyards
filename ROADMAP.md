@@ -1,13 +1,13 @@
 # Development roadmap
 
 **Status: playable development alpha; project completion is unproven.** Latest
-accepted checkpoint: **ba7f59a**, with a packaged ordinary-input Beacon entry
-route: actual departure, physical approach, UI start and first-beacon progress.
-[Windows notes](builds/windows/MuddsShipyards-ba7f59a-notes.txt) and
-[Linux notes](builds/linux/MuddsShipyards-ba7f59a-linux-notes.txt) state checks and
-limits. Full Beacon traversal/reward/home, client rejection and real listening
-remain unfinished. Navigator acceptance/clear and crew-epoch delivery on4bbb341
-remain retained. All36 original parents and ten phase gates remain open.
+accepted checkpoint: **e06550e**, with actual ordinary departure/UI start,
+four physical beacons and once-only real-file reward settlement.
+[Windows notes](builds/windows/MuddsShipyards-e06550e-notes.txt) and
+[Linux notes](builds/linux/MuddsShipyards-e06550e-linux-notes.txt) state checks and
+limits. Beacon home/dock/exit, client rejection and real listening remain
+unfinished. Navigator acceptance/clear and crew-epoch delivery on4bbb341 remain
+retained. All36 original parents and ten phase gates remain open.
 
 ## What separates this alpha from completion
 
@@ -49,14 +49,14 @@ production owners, existing test seams and retained blockers in the
 [bounded handoffs](docs/ROADMAP_BACKLOG.md#activity-first-play--bounded-handoffs).
 The six combat rows also distinguish ordinary clear/return from separate
 failure/recovery cases and the unresolved Perimeter Hold launch mapping.
-The breakdown itself is planning progress. Beacon entry is now qualified below;
+The breakdown itself is planning progress. Beacon traversal/settlement is qualified below;
 no complete additional activity or combat journey is accepted.
 
 | Remaining work | Readiness | Next bounded action / estimate |
 | --- | --- | --- |
 | AUDIO-NAVIGATOR-CLIENT-REJECTION | Definition DONE; implementation WAITING on one behavior choice | Finite refusal map and exact requester correlation/owners/proof defined. Asked once: all fresh current refusals including unavailable consumer, or consumer/bridge only. No answer inferred; no runtime/protocol selected. [Definition and conditional proof](docs/COMPLETION_SCOPE.md#client-navigator-rejection-response--bounded-definition-next). After choice45–60min implementation/review,15–25min checks,10–15min checkpoint. |
 | HAULER-CARGO-MANIFEST | Production gap; GATED on HAULER-CARGO-STOCK | Binding still rejects Hauler; generation-floor API already exists. [Stock prerequisite and conserved-source proof](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries).60–90min implementation/focused checks after decision, checkpoint additional; split before90min. |
-| PLAY-BEACON-SETTLEMENT | Next independent outcome; entry accepted onba7f59a | Extend the working ordinary route through the remaining three physical beacons and actual once-only durable reward. Root first freezes the production reward observation and exact existing driver/observer owners, command and unchanged300s whole-route cap (15–25min source mapping); no engine before that contract. Estimate30–60min bounded implementation and10–20min checks, checkpoint additional. Stop at actual settlement or first defect. Full ordinary home/dock/exit remains required afterward; no direct beacon/reward calls. |
+| PLAY-BEACON-HOME | Next independent outcome; traversal/settlement accepted on e06550e | Extend the working same-sortie route through genuine landing admission, actual home dock/lease/shutdown and usable exterior exit, retaining the paid receipt. Root first maps/freezes existing Guided range/interceptor completion and pure landing observation needed for that return, exact driver/observer owners/command and unchanged300s cap (15–25min source mapping). Then one bounded implementation30–60min and10–20min focused checks, checkpoint additional. No direct phase/landing/receipt changes; stop at full ordinary journey or first defect. |
 
 All28 actual listening cases remain NOT_RUN. Hauler's already-asked stock/custody
 choice is unchanged. This queue is not a project estimate; the completed rejection definition
@@ -86,22 +86,24 @@ a total job count or release date.
 
 ## Latest delivered result
 
-**Ordinary Beacon entry accepted onba7f59a.** The packaged game now has an
-executable `beacon-entry` route through real walk/boarding/departure, physical
-first-beacon approach, actual keyboard SELECT/START and resumed cursor1.
-This delivers a release-driver capability and entry qualification; full
-traversal, reward and home continuation remain open.
+**Beacon physical traversal and settlement accepted on e06550e.** The packaged
+`beacon-settlement` route retains real walk/board/depart/UI start, reaches all
+four physical beacons in order and saves exactly one navigation-data reward.
+Independent baseline/paid/stable files match live state; the paid document and
+terminal remain identical over60 further normal physics frames. This delivers
+an executable release capability and activity/settlement qualification. Full
+ordinary home/dock/usable exit remains open.
 
-Actual route43.407s;12 guarded stages PASS213.955s, three strict startup checks,
-matching1,521-entry packages, zero diagnostics, released inputs and all54 observed
+Actual route63.879s;12 guarded stages PASS233.982s, three strict startups,
+matching1,521-entry packages, zero diagnostics, released inputs and all53 observed
 process identities absent. Independent source/result reviews GO.
-[Windows ZIP](builds/windows/MuddsShipyards-ba7f59a-checkpoint.zip),
-[build notes](builds/windows/MuddsShipyards-ba7f59a-notes.txt) and
-[full result/retained contract](docs/history/ROADMAP_DELIVERIES.md#beacon-ordinary-entry--delivered).
-Freeze to source commit239s; freeze through publication about10.8min. Raw results
-retained under `/srv/mudds-work/beacon-entry-20261019/results/`; owned worktree,
-profiles and helpers cleaned. Eleven public hashes and ZIP bytes reverified.
-Native Windows/GPU/listening/human/full journey and final gates remain open.
+[Windows ZIP](builds/windows/MuddsShipyards-e06550e-checkpoint.zip),
+[build notes](builds/windows/MuddsShipyards-e06550e-notes.txt) and
+[full result/retained contract](docs/history/ROADMAP_DELIVERIES.md#beacon-physical-traversal-and-settlement--delivered).
+Freeze to source commit182s; freeze through publication about10.3min. Raw results:
+`/srv/mudds-work/beacon-settlement-20261019/results/`; owned worktree/profiles/
+helpers cleaned, all11 public hashes and exact ZIP reverified.
+Native Windows/GPU/listening/human/full return and final gates remain open.
 
 ## Parked failures and dependent work
 

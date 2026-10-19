@@ -13150,3 +13150,104 @@ export/startup checks. Stop at first failure; freeze one causal repair separatel
 retaining raw results and cumulative time. Parked Sandbox/Mining/full Scan/Patrol/
 Convoy routes are not reopened or renamed. No checkpoint is published as accepted
 until the selected route and required checks pass.
+
+## Beacon physical traversal and settlement — delivered
+
+Accepted source/checkpoint **e06550e4e4233f4bb575e5eea108ec586a6f707e** on2026-10-19.
+The packaged ordinary-input driver adds `--route beacon-settlement`, preserving
+all accepted entry assertions before flying the remaining three physical beacons
+and checking the actual once-only durable navigation reward. Parent13/full
+PLAY-BEACON stays open for its complete ordinary home/dock/exit journey.
+
+Actual route63.879s on private Xvfb/explicit x11/Dummy, driver exit0,
+`NATIVE_BEACON_SETTLEMENT_OK`, zero diagnostics and input/process cleanup PASS.
+Raw1,754 samples retain the actual game PID and one actor/binding/activity/
+authority/store/path tuple. Exact keyboard SELECT and single START preserved;
+physical cursor2/3/4 at frames1902/2032/2148, distances31.4864/31.8174/31.6958m
+inside the authored32m radii. Actual accepted production handoff grants receipt1
+for Beacon generation1.61 samples over60 further unpaused physics frames
+(2148→2208) retain the entire live reward record and paid terminal unchanged.
+
+Independently captured primary file: baseline generation15 has no ledger and
+matches actual live zero receipts; paid/stable generation19 documents are byte-
+identical, with exactly one debris_route_navigation_data receipt and paid
+COMPLETE/cursor4 Beacon terminal. Actual file/live values, artifact hashes and
+all protected unrelated payload match. No store load/write/reward or checkpoint
+submission is issued by the observer or driver. No paid-floor API was invented.
+
+All12 frozen stages PASS233.982201s: driver parse, import, observer/privacy
+compilation, existing privacy suite, paired clean exports, three strict menu-ready
+startups, package audit and actual settlement. All12 supervisors terminal,
+53 observed process/start identities absent. Independent source/raw-result reviews
+GO. Matching1,521-entry PCKs, stock Windows PE text and exact Linux archive
+bytes/modes/epoch/source PASS. Published11 checkpoint files in repository builds.
+[Windows notes](../../builds/windows/MuddsShipyards-e06550e-notes.txt),
+[Linux notes](../../builds/linux/MuddsShipyards-e06550e-linux-notes.txt).
+
+No failed engine attempt or repair run. Frozen implementation/review estimate
+30–60min; freeze-to-source commit182s. Frozen checks10–20min plus export/startup
+10–15min; actual stage time3.90min, freeze through publication about10.3min
+including guards/integration/review. These intervals are not a release estimate.
+Raw results/helpers and baseline/paid/stable copies:
+`/srv/mudds-work/beacon-settlement-20261019/results/`. Owned worktree/profiles/
+helpers cleaned after copying raw results/profiles/helpers and checking all11
+public hashes/exact ZIP. Only the results directory remains; freeze through
+cleanup10.83min.
+
+The sortie remains TARGET_PRACTICE after normal Guided launch. Home acceptance
+must preserve genuine landing admission, including required normal range/
+interceptor progression, actual dock/lease/shutdown and usable exterior exit.
+Sixty normal frames do not qualify ten repeats, deliberate replay, cold restart,
+OS-interruption or endurance. Native Windows/GPU/listening/devices/human/full
+matrix/installed recovery/final gates remain NOT_RUN where recorded. All36
+parents/ten phases stay open; parked routes retain their original budgets.
+
+### Retained frozen settlement contract
+
+#### PLAY-BEACON-SETTLEMENT — selected driver implementation
+
+Frozen2026-10-19 before edits/engine runs, from accepted entryba7f59a and
+mainba0e18c1a. Parent13. Deliver an executable ordinary-input settlement route;
+full home/dock/exit remains open. One implementer owns
+`tools/release/run_native_sortie.py`; root owns
+`scripts/diagnostics/native_sortie_observer.gd`, `scripts/game/startup_loader.gd`
+and `tests/startup_cli_privacy_test.gd`. Independent high-effort review checks
+pure observation, real-file proof, input and actual package/results. No nested agents.
+
+Add `beacon-settlement`, reusing every accepted entry assertion through actual
+SELECT/single START/resume/cursor1; preserve the entry-only route. Continue with
+ordinary controls through the remaining three authored physical beacons in order.
+Require actual cursor2/3/4, same process/Main/Player/Torrent/binding/activity,
+unchanged tuning/default sampler, live seated departed craft and generation1.
+No position/input-owner/authority changes, direct beacon submissions, reward
+requests, forced persistence, reset/restart or synthetic completion in telemetry.
+
+After entry, independently capture the actual confined primary user-data file
+with zero reward baseline. At physical completion require COMPLETE/cursor4,
+real accepted/granted handoff, exactly one navigation-data receipt for Beacon
+generation1, persisted terminal `reward_requested`/`reward_granted` true and
+raw progress paid acknowledgement. Beacon has no paid-floor API; do not invent one.
+Observe another60 normal unpaused physics frames with neutral/brake input:
+the entire reward record, receipt and paid terminal remain equal in live state
+and independently read real disk. Preserve all other payload except existing
+recovery namespaces (`solo_safe_recovery`, `crash_recovery`,
+`session_diagnostics`, `safe_start_recovery`). These60 frames are a duplicate-
+payment regression check, not ten-run/endurance or deliberate replay acceptance.
+
+Only pure raw activity/authority/store snapshots and retained result fields may
+be added to telemetry; avoid binding presentation reconciliation or store loads.
+Reuse the existing release driver's confined file-capture helper; copies go only
+to owned results and never mutate the real document. Record actual source/path/
+generation and compare live receipt/terminal with its disk counterparts.
+
+After clean commit/export, run
+`python3 tools/release/run_native_sortie.py builds/linux/MuddsShipyards-<candidate>.x86_64 --output <new-owned-result> --route beacon-settlement`.
+Keep300s whole-route cap, private Xvfb, explicit x11/Dummy, independent abort and
+input/process cleanup. Require driver exit0, `NATIVE_BEACON_SETTLEMENT_OK` result,
+zero diagnostics and actual-file baseline/paid/stable artifacts. Before that run:
+Python parse, isolated import, observer/privacy compilation, existing CLI privacy
+suite, clean paired exports, three strict menu-ready startups and package parity
+audit. Native Windows/GPU/listening/human/full return/final gates remain open.
+Estimate30–60min implementation/review,10–20min focused checks plus10–15min
+export/startup. First failure STOP; any one causal repair is separately frozen,
+raw results/cumulative time retained. Do not reopen parked unrelated routes.

@@ -379,7 +379,7 @@ test is an owner/regression anchor, not a runnable ordinary route.
 | PLAY-CINDER-SUPPLY | Cinder platform supply first full ordinary play | 13 | UNSCHEDULED; actual load_crate/clear_gate/dock_platform → physical one-crate transfer → once-only durable payment → home dock/usable exit. First funded delivery and ten-run restock policy are distinct; no Hauler integration inferred |
 | PLAY-MINING | Mining/extraction first full ordinary play | 13 | FAILED/PARKED candidate20bd1ab: single archive route53.444s reaches real Cinder approach then strict-stops on Activity Board focus-disconnection errors, before mining/return. Source unmerged/checkpoint withheld; UI-BOARD-FOCUS causal repair required before reopening; original CAP300 unchanged |
 | PLAY-SCAN | Structure Scan first full ordinary play | 13 | UNSCHEDULED; ordinary approach within24m → actual4s physics scan → one discovery/payment entitlement → home dock/usable exit. Existing full Scan failure stays PARKED; no unchanged retry selected |
-| PLAY-BEACON | Beacon Traversal first full ordinary play | 13 | ENTRY DONE on packagedba7f59a: actual walk/board/depart,11.364m first-beacon approach, ordinary SELECT/START/resume and physics cursor1 in43.407s. Remaining three physical beacons, once-only durable payment and home dock/usable exit remain open; [accepted entry](history/ROADMAP_DELIVERIES.md#beacon-ordinary-entry--delivered) does not close the full journey |
+| PLAY-BEACON | Beacon Traversal first full ordinary play | 13 | ENTRY/TRAVERSAL/SETTLEMENT DONE on packaged e06550e: actual walk/board/depart/UI start, four physical beacons in order, one real-file navigation receipt and60 stable physics frames;63.879s. Full ordinary landing-unlocked home dock/shutdown/usable exit remains open; [accepted settlement](history/ROADMAP_DELIVERIES.md#beacon-physical-traversal-and-settlement--delivered) does not close the full journey |
 | PLAY-CONVOY | Convoy Escort first full ordinary play | 13 | UNSCHEDULED; departed piloted craft enters4m rendezvous → escort actual retained-Main tender through route/threats to safe arrival → payment/home dock/exit. Preserve90s timeout and42m/3s separation rules; parked Convoy failures are not reopened |
 | PLAY-DEFENSE | Station Defense first full ordinary play | 13 | UNSCHEDULED; on-foot physical Deploy → board/depart → protect objective and clear three live waves (1/2/1 hostiles) through actual weapons → one payment → home/dock/on-foot usable board. Existing34s encounter semantics retained |
 | PLAY-BREACH | Heavy Breach first full ordinary play | 13 | UNSCHEDULED; on-foot arm posted Heavy → board/depart combat-capable craft → destroy charged picket while protecting objective → one payment → home/dock/on-foot next posting. Existing staged production route is not actual combat; interruption route stays PARKED |
@@ -946,9 +946,10 @@ separate old-source partial passes do not establish a final integrated journey.
 Patrol, Cinder Supply, Scan and Beacon tests provide staged integration/owner
 checks, not demonstrated complete ordinary commands. Existing
 `tests/nearby_sector_flight_review.gd` stages boarding and finishes near home;
-`tools/release/run_native_sortie.py` now provides `--route beacon-entry` on
-packagedba7f59a for ordinary entry only. Neither driver proves a complete
-PLAY-* journey. Reuse the ordinary
+`tools/release/run_native_sortie.py` now provides `--route beacon-entry` and
+`--route beacon-settlement`; packaged e06550e accepts ordinary entry, all four
+physical beacons and durable payment. Home return remains unproven, so neither
+driver yet proves a complete PLAY-* journey. Reuse the ordinary
 boarding/departure/home pattern in
 `tests/cargo_delivery_production_integration_test.gd --ordinary-jovian-kit-deliver`
 where appropriate; its kit delivery does not prove Cinder supply. A new ordinary
@@ -981,54 +982,6 @@ applicable release-driver check and does not imply a new gameplay build.
 First failure ends that attempt. Retain the original route and cumulative
 failure history before selecting any causal repair. All twelve journeys, repeat
 contracts, write/recovery cases and parent13's travel envelope remain binding.
-
-#### PLAY-BEACON-SETTLEMENT — selected driver implementation
-
-Frozen2026-10-19 before edits/engine runs, from accepted entryba7f59a and
-mainba0e18c1a. Parent13. Deliver an executable ordinary-input settlement route;
-full home/dock/exit remains open. One implementer owns
-`tools/release/run_native_sortie.py`; root owns
-`scripts/diagnostics/native_sortie_observer.gd`, `scripts/game/startup_loader.gd`
-and `tests/startup_cli_privacy_test.gd`. Independent high-effort review checks
-pure observation, real-file proof, input and actual package/results. No nested agents.
-
-Add `beacon-settlement`, reusing every accepted entry assertion through actual
-SELECT/single START/resume/cursor1; preserve the entry-only route. Continue with
-ordinary controls through the remaining three authored physical beacons in order.
-Require actual cursor2/3/4, same process/Main/Player/Torrent/binding/activity,
-unchanged tuning/default sampler, live seated departed craft and generation1.
-No position/input-owner/authority changes, direct beacon submissions, reward
-requests, forced persistence, reset/restart or synthetic completion in telemetry.
-
-After entry, independently capture the actual confined primary user-data file
-with zero reward baseline. At physical completion require COMPLETE/cursor4,
-real accepted/granted handoff, exactly one navigation-data receipt for Beacon
-generation1, persisted terminal `reward_requested`/`reward_granted` true and
-raw progress paid acknowledgement. Beacon has no paid-floor API; do not invent one.
-Observe another60 normal unpaused physics frames with neutral/brake input:
-the entire reward record, receipt and paid terminal remain equal in live state
-and independently read real disk. Preserve all other payload except existing
-recovery namespaces (`solo_safe_recovery`, `crash_recovery`,
-`session_diagnostics`, `safe_start_recovery`). These60 frames are a duplicate-
-payment regression check, not ten-run/endurance or deliberate replay acceptance.
-
-Only pure raw activity/authority/store snapshots and retained result fields may
-be added to telemetry; avoid binding presentation reconciliation or store loads.
-Reuse the existing release driver's confined file-capture helper; copies go only
-to owned results and never mutate the real document. Record actual source/path/
-generation and compare live receipt/terminal with its disk counterparts.
-
-After clean commit/export, run
-`python3 tools/release/run_native_sortie.py builds/linux/MuddsShipyards-<candidate>.x86_64 --output <new-owned-result> --route beacon-settlement`.
-Keep300s whole-route cap, private Xvfb, explicit x11/Dummy, independent abort and
-input/process cleanup. Require driver exit0, `NATIVE_BEACON_SETTLEMENT_OK` result,
-zero diagnostics and actual-file baseline/paid/stable artifacts. Before that run:
-Python parse, isolated import, observer/privacy compilation, existing CLI privacy
-suite, clean paired exports, three strict menu-ready startups and package parity
-audit. Native Windows/GPU/listening/human/full return/final gates remain open.
-Estimate30–60min implementation/review,10–20min focused checks plus10–15min
-export/startup. First failure STOP; any one causal repair is separately frozen,
-raw results/cumulative time retained. Do not reopen parked unrelated routes.
 
 ### Activity repetition — first bounded definition slice
 
