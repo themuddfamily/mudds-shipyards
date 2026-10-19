@@ -1,10 +1,10 @@
 # Development roadmap
 
 **Status: playable development alpha; project completion is unproven.** Latest
-accepted checkpoint: **1c679a4**, bounding client connection/admission to five
-seconds, including pause, with readable timeout and retry.
-[Windows notes](builds/windows/MuddsShipyards-1c679a4-notes.txt) and
-[Linux notes](builds/linux/MuddsShipyards-1c679a4-linux-notes.txt) state checks and
+accepted checkpoint: **20e90c9**, showing connection progress, timeout guidance
+and permitted retry inline in the title/pause server browser.
+[Windows notes](builds/windows/MuddsShipyards-20e90c9-notes.txt) and
+[Linux notes](builds/linux/MuddsShipyards-20e90c9-linux-notes.txt) state checks and
 limits. Paused LAN discovery remains accepted on042c701. Beacon departure/traversal/once-only saved reward qualification on
 e06550e is retained in its recorded scope. Beacon home/dock/exit, Perimeter Hold,
 client rejection and real listening remain unfinished. All36 original parents
@@ -80,10 +80,12 @@ No engine or renamed Threading retry selected. Next independent candidate is the
 ordinary browser unreachable-host timeout/retry UI path after packaged1c679a4;
 source-map its driver and full acceptance before implementation or engines.
 
-BROWSER-INLINE-RECOVERY is selected for implementation: asynchronous session
-results never reach browser feedback, and the title-hidden runtime card cannot
-supply its retry control. [Frozen player result/owners/test-first proof](docs/ROADMAP_BACKLOG.md#browser-inline-session-recovery--browser-inline-recovery).
+BROWSER-INLINE-RECOVERY is delivered on **20e90c9**, merged/pushed and packaged:
+accepted progress/timeout feedback and permitted Retry are reachable inline,
+with Cancel/Disconnect priority and validation fencing preserved.
+[Actual checks and original corrections](docs/history/ROADMAP_DELIVERIES.md#browser-inline-session-recovery--delivered).
 The full OS-input browser route remains separate; no Activity Board/Aft retry.
+Next action is its bounded driver definition, before further implementation.
 
 Perimeter Hold's implementation candidate **aa88b5a73** is **PARKED/unmerged**.
 Its staged live runtime passes52 assertions; existing director/asset/board/HUD
@@ -98,7 +100,7 @@ hit the known Activity Board focus-disconnection pair before Beacon SELECT/START
 (37.713s guarded). The page actually opened; popup identity/connection-removal
 cause remains unknown. No repair/retry selected. [Failure and preserved contract](docs/history/ROADMAP_DELIVERIES.md#beacon-complete-home--failed-and-parked).
 Beacon traversal/settlement qualification remains on **e06550e**; latest checkpoint
-**1c679a4** adds the independent join deadline after paused discovery042c701. Owned worktree/profiles/helpers
+**20e90c9** adds inline browser recovery after deadline1c679a4 and discovery042c701. Owned worktree/profiles/helpers
 cleaned after preserving raw evidence and all8 unique withheld build files.
 
 All28 actual listening cases remain NOT_RUN. Hauler's already-asked stock/custody
@@ -121,6 +123,19 @@ number of tasks per ship. CRAFT-ACCEPT retains the original complete craft journ
 An unresolved SPEC remains WAITING; a template or a source audit does not deliver
 that ship. The already-asked Titan decision remains pending.
 
+The2026-10-20 bounded readiness pass found no additional implementation-ready
+card among navigator rejection, Hauler cargo integration and Station Defense
+active-run recovery: the first two retain their already-asked policy waits;
+the third still lacks its intended active-wave continuation contract. Do not
+count these as executable jobs or begin another terminal-debt implementation.
+The next independent actionable work is defining the browser OS-input driver
+capability, with the full timeout→same-endpoint retry/admission→disconnect→
+fresh cancel→resume path retained. Its driver implementation and actual packaged
+route acceptance must be separate named deliverables; neither is delivered by
+the focused inline HUD fix. Freeze owners, commands and stage/whole-route caps
+before code or engines. This is a specific next action, not a release estimate.
+
+
 At each delivery, update that child’s result and remaining dependency, give actual
 elapsed time against the estimate, and nominate one next action. Keep at most
 three executable cards. Broader estimation becomes possible as unknown build
@@ -129,30 +144,26 @@ a total job count or release date.
 
 ## Latest delivered result
 
-**Client join/admission deadline delivered on1c679a4e2.** Joining now allows the
-existing five-second budget for connection plus valid admission, including while
-gameplay is paused. Expiry closes the pending peer, explains the timeout and
-allows retry. Cancellation/replacement and successful admission retire the clock.
+**Inline browser recovery delivered on20e90c9.** The title/pause browser now shows
+current connection progress and timeout guidance and offers permitted Retry.
+Cancel/Disconnect retain priority; rejected receipts preserve newer validation.
 
-Five focused suites pass196 assertions; clean Windows/Linux exports, three strict
-silent menu startups and actual1521-entry package parity pass. Independent high
-lifecycle review and root integration review: GO. All12 final-candidate stages
-are diagnostic-free. Cumulative16 stages/219.958s retain the initial test syntax
-failure, sole syntax repair and exact old-runtime reproduction. All16 owners
-FINISHED/all73 observed process identities absent.
-[Windows ZIP](builds/windows/MuddsShipyards-1c679a4-checkpoint.zip),
-[build notes](builds/windows/MuddsShipyards-1c679a4-notes.txt),
-[original contract/results](docs/history/ROADMAP_DELIVERIES.md#client-join-admission-deadline--delivered).
-Only `/srv/mudds-work/browser-join-deadline-20261020/results/` remains after owned
-scratch cleanup; all11 public hashes/exact ZIP and8 unique build files verified.
-Freeze→fix6.4min and freeze→publication/cleanup12.85min against30–60min
-implementation/review estimate.
+Five focused suites pass182 assertions; clean Windows/Linux exports, three strict
+silent startups and actual1521-entry package parity pass. Independent high review
+and root final review: GO. All12 final stages pass. Cumulative17 stages/193.759s
+retain the original Cancel-priority failure and explicit corrections. All17 owners
+FINISHED/all78 observed process identities absent.
+[Windows ZIP](builds/windows/MuddsShipyards-20e90c9-checkpoint.zip),
+[build notes](builds/windows/MuddsShipyards-20e90c9-notes.txt),
+[original contract/results](docs/history/ROADMAP_DELIVERIES.md#browser-inline-session-recovery--delivered).
+Owned scratch cleaned; only raw results remain. All11 public hashes/exact ZIP
+and8 unique build files verified. Engine-stage timing excludes implementation
+and publication; total elapsed against the original estimate was not captured.
 
-This closes one concrete runtime defect under parent25. Full ordinary independent
-Main/browser/retry/capacity/endurance and native Windows/GPU/device/listening/
-human/final gates remain OPEN/NOT_RUN. Paused LAN discovery042c701 and Beacon's
-physical four-beacon saved-reward journey on e06550e retain their recorded scopes;
-Beacon home and Perimeter Hold remain parked below.
+This closes one UI defect under parent25. Full ordinary Main/browser OS-input
+retry/admission, rendered readability, capacity/endurance/native/human/final
+remain OPEN/NOT_RUN. The5s deadline1c679a4, paused LAN042c701 and Beacon reward
+e06550e retain their recorded scopes. Beacon home/Perimeter Hold remain parked.
 
 ## Parked failures and dependent work
 

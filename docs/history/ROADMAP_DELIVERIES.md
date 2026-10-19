@@ -13945,3 +13945,143 @@ limited to this view. A real finding needs a separately frozen implementation,
 focused behavior/view comparison and paired checkpoint before acceptance. No
 ordinary walking/interaction, integrated Main composition, hardware GPU, other
 station branch or whole art/parent acceptance is claimed by this component view.
+
+## Browser inline session recovery — delivered
+
+Accepted source **20e90c98439d4cb9721de07f98813d0339f10eeb**, merged/pushed
+via f070124cb. The title/pause server browser now receives accepted connection
+progress and timeout guidance inline. Its existing session button offers Retry
+when allowed, preserving Cancel/Disconnect priority and current fenced intent.
+Newer validation feedback survives rejected receipts; fresh attempts restore Cancel.
+
+Five focused suites pass182 assertions (manual HUD36, browser HUD40, focus57,
+presenter39, manual GameFlow10). Both clean exports, three strict silent startup
+checks (exit0 and exactly one STARTUP_MENU_READY_OK), actual1521-entry PCK parity,
+stock PE text and exact Linux archive bytes/modes/source epoch pass. Independent
+high source/runtime review and root final review: GO. All12 final stages pass.
+
+Cumulative17 stages/193.759s:16 accepted and one unexpected browser-HUD failure.
+The original stale-timeout regression was reproduced exactly. Pre-engine review
+caught legacy/malformed arbitration; the first tested correction then regressed
+Cancel priority. The explicitly selected helper-only correction restores priority;
+its tests are unchanged. Original failures/decisions remain below and in raw logs.
+All17 owners FINISHED; all78 observed process identities absent. These timings
+are engine stages, not total implementation/elapsed wall time.
+
+[Windows checkpoint](../../builds/windows/MuddsShipyards-20e90c9-checkpoint.zip),
+[Windows notes](../../builds/windows/MuddsShipyards-20e90c9-notes.txt),
+[Linux notes](../../builds/linux/MuddsShipyards-20e90c9-linux-notes.txt).
+All11 public hashes/exact Windows ZIP and8 unique worktree artifacts verified.
+Owned worktree/helpers/profiles removed after verified preservation; only
+`/srv/mudds-work/browser-inline-recovery-20261020/results/` remains, including
+original STOP and separate repair-1 results. An initial cleanup ancestry check
+used stale origin/main after URL push; verified actual remote main before cleanup.
+
+This closes the focused UI defect under parent25, not its complete ordinary
+browser journey. OS-input unreachable-host/retry/admission, rendered readability,
+capacity/endurance/native Windows/GPU/devices/listening/human/final gates remain
+OPEN/NOT_RUN. No broad parent/phase closes. Next action: define the existing
+ordinary browser driver capability before implementation/engine execution;
+Activity Board and Aft parked routes remain untouched.
+
+### Original frozen contract and corrective decisions
+
+#### Browser inline session recovery — BROWSER-INLINE-RECOVERY
+
+**Parent25; frozen2026-10-20 before edits/engines.** Focused adapter deadline is
+packaged1c679a4, but the actual browser does not consume asynchronous session
+status into its feedback. GameHUD.update_network_session_status renders only the
+runtime card and updates Cancel/Disconnect availability. The runtime card is a
+child of _hud, which stays hidden on the title screen; open_intro_server_browser
+shows the pause/browser overlay instead. _server_browser_feedback therefore keeps
+the earlier join acknowledgement at timeout. _server_browser_session_action
+excludes the presenter's retry action. Source seam is existing scripts/ui/hud.gd;
+this is independent of parked ActivityBoardButton and failed rendered Aft capture.
+
+Player result: the open title/pause browser displays newly accepted network
+progress/timeout guidance inline, and its existing session-action button exposes
+current caller-authorized Retry Connection as well as Cancel/Disconnect. Retry
+forwards the current fenced network snapshot to GameFlow; retained normalized
+endpoint and transport authority remain unchanged. A fresh connecting snapshot
+clears terminal copy and restores Cancel. Stale/replayed/malformed status cannot
+overwrite a newer browser validation message or resurrect an old action. Do not
+add a second cursor/authority ledger, fake retry permission or automatic attempt.
+
+One medium implementation agent owns ONLY scripts/ui/hud.gd and existing
+tests/server_browser_manual_controls_hud_integration_test.gd. Root freezes,
+integrates/tests/packages; one independent high reviewer checks cursor/focus/
+caller intent and copy arbitration. No GameFlow/transport/presenter wire rewrite,
+new browser page, generic tooltip fix, OS-input driver or validator family.
+Preserve directory-refresh feedback clearing and endpoint-validation semantics.
+
+Test first: extend existing HUD test while production unchanged; actual title
+HUD remains hidden, open the real browser, apply accepted join acknowledgement,
+then genuine GameFlow-shaped fenced connecting/disconnected connection_timeout
+snapshots. Sole frozen old completion error:
+`FAIL: browser displays the accepted session timeout instead of the earlier join acknowledgement`.
+Gate all later new assertions on that result; preserve prior checks and cleanly
+free HUD. Commit test-only first; root guarded import and exact reproduction
+before production edits. Fixed unchanged test must prove visible browser text,
+inline focusable Retry and its current network intent/snapshot, retained endpoint,
+fresh attempt cancellation, stale/duplicate/malformed receipt fencing around a
+new validation error, caller-forbidden retry and disabled-action focus recovery.
+This proves the actual HUD contract, not an OS-input/full Main/browser journey.
+
+Focused original suites: manual-controls HUD60s, general browser HUD60s,
+server_browser_focus_navigation_test60s, network_session_status_presenter_test60s,
+game_flow_server_browser_manual_controls_test60s. Import/exports180s, strict
+startups120s; clean source/engine/cache/process guards, headless/Dummy only.
+Both safe clean exports, three strict startup exit0/menu-ready markers and actual
+package parity precede acceptance. No hosted CI, audible/desktop automation.
+First unexpected failure STOP; one cause-backed repair only after frozen
+diagnosis then cumulative priority review; no automatic second repair, cap
+increase, renamed parked route or scope narrowing. Estimate30–45min implementation/
+review,10–15min focused checks,10–15min paired checkpoint; split before90min.
+Full ordinary browser unreachable-host OS-input/readability/retry, capacity/
+endurance/native/human/final remain OPEN/NOT_RUN; no full parent closure.
+
+**BROWSER-INLINE-RECOVERY pre-engine review correction2026-10-20.** Test-only
+432a7ce5 reproduces the exact frozen old failure in2.137s after import19.685s;
+no unexpected engine failure. Candidatefdd6fec17 has not run. Independent high
+source review STOP finds that its legacy repaint exception examines retained
+presentation.source_generation, rather than whether the incoming receipt carries
+cursor keys. After a valid legacy status/local validation, malformed fenced input
+returns that legacy snapshot and could overwrite validation. Root independently
+confirms the cause in presenter's existing _session_cursor contract.
+Select one bounded correction before candidate engines: classify incoming
+cursor-presence using the same session_id/generation/sequence/event_sequence
+keys; only genuine unfenced legacy receipts may repaint unchanged presentation.
+Keep error guard and no second ledger. Extend only the gated post-regression
+checks with legacy→local validation→malformed cursor/alias coverage. The original
+pre-fix target assertion and all code before its existing gate remain unchanged;
+those new later checks are unreachable on old production, so do not rerun its
+accepted reproduction. This strengthens proof, not acceptance narrowing. Retain
+fdd source-review finding and all raw output. One selected correction allowance
+is now spent; any further unexpected failure STOP/cumulative priority review,
+no automatic second repair, scope/cap change or renamed retry. Independent review
+must check corrected source and extended test before engine checks.
+
+**BROWSER-INLINE-RECOVERY cumulative priority decision2026-10-20.** Corrected
+58d607096 imported6.802s and passed new manual-HUD36 checks/2.418s, then existing
+browser HUD failed2.254s on `browser exposes the presenter's cancel action while
+failed`; remaining three suites/exports/startups NOT_RUN. Original import/repro
+and partial candidate total33.294994024s across five stages. All raw/STOP retained.
+Independent high reviewer and root confirm production regression: presenter
+failed defaults retryable=true and offers[retry,cancel]; first-match retry changed
+the existing required Cancel priority. The test is correct. Root/source review
+missed that default; do not alter the test or claim partial acceptance.
+
+Root explicitly selects ONE further helper-only corrective patch after cumulative
+review, as an exception to the spent correction allowance, rather than parking a
+concrete small UI delivery. Preserve Cancel/Disconnect first whenever offered;
+Retry is fallback only when neither exists. Thus disconnected timeout gets Retry,
+failed retains Cancel, fresh connecting gets Cancel, caller-forbidden stays
+unavailable. No copy/cursor/focus/endpoint/transport changes and no test edits.
+All frozen original assertions/acceptance/caps remain. Use separately guarded
+repair-1 results with original STOP retained; rerun the five original focused
+suites because the shared action selector changed, then original exports/startups/
+parity only if all pass. No rerun of accepted old-production reproduction.
+Independent review must confirm the patch before engines. This is an explicit
+bounded priority decision, not an automatic quota reset. Any further unexpected
+failure parks the candidate with cumulative review; no additional automatic
+repair, cap increase, new route, changed test or narrowed proof.
