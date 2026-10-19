@@ -379,7 +379,7 @@ test is an owner/regression anchor, not a runnable ordinary route.
 | PLAY-CINDER-SUPPLY | Cinder platform supply first full ordinary play | 13 | UNSCHEDULED; actual load_crate/clear_gate/dock_platform → physical one-crate transfer → once-only durable payment → home dock/usable exit. First funded delivery and ten-run restock policy are distinct; no Hauler integration inferred |
 | PLAY-MINING | Mining/extraction first full ordinary play | 13 | FAILED/PARKED candidate20bd1ab: single archive route53.444s reaches real Cinder approach then strict-stops on Activity Board focus-disconnection errors, before mining/return. Source unmerged/checkpoint withheld; UI-BOARD-FOCUS causal repair required before reopening; original CAP300 unchanged |
 | PLAY-SCAN | Structure Scan first full ordinary play | 13 | UNSCHEDULED; ordinary approach within24m → actual4s physics scan → one discovery/payment entitlement → home dock/usable exit. Existing full Scan failure stays PARKED; no unchanged retry selected |
-| PLAY-BEACON | Beacon Traversal first full ordinary play | 13 | UNSCHEDULED; approach first beacon within32m → traverse all four authored beacons in order → once-only payment → home dock/usable exit. Driver selection/adaptation required |
+| PLAY-BEACON | Beacon Traversal first full ordinary play | 13 | ENTRY DONE on packagedba7f59a: actual walk/board/depart,11.364m first-beacon approach, ordinary SELECT/START/resume and physics cursor1 in43.407s. Remaining three physical beacons, once-only durable payment and home dock/usable exit remain open; [accepted entry](history/ROADMAP_DELIVERIES.md#beacon-ordinary-entry--delivered) does not close the full journey |
 | PLAY-CONVOY | Convoy Escort first full ordinary play | 13 | UNSCHEDULED; departed piloted craft enters4m rendezvous → escort actual retained-Main tender through route/threats to safe arrival → payment/home dock/exit. Preserve90s timeout and42m/3s separation rules; parked Convoy failures are not reopened |
 | PLAY-DEFENSE | Station Defense first full ordinary play | 13 | UNSCHEDULED; on-foot physical Deploy → board/depart → protect objective and clear three live waves (1/2/1 hostiles) through actual weapons → one payment → home/dock/on-foot usable board. Existing34s encounter semantics retained |
 | PLAY-BREACH | Heavy Breach first full ordinary play | 13 | UNSCHEDULED; on-foot arm posted Heavy → board/depart combat-capable craft → destroy charged picket while protecting objective → one payment → home/dock/on-foot next posting. Existing staged production route is not actual combat; interruption route stays PARKED |
@@ -946,8 +946,9 @@ separate old-source partial passes do not establish a final integrated journey.
 Patrol, Cinder Supply, Scan and Beacon tests provide staged integration/owner
 checks, not demonstrated complete ordinary commands. Existing
 `tests/nearby_sector_flight_review.gd` stages boarding and finishes near home;
-`tools/release/run_native_sortie.py` has no nearby-activity route selector.
-Neither is ready to run as a PLAY-* acceptance command. Reuse the ordinary
+`tools/release/run_native_sortie.py` now provides `--route beacon-entry` on
+packagedba7f59a for ordinary entry only. Neither driver proves a complete
+PLAY-* journey. Reuse the ordinary
 boarding/departure/home pattern in
 `tests/cargo_delivery_production_integration_test.gd --ordinary-jovian-kit-deliver`
 where appropriate; its kit delivery does not prove Cinder supply. A new ordinary
@@ -980,40 +981,6 @@ applicable release-driver check and does not imply a new gameplay build.
 First failure ends that attempt. Retain the original route and cumulative
 failure history before selecting any causal repair. All twelve journeys, repeat
 contracts, write/recovery cases and parent13's travel envelope remain binding.
-
-#### PLAY-BEACON-ENTRY — selected driver implementation
-
-Frozen2026-10-19 before edits/engine runs. Parent13; this delivers an executable
-ordinary-input entry route, not new activity content or full PLAY-BEACON acceptance.
-Files: `tools/release/run_native_sortie.py` (one implementation agent),
-`scripts/diagnostics/native_sortie_observer.gd`, `scripts/game/startup_loader.gd`
-and `tests/startup_cli_privacy_test.gd` (root). One bounded independent review
-checks input/paused telemetry/admission and source/package results. No nested agents.
-
-Add only `beacon-entry`: reuse normal Guided Begin Shift/walk/Torrent boarding/
-launch through range entry; physically approach the transformed first beacon
-within32m at low speed. Use actual Escape/Tab/Return through pause → Activity
-Board → Cinder activities → exact Beacon SELECT and START. Observe the same
-live binding/activity, initial IDLE generation0, actual selected identity,
-positive STARTED feedback and ACTIVE generation1/cursor0 while paused. Resume
-through ordinary UI; same craft's production physics must advance cursor1.
-Require unchanged controls/tuning, same actors, released home berth and no reward.
-Observer is read-only, including paused UI: no actor/focus/input writes, synthetic
-receipts, mutating snapshot reconciliations or authority calls.
-
-Command after clean candidate export:
-`python3 tools/release/run_native_sortie.py builds/linux/MuddsShipyards-<candidate>.x86_64 --output <new-owned-result> --route beacon-entry`.
-Retain300s whole-route cap, private Xvfb/explicit x11/Dummy, independent abort,
-released inputs and reaped owned processes. Require exit0, success result and
-`NATIVE_BEACON_ENTRY_OK`; no diagnostics. Before that route: isolated import,
-observer parse and existing startup CLI privacy suite, clean paired exports,
-three strict menu-ready startup checks and package parity audit. Native GPU,
-Windows execution, listening, full traversal/reward/home and final gates stay open.
-Estimate30–60min implementation/review,10–20min focused checks plus10–15min
-export/startup checks. Stop at first failure; freeze one causal repair separately,
-retaining raw results and cumulative time. Parked Sandbox/Mining/full Scan/Patrol/
-Convoy routes are not reopened or renamed. No checkpoint is published as accepted
-until the selected route and required checks pass.
 
 ### Activity repetition — first bounded definition slice
 

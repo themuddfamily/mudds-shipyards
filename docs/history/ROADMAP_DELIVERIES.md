@@ -13072,3 +13072,81 @@ Stop once the finite refusal cases, file owners, acceptance and estimate/stop ar
 known; no engines, transport/runtime edits, new validators/assets or broad
 networking audit. This definition is not a delivered feature. Keep Hauler stock,
 all28 actual listening cases and hardware/human gates unchanged.
+
+## Beacon ordinary entry — delivered
+
+Accepted source/checkpoint **ba7f59a4b79297abc5e438054c25d6d24bc55cf0** on2026-10-19.
+The packaged Linux ordinary-input driver now supports `--route beacon-entry`:
+actual Begin Shift,17.691m walk, Torrent boarding/departure,219.486m maximum
+excursion, physical first-beacon approach11.364m, normal pause-board Beacon
+SELECT and one START, then three Escape transitions and resumed production
+physics. Same process/Main/Player/Torrent and loaded binding/activity identities;
+paused IDLE0/cursor0→ACTIVE generation1/cursor0 with exact STARTED feedback,
+then unpaused cursor1, no reward requested. Actual route43.407s, exit0,
+`NATIVE_BEACON_ENTRY_OK`, zero diagnostics, input release and owned cleanup PASS.
+
+All12 frozen stages PASS: Python parse/import/observer and privacy compilation,
+existing CLI privacy suite, paired clean exports, three strict menu-ready
+startups, package audit and actual entry. Sum stage time213.954623s; all12
+supervisors terminal and54 observed process/start identities absent. Independent
+source and raw-result reviews GO. Actual1,521-entry PCK parity, stock Windows
+PE text and exact Linux archive bytes/modes/epoch/source PASS. Published11 files
+including Windows EXE/checkpoint ZIP/notes and Linux ELF/archive/notes in repository
+builds. [Windows notes](../../builds/windows/MuddsShipyards-ba7f59a-notes.txt),
+[Linux notes](../../builds/linux/MuddsShipyards-ba7f59a-linux-notes.txt).
+
+No engine failure or repair run: review corrected mutating telemetry getters and
+an initially unloaded-Cinder assumption before the first engine invocation.
+Frozen implementation/review estimate30–60min; freeze-to-source commit239s.
+Frozen checks10–20min plus export/startup10–15min; actual12 stage time3.57min,
+freeze through publication about10.8min including guards/integration/review.
+These are recorded intervals, not a whole-project estimate. Raw results and
+helpers: `/srv/mudds-work/beacon-entry-20261019/results/`. Owned source worktree,
+profiles and helpers removed after preserving results/profiles and verifying all11
+public hashes and exact ZIP contents; only that results directory remains.
+Freeze through cleanup12.00min.
+
+This delivers executable release-driver capability and ordinary entry
+qualification. Entry occurs after normal Guided launch at TARGET_PRACTICE;
+range/interceptor completion and landing-unlocked return were not exercised.
+Remaining three beacons, durable reward and actual home/dock/usable exit keep
+PLAY-BEACON open. Native Windows execution, GPU/performance, real listening,
+devices/human/full matrix/endurance/installed recovery/final-release gates remain
+NOT_RUN where recorded. All36 parents and ten phase gates remain open; parked
+Sandbox/Mining/full Scan/Patrol/Convoy failures retain their original limits.
+
+### Retained frozen entry contract
+
+#### PLAY-BEACON-ENTRY — selected driver implementation
+
+Frozen2026-10-19 before edits/engine runs. Parent13; this delivers an executable
+ordinary-input entry route, not new activity content or full PLAY-BEACON acceptance.
+Files: `tools/release/run_native_sortie.py` (one implementation agent),
+`scripts/diagnostics/native_sortie_observer.gd`, `scripts/game/startup_loader.gd`
+and `tests/startup_cli_privacy_test.gd` (root). One bounded independent review
+checks input/paused telemetry/admission and source/package results. No nested agents.
+
+Add only `beacon-entry`: reuse normal Guided Begin Shift/walk/Torrent boarding/
+launch through range entry; physically approach the transformed first beacon
+within32m at low speed. Use actual Escape/Tab/Return through pause → Activity
+Board → Cinder activities → exact Beacon SELECT and START. Observe the same
+live binding/activity, initial IDLE generation0, actual selected identity,
+positive STARTED feedback and ACTIVE generation1/cursor0 while paused. Resume
+through ordinary UI; same craft's production physics must advance cursor1.
+Require unchanged controls/tuning, same actors, released home berth and no reward.
+Observer is read-only, including paused UI: no actor/focus/input writes, synthetic
+receipts, mutating snapshot reconciliations or authority calls.
+
+Command after clean candidate export:
+`python3 tools/release/run_native_sortie.py builds/linux/MuddsShipyards-<candidate>.x86_64 --output <new-owned-result> --route beacon-entry`.
+Retain300s whole-route cap, private Xvfb/explicit x11/Dummy, independent abort,
+released inputs and reaped owned processes. Require exit0, success result and
+`NATIVE_BEACON_ENTRY_OK`; no diagnostics. Before that route: isolated import,
+observer parse and existing startup CLI privacy suite, clean paired exports,
+three strict menu-ready startup checks and package parity audit. Native GPU,
+Windows execution, listening, full traversal/reward/home and final gates stay open.
+Estimate30–60min implementation/review,10–20min focused checks plus10–15min
+export/startup checks. Stop at first failure; freeze one causal repair separately,
+retaining raw results and cumulative time. Parked Sandbox/Mining/full Scan/Patrol/
+Convoy routes are not reopened or renamed. No checkpoint is published as accepted
+until the selected route and required checks pass.
