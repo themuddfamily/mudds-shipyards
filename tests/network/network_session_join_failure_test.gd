@@ -134,8 +134,7 @@ func _paused_non_admitting_host_reaches_deadline() -> bool:
 		"the production-default pending join starts")
 	var pending_peer: ENetMultiplayerPeer = client._peer
 	var connected := await _wait_until(func() -> bool:
-		return pending_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED
-			and _dropped_hellos > 0,
+		return pending_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED and _dropped_hellos > 0,
 		1.0)
 	_check(connected, "the raw host establishes a real ENet link and receives/discards the client's admission hello")
 	if not connected:
