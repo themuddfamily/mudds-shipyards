@@ -1263,14 +1263,62 @@ assertions pass in the repaired route; migrated command is applied but onward
 client sound/caption fails, disconnect proof is interrupted and the original host
 walk-clear assertion fails. Broader client/rejection/listening gates remain open.
 
-**Next cause-definition card,20–30min:** inspect the actual migrated applied
-command against recipient admission/transport/current epochs, craft/boarding,
-callback epoch and composition retirement. Own only the existing completion-scope
-notes; deliver one demonstrated causal fact and a bounded correction/proof
-contract. No runtime/test edits, engines or route retries. Preserve original
-cumulative budgets and separate physical host-walk/disconnect gates. Stop once
-cause/ownership/proof are known; this definition does not deliver client feedback
-or authorize a second implementation attempt.
+**Source diagnosis result on6a841d7ec:** migration cause remains unproven;
+source inspection eliminated two proposed corrections rather than authorizing a
+speculative runtime change. The actual applied third command and post-rebind
+stream2 are established by the retained route; their full numeric command,
+recipient context and source flags were held in test memory but not written into
+retained artifacts. The separate host walk failure has a demonstrated tolerance
+cause. [Exact source trace and coordinates](history/ROADMAP_DELIVERIES.md#audio-navigator-client-migration-cause--bounded-source-diagnosis).
+No engine, runtime/test edit or retry occurred during this diagnosis.
+
+**Next bounded diagnostic card — AUDIO-NAVIGATOR-CLIENT-MIGRATION-CAPTURE:**
+root selects one observation-enhanced execution because the failed run omitted
+the values needed to locate the actual presentation refusal. This is not a second
+runtime repair or acceptance attempt. Preserve candidate279d3b378, cumulative
+24-stage504.404s history and both failures. Estimated20–30min including one run;
+stop after that run and record the demonstrated guard/lifetime cause or explicit
+inconclusive result. Do not append speculative fixes or another automatic probe.
+
+- One implementer owns only the existing
+  `tests/network/halyard_network_passenger_route_test.gd` on a clean isolated
+  descendant of279d3b378. Root owns engine supervision/results. No new validator,
+  runtime/transport/schema/recipient-filter change, asset or extra journey.
+- At actual successfully applied navigator commands, persist unchanged raw
+  commands plus a whitelisted synchronous before/after presentation observation:
+  adapter instance, client peer/generation, offered admission/transport peer
+  identities and migration epoch, current epoch, actual phase/craft instance and
+  boarding claim, callback epoch/migration, captured/current recipient context,
+  composition attached/generation and binding existence/snapshot. Obtain after
+  dispatch with a deferred fixture callback while retaining the same command's
+  event identity. Capture no auth token or unrelated session secrets. Real
+  Director requests/captions remain the proof consumers; no fixture emits cues.
+- Persist the observations to the owned existing peer artifact directory at each
+  observed command, before later assertions/teardown can discard them. Preserve
+  the original record bytes/identity and label fixture snapshots as diagnostic
+  observations, not new transport records or feature acceptance.
+- Guard the fixture's nil retiring-source dereference with an explicit failed
+  existence assertion, then continue real disconnect/cleanup; when present,
+  retain exact old-source emission/callback silence checks. A missing source
+  remains a failure. Do not manufacture a source or skip its gate.
+- Compile the changed test before the single explicit original
+  `-- --cinder-navigator` route. Preserve outer300s, all internal waits/physical
+  walk/chair/FIRE/stand/reseat/migration/disconnect steps, host/off-camera
+  assertions, player input, sounds/captions/counts and success marker. The known
+  migration failure and independent host2m clearance requirement stay in place.
+  Root retains actual exit/failures/raw logs/child PID-start identities; this
+  diagnostic does not require or establish a passing candidate. Unexpected
+  compilation/lifecycle/input failure stops without a repair/retry.
+- Dummy audio, headless parent/private Xvfb peers with explicit x11, independent
+  process abort/reaping, clean source/engine pins and owned profile preservation
+  remain mandatory. No exports, merge or checkpoint until the complete original
+  acceptance succeeds after a separately selected demonstrated causal fix.
+
+The host walk needs a separate bounded fixture correction after selection: keep
+its original >2m postcondition, waypoint and240-iteration cap, but use an arrival
+condition tight enough to guarantee clearance rather than lowering the2m gate.
+Do not fold that correction into this observation-only probe. Listening/native/
+GPU/full ordinary travel/client rejection/endurance/human/final gates remain open.
 
 ## Phase-wide acceptance still required
 

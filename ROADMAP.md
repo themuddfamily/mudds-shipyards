@@ -39,12 +39,14 @@ Client candidate `279d3b378` is pushed **unmerged/withheld** after mandatory rou
 failure plus one frozen causal repair. All eight focused suites passed twice;
 the actual repaired route still fails post-migration presentation, exact disconnect
 proof and an original host walk-clear assertion. [Full retained result](docs/history/ROADMAP_DELIVERIES.md#audio-navigator-client-receipts--parked-after-actual-client-route-and-one-repair).
-No checkpoint was produced from the failed candidate; no second repair/retry is
-selected. Owned scratch is cleaned with raw results/profiles retained.
+No checkpoint was produced from the failed candidate. Source diagnosis is
+inconclusive for migration; it did establish an independent host arrival-tolerance
+mismatch. One observation-enhanced diagnostic is selected below; no second runtime
+repair is selected. Owned scratch is cleaned with raw results/profiles retained.
 
 | Remaining work | Readiness | Next bounded action / estimate |
 | --- | --- | --- |
-| AUDIO-NAVIGATOR-CLIENT-MIGRATION-CAUSE | READY for source-only definition; implementation PARKED | Explain actual applied migrated command → exact recipient context/composition retirement. One demonstrated cause and correction/proof contract in existing notes;20–30min, no engines/runtime edits/retry. [Boundary and stop](docs/COMPLETION_SCOPE.md#client-navigator-accepted-receipts--frozen-implementation-contract). |
+| AUDIO-NAVIGATOR-CLIENT-MIGRATION-CAPTURE | READY for one diagnostic execution; runtime repair PARKED | Source diagnosis ruled out stale offer/publication generation; exact failed context/command was not persisted. Enhance existing route observations and nil-source failure cleanup, compile, run the unchanged300s navigator journey once;20–30min. No runtime fix/acceptance claim or automatic successor probe. [Exact owner, capture and stop](docs/COMPLETION_SCOPE.md#client-navigator-accepted-receipts--frozen-implementation-contract). |
 | HAULER-CARGO-MANIFEST | Production gap; GATED on HAULER-CARGO-STOCK | Binding still rejects Hauler; generation-floor API already exists. [Stock prerequisite and conserved-source proof](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries).60–90min implementation/focused checks after decision, checkpoint additional; split before90min. |
 
 All28 real-output listening cases remain NOT_RUN. Client rejection transport is a
@@ -106,7 +108,7 @@ contracts and cumulative attempt records remain in the retained history.
 
 | Outcome | Last actual result | Condition before more work |
 | --- | --- | --- |
-| AUDIO-NAVIGATOR-CLIENT / audio,16 | Initial route aborted133.464s observed interval; repair route FAIL125.925s. Migrated command applies but client presentation fails; disconnect probe nil-source error; original host walk-clear also fails. | STOP/PARK candidate279d3b378 unmerged/withheld.24 actual stages504.404s includes initial observation interval. No automatic second repair/unchanged retry; bounded source cause definition only. |
+| AUDIO-NAVIGATOR-CLIENT / audio,16 | Initial route aborted133.464s observed interval; repair route FAIL125.925s. Migrated command applies but client presentation fails; disconnect probe nil-source error; original host walk-clear also fails. | STOP/PARK candidate279d3b378 unmerged/withheld.24 actual stages504.404s includes initial observation interval. No automatic second repair/unchanged retry. Source diagnosis inconclusive; one explicitly bounded observation-enhanced diagnostic selected, original gates retained. |
 | BREACH-INTERRUPTION /13,31,32 | Originale9/repair3c fail board arming35.365/35.638s. After accepted owner fix e3, unchanged probe c159 fails69.957s at atomic-payment commit assertion after cold Resume/one matching receipt; third cold replay NOT_RUN. | Cumulative140.961s STOP/PARK; candidates unmerged/withheld, no recovery checkpoint. No further diagnosis/repair/run, fourth automatic attempt or renamed retry selected; concrete causal fact/change required. |
 | HALYARD-GUNNER-DAMAGE /11,16 | Original 51.847s and one caller repair 52.025s both fail co-pilot admission; actual new damage proof NOT_RUN. | Parked after cumulative 103.872s review. No further diagnosis/fix/run without concrete reopening fact/change; candidates unmerged, no weapon defect established. |
 | HELM-YAW-HANDBACK / 18,20 | Original146.578s failure; one repair reaches cabin walking then FAIL156.016s at >=0.6m/15s. | Recorded cumulative priority review parked it. Explicit selection required before further diagnosis/fix/run; no movement cause established. |
