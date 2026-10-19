@@ -981,6 +981,40 @@ First failure ends that attempt. Retain the original route and cumulative
 failure history before selecting any causal repair. All twelve journeys, repeat
 contracts, write/recovery cases and parent13's travel envelope remain binding.
 
+#### PLAY-BEACON-ENTRY — selected driver implementation
+
+Frozen2026-10-19 before edits/engine runs. Parent13; this delivers an executable
+ordinary-input entry route, not new activity content or full PLAY-BEACON acceptance.
+Files: `tools/release/run_native_sortie.py` (one implementation agent),
+`scripts/diagnostics/native_sortie_observer.gd`, `scripts/game/startup_loader.gd`
+and `tests/startup_cli_privacy_test.gd` (root). One bounded independent review
+checks input/paused telemetry/admission and source/package results. No nested agents.
+
+Add only `beacon-entry`: reuse normal Guided Begin Shift/walk/Torrent boarding/
+launch through range entry; physically approach the transformed first beacon
+within32m at low speed. Use actual Escape/Tab/Return through pause → Activity
+Board → Cinder activities → exact Beacon SELECT and START. Observe the same
+live binding/activity, initial IDLE generation0, actual selected identity,
+positive STARTED feedback and ACTIVE generation1/cursor0 while paused. Resume
+through ordinary UI; same craft's production physics must advance cursor1.
+Require unchanged controls/tuning, same actors, released home berth and no reward.
+Observer is read-only, including paused UI: no actor/focus/input writes, synthetic
+receipts, mutating snapshot reconciliations or authority calls.
+
+Command after clean candidate export:
+`python3 tools/release/run_native_sortie.py builds/linux/MuddsShipyards-<candidate>.x86_64 --output <new-owned-result> --route beacon-entry`.
+Retain300s whole-route cap, private Xvfb/explicit x11/Dummy, independent abort,
+released inputs and reaped owned processes. Require exit0, success result and
+`NATIVE_BEACON_ENTRY_OK`; no diagnostics. Before that route: isolated import,
+observer parse and existing startup CLI privacy suite, clean paired exports,
+three strict menu-ready startup checks and package parity audit. Native GPU,
+Windows execution, listening, full traversal/reward/home and final gates stay open.
+Estimate30–60min implementation/review,10–20min focused checks plus10–15min
+export/startup checks. Stop at first failure; freeze one causal repair separately,
+retaining raw results and cumulative time. Parked Sandbox/Mining/full Scan/Patrol/
+Convoy routes are not reopened or renamed. No checkpoint is published as accepted
+until the selected route and required checks pass.
+
 ### Activity repetition — first bounded definition slice
 
 Source431f24b59, definition only; no gameplay defect or implementation assignment.
