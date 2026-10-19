@@ -43,7 +43,7 @@ These are **36 parent outcomes**, not 36 executable jobs. They remain open until
 | 2 | Complete matching installed interruption/recovery on the accepted integrated build | RECOVERY-CONTRACT, RECOVERY-KILL, INSTALL-LINUX, FINAL-RECONCILE | RECOVERY-ONFOOT-DEFINE/PROBE/CUT DONE in the selected f90547c direct/archive scope. Pilot/cabin/crew/docking/planetary/activity source maps are defined below; explicit activity capability/policy gaps and remaining installed cuts stay open. |
 | 3 | Complete canonical-distance outbound and return with ordinary remote crews for Ember, Aurora and Rime, including activities/rewards/save, late join, disconnect, pilot loss, cancellation, interruptions and repeat visits | WORLD-SHARED (each world/case), NET-CREW, RECOVERY-KILL | The 21 SHARED-* cells are named below; Aurora originals WAITING and Rime arrival PARKED. Same cells as27. |
 | 4 | Record the final shipped roster and supported limits | SCOPE-DECISION, NET-CAPACITY, ORIGINAL-SPEC | SCOPE-ROSTER definition DONE; SCOPE-DESKTOP final target list and SCOPE-LIMIT WAITING; BOMBER-ROLES-DEFINE resolves one exact role promise. |
-| 5 | Assign owners, dependencies and estimates to the remaining deliverables | PLAN-ASSIGN and the per-session task card | Four service runtime cards are accepted on recorded sources; ROADMAP.md names the next bounded remote-power definition and stock-gated Hauler alternative; later capability scopes/estimates remain undefined. No whole-project estimate or release date. |
+| 5 | Assign owners, dependencies and estimates to the remaining deliverables | PLAN-ASSIGN and the per-session task card | Four service runtime cards and navigator client acceptance/clear are accepted on recorded sources. Activity first-play milestones below replace generic journey wording; runnable-driver and combat-launch gaps remain explicit. ROADMAP.md holds the bounded queue. No whole-project estimate or release date. |
 | 6 | Qualify and package current source | BASE-DIAG/FIX, MATRIX, PACKAGE-WIN/LINUX | Checkpoint2c73494 and HELM-EDGE-REPRO/REPAIR accepted; MATRIX-FINAL still gated. |
 | 7 | Complete the normal-controls core playthrough and fix observed blockers | GUIDED, SANDBOX, SETTINGS-INPUT/RUN, LIFECYCLE, STATION-ROUTE, CRAFT-ACCEPT | LIFE-VISIBLE/REUSE source DONE; Guided earlier-package pass retained. Nine WALK-* and17 eventual CRAFT-ACCEPT-* outcomes named; Sandbox PARKED and Settings WAITING. |
 | 8 | Complete control and tutorial tuning | CONTROL-FIX, INPUT-DEVICE, INPUT-REMAP | REMAP-DEFINE DONE; ONFOOT-SPRINT-TOGGLE packagedbd4e15d. CONTROL-FINDINGS definition DONE; GAMEPAD-LOOK packaged99e79c3 repairs its concrete camera gap. Remaining context definitions and INPUT-KBM/CONTROLLER real-device routes stay open. |
@@ -51,7 +51,7 @@ These are **36 parent outcomes**, not 36 executable jobs. They remain open until
 | 10 | Finish fleet art, character animation and role acceptance | CRAFT-ART, CRAFT-ROLE, CRAFT-ACCEPT | Nine current craft plus eight missing originals explicitly named. Each SPEC/BUILD-SPLIT/CRAFT-ACCEPT outcome remains distinct; component gaps DEFINE. |
 | 11 | Complete the combat-and-recovery slice across supported craft | COMBAT-SLICE, CRAFT-ACCEPT, NET-DAMAGE | Six COMBAT-* encounters named. WEAPONS-DEFINE/DAMAGE-DEFINE resolve actual supported cells; no duplicated network-damage assignment. |
 | 12 | Complete the whole-game art-direction pass | ART-FINDING, STATION-ART, CRAFT-ART, CAPTURE | ART-FINDINGS, ACCESS-* and13 named capture sets; each actual repair needs its own view/behavior proof. |
-| 13 | Close the complete nearby-activity roster | ACT-HUD/WRITE/PLAY/REPEAT, TRAVEL-LIMIT, HULK | Twelve PLAY-* and four HUD-* rows named; ACT-WRITES-DEFINE maps actual durable owners below; REPEAT-DEFINE and TRAVEL-LIMIT remain. HULK revisit PARKED. |
+| 13 | Close the complete nearby-activity roster | ACT-HUD/WRITE/PLAY/REPEAT, TRAVEL-LIMIT, HULK | Twelve PLAY-* journeys have concrete milestones below; four HUD-* rows and actual durable owners are named. ACT-REPEAT-DEFINE is DONE as a definition; execution, resource/deadline contracts and TRAVEL-LIMIT remain. HULK revisit PARKED. |
 | 14 | Qualify each implemented world's full physical round trip | WORLD-SOLO/ABANDON/SAVE/EDGE | Three SOLO-* returns named; Ember source abandonment DONE. WORLD-ABANDON/SAVE/EDGE-DEFINE resolve uncovered cases. |
 | 15 | Resolve remaining planetary content and presentation gaps | WORLD-CONTENT, ART-FINDING | CONTENT-EMBER/AURORA/RIME definitions DONE in inspected authored-content scopes with no missing implementation identified. Presentation and original journey acceptance remain open; no assumed new planets/features. |
 | 16 | Close remaining fleet/crew replication gaps | NET-CREW, NET-CAPACITY | Jovian boarding/departure DONE in recorded scopes. Eight named role routes, NET-SEATS-FINAL and bomber role contract remain separate. |
@@ -204,12 +204,12 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | SPEC-SALYUT | Salyut evidence-bounded identity/capability specification | 10,36 | WAITING; evidence or explicit interpretation decision |
 | BUILD-SPLIT-SALYUT | Salyut named hull/handling/access/role/recovery build cards | 10,36 | GATED; SPEC-SALYUT, split before any implementation |
 | CRAFT-ACCEPT-SALYUT | Salyut full craft loop | 7,10,11,36 | GATED; its specified production capabilities delivered |
-| COMBAT-INTERCEPTOR | Initial interceptor pressure encounter | 11 | UNSCHEDULED; existing live encounter, actual damage and safe return |
-| COMBAT-COURIER | Courier Intercept | 11 | UNSCHEDULED; existing live encounter, actual damage and safe return |
-| COMBAT-WING | Paired Wing Break | 11 | UNSCHEDULED; existing live encounter, actual damage and safe return |
-| COMBAT-PERIMETER | Perimeter Hold | 11 | UNSCHEDULED; existing live encounter, actual damage and safe return |
-| COMBAT-BREACH | Heavy Breach | 11 | UNSCHEDULED; existing live encounter, actual damage and safe return |
-| COMBAT-TORPEDO | Torpedo Run evade/intercept/destroy/fail/abort | 11,23 | UNSCHEDULED; existing live encounter, actual damage and safe return |
+| COMBAT-INTERCEPTOR | Initial interceptor pressure encounter | 11 | UNSCHEDULED; select normal Guided encounter entry, actual player weapon damage/clear, then home/dock/usable controls. RangeOpponent and GameFlow own the existing encounter; driver/craft/unchanged deadline must be frozen before execution |
+| COMBAT-COURIER | Courier Intercept | 11 | UNSCHEDULED; normal authorized sortie → destroy the live runner through actual player weapon damage before its escape boundary → safe return. EncounterScenarioDirector owns courier_intercept; success, escape, withdrawal and recovery are separate cases, not one oversized repair assignment |
+| COMBAT-WING | Paired Wing Break | 11 | UNSCHEDULED; normal authorized sortie → destroy both live paired_wing members through real weapons → safe return. Preserve suppression/flank behavior; direct damage/roster removal is not ordinary combat proof |
+| COMBAT-PERIMETER | Perimeter Hold | 11 | DEFINE launch/owner mapping before execution. Catalog perimeter_hold promises protected-asset behavior; director station_defense clears a guard roster. These names do not establish the same production route. Identify actual caller/entry/objective, then split any missing runtime integration from play qualification |
+| COMBAT-BREACH | Heavy Breach | 11 | Same ordinary sortie as PLAY-BREACH below; one successful route may satisfy both parents, without counting two deliveries. Additional supported damage/recovery/craft cases remain explicit; BREACH-INTERRUPTION stays PARKED |
+| COMBAT-TORPEDO | Torpedo Run evade/intercept/destroy/fail/abort | 11,23 | PLAY-TORPEDO supplies the first actual boat-clear/home sortie. Freeze evade/intercept, failure, abort and solo restoration separately afterward; one happy-path clear cannot close all cases or TORPEDO authority/restoration |
 
 **Fleet handoff:** a SPEC closes with supported identity/capability facts,
 explicit unknowns and any required owner interpretation. BUILD-SPLIT replaces
@@ -360,24 +360,30 @@ in delivery history. Existing network Halyard failure budgets remain unchanged.
 
 First-play proof: ordinary outbound/start/activity, once-only durable reward and home return at canonical distances. The accepted one-shot HULK route is not reassigned as missing gameplay. Repeat/write/save scenarios are instantiated only after their finite uncovered lists are known.
 
+Select one milestone from the [first-play handoff](#activity-first-play--bounded-handoffs),
+not an entire row as an implementation assignment. Milestones can be accepted
+individually, as KIT-BOARD/DEPART/DELIVER already demonstrate; PLAY-* closes only
+when the complete same-candidate ordinary journey is proven. A staged integration
+test is an owner/regression anchor, not a runnable ordinary route.
+
 | ID | Named outcome | Parents | State / dependency |
 | --- | --- | --- | --- |
-| PLAY-RACE | Checkpoint Race first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |
-| PLAY-THREADING | Asteroid/debris Threading first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |
-| PLAY-PATROL | Platform Patrol first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |
+| PLAY-RACE | Checkpoint Race first full ordinary play | 13 | UNSCHEDULED; ordinary board/depart/approach → production countdown and ordered race checkpoints → one durable generation reward → actual home dock/usable exit. Driver selection/adaptation required; retained Race timeout is not authorized for retry |
+| PLAY-THREADING | Asteroid/debris Threading first full ordinary play | 13 | UNSCHEDULED; approach first gate within30m → start and physically cross all five gates in order → one durable reward → home dock/usable exit. No synthetic checkpoint submissions |
+| PLAY-PATROL | Platform Patrol first full ordinary play | 13 | UNSCHEDULED; name relay_sweep or platform_sweep → approach/start → five authored checkpoints with2s physical station-keeping each → branch reward/home dock/exit. Freeze one branch first; other branch remains uncovered and retained Patrol failure stays parked |
 | PLAY-JOVIAN-KIT | Jovian kit delivery first full ordinary play | 13 | Ordinary board/depart/deliver DONE through28a5e354e;79.213s strict home return, two kits/single reward/usable exit. Distinct-process reload remains unqualified after strict30s timeout; no whole-parent closure |
 | KIT-BOARD | Ordinary offline cargo selection and Jovian pilot boarding | 7,13 | DONE source62bc7c823;66.158s, real menus/walk/local pilot/occupied berth, cargoIDLE0/source6/destination0 manifests; no departure |
 | KIT-DEPART | Real departure automatically starts cargo, then ordinary brake | 13 | DONE sourceb91019562;70.350s, real5m/lease release/ACTIVEg1/brake≤.5m/s1s/original180s |
 | KIT-DELIVER | Strict home landing transfers2 kits/pays once; usable exterior exit | 13 | DONE28a5e354e;79.213s actual dock/lease, COMPLETEDg1 kits4/2, one transfer/reward, automatic OFFLINE/authored exit/supported walk≥.5m |
 | KIT-RELOAD | Distinct process reloads actual completed store without duplication | 13,31 | FAILED/PARKED;972efd906 strict30s timeout, f432bd630 diagnostic Main ready/restore accepted27.762s then first normal frame pair incomplete before30s. Full60-tick restart unqualified; raw/input retained, no further probe selected |
-| PLAY-CINDER-SUPPLY | Cinder platform supply first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |
+| PLAY-CINDER-SUPPLY | Cinder platform supply first full ordinary play | 13 | UNSCHEDULED; actual load_crate/clear_gate/dock_platform → physical one-crate transfer → once-only durable payment → home dock/usable exit. First funded delivery and ten-run restock policy are distinct; no Hauler integration inferred |
 | PLAY-MINING | Mining/extraction first full ordinary play | 13 | FAILED/PARKED candidate20bd1ab: single archive route53.444s reaches real Cinder approach then strict-stops on Activity Board focus-disconnection errors, before mining/return. Source unmerged/checkpoint withheld; UI-BOARD-FOCUS causal repair required before reopening; original CAP300 unchanged |
-| PLAY-SCAN | Structure Scan first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |
-| PLAY-BEACON | Beacon Traversal first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |
-| PLAY-CONVOY | Convoy Escort first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |
-| PLAY-DEFENSE | Station Defense first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |
-| PLAY-BREACH | Heavy Breach first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |
-| PLAY-TORPEDO | Torpedo Run first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |
+| PLAY-SCAN | Structure Scan first full ordinary play | 13 | UNSCHEDULED; ordinary approach within24m → actual4s physics scan → one discovery/payment entitlement → home dock/usable exit. Existing full Scan failure stays PARKED; no unchanged retry selected |
+| PLAY-BEACON | Beacon Traversal first full ordinary play | 13 | UNSCHEDULED; approach first beacon within32m → traverse all four authored beacons in order → once-only payment → home dock/usable exit. Driver selection/adaptation required |
+| PLAY-CONVOY | Convoy Escort first full ordinary play | 13 | UNSCHEDULED; departed piloted craft enters4m rendezvous → escort actual retained-Main tender through route/threats to safe arrival → payment/home dock/exit. Preserve90s timeout and42m/3s separation rules; parked Convoy failures are not reopened |
+| PLAY-DEFENSE | Station Defense first full ordinary play | 13 | UNSCHEDULED; on-foot physical Deploy → board/depart → protect objective and clear three live waves (1/2/1 hostiles) through actual weapons → one payment → home/dock/on-foot usable board. Existing34s encounter semantics retained |
+| PLAY-BREACH | Heavy Breach first full ordinary play | 13 | UNSCHEDULED; on-foot arm posted Heavy → board/depart combat-capable craft → destroy charged picket while protecting objective → one payment → home/dock/on-foot next posting. Existing staged production route is not actual combat; interruption route stays PARKED |
+| PLAY-TORPEDO | Torpedo Run first full ordinary play | 13 | UNSCHEDULED; reach Torpedo posting through normal board rotation → arm/board/depart → evade/intercept live seekers and destroy actual boat → distinct payment → home/dock/on-foot next posting. No direct scenario selection or skipped Heavy prerequisite |
 | HUD-RACE | Race durable reset/select/start/fresh-Main UI | 13 | UNSCHEDULED; correct existing owner only on actual discrepancy |
 | HUD-PATROL | Patrol durable reset/select/start/fresh-Main UI | 13 | UNSCHEDULED; correct existing owner only on actual discrepancy |
 | HUD-CARGO | Cargo durable reset/select/start/fresh-Main UI | 13 | Supply-status child DONE0c2dc2e: depleted hold reports insufficient kits after reset/reselection; cargo127/nearby HUD13 and paired checkpoint pass. Broader durable UI/restart remains open; KIT-RELOAD stays parked |
@@ -917,6 +923,64 @@ Scope: original §3, retained abandonment milestone and Phase 8/10.4 specificati
 
 Route anchors include `tests/ember_transit_movement_soak.gd`, `tests/aurora_physical_return_soak.gd --aurora-full-roundtrip`, `tests/ember_abandon_return_manual_override_test.gd` and the existing Rime landing/survey routes. Resolve the exact existing command in the task card before running; never substitute a staged route for a canonical one.
 
+### Activity first play — bounded handoffs
+
+Reworked on2026-10-19 from sourceeaa8954cc. This is the requested planning
+breakdown, not newly accepted gameplay. The twelve PLAY-* rows above describe
+specific complete journeys; the next assignment selects one useful checkpoint
+inside a journey. Completed KIT milestones and all existing failures stay intact.
+
+| Checkpoint to select | Player-visible result / completion check | Ownership and stop |
+| --- | --- | --- |
+| Ordinary launch and activity admission | From actual menu/on-foot boarding and berth departure, reach the named physical start and activate the correct authored activity through supported controls. Record craft, route/branch, generation, objective and actual start position. No activity completion is claimed | Root owns route selection/integration; one implementer owns only the selected existing route driver. Stop at the first valid activity start or first discrepancy. No teleport, direct board signal or synthetic checkpoint may substitute for ordinary entry |
+| Actual activity and settlement | Continue the accepted entry through that row's physical gates, dwell, transfer, escort or combat; observe the real terminal state and exactly one corresponding durable reward/capacity receipt. Preserve unrelated store data and existing timers | Existing GameFlow/binding/activity/board and GameFlowRewardAuthority remain production owners. Assign only an observed runtime defect to its actual owner; stop at settlement or first failure. A mocked kill, fast-forward or injected terminal state is not acceptance |
+| Home and usable continuation | Continue the earned run to the real home berth, successful dock/lease, supported exterior exit and usable movement or on-foot board. Final PLAY acceptance must retain the complete ordinary route on one candidate | Extend the same route's return/cleanup only. Being within140m of home is insufficient. Stop at usable home continuation; real-file cold restart and ten-run endurance remain separately named work |
+
+These are handoff boundaries, not three automatically created jobs per activity.
+If a complete existing route already proves multiple checkpoints, retain that
+proof without rerunning or splitting it into artificial deliveries. A source
+change affecting an earlier checkpoint requires relevant regression coverage;
+separate old-source partial passes do not establish a final integrated journey.
+
+**Driver readiness is a real prerequisite.** The inspected Race, Threading,
+Patrol, Cinder Supply, Scan and Beacon tests provide staged integration/owner
+checks, not demonstrated complete ordinary commands. Existing
+`tests/nearby_sector_flight_review.gd` stages boarding and finishes near home;
+`tools/release/run_native_sortie.py` has no nearby-activity route selector.
+Neither is ready to run as a PLAY-* acceptance command. Reuse the ordinary
+boarding/departure/home pattern in
+`tests/cargo_delivery_production_integration_test.gd --ordinary-jovian-kit-deliver`
+where appropriate; its kit delivery does not prove Cinder supply. A new ordinary
+route selector is executable release capability, not a new evidence validator.
+
+| Journey / existing production and regression seam | Constraint to freeze for its next checkpoint |
+| --- | --- |
+| Race / GameFlow, NearbySectorActivityBinding, `assets/activities/cinder_reach_checkpoint_route.tres`; `tests/cinder_activity_integration_test.gd` | Actual five-checkpoint route. Main countdown2s, standalone binding countdown3s, both timeout120s; do not transfer fixture timing to the production owner |
+| Threading / NearbySectorActivityBinding, GameFlow asteroid session, `assets/activities/cinder_asteroid_field_threading_run.tres`; `tests/cinder_asteroid_field_test.gd` | Five physical gates,30m entry; retained source persistence/reset checks do not establish ordinary flight |
+| Patrol / GameFlow, PatrolActivity, `assets/activities/cinder_reach_platform_patrol_route.tres`; `tests/patrol_production_integration_test.gd` | Choose relay or platform branch before work. Existing full-suite construction failure remains parked; another branch name does not reset its budget |
+| Cinder supply / NearbySectorActivityBinding, CargoTransferAuthority, CargoDeliveryActivity; `tests/cinder_cargo_activity_bridge_test.gd`, `tests/cinder_cargo_reward_handoff_test.gd` | Ordinary Jovian arrival/occupied Cinder berth establishes initial two-crate source; start, depart capture volume, redock and transfer one. Actual consumer accepts Jovian only; no Hauler access workaround |
+| Mining / GameFlow, CinderMiningPlatformActivity, CinderMiningCapacityPersistence; `tests/cinder_mining_durable_recovery_test.gd` |30m approach and6s extraction, capacity receipt rather than invented ore/currency. PLAY-MINING remains parked at board-focus failure before extraction |
+| Scan / GameFlow, CinderAbandonedStructureScanActivity, discovery persistence; `tests/game_flow_scan_durable_recovery_test.gd` |24m approach and4s physical scan. Retained full Scan timeout is not reopened by this breakdown |
+| Beacon / GameFlow, CinderBeaconTraversalActivity; `tests/game_flow_beacon_durable_recovery_test.gd` |32m first-beacon start and four physical beacons in order. Existing durable recovery fixture is an owner anchor, not ordinary traversal |
+| Jovian kits / GameFlow, CargoDeliveryActivity, JovianCargoSessionPersistence; `tests/cargo_delivery_production_integration_test.gd` | KIT-BOARD/DEPART/DELIVER already accepted; do not reschedule them. KIT-RELOAD remains parked under its original30s cap |
+| Convoy / GameFlow, CinderConvoyEscortHost; `tests/cinder_convoy_production_integration_test.gd` | Use retained Main host and real tender/threats, not a standalone streamed fixture. Preserve existing Convoy failure/reopening conditions |
+| Defense / StationDefenseActivityBoard, authored perimeter scenario; `tests/station_defense_production_placement_test.gd` | Physical deployment and real three-wave combat. Do not conflate this activity with unresolved COMBAT-PERIMETER catalog/launch mapping |
+| Breach / HeavyBreachActivityBoard, EncounterScenarioDirector; `tests/heavy_breach_game_flow_production_route_test.gd` | Existing production owner/admission fix is accepted. Actual combat/return is still uncovered; staged kills do not fill it. BREACH-INTERRUPTION stays parked |
+| Torpedo / same board/director, TorpedoBoatOpponent; same production route fixture | Reach posted Torpedo through ordinary alternating sorties; no direct director selection. A successful clear/home does not prove fail/abort/authority/restoration |
+
+**Estimate and stop rule:** allow15–25min source mapping to freeze one actual
+driver seam/command and prerequisite; then separately estimate the bounded driver
+or observed production repair, normally30–60min implementation and10–20min focused
+checks. Split before90min. These are planning allowances, not measured full-route
+durations or permission to raise any existing cap. Freeze the actual command,
+candidate, unchanged deadline and expected checkpoint before its first engine
+run. A meaningful accepted runtime checkpoint additionally needs the normal
+paired builds/startup/package checks (allow10–15min); driver-only work gets the
+applicable release-driver check and does not imply a new gameplay build.
+First failure ends that attempt. Retain the original route and cumulative
+failure history before selecting any causal repair. All twelve journeys, repeat
+contracts, write/recovery cases and parent13's travel envelope remain binding.
+
 ### Activity repetition — first bounded definition slice
 
 Source431f24b59, definition only; no gameplay defect or implementation assignment.
@@ -928,7 +992,7 @@ ordinary outbound/home acceptance or become ten unrelated test/evidence commits.
 
 | Child | Production owner / finite route | Acceptance to freeze before selection |
 | --- | --- | --- |
-| REPEAT-RACE | NearbySectorActivityBinding.start_race/reset_race and CinderTimedRaceSession; actual ActivityDirector checkpoints, TimedCheckpointRace timing | Same live world across ten legitimate start/checkpoints/finish/payment/reset cycles; exact generation/receipt identity, no duplicate reward, no stranded objective; ordinary inputs and actual route. Existing3s countdown/120s race timeout remain unchanged. |
+| REPEAT-RACE | GameFlow production race composition, NearbySectorActivityBinding.start_race/reset_race and CinderTimedRaceSession; actual ActivityDirector checkpoints, TimedCheckpointRace timing | Same live world across ten legitimate start/checkpoints/finish/payment/reset cycles; exact generation/receipt identity, no duplicate reward, no stranded objective; ordinary inputs and actual route. Preserve production Main2s countdown/120s timeout. Standalone binding3s timing is component coverage, not ordinary repeat acceptance. |
 | REPEAT-BEACON | NearbySectorActivityBinding.start_beacon_traversal/submit_beacon_traversal/reset_beacon_traversal and CinderBeaconTraversalActivity | Each run starts within authored32m first-beacon radius and reaches all four beacons in order through locomotion; existing payment/reset/generation rules hold for ten runs. |
 | REPEAT-SCAN | NearbySectorActivityBinding scan start/reward/reset and CinderAbandonedStructureScanActivity | Each run starts within authored24m approach radius, completes4s actual physics scan, and retains existing discovery/payment/reset rules for ten runs. Repeated discovery is not a new entitlement. |
 

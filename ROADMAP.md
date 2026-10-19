@@ -42,10 +42,19 @@ agree. Client rejection remains separate unfinished behavior. [Full result and
 prior failures](docs/history/ROADMAP_DELIVERIES.md#audio-navigator-client-feedback-and-crew-epoch--delivered).
 Owned worktree/profiles/helpers cleaned; all raw results preserved.
 
+The activity first-play breakdown now names actual entry, physical activity,
+settlement and home-continuation checkpoints for all twelve activities, with
+production owners, existing test seams and retained blockers in the
+[bounded handoffs](docs/ROADMAP_BACKLOG.md#activity-first-play--bounded-handoffs).
+The six combat rows also distinguish ordinary clear/return from separate
+failure/recovery cases and the unresolved Perimeter Hold launch mapping.
+This is planning progress only; no additional activity or combat route is accepted.
+
 | Remaining work | Readiness | Next bounded action / estimate |
 | --- | --- | --- |
 | AUDIO-NAVIGATOR-CLIENT-REJECTION | Definition DONE; implementation WAITING on one behavior choice | Finite refusal map and exact requester correlation/owners/proof defined. Asked once: all fresh current refusals including unavailable consumer, or consumer/bridge only. No answer inferred; no runtime/protocol selected. [Definition and conditional proof](docs/COMPLETION_SCOPE.md#client-navigator-rejection-response--bounded-definition-next). After choice45–60min implementation/review,15–25min checks,10–15min checkpoint. |
 | HAULER-CARGO-MANIFEST | Production gap; GATED on HAULER-CARGO-STOCK | Binding still rejects Hauler; generation-floor API already exists. [Stock prerequisite and conserved-source proof](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries).60–90min implementation/focused checks after decision, checkpoint additional; split before90min. |
+| PLAY-BEACON-ENTRY | Next independent outcome; ordinary driver prerequisite unresolved | Player can launch from home and reach/start the actual first beacon through supported controls. Root first selects the existing driver/observation seam and freezes exact files, command and unchanged route limit (15–25min source mapping, no engine). Then assign one bounded driver implementation, normally30–60min plus10–20min checks, only after that seam is known. Stop at valid entry or first defect. Full four-beacon/reward/home PLAY-BEACON remains open; no staged recovery fixture substitutes for it. |
 
 All28 actual listening cases remain NOT_RUN. Hauler's already-asked stock/custody
 choice is unchanged. This queue is not a project estimate; the completed rejection definition
