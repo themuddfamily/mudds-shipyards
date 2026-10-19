@@ -56,6 +56,7 @@ no complete additional activity or combat journey is accepted.
 | --- | --- | --- |
 | AUDIO-NAVIGATOR-CLIENT-REJECTION | Definition DONE; implementation WAITING on one behavior choice | Finite refusal map and exact requester correlation/owners/proof defined. Asked once: all fresh current refusals including unavailable consumer, or consumer/bridge only. No answer inferred; no runtime/protocol selected. [Definition and conditional proof](docs/COMPLETION_SCOPE.md#client-navigator-rejection-response--bounded-definition-next). After choice45–60min implementation/review,15–25min checks,10–15min checkpoint. |
 | HAULER-CARGO-MANIFEST | Production gap; GATED on HAULER-CARGO-STOCK | Binding still rejects Hauler; generation-floor API already exists. [Stock prerequisite and conserved-source proof](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries).60–90min implementation/focused checks after decision, checkpoint additional; split before90min. |
+| NET-BROWSER-PAUSE | Concrete runtime defect; selected | Keep LAN Refresh and host discovery answering while the game is paused, without advancing gameplay. [Frozen files/proof/limits](docs/ROADMAP_BACKLOG.md#lan-discovery-while-paused--net-browser-pause).15–30min implementation/review,5–10min focused checks,10–15min paired checkpoint. Full ordinary multiplayer/browser and endurance gates remain OPEN. |
 
 Perimeter Hold's implementation candidate **aa88b5a73** is **PARKED/unmerged**.
 Its staged live runtime passes52 assertions; existing director/asset/board/HUD
