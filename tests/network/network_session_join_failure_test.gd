@@ -34,6 +34,9 @@ func _init() -> void:
 
 
 func _run() -> void:
+	if "--native-browser-fixture" in OS.get_cmdline_user_args():
+		await _run_external_fixture()
+		return
 	var was_paused := paused
 	var mouse_mode := Input.mouse_mode
 	await _unanswered_join_stops_the_session()
@@ -316,3 +319,115 @@ func _check(condition: bool, description: String) -> void:
 		print("PASS: %s" % description)
 	else:
 		_failures.append("FAIL: " + description)
+
+
+# Private external mode shares the real raw-host helpers above. The packaged
+# client remains an ordinary game process, with no resource or script override.
+func _run_external_fixture() -> void:
+	var command_dir := ""
+	var port := 0
+	for argument in OS.get_cmdline_user_args():
+		if argument.begins_with("--fixture-dir="):
+			command_dir = argument.trim_prefix("--fixture-dir=")
+		elif argument.begins_with("--fixture-port="):
+			port = argument.trim_prefix("--fixture-port=").to_int()
+	if OS.get_environment("MUDDS_PRIVATE_BROWSER_FIXTURE") != "owned-loopback" \
+			or not command_dir.is_absolute_path() or not DirAccess.dir_exists_absolute(command_dir) \
+			or port < 1 or port > 65535 \
+			or DisplayServer.get_name() != "headless" or AudioServer.get_driver_name() != "Dummy":
+		push_error("private browser fixture requires owned directory, headless/Dummy and valid port")
+		quit(1)
+		return
+	# Default MultiplayerAPI root paths must match the real boot scene exactly:
+	# /root/Boot/Main/NetworkSession, so RPC path checks exercise production.
+	var boot := Node.new()
+	boot.name = "Boot"
+	root.add_child(boot)
+	var main := Node.new()
+	main.name = "Main"
+	boot.add_child(main)
+	var host: Adapter
+	var mode := "raw"
+	var command_sequence := 0
+	var offers := [0]
+	_make_raw_host(port)
+	if not _failures.is_empty():
+		quit(1)
+		return
+	var expires := Time.get_ticks_msec() + 300000
+	var next_state := 0
+	while Time.get_ticks_msec() < expires:
+		_poll_raw_hosts()
+		var command_path := command_dir.path_join("command.json")
+		if FileAccess.file_exists(command_path):
+			var command: Variant = JSON.parse_string(FileAccess.get_file_as_string(command_path))
+			if not command is Dictionary or not command.get("sequence") is int \
+					or not command.get("mode") in ["raw", "admitting", "stop"]:
+				push_error("invalid private browser fixture command")
+				quit(1)
+				return
+			if int(command.sequence) > command_sequence:
+				if int(command.sequence) != command_sequence + 1:
+					push_error("out-of-order private browser fixture command")
+					quit(1)
+					return
+				for peer in _raw_hosts:
+					peer.close()
+				_raw_hosts.clear()
+				if is_instance_valid(host):
+					host.shutdown(&"test_complete")
+					main.remove_child(host)
+					host.queue_free()
+					host = null
+				await process_frame
+				mode = str(command.mode)
+				command_sequence = int(command.sequence)
+				if mode == "raw":
+					_make_raw_host(port)
+				elif mode == "admitting":
+					host = Adapter.new()
+					host.name = "NetworkSession"
+					main.add_child(host)
+					host.peer_admitted.connect(func(_peer_id: int, _offer: Dictionary) -> void: offers[0] += 1)
+					if not bool(host.host(port, 4).get("accepted", false)):
+						push_error("private browser fixture cannot start admission host")
+						quit(1)
+						return
+				if not _failures.is_empty():
+					quit(1)
+					return
+				next_state = 0
+		if Time.get_ticks_msec() >= next_state:
+			var peers := 0
+			for peer in _raw_hosts:
+				for link in peer.host.get_peers():
+					if link.get_state() == ENetPacketPeer.STATE_CONNECTED:
+						peers += 1
+			var admitted := 0
+			if is_instance_valid(host):
+				peers = host.multiplayer.get_peers().size()
+				admitted = host._peer_generations.size()
+			var state := {"pid": OS.get_process_id(), "port": port, "mode": mode,
+				"sequence": command_sequence, "ready": true, "peers": peers,
+				"dropped_packets": _dropped_packets, "dropped_hellos": _dropped_hellos,
+				"offers": offers[0], "admitted": admitted}
+			var state_path := command_dir.path_join("state.json")
+			var stream := FileAccess.open(state_path + ".tmp", FileAccess.WRITE)
+			if stream == null:
+				push_error("private browser fixture state is unwritable")
+				quit(1)
+				return
+			stream.store_string(JSON.stringify(state))
+			stream.close()
+			if DirAccess.rename_absolute(state_path + ".tmp", state_path) != OK:
+				push_error("private browser fixture state replacement failed")
+				quit(1)
+				return
+			next_state = Time.get_ticks_msec() + 50
+			if mode == "stop":
+				print("NATIVE_BROWSER_FIXTURE_STOPPED_OK")
+				quit(0)
+				return
+		await process_frame
+	push_error("private browser fixture reached its independent 300-second cap")
+	quit(1)

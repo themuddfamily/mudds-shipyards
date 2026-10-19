@@ -2254,5 +2254,238 @@ class NativeSortieSafetyTests(unittest.TestCase):
             self.assertEqual(result['cap_seconds'], 300)
 
 
+class BrowserOrdinaryDriverTests(unittest.TestCase):
+    class Fixture:
+        def __init__(self):
+            self.port = 27119
+            self.state = {'peers': 1, 'dropped_hellos': 1, 'offers': 0, 'admitted': 0}
+            self.process = type('Child', (), {'pid': 19})()
+            self.commands = []
+        def refresh(self): return self.state
+        def command(self, mode, now): self.commands.append((mode, now))
+        def ready(self, mode, now): return True
+
+    def state(self):
+        names = ('ServerBrowserAddress', 'ServerBrowserPort', 'ServerBrowserPlayerName',
+                 'ServerBrowserManualJoinButton', 'ServerBrowserDisconnectButton', 'ExitButton')
+        controls = {name: {'path': '/ui/'+name, 'visible': True, 'enabled': True, 'text': ''} for name in names}
+        return {'mode': 'browser-unreachable', 'sequence': 1, 'pid': 1, 'main_id': 2, 'player_id': 3,
+                'frame': 100, 'ticks_msec': 7000, 'phase': 'APPROACH_SHIP', 'paused': True,
+                'player': [0., 0., 0.], 'velocity': [0., 0., 0.], 'gameplay_seconds': 2.,
+                'grounded': True, 'supported': True, 'control_enabled': True, 'mouse_captured': True,
+                'native_keys': {}, 'menu_ready': True,
+                'ui': {'focus_path': '/ui/ServerBrowserAddress', 'focus_name': 'ServerBrowserAddress',
+                       'focus_text': '127.0.0.1', 'selection_text': '', 'controls': controls,
+                       'main_visible': False, 'browser_visible': True, 'intro_visible': False, 'started': True,
+                       'fields': {'address': '127.0.0.1', 'port': '27119', 'player_name': 'browser'}, 'feedback': ''},
+                'network': {'adapter_id': 4, 'adapter_path': '/root/Boot/Main/NetworkSession',
+                            'configured': False, 'is_server': False, 'native_peer_id': 0, 'native_status': 0,
+                            'pending_peer_id': 0, 'deadline_msec': 0, 'offer': {}, 'offline': True,
+                            'address': '127.0.0.1', 'port': 27119, 'retry_mode': 'client',
+                            'end_reason': {'reason': 'timeout'}, 'hud_snapshot': {'state': 'disconnected'}}}
+
+    def pending(self, s, deadline=7000):
+        s['network'].update(configured=True, native_peer_id=8, pending_peer_id=8,
+                            native_status=2, deadline_msec=deadline, offline=False)
+
+    def timeout_pilot(self):
+        f, s = self.Fixture(), self.state()
+        p = native.BrowserUnreachablePilot(f)
+        p.stage = 'browser_timeout'
+        before = copy.deepcopy(s)
+        self.pending(before)
+        p.receipts['first_pending'] = before
+        p.receipts['raw_connected'] = before
+        p.first_hello_count = 0
+        message = 'The session host did not admit the connection in time. Check the address and whether the host is ready, then retry.'
+        s['network']['hud_snapshot']['message'] = message
+        s['ui']['feedback'] = message
+        s['ui']['controls']['ServerBrowserDisconnectButton']['text'] = 'RETRY CONNECTION'
+        return p, f, s
+
+    def test_os_typing_requires_real_ctrl_a_and_each_character_ack(self):
+        p, s = native.BrowserUnreachablePilot(self.Fixture()), self.state()
+        p.stage = 'browser_fields'
+        self.assertEqual(p.update(copy.deepcopy(s), 0)[0], {'Control_L', 'a'})
+        s['sequence'] += 1
+        self.assertEqual(p.update(copy.deepcopy(s), .08)[0], set())
+        s['sequence'] += 1
+        # The unchanged field alone is not an acknowledgement of Ctrl+A.
+        self.assertEqual(p.update(copy.deepcopy(s), .20)[0], set())
+        self.assertEqual(p.ui_pending['kind'], 'select_all')
+        s['ui']['selection_text'] = s['ui']['fields']['address']
+        s['sequence'] += 1
+        self.assertEqual(p.update(copy.deepcopy(s), .21)[0], {'1'})
+        s['sequence'] += 1
+        p.update(copy.deepcopy(s), .30)
+        s['sequence'] += 1
+        p.update(copy.deepcopy(s), .41)
+        self.assertEqual(p.ui_pending['expected'], '1')
+        s['ui']['fields']['address'] = '1'
+        s['sequence'] += 1
+        self.assertEqual(p.update(copy.deepcopy(s), .42)[0], {'2'})
+
+    def test_ui_ack_has_original_three_second_cap_and_no_retry(self):
+        p, s = native.BrowserUnreachablePilot(self.Fixture()), self.state()
+        p.stage = 'browser_fields'
+        p.update(copy.deepcopy(s), 0)
+        s['sequence'] += 1
+        p.update(copy.deepcopy(s), .09)
+        s['sequence'] += 1
+        with self.assertRaisesRegex(AssertionError, 'no retry'):
+            p.update(copy.deepcopy(s), 3)
+        self.assertEqual(len([edge for edge in p.ui_edges if edge['pressed']]), 1)
+
+    def test_genuine_timeout_enables_only_explicit_fixture_switch(self):
+        p, f, s = self.timeout_pilot()
+        p.update(copy.deepcopy(s), 10)
+        self.assertEqual(f.commands, [('admitting', 10)])
+        self.assertEqual(p.stage, 'browser_retry')
+        self.assertEqual(p.ui_pending['kind'], 'tab')
+
+    def test_timeout_rejects_early_late_missing_raw_hello_or_unreadable_retry(self):
+        for defect in ('early', 'late', 'no_hello', 'bad_copy', 'disabled_retry'):
+            with self.subTest(defect=defect):
+                p, f, s = self.timeout_pilot()
+                if defect == 'early': s['ticks_msec'] = 6999
+                if defect == 'late': s['ticks_msec'] = 9001
+                if defect == 'no_hello': del p.receipts['raw_connected']
+                if defect == 'bad_copy': s['ui']['feedback'] = 'Session closed'
+                if defect == 'disabled_retry': s['ui']['controls']['ServerBrowserDisconnectButton']['enabled'] = False
+                with self.assertRaises(AssertionError): p.update(s, 10)
+                self.assertEqual(f.commands, [])
+
+    def test_retry_requires_real_authority_offer_and_stays_healthy_past_deadline(self):
+        f, s = self.Fixture(), self.state()
+        p = native.BrowserUnreachablePilot(f)
+        p.stage, p.retry_started = 'browser_admission', 1000
+        self.pending(s)
+        s['ticks_msec'] = 2000
+        p.update(copy.deepcopy(s), 2)
+        self.assertEqual(p.stage, 'browser_admission')
+        s['sequence'] += 1
+        s['network'].update(pending_peer_id=0, deadline_msec=0, offer={'actual': 'offer'})
+        s['network']['hud_snapshot']['state'] = 'connected'
+        p.update(copy.deepcopy(s), 2.1)
+        self.assertEqual(p.stage, 'browser_admission')  # Fixture must independently confirm admission.
+        f.state.update(offers=1, admitted=1)
+        s['sequence'] += 1
+        p.update(copy.deepcopy(s), 2.2)
+        self.assertEqual(p.stage, 'browser_healthy')
+        s['sequence'] += 1
+        s['ticks_msec'] = 6999
+        p.update(copy.deepcopy(s), 6.999)
+        self.assertEqual(p.stage, 'browser_healthy')
+        s['sequence'] += 1
+        s['ticks_msec'] = 7000
+        s['ui']['controls']['ServerBrowserDisconnectButton']['text'] = 'DISCONNECT'
+        p.update(copy.deepcopy(s), 7)
+        self.assertEqual(p.stage, 'browser_disconnect')
+        self.assertIn('healthy_past_deadline', p.receipts)
+
+    def test_retry_timeout_and_paused_gameplay_mutation_are_refused(self):
+        p, f, s = self.timeout_pilot()
+        p.stage, p.retry_started = 'browser_admission', 1000
+        s['ticks_msec'] = 8001
+        self.pending(s)
+        with self.assertRaisesRegex(AssertionError, '7 seconds'): p.update(s, 8)
+        p, f, s = self.timeout_pilot()
+        p.update(copy.deepcopy(s), 10)
+        s['sequence'] += 1
+        s['player'][0] += .01
+        with self.assertRaisesRegex(AssertionError, 'does not advance'): p.update(s, 10.1)
+
+    def test_cancel_must_remain_offline_beyond_its_original_deadline(self):
+        p, s = native.BrowserUnreachablePilot(self.Fixture()), self.state()
+        p.stage, p.cancel_started = 'browser_cancel_stable', 1000
+        s['ticks_msec'] = 6999
+        p.update(copy.deepcopy(s), 6.999)
+        self.assertEqual(p.stage, 'browser_cancel_stable')
+        s['sequence'] += 1
+        s['network']['deadline_msec'] = 7000
+        with self.assertRaisesRegex(AssertionError, 'cancel stays offline'): p.update(s, 7)
+
+    def test_back_resume_ack_allows_first_unpaused_sample_then_supported_movement(self):
+        p, s = native.BrowserUnreachablePilot(self.Fixture()), self.state()
+        p.stage = 'browser_back'
+        name = 'ServerBrowserBackButton'
+        s['ui']['controls'][name] = {'path': '/ui/'+name, 'visible': True,
+                                     'enabled': True, 'text': 'BACK'}
+        s['ui'].update(focus_name=name, focus_path='/ui/'+name)
+        identities = tuple(s[key] for key in ('pid', 'main_id', 'player_id'))
+        self.assertEqual(p.update(copy.deepcopy(s), 0)[0], {'Return'})
+        self.assertEqual(p.ui_pending['kind'], 'back')
+        s['sequence'] += 1
+        s['ui'].update(browser_visible=False, main_visible=True)
+        self.assertEqual(p.update(copy.deepcopy(s), .09)[0], set())
+        s['sequence'] += 1
+        self.assertEqual(p.update(copy.deepcopy(s), .20)[0], {'Escape'})
+        self.assertEqual(p.stage, 'browser_resume')
+        self.assertEqual(p.ui_pending['kind'], 'resume')
+        s['sequence'] += 1
+        self.assertEqual(p.update(copy.deepcopy(s), .30)[0], set())
+        # The first unpaused observation acknowledges the actual pending Resume.
+        # Gameplay time may advance here; paused position/clock checks still held
+        # throughout Back and the paused part of that outstanding Escape press.
+        s.update(sequence=s['sequence']+1, paused=False, frame=101,
+                 gameplay_seconds=2.1)
+        self.assertEqual(p.update(copy.deepcopy(s), .41)[0], set())
+        self.assertEqual(p.stage, 'browser_walk')
+        self.assertIsNone(p.ui_pending)
+        self.assertEqual(p.walk_origin, s['player'])
+        s.update(sequence=s['sequence']+1, frame=102, gameplay_seconds=2.1+1/60)
+        s['player'][0] = .1
+        self.assertEqual(p.update(copy.deepcopy(s), .43)[0], {'w'})
+        self.assertEqual(p.stage, 'browser_walk')
+        self.assertAlmostEqual(p.walked_m, .1)
+        self.assertIsNone(p.pause_state)
+        self.assertEqual(p.process_identity, identities)
+
+    def test_unpaused_resume_page_without_pending_resume_press_is_refused(self):
+        p, s = native.BrowserUnreachablePilot(self.Fixture()), self.state()
+        p.stage = 'browser_resume'
+        s['paused'] = False
+        with self.assertRaisesRegex(AssertionError, 'journey remains paused'):
+            p.update(s, 0)
+
+    def test_normal_exit_needs_exact_prior_intent_and_exit_zero(self):
+        p = native.BrowserUnreachablePilot(self.Fixture())
+        with self.assertRaisesRegex(AssertionError, 'exact actual'): p.accept_exit(0)
+        p.quit_requested, p.stage, p.exit_until = True, 'browser_exit_wait', 10
+        with self.assertRaisesRegex(AssertionError, 'exits zero'): p.accept_exit(1, 1)
+        with self.assertRaisesRegex(AssertionError, '3 seconds'): p.accept_exit(0, 10)
+        p.accept_exit(0, 1)
+        self.assertEqual(p.result['completion_marker'], 'NATIVE_BROWSER_UNREACHABLE_OK')
+
+    def test_fixture_close_reaps_child_even_when_orderly_stop_times_out(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = native.BrowserFixture.__new__(native.BrowserFixture)
+            fixture.directory = Path(directory)
+            fixture.log_path = Path(directory)/'fixture.log'
+            fixture.log_path.write_bytes(b'')
+            fixture.sequence, fixture.pending = 0, None
+            class Child:
+                def poll(self): return None
+                def wait(self, timeout): raise subprocess.TimeoutExpired('fixture', timeout)
+            fixture.process = Child()
+            with patch.object(native, 'stop') as stop:
+                with self.assertRaises(subprocess.TimeoutExpired): fixture.close()
+            stop.assert_called_once_with(fixture.process)
+            self.assertEqual(json.loads((Path(directory)/'command.json').read_text()), {'mode': 'stop', 'sequence': 1})
+
+    def test_fixture_state_refuses_foreign_process_and_ack_timeout(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = native.BrowserFixture.__new__(native.BrowserFixture)
+            fixture.directory = Path(directory)
+            fixture.log_path = Path(directory)/'fixture.log'
+            fixture.log_path.write_bytes(b'')
+            fixture.port, fixture.sequence, fixture.state = 27119, 1, None
+            fixture.pending = {'until': 3}
+            fixture.process = type('Child', (), {'pid': 19, 'poll': lambda self: None})()
+            with self.assertRaisesRegex(AssertionError, '3 seconds'): fixture.ready('admitting', 3)
+            (Path(directory)/'state.json').write_text(json.dumps({'pid': 20, 'port': 27119}))
+            with self.assertRaisesRegex(AssertionError, 'exact owned'): fixture.refresh()
+
+
 if __name__ == '__main__':
     unittest.main()
