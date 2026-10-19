@@ -207,9 +207,82 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | COMBAT-INTERCEPTOR | Initial interceptor pressure encounter | 11 | UNSCHEDULED; select normal Guided encounter entry, actual player weapon damage/clear, then home/dock/usable controls. RangeOpponent and GameFlow own the existing encounter; driver/craft/unchanged deadline must be frozen before execution |
 | COMBAT-COURIER | Courier Intercept | 11 | UNSCHEDULED; normal authorized sortie → destroy the live runner through actual player weapon damage before its escape boundary → safe return. EncounterScenarioDirector owns courier_intercept; success, escape, withdrawal and recovery are separate cases, not one oversized repair assignment |
 | COMBAT-WING | Paired Wing Break | 11 | UNSCHEDULED; normal authorized sortie → destroy both live paired_wing members through real weapons → safe return. Preserve suppression/flank behavior; direct damage/roster removal is not ordinary combat proof |
-| COMBAT-PERIMETER | Perimeter Hold | 11 | DEFINE launch/owner mapping before execution. Catalog perimeter_hold promises protected-asset behavior; director station_defense clears a guard roster. These names do not establish the same production route. Identify actual caller/entry/objective, then split any missing runtime integration from play qualification |
+| COMBAT-PERIMETER | Perimeter Hold | 11 | Definition DONE: no production caller exists. PERIMETER-LIVE below supplies a real solo board sortie, distinct from station_defense. Ordinary weapon clear/home, failure/recovery and repeat qualification remain separate OPEN outcomes |
 | COMBAT-BREACH | Heavy Breach | 11 | Same ordinary sortie as PLAY-BREACH below; one successful route may satisfy both parents, without counting two deliveries. Additional supported damage/recovery/craft cases remain explicit; BREACH-INTERRUPTION stays PARKED |
 | COMBAT-TORPEDO | Torpedo Run evade/intercept/destroy/fail/abort | 11,23 | PLAY-TORPEDO supplies the first actual boat-clear/home sortie. Freeze evade/intercept, failure, abort and solo restoration separately afterward; one happy-path clear cannot close all cases or TORPEDO authority/restoration |
+
+### Perimeter Hold — missing production integration
+
+Source map on403bc72e0: `CombatScenarioCatalog` is consumed only by tests.
+Its `perimeter_hold` is a90s `protect_asset` objective with
+`standoff_lance`, `flank_scatter`, `press_repeater`. Health at or below0.35
+loses before time completion; killing every attacker does not clear early.
+The existing director's `station_defense` instead clears a two-craft guard
+roster and has no production admission caller. The separate three-wave Station
+Defense activity retains its own34s/1–2–1 contract. Neither is Perimeter Hold.
+
+The existing Heavy Breach board already owns physical admission, cancellation,
+generation fences and real departure launch. Its protected objective is only a
+collisionless Node3D marker. Its two skirmishers are both scatter craft; the
+GameFlow-owned RangeOpponent cannot be borrowed as a third combatant because
+its fire/damage path is identity-bound to the guided encounter. These are actual
+runtime gaps, not missing validators. Reuse the renewable perimeter-asset packed
+scene with its sole `Damageable` health store, plus dedicated resolver-backed
+actors and the existing director/board admission seams.
+
+**PERIMETER-LIVE / parent11 — frozen before implementation (2026-10-20).**
+Result: the physical deck board posts Heavy Breach, Torpedo Run, then Perimeter
+Hold. A solo player arms Hold on foot, boards a combat-capable craft and physically
+clears its berth. Hold launches three distinct live opponents against a dedicated
+protected asset; HUD shows90s countdown and real integrity. Actual health<=35%
+loses, otherwise90 elapsed physics seconds clears. Losing the player/asset,
+phase withdrawal, disengagement, explicit abort or world teardown ends the run
+and withdraws every dispatched fire/source grant. Destroying attackers early
+leaves the timed defense pending. Re-entry renews the dedicated asset through
+its existing lifecycle owner, never a duplicate health store.
+
+Ownership is one implementation agent in an isolated worktree, followed by one
+independent lifecycle reviewer. Exact production files: `scripts/combat/encounter_scenario_director.gd`,
+`scripts/activities/heavy_breach_activity_board.gd`,
+`scripts/world/shipyard_world.gd`, `scripts/game/game_flow.gd`,
+`scripts/ui/heavy_breach_activity_presenter.gd`, `scenes/main.tscn`, a dedicated
+`scripts/ships/press_repeater_opponent.gd` and matching ship scene. The existing
+`scripts/activities/station_defense_perimeter_asset.gd` may gain only pure health
+forwarders if its existing child getter is insufficient. Reuse existing picket
+and scatter classes; do not hijack the guided defender or Station Defense asset.
+The director consumes the existing catalog for Hold's exact outcome, supplies
+measured health/time, and retains lifecycle/phase authority boundaries. A sole
+scatter must receive an actual flanker role; count/profile labels alone do not
+establish that behavior.
+
+Keep the first two board offers and their saved rewards valid. Hold grants no
+new currency/reward identity: the original combat requirement specifies none.
+Extend the existing terminal record's supported offer range without a new schema
+or parallel validator. Do not attribute a Hold clear to a Breach reward. Keep
+network presentation/authority fenced; this card qualifies solo only and must
+not start duplicate local Hold combat on network clients.
+
+Implementation/review estimate60–90min; focused checks10–20min; paired exports
+and silent package checks10–15min. Stop/split before90min of implementation.
+Focused acceptance: extend existing director, board production and HUD tests;
+add one bounded Hold runtime integration test exercising real resolver damage,
+35% boundary/90s precedence, all-roster-dead pending, generation reuse and total
+cleanup. Preserve the existing Breach/Torpedo focused behavior. Use existing
+GameFlow production-route test seam for physical admission/departure and HUD
+restoration; staged source qualification is not an ordinary native input journey.
+Each focused engine stage has a90s outer cap (import/export180s); all use Dummy
+audio/headless or private Xvfb with explicit x11. Strict diagnostic-free package
+startup requires exit0 and STARTUP_MENU_READY_OK. Independent source/result review,
+clean commit, matching Windows/Linux packages and repository build notes precede
+acceptance. No hosted CI, audible output or desktop automation.
+
+First unexpected failure stops the attempt with raw logs/process cleanup.
+Only one cause-backed repair may follow a separately frozen diagnosis; no second
+repair, unchanged retry, deadline increase or renamed budget. Preserve the
+original full-game combat requirements: ordinary weapon engagement/home,
+permitted failure/recovery cases, craft/network breadth, repeat play and native
+hardware/human qualification remain OPEN after this runtime delivery. Beacon/UI
+focus failures remain PARKED and are not prerequisites for implementing Hold.
 
 **Fleet handoff:** a SPEC closes with supported identity/capability facts,
 explicit unknowns and any required owner interpretation. BUILD-SPLIT replaces
