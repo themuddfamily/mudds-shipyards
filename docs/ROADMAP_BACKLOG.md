@@ -1348,6 +1348,22 @@ other pause invariants; no generalized bypass or new scenario. No other concrete
 six-file source defect found. Re-review corrected diff before pinned checks;
 first unexpected test/engine failure still STOP, no automatic repair.
 
+**BROWSER-DRIVER first-check STOP and explicit priority decision2026-10-20.**
+Source02e5bf42d's first Python stage runs89 tests in9.286605s and errors in four
+new browser cases. All four have one concrete cause: inherited Pilot.__init__
+sets `self.target = None`, hiding the new BrowserUnreachablePilot.target method.
+Original STOP/raw output retained; import/privacy/network/exports/ordinary route
+all NOT_RUN. Root and independent high source review missed the collision.
+
+After bounded independent priority review, root explicitly selects ONE corrective
+exception to the no-automatic-repair freeze: rename only that method and its eight
+calls to `target_control`. Preserve inherited aiming state, tests, complete route
+criteria and every cap. Clean commit; separate repair-1 result directory retains
+the original failure. Re-run the unchanged full89 Python tests once, then only
+if PASS continue the original checks. No accepted check is repeated unchanged.
+Any further unexpected failure parks this driver/candidate: no additional
+exception, automatic repair, changed test/cap or narrower successful subroute.
+
 ### Supported remote helm action roster
 
 HELM-ACTIONS-DEFINE is DONE as a source definition, not new gameplay or current
