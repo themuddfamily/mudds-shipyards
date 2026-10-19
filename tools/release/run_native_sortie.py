@@ -3531,7 +3531,7 @@ class BrowserUnreachablePilot(BeaconEntryPilot):
                 and n['pending_peer_id'] == 0 and n['deadline_msec'] == 0
                 and n['hud_snapshot']['state'] == 'connected')
 
-    def target(self, s, now, name, kind, expected=None):
+    def target_control(self, s, now, name, kind, expected=None):
         ui = s['ui']
         require(ui['focus_path'], 'actual current keyboard focus')
         if ui['focus_name'] == name:
@@ -3612,7 +3612,7 @@ class BrowserUnreachablePilot(BeaconEntryPilot):
         name, field, value = self.FIELDS[self.field_index]
         value = str(self.fixture.port) if value is None else value
         ui = s['ui']
-        if ui['focus_name'] != name: return self.target(s, now, name, 'unused')
+        if ui['focus_name'] != name: return self.target_control(s, now, name, 'unused')
         require(ui['controls'][name]['visible'] and ui['controls'][name]['enabled'], 'editable actual field')
         if self.typing is None:
             self.typing = {'field': field, 'value': value, 'index': 0, 'selected': False}
@@ -3678,7 +3678,7 @@ class BrowserUnreachablePilot(BeaconEntryPilot):
             self.receipts['ordinary_shift'] = s
             self.stage_to('browser_pause', s)
         if self.stage == 'browser_pause': return self.ui_press('Escape', s, now, 'pause', 'main_visible')
-        if self.stage == 'browser_open': return self.target(s, now, 'ServerBrowserButton', 'open', 'browser_visible')
+        if self.stage == 'browser_open': return self.target_control(s, now, 'ServerBrowserButton', 'open', 'browser_visible')
         if self.stage == 'browser_fields': return self.type_field(s, now)
         if self.stage in ('browser_join', 'browser_join_cancel'):
             require(ui['fields'] == {'address': '127.0.0.1', 'port': str(self.fixture.port), 'player_name': 'browser'},
@@ -3690,7 +3690,7 @@ class BrowserUnreachablePilot(BeaconEntryPilot):
                     self.cancel_started = s['ticks_msec']  # replaced by actual production deadline on acknowledgement
                     self.cancel_hello_count = count
                 else: self.first_hello_count = count
-            return self.target(s, now, 'ServerBrowserManualJoinButton', 'join')
+            return self.target_control(s, now, 'ServerBrowserManualJoinButton', 'join')
         if self.stage == 'browser_timeout':
             require(n['address'] == '127.0.0.1' and n['port'] == self.fixture.port and n['retry_mode'] == 'client',
                     'production retained normalized retry endpoint')
@@ -3725,7 +3725,7 @@ class BrowserUnreachablePilot(BeaconEntryPilot):
                 require(ui['controls']['ServerBrowserDisconnectButton']['text'] == 'RETRY CONNECTION', 'actual Retry not disconnect')
                 self.retry_started = s['ticks_msec']
                 self.receipts['retry_press'] = s
-            return self.target(s, now, 'ServerBrowserDisconnectButton', 'retry')
+            return self.target_control(s, now, 'ServerBrowserDisconnectButton', 'retry')
         if self.stage in ('browser_admission', 'browser_healthy'):
             elapsed = s['ticks_msec']-self.retry_started
             if self.stage == 'browser_admission':
@@ -3744,7 +3744,7 @@ class BrowserUnreachablePilot(BeaconEntryPilot):
             self.stage_to('browser_disconnect', s)
         if self.stage == 'browser_disconnect':
             require(ui['controls']['ServerBrowserDisconnectButton']['text'] == 'DISCONNECT', 'actual UI Disconnect label')
-            return self.target(s, now, 'ServerBrowserDisconnectButton', 'disconnect')
+            return self.target_control(s, now, 'ServerBrowserDisconnectButton', 'disconnect')
         if self.stage == 'browser_raw_again':
             require(self.offline(n), 'actual Disconnect clears peer offer and deadline')
             if not self.fixture.ready('raw', now): return set(), 0, 0, False
@@ -3759,7 +3759,7 @@ class BrowserUnreachablePilot(BeaconEntryPilot):
                     and self.fixture.state['peers'] > 0): return set(), 0, 0, False
             require(ui['controls']['ServerBrowserDisconnectButton']['text'] == 'CANCEL CONNECTION', 'actual UI Cancel label')
             self.receipts['cancel_connected'] = s
-            return self.target(s, now, 'ServerBrowserDisconnectButton', 'cancel')
+            return self.target_control(s, now, 'ServerBrowserDisconnectButton', 'cancel')
         if self.stage == 'browser_cancel_stable':
             require(self.offline(n), 'cancel stays offline without offer or retained deadline')
             if s['ticks_msec'] < self.cancel_started+6000: return set(), 0, 0, False
@@ -3767,7 +3767,7 @@ class BrowserUnreachablePilot(BeaconEntryPilot):
                     'raw replacement has no admitted or lingering cancelled peer')
             self.receipts['cancel_stable'] = s
             self.stage_to('browser_back', s)
-        if self.stage == 'browser_back': return self.target(s, now, 'ServerBrowserBackButton', 'back', 'main_visible')
+        if self.stage == 'browser_back': return self.target_control(s, now, 'ServerBrowserBackButton', 'back', 'main_visible')
         if self.stage == 'browser_resume': return self.ui_press('Escape', s, now, 'resume')
         if self.stage == 'browser_walk':
             require(not s['paused'] and self.offline(n) and s['grounded'] and s['supported']
@@ -3791,7 +3791,7 @@ class BrowserUnreachablePilot(BeaconEntryPilot):
                 self.exit_until = now+3
                 self.stage_to('browser_exit_wait', s)
                 return self.ui_press('Return', s, now, 'exit')
-            return self.target(s, now, 'ExitButton', 'exit')
+            return self.target_control(s, now, 'ExitButton', 'exit')
         if self.stage == 'browser_exit_wait':
             require(now < self.ui_pending['until'], 'ordinary EXIT TO DESKTOP process acknowledgement within 3 seconds')
         return set(), 0, 0, False
