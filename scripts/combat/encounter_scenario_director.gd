@@ -254,7 +254,7 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
-	if _state == STATE_RUNNING:
+	if _state == STATE_RUNNING and _scenario == SCENARIO_PERIMETER_HOLD:
 		_conclude(OUTCOME_WITHDRAWN)
 	_heavy_breach_audio_binding.detach()
 
