@@ -63,7 +63,7 @@ These are **36 parent outcomes**, not 36 executable jobs. They remain open until
 | 22 | Qualify the implemented convoy actor lifecycle in native gameplay | NET-ACTOR[Convoy] | CONVOY-ACTOR-DEFINE ends with actual uncovered native lifecycle cases, not another full Convoy save probe. |
 | 23 | Qualify Torpedo Run authority and solo recovery | NET-ACTOR[Torpedo Run] | COMBAT-TORPEDO ordinary route and TORPEDO-AUTH-DEFINE authority/recovery cases remain distinct. |
 | 24 | Finish remaining travelling-weapon and moving-crew integration | NET-ACTOR[Picket/Emberline], NET-CREW, WORLD-SHARED | PICKET-ACTOR-DEFINE/EMBERLINE-ACTOR-DEFINE plus existing ROLE-/SHARED-* cells; no duplicate moving-crew queue. |
-| 25 | Qualify the production server-browser and connection flow | NET-BROWSER | NET-BROWSER-PAUSE runtime fix packaged042c701e2. Seven ordinary BROWSER-* outcomes retain their own gates; prior cancel/session-generation fixes retained. |
+| 25 | Qualify the production server-browser and connection flow | NET-BROWSER | NET-BROWSER-PAUSE packaged042c701e2 and focused client join deadline packaged1c679a4. Seven ordinary BROWSER-* outcomes retain their own gates; prior cancel/session-generation fixes retained. |
 | 26 | Pass multiplayer and endurance acceptance | NET-ENDURANCE, NET-CAPACITY, NET-BUDGET | Boarding/departure subroutes DONE. Return is now DONE in its source scope; dedicated SERVER-BASELINE, profiles,30min endurance/full-snapshot/capacity remain open. |
 | 27 | Resolve planetary travel during multiplayer explicitly | WORLD-SHARED (each world/case) | Same21 SHARED-* cells as3; no double count or staged-arrival substitute. |
 | 28 | Benchmark and optimize on representative native hardware | PERF-MACHINE/ROUTE/RUN/FIX | PERF-MINIMUM/TARGET WAITING on actual hardware; PERF-ROUTES/CELLS-DEFINE precede original-length measurements. |
@@ -1471,35 +1471,15 @@ Scope: original §5, Phases 9 and 10.2–10.3. Software rendering, VM and remote
 
 ### Dormant opponent presentation — bounded cost decision
 
-**PERF-DORMANT-MEASURE / parent35; frozen2026-10-20 before edits/engines.**
-Measure only the suspected unnecessary RangeOpponent-family presentation work
-before selecting PERF-FIX. Source64f0c0575 has six opted-in inactive Main actors;
-RangeOpponent._process unconditionally dispatches virtual _update_presentation
-while their visuals are detached. Picket inactive physics drives escort launch
-and must remain untouched. No parked Main/startup/Patrol route is reopened.
-
-Root owns an isolated clean worktree and existing guarded import/probe workflow.
-One bounded agent writes a scratch probe outside tracked source, instantiating the
-six actual authored opponent scenes with their Main names/release flags/wing
-source IDs. Require settled inactive, detached presentation, zero collision and
-no destruction/debris before measuring. Use three fixed1000-call batches of the
-actual _process(1/60) on each actor after100 warmup calls; record raw wall-usec
-and median CPU-usec/call plus combined six-actor value. Record empty-loop timing
-separately, never subtract silently. This is a synchronous function microbenchmark,
-not real frame scheduling, native GPU/FPS, or complete Main cost qualification.
-Verify actors remain inactive/quiescent afterward; free every actor and exit0
-with one PERF_DORMANT_COST_MEASURE_OK marker and JSON result. No runtime edits,
-new repo validator/test family, exports or activity claims for this measurement.
-
-Import180s, probe60s, headless/Dummy/private profile, pinned source/engine/cache/
-process guards. First unexpected failure stops; no automatic repair/retry/cap
-increase. Estimate10–20min including mapping/result/cleanup. Stop after one
-measurement: median combined six-actor CPU cost below100us per update rejects
-this as the next performance priority; at least100us permits defining a separate
-bounded production fix and behavior checks before edits. This is a prioritization
-threshold, not a target-hardware budget or performance acceptance. Timing alone
-cannot close PERF-FIX; any later fix must demonstrate the removed work, preserved
-active/destruction/escort/network/re-entry behavior and paired checkpoint.
+**Decision DONE onf350e0a3d: rejected as next performance priority.** The single
+frozen six-actor function microbenchmark measured89.824us combined, below the
+preselected100us threshold. Import/probe both pass, state remains quiescent,
+no runtime edits or performance fix selected. This is not native FPS/GPU/full Main
+qualification or a delivered optimization. [Exact fixture/result/limits](history/ROADMAP_DELIVERIES.md#dormant-opponent-presentation--cost-decision).
+Only `/srv/mudds-work/dormant-opponent-cost-20261020/results/` remains after owned
+cleanup; original probe, raw three-batch timings and private logs preserved.
+This is parent28; parent35 in the initial frozen heading was a metadata error,
+not a change to the measured contract or a final-regression claim.
 
 ### Remaining UI view roster — ACCESS-VIEWS-DEFINE
 

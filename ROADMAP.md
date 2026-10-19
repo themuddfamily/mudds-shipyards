@@ -61,13 +61,16 @@ no complete additional activity or combat journey is accepted.
 BROWSER-JOIN-DEADLINE is delivered on**1c679a4**, merged/pushed and packaged:
 automatic paused5s expiry, synchronous cleanup, cancellation/replacement safety,
 actual retry admission and admitted-session survival pass the focused checks.
-The full ordinary Main/browser requirement remains open. Next selection is to
-bound and measure suspected dormant-opponent per-frame work before any PERF-FIX;
-no new performance fix or parked retry is selected by this nomination.
+The full ordinary Main/browser requirement remains open.
 
-PERF-DORMANT-MEASURE is selected as a single bounded cost decision, not a
-performance delivery: [frozen fixture/budget/threshold](docs/ROADMAP_BACKLOG.md#dormant-opponent-presentation--bounded-cost-decision).
-No production fix is selected before that result.
+PERF-DORMANT-MEASURE concludes **do not prioritize this optimization**: actual
+six-actor direct-function cost89.824us combined is below the frozen100us threshold.
+No runtime change, performance fix, native FPS claim or new checkpoint.
+[Fixture/result/limits](docs/history/ROADMAP_DELIVERIES.md#dormant-opponent-presentation--cost-decision).
+Owned scratch cleaned; only raw results remain. Next selection is to bound one
+supported Aft stair-arrival console view from the existing station review roster,
+before any isolated capture or proposed graphics repair. Existing parked routes
+are not reopened by this nomination.
 
 Perimeter Hold's implementation candidate **aa88b5a73** is **PARKED/unmerged**.
 Its staged live runtime passes52 assertions; existing director/asset/board/HUD

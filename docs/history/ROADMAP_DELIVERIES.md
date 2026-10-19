@@ -13759,3 +13759,93 @@ Use a separate guarded repair results root, unchanged180s import/60s repro caps
 and exact expected completion diagnostic. Independent cumulative review must
 assess both attempts before any production change. No second automatic repair,
 retry, cap increase or narrowed proof is authorized.
+
+## Dormant opponent presentation — cost decision
+
+**Bounded decision DONE onf350e0a3d40bbec9e7f6b32df5e44e625923d991; no product
+change, optimization or new checkpoint.** The suspected dormant presentation
+work is rejected as the next performance priority by the threshold frozen before
+execution. Latest playable source remains1c679a4.
+
+One read-only mapper established the six authored Main identities and shared
+RangeOpponent._process→virtual _update_presentation seam. It also established
+that inactive Picket physics must keep polling to launch the escort; disabling
+all inactive processing would break gameplay. One medium agent authored only a
+scratch probe; root inspected every fixture/state API, fixed loops and cleanup.
+No tracked runtime/test/validator files changed.
+
+The clean source import passes20.606s. One headless/Dummy scratch probe passes
+16.403s, exit0, exact success marker1, no diagnostics or source/cache/process
+issues. All six actual scene instances are inactive, collision0, with detached
+visual roots and no pending presentation/projectiles/destruction/debris after
+four settling frames, after100 warmup calls each and after measurement. Cheap
+lifecycle snapshots before/after measurement match. Three1000-call synchronous
+batches time each actual virtual _process(1/60); empty-loop cost is separately
+recorded, never silently subtracted. Median usec/call:
+
+| Authored actor | Median CPU-cost proxy, usec/update |
+| --- | ---: |
+| RangeOpponent | 11.425 |
+| StandoffPicket | 15.891 |
+| WingSkirmisherLead | 16.182 |
+| WingSkirmisherWing | 15.893 |
+| CourierRunner | 14.731 |
+| TorpedoBoat | 15.702 |
+| Sum of six medians | **89.824** |
+
+The frozen prioritization threshold was100us combined. Result is below it:
+**no PERF-FIX selected, no unchanged measurement retry**. These wall-time direct
+function calls are a local CPU-cost proxy; they do not establish actual frame
+scheduling, complete Main cost, GPU/native FPS or target-hardware performance.
+The threshold is a prioritization choice, not a release acceptance budget.
+No gameplay or roadmap completion percentage is credited to this measurement.
+
+Two guarded stages/37.008421522s pass; both owners FINISHED and all6 recorded
+supervisor/descendant PID-start identities absent. The probe SHA256 is
+23ab94eb5aeb0de3e1f033ea2ed8e83814cbed0b976ad60597a4e759c5b7dc3f before/after.
+No builds generated. Clean source already pushed; owned worktree/helpers/profile
+removed after preserving/hash-checking10 private files/links. Only
+`/srv/mudds-work/dormant-opponent-cost-20261020/results/` remains. Freeze→cleanup
+159s/2.65min against10–20min estimate. Initial frozen heading incorrectly named
+parent35; correct parent28 follows the original performance crosswalk. The
+fixture, cap, threshold and stop contract are unchanged; no final-regression or
+native gate is claimed. All original phase/parent gates remain open.
+
+Next selection: define one supported Aft stair-arrival console view from the
+existing STATION-FINDINGS roster, with a bounded isolated capture owner, before
+any capture or proposed graphics repair. Existing Central/VIP/Salvage and
+activity-focus failures remain parked; no unchanged route retry is selected.
+
+### Retained frozen measurement contract
+
+### Dormant opponent presentation — bounded cost decision
+
+**PERF-DORMANT-MEASURE / parent28; frozen2026-10-20 before edits/engines.**
+Measure only the suspected unnecessary RangeOpponent-family presentation work
+before selecting PERF-FIX. Source64f0c0575 has six opted-in inactive Main actors;
+RangeOpponent._process unconditionally dispatches virtual _update_presentation
+while their visuals are detached. Picket inactive physics drives escort launch
+and must remain untouched. No parked Main/startup/Patrol route is reopened.
+
+Root owns an isolated clean worktree and existing guarded import/probe workflow.
+One bounded agent writes a scratch probe outside tracked source, instantiating the
+six actual authored opponent scenes with their Main names/release flags/wing
+source IDs. Require settled inactive, detached presentation, zero collision and
+no destruction/debris before measuring. Use three fixed1000-call batches of the
+actual _process(1/60) on each actor after100 warmup calls; record raw wall-usec
+and median CPU-usec/call plus combined six-actor value. Record empty-loop timing
+separately, never subtract silently. This is a synchronous function microbenchmark,
+not real frame scheduling, native GPU/FPS, or complete Main cost qualification.
+Verify actors remain inactive/quiescent afterward; free every actor and exit0
+with one PERF_DORMANT_COST_MEASURE_OK marker and JSON result. No runtime edits,
+new repo validator/test family, exports or activity claims for this measurement.
+
+Import180s, probe60s, headless/Dummy/private profile, pinned source/engine/cache/
+process guards. First unexpected failure stops; no automatic repair/retry/cap
+increase. Estimate10–20min including mapping/result/cleanup. Stop after one
+measurement: median combined six-actor CPU cost below100us per update rejects
+this as the next performance priority; at least100us permits defining a separate
+bounded production fix and behavior checks before edits. This is a prioritization
+threshold, not a target-hardware budget or performance acceptance. Timing alone
+cannot close PERF-FIX; any later fix must demonstrate the removed work, preserved
+active/destruction/escort/network/re-entry behavior and paired checkpoint.
