@@ -1337,6 +1337,13 @@ Estimate5min maximum route execution plus5–10min inspection/cleanup.
 Rendered readability/native GPU/Windows/devices/endurance/capacity/controller
 and other browser scenarios remain separate OPEN/NOT_RUN gates.
 
+**Parent-scope clarification before ordinary execution.** The route option's
+`browser-unreachable` name exercises a reachable ENet host withholding admission;
+its frozen concrete fault is non-admission. It does not prove the separate
+no-answer/unreachable endpoint case in the original parent. Keep that case and
+BROWSER-UNREACHABLE as a whole OPEN even if this full concrete route passes.
+This corrects the broad naming; no frozen step, check, cap or acceptance is removed.
+
 **BROWSER-DRIVER pre-engine source review2026-10-20.** Independent high review
 finds one concrete new-driver defect: the paused-only guard rejects the first
 unpaused `browser_resume` observation before its pending Resume acknowledgement
