@@ -85,7 +85,8 @@ accepted progress/timeout feedback and permitted Retry are reachable inline,
 with Cancel/Disconnect priority and validation fencing preserved.
 [Actual checks and original corrections](docs/history/ROADMAP_DELIVERIES.md#browser-inline-session-recovery--delivered).
 The full OS-input browser route remains separate; no Activity Board/Aft retry.
-Next action is its bounded driver definition, before further implementation.
+Next selected card is BROWSER-DRIVER, followed by dependent BROWSER-ORDINARY.
+[Exact owners, caps, full route and stopping conditions](docs/ROADMAP_BACKLOG.md#browser-ordinary-timeout-and-retry--bounded-delivery-cards).
 
 Perimeter Hold's implementation candidate **aa88b5a73** is **PARKED/unmerged**.
 Its staged live runtime passes52 assertions; existing director/asset/board/HUD
