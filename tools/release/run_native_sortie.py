@@ -4,6 +4,7 @@
 Usage: run_native_sortie.py GAME.x86_64 --output NEW_RESULT_DIRECTORY
 Use --route beacon-entry for normal Torrent departure and actual first Beacon HUD start.
 Use --route beacon-settlement to continue through all four beacons and durable settlement.
+Use --route beacon-home to retain payment through genuine Guided combat, home dock and usable exit.
 Use --route sandbox for the full five-branch/eight-craft/crash/reuse scenario.
 Use --route sandbox-walk for the on-foot prerequisite only.
 Use --route hulk-arrival for the Guided prelude then the streamed HULK dock/exit.
@@ -788,6 +789,327 @@ class BeaconSettlementPilot(BeaconEntryPilot):
             if norm(sub(facing, self.mouse_pending)) < .00001: dx = dy = 0
             else: self.mouse_pending = None
         if dx or dy: self.mouse_pending = facing[:]
+        return keys, dx, dy, False
+
+
+class BeaconHomePilot(BeaconSettlementPilot):
+    """Accepted Beacon payment followed by the ordinary Guided home journey."""
+    MODE = 'beacon-home'
+    HOME_MARKER = 'NATIVE_BEACON_HOME_OK'
+    GUIDED_STAGES = frozenset(('range', 'interceptor', 'return_align', 'return'))
+
+    def __init__(self):
+        super().__init__()
+        self.settlement_result = None
+        self.home_initial = self.home_previous = None
+        self.home_landing_seen = False
+        self.home_shutdown_frame = None
+        self.home_pressed = {}
+        self.home_pending = None
+        self.home_native_previous = None
+        self.home_edges = []
+        self.home_braking = False
+        self.home_clearance_ready = False
+        self.home_header_samples = []
+        self.home_header_crossing = None
+        self.home_walked = 0
+        self.file_snapshots = {}
+
+    def observe_home_identity(self, s):
+        home = s['home']
+        if self.home_initial is None:
+            self.home_initial = json.loads(json.dumps(home))
+        initial = self.home_initial
+        for key in ('berth_id', 'berth_instance_id', 'berth_parent_id', 'capsule_id', 'shape_id'):
+            require(home[key] and home[key] == initial[key], 'same actual home identity: '+key)
+        require(home['berth_id'] == 'central_berth', 'original Torrent central home berth')
+        for key in ('range_staging', 'range_clearance', 'range_clearance_exit', 'approach',
+                    'dock', 'walk_tuning'):
+            require(home[key] == initial[key], 'unchanged authored home geometry/controls: '+key)
+
+    def update(self, s, now):
+        self.last_state = s
+        if not s['paused']:
+            self.observe_home_identity(s)
+        if self.settlement_result is None:
+            controls = super().update(s, now)
+            if self.result is not None:
+                self.settlement_result = json.loads(json.dumps(self.result))
+                self.result = None
+                self.home_previous = s
+                self.mouse_pending = None
+                self.tap_key = None
+                self.home_native_previous = {'l': s['home']['native_land'],
+                                             'e': s['home']['native_interact']}
+                require(not any(self.home_native_previous.values()), 'released landing/exit keys before home return')
+                self.enter('beacon_home_clearance', s)
+            return controls
+        self.last_state = s
+        require(s.get('mode') == self.MODE and s['sequence'] > self.sequence,
+                'fresh Beacon home observation')
+        self.sequence = s['sequence']
+        self.frame = s['frame']
+        previous = self.home_previous
+        frames = self.frame - previous['frame']
+        require(frames > 0 and not s['paused'], 'normal advancing unpaused home physics')
+        require((s['pid'], s['main_id'], s['player_id'], s['ship_id']) == self.process_identity
+                and self.identities == (s['player_id'], s['ship_id'])
+                and s['active_ship'] and not s['destroyed'] and s['phase'] not in ('FAILED', 'RECOVERING'),
+                'same live process and actors without recovery throughout home return')
+        require(s['default_sampler'] and s['tuning_unchanged']
+                and s['tuning'] == self.receipts['settlement_baseline']['tuning'],
+                'unchanged authored flight controls throughout home return')
+        self.require_paid(s)
+        settlement, paid = s['settlement'], self.paid_state['settlement']
+        require(settlement['configured'] and settlement['store']['source'] == 'primary'
+                and settlement['store']['path'] == paid['store']['path']
+                and (settlement['authority_id'], settlement['store_id']) == self.settlement_identity
+                and all(settlement[key] == paid[key] for key in ('record', 'terminal', 'handoff')),
+                'same primary store and exact paid record terminal and handoff throughout home return')
+        if not self.phases or self.phases[-1] != s['phase']: self.phases.append(s['phase'])
+        self.observe_home_input(s)
+        if self.stage in self.GUIDED_STAGES:
+            require(s['piloted'] and s['seated'] and not s['landed'] and s['lease_free'],
+                    'ordinary departed pilot throughout genuine range/interceptor and return')
+            controls = Pilot.update(self, s, now)
+        else:
+            if self.stage == 'align_berth':
+                self.enter('beacon_home_align', s)
+            controls = self.update_home(s, now, frames)
+        keys, dx, dy, fire = controls
+        self.home_pulse(keys, s, now)
+        facing = s['walk_forward'] if not s['seated'] else s['back']
+        if self.mouse_pending is not None:
+            if norm(sub(facing, self.mouse_pending)) < .00001: dx = dy = 0
+            else: self.mouse_pending = None
+        if dx or dy: self.mouse_pending = facing[:]
+        self.home_previous = s
+        return keys, dx, dy, fire
+
+    def observe_home_input(self, s):
+        current = {'l': s['home']['native_land'], 'e': s['home']['native_interact']}
+        for key, pressed in current.items():
+            if pressed != self.home_native_previous[key]:
+                self.home_edges.append({'frame': self.frame, 'sequence': s['sequence'],
+                                        'key': key, 'pressed': pressed, 'stage': self.stage})
+                require(key in self.home_pressed, 'only requested physical landing/exit edges')
+                press = self.home_pressed[key]
+                if pressed:
+                    require('acknowledged_frame' not in press, 'single distinct physical '+key+' press; no retry')
+                    press['acknowledged_frame'] = self.frame
+                else:
+                    require('acknowledged_frame' in press and press.get('release_commanded'),
+                            'physical release follows acknowledged ordinary '+key+' press')
+                    press['released_frame'] = self.frame
+                    self.home_pending = None
+        self.home_native_previous = current
+        if self.home_pending is not None:
+            press = self.home_pressed[self.home_pending]
+            require(self.frame <= press['frame'] + 120 or 'released_frame' in press,
+                    'ordinary '+self.home_pending+' press/release was not acknowledged; no retry')
+
+    def home_press(self, key, s, now):
+        require(self.home_pending is None and key not in self.home_pressed
+                and not any(self.home_native_previous.values()) and self.tap_key is None,
+                'one released distinct ordinary home '+key+' press')
+        self.home_pressed[key] = {'frame': self.frame, 'sequence': s['sequence'], 'until': now+.15}
+        self.home_pending = key
+
+    def home_pulse(self, keys, s, now):
+        if self.home_pending is None: return
+        key = self.home_pending
+        press = self.home_pressed[key]
+        if (now < press['until'] or self.frame < press['frame'] + 6
+                or 'acknowledged_frame' not in press):
+            keys.add(key)
+        else:
+            press['release_commanded'] = True
+
+    def home_fly_to(self, s, target, keys, ready=True):
+        off = sub(target, s['position'])
+        speed, distance = norm(s['velocity']), norm(off)
+        dx, dy, align = self.aim(s, [s['camera'][i]+off[i] for i in range(3)])
+        stopping = speed*speed/(2*s['tuning']['brake']) + speed*.18
+        if distance < stopping+1.75: self.home_braking = True
+        if speed <= .45 and distance > .75: self.home_braking = False
+        if not ready or distance <= .75 or self.home_braking: keys.add('Prior')
+        elif align > .72: keys.add('w')
+        return dx, dy, distance <= .75 and speed <= .35
+
+    def observe_home_header(self, s):
+        previous = self.home_previous
+        clearance = s['home']['range_clearance']
+        near_z, far_z = clearance[2]+20, clearance[2]+40
+        if max(previous['position'][2], s['position'][2]) < near_z \
+                or min(previous['position'][2], s['position'][2]) > far_z:
+            return
+        require('home_clearance' in self.receipts, 'settled physical staging before RangeHeader crossing')
+        for sample in (previous, s):
+            require(clearance[1]-1.3 <= sample['position'][1] <= clearance[1]+1.1,
+                    'actual RangeHeader crossing stays within the y1.4..3.8 clearance band')
+            require(sample['telemetry']['hull'] >= self.receipts['home_clearance']['telemetry']['hull'],
+                    'no additional hull loss during the actual RangeHeader crossing')
+            if not self.home_header_samples or self.home_header_samples[-1]['frame'] != sample['frame']:
+                self.home_header_samples.append({'frame': sample['frame'], 'position': sample['position'],
+                                                 'hull': sample['telemetry']['hull']})
+        if previous['position'][2] <= far_z <= s['position'][2]:
+            self.home_header_crossing = {'frame': self.frame, 'origin_z_interval': [near_z, far_z],
+                                         'samples': self.home_header_samples}
+
+    def require_home_dock(self, s):
+        home = s['home']
+        require(s['landed'] and s['contract'] and s['lease'] and s['parked_exact']
+                and home['token_bound'], 'actual strict token-bound exact occupied home dock')
+
+    def require_home_walk(self, s):
+        home = s['home']
+        require(s['phase'] == 'COMPLETE' and s['guided_complete'] and not s['piloted']
+                and not s['seated'] and s['control_enabled'] and not s['transition_busy']
+                and home['capsule_enabled'] and home['grounded'] and home['supported']
+                and home['support_collider'], 'ordinary controllable exterior walking on actual home floor')
+        self.require_home_dock(s)
+        require(home['exit_position'] == self.home_initial['exit_position']
+                and home['walk_target'] == self.home_initial['walk_target'],
+                'exact parked home craft retains its original exterior exit and walk target')
+        require(s['telemetry']['engine'] == 'OFFLINE', 'secured powered-down home craft throughout exterior walking')
+
+    def update_home(self, s, now, frames):
+        home, phase = s['home'], s['phase']
+        keys = set()
+        dx = dy = 0
+        speed = norm(s['velocity'])
+        if self.stage in ('beacon_home_clearance', 'beacon_home_clearance_exit', 'beacon_home_range_staging'):
+            require(phase == 'TARGET_PRACTICE' and s['piloted'] and s['seated']
+                    and not s['landed'] and s['lease_free'], 'ordinary paid flight back to the still-live Guided range')
+            target = home[{'beacon_home_clearance': 'range_clearance',
+                           'beacon_home_clearance_exit': 'range_clearance_exit',
+                           'beacon_home_range_staging': 'range_staging'}[self.stage]]
+            ready = True
+            if self.stage == 'beacon_home_clearance_exit':
+                if not self.home_clearance_ready:
+                    off = sub(target, s['position'])
+                    direction = unit(off)
+                    _, _, align = self.aim(s, [s['camera'][i]+off[i] for i in range(3)])
+                    nose_pitch = math.degrees(math.asin(max(-1, min(1, -s['back'][1]))))
+                    target_pitch = math.degrees(math.asin(max(-1, min(1, direction[1]))))
+                    self.home_clearance_ready = align >= .9999 and abs(nose_pitch-target_pitch) <= .5 and speed <= .01
+                    if self.home_clearance_ready: self.receipts['home_clearance_ready'] = s
+                ready = self.home_clearance_ready
+                self.observe_home_header(s)
+            dx, dy, reached = self.home_fly_to(s, target, keys, ready)
+            if reached:
+                self.home_braking = False
+                if self.stage == 'beacon_home_clearance':
+                    self.receipts['home_clearance'] = s
+                    self.enter('beacon_home_clearance_exit', s)
+                elif self.stage == 'beacon_home_clearance_exit':
+                    require(self.home_header_crossing is not None, 'observed safe RangeHeader crossing before rising to range staging')
+                    self.receipts['home_clearance_exit'] = s
+                    self.enter('beacon_home_range_staging', s)
+                else:
+                    require(len(s['targets']) == 4 and s['destroyed_targets'] == 0 and not s['opponent_active'],
+                            'actual physical range staging precedes all four genuine range kills')
+                    self.receipts['home_range_staging'] = s
+                    self.enter('range', s)
+        elif self.stage == 'beacon_home_align':
+            require(phase == 'RETURN_TO_YARD' and self.shot and self.fired
+                    and s['destroyed_targets'] == 4 and not s['opponent_active']
+                    and s['piloted'] and s['seated'] and not s['landed'] and s['lease_free'],
+                    'real Guided combat victory admits the ordinary home landing')
+            keys.update(('Prior', 'h'))
+            off = sub(home['dock'], s['position'])
+            dx, dy, align = self.aim(s, [s['camera'][i]+off[i] for i in range(3)])
+            if align > .995 and s['upright'] > .94 and speed <= .35:
+                require(home['capture'] and s['capture'] and home['selected_berth_id'] == home['berth_id'],
+                        'pure production preview selects the actual central home berth')
+                require(dot([-v for v in s['back']], self.parked_forward) < -.95,
+                        'ordinary nose-first home return opposite the original parked heading')
+                self.landing_distance = norm(off)
+                self.receipts['home_landing_request'] = s
+                self.home_press('l', s, now)
+                self.enter('beacon_home_land', s)
+        elif self.stage == 'beacon_home_land':
+            keys.add('Prior')
+            require(not home['landing_abort_reason'], 'ordinary home landing aborted: '+home['landing_abort_reason'])
+            self.home_landing_seen |= s['landing_active']
+            if self.home_landing_seen and not s['landing_active'] and not s['landed']:
+                require(False, 'ordinary home landing ended without securing the dock')
+            if s['landed'] and phase == 'SHUT_DOWN':
+                require(self.home_landing_seen and 'acknowledged_frame' in self.home_pressed['l'],
+                        'one acknowledged native L started an observed actual physics landing')
+                self.require_home_dock(s)
+                self.receipts['home_docked'] = s
+                self.home_shutdown_frame = self.frame
+                self.enter('beacon_home_shutdown', s)
+                keys.clear()
+            elif not self.home_landing_seen:
+                require(self.frame <= self.home_pressed['l']['frame'] + 120,
+                        'ordinary L did not admit the home landing; no retry')
+        elif self.stage == 'beacon_home_shutdown':
+            self.require_home_dock(s)
+            require(phase == 'SHUT_DOWN' and s['piloted'] and s['seated'], 'ordinary neutral home shutdown')
+            if self.frame - self.home_shutdown_frame >= 90 and s['telemetry']['engine'] == 'OFFLINE':
+                require('released_frame' in self.home_pressed['l'], 'landing key physically released before distinct exit press')
+                self.receipts['home_shutdown'] = s
+                self.home_press('e', s, now)
+                self.enter('beacon_home_exit', s)
+        elif self.stage == 'beacon_home_exit':
+            self.require_home_dock(s)
+            require(s['telemetry']['engine'] == 'OFFLINE', 'powered-down exact home dock retained during ordinary exit')
+            if not s['piloted'] and not s['seated'] and s['control_enabled'] and not s['transition_busy']:
+                self.require_home_walk(s)
+                require('acknowledged_frame' in self.home_pressed['e'] and s['exit_error'] < .25,
+                        'one acknowledged ordinary E completes the actual supported exterior exit')
+                self.receipts['home_exit'] = s
+                self.enter('beacon_home_walk', s)
+            else:
+                require(self.frame <= self.home_pressed['e']['frame'] + 600,
+                        'ordinary E did not finish the supported home exit; no retry')
+        elif self.stage == 'beacon_home_walk':
+            self.require_home_walk(s)
+            step = norm(sub(s['player'], self.home_previous['player']))
+            require(step <= (home['walk_tuning']['sprint']/60*1.25+.02)*frames,
+                    'continuous actual exterior walking without placement or recovery teleport')
+            self.home_walked += step
+            off = sub(home['walk_target'], s['player'])
+            off[1] = 0
+            distance = norm(off)
+            direction = unit(off)
+            yaw = math.atan2(dot(direction, s['walk_right']), dot(direction, s['walk_forward']))
+            dx = round(max(-360, min(360, yaw/home['walk_tuning']['mouse'])))
+            walk_speed = norm([home['player_velocity'][0], 0, home['player_velocity'][2]])
+            stopping = walk_speed*walk_speed/(2*home['walk_tuning']['deceleration']) + home['walk_tuning']['walk']*frames/60 + .10
+            if abs(yaw) < .08 and distance > .25 and (walk_speed <= .35 or distance > stopping): keys.add('w')
+            displacement = norm(sub(s['player'], self.receipts['home_exit']['player']))
+            require(displacement < 2, 'bounded ordinary home exterior walk')
+            if distance <= .30 and walk_speed <= .35 and displacement >= .5 and self.frame-self.receipts['home_exit']['frame'] >= 20:
+                require('released_frame' in self.home_pressed['e'], 'exit key physically released before usable walking completes')
+                require(all(label in self.file_snapshots for label in ('baseline', 'paid', 'stable')),
+                        'independent baseline paid and stable real-file checks precede home success')
+                expected = ('APPROACH_SHIP', 'START_ENGINES', 'LAUNCH', 'TARGET_PRACTICE',
+                            'INTERCEPTOR_ENGAGEMENT', 'RETURN_TO_YARD', 'SHUT_DOWN', 'COMPLETE')
+                require(all(phase in self.phases for phase in expected), 'all genuine ordinary Guided gameplay phases')
+                self.receipts['home_walk'] = s
+                self.enter('complete', s)
+                self.result = {'completion_marker': self.HOME_MARKER,
+                               'scope': 'ordinary Beacon entry traversal payment Guided combat home dock shutdown and usable exterior walk',
+                               'settlement': self.settlement_result, 'receipts': self.receipts,
+                               'same_pid': s['pid'], 'same_main_id': s['main_id'],
+                               'same_player_id': s['player_id'], 'same_ship_id': s['ship_id'],
+                               'home_berth_id': home['berth_id'], 'home_berth_instance_id': home['berth_instance_id'],
+                               'same_capsule_id': home['capsule_id'], 'same_shape_id': home['shape_id'],
+                               'home_landing_active_seen': self.home_landing_seen,
+                               'landing_approach_m': self.landing_distance,
+                               'native_home_edges': self.home_edges, 'home_presses': self.home_pressed,
+                               'header_crossing': self.home_header_crossing,
+                               'home_walked_m': self.home_walked, 'home_walk_displacement_m': displacement,
+                               'home_support_collider': home['support_collider'],
+                               'authored_tuning': s['tuning'], 'walk_tuning': home['walk_tuning'],
+                               'default_sampler': True, 'phases': self.phases, 'stages': self.stages,
+                               'remaining': ['cold restart', 'ten-run endurance', 'native hardware and human review']}
+                keys.clear()
+        else:
+            require(False, 'known ordinary Beacon home stage')
         return keys, dx, dy, False
 
 
@@ -2493,7 +2815,9 @@ class BeaconSettlementFiles(HabitatRestartFiles):
         label = None
         if 'baseline' not in self.snapshots: label = 'baseline'
         elif pilot.paid_state is not None and 'paid' not in self.snapshots: label = 'paid'
-        elif pilot.result is not None: label = 'stable'
+        elif 'stable' not in self.snapshots and (pilot.result is not None
+                or getattr(pilot, 'settlement_result', None) is not None): label = 'stable'
+        elif isinstance(pilot, BeaconHomePilot) and pilot.result is not None and 'home' not in self.snapshots: label = 'home'
         if label is None: return
         settlement = s['settlement']
         document = self.capture(label, settlement['store'])
@@ -2512,11 +2836,15 @@ class BeaconSettlementFiles(HabitatRestartFiles):
         else:
             pilot.require_paid(s)
             self.require_preserved(self.snapshots['baseline']['document'], document)
-            if label == 'stable':
+            if label in ('stable', 'home'):
                 paid = self.snapshots['paid']['document']['payload']
                 require(payload['game_flow_reward_store'] == paid['game_flow_reward_store']
                         and payload['cinder_beacon_session'] == paid['cinder_beacon_session'],
                         'independent actual disk retains the same once-only receipt and paid terminal')
+                if label == 'home':
+                    stable = self.snapshots['stable']['document']['payload']
+                    require(all(payload[key] == stable[key] for key in ('game_flow_reward_store', 'cinder_beacon_session')),
+                            'final home file retains the independently checked stable settlement')
 
 
 class HabitatRestartPilot(HabitatLoopPilot):
@@ -3389,7 +3717,7 @@ def stop(process):
 
 
 def run(binary, output, route="guided"):
-    require(route in ("guided", "beacon-entry", "beacon-settlement", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
+    require(route in ("guided", "beacon-entry", "beacon-settlement", "beacon-home", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
     output.mkdir(parents=True, exist_ok=False)
     game = xvfb = desktop = pilot = None
     temporary_profile = None
@@ -3447,7 +3775,7 @@ def run(binary, output, route="guided"):
                         '--native-sortie-observer' if route == 'guided' else '--native-sortie-observer='+route]
                 result.update(arguments=args, display=env['DISPLAY'], xvfb_pid=xvfb.pid,
                               binary_sha256=hashlib.file_digest(binary.open('rb'),'sha256').hexdigest())
-                settlement_files = BeaconSettlementFiles(profile, output) if route == 'beacon-settlement' else None
+                settlement_files = BeaconSettlementFiles(profile, output) if route in ('beacon-settlement', 'beacon-home') else None
                 restart_files = HabitatRestartFiles(profile, output) if route == 'habitat-restart' else None
                 result['game_legs'] = []
                 for leg in range(2 if restart_files else 1):
@@ -3480,9 +3808,10 @@ def run(binary, output, route="guided"):
                     leg_result['window'] = hex(window)
                     desktop.focus(window)
                     pilot = HabitatRestartPilot(cold=bool(leg)) if restart_files else {
-                        "guided": Pilot, "beacon-entry": BeaconEntryPilot, "beacon-settlement": BeaconSettlementPilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
+                        "guided": Pilot, "beacon-entry": BeaconEntryPilot, "beacon-settlement": BeaconSettlementPilot, "beacon-home": BeaconHomePilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
                         "hulk-arrival": HulkArrivalPilot, "hulk-breaker": HulkBreakerPilot,
                         "hulk-home": HulkHomePilot, "habitat-loop": HabitatLoopPilot, "life-tow": LifeTowPilot, "life-gantry": lambda: LifeTowPilot("life-gantry"), "life-arm": lambda: LifeTowPilot("life-arm"), "life-patrol": lambda: LifeTowPilot("life-patrol")}[route]()
+                    if isinstance(pilot, BeaconHomePilot): pilot.file_snapshots = settlement_files.snapshots
                     with selectors.DefaultSelector() as selector:
                         selector.register(game.stdout,selectors.EVENT_READ)
                         pending = b''
@@ -3585,6 +3914,13 @@ def run(binary, output, route="guided"):
             if isinstance(pilot, BeaconEntryPilot):
                 result['partial_sortie'].update(last_state=pilot.last_state, receipts=pilot.receipts,
                                                ui_edges=pilot.ui_edges, sequence=pilot.sequence)
+            if isinstance(pilot, BeaconHomePilot):
+                result['partial_sortie'].update(settlement=pilot.settlement_result,
+                                               native_home_edges=pilot.home_edges, home_presses=pilot.home_pressed,
+                                               home_landing_active_seen=pilot.home_landing_seen,
+                                               home_header_samples=pilot.home_header_samples,
+                                               home_header_crossing=pilot.home_header_crossing,
+                                               home_walked_m=pilot.home_walked)
             if isinstance(pilot, HulkArrivalPilot):
                 result['partial_sortie']['last_state'] = pilot.last_state
             if isinstance(pilot, SandboxPilot):
@@ -3641,8 +3977,8 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('binary')
     parser.add_argument('--output',required=True,type=Path)
-    parser.add_argument('--route', choices=('guided', 'beacon-entry', 'beacon-settlement', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
-                        help='beacon-settlement continues the accepted entry through four physical beacons and durable reward; beacon-entry departs normally and physically reaches/starts the first Beacon through actual pause controls; life-patrol walks Habitat through the real door beside patrol drones and boards Torrent; life-arm walks Aft stairs past the live service arm and boards Zenith; life-gantry walks Freight past the live gantry and boards Jovian; life-tow walks Central beside live tow service and boards Torrent; hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
+    parser.add_argument('--route', choices=('guided', 'beacon-entry', 'beacon-settlement', 'beacon-home', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
+                        help='beacon-home retains payment through genuine Guided combat, home docking and usable exterior walking; beacon-settlement continues the accepted entry through four physical beacons and durable reward; beacon-entry departs normally and physically reaches/starts the first Beacon through actual pause controls; life-patrol walks Habitat through the real door beside patrol drones and boards Torrent; life-arm walks Aft stairs past the live service arm and boards Zenith; life-gantry walks Freight past the live gantry and boards Jovian; life-tow walks Central beside live tow service and boards Torrent; hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
     args=parser.parse_args()
     try: binary=validate_binary(args.binary)
     except ValueError as error: parser.error(str(error))

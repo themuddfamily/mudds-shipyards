@@ -58,7 +58,7 @@ func on_startup_completed(main: Node) -> void:
 	_game = main as GameFlow
 	_player = _game.get_node("Player") as PlayerController
 	_spawn = _player.global_position
-	_beacon_mode = "beacon-settlement" if "--native-sortie-observer=beacon-settlement" in OS.get_cmdline_args() else "beacon-entry"
+	_beacon_mode = "beacon-home" if "--native-sortie-observer=beacon-home" in OS.get_cmdline_args() else ("beacon-settlement" if "--native-sortie-observer=beacon-settlement" in OS.get_cmdline_args() else "beacon-entry")
 	_beacon_entry = "--native-sortie-observer=" + _beacon_mode in OS.get_cmdline_args()
 	if _beacon_entry:
 		process_mode = Node.PROCESS_MODE_ALWAYS
@@ -275,8 +275,10 @@ func _physics_process(delta: float) -> void:
 			paused_sample["frame"] = Engine.get_physics_frames()
 			paused_sample["player_id"] = _player.get_instance_id()
 			paused_sample["ship_id"] = _ship.get_instance_id()
-			if _beacon_mode == "beacon-settlement":
+			if _beacon_mode in ["beacon-settlement", "beacon-home"]:
 				paused_sample["settlement"] = _beacon_settlement_observation()
+			if _beacon_mode == "beacon-home":
+				paused_sample["home"] = _beacon_home_observation()
 			print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(paused_sample))
 			return
 	if _habitat_restart:
@@ -305,7 +307,7 @@ func _physics_process(delta: float) -> void:
 	var camera_yaw := _player.get_node("%CameraYaw") as Node3D
 	var command := _ship.get_last_ship_command()
 	var shot := _game.get_last_player_shot_result()
-	var capture: Dictionary = {} if _beacon_entry else _game.world.get_landing_assist_report(_ship, _ship.get_home_berth_id())
+	var capture: Dictionary = {} if _beacon_entry and _beacon_mode != "beacon-home" else _game.world.get_landing_assist_report(_ship, _ship.get_home_berth_id())
 	var contract := (_ship.get("_landing_contract") as Dictionary).duplicate(true) if _beacon_entry else _ship.get_landing_contract_report()
 	if _beacon_entry:
 		contract["berth_id"] = _ship.get("_landing_berth_id")
@@ -348,8 +350,10 @@ func _physics_process(delta: float) -> void:
 	}
 	if _beacon_entry:
 		observation.merge(_beacon_entry_observation())
-		if _beacon_mode == "beacon-settlement":
+		if _beacon_mode in ["beacon-settlement", "beacon-home"]:
 			observation["settlement"] = _beacon_settlement_observation()
+		if _beacon_mode == "beacon-home":
+			observation["home"] = _beacon_home_observation(capture)
 	if _hulk_arrival:
 		observation["hulk"] = _hulk_arrival_observation()
 	if _hulk_home:
@@ -398,7 +402,7 @@ func _beacon_entry_observation() -> Dictionary:
 					beacon.merge(activity.call(&"get_snapshot") as Dictionary, true)
 					beacon.merge({"available": true, "binding_id": binding.get_instance_id(),
 						"owner_id": activity.get_instance_id()}, true)
-	if _beacon_mode == "beacon-settlement":
+	if _beacon_mode in ["beacon-settlement", "beacon-home"]:
 		var points: Array = []
 		for point: Vector3 in CinderBeaconTraversalActivity.BEACONS:
 			points.append(_v(_game._cinder_authored_frame_to_world(point)))
@@ -435,6 +439,50 @@ func _beacon_settlement_observation() -> Dictionary:
 		"record": (snapshot.get("record", {}) as Dictionary).duplicate(true),
 		"terminal": (payload.get("cinder_beacon_session", {}) as Dictionary).duplicate(true),
 		"handoff": (_game.get("_last_cinder_beacon_traversal_reward_result") as Dictionary).duplicate(true)}
+
+
+## Home identity, non-mutating capture preview, retained opaque-token binding
+## and actual support. Never call has_valid_lease or the cleanup-bearing getter.
+func _beacon_home_observation(capture: Dictionary = {}) -> Dictionary:
+	var berth := _game.world.get_berth_node(_ship.get_home_berth_id()) as ShipBerth
+	var capsule := _player.get_node(^"PlayerCollision") as CollisionShape3D
+	var support: Dictionary = {}
+	if not get_tree().paused and not _player.is_seated() and not bool(_game.get("_transition_busy")):
+		var ray := PhysicsRayQueryParameters3D.create(_player.global_position + Vector3.UP * 0.2,
+			_player.global_position - Vector3.UP * 0.3, PhysicsLayers.WORLD, [_player.get_rid(), _ship.get_rid()])
+		support = _player.get_world_3d().direct_space_state.intersect_ray(ray)
+	var collider := support.get("collider") as Node
+	var supported := _ember_node_current(collider) and _game.world.is_ancestor_of(collider)
+	var token: StringName = _ship.get("_landing_reservation_token")
+	var bound: bool = not token.is_empty() and token == StringName(berth.get("_reservation_token")) \
+		and int(_ship.get("_landing_berth_instance_id")) == berth.get_instance_id() \
+		and StringName(_ship.get("_landing_berth_id")) == berth.get_berth_id() \
+		and StringName(_ship.get("_landing_reserved_ship_id")) == _ship.get_ship_id() \
+		and StringName(berth.get("_reserved_ship_id")) == _ship.get_ship_id() \
+		and berth.get_occupant() == _ship and berth.get_reservation_owner() == _ship
+	var exit_position := _ship.get_exit_transform().origin
+	return {"berth_id": str(berth.get_berth_id()), "berth_instance_id": berth.get_instance_id(),
+		"berth_parent_id": berth.get_parent().get_instance_id(),
+		"capsule_id": capsule.get_instance_id(), "shape_id": capsule.shape.get_instance_id(),
+		"capsule_enabled": not capsule.disabled,
+		"range_staging": _v(_game.world.to_global(Vector3(0, 8, -78))),
+		"range_clearance": _v(_game.world.to_global(Vector3(0, 2.7, -150))),
+		"range_clearance_exit": _v(_game.world.to_global(Vector3(0, 2.7, -100))),
+		"approach": _v(_game.world.to_global(Vector3(0, 2, -18))),
+		"dock": _v(berth.get_dock_transform().origin),
+		"selected_berth_id": str(capture.get("selected_berth_id", &"")),
+		"capture": bool(capture.get("assist_capture_accepted", false)), "token_bound": bound,
+		"landing_abort_reason": str(_ship.get("_landing_last_abort_reason")),
+		"grounded": _player.is_on_floor(), "supported": supported,
+		"support_collider": str(collider.get_path()) if supported else "",
+		"player_velocity": _v(_player.velocity),
+		"walk_tuning": {"walk": _player.walk_speed, "sprint": _player.sprint_speed,
+			"acceleration": _player.ground_acceleration, "deceleration": _player.ground_deceleration,
+			"mouse": _player.mouse_sensitivity},
+		"exit_position": _v(exit_position),
+		"walk_target": _v(exit_position - _game.world.global_basis.x.normalized()),
+		"native_land": Input.is_physical_key_pressed(KEY_L),
+		"native_interact": Input.is_physical_key_pressed(KEY_E)}
 
 
 func _sandbox_observation() -> Dictionary:
