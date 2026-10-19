@@ -14085,3 +14085,163 @@ Independent review must confirm the patch before engines. This is an explicit
 bounded priority decision, not an automatic quota reset. Any further unexpected
 failure parks the candidate with cumulative review; no additional automatic
 repair, cap increase, new route, changed test or narrowed proof.
+
+## Browser ordinary timeout and retry — failed and parked
+
+Candidate **e944f52a835789971a58e0e4d1dd50c4ac664b34** is pushed on
+`feat/browser-ordinary-driver-20261020`, **unmerged/withheld**. It adds a private
+OS-input driver, passive opt-in packaged observer and real raw/production-host
+fixture through six existing files. Neither BROWSER-DRIVER nor BROWSER-ORDINARY
+is accepted: actual execution failed before the full promised route completed.
+
+Independent source review caught one pre-engine Resume acknowledgement defect;
+its narrow correction and focused transition tests were reviewed before checks.
+First check on02e5bf42d ran89 Python tests and errored in four cases: inherited
+Pilot.target=None hid the new method. An explicit independently reviewed priority
+decision selected only a method/eight-callsite rename; tests/caps remained fixed.
+The original failure and sole selected corrective exception remain below.
+
+Final readiness checks pass: unchanged89 Python tests9.099s, clean import20.688s,
+startup privacy1.033s, existing normal join regression35 assertions/24.439s;
+Windows export26.725s, Linux export25.872s, strict Linux binary22.396s/archive
+23.937s/Windows-payload26.172s startups (exit0/one menu marker), actual1521-entry
+PCK and exact archive parity5.679s. These are readiness, not ordinary acceptance.
+
+The ONE actual packaged Xvfb/XTest/Dummy route fails **40.553591776s**, under its
+original300s cap. It performs normal Begin Shift, Pause/browser navigation, real
+Ctrl+A/character typing, Manual Join, genuine connected ENet peer/raw hello with
+no offer. At automatic timeout the game emits:
+`Attempt to disconnect a nonexistent connection from 'NetworkSession:<Node#1104662234631>'. Signal: 'tree_exited', callable: ''.`
+There is no GDScript backtrace/callable identity; underlying cause remains unknown.
+The retained raw stream subsequently shows offline cleanup at5017ms and inline
+Retry/copy, but the diagnostic prohibits acceptance. Retry/admission/healthy
+survival, Disconnect/fresh Cancel, Resume/fresh walk/normal quit are NOT_RUN.
+Do not count the successful prefix as the frozen complete route.
+
+Fixture cleanup separately rejects its private command; its recorded states never
+advance beyond raw/sequence0. No admitting command was reached. All input release,
+input-helper/fixture/game/Xvfb reaping flags are true. No further repair, exception,
+probe, cap change, renamed retry or narrowed route is selected. Source review finds
+no explicit tree_exited reference under scripts; neither the teardown cause nor a
+relationship to the parked Activity Board/Window failure is established.
+
+Cumulative **12 stages/235.879387398s:10 pass/2 fail**. All12 owners FINISHED;
+all67 observed process identities absent. Eight unique build files are hash-verified
+and retained privately under `results/withheld-builds/`; no public checkpoint or
+notes created. Source branch verified pushed and worktree clean before removal.
+Only `/srv/mudds-work/browser-ordinary-driver-20261020/results/` remains after
+verified helper/profile/raw-output preservation and owned scratch cleanup.
+Freeze commit→corrected candidate502s/8.37min; freeze→cleanup 16.17min
+against45–60min implementation/review plus10–15min checks/10–15min checkpoint.
+Those timings do not turn the failed candidate into an accepted delivery.
+
+Latest accepted public checkpoint remains20e90c9. All36 parents/ten phase gates
+remain OPEN. The reachable non-admitting fixture also does not prove the original
+no-answer/unreachable case. Native Windows/GPU/devices/listening/human/rendered/
+capacity/endurance/controller/final gates remain OPEN/NOT_RUN. Next single action:
+bounded read-only identification of the owner of the exact NetworkSession
+`tree_exited` disconnection; require a concrete causal fact/change before any
+production correction or attempt to reopen this parked route.
+
+### Original frozen cards, scope clarification and corrective decisions
+
+### Browser ordinary timeout and retry — bounded delivery cards
+
+**Parent25; frozen2026-10-20 before implementation or engines.** Inline HUD fix
+20e90c9 and5s join deadline1c679a4 are prerequisites already packaged. These
+cards preserve BROWSER-UNREACHABLE, BROWSER-DISCONNECT and BROWSER-CANCEL ordinary
+acceptance; component/mocked checks never substitute for the actual route.
+
+**BROWSER-DRIVER — executable release capability.** Extend the existing private
+Xvfb/XTest driver with `--route browser-unreachable`. One implementation agent
+owns `tools/release/run_native_sortie.py`, its existing `test_native_sortie.py`
+and opt-in fixture mode in `tests/network/network_session_join_failure_test.gd`.
+Root owns read-only `scripts/diagnostics/native_sortie_observer.gd`, exact opt-in
+allowlist in `scripts/game/startup_loader.gd`, and its existing privacy test.
+Independent high review covers process/input ownership, passive observation,
+real network authority, timing and full criteria. No recursive delegation.
+
+Fixture serves a real raw loopback ENet host, polling/discarding actual admission
+hello; on explicit external command it releases that socket and starts the real
+NetworkEnetSessionAdapter host on the SAME port. A later command returns it to
+non-admitting mode for fresh Cancel. Use existing test helpers, not another
+validator/schema/evidence family. Fixture is a separate owned headless/Dummy
+child with bounded shutdown; no game --script/--main-pack or resource override.
+Endpoint text must enter through actual OS keys; no LineEdit assignment, injected
+InputEvent/action, button emission, observer call or copied session receipt.
+
+Observer runs while paused, reads current UI visibility/focus/text/native keys,
+Main/player identity and position, current adapter/native peer/offer/deadline,
+HUD presenter snapshot and GameFlow's retained normalized endpoint. No polling,
+expiry, mutating reconciliation getter, authority write or physics query during
+pause. Observer remains exact opt-in/private X11/Dummy; ordinary startup unchanged.
+
+Driver-capability proof: existing Python driver safety suite plus focused new
+route transition/refusal/timeout/fixture-ownership checks (cap60s); guarded clean
+Godot import180s and existing startup privacy suite60s. Then clean paired exports
+180s each, strict three startup checks120s each and actual package parity.
+A source/build capability pass is not an ordinary browser acceptance pass.
+Estimate45–60min implementation/review,10–15min checks,10–15min checkpoint;
+split before90min. Stop at the first unexpected failure, retain raw state;
+no automatic repair, cap increase, changed assertion or route substitution.
+
+**BROWSER-ORDINARY — actual packaged route acceptance**, dependent on driver.
+One original300s whole-process cap includes fixture/display/startup/network/
+ordinary exit; existing UI acknowledgement3s, owned display startup10s and game
+window15s remain. Fixture command acknowledgement3s. Normal Begin Shift and
+initial prompts → Escape → actual Server Browser button. Navigate and type
+127.0.0.1/owned port/name via OS keys; activate Manual Join. Require real raw host
+receives hello/native peer connected but no offer. Actual paused automatic timeout
+must occur5000–7000ms from retained production start, with unchanged gameplay
+position/phase and offline cleanup. Readable inline timeout and focusable Retry
+must be present. Switch fixture to valid host on same port, activate actual Retry;
+require retained normalized endpoint, real admission within7s and stable healthy
+session for6s past its retry start (old deadline cannot stop it). Actual UI
+Disconnect must clear peer/offer; return fixture to raw mode; fresh Manual Join,
+real connected/nonadmitted pending state, actual UI Cancel before deadline,
+then stable offline/no offer/no retained deadline. Back → Resume, fresh supported
+movement at least0.5m, Escape → Exit To Desktop → actual process exit0. Preserve
+Main/player identities; independent abort releases all input/reaps every child.
+No Activity Board transition, tooltip probe, graphics capture or parked retry.
+Command after capability acceptance: `python3 -B tools/release/run_native_sortie.py
+builds/linux/MuddsShipyards-<accepted-source>.x86_64 --route browser-unreachable
+--output <new-owned-result-directory>` plus explicit owned fixture arguments
+chosen by implementation. Run ONCE under frozen caps; first failure parks this
+route without replacing full criteria by a smaller successful subroute.
+Estimate5min maximum route execution plus5–10min inspection/cleanup.
+Rendered readability/native GPU/Windows/devices/endurance/capacity/controller
+and other browser scenarios remain separate OPEN/NOT_RUN gates.
+
+**Parent-scope clarification before ordinary execution.** The route option's
+`browser-unreachable` name exercises a reachable ENet host withholding admission;
+its frozen concrete fault is non-admission. It does not prove the separate
+no-answer/unreachable endpoint case in the original parent. Keep that case and
+BROWSER-UNREACHABLE as a whole OPEN even if this full concrete route passes.
+This corrects the broad naming; no frozen step, check, cap or acceptance is removed.
+
+**BROWSER-DRIVER pre-engine source review2026-10-20.** Independent high review
+finds one concrete new-driver defect: the paused-only guard rejects the first
+unpaused `browser_resume` observation before its pending Resume acknowledgement
+can advance to `browser_walk`. No tests/engines have run. Select one bounded
+pre-engine correction in the existing driver and its existing Python suite:
+permit only that pending Resume transition, then prove the actual acknowledgement
+and next supported movement sample. Preserve all frozen route criteria/caps and
+other pause invariants; no generalized bypass or new scenario. No other concrete
+six-file source defect found. Re-review corrected diff before pinned checks;
+first unexpected test/engine failure still STOP, no automatic repair.
+
+**BROWSER-DRIVER first-check STOP and explicit priority decision2026-10-20.**
+Source02e5bf42d's first Python stage runs89 tests in9.286605s and errors in four
+new browser cases. All four have one concrete cause: inherited Pilot.__init__
+sets `self.target = None`, hiding the new BrowserUnreachablePilot.target method.
+Original STOP/raw output retained; import/privacy/network/exports/ordinary route
+all NOT_RUN. Root and independent high source review missed the collision.
+
+After bounded independent priority review, root explicitly selects ONE corrective
+exception to the no-automatic-repair freeze: rename only that method and its eight
+calls to `target_control`. Preserve inherited aiming state, tests, complete route
+criteria and every cap. Clean commit; separate repair-1 result directory retains
+the original failure. Re-run the unchanged full89 Python tests once, then only
+if PASS continue the original checks. No accepted check is repeated unchanged.
+Any further unexpected failure parks this driver/candidate: no additional
+exception, automatic repair, changed test/cap or narrower successful subroute.

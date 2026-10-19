@@ -76,17 +76,25 @@ Threading driver readiness is now defined, **execution GATED on UI-BOARD-FOCUS**
 it would cross the retained failed Activity Board transition. Full five-gate,
 durable reward and landing-unlocked home/usable exit requirements remain intact.
 [Owners/full contract/readiness](docs/ROADMAP_BACKLOG.md#threading-complete-first-play--driver-readiness).
-No engine or renamed Threading retry selected. Next independent candidate is the
-ordinary browser unreachable-host timeout/retry UI path after packaged1c679a4;
-source-map its driver and full acceptance before implementation or engines.
+No engine or renamed Threading retry selected. The independent ordinary browser
+non-admission attempt is now parked below; no full route acceptance was gained.
 
 BROWSER-INLINE-RECOVERY is delivered on **20e90c9**, merged/pushed and packaged:
 accepted progress/timeout feedback and permitted Retry are reachable inline,
 with Cancel/Disconnect priority and validation fencing preserved.
 [Actual checks and original corrections](docs/history/ROADMAP_DELIVERIES.md#browser-inline-session-recovery--delivered).
 The full OS-input browser route remains separate; no Activity Board/Aft retry.
-Next selected card is BROWSER-DRIVER, followed by dependent BROWSER-ORDINARY.
-[Exact owners, caps, full route and stopping conditions](docs/ROADMAP_BACKLOG.md#browser-ordinary-timeout-and-retry--bounded-delivery-cards).
+BROWSER-DRIVER/BROWSER-ORDINARY candidate **e944f52a8** is now **PARKED/unaccepted**:
+source pushed, unmerged/withheld. Readiness checks and packaging pass; ONE actual
+ordinary route fails40.554s at automatic timeout with a NetworkSession tree_exited
+nonexistent-disconnect/empty-callable diagnostic. Underlying cause unknown;
+fixture cleanup separately rejects its command. Retry/admission/Disconnect/fresh
+Cancel/Resume/normal quit NOT_RUN. No further exception/repair/probe/retry selected.
+[Full frozen cards, failures and retained builds](docs/history/ROADMAP_DELIVERIES.md#browser-ordinary-timeout-and-retry--failed-and-parked).
+Owned scratch cleaned after preserving raw results/eight unique withheld builds.
+Next single action: bounded read-only disconnection-owner mapping; a concrete
+cause/change must precede any production correction or reopening. The separate
+no-answer/unreachable endpoint case remains open.
 
 Perimeter Hold's implementation candidate **aa88b5a73** is **PARKED/unmerged**.
 Its staged live runtime passes52 assertions; existing director/asset/board/HUD
@@ -129,12 +137,11 @@ card among navigator rejection, Hauler cargo integration and Station Defense
 active-run recovery: the first two retain their already-asked policy waits;
 the third still lacks its intended active-wave continuation contract. Do not
 count these as executable jobs or begin another terminal-debt implementation.
-The next independent actionable work is defining the browser OS-input driver
-capability, with the full timeout→same-endpoint retry/admission→disconnect→
-fresh cancel→resume path retained. Its driver implementation and actual packaged
-route acceptance must be separate named deliverables; neither is delivered by
-the focused inline HUD fix. Freeze owners, commands and stage/whole-route caps
-before code or engines. This is a specific next action, not a release estimate.
+The browser driver and full packaged route were then frozen as separate cards;
+both remain unaccepted after the actual timeout diagnostic above. Preserve their
+whole timeout→retry/admission→disconnect→fresh cancel→resume/quit contract.
+A bounded failure-owner definition is the next action; no unchanged route retry
+or broader release estimate follows from the component/readiness passes.
 
 
 At each delivery, update that child’s result and remaining dependency, give actual
@@ -173,6 +180,7 @@ contracts and cumulative attempt records remain in the retained history.
 
 | Outcome | Last actual result | Condition before more work |
 | --- | --- | --- |
+| BROWSER-ORDINARY /25 | Candidatee944f52:89Python/privacy/35join/package checks pass, actual routeFAIL40.554s at NetworkSession tree_exited disconnect error; cleanup fixture command rejected. | PARKED/unmerged/withheld. Full continuation NOT_RUN; no further exception/repair/probe/retry. Raw data/eight builds preserved; scratch cleaned. |
 | AFT-CONSOLE-VIEW /9,12 | Standalone actual-module Xvfb/Forward+/llvmpipe capture FAIL120.485s after camera setup; no image or visual finding. | PARKED; source/root cause unproven. No cap increase, alternate backend/view or retry selected. Owned scratch cleaned; raw results retained. |
 | PERIMETER-LIVE /11 | Candidateaa88b5a73 unmerged; staged Hold52/director149/asset12/board58/HUD9 pass. GameFlow FAIL90.178s before Hold entry; exports NOT_RUN. | PARKED after cumulative363.897s/three failures and independent review. Concrete change addressing retained full GameFlow route boundary plus separate selection required; no additional correction/retry/cap increase/narrowed acceptance. |
 | PLAY-BEACON-HOME /13 | Candidatea612ea686 FAIL37.713s guarded/37.419s driver at ActivityBoardButton Return/frame1233; same two root Window signal-disconnection diagnostics. Eleven prechecks pass; no settlement/home/L/E reached, no file captures. Unmerged/withheld. | PARKED on UI-BOARD-FOCUS. Recurrence supplies no popup/connection-removal cause; no retry/repair/cap change. Preserve original UI two-component9.627s and Mining budgets. |
