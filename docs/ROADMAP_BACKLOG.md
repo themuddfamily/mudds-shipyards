@@ -276,6 +276,24 @@ startup requires exit0 and STARTUP_MENU_READY_OK. Independent source/result revi
 clean commit, matching Windows/Linux packages and repository build notes precede
 acceptance. No hosted CI, audible output or desktop automation.
 
+**Attempt1 / a67cc08ce — STOP, one causal repair selected.** Import passed20.580s;
+director regression suite failed37.956s on its retained assertion that a detached
+active paired-wing director leaves state/resolver/signals frozen. The new
+`_exit_tree()` unconditionally concluded every running scenario. This changed an
+existing contract outside Hold. Asset/board/HUD/Hold/GameFlow checks and exports
+were NOT_RUN. Raw results and original STOP remain under
+`/srv/mudds-work/perimeter-live-20261020/results/`.
+
+**One repair, frozen before edit:** constrain the new `_exit_tree()` conclusion
+to `SCENARIO_PERIMETER_HOLD` only; preserve all other detached-director behavior.
+One production conditional, no test/criteria/deadline changes. Root applies and
+commits; independent reviewer rechecks that exact diff. Estimate5–10min including
+review. Re-run import and the same six focused suites, then the same exports/
+strict startups only on pass; original90s/180s caps retained. Keep original failed
+results/STOP and repair results separate, report cumulative58.536s already spent
+plus repair stages. Any further failure requires cumulative priority review;
+no second repair or automatic successor selected.
+
 First unexpected failure stops the attempt with raw logs/process cleanup.
 Only one cause-backed repair may follow a separately frozen diagnosis; no second
 repair, unchanged retry, deadline increase or renamed budget. Preserve the
