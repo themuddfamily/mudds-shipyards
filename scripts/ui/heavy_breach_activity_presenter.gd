@@ -6,7 +6,7 @@ extends RefCounted
 ## and reward; this presenter only turns their published receipt into text.
 
 const TERMINAL_OUTCOMES: Array[StringName] = [
-	&"cleared", &"escaped", &"withdrawn", &"aborted", &"expired",
+	&"cleared", &"escaped", &"withdrawn", &"aborted", &"expired", &"lost",
 ]
 
 
@@ -33,7 +33,8 @@ func present(snapshot: Dictionary) -> Dictionary:
 	# The same board posts a Torpedo Run; its objective is the boat, not a picket.
 	var torpedo_run := scenario == &"torpedo_run"
 	var boat := str(director.get("torpedo_boat", "")).strip_edges()
-	var title := "TORPEDO RUN" if torpedo_run else "HEAVY BREACH"
+	var perimeter_hold := scenario == &"perimeter_hold"
+	var title := "TORPEDO RUN" if torpedo_run else ("PERIMETER HOLD" if perimeter_hold else "HEAVY BREACH")
 	var launched := bool(director.get("launched", false))
 	var elapsed := maxf(float(director.get("elapsed", 0.0)), 0.0)
 	var state_text := str(state).replace("_", " ").to_upper()
@@ -47,6 +48,12 @@ func present(snapshot: Dictionary) -> Dictionary:
 		asset_text = "TARGET  %s  —  DODGE OR SHOOT DOWN ITS SEEKERS" % (
 			boat if not boat.is_empty() else "TORPEDO BOAT"
 		)
+	var perimeter := director.get("perimeter_hold", {}) as Dictionary
+	if perimeter_hold:
+		var integrity := "UNAVAILABLE"
+		if bool(perimeter.get("integrity_available", false)):
+			integrity = "%.0f%%" % (float(perimeter.get("health_ratio", 0.0)) * 100.0)
+		asset_text = "PROTECTED CORE  %s  INTEGRITY %s  —  KEEP ABOVE 35%%" % [objective, integrity]
 	var reward_text := "REWARD  HANDOFF READY" if bool(reward.get("configured", false)) else "REWARD  UNAVAILABLE"
 	if not last_reward.is_empty():
 		reward_text = "REWARD  %s%s" % [
@@ -54,6 +61,8 @@ func present(snapshot: Dictionary) -> Dictionary:
 		(" — " + str(last_reward.get("reason", &"unknown")).replace("_", " ").to_upper())
 			if last_reward.has("reason") else "",
 	]
+	if perimeter_hold:
+		reward_text = "DEFENSE CONTRACT  NO CREDIT REWARD"
 	var failure_text := ""
 	if TERMINAL_OUTCOMES.has(outcome):
 		failure_text = "RESULT  %s" % outcome_text
@@ -64,7 +73,10 @@ func present(snapshot: Dictionary) -> Dictionary:
 		],
 		phase_text,
 		asset_text,
-		"ELAPSED  %.1fs  GENERATION  %d" % [elapsed, generation],
+		("HOLD  %.1fs REMAINING / %.0fs  GENERATION  %d" % [
+			maxf(0.0, float(perimeter.get("remaining_seconds", 90.0))),
+			float(perimeter.get("duration_seconds", 90.0)), generation]
+			if perimeter_hold else "ELAPSED  %.1fs  GENERATION  %d" % [elapsed, generation]),
 		reward_text,
 	])
 	if not failure_text.is_empty():

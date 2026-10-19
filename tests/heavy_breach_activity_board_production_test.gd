@@ -3,6 +3,7 @@ extends SceneTree
 const WORLD_SCENE := preload("res://scenes/world/shipyard_world.tscn")
 const PICKET_SCENE := preload("res://scenes/ships/standoff_picket_opponent.tscn")
 const SKIRMISHER_SCENE := preload("res://scenes/ships/flanking_skirmisher_opponent.tscn")
+const PRESS_SCENE := preload("res://scenes/ships/press_repeater_opponent.tscn")
 const TORPEDO_BOAT_SCENE := preload("res://scenes/ships/torpedo_boat_opponent.tscn")
 
 class MemoryFilesystem extends UserDataFilesystem:
@@ -118,6 +119,14 @@ func _run() -> void:
 	torpedo_boat.name = "TorpedoBoat"
 	_wire(torpedo_boat)
 	host.add_child(torpedo_boat)
+	var hold_actors: Array[Node3D] = []
+	for scene: PackedScene in [PICKET_SCENE, SKIRMISHER_SCENE, PRESS_SCENE]:
+		var craft := scene.instantiate() as Node3D
+		craft.name = ["PerimeterPicket", "PerimeterScatter", "PerimeterPress"][hold_actors.size()]
+		craft.set("source_id", 2131 + hold_actors.size())
+		_wire(craft)
+		host.add_child(craft)
+		hold_actors.append(craft)
 	var world := WORLD_SCENE.instantiate() as ShipyardWorld
 	host.add_child(world)
 	await process_frame
@@ -329,6 +338,17 @@ func _run() -> void:
 			== EncounterScenarioDirector.STATE_CONCLUDED,
 		"world re-entry preserves the board identity while clearing its active contract"
 	)
+	_check(board.get_offered_scenario() == EncounterScenarioDirector.SCENARIO_PERIMETER_HOLD,
+		"the first two retained contracts rotate to a third Perimeter Hold offer")
+	target.global_position = board.global_position + Vector3(1.5, 0.0, 0.0)
+	var hold_started: bool = board.interact(target, board.get_generation())
+	_check(hold_started and director.get_roster().size() == 3
+		and world.get_perimeter_hold_asset() != objective
+		and hold_actors[1].get_wing_role() == WingCoordinator.ROLE_FLANKER,
+		"the third physical offer launches distinct dedicated actors and a real flanker against its own core")
+	director.abort(EncounterScenarioDirector.OUTCOME_WITHDRAWN)
+	_check(_reward_requests.size() == 1 and board.get_offered_scenario() == EncounterScenarioDirector.SCENARIO_HEAVY_BREACH,
+		"withdrawing Hold returns to the first offer without a reward handoff")
 	# A real later clear uses a new reward epoch without restoring director state.
 	target.global_position = board.global_position + Vector3(1.5, 0.0, 0.0)
 	var later_started: bool = board.interact(target, board.get_generation())
@@ -348,6 +368,12 @@ func _run() -> void:
 	_check(torpedo_started and _reward_requests.size() == 3 and _reward_requests.back().activity_id == HeavyBreachActivityBoard.TORPEDO_RUN_ACTIVITY_ID
 		and _recovery_store.get_snapshot().heavy_breach_session.session.completion.reward_granted,
 		"a genuinely cleared rotated Torpedo Run shares terminal recovery with its distinct reward identity")
+	var hold_again: bool = board.interact(target, board.get_generation())
+	director.set("_elapsed", 90.0)
+	director.call(&"_physics_process", 0.0)
+	_check(hold_again and director.get_outcome() == EncounterScenarioDirector.OUTCOME_CLEARED
+		and _reward_requests.size() == 3 and board.get_reward_handoff_snapshot().pending_reward_generation == 0,
+		"clearing Hold never falls back to Breach credit or creates terminal reward debt")
 	await _test_legacy_paid_floor(host)
 	_test_refused_documents(host)
 	host.queue_free()
@@ -547,11 +573,11 @@ func _test_fresh_debt_recovery(host: Node3D, objective: Node3D, director: Encoun
 	_check(wire_record.session.offered_index is float
 		and HeavyBreachActivityBoard.validate_session_record(wire_record),
 		"the genuine persisted JSON-number offer validates before fresh debt recovery")
-	for index: int in [0, 1]:
+	for index: int in [0, 1, 2]:
 		wire_record.session.offered_index = float(index)
 		_check(HeavyBreachActivityBoard.validate_session_record(wire_record),
 			"the supported JSON offer %d retains the exact terminal contract" % index)
-	for index: float in [0.5, 1.5, -1.0, 2.0]:
+	for index: float in [0.5, 1.5, 2.5, -1.0, 3.0]:
 		wire_record.session.offered_index = index
 		_check(not HeavyBreachActivityBoard.validate_session_record(wire_record),
 			"fractional or unsupported JSON offer %s cannot restore a terminal contract" % index)

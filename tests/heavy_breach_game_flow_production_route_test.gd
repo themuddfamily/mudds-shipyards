@@ -403,7 +403,97 @@ func _run() -> void:
 		"fresh startup restores the Heavy Breach receipt onto the Activity Board"
 	)
 	restored = await _verify_main_unpaid_recovery(restored, filesystem)
-	await _finish(restored)
+	await _clean_up(restored)
+	var hold_game := await _verify_perimeter_board_departure()
+	await _finish(hold_game)
+
+
+## This staged production-route fixture selects the third posted contract,
+## then uses the same live E sensor, Arrow seat handoff and physical thrust
+## departure as the first contract above. Native ordinary input stays open.
+func _verify_perimeter_board_departure() -> GameFlow:
+	var game := MAIN_SCENE.instantiate() as GameFlow
+	game.configure_runtime_settings_persistence(Store.new("memory://hold-route.json", MemoryFilesystem.new()))
+	root.add_child(game)
+	await process_frame
+	await physics_frame
+	game.canopy_motion_time = 0.0
+	game.boarding_motion_time = 0.04
+	game.start_shift()
+	var world := game.world as ShipyardWorld
+	var board := world.get_heavy_breach_activity_board() as HeavyBreachActivityBoard
+	var arrow := game.get_node(^"ArrowReconShip") as HeroShip
+	var director := game.get_node(^"EncounterScenarios") as EncounterScenarioDirector
+	var hud := game.hud as GameHUD
+	board.set("_offered_index", 2)
+	board.call(&"_refresh_board_label")
+	var player := game.player as PlayerController
+	player.teleport_to(Transform3D(Basis.IDENTITY, board.global_position + Vector3(0, 0, 2)))
+	_check(await _wait_until(func() -> bool: return game.station_interaction_candidate == board),
+		"the physical sensor discovers the third posted Hold contract")
+	game.set("_network_session_mode", &"client")
+	_check(not bool(game.call(&"_arm_heavy_breach_sortie", board)) and not board.is_sortie_armed(),
+		"network clients cannot arm local Perimeter Hold combat")
+	game.set("_network_session_mode", &"")
+	await _press_action(&"interact", 1)
+	_check(board.is_sortie_armed() and not director.is_running()
+		and "PERIMETER HOLD" in str(hud.get_activity_objective_report().text),
+		"physical E arms Hold on foot and presents its dedicated title before combat")
+	game.set("_network_session_mode", &"client")
+	var refused := board.launch_armed_sortie(arrow, int(board.get_snapshot().sortie_generation))
+	_check(not refused.accepted and board.is_sortie_armed() and not director.is_running(),
+		"a retained Hold admission cannot launch duplicate local combat on a network client")
+	game.set("_network_session_mode", &"")
+	player.teleport_to(Transform3D(Basis.IDENTITY, arrow.get_boarding_position() + Vector3(0, 0.05, 0)))
+	_check(await _wait_until(func() -> bool: return game.boarding_candidate == arrow),
+		"the Hold pilot physically discovers Arrow's boarding area")
+	await _press_action(&"interact", 1)
+	_check(await _wait_until(func() -> bool: return game.phase == GameFlow.Phase.START_ENGINES),
+		"Hold retains the complete production craft boarding handoff")
+	_check(board.is_sortie_armed() and not director.is_running(),
+		"boarding alone cannot consume Hold's physical departure requirement")
+	Input.action_press(&"move_forward")
+	var launched := await _wait_until(func() -> bool:
+		return (game.phase == GameFlow.Phase.FREE_FLIGHT and director.is_running()
+			and director.get_active_scenario() == EncounterScenarioDirector.SCENARIO_PERIMETER_HOLD))
+	Input.action_release(&"move_forward")
+	_check(launched and director.get_roster().size() == 3 and not board.is_sortie_armed(),
+		"real berth departure launches the three-contact Hold in normal FREE_FLIGHT")
+	await physics_frame
+	await process_frame
+	var text := str(hud.get_activity_objective_report().text)
+	_check("PERIMETER HOLD" in text and "REMAINING / 90s" in text and "INTEGRITY 100%" in text,
+		"the production activity HUD shows Hold's countdown and measured live integrity")
+	_check(bool(game.get_live_combat_source_roster_audit().valid),
+		"the normal production source census includes all three distinct Hold registrations")
+	var asset := world.get_perimeter_hold_asset()
+	director.set("_elapsed", 90.0)
+	director.call(&"_physics_process", 0.0)
+	for _frame in 3:
+		await physics_frame
+		await process_frame
+	_check(director.get_outcome() == &"cleared" and not "Defend the protected core" in str(hud.get("_objective_source_text"))
+		and (hud.get("_objective_kicker") as Label).text != "PERIMETER HOLD",
+		"a timed Hold clear restores the primary free-flight objective")
+	_check(int(game.get_activity_reward_report().authority.record.total_receipts) == 0,
+		"a Hold clear produces no saved Breach or Torpedo reward")
+	asset.renew(asset.handle_generation)
+	_check(director.begin_perimeter_hold(arrow, asset), "phase withdrawal case reuses the same production actors")
+	game.phase = GameFlow.Phase.RETURN_TO_YARD
+	_check(director.get_outcome() == &"withdrawn", "leaving FREE_FLIGHT concludes Hold inside the phase assignment")
+	for actor_path: NodePath in [^"PerimeterPicket", ^"PerimeterScatter", ^"PerimeterPress"]:
+		var actor := game.get_node(actor_path)
+		_check(not actor.is_active() and not actor.is_combat_source_registered(),
+			"phase assignment synchronously withdraws %s and its source" % actor.name)
+	game.phase = GameFlow.Phase.FREE_FLIGHT
+	asset.renew(asset.handle_generation)
+	_check(director.begin_perimeter_hold(arrow, asset), "network withdrawal case starts in solo flight")
+	game.set("_network_session_mode", &"client")
+	game.call(&"_withdraw_perimeter_hold_for_network")
+	_check(director.get_outcome() == &"withdrawn" and director.get_roster().is_empty(),
+		"adopting network authority synchronously withdraws local Hold combat")
+	game.set("_network_session_mode", &"")
+	return game
 
 
 ## BEGIN SHIFT otherwise resumes the saved pilot seat. This board route uses

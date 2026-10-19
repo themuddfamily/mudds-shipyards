@@ -27,6 +27,21 @@ func _run() -> void:
 	_check(str(presented.get("text", "")).contains("PROTECTED Habitat Core") and str(presented.get("text", "")).contains("PICKET Heavy Picket"), "published assets are readable")
 	_check(str(presented.get("text", "")).contains("REWARD  HANDOFF READY"), "reward handoff state is readable")
 
+	var hold := snapshot.duplicate(true)
+	hold.director.scenario = &"perimeter_hold"
+	hold.director.perimeter_hold = {"remaining_seconds": 77.5, "duration_seconds": 90.0,
+		"integrity_available": true, "health_ratio": 0.65}
+	var hold_presented := presenter.present(hold)
+	_check("PERIMETER HOLD" in hold_presented.text and "77.5s REMAINING / 90s" in hold_presented.text
+		and "INTEGRITY 65%" in hold_presented.text and not "HANDOFF READY" in hold_presented.text,
+		"Hold presents real integrity and its timed defense without a Breach reward")
+	hold.director.outcome = &"lost"
+	hold.director.state = &"concluded"
+	_check("RESULT  LOST" in presenter.present(hold).text, "Hold exposes its separate lost outcome")
+	hold.director.perimeter_hold.integrity_available = false
+	_check("INTEGRITY UNAVAILABLE" in presenter.present(hold).text,
+		"missing integrity cannot display a healthy core")
+
 	var hud := HudType.new()
 	root.add_child(hud)
 	await process_frame

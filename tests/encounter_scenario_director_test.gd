@@ -92,6 +92,7 @@ func _run() -> void:
 	await _test_wing_regroup_recovers_before_critical_breakaway()
 	await _test_time_backstop_with_an_unreachable_objective()
 	await _test_fire_authorization_is_withdrawn_on_the_concluding_frame()
+	await _test_perimeter_requires_real_integrity()
 	await _test_production_bounds_and_audit()
 	_check(
 		root.get_child_count() == original_children,
@@ -1267,6 +1268,18 @@ func _test_production_bounds_and_audit() -> void:
 
 
 # ------------------------------------------------------------- helpers ----
+
+func _test_perimeter_requires_real_integrity() -> void:
+	var fixture := await _make_fixture()
+	var marker := Node3D.new()
+	fixture.host.add_child(marker)
+	_check(not fixture.director.begin_perimeter_hold(fixture.target, marker),
+		"a collisionless marker cannot launch Perimeter Hold as a healthy protected asset")
+	_check(EncounterScenarioDirector.BOARD_SCENARIO_IDS.has(&"perimeter_hold")
+		and EncounterScenarioDirector.TERMINAL_OUTCOMES.has(&"lost"),
+		"Hold keeps board sortie authorization and a distinct terminal loss contract")
+	await _free_fixture(fixture)
+
 
 func _assert_fully_terminated(fixture: Dictionary, branch: String) -> void:
 	var director: EncounterScenarioDirector = fixture.director
