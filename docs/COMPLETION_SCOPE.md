@@ -1012,7 +1012,7 @@ Do not replay every activity/craft for an unrelated shared music change.
 | MIX-AURORA | Surface arrival, cockpit→outside→shore→cabin/return; wind/cabin/coastal output changes coherently and retires on unload | AuroraSurfaceAudioBinding/AuroraExteriorAmbienceMixer; `audio/aurora_surface_audio_binding_test.gd`; original arrival artifacts remain gated |
 | MIX-RIME | Arrival→surface/on-foot→reboard/return; existing travel/surface music and craft cues follow current visit; no unapproved new glacial ambience inferred | GameFlow/retained Rime visit/planetary travel bindings; `audio/music_phase_integration_test.gd`, `audio/planetary_travel_audio_production_integration_test.gd`; parked arrival unchanged |
 | MIX-CREW | Halyard admitted role join/leave, engineer repair start/interruption/completion, readiness and handoff; critical repair/crew cues must have actual playback, not captions alone | HalyardCrewSemanticAudioBinding→SemanticAudioCueRouter→AudioDirector; `audio/game_flow_halyard_crew_audio_integration_test.gd`, `audio/halyard_engineer_audio_integration_test.gd`; repair dispatch repaired9b7b46a below, physical route gates retained |
-| MIX-NAVIGATOR | Cargo navigator accepted/rejected/cleared ping and stale replay during supported crew use; host bridge requests/captions delivered on81f885b, standalone solo on c4de728; authoritative host-local on292d3e4; remote client and audible acceptance remain open | CinderNavigatorPingAudioComposition; `audio/cinder_navigator_ping_audio_test.gd`; actual GameFlow host bridge fixture; Dummy dispatch does not establish listening |
+| MIX-NAVIGATOR | Cargo navigator accepted/rejected/cleared ping and stale replay during supported crew use; host bridge requests/captions delivered on81f885b, standalone solo on c4de728; authoritative host-local on292d3e4; client accepted/clear packaged4bbb341; client rejection and audible acceptance remain open | CinderNavigatorPingAudioComposition; `audio/cinder_navigator_ping_audio_test.gd`; actual GameFlow host bridge fixture; Dummy dispatch does not establish listening |
 | MIX-SETTINGS | At fixed scene/output setting vary Master and each of Ambience/Engines/Weapons/UI/Music, then reduced range and restart/reset; category controls and saved values respected, critical cues/captions retained at agreed non-muted levels | RuntimeSettings/AudioDirector/DynamicAudioMix; `audio/reduced_dynamic_range_production_persistence_test.gd`, `audio/reduced_dynamic_range_audio_integration_test.gd` |
 | MIX-CONTENTION | One real combat interval combines music, sustained fire, alarm and UI/crew alert at recorded default and low mix; no clipping, lost critical cue, excessive repetition or unexplained delay | Existing music/ship/combat/AudioDirector playback owners; `audio/ship_audio_priority_preemption_test.gd`, `audio/dynamic_audio_mix_test.gd`; silent plans do not prove native headroom/latency |
 | MIX-CLEANUP | Finish one selected craft/world episode, unload→Main re-entry→same source; no stuck tail, duplicate loop, retained old-source alert or voice/resource growth beyond existing budgets | Existing owner detach/re-entry and [audio budget boundaries](PERFORMANCE_BUDGET_AUDIO_VOICES.md); `audio/semantic_audio_source_unbind_test.gd` plus that case’s actual playback lifecycle checks |
@@ -1185,54 +1185,13 @@ Listening/device/native/full ordinary travel/endurance/final gates remain open.
 
 ### Network navigator recipients — source definition on4f481068c
 
-**Definition complete; no runtime changes, engines, tests or scratch.** Root
-traced host-local input/lifetime; one medium read-only agent traced authenticated
-client intent, server publication/filtering and client consumption. Stop at these
-identified owners and acceptance seams; do not broaden into another audit.
-
-**Host-local delivery DONE292d3e4:** authoritative live host physical chair
-outcomes now use the accepted local binding alongside bridge feedback. The exact
-server/session/network-owner/authority/migration/claim fences exclude foreign or
-client sources. Shared-authority stand waits for actual ship physics clear;
-actual session stop retires local feedback before callbacks, and re-entry restores
-bindings after global audio detach. Seven focused suites and paired package gates
-PASS after two preserved fixture corrections, the second explicitly selected by
-cumulative priority review. [Original frozen contract and actual result](history/ROADMAP_DELIVERIES.md#audio-navigator-host-local--authoritative-physical-host-feedback-delivered)
-retain exact sources, failures and proof limits. Moving remote-helm flight,
-full ordinary travel, client feedback and listening are not established by that
-focused fixture.
-
-**Client accepted/clear gap, defined independent runtime seam:** actual
-navigator FIRE uses `_send_network_loadmaster_intent` → authenticated
-`send_engineer_intent` / `_receive_engineer_intent` →
-NetworkJovianEngineerBinding dispatch → passenger `submit_readiness` → navigator
-bridge. Bridge accepted receipts and matching clear tombstones already publish
-through crew snapshots. `_crew_snapshot_for_peer` authorizes the originating peer
-and peers whose **network role ledger** associates them with the ship. Physical
-passenger and network-role ledgers are distinct; do not broaden that filter to
-all boarded bodies or broadcast to arbitrary peers.
-
-`_broadcast_crew_snapshot_fragment` validates/decodes `snapshot.commands`, stores
-the crew replica and emits `crew_snapshot_applied`. No game/audio/UI script
-consumes that signal or `get_crew_replica_snapshot`. Client objective text reads
-the simpler passenger replica instead. Host-only presentation generation getters
-cannot bind a valid client owner. Therefore connect successfully applied existing
-wire commands to client presentation tied to actual session/migration and
-transported ship generation, preserving the server recipient filter, receipt
-fields and active-clear ownership after passenger assignment empties. Never
-manufacture a wire receipt from the simpler passenger view. Session retirement,
-migration, ship/owner replacement and unrelated/stale/malformed/replayed input
-must retire/fence the correct source.
-
-AUDIO-NAVIGATOR-CLIENT-RECEIPTS now has the [frozen implementation contract](#client-navigator-accepted-receipts--frozen-implementation-contract)
-below; keep transport/filter unchanged. Existing `tests/network/halyard_network_passenger_route_test.gd`
-`--cinder-navigator` has the real two-peer chair/FIRE/stand/reseat/migration route;
-extend **client** Director request/caption assertions for two distinct accepted
-receipts, matching clear once, replay silence and post-migration freshness.
-Existing host cue assertions do not prove the client. Protect recipient filtering
-with `network_enet_crew_snapshot_integration_test.gd` and actual clear identity
-with `network_cinder_navigator_ping_bridge_test.gd`. Preserve original route/failure
-budgets; no unchanged attempt without the selected consumer change.
+Original source definition and every frozen contract are retained in the
+[delivered result/history](history/ROADMAP_DELIVERIES.md#audio-navigator-client-feedback-and-crew-epoch--delivered).
+Host-local delivery remains292d3e4; client accepted/clear delivery is now4bbb341.
+The actual supported two-peer route passes with server-filtered commands, distinct
+client lifetime, exact sound/caption counts, migration freshness and disconnect
+retirement. Physical passenger and network-role ledgers remain distinct; do not
+broaden recipient authority. Actual audible/native/full-travel gates stay open.
 
 **Client rejection is a separate unfinished outcome:** actual navigator input
 does not emit `crew_command_result`. Pre-consumer rejection returns are stored
@@ -1248,96 +1207,52 @@ never evidence of a fresh current user request. Resolve that boundary before
 freezing the rejection-response card; do not silently omit rejection from final
 MIX-NAVIGATOR acceptance. No user decision or authorization is inferred here.
 
-Host-local is delivered; client accepted/clear and client rejection remain
-separate unfinished requirements. All listening/device/native/endurance/final gates remain open.
-
-
 ### Client navigator accepted receipts — frozen implementation contract
 
-**PARKED after actual two-peer failure plus one causal repair.** Candidate279d3b378
-is pushed but unmerged/withheld; latest playable checkpoint stays292d3e4.
-[Full original contracts and cumulative results](history/ROADMAP_DELIVERIES.md#audio-navigator-client-receipts--parked-after-actual-client-route-and-one-repair)
-retain every acceptance requirement and both failures. No automatic second repair
-or unchanged route rerun is selected. First/stand/reseat/retained-clear/replay
-assertions pass in the repaired route; migrated command is applied but onward
-client sound/caption fails, disconnect proof is interrupted and the original host
-walk-clear assertion fails. Broader client/rejection/listening gates remain open.
-
-**Demonstrated cause after one selected diagnostic:** the actual migrated command
-is migration2 inside a successfully applied decoded crew snapshot still marked1.
-The current recipient/context/callback are all valid migration2. Server crew
-role/command authorities were never advanced during accepted rotation; the client
-correctly refuses the stale document. [Exact captured values, source path and
-cumulative review](history/ROADMAP_DELIVERIES.md#audio-navigator-client-migration-capture--exact-producer-epoch-defect-found).
-No runtime fix was executed in the diagnostic; original acceptance remains open.
+**DELIVERED4bbb341.** Actual filtered applied commands reach existing UI sounds
+and real captions once; matching clear survives empty passenger assignment.
+Standalone, host-local and host bridge feedback remain covered. Distinct receipts,
+replay silence, ordinary stand/reseat, host revocation, actual migration/rebind and
+exact disconnect retirement pass the original204-check two-peer navigator route.
+[Full proof, failures and original contracts](history/ROADMAP_DELIVERIES.md#audio-navigator-client-feedback-and-crew-epoch--delivered).
+Client rejection/listening/full ordinary travel/native/endurance/final gates remain
+open. A source or Dummy pass is not real-output mix qualification.
 
 ### Crew snapshot migration epoch — bounded production correction selected
 
-**AUDIO-NAVIGATOR-CREW-EPOCH READY, explicitly selected after cumulative review.**
-This is a correction of the now-demonstrated production migration defect, not an
-automatic second speculative client repair. Retain all27 stages662.749560s,
-including original observation interval, and every failed route. No budget reset,
-unchanged retry, schema version or alternate route is selected. Base the isolated
-candidate on pushed diagnostic ad62aa16f4a2426921dc1f4a0abb7505d90d01c3 so the
-actual command/state captures and safe failed-source cleanup are retained.
+**DELIVERED4bbb341.** Server rotation advances actual crew authority epochs and
+retires old cursors before notification; receive rejects mismatched inner epoch
+before commit. Existing client stale guards remain intact. Real hosted and
+focused injected regressions pass; actual migrated command/document/recipient
+all agree on2 and produce the third acceptance. Original host >2m clearance and
+all route caps pass with only navigator host arrival tolerance corrected.
+Fresh paired checkpoint, three strict startups and matching1,521-entry audit PASS.
+[Exact result and frozen correction](history/ROADMAP_DELIVERIES.md#audio-navigator-client-feedback-and-crew-epoch--delivered).
 
-**Player result:** after real session migration/rebind/reseat, a client receives
-the next Cinder navigator sound/caption once, and real disconnect retires its
-actual source. Existing first/stand/reseat/retained-clear/replay behavior stays
-required. This closes no listening/client-rejection/full-travel/native gates.
+### Client navigator rejection response — bounded definition next
 
-One high implementer owns exactly:
+**AUDIO-NAVIGATOR-CLIENT-REJECTION-DEFINE READY for definition only.** Player gap:
+a genuine current client navigator FIRE refusal has no requester-visible result;
+accepted/clear transport does not supply a rejection. No response implementation
+or new protocol is selected by this definition card.
 
-- `scripts/network/network_enet_session_adapter.gd`: inside successful actual
-  server rotation, advance both crew authorities using their existing
-  `reset_migration(AUTHORITY_PEER_ID, new_generation)` before publishing the new
-  epoch/notice or emitting migration completion. Refused rotation changes neither
-  authority. Role reset clears old roles/request cursors but retains peer registry;
-  command reset clears command/per-tick cursors. Preserve boarding, physical body,
-  attachment, transport and recipient-filter owners. Do not merely relabel the
-  encoded document or mutate transported records to conceal old authority state.
-  In crew snapshot receive, reject decoded document generation differing from
-  authenticated fragment/current generation before revision/replica commit or
-  accepted signal. Keep GameFlow's document/command/stale callback guards intact.
-- Existing `tests/network/network_enet_crew_snapshot_integration_test.gd`: real
-  server accepted rotation advances both authorities and retires seeded prior
-  role/command state; new accepted state and encoded document use new epoch;
-  refused rotation preserves state. Preserve recipient filtering. Focused receive
-  case rejects stale inner epoch with current fragment before committing revision
-  and has a matching-epoch positive control. Label focused injected packets as
-  such; actual two-peer route remains production proof.
-- Existing `tests/network/halyard_network_passenger_route_test.gd`: independently
-  correct only navigator HOST walk arrival tolerance to0.10m for the existing
-  clear-exit waypoint, through an optional helper parameter default0.30m elsewhere.
-  Keep target, original >2m postcondition, ordinary Input movement and240-iteration
-  cap. Target exit distance2.147673m minus0.10m guarantees >2m; don't lower the
-  requirement, teleport, skip walking, enlarge waits or change other profiles.
-  Preserve diagnostic observations, nil-source existence failure and all original
-  actual client request/caption/command/clear/replay/migration/disconnect assertions.
+Within20–30min, one bounded source investigator owns only these existing
+completion-scope notes. Enumerate real consumer/bridge and authenticated
+pre-consumer refusal exits; identify request/claim/peer/session/migration fields
+already available at each. Distinguish malformed/stale/foreign input (silent)
+from a fresh current user request. Define one requester-only response owner,
+correlation/replay/retirement rules, existing sound/caption forwarding seam and
+smallest actual client refusal proof. Resolve the existing consumer-versus-
+pre-consumer behavior boundary explicitly; do not silently narrow final rejected
+feedback or fabricate bridge provenance on a pre-bridge error. If a behavior
+choice cannot be established from requirements/source, state that exact choice
+before implementation instead of inferring a user decision. Do not repeat other
+pending stock/content/hardware questions.
 
-One independent high lifecycle reviewer; no nested agents. Root owns engines,
-integration, exports and publication. No other runtime/test file ownership,
-transport/filter/schema/asset/client-rejection/refactor expansion; stop and freeze
-concrete need before expansion. Estimate30–45min implementation/review,
-15–25min checks and10–15min paired checkpoint; original cumulative budgets and
-failures remain visible. Split before90min cumulative implementation.
-
-Compile changed tests, then the original eight navigator focused suites plus
-existing network session migration, ENet migration consumer, crew role/command
-authority and ENet crew role/command integration and crew codec suites as relevant
-to the changed shared adapter. The real original explicit300s navigator route is
-mandatory after focused passes: authenticated child epoch/decoded document/actual
-command all agree after migration, third sound/UI request and real caption occur,
-exact source exists before disconnect and is silent afterward. Preserve all
-original waits/physical steps/off-camera assertions and two-peer exit/ownership
-checks. First unexpected failure stops for cumulative review; no automatic further
-repair or probe. All original broad gates remain open.
-
-Only complete source/route acceptance allows clean paired Windows/Linux exports,
-strict menu sentinel startup checks and package audit. Publish EXE/ZIP/notes to
-repository builds, commit/push and clean owned scratch. No checkpoint from a
-failing candidate. GitHub Actions stays disabled; native/audio/human exclusions
-remain unchanged.
+Stop once the finite refusal cases, file owners, acceptance and estimate/stop are
+known; no engines, transport/runtime edits, new validators/assets or broad
+networking audit. This definition is not a delivered feature. Keep Hauler stock,
+all28 actual listening cases and hardware/human gates unchanged.
 
 ## Phase-wide acceptance still required
 

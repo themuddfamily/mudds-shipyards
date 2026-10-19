@@ -12783,3 +12783,238 @@ its original >2m postcondition, waypoint and240-iteration cap, but use an arriva
 condition tight enough to guarantee clearance rather than lowering the2m gate.
 Do not fold that correction into this observation-only probe. Listening/native/
 GPU/full ordinary travel/client rejection/endurance/human/final gates remain open.
+
+## AUDIO-NAVIGATOR-CLIENT-FEEDBACK-AND-CREW-EPOCH — delivered
+
+**Accepted and packaged4bbb3414608950d19a3c9f5cd9ca82283d11f9e2**, integrated
+through mergecc38caf44. Client accepted/clear feedback is now delivered within
+the original route contract. Client rejection transport and actual listening
+remain unfinished; no broad parent or phase closes.
+
+Actual client applied commands now own a separate session/migration/recipient/
+craft/transported-generation presentation context. Raw records are not changed;
+replay, foreign/malformed/stale ownership stays silent. Matching clear survives
+assignment removal. Session retirement/exact detach reset actual bindings and
+re-entry waits for fresh applied events. Real accepted transitions also supply
+existing caption transition metadata so consecutive distinct pings get captions.
+Host-local, standalone and host bridge sources remain independent.
+
+The captured production defect was corrected at its owner: accepted server
+rotation advances both real crew authorities through existing reset APIs before
+notices/completion, retiring old role/request/command/per-tick state. Refused
+rotation leaves them unchanged. Receive rejects decoded document epoch differing
+from current fragment epoch before replica/revision commit. No relabeling,
+transport/filter/schema change or client-fence weakening. Only navigator host
+walk arrival is tighter0.10m; original waypoint, >2m clearance,240-iteration cap
+and actual Input route are preserved; other calls keep0.30m default.
+
+**Actual acceptance:** import and both changed-test compilations PASS. Fifteen
+focused suites PASS, followed by the original explicit `--cinder-navigator`
+two-peer route **PASS115.849394s**,204 harness checks, host90/client100 with
+empty failure lists, exits0 and no surviving sampled identities. Five unchanged
+actual command records yield accepted/clear/accepted/clear/accepted, each one
+resident UI request and real Main caption. Fifth event has command/document/
+current/callback/context all migration2, attached source generation2 and real
+binding. Original first chair FIRE, ordinary stand, real reseat, host row
+revocation, replay, actual stream2 rebind/reseat/FIRE and exact-source disconnect
+silence assertions all pass. Navigator stands before migration; seated migration
+carrythrough/full travel/endurance are not claimed. Independent high source and
+actual result review GO. Focused injected stale-inner packet controls remain
+clearly separate from the real production route.
+
+Sixteen full suite counts: crew epoch/recipient26, navigator93, optional89,
+host38, solo/host-local73, exact unbind18, reduced-range10, bridge37, plus existing
+session migration/ENet migration consumer/role and command authority/ENet role and
+command integration/codec totals in raw logs, and204 route checks. No test-count
+or commit-count project percentage is inferred.
+
+Fresh clean Windows/Linux exports PASS26.766133/25.996776s; strict Linux direct/
+archive and Windows-payload-through-Linux-engine menu-ready checks PASS22.230444/
+23.819959/26.429631s with exit0 and exactly one STARTUP_MENU_READY_OK. Actual
+matching1,521-entry PCK inventories, stock Windows PE text, exact Linux archive
+bytes/modes/epoch/source metadata audit PASS5.891637s. Eleven public artifacts/
+notes and exact ZIP EXE+notes reverified. EXE184655168 bytes SHA256
+`b2f407b8d3a1bdd8cd539d9d1a418888a0580b5f7570ede84f1d677fdbfd1dca`;
+ELF148896880 SHA256
+`709d8c23ebf1bc270a351546ead001f362fa82a650ac2b09b1303cd572833526`;
+tar95310440 SHA256
+`284e1b229d2e6ec8a302f79784a1b7342bbf204c9ac0d77abec9097f57bcb90d`.
+[Windows notes](../../builds/windows/MuddsShipyards-4bbb341-notes.txt) and
+[Linux notes](../../builds/linux/MuddsShipyards-4bbb341-linux-notes.txt).
+
+All25 final stages PASS371.127704s. Prior27 stages662.749560s and all three failed
+route candidates remain retained; combined52 stages1033.877264s includes the
+initial133.463794s observation interval, not exact engine elapsed. This named
+production correction was explicitly selected after captured cause and cumulative
+review; no failure, cap or requirement was reset. Resumed verification through
+publication/hash recheck/cleanup took about11.6min against15–25min checks plus
+10–15min packaging estimates. Implementation was committed earlier; the calendar
+gap before resumed validation is not an active implementation measurement.
+
+All25 final supervisors terminal;109 sampled PID/start identities absent;
+67 profile/artifact files including five actual event records and helper/source
+snapshots preserved in `/srv/mudds-work/navigator-crew-epoch-20261019/results/`.
+Owned worktree/profile/helpers removed; only results remain. Earlier source,
+client-lifecycle and diagnostic result directories remain untouched. Current
+source and checkpoint notes committed/pushed; binaries retained in repository
+builds and not force-added to Git. All28 listening cases, client rejection,
+native Windows/GPU/device/human/full ordinary travel/endurance/final-release and
+all36 original parents/ten phase gates remain OPEN/NOT_RUN as applicable.
+
+### Archived pre-delivery source boundaries and exact production correction
+
+### Network navigator recipients — source definition on4f481068c
+
+**Definition complete; no runtime changes, engines, tests or scratch.** Root
+traced host-local input/lifetime; one medium read-only agent traced authenticated
+client intent, server publication/filtering and client consumption. Stop at these
+identified owners and acceptance seams; do not broaden into another audit.
+
+**Host-local delivery DONE292d3e4:** authoritative live host physical chair
+outcomes now use the accepted local binding alongside bridge feedback. The exact
+server/session/network-owner/authority/migration/claim fences exclude foreign or
+client sources. Shared-authority stand waits for actual ship physics clear;
+actual session stop retires local feedback before callbacks, and re-entry restores
+bindings after global audio detach. Seven focused suites and paired package gates
+PASS after two preserved fixture corrections, the second explicitly selected by
+cumulative priority review. [Original frozen contract and actual result](ROADMAP_DELIVERIES.md#audio-navigator-host-local--authoritative-physical-host-feedback-delivered)
+retain exact sources, failures and proof limits. Moving remote-helm flight,
+full ordinary travel, client feedback and listening are not established by that
+focused fixture.
+
+**Client accepted/clear gap, defined independent runtime seam:** actual
+navigator FIRE uses `_send_network_loadmaster_intent` → authenticated
+`send_engineer_intent` / `_receive_engineer_intent` →
+NetworkJovianEngineerBinding dispatch → passenger `submit_readiness` → navigator
+bridge. Bridge accepted receipts and matching clear tombstones already publish
+through crew snapshots. `_crew_snapshot_for_peer` authorizes the originating peer
+and peers whose **network role ledger** associates them with the ship. Physical
+passenger and network-role ledgers are distinct; do not broaden that filter to
+all boarded bodies or broadcast to arbitrary peers.
+
+`_broadcast_crew_snapshot_fragment` validates/decodes `snapshot.commands`, stores
+the crew replica and emits `crew_snapshot_applied`. No game/audio/UI script
+consumes that signal or `get_crew_replica_snapshot`. Client objective text reads
+the simpler passenger replica instead. Host-only presentation generation getters
+cannot bind a valid client owner. Therefore connect successfully applied existing
+wire commands to client presentation tied to actual session/migration and
+transported ship generation, preserving the server recipient filter, receipt
+fields and active-clear ownership after passenger assignment empties. Never
+manufacture a wire receipt from the simpler passenger view. Session retirement,
+migration, ship/owner replacement and unrelated/stale/malformed/replayed input
+must retire/fence the correct source.
+
+AUDIO-NAVIGATOR-CLIENT-RECEIPTS now has the [frozen implementation contract](../COMPLETION_SCOPE.md#client-navigator-accepted-receipts--frozen-implementation-contract)
+below; keep transport/filter unchanged. Existing `tests/network/halyard_network_passenger_route_test.gd`
+`--cinder-navigator` has the real two-peer chair/FIRE/stand/reseat/migration route;
+extend **client** Director request/caption assertions for two distinct accepted
+receipts, matching clear once, replay silence and post-migration freshness.
+Existing host cue assertions do not prove the client. Protect recipient filtering
+with `network_enet_crew_snapshot_integration_test.gd` and actual clear identity
+with `network_cinder_navigator_ping_bridge_test.gd`. Preserve original route/failure
+budgets; no unchanged attempt without the selected consumer change.
+
+**Client rejection is a separate unfinished outcome:** actual navigator input
+does not emit `crew_command_result`. Pre-consumer rejection returns are stored
+in the engineer binding's private errors; passenger snapshots carry no result.
+Bridge rejection is forwarded only on the host; crew snapshots publish no rejected
+navigator result. A response must go only to the authenticated requester, with
+actual request/claim/session correlation; stale replay must not sound again.
+Attaching bridge policy to a pre-bridge validation failure would fabricate
+provenance. Exact missing behavior definition: whether client feedback covers
+only actual navigator consumer/bridge refusals, or also current authenticated
+pre-consumer availability/admission failures. Malformed/stale/foreign data is
+never evidence of a fresh current user request. Resolve that boundary before
+freezing the rejection-response card; do not silently omit rejection from final
+MIX-NAVIGATOR acceptance. No user decision or authorization is inferred here.
+
+Host-local is delivered; client accepted/clear and client rejection remain
+separate unfinished requirements. All listening/device/native/endurance/final gates remain open.
+
+
+### Client navigator accepted receipts — frozen implementation contract
+
+**PARKED after actual two-peer failure plus one causal repair.** Candidate279d3b378
+is pushed but unmerged/withheld; latest playable checkpoint stays292d3e4.
+[Full original contracts and cumulative results](ROADMAP_DELIVERIES.md#audio-navigator-client-receipts--parked-after-actual-client-route-and-one-repair)
+retain every acceptance requirement and both failures. No automatic second repair
+or unchanged route rerun is selected. First/stand/reseat/retained-clear/replay
+assertions pass in the repaired route; migrated command is applied but onward
+client sound/caption fails, disconnect proof is interrupted and the original host
+walk-clear assertion fails. Broader client/rejection/listening gates remain open.
+
+**Demonstrated cause after one selected diagnostic:** the actual migrated command
+is migration2 inside a successfully applied decoded crew snapshot still marked1.
+The current recipient/context/callback are all valid migration2. Server crew
+role/command authorities were never advanced during accepted rotation; the client
+correctly refuses the stale document. [Exact captured values, source path and
+cumulative review](ROADMAP_DELIVERIES.md#audio-navigator-client-migration-capture--exact-producer-epoch-defect-found).
+No runtime fix was executed in the diagnostic; original acceptance remains open.
+
+### Crew snapshot migration epoch — bounded production correction selected
+
+**AUDIO-NAVIGATOR-CREW-EPOCH READY, explicitly selected after cumulative review.**
+This is a correction of the now-demonstrated production migration defect, not an
+automatic second speculative client repair. Retain all27 stages662.749560s,
+including original observation interval, and every failed route. No budget reset,
+unchanged retry, schema version or alternate route is selected. Base the isolated
+candidate on pushed diagnostic ad62aa16f4a2426921dc1f4a0abb7505d90d01c3 so the
+actual command/state captures and safe failed-source cleanup are retained.
+
+**Player result:** after real session migration/rebind/reseat, a client receives
+the next Cinder navigator sound/caption once, and real disconnect retires its
+actual source. Existing first/stand/reseat/retained-clear/replay behavior stays
+required. This closes no listening/client-rejection/full-travel/native gates.
+
+One high implementer owns exactly:
+
+- `scripts/network/network_enet_session_adapter.gd`: inside successful actual
+  server rotation, advance both crew authorities using their existing
+  `reset_migration(AUTHORITY_PEER_ID, new_generation)` before publishing the new
+  epoch/notice or emitting migration completion. Refused rotation changes neither
+  authority. Role reset clears old roles/request cursors but retains peer registry;
+  command reset clears command/per-tick cursors. Preserve boarding, physical body,
+  attachment, transport and recipient-filter owners. Do not merely relabel the
+  encoded document or mutate transported records to conceal old authority state.
+  In crew snapshot receive, reject decoded document generation differing from
+  authenticated fragment/current generation before revision/replica commit or
+  accepted signal. Keep GameFlow's document/command/stale callback guards intact.
+- Existing `tests/network/network_enet_crew_snapshot_integration_test.gd`: real
+  server accepted rotation advances both authorities and retires seeded prior
+  role/command state; new accepted state and encoded document use new epoch;
+  refused rotation preserves state. Preserve recipient filtering. Focused receive
+  case rejects stale inner epoch with current fragment before committing revision
+  and has a matching-epoch positive control. Label focused injected packets as
+  such; actual two-peer route remains production proof.
+- Existing `tests/network/halyard_network_passenger_route_test.gd`: independently
+  correct only navigator HOST walk arrival tolerance to0.10m for the existing
+  clear-exit waypoint, through an optional helper parameter default0.30m elsewhere.
+  Keep target, original >2m postcondition, ordinary Input movement and240-iteration
+  cap. Target exit distance2.147673m minus0.10m guarantees >2m; don't lower the
+  requirement, teleport, skip walking, enlarge waits or change other profiles.
+  Preserve diagnostic observations, nil-source existence failure and all original
+  actual client request/caption/command/clear/replay/migration/disconnect assertions.
+
+One independent high lifecycle reviewer; no nested agents. Root owns engines,
+integration, exports and publication. No other runtime/test file ownership,
+transport/filter/schema/asset/client-rejection/refactor expansion; stop and freeze
+concrete need before expansion. Estimate30–45min implementation/review,
+15–25min checks and10–15min paired checkpoint; original cumulative budgets and
+failures remain visible. Split before90min cumulative implementation.
+
+Compile changed tests, then the original eight navigator focused suites plus
+existing network session migration, ENet migration consumer, crew role/command
+authority and ENet crew role/command integration and crew codec suites as relevant
+to the changed shared adapter. The real original explicit300s navigator route is
+mandatory after focused passes: authenticated child epoch/decoded document/actual
+command all agree after migration, third sound/UI request and real caption occur,
+exact source exists before disconnect and is silent afterward. Preserve all
+original waits/physical steps/off-camera assertions and two-peer exit/ownership
+checks. First unexpected failure stops for cumulative review; no automatic further
+repair or probe. All original broad gates remain open.
+
+Only complete source/route acceptance allows clean paired Windows/Linux exports,
+strict menu sentinel startup checks and package audit. Publish EXE/ZIP/notes to
+repository builds, commit/push and clean owned scratch. No checkpoint from a
+failing candidate. GitHub Actions stays disabled; native/audio/human exclusions
+remain unchanged.

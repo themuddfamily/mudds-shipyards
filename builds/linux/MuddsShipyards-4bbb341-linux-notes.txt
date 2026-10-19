@@ -1,0 +1,17 @@
+Mudds Shipyards development checkpoint 4bbb341 — 2026-10-19
+Source: 4bbb3414608950d19a3c9f5cd9ca82283d11f9e2
+
+Player-visible change
+Authenticated Cinder navigator clients receive the existing acceptance and clear UI sounds and real captions once for their actual published commands. Ordinary stand, reseat, host row revocation, replay silence, real migration/rebind/reseat/FIRE and exact disconnect source retirement are covered. Server migration now advances the actual crew role/command authorities and retires their old cursors. Clients reject mismatched crew document epochs before replica/revision commit. The existing client stale-data guard stays intact.
+
+Actual validation
+Sixteen full suites PASS: crew epoch/recipient integration; navigator audio; optional composition; actual host navigator flow; extended standalone/host-local fixture; exact semantic unbind; reduced-range integration; navigator bridge; session migration; ENet migration consumer; crew role and command authorities; ENet role and command integration; crew codec; and the explicit --cinder-navigator two-peer route. Import and both changed-test compilations PASS. Hosted rotation verifies old authority retirement before completion, refused rotation preservation and fresh epoch records. Focused injected receive controls are labeled separately from actual transport proof.
+The real route records unchanged commands and matching envelope/document/recipient epochs, observes existing resident sound requests under Dummy and actual Main presenter captions, and requires both peer failure lists empty, both exits0 and observed PID/start identities absent. Navigator stands before migration then authentically rebinds/reseats; seated carrythrough is not claimed. Host clearance still requires >2m at the original waypoint with the original cap; only navigator host arrival tolerance is tighter.
+Fresh clean Windows/Linux exports PASS. Linux direct/archive and Windows-payload startup checks require exit0 plus exactly one STARTUP_MENU_READY_OK. Actual matching 1521-entry PCK inventories, stock Windows PE text, exact Linux archive bytes/modes/epoch/source metadata PASS. Independent source/result review GO.
+
+Prior failures retained
+Initial client route and one client lifecycle repair failed. One separately selected diagnostic then proved the precise defect: fragment/command epoch2 enclosing a decoded crew document still stamped1. Existing server authorities were not reset; this checkpoint corrects those actual owners rather than relabeling old state. Original27 stages662.749560s include an initial133.463794s observation interval, not exact engine elapsed. The initial failures, diagnostic, full source pins and later acceptance remain retained; no route, wait, stale-data guard or 2m clearance gate was weakened.
+
+Scope and limits
+This is a playable development alpha. Client rejection transport remains unfinished. Dummy request dispatch does not establish audible mix, output devices, clipping or latency; all28 listening cases remain NOT_RUN. Full ordinary travel/moving crew, native Windows/GPU, endurance, human review, installation and final integrated release gates remain open. All36 original parents/ten phase gates remain OPEN. GitHub Actions stays disabled. New packages do not imply native hardware or release qualification.
+Raw results: /srv/mudds-work/navigator-crew-epoch-20261019/results/
