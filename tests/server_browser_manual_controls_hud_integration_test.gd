@@ -184,6 +184,31 @@ func _check_inline_session_recovery(hud: HudType) -> void:
 		"retired retryable timeout cannot resurrect retry permission or steal focus")
 	_check(address.text == "[fe80::1" and port.text == "27101" and _intents.size() == browser_intent_count,
 		"session receipts and action forwarding do not mutate endpoint fields or emit another join")
+	# A rejected fenced receipt can retain a legacy presentation without cursor
+	# fields. Incoming cursor presence, including the alias, still fences copy.
+	var legacy := {"state": &"connecting", "role": &"client", "detail": "Legacy connection progress."}
+	hud.update_network_session_status(legacy)
+	hud.request_server_browser_manual_join()
+	validation = feedback.text
+	current = presenter.call("get_snapshot")
+	var malformed_legacy_receipts: Array[Dictionary] = [
+		{"session_id": "game-flow-inline-recovery"},
+		{"generation": "3"},
+		{"generation": 3, "sequence": "5"},
+		{"generation": 3, "event_sequence": "5"},
+	]
+	for receipt in malformed_legacy_receipts:
+		receipt.merge({"state": &"disconnected", "detail": "Session closed: connection_timeout", "retryable": true})
+		hud.update_network_session_status(receipt)
+		_check(not validation.is_empty() and feedback.text == validation
+			and presenter.call("get_snapshot") == current
+			and action.text == "CANCEL CONNECTION" and not action.disabled
+			and root.get_viewport().gui_get_focus_owner() == address,
+			"malformed incoming cursor or event_sequence alias cannot replay retained legacy copy over validation")
+	hud.update_network_session_status(legacy)
+	_check(feedback.text.begins_with("Legacy connection progress.")
+		and root.get_viewport().gui_get_focus_owner() == address,
+		"a genuine unchanged unfenced legacy receipt remains a caller-owned browser update")
 
 
 func _session_snapshot(generation: int, sequence: int, state: StringName, detail: String, retryable := false) -> Dictionary:

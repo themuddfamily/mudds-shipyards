@@ -5116,8 +5116,10 @@ func update_network_session_status(snapshot: Dictionary) -> void:
 	# Rejected fenced receipts retain the presenter's previous snapshot. They
 	# must not replay old session copy over a newer browser validation message.
 	# Legacy unfenced receipts remain caller-owned updates on every publication.
+	var fenced := snapshot.has("session_id") or snapshot.has("generation") \
+		or snapshot.has("sequence") or snapshot.has("event_sequence")
 	if not presentation.has("error") and (
-		presentation != previous or not presentation.has("source_generation")
+		presentation != previous or not fenced
 	):
 		if is_instance_valid(_server_browser_feedback):
 			_server_browser_feedback.text = str(presentation.get("message", ""))
