@@ -38,6 +38,7 @@ var _navigator_captions: Array[Dictionary] = []
 var _navigator_applied: Array[Dictionary] = []
 var _navigator_records: Array[Dictionary] = []
 var _navigator_first_claim_sequence := 0
+var _navigator_observed_events := 0
 # Real outbound cruise, landing + authored survey use the existing shared success
 # route's overall budget. All default waits and stage caps stay intact.
 const EMBER_SURFACE_TOTAL_SECONDS := 2400.0
@@ -741,10 +742,13 @@ func _client() -> void:
 	var retiring_callback: Callable = _game._client_navigator_audio_callback
 	var retiring_source: Node = _game.optional_semantic_audio_composition._client_navigator_composition._binding if _navigator else null
 	var retired_request_count := (_game.audio as NavigatorRequestSpy).navigator_requests.size() if _navigator else 0
+	if _navigator:
+		_check(is_instance_valid(retiring_source), "real disconnect has the exact current navigator source to retire")
 	_game.shutdown_network_session(&"passenger_client_disconnect")
 	if _navigator:
 		_check(not retiring_adapter.crew_snapshot_applied.is_connected(retiring_callback) and not bool(_game.optional_semantic_audio_composition.get_snapshot().client_navigator.attached), "real disconnect retires exact current client callback and source flags")
-		retiring_source.semantic_navigator_ping_cue_emitted.emit(&"cinder_navigator_ping_accepted", 0.7)
+		if is_instance_valid(retiring_source):
+			retiring_source.semantic_navigator_ping_cue_emitted.emit(&"cinder_navigator_ping_accepted", 0.7)
 		for applied: Dictionary in _navigator_applied:
 			retiring_callback.call(applied)
 		_check((_game.audio as NavigatorRequestSpy).navigator_requests.size() == retired_request_count, "real disconnect leaves old adapter callbacks and exact unbound source silent")
@@ -773,8 +777,129 @@ func _capture_navigator_applied(result: Dictionary) -> void:
 			continue
 		if not _navigator_records.has(command):
 			_navigator_records.append(command.duplicate(true))
+		# Fixture observations only: never dispatch, rewrite, or replace a command.
+		# The immediate signal listener survives Main's context-driven rebinds;
+		# retain its actual connection order rather than assuming it runs first.
+		_navigator_observed_events += 1
+		var observation := {
+			"kind": "fixture_navigator_presentation_diagnostic",
+			"event": _navigator_observed_events,
+			"revision": result.get("revision"),
+			"snapshot_epoch": _navigator_diagnostic_fields(result.snapshot, ["migration_generation", "server_tick", "ship_generation"]),
+			"snapshot_roles": _navigator_diagnostic_json(result.snapshot.get("roles", [])),
+			"command": command.duplicate(true),
+			"command_json_at_signal": JSON.stringify(command),
+			"before_dispatch_observation": _navigator_presentation_observation(),
+		}
+		var name := "%s.navigator-event-%04d.json" % [_role, _navigator_observed_events]
+		_write(name, observation)
+		_capture_navigator_after_dispatch.call_deferred(name, observation, command)
 	if not commands.is_empty():
 		_navigator_applied.append(result.duplicate(true))
+
+
+func _capture_navigator_after_dispatch(name: String, observation: Dictionary, command: Dictionary) -> void:
+	# Deferred from this exact applied event, after every synchronous production
+	# listener. Keep the original command copy and compare the live record bytes.
+	observation["command_json_after_dispatch"] = JSON.stringify(command)
+	observation["command_unchanged"] = observation.command_json_at_signal == JSON.stringify(command)
+	observation["after_dispatch_observation"] = _navigator_presentation_observation()
+	_write(name, observation)
+
+
+func _navigator_presentation_observation() -> Dictionary:
+	var adapter := _game.network_session
+	var offer: Dictionary = adapter.get_server_offer()
+	var admission: Dictionary = offer.get("admission", {})
+	var composition: Node = _game.optional_semantic_audio_composition
+	var source: Node = composition._client_navigator_composition if is_instance_valid(composition) else null
+	var binding: Node = source._binding if is_instance_valid(source) else null
+	var callback: Callable = _game._client_navigator_audio_callback
+	var listeners: Array = []
+	for connection: Dictionary in adapter.crew_snapshot_applied.get_connections():
+		var listener: Callable = connection.callable
+		listeners.append({"object_id": listener.get_object_id(), "method": str(listener.get_method()),
+			"bound_arguments": _navigator_diagnostic_json(listener.get_bound_arguments()), "flags": connection.flags})
+	return {
+		"physics_frame": Engine.get_physics_frames(), "ticks_msec": Time.get_ticks_msec(),
+		"adapter_id": adapter.get_instance_id(), "adapter_inside_tree": adapter.is_inside_tree(),
+		"session_mode": _game._network_session_mode, "session_live": _game._network_session_is_live(),
+		"is_server": adapter.is_server(), "client_peer": _game._network_client_peer_id(),
+		"latest_requested_peer_generation": int(adapter.get("_next_peer_generation")) - 1,
+		"current_transport_peer": _navigator_diagnostic_fields(adapter._transport.get_peer(_game._network_client_peer_id()), ["peer_id", "peer_generation", "active"]),
+		"admission": _navigator_diagnostic_fields(admission, ["accepted", "status"]),
+		"offered_admission_peer": _navigator_diagnostic_fields(admission.get("peer", {}), ["peer_id", "peer_generation"]),
+		"offered_transport": _navigator_diagnostic_fields(offer.get("transport", {}), ["peer_id", "peer_generation", "session_generation"]),
+		"offered_epoch": _navigator_diagnostic_fields((offer.get("migration", {}) as Dictionary).get("epoch", {}), ["protocol_version", "package_generation", "session_generation", "migration_generation"]),
+		"current_epoch": _navigator_diagnostic_fields(adapter.get_migration_snapshot(), ["protocol_version", "package_generation", "session_generation", "migration_generation"]),
+		"main_inside_tree": _game.is_inside_tree(), "phase": _game.phase,
+		"route_craft": _navigator_diagnostic_object(_craft),
+		"cabin_craft": _navigator_diagnostic_object(_game._cabin_ship),
+		"remote_helm_craft": _navigator_diagnostic_object(_game._network_client_remote_helm_ship()),
+		"boarding_claim": _navigator_diagnostic_json(_game._network_client_boarding_claim),
+		"boarding_holds_route_craft": _game._network_client_boarding_holds(_craft),
+		"callback_adapter": _navigator_diagnostic_object(_game._client_navigator_audio_adapter),
+		"callback_epoch": _game._client_navigator_audio_epoch,
+		"callback_migration": _game._client_navigator_audio_migration,
+		"callback_valid": callback.is_valid(), "callback_bound_arguments": _navigator_diagnostic_json(callback.get_bound_arguments()),
+		"callback_connected": adapter.crew_snapshot_applied.is_connected(callback), "signal_listener_order": listeners,
+		"captured_context": _navigator_diagnostic_json(_game._client_navigator_audio_context),
+		"current_context": _navigator_diagnostic_json(_game._current_client_navigator_audio_context()),
+		"seen_receipts": _navigator_diagnostic_json(_game._client_navigator_audio_seen),
+		"composition": _navigator_diagnostic_object(composition),
+		"composition_attached": bool(composition._attached) if is_instance_valid(composition) else false,
+		"composition_context": _navigator_diagnostic_json(composition._client_navigator_context) if is_instance_valid(composition) else {},
+		"composition_generation": int(composition._client_navigator_generation) if is_instance_valid(composition) else 0,
+		"source": _navigator_diagnostic_object(source),
+		"source_attached": bool(source._attached) if is_instance_valid(source) else false,
+		"binding": _navigator_diagnostic_object(binding),
+		"binding_snapshot": _navigator_diagnostic_json(binding.get_snapshot()) if is_instance_valid(binding) else {},
+		"real_director_requests": _navigator_diagnostic_json((_game.audio as NavigatorRequestSpy).navigator_requests),
+		"real_captions": _navigator_diagnostic_json(_navigator_captions),
+	}
+
+
+func _navigator_diagnostic_fields(value: Dictionary, fields: Array) -> Dictionary:
+	var selected: Dictionary = {}
+	for field in fields:
+		if value.has(field):
+			selected[field] = _navigator_diagnostic_json(value[field])
+	return selected
+
+
+func _navigator_diagnostic_object(value: Variant) -> Dictionary:
+	if not is_instance_valid(value):
+		return {"exists": false}
+	var observed := {"exists": true, "instance_id": value.get_instance_id(), "class": value.get_class()}
+	if value is Node:
+		observed["inside_tree"] = value.is_inside_tree()
+		observed["queued_for_deletion"] = value.is_queued_for_deletion()
+	if value is HeroShip:
+		observed["ship_id"] = str(value.get_ship_id())
+		observed["destroyed"] = value.is_destroyed()
+	return observed
+
+
+func _navigator_diagnostic_json(value: Variant) -> Variant:
+	# Only called on the selected observation fields above. Nodes in recipient
+	# contexts become IDs, never Godot object strings or serialized instances.
+	if value is Object:
+		return _navigator_diagnostic_object(value)
+	if value is Dictionary:
+		var result: Dictionary = {}
+		for key in value:
+			result[str(key)] = _navigator_diagnostic_json(value[key])
+		return result
+	if value is Array:
+		var result: Array = []
+		for item in value:
+			result.append(_navigator_diagnostic_json(item))
+		return result
+	if value is StringName:
+		return str(value)
+	if value == null or value is bool or value is int or value is float or value is String:
+		return value
+	return {"unsupported_variant_type": type_string(typeof(value))}
 
 
 func _navigator_request_count(cue: StringName) -> int:
