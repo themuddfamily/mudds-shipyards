@@ -982,6 +982,54 @@ First failure ends that attempt. Retain the original route and cumulative
 failure history before selecting any causal repair. All twelve journeys, repeat
 contracts, write/recovery cases and parent13's travel envelope remain binding.
 
+#### PLAY-BEACON-SETTLEMENT — selected driver implementation
+
+Frozen2026-10-19 before edits/engine runs, from accepted entryba7f59a and
+mainba0e18c1a. Parent13. Deliver an executable ordinary-input settlement route;
+full home/dock/exit remains open. One implementer owns
+`tools/release/run_native_sortie.py`; root owns
+`scripts/diagnostics/native_sortie_observer.gd`, `scripts/game/startup_loader.gd`
+and `tests/startup_cli_privacy_test.gd`. Independent high-effort review checks
+pure observation, real-file proof, input and actual package/results. No nested agents.
+
+Add `beacon-settlement`, reusing every accepted entry assertion through actual
+SELECT/single START/resume/cursor1; preserve the entry-only route. Continue with
+ordinary controls through the remaining three authored physical beacons in order.
+Require actual cursor2/3/4, same process/Main/Player/Torrent/binding/activity,
+unchanged tuning/default sampler, live seated departed craft and generation1.
+No position/input-owner/authority changes, direct beacon submissions, reward
+requests, forced persistence, reset/restart or synthetic completion in telemetry.
+
+After entry, independently capture the actual confined primary user-data file
+with zero reward baseline. At physical completion require COMPLETE/cursor4,
+real accepted/granted handoff, exactly one navigation-data receipt for Beacon
+generation1, persisted terminal `reward_requested`/`reward_granted` true and
+raw progress paid acknowledgement. Beacon has no paid-floor API; do not invent one.
+Observe another60 normal unpaused physics frames with neutral/brake input:
+the entire reward record, receipt and paid terminal remain equal in live state
+and independently read real disk. Preserve all other payload except existing
+recovery namespaces (`solo_safe_recovery`, `crash_recovery`,
+`session_diagnostics`, `safe_start_recovery`). These60 frames are a duplicate-
+payment regression check, not ten-run/endurance or deliberate replay acceptance.
+
+Only pure raw activity/authority/store snapshots and retained result fields may
+be added to telemetry; avoid binding presentation reconciliation or store loads.
+Reuse the existing release driver's confined file-capture helper; copies go only
+to owned results and never mutate the real document. Record actual source/path/
+generation and compare live receipt/terminal with its disk counterparts.
+
+After clean commit/export, run
+`python3 tools/release/run_native_sortie.py builds/linux/MuddsShipyards-<candidate>.x86_64 --output <new-owned-result> --route beacon-settlement`.
+Keep300s whole-route cap, private Xvfb, explicit x11/Dummy, independent abort and
+input/process cleanup. Require driver exit0, `NATIVE_BEACON_SETTLEMENT_OK` result,
+zero diagnostics and actual-file baseline/paid/stable artifacts. Before that run:
+Python parse, isolated import, observer/privacy compilation, existing CLI privacy
+suite, clean paired exports, three strict menu-ready startups and package parity
+audit. Native Windows/GPU/listening/human/full return/final gates remain open.
+Estimate30–60min implementation/review,10–20min focused checks plus10–15min
+export/startup. First failure STOP; any one causal repair is separately frozen,
+raw results/cumulative time retained. Do not reopen parked unrelated routes.
+
 ### Activity repetition — first bounded definition slice
 
 Source431f24b59, definition only; no gameplay defect or implementation assignment.
