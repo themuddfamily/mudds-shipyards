@@ -72,9 +72,13 @@ Owned scratch cleaned; only raw results remain. STATION-AFT-CONSOLE-VIEW is
 setup with no PNG/finding. Source mapping first corrected the upstairs nomination:
 consoles are on the lower floor. No graphics repair, alternate capture or retry.
 [Original contract/result](docs/history/ROADMAP_DELIVERIES.md#aft-console-arrival--component-review-failed).
-Next selection: determine complete ordinary Threading first-play driver readiness
-from the existing five-gate route/supported flight controls, then freeze owners,
-full acceptance and budget before any implementation/engine run.
+Threading driver readiness is now defined, **execution GATED on UI-BOARD-FOCUS**:
+it would cross the retained failed Activity Board transition. Full five-gate,
+durable reward and landing-unlocked home/usable exit requirements remain intact.
+[Owners/full contract/readiness](docs/ROADMAP_BACKLOG.md#threading-complete-first-play--driver-readiness).
+No engine or renamed Threading retry selected. Next independent candidate is the
+ordinary browser unreachable-host timeout/retry UI path after packaged1c679a4;
+source-map its driver and full acceptance before implementation or engines.
 
 Perimeter Hold's implementation candidate **aa88b5a73** is **PARKED/unmerged**.
 Its staged live runtime passes52 assertions; existing director/asset/board/HUD

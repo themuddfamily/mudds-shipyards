@@ -391,7 +391,7 @@ test is an owner/regression anchor, not a runnable ordinary route.
 | ID | Named outcome | Parents | State / dependency |
 | --- | --- | --- | --- |
 | PLAY-RACE | Checkpoint Race first full ordinary play | 13 | UNSCHEDULED; ordinary board/depart/approach → production countdown and ordered race checkpoints → one durable generation reward → actual home dock/usable exit. Driver selection/adaptation required; retained Race timeout is not authorized for retry |
-| PLAY-THREADING | Asteroid/debris Threading first full ordinary play | 13 | UNSCHEDULED; approach first gate within30m → start and physically cross all five gates in order → one durable reward → home dock/usable exit. No synthetic checkpoint submissions |
+| PLAY-THREADING | Asteroid/debris Threading first full ordinary play | 13 | Driver definition DONE; execution GATED on unresolved UI-BOARD-FOCUS at shared Activity Board transition. Full30m entry→five physical gates→durable reward→landing-unlocked actual home/usable exit remains unproven. No renamed retry or synthetic checkpoints; [readiness/owners/full contract](#threading-complete-first-play--driver-readiness) |
 | PLAY-PATROL | Platform Patrol first full ordinary play | 13 | UNSCHEDULED; name relay_sweep or platform_sweep → approach/start → five authored checkpoints with2s physical station-keeping each → branch reward/home dock/exit. Freeze one branch first; other branch remains uncovered and retained Patrol failure stays parked |
 | PLAY-JOVIAN-KIT | Jovian kit delivery first full ordinary play | 13 | Ordinary board/depart/deliver DONE through28a5e354e;79.213s strict home return, two kits/single reward/usable exit. Distinct-process reload remains unqualified after strict30s timeout; no whole-parent closure |
 | KIT-BOARD | Ordinary offline cargo selection and Jovian pilot boarding | 7,13 | DONE source62bc7c823;66.158s, real menus/walk/local pilot/occupied berth, cargoIDLE0/source6/destination0 manifests; no departure |
@@ -1005,6 +1005,63 @@ applicable release-driver check and does not imply a new gameplay build.
 First failure ends that attempt. Retain the original route and cumulative
 failure history before selecting any causal repair. All twelve journeys, repeat
 contracts, write/recovery cases and parent13's travel envelope remain binding.
+
+### Threading complete first play — driver readiness
+
+**Definition DONE; execution GATED on UI-BOARD-FOCUS.** Read-only readiness
+mapping onf02ec981f found no independently executable ordinary Threading driver.
+No source/runtime/test edits, engine, package or route attempt performed. This is
+not Threading gameplay completion. The full ordinary journey remains the target;
+do not turn an entry-only or near-home observation into PLAY-THREADING acceptance.
+
+The existing NativeSortie Pilot provides real Begin Shift, walk>8m, candidate E
+boarding, same Player/Torrent, default sampler and real berth departure. The
+accepted Beacon entry/settlement pilot supplies ordinary pause→ActivityBoardButton
+Return→Nearby/SELECT/START and authored mouse/thrust/brake controls. That same
+ActivityBoardButton boundary is retained as failed on Beacon-homea612ea686 and
+Mining; a new Threading selector would not repair it. No new Popup identity,
+connection-removal event or production cause is established. Original CAP300,
+UI3s acknowledgements and cumulative component9.627s/Mining/Beacon histories
+remain; no renamed retry, cap reset or imported home-branch qualification.
+
+Conditional implementation ownership when actually ready: one driver implementer
+owns existing tools/release/run_native_sortie.py and test_native_sortie.py;
+root integrates pure scripts/diagnostics/native_sortie_observer.gd, existing
+startup_loader observer admission and tests/startup_cli_privacy_test.gd. Add one
+explicit full-route selector, read-only paused observations and confined actual
+store capture, not a new validator/schema/version family. There is no current
+Threading command or success marker. No implementation/engine is selected now.
+
+Full acceptance to retain:
+- Ordinary menu/walk/board/depart/start through supported controls, within30m
+  of the actual first gate; no direct board signal or activity-start mutation.
+- Physically cross all five authored gates in order, preserving real asteroid
+  contact-before-progress failure. Observe transformed gates via
+  _cinder_authored_frame_to_world and actual craft via _cinder_authored_frame_position;
+  the .tres coordinates are not automatically current common-world coordinates.
+- Observe actual activity cinder_asteroid_field_threading_run generation,
+  cursor increments, terminal state and exactly one durable
+  return_asteroid_survey_to_shipyard receipt, with unrelated store data preserved.
+- Fresh Torrent remains in Guided TARGET_PRACTICE; completing Threading does not
+  unlock landing. A full driver must complete actual range targets/interceptor
+  through supported weapons into RETURN_TO_YARD, preserving the paid Threading
+  terminal, before real L capture/strict exact occupied home dock/lease/token.
+- Neutral automatic ENGINE_OFFLINE, actual E exterior exit, supported same-Player
+  movement>=.5m and60 stable ticks. Ordinary Jovian kit delivery demonstrates
+  these acceptance principles, not Torrent/Threading home qualification. The
+  unmerged Beacon-home code does not supply accepted home behavior.
+
+The exact engine revision's [Popup parent teardown](https://github.com/godotengine/godot/blob/a13da4feb/scene/gui/popup.cpp#L63)
+unconditionally disconnects the matching parent focus/tree signals. This is a
+source call-site match, not the missing original popup/removal identity or a
+causal reopening fact. Root rechecked retained original diagnostics: only root
+Window identity/empty callable, still no popup identity. No fresh UI probe/fix
+is selected on this source fact.
+
+Next independent candidate: source-map the still-open ordinary browser
+unreachable-host timeout/retry path, now that its focused production deadline is
+packaged1c679a4. Keep its full actual Main/UI/retry acceptance separate from the
+already-passing adapter test and from this blocked Activity Board family.
 
 ### Activity repetition — first bounded definition slice
 
