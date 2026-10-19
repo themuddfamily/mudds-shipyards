@@ -1254,6 +1254,20 @@ renamed parked route or accepted-check rerun. Independent PERF-FIX remains gated
 on measuring dormant-opponent work; no missing-stock/client-refusal choice is
 inferred as an implementation alternative.
 
+**Execution stop / sole repair selection2026-10-20.** Test-only source
+`0bd18b86b` imported successfully20.701s, but the guarded old-production
+regression exited1 in0.771s with a GDScript parse error at test line137:
+a multiline lambda return splits its boolean expression without parentheses.
+No runtime defect reproduction or production edit has occurred. Raw import,
+repro and STOP remain in
+`/srv/mudds-work/browser-join-deadline-20261020/results/`.
+Select one test-only syntax repair: enclose that return expression or keep it on
+one line; preserve every assertion, fixture, deadline and acceptance boundary.
+Use a separate guarded repair results root, unchanged180s import/60s repro caps
+and exact expected completion diagnostic. Independent cumulative review must
+assess both attempts before any production change. No second automatic repair,
+retry, cap increase or narrowed proof is authorized.
+
 ### Supported remote helm action roster
 
 HELM-ACTIONS-DEFINE is DONE as a source definition, not new gameplay or current
