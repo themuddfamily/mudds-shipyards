@@ -1312,6 +1312,27 @@ review,10–15min focused checks,10–15min paired checkpoint; split before90min
 Full ordinary browser unreachable-host OS-input/readability/retry, capacity/
 endurance/native/human/final remain OPEN/NOT_RUN; no full parent closure.
 
+**BROWSER-INLINE-RECOVERY pre-engine review correction2026-10-20.** Test-only
+432a7ce5 reproduces the exact frozen old failure in2.137s after import19.685s;
+no unexpected engine failure. Candidatefdd6fec17 has not run. Independent high
+source review STOP finds that its legacy repaint exception examines retained
+presentation.source_generation, rather than whether the incoming receipt carries
+cursor keys. After a valid legacy status/local validation, malformed fenced input
+returns that legacy snapshot and could overwrite validation. Root independently
+confirms the cause in presenter's existing _session_cursor contract.
+Select one bounded correction before candidate engines: classify incoming
+cursor-presence using the same session_id/generation/sequence/event_sequence
+keys; only genuine unfenced legacy receipts may repaint unchanged presentation.
+Keep error guard and no second ledger. Extend only the gated post-regression
+checks with legacy→local validation→malformed cursor/alias coverage. The original
+pre-fix target assertion and all code before its existing gate remain unchanged;
+those new later checks are unreachable on old production, so do not rerun its
+accepted reproduction. This strengthens proof, not acceptance narrowing. Retain
+fdd source-review finding and all raw output. One selected correction allowance
+is now spent; any further unexpected failure STOP/cumulative priority review,
+no automatic second repair, scope/cap change or renamed retry. Independent review
+must check corrected source and extended test before engine checks.
+
 ### Supported remote helm action roster
 
 HELM-ACTIONS-DEFINE is DONE as a source definition, not new gameplay or current
