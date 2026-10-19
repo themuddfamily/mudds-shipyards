@@ -20,6 +20,8 @@ const LIFE_ROUTES := {
 		"movers": [], "drones": true, "bounded": true,
 		"door": ^"HabitatSpine/MainAccess"},
 }
+var _beacon_entry := false
+var _beacon_sequence := 0
 var _life_mode := ""
 var _life_config: Dictionary = {}
 var _habitat_loop := false
@@ -55,6 +57,9 @@ func on_startup_completed(main: Node) -> void:
 	_game = main as GameFlow
 	_player = _game.get_node("Player") as PlayerController
 	_spawn = _player.global_position
+	_beacon_entry = "--native-sortie-observer=beacon-entry" in OS.get_cmdline_args()
+	if _beacon_entry:
+		process_mode = Node.PROCESS_MODE_ALWAYS
 	_habitat_restart = "--native-sortie-observer=habitat-restart" in OS.get_cmdline_args()
 	_habitat_loop = "--native-sortie-observer=habitat-loop" in OS.get_cmdline_args()
 	if _habitat_restart:
@@ -261,6 +266,15 @@ func _physics_process(delta: float) -> void:
 		return
 	if _game == null:
 		return
+	if _beacon_entry:
+		_beacon_sequence += 1
+		if get_tree().paused:
+			var paused_sample := _beacon_entry_observation()
+			paused_sample["frame"] = Engine.get_physics_frames()
+			paused_sample["player_id"] = _player.get_instance_id()
+			paused_sample["ship_id"] = _ship.get_instance_id()
+			print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(paused_sample))
+			return
 	if _habitat_restart:
 		_restart_sequence += 1
 		var sample: Dictionary = _habitat_restart_pause_observation() if get_tree().paused else _habitat_restart_observation()
@@ -282,13 +296,17 @@ func _physics_process(delta: float) -> void:
 	for target: Node in get_tree().get_nodes_in_group("shipyard_targets"):
 		if target is Node3D and not bool(target.get_meta("destroyed", false)):
 			targets.append({"name": str(target.name), "position": _v((target as Node3D).global_position)})
-	var source := _ship.get_local_input_source()
+	var source := (_ship.get("_default_local_command_source") as LocalShipInputSource) if _beacon_entry else _ship.get_local_input_source()
 	var berth := _game.world.get_berth_node(_ship.get_home_berth_id()) as ShipBerth
 	var camera_yaw := _player.get_node("%CameraYaw") as Node3D
 	var command := _ship.get_last_ship_command()
 	var shot := _game.get_last_player_shot_result()
-	var capture: Dictionary = _game.world.get_landing_assist_report(_ship, _ship.get_home_berth_id())
-	var contract := _ship.get_landing_contract_report()
+	var capture: Dictionary = {} if _beacon_entry else _game.world.get_landing_assist_report(_ship, _ship.get_home_berth_id())
+	var contract := (_ship.get("_landing_contract") as Dictionary).duplicate(true) if _beacon_entry else _ship.get_landing_contract_report()
+	if _beacon_entry:
+		contract["berth_id"] = _ship.get("_landing_berth_id")
+	var reserved_ship_id: StringName = berth.get("_reserved_ship_id") if _beacon_entry else berth.get_reserved_ship_id()
+	var telemetry: Dictionary = {"engine_state": _ship.get("_engine_state"), "hull": _ship.get("_hull"), "landed": _ship.get("_landed")} if _beacon_entry else _ship.get_telemetry()
 	var observation := {
 		"frame": Engine.get_physics_frames(), "phase": GameFlow.Phase.keys()[_game.phase],
 		"menu_ready": StartupLoader.is_title_menu_ready(_game) and not is_instance_valid(get_parent().call("get_loading_screen")),
@@ -305,13 +323,13 @@ func _physics_process(delta: float) -> void:
 		"opponent_active": _opponent.is_active(), "opponent": _v(_opponent.global_position),
 		"opponent_health": _opponent.get_health(), "opponent_velocity": _v(_opponent.velocity),
 		"destroyed_targets": _game.world.get_destroyed_target_count(), "destroyed": _ship.is_destroyed(),
-		"telemetry": {"engine": _ship.get_telemetry().get("engine_state"), "hull": _ship.get_telemetry().get("hull")},
+		"telemetry": {"engine": telemetry.get("engine_state"), "hull": telemetry.get("hull")},
 		"default_sampler": source != null and _ship.get("_command_source") == source and source.get_input_provider() == null,
 		"tuning_unchanged": _sortie_tuning() == _tuning, "tuning": _tuning,
-		"landed": _ship.get_telemetry().get("landed"), "landing_active": _ship.is_landing_active(),
+		"landed": telemetry.get("landed"), "landing_active": _ship.is_landing_active(),
 		"capture": bool(capture.get("assist_capture_accepted", false)),
 		"contract": bool(contract.get("contract_accepted", false)) and bool(contract.get("strict_dock_acceptance", false)) and contract.get("berth_id", &"") == _ship.get_home_berth_id(),
-		"lease": berth.get_occupant() == _ship and berth.get_reservation_owner() == _ship and berth.get_reserved_ship_id() == _ship.get_ship_definition().ship_id,
+		"lease": berth.get_occupant() == _ship and berth.get_reservation_owner() == _ship and reserved_ship_id == _ship.get_ship_definition().ship_id,
 		"lease_free": berth.get_occupant() == null and berth.get_reservation_owner() == null,
 		"parked_exact": _ship.global_transform.is_equal_approx(_parked),
 		"exit_error": _player.global_position.distance_to(_ship.get_exit_transform().origin),
@@ -324,6 +342,8 @@ func _physics_process(delta: float) -> void:
 		"application_focused": source.get("_application_focused") if source != null else false,
 		"transition_busy": _game.get("_transition_busy"),
 	}
+	if _beacon_entry:
+		observation.merge(_beacon_entry_observation())
 	if _hulk_arrival:
 		observation["hulk"] = _hulk_arrival_observation()
 	if _hulk_home:
@@ -331,6 +351,61 @@ func _physics_process(delta: float) -> void:
 	if _sandbox:
 		observation["sandbox"] = _sandbox_observation()
 	print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(observation))
+
+
+## Inspect retained coordinator records and the pure activity snapshot. The
+## binding presentation getter reconciles feedback and must not run in telemetry.
+## The paused branch deliberately avoids the base ship physics/landing getters.
+func _beacon_entry_observation() -> Dictionary:
+	var hud := _game.hud as GameHUD
+	var focus := get_viewport().gui_get_focus_owner()
+	var row := focus.get_parent() if is_instance_valid(focus) else null
+	var main_page := hud.get("_pause_main_page") as Control
+	var activity_page := hud.get("_activity_selection_page") as Control
+	var nearby_page := hud.get("_nearby_activity_page") as Control
+	var feedback := hud.get("_nearby_activity_feedback") as Label
+	var presenter := hud.get("_nearby_activity_presenter") as RefCounted
+	var selected := presenter.call(&"get_snapshot") as Dictionary if is_instance_valid(presenter) else {}
+	var first: Vector3 = CinderBeaconTraversalActivity.BEACONS[0]
+	var authored: Vector3 = _game._cinder_authored_frame_position(_ship.global_position)
+	var beacon := {"available": false, "binding_id": 0, "owner_id": 0,
+		"activity_id": str(CinderBeaconTraversalActivity.ACTIVITY_ID),
+		"state": -1, "generation": -1, "next_beacon_index": -1,
+		"beacon_count": 4, "reward_requested": false,
+		"first_world": _v(_game._cinder_authored_frame_to_world(first)),
+		"authored_position": _v(authored), "distance_m": authored.distance_to(first),
+		"selected_id": str(selected.get("selected_activity", &"")),
+		"feedback": feedback.text if is_instance_valid(feedback) else ""}
+	var bootstrap := _game.cinder_streaming_bootstrap
+	if _ember_node_current(bootstrap) and bool(bootstrap.get("_configured")):
+		var coordinator := bootstrap.get("_coordinator") as WorldStreamingCoordinator
+		if _ember_node_current(coordinator):
+			var records := coordinator.get("_loaded") as Dictionary
+			var generations := coordinator.get("_generation_by_id") as Dictionary
+			var record := records.get(CinderStreamingBootstrap.LOCATION_ID, {}) as Dictionary
+			var cluster: Node = record.get("instance") as Node
+			if _ember_node_current(cluster) and cluster.get_parent() == coordinator \
+					and int(record.get("generation", -1)) == int(generations.get(CinderStreamingBootstrap.LOCATION_ID, -2)):
+				var binding := cluster.get_node_or_null(^"ActivityBinding")
+				var activity: RefCounted = binding.get("_beacon_activity") as RefCounted if _ember_node_current(binding) else null
+				if is_instance_valid(activity):
+					beacon.merge(activity.call(&"get_snapshot") as Dictionary, true)
+					beacon.merge({"available": true, "binding_id": binding.get_instance_id(),
+						"owner_id": activity.get_instance_id()}, true)
+	return {"mode": "beacon-entry", "sequence": _beacon_sequence,
+		"pid": OS.get_process_id(), "main_id": _game.get_instance_id(),
+		"paused": get_tree().paused, "beacon": beacon,
+		"native_keys": {"escape": Input.is_physical_key_pressed(KEY_ESCAPE),
+			"tab": Input.is_physical_key_pressed(KEY_TAB), "return": Input.is_physical_key_pressed(KEY_ENTER)},
+		"ui": {"main_visible": is_instance_valid(main_page) and main_page.is_visible_in_tree(),
+			"activity_visible": is_instance_valid(activity_page) and activity_page.is_visible_in_tree(),
+			"nearby_visible": is_instance_valid(nearby_page) and nearby_page.is_visible_in_tree(),
+			"focus_path": str(focus.get_path()) if is_instance_valid(focus) else "",
+			"focus_name": str(focus.name) if is_instance_valid(focus) else "",
+			"focus_text": (focus as Button).text if focus is Button else "",
+			"focus_activity": str(row.get_meta(&"activity_id", &"")) if is_instance_valid(row) else "",
+			"focus_visible": is_instance_valid(focus) and focus.is_visible_in_tree(),
+			"focus_enabled": focus is BaseButton and not (focus as BaseButton).disabled}}
 
 
 func _sandbox_observation() -> Dictionary:

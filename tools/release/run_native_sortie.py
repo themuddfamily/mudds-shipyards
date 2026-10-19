@@ -2,6 +2,7 @@
 """Fly the embedded Linux game with OS XTest keys/mouse on an owned Xvfb.
 
 Usage: run_native_sortie.py GAME.x86_64 --output NEW_RESULT_DIRECTORY
+Use --route beacon-entry for normal Torrent departure and actual first Beacon HUD start.
 Use --route sandbox for the full five-branch/eight-craft/crash/reuse scenario.
 Use --route sandbox-walk for the on-foot prerequisite only.
 Use --route hulk-arrival for the Guided prelude then the streamed HULK dock/exit.
@@ -409,6 +410,236 @@ class Pilot:
                 self.tap_cooldown = now + .3
                 self.tap_release_frame = self.frame
         return keys, dx, dy, fire
+
+
+class BeaconEntryPilot(Pilot):
+    """Ordinary Torrent departure, physical Beacon 1 approach and actual HUD start."""
+    MARKER = 'NATIVE_BEACON_ENTRY_OK'
+    ACTIVITY = 'cinder_debris_beacon_traversal'
+
+    def __init__(self):
+        super().__init__()
+        self.sequence = -1
+        self.process_identity = None
+        self.beacon_identity = None
+        self.last_state = None
+        self.receipts = {}
+        self.ui_edges = []
+        self.ui_key = None
+        self.ui_until = self.ui_release_until = 0
+        self.ui_pending = None
+        self.focus_seen = set()
+        self.beacon_braking = False
+        self.mouse_pending = None
+        self.resume_frame = None
+
+    def beacon_stage(self, stage, s):
+        self.stage = stage
+        event = {'stage': stage, 'frame': s['frame'], 'sequence': s['sequence']}
+        self.stages.append(event)
+        self.focus_seen.clear()
+        print(json.dumps(event), flush=True)
+
+    def ui_press(self, key, s, now, kind, expected=None):
+        require(self.ui_pending is None, 'one outstanding ordinary UI press')
+        self.ui_key, self.ui_until = key, now + .08
+        self.ui_pending = {'kind': kind, 'expected': expected, 'until': now + 3,
+                           'focus': s['ui']['focus_path'], 'sequence': s['sequence']}
+        self.ui_edges.append({'sequence': s['sequence'], 'key': key, 'pressed': True,
+                              'focus': s['ui']['focus_path'], 'kind': kind})
+        return {key}, 0, 0, False
+
+    def ui_update(self, s, now):
+        # Paused production physics does not advance. Pulse/release in wall time,
+        # and acknowledge actual focus/page changes before sending another key.
+        if self.ui_key is not None:
+            if now < self.ui_until: return {self.ui_key}, 0, 0, False
+            self.ui_edges.append({'sequence': s['sequence'], 'key': self.ui_key, 'pressed': False})
+            self.ui_key = None
+            self.ui_release_until = now + .10
+            return set(), 0, 0, False
+        if now < self.ui_release_until or any(s['native_keys'].values()):
+            return set(), 0, 0, False
+        ui, beacon = s['ui'], s['beacon']
+        pending = self.ui_pending
+        if pending is not None:
+            kind = pending['kind']
+            if kind == 'tab':
+                accepted = bool(ui['focus_path']) and ui['focus_path'] != pending['focus']
+            elif kind == 'select':
+                accepted = beacon['selected_id'] == self.ACTIVITY
+            elif kind == 'start':
+                accepted = (beacon['state'] == 1 and beacon['generation'] == 1
+                            and beacon['next_beacon_index'] == 0
+                            and beacon['feedback'] == 'DEBRIS BEACON RUN  //  STARTED')
+            elif kind == 'resume':
+                accepted = not s['paused']
+            else:
+                accepted = s['paused'] and ui[pending['expected']]
+            if not accepted:
+                require(now < pending['until'], 'ordinary UI press was not acknowledged: '+kind+'; no retry')
+                return set(), 0, 0, False
+            self.ui_pending = None
+            if kind == 'select':
+                self.receipts['selected'] = s
+                self.beacon_stage('beacon_start', s)
+            elif kind == 'start':
+                self.receipts['started_paused'] = s
+                self.beacon_stage('beacon_back_activity', s)
+            elif kind == 'resume':
+                self.resume_frame = s['frame']
+                self.receipts['resumed'] = s
+                self.beacon_stage('beacon_physics', s)
+                return set(), 0, 0, False
+            elif kind != 'tab':
+                next_stage = {'pause': 'beacon_board', 'board': 'beacon_nearby',
+                              'nearby': 'beacon_select', 'back_activity': 'beacon_back_main',
+                              'back_main': 'beacon_resume'}[kind]
+                self.beacon_stage(next_stage, s)
+        if self.stage == 'beacon_pause':
+            require(not s['paused'], 'normal unpaused flight before first Escape')
+            return self.ui_press('Escape', s, now, 'pause', 'main_visible')
+        require(s['paused'], 'pause retained through actual Beacon selection and start')
+        if self.stage in ('beacon_back_activity', 'beacon_back_main', 'beacon_resume'):
+            page, kind, expected = {
+                'beacon_back_activity': ('nearby_visible', 'back_activity', 'activity_visible'),
+                'beacon_back_main': ('activity_visible', 'back_main', 'main_visible'),
+                'beacon_resume': ('main_visible', 'resume', None),
+            }[self.stage]
+            require(ui[page], 'expected page before one ordinary Escape: '+page)
+            return self.ui_press('Escape', s, now, kind, expected)
+        page, name, action = {
+            'beacon_board': ('main_visible', 'ActivityBoardButton', 'board'),
+            'beacon_nearby': ('activity_visible', 'NearbyActivityOpenButton', 'nearby'),
+            'beacon_select': ('nearby_visible', None, 'select'),
+            'beacon_start': ('nearby_visible', None, 'start'),
+        }[self.stage]
+        require(ui[page] and ui['focus_path'], 'current actual page and keyboard focus')
+        target = (ui['focus_name'] == name if name else
+                  ui['focus_activity'] == self.ACTIVITY and ui['focus_text'] == action.upper())
+        if target:
+            require(ui['focus_enabled'] and ui['focus_visible'], 'actual enabled visible UI action')
+            if action == 'start':
+                require(beacon['selected_id'] == self.ACTIVITY and beacon['state'] == 0
+                        and beacon['generation'] == 0 and beacon['next_beacon_index'] == 0,
+                        'selected fresh Beacon before single START press')
+                self.receipts['before_start'] = s
+            expected = {'board': 'activity_visible', 'nearby': 'nearby_visible'}.get(action)
+            return self.ui_press('Return', s, now, action, expected)
+        require(ui['focus_path'] not in self.focus_seen and len(self.focus_seen) < 64,
+                'target UI action reachable without cycling keyboard focus')
+        self.focus_seen.add(ui['focus_path'])
+        return self.ui_press('Tab', s, now, 'tab')
+
+    def update(self, s, now):
+        self.last_state = s
+        require(s.get('mode') == 'beacon-entry' and s['sequence'] > self.sequence,
+                'fresh explicit Beacon entry observation including paused UI')
+        self.sequence = s['sequence']
+        identity = (s['pid'], s['main_id'], s['player_id'], s['ship_id'])
+        require(all(identity), 'current process Main Player and Torrent identities')
+        if self.process_identity is None: self.process_identity = identity
+        require(identity == self.process_identity, 'same process Main Player and Torrent throughout entry')
+        beacon = s['beacon']
+        if beacon['available']:
+            beacon_identity = (beacon['binding_id'], beacon['owner_id'])
+            require(all(beacon_identity) and beacon['activity_id'] == self.ACTIVITY
+                    and beacon['beacon_count'] == 4, 'actual four-beacon production owner')
+            if self.beacon_identity is None:
+                require(beacon['state'] == 0 and beacon['generation'] == 0
+                        and beacon['next_beacon_index'] == 0, 'initial live Beacon IDLE generation zero')
+                self.beacon_identity = beacon_identity
+                self.receipts['initial_beacon'] = s
+            require(beacon_identity == self.beacon_identity, 'same live Beacon binding and activity owner')
+            require(not beacon['reward_requested'], 'entry never requests Beacon reward')
+        elif self.beacon_identity is not None:
+            require(False, 'same live Beacon owner remains available')
+        if not self.stage.startswith('beacon_'):
+            require(not s['paused'], 'normal Guided departure remains unpaused')
+            if self.stage != 'range': return super().update(s, now)
+            require(self.departed and self.max_walk > 8 and s['lease_free']
+                    and s['piloted'] and s['seated'] and not s['landed'],
+                    'actual walk boarding and ordinary departed Torrent before Beacon transit')
+            self.receipts['departed'] = s
+            self.tap_key = None
+            self.beacon_stage('beacon_transit', s)
+        # The authored destination is known before its streamed owner loads.
+        # Navigate normally until arrival; UI/physics proof requires that owner.
+        if self.stage != 'beacon_transit':
+            require(beacon['available'], 'live Beacon owner during entry')
+        if s['paused']:
+            require(math.isfinite(beacon['distance_m']) and 0 <= beacon['distance_m'] <= 32,
+                    'actual same-craft first-beacon approach retained while paused')
+        if self.stage in ('beacon_back_activity', 'beacon_back_main', 'beacon_resume'):
+            require(beacon['state'] == 1 and beacon['generation'] == 1
+                    and beacon['next_beacon_index'] in ((0,) if s['paused'] else (0, 1)),
+                    'accepted first-beacon start retained through ordinary resume')
+        if beacon['available'] and self.stage not in (
+                'beacon_back_activity', 'beacon_back_main', 'beacon_resume', 'beacon_physics'):
+            # Only the single outstanding START Return may change this owner.
+            starting = self.ui_pending is not None and self.ui_pending['kind'] == 'start'
+            if starting:
+                require((beacon['state'], beacon['generation'], beacon['next_beacon_index'])
+                        in ((0, 0, 0), (1, 1, 0)), 'only expected transition from actual START Return')
+            require(starting or (beacon['state'] == 0 and beacon['generation'] == 0
+                                and beacon['next_beacon_index'] == 0),
+                    'Beacon remains fresh until the actual START Return')
+        if self.stage not in ('beacon_transit', 'beacon_physics'):
+            return self.ui_update(s, now)
+        require(not s['paused'] and self.identities == (s['player_id'], s['ship_id'])
+                and s['default_sampler'] and s['tuning_unchanged'], 'ordinary unpaused same-actor controls')
+        require(s['phase'] not in ('FAILED', 'RECOVERING') and not s['destroyed']
+                and s['piloted'] and s['seated'] and s['active_ship']
+                and s['lease_free'] and not s['landed'], 'live departed seated Torrent without recovery')
+        speed = norm(s['velocity'])
+        require(math.isfinite(beacon['distance_m']) and beacon['distance_m'] >= 0,
+                'finite actual authored-frame first-beacon distance')
+        if self.stage == 'beacon_physics':
+            require(beacon['state'] == 1 and beacon['generation'] == 1
+                    and beacon['next_beacon_index'] in (0, 1), 'only first physical beacon can advance')
+            require(beacon['distance_m'] <= 32, 'same craft remains within actual first-beacon radius')
+            if beacon['next_beacon_index'] == 1:
+                require(s['frame'] > self.receipts['started_paused']['frame'],
+                        'production physics advances after paused START and real resume')
+                self.receipts['first_physics_beacon'] = s
+                self.beacon_stage('complete', s)
+                self.result = {'completion_marker': self.MARKER,
+                               'scope': 'ordinary home departure and actual first Beacon start only',
+                               'same_pid': identity[0], 'same_main_id': identity[1],
+                               'same_player_id': identity[2], 'same_ship_id': identity[3],
+                               'same_binding_id': self.beacon_identity[0],
+                               'same_beacon_owner_id': self.beacon_identity[1],
+                               'walked_m': self.max_walk, 'excursion_m': self.max_excursion,
+                               'default_sampler': True, 'authored_tuning': s['tuning'],
+                               'receipts': self.receipts, 'ui_edges': self.ui_edges,
+                               'stages': self.stages, 'phases': self.phases,
+                               'remaining': ['remaining three beacons', 'reward', 'home return and exit']}
+            else:
+                require(s['frame'] <= self.resume_frame + 120,
+                        'production first-beacon physics did not advance after resume; no retry')
+            return {'Prior'}, 0, 0, False
+        self.max_excursion = max(self.max_excursion, norm(sub(s['position'], s['parked'])))
+        target = beacon['first_world']
+        off = sub(target, s['position'])
+        distance = norm(off)
+        dx, dy, align = self.aim(s, [s['camera'][i]+off[i] for i in range(3)])
+        stopping = speed*speed/(2*s['tuning']['brake']) + speed*.18
+        if distance < stopping+10: self.beacon_braking = True
+        if speed <= .45 and distance > 10: self.beacon_braking = False
+        keys = set()
+        if distance <= 10 or self.beacon_braking: keys.add('Prior')
+        elif align > .72: keys.add('w')
+        # Coalesced observations must not multiply an unconsumed OS mouse sweep.
+        facing = s['back']
+        if self.mouse_pending is not None:
+            if norm(sub(facing, self.mouse_pending)) < .00001: dx = dy = 0
+            else: self.mouse_pending = None
+        if dx or dy: self.mouse_pending = facing[:]
+        if beacon['available'] and distance <= 12 and beacon['distance_m'] <= 12 and speed <= .45:
+            self.receipts['approached'] = s
+            self.beacon_stage('beacon_pause', s)
+            return self.ui_update(s, now)
+        return keys, dx, dy, False
 
 
 class HulkArrivalPilot(Pilot):
@@ -2974,7 +3205,7 @@ def stop(process):
 
 
 def run(binary, output, route="guided"):
-    require(route in ("guided", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
+    require(route in ("guided", "beacon-entry", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
     output.mkdir(parents=True, exist_ok=False)
     game = xvfb = desktop = pilot = None
     temporary_profile = None
@@ -3063,7 +3294,7 @@ def run(binary, output, route="guided"):
                     leg_result['window'] = hex(window)
                     desktop.focus(window)
                     pilot = HabitatRestartPilot(cold=bool(leg)) if restart_files else {
-                        "guided": Pilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
+                        "guided": Pilot, "beacon-entry": BeaconEntryPilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
                         "hulk-arrival": HulkArrivalPilot, "hulk-breaker": HulkBreakerPilot,
                         "hulk-home": HulkHomePilot, "habitat-loop": HabitatLoopPilot, "life-tow": LifeTowPilot, "life-gantry": lambda: LifeTowPilot("life-gantry"), "life-arm": lambda: LifeTowPilot("life-arm"), "life-patrol": lambda: LifeTowPilot("life-patrol")}[route]()
                     with selectors.DefaultSelector() as selector:
@@ -3162,6 +3393,9 @@ def run(binary, output, route="guided"):
                 result['partial_sortie'].update(last_state=pilot.last_state, visited=pilot.visited,
                                                receipts=pilot.receipts, native_interact_edges=pilot.native_edges,
                                                walked_m=pilot.walked)
+            if isinstance(pilot, BeaconEntryPilot):
+                result['partial_sortie'].update(last_state=pilot.last_state, receipts=pilot.receipts,
+                                               ui_edges=pilot.ui_edges, sequence=pilot.sequence)
             if isinstance(pilot, HulkArrivalPilot):
                 result['partial_sortie']['last_state'] = pilot.last_state
             if isinstance(pilot, SandboxPilot):
@@ -3216,8 +3450,8 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('binary')
     parser.add_argument('--output',required=True,type=Path)
-    parser.add_argument('--route', choices=('guided', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
-                        help='life-patrol walks Habitat through the real door beside patrol drones and boards Torrent; life-arm walks Aft stairs past the live service arm and boards Zenith; life-gantry walks Freight past the live gantry and boards Jovian; life-tow walks Central beside live tow service and boards Torrent; hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
+    parser.add_argument('--route', choices=('guided', 'beacon-entry', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
+                        help='beacon-entry departs normally and physically reaches/starts the first Beacon through actual pause controls; life-patrol walks Habitat through the real door beside patrol drones and boards Torrent; life-arm walks Aft stairs past the live service arm and boards Zenith; life-gantry walks Freight past the live gantry and boards Jovian; life-tow walks Central beside live tow service and boards Torrent; hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
     args=parser.parse_args()
     try: binary=validate_binary(args.binary)
     except ValueError as error: parser.error(str(error))
