@@ -67,10 +67,11 @@ PERF-DORMANT-MEASURE concludes **do not prioritize this optimization**: actual
 six-actor direct-function cost89.824us combined is below the frozen100us threshold.
 No runtime change, performance fix, native FPS claim or new checkpoint.
 [Fixture/result/limits](docs/history/ROADMAP_DELIVERIES.md#dormant-opponent-presentation--cost-decision).
-Owned scratch cleaned; only raw results remain. Next selection is to bound one
-supported Aft stair-arrival console view from the existing station review roster,
-before any isolated capture or proposed graphics repair. Existing parked routes
-are not reopened by this nomination.
+Owned scratch cleaned; only raw results remain. STATION-AFT-CONSOLE-VIEW is now
+selected: [one frozen isolated console-room arrival image](docs/ROADMAP_BACKLOG.md#aft-console-arrival--one-component-presentation-review).
+Source mapping corrected the initial upstairs nomination: the consoles are on
+the lower floor. Use existing player-height console-room framing and production
+lighting; no Main/parked route retry or graphics repair selected before a finding.
 
 Perimeter Hold's implementation candidate **aa88b5a73** is **PARKED/unmerged**.
 Its staged live runtime passes52 assertions; existing director/asset/board/HUD

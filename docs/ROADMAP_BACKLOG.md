@@ -1481,6 +1481,42 @@ cleanup; original probe, raw three-batch timings and private logs preserved.
 This is parent28; parent35 in the initial frozen heading was a metadata error,
 not a change to the measured contract or a final-regression claim.
 
+### Aft console arrival — one component presentation review
+
+**STATION-AFT-CONSOLE-VIEW / parents9,12; frozen2026-10-20 before scratch edits
+or engines.** Initial upper-stair→console nomination is geometrically wrong:
+RouteStairTop is(-5.7,4.35,12.8); console room is downstairs behind wall/ceiling.
+Do not turn intended floor separation into an art defect. Use the existing
+`tools/aft_operations_probe.gd` c_console_line framing instead: local
+camera(2.9,1.62,10.6)→(7.6,1.30,15.7),70degreeFOV,1280x720. This correction
+precedes execution; no failed capture or acceptance scope is being narrowed.
+
+Root owns clean isolated worktree and guarded import/capture/results/cleanup.
+One medium agent writes only an external scratch capture script. Instantiate the
+actual Aft module at its production(0,0,48) offset. Use ShipyardWorld.new with
+prepare_staged_construction before insertion, build only existing
+_build_environment, then attach the module; do not instantiate Main or other
+station modules, run world construction, drive controls, or alter presentation.
+Retain the real station High environment/key/fill and module's authored practicals;
+no arbitrary extra lighting. Existing probe camera near0.08/far6000/TAA/MSAA2X,
+eight settled render frames and actual frame readback. Require correct camera,
+module, first Destination and second Activity consoles, active Forward+ renderer,
+1280x720 nonempty saved PNG, one AFT_CONSOLE_COMPONENT_CAPTURE_OK marker, and
+clean scene/cursor cleanup. Record actual renderer, camera and image digest.
+
+Run on private Xvfb only, explicit x11 display driver and Dummy audio, Vulkan
+software ICD fixed to /usr/share/vulkan/icd.d/lvp_icd.json; no desktop/input or
+real audio. Existing pinned clean source/engine/cache/process guards. Import180s,
+capture120s and independent outer process abort. Scratch script/image outside
+tracked source; no new validator/evidence family. First unexpected failure STOP;
+no automatic repair, cap increase or second capture. Estimate15–30min including
+mapping/review/cleanup. Stop after this single image: root inspects it and records
+one actual reproducible finding with exact runtime owner, or explicit no-finding
+limited to this view. A real finding needs a separately frozen implementation,
+focused behavior/view comparison and paired checkpoint before acceptance. No
+ordinary walking/interaction, integrated Main composition, hardware GPU, other
+station branch or whole art/parent acceptance is claimed by this component view.
+
 ### Remaining UI view roster — ACCESS-VIEWS-DEFINE
 
 DONE as a source definition, not layout or device qualification. Owners below
