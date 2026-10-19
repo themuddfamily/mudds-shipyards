@@ -5110,8 +5110,19 @@ func _build_bomber_status_panel() -> void:
 
 
 func update_network_session_status(snapshot: Dictionary) -> void:
+	var previous := _network_status_presenter.get_snapshot()
 	var presentation := _network_status_presenter.present_snapshot(snapshot)
 	_render_runtime_status(presentation, &"network")
+	# Rejected fenced receipts retain the presenter's previous snapshot. They
+	# must not replay old session copy over a newer browser validation message.
+	# Legacy unfenced receipts remain caller-owned updates on every publication.
+	var fenced := snapshot.has("session_id") or snapshot.has("generation") \
+		or snapshot.has("sequence") or snapshot.has("event_sequence")
+	if not presentation.has("error") and (
+		presentation != previous or not fenced
+	):
+		if is_instance_valid(_server_browser_feedback):
+			_server_browser_feedback.text = str(presentation.get("message", ""))
 	_update_server_browser_disconnect()
 
 
@@ -7285,10 +7296,17 @@ func _request_server_browser_disconnect() -> void:
 
 
 func _server_browser_session_action(presentation: Dictionary) -> Dictionary:
+	if presentation.has("error"):
+		return {}
+	var retry: Dictionary = {}
 	for action: Dictionary in presentation.get("actions", []):
-		if action.get("id", &"") in [&"cancel", &"disconnect"] and bool(action.get("focusable", false)):
+		if not bool(action.get("focusable", false)):
+			continue
+		if action.get("id", &"") in [&"cancel", &"disconnect"]:
 			return action
-	return {}
+		if action.get("id", &"") == &"retry":
+			retry = action
+	return retry
 
 
 func _show_server_browser_page() -> void:
