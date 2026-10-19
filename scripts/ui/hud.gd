@@ -7298,10 +7298,15 @@ func _request_server_browser_disconnect() -> void:
 func _server_browser_session_action(presentation: Dictionary) -> Dictionary:
 	if presentation.has("error"):
 		return {}
+	var retry: Dictionary = {}
 	for action: Dictionary in presentation.get("actions", []):
-		if action.get("id", &"") in [&"retry", &"cancel", &"disconnect"] and bool(action.get("focusable", false)):
+		if not bool(action.get("focusable", false)):
+			continue
+		if action.get("id", &"") in [&"cancel", &"disconnect"]:
 			return action
-	return {}
+		if action.get("id", &"") == &"retry":
+			retry = action
+	return retry
 
 
 func _show_server_browser_page() -> void:
