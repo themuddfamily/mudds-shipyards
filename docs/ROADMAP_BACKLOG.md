@@ -1333,6 +1333,31 @@ is now spent; any further unexpected failure STOP/cumulative priority review,
 no automatic second repair, scope/cap change or renamed retry. Independent review
 must check corrected source and extended test before engine checks.
 
+**BROWSER-INLINE-RECOVERY cumulative priority decision2026-10-20.** Corrected
+58d607096 imported6.802s and passed new manual-HUD36 checks/2.418s, then existing
+browser HUD failed2.254s on `browser exposes the presenter's cancel action while
+failed`; remaining three suites/exports/startups NOT_RUN. Original import/repro
+and partial candidate total33.294994024s across five stages. All raw/STOP retained.
+Independent high reviewer and root confirm production regression: presenter
+failed defaults retryable=true and offers[retry,cancel]; first-match retry changed
+the existing required Cancel priority. The test is correct. Root/source review
+missed that default; do not alter the test or claim partial acceptance.
+
+Root explicitly selects ONE further helper-only corrective patch after cumulative
+review, as an exception to the spent correction allowance, rather than parking a
+concrete small UI delivery. Preserve Cancel/Disconnect first whenever offered;
+Retry is fallback only when neither exists. Thus disconnected timeout gets Retry,
+failed retains Cancel, fresh connecting gets Cancel, caller-forbidden stays
+unavailable. No copy/cursor/focus/endpoint/transport changes and no test edits.
+All frozen original assertions/acceptance/caps remain. Use separately guarded
+repair-1 results with original STOP retained; rerun the five original focused
+suites because the shared action selector changed, then original exports/startups/
+parity only if all pass. No rerun of accepted old-production reproduction.
+Independent review must confirm the patch before engines. This is an explicit
+bounded priority decision, not an automatic quota reset. Any further unexpected
+failure parks the candidate with cumulative review; no additional automatic
+repair, cap increase, new route, changed test or narrowed proof.
+
 ### Supported remote helm action roster
 
 HELM-ACTIONS-DEFINE is DONE as a source definition, not new gameplay or current
