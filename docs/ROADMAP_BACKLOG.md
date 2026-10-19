@@ -1258,6 +1258,60 @@ Full independent ordinary Main/menu unreachable-host UI/retry, capacity/enduranc
 and native/human/final gates remain OPEN/NOT_RUN. This closes one runtime defect
 under parent25, not the complete browser requirement.
 
+### Browser inline session recovery — BROWSER-INLINE-RECOVERY
+
+**Parent25; frozen2026-10-20 before edits/engines.** Focused adapter deadline is
+packaged1c679a4, but the actual browser does not consume asynchronous session
+status into its feedback. GameHUD.update_network_session_status renders only the
+runtime card and updates Cancel/Disconnect availability. The runtime card is a
+child of _hud, which stays hidden on the title screen; open_intro_server_browser
+shows the pause/browser overlay instead. _server_browser_feedback therefore keeps
+the earlier join acknowledgement at timeout. _server_browser_session_action
+excludes the presenter's retry action. Source seam is existing scripts/ui/hud.gd;
+this is independent of parked ActivityBoardButton and failed rendered Aft capture.
+
+Player result: the open title/pause browser displays newly accepted network
+progress/timeout guidance inline, and its existing session-action button exposes
+current caller-authorized Retry Connection as well as Cancel/Disconnect. Retry
+forwards the current fenced network snapshot to GameFlow; retained normalized
+endpoint and transport authority remain unchanged. A fresh connecting snapshot
+clears terminal copy and restores Cancel. Stale/replayed/malformed status cannot
+overwrite a newer browser validation message or resurrect an old action. Do not
+add a second cursor/authority ledger, fake retry permission or automatic attempt.
+
+One medium implementation agent owns ONLY scripts/ui/hud.gd and existing
+tests/server_browser_manual_controls_hud_integration_test.gd. Root freezes,
+integrates/tests/packages; one independent high reviewer checks cursor/focus/
+caller intent and copy arbitration. No GameFlow/transport/presenter wire rewrite,
+new browser page, generic tooltip fix, OS-input driver or validator family.
+Preserve directory-refresh feedback clearing and endpoint-validation semantics.
+
+Test first: extend existing HUD test while production unchanged; actual title
+HUD remains hidden, open the real browser, apply accepted join acknowledgement,
+then genuine GameFlow-shaped fenced connecting/disconnected connection_timeout
+snapshots. Sole frozen old completion error:
+`FAIL: browser displays the accepted session timeout instead of the earlier join acknowledgement`.
+Gate all later new assertions on that result; preserve prior checks and cleanly
+free HUD. Commit test-only first; root guarded import and exact reproduction
+before production edits. Fixed unchanged test must prove visible browser text,
+inline focusable Retry and its current network intent/snapshot, retained endpoint,
+fresh attempt cancellation, stale/duplicate/malformed receipt fencing around a
+new validation error, caller-forbidden retry and disabled-action focus recovery.
+This proves the actual HUD contract, not an OS-input/full Main/browser journey.
+
+Focused original suites: manual-controls HUD60s, general browser HUD60s,
+server_browser_focus_navigation_test60s, network_session_status_presenter_test60s,
+game_flow_server_browser_manual_controls_test60s. Import/exports180s, strict
+startups120s; clean source/engine/cache/process guards, headless/Dummy only.
+Both safe clean exports, three strict startup exit0/menu-ready markers and actual
+package parity precede acceptance. No hosted CI, audible/desktop automation.
+First unexpected failure STOP; one cause-backed repair only after frozen
+diagnosis then cumulative priority review; no automatic second repair, cap
+increase, renamed parked route or scope narrowing. Estimate30–45min implementation/
+review,10–15min focused checks,10–15min paired checkpoint; split before90min.
+Full ordinary browser unreachable-host OS-input/readability/retry, capacity/
+endurance/native/human/final remain OPEN/NOT_RUN; no full parent closure.
+
 ### Supported remote helm action roster
 
 HELM-ACTIONS-DEFINE is DONE as a source definition, not new gameplay or current

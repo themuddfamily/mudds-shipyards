@@ -80,6 +80,11 @@ No engine or renamed Threading retry selected. Next independent candidate is the
 ordinary browser unreachable-host timeout/retry UI path after packaged1c679a4;
 source-map its driver and full acceptance before implementation or engines.
 
+BROWSER-INLINE-RECOVERY is selected for implementation: asynchronous session
+results never reach browser feedback, and the title-hidden runtime card cannot
+supply its retry control. [Frozen player result/owners/test-first proof](docs/ROADMAP_BACKLOG.md#browser-inline-session-recovery--browser-inline-recovery).
+The full OS-input browser route remains separate; no Activity Board/Aft retry.
+
 Perimeter Hold's implementation candidate **aa88b5a73** is **PARKED/unmerged**.
 Its staged live runtime passes52 assertions; existing director/asset/board/HUD
 checks pass. The unchanged90s GameFlow route times out during existing
