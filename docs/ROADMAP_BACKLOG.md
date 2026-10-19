@@ -1506,8 +1506,10 @@ clean scene/cursor cleanup. Record actual renderer, camera and image digest.
 
 Run on private Xvfb only, explicit x11 display driver and Dummy audio, Vulkan
 software ICD fixed to /usr/share/vulkan/icd.d/lvp_icd.json; no desktop/input or
-real audio. Existing pinned clean source/engine/cache/process guards. Import180s,
-capture120s and independent outer process abort. Scratch script/image outside
+real audio. Existing pinned clean source/engine/cache/process guards. The first rendered capture may populate its owned .godot
+shader_cache only; preserve before/after cache maps and inspect that delta.
+Tracked source/index remain immutable. Import180s, capture120s and independent
+outer process abort. Scratch script/image outside
 tracked source; no new validator/evidence family. First unexpected failure STOP;
 no automatic repair, cap increase or second capture. Estimate15–30min including
 mapping/review/cleanup. Stop after this single image: root inspects it and records
