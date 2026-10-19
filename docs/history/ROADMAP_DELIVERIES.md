@@ -12627,3 +12627,51 @@ mandatory explicit300s route from the clean repair pin. Initial results/failure
 remain retained; one repair does not reset cumulative cost. First further failure
 stops for cumulative priority review; no automatic second repair or packaging.
 Only complete focused/route acceptance permits the paired checkpoint workflow.
+
+## AUDIO-NAVIGATOR-CLIENT-MIGRATION-CAUSE — bounded source diagnosis
+
+Source-only inspection from main6a841d7ec and unmerged candidate279d3b378;
+one high read-only transport investigator, root on GameFlow/composition/retained
+route. No new files, engine, runtime/test edits, worktree or retry. The original
+24-stage504.404s cumulative result and failed candidate status are unchanged.
+This definition is not a feature delivery; migration cause remains unproven.
+
+**Eliminated proposals:**
+
+- Permanent stale offer: adapter `_send_server_offer`4963–5017 validates current
+  epoch and peer identity, stores the fresh offer5008, registers transport5011–13,
+  then emits peer_admitted. GameFlow7575–82 reopens the same body stream only for
+  the fresh `peer_rebound` receipt. Retained route proves stream2/reseat/FIRE and
+  the third command with newer migration. Pending-rebind old-offer mismatch is
+  legitimate silence, not demonstrated cause after completed rebind.
+- Retained generation1 publication: `NetworkHalyardPassengerBinding`246–255 reads
+  the current server migration peer's active generation for every navigator ping;
+  bridge158–160 copies that value unchanged. SessionMigration209–211 updates
+  generation/active state before the rebind offer. No stale-generation publication
+  seam was found. The focused migration fixture kept peer generation constant,
+  so it is weaker than the real rebind, but that does not prove a production bug.
+
+Client current transport admission is `_transport.get_peer(local_peer)`; client
+`get_migration_snapshot().peers` is empty after epoch adoption and cannot replace
+it. No new public accessor is justified solely by that observation. Do not broaden
+adapter ownership without an actual failed check connecting it to this defect.
+
+**Concrete missing evidence:** route `_capture_navigator_applied` stored actual
+commands in memory; its boundary files are empty dictionaries and final done
+records retain failures/counts only. Neither the full third command nor exact
+GameFlow recipient/epoch/craft/boarding state and composition/binding state is
+persisted at dispatch. Source inspection cannot honestly choose among rejected
+context, callback retirement and raw binding refusal from the existing record.
+The next selected observation-enhanced single route is specified in the existing
+completion-scope section; it cannot deliver the feature or authorize another
+speculative fix. A nil source remains failed proof and must not crash cleanup.
+
+**Independent host walk cause demonstrated:** authored navigator exit is
+(-0.95,-0.86,0.25), target(-1.85,-0.86,-1.7). Retained repaired-run final host
+position is(-1.766327,-0.969854,-1.518699). Its exit distance is1.951090m while
+its target distance is0.227902m (horizontal0.1997m), accepted by `_walk`'s<0.30m
+arrival condition. The exact target exit distance is2.147673m, so that arrival
+tolerance does not guarantee the independent >2m postcondition. This establishes
+a fixture stopping-condition mismatch, not a navigation/input defect. Preserve
+actual >2m clearance and the waypoint/cap in a future separately selected fix;
+do not weaken the postcondition or silently retry unchanged walking.
