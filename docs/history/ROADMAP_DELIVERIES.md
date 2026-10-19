@@ -13513,3 +13513,107 @@ original full-game combat requirements: ordinary weapon engagement/home,
 permitted failure/recovery cases, craft/network breadth, repeat play and native
 hardware/human qualification remain OPEN after this runtime delivery. Beacon/UI
 focus failures remain PARKED and are not prerequisites for implementing Hold.
+
+## Paused LAN discovery — delivered
+
+**Accepted and packaged on042c701e2c526ebc21b7273b8aa53af07f752d7c**, merged and
+pushed. The pause-menu LAN search now continues while gameplay is paused, and
+paused hosts continue answering probes. Only the discovery node's processing
+policy changes; Main/gameplay pause, packet validation, request fences, directory
+and endpoint authority remain with their existing owners.
+
+Test-first source7ae311b76 retains old production behavior. Import passes20.625s;
+the new automatic paused test reproduces exactly one expected completion error
+in3.256s/exit1 after15 existing checks pass. Its sockets and global pause/cursor
+state are cleaned before exit. This expected reproduction is not an unexpected
+failure or a repair attempt.
+
+Fixed-source results: import6.719s; LAN27 assertions/2.437s; existing default
+GameFlow browser integration7/15.687s. The LAN case uses real loopback UDP and
+normal automatic frame processing during actual SceneTree pause, without manual
+poll/synthetic delta. It verifies both paused roles, title/current capacity/join
+endpoint, frozen ordinary heartbeat, empty refresh after host stop, cancellation
+and released port/restored global state.
+
+Both clean exports pass27.771s/25.746s. Linux binary, extracted archive and Windows
+payload strict startups pass22.245s/23.701s/25.980s, exit0 and one
+STARTUP_MENU_READY_OK each. Actual embedded1,521-entry PCKs match; stock Windows
+PE text and exact Linux archive content/modes/source metadata pass6.064s.
+**11 guarded stages accepted180.232260763s**, including the deliberate pre-fix
+failure; all9 fixed-candidate stages are diagnostic-free. All11 stage owners
+FINISHED and all59 recorded supervisor/descendant PID-start identities absent.
+Root independently reviews the agent's source and actual results: GO.
+
+Published in repository builds: Windows EXE/checkpoint ZIP/notes and Linux
+ELF/archive/notes/metadata/startup records. All11 public files are hashed and the
+ZIP contains exact EXE+notes bytes. [Windows checkpoint](../../builds/windows/MuddsShipyards-042c701-checkpoint.zip),
+[Windows notes](../../builds/windows/MuddsShipyards-042c701-notes.txt),
+[Linux notes](../../builds/linux/MuddsShipyards-042c701-linux-notes.txt).
+Raw results/helper versions/private profiles are preserved under
+`/srv/mudds-work/browser-pause-20261020/results/`; owned scratch is cleaned after
+publication/source/process checks. Only the results directory remains. All11
+public hashes and exact ZIP bytes are reverified; all8 unique ignored build files
+are retained in publication, private copies are hashed. Unrelated work remains
+untouched. Freeze→production fix131s (2.2min) against15–30min implementation
+estimate; freeze→publication/cleanup534s (8.9min), including expected reproduction,
+focused checks and packages.
+
+This delivers one runtime bug fix under parent25; it does not close the full
+ordinary independent Main/browser/admission/reconnect/capacity/endurance or final
+candidate requirements. Native Windows execution, GPU, physical devices, audible
+listening and human review remain **NOT_RUN**. Previous Beacon home/Perimeter
+candidates stay parked and unmerged. The initial task-card parent references18/29
+were a crosswalk metadata error, corrected to25; no remote-helm/device promise
+is claimed. Next selection: bound the existing unreachable-server/retry case,
+without re-running accepted browser checks or parked live-menu routes unchanged.
+
+### Retained frozen implementation contract
+
+
+**Frozen before edits/engine runs on2026-10-20; parent25.** Production
+`GameHUD.set_paused(true)` pauses the SceneTree. GameFlow creates
+`NetworkServerBrowserLanDiscovery` as an inherited-process child of Main;
+its `_process→poll` is its only automatic receive/window clock. Thus paused
+browser Refresh cannot complete and a paused host cannot answer probes. Existing
+LAN tests explicitly disable automatic processing and manually call `poll`, so
+bypass this boundary. This is a concrete player-facing production defect,
+independent of parked Perimeter/Beacon/recovery routes and pending capacity.
+
+Result: discovery continues answering and completing Refresh while normal
+gameplay remains paused. Preserve nonce/request/directory/endpoint authority,
+bounded windows, supersession/cancellation and teardown socket ownership.
+Exact implementation owner is one medium-effort agent in an isolated worktree;
+root reviews and integrates. Allowed files: existing
+`scripts/network/network_server_browser_lan_discovery.gd` and
+`tests/network_server_browser_lan_discovery_test.gd`. Set processing policy only
+on discovery, not Main/gameplay. Extend the existing test with actual paused
+SceneTree and automatic process-frame loopback responder/browser, no manual poll
+or synthetic delta for that case. Observe completion, correct live host row and
+join endpoint, empty refresh after host stop, cancellation/cleanup, and a normal
+paused heartbeat staying frozen. Test may use the actual HUD pause call if useful;
+this focused fixture does not claim a full ordinary Main/join/disconnect journey.
+
+Test-first commit: run the unchanged production code against the new automatic
+paused regression expecting its one specifically named completion failure, with
+normal cleanup and exit1; preserve exact log. Freeze that expected diagnostic
+before invoking it. Then commit the minimal production processing fix and run the
+same existing full LAN test plus existing default
+`tests/network/game_flow_server_browser_integration_test.gd` (not live-menu modes).
+Proof protects the changed pause boundary and existing directory callback path.
+The larger independent Main/browser admission, capacity, controller, reconnect
+and endurance gates remain OPEN under their original contracts; no cold-Main
+route is added to this implementation card or used as a prerequisite afterward.
+
+Estimate15–30min implementation/review,5–10min focused checks,10–15min checkpoint.
+Focused source tests30s LAN/60s default GameFlow; import/export180s; strict package
+startups120s. All engines Dummy/headless, private profiles, owned abort/reap.
+Loopback-only probes and an available test port; no network broadcast in tests.
+Use clean pinned source, source/cache guards and existing paired safe Windows/
+Linux export, package parity and strict silent startup exit0/one
+STARTUP_MENU_READY_OK. No hosted CI/native Windows/audio/device qualification.
+A pass ends checks. First unexpected failure stops; at most one cause-backed
+repair after a frozen diagnosis, then cumulative review before any successor.
+No repeated pending question, parked-route retry, cap increase or evidence-only
+validator work. Existing independently identified idle-opponent presentation work
+is not a ready PERF-FIX alternative: its concrete missing prerequisite is a
+bounded measurement of actual dormant processing cost before selecting a change.

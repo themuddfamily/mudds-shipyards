@@ -63,7 +63,7 @@ These are **36 parent outcomes**, not 36 executable jobs. They remain open until
 | 22 | Qualify the implemented convoy actor lifecycle in native gameplay | NET-ACTOR[Convoy] | CONVOY-ACTOR-DEFINE ends with actual uncovered native lifecycle cases, not another full Convoy save probe. |
 | 23 | Qualify Torpedo Run authority and solo recovery | NET-ACTOR[Torpedo Run] | COMBAT-TORPEDO ordinary route and TORPEDO-AUTH-DEFINE authority/recovery cases remain distinct. |
 | 24 | Finish remaining travelling-weapon and moving-crew integration | NET-ACTOR[Picket/Emberline], NET-CREW, WORLD-SHARED | PICKET-ACTOR-DEFINE/EMBERLINE-ACTOR-DEFINE plus existing ROLE-/SHARED-* cells; no duplicate moving-crew queue. |
-| 25 | Qualify the production server-browser and connection flow | NET-BROWSER | Seven BROWSER-* menu outcomes named; delivered cancel/session-generation fixes retained on recorded sources. |
+| 25 | Qualify the production server-browser and connection flow | NET-BROWSER | NET-BROWSER-PAUSE runtime fix packaged042c701e2. Seven ordinary BROWSER-* outcomes retain their own gates; prior cancel/session-generation fixes retained. |
 | 26 | Pass multiplayer and endurance acceptance | NET-ENDURANCE, NET-CAPACITY, NET-BUDGET | Boarding/departure subroutes DONE. Return is now DONE in its source scope; dedicated SERVER-BASELINE, profiles,30min endurance/full-snapshot/capacity remain open. |
 | 27 | Resolve planetary travel during multiplayer explicitly | WORLD-SHARED (each world/case) | Same21 SHARED-* cells as3; no double count or staged-arrival substitute. |
 | 28 | Benchmark and optimize on representative native hardware | PERF-MACHINE/ROUTE/RUN/FIX | PERF-MINIMUM/TARGET WAITING on actual hardware; PERF-ROUTES/CELLS-DEFINE precede original-length measurements. |
@@ -225,7 +225,7 @@ asset/three actors, catalog objective, HUD and lifecycle fences. Staged Hold
 runtime52 assertions and existing director/asset/board/HUD suites pass. The full
 GameFlow suite reaches its90s cap during retained Breach/Torpedo recovery before
 any Hold physical-entry assertion. Candidate unmerged; exports/checkpoints NOT_RUN.
-Main's accepted playable remains e06550e. Cumulative363.897s across15 engine stages
+No Perimeter checkpoint is accepted. Cumulative363.897s across15 engine stages
 and all three failures remain in the
 [original contract and results](history/ROADMAP_DELIVERIES.md#perimeter-hold-live-integration--implemented-but-parked).
 No additional correction/retry/cap increase or narrower replacement proof is
@@ -588,6 +588,7 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | TORPEDO-AUTH-DEFINE | Actual projectile authority, retained solo restoration and pilot/target loss | 23 | DONE definition only; ten finite qualification cases below, no new missing production consumer or runtime defect established. Ordinary/independent packaged routes remain OPEN |
 | PICKET-ACTOR-DEFINE | Uncovered Picket travelling actor/late/dead/reset/disconnect cases | 24 | DEFINE; actual moving-crew integration |
 | EMBERLINE-ACTOR-DEFINE | Uncovered Emberline flight/hit/miss/expiry/late/dead/reset/disconnect cases | 24 | DEFINE; retained failed baseline not erased by isolated pass |
+| NET-BROWSER-PAUSE | Paused LAN Refresh and host answering | 25 | DONE packaged042c701e2; real automatic paused loopback27/default GameFlow7 pass; full ordinary menu/endurance gates separate |
 | BROWSER-JOIN | Discover/refresh/select/join ordinary browser route | 25 | GATED; chosen candidate/scenario, delivered UI fixes retained |
 | BROWSER-STALE | Stale session ordinary browser route | 25 | GATED; chosen candidate/scenario, delivered UI fixes retained |
 | BROWSER-FULL | Full session ordinary browser route | 25 | GATED; chosen candidate/scenario, delivered UI fixes retained |
@@ -1175,53 +1176,16 @@ WORLD-SHARED instances: **Ember, Aurora, Rime**, each with **baseline full outbo
 
 ### LAN discovery while paused — NET-BROWSER-PAUSE
 
-**Frozen before edits/engine runs on2026-10-20; parents18,29.** Production
-`GameHUD.set_paused(true)` pauses the SceneTree. GameFlow creates
-`NetworkServerBrowserLanDiscovery` as an inherited-process child of Main;
-its `_process→poll` is its only automatic receive/window clock. Thus paused
-browser Refresh cannot complete and a paused host cannot answer probes. Existing
-LAN tests explicitly disable automatic processing and manually call `poll`, so
-bypass this boundary. This is a concrete player-facing production defect,
-independent of parked Perimeter/Beacon/recovery routes and pending capacity.
-
-Result: discovery continues answering and completing Refresh while normal
-gameplay remains paused. Preserve nonce/request/directory/endpoint authority,
-bounded windows, supersession/cancellation and teardown socket ownership.
-Exact implementation owner is one medium-effort agent in an isolated worktree;
-root reviews and integrates. Allowed files: existing
-`scripts/network/network_server_browser_lan_discovery.gd` and
-`tests/network_server_browser_lan_discovery_test.gd`. Set processing policy only
-on discovery, not Main/gameplay. Extend the existing test with actual paused
-SceneTree and automatic process-frame loopback responder/browser, no manual poll
-or synthetic delta for that case. Observe completion, correct live host row and
-join endpoint, empty refresh after host stop, cancellation/cleanup, and a normal
-paused heartbeat staying frozen. Test may use the actual HUD pause call if useful;
-this focused fixture does not claim a full ordinary Main/join/disconnect journey.
-
-Test-first commit: run the unchanged production code against the new automatic
-paused regression expecting its one specifically named completion failure, with
-normal cleanup and exit1; preserve exact log. Freeze that expected diagnostic
-before invoking it. Then commit the minimal production processing fix and run the
-same existing full LAN test plus existing default
-`tests/network/game_flow_server_browser_integration_test.gd` (not live-menu modes).
-Proof protects the changed pause boundary and existing directory callback path.
-The larger independent Main/browser admission, capacity, controller, reconnect
-and endurance gates remain OPEN under their original contracts; no cold-Main
-route is added to this implementation card or used as a prerequisite afterward.
-
-Estimate15–30min implementation/review,5–10min focused checks,10–15min checkpoint.
-Focused source tests30s LAN/60s default GameFlow; import/export180s; strict package
-startups120s. All engines Dummy/headless, private profiles, owned abort/reap.
-Loopback-only probes and an available test port; no network broadcast in tests.
-Use clean pinned source, source/cache guards and existing paired safe Windows/
-Linux export, package parity and strict silent startup exit0/one
-STARTUP_MENU_READY_OK. No hosted CI/native Windows/audio/device qualification.
-A pass ends checks. First unexpected failure stops; at most one cause-backed
-repair after a frozen diagnosis, then cumulative review before any successor.
-No repeated pending question, parked-route retry, cap increase or evidence-only
-validator work. Existing independently identified idle-opponent presentation work
-is not a ready PERF-FIX alternative: its concrete missing prerequisite is a
-bounded measurement of actual dormant processing cost before selecting a change.
+**DONE packaged042c701e2, parent25.** Discovery alone processes during gameplay
+pause. Automatic real-loopback paused responder/browser, correct host row/current
+capacity/endpoint, frozen gameplay heartbeat, stopped-host refresh, cancellation
+and socket/state cleanup pass27 assertions; existing default GameFlow browser
+integration passes7. Old unchanged production reproduces the exact paused
+completion failure first. Both exports/three strict silent startups/actual package
+parity pass. [Original contract and actual results](history/ROADMAP_DELIVERIES.md#paused-lan-discovery--delivered).
+Full ordinary independent Main/browser/admission/reconnect/capacity/endurance,
+native Windows/GPU/device/audio/human and final gates remain OPEN/NOT_RUN.
+No repeated accepted check or parked live-menu retry is selected by this delivery.
 
 ### Supported remote helm action roster
 

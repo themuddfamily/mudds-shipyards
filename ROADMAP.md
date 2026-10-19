@@ -1,13 +1,13 @@
 # Development roadmap
 
 **Status: playable development alpha; project completion is unproven.** Latest
-accepted checkpoint: **e06550e**, with actual ordinary departure/UI start,
-four physical beacons and once-only real-file reward settlement.
-[Windows notes](builds/windows/MuddsShipyards-e06550e-notes.txt) and
-[Linux notes](builds/linux/MuddsShipyards-e06550e-linux-notes.txt) state checks and
-limits. Beacon home/dock/exit, client rejection and real listening remain
-unfinished. Navigator acceptance/clear and crew-epoch delivery on4bbb341 remain
-retained. All36 original parents and ten phase gates remain open.
+accepted checkpoint: **042c701**, fixing LAN Refresh and host discovery while
+gameplay is paused. [Windows notes](builds/windows/MuddsShipyards-042c701-notes.txt)
+and [Linux notes](builds/linux/MuddsShipyards-042c701-linux-notes.txt) state checks
+and limits. Beacon departure/traversal/once-only saved reward qualification on
+e06550e is retained in its recorded scope. Beacon home/dock/exit, Perimeter Hold,
+client rejection and real listening remain unfinished. All36 original parents
+and ten phase gates remain open.
 
 ## What separates this alpha from completion
 
@@ -56,7 +56,7 @@ no complete additional activity or combat journey is accepted.
 | --- | --- | --- |
 | AUDIO-NAVIGATOR-CLIENT-REJECTION | Definition DONE; implementation WAITING on one behavior choice | Finite refusal map and exact requester correlation/owners/proof defined. Asked once: all fresh current refusals including unavailable consumer, or consumer/bridge only. No answer inferred; no runtime/protocol selected. [Definition and conditional proof](docs/COMPLETION_SCOPE.md#client-navigator-rejection-response--bounded-definition-next). After choice45–60min implementation/review,15–25min checks,10–15min checkpoint. |
 | HAULER-CARGO-MANIFEST | Production gap; GATED on HAULER-CARGO-STOCK | Binding still rejects Hauler; generation-floor API already exists. [Stock prerequisite and conserved-source proof](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries).60–90min implementation/focused checks after decision, checkpoint additional; split before90min. |
-| NET-BROWSER-PAUSE | Concrete runtime defect; selected | Keep LAN Refresh and host discovery answering while the game is paused, without advancing gameplay. [Frozen files/proof/limits](docs/ROADMAP_BACKLOG.md#lan-discovery-while-paused--net-browser-pause).15–30min implementation/review,5–10min focused checks,10–15min paired checkpoint. Full ordinary multiplayer/browser and endurance gates remain OPEN. |
+| BROWSER-UNREACHABLE | Next bounded definition | Map the existing unreachable-server indication, failure deadline and ordinary retry owner. End with one executable unchanged route or one concrete missing runtime behavior/files/proof;10–15min source-only. No engine, full-Main retry, new validator or capacity decision inferred. |
 
 Perimeter Hold's implementation candidate **aa88b5a73** is **PARKED/unmerged**.
 Its staged live runtime passes52 assertions; existing director/asset/board/HUD
@@ -70,7 +70,8 @@ Latest home attempt **a612ea686** is unmerged/withheld: the full-Main route
 hit the known Activity Board focus-disconnection pair before Beacon SELECT/START
 (37.713s guarded). The page actually opened; popup identity/connection-removal
 cause remains unknown. No repair/retry selected. [Failure and preserved contract](docs/history/ROADMAP_DELIVERIES.md#beacon-complete-home--failed-and-parked).
-Latest accepted playable remains **e06550e**. Owned worktree/profiles/helpers
+Beacon traversal/settlement qualification remains on **e06550e**; latest checkpoint
+**042c701** adds the independent paused-discovery fix. Owned worktree/profiles/helpers
 cleaned after preserving raw evidence and all8 unique withheld build files.
 
 All28 actual listening cases remain NOT_RUN. Hauler's already-asked stock/custody
@@ -101,24 +102,28 @@ a total job count or release date.
 
 ## Latest delivered result
 
-**Beacon physical traversal and settlement accepted on e06550e.** The packaged
-`beacon-settlement` route retains real walk/board/depart/UI start, reaches all
-four physical beacons in order and saves exactly one navigation-data reward.
-Independent baseline/paid/stable files match live state; the paid document and
-terminal remain identical over60 further normal physics frames. This delivers
-an executable release capability and activity/settlement qualification. Full
-ordinary home/dock/usable exit remains open.
+**Paused LAN discovery fixed and packaged on042c701e2.** Pause-menu Refresh now
+completes while normal gameplay stays paused; paused hosts keep answering probes.
+One node-local processing policy fixes both roles without changing packet,
+directory, endpoint, request or gameplay authority.
 
-Actual route63.879s;12 guarded stages PASS233.982s, three strict startups,
-matching1,521-entry packages, zero diagnostics, released inputs and all53 observed
-process identities absent. Independent source/result reviews GO.
-[Windows ZIP](builds/windows/MuddsShipyards-e06550e-checkpoint.zip),
-[build notes](builds/windows/MuddsShipyards-e06550e-notes.txt) and
-[full result/retained contract](docs/history/ROADMAP_DELIVERIES.md#beacon-physical-traversal-and-settlement--delivered).
-Freeze to source commit182s; freeze through publication about10.3min. Raw results:
-`/srv/mudds-work/beacon-settlement-20261019/results/`; owned worktree/profiles/
-helpers cleaned, all11 public hashes and exact ZIP reverified.
-Native Windows/GPU/listening/human/full return and final gates remain open.
+Test-first old source reproduces the exact2s paused-refresh failure. Fixed-source
+LAN27 and existing default GameFlow browser7 checks pass. Both clean exports,
+three strict silent startups and actual1,521-entry package parity pass. All11
+stages accepted180.232s, including the expected pre-fix failure; final candidate
+has zero diagnostics. All11 supervisors FINISHED/all59 observed identities gone.
+[Windows ZIP](builds/windows/MuddsShipyards-042c701-checkpoint.zip),
+[build notes](builds/windows/MuddsShipyards-042c701-notes.txt) and
+[original contract/results](docs/history/ROADMAP_DELIVERIES.md#paused-lan-discovery--delivered).
+Raw results: `/srv/mudds-work/browser-pause-20261020/results/`. Owned source/
+profiles/helpers cleaned; all11 public hashes/exact ZIP reverified. Freeze→fix
+2.2min and freeze→cleanup8.9min against15–30min implementation estimate.
+
+This closes one concrete runtime defect under parent25. Full ordinary independent
+Main/browser/admission/reconnect/capacity/endurance and native Windows/GPU/device/
+listening/human/final gates remain OPEN/NOT_RUN. Beacon's physical four-beacon
+saved-reward journey remains qualified on its recorded e06550e checkpoint;
+its complete ordinary home journey and Perimeter Hold remain parked below.
 
 ## Parked failures and dependent work
 
