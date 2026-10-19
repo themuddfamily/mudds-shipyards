@@ -56,7 +56,14 @@ no complete additional activity or combat journey is accepted.
 | --- | --- | --- |
 | AUDIO-NAVIGATOR-CLIENT-REJECTION | Definition DONE; implementation WAITING on one behavior choice | Finite refusal map and exact requester correlation/owners/proof defined. Asked once: all fresh current refusals including unavailable consumer, or consumer/bridge only. No answer inferred; no runtime/protocol selected. [Definition and conditional proof](docs/COMPLETION_SCOPE.md#client-navigator-rejection-response--bounded-definition-next). After choice45–60min implementation/review,15–25min checks,10–15min checkpoint. |
 | HAULER-CARGO-MANIFEST | Production gap; GATED on HAULER-CARGO-STOCK | Binding still rejects Hauler; generation-floor API already exists. [Stock prerequisite and conserved-source proof](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries).60–90min implementation/focused checks after decision, checkpoint additional; split before90min. |
-| PLAY-BEACON-HOME | Next independent outcome; traversal/settlement accepted on e06550e | Extend the working same-sortie route through genuine landing admission, actual home dock/lease/shutdown and usable exterior exit, retaining the paid receipt. Root first maps/freezes existing Guided range/interceptor completion and pure landing observation needed for that return, exact driver/observer owners/command and unchanged300s cap (15–25min source mapping). Then one bounded implementation30–60min and10–20min focused checks, checkpoint additional. No direct phase/landing/receipt changes; stop at full ordinary journey or first defect. |
+| COMBAT-PERIMETER | Next independent definition; actual production entry unresolved | Map the existing perimeter_hold catalog contract against actual production callers/objectives and the distinct station_defense director route. End with the exact existing ordinary route, or one named missing runtime capability with files/owner/proof/estimate.15–25min source-only; no engine, invented encounter or duplicate validator. This does not reopen parked Beacon/UI work. |
+
+Latest home attempt **a612ea686** is unmerged/withheld: the full-Main route
+hit the known Activity Board focus-disconnection pair before Beacon SELECT/START
+(37.713s guarded). The page actually opened; popup identity/connection-removal
+cause remains unknown. No repair/retry selected. [Failure and preserved contract](docs/history/ROADMAP_DELIVERIES.md#beacon-complete-home--failed-and-parked).
+Latest accepted playable remains **e06550e**. Owned worktree/profiles/helpers
+cleaned after preserving raw evidence and all8 unique withheld build files.
 
 All28 actual listening cases remain NOT_RUN. Hauler's already-asked stock/custody
 choice is unchanged. This queue is not a project estimate; the completed rejection definition
@@ -112,6 +119,7 @@ contracts and cumulative attempt records remain in the retained history.
 
 | Outcome | Last actual result | Condition before more work |
 | --- | --- | --- |
+| PLAY-BEACON-HOME /13 | Candidatea612ea686 FAIL37.713s guarded/37.419s driver at ActivityBoardButton Return/frame1233; same two root Window signal-disconnection diagnostics. Eleven prechecks pass; no settlement/home/L/E reached, no file captures. Unmerged/withheld. | PARKED on UI-BOARD-FOCUS. Recurrence supplies no popup/connection-removal cause; no retry/repair/cap change. Preserve original UI two-component9.627s and Mining budgets. |
 | BREACH-INTERRUPTION /13,31,32 | Originale9/repair3c fail board arming35.365/35.638s. After accepted owner fix e3, unchanged probe c159 fails69.957s at atomic-payment commit assertion after cold Resume/one matching receipt; third cold replay NOT_RUN. | Cumulative140.961s STOP/PARK; candidates unmerged/withheld, no recovery checkpoint. No further diagnosis/repair/run, fourth automatic attempt or renamed retry selected; concrete causal fact/change required. |
 | HALYARD-GUNNER-DAMAGE /11,16 | Original 51.847s and one caller repair 52.025s both fail co-pilot admission; actual new damage proof NOT_RUN. | Parked after cumulative 103.872s review. No further diagnosis/fix/run without concrete reopening fact/change; candidates unmerged, no weapon defect established. |
 | HELM-YAW-HANDBACK / 18,20 | Original146.578s failure; one repair reaches cabin walking then FAIL156.016s at >=0.6m/15s. | Recorded cumulative priority review parked it. Explicit selection required before further diagnosis/fix/run; no movement cause established. |

@@ -125,7 +125,7 @@ Finish means the named existing route passes on its frozen candidate, or the nam
 | LIFE-PACKAGE-DEFINE | Name uncovered packaged ordinary-play lifecycle cases | 7 | DEFINE; preserve both source passes, no automatic rerun |
 | CONTROL-FINDINGS | List observed unresolved control/help defects | 8 | DONE as bounded source review: advertised Right Stick LOOK has no Player/Tow consumer; GAMEPAD-LOOK packaged99e79c3 separately. Existing mixed prompts/distance help/sprint fixes retained; physical-device acceptance remains open. |
 | GAMEPAD-LOOK | Continuous right-stick local camera look | 8,29 | DONE in99e79c3: Player/tractor real camera, authored delta rate/deadzone/clamps/inversion and handoff clearing; full focused checks/paired checkpoint pass. Physical controller/full ordinary route remains open. |
-| UI-BOARD-FOCUS | Keyboard Activity Board transition retains valid visible focus without engine signal-disconnection errors | 8,13,29 | PARKED: key-only4.673s and changed tooltip4.954s components both NOT_REPRODUCED. Second establishes one visible embedded popup with matching root recipients and successful teardown. Original popup identity/connection-removal event unknown; no production cause/fix. Two-attempt cumulative9.627s, original investigation budget retained. No popup variant or mining retry without concrete reopening fact |
+| UI-BOARD-FOCUS | Keyboard Activity Board transition retains valid visible focus without engine signal-disconnection errors | 8,13,29 | PARKED: key-only4.673s and changed tooltip4.954s components both NOT_REPRODUCED. Second establishes one visible embedded popup with matching root recipients and successful teardown. Original popup identity/connection-removal event unknown; no production cause/fix. Two-attempt cumulative9.627s, original investigation budget retained. Actual full-Main Beacon-home candidatea612ea686 recurs at37.713s/frame1233; page transitions but same two diagnostics, still no popup/removal identity. No new causal fact or retry selected |
 
 ### Station, fleet and combat children
 
@@ -379,7 +379,7 @@ test is an owner/regression anchor, not a runnable ordinary route.
 | PLAY-CINDER-SUPPLY | Cinder platform supply first full ordinary play | 13 | UNSCHEDULED; actual load_crate/clear_gate/dock_platform → physical one-crate transfer → once-only durable payment → home dock/usable exit. First funded delivery and ten-run restock policy are distinct; no Hauler integration inferred |
 | PLAY-MINING | Mining/extraction first full ordinary play | 13 | FAILED/PARKED candidate20bd1ab: single archive route53.444s reaches real Cinder approach then strict-stops on Activity Board focus-disconnection errors, before mining/return. Source unmerged/checkpoint withheld; UI-BOARD-FOCUS causal repair required before reopening; original CAP300 unchanged |
 | PLAY-SCAN | Structure Scan first full ordinary play | 13 | UNSCHEDULED; ordinary approach within24m → actual4s physics scan → one discovery/payment entitlement → home dock/usable exit. Existing full Scan failure stays PARKED; no unchanged retry selected |
-| PLAY-BEACON | Beacon Traversal first full ordinary play | 13 | ENTRY/TRAVERSAL/SETTLEMENT DONE on packaged e06550e: actual walk/board/depart/UI start, four physical beacons in order, one real-file navigation receipt and60 stable physics frames;63.879s. Full ordinary landing-unlocked home dock/shutdown/usable exit remains open; [accepted settlement](history/ROADMAP_DELIVERIES.md#beacon-physical-traversal-and-settlement--delivered) does not close the full journey |
+| PLAY-BEACON | Beacon Traversal first full ordinary play | 13 | ENTRY/TRAVERSAL/SETTLEMENT DONE on packaged e06550e: actual walk/board/depart/UI start, four physical beacons in order, one real-file navigation receipt and60 stable physics frames;63.879s. Full ordinary home candidatea612ea686 FAIL/PARKED before Beacon start on known UI-BOARD-FOCUS diagnostics;37.713s, no causal reopening fact/retry. Landing-unlocked home/dock/shutdown/usable exit remains open; [accepted settlement](history/ROADMAP_DELIVERIES.md#beacon-physical-traversal-and-settlement--delivered) does not close the full journey |
 | PLAY-CONVOY | Convoy Escort first full ordinary play | 13 | UNSCHEDULED; departed piloted craft enters4m rendezvous → escort actual retained-Main tender through route/threats to safe arrival → payment/home dock/exit. Preserve90s timeout and42m/3s separation rules; parked Convoy failures are not reopened |
 | PLAY-DEFENSE | Station Defense first full ordinary play | 13 | UNSCHEDULED; on-foot physical Deploy → board/depart → protect objective and clear three live waves (1/2/1 hostiles) through actual weapons → one payment → home/dock/on-foot usable board. Existing34s encounter semantics retained |
 | PLAY-BREACH | Heavy Breach first full ordinary play | 13 | UNSCHEDULED; on-foot arm posted Heavy → board/depart combat-capable craft → destroy charged picket while protecting objective → one payment → home/dock/on-foot next posting. Existing staged production route is not actual combat; interruption route stays PARKED |
@@ -982,60 +982,6 @@ applicable release-driver check and does not imply a new gameplay build.
 First failure ends that attempt. Retain the original route and cumulative
 failure history before selecting any causal repair. All twelve journeys, repeat
 contracts, write/recovery cases and parent13's travel envelope remain binding.
-
-#### PLAY-BEACON-HOME — selected complete journey implementation
-
-Frozen2026-10-20 before edits/engines, from main778858962 and accepted
-settlemente06550e. Parent13; deliver one complete ordinary PLAY-BEACON journey
-on one candidate. One high-effort implementer owns only
-`tools/release/run_native_sortie.py`; root owns
-`scripts/diagnostics/native_sortie_observer.gd`, `scripts/game/startup_loader.gd`
-and `tests/startup_cli_privacy_test.gd`. One high-effort independent source/result
-reviewer. No nested agents or new validator/test families.
-
-Add `beacon-home` by extending accepted entry/settlement with all their unchanged
-assertions and confined real-file baseline/paid/stable proofs. Then physically
-return through the authored range-header clearance and range staging, finish
-the genuine Guided targets/interceptor through actual weapons, and unlock normal
-RETURN_TO_YARD. Reuse existing ordinary control code where its behavior fits;
-do not use base landing/exit branches that automatically retry. No direct phase,
-actor, input-owner, activity, reward, landing or save mutation by the driver.
-
-Require exact original home berth/craft/Player/Main and authored tuning/sampler,
-normal advancing unpaused physics, registered capture/selected home preview,
-one acknowledged native L press with landing_active observed, no landing abort,
-actual strict dock/lease/opaque-token binding and exact parked pose. Observe
-normal OFFLINE shutdown, one acknowledged native E exit, actual COMPLETE and
-guided completion, unseated/control-enabled Player and grounded support on the
-home station. Walk at least0.5m with normal controls, continuously supported,
-with the same secured powered-down craft and live home berth. No invented
-admission, timer extension or repeated request after refusal.
-
-The Cinder binding may legitimately unload during home return. Retain the paid
-terminal/receipt and authority/store identities; do not require the retired
-streamed activity to stay alive. At final usable home, capture an additional
-`home.json` from the same confined primary file: full reward record and paid
-Beacon terminal equal their paid/stable counterparts, unrelated payload preserved
-except the existing recovery namespaces. Keep settlement stable proof distinct;
-do not overwrite its artifact with the final home capture.
-
-Telemetry stays read-only: pure landing preview, retained landing/berth/token
-fields, real support ray and actual player/craft properties; no lease cleanup,
-lazy owner creation or store loads. Freeze exact observations/commands before run.
-After clean commit/export:
-`python3 tools/release/run_native_sortie.py builds/linux/MuddsShipyards-<candidate>.x86_64 --output <new-owned-result> --route beacon-home`.
-Require exit0, `NATIVE_BEACON_HOME_OK`, baseline/paid/stable/home files and zero
-diagnostics. Preserve300s whole-route cap, private Xvfb/explicit x11/Dummy,
-independent abort, released inputs and all owned processes reaped.
-
-Before the route: Python parse, isolated import, observer/privacy compilation,
-existing privacy suite, paired clean exports, three strict menu-ready startup
-checks and package parity audit. Estimate30–60min implementation/review,
-10–20min focused checks plus10–15min export/startup. First failure STOP; any
-one causal repair must be separately frozen with raw results/cumulative time.
-No parked HULK/Sandbox/other activity route is reopened. A pass closes only this
-first ordinary Beacon journey in its recorded environment: ten-run, real-file
-interruption/restart, native Windows/GPU/device/listening/human/final gates stay open.
 
 ### Activity repetition — first bounded definition slice
 

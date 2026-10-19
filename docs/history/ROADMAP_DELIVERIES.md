@@ -13251,3 +13251,103 @@ audit. Native Windows/GPU/listening/human/full return/final gates remain open.
 Estimate30–60min implementation/review,10–20min focused checks plus10–15min
 export/startup. First failure STOP; any one causal repair is separately frozen,
 raw results/cumulative time retained. Do not reopen parked unrelated routes.
+
+## Beacon complete home — failed and parked
+
+Frozen contract02d73c251; source candidate **a612ea686dc1da1710b8185cbf3d9ca0e4c4c759**
+is pushed on `feat/beacon-home-20261020`, **unmerged and checkpoint withheld**.
+Latest accepted playable remains e06550e; accepted Beacon entry/traversal/
+settlement scopes are retained. No home or full PLAY-BEACON acceptance.
+
+Eleven prechecks PASS: Python parse/import/observer and privacy compilation,
+existing privacy suite, paired clean exports, three strict menu-ready startups
+and1,521-entry PCK/stock-PE/exact-archive audit. The ONE original complete route
+fails37.712950s guarded/37.419s driver with two diagnostics at frame1233:
+root Window `focus_entered` and `tree_exited` nonexistent-disconnect, callable
+empty. Native Return targets ActivityBoardButton; frame1234–1235 actually show
+ActivitySelection visible with TimedRace focus. This is diagnostic failure,
+not a page-transition timeout. Beacon remains unselected IDLE generation0/cursor0;
+no settlement, L/E, home or actual-file capture is reached. Raw789 samples and
+partial receipts/last state retained. No engine invocation or repair follows.
+
+Independent failure/priority review **STOP**: same existing UI-BOARD-FOCUS
+condition, no Popup identity/root recipients/connection-removal event recorded.
+Latency is not cause evidence. The recurrence adds current context/location,
+not a causal reopening fact. No repair, rerun, renamed retry, acceptance narrowing
+or cap increase selected. Keep prior UI two-component9.627s/NOT_REPRODUCED and
+parked Mining history/budgets; this attempt does not reset those budgets.
+Home stays PARKED until a concrete fact/change addresses that retained cause.
+
+All12 stage time207.704853s, including failed route; all12 owners
+FINISHED, source pin/index/tree guards stable and54
+observed process/start identities absent. Inputs released; game/display/helper
+reaped; exactly2 diagnostics. Candidate artifact hashes and all3 strict startups
+independently checked, but do not qualify the failed journey. All8
+unique ignored build files are preserved privately under raw results, **not**
+published as a checkpoint. No new accepted Windows/Linux notes or ZIP.
+
+Raw logs, helpers/profiles, partial result and withheld candidate builds:
+`/srv/mudds-work/beacon-home-20261020/results/`. All8 withheld artifact hashes
+verified; owned source worktree/profiles/helpers removed only after preserving
+them. Only results remains; freeze through cleanup12.05min.
+Frozen implementation/review estimate30–60min and checks10–20min plus exports
+10–15min remain an estimate of an unfinished outcome, not a completion claim.
+All36 broad parents/ten phases and native/device/human/final gates remain open.
+Next independent definition is existing COMBAT-PERIMETER production-entry mapping;
+no additional UI/Beacon diagnosis is automatically scheduled.
+
+### Retained frozen home contract
+
+#### PLAY-BEACON-HOME — selected complete journey implementation
+
+Frozen2026-10-20 before edits/engines, from main778858962 and accepted
+settlemente06550e. Parent13; deliver one complete ordinary PLAY-BEACON journey
+on one candidate. One high-effort implementer owns only
+`tools/release/run_native_sortie.py`; root owns
+`scripts/diagnostics/native_sortie_observer.gd`, `scripts/game/startup_loader.gd`
+and `tests/startup_cli_privacy_test.gd`. One high-effort independent source/result
+reviewer. No nested agents or new validator/test families.
+
+Add `beacon-home` by extending accepted entry/settlement with all their unchanged
+assertions and confined real-file baseline/paid/stable proofs. Then physically
+return through the authored range-header clearance and range staging, finish
+the genuine Guided targets/interceptor through actual weapons, and unlock normal
+RETURN_TO_YARD. Reuse existing ordinary control code where its behavior fits;
+do not use base landing/exit branches that automatically retry. No direct phase,
+actor, input-owner, activity, reward, landing or save mutation by the driver.
+
+Require exact original home berth/craft/Player/Main and authored tuning/sampler,
+normal advancing unpaused physics, registered capture/selected home preview,
+one acknowledged native L press with landing_active observed, no landing abort,
+actual strict dock/lease/opaque-token binding and exact parked pose. Observe
+normal OFFLINE shutdown, one acknowledged native E exit, actual COMPLETE and
+guided completion, unseated/control-enabled Player and grounded support on the
+home station. Walk at least0.5m with normal controls, continuously supported,
+with the same secured powered-down craft and live home berth. No invented
+admission, timer extension or repeated request after refusal.
+
+The Cinder binding may legitimately unload during home return. Retain the paid
+terminal/receipt and authority/store identities; do not require the retired
+streamed activity to stay alive. At final usable home, capture an additional
+`home.json` from the same confined primary file: full reward record and paid
+Beacon terminal equal their paid/stable counterparts, unrelated payload preserved
+except the existing recovery namespaces. Keep settlement stable proof distinct;
+do not overwrite its artifact with the final home capture.
+
+Telemetry stays read-only: pure landing preview, retained landing/berth/token
+fields, real support ray and actual player/craft properties; no lease cleanup,
+lazy owner creation or store loads. Freeze exact observations/commands before run.
+After clean commit/export:
+`python3 tools/release/run_native_sortie.py builds/linux/MuddsShipyards-<candidate>.x86_64 --output <new-owned-result> --route beacon-home`.
+Require exit0, `NATIVE_BEACON_HOME_OK`, baseline/paid/stable/home files and zero
+diagnostics. Preserve300s whole-route cap, private Xvfb/explicit x11/Dummy,
+independent abort, released inputs and all owned processes reaped.
+
+Before the route: Python parse, isolated import, observer/privacy compilation,
+existing privacy suite, paired clean exports, three strict menu-ready startup
+checks and package parity audit. Estimate30–60min implementation/review,
+10–20min focused checks plus10–15min export/startup. First failure STOP; any
+one causal repair must be separately frozen with raw results/cumulative time.
+No parked HULK/Sandbox/other activity route is reopened. A pass closes only this
+first ordinary Beacon journey in its recorded environment: ten-run, real-file
+interruption/restart, native Windows/GPU/device/listening/human/final gates stay open.
