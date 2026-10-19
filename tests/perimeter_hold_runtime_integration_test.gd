@@ -47,7 +47,7 @@ func _run() -> void:
 		await physics_frame
 		var hit := fixture.authority.submit_hitscan(fixture.gun, &"hull_clear", fixture.gun.global_position,
 			(actor.global_position - fixture.gun.global_position).normalized()) as Dictionary
-		_check(bool(hit.get("damaged", false)) and actor.is_destroyed(), "real resolver damage destroys %s" % actor.name)
+		_check(bool(hit.get("damaged", false)) and actor.get_health() <= 0.0 and not actor.is_active(), "real resolver damage destroys %s" % actor.name)
 	director.call(&"_physics_process", 89.99)
 	_check(director.is_running() and director.get_outcome() == &"pending"
 		and director.get_audit_report().active_roster == 0 and director.get_validation_errors().is_empty(),
