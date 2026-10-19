@@ -1189,84 +1189,17 @@ No repeated accepted check or parked live-menu retry is selected by this deliver
 
 ### Unreachable or non-admitting host — BROWSER-JOIN-DEADLINE
 
-BROWSER-UNREACHABLE definition DONE on0f5eca1b0: adapter joins allocate ENet and
-wait for `connection_failed` or a validated admission offer. A connected host
-withholding that offer can keep the join active indefinitely. Existing five-second
-handshake helpers have no production consumers; the real join-failure test
-privately shortens ENet timeouts. No inherited ENet default duration is asserted.
-GameFlow already retains normalized endpoint/retry role, clears session authority
-on stopped, and exposes Retry Connection. Its status presenter translates
-`connection_failed`; a new application timeout needs equally readable copy.
-
-**BROWSER-JOIN-DEADLINE / parent25 — frozen before edits/engines2026-10-20.**
-Player result: a successful client transport start must reach valid admission
-within the existing authored `HANDSHAKE_DEFAULT_TIMEOUT_MILLISECONDS` (5000ms),
-or synchronously close the pending peer, retire pending admission state, publish
-readable timeout status and allow a fresh retry. Clock spans connection and
-admission rather than starting over at ENet connect. Normal gameplay pause cannot
-stop it. A validated admission clears the clock before admitted callbacks;
-a successful session must not expire afterward. Cancellation/shutdown/reset and
-node exit retire pending timer state. Old-attempt clock/callbacks cannot stop a
-replacement peer, host session or fresh client attempt. Use monotonic time and
-native peer identity; do not manufacture authoritative peer/migration identities
-before the host supplies them or create another persisted/protocol ledger.
-
-One high-effort implementation agent owns existing
-`scripts/network/network_enet_session_adapter.gd`,
-`scripts/ui/network_session_status_presenter.gd`,
-`tests/network/network_session_join_failure_test.gd` and
-`tests/network_session_status_presenter_test.gd`. One independent high-effort
-reviewer checks lifecycle/admission races and tests; root integrates/packages.
-No GameFlow/global pause rewrite, wire/schema change, server timeout policy,
-capacity decision or broad networking refactor. Preserve detached handshake
-helper APIs/tests and early native connection_failed behavior. New timeout
-reason must use existing shutdown/normalized timeout end path, with concise
-player-readable presenter text. Scope is production join lifecycle, not another
-validator or an accepted whole ordinary Main/menu journey.
-
-Proof: extend the existing failure test with a real loopback ENet host which
-services the connection but withholds admission. Use normal default5s runtime
-clock (no private ENet tuning/manual clock tick for the new cases), actual paused
-SceneTree and frozen ordinary heartbeat. The old production code must fail one
-specifically frozen completion assertion, cleanly and within a7s observation
-budget; preserve exact expected diagnostic before invoking it. Then run unchanged
-extended test on fixed source: pending join expires/cleans, cancelled/replaced
-attempt cannot expire its successor, a fresh retry can reach actual valid
-admission, and an admitted session remains live past its old deadline. An owned
-unanswered UDP case retains earlier native-failure coverage; no external host or
-broadcast. Extend existing status test for readable timeout/retry action.
-Existing adapter integration, detached handshake deadline, manual GameFlow
-endpoint/retry controls and status presenter suites protect compatibility.
-Full independent ordinary unreachable-server UI/retry and original multiplayer
-capacity/endurance/native/human/final gates remain OPEN; this implementation
-proof is explicitly separate before execution.
-
-Estimate30–60min implementation/review,5–15min focused checks,10–15min paired
-checkpoint; split before90min. Import/exports180s; new failure suite60s, existing
-adapter90s, remaining focused suites60s; package startups120s. Test-first clean
-commit and exact expected old failure precede production fix commit. Root guarded
-source/cache/process checks, headless/Dummy only; existing safe clean paired
-Windows/Linux exports, three strict startup checks and package parity precede
-acceptance. No hosted CI or desktop/audio automation. First unexpected failure
-stops with raw evidence; one cause-backed repair only after frozen diagnosis,
-then cumulative priority review. No automatic second repair/cap increase,
-renamed parked route or accepted-check rerun. Independent PERF-FIX remains gated
-on measuring dormant-opponent work; no missing-stock/client-refusal choice is
-inferred as an implementation alternative.
-
-**Execution stop / sole repair selection2026-10-20.** Test-only source
-`0bd18b86b` imported successfully20.701s, but the guarded old-production
-regression exited1 in0.771s with a GDScript parse error at test line137:
-a multiline lambda return splits its boolean expression without parentheses.
-No runtime defect reproduction or production edit has occurred. Raw import,
-repro and STOP remain in
-`/srv/mudds-work/browser-join-deadline-20261020/results/`.
-Select one test-only syntax repair: enclose that return expression or keep it on
-one line; preserve every assertion, fixture, deadline and acceptance boundary.
-Use a separate guarded repair results root, unchanged180s import/60s repro caps
-and exact expected completion diagnostic. Independent cumulative review must
-assess both attempts before any production change. No second automatic repair,
-retry, cap increase or narrowed proof is authorized.
+**Focused runtime delivery DONE on1c679a4e2**, merged/pushed and paired-checkpoint
+packaged. The authored5000ms monotonic deadline now spans connection/admission,
+continues during pause, closes the pending native peer with readable timeout,
+and permits retry. Cancellation/replacement and valid admission retire the clock.
+Five focused suites pass196 assertions; both exports, three strict menu startups
+and actual1521-entry package parity pass. One initial test syntax failure and its
+sole repair remain in the cumulative result; no further failure occurred.
+[Original frozen contract and actual results](history/ROADMAP_DELIVERIES.md#client-join-admission-deadline--delivered).
+Full independent ordinary Main/menu unreachable-host UI/retry, capacity/endurance
+and native/human/final gates remain OPEN/NOT_RUN. This closes one runtime defect
+under parent25, not the complete browser requirement.
 
 ### Supported remote helm action roster
 

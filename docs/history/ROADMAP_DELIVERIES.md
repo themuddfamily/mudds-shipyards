@@ -13617,3 +13617,145 @@ No repeated pending question, parked-route retry, cap increase or evidence-only
 validator work. Existing independently identified idle-opponent presentation work
 is not a ready PERF-FIX alternative: its concrete missing prerequisite is a
 bounded measurement of actual dormant processing cost before selecting a change.
+
+## Client join admission deadline — delivered
+
+**Accepted and packaged on1c679a4e2f7670ee90ce8bba11171bf1d511c7dc**, merged and
+pushed. A pending client now has the existing authored5000ms for connection plus
+validated admission, including while gameplay is paused. Expiry synchronously
+closes the pending native peer through existing shutdown/normalized timeout,
+publishes readable status and permits a fresh retry. The clock uses exact native
+peer identity, retires before stopped/admitted callbacks and cannot expire a
+replacement, host or already-admitted session. Late valid offers check wall time
+before authority adoption. Detached helper APIs and wire contracts are unchanged.
+
+Test-first source0bd18b86b imported20.701s, then failed parsing the new test in
+0.771s before runtime execution. Main e343e0b07 froze the sole syntax-only repair;
+92e29f757 joins only the malformed lambda return. Repaired import6.650s passes;
+unchanged production then reproduces exactly the frozen non-admitting paused
+completion error in10.192s (whole suite, with original7s observation unchanged).
+Real ENet connected/discarded hello and frozen ordinary heartbeat pass first.
+Independent cumulative review authorizes the original production implementation;
+the sole repair allowance remains spent. Original STOP and raw output retained.
+
+Fixed source: import6.628s; join failure35 assertions/24.519s, adapter106/2.572s,
+detached deadline6/1.436s, manual browser controls10/15.686s, presenter39/0.892s.
+The unchanged extended join regression demonstrates automatic paused5s expiry,
+synchronous native/offline cleanup, cancellation→immediate replacement surviving
+the old deadline and expiring on its own, actual fresh retry admission and healthy
+session survival past its retired deadline. No private native timeout/manual clock
+tick is used for the new cases; the existing shortened native-failure case remains.
+Independent high lifecycle review and root source/results review: GO.
+
+Clean Windows/Linux exports pass25.622s/25.636s. Linux binary, extracted archive
+and Windows embedded payload strict startups pass22.390s/23.935s/26.225s, exit0
+and exactly one STARTUP_MENU_READY_OK each. Actual embedded1521-entry PCKs match;
+stock Windows PE text and exact Linux archive bytes/modes/source metadata pass
+6.102s. All12 final-candidate stages are diagnostic-free. **16 cumulative guarded
+stages/219.957511770s:15 accepted, one initial parse failure**, including the
+expected old-runtime failure as an accepted reproduction. All16 owners FINISHED
+and all73 observed supervisor/descendant PID-start identities absent.
+
+Published repository Windows EXE/checkpoint ZIP/notes and Linux executable/archive/
+notes/metadata/startup records. All11 public hashes and exact ZIP EXE+notes bytes
+reverified; all8 unique ignored candidate build files preserved in publication.
+[Windows checkpoint](../../builds/windows/MuddsShipyards-1c679a4-checkpoint.zip),
+[Windows notes](../../builds/windows/MuddsShipyards-1c679a4-notes.txt),
+[Linux notes](../../builds/linux/MuddsShipyards-1c679a4-linux-notes.txt).
+Owned worktree/helpers/profiles and repair scratch cleaned after clean/pushed
+source and process/publication verification;205 private files/links copied and
+hashed. Only `/srv/mudds-work/browser-join-deadline-20261020/results/` remains,
+including original failure and nested repair-1 results/helpers/private profiles.
+Freeze→production fix384s/6.4min against30–60min implementation/review estimate;
+freeze→publication/cleanup771s/12.85min, including regression, correction, checks,
+packages and cleanup. These are task timings, not a project completion estimate.
+
+This delivers the bounded parent25 runtime timeout. Full ordinary independent
+Main/menu unreachable-host UI/retry, capacity/endurance and native Windows/GPU/
+physical devices/listening/human/final gates remain OPEN/NOT_RUN. Beacon home and
+Perimeter Hold candidates remain parked. Next selection: bound and measure the
+suspected dormant-opponent per-frame cost before selecting any PERF-FIX; no
+unchanged parked route retry or pending policy choice is inferred.
+
+### Retained frozen implementation contract
+
+### Unreachable or non-admitting host — BROWSER-JOIN-DEADLINE
+
+BROWSER-UNREACHABLE definition DONE on0f5eca1b0: adapter joins allocate ENet and
+wait for `connection_failed` or a validated admission offer. A connected host
+withholding that offer can keep the join active indefinitely. Existing five-second
+handshake helpers have no production consumers; the real join-failure test
+privately shortens ENet timeouts. No inherited ENet default duration is asserted.
+GameFlow already retains normalized endpoint/retry role, clears session authority
+on stopped, and exposes Retry Connection. Its status presenter translates
+`connection_failed`; a new application timeout needs equally readable copy.
+
+**BROWSER-JOIN-DEADLINE / parent25 — frozen before edits/engines2026-10-20.**
+Player result: a successful client transport start must reach valid admission
+within the existing authored `HANDSHAKE_DEFAULT_TIMEOUT_MILLISECONDS` (5000ms),
+or synchronously close the pending peer, retire pending admission state, publish
+readable timeout status and allow a fresh retry. Clock spans connection and
+admission rather than starting over at ENet connect. Normal gameplay pause cannot
+stop it. A validated admission clears the clock before admitted callbacks;
+a successful session must not expire afterward. Cancellation/shutdown/reset and
+node exit retire pending timer state. Old-attempt clock/callbacks cannot stop a
+replacement peer, host session or fresh client attempt. Use monotonic time and
+native peer identity; do not manufacture authoritative peer/migration identities
+before the host supplies them or create another persisted/protocol ledger.
+
+One high-effort implementation agent owns existing
+`scripts/network/network_enet_session_adapter.gd`,
+`scripts/ui/network_session_status_presenter.gd`,
+`tests/network/network_session_join_failure_test.gd` and
+`tests/network_session_status_presenter_test.gd`. One independent high-effort
+reviewer checks lifecycle/admission races and tests; root integrates/packages.
+No GameFlow/global pause rewrite, wire/schema change, server timeout policy,
+capacity decision or broad networking refactor. Preserve detached handshake
+helper APIs/tests and early native connection_failed behavior. New timeout
+reason must use existing shutdown/normalized timeout end path, with concise
+player-readable presenter text. Scope is production join lifecycle, not another
+validator or an accepted whole ordinary Main/menu journey.
+
+Proof: extend the existing failure test with a real loopback ENet host which
+services the connection but withholds admission. Use normal default5s runtime
+clock (no private ENet tuning/manual clock tick for the new cases), actual paused
+SceneTree and frozen ordinary heartbeat. The old production code must fail one
+specifically frozen completion assertion, cleanly and within a7s observation
+budget; preserve exact expected diagnostic before invoking it. Then run unchanged
+extended test on fixed source: pending join expires/cleans, cancelled/replaced
+attempt cannot expire its successor, a fresh retry can reach actual valid
+admission, and an admitted session remains live past its old deadline. An owned
+unanswered UDP case retains earlier native-failure coverage; no external host or
+broadcast. Extend existing status test for readable timeout/retry action.
+Existing adapter integration, detached handshake deadline, manual GameFlow
+endpoint/retry controls and status presenter suites protect compatibility.
+Full independent ordinary unreachable-server UI/retry and original multiplayer
+capacity/endurance/native/human/final gates remain OPEN; this implementation
+proof is explicitly separate before execution.
+
+Estimate30–60min implementation/review,5–15min focused checks,10–15min paired
+checkpoint; split before90min. Import/exports180s; new failure suite60s, existing
+adapter90s, remaining focused suites60s; package startups120s. Test-first clean
+commit and exact expected old failure precede production fix commit. Root guarded
+source/cache/process checks, headless/Dummy only; existing safe clean paired
+Windows/Linux exports, three strict startup checks and package parity precede
+acceptance. No hosted CI or desktop/audio automation. First unexpected failure
+stops with raw evidence; one cause-backed repair only after frozen diagnosis,
+then cumulative priority review. No automatic second repair/cap increase,
+renamed parked route or accepted-check rerun. Independent PERF-FIX remains gated
+on measuring dormant-opponent work; no missing-stock/client-refusal choice is
+inferred as an implementation alternative.
+
+**Execution stop / sole repair selection2026-10-20.** Test-only source
+`0bd18b86b` imported successfully20.701s, but the guarded old-production
+regression exited1 in0.771s with a GDScript parse error at test line137:
+a multiline lambda return splits its boolean expression without parentheses.
+No runtime defect reproduction or production edit has occurred. Raw import,
+repro and STOP remain in
+`/srv/mudds-work/browser-join-deadline-20261020/results/`.
+Select one test-only syntax repair: enclose that return expression or keep it on
+one line; preserve every assertion, fixture, deadline and acceptance boundary.
+Use a separate guarded repair results root, unchanged180s import/60s repro caps
+and exact expected completion diagnostic. Independent cumulative review must
+assess both attempts before any production change. No second automatic repair,
+retry, cap increase or narrowed proof is authorized.

@@ -1,10 +1,11 @@
 # Development roadmap
 
 **Status: playable development alpha; project completion is unproven.** Latest
-accepted checkpoint: **042c701**, fixing LAN Refresh and host discovery while
-gameplay is paused. [Windows notes](builds/windows/MuddsShipyards-042c701-notes.txt)
-and [Linux notes](builds/linux/MuddsShipyards-042c701-linux-notes.txt) state checks
-and limits. Beacon departure/traversal/once-only saved reward qualification on
+accepted checkpoint: **1c679a4**, bounding client connection/admission to five
+seconds, including pause, with readable timeout and retry.
+[Windows notes](builds/windows/MuddsShipyards-1c679a4-notes.txt) and
+[Linux notes](builds/linux/MuddsShipyards-1c679a4-linux-notes.txt) state checks and
+limits. Paused LAN discovery remains accepted on042c701. Beacon departure/traversal/once-only saved reward qualification on
 e06550e is retained in its recorded scope. Beacon home/dock/exit, Perimeter Hold,
 client rejection and real listening remain unfinished. All36 original parents
 and ten phase gates remain open.
@@ -56,7 +57,13 @@ no complete additional activity or combat journey is accepted.
 | --- | --- | --- |
 | AUDIO-NAVIGATOR-CLIENT-REJECTION | Definition DONE; implementation WAITING on one behavior choice | Finite refusal map and exact requester correlation/owners/proof defined. Asked once: all fresh current refusals including unavailable consumer, or consumer/bridge only. No answer inferred; no runtime/protocol selected. [Definition and conditional proof](docs/COMPLETION_SCOPE.md#client-navigator-rejection-response--bounded-definition-next). After choice45–60min implementation/review,15–25min checks,10–15min checkpoint. |
 | HAULER-CARGO-MANIFEST | Production gap; GATED on HAULER-CARGO-STOCK | Binding still rejects Hauler; generation-floor API already exists. [Stock prerequisite and conserved-source proof](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries).60–90min implementation/focused checks after decision, checkpoint additional; split before90min. |
-| BROWSER-UNREACHABLE / JOIN-DEADLINE | Definition DONE; concrete runtime gap selected | Enforce the existing5s default across client connection/admission, including pause; close pending peer/readable timeout/fresh retry, retire clock on admission/cancel/reuse. [Frozen owners/proof/limits](docs/ROADMAP_BACKLOG.md#unreachable-or-non-admitting-host--browser-join-deadline).30–60min implementation/review,5–15min focused checks,10–15min checkpoint. Full ordinary Main/menu/endurance remain OPEN. |
+
+BROWSER-JOIN-DEADLINE is delivered on**1c679a4**, merged/pushed and packaged:
+automatic paused5s expiry, synchronous cleanup, cancellation/replacement safety,
+actual retry admission and admitted-session survival pass the focused checks.
+The full ordinary Main/browser requirement remains open. Next selection is to
+bound and measure suspected dormant-opponent per-frame work before any PERF-FIX;
+no new performance fix or parked retry is selected by this nomination.
 
 Perimeter Hold's implementation candidate **aa88b5a73** is **PARKED/unmerged**.
 Its staged live runtime passes52 assertions; existing director/asset/board/HUD
@@ -71,7 +78,7 @@ hit the known Activity Board focus-disconnection pair before Beacon SELECT/START
 (37.713s guarded). The page actually opened; popup identity/connection-removal
 cause remains unknown. No repair/retry selected. [Failure and preserved contract](docs/history/ROADMAP_DELIVERIES.md#beacon-complete-home--failed-and-parked).
 Beacon traversal/settlement qualification remains on **e06550e**; latest checkpoint
-**042c701** adds the independent paused-discovery fix. Owned worktree/profiles/helpers
+**1c679a4** adds the independent join deadline after paused discovery042c701. Owned worktree/profiles/helpers
 cleaned after preserving raw evidence and all8 unique withheld build files.
 
 All28 actual listening cases remain NOT_RUN. Hauler's already-asked stock/custody
@@ -102,28 +109,30 @@ a total job count or release date.
 
 ## Latest delivered result
 
-**Paused LAN discovery fixed and packaged on042c701e2.** Pause-menu Refresh now
-completes while normal gameplay stays paused; paused hosts keep answering probes.
-One node-local processing policy fixes both roles without changing packet,
-directory, endpoint, request or gameplay authority.
+**Client join/admission deadline delivered on1c679a4e2.** Joining now allows the
+existing five-second budget for connection plus valid admission, including while
+gameplay is paused. Expiry closes the pending peer, explains the timeout and
+allows retry. Cancellation/replacement and successful admission retire the clock.
 
-Test-first old source reproduces the exact2s paused-refresh failure. Fixed-source
-LAN27 and existing default GameFlow browser7 checks pass. Both clean exports,
-three strict silent startups and actual1,521-entry package parity pass. All11
-stages accepted180.232s, including the expected pre-fix failure; final candidate
-has zero diagnostics. All11 supervisors FINISHED/all59 observed identities gone.
-[Windows ZIP](builds/windows/MuddsShipyards-042c701-checkpoint.zip),
-[build notes](builds/windows/MuddsShipyards-042c701-notes.txt) and
-[original contract/results](docs/history/ROADMAP_DELIVERIES.md#paused-lan-discovery--delivered).
-Raw results: `/srv/mudds-work/browser-pause-20261020/results/`. Owned source/
-profiles/helpers cleaned; all11 public hashes/exact ZIP reverified. Freeze→fix
-2.2min and freeze→cleanup8.9min against15–30min implementation estimate.
+Five focused suites pass196 assertions; clean Windows/Linux exports, three strict
+silent menu startups and actual1521-entry package parity pass. Independent high
+lifecycle review and root integration review: GO. All12 final-candidate stages
+are diagnostic-free. Cumulative16 stages/219.958s retain the initial test syntax
+failure, sole syntax repair and exact old-runtime reproduction. All16 owners
+FINISHED/all73 observed process identities absent.
+[Windows ZIP](builds/windows/MuddsShipyards-1c679a4-checkpoint.zip),
+[build notes](builds/windows/MuddsShipyards-1c679a4-notes.txt),
+[original contract/results](docs/history/ROADMAP_DELIVERIES.md#client-join-admission-deadline--delivered).
+Only `/srv/mudds-work/browser-join-deadline-20261020/results/` remains after owned
+scratch cleanup; all11 public hashes/exact ZIP and8 unique build files verified.
+Freeze→fix6.4min and freeze→publication/cleanup12.85min against30–60min
+implementation/review estimate.
 
 This closes one concrete runtime defect under parent25. Full ordinary independent
-Main/browser/admission/reconnect/capacity/endurance and native Windows/GPU/device/
-listening/human/final gates remain OPEN/NOT_RUN. Beacon's physical four-beacon
-saved-reward journey remains qualified on its recorded e06550e checkpoint;
-its complete ordinary home journey and Perimeter Hold remain parked below.
+Main/browser/retry/capacity/endurance and native Windows/GPU/device/listening/
+human/final gates remain OPEN/NOT_RUN. Paused LAN discovery042c701 and Beacon's
+physical four-beacon saved-reward journey on e06550e retain their recorded scopes;
+Beacon home and Perimeter Hold remain parked below.
 
 ## Parked failures and dependent work
 
