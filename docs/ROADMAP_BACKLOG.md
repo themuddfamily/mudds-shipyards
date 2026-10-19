@@ -1337,6 +1337,17 @@ Estimate5min maximum route execution plus5–10min inspection/cleanup.
 Rendered readability/native GPU/Windows/devices/endurance/capacity/controller
 and other browser scenarios remain separate OPEN/NOT_RUN gates.
 
+**BROWSER-DRIVER pre-engine source review2026-10-20.** Independent high review
+finds one concrete new-driver defect: the paused-only guard rejects the first
+unpaused `browser_resume` observation before its pending Resume acknowledgement
+can advance to `browser_walk`. No tests/engines have run. Select one bounded
+pre-engine correction in the existing driver and its existing Python suite:
+permit only that pending Resume transition, then prove the actual acknowledgement
+and next supported movement sample. Preserve all frozen route criteria/caps and
+other pause invariants; no generalized bypass or new scenario. No other concrete
+six-file source defect found. Re-review corrected diff before pinned checks;
+first unexpected test/engine failure still STOP, no automatic repair.
+
 ### Supported remote helm action roster
 
 HELM-ACTIONS-DEFINE is DONE as a source definition, not new gameplay or current
