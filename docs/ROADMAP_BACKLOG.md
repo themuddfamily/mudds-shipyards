@@ -294,6 +294,30 @@ results/STOP and repair results separate, report cumulative58.536s already spent
 plus repair stages. Any further failure requires cumulative priority review;
 no second repair or automatic successor selected.
 
+**Cumulative review after repair1 — explicit root continuation decision.**
+On5d6b10b2c, import6.632s/director37.828s/asset0.761s/board25.931s/HUD2.289s
+passed. Hold runtime then raised a SCRIPT ERROR at test line50: the test calls
+`actor.is_destroyed()`, which RangeOpponent/StandoffPicket do not expose. Root
+stopped the observed engine identity via SIGTERM; guard records51.988s/exit143
+and retains the exact error. GameFlow and exports remained NOT_RUN. Total engine
+stage time across both attempts is183.965s. Prior passed suites contain149/12/58/9
+assertions respectively; the incomplete Hold script is not a pass.
+
+Independent priority review confirms the concrete test-only API mismatch and
+recommends retaining the real `hit.damaged` assertion while observing
+`get_health() <= 0.0 and not is_active()`. Root explicitly selects that single
+correction after review rather than parking substantial implementation over an
+incorrect observation API. This is the same PERIMETER-LIVE outcome and cumulative
+budget, not a renamed task. It supersedes the initial one-repair stop for this
+exact test observation only. No production edit, new helper/test, acceptance
+reduction, cap increase or other correction is selected. Original and repair1
+STOPs/raw logs stay immutable. Estimate<5min edit/review plus the original bounded
+check/package stages. Root commits the one assertion correction; reviewer checks
+that exact diff, then the same seven source stages run once from clean source,
+followed by the original exports/startups only if all pass. Any further failure
+parks this candidate with no additional correction, diagnosis run or automatic
+successor. Native ordinary combat/home/repeats/network/hardware gates stay open.
+
 First unexpected failure stops the attempt with raw logs/process cleanup.
 Only one cause-backed repair may follow a separately frozen diagnosis; no second
 repair, unchanged retry, deadline increase or renamed budget. Preserve the
