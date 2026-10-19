@@ -65,6 +65,10 @@ The full ordinary Main/browser requirement remains open. Next selection is to
 bound and measure suspected dormant-opponent per-frame work before any PERF-FIX;
 no new performance fix or parked retry is selected by this nomination.
 
+PERF-DORMANT-MEASURE is selected as a single bounded cost decision, not a
+performance delivery: [frozen fixture/budget/threshold](docs/ROADMAP_BACKLOG.md#dormant-opponent-presentation--bounded-cost-decision).
+No production fix is selected before that result.
+
 Perimeter Hold's implementation candidate **aa88b5a73** is **PARKED/unmerged**.
 Its staged live runtime passes52 assertions; existing director/asset/board/HUD
 checks pass. The unchanged90s GameFlow route times out during existing

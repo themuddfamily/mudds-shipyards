@@ -1469,6 +1469,38 @@ Scope: original §5, Phases 9 and 10.2–10.3. Software rendering, VM and remote
 | AUDIO-CONTENT[one cue/transition gap] | GATED on identified missing behavior | Author/fix one production ambience/music/effect transition and run existing music state/activity/orbit/surface integration checks with Dummy audio. Delivered Aurora coast is not a new gap. Stop at cue/transition and checkpoint. |
 | AUDIO-MIX[one real-output scenario] | WAITING on explicit audible-test authorization and output device | Check actual mix/levels/transitions for selected scenario, fix concrete issue and repeat it. Stop at scenario result; automated Dummy output does not qualify real audio. Owner-excluded human review does not become a mandatory approval gate. |
 
+### Dormant opponent presentation — bounded cost decision
+
+**PERF-DORMANT-MEASURE / parent35; frozen2026-10-20 before edits/engines.**
+Measure only the suspected unnecessary RangeOpponent-family presentation work
+before selecting PERF-FIX. Source64f0c0575 has six opted-in inactive Main actors;
+RangeOpponent._process unconditionally dispatches virtual _update_presentation
+while their visuals are detached. Picket inactive physics drives escort launch
+and must remain untouched. No parked Main/startup/Patrol route is reopened.
+
+Root owns an isolated clean worktree and existing guarded import/probe workflow.
+One bounded agent writes a scratch probe outside tracked source, instantiating the
+six actual authored opponent scenes with their Main names/release flags/wing
+source IDs. Require settled inactive, detached presentation, zero collision and
+no destruction/debris before measuring. Use three fixed1000-call batches of the
+actual _process(1/60) on each actor after100 warmup calls; record raw wall-usec
+and median CPU-usec/call plus combined six-actor value. Record empty-loop timing
+separately, never subtract silently. This is a synchronous function microbenchmark,
+not real frame scheduling, native GPU/FPS, or complete Main cost qualification.
+Verify actors remain inactive/quiescent afterward; free every actor and exit0
+with one PERF_DORMANT_COST_MEASURE_OK marker and JSON result. No runtime edits,
+new repo validator/test family, exports or activity claims for this measurement.
+
+Import180s, probe60s, headless/Dummy/private profile, pinned source/engine/cache/
+process guards. First unexpected failure stops; no automatic repair/retry/cap
+increase. Estimate10–20min including mapping/result/cleanup. Stop after one
+measurement: median combined six-actor CPU cost below100us per update rejects
+this as the next performance priority; at least100us permits defining a separate
+bounded production fix and behavior checks before edits. This is a prioritization
+threshold, not a target-hardware budget or performance acceptance. Timing alone
+cannot close PERF-FIX; any later fix must demonstrate the removed work, preserved
+active/destruction/escort/network/re-entry behavior and paired checkpoint.
+
 ### Remaining UI view roster — ACCESS-VIEWS-DEFINE
 
 DONE as a source definition, not layout or device qualification. Owners below
