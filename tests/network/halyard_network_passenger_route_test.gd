@@ -408,7 +408,7 @@ func _host() -> void:
 	_check(await _until(func(): return not _player.is_seated() and _player.is_on_floor() and not bool(_game.get("_transition_busy")), 8.0), "ordinary host stand restores supported controllable body")
 	_check(owner.get_assignment(1, GameFlow.SOLO_CREW_AVATAR_ID).is_empty() and _craft.get_crew_role_authority() == owner, "host stand releases own claim and preserves shared network ledger")
 	# Clear the shared exit through ordinary walking before another body arrives.
-	await _walk(Vector3(-1.85, -0.86, -1.7) if _cinder else Vector3(0.0, 0.52, HalyardCrewTransport.AIRSTAIR_Z))
+	await _walk(Vector3(-1.85, -0.86, -1.7) if _cinder else Vector3(0.0, 0.52, HalyardCrewTransport.AIRSTAIR_Z), 0.10 if _navigator else 0.30)
 	_check(_player.global_position.distance_to(_station_contract().exit_transform.origin) > 2.0, "host walks clear of the shared chair exit")
 	_player.set_control_enabled(false)
 	var observed_craft: HeroShip
@@ -1219,7 +1219,7 @@ func _cargo_state() -> Dictionary:
 		"capacity": _craft.get_cargo_capacity() if _cinder else 0,
 	}
 
-func _walk(target_local: Vector3) -> void:
+func _walk(target_local: Vector3, arrival_tolerance: float = 0.30) -> void:
 	var start := _player.global_position
 	var furthest := 0.0
 	var source := _game.get_network_remote_body_intent_source()
@@ -1257,7 +1257,7 @@ func _walk(target_local: Vector3) -> void:
 		var authoritative_sample: Dictionary = sample_authoritative_waypoint.call() if settle_authoritative else {}
 		var current: bool = bool(authoritative_sample.get("current", false))
 		var authoritative_delta: Vector3 = authoritative_sample.get("delta", Vector3.ZERO)
-		if delta.length() < 0.30 and (not settle_authoritative or not current or authoritative_delta.length() < 0.30):
+		if delta.length() < arrival_tolerance and (not settle_authoritative or not current or authoritative_delta.length() < arrival_tolerance):
 			if not settle_authoritative:
 				break
 			# A predicted arrival is provisional: late reconciliation can move the
@@ -1271,8 +1271,8 @@ func _walk(target_local: Vector3) -> void:
 			authoritative_sample = sample_authoritative_waypoint.call()
 			current = bool(authoritative_sample.get("current", false))
 			authoritative_delta = authoritative_sample.get("delta", Vector3.ZERO)
-			var settled: bool = delta.length() < 0.30 and current \
-				and authoritative_delta.length() < 0.30 \
+			var settled: bool = delta.length() < arrival_tolerance and current \
+				and authoritative_delta.length() < arrival_tolerance \
 				and _player.is_on_floor() and _player.velocity.slide(_craft.global_basis.y.normalized()).length() < 0.1
 			settled_ticks = settled_ticks + 1 if settled else 0
 			if settled_ticks >= 15:

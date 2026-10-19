@@ -2919,6 +2919,9 @@ func rotate_session_migration(next_package_generation: int = -1) -> Dictionary:
 	migration_preparing.emit()
 	var result: Dictionary = _migration.rotate_server(AUTHORITY_PEER_ID, next_package_generation)
 	if bool(result.get("accepted", false)):
+		var migration_generation: int = int(result.migration_generation)
+		_crew_roles.reset_migration(AUTHORITY_PEER_ID, migration_generation)
+		_crew_commands.reset_migration(AUTHORITY_PEER_ID, migration_generation)
 		_moving_snapshot_revision = 0
 		_moving_recipient_budgets.clear()
 		_moving_recipient_entities.clear()
@@ -5360,8 +5363,12 @@ func _broadcast_crew_snapshot_fragment(fragment: Dictionary) -> void:
 	if not bool(decoded.get("accepted", false)):
 		crew_snapshot_applied.emit(decoded.duplicate(true))
 		return
+	var snapshot: Dictionary = decoded.get("snapshot", {}) as Dictionary
+	if int(snapshot.get("migration_generation", 0)) != generation:
+		crew_snapshot_applied.emit(_result(false, &"stale_crew_snapshot"))
+		return
 	_crew_snapshot_revision = revision
-	_crew_replica_snapshot = decoded.get("snapshot", {}).duplicate(true)
+	_crew_replica_snapshot = snapshot.duplicate(true)
 	var applied := _result(true, &"crew_snapshot_applied", {"revision": revision, "snapshot": _crew_replica_snapshot})
 	crew_snapshot_applied.emit(applied.duplicate(true))
 	_last_result = applied.duplicate(true)
