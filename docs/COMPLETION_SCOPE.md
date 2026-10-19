@@ -1231,28 +1231,164 @@ Fresh paired checkpoint, three strict startups and matching1,521-entry audit PAS
 
 ### Client navigator rejection response — bounded definition next
 
-**AUDIO-NAVIGATOR-CLIENT-REJECTION-DEFINE READY for definition only.** Player gap:
-a genuine current client navigator FIRE refusal has no requester-visible result;
-accepted/clear transport does not supply a rejection. No response implementation
-or new protocol is selected by this definition card.
+**AUDIO-NAVIGATOR-CLIENT-REJECTION-DEFINE DONE as source definition on1c188acdf.**
+No runtime/test edit, engine, worktree, protocol or checkpoint in this definition.
+Root traced client send/response/presentation; one bounded medium read-only agent
+traced server exits and cursors. Exact cases/owners/proof are below; no further
+broad mapping is selected. This is not delivered rejection feedback.
 
-Within20–30min, one bounded source investigator owns only these existing
-completion-scope notes. Enumerate real consumer/bridge and authenticated
-pre-consumer refusal exits; identify request/claim/peer/session/migration fields
-already available at each. Distinguish malformed/stale/foreign input (silent)
-from a fresh current user request. Define one requester-only response owner,
-correlation/replay/retirement rules, existing sound/caption forwarding seam and
-smallest actual client refusal proof. Resolve the existing consumer-versus-
-pre-consumer behavior boundary explicitly; do not silently narrow final rejected
-feedback or fabricate bridge provenance on a pre-bridge error. If a behavior
-choice cannot be established from requirements/source, state that exact choice
-before implementation instead of inferring a user decision. Do not repeat other
-pending stock/content/hardware questions.
+**Implementation WAITING on one behavior choice, asked once asynchronously:**
+should actual requester feedback cover (A) every fresh fully authenticated current
+request refusal, including consumer-unavailable before the bridge, or (B) only
+refusals returned from the actual navigator consumer/bridge? A is recommended for
+consistent feedback when a valid FIRE cannot be handled. The choice is pending;
+no answer, default approval or user decision is inferred. Both options keep
+malformed, foreign and stale original client requests silent. Early missing
+owner/claim cannot become “current” just because a status says unavailable.
+This does not repeat pending stock/content/hardware questions.
 
-Stop once the finite refusal cases, file owners, acceptance and estimate/stop are
-known; no engines, transport/runtime edits, new validators/assets or broad
-networking audit. This definition is not a delivered feature. Keep Hauler stock,
-all28 actual listening cases and hardware/human gates unchanged.
+#### Finite refusal cases and the exact current-request boundary
+
+Authenticated navigator FIRE uses `send_engineer_intent` / `_receive_engineer_intent`
+(adapter2494–2498/2581–2587), not `crew_command_result`. Engineer dispatcher191–198
+routes to passenger `submit_readiness` only while that owner exists. Its private
+`_errors` is not a requester response. Passenger snapshots currently contain no
+result; bridge result signals run only on the host.
+
+| Actual source / result | Freshness and mutation fact | Required treatment |
+| --- | --- | --- |
+| Passenger205–217: `loadmaster_unavailable`, invalid payload/generation/action, stale tick | Initial unavailable condition conflates lifecycle, wrong ship, admission and payload size. A status alone proves neither identity nor a fresh supported claim. | Silent; no audible allowlist based only on these strings. |
+| Passenger223–234: `loadmaster_not_seated`, stale binding/migration or original client sequence | Checks actual host body owner/entity, physical chair/anchor/frame, role/seat, seat generation and claim sequence, then exact binding/current migration and original request cursor. | A failed current-claim/freshness gate is silent, even if a former client view still shows a chair. |
+| Passenger235–240: valid current request consumes `_requests[avatar]`, then missing `navigator_submit` yields `navigator_consumer_unavailable` | All original identity/claim/generation/freshness guards have passed. This is a real current pre-bridge refusal; it carries no bridge policy. | Option A gives one requester refusal; B excludes this pre-consumer case. |
+| GameFlow26012–26025 `navigator_unavailable`; selected composition97–98 `cinder_navigator_unavailable`; fallback passenger246–248 `navigator_consumer_unavailable` | Returned through the same fully validated owner before an actual bridge-result signal. Preserve the original request alongside the returned result. | Same A/B availability distinction; never invent bridge provenance. |
+| Bridge100–134: unavailable/detached or identity/epoch/peer/sequence/tick/assignment refusal | A direct bridge call has no original client correlation. The fully validated passenger caller may establish it, and must distinguish that from a stale incoming wire request. | Only an actual result tied to a still-current original pending request can generate feedback. Direct/foreign/replayed bridge outcomes are not fresh client requests. |
+| Bridge143–144 `cinder_rejected`, with actual unconsumed Cinder effect | Inner result includes authority/assignment/role/payload/sequence refusal. Wrapper text alone cannot prove freshness. | A proven fresh original client request plus an actual unconsumed refusal can sound once under either option; retain actual inner status. |
+| Bridge147–157 `invalid_cinder_receipt` / `invalid_cinder_snapshot` | Consumer already ran; mutation may have occurred. | Internal post-consumption failure, not established denied gameplay. No rejection or synthetic acceptance cue. |
+| Bridge181–189 `network_publish_failed`, `mutation_committed:true` | Cinder ping committed; bridge receipt/cursors already retained173–180. | Do not announce a denied ping, retry mutation or fabricate accepted wire feedback. Keep this publication/internal failure distinct. |
+
+**Two sequence namespaces:** `_send_network_loadmaster_intent`26304–26314 creates
+the client request sequence. Passenger235 consumes that original sequence;
+236 translates to a separate roster/authority sequence. The callback/bridge sees
+the translated sequence and loses original entity/claim/request context. Bridge
+wire receipt158–172 is not a valid request-response correlation substitute.
+An inner `stale_request_sequence` can therefore be an actual refusal of a fresh
+original request; it is not automatically stale client input. Existing accepted
+host-local fixture224–231 already presents such a genuine unconsumed authority
+refusal once and suppresses replay. Conversely an old incoming client request
+fails before235 and remains silent. Preserve actual inner detail; classify neither
+freshness nor mutation solely from outer `cinder_rejected`.
+
+Cinder986–1009 owns actual authority/assignment/foreign-vessel/role/admission and
+normalized-payload refusal. Production navigation supplies its fixed sensor/marker
+payload; malformed marker cases are invariant/direct-fixture errors, not new
+player-selected content. The bridge test128/132 demonstrates the wrapped stale
+translated sequence; this is source evidence, not a newly run check.
+
+#### Exact response and lifetime seam to freeze after the choice
+
+**Server response owner:** `NetworkHalyardPassengerBinding.submit_readiness`, after
+all guards and consuming the original request but before invoking the actual
+navigator callback. Capture original request/claim identity there; keep the
+actual callback result separate. Bridge-forward signals alone are insufficient:
+they miss pre-bridge refusals and only carry translated sequencing. Earlier
+unavailable routing without a demonstrably current body/claim stays silent.
+
+**Transport owner:** `NetworkEnetSessionAdapter`, one immediate reliable result
+to the authenticated requester peer only. Existing per-peer passenger envelope
+provides the pattern: recipient peer/generation, transport session generation,
+current migration and authority sender checks. A dedicated request-result event
+is the preferred bounded seam; do not replace a passenger chair snapshot with a
+partial result-only view, rely on a200ms latest-state poll that loses consecutive
+results, or send results through the ship-wide accepted receipt filter. No RPC,
+wire fields or schema version is selected/implemented until the behavior choice
+is settled and the exact implementation contract is frozen.
+
+**Correlation:** preserve original action/avatar/entity generation/seat generation/
+claim sequence/client request sequence/binding generation/migration and original
+observed tick. Derive ship/seat from the verified host owner; peer generation and
+transport/session/migration ownership come from current authenticated server
+state. Client pending records also pin exact adapter, local recipient, actual
+craft instance and current physical claim. Do not fabricate a positive transported
+ship generation from passenger readiness or host binding generation: a refusal
+may legitimately precede the first accepted wire receipt.
+
+Register client correlation before sending; retire it on immediate queue failure.
+Return a faithful terminal result for every eligible validated request, including
+success acknowledgements solely to retire pending state. Accepted sound/caption
+continues to come only from actual crew commands, so a success reply must not
+create an echo. Keep pending storage bounded, permit distinct outstanding
+requests, and do not collapse identical status dictionaries from different
+original sequences. No new retry/timer or repeated gameplay mutation.
+
+A client result can present only for its exact pending current identity; consume
+it once. Stand/reseat, row revocation, source/body/owner replacement, migration/
+rebind, session stop and whole-Main exit retire pending correlation. Old responses
+must neither sound nor reattach. Preserve accepted receipt ownership through its
+matching real clear independently; retiring a pending refusal must not suppress
+that clear. Do not replay a cached result on re-entry.
+
+**Presentation owners:** GameFlow captures/pins pending requests and correlates
+actual result events; OptionalSemanticAudioComposition coordinates the separate
+client lifetime; CinderNavigatorPingAudioComposition/Binding need an explicit
+correlated requester-result entry. Existing `present_rejected`157–175 accepts
+only actual bridge-policy envelopes and deduplicates whole-result equality; do
+not reuse it by tagging pre-bridge errors with that policy. Reuse existing rejected
+resident UI stream/gain, real Dummy guard and caption presenter. Supply original
+request identity through existing caption transition metadata so distinct identical
+refusals each get one caption. No new cue/asset/voice or generic UI echo.
+
+Requester-only also applies to sound/caption: the host's existing bridge callback
+can currently announce a remote refusal without original requester identity.
+Scope any suppression to the proven remote request around its synchronous callback;
+preserve local/host refusal feedback and all accepted/clear sources. An observer
+must not hear another peer's new rejection response. Do not silently remove
+legacy host behavior without the explicit remote/local distinction in review.
+
+#### Smallest actual proof and stop
+
+After the choice, freeze ownership in the six existing runtime owners above
+(passenger binding, adapter, GameFlow, optional composition, navigator composition
+and binding) plus the existing navigator audio/optional fixtures and existing
+`halyard_network_passenger_route_test.gd`. A focused adapter envelope check may
+be added only if the chosen existing fixture cannot exercise the new real handoff;
+no validator/schema family or overlapping test suite.
+
+Focused cases: two distinct current requests returning equal refusal statuses;
+replayed response/original input; wrong recipient/peer generation/adapter/ship/
+entity/seat/claim/binding/session/migration; missing callback before first accepted
+receipt according to the chosen scope; original freshness versus translated stale
+sequence; success acknowledgement with no accepted echo; committed publication
+failure with no denial; exact retirement and real clear coexistence. Test spies
+must retain real resident playback and use actual SemanticAudioCuePresenter.
+
+The real proof extends the existing explicit navigator profile with a separately
+frozen refusal episode, preserving the original chair/walk/stand/reseat/migration/
+disconnect route and its original acceptance. A real current client FIRE must
+reach the authenticated owner and an actual bounded refusal (for example detach
+and reattach the real bridge, not a callback returning an invented false result).
+Before any accepted receipt, two real presses produce two correlated requester
+responses, two existing alert/UI requests and two real captions when in scope;
+navigator receipt/gameplay remains unchanged. Same response replay and foreign
+peer delivery stay silent; observer/host gets no client-refusal echo. Restore the
+actual consumer and retain the complete accepted/clear route, post-migration
+freshness and exact disconnect proof. Current source route115.849s is retained
+as acceptance of4bbb341, not refusal proof.
+
+A pre-consumer unavailable episode is additionally required only under option A;
+use the actual current owner's missing callable with all guards still satisfied,
+then restore it. Do not turn stale/foreign incoming requests into audible failures
+or change their admission/cursor policy to make the test easy. Full transport/
+observer claims require actual supporting peer evidence, not just a unit spy.
+
+Estimate after the scope choice:45–60min implementation/high lifecycle review,
+15–25min focused/actual route and10–15min clean paired checkpoint. Split before
+90min implementation. Preserve existing cumulative history and source pins;
+first unexpected failure stops for one demonstrated causal repair and cumulative
+priority review, never a renamed retry, wait/cap growth or narrowed failed proof.
+Freeze exact flag, pins, waits and file ownership before any engine. Dummy audio,
+private Xvfb/x11, independent abort/reaping and Actions budget hold remain.
+Actual listening/native/full-travel/client rejection/final gates remain open until
+performed; this definition closes none of those gates.
 
 ## Phase-wide acceptance still required
 

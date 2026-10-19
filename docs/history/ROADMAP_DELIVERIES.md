@@ -13018,3 +13018,57 @@ strict menu sentinel startup checks and package audit. Publish EXE/ZIP/notes to
 repository builds, commit/push and clean owned scratch. No checkpoint from a
 failing candidate. GitHub Actions stays disabled; native/audio/human exclusions
 remain unchanged.
+
+## AUDIO-NAVIGATOR-CLIENT-REJECTION-DEFINE — finite source definition
+
+Definition completed from clean1c188acdf by root client/transport/presentation
+trace and one bounded medium read-only server investigator. No runtime/test edit,
+engine, test, worktree, new file or checkpoint. Finite source table distinguishes
+invalid/obsolete incoming input, fully validated current pre-bridge refusal,
+actual unconsumed bridge/consumer refusal and post-consumption/publication errors.
+Original client and translated authority sequence namespaces are explicitly
+separate. Existing accepted host-local refusal test establishes that a fresh
+request may receive an unconsumed translated-sequence refusal; source reading is
+not a newly executed pass.
+
+The authenticated passenger owner after original cursor consumption is the
+response seam; host bridge signals miss real availability refusals and original
+claim/request identity. Exact requester-only response, pending correlation,
+retirement, success-ack/no-echo, observer privacy, before-first-acceptance and real
+refusal proof boundaries are recorded in existing COMPLETION_SCOPE. No bridge
+policy fabrication, mutation retry or denied cue for committed publication is
+allowed. No implementation protocol or new version is selected by this record.
+
+One product behavior choice was asked once asynchronously: all fresh current
+refusals including unavailable consumer (recommended), or actual consumer/bridge
+refusals only. Answer pending; silence is not a selection. Runtime implementation
+is WAITING on that explicit boundary; no other stock/content/hardware question is
+repeated. This is a definition, not delivered rejection feedback or project
+percentage progress. Latest accepted checkpoint remains4bbb341.
+
+### Archived original bounded definition assignment
+
+### Client navigator rejection response — bounded definition next
+
+**AUDIO-NAVIGATOR-CLIENT-REJECTION-DEFINE READY for definition only.** Player gap:
+a genuine current client navigator FIRE refusal has no requester-visible result;
+accepted/clear transport does not supply a rejection. No response implementation
+or new protocol is selected by this definition card.
+
+Within20–30min, one bounded source investigator owns only these existing
+completion-scope notes. Enumerate real consumer/bridge and authenticated
+pre-consumer refusal exits; identify request/claim/peer/session/migration fields
+already available at each. Distinguish malformed/stale/foreign input (silent)
+from a fresh current user request. Define one requester-only response owner,
+correlation/replay/retirement rules, existing sound/caption forwarding seam and
+smallest actual client refusal proof. Resolve the existing consumer-versus-
+pre-consumer behavior boundary explicitly; do not silently narrow final rejected
+feedback or fabricate bridge provenance on a pre-bridge error. If a behavior
+choice cannot be established from requirements/source, state that exact choice
+before implementation instead of inferring a user decision. Do not repeat other
+pending stock/content/hardware questions.
+
+Stop once the finite refusal cases, file owners, acceptance and estimate/stop are
+known; no engines, transport/runtime edits, new validators/assets or broad
+networking audit. This definition is not a delivered feature. Keep Hauler stock,
+all28 actual listening cases and hardware/human gates unchanged.

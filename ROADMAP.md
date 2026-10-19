@@ -44,12 +44,12 @@ Owned worktree/profiles/helpers cleaned; all raw results preserved.
 
 | Remaining work | Readiness | Next bounded action / estimate |
 | --- | --- | --- |
-| AUDIO-NAVIGATOR-CLIENT-REJECTION-DEFINE | READY for definition; response implementation not selected | Enumerate actual refusal paths and current request/claim/session correlation; settle requester-only response, silent stale cases and consumer/pre-consumer boundary.20–30min source-only, stop at exact owners/proof. [Contract](docs/COMPLETION_SCOPE.md#client-navigator-rejection-response--bounded-definition-next). |
+| AUDIO-NAVIGATOR-CLIENT-REJECTION | Definition DONE; implementation WAITING on one behavior choice | Finite refusal map and exact requester correlation/owners/proof defined. Asked once: all fresh current refusals including unavailable consumer, or consumer/bridge only. No answer inferred; no runtime/protocol selected. [Definition and conditional proof](docs/COMPLETION_SCOPE.md#client-navigator-rejection-response--bounded-definition-next). After choice45–60min implementation/review,15–25min checks,10–15min checkpoint. |
 | HAULER-CARGO-MANIFEST | Production gap; GATED on HAULER-CARGO-STOCK | Binding still rejects Hauler; generation-floor API already exists. [Stock prerequisite and conserved-source proof](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries).60–90min implementation/focused checks after decision, checkpoint additional; split before90min. |
 
 All28 actual listening cases remain NOT_RUN. Hauler's already-asked stock/custody
-choice is unchanged. This queue is not a project estimate; the next definition
-will not count as a delivered feature.
+choice is unchanged. This queue is not a project estimate; the completed rejection definition
+is not a delivered feature.
 
 ## Turning the remaining scope into executable work
 
