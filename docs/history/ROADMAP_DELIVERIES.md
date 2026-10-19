@@ -13849,3 +13849,99 @@ bounded production fix and behavior checks before edits. This is a prioritizatio
 threshold, not a target-hardware budget or performance acceptance. Timing alone
 cannot close PERF-FIX; any later fix must demonstrate the removed work, preserved
 active/destruction/escort/network/re-entry behavior and paired checkpoint.
+
+## Aft console arrival — component review failed
+
+**FAILED/PARKED on81b9ee3bab9763fb08c122a98c0845867cdc64c9**, with cache-only
+pre-render clarification33ccc26fb. No image, art finding, runtime repair or new
+checkpoint. Latest accepted playable source remains1c679a4.
+
+Before any scratch edit/engine run, one read-only mapper corrected the nominated
+view: the stair top is at(-5.7,4.35,12.8), while the Operations consoles are on the
+lower floor behind the west wall/ceiling. Looking through intended floor
+separation is not an art defect. No existing single-view isolated console
+capture exists; full-Main aft_operations_probe would load eight views. Root froze
+one component capture using only its existing c_console_line local framing:
+eye(2.9,1.62,10.6)→(7.6,1.30,15.7),70degreeFOV/1280x720. This source correction
+precedes the test; no failed proof was narrowed.
+
+One medium agent authored only an external scratch SceneTree script; root
+reviewed the setup/paths/getters/render readback/cleanup before running. It uses
+ShipyardWorld.new→prepare_staged_construction before tree insertion and only
+_build_environment, not world construction/Main; actual Aft module at(0,0,48),
+production High environment/key/counter/deck lighting and authored practicals.
+Existing camera near0.08/far6000/TAA/MSAA2X and eight render-frame settling steps
+are retained. No synthetic input, desktop access, arbitrary lighting, asset or
+runtime/test source edits.
+
+Clean headless/Dummy import passes19.596s. Single rendered invocation uses
+private Xvfb, explicit x11/Dummy, fixed software Vulkan ICD. Log establishes
+Forward+ / llvmpipe LLVM19.1.7 and the correct Destination/Activity console nodes,
+High quality and camera at world(2.9,1.62,58.6)→(7.6,1.30,63.7). Destination
+header is DESTINATION BOARD; Activity header ACTIVITY BOARD. Offline catalog/
+return text is expected with absent GameFlow binding and is not an accepted bug.
+
+**Capture times out120.485336165s/exit124** with only the suite timeout diagnostic,
+marker0 and no PNG. Last recorded boundary is camera setup; the script records
+no per-frame completion receipts, so no particular settling frame or underlying
+cause can be asserted. Do not infer a shader, scene, native-GPU or engine defect.
+No visual review/readability finding is possible. First unexpected failure stops:
+no repair, cap increase, alternate backend/view or retry selected. This does not
+reopen Central/VIP/Salvage or activity-focus failures.
+
+Two guarded stages total140.081710345s; one importPASS/one captureFAIL. Both
+owners FINISHED and all8 recorded supervisor/descendant PID-start identities
+absent. Source/index and capture cache maps are unchanged (shader-cache delta0).
+Script SHA256 a80701818f95fe93ac87b435c74c7cbe1b43757585d90a2df4e5ffa86c4bc4c0
+before/after. No images/builds generated; clean source is pushed.198 private
+files/links copied and hash/target checked; owned worktree/helpers/profile removed.
+Only `/srv/mudds-work/aft-console-view-20261020/results/` remains, with raw logs,
+STOP, helper versions, profiles, final decision and cleanup summary. Freeze→cleanup
+273s/4.55min against15–30min estimate, ending at the frozen failure boundary.
+
+Aft component/ordinary walk/live interaction/integrated composition and all
+original native GPU/device/human/final gates remain OPEN/NOT_RUN. No station art
+or parent9/12 closes. Next selection: determine complete ordinary Threading
+first-play driver readiness from its existing five-gate route and supported
+flight controls; freeze owners/full acceptance/budget before any engine or route
+adaptation. Existing parked routes and pending policy choices stay untouched.
+
+### Retained frozen component-view contract
+
+### Aft console arrival — one component presentation review
+
+**STATION-AFT-CONSOLE-VIEW / parents9,12; frozen2026-10-20 before scratch edits
+or engines.** Initial upper-stair→console nomination is geometrically wrong:
+RouteStairTop is(-5.7,4.35,12.8); console room is downstairs behind wall/ceiling.
+Do not turn intended floor separation into an art defect. Use the existing
+`tools/aft_operations_probe.gd` c_console_line framing instead: local
+camera(2.9,1.62,10.6)→(7.6,1.30,15.7),70degreeFOV,1280x720. This correction
+precedes execution; no failed capture or acceptance scope is being narrowed.
+
+Root owns clean isolated worktree and guarded import/capture/results/cleanup.
+One medium agent writes only an external scratch capture script. Instantiate the
+actual Aft module at its production(0,0,48) offset. Use ShipyardWorld.new with
+prepare_staged_construction before insertion, build only existing
+_build_environment, then attach the module; do not instantiate Main or other
+station modules, run world construction, drive controls, or alter presentation.
+Retain the real station High environment/key/fill and module's authored practicals;
+no arbitrary extra lighting. Existing probe camera near0.08/far6000/TAA/MSAA2X,
+eight settled render frames and actual frame readback. Require correct camera,
+module, first Destination and second Activity consoles, active Forward+ renderer,
+1280x720 nonempty saved PNG, one AFT_CONSOLE_COMPONENT_CAPTURE_OK marker, and
+clean scene/cursor cleanup. Record actual renderer, camera and image digest.
+
+Run on private Xvfb only, explicit x11 display driver and Dummy audio, Vulkan
+software ICD fixed to /usr/share/vulkan/icd.d/lvp_icd.json; no desktop/input or
+real audio. Existing pinned clean source/engine/cache/process guards. The first rendered capture may populate its owned .godot
+shader_cache only; preserve before/after cache maps and inspect that delta.
+Tracked source/index remain immutable. Import180s, capture120s and independent
+outer process abort. Scratch script/image outside
+tracked source; no new validator/evidence family. First unexpected failure STOP;
+no automatic repair, cap increase or second capture. Estimate15–30min including
+mapping/review/cleanup. Stop after this single image: root inspects it and records
+one actual reproducible finding with exact runtime owner, or explicit no-finding
+limited to this view. A real finding needs a separately frozen implementation,
+focused behavior/view comparison and paired checkpoint before acceptance. No
+ordinary walking/interaction, integrated Main composition, hardware GPU, other
+station branch or whole art/parent acceptance is claimed by this component view.

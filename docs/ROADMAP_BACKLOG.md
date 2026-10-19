@@ -889,7 +889,7 @@ part of original parent acceptance; schedule each actual uncovered cell explicit
 | Existing branch | Bounded player-facing view / state to inspect | Runtime owner / protected outcome |
 | --- | --- | --- |
 | Central | Standing spawn directory and adjacent tow/cargo presentation while approaching the berth | `shipyard_world.gd`, `station_wayfinding_signage.gd`; readable destination and berth access; existing CENTRAL-VIEW capture stall stays parked |
-| Aft | Upper operations room consoles/workpost from the stair arrival | `aft_junction_stack.gd`, world Aft activities; distinguish Activity/Destination controls and preserve stair/door clearance |
+| Aft | Lower operations-room console line from its actual doorway; separate upper stair/workpost view remains uncovered | `aft_junction_stack.gd`, world Aft activities; consoles are downstairs, not visible through the upper floor. Isolated console image attempt PARKED120s/no image; preserve stair/door clearance and distinct Activity/Destination controls |
 | Habitat | Bunk/common-room arrival and garden/observation doorway | `habitat_spine.gd`, world patrol/skywatch; preserve accepted ordinary loop, usable bunks and wake controls |
 | Freight | Service-room entrance and gantry beside the actual boarding approach | `jovian_freight_berth.gd`, world Freight activities; readable service/boarding destinations and operable unlocked door |
 | Fleet Dock | One named berth threshold from its actual approach | `fleet_dock_comb.gd`, `fleet_expansion_berths.gd`; correct craft destination and boarding/landing clearance; choose berth before reviewing |
@@ -1483,41 +1483,15 @@ not a change to the measured contract or a final-regression claim.
 
 ### Aft console arrival — one component presentation review
 
-**STATION-AFT-CONSOLE-VIEW / parents9,12; frozen2026-10-20 before scratch edits
-or engines.** Initial upper-stair→console nomination is geometrically wrong:
-RouteStairTop is(-5.7,4.35,12.8); console room is downstairs behind wall/ceiling.
-Do not turn intended floor separation into an art defect. Use the existing
-`tools/aft_operations_probe.gd` c_console_line framing instead: local
-camera(2.9,1.62,10.6)→(7.6,1.30,15.7),70degreeFOV,1280x720. This correction
-precedes execution; no failed capture or acceptance scope is being narrowed.
-
-Root owns clean isolated worktree and guarded import/capture/results/cleanup.
-One medium agent writes only an external scratch capture script. Instantiate the
-actual Aft module at its production(0,0,48) offset. Use ShipyardWorld.new with
-prepare_staged_construction before insertion, build only existing
-_build_environment, then attach the module; do not instantiate Main or other
-station modules, run world construction, drive controls, or alter presentation.
-Retain the real station High environment/key/fill and module's authored practicals;
-no arbitrary extra lighting. Existing probe camera near0.08/far6000/TAA/MSAA2X,
-eight settled render frames and actual frame readback. Require correct camera,
-module, first Destination and second Activity consoles, active Forward+ renderer,
-1280x720 nonempty saved PNG, one AFT_CONSOLE_COMPONENT_CAPTURE_OK marker, and
-clean scene/cursor cleanup. Record actual renderer, camera and image digest.
-
-Run on private Xvfb only, explicit x11 display driver and Dummy audio, Vulkan
-software ICD fixed to /usr/share/vulkan/icd.d/lvp_icd.json; no desktop/input or
-real audio. Existing pinned clean source/engine/cache/process guards. The first rendered capture may populate its owned .godot
-shader_cache only; preserve before/after cache maps and inspect that delta.
-Tracked source/index remain immutable. Import180s, capture120s and independent
-outer process abort. Scratch script/image outside
-tracked source; no new validator/evidence family. First unexpected failure STOP;
-no automatic repair, cap increase or second capture. Estimate15–30min including
-mapping/review/cleanup. Stop after this single image: root inspects it and records
-one actual reproducible finding with exact runtime owner, or explicit no-finding
-limited to this view. A real finding needs a separately frozen implementation,
-focused behavior/view comparison and paired checkpoint before acceptance. No
-ordinary walking/interaction, integrated Main composition, hardware GPU, other
-station branch or whole art/parent acceptance is claimed by this component view.
+**FAILED/PARKED on81b9ee3ba**, with pre-render cache authorization33ccc26fb.
+Clean import19.596s passes; isolated Xvfb/Forward+/llvmpipe capture times out
+120.485s/exit124 after camera setup, before PNG save; marker0, no image or
+visual finding. No runtime defect or root cause is established. Source/cache
+unchanged; all owned processes absent, scratch cleaned, raw/helper/profile data
+retained in `/srv/mudds-work/aft-console-view-20261020/results/`.
+[Original contract/results](history/ROADMAP_DELIVERIES.md#aft-console-arrival--component-review-failed).
+No repair, increased cap, alternative renderer/view or retry selected. Actual
+Aft visual acceptance and the separate upper-workpost view remain OPEN.
 
 ### Remaining UI view roster — ACCESS-VIEWS-DEFINE
 

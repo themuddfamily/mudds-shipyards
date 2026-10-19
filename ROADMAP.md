@@ -67,11 +67,14 @@ PERF-DORMANT-MEASURE concludes **do not prioritize this optimization**: actual
 six-actor direct-function cost89.824us combined is below the frozen100us threshold.
 No runtime change, performance fix, native FPS claim or new checkpoint.
 [Fixture/result/limits](docs/history/ROADMAP_DELIVERIES.md#dormant-opponent-presentation--cost-decision).
-Owned scratch cleaned; only raw results remain. STATION-AFT-CONSOLE-VIEW is now
-selected: [one frozen isolated console-room arrival image](docs/ROADMAP_BACKLOG.md#aft-console-arrival--one-component-presentation-review).
-Source mapping corrected the initial upstairs nomination: the consoles are on
-the lower floor. Use existing player-height console-room framing and production
-lighting; no Main/parked route retry or graphics repair selected before a finding.
+Owned scratch cleaned; only raw results remain. STATION-AFT-CONSOLE-VIEW is
+**PARKED**: import passes, isolated120s Forward+ capture times out after camera
+setup with no PNG/finding. Source mapping first corrected the upstairs nomination:
+consoles are on the lower floor. No graphics repair, alternate capture or retry.
+[Original contract/result](docs/history/ROADMAP_DELIVERIES.md#aft-console-arrival--component-review-failed).
+Next selection: determine complete ordinary Threading first-play driver readiness
+from the existing five-gate route/supported flight controls, then freeze owners,
+full acceptance and budget before any implementation/engine run.
 
 Perimeter Hold's implementation candidate **aa88b5a73** is **PARKED/unmerged**.
 Its staged live runtime passes52 assertions; existing director/asset/board/HUD
@@ -149,6 +152,7 @@ contracts and cumulative attempt records remain in the retained history.
 
 | Outcome | Last actual result | Condition before more work |
 | --- | --- | --- |
+| AFT-CONSOLE-VIEW /9,12 | Standalone actual-module Xvfb/Forward+/llvmpipe capture FAIL120.485s after camera setup; no image or visual finding. | PARKED; source/root cause unproven. No cap increase, alternate backend/view or retry selected. Owned scratch cleaned; raw results retained. |
 | PERIMETER-LIVE /11 | Candidateaa88b5a73 unmerged; staged Hold52/director149/asset12/board58/HUD9 pass. GameFlow FAIL90.178s before Hold entry; exports NOT_RUN. | PARKED after cumulative363.897s/three failures and independent review. Concrete change addressing retained full GameFlow route boundary plus separate selection required; no additional correction/retry/cap increase/narrowed acceptance. |
 | PLAY-BEACON-HOME /13 | Candidatea612ea686 FAIL37.713s guarded/37.419s driver at ActivityBoardButton Return/frame1233; same two root Window signal-disconnection diagnostics. Eleven prechecks pass; no settlement/home/L/E reached, no file captures. Unmerged/withheld. | PARKED on UI-BOARD-FOCUS. Recurrence supplies no popup/connection-removal cause; no retry/repair/cap change. Preserve original UI two-component9.627s and Mining budgets. |
 | BREACH-INTERRUPTION /13,31,32 | Originale9/repair3c fail board arming35.365/35.638s. After accepted owner fix e3, unchanged probe c159 fails69.957s at atomic-payment commit assertion after cold Resume/one matching receipt; third cold replay NOT_RUN. | Cumulative140.961s STOP/PARK; candidates unmerged/withheld, no recovery checkpoint. No further diagnosis/repair/run, fourth automatic attempt or renamed retry selected; concrete causal fact/change required. |
