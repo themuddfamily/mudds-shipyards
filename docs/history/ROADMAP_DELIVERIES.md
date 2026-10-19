@@ -13351,3 +13351,165 @@ one causal repair must be separately frozen with raw results/cumulative time.
 No parked HULK/Sandbox/other activity route is reopened. A pass closes only this
 first ordinary Beacon journey in its recorded environment: ten-run, real-file
 interruption/restart, native Windows/GPU/device/listening/human/final gates stay open.
+
+## Perimeter Hold live integration — implemented but parked
+
+**Not delivered.** Source candidate **aa88b5a738552e7a6f932ddd45cab0a93c52b225**
+is clean and pushed on `feat/perimeter-live-20261020`, unmerged; no checkpoint
+was exported or published. Main's accepted playable remains **e06550e**.
+
+The implementation adds a third physical board offer, a dedicated renewable
+protected asset, three separate lance/scatter/press actors, existing-catalog
+90s/>35% rules, countdown/integrity HUD and solo/lifecycle fences. These are
+candidate runtime changes, not accepted production-route behavior.
+
+Final focused passes onaa88b5a73: import6.807s; director149 assertions/37.881s;
+asset12/0.768s; board58/25.756s; HUD9/2.414s; new staged live Hold52/16.127s.
+The Hold test proves actual resolver damage, exact35% loss before90s clear,
+all attackers dead staying pending, reusable original health owner/generations,
+and synchronous player/asset/director retirement. It supplies bounded physics
+deltas and staged actors; it is not ordinary native gameplay.
+
+**Final route FAIL90.177727s, exit124.** The existing GameFlow suite exercised
+Breach/Torpedo durable debt/recreation up to “second actual Main recreation
+retains the paid acknowledgement without duplicating credit”, then reached its
+unchanged90s cap before any new Hold admission assertion. Hold physical board
+E→seat→departure, production client/phase/network fences and primary HUD
+restoration remain unqualified. No timeout cause or product defect is inferred.
+Paired exports, strict package startups, full ordinary combat/home/repeats,
+network breadth, native Windows/GPU and human review remain **NOT_RUN/OPEN**.
+
+Original attempt and both explicitly reviewed corrections are retained below.
+Total guarded stage time **363.8965167682618s** (58.53605661308393 +
+125.42923157918269 +179.93122857599524),15 stages executed/12 passed/3 failed.
+All15 stage owners FINISHED; all45 recorded supervisor/descendant PID-start
+identities absent. Independent final review: **PARK / product NO-GO; cleanup GO**.
+No additional correction, retry, cap increase, acceptance narrowing or automatic
+successor selected. Reopening requires a concrete change addressing the retained
+GameFlow route boundary and a separately selected contract preserving its proof.
+
+Raw evidence, both prior STOPs and final STOP, exact helper versions, private
+profiles and final failure summary are retained under
+`/srv/mudds-work/perimeter-live-20261020/results/`. No exported build bytes were
+created; generated source cache is reproducible. Owned worktree/profiles/helpers
+were removed after pushed-source/process/raw checks; only the results directory
+remains. Copies were hashed before removal; unrelated scratch is untouched.
+Freeze→initial implementation commit413s (6.9min) against60–90min estimate;
+freeze→cleanup1198s (20.0min), including all failed checks and both reviewed
+corrections. Focused-check estimate was10–20min; export stage was never entered.
+
+### Retained definition, original acceptance and cumulative decisions
+
+
+Source map on403bc72e0: `CombatScenarioCatalog` is consumed only by tests.
+Its `perimeter_hold` is a90s `protect_asset` objective with
+`standoff_lance`, `flank_scatter`, `press_repeater`. Health at or below0.35
+loses before time completion; killing every attacker does not clear early.
+The existing director's `station_defense` instead clears a two-craft guard
+roster and has no production admission caller. The separate three-wave Station
+Defense activity retains its own34s/1–2–1 contract. Neither is Perimeter Hold.
+
+The existing Heavy Breach board already owns physical admission, cancellation,
+generation fences and real departure launch. Its protected objective is only a
+collisionless Node3D marker. Its two skirmishers are both scatter craft; the
+GameFlow-owned RangeOpponent cannot be borrowed as a third combatant because
+its fire/damage path is identity-bound to the guided encounter. These are actual
+runtime gaps, not missing validators. Reuse the renewable perimeter-asset packed
+scene with its sole `Damageable` health store, plus dedicated resolver-backed
+actors and the existing director/board admission seams.
+
+**PERIMETER-LIVE / parent11 — frozen before implementation (2026-10-20).**
+Result: the physical deck board posts Heavy Breach, Torpedo Run, then Perimeter
+Hold. A solo player arms Hold on foot, boards a combat-capable craft and physically
+clears its berth. Hold launches three distinct live opponents against a dedicated
+protected asset; HUD shows90s countdown and real integrity. Actual health<=35%
+loses, otherwise90 elapsed physics seconds clears. Losing the player/asset,
+phase withdrawal, disengagement, explicit abort or world teardown ends the run
+and withdraws every dispatched fire/source grant. Destroying attackers early
+leaves the timed defense pending. Re-entry renews the dedicated asset through
+its existing lifecycle owner, never a duplicate health store.
+
+Ownership is one implementation agent in an isolated worktree, followed by one
+independent lifecycle reviewer. Exact production files: `scripts/combat/encounter_scenario_director.gd`,
+`scripts/activities/heavy_breach_activity_board.gd`,
+`scripts/world/shipyard_world.gd`, `scripts/game/game_flow.gd`,
+`scripts/ui/heavy_breach_activity_presenter.gd`, `scenes/main.tscn`, a dedicated
+`scripts/ships/press_repeater_opponent.gd` and matching ship scene. The existing
+`scripts/activities/station_defense_perimeter_asset.gd` may gain only pure health
+forwarders if its existing child getter is insufficient. Reuse existing picket
+and scatter classes; do not hijack the guided defender or Station Defense asset.
+The director consumes the existing catalog for Hold's exact outcome, supplies
+measured health/time, and retains lifecycle/phase authority boundaries. A sole
+scatter must receive an actual flanker role; count/profile labels alone do not
+establish that behavior.
+
+Keep the first two board offers and their saved rewards valid. Hold grants no
+new currency/reward identity: the original combat requirement specifies none.
+Extend the existing terminal record's supported offer range without a new schema
+or parallel validator. Do not attribute a Hold clear to a Breach reward. Keep
+network presentation/authority fenced; this card qualifies solo only and must
+not start duplicate local Hold combat on network clients.
+
+Implementation/review estimate60–90min; focused checks10–20min; paired exports
+and silent package checks10–15min. Stop/split before90min of implementation.
+Focused acceptance: extend existing director, board production and HUD tests;
+add one bounded Hold runtime integration test exercising real resolver damage,
+35% boundary/90s precedence, all-roster-dead pending, generation reuse and total
+cleanup. Preserve the existing Breach/Torpedo focused behavior. Use existing
+GameFlow production-route test seam for physical admission/departure and HUD
+restoration; staged source qualification is not an ordinary native input journey.
+Each focused engine stage has a90s outer cap (import/export180s); all use Dummy
+audio/headless or private Xvfb with explicit x11. Strict diagnostic-free package
+startup requires exit0 and STARTUP_MENU_READY_OK. Independent source/result review,
+clean commit, matching Windows/Linux packages and repository build notes precede
+acceptance. No hosted CI, audible output or desktop automation.
+
+**Attempt1 / a67cc08ce — STOP, one causal repair selected.** Import passed20.580s;
+director regression suite failed37.956s on its retained assertion that a detached
+active paired-wing director leaves state/resolver/signals frozen. The new
+`_exit_tree()` unconditionally concluded every running scenario. This changed an
+existing contract outside Hold. Asset/board/HUD/Hold/GameFlow checks and exports
+were NOT_RUN. Raw results and original STOP remain under
+`/srv/mudds-work/perimeter-live-20261020/results/`.
+
+**One repair, frozen before edit:** constrain the new `_exit_tree()` conclusion
+to `SCENARIO_PERIMETER_HOLD` only; preserve all other detached-director behavior.
+One production conditional, no test/criteria/deadline changes. Root applies and
+commits; independent reviewer rechecks that exact diff. Estimate5–10min including
+review. Re-run import and the same six focused suites, then the same exports/
+strict startups only on pass; original90s/180s caps retained. Keep original failed
+results/STOP and repair results separate, report cumulative58.536s already spent
+plus repair stages. Any further failure requires cumulative priority review;
+no second repair or automatic successor selected.
+
+**Cumulative review after repair1 — explicit root continuation decision.**
+On5d6b10b2c, import6.632s/director37.828s/asset0.761s/board25.931s/HUD2.289s
+passed. Hold runtime then raised a SCRIPT ERROR at test line50: the test calls
+`actor.is_destroyed()`, which RangeOpponent/StandoffPicket do not expose. Root
+stopped the observed engine identity via SIGTERM; guard records51.988s/exit143
+and retains the exact error. GameFlow and exports remained NOT_RUN. Total engine
+stage time across both attempts is183.965s. Prior passed suites contain149/12/58/9
+assertions respectively; the incomplete Hold script is not a pass.
+
+Independent priority review confirms the concrete test-only API mismatch and
+recommends retaining the real `hit.damaged` assertion while observing
+`get_health() <= 0.0 and not is_active()`. Root explicitly selects that single
+correction after review rather than parking substantial implementation over an
+incorrect observation API. This is the same PERIMETER-LIVE outcome and cumulative
+budget, not a renamed task. It supersedes the initial one-repair stop for this
+exact test observation only. No production edit, new helper/test, acceptance
+reduction, cap increase or other correction is selected. Original and repair1
+STOPs/raw logs stay immutable. Estimate<5min edit/review plus the original bounded
+check/package stages. Root commits the one assertion correction; reviewer checks
+that exact diff, then the same seven source stages run once from clean source,
+followed by the original exports/startups only if all pass. Any further failure
+parks this candidate with no additional correction, diagnosis run or automatic
+successor. Native ordinary combat/home/repeats/network/hardware gates stay open.
+
+First unexpected failure stops the attempt with raw logs/process cleanup.
+Only one cause-backed repair may follow a separately frozen diagnosis; no second
+repair, unchanged retry, deadline increase or renamed budget. Preserve the
+original full-game combat requirements: ordinary weapon engagement/home,
+permitted failure/recovery cases, craft/network breadth, repeat play and native
+hardware/human qualification remain OPEN after this runtime delivery. Beacon/UI
+focus failures remain PARKED and are not prerequisites for implementing Hold.

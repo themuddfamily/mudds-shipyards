@@ -48,7 +48,7 @@ settlement and home-continuation checkpoints for all twelve activities, with
 production owners, existing test seams and retained blockers in the
 [bounded handoffs](docs/ROADMAP_BACKLOG.md#activity-first-play--bounded-handoffs).
 The six combat rows also distinguish ordinary clear/return from separate
-failure/recovery cases and the unresolved Perimeter Hold launch mapping.
+failure/recovery cases and the now-defined missing Perimeter Hold integration.
 The breakdown itself is planning progress. Beacon traversal/settlement is qualified below;
 no complete additional activity or combat journey is accepted.
 
@@ -56,7 +56,14 @@ no complete additional activity or combat journey is accepted.
 | --- | --- | --- |
 | AUDIO-NAVIGATOR-CLIENT-REJECTION | Definition DONE; implementation WAITING on one behavior choice | Finite refusal map and exact requester correlation/owners/proof defined. Asked once: all fresh current refusals including unavailable consumer, or consumer/bridge only. No answer inferred; no runtime/protocol selected. [Definition and conditional proof](docs/COMPLETION_SCOPE.md#client-navigator-rejection-response--bounded-definition-next). After choice45–60min implementation/review,15–25min checks,10–15min checkpoint. |
 | HAULER-CARGO-MANIFEST | Production gap; GATED on HAULER-CARGO-STOCK | Binding still rejects Hauler; generation-floor API already exists. [Stock prerequisite and conserved-source proof](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries).60–90min implementation/focused checks after decision, checkpoint additional; split before90min. |
-| COMBAT-PERIMETER / PERIMETER-LIVE | Candidate5d6b10b2c STOP; cumulative review selected one test-only API correction | Implement a real solo third board contract: dedicated damageable asset, lance/scatter/press actors, catalog-owned90s/>35% objective, countdown/integrity HUD and total cleanup. [Frozen files, acceptance and stop](docs/ROADMAP_BACKLOG.md#perimeter-hold--missing-production-integration).60–90min implementation/review,10–20min focused checks,10–15min checkpoint. Ordinary full-home/repeats/network/native qualification remain OPEN; parked Beacon/UI routes stay parked. |
+
+Perimeter Hold's implementation candidate **aa88b5a73** is **PARKED/unmerged**.
+Its staged live runtime passes52 assertions; existing director/asset/board/HUD
+checks pass. The unchanged90s GameFlow route times out during existing
+Breach/Torpedo recovery before Hold entry. No export/checkpoint was produced.
+Cumulative363.897s across15 engine stages; source pushed, all processes gone.
+[Original acceptance, failures and retained source](docs/history/ROADMAP_DELIVERIES.md#perimeter-hold-live-integration--implemented-but-parked).
+No further correction, retry, cap increase or automatic successor selected.
 
 Latest home attempt **a612ea686** is unmerged/withheld: the full-Main route
 hit the known Activity Board focus-disconnection pair before Beacon SELECT/START
@@ -119,6 +126,7 @@ contracts and cumulative attempt records remain in the retained history.
 
 | Outcome | Last actual result | Condition before more work |
 | --- | --- | --- |
+| PERIMETER-LIVE /11 | Candidateaa88b5a73 unmerged; staged Hold52/director149/asset12/board58/HUD9 pass. GameFlow FAIL90.178s before Hold entry; exports NOT_RUN. | PARKED after cumulative363.897s/three failures and independent review. Concrete change addressing retained full GameFlow route boundary plus separate selection required; no additional correction/retry/cap increase/narrowed acceptance. |
 | PLAY-BEACON-HOME /13 | Candidatea612ea686 FAIL37.713s guarded/37.419s driver at ActivityBoardButton Return/frame1233; same two root Window signal-disconnection diagnostics. Eleven prechecks pass; no settlement/home/L/E reached, no file captures. Unmerged/withheld. | PARKED on UI-BOARD-FOCUS. Recurrence supplies no popup/connection-removal cause; no retry/repair/cap change. Preserve original UI two-component9.627s and Mining budgets. |
 | BREACH-INTERRUPTION /13,31,32 | Originale9/repair3c fail board arming35.365/35.638s. After accepted owner fix e3, unchanged probe c159 fails69.957s at atomic-payment commit assertion after cold Resume/one matching receipt; third cold replay NOT_RUN. | Cumulative140.961s STOP/PARK; candidates unmerged/withheld, no recovery checkpoint. No further diagnosis/repair/run, fourth automatic attempt or renamed retry selected; concrete causal fact/change required. |
 | HALYARD-GUNNER-DAMAGE /11,16 | Original 51.847s and one caller repair 52.025s both fail co-pilot admission; actual new damage proof NOT_RUN. | Parked after cumulative 103.872s review. No further diagnosis/fix/run without concrete reopening fact/change; candidates unmerged, no weapon defect established. |
