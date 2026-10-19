@@ -70,6 +70,14 @@ func _on_local_ping_cleared(previous: Dictionary, _reason: StringName, claim: Di
 func present_bridge_result(result: Dictionary) -> Dictionary:
 	return _binding.present_bridge_result(result) if _attached else {"accepted": false, "reason": &"detached"}
 
+## Applied client commands retain their transported identity and use the same
+## binding fences as actual bridge publications; no bridge envelope is invented.
+func present_receipt(receipt: Dictionary) -> Dictionary:
+	return _binding.present_receipt(receipt) if _attached else {"accepted": false, "reason": &"detached"}
+
+func present_receipt_clear(receipt: Dictionary) -> Dictionary:
+	return _binding.present_receipt_clear(receipt) if _attached else {"accepted": false, "reason": &"detached"}
+
 func present_tombstones(tombstones: Array) -> Dictionary:
 	return _binding.present_tombstones(tombstones) if _attached else {"accepted": false, "reason": &"detached"}
 

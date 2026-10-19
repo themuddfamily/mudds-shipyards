@@ -187,6 +187,7 @@ func _run() -> void:
 
 	bridge.detach()
 	_test_local(director, cinder)
+	_test_raw_client_commands(director)
 	cinder.queue_free()
 	director.queue_free()
 	await process_frame
@@ -197,6 +198,33 @@ func _run() -> void:
 	for failure in _failures:
 		push_error(failure)
 	quit(1)
+
+
+## Focused raw-command forwarding, not two-peer transport acceptance.
+func _test_raw_client_commands(director: RequestSpy) -> void:
+	var client := Composition.new()
+	root.add_child(client)
+	_check(bool(client.attach(director, 6).get("accepted", false)), "client raw-command composition attaches at actual wire generation")
+	var first := _wire_receipt()
+	first.ship_generation = 6
+	var second := first.duplicate(true)
+	second.request_sequence = int(first.request_sequence) + 1
+	second.server_tick = int(first.server_tick) + 1
+	var first_before := first.duplicate(true)
+	var second_before := second.duplicate(true)
+	var count := director.requests.size()
+	_check(bool(client.present_receipt(first).get("accepted", false)) and bool(client.present_receipt(second).get("accepted", false)), "two actual shaped receipts forward independently in one client source")
+	_check(director.requests.size() == count + 2 and first == first_before and second == second_before, "raw forwarding requests twice without changing transported identity")
+	_check(not bool(client.present_receipt(first).get("accepted", false)), "raw accepted replay is silent")
+	var clear := _clear_receipt(second, int(second.request_sequence) + 1, int(second.server_tick) + 1, int(second.migration_generation))
+	var clear_before := clear.duplicate(true)
+	_check(bool(client.present_receipt_clear(clear).get("accepted", false)) and clear == clear_before, "raw matching clear forwards unchanged")
+	_check(not bool(client.present_receipt_clear(clear).get("accepted", false)) and director.requests.size() == count + 3, "raw duplicate clear stays silent")
+	var binding: Node = client._binding
+	client.detach()
+	binding.semantic_navigator_ping_cue_emitted.emit(&"cinder_navigator_ping_accepted", 0.7)
+	_check(director.requests.size() == count + 3, "raw client detach unregisters the exact source")
+	client.queue_free()
 
 
 func _test_local(director: RequestSpy, craft: CinderCargoHauler) -> void:

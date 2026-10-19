@@ -3,6 +3,52 @@ extends SceneTree
 const Director := preload("res://scripts/audio/audio_director.gd")
 const Composition := preload("res://scripts/audio/optional_semantic_audio_composition.gd")
 const Cinder := preload("res://scripts/ships/cinder_cargo_hauler.gd")
+const Flow := preload("res://scripts/game/game_flow.gd")
+const Session := preload("res://scripts/network/network_enet_session_adapter.gd")
+const CuePresenter := preload("res://scripts/ui/semantic_audio_cue_presenter.gd")
+
+# Wire-shaped applied input isolates coordinator fences; the existing two-peer
+# passenger route remains the production transport and Main acceptance.
+class ClientAdapterFixture extends Session:
+	var active := true
+	var migration := 2
+	var cached_reads := 0
+	func is_server() -> bool:
+		return false
+	func is_session_active() -> bool:
+		return active
+	func get_migration_snapshot() -> Dictionary:
+		return {"migration_generation": migration, "session_generation": 1, "package_generation": 1}
+	func get_server_offer() -> Dictionary:
+		return {"admission": {"accepted": true, "peer": {"peer_id": 7, "peer_generation": 3}},
+			"transport": {"peer_id": 7, "peer_generation": 3}, "migration": {"epoch": get_migration_snapshot()}}
+	func get_crew_replica_snapshot() -> Dictionary:
+		cached_reads += 1
+		return {}
+
+class ClientFlowFixture extends Flow:
+	func _enter_tree() -> void:
+		pass
+	func _ready() -> void:
+		pass
+	func _process(_delta: float) -> void:
+		pass
+	func _physics_process(_delta: float) -> void:
+		pass
+	func _network_client_peer_id() -> int:
+		return 7
+	func _exit_tree() -> void:
+		_detach_optional_semantic_audio()
+
+class CaptionFixture extends CanvasLayer:
+	var presenter := CuePresenter.new()
+	var captions: Array[Dictionary] = []
+	func present_semantic_audio_cue(cue: StringName, source: StringName, intensity: float, position: Vector3, metadata: Dictionary = {}) -> bool:
+		var result: Dictionary = presenter.present_cue(cue, source, intensity, position, metadata)
+		if bool(result.get("accepted", false)):
+			captions.append(result)
+		return bool(result.get("accepted", false))
+
 
 class MockCruise:
 	extends Node
@@ -156,10 +202,184 @@ func _run() -> void:
 	composition.queue_free()
 	await process_frame
 	_check(director.get_semantic_audio_binding_count() == 1, "exit-tree cleanup removes only optional-owned router sources")
+	_test_client_generation_replacement(director)
+	await _test_client_applied_commands(director)
 	for failure in _failures:
 		push_error(failure)
 	print("OPTIONAL_SEMANTIC_AUDIO_COMPOSITION_TEST: %d assertions" % _assertions)
 	quit(0 if _failures.is_empty() else 1)
+
+func _test_client_generation_replacement(director: Node) -> void:
+	var optional := Composition.new()
+	root.add_child(optional)
+	optional.attach(director)
+	var context := {"fixture": &"wire_shaped_client"}
+	optional.set_client_navigator_context(context)
+	var first := _navigator_receipt(40, 1, 40)
+	var count := _events.size()
+	_check(bool(optional.present_cinder_client_navigator_command(first, context).accepted), "focused client generation source accepts unchanged wire-shaped receipt")
+	var malformed := _navigator_receipt(41, 1, 41)
+	malformed.payload = null
+	_check(not bool(optional.present_cinder_client_navigator_command(malformed, context).accepted) and int(optional.get_snapshot().client_navigator.generation) == 40, "malformed newer generation cannot retire active client source")
+	var unknown := _navigator_clear(_navigator_receipt(41, 1, 41), &"unknown_owner")
+	_check(not bool(optional.present_cinder_client_navigator_command(unknown, context).accepted), "unknown newer clear cannot replace client generation")
+	var fresh := _navigator_receipt(41, 1, 41)
+	_check(bool(optional.present_cinder_client_navigator_command(fresh, context).accepted) and int(optional.get_snapshot().client_navigator.generation) == 41, "valid newer accepted publication replaces same-craft transported ship owner")
+	_check(not bool(optional.present_cinder_client_navigator_command(first, context).accepted) and _events.size() == count + 2, "retired lower ship generation cannot return after valid replacement")
+	optional.detach()
+	_check(not bool(optional.get_snapshot().client_navigator.attached), "exact client detach resets generation attachment")
+	optional.queue_free()
+
+
+func _test_client_applied_commands(director: Node) -> void:
+	var flow := ClientFlowFixture.new()
+	var adapter := ClientAdapterFixture.new()
+	var craft := Cinder.new()
+	var optional := Composition.new()
+	var caption := CaptionFixture.new()
+	flow.add_child(adapter)
+	flow.add_child(craft)
+	flow.add_child(optional)
+	flow.add_child(caption)
+	flow.network_session = adapter
+	flow._network_session_mode = &"client"
+	flow._cabin_ship = craft
+	flow.phase = Flow.Phase.IN_FLIGHT_CABIN
+	flow._network_client_boarding_claim = {"ship_id": Cinder.COMPONENT_ID, "seat_id": &"berth_1", "role": &"cabin_berth"}
+	flow.optional_semantic_audio_composition = optional
+	flow.hud = caption
+	flow.audio = director
+	root.add_child(flow)
+	optional.attach(director)
+	director.semantic_cue_emitted.connect(flow._on_semantic_audio_cue_emitted)
+	# Use the same production advancement that precedes role FIRE, rather
+	# than manually priming the optional receipt source before the first ping.
+	flow._advance_network_engineer(1.0 / 60.0)
+	var callback: Callable = flow._client_navigator_audio_callback
+	var before := _events.size()
+	_check(adapter.cached_reads == 0 and not bool(optional.get_snapshot().client_navigator.attached), "production client advancement establishes listener without reading cached crew state or inventing a source")
+	var first := _navigator_receipt(8, 2, 12)
+	var first_result := _applied(first)
+	var first_before := first_result.duplicate(true)
+	adapter.crew_snapshot_applied.emit(first_result)
+	var second := _navigator_receipt(8, 3, 13)
+	var second_result := _applied(second)
+	adapter.crew_snapshot_applied.emit(second_result)
+	_check(_events.size() == before + 2 and caption.captions.size() == 2, "two consecutive applied receipts in one client context each produce sound and real presenter caption")
+	_check(caption.captions[0].caption == "Navigator ping accepted" and caption.captions[1].caption == "Navigator ping accepted", "identity handoff preserves both accepted captions")
+	_check(first_result == first_before and int(optional.get_snapshot().client_navigator.generation) == 8, "client generation comes from unchanged actual command, independent of host counter")
+	_check(flow._get_cinder_navigator_presentation_generation() == 0, "client never acquires host navigator generation")
+	optional.set_navigator_generation(0)
+	_check(bool(optional.get_snapshot().client_navigator.attached), "host HUD generation zero preserves independent client registration")
+	adapter.crew_snapshot_applied.emit(first_result)
+	var invalid := _applied(_navigator_receipt(8, 4, 14))
+	invalid.accepted = false
+	adapter.crew_snapshot_applied.emit(invalid)
+	adapter.crew_snapshot_applied.emit({"accepted": true, "status": &"crew_snapshot_applied", "snapshot": {"migration_generation": 2, "commands": [null, "bad"]}})
+	for field: String in ["ship_id", "seat_id", "role", "avatar_id"]:
+		var unrelated := _navigator_receipt(8, 5, 15)
+		unrelated[field] = &"unrelated"
+		if field == "avatar_id":
+			unrelated.peer_id = 999
+		adapter.crew_snapshot_applied.emit(_applied(unrelated))
+	var stale_owner := _navigator_receipt(8, 6, 16)
+	stale_owner.peer_generation = 2
+	adapter.crew_snapshot_applied.emit(_applied(stale_owner))
+	var malformed := _navigator_receipt(8, 7, 17)
+	malformed.payload = null
+	adapter.crew_snapshot_applied.emit(_applied(malformed))
+	var unknown_clear := _navigator_clear(second, &"unknown")
+	unknown_clear.avatar_id = &"unknown"
+	adapter.crew_snapshot_applied.emit(_applied(unknown_clear))
+	_check(_events.size() == before + 2 and caption.captions.size() == 2, "replay, failed apply, malformed and unrelated source and unknown clear remain silent")
+	# Physical assignment is absent; exact active command ownership survives.
+	var clear := _navigator_clear(second, &"ordinary_stand")
+	var clear_result := _applied(clear)
+	adapter.crew_snapshot_applied.emit(clear_result)
+	adapter.crew_snapshot_applied.emit(clear_result)
+	adapter.crew_snapshot_applied.emit(_applied({}))
+	_check(_events.size() == before + 3 and caption.captions.size() == 3 and caption.captions.back().caption == "Navigator ping cleared", "matching assignment-empty clear emits once; duplicate and missing command do not clear again")
+	# Existing authorized same-ship role recipients are not limited to navigator.
+	var shared := _navigator_receipt(8, 8, 20)
+	shared.peer_id = 9
+	shared.avatar_id = &"other_navigator"
+	var shared_result := _applied(shared)
+	shared_result.snapshot.roles = [{"peer_id": 7, "peer_generation": 3, "ship_id": Cinder.COMPONENT_ID, "ship_generation": 8, "migration_generation": 2, "role": &"pilot"}]
+	adapter.crew_snapshot_applied.emit(shared_result)
+	_check(_events.size() == before + 4, "actual applied local-peer ship role authorizes same-ship navigator recipient")
+	adapter.crew_snapshot_applied.emit(_applied(_navigator_clear(shared, &"role_already_empty")))
+	_check(_events.size() == before + 5, "known shared recipient retains matching real clear after role publication emptied")
+	var retired_binding: Node = optional._client_navigator_composition._binding
+	flow.phase = Flow.Phase.INTRO
+	flow._sync_client_navigator_audio_lifetime()
+	retired_binding.semantic_navigator_ping_cue_emitted.emit(&"cinder_navigator_ping_accepted", 0.7)
+	adapter.crew_snapshot_applied.emit(_applied(_navigator_receipt(8, 10, 25)))
+	flow.phase = Flow.Phase.IN_FLIGHT_CABIN
+	flow._sync_client_navigator_audio_lifetime()
+	adapter.crew_snapshot_applied.emit(second_result)
+	adapter.crew_snapshot_applied.emit(_applied(_navigator_receipt(8, 10, 25)))
+	_check(_events.size() == before + 5 and not bool(optional.get_snapshot().client_navigator.attached), "leaving exact craft unbinds source and re-entry cannot replay commands observed while absent")
+	var new_ship := Cinder.new()
+	flow.add_child(new_ship)
+	flow._cabin_ship = new_ship
+	flow._sync_client_navigator_audio_lifetime()
+	var old_context: Dictionary = optional._client_navigator_context.duplicate()
+	adapter.migration = 3
+	flow._sync_client_navigator_audio_lifetime()
+	callback.call(_applied(_navigator_receipt(8, 11, 26)))
+	_check(not bool(optional.get_snapshot().client_navigator.attached), "old migration callback cannot attach replacement craft source")
+	var migrated := _navigator_receipt(9, 1, 30)
+	migrated.migration_generation = 3
+	var migrated_result := _applied(migrated)
+	migrated_result.snapshot.migration_generation = 3
+	adapter.crew_snapshot_applied.emit(migrated_result)
+	_check(_events.size() == before + 6 and bool(optional.get_snapshot().client_navigator.attached), "actual new migration and transported ship generation establish fresh client feedback")
+	_check(not bool(optional.present_cinder_client_navigator_command(migrated, old_context).accepted), "retired exact client context cannot forward into replacement source")
+	var migration_callback: Callable = flow._client_navigator_audio_callback
+	var replacement := ClientAdapterFixture.new()
+	replacement.migration = 3
+	flow.add_child(replacement)
+	flow.network_session = replacement
+	flow._sync_client_navigator_audio_lifetime()
+	migration_callback.call(migrated_result)
+	_check(_events.size() == before + 6 and not bool(optional.get_snapshot().client_navigator.attached) and not adapter.crew_snapshot_applied.is_connected(migration_callback), "session adapter replacement disconnects exact old callback and retires source")
+	var final_callback: Callable = flow._client_navigator_audio_callback
+	flow._detach_optional_semantic_audio()
+	final_callback.call(migrated_result)
+	_check(_events.size() == before + 6 and not bool(optional.get_snapshot().attached), "whole-Main detach resets client attachment and stale callback")
+	optional.attach(director)
+	flow._sync_client_navigator_audio_lifetime()
+	_check(replacement.cached_reads == 0 and not bool(optional.get_snapshot().client_navigator.attached), "whole-Main re-entry awaits fresh applied state without replaying cache")
+	var stopped_callback: Callable = flow._client_navigator_audio_callback
+	var reentrant := _navigator_receipt(10, 50, 50)
+	reentrant.migration_generation = 3
+	var after_reentrant := reentrant.duplicate(true)
+	after_reentrant.request_sequence = 51
+	after_reentrant.server_tick = 51
+	var reentrant_result := _applied(reentrant)
+	reentrant_result.snapshot.migration_generation = 3
+	reentrant_result.snapshot.commands.append(after_reentrant)
+	director.semantic_cue_emitted.connect(func(_source: StringName, _cue: StringName, _intensity: float, _position: Vector3) -> void:
+		flow._disconnect_client_navigator_audio()
+	, CONNECT_ONE_SHOT)
+	var events_before_reentrant := _events.size()
+	replacement.crew_snapshot_applied.emit(reentrant_result)
+	_check(_events.size() == events_before_reentrant + 1 and not bool(optional.get_snapshot().client_navigator.attached) and int(optional.get_snapshot().client_navigator.generation) == 0, "synchronous first-cue teardown cannot restore retired attachment or forward remaining old commands")
+	flow._sync_client_navigator_audio_lifetime()
+	stopped_callback = flow._client_navigator_audio_callback
+	replacement.active = false
+	flow._sync_client_navigator_audio_lifetime()
+	_check(not replacement.crew_snapshot_applied.is_connected(stopped_callback), "stopped client session disconnects owned receipt callback")
+	director.semantic_cue_emitted.disconnect(flow._on_semantic_audio_cue_emitted)
+	flow.queue_free()
+	await process_frame
+	_check(director.get_semantic_audio_binding_count() == 1, "client fixture teardown preserves exact unrelated source")
+
+
+func _applied(command: Dictionary) -> Dictionary:
+	return {"accepted": true, "status": &"crew_snapshot_applied", "revision": int(command.get("server_tick", 1)),
+		"snapshot": {"migration_generation": 2, "roles": [], "commands": [] if command.is_empty() else [command]}}
+
 
 func _on_cue(source_id: StringName, cue_id: StringName, intensity: float, position: Vector3) -> void:
 	_events.append({"source_id": source_id, "cue_id": cue_id, "intensity": intensity, "position": position})
