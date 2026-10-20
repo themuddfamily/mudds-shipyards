@@ -1233,12 +1233,22 @@ func _host_pilot_exit_retired() -> bool:
 
 
 func _client_pilot_exit_retired() -> bool:
+	if not _flight_file_exists("host.pilot_exit_retired"):
+		return false
+	var retirement_home := _read("host.pilot_exit_retired").get("home", {}) as Dictionary
+	var retirement_pose_tick: int = int(retirement_home.get("pose_tick", 0))
+	var pose := _flight_pose_sample()
+	if retirement_pose_tick <= 0:
+		return false
 	var pilot_avatar := GameFlow.network_client_boarding_avatar_id(int(_flight_start.pilot_peer))
 	var local_source := _craft.get("_default_local_command_source") as ShipCommandSource
 	var active := _craft.get("_command_source") as ShipCommandSource
 	var answer := _game.network_session.get_boarding_intent_result_replica()
+	# Coasting pose headers retain last-pilot attribution. Current ownership
+	# retires in its own ledger; require a fresh pose in the boarding-tick domain.
 	return _pilot_exit_owner_retired(_client_ownership_record()) \
-		and int(_flight_pose_sample().get("pilot_peer_id", -1)) == 0 \
+		and not pose.is_empty() and pose.get("ship_id") == _craft.ship_id \
+		and int(pose.get("pose_tick", 0)) >= retirement_pose_tick \
 		and _game.network_session.get_moving_interior_latest_relationship(pilot_avatar).is_empty() \
 		and not bool(_game.get("_piloting")) \
 		and (local_source == null or not local_source.is_enabled_owner()) \
@@ -1368,6 +1378,12 @@ func _pilot_exit_receipt() -> Dictionary:
 		var pilot_avatar := GameFlow.network_client_boarding_avatar_id(int(_flight_start.pilot_peer))
 		receipt["ownership"] = _client_ownership_record()
 		receipt["arrival"] = _client_return_receipt()
+		var retirement_home := _read("host.pilot_exit_retired").get("home", {}) as Dictionary
+		receipt["retirement_pose"] = {
+			"boundary_pose_tick": int(retirement_home.get("pose_tick", 0)),
+			"consumed_pose_tick": int(_flight_pose_sample().get("pose_tick", 0)),
+			"consumed_ship_id": _flight_pose_sample().get("ship_id", &""),
+			"coast_header_pilot_peer_id": int(_flight_pose_sample().get("pilot_peer_id", -1))}
 		receipt["local_leaves"] = {"same_identity": _same_identity(), "walking_identity": _walking_identity_is_preserved(),
 			"player_is_original": _player.get_instance_id() == _initial_player_id,
 			"phase": _game.phase, "transition_busy": bool(_game.get("_transition_busy")),
