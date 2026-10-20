@@ -69,6 +69,56 @@ recovery/network/native/human and all broad parent gates remain open. Parked
 Perimeter/Courier candidates are neither adopted nor qualified. Hauler's
 independent production seam still waits on its already-asked stock choice.
 
+### Selected ordinary Wing route — no manufactured prelude
+
+COMBAT-WING / parent11. **07:14–08:14UTC /60min** including implementation,
+review, checks, paired candidate and one300s full route. One high implementation
+agent owns tools/release/run_native_sortie.py and test_native_sortie.py,
+scripts/diagnostics/native_sortie_observer.gd, scripts/game/startup_loader.gd,
+tests/startup_cli_privacy_test.gd and one focused observer test/UID. Root owns
+integration/publication/cleanup. Implementation estimate25–35min; no gameplay,
+weapon, damage, pose, phase, tuning, grant or reward-owner changes.
+
+Add supported paired-wing selector to existing private X11/Dummy native driver.
+From an empty private profile: actual board E-arm Heavy Breach→board Torrent→
+depart→normal strict home landing makes SHUT_DOWN and naturally WITHDRAWN→
+neutral shutdown/physical exit; repeat for Torpedo Run. Observe each exact
+withdrawal/next posting; do not claim wins. Then actual Wing arm/depart, both
+named members destroyed through fresh target-specific player-weapon hits,
+CLEARED, strict home lease/landing/shutdown/physical exit, supported walk and
+normal UI exit0. Preserve default sampler and tuning throughout. No persisted
+third-offer fixture, fake prior wins, direct damage/actor retirement or debug
+command path. Existing300s whole native-driver cap remains fixed; timing and
+survival are unproved until the one attempt.
+
+Observer is read-only apart from its own detached records: extract actual Wing
+IDs/health/roster/authority/outcomes and shot request sequence, presentation
+receipt ID, source/target identities, weapon, applied damage, remaining health
+and destruction. A cached generic shot_accepted never proves a hit. Require
+fresh monotonic source sequence/request.last_sequence match, new receipt,
+matching actual player source/target, positive applied damage and each actual
+zero-health/destruction. Reject stale/replayed/foreign-target receipts.
+
+Before engines freeze clean candidate and exact commands: import180s;
+python3 -B tools/release/test_native_sortie.py90s;
+startup_cli_privacy_test.gd120s; native_sortie_wing_observation_test.gd120s.
+All Godot headless/Dummy; no new validator/version family. Then safe paired
+exports180s each, three strict startups120s each and existing PCK/PE/archive
+audit90s. Run exactly one `python3 -B tools/release/run_native_sortie.py
+OWNED/worktree/builds/linux/MuddsShipyards-PIN.x86_64 --route paired-wing
+--output OWNED/results/ordinary-wing` with existing authenticated owned Xvfb,
+explicit x11/dummy rendering/Dummy audio and independent abort/input release.
+Native cap300s, outer360s plus60s owner finalization; whole60min unchanged.
+First failure stops, no automatic repair/retry/cap increase or adjacent renamed
+probe. Publish only accepted candidate; notes retain native/GPU/devices/listening/
+human/full-release limits. Archive/hash-verify unique data and remove only owned
+clean pushed checkout/profile/helpers after PID/publication checks.
+
+This implements the missing executable qualification path and attempts its full
+original combat outcome. A failed route does not qualify the encounter or
+replace it with admission-only proof. Independent Hauler implementation remains
+waiting on its stock decision; parked Perimeter/Courier are not this route.
+
 ### Waiting decisions — not executable tasks
 
 These questions have already been asked. Keep them pending without asking again
