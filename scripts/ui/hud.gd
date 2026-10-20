@@ -1482,12 +1482,18 @@ func set_activity_objective(display_name: String, snapshot: Dictionary) -> void:
 					"%.0fm" % activation_distance if activation_distance >= 0.0 else "--"
 				)
 			&"active":
-				activity_text = "CONVOY  L%d/%d  %s  %s" % [
-					mini(next_index + 1, checkpoint_count),
-					checkpoint_count,
-					"%.0fm" % escort_distance if escort_distance >= 0.0 else "--",
-					_format_activity_time(current_time),
-				]
+				if bool(snapshot.get("runtime_rebind_pending", false)):
+					var craft_name := str(snapshot.get("resume_craft_display_name", "the saved escort craft")).strip_edges()
+					if craft_name.is_empty():
+						craft_name = "the saved escort craft"
+					activity_text = "CONVOY  SAVED ESCORT PAUSED  //  Board %s, launch and return to Cinder Reach to resume" % craft_name
+				else:
+					activity_text = "CONVOY  L%d/%d  %s  %s" % [
+						mini(next_index + 1, checkpoint_count),
+						checkpoint_count,
+						"%.0fm" % escort_distance if escort_distance >= 0.0 else "--",
+						_format_activity_time(current_time),
+					]
 			&"completed":
 				activity_text = "CONVOY  ARRIVED  %s  %d/%d" % [
 					_format_activity_time(current_time),
