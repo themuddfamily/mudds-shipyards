@@ -67,11 +67,187 @@ class InspectionFilesystem extends UserDataFilesystem:
 
 
 func _init() -> void:
-	if OS.get_cmdline_user_args().has("--capture") \
+	if OS.get_cmdline_user_args().has("--walk-salvage-access"):
+		call_deferred("_run_walk_salvage_access")
+	elif OS.get_cmdline_user_args().has("--capture") \
 			or OS.get_cmdline_user_args().has("--capture-close"):
 		call_deferred("_capture_forward_plus")
 	else:
 		call_deferred("_run")
+
+
+## Selected ordinary access child only: no inspection, save, craft or relocation
+## fixtures. Publication and durable physical revisit remain separate outcomes.
+func _run_walk_salvage_access() -> void:
+	# Independent abort retains the original 300-second test budget, including
+	# setup and cleanup; each walking waypoint keeps its existing 240-frame cap.
+	create_timer(300.0).timeout.connect(func() -> void:
+		_release_salvage_access_inputs()
+		push_error("WALK_SALVAGE_ACCESS_TEST_FAILED: 300-second test budget exhausted")
+		quit(1)
+	)
+	var game := MAIN_SCENE.instantiate() as GameFlow
+	root.add_child(game)
+	await process_frame
+	await physics_frame
+	await _test_walk_salvage_access(game)
+	_release_salvage_access_inputs()
+	game.queue_free()
+	await process_frame
+	await physics_frame
+	await process_frame
+	_release_salvage_access_inputs()
+	if _failures.is_empty():
+		print("WALK_SALVAGE_ACCESS_TEST_OK: %d assertions" % _assertions)
+		quit(0)
+	else:
+		print("WALK_SALVAGE_ACCESS_TEST_FAILED: ", "; ".join(_failures))
+		quit(1)
+
+
+func _test_walk_salvage_access(game: GameFlow) -> void:
+	var player := game.player as PlayerController
+	var annex := game.world.get_node_or_null(^"FabricationAnnex") as Node3D
+	var terrace := game.world.get_node_or_null(^"SalvageTerrace") as SalvageTerrace
+	var station := game.world.get_node_or_null(^"SalvageInspectionStation") as SalvageInspectionStation
+	if not _salvage_access_check(player != null and annex != null and terrace != null and station != null,
+			"fresh Main owns its normal Player, Annex, Salvage Terrace and inspection station"):
+		return
+	var retained_spawn := player.global_position
+	var initial_snapshot := station.get_snapshot()
+	if not _salvage_access_check(Vector2(retained_spawn.x, retained_spawn.z).distance_to(
+			Vector2(-8.5, 11.0)) <= 0.20,
+			"selected access route retains the normal hub spawn before movement"):
+		return
+	root.grab_focus()
+	var begin := InputEventAction.new()
+	begin.action = &"interact"
+	begin.pressed = true
+	Input.parse_input_event(begin)
+	await physics_frame
+	var begin_release := InputEventAction.new()
+	begin_release.action = &"interact"
+	Input.parse_input_event(begin_release)
+	for _frame in 60:
+		if game.phase == GameFlow.Phase.APPROACH_SHIP \
+				and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+			break
+		await physics_frame
+		await process_frame
+	if not _salvage_access_check(_salvage_access_player_current(game, player)
+			and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED,
+			"ordinary production intro Interact starts the retained normal Player"):
+		return
+	# Literal accepted WALK-ANNEX prefix through the Annex connector apron.
+	# These goals set horizontal destinations only; physics determines height.
+	var goals: Array[Vector3] = [
+		Vector3(0.0, 0.0, 15.5), Vector3(0.0, 0.0, 12.5),
+		Vector3(6.0, 0.0, 12.5), Vector3(6.0, 0.0, 13.5),
+		Vector3(20.0, 0.0, 13.5), Vector3(34.8, 0.0, 13.5),
+		Vector3(34.8, 0.0, 15.5), Vector3(43.0, 0.0, 15.5),
+		Vector3(43.0, 0.0, 21.0), Vector3(43.0, 0.0, 24.8),
+		Vector3(48.1, 0.0, 24.8), Vector3(48.1, 0.0, 29.1),
+		Vector3(48.1, 0.0, 28.0), Vector3(50.0, 0.0, 28.0),
+		Vector3(68.5, 0.0, 28.0), Vector3(68.5, 0.0, 38.0),
+		Vector3(72.0, 0.0, 38.0),
+		annex.to_global(Vector3(0.0, 0.15, 4.8)),
+		annex.to_global(Vector3(0.0, 0.15, 9.5)),
+		annex.to_global(Vector3(0.0, 0.15, 18.5)),
+		# Cross inside the rear columns and rail, then retain the original side target.
+		annex.to_global(Vector3(0.0, 0.15, 17.5)),
+		annex.to_global(Vector3(-12.5, 0.15, 17.5)),
+		annex.to_global(Vector3(-12.5, 0.15, 18.5)),
+		annex.to_global(Vector3(-12.5, 0.15, 12.0)),
+		annex.to_global(Vector3(-14.0, 0.15, 12.0)),
+		terrace.get_route_marker(&"connector").global_position,
+		terrace.to_global(Vector3(0.0, 0.0, 7.0)),
+		terrace.to_global(Vector3(-8.0, 0.0, 7.0)),
+		terrace.to_global(Vector3(-16.0, 0.0, 7.0)),
+	]
+	for index in goals.size():
+		if not await _walk_salvage_access_to(game, player, goals[index], "outbound", index):
+			return
+	if not _salvage_access_check(station.get_snapshot() == initial_snapshot,
+			"supported inspection-row arrival leaves all inspection and manifest state unchanged"):
+		return
+	for index in range(goals.size() - 1, -1, -1):
+		if not await _walk_salvage_access_to(game, player, goals[index], "return", index):
+			return
+	if not await _walk_salvage_access_to(game, player, retained_spawn, "retained hub spawn", 0):
+		return
+	_salvage_access_check(station.get_snapshot() == initial_snapshot,
+		"complete ordinary access round trip leaves all inspection and manifest state unchanged")
+
+
+func _walk_salvage_access_to(game: GameFlow, player: PlayerController,
+		destination: Vector3, leg: String, index: int) -> bool:
+	var reached := false
+	var current := _salvage_access_player_current(game, player)
+	if current:
+		Input.action_press(&"move_forward")
+		for _frame in 240:
+			if not _salvage_access_player_current(game, player):
+				current = false
+				break
+			_look_salvage_access_towards(player, destination)
+			await physics_frame
+			await process_frame
+			var offset := destination - player.global_position
+			offset.y = 0.0
+			if offset.length() <= 0.20:
+				reached = true
+				break
+	Input.action_release(&"move_forward")
+	for _frame in 4:
+		await physics_frame
+		current = _salvage_access_player_current(game, player) and current
+	var valid := reached and current and player.is_on_floor()
+	if not valid:
+		var collisions: Array[String] = []
+		for collision_index in player.get_slide_collision_count():
+			var collider := player.get_slide_collision(collision_index).get_collider() as Node
+			if is_instance_valid(collider):
+				collisions.append(str(collider.get_path()))
+		print("WALK_SALVAGE_ACCESS_BOUNDARY: ", {"leg": leg, "index": index,
+			"target": destination, "actual": player.global_position,
+			"floor": player.is_on_floor(), "velocity": player.velocity,
+			"current_player": current, "phase": game.phase, "collisions": collisions})
+	return _salvage_access_check(valid,
+		"%s waypoint %d target=%s actual=%s retains the same supported on-foot Player"
+		% [leg, index, destination, player.global_position])
+
+
+func _salvage_access_player_current(game: GameFlow, player: PlayerController) -> bool:
+	return is_instance_valid(game) and game.is_inside_tree() and not game.is_queued_for_deletion() \
+		and game.player == player and is_instance_valid(player) and player.is_inside_tree() \
+		and not player.is_queued_for_deletion() and player.is_control_enabled() \
+		and not player.is_seated() and game.phase == GameFlow.Phase.APPROACH_SHIP
+
+
+func _look_salvage_access_towards(player: PlayerController, destination: Vector3) -> void:
+	var direction := destination - player.global_position
+	direction.y = 0.0
+	if direction.is_zero_approx():
+		return
+	var camera_yaw := player.get_node(^"%CameraYaw") as Node3D
+	var turn := (-camera_yaw.global_basis.z).signed_angle_to(direction.normalized(), Vector3.UP)
+	var mouse := InputEventMouseMotion.new()
+	mouse.relative = Vector2(-turn / player.mouse_sensitivity, 0.0)
+	root.push_input(mouse)
+
+
+func _salvage_access_check(condition: bool, description: String) -> bool:
+	_check(condition, description)
+	return condition
+
+
+func _release_salvage_access_inputs() -> void:
+	for action in InputMap.get_actions():
+		Input.action_release(action)
+	var release := InputEventAction.new()
+	release.action = &"interact"
+	Input.parse_input_event(release)
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 
 func _run() -> void:
