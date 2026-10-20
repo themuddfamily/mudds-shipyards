@@ -16,6 +16,7 @@ Use --route life-arm for Aft service-arm coexistence and original Zenith boardin
 Use --route life-tow for Central service coexistence during real walking/boarding.
 Use --route habitat-loop for fresh hub/door/bunk sleep-wake/common-room/hub walking.
 Use --route habitat-restart for real bunk sleep, normal UI quit, and cold awake controls.
+Use --route station-defense for the full ordinary four-hostile defense, reward, home, reset and UI exit.
 The default is Guided.
 No source/pack overrides. 300 seconds is the fixed whole-process sortie cap.
 This establishes Linux/Xvfb OS-input behavior, not native GPU or human acceptance.
@@ -70,17 +71,32 @@ def observations_from_lines(lines):
     return [json.loads(line[len(PREFIX):]) for line in lines if line.startswith(PREFIX)]
 
 
-def drain_game_output(process, log_path):
+def drain_game_output(process, log_path, pending=b'', observe=None):
     # The direct child has been waited for. Read its remaining pipe bytes without
     # blocking cleanup on an unexpected descendant holding the write end open.
     os.set_blocking(process.stdout.fileno(), False)
     deadline = time.monotonic() + 2
+    def accept(chunk, final=False):
+        nonlocal pending
+        if observe is None: return
+        pending += chunk
+        lines = pending.split(b'\n')
+        pending = lines.pop()
+        if final and pending:
+            lines.append(pending)
+            pending = b''
+        for sample in observations_from_lines(lines): observe(sample)
     with log_path.open('ab') as log:
         while time.monotonic() < deadline:
             try: chunk = os.read(process.stdout.fileno(), 262144)
-            except BlockingIOError: return
-            if not chunk: return
+            except BlockingIOError:
+                accept(b'', final=True)
+                return
+            if not chunk:
+                accept(b'', final=True)
+                return
             log.write(chunk)
+            accept(chunk)
     raise RuntimeError('game output did not drain within cleanup deadline')
 
 
@@ -2520,6 +2536,449 @@ class BeaconSettlementFiles(HabitatRestartFiles):
                         'independent actual disk retains the same once-only receipt and paid terminal')
 
 
+class StationDefensePilot(Pilot):
+    """One complete ordinary defense sortie; every receipt is observed before input."""
+    MARKER = 'NATIVE_STATION_DEFENSE_OK'
+    MODE = 'station-defense'
+    ACTIVITY = 'shipyard_perimeter_defense'
+    REWARD = 'return_defense_report_to_shipyard'
+    WEAPON = 'arrow_precision_recon_emitter'
+    TO_BOARD = [[-8.5, .18, 12.5], [6, .18, 12.5], [9, .18, 12.5], [9, .18, -24], [12, .18, -24.5]]
+
+    def __init__(self):
+        super().__init__()
+        self.initial = self.observed_previous = self.last_state = None
+        self.sequence = 0
+        self.event_sequence = 0
+        self.source_sequences = {}
+        self.presentation_receipts = set()
+        self.events = []
+        self.kills = {}
+        self.actor_ids = {}
+        self.actor_handles = {}
+        self.native_edges = []
+        self.receipts = {}
+        self.visited = []
+        self.route = []
+        self.mouse_pending = None
+        self.request_frame = None
+        self.deployed = self.completed = self.paid = self.reset_state = None
+        self.departure = self.home_exit = None
+        self.quit_requested = False
+        self.ui_key = None
+        self.ui_until = self.ui_release_until = 0
+        self.ui_focus = None
+        self.ui_edges = []
+        self.landing_seen = False
+        self.last_input_frame = 0
+        self.walked = 0.0
+
+    @staticmethod
+    def receipt(s):
+        return {k: s[k] for k in ('sequence', 'frame', 'phase', 'player', 'position', 'native_interact',
+                                  'grounded', 'supported', 'board', 'home', 'defense', 'settlement')}
+
+    @classmethod
+    def require_zero(cls, s):
+        record = s['settlement']['record']
+        require(s['settlement']['configured'] and record['receipt_serial'] == 0
+                and record['total_receipts'] == 0 and record['reward_counts'] == {}
+                and record['last_receipt'] == {}, 'genuine fresh zero-receipt ledger')
+
+    @classmethod
+    def require_paid(cls, s, generation):
+        record = s['settlement']['record']
+        receipt = record['last_receipt']
+        require(record['receipt_serial'] == record['total_receipts'] == 1
+                and record['reward_counts'] == {cls.REWARD: 1}
+                and receipt['receipt_id'] == 1 and receipt['activity_id'] == cls.ACTIVITY
+                and receipt['activity_generation'] == generation and receipt['reward_id'] == cls.REWARD
+                and receipt['granted'] is True and receipt['replay_allowed'] is False,
+                'one genuine generation-bound defense reward entitlement')
+        reward = s['board']['reward']
+        completion = s['board']['session']['completion']
+        require(not reward['reward_pending'] and reward['highest_reward_generation'] == generation
+                and completion['generation'] == generation and completion['reward_granted'] is True,
+                'board and durable completion acknowledge the same paid generation')
+
+    def validate_observation(self, s):
+        require(s.get('mode') == self.MODE and s.get('actors_current'), 'current dedicated defense actors')
+        require(s['sequence'] == self.sequence + 1, 'every defense observation retained in order')
+        self.sequence = s['sequence']
+        if self.initial is None:
+            require(not s['paused'], 'ordinary unpaused title before gameplay')
+            self.initial = s
+            self.actor_ids = {a['hostile_id']: a['instance_id'] for a in s['defense']['actors']}
+            self.actor_handles = {a['hostile_id']: (a['instance_id'], a['generation'], a['source_id'])
+                                  for a in s['defense']['actors']}
+            # The authored heavy ID is read from the roster, never guessed from a scene name.
+            require(len(self.actor_ids) == 4 and len(set(self.actor_ids.values())) == 4
+                    and all(self.actor_ids.values()), 'four distinct original hostile actors')
+            require(sorted((a['generation'], a['source_id']) for a in s['defense']['actors'])
+                    == [(1, 2121), (2, 2122), (3, 2123), (4, 2124)], 'exact four authored hostile handles/sources')
+            require(s['home']['lease'] and s['home']['parked_exact'] and not s['guided_complete']
+                    and s['defense']['activity']['state_id'] == 'idle', 'empty-profile original Arrow and idle defense')
+            self.require_zero(s)
+        require((s['pid'], s['main_id']) == (self.initial['pid'], self.initial['main_id']),
+                'same exact game process and Main including normal pause')
+        for event in s['shot_events']:
+            self.observe_event(event)
+        self.last_state = s
+        if s['paused']:
+            require(self.stage in ('ui_pause', 'ui_exit_wait'), 'pause only after complete physical route')
+            ui = s['ui']
+            require(ui['main_visible'] and ui['exit_visible'] and ui['exit_enabled']
+                    and ui['exit_text'] == 'EXIT TO DESKTOP' and ui['exit_path'], 'actual enabled normal Exit button')
+            return
+        initial = self.initial
+        require(all(s[k] == initial[k] for k in ('world_id', 'player_id', 'ship_id'))
+                and s['board']['id'] == initial['board']['id']
+                and s['defense']['content_id'] == initial['defense']['content_id']
+                and s['defense']['host_id'] == initial['defense']['host_id']
+                and s['defense']['core_id'] == initial['defense']['core_id']
+                and s['home']['id'] == initial['home']['id'], 'original player/craft/board/host/core/home identities')
+        require(s['default_sampler'] and s['tuning_unchanged'] and s['tuning'] == initial['tuning']
+                and s['walk_tuning'] == initial['walk_tuning']
+                and s['walk_tuning'] == {'walk': 5.8, 'sprint': 9.2, 'deceleration': 42.0, 'mouse': .0025}
+                and s['physics_ticks'] == 60 and s['time_scale'] == 1 and not s['guided_complete'],
+                'unchanged authored controls, normal pacing and pending Guided')
+        require(s['player_source_id'] == 1102 and s['player_weapon'] == initial['player_weapon']
+                and s['player_weapon']['range'] == 480 and s['player_weapon']['damage'] == 24,
+                'exact original registered Arrow source and authored combat profile')
+        require(not s['destroyed'] and s['telemetry']['hull'] > 0 and s['phase'] not in ('FAILED', 'RECOVERING'),
+                'live original Arrow without recovery')
+        defense, activity = s['defense'], s['defense']['activity']
+        require(defense['core']['health'] > 0 and not defense['core']['destroyed']
+                and norm(sub(defense['core_position'], [90, 8, -70])) < .001,
+                'original protected core survives at authored world position')
+        require(activity['timeout_seconds'] == 34 and activity['wave_count'] == 3
+                and activity['state_id'] not in ('failed', 'aborted', 'timed_out'),
+                'unchanged whole 34-second encounter; first failure stops')
+        require({a['hostile_id']: (a['instance_id'], a['generation'], a['source_id'])
+                 for a in defense['actors']} == self.actor_handles
+                and all(a['current'] for a in defense['actors']), 'same four original hostile actors')
+        if activity['state_id'] == 'completed':
+            require(all(a['live_source_id'] == 0 for a in defense['actors'])
+                    and defense['registration']['registered_source_key_count'] == 0,
+                    'completed generation legitimately retires its hostile sources')
+        else:
+            require(all(a['exact_registration'] for a in defense['actors']) and defense['registration']['valid'],
+                    'idle/active generation has exact authored live or lifecycle-scoped registrations')
+        if not self.phases or self.phases[-1] != s['phase']: self.phases.append(s['phase'])
+        previous = self.observed_previous
+        if self.stage in ('walk_board', 'walk_arrow', 'walk_reset'):
+            require(s['grounded'] and s['supported'] and s['control_enabled'] and not s['seated'],
+                    'every ordinary walking sample has actual physical support')
+        if previous is not None:
+            require(s['frame'] == previous['frame'] + 1, 'every consecutive unpaused physics sample')
+            if not previous['seated'] and not s['seated'] and not previous['transition_busy'] and not s['transition_busy']:
+                displacement = norm(sub(s['player'], previous['player']))
+                require(displacement <= 9.2/60 + .10, 'continuous actual ordinary walking without relocation')
+                self.walked += displacement
+            if s['native_interact'] != previous['native_interact']:
+                self.native_edges.append({'pressed': s['native_interact'], 'sample': self.receipt(s)})
+        self.observed_previous = s
+        if activity['state_id'] == 'active':
+            require(self.receipts.get('deploy_press') is not None, 'real E Deploy precedes encounter clock')
+            if self.deployed is None:
+                require(s['native_interact'] and s['board']['last_result'].get('accepted')
+                        and s['board']['distance'] <= 2.6 and s['board']['candidate'] and s['board']['facing'] >= .05,
+                        'accepted actual E Deploy with current candidate, 3D range and facing')
+                self.deployed = self.receipt(s)
+            require(activity['generation'] == self.deployed['defense']['activity']['generation']
+                    and activity['elapsed_seconds'] < 34, 'one active unmodified encounter generation within timeout')
+        if activity['state_id'] == 'completed':
+            require(self.deployed is not None and len(self.kills) == 4
+                    and activity['remaining_hostile_count'] == 0
+                    and activity['generation'] == self.deployed['defense']['activity']['generation']
+                    and activity['elapsed_seconds'] < 34
+                    and all(a['health'] == 0 for a in defense['actors'])
+                    and all(a['state_id'] == 'destroyed' for a in defense['roster']),
+                    'four real resolver terminal kills before the whole 34 seconds')
+            if self.completed is None: self.completed = self.receipt(s)
+            self.require_paid(s, activity['generation'])
+            if self.paid is None: self.paid = self.receipt(s)
+        if self.paid is not None:
+            require(s['settlement']['record'] == self.paid['settlement']['record'], 'once-only ledger retained after payment and Reset')
+        else:
+            self.require_zero(s)
+        if self.departure is None and self.receipts.get('boarded') and not s['landed'] and s['home']['lease_free']:
+            require(s['command_thrust'] > 0 and s['active_ship'] and s['piloted'] and s['seated'],
+                    'ordinary positive thrust causes physical original Arrow departure')
+            self.departure = self.receipt(s)
+
+    def observe_event(self, event):
+        require(event['event'] == self.event_sequence + 1, 'no skipped or replayed resolver signal receipt')
+        self.event_sequence = event['event']
+        source = event['request_source_id']
+        sequence = event['sequence']
+        require(sequence > self.source_sequences.get(source, -1), 'monotonic real resolver source sequence')
+        self.source_sequences[source] = sequence
+        self.events.append(event)
+        if event['request_source_entity_id'] != self.initial['ship_id']:
+            return
+        require(source == event['source_id'] == 1102 and event['source_entity_id'] == self.initial['ship_id']
+                and event['weapon_id'] == self.WEAPON and event['presentation_receipt_id'] > 0
+                and event['presentation_receipt_id'] not in self.presentation_receipts
+                and event['accepted'] and event['resolved'] and event['command_fire'],
+                'fresh actual authored Arrow weapon receipt; any player rejection stops')
+        self.presentation_receipts.add(event['presentation_receipt_id'])
+        if event['applied_damage'] <= 0: return
+        handle = event['target_handle']
+        require(self.deployed is not None and event['generation'] == self.deployed['defense']['activity']['generation']
+                and handle and self.actor_handles.get(handle['hostile_id'])
+                    == (event['target_entity_id'], handle['generation'], handle['source_id'])
+                and handle['source_id'] in (2121, 2122, 2123, 2124)
+                and (handle['generation'], handle['source_id']) in ((1, 2121), (2, 2122), (3, 2123), (4, 2124))
+                and event['damaged'] and event['damage_accepted'], 'positive actual damage to exact registered defense actor')
+        if event['destroyed']:
+            require(event['remaining_health'] == event['damage_health'] == 0 and event['damage_destroyed']
+                    and event['target_entity_id'] not in self.kills, 'one real zero-health terminal kill per original target')
+            self.kills[event['target_entity_id']] = event
+
+    def begin_walk(self, stage, route, s):
+        self.route = [p[:] for p in route]
+        self.enter(stage, s)
+
+    def walk_to(self, s, target, keys, frames):
+        require(s['grounded'] and s['supported'] and s['control_enabled'] and not s['seated'],
+                'actual supported ordinary on-foot route')
+        walking = dict(s, velocity=s['walk_velocity'])
+        return HabitatLoopPilot.walk_to(self, walking, target, keys, frames)
+
+    yaw_to = HabitatLoopPilot.yaw_to
+
+    def press(self, key, stage, s, now, receipt):
+        self.tap(key, now)
+        if self.tap_key == key and self.tap_frame == s['frame']:
+            self.receipts[receipt] = self.receipt(s)
+            self.request_frame = s['frame']
+            self.enter(stage, s)
+
+    def update(self, s, now):
+        require(s is self.last_state, 'only final validated sample drives fresh OS input')
+        self.frame = s['frame']
+        if self.stage in ('ui_pause', 'ui_exit_wait'): return self.ui_update(s, now)
+        keys, dx, dy, fire = set(), 0, 0, False
+        frames = max(1, self.frame - self.last_input_frame)
+        self.last_input_frame = self.frame
+        speed = norm(s['velocity'])
+        activity = s['defense']['activity']
+        if self.stage == 'boot' and s['menu_ready']:
+            self.press('e', 'begin_shift', s, now, 'begin_shift_press')
+        elif self.stage == 'begin_shift':
+            if s['phase'] == 'APPROACH_SHIP' and s['grounded'] and s['supported']:
+                self.begin_walk('walk_board', self.TO_BOARD, s)
+            else: require(self.frame <= self.request_frame + 180, 'normal Begin Shift did not admit on-foot play')
+        elif self.stage in ('walk_board', 'walk_arrow', 'walk_reset'):
+            if self.route:
+                dx, arrived = self.walk_to(s, self.route[0], keys, frames)
+                if arrived:
+                    self.visited.append({'stage': self.stage, 'target': self.route.pop(0), 'frame': self.frame})
+            elif self.stage in ('walk_board', 'walk_reset'):
+                board = s['board']
+                dx, yaw, _ = self.yaw_to(s, board['position'])
+                if board['candidate'] and board['distance'] <= 2.6 and board['facing'] >= .05 and abs(yaw) < .08:
+                    if self.stage == 'walk_board':
+                        require(board['action'] == 'deploy', 'physical initial Deploy available')
+                        self.press('e', 'deploy_wait', s, now, 'deploy_press')
+                    else:
+                        require(board['action'] == 'reset' and self.paid is not None, 'same physical board offers completed-generation Reset')
+                        self.press('e', 'reset_wait', s, now, 'reset_press')
+            elif s['candidate'] and norm(s['walk_offset']) <= 3.1:
+                self.press('e', 'board_wait', s, now, 'board_press')
+            else:
+                dx, _ = self.walk_to(s, s['boarding'], keys, frames)
+        elif self.stage == 'deploy_wait':
+            if self.deployed is not None:
+                # Turn inboard below DockMastFoot03 before crossing its lamp hood.
+                # The direct diagonal grazes its solid corner at capsule radius .38;
+                # this supported westward leg clears the hardware before heading north.
+                self.begin_walk('walk_arrow', [[9, .18, -24.5], [9, .18, 12.5],
+                                               [-35, .18, 13.5], [-35, .18, 20]], s)
+            else:
+                result = s['board']['last_result']
+                deploy_edge = any(edge['pressed'] and edge['sample']['frame'] > self.receipts['deploy_press']['frame']
+                                  for edge in self.native_edges)
+                # XTest dispatch can precede Godot's first observed E edge.
+                # An empty receipt is still pending, never an actual rejection.
+                require(not (deploy_edge and result and not result.get('accepted', False)),
+                        'physical Deploy rejected; no retry')
+                require(self.frame <= self.request_frame + 90, 'physical E did not deploy; no retry')
+        elif self.stage == 'board_wait':
+            if s['piloted'] and s['seated'] and s['active_ship'] and s['seated_at_pilot'] and not s['transition_busy']:
+                self.receipts['boarded'] = self.receipt(s)
+                self.enter('depart', s)
+            else: require(self.frame <= self.request_frame + 300, 'ordinary Arrow E boarding rejected or timed out; no retry')
+        elif self.stage in ('depart', 'combat'):
+            require(activity['state_id'] in ('active', 'completed'), 'active real defense during ordinary combat')
+            if self.paid is not None:
+                require(self.departure is not None and len(self.kills) == 4, 'departed genuine four-kill defense before return')
+                self.enter('home_flight', s)
+                self.return_braking = False
+            else:
+                # Fly clear of the port berth along its authored forward vector,
+                # then brake and engage actual current actor poses with the gun.
+                if self.departure is None or norm(sub(s['position'], s['parked'])) < 16:
+                    keys.add('w')
+                else:
+                    self.stage = 'combat'
+                    keys.add('Prior')
+                    targets = [a for a in s['defense']['actors'] if a['active'] and a['health'] > 0]
+                    if targets:
+                        target = min(targets, key=lambda a:a['source_id'])
+                        dx, dy, align = self.aim(s, target['position'], .35)
+                        fire = align >= .999
+        elif self.stage == 'home_flight':
+            home = s['home']
+            off = sub(home['approach'], s['position'])
+            distance = norm(off)
+            dx, dy, align = self.aim(s, [s['camera'][i]+off[i] for i in range(3)], .25)
+            stopping = speed*speed/(2*s['tuning']['brake']) + speed*.18
+            if distance < stopping + 2: self.return_braking = True
+            if speed <= .45 and distance > 1: self.return_braking = False
+            if distance <= 1 or self.return_braking: keys.add('Prior')
+            elif align > .98: keys.add('w')
+            if distance <= 1 and speed <= .35: self.enter('home_align', s)
+        elif self.stage == 'home_align':
+            keys.update(('Prior', 'h'))
+            off = sub(s['home']['dock'], s['position'])
+            dx, dy, align = self.aim(s, [s['camera'][i]+off[i] for i in range(3)])
+            if align > .995 and s['upright'] > .94 and speed <= .35:
+                require(s['home']['capture'] and s['home']['selected_berth_id'] == s['home']['berth_id']
+                        and dot([-v for v in s['back']], s['home']['dock_forward']) < -.95,
+                        'normal nose-first selected Arrow home landing preview')
+                self.press('l', 'home_land', s, now, 'land_press')
+        elif self.stage == 'home_land':
+            keys.add('Prior')
+            self.landing_seen |= s['landing_active']
+            require(not s['home']['landing_abort_reason'], 'normal Arrow landing aborted; no retry')
+            if s['landed'] and s['phase'] == 'SHUT_DOWN':
+                require(self.landing_seen, 'one ordinary L drove observed home landing')
+                self.require_docked(s)
+                self.receipts['docked'] = self.receipt(s)
+                self.enter('shutdown', s)
+                keys.clear()
+            else:
+                require(self.landing_seen or self.frame <= self.request_frame + 120, 'ordinary L rejected; no retry')
+                require(not self.landing_seen or s['landing_active'], 'home landing stopped without docking')
+        elif self.stage == 'shutdown':
+            self.require_docked(s)
+            if s['telemetry']['engine'] == 'OFFLINE': self.press('e', 'exit_wait', s, now, 'exit_press')
+        elif self.stage == 'exit_wait':
+            self.require_docked(s)
+            if not s['piloted'] and not s['seated'] and s['control_enabled'] and not s['transition_busy']:
+                require(s['phase'] == 'COMPLETE' and s['exit_error'] < .25, 'ordinary physical Arrow exit at its real anchor')
+                if s['grounded'] and s['supported']:
+                    self.home_exit = self.receipt(s)
+                    self.begin_walk('walk_reset', [[-35, .18, 20], [-35, .18, 13.5], [9, .18, 12.5],
+                                                   [9, .18, -24], [12, .18, -24.5]], s)
+            require(self.frame <= self.request_frame + 600, 'ordinary home exit rejected or unsupported; no retry')
+        elif self.stage == 'reset_wait':
+            if activity['state_id'] == 'idle':
+                require(s['board']['last_result'].get('accepted') and s['native_interact']
+                        and s['board']['candidate'] and s['board']['distance'] <= 2.6 and s['board']['facing'] >= .05
+                        and activity['generation'] > self.completed['defense']['activity']['generation']
+                        and s['board']['action'] == 'deploy', 'one real physical Reset exposes usable next Deploy in a new idle generation')
+                self.reset_state = self.receipt(s)
+                self.receipts['next_deploy_available'] = self.reset_state
+                self.tap_key = None
+                self.enter('ui_pause', s)
+            else:
+                require(s['board']['last_result'].get('accepted', False), 'physical Reset rejected; no retry')
+                require(self.frame <= self.request_frame + 90, 'ordinary E did not reset; no retry')
+        if self.tap_key is not None:
+            if now < self.tap_until or self.frame < self.tap_frame + 6: keys.add(self.tap_key)
+            else:
+                self.tap_key = None
+                self.tap_cooldown = now + .3
+                self.tap_release_frame = self.frame
+        facing = s['walk_forward'] if not s['seated'] else s['back']
+        if self.mouse_pending is not None:
+            if norm(sub(facing, self.mouse_pending)) < .00001: dx = dy = 0
+            else: self.mouse_pending = None
+        if dx or dy: self.mouse_pending = facing[:]
+        return keys, dx, dy, fire
+
+    @staticmethod
+    def require_docked(s):
+        require(s['home']['contract'] and s['home']['lease'] and s['home']['parked_exact'] and s['landed'],
+                'strict exact Arrow home berth and bound live lease')
+
+    def ui_update(self, s, now):
+        keys = set()
+        if self.ui_key is not None:
+            if now < self.ui_until: return {self.ui_key}, 0, 0, False
+            self.ui_edges.append({'sequence': s['sequence'], 'key': self.ui_key, 'pressed': False})
+            self.ui_key = None
+            self.ui_release_until = now + .10
+            return keys, 0, 0, False
+        if now < self.ui_release_until or self.quit_requested: return keys, 0, 0, False
+        if s['paused'] and any(s['native_keys'].values()): return keys, 0, 0, False
+        key = None
+        if not s['paused']:
+            require(self.stage == 'ui_pause', 'pause remains active until actual Exit to Desktop')
+            key = 'Escape'
+        elif s['ui']['focus_is_exit']:
+            self.receipts['exit_ui'] = s
+            self.quit_requested = True
+            self.stage = 'ui_exit_wait'
+            key = 'Return'
+        elif s['ui']['focus_path'] != self.ui_focus:
+            require(s['ui']['focus_path'], 'actual pause keyboard focus')
+            self.ui_focus = s['ui']['focus_path']
+            key = 'Tab'
+        if key:
+            self.ui_key, self.ui_until = key, now + .08
+            self.ui_edges.append({'sequence': s['sequence'], 'key': key, 'pressed': True})
+            keys.add(key)
+        return keys, 0, 0, False
+
+    def report(self):
+        return {'stages': self.stages, 'phases': self.phases, 'walked_m': self.walked,
+                'visited': self.visited, 'receipts': self.receipts, 'deployed': self.deployed,
+                'completed': self.completed, 'paid': self.paid, 'reset': self.reset_state,
+                'departure': self.departure, 'home_exit': self.home_exit,
+                'kills': list(self.kills.values()), 'resolver_events': self.events,
+                'native_interact_edges': self.native_edges, 'ui_edges': self.ui_edges,
+                'quit_requested': self.quit_requested, 'last_state': self.last_state}
+
+    def finish_normal_exit(self):
+        require(self.quit_requested and self.stage == 'ui_exit_wait' and self.reset_state is not None
+                and self.home_exit is not None and len(self.kills) == 4 and self.paid is not None,
+                'full original route complete before normal UI process exit')
+        self.result = dict(self.report(), completion_marker=self.MARKER, normal_ui_exit=True)
+
+
+class StationDefenseFiles(HabitatRestartFiles):
+    MUTABLE = HabitatRestartFiles.MUTABLE | {'station_defense_session', 'game_flow_reward_store'}
+
+    def observe(self, s, pilot):
+        if s['paused']: return
+        label = 'baseline' if 'baseline' not in self.snapshots else (
+            'paid' if pilot.paid is not None and 'paid' not in self.snapshots else None)
+        if label is None: return
+        document = self.capture(label, s['settlement']['store'])
+        record = document['payload'].get('game_flow_reward_store')
+        if label == 'baseline':
+            pilot.require_zero(s)
+            require(record is None or record == s['settlement']['record'], 'independent actual empty defense ledger')
+        else:
+            pilot.require_paid(s, pilot.paid['defense']['activity']['generation'])
+            require(record == s['settlement']['record'], 'independent actual disk contains the exact once-only entitlement')
+            terminal = document['payload']['station_defense_session']['session']['completion']
+            require(terminal['generation'] == pilot.paid['defense']['activity']['generation']
+                    and terminal['reward_granted'] is True, 'actual saved terminal pays the exact encounter generation')
+
+    def finish(self, pilot):
+        require('paid' in self.snapshots, 'actual paid primary was independently read before shutdown')
+        document = self.capture('orderly-close')
+        paid = self.snapshots['paid']['document']
+        self.require_orderly(document, paid)
+        require(document['payload']['game_flow_reward_store'] == paid['payload']['game_flow_reward_store'],
+                'real orderly shutdown retains exactly one entitlement after physical Reset')
+
+
 class HabitatRestartPilot(HabitatLoopPilot):
     """Accepted ordinary admission, UI shutdown, and a fresh process continuation."""
     MARKER = 'NATIVE_HABITAT_RESTART_OK'
@@ -3850,12 +4309,13 @@ def stop(process):
 
 
 def run(binary, output, route="guided"):
-    require(route in ("arrow-return-reuse", "guided", "beacon-entry", "beacon-settlement", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
+    require(route in ("arrow-return-reuse", "station-defense", "guided", "beacon-entry", "beacon-settlement", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
     output.mkdir(parents=True, exist_ok=False)
     game = xvfb = desktop = pilot = None
     temporary_profile = None
     restart_files = None
     settlement_files = None
+    defense_files = None
     result = {'driver_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(), 'success': False, 'cap_seconds': CAP, 'binary': str(binary), 'native_gpu': 'NOT_RUN',
               'human_review': 'NOT_RUN', 'route': route, 'input_route': 'OS XTest → X11 → Godot Input → default sampler'}
     start = time.monotonic()
@@ -3910,6 +4370,7 @@ def run(binary, output, route="guided"):
                               binary_sha256=hashlib.file_digest(binary.open('rb'),'sha256').hexdigest())
                 settlement_files = BeaconSettlementFiles(profile, output) if route == 'beacon-settlement' else None
                 restart_files = HabitatRestartFiles(profile, output) if route == 'habitat-restart' else None
+                defense_files = StationDefenseFiles(profile, output) if route == 'station-defense' else None
                 result['game_legs'] = []
                 for leg in range(2 if restart_files else 1):
                     # These are the exact same args/env/profile/display/helper.
@@ -3941,7 +4402,7 @@ def run(binary, output, route="guided"):
                     leg_result['window'] = hex(window)
                     desktop.focus(window)
                     pilot = HabitatRestartPilot(cold=bool(leg)) if restart_files else {
-                        "arrow-return-reuse": ArrowReturnReusePilot, "guided": Pilot, "beacon-entry": BeaconEntryPilot, "beacon-settlement": BeaconSettlementPilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
+                        "arrow-return-reuse": ArrowReturnReusePilot, "station-defense": StationDefensePilot, "guided": Pilot, "beacon-entry": BeaconEntryPilot, "beacon-settlement": BeaconSettlementPilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
                         "hulk-arrival": HulkArrivalPilot, "hulk-breaker": HulkBreakerPilot,
                         "hulk-home": HulkHomePilot, "habitat-loop": HabitatLoopPilot, "life-tow": LifeTowPilot, "life-gantry": lambda: LifeTowPilot("life-gantry"), "life-arm": lambda: LifeTowPilot("life-arm"), "life-patrol": lambda: LifeTowPilot("life-patrol")}[route]()
                     with selectors.DefaultSelector() as selector:
@@ -3959,6 +4420,17 @@ def run(binary, output, route="guided"):
                                                 pilot.validate_observation(observation)
                                         pilot.finish(game.wait())
                                         leg_result.update(exit_code=0, reaped=True, normal_ui_exit=True)
+                                        break
+                                    if defense_files:
+                                        require(pilot.quit_requested and pilot.stage == 'ui_exit_wait',
+                                                'defense game exits only after actual EXIT TO DESKTOP')
+                                        require(game.wait() == 0, 'normal defense UI exit returns zero and reaps game')
+                                        leg_result.update(exit_code=0, reaped=True, normal_ui_exit=True)
+                                        drain_game_output(game, output/'game.log', pending,
+                                            lambda sample: (pilot.validate_observation(sample), defense_files.observe(sample, pilot)))
+                                        pending = b''
+                                        pilot.finish_normal_exit()
+                                        defense_files.finish(pilot)
                                         break
                                     if not restart_files: raise RuntimeError(f'game exited during {pilot.stage}: {game.returncode}')
                                     require(pilot.quit_requested and pilot.stage == 'restart_exit_wait',
@@ -3978,9 +4450,10 @@ def run(binary, output, route="guided"):
                                     lines = pending.split(b'\n'); pending=lines.pop()
                                     observations = observations_from_lines(lines)
                                     if observations:
-                                        if isinstance(pilot, (LifeTowPilot, ArrowReturnReusePilot)):
+                                        if isinstance(pilot, (LifeTowPilot, ArrowReturnReusePilot, StationDefensePilot)):
                                             for observation in observations:
                                                 pilot.validate_observation(observation)
+                                                if defense_files: defense_files.observe(observation, pilot)
                                         state = observations[-1]
                                         if restart_files:
                                             require(state['pid'] == game.pid, 'observer belongs to exact running game PID')
@@ -4033,6 +4506,13 @@ def run(binary, output, route="guided"):
                         leg_result['sortie'] = pilot.report()
                         game = None
                     else:
+                        if defense_files:
+                            desktop.keys([]); desktop.mouse(0, 0, False)
+                            drain_game_output(game, output/'game.log')
+                            game.stdout.close()
+                            require(not diagnostic_lines((output/'game.log').read_bytes().splitlines()),
+                                    'no diagnostics across complete defense normal UI exit')
+                            game = None
                         result.update(success=True,sortie=pilot.result)
                 if restart_files:
                     result['actual_file_snapshots'] = restart_files.snapshots
@@ -4047,12 +4527,16 @@ def run(binary, output, route="guided"):
             result['actual_file_snapshots'] = settlement_files.snapshots
         if restart_files is not None:
             result['actual_file_snapshots'] = restart_files.snapshots
+        if defense_files is not None:
+            result['actual_file_snapshots'] = defense_files.snapshots
         if pilot is not None:
             result['partial_sortie'] = {'stage': pilot.stage, 'stages': pilot.stages, 'phases': pilot.phases}
             if isinstance(pilot, ArrowReturnReusePilot):
                 result['partial_sortie'].update(last_state=pilot.last_state, receipts=pilot.receipts, trips=pilot.trips, weapon=pilot.weapon)
             if isinstance(pilot, HabitatRestartPilot):
                 result['partial_restart'] = pilot.report()
+            if isinstance(pilot, StationDefensePilot):
+                result['partial_sortie'].update(pilot.report())
             if isinstance(pilot, (HabitatLoopPilot, LifeTowPilot)):
                 result['partial_sortie'].update(last_state=pilot.last_state, visited=pilot.visited,
                                                receipts=pilot.receipts, native_interact_edges=pilot.native_edges,
@@ -4069,6 +4553,8 @@ def run(binary, output, route="guided"):
     finally:
         if settlement_files is not None:
             result['actual_file_snapshots'] = settlement_files.snapshots
+        if defense_files is not None:
+            result['actual_file_snapshots'] = defense_files.snapshots
         signal.setitimer(signal.ITIMER_REAL,0)
         # A second cancel must not strand the other owned child midway through
         # bounded cleanup. Each independent cleanup runs even if another fails.
@@ -4116,8 +4602,8 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('binary')
     parser.add_argument('--output',required=True,type=Path)
-    parser.add_argument('--route', choices=('arrow-return-reuse', 'guided', 'beacon-entry', 'beacon-settlement', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
-                        help='beacon-settlement continues the accepted entry through four physical beacons and durable reward; beacon-entry departs normally and physically reaches/starts the first Beacon through actual pause controls; life-patrol walks Habitat through the real door beside patrol drones and boards Torrent; life-arm walks Aft stairs past the live service arm and boards Zenith; life-gantry walks Freight past the live gantry and boards Jovian; life-tow walks Central beside live tow service and boards Torrent; hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
+    parser.add_argument('--route', choices=('arrow-return-reuse', 'station-defense', 'guided', 'beacon-entry', 'beacon-settlement', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
+                        help='station-defense requires ordinary board Deploy, Arrow departure, four real kills/reward, strict home return/exit, physical Reset and normal UI shutdown; beacon-settlement continues the accepted entry through four physical beacons and durable reward; beacon-entry departs normally and physically reaches/starts the first Beacon through actual pause controls; life-patrol walks Habitat through the real door beside patrol drones and boards Torrent; life-arm walks Aft stairs past the live service arm and boards Zenith; life-gantry walks Freight past the live gantry and boards Jovian; life-tow walks Central beside live tow service and boards Torrent; hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
     args=parser.parse_args()
     try: binary=validate_binary(args.binary)
     except ValueError as error: parser.error(str(error))
