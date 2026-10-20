@@ -1261,7 +1261,7 @@ func _assert_interaction_highwater_survives_body_reentry() -> void:
 	_set_plan(0, Vector2.ZERO, true)
 	await _drive(30)
 	var record := simulation.get_body_record(entity)
-	var replay_suppressed := int(simulation.get_audit().get("interactions", 0)) == interactions_before \
+	var replay_suppressed: bool = int(simulation.get_audit().get("interactions", 0)) == interactions_before \
 		and record.get("seat_state") == &"standing" and not body.is_seated() \
 		and _server.get_crew_assignment(_client_peer_ids[0], entity).is_empty()
 	_check(source.get_interaction_request_id() == retained_id and replay_suppressed,
@@ -1309,7 +1309,7 @@ func _assert_one_fresh_crew_interaction(index: int, interactions_before: int, la
 	var source := _walkers[index].get("source") as IntentSource
 	var claims_before := int(simulation.get_audit().get("seat_claims", 0))
 	source.request_interaction()
-	var seated := await _wait_until(func() -> bool:
+	var seated: bool = await _wait_until(func() -> bool:
 		return simulation.get_body_record(entity).get("seat_state") == &"seated"
 	, 3.0)
 	await _drive(20)
