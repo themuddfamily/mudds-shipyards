@@ -18984,3 +18984,76 @@ pilot/co-pilot ordinary physical reuse instance; other supported craft/roles,
 distinct second landing, full multiplayer baseline/endurance, all36 parent
 outcomes/ten phase gates and native Windows/GPU/device/audio/human/final
 qualification remain OPEN/NOT_RUN. No adjacent case selected.
+
+## Defense mast detour clears original stall; full route still unaccepted — 2026-10-20
+
+PLAY-DEFENSE / parent13. Separately selected20:44–21:44UTC/60min after cumulative
+priority review of retained406.400707s, including original35.963291s and sole prior
+84.239347s route failures. Candidateb81be8a414e7f150300c11e6356ba84c93f6c224 is
+WITHHELD/unmerged. No gameplay completion or checkpoint advancement.
+
+Concrete reopening fact: source collidable MastFootLampHood at world center
+(11.68,...,-23), size(.40,.10,.52), player capsule radius.38 predicts its front
+clearance at z=-23.64. Original straight Deploy(11.950181,-24.490341) to(9,12.5)
+segment crosses that plane atx11.882362, matching old actual stopx11.888679/
+z-23.640129. This is strong source geometry inference, not a captured collider ID.
+The one selected correction prepends supported interior waypoint(9,.18,-24.5),
+then retains all original Arrow waypoints; no geometry/input/actor/clock mutation.
+
+Root recovered exact archiveda480c0fbb five-file patch into currente72d5fb30
+without new branch/worktree. One HIGH implementer resolved ten conflict blocks
+semantically; independent HIGH reviewer confirmed current routes/Arrow normal UI
+exit/privacy preserved, all preexisting Python classes/functions/tests unchanged
+except intended shared integration. Defense observer/files/drain/safety blocks
+are exact archived restoration; pilot differs only by detour/rationale. No new
+validator, evidence family or mirrored waypoint test. Scope remains full ordinary
+physical Deploy, Arrow boarding/departure, four actual player kills across three
+waves, once payment, strict home, physical Reset/next Deploy, normal UIexit0.
+Whole34s, driverCAP300, outer360 and original stage caps unchanged.
+
+Import PASS6.556s;102 existing driver tests PASS10.756s; privacy PASS1.104s.
+Safe clean-source Windows export PASS10.560s/Linux25.680s; strict Linux executable
+startup24.236s/archive25.460s/Windows embedded payload via Linux27.980s all OS0
+and exactly one STARTUP_MENU_READY_OK. Actual package audit PASS5.440592s exec
+wall:1525 matching PCK entries, stock WindowsPE.text, ELF identity, exact tar
+bytes/modes/source epoch/metadata. No native Windows/GPU claim. All silent/private
+Xvfb explicitx11 where rendered; GitHub Actions remains disabled.
+
+ONE complete route FAIL83.645152s (driver83.396s). Actual Deploy accepted frame1141;
+new interior turn visited1212, retained(9,12.5)1578/(-35,13.5)1962/(-35,20)2060.
+Thus old mast stall is cleared and every explicit Arrow waypoint passes. Later
+automatic boarding approach fails to reach boarding before original whole34s.
+Frozen failure sample3181 Player(-39.0124779,-.0185325,19.3577213), elapsed34.016667/
+timed_out; actual final raw sample3182 differs slightly(-39.0124435,-.0185277,
+19.3575554). Earlier(-38.261497,-.0183285,19.741898) is not the terminal sample.
+Actual later collision/input cause is unproved; do not label continuous stationary
+motion or a specific collider from these records. No boarding/departure, kills,
+completion/payment/home/Reset/next Deploy/UIquit. Fifteen resolver events all
+hostile source2121, player kills[] and ledger0. Clean logs/diagnostics0; inputs
+released and helper/game/Xvfb reaped true. Source/cache unchanged; independent NO-GO.
+
+Nine new stage intervals215.978976s plus audit5.440592s and prior406.400707s give
+627.820275s measured cumulative cost. Stage intervals use owner-file mtime
+minus command-file mtime; audit uses exec wall interval. Failures retained, no
+reset/shortened route/larger clock/new retry or adjacent case selected.
+
+Results /srv/mudds-work/defense-walk-repair-20261020/results/ retain exact commands,
+freezes, reviews, four raw files including40MB game.log and source/build recovery.
+Pushed archive/withheld/defense-mast-detour-20261020 exact tag object
+c050f285c0c21b0c8c5b76ccadfd994493ef57f8 points to unique failedb81be8a41. Incremental
+bundle verified, binary patch and five-file source tar reopened against Git blobs.
+Eight unqualified Windows/Linux artifacts copied/byte+hash verified privately and
+only their owned builds paths removed; no public checkpoint ZIP/notes created.
+Latest accepted playable remains49bc7b7. Main source never merged this candidate.
+
+All9 owners terminal/22 observed PID/start identities absent;125 recursive profile
+entries reopened/verified exact modes/paths/bytes/hashes/links before scratch
+removal20:52:10UTC. Archive6534465bytes,
+SHA25691f3961c16c7a5a37a26ab9ec6bd6f37d10da94e48b272d71a3f2b8290b5833b.
+Case root contains results only; eight protected detached worktrees untouched.
+Main sole local/live remote branch; failed source tag is retained intentionally.
+
+Next action is concrete supported automatic Arrow-approach path/collision/input
+cause from retained records and authored hull before a separately selected repair.
+Full original Defense result remains OPEN/PARKED; no other activity or parent/
+phase/native/hardware/human gate closed. Accounting closeout committed/pushed main.
