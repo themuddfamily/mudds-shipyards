@@ -19211,3 +19211,52 @@ scratch removal21:20:52UTC. Archive6534724bytes SHA256
 Eight protected detached worktrees untouched. Main sole local/live remote branch;
 accounting closeout committed/pushed. All36 parents/ten phase gates and native,
 hardware,human,final release gates remain open.
+
+## Defense autonomous flight boundary fixed and checkpointed — 2026-10-20
+
+Runtime source37676874f1d5b3ee56bbeb461f1b0434c5b793f5 accepted, merged/pushed main;
+Windows/Linux checkpoint3767687 published in repository builds directories.
+This resolves a concrete defect within PLAY-DEFENSE, whose full journey stays OPEN.
+
+Relief gamma targets the core but seeks stand-off58/74m, beyond the maximum
+about51.2m available inside its authored leash. Ordinary retreat crossed that
+boundary and correctly triggered host abort. Content now supplies the unchanged
+local flight envelope to all four actual roster movers. RangeOpponent limits
+next velocity before aware flight and unaware coast, without actor placement.
+Heavy uses that same parent mover; other unbound opponents retain prior behavior.
+Externally outside origins are not rescued, and existing host abort remains
+responsible for actual escape, including post-move collision displacement.
+No leash, range, speed, tactic, damage, reward or34s-limit changes.
+
+All five focused suites PASS: content88 assertions, production placement62,
+heavy picket199, tactics12, pressure6. The extended existing content regression
+requires300 enabled real physics ticks, gamma>1m travel and contact within1cm of
+its former escape face, continuous contained movement/no abort, then actual
+resolver kills. Existing forced-escape abort and full34s timeout still pass.
+Initial placement120s harness TIMEOUT124 retained; unchanged suite passes136.782s
+under repository test-matrix default300s. No gameplay deadline was changed.
+Independent HIGH source, focused-result and package review GO.
+
+Fresh safe clean-commit paired exports have1525 matching actual packaged entries;
+stock PE code, exact Linux archive bytes/modes and metadata verified. ELF,
+extracted archive and Windows embedded payload via Linux Godot each reach one
+STARTUP_MENU_READY_OK with exit0. Windows ZIP contains exactly the EXE and actual
+validation/player-visible notes; reopened bytes/hashes verified. Notes and Linux
+package are alongside builds. All engines use Dummy/headless/private profiles;
+GitHub Actions remains held. Native Windows/GPU/devices/listening/human/final
+qualification remain NOT_RUN. Earlier Jovian reboarding remains included.
+
+Full ordinary Arrow qualification was not retried or accepted. Its prior first
+kill at about30s leaves less than remaining2.5+8s authored delays, even with
+instantaneous remaining kills. A feasible boarding/combat plan is required
+before another full run. Four actual kills/once payment/strict home/physical
+Reset/next Deploy/UIexit and34s/CAP300/outer360 remain required.
+
+Exact commands/freezes/logs/reviews/package hashes and retained timeout are at
+/srv/mudds-work/defense-bounded-flight-20261020/results/. Measured current stages
+and audit501.731526s; prior946.376273s retained, total1448.107799s. This is cost,
+not completion. All12 owners terminal/18 observed PID/start identities absent;
+201 profile entries archived/reopened/verified before owned scratch removal
+21:36:31UTC. Eight protected worktrees untouched. No new branch/worktree; main
+sole local/live remote branch. Accepted source/roadmap closeout pushed; all36
+parents/ten phase gates remain open.

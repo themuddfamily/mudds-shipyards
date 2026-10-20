@@ -6,14 +6,13 @@ Nine of the eventual 17 craft exist; eight still need supported specifications
 and implementation. Partial acceptance is retained in the backlog; it is not
 whole-feature completion.
 
-Latest playable checkpoint: **49bc7b7**. A Jovian passenger can now exit after
-landing, walk outside, return through the hatch, walk to the original co-pilot
-chair and sit with a fresh Interact press. The old hatch input no longer claims
-a chair on reboarding. Host and both clients agree; original pilot and home
-berth remain retained. Includes the earlier physical exit and passenger HUD fixes.
-[Windows ZIP](builds/windows/MuddsShipyards-49bc7b7-checkpoint.zip),
-[Windows notes](builds/windows/MuddsShipyards-49bc7b7-notes.txt),
-[Linux notes](builds/linux/MuddsShipyards-49bc7b7-linux-notes.txt).
+Latest playable checkpoint: **3767687**. Station Defense relief enemies now
+respect the encounter flight boundary while retreating, rather than aborting
+the encounter by flying themselves outside it. Includes the earlier accepted
+Jovian passenger exit/reboarding fixes. Full ordinary Defense remains open.
+[Windows ZIP](builds/windows/MuddsShipyards-3767687-checkpoint.zip),
+[Windows notes](builds/windows/MuddsShipyards-3767687-notes.txt),
+[Linux notes](builds/linux/MuddsShipyards-3767687-linux-notes.txt).
 
 This page is the working queue. The
 [36-parent crosswalk and named children](docs/ROADMAP_BACKLOG.md#coverage-of-the-original-remaining-outcomes)
@@ -77,6 +76,21 @@ This clears the branch queue; it does not close their unfinished gameplay,
 qualification or release requirements. No unaccepted source was merged to reduce
 a branch count. Eight previously protected detached worktrees remain unchanged.
 
+**Defense autonomous-flight defect fixed — shipped on `37676874f`.**
+The relief enemies' authored stand-off exceeded the available arena, so ordinary
+retreat crossed the leash and ended the encounter. Their mover now limits its
+next velocity inside the unchanged encounter-local boundary. Five seconds of
+real enabled relief flight reaches the former escape face without leaving;
+external escape still aborts and real resolver destruction still works. No actor
+placement or changes to tactics, speeds, health, damage or the34s limit.
+
+Five focused suites and three strict packaged startups pass; actual1525-entry
+Windows/Linux payloads match. Fresh Windows EXE/ZIP/notes are in builds/windows;
+independent scoped review GO. Accepted source merged/pushed; all12 test/export/
+startup owners terminal,18 observed identities absent,201 profile entries verified
+before owned scratch removal. No new branch/worktree; protected worktrees intact.
+[Fix, validation and limits](docs/history/ROADMAP_DELIVERIES.md#defense-autonomous-flight-boundary-fixed-and-checkpointed--2026-10-20).
+
 **PLAY-DEFENSE remains OPEN/PARKED — candidate `0b11486e0` withheld.**
 The completed-motion correction now passes the original walking route, real
 Arrow boarding and departure. One actual player kill is recorded. The full
@@ -89,13 +103,16 @@ No completion, payment, home, physical Reset, next Deploy or normal UI exit.
 105 focused checks, privacy, fresh paired exports, three strict startup checks
 and actual1525-entry package comparison pass. The ONE full journey fails88.261s;
 whole34s/CAP300/outer360 and every required outcome remain unchanged. Cumulative
-measured stages/audit946.376s retain all prior failures. Independent NO-GO;
-no repair, retry or adjacent task selected. Establish the exact abort trigger and
-its production contract before choosing any further change.
+measured stages/audit946.376s retain all prior failures. That full journey stays
+NO-GO despite the separately accepted runtime fix above. Its first kill at about30s
+left less than the remaining10.5s authored delays, even with instantaneous other
+kills. Establish a feasible ordinary boarding/combat plan before another full
+qualification; no full retry, shorter contract or timer change is selected.
 
 Unique source survives in pushed `archive/withheld/defense-completed-motion-20261020`
 and verified incremental bundle/patch/five-file tar. Eight unqualified artifacts
-moved out of public builds into private results; latest playable49bc7b7 unchanged.
+moved out of public builds into private results. The fresh scoped checkpoint
+above uses its own accepted clean source; it does not promote these failed bytes.
 All10 owners terminal/23 observed identities absent;134 profile entries verified
 before owned scratch removal21:20:52UTC. Eight protected worktrees untouched.
 Main is the sole local/live remote branch; unaccepted code remains unmerged.
@@ -507,8 +524,8 @@ contracts and cumulative attempt records remain in the retained history.
 
 | Outcome | Last actual result | Condition before more work |
 | --- | --- | --- |
-| PLAY-DEFENSE ordinary route /13 | Withheld0b11486e0 passes completed-step checks, ordinary boarding/departure and one actual player kill. Full route FAIL88.261s: recorded aborted near34s, three hostiles remain. Gamma crosses authored leash by source/raw inference; trigger receipt absent. No payment/home/reset/UIexit. | PARKED; cumulative946.376s retained. Exact abort trigger/production contract required before any further selection; no repair/retry selected or cap change. Source archived, eight unqualified packages privately retained, owned scratch removed. Latest playable unchanged. |
-| Jovian postdock reuse /16,20,26 | DONEbc7f9f9c4: complete ordinary passenger exit/reboard, pilot exit/reclaim and repeat departure/braked stop, full original journey and three actual OS0. Reboard runtime repair49bc7b736; latest paired playable49bc7b7. | Source integrated/pushed and owned scratch removed. Existing working refs already deleted; other supported craft/roles, distinct second landing and full parent gates remain open. |
+| PLAY-DEFENSE ordinary route /13 | Autonomous enemy escape fixed and checkpointed3767687. Prior full caller0b11486e0 reached ordinary boarding/departure and one actual player kill, then aborted near34s; payment/home/reset/UIexit not reached. | Full journey OPEN. Prior first kill about30s leaves less than remaining10.5s authored delays; establish a feasible ordinary combat plan before rerun. No timer/contract change selected. Failed source/results retained; owned scratch cleaned. |
+| Jovian postdock reuse /16,20,26 | DONEbc7f9f9c4: complete ordinary passenger exit/reboard, pilot exit/reclaim and repeat departure/braked stop, full original journey and three actual OS0. Reboard runtime repair49bc7b736; Jovian-specific paired checkpoint49bc7b7, included in current3767687. | Source integrated/pushed and owned scratch removed. Existing working refs already deleted; other supported craft/roles, distinct second landing and full parent gates remain open. |
 | Habitat common-entry view /9,12 | [Source8a6339b91](docs/history/ROADMAP_DELIVERIES.md#habitat-arrival-view--readback-timed-out-before-image): import passes; full-Main player-height readback times out180.842s before PNG or view metadata. Cumulative201.494s; no observed defect/no-finding. | PARKED. Concrete supported capture-boundary change before selection; no renderer/room substitute, cap increase or unchanged retry. Actual eye stage was not proved reached; accepted Habitat runtime scopes remain. |
 | Courier clear /11 | [Candidatecb9d76fa5](docs/history/ROADMAP_DELIVERIES.md#courier-ordinary-clear--escaped-without-player-damage), archived WITHHELD, working refs deleted/source unmerged: prechecks pass; ordinary attempt fails70.377s, ESCAPED at1400m, hull78/78, no player hit/kill or home completion. Cumulative165.917s. | PARKED/withheld. Fresh Courier-window emission/ray/resolver facts are missing; generic shot receipt can be stale. No weapon/aim cause established, repair/retry or public checkpoint selected. Preserve original route/caps; other Courier outcomes need separate selection. |
 | Matching RPC-cache templates /25,32 | [Linux built; Windows cold/incremental compilation timed out](docs/history/ROADMAP_DELIVERIES.md#matching-rpc-cache-templates--stopped-at-windows-compilation-budget). No accepted matching pair; callback repair is unverified. Browser diagnostic/prepared acceptance source archived WITHHELD; working refs deleted. | PARKED; no further compilation or dependent browser attempt selected. Existing recipe/JSON fixture remain delivered; empty callable metadata and similar Window errors establish no cause. |
