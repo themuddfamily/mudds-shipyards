@@ -182,9 +182,10 @@ SAVE-UNSUPPORTED formats/native/installed and wider recovery gates remain open.
 ## Selected production repair — retain damaged save bytes
 
 **RECOVERY-FIX[corrupt primary preservation] / SAVE-CORRUPT**, parents31/32.
-Source shows both explicit commit after backup load and interrupted-transaction
+Source shows explicit commit after backup load and interrupted-transaction
 promotion can remove an invalid primary even when `.recovery` preservation
-failed. This is a production data-retention defect, independent of the pending
+failed. Explicit backup restore retains bytes only in disposable `.tmp`; apply
+the same durable fence there while retaining its existing temporary copy. This is a production data-retention defect, independent of the pending
 active-run policy choices and parked Windows template compilation.
 
 Result: refuse destructive repair unless the current damaged primary has an
