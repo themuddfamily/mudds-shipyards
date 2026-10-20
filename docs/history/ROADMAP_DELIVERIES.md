@@ -17794,3 +17794,54 @@ remain including main (16 non-main remote). Two ordinary gameplay candidates
 (passenger role display, tooltip retirement) and14 automation/diagnostic/release
 candidates remain. Ref counts are housekeeping; the delivered product result is
 physical passenger exit while the original pilot remains aboard.
+
+
+## Passenger role closeout — authoritative clearance stop retained — 2026-10-20
+
+Continues existing fix/cabin-passenger-role-20261018, merged with current main
+without conflict; no new branch. Source10-line HUDfix from38c079086 remains
+unmerged: confirmed live same-craft standing passenger overrides stale admission
+role, without changing authority or active/seated crew priorities.
+
+Original failed walking has an actual invalid straight path. SeatBack live mesh
+AABBx[-.36,.36],y[-.06,.14],z[-.44,.43], fitted Xrotation−78°, Jovian cockpit shift
+(0,-1.38,-8.15) yields box origin(0,1.17,-7.8). Aftmost corner z−7.651909117,
+y1.578128767 is within capsule cylindrical span, radius.38; predicted straight
+stopz−7.271909117 gives only.571912117m from saved start−6.69999695. Original
+host/client stops differ by.000348m/.000120m. This establishes why original
+straight move_back cannot reach.6m; it does not justify weakening the walk gate.
+
+Candidatecdc4cb209 adds ordinary lateral clearance, then retains original total
+>=.6m local/authoritative displacement and additionally requires >=.6m backward
+projection after separate local/authoritative clearance baselines. All original
+boarding/departure/both-yaw/ordinaryInteract/8srelease/15swalk/300ssuite/360souter,
+source retirement, owner0/generation+1, same actors and retained co-pilot remain.
+
+Import20.738485763s, compile16.970097149s and full focusedHUD16.821697133s PASS.
+Full149.967472087s FAIL at new clearance gate; move_back never pressed and
+clearance baseline empty. Localx−1.018653870 versus actual hostx−.778179169
+straddles local-only stop but both-body completion requiresx<=−1.0. Valid cabin
+support/current authority/PASSENGERHUD persist; this is an observed controller
+stop mismatch, not a proved network or collider defect. All3actual peers exit1,
+marker0; no exports/startups/audit. Independent STOP confirms limits.
+
+Supported caller-only correction007024839 steers while either body remains
+short ofx−.80, with a local stop guard−1.10 before jamb. Source chair margin.06m;
+guard/braking/frame bounds leave~.03m jamb margin. Observed.240475m prediction gap
+puts local body around−1.0405 when host clears−.80. If divergence consumes that
+corridor the guard fails safely. No original.6m backward/overall/freshness or
+time threshold changes; clearance is path control, not substituted acceptance.
+Unchanged HUD bytes retain their pass; final-pin compile and full route required.
+Same original16:48–17:33UTC/45min selection, no deadline or cost reset.
+
+Nine original known stages423.259810042s INCLUDE the two original full routes
+302.594422897s. New204.497752132s yields627.757562174s known stages; unknown earlier
+setup remains unrecorded. Do not add routes twice. Initial owned root now only
+results (plus the nested owned correction root):
+`/srv/mudds-work/cabin-role-closeout-20261020/results/`.
+All25 PID/start identities absent, owners terminal;199 profile entries and helper
+sources verified before worktree/profile/helpers removal10.05min/45min. Archive
+SHA256`b7661b2ecdf628a5e451f3144ca9979abfc754b05dff64a946be777628ec1bf0`.
+Inherited cleanup metadata's generic parser label is not a claim of a parser
+failure in this handback attempt; all actual stages/costs above are retained.
+Current playable remains861c4d3. Candidate unmerged and full handback open.

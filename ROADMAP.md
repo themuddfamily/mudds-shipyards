@@ -96,6 +96,16 @@ checkpoint/three strict startups/review, merge/push and exact-tip branch deletio
 otherwise preserve failure/unmerged source and remove owned scratch within45min.
 Original two routes302.594s and nine known stages423.260s remain accounted;
 unknown earlier setup stays separate. No broader helm/world case selected.
+First candidatecdc4cb209 import/compile/HUD pass; full149.967s FAIL at new
+clearance controller, before move_back. Localx=-1.01865 stops input while fresh
+hostx=-0.77818 remains short; both are supported/current, HUDPASSENGER. No runtime
+movement defect claimed. Retained204.498s adds known total627.758s. All25 process
+identities absent,199 profile entries verified; owned scratch cleaned10.05min.
+Supported controller correction007024839 steers until BOTH bodies clear the
+chair atx<=-0.80, with localx=-1.10 jamb stop guard. Chair/jamb clearances are
+source-derived; original>=0.6m backward/overall localhost gates and15s deadline
+remain. Compile and one full original journey on this source; unchanged HUDpass
+retained. Same17:33 deadline, no cost reset or acceptance narrowing.
 
 **Jovian passenger exit accepted; existing branch merged and deleted.**
 Source861c4d39b is integrated in pushed main2352d18c3. Original ordinary host/two-
