@@ -77,14 +77,18 @@ This clears the branch queue; it does not close remaining gameplay,
 qualification or release requirements. No unaccepted source was merged to reduce
 a branch count. Eight previously protected detached worktrees remain unchanged.
 
-**Current task: finish existing Salvage inspection/publication.**
-After the accepted full hub approach, inspect all three components and publish
-the manifest through normal controls. Independently read the actual shared save
-file, check repeat publication creates no transaction, and return by the full
-accepted route. Preserve all access limits; stop the first unexpected failure
-for a concrete cause. Fresh-process revisit stays separate. No new branch or
-worktree. The [bounded assignment](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes)
-records the exact contract and estimate.
+**Existing Salvage inspection/publication DONE — source `5189436f1`.**
+Normal hub approach, all three physical inspections and their authored grades,
+console publication, an unchanged repeated console interaction, and the full
+reverse route to the same hub spawn pass in103.609s. Independent default-store
+reads verify the actual shared file after every observation and publication;
+unrelated data is conserved. Final primary contains all three IDs and the
+published manifest. Original route/limits remain unchanged; no player staging,
+injected filesystem or direct inspection calls. Independent review GO, accepted
+source merged/pushed, owned profiles verified/removed and all6 observed process
+identities absent. Caller-only qualification; current3767687 runtime unchanged.
+Fresh-process physical revisit remains the last ordered Salvage child.
+[Acceptance and retained save](docs/history/ROADMAP_DELIVERIES.md#existing-salvage-inspection-and-publication-qualified--2026-10-20).
 
 **Existing Salvage access task DONE — source `9749f742c`.**
 The same Player now walks from the normal hub spawn through every original

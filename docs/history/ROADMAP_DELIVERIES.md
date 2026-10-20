@@ -19361,3 +19361,47 @@ verified before owned scratch removal22:02:26UTC. Eight protected worktrees
 untouched; main sole local/live remote branch. Accepted source and roadmap
 closeout pushed; all36 parents/ten phase gates remain open. Defense clock choice
 is still pending, with the current34s board-start behavior unchanged.
+
+
+## Existing Salvage inspection and publication qualified — 2026-10-20
+
+WALK-SALVAGE-INSPECT accepted on5189436f19914cb7b35fd8b43502e77c25895793,
+merged/pushed to main after independent source/result GO. The normal retained
+hub Player completes all29 accepted outward destinations, physically approaches
+coil/relay/coupling/manifest, uses actual Main Interact, and returns through all29
+reverse goals to the retained spawn. Held movement and mouse InputEvents only;
+no player placement/basis writes, direct station calls or persistence injection.
+All original .20m pre-settle arrival/240 physics+process loops/4 physics settle/
+300s inner/360s outer limits remain. Default/capture tail, route goals and all
+walking/input helpers are byte-identical to90f57804e.
+
+After each observation a distinct default UserDataStore reads the real primary
+file and validates its envelope/checksum: exact ordered IDs, authored A/B/D
+grades, unpublished until actual console, then published. Short interactions
+preserve every unrelated payload key; immediate repeated console preserves the
+entire payload and generation. Long return compares only the Salvage slot and
+station/no-authority state, allowing ordinary unrelated Main saves. This is
+source qualification using an isolated Xvfb explicitx11/dummy renderer/Dummy
+audio, not OS-XTest/native GPU, inventory or reward delivery.
+
+Focused compile PASS16.6042268s; ONE complete selected run PASS103.6094153s,
+92assertions, exactly one WALK_SALVAGE_INSPECT_TEST_OK marker, OS0, no diagnostics,
+empty Xvfb log and source/cache manifests unchanged. Selected stage total
+120.2136421s is a check-cost interval, not project progress. Existing ACCESS
+failures and acceptance remain separately retained. Raw retained primary is
+7058bytes/SHA2565b087cf53f1b3f84fd466a4e43f8193841e1bde8feaf20edf94b75188f5de142,
+generation11/commit salvage-inspection-0000000011, exact3 IDs/publishedtrue.
+
+Results: /srv/mudds-work/salvage-ordinary-inspect-20261020/results/ contains frozen
+task-card, original/final section hashes, raw logs/results/manifests, independent
+reviews, published-primary.json, publication-result and costs. Two terminal
+owners/six absent PID+starttick identities verified. Owned profiles archived and
+all34 entries reopened/byte+mode+link verified before scratch removal22:11:58UTC;
+5124byte archive SHA2560acc0f010c25dd4eb296119c847b70456332dc1dffe2cd7fb3adfaa12eb00783.
+No new branch/worktree; eight protected detached worktrees unchanged. Runtime/
+export inputs unchanged from3767687, so no identical checkpoint rebuild.
+
+Fresh-process physical REVISIT remains OPEN; this run does not prove it.
+Original20 candidate count stays eight accepted/superseded and twelve unqualified
+because ACCESS already accounted for this candidate; no double counting. All36
+parents/ten phase gates, native/hardware/human/final gates remain open.
