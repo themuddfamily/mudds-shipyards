@@ -161,8 +161,8 @@ class NativeSortieSafetyTests(unittest.TestCase):
                      axis[0]*vector[1]-axis[1]*vector[0]]
             return [vector[i]*math.cos(angle) + cross[i]*math.sin(angle)
                     + axis[i]*native.dot(axis, vector)*(1-math.cos(angle)) for i in range(3)]
-        for delay, power, rate in ((1, 1, .12), (4, .65, .25), (7, .8, -.2)):
-            with self.subTest(delay=delay, power=power, angular_rate=rate):
+        for delay, power, rate, pitch_rate in ((1, 1, .12, .4), (4, .65, .25, -.4), (7, .8, -.2, .4)):
+            with self.subTest(delay=delay, power=power, yaw_rate=rate, pitch_rate=pitch_rate):
                 pilot = native.PairedWingPilot()
                 state = self.wing_precision_observation()
                 state['velocity'] = [0, 0, 0]
@@ -171,7 +171,7 @@ class NativeSortieSafetyTests(unittest.TestCase):
                 admissions = 0
                 previous_fire = False
                 precision_frames = 0
-                for frame in range(360):
+                for frame in range(200):
                     for due, dx, dy in queued[:]:
                         if due > frame: continue
                         # HeroShip uses local (-dy,-dx,0)*sensitivity*damage_power.
@@ -182,8 +182,13 @@ class NativeSortieSafetyTests(unittest.TestCase):
                         queued.remove((due, dx, dy))
                     seconds = frame/60
                     angle = .25 + rate*seconds
-                    target = [70*math.sin(angle), 0, -70*math.cos(angle)]
-                    velocity = [70*rate*math.cos(angle), 0, 70*rate*math.sin(angle)]
+                    pitch = .12 + pitch_rate*seconds
+                    sy, cy, sp, cp = math.sin(angle), math.cos(angle), math.sin(pitch), math.cos(pitch)
+                    target = [70*sy*cp, 70*sp, -70*cy*cp]
+                    # Exact derivative of the moving target, including the
+                    # pitch rate that dominated the retained full-route failure.
+                    velocity = [70*(rate*cy*cp-pitch_rate*sy*sp),
+                                70*pitch_rate*cp, 70*(rate*sy*cp+pitch_rate*cy*sp)]
                     state['aim'] = dict(zip(('camera_right', 'camera_up', 'camera_back'), axes))
                     pilot.frame = frame
                     alignment = native.dot(native.unit(target), [-v for v in axes[2]])
@@ -201,7 +206,7 @@ class NativeSortieSafetyTests(unittest.TestCase):
                     if fire: self.assertEqual((dx, dy), (0, 0))
                     previous_fire = fire
                 self.assertGreaterEqual(precision_frames, 2)
-                self.assertGreaterEqual(admissions, 2, 'moving target tracking must actually admit repeated shots')
+                self.assertGreaterEqual(admissions, 2, 'combined yaw/pitch tracking must admit repeated shots inside the actual 200-frame fight horizon')
                 self.assertEqual(pilot.weapon_latency_frames, delay)
                 self.assertAlmostEqual(pilot.weapon_pixel_scale, .0022*power, delta=.00015)
 
