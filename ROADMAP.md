@@ -49,19 +49,47 @@ Latest playable remains923d7b3.
 | Correct the production package checker | In tools/release/run_package_probes.sh, compare emitted runtime boundaries exactly while retaining actual-document, kill/byte, route/generation and payment guards. | DONE: exact retained pair accepted; all74 independent scalar mutations rejected, floats changed by one ULP; shell syntax passes; independent review GO. Caller capability only, no new gameplay/build. |
 | Qualify the complete package cut | Run the original full native-export Ember pilot scenario once on the exact archive ELF; require the parent and all runtime/payment/cleanup checks to pass. | NOT_RUN with corrected caller. Needs a separately frozen corrective attempt; do not treat data replay as cold recovery acceptance. |
 
-The read-only review and caller correction fit the original06:05–06:25UTC,
-20min boundary. A full run previously took312.812s and no longer fits the
-remaining wall time, so it is not launched. Do not silently extend that budget;
-retain the failed attempt and cumulative runtime when scheduling the next card.
-That card must name clean caller commit, archive/ELF identity, exact command,
-300s per process/660s outer caps, total budget and cleanup; first failure stops.
-No tolerance, route shortening or additional surface-location waiver is allowed.
-[Failure and correction](docs/history/ROADMAP_DELIVERIES.md#ember-coordinate-contract--package-caller-corrected).
+### Selected corrective package qualification — one attempt
 
-All prior owned scratch was cleaned; retained unique raw results remain in
-`/srv/mudds-work/ember-first-relay-20261020/results/`. This change creates no new
-worktree, engine process or package copy. Other world cuts/full journeys and
-Beacon30/60 choice remain open. No automatic successor is selected.
+WORLD-SAVE-EMBER-FIRST-RELAY, root owns release execution and cleanup;
+independent read-only reviewer checks unchanged contract. No game/source edits.
+Corrected caller964794a03 plus this selection's clean committed documentation
+pin will be recorded before launch. Original failed312.812s and original20min
+budget remain retained; this is a separately selected corrective attempt,
+**06:22–06:37UTC /15min** including preparation, run and cleanup.
+
+Use archive builds/linux/MuddsShipyards-923d7b3-linux-x86_64.tar.gz
+(SHA256593b48f12abf84932619af53fd5306f36bed39f2ee4cc9627c70b7174356f827),
+extract its ELF into owned /srv/mudds-work/ember-first-relay-corrective-20261020/,
+require ELF SHA2561f21248cb3cabcc94b76d0e7f40a2ed8fd8a8a1d6440c3db0601dbb2a32f36e7
+and original export metadata source923d7b326. Run exactly:
+
+```sh
+# OWNED is the task root above, with clean detached worktree.
+env PACKAGE_PATH="$OWNED/package/MuddsShipyards-923d7b3.x86_64" \
+  PACKAGE_PROBE_RESULTS_ROOT="$OWNED/results/driver" \
+  PACKAGE_PROBE_RUN_ID=first-relay PACKAGE_PROBE_RECOVERY_CONTEXT=pilot \
+  PACKAGE_PROBE_AUDIO_DRIVER=Dummy PACKAGE_PROBE_TIMEOUT_SECONDS=300 \
+  bash tools/release/run_package_probes.sh \
+  --in-world-interruption --native-export --activity=ember
+```
+
+Headless/Dummy; existing300s per process and660s outer remain unchanged,
+plus60s owner finalization inside the15min whole budget. First unexpected failure
+stops; failed original plus this one corrective attempt triggers cumulative
+priority review and parking, not another automatic repair/run. Pass requires
+exit0/one IN_WORLD_INTERRUPTION_CHECK_PASS, parent PASS, actual kill/reap,
+distinct cold Resume, exact runtime checkpoint, safe-yard/new boarding/original
+route generation, once-only payment and zero diagnostics. Runtime/source/cache
+and package identities must stay fixed; all owned processes must be absent.
+
+Archive/hash-verify unique profiles/helpers/logs, verify original package inputs,
+remove only this owned clean worktree/profile/extracted duplicate. No new build
+needed for caller-only qualification. Canonical outbound/ordinary OS-input,
+installed/native Windows/GPU/audio/human/full-world gates remain unqualified.
+Independent alternative: HAULER-CARGO-MANIFEST has a known production seam but
+is blocked on the already-asked stock decision; no ready implementation inferred.
+Other world cuts/full journeys and Beacon30/60 choice remain open.
 
 ### Waiting decisions — not executable tasks
 
