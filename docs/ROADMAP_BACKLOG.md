@@ -1510,6 +1510,58 @@ runtime acceptance follows. Estimate15–30min prep/inspection; retain reusable
 source/toolchain inputs instead of deleting required build artifacts. Commit/push
 result before selecting actual compile commands; preserve original browser gates.
 
+**Preparation result2026-10-20: PREPARED.** Eight stages174.054s; eight owners
+finished/all65 observed owner+child identities absent. Eight new Debian packages,
+zero upgrades/removals; POSIX GCC14.2 cross compiler and Wayland scanner1.23.1.
+Both exact source archives/private SCons4.10.1 venvs and pinned SDK scripts prepared
+successfully. Required1837 SDK consumer files hashed; source/installed engine and
+stock-template guards intact. Freeze→prepared409.761s/6.8min versus15–30min prep
+estimate. No compile/native run. Inputs retained for this next actual build.
+Optional default-disabled PIX lacks MinGW import conversion because gendef is
+absent; this does not remove an enabled default feature.
+
+**RPC-CACHE-TEMPLATES — selected actual compile, frozen before execution.**
+Recipe worktree remains clean `70af2484c` under the same owned root. Root owns
+both processes and shared stop handling; dependency mapper completed independent
+source review. Launch independent linuxbsd/windows commands concurrently, each:
+`python3 -B tools/release/build_godot_reflection_fix.py --build
+--rpc-cache-teardown --target template_release --platform PLATFORM --cache-root
+/srv/mudds-work/rpc-cache-templates-20261020/cache --jobs 2 --timeout 3600`.
+Existing isolated supervisor whole-command cap3900s per platform permits bounded
+source/pip/postbuild checks around the3600s compile cap. Max four compiler jobs
+total/no LTO; no feature-disable options. Linux version probe stays headless/Dummy;
+Windows PE is never executed. Retain exact PID/start identities, raw logs and
+source/helper/installed-engine/template/SDK-input guards. Stop/cancel the other
+build on the first unexpected failure; no retry/flag substitution/cap increase.
+
+Acceptance: both native patches exactly applied, source recipe guards pass,
+actual Linux ELF and Windows PE built/staged with hashes, no missing-SDK or
+feature-disable warnings. This establishes compiled templates, not native GPU,
+Windows execution or gameplay correctness. Assemble a fresh owned
+`templates/4.7.1.stable/` set from the actual built files. Preserve Agility handoff:
+Windows SCsub emits `bin/D3D12Core.dll` and `bin/d3d12SDKLayers.dll`; copy their
+identical bytes beside the private Windows template as `D3D12Core.x86_64.dll`
+and `d3d12SDKLayers.x86_64.dll`, matching the existing exporter's lookup. Validate
+against the actual SDK source files/PE architecture; ANGLE/AccessKit link statically.
+No preset/runtime-driver change. Current Vulkan Auto export does not select those
+DLLs, but the complete private template set must retain them for D3D12 consumers.
+A missing sidecar is not a blanket startup failure: the engine can fall back to
+OS D3D12. Do not misreport a renderer failure from packaging inventory alone.
+
+Estimate25–60min parallel compile plus5–10min collection/review, stop before90min.
+One collection pass (cap180s) checks artifacts, SDK/stock pins and cleanup. Retain
+unique templates/reusable inputs; remove only completed temporary worktree/helpers/
+profiles after source/result publication. No game import/export/probe/browser
+retry or public checkpoint in this task. Original browser398.296s investigation
+budget and all unperformed acceptance remain unchanged.
+
+Separate source-only fixture readiness review establishes a protocol defect:
+Godot JSON numbers parse as doubles, but e944 fixture requires `sequence is int`.
+Driver emits JSON numbers. The exact historical command file was deleted, so its
+particular offending bytes are unproved. A bounded fix must normalize finite,
+nonnegative integral safe-range numbers, preserve exact successor/nonce/mode/PID
+contracts and prove real Godot parsing. No fixture edit/run is selected here.
+
 **NET-TIMEOUT-RELEASE-ACCEPT — dependent runtime acceptance.** GATED on those
 matching templates plus a separate bounded correction for the known fixture
 command rejection; its cause is not diagnosed by this card. Existing safe export

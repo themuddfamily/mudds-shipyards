@@ -46,12 +46,13 @@ review supports this candidate; it is not a verified fix.
 | Child | State | Deliverable and completion check |
 | --- | --- | --- |
 | RPC-CACHE-BUILD-RECIPE | DONE; integrated, feature branch pushed | Isolated RPC mode, two-platform planning/staging and pinned two-file native patch. All24 existing/extended inert tool tests pass under60s cap. Actual engine compilation/runtime NOT_RUN; no new playable checkpoint. |
-| RPC-CACHE-TEMPLATES | Next; GATED on provisioned build dependencies | Matching patched Windows/Linux release templates from the same pinned source/patch; actual builds and template hashes. Freeze commands and limits before execution. SCons/Windows cross-compiler currently absent; both platform recipes now exist. |
+| RPC-CACHE-TEMPLATES | Preparation DONE; parallel compilation selected | Both pinned source/SCons/SDK inputs ready, POSIX cross-compiler/scanner installed;8 stages pass. Actual matching Linux/Windows builds now frozen:2 jobs each/3600s compile caps, no feature removal. Compiled artifacts and runtime effectiveness still NOT_RUN. |
 | NET-TIMEOUT-RELEASE-ACCEPT | GATED on matching templates and separately corrected fixture command | Relevant focused checks, clean paired exports/strict startups/package checks, then original full ordinary route with unchanged criteria/limits. Fixture cleanup rejection still blocks clean acceptance. No execution selected yet. |
 
-**Selected next action:** provision pinned source/toolchain/SDK inputs under the
-[bounded preparation card](docs/ROADMAP_BACKLOG.md#release-rpc-cache-correction--implementation-cards), preserving required default features. Actual compilation
-will be frozen separately after preparation; no game capture is selected.
+**Current action:** compile the matching templates under the
+[exact frozen commands, sidecar handoff and stop conditions](docs/ROADMAP_BACKLOG.md#release-rpc-cache-correction--implementation-cards).
+Preparation took6.8min versus15–30min estimate; required SDK files/source pins
+verified and preparation actors gone. No game capture or public checkpoint selected.
 Recipe commit→owned cleanup:4.8min against45–60min implementation/review estimate;
 unit stage0.514s. [Result and usage](docs/history/ROADMAP_DELIVERIES.md#rpc-cache-release-template-recipe--implemented).
 
