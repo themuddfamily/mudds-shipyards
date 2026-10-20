@@ -83,9 +83,24 @@ NOT_RUN. All inputs released;190 observed owned process identities absent. Faile
 candidate packages, raw logs, exact source and helper/profile records preserved;
 owned worktree, temporary profiles and live helpers removed at13:17UTC. Only
 `/srv/mudds-work/wing-route-correction-20261020/results/` remains for this attempt.
-Next selection must remain this named Wing control gap, with a bounded moving-
-target steering/firing contract before another expensive full route. Do not begin
-an unrelated branch or count the partial fixes as a completed combat deliverable.
+**Selected same-task correction: moving-target control,13:22–13:42UTC/20min.**
+Original12:24–13:24 card and1163.527s cumulative stage cost remain recorded above;
+this is additional bounded work on the same branch, not a reset or another task.
+Actual199fightframes show maxcameraalignment.999572297 (never>.99998), nozero
+mouse correction,173/198unchanged consecutive attitudes and only25changes.
+Camera/hullaxes differ≤3e-7; static Arrow proportional aiming cannot keep up with
+this target. Raw input send/pending timings are unavailable; don't invent them.
+
+Owner: one implementer on existing Wing controller and Python tests; independent
+review of moving-target math/input ordering. Establish angular-rate tracking from
+fresh actual relative position/velocity and observed frame intervals. No weapon
+projectile lead or gameplay tuning. A moving-target convergence check must exercise
+real pixel→attitude mapping and delayed observed acknowledgement before another
+expensive full route. Preserve original actual two-kill/three-sortie/home/OFFLINE/
+physicalexit/UIquit acceptance. Source estimate5min; focused checks120s; one full
+isolatedX11/Dummy routeCAP300/outer360s if reviewed control contract passes. Reuse
+exactaa26baf audited game packages/startup checks for caller-only source change;
+no identical re-export. First failure stops, no automatic further repair.
 
 **Ready production cards: 0. Prepared production cards waiting on decisions: 3.**
 The decisions below remain pending; they do not prevent finishing independently
