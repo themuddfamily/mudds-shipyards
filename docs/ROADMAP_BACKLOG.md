@@ -2305,6 +2305,7 @@ Scope: original §5, Phases 9 and 10.2–10.3. Software rendering, VM and remote
 | PERF-FIX[one measured hotspot] | GATED on demonstrated production cost | Fix the identified runtime/rendering owner; repeat the affected measurement and behavior check. Stop at measured effect and checkpoint; no census-only progress. |
 | INPUT-DEVICE[one device/route] | WAITING on physical device if absent | Ordinary full selected route with actual keyboard/mouse or controller, including lifecycle/planetary control as applicable. Existing physical-sortie, lifecycle and controller-only expedition tests guide scenario. Stop at selected route; synthetic events cannot qualify physical hardware. |
 | INPUT-REMAP[one setting/binding] | ELIGIBLE for automated persistence; physical confirmation separately | Remap/apply/restart retains binding and usable menus/gameplay, with conflicts/recovery as specified. Reuse runtime remapping/presenter/contract tests. Stop at one case. |
+| FIRE-RESTART | SELECTED: original real-file/distinct-process Fire remap qualification on shipped Settings scroll fix4d7ac4386c | Exact archived visible-row/rawF13/productionApplySave/defaultdisk/distinctPID/row+InputMap+LocalShipInputSource sampler/formerF+leftmouse refusal/gamepad+unrelatedsentinel gates. Headless1280viewport and300s each preserved; reader only after writerPASS/exit. Existing default suite unchanged; one caller implementer/independent reviewer. First unexpected failure stops; original432.527s attempts retained. No new runtime fix or physical-device/full Settings claim. |
 | ACCESS-VIEW[one view/scale/aspect] | ELIGIBLE for isolated capture; relevant hardware separately | Verify readability/focus/clipping for named view at minimum/default/maximum scale and one of 4:3, 16:9, 16:10, 21:9, 32:9. Instantiate each required cell separately, using existing runtime accessibility tests. Stop at one view/cell or fixed finding. |
 | ACCESS-COMFORT[one route/option] | ELIGIBLE; existing runtime options | Verify one reduced-motion, flash, color-safe or caption behavior in actual route and after restart as required. Stop at named option/scenario and any focused correction. |
 | AUDIO-CONTENT[one cue/transition gap] | GATED on identified missing behavior | Author/fix one production ambience/music/effect transition and run existing music state/activity/orbit/surface integration checks with Dummy audio. Delivered Aurora coast is not a new gap. Stop at cue/transition and checkpoint. |
@@ -3159,7 +3160,7 @@ original9be5c83 unchanged-driver journey is UNSUPPORTED and remains unperformed;
 a subsequent full OS-input route needs its own explicit card. Source proof is not transferred
 to packages automatically.
 A third station implementation has no evidenced finding and remains DEFINE/
-GATED; no speculative fix is scheduled. No further Fire probe/repair is selected. See
+GATED; no speculative fix is scheduled. Historical Fire pause is superseded only by the bounded FIRE-RESTART selection above on the already shipped scroll correction; no automatic repair or cap change. See
 ROADMAP.md for exact contracts. No further Rime
 probe, repair or unchanged run is selected.
 One failed task plus its attempted repair requires a recorded priority review
