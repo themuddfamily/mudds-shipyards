@@ -16501,3 +16501,67 @@ Cleanup2.91min from original11:06 selection, within original15min: both owners
 terminal, all6 recorded process identities absent;10 private profile entries
 archived/hash-verified, helper copies verified, clean owned worktree/profiles/
 helper directory removed. Only results/ remains; no new sibling scratch files.
+
+
+## Arrow precision hit and return — shipped on51257b3
+
+WEAPON-ARROW named pilot-hit qualification, parents7/11, within still-open
+CRAFT-ACCEPT-ARROW. Clean accepted source
+`51257b32393e2798c2f6922f33a04b6fcd31bb36`, source mergee06777c38.
+The runtime weapon was already implemented; this delivers executable ordinary
+acceptance automation in existing observer/driver/tests, not a new weapon/ship.
+
+Original source251491539 fixture failure10.953950050s, one exact capture=True
+fixture correctiona8102592d and failed native attempt remain preserved in
+[the prior result](#arrow-precision-hit--parked-without-observed-native-fire).
+Its ten passing prechecks178.960906780s and failed native stage65.679476735s
+make prior255.594333565s. The chain was parked, not silently retried.
+
+Reopening selected11:11UTC after one bounded independent source audit found a
+concrete inconsistency: F was held for one supervisor update, then Desktop.keys
+sent keyup without acknowledging a post-keydown physics sample. Other actions
+use existing Pilot.tap, retaining at least0.15wall seconds AND6 observed physics
+frames. This is supported correction scope, not proof of exact old scheduling.
+One implementer changes only driver/tests againsta8102592d; independent high
+review plus root source review GO. One admitted tap sets the prefire baseline/
+stage; weapon_fire never rearms and waits for both tap and observed native release
+before restoration. No observer/runtime/tuning/target/authority change in this
+reopening. Original10:47UTC start,80min deadline12:07UTC, prior costs,25s weapon
+phase andCAP300 retained. First unexpected failure would PARK; none occurred.
+
+All11 frozen source/package stages PASS303.151867314s:
+- Native-driver89tests, clean import, direct observer check-only and startup
+  privacy726checks, each at its existing120/180/120/120s stage cap.
+- Clean Windows/Linux exports cap180s each; direct Linux/archive and Windows
+  embedded payload through Linux Godot cap120s each, each actual exit0 with
+  exactly one STARTUP_MENU_READY_OK. Native Windows execution NOT_RUN/held.
+- Actual paired PCK1521entries, stock PE.text/ELF and exact archive bytes/modes/
+  source epoch/metadata audited at90s cap.
+- ONE audited archive executable route PASS120.991s (guarded native stage
+  123.531799347s), originalCAP300/outer330. Brake/aim/fire/full attitude restore
+  10.626108622s within25s. Source1102 / arrow_precision_recon_emitter / sequence0 /
+  presentation receipt1, same current Arrow/target/adapter, request/result/target
+  source context all match, real applied24damage/health100→76.
+- Root independently read all5179 consecutive physics observations. One
+  continuous observed F interval1537–1544, hit frame1538, unchanged shot/target76
+  through both returns and quit; no additional shot. Restored frame1764 precedes
+  native landing. Both strict token-bound home docks, neutral OFFLINE exits,
+  12.702m clear walk/real reboard and normal focused UI quit with actual exit0.
+  Walking92.022m; recorded excursions8.066/17.390m and neutral-to-exit spans
+  228/230frames. Separate raw scans confirm continuous no-flight-demand runs
+  229/231frames. Zero diagnostics; inputs released, game/Xvfb/helper reaped.
+
+Cumulative stage cost **558.746200879s**, including all prior255.594333565s;
+no budget reset or unchanged repeat. Source committed/pushed, merged/pushed;
+11 public files hash-verified by existing publication workflow: Windows EXE/
+checkpoint ZIP/notes and Linux ELF/tar/notes/startup/metadata under repository
+builds/. Actual tested ELF extracted from the audited archive. No Downloads or
+hosted CI action. Final result review and notes preserve exact source/limits.
+
+Records `/srv/mudds-work/arrow-fire-hold-20261020/results/`; original failed
+records remain separately archived and unchanged. Cleanup is the remaining
+closure action, not a gameplay rerun. Broader common combat/weapon cases,
+incoming/component damage/repair/destruction recovery, crosscraft/Main/art,
+physical devices/audio/listening/human/native GPU/native Windows/final-candidate
+and full-release gates remain open. Sandbox/Defense/Wing/other parked routes
+retain their original status and costs. No broad parent or phase closes here.

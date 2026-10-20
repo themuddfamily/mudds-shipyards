@@ -499,6 +499,15 @@ view defect, desired player-visible change and fixed acceptance view/action.
 Source reading neither accepts final art nor invents a specific repair. Existing
 recorded checks remain accepted in their own scopes; no rerun/successor selected.
 
+Named pilot hit qualification subsequently accepted on checkpoint51257b3:
+actual fresh source1102/precision-emitter request and target-context sequence0/
+receipt1, DRONE-01 health100→76,24damage, attitude restored and both ordinary
+home/OFFLINE exits/clear/reboard/UIquit PASS120.991s/CAP300. This extends release
+automation, not the weapon runtime. Broader common combat, incoming/component
+damage/recovery, crosscraft/Main/art/device/native/final gates remain open;
+[prior failures and actual checks](history/ROADMAP_DELIVERIES.md#arrow-precision-hit-and-return--shipped-on-51257b3)
+remain source-specific.
+
 ### Jovian authored capability map — CRAFT-GAPS-JOVIAN
 
 Source-only definition on7047677c6 (2026-10-18), shared by parents10/11.

@@ -1,12 +1,12 @@
 # Development roadmap
 
 **Status: playable development alpha; project completion is unproven.**
-Latest accepted checkpoint: **ed1167b**, with two ordinary Arrow flights,
-home returns, supported exits/reboarding and normal UI quit. This qualifies an
-existing capability; it does not finish Arrow or add a new ship or mission.
-[Windows notes](builds/windows/MuddsShipyards-ed1167b-notes.txt) and
-[Linux notes](builds/linux/MuddsShipyards-ed1167b-linux-notes.txt) retain actual
-validation and limits. All 36 original parents and ten phase gates remain open.
+Latest accepted checkpoint: **51257b3**. The ordinary Arrow route now proves one
+real pilot precision-emitter hit and preserves two flights, strict home/offline
+exits, clear-walk/reboarding and normal UI quit. This qualifies existing gameplay;
+it does not add a weapon or finish Arrow. [Windows notes](builds/windows/MuddsShipyards-51257b3-notes.txt)
+and [Linux notes](builds/linux/MuddsShipyards-51257b3-linux-notes.txt) retain actual
+validation and limits. All36 original parents and ten phase gates remain open.
 
 Read this page for **what to do next**, the [backlog](docs/ROADMAP_BACKLOG.md)
 for complete remaining scope, and [delivery history](docs/history/ROADMAP_DELIVERIES.md)
@@ -38,28 +38,17 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 ## Execution now
 
-**Active: WEAPON-ARROW narrowly reopened11:11UTC2026-10-20.** Independent
-source review identified a delivery inconsistency: the driver releases F on the
-next supervisor update without awaiting a post-keydown physics sample; other
-actions use existing timed `tap` (at least0.15s and6observed frames). This is a
-supported correction seam, not proof of the failed attempt's exact scheduling.
-
-One implementer changes only the driver and its focused tests: use the existing
-timed tap for one continuous fire press, never retrigger, then release before
-attitude restoration. Existing observer/runtime/defaults and exact fresh shot/
-24damage100→76/receipt/target checks remain unchanged. Retain two ordinary
-flights/home/OFFLINE exits/clear/reboard/UIquit, weapon25s within CAP300.
-
-Original selection10:47UTC, cumulative80min deadline12:07UTC and prior255.594s
-stage cost remain binding; no clock reset under the new scratch folder.
-Estimate≤10min implementation plus review, then existing focused/package checks.
-Before engines freeze clean pin/exact11stage commands/caps; first unexpected
-failure PARK, with no automatic correction or retry. Original source/results
-remain preserved; no additional general diagnosis/probe selected. Owned scratch
-is `/srv/mudds-work/arrow-fire-hold-20261020/`; root integrates and cleans it.
-
-Aboard Help cell remains accepted on sourcee5dfe1117 in headless layout/focus
-scope only. Latest accepted playable checkpoint remainsed1167b.
+**WEAPON-ARROW's named pilot-hit route is accepted on51257b3.** One continuous
+observed F press yields a fresh1102/precision-emitter/sequence0/receipt1 hit,
+DRONE-01 health100→76. Brake/aim/fire/attitude restoration10.626s within25s;
+full actual archive route120.991s withinCAP300, two strict home/OFFLINE exits,
+clear/reboard and normal UI quit. All5179 raw physics receipts reviewed;89 driver
+tests and all11 frozen stages pass, including paired packages/strict startups/
+audit. Both earlier failures and cumulative558.746s remain retained.
+[Exact checks and reopening fact](docs/history/ROADMAP_DELIVERIES.md#arrow-precision-hit-and-return--shipped-on-51257b3).
+No further engine run or successor is selected; owned cleanup is the remaining
+closure action. Broader craft/damage/recovery/crosscraft/Main/art/native/final
+gates stay open. Aboard Help retains its separate source-only scope.
 
 ### Next production alternative: Freight physical terminal interface
 
@@ -106,6 +95,7 @@ the existing history. These are accepted slices, not closed broad parents.
 | Outcome | Accepted scope / remaining boundary |
 | --- | --- |
 | Aboard help, one cell | [Source e5dfe1117](docs/history/ROADMAP_DELIVERIES.md#aboard-help--one-minimum-scale-1610-cell-accepted): all20 ordinary aboard rows/four pages at1920×1200/.75,124 assertions; source headless layout/wrapping/focus/Close only. Other cells, rendered/device/crew gameplay and final candidate remain open. |
+| Arrow pilot precision hit and return/reuse | [Checkpoint51257b3](docs/history/ROADMAP_DELIVERIES.md#arrow-precision-hit-and-return--shipped-on-51257b3): one native timed F press, fresh source/target/sequence/receipt and actual24damage100→76, full two-flight home/offline exits/reboard/UIquit120.991s; source changes extend acceptance automation. Broader craft/combat/damage/recovery/art/native/final remain open. |
 | Arrow ordinary return/reuse | [Checkpoint ed1167b](docs/history/ROADMAP_DELIVERIES.md#arrow-ordinary-return-and-reuse--shipped-on-ed1167b): actual archive OS-input two flights/home/offline exits, >7m clear/reboard and normal UI quit PASS106.765s/CAP300; prior two failures retained. Broad craft/native/final gates open. |
 | Settings/activity feedback palettes | [Checkpoint2ed93ca](docs/history/ROADMAP_DELIVERIES.md#settings-and-activity-feedback-palettes--shipped-on-2ed93ca): save/recovery/nearby/selection text uses current role once; caller suites and retained layout/package checks PASS. Existing copy/actions/focus/authority and helper retained; headless theme scope, broader journeys/native/human/final open. |
 | Gameplay status palettes | [Checkpoint941ef73](docs/history/ROADMAP_DELIVERIES.md#gameplay-status-palettes--shipped-on-941ef73): six gameplay status label families use their current role once and follow palette/high contrast.256 finite state cases/768 actual paints, full accessibility/target-lock/sensor/layout and paired package checks PASS. Text/visibility/thresholds/geometry/authority retained; headless theme scope, broader rendered/device/human/full journeys/final open. |
@@ -155,19 +145,18 @@ unavailable and Windows compilation is parked; neither is an automatic next task
 
 ## Latest playable result
 
-**Checkpoint ed1167b** adds the private ordinary Arrow return/reuse command,
-accepted on the actual Linux archive executable: two departures/home docks,
-neutral shutdowns/exits, supported clear-walk/reboarding and normal UI quit.
-It retains settings/activity and gameplay/Destination palette fixes, physical
-Station Defense E, menu/Help contrast, Wing admission, tractor inversion, title,
-Convoy, credits and saves. No new ship or combat mission is claimed.
+**Checkpoint51257b3** adds the ordinary pilot precision-hit phase to the existing
+Arrow return/reuse command: one real24damage hit, attitude restoration and two
+complete flights/home docks/offline exits/reboard/normal UIquit. Actual archive
+executable PASS120.991s, zero diagnostics and full process/input cleanup.
+Existing palette/Defense board/Wing admission/inversion/title/credits/save work
+is retained. No new ship, weapon or combat encounter is claimed.
 
-[Windows checkpoint ZIP](builds/windows/MuddsShipyards-ed1167b-checkpoint.zip),
-[build notes](builds/windows/MuddsShipyards-ed1167b-notes.txt),
-[actual validation and limits](docs/history/ROADMAP_DELIVERIES.md#arrow-ordinary-return-and-reuse--shipped-on-ed1167b).
-Full ordinary Defense combat/payment/home, Wing kills/home, native Windows/GPU/
-device/audio/human and final release remain open. Guided3/3 on3d92b91 is not
-transferred to this package.
+[Windows checkpoint ZIP](builds/windows/MuddsShipyards-51257b3-checkpoint.zip),
+[build notes](builds/windows/MuddsShipyards-51257b3-notes.txt),
+[actual validation and limits](docs/history/ROADMAP_DELIVERIES.md#arrow-precision-hit-and-return--shipped-on-51257b3).
+Defense/Wing full combat/home, craft damage/recovery, native Windows/GPU/device/
+audio/human/final release remain open. Old Guided3/3 is not transferred here.
 
 ## Parked failures and dependent work
 
@@ -176,7 +165,6 @@ contracts and cumulative attempt records remain in the retained history.
 
 | Outcome | Last actual result | Condition before more work |
 | --- | --- | --- |
-| WEAPON-ARROW /7,11 | Candidatea8102592d pushed/unmerged/unpublished:25s weapon-phase deadline, no observed native fire/request, DRONE-01 stays100. Ten prechecks PASS; no hit/restore/home/reuse accepted. | PARKED after fixture correction and one actual archive attempt63.079s; cumulative255.594s, no second correction/retry. Concrete supported missing-fire fact/change needed before selection; original caps/route retained. [Attempt and cleanup](docs/history/ROADMAP_DELIVERIES.md#arrow-precision-hit--parked-without-observed-native-fire). |
 | PLAY-DEFENSE ordinary route /13 | Candidatea480c0fbb pushed/unmerged: actual E Deploy accepted, but corrective walk_arrow stationary33.15s and whole34s timeout before boarding. | PARK after original35.963s and one corrective84.239s failure; cumulative406.401s including16 passing stages. No player kill/payment/home/reset/UIexit; no second repair/retry selected. Unique candidates/results preserved; owned scratch cleaned28.24min. |
 | Ember first-relay cold cut /14,31 | [Archive923d7b3](docs/history/ROADMAP_DELIVERIES.md#ember-first-relay-cold-cut--runtime-completes-parent-comparison-fails) FAIL312.812s at parent exact durable-state comparison; arm-9/resume0, engine diagnostics0, runtime continuation and receipts0→1. Only two compared coordinate scalars differ by one binary64 ULP. | STOPPED; no repair/retry/cap increase or retroactive comparison relaxation. Contract review and exact-runtime caller correction complete; corrected full package run NOT_RUN and requires a separately frozen selection. No full-cut/location/canonical/installed acceptance; all owned scratch cleaned9.50min within20min. |
 | Jovian postdock exit /16,20,26 | [Corrective candidate0d225bee8](docs/history/ROADMAP_DELIVERIES.md#docked-pilot-hold--focused-pass-full-exit-stops-at-cabin-walk): pose322/import/compile PASS; full route145.995s FAIL at15s cabin walk after actual standing, retained pilot at exact dock. Unmerged/withheld; exports NOT_RUN. | PARKED after failed runtime plus one corrective attempt: combined392.470s current stages plus retained8054/e147 parser failures. No second repair, retry, tolerance/cap increase or renamed adjacent probe. Walking cause unproved; later node-path errors are inherited failure capture. All owned scratch cleaned17.09min inside original45min. |
