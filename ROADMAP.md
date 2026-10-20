@@ -61,6 +61,9 @@ receipts,91.419m walking, zero diagnostics and complete input/process cleanup.
 All11 reviewed-source stages PASS; both earlier failures and cumulative608.369s
 remain retained. [Checks, corrections and scope](docs/history/ROADMAP_DELIVERIES.md#arrow-ordinary-return-and-reuse--shipped-on-ed1167b).
 Weapons/damage/recovery/cross-craft/Main/native/full craft gates remain open.
+Owned worktree/profiles removed;190 process identities absent,11 public files
+verified. Records compacted445→18 files with originals verified; closure including
+compaction42.38min within original60min. Only the task results folder remains.
 
 Latest accepted route: Arrow ordinary return/reuse oned1167b. Settings/activity
 feedback colour repair remains accepted on2ed93ca.

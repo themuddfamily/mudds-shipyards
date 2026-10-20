@@ -16309,7 +16309,13 @@ Windows EXE/ZIP/notes and Linux ELF/archive/notes are in repository builds/.
 [Linux notes](../../builds/linux/MuddsShipyards-ed1167b-linux-notes.txt).
 Public hashes/notes/ZIP and private failed-source artifacts/raw/profile/helper
 records are retained under /srv/mudds-work/arrow-return-reuse-20261020/results/.
-Cleanup is recorded after publication; original60min budget remains binding.
+Cleanup complete:190 observed PID/start identities absent,11 published files
+hash-verified,67 profile entries archived/verified, three implementation input
+fragments preserved. Owned checkout/profiles/helpers removed; only results/
+remains. All495 original record entries verified before compacting445 loose
+files to18; archive SHA-256 is recorded in raw-results-index.json. Final archive
+and retained summary/helper/public hashes rechecked. Closure including compaction
+42.38min within original60min budget.
 
 **Open:** full CRAFT-ACCEPT-ARROW weapons, damage/repair/destruction recovery,
 cross-craft/Main re-entry and art/control gates. Original Sandbox/all-nine54
