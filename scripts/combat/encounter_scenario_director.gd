@@ -95,7 +95,7 @@ const SCENARIO_IDS: Array[StringName] = [
 ]
 ## Scenarios a physical station board arms before launch. They are authorized in
 ## sandbox FREE_FLIGHT for the sortie the board admitted, and only then.
-const BOARD_SCENARIO_IDS: Array[StringName] = [SCENARIO_HEAVY_BREACH, SCENARIO_TORPEDO_RUN]
+const BOARD_SCENARIO_IDS: Array[StringName] = [SCENARIO_HEAVY_BREACH, SCENARIO_TORPEDO_RUN, SCENARIO_PAIRED_WING]
 ## Where the torpedo boat enters relative to the caller: ahead, high and wide,
 ## already at the edge of its stand-off band so the first lock reads at once.
 const TORPEDO_RUN_ENTRY_DISTANCE := 170.0
@@ -607,6 +607,26 @@ func begin_torpedo_run(target: Node3D) -> bool:
 	)
 
 
+## The existing pair is admitted explicitly by the deck board in solo flight.
+## Automatic guided cycling keeps its existing phase contract.
+func begin_board_paired_wing(target: Node3D) -> bool:
+	var host := get_node_or_null(encounter_host_path)
+	if host is GameFlow and not (host as GameFlow).is_paired_wing_launch_authorized(target):
+		return false
+	if _get_skirmishers().size() != 2 or not is_instance_valid(_get_wing_coordinator()):
+		return false
+	return _begin_scenario(SCENARIO_PAIRED_WING, target, null, null,
+		DEFAULT_HEAVY_STANDOFF_RANGE, DEFAULT_HEAVY_ADVANCE_HEALTH_RATIO,
+		DEFAULT_REGROUP_RANGE, DEFAULT_REGROUP_HEALTH_RATIO, true)
+
+
+func is_paired_wing_solo_available() -> bool:
+	var host := get_node_or_null(encounter_host_path)
+	if host is GameFlow:
+		return (host as GameFlow).is_paired_wing_solo_available()
+	return true
+
+
 ## A client retains its solo Torpedo Run for disconnect recovery. Its timer
 ## and distance/loss observations resume together with the suspended boat.
 func set_torpedo_run_network_suspended(enabled: bool) -> void:
@@ -739,6 +759,8 @@ func _begin_scenario(
 	# diagnostic: `get_validation_errors()` already names an unrecognised entry
 	# in the authored roster, and the frozen matrix treats stray warnings in a
 	# suite log as failures.
+	if scenario_id == SCENARIO_PAIRED_WING and not is_paired_wing_solo_available():
+		return false
 	if not SCENARIO_IDS.has(scenario_id):
 		return false
 	if _state == STATE_RUNNING:
@@ -908,6 +930,18 @@ func _evaluate_termination(delta: float) -> StringName:
 			return OUTCOME_ABORTED
 		if not _is_torpedo_boat_destroyed() and not _is_participant_active(_torpedo_boat):
 			return OUTCOME_ABORTED
+	if _scenario == SCENARIO_PAIRED_WING and _board_sortie:
+		# A board contract promises both kills. Healthy retirement or actor loss
+		# is an interrupted encounter, never a cleared objective.
+		if _roster.size() != 2:
+			return OUTCOME_ABORTED
+		for member in _roster:
+			if not is_instance_valid(member) or not member.is_inside_tree() \
+					or member.is_queued_for_deletion():
+				return OUTCOME_ABORTED
+			if not _is_participant_active(member) and (not member.has_method(&"get_health") \
+					or float(member.call(&"get_health")) > 0.0):
+				return OUTCOME_ABORTED
 	# 2. The host left the authorized phase.
 	if not _is_phase_authorized():
 		return OUTCOME_WITHDRAWN
@@ -1412,6 +1446,8 @@ func _is_phase_authorized() -> bool:
 		# actually departed into FREE_FLIGHT. Keep that one explicit scenario
 		# authorized for its sortie without widening the guided interceptor phase
 		# or allowing any other automatic scenario to start in sandbox flight.
+		if _scenario == SCENARIO_PAIRED_WING and not is_paired_wing_solo_available():
+			return false
 		if _state == STATE_RUNNING and _board_sortie and BOARD_SCENARIO_IDS.has(_scenario):
 			return (host as GameFlow).phase == GameFlow.Phase.FREE_FLIGHT
 		return (host as GameFlow).phase == GameFlow.Phase.INTERCEPTOR_ENGAGEMENT

@@ -329,6 +329,40 @@ func _run() -> void:
 			== EncounterScenarioDirector.STATE_CONCLUDED,
 		"world re-entry preserves the board identity while clearing its active contract"
 	)
+	# Third contract uses the existing live pair, then wraps to the paid breach.
+	target.global_position = board.global_position + Vector3(1.5, 0.0, 0.0)
+	_check(board.get_offered_scenario() == EncounterScenarioDirector.SCENARIO_PAIRED_WING
+		and "NO CREDIT REWARD" in board.get_interaction_prompt()
+		and "NO CREDIT REWARD" in board_label.text,
+		"Torpedo conclusion posts the solo no-credit Paired Wing")
+	var wing_arm := board.arm_sortie(target, board.get_generation())
+	_check(wing_arm.accepted and board.is_sortie_armed() and not director.is_running(),
+		"Wing admission arms without dispatching against the on-foot actor")
+	var wing_generation := int(wing_arm.sortie_generation)
+	var cancelled := board.abort_and_reset(target, board.get_generation())
+	_check(cancelled.accepted and not board.is_sortie_armed()
+		and board.launch_armed_sortie(target, wing_generation).reason == &"stale_sortie_generation"
+		and board.get_offered_scenario() == EncounterScenarioDirector.SCENARIO_PAIRED_WING,
+		"cancellation fences the Wing admission and keeps the same offer")
+	var wing_started := board.interact(target, board.get_generation())
+	_check(wing_started and director.get_roster().size() == 2
+		and director.is_board_sortie_running() and screen.is_active() and second_screen.is_active()
+		and authority.get_source_id(screen) > 0 and authority.get_source_id(second_screen) > 0,
+		"Wing uses both existing registered members under explicit board ownership")
+	# Component objective simulation only; this is not a player weapon or home-route proof.
+	screen.apply_damage(screen.maximum_health, screen.global_position)
+	second_screen.apply_damage(second_screen.maximum_health, second_screen.global_position)
+	for _frame in 8:
+		await physics_frame
+		await process_frame
+	_check(director.is_concluded() and director.get_outcome() == EncounterScenarioDirector.OUTCOME_CLEARED
+		and director.get_roster().is_empty() and _reward_requests.size() == 1
+		and board.get_offered_scenario() == EncounterScenarioDirector.SCENARIO_HEAVY_BREACH
+		and int(board.get_reward_handoff_snapshot().pending_reward_generation) == 0,
+		"Wing clear stands down, grants no credit and wraps back to Heavy Breach")
+	board.call(&"_on_scenario_concluded", EncounterScenarioDirector.SCENARIO_PAIRED_WING, EncounterScenarioDirector.OUTCOME_CLEARED)
+	_check(_reward_requests.size() == 1 and board.get_offered_scenario() == EncounterScenarioDirector.SCENARIO_HEAVY_BREACH,
+		"replayed Wing terminal cannot pay or rotate twice")
 	# A real later clear uses a new reward epoch without restoring director state.
 	target.global_position = board.global_position + Vector3(1.5, 0.0, 0.0)
 	var later_started: bool = board.interact(target, board.get_generation())
@@ -547,11 +581,11 @@ func _test_fresh_debt_recovery(host: Node3D, objective: Node3D, director: Encoun
 	_check(wire_record.session.offered_index is float
 		and HeavyBreachActivityBoard.validate_session_record(wire_record),
 		"the genuine persisted JSON-number offer validates before fresh debt recovery")
-	for index: int in [0, 1]:
+	for index: int in [0, 1, 2]:
 		wire_record.session.offered_index = float(index)
 		_check(HeavyBreachActivityBoard.validate_session_record(wire_record),
 			"the supported JSON offer %d retains the exact terminal contract" % index)
-	for index: float in [0.5, 1.5, -1.0, 2.0]:
+	for index: float in [0.5, 1.5, -1.0, 3.0]:
 		wire_record.session.offered_index = index
 		_check(not HeavyBreachActivityBoard.validate_session_record(wire_record),
 			"fractional or unsupported JSON offer %s cannot restore a terminal contract" % index)

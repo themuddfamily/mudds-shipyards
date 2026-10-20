@@ -33,7 +33,8 @@ func present(snapshot: Dictionary) -> Dictionary:
 	# The same board posts a Torpedo Run; its objective is the boat, not a picket.
 	var torpedo_run := scenario == &"torpedo_run"
 	var boat := str(director.get("torpedo_boat", "")).strip_edges()
-	var title := "TORPEDO RUN" if torpedo_run else "HEAVY BREACH"
+	var paired_wing := scenario == &"paired_wing"
+	var title := "PAIRED WING" if paired_wing else ("TORPEDO RUN" if torpedo_run else "HEAVY BREACH")
 	var launched := bool(director.get("launched", false))
 	var elapsed := maxf(float(director.get("elapsed", 0.0)), 0.0)
 	var state_text := str(state).replace("_", " ").to_upper()
@@ -47,6 +48,9 @@ func present(snapshot: Dictionary) -> Dictionary:
 		asset_text = "TARGET  %s  —  DODGE OR SHOOT DOWN ITS SEEKERS" % (
 			boat if not boat.is_empty() else "TORPEDO BOAT"
 		)
+	if paired_wing:
+		asset_text = "TARGETS  TWO WING CONTACTS ON DEPARTURE" if sortie_armed else \
+			"TARGETS  %d WING CONTACTS — BREAK SUPPRESSION AND FLANK" % int(director.get("active_roster", 0))
 	var reward_text := "REWARD  HANDOFF READY" if bool(reward.get("configured", false)) else "REWARD  UNAVAILABLE"
 	if not last_reward.is_empty():
 		reward_text = "REWARD  %s%s" % [
@@ -54,6 +58,8 @@ func present(snapshot: Dictionary) -> Dictionary:
 		(" — " + str(last_reward.get("reason", &"unknown")).replace("_", " ").to_upper())
 			if last_reward.has("reason") else "",
 	]
+	if paired_wing:
+		reward_text = "SOLO ENCOUNTER — NO CREDIT REWARD"
 	var failure_text := ""
 	if TERMINAL_OUTCOMES.has(outcome):
 		failure_text = "RESULT  %s" % outcome_text
