@@ -94,6 +94,14 @@ review, merge/push, publish locally and delete completed branch/owned scratch.
 If failed, preserve exact result and clean owned scratch within this window;
 no unchanged retries, relaxed acceptance or speculative adjacent repair.
 Prior1131.794s and original parser failures stay accounted.
+First pin06adfec2a stops at the existing Activity Board early-open conjunction:
+all11 added engineer/passenger checks pass, but its prior ship visits changed
+the old fixture sequence. Exact failed conjunct is unobserved. No downstream
+pose/support/full journey/export ran. Preserved103.925s adds to1235.720s stages;
+all9 identities absent,63 archive entries verified, owned scratch cleaned5.58min.
+Source correction92948c95d moves only the new helper after all original checks,
+restoring every original fixture transition and assertion. Continue within the
+same original45min window; runtime/route/aim/caps unchanged, no cost reset.
 
 **Interaction diagnostic closed; candidate remains unmerged.**
 One unchanged original journey on `2055f1f52` reproduced the failure and captured

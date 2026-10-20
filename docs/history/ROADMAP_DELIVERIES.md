@@ -17658,3 +17658,32 @@ Worktree/private profiles/helpers removed; only results remains. Cleanup
 5.77min from16:12, within selected15min. Candidate branch remains
 intentionally retained because its gameplay change is unaccepted; no deletion
 is presented as completed product work.
+
+
+## Jovian engineer aim repair — focused fixture failure retained — 2026-10-20
+
+Existing branch06adfec2a extends Halyard's deliberate45° engineer-chair rule to
+exact Jovian ENGINEER_SEAT_ID; physical/network eligibility, other seats, scoring
+and cockpit precedence unchanged. Source review GO only. Import20.602385375s,
+compile16.846073904s PASS. Station interaction66.476797117s FAIL: all11 new
+engineer/passenger assertions pass, but the existing early Activity Board open
+conjunction fails; every other original assertion passes. Exact failed conjunct
+and runtime cause were not captured. No downstream pose/support/full journey,
+export/startup/audit or acceptance occurred. No new branch or CI run.
+
+The new ship visits were inserted before timing-sensitive old station fixtures.
+A minimal source correction92948c95d moves only that helper call after all old
+assertions, restoring their original sequence without changing any assertion,
+production behavior, full journey route/aim or cap. This is a supported test
+isolation correction, not a claimed production Activity Board repair. It stays
+within the original16:19–17:04UTC45min selection; costs do not reset.
+
+Failed run root now only results:
+`/srv/mudds-work/jovian-exit-interaction-repair-20261020/results/`.
+New103.925256396s plus prior1131.794344964s =1235.719601360s current stages;
+original parser failures remain separate. Independent STOP confirms limits.
+All9 union process identities absent, owners terminal;63 profile entries and
+archived helper source verified before worktree/profile/helpers removal5.58min.
+Profile archive SHA256
+`3c77eff38bd76f3ef6b9f7b201f69ea69f89008340a62321d8641ab0121dd0ad`.
+Latest playable remains c78e0ac; candidate unmerged and full passenger exit open.
