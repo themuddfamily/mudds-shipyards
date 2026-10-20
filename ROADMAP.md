@@ -70,11 +70,28 @@ worktrees are removed. Full Sandbox/recovery/reuse remains FAILED/open.
 [Five-branch closeout](docs/history/ROADMAP_DELIVERIES.md#five-local-only-branches-accounted-and-closed--2026-10-20).
 
 All 20 candidates in the [earlier inventory](docs/history/ROADMAP_DELIVERIES.md#remaining-branch-status-after-duplicate-closeouts--2026-10-20)
-are now accounted for: six references closed through accepted/superseded work,
-and fourteen unqualified candidates preserved under explicit WITHHELD tags.
-This clears the branch queue; it does not close their unfinished gameplay,
+are now accounted for: seven references closed through accepted/superseded work,
+and thirteen candidates still unqualified. Halyard gunner damage is the latest
+accepted existing candidate; archive tags retain the original failed histories.
+This clears the branch queue; it does not close remaining gameplay,
 qualification or release requirements. No unaccepted source was merged to reduce
 a branch count. Eight previously protected detached worktrees remain unchanged.
+
+**Existing Halyard gunner damage task DONE — source `c28f7ffa3`.**
+The original moving-cabin/co-pilot/remapped-FIRE route now reaches one actual
+52-damage hit through GameFlow, live combat authority, resolver and the target's
+production damageable, then standing/walking/helm return/reseat/lifecycle cleanup.
+All49 assertions pass52.341s, exit0, clean logs. The earlier failures used a
+headless backend although this test declares input-only: mouse capture stayed
+visible and look events were ignored. The unchanged test passes with private
+Xvfb/explicitx11/Dummy/dummy renderer; no guessed walk or gameplay repair.
+
+Original exterior and target fixtures remain disclosed; this is focused source
+qualification, not OS-XTest/network/native-GPU acceptance. Caller-only changes
+merged/pushed; current runtime/checkpoint3767687 unchanged, no identical rebuild.
+All3 owners terminal/7 observed identities absent;51 profile entries verified
+before owned scratch removal. No new branch/worktree; protected worktrees intact.
+[Acceptance and preserved failures](docs/history/ROADMAP_DELIVERIES.md#existing-halyard-gunner-damage-qualified-on-its-declared-input-display--2026-10-20).
 
 **Defense autonomous-flight defect fixed — shipped on `37676874f`.**
 The relief enemies' authored stand-off exceeded the available arena, so ordinary
@@ -538,7 +555,7 @@ contracts and cumulative attempt records remain in the retained history.
 | WALK-OBSERVATION /7,9 | Original full route fails rootWindow disconnect after Exit. Privatebae551d58 later passes54-goal travel/view/home/Exit, but lacks original visible TooltipPanel; repair INCONCLUSIVE. All five unique commits/seven files archived under pushed archive/withheld/exit-tooltip-order-20261020; working refs deleted, runtime unmerged. | OPEN. Observe actual original visible tooltip/root bindings and hover owner/pointer/window/foreground state before separately selected normal-close repair proof; full integrated travel/view/home acceptance retained. No new run or unchanged retry. |
 | PERIMETER-LIVE /11 | Runtime/admission shipped fdae1cb: all selected focused/production checks, paired exports, three strict startups and package audit PASS. Existing branch merged/pushed/deleted and owned scratch cleaned. | Scoped integration DONE; full ordinary weapons/home/recovery/repeats/network/native remains OPEN. Prior 363.897s/three failures retained; total stages 742.767s. |
 | PLAY-BEACON-HOME /13 | Candidatea612ea686 FAIL37.713s guarded/37.419s driver at ActivityBoardButton Return/frame1233; same two root Window signal-disconnection diagnostics. Eleven prechecks pass; no settlement/home/L/E reached, no file captures. Unmerged/withheld source archived under `archive/withheld/beacon-home-20261020`; working branch deleted. | PARKED on UI-BOARD-FOCUS. Recurrence supplies no popup/connection-removal cause; no retry/repair/cap change. Preserve original UI two-component9.627s and Mining budgets. |
-| HALYARD-GUNNER-DAMAGE /11,16 | Original 51.847s and one caller repair 52.025s both fail co-pilot admission; actual new damage proof NOT_RUN. Source archived WITHHELD; working refs deleted. | Parked after cumulative 103.872s review. No further diagnosis/fix/run without concrete reopening fact/change; candidates unmerged, no weapon defect established. |
+| HALYARD-GUNNER-DAMAGE /11,16 | DONEc28f7ffa3: original49assertions pass52.341s/exit0. Admitted gunner remapped FIRE produces exactly one52damage commit through actual GameFlow/authority/resolver/adapter, then original lifecycle checks. | Accepted source merged/pushed; earlier headless failures preserved and explained by missing mousecapture. Declared input-only mode now exercised on isolatedXvfb. Fixtures disclosed; broader OS-input/network/native/full-combat gates remain. Owned scratch removed; current3767687 runtime unchanged. |
 | WALK-SALVAGE-ACCESS / 7,9 | Original61.019s plus one repair60.822s both fail outbound20; same supported Player, inspection/return NOT_RUN. Source archived WITHHELD; working refs deleted. | Parked after cumulative review; no further diagnosis/fix/run. INSPECT/REVISIT remain gated; concrete new fact/change required to reopen. |
 | KIT-RELOAD / 13,31 | Distinct-process restore30s timeout; one boundary probe records Main ready but no returned first normal frame before deadline. Source archived WITHHELD; working refs deleted. | Different supported production repair must be selected; no unchanged probe, timeout increase or repeated startup profile. |
 | FIRE-RESTART /8,29,31 | Original and viewport caller repair fail visible Fire row intersection before capture/save/restart sampler; no persisted remap proof. Source archived WITHHELD; working refs deleted. | OPEN/PARKED; concrete visible-row cause/change needed before separately frozen original writer/reader acceptance; original300s per process retained. No inferred scrolling cause or retry. |

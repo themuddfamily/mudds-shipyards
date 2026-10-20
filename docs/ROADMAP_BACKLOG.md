@@ -57,7 +57,7 @@ parents 11/21 share damage ownership. Do not count these twice.
 | 8 | Complete control and tutorial tuning | CONTROL-FIX, INPUT-DEVICE, INPUT-REMAP | **Qualification — INPUT-CONTROLLER.** WAITING on physical device, isolated session and frozen complete ordinary route. Prove actual-device menus and gameplay; synthetic input cannot supply this result. INPUT-KBM, Settings originals, remapping/context and tutorial cases remain. |
 | 9 | Finish station layout and final presentation | HIST-CLAIM, STATION-MODULE/ROUTE/ART/LIFE | **Parked view — STATION-FINDINGS[Habitat common entry].** Source8a6339b91 full-Main player-height readback times out180.842s before any PNG; no visual finding or no-finding. Concrete supported capture-boundary change required before new selection. Accepted Habitat/service runtime scopes stand; remaining station routes/art and STATION-RELATIONS remain. |
 | 10 | Finish fleet art, character animation and role acceptance | CRAFT-ART, CRAFT-ROLE, CRAFT-ACCEPT | **Dependency — BOMBER-ROLE-DECISION.** WAITING on exact additional role/count, action and physical access. Finish is the contract needed to split a justified capability; invent no role. Fleet art/animation/full craft journeys and eight SPEC→BUILD-SPLIT→CRAFT-ACCEPT chains remain. |
-| 11 | Complete the combat-and-recovery slice across supported craft | COMBAT-SLICE, CRAFT-ACCEPT, NET-DAMAGE | **Definition — BOMBER-REARM-POLICY.** Settle which same-hull events may replenish spent payload: seat re-entry, dock service or destruction/reuse. Finish supplies entitlement before correction/qualification. Weapon/damage definitions are DONE; encounters, craft/recovery and shared damage remain. Courier/Perimeter stays PARKED. |
+| 11 | Complete the combat-and-recovery slice across supported craft | COMBAT-SLICE, CRAFT-ACCEPT, NET-DAMAGE | **Definition — BOMBER-REARM-POLICY.** Settle which same-hull events may replenish spent payload: seat re-entry, dock service or destruction/reuse. Finish supplies entitlement before correction/qualification. HALYARD-GUNNER-DAMAGE one actual52damage/local lifecycle DONEc28f7ffa3; weapon/damage definitions are DONE; encounters, craft/recovery and shared damage remain. Courier/Perimeter stays PARKED. |
 | 12 | Complete the whole-game art-direction pass | ART-FINDING, STATION-ART, CRAFT-ART, CAPTURE | **Definition — ART-FINDINGS[one view].** Name an actual UI/animation/effect/lighting/terrain/weather defect, current view, intended before→after, runtime owner and protected route before repair. Other station/fleet art, accessibility and required capture sets remain. |
 | 13 | Close the complete nearby-activity roster | ACT-HUD/WRITE/PLAY/REPEAT, TRAVEL-LIMIT, HULK | **Runtime defect DONE — Defense enemy flight boundary on checkpoint3767687.** Relief enemies remain inside the unchanged arena through actual flight; external escape still aborts. Full PLAY-DEFENSE remains OPEN: prior ordinary Arrow run achieves one kill near30s, leaving less than10.5s remaining authored delays. Feasible full boarding/combat plan required before qualification; no timer/contract change selected. Other activities and Beacon travel-limit choice remain. |
 | 14 | Qualify each implemented world's full physical round trip | WORLD-SOLO/ABANDON/SAVE/EDGE | **Definition — WORLD-SAVE-DEFINE[one world/boundary].** Specify initial state, survey/reward/reboard disk cut, once-only durable result and usable resume/safe recovery, with existing route/command prerequisite. SOLO returns, abandonment, other save cuts and EDGE cases remain. |
@@ -492,15 +492,21 @@ this map does not generate a craft×encounter matrix or qualify full fleet comba
 No new runtime weapon was shown absent by the inspected roster. Resource-only
 beam support is not a delivered beam, nor proof that one was promised. Generic
 converter ammunition refusal does not erase existing Bomber/Bulwark ammunition.
-HALYARD-GUNNER-DAMAGE is FAILED/PARKED after original 0b157138b (51.847s) plus
-one caller repair 3a7c4b4bf (52.025s): both fail the original co-pilot seat admission,
-supported Player/candidate null, before target fixture/new damage proof. The
-fixed-world→craft-local aim caller change did not qualify the route; actual cause
-and runtime weapon defect remain unestablished. Cumulative 103.872s review stops
-further diagnosis/fix/rerun without concrete new fact/change; no third variant.
-Both candidates withheld under `archive/withheld/halyard-gunner-damage-20261018`,
-working refs deleted; no build. Raw/source/actual attempt/selection preserved
-in delivery history. Existing network Halyard failure budgets remain unchanged.
+HALYARD-GUNNER-DAMAGE is DONE on c28f7ffa3. The unchanged original route passes
+49 assertions52.341s on its declared input-only display: exact gunner admission,
+remapped FIRE, one actual52damage commit through GameFlow/live authority/resolver/
+production adapter, then stand/walk/helm return/reseat/replacement cleanup.
+Passive capture explains the earlier null candidate: headless mouse mode stayed
+visible, facing never changed, and the chair remained behind the player despite
+actual overlap. PrivateXvfb/explicitx11/Dummy/dummy renderer permits capture and
+chair aim becomes1.0; no gameplay repair or closer-walk variant was needed.
+Original exterior/registered-target fixtures remain disclosed. This is source
+qualification, not OS-XTest/network/native-GPU or whole combat acceptance.
+Original two failed routes103.872s and new headless failure51.925s are retained;
+selected new stages120.306s include compile and successful52.341s, not new feature
+counts. Caller-only source merged/pushed; current3767687 runtime unchanged, no
+identical export. Owned scratch cleaned; original failed archive retained.
+[Exact scope and cleanup](history/ROADMAP_DELIVERIES.md#existing-halyard-gunner-damage-qualified-on-its-declared-input-display--2026-10-20).
 
 ### Activities and solo-world children
 
@@ -684,7 +690,7 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | ROLE-JOVIAN-ENGINEER | Jovian engineer ordinary moving-crew lifecycle | 16,24 | GATED; exact supported craft/candidate, prior role-specific proofs retained |
 | ROLE-HALYARD-PASSENGER | Halyard passenger ordinary moving-crew lifecycle | 16,24 | GATED; exact supported craft/candidate, prior role-specific proofs retained |
 | ROLE-HALYARD-ENGINEER | Halyard engineer ordinary moving-crew lifecycle | 16,24 | GATED; exact supported craft/candidate, prior role-specific proofs retained |
-| ROLE-HALYARD-GUNNER | Halyard gunner ordinary moving-crew lifecycle | 16,24 | GATED; exact supported craft/candidate, prior role-specific proofs retained |
+| ROLE-HALYARD-GUNNER | Halyard gunner ordinary moving-crew lifecycle | 16,24 | Local source route and one actual52damage DONEc28f7ffa3; independent authenticated remote-role lifecycle remains GATED on supported candidate/ordinary route. Original fixtures and broader networking/native limits retained. |
 | ROLE-HALYARD-LOADMASTER | Halyard loadmaster ordinary moving-crew lifecycle | 16,24 | GATED; exact supported craft/candidate, prior role-specific proofs retained |
 | ROLE-BULWARK-GUNNER | Bulwark gunner ordinary moving-crew lifecycle | 16,24 | GATED; exact supported craft/candidate, prior role-specific proofs retained |
 | ROLE-CINDER-LOADMASTER | Cinder loadmaster ordinary moving-crew lifecycle | 16,24 | GATED; exact supported craft/candidate, prior role-specific proofs retained |

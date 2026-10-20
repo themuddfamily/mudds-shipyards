@@ -19260,3 +19260,54 @@ not completion. All12 owners terminal/18 observed PID/start identities absent;
 21:36:31UTC. Eight protected worktrees untouched. No new branch/worktree; main
 sole local/live remote branch. Accepted source/roadmap closeout pushed; all36
 parents/ten phase gates remain open.
+
+## Existing Halyard gunner damage qualified on its declared input display — 2026-10-20
+
+HALYARD-GUNNER-DAMAGE DONEc28f7ffa35b97af6d60885119e84c75270e5dbec; original
+archived3a7c4b4bf contract accepted and source merged/pushed main. One previously
+withheld candidate now accepted: original20 inventory has seven accepted or
+superseded outcomes and thirteen still-unqualified candidates. Working branch
+queue remains empty; historical failed-source tags retained, including this one.
+
+Old failures lacked actual overlap/facing/camera/arbitration facts. One bounded
+passive capture restored exact original damage qualification plus read-only
+context. Removing captures/helpers reproduces archived source byte-for-byte.
+Prelaunch review removed selector calls that could lazily clear reservations;
+final capture reads cached candidates/raw fields and pure aim math instead.
+No changed input sequence, wait, body position, gate, deadline or runtime code.
+
+Compile4d62504db PASS16.040s. Exact finalc28 headless capture FAIL51.925s at original
+chair assertion: current controlled ON_FOOT player and exact nearby gunner chair,
+mouse modeVISIBLE0, facing identical before/after look, chair aim−.7613; cockpit
+precedence false. Interact consequently reboards helm. Source only consumes mouse
+motion in CAPTURED mode; the helper's click did not retain capture headlessly.
+The test already declares input-only, and the existing matrix uses a display
+with dummy renderer rather than headless for that declaration.
+
+Independent HIGH review approved ONE unchanged-source original300s run on private
+Xvfb/explicitx11/Dummy audio/dummy renderer/disabled render loop. PASS52.340715s,
+49 assertions, exactly one marker, actual OS exit0, diagnostics0/Xvfb logempty;
+source/cache unchanged. Actual modeCAPTURED2 allows chair aim1.0 and cached exact
+gunner selection. Remapped F13 FIRE emits one request and identical GameFlow/live
+authority/resolver receipt; the real target adapter commits52 damage100→48 once.
+Original stand/supported walk/helm return/reseat/authority replacement cleanup pass.
+Independent final scoped GO; no guessed walk or production weapon repair.
+
+Scope retains original exterior starting-position fixture, registered DRONE-01
+staged280m along the unchanged gunner view then restored, InputEvent/parse helpers
+and negative authority-replacement fixture. This does not establish OS-XTest,
+remote networking, native GPU/devices/human or whole fleet combat acceptance.
+Production/export inputs exactly match accepted3767687; caller-only handoff
+requires no identical rebuild. That playable checkpoint remains current.
+
+Original two failed routes103.871794s retained; new compile/headless/correct-display
+stages120.305643s give224.177437s for these selected stages. Earlier import/compile
+costs remain in old history rather than silently being included in that sum.
+Exact commands/freezes/logs/reviews/raw hashes and costs are at
+/srv/mudds-work/halyard-gunner-admission-20261020/results/.
+All3 owners terminal/7 observed PID/start identities absent;51 profile entries
+archived/reopened/verified before owned scratch removal21:52:54UTC. No new branch
+or worktree; eight protected detached worktrees untouched. Main sole local/live
+remote branch; accepted source and roadmap closeout pushed. All36 parent outcomes
+and ten phase gates remain open. Defense clock-start owner choice remains pending;
+its original34s board-start rule is preserved until answered.
