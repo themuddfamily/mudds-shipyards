@@ -126,49 +126,49 @@ absent,11 public files hash-verified,23 profile entries archived/verified,
 helpers preserved; owned checkout/cache/profiles/helpers removed.
 [Actual delivery](docs/history/ROADMAP_DELIVERIES.md#shared-menu-contrast--shipped-on-d00ae72).
 
-### Selected Station Defense ordinary driver and full first-play attempt
+### Station Defense full-play driver — source-blocked before edits
 
-PLAY-DEFENSE / parent13. **07:58–08:58UTC/60min** includes bounded mapping,
-implementation/review/checks, paired candidate, one original300s native route
-and cleanup. Independent of parked Wing/Perimeter/Breach/Activity Board chains;
-none is reopened or adopted. Source map found no required gameplay correction.
-The physical Station Defense board is(12,1,-26), radius2.6m. Deploy immediately
-starts the whole34s encounter including boarding/departure and2.5s/8s lulls;
-retain that exact contract, four live1/2/1 actors and protected core. Existing
-non-Torrent craft can enter FREE_FLIGHT with guided pending and authored combat
-weapon; choose the existing Arrow, no spawned substitute or seeded Guided win.
+PLAY-DEFENSE preflight found a concrete missing production interface before any
+edits, tests, engines or export: GameFlow excludes station candidates without
+`get_interaction_prompt()`, and StationDefenseActivityBoard lacks it. Its existing
+`interact()` starts/retries debt, while Reset is separate. Thus the required E
+Deploy/Reset route cannot run. Worktree remains clean; no knowingly failing
+route or substitute Nearby UI proof selected. Original full3wave/fourkill/payment/
+home/reset contract stays open. Source mapping established actual Arrow support
+and whole34s semantics; neither clock nor roster needs a speculative change.
 
-One high implementer owns tools/release/run_native_sortie.py/test_native_sortie.py,
-scripts/diagnostics/native_sortie_observer.gd, scripts/game/startup_loader.gd,
-tests/startup_cli_privacy_test.gd and one focused observer test/UID if necessary.
-One high reviewer owns read-only review, root integration/packaging/cleanup.
-Add guarded private station-defense selector and read-only detached observations.
-Observe real resolver shot events, exact source/target/weapon/sequence/receipt,
-positive damage and all four terminal kills; cached accepted fire is insufficient.
-Preserve normal tuning, physics/AI/damage/poses/phases/timer/roster/reward owners;
-no debug actions, direct damage/phase/velocity/pose writes or fake save/prelude.
-Estimate25–35min implementation/review. Stop source research after ownership,
-seam and proof known; no new validator/schema/version family.
+### Selected Station Defense physical interaction fix
 
-Route: empty private profile→normal Begin Shift→supported ordinary walk to board,
-actual3D-in-range/facing/candidate E Deploy→physical existing Arrow board/depart→
-real player weapons clear all3waves/four registered actors before unchanged34s,
-core survives→one genuine durable reward→normal strict Arrow home/dock/shutdown/
-physical exit→supported walk to same board, normal Reset and usable next Deploy→
-normal UI exit0. Independently read actual save to confirm one reward entitlement.
-Full original route stays required; failed prefix does not become acceptance.
+DEFENSE-PHYSICAL-INTERACTION / parent13. Retain original **07:58–08:58UTC/60min**
+including preflight, implementation/review/checks, paired build and cleanup.
+Add snapshot-driven physical prompt and dedicated ordinary-interaction dispatch
+through existing GameFlow start/reset wrappers. Idle E Deploy; active status-only
+(no destructive reset); completed/failed/aborted E Reset through existing reset
+owner; pending debt E retries settlement first; refused session stays protected.
+Keep direct `interact()`/Nearby UI start and explicit reset/recover APIs compatible.
+Preserve3D2.6m range/facing, on-foot/armed-sortie gates,34s immediate-start clock,
+1/2/1 roster, combat/health/rewards/persistence/network and role owners.
 
-Freeze clean candidate/exact commands before engines: import180s; existing Python
-driver safety90s; startup privacy120s; focused observer120s if added (headless/Dummy).
-Paired exports180s each; three strict startups120s each; existing actual PCK/PE/
-archive audit90s; one native route with existingCAP300, outer360s plus60s owner
-finalization. Private authenticated X11/XTest, explicitx11/dummy renderer/Dummy
-sound, independent abort/input release/reap. First failure stops, no automatic
-repair/retry/cap increase or renamed adjacent probe. Publish only reviewed accepted
-candidate. Archive/hash-verify unique failed data if withheld, or verify published
-files if accepted, then remove only owned clean pushed checkout/cache/profiles/
-helpers/duplicate exports. Native/hardware/human/final and all36 parents/ten gates
-remain open; actual timing/survival and full first-play are not proven yet.
+One high implementer owns scripts/activities/station_defense_activity_board.gd,
+scripts/game/game_flow.gd and a focused actual-Main interaction regression/UID;
+extend existing production-placement regression only if needed for genuine debt
+prompt selection. One high reviewer, root integration/publication/cleanup.
+Estimate15–25min implementation/review; no driver/observer/CLI changes now.
+
+Freeze clean source/exact commands before engines: import180s; existing full
+station_defense_production_placement_test.gd300s; new actual-Main physical
+interaction test120s. Disclose staged avatar/terminal setup: actual nearby-area
+candidate/facing/ordinary Player E intent must select board, Deploy begins real
+encounter, active repress preserves it, terminal Reset exposes next Deploy;
+range/facing/competing-board/refusal and debt fences retain existing owners.
+This is production entry/reset regression, not full ordinary combat acceptance.
+Paired exports180s each; three strict startups120s each; existing PCK/PE/archive
+audit90s. Every Godot headless/Dummy. First unexpected failure stops, no automatic
+repair/retry/cap increase or renamed adjacent test. Publish only reviewed passing
+checkpoint. Archive/hash-verify unique data/public files and remove owned clean
+pushed/integrated checkout/cache/profiles/helpers/duplicate exports. Full
+PLAY-DEFENSE driver/combat/payment/home remains separately unqualified; parked
+Wing/Perimeter/Breach/Tooltip and native/hardware/human/final gates stay open.
 
 ### Waiting decisions — not executable tasks
 
