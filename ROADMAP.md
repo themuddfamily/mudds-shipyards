@@ -210,6 +210,42 @@ verified and helpers preserved. Owned clean pushed/integrated checkout/import
 cache/profiles/helpers removed; only results remain. No successor or parked-route
 retry is selected here.
 
+### Selected gameplay status palette repair
+
+ACCESS-GAMEPLAY status / parents12,29. **09:11–09:56UTC/45min** includes source
+implementation/review, focused checks, checkpoint and cleanup. Source finding:
+six _label-created gameplay readouts (mode, engine, throttle, hull damage,
+component status, target lock) multiply their registered initial font colour by
+new-state modulation. Four repeat this in palette refresh; component/lock also
+retain old modulation after a palette change.
+
+One medium implementer owns only scripts/ui/hud.gd and the existing
+accessibility_presets_test.gd. Root reviews/integrates/packages. Generalize the
+accepted Destination status helper to update each retained label's existing
+font_color role, apply once, neutral modulation. Preserve all six setters' copy,
+visibility, role semantics/thresholds, target names/markers, reticle geometry and
+single registration per label. Retain Destination regression. Remove redundant
+four-label modulation repaint after registry becomes authoritative; retain enemy
+health bar/planetary refresh. Existing accessibility engine/hull colour fields
+report effective font_color×modulate, same role semantics/no schema change.
+Exclude other menus/settings/nearby feedback, non-label paints and all gameplay,
+weapon/damage/AI/network/save authority. Estimate15–25min implementation/review.
+
+Before engines freeze clean source/exact commands. Headless/Dummy import180s;
+full existing accessibility_presets_test.gd120s (ACCESSIBILITY_PRESETS_TEST_OK),
+target_lock_hud_test.gd60s (TARGET_LOCK_HUD_TEST_OK),
+hero_sensor_reticle_component_damage_test.gd180s (existing success marker) and
+hud_panel_layout_test.gd120s (HUD_PANEL_LAYOUT_TEST_OK, retained Destination).
+Extend existing accessibility suite with finite six-label transitions, immediate
+paint and palette/high-contrast changes, actual effective colour/neutral
+modulation, identity/copy and stable single registration. All new call/member-
+chain GDScript locals explicitly typed. Paired exports180s each; three strict
+startups120s each (exit0/exactly1STARTUP_MENU_READY_OK); actual PCK/PE/archive
+check90s. First unexpected failure stops, no automatic repair/retry/cap increase.
+Publish passing reviewed checkpoint under repository builds; archive/hash-verify
+results and remove owned clean pushed idle scratch within45min. Headless theme
+checks do not close rendered/human/device/full combat/final release gates.
+
 ### Freight terminal integration — bounded handoff, workflow pending
 
 WALK-FREIGHT source preflight found missing production interaction: Freight's
