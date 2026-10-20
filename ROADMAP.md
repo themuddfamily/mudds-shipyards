@@ -236,6 +236,20 @@ profile archive retained in task results. Next action is a separately selected
 exact test typing correction, retaining this failure and original cumulative
 budget; do not treat the source review as runtime proof.
 
+Separately selected correction2026-10-20: the parse diagnostic identifies a
+Variant loop value preventing inference for the new synthetic `damaged` bytes.
+Root changes exactly that declaration to explicit `PackedByteArray`; production
+logic and all assertions stay identical. Independent reviewer verifies the exact
+causal change before engines. Recreate the removed owned worktree/cache; one
+fresh import180s is necessary, then store/binding/crash suites60s each. Keep
+original failed attempt and cumulative60min split budget; estimate5–10min repair/
+review/checks plus5–10min packaging. No further correction selected: first new
+failure STOP. Successful source checks authorize the existing clean-commit stock
+Windows/Linux export commands180s each, Linux binary/archive strict startup120s
+each, Windows embedded-payload headless/Dummy startup120s (not native Windows),
+and existing package parity/PE/archive audit90s. Exact pin/commands frozen in
+owned correction results before execution; no hosted CI or parked RPC retries.
+
 ## Latest playable result
 
 **Inline browser recovery delivered and packaged on 20e90c9.** The title/pause
