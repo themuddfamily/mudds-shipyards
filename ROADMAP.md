@@ -80,6 +80,24 @@ records the earlier 20 candidates; accepted Breach and Halyard closeouts and the
 archived superseded Jovian caller remove three.
 This cleanup changes branch ownership, not the number of completed roadmap outcomes.
 
+**Selected existing docked-pilot branch closeout: 15:35–16:20 UTC, 45min.**
+Finish the original full postdock passenger-exit journey on retained
+`fix/docked-pilot-hold-20261020`, keeping its pose repair and original assertions.
+Recorded first cabin-stand walk passes; the next direct diagonal intersects the
+solid pilot-chair back. Host/client retain the same supported standing position
+and current input. Source collider geometry approximately matches the stall;
+no lost-input or remote-step repair is justified.
+
+Reviewed caller correction: after the original cabin stand, walk normally to
+ship-local `(-1.10, 0.52, -6.70)` before all original hatch-route points. No body,
+seat, pose, authority or collision staging. Keep original 300s suite/360s outer,
+15s walk, 8s stand/hatch, exact identities/claims/retained pilot and actual peer
+exit requirements. Import, focused pose and compile precede one complete case.
+First unexpected failure stops; no cap increase or adjacent probe. If the full
+case passes, export and silently smoke/audit a clean-source paired checkpoint,
+then merge/push, delete this branch and clean only its owned scratch. Earlier
+392.470s stages and original parser failures remain separately recorded.
+
 **Existing Halyard boarding branch finished and merged on 4bc0e3b38.**
 Full original ordinary menus/spawn/continuous walks and real pilot/passenger
 boarding pass in 130.472s under unchanged 300s suite/360s outer limits.
