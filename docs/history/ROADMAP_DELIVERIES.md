@@ -14853,3 +14853,108 @@ against the original before deletion (3,275,432 bytes, SHA256
 Only results/ remains, including the initial failure and accepted corrected run.
 Freeze commit→cleanup771.850s/12.9min against30–45min edit/review plus2–5min checks/
 cleanup estimate, original60min split budget not reset. No broad gate closes.
+
+## Observation Popup lifetime capture — failure boundary identified
+
+Diagnostic source9743b650f0f9231f500659654e7fe9b2517b89ab is committed and pushed
+on `diag/observation-exit-popup-20261020`, unmerged/withheld. One observer file,
+155 additions, independent high source/lifecycle review including the explicit
+Popup cast. No gameplay repair or public checkpoint; latest accepted49047eb.
+The original full WALK-OBSERVATION requirement remains FAIL.
+
+### Frozen selection retained
+
+The following was the pre-run selection, not an instruction to repeat it.
+
+WALK-OBSERVATION/CONTROL-FIX, parents7/8/9/29/32, diagnosis only. New source fact:
+pinned Popup.cpp52–75 owns the exact root focus_entered/tree_exited pair;
+Exact numbered Object.cpp1644 checks a missing base-comparator key while the
+signal map exists. Pre-edit review corrected the initial map-missing reading;
+no binding-omission or callback-identity cause is established. Normal Exit script only marks orderly state then SceneTree.quit;
+no script Popup/root-signal lifetime mutation found. Missing actual Popup identity
+and event ordering prevent a production repair; do not infer shared Board cause.
+
+Prepared candidate **9743b650f** changes only the observer; independent source
+review passes, its branch is pushed and the unused clean checkout is removed.
+Compiler/import, export and runtime
+checks are **NOT_RUN**. It is not integrated into gameplay main.
+
+One high implementer owns only `scripts/diagnostics/native_sortie_observer.gd`
+on private `diag/observation-exit-popup-20261020`, basecaller e390/game4c58; high
+independent lifecycle reviewer, root validation/cleanup. No recursive agents.
+Selected-only passive capture starts before Main: existing Popup census plus
+node_added watches, ID/string-only popup visibility/tree-exiting/tree-exited
+callbacks, root connection-list snapshots for the two native signals and only
+changed fingerprints (including receiver metadata, not proof of a native-key
+change); read only root-pair incoming Popup links as well. Record actual receiver ID/class/path/theme/visibility/
+embedded/in-tree/queued state and scalar Callable metadata; no retained Node or
+Callable registry. Existing observer payload, physics cadence, route and controls
+unchanged. Never connect root focus_entered/tree_exited: a new listener would
+alter the suspect native signal bookkeeping. No hide/free/reparent/disconnect/state/input mutation,
+deferred wait, diagnostics suppression or invented native event ordering.
+
+Capture goal: identify the actual Popup registered on root and its observed
+lifetime/slot disappearance at the retained failure, or name the precise missing
+fact. Trace prefix OBSERVATION_POPUP_LIFETIME, no new validator/schema family.
+Estimate15–20min implementation/review plus5–10min checks/one full route. Original
+three attempts/90min cumulative budget retained (24.8min before this mapping).
+Original freeze02:54:57UTC on2026-10-20; deadline04:24:57UTC. Planning time does
+not reset this budget; if insufficient time remains, leave capture NOT_RUN.
+Before engines finalsourceGO+cleanpin+exactcommands: import180s, privacy60s,
+private Linux export180s, strict binary startup120s, existing artifact audit90s,
+original fullrouteCAP300/outer330 on isolated authenticatedX11/Dummy/dummy-renderer.
+Python82 unchanged/retained. Ordinary result stays FAIL on the known two errors;
+diagnosis capture cannot turn it green or close WALK. Any unexpected failure
+stops, no repair/retry/cap increase. No public checkpoint for passive diagnosis.
+Retain source/rawtrace/unique package, commit/push actual finding, clean owned
+scratch; native/device/rendered/human and broad gates stay open.
+
+### Actual single capture and stopping result
+
+All five prerequisites PASS without retry: import20.738s, privacy1.169s,
+private Linux export41.955s, strict binary startup22.414s (exit0/one menu marker),
+actual artifact audit4.145s (ELF/PCK1521, no tests/tools, exact five tar members,
+bytes/modes/epoch/source metadata). Ordinary check FAIL90.724s; driver90.473s.
+PID1666477/samePlayer284491254354 completes54 waypoints/347.024m, actual pad
+view frame2401→2461/60 elapsed frames, and supported original-hub return.
+Actual ExitButton focus/Return activation precedes two retained errors:
+`focus_entered` and `tree_exited` on rootWindow25014830472, Object.cpp1644.
+Normal UI exit0 is not established; route success:false remains unchanged.
+
+127 passive events identify PopupPanel2899539144326, theme variationTooltipPanel,
+beneath `PauseMainPage/.../PlanetaryDestinationOpenButton/@PopupPanel@2193`.
+At raw game.log4164/sequence57 it is embedded/hidden with no root pair; at4165/
+sequence58 it becomes visible and both root outgoing and Popup incoming lists
+contain native custom/valid callbacks: focus hash3979781941, tree-exited
+hash2693423524, flags0/bound0. At4299/sequence114 its tree_exiting callback still
+sees the same valid pairs, visible/embedded/in-tree/not-queued. The exact two
+errors immediately follow at4300/4302. Main/observer/root exit snapshots and the
+final captured event at4316/sequence127 still enumerate those stored pairs.
+The receiver then reports outside-tree/queued and not embedded.
+
+Independent high raw-trace review agrees: **no connection-removal event was
+observed**. Numbered native source1644 reports a failed base-comparator-key lookup
+while the signal map exists; the trace shows stored bindings still enumerable.
+It does not expose the attempted native Callable comparator/hash/data, so their
+relationship to the stored Callable is the precise missing fact. The error does
+not directly name its attempted target: this capture localizes the boundary to
+the identified Tooltip's exit with matching native Popup cleanup source, rather
+than proving a mismatch cause. Composite fingerprints are not native key proofs.
+No shared Board/RPC cause or production repair is inferred. This card stops here;
+no further probe, repair, rerun, cap increase or expected-error suppression.
+
+Raw evidence and reviewed commands/configs are retained only under
+`/srv/mudds-work/observation-walk-20261020/exit-popup/results/`, including
+`attempt-result.json`, `ordinary/route/game.log`, the unmodified failed route
+receipt, stage/process guards, `helpers/`, source review and independent review.
+The private package is retained once in `withheld-package/`: ELF148,904,992bytes,
+SHA3a2fcb09e4ecbf9172cd82837316049cd415f69bbaf1e72294fb574668520ee4;
+tar95,319,009bytes,
+SHA0ad44883449f568445bf70d349db2bad8a2640c058a581e538e96e105d9a305b.
+All31 newly observed process identities are absent; route input/helper/game/Xvfb
+cleanup flags true. Profile archive verified by exact file hashes/symlink targets
+before deletion. Clean pushed checkout/import cache and duplicate helpers/profiles
+removed; only results remain. Six stages181.145s; original retained333.882s gives
+515.027s cumulative checks including all four ordinary failures. Original freeze
+to owned cleanup47.37min, within the unchanged90min budget. All native/device/
+audible/human and wider parent/phase gates remain open.

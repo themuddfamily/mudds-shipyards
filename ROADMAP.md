@@ -46,7 +46,7 @@ one bounded backlog edit, no engine run and no gameplay completion claim.
 | Work | Actual state | Completion / next boundary |
 | --- | --- | --- |
 | LIFE-PACKAGE-DEFINE /7 | DONE as definition only | Five existing outcome groups now have explicit uncovered behavior and runnable/dependency boundaries. Four/twelve-cycle source passes remain accepted; no package journey was rerun or newly accepted. |
-| WALK-OBSERVATION exit diagnosis /7,8,9,29,32 | PREPARED; source-reviewed candidate9743b650f, checks NOT_RUN | One passive capture may identify the actual Popup/lifetime boundary. Existing full walk remains FAIL. [Frozen scope and cumulative budget](#selected-diagnosis--popup-lifetime-during-normal-exit) prohibit an automatic repair or repeated probe. |
+| WALK-OBSERVATION exit diagnosis /7,8,9,29,32 | STOPPED after one capture; Tooltip identified, cause unresolved | PlanetaryDestinationOpenButton Tooltip retains both native root connections across the errors. Attempted native comparator identity remains unknown; full walk FAIL. [Result and stopping boundary](#selected-diagnosis--popup-lifetime-during-normal-exit); no repeat or repair selected. |
 | Matching RPC-cache templates /25,32 | PARKED; Linux built, Windows cold and incremental attempts timed out | No accepted matching pair; no further compilation or dependent browser route selected. [Retained result](docs/history/ROADMAP_DELIVERIES.md#matching-rpc-cache-templates--stopped-at-windows-compilation-budget). |
 
 The RPC build recipe and browser JSON fixture are delivered in their recorded
@@ -54,9 +54,9 @@ source scopes; they are no longer current tasks. The cache callback repair is
 still an unverified candidate. Empty release callable metadata does not prove a
 cause, and no shared cause with the Window failure is established.
 
-No engine/check job is active. The prepared Popup diagnosis is the only already
-selected executable card; it remains subject to its original cumulative deadline
-and exact-command freeze. Other waiting and parked outcomes are not READY.
+No engine/check job or executable card is active. The one Popup capture has
+stopped at its recorded missing native fact; other waiting and parked outcomes
+are not READY. No additional diagnostic layer or unchanged retry is scheduled.
 The lifecycle breakdown does not schedule five more assignments: select one
 existing child and freeze its exact files, route, proof and stopping condition
 before execution. Do not start a whole family at once.
@@ -163,58 +163,37 @@ ELF hash/startup/artifact results reused without another export. Caller branch
 
 Next requires a separately selected cause/owner for the Window lifetime/signal
 failure during normal UI exit. Similar prior diagnostics do not establish a
-shared cause. Only the passive diagnosis below is selected; no gameplay repair,
+shared cause. The passive diagnosis below has now stopped; no gameplay repair,
 acceptance retry or cap increase is selected. Original full
 hub→Observation/look→hub/UI-exit criteria remain. Cumulative333.882s checks and
 24.8min original freeze→cleanup stay inside90min split; no budget reset.
 Latest public49047eb unchanged; unique raw/private archives retained, duplicate
-checkouts/ELFs/helpers/profiles cleaned. The later diagnostic source is retained
-separately; its checks have not run.
+checkouts/ELFs/helpers/profiles cleaned. The later diagnostic capture below
+retains its own package/result and stops without a gameplay repair.
 
 ### Selected diagnosis — popup lifetime during normal Exit
 
-WALK-OBSERVATION/CONTROL-FIX, parents7/8/9/29/32, diagnosis only. New source fact:
-pinned Popup.cpp52–75 owns the exact root focus_entered/tree_exited pair;
-Exact numbered Object.cpp1644 checks a missing base-comparator key while the
-signal map exists. Pre-edit review corrected the initial map-missing reading;
-no binding-omission or callback-identity cause is established. Normal Exit script only marks orderly state then SceneTree.quit;
-no script Popup/root-signal lifetime mutation found. Missing actual Popup identity
-and event ordering prevent a production repair; do not infer shared Board cause.
+**STOPPED after one capture; Popup identified, native cause unresolved.** Source
+9743b650f is committed/pushed on its diagnostic branch and remains unmerged.
+Five import/privacy/export/strict-startup/artifact checks pass. The full ordinary
+route still FAILS90.724s on the two original root signal errors after all54
+waypoints, actual60-frame view and supported home return. No normal exit0 or
+WALK acceptance; latest public49047eb unchanged.
 
-Prepared candidate **9743b650f** changes only the observer; independent source
-review passes, its branch is pushed and the unused clean checkout is removed.
-Compiler/import, export and runtime
-checks are **NOT_RUN**. It is not integrated into gameplay main.
+The receiver is a visible embedded **TooltipPanel beneath
+PlanetaryDestinationOpenButton**. Both root outgoing and Popup incoming
+connections retain the same stored hashes immediately before and after the
+errors. No connection-removal event was observed. The exact missing fact is the
+attempted native Callable comparator/hash/data versus the stored Callable;
+neither its cause nor a production repair is established. Similar Board/RPC
+errors do not establish shared ownership.
 
-One high implementer owns only `scripts/diagnostics/native_sortie_observer.gd`
-on private `diag/observation-exit-popup-20261020`, basecaller e390/game4c58; high
-independent lifecycle reviewer, root validation/cleanup. No recursive agents.
-Selected-only passive capture starts before Main: existing Popup census plus
-node_added watches, ID/string-only popup visibility/tree-exiting/tree-exited
-callbacks, root connection-list snapshots for the two native signals and only
-changed fingerprints (including receiver metadata, not proof of a native-key
-change); read only root-pair incoming Popup links as well. Record actual receiver ID/class/path/theme/visibility/
-embedded/in-tree/queued state and scalar Callable metadata; no retained Node or
-Callable registry. Existing observer payload, physics cadence, route and controls
-unchanged. Never connect root focus_entered/tree_exited: a new listener would
-alter the suspect native signal bookkeeping. No hide/free/reparent/disconnect/state/input mutation,
-deferred wait, diagnostics suppression or invented native event ordering.
-
-Capture goal: identify the actual Popup registered on root and its observed
-lifetime/slot disappearance at the retained failure, or name the precise missing
-fact. Trace prefix OBSERVATION_POPUP_LIFETIME, no new validator/schema family.
-Estimate15–20min implementation/review plus5–10min checks/one full route. Original
-three attempts/90min cumulative budget retained (24.8min before this mapping).
-Original freeze02:54:57UTC on2026-10-20; deadline04:24:57UTC. Planning time does
-not reset this budget; if insufficient time remains, leave capture NOT_RUN.
-Before engines finalsourceGO+cleanpin+exactcommands: import180s, privacy60s,
-private Linux export180s, strict binary startup120s, existing artifact audit90s,
-original fullrouteCAP300/outer330 on isolated authenticatedX11/Dummy/dummy-renderer.
-Python82 unchanged/retained. Ordinary result stays FAIL on the known two errors;
-diagnosis capture cannot turn it green or close WALK. Any unexpected failure
-stops, no repair/retry/cap increase. No public checkpoint for passive diagnosis.
-Retain source/rawtrace/unique package, commit/push actual finding, clean owned
-scratch; native/device/rendered/human and broad gates stay open.
+[Original frozen selection, actual event bracket, validation and limits](docs/history/ROADMAP_DELIVERIES.md#observation-popup-lifetime-capture--failure-boundary-identified)
+retain the full contract and failed result. Six stages181.145s; cumulative
+checks515.027s with all original failures retained. All31 new process identities
+absent, inputs/helper/game/Xvfb released; unique package/raw logs/profile archive
+retained. Owned checkout/cache/helpers/profiles cleaned at47.37min from original
+freeze, inside the unchanged90min budget. No further probe/repair/retry selected.
 
 ## Latest playable result
 
@@ -241,7 +220,7 @@ contracts and cumulative attempt records remain in the retained history.
 | --- | --- | --- |
 | BROWSER-ORDINARY /25 | Candidatee944f52:89Python/privacy/35join/package checks pass, actual routeFAIL40.554s at NetworkSession tree_exited disconnect error; cleanup fixture command rejected. | PARKED/unmerged/withheld. Subsequent passive capture identifies retained native RPC-cache callback; it does not qualify the route. Full continuation NOT_RUN. Original raw data/eight builds preserved; scratch cleaned. |
 | AFT-CONSOLE-VIEW /9,12 | Standalone actual-module Xvfb/Forward+/llvmpipe capture FAIL120.485s after camera setup; no image or visual finding. | PARKED; source/root cause unproven. No cap increase, alternate backend/view or retry selected. Owned scratch cleaned; raw results retained. |
-| WALK-OBSERVATION /7,9 | Two caller failures retained; numeric e390/unchanged game4c58 completes54-goal travel/view/home prefix then FAIL89.064s on rootWindow signal disconnections after focused Exit. | PARKED; full task remains unaccepted, no clean exit0. Only the separately frozen passive Popup diagnosis is prepared; no repair or acceptance retry selected. |
+| WALK-OBSERVATION /7,9 | Two caller failures retained; numeric e390/unchanged game4c58 completes54-goal travel/view/home prefix then FAIL89.064s on rootWindow signal disconnections after focused Exit. | PARKED; full task remains unaccepted, no clean exit0. Passive capture identifies the PlanetaryDestinationOpenButton Tooltip with stored root pairs still present across errors; attempted native comparator remains unknown. No repair, repeat or acceptance retry selected. |
 | PERIMETER-LIVE /11 | Candidateaa88b5a73 unmerged; staged Hold52/director149/asset12/board58/HUD9 pass. GameFlow FAIL90.178s before Hold entry; exports NOT_RUN. | PARKED after cumulative363.897s/three failures and independent review. Concrete change addressing retained full GameFlow route boundary plus separate selection required; no additional correction/retry/cap increase/narrowed acceptance. |
 | PLAY-BEACON-HOME /13 | Candidatea612ea686 FAIL37.713s guarded/37.419s driver at ActivityBoardButton Return/frame1233; same two root Window signal-disconnection diagnostics. Eleven prechecks pass; no settlement/home/L/E reached, no file captures. Unmerged/withheld. | PARKED on UI-BOARD-FOCUS. Recurrence supplies no popup/connection-removal cause; no retry/repair/cap change. Preserve original UI two-component9.627s and Mining budgets. |
 | BREACH-INTERRUPTION /13,31,32 | Originale9/repair3c fail board arming35.365/35.638s. After accepted owner fix e3, unchanged probe c159 fails69.957s at atomic-payment commit assertion after cold Resume/one matching receipt; third cold replay NOT_RUN. | Cumulative140.961s STOP/PARK; candidates unmerged/withheld, no recovery checkpoint. No further diagnosis/repair/run, fourth automatic attempt or renamed retry selected; concrete causal fact/change required. |
