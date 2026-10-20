@@ -33,6 +33,14 @@ var _ember_started := false
 var _player: PlayerController
 var _ship: HeroShip
 var _opponent: RangeOpponent
+var _courier_mode := false
+var _courier: CourierRunnerOpponent
+var _courier_director: EncounterScenarioDirector
+var _courier_generation := -1
+var _courier_seen_alive := false
+var _courier_last_sequence := -1
+var _courier_hit: Dictionary = {}
+var _courier_kill: Dictionary = {}
 var _spawn := Vector3.ZERO
 var _parked := Transform3D.IDENTITY
 var _tuning := {}
@@ -80,6 +88,10 @@ func on_startup_completed(main: Node) -> void:
 		_tuning = _sortie_tuning()
 		return
 	_opponent = _game.get_node("RangeOpponent") as RangeOpponent
+	_courier_mode = "--native-sortie-observer=courier-intercept" in OS.get_cmdline_args()
+	if _courier_mode:
+		_courier = _game.get_node("CourierRunner") as CourierRunnerOpponent
+		_courier_director = _game.get_node("EncounterScenarios") as EncounterScenarioDirector
 	_spawn = _player.global_position
 	_parked = _ship.global_transform
 	_tuning = _sortie_tuning()
@@ -92,6 +104,66 @@ func on_startup_completed(main: Node) -> void:
 		for craft: HeroShip in _game.get_flyable_ships():
 			_fleet_initial[str(craft.get_ship_id())] = {
 				"pose": craft.global_transform, "tuning": _craft_tuning(craft)}
+
+
+## Retain only scalar production receipts, before the output cadence gate.
+## A generation reset cannot re-admit the previous generation's last shot.
+func _capture_courier_receipt() -> void:
+	if not is_instance_valid(_courier_director) or not is_instance_valid(_courier):
+		return
+	var generation := _courier_director.get_scenario_generation()
+	if generation != _courier_generation:
+		_courier_generation = generation
+		_courier_seen_alive = false
+		_courier_hit = {}
+		_courier_kill = {}
+	if _courier_director.get_active_scenario() != EncounterScenarioDirector.SCENARIO_COURIER_INTERCEPT:
+		return
+	_courier_seen_alive = _courier_seen_alive or (_courier.is_active() and _courier.get_health() > 0.0)
+	var shot := _game.get_last_player_shot_result()
+	var sequence := int(shot.get("last_sequence", -1))
+	if not bool(shot.get("accepted", false)) or not bool(shot.get("resolved", false)) \
+			or shot.get("source_entity") != _ship or shot.get("target_entity") != _courier \
+			or float(shot.get("applied_damage", 0.0)) <= 0.0 or sequence < 0 \
+			or sequence <= _courier_last_sequence:
+		return
+	_courier_last_sequence = sequence
+	var receipt := {
+		"source_entity_id": _ship.get_instance_id(), "target_id": _courier.get_instance_id(),
+		"sequence": sequence, "applied_damage": float(shot.get("applied_damage", 0.0)),
+		"remaining_health": float(shot.get("remaining_health", -1.0)),
+		"destroyed": bool(shot.get("destroyed", false)), "accepted": true, "resolved": true,
+		"scenario_generation": generation, "frame": Engine.get_physics_frames(),
+		"escape_progress": _courier_director.get_escape_progress(),
+	}
+	_courier_hit = receipt
+	if bool(receipt.destroyed) and float(receipt.remaining_health) <= 0.0:
+		_courier_kill = receipt.duplicate(true)
+
+
+func _courier_observation() -> Dictionary:
+	if not is_instance_valid(_courier_director) or not is_instance_valid(_courier):
+		return {}
+	return {
+		"director_id": _courier_director.get_instance_id(),
+		"scenario": str(_courier_director.get_active_scenario()),
+		"generation": _courier_director.get_scenario_generation(),
+		"state": str(_courier_director.get_state()), "outcome": str(_courier_director.get_outcome()),
+		"elapsed_seconds": _courier_director.get_elapsed(),
+		"escape_progress": _courier_director.get_escape_progress(),
+		"escape_distance": _courier_director.escape_distance,
+		"dispatch_delay": _courier_director.start_delay,
+		"distress_threshold": _courier_director.distress_hull_ratio,
+		"escort_delay": _courier_director.escort_response_delay,
+		"disengage_distance": _courier_director.disengage_radius,
+		"disengage_seconds": _courier_director.disengage_grace,
+		"backstop_seconds": _courier_director.scenario_time_limit,
+		"actor_id": _courier.get_instance_id(), "active": _courier.is_active(),
+		"position": _v(_courier.global_position), "velocity": _v(_courier.velocity),
+		"health": _courier.get_health(), "maximum_health": _courier.maximum_health,
+		"seen_alive": _courier_seen_alive,
+		"hit": _courier_hit.duplicate(true), "kill": _courier_kill.duplicate(true),
+	}
 
 
 func _v(value: Vector3) -> Array:
@@ -292,6 +364,8 @@ func _physics_process(delta: float) -> void:
 	if _habitat_loop:
 		print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(_habitat_loop_observation()))
 		return
+	if _courier_mode:
+		_capture_courier_receipt()
 	_elapsed += delta
 	if _elapsed < 1.0 / (20.0 if _full_sandbox else 60.0):
 		return
@@ -346,6 +420,8 @@ func _physics_process(delta: float) -> void:
 		"application_focused": source.get("_application_focused") if source != null else false,
 		"transition_busy": _game.get("_transition_busy"),
 	}
+	if _courier_mode:
+		observation["courier"] = _courier_observation()
 	if _beacon_entry:
 		observation.merge(_beacon_entry_observation())
 		if _beacon_mode == "beacon-settlement":

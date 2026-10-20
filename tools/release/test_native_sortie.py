@@ -1201,6 +1201,112 @@ class NativeSortieSafetyTests(unittest.TestCase):
                         'INTERCEPTOR_ENGAGEMENT', 'RETURN_TO_YARD']
         return pilot
 
+    def courier_pilot(self):
+        pilot = native.CourierPilot()
+        pilot.identities = (1, 2)
+        pilot.stage = 'range'
+        pilot.parked_forward = [0, 0, -1]
+        s = self.hulk_observation()
+        s.update(phase='INTERCEPTOR_ENGAGEMENT', opponent_active=True, targets=[],
+                 shot_accepted=False, command_fire=False, opponent=[0, 8, -160])
+        s['courier'] = dict(native.CourierPilot.CONFIG, director_id=10, actor_id=11,
+                            scenario='none', generation=0, state='arming', outcome='pending',
+                            elapsed_seconds=0., escape_progress=0., active=False,
+                            position=[0, 8, -200], velocity=[0, 0, -52], health=78.,
+                            maximum_health=78., seen_alive=False, hit={}, kill={})
+        self.assertFalse(pilot.update(copy.deepcopy(s), 0)[3])
+        self.assertEqual(pilot.stage, 'courier_wait')
+        return pilot, s
+
+    def courier_dispatch(self, pilot, s):
+        s['frame'] += 280
+        s['courier'].update(scenario='courier_intercept', generation=1, state='running',
+                            active=True, seen_alive=True)
+        pilot.update(copy.deepcopy(s), 5)
+        self.assertEqual(pilot.stage, 'courier_attack')
+
+    def courier_kill(self, s):
+        s['frame'] += 60
+        receipt = dict(source_entity_id=2, target_id=11, sequence=16, applied_damage=10.,
+                       remaining_health=0., destroyed=True, accepted=True, resolved=True,
+                       scenario_generation=1, frame=s['frame'], escape_progress=.15)
+        s['courier'].update(state='concluded', outcome='cleared', active=False,
+                            health=0., escape_progress=.15, hit=receipt.copy(), kill=receipt.copy())
+
+    def test_courier_wait_does_not_fire_at_initial_defender(self):
+        pilot, s = self.courier_pilot()
+        for frame in (101, 150, 250):
+            s['frame'] = frame
+            keys, _dx, _dy, fire = pilot.update(copy.deepcopy(s), frame/60)
+            self.assertEqual(keys, {'Prior'})
+            self.assertFalse(fire)
+            self.assertEqual(pilot.stage, 'courier_wait')
+
+    def test_courier_actual_kill_precedes_original_defender_and_home(self):
+        pilot, s = self.courier_pilot()
+        self.courier_dispatch(pilot, s)
+        self.courier_kill(s)
+        pilot.update(copy.deepcopy(s), 6)
+        self.assertEqual(pilot.stage, 'interceptor')
+        self.assertIsNone(pilot.result)
+        s.update(frame=s['frame']+1, phase='RETURN_TO_YARD', opponent_active=False,
+                 shot_accepted=True, command_fire=True)
+        # Actual command and accepted-shot invariants still belong to base.
+        pilot.update(copy.deepcopy(s), 7)
+        self.assertEqual(pilot.stage, 'return_align')
+        self.assertIsNone(pilot.result)
+        # Reaching the exact original terminal seam retains courier proof;
+        # the packaged route supplies all intervening physical flight states.
+        pilot.stage = 'exit'
+        pilot.phases = ['APPROACH_SHIP', 'START_ENGINES', 'LAUNCH', 'TARGET_PRACTICE',
+                        'INTERCEPTOR_ENGAGEMENT', 'RETURN_TO_YARD', 'SHUT_DOWN']
+        s.update(frame=s['frame']+1, phase='COMPLETE', piloted=False, seated=False,
+                 control_enabled=True, guided_complete=True, exit_error=.17,
+                 lease=True, parked_exact=True, contract=True, spawn=[0, 0, 0])
+        pilot.update(copy.deepcopy(s), 8)
+        self.assertEqual(pilot.result['completion_marker'], native.CourierPilot.MARKER)
+        self.assertEqual(pilot.result['courier']['kill']['target_id'], 11)
+        self.assertEqual(pilot.stage, 'complete')
+
+    def test_courier_terminal_outcomes_cannot_substitute_for_kill(self):
+        for outcome in ('escaped', 'withdrawn', 'expired', 'aborted', 'cleared'):
+            with self.subTest(outcome=outcome):
+                pilot, s = self.courier_pilot()
+                self.courier_dispatch(pilot, s)
+                s['courier'].update(state='concluded', outcome=outcome, active=False)
+                with self.assertRaises(AssertionError): pilot.update(s, 6)
+                self.assertIsNone(pilot.result)
+
+    def test_courier_receipts_reject_wrong_source_target_generation_and_generic_fire(self):
+        mutations = [('kill', {}), ('hit', {}), ('kill', {'source_entity_id': 99}),
+                     ('kill', {'target_id': 99}), ('kill', {'scenario_generation': 2}),
+                     ('kill', {'sequence': -1}), ('kill', {'applied_damage': 0}),
+                     ('kill', {'applied_damage': float('nan')}), ('kill', {'accepted': False}),
+                     ('kill', {'resolved': False}), ('kill', {'destroyed': False}),
+                     ('kill', {'remaining_health': 1}), ('kill', {'escape_progress': 1}),
+                     ('kill', {'frame': 1})]
+        for field, change in mutations:
+            with self.subTest(field=field, change=change):
+                pilot, s = self.courier_pilot()
+                self.courier_dispatch(pilot, s)
+                self.courier_kill(s)
+                s.update(shot_accepted=True, command_fire=True)
+                if change: s['courier'][field].update(change)
+                else: s['courier'][field] = {}
+                with self.assertRaises(AssertionError): pilot.update(s, 6)
+
+    def test_courier_configuration_identity_and_defender_lifetime_are_required(self):
+        for change, outer in [({'escape_distance': 999}, {}), ({'actor_id': 12}, {}),
+                              ({'generation': 2}, {}), ({'escape_progress': 1}, {}),
+                              ({'active': False}, {}), ({}, {'opponent_active': False}),
+                              ({}, {'phase': 'RETURN_TO_YARD'})]:
+            with self.subTest(change=change, outer=outer):
+                pilot, s = self.courier_pilot()
+                self.courier_dispatch(pilot, s)
+                s['courier'].update(change)
+                s.update(outer)
+                with self.assertRaises(AssertionError): pilot.update(s, 6)
+
     def test_hulk_route_requires_normal_guided_prelude_before_diverging(self):
         pilot = self.hulk_pilot()
         s = self.hulk_observation()
