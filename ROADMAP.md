@@ -196,6 +196,20 @@ if withheld. Hash-verify archive/public files and remove only owned clean pushed
 checkout/cache/profiles/helpers/duplicate exports. Full parent/repetition/native/
 human/final gates remain open; actual route timing/survival still unproved.
 
+Current candidatec8dcd03 passed import, driver safety, privacy, paired exports,
+three strict startups and artifact audit. First ordinary route failed35.963s
+at pre-consumption Deploy assertion: requestframe1123, nextframe1124 still
+nativeEfalse/empty result/idle generation0; board candidate true, distance1.823m.
+No actual rejection or combat occurred; all inputs/processes released/reaped,
+zero diagnostics. Nine passing stages198.338s; cumulative234.301s retained.
+One exact corrective attempt selected within the SAME08:23–09:23UTC/60min:
+wait for pending empty/pre-E samples within EXISTING90frame deadline, classify
+fresh explicit rejection after observed E, no retap. Only driver/Python regression
+files may change; original full route/34s/CAP300/commands retained. Clean commit,
+independent review, focused checks and refreshed paired artifacts required before
+one corrective native run. Another failure triggers cumulative priority review
+and parking; no second repair or acceptance narrowing.
+
 ### Waiting decisions — not executable tasks
 
 These questions have already been asked. Keep them pending without asking again
