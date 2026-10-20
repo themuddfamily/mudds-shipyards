@@ -83,19 +83,23 @@ observations precede first shot results6–8frames; exact dispatch/query times r
 unrecorded. Post-tick geometry is not exact query-time proof. No production weapon
 or collision defect is established.
 
-**Selected same-task correction: normal held-fire tracking,13:34–13:49UTC/15min.**
-Retain prior original60min and tracking20min selections/cumulative1274.569s costs.
-The static F pulse forces zero steering throughout delayed shot execution; replace
-onlyWing's firing pause with real native held F while tracking actual live targets,
-release on actual clear/transition. Keep acknowledged mouse control and relative
-angular-rate tracking. OriginalArrow timedFpulse remains unchanged. Actual two
-fresh player-weapon kills, all three sorties/strict home/OFFLINE physical exits and
-normalUIexit remain decisive; no internal precision gate substitutes for hits.
-One implementer owns onlyWingdriver/existingPython tests; independent review.
-Source estimate3min; focused checks120s; one full isolatedX11/Dummy routeCAP300/
-outer360s if source andfocused checks pass. Exact auditedaa26baf game retained,
-no re-export forcaller-only change. First failure stops; no automatic next repair.
-OriginalWindows/nativeGPU/audio/human gates remainNOT_RUN. No unrelatedbranch.
+**Closeout now: integrate proven landing withdrawal; archive failed Wing driver.**
+Held-F source9a68aa01f/100focused checks passes, full routeFAIL102.037s:8shots,
+0Wingdamagehits/kills, both opponents38health; prerequisite home journeys pass.
+Wing remains FAILED/open; no further controller retry is selected. The source
+branch contains a proven independent production fix and unsuccessful qualification
+instrumentation, rather than one accepted Wing deliverable. Preserve that split.
+
+Independent review GO:06630f5d0 applies exactly to main as director+existingtest
+only, no observer/driver/selector dependency. Integrate this completed landing
+behavior, retaining original Wing two-kill/full-return requirement as open. Fresh
+checkpoint card13:38–13:53UTC/15min, all prior selections/costs retained. Main
+runtime+existingadmissiontest only; import180s/admission120s/director300s, paired
+exports180s each, three strict startups120s each and actualartifactaudit90s. First
+failure stops; nativeWindows/GPU/audio/human gates remainNOT_RUN. Publish onlythe
+actual landing-withdrawal change and actualvalidation. Archive unique failed
+qualification source with verified bundle/patch/tag, clean owned scratch, then
+delete existingbranch with exactOIDleases. Archiving does not completeWing.
 
 **Ready production cards: 0. Prepared production cards waiting on decisions: 3.**
 The decisions below remain pending; they do not prevent finishing independently
