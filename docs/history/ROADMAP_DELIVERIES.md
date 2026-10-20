@@ -18003,3 +18003,58 @@ main (13 non-main remote) remain. Remaining candidates are qualification/
 diagnostic/release automation, sometimes with opt-in runtime CLI wiring. The
 unqualified tooltip requirement remains OPEN despite its working branch deletion.
 Native/hardware/human/final gates and CI hold are unchanged.
+
+
+## UI, Mining and Beacon working branches accounted — 2026-10-20
+
+User-requested unfinished-branch accounting, selected17:21–17:41 UTC and closed
+17:26 UTC. This retires three working branches; it delivers no gameplay acceptance.
+Three disjoint archive owners prepared source preservation; root independently
+checked all seven unique commit IDs, merge bases, artifact hashes, bundle
+prerequisites/list-heads, exact aggregate patches and ten source-file entries
+against Git blobs/bytes/modes. Existing failure records/private packages remain
+untouched. No engines, worktrees, profiles or temporary helpers were created.
+
+| Working branch removed | Exact source tip | Pushed WITHHELD tag object |
+| --- | --- | --- |
+| `fix/ui-board-focus-20261018` | `e646fc792e3dba471fd69c9996ed0feddd15b7d3` | `791989737dfce955f65a41f5714f5e39bb4fc7f9` |
+| `feat/mining-first-play-20261018` | `20bd1ab7482a9f612d092c4e93dbbf9f283d6a6d` | `4d8a98fd578eb91c6322287c22804b822ef5279f` |
+| `feat/beacon-home-20261020` | `a612ea686dc1da1710b8185cbf3d9ca0e4c4c759` | `964776000a119f5f0aebe8a3233e06a4a8565290` |
+
+Corresponding tags are `archive/withheld/ui-board-focus-20261018`,
+`archive/withheld/mining-first-play-20261018` and
+`archive/withheld/beacon-home-20261020`. Tag objects and exact peeled source tips
+were verified on GitHub before branch deletion. Live tips/registered ownership
+were checked; remote refs deleted with exact-OID leases and local/tracking refs
+with expected-OID checks. No owned worktree existed for these branches.
+
+Source archives and manifests are grouped under
+`/srv/mudds-work/branch-closeouts-20261020/results/`, in `ui-board-focus/`,
+`mining-first-play/` and `beacon-home/`. Root preservation and ref outcomes are
+`ui-mining-beacon-preservation-review.json` and `ui-mining-beacon-closeout.json`.
+Each manifest records commit/file identities, artifact hashes, original raw
+pointers, retained budgets and unmet requirements. Source remains unmerged and
+recoverable; none is claimed integrated or superseded.
+
+UI contains three commits changing only a diagnostic test. Its two components
+were NOT_REPRODUCED, cumulative9.627798880916089s. Mining contains three commits
+of opt-in observer/startup/route/tests; real Cinder approach stopped at the
+Activity Board before extraction,53.443893s guarded/51.695s driver for the same
+attempt. Original failed cumulative61.9252887s and CAP300/outer360 remain.
+Beacon-home contains one opt-in qualification commit; its route stopped on two
+root Window disconnect errors at frame1233,37.712950s guarded/37.419s driver for
+the same attempt, before Beacon start/settlement/home. Original CAP300 remains.
+These paired timings are not separate runs and are not summed.
+
+Original Main popup identity/root recipients and the preceding connection-removal
+event remain unknown. UI-BOARD-FOCUS stays PARKED/OPEN; Mining six-second actual
+extraction/once-only persisted capacity receipt/home landing/offline/usable exit
+and Beacon full home/dock/offline/usable exterior exit stay unaccepted. No
+automatic retry, cap reset or guessed causal repair. Accepted Beacon entry,
+traversal and settlement e06550e4e4233f4bb575e5eea108ec586a6f707e remains in main.
+
+Verified remaining refs:8 local heads and11 live remote heads including main,
+so10 non-main remote branches. Cumulative cleanup177 local/100 live remote refs;
+these are housekeeping counts, not project percentages. No gameplay changes or
+new checkpoint;0070248 remains latest. Native hardware, Windows, devices/listening,
+human/full-release gates remain NOT_RUN; GitHub Actions budget hold unchanged.

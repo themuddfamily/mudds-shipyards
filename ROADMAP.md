@@ -51,8 +51,8 @@ push accepted work and delete the branch, or preserve its unique source/results
 and record the exact unmet requirement and blocker. A failed check does not
 automatically authorize an adjacent task or retry.
 
-**174 local and 97 live remote branches deleted; 11 local and 14 live remote
-branches remain, including main (13 non-main remote).** Counts describe refs,
+**177 local and 100 live remote branches deleted; 8 local and 11 live remote
+branches remain, including main (10 non-main remote).** Counts describe refs,
 not completed features. [Branch accounting and closeouts](docs/history/ROADMAP_DELIVERIES.md#branch-accountability-and-race-timeout-diagnosis--2026-10-20)
 preserve the underlying roadmap requirements.
 
@@ -71,27 +71,31 @@ three diagnostic histories also have pushed archive tags. Two clean cache-only
 worktrees are removed. Full Sandbox/recovery/reuse remains FAILED/open.
 [Five-branch closeout](docs/history/ROADMAP_DELIVERIES.md#five-local-only-branches-accounted-and-closed--2026-10-20).
 
-The13 remaining remote candidates contain qualification, diagnostic or release
+The10 remaining remote candidates contain qualification, diagnostic or release
 automation, including opt-in startup wiring. The unproven tooltip runtime candidate
 is preserved under a WITHHELD archive tag; its underlying requirement remains OPEN.
 The [earlier20-branch inventory](docs/history/ROADMAP_DELIVERIES.md#remaining-branch-status-after-duplicate-closeouts--2026-10-20)
 retains original status: six references closed through accepted/superseded work,
-and the unqualified tooltip candidate archived, leave13. These ref counts do not
-measure completed roadmap outcomes.
+and four unqualified tooltip/UI/Mining/Beacon candidates archived, leave10.
+These ref counts do not measure completed roadmap outcomes.
 
-**Selected UI-route branch accounting: 17:21–17:41 UTC, 20min.**
-Account existing fix/ui-board-focus-20261018, feat/mining-first-play-20261018
-and feat/beacon-home-20261020. Three independent archive owners inspect disjoint
-source/evidence and prepare verified bundles/patches/exact-file archives; root
-checks history/bytes, pushes WITHHELD tags and deletes exact working refs only
-after preservation and current-tip/worktree checks. No engines, gameplay change,
-forced merge, acceptance change or checkpoint. Preserve original UI component
-9.627798881s, Mining61.9252887s failed cumulative and Beacon37.713s actual route,
-with original full contracts and reopen facts. UI remains NOT_REPRODUCED; Mining
-full extraction/reward/home and Beacon full home/exit remain unaccepted. Existing
-Beacon traversal/settlement acceptance stays distinct and included in main.
-Finish with one committed/pushed accounting record and clear retained gaps;
-branch deletion supplies no gameplay or parent/phase completion.
+**UI, Mining and Beacon-home working branches accounted for and deleted.**
+Seven unique commits across the three branches survive in independently verified
+Git bundles, binary patches, exact source archives and pushed WITHHELD tags:
+`archive/withheld/ui-board-focus-20261018`,
+`archive/withheld/mining-first-play-20261018` and
+`archive/withheld/beacon-home-20261020`. No unqualified source was merged.
+The UI branch contains diagnostic instrumentation; Mining and Beacon-home contain
+opt-in qualification tooling whose original journeys failed at the Activity Board.
+UI component9.627798881s, Mining61.9252887s failed cumulative and Beacon37.713s
+actual route retain their original budgets and full acceptance contracts.
+Original Main popup identity/root recipients and the prior connection-removal
+cause remain unknown. UI remains PARKED/OPEN; Mining six-second extraction,
+persisted capacity receipt and home return, and Beacon home/dock/shutdown/usable
+exit remain unaccepted. Accepted Beacon traversal/settlement remains in main.
+No engines, gameplay changes or new checkpoint; playable0070248 unchanged.
+The group closed at17:26 UTC within its selected17:21–17:41 accounting window.
+[Source preservation and remaining gaps](docs/history/ROADMAP_DELIVERIES.md#ui-mining-and-beacon-working-branches-accounted--2026-10-20).
 
 **Tooltip candidate accounted for as WITHHELD; working branch deleted.**
 All five unique commits/seven exact source files survive in verified bundle,
@@ -320,7 +324,7 @@ contracts and cumulative attempt records remain in the retained history.
 | AFT-CONSOLE-VIEW /9,12 | Standalone actual-module Xvfb/Forward+/llvmpipe capture FAIL120.485s after camera setup; no image or visual finding. | PARKED; source/root cause unproven. No cap increase, alternate backend/view or retry selected. Owned scratch cleaned; raw results retained. |
 | WALK-OBSERVATION /7,9 | Original full route fails rootWindow disconnect after Exit. Privatebae551d58 later passes54-goal travel/view/home/Exit, but lacks original visible TooltipPanel; repair INCONCLUSIVE. All five unique commits/seven files archived under pushed archive/withheld/exit-tooltip-order-20261020; working refs deleted, runtime unmerged. | OPEN. Observe actual original visible tooltip/root bindings and hover owner/pointer/window/foreground state before separately selected normal-close repair proof; full integrated travel/view/home acceptance retained. No new run or unchanged retry. |
 | PERIMETER-LIVE /11 | Runtime/admission shipped fdae1cb: all selected focused/production checks, paired exports, three strict startups and package audit PASS. Existing branch merged/pushed/deleted and owned scratch cleaned. | Scoped integration DONE; full ordinary weapons/home/recovery/repeats/network/native remains OPEN. Prior 363.897s/three failures retained; total stages 742.767s. |
-| PLAY-BEACON-HOME /13 | Candidatea612ea686 FAIL37.713s guarded/37.419s driver at ActivityBoardButton Return/frame1233; same two root Window signal-disconnection diagnostics. Eleven prechecks pass; no settlement/home/L/E reached, no file captures. Unmerged/withheld. | PARKED on UI-BOARD-FOCUS. Recurrence supplies no popup/connection-removal cause; no retry/repair/cap change. Preserve original UI two-component9.627s and Mining budgets. |
+| PLAY-BEACON-HOME /13 | Candidatea612ea686 FAIL37.713s guarded/37.419s driver at ActivityBoardButton Return/frame1233; same two root Window signal-disconnection diagnostics. Eleven prechecks pass; no settlement/home/L/E reached, no file captures. Unmerged/withheld source archived under `archive/withheld/beacon-home-20261020`; working branch deleted. | PARKED on UI-BOARD-FOCUS. Recurrence supplies no popup/connection-removal cause; no retry/repair/cap change. Preserve original UI two-component9.627s and Mining budgets. |
 | HALYARD-GUNNER-DAMAGE /11,16 | Original 51.847s and one caller repair 52.025s both fail co-pilot admission; actual new damage proof NOT_RUN. | Parked after cumulative 103.872s review. No further diagnosis/fix/run without concrete reopening fact/change; candidates unmerged, no weapon defect established. |
 | WALK-SALVAGE-ACCESS / 7,9 | Original61.019s plus one repair60.822s both fail outbound20; same supported Player, inspection/return NOT_RUN. | Parked after cumulative review; no further diagnosis/fix/run. INSPECT/REVISIT remain gated; concrete new fact/change required to reopen. |
 | KIT-RELOAD / 13,31 | Distinct-process restore30s timeout; one boundary probe records Main ready but no returned first normal frame before deadline. | Different supported production repair must be selected; no unchanged probe, timeout increase or repeated startup profile. |
