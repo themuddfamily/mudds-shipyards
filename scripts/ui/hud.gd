@@ -2970,7 +2970,7 @@ func set_settings_status(text: String, success: bool = true) -> void:
 	if _settings_status_label == null:
 		return
 	_settings_status_label.text = text
-	_settings_status_label.modulate = _c(NOMINAL_SOFT) if success else _c(DANGER)
+	_set_label_palette_role(_settings_status_label, NOMINAL_SOFT if success else DANGER)
 	_settings_status_label.visible = not text.is_empty()
 
 
@@ -3124,7 +3124,7 @@ func present_runtime_settings_repair_report(report: Dictionary) -> bool:
 	):
 		_settings_repair_confirmation = str(status.get("confirmation", ""))
 		_settings_repair_title.text = "SETTINGS BACKUP RECOVERY AVAILABLE"
-		_settings_repair_title.modulate = _c(CAUTION)
+		_set_label_palette_role(_settings_repair_title, CAUTION)
 		_settings_repair_detail.text = (
 			"A verified backup can replace the unreadable primary settings file. "
 			+ "Nothing will be repaired until you confirm and the settings owner completes the request."
@@ -3174,7 +3174,7 @@ func present_runtime_settings_repair_report(report: Dictionary) -> bool:
 
 func _show_settings_repair_failure(title: String, detail: String) -> void:
 	_settings_repair_title.text = title
-	_settings_repair_title.modulate = _c(DANGER)
+	_set_label_palette_role(_settings_repair_title, DANGER)
 	_settings_repair_detail.text = detail
 	_settings_repair_confirm_button.visible = false
 	_settings_repair_confirm_button.disabled = true
@@ -6752,7 +6752,7 @@ func set_nearby_activity_snapshot(snapshot: Dictionary) -> Dictionary:
 		_nearby_activity_feedback.text = (
 			"CINDER REACH IS OUT OF STREAMING RANGE  //  LAUNCH TOWARD ITS MARKER TO LOAD FIELD ACTIVITIES"
 		)
-		_nearby_activity_feedback.modulate = _c(CAUTION)
+		_set_label_palette_role(_nearby_activity_feedback, CAUTION)
 	_present_nearby_convoy_semantic_transition(view)
 	return view
 
@@ -6912,27 +6912,27 @@ func apply_nearby_activity_action_result(
 		))
 	):
 		_nearby_activity_feedback.text = "%s  //  REWARD FILED" % title
-		_nearby_activity_feedback.modulate = _c(NOMINAL_SOFT)
+		_set_label_palette_role(_nearby_activity_feedback, NOMINAL_SOFT)
 	elif accepted:
 		_nearby_activity_feedback.text = "%s  //  %s" % [
 			title,
 			"STARTED" if action == &"start_requested" else "RESET",
 		]
-		_nearby_activity_feedback.modulate = _c(NOMINAL_SOFT)
+		_set_label_palette_role(_nearby_activity_feedback, NOMINAL_SOFT)
 	elif activity_id == &"station_defense" and reason in [
 		&"out_of_range", &"on_foot_required", &"invalid_actor_or_content",
 	]:
 		_nearby_activity_feedback.text = (
 			"STATION DEFENSE  //  REPORT ON FOOT TO THE MARKED DECK BOARD"
 		)
-		_nearby_activity_feedback.modulate = _c(CAUTION)
+		_set_label_palette_role(_nearby_activity_feedback, CAUTION)
 	else:
 		_nearby_activity_feedback.text = "%s NOT %s  //  %s" % [
 			title,
 			"STARTED" if action == &"start_requested" else "RESET",
 			str(reason).replace("_", " ").to_upper(),
 		]
-		_nearby_activity_feedback.modulate = _c(CAUTION)
+		_set_label_palette_role(_nearby_activity_feedback, CAUTION)
 	return true
 
 
@@ -9464,7 +9464,7 @@ func set_patrol_branch_selection_state(
 			"ROUTE NOT CHANGED  //  "
 			+ str(status_reason).replace("_", " ").to_upper()
 		)
-		_activity_selection_status_label.modulate = _c(DANGER)
+		_set_label_palette_role(_activity_selection_status_label, DANGER)
 	return true
 
 
@@ -9667,22 +9667,22 @@ func _refresh_activity_selection_page(status_reason: StringName) -> void:
 	}.get(_activity_selection_kind, String(_activity_selection_kind).to_upper()) as String
 	if _activity_selection_locked and status_reason == &"repeat_ready":
 		_activity_selection_status_label.text = "READY  //  REPEAT " + selected_text
-		_activity_selection_status_label.modulate = _c(NOMINAL_SOFT)
+		_set_label_palette_role(_activity_selection_status_label, NOMINAL_SOFT)
 	elif _activity_selection_locked:
 		_activity_selection_status_label.text = "LOCKED  //  CURRENT SORTIE ALREADY STARTED"
-		_activity_selection_status_label.modulate = _c(CAUTION)
+		_set_label_palette_role(_activity_selection_status_label, CAUTION)
 	elif status_reason == &"insufficient_source_quantity":
 		_activity_selection_status_label.text = "UNAVAILABLE  //  INSUFFICIENT FABRICATION KITS"
-		_activity_selection_status_label.modulate = _c(CAUTION)
+		_set_label_palette_role(_activity_selection_status_label, CAUTION)
 	elif status_reason in [&"", &"selected", &"already_selected"]:
 		_activity_selection_status_label.text = "READY  //  " + selected_text
-		_activity_selection_status_label.modulate = _c(NOMINAL_SOFT)
+		_set_label_palette_role(_activity_selection_status_label, NOMINAL_SOFT)
 	else:
 		_activity_selection_status_label.text = (
 			"NOT CHANGED  //  "
 			+ str(status_reason).replace("_", " ").to_upper()
 		)
-		_activity_selection_status_label.modulate = _c(DANGER)
+		_set_label_palette_role(_activity_selection_status_label, DANGER)
 
 
 func _refresh_patrol_branch_choices() -> void:
