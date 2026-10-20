@@ -1,13 +1,15 @@
 # Development roadmap
 
 **Status: playable development alpha; project completion is unproven.** Latest
-accepted checkpoint: **f671da9**. The existing combat board now offers solo
+accepted checkpoint: **820cc38**. Controls Help CLOSE now keeps readable text
+while hovered/pressed across the existing palettes and contrast modes.
+The existing combat board offers solo
 Paired Wing after Heavy Breach/Torpedo, with on-foot arm/cancel and launch only
 after boarding and physical departure. Wing explicitly offers no credit reward.
 It retains tractor inversion, title readability/overflow, Convoy guidance,
 planetary credits and earlier save protection.
-[Windows notes](builds/windows/MuddsShipyards-f671da9-notes.txt) and
-[Linux notes](builds/linux/MuddsShipyards-f671da9-linux-notes.txt) state checks and
+[Windows notes](builds/windows/MuddsShipyards-820cc38-notes.txt) and
+[Linux notes](builds/linux/MuddsShipyards-820cc38-linux-notes.txt) state checks and
 limits. Inline browser progress/timeout/retry remains accepted on20e90c9;
 paused LAN discovery on042c701. Beacon departure/traversal/once-only saved reward
 qualification on e06550e is retained in its recorded scope. Beacon home/dock/exit, Perimeter Hold,
@@ -63,7 +65,8 @@ director accepted scopes retained on identical production. All12 accepted stages
 ### Ordinary Wing route — parked after admission-driver failure
 
 Candidate **b40c62eb3** is pushed on `feat/wing-ordinary-route-20261020`,
-unmerged and unpublished. Latest accepted checkpoint remains **f671da9**.
+unmerged and unpublished. Accepted checkpoint at that attempt’s closure was
+**f671da9**.
 The missing ordinary route was implemented and attempted from an empty private
 profile; its first Heavy Breach board arm failed before any flight or combat.
 At frame923 the player was2.905307m from the board, beyond its production2.8m
@@ -97,33 +100,29 @@ and normal UI exit. This is not a new execution selection. Other combat/repeat/
 recovery/network/native/human gates remain open; parked Courier/Perimeter are
 not adopted. Hauler still waits on its already-asked stock choice.
 
-### Selected Help CLOSE hover/pressed-text fix
+### Help CLOSE contrast — delivered in checkpoint820cc38
 
-ACCESS-HELP / parents12,29; independent of parked Wing. **07:41–08:21UTC/40min**
-including implementation/review, focused checks, paired checkpoint and cleanup.
-Source finding: HelpCloseButton uses NOMINAL pressed fill darkened0.35, about
-#40969b; even pure-white text reaches only3.487:1, below existing4.5 regular/
-7 high-contrast floors. Preserve other menu consumers and Help actions/focus/
-paging. Before edits, source preflight also found hover contrast6.008/default and
-5.485/tritanopia below7 in high-contrast mode; explicitly include both CLOSE
-hover and pressed paints within the same budget. No engine attempt failed.
-One medium implementer owns scripts/ui/hud.gd and the existing
-accessibility_presets_test.gd only. Add bounded local hover/pressed paint overrides
-(or backward-compatible helper arguments) and explicit palette-aware text;
-verify actual Help CLOSE normal/focus/hover/pressed paints across existing
-palettes/contrast modes. If other states already fail, stop and report rather
-than silently expanding scope. Estimate15–25min implementation/review.
+ACCESS-HELP / parents12,29: local hover/pressed fills are darker and their text
+follows the active palette. Other menu button defaults, Help focus/outline/
+geometry/navigation/paging/close remain. Existing accessibility suite252 checks
+PASS, including32 actual CLOSE paint pairs across4 palettes×2 contrast modes×
+4states, minimum7.767:1 in regular/high-contrast modes against original4.5/7
+floors. Existing Help20 assertions PASS. Headless theme-paint scope; rendered,
+human, devices, other Help controls and broad UI acceptance remain open.
 
-Freeze clean source and exact execution before engines: import180s;
-accessibility_presets_test.gd120s and help_overlay_accessibility_test.gd120s
-(headless/Dummy). Existing palette floors and Help paging/focus assertions
-remain unchanged. Paired Windows/Linux exports180s each; strict direct/archive/
-Windows-payload startup120s each; existing PCK/PE/archive audit90s. No new test
-family/validator, hardware/listening/human claim or broad UI acceptance. First
-unexpected failure stops; no automatic correction/retry/cap increase. Publish
-only a reviewed passing checkpoint. Archive/hash-verify unique results, remove
-owned clean pushed/integrated checkout/profiles/helpers and duplicate exports.
-All36 broad parents/ten gates and parked-chain cumulative costs remain open.
+All9 frozen stages PASS first attempt, zero diagnostics, 159.893s:
+import, accessibility, Help, paired exports, three strict startups and actual
+1521-entry PCK/PE/archive audit. Windows payload startup uses Linux engine;
+native Windows/GPU/listening/human/final gates remain NOT_RUN/open. Cleanup
+7.47min inside original07:41–08:21UTC/40min: all53 observed
+identities absent,11 public files hash-verified,21 profile entries archived/
+verified, helpers preserved; owned checkout/cache/profiles/helpers removed.
+[Actual delivery](docs/history/ROADMAP_DELIVERIES.md#help-close-contrast--shipped-on-820cc38).
+
+**Next single action:** select the next independent production outcome from the
+existing backlog. Keep parked Wing/other failures and waiting owner decisions
+explicit; do not reopen an adjacent failed route or count this local fix as a
+closed broad parent. All36 parents and ten phase gates remain open.
 
 ### Waiting decisions — not executable tasks
 
@@ -149,6 +148,7 @@ the existing history. These are accepted slices, not closed broad parents.
 
 | Outcome | Accepted scope / remaining boundary |
 | --- | --- |
+| Help CLOSE contrast | [Checkpoint820cc38](docs/history/ROADMAP_DELIVERIES.md#help-close-contrast--shipped-on-820cc38): readable hover/pressed paints,32 actual paint pairs and existing Help navigation PASS; paired exports/startups/audit. Other UI/rendered/device/human/final gates remain open. |
 | Paired Wing board admission | [Checkpointf671da9](docs/history/ROADMAP_DELIVERIES.md#paired-wing-board-admission--shipped-on-f671da9): third solo board contract, departure/authority gates, actual Wing roster/objective/no-credit lifecycle pass. Full ordinary two-kill/home and other encounter gates remain open. |
 | On-foot help, one cell | [Source5ac9d3ef0](docs/history/ROADMAP_DELIVERIES.md#on-foot-help--one-minimum-scale-1610-cell-accepted): all four pages at1920×1200/.75 pass geometry/wrapping/focus. Other help modes/cells, rendered/human/device and final candidate remain open. |
 | Tractor look inversion | [Checkpoint34d4b9e](docs/history/ROADMAP_DELIVERIES.md#tractor-look-inversion--shipped-on-34d4b9e): saved/live existing on-foot inversion reaches tractor mouse/pad pitch; full tractor/settings/package checks pass. Physical devices, ordinary/full controls and final candidate remain open. |
@@ -207,13 +207,13 @@ failures; no automatic probe, repair, retry or cap increase is selected.
 
 ## Latest playable result
 
-**Checkpointf671da9** adds solo Paired Wing to the combat board rotation, with
-accurate admission/objective/terminal feedback and no credit reward. It retains
-tractor inversion, earlier title readability/overflow, Convoy, credits and saves.
+**Checkpoint820cc38** keeps Controls Help CLOSE text readable while hovered or
+pressed in all existing palettes/contrast modes. It retains Paired Wing board
+admission, tractor inversion, title readability/overflow, Convoy, credits and saves.
 
-[Windows checkpoint ZIP](builds/windows/MuddsShipyards-f671da9-checkpoint.zip),
-[build notes](builds/windows/MuddsShipyards-f671da9-notes.txt),
-[actual validation and limits](docs/history/ROADMAP_DELIVERIES.md#paired-wing-board-admission--shipped-on-f671da9).
+[Windows checkpoint ZIP](builds/windows/MuddsShipyards-820cc38-checkpoint.zip),
+[build notes](builds/windows/MuddsShipyards-820cc38-notes.txt),
+[actual validation and limits](docs/history/ROADMAP_DELIVERIES.md#help-close-contrast--shipped-on-820cc38).
 Full ordinary Wing kills/home, native Windows/GPU/device/audio/human and final
 release remain open. Guided3/3 on3d92b91 is not transferred to this package.
 

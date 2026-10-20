@@ -15877,3 +15877,36 @@ Only /srv/mudds-work/wing-ordinary-route-20261020/results/ remains. Unique candi
 builds withheld there; no change to repository playable packages. Native Windows,
 native GPU/devices/listening/human/final release remain NOT_RUN/open. All36 parents
 and ten phase gates remain open; no project percentage claimed.
+
+
+## Help Close contrast — shipped on 820cc38
+
+2026-10-20. ACCESS-HELP/parents12,29. Source820cc38ef894251d8fc9f014b27bc0556385cbf1; integrated/pushed and paired
+checkpoint published. Source review found CLOSE pressed NOMINAL.darkened0.35
+cannot reach4.5 even with white text; hover also below7 for default/tritanopia
+high-contrast variants. Explicitly selected both before edits. Local CLOSE hover/
+pressed darkening0.70/0.65 plus palette-aware PRIMARY text; optional shared helper
+arguments retain previous defaults0.55/0.35 for all other menu consumers. No
+input/gameplay/persistence or test-family change. Existing focused test extended.
+
+All9 stages PASS first attempt, zero diagnostics, 159.893476s combined:
+import, existing accessibility252 checks, Help20 checks, paired exports, Linux direct/
+archive strict startup, Windows embedded payload strict startup through Linux
+engine, and existing package audit.32 actual HelpCloseButton normal/focus/hover/
+pressed paint pairs across4 palettes×2 contrast modes clear existing4.5/7 floors,
+minimum7.767 regular and7.767 high contrast. Palette restoration, original
+focus outline/geometry/navigation/page, paging/Close and other Resume defaults pass.
+Actual1521-entry PCK parity, stockPE.text, exact five-file Linux archive bytes/
+modes/epoch/metadata pass. Native Windows not run. Headless theme measurements
+supply no rendered/human readability or physical-device acceptance.
+
+Cleanup7.47min inside conservative original07:41–08:21UTC/40min: all
+53 observed identities absent, owners terminal,11 published files hash-verified,
+21 profile entries archived/hash/mode/symlink verified and helpers preserved.
+Owned clean pushed/integrated checkout/import cache/profiles/helpers and duplicate
+exports removed; only /srv/mudds-work/help-close-contrast-20261020/results/ remains.
+EXE/checkpointZIP/notes are in builds/windows/; Linux package/metadata/notes in
+builds/linux/. Other Help controls/UI views and all36 broad parents/ten gates
+remain open. Native GPU/devices/listening/human/final-release/full-matrix gates
+NOT_RUN/open; original Guided3/3 remains on3d92b91. Parked ordinary Wing candidate
+remains unmerged/unqualified and is not adopted by this checkpoint.
