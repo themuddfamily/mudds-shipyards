@@ -179,6 +179,48 @@ Cumulative check time26.874s includes import and initial failure; exact tested
 file integrated. No production save change or new playable checkpoint; other
 SAVE-UNSUPPORTED formats/native/installed and wider recovery gates remain open.
 
+## Selected production repair — retain damaged save bytes
+
+**RECOVERY-FIX[corrupt primary preservation] / SAVE-CORRUPT**, parents31/32.
+Source shows both explicit commit after backup load and interrupted-transaction
+promotion can remove an invalid primary even when `.recovery` preservation
+failed. This is a production data-retention defect, independent of the pending
+active-run policy choices and parked Windows template compilation.
+
+Result: refuse destructive repair unless the current damaged primary has an
+actually byte-verified recovery copy. Reuse an identical existing `.recovery`;
+never overwrite a different archive or trust a stale load-time receipt. Preserve
+primary and verified backup on collision/read/write/verification failure, retain
+unsupported-schema guards, and keep ordinary successful repair working. Existing
+single-writer scope remains; no new schema, archive family or validator.
+
+Ownership: one high persistence implementer owns
+`scripts/persistence/user_data_store.gd`, `tests/user_data_store_test.gd` and
+`tests/user_data_store_crash_points_test.gd` in isolated branch
+`fix/corrupt-save-retention-20261020`; independent high reviewer reads only.
+Root owns integration, this card, packaging and cleanup. No recursive agents.
+
+Acceptance: existing unit suite extends collision/identical/stale-current-bytes
+and read/write/verify failures; existing real-file crash suite proves refusal
+with exact protected files retained across a fresh headless process, then a
+matching archive permits explicit repair. Existing settings repair binding and
+crash contracts remain intact. Before engines, review and commit exact candidate.
+Engine `/tmp/mudds-tools/godot-4.7.1/godot`, private XDG/TMPDIR, HOME unchanged,
+source/index/engine/process guards; every invocation headless/Dummy. One fresh
+`--editor --import`180s, then `--script res://tests/user_data_store_test.gd`60s,
+`--script res://tests/runtime_settings_repair_binding_test.gd`60s and
+`--script res://tests/user_data_store_crash_points_test.gd`60s, each exit0,
+its single suite success marker and no diagnostic errors. No hosted CI.
+Estimate30–45min implementation/review plus5–10min checks; split before60min.
+First unexpected failure STOP, no automatic repair/retry or cap increase.
+
+If accepted, integrate/commit/push and use existing clean-commit stock-template
+Windows/Linux safe export workflows for a fresh checkpoint, strict silent
+`--startup-check` package checks exit0 plus one STARTUP_MENU_READY_OK. Freeze
+exact package commands/caps before execution. Native Windows/GPU/device/human
+qualification stays NOT_RUN. This repairs this defect only; broad recovery and
+all parent/phase requirements remain open. Preserve results, clean owned scratch.
+
 ## Latest playable result
 
 **Inline browser recovery delivered and packaged on 20e90c9.** The title/pause
