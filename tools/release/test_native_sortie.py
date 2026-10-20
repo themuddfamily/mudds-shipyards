@@ -2306,6 +2306,33 @@ class ObservationWalkSafetyTests(unittest.TestCase):
             s.update(change)
             with self.assertRaises(AssertionError): self.tick(p, s, update=False)
 
+    def test_native_capsule_float_representation_is_accepted_and_remains_exact(self):
+        pilot, sample = native.ObservationWalkPilot(), self.sample()
+        retained = [0.379999995231628, 1.94000005722046]
+        sample['capsule_geometry'] = retained[:]
+        pilot.validate_observation(copy.deepcopy(sample))
+        self.tick(pilot, sample, update=False)
+        self.assertEqual(pilot.initial['capsule_geometry'], retained)
+        # Within the nominal tolerance still cannot change this body's raw dimensions.
+        sample['capsule_geometry'][0] += .0000001
+        with self.assertRaisesRegex(AssertionError, 'unchanged raw geometry'):
+            self.tick(pilot, sample, update=False)
+
+    def test_capsule_nominal_rule_rejects_changed_or_malformed_dimensions(self):
+        invalid = ([.380002, 1.94], [.38, 1.940002], [True, 1.94], [.38, False],
+                   [float('nan'), 1.94], [.38, float('inf')], [float('-inf'), 1.94],
+                   [], [.38], [.38, 1.94, 0], '.38,1.94', None)
+        for geometry in invalid:
+            with self.subTest(geometry=geometry):
+                pilot, sample = native.ObservationWalkPilot(), self.sample()
+                sample['capsule_geometry'] = geometry
+                with self.assertRaisesRegex(AssertionError, 'default capsule dimensions'):
+                    pilot.validate_observation(copy.deepcopy(sample))
+                pilot, sample = self.started()
+                sample['capsule_geometry'] = geometry
+                with self.assertRaisesRegex(AssertionError, 'default capsule dimensions'):
+                    self.tick(pilot, sample, update=False)
+
     def test_exit_cannot_succeed_before_complete_route_or_after_nonzero_exit(self):
         p, s = self.started()
         with self.assertRaises(AssertionError): p.accept_exit(0, s['frame']/60)

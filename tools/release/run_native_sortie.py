@@ -2793,8 +2793,14 @@ class ObservationWalkPilot(HabitatRestartPilot):
             self.initial = s
         initial = self.initial
         require(all(s[k] and s[k] == initial[k] for k in self.IDENTITIES), 'same Main world Player body and authored destination owners')
+        geometry = s['capsule_geometry']
+        require(isinstance(geometry, list) and len(geometry) == 2
+                and all(isinstance(a, (int, float)) and not isinstance(a, bool) and math.isfinite(a)
+                        and abs(a-b) <= .000001 for a, b in zip(geometry, [.38, 1.94]))
+                and geometry == initial['capsule_geometry'],
+                'default capsule dimensions with unchanged raw geometry throughout the route')
         require(s['walk_tuning'] == LifeTowPilot.DEFAULT_WALK and s['physics_ticks'] == 60
-                and s['time_scale'] == 1 and s['default_controls'] and s['capsule_geometry'] == [.38, 1.94],
+                and s['time_scale'] == 1 and s['default_controls'],
                 'default local walking sampler, capsule, input bindings and authored tuning')
         require(s['annex_goals'] == initial['annex_goals'] and s['spur_goals'] == initial['spur_goals']
                 and s['lens'] == initial['lens'] and s['pad_path'] == initial['pad_path'], 'unchanged authored branch targets')
