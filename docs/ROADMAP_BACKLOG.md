@@ -2681,3 +2681,15 @@ before its5400s deadline. Candidatee5b9dd25f and package drafts remain pushed/
 archived, unmerged/unqualified; no acceptance requirement narrowed or closed.
 Further Windows compilation is parked; no third attempt selected. Next selection
 must review an independent eligible runtime outcome rather than extend this card.
+
+
+### Selected SAVE-UNSUPPORTED real-file case
+
+2026-10-20: exact future outer-envelope primary/tmp/bak fixture and limits are
+frozen in ROADMAP.md#selected-independent-save-protection-check. Existing canonical
+future-envelope tests use FakeFilesystem; real crash-point history cases run in
+one process. This selection verifies actual disk refusal across two fresh engine
+processes without duplicating existing validators. Only the existing crash-point
+test file is implementation-owned; no production behavior gap is asserted in
+advance. HUD-PATROL source review found no discrepancy and made no edits/runs.
+Broad SAVE-UNSUPPORTED stays open outside this exact named source/filesystem case.

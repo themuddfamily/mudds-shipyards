@@ -62,8 +62,8 @@ BROWSER-FIXTURE-JSON is complete: actual JSON sequence numbers normalize safely,
 62 assertions pass and the unchanged driver completed raw→admitting→raw→stop.
 Three stages took51.654s; all ten observed process identities are absent. Only the
 tested fixture file is integrated; no ordinary-route retry or gameplay checkpoint.
-All build owners are terminal. No executable card is currently selected;
-matching-template completion remains parked before runtime acceptance.
+All build owners are terminal; matching-template completion remains parked.
+Only the independent save-protection case selected below is executable.
 The later acceptance candidatee5b9dd25f is prepared and branch-pushed: original
 browser-support files plus accepted fixture, with passive capture excluded. It is
 unmerged/unqualified; no check/export/route was run during assembly. Its clean
@@ -121,6 +121,38 @@ Keep at most three executable cards. Before starting another qualification chain
 identify an independent production alternative or record its concrete missing
 definition. Do not expand an investigation into a succession of adjacent probes.
 The release capture is complete; no repeated observation is selected. The build recipe is delivered; actual patched templates are the next dependency.
+
+## Selected independent save-protection check
+
+**SAVE-UNSUPPORTED[future outer envelope / real files]** (parents31/32),
+qualification of existing refusal behavior. Root freezes this bounded case before
+edits: extend only `tests/user_data_store_crash_points_test.gd`, one medium
+implementer, one independent high lifecycle/data-preservation review. Use one clean
+owned worktree; existing production save owners unchanged unless a separately
+selected reproduced defect requires a repair.
+
+Create synthetic current primary/backup via actual UserDataStore commits, then
+publish a schema_version=SCHEMA_VERSION+1 envelope at primary, .tmp or .bak in
+three owned fixture directories. Keep opaque synthetic marker content, another
+unrelated file, exact bytes/names and Unix modes. A retained legitimately loaded
+store must refuse commit as newer_schema after publication. Two fresh headless/
+Dummy child processes then attempt load/read-only-load/commit/recovery/restore/
+discard and independently verify refusal plus unchanged files. Fresh commit may
+correctly refuse not_loaded after failed load; never fabricate loaded authority.
+Require distinct actual parent/child PIDs, unmodified bytes/names/modes, no marker
+content in captured diagnostics and no owned survivors. Preserve existing crash
+cases. No fake filesystem, field assignment, actual user files or new validator.
+
+Proof once after review/clean candidate: guarded fresh import180s; existing crash-
+point suite60s exit0/exactly one USER_DATA_STORE_CRASH_POINTS_TEST_OK. Every engine,
+including child invocations, headless/--audio-driver Dummy, private XDG/TMPDIR,
+HOME unchanged, source/index/cache/engine/process guards. Estimate30–45min edit/
+review plus2–5min checks/cleanup; split before60min. First unexpected failure STOP,
+no automatic repair/retry/cap increase. Commit/push and clean owned scratch.
+This closes only the named source/Linux real-file case if it passes; nested
+settings/legacy formats, installed/package/native/UI recovery and broad parents
+stay open. No new gameplay checkpoint is needed for a test-only qualification.
+Windows template compilation remains parked with both timeouts retained.
 
 ## Latest playable result
 
