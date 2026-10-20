@@ -38,9 +38,22 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 ## Execution now
 
-**No implementation or engine run is active.** WEAPON-ARROW stopped after its
-single fixture correction and packaged failure. Candidatea8102592d is pushed,
-unmerged and unpublished; latest accepted checkpoint remainsed1167b.
+**Active: ACCESS-HELP[aboard,1920×1200,0.75], selected11:06UTC2026-10-20.**
+Source qualification only, parents12/29; no new gameplay feature. Reuse the
+existing on-foot cell harness with only its context changed to aboard. One
+read-only handoff agent confirmed the seam; root owns execution/integration.
+
+| Field | Fixed result and limit |
+| --- | --- |
+| Result | All20 published aboard Help rows/four pages fit and retain usable Previous/Next/Close navigation at1920×1200, requested/effective UI scale0.75. |
+| Scope/owners | Existing GameHUD and ultrawide layout checks; archived helper adapted only from on_foot to aboard. No production edits or new validator/test family selected. |
+| Commands | Private clean worktree: Godot `--headless --audio-driver Dummy --path WORKTREE --editor --import` (180s), then same flags with `--script HELP_HELPER` (90s), through existing suite_process/guarded runner. Exact pin/paths/helper hash frozen before execution. Require exit0, zero diagnostics and one ULTRAWIDE_LAYOUT_TEST_OK. |
+| Checks | Actual Main/HUD, every page; viewport/safe-area/font/wrapping/containment/overlap checks, boundary focus, backward paging and focused Close. Preserve original checks and exemptions. |
+| Budget/stop | Original11:06–11:21UTC/15min including preparation/cleanup. First unexpected failure STOP; no automatic repair/retry or other mode/scale substitution. |
+| Closure | Commit/push actual source-only result, preserve logs/owned profiles and clean worktree. No identical checkpoint rebuild for qualification alone; rendered/device/crew-gameplay/other cells/final gates remain open. |
+
+WEAPON-ARROW remains parked, unmerged and unpublished; latest accepted playable
+checkpoint remainsed1167b. No Arrow follow-up is selected.
 
 ### WEAPON-ARROW — parked after native fire was not observed
 
