@@ -77,6 +77,26 @@ automation. The [branch inventory](docs/history/ROADMAP_DELIVERIES.md#remaining-
 records the earlier20 candidates; accepted Breach, Halyard and docked-pilot
 closeouts plus the archived superseded Jovian caller remove four.
 
+**Selected existing passenger-role branch closeout: 16:48–17:33 UTC, 45min.**
+Keep confirmed walking cabin PASSENGER presentation correct after ordinary pilot
+handback. Existing fix/cabin-passenger-role-20261018 is integrated with current
+main in its own owned worktree; no new branch. Source now explains the retained
+walk failure: straight move_back hits the physical chair after0.5719m, matching
+both saved stops, rather than a failed input/authority stream. Add ordinary
+lateral chair clearance, then require original move_back>=0.6m on local AND
+fresh authoritative poses after clearance, retaining original total displacement,
+all role/source/owner/co-pilot invariants and same15s walking deadline.
+One implementation agent owns caller; one independent reviewer checks runtime
+HUD priority and route evidence. Root owns integration/checks/package/cleanup.
+Import/compile, full focused HUD and one original boarding/departure/both-yaw/
+Interact/handback/walk journey (300s suite/360s outer,8s role/15s walk) must pass
+with clean diagnostics and all three actual OS exits0. Stop first unexpected
+failure; no cap/threshold reduction or unchanged retry. If accepted, fresh paired
+checkpoint/three strict startups/review, merge/push and exact-tip branch deletion;
+otherwise preserve failure/unmerged source and remove owned scratch within45min.
+Original two routes302.594s and nine known stages423.260s remain accounted;
+unknown earlier setup stays separate. No broader helm/world case selected.
+
 **Jovian passenger exit accepted; existing branch merged and deleted.**
 Source861c4d39b is integrated in pushed main2352d18c3. Original ordinary host/two-
 client journey138.470s PASS: deliberate exit E, all seven physical route poses,
