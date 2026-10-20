@@ -419,6 +419,7 @@ func _client_postdock_exit() -> bool:
 		"ordinary cabin exit prompt is outside the pilot-seat promotion radius"):
 		return false
 	await _look(_craft.get_boarding_position() + Vector3.UP * 1.2)
+	_write("client_b.postdock_interaction", _postdock_receipt())
 	if not await _postdock_wait(func():
 		return (_game.boarding_candidate == _craft
 			and not is_instance_valid(_game.station_interaction_candidate)), 8.0,
@@ -690,5 +691,37 @@ func _postdock_receipt() -> Dictionary:
 		receipt["exit_route_observed"] = _postdock_exit_route_observed
 		receipt["exit_motion_observed"] = _postdock_exit_motion_observed
 		receipt["exit_samples"] = _postdock_exit_samples.duplicate(true)
+		if _role == "client_b":
+			receipt["interaction"] = _postdock_interaction_receipt()
 		receipt["arrival"] = _client_return_receipt()
 	return receipt
+
+
+func _postdock_interaction_receipt() -> Dictionary:
+	var area: ShipBoardingArea = _craft.get_node_or_null(^"ShipBoardingArea") as ShipBoardingArea
+	var origin: Vector3 = _player.get_interaction_origin()
+	var facing: Vector3 = _player.get_interaction_direction()
+	var nearby: Array[Dictionary] = []
+	for node: Node3D in _player.get_nearby_interactables():
+		var offset: Vector3 = node.global_position - origin
+		var row: Dictionary = {"identity": _node_identity(node), "distance_m": offset.length(),
+			"facing_dot": facing.dot(offset.normalized()),
+			"ship_local_position": _vector_values(_craft.to_local(node.global_position))}
+		if node is ShipCrewSeat:
+			row["role"] = (node as ShipCrewSeat).get_role()
+			row["seat_id"] = (node as ShipCrewSeat).get_seat_id()
+		nearby.append(row)
+	return {"boarding_candidate": _node_identity(_game.boarding_candidate),
+		"station_candidate": _node_identity(_game.station_interaction_candidate),
+		"reboard_blocked_ship": _node_identity(_game.get("_reboard_blocked_ship") as Node),
+		"origin_ship_local": _vector_values(_craft.to_local(origin)),
+		"facing_ship_local": _vector_values(_craft.global_basis.inverse() * facing),
+		"boarding_point_ship_local": _vector_values(_craft.to_local(_craft.get_boarding_position())),
+		"boarding_distance_m": origin.distance_to(_craft.get_boarding_position()),
+		"fallback_reach_m": GameFlow.BOARDING_FALLBACK_REACH,
+		"boardable": _craft.is_boardable(), "piloted": _craft.is_piloted(),
+		"engine_state": _craft.get_telemetry().get("engine_state", &""),
+		"area": _node_identity(area),
+		"area_available_for_player": area != null and area.is_available_for(_player),
+		"area_reservation_is_player": area != null and area.get_reservation_token() == _player,
+		"nearby": nearby}
