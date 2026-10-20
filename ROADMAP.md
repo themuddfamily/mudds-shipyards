@@ -55,14 +55,33 @@ source scopes; they are no longer current tasks. The cache callback repair is
 still an unverified candidate. Empty release callable metadata does not prove a
 cause, and no shared cause with the Window failure is established.
 
-**Latest attempt stopped: process-exit tooltip cleanup order.** Seven checks,
-including the full private Observation route, PASS. Additional repair acceptance
-is INCONCLUSIVE because the previously failing TooltipPanel never appeared in
-that run. Candidatebae551d58 is pushed/unmerged; no gameplay repair or new public
-checkpoint is claimed. [Exact acceptance, results and stopping boundary](docs/history/ROADMAP_DELIVERIES.md#process-exit-tooltip-cleanup-order--route-passed-regression-unproved).
-No engine/check job or executable card is active; no second attempt is selected.
-Original failures and733.226s cumulative checks remain; owned cleanup finished
-at60.76min within the same90min family budget. Waiting/parked work is not READY.
+**Selected independent delivery: Convoy resume objective and planetary audio credits.**
+Parent13 HUD-CONVOY has a concrete mismatch: the saved escort is frozen pending
+craft rebind and its Nearby row explains that, but the objective still displays
+live leg/distance/time. One medium implementer owns only `scripts/ui/hud.gd`
+and `tests/cinder_convoy_retained_feedback_test.gd`; consume already forwarded
+rebind/name fields, restore live progress only after the existing accepted rebind,
+and preserve authoritative save/reward/actor behavior. No parked Convoy suite is
+reopened. Root independently owns only `ASSETS.md` and
+`scripts/ui/credits_catalog.gd` to register/credit the three existing procedural
+planetary ambience loops. No audio synthesis, playback or mix changes.
+
+Estimate15–20min edit/integration,5–10min focused checks,5–10min paired checkpoint;
+stop/split at45min from this selection. Root reviews both bounded changes, commits
+an integrated clean candidate, then freezes exact commands: fresh Dummy import180s;
+existing Convoy retained-feedback suite300s (original default), Credits page90s;
+one focused actual-payload credits check60s; clean Windows/Linux exports180s each;
+three strict menu-ready startups120s each and existing artifact audit90s.
+First unexpected failure STOP, no automatic retry/repair/cap increase. Success
+requires correct frozen-craft guidance/cold/wrong-craft/rebound states, credits
+visible from existing menu routes, actual matching packaged credits, then EXE,
+checkpoint ZIP and concise build notes in repository builds. Native hardware,
+real listening and broader activity/release gates remain NOT_RUN.
+
+Tooltip cleanup-order attempt remains stopped: private route PASS but active
+Tooltip regression unproved;bae551d58 stays pushed/unmerged. No repeat, altered
+hover/timing, or public fix claim is selected. Original failures/733.226s and
+60.76min of its90min family budget remain retained independently of this work.
 
 ### Waiting decisions — not executable tasks
 
