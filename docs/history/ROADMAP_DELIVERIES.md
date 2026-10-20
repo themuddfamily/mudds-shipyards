@@ -15478,3 +15478,62 @@ helpers removed at5.36min within45min. Only
 including exact source/commands, raw first failures/peer receipts, profile archive
 and helper sources. Original passenger-exit/reboard/reclaim/redeparture, native,
 world/endurance, broad parents and all ten gates remain open. No successor selected.
+
+
+## Docked pilot hold — focused pass, full exit stops at cabin walk
+
+NET-JOVIAN-DOCKED-PILOT-HOLD / parents16,20,26, selection98fbe1c03. Corrective
+candidate `0d225bee8777ba4f1d792aa9f9a41a38371f2101`, branch
+`fix/docked-pilot-hold-20261020`, pushed/unmerged/withheld. Same original
+05:35→06:20UTC45min budget; no reset of earlier2aed route166.940s or8054/e147
+parser failures. Root retained source evidence before selecting this one repair.
+
+Saved original first-pilot-failure data proves exact false operand: current dock
+position difference moves0.494335174767→0.500293731897m across original0.5m limit,
+with unchanged source5/delivery5, actual pilot predicate true and neutral input.
+The0.005958557m drift is one60Hz step of observed0.357461m/s residual velocity.
+Latest operation says landed+docked/not landing; source still uses airborne
+prediction/deadband. Source stream was correctly initialized on clients; no
+null-source hypothesis. Passenger's first snapshot was mid-rise0.05/0.45s after
+shared pilot abort, so it did not establish a separate standing defect.
+
+One high implementer owned network_remote_craft_pose_stream.gd and its existing
+full pose suite. Root owned only the retained selected caller's off-tree source
+receipt: valid instance identity/stream without get_path. Reconciliation holds
+current authoritative dock pose/velocity without lead/deadband, preserves existing
+no-sample/destroyed/local-landing/authority/stale/world-frame paths, and resumes
+flight prediction for a newer airborne sample. Unchanged state does not grow
+correction counters. Independent high review GO before engines; all original
+route predicates/tolerances/limits retained.
+
+Fresh import20.674s, full existing pose suite42.374s/322 assertions and original
+caller check-only16.487s PASS/zero diagnostics. One full original host/two-client
+route FAIL145.995s. Corrected current attempt225.530s; with earlier166.940s gives
+392.470s current chain, earlier two parser failures retained separately.
+
+Actual strict home return/convergence and passenger stand/host.stand_checked now
+pass. At later failure the original pilot remains at exact host dock (error0.0m),
+source5/delivery5, landed generation1 and occupied home lease retained. These are
+passed prefixes of a failed task, not full passenger-exit acceptance. Host15s
+cabin-walk/hatch-approach predicate fails; same supported/control-enabled passenger
+at(-52.6118,2.11189,64.56992) cannot finish goal(-52.22,2.41,65.82). Client pilot
+then fails waiting for host hatch confirmation under shared host abort. No actual
+hatch exit/ground walk, selected success marker or three peer exit0. No walking
+runtime cause is established. Two remaining get_path diagnostics arise from
+inherited first-failure snapshot → producer-state → node_identity; the corrected
+postdock receipt no longer invokes that invalid path.
+
+Cumulative priority review parks this failed runtime plus one corrective attempt.
+No additional repair/retry/cap increase/renamed neighbor probe, shortened proof or
+integration. All export/startup/package stages NOT_RUN after first failure; no
+checkpoint. Latest public remains923d7b3. Hauler stock/navigator refusal/Bomber
+choices remain independent production dependencies; no answer or successor inferred.
+
+All automated engines used Dummy/headless or existing private explicitx11 input-
+only peers. All25 new observed process identities absent and owners terminal;
+85 unique profile entries archived/hash-verified. Clean pushed candidate worktree/
+cache/profile/helper duplicates removed at17.09min from original05:35, inside45min.
+Only `/srv/mudds-work/docked-pilot-hold-20261020/results/` remains for this attempt,
+including exact pin/arguments/reviews/first failures/peer receipts/profile archive.
+Parent20's full exit/reboard/reclaim/redeparture, other crew/world/endurance,
+native hardware and all broad/final-release gates remain open.

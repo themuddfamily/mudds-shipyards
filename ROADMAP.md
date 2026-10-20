@@ -58,37 +58,33 @@ later pilot-retention/passenger-standing assertions fail. No passenger exterior
 exit/ground walk or success marker; no networking cause established.
 
 All three current stages total166.940s; prior8054/e147 parse failures remain.
-No automatic repair/retry or cap increase. A separately selected caller receipt
-correction/review must address the first diagnostic before another attempt;
-other assertion failures remain unresolved. Candidate withheld/no new checkpoint.
+No automatic retry or cap increase. The later corrective candidate below addresses
+that receipt fault; the full route remains unaccepted. Candidate withheld/no new checkpoint.
 All22 observed identities absent,76 unique profile entries archived/verified,
 owned scratch removed at5.36min within45min. [Actual result and original limits](docs/history/ROADMAP_DELIVERIES.md#jovian-passenger-exit--syntax-passes-postdock-route-stops).
-**Selected repair: NET-JOVIAN-DOCKED-PILOT-HOLD**, within the same original
-05:35→06:20UTC45min budget; prior166.940s/current three stages and earlier two
-parse failures remain. Saved data identifies the pilot's false invariant exactly:
-committed docked hull error0.494335→0.500294m while authority/input stay correct.
-The pose stream still applies airborne prediction/deadband after landed+docked.
-Passenger was mid-rise when the shared pilot abort arrived; no passenger repair
-is justified by that capture.
+**NET-JOVIAN-DOCKED-PILOT-HOLD WITHHELD after the one corrective attempt.**
+Saved data identified the first pilot failure as actual dock drift across the
+unchanged0.5m limit. Candidate0d225bee8 holds the authoritative docked pose/
+velocity, preserves flight prediction and fixes the off-tree source receipt.
+Independent high review GO; full pose322/import/check-only PASS. In the one
+original three-peer route, the pilot stays at exact host dock and passenger
+standing passes, but host15s cabin-walk/hatch-approach fails. No hatch exit or
+ground-walk acceptance; candidate pushed/unmerged, exports/checkpoint NOT_RUN.
 
-Result: a still-owned remote pilot holds the current authoritative docked pose/
-velocity until a newer departure sample, while crew can finish the existing exit.
-One high implementer owns scripts/network/network_remote_craft_pose_stream.gd
-and existing tests/network_remote_craft_pose_test.gd. Root owns only the retained
-return caller's off-tree source identity receipt fix. Preserve all predicates,
-0.5m tolerance, stale/source/owner/world-frame fences and flight/landing behavior.
-Independent high review before engines. Implementation/review15–20min within
-original deadline; this is the one corrective attempt after the runtime failure.
+Corrected attempt225.530s; combined with prior166.940s=392.470s, plus the separately
+retained two original parser failures. This is a failed runtime attempt plus one
+corrective attempt: cumulative priority review parks the chain. No second repair,
+retry, tolerance/deadline increase or adjacent renamed probe is selected. The
+supported passenger's walking failure has no established runtime cause. Later
+node-path diagnostics come from inherited failure capture, not the corrected
+postdock receipt. [Actual source/result and limits](docs/history/ROADMAP_DELIVERIES.md#docked-pilot-hold--focused-pass-full-exit-stops-at-cabin-walk).
 
-Frozen checks: import180s, existing full pose suite180s, caller check-only300s,
-then one unchanged selected three-peer route300s/360outer with original local
-limits. First failure stops for cumulative priority review; no second repair or
-renamed run. On full pass, clean paired exports180s each, three strict startups
-120s each, artifact audit90s and repository checkpoint publication. All Godot
-calls Dummy audio/headless or existing private explicitx11 peers. No hosted CI,
-active desktop/audio or native Windows execution. Remaining whole-card time,
-not the sum of caps, remains the limit. Cleanup/commit/push required either way.
-Threading remains gated; Hauler/navigator/Bomber choices remain unanswered.
+All25 new observed identities absent;85 unique profile entries archived/verified;
+owned worktree/cache/profiles/helpers removed at17.09min from the original05:35
+selection, inside its45min/06:20 deadline. Public checkpoint remains923d7b3.
+Next selection must review independent player/build work; this chain is not an
+automatic successor. Threading remains gated on UI-BOARD-FOCUS; already-asked
+Hauler/navigator/Bomber choices remain unanswered.
 
 ### Waiting decisions — not executable tasks
 
