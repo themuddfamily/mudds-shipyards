@@ -19405,3 +19405,64 @@ Fresh-process physical REVISIT remains OPEN; this run does not prove it.
 Original20 candidate count stays eight accepted/superseded and twelve unqualified
 because ACCESS already accounted for this candidate; no double counting. All36
 parents/ten phase gates, native/hardware/human/final gates remain open.
+
+
+## Existing Salvage durable physical revisit qualified — 2026-10-20
+
+WALK-SALVAGE-REVISIT DONEf7abac3798d3d63c8869f2d876e740a38742d668,
+accepted after independent source/result GO and merged/pushed main. Together
+with ACCESS9749f742c and INSPECT5189436f1 this closes WALK-SALVAGE's recorded
+ordinary Linux-source inspection/manifest/reload/physical-revisit requirement.
+All36 broader parents/ten phase gates remain open; original20 candidate inventory
+stays eight accepted/superseded and twelve unqualified, with no double counting.
+
+The actual INSPECT writer profile is restored byte/mode-exact from its verified
+archive into fresh private XDG data, including all11 data entries/backups. The
+7058-byte primary SHA2565b087cf53f1b3f84fd466a4e43f8193841e1bde8feaf20edf94b75188f5de142
+is read by a distinct default UserDataStore BEFORE Main exists: primary/gen11/
+salvage-inspection-0000000011/exact3 orderedIDs/publishedtrue. Writer Godot2147586
+and original owner identities are absent before distinct reader Godot2150712.
+No synthetic record, memory filesystem, callback replacement or actor fixture.
+
+First reader a4ca2ec33 FAIL36.3484964s at outbound0. Actual pre-Main publication
+and fresh-Main restore passed. The writer's genuine running-session/on-foot
+Torrent record invokes normal recovery after intro: the old caller validated
+pre-intro hub spawn but assumed that starting position for its first goal.
+Authored exit(-7.6,.15,-9.25)→goal0 is25.891m; nominal240physics ticks at5.8m/s
+cover23.2m. The failed endpoint is23.059m along that line. Source/raw inference
+established the mismatch; no geometry/input defect or runtime repair was claimed.
+
+The sole selected +16line caller correction directly records postintro recovery:
+actual(-7.6,-.02,-9.25), captured mouse/floor/currentPlayer and normal_start
+recovery_acknowledged. It physically walks20.270m to the original retained hub
+before EVERY original29outward/29reverse destination. Existing continuous floor
+supports this corridor; no save deletion/recovery bypass/pose write/cap increase.
+Each of three component stands and console is physically revisited; actual Main
+Interact preserves its restored authored grade, complete real primary payload
+and generation. Long return conserves the exact published Salvage slot while
+ordinary recovery/diagnostic/safe-start writes may change unrelated shared data.
+
+Compile16.5202258s PASS; first reader36.3484964s FAIL; corrective compile16.3162229s
+PASS; ONE corrected full reader107.0254619s PASS,94assertions/exactlyone
+WALK_SALVAGE_REVISIT_TEST_OK/OS0/zero diagnostics/emptyXvfb/source+cacheunchanged.
+Total selected stages176.2104070s retains the original failure; it is check cost,
+not project percentage. Every original .20m arrival/240physics+process loops/
+4physics settle/300s inner/360s outer remains. Original29goals/INSPECT function/
+walk-input helpers/default-capture tail remain byte-identical. Final actual
+7675-byte primary SHA2561c6e5769a22e9255fd6be7d98e15562f17568fc9fd7868e78e3102bd0ef30d63,
+gen16/safe-start-stable-0000000016, retains exact3IDs/publishedtrue.
+
+Results: /srv/mudds-work/salvage-durable-revisit-20261020/results/ retains frozen
+initial/correction cards, source/failure/final reviews, exact profile launcher,
+actual handoffs/before-Main and failed/final primaries, logs/results/manifests.
+All4 owners terminal/all11 observed PID+starttick identities absent. Owned
+profiles archived and all73 entries reopened/byte+mode+link verified before
+scratch removal22:22:38UTC;12385bytes/archive SHA256
+ee66543d7154418d421f93906ebb667217b3c81bc201fbcfd34522ee1bd2f125.
+No new branch/worktree; eight protected detached worktrees unchanged.
+Runtime/export inputs unchanged from3767687, so no identical checkpoint rebuild.
+
+Qualification uses real distinct Godot Main processes, actual default files and
+ordinary InputEvents/held controls on private Xvfb/x11/dummy renderer/Dummy audio.
+It does not qualify production Boot, OS-XTest, native Windows/GPU/devices/human,
+final package or all station routes. Those existing gates remain separate.

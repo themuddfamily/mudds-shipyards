@@ -71,41 +71,33 @@ worktrees are removed. Full Sandbox/recovery/reuse remains FAILED/open.
 
 All 20 candidates in the [earlier inventory](docs/history/ROADMAP_DELIVERIES.md#remaining-branch-status-after-duplicate-closeouts--2026-10-20)
 are now accounted for: eight references closed through accepted/superseded work,
-and twelve candidates still unqualified. Halyard gunner damage and Salvage access
-are the latest accepted existing candidates; archive tags retain failed histories.
+and twelve candidates still unqualified. Halyard gunner damage and the Salvage
+ordinary source journey are the latest accepted existing candidates; archive tags retain failed histories.
 This clears the branch queue; it does not close remaining gameplay,
 qualification or release requirements. No unaccepted source was merged to reduce
 a branch count. Eight previously protected detached worktrees remain unchanged.
 
-**Existing Salvage inspection/publication DONE — source `5189436f1`.**
-Normal hub approach, all three physical inspections and their authored grades,
-console publication, an unchanged repeated console interaction, and the full
-reverse route to the same hub spawn pass in103.609s. Independent default-store
-reads verify the actual shared file after every observation and publication;
-unrelated data is conserved. Final primary contains all three IDs and the
-published manifest. Original route/limits remain unchanged; no player staging,
-injected filesystem or direct inspection calls. Independent review GO, accepted
-source merged/pushed, owned profiles verified/removed and all6 observed process
-identities absent. Caller-only qualification; current3767687 runtime unchanged.
-Fresh-process physical revisit is selected as the last ordered Salvage child:
-restore the exact accepted writer profile into a separate game process, then
-repeat all three inspections/console and the complete physical return without
-duplicate transactions. The original route and limits remain binding.
-[Acceptance and retained save](docs/history/ROADMAP_DELIVERIES.md#existing-salvage-inspection-and-publication-qualified--2026-10-20).
+**Existing Salvage ordinary journey DONE in current Linux source scope.**
+The normal hub approach, all three inspections and authored grades, published
+real-file manifest, separate-process restoration, physical revisit and full
+return to the retained hub spawn are accepted. ACCESS9749f742c,
+INSPECT5189436f1 and REVISITf7abac379 retain every original outward/reverse goal
+and movement/time limit. Inspection passes103.609s; revisit passes107.025s.
 
-**Existing Salvage access task DONE — source `9749f742c`.**
-The same Player now walks from the normal hub spawn through every original
-Annex/service-gate destination to all three Salvage inspection positions, then
-returns by the full reverse route to the retained spawn. Two added floor-space
-waypoints clear the roof columns; no original destination or limit was removed.
-All64 assertions pass103.697s, exit0, clean logs; inspection state stays unchanged.
+The first reader failed because normal saved-session recovery starts at the
+Torrent exit, making its assumed first leg too long. The sole correction records
+that actual recovery and walks to the retained hub before the original route;
+no recovery bypass, profile change or cap increase. The authentic writer profile
+is read before the new Main exists. All four physical repeat interactions retain
+the actual file payload/generation; the full return conserves the published slot.
 
-Accepted caller merged/pushed after independent review. Inspection/publication
-and durable fresh-process revisit remain separate open children. Production
-inputs/current3767687 checkpoint unchanged; no identical rebuild. All2 owners
-terminal/5 observed identities absent;34 profile entries verified before owned
-scratch removal. No new branch/worktree; protected worktrees intact.
-[Original contract, proof and limits](docs/history/ROADMAP_DELIVERIES.md#existing-salvage-access-round-trip-qualified--2026-10-20).
+Independent final review GO, source merged/pushed, both owned scratch roots
+archived/verified/removed and their processes absent. No new branch/worktree.
+This qualifies existing gameplay through InputEvent/held controls and isolated
+Xvfb, not production Boot/OS-XTest/native hardware or final-package acceptance.
+Runtime/current3767687 checkpoint unchanged; no identical rebuild.
+[Inspection/publication](docs/history/ROADMAP_DELIVERIES.md#existing-salvage-inspection-and-publication-qualified--2026-10-20),
+[fresh-process revisit and recovery correction](docs/history/ROADMAP_DELIVERIES.md#existing-salvage-durable-physical-revisit-qualified--2026-10-20).
 
 **Existing Halyard gunner damage task DONE — source `c28f7ffa3`.**
 The original moving-cabin/co-pilot/remapped-FIRE route now reaches one actual
@@ -586,7 +578,7 @@ contracts and cumulative attempt records remain in the retained history.
 | PERIMETER-LIVE /11 | Runtime/admission shipped fdae1cb: all selected focused/production checks, paired exports, three strict startups and package audit PASS. Existing branch merged/pushed/deleted and owned scratch cleaned. | Scoped integration DONE; full ordinary weapons/home/recovery/repeats/network/native remains OPEN. Prior 363.897s/three failures retained; total stages 742.767s. |
 | PLAY-BEACON-HOME /13 | Candidatea612ea686 FAIL37.713s guarded/37.419s driver at ActivityBoardButton Return/frame1233; same two root Window signal-disconnection diagnostics. Eleven prechecks pass; no settlement/home/L/E reached, no file captures. Unmerged/withheld source archived under `archive/withheld/beacon-home-20261020`; working branch deleted. | PARKED on UI-BOARD-FOCUS. Recurrence supplies no popup/connection-removal cause; no retry/repair/cap change. Preserve original UI two-component9.627s and Mining budgets. |
 | HALYARD-GUNNER-DAMAGE /11,16 | DONEc28f7ffa3: original49assertions pass52.341s/exit0. Admitted gunner remapped FIRE produces exactly one52damage commit through actual GameFlow/authority/resolver/adapter, then original lifecycle checks. | Accepted source merged/pushed; earlier headless failures preserved and explained by missing mousecapture. Declared input-only mode now exercised on isolatedXvfb. Fixtures disclosed; broader OS-input/network/native/full-combat gates remain. Owned scratch removed; current3767687 runtime unchanged. |
-| WALK-SALVAGE-ACCESS / 7,9 | DONE9749f742c: full29outbound/29reverse goals plus retained hub spawn,64assertions/103.697s/OS0/cleanlogs, same supported on-foot Player and unchanged inspection state. | Accepted source merged/pushed; original240-loop/.20arrival/4-settle/300s limits retained. Added two existing-floor clearance points around roof columns, no destination removed. INSPECT continuation now definable; durable REVISIT still follows INSPECT. Owned scratch removed; no runtime change or duplicate rebuild. |
+| WALK-SALVAGE-ACCESS / 7,9 | DONE9749f742c: full29outbound/29reverse goals plus retained hub spawn,64assertions/103.697s/OS0/cleanlogs, same supported on-foot Player and unchanged inspection state. | Accepted source merged/pushed; original240-loop/.20arrival/4-settle/300s limits retained. Added two existing-floor clearance points around roof columns, no destination removed. INSPECT5189436f1 and fresh-process REVISITf7abac379 are now accepted separately above; original access-only result stays scoped. Owned scratch removed; no runtime change or duplicate rebuild. |
 | KIT-RELOAD / 13,31 | Distinct-process restore30s timeout; one boundary probe records Main ready but no returned first normal frame before deadline. Source archived WITHHELD; working refs deleted. | Different supported production repair must be selected; no unchanged probe, timeout increase or repeated startup profile. |
 | FIRE-RESTART /8,29,31 | Original and viewport caller repair fail visible Fire row intersection before capture/save/restart sampler; no persisted remap proof. Source archived WITHHELD; working refs deleted. | OPEN/PARKED; concrete visible-row cause/change needed before separately frozen original writer/reader acceptance; original300s per process retained. No inferred scrolling cause or retry. |
 | HULK-REVISIT /13,31 | Original departure check fails; sole repair reaches reload/dock/shutdown/exit then original300s deadline during new interior walk, before breaker event/receipt. Source archived WITHHELD; working refs deleted. | OPEN/PARKED; establish a concrete production cause/change, retain full physical revisit and once-only cell/reward contract. No cap increase or unchanged retry. |
