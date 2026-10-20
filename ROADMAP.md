@@ -50,8 +50,8 @@ push accepted work and delete the branch, or preserve its unique source/results
 and record the exact unmet requirement and blocker. A failed check does not
 automatically authorize an adjacent task or retry.
 
-**148 local and 91 live remote branches deleted; 37 local and 20 live remote
-branches remain, including main (19 non-main remote).** Counts describe refs,
+**149 local and 92 live remote branches deleted; 36 local and 19 live remote
+branches remain, including main (18 non-main remote).** Counts describe refs,
 not completed features. [Branch accounting and closeouts](docs/history/ROADMAP_DELIVERIES.md#branch-accountability-and-race-timeout-diagnosis--2026-10-20)
 preserve the underlying roadmap requirements.
 
@@ -61,39 +61,33 @@ Their complete changed-file contents survive byte-for-byte in retained successor
 exact original histories, patches, source archives and failed results are preserved.
 No failed journey was accepted and no diagnostic code was merged.
 
-Of the 19 remaining remote candidates, **three contain ordinary gameplay fixes**
+Of the 18 remaining remote candidates, **three contain ordinary gameplay fixes**
 (passenger role display, docked-pilot pose holding, tooltip retirement on close).
-Each still lacks its required acceptance. The other 16 contain qualification
+Each still lacks its required acceptance. The other 15 contain qualification
 or diagnostic automation, including opt-in startup/release wiring. They are not
-16 new gameplay implementations. The
+15 new gameplay implementations. The
 [current branch-by-branch status](docs/history/ROADMAP_DELIVERIES.md#remaining-branch-status-after-duplicate-closeouts--2026-10-20)
-records the earlier 20 candidates; the accepted Breach closeout below removes one.
+records the earlier 20 candidates; accepted Breach and Halyard closeouts remove two.
 This cleanup changes branch ownership, not the number of completed roadmap outcomes.
 
-**Selected existing delivery: Halyard ordinary boarding,15:09–15:39UTC/30min.**
-Reuse `work/halyard-ordinary-board-20261018` / f3d53bda6; retain both failed
-135.904/135.833s routes (271.737s, excluding old import/compile/implementation).
-Concrete source/raw fact: the correct live owned row retains INT identities via
-Variant transport; JSON host manifests load FLOAT identities. `_ordinary_fields()`
-normalizes StringName but leaves numeric types unequal under Dictionary equality.
-Normalize only that projected scalar comparison representation to JSON form,
-retaining every exact field/value and all ownership/body/frame/claim/seat checks.
-This proves an invalid comparison when reached, not all other predicates or a
-production networking defect. Add safe named mismatch diagnostics if needed.
+**Existing Halyard boarding branch finished and merged on 4bc0e3b38.**
+Full original ordinary menus/spawn/continuous walks and real pilot/passenger
+boarding pass in 130.472s under unchanged 300s suite/360s outer limits.
+Non-playing authority and both original independent clients retain exact peer/
+avatar/ownership/body/frame/seat/claim generations, supported controls and honest
+PILOT/PASSENGER HUD; all three actual OS processes exit0 and complete the terminal
+handshake. Scalar comparison projections now use the same JSON representation;
+no runtime/network/placement/deadline/criteria changes. Source and actual-result
+review: GO. Moving-cabin/departure/server-stop/native/human remain separate/open.
 
-One medium integrator owns the existing Halyard passenger test only; high source
-review before engines. Preserve ordinary menus/spawn/continuous walks/physical
-pilot and crew_port_00 seats, host plus two original independent clients, all
-three actual OS exits0 and HALYARD_ORDINARY_TWO_CLIENT_BOARD_OK. No placement,
-forced role/seat/state, runtime/network edit, deadline increase or omitted check.
-Freeze clean source: import180s, compile300s, ONE original ordinary profile with
-300s suite/360s outer,8s consumed boundary/15s walk and owned exit cleanup.
-All Godot Dummy; coordinator headless, peers on private Xvfb/explicitx11/dummy
-renderer, no active-desktop input. First unexpected failure stops. Accept only
-full original boarding card, then merge/push/delete branch and owned scratch.
-Moving-cabin/departure/authority-stop/native/human remain separate/open. No runtime
-or exported asset changes means no identical checkpoint rebuild; c78e0ac retained.
-Original raw/STOP remain untouched; current selection carries both failures.
+Existing branch is merged/pushed/deleted. All 21
+observed owned identities absent; raw receipts/logs, profiles and helpers preserved;
+owned worktree/profile/helpers removed in 8.74min
+inside 30min. New stages 166.878s; earlier two failed routes 271.737s remain
+recorded separately (old setup time NOT_RECORDED). Current playable checkpoint
+c78e0ac and all 11 public artifact hashes remain unchanged; this changes only an
+excluded qualification test. No identical rebuild or adjacent case was selected.
+[Delivery](docs/history/ROADMAP_DELIVERIES.md#halyard-ordinary-boarding-branch-finished--2026-10-20).
 
 **Existing Breach interruption branch finished and merged.** Full original
 BREACH-INTERRUPTION earned-debt release case passes on c78e0ac: genuine unpaid
@@ -259,8 +253,7 @@ contracts and cumulative attempt records remain in the retained history.
 | CABIN-PASSENGER-ROLE / 18,20 | Candidate38c079086 HUD36 and actual handback PASSENGER pass, full required route fails walking. Unmerged/withheld; no package. | Preserve full route; no acceptance narrowing or automatic second repair. |
 | WALK-SALVAGE-ACCESS / 7,9 | Original61.019s plus one repair60.822s both fail outbound20; same supported Player, inspection/return NOT_RUN. | Parked after cumulative review; no further diagnosis/fix/run. INSPECT/REVISIT remain gated; concrete new fact/change required to reopen. |
 | KIT-RELOAD / 13,31 | Distinct-process restore30s timeout; one boundary probe records Main ready but no returned first normal frame before deadline. | Different supported production repair must be selected; no unchanged probe, timeout increase or repeated startup profile. |
-| HALYARD-BOARD / 16,26 | Two attempts fail the same seat comparison after both real seats. No runtime defect established. | Priority review parked it; no third automatic diagnosis/repair/run. |
-| HALYARD-MOVING-CABIN / 16,26 | NOT_RUN; exact retained card requires supported walk/sit/stand/reseat during departure. | GATED on accepted HALYARD-BOARD. |
+| HALYARD-MOVING-CABIN / 16,26 | NOT_RUN; exact retained card requires supported walk/sit/stand/reseat during departure. | BOARD prerequisite accepted; separately freeze original moving case before engines. No moving/departure acceptance follows from boarding. |
 | HALYARD-AUTHORITY-STOP / 16,26 | NOT_RUN; exact retained card requires usable solo controls after actual server stop. | GATED on accepted moving-cabin route. |
 
 VIP, Ember native close smoke, Rime arrival, HULK revisit, Fire restart, Sandbox,

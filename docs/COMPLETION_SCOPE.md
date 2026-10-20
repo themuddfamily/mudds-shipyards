@@ -599,9 +599,11 @@ bounded owners. CRAFT-GAPS-HALYARD definition is DONE; CRAFT-ACCEPT-HALYARD and
 original Phase5–7 craft/art/combat/crew acceptance remain OPEN. Existing stationary
 package passenger and staged-flight shared-cruise source passes retain their
 recorded scopes; neither accepts ordinary final-package crew reuse, actual host
-termination, capacity or endurance. HALYARD-BOARD, dependent MOVING-CABIN/
-AUTHORITY-STOP, GUNNER-DAMAGE and HELM-YAW-HANDBACK remain parked/gated exactly
-as recorded. No diagnosis, retry, runtime repair or successor is selected here.
+termination, capacity or endurance. HALYARD-BOARD is now accepted on 4bc0e3b38
+for the complete original source boarding card; moving-cabin/departure and then
+authority-stop remain separate unperformed requirements. GUNNER-DAMAGE and
+HELM-YAW-HANDBACK remain parked. No adjacent case or further runtime repair is
+selected by that acceptance.
 
 ### Cinder Light Interceptor capability map — CRAFT-GAPS-CINDER-LIGHT
 

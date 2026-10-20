@@ -315,7 +315,9 @@ candidates at that point and records each acceptance blocker. The older Breach p
 syntax branch have verified exact-source successors and archived original histories;
 their branches are removed. The retained Breach successor is now merged on c78e0ac
 after full earned-debt interruption acceptance, leaving 19 remote candidates
-(three gameplay fixes/16 automation). Full Jovian exit remains OPEN.
+(three gameplay fixes/16 automation at that point). Halyard BOARD is now
+accepted and its branch removed too, leaving 18 non-main candidates (three gameplay
+fixes/15 automation). Full Jovian exit remains OPEN.
 No new gameplay or release qualification follows from deleting those duplicate refs.
 
 ### Perimeter Hold — missing production integration
@@ -712,10 +714,10 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | BROWSER-CONTROLLER | Controller menu navigation ordinary browser route | 25 | GATED; chosen candidate/scenario, delivered UI fixes retained |
 | BROWSER-DISCONNECT | Disconnect/retry ordinary browser route | 25 | GATED; chosen candidate/scenario, delivered UI fixes retained |
 | BROWSER-CANCEL | Cancel/reuse ordinary browser route | 25 | GATED; chosen candidate/scenario, delivered UI fixes retained |
-| SERVER-BASELINE-DEFINE | Residual authoritative-server/two-client gameplay command and cases | 26 | DONE definition only; Halyard approach definition DONE, BOARD FAILED/PARKED, MOVING-CABIN/AUTHORITY-STOP GATED; no baseline completion |
+| SERVER-BASELINE-DEFINE | Residual authoritative-server/two-client gameplay command and cases | 26 | DONE definition only; Halyard approach definition DONE, BOARD accepted 4bc0e3b38, MOVING-CABIN unselected/AUTHORITY-STOP GATED; no baseline completion |
 | HALYARD-APPROACH | Freeze ordinary spawn-to-airstair input waypoint route | 16,26 | DONE definition; native aft/fleet chain and authored final extension, no collision qualification |
-| HALYARD-BOARD | Non-playing Main authority and two original ordinary occupants | 16,26 | FAILED/PARKED; original route and one caller repair both fail consumed-state comparison; no further retry selected |
-| HALYARD-MOVING-CABIN | Actual departure with passenger supported walk/chair cycle | 16,24,26 | GATED on HALYARD-BOARD; no staged flight envelope |
+| HALYARD-BOARD | Non-playing Main authority and two original ordinary occupants | 16,26 | DONE 4bc0e3b38: complete original menus/spawn/walk/actual pilot+crew_port_00 boarding and host/client consumed identities, ownership/body/frame/seat/claim generations, controls/HUD; all three actual OS exits0/terminal handshake pass in 130.472s. Same suite300/outer360/8s transition. Branch merged/pushed/deleted; earlier 271.737s failures retained. No runtime change/new identical checkpoint. [Delivery](history/ROADMAP_DELIVERIES.md#halyard-ordinary-boarding-branch-finished--2026-10-20) |
+| HALYARD-MOVING-CABIN | Actual departure with passenger supported walk/chair cycle | 16,24,26 | BOARD prerequisite accepted; NOT_RUN pending separately frozen original moving case. No staged flight envelope; walk/sit/stand/reseat/departure requirements unchanged. |
 | HALYARD-AUTHORITY-STOP | Real server stop restores both remaining occupants to solo play | 16,26 | GATED on HALYARD-MOVING-CABIN; no SIGKILL/migration/reconnect claim |
 | SERVER-BASELINE | Dedicated-server/two-client ordinary flight/recovery acceptance | 26 | GATED; exact baseline contract, boarding/departure passes do not close it |
 | NET-FULL-SNAPSHOT | All-nine forced-full publication and byte budget | 17,26 | DONE on accepted330a39ce3 in existing Main/ENet suite: actual complete nine-craft full/live4656/4656 bytes, exact decode and fragment acceptance under unchanged12000. [Retained result](history/ROADMAP_DELIVERIES.md#net-component-powers--host-output-and-bounded-live-updates-accepted). Ordinary/native/endurance/final-candidate gates remain open |
@@ -917,7 +919,8 @@ have finite authored maps in COMPLETION_SCOPE.md. Their full craft/art/combat
 acceptance and stronger historical identity claims remain open. No automatic
 successor or qualification chain is scheduled. Cargo
 boarding/departure/delivery and yaw turns retain their accepted source scopes.
-Cargo reload, Halyard boarding and handback retain their recorded failures and
+Halyard BOARD is accepted on 4bc0e3b38 for its original source boarding card.
+Cargo reload and handback retain their recorded failures and
 reopen conditions; they are not READY work. All36 original parents and ten phase
 gates remain open. Local scheduling is not a whole-project estimate.
 
@@ -1041,8 +1044,8 @@ a supported ordinary-package reach/reuse command mapped to those existing
 journeys and their required interactions. Threshold walking alone cannot close
 this requirement. Preserve the original parked Sandbox all-nine/54-waypoint,
 crash and reuse route unchanged; a renamed shorter selector cannot replace it.
-The two-client HALYARD-BOARD failure does not establish a solo Fleet walking
-blocker, and this source review found no separate solo access defect.
+The earlier two-client HALYARD-BOARD failures established no solo Fleet walking
+blocker; accepted boarding does not qualify all-fleet walking, and this source review found no separate solo access defect.
 
 If a concrete full route is selected later, extend only the existing startup
 selector guard, read-only native-sortie observer, OS-input driver and focused

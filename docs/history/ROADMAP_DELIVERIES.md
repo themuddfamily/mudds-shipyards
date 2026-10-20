@@ -17253,3 +17253,64 @@ containment in pushed main. Totals148local/91remote deleted;37local/20live remot
 heads remain including main,19non-main remote (three withheld gameplay fixes,
 16 automation/diagnostics). Ref cleanup does not imply all36 parents/ten phase
 gates are complete; all remain open.
+
+
+## Halyard ordinary boarding branch finished — 2026-10-20
+
+Existing `work/halyard-ordinary-board-20261018` / original f3d53bda6 reused,
+clean accepted source 4bc0e3b384b3384a5aca644d5a57b7e52a932412. Main cb509 merged, existing current
+navigator/shared profiles retained. Source corrective delta only changes projected
+primitive comparison representation in `_ordinary_fields`: full-precision JSON
+roundtrip preserves every key/value/fraction without mutating raw network data
+or host manifests. No production networking/seat/physics/role/runtime change.
+
+Concrete source proof: ownership authority creates INT identity fields; binary
+Variant decoder/snapshot duplicates preserve them. Host receipt `_read` parses
+JSON numbers as FLOAT, while old projection only converted StringName. Godot
+Dictionary::recursive_equal/Variant::hash_compare reject INT versus FLOAT.
+Both retained clients received the exact host Halyard ownership values, yet this
+comparison would reject them when reached. That is a caller defect, not proof
+of production ownership failure or success of earlier guards. Source proof stores
+Godot JSON/Variant/Dictionary/marshalls hashes and original STOP hash.
+
+High pre-engine source/helper review GO. Fresh import/compile PASS; ONE unchanged
+ordinary profile PASS 130.472090s, exact HALYARD_ORDINARY_TWO_CLIENT_BOARD_OK.
+Non-playing actual Main authority plus two authenticated original independent
+clients use normal menus/spawn, authored continuous station/cabin walks and real
+Interact pilot plus crew_port_00 passenger seats. No actor/craft placement or
+forced claim/seat/role. Retained host and consumed client peer/avatar/body/frame/
+seat/claim/ownership generations, exclusive claims, current controls and honest
+PILOT/PASSENGER HUD all pass, then explicit terminal handshake. Actual three peer
+Godot PIDs distinct, all three `.done.complete=true`, failures[], actual OS exits0;
+coordinator0 and marker exactly1. All peer PIDs observed by identity and absent.
+Original 300s suite/360s outer/8s consumed/15s walk/10s exit limits unchanged.
+No checks dropped or tolerant numeric matching added; all exact comparison fields
+remain. Independent actual-result review GO.
+
+Coordinator headless and every Godot uses Dummy; each peer uses private Xvfb,
+explicit x11/input-only dummy renderer, private XDG and independent abort path.
+No user-desktop/input/audio run. This closes original HALYARD-BOARD /16,26 only.
+Moving-cabin/departure and then authority-stop require their own original cases;
+full dedicated-server/two-client/endurance/native GPU/Windows/device/listening/
+human/final qualification remains OPEN/NOT_RUN. No adjacent case selected.
+Only excluded test file changed; c78e0ac checkpoint and 11 public artifact hashes
+unchanged, no identical checkpoint export or native/package claim.
+
+New supervised stages 166.878104s; original two failed routes 135.904+135.833=
+271.737s retained separately. Earlier import/compile/implementation elapsed was
+not recorded and is not invented or hidden inside a reset total. Old source and
+raw records at `/srv/mudds-work/halyard-ordinary-board-20261018/results/`
+remain unchanged, including original STOP. Accepted authorizations/proof/source/
+result reviews, raw peer receipts and cleanup live at
+`/srv/mudds-work/halyard-board-integration-20261020/results/`.
+All three owners terminal; 21 observed
+owned PID/start identities absent. 35 direct raw
+peer files copied/hash-verified, full profiles archived/stream-verified against
+all 145 files/directories/links and fresh
+source snapshot, helpers retained. Owned worktree/profile/helpers removed in
+8.74min from15:09 inside30min.
+Integrated source pushed main, then local/remote/tracking branch deleted after
+ownership/ancestry/current tips with exact expectedOID protection. Counts 149 local/
+92 remote deleted;36 local/19 live remote includingmain,18non-main (three withheld
+runtime fixes/15 automation). All 36 parents/ten phase gates remain open; no
+project percentage inferred from refs/check counts. GitHub CI hold retained.
