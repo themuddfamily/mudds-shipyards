@@ -402,6 +402,18 @@ func _run() -> void:
 	_check(torpedo_started and _reward_requests.size() == 3 and _reward_requests.back().activity_id == HeavyBreachActivityBoard.TORPEDO_RUN_ACTIVITY_ID
 		and _recovery_store.get_snapshot().heavy_breach_session.session.completion.reward_granted,
 		"a genuinely cleared rotated Torpedo Run shares terminal recovery with its distinct reward identity")
+	_check(board.get_offered_scenario() == EncounterScenarioDirector.SCENARIO_PAIRED_WING,
+		"the later Torpedo clear still posts the third Wing contract before Hold")
+	var wing_again: bool = board.interact(target, board.get_generation())
+	_check(wing_again and director.get_active_scenario() == EncounterScenarioDirector.SCENARIO_PAIRED_WING
+		and director.get_roster().size() == 2 and screen.is_active() and second_screen.is_active(),
+		"the rotated Wing contract genuinely reuses both live members before the later Hold")
+	director.abort(EncounterScenarioDirector.OUTCOME_WITHDRAWN)
+	_check(director.get_outcome() == EncounterScenarioDirector.OUTCOME_WITHDRAWN
+		and director.get_roster().is_empty()
+		and board.get_offered_scenario() == EncounterScenarioDirector.SCENARIO_PERIMETER_HOLD
+		and _reward_requests.size() == 3 and board.get_reward_handoff_snapshot().pending_reward_generation == 0,
+		"withdrawing the real intervening Wing posts fourth-contract Hold without credit or debt")
 	var hold_again: bool = board.interact(target, board.get_generation())
 	director.set("_elapsed", 90.0)
 	director.call(&"_physics_process", 0.0)
