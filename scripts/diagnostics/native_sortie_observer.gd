@@ -1023,7 +1023,7 @@ func _arrow_observation() -> Dictionary:
 		and reserved_id == StringName(_ship.get("_landing_reserved_ship_id")) \
 		and reservation_owner == _ship and (occupant == null or occupant == _ship)
 	# This preview is explicitly non-mutating; the contract itself is retained data.
-	var capture := _game.world.get_landing_assist_report(_ship, _ship.get_home_berth_id())
+	var capture: Dictionary = _game.world.get_landing_assist_report(_ship, _ship.get_home_berth_id())
 	var default_controls := not _player.is_remote_driven()
 	for action: StringName in [&"move_left", &"move_right", &"move_forward", &"move_back", &"sprint_boost", &"interact", &"landing_assist", &"brake", &"hover", &"fire", &"pitch_up", &"pitch_down", &"roll_left", &"roll_right"]:
 		var authored: Dictionary = ProjectSettings.get_setting("input/" + str(action), {})
