@@ -78,11 +78,16 @@ coverage.
 
 - Integrate accepted work into `main` and push it regularly. At task closure,
   delete its local and remote branch once its tip is contained in pushed `main`
-  and its owned worktree/process cleanup is complete.
+  (or its accepted changes are verified integrated under different commits) and
+  its owned worktree/process cleanup is complete.
 - Before deleting, check current remote tips and registered worktree ownership;
   protect concurrent updates with exact expected commit IDs.
 - Preserve unmerged failed, parked or unfinished work until its unique changes
   are accounted for. Do not merge an unaccepted candidate merely to delete it.
+- Remove redundant attempt refs when their entire history remains reachable
+  through a retained successor. Preserve completed diagnostic-only source in a
+  verified archive before deleting its branch; do not merge instrumentation into
+  production merely to make its branch deletable.
 - Report retained exceptions explicitly. Branch cleanup is part of completion,
   not a separate future housekeeping task.
 

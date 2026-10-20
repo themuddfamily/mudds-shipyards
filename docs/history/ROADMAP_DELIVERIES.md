@@ -16722,3 +16722,96 @@ source recheck before removal. Archive12999506bytes, SHA256
 Index/README, source/reviews/summary/cleanup and3 reusable helpers remain loose;
 raw stage/peer/profile originals stay under results/ in the verified archive.
 Cleanup/compaction15.40min within original60min; only task results/ remains.
+
+
+## Branch accountability and Race timeout diagnosis — 2026-10-20
+
+Owner requested completed work be merged/pushed and branches deleted, then asked
+why45 remote heads remained. That count included main, duplicate attempts,
+completed diagnostics and integrated changes, as well as genuinely failed work.
+The earlier practice of moving to independent work after a failed bounded attempt
+left too many source branches without a clear account. No failed candidate is
+merged simply to reduce that count.
+
+### Cleanup actually performed
+
+Refreshed live remote heads; checked ancestry, exact patch equivalence, real file
+identity for aggregate integrations, registered worktree ownership and retained
+successor reachability. Atomic remote deletions used exact expected-OID leases;
+local deletions also compared exact expected tips. An initial atomic batch was
+rejected because11 cached refs were already absent remotely; it deleted nothing.
+A live-head query distinguished those stale references before the corrected batch.
+
+- 110 ancestor-of-main local refs and66 live remote refs deleted;11 already-absent
+remote tracking refs removed.
+- 17 further remote/16 local refs deleted:8 all-patch-equivalent integrated refs,
+2 accepted aggregate integrations,7 duplicate attempt refs whose full commit
+history remains in retained successors.
+- 14 local-only refs deleted:12 all-patch-equivalent to main,2 exact histories
+reachable through retained live remote holds.
+- The completed Race diagnostic source was preserved in verified bundle/patch/
+source files and pushed archive tag, then its local/remote branch deleted.
+
+Totals: **141 local branches and84 live remote branches deleted**; **44 local
+branches and27 live remote heads remain**, including main. This is26 remote
+non-main source branches, not26 independently unfinished features. Older registered
+worktrees and unique local-only `fix/durable-suite-launch`,
+`hold/sandbox-settle-facing-20261017` and `native-sortie` remain protected;
+their acceptance is not inferred from their existence. Exact deletion tips and
+preservation proofs remain in the current results directory named below.
+
+### Every retained remote non-main branch
+
+Several rows share one cause or journey. A parked status records failed acceptance;
+it does not establish a production defect or authorize another probe. Finish one
+supported correction with its full retained acceptance before selecting another.
+
+| Outcome / retained branches | What actually remains / next boundary |
+| --- | --- |
+| Browser timeout — `diag/browser-release-cache-20261020`, `fix/net-timeout-release-accept-20261020` | Native SceneCache callback captured; prepared acceptance depends on matching templates. Windows compilation exhausted cold/incremental budgets. No accepted matching pair or complete ordinary timeout/retry route; no automatic third compile. |
+| UI board transition — `fix/ui-board-focus-20261018`, `feat/mining-first-play-20261018`, `feat/beacon-home-20261020` | Same native root-Window disconnect errors block actual activity transitions; isolated components did not reproduce original cause. Mining/Beacon full journeys remain unaccepted. Identify the actual popup/removal cause before repair/replay. |
+| Observation — `fix/exit-tooltip-order-20261020`, `fix/ordinary-controls-observation-20261017` | Later complete travel/view/home route passes, but repair proof never exercised a visible original TooltipPanel, so candidate withheld. Earlier ordinary-controls branch acceptance remains UNKNOWN from recovered records; recover its exact result rather than call it accepted. |
+| Breach recovery — `feat/breach-interruption-20261018`, `feat/breach-interruption-fixed-boot-20261018` | Earlier arm prerequisite superseded; corrected real cold recovery still fails atomic payment assertion. No third paid cold process; retained140.961s failed chain. |
+| Courier — `feat/courier-ordinary-route-20261020` | Actual runner escapes78/78 without player hit; no return. Fresh emission/ray/resolver cause missing; do not infer an aim or weapon fix. |
+| Defense — `feat/defense-ordinary-route-20261020` | Deploy works; post-Deploy player remains stationary until original34s encounter deadline. Walking cause unproved; full combat/payment/home/reset not accepted. |
+| Perimeter — `feat/perimeter-live-20261020` | Implementation and focused checks exist, but full GameFlow suite times out before physical Hold entry. No integration/checkpoint; concrete startup-boundary change required before another check. |
+| Wing — `feat/wing-ordinary-route-20261020` | First real board press2.905m exceeds2.8m range; no prerequisites/combat/home reached. Supported future correction is actual3D approach margin plus explicit rejection handling, retaining full route and344.298s cumulative stages. |
+| Helm handback — `work/jovian-helm-handback-20261018`, `fix/cabin-passenger-role-20261018` | Role/HUD prefix corrected, but original required cabin walk fails0.6m/15s. No walking cause or accepted full handback. |
+| Jovian postdock exit — `work/jovian-passenger-exit-20261018`, `fix/jovian-exit-caller-syntax-20261020`, `fix/docked-pilot-hold-20261020` | Parse/caller predecessors and dock-hold corrective source retained.322 pose checks and standing pass; full passenger exit fails15s cabin walk. Reboard/pilot exit/reclaim/redepart remain gated. |
+| Halyard ordinary boarding — `work/halyard-ordinary-board-20261018` | Two consumed-state comparisons fail after actual seating. No causal runtime defect identified; moving-cabin/server-stop baseline remains gated. |
+| Halyard gunner damage — `test/halyard-gunner-damage-20261018` | Both original/caller repair fail co-pilot admission; actual damage case not reached. No third variant selected. |
+| Jovian reload — `work/jovian-reload-boundary-20261018` | Main ready/restore accepted27.762s; first normal frame pair incomplete before original30s. Original reload source/history remains reachable here. Concrete startup repair required, not longer cap. |
+| Salvage access — `work/salvage-ordinary-access-20261018` | Both original/repair fail outbound20. Full supported three-position access remains unmet; inspect/revisit gated. |
+| Fire restart — `hold/fire-restart-viewport-20261018` | Original and viewport repair fail Fire row intersection before capture/save/reader. No persisted remap/sampler acceptance; geometry observations alone establish no scrolling cause. |
+| HULK revisit — `hold/hulk-revisit-departure-20261017` | Original and repair retained in this one history. Reload/dock/exit reached; original300s expires during new interior walk before breaker event. Full revisit/once-only cell/reward not accepted. |
+| Rime crew arrival — `hold/rime-crew-arrival-typing-20261018` | Original parse failure plus typed repair retained in this one history. Repair reaches approach but fails original120s physical landing gate. Survey/home not accepted. |
+| Earlier boarding diagnosis — `work/jovian-pilot-state-20261018` | Diagnostic capture completed; ordinary boarding subsequently accepted onfff5f7221. Unique old diagnostic/caller content remains source history, not another missing boarding feature; do not replay it. |
+
+### Race diagnostic completed; original suite still fails
+
+Original baseline failure had no boundary after unpaid fallback attempt1. Selected
+BASE-DIAG on3d24d9a6a at12:07UTC,40min budget through12:47UTC. Root plus one medium
+read-only reviewer approved diagnostic dd38c163f4d058ec214445140833e785ad0ce127:
+18 added lines of timestamps/prints only; all original operations, assertions,
+branches and yields retained. No production change or timeout adjustment.
+
+Clean import PASS20.874530s; direct compile PASS16.233114s. Exactly one original
+suite run at300s FAIL/exit124 after300.299932s. It completes81 assertions with no
+failed assertion event and creates19 Main lifetimes. Actual synchronous attach
+totals212.820692s. At299.268286s lifetime19 starts original three-frame retirement;
+no retirement completion or subsequent fresh cold-IDLE verification appears before
+supervised termination. This establishes this attempt's last boundary, not an
+unchanged performance benchmark or a specific avoidable startup cause. Full Race
+suite remains FAIL; no repair/retry, cap increase or reduced fixture selected.
+Total stage cost337.407576s; exact source/cache guards remain stable after import.
+
+All three supervisors terminal/absent and six observed child identities absent.
+106 private profile entries archived with byte/mode/link verification and fresh
+source comparison before deletion; profiles archive SHA256
+`db4aa27d80260f333c5f5c0599ba140df42a6529d7589dfd9bef1c003e60408d`.
+Diagnostic bundle verified; exact source retained in pushed tag
+`archive/diagnostics/race-baseline-boundary-20261020`. Owned worktree/profiles/
+helper directories removed; only results remain under
+`/srv/mudds-work/race-baseline-boundary-20261020/results/`.
+No runtime changes or identical checkpoint rebuild. All36 parent outcomes/ten
+phase gates, native/hardware/human and final-candidate limits remain open.

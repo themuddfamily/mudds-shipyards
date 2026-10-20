@@ -41,28 +41,31 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
-**Selected: BASE-DIAG[Race save/restore timeout], parents6/31.**
-Root owns one private, print-only copy of
-`tests/cinder_race_session_save_restore_test.gd`; no production change selected.
-The original log ends after unpaid fallback attempt1; it does not distinguish
-retirement, next startup or subsequent unprinted checks. Time `_make_game`
-(instantiation/attach/frame waits), `_retire_game` and existing assertions with
-monotonic lifetime/check indices. Preserve every original operation/assertion.
+**Current focus: account for and finish existing unmerged work.**
+Owner explicitly requested this priority; no new helm or unrelated roadmap task
+is selected. Branch accounting is complete in the
+[existing delivery history](docs/history/ROADMAP_DELIVERIES.md#branch-accountability-and-race-timeout-diagnosis--2026-10-20):
+141 local and84 live remote refs deleted; integrated equivalents and duplicate
+attempt histories accounted for. Remaining26 remote non-main branches are mapped
+to their actual failed/pending outcomes, not counted as26 unfinished features.
+Unique failed sources and older registered worktrees remain protected.
 
-Selection12:07UTC;40min total budget through12:47UTC. Source preparation estimate
-10min; checks: clean headless import180s, direct check-only120s, exactly one
-original headless/Dummy suite300s under the existing process supervisor. Private
-XDG/TMPDIR; no desktop/audio. Command after import/compile:
-`godot --headless --audio-driver Dummy --path <owned-worktree> --script res://tests/cinder_race_session_save_restore_test.gd`.
-A timeout is the expected possible diagnostic result, never acceptance. Stop on
-first unexpected failure or terminal suite result; no repair/retry/cap increase.
-Finish with the actual first incomplete boundary, costs and source scope; commit/
-push finding and clean owned scratch. Diagnostic source stays private/unmerged.
-No playable rebuild is required without an accepted production change.
+The one already-running Race diagnosis is now terminal:81 assertions pass,
+19 Main lifetimes,212.821s total synchronous attach; the unchanged300s cap expires
+in19th retirement. No production fix or full-suite pass; source archived under
+`archive/diagnostics/race-baseline-boundary-20261020`, diagnostic branch/worktree/
+profiles/helpers removed. No engine run remains active.
+
+Next single action: prepare a bounded correction of the **existing Wing route**,
+whose actual board press was2.905m away against the unchanged2.8m radius. Keep
+its original complete posting prerequisites/two real kills/home/UI-exit acceptance
+and retained344.298s failed-stage cost. Freeze exact source/driver ownership,
+full command/caps and a new explicit priority selection before any edit/run;
+no automatic retry or blanket revival of parked branches.
 
 **Ready production cards: 0. Prepared production cards waiting on decisions: 3.**
-This describes this queue, not the entire project's remaining-job count.
-The existing decisions below remain pending; no helm successor is selected.
+The decisions below remain pending; they do not prevent finishing independently
+supported existing failures. No completed probe schedules an adjacent probe.
 
 ### Next three production deliveries
 
