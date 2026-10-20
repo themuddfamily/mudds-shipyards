@@ -17055,3 +17055,79 @@ Local/remote branch removal uses exactOID leases after ancestry/pushed-main
 checks; tracking ref removed. Counts145local/88remote deleted;40local/23remote
 heads remain including main,22non-main remote. Counts describe refs, not product
 completion. All 36 parent outcomes and ten phase gates remain open.
+
+
+## Remaining branch status after duplicate closeouts — 2026-10-20
+
+Previous goal turn delivered Perimeter runtime/admission and its checkpoint.
+This turn accounts for existing duplicate attempts; it adds no gameplay acceptance,
+new probe, engine run or checkpoint. Source of the inventory is current live HTTPS
+heads, unique commits against main 688866b05, existing failed-result records and
+registered worktree ownership. None of these 20 remote candidates owns a registered
+worktree. Separate older local/detached worktrees remain protected.
+
+Three candidates contain ordinary gameplay fixes, each withheld against its
+retained required acceptance. The other 17 contain qualification/diagnostic/release
+automation, including opt-in startup CLI wiring; they are not 17 unfinished gameplay
+implementations. Failed checks do not themselves establish runtime defects.
+A new run still requires a supported concrete change and explicit bounded selection;
+this inventory does not schedule retries or authorize weaker acceptance.
+
+### Exact duplicate source closed safely
+
+1. `feat/breach-interruption-20261018`, exact tip
+   `3c10a071b0e52c18c1e9f10fb41481a603cabae5`: original two commits have equal
+   range-diff patches to retained fixed-boot successor
+   `c1598ad67dce23190c51083780a443989b18ee3a`. All four changed files have identical
+   blobs. Original history preserved by verified bundle, binary patch, exact
+   four-file archive and pushed annotated tag
+   `archive/diagnostics/breach-interruption-20261018`. Existing raw results unchanged;
+   archive manifests at
+   `/srv/mudds-work/breach-interruption-20261018/results/branch-archive/`.
+   The successor's full atomic-payment/cold-replay requirement remains FAILED/open.
+2. `fix/jovian-exit-caller-syntax-20261020`, exact tip
+   `2aed310cd802de197f1487fe89b8489a4525146c`: sole changed test file exactly matches
+   `4d5cdab74633cf587226039ed0247ea54e3e648b`, an ancestor of retained docked-pilot
+   candidate `0d225bee8777ba4f1d792aa9f9a41a38371f2101`. Original commit is not
+   claimed as an ancestor. Verified bundle, patch and exact one-file archive plus
+   pushed tag `archive/diagnostics/jovian-exit-caller-syntax-20261020` preserve it.
+   Existing raw results unchanged; archive manifests at
+   `/srv/mudds-work/jovian-exit-caller-syntax-20261020/results/branch-archive/`.
+   Full passenger exit/reboard/reclaim/redeparture remains FAILED/open.
+
+Both local/live remote/tracking refs deleted only after checking current exact
+remote tips, registered worktree ownership, pushed tag identity and archive hashes.
+Remote deletion used expected-OID leases; local deletion compared exact old tips.
+Prior 39 Breach/22 Jovian observed PID/start identities absent; no new game processes or
+worktrees launched. Independent low review verifies all hashes/bundles/source bytes,
+source equivalence, tag identities, deletion and protected successor tips: GO.
+No unaccepted diagnostic code was merged. Totals 147 local/90 live remote branches
+deleted; 38 local/21 live remote heads remain including main, 20 non-main remote.
+These are ref counts, not completed roadmap outcomes. All 36 original parent
+outcomes/ten phase gates and native/GPU/devices/listening/human/final gates remain
+open. Current playable checkpoint remains fdae1cb; GitHub Actions remains disabled.
+
+### Every remaining remote candidate
+
+| Branch | Exact tip prefix | Source type | Retained acceptance blocker |
+| --- | --- | --- | --- |
+| `diag/browser-release-cache-20261020` | `783c8c87206a` | Automation | Native RPC-cache callback captured; matching Windows/Linux template pair absent after compilation budgets. Browser timeout/retry route not accepted. |
+| `feat/beacon-home-20261020` | `a612ea686dc1` | Automation | Board transition hits original Window disconnect errors; settlement/home/physical exit not reached. |
+| `feat/breach-interruption-fixed-boot-20261018` | `c1598ad67dce` | Release automation | Cold Resume reaches exact paid terminal/one receipt, then atomic-payment commit assertion fails. Further paid cold replay and package transaction NOT_RUN; cumulative140.961s retained. |
+| `feat/courier-ordinary-route-20261020` | `cb9d76fa54ac` | Automation | Runner escapes at78/78 hull with no player hit/kill. Fresh emission/ray/resolver cause missing; home not completed. |
+| `feat/defense-ordinary-route-20261020` | `a480c0fbb800` | Automation | Deploy succeeds, player then stationary until original34s encounter deadline. Walking cause unproved; combat/payment/home/reset absent. |
+| `feat/mining-first-play-20261018` | `20bd1ab7482a` | Automation | Full ordinary Mining journey remains blocked by native root-Window disconnect errors; component success does not accept the journey. |
+| `fix/cabin-passenger-role-20261018` | `38c079086dbc` | GAMEPLAY FIX | Confirmed standing berth displays PASSENGER correctly in focused checks. Required full handback still fails actual>=0.6m cabin walk inside15s; withheld. |
+| `fix/docked-pilot-hold-20261020` | `0d225bee8777` | GAMEPLAY FIX | 322 pose checks and postdock standing pass; full passenger exit stops at15s cabin walk. Reboard/pilot exit/reclaim/redeparture unaccepted; withheld. |
+| `fix/exit-tooltip-order-20261020` | `bae551d5836e` | GAMEPLAY FIX | Historical Observation journey passes, but required original visible TooltipPanel was not exercised. Actual-Main hover baseline did not reproduce it; repair INCONCLUSIVE/withheld. |
+| `fix/net-timeout-release-accept-20261020` | `e5b9dd25f82c` | Release automation | Prepared original browser acceptance fixture depends on matching templates. Windows compile budgets exhausted; no matching pair/full timeout route accepted. |
+| `fix/ui-board-focus-20261018` | `e646fc792e3d` | Diagnostic test | Actual popup geometry/lifecycle observations only; original Window disconnect cause/removal repair unproved. Mining/Beacon depend on it. |
+| `hold/fire-restart-viewport-20261018` | `38e47596093d` | Automation | Fire row intersection fails before capture/save/reader. Persisted remap/sampler requirement not exercised; scrolling cause unproved. |
+| `hold/hulk-revisit-departure-20261017` | `2298e4889316` | Automation | Reload/dock/exit reached; original300s expires during interior walk before breaker event. Full revisit/once-only cell/reward remains open. |
+| `hold/rime-crew-arrival-typing-20261018` | `68cc7d989910` | Automation | Typed caller passes parse stage; ordinary two-crew route fails original120s physical landing gate. Survey/home not accepted. |
+| `test/halyard-gunner-damage-20261018` | `3a7c4b4bfd47` | Automation | Original and caller repair fail co-pilot admission. Actual damage case not reached; no third attempt selected. |
+| `work/halyard-ordinary-board-20261018` | `f3d53bda602d` | Automation | Two consumed-state comparisons fail after actual seating. No causal runtime defect established; moving-cabin/server-stop baseline remains open. |
+| `work/jovian-helm-handback-20261018` | `535c4b01dcf0` | Automation | Full pilot handback fails actual cabin walk>=0.6m/15s. Retained passenger-role candidate corrects presentation only; walking cause unproved. |
+| `work/jovian-passenger-exit-20261018` | `e147b6d49ede` | Automation | Original parse/caller failures retained. Later corrected caller survives in docked-pilot successor; full exit still fails cabin walking, not accepted. |
+| `work/jovian-reload-boundary-20261018` | `f432bd63008c` | Automation | Main ready/restore accepted27.762s; first normal frame pair incomplete inside original30s. Concrete startup repair missing; no cap increase. |
+| `work/salvage-ordinary-access-20261018` | `641bbdbb0ed3` | Automation | Original and one repair fail outbound20. Actual supported inspection/return/revisit unmet; walking cause unproved. |

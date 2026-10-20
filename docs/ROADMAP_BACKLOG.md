@@ -307,6 +307,15 @@ estimate remains unfrozen until terminal action/ownership is settled; split
 before90min. Once chosen, prioritize the physical interface/runtime checkpoint
 before adding ordinary-route telemetry. No new validator/evidence family.
 
+### Remaining unmerged work
+
+The [current 20-branch inventory](history/ROADMAP_DELIVERIES.md#remaining-branch-status-after-duplicate-closeouts--2026-10-20)
+distinguishes three withheld gameplay fixes from 17 automation/diagnostic-only
+candidates and records each acceptance blocker. The older Breach probe and Jovian
+syntax branch have verified exact-source successors and archived original histories;
+their branches are removed. Breach interruption and full Jovian exit remain OPEN.
+No new gameplay or release qualification follows from deleting those duplicate refs.
+
 ### Perimeter Hold — missing production integration
 
 Definition DONE: the detached catalog had no production caller. Its90s/>35%

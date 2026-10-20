@@ -48,17 +48,25 @@ Resolve one existing branch at a time. Before selecting another, either merge an
 push accepted work and delete the branch, or preserve its unique source/results
 and record the exact unmet requirement and blocker. A failed check does not
 automatically authorize an adjacent task or retry.
-**145 local and 88 live remote branches deleted; 40 local and 23 live remote
-branches remain, including main (22 non-main remote).** Counts describe refs,
+**147 local and 90 live remote branches deleted; 38 local and 21 live remote
+branches remain, including main (20 non-main remote).** Counts describe refs,
 not completed features. [Branch accounting and closeouts](docs/history/ROADMAP_DELIVERIES.md#branch-accountability-and-race-timeout-diagnosis--2026-10-20)
 preserve the underlying roadmap requirements.
 
-Latest closeouts: the old Jovian boarding diagnostic is archived; ordinary boarding
-was already accepted on main. The old walking/support observation test candidate
-is archived with acceptance UNKNOWN/UNVALIDATED. Both test-only branches and their
-tracking refs were deleted after verified bundles, exact source archives, pushed
-tags and expected-OID checks. No diagnostics were merged or replayed. Their full
-qualification requirements were not promoted by this cleanup.
+Latest closeouts: the redundant older Breach interruption attempt and Jovian
+exit syntax repair are archived under pushed tags and their branches deleted.
+Their complete changed-file contents survive byte-for-byte in retained successors;
+exact original histories, patches, source archives and failed results are preserved.
+No failed journey was accepted and no diagnostic code was merged.
+
+Of the 20 remaining remote candidates, **three contain ordinary gameplay fixes**
+(passenger role display, docked-pilot pose holding, tooltip retirement on close).
+Each still lacks its required acceptance. The other 17 contain qualification
+or diagnostic automation, including opt-in startup/release wiring. They are not
+17 new gameplay implementations. The
+[current branch-by-branch status](docs/history/ROADMAP_DELIVERIES.md#remaining-branch-status-after-duplicate-closeouts--2026-10-20)
+names the actual failures and retained source for all 20. This cleanup changes
+branch ownership, not the number of completed roadmap outcomes.
 
 **Current UI task stopped: active-tooltip baseline not reproduced.**
 Existing candidate `fix/exit-tooltip-order-20261020` remains unmerged/withheld.
