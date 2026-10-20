@@ -14531,3 +14531,21 @@ removed. Frozen helpers were copied and hash-verified; raw profile logs and actu
 command/state artifacts remain. Only `browser-fixture-json-20261020/results/`
 remains. Freeze commit→cleanup633.945s/10.6min versus15–30min implementation/review
 plus2–5min checks/cleanup estimate. Live template cache remains protected.
+
+
+## RPC-cache Linux release template — compiled; matching pair pending
+
+2026-10-20. Existing frozen Linux build completed exit0, guarded stagePASS
+2934.911273s/48.9min, no diagnostics/source/index/cache/engine guard issues.
+Actual compiled binary and private staged `linux_release.x86_64` both SHA256
+4fe7e2cfc8092ebfd8339b7ca9d227b6ed5dba177f86b9c7e57913cfe89e5607,
+94,303,272 bytes. Silent headless/Dummy version probe reported
+4.7.1.stable.mudds_rpc_cache_teardown_linuxbsd.a13da4feb.
+All8,651 observed Linux owner/child process identities absent. Original pinned
+engine source/native patch and full default build features remain selected.
+
+Raw build/guard/recipe outputs remain under
+`/srv/mudds-work/rpc-cache-templates-20261020/`. Windows is still compiling under
+its original2jobs/3600s cap. Matching-template collection, game exports and actual
+runtime effectiveness NOT_RUN. This is a private engine template, not a gameplay
+checkpoint; no native hardware/Windows/human gate closes.

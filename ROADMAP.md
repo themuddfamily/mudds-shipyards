@@ -46,7 +46,7 @@ review supports this candidate; it is not a verified fix.
 | Child | State | Deliverable and completion check |
 | --- | --- | --- |
 | RPC-CACHE-BUILD-RECIPE | DONE; integrated, feature branch pushed | Isolated RPC mode, two-platform planning/staging and pinned two-file native patch. All24 existing/extended inert tool tests pass under60s cap. Actual engine compilation/runtime NOT_RUN; no new playable checkpoint. |
-| RPC-CACHE-TEMPLATES | Preparation DONE; parallel compilation selected | Both pinned source/SCons/SDK inputs ready, POSIX cross-compiler/scanner installed;8 stages pass. Actual matching Linux/Windows builds now frozen:2 jobs each/3600s compile caps, no feature removal. Compiled artifacts and runtime effectiveness still NOT_RUN. |
+| RPC-CACHE-TEMPLATES | Linux compile PASS; Windows compile running | Linux built/staged SHA4fe7e2cf,2934.911s/48.9min, silent version probe and guards pass;8,651 observed identities absent. Windows retains original2 jobs/3600s cap. Matching pair/collection and runtime effectiveness remain unverified. |
 | BROWSER-FIXTURE-JSON | DONE; source fixture integrated | Actual JSON numbers normalize safely;62 assertions and real raw0→admitting1→raw2→stop3 handoff pass with original3s limits. No packaged-client acceptance. |
 | NET-TIMEOUT-RELEASE-ACCEPT | GATED on matching templates | Relevant focused checks, clean paired exports/strict startups/package checks, then original full ordinary route with unchanged criteria/limits. The fixture handoff prerequisite now passes; native runtime effectiveness remains unverified. No execution selected yet. |
 

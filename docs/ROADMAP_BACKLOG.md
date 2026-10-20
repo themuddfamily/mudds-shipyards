@@ -1562,6 +1562,16 @@ particular offending bytes are unproved. A bounded fix must normalize finite,
 nonnegative integral safe-range numbers, preserve exact successor/private-directory/environment/mode/PID
 contracts and prove real Godot parsing. No fixture edit/run is selected here.
 
+Linux compile result2026-10-20: existing linuxbsd_build owner finished exit0,
+guarded stagePASS2934.911273s/48.9min with no diagnostics. Built and private-staged
+release template94,303,272 bytes, SHA256
+4fe7e2cfc8092ebfd8339b7ca9d227b6ed5dba177f86b9c7e57913cfe89e5607.
+Silent headless/Dummy version probe returned
+4.7.1.stable.mudds_rpc_cache_teardown_linuxbsd.a13da4feb.
+All8,651 observed owner/child identities are absent. Windows compile remains live
+under its unchanged2jobs/3600s cap; no collection, game export or runtime route
+has run. Keep this partial result separate from matching-pair acceptance.
+
 **BROWSER-FIXTURE-JSON — DONE2026-10-20; source fixture accepted.**
 Parent25's executable release-test handoff prerequisite; Linux/Windows compiler
 jobs remain separate and keep their existing caps. Use a clean derivative of
