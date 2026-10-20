@@ -19659,3 +19659,38 @@ verified incremental bundle/binary patch/exact source tar and pushed annotated
 archive/diagnostics/tooltip-hover-admission-20261020 (peeled b370ce804).
 Main is sole local/live remote branch; eight protected worktrees untouched.
 Runtime/export inputs remain3767687; no identical checkpoint rebuild.
+
+
+## Activity Board synchronous transition capture — 2026-10-21
+
+Existing UI-BOARD-FOCUS investigation stopped: **NONREPRODUCTION**, no runtime
+repair or full Beacon-home acceptance. Inventory stays nine accepted/superseded,
+eleven unqualified. The original failed Home caller and extra observer payload
+were not restored; shared prefix success cannot qualify that original contract.
+
+Diagnostic b1b659d6e adds only63 flag-gated HUD observation lines around actual
+page hide/focus and observed Popup lifetime. Existing BeaconEntryPilot/Desktop/
+_XDesktop are AST-exact to a612ea686 shared prefix. Compile1.848s and clean Linux
+release export25.576s pass; one unchanged ordinary-input BeaconEntry44.456s
+(hostOS0; guarded44.709s) starts/resumes with stable identities and advancing
+physics, diagnostics0. OriginalCAP300/outer360/privateXvfb/x11/Dummy retained.
+Eight snapshots across two synchronous transitions show55 hidden PopupMenus,
+no visible popup/hover, only the unchanged valid SceneTree focus_entered binding;
+TimedRace then NearbyOpen focus is valid. No error-emitting lifecycle or cause.
+No adjacent probe, archived runtime patch, Home retry or acceptance selected.
+
+Results /srv/mudds-work/activity-transition-capture-20261021/results/ retain raw
+logs/review/cards/manifests and the exact ELF inside one verified diagnostic
+package (ELF SHA25621a22d48a44f245387cc60e70eb1e0f97b07f479fb24b16cda98bd01c820e7ba).
+Redundant loose executable removed; no diagnostic files remain in public builds.
+One diagnostic commit stays unmerged under pushed annotated
+archive/diagnostics/activity-transition-capture-20261021 and verified bundle/
+patch/source tar. All3 supervisors terminal/all11 observed identities absent;
+final input/helper/game/Xvfb cleanup flags true. Interim game_legs does not
+establish gameOS0; only the host exits0. All38 scratch entries verified/archived
+before removal23:08:55UTC; profiles.tar.gz1659bytes/SHA256
+4bb509e4e7043be97101fe44ae997455657923e215d98ac568f9430e6b71f729.
+Source unchanged in all stages; export allows cache changes, compile/run cache
+unchanged. Main sole branch, protected worktrees untouched, checkpoint3767687
+unchanged. Missing fact remains actual popup/connection-removal identity in the
+original failing caller, not another generic transition or tooltip variant.

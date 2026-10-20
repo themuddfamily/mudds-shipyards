@@ -77,15 +77,15 @@ This clears the branch queue; it does not close remaining gameplay,
 qualification or release requirements. No unaccepted source was merged to reduce
 a branch count. Eight previously protected detached worktrees remain unchanged.
 
-**Existing tooltip blocker: hover mismatch explained; original close error still unqualified.**
-The actual-Main diagnostic initially targeted the surrounding container because
-embedded-popup coordinates omitted the window stretch. Correcting only the
-caller's native-coordinate report admits the real visible TooltipPanel with both
-root connections and retained Exit focus. Ordinary Exit then closes cleanly on
-the unchanged runtime: the original error pair is **not reproduced**. No runtime
-fix or gameplay completion accepted; Observation and Beacon remain open.
-Diagnostic source is archived/pushed, owned scratch removed, main remains the
-sole branch. [Result and exact next blocker](docs/history/ROADMAP_DELIVERIES.md#existing-tooltip-hover-admission--original-close-error-not-reproduced--2026-10-20).
+**UI blocker remains parked after two bounded captures.**
+Correct native coordinates admit the real Destination tooltip, but ordinary Exit
+closes cleanly. A clean Linux release capture of the shared Beacon entry prefix
+also passes: both Activity Board transitions have no visible popup or popup-owned
+root connections. Neither result reproduces the original Beacon-home error.
+No runtime repair or full journey accepted. The missing fact is the popup and
+connection-removal event in that original caller; another generic probe is not
+scheduled. Diagnostic source/results are preserved and owned scratch removed.
+[Latest result and limits](docs/history/ROADMAP_DELIVERIES.md#activity-board-synchronous-transition-capture--2026-10-21).
 
 **Existing FIRE-RESTART DONE — source `3a45c4d79`.**
 Visible Fire-row raw F13 capture and real-file Apply+Save pass. A distinct
@@ -461,24 +461,10 @@ attempt's `results/` remains. Native Windows/GPU/devices/audio/human/final gates
 remain NOT_RUN/open and CI disabled.
 [Delivery and limits](docs/history/ROADMAP_DELIVERIES.md#breach-interruption-branch-finished--2026-10-20).
 
-**Active-tooltip baseline remains unproved.**
-The original candidate is now archived WITHHELD, with its working refs removed.
-Its historical private Observation route passed without the original visible
-TooltipPanel. The later actual-Main fixture opened real pause controls and focused
-Exit, but physical hovering produced no required original tooltip within30s.
-No original disconnect pair was reproduced or fix applied by that setup.
-
-Missing fact before a future repair: actual GUI hover owner, native pointer/window
-coordinates and visible foreground at Destination, plus original visible tooltip/
-root bindings. No popup synthesis, acceptance relaxation or unchanged retry is
-selected. The actual lifecycle must be exercised before normal HUD/WM close proof.
-
-Fixture source4b2b301cb is preserved under pushed tag
-`archive/diagnostics/tooltip-close-fixture-20261020`. Import passed; baseline stopped
-at61.270s with no ACTIVE event or original errors. Original733.226s retained;
-new80.920s gives814.146s total stages. Independent review confirms no fix
-qualification; all inputs/processes cleaned, ten owned identities absent. Only
-`/srv/mudds-work/tooltip-close-20261020/results/` remains for this attempt.
+The original active-tooltip runtime candidate remains unmerged and archived.
+The current UI blocker and exact reopening condition are recorded above;
+[historical attempts and retained budgets](docs/history/ROADMAP_DELIVERIES.md#existing-tooltip-hover-admission--original-close-error-not-reproduced--2026-10-20)
+remain unchanged.
 
 **Existing Perimeter branch finished and merged.** Runtime/admission integration
 is shipped in fdae1cb above. The original Breach test remains byte-identical;
@@ -604,7 +590,7 @@ contracts and cumulative attempt records remain in the retained history.
 | AFT-CONSOLE-VIEW /9,12 | Standalone actual-module Xvfb/Forward+/llvmpipe capture FAIL120.485s after camera setup; no image or visual finding. | PARKED; source/root cause unproven. No cap increase, alternate backend/view or retry selected. Owned scratch cleaned; raw results retained. |
 | WALK-OBSERVATION /7,9 | Original full route fails rootWindow disconnect after Exit. Privatebae551d58 later passes54-goal travel/view/home/Exit, but lacks original visible TooltipPanel; repair INCONCLUSIVE. All five unique commits/seven files archived under pushed archive/withheld/exit-tooltip-order-20261020; working refs deleted, runtime unmerged. | OPEN. Actual-Main real tooltip/root bindings/hover/native pointer now observed after caller stretch correction; ordinary HUD close exits0 with no original errors. Runtime repair remains unqualified: identify the actual popup/connection-removal event in the original failing journey before selecting a repair or retry. Full integrated travel/view/home acceptance retained. |
 | PERIMETER-LIVE /11 | Runtime/admission shipped fdae1cb: all selected focused/production checks, paired exports, three strict startups and package audit PASS. Existing branch merged/pushed/deleted and owned scratch cleaned. | Scoped integration DONE; full ordinary weapons/home/recovery/repeats/network/native remains OPEN. Prior 363.897s/three failures retained; total stages 742.767s. |
-| PLAY-BEACON-HOME /13 | Candidatea612ea686 FAIL37.713s guarded/37.419s driver at ActivityBoardButton Return/frame1233; same two root Window signal-disconnection diagnostics. Eleven prechecks pass; no settlement/home/L/E reached, no file captures. Unmerged/withheld source archived under `archive/withheld/beacon-home-20261020`; working branch deleted. | PARKED on UI-BOARD-FOCUS. Recurrence supplies no popup/connection-removal cause; no retry/repair/cap change. Preserve original UI two-component9.627s and Mining budgets. |
+| PLAY-BEACON-HOME /13 | Candidatea612ea686 FAIL37.713s guarded/37.419s driver at ActivityBoardButton Return/frame1233; same two root Window signal-disconnection diagnostics. Eleven prechecks pass; no settlement/home/L/E reached, no file captures. Unmerged/withheld source archived under `archive/withheld/beacon-home-20261020`; working branch deleted. | PARKED on UI-BOARD-FOCUS. Later shared BeaconEntry prefix is clean with no visible popup/native popup bindings at either synchronous transition; original Home caller and its extra observer payload were not restored. No error-emitting lifecycle/cause established; no retry/repair/cap change. Preserve original UI two-component9.627s and Mining budgets. |
 | HALYARD-GUNNER-DAMAGE /11,16 | DONEc28f7ffa3: original49assertions pass52.341s/exit0. Admitted gunner remapped FIRE produces exactly one52damage commit through actual GameFlow/authority/resolver/adapter, then original lifecycle checks. | Accepted source merged/pushed; earlier headless failures preserved and explained by missing mousecapture. Declared input-only mode now exercised on isolatedXvfb. Fixtures disclosed; broader OS-input/network/native/full-combat gates remain. Owned scratch removed; current3767687 runtime unchanged. |
 | WALK-SALVAGE-ACCESS / 7,9 | DONE9749f742c: full29outbound/29reverse goals plus retained hub spawn,64assertions/103.697s/OS0/cleanlogs, same supported on-foot Player and unchanged inspection state. | Accepted source merged/pushed; original240-loop/.20arrival/4-settle/300s limits retained. Added two existing-floor clearance points around roof columns, no destination removed. INSPECT5189436f1 and fresh-process REVISITf7abac379 are now accepted separately above; original access-only result stays scoped. Owned scratch removed; no runtime change or duplicate rebuild. |
 | KIT-RELOAD /13,31 | Mainready/restoreaccepted27.762s/pausedfalse; firstnormalphysics/process pair incomplete by30s. Source audit finds standardSceneTree awaits, no callerpause defect or concrete currentstartuprepair. | PARKED/open; trace lacksafterphysics/beforeprocess boundary. Original30s/includespreload/full60ticks preserved; no retry/probe/clockmove/capchange selected. No corrupt/duplicatecargo observed. |
