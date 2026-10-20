@@ -3911,6 +3911,19 @@ class PairedWingPilot(SandboxPilot):
         self.enter('wing_land', s)
         return True
 
+    def precision_weapon_input(self, s, target, now):
+        # Reuse Arrow's proven optical-axis control with the freshest real
+        # target position. This is hitscan: no projectile lead is invented.
+        if self.tap_key == 'f':
+            # Complete the normal timed/physical-frame F pulse without adding
+            # a steering sweep during the same press.
+            return 0, 0
+        optical = dict(s, **s['aim'], ship_tuning=s['tuning'])
+        dx, dy, alignment = ArrowReturnReusePilot.weapon_aim(self, optical, sub(target, s['camera']))
+        if alignment > .99998 and self.mouse_pending is None and dx == 0 and dy == 0:
+            self.tap('f', now)
+        return dx, dy
+
     def observe_hits(self, s):
         """Independently correlate observer receipts against this flight's baseline."""
         shot = s['shot']
@@ -4130,7 +4143,7 @@ class PairedWingPilot(SandboxPilot):
             keys.add('Prior')
             if director['state'] == 'concluded':
                 self.require_wing_clear(s)
-                self.enter('return_align', s)
+                if self.tap_key != 'f': self.enter('return_align', s)
             else:
                 require(director['state'] == 'running' and director['outcome'] == 'pending', 'Wing remains live until actual clear')
                 targets = [m for m in s['members'] if m['health'] > 0]
@@ -4138,8 +4151,7 @@ class PairedWingPilot(SandboxPilot):
                 # Keep one exact actor until destroyed; both are the existing roster.
                 if self.target not in [m['id'] for m in targets]: self.target = targets[0]['id']
                 target = next(m for m in targets if m['id'] == self.target)
-                dx, dy, align = self.aim(s, target['position'], .2)
-                fire = align >= .997
+                dx, dy = self.precision_weapon_input(s, target['position'], now)
         elif self.stage == 'return_align':
             keys.update(('Prior', 'h'))
             off = sub([0, 2, -18], s['position'])
@@ -4194,7 +4206,7 @@ class PairedWingPilot(SandboxPilot):
             elif s['phase'] == 'SHUT_DOWN' and s['engine'] == 'OFFLINE': self.tap('e', now)
         self.pulse(keys, now)
         # A relative sweep is acknowledged by the actual next camera attitude.
-        facing = s['walk_forward'] if not s['seated'] else s['back']
+        facing = s['aim']['camera_back'] if self.stage == 'wing_fight' else (s['walk_forward'] if not s['seated'] else s['back'])
         if self.mouse_pending is not None:
             if norm(sub(facing, self.mouse_pending)) < .00001: dx = dy = 0
             else: self.mouse_pending = None

@@ -26,6 +26,20 @@ func _run() -> void:
 	var result := {"request": request, "accepted": true, "resolved": true, "hit": true,
 		"damaged": true, "source_entity": craft, "source_id": 1101, "target_entity": lead,
 		"last_sequence": 12, "applied_damage": 20.0, "remaining_health": 0.0, "destroyed": true}
+	var camera := Camera3D.new()
+	root.add_child(camera)
+	camera.global_basis = Basis(Vector3.UP, 0.3)
+	var aim := Observer.wing_aim_record(camera, result)
+	_check(aim.camera_right == [camera.global_basis.x.x, camera.global_basis.x.y, camera.global_basis.x.z]
+		and aim.camera_back == [camera.global_basis.z.x, camera.global_basis.z.y, camera.global_basis.z.z]
+		and aim.request_origin == [0.0, 0.0, 0.0] and aim.request_direction == [0.0, 0.0, -1.0],
+		"aim serialization copies actual optical axes and retained emitted shot request")
+	camera.global_basis = Basis.IDENTITY
+	_check(aim.camera_back != [0.0, 0.0, 1.0]
+		and Observer.wing_aim_record(camera, {}).request_origin.is_empty()
+		and Observer.wing_aim_record(camera, {}).request_direction.is_empty(),
+		"aim record stays detached and absent requests never invent emitted rays")
+	camera.free()
 	var shot := Observer.wing_shot_record(result)
 	shot["submitted_sequence"] = 12
 	var members := [lead.get_instance_id(), wing.get_instance_id()]

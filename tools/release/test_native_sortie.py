@@ -105,6 +105,49 @@ class NativeSortieSafetyTests(unittest.TestCase):
         self.assertFalse(pilot.begin_home_landing(self.wing_return_capture_observation(), 1))
         self.assertEqual(pilot.stage, 'return_align')
 
+    def wing_precision_observation(self):
+        return {'camera': [0, 0, 0], 'tuning': {'mouse': .0022},
+                'right': [1, 0, 0], 'up': [0, 1, 0], 'back': [0, 0, 1],
+                'aim': {'camera_right': [1, 0, 0], 'camera_up': [0, 1, 0],
+                        'camera_back': [0, 0, 1]}}
+
+    def test_wing_precision_uses_optical_axes_and_rejects_loose_hull_facing(self):
+        state = self.wing_precision_observation()
+        pilot = native.PairedWingPilot()
+        target = [3, 0, -70]  # Above the former .997 hull-facing fire threshold.
+        self.assertGreater(-native.unit(target)[2], .997)
+        dx, dy = pilot.precision_weapon_input(state, target, 1)
+        self.assertNotEqual((dx, dy), (0, 0))
+        self.assertIsNone(pilot.tap_key)
+        angle = .05
+        state['aim']['camera_right'] = [math.cos(angle), 0, -math.sin(angle)]
+        state['aim']['camera_back'] = [math.sin(angle), 0, math.cos(angle)]
+        dx, dy = pilot.precision_weapon_input(state, [0, 0, -70], 2)
+        self.assertNotEqual((dx, dy), (0, 0))  # Perfect hull facing is insufficient.
+        self.assertIsNone(pilot.tap_key)
+
+    def test_wing_precision_blocks_pending_sweep_then_preserves_timed_f_press(self):
+        pilot = native.PairedWingPilot()
+        state = self.wing_precision_observation()
+        pilot.mouse_pending = [0, 0, 1]
+        self.assertEqual(pilot.precision_weapon_input(state, [0, 0, -70], 1), (0, 0))
+        self.assertIsNone(pilot.tap_key)
+        pilot.mouse_pending = None
+        pilot.frame = 100
+        self.assertEqual(pilot.precision_weapon_input(state, [0, 0, -70], 2), (0, 0))
+        self.assertEqual(pilot.tap_key, 'f')
+        # A target moving during this physical pulse cannot add mouse movement.
+        self.assertEqual(pilot.precision_weapon_input(state, [10, 0, -70], 2.01), (0, 0))
+        keys = set(); pilot.pulse(keys, 2.01)
+        self.assertEqual(keys, {'f'})
+        pilot.frame = 105
+        keys = set(); pilot.pulse(keys, 3)
+        self.assertEqual(keys, {'f'})
+        pilot.frame = 106
+        keys = set(); pilot.pulse(keys, 3)
+        self.assertEqual(keys, set())
+        self.assertIsNone(pilot.tap_key)
+
     def wing_hit_observation(self):
         return {'ship_id': 7, 'source_id': 1101, 'expected_source_id': 1101,
                 'shot_baseline': True, 'kill_proofs': {},

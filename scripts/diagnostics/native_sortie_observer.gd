@@ -1182,6 +1182,19 @@ static func wing_shot_record(result: Dictionary) -> Dictionary:
 		"destroyed": bool(result.get("destroyed", false))}
 
 
+static func wing_aim_record(camera: Camera3D, result: Dictionary) -> Dictionary:
+	var request := result.get("request") as ShotRequest
+	var right := camera.global_basis.x
+	var up := camera.global_basis.y
+	var back := camera.global_basis.z
+	var origin := request.origin if request != null else Vector3.ZERO
+	var direction := request.direction if request != null else Vector3.ZERO
+	return {"camera_right": [right.x, right.y, right.z],
+		"camera_up": [up.x, up.y, up.z], "camera_back": [back.x, back.y, back.z],
+		"request_origin": [origin.x, origin.y, origin.z] if request != null else [],
+		"request_direction": [direction.x, direction.y, direction.z] if request != null else []}
+
+
 static func wing_fresh_hit(shot: Dictionary, craft_id: int, source_id: int,
 		member_ids: Array, previous_sequence: int, receipts: Dictionary) -> bool:
 	return bool(shot.get("accepted", false)) and bool(shot.get("resolved", false)) \
@@ -1259,7 +1272,8 @@ func _wing_observation() -> Dictionary:
 			"source_id": authority.get_source_id(member), "in_roster": member.get_instance_id() in roster_ids})
 	var board_result := board.get("_last_result") as Dictionary
 	var source_id := authority.get_source_id(_ship)
-	var shot := wing_shot_record(_game.get_last_player_shot_result())
+	var retained_shot := _game.get_last_player_shot_result()
+	var shot := wing_shot_record(retained_shot)
 	var cursors := authority.get("_next_sequence_by_instance") as Dictionary
 	var submitted_sequence := int(cursors.get(_ship.get_instance_id(), 0)) - 1
 	shot["submitted_sequence"] = submitted_sequence
@@ -1319,6 +1333,7 @@ func _wing_observation() -> Dictionary:
 		"director": {"id": director.get_instance_id(), "generation": director.get_scenario_generation(),
 			"scenario": str(director.get_active_scenario()), "state": str(director.get_state()),
 			"outcome": str(director.get_outcome()), "roster_ids": roster_ids},
+		"aim": wing_aim_record(_ship.get_camera(), retained_shot),
 		"members": members, "shot": shot, "shot_baseline": _wing_baseline,
 		"shot_high_water": _wing_last_sequence, "hit_receipts": _wing_receipts.values().duplicate(true),
 		"kill_proofs": _wing_kills.duplicate(true),
