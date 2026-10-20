@@ -59,6 +59,12 @@ class RejectingDiskFilesystem extends Filesystem:
 	func rename_path(from_path: String, to_path: String) -> Error:
 		return ERR_UNAVAILABLE if reject_writes else super.rename_path(from_path, to_path)
 
+var _diag_lifetime := 0
+var _diag_ids: Dictionary = {}
+
+func _trace_boundary(event: String) -> void:
+	print("RACE_BOUNDARY ", {"usec": Time.get_ticks_usec(), "lifetime": _diag_lifetime, "checks": _assertions, "event": event})
+
 var _assertions := 0
 var _failures := PackedStringArray()
 
@@ -834,26 +840,38 @@ func _test_start_fresh_recovery(active: PackedByteArray, unpaid: PackedByteArray
 
 
 func _make_game(store: UserDataStore) -> GameFlow:
+	_diag_lifetime += 1
+	_trace_boundary("instantiate_begin")
 	var game := MAIN_SCENE.instantiate() as GameFlow
+	_trace_boundary("instantiate_end")
 	if game == null or not game.configure_runtime_settings_persistence(store):
 		_check(false, "the isolated GameFlow accepts its one injected atomic store")
 		return null
+	_diag_ids[game.get_instance_id()] = _diag_lifetime
+	_trace_boundary("attach_begin")
 	root.add_child(game)
+	_trace_boundary("attach_end")
 	await process_frame
+	_trace_boundary("process_frame_1")
 	await physics_frame
+	_trace_boundary("physics_frame")
 	await process_frame
+	_trace_boundary("ready")
 	return game
 
 
 func _retire_game(game: GameFlow) -> void:
+	_trace_boundary("retire_begin_%d" % int(_diag_ids.get(game.get_instance_id(), -1)))
 	game.set("_piloting", false)
 	game.queue_free()
 	for _frame in 3:
 		await process_frame
+	_trace_boundary("retire_end")
 
 
 func _check(condition: bool, message: String) -> void:
 	_assertions += 1
+	_trace_boundary("check_%s_%s" % [str(condition), message])
 	if not condition:
 		_failures.append(message)
 		push_error("FAIL: " + message)
