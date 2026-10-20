@@ -2997,8 +2997,8 @@ func _ordinary_authority_stop_host(baseline: Dictionary) -> bool:
 	if not _ordinary_require(body != null and owner != null and helm != null,
 		"server-stop retains the actual original passenger body, crew authority and remote helm"):
 		return false
-	var old_body := weakref(body)
-	var old_helm := weakref(helm)
+	var old_body: WeakRef = weakref(body)
+	var old_helm: WeakRef = weakref(helm)
 	_ordinary_authority_events = {"session_stopped": 0, "reason": ""}
 	_ordinary_authority_adapter.session_stopped.connect(func(reason: StringName):
 		_ordinary_authority_events.session_stopped += 1
