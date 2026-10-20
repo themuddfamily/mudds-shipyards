@@ -1622,6 +1622,18 @@ Integrated/pushed4879b3afd; owned worktree/cache removed after identity checks,
 frozen helpers copied/hash-verified and raw profile logs retained. Only results/
 remains; freeze→cleanup10.6min against15–30min plus2–5min estimate.
 
+Source preparation only (2026-10-20): clean derivativee5b9dd25f82c9a34bf3982ea1a57f82a87b2a4be
+ofcf348472b, branch `fix/net-timeout-release-accept-20261020`, pushed/unmerged.
+Root copied exactly the originale944 observer, startup loader, privacy test,
+Python driver and driver test; all five blobs verified. Accepted fixture blob
+4c4b52d5cd35333a10117907b3e859ddb4f87e61 remains unchanged. No783 passive-capture
+lines, other source edits, engine/tests/export/runtime or main merge. Independent
+source comparison found no adapter/GameFlow/HUD incompatibility. Source preparation
+freeze/result retained in `/srv/mudds-work/net-timeout-release-accept-20261020/results/`;
+worktree retained for the gated next check selection. This preparation does not
+close the route. Independent production alternative remains navigator refusal
+feedback, WAITING on the previously asked scope choice; no repeated question.
+
 **NET-TIMEOUT-RELEASE-ACCEPT — dependent runtime acceptance.** GATED on those
 matching templates. BROWSER-FIXTURE-JSON now supplies the separately accepted
 fixture command handoff; native runtime effectiveness is still unverified. Existing safe export

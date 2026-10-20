@@ -59,6 +59,9 @@ BROWSER-FIXTURE-JSON is complete: actual JSON sequence numbers normalize safely,
 Three stages took51.654s; all ten observed process identities are absent. Only the
 tested fixture file is integrated; no ordinary-route retry or gameplay checkpoint.
 The two compiler jobs remain the executable queue.
+The later acceptance candidatee5b9dd25f is prepared and branch-pushed: original
+browser-support files plus accepted fixture, with passive capture excluded. It is
+unmerged/unqualified; no check/export/route was run during assembly.
 Recipe commit→owned cleanup:4.8min against45–60min implementation/review estimate;
 unit stage0.514s. [Result and usage](docs/history/ROADMAP_DELIVERIES.md#rpc-cache-release-template-recipe--implemented).
 
