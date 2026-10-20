@@ -1310,6 +1310,7 @@ func _wing_observation() -> Dictionary:
 		"exit_error": _player.global_position.distance_to(_ship.get_exit_transform().origin),
 		"source_id": source_id, "expected_source_id": int(GameFlow.PLAYER_SOURCE_IDS.get(_ship.get_ship_id(), 0)),
 		"board": {"id": board.get_instance_id(), "position": _v(board.global_position),
+			"interaction_radius": HeavyBreachActivityBoard.INTERACTION_RADIUS,
 			"candidate": _game.station_interaction_candidate == board,
 			"station_candidate": is_instance_valid(_game.station_interaction_candidate),
 			"armed": bool(board.get("_sortie_armed")), "sortie_generation": int(board.get("_sortie_generation")),

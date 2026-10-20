@@ -3843,7 +3843,8 @@ class PairedWingPilot(SandboxPilot):
     """Fresh profile: two honestly withdrawn contracts, real Wing kills and home."""
     MARKER = 'NATIVE_PAIRED_WING_OK'
     CONTRACTS = ('heavy_breach', 'torpedo_run', 'paired_wing')
-    BOARD_APPROACH = [8, 0, -23.3]
+    BOARD_APPROACH = [8, 0, -24.0]
+    BOARD_RANGE_MARGIN = .25
 
     def __init__(self):
         super().__init__()
@@ -3869,6 +3870,7 @@ class PairedWingPilot(SandboxPilot):
         self.walk_origin = None
         self.supported_walk_m = 0
         self.exit_origin = None
+        self.arm_requests = []
 
     def enter(self, stage, s):
         Pilot.enter(self, stage, s)
@@ -3877,6 +3879,22 @@ class PairedWingPilot(SandboxPilot):
         self.pending_walk = [point[:] for point in points]
         self.walk_origin = s['player'][:]
         self.enter(stage, s)
+
+    def board_arm_ready(self, s):
+        # A selected prompt can survive outside the board's actual 3D gate.
+        # Include the console's height and leave room for ordinary settling.
+        board = s['board']
+        return (board['candidate'] and self.walk_arrival_ready()
+                and norm(sub(s['player'], board['position']))
+                <= board['interaction_radius'] - self.BOARD_RANGE_MARGIN)
+
+    def check_arm_result(self, board):
+        # Retained prior-sortie results are not a response to this E press.
+        # An out_of_range gate can say accepted=true but still refuse arming.
+        result = board['last_result']
+        if result != self.arm_requests[-1]['previous_result'] or board['armed']:
+            require(result['accepted'] and result['reason'] == 'sortie_armed',
+                    'actual board E arm rejected: ' + result['reason'])
 
     def observe_hits(self, s):
         """Independently correlate observer receipts against this flight's baseline."""
@@ -3963,6 +3981,7 @@ class PairedWingPilot(SandboxPilot):
                 'player_weapon_hits': self.hits, 'kill_proofs': self.kill_proofs,
                 'supported_walk_m': self.supported_walk_m, 'stages': self.stages,
                 'phases': self.phases, 'same_identities': self.identity,
+                'board_arm_requests': self.arm_requests,
                 'exit_ui': self.receipts.get('exit_ui'), 'ui_edges': self.ui_edges}
 
     def update(self, s, now):
@@ -4036,10 +4055,19 @@ class PairedWingPilot(SandboxPilot):
             direction = unit(sub(board['position'], s['player']))
             yaw = math.atan2(dot(direction, s['walk_right']), dot(direction, s['walk_forward']))
             dx = self.walk_mouse_delta(yaw, s['walk_mouse'])
-            if board['candidate'] and self.walk_arrival_ready():
+            if self.board_arm_ready(s):
                 self.tap('e', now)
-                if self.tap_key == 'e': self.enter('wing_armed_wait', s)
+                if self.tap_key == 'e':
+                    self.arm_requests.append({'scenario': expected, 'frame': self.frame,
+                                              'player': s['player'][:],
+                                              'distance': norm(sub(s['player'], board['position'])),
+                                              'interaction_radius': board['interaction_radius'],
+                                              'previous_result': dict(board['last_result'])})
+                    self.enter('wing_armed_wait', s)
+            elif norm(sub(s['player'], board['position'])) > board['interaction_radius'] - self.BOARD_RANGE_MARGIN:
+                dx, _ = self.walk(s, self.BOARD_APPROACH, keys)
         elif self.stage == 'wing_armed_wait':
+            self.check_arm_result(board)
             if board['armed']:
                 require(board['offered'] == expected and not s['piloted'], 'normal board E-arm on foot')
                 self.receipts['arm_'+expected] = dict(board)

@@ -18,6 +18,42 @@ spec.loader.exec_module(native)
 
 
 class NativeSortieSafetyTests(unittest.TestCase):
+    def test_wing_board_arm_requires_actual_3d_range_with_settling_margin(self):
+        pilot = native.PairedWingPilot()
+        state = {'player': [7.999, -.018, -23.279],
+                 'board': {'position': [8, 1, -26], 'interaction_radius': 2.8, 'candidate': True}}
+        # This is the retained rejected E pose: selected and settled, but 2.905m away.
+        self.assertGreater(native.norm(native.sub(state['player'], state['board']['position'])), 2.8)
+        self.assertFalse(pilot.board_arm_ready(state))
+        state['player'] = pilot.BOARD_APPROACH[:]
+        self.assertTrue(pilot.board_arm_ready(state))
+        # Include arrival tolerance and the observed deck height, not just X/Z.
+        state['player'] = [8, -.018, pilot.BOARD_APPROACH[2] + .30]
+        self.assertTrue(pilot.board_arm_ready(state))
+        state['player'][1] = -1
+        self.assertFalse(pilot.board_arm_ready(state))
+        state['player'] = pilot.BOARD_APPROACH[:]
+        pilot.foot_velocity = [1, 0, 0]
+        self.assertFalse(pilot.board_arm_ready(state))
+        pilot.foot_velocity = [0, 0, 0]
+        state['board']['candidate'] = False
+        self.assertFalse(pilot.board_arm_ready(state))
+
+    def test_wing_board_fresh_explicit_rejection_stops_instead_of_waiting(self):
+        pilot = native.PairedWingPilot()
+        prior = {'accepted': True, 'reason': 'heavy_breach_started'}
+        pilot.arm_requests.append({'previous_result': prior.copy()})
+        board = {'armed': False, 'last_result': prior.copy()}
+        pilot.check_arm_result(board)  # A cached previous sortie response is harmless.
+        for result in ({'accepted': True, 'reason': 'out_of_range'},
+                       {'accepted': False, 'reason': 'activity_busy'}):
+            with self.subTest(result=result):
+                board['last_result'] = result
+                with self.assertRaisesRegex(AssertionError, 'board E arm rejected: ' + result['reason']):
+                    pilot.check_arm_result(board)
+        board.update(armed=True, last_result={'accepted': True, 'reason': 'sortie_armed'})
+        pilot.check_arm_result(board)
+
     def wing_hit_observation(self):
         return {'ship_id': 7, 'source_id': 1101, 'expected_source_id': 1101,
                 'shot_baseline': True, 'kill_proofs': {},
