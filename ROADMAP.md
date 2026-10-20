@@ -170,6 +170,19 @@ pushed/integrated checkout/cache/profiles/helpers/duplicate exports. Full
 PLAY-DEFENSE driver/combat/payment/home remains separately unqualified; parked
 Wing/Perimeter/Breach/Tooltip and native/hardware/human/final gates stay open.
 
+### Selected single placement-test declaration correction
+
+Import PASS20.646822s; placement test stopped at parse error16.380624s before
+assertions: newly added `before_retry_generation :=` cannot infer the chained
+Variant return. Owned supervisor terminal, no survivors; exports/new Main test
+NOT_RUN. Retain source4583734e8 and all37.027447s plus raw failure.
+Select exactly `var before_retry_generation: int = ...`, expression/assertions/
+production code unchanged. One source-only implementation/review, one full
+corrective placement300s; retain accepted import on identical production/classes,
+then original new Main120s/exports/startups/audit only if it passes. Original
+07:58–08:58UTC/60min unchanged. Another unexpected failure triggers cumulative
+review/park; no second repair, cap increase or narrowed proof.
+
 ### Waiting decisions — not executable tasks
 
 These questions have already been asked. Keep them pending without asking again
