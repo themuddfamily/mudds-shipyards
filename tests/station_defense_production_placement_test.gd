@@ -758,7 +758,7 @@ func _verify_main_unpaid_recovery() -> void:
 		and not cold_board.get_reward_handoff_snapshot().reward_pending,
 		"repaired valid paid primary clears the cold board recovery status without reward replay")
 	await _dispose_main(cold)
-	var before_retry_generation := second.world.get_station_defense_content().get_generation()
+	var before_retry_generation: int = second.world.get_station_defense_content().get_generation()
 	_check(board.get_physical_interaction_action() == &"retry_reward",
 		"repaired live pending debt continues to select a settlement-only E retry")
 	_check(board.interact(second.player) and _main_receipts(second) == 2 and not board.get_reward_handoff_snapshot().get("reward_pending", true)
