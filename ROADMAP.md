@@ -70,24 +70,30 @@ worktrees are removed. Full Sandbox/recovery/reuse remains FAILED/open.
 [Five-branch closeout](docs/history/ROADMAP_DELIVERIES.md#five-local-only-branches-accounted-and-closed--2026-10-20).
 
 All 20 candidates in the [earlier inventory](docs/history/ROADMAP_DELIVERIES.md#remaining-branch-status-after-duplicate-closeouts--2026-10-20)
-are now accounted for: eight references closed through accepted/superseded work,
-and twelve candidates still unqualified. Halyard gunner damage and the Salvage
-ordinary source journey are the latest accepted existing candidates; archive tags retain failed histories.
+are now accounted for: nine references closed through accepted/superseded work,
+and eleven candidates still unqualified. Fire restart, Halyard gunner damage and
+the Salvage ordinary source journey are the latest accepted existing candidates; archive tags retain failed histories.
 This clears the branch queue; it does not close remaining gameplay,
 qualification or release requirements. No unaccepted source was merged to reduce
 a branch count. Eight previously protected detached worktrees remain unchanged.
 
-**Current existing task: finish FIRE-RESTART after dispatching its raw events.**
-Engine4.7.1 source identifies the reader caller defect: parse_input_event queues
-under default accumulated input, while the caller samples immediately before
-normal headless event flushing. Existing raw-input fixtures explicitly flush
-before observation. Restore the retained caller and dispatch buffered events
-before its sampler read; preserve every original visible-row, save, distinct-
-process, raw-key, former-control and gamepad/unrelated-data check and300s/process.
-One caller implementer/independent reviewer, no runtime/flag/provider change.
-Estimated10–15minsetup/review,1–3min compile and each process,5–10mincloseout.
-First unexpected stage failure stops; previous failures/source remain retained.
-[Prior exact result](docs/history/ROADMAP_DELIVERIES.md#existing-fire-restart--saved-profile-restored-raw-key-sampler-still-unqualified--2026-10-20).
+**Existing FIRE-RESTART DONE — source `3a45c4d79`.**
+Visible Fire-row raw F13 capture and real-file Apply+Save pass. A distinct
+process loads that exact file; its visible row, InputMap and production input
+sampler agree on F13 press/release, with former F and left mouse rejected.
+Original gamepad bindings and unrelated saved data remain exact. Both processes
+exit0 with clean logs under their original300s limits; independent review GO.
+
+The reader caller previously sampled before Godot dispatched its queued raw
+input. It now flushes through the actual engine dispatcher before sampling,
+matching existing raw-input fixtures. No logical-action/provider/flag override
+or expected-result change. Previous failures and their preserved source remain
+recorded. Accepted caller merged/pushed; owned scratch verified/removed and all5
+observed process identities absent. Main remains the sole working branch.
+This closes the original Linux-source composition; physical-device/fullSettings/
+OS-input/native/final-package gates remain separate. Runtime3767687 unchanged,
+no identical rebuild.
+[Full original result, source cause and cleanup](docs/history/ROADMAP_DELIVERIES.md#existing-fire-restart--full-raw-dispatch-and-separate-process-contract-qualified--2026-10-20).
 
 **Existing Salvage ordinary journey DONE in current Linux source scope.**
 The normal hub approach, all three inspections and authored grades, published
@@ -592,7 +598,7 @@ contracts and cumulative attempt records remain in the retained history.
 | HALYARD-GUNNER-DAMAGE /11,16 | DONEc28f7ffa3: original49assertions pass52.341s/exit0. Admitted gunner remapped FIRE produces exactly one52damage commit through actual GameFlow/authority/resolver/adapter, then original lifecycle checks. | Accepted source merged/pushed; earlier headless failures preserved and explained by missing mousecapture. Declared input-only mode now exercised on isolatedXvfb. Fixtures disclosed; broader OS-input/network/native/full-combat gates remain. Owned scratch removed; current3767687 runtime unchanged. |
 | WALK-SALVAGE-ACCESS / 7,9 | DONE9749f742c: full29outbound/29reverse goals plus retained hub spawn,64assertions/103.697s/OS0/cleanlogs, same supported on-foot Player and unchanged inspection state. | Accepted source merged/pushed; original240-loop/.20arrival/4-settle/300s limits retained. Added two existing-floor clearance points around roof columns, no destination removed. INSPECT5189436f1 and fresh-process REVISITf7abac379 are now accepted separately above; original access-only result stays scoped. Owned scratch removed; no runtime change or duplicate rebuild. |
 | KIT-RELOAD / 13,31 | Distinct-process restore30s timeout; one boundary probe records Main ready but no returned first normal frame before deadline. Source archived WITHHELD; working refs deleted. | Different supported production repair must be selected; no unchanged probe, timeout increase or repeated startup profile. |
-| FIRE-RESTART /8,29,31 | Prior writer persistsF13 and distinctreader restoresrow/profile, then immediate rawF13sample failsfalse. Engine4.7.1 source now identifies queuedraw event notyetdispatched. | SELECTED: restore retainedcaller and flushactualenginebuffer beforeexisting samplerread. Alloriginalkeys/expectations/300s/process unchanged; one fullwriter+reader, no runtime/provider/flag override. Prior125.298s stages and original432.527s wall retained separately. |
+| FIRE-RESTART /8,29,31 | DONE3a45c4d79: visibleFire/rawF13/real-file Save; distinctsame-filereader row/InputMap/production sampler F13press/release/formerF+leftmouseoff/gamepads+sentinel allPASS. Writer31.188s/reader31.012s/OS0/cleanlogs. | Original300s/process/visibility/predicates retained; actualengine queue flushed before read, no input/provider/flag override. Reviewed/merged/pushed and owned scratch cleaned. Originalfailedsource/costs preserved; physicaldevice/fullSettings/native/final gates separate. |
 | HULK-REVISIT /13,31 | Original departure check fails; sole repair reaches reload/dock/shutdown/exit then original300s deadline during new interior walk, before breaker event/receipt. Source archived WITHHELD; working refs deleted. | OPEN/PARKED; establish a concrete production cause/change, retain full physical revisit and once-only cell/reward contract. No cap increase or unchanged retry. |
 | SHARED-RIME-BASELINE /3,27 | Original parse failure and typed caller repair retained; repair reaches approach but fails original120s physical landing gate. Survey/home not accepted. Source archived WITHHELD; working refs deleted. | OPEN/PARKED; landing cause unestablished. Preserve full two-crew outbound/survey/reward/save/home and original limits; no automatic rerun. |
 | HALYARD-AUTHORITY-STOP /16,26 | DONE082da79c9: complete BOARD/MOVING prefix, actual one host shutdown with both original occupants aboard, real disconnect events/old-binding retirement, pilot throttle, passenger solo walk0.616m and both real pause/Resume;142.082s, three actual OS0. | Current Linux-source scope only. Full baseline/endurance/native/reconnect/migration remain open; [accepted original case](docs/history/ROADMAP_DELIVERIES.md#halyard-real-authority-stop--accepted--2026-10-20). |

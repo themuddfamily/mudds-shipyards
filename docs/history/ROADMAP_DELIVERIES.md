@@ -19523,3 +19523,71 @@ No new branch/worktree; eight protected detached worktrees unchanged. Runtime/
 export/checkpoint3767687 unchanged, no identical rebuild. Original20 inventory
 stays eight accepted/superseded and twelve unqualified; all36parents/tenphase
 gates and outstanding hardware/human/final requirements remain open.
+
+
+## Existing Fire restart — full raw dispatch and separate-process contract qualified — 2026-10-20
+
+FIRE-RESTART DONE3a45c4d79e2af245e3be21fa8ed963cf4fd04b63, independently
+reviewed GO, merged/pushed to main. This closes the original visible-Fire/rawF13/
+real-file-save/distinct-process/profile+InputMap+production-sampler contract,
+including press/release/formerF/formerleftmouse rejection, preserved gamepad
+bindings and unrelated sentinel. Original20 candidate inventory now has nine
+accepted/superseded and eleven unqualified; no whole parent/phase closes.
+
+Concrete caller cause: local Godot4.7.1 input.h165 defaults accumulated inputtrue;
+input.cpp1519–1556 queues parse_input_event without updating InputMap. Only
+_parse_input_event_impl updates actions/cache; flush_buffered_events1568 drains
+through that real dispatcher. Headless process_events normally flushes later.
+The failed reader parsed a rawF13 event then synchronously sampled before that
+native boundary. The writer awaitedprocessframe, explaining its success.
+Independent review confirmed both local platform sources and existing accepted
+raw-input fixtures explicitly using the same flush-before-observation pattern.
+
+Existing caller864631980 restored exactly, including its accepted two layout
+frames before Firefocus. Sole new source delta is a comment and
+Input.flush_buffered_events first in _fire_restart_sample. No logical
+Input.action_press, provider/profile injection, flag change, sampler expectation
+change, hardware claim or runtime fix. Current default suite runner/bodies remain
+byte-identical. All original headless1280 viewport/Fire-scroll intersection/
+postfocus waits/raw event construction/real default store/actualApplySave/
+distinctsamefilereader/sixsampler states/gamepads/sentinel/cleanup/stage markers
+and300seconds EACHwriter/reader remain. No backend/cap increase or excluded case.
+
+ONE writer2156443 and distinct reader2156753 both pass, 17 and19 assertions,
+explicit WRITER_OK/READER_OK plus existing suiteOK, OS0 and no diagnostics.
+Writer completes31.1884260s; reader31.0124235s; compile16.3322232s. All source/cache
+manifests unchanged. Six actual sampler/InputMap pairs: baselinefalse, F13press
+true, F13releasefalse, formerFfalse, formerleftmousefalse, allreleasedfalse.
+Both rows meet the unchanged visible intersection. Actual production profile,
+original gamepad axis5 and sentinel are retained; no command authority/ship fire
+or full ordinary controls journey is implied by sampling.
+
+Writer6860bytes/gen8/SHA256
+bcdb1b1587aeed6ca192b709cf4f11cfad32341bf2b6758b756d8df3dc6d7387;
+reader7482bytes/gen12/SHA256
+9670c7abe40cbb5ba30874a336b6f43f1700a548ad342b85c1b99ea889b70c20.
+Reader starts only after writerPASS/exactmarker/OS0/allwriteridentitiesabsent;
+its before-Main file is byteexact to the retained writer primary and shares the
+same actual XDG data path, without copying/seeding. Complete persisted
+runtime_settings and unrelated sentinel match across the processes; normal
+session metadata accounts for the envelope generation change.
+
+Results /srv/mudds-work/fire-restart-event-dispatch-20261020/results/ retain frozen card/exactlocalengine
+sourcecontract, archived/currentdefault source comparison, private launcher,
+actualsharedfilehandoff/rawprimaries, original logs/results/manifests and
+independent source/final GO reviews. Three selected stage intervals total
+78.5330727s; earlier125.2977116s stages and original432.527s wholeattempt
+wall remain separately retained. Different timing bases are not project progress.
+
+All3 supervisors terminal/all5 observed PID+starttick identities absent.
+Owned profiles archived and all46 entries reopened/byte+mode+link verified before
+scratch removal 2026-10-20T22:40:48.725524+00:00. Archive5286bytes/SHA256
+e7810612390f33b4d016dd7ec14be72dc78df090a116e1d82a1e9fb32e78b134.
+No new branch/worktree; main sole local/live branch and eight protected detached
+worktrees unchanged. Old failed-source archive tags remain as unique history.
+Runtime/export inputs unchanged from3767687, so no identical checkpoint rebuild.
+
+Qualification uses actual default files/separate Godot Main processes, synthetic
+raw input and original explicit focus notification. Physical-device, OS-XTest,
+native Windows/GPU, full originalSettings/combat/Boot/final-package and broader
+INPUT-REMAP requirements remain separate; all36parents/tenphasegates remain open.
