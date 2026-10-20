@@ -15829,3 +15829,51 @@ FINISHED (known original board exit1 retained),11published files hash-verified,
 29profile entries archived/verified, helper copies hash-verified. Clean integrated/
 pushed owned worktree/import cache/profiles/helpers and duplicate exports removed.
 Only unique raw results remain at /srv/mudds-work/paired-wing-admission-20261020/results/.
+
+
+## Ordinary Wing route — board admission driver fails
+
+2026-10-20. COMBAT-WING/parent11 candidate b40c62eb3b31e7350506e67c76313d1ec546ec7e
+is clean/pushed on feat/wing-ordinary-route-20261020, unmerged/unpublished.
+Latest accepted playable remainsf671da9. Original07:14–08:14UTC/60min retained.
+Seven-file driver/observer/private-selector/test change, no gameplay tuning,
+weapon/pose/damage/phase/reward changes. Empty-profile route intended two honest
+Heavy/Torpedo withdrawals, then actual Wing kills/home/UI exit; no seeded posting
+or fake wins. Existing native cap300s, isolated owned X11/Dummy rendering/audio,
+independent abort retained.
+
+Import19.635299s, Python safety9.051988s and privacy1.163528s PASS. Observer first
+FAIL100.874336s/exit143 after GDScript dynamic expression inference error at1037.
+One separately selected explicit bool annotation, expression/assertions unchanged,
+independently reviewed: observer20 assertions PASS15.693361s. Original source/failure
+retained; prior unchanged check scopes retained. Windows/Linux exports26.664730/
+25.817163s PASS; direct/archive strict startups22.292155/23.666810s PASS; Windows
+embedded PCK through Linux engine25.997728s PASS (not native Windows). Audit5.751106s
+PASS:1521 actual PCK entries match, stockPE.text, exact five-member archive bytes/
+modes/source epoch/metadata. No final-release qualification.
+
+Actual route FAIL: first board arm at frame923, player(7.999083,-0.018329,-23.279005)
+versus board(8,1,-26), distance2.905307m exceeds production2.8m radius. Candidate=true
+alone does not establish board admission. Driver waypoint[8,0,-23.3] plus settled/
+candidate-only arm guard sends E outside range, then wing_armed_wait ignores rejection.
+Board out_of_range, armed=false, sortie_generation0, director idle. Root stopped exact
+supervisor1742540/start129446305; stage143/67.689619s, driver67.302s success=false,
+no game diagnostics. No boarding/departure, prerequisite withdrawal, Wing weapon hit,
+kill, return or normal UI exit qualified. Final input-release/helper/game/Xvfb reaped
+fields and observed PID absence supersede stale pre-final game_legs snapshot.
+
+Ten passing stages175.733867s; all12 stages344.297822s including both failures.
+Independent cumulative review PARK/noGO. No automatic second repair, cap increase,
+retry or narrowed proof. Future unselected seam: board approach inside actual3D
+range with margin, prompt rejection handling; gameplay radius unchanged and complete
+original route retained. No automatic adjacent run; independent production selection
+comes first unless priority explicitly reopens this chain with cumulative costs.
+
+Cleanup23.77min within original60min:65 observed identities absent, all owners terminal,
+inputs released; seven unique EXE/tar/metadata files copied and hash-verified privately,
+ELF hash verified within tar,25 profile entries archived/hash/mode/symlink verified,
+helper copies hash-verified. Pushed clean owned checkout/cache/profiles/helpers removed.
+Only /srv/mudds-work/wing-ordinary-route-20261020/results/ remains. Unique candidate
+builds withheld there; no change to repository playable packages. Native Windows,
+native GPU/devices/listening/human/final release remain NOT_RUN/open. All36 parents
+and ten phase gates remain open; no project percentage claimed.

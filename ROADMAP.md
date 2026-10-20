@@ -60,77 +60,47 @@ director accepted scopes retained on identical production. All12 accepted stages
 06:49–07:49UTC/60min. No second correction, cap increase or extra run.
 [Actual scope and cleanup](docs/history/ROADMAP_DELIVERIES.md#paired-wing-board-admission--shipped-on-f671da9).
 
-**Next single action:** freeze the missing ordinary Wing driver/observation seam:
-real posted-board admission, both named members' player-weapon destruction and
-safe physical home return. Name the third-posting/profile prerequisite honestly;
-do not use fixture damage, actor removal, phase writes or implicit prior wins as
-that proof. No full-route run is selected yet. Other combat outcomes/repeats/
-recovery/network/native/human and all broad parent gates remain open. Parked
-Perimeter/Courier candidates are neither adopted nor qualified. Hauler's
-independent production seam still waits on its already-asked stock choice.
+### Ordinary Wing route — parked after admission-driver failure
 
-### Selected ordinary Wing route — no manufactured prelude
+Candidate **b40c62eb3** is pushed on `feat/wing-ordinary-route-20261020`,
+unmerged and unpublished. Latest accepted checkpoint remains **f671da9**.
+The missing ordinary route was implemented and attempted from an empty private
+profile; its first Heavy Breach board arm failed before any flight or combat.
+At frame923 the player was2.905307m from the board, beyond its production2.8m
+3D radius. The driver used candidate/settled state as its E-arm condition, then
+waited without handling the actual `out_of_range` rejection. The board stayed
+unarmed, generation0, director idle. No prerequisite withdrawals, Wing kills,
+home return or normal UI exit were qualified.
 
-COMBAT-WING / parent11. **07:14–08:14UTC /60min** including implementation,
-review, checks, paired candidate and one300s full route. One high implementation
-agent owns tools/release/run_native_sortie.py and test_native_sortie.py,
-scripts/diagnostics/native_sortie_observer.gd, scripts/game/startup_loader.gd,
-tests/startup_cli_privacy_test.gd and one focused observer test/UID. Root owns
-integration/publication/cleanup. Implementation estimate25–35min; no gameplay,
-weapon, damage, pose, phase, tuning, grant or reward-owner changes.
+Original observer parse failure100.874s is retained. One selected explicit-bool
+correction passed20 observer assertions15.693s; expression/assertions unchanged.
+Import, driver safety/privacy, paired exports, three strict startups and actual
+1521-entry PCK/PE/archive audit passed in their recorded scopes. Root stopped the
+exact owned route supervisor after observing the rejection; route exit143 after
+67.690s, driver success=false. Ten passing stages175.734s; all12 stages including
+both failures344.298s. Independent cumulative review: **PARK/noGO**. No automatic
+second correction, retry, cap increase or admission-only substitute.
 
-Add supported paired-wing selector to existing private X11/Dummy native driver.
-From an empty private profile: actual board E-arm Heavy Breach→board Torrent→
-depart→normal strict home landing makes SHUT_DOWN and naturally WITHDRAWN→
-neutral shutdown/physical exit; repeat for Torpedo Run. Observe each exact
-withdrawal/next posting; do not claim wins. Then actual Wing arm/depart, both
-named members destroyed through fresh target-specific player-weapon hits,
-CLEARED, strict home lease/landing/shutdown/physical exit, supported walk and
-normal UI exit0. Preserve default sampler and tuning throughout. No persisted
-third-offer fixture, fake prior wins, direct damage/actor retirement or debug
-command path. Existing300s whole native-driver cap remains fixed; timing and
-survival are unproved until the one attempt.
+Cleanup23.77min inside original07:14–08:14UTC/60min: all65 observed identities
+absent, inputs released and game/input helper/Xvfb reaped. Seven unique candidate
+payload/metadata files retained privately and hash-verified; ELF verified inside
+the retained tarball,25 profile entries archived/verified, helpers preserved.
+Owned clean pushed checkout/import cache/profiles/helpers removed. Only results
+remain in `/srv/mudds-work/wing-ordinary-route-20261020/results/`.
+[Actual result](docs/history/ROADMAP_DELIVERIES.md#ordinary-wing-route--board-admission-driver-fails).
 
-Observer is read-only apart from its own detached records: extract actual Wing
-IDs/health/roster/authority/outcomes and shot request sequence, presentation
-receipt ID, source/target identities, weapon, applied damage, remaining health
-and destruction. A cached generic shot_accepted never proves a hit. Require
-fresh monotonic source sequence/request.last_sequence match, new receipt,
-matching actual player source/target, positive applied damage and each actual
-zero-health/destruction. Reject stale/replayed/foreign-target receipts.
+Future reopening has one concrete implementation seam: approach inside the
+actual3D board radius with margin and fail promptly on an observed rejection.
+Preserve gameplay radius/controls and original full route: real Heavy/Torpedo
+withdrawals, both fresh target-specific Wing weapon kills, physical safe home
+and normal UI exit. This is not a new execution selection. Other combat/repeat/
+recovery/network/native/human gates remain open; parked Courier/Perimeter are
+not adopted. Hauler still waits on its already-asked stock choice.
 
-Before engines freeze clean candidate and exact commands: import180s;
-python3 -B tools/release/test_native_sortie.py90s;
-startup_cli_privacy_test.gd120s; native_sortie_wing_observation_test.gd120s.
-All Godot headless/Dummy; no new validator/version family. Then safe paired
-exports180s each, three strict startups120s each and existing PCK/PE/archive
-audit90s. Run exactly one `python3 -B tools/release/run_native_sortie.py
-OWNED/worktree/builds/linux/MuddsShipyards-PIN.x86_64 --route paired-wing
---output OWNED/results/ordinary-wing` with existing authenticated owned Xvfb,
-explicit x11/dummy rendering/Dummy audio and independent abort/input release.
-Native cap300s, outer360s plus60s owner finalization; whole60min unchanged.
-First failure stops, no automatic repair/retry/cap increase or adjacent renamed
-probe. Publish only accepted candidate; notes retain native/GPU/devices/listening/
-human/full-release limits. Archive/hash-verify unique data and remove only owned
-clean pushed checkout/profile/helpers after PID/publication checks.
-
-This implements the missing executable qualification path and attempts its full
-original combat outcome. A failed route does not qualify the encounter or
-replace it with admission-only proof. Independent Hauler implementation remains
-waiting on its stock decision; parked Perimeter/Courier are not this route.
-
-### Selected correction to the Wing observer declaration
-
-The first observer check stopped with a GDScript type-inference error at
-native_sortie_observer.gd:1037; owned processes are terminal with no survivors.
-Import19.635s, driver safety9.052s and privacy1.164s passed; the failed observer
-consumed100.874s. Retain all130.725s and its raw failure. No exports or route ran.
-Select one explicit `bool` annotation for the dynamic actor-identity expression,
-with expression, assertions and full route unchanged. Independent source review
-precedes one corrective observer check120s. Retain unchanged earlier checks;
-then original exports/startups/audit and single300s route only if it passes.
-Original07:14–08:14UTC/60min remains binding. Another failure triggers cumulative
-review and parks this chain; no adjacent repair, cap increase or narrow substitute.
+**Next single action:** select an independent production outcome from the
+existing backlog, with a player-visible result and one bounded proof. Retain
+this chain's cumulative failures and require explicit priority reselection
+before reopening; do not move to another adjacent Wing probe automatically.
 
 ### Waiting decisions — not executable tasks
 
