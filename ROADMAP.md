@@ -1,10 +1,11 @@
 # Development roadmap
 
 **Status: playable development alpha; project completion is unproven.** Latest
-accepted checkpoint: **3d92b91**, explaining paused saved Convoy objectives and
-crediting the existing planetary ambience loops; earlier save protection remains.
-[Windows notes](builds/windows/MuddsShipyards-3d92b91-notes.txt) and
-[Linux notes](builds/linux/MuddsShipyards-3d92b91-linux-notes.txt) state checks and
+accepted checkpoint: **19e7990**, keeping the startup Multiplayer action on-screen
+when the title menu grows. Saved Convoy guidance, planetary credits and earlier
+save protection remain.
+[Windows notes](builds/windows/MuddsShipyards-19e7990-notes.txt) and
+[Linux notes](builds/linux/MuddsShipyards-19e7990-linux-notes.txt) state checks and
 limits. Inline browser progress/timeout/retry remains accepted on20e90c9;
 paused LAN discovery on042c701. Beacon departure/traversal/once-only saved reward
 qualification on e06550e is retained in its recorded scope. Beacon home/dock/exit, Perimeter Hold,
@@ -95,40 +96,37 @@ All 6 observed process identities are absent; 298 unique profile files archived/
 verified, owned worktree/cache/profiles/helper duplicates removed. Closure 5.8min
 within the original 30min cap.
 
-**ACCESS-TITLE default1024x768 review DONE as finding, not acceptance.** Source
-3d57a4b3d import20.712s and actual production-HUD photo7.634s pass. Image and
-measured Controls agree: Multiplayer rectangle(72,771,618,40) lies entirely below
-768px window; Begin Shift ends761px. Fixed348px bottom-left menu container expands
-downward to453px minimum, clipping its final action. Actual initial focus is
-Begin Shift; requested1.0/effective HUD0.867797, intro remains authored1x.
-This is a default title-component finding, no full-Main/browser/credits/device gate.
-Focused Begin Shift light text on cyan is a separate unaccepted contrast finding.
+**Delivered on checkpoint19e7990: title-menu actions remain on-screen.** Actual
+1024x768 default-profile HUD capture showed Multiplayer entirely below the window
+at y771–811. The existing bottom-anchored menu now grows upward to fit content;
+same-view capture shows it at y666–706, with Begin Shift focus and authored text/
+scale retained. One production property plus existing HUD regression coverage;
+no controls removed or fonts shrunk.
 
-**Selected implementation: ACCESS-TITLE overflow, parent29.** One medium
-implementer owns scripts/ui/hud.gd and existing tests/hud_panel_layout_test.gd;
-root owns integration/private same-view comparison/checkpoint. Keep authored
-text/scale, controls, focus and credits/recovery/browser semantics. Make the
-bottom-anchored menu grow upward to retain its bottom margin; do not shrink fonts
-or remove controls. Regression measures actual Labels/Buttons within each
-supported viewport including original1024x768 and retains enabled Begin Shift
-focus. No contrast repair in this card. Stop after this visible fix and fresh
-paired checkpoint, or first unexpected failure; no repair/retry/cap increase.
+Source19e799036 is integrated/pushed. Full HUD panel suite including eight actual
+title viewport cases, controller navigation96 and Credits25 pass. Same frozen
+software Forward+ before/after views, paired exports, three strict menu-ready
+startups and actual1521-entry package/archive audit all pass first attempt:
+11 post-fix stages157.555s;185.901s including baseline review. EXE/checkpoint ZIP/
+notes are in builds/windows, matching Linux package in builds/linux. All56 observed
+process identities absent;366 unique profile files archived/hash-verified and
+owned worktree/cache/profiles/helpers removed. Closure9.84min within original30min.
+[Actual source/result/limits](docs/history/ROADMAP_DELIVERIES.md#title-menu-overflow--startup-actions-kept-on-screen).
 
-Preserve original review30min deadline measured from3d57a4b3d; no clock reset.
-Before engines pin clean source/exact commands: import180s, existing full HUD
-panel layout90s, controller navigation90s, credits60s, unchanged same-view photo90s,
-Windows/Linux exports180s each, three strict menu-ready startups120s each, actual
-paired-artifact audit90s. All silent/headless or authenticated private Xvfb, Dummy,
-explicitx11 for rendering. Only full passes plus visual comparison allow main
-integration and Windows EXE/checkpoint ZIP/notes in builds/windows. Other aspect/
-state/device/full-Main gates and contrast finding remain open; clean owned scratch.
+This fixes overflow. Focused Begin Shift light text on cyan remains the named
+ACCESS-TITLE-FOCUS finding, pending exact color/contrast proof and its own bounded
+correction. Other title states/scales/saved recovery, ordinary browser/credits
+return, full-Main/world, actual devices and native/final gates remain open.
+Earlier Guided3/3 stays scoped to checkpoint3d92b91; it is not transferred to this
+new package. Bomber rearm policy is asked and unanswered; no default inferred.
 
 | Work | Actual state | Completion / next boundary |
 | --- | --- | --- |
+| ACCESS-TITLE overflow /29 | DONE checkpoint19e7990 | Actual before/after review and retained-control regression pass; packaged. Focus contrast remains separate, no full accessibility/native claim. |
 | LIFE-PACKAGE-DEFINE /7 | DONE as definition only | Five existing outcome groups now have explicit uncovered behavior and runnable/dependency boundaries. Four/twelve-cycle source passes remain accepted; no package journey was rerun or newly accepted. |
 | WALK-OBSERVATION exit diagnosis /7,8,9,29,32 | STOPPED after one capture; Tooltip identified, cause unresolved | PlanetaryDestinationOpenButton Tooltip retains both native root connections across the errors. Attempted native comparator identity remains unknown; full walk FAIL. [Result and stopping boundary](#selected-diagnosis--popup-lifetime-during-normal-exit); no repeat or repair selected. |
 | Process-exit tooltip cleanup /7,8,9,29,32 | WITHHELD; private route PASS, repair INCONCLUSIVE | Sourcebae551d58 preserves marker/restart input semantics;39 focused assertions and full route pass. Active-tooltip regression precondition absent, so no integration, checkpoint or second attempt. |
-| GUIDED[current checkpoint3d92b91] /7; initial Guided interceptor /11 | DONE in recorded Linux ordinary-input scope | Original3/3 complete, default controls,91 neutral frames and actual craft exit. Final-package/other craft/encounter/native gates remain separate; no unchanged repeat scheduled. |
+| GUIDED[checkpoint3d92b91] /7; initial Guided interceptor /11 | DONE in recorded Linux ordinary-input scope | Original3/3 complete, default controls,91 neutral frames and actual craft exit. Final-package/other craft/encounter/native gates remain separate; no unchanged repeat scheduled. |
 | Matching RPC-cache templates /25,32 | PARKED; Linux built, Windows cold and incremental attempts timed out | No accepted matching pair; no further compilation or dependent browser route selected. [Retained result](docs/history/ROADMAP_DELIVERIES.md#matching-rpc-cache-templates--stopped-at-windows-compilation-budget). |
 
 The RPC build recipe and browser JSON fixture are delivered in their recorded
@@ -148,7 +146,7 @@ selection against45min cap. [Player changes, actual checks and limits](docs/hist
 RIGHTS-DEFINE is complete as a [finite source-backed family map](docs/ROADMAP_BACKLOG.md#rights-families-and-missing-documents--rights-define),
 not legal clearance or a release gate. Missing project release terms and separate
 historical-media redistribution records remain explicit; the settled creator-
-permission account is preserved. **GUIDED[current checkpoint3d92b91] accepted3/3.** Three fresh ordinary-input
+permission account is preserved. **GUIDED[checkpoint3d92b91] accepted3/3.** Three fresh ordinary-input
 runs complete the full training/combat/home/neutral-shutdown/physical-disembark
 route in49.212/47.913/50.147s, zero diagnostics; each retains91 neutral frames
 and0.17m physical exit error. This also supplies the named initial Guided

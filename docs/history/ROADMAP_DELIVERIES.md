@@ -15319,3 +15319,58 @@ within original30min. Public checkpoint3d92b91 and accepted Habitat ordinary wal
 rest/restart/service scopes remain unchanged. Other actual presentation views
 remain open. A concrete supported change at the failed full-Main capture boundary
 is required before a new frozen attempt; renaming the room does not reset it.
+
+## Title-menu overflow — startup actions kept on-screen
+
+ACCESS-TITLE overflow / parent29, source
+`19e799036ae5cc1b51f0dc6bd94ab936a8753ec9`, integrated/pushed and checkpoint
+`19e7990`. Root reviewed source/captures/integration; one medium mapper/implementer
+owned only hud.gd and existing hud_panel_layout_test.gd. Actual title controls,
+not the parked Habitat/full-Main readback path. No new validator or tracker.
+
+Baseline source3d57a4b3d fresh import20.712s and production-HUD Forward+ photo
+7.634s PASS. At actual1024x768/requested1.0, effective gameplay HUD0.867797 while
+intro remains authored1x: title stack's453px minimum grows downward from a348px
+bottom-left allotment. Multiplayer rect(72,771,618,40) is entirely outside the
+768px window; Begin Shift ends761px. Root inspected the actual PNG. One property
+sets the existing bottom-anchored MarginContainer growth direction upward.
+Authored fonts/text/actions/palette/focus remain; bottom margin is retained.
+
+Same byte-identical private capture helper after correction shows Multiplayer
+(72,666,618,40), Begin Shift(72,604,618,52), all9 essential Controls contained and
+Begin Shift focus retained. Credits rectangle remains(752,648,200,48). Root
+inspected both actual PNGs at resolution. Existing HUD panel suite now measures
+actual title Labels/all3 enabled focusable buttons, containment, pairwise
+nonoverlap and retained focus at eight supported viewports including1024x768,
+then restores Window state and runs its original gameplay panel coverage.
+Controller navigation96 and Credits25 also PASS.
+
+All11 post-fix stages PASS first attempt, zero diagnostics: source import6.706s,
+HUD layout6.364, navigation2.992, credits3.090, same-view readback7.896,
+Windows export26.841, Linux export25.826, strict direct Linux startup22.553,
+archive startup23.584, Windows embedded-payload startup through Linux Godot26.071,
+actual artifact audit5.634. Post-fix157.555s; baseline-inclusive185.901s.
+Every startup exits0 with exactly one STARTUP_MENU_READY_OK. Actual PE/ELF PCK
+inventories match1521 entries, Windows PE .text is stock, Linux archive members/
+bytes/modes/epoch and export metadata match. All automation Dummy; rendered
+photos use authenticated owned Xvfb/explicitx11/Lavapipe software Forward+.
+
+Windows EXE/checkpoint ZIP/notes and paired Linux binary/archive/notes are in
+repository builds/windows and builds/linux. All11 publication files hash/byte
+verified. Notes record actual checks and NOT_RUN/native/final exclusions. All56
+observed process identities absent;366 unique profile files archived/hash-verified.
+Clean integrated/pushed source worktree/import/shader/export duplicates, profiles
+and helper duplicates removed. Raw before/after PNGs/measurements, exact helper,
+source freeze, stage/owner/process logs, package inventories/publication hashes
+and profile archive retained only under
+`/srv/mudds-work/title-minimum-view-20261020/results/`. Closure9.84min from original
+review selection against30min; no deadline reset, failure or retry.
+
+This delivers menu overflow correction, not full title/accessibility acceptance.
+Light focused Begin Shift text on cyan remains ACCESS-TITLE-FOCUS, requiring
+exact live colors/contrast before correction. Saved/recovery states, other
+aspect/scale/state/readability, ordinary browser/credits return, full-Main/world,
+physical devices, native Windows/GPU/audio/human and final candidate gates retain
+original scope. Guided3/3 remains tied to older checkpoint3d92b91, not transferred.
+Bomber rearm policy was asked asynchronously and remains unanswered; no choice
+or seat-session entitlement was inferred.
