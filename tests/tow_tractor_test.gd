@@ -1,5 +1,7 @@
 extends SceneTree
 
+## test-matrix-display: input-only
+
 ## Focused suite for the drivable yard tow tractor.
 ##
 ## The station's own geometry is being actively corrected by a parallel pass, so
@@ -1202,6 +1204,8 @@ func _check_gamepad_camera_look() -> void:
 	_check(not tractor.invert_mouse_y, "TRACTOR_LOOK_INVERSION: default preserves the authored pitch direction")
 	var previous_mouse_mode := Input.mouse_mode
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	_check(Input.mouse_mode == Input.MOUSE_MODE_CAPTURED,
+		"TRACTOR_LOOK_INVERSION: isolated display establishes mouse capture before mouse checks")
 	for inverted: bool in [false, true]:
 		tractor.invert_mouse_y = inverted
 		var direction := 1.0 if inverted else -1.0
