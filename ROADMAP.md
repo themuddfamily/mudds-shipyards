@@ -98,6 +98,15 @@ paired checkpoint exports and strict silent isolated startup/audit only after
 full acceptance. Merge/push/delete and owned cleanup finish the card. Prior
 619.927s stages and original parser failures remain; no cost reset.
 
+The first physical-exit candidate 87b313468 stopped before gameplay: import
+passed20.654s, then pose-stage loading found two inferred-type errors in new
+GameFlow `exit_pose`/`motion_started` declarations. Failed38.440s and all raw
+records retained; no journey/export ran. Within the same15:47–16:32 window,
+select one exact type-only correction (`Transform3D`, `bool`), independently
+review it, then compile before focused suites and the unchanged full journey.
+Prior stages now658.367s plus separately retained parser failures. No deadline
+extension, criteria change or unchanged rerun. First further failure stops.
+
 **Docked-pilot branch closeout stopped at a later hatch-route boundary.**
 Existing branch `fix/docked-pilot-hold-20261020` is pushed on bf7fb636e and remains
 unmerged/withheld. Source proved the original diagonal crossed the solid pilot
