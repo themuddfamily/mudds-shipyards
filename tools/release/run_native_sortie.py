@@ -4210,6 +4210,8 @@ class CinderSupplyPilot(BeaconEntryPilot):
 
 
 class CinderSupplyFiles(HabitatRestartFiles):
+    MUTABLE = HabitatRestartFiles.MUTABLE | {'cinder_cargo_delivery', 'game_flow_reward_store'}
+
     def observe(self, s, pilot):
         if s['save']['source'] != 'primary': return
         label = None
@@ -4225,6 +4227,7 @@ class CinderSupplyFiles(HabitatRestartFiles):
                     'actual default primary starts without a prior supply completion or payment')
         else:
             pilot.require_paid(s)
+            self.require_preserved(self.snapshots['baseline']['document'], document)
             require(payload['cinder_cargo_delivery'] == s['paid_slot'] and payload['game_flow_reward_store'] == s['reward_record'],
                     'independent actual primary file matches paid supply terminal and one reward')
             if label == 'paid': pilot.file_paid = True

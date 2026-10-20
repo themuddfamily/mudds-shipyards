@@ -54,6 +54,29 @@ class NativeSortieSafetyTests(unittest.TestCase):
         s['paid_slot']['delivery']['elapsed_seconds'] += 1
         with self.assertRaises(AssertionError): pilot.require_paid(s)
 
+    def test_supply_real_file_payment_rejects_unrelated_payload_corruption(self):
+        with tempfile.TemporaryDirectory() as root:
+            profile, output = Path(root)/'profile', Path(root)/'result'
+            (profile/'data').mkdir(parents=True)
+            output.mkdir()
+            path = profile/'data'/'mudds_user_data.json'
+            document = self.restart_document()
+            path.write_text(json.dumps(document))
+            files, pilot = native.CinderSupplyFiles(profile, output), native.CinderSupplyPilot()
+            sample = {'path': str(path), 'generation': document['generation'], 'source': 'primary'}
+            s = dict(self.supply_paid_observation(), save=sample)
+            files.observe(s, pilot)
+            document['generation'] += 1
+            document['payload']['cinder_cargo_delivery'] = s['paid_slot']
+            document['payload']['game_flow_reward_store'] = s['reward_record']
+            document['payload']['unrelated']['progress'].append(99)
+            path.write_text(json.dumps(document))
+            sample['generation'] = document['generation']
+            pilot.paid_state = s
+            with self.assertRaisesRegex(AssertionError, 'unrelated actual-file'):
+                files.observe(s, pilot)
+            self.assertFalse(pilot.file_paid)
+
     def test_supply_cannot_finish_before_real_normal_ui_exit(self):
         pilot = native.CinderSupplyPilot()
         with self.assertRaises(AssertionError): pilot.finish(0)
