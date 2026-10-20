@@ -14524,3 +14524,10 @@ actual client admission, native callback fix, new playable build, hardware/audio
 human gate was run. Original route remains FAIL/PARKED/unaccepted, investigation
 20 stages398.295714198s. Next dependency: finish the already-running matching Linux
 and Windows template builds under their original limits.
+
+Integrated and pushed as4879b3afd. After push verification and actual process
+identity checks, the owned fixture worktree/cache and disposable profiles were
+removed. Frozen helpers were copied and hash-verified; raw profile logs and actual
+command/state artifacts remain. Only `browser-fixture-json-20261020/results/`
+remains. Freeze commit→cleanup633.945s/10.6min versus15–30min implementation/review
+plus2–5min checks/cleanup estimate. Live template cache remains protected.

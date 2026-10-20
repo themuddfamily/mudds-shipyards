@@ -1618,6 +1618,9 @@ Raw commands/state, logs, frozen helpers and guards are retained under
 `/srv/mudds-work/browser-fixture-json-20261020/results/`. No client admission,
 packaged full route, native repair or new gameplay checkpoint is established.
 Original20-stage398.296s history and external/human gates remain unchanged.
+Integrated/pushed4879b3afd; owned worktree/cache removed after identity checks,
+frozen helpers copied/hash-verified and raw profile logs retained. Only results/
+remains; freeze→cleanup10.6min against15–30min plus2–5min estimate.
 
 **NET-TIMEOUT-RELEASE-ACCEPT — dependent runtime acceptance.** GATED on those
 matching templates. BROWSER-FIXTURE-JSON now supplies the separately accepted
