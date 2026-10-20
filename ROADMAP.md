@@ -70,6 +70,31 @@ or diagnostic automation, including opt-in startup/release wiring. They are not
 records the earlier 20 candidates; the accepted Breach closeout below removes one.
 This cleanup changes branch ownership, not the number of completed roadmap outcomes.
 
+**Selected existing delivery: Halyard ordinary boarding,15:09–15:39UTC/30min.**
+Reuse `work/halyard-ordinary-board-20261018` / f3d53bda6; retain both failed
+135.904/135.833s routes (271.737s, excluding old import/compile/implementation).
+Concrete source/raw fact: the correct live owned row retains INT identities via
+Variant transport; JSON host manifests load FLOAT identities. `_ordinary_fields()`
+normalizes StringName but leaves numeric types unequal under Dictionary equality.
+Normalize only that projected scalar comparison representation to JSON form,
+retaining every exact field/value and all ownership/body/frame/claim/seat checks.
+This proves an invalid comparison when reached, not all other predicates or a
+production networking defect. Add safe named mismatch diagnostics if needed.
+
+One medium integrator owns the existing Halyard passenger test only; high source
+review before engines. Preserve ordinary menus/spawn/continuous walks/physical
+pilot and crew_port_00 seats, host plus two original independent clients, all
+three actual OS exits0 and HALYARD_ORDINARY_TWO_CLIENT_BOARD_OK. No placement,
+forced role/seat/state, runtime/network edit, deadline increase or omitted check.
+Freeze clean source: import180s, compile300s, ONE original ordinary profile with
+300s suite/360s outer,8s consumed boundary/15s walk and owned exit cleanup.
+All Godot Dummy; coordinator headless, peers on private Xvfb/explicitx11/dummy
+renderer, no active-desktop input. First unexpected failure stops. Accept only
+full original boarding card, then merge/push/delete branch and owned scratch.
+Moving-cabin/departure/authority-stop/native/human remain separate/open. No runtime
+or exported asset changes means no identical checkpoint rebuild; c78e0ac retained.
+Original raw/STOP remain untouched; current selection carries both failures.
+
 **Existing Breach interruption branch finished and merged.** Full original
 BREACH-INTERRUPTION earned-debt release case passes on c78e0ac: genuine unpaid
 completion, live owned kill/reap, distinct normal cold Resume/real pilot/exit/
