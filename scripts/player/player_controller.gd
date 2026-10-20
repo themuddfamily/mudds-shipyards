@@ -1080,13 +1080,38 @@ func begin_disembark(
 	) -> bool:
 	if _embodiment_state != EmbodimentState.SEATED:
 		return false
+	return _begin_disembark_motion(exit_transform, duration, reference_frame, exit_waypoints)
 
+
+## A confirmed walking passenger uses the same physical exit motion as a pilot,
+## without acquiring a seat or changing the craft's helm. Only a live supported
+## on-foot body can start this transition; a flight or chair handoff cannot.
+func begin_on_foot_exterior_exit(
+		exit_transform: Transform3D,
+		duration: float,
+		reference_frame: Node3D,
+		exit_waypoints: Array[Transform3D]
+	) -> bool:
+	if _embodiment_state != EmbodimentState.ON_FOOT or not is_on_floor() \
+			or not _hierarchy_is_live(self) or not _hierarchy_is_live(reference_frame) \
+			or exit_waypoints.is_empty() or _remote_drive_enabled:
+		return false
+	return _begin_disembark_motion(exit_transform, duration, reference_frame, exit_waypoints)
+
+
+func _begin_disembark_motion(
+		exit_transform: Transform3D,
+		duration: float,
+		reference_frame: Node3D,
+		exit_waypoints: Array[Transform3D]
+	) -> bool:
 	_reset_local_sprint_input()
 	_gamepad_look.clear()
 	_control_enabled = false
 	velocity = Vector3.ZERO
 	_clear_landing_recovery()
 	_reset_body_facing()
+	_set_embodied_collision_enabled(false)
 	_bind_transition_frame(reference_frame)
 	_set_transition_waypoints(exit_waypoints)
 	_transition_start = _clean_transform(global_transform)
