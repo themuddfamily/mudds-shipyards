@@ -18,6 +18,94 @@ spec.loader.exec_module(native)
 
 
 class NativeSortieSafetyTests(unittest.TestCase):
+    def wing_hit_observation(self):
+        return {'ship_id': 7, 'source_id': 1101, 'expected_source_id': 1101,
+                'shot_baseline': True, 'kill_proofs': {},
+                'shot': {'accepted': True, 'resolved': True, 'hit': True, 'damaged': True,
+                         'source_entity_id': 7, 'request_source_entity_id': 7,
+                         'source_id': 1101, 'request_source_id': 1101, 'target_entity_id': 8,
+                         'sequence': 4, 'last_sequence': 4, 'submitted_sequence': 4,
+                         'presentation_receipt_id': 20, 'weapon_id': 'torrent_compact_pulse_cannon',
+                         'applied_damage': 20, 'remaining_health': 0, 'destroyed': True}}
+
+    def test_wing_baseline_cached_generic_acceptance_never_proves_a_kill(self):
+        pilot = native.PairedWingPilot()
+        pilot.member_ids = {8, 9}
+        state = self.wing_hit_observation()
+        pilot.observe_hits(state)  # Cached last shot at real source baseline.
+        pilot.observe_hits(state)
+        self.assertEqual(pilot.kill_proofs, {})
+        self.assertEqual(pilot.hits, [])
+        state['shot'].update(sequence=5, last_sequence=5, submitted_sequence=5,
+                             hit=False, damaged=False, destroyed=False, applied_damage=0)
+        pilot.observe_hits(state)
+        self.assertEqual(pilot.shot_sequence, 5)
+        self.assertEqual(pilot.kill_proofs, {})
+        self.assertEqual(native.CAP, 300)
+        json.dumps(pilot.report())
+
+    def test_wing_requires_fresh_actual_player_target_and_presentation_receipt(self):
+        mutations = [({'target_entity_id': 88}, 'actual Wing member'),
+                     ({'source_entity_id': 77}, 'registered player source'),
+                     ({'request_source_entity_id': 77}, 'registered player source'),
+                     ({'source_id': 1102}, 'registered player source'),
+                     ({'last_sequence': 6}, 'current submitted sequence'),
+                     ({'submitted_sequence': 6}, 'current submitted sequence'),
+                     ({'presentation_receipt_id': -1}, 'presentation receipt'),
+                     ({'weapon_id': ''}, 'presentation receipt')]
+        for mutation, message in mutations:
+            with self.subTest(mutation=mutation):
+                pilot = native.PairedWingPilot()
+                pilot.member_ids = {8, 9}
+                pilot.shot_sequence = 3
+                state = self.wing_hit_observation()
+                state['shot'].update(mutation)
+                with self.assertRaisesRegex(AssertionError, message): pilot.observe_hits(state)
+                self.assertEqual(pilot.kill_proofs, {})
+
+    def test_wing_two_real_kills_and_exact_terminal_members_required(self):
+        pilot = native.PairedWingPilot()
+        pilot.member_ids = {8, 9}
+        pilot.shot_sequence = 3
+        state = self.wing_hit_observation()
+        state['kill_proofs'] = {'8': state['shot'].copy()}
+        pilot.observe_hits(state)
+        self.assertEqual(set(pilot.kill_proofs), {'8'})
+        state['director'] = {'scenario': 'paired_wing', 'state': 'concluded', 'outcome': 'cleared'}
+        state['members'] = [{'id': member, 'health': 0, 'destroyed': True, 'active': False, 'source_id': 0}
+                            for member in (8, 9)]
+        with self.assertRaisesRegex(AssertionError, 'both actual Wing members'): pilot.require_wing_clear(state)
+        state['shot'].update(target_entity_id=9, sequence=5, last_sequence=5, submitted_sequence=5)
+        with self.assertRaisesRegex(AssertionError, 'non-replayed'): pilot.observe_hits(state)
+        state['shot']['presentation_receipt_id'] = 21
+        state['kill_proofs']['9'] = state['shot'].copy()
+        pilot.observe_hits(state)
+        pilot.require_wing_clear(state)
+        self.assertEqual(len(pilot.hits), 2)
+        json.dumps(pilot.report())
+        state['members'][1]['id'] = 99
+        with self.assertRaisesRegex(AssertionError, 'both actual Wing members'): pilot.require_wing_clear(state)
+        state['members'][1]['id'] = 9
+        state['director']['outcome'] = 'withdrawn'
+        with self.assertRaisesRegex(AssertionError, 'CLEARED'): pilot.require_wing_clear(state)
+
+    def test_wing_cannot_report_success_before_actual_normal_ui_exit(self):
+        pilot = native.PairedWingPilot()
+        self.assertIsNone(pilot.result)
+        pilot.stage = 'wing_pause'
+        pilot.identity = (1, 2, 3, 7, 10, 11)
+        state = {'sequence': 1, 'paused': True, 'main_id': 1,
+                 'native_keys': {'escape': False, 'tab': False, 'return': False},
+                 'ui': {'main_visible': True, 'exit_visible': True, 'exit_enabled': True,
+                        'exit_text': 'EXIT TO DESKTOP', 'focus_is_exit': False, 'focus_path': '/Resume'}}
+        self.assertEqual(pilot.ui_update(state, 1)[0], {'Tab'})
+        self.assertFalse(pilot.quit_requested)
+        self.assertIsNone(pilot.result)
+        state['ui']['exit_enabled'] = False
+        pilot.ui_key = None; pilot.ui_release_until = 0
+        with self.assertRaisesRegex(AssertionError, 'enabled normal UI'): pilot.ui_update(state, 2)
+
+
     def life_observation(self):
         return {'mode': 'life-tow', 'actors_current': True, 'frame': 100, 'phase': 'INTRO',
                 'main_id': 1, 'world_id': 2, 'player_id': 3, 'capsule_id': 4, 'shape_id': 5, 'ship_id': 6,

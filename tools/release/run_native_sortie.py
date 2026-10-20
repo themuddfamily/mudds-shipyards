@@ -2,6 +2,7 @@
 """Fly the embedded Linux game with OS XTest keys/mouse on an owned Xvfb.
 
 Usage: run_native_sortie.py GAME.x86_64 --output NEW_RESULT_DIRECTORY
+Use --route paired-wing for two honestly withdrawn board sorties, both real Wing kills and home.
 Use --route beacon-entry for normal Torrent departure and actual first Beacon HUD start.
 Use --route beacon-settlement to continue through all four beacons and durable settlement.
 Use --route sandbox for the full five-branch/eight-craft/crash/reuse scenario.
@@ -3377,6 +3378,328 @@ class SandboxPilot(SandboxWalkPilot):
         return keys, dx, dy, False
 
 
+class PairedWingPilot(SandboxPilot):
+    """Fresh profile: two honestly withdrawn contracts, real Wing kills and home."""
+    MARKER = 'NATIVE_PAIRED_WING_OK'
+    CONTRACTS = ('heavy_breach', 'torpedo_run', 'paired_wing')
+    BOARD_APPROACH = [8, 0, -23.3]
+
+    def __init__(self):
+        super().__init__()
+        self.leg = 0
+        self.identity = None
+        self.sequence = -1
+        self.pid = None
+        self.director_generation = None
+        self.departed = False
+        self.legs = []
+        self.kill_proofs = {}
+        self.shot_sequence = None
+        self.shot_receipts = set()
+        self.hits = []
+        self.member_ids = None
+        self.return_braking = False
+        self.ui_key = None
+        self.ui_until = self.ui_release_until = 0
+        self.ui_last_focus = None
+        self.ui_edges = []
+        self.receipts = {}
+        self.quit_requested = False
+        self.walk_origin = None
+        self.supported_walk_m = 0
+        self.exit_origin = None
+
+    def enter(self, stage, s):
+        Pilot.enter(self, stage, s)
+
+    def walk_route(self, points, s, stage):
+        self.pending_walk = [point[:] for point in points]
+        self.walk_origin = s['player'][:]
+        self.enter(stage, s)
+
+    def observe_hits(self, s):
+        """Independently correlate observer receipts against this flight's baseline."""
+        shot = s['shot']
+        if self.shot_sequence is None:
+            self.shot_sequence = shot['submitted_sequence']
+            require(s['shot_baseline'] and not s['kill_proofs'], 'baseline before Wing player fire')
+            return
+        sequence = shot['sequence']
+        if sequence > self.shot_sequence:
+            # New misses advance the cursor too; accepted generic fire is never proof.
+            if shot['accepted'] and shot['resolved'] and shot['hit'] and shot['damaged'] and shot['applied_damage'] > 0:
+                require(shot['source_entity_id'] == s['ship_id']
+                        and shot['request_source_entity_id'] == s['ship_id']
+                        and shot['source_id'] == shot['request_source_id'] == s['source_id'] == s['expected_source_id'],
+                        'fresh hit belongs to actual registered player source')
+                require(shot['target_entity_id'] in self.member_ids, 'fresh hit targets one actual Wing member')
+                require(sequence == shot['last_sequence'] == shot['submitted_sequence'],
+                        'hit request matches result and current submitted sequence')
+                receipt = shot['presentation_receipt_id']
+                require(receipt >= 0 and receipt not in self.shot_receipts and shot['weapon_id'],
+                        'fresh non-replayed presentation receipt and authored weapon')
+                self.shot_receipts.add(receipt)
+                self.hits.append(dict(shot))
+                if shot['destroyed']:
+                    require(shot['remaining_health'] == 0, 'terminal hit reports zero remaining health')
+                    self.kill_proofs[str(shot['target_entity_id'])] = dict(shot)
+            self.shot_sequence = max(self.shot_sequence, shot['submitted_sequence'])
+        else:
+            self.shot_sequence = max(self.shot_sequence, shot['submitted_sequence'])
+        require(s['kill_proofs'] == self.kill_proofs, 'observer and driver retain identical real member kill proofs')
+
+    def require_wing_clear(self, s):
+        director = s['director']
+        require(director['scenario'] == 'paired_wing' and director['state'] == 'concluded'
+                and director['outcome'] == 'cleared', 'actual Wing director CLEARED')
+        require(self.member_ids is not None and len(self.member_ids) == 2
+                and {m['id'] for m in s['members']} == self.member_ids
+                and set(self.kill_proofs) == {str(member) for member in self.member_ids},
+                'both actual Wing members have fresh target-specific player weapon kills')
+        require(all(m['health'] == 0 and m['destroyed'] and not m['active']
+                    and m['source_id'] == 0 for m in s['members']),
+                'both actual Wing actors zero health destroyed and unregistered')
+
+    def ui_update(self, s, now):
+        # Reuse the proven observed press/release pause navigation, without the
+        # Habitat route's resting predicate. This remains real OS keyboard input.
+        keys = set()
+        if self.ui_key is not None:
+            if now < self.ui_until: return {self.ui_key}, 0, 0, False
+            self.ui_edges.append({'sequence': s['sequence'], 'key': self.ui_key, 'pressed': False})
+            self.ui_key = None
+            self.ui_release_until = now + .10
+            return keys, 0, 0, False
+        if now < self.ui_release_until or self.quit_requested: return keys, 0, 0, False
+        key = None
+        if not s['paused']:
+            key = 'Escape'
+        else:
+            require(s['main_id'] == self.identity[0], 'same Main owns normal pause exit')
+            ui = s['ui']
+            require(ui['main_visible'] and ui['exit_visible'] and ui['exit_enabled']
+                    and ui['exit_text'] == 'EXIT TO DESKTOP', 'actual enabled normal UI desktop exit')
+            if any(s['native_keys'].values()): return keys, 0, 0, False
+            if ui['focus_is_exit']:
+                self.receipts['exit_ui'] = dict(ui)
+                self.quit_requested = True
+                self.enter('wing_exit_wait', dict(s, position=self.last_state['position'], phase=self.last_state['phase']))
+                key = 'Return'
+            elif ui['focus_path'] != self.ui_last_focus:
+                require(ui['focus_path'], 'normal pause menu keyboard focus')
+                self.ui_last_focus = ui['focus_path']
+                key = 'Tab'
+        if key:
+            self.ui_key, self.ui_until = key, now + .08
+            self.ui_edges.append({'sequence': s['sequence'], 'key': key, 'pressed': True})
+            keys.add(key)
+        return keys, 0, 0, False
+
+    def report(self):
+        return {'completion_marker': self.MARKER if len(self.legs) == 3 and self.quit_requested else None, 'legs': self.legs,
+                'prerequisite_outcomes': [leg['outcome'] for leg in self.legs[:2]],
+                'prior_wins': False, 'member_ids': sorted(self.member_ids) if self.member_ids else None,
+                'player_weapon_hits': self.hits, 'kill_proofs': self.kill_proofs,
+                'supported_walk_m': self.supported_walk_m, 'stages': self.stages,
+                'phases': self.phases, 'same_identities': self.identity,
+                'exit_ui': self.receipts.get('exit_ui'), 'ui_edges': self.ui_edges}
+
+    def update(self, s, now):
+        require(s.get('mode') == 'paired-wing', 'paired-wing-only observation selector')
+        require(s['sequence'] > self.sequence, 'fresh Wing observation including paused UI')
+        self.sequence = s['sequence']
+        if self.pid is None: self.pid = s['pid']
+        require(s['pid'] == self.pid, 'same observed game process')
+        if self.stage in ('wing_pause', 'wing_exit_wait'):
+            return self.ui_update(s, now)
+        require(not s['paused'] and s['actors_current'], 'current actual Wing route actors')
+        self.last_state = s
+        self.frame = s['frame']
+        ids = (s['main_id'], s['world_id'], s['player_id'], s['ship_id'], s['board']['id'], s['director']['id'])
+        if self.identity is None:
+            self.identity = ids
+            require(s['board']['offered'] == 'heavy_breach' and not s['board']['armed']
+                    and s['director']['state'] == 'idle' and not s['guided_complete'],
+                    'empty profile first posting without manufactured prior wins')
+            self.parked_forward = [-v for v in s['back']]
+        require(ids == self.identity, 'same actual Main world player Torrent board director')
+        require(s['default_sampler'] and s['tuning_unchanged'] and s['physics_ticks'] == 60
+                and s['time_scale'] == 1, 'authored sampler tuning and clock throughout Wing route')
+        require(not s['destroyed'] and s['hull'] > 0 and s['phase'] != 'RECOVERING', 'live route without recovery')
+        require(s['active_ship'] and s['source_id'] == s['expected_source_id'] > 0,
+                'actual active Torrent retains player weapon registration')
+        if not self.phases or self.phases[-1] != s['phase']: self.phases.append(s['phase'])
+        normal = s['control_enabled'] and not s['seated'] and not s['transition_busy']
+        previous = self.foot_previous
+        self.foot_velocity = [0, 0, 0]
+        if previous is not None and normal and previous['normal']:
+            frames = self.frame - previous['frame']
+            require(frames > 0, 'fresh ordinary walking frame')
+            travelled = norm(sub(s['player'], previous['player']))
+            require(travelled <= 9.2 * frames / 60 + 1.5, 'ordinary walking without recovery teleport')
+            self.foot_sample_seconds = frames / 60
+            self.foot_velocity = [v/self.foot_sample_seconds for v in sub(s['player'], previous['player'])]
+            self.foot_velocity[1] = 0
+            if s['supported'] and previous['supported']: self.supported_walk_m += travelled
+        self.foot_previous = dict(frame=self.frame, player=s['player'], normal=normal, supported=s['supported'])
+        # Existing OS walker consumes only these ground/mouse properties here.
+        s = dict(s, sandbox={'grounded': s['grounded'], 'walk_mouse': s['walk_mouse']})
+        keys = set(); dx = dy = 0; fire = False
+        speed = norm(s['velocity'])
+        director, board = s['director'], s['board']
+        expected = self.CONTRACTS[self.leg]
+        if self.leg == 2 and self.shot_sequence is not None:
+            require({m['id'] for m in s['members']} == self.member_ids, 'same two actual Wing actor identities')
+            self.observe_hits(s)
+        if self.stage == 'boot' and s['menu_ready']:
+            self.enter('begin_shift', s); self.tap('e', now)
+        elif self.stage == 'begin_shift' and s['phase'] == 'APPROACH_SHIP':
+            self.walk_route([[-8.5, 0, 6], [8, 0, 6], self.BOARD_APPROACH], s, 'wing_walk_board')
+        elif self.stage in ('wing_walk_board', 'wing_walk_ship', 'wing_walk_after_exit'):
+            require(normal and s['phase'] == 'APPROACH_SHIP', 'ordinary on-foot control between actual sorties')
+            if self.stage == 'wing_walk_ship' and len(self.pending_walk) == 1 and s['candidate'] and not board['station_candidate']:
+                dx, reached = 0, self.walk_arrival_ready()
+            else:
+                dx, reached = self.walk_pending(s, keys)
+            if reached:
+                self.pending_walk.pop(0)
+                if not self.pending_walk:
+                    if self.stage == 'wing_walk_board': self.enter('wing_arm', s)
+                    elif self.stage == 'wing_walk_ship': self.enter('wing_board', s)
+                    else:
+                        require(s['supported'] and s['grounded'] and norm(sub(s['player'], self.exit_origin)) > 2,
+                                'supported ordinary walk after final physical exit')
+                        self.enter('wing_pause', s)
+        elif self.stage == 'wing_arm':
+            require(board['offered'] == expected and not board['armed'], 'exact naturally posted next contract')
+            direction = unit(sub(board['position'], s['player']))
+            yaw = math.atan2(dot(direction, s['walk_right']), dot(direction, s['walk_forward']))
+            dx = self.walk_mouse_delta(yaw, s['walk_mouse'])
+            if board['candidate'] and self.walk_arrival_ready():
+                self.tap('e', now)
+                if self.tap_key == 'e': self.enter('wing_armed_wait', s)
+        elif self.stage == 'wing_armed_wait':
+            if board['armed']:
+                require(board['offered'] == expected and not s['piloted'], 'normal board E-arm on foot')
+                self.receipts['arm_'+expected] = dict(board)
+                boarding = s['boarding'][:]
+                boarding[1] = 0
+                self.walk_route([[-8, 0, -23.3], [-8, 0, boarding[2]], boarding], s, 'wing_walk_ship')
+        elif self.stage == 'wing_board':
+            if s['candidate'] and not board['station_candidate']:
+                self.tap('e', now)
+                if self.tap_key == 'e': self.enter('wing_board_wait', s)
+        elif self.stage == 'wing_board_wait':
+            if s['phase'] == 'START_ENGINES' and s['piloted'] and s['seated']:
+                self.departed = False; self.return_braking = False; self.launch_braking = False
+                self.enter('wing_launch', s)
+        elif self.stage == 'wing_launch':
+            self.departed |= s['lease_free'] and not s['landed'] and norm(sub(s['position'], s['parked'])) > 8
+            # A real short flight, away from the berth, before normal home capture.
+            off = sub([0, 8, -45], s['position']); distance = norm(off)
+            dx, dy, align = self.aim(s, [s['camera'][i]+off[i] for i in range(3)])
+            stopping = speed*speed/(2*s['tuning']['brake']) + speed*.18
+            if distance < stopping+4: self.launch_braking = True
+            if speed <= .45 and distance > 4: self.launch_braking = False
+            if distance <= 4 or self.launch_braking: keys.add('Prior')
+            elif align > .72: keys.add('w')
+            if self.departed and director['state'] == 'running':
+                require(director['scenario'] == expected and board['active_scenario'] == expected
+                        and director['outcome'] == 'pending', 'actual board-admitted encounter after physical departure')
+                self.director_generation = director['generation']
+                self.receipts['departure_'+expected] = dict(director)
+                if self.leg == 2:
+                    members = s['members']
+                    self.member_ids = {m['id'] for m in members}
+                    require(len(self.member_ids) == 2 and set(director['roster_ids']) == self.member_ids
+                            and all(m['active'] and m['health'] > 0 and m['source_id'] > 0 and m['in_roster'] for m in members),
+                            'two actual existing live registered Wing members')
+                    self.observe_hits(s)
+                    self.enter('wing_fight', s)
+                elif distance <= 4 and speed <= .8:
+                    self.enter('return_align', s)
+        elif self.stage == 'wing_fight':
+            require(director['generation'] == self.director_generation and director['scenario'] == expected,
+                    'same actual Wing encounter generation')
+            keys.add('Prior')
+            if director['state'] == 'concluded':
+                self.require_wing_clear(s)
+                self.enter('return_align', s)
+            else:
+                require(director['state'] == 'running' and director['outcome'] == 'pending', 'Wing remains live until actual clear')
+                targets = [m for m in s['members'] if m['health'] > 0]
+                require(targets, 'live Wing contacts until terminal outcome')
+                # Keep one exact actor until destroyed; both are the existing roster.
+                if self.target not in [m['id'] for m in targets]: self.target = targets[0]['id']
+                target = next(m for m in targets if m['id'] == self.target)
+                dx, dy, align = self.aim(s, target['position'], .2)
+                fire = align >= .997
+        elif self.stage == 'return_align':
+            keys.update(('Prior', 'h'))
+            off = sub([0, 2, -18], s['position'])
+            dx, dy, align = self.aim(s, [s['camera'][i]+off[i] for i in range(3)])
+            if align > .98 and s['upright'] > .94 and speed <= .8: self.enter('return', s)
+        elif self.stage == 'return':
+            off = sub([0, 2, -18], s['position']); distance = norm(off)
+            dx, dy, align = self.aim(s, [s['camera'][i]+off[i] for i in range(3)])
+            stopping = speed*speed/(2*s['tuning']['brake']) + speed*.18
+            if distance < stopping+1.75: self.return_braking = True
+            if speed <= .45 and distance > 1: self.return_braking = False
+            if distance <= 1 or self.return_braking: keys.add('Prior')
+            elif align > .72: keys.add('w')
+            if distance <= 1 and speed <= .45: self.enter('align_berth', s)
+        elif self.stage == 'align_berth':
+            keys.update(('Prior','h'))
+            off = sub(s['parked'], s['position'])
+            dx, dy, align = self.aim(s, [s['camera'][i]+off[i] for i in range(3)])
+            if align > .995 and s['upright'] > .94 and speed <= .35:
+                require(s['capture'] and self.departed, 'actual registered home capture after departure')
+                require(dot([-v for v in s['back']], self.parked_forward) < -.95, 'ordinary nose-first home return')
+                self.enter('wing_land', s); self.tap('l', now)
+        elif self.stage == 'wing_land':
+            if s['phase'] == 'SHUT_DOWN':
+                require(s['contract'] and s['lease'] and s['parked_exact'], 'strict exact occupied home berth')
+                self.shutdown_frame = self.frame
+                self.enter('wing_shutdown', s)
+            elif not s['landing_active'] and s['capture']: self.tap('l', now)
+        elif self.stage == 'wing_shutdown':
+            # Landing, rather than a helper abort, must cause the withdrawal.
+            if director['state'] == 'concluded':
+                require(director['generation'] == self.director_generation and director['scenario'] == expected,
+                        'exact landed encounter terminal identity')
+                require(director['outcome'] == ('withdrawn' if self.leg < 2 else 'cleared'),
+                        'honest withdrawal prerequisite or actual Wing clear')
+                require(board['offered'] == self.CONTRACTS[(self.leg+1)%3] and not board['armed'],
+                        'natural exact next posting after terminal encounter')
+                if self.frame-self.shutdown_frame >= 90 and s['engine'] == 'OFFLINE':
+                    self.enter('wing_physical_exit', s); self.tap('e', now)
+        elif self.stage == 'wing_physical_exit':
+            if normal and not s['piloted']:
+                require(s['contract'] and s['lease'] and s['parked_exact'] and s['exit_error'] < .65
+                        and s['phase'] == 'APPROACH_SHIP', 'normal strict home physical exit with Guided still pending')
+                self.legs.append({'scenario': expected, 'generation': self.director_generation,
+                                  'outcome': director['outcome'], 'departure': self.receipts['departure_'+expected],
+                                  'terminal': dict(director), 'next_posting': board['offered'],
+                                  'physical_exit_frame': self.frame, 'exit_error': s['exit_error'],
+                                  'strict_home': True, 'neutral_shutdown_frames': self.frame-self.shutdown_frame})
+                if self.leg < 2:
+                    self.leg += 1
+                    self.walk_route([[-8, 0, s['player'][2]], [-8, 0, -23.3], self.BOARD_APPROACH], s, 'wing_walk_board')
+                else:
+                    self.require_wing_clear(s)
+                    self.exit_origin = s['player'][:]
+                    self.walk_route([[-8, 0, s['player'][2]+4]], s, 'wing_walk_after_exit')
+            elif s['phase'] == 'SHUT_DOWN' and s['engine'] == 'OFFLINE': self.tap('e', now)
+        self.pulse(keys, now)
+        # A relative sweep is acknowledged by the actual next camera attitude.
+        facing = s['walk_forward'] if not s['seated'] else s['back']
+        if self.mouse_pending is not None:
+            if norm(sub(facing, self.mouse_pending)) < .00001: dx = dy = 0
+            else: self.mouse_pending = None
+        if dx or dy: self.mouse_pending = facing[:]
+        return keys, dx, dy, fire
+
+
 def stop(process):
     if process and process.poll() is None:
         process.terminate()
@@ -3389,7 +3712,7 @@ def stop(process):
 
 
 def run(binary, output, route="guided"):
-    require(route in ("guided", "beacon-entry", "beacon-settlement", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
+    require(route in ("paired-wing", "guided", "beacon-entry", "beacon-settlement", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
     output.mkdir(parents=True, exist_ok=False)
     game = xvfb = desktop = pilot = None
     temporary_profile = None
@@ -3480,7 +3803,7 @@ def run(binary, output, route="guided"):
                     leg_result['window'] = hex(window)
                     desktop.focus(window)
                     pilot = HabitatRestartPilot(cold=bool(leg)) if restart_files else {
-                        "guided": Pilot, "beacon-entry": BeaconEntryPilot, "beacon-settlement": BeaconSettlementPilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
+                        "paired-wing": PairedWingPilot, "guided": Pilot, "beacon-entry": BeaconEntryPilot, "beacon-settlement": BeaconSettlementPilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
                         "hulk-arrival": HulkArrivalPilot, "hulk-breaker": HulkBreakerPilot,
                         "hulk-home": HulkHomePilot, "habitat-loop": HabitatLoopPilot, "life-tow": LifeTowPilot, "life-gantry": lambda: LifeTowPilot("life-gantry"), "life-arm": lambda: LifeTowPilot("life-arm"), "life-patrol": lambda: LifeTowPilot("life-patrol")}[route]()
                     with selectors.DefaultSelector() as selector:
@@ -3489,6 +3812,12 @@ def run(binary, output, route="guided"):
                         with (output/'game.log').open('ab') as log:
                             while pilot.result is None:
                                 if game.poll() is not None:
+                                    if isinstance(pilot, PairedWingPilot):
+                                        require(pilot.quit_requested and pilot.stage == 'wing_exit_wait', 'Wing game exits only after actual normal UI exit')
+                                        require(game.wait() == 0, 'Wing normal UI shutdown exits zero')
+                                        leg_result.update(exit_code=0, reaped=True, normal_ui_exit=True)
+                                        pilot.result = pilot.report()
+                                        break
                                     if not restart_files: raise RuntimeError(f'game exited during {pilot.stage}: {game.returncode}')
                                     require(pilot.quit_requested and pilot.stage == 'restart_exit_wait',
                                             'game exits only after actual EXIT TO DESKTOP activation')
@@ -3505,6 +3834,19 @@ def run(binary, output, route="guided"):
                                     lines = pending.split(b'\n'); pending=lines.pop()
                                     observations = observations_from_lines(lines)
                                     if observations:
+                                        if isinstance(pilot, PairedWingPilot):
+                                            # Consume every receipt sample, but dispatch only the latest
+                                            # control state: replaying route updates over a pipe batch
+                                            # could swallow a mouse sweep or a whole key pulse.
+                                            for observation in observations:
+                                                require(observation['pid'] == game.pid, 'Wing observer exact running OS PID')
+                                                if pilot.shot_sequence is not None and not observation['paused']:
+                                                    require({m['id'] for m in observation['members']} == pilot.member_ids,
+                                                            'same two actual Wing actor identities')
+                                                    pilot.observe_hits(observation)
+                                            keys,dx,dy,fire = pilot.update(observations[-1],time.monotonic())
+                                            desktop.keys(keys); desktop.mouse(dx,dy,fire)
+                                            continue
                                         if isinstance(pilot, LifeTowPilot):
                                             for observation in observations:
                                                 pilot.validate_observation(observation)
@@ -3587,7 +3929,10 @@ def run(binary, output, route="guided"):
                                                ui_edges=pilot.ui_edges, sequence=pilot.sequence)
             if isinstance(pilot, HulkArrivalPilot):
                 result['partial_sortie']['last_state'] = pilot.last_state
-            if isinstance(pilot, SandboxPilot):
+            if isinstance(pilot, PairedWingPilot):
+                result['partial_wing'] = pilot.report()
+                result['partial_sortie']['last_state'] = pilot.last_state
+            elif isinstance(pilot, SandboxPilot):
                 result['partial_sortie'].update(visited=pilot.visited, craft_sorties=pilot.completed,
                                                last_state=pilot.last_state, deliberate_crash=pilot.crash_receipt)
         result['error'] = f'{type(error).__name__}: {error}'
@@ -3641,7 +3986,7 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('binary')
     parser.add_argument('--output',required=True,type=Path)
-    parser.add_argument('--route', choices=('guided', 'beacon-entry', 'beacon-settlement', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
+    parser.add_argument('--route', choices=('paired-wing', 'guided', 'beacon-entry', 'beacon-settlement', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
                         help='beacon-settlement continues the accepted entry through four physical beacons and durable reward; beacon-entry departs normally and physically reaches/starts the first Beacon through actual pause controls; life-patrol walks Habitat through the real door beside patrol drones and boards Torrent; life-arm walks Aft stairs past the live service arm and boards Zenith; life-gantry walks Freight past the live gantry and boards Jovian; life-tow walks Central beside live tow service and boards Torrent; hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
     args=parser.parse_args()
     try: binary=validate_binary(args.binary)

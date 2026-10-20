@@ -20,6 +20,13 @@ const LIFE_ROUTES := {
 		"movers": [], "drones": true, "bounded": true,
 		"door": ^"HabitatSpine/MainAccess"},
 }
+var _paired_wing := false
+var _wing_sequence := 0
+var _wing_baseline := false
+var _wing_last_sequence := -1
+var _wing_receipts: Dictionary = {}
+var _wing_kills: Dictionary = {}
+var _wing_member_ids: Array = []
 var _beacon_entry := false
 var _beacon_mode := "beacon-entry"
 var _beacon_sequence := 0
@@ -61,6 +68,9 @@ func on_startup_completed(main: Node) -> void:
 	_beacon_mode = "beacon-settlement" if "--native-sortie-observer=beacon-settlement" in OS.get_cmdline_args() else "beacon-entry"
 	_beacon_entry = "--native-sortie-observer=" + _beacon_mode in OS.get_cmdline_args()
 	if _beacon_entry:
+		process_mode = Node.PROCESS_MODE_ALWAYS
+	_paired_wing = "--native-sortie-observer=paired-wing" in OS.get_cmdline_args()
+	if _paired_wing:
 		process_mode = Node.PROCESS_MODE_ALWAYS
 	_habitat_restart = "--native-sortie-observer=habitat-restart" in OS.get_cmdline_args()
 	_habitat_loop = "--native-sortie-observer=habitat-loop" in OS.get_cmdline_args()
@@ -267,6 +277,10 @@ func _physics_process(delta: float) -> void:
 		print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(_ember_observation()))
 		return
 	if _game == null:
+		return
+	if _paired_wing:
+		_wing_sequence += 1
+		print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(_wing_observation()))
 		return
 	if _beacon_entry:
 		_beacon_sequence += 1
@@ -967,4 +981,170 @@ func _life_observation() -> Dictionary:
 			"open": door.is_open(), "blocked": door.is_portal_blocked(),
 			"locked": door.locked, "candidate": _game.station_interaction_candidate == door}
 		result.service["seed"] = activity.variation_seed
+	return result
+
+
+## Detached wire representation: never expose live objects or treat the cached
+## generic accepted flag as a new hit. Request and result identities both count.
+static func wing_shot_record(result: Dictionary) -> Dictionary:
+	var request := result.get("request") as ShotRequest
+	var source := result.get("source_entity") as Node
+	var target := result.get("target_entity") as Node
+	return {"accepted": bool(result.get("accepted", false)),
+		"resolved": bool(result.get("resolved", false)), "hit": bool(result.get("hit", false)),
+		"damaged": bool(result.get("damaged", false)),
+		"source_entity_id": source.get_instance_id() if is_instance_valid(source) else 0,
+		"source_id": int(result.get("source_id", 0)),
+		"target_entity_id": target.get_instance_id() if is_instance_valid(target) else 0,
+		"last_sequence": int(result.get("last_sequence", -1)),
+		"sequence": request.sequence if request != null else -1,
+		"request_source_entity_id": request.source_entity.get_instance_id() if request != null and is_instance_valid(request.source_entity) else 0,
+		"request_source_id": request.source_id if request != null else 0,
+		"presentation_receipt_id": request.presentation_receipt_id if request != null else -1,
+		"weapon_id": str(request.weapon_id) if request != null else "",
+		"applied_damage": float(result.get("applied_damage", 0.0)),
+		"remaining_health": float(result.get("remaining_health", -1.0)),
+		"destroyed": bool(result.get("destroyed", false))}
+
+
+static func wing_fresh_hit(shot: Dictionary, craft_id: int, source_id: int,
+		member_ids: Array, previous_sequence: int, receipts: Dictionary) -> bool:
+	return bool(shot.get("accepted", false)) and bool(shot.get("resolved", false)) \
+		and bool(shot.get("hit", false)) and bool(shot.get("damaged", false)) \
+		and float(shot.get("applied_damage", 0.0)) > 0.0 \
+		and source_id > 0 and int(shot.get("source_id", 0)) == source_id \
+		and int(shot.get("request_source_id", 0)) == source_id \
+		and int(shot.get("source_entity_id", 0)) == craft_id \
+		and int(shot.get("request_source_entity_id", 0)) == craft_id \
+		and int(shot.get("target_entity_id", 0)) in member_ids \
+		and int(shot.get("sequence", -1)) > previous_sequence \
+		and int(shot.get("sequence", -1)) == int(shot.get("last_sequence", -2)) \
+		and int(shot.get("sequence", -1)) == int(shot.get("submitted_sequence", -2)) \
+		and int(shot.get("presentation_receipt_id", -1)) >= 0 \
+		and not receipts.has(int(shot.get("presentation_receipt_id", -1))) \
+		and not str(shot.get("weapon_id", "")).is_empty()
+
+
+func _wing_observation() -> Dictionary:
+	var paused := get_tree().paused
+	var result := {"mode": "paired-wing", "sequence": _wing_sequence,
+		"pid": OS.get_process_id(), "frame": Engine.get_physics_frames(), "paused": paused}
+	if paused:
+		var pause_sample := _habitat_restart_pause_observation()
+		result.merge({"main_id": pause_sample.main_id, "ui": pause_sample.ui,
+			"native_keys": pause_sample.native_keys}, true)
+		return result
+	var current := _ember_node_current(_player) and _ember_node_current(_ship) \
+		and _ember_node_current(_game.world) and get_parent().call("get_main") == _game \
+		and _game.get_node_or_null(^"TorrentInterceptor") == _ship and _game.player == _player
+	result["actors_current"] = current
+	if not current:
+		return result
+	var board := _game.heavy_breach_activity_board as HeavyBreachActivityBoard
+	var director := _game.get_node_or_null(^"EncounterScenarios") as EncounterScenarioDirector
+	var authority := _game.combat_authority
+	if not _ember_node_current(board) or not _ember_node_current(director) or not _ember_node_current(authority):
+		result.actors_current = false
+		return result
+	var home := _game.world.call("get_berth_node", _ship.get_home_berth_id()) as ShipBerth
+	if not _ember_node_current(home):
+		result.actors_current = false
+		return result
+	var source := _ship.get("_default_local_command_source") as LocalShipInputSource
+	var yaw := _player.get_node(^"%CameraYaw") as Node3D
+	var support: Dictionary = {}
+	if not _player.is_seated() and not bool(_game.get("_transition_busy")):
+		var ray := PhysicsRayQueryParameters3D.create(_player.global_position + Vector3.UP * 0.2,
+			_player.global_position - Vector3.UP * 0.3, PhysicsLayers.WORLD, [_player.get_rid(), _ship.get_rid()])
+		support = _player.get_world_3d().direct_space_state.intersect_ray(ray)
+	var collider := support.get("collider") as Node
+	var supported := _ember_node_current(collider) and _game.world.is_ancestor_of(collider)
+	var token := StringName(home.get("_reservation_token"))
+	var reserved_id := StringName(home.get("_reserved_ship_id"))
+	var occupant := home.get_occupant()
+	var owner := home.get_reservation_owner()
+	var contract := _ship.get("_landing_contract") as Dictionary
+	var token_bound := owner == _ship and occupant == _ship and not token.is_empty() \
+		and token == StringName(_ship.get("_landing_reservation_token")) \
+		and reserved_id == StringName(_ship.get("_landing_reserved_ship_id"))
+	var capture := _game.world.call("get_landing_assist_report", _ship, _ship.get_home_berth_id()) as Dictionary
+	var roster_ids: Array = []
+	for member: Node3D in director.get_roster():
+		roster_ids.append(member.get_instance_id())
+	var members: Array = []
+	for path: NodePath in [^"WingSkirmisherLead", ^"WingSkirmisherWing"]:
+		var member := _game.get_node_or_null(path) as RangeOpponent
+		if not _ember_node_current(member):
+			result.actors_current = false
+			return result
+		members.append({"id": member.get_instance_id(), "name": str(member.name),
+			"position": _v(member.global_position), "velocity": _v(member.velocity),
+			"health": member.get_health(), "active": member.is_active(),
+			"destroyed": member.get_health() == 0.0 and not member.is_active(),
+			"source_id": authority.get_source_id(member), "in_roster": member.get_instance_id() in roster_ids})
+	var board_result := board.get("_last_result") as Dictionary
+	var source_id := authority.get_source_id(_ship)
+	var shot := wing_shot_record(_game.get_last_player_shot_result())
+	var cursors := authority.get("_next_sequence_by_instance") as Dictionary
+	var submitted_sequence := int(cursors.get(_ship.get_instance_id(), 0)) - 1
+	shot["submitted_sequence"] = submitted_sequence
+	var running := director.get_active_scenario() == EncounterScenarioDirector.SCENARIO_PAIRED_WING \
+		and director.get_state() == EncounterScenarioDirector.STATE_RUNNING
+	if running and not _wing_baseline:
+		_wing_baseline = true
+		_wing_last_sequence = submitted_sequence
+		for member: Dictionary in members:
+			_wing_member_ids.append(int(member.id))
+	elif _wing_baseline:
+		if wing_fresh_hit(shot, _ship.get_instance_id(), source_id, _wing_member_ids, _wing_last_sequence, _wing_receipts):
+			_wing_receipts[int(shot.presentation_receipt_id)] = shot.duplicate(true)
+			if bool(shot.destroyed) and float(shot.remaining_health) == 0.0:
+				_wing_kills[str(shot.target_entity_id)] = shot.duplicate(true)
+		# All observed player requests, including misses, move the high water.
+		if int(shot.source_entity_id) == _ship.get_instance_id() and int(shot.request_source_entity_id) == _ship.get_instance_id():
+			_wing_last_sequence = maxi(_wing_last_sequence, submitted_sequence)
+	result.merge({"main_id": _game.get_instance_id(), "world_id": _game.world.get_instance_id(),
+		"player_id": _player.get_instance_id(), "ship_id": _ship.get_instance_id(),
+		"phase": GameFlow.Phase.keys()[_game.phase],
+		"menu_ready": StartupLoader.is_title_menu_ready(_game) and not is_instance_valid(get_parent().call("get_loading_screen")),
+		"player": _v(_player.global_position), "spawn": _v(_spawn),
+		"walk_forward": _v(-yaw.global_basis.z), "walk_right": _v(yaw.global_basis.x),
+		"walk_mouse": _player.mouse_sensitivity, "boarding": _v(_ship.get_boarding_position()),
+		"player_velocity": _v(_player.velocity), "supported": supported, "grounded": _player.is_on_floor(),
+		"support_collider": str(collider.get_path()) if supported else "",
+		"seated": _player.is_seated(), "control_enabled": _player.is_control_enabled(),
+		"transition_busy": bool(_game.get("_transition_busy")), "piloted": _ship.is_piloted(),
+		"active_ship": _game.get_active_ship() == _ship, "candidate": _game.boarding_candidate == _ship,
+		"position": _v(_ship.global_position), "parked": _v(_parked.origin),
+		"velocity": _v(_ship.velocity), "right": _v(_ship.global_basis.x),
+		"up": _v(_ship.global_basis.y), "back": _v(_ship.global_basis.z),
+		"camera": _v(_ship.get_camera().global_position), "upright": _ship.global_basis.y.dot(Vector3.UP),
+		"destroyed": _ship.is_destroyed(), "landed": bool(_ship.get("_landed")),
+		"landing_active": _ship.is_landing_active(), "engine": str(_ship.get("_engine_state")),
+		"hull": float(_ship.get("_hull")),
+		"default_sampler": source != null and _ship.get("_command_source") == source and source.get_input_provider() == null,
+		"tuning_unchanged": _sortie_tuning() == _tuning, "tuning": _tuning,
+		"physics_ticks": Engine.physics_ticks_per_second, "time_scale": Engine.time_scale,
+		"contract": bool(contract.get("contract_accepted", false)) and bool(contract.get("strict_dock_acceptance", false)) \
+			and token_bound and StringName(_ship.get("_landing_berth_id")) == home.get_berth_id() \
+			and int(_ship.get("_landing_berth_instance_id")) == home.get_instance_id(),
+		"lease": occupant == _ship and owner == _ship and not token.is_empty() and reserved_id == _ship.get_ship_id(),
+		"lease_free": occupant == null and owner == null and token.is_empty() and reserved_id == &"",
+		"parked_exact": _ship.global_transform.is_equal_approx(_parked),
+		"capture": bool(capture.get("assist_capture_accepted", false)),
+		"exit_error": _player.global_position.distance_to(_ship.get_exit_transform().origin),
+		"source_id": source_id, "expected_source_id": int(GameFlow.PLAYER_SOURCE_IDS.get(_ship.get_ship_id(), 0)),
+		"board": {"id": board.get_instance_id(), "position": _v(board.global_position),
+			"candidate": _game.station_interaction_candidate == board,
+			"station_candidate": is_instance_valid(_game.station_interaction_candidate),
+			"armed": bool(board.get("_sortie_armed")), "sortie_generation": int(board.get("_sortie_generation")),
+			"offered": str(board.get_offered_scenario()), "active_scenario": str(board.get("_active_scenario_id")),
+			"last_result": {"accepted": bool(board_result.get("accepted", false)), "reason": str(board_result.get("reason", &""))}},
+		"director": {"id": director.get_instance_id(), "generation": director.get_scenario_generation(),
+			"scenario": str(director.get_active_scenario()), "state": str(director.get_state()),
+			"outcome": str(director.get_outcome()), "roster_ids": roster_ids},
+		"members": members, "shot": shot, "shot_baseline": _wing_baseline,
+		"shot_high_water": _wing_last_sequence, "hit_receipts": _wing_receipts.values().duplicate(true),
+		"kill_proofs": _wing_kills.duplicate(true),
+		"guided_complete": _game.is_guided_activity_complete()}, true)
 	return result
