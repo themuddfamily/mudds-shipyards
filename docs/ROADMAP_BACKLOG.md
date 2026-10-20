@@ -524,7 +524,7 @@ test is an owner/regression anchor, not a runnable ordinary route.
 | HUD-CONVOY | Convoy durable reset/select/start/fresh-Main UI | 13 | Restored-objective discrepancy DONE on checkpoint3d92b91: cold/wrong-craft saved escort shows paused guidance, accepted craft rebind restores live progress; existing retained-feedback20 assertions pass. Wider durable reset/select/start/full ordinary Convoy scope remains open; parked save suite not reopened |
 | ACT-WRITES-DEFINE | Uncovered activity/write-boundary cells | 13,31 | DONE definition only; finite durable owner/boundary map below, with terminal-only owners distinguished; exact-package/real-file/ordinary recovery acceptance remains open |
 | BOOT-BREACH-OWNERS | Physical Heavy Breach board has exact production owners before gameplay | 9,11,13 | DONE packagede3d1ada; two exact old owner failures, final full startup/48-check production route and strict paired checkpoint pass; original interruption transaction remains parked |
-| BREACH-INTERRUPTION | Exported Heavy Breach real-file earned debt/kill/recovery/paid replay | 13,31,32 | FAILED/PARKED: after originale9/repair3c board failures and accepted startupfixe3, unchanged-probe reopeningc159 fails69.957s at atomic-payment commit assertion; third cold replay NOT_RUN. Cumulative140.961s; unmerged/withheld, no further run/repair selected |
+| BREACH-INTERRUPTION | Exported Heavy Breach real-file earned debt/kill/recovery/paid replay | 13,31,32 | FAILED/PARKED 853e5ee19: late shared-store metadata boundary diagnosed; synchronous same-document capture correction compiles/privacy PASS but sourceFAIL 71.057s at eight-predicate capture assertion. Actual Resume/real pilot/exit/paid receipt PASS; exact failed predicate/capture UNKNOWN; third cold replay/exports/archive case NOT_RUN. New 108.444s plus retained 140.961s give 249.405s. Unmerged/withheld, no further engine/correction selected. [Closeout](history/ROADMAP_DELIVERIES.md#breach-atomic-capture-attempt-stopped--2026-10-20) |
 | ACT-REPEAT-DEFINE | Exact applicable ten-run activity scenarios | 13 | DONE definition: all twelve activities classified below; two cargo routes retain explicit stock-policy gates, Heavy/Torpedo preserve alternating physical board. Measurement/deadline freeze and first-play gates remain; no execution accepted |
 | REPEAT-RACE | Ten same-world Checkpoint Race completions through actual ordered checkpoints, payment and accepted reset; next run starts usable | 13 | GATED on PLAY-RACE and a frozen resource-baseline/deadline contract; existing source passes retained |
 | REPEAT-BEACON | Ten same-world traversals of all four authored beacons in order, accepted payment/reset and usable next run | 13 | GATED on PLAY-BEACON and frozen resource-baseline/deadline contract; no synthetic beacon submission as ordinary-route proof |
@@ -1430,18 +1430,30 @@ real owned kill/reap, distinct restart, exact document and once-only receipt che
 No engine or package checks were run for this definition; all original failures,
 external decisions and final gates retain status.
 
-BREACH-INTERRUPTION remains FAILED/PARKED. Its original e9 and one caller repair3c
-failed board admission35.365/35.638s. Separate production fix BOOT-BREACH-OWNERS
-e3d1ada resolved the actual missed startup binding and passed full startup plus
-existing48-check route and paired checkpoint. Root then explicitly selected one
-unchanged-probe reopening on that causal fixed baseline, preserving prior71.004s.
-Candidatec159 reaches real earned debt/readiness kill/cold normal Resume/production
-exit/physical board retry and matching paid receipt checks, but fails its atomic
-payment commit assertion69.957s. Cause unproven; no IN_WORLD_RECOVERY_OK, third cold
-paid replay or package transaction. Cumulative140.961s STOP/PARK; all failed refs/
-raw results retained, no further diagnosis, repair, fourth automatic attempt or
-renamed retry selected. These partial observations do not accept the unchanged
-full real-file/pilot/board/payment/cold replay contract. [Reopening closure](history/ROADMAP_DELIVERIES.md#breach-interruption-after-fixed-startup--failed-and-parked).
+BREACH-INTERRUPTION remains FAILED/PARKED on pushed 853e5ee19. Original e9/3c
+board-admission failures and c159's late-metadata failure remain at 140.961s.
+Source ordering and actual tutorial seen sets establish the old observation error:
+physical debt retry pays then arms Torpedo, whose tutorial creates a later shared
+store commit before the old read. Its exact sampled ID was not logged.
+
+The selected correction captures the primary JSON/metadata synchronously at the
+existing board interaction signal and asserts same-document receipt/paid terminal/
+foreign data. Import/compile/privacy pass; one full source transaction fails 71.057s
+at the new combined eight-predicate capture assertion. Real cold Resume/pilot/exit/
+board discovery and exact one paid receipt pass. Capture values/predicate outcomes
+were not emitted on failure; later final documents cannot reconstruct them. Exact
+failed predicate is UNKNOWN. Integer-vs-JSON-float ledger comparison is a source
+risk, not an established cause. Missing fact is the actual signal-time document,
+metadata/generation and individual comparisons. No new correction/engine/retry or
+cap increase selected. Third cold paid replay/exports/strict startups/archive
+transaction NOT_RUN. Full original finish criteria remain unchanged/open.
+
+New 108.444s plus retained 140.961s give 249.405s, four failures retained.
+Candidate remains unmerged/withheld; source branch pushed, raw results preserved,
+all owned processes absent and owned worktree/profile/helpers cleaned after verified
+archives. Current playable remains fdae1cb.
+[Original failed reopening](history/ROADMAP_DELIVERIES.md#breach-interruption-after-fixed-startup--failed-and-parked)
+and [current failed closeout](history/ROADMAP_DELIVERIES.md#breach-atomic-capture-attempt-stopped--2026-10-20).
 
 ## Multiplayer
 
