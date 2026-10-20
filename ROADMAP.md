@@ -78,6 +78,35 @@ This clears the branch queue; it does not close their unfinished gameplay,
 qualification or release requirements. No unaccepted source was merged to reduce
 a branch count. Eight previously protected detached worktrees remain unchanged.
 
+**Selected NET-JOVIAN-PASSENGER-REBOARD /16,20,26 — one original journey.**
+Prerequisite passenger exit861c4d39b is integrated. Extend only the existing
+Jovian return caller with --postdock-passenger-reboard and exact marker
+JOVIAN_NETWORK_TWO_CLIENT_PASSENGER_REBOARD_OK. Retain full ordinary boarding,
+departure, actual home landing, physical hatch exit and supported exterior walk;
+then original client_b ordinarily walks back, enters through the authored hatch
+and sits in its original co_pilot_station. Original pilot/helm/source/ownership
+and strict occupied home lease remain current. Host and both consumed clients
+must agree on new current boarding/body/frame/seat generations, exactly one chair
+claim and retirement of old released exterior claims. No pose/claim writes,
+engineer/craft swap, pilot release or departure. Existing original identity
+assertions must distinguish legitimate new boarding generations from stale old
+ones; they cannot be bypassed for the new phase.
+One HIGH implementer owns tests/network/jovian_network_two_client_return_test.gd
+only; root owns original-contract review, clean detached pin, engines, integration,
+push and cleanup. No new branch/worktree. Original30–60min assignment starts
+18:23UTC; stop by19:23UTC. Preserve compile300s, full route/peer300s/outer360s,
+waypoint15s, transition8s, landing120s, convergence5s and inherited exit grace.
+Before engines freeze exact source, commands, environment and cache. Compile the
+selected script headlessly with --audio-driver Dummy, then run the same script
+without --check-only, appending -- --postdock-passenger-reboard. Each peer keeps
+private Xvfb, explicit x11 and Dummy audio. Require complete original journey,
+three actual OS exits0, one marker and no runtime diagnostics. First failure
+ends this card for concrete review; no automatic repair or adjacent selection.
+Preserve raw results in existing Jovian results root, then remove owned scratch;
+merge/push accepted source only. Caller-only qualification needs no identical
+checkpoint; a runtime repair is separately selected with fresh checkpoint.
+[Original bounded contract](docs/ROADMAP_BACKLOG.md#net-jovian-passenger-reboard--reclaim-one-passenger-chair).
+
 **HALYARD-AUTHORITY-STOP DONE — current source `082da79c9`.**
 The complete ordinary boarding/departure/moving walk/chair sequence passes, then
 its non-playing host stops once while the original pilot and passenger remain
