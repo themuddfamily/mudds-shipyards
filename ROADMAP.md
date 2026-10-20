@@ -117,8 +117,8 @@ board suite FAIL16.171s at parse, before any assertion. Three new untyped
 cannot infer wing_arm/cancelled/wing_started. Main/HUD/audio/exports NOT_RUN.
 Retain original75.266s and original06:49–07:49UTC/60min allocation.
 
-Select one test-only correction: explicit Dictionary types on those three
-results, source-review related new declarations before engines, no runtime or
+Select one test-only correction: explicit Dictionary types on arm/cancel and
+bool on interact, matching their actual return types; source-review related new declarations before engines, no runtime or
 assertion changes. Clean committed correction reuses accepted import/director
 scope because production/assets/classes are identical, then full board suite120s
 followed by the original remaining checks/caps. Root binds the one corrective
