@@ -111,42 +111,57 @@ class NativeSortieSafetyTests(unittest.TestCase):
                 'aim': {'camera_right': [1, 0, 0], 'camera_up': [0, 1, 0],
                         'camera_back': [0, 0, 1]}}
 
-    def test_wing_precision_uses_optical_axes_and_rejects_loose_hull_facing(self):
+    def test_wing_tracking_uses_optical_axes_with_loose_hull_facing(self):
         state = self.wing_precision_observation()
         pilot = native.PairedWingPilot()
         target = [3, 0, -70]  # Above the former .997 hull-facing fire threshold.
         self.assertGreater(-native.unit(target)[2], .997)
-        dx, dy = pilot.precision_weapon_input(state, target, 1)
+        dx, dy = pilot.tracking_weapon_input(state, target, 1)
         self.assertNotEqual((dx, dy), (0, 0))
         self.assertIsNone(pilot.tap_key)
         angle = .05
         state['aim']['camera_right'] = [math.cos(angle), 0, -math.sin(angle)]
         state['aim']['camera_back'] = [math.sin(angle), 0, math.cos(angle)]
-        dx, dy = pilot.precision_weapon_input(state, [0, 0, -70], 2)
+        dx, dy = pilot.tracking_weapon_input(state, [0, 0, -70], 2)
         self.assertNotEqual((dx, dy), (0, 0))  # Perfect hull facing is insufficient.
         self.assertIsNone(pilot.tap_key)
 
-    def test_wing_precision_blocks_pending_sweep_then_preserves_timed_f_press(self):
+    def test_wing_held_native_fire_tracks_after_ack_and_stops_on_actual_clear(self):
         pilot = native.PairedWingPilot()
-        state = self.wing_precision_observation()
-        pilot.mouse_pending = [0, 0, 1]
-        self.assertEqual(pilot.precision_weapon_input(state, [0, 0, -70], 1), (0, 0))
-        self.assertIsNone(pilot.tap_key)
-        pilot.mouse_pending = None
+        pilot.leg = 2
+        pilot.stage = 'wing_fight'
+        pilot.director_generation = 5
         pilot.frame = 100
-        self.assertEqual(pilot.precision_weapon_input(state, [0, 0, -70], 2), (0, 0))
-        self.assertEqual(pilot.tap_key, 'f')
-        # A target moving during this physical pulse cannot add mouse movement.
-        self.assertEqual(pilot.precision_weapon_input(state, [10, 0, -70], 2.01), (0, 0))
-        keys = set(); pilot.pulse(keys, 2.01)
-        self.assertEqual(keys, {'f'})
-        pilot.frame = 105
-        keys = set(); pilot.pulse(keys, 3)
-        self.assertEqual(keys, {'f'})
-        pilot.frame = 106
-        keys = set(); pilot.pulse(keys, 3)
-        self.assertEqual(keys, set())
-        self.assertIsNone(pilot.tap_key)
+        state = self.wing_precision_observation()
+        state.update(frame=100, phase='FREE_FLIGHT', position=[0, 0, 0],
+                     director={'generation': 5, 'scenario': 'paired_wing', 'state': 'running', 'outcome': 'pending'},
+                     members=[{'id': 8, 'health': 38, 'position': [10, 0, -70], 'velocity': [0, 0, 0]}])
+        keys = set()
+        dx, dy = pilot.wing_fight_input(state, 1, keys)
+        self.assertIn('f', keys)
+        self.assertNotEqual((dx, dy), (0, 0))
+        self.assertIsNone(pilot.tap_key, 'held F is not a timed static aiming pulse')
+        outstanding = pilot.weapon_command
+        keys = set()
+        self.assertEqual(pilot.wing_fight_input(state, 1.01, keys), (0, 0))
+        self.assertIn('f', keys)
+        self.assertIs(pilot.weapon_command, outstanding, 'no second sweep before actual acknowledgement')
+        angle = -.02
+        state['aim']['camera_right'] = [math.cos(angle), 0, -math.sin(angle)]
+        state['aim']['camera_back'] = [math.sin(angle), 0, math.cos(angle)]
+        pilot.frame = 107
+        keys = set()
+        self.assertNotEqual(pilot.wing_fight_input(state, 1.12, keys), (0, 0))
+        self.assertIn('f', keys, 'ordinary held fire does not freeze the next acknowledged tracking correction')
+        self.assertIsNot(pilot.weapon_command, outstanding)
+        state['director'].update(state='concluded', outcome='cleared')
+        keys = set()
+        # Existing target-specific kill acceptance remains its own strict check.
+        with patch.object(pilot, 'require_wing_clear') as clear:
+            self.assertEqual(pilot.wing_fight_input(state, 1.13, keys), (0, 0))
+            clear.assert_called_once_with(state)
+        self.assertNotIn('f', keys)
+        self.assertEqual(pilot.stage, 'return_align')
 
     def test_wing_tracking_converges_with_moving_targets_and_delayed_pixel_actuation(self):
         # Simulate production 60Hz pixel impulses, not an arithmetic helper:
@@ -168,8 +183,6 @@ class NativeSortieSafetyTests(unittest.TestCase):
                 state['velocity'] = [0, 0, 0]
                 axes = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
                 queued = []
-                admissions = 0
-                previous_fire = False
                 precision_frames = 0
                 for frame in range(200):
                     for due, dx, dy in queued[:]:
@@ -193,20 +206,12 @@ class NativeSortieSafetyTests(unittest.TestCase):
                     pilot.frame = frame
                     alignment = native.dot(native.unit(target), [-v for v in axes[2]])
                     if alignment > .99998: precision_frames += 1
-                    dx, dy = pilot.precision_weapon_input(state, target, seconds, velocity)
+                    dx, dy = pilot.tracking_weapon_input(state, target, seconds, velocity)
                     if dx or dy:
                         self.assertFalse(queued, 'never queue another sweep before actual acknowledgement')
                         queued.append((frame+delay, dx, dy))
                         pilot.mouse_pending = axes[2][:]
-                    keys = set(); pilot.pulse(keys, seconds)
-                    fire = 'f' in keys
-                    if fire and not previous_fire:
-                        self.assertGreater(alignment, .99998, 'trigger needs observed precision')
-                        admissions += 1
-                    if fire: self.assertEqual((dx, dy), (0, 0))
-                    previous_fire = fire
                 self.assertGreaterEqual(precision_frames, 2)
-                self.assertGreaterEqual(admissions, 2, 'combined yaw/pitch tracking must admit repeated shots inside the actual 200-frame fight horizon')
                 self.assertEqual(pilot.weapon_latency_frames, delay)
                 self.assertAlmostEqual(pilot.weapon_pixel_scale, .0022*power, delta=.00015)
 

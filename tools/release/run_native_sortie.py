@@ -3914,7 +3914,7 @@ class PairedWingPilot(SandboxPilot):
         self.enter('wing_land', s)
         return True
 
-    def precision_weapon_input(self, s, target, now, target_velocity=None):
+    def tracking_weapon_input(self, s, target, now, target_velocity=None):
         # One command is outstanding at a time. Measure actual pixels->attitude
         # authority (including existing component damage) and physical ack delay.
         axes = s['aim']
@@ -3934,19 +3934,13 @@ class PairedWingPilot(SandboxPilot):
                 self.weapon_pixel_scale = min(nominal, measured)
             self.weapon_command = None
             self.mouse_pending = None
-        if self.tap_key == 'f' or self.mouse_pending is not None:
+        if self.mouse_pending is not None:
             return 0, 0
         relative = sub(target, s['camera'])
         right, up, forward = [dot(relative, axes[a]) for a in ('camera_right', 'camera_up', 'camera_back')]
         forward = -forward
         horizontal = math.hypot(right, forward)
         distance = norm(relative)
-        alignment = forward/max(distance, 1e-9)
-        # Fire only inside the actual observed precision cone, never a predicted
-        # ray. A timed F pulse owns a zero-steering interval until fully released.
-        if alignment > .99998:
-            self.tap('f', now)
-            if self.tap_key == 'f': return 0, 0
         yaw = math.atan2(right, forward)
         pitch = math.atan2(up, horizontal)
         # No target-motion history survives an actor switch: use this member's
@@ -3968,6 +3962,25 @@ class PairedWingPilot(SandboxPilot):
                                    'right': axes['camera_right'][:], 'up': axes['camera_up'][:],
                                    'back': back[:]}
         return dx, dy
+
+    def wing_fight_input(self, s, now, keys):
+        director = s['director']
+        require(director['generation'] == self.director_generation and director['scenario'] == self.CONTRACTS[self.leg],
+                'same actual Wing encounter generation')
+        keys.add('Prior')
+        if director['state'] == 'concluded':
+            self.require_wing_clear(s)
+            self.enter('return_align', s)
+            return 0, 0
+        require(director['state'] == 'running' and director['outcome'] == 'pending', 'Wing remains live until actual clear')
+        targets = [member for member in s['members'] if member['health'] > 0]
+        require(targets, 'live Wing contacts until terminal outcome')
+        # Hold the ordinary native trigger while tracking, like a player.
+        # The real weapon owns cadence/heat; each kill still needs fresh proof.
+        keys.add('f')
+        if self.target not in [member['id'] for member in targets]: self.target = targets[0]['id']
+        target = next(member for member in targets if member['id'] == self.target)
+        return self.tracking_weapon_input(s, target['position'], now, target['velocity'])
 
     def observe_hits(self, s):
         """Independently correlate observer receipts against this flight's baseline."""
@@ -4183,20 +4196,7 @@ class PairedWingPilot(SandboxPilot):
                 elif distance <= 4 and speed <= .8:
                     self.enter('return_align', s)
         elif self.stage == 'wing_fight':
-            require(director['generation'] == self.director_generation and director['scenario'] == expected,
-                    'same actual Wing encounter generation')
-            keys.add('Prior')
-            if director['state'] == 'concluded':
-                self.require_wing_clear(s)
-                if self.tap_key != 'f': self.enter('return_align', s)
-            else:
-                require(director['state'] == 'running' and director['outcome'] == 'pending', 'Wing remains live until actual clear')
-                targets = [m for m in s['members'] if m['health'] > 0]
-                require(targets, 'live Wing contacts until terminal outcome')
-                # Keep one exact actor until destroyed; both are the existing roster.
-                if self.target not in [m['id'] for m in targets]: self.target = targets[0]['id']
-                target = next(m for m in targets if m['id'] == self.target)
-                dx, dy = self.precision_weapon_input(s, target['position'], now, target['velocity'])
+            dx, dy = self.wing_fight_input(s, now, keys)
         elif self.stage == 'return_align':
             keys.update(('Prior', 'h'))
             off = sub([0, 2, -18], s['position'])
