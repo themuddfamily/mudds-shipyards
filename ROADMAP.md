@@ -63,8 +63,32 @@ correction/review must address the first diagnostic before another attempt;
 other assertion failures remain unresolved. Candidate withheld/no new checkpoint.
 All22 observed identities absent,76 unique profile entries archived/verified,
 owned scratch removed at5.36min within45min. [Actual result and original limits](docs/history/ROADMAP_DELIVERIES.md#jovian-passenger-exit--syntax-passes-postdock-route-stops).
-Threading remains gated on UI-BOARD-FOCUS; Hauler/navigator/Bomber choices remain
-unanswered. No successor selected.
+**Selected repair: NET-JOVIAN-DOCKED-PILOT-HOLD**, within the same original
+05:35→06:20UTC45min budget; prior166.940s/current three stages and earlier two
+parse failures remain. Saved data identifies the pilot's false invariant exactly:
+committed docked hull error0.494335→0.500294m while authority/input stay correct.
+The pose stream still applies airborne prediction/deadband after landed+docked.
+Passenger was mid-rise when the shared pilot abort arrived; no passenger repair
+is justified by that capture.
+
+Result: a still-owned remote pilot holds the current authoritative docked pose/
+velocity until a newer departure sample, while crew can finish the existing exit.
+One high implementer owns scripts/network/network_remote_craft_pose_stream.gd
+and existing tests/network_remote_craft_pose_test.gd. Root owns only the retained
+return caller's off-tree source identity receipt fix. Preserve all predicates,
+0.5m tolerance, stale/source/owner/world-frame fences and flight/landing behavior.
+Independent high review before engines. Implementation/review15–20min within
+original deadline; this is the one corrective attempt after the runtime failure.
+
+Frozen checks: import180s, existing full pose suite180s, caller check-only300s,
+then one unchanged selected three-peer route300s/360outer with original local
+limits. First failure stops for cumulative priority review; no second repair or
+renamed run. On full pass, clean paired exports180s each, three strict startups
+120s each, artifact audit90s and repository checkpoint publication. All Godot
+calls Dummy audio/headless or existing private explicitx11 peers. No hosted CI,
+active desktop/audio or native Windows execution. Remaining whole-card time,
+not the sum of caps, remains the limit. Cleanup/commit/push required either way.
+Threading remains gated; Hauler/navigator/Bomber choices remain unanswered.
 
 ### Waiting decisions — not executable tasks
 
