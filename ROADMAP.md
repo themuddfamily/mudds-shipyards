@@ -80,6 +80,24 @@ records the earlier 20 candidates; accepted Breach and Halyard closeouts and the
 archived superseded Jovian caller remove three.
 This cleanup changes branch ownership, not the number of completed roadmap outcomes.
 
+**Selected physical passenger-exit repair: 15:47–16:32 UTC, 45min.**
+Reuse existing docked-pilot branch. Source now proves confirmed nonpilot departure
+teleports to generic station spawn; it cannot satisfy the required authored-ground
+endpoint. The caller also mistakes post-confirmation exterior animation poses for
+pre-Interact walking goals. Correct both ends of this same original journey:
+ordinary supported cabin walk and Interact outside the pilot-swap radius, then
+confirmed physical exit along the existing authored route while the other pilot
+retains helm/ownership/source and landed pose. Preserve the original endpoint,
+retirement, identity, ground-walk and actual three-peer exit assertions.
+
+One implementer owns GameFlow/its focused existing seam test; root owns the
+original caller. Independent high review before engines. Original300s suite,
+360s outer,15s walks,8s boundary/exit and10s peer grace stay fixed. First unexpected
+failure stops. Focused lifecycle/pose/seam checks, full original journey once;
+paired checkpoint exports and strict silent isolated startup/audit only after
+full acceptance. Merge/push/delete and owned cleanup finish the card. Prior
+619.927s stages and original parser failures remain; no cost reset.
+
 **Docked-pilot branch closeout stopped at a later hatch-route boundary.**
 Existing branch `fix/docked-pilot-hold-20261020` is pushed on bf7fb636e and remains
 unmerged/withheld. Source proved the original diagonal crossed the solid pilot
