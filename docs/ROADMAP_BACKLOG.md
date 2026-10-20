@@ -37,44 +37,52 @@ budget. Parked work requires its recorded reopening condition.
 
 These are **36 parent outcomes**, not 36 executable jobs. They remain open until all applicable named instances and original acceptance conditions hold. This crosswalk is the guard against losing scope during the rewrite; it is not an extra evidence system. Original wording and all ten phase specifications remain in the preserved reference.
 
-| Parent | Original parent outcome | Active task families | Reconciliation / next named outcome |
+Each final cell below names one unfinished child, what proves it, and its current
+prerequisite. It is a next-step map, not permission to run that child or a
+replacement for the full child inventory. Definition completes a contract;
+qualification proves an existing capability. Neither implies new gameplay.
+Parents 3/27 share the same 21 world cells; parents 6/35 share MATRIX-FINAL;
+parents 11/21 share damage ownership. Do not count these twice.
+
+
+| Parent | Original parent outcome | Active task families | Next bounded result, proof and remaining dependency |
 | --- | --- | --- | --- |
-| 1 | Finish final integrated-source and packaged physical abandonment acceptance | WORLD-ABANDON, WORLD-SOLO, PACKAGE-WIN, PACKAGE-LINUX | Source Ember abandonment DONE on e85157b4d; EMBER-PACKAGE-ABANDON and real-file/reuse cases remain gated. |
-| 2 | Complete matching installed interruption/recovery on the accepted integrated build | RECOVERY-CONTRACT, RECOVERY-KILL, INSTALL-LINUX, FINAL-RECONCILE | RECOVERY-ONFOOT-DEFINE/PROBE/CUT DONE in the selected f90547c direct/archive scope. Pilot/cabin/crew/docking/planetary/activity source maps are defined below; explicit activity capability/policy gaps and remaining installed cuts stay open. |
-| 3 | Complete canonical-distance outbound and return with ordinary remote crews for Ember, Aurora and Rime, including activities/rewards/save, late join, disconnect, pilot loss, cancellation, interruptions and repeat visits | WORLD-SHARED (each world/case), NET-CREW, RECOVERY-KILL | The 21 SHARED-* cells are named below; Aurora originals WAITING and Rime arrival PARKED. Same cells as27. |
-| 4 | Record the final shipped roster and supported limits | SCOPE-DECISION, NET-CAPACITY, ORIGINAL-SPEC | SCOPE-ROSTER definition DONE; SCOPE-DESKTOP final target list and SCOPE-LIMIT WAITING; BOMBER-ROLES-DEFINE resolves one exact role promise. |
-| 5 | Assign owners, dependencies and estimates to the remaining deliverables | PLAN-ASSIGN and the per-session task card | Four service runtime cards and navigator client acceptance/clear are accepted on recorded sources. Activity first-play milestones below replace generic journey wording; runnable-driver and combat-launch gaps remain explicit. ROADMAP.md holds the bounded queue. No whole-project estimate or release date. |
-| 6 | Qualify and package current source | BASE-DIAG/FIX, MATRIX, PACKAGE-WIN/LINUX | Checkpoint2c73494 and HELM-EDGE-REPRO/REPAIR accepted; MATRIX-FINAL still gated. |
-| 7 | Complete the normal-controls core playthrough and fix observed blockers | GUIDED, SANDBOX, SETTINGS-INPUT/RUN, LIFECYCLE, STATION-ROUTE, CRAFT-ACCEPT | LIFE-VISIBLE/REUSE source DONE; Guided earlier-package pass retained. Nine WALK-* and17 eventual CRAFT-ACCEPT-* outcomes named; Sandbox PARKED and Settings WAITING. |
-| 8 | Complete control and tutorial tuning | CONTROL-FIX, INPUT-DEVICE, INPUT-REMAP | REMAP-DEFINE DONE; ONFOOT-SPRINT-TOGGLE packagedbd4e15d. CONTROL-FINDINGS definition DONE; GAMEPAD-LOOK packaged99e79c3 repairs its concrete camera gap. Remaining context definitions and INPUT-KBM/CONTROLLER real-device routes stay open. |
-| 9 | Finish station layout and final presentation | HIST-CLAIM, STATION-MODULE/ROUTE/ART/LIFE | WALK-ANNEX source9af57671d and Habitat loop/restart DONE in recorded scopes. All four LIFE runtime outcomes DONE on recorded sources; other WALK-* and actual station presentation remain, VIP PARKED. STATION-FINDINGS view roster defined; actual presentation findings and STATION-RELATIONS remain. |
-| 10 | Finish fleet art, character animation and role acceptance | CRAFT-ART, CRAFT-ROLE, CRAFT-ACCEPT | Nine current craft plus eight missing originals explicitly named. Each SPEC/BUILD-SPLIT/CRAFT-ACCEPT outcome remains distinct; component gaps DEFINE. |
-| 11 | Complete the combat-and-recovery slice across supported craft | COMBAT-SLICE, CRAFT-ACCEPT, NET-DAMAGE | Six COMBAT-* encounters named. WEAPONS-DEFINE/DAMAGE-DEFINE resolve actual supported cells; no duplicated network-damage assignment. |
-| 12 | Complete the whole-game art-direction pass | ART-FINDING, STATION-ART, CRAFT-ART, CAPTURE | ART-FINDINGS, ACCESS-* and13 named capture sets; each actual repair needs its own view/behavior proof. |
-| 13 | Close the complete nearby-activity roster | ACT-HUD/WRITE/PLAY/REPEAT, TRAVEL-LIMIT, HULK | Twelve PLAY-* journeys have concrete milestones below; four HUD-* rows and actual durable owners are named. ACT-REPEAT-DEFINE is DONE as a definition; execution, resource/deadline contracts and TRAVEL-LIMIT remain. HULK revisit PARKED. |
-| 14 | Qualify each implemented world's full physical round trip | WORLD-SOLO/ABANDON/SAVE/EDGE | Three SOLO-* returns named; Ember source abandonment DONE. WORLD-ABANDON/SAVE/EDGE-DEFINE resolve uncovered cases. |
-| 15 | Resolve remaining planetary content and presentation gaps | WORLD-CONTENT, ART-FINDING | CONTENT-EMBER/AURORA/RIME definitions DONE in inspected authored-content scopes with no missing implementation identified. Presentation and original journey acceptance remain open; no assumed new planets/features. |
-| 16 | Close remaining fleet/crew replication gaps | NET-CREW, NET-CAPACITY | Jovian boarding/departure DONE in recorded scopes. Eight named role routes, NET-SEATS-FINAL and bomber role contract remain separate. |
-| 17 | Complete remote engine and landing/dock presentation | NET-POSE, NET-BUDGET | NET-POSE-DEFINE resolves craft/operation views; NET-FULL-SNAPSHOT is one aggregate original-budget check. |
-| 18 | Complete supported remote helm actions and their real local-input prerequisite | NET-HELM, INPUT-DEVICE | HELM-EDGE-REPRO/REPAIR DONE on recorded source; HELM-ACTIONS-DEFINE now names six uncovered held-action cases; devices remain separate. Physical-device proof stays separate. |
-| 19 | Qualify honest remote-command recovery after host simulation stalls | NET-STALL | NET-STALL retains original600-step/2s contract; no unchanged parked/stall expansion under current repair. |
-| 20 | Complete remote landing, post-dock disembarkation and craft reuse | NET-LAND-DIAG, NET-DOCK | NET-JOVIAN-RETURN DONE; NET-SECOND-LAND must prove distinctness from recorded failures before diagnosis. Five bounded Jovian exit/reboard/pilot-exit/reclaim/redeparture cards now name reuse; other craft prerequisites remain. |
-| 21 | Qualify fleet hull/component damage, repair, destruction and regeneration presentation across supported craft and roles | NET-DAMAGE | DAMAGE-DEFINE shares parent11 ownership and names uncovered real craft/role consequences and peer presentation. |
-| 22 | Qualify the implemented convoy actor lifecycle in native gameplay | NET-ACTOR[Convoy] | CONVOY-ACTOR-DEFINE ends with actual uncovered native lifecycle cases, not another full Convoy save probe. |
-| 23 | Qualify Torpedo Run authority and solo recovery | NET-ACTOR[Torpedo Run] | COMBAT-TORPEDO ordinary route and TORPEDO-AUTH-DEFINE authority/recovery cases remain distinct. |
-| 24 | Finish remaining travelling-weapon and moving-crew integration | NET-ACTOR[Picket/Emberline], NET-CREW, WORLD-SHARED | PICKET-ACTOR-DEFINE/EMBERLINE-ACTOR-DEFINE plus existing ROLE-/SHARED-* cells; no duplicate moving-crew queue. |
-| 25 | Qualify the production server-browser and connection flow | NET-BROWSER | Seven BROWSER-* menu outcomes named; delivered cancel/session-generation fixes retained on recorded sources. |
-| 26 | Pass multiplayer and endurance acceptance | NET-ENDURANCE, NET-CAPACITY, NET-BUDGET | Boarding/departure subroutes DONE. Return is now DONE in its source scope; dedicated SERVER-BASELINE, profiles,30min endurance/full-snapshot/capacity remain open. |
-| 27 | Resolve planetary travel during multiplayer explicitly | WORLD-SHARED (each world/case) | Same21 SHARED-* cells as3; no double count or staged-arrival substitute. |
-| 28 | Benchmark and optimize on representative native hardware | PERF-MACHINE/ROUTE/RUN/FIX | PERF-MINIMUM/TARGET WAITING on actual hardware; PERF-ROUTES/CELLS-DEFINE precede original-length measurements. |
-| 29 | Complete real-device controls and accessibility review | INPUT-DEVICE/REMAP, ACCESS-VIEW/COMFORT | Two device families/four COMFORT-* outcomes named. ACCESS-PAUSE-DEFINE and ACCESS-VIEWS-DEFINE DONE as finite rosters; actual remaining readability/remap cells and device qualification stay open. |
-| 30 | Finish authored audio and the real-device mix pass | AUDIO-CONTENT/MIX | AUDIO-CONTENT-DEFINE DONE; activity lifecycle packagedf1f35d1 and surface music packaged4ff7a08; Ember-feed definition resolves airless silence and unspecified positive-use intent. MIX-DEFINE roster complete; repair dispatch packaged9b7b46a. Actual AUDIO-MIX retains audible authorization/device gates; other playback/mix scope remains open. |
-| 31 | Finish production crash and save recovery | RECOVERY-CONTRACT/FIX/KILL, ACT-WRITE, WORLD-SAVE | Seven recovery context definitions plus ACT-WRITES/WORLD-SAVE lists; SAVE-MIGRATION/CORRUPT/UNSUPPORTED named. Existing accepted cuts retained. |
-| 32 | Qualify installation, updates and supported desktop platforms | PACKAGE-WIN/LINUX, INSTALL-WIN/LINUX, LINUX-BUNDLE/DESKTOP | Checkpoint packages retained; final package/NSIS, six final Linux transactions and two graphical launch paths named. Additional target scope DEFINE. |
-| 33 | Complete all required graphical capture gates | CAPTURE (each required registry ID) | All13 registry IDs/143 PNGs named individually; caption-production and station-operations stalls PARKED. |
-| 34 | Complete release licensing, trusted signing and distribution | RIGHTS, SIGN, DISTRIBUTE | RIGHTS-DEFINE finite family list; SIGN-FINAL WAITING on trusted credentials; DISTRIBUTE gated on acceptance/authorized destination. |
-| 35 | Run final release acceptance on the exact distributed candidate | MATRIX, FINAL-RECONCILE, DISTRIBUTE | MATRIX-FINAL, FINAL-RECONCILE and DISTRIBUTE distinct. Current full matrix NOT_RUN; excluded native/human gates not silently reinstated. |
-| 36 | Resolve historical reconstruction dependencies and deliver the remaining researched fleet | HIST-CLAIM, ORIGINAL-SPEC/BUILD, CRAFT-ART/ACCEPT, STATION-MODULE | Four IDENTITY-* claims, eight SPEC/BUILD-SPLIT/CRAFT-ACCEPT chains and STATION-RELATIONS; missing evidence stays external. |
+| 1 | Finish final integrated-source and packaged physical abandonment acceptance | WORLD-ABANDON, WORLD-SOLO, PACKAGE-WIN, PACKAGE-LINUX | **Qualification — EMBER-PACKAGE-ABANDON.** GATED on a supported packaged OS-input route; old external driver UNSUPPORTED. Prove physical outbound/abandon/reboard/ascent/home docking and usable walking. Source abandonment stays accepted; real-file/reuse and other world cases remain. |
+| 2 | Complete matching installed interruption/recovery on the accepted integrated build | RECOVERY-CONTRACT, RECOVERY-KILL, INSTALL-LINUX, FINAL-RECONCILE | **Qualification — CREW-RECOVERY-INSTALLED.** GATED on final installed candidate and one supported craft/seat/cut. Prove committed context → owned kill/reap → distinct restart → awake supported home cabin, usable controls and conserved activity/reward. Other installed contexts and reconciliation remain. |
+| 3 | Complete canonical-distance outbound and return with ordinary remote crews for Ember, Aurora and Rime, including activities/rewards/save, late join, disconnect, pilot loss, cancellation, interruptions and repeat visits | WORLD-SHARED (each world/case), NET-CREW, RECOVERY-KILL | **Qualification — SHARED-EMBER-BASELINE.** GATED on ordinary independent crew/profile and exact canonical command. Prove outbound, physical survey, reward/save and home return. All 21 shared cells remain; Aurora originals WAITING, Rime arrival PARKED. Shared with 27, not another set. |
+| 4 | Record the final shipped roster and supported limits | SCOPE-DECISION, NET-CAPACITY, ORIGINAL-SPEC | **Dependency — SCOPE-LIMIT.** WAITING on the already-asked owner choice. Finish records supported remote-guest count and playing-host participation. SCOPE-DESKTOP and BOMBER-ROLE-DECISION remain separate; SCOPE-ROSTER definition is DONE. |
+| 5 | Assign owners, dependencies and estimates to the remaining deliverables | PLAN-ASSIGN and the per-session task card | **Definition — PLAN-NEXT / PLAN-ASSIGN.** Freeze one existing child: result, files/owner, accepted dependencies, exact proof, implementation/check estimate and first-failure stop. Finish is one executable assignment. Ownership/estimates for remaining deliverables stay open; no gameplay or release-date claim. |
+| 6 | Qualify and package current source | BASE-DIAG/FIX, MATRIX, PACKAGE-WIN/LINUX | **Qualification — MATRIX-FINAL.** GATED on required repairs/integration and frozen candidate. Pass existing unfiltered local `--mode all` at original caps, without exclusions. PACKAGE-FINAL and reconciliation remain separate; latest accepted checkpoint `51257b3` is development scope. |
+| 7 | Complete the normal-controls core playthrough and fix observed blockers | GUIDED, SANDBOX, SETTINGS-INPUT/RUN, LIFECYCLE, STATION-ROUTE, CRAFT-ACCEPT | **Qualification — GUIDED-FINAL.** GATED on final package. Prove original ordinary training/combat/home/neutral-shutdown/physical-exit route 3/3. Checkpoint `3d92b91` keeps its accepted3/3; new923d7b3 is not final-Guided-qualified; Sandbox PARKED, Settings WAITING, remaining station/craft/lifecycle journeys open. |
+| 8 | Complete control and tutorial tuning | CONTROL-FIX, INPUT-DEVICE, INPUT-REMAP | **Qualification — INPUT-CONTROLLER.** WAITING on physical device, isolated session and frozen complete ordinary route. Prove actual-device menus and gameplay; synthetic input cannot supply this result. INPUT-KBM, Settings originals, remapping/context and tutorial cases remain. |
+| 9 | Finish station layout and final presentation | HIST-CLAIM, STATION-MODULE/ROUTE/ART/LIFE | **Parked view — STATION-FINDINGS[Habitat common entry].** Source8a6339b91 full-Main player-height readback times out180.842s before any PNG; no visual finding or no-finding. Concrete supported capture-boundary change required before new selection. Accepted Habitat/service runtime scopes stand; remaining station routes/art and STATION-RELATIONS remain. |
+| 10 | Finish fleet art, character animation and role acceptance | CRAFT-ART, CRAFT-ROLE, CRAFT-ACCEPT | **Dependency — BOMBER-ROLE-DECISION.** WAITING on exact additional role/count, action and physical access. Finish is the contract needed to split a justified capability; invent no role. Fleet art/animation/full craft journeys and eight SPEC→BUILD-SPLIT→CRAFT-ACCEPT chains remain. |
+| 11 | Complete the combat-and-recovery slice across supported craft | COMBAT-SLICE, CRAFT-ACCEPT, NET-DAMAGE | **Definition — BOMBER-REARM-POLICY.** Settle which same-hull events may replenish spent payload: seat re-entry, dock service or destruction/reuse. Finish supplies entitlement before correction/qualification. Weapon/damage definitions are DONE; encounters, craft/recovery and shared damage remain. Courier/Perimeter stays PARKED. |
+| 12 | Complete the whole-game art-direction pass | ART-FINDING, STATION-ART, CRAFT-ART, CAPTURE | **Definition — ART-FINDINGS[one view].** Name an actual UI/animation/effect/lighting/terrain/weather defect, current view, intended before→after, runtime owner and protected route before repair. Other station/fleet art, accessibility and required capture sets remain. |
+| 13 | Close the complete nearby-activity roster | ACT-HUD/WRITE/PLAY/REPEAT, TRAVEL-LIMIT, HULK | **Parked — PLAY-DEFENSE post-Deploy walk.** Physical E fixeda59127c and ordinary Deploy accepted in withhelda480c0fbb, but unchanged34s timed out before Arrow boarding after stationary walk. Both failures/cumulative406.401s retained; concrete causal change plus separate selection required, no second repair/retry. Full waves/payment/home/reset/UIexit and other activity first-play/repeat/durable requirements remain; Beacon travel-limit choice WAITING. |
+| 14 | Qualify each implemented world's full physical round trip | WORLD-SOLO/ABANDON/SAVE/EDGE | **Definition — WORLD-SAVE-DEFINE[one world/boundary].** Specify initial state, survey/reward/reboard disk cut, once-only durable result and usable resume/safe recovery, with existing route/command prerequisite. SOLO returns, abandonment, other save cuts and EDGE cases remain. |
+| 15 | Resolve remaining planetary content and presentation gaps | WORLD-CONTENT, ART-FINDING | **Definition — ART-FINDINGS[one planetary view].** Finish with an actual observed presentation defect, affected route and comparable before/after acceptance. CONTENT-EMBER/AURORA/RIME found no missing implementation; do not redo them. Original journeys, qualitative presentation and hardware gates remain. |
+| 16 | Close remaining fleet/crew replication gaps | NET-CREW, NET-CAPACITY | **Qualification preparation — ROLE-JOVIAN-ENGINEER.** GATED on supported candidate/ordinary route. Freeze independent authenticated walk/sit/use/stand/exit and applicable ownership/disconnect recovery. Other seven role routes, NET-SEATS-FINAL, capacity and Bomber interpretation remain. |
+| 17 | Complete remote engine and landing/dock presentation | NET-POSE, NET-BUDGET | **Definition — NET-POSE-DEFINE[one uncovered view].** Name one still-unqualified craft/operation/view, current/late-peer expectation, production consumer and existing test seam. Delivered operation HUD/throttle fixes are excluded from new work. Broader ordinary motion/landing views remain; NET-FULL-SNAPSHOT aggregate envelope checks are accepted on330a39ce3, with final-candidate/native/endurance qualification separate. |
+| 18 | Complete supported remote helm actions and their real local-input prerequisite | NET-HELM, INPUT-DEVICE | **Pitch turn/release DONEf9682a38c; continuous roll-rate turn/release DONE73f4a4f67.** Actual host/source/stream and both replicas meet retained limits through synthetic Godot actions. Full original handback remains required/PARKED. Boost/hover stay UNSCHEDULED; reverse/yaw handback and physical devices remain open. No successor selected by these results. |
+| 19 | Qualify honest remote-command recovery after host simulation stalls | NET-STALL | **Current source qualification DONE — NET-STALL on3d6b1b513.** Full independent suite passes both original600-step stalls/2s fresh actions, ownership/landing/reuse/cleanup,160 terminal host assertions and actual client/wrapper exit0; zero diagnostics. No unchanged rerun. Exact final-package/native/endurance and distinct ordinary-control gates remain; this does not accept a full matrix. |
+| 20 | Complete remote landing, post-dock disembarkation and craft reuse | NET-LAND-DIAG, NET-DOCK | **Parked prerequisite — NET-JOVIAN-PASSENGER-EXIT.** Latest0d225bee8 drift/receipt corrective candidate passes322 pose assertions and reaches passenger standing, but original full route fails145.995s at15s cabin walk. Pushed/unmerged/withheld; chain parked after failure plus one corrective attempt,392.470s combined current stages; original parse failures retained. No second repair/retry selected. Eventual proof: original passenger reaches supported deck/walks while pilot retains helm. Reboard, pilot exit/reclaim, redeparture, other craft and second-land distinctness remain. |
+| 21 | Qualify fleet hull/component damage, repair, destruction and regeneration presentation across supported craft and roles | NET-DAMAGE | **Qualification preparation — NET-DAMAGE[one craft/role].** Freeze supported ordinary scenario, candidate and expected peer damage/repair/destruction/regeneration and usable recovery. DAMAGE-DEFINE plus identified component row/power repairs are DONE. Other supported scenarios and missing-original prerequisites remain; share parent 11 ownership. |
+| 22 | Qualify the implemented convoy actor lifecycle in native gameplay | NET-ACTOR[Convoy] | **Definition — CONVOY-ACTOR-DEFINE[one lifecycle case].** Compare native gameplay coverage with authority tests; name participants/action and observable tender retirement/restoration, with ordinary Convoy prerequisite. Finish is one bounded executable case. Other live/dead/reset/late/disconnect cases remain; no parked save probe reopened. |
+| 23 | Qualify Torpedo Run authority and solo recovery | NET-ACTOR[Torpedo Run] | **Gated qualification — TORPEDO-PEER-FLIGHT.** Requires actual Torpedo baseline/participant route and matching package. Prove current/late adoption of real airborne seeker without launch replay, then terminal retirement without duplicate damage/resurrection. COMBAT-TORPEDO and other nine authority/recovery cases remain. |
+| 24 | Finish remaining travelling-weapon and moving-crew integration | NET-ACTOR[Picket/Emberline], NET-CREW, WORLD-SHARED | **Definition — PICKET-ACTOR-DEFINE[one lifecycle case].** Name supported moving-crew participants, existing actor/test owner and one observable live/dead/reset/late/disconnect finish. EMBERLINE-ACTOR-DEFINE/failed baseline and existing ROLE-/SHARED- cells remain; create no duplicate crew assignment. |
+| 25 | Qualify the production server-browser and connection flow | NET-BROWSER | **Parked qualification — BROWSER-UNREACHABLE.** Accepted matching RPC-cache templates missing after stopped Windows compilation; no retry selected. Eventual proof is honest non-admission/no-answer feedback and usable retry/menu recovery at frozen limits. Other six ordinary browser cases and broader connection gates remain. |
+| 26 | Pass multiplayer and endurance acceptance | NET-ENDURANCE, NET-CAPACITY, NET-BUDGET | **Definition — NET-ENDURANCE-DEFINE.** Freeze independent-server/two-client moving-interior command, participants, observations and stop while preserving original 30-minute/adverse-network requirements. Execution needs stable baseline. Parked Halyard, SERVER-BASELINE, profiles and capacity remain separate; aggregate snapshot budget is accepted on330a39ce3, not final-candidate/native/endurance qualification. |
+| 27 | Resolve planetary travel during multiplayer explicitly | WORLD-SHARED (each world/case) | **Dependency — SHARED-AURORA-BASELINE.** Recover original `47ffce740` runner/arguments, source/build/profile, participant state and raw orchestrator/peer receipts. Finish is that exact handoff; separately select reproduction. All 21 shared cells remain, including parked Rime arrival; same outcomes as 3. |
+| 28 | Benchmark and optimize on representative native hardware | PERF-MACHINE/ROUTE/RUN/FIX | **Definition — PERF-ROUTES-DEFINE.** Define any required representative workloads beyond the seven delivered selectors, including how whole orbit-to-surface repetition maps to existing world endurance. Additional craft/world/cycle choices are unspecified; repeating cabin/surface paths and combat reuse already exist. Actual minimum/target hardware, measurement cells, original-length native runs and demonstrated hotspot fixes remain. |
+| 29 | Complete real-device controls and accessibility review | INPUT-DEVICE/REMAP, ACCESS-VIEW/COMFORT | **Overflow capability DONE — ACCESS-TITLE on checkpoint19e7990.** Multiplayer is now inside the1024x768 title viewport; actual same-view comparison and eight-viewport retained-control/focus regression pass. ACCESS-TITLE-FOCUS is DONE checkpoint923d7b3: measured focus/press correction,32 paint pairs, same-view and paired package checks pass. Other view/remap/comfort/state/device gates remain. |
+| 30 | Finish authored audio and the real-device mix pass | AUDIO-CONTENT/MIX | **Implementation prerequisite — AUDIO-NAVIGATOR-CLIENT-REJECTION.** Already-asked refusal-scope choice WAITING. After resolution, freeze correct requester-correlated refusal feedback without stale/replayed responses. Accepted/clear playback stays delivered; other audio and real mix require their routes/devices/backend and explicit audible authorization. |
+| 31 | Finish production crash and save recovery | RECOVERY-CONTRACT/FIX/KILL, ACT-WRITE, WORLD-SAVE | **Stopped qualification — WORLD-SAVE-EMBER-FIRST-RELAY.** Existing permitted safe-yard contract defined without an extra approval gate. Archive923d7b3 runtime completes, but parent exact-state comparison FAIL312.812s on two coordinate scalars differing by one binary64 ULP. Contract review identifies JSON parse/re-encode representation; exact-runtime caller correction is focused-checked. Corrective preflight fails4.636s on missing package sidecar before any game process; cumulative review PARKS chain. Corrected full cut NOT_RUN; no passing cut/cold surface-restoration claim. Other contexts/activity writes, installed cuts and migration/corrupt/unsupported cases retain accepted scopes/gates. |
+| 32 | Qualify installation, updates and supported desktop platforms | PACKAGE-WIN/LINUX, INSTALL-WIN/LINUX, LINUX-BUNDLE/DESKTOP | **Qualification — LINUX-LAUNCH-DESKTOP.** WAITING on clean isolated graphical session and frozen installed candidate/ordinary route. Prove actual installed desktop entry launches/completes it; headless startup is insufficient. Direct-ELF, final packages/NSIS, six Linux transactions and extra-target definition remain; native Windows exclusions stand. |
+| 33 | Complete all required graphical capture gates | CAPTURE (each required registry ID) | **Qualification — caption-presenter-forward-render.** GATED on frozen candidate/original runnable harness. Produce its one declared PNG, verify source/output identity and inspect at original resolution; stop at set/result. Full 13-set/143-PNG registry stays binding; caption-production/station-operations keep parked reopening conditions. |
+| 34 | Complete release licensing, trusted signing and distribution | RIGHTS, SIGN, DISTRIBUTE | **Dependency — RIGHTS[project release terms].** Record owner-chosen release-terms text and explicit distribution disposition; engine notices do not settle this family. Other asset/media rights, external trusted signing credentials and accepted-candidate/authorized-destination distribution remain separate. |
+| 35 | Run final release acceptance on the exact distributed candidate | MATRIX, FINAL-RECONCILE, DISTRIBUTE | **Qualification — MATRIX-FINAL.** After required repairs/integration, freeze candidate and pass existing unfiltered local `--mode all`, original caps/no exclusions. Failure stops for separate named repair. Same matrix as 6; FINAL-RECONCILE and actual distributed/downloaded byte identity remain distinct; owner exclusions preserved. |
+| 36 | Resolve historical reconstruction dependencies and deliver the remaining researched fleet | HIST-CLAIM, ORIGINAL-SPEC/BUILD, CRAFT-ART/ACCEPT, STATION-MODULE | **Dependency — SPEC-TITAN.** Modern proposal exists; explicit interpretation decision or tied model evidence is still required. Finish is bounded accepted specification with supported facts/unknowns. Build split/implementation/full craft acceptance, other seven absent craft, four identity claims and STATION-RELATIONS remain. |
 
 
 ## Original phase gates and completion
@@ -92,6 +100,12 @@ Reconciled on 2026-10-18 after the owner requested smaller, provable goals.
 ROADMAP.md schedules a small executable queue with owners, actions and budgets;
 the retained postdock cards split the exit/reuse family into five ordered outcomes.
 These rows replace the earlier grouped “per craft/role/world” inventory.
+A family row such as CRAFT-ACCEPT is a completion container, not an executable
+assignment. Its next bounded action must be selected in the working roadmap;
+never interpret all remaining clauses in a row as one session's task. An existing
+source handoff is reused until a relevant source change invalidates it. Planning,
+implementation and qualification are reported separately; adding smaller rows
+alone does not deliver any of their runtime outcomes.
 They are a scope inventory, not an implementation estimate or a project percentage.
 
 **States:** UNSCHEDULED = named scenario, not yet assigned/frozen; DEFINE =
@@ -115,14 +129,14 @@ Finish means the named existing route passes on its frozen candidate, or the nam
 | SCOPE-ROSTER | Reconcile original twelve plus modern five craft, stations, opponents/weapons, activities, worlds, roles and targets | 4 | DONE as [finite named roster](COMPLETION_SCOPE.md#finite-release-roster--scope-roster): original12+modern5/eventual17, current9/missing8; other named inventories and unresolved boundaries preserved. No gameplay/qualification completion implied |
 | SCOPE-LIMIT | Release guest count and playing-host decision | 4,26 | WAITING; already-asked owner decision |
 | SCOPE-DESKTOP | Required desktop target list | 4,32 | WAITING final owner list: Windows Desktop/Linux x86_64 presets exist; Phase9 conditionally requires other non-Windows targets without naming one. Source investigation DONE; no third-target promise or deferral inferred |
-| PLAN-NEXT | Assign the next bounded queue | 5 | DONE locally: Four service runtime cards accepted with original contracts/results retained; next bounded navigator playback definition and stock-gated Hauler alternative/local estimates in ROADMAP.md. Not a whole-project decomposition/estimate or gameplay delivery |
-| GUIDED-FINAL | Final-package Guided ordinary-input sortie, original 3/3 | 7 | GATED; final package, earlier f676c50 acceptance retained |
+| PLAN-NEXT | Assign the next bounded queue | 5 | Parent-to-child breakdown DONE 2026-10-20: all 36 original crosswalk rows now name an unfinished child, decisive proof and current dependency; original parent wording, child inventory, ten gates and parked budgets retained. Completed definitions/fixes are not reassigned; shared world/matrix/damage outcomes are not duplicated. The [working queue](../ROADMAP.md#next-three-production-deliveries) now prepares the Freight interface, Hauler manifest and navigator refusal cards with player result, ownership boundary, completion check, estimate limits and explicit pending decisions. None is READY and no helm successor is scheduled. Each execution still requires its exact frozen task card; no whole-project estimate or gameplay completion implied |
+| GUIDED-FINAL | Final-package Guided ordinary-input sortie, original 3/3 | 7 | GATED on final package; checkpoint3d92b91 ordinary3/3 DONE, earlier f676c50 retained. Do not repeat current accepted package unchanged or transfer it to a different final candidate |
 | SANDBOX-RECOVERY | Original all-nine/54-waypoint recovery walk and reuse | 7 | PARKED; supported changed input/runtime cause required |
 | SETTINGS-INPUT | Recover original runner, profile and logs | 7,8,29 | WAITING; original artifacts, no substitute Gate C |
 | SETTINGS-RETURN | Original Settings/re-entry route, including gamepad return | 7,8,29 | GATED; SETTINGS-INPUT and supported correction |
 | LIFE-VISIBLE | Four-cycle source phantom-geometry qualification | 7 | DONE; d7be01487, staged/headless source scope |
 | LIFE-REUSE | Twelve-cycle source all-nine reuse qualification | 7 | DONE; d7be01487, staged/headless source scope |
-| LIFE-PACKAGE-DEFINE | Name uncovered packaged ordinary-play lifecycle cases | 7 | DEFINE; preserve both source passes, no automatic rerun |
+| LIFE-PACKAGE-DEFINE | Name uncovered packaged ordinary-play lifecycle cases | 7 | DONE as the [finite packaged lifecycle boundary](#packaged-ordinary-lifecycle--life-package-define) below; definition only, source passes retained, no package route executed or successor selected |
 | CONTROL-FINDINGS | List observed unresolved control/help defects | 8 | DONE as bounded source review: advertised Right Stick LOOK has no Player/Tow consumer; GAMEPAD-LOOK packaged99e79c3 separately. Existing mixed prompts/distance help/sprint fixes retained; physical-device acceptance remains open. |
 | GAMEPAD-LOOK | Continuous right-stick local camera look | 8,29 | DONE in99e79c3: Player/tractor real camera, authored delta rate/deadzone/clamps/inversion and handoff clearing; full focused checks/paired checkpoint pass. Physical controller/full ordinary route remains open. |
 | UI-BOARD-FOCUS | Keyboard Activity Board transition retains valid visible focus without engine signal-disconnection errors | 8,13,29 | PARKED: key-only4.673s and changed tooltip4.954s components both NOT_REPRODUCED. Second establishes one visible embedded popup with matching root recipients and successful teardown. Original popup identity/connection-removal event unknown; no production cause/fix. Two-attempt cumulative9.627s, original investigation budget retained. Actual full-Main Beacon-home candidatea612ea686 recurs at37.713s/frame1233; page transitions but same two diagnostics, still no popup/removal identity. No new causal fact or retry selected |
@@ -139,10 +153,11 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | WALK-HABITAT-LOOP | Fresh normal Start Shift, hub→door→bunk sleep/wake→common room→same hub | 7,9 | DONE packaged3707bc9: actual archive ELF OS-XTest full route54.259s/163.231m, exact reservation/wake/commons/support/hub return, same Player. No scenario placement; hardware/final-source scope stays separate |
 | WALK-HABITAT-RESTART | Normal quit while resting, distinct process with same data, fresh awake supported controls | 7,9 | DONE packaged29abe94: two normal UI exits/exit0, same actual data/distinct PID, fresh supported look/walk/tractor interaction68.756s under singleCAP300. No station pose or OS-kill claim; exact continuation below |
 | HABITAT-BUNK-REST | Six production Habitat bunks offer actual local SLEEP/WAKE with supported return and lifecycle cleanup | 7,9 | DONE; packaged221f523. Six StationSeat-based bunks, focused134/full spine/Habitat/ship sleep checks and paired startup pass; no saved station pose or ship/recovery/network authority expansion |
-| WALK-FREIGHT | Freight terminals | 7,9 | UNSCHEDULED; exact production-roster route |
-| WALK-FLEET | Fleet Dock berths | 7,9 | UNSCHEDULED; exact production-roster route |
+| WALK-FREIGHT | Full Freight terminal/door/room/conserved-transfer/receipt-reload/same-ship return | 7,9 | GATED on missing FREIGHT-TERMINAL-INTERFACE and its workflow choice; decorative screens are not implemented terminal interactions. Existing Jovian automatic cargo delivery remains accepted in its own scope; KIT-RELOAD remains PARKED. [Concrete ordered handoff](#freight-terminals--physical-interface-and-existing-transfer-owner); no route selected |
+| FREIGHT-TERMINAL-INTERFACE | Ordinary Freight terminal interaction bound to actual conserved cargo owners | 7,9,13 | Missing production integration; workflow choice pending (existing automatic return transfer with physical job/receipt controls, or manual terminal transfer). Preserve existing6-kit source/berth capacity64 and exact two-kit entitlement, no cloned manifests/stock. Source boundary and ordered acceptance below; no implementation/execution selected |
+| WALK-FLEET | Fleet Dock access and all-shipped berth reuse, shared with CRAFT-ACCEPT | 7,9 | DEFINE runnable boundary; three assigned comb berths are Zenith/Halyard/Bulwark, but original all-shipped reach/reuse covers nine current craft through existing CRAFT-ACCEPT journeys. No threshold-only completion or duplicate Sandbox route; [scope and seam](#fleet-access-and-reuse--shared-acceptance-boundary) |
 | WALK-ANNEX | Fresh normal hub→Annex console→hub with one actual restock | 7,9 | DONE source9af57671d;81.387s, same supported Player, kits5→6/one Annex update/Aft unchanged, disclosed pre-walk craft/repair fixtures; no whole-station closure |
-| WALK-OBSERVATION | Observation supported return | 7,9 | UNSCHEDULED; exact production-roster route |
+| WALK-OBSERVATION | Observation supported return | 7,9 | Main/final acceptance OPEN. Historical privatebae551d58 full route PASS:54 goals/345.753m,60-frame view/home/normal Exit0, zero diagnostics; repair acceptance INCONCLUSIVE because no visible original TooltipPanel. New actual-Main fixture4b2b301cb baseline also did not observe that tooltip within30s after real controls/Exit focus; original disconnect pair NOT_REPRODUCED, no production fix applied. Candidatebae branch remains withheld; failed setup fixture archived under `archive/diagnostics/tooltip-close-fixture-20261020`. Actual GUI hover/window/foreground state is missing before another attempt. [Result](history/ROADMAP_DELIVERIES.md#active-tooltip-baseline-stopped-and-two-test-only-branches-accounted--2026-10-20) |
 | WALK-SALVAGE | Salvage three-component manifest | 7,9 | OPEN; definition DONE, ordered ACCESS/INSPECT/REVISIT children below; existing connector-staged memory-store scope retained |
 | WALK-SALVAGE-ACCESS | Hub→three inspection positions→hub by same supported Player | 7,9 | FAILED/PARKED: original46c059cf1 61.019s plus one repair641bbdbb0 60.822s, both outbound20; unchanged fullroute/limits, no further diagnosis/fix/run selected |
 | WALK-SALVAGE-INSPECT | Ordinary three components and manifest publication after actual approach | 7,9 | GATED on ACCESS; freeze exact continuation before execution |
@@ -154,7 +169,7 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | LIFE-PATROL | Habitat patrol during nearby walking/boarding | 9 | DONE packaged ea8fe43:22 settled goals/171.602m,17.302m local/max9.944m origin distance, actual same-door candidate/E/OPEN-clear/return and distinct Torrent E→BOARDING/90seated. Same two actual drone roots/seed/defaults/home/OFFLINE/parked,2428 consecutive samples; all77Python/package/startups/audit/ONEroute PASS first attempt. [Frozen contract/full result](history/ROADMAP_DELIVERIES.md#habitat-patrol--ordinary-door-walking-and-torrent-boarding-accepted). Rendered/hardware/full station separate |
 | STATION-RELATIONS | Name unresolved historical adjacency/elevation/ladder relationships | 9,36 | DEFINE; tied source anchors or precise missing evidence |
 | STATION-CENTRAL-VIEW | One current source-tied Central operational-view defect | 9,12 | GATED; usable existing view/reproduction, capture stall parked |
-| STATION-FINDINGS | Finite remaining presentation/living-station findings | 9,12 | Review roster defined below for nine existing branches and four LIFE owners. Bounded service/wayfinding source review found no supported new implementation gap; actual current-view findings remain OPEN. No visual acceptance or automatic capture retry |
+| STATION-FINDINGS | Finite remaining presentation/living-station findings | 9,12 | Nine-branch/four-LIFE review roster defined below; source review found no supported new service/wayfinding gap. Habitat common-entry source8a6339b91 full-Main capture PARKED after180.842s/no PNG; no visual review/repair/acceptance. Other actual presentation findings remain OPEN; no automatic retry or replacement isolated-module proof. |
 | BOMBER-ROLES-DEFINE | Bomber promised crew/navigation versus actual supported roles | 4,10,16 | DONE; pilot/payload implemented, additional crew/Nav semantics missing |
 | BOMBER-ROLE-DECISION | Choose additional Bomber role/count, action and physical access | 4,10,16 | WAITING; precise interpretation needed, no approved scope reduction |
 | CRAFT-GAPS-TORRENT | Torrent remaining authored components/roles | 10,11 | Definition DONE: no concrete required missing implementation found in bounded owners; craft acceptance OPEN, supported finding needed for implementation |
@@ -167,12 +182,12 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | CRAFT-GAPS-CINDER-HAULER | Cinder Cargo Hauler remaining authored components/roles | 10,11 | Definition DONE: finite hull/cabin/roles/travelling-weapon map plus explicit Hauler cargo-contract gap; forwarding bridge does not accept Hauler delivery. Full craft/art/combat/crew/cargo play OPEN. |
 | CRAFT-GAPS-CINDER-BOMBER | Cinder Long-Range Bomber remaining authored components/roles | 10,11 | Definition DONE: pilot/payload/component map; additional crew/navigation decision and exact spent-payload rearm policy remain unresolved. Full craft/art/combat/crew/recovery OPEN. |
 | HAULER-CARGO-DEFINE | Name Hauler-specific conserved cargo play | 10,13 | Bounded contract/ordered production boundaries below; existing item/destination/phases retained. One stock-policy question pending; physical access delivereda43ae4b, cargo delivery remains unaccepted. |
-| BOMBER-REARM-POLICY | Define permitted spent-payload replenishment boundary | 10,11,31 | DEFINE; source disembark detaches and next session restores4. Specify seat re-entry versus actual rearm/recovery entitlement before repair/qualification; fresh-generation API tests do not settle that choice. |
+| BOMBER-REARM-POLICY | Define permitted spent-payload replenishment boundary | 10,11,31 | WAITING on newly asked owner choice: preserve spent rounds across seat changes until explicit rearm/recovery, or refill4 whenever pilot retakes seat. No answer/default inferred. Existing source detaches on disembark and next session restores4; no correction/qualification before entitlement is settled. |
 | WEAPONS-DEFINE | Actual craft/role to weapon acceptance roster | 11 | Definition DONE on a0d446645; current binding map in WEAPON_DEFINITION_CONTRACT.md, finite distinctions below. No missing runtime weapon type inferred; eight originals UNKNOWN/Bomber role decision retained |
 | DAMAGE-DEFINE | Uncovered craft/role component-damage/recovery cells | 11,21 | Definition DONE on82a7564cb; COMPONENT_DAMAGE_MODEL_CONTRACT.md maps five IDs/all nine craft, real role exceptions, repair/reset owners and concrete remote row gap; no gameplay pass |
 | ART-FINDINGS | Finite actual UI/animation/effect/lighting/terrain/weather defects | 12,15 | DEFINE; named before/after view and affected route |
 | CRAFT-ACCEPT-TORRENT | Torrent full solo craft loop | 7,10,11 | GATED; craft capabilities and exact full-route command |
-| CRAFT-ACCEPT-ARROW | Arrow full solo craft loop | 7,10,11 | GATED; craft capabilities and exact full-route command |
+| CRAFT-ACCEPT-ARROW | Arrow full solo craft loop | 7,10,11 | Ordinary return/reuse DONEed1167b; named pilot precision-hit plus preserved two-flight home/OFFLINE exits/clear/reboard/UIquit DONE51257b3, actual archive120.991s. [Accepted scope](history/ROADMAP_DELIVERIES.md#arrow-precision-hit-and-return--shipped-on-51257b3). Broader combat/damage/recovery/crosscraft/Main/art/device/final acceptance remains GATED; no Sandbox/Defense closure |
 | CRAFT-ACCEPT-JOVIAN | Jovian full solo craft loop | 7,10,11 | GATED; craft capabilities and exact full-route command |
 | CRAFT-ACCEPT-ZENITH | Zenith full solo craft loop | 7,10,11 | GATED; craft capabilities and exact full-route command |
 | CRAFT-ACCEPT-HALYARD | Halyard full solo craft loop | 7,10,11 | GATED; craft capabilities and exact full-route command |
@@ -204,85 +219,115 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | SPEC-SALYUT | Salyut evidence-bounded identity/capability specification | 10,36 | WAITING; evidence or explicit interpretation decision |
 | BUILD-SPLIT-SALYUT | Salyut named hull/handling/access/role/recovery build cards | 10,36 | GATED; SPEC-SALYUT, split before any implementation |
 | CRAFT-ACCEPT-SALYUT | Salyut full craft loop | 7,10,11,36 | GATED; its specified production capabilities delivered |
-| COMBAT-INTERCEPTOR | Initial interceptor pressure encounter | 11 | UNSCHEDULED; select normal Guided encounter entry, actual player weapon damage/clear, then home/dock/usable controls. RangeOpponent and GameFlow own the existing encounter; driver/craft/unchanged deadline must be frozen before execution |
-| COMBAT-COURIER | Courier Intercept | 11 | UNSCHEDULED; normal authorized sortie → destroy the live runner through actual player weapon damage before its escape boundary → safe return. EncounterScenarioDirector owns courier_intercept; success, escape, withdrawal and recovery are separate cases, not one oversized repair assignment |
-| COMBAT-WING | Paired Wing Break | 11 | UNSCHEDULED; normal authorized sortie → destroy both live paired_wing members through real weapons → safe return. Preserve suppression/flank behavior; direct damage/roster removal is not ordinary combat proof |
-| COMBAT-PERIMETER | Perimeter Hold | 11 | Definition DONE: no production caller exists. PERIMETER-LIVE below supplies a real solo board sortie, distinct from station_defense. Ordinary weapon clear/home, failure/recovery and repeat qualification remain separate OPEN outcomes |
+| COMBAT-INTERCEPTOR | Initial interceptor pressure encounter | 11 | DONE in checkpoint3d92b91 Guided starter-Torrent scope: same original3/3 ordinary route proves actual player fire/defender destruction, physical home landing/shutdown/exit and usable controls. [One shared proof, no duplicate delivery](history/ROADMAP_DELIVERIES.md#guided-checkpoint3d92b91--original-ordinary-route-accepted3of3). Other craft/encounter/damage/recovery requirements remain in their named owners |
+| COMBAT-COURIER | Courier Intercept | 11 | Clear candidatecb9d76fa5 WITHHELD/unmerged after one ordinary route70.377s FAIL: actual courier escapes1400m at78/78 hull, no player hit/kill. Five prechecks PASS; no home/checkpoint/retry. [Separate bounded outcomes](#courier-intercept--bounded-outcomes) preserve clear/escape/two withdrawals/recovery and original full journey |
+| COMBAT-WING | Paired Wing Break | 11 | FAILED/open ordinary two actual player-weapon kills plus complete home/OFFLINE physical exit/UIquit. Latest9a68aa01f trial102.037s:8shots,0Wingdamagehits/kills, both opponents38health; prerequisite Heavy/Torpedo home journeys pass. Unique diagnostic source archived under pushed tag `archive/diagnostics/wing-ordinary-route-20261020`; branch/worktree removed, observer/selector/driver excluded from main. Independently accepted board-landing withdrawal fix shipped9e9d1be; it does not complete Wing combat. [Closeout](history/ROADMAP_DELIVERIES.md#wing-branch-accounted-landing-fix-shipped--2026-10-20) |
+| COMBAT-WING-ADMISSION | Existing Wing becomes a genuine third solo board contract | 11 | DONE checkpointf671da9: on-foot arm/cancel, physical departure/registered source gate, real suppression/flank pair, solo/network refusal, both-destroyed objective with healthy-retirement abort, correct HUD/audio/no-credit lifecycle. Actual Main28/director151/board59/HUD8/audio11 checks, paired exports/startups/audit PASS. Component simulated clear disclosed; no full ordinary kills/home. [Result](history/ROADMAP_DELIVERIES.md#paired-wing-board-admission--shipped-on-f671da9) |
+| COMBAT-PERIMETER | Perimeter Hold | 11 | PERIMETER-LIVE candidateaa88b5a73 PARKED/unmerged: staged runtime52 assertions pass; full GameFlow route90s timeout before Hold entry. No exports/accepted delivery. Retain original ordinary weapon/home, failure/recovery and repeat requirements; see bounded handoff below |
 | COMBAT-BREACH | Heavy Breach | 11 | Same ordinary sortie as PLAY-BREACH below; one successful route may satisfy both parents, without counting two deliveries. Additional supported damage/recovery/craft cases remain explicit; BREACH-INTERRUPTION stays PARKED |
 | COMBAT-TORPEDO | Torpedo Run evade/intercept/destroy/fail/abort | 11,23 | PLAY-TORPEDO supplies the first actual boat-clear/home sortie. Freeze evade/intercept, failure, abort and solo restoration separately afterward; one happy-path clear cannot close all cases or TORPEDO authority/restoration |
 
+### Courier Intercept — bounded outcomes
+
+Parent11 retains the whole encounter; these cards prevent one failed clear from
+turning into an unbounded repair/qualification chain. Normal first entry already
+exists: fresh Guided Torrent → actual four range kills → keep initial defender
+alive → automatic courier dispatch after4.5 physics seconds. The initial defender
+must remain alive until the selected courier outcome; killing it changes phase
+and withdraws the scenario. All ordinary routes retain actual default controls,
+same actors, live weapons and the original home landing/shutdown/physical exit.
+
+| Card | One result and its decisive proof | Current boundary |
+| --- | --- | --- |
+| COURIER-CLEAR | Player destroys the actual runner before1400m; retained positive accepted/resolved source-ship/target/generation/sequence kill receipt plus director CLEARED, then clear defender and complete home. | PARKED after candidatecb9d76fa5 single FAIL70.377s. Dispatch works;78/78 runner escapes with no hit. A concrete supported driver/runtime change is required before a new frozen attempt; no automatic repair or unchanged retry. Source-only diagnosis establishes generic accepted-shot telemetry can be stale; fresh emission sequence/ray/resolver status is missing. No aim/weapon defect or justified runtime correction is established. |
+| COURIER-ESCAPE | Actual live runner reaches original boundary with positive hull; director ESCAPED stands down all dispatched actors, then player clears defender and completes home. | UNSCHEDULED. The failed clear observed escape but did not complete this distinct home/stand-down contract; no acceptance transferred. |
+| COURIER-WITHDRAW-PHASE | With courier actually running, destroy initial defender through real fire; normal RETURN_TO_YARD causes WITHDRAWN and stops courier/escort fire, then complete home. | UNSCHEDULED. Earlier Guided3/3 killed defender before courier dispatch, so it does not prove this live-withdrawal case. |
+| COURIER-WITHDRAW-DISTANCE | Remain beyond the scenario's own700m origin radius for7 physics seconds while authorized; WITHDRAWN stands down courier/escort, then clear defender and complete home. | UNSCHEDULED. Observation must expose the actual director origin/grace without changing authority; escape,150s expiry and phase withdrawal cannot substitute. |
+| COURIER-RECOVERY | One specifically named interruption/cold continuation preserves the intended safe context without stale courier/escort authority or duplicate outcome. | DEFINE before selection: name interruption boundary and existing save/recovery expectation; retain broader recovery ownership. No invented active-encounter resume guarantee. |
+
+Only a separately selected card becomes executable: freeze clean source/package,
+exact owners/commands, one ordinary CAP300/outer330 attempt and first-failure
+stop. Preserve4.5s dispatch,82% distress,2.4s escort,1400m escape,700m/7s
+disengagement and150s backstop. No direct damage, actor placement, shortened
+limits or schema/validator family. The existing driver/observer/privacy tests
+are the implementation seam; add the smallest behavior-specific checks.
+Estimate one driver/observer route at30–60min implementation/review plus10–20min
+checks/package/cleanup; split before90min. These are planning estimates, not
+permission to restart a failed card's clock. First successful packaged clear
+still leaves other craft, encounter, damage, recovery and parent11 gates open.
+
+### Freight terminals — physical interface and existing transfer owner
+
+Source definition2026-10-20 on801b38e7a, one medium bounded source mapper plus
+root contract review; no edits to production, engines, tests or ordinary run.
+This corrects the roster's former implication that physical Freight terminals
+were implemented. The berth and existing automatic delivery are retained.
+
+Actual production boundaries:
+- JovianFreightBerth owns approach/apron/boarding/cargo-transfer/service-threshold/
+  service-room/cargo-rack route markers and the ordinary ServiceAccess StationDoor.
+  DispatchScreens and ManifestKiosk are StaticBody/Mesh fixtures without prompt or
+  interact methods; they are not cargo adapters.
+- scenes/world/modules/cargo_source_terminal.tscn has no production instantiation.
+  cargo_destination_terminal.tscn is instantiated by nearby_sector_cluster.gd
+  at the Cinder platform, not in the Freight station branch.
+- GameFlow _initialize_cargo_delivery_composition binds the actual Jovian ship
+  and Freight berth directly to CargoTransferAuthority. Existing job uses
+  fabrication_kits, source capacity/initial6 and destination capacity64, transfers
+  exactly2 on successful return landing through _complete_cargo_delivery_on_return.
+  Existing accepted KIT-BOARD/DEPART/DELIVER are not missing production work.
+- CargoTransferTerminal.bind_authority currently requires handle entity_id equal
+  terminal_id and manifest_id equal its configured manifest. A physical adapter
+  must resolve that actual ownership seam; do not alias an independent terminal
+  as the ship, register a second stocked manifest, or mint extra cargo.
+- Normal Player E candidate discovery/dispatch exists. Neither Activity Board
+  navigation nor a new transfer/reward authority is required merely to expose a
+  physical endpoint, but the chosen workflow must use the existing cargo owner.
+
+One design question was presented with a concrete recommended workflow: physical
+terminals select the existing job/show actual manifests and saved receipt, keeping
+its automatic landing transfer; alternative is manual transfer after docking.
+No answer is recorded. Both must retain conserved quantities, once-only durable
+settlement and same-ship return. An inspect-only panel without the genuine transfer
+journey cannot close WALK-FREIGHT. This decision concerns Freight/Jovian; it does
+not answer the separate already-pending Hauler stock policy.
+
+Ordered deliverables, not executable cards or fixed completion estimates:
+
+| Deliverable | Production result and proof | Dependency / stop |
+| --- | --- | --- |
+| FREIGHT-TERMINAL-INTERFACE | Exact source/destination placement on existing Freight fittings; real prompt/ordinary E; current owner/manifest identity and honest enabled/refused feedback. Existing terminal/authority tests plus one actual Main interaction regression protect identity, range, re-entry and stock conservation. Meaningful accepted runtime checkpoint required. | Choose workflow and freeze module/scene, GameFlow, terminal adapter ownership and exact focused commands/caps before implementation. Do not change geometry/berth clearance or invent inventory. |
+| Existing KIT-DELIVER plus physical terminal continuation | Actual ordinary walk to each endpoint, board the same Jovian, depart/complete the chosen legitimate transfer path; exactly6→4/0→2, one committed receipt/reward and usable home/physical exit. Inspect terminal receipt from actual owner/store, not a seeded complete flag. | Interface first; retain earlier accepted automatic owner unless workflow explicitly changes it. Freeze full same-candidate command/limits before execution; staged checks cannot replace it. |
+| Existing KIT-RELOAD | Distinct process reads actual committed receipt/manifests without duplicate transfer/reward, and usable controls/terminal/ship remain. | Original30s/first-normal-frame timeout stays PARKED; reuse its named child and causal reopening condition. Do not create a parallel Freight reload with a larger cap. |
+| WALK-FREIGHT full branch | Same supported Player hub→approach/apron→each terminal→ServiceAccess door/room/racks→same hub/ship; conserve cargo and verify the committed receipt including required cold reload. No rescue/teleports/shortened routes. | All above plus exact branch driver/observer handoff. Sandbox waypoint geometry is a route reference, not permission to rerun parked all-craft Sandbox. Shared Tooltip exit failures retain their own reopening conditions; no adjacent probe selected. |
+
+The source finding is a missing production interface, not a successful walk,
+new runtime defect reproduction, checkpoint or parent completion. Implementation
+estimate remains unfrozen until terminal action/ownership is settled; split
+before90min. Once chosen, prioritize the physical interface/runtime checkpoint
+before adding ordinary-route telemetry. No new validator/evidence family.
+
 ### Perimeter Hold — missing production integration
 
-Source map on403bc72e0: `CombatScenarioCatalog` is consumed only by tests.
-Its `perimeter_hold` is a90s `protect_asset` objective with
-`standoff_lance`, `flank_scatter`, `press_repeater`. Health at or below0.35
-loses before time completion; killing every attacker does not clear early.
-The existing director's `station_defense` instead clears a two-craft guard
-roster and has no production admission caller. The separate three-wave Station
-Defense activity retains its own34s/1–2–1 contract. Neither is Perimeter Hold.
+Definition DONE: the detached catalog had no production caller. Its90s/>35%
+protect-asset objective differs from the director's two-guard `station_defense`
+and the separate34s/1–2–1 Station Defense activity. Existing Breach marker has no
+health; its two scatter craft and guided RangeOpponent do not implement the
+catalog's three distinct actors.
 
-The existing Heavy Breach board already owns physical admission, cancellation,
-generation fences and real departure launch. Its protected objective is only a
-collisionless Node3D marker. Its two skirmishers are both scatter craft; the
-GameFlow-owned RangeOpponent cannot be borrowed as a third combatant because
-its fire/damage path is identity-bound to the guided encounter. These are actual
-runtime gaps, not missing validators. Reuse the renewable perimeter-asset packed
-scene with its sole `Damageable` health store, plus dedicated resolver-backed
-actors and the existing director/board admission seams.
-
-**PERIMETER-LIVE / parent11 — frozen before implementation (2026-10-20).**
-Result: the physical deck board posts Heavy Breach, Torpedo Run, then Perimeter
-Hold. A solo player arms Hold on foot, boards a combat-capable craft and physically
-clears its berth. Hold launches three distinct live opponents against a dedicated
-protected asset; HUD shows90s countdown and real integrity. Actual health<=35%
-loses, otherwise90 elapsed physics seconds clears. Losing the player/asset,
-phase withdrawal, disengagement, explicit abort or world teardown ends the run
-and withdraws every dispatched fire/source grant. Destroying attackers early
-leaves the timed defense pending. Re-entry renews the dedicated asset through
-its existing lifecycle owner, never a duplicate health store.
-
-Ownership is one implementation agent in an isolated worktree, followed by one
-independent lifecycle reviewer. Exact production files: `scripts/combat/encounter_scenario_director.gd`,
-`scripts/activities/heavy_breach_activity_board.gd`,
-`scripts/world/shipyard_world.gd`, `scripts/game/game_flow.gd`,
-`scripts/ui/heavy_breach_activity_presenter.gd`, `scenes/main.tscn`, a dedicated
-`scripts/ships/press_repeater_opponent.gd` and matching ship scene. The existing
-`scripts/activities/station_defense_perimeter_asset.gd` may gain only pure health
-forwarders if its existing child getter is insufficient. Reuse existing picket
-and scatter classes; do not hijack the guided defender or Station Defense asset.
-The director consumes the existing catalog for Hold's exact outcome, supplies
-measured health/time, and retains lifecycle/phase authority boundaries. A sole
-scatter must receive an actual flanker role; count/profile labels alone do not
-establish that behavior.
-
-Keep the first two board offers and their saved rewards valid. Hold grants no
-new currency/reward identity: the original combat requirement specifies none.
-Extend the existing terminal record's supported offer range without a new schema
-or parallel validator. Do not attribute a Hold clear to a Breach reward. Keep
-network presentation/authority fenced; this card qualifies solo only and must
-not start duplicate local Hold combat on network clients.
-
-Implementation/review estimate60–90min; focused checks10–20min; paired exports
-and silent package checks10–15min. Stop/split before90min of implementation.
-Focused acceptance: extend existing director, board production and HUD tests;
-add one bounded Hold runtime integration test exercising real resolver damage,
-35% boundary/90s precedence, all-roster-dead pending, generation reuse and total
-cleanup. Preserve the existing Breach/Torpedo focused behavior. Use existing
-GameFlow production-route test seam for physical admission/departure and HUD
-restoration; staged source qualification is not an ordinary native input journey.
-Each focused engine stage has a90s outer cap (import/export180s); all use Dummy
-audio/headless or private Xvfb with explicit x11. Strict diagnostic-free package
-startup requires exit0 and STARTUP_MENU_READY_OK. Independent source/result review,
-clean commit, matching Windows/Linux packages and repository build notes precede
-acceptance. No hosted CI, audible output or desktop automation.
-
-First unexpected failure stops the attempt with raw logs/process cleanup.
-Only one cause-backed repair may follow a separately frozen diagnosis; no second
-repair, unchanged retry, deadline increase or renamed budget. Preserve the
-original full-game combat requirements: ordinary weapon engagement/home,
-permitted failure/recovery cases, craft/network breadth, repeat play and native
-hardware/human qualification remain OPEN after this runtime delivery. Beacon/UI
-focus failures remain PARKED and are not prerequisites for implementing Hold.
+**PERIMETER-LIVE is PARKED, not delivered.** Candidateaa88b5a73 on pushed branch
+`feat/perimeter-live-20261020` implements the solo third-board contract, dedicated
+asset/three actors, catalog objective, HUD and lifecycle fences. Staged Hold
+runtime52 assertions and existing director/asset/board/HUD suites pass. The full
+GameFlow suite reaches its90s cap during retained Breach/Torpedo recovery before
+any Hold physical-entry assertion. Candidate unmerged; exports/checkpoints NOT_RUN.
+No Perimeter checkpoint is accepted. Cumulative363.897s across15 engine stages
+and all three failures remain in the
+[original contract and results](history/ROADMAP_DELIVERIES.md#perimeter-hold-live-integration--implemented-but-parked).
+No additional correction/retry/cap increase or narrower replacement proof is
+selected. Reopening requires a concrete change addressing the retained GameFlow
+route boundary and a separately selected contract. Ordinary weapon engagement/
+home, recovery, repeats, network and native/human requirements remain OPEN.
 
 **Fleet handoff:** a SPEC closes with supported identity/capability facts,
 explicit unknowns and any required owner interpretation. BUILD-SPLIT replaces
@@ -398,7 +443,7 @@ their recorded scopes; none was rerun by this definition.
 | Case | Binding-specific finish | Existing owner/check anchor |
 | --- | --- | --- |
 | WEAPON-TORRENT | Guided range profile in the two named phases versus authored combat profile; actual registered damage | GameFlow profile selection; weapon_definition_migration_test.gd |
-| WEAPON-ARROW | Actual pilot precision-emitter selection/damage through the common chain | Arrow resource, HeroShip, GameFlow; migration/common combat checks |
+| WEAPON-ARROW | DONE named pilot-hit qualification checkpoint51257b3: one native timed F press, fresh source1102/precision-emitter/sequence0/receipt1, actual DRONE-01 health100→76/24damage, attitude restoration10.626s within25s and full two-flight return/reuse/UIquit120.991s withinCAP300. Broader common combat/craft gates remain open; two earlier failures/cumulative558.746s retained. | [Accepted route and exact reopening fact](history/ROADMAP_DELIVERIES.md#arrow-precision-hit-and-return--shipped-on-51257b3); existing observer/driver/tests and unchanged Arrow/HeroShip/GameFlow combat chain |
 | WEAPON-JOVIAN | Actual pilot heavy-cannon selection/damage through the common chain | Jovian resource, HeroShip, GameFlow; migration/common combat checks |
 | WEAPON-ZENITH | Actual pilot repeater selection/damage through the common chain | Zenith resource, HeroShip, GameFlow; migration/common combat checks |
 | WEAPON-HALYARD | Both pilot and admitted gunner use the same lance/heat/cooldown; real damage beyond a request receipt | Halyard crew consumer and HeroShip; existing gunner gameplay test stops at emitted request; attempted actual-hit extension is parked at ordinary seat admission |
@@ -442,7 +487,7 @@ test is an owner/regression anchor, not a runnable ordinary route.
 | ID | Named outcome | Parents | State / dependency |
 | --- | --- | --- | --- |
 | PLAY-RACE | Checkpoint Race first full ordinary play | 13 | UNSCHEDULED; ordinary board/depart/approach → production countdown and ordered race checkpoints → one durable generation reward → actual home dock/usable exit. Driver selection/adaptation required; retained Race timeout is not authorized for retry |
-| PLAY-THREADING | Asteroid/debris Threading first full ordinary play | 13 | UNSCHEDULED; approach first gate within30m → start and physically cross all five gates in order → one durable reward → home dock/usable exit. No synthetic checkpoint submissions |
+| PLAY-THREADING | Asteroid/debris Threading first full ordinary play | 13 | Driver definition DONE; execution GATED on unresolved UI-BOARD-FOCUS at shared Activity Board transition. Full30m entry→five physical gates→durable reward→landing-unlocked actual home/usable exit remains unproven. No renamed retry or synthetic checkpoints; [readiness/owners/full contract](#threading-complete-first-play--driver-readiness) |
 | PLAY-PATROL | Platform Patrol first full ordinary play | 13 | UNSCHEDULED; name relay_sweep or platform_sweep → approach/start → five authored checkpoints with2s physical station-keeping each → branch reward/home dock/exit. Freeze one branch first; other branch remains uncovered and retained Patrol failure stays parked |
 | PLAY-JOVIAN-KIT | Jovian kit delivery first full ordinary play | 13 | Ordinary board/depart/deliver DONE through28a5e354e;79.213s strict home return, two kits/single reward/usable exit. Distinct-process reload remains unqualified after strict30s timeout; no whole-parent closure |
 | KIT-BOARD | Ordinary offline cargo selection and Jovian pilot boarding | 7,13 | DONE source62bc7c823;66.158s, real menus/walk/local pilot/occupied berth, cargoIDLE0/source6/destination0 manifests; no departure |
@@ -454,13 +499,14 @@ test is an owner/regression anchor, not a runnable ordinary route.
 | PLAY-SCAN | Structure Scan first full ordinary play | 13 | UNSCHEDULED; ordinary approach within24m → actual4s physics scan → one discovery/payment entitlement → home dock/usable exit. Existing full Scan failure stays PARKED; no unchanged retry selected |
 | PLAY-BEACON | Beacon Traversal first full ordinary play | 13 | ENTRY/TRAVERSAL/SETTLEMENT DONE on packaged e06550e: actual walk/board/depart/UI start, four physical beacons in order, one real-file navigation receipt and60 stable physics frames;63.879s. Full ordinary home candidatea612ea686 FAIL/PARKED before Beacon start on known UI-BOARD-FOCUS diagnostics;37.713s, no causal reopening fact/retry. Landing-unlocked home/dock/shutdown/usable exit remains open; [accepted settlement](history/ROADMAP_DELIVERIES.md#beacon-physical-traversal-and-settlement--delivered) does not close the full journey |
 | PLAY-CONVOY | Convoy Escort first full ordinary play | 13 | UNSCHEDULED; departed piloted craft enters4m rendezvous → escort actual retained-Main tender through route/threats to safe arrival → payment/home dock/exit. Preserve90s timeout and42m/3s separation rules; parked Convoy failures are not reopened |
-| PLAY-DEFENSE | Station Defense first full ordinary play | 13 | UNSCHEDULED; on-foot physical Deploy → board/depart → protect objective and clear three live waves (1/2/1 hostiles) through actual weapons → one payment → home/dock/on-foot usable board. Existing34s encounter semantics retained |
+| PLAY-DEFENSE | Station Defense first full ordinary play | 13 | Physical E DONEa59127c; ordinary candidatea480c0fbb pushed/unmerged/PARKED after original35.963s driver failure and one corrective84.239s whole34s timeout. Actual E Deploy accepted, then stationary walk_arrow33.15s before boarding; no kills/payment/home/reset/UIexit. Full existing Arrow/real four-kill/once-payment/strict home/physical Reset/next Deploy/UIexit contract unaccepted; unchanged34s/CAP300 retained. Concrete post-Deploy walk cause/change and separate selection required; no second repair/retry or seeded/fixture substitute |
+| DEFENSE-PHYSICAL-INTERACTION | Physical board E Deploy/status/reward-retry/terminal Reset | 13 | DONE checkpointa59127c: actual Main15/full placement62, paired exports/three strict startups/actual PCK audit PASS. Existing owners, debt/refusal/separatepress/range/facing/armed gates and whole34s preserved. Original test parse16.381s + one explicit-int correction retained, cumulative334.765s. Staged pose/terminal/refusal fixtures disclosed; full ordinary combat/home separate. [Result](history/ROADMAP_DELIVERIES.md#station-defense-physical-interaction--shipped-on-a59127c) |
 | PLAY-BREACH | Heavy Breach first full ordinary play | 13 | UNSCHEDULED; on-foot arm posted Heavy → board/depart combat-capable craft → destroy charged picket while protecting objective → one payment → home/dock/on-foot next posting. Existing staged production route is not actual combat; interruption route stays PARKED |
 | PLAY-TORPEDO | Torpedo Run first full ordinary play | 13 | UNSCHEDULED; reach Torpedo posting through normal board rotation → arm/board/depart → evade/intercept live seekers and destroy actual boat → distinct payment → home/dock/on-foot next posting. No direct scenario selection or skipped Heavy prerequisite |
-| HUD-RACE | Race durable reset/select/start/fresh-Main UI | 13 | UNSCHEDULED; correct existing owner only on actual discrepancy |
-| HUD-PATROL | Patrol durable reset/select/start/fresh-Main UI | 13 | UNSCHEDULED; correct existing owner only on actual discrepancy |
+| HUD-RACE | Race durable reset/select/start/fresh-Main UI | 13 | Source review already found no concrete discrepancy; no edits/runs or ordinary acceptance. Do not repeat unchanged source triage; full qualification remains unscheduled |
+| HUD-PATROL | Patrol durable reset/select/start/fresh-Main UI | 13 | Source review already found no concrete discrepancy; no edits/runs or ordinary acceptance. Do not repeat unchanged source triage; full qualification remains unscheduled |
 | HUD-CARGO | Cargo durable reset/select/start/fresh-Main UI | 13 | Supply-status child DONE0c2dc2e: depleted hold reports insufficient kits after reset/reselection; cargo127/nearby HUD13 and paired checkpoint pass. Broader durable UI/restart remains open; KIT-RELOAD stays parked |
-| HUD-CONVOY | Convoy durable reset/select/start/fresh-Main UI | 13 | UNSCHEDULED; correct existing owner only on actual discrepancy |
+| HUD-CONVOY | Convoy durable reset/select/start/fresh-Main UI | 13 | Restored-objective discrepancy DONE on checkpoint3d92b91: cold/wrong-craft saved escort shows paused guidance, accepted craft rebind restores live progress; existing retained-feedback20 assertions pass. Wider durable reset/select/start/full ordinary Convoy scope remains open; parked save suite not reopened |
 | ACT-WRITES-DEFINE | Uncovered activity/write-boundary cells | 13,31 | DONE definition only; finite durable owner/boundary map below, with terminal-only owners distinguished; exact-package/real-file/ordinary recovery acceptance remains open |
 | BOOT-BREACH-OWNERS | Physical Heavy Breach board has exact production owners before gameplay | 9,11,13 | DONE packagede3d1ada; two exact old owner failures, final full startup/48-check production route and strict paired checkpoint pass; original interruption transaction remains parked |
 | BREACH-INTERRUPTION | Exported Heavy Breach real-file earned debt/kill/recovery/paid replay | 13,31,32 | FAILED/PARKED: after originale9/repair3c board failures and accepted startupfixe3, unchanged-probe reopeningc159 fails69.957s at atomic-payment commit assertion; third cold replay NOT_RUN. Cumulative140.961s; unmerged/withheld, no further run/repair selected |
@@ -477,14 +523,15 @@ test is an owner/regression anchor, not a runnable ordinary route.
 | REPEAT-DEFENSE | Ten fresh physical-board deployments, full three-wave clears, payment and reset | 13 | GATED on PLAY-DEFENSE and measurement/deadline freeze; wave recovery is not another fresh completion |
 | REPEAT-BREACH | Ten cleared Heavy Breach postings through ordinary board rotation | 13 | GATED on PLAY-BREACH and measurement/deadline freeze; alternate Torpedo postings cannot be skipped; BREACH-INTERRUPTION remains PARKED |
 | REPEAT-TORPEDO | Ten cleared Torpedo postings through ordinary board rotation | 13 | GATED on PLAY-TORPEDO and measurement/deadline freeze; ten mixed sorties do not satisfy ten of either scenario |
-| TRAVEL-LIMIT | Numeric ordinary nearby-travel envelope | 13 | DEFINE; design/runtime basis and scope decision |
+| TRAVEL-LIMIT | Numeric ordinary nearby-travel envelope | 13 | Beacon outbound proposal recorded:30s unpaused monotonic elapsed from engine-start input at occupied home berth to controlled first-Beacon approach. Owner30s/60s choice asked/unanswered; WAITING agreement, no timing acceptance. [Clock/basis/limits](#beacon-outbound-travel-envelope--proposal-awaiting-decision). Return and other routes remain undefined; full journey/parked UI gates preserved. |
 | HULK-REVISIT | Home-return/reload/revisit retains restored bus and single claimed cell | 13 | PARKED; failed route plus repair, original 300s |
 | EMBER-SOURCE-ABANDON | Integrated physical Ember abandonment/home return | 1,14 | DONE; e85157b4d, MemoryFilesystem, original exact31 |
 | EMBER-OBSERVER | Native package observer production capability | 1 | DONE; 4270d71 source capability and startup-qualified checkpoint |
 | EMBER-NATIVE-SMOKE | Native observer normal-window-close smoke | 1 | PARKED; failed fixture/repair and priority review retained |
 | EMBER-PACKAGE-ABANDON | Packaged ordinary physical abandonment/home return | 1,14 | GATED; supported OS-input route, old external-driver path UNSUPPORTED |
 | WORLD-ABANDON-DEFINE | Applicable Aurora/Rime abandonment and Ember reuse/durability cases | 1,14 | DEFINE; explicit physical/durable outcomes, source pass retained |
-| WORLD-SAVE-DEFINE | Uncovered world survey/reward/reboard/visit disk boundaries | 14,31 | DEFINE; contract per world, staged/MemoryFilesystem proof retained only as scoped |
+| WORLD-SAVE-DEFINE | Uncovered world survey/reward/reboard/visit disk boundaries | 14,31 | Ember first-relay cold contract defined below: safe-yard with passive original progress. Its package cut failed the parent coordinate comparison; other Ember/Aurora/Rime boundaries remain DEFINE, no whole-family closure. |
+| WORLD-SAVE-EMBER-FIRST-RELAY | Cold safe-yard recovery retains first-relay progress and later pays the original survey once | 14,31 | FAIL/STOPPED archive923d7b3: runtime arm-9/resume0, receipts0→1, but parent exact-state comparison fails312.812s on two one-ULP coordinate scalar differences. Exact-runtime caller correction reviewed and focused-checked after representation review; no tolerance. Corrective preflight FAIL4.636s before game launch (missing sidecar); chain PARKED after cumulative review. Corrected full cut NOT_RUN; original failure retained, no cap increase. [Actual result](history/ROADMAP_DELIVERIES.md#ember-first-relay-cold-cut--runtime-completes-parent-comparison-fails). Canonical outbound NOT_RUN, standing-pose restore NOT_SUPPORTED; no blanket location waiver. |
 | WORLD-EDGE-DEFINE | Applicable solo cancellation/refusal/failure/repeat cases | 14 | DEFINE; exact original cases and route limits |
 | SOLO-EMBER | Ember canonical physical survey round trip | 14 | GATED; freeze uncovered candidate/scenario, prior source passes retained |
 | CONTENT-EMBER | Ember finite remaining authored content/presentation findings | 15 | Definition DONE on 7c0bc2967: no missing implementation identified in the inspected authored-content scope; see boundary below. Full ordinary/repeat/shared/hardware qualification remains open |
@@ -622,15 +669,16 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | NET-THROTTLE-INSTRUMENTS | Current/late physical cockpit gauge reflects signed authoritative throttle, neutral shutdown and solo restore | 17 | DONE8f17b0241; old4 failures reproduced, pose91/real-peer203 pass; fresh paired8f17b02 with3strict startups/actual1515-entry audit. Broader parent17 remains OPEN |
 | HELM-ACTIONS-DEFINE | Finite sampled-local-input to remote-helm action roster | 18 | DONE; seven held fields/two ordered edges, source definition only |
 | HELM-THROTTLE-REVERSE | Sampled reverse thrust and neutral release | 18 | OPEN; reverse flight/release child DONE52b228c86, unchanged ordinary route138.086s, host1.448m/888ms and both actual replicas pass; same source/lease/host effect required. Original handback requirement remains open; shared handback parked |
-| HELM-YAW | Both sampled yaw directions, neutral release and handback without stale ownership | 18 | OPEN; turn/release child DONE624d2a6 after neutral-attitude fix, unchanged ordinary route139.519s and both client attitudes pass. Original failures retained; corrected38c079086 shows PASSENGER after real handback but fails156.016s at cabin walk15s. Handback parked after original plus one repair; candidate unmerged, full walk/handback remains required |
-| HELM-PITCH | Both sampled pitch directions and neutral release | 18 | UNSCHEDULED; same confirmed source/lease, actual host effect, handback without stale ownership |
-| HELM-ROLL-RATE | Both sampled roll-rate directions and neutral release | 18 | UNSCHEDULED; same confirmed source/lease, actual host effect, handback without stale ownership |
+| HELM-YAW | Both sampled yaw directions, neutral release and handback without stale ownership | 18 | OPEN; turn/release child DONE624d2a6 after neutral-attitude fix, unchanged ordinary route139.519s and both client attitudes pass. Original failures retained; corrected38c079086 shows PASSENGER after real handback but fails156.016s at cabin walk15s. Handback parked after original plus one repair; candidate unmerged, full walk/handback remains required  Latest changed shared-caller regression73f4a4f67 passes130.879s with original signed turn/release/replica gates; handback status unchanged. |
+| HELM-PITCH | Both sampled pitch directions and neutral release | 18 | OPEN; turn/release child DONEf9682a38c: three-process original boarding/departure/brake plus both synthetic Godot pitch actions→production sampler→host +4.8°/−4.2° within567/364ms, fresh neutral≤1s, drift0°, both actual replicas≤2° and three exits0/zero diagnostics. [Source result](history/ROADMAP_DELIVERIES.md#sampled-remote-pitch--turn-and-release-accepted). Original handback remains required/PARKED; OS/device/native/endurance/full parent not accepted  Changed shared-caller regression73f4a4f67 PASS131.398s with original pitch gates. |
+| HELM-ROLL-RATE | Both sampled roll-rate directions and neutral release | 18 | OPEN; turn/release child DONE73f4a4f67: original three-process boarding/departure/brake, both synthetic actions→production sampler→host−5.867°/+5.867° in535/546ms, fresh neutral≤1s/measured roll drift0° and both replicas≤2°. No active barrel roll or host/pilot barrel request; all3 exits0/zero diagnostics. [Source result](history/ROADMAP_DELIVERIES.md#sampled-continuous-roll-rate--turn-and-release-accepted). Original handback remains required/PARKED; no OS/device/native/endurance/full-parent acceptance |
 | HELM-BOOST | Sampled boost effect on authoritative flight and release | 18 | UNSCHEDULED; same confirmed source/lease, actual host effect, handback without stale ownership |
 | HELM-HOVER | Sampled hover correction on authoritative craft and release | 18 | UNSCHEDULED; same confirmed source/lease, actual host effect, handback without stale ownership |
-| NET-STALL | Original 600-step host simulation stall and honest command recovery | 19 | UNSCHEDULED; independent peers, original 2s action limits |
+| NET-STALL | Original 600-step host simulation stall and honest command recovery | 19 | DONE on3d6b1b513 current-source isolated Linux full original suite:160 terminal host assertions, both600-step stalls/original2s action checks, actual client/wrapper exit0 and zero diagnostics. [Result](history/ROADMAP_DELIVERIES.md#original-host-stall-route--current-source-accepted). No unchanged repeat; final-package/native/endurance and distinct ordinary Halyard/handback gates remain |
 | NET-SECOND-LAND | Historical intermittent second-landing boundary | 20 | GATED; establish distinctness from current return failure before any probe |
 | NET-DOCK-DEFINE | Supported craft dock/exit/reboard/redeparture acceptance cases | 20 | DONE definition only; next five Jovian instances below, all other craft/roles remain unscheduled |
-| NET-JOVIAN-PASSENGER-EXIT | Original passenger reaches supported ground while pilot retains helm | 16,20,26 | FAILED compile8054a2cc4 and one syntax repair e147b6d49; parked after priority review, gameplay NOT_RUN |
+| NET-JOVIAN-PASSENGER-EXIT | Original passenger reaches supported ground while pilot retains helm | 16,20,26 | PARKED: original8054/e147 parse failures retained;2aed310cd first runtime fails129.786s. Corrective0d225bee8 passes322 pose/import/compile and actual standing, but full route fails145.995s at cabin walk; combined392.470s. Pushed/unmerged/withheld, exports NOT_RUN, no second repair/retry. [Latest result](history/ROADMAP_DELIVERIES.md#docked-pilot-hold--focused-pass-full-exit-stops-at-cabin-walk) |
+| NET-JOVIAN-DOCKED-PILOT-HOLD | A still-owned remote pilot retains the committed authoritative dock pose/velocity | 16,20,26 | WITHHELD CANDIDATE0d225bee8: measured0.494335→0.500294m drift addressed; existing full pose322 PASS and corrected route snapshot error0.0m. Full selected passenger-exit proof fails later cabin walking, so no integration/checkpoint. Same chain/budget as EXIT, not a separate accepted delivery. |
 | NET-JOVIAN-PASSENGER-REBOARD | Original passenger reclaims original co-pilot chair | 16,20,26 | GATED on passenger exit; retained parked card above |
 | NET-JOVIAN-PILOT-EXIT | Original pilot releases helm and walks onto supported berth ground | 16,20,26 | GATED on passenger reboard; passenger stays seated |
 | NET-JOVIAN-PILOT-RECLAIM | Original pilot returns to same hull and acquires current helm authority | 16,20,26 | GATED on pilot exit; old command generations stay retired |
@@ -639,10 +687,11 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | TORPEDO-AUTH-DEFINE | Actual projectile authority, retained solo restoration and pilot/target loss | 23 | DONE definition only; ten finite qualification cases below, no new missing production consumer or runtime defect established. Ordinary/independent packaged routes remain OPEN |
 | PICKET-ACTOR-DEFINE | Uncovered Picket travelling actor/late/dead/reset/disconnect cases | 24 | DEFINE; actual moving-crew integration |
 | EMBERLINE-ACTOR-DEFINE | Uncovered Emberline flight/hit/miss/expiry/late/dead/reset/disconnect cases | 24 | DEFINE; retained failed baseline not erased by isolated pass |
+| NET-BROWSER-PAUSE | Paused LAN Refresh and host answering | 25 | DONE packaged042c701e2; real automatic paused loopback27/default GameFlow7 pass; full ordinary menu/endurance gates separate |
 | BROWSER-JOIN | Discover/refresh/select/join ordinary browser route | 25 | GATED; chosen candidate/scenario, delivered UI fixes retained |
 | BROWSER-STALE | Stale session ordinary browser route | 25 | GATED; chosen candidate/scenario, delivered UI fixes retained |
 | BROWSER-FULL | Full session ordinary browser route | 25 | GATED; chosen candidate/scenario, delivered UI fixes retained |
-| BROWSER-UNREACHABLE | Unreachable endpoint ordinary browser route | 25 | GATED; chosen candidate/scenario, delivered UI fixes retained |
+| BROWSER-UNREACHABLE | Unreachable endpoint ordinary browser route | 25 | OPEN; non-admission routee944f52 PARKED at timeout diagnostic; no-answer case remains unrun |
 | BROWSER-CONTROLLER | Controller menu navigation ordinary browser route | 25 | GATED; chosen candidate/scenario, delivered UI fixes retained |
 | BROWSER-DISCONNECT | Disconnect/retry ordinary browser route | 25 | GATED; chosen candidate/scenario, delivered UI fixes retained |
 | BROWSER-CANCEL | Cancel/reuse ordinary browser route | 25 | GATED; chosen candidate/scenario, delivered UI fixes retained |
@@ -652,7 +701,7 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | HALYARD-MOVING-CABIN | Actual departure with passenger supported walk/chair cycle | 16,24,26 | GATED on HALYARD-BOARD; no staged flight envelope |
 | HALYARD-AUTHORITY-STOP | Real server stop restores both remaining occupants to solo play | 16,26 | GATED on HALYARD-MOVING-CABIN; no SIGKILL/migration/reconnect claim |
 | SERVER-BASELINE | Dedicated-server/two-client ordinary flight/recovery acceptance | 26 | GATED; exact baseline contract, boarding/departure passes do not close it |
-| NET-FULL-SNAPSHOT | All-nine forced-full publication and byte budget | 17,26 | UNSCHEDULED; original aggregate budgets, movement-only bytes insufficient |
+| NET-FULL-SNAPSHOT | All-nine forced-full publication and byte budget | 17,26 | DONE on accepted330a39ce3 in existing Main/ENet suite: actual complete nine-craft full/live4656/4656 bytes, exact decode and fragment acceptance under unchanged12000. [Retained result](history/ROADMAP_DELIVERIES.md#net-component-powers--host-output-and-bounded-live-updates-accepted). Ordinary/native/endurance/final-candidate gates remain open |
 | NET-PROFILES-DEFINE | Original latency/loss/jitter/reorder/stall profile roster | 26 | DONE definition only; MOVING_INTERIOR_LATENCY finite contract names five stream profiles, narrow three-process command injection and two physical host-stall actions; impaired independent session/endurance remain open |
 | NET-ENDURANCE-DEFINE | Executable original 30-minute independent two-client moving-interior route | 26 | DEFINE; original duration/latency, no short substitute |
 | NET-ENDURANCE | Original 30-minute moving-interior session | 26 | GATED; stable baseline and exact original command |
@@ -735,7 +784,7 @@ Native performance proof retains ≥60s/3,600-frame warmup and ≥600s/18,000-fr
 | --- | --- | --- | --- |
 | PERF-MINIMUM | Bind actual minimum-spec machine/profile | 28 | WAITING; representative isolated hardware |
 | PERF-TARGET | Bind actual target-spec machine/profile | 28 | WAITING; representative isolated hardware |
-| PERF-ROUTES-DEFINE | Finite uncovered required fleet/cabin/combat/surface/repeat benchmark routes | 28 | DEFINE; seven delivered route selections retained |
+| PERF-ROUTES-DEFINE | Required representative workloads beyond the seven existing selectors, with whole-expedition repetition mapped to world endurance | 28 | DEFINE; additional craft/world/cycle roster unspecified; existing repeat paths retained |
 | PERF-CELLS-DEFINE | Applicable machine/route measurements | 28 | GATED; required routes and actual two machine profiles |
 | INPUT-KBM | Physical keyboard/mouse ordinary full route | 8,18,29 | WAITING; actual device/isolated session, exact required route |
 | INPUT-CONTROLLER | Physical controller ordinary full route | 8,18,29 | WAITING; actual device/isolated session, exact required route |
@@ -743,6 +792,7 @@ Native performance proof retains ≥60s/3,600-frame warmup and ≥600s/18,000-fr
 | CAMERA-DISTANCE-PROMPTS | Piloting help exposes both live remapped distance directions | 8,29 | DONE7718a5a; HUD keyboard/controller labels/reset, focused27/help20 and paired checkpoint. No whole apply/restart/device claim |
 | REMAP-DEFINE | Uncovered binding/apply/restart/conflict/recovery cases | 8,29 | Definition DONE onc1fc23871; existing persistence contract names finite outcomes and concrete missing on-foot sprint toggle; hardware/Settings prerequisites preserved |
 | ONFOOT-SPRINT-TOGGLE | Advertised shared sprint option works while walking | 8,29 | DONEbd4e15d0f, packaged. Saved/live/reset/HOLD, actual Player physics sprint speed and control/tree/remote fences pass; existing settings checks retained. Broader remapping/device gates OPEN |
+| TRACTOR-LOOK-INVERSION | Existing on-foot inversion also controls tractor mouse/right-stick pitch, from saved startup and live edits | 8,29 | DONE checkpoint34d4b9e: full tractor162, actual Main settings11 and existing runtime settings156 checks PASS; paired exports/three strict startups/package audit PASS. Original headless mouse failure31.933s retained; one isolated X11/dummy-display correction passes all assertions. Physical devices/full ordinary routes/final candidate OPEN. [Result](history/ROADMAP_DELIVERIES.md#tractor-look-inversion--shipped-on-34d4b9e) |
 | ACCESS-PAUSE-DEFINE | Pause/options readability views and required scale/aspect cells | 12,29 | DONE; five named aspect groups/three authored scales, actual view states below |
 | ACCESS-PAUSE-4X3 | Pause/options at 1024x768, requested scales0.75/1.0/1.6 | 12,29 | DONE sourceece9a0253:96 actual Main observations/all32 states at each scale, bounds/font/focus/scroll pass33.402s; headless geometry only, no rendered/device/persistence qualification |
 | ACCESS-PAUSE-16X9 | Pause/options at 1920x1080, requested scales0.75/1.0/1.6 | 12,29 | DONE source4d7ac43:96 actual Main observations/all32 states at each scale pass33.405s; original criteria/caps. Headless geometry only; rendered/device/transaction gates remain open |
@@ -751,6 +801,14 @@ Native performance proof retains ≥60s/3,600-frame warmup and ≥600s/18,000-fr
 | ACCESS-PAUSE-32X9 | Pause/options at 5120x1440, requested scales0.75/1.0/1.6 | 12,29 | DONE source4d7ac43:96 actual Main observations/all32 states at each scale pass33.412s; original criteria/caps. Headless geometry only; rendered/device/transaction gates remain open |
 | SETTINGS-SCALED-FOCUS-SCROLL | Fully reveal current Settings focus under scaled pause layouts; ignore stale/duplicate requests | 12,29 | DONE; paired4d7ac43. Focus59 and complete16:9/21:9/32:9 checks pass. Original21:9 failure33.080s and pre-run review correction retained in history |
 | ACCESS-VIEWS-DEFINE | Remaining required HUD/menu/help/role readability views/cells | 12,29 | DONE as source definition in the finite view roster below; owners/states/coverage and one-cell selection named. No new layout/device qualification. |
+| ACCESS-FEEDBACK-STATUS | Settings save/recovery and nearby/activity-selection feedback follows current palette role once | 12,29 | DONE checkpoint2ed93ca: four families/14 callers use unchanged role helper. Existing caller suites11/35/26/113 and HUD layout552, paired exports/strict startups/PCK audit PASS first attempt; no generic matrix rerun. Copy/visibility/actions/focus/authority retained; headless caller/theme scope, full journeys/rendered/device/human/native/final remain open. [Result](history/ROADMAP_DELIVERIES.md#settings-and-activity-feedback-palettes--shipped-on-2ed93ca) |
+| ACCESS-GAMEPLAY-STATUS | Mode/engine/throttle/hull/component/target-lock labels use current palette role once | 12,29 | DONE checkpoint941ef73: existing-entry role update/white modulation/steady telemetry guard,256 cases/768 actual paints across32 states/4palettes/2contrast. Full accessibility1979/target-lock6/sensor-reticle90/HUD-layout552 and paired exports/strict startups/PCK audit PASS first attempt. Copy/visibility/thresholds/geometry/authority retained; headless theme scope, rendered/device/human/full journeys/native/final open. [Result](history/ROADMAP_DELIVERIES.md#gameplay-status-palettes--shipped-on-941ef73) |
+| ACCESS-DESTINATIONS-STATUS | Retained Destination Board status colour follows current state/palette/high contrast without multiplication | 12,29 | DONE checkpointc47ca33: existing registration role updated once/neutral modulation;32 live Control palette/contrast pairs, full HUD layout552/accessibility443/Main console16 and paired exports/strict startups/PCK audit PASS first attempt. Label identity/text/action/focus and journey authority retained. Headless theme scope; rendered/device/human/full journeys/final remain open. [Result](history/ROADMAP_DELIVERIES.md#destination-board-status-palette--shipped-on-c47ca33) |
+| ACCESS-HELP[on_foot,1920×1200,0.75] | All four ordinary on-foot context pages fit and retain usable navigation at minimum scale | 12,29 | DONE source5ac9d3ef0:124 assertions/30.860s, actual Main, requested/effective0.75, twenty rows/four pages, geometry/font/wrapping/focus/Close pass. Headless source scope only; rendered/human/device/other cells/final candidate remain open. [Scope](history/ROADMAP_DELIVERIES.md#on-foot-help--one-minimum-scale-1610-cell-accepted) |
+| ACCESS-HELP[aboard,1920×1200,0.75] | All four ordinary aboard context pages fit and retain usable navigation at minimum scale | 12,29 | DONE sourcee5dfe1117:124 assertions/31.076s, actual Main/HUD, requested/effective0.75, twenty rows/four pages, geometry/font/wrapping/focus/Close pass. Headless source scope only; rendered/human/device/crew gameplay/other cells/final candidate remain open. [Scope](history/ROADMAP_DELIVERIES.md#aboard-help--one-minimum-scale-1610-cell-accepted) |
+| ACCESS-TITLE-FOCUS | Focused Begin Shift text on cyan uses the intended readable paint | 12,29 | DONE checkpoint923d7b3: actual baseline focus1.335/pressed1.713 contrast corrected with local INK overrides; all32 actual-HUD palette/contrast/state pairs clear4.5/7, focus/outline/navigation/layout retained, same-view reviewed and paired package checks pass. [Actual result/limits](history/ROADMAP_DELIVERIES.md#begin-shift-focus-contrast--shipped-on-923d7b3). Other views/states/native/final gates remain open. |
+| ACCESS-MENU-CONTRAST | Shared menu hover/pressed text remains readable across role palettes | 12,29 | DONE checkpointd00ae72: shared darker fills/palette-aware text;160 real production menu paints minimum8.359:1, accessibility443/Help20/controller navigation and paired exports/three strict startups/PCK audit PASS first attempt. Normal/focus/layout/actions and local Help CLOSE retained. Headless theme scope; rendered/device/human/broad UI/final gates open. [Result](history/ROADMAP_DELIVERIES.md#shared-menu-contrast--shipped-on-d00ae72) |
+| ACCESS-HELP-CLOSE-CONTRAST | Help CLOSE text remains readable while hovered/pressed | 12,29 | DONE checkpoint820cc38: local darker fills/palette-aware text;32 actual paint pairs minimum7.767:1 plus existing accessibility252/Help20, paired exports/three strict startups/PCK audit PASS first attempt. Other menu defaults and Help focus/paging/close retained. Headless paint scope; rendered/human/device/broad UI/final gates open. [Result](history/ROADMAP_DELIVERIES.md#help-close-contrast--shipped-on-820cc38) |
 | COMFORT-MOTION | Reduced motion route and retained setting | 29 | GATED; exact affected existing route, no new option implementation assumed |
 | COMFORT-FLASH | Reduced flash route and retained setting | 29 | GATED; exact affected existing route, no new option implementation assumed |
 | COMFORT-COLOUR | Colour-safe cues route and retained setting | 29 | GATED; exact affected existing route, no new option implementation assumed |
@@ -790,7 +848,7 @@ Recovery proof uses an owned actual OS SIGKILL, distinct restart, protected real
 | RECOVERY-CUTS-DEFINE | Uncovered installed context/activity/OS-interruption cases | 2,31 | GATED; explicit state contracts and exact installed Linux package |
 | SAVE-MIGRATION | Real-file valid migration with distinct-process reload | 31,32 | GATED; exact current format/fixture and uncovered case |
 | SAVE-CORRUPT | Corrupt-data fallback and usable recovery | 31,32 | GATED; specified fallback, protected data retained |
-| SAVE-UNSUPPORTED | Unsupported data refuses destructive overwrite | 31,32 | GATED; exact fixture, secret-free diagnostics |
+| SAVE-UNSUPPORTED | Unsupported data refuses destructive overwrite | 31,32 | Future outer-envelope primary/tmp/bak source/Linux real-file case DONE4b66b3548: retained loaded authority and2fresh processes preserve names/bytes/modes. Other formats/native/installed scope remains GATED; no broad closure |
 | CHECKPOINT-HELM-EDGE | Fresh paired playable command-delivery checkpoint | 6,32 | DONE; 2c73494, both exports/three startups/exact payload and archive checks |
 | PACKAGE-FINAL | Exact final Windows/Linux package qualification | 6,32 | GATED; frozen final candidate, existing exports/inventory/startups |
 | INSTALL-WIN-FINAL | Matching NSIS installer artifact/extraction identity | 32 | GATED; final package, native execution remains excluded |
@@ -815,7 +873,7 @@ Recovery proof uses an owned actual OS SIGKILL, distinct restart, protected real
 | capture-station-operations | Registered capture set, 7 PNGs | 12,33 | PARKED; supported changed environment/mitigation required |
 | capture-varied-encounters | Registered capture set, 18 PNGs | 12,33 | GATED; frozen candidate and original runnable harness |
 | capture-zenith-visuals | Registered capture set, 7 PNGs | 12,33 | GATED; frozen candidate and original runnable harness |
-| RIGHTS-DEFINE | Finite project/asset/source licensing families and missing documents | 34 | DEFINE; preserve settled creator permission, no repeated question |
+| RIGHTS-DEFINE | Finite project/asset/source licensing families and missing documents | 34 | DONE as the [source-backed rights-family map](#rights-families-and-missing-documents--rights-define); definition only, no blanket rights clearance. Creator-permission account retained; project release terms and historical media redistribution documents remain distinct gaps |
 | SIGN-FINAL | Trusted game/installer/uninstaller signatures and expected publisher | 34 | WAITING; trusted external certificate/credentials, exact artifacts |
 | MATRIX-FINAL | Existing unfiltered local --mode all on one frozen candidate | 6,35 | GATED; targeted repairs/integration, original caps and no exclusions |
 | FINAL-RECONCILE | All original promises and applicable final-candidate results | 2,35 | GATED; existing candidate record/SHA256SUMS, zero P0/P1 and reviewed P2 |
@@ -852,8 +910,8 @@ with actual uncovered outcomes. In particular, the eight BUILD-SPLIT rows are
 placeholders for future capability cards, not eight complete ship builds.
 Weapon/damage cells, historical relationships, presentation defects, repeated
 activity/write/save cases, adverse network profiles, performance measurements,
-readability cells, audio scenarios, installed interruption cuts and licensing
-families still have unresolved multiplicities. **A defensible whole-project
+readability cells, audio scenarios, installed interruption cuts and family-specific rights/document
+dispositions still have unresolved multiplicities. **A defensible whole-project
 remaining-job count and completion date are therefore not yet available.**
 No new validator, tracker or evidence chain belongs to this decomposition.
 
@@ -875,7 +933,7 @@ Scope: original §0–1 and retained milestones; Phases 2, 9 and 10.1. These are
 | PLAN-ASSIGN[one selected child] | ELIGIBLE; selected task | Fill the task card, owner, dependency, actual check and estimate. Stop when that child is executable; do not manufacture a release date from task counts. |
 | BASE-DIAG[one failing suite] | ELIGIBLE; failure table below | One hypothesis/probe identifies the first failing boundary and production owner, or a specific blocker. Stop before unrelated diagnostics. |
 | BASE-FIX[one reproduced defect] | GATED on diagnosis | Change the runtime/content owner and pass the affected original check without relaxing limits. Stop after relevant integration and required checkpoint; full matrix is MATRIX. |
-| GUIDED[chosen combined package] | ELIGIBLE; exact package | Pass original Guided ordinary-input route 3/3 in fresh processes/profiles, unchanged shutdown timing. Stop at those three runs; old e085 passes remain source-specific. |
+| GUIDED[chosen combined package] | Current checkpoint3d92b91 PASS3/3; a changed exact candidate needs its own selection | Pass original Guided ordinary-input route 3/3 in fresh processes/profiles, unchanged shutdown timing. Stop at those three runs; old e085 passes remain source-specific. |
 | SANDBOX[recovery-walk/reuse boundary] | GATED on supported input-pacing/runtime fix; ca0 retained log shows only0.20s of responsive recovery turning before deadline, no geometry-block proof | Complete the original all-nine-craft/station/combat/crash/recall/reuse route at its original 300s cap, without rescue. Preserve all 54 waypoints, eight initial excursions and occupied-berth criteria; stop on complete route or first concrete failure. |
 | SETTINGS-INPUT[original artifacts] | WAITING on runner/profile/logs | Recover exact originals and identify their provenance; otherwise leave acceptance blocked with a precise handoff. No substitute promotion. |
 | SETTINGS-RUN[original route] | GATED on recovered inputs and any focused fix | Complete original Settings/re-entry route, including gamepad return and intended mouse observation. Writer-only success is insufficient. Stop at original route result. |
@@ -890,13 +948,42 @@ The last full matrix's eleven failed suites are below. `BASE-DIAG` selects **one
 | `cargo_delivery_production_integration_test.gd` | Full matrix timed out; later 418 source/package completes 124 assertions. Include in next combined matrix; do not rerun unchanged isolated merely because the older matrix failed. |
 | `cinder_convoy_session_save_restore_test.gd` | Original300s single print-only probe on c2ad94184 passes70 checks;17th Main returns298.534s before first `missed_abort` check. Synchronous Main add_child192.606s across17 lifetimes; no game assertion error. Qualification remains FAIL. No Convoy-specific culprit/different avoidable startup change identified; parked, no unchanged retry/profile. Raw: `/srv/mudds-work/convoy-position-probe-results-20261017/`. |
 | `cinder_patrol_session_save_restore_test.gd` | Q4 original300s probe on `e8f24ff00` completes18/30 Main lifetimes, stops after19th synchronous startup before fresh-IDLE assertion69. Historical17th retirement/save passes; repeated station/fleet readiness dominates. Q4-FIX targets runtime startup; full suite remains FAIL. |
-| `cinder_race_session_save_restore_test.gd` | Original 300s timeout; one-boundary diagnosis required. |
+| `cinder_race_session_save_restore_test.gd` | Print-only source dd38c163f original300s diagnostic completes81 assertions,19 Main lifetimes; synchronous attach totals212.821s. Deadline expires during19th retirement begun299.268s, before fresh cold-IDLE verification. No game assertion failed before cap; no specific avoidable production hotpath identified. Diagnosis complete; full suite FAIL. No unchanged retry or cap/assertion reduction; a measured production startup change is needed before further qualification. [Actual result](history/ROADMAP_DELIVERIES.md#branch-accountability-and-race-timeout-diagnosis--2026-10-20). |
 | `game_flow_ember_surface_presentation_integration_test.gd` | Original 300s timeout; separate setup from first incomplete integration boundary. |
 | `game_flow_scan_durable_recovery_test.gd` | Half-second retry fixed; later full suite still times out after 96 printed passes. Diagnose remaining boundary. |
 | `session_recovery_resume_offer_test.gd` | Q5 original300s probe on `df66dcded` completes Main16 real-file recovery, then expires at Main17 next passenger interaction (fixture line631) after151 passes. Main18/19 unentered; inner await unresolved. No recovery defect/fix proven; do not repeat unchanged. |
 | `game_flow_rime_client_pad_controls_test.gd` | On3e39ed8da corrected headless run first scenario completes, return17.099s; second held-edge starts264.733s and still progresses at291.862s before original 300s timeout. Diagnosis above; preserve180 edge waits/1,440-tick exposure and100 jump waits. Next: reduce a measured production hotpath, then affected original checks; no unchanged rerun or timing relaxation. |
 | `network_emberline_bolt_test.gd` | Retained failure waits on later dead-peer baseline before reset; pending-generation errors follow. Q1 isolated `e026cf620` instrumented probe passes 154 under original limits, so no repair/root cause is proven. Retain old matrix FAIL; cover next combined matrix without another unchanged isolated run. |
 | `station_light_overlap_census_test.gd` | Historical expected rows/environment unresolved; mismatch repeats on its own freeze. Recover measurement basis before changing expectations; never replace hashes just to pass. |
+
+### Packaged ordinary lifecycle — LIFE-PACKAGE-DEFINE
+
+Definition DONE by source/contract review, 2026-10-20; no engine, test or package
+run. LIFE-VISIBLE and LIFE-REUSE remain accepted on d7be01487 in their recorded
+source scopes. The existing four-cycle phantom audit and twelve-cycle soak are
+not ordinary packaged journeys: both inject MemoryFilesystem and instantiate
+Main directly; the soak shortens boarding motions, forces completed-guide state,
+stages the home approach, injects damage and detaches/re-adds the same Main for
+save/re-entry. The phantom audit also stages cabin/bunk traverses. Its visible
+renderer census is a scene-tree contract, not a rendered-image review.
+
+Only these remaining lifecycle outcomes are identified; reuse existing children
+rather than create another fleet/cycle matrix or automatically schedule runs:
+
+| Existing outcome | Uncovered packaged ordinary completion | Dependency / exact runnable boundary |
+| --- | --- | --- |
+| GUIDED-FINAL | Original Guided sortie, landing, neutral shutdown and physical exit, 3/3 fresh processes/profiles on the chosen final package | Final package GATED. Existing `tools/release/run_native_sortie.py BINARY --output DIR --route guided` supplies OS input/default samplers; retain original shutdown timing and earlier package-specific passes. No missing driver inferred. |
+| SANDBOX-RECOVERY | Full original nine-craft/54-waypoint route, eight initial excursions, actual crash, same-player recall, occupied-berth regeneration, supported recovery walk and craft reuse, 1/1 within original300s | PARKED; `--route sandbox` exists, but retained run expires before reuse. A supported changed input/runtime cause is required before selection; a shortened reuse-only continuation cannot accept the failed full route. |
+| CRAFT-ACCEPT-* / CRAFT-ROLE / RECOVERY-CABIN-DEFINE / CREW-RECOVERY-ORDINARY | Applicable ordinary hatch/chair/bunk walk, sit/action/sleep/wake/stand, helm-or-exit, landing/reuse and cross-craft continuation without staged aisles, damage or return poses | Freeze one supported craft/physical role and its complete journey; existing focused/staged checks do not provide a full package OS-input command. The native sortie selector has no fleet cabin/bunk/crew acceptance route. Preserve accepted Habitat loop/restart and all recorded crew scopes; Bomber role interpretation and parked Halyard boundaries remain dependencies. |
+| SETTINGS-RETURN / existing RECOVERY-KILL and installed recovery children | Ordinary save/quit or owned interruption, distinct-process continuation with usable controls and conserved activity/reward/data, according to each settled context | SETTINGS-INPUT originals remain WAITING; installed cuts require their exact candidate/context/driver. Same-Main memory-store detach/re-add is not disk restart. Habitat restart and named accepted recovery cuts remain DONE; this definition neither duplicates nor reopens them. |
+| LIFECYCLE[chosen candidate] | Packaged repeated sortie/activity/cabin/recovery/Main transitions retain clean quiescent presentation and bounded resources, with usable controls between transitions | Source four/twelve-cycle checks remain unchanged anchors. No existing native-sortie selector combines ordinary repeated cycles, cabin/bunk, Main re-entry and the lifecycle resource/renderer observations. Missing seam: one declared package ordinary-input route and its observation/rest-state sampling boundary, with original repetition/resource limits retained. No command or ordinary-pass claim is invented here. |
+
+The original normal-controls contract remains Guided3/3, Sandbox1/1 and
+Settings/re-entry1/1, plus all applicable craft/station/crew/combat/recovery
+requirements; this definition closes none of them. Repeated activity rewards,
+network endurance, capture sets and native GPU/device/audio/human reviews retain
+their own existing owners and gates. No new runtime defect or implementation is
+established, no source pass is rerun, and no automatic successor queue follows.
 
 ## Station, craft, combat and presentation
 
@@ -919,6 +1006,32 @@ Scope: original §2 and §7; Phases 1, 3–6 and 10.3. A component pass does not
 
 Original fleet remains Torrent, Arrow, Jovian, Titan, Vortex, Paradox, Katana, Predator, Dynamic, Utopia, Salyut and Zenith. Missing definitions: **Titan, Vortex, Paradox, Katana, Predator, Dynamic, Utopia and Salyut**. Instantiate ORIGINAL-SPEC/BUILD/ACCEPT per craft. Four original-inspired candidates plus five modern designs do not finish the twelve-original commitment. Modern interpretations require explicit scope decisions and honest labels.
 
+### Fleet access and reuse — shared acceptance boundary
+
+WALK-FLEET source handoff on995fb9621 resolves the roster, not acceptance.
+`FleetDockComb` has three assigned docks with world-owned Zenith, Halyard and
+Bulwark berths. Its Dock03 historical landmark key is not a deferred berth.
+The original “Fleet comb and all shipped craft berths” requirement also demands
+physical reach and reuse of every shipped craft, separated voids/neighbour
+clearance, fleet overview and player-height review. Current shipped roster:
+Torrent, Arrow, Jovian, Zenith, Halyard, Bulwark, Cinder Light Interceptor,
+Cinder Cargo Hauler and Cinder Long-Range Bomber.
+
+Use the existing nine `CRAFT-ACCEPT-*` journeys for reuse; do not create another
+fleet matrix. LIFE-ARM's Zenith approach and `SandboxPilot.begin_craft()` supply
+route references, not full all-shipped acceptance. Missing runnable boundary:
+a supported ordinary-package reach/reuse command mapped to those existing
+journeys and their required interactions. Threshold walking alone cannot close
+this requirement. Preserve the original parked Sandbox all-nine/54-waypoint,
+crash and reuse route unchanged; a renamed shorter selector cannot replace it.
+The two-client HALYARD-BOARD failure does not establish a solo Fleet walking
+blocker, and this source review found no separate solo access defect.
+
+If a concrete full route is selected later, extend only the existing startup
+selector guard, read-only native-sortie observer, OS-input driver and focused
+Python checks. No new route, engine run, gameplay repair or checkpoint was
+selected by this handoff; overview/native/player-height review remains open.
+
 ### Station presentation — finite review boundaries
 
 STATION-FINDINGS source slice2026-10-18 on df3e71d4e: root inspected the living
@@ -939,7 +1052,7 @@ part of original parent acceptance; schedule each actual uncovered cell explicit
 | Existing branch | Bounded player-facing view / state to inspect | Runtime owner / protected outcome |
 | --- | --- | --- |
 | Central | Standing spawn directory and adjacent tow/cargo presentation while approaching the berth | `shipyard_world.gd`, `station_wayfinding_signage.gd`; readable destination and berth access; existing CENTRAL-VIEW capture stall stays parked |
-| Aft | Upper operations room consoles/workpost from the stair arrival | `aft_junction_stack.gd`, world Aft activities; distinguish Activity/Destination controls and preserve stair/door clearance |
+| Aft | Lower operations-room console line from its actual doorway; separate upper stair/workpost view remains uncovered | `aft_junction_stack.gd`, world Aft activities; consoles are downstairs, not visible through the upper floor. Isolated console image attempt PARKED120s/no image; preserve stair/door clearance and distinct Activity/Destination controls |
 | Habitat | Bunk/common-room arrival and garden/observation doorway | `habitat_spine.gd`, world patrol/skywatch; preserve accepted ordinary loop, usable bunks and wake controls |
 | Freight | Service-room entrance and gantry beside the actual boarding approach | `jovian_freight_berth.gd`, world Freight activities; readable service/boarding destinations and operable unlocked door |
 | Fleet Dock | One named berth threshold from its actual approach | `fleet_dock_comb.gd`, `fleet_expansion_berths.gd`; correct craft destination and boarding/landing clearance; choose berth before reviewing |
@@ -947,6 +1060,17 @@ part of original parent acceptance; schedule each actual uncovered cell explicit
 | Observation | Cross-landing view toward one named Observation/Logistics pad | `observation_logistics_spur.gd`; correct pad destination and supported return |
 | Salvage | One inspection-pad view after supported arrival | `salvage_terrace.gd`, `salvage_inspection_station.gd`; three-component contract retained; physical access/revisit remains parked/gated |
 | VIP | Reception arrival view after supported access | `vip_reception_suite.gd`; existing route/evidence boundary retained; parked VIP walk is not reopened by this list |
+
+**Habitat common-entry view: PARKED, not reviewed.** Source8a6339b91 fresh
+import20.652s passes; one full-Main Forward+ software readback times out180.842s
+before PNG or measured-eye metadata. Renderer startup is logged, but the exact
+blocking lifecycle/draw boundary is unobserved. No geometry, lighting or camera
+runtime defect is established. Existing integrated capture y2.55 exceeds the
+standing body height and cannot replace the selected measured-eye view; isolated
+chair renders do not establish full-Main lighting/arrival. No retry, cap increase,
+other-room replacement or no-finding claim. A supported capture-boundary change
+must precede a separately frozen attempt; same full-Main path under another room
+name does not reset this failure. [Actual result/cleanup](history/ROADMAP_DELIVERIES.md#habitat-arrival-view--readback-timed-out-before-image).
 
 All file basenames above resolve under `scripts/world/`. This roster reuses the
 nine existing WALK branches; it adds no station rooms, historical claims or
@@ -986,7 +1110,7 @@ Scope: original §3, retained abandonment milestone and Phase 8/10.4 specificati
 | ACT-WRITE[one activity/boundary] | GATED on uncovered failure boundary | Exercise one real write failure at ACTIVE, earned-unpaid, paid/reset or refused/reset; fresh process observes once-only durable rewards and usable recovery. Reuse existing lifecycle tests; stop at named boundary. |
 | ACT-PLAY[one nearby activity] | ELIGIBLE for implemented content | Ordinary outbound travel, actual activity, reward and home return work at canonical distances. Stop after first full play or first reproduced defect; repetition/endurance is ACT-REPEAT. |
 | ACT-REPEAT[one activity] | GATED on ACT-PLAY | Complete its existing repeated-use/endurance scenario with once-only rewards and clean actors/state. Stop at that scenario's original duration, not a new arbitrary loop target. |
-| TRAVEL-LIMIT[one nearby route] | DEFINE; release scope decision | Establish proposed numeric ordinary-travel envelope and route conditions from design/runtime facts; obtain required decision. Stop at finite criterion, not an invented “agreed maximum.” |
+| TRAVEL-LIMIT[one nearby route] | Beacon outbound proposal recorded; owner choice WAITING | Use the finite clock/basis proposal below.30s is proposed,60s offered as alternative; neither is agreed or proved. Obtain the required decision before timing implementation/qualification; other routes retain their original scope. Stop at finite criterion, not an invented “agreed maximum.” |
 | HULK[physical salvage/power/revisit] | Arrival, breaker and home ordinary-input qualification DONE; revisit/disk gates open | Existing interior83 scoped checks retain their limits. Full ordinary Guided/HULK/breaker/reverse walk/reboard/home route driver7e251f8af/gameef67f3e95 passes191.886s at original300s cap, actual unload and once-only receipt retained; checkpointef67f3e Linux is exact tested binary. Windows payload startup/privacy passes separately; strict payload parity fails65 generated scenes. REVISIT-CONTRACT DONE; REVISIT-INPUT candidate5010ef932 FAILED optional-lift driver condition; REVISIT-DEPARTURE candidate2298e4889 FAILED original300s deadline during new interior walk after actual reload/dock/exit; no fresh breaker event. Candidate withheld; REVISIT-CHECKPOINT GATED; independent Ember ABANDON source qualification subsequently DONE; no HULK repair selected in ROADMAP.md; no unchanged interior rerun or full-parent closure. |
 | WORLD-CONTENT[one world/gap] | DEFINE if missing content not named | For Ember, Aurora or Rime, name one finite missing environmental/content behavior from the original specification and roster. Implement that behavior in a separate bounded child with ordinary surface interaction and checkpoint. Stop at specification or named behavior, not a new planet catalogue. |
 | WORLD-SOLO[one world] | ELIGIBLE for implemented world; existing physical route | Complete canonical outbound, atmospheric descent, physical landing/exit/activity/reboard, ascent and home dock through ordinary controls. Preserve original route/physics limits; staged arrival is not acceptance. Stop at one world's full route or first defect. |
@@ -995,6 +1119,53 @@ Scope: original §3, retained abandonment milestone and Phase 8/10.4 specificati
 | WORLD-EDGE[one world/case] | GATED on baseline route and scenario definition | One solo cancellation, refusal, failure, repeat visit or interruption case preserves physics, rewards and return to use. Stop at one case; shared late join/disconnect belongs to WORLD-SHARED. |
 
 Route anchors include `tests/ember_transit_movement_soak.gd`, `tests/aurora_physical_return_soak.gd --aurora-full-roundtrip`, `tests/ember_abandon_return_manual_override_test.gd` and the existing Rime landing/survey routes. Resolve the exact existing command in the task card before running; never substitute a staged route for a canonical one.
+
+### Beacon outbound travel envelope — proposal awaiting decision
+
+TRAVEL-LIMIT[Beacon outbound] / parent13, source-only definition on2026-10-20.
+**Proposed, not agreed:30.0s unpaused monotonic elapsed time.** The owner has been
+asked to choose30s or60s for this one leg; no answer/default is inferred. Original
+Phase8 requires a maximum station travel-time envelope, and the retained parent
+requires an agreed normal-flight maximum. This proposal supplies one bounded
+instance; it neither closes that family nor removes return/other-route promises.
+
+| Contract field | Proposed single-leg criterion |
+| --- | --- |
+| Start | First ordinary engine-start/launch input after the same pilot is seated in the default Torrent at its occupied home berth. Include engine startup and physical departure; do not start only after a distant departed receipt. |
+| Stop | First live, unpaused, same-craft physical approach within the production first-Beacon32m radius at speed≤0.45m/s, with valid pilot controls. The retained driver approaches more tightly,≤12m; that driver detail is not a new production activity-start requirement. |
+| Clock | Unpaused monotonic elapsed seconds. Subtract only explicitly recorded paused intervals. Engine loading before Start, station walking/boarding and activity UI/objective time after Stop are outside this leg. In-leg CPU/GPU stalls still count; simulation ticks are reported separately and cannot substitute for elapsed-time proof. |
+| Route / controls | Actual fresh occupied Torrent home berth → live transformed first Beacon; default authored tuning/input sampler, normal thrust/steering/brake, no boost, teleport, recovery, debug navigation or staged movement. Reject a failed/destroyed/recovered run rather than restart its clock. |
+| Scope | One outbound leg only. Ordinary Beacon traversal/payment/home and every other required activity/return limit remain open in their existing children. No new engine attempt, parked UI route, environment qualification or300s whole-sortie cap change is selected. |
+| Next after decision | Freeze exact package/ordinary driver, add start/stop/pause monotonic observations to the existing route if missing, and select its timing proof with original safety caps. No new validator, alternate route or accepted full PLAY-BEACON claim. |
+
+**Source and retained-record basis, not a new flight:**
+
+- `scripts/world/cinder_beacon_traversal_activity.gd` authors the four Beacon
+  centres(16,-9,-240),(32,-26,-372),(46,-44,-498),(30,-46,-600), each radius32m.
+  First Beacon is230.779m from the accepted Torrent parked position
+  (0,1.15,-10); the four-centre path including that first leg is596.141m.
+  These are Euclidean distances, not measured flown paths. GameFlow's
+  `_cinder_authored_frame_to_world` resolves the live/bootstrap/rebased frame;
+  do not use raw authored positions after a common-origin shift.
+- Default Torrent in `scripts/ships/hero_ship.gd`: speed cap82m/s,
+  thrust34m/s², brake48m/s², passive drag2.8m/s². The Beacon driver uses ordinary
+  thrust/brake without boost. A speed cap is not guaranteed cruise or a timing
+  proof. Its approach brakes at v²/(2×brake)+0.18v+10m;
+  forward thrust requires aim alignment>0.72.
+- Accepted checkpointe06550e record
+  `/srv/mudds-work/beacon-settlement-20261019/results/ordinary-settlement/result.json`
+  retains launch stage frame776, departed924, stopped approach1353. Authored
+  physics60Hz implies577/60=9.6167 simulation seconds from launch-stage record
+  to approach,429/60=7.1500 from departed receipt. Launch-stage is not a retained
+  monotonic timestamp of the first launch input; neither interval proves the
+  proposed wall clock. Actual approach distance10.535m is inside both radii.
+- The complete driver63.879s includes startup, walking, boarding, paused UI,
+  traversal/payment and observation. It is not this leg's travel duration.
+  The30s proposal is an engineering pacing target informed by short distance and
+  that single simulation-time observation, not measured wall/native/human proof.
+  Native hardware, manual usability and original full journey gates remain open.
+
+No runtime edit, engine, package or temporary file was needed for this proposal.
 
 ### Activity first play — bounded handoffs
 
@@ -1055,6 +1226,63 @@ applicable release-driver check and does not imply a new gameplay build.
 First failure ends that attempt. Retain the original route and cumulative
 failure history before selecting any causal repair. All twelve journeys, repeat
 contracts, write/recovery cases and parent13's travel envelope remain binding.
+
+### Threading complete first play — driver readiness
+
+**Definition DONE; execution GATED on UI-BOARD-FOCUS.** Read-only readiness
+mapping onf02ec981f found no independently executable ordinary Threading driver.
+No source/runtime/test edits, engine, package or route attempt performed. This is
+not Threading gameplay completion. The full ordinary journey remains the target;
+do not turn an entry-only or near-home observation into PLAY-THREADING acceptance.
+
+The existing NativeSortie Pilot provides real Begin Shift, walk>8m, candidate E
+boarding, same Player/Torrent, default sampler and real berth departure. The
+accepted Beacon entry/settlement pilot supplies ordinary pause→ActivityBoardButton
+Return→Nearby/SELECT/START and authored mouse/thrust/brake controls. That same
+ActivityBoardButton boundary is retained as failed on Beacon-homea612ea686 and
+Mining; a new Threading selector would not repair it. No new Popup identity,
+connection-removal event or production cause is established. Original CAP300,
+UI3s acknowledgements and cumulative component9.627s/Mining/Beacon histories
+remain; no renamed retry, cap reset or imported home-branch qualification.
+
+Conditional implementation ownership when actually ready: one driver implementer
+owns existing tools/release/run_native_sortie.py and test_native_sortie.py;
+root integrates pure scripts/diagnostics/native_sortie_observer.gd, existing
+startup_loader observer admission and tests/startup_cli_privacy_test.gd. Add one
+explicit full-route selector, read-only paused observations and confined actual
+store capture, not a new validator/schema/version family. There is no current
+Threading command or success marker. No implementation/engine is selected now.
+
+Full acceptance to retain:
+- Ordinary menu/walk/board/depart/start through supported controls, within30m
+  of the actual first gate; no direct board signal or activity-start mutation.
+- Physically cross all five authored gates in order, preserving real asteroid
+  contact-before-progress failure. Observe transformed gates via
+  _cinder_authored_frame_to_world and actual craft via _cinder_authored_frame_position;
+  the .tres coordinates are not automatically current common-world coordinates.
+- Observe actual activity cinder_asteroid_field_threading_run generation,
+  cursor increments, terminal state and exactly one durable
+  return_asteroid_survey_to_shipyard receipt, with unrelated store data preserved.
+- Fresh Torrent remains in Guided TARGET_PRACTICE; completing Threading does not
+  unlock landing. A full driver must complete actual range targets/interceptor
+  through supported weapons into RETURN_TO_YARD, preserving the paid Threading
+  terminal, before real L capture/strict exact occupied home dock/lease/token.
+- Neutral automatic ENGINE_OFFLINE, actual E exterior exit, supported same-Player
+  movement>=.5m and60 stable ticks. Ordinary Jovian kit delivery demonstrates
+  these acceptance principles, not Torrent/Threading home qualification. The
+  unmerged Beacon-home code does not supply accepted home behavior.
+
+The exact engine revision's [Popup parent teardown](https://github.com/godotengine/godot/blob/a13da4feb/scene/gui/popup.cpp#L63)
+unconditionally disconnects the matching parent focus/tree signals. This is a
+source call-site match, not the missing original popup/removal identity or a
+causal reopening fact. Root rechecked retained original diagnostics: only root
+Window identity/empty callable, still no popup identity. No fresh UI probe/fix
+is selected on this source fact.
+
+Next independent candidate: source-map the still-open ordinary browser
+unreachable-host timeout/retry path, now that its focused production deadline is
+packaged1c679a4. Keep its full actual Main/UI/retry acceptance separate from the
+already-passing adapter test and from this blocked Activity Board family.
 
 ### Activity repetition — first bounded definition slice
 
@@ -1212,17 +1440,466 @@ Scope: all twelve original §4 outcomes and retained ordinary-remote-crew milest
 | NET-CREW[one craft/role] | ELIGIBLE for implemented route | Independent authenticated ordinary crew walks, sits, performs role, stands/exits and survives applicable ownership/host/disconnect recovery. Use existing Jovian engineer, Halyard engineer/passenger or Bulwark gunner route tests. Stop at named role. |
 | NET-POSE[one craft/operation] | ELIGIBLE; existing remote/craft-pose tests | Current and late peer see correct engine, station-frame pose and landing/dock presentation during one named operation. Use `network_remote_craft_pose_test.gd` / `network_craft_pose_station_frame_test.gd`; stop at operation. |
 | NET-HELM[one supported action] | ELIGIBLE; `network_remote_pilot_helm_test.gd` | Real sampled local input reaches supported remote helm action and handback without stale ownership. Stop at original action/recovery scenario; synthetic command-only checks cannot close input prerequisite. |
-| NET-STALL[existing host-stall route] | ELIGIBLE; stable independent processes | Original 600-step stalls and original 2s action limits recover honestly without false completion. Stop at route result; no clock/deadline relaxation. |
+| NET-STALL[existing host-stall route] | Current-source DONE3d6b1b513; final-package/native scope separate | Full original route passed both600-step stalls/original2s actions,160 terminal host assertions, actual peer/wrapper exits0 and no diagnostics. No unchanged repeat, clock/deadline relaxation or transfer to other ordinary/native/endurance gates. |
 | NET-LAND-DIAG[intermittent second landing] | DEFINE; original failure retained | One probe identifies the first failed boundary in second landing/reuse. Stop with owner/fix or blocker; no speculative clock rewrite. |
 | NET-DOCK[one craft] | GATED on relevant fix if needed | Remote landing/dock, ordinary disembarkation, reboard and repeat departure succeed. Stop at one craft's existing route. |
 | NET-DAMAGE[one craft/role scenario] | ELIGIBLE; existing damage/respawn integration tests | Peer presents hull/component damage, repair, destruction and regeneration coherently, then returns to usable role/craft. Stop at one scenario; preserve authority and ownership. |
 | NET-ACTOR[one channel/lifecycle] | ELIGIBLE for implemented channel | Convoy, Torpedo Run, Picket or Emberline instance covers its named travelling actor/projectile live/dead/reset, late join, disconnect or solo-restoration boundary. Use existing authority/Emberline tests. Stop at one lifecycle case, then schedule uncovered cases separately. |
 | NET-BROWSER[one ordinary menu flow] | ELIGIBLE; discovery/binding tests | Discover/refresh/select/join/disconnect/retry from normal menus. Separate stale, full, unreachable, cancel and controller cases into individual instances; stop at selected flow. |
-| NET-BUDGET[all-nine forced-full snapshot] | ELIGIBLE; existing budget owner | Measure original full-snapshot publication/byte budgets across supported nine-craft load; movement-only bytes do not qualify. Stop at this aggregate budget result; do not repeat for every NET-POSE task. |
+| NET-BUDGET[all-nine forced-full snapshot] | Aggregate contract DONE on330a39ce3; new-candidate/native/ordinary scope separate | Existing `network_craft_pose_station_frame_test.gd::_assert_snapshot_envelope` uses actual Main nine-craft publication, forces full encoding and measures live delta; both fragment and decode to the exact complete snapshot within12000 bytes (fragment payload900, maximum16). Retained full suite PASS382 in172.837s; all-nine full/live4656/4656. No CPU/throughput threshold is specified. Do not rerun or add a budget-only selector merely to duplicate this accepted result; ordinary multiplayer and final/native/endurance gates remain open. |
 | NET-ENDURANCE[one supported profile] | DEFINE exact independent-process command, then GATED on stable baseline | Run original 30-minute two-client moving-interior session with declared latency/profile and no ownership/state leaks. `network_moving_interior_latency_test.gd` is an anchor, not an invented substitute command. Stop after original duration and clean closure. |
 | WORLD-SHARED[one world/case] | GATED on supported crew/profile and baseline dependencies | Ordinary independent remote crew completes the selected canonical case, including actual outbound/return, activity/reward/save and appropriate usable recovery. Preserve focused 300s/canonical 900s and physical landing 120s where specified. Stop at one matrix cell. |
 
 WORLD-SHARED instances: **Ember, Aurora, Rime**, each with **baseline full outbound/return, late join, disconnect/reconnect, pilot loss, cancellation, real interruption, repeat visit**. Each cell is a separate task and must name participants, initial state, ordinary-input route and durable reward/return criteria before execution. The baseline includes activity and save behavior; failure cases do not inherit a staged baseline. Use existing `tests/network/halyard_network_shared_planetary_cruise_test.gd` and applicable world/landing tests. Missing exact case coverage becomes a bounded DEFINE child, not a claim that the anchor already covers it.
+
+### LAN discovery while paused — NET-BROWSER-PAUSE
+
+**DONE packaged042c701e2, parent25.** Discovery alone processes during gameplay
+pause. Automatic real-loopback paused responder/browser, correct host row/current
+capacity/endpoint, frozen gameplay heartbeat, stopped-host refresh, cancellation
+and socket/state cleanup pass27 assertions; existing default GameFlow browser
+integration passes7. Old unchanged production reproduces the exact paused
+completion failure first. Both exports/three strict silent startups/actual package
+parity pass. [Original contract and actual results](history/ROADMAP_DELIVERIES.md#paused-lan-discovery--delivered).
+Full ordinary independent Main/browser/admission/reconnect/capacity/endurance,
+native Windows/GPU/device/audio/human and final gates remain OPEN/NOT_RUN.
+No repeated accepted check or parked live-menu retry is selected by this delivery.
+
+### Unreachable or non-admitting host — BROWSER-JOIN-DEADLINE
+
+**Focused runtime delivery DONE on1c679a4e2**, merged/pushed and paired-checkpoint
+packaged. The authored5000ms monotonic deadline now spans connection/admission,
+continues during pause, closes the pending native peer with readable timeout,
+and permits retry. Cancellation/replacement and valid admission retire the clock.
+Five focused suites pass196 assertions; both exports, three strict menu startups
+and actual1521-entry package parity pass. One initial test syntax failure and its
+sole repair remain in the cumulative result; no further failure occurred.
+[Original frozen contract and actual results](history/ROADMAP_DELIVERIES.md#client-join-admission-deadline--delivered).
+Full independent ordinary Main/menu unreachable-host UI/retry, capacity/endurance
+and native/human/final gates remain OPEN/NOT_RUN. This closes one runtime defect
+under parent25, not the complete browser requirement.
+
+### Browser inline session recovery — BROWSER-INLINE-RECOVERY
+
+**DONE in focused runtime scope on20e90c9**, merged/pushed and packaged. Browser
+progress/timeout feedback and current fenced Retry now work before Begin Shift;
+Cancel/Disconnect priority and newer validation messages are preserved. Five
+focused suites182 assertions, paired exports/three strict startup checks and
+1521-entry package parity pass. Original regression, source-review finding and
+Cancel-priority failure/corrective decisions are retained in the
+[full frozen contract/results](history/ROADMAP_DELIVERIES.md#browser-inline-session-recovery--delivered).
+Owned scratch cleaned; raw results retained. Full ordinary OS-input/browser
+journey, rendered readability and parent25 remain OPEN/NOT_RUN.
+
+### Browser ordinary timeout and retry — bounded delivery cards
+
+**PARKED/unaccepted** candidatee944f52a8 on pushed branch
+`feat/browser-ordinary-driver-20261020`; unmerged/withheld.89 Python tests,
+privacy,35 join assertions, paired exports/three strict startups and1521-entry
+parity pass, but ONE ordinary route fails40.554s at actual timeout:
+NetworkSession tree_exited disconnect/empty callable diagnostic, cause unknown.
+Fixture cleanup separately rejects its command. Full Retry/admission/Disconnect/
+fresh Cancel/Resume/normal quit NOT_RUN. Both driver and ordinary delivery remain
+unaccepted; no successful-prefix substitution. Original name-collision failure,
+sole corrective exception and full frozen acceptance/caps remain in the
+[retained contract/results](history/ROADMAP_DELIVERIES.md#browser-ordinary-timeout-and-retry--failed-and-parked).
+Cumulative12 stages235.879s/2fails; all67 observed process identities absent.
+Eight unique builds retained privately; owned scratch cleaned; no public build.
+No further repair/exception/probe/retry/cap change selected. Next action is bounded
+read-only disconnection-owner mapping before any concrete production correction.
+Original no-answer/unreachable case and all broad/native/human/final gates stay open.
+
+### Timeout RPC-cache ownership — NET-TIMEOUT-TEARDOWN-OWNER
+
+**One source observation complete: NOT_REPRODUCED.** Clean20cab9bba import19.711s
+and single combined caller11.514s pass measurement guards. Default/custom APIs
+both track the actual `SceneCacheInterface::_remove_node_cache` callback bound
+to the adapter ID and cleanly remove it at automatic timeout5004/5002ms. Same
+adapter remains parented. No ownership-dependent difference observed; no app
+ownership change or release cause/fix supported. Full-game graph, separate-process
+and release-template context remain untested by this component caller.
+[Exact observations, original source map and frozen contract](history/ROADMAP_DELIVERIES.md#timeout-rpc-cache-ownership--source-observation-not-reproduced).
+Two owners terminal/all6 observed identities absent; owned scratch cleaned and raw
+results retained. Investigation cumulative14 stages267.105s retains two original
+failures. No second probe/repair/cap increase/full-route retry selected. The subsequent release capture is complete below; it identifies the retained native
+callback without establishing the internal mismatch or repair. Do not repeat unchanged
+default/custom source comparison. Original browser candidate stays parked;
+all broad/native/human/final gates and accepted checkpoint20e90c9 unchanged.
+
+### Release timeout callback capture — bounded definition and selection
+
+**Parent25; frozen2026-10-20 before implementation/engines.** Independent high
+contract review recommends one passive release capture because the sole source
+observation identifies a native SceneCacheInterface callback but cleans it under
+both API ownership modes. This new actual parity fact addresses the missing
+callback identity in the original release failure. It authorizes no ownership
+workaround, ordinary acceptance retry, source-probe repeat or runtime fix.
+Investigation cumulative14 stages267.104796959s/two original failed stages remains
+binding; original12-stage235.879s browser chain stays parked/unaccepted.
+
+Use a clean derivative of EXACTe944f52a835789971a58e0e4d1dd50c4ac664b34.
+One medium implementer owns ONLY `scripts/diagnostics/native_sortie_observer.gd`,
+inside `_browser_observation`'s existing valid-adapter branch: append actual API
+identity/root and serialized tree_exited connection validity, object ID/class,
+method, primitive bound arguments, unbound count and flags (about20–30 lines).
+Keep Callable/Object references local to the sample. Represent nonprimitive
+arguments by safe type/identity metadata without invoking custom _to_string.
+No connections, disconnections, callback invocation, retained references,
+transport polling, expiry/authority writes, changed cadence or general framework.
+Root owns guards/packages/integration; one independent high reviewer before engines.
+No recursive agents. Driver SHA256 remains
+`2d7d4da626d018ddc4bc68e74bac67c8ad6632bf6f703d00089b16d6982d1015`;
+fixture/test/GameFlow/adapter/startup/privacy sources stay byte-identical to e944.
+
+Focused/package stages: fresh guarded import180s, existing startup privacy60s,
+existing safe clean Linux export180s, actual package startup120s requiring exit0
+and exactly one STARTUP_MENU_READY_OK, embedded observer/source-pin/package
+inventory check90s. No Windows/public checkpoint is justified by diagnostic-only
+code; any working runtime fix later requires the normal paired checkpoints.
+No hosted CI, native desktop/audio or --script override on the exported game.
+
+Then ONE original private Xvfb/XTest separate-process route command structure from
+`browser-ordinary-driver-20261020/results/repair-1/results/ordinary/authorization.json`,
+replacing only owned paths and the new diagnostic binary filename. Same300s
+whole-process cap,3s UI/fixture acknowledgements,10s display/15s window limits,
+explicit x11/Dummy, rendering flags, normal OS-typed endpoint and original steps.
+Driver/fixture remain unchanged, including the known fixture command rejection.
+The original full timeout→Retry/admission→Disconnect→freshCancel→Resume/walk/
+normalquit criteria cannot be replaced by a passing prefix or evidence artifact.
+
+Harvest RAW game.log, not only the pilot's last state (diagnostics reject its
+current chunk). Desired original failure is the exact nonexistent-disconnect
+NetworkSession tree_exited/empty-callable error referencing the actual adapter ID,
+with real connected/nonadmitted hello and5000–7000ms paused automatic timeout.
+Require same Main/player/adapter/API identities and complete connection snapshots
+before and after cleanup. Capture the actual owner/binding/removal outcome; do
+not assume a particular callback or retained list. Missing bracketing data is
+INCONCLUSIVE/STOP, not permission for another capture. The exact already-known
+fixture cleanup rejection is retained separately. Every other new/different
+failure, timeout, guard issue or missing required data STOP; no repair, substitute
+route, extra observation or cap increase. Zero target errors is NOT_REPRODUCED
+and ends this assignment; any later unchanged-driver failure remains recorded.
+
+The underlying route must retain its actual nonzero/success:false result when
+original errors occur. A complete diagnostic harvest is not runtime acceptance,
+a fixed bug, a playable delivery or a project percentage. Preserve logs/source/
+process identities and unique diagnostic package, then clean only owned scratch.
+Estimate15–25min implementation/review,5–10min build/capture/cleanup; split before
+45min. Pass ends this acquisition; next runtime choice needs actual captured cause.
+All original browser, native/human/final parent gates remain OPEN/NOT_RUN.
+
+**Result2026-10-20: CAPTURED_KNOWN_FAILURE, acquisition only.** Candidate
+783c8c87206a52928641dd887f9a34e02caaf246 adds only25 observer lines and is
+pushed/unmerged/withheld. All five readiness/package stages pass; one actual
+release route exits1/success:false at the exact original diagnostic. Raw brackets
+show the same valid SceneCacheInterface callback bound to the actual adapter ID,
+flags4/unbound0, still present after5006ms timeout. Release method metadata is
+empty, unlike the source observation; exact internal mismatch/repair remains
+unproved. Same Main/player/adapter/API/root and paused phase/position/clock.
+Separate fixture rejection unchanged. [Full result, hashes, limits and cleanup](history/ROADMAP_DELIVERIES.md#release-timeout-callback-capture--known-failure-captured).
+Six owners finished/33 observed identities absent; five unique private Linux
+artifacts retained and owned checkout/helpers/profiles cleaned from active paths.
+Six stages131.191s; cumulative20 stages398.296s preserves original failures and
+this actual failed route. No retry/repair/cap increase or second capture selected.
+Correction definition is complete in the following section; the first build-recipe
+implementation is selected, while actual templates and full-route acceptance remain gated. Diagnostic acquisition is not a production fix or ordinary acceptance.
+
+### Release RPC-cache correction — implementation cards
+
+**Definition complete2026-10-20; first implementation selected before edits.**
+Parents25/32. Pinned engine source is
+`a13da4feb8d8aefc283c3763d33a2f170a18d541`, the existing builder's exact revision.
+The captured retained callback establishes a production teardown gap; it does not
+identify the differing native identity bytes or prove a compiler/ABI fault.
+
+**Correction to the earlier source lead:** adding `.bind(E.key)` is not a repair.
+[Signal connect/disconnect](https://github.com/godotengine/godot/blob/a13da4feb8d8aefc283c3763d33a2f170a18d541/core/object/object.cpp#L1556)
+use the [base comparator through bind wrappers](https://github.com/godotengine/godot/blob/a13da4feb8d8aefc283c3763d33a2f170a18d541/core/variant/callable_bind.cpp#L85).
+[Release method metadata](https://github.com/godotengine/godot/blob/a13da4feb8d8aefc283c3763d33a2f170a18d541/core/object/callable_mp.h#L53)
+is intentionally empty without DEBUG_ENABLED. Neither fact proves the failure.
+
+Independent high source/lifecycle review GO supports this **unproved candidate**:
+in `modules/multiplayer/scene_cache_interface.h`, add a Callable member to
+NodeCache; in `_track`, construct/store the bound removal callback once and
+connect that value one-shot; in `clear`, disconnect that exact stored value.
+[Callable copies retain custom identity](https://github.com/godotengine/godot/blob/a13da4feb8d8aefc283c3763d33a2f170a18d541/core/variant/callable.cpp#L265),
+so lookup reuses the same pointer/hash rather than reconstructing it. Native data
+holds a raw owner pointer/ObjectID, with scalar bound node ID, adding no ownership
+cycle. One-shot emission holds Callable copies while removing the connection
+before invocation; NodeCache removal can release its copy safely. Repeated
+clear/retrack remains supported. Do not change general Callable equality, skip a
+disconnect via is_connected, suppress diagnostics, fake tree exit or change app
+ownership. Effectiveness remains gated on actual patched release validation.
+
+**RPC-CACHE-BUILD-RECIPE — selected executable build capability.** One medium
+implementer owns ONLY `tools/release/build_godot_reflection_fix.py`, its existing
+`test_build_godot_reflection_fix.py`, and new
+`tools/release/patches/godot-4.7.1-rpc-cache-teardown.patch`. Root owns docs,
+integration/checks; one independent high reviewer. No recursive agents.
+
+Extend the existing builder, not a parallel copy. Add explicit mutually exclusive
+`--rpc-cache-teardown` mode, `--platform linuxbsd|windows`, and an absolute owned
+`--cache-root` for this mode. Preserve all legacy defaults/paths/tests. RPC mode
+must apply ONLY the two-file callback patch (explicit header include if needed),
+never reflection/mesh/probe patches. Pin official source archive, SCons wheel,
+patch and exact before/after target bytes. Use template_release x86_64 and private
+platform-specific logs/results, build names and staged template filenames.
+Windows output is inspected as PE and never executed on Linux; Linux version
+probes, when later run, must be headless/Dummy. Preserve inherited HOME, isolated
+XDG, bounded jobs/timeouts and existing abort/reap behavior. No installed engine,
+stock templates or export-preset mutation; no silent renderer/feature removal.
+Windows dependencies must be explicit, not bypassed by ad hoc disable flags.
+
+Acceptance in this card is the existing build-tool suite extended for real
+new behavior: side-effect-free two-platform plans, conflicting-mode rejection,
+exact patch/source rejection, unrelated-mode isolation, correct target staging,
+stale template refusal and no Windows execution. Command:
+`python3 -B -m unittest discover -s tools/release -p test_build_godot_reflection_fix.py`,
+cap60s, no compiler/downloader/Godot. Actual compile and runtime effectiveness
+remain NOT_RUN. Source-file downloads for reviewed patch preparation are allowed
+only into owned scratch; no source archive/tool installation or engine build.
+Estimate45–60min implementation/review plus focused checks; split before90min.
+Unexpected check failure STOP for this card; no automatic repair/retry expansion.
+Commit/push the capability, retain exact patch/source facts and clean owned scratch.
+No playable checkpoint is implied by an uncompiled build recipe.
+
+**RPC-CACHE-BUILD-RECIPE result: DONE onf45c9094f8a3b0724abc3896d97b265b81ee8030.**
+Only the three owned files changed, with explicit callable header and stored-value
+connection/disconnection in the patch. Independent high actual-source/build-tool
+review and root review GO; all24 tests pass once,0.514s guarded stage under60s cap.
+Source/index/cache/engine guards intact; one owner finished/two observed child
+identities and owner absent. Feature branch pushed, source fast-forward integrated.
+Only results remain in owned scratch, including the two official source files and
+reviewed after-images. Actual source archive preparation, dependency installation,
+compilation and runtime effectiveness NOT_RUN. Default installed engines/templates
+and presets not changed. [Exact hashes, usage and limits](history/ROADMAP_DELIVERIES.md#rpc-cache-release-template-recipe--implemented).
+Freeze commit→cleanup290.078s/4.8min versus45–60min implementation/review estimate;
+excludes initial definition/final publication. No new playable checkpoint.
+Next single action: dependency provisioning and exact build-command freeze for
+matching templates, with original full-route/fixture gates preserved.
+
+**RPC-CACHE-TEMPLATES — dependent actual build.** Recipe accepted; GATED on
+SCons and required native/cross build dependencies. Current environment has
+Python3.13.5/GCC14.2/ar/patch/pkg-config,12 CPUs and~13GiB available RAM, but no
+SCons, clang++ or MinGW on PATH, and no prior builder cache. Debian's cached
+package index offers POSIX MinGW14.2; no installation performed. Existing builder
+pins SCons4.10.1. Extend/provision within a separate frozen card; matching
+Windows/Linux release templates must share source+patch and preserve needed
+renderer/accessibility features. Existing official
+[Linux requirements](https://docs.godotengine.org/en/4.7/engine_details/development/compiling/compiling_for_linuxbsd.html)
+and [Windows cross compilation](https://docs.godotengine.org/en/4.7/engine_details/development/compiling/compiling_for_windows.html#cross-compiling-for-windows-from-other-operating-systems)
+name dependencies. Use max2 jobs/no LTO for the initial bounded candidate, explicit
+per-platform cap no greater than the existing3600s recipe ceiling, and independent
+abort/reap guards. Freeze actual commands/output paths/dependencies before build;
+stop on first unexpected failure. This definition does not execute/provision it.
+
+**RPC-CACHE-TEMPLATE-PREP — selected2026-10-20 before install/prepare.**
+This provisions the preceding build dependency; no compile/game run is selected.
+Root owns execution under `/srv/mudds-work/rpc-cache-templates-20261020/`; one
+medium read-only dependency mapper confirmed the pinned source defaults. No
+recursive agents. Existing source/patch/recipe pins remain unchanged.
+
+Run `apt-get install -y --no-install-recommends g++-mingw-w64-x86-64-posix libwayland-bin`
+with noninteractive frontend, cap600s. Cached package simulation must show no
+upgrades/removals; record installed package versions and compiler POSIX thread
+model. No apt upgrade/update, driver replacement, system SCons or unrelated dev
+library installation. Existing native GCC/ar/patch/pkg-config are present.
+
+From an exact clean recipe worktree, run the existing builder `--prepare
+--rpc-cache-teardown --target template_release --platform PLATFORM --cache-root
+/srv/mudds-work/rpc-cache-templates-20261020/cache --jobs 2 --timeout 1800` once
+per linuxbsd/windows, each outer cap300s. This pins/downloads/extracts the existing
+official source archive and SCons4.10.1 wheel into separate owned platform caches,
+then installs that wheel only in their private venvs. No source patch or compile.
+
+SDK preparation uses only the pinned source's installers from each source root:
+Linux `misc/scripts/install_accesskit.py`; Windows that script plus
+`install_angle.py`, `install_winrt.py`, `install_d3d12_sdk_windows.py`. Each600s,
+one invocation only; private XDG/TMPDIR, inherited HOME and LOCALAPPDATA unset so
+outputs stay in source `bin/build_deps`. Preserve source hashes, raw outputs and
+owned process identities. Exact dependency versions from source: AccessKit0.21.2,
+ANGLEchromium/7219, WinRT72, Mesa25.3.1-3, Agility1.618.5, PIX1.0.240308001.
+PIX remains default-disabled; no renderer/accessibility disabling flag. Read the
+actual extracted scripts before execution to verify destinations/defaults.
+[Windows default detection](https://raw.githubusercontent.com/godotengine/godot/a13da4feb8d8aefc283c3763d33a2f170a18d541/platform/windows/detect.py),
+[Linux default detection](https://raw.githubusercontent.com/godotengine/godot/a13da4feb8d8aefc283c3763d33a2f170a18d541/platform/linuxbsd/detect.py).
+
+Acceptance: exact source/wheel/SDK inputs prepared, default features still
+available and owned actors gone, or precise first failure. Any unexpected failure
+STOP; no automatic repair/retry/source URL change or cap increase. No package or
+runtime acceptance follows. Estimate15–30min prep/inspection; retain reusable
+source/toolchain inputs instead of deleting required build artifacts. Commit/push
+result before selecting actual compile commands; preserve original browser gates.
+
+**Preparation result2026-10-20: PREPARED.** Eight stages174.054s; eight owners
+finished/all65 observed owner+child identities absent. Eight new Debian packages,
+zero upgrades/removals; POSIX GCC14.2 cross compiler and Wayland scanner1.23.1.
+Both exact source archives/private SCons4.10.1 venvs and pinned SDK scripts prepared
+successfully. Required1837 SDK consumer files hashed; source/installed engine and
+stock-template guards intact. Freeze→prepared409.761s/6.8min versus15–30min prep
+estimate. No compile/native run. Inputs retained for this next actual build.
+Optional default-disabled PIX lacks MinGW import conversion because gendef is
+absent; this does not remove an enabled default feature.
+
+**RPC-CACHE-TEMPLATES — selected actual compile, frozen before execution.**
+Recipe worktree remains clean `70af2484c` under the same owned root. Root owns
+both processes and shared stop handling; dependency mapper completed independent
+source review. Launch independent linuxbsd/windows commands concurrently, each:
+`python3 -B tools/release/build_godot_reflection_fix.py --build
+--rpc-cache-teardown --target template_release --platform PLATFORM --cache-root
+/srv/mudds-work/rpc-cache-templates-20261020/cache --jobs 2 --timeout 3600`.
+Existing isolated supervisor whole-command cap3900s per platform permits bounded
+source/pip/postbuild checks around the3600s compile cap. Max four compiler jobs
+total/no LTO; no feature-disable options. Linux version probe stays headless/Dummy;
+Windows PE is never executed. Retain exact PID/start identities, raw logs and
+source/helper/installed-engine/template/SDK-input guards. Stop/cancel the other
+build on the first unexpected failure; no retry/flag substitution/cap increase.
+
+Acceptance: both native patches exactly applied, source recipe guards pass,
+actual Linux ELF and Windows PE built/staged with hashes, no missing-SDK or
+feature-disable warnings. This establishes compiled templates, not native GPU,
+Windows execution or gameplay correctness. Assemble a fresh owned
+`templates/4.7.1.stable/` set from the actual built files. Preserve Agility handoff:
+Windows SCsub emits `bin/D3D12Core.dll` and `bin/d3d12SDKLayers.dll`; copy their
+identical bytes beside the private Windows template as `D3D12Core.x86_64.dll`
+and `d3d12SDKLayers.x86_64.dll`, matching the existing exporter's lookup. Validate
+against the actual SDK source files/PE architecture; ANGLE/AccessKit link statically.
+No preset/runtime-driver change. Current Vulkan Auto export does not select those
+DLLs, but the complete private template set must retain them for D3D12 consumers.
+A missing sidecar is not a blanket startup failure: the engine can fall back to
+OS D3D12. Do not misreport a renderer failure from packaging inventory alone.
+
+Estimate25–60min parallel compile plus5–10min collection/review, stop before90min.
+One collection pass (cap180s) checks artifacts, SDK/stock pins and cleanup. Retain
+unique templates/reusable inputs; remove only completed temporary worktree/helpers/
+profiles after source/result publication. No game import/export/probe/browser
+retry or public checkpoint in this task. Original browser398.296s investigation
+budget and all unperformed acceptance remain unchanged.
+
+Separate source-only fixture readiness review establishes a protocol defect:
+Godot JSON numbers parse as doubles, but e944 fixture requires `sequence is int`.
+Driver emits JSON numbers. The exact historical command file was deleted, so its
+particular offending bytes are unproved. A bounded fix must normalize finite,
+nonnegative integral safe-range numbers, preserve exact successor/private-directory/environment/mode/PID
+contracts and prove real Godot parsing. No fixture edit/run is selected here.
+
+Linux compile result2026-10-20: existing linuxbsd_build owner finished exit0,
+guarded stagePASS2934.911273s/48.9min with no diagnostics. Built and private-staged
+release template94,303,272 bytes, SHA256
+4fe7e2cfc8092ebfd8339b7ca9d227b6ed5dba177f86b9c7e57913cfe89e5607.
+Silent headless/Dummy version probe returned
+4.7.1.stable.mudds_rpc_cache_teardown_linuxbsd.a13da4feb.
+All8,651 observed owner/child identities are absent. Windows compile remains live
+under its unchanged2jobs/3600s cap; no collection, game export or runtime route
+has run. Keep this partial result separate from matching-pair acceptance.
+
+Windows result: STOP at original3600s compiler timeout, stage exit1 after
+3611.846848s/60.2min, no compiler diagnostics and no accepted PE. This is an
+incomplete build, not a verified source/patch defect. Both owners terminal;
+all14,427 observed owner/child identities absent, no live process cwd under the
+owned template root. Collection, paired game exports and runtime route NOT_RUN.
+No automatic retry/cap increase. A separate bounded priority review may assess
+retained incremental objects against the original cumulative90min stop; it does
+not select execution or reset the failed attempt/budget.
+
+After source push and clean/ignored-file checks, duplicate template and dependent
+acceptance worktrees were removed. Unique helpers were copied/hash-verified into
+their results folders; profile logs and original freezes retained. Template root
+now has only cache/ and results/: exact Linux template preserved/hash-verified,
+pinned SDK/source/object cache retained, incomplete Windows objects kept separate.
+Dependent acceptance root now has only results/; source candidatee5b9dd25f stays
+pushed/unmerged, reviewed drafts preserved, no engines/tests/exports attempted.
+The bounded HUD-RACE source check found no concrete discrepancy; no edits/tests
+or acceptance claim followed. Other original scope and external gates stay open.
+
+**BROWSER-FIXTURE-JSON — DONE2026-10-20; source fixture accepted.**
+Parent25's executable release-test handoff prerequisite; Linux/Windows compiler
+jobs remain separate and keep their existing caps. Use a clean derivative of
+783c8c87206a52928641dd887f9a34e02caaf246 in
+`/srv/mudds-work/browser-fixture-json-20261020/worktree`. One medium implementer
+owns ONLY `tests/network/network_session_join_failure_test.gd`; root owns private
+caller/guards/integration, one independent high reviewer. No recursive agents.
+
+Normalize the fixture sequence only after checking an actual int/float value,
+finite/nonnegative/integral and <=9007199254740991 (exact JSON integer range).
+Never coerce strings/bools/null/fractional/nonfinite/out-of-range values. Preserve
+existing dictionary/mode validation, private env/directory/headless/Dummy/port
+preconditions, exact sequence+1 successor check, PID/port acknowledgements,
+raw/admitting/stop behavior and independent300s fixture cap. No new nonce protocol,
+driver edit, game logic, observer or networking authority change. Driver stays
+SHA2562d7d4da626d018ddc4bc68e74bac67c8ad6632bf6f703d00089b16d6982d1015.
+Add real JSON-number decoding and rejected-type/boundary cases to the same normal
+GDScript suite; preserve its existing35 assertions/real join cases.
+
+Proof once after review from clean candidate: guarded fresh headless/Dummy import
+cap180s; existing `res://tests/network/network_session_join_failure_test.gd`
+cap60s requiring exit0/one NETWORK_SESSION_JOIN_FAILURE_TEST_OK, including new
+codec checks; one private Python caller cap30s imports the unchanged driver's
+BrowserFixture and starts the actual source-engine fixture. Exact driver engine
+arguments remain `--headless --audio-driver Dummy --path WORKTREE --script
+res://tests/network/network_session_join_failure_test.gd -- --native-browser-fixture
+--fixture-dir=OWNED_DIR --fixture-port=OWNED_LOOPBACK_PORT`. Require real raw
+sequence0→admitting1→raw2→stop3, each original3s acknowledgement bound, distinct
+actual fixture PID/port matching every state, normal stop exit0/one
+NATIVE_BROWSER_FIXTURE_STOPPED_OK, no diagnostics and all owned actors absent.
+Retain actual command/state JSON and raw logs this time. Caller-only handoff does
+not qualify the full packaged browser route or native callback repair.
+
+Use resolved stock source engine SHA32f8d7596c4b41185512b1c49d69f2da3be018fd784a53e349fa92a98a97bcde,
+private XDG/TMPDIR with inherited HOME, frozen source/index/cache/engine/PID guards.
+Fresh import alone may create cache. No unchanged Python89-suite rerun, full
+browser retry, export, template replacement or public checkpoint in this card.
+Estimate15–30min implementation/review plus2–5min checks/cleanup; split before45min.
+Any unexpected failure STOP; no automatic repair/retry/cap increase. Commit/push
+source, retain outcome and clean owned scratch. Candidate begins unmerged; merge
+only after the whole stated fixture contract passes. Original route failure and
+20-stage398.296s history remain binding; source historical input still unproved.
+
+Result: candidate7b8cc74797818004cd37ea7952b8c922bfd21338 passed independent
+whole-file/caller review, fresh import24.947s, existing suite24.664s/62 assertions
+(original35 plus27 codec assertions), and actual driver handoff2.043s. Each stage
+exited0 without diagnostics; suite/caller markers exactly once. Actual fixture
+PID1608723/port37730 acknowledged raw0→admitting1→raw2→stop3, normal exit0 and
+one NATIVE_BROWSER_FIXTURE_STOPPED_OK, within unchanged3s acknowledgement limits.
+Three stages51.654s; all ten observed owner/child identities absent. Only the exact
+tested fixture file is integrated into main, including its opt-in external mode;
+other diagnostic/driver/observer branch changes remain unmerged/withheld.
+Raw commands/state, logs, frozen helpers and guards are retained under
+`/srv/mudds-work/browser-fixture-json-20261020/results/`. No client admission,
+packaged full route, native repair or new gameplay checkpoint is established.
+Original20-stage398.296s history and external/human gates remain unchanged.
+Integrated/pushed4879b3afd; owned worktree/cache removed after identity checks,
+frozen helpers copied/hash-verified and raw profile logs retained. Only results/
+remains; freeze→cleanup10.6min against15–30min plus2–5min estimate.
+
+Source preparation only (2026-10-20): clean derivativee5b9dd25f82c9a34bf3982ea1a57f82a87b2a4be
+ofcf348472b, branch `fix/net-timeout-release-accept-20261020`, pushed/unmerged.
+Root copied exactly the originale944 observer, startup loader, privacy test,
+Python driver and driver test; all five blobs verified. Accepted fixture blob
+4c4b52d5cd35333a10117907b3e859ddb4f87e61 remains unchanged. No783 passive-capture
+lines, other source edits, engine/tests/export/runtime or main merge. Independent
+source comparison found no adapter/GameFlow/HUD incompatibility. Source preparation
+freeze/result retained in `/srv/mudds-work/net-timeout-release-accept-20261020/results/`;
+worktree subsequently removed after the stopped template attempt; source and
+reviewed helpers retained for any later separately selected check. This preparation does not
+close the route. Independent production alternative remains navigator refusal
+feedback, WAITING on the previously asked scope choice; no repeated question.
+
+**NET-TIMEOUT-RELEASE-ACCEPT — dependent runtime acceptance.** GATED on those
+matching templates. BROWSER-FIXTURE-JSON now supplies the separately accepted
+fixture command handoff; native runtime effectiveness is still unverified. Existing safe export
+uses a private versioned template directory, Linux template SHA pin and empty
+preset overrides. GODOT_BIN alone does not select the packaged runtime. Windows
+must consume the matching patched PE, not the stock template; package audits must
+compare against the actual built templates. Keep strict source/package identity,
+paired clean exports, actual Linux binary/archive and Windows-payload silent
+startup exit0/one menu-ready marker. Native Windows remains NOT_RUN under its hold.
+Freeze that candidate/check selection before execution. Preserve original whole
+browser timeout→Retry/admission→Disconnect→fresh Cancel→Resume/walk/quit acceptance,
+300s cap and all existing UI/fixture limits. No passing prefix or diagnostic
+acquisition closes it. Only a working accepted runtime correction earns the next
+normal paired playable checkpoint. Original20-stage398.296s investigation history
+and all broad/native/human/final gates remain binding/open.
 
 ### Supported remote helm action roster
 
@@ -1236,9 +1913,9 @@ accepted source/result is explicitly stated. No tests ran for this definition.
 | Action / default binding | Command field | Wire / actual host consumer | Proof and remaining boundary |
 | --- | --- | --- | --- |
 | Forward W / reverse S; controller axis1 | throttle | move_axis[1] → decoded throttle → HeroShip flight thrust | Forward accepted96c96312f; reverse flight/release accepted52b228c86, actual host motion and both replicas. Original handback remains open. |
-| Left A / right D; controller axis0 | yaw | move_axis[0] → yaw → host attitude | Provider mapping/solo action anchors in ship_command_test and flight_input_test; both sampled remote directions/effect/release remain HELM-YAW. |
-| Up/Down arrows; controller axis3 | pitch | look_pitch → pitch → host attitude | Provider mapping anchor in ship_command_test; both sampled remote directions/effect/release remain HELM-PITCH. |
-| Roll left Q / right R; controller axis2 | roll | look_yaw → roll rate → host attitude | Provider mapping anchor; both sampled remote directions/effect/release remain HELM-ROLL-RATE, separate from barrel roll. |
+| Left A / right D; controller axis0 | yaw | move_axis[0] → yaw → host attitude | Turn/release DONE624d2a6; changed-caller regressionf9682a38c retains actual host/replica/neutral gates. Original handback remains required/PARKED; no physical-device qualification. |
+| Up/Down arrows; controller axis3 | pitch | look_pitch → pitch → host attitude | Turn/release sourcequalification DONEf9682a38c using synthetic InputEventAction→production sampler, actual host and both replicas. This does not qualify physical bindings/devices; HELM-PITCH full handback remains required/PARKED. |
+| Roll left Q / right R; controller axis2 | roll | look_yaw → roll rate → host attitude | Turn/release sourcequalification DONE73f4a4f67 using synthetic Godot actions through actual sampler/host/both replicas; actual up measured around retained nose. No active barrel roll/request; this is separate from G. Physical bindings/devices and original handback remain open. |
 | Boost Shift; controller button7 | boost | run → boost → host acceleration/speed envelope | Provider mapping anchors in ship_command_test/local_ship_transformed_input_test; actual sampled host effect/release remains HELM-BOOST. |
 | Brake PageUp / right mouse; controller axis4 | brake | crouch → brake → host deceleration | Ordinary two-client source96c96312f already proves sampled throttle/brake/neutral0m/s stop; no duplicate brake task. |
 | Hover H; controller button0 | hover | jump → hover → host vertical/upright correction | Command boolean anchor in ship_command_test; sampled host correction/release remains HELM-HOVER. |
@@ -1350,12 +2027,16 @@ requirements. The engineer and other craft instances remain unscheduled.
 
 ### Retained Jovian exit/reuse cards — parked, outside the active queue
 
-The original exit caller and its one repair failed parsing; no gameplay route
-ran. Candidates8054a2cc4/e147b6d49 and raw failures remain retained. These five
+The original exit caller and its one repair failed parsing; those two attempts
+ran no gameplay. Candidates8054a2cc4/e147b6d49 and raw failures remain retained.
+Later selected2aed310cd passes syntax but fails its one full postdock route;
+its single0d225bee8 corrective attempt reaches standing but fails cabin walking;
+[actual result](history/ROADMAP_DELIVERIES.md#jovian-passenger-exit--syntax-passes-postdock-route-stops) below supersedes gameplay-NOT_RUN for that candidate only. These five
 ordered cards preserve their acceptance/dependencies; none is currently selected.
 Numeric predecessor references here mean this parked five-card Jovian sequence,
 not the executable queue.
-A new explicitly bounded syntax correction/review must precede any retry.
+Full syntax correction/review and the one later runtime corrective attempt have
+run. Cumulative priority review now parks the chain; no further repair/retry is selected.
 
 ### NET-JOVIAN-PASSENGER-EXIT — one actual postdock passenger exit
 
@@ -1387,7 +2068,7 @@ A new explicitly bounded syntax correction/review must precede any retry.
   but the single allowed compile retry finds another parse error at line406.
   No route, peer, passenger exit or production runtime was exercised. Both
   failed commits/raw are retained; no test acceptance was relaxed.
-- **Priority review/next:** about45 min implementation/review/setup plus bounded
+- **Original priority review (before2026-10-20 selection):** about45 min implementation/review/setup plus bounded
   correction/check time; one task failure plus one attempted repair is used.
   The unresolved outcome is ordinary postdock exit, not an established game
   defect. Competing READY WALK-ANNEX has a frozen route and separate caller;
@@ -1399,6 +2080,45 @@ A new explicitly bounded syntax correction/review must precede any retry.
   closure. This failed caller is not merged and needs no checkpoint. Original
   return remains accepted only at its earlier source scope. Reboard/reclaim/
   redepart and native/device/world/endurance gates stay open.
+
+- **Later selected syntax review / runtime stop2026-10-20:** source2aed310cd
+  reapplies the retained continuation to current6c584673a and fixes all five
+  multiline predicate sites without changing operands/default behavior/limits.
+  Independent high review GO. Import20.625s/check-only16.528s PASS. One original
+  three-peer route FAIL129.786s after actual strict home return/convergence.
+  First host get_path diagnostic: inherited boarding-test _node_identity583,
+  called _postdock_receipt608 for off-tree command source. Later pilot-retention
+  and passenger-standing assertions fail; no exterior exit or ground walk.
+  Current cumulative166.940s; prior two parse failures retained, not reset.
+  Candidate pushed/unmerged/withheld; no runtime repair, new checkpoint or retry.
+  All22 observed process identities absent;76 profile entries archived/verified,
+  owned worktree/cache/profiles/helpers removed at5.36min within45min card.
+  [Full result/remaining boundary](history/ROADMAP_DELIVERIES.md#jovian-passenger-exit--syntax-passes-postdock-route-stops).
+  That receipt fault is addressed by the later candidate below; its failed full
+  route still prevents acceptance. Preserve
+  original300s suite/360s outer/300peer/15walk/8transition/120return/5convergence.
+
+- **One measured drift/receipt correction2026-10-20 — WITHHELD:** raw data
+  identifies initial pilot failure as hull0.494335→0.500294m from exact host dock,
+  current ownership/source5/5 and neutral controls. Pose reconciliation applies
+  flight deadband after authoritative landed+docked. Passenger snapshot was
+  rising0.05/0.45s after shared pilot abort, not a proven separate stand defect.
+  Source0d225bee8 adds current dock hold in existing pose stream and regression
+  coverage, plus source instance identity without an invalid get_path receipt.
+  Independent high review GO; import20.674s/full pose42.374s322/check-only16.487s
+  PASS. One original3peer route FAIL145.995s: actual stand/host confirmation pass,
+  pilot captured exactly at host dock/source5/5, but host15s cabin-walk predicate
+  fails. Supported/control-enabled same passenger at(-52.6118,2.11189,64.56992),
+  target(-52.22,2.41,65.82); no hatch exit/ground walk. No locomotion cause proved.
+  Remaining get_path diagnostics occur in inherited first-failure producer-state
+  capture, not corrected postdock receipt. Corrected225.530s+prior166.940s gives
+  current chain392.470s; original parser failures retained separately. Failed
+  runtime plus one corrective attempt now PARKED by cumulative priority review;
+  no second repair, retry, cap/tolerance increase or renamed adjacent probe.
+  Candidate pushed/unmerged; exports/checkpoints NOT_RUN, latest public923d7b3.
+  All25 new process identities absent;85 profile entries archived/verified,
+  owned scratch removed at17.09min within original05:35→06:20/45min budget.
+  [Actual source/result](history/ROADMAP_DELIVERIES.md#docked-pilot-hold--focused-pass-full-exit-stops-at-cabin-walk).
 
 ### NET-JOVIAN-PASSENGER-REBOARD — reclaim one passenger chair
 
@@ -1482,7 +2202,7 @@ Scope: original §5, Phases 9 and 10.2–10.3. Software rendering, VM and remote
 | ID / one instance | Status / prerequisite | Result and acceptance; stop boundary |
 | --- | --- | --- |
 | PERF-MACHINE[one minimum/target profile] | WAITING on representative hardware if unavailable | Bind declared CPU/GPU/RAM/display/driver profile to an actual isolated test machine. Stop at available machine identity or exact missing resource; never infer native performance from llvmpipe. |
-| PERF-ROUTE[one missing benchmark route] | DEFINE; named required scenario | Specify and implement one missing fleet/cabin/combat/surface/repeat route through existing benchmark runner. It supports default `station_embodied_route` plus `nearby_sector_ship_flight_route`, and select-only `halyard_cabin_walk_route` from D5 plus `torrent_range_combat_reuse_route` from E1 and `ember_surface_walk_route` from E2, plus delivered select-only `aurora_surface_walk_route` on c47b5cd55. Rime icefall survey/return route DONE on a8f563e39 (521.227m sampled,13ordered points/one sampled loop,source33/default152/Ember24/Aurora27); paired development checkpoint a8f563e DONE in ROADMAP.md, using the existing authored trails; other repeat instances stay open. Default combined acceptance retains its original narrow scope. Stop at executable route/selection and focused check, not a new benchmark system. |
+| PERF-ROUTE[one missing benchmark route] | GATED on PERF-ROUTES-DEFINE naming a concrete uncovered workload | Implement the selected actor/action/measurement through the existing runner, with its focused selection check. Seven selectors already exist; see coverage below. Cabin/surface repetition and combat reuse are implemented. Do not infer another missing route from those family labels. Preserve default combined scope and original measurement floors; stop at the selected executable route, not a new benchmark system. |
 | PERF-RUN[one machine/scenario] | GATED on machine and executable route | Original warmup at least 3,600 frames/60s; measurement at least 18,000 frames/600s. At 1080p High, p95 ≤16.7ms, p99 ≤33.3ms, no post-warm frame >100ms, peak working set ≤4GiB, plus required actual GPU/VRAM and streaming/transient budgets. Stop at that measured scenario; retain failure. |
 | PERF-FIX[one measured hotspot] | GATED on demonstrated production cost | Fix the identified runtime/rendering owner; repeat the affected measurement and behavior check. Stop at measured effect and checkpoint; no census-only progress. |
 | INPUT-DEVICE[one device/route] | WAITING on physical device if absent | Ordinary full selected route with actual keyboard/mouse or controller, including lifecycle/planetary control as applicable. Existing physical-sortie, lifecycle and controller-only expedition tests guide scenario. Stop at selected route; synthetic events cannot qualify physical hardware. |
@@ -1491,6 +2211,67 @@ Scope: original §5, Phases 9 and 10.2–10.3. Software rendering, VM and remote
 | ACCESS-COMFORT[one route/option] | ELIGIBLE; existing runtime options | Verify one reduced-motion, flash, color-safe or caption behavior in actual route and after restart as required. Stop at named option/scenario and any focused correction. |
 | AUDIO-CONTENT[one cue/transition gap] | GATED on identified missing behavior | Author/fix one production ambience/music/effect transition and run existing music state/activity/orbit/surface integration checks with Dummy audio. Delivered Aurora coast is not a new gap. Stop at cue/transition and checkpoint. |
 | AUDIO-MIX[one real-output scenario] | WAITING on explicit audible-test authorization and output device | Check actual mix/levels/transitions for selected scenario, fix concrete issue and repeat it. Stop at scenario result; automated Dummy output does not qualify real audio. Owner-excluded human review does not become a mandatory approval gate. |
+
+### Benchmark workload definition — retained coverage and missing decision
+
+PERF-ROUTES-DEFINE remains **DEFINE**, not a missing implementation roster.
+Source review of `tools/performance/benchmark_runner.gd` establishes these seven
+selectors; it is not a new benchmark run or native performance qualification.
+
+| Existing selector | Implemented workload |
+| --- | --- |
+| `station_embodied_route` | Station player walk; part of the default pair. |
+| `nearby_sector_ship_flight_route` | Torrent flight along the streamed Cinder approach lane; part of the default pair. |
+| `halyard_cabin_walk_route` | Stationary Halyard aisle, repeated out-and-back. |
+| `torrent_range_combat_reuse_route` | Torrent fire, authoritative DRONE-01 destruction, reset and reuse. |
+| `ember_surface_walk_route` | Repeated authored Ember surface trail. |
+| `aurora_surface_walk_route` | Repeated authored Aurora coastal trail. |
+| `rime_surface_walk_route` | Repeated authored Rime icefall survey/return trail; delivered on a8f563e39. |
+
+Retained deliveries: Halyard D5, Torrent combat E1, Ember E2, Aurora
+c47b5cd55 and Rime a8f563e39. Rime's recorded check sampled521.227m across13
+ordered points/one loop, with source33/default152/Ember24/Aurora27 assertions
+and paired development checkpoint a8f563e. These are historical results, not
+new execution or full-expedition acceptance.
+
+The five select-only routes do not expand `DEFAULT_SCENARIO_ORDER`. Surface
+selectors stage production actors; they do not perform admitted Host expeditions,
+outbound travel, landing or return. Aurora's benchmark supplies its binding
+cadence explicitly without inventing an admitted visit.
+
+**Uncovered workload:** whole orbit-to-surface expedition repetition from the
+original Phase10.4 long-session requirement. The retained contract does not name
+its representative benchmark craft, world or cycle. Define those and map the
+measurement to the existing world-endurance outcome before selecting a route;
+do not duplicate that journey as a second completion requirement. Additional
+fleet/cabin/combat representatives also need an explicit workload justification,
+not a selector per craft or another copy of an existing walker. No new selector,
+profiling run or retry of parked Q4 startup work is selected here. Minimum/target
+hardware and all PERF-RUN timing, frame-count and memory/GPU budgets remain open.
+
+### Dormant opponent presentation — bounded cost decision
+
+**Decision DONE onf350e0a3d: rejected as next performance priority.** The single
+frozen six-actor function microbenchmark measured89.824us combined, below the
+preselected100us threshold. Import/probe both pass, state remains quiescent,
+no runtime edits or performance fix selected. This is not native FPS/GPU/full Main
+qualification or a delivered optimization. [Exact fixture/result/limits](history/ROADMAP_DELIVERIES.md#dormant-opponent-presentation--cost-decision).
+Only `/srv/mudds-work/dormant-opponent-cost-20261020/results/` remains after owned
+cleanup; original probe, raw three-batch timings and private logs preserved.
+This is parent28; parent35 in the initial frozen heading was a metadata error,
+not a change to the measured contract or a final-regression claim.
+
+### Aft console arrival — one component presentation review
+
+**FAILED/PARKED on81b9ee3ba**, with pre-render cache authorization33ccc26fb.
+Clean import19.596s passes; isolated Xvfb/Forward+/llvmpipe capture times out
+120.485s/exit124 after camera setup, before PNG save; marker0, no image or
+visual finding. No runtime defect or root cause is established. Source/cache
+unchanged; all owned processes absent, scratch cleaned, raw/helper/profile data
+retained in `/srv/mudds-work/aft-console-view-20261020/results/`.
+[Original contract/results](history/ROADMAP_DELIVERIES.md#aft-console-arrival--component-review-failed).
+No repair, increased cap, alternative renderer/view or retry selected. Actual
+Aft visual acceptance and the separate upper-workpost view remain OPEN.
 
 ### Remaining UI view roster — ACCESS-VIEWS-DEFINE
 
@@ -1504,7 +2285,7 @@ new test results. No engine, capture or physical input was used for this definit
 
 | Child family / visible states | Actual owner | Existing coverage / what a new cell must establish |
 | --- | --- | --- |
-| ACCESS-TITLE: ordinary startup menu and return from browser/credits | GameHUD intro layer / `show_intro`, `_focus_intro_start_button` | `startup_loading_screen_test.gd` proves menu readiness; `controller_pause_navigation_prompt_test.gd` covers browser return and `credits_page_test.gd` covers credits return. A selected cell checks title text, Begin Shift/browser/credits buttons and retained enabled focus. Unresolved recovery choices use ACCESS-RECOVERY below. |
+| ACCESS-TITLE: ordinary startup menu and return from browser/credits | GameHUD intro layer / `show_intro`, `_focus_intro_start_button` | `startup_loading_screen_test.gd` proves menu readiness; `controller_pause_navigation_prompt_test.gd` covers browser return and `credits_page_test.gd` covers credits return. A selected cell checks title text, Begin Shift/browser/credits buttons and retained enabled focus. Unresolved recovery choices use ACCESS-RECOVERY below.  Overflow fix DONE checkpoint19e7990: actual default1024x768 before/after component capture plus eight-viewport title/control regression; focus/credits remain. ACCESS-TITLE-FOCUS light-on-cyan finding is separate; no full-Main, other state/scale/device acceptance. |
 | ACCESS-GAMEPLAY: approach, boarding confirmation, first-sortie tutorial, activity briefing/objective, weapon readiness, component damage, fleet registry | GameHUD interaction/tutorial/objective/weapon/component/registry panels; boarding confirmation adapter | `ultrawide_layout_test.gd` names these states and checks production Controls. Retain actual simultaneous telemetry/minimap/help/toast/interaction/status composition; one selected state/cell must preserve readable labels and nonoverlap rather than fabricate every possible card combination. |
 | ACCESS-HELP: on_foot, aboard, driving, piloting; each reachable help page, plus published copilot/loadmaster context rows | `_help_rows_for_mode`, `_help_rows_with_role_context`, `_refresh_help_page`; five rows per page | `help_overlay_accessibility_test.gd` checks paging and enabled boundary focus; `runtime_input_glyph_hud_integration_test.gd` checks device text. A cell checks all pages of one named mode/context, labels and Previous/Next/Close focus. Aircraft-specific text uses the existing selected craft; new control semantics are not implied. GAMEPAD-LOOK repairs the found camera-input gap in checkpoint99e79c3. |
 | ACCESS-ACTIVITY: selection page, current selection/status/reward summary, return from nearby page | ActivitySelectionPage / `open_activity_board`, `_show_activity_selection_page` | Existing ultrawide `activity_board` calls `open_activity_board`: this is the selection page. It does not cover NearbyActivityPage. Check visible rows/footer and return focus in one cell; preserve authored selection behavior. |
@@ -1593,6 +2374,34 @@ Scope: original §6 and retained installed-interruption milestone. Final-candida
 | MATRIX[one frozen integrated candidate] | GATED on targeted repairs/integration | Clean import and existing unfiltered `--mode all` matrix at original suite/long caps, no exclusions, including isolated graphics. Stop at complete result; failures become named child fixes. Do not rerun whole matrix for every small change. |
 | FINAL-RECONCILE[one candidate] | GATED on required content, matrix and applicable platform/device/performance/audio/endurance/install/capture/signing results | Reconcile all original promises and exact candidate results with existing `release_candidate.py`, candidate record and `SHA256SUMS`. Zero open P0/P1, explicit reviewed P2/residual-risk dispositions including RENDER-001 where applicable. Changed source invalidates affected qualification; owner exclusions stay excluded. Stop at actual complete or named unmet gates, never a new evidence layer. |
 | DISTRIBUTE[accepted candidate] | GATED on FINAL-RECONCILE and authorized destination/publication | Publish exact qualified artifacts/checksums and concise player-facing notes using existing release flow. Stop after byte identity and download checks. No Downloads copy or public publication implied by local checkpoints. |
+
+### Rights families and missing documents — RIGHTS-DEFINE
+
+Definition DONE on2026-10-20 from the current asset register, credits catalog,
+README and actual checkpoint3d92b91 inventories. This finite routing map does not
+certify every asset's rights, select a project licence, or close parent34. A
+RIGHTS assignment selects one actual family/document gap; no per-file validator
+or new provenance chain is needed.
+
+| Current family | Existing source / player-facing notice | Remaining artifact or boundary |
+| --- | --- | --- |
+| Project code, gameplay definitions and standalone installer | README records project-original work and no project LICENSE; repository history identifies source. | Project release-terms text is absent. Engine MIT text does not select a licence for this project's own code. Record the owner's chosen terms before claiming this family cleared; no licence is inferred here. |
+| Authored geometry, vector/procedural graphics and Blender sources | ASSETS.md and CreditsCatalog attribute project-original models, markings, materials and generators. Actual package includes the registered project-original Zenith blend. | Retain registered authorship and exact distributed inputs. Offline tool credits describe creation tools; they do not supply the missing project release terms. New external source material requires its own recorded disposition. |
+| Procedurally synthesized sound and music | ASSETS.md, generator sources/manifests and in-game credits. Planetary air/cabin/water attribution now included on3d92b91; its three WAV and generator hashes match the existing manifest. | Authorship/attribution is recorded in the named scope. This does not establish listening, historical authenticity or all audio/runtime acceptance; project release terms remain separate. |
+| Generated raster artwork and registered derivatives | ASSETS.md records image-generation source, dates/prompts/metadata and derived-map recipes; credits preserve that authorship. | Preserve the actual registered source/derivative relationship and chosen project distribution terms. Do not promote generated concepts into historical evidence or infer a blanket grant for unrelated imagery. |
+| Godot engine, bundled components and default font | CreditsCatalog obtains Engine.get_license_text/get_copyright_info/get_license_info from the running binary; existing credits test checks the page and expanded notices. No additional project font is registered. | Keep those notices reachable on the final exact package. Existing source/package checks support their recorded candidate only; signatures, native execution and final release qualification retain separate gates. |
+| Historical research media and original-game claims | Source ledger and ASSETS.md distinguish referenced B7 video/frame material from project-original runtime assets; original Roblox assets/scripts are not represented as bundled work. | Owner's creator-permission question remains settled as recorded in README; no repeated permission question or written grant is invented. Redistribution rights for the referenced B7 media itself are not recorded: keep that media unbundled unless its own disposition changes. Historical identity/evidence gates stay open. |
+
+The [Godot licensing guide](https://docs.godotengine.org/en/stable/about/complying_with_licenses.html)
+describes the existing engine-notice approach; project terms remain separate.
+
+The creation tools named in CreditsCatalog (Blender, image generation, Python /
+numpy / scipy) are not an extra shipped-runtime licence family merely because
+they produced an asset. Actual checkpoint inventories exclude tools/ and tests/;
+registered authored source and metadata still belong to their families above.
+The existing credits UI already carries Godot notices, so no duplicate external
+notice-packaging project is scheduled. Trusted signing and distribution remain
+SIGN-FINAL/DISTRIBUTE, not substitutes for resolving these document gaps.
 
 ### Activity recovery — progress, player state and uncovered capabilities
 
@@ -1978,7 +2787,7 @@ Reuse existing finite families rather than add a duplicate planetary queue:
 
 | Existing family instance | Remaining bounded finish |
 | --- | --- |
-| WORLD-SAVE[Ember/location boundary] | Set the expected original resume/safe-recovery boundary explicitly; current later-survey continuity does not close surface-location restoration if required. Preserve that uncovered scope. |
+| WORLD-SAVE[Ember first relay/cold process] | Contract explicitly defined below as existing safe-yard/passive progress. Qualify one exact package/real-file kill/restart and once-only continuation; broader cold-location requirements, if separately promised, remain distinct. No extra owner approval gate is inferred. |
 | WORLD-SAVE[Aurora or Rime/one disk boundary] | Freeze one eligible phase/craft/progress/payment boundary; real-file fresh-process recovery/reboard and once-only reward. |
 | RECOVERY-KILL[planet/one installed package] | Own actual kill/reap and distinct restart for the frozen contract; use existing driver where supported or select one concrete missing executable capability. |
 
@@ -1986,6 +2795,73 @@ Quit/return/repeat remain WORLD-EDGE, canonical journeys WORLD-SOLO and shared
 interruptions the existing SHARED-* rows. Aurora missing-original waits and Rime
 parked arrival remain unchanged. All original promises/phase gates stay open;
 no surface-location waiver, automatic probe or parked-route retry is selected.
+
+### Ember first-relay cold recovery — bounded contract
+
+WORLD-SAVE-EMBER-FIRST-RELAY / parents14,31, defined on2026-10-20.
+The original recovery requirement says to name the expected **resume or safe-
+recovery** state. For this specific cut, use the existing probe's safe-yard
+contract. No instruction was found requiring an additional owner decision;
+that would be an inferred approval gate. The retained whole-Main surface
+remove/re-add promise uses the same actors/session, not a distinct cold process.
+This definition does not waive any separately required cold surface case.
+
+| Boundary | Required result |
+| --- | --- |
+| Initial state | The existing Ember selector's registered craft has genuinely landed at its caldera lease; same awake supported on-foot Player reaches first relay. Route next_checkpoint_index1/next_objective ember_return_beacon/incomplete, positive original activity generation, zero ember_beacon_data receipts. Preserve disclosed orbital_anchor_hold/initial_corridor_entry placements. |
+| Durable cut | Successful save_interrupted_ember_journey publishes ember_relay_survey_active_journey in ember_relay_survey_completion, with detached frame/route and no movement/reward replay. Own the actual live OS process, SIGKILL/reap it; the committed document bytes remain exact. |
+| Cold recovery | A distinct Boot process with the same private real files accepts the current Resume fence, returns on foot/control-enabled in the ordinary yard, leaves the exact Ember checkpoint passive and pays nothing. Old flight/standing pose, lease/seat and transient grant identities are not restored. |
+| Continuation | Real fresh home boarding preserves the passive receipt. The existing disclosed flight setup then admits the original route/generation; actual final objective retires its receipt and pays one reward. Repeated reward retry/save cannot pay again; unrelated durable data is preserved. |
+| Proof / scope | Reuse run_package_probes.sh --in-world-interruption --native-export --activity=ember with pilot context on one exact Linux archive ELF. This is the existing staged planetary interruption scenario, not ordinary menu/canonical flight, native GPU/input/audio or installed/final release acceptance. canonical_outbound=NOT_RUN and standing_pose_restore=NOT_SUPPORTED remain mandatory disclosures. |
+
+Production owners are GameFlow.save_interrupted_ember_journey,
+EmberRelaySurveyPersistenceBinding, UserDataStore and the later physical admission
+through PlanetaryJourneyCoordinator; cold start restores Aurora/Rime visits only.
+Existing in_world_interruption_probe.gd:2402 onward encodes this exact cut;
+ember_active_journey_checkpoint_resume_test.gd supplies its focused MemoryFilesystem
+progress/payment anchor, not real-file cold proof. Existing accepted sources keep
+their recorded scopes; no runtime repair is inferred from naming this contract.
+
+**One exact-package result — FAIL/STOPPED:** driver28f7c2a27 used actual
+archive-extracted Linux source923d7b326 (game/driver code unchanged between those
+commits), native-export/headless/Dummy,300s each process/660s outer/20min whole.
+Existing default selector chooses Bulwark; genuine first relay is unpaid and
+supported on foot. Owned arm1713707 is reaped-9, distinct resume1713976 exits0;
+zero engine diagnostics. Runtime cold yard/controls/new boarding/original route
+adoption/payment and late paid-terminal checks pass. Parent comparison fails:
+orbital_coordinate.offset_meters[0] and surface_tangent_meters[0] change
+180.34764099121094→180.34764099121097, each one binary64 ULP2.842e-14m. No other
+compared Ember-boundary field differs. Do not infer corruption or call the whole
+cut accepted; original exact criterion was not changed. Overall312.812s, no retry,
+repair/cap increase or new build. All9 observed processes absent, five package
+inputs hash-verified and owned scratch removed9.50min within20min. Exact package,
+source/cache identities stable. [Raw scope/result](history/ROADMAP_DELIVERIES.md#ember-first-relay-cold-cut--runtime-completes-parent-comparison-fails).
+**Contract review and caller correction:** the arm's emitted runtime boundary
+already has180.34764099121097, exactly equal to the recovered runtime boundary;
+only the first raw wire text has180.34764099121094. UserDataStore's documented
+JSON-number semantics and the probe's runtime/document binding explain the
+parse/re-encode boundary. The release caller now compares both emitted runtime
+boundaries exactly, still parsing the recovered document and preserving all
+independent-file, kill/byte, route/generation and reward guards. Retained-data
+replay accepts the actual exact pair and rejects74 independently changed scalar
+values (each float by one ULP); bash syntax passes, independent review GO.
+No tolerance or datastore behavior change. Original312.812s FAIL remains;
+corrected full package run NOT_RUN. Review/correction fit the original20min
+boundary, but another312s run does not fit before06:25UTC. A new explicitly
+frozen attempt must retain cumulative costs and original route/caps, rather than
+silently extend/reset the old budget. No automatic successor selected.
+[Correction scope](history/ROADMAP_DELIVERIES.md#ember-coordinate-contract--package-caller-corrected).
+
+**One corrective selection — FAIL/PARKED:** clean drivercc2b44ffd, same archive,
+06:22–06:37UTC/15min. Preparation mistakenly expected export metadata inside
+the archive, asserted, and the unconditional next shell command launched the
+checker anyway. Preflight exits1/4.636s on missing adjacent export-result.json;
+no game process starts, zero diagnostics. Corrected full cut NOT_RUN. No repair
+or retry. Independent cumulative review parks chain; measured attempts317.447s
+including original312.812s. All6 observed identities absent/owner terminal,
+four actual inputs hash-verified; archived/verified unique profile/helpers,
+removed owned scratch at1.77min. Original and corrective budgets retained.
+[Corrective closure](history/ROADMAP_DELIVERIES.md#ember-corrective-package-attempt--preparation-failure).
 
 ### Hauler supply integration boundaries
 
@@ -2169,3 +3045,73 @@ before further repair; a new task name does not reset that boundary.
 ## Working constraints
 
 Follow [AGENTS.md](../AGENTS.md). Every automated Godot invocation uses `--audio-driver Dummy`; use headless or isolated displays, explicit `--display-driver x11` under Xvfb and an independent abort/cleanup path. Do not use the owner's desktop or audible output without explicit authorization. Keep scratch, helpers and worktrees under `/srv/mudds-work/`; remove completed temporary worktrees after verifying integration and preserve unique uncommitted work/raw failures. Never enable/dispatch hosted CI. Do not use native Windows/Wine under the execution hold. Checkpoint artifacts belong in repository `builds/`, not Downloads.
+
+
+### Explicit incremental Windows finish selection — original failure retained
+
+2026-10-20, same RPC-CACHE-TEMPLATES outcome. Independent priority review found
+2,105 nonempty cached objects and valid SCons signatures after the cold compile
+timeout, immutable source/patch/wheel and idempotent builder reuse. One separately
+frozen finish may reuse that completed work: exact original Windows command/pin70af,
+jobs2/flags/cache unchanged, only `--timeout 480`; guarded command540s/owner600s.
+Dependent collection60s/owner120s. Launch must leave130s reserved beyond finish
+owner before absolute1792462171 /02:09:31UTC /04:09:31Paris, original70af+90min.
+No later freeze resets that deadline. Guard retains STOP and requires exact prior
+STOP SHA plus named finish/collection authorization/deadline; original3600s failure
+is not removed or promoted. No further repair/retry/cap increase after this one
+incremental selection. Root restored only clean70af worktree/helpers for this
+bounded attempt; cache remains unchanged. No game export/runtime route selected.
+Exact frozen commands/hashes: template results/incremental-frozen.json.
+
+
+Incremental result: STOP at the selected480s compiler limit; stage exit1 after
+492.110911s, no diagnostics, unfinished Variant compilation and no accepted PE.
+No further retry/collection/export/runtime route. Original failed3600s attempt
+and this single finish are both retained; no source/compiler defect established.
+All15,090 observed identities across three owners/children absent; no live cwd
+under owned template root. Re-removed clean70af duplicate worktree and disposable
+helpers/profiles after copying/hash-checking only changed helper files into
+results/incremental-helpers (unchanged files reference prior archived originals).
+Cache and raw results retained. Closure5187.663s/86.5min from original70af freeze,
+before its5400s deadline. Candidatee5b9dd25f and package drafts remain pushed/
+archived, unmerged/unqualified; no acceptance requirement narrowed or closed.
+Further Windows compilation is parked; no third attempt selected. Next selection
+must review an independent eligible runtime outcome rather than extend this card.
+
+
+### Selected SAVE-UNSUPPORTED real-file case
+
+2026-10-20: exact future outer-envelope primary/tmp/bak fixture and limits are
+frozen in ROADMAP.md#selected-independent-save-protection-check. Existing canonical
+future-envelope tests use FakeFilesystem; real crash-point history cases run in
+one process. This selection verifies actual disk refusal across two fresh engine
+processes without duplicating existing validators. Only the existing crash-point
+test file is implementation-owned; no production behavior gap is asserted in
+advance. HUD-PATROL source review found no discrepancy and made no edits/runs.
+Broad SAVE-UNSUPPORTED stays open outside this exact named source/filesystem case.
+
+SAVE-UNSUPPORTED initialbcc699839 check: guarded import20.822787s PASS; suite
+2.544507s FAIL in the child ownership caller before fresh save operations,
+ERROR/ECHILD from is_process_running(invoker), child2 not launched. Eight observed
+identities absent; raw failure preserved. Pinned engine source845–878 and881+
+uses waitpid for liveness and popen/pclose for captured synchronous execution.
+Independent review GO for exactly two invalid query removals/accurate identity
+wording; one60s rerun selected on unchanged accepted import cache, not a save
+implementation repair. No data assertions/caps/diagnostic handling weakened;
+original failure and total task budget retained. No further automatic repair.
+
+SAVE-UNSUPPORTED accepted source/Linux case4b66b354883eedac9b309177dbae143b2dd39c0e:
+corrected suitePASS3.506682s/118 parent assertions,23 per actual fresh child;
+PID1639834 invokes1639855/1639878. All15 observed owner/descendant identities
+absent. Actual retained loaded commits, fresh load/read-only/commit/recover/
+restore/discard refusals leave three future canonical fixtures and unrelated
+sentinels unchanged, including file/directory modes. No diagnostics or synthetic
+private marker leak in corrected run. Original import20.822787s PASS and failed
+caller2.544507s retained; cumulative26.873975s, no failure/budget reset. Integrate
+only exact tested file, no production save edits/checkpoint. Other unsupported
+formats/package/native/recovery gates open; all36parents/10phase gates still open.
+
+Integrated/pushed e67e06bfb; owned worktree/cache removed after source/PID checks.
+Only save-unsupported-files-20261020/results/ remains, with hash-verified helpers
+and profiles.tar.gz retaining85 files/3 symlinks with original bytes/modes/targets.
+Freeze→cleanup12.9min including failed caller and one correction; budget retained.

@@ -553,8 +553,11 @@ try:
     require(recovered.get("activity", "convoy") == activity, "restart ignored the selected activity")
     require(resume_log.read_text(errors="replace").strip().splitlines()[-1].startswith("IN_WORLD_RECOVERY_OK: "), "recovery token is not terminal")
     if activity == "ember":
-        recovered_boundary = ember_document(recovered, "boundary_document_json")["payload"]["ember_relay_survey_completion"]
-        require(recovered_boundary == ready_boundary, "fresh process changed durable Ember journey progress")
+        ember_document(recovered, "boundary_document_json")
+        # The probe binds each wire document to its runtime boundary. Compare
+        # those boundaries exactly: Godot can re-encode a parsed JSON number
+        # differently on a later commit without changing the runtime value.
+        require(recovered["boundary"] == ready["boundary"], "fresh process changed durable Ember journey progress")
     else:
         require(recovered["boundary"] == ready["boundary"], "fresh process changed durable host/threat/escort/clock/progress")
     require(recovered["receipts_before"] == ready["receipts"] and recovered["receipts_after"] == ready["receipts"] + (0 if recovery_context == "engineer" else 1),

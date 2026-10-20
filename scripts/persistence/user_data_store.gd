@@ -132,17 +132,26 @@ func get_recovery_receipt() -> Dictionary:
 
 func _quarantine_corrupt_primary(primary: Dictionary) -> Dictionary:
 	var recovery_path := _path + _RECOVERY_SUFFIX
-	if _filesystem.file_exists(recovery_path):
+	if _filesystem.directory_exists(recovery_path):
 		return {"available": false, "reason": &"recovery_destination_exists"}
+	# Re-read the current primary on every attempt. A receipt from load() may
+	# describe older bytes and never authorizes deleting a later corrupt file.
 	var read := _filesystem.read_bytes(_path, MAX_DOCUMENT_BYTES)
 	if int(read.get("error", FAILED)) != OK:
 		return {"available": false, "reason": &"primary_quarantine_read_failed", "primary_reason": primary.get("reason", "unknown")}
 	var bytes := read.get("bytes", PackedByteArray()) as PackedByteArray
-	if bytes.is_empty() or bytes.size() > MAX_DOCUMENT_BYTES:
+	if bytes.size() > MAX_DOCUMENT_BYTES:
 		return {"available": false, "reason": &"primary_quarantine_read_failed", "primary_reason": primary.get("reason", "unknown")}
-	var write_error := _filesystem.write_bytes_and_flush(recovery_path, bytes)
-	if write_error != OK:
-		return {"available": false, "reason": &"primary_quarantine_write_failed", "primary_reason": primary.get("reason", "unknown")}
+	if _filesystem.file_exists(recovery_path):
+		var retained := _filesystem.read_bytes(recovery_path, MAX_DOCUMENT_BYTES)
+		if int(retained.get("error", FAILED)) != OK:
+			return {"available": false, "reason": &"primary_quarantine_verify_failed", "primary_reason": primary.get("reason", "unknown")}
+		if (retained.get("bytes", PackedByteArray()) as PackedByteArray) != bytes:
+			return {"available": false, "reason": &"recovery_destination_exists", "primary_reason": primary.get("reason", "unknown")}
+	else:
+		var write_error := _filesystem.write_bytes_and_flush(recovery_path, bytes)
+		if write_error != OK:
+			return {"available": false, "reason": &"primary_quarantine_write_failed", "primary_reason": primary.get("reason", "unknown")}
 	var verify := _filesystem.read_bytes(recovery_path, MAX_DOCUMENT_BYTES)
 	if int(verify.get("error", FAILED)) != OK \
 		or (verify.get("bytes", PackedByteArray()) as PackedByteArray) != bytes:
@@ -219,6 +228,9 @@ func recover_interrupted_transaction() -> Dictionary:
 			return _commit_result(false, &"backup_publication_failed")
 		moved_primary = true
 	elif bool(primary.exists):
+		_recovery_receipt = _quarantine_corrupt_primary(primary)
+		if not bool(_recovery_receipt.get("available", false)):
+			return _commit_result(false, &"primary_quarantine_failed")
 		if _filesystem.remove_path(_path) != OK:
 			return _commit_result(false, &"corrupt_primary_cleanup_failed")
 	var publish_error: Error = _filesystem.rename_path(_temp_path(), _path)
@@ -280,6 +292,11 @@ func restore_backup_to_primary() -> Dictionary:
 		var staged_quarantine := _filesystem.read_bytes(_temp_path(), MAX_DOCUMENT_BYTES)
 		if int(staged_quarantine.get("error", FAILED)) != OK \
 			or (staged_quarantine.get("bytes", PackedByteArray()) as PackedByteArray) != primary_bytes:
+			return _commit_result(false, &"primary_quarantine_failed")
+		# The temporary copy is consumed as stale on a later save. Retain a
+		# verified durable archive as well before removing the damaged primary.
+		_recovery_receipt = _quarantine_corrupt_primary(primary)
+		if not bool(_recovery_receipt.get("available", false)):
 			return _commit_result(false, &"primary_quarantine_failed")
 		var remove_error: Error = _filesystem.remove_path(_path)
 		if remove_error != OK:
@@ -434,7 +451,11 @@ func commit(payload: Variant, expected_generation: int, commit_id: String) -> Di
 		moved_primary = true
 	elif bool(current_primary.exists):
 		# A caller explicitly committing after loading the backup may replace a
-		# corrupt old primary, while retaining that verified backup as authority.
+		# corrupt old primary only after retaining its current bytes separately.
+		_recovery_receipt = _quarantine_corrupt_primary(current_primary)
+		if not bool(_recovery_receipt.get("available", false)):
+			_cleanup_temp_best_effort()
+			return _commit_result(false, &"primary_quarantine_failed")
 		var corrupt_cleanup: Error = _filesystem.remove_path(_path)
 		if corrupt_cleanup != OK:
 			_cleanup_temp_best_effort()

@@ -1,0 +1,30 @@
+Mudds Shipyards development checkpoint — bounded client admission
+Source: 1c679a4e2f7670ee90ce8bba11171bf1d511c7dc
+
+Player-visible change:
+Joining a host now has a five-second connection/admission deadline, including
+while gameplay is paused. A host that never admits the connection produces a
+readable timeout and lets the player retry. Cancelling and immediately joining
+again preserves the new attempt; successfully admitted sessions remain connected.
+
+Validation:
+Unchanged production first reproduced the exact non-admitting paused join failure.
+Fixed source passes five focused suites: join failure35, adapter106, detached
+handshake6, manual browser controls10 and status presenter39 assertions.
+Both clean exports and three strict silent menu startups pass (Linux binary,
+Linux archive, Windows embedded payload under the Linux Godot engine). Actual
+Windows/Linux PCK resources match all1521 entries; stock Windows PE text and
+exact Linux archive bytes/modes/source metadata pass. All owned processes exited.
+The first test attempt had a syntax error; one syntax-only repair preceded the
+successful old-runtime reproduction. No further failures or repairs occurred.
+
+Scope limits:
+This checkpoint covers the focused client join/admission deadline and readable
+status. Full ordinary Main/menu unreachable-host/retry routes, chosen capacity,
+multiplayer endurance and final integrated regression remain OPEN. Native Windows
+execution, native GPU, physical devices, audible listening and human review:
+NOT_RUN. Existing Beacon home and Perimeter Hold candidates remain parked.
+No complete additional combat/activity journey is claimed.
+
+Windows: MuddsShipyards-1c679a4.exe (checkpoint ZIP includes EXE and these notes).
+Linux: MuddsShipyards-1c679a4.x86_64 and matching linux-x86_64.tar.gz.

@@ -50,6 +50,11 @@ var _endpoints: Dictionary = {}
 var _last_endpoints: Dictionary = {}
 
 
+func _init() -> void:
+	# The pause-menu browser must search and answer hosts while gameplay is paused.
+	process_mode = Node.PROCESS_MODE_ALWAYS
+
+
 func _process(delta: float) -> void:
 	poll(delta)
 

@@ -1,6 +1,9 @@
 # Completion scope and production roster
 
-Latest accepted paired checkpoint: **ea8fe43**, clean source
+Current accepted checkpoint and executable work are in [ROADMAP.md](../ROADMAP.md).
+The service-checkpoint detail below retains its original source scope.
+
+Recorded service checkpoint: **ea8fe43**, clean source
 `ea8fe43e7d9b3045866052574283c3170f2490a7`
 ([Windows notes](../builds/windows/MuddsShipyards-ea8fe43-notes.txt),
 [Linux notes](../builds/linux/MuddsShipyards-ea8fe43-linux-notes.txt)). Ordinary
@@ -428,8 +431,8 @@ The [production scene](../scenes/world/shipyard_world.tscn), [world owner](../sc
 | Central berth, Arrow berth, launch gate and return apron | 2, 3, 10.3 | `shipyard_world.tscn`, `shipyard_world.gd` | I | On the final package walk from spawn, board, launch under the marked gate, return by ordinary assist, dock and exit; review collision, camera and readable minimum graphics. |
 | Aft junction, two elevations and operations room | 3, 10.3 | `aft_junction_stack.tscn` | I | Walk the stairs, operate the door and board console, then return without jumping or rescue; verify signage and no fleet landing-envelope overlap. |
 | Habitat connector, bunks and common room | 3, 10.3 | `habitat_spine.tscn` | I | Rest/wake at all six bunks delivered in221f523; ordinary hub/rest/common-room/reverse loop qualified on actual archive 3707bc9. Normal same-profile distinct-process restart/awake controls/tractor interaction and both UI quits accepted on29abe94; final packaged dressing/native review remains open. |
-| Freight berth and source/destination terminals | 3, 8 | `jovian_freight_berth.tscn`, `cargo_source_terminal.tscn`, `cargo_destination_terminal.tscn` | I | Walk to each terminal, transfer real conserved cargo, reload the committed receipt and return to the same ship; rejected writes must not duplicate inventory. |
-| Fleet comb and all shipped craft berths | 3–5, 10.3 | `fleet_dock_comb.tscn`, world-owned berth instances | I | Physically reach and reuse every shipped craft, retain separated voids and neighbour clearance, then review fleet overview and player-height routes. Dock 03's deferred marker is not a delivered berth. |
+| Freight berth and source/destination terminals | 3, 8 | Berth/door exist; Freight dispatch screens and manifest kiosk are decorative. Source terminal scene has no production instance; destination terminal is on Cinder. Existing Jovian transfer binds ship/berth directly and commits automatically on landing. | M | Physical Freight-terminal integration is missing. [Bounded handoff](ROADMAP_BACKLOG.md#freight-terminals--physical-interface-and-existing-transfer-owner) preserves walk to each terminal, real conserved transfer, committed-receipt reload and same-ship return; rejected writes must not duplicate inventory. Terminal workflow choice pending; inspect-only cannot close the transfer requirement. |
+| Fleet comb and all shipped craft berths | 3–5, 10.3 | `fleet_dock_comb.tscn`, world-owned berth instances | I | Physically reach and reuse every shipped craft, retain separated voids and neighbour clearance, then review fleet overview and player-height routes. All three comb berths are assigned: Zenith, Halyard and Bulwark. Dock 03 retains its historical landmark identifier, but Bulwark has a real world-owned berth. All-shipped reuse covers the current nine-craft roster through the existing CRAFT-ACCEPT journeys; a three-berth threshold walk alone does not satisfy it. |
 | Fabrication Annex repair-kit service | 3, 8 | `fabrication_annex.tscn` | I | Walk up and Interact to restock within the cap; repeat with unavailable/departed ownership and review normal/minimum readability. |
 | Observation/logistics spur | 3, 10.3 | `observation_logistics_spur.tscn` | I | Traverse its connector and viewing route, return supported, and inspect camera/head clearance and guidance. |
 | Salvage Terrace inspection manifest | 3, 8 | `salvage_terrace.tscn` | I | Inspect all three components through ordinary controls, reload the 3/3 manifest and revisit; no inventory/currency grant is implied. |
@@ -486,7 +489,7 @@ claims; additional gameplay checks cannot resolve that external dependency.
 | Recon sensor presentation | Arrow `_build_recon_systems`: mast/sweep, survey head, ventral gimbal and lateral arrays | Sweep is explicitly `visual_only=true`/`gameplay_authority=false`; main ship, `arrow_sensor_sweep_readability_test.gd`, `arrow_recon_crown_visual_test.gd` and failed-core silhouette tests cover presentation. This is not a delivered scanning action or new scanning-gameplay requirement. |
 | Twin engines/gear, folding canopy access, physical pilot seat/cameras/exit | Arrow final collision/marker assembly, scene ShipBoardingArea/damage/audio rig, shared Hero/Player/GameFlow handoffs | Main ship test samples production boarding motion/geometry and camera/seat/collider alignment. Complete ordinary walk-up, camera/muzzle/parked-neighbour/landing clearance and native presentation remain original acceptance. |
 | Pilot precision recon emitter and common damage/recovery | Source1102; `arrow_precision_recon_emitter`/`arrow_combat_pulse.tres`, shared combat authority/resolver; HeroShip/ShipComponentDamage/GameFlow berth recovery | Actual hitscan480m/24 damage/.38s, five shared component IDs/consequences. `weapon_definition_migration_test.gd`, `ship_component_damage_integration_test.gd`, `arrow_component_damage_cue_test.gd`, `arrow_core_systems_damage_silhouette_test.gd`, `hero_weapon_emitter_component_damage_test.gd` and main ship reuse tests supply focused coverage. No new weapon/component family inferred missing. |
-| Recon berth/freeplay lifecycle and entry presentation | Scene home `arrow_recon_berth`; common landing/lease owners; `arrow_entry_presentation_binding.gd` consumes authoritative observations | `arrow_sandbox_integration_test.gd` covers Main registration, ordinary Interact after staged proximity, departure/fire, lease rejection, staged return/strict landing, exit/reboard/recovery/switching. `arrow_entry_presentation_production_caller_test.gd` covers the existing passive entry presentation. Staged start/return and focused damage setup do not accept the full ordinary final-package journey or physical controls/audio. |
+| Recon berth/freeplay lifecycle and entry presentation | Scene home `arrow_recon_berth`; common landing/lease owners; `arrow_entry_presentation_binding.gd` consumes authoritative observations | `arrow_sandbox_integration_test.gd` covers Main registration, ordinary Interact after staged proximity, departure/fire, lease rejection, staged return/strict landing, exit/reboard/recovery/switching. `arrow_entry_presentation_production_caller_test.gd` covers the existing passive entry presentation. Independent ordinary return/reuse DONE checkpointed1167b: fresh archive OS-input walk, two physical departures/strict home docks/neutral OFFLINE/exterior exits, supported >7m clear-walk/reboard and normal UI quit pass106.765s underCAP300. No staged actor/return/tuning; two prior driver failures retained in delivery history. Weapons/damage/recovery/cross-craft/Main/final craft, rendered/device/audio gates remain open; this does not accept the parked Sandbox or Defense route. |
 
 No concrete new required missing runtime component or role was established in
 these bounded owners. CRAFT-GAPS-ARROW definition is DONE; CRAFT-ACCEPT-ARROW and
@@ -495,6 +498,15 @@ A production art repair still needs a named current form/surface/transition or
 view defect, desired player-visible change and fixed acceptance view/action.
 Source reading neither accepts final art nor invents a specific repair. Existing
 recorded checks remain accepted in their own scopes; no rerun/successor selected.
+
+Named pilot hit qualification subsequently accepted on checkpoint51257b3:
+actual fresh source1102/precision-emitter request and target-context sequence0/
+receipt1, DRONE-01 health100→76,24damage, attitude restored and both ordinary
+home/OFFLINE exits/clear/reboard/UIquit PASS120.991s/CAP300. This extends release
+automation, not the weapon runtime. Broader common combat, incoming/component
+damage/recovery, crosscraft/Main/art/device/native/final gates remain open;
+[prior failures and actual checks](history/ROADMAP_DELIVERIES.md#arrow-precision-hit-and-return--shipped-on-51257b3)
+remain source-specific.
 
 ### Jovian authored capability map — CRAFT-GAPS-JOVIAN
 

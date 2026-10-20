@@ -12,6 +12,11 @@ func _initialize() -> void:
 	root.add_child(hud)
 	hud.nearby_activity_intent_requested.connect(func(intent: Dictionary) -> void: _intent = intent.duplicate(true))
 	await process_frame
+	var feedback: Label = hud.get("_nearby_activity_feedback") as Label
+	var feedback_identity: int = feedback.get_instance_id()
+	hud.set_nearby_activity_snapshot({"binding_available": false})
+	_check(feedback.text.contains("OUT OF STREAMING RANGE"), "unavailable binding explains the streaming limit")
+	_check_status_palette(hud, &"_nearby_activity_feedback", feedback_identity, &"caution", "binding unavailable")
 	var view := hud.set_nearby_activity_snapshot({"cargo": _cargo_snapshot(1, 0)})
 	_check(bool(view.get("focusable", false)), "HUD accepts the detached presenter view")
 	_check(int(hud.get_nearby_activity_report().get("row_count", 0)) == 10, "HUD retains one row per production nearby activity")
@@ -41,6 +46,27 @@ func _initialize() -> void:
 		).text,
 		"a rejected remote station-defense start gives physical recovery guidance"
 	)
+	_check_status_palette(hud, &"_nearby_activity_feedback", feedback_identity, &"caution", "station defense recovery")
+	hud.apply_nearby_activity_action_result(&"start_requested", &"cinder_relay_patrol", {"accepted": true})
+	_check(feedback.text == "RELAY PATROL  //  STARTED", "accepted activity start remains explicit")
+	_check_status_palette(hud, &"_nearby_activity_feedback", feedback_identity, &"nominal_soft", "activity started")
+	hud.apply_nearby_activity_action_result(&"reset_requested", &"cinder_relay_patrol", {"accepted": true})
+	_check(feedback.text == "RELAY PATROL  //  RESET", "accepted activity reset remains explicit")
+	_check_status_palette(hud, &"_nearby_activity_feedback", feedback_identity, &"nominal_soft", "activity reset")
+	hud.apply_nearby_activity_action_result(&"start_requested", &"cinder_derelict_structure_scan", {
+		"accepted": true, "reason": &"reward_request_ready", "authority_result": {"accepted": true},
+	})
+	_check(feedback.text == "DERELICT SCAN  //  REWARD FILED", "accepted authority receipt is clearly filed")
+	_check_status_palette(hud, &"_nearby_activity_feedback", feedback_identity, &"nominal_soft", "reward filed")
+	hud.apply_nearby_activity_action_result(&"reset_requested", &"cinder_relay_patrol", {
+		"accepted": false, "reason": &"unavailable",
+	})
+	_check(feedback.text == "RELAY PATROL NOT RESET  //  UNAVAILABLE", "generic refusal remains explicit")
+	_check_status_palette(hud, &"_nearby_activity_feedback", feedback_identity, &"caution", "activity refused")
+	hud.set_hud_palette(&"deuteranopia")
+	_check_status_palette(hud, &"_nearby_activity_feedback", feedback_identity, &"caution", "refusal palette repaint")
+	hud.set_high_contrast_hud(true)
+	_check_status_palette(hud, &"_nearby_activity_feedback", feedback_identity, &"caution", "refusal contrast repaint")
 	var row := _cargo_row(hud)
 	var retained_row_id := row.get_instance_id() if row != null else 0
 	_check(
@@ -148,3 +174,27 @@ func _cargo_card(view: Dictionary) -> Dictionary:
 			== &"cinder_platform_supply_run":
 			return card as Dictionary
 	return {}
+
+
+func _check_status_palette(
+	hud: GameHUD, field: StringName, identity: int, role: StringName, outcome: String
+) -> void:
+	var label: Label = hud.get(field) as Label
+	var expected: Color = GameHUD.PaletteType.get_role_color(
+		hud.get_hud_palette_id(), role, hud.is_high_contrast_hud()
+	)
+	var entries: int = 0
+	var registered_role: StringName = &""
+	var targets: Array = hud.get("_palette_targets") as Array
+	for entry: Dictionary in targets:
+		if entry.get("kind") == &"theme_color" and entry.get("node") == label \
+				and entry.get("property") == &"font_color":
+			entries += 1
+			registered_role = StringName(entry.get("role", &""))
+	_check(
+		label.get_instance_id() == identity and entries == 1 and registered_role == role
+		and label.modulate == Color.WHITE
+		and label.get_theme_color("font_color") == expected
+		and label.get_theme_color("font_color") * label.modulate == expected,
+		outcome + " retains one current font role and applies its colour once"
+	)

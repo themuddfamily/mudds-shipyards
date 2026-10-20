@@ -1,0 +1,24 @@
+Mudds Shipyards development checkpoint ed1167b
+Source commit: ed1167be2475c2417f84a8b15bb91c8ac921b289
+
+Release capability
+- New private arrow-return-reuse route starts a fresh ordinary session, walks to the existing Arrow, completes two actual departures/home docks/offline exits, walks clear and reboards between flights, then quits through the normal pause menu.
+- The release driver uses OS XTest input on its own isolated X11 display with Dummy audio, dummy rendering and the render loop disabled. The observer reads production state; it does not stage actors, issue gameplay calls or change controls/tuning/timing.
+- Existing gameplay and prior checkpoint content are retained. This change adds executable acceptance coverage, not a new ship or combat mission.
+
+Validation performed
+- Full existing native-driver Python suite: 83 tests PASS; focused additions check sequencing, identity/control/support/refusal mutations, strict home/neutral shutdown and premature-success rejection. These fixtures do not establish gameplay alone.
+- Corrected explicit Dictionary annotation directly passes observer check-only before packaging. Clean source import and startup privacy (726 checks) PASS.
+- Windows/Linux clean exports PASS. Direct Linux/archive strict startup and Windows embedded payload through Linux Godot each PASS with exit0 and exactly one STARTUP_MENU_READY_OK.
+- Actual Windows/Linux PCK inventories match 1521 entries; stock PE.text/ELF, exact Linux archive binary/icon/installer bytes/modes/source epoch and export metadata verified.
+- Actual executable extracted from that Linux archive passes ONE full arrow-return-reuse route in 106.765s under unchanged whole-route CAP300. Two excursions: [17.39, 18.052] metres; recorded neutral-to-exit spans [230, 232] physics frames; supported walking 91.419m; 4629 validated physics receipts.
+- Clear-walk distance 12.766m, real reboard and both strict token-bound home/offline exits verified. Normal focused EXIT TO DESKTOP, actual process exit0, zero diagnostics, input release and input-helper/game/Xvfb reaping verified.
+- Original candidate35d894b77: nine prerequisite stages PASS161.693s, then lazy observer parse failure before play4.897s. One explicit Dictionary annotation fixes inference; original failed source/results/exports retained.
+- Annotation candidatef391839: ten prerequisite stages PASS149.884s; approach stops33.808s on premature driver assertion while supported/no E/outside7m. Cumulative review selects its exact removal, preserving actual boarding priority/range and the whole route.
+- All11 reviewed-source stages PASS, 258.088s; cumulative original+correction 608.369s. Original09:58–10:58UTC/60min budget and per-command caps retained.
+
+Open qualification
+- This accepts the named Arrow ordinary return/reuse route only. CRAFT-ACCEPT-ARROW weapon hits, damage/repair/destruction recovery, cross-craft/Main re-entry and broader art/control gates remain open.
+- Original all-nine/54-waypoint Sandbox, Defense board route and other parked attempts are unchanged and remain unaccepted. This independent route does not replace them.
+- Native Windows execution NOT_RUN (owner hold retained). Native GPU/performance, physical devices, real audio/listening, human/full-release/final-candidate and unfiltered final regression gates NOT_RUN/open.
+- Linux/Xvfb OS-input behavior does not qualify native GPU performance or target-device feel. No GitHub CI run or Downloads publication.

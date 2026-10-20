@@ -1,0 +1,23 @@
+Mudds Shipyards development checkpoint 51257b3
+Source commit: 51257b32393e2798c2f6922f33a04b6fcd31bb36
+
+Release capability
+- Existing private arrow-return-reuse route now proves one real pilot precision-emitter hit on authored moving DRONE-01 before both complete ordinary Arrow flights/home docks/offline exits/clear-walk/reboard and normal pause-menu quit.
+- Fresh source1102 / arrow_precision_recon_emitter request, target100→76, authoritative24damage result and target hit context share the same sequence and presentation receipt. One continuous timed native F press through existing tap helper; no retrigger, retry or staged damage/target/tuning.
+- Brake/aim/fire/attitude restoration remains inside25s and the original whole-route300s limit. Existing second flight and strict return conditions retained.
+- OS XTest input runs on private X11 with explicit x11, Dummy audio and dummy rendering/disabled render loop. Observer reads production state without driving gameplay. This adds acceptance capability, not a new weapon or ship.
+
+Validation performed
+- Root independently read all5179 raw physics observations: one continuous observed F interval frames1537-1544, exactly one unchanged hit request thereafter, and neutral runs229/231frames across the strict home exits.
+- Native-driver Python suite: 89 tests PASS. Clean import/direct observer check-only and startup privacy 726 checks PASS.
+- Clean Windows/Linux exports PASS; direct Linux/archive strict startups and Windows embedded payload through Linux Godot each exit0 with exactly one STARTUP_MENU_READY_OK.
+- Actual paired PCK inventories match 1521 entries; stock PE.text/ELF and exact archive bytes/modes/source epoch/metadata verified.
+- ONE actual archive executable route PASS 120.991s, weapon phase 10.626108622178435s; 5179 consecutive physics receipts, 92.022m supported walking.
+- Two excursions [8.066, 17.39]m; neutral-to-exit spans [228, 230] physics frames, strict home/offline exits and real clear/reboard. Normal UI process exit0, zero diagnostics, inputs released and game/Xvfb/helper reaped.
+- All11 selected stages PASS 303.152s, original10:47UTC selection and12:07UTC cumulative deadline retained. Prior candidate first driver test failed10.954s on omitted fixture capture; its one fixture correction passed ten prechecks178.961s, then actual packaged attempt failed native stage65.679s without observed fire/request. Prior cumulative255.594s remains included. Separately selected existing-tap correction addresses a source delivery-duration inconsistency; exact failed scheduling cause remains unproven. Actual cumulative retained stage time558.746s, including prior255.594s and current303.152s. No failure budget reset or hosted CI run.
+
+Open qualification
+- Named pilot hit only: broader shared combat, incoming/component damage/repair/destruction recovery, crosscraft/Main re-entry, art/device/full craft and final release remain open.
+- Original Sandbox, Defense, Wing and other parked attempts unchanged/unaccepted; this does not reopen or close them.
+- Native Windows execution NOT_RUN (owner hold retained). Native GPU/performance, physical devices, real audio/listening, human/final candidate and unfiltered final regression NOT_RUN/open.
+- Private Linux/Xvfb/dummy-renderer input behavior does not qualify native GPU or target-device feel. Repository builds only; no Downloads publication.
