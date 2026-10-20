@@ -69,6 +69,23 @@ names all 20 candidates; the Breach row is superseded by the failed closeout bel
 This cleanup changes
 branch ownership, not the number of completed roadmap outcomes.
 
+**Selected correction within the same Breach delivery: JSON ledger equality.**
+Original14:37–15:22UTC/45min window and cumulative249.405s/four failures retained.
+No budget reset. Retained Godot4.7.1 source proves Dictionary equality compares
+numeric Variant types strictly; JSON decodes numbers as FLOAT while reward authority
+retains newly built INT counters. Therefore853's whole-ledger equality is invalid
+for the successful paid result. This establishes a bad sixth predicate, not success
+of any earlier capture predicate. Normalize ONLY the expected live reward ledger
+using the existing `_canonical()` JSON helper. Retain all eight semantic checks,
+raw primary JSON and exact atomic receipt+terminal requirement. Emit named predicate
+results and safe capture metadata on failure so another composite failure is usable.
+Reuse the same branch; one medium integrator, high review before any engines.
+Original source1000s/child300s, privacy/compile, paired exports/three strict startups,
+actual archive-extracted transaction and package audit remain required. First new
+failure stops; no further correction, cap increase or acceptance narrowing selected.
+Earlier STOP/raw/source remain immutable in the original results; repair runs in
+`/srv/mudds-work/breach-atomic-handoff-20261020/repair-1/` and carries all prior costs.
+
 **Breach interruption attempt stopped; existing candidate withheld.**
 Existing `feat/breach-interruption-fixed-boot-20261018` now retains clean pushed
 853e5ee19, unmerged. Import/probe compile/privacy pass. Full source transaction
