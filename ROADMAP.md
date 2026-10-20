@@ -1,9 +1,10 @@
 # Development roadmap
 
 **Status: playable development alpha; project completion is unproven.** Latest
-accepted checkpoint: **9326614**, preserving damaged save bytes during repair.
-[Windows notes](builds/windows/MuddsShipyards-9326614-notes.txt) and
-[Linux notes](builds/linux/MuddsShipyards-9326614-linux-notes.txt) state checks and
+accepted checkpoint: **49047eb**, explaining blocked save repair and retaining
+damaged-save preservation.
+[Windows notes](builds/windows/MuddsShipyards-49047eb-notes.txt) and
+[Linux notes](builds/linux/MuddsShipyards-49047eb-linux-notes.txt) state checks and
 limits. Inline browser progress/timeout/retry remains accepted on20e90c9;
 paused LAN discovery on042c701. Beacon departure/traversal/once-only saved reward
 qualification on e06550e is retained in its recorded scope. Beacon home/dock/exit, Perimeter Hold,
@@ -194,53 +195,33 @@ Paired exports, three strict menu-ready startup checks and package parity pass.
 Other corrupt/unsupported formats, installed recovery cuts, active-run policy
 choices and all broad parent/phase gates remain open.
 
-## Selected production follow-up — blocked recovery feedback
+## Blocked recovery feedback delivered
 
-**RECOVERY-FIX[corrupt primary preservation] / SAVE-CORRUPT**, parents31/32.
-Prerequisite9326614 accepted. Actual HUD currently treats the known
-`primary_quarantine_failed` preservation refusal as ambiguous publication and
-GameFlow exposes its internal reason code. Result: the confirmation response
-explains that recovery was blocked and the damaged save plus verified backup
-were kept. No persistence/binding/retry policy changes; real publication failures
-keep their existing ambiguity message. This closes no broad recovery parent.
+**RECOVERY-FIX[corrupt primary preservation] / SAVE-CORRUPT**, parents31/32:
+checkpoint **49047eb** explains the known preservation refusal as blocked, with
+the damaged save and verified backup retained. It retires confirmation and keeps
+the internal reason code out of the banner; real publication ambiguity retains
+its existing message. Persistence/retry policy is unchanged.
 
-One medium implementer owns only `scripts/ui/hud.gd`, the result-banner seam in
-`scripts/game/game_flow.gd`, `tests/runtime_settings_repair_hud_test.gd` and
-`tests/runtime_settings_repair_hud_integration_test.gd` on isolated
-`fix/save-repair-feedback-20261020`; root reviews/integrates/builds/cleans. No
-recursive agents or evidence-only artifacts. Acceptance uses actual HUD
-confirmation through GameFlow+binding+store with occupied recovery bytes: blocked
-message, exact protected files retained, no success/stale token/action. Existing
-success, controller focus and true ambiguity cases stay covered.
-
-Before engines review+commit exact clean candidate. Private XDG/TMPDIR, HOME
-unchanged, pinned stock Godot4.7.1 `/tmp/mudds-tools/godot-4.7.1/godot`, headless
-`--audio-driver Dummy`, source/index/engine/cache/process guards. One import180s;
-existing HUD, HUD integration and GameFlow repair suites60s each, exit0/one suite
-marker/no matched error diagnostics. Estimate20–30min implementation/review plus
-10min checks/build; split before60min. First unexpected failure STOP; no automatic
-repair/retry/cap increase. If accepted, freeze exact existing stock paired export
-commands180s each, Linux binary/archive menu-ready startup120s each, Windows
-embedded-payload startup120s on Linux engine, existing actual package audit90s.
-Publish EXE/ZIP/notes in repository builds only after pass/review; native Windows,
-GPU/device/audio/human/final integrated gates remain NOT_RUN. Commit/push actual
-result and remove owned scratch after preserving unique results.
+HUD29, confirmation integration12 and GameFlow18 assertions pass; all10 frozen
+source/package stages pass without retries. [Actual outcome and limits](docs/history/ROADMAP_DELIVERIES.md#blocked-save-repair-feedback--shipped-on-49047eb).
+This finishes the named feedback follow-up, not a broad recovery parent.
 
 ## Latest playable result
 
-**Damaged-save preservation delivered and packaged on9326614.** Conflicting
-recovery bytes or failed preservation block destructive replacement; matching
-verified recovery bytes allow repair. Existing browser inline progress, timeout
-guidance and Retry remain included. Focused persistence suites, paired clean
-exports, strict silent startup checks and actual package parity pass.
+**Blocked save-repair feedback delivered and packaged on49047eb.** When a
+recovery copy cannot safely be preserved, the player sees that replacement was
+blocked and save files were retained. The known refusal clears confirmation;
+true publication ambiguity keeps its existing message. Damaged-save preservation
+from9326614 and browser inline progress/timeout/Retry remain included.
 
-[Windows ZIP](builds/windows/MuddsShipyards-9326614-checkpoint.zip),
-[build notes](builds/windows/MuddsShipyards-9326614-notes.txt),
-[actual validation and scope](docs/history/ROADMAP_DELIVERIES.md#corrupt-save-preservation--shipped-on-9326614).
+[Windows ZIP](builds/windows/MuddsShipyards-49047eb-checkpoint.zip),
+[build notes](builds/windows/MuddsShipyards-49047eb-notes.txt),
+[actual validation and scope](docs/history/ROADMAP_DELIVERIES.md#blocked-save-repair-feedback--shipped-on-49047eb).
 The browser's full ordinary journey and native callback route remain unfinished.
 Earlier accepted gameplay outcomes retain their recorded scopes in the
 [delivery history](docs/history/ROADMAP_DELIVERIES.md). No whole activity, craft,
-roadmap parent or phase closes from this save repair.
+roadmap parent or phase closes from this feedback change.
 
 ## Parked failures and dependent work
 

@@ -4,6 +4,41 @@ Moved from ROADMAP.md on 2026-10-17. These are source-specific historical
 results, not the active queue or proof of current full-project acceptance.
 Return to the [working roadmap](../../ROADMAP.md).
 
+## Blocked save-repair feedback — shipped on 49047eb
+
+Source `49047ebcf5c6824e62f6b6b6408cde85d39d2b78`, integrated by main merge
+`80c9d0d7d`. RECOVERY-FIX[corrupt primary preservation] / SAVE-CORRUPT parents31/32:
+known `primary_quarantine_failed` confirmation refusal now says SETTINGS RECOVERY
+BLOCKED, explains that the damaged save and verified backup were retained and
+replacement blocked, and uses BACKUP REPAIR BLOCKED // SAVE FILES PRESERVED in
+the banner. It takes priority over generic cleared-authority ambiguity. Existing
+true publication ambiguity, persistence and retry policy remain unchanged.
+
+One medium implementer, root independent source/integration/publication review;
+only HUD/GameFlow result-copy seams and two existing tests changed. HUD29,
+GameFlow/HUD integration12 and GameFlow18 assertions pass. Actual confirmation
+through real binding/store with an occupied recovery copy retains every fixture
+file and loaded snapshot/metadata/source/generation, retires binding/HUD token,
+hides/disables confirmation, and prevents replay or false success.
+
+All10 frozen stages pass without retries,185.977s total guarded stage time:
+fresh import20.667s; HUD2.426/integration16.446/flow15.796; Windows export26.654/
+Linux25.861; binary startup22.462/archive23.767/Windows payload26.063; audit5.835.
+Paired stock exports contain1,521 matching PCK entries, stock Windows PE code,
+exact Linux archive bytes/modes/source epoch. Three silent startup checks exit0
+with exactly one STARTUP_MENU_READY_OK. Windows payload is tested on Linuxengine,
+not native Windows. Raw root-user notices retained; no matched production-error
+diagnostics in accepted stages. [Player changes and limits](../../builds/windows/MuddsShipyards-49047eb-notes.txt).
+
+Native Windows/GPU/device/audio/rendered readability/human and full final
+integrated gates remain NOT_RUN; broad recovery/parent/phase scope remains OPEN.
+Owned results: `/srv/mudds-work/save-repair-feedback-20261020/results/`.
+Closure411.161s/6.9min from frozen contract, within original60min split.
+All45 observed descendant identities absent and10 stage owners terminal. Public11
+files hash-verified and Windows ZIP read back; owned worktree/helpers/profiles
+removed. Retained profile archive6,529,839 bytes with13 byte/mode-verified files
+and10 verified template symlinks. Only results remain in the owned scratch root.
+
 ## Corrupt-save preservation — shipped on 9326614
 
 Production source `9326614e3baaa12bbb1173fbadb8fcd8d2ae44c8` integrated by
