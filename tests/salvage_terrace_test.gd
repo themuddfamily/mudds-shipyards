@@ -67,7 +67,9 @@ class InspectionFilesystem extends UserDataFilesystem:
 
 
 func _init() -> void:
-	if OS.get_cmdline_user_args().has("--walk-salvage-access"):
+	if OS.get_cmdline_user_args().has("--walk-salvage-inspect"):
+		call_deferred("_run_walk_salvage_access", true)
+	elif OS.get_cmdline_user_args().has("--walk-salvage-access"):
 		call_deferred("_run_walk_salvage_access")
 	elif OS.get_cmdline_user_args().has("--capture") \
 			or OS.get_cmdline_user_args().has("--capture-close"):
@@ -76,21 +78,22 @@ func _init() -> void:
 		call_deferred("_run")
 
 
-## Selected ordinary access child only: no inspection, save, craft or relocation
-## fixtures. Publication and durable physical revisit remain separate outcomes.
-func _run_walk_salvage_access() -> void:
+## Ordinary access stays unchanged; inspection is an explicit selected extension.
+## Neither route uses craft, relocation or persistence fixtures, or proves revisit.
+func _run_walk_salvage_access(inspect: bool = false) -> void:
+	var marker := "WALK_SALVAGE_INSPECT_TEST" if inspect else "WALK_SALVAGE_ACCESS_TEST"
 	# Independent abort retains the original 300-second test budget, including
 	# setup and cleanup; each walking waypoint keeps its existing 240-frame cap.
 	create_timer(300.0).timeout.connect(func() -> void:
 		_release_salvage_access_inputs()
-		push_error("WALK_SALVAGE_ACCESS_TEST_FAILED: 300-second test budget exhausted")
+		push_error("%s_FAILED: 300-second test budget exhausted" % marker)
 		quit(1)
 	)
 	var game := MAIN_SCENE.instantiate() as GameFlow
 	root.add_child(game)
 	await process_frame
 	await physics_frame
-	await _test_walk_salvage_access(game)
+	await _test_walk_salvage_access(game, inspect)
 	_release_salvage_access_inputs()
 	game.queue_free()
 	await process_frame
@@ -98,14 +101,14 @@ func _run_walk_salvage_access() -> void:
 	await process_frame
 	_release_salvage_access_inputs()
 	if _failures.is_empty():
-		print("WALK_SALVAGE_ACCESS_TEST_OK: %d assertions" % _assertions)
+		print("%s_OK: %d assertions" % [marker, _assertions])
 		quit(0)
 	else:
-		print("WALK_SALVAGE_ACCESS_TEST_FAILED: ", "; ".join(_failures))
+		print("%s_FAILED: " % marker, "; ".join(_failures))
 		quit(1)
 
 
-func _test_walk_salvage_access(game: GameFlow) -> void:
+func _test_walk_salvage_access(game: GameFlow, inspect: bool = false) -> void:
 	var player := game.player as PlayerController
 	var annex := game.world.get_node_or_null(^"FabricationAnnex") as Node3D
 	var terrace := game.world.get_node_or_null(^"SalvageTerrace") as SalvageTerrace
@@ -170,13 +173,114 @@ func _test_walk_salvage_access(game: GameFlow) -> void:
 	if not _salvage_access_check(station.get_snapshot() == initial_snapshot,
 			"supported inspection-row arrival leaves all inspection and manifest state unchanged"):
 		return
+	var published_slot: Dictionary = {}
+	if inspect:
+		if not await _walk_salvage_inspect(game, player, terrace, station):
+			return
+		published_slot = {"inspected": INSPECTION.COMPONENT_IDS.duplicate(), "manifest_published": true}
 	for index in range(goals.size() - 1, -1, -1):
 		if not await _walk_salvage_access_to(game, player, goals[index], "return", index):
 			return
 	if not await _walk_salvage_access_to(game, player, retained_spawn, "retained hub spawn", 0):
 		return
-	_salvage_access_check(station.get_snapshot() == initial_snapshot,
-		"complete ordinary access round trip leaves all inspection and manifest state unchanged")
+	if inspect:
+		var returned_store := _load_salvage_inspect_disk()
+		if returned_store == null:
+			return
+		_salvage_access_check(returned_store.get_snapshot().get(INSPECTION.PERSISTENCE_SLOT) == published_slot
+			and station.get_snapshot().inspected == INSPECTION.COMPONENT_IDS
+			and bool(station.get_snapshot().manifest_published)
+			and not bool(station.get_snapshot().save_pending)
+			and not bool(station.get_snapshot().inventory_authority)
+			and not bool(station.get_snapshot().reward_authority),
+			"published salvage slot remains durable through every reverse waypoint and retained hub spawn")
+	else:
+		_salvage_access_check(station.get_snapshot() == initial_snapshot,
+			"complete ordinary access round trip leaves all inspection and manifest state unchanged")
+
+
+## This selector uses the real default profile and production dispatch throughout.
+## Independent read-only stores inspect disk; no store or scene is reconfigured.
+func _walk_salvage_inspect(game: GameFlow, player: PlayerController,
+		terrace: SalvageTerrace, station: SalvageInspectionStation) -> bool:
+	var initial := station.get_snapshot()
+	var disk := _load_salvage_inspect_disk()
+	if disk == null:
+		return false
+	var report := game.get_runtime_settings_persistence_report()
+	if not _salvage_access_check(bool(initial.persistence_ready) and initial.inspected.is_empty()
+			and not bool(initial.manifest_requested) and not bool(initial.manifest_published)
+			and not bool(initial.save_pending)
+			and (disk.get_snapshot().get(INSPECTION.PERSISTENCE_SLOT, {}) as Dictionary).is_empty()
+			and not bool(report.injected_authority) and report.identity_scope == &"process_lifetime",
+			"normal Main has genuine default disk persistence and a fresh uninspected salvage slot"):
+		return false
+	var stand_x := [-16.0, -14.4, -12.8, -9.5]
+	var expected_ids: Array[String] = []
+	for index in 4:
+		var target_id := INSPECTION.CONSOLE_ID if index == 3 else StringName(INSPECTION.COMPONENT_IDS[index])
+		if not await _walk_salvage_access_to(game, player,
+				terrace.to_global(Vector3(stand_x[index], 0.0, 7.0)), "inspection stand", index):
+			return false
+		var target := station.get_interactable(target_id)
+		if not _salvage_access_check(target != null, "authored %s interaction target exists" % target_id):
+			return false
+		_look_salvage_access_towards(player, target.global_position)
+		disk = _load_salvage_inspect_disk()
+		if disk == null:
+			return false
+		var unrelated_before := disk.get_snapshot()
+		unrelated_before.erase(INSPECTION.PERSISTENCE_SLOT)
+		var dispatched: bool = await _main_inspection_interact(game, target_id)
+		if index < 3:
+			expected_ids.append(INSPECTION.COMPONENT_IDS[index])
+		var expected := {"inspected": expected_ids.duplicate(), "manifest_published": index == 3}
+		var snapshot := station.get_snapshot()
+		disk = _load_salvage_inspect_disk()
+		if disk == null:
+			return false
+		var unrelated_after := disk.get_snapshot()
+		unrelated_after.erase(INSPECTION.PERSISTENCE_SLOT)
+		if not _salvage_access_check(dispatched and _salvage_access_player_current(game, player)
+				and player.is_on_floor() and snapshot.inspected == expected_ids
+				and bool(snapshot.manifest_requested) == (index == 3)
+				and bool(snapshot.manifest_published) == (index == 3)
+				and not bool(snapshot.save_pending) and bool(snapshot.persistence_ready)
+				and not bool(snapshot.inventory_authority) and not bool(snapshot.reward_authority)
+				and disk.get_snapshot().get(INSPECTION.PERSISTENCE_SLOT) == expected
+				and unrelated_after == unrelated_before,
+				"ordinary %s input records exactly the earned inspection/publication on real disk" % target_id):
+			print("WALK_SALVAGE_INSPECT_BOUNDARY: ", {"target": target_id,
+				"dispatched": dispatched, "snapshot": snapshot, "expected_slot": expected,
+				"actual_slot": disk.get_snapshot().get(INSPECTION.PERSISTENCE_SLOT),
+				"unrelated_payload_unchanged": unrelated_after == unrelated_before})
+			return false
+		if index < 3:
+			if not _salvage_access_check(station.get_readout_text(target_id).contains(INSPECTION.COMPONENT_RESULTS[index]),
+					"%s reports its authored inspection grade" % target_id):
+				return false
+	var generation := disk.get_generation()
+	var published_payload := disk.get_snapshot()
+	var published: Dictionary = disk.get_snapshot()[INSPECTION.PERSISTENCE_SLOT]
+	var repeated: bool = await _main_inspection_interact(game, INSPECTION.CONSOLE_ID)
+	var repeated_disk := _load_salvage_inspect_disk()
+	return _salvage_access_check(repeated and repeated_disk != null
+		and repeated_disk.get_generation() == generation
+		and repeated_disk.get_snapshot().get(INSPECTION.PERSISTENCE_SLOT) == published
+		and repeated_disk.get_snapshot() == published_payload
+		and station.get_readout_text(INSPECTION.CONSOLE_ID).contains("MANIFEST PUBLISHED"),
+		"immediate repeated published-console input creates no disk transaction or slot change")
+
+
+func _load_salvage_inspect_disk() -> UserDataStore:
+	var disk := USER_STORE.new(SETTINGS_ADAPTER.DEFAULT_STORE_PATH)
+	var loaded := disk.load_read_only()
+	if not _salvage_access_check(bool(loaded.get("accepted", false))
+			and disk.get_loaded_source() in [&"primary", &"empty"],
+			"independent default UserDataStore reads current primary/empty disk without recovery"):
+		print("WALK_SALVAGE_INSPECT_DISK: ", loaded)
+		return null
+	return disk
 
 
 func _walk_salvage_access_to(game: GameFlow, player: PlayerController,

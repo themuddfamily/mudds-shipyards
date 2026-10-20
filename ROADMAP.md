@@ -77,6 +77,15 @@ This clears the branch queue; it does not close remaining gameplay,
 qualification or release requirements. No unaccepted source was merged to reduce
 a branch count. Eight previously protected detached worktrees remain unchanged.
 
+**Current task: finish existing Salvage inspection/publication.**
+After the accepted full hub approach, inspect all three components and publish
+the manifest through normal controls. Independently read the actual shared save
+file, check repeat publication creates no transaction, and return by the full
+accepted route. Preserve all access limits; stop the first unexpected failure
+for a concrete cause. Fresh-process revisit stays separate. No new branch or
+worktree. The [bounded assignment](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes)
+records the exact contract and estimate.
+
 **Existing Salvage access task DONE — source `9749f742c`.**
 The same Player now walks from the normal hub spawn through every original
 Annex/service-gate destination to all three Salvage inspection positions, then
