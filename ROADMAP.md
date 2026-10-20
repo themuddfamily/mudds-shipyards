@@ -75,6 +75,32 @@ No automatic successor. The independent HAULER-CARGO-MANIFEST production seam
 remains blocked on the already-asked stock decision; no ready implementation
 inferred. Other world cuts/full journeys and Beacon30/60 choice remain open.
 
+### Selected independent qualification — on-foot help, one cell
+
+ACCESS-HELP / parents12,29; root owns temporary harness and cleanup, source
+reviewer checks the production seam. **06:27–06:42UTC /15min** whole budget;
+no production edits or new validator/test family. Existing GameHUD on_foot uses
+20 published rows/four pages; the old test covers only piloting base rows.
+
+Freeze this selection's clean commit; use a temporary subclass of existing
+ultrawide_layout_test.gd, boot actual Main, retain its _measure and
+_check_layout_report criteria. One cell only:1920×1200, requested/effective0.75,
+normal palette, default keyboard prompts, normal on_foot context rows. Check all
+pages, visible labels/wrapping, enabled Previous/Next/Close focus and dismissal.
+No other mode/scale/resolution, no movement or full gameplay acceptance.
+
+Commands under the existing isolated profile/process guard, Dummy audio:
+`godot --headless --audio-driver Dummy --path OWNED/worktree --editor --import`
+(cap180s), then the same prefix with `--script OWNED/helpers/help.gd` (cap90s).
+No imported cache allowed to change during the actual check. First unexpected
+failure stops; no repair/retry/cap increase. Pass is exit0/one
+ULTRAWIDE_LAYOUT_TEST_OK, four measured pages, original layout/font checks,
+wrapping/focus assertions, no diagnostics and no owned survivors. Archive and
+hash-verify unique helpers/profile/logs before removing the clean worktree.
+No new package unless a separately selected runtime repair is delivered.
+Independent production alternative HAULER-CARGO-MANIFEST remains stock-decision
+blocked; parked routes are not substituted for this cell.
+
 ### Waiting decisions — not executable tasks
 
 These questions have already been asked. Keep them pending without asking again
