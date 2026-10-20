@@ -15660,3 +15660,34 @@ No new worktree/process/profile/package scratch created; unique old raw results
 remain under /srv/mudds-work/ember-first-relay-20261020/results/. Roadmap now names
 contract review, caller correction and complete package qualification as separate
 finite deliverables with explicit completion checks, without closing the parent.
+
+
+## Ember corrective package attempt — preparation failure
+
+2026-10-20; WORLD-SAVE-EMBER-FIRST-RELAY, parents14/31. Selectioncc2b44ffd,
+corrected caller964794a03, same compiled923d7b326 archive/ELF. Separate bounded
+06:22–06:37UTC/15min attempt retained original300s per process/660s outer,
+prior original20min allocation and runtime FAIL312.811736s. No cap increase.
+
+Preparation failed: root incorrectly expected the export-result.json sidecar
+inside the archive; extraction asserted after writing the correct ELF. The
+shell then unconditionally launched the next checker command despite that
+failure. Checker exits1 after4.635531s, missing adjacent export-result.json.
+Driver processes=[], owned_children_reaped=true, engine diagnostics0; no Godot
+game starts. Corrected full qualification remains NOT_RUN, not a pass or new
+runtime defect. Original failed result is unchanged. No repair/retry executed.
+
+Independent cumulative review PARK: original runtime312.811736s plus corrective
+preflight4.635531s =317.447268s measured attempts; preparation is additional.
+No further automatic correction, retry or renamed adjacent probe selected.
+Latest playable remains923d7b3; native/ordinary/canonical/installed/full-world
+acceptance stays open.
+
+Cleanup verified owner FINISHED and all6 observed process identities absent;
+source/import-cache unchanged, four actual original/extracted package inputs
+hash-verified. Profile archive verified (one symlink entry), helper source copies
+hash-verified. Clean integrated/pushed detached worktree, profile, helpers and
+duplicate extracted ELF removed at1.77min within15min. Only unique raw results
+remain at /srv/mudds-work/ember-first-relay-corrective-20261020/results/,
+including preparation-failure.json, source/package-input.json, driver logs,
+owner/result/observed-process records, archived helpers/profile and cleanup.json.
