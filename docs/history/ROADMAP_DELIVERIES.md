@@ -18058,3 +18058,73 @@ so10 non-main remote branches. Cumulative cleanup177 local/100 live remote refs;
 these are housekeeping counts, not project percentages. No gameplay changes or
 new checkpoint;0070248 remains latest. Native hardware, Windows, devices/listening,
 human/full-release gates remain NOT_RUN; GitHub Actions budget hold unchanged.
+
+
+## Remaining ten working branches accounted — 2026-10-20
+
+User-requested finish/account-before-new-work cleanup. Selected17:28–17:48 UTC;
+source/ref closure17:31 UTC, within20min. Main67eefc953 contained only the pushed
+accounting selection over archive input mainf1606acdc. No production source changed.
+Three disjoint archive owners preserved ten exact histories; root independently
+verified19 unique commit IDs, merge bases/current-main ranges, all artifact hashes,
+bundle prerequisites/list-heads, aggregate binary/full-index patches and all32
+changed-file entries against Git blob identities/bytes/modes. Hashed raw pointers
+were rechecked; existing raw/private packages and Linux-only template untouched.
+
+| Deleted working branch | Exact source tip | Pushed WITHHELD tag object |
+| --- | --- | --- |
+| `diag/browser-release-cache-20261020` | `783c8c87206a52928641dd887f9a34e02caaf246` | `754468e5482a84c71dd16ab98d48eac853b41c25` |
+| `fix/net-timeout-release-accept-20261020` | `e5b9dd25f82c9a34bf3982ea1a57f82a87b2a4be` | `21971d502f044aea6a5e87cfb7d9334be1e0f6fc` |
+| `feat/courier-ordinary-route-20261020` | `cb9d76fa54ac96c5842f3adf54954040f0c40ab1` | `bbc8b572721d1c3e4a9bc4d9fb5949b4ba920a04` |
+| `feat/defense-ordinary-route-20261020` | `a480c0fbb800e00fbe72838e5368d84add9eaa40` | `2ddb51381dfa8c1d34bee36c63cfc02f16ab7cb9` |
+| `work/salvage-ordinary-access-20261018` | `641bbdbb0ed31fde69c654227b96982cf01fda97` | `23ff075f58264462a2a9ec26a41fbaf7666bd1d2` |
+| `test/halyard-gunner-damage-20261018` | `3a7c4b4bfd474dfb29c8a15b4690e08719bd3d8f` | `c3e5290ee295ac3b68848c9b2e9e037234157ef7` |
+| `hold/fire-restart-viewport-20261018` | `38e47596093d6b0380c56236f6d674c74991d334` | `4f5037021b17cf8d0ad3e57f0bfe9b099fff2cd0` |
+| `hold/hulk-revisit-departure-20261017` | `2298e48893163dfc8d6d174fcd3957a20fc4739b` | `ceddfa8ede3d15a4c904d8fc5a737bbe29f0931f` |
+| `hold/rime-crew-arrival-typing-20261018` | `68cc7d989910dc6b0f023f156dee1a1258012886` | `9814e6bdbde268226a7fce614039fa375fe176fc` |
+| `work/jovian-reload-boundary-20261018` | `f432bd63008c6a142e1616999d63bb688e1fc34e` | `2012ca80f07f9e33ea26130f3bd0594b5ef68c11` |
+
+Each tag is `archive/withheld/<original-branch-leaf>`, for example
+`archive/withheld/browser-release-cache-20261020`. Normal atomic tag push retained
+exact source; remote tag objects and peeled tips verified before deletion.
+All live heads, exact local/tracking source tips and registered ownership were
+rechecked. Atomic remote deletion used ten exact-OID leases; seven existing local
+heads and all corresponding tracking refs removed using expected-OID checks.
+Three hold branches were remote-only; their bundles explicitly name existing
+origin tracking refs, recorded separately from authoritative remote head names.
+No source was merged, claimed superseded, or discarded to improve a count.
+
+Archive folders under `/srv/mudds-work/branch-closeouts-20261020/results/` use the
+ten branch leaves without date suffixes. Each manifest records all unique commit
+IDs/file blobs/modes/artifact hashes, retained raw/private pointers, actual failure,
+original budgets and unmet requirements. Root records are
+`remaining-ten-preservation-review.json` and `remaining-ten-closeout.json`.
+Bundles require only prerequisites already reachable in main; patches/exact-source
+tars provide additional source recovery. This is branch accounting, not a new
+validator or runtime qualification layer.
+
+| Unfinished outcome | Actual retained failure / prerequisite | Acceptance still required |
+| --- | --- | --- |
+| Browser/cache and prepared timeout release | Native SceneCache callback ownership/retention captured; internal mismatch/effective repair unproved. Linux template exists, matching Windows PE absent after3600s cold and sole480s incremental limits. Original20-stage398.295714s chain retained. | Matching pinned templates and original300s timeout→Retry/admission→Disconnect→fresh Cancel→Resume/walk/normal quit; accepted JSON fixture/build recipe stays distinct. No third compile or automatic route retry. |
+| Courier clear | One70.377s driver run escapes1400m at78/78 hull, no player hit/kill. Guard70.762998s is same run; cumulative165.917s. Fresh emission/ray/resolver fact missing. | Actual runner destruction/authoritative kill receipt, remaining defender and usable home; original CAP300/outer330. No aim or weapon defect inferred. |
+| Defense full ordinary journey | Original35.963291s and sole corrective84.239347s fail; actual E Deploy then stationary walk_arrow33.15s until original34s encounter deadline. Cumulative406.400707s includes16 passing stages. | Real boarding/four player kills/once payment/home/physical Reset/next Deploy/UI exit. Physical E scope remains accepted separately; cause/change needed before original CAP300 route selection. |
+| Halyard gunner damage | Original51.847219s plus sole caller repair52.024575s fail co-pilot seat admission; target/damage case not reached. Cumulative103.871794s. | Concrete admission cause/change then original physical gunner FIRE/damage route under CAP300; no weapon defect established. |
+| Salvage access | Original61.019493s plus sole caller repair60.822375s fail outbound20; same supported Player, no three-point inspection/return. Cumulative121.841868s. | Concrete supported walking/access cause/change then full three-position/hub return; CAP300/outer360, original waypoint/arrival/settle limits; INSPECT/REVISIT remain gated. |
+| Jovian reload | Original30s restore deadline; diagnostic Main ready/restore accepted27.762s, first ordinary physics/process pair incomplete by remaining2.238s. No corrupt/duplicate reward observed. | Concrete startup repair; unchanged30s distinct-process restart/full60-tick continuation. No longer cap or repeated startup probe implied. |
+| Fire restart | Original and one viewport caller repair fail Fire row intersection before capture/save/reader/sampler. Geometry alone does not establish scrolling cause. | Concrete visible-row cause/change; original writer/reader real persisted binding and runtime sampling,300s each. |
+| HULK revisit | Original278.285s departure assertion fails; one repair reaches actual fresh reload/dock/shutdown/exit, original300s expires in new interior walk before fresh breaker event;304.438s includes cleanup. | Concrete production cause/change plus full physical revisit/once-only cell/reward; no cap increase. Accepted initial HULK remains distinct. |
+| Rime shared baseline | Original fixture parse failure; typed caller passes parse then fails original120s physical landing gate after genuine outbound/approach. No survey/home. | Concrete landing cause/change plus full two-crew canonical outbound/survey/reward/save/home; original120s landing/2400s outer retained. |
+
+All ten underlying outcomes remain OPEN/PARKED or dependent; archiving grants no
+retry, cap reset, new gameplay acceptance or parent/phase completion. Existing
+accepted main scopes remain accepted. No engine, compile, rendered automation,
+profile, worktree or temporary helper created. Eight protected detached worktrees
+and all original failure/private-package roots remain unchanged.
+
+Verified refs after closure: main is the sole local and live remote branch;
+zero non-main working branches. Cumulative cleanup184 local/110 live remote refs.
+All20 candidates in the earlier inventory are accounted for: six through
+accepted/superseded closure and fourteen as source-preserved unqualified archives.
+These counts measure housekeeping only. Latest playable checkpoint0070248 remains;
+all36 parent outcomes/ten phase gates are still open. Native Windows/GPU/devices,
+listening/human/installed/final qualification NOT_RUN; GitHub Actions remains held.

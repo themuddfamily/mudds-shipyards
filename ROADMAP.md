@@ -44,20 +44,20 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
-**Current focus: finish or explicitly account for existing unmerged work.**
+**Existing working-branch backlog cleared; unfinished product outcomes remain open.**
 
 Resolve one existing branch at a time. Before selecting another, either merge and
 push accepted work and delete the branch, or preserve its unique source/results
 and record the exact unmet requirement and blocker. A failed check does not
 automatically authorize an adjacent task or retry.
 
-**177 local and 100 live remote branches deleted; 8 local and 11 live remote
-branches remain, including main (10 non-main remote).** Counts describe refs,
+**184 local and 110 live remote branches deleted; main is the sole local and
+live remote branch (zero non-main branches).** Counts describe refs,
 not completed features. [Branch accounting and closeouts](docs/history/ROADMAP_DELIVERIES.md#branch-accountability-and-race-timeout-diagnosis--2026-10-20)
 preserve the underlying roadmap requirements.
 
-Latest cleanup removed 15 local branches whose work is already integrated in
-pushed main: one by ancestry, 14 through 20 exact patch matches. Their 15 clean,
+Earlier duplicate cleanup removed 15 local branches already integrated in pushed
+main: one by ancestry, 14 through 20 exact patch matches. Their 15 clean,
 unowned worktrees are removed; original cherry-picked histories are retained in a
 verified bundle. The superseded original Jovian exit caller is archived under a
 pushed tag and its local/remote branch deleted. Its retained docked-pilot
@@ -71,26 +71,26 @@ three diagnostic histories also have pushed archive tags. Two clean cache-only
 worktrees are removed. Full Sandbox/recovery/reuse remains FAILED/open.
 [Five-branch closeout](docs/history/ROADMAP_DELIVERIES.md#five-local-only-branches-accounted-and-closed--2026-10-20).
 
-The10 remaining remote candidates contain qualification, diagnostic or release
-automation, including opt-in startup wiring. The unproven tooltip runtime candidate
-is preserved under a WITHHELD archive tag; its underlying requirement remains OPEN.
-The [earlier20-branch inventory](docs/history/ROADMAP_DELIVERIES.md#remaining-branch-status-after-duplicate-closeouts--2026-10-20)
-retains original status: six references closed through accepted/superseded work,
-and four unqualified tooltip/UI/Mining/Beacon candidates archived, leave10.
-These ref counts do not measure completed roadmap outcomes.
+All 20 candidates in the [earlier inventory](docs/history/ROADMAP_DELIVERIES.md#remaining-branch-status-after-duplicate-closeouts--2026-10-20)
+are now accounted for: six references closed through accepted/superseded work,
+and fourteen unqualified candidates preserved under explicit WITHHELD tags.
+This clears the branch queue; it does not close their unfinished gameplay,
+qualification or release requirements. No unaccepted source was merged to reduce
+a branch count. Eight previously protected detached worktrees remain unchanged.
 
-**Selected remaining-branch accounting:17:28–17:48 UTC,20min.**
-Account the remaining ten existing remote branches: browser-cache diagnostic and
-network-timeout acceptance preparation, Courier, Defense, Halyard damage,
-Salvage access, Jovian reload, Fire restart, HULK revisit and Rime crew arrival.
-Three disjoint archive owners prepare exact source/history and retained failure
-accounts; root verifies preservation/current refs/registered ownership, pushes
-WITHHELD tags and retires working refs where safe. No engines, compile, route
-retry, new branch, gameplay acceptance or checkpoint. Original failed contracts,
-budgets and concrete reopening facts remain OPEN; accepted partial scopes in
-main remain distinct. Existing protected detached worktrees are excluded.
-Close with committed/pushed source identities and a current finite list of unmet
-requirements; branch retirement does not complete those product outcomes.
+**Remaining ten working branches accounted for and deleted.**
+Browser-cache diagnostic and network-timeout acceptance preparation, Courier,
+Defense, Halyard damage, Salvage access, Jovian reload, Fire restart, HULK revisit
+and Rime crew arrival have verified source bundles, binary patches and exact
+source archives, with pushed `archive/withheld/<original-branch-leaf>` tags.
+All 19 unique commits/32 source-file entries are preserved; current live tips,
+remote tag objects/peeled tips and registered ownership were checked before
+expected-OID branch deletion. Main is the sole local/remote working branch.
+Original failures, budgets and concrete missing facts remain in the parked
+outcomes/backlog. Accepted fixture, physical E Deploy and other partial scopes
+remain distinct. No engines, compile, route retry, new branch, gameplay acceptance
+or checkpoint. Closed at 17:31 UTC inside the selected 17:28–17:48 accounting window.
+[Exact source identities and ten retained gaps](docs/history/ROADMAP_DELIVERIES.md#remaining-ten-working-branches-accounted--2026-10-20).
 
 **UI, Mining and Beacon-home working branches accounted for and deleted.**
 Seven unique commits across the three branches survive in independently verified
@@ -327,20 +327,23 @@ contracts and cumulative attempt records remain in the retained history.
 
 | Outcome | Last actual result | Condition before more work |
 | --- | --- | --- |
-| PLAY-DEFENSE ordinary route /13 | Candidatea480c0fbb pushed/unmerged: actual E Deploy accepted, but corrective walk_arrow stationary33.15s and whole34s timeout before boarding. | PARK after original35.963s and one corrective84.239s failure; cumulative406.401s including16 passing stages. No player kill/payment/home/reset/UIexit; no second repair/retry selected. Unique candidates/results preserved; owned scratch cleaned28.24min. |
+| PLAY-DEFENSE ordinary route /13 | Candidatea480c0fbb archived WITHHELD; working refs deleted, source unmerged: actual E Deploy accepted, but corrective walk_arrow stationary33.15s and whole34s timeout before boarding. | PARK after original35.963s and one corrective84.239s failure; cumulative406.401s including16 passing stages. No player kill/payment/home/reset/UIexit; no second repair/retry selected. Unique candidates/results preserved; owned scratch cleaned28.24min. |
 | Ember first-relay cold cut /14,31 | [Archive923d7b3](docs/history/ROADMAP_DELIVERIES.md#ember-first-relay-cold-cut--runtime-completes-parent-comparison-fails) FAIL312.812s at parent exact durable-state comparison; arm-9/resume0, engine diagnostics0, runtime continuation and receipts0→1. Only two compared coordinate scalars differ by one binary64 ULP. | STOPPED; no repair/retry/cap increase or retroactive comparison relaxation. Contract review and exact-runtime caller correction complete; corrected full package run NOT_RUN and requires a separately frozen selection. No full-cut/location/canonical/installed acceptance; all owned scratch cleaned9.50min within20min. |
 | Jovian postdock reuse /16,20,26 | DONE on861c4d39b, merged2352d18c3; original138.470s clean three-peer journey, all seven physical exit poses, same-player supported ground walk, retired passenger claim/body and retained pilot; all3 actual OS exits0. Fresh paired checkpoint861c4d3. | Branch local/remote/tracking deleted, owned scratch cleaned23.65min/45min. Reboard/pilot exit/reclaim/redeparture/other craft/second landing remain open; no automatic next case. |
 | Habitat common-entry view /9,12 | [Source8a6339b91](docs/history/ROADMAP_DELIVERIES.md#habitat-arrival-view--readback-timed-out-before-image): import passes; full-Main player-height readback times out180.842s before PNG or view metadata. Cumulative201.494s; no observed defect/no-finding. | PARKED. Concrete supported capture-boundary change before selection; no renderer/room substitute, cap increase or unchanged retry. Actual eye stage was not proved reached; accepted Habitat runtime scopes remain. |
-| Courier clear /11 | [Candidatecb9d76fa5](docs/history/ROADMAP_DELIVERIES.md#courier-ordinary-clear--escaped-without-player-damage), pushed/unmerged: prechecks pass; ordinary attempt fails70.377s, ESCAPED at1400m, hull78/78, no player hit/kill or home completion. Cumulative165.917s. | PARKED/withheld. Fresh Courier-window emission/ray/resolver facts are missing; generic shot receipt can be stale. No weapon/aim cause established, repair/retry or public checkpoint selected. Preserve original route/caps; other Courier outcomes need separate selection. |
-| Matching RPC-cache templates /25,32 | [Linux built; Windows cold/incremental compilation timed out](docs/history/ROADMAP_DELIVERIES.md#matching-rpc-cache-templates--stopped-at-windows-compilation-budget). No accepted matching pair; callback repair is unverified. | PARKED; no further compilation or dependent browser attempt selected. Existing recipe/JSON fixture remain delivered; empty callable metadata and similar Window errors establish no cause. |
-| BROWSER-ORDINARY /25 | Candidatee944f52:89Python/privacy/35join/package checks pass, actual routeFAIL40.554s at NetworkSession tree_exited disconnect error; cleanup fixture command rejected. | PARKED/unmerged/withheld. Subsequent passive capture identifies retained native RPC-cache callback; it does not qualify the route. Full continuation NOT_RUN. Original raw data/eight builds preserved; scratch cleaned. |
+| Courier clear /11 | [Candidatecb9d76fa5](docs/history/ROADMAP_DELIVERIES.md#courier-ordinary-clear--escaped-without-player-damage), archived WITHHELD, working refs deleted/source unmerged: prechecks pass; ordinary attempt fails70.377s, ESCAPED at1400m, hull78/78, no player hit/kill or home completion. Cumulative165.917s. | PARKED/withheld. Fresh Courier-window emission/ray/resolver facts are missing; generic shot receipt can be stale. No weapon/aim cause established, repair/retry or public checkpoint selected. Preserve original route/caps; other Courier outcomes need separate selection. |
+| Matching RPC-cache templates /25,32 | [Linux built; Windows cold/incremental compilation timed out](docs/history/ROADMAP_DELIVERIES.md#matching-rpc-cache-templates--stopped-at-windows-compilation-budget). No accepted matching pair; callback repair is unverified. Browser diagnostic/prepared acceptance source archived WITHHELD; working refs deleted. | PARKED; no further compilation or dependent browser attempt selected. Existing recipe/JSON fixture remain delivered; empty callable metadata and similar Window errors establish no cause. |
+| BROWSER-ORDINARY /25 | Candidatee944f52:89Python/privacy/35join/package checks pass, actual routeFAIL40.554s at NetworkSession tree_exited disconnect error; cleanup fixture command rejected. | PARKED/unmerged/withheld; diagnostic and prepared acceptance refs deleted after source archival. Subsequent passive capture identifies retained native RPC-cache callback; it does not qualify the route. Full continuation NOT_RUN. Original raw data/eight builds preserved; scratch cleaned. |
 | AFT-CONSOLE-VIEW /9,12 | Standalone actual-module Xvfb/Forward+/llvmpipe capture FAIL120.485s after camera setup; no image or visual finding. | PARKED; source/root cause unproven. No cap increase, alternate backend/view or retry selected. Owned scratch cleaned; raw results retained. |
 | WALK-OBSERVATION /7,9 | Original full route fails rootWindow disconnect after Exit. Privatebae551d58 later passes54-goal travel/view/home/Exit, but lacks original visible TooltipPanel; repair INCONCLUSIVE. All five unique commits/seven files archived under pushed archive/withheld/exit-tooltip-order-20261020; working refs deleted, runtime unmerged. | OPEN. Observe actual original visible tooltip/root bindings and hover owner/pointer/window/foreground state before separately selected normal-close repair proof; full integrated travel/view/home acceptance retained. No new run or unchanged retry. |
 | PERIMETER-LIVE /11 | Runtime/admission shipped fdae1cb: all selected focused/production checks, paired exports, three strict startups and package audit PASS. Existing branch merged/pushed/deleted and owned scratch cleaned. | Scoped integration DONE; full ordinary weapons/home/recovery/repeats/network/native remains OPEN. Prior 363.897s/three failures retained; total stages 742.767s. |
 | PLAY-BEACON-HOME /13 | Candidatea612ea686 FAIL37.713s guarded/37.419s driver at ActivityBoardButton Return/frame1233; same two root Window signal-disconnection diagnostics. Eleven prechecks pass; no settlement/home/L/E reached, no file captures. Unmerged/withheld source archived under `archive/withheld/beacon-home-20261020`; working branch deleted. | PARKED on UI-BOARD-FOCUS. Recurrence supplies no popup/connection-removal cause; no retry/repair/cap change. Preserve original UI two-component9.627s and Mining budgets. |
-| HALYARD-GUNNER-DAMAGE /11,16 | Original 51.847s and one caller repair 52.025s both fail co-pilot admission; actual new damage proof NOT_RUN. | Parked after cumulative 103.872s review. No further diagnosis/fix/run without concrete reopening fact/change; candidates unmerged, no weapon defect established. |
-| WALK-SALVAGE-ACCESS / 7,9 | Original61.019s plus one repair60.822s both fail outbound20; same supported Player, inspection/return NOT_RUN. | Parked after cumulative review; no further diagnosis/fix/run. INSPECT/REVISIT remain gated; concrete new fact/change required to reopen. |
-| KIT-RELOAD / 13,31 | Distinct-process restore30s timeout; one boundary probe records Main ready but no returned first normal frame before deadline. | Different supported production repair must be selected; no unchanged probe, timeout increase or repeated startup profile. |
+| HALYARD-GUNNER-DAMAGE /11,16 | Original 51.847s and one caller repair 52.025s both fail co-pilot admission; actual new damage proof NOT_RUN. Source archived WITHHELD; working refs deleted. | Parked after cumulative 103.872s review. No further diagnosis/fix/run without concrete reopening fact/change; candidates unmerged, no weapon defect established. |
+| WALK-SALVAGE-ACCESS / 7,9 | Original61.019s plus one repair60.822s both fail outbound20; same supported Player, inspection/return NOT_RUN. Source archived WITHHELD; working refs deleted. | Parked after cumulative review; no further diagnosis/fix/run. INSPECT/REVISIT remain gated; concrete new fact/change required to reopen. |
+| KIT-RELOAD / 13,31 | Distinct-process restore30s timeout; one boundary probe records Main ready but no returned first normal frame before deadline. Source archived WITHHELD; working refs deleted. | Different supported production repair must be selected; no unchanged probe, timeout increase or repeated startup profile. |
+| FIRE-RESTART /8,29,31 | Original and viewport caller repair fail visible Fire row intersection before capture/save/restart sampler; no persisted remap proof. Source archived WITHHELD; working refs deleted. | OPEN/PARKED; concrete visible-row cause/change needed before separately frozen original writer/reader acceptance; original300s per process retained. No inferred scrolling cause or retry. |
+| HULK-REVISIT /13,31 | Original departure check fails; sole repair reaches reload/dock/shutdown/exit then original300s deadline during new interior walk, before breaker event/receipt. Source archived WITHHELD; working refs deleted. | OPEN/PARKED; establish a concrete production cause/change, retain full physical revisit and once-only cell/reward contract. No cap increase or unchanged retry. |
+| SHARED-RIME-BASELINE /3,27 | Original parse failure and typed caller repair retained; repair reaches approach but fails original120s physical landing gate. Survey/home not accepted. Source archived WITHHELD; working refs deleted. | OPEN/PARKED; landing cause unestablished. Preserve full two-crew outbound/survey/reward/save/home and original limits; no automatic rerun. |
 | HALYARD-MOVING-CABIN / 16,26 | NOT_RUN; exact retained card requires supported walk/sit/stand/reseat during departure. | BOARD prerequisite accepted; separately freeze original moving case before engines. No moving/departure acceptance follows from boarding. |
 | HALYARD-AUTHORITY-STOP / 16,26 | NOT_RUN; exact retained card requires usable solo controls after actual server stop. | GATED on accepted moving-cabin route. |
 
