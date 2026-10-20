@@ -34,6 +34,22 @@ func _run() -> void:
 	var report := hud.get_activity_objective_report()
 	_check(str(report.get("text", "")).contains("HEAVY BREACH"), "HUD generic objective path renders heavy breach")
 	_check(bool((report.get("heavy_breach", {}) as Dictionary).get("presentation_only", false)), "HUD retains presenter receipt")
+	snapshot.director.scenario = &"paired_wing"
+	snapshot.director.active_roster = 2
+	snapshot.reward_handoff.last_result = {"accepted": true, "reason": &"old_breach_reward"}
+	hud.set_activity_objective("Paired wing", snapshot)
+	var wing_report := hud.get_activity_objective_report()
+	var wing_text := str(wing_report.get("text", ""))
+	_check("PAIRED WING" in wing_text and "2 WING CONTACTS" in wing_text
+		and "NO CREDIT REWARD" in wing_text and not "PICKET" in wing_text
+		and not "REWARD  ACCEPTED" in wing_text,
+		"Wing HUD describes both targets and no credit even after an old paid contract")
+	snapshot.sortie_armed = true
+	snapshot.offered_scenario = &"paired_wing"
+	var armed_wing := presenter.present(snapshot)
+	_check(armed_wing.title == "PAIRED WING" and "SORTIE ARMED" in armed_wing.text
+		and "NO CREDIT REWARD" in armed_wing.text,
+		"armed Wing retains its own name and unpaid encounter disclosure")
 	hud.queue_free()
 	await process_frame
 	if _failures.is_empty():
