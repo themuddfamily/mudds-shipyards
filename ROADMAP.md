@@ -92,13 +92,13 @@ fixture cleanup separately rejects its command. Retry/admission/Disconnect/fresh
 Cancel/Resume/normal quit NOT_RUN. No further exception/repair/probe/retry selected.
 [Full frozen cards, failures and retained builds](docs/history/ROADMAP_DELIVERIES.md#browser-ordinary-timeout-and-retry--failed-and-parked).
 Owned scratch cleaned after preserving raw results/eight unique withheld builds.
-Read-only owner mapping is complete: engine RPC-cache source connects a bound
-removal callback but disconnects it without the bound ID. This fits the diagnostic;
-actual binary callback ownership/editor-versus-release parity remain unproven.
-[Source facts and bounded next proof](docs/ROADMAP_BACKLOG.md#timeout-rpc-cache-ownership--net-timeout-teardown-owner).
-Next selected action: one frozen default/custom-API ownership observation
-(guarded import180s, combined headless/Dummy caller35s).
-No runtime patch or full-route reopening selected; no-answer case remains open.
+The single source API-ownership observation is **NOT_REPRODUCED**: default and
+custom APIs both cleanly remove the actual bound SceneCacheInterface callback at
+5004/5002ms automatic timeout. No app-ownership change or release cause/fix is
+supported. [Exact result and retained source lead](docs/ROADMAP_BACKLOG.md#timeout-rpc-cache-ownership--net-timeout-teardown-owner).
+Owned scratch cleaned. Next action: define release-level callback capture in the
+failed full-game/separate-process context before code or engines. No second probe,
+repair, cap increase or full-route reopening selected; no-answer case remains open.
 
 Perimeter Hold's implementation candidate **aa88b5a73** is **PARKED/unmerged**.
 Its staged live runtime passes52 assertions; existing director/asset/board/HUD
@@ -144,9 +144,9 @@ count these as executable jobs or begin another terminal-debt implementation.
 The browser driver and full packaged route were then frozen as separate cards;
 both remain unaccepted after the actual timeout diagnostic above. Preserve their
 whole timeout→retry/admission→disconnect→fresh cancel→resume/quit contract.
-Failure-owner source mapping is now defined; one bounded API-ownership observation
-must be frozen before execution. No unchanged route retry or broader release
-estimate follows from the component/readiness passes.
+The one API-ownership observation did not reproduce the release error. A release-
+level capture contract is the next missing definition. No unchanged source probe,
+route retry or release estimate follows from the component/readiness passes.
 
 
 At each delivery, update that child’s result and remaining dependency, give actual

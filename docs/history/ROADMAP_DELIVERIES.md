@@ -14245,3 +14245,124 @@ the original failure. Re-run the unchanged full89 Python tests once, then only
 if PASS continue the original checks. No accepted check is repeated unchanged.
 Any further unexpected failure parks this driver/candidate: no additional
 exception, automatic repair, changed test/cap or narrower successful subroute.
+
+## Timeout RPC-cache ownership — source observation not reproduced
+
+**NOT_REPRODUCED**, one combined caller on clean20cab9bba with the pinned source
+executable. Production unchanged; no runtime fix, public build or ordinary-route
+acceptance. Import19.711071398s and caller11.514338163s complete under180/35s;
+exit0, one final marker, two checked receipts, no matched production diagnostics.
+The ordinary root-user warning remains in raw output; do not claim warning-free logs.
+
+Default API root `/root`: real raw hello1/packets2, automatic timeout5004ms.
+Custom API root `/root/Boot`: real raw hello1/packets2, timeout5002ms. Both actual
+adapter paths are `/root/Boot/Main/NetworkSession`. In each case the native
+callback is absent before joining, present after the real hello and immediately
+before expiry, then absent after automatic shutdown while the same adapter stays
+parented. Actual callback class/method: `SceneCacheInterface` /
+`SceneCacheInterface::_remove_node_cache`, valid, one-shot flags4, one bound
+argument equal to that case's actual adapter ID, zero unbound arguments. Both
+native peers close; API becomes OfflineMultiplayerPeer; deadline0/reason timeout.
+
+Independent high actual-result review and root agree: no ownership-dependent
+difference was observed in this headless source-executable path. Changing app API
+ownership is unsupported. The upstream excerpt's apparent bound/unbound mismatch
+does not establish installed release-binary behavior; this source executable
+actually removes the bound callback cleanly. The original failure's full game
+graph, separate-process topology and release-template context remain distinct.
+Do not call the release cause confirmed or fixed, or close the parent on this pass.
+
+All2 stage owners FINISHED and all6 observed process identities absent. Caller
+hash and source/index/cache guards remain valid. Owned worktree/helpers/profiles
+removed after verified preservation; only
+`/srv/mudds-work/rpc-cache-owner-20261020/results/` remains (30 private files).
+Freeze→cleanup3.41min against10–15min estimate. No new artifacts or runtime code.
+Cumulative investigation now14 stages267.104796959s, retaining the original two
+failures; the12-stage browser chain itself is still parked, not reset or retried.
+
+No second source probe, cap increase, repair or full-route retry is selected.
+Next single action: define the smallest release-level callback capture that
+preserves the failed full-game context and separate authority process; freeze its
+owners/commands/cumulative budget before any implementation or execution. Repeating
+this bare default/custom comparison is not useful without a relevant change.
+The original complete timeout→Retry/admission→Disconnect→freshCancel→Resume/
+walk/normalquit contract and all36 parents/ten phase gates remain OPEN. Latest
+accepted checkpoint remains20e90c9; native/human/final gates remain NOT_RUN.
+
+### Original source map and frozen observation
+
+### Timeout RPC-cache ownership — NET-TIMEOUT-TEARDOWN-OWNER
+
+**Read-only definition DONE2026-10-20; runtime repair NOT selected.** Root and
+one independent high source mapper inspected the retained failure, production
+shutdown and engine source at the reported build commita13da4feb. No engines,
+route retries, tests, worktrees, validators or build changes were made.
+
+Raw seq982/ticks37453 has a connected/nonadmitted peer and deadline37454;
+then the native tree_exited disconnect error; seq983/ticks37471 retains the SAME
+adapter instance/path, now offline with deadline0/reason timeout. GameFlow does
+not destroy/unparent the adapter here. Production seam is adapter.shutdown():
+peer close at570, OfflineMultiplayerPeer replacement at580, session_stopped at644;
+GameFlow cleanup follows. No explicit tree_exited reference exists under scripts.
+
+Engine source explanation: SceneMultiplayer.set_multiplayer_peer calls clear on
+replacement, which clears its RPC node cache. SceneCacheInterface._track connects
+a node-ID-bound one-shot removal callback; its clear disconnect omits the bound
+ID. This is a concrete callable mismatch fitting the exact native diagnostic,
+not proof of premature Main/adapter destruction. The binary's callback owner was
+not captured, and source-engine35-assertion tests passed, so editor/release
+behavior parity is still unresolved. Do not claim a verified runtime fix.
+[Tracking/cleanup source](https://github.com/godotengine/godot/blob/a13da4feb/modules/multiplayer/scene_cache_interface.cpp#L37),
+[cache clear](https://github.com/godotengine/godot/blob/a13da4feb/modules/multiplayer/scene_cache_interface.cpp#L273),
+[peer replacement](https://github.com/godotengine/godot/blob/a13da4feb/modules/multiplayer/scene_multiplayer.cpp#L175).
+These facts concern the RPC cache; no causal relationship to the parked Window/
+Activity Board failure is established. Do not reopen that route.
+
+Do not work around native cache cleanup by fabricating lifecycle signals,
+disconnecting unknown callbacks, suppressing diagnostics, making an unchecked
+engine upgrade, or altering adapter ownership before its contract is defined.
+A direct engine patch would need matching pinned Windows/Linux templates and
+local package/runtime checks. This environment currently has g++ but no scons,
+clang++ or MinGW cross-compiler on PATH; no dependencies installed. Existing safe
+export rejects custom preset-template overrides; stock package pins remain intact.
+Source also conditionally clears external script/main-loop overrides in release
+builds; a source-script pass cannot establish release-template behavior.
+[Startup implementation](https://github.com/godotengine/godot/blob/a13da4feb/main/main.cpp#L4013).
+
+**Next bounded proof to define before execution:** compare the existing paused
+real raw-host5s timeout under default Main-style and custom-branch MultiplayerAPI
+ownership, inspecting exact current tree_exited callable/object/bound-argument
+identity before peer reset. One external scratch caller may use production
+Adapter and existing raw-host behavior; no Main/gameplay mutation, fake admission,
+public artifact, persistent validator or renamed full browser route. First freeze
+its exact script/commands/output and expected diagnostic handling; at most one
+combined headless/Dummy observation with a35s process cap (two cases, each hello
+within3s/deadline observation within7s), guarded import180s only if cache needs it.
+Estimate10–15min including inspection/cleanup. Stop at owner/parity finding or
+NOT_REPRODUCED; no second probe, cap increase or runtime patch in that assignment.
+The concrete source mismatch is the new causal lead justifying this bounded
+observation; original235.879s/two-failure browser chain remains parked/cumulative.
+Its complete acceptance and every unperformed native/human/parent gate remain open.
+
+**NET-TIMEOUT-TEARDOWN-OWNER observation frozen2026-10-20.** Root selects the
+single caller reviewed GO by an independent high reviewer; no runtime fix or
+full browser retry. Clean detached source20cab9bba, owned worktree
+`/srv/mudds-work/rpc-cache-owner-20261020/worktree`, fresh cache requires one
+import. External caller `helpers/probe.gd` SHA256
+`1ee5eb50f83f685be963a54975b195a043c950e9ab1ff2b5b5639d010b3e7895`.
+Commands use `/tmp/mudds-tools/godot-4.7.1/godot --headless --audio-driver Dummy
+--path /srv/mudds-work/rpc-cache-owner-20261020/worktree`, first `--editor --import`
+(cap180s), then `--script /srv/mudds-work/rpc-cache-owner-20261020/helpers/probe.gd`
+(cap35s). Existing source/index/cache/engine/PID guards and private XDG profiles.
+
+Require exit0, exactly one RPC_CACHE_OWNER_OBSERVATION_OK and exactly two checked
+case receipts (default/custom, actual adapter IDs), actual hello within3s and
+automatic paused timeout by7s from retained production start. Preserve callable
+object/method/bound arguments and flags before/after shutdown. Classify only the
+exact original native tree_exited/empty-callable message referencing those IDs,
+at most once per case in raw stdout (private-log duplicates retained). Any other
+diagnostic/assertion/nonzero/cache/source/process issue STOP; no repair/retry/cap
+change. Zero target errors is NOT_REPRODUCED, not runtime acceptance. Preserve
+raw logs then remove owned worktree/helpers/profiles after terminal process checks.
+Estimate10–15min; no package/checkpoint because production is unchanged. Original
+browser235.879s/two failures and whole-route gates remain binding/open.
