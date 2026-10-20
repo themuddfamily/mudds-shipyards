@@ -439,6 +439,8 @@ func _record_gunner_admission(boundary: String) -> void:
 			row["role"] = str(node.get_role())
 			row["anchor_id"] = str(node.get_seat_anchor().get_instance_id())
 		nearby.append(row)
+	var boarding_area := _game.get("_boarding_area") as ShipBoardingArea
+	var reservation: Variant = boarding_area.get("_reservation_token") if is_instance_valid(boarding_area) else null
 	print("HALYARD_GUNNER_ADMISSION: " + JSON.stringify({
 		"boundary": boundary, "frame": Engine.get_physics_frames(),
 		"phase": GameFlow.Phase.keys()[_game.phase], "transition_busy": _game._transition_busy,
@@ -454,10 +456,14 @@ func _record_gunner_admission(boundary: String) -> void:
 		"nearby": nearby, "chair": _admission_node(chair, origin, facing),
 		"pilot": _admission_node(_craft.get_pilot_seat_anchor(), origin, facing),
 		"cached_station": _admission_node(_game.station_interaction_candidate, origin, facing),
-		"fresh_station": _admission_node(_game._find_station_interaction_candidate(), origin, facing),
-		"fresh_boarding": _admission_node(_game._find_boarding_candidate(), origin, facing),
-		"cockpit_aim_precedes": chair != null and _game._cockpit_aim_precedes_crew_seat(_craft, chair, origin, facing),
-		"cabin_cockpit_precedes": chair != null and _game._cabin_cockpit_precedes_crew_seat(chair, origin, facing)}))
+		"cached_boarding": _admission_node(_game.boarding_candidate, origin, facing),
+		"cabin_ship": _admission_node(_game.get("_cabin_ship") as Node3D, origin, facing),
+		"boarding_area": _admission_node(boarding_area, origin, facing),
+		"reservation_has": boarding_area.get("_has_reservation") if is_instance_valid(boarding_area) else null,
+		"reservation_type": typeof(reservation),
+		"reservation_id": str(reservation.get_instance_id()) if typeof(reservation) == TYPE_OBJECT and is_instance_valid(reservation) else "",
+		"reservation_is_player": typeof(reservation) == TYPE_OBJECT and is_instance_valid(reservation) and reservation == _player,
+		"cockpit_aim_precedes": chair != null and _game._cockpit_aim_precedes_crew_seat(_craft, chair, origin, facing)}))
 
 # Explicit test fixture: reposition one existing, already adapted range drone
 # along the unchanged seated view. Keep its real collision, bobbing, health and
