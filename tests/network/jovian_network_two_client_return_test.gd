@@ -1130,3 +1130,75 @@ func _postdock_interaction_receipt() -> Dictionary:
 		"area_available_for_player": area != null and area.is_available_for(_player),
 		"area_reservation_is_player": area != null and area.get_reservation_token() == _player,
 		"nearby": nearby}
+
+
+# Read-only diagnosis of the actual hatch/body edge; no action or authority writes.
+var _edge_trace_last: Dictionary = {}
+var _edge_trace_session: Node = null
+var _edge_trace_wire_key := ""
+
+
+func _ticks(count: int) -> void:
+	for _index in count:
+		await super._ticks(1)
+		_trace_body_input_edge()
+
+
+func _trace_body_input_edge() -> void:
+	if not _reboard_selected or not is_instance_valid(_game) or not is_instance_valid(_game.network_session):
+		return
+	var session: Node = _game.network_session
+	if _role == "host" and session != _edge_trace_session:
+		_edge_trace_session = session
+		session.movement_intent_result.connect(_trace_accepted_body_edge)
+	if not _postdock_active:
+		return
+	var row: Dictionary = {"role": _role, "stage": _return_stage}
+	if _role == "host":
+		var avatar := GameFlow.network_client_boarding_avatar_id(int(_flight_start.get("passenger_peer", 0)))
+		var simulation := _game.get_network_remote_body_simulation()
+		var record: Dictionary = simulation.get_body_record(avatar)
+		var body: Node = simulation.get_body(avatar)
+		row.merge({"body_id": body.get_instance_id() if is_instance_valid(body) else 0,
+			"last_interaction_id": record.get("last_interaction_id", -1),
+			"owner_floor": (simulation.get("_interaction_highwater_by_owner") as Dictionary).get(int(_flight_start.get("passenger_peer", 0)), -1),
+			"seat_state": record.get("seat_state", "absent")})
+	elif _role == "client_b":
+		var source := _game.get_network_remote_body_intent_source()
+		if source == null:
+			return
+		var audit: Dictionary = source.get_audit()
+		row.merge({"bound": source.is_bound(), "interaction_id": source.get_interaction_request_id(),
+			"stream_id": audit.get("stream_id", -1), "latched": source.get("_interact_latched"),
+			"input_down": Input.is_action_pressed("interact"),
+			"pending_seat": is_instance_valid(_game.get("_network_engineer_pending_seat"))})
+	else:
+		return
+	if row != _edge_trace_last:
+		_edge_trace_last = row.duplicate(true)
+		row["physics_frame"] = Engine.get_physics_frames()
+		print("JOVIAN_BODY_EDGE %s" % JSON.stringify(row))
+
+
+func _trace_accepted_body_edge(result: Dictionary) -> void:
+	if not _postdock_active or not bool(result.get("accepted", false)):
+		return
+	var avatar := GameFlow.network_client_boarding_avatar_id(int(_flight_start.get("passenger_peer", 0)))
+	if result.get("entity_id") != avatar:
+		return
+	var movement: RefCounted = _game.network_session.get("_movement")
+	var avatars: Dictionary = movement.get("_avatars")
+	var record: Dictionary = avatars.get(avatar, {})
+	var pending: Array = record.get("pending", [])
+	if pending.is_empty():
+		return
+	var wire: Dictionary = pending.back()
+	# Capture actual queued wire only for new stream/id, including its first zero.
+	var key := str(wire.get("stream_id")) + ":" + str(wire.get("interaction_request_id"))
+	if _edge_trace_wire_key == key:
+		return
+	_edge_trace_wire_key = key
+	print("JOVIAN_BODY_EDGE_WIRE %s" % JSON.stringify({"stage": _return_stage,
+		"physics_frame": Engine.get_physics_frames(), "wire": wire,
+		"body_record": _primitive_fields(_game.get_network_remote_body_simulation().get_body_record(avatar),
+			["last_interaction_id", "seat_state", "owner_peer_id"])}))
