@@ -9257,10 +9257,12 @@ func _show_pause_main() -> void:
 
 
 func _show_activity_selection_page() -> void:
+	_trace_beacon_activity_transition("entry")
 	var returning_from_nearby := (
 		_nearby_activity_page != null and _nearby_activity_page.visible
 	)
 	_pause_main_page.visible = false
+	_trace_beacon_activity_transition("after_pause_main_hidden")
 	_settings_page.visible = false
 	_server_browser_page.visible = false
 	if _planetary_destination_page != null:
@@ -9277,7 +9279,68 @@ func _show_activity_selection_page() -> void:
 		else _activity_selection_buttons.get(_activity_selection_kind) as Button
 	)
 	if selected_button != null:
+		_trace_beacon_activity_transition("before_selected_focus")
 		selected_button.grab_focus()
+		_trace_beacon_activity_transition("after_selected_focus")
+
+
+## Diagnostic-only observations of the original native Beacon page transition.
+func _trace_beacon_activity_transition(stage: String, tracked_popup_id: int = 0) -> void:
+	if not OS.get_cmdline_args().has("--native-sortie-observer=beacon-entry") or not is_inside_tree():
+		return
+	var root_window := get_tree().root
+	var popups: Array[Popup] = []
+	_collect_beacon_transition_popups(root_window, popups)
+	var popup_records: Array[Dictionary] = []
+	for popup: Popup in popups:
+		popup_records.append(_beacon_transition_node(popup))
+		if stage == "entry":
+			var exiting := _trace_beacon_activity_transition.bind("popup_tree_exiting", popup.get_instance_id())
+			var exited := _trace_beacon_activity_transition.bind("popup_tree_exited", popup.get_instance_id())
+			if not popup.tree_exiting.is_connected(exiting):
+				popup.tree_exiting.connect(exiting, CONNECT_ONE_SHOT)
+			if not popup.tree_exited.is_connected(exited):
+				popup.tree_exited.connect(exited, CONNECT_ONE_SHOT)
+	var root_bindings: Array[Dictionary] = []
+	for signal_name: StringName in [&"focus_entered", &"tree_exited"]:
+		for connection: Dictionary in root_window.get_signal_connection_list(signal_name):
+			var callback: Callable = connection.get("callable", Callable())
+			var recipient := callback.get_object()
+			root_bindings.append({"signal": str(signal_name), "recipient_id": callback.get_object_id(),
+				"recipient_class": recipient.get_class() if is_instance_valid(recipient) else "",
+				"method": str(callback.get_method()), "custom": callback.is_custom(),
+				"hash": callback.hash(), "valid": callback.is_valid(), "flags": int(connection.get("flags", 0))})
+	var tracked := instance_from_id(tracked_popup_id) as Popup if tracked_popup_id != 0 else null
+	print("BEACON_ACTIVITY_TRANSITION: " + JSON.stringify({"stage": stage,
+		"physics_frame": Engine.get_physics_frames(), "process_frame": Engine.get_process_frames(),
+		"ticks_msec": Time.get_ticks_msec(), "root_id": root_window.get_instance_id(),
+		"main_id": get_parent().get_instance_id(), "hud_id": get_instance_id(),
+		"pause_main_visible": _pause_main_page.visible, "activity_visible": _activity_selection_page.visible,
+		"hover": _beacon_transition_node(root_window.gui_get_hovered_control()),
+		"focus": _beacon_transition_node(root_window.gui_get_focus_owner()),
+		"popups": popup_records, "tracked_popup_id": tracked_popup_id,
+		"tracked_popup": _beacon_transition_node(tracked), "root_bindings": root_bindings}))
+
+
+func _collect_beacon_transition_popups(node: Node, popups: Array[Popup]) -> void:
+	if node is Popup:
+		popups.append(node as Popup)
+	for child: Node in node.get_children(true):
+		_collect_beacon_transition_popups(child, popups)
+
+
+func _beacon_transition_node(node: Node) -> Dictionary:
+	if not is_instance_valid(node):
+		return {"id": 0, "valid": false}
+	var record := {"id": node.get_instance_id(), "valid": true,
+		"class": node.get_class(), "parent_id": node.get_parent().get_instance_id() if node.get_parent() != null else 0,
+		"path": str(node.get_path()) if node.is_inside_tree() else "",
+		"inside_tree": node.is_inside_tree(), "queued": node.is_queued_for_deletion()}
+	if node is Popup:
+		var popup := node as Popup
+		record.merge({"visible": popup.visible, "embedded": popup.is_embedded(),
+			"theme": str(popup.theme_type_variation)})
+	return record
 
 
 func _show_planetary_destination_page() -> void:
