@@ -279,6 +279,15 @@ craft/world/cycle and relationship to existing world endurance remain undefined.
 PERF-ROUTES-DEFINE stays open. This source handoff adds no gameplay or native
 performance result and selects no new route or parked startup retry.
 
+### Fleet route selection — full reuse scope retained
+
+Source review confirms three assigned Fleet Dock berths, including Bulwark;
+the completion roster's deferred-Dock03 sentence was stale. Original all-shipped
+reach/reuse covers nine craft and shares existing CRAFT-ACCEPT journeys.
+[Exact scope and missing runnable boundary](docs/ROADMAP_BACKLOG.md#fleet-access-and-reuse--shared-acceptance-boundary).
+No three-berth threshold substitute, renamed Sandbox retry or new engine run
+selected. Fleet access/reuse and presentation acceptance remain open.
+
 ## Finish rules for every next task
 
 1. Select one named player/build outcome from the inventory. State parent, exact

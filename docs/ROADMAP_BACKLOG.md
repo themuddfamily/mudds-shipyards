@@ -149,7 +149,7 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | HABITAT-BUNK-REST | Six production Habitat bunks offer actual local SLEEP/WAKE with supported return and lifecycle cleanup | 7,9 | DONE; packaged221f523. Six StationSeat-based bunks, focused134/full spine/Habitat/ship sleep checks and paired startup pass; no saved station pose or ship/recovery/network authority expansion |
 | WALK-FREIGHT | Full Freight terminal/door/room/conserved-transfer/receipt-reload/same-ship return | 7,9 | GATED on missing FREIGHT-TERMINAL-INTERFACE and its workflow choice; decorative screens are not implemented terminal interactions. Existing Jovian automatic cargo delivery remains accepted in its own scope; KIT-RELOAD remains PARKED. [Concrete ordered handoff](#freight-terminals--physical-interface-and-existing-transfer-owner); no route selected |
 | FREIGHT-TERMINAL-INTERFACE | Ordinary Freight terminal interaction bound to actual conserved cargo owners | 7,9,13 | Missing production integration; workflow choice pending (existing automatic return transfer with physical job/receipt controls, or manual terminal transfer). Preserve existing6-kit source/berth capacity64 and exact two-kit entitlement, no cloned manifests/stock. Source boundary and ordered acceptance below; no implementation/execution selected |
-| WALK-FLEET | Fleet Dock berths | 7,9 | UNSCHEDULED; exact production-roster route |
+| WALK-FLEET | Fleet Dock access and all-shipped berth reuse, shared with CRAFT-ACCEPT | 7,9 | DEFINE runnable boundary; three assigned comb berths are Zenith/Halyard/Bulwark, but original all-shipped reach/reuse covers nine current craft through existing CRAFT-ACCEPT journeys. No threshold-only completion or duplicate Sandbox route; [scope and seam](#fleet-access-and-reuse--shared-acceptance-boundary) |
 | WALK-ANNEX | Fresh normal hub→Annex console→hub with one actual restock | 7,9 | DONE source9af57671d;81.387s, same supported Player, kits5→6/one Annex update/Aft unchanged, disclosed pre-walk craft/repair fixtures; no whole-station closure |
 | WALK-OBSERVATION | Observation supported return | 7,9 | Main/final acceptance OPEN. Original four failures retained, including actual Tooltip native disconnects. Privatebae551d58 full route PASS:54 goals/345.753m,60-frame view/home/normal Exit0, zero diagnostics. Additional repair acceptance INCONCLUSIVE: no visible TooltipPanel in that run; candidate pushed/unmerged/withheld, no checkpoint or second attempt. [Full scoped result](history/ROADMAP_DELIVERIES.md#process-exit-tooltip-cleanup-order--route-passed-regression-unproved) |
 | WALK-SALVAGE | Salvage three-component manifest | 7,9 | OPEN; definition DONE, ordered ACCESS/INSPECT/REVISIT children below; existing connector-staged memory-store scope retained |
@@ -998,6 +998,32 @@ Scope: original §2 and §7; Phases 1, 3–6 and 10.3. A component pass does not
 | CRAFT-ACCEPT[one completed craft] | GATED on all promised capabilities | Run that craft's full fleet scenario: access/roles/flight/combat/damage/recovery/reuse and art/limits. Stop at named craft result, not the entire fleet. |
 
 Original fleet remains Torrent, Arrow, Jovian, Titan, Vortex, Paradox, Katana, Predator, Dynamic, Utopia, Salyut and Zenith. Missing definitions: **Titan, Vortex, Paradox, Katana, Predator, Dynamic, Utopia and Salyut**. Instantiate ORIGINAL-SPEC/BUILD/ACCEPT per craft. Four original-inspired candidates plus five modern designs do not finish the twelve-original commitment. Modern interpretations require explicit scope decisions and honest labels.
+
+### Fleet access and reuse — shared acceptance boundary
+
+WALK-FLEET source handoff on995fb9621 resolves the roster, not acceptance.
+`FleetDockComb` has three assigned docks with world-owned Zenith, Halyard and
+Bulwark berths. Its Dock03 historical landmark key is not a deferred berth.
+The original “Fleet comb and all shipped craft berths” requirement also demands
+physical reach and reuse of every shipped craft, separated voids/neighbour
+clearance, fleet overview and player-height review. Current shipped roster:
+Torrent, Arrow, Jovian, Zenith, Halyard, Bulwark, Cinder Light Interceptor,
+Cinder Cargo Hauler and Cinder Long-Range Bomber.
+
+Use the existing nine `CRAFT-ACCEPT-*` journeys for reuse; do not create another
+fleet matrix. LIFE-ARM's Zenith approach and `SandboxPilot.begin_craft()` supply
+route references, not full all-shipped acceptance. Missing runnable boundary:
+a supported ordinary-package reach/reuse command mapped to those existing
+journeys and their required interactions. Threshold walking alone cannot close
+this requirement. Preserve the original parked Sandbox all-nine/54-waypoint,
+crash and reuse route unchanged; a renamed shorter selector cannot replace it.
+The two-client HALYARD-BOARD failure does not establish a solo Fleet walking
+blocker, and this source review found no separate solo access defect.
+
+If a concrete full route is selected later, extend only the existing startup
+selector guard, read-only native-sortie observer, OS-input driver and focused
+Python checks. No new route, engine run, gameplay repair or checkpoint was
+selected by this handoff; overview/native/player-height review remains open.
 
 ### Station presentation — finite review boundaries
 
