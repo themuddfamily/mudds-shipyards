@@ -3008,6 +3008,7 @@ func _notification(what: int) -> void:
 		# may synchronously publish CLEAN_SHUTDOWN before SceneTree accepts the
 		# quit; detach, free, and streaming notifications remain non-authoritative.
 		mark_orderly_shutdown()
+		_prepare_process_close()
 		return
 	if what != NOTIFICATION_PREDELETE:
 		return
@@ -23939,8 +23940,17 @@ func mark_orderly_shutdown() -> Dictionary:
 ## clean marker cannot be written (for example, a failing filesystem).
 func _on_orderly_shutdown_requested() -> void:
 	mark_orderly_shutdown()
+	_prepare_process_close()
 	if is_inside_tree():
 		get_tree().quit()
+
+
+## Only actual process-close ingress retires root GUI input. Disabling it lets
+## the Viewport cancel its native tooltip and queue its deletion before root
+## teardown. Marker-only callers such as Restart Shift retain an interactive root.
+func _prepare_process_close() -> void:
+	if is_inside_tree():
+		get_tree().root.gui_disable_input = true
 
 
 ## The only public caption payload: the service's detached, validated consumer

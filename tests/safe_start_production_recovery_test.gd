@@ -272,6 +272,25 @@ func _test_startup_physics_reentry_and_explicit_shutdown() -> void:
 	parent.add_child(game)
 	game.set_physics_process(false)
 	await process_frame
+	var prior_gui_disable_input := root.gui_disable_input
+	root.gui_disable_input = false
+	game.mark_orderly_shutdown()
+	_check(
+		not root.gui_disable_input,
+		"marker-only shutdown used by Restart Shift preserves retained root GUI input"
+	)
+	# Exercise HUD exit's preparation seam without quitting this test's tree.
+	game._prepare_process_close()
+	_check(root.gui_disable_input, "process-close preparation disables root GUI input")
+	root.gui_disable_input = false
+	# Unlike HUD exit, this notification leaves quitting to SceneTree itself.
+	game.notification(Node.NOTIFICATION_WM_CLOSE_REQUEST)
+	_check(root.gui_disable_input, "in-tree window-manager close retires root GUI input")
+	root.gui_disable_input = prior_gui_disable_input
+	_check(
+		root.gui_disable_input == prior_gui_disable_input,
+		"close preparation checks restore the test tree's original GUI input state"
+	)
 	game.queue_free()
 	await process_frame
 	await process_frame
