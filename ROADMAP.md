@@ -119,10 +119,32 @@ identities absent,11 public files hash-verified,21 profile entries archived/
 verified, helpers preserved; owned checkout/cache/profiles/helpers removed.
 [Actual delivery](docs/history/ROADMAP_DELIVERIES.md#help-close-contrast--shipped-on-820cc38).
 
-**Next single action:** select the next independent production outcome from the
-existing backlog. Keep parked Wing/other failures and waiting owner decisions
-explicit; do not reopen an adjacent failed route or count this local fix as a
-closed broad parent. All36 parents and ten phase gates remain open.
+### Selected shared menu-button contrast correction
+
+ACCESS-VIEWS / parents12,29, following the accepted local Help CLOSE fix.
+**07:49–08:29UTC/40min** including implementation/review, checks, paired build
+and cleanup. The shared `_menu_button` still paints other consumers with the
+same brighter0.55/0.35 hover/pressed fills; nominal pressed contrast cannot clear
+4.5 even with white text. Correct this shared production cause across existing
+roles instead of another sequence of individual button repairs. Preserve
+normal/focus paints, geometry/navigation/actions and accepted local CLOSE paints.
+One medium implementer owns scripts/ui/hud.gd and existing
+accessibility_presets_test.gd. Set shared palette-aware hover/pressed text and
+sufficiently dark role-tinted fills; migrate the prior unchanged-default assertion
+to the new readable shared contract. Measure real Resume(NOMINAL), Settings
+(NOMINAL_SOFT), Restart(CAUTION), Exit(DANGER) and Activity Back(MUTED) paints
+across4 palettes×2 contrast modes×4states, with reset and focus/geometry checks.
+Existing Help/title checks remain. Estimate10–20min implementation/review.
+
+Before engines freeze clean source/commands: import180s; existing accessibility
+120s, Help120s and controller_pause_navigation_prompt_test.gd90s (headless/Dummy).
+Paired exports180s each; three strict startups120s each; existing actual PCK/PE/
+archive audit90s. First unexpected failure stops; no automatic repair/retry/cap
+increase. No new validator/test family, gameplay or broader rendering/device/
+human qualification. Publish only passing reviewed candidate, then hash-verify
+public files/archive unique data and remove owned checkout/cache/profiles/helpers.
+Parked routes and their cumulative failures stay parked. All36 broad parents
+and ten phase gates remain open.
 
 ### Waiting decisions — not executable tasks
 
