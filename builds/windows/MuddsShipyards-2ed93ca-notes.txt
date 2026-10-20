@@ -1,0 +1,23 @@
+Mudds Shipyards development checkpoint 2ed93ca
+Source commit: 2ed93caafa738ffdde731ce907cb727005bfa308
+
+Player-visible change
+- Settings save success/failure, settings recovery headings, nearby activity feedback and Activity Board selection status use their current text colour once, rather than multiplying it by the creation-time colour.
+- Those messages follow later accessibility palette/high-contrast changes. Existing wording, visibility, action/refusal rules, focus and persistence/reward authority are retained.
+- Earlier six-gameplay-readout and Destination Board colour fixes remain through the unchanged role helper.
+
+Validation performed
+- Clean source import PASS.
+- Full existing settings save-feedback suite 11, runtime-settings recovery HUD 35, nearby activity HUD 26 and controller/pause navigation 113 assertions PASS.
+- Focused caller additions cover save fail/success, available/blocked recovery, nearby binding/start/reset/reward/refusal and selection ready/locked/repeat/stock/failure/Patrol refusal. Actual retained label identity/current role/single registration, font colour times neutral modulation, and one subsequent deuteranopia/high-contrast repaint per family verified. Existing assertions retained; no duplicated palette matrix.
+- Existing full HUD layout 552 checks PASS, including32 retained Destination palette/contrast comparisons. Generic gameplay palette matrix remains accepted on941ef73; unchanged helper was not rerun here.
+- Clean Windows/Linux exports PASS; Linux executable/archive strict startups PASS, each exit0 plus exactly one STARTUP_MENU_READY_OK.
+- Windows embedded payload through supported Linux engine PASS: exit0 plus exactly one STARTUP_MENU_READY_OK. Native Windows was not run.
+- Actual Windows/Linux PCK inventories match all1521 entries; stockPE.text/ELF and exact Linux archive binary/icon/installer bytes/modes/source epoch/metadata verified.
+- All12 frozen stages PASS first attempt, zero diagnostics; 174.247s combined. Original09:25-10:10UTC/45min budget and command caps retained.
+
+Open qualification
+- Headless caller/theme checks do not establish rendered/human readability, physical devices, full recovery/activity journeys or the full accessibility matrix.
+- No generic-helper, settings write/repair, activity, reward, focus, save or network authority change. Parked Activity Board/Tooltip/Defense/Wing/Perimeter/Breach/KIT-RELOAD routes remain unaccepted; Freight workflow stays pending.
+- Native Windows execution NOT_RUN (owner hold retained). Native GPU/performance, physical devices, real audio/listening, human/full-release/final candidate and unfiltered final regression gates NOT_RUN/open.
+- Accepted Guided3/3 remains scoped to3d92b91, not this package.
