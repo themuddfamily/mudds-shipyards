@@ -88,7 +88,185 @@ class FakeFilesystem extends UserDataFilesystem:
 
 
 func _initialize() -> void:
+	for argument: String in OS.get_cmdline_user_args():
+		if argument.begins_with("--tooltip-close-child="):
+			var mode := argument.trim_prefix("--tooltip-close-child=")
+			if mode not in ["hud", "wm"]:
+				print("TOOLTIP_CLOSE_CHILD: " + JSON.stringify({"event": "FAIL", "reason": "invalid_close_mode"}))
+				quit(1)
+				return
+			call_deferred(&"_run_tooltip_close_child", mode)
+			return
 	_run()
+
+
+# Dedicated external-input child cases. They never create a Popup, activate an
+# exit signal, or alter automatic quit: the host owns real pointer/close input.
+var _tooltip_child_mode := ""
+var _tooltip_child_main_id := 0
+var _tooltip_child_popup_id := 0
+var _tooltip_child_sequence := 0
+var _tooltip_child_destination_id := 0
+
+
+func _run_tooltip_close_child(mode: String) -> void:
+	_tooltip_child_mode = mode
+	var filesystem := FakeFilesystem.new()
+	var game := MAIN_SCENE.instantiate() as GameFlow
+	if not game.configure_runtime_settings_persistence(Store.new(STORE_PATH, filesystem), LEGACY_PATH):
+		_tooltip_child_fail("isolated_store_configuration_refused")
+		return
+	root.add_child(game)
+	_tooltip_child_main_id = game.get_instance_id()
+	game.tree_exiting.connect(_tooltip_child_lifetime.bind("main_tree_exiting", _tooltip_child_main_id))
+	root.tree_exiting.connect(_tooltip_child_lifetime.bind("root_tree_exiting", root.get_instance_id()))
+	await process_frame
+	await process_frame
+	var hud := game.hud as GameHUD
+	if not is_instance_valid(hud):
+		_tooltip_child_fail("actual_main_hud_unavailable")
+		return
+	hud.set_paused(true)
+	var page := hud.get("_pause_main_page") as Control
+	var destination := page.find_child("PlanetaryDestinationOpenButton", true, false) as Button if is_instance_valid(page) else null
+	var exit_button := page.find_child("ExitButton", true, false) as Button if is_instance_valid(page) else null
+	if not is_instance_valid(destination) or not is_instance_valid(exit_button):
+		_tooltip_child_fail("original_pause_buttons_unavailable")
+		return
+	_tooltip_child_destination_id = destination.get_instance_id()
+	exit_button.grab_focus()
+	await process_frame
+	await process_frame
+	if not page.is_visible_in_tree() or root.gui_get_focus_owner() != exit_button or destination.tooltip_text.is_empty():
+		_tooltip_child_fail("original_visible_pause_focus_or_tooltip_unavailable")
+		return
+	var screen_transform := destination.get_screen_transform()
+	var screen_origin := screen_transform * Vector2.ZERO
+	var screen_end := screen_transform * destination.size
+	_tooltip_child_emit("READY", {"window_id": root.get_window_id(),
+		"native_window_id": DisplayServer.window_get_native_handle(DisplayServer.WINDOW_HANDLE, root.get_window_id()),
+		"destination_id": destination.get_instance_id(), "destination_path": str(destination.get_path()),
+		"destination_screen_rect": [screen_origin.x, screen_origin.y, screen_end.x-screen_origin.x, screen_end.y-screen_origin.y],
+		"exit_focus_id": exit_button.get_instance_id(), "exit_path": str(exit_button.get_path())})
+	var deadline := Time.get_ticks_msec() + 30000
+	var hover_observation_index := 0
+	var hover_observation_delays := [250, 1000, 3000]
+	while Time.get_ticks_msec() < deadline:
+		for child: Node in destination.get_children(true):
+			if child is PopupPanel:
+				var popup := child as PopupPanel
+				if popup.visible and popup.is_embedded() and popup.theme_type_variation == &"TooltipPanel" 						and popup.get_parent() == destination:
+					_tooltip_child_popup_id = popup.get_instance_id()
+					popup.tree_exiting.connect(_tooltip_child_lifetime.bind("popup_tree_exiting", _tooltip_child_popup_id))
+					popup.tree_exited.connect(_tooltip_child_lifetime.bind("popup_tree_exited", _tooltip_child_popup_id))
+					_tooltip_child_emit("ACTIVE", {"popup": _tooltip_child_node(_tooltip_child_popup_id),
+						"destination_id": destination.get_instance_id(),
+						"exit_focus_id": root.gui_get_focus_owner().get_instance_id() if is_instance_valid(root.gui_get_focus_owner()) else 0})
+					return
+		var hover_elapsed := Time.get_ticks_msec() - (deadline - 30000)
+		if hover_observation_index < hover_observation_delays.size() \
+				and hover_elapsed >= hover_observation_delays[hover_observation_index]:
+			_tooltip_child_emit("HOVER", {"elapsed_after_ready_msec": hover_elapsed})
+			hover_observation_index += 1
+		await process_frame
+	_tooltip_child_fail("original_visible_embedded_tooltip_not_observed_within_30s")
+
+
+func _tooltip_child_node(object_id: int) -> Dictionary:
+	var object := instance_from_id(object_id) if object_id != 0 else null
+	var result := {"id": object_id, "valid": is_instance_valid(object)}
+	if not is_instance_valid(object):
+		return result
+	if object is Node:
+		var node := object as Node
+		result.merge({"inside_tree": node.is_inside_tree(), "queued_for_deletion": node.is_queued_for_deletion(),
+			"path": str(node.get_path()) if node.is_inside_tree() else "",
+			"parent_id": node.get_parent().get_instance_id() if is_instance_valid(node.get_parent()) else 0})
+	if object is PopupPanel:
+		var popup := object as PopupPanel
+		result.merge({"visible": popup.visible, "embedded": popup.is_embedded(),
+			"theme_type_variation": str(popup.theme_type_variation)})
+	return result
+
+
+func _tooltip_child_bindings(popup_id: int = 0) -> Array:
+	var target_id := _tooltip_child_popup_id if popup_id == 0 else popup_id
+	var records: Array = []
+	for signal_name: StringName in [&"focus_entered", &"tree_exited"]:
+		for connection: Dictionary in root.get_signal_connection_list(signal_name):
+			var callback: Callable = connection.get("callable", Callable())
+			if callback.get_object_id() == target_id:
+				records.append({"signal": str(signal_name), "target_id": callback.get_object_id(),
+					"custom": callback.is_custom(), "valid": callback.is_valid(),
+					"hash": callback.hash(), "flags": int(connection.get("flags", 0))})
+	return records
+
+
+func _tooltip_child_control(control: Control) -> Dictionary:
+	if not is_instance_valid(control):
+		return {"id": 0, "valid": false}
+	var record := _tooltip_child_node(control.get_instance_id())
+	record.merge({"tooltip_text": control.tooltip_text, "mouse_filter": control.mouse_filter,
+		"visible": control.visible, "visible_in_tree": control.is_visible_in_tree(),
+		"process_mode": control.process_mode, "processing_input": control.is_processing_input(),
+		"processing_unhandled_input": control.is_processing_unhandled_input(),
+		"processing_unhandled_key_input": control.is_processing_unhandled_key_input(),
+		"focus_mode": control.focus_mode})
+	if control is BaseButton:
+		record["disabled"] = (control as BaseButton).disabled
+	if control.is_inside_tree():
+		var screen_transform := control.get_screen_transform()
+		var screen_origin := screen_transform * Vector2.ZERO
+		var screen_end := screen_transform * control.size
+		record["screen_rect"] = [screen_origin.x, screen_origin.y,
+			screen_end.x - screen_origin.x, screen_end.y - screen_origin.y]
+	return record
+
+
+func _tooltip_child_hover_state() -> Dictionary:
+	var window_id := root.get_window_id()
+	var native_pointer := DisplayServer.mouse_get_position()
+	var window_position := DisplayServer.window_get_position(window_id)
+	var window_size := DisplayServer.window_get_size(window_id)
+	var viewport_pointer := root.get_mouse_position()
+	var destination := instance_from_id(_tooltip_child_destination_id) as Control \
+		if _tooltip_child_destination_id != 0 else null
+	var popups: Array[Dictionary] = []
+	if is_instance_valid(destination):
+		for child: Node in destination.get_children(true):
+			if child is PopupPanel:
+				var popup := _tooltip_child_node(child.get_instance_id())
+				popup["root_bindings"] = _tooltip_child_bindings(child.get_instance_id())
+				popups.append(popup)
+	return {"mouse_mode": Input.mouse_mode,
+		"native_pointer": [native_pointer.x, native_pointer.y],
+		"window_id": window_id, "window_position": [window_position.x, window_position.y],
+		"window_size": [window_size.x, window_size.y],
+		"window_focused": DisplayServer.window_is_focused(window_id),
+		"viewport_pointer": [viewport_pointer.x, viewport_pointer.y],
+		"root_size": [root.size.x, root.size.y],
+		"content_scale_size": [root.content_scale_size.x, root.content_scale_size.y],
+		"hovered_control": _tooltip_child_control(root.gui_get_hovered_control()),
+		"focused_control": _tooltip_child_control(root.gui_get_focus_owner()),
+		"destination": _tooltip_child_control(destination), "destination_popups": popups}
+
+
+func _tooltip_child_emit(event: String, details: Dictionary) -> void:
+	_tooltip_child_sequence += 1
+	print("TOOLTIP_CLOSE_CHILD: " + JSON.stringify({"event": event, "sequence": _tooltip_child_sequence,
+		"mode": _tooltip_child_mode, "pid": OS.get_process_id(), "ticks_msec": Time.get_ticks_msec(),
+		"gui_disable_input": root.gui_disable_input, "main": _tooltip_child_node(_tooltip_child_main_id),
+		"popup": _tooltip_child_node(_tooltip_child_popup_id), "root_bindings": _tooltip_child_bindings(),
+		"hover": _tooltip_child_hover_state(), "details": details}))
+
+
+func _tooltip_child_lifetime(event: String, owner_id: int) -> void:
+	_tooltip_child_emit(event, {"owner_id": owner_id})
+
+
+func _tooltip_child_fail(reason: String) -> void:
+	_tooltip_child_emit("FAIL", {"reason": reason})
+	quit(1)
 
 
 func _run() -> void:
