@@ -210,6 +210,22 @@ verified and helpers preserved. Owned clean pushed/integrated checkout/import
 cache/profiles/helpers removed; only results remain. No successor or parked-route
 retry is selected here.
 
+### Freight terminal integration — bounded handoff, workflow pending
+
+WALK-FREIGHT source preflight found missing production interaction: Freight's
+screens/kiosk are decorative; reusable source terminal is not instantiated and
+the destination terminal is on Cinder. Existing Jovian cargo binds ship/berth
+manifests and transfers automatically on landing. Corrected the completion roster
+from implemented to missing physical integration; no knowingly incomplete walk
+or new engine probe was run.
+
+[Ordered handoff](docs/ROADMAP_BACKLOG.md#freight-terminals--physical-interface-and-existing-transfer-owner)
+now separates physical interface, genuine existing transfer journey, original
+parked KIT-RELOAD and full ordinary branch acceptance. Original conservation,
+committed receipt/reload and same-ship return remain required; inspect-only cannot
+close the row. One workflow question is pending below. No production task or
+qualification execution selected; no scratch checkout created.
+
 ### Waiting decisions — not executable tasks
 
 These questions have already been asked. Keep them pending without asking again
@@ -217,6 +233,7 @@ or treating elapsed time as a choice.
 
 | Child | Required input | Result after the dependency resolves |
 | --- | --- | --- |
+| FREIGHT-TERMINAL-WORKFLOW | Newly asked: physical terminals select the existing Jovian job/show manifests and receipt while keeping automatic landing transfer (recommended), or manual terminal transfer after docking. No answer recorded. | Freeze exact physical endpoint/manifest ownership and one production-interface assignment; preserve existing stock/once-only transfer and full walk/reload/same-ship requirement. Separate from Hauler policy. |
 | [AUDIO-NAVIGATOR-CLIENT-REJECTION](docs/COMPLETION_SCOPE.md#client-navigator-rejection-response--bounded-definition-next) | All fresh current refusals including unavailable consumer, or consumer/bridge refusals only. | Correct requester-correlated refusal feedback. Freeze implementation/proof after the choice; prior estimate 45–60min implementation/review, 15–25min checks, 10–15min checkpoint. |
 | [HAULER-CARGO-MANIFEST](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries) | Shared existing stock, separate Hauler stock, or loading-terminal custody. | Actual Hauler cargo admission and conserved source ownership; ordinary delivery remains separately gated. Generation-floor API already exists; freeze files/proof after the choice. Prior estimate 60–90min implementation/checks, checkpoint additional; split before 90min. |
 | [TRAVEL-LIMIT Beacon outbound](docs/ROADMAP_BACKLOG.md#beacon-outbound-travel-envelope--proposal-awaiting-decision) | Newly asked:30s or60s unpaused elapsed from engine-start input at the occupied Torrent berth to controlled first Beacon. No answer recorded. | Agree one numeric leg target before adding/qualifying its existing-driver timing; no simulation-only proof, return/roster reduction or parked retry. |

@@ -1,6 +1,9 @@
 # Completion scope and production roster
 
-Latest accepted paired checkpoint: **ea8fe43**, clean source
+Current accepted checkpoint and executable work are in [ROADMAP.md](../ROADMAP.md).
+The service-checkpoint detail below retains its original source scope.
+
+Recorded service checkpoint: **ea8fe43**, clean source
 `ea8fe43e7d9b3045866052574283c3170f2490a7`
 ([Windows notes](../builds/windows/MuddsShipyards-ea8fe43-notes.txt),
 [Linux notes](../builds/linux/MuddsShipyards-ea8fe43-linux-notes.txt)). Ordinary
@@ -428,7 +431,7 @@ The [production scene](../scenes/world/shipyard_world.tscn), [world owner](../sc
 | Central berth, Arrow berth, launch gate and return apron | 2, 3, 10.3 | `shipyard_world.tscn`, `shipyard_world.gd` | I | On the final package walk from spawn, board, launch under the marked gate, return by ordinary assist, dock and exit; review collision, camera and readable minimum graphics. |
 | Aft junction, two elevations and operations room | 3, 10.3 | `aft_junction_stack.tscn` | I | Walk the stairs, operate the door and board console, then return without jumping or rescue; verify signage and no fleet landing-envelope overlap. |
 | Habitat connector, bunks and common room | 3, 10.3 | `habitat_spine.tscn` | I | Rest/wake at all six bunks delivered in221f523; ordinary hub/rest/common-room/reverse loop qualified on actual archive 3707bc9. Normal same-profile distinct-process restart/awake controls/tractor interaction and both UI quits accepted on29abe94; final packaged dressing/native review remains open. |
-| Freight berth and source/destination terminals | 3, 8 | `jovian_freight_berth.tscn`, `cargo_source_terminal.tscn`, `cargo_destination_terminal.tscn` | I | Walk to each terminal, transfer real conserved cargo, reload the committed receipt and return to the same ship; rejected writes must not duplicate inventory. |
+| Freight berth and source/destination terminals | 3, 8 | Berth/door exist; Freight dispatch screens and manifest kiosk are decorative. Source terminal scene has no production instance; destination terminal is on Cinder. Existing Jovian transfer binds ship/berth directly and commits automatically on landing. | M | Physical Freight-terminal integration is missing. [Bounded handoff](ROADMAP_BACKLOG.md#freight-terminals--physical-interface-and-existing-transfer-owner) preserves walk to each terminal, real conserved transfer, committed-receipt reload and same-ship return; rejected writes must not duplicate inventory. Terminal workflow choice pending; inspect-only cannot close the transfer requirement. |
 | Fleet comb and all shipped craft berths | 3–5, 10.3 | `fleet_dock_comb.tscn`, world-owned berth instances | I | Physically reach and reuse every shipped craft, retain separated voids and neighbour clearance, then review fleet overview and player-height routes. Dock 03's deferred marker is not a delivered berth. |
 | Fabrication Annex repair-kit service | 3, 8 | `fabrication_annex.tscn` | I | Walk up and Interact to restock within the cap; repeat with unavailable/departed ownership and review normal/minimum readability. |
 | Observation/logistics spur | 3, 10.3 | `observation_logistics_spur.tscn` | I | Traverse its connector and viewing route, return supported, and inspect camera/head clearance and guidance. |

@@ -147,7 +147,8 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | WALK-HABITAT-LOOP | Fresh normal Start Shift, hub→door→bunk sleep/wake→common room→same hub | 7,9 | DONE packaged3707bc9: actual archive ELF OS-XTest full route54.259s/163.231m, exact reservation/wake/commons/support/hub return, same Player. No scenario placement; hardware/final-source scope stays separate |
 | WALK-HABITAT-RESTART | Normal quit while resting, distinct process with same data, fresh awake supported controls | 7,9 | DONE packaged29abe94: two normal UI exits/exit0, same actual data/distinct PID, fresh supported look/walk/tractor interaction68.756s under singleCAP300. No station pose or OS-kill claim; exact continuation below |
 | HABITAT-BUNK-REST | Six production Habitat bunks offer actual local SLEEP/WAKE with supported return and lifecycle cleanup | 7,9 | DONE; packaged221f523. Six StationSeat-based bunks, focused134/full spine/Habitat/ship sleep checks and paired startup pass; no saved station pose or ship/recovery/network authority expansion |
-| WALK-FREIGHT | Freight terminals | 7,9 | UNSCHEDULED; exact production-roster route |
+| WALK-FREIGHT | Full Freight terminal/door/room/conserved-transfer/receipt-reload/same-ship return | 7,9 | GATED on missing FREIGHT-TERMINAL-INTERFACE and its workflow choice; decorative screens are not implemented terminal interactions. Existing Jovian automatic cargo delivery remains accepted in its own scope; KIT-RELOAD remains PARKED. [Concrete ordered handoff](#freight-terminals--physical-interface-and-existing-transfer-owner); no route selected |
+| FREIGHT-TERMINAL-INTERFACE | Ordinary Freight terminal interaction bound to actual conserved cargo owners | 7,9,13 | Missing production integration; workflow choice pending (existing automatic return transfer with physical job/receipt controls, or manual terminal transfer). Preserve existing6-kit source/berth capacity64 and exact two-kit entitlement, no cloned manifests/stock. Source boundary and ordered acceptance below; no implementation/execution selected |
 | WALK-FLEET | Fleet Dock berths | 7,9 | UNSCHEDULED; exact production-roster route |
 | WALK-ANNEX | Fresh normal hub→Annex console→hub with one actual restock | 7,9 | DONE source9af57671d;81.387s, same supported Player, kits5→6/one Annex update/Aft unchanged, disclosed pre-walk craft/repair fixtures; no whole-station closure |
 | WALK-OBSERVATION | Observation supported return | 7,9 | Main/final acceptance OPEN. Original four failures retained, including actual Tooltip native disconnects. Privatebae551d58 full route PASS:54 goals/345.753m,60-frame view/home/normal Exit0, zero diagnostics. Additional repair acceptance INCONCLUSIVE: no visible TooltipPanel in that run; candidate pushed/unmerged/withheld, no checkpoint or second attempt. [Full scoped result](history/ROADMAP_DELIVERIES.md#process-exit-tooltip-cleanup-order--route-passed-regression-unproved) |
@@ -248,6 +249,57 @@ Estimate one driver/observer route at30–60min implementation/review plus10–2
 checks/package/cleanup; split before90min. These are planning estimates, not
 permission to restart a failed card's clock. First successful packaged clear
 still leaves other craft, encounter, damage, recovery and parent11 gates open.
+
+### Freight terminals — physical interface and existing transfer owner
+
+Source definition2026-10-20 on801b38e7a, one medium bounded source mapper plus
+root contract review; no edits to production, engines, tests or ordinary run.
+This corrects the roster's former implication that physical Freight terminals
+were implemented. The berth and existing automatic delivery are retained.
+
+Actual production boundaries:
+- JovianFreightBerth owns approach/apron/boarding/cargo-transfer/service-threshold/
+  service-room/cargo-rack route markers and the ordinary ServiceAccess StationDoor.
+  DispatchScreens and ManifestKiosk are StaticBody/Mesh fixtures without prompt or
+  interact methods; they are not cargo adapters.
+- scenes/world/modules/cargo_source_terminal.tscn has no production instantiation.
+  cargo_destination_terminal.tscn is instantiated by nearby_sector_cluster.gd
+  at the Cinder platform, not in the Freight station branch.
+- GameFlow _initialize_cargo_delivery_composition binds the actual Jovian ship
+  and Freight berth directly to CargoTransferAuthority. Existing job uses
+  fabrication_kits, source capacity/initial6 and destination capacity64, transfers
+  exactly2 on successful return landing through _complete_cargo_delivery_on_return.
+  Existing accepted KIT-BOARD/DEPART/DELIVER are not missing production work.
+- CargoTransferTerminal.bind_authority currently requires handle entity_id equal
+  terminal_id and manifest_id equal its configured manifest. A physical adapter
+  must resolve that actual ownership seam; do not alias an independent terminal
+  as the ship, register a second stocked manifest, or mint extra cargo.
+- Normal Player E candidate discovery/dispatch exists. Neither Activity Board
+  navigation nor a new transfer/reward authority is required merely to expose a
+  physical endpoint, but the chosen workflow must use the existing cargo owner.
+
+One design question was presented with a concrete recommended workflow: physical
+terminals select the existing job/show actual manifests and saved receipt, keeping
+its automatic landing transfer; alternative is manual transfer after docking.
+No answer is recorded. Both must retain conserved quantities, once-only durable
+settlement and same-ship return. An inspect-only panel without the genuine transfer
+journey cannot close WALK-FREIGHT. This decision concerns Freight/Jovian; it does
+not answer the separate already-pending Hauler stock policy.
+
+Ordered deliverables, not executable cards or fixed completion estimates:
+
+| Deliverable | Production result and proof | Dependency / stop |
+| --- | --- | --- |
+| FREIGHT-TERMINAL-INTERFACE | Exact source/destination placement on existing Freight fittings; real prompt/ordinary E; current owner/manifest identity and honest enabled/refused feedback. Existing terminal/authority tests plus one actual Main interaction regression protect identity, range, re-entry and stock conservation. Meaningful accepted runtime checkpoint required. | Choose workflow and freeze module/scene, GameFlow, terminal adapter ownership and exact focused commands/caps before implementation. Do not change geometry/berth clearance or invent inventory. |
+| Existing KIT-DELIVER plus physical terminal continuation | Actual ordinary walk to each endpoint, board the same Jovian, depart/complete the chosen legitimate transfer path; exactly6→4/0→2, one committed receipt/reward and usable home/physical exit. Inspect terminal receipt from actual owner/store, not a seeded complete flag. | Interface first; retain earlier accepted automatic owner unless workflow explicitly changes it. Freeze full same-candidate command/limits before execution; staged checks cannot replace it. |
+| Existing KIT-RELOAD | Distinct process reads actual committed receipt/manifests without duplicate transfer/reward, and usable controls/terminal/ship remain. | Original30s/first-normal-frame timeout stays PARKED; reuse its named child and causal reopening condition. Do not create a parallel Freight reload with a larger cap. |
+| WALK-FREIGHT full branch | Same supported Player hub→approach/apron→each terminal→ServiceAccess door/room/racks→same hub/ship; conserve cargo and verify the committed receipt including required cold reload. No rescue/teleports/shortened routes. | All above plus exact branch driver/observer handoff. Sandbox waypoint geometry is a route reference, not permission to rerun parked all-craft Sandbox. Shared Tooltip exit failures retain their own reopening conditions; no adjacent probe selected. |
+
+The source finding is a missing production interface, not a successful walk,
+new runtime defect reproduction, checkpoint or parent completion. Implementation
+estimate remains unfrozen until terminal action/ownership is settled; split
+before90min. Once chosen, prioritize the physical interface/runtime checkpoint
+before adding ordinary-route telemetry. No new validator/evidence family.
 
 ### Perimeter Hold — missing production integration
 
