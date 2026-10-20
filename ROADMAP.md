@@ -87,7 +87,10 @@ published manifest. Original route/limits remain unchanged; no player staging,
 injected filesystem or direct inspection calls. Independent review GO, accepted
 source merged/pushed, owned profiles verified/removed and all6 observed process
 identities absent. Caller-only qualification; current3767687 runtime unchanged.
-Fresh-process physical revisit remains the last ordered Salvage child.
+Fresh-process physical revisit is selected as the last ordered Salvage child:
+restore the exact accepted writer profile into a separate game process, then
+repeat all three inspections/console and the complete physical return without
+duplicate transactions. The original route and limits remain binding.
 [Acceptance and retained save](docs/history/ROADMAP_DELIVERIES.md#existing-salvage-inspection-and-publication-qualified--2026-10-20).
 
 **Existing Salvage access task DONE — source `9749f742c`.**

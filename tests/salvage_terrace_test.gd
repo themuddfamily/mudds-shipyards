@@ -67,7 +67,9 @@ class InspectionFilesystem extends UserDataFilesystem:
 
 
 func _init() -> void:
-	if OS.get_cmdline_user_args().has("--walk-salvage-inspect"):
+	if OS.get_cmdline_user_args().has("--walk-salvage-revisit"):
+		call_deferred("_run_walk_salvage_access", false, true)
+	elif OS.get_cmdline_user_args().has("--walk-salvage-inspect"):
 		call_deferred("_run_walk_salvage_access", true)
 	elif OS.get_cmdline_user_args().has("--walk-salvage-access"):
 		call_deferred("_run_walk_salvage_access")
@@ -78,10 +80,12 @@ func _init() -> void:
 		call_deferred("_run")
 
 
-## Ordinary access stays unchanged; inspection is an explicit selected extension.
-## Neither route uses craft, relocation or persistence fixtures, or proves revisit.
-func _run_walk_salvage_access(inspect: bool = false) -> void:
+## Ordinary access stays unchanged; inspection and fresh-process reading are
+## explicit extensions without craft, relocation or persistence fixtures.
+func _run_walk_salvage_access(inspect: bool = false, revisit: bool = false) -> void:
 	var marker := "WALK_SALVAGE_INSPECT_TEST" if inspect else "WALK_SALVAGE_ACCESS_TEST"
+	if revisit:
+		marker = "WALK_SALVAGE_REVISIT_TEST"
 	# Independent abort retains the original 300-second test budget, including
 	# setup and cleanup; each walking waypoint keeps its existing 240-frame cap.
 	create_timer(300.0).timeout.connect(func() -> void:
@@ -89,11 +93,26 @@ func _run_walk_salvage_access(inspect: bool = false) -> void:
 		push_error("%s_FAILED: 300-second test budget exhausted" % marker)
 		quit(1)
 	)
+	if revisit:
+		# Read the actual writer profile before even creating a new Main owner.
+		var disk := _load_salvage_inspect_disk()
+		var expected := {"inspected": INSPECTION.COMPONENT_IDS.duplicate(), "manifest_published": true}
+		if disk == null or not _salvage_access_check(disk.get_loaded_source() == &"primary"
+				and disk.get_snapshot().get(INSPECTION.PERSISTENCE_SLOT) == expected,
+				"reader process starts from the writer's real primary published salvage slot"):
+			_release_salvage_access_inputs()
+			print("%s_FAILED: " % marker, "; ".join(_failures))
+			quit(1)
+			return
+		print("WALK_SALVAGE_REVISIT_INITIAL_DURABLE: ", {
+			"path": SETTINGS_ADAPTER.DEFAULT_STORE_PATH, "source": disk.get_loaded_source(),
+			"generation": disk.get_generation(), "commit": disk.get_commit_metadata(),
+			"slot": disk.get_snapshot()[INSPECTION.PERSISTENCE_SLOT], "before_main": true})
 	var game := MAIN_SCENE.instantiate() as GameFlow
 	root.add_child(game)
 	await process_frame
 	await physics_frame
-	await _test_walk_salvage_access(game, inspect)
+	await _test_walk_salvage_access(game, inspect, revisit)
 	_release_salvage_access_inputs()
 	game.queue_free()
 	await process_frame
@@ -108,7 +127,7 @@ func _run_walk_salvage_access(inspect: bool = false) -> void:
 		quit(1)
 
 
-func _test_walk_salvage_access(game: GameFlow, inspect: bool = false) -> void:
+func _test_walk_salvage_access(game: GameFlow, inspect: bool = false, revisit: bool = false) -> void:
 	var player := game.player as PlayerController
 	var annex := game.world.get_node_or_null(^"FabricationAnnex") as Node3D
 	var terrace := game.world.get_node_or_null(^"SalvageTerrace") as SalvageTerrace
@@ -118,6 +137,16 @@ func _test_walk_salvage_access(game: GameFlow, inspect: bool = false) -> void:
 		return
 	var retained_spawn := player.global_position
 	var initial_snapshot := station.get_snapshot()
+	if revisit:
+		var report := game.get_runtime_settings_persistence_report()
+		if not _salvage_access_check(bool(initial_snapshot.persistence_ready)
+				and initial_snapshot.inspected == INSPECTION.COMPONENT_IDS
+				and bool(initial_snapshot.manifest_requested) and bool(initial_snapshot.manifest_published)
+				and not bool(initial_snapshot.save_pending)
+				and not bool(initial_snapshot.inventory_authority) and not bool(initial_snapshot.reward_authority)
+				and not bool(report.injected_authority) and report.identity_scope == &"process_lifetime",
+				"fresh normal Main restores all three observations and published manifest without authority or pending save"):
+			return
 	if not _salvage_access_check(Vector2(retained_spawn.x, retained_spawn.z).distance_to(
 			Vector2(-8.5, 11.0)) <= 0.20,
 			"selected access route retains the normal hub spawn before movement"):
@@ -178,12 +207,16 @@ func _test_walk_salvage_access(game: GameFlow, inspect: bool = false) -> void:
 		if not await _walk_salvage_inspect(game, player, terrace, station):
 			return
 		published_slot = {"inspected": INSPECTION.COMPONENT_IDS.duplicate(), "manifest_published": true}
+	elif revisit:
+		if not await _walk_salvage_revisit(game, player, terrace, station):
+			return
+		published_slot = {"inspected": INSPECTION.COMPONENT_IDS.duplicate(), "manifest_published": true}
 	for index in range(goals.size() - 1, -1, -1):
 		if not await _walk_salvage_access_to(game, player, goals[index], "return", index):
 			return
 	if not await _walk_salvage_access_to(game, player, retained_spawn, "retained hub spawn", 0):
 		return
-	if inspect:
+	if inspect or revisit:
 		var returned_store := _load_salvage_inspect_disk()
 		if returned_store == null:
 			return
@@ -197,6 +230,53 @@ func _test_walk_salvage_access(game: GameFlow, inspect: bool = false) -> void:
 	else:
 		_salvage_access_check(station.get_snapshot() == initial_snapshot,
 			"complete ordinary access round trip leaves all inspection and manifest state unchanged")
+
+
+func _walk_salvage_revisit(game: GameFlow, player: PlayerController,
+		terrace: SalvageTerrace, station: SalvageInspectionStation) -> bool:
+	var expected := {"inspected": INSPECTION.COMPONENT_IDS.duplicate(), "manifest_published": true}
+	var stand_x := [-16.0, -14.4, -12.8, -9.5]
+	for index in 4:
+		var target_id := INSPECTION.CONSOLE_ID if index == 3 else StringName(INSPECTION.COMPONENT_IDS[index])
+		if not await _walk_salvage_access_to(game, player,
+				terrace.to_global(Vector3(stand_x[index], 0.0, 7.0)), "revisit stand", index):
+			return false
+		var target := station.get_interactable(target_id)
+		if not _salvage_access_check(target != null, "restored %s interaction target exists" % target_id):
+			return false
+		var readout := "MANIFEST PUBLISHED" if index == 3 else str(INSPECTION.COMPONENT_RESULTS[index])
+		if not _salvage_access_check(station.get_readout_text(target_id).contains(readout),
+				"physically revisited %s presents its restored authored result" % target_id):
+			return false
+		_look_salvage_access_towards(player, target.global_position)
+		var before := _load_salvage_inspect_disk()
+		if before == null:
+			return false
+		var dispatched: bool = await _main_inspection_interact(game, target_id)
+		var after := _load_salvage_inspect_disk()
+		if after == null:
+			return false
+		var snapshot := station.get_snapshot()
+		if not _salvage_access_check(dispatched and _salvage_access_player_current(game, player)
+				and player.is_on_floor() and before.get_loaded_source() == &"primary"
+				and after.get_loaded_source() == &"primary"
+				and before.get_snapshot().get(INSPECTION.PERSISTENCE_SLOT) == expected
+				and after.get_snapshot().get(INSPECTION.PERSISTENCE_SLOT) == expected
+				and after.get_generation() == before.get_generation()
+				and after.get_snapshot() == before.get_snapshot()
+				and snapshot.inspected == INSPECTION.COMPONENT_IDS
+				and bool(snapshot.persistence_ready) and bool(snapshot.manifest_requested)
+				and bool(snapshot.manifest_published) and not bool(snapshot.save_pending)
+				and not bool(snapshot.inventory_authority) and not bool(snapshot.reward_authority)
+				and station.get_readout_text(target_id).contains(readout),
+				"ordinary repeat %s preserves the restored grade, full disk payload and generation" % target_id):
+			print("WALK_SALVAGE_REVISIT_BOUNDARY: ", {"target": target_id,
+				"dispatched": dispatched, "snapshot": snapshot,
+				"before_generation": before.get_generation(), "after_generation": after.get_generation(),
+				"actual_slot": after.get_snapshot().get(INSPECTION.PERSISTENCE_SLOT),
+				"payload_unchanged": after.get_snapshot() == before.get_snapshot()})
+			return false
+	return true
 
 
 ## This selector uses the real default profile and production dispatch throughout.
