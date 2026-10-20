@@ -78,6 +78,24 @@ This clears the branch queue; it does not close their unfinished gameplay,
 qualification or release requirements. No unaccepted source was merged to reduce
 a branch count. Eight previously protected detached worktrees remain unchanged.
 
+**Selected one bounded Jovian reboard caller correction.**
+The first attempt established the existing7m suppression, not a gameplay defect.
+Restore exact withheld calleradd3c854b and change only its ordinary exterior
+reboard approach: walk away beyond BOARDING_FALLBACK_REACH, observe the production
+guard clear with old grants still retired, then return to the authored hatch.
+Retain complete original board/departure/home landing/physical exit/groundwalk,
+fresh admission/body/chair identities, both actual consumed views and same pilot/
+strict home berth. Root makes this small sequential correction; one HIGH reviewer
+checks exact scope and actual result. No new branch/worktree or game-code change.
+One compile300s and one full route300s/outer360s; each ordinary waypoint15s,
+transition8s/landing120s/convergence5s and inherited exit grace unchanged. Exact
+source/commands/environment/cache frozen before engines; all automated engines
+use Dummy audio and private Xvfb/explicitx11. Preserve previous163.990s stages
+and original18:23–19:23 assignment; no budget reset. First correction failure
+stops, no further variant or automatic repair. Integrate/push only accepted full
+original case; otherwise preserve source and exact gap. Reuse existing results/
+reboard/clearance-correction and remove only new owned scratch after preservation.
+
 **Jovian passenger reboard stopped at hatch discovery; source withheld.**
 Candidateadd3c854b completes the full original ordinary boarding/departure/home
 landing/physical hatch exit and1.247m supported groundwalk, then walks back to the
