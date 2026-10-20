@@ -78,6 +78,29 @@ This clears the branch queue; it does not close their unfinished gameplay,
 qualification or release requirements. No unaccepted source was merged to reduce
 a branch count. Eight previously protected detached worktrees remain unchanged.
 
+**Selected WORLD-SAVE-EMBER-FIRST-RELAY:17:35–17:50 UTC,15min.**
+Finish the original exact-package cold safe-yard recovery on archive923d7b326,
+using the integrated exact-runtime comparison caller. Concrete preparation repair:
+the archive has no export metadata; stage its verified external export-result.json
+beside the resolved extracted ELF, validate both before launch, and launch only
+if preparation passes. Independent handoff inspection confirms all original
+archive/ELF/metadata hashes and identical embedded Ember probe logic in current
+source. No gameplay or predicate change, tolerance, source substitution or cap
+increase. Prior312.811736s runtime failure plus4.635531s preflight remains317.447268s;
+new costs are additive. Original300s per game/660s outer limits remain.
+Root owns extraction/preflight, existing suite_process.py supervisor and original
+run_package_probes.sh --in-world-interruption --native-export --activity=ember
+pilot command; private real files/headless/Dummy and actual owned SIGKILL/reap,
+distinct Boot Resume, exact passive progress, fresh boarding/original completion
+and one payment are all required. Estimate2min preparation,5–7min check,2min
+cleanup/accounting. Stop first failure; no adjacent probe or automatic repair.
+Use current clean pushed caller, no new branch/worktree/import/export. Preserve
+canonical_outbound=NOT_RUN, standing_pose_restore=NOT_SUPPORTED and all original
+fixture disclosures. Qualification applies to the named923d7b3 package, not final
+current source; latest playable checkpoint0070248 stays unchanged. Retain raw
+results under existing Ember results/package-handoff/, remove owned staging/tmp,
+then record actual outcome, commit/push and close this selection.
+
 **Remaining ten working branches accounted for and deleted.**
 Browser-cache diagnostic and network-timeout acceptance preparation, Courier,
 Defense, Halyard damage, Salvage access, Jovian reload, Fire restart, HULK revisit
