@@ -59,29 +59,22 @@ identifier retained, original phase-gate block unchanged, added local link valid
 and diff whitespace clean. Completed within the original 30min cap. No temporary
 files were created; no engine run or playable checkpoint was needed.
 
-**Selected qualification: NET-STALL, parent19 — original full host-stall route.**
-Existing `network_remote_pilot_helm_test.gd` is a separate original source harness,
-previously accepted on d448e3f; it is not the parked ordinary Halyard two-seat or
-held-yaw handback caller. Retain its entire own handback/reboard/roll/landing/
-cleanup contract. No narrower immediate-stall probe. One low source mapper and
-root verified the command/caps; root owns execution and result reconciliation.
+**NET-STALL current-source qualification DONE on3d6b1b513.** The original full
+independent host/client suite passes:160 terminal host assertions, zero diagnostics,
+actual client1688706 and wrapper1688692 exit0. Both600-client-step stalls retain
+original2s fresh roll/landing checks, exact source/claim/stream, no ahead-tick
+refusals, and the full surrounding handback/reboard/landing/reuse/disconnect
+contract. No narrow immediate-stall probe or deadline change.
 
-Freeze clean source plus approved4.7.1 engine; use an owned fresh worktree/profile
-and authenticated isolated Xvfb, explicit x11/Dummy/dummy-renderer, independent
-process timeout and input/peer teardown. Exact matrix command uses
-`--mode all --jobs 1 --timeout 300 --scope tests/network_remote_pilot_helm_test.gd`
-`--audio-driver Dummy --display-driver x11 --import-gate never`, after one fresh
-headless Dummy import. Both original600-client-step stalls and2s fresh physical
-roll/landing action deadlines remain. All surrounding original assertions remain.
-Three frozen stages: catalog selection30s (exactly this one input-only suite),
-fresh import180s, full matrix outer390s/per-suite300s. Expected actual exit0,
-one NETWORK_REMOTE_PILOT_HELM_TEST_OK, matrix PASS and actual child/wrapper exit0.
-Fixed30min from2026-10-20 04:47UTC; first unexpected failure STOP, no correction,
-retry, narrower substitute, cap increase or diagnostic exclusion. Record actual
-scope, commit/push and clean owned scratch. Game source unchanged: no duplicate
-checkpoint; native/hardware/device/audio/endurance and broader gates remain open.
-Independent production alternatives remain blocked on named Hauler stock,
-navigator refusal and Bomber rearm definitions; this does not reopen them.
+Catalog1.692s, fresh import20.693s, full matrix stage161.137s (suite155.468s);
+all three frozen stages PASS, cumulative183.522s. This is one filtered original
+source suite, not final full-matrix, native/hardware/device/audio/endurance or
+ordinary Halyard/yaw-handback qualification. Their separate gates remain.
+All 35 observed process identities are absent; unique profiles archived/verified
+and owned worktree/cache/helpers removed. Closure 5.72min within 30min.
+Game source unchanged; no duplicate checkpoint. [Full result and cleanup](docs/history/ROADMAP_DELIVERIES.md#original-host-stall-route--current-source-accepted).
+Do not repeat this accepted source unchanged. Independent production alternatives
+still need the named Hauler stock, navigator refusal and Bomber rearm definitions.
 
 | Work | Actual state | Completion / next boundary |
 | --- | --- | --- |

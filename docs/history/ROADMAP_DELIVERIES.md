@@ -15240,3 +15240,47 @@ weapon defect is established. Exact missing fact: fresh courier-window emission
 sequence, origin/direction, resolver status and hit target. No engine, test, new
 private capture, correction or retry; original cumulative165.917s and parked
 clear boundary remain. Do not infer a fix from generic accepted fire.
+
+## Original host-stall route — current source accepted
+
+NET-STALL / parent19, clean pushed source
+`3d6b1b513af2a0eb4fd49efeab72f3de3c6bf60e`. One low source mapper plus root
+verified the existing full `tests/network_remote_pilot_helm_test.gd` contract.
+This is a distinct original source harness, not a retry of the parked ordinary
+Halyard two-seat or held-yaw handback caller. All its own handback, physical
+reboarding, roll/rebind, real landing/abort/retry, postdock exit/reuse, Main
+interruption and disconnect assertions remain. No narrower immediate-stall probe.
+
+Frozen three-stage sequence PASS first attempt: exact one-suite graphical catalog
+selection1.692s; fresh headless Dummy import20.693s; full filtered matrix stage
+161.137s, actual suite155.468s within original300s. Cumulative183.522s.
+Matrix command: existing run_test_matrix.sh, approved4.7.1 engine, `--mode all
+--jobs 1 --timeout 300 --scope tests/network_remote_pilot_helm_test.gd
+--audio-driver Dummy --display-driver x11 --import-gate never`, after the fresh
+import, on authenticated owned Xvfb. Independent client owns its own Xvfb;
+both Godot commands use explicit x11/Dummy/dummy rendering. Outer matrix390s
+and whole task30min retain independent abort and complete process teardown.
+
+Both original600-client-step host Main/craft stalls pass, separately before
+fresh roll and fresh landing, with original2s action checks. Sender continues
+sampling while bounded at real authority; no ahead-tick refusals, exact restored
+physics flags/claim/source/stream and consumed-once actions. The complete suite
+ends NETWORK_REMOTE_PILOT_HELM_TEST_OK:160 host assertions; matrix records272
+PASS lines including independent-client output, one sentinel and zero diagnostics.
+Actual Godot peer1688706 and display wrapper1688692 both exit0; matrix/guard exit0.
+Source/index/import cache stable before/after. No correction, retry, cap increase,
+accepted-risk exclusion, game-source edit or new package.
+
+All35 observed process identities are absent and owners terminal. Five unique
+profile files archived and hash-verified; temporary detached worktree/import
+cache/profiles and helper duplicates removed. Raw parent/peer logs, matrix
+manifest/results, original source/commands/hashes, observed process identities,
+profile archive and helper sources retained only under
+`/srv/mudds-work/net-stall-original-20261020/results/`. Closure5.72min from
+selection, within30min. Existing checkpoint3d92b91 bytes/notes unchanged.
+
+This accepts the original current-source isolated Linux input harness only.
+It does not qualify final package/full matrix, native Windows/GPU, actual devices,
+audible audio, ordinary Halyard or yaw-handback routes, capacity or endurance.
+Their exact gates and retained failures remain; do not repeat this accepted
+source unchanged. Broader parent/phase gates remain open.
