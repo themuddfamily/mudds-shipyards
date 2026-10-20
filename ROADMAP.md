@@ -6,15 +6,14 @@ Nine of the eventual 17 craft exist; eight still need supported specifications
 and implementation. Partial acceptance is retained in the backlog; it is not
 whole-feature completion.
 
-Latest playable checkpoint: **0070248**. After ordinarily giving up the Jovian
-helm for a walking cabin berth, the HUD shows PASSENGER for the craft aboard.
-The full boarding/departure/both-yaw/handback/backward-walk journey passes with
-retired helm authority, supported movement and the original co-pilot retained.
-All three actual peers exit0 with clean logs. Previous physical postdock exit
-and dock-pose holding capabilities remain included.
-[Windows ZIP](builds/windows/MuddsShipyards-0070248-checkpoint.zip),
-[Windows notes](builds/windows/MuddsShipyards-0070248-notes.txt),
-[Linux notes](builds/linux/MuddsShipyards-0070248-linux-notes.txt).
+Latest playable checkpoint: **49bc7b7**. A Jovian passenger can now exit after
+landing, walk outside, return through the hatch, walk to the original co-pilot
+chair and sit with a fresh Interact press. The old hatch input no longer claims
+a chair on reboarding. Host and both clients agree; original pilot and home
+berth remain retained. Includes the earlier physical exit and passenger HUD fixes.
+[Windows ZIP](builds/windows/MuddsShipyards-49bc7b7-checkpoint.zip),
+[Windows notes](builds/windows/MuddsShipyards-49bc7b7-notes.txt),
+[Linux notes](builds/linux/MuddsShipyards-49bc7b7-linux-notes.txt).
 
 This page is the working queue. The
 [36-parent crosswalk and named children](docs/ROADMAP_BACKLOG.md#coverage-of-the-original-remaining-outcomes)
@@ -78,28 +77,29 @@ This clears the branch queue; it does not close their unfinished gameplay,
 qualification or release requirements. No unaccepted source was merged to reduce
 a branch count. Eight previously protected detached worktrees remain unchanged.
 
-**Jovian reboard repair stopped FAILED; no new task selected.**
-Candidate `8b4c9dc35` retains consumed Interact history across replacement bodies.
-Its focused reentry/rebind/new-owner/rehost checks pass42 assertions; unchanged
-input-source checks pass88. The full original route still fails in161.350s:
-host claims the co-pilot chair before the requested press while the client stands,
-then the ordinary chair walk cannot finish. This is the same unmet product
-contract, not accepted progress. The focused case does not cover every input
-edge of the real hatch journey; exact offending input and cause remain unresolved.
-Independent review NO-GO. No production source merged and no new checkpoint.
+**NET-JOVIAN-PASSENGER-REBOARD DONE — source `49bc7b736`.**
+The full original ordinary boarding/departure/home landing/physical exit/ground
+walk/reboard/requested co-pilot chair journey passes149.242s, all three actual
+OS0, one marker and clean logs. Host and passenger first agree on a fresh standing
+body with no chair assignment, then both clients consume the deliberate chair
+claim. Original pilot/source and strict occupied home lease remain current.
 
-The complete candidate is preserved under pushed archive tag
-`archive/withheld/jovian-reboard-interaction-repair-20261020`, with a verified
-bundle, patch, source tar and actual failure records. All nine stage owners are
-terminal;26 observed process identities are absent. Owned scratch was archived,
-269 entries verified and the directory removed. Protected worktrees remain.
-The19:04–20:19 assignment stopped at19:25UTC, before its original deadline;
-no extended cap or automatic retry. Prior680.117s of failed qualification and
-this381.549s of checks remain recorded. Main is the sole local/live remote
-branch. Latest playable remains0070248. Reboard and dependent pilot exit/reclaim/
-redeparture remain OPEN. A future attempt must first explain the actual offending
-hatch/body interaction edge; another consumed-counter-only test is insufficient.
-[Failure, retained source and cleanup](docs/history/ROADMAP_DELIVERIES.md#jovian-reboard-interaction-repair--withheld--2026-10-20).
+Actual tracing identified the missed case: exit Interact ID3 was accepted but
+never consumed before old body retirement at consumed ID2. The rebound neutral
+opening carried3 and claimed a chair. The accepted producer change snapshots its
+counter on bind and emits0 until a fresh post-bind press; lifetime IDs and retry
+behavior remain intact. Source98 and real-body42 assertions pass, including a
+real queued-but-unconsumed regression. The insufficient owner-floor fix stays
+absent. Diagnostic tracing stays archived and absent from production tests.
+
+Fresh paired exports, three strict menu checks and matching1525-entry package
+audit pass; Windows EXE/ZIP/notes are in builds/windows. Independent review GO.
+All12 owners terminal,45 observed identities absent;445 profile entries verified
+before owned scratch removal. No new branch/worktree; main remains sole branch.
+Prior failed candidates and caps remain recorded. Native Windows/GPU/devices/
+human, full multiplayer baseline/endurance, all36 parents/ten phase gates and
+later pilot exit/reclaim/redeparture remain open. No adjacent task selected.
+[Actual cause, full acceptance, checkpoint and cleanup](docs/history/ROADMAP_DELIVERIES.md#jovian-passenger-reboard--accepted--2026-10-20).
 
 **HALYARD-AUTHORITY-STOP DONE — current source `082da79c9`.**
 The complete ordinary boarding/departure/moving walk/chair sequence passes, then
@@ -317,32 +317,16 @@ remain recorded. Full ordinary Hold and parent 11 remain OPEN. Native Windows,
 GPU/devices/audio/human/final gates stay NOT_RUN/open; CI stays disabled.
 [Delivery and actual limits](docs/history/ROADMAP_DELIVERIES.md#perimeter-live-branch-finished--2026-10-20).
 
-**Active production repair: 1. Prepared production cards waiting on decisions: 3.**
+**Active production repair: 0. Prepared production cards waiting on decisions: 3.**
 The decisions below remain pending; they do not prevent finishing independently
 supported existing failures. No completed probe schedules an adjacent probe.
 
-### Ready production repair — existing Jovian reboard outcome
+### Completed production repair — Jovian passenger reboard
 
-**NET-JOVIAN-PASSENGER-REBOARD /16,20,26 — prevent old Interact replay.**
-Player result: after genuine exit/clearance/reboard, a new host cabin body remains
-standing until the passenger deliberately takes the co-pilot chair; host and
-client agree on that single fresh action. Owner: NetworkRemoteBodySimulation
-admission/release/interaction lifecycle, existing NetworkRemoteBodyIntentSource
-highwater contract and existing simulation/source tests. Do not reset the source
-counter blindly: existing source tests explicitly retain it across rebind and
-opening clock recovery. Match the consumer lifetime without replaying retired
-actions or suppressing a genuinely new first press. Scope the retained state to
-its actual session/owner and preserve other seats/surfaces/rehost behavior.
-Before implementation separately freeze exact files/commands/budgets. Require a
-focused regression that fails on the observed lifecycle mismatch, current source
-checks, the entire original ordinary reboard route on the accepted supported
-corridor, all three actual OS0/one marker/no runtime diagnostics, independent
-review and fresh paired checkpoint with strict startup/package checks. Preserve
-all earlier failures/caps; no caller pose/claim writes or automatic seat acceptance.
-Existing caller515e31d10 is withheld but source-preserved for this exact proof;
-reclaiming a host-only phantom chair is not success. Estimate45–60min repair and
-focused checks plus20–30min original route/checkpoint; split before90min.
-This is a runtime repair prerequisite, not full reboard or parent acceptance.
+NET-JOVIAN-PASSENGER-REBOARD is accepted on49bc7b736 with its fresh checkpoint
+and full original journey, as recorded above. Its next existing dependent case
+is [NET-JOVIAN-PILOT-EXIT](docs/ROADMAP_BACKLOG.md#net-jovian-pilot-exit--release-helm-and-reach-ground),
+not selected here. No unchanged reboard rerun or new evidence-only task is needed.
 
 ### Next three production deliveries
 

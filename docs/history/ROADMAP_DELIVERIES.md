@@ -18691,3 +18691,92 @@ Latest playable0070248 remains current; all36 parents/ten phase gates, reboard,
 dependent pilot exit/reclaim/redeparture, native/hardware/endurance/full final
 acceptance remain open. Future work needs a bounded actual-edge diagnosis before
 another implementation; no automatic retry or adjacent roadmap task was started.
+
+## Jovian passenger reboard — accepted — 2026-10-20
+
+**Delivered49bc7b73685b73decc0e1320998d453819a40786:** after landing, the original
+passenger physically exits, walks outside, clears the existing hatch lockout,
+returns aboard and takes the original co-pilot chair through ordinary input.
+Host and both clients agree; original pilot/source and occupied home berth stay
+current. Fresh playable checkpoint49bc7b7 includes the runtime repair.
+
+### Actual cause and production change
+
+Read-only diagnostic216a1e789 observes oldstream1/sequence214 Interact3 accepted
+at host physics5014 while body last-consumed2. That body retires in the same
+observed frame. Source counter3 survives unbind and neutral bind into stream2;
+actual opening sequence0 carries3 while replacement body starts with consumed
+floor2, then sits before any requested chair press. Client counter4 from orphan
+release occurs later; it does not explain the initial premature chair claim.
+Thus the failed consumed-owner-floor repair missed a generated-but-unconsumed
+exit action. Actual queued wires and body/source observations are preserved;
+no claim of synchronized cross-process physics clocks or full InputEvent trace.
+
+Accepted production diff is only +7/-1 lines in
+scripts/network/network_remote_body_intent_source.gd: bind snapshots the retained
+lifetime counter; wire ID is0 until a fresh post-bind increment, then carries the
+absolute new ID normally. Opening retries/clock recovery do not resnapshot it.
+The failed server-side floor/callback patch remains absent, as does diagnostic
+tracing. Existing simulation regression and unchanged full caller515e31d10 are
+integrated; only the former's neutral-history message changed for clarity.
+
+### Checks and complete original contract
+
+Diagnostic compile PASS16.868s; original route retains its failure161.118s.
+New real-Authority regression queues an old interaction without consuming it,
+retires/re-registers the avatar and rebinds the same source. Unchanged runtime
+fails exactly the neutral-old-edge assertion0.716s. Fixed source suite PASS98
+assertions0.760s, including fresh absolute ID and actual opening-refusal/retry/
+once-only delivery. Compile PASS16.244s; production Halyard body regression
+PASS42 assertions55.109s: reentry/rebound neutral suppression, fresh chair once,
+different authenticated owner and same-adapter rehost. Callback rebind coverage
+does not qualify transport migration.
+
+Full original Jovian route PASS149.242056s,3466 checks/zero failures/one exact
+JOVIAN_NETWORK_TWO_CLIENT_PASSENGER_REBOARD_OK. Host1973632/client1973793/
+client_b1973812 each actual OS0, empty failure lists and clean logs;80 copied raw
+files independently hash-verified. Source/cache unchanged. Groundwalk1.2357m;
+old body/claims/publication retired; new body3894595838296, same peer996834987
+and original Player265012906608, fresh cabinclaim3/currentgen1/stream2.
+Host.reboard_cabin_checked and client_b.reboard_cabin_consumed now both stand,
+on-foot with empty chair assignment. The original passenger walks to authored
+entry, looks at actual chair and presses Interact. Host unique co_pilot claim3/
+seatgen1 then matches passenger assignment and both consumed seated relationships.
+Pilot source3044259400463/stream2/delivery2 remains unchanged; original helm owner,
+strict dock contract, occupied physical home lease and committed landing hold.
+Independent HIGH gameplay GO confirms full contract and raw outcomes.
+
+All original full300s/outer360s/waypoint15s/transition8s/landing120s/convergence5s
+and inherited exit limits retained. Every engine Dummy audio, peers private Xvfb/
+explicitx11; no injection, automatic seat acceptance or caller workaround.
+
+### Checkpoint and closure
+
+Clean source49bc7b736 exported Windows26.612s and Linux25.600s. Strict startup
+passes for ELF22.296s, extracted Linux archive23.672s and Windows embeddedPCK on
+Linux26.000s; each actual exit0 and exactly one STARTUP_MENU_READY_OK. Actual1525
+PCK entries match; compiled producer present, tests/tools excluded; stock PE.text
+and exact Linux archive binary/icon/installers/modes/epoch/metadata verified.
+Windows EXE184687040bytes SHA256
+87535d06b241666c3a78a27b7c47a8c2db083c8333afb318570e198ab7b6c213.
+Windows ZIP103218866bytes contains exactly that EXE and notes, reopened byte-
+verified. Eleven public build/notes/startup files have recorded hashes. Native
+Windows execution/GPU/performance/devices/listening/human/full release NOT_RUN;
+Windows payload checked on Linux is not native Windows qualification.
+
+Results at /srv/mudds-work/jovian-passenger-physical-exit-20261020/results/reboard/input-edge/.
+Twelve stages524.239223s total (owner-file mtime intervals, not exact monotonic
+measurements); previous680.117371s qualification and381.549258s failed repair
+remain retained, not reset. Diagnostic child source survives incremental bundle,
+exact caller and patch plus pushed archive/diagnostic/jovian-reboard-input-edge-20261020.
+Original failed candidate remains under its separate WITHHELD tag. No new branch/
+worktree. At19:42:12UTC all12 owners terminal and45 observed identities absent;
+445 archived profile entries reopened/verified exact bytes/hashes/modes/links
+before owned reboard-input-edge-scratch removal. Archive3332787bytes SHA256
+6b618fe26a3974a9c0ad28e6a0ee35cb2464a5f18cb48abf3b10607ca49a7405.
+Eight protected detached worktrees unchanged. Accepted work integrated/pushed to
+main; main remains sole local/live remote branch. CI hold unchanged.
+
+NET-JOVIAN-PASSENGER-REBOARD closes only this named journey. Later original pilot
+exit/reclaim/redeparture, full multiplayer baseline/endurance, all36 parents and
+ten phase gates remain open. No adjacent task or unchanged rerun selected.

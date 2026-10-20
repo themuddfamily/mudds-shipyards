@@ -708,7 +708,7 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | NET-DOCK-DEFINE | Supported craft dock/exit/reboard/redeparture acceptance cases | 20 | DONE definition only; next five Jovian instances below, all other craft/roles remain unscheduled |
 | NET-JOVIAN-PASSENGER-EXIT | Original passenger reaches supported ground while pilot retains helm | 16,20,26 | DONE on861c4d39b, merged2352d18c3: original full138.470s journey PASS clean, all seven physical route poses, same-player supported ground walk, legitimate passenger claim/body retirement, retained pilot and actual3peer exits0. Paired checkpoint861c4d3; exact-tip local/remote/tracking branch deletion and owned cleanup complete. Broader postdock reuse remains separate. [Acceptance](history/ROADMAP_DELIVERIES.md#physical-jovian-passenger-exit-accepted-and-branch-closed--2026-10-20) |
 | NET-JOVIAN-DOCKED-PILOT-HOLD | A still-owned remote pilot retains the committed authoritative dock pose/velocity | 16,20,26 | DONE within accepted passenger-exit chain861c4d39b, merged2352d18c3. Pose322 regression PASS; final original138.470s three-peer journey retains exact committed home/pilot/source through supported passenger exit and actual3OS exits0, no diagnostics. Paired checkpoint861c4d3; branch/owned cleanup complete. Same integration and build as EXIT, not a separately counted delivery. |
-| NET-JOVIAN-PASSENGER-REBOARD | Original passenger reclaims original co-pilot chair | 16,20,26 | OPEN/FAILED. Candidate8b4c9dc35 consumed-Interact lifecycle fix passes focused42/source88 but full original route still fails161.350s: premature host chair claim, local passenger standing, chair walk fails. Exact offending input/cause unresolved. Independent NO-GO; source preserved under pushed WITHHELD tag, no runtime merge/checkpoint. All owners terminal,26 identities absent,269 scratch entries verified/removed. No new task/retry selected. [Closeout](history/ROADMAP_DELIVERIES.md#jovian-reboard-interaction-repair--withheld--2026-10-20). |
+| NET-JOVIAN-PASSENGER-REBOARD | Original passenger reclaims original co-pilot chair | 16,20,26 | DONE scoped ordinary three-peer Linux journey49bc7b736. Full original departure/home landing/physical exit/groundwalk/reboard/fresh chair PASS149.242s; both clients consume exact chair, original pilot and strict home lease retained;3actualOS0/clean logs. Actual unconsumed pre-bind hatch ID identified; producer retires old edges while preserving fresh/retry behavior. Source98/body42 PASS; fresh paired checkpoint/strict menus/package audit and independent review GO; owned scratch removed. Full parent/baseline/endurance/native gates remain open. [Delivery](history/ROADMAP_DELIVERIES.md#jovian-passenger-reboard--accepted--2026-10-20). |
 | NET-JOVIAN-PILOT-EXIT | Original pilot releases helm and walks onto supported berth ground | 16,20,26 | GATED on passenger reboard; passenger stays seated |
 | NET-JOVIAN-PILOT-RECLAIM | Original pilot returns to same hull and acquires current helm authority | 16,20,26 | GATED on pilot exit; old command generations stay retired |
 | NET-JOVIAN-REDEPART | Same crew/hull departs at least5m and brakes after physical reuse | 16,20,26 | GATED on pilot reclaim; no second landing/endurance expansion |
@@ -2185,24 +2185,24 @@ run. Cumulative priority review now parks the chain; no further repair/retry is 
   acceptance needs no identical rebuild; any runtime repair is a separate card
   with focused proof and fresh paired checkpoint.
 
-Original147.030s hatch discovery and152.626s lateral clearance failures remain
-preserved. Source geometry plus same-run ingress established the supported x=-42
-corridor; actual9.03m clearance/return/new boarding now pass. The initial corridor
-caller wrongly required a monotonic body generation; existing source defaults1
-and explicitly supports same-generation rebind. Current515e31d10 instead proves
-new host body/new claim/advanced stream/current generation agreement, then fails
-because the host already claims the chair while the client remains standing,
-before the requested chair input. Existing source retains interaction highwater;
-new body consumer starts0. No first-packet trace is claimed, but this concrete
-lifecycle mismatch is the ready production repair in ROADMAP. Require focused
-regression, full original route and fresh checkpoint; no caller workaround.
-Cumulative prior680.117s and all original caps/failures retained. The separate
-consumer-lifecycle candidate8b4c9dc35 passes focused42 and unchanged source88,
-but full route still fails161.350s with the same premature host chair claim/local
-standing mismatch. The generated-but-unconsumed hatch/new edge is not proved by
-the focused already-consumed-counter case; actual offending edge remains unknown.
-Independent NO-GO; archived unmerged, owned scratch verified/removed19:25UTC.
-No retry selected and no reboard acceptance. See the linked closeout above.
+**Accepted49bc7b736:** complete original journey PASS149.242s;3466 checks,
+zero failures, one marker and three actual OS0/clean logs. Same passenger walks
+1.236m outside, clears9m lockout, returns through supported apron/hatch and gets
+a new body/claim3/currentgen1/stream2. Host and passenger first stand with empty
+chair assignment, then ordinary walk/look/Interact takes the original co-pilot
+chair and both clients consume its exact current relationship. Original pilot,
+source/ownership and strict occupied home lease remain retained.
+
+Actual diagnostic run shows old hatch ID3 accepted but not consumed before body
+retirement at ID2; neutral rebound opening retransmits3. Accepted producer binds
+a baseline and retires those pre-bind edges without resetting lifetime highwater
+or losing fresh/retry actions. Source98 and real-body42 checks pass; fresh paired
+checkpoint49bc7b7, strict menu/package checks and independent review GO.
+Prior680.117s qualification and381.549s failed consumed-floor repair remain
+preserved WITHHELD. Failed server-floor patch and diagnostic tracing are absent
+from accepted source. Owned profiles verified/removed; no new branch/worktree.
+Native Windows/GPU/devices/human/full baseline/endurance/parent gates remain open.
+[Acceptance and retained failures](history/ROADMAP_DELIVERIES.md#jovian-passenger-reboard--accepted--2026-10-20).
 
 ### NET-JOVIAN-PILOT-EXIT — release helm and reach ground
 
