@@ -459,7 +459,7 @@ func _postdock_observe() -> void:
 				and int(_player.get("_embodiment_state")) == PlayerController.EmbodimentState.DISEMBARKING:
 			var expected := _craft.get_exterior_exit_waypoints()
 			var actual := _player.get("_transition_waypoints") as Array
-			var current := _player.get("_transition_frame") == _craft and actual.size() == expected.size() + 1
+			var current: bool = _player.get("_transition_frame") == _craft and actual.size() == expected.size() + 1
 			if not actual.is_empty():
 				current = current and (actual[0] as Transform3D).origin.is_equal_approx(
 					_craft.to_global(Vector3(-1.10, 0.52, -6.70)))
