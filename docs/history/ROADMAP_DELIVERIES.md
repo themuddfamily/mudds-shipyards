@@ -17131,3 +17131,57 @@ open. Current playable checkpoint remains fdae1cb; GitHub Actions remains disabl
 | `work/jovian-passenger-exit-20261018` | `e147b6d49ede` | Automation | Original parse/caller failures retained. Later corrected caller survives in docked-pilot successor; full exit still fails cabin walking, not accepted. |
 | `work/jovian-reload-boundary-20261018` | `f432bd63008c` | Automation | Main ready/restore accepted27.762s; first normal frame pair incomplete inside original30s. Concrete startup repair missing; no cap increase. |
 | `work/salvage-ordinary-access-20261018` | `641bbdbb0ed3` | Automation | Original and one repair fail outbound20. Actual supported inspection/return/revisit unmet; walking cause unproved. |
+
+
+## Breach atomic capture attempt stopped — 2026-10-20
+
+Existing `feat/breach-interruption-fixed-boot-20261018` reused; clean pushed
+853e5ee19706233a193aa6b0a432d8435f320211 remains unmerged/withheld. Main runtime
+and current fdae1cb checkpoint unchanged. No new branch was created or deleted;
+counts stay 147 local/90 remote deleted, 38 local/21 remote including main, 20 non-main.
+
+Separately selected 14:37–15:22UTC/45min after concrete source/raw fact: board debt
+retry pays then arms Torpedo; GameFlow publishes its new tutorial to the same store.
+Old probe reads latest metadata after that later commit. Raw tutorial seen sets
+corroborate the ordering; old failed sampled metadata ID was never emitted and is
+not invented. One medium implementer integrated the existing four-file capability
+with current main9ccd, preserved docking/other cases, and added original-actor/
+board-generation/successful-sortie signal capture of actual primary JSON/metadata.
+Same-document full ledger+terminal+foreign data assertions added to existing probe
+and package consumer; all later assertions/no-op bytes/third cold replay retained.
+High source/helper review GO before engines. Source 1000s/child 300s caps unchanged.
+
+Fresh import 20.615469s, probe check-only 15.609487s, privacy 1.161630s PASS. Exactly
+one full source transaction FAIL 71.057482s at new eight-predicate capture assertion.
+Arm reaches genuine debt/readiness and actual owned SIGKILL/reap; interrupted
+document bytes remain unchanged. Distinct Resume reaches real saved Arrow pilot,
+production exit, physical board discovery and exact paid terminal/one receipt.
+Combined signal-capture assertion fails. Its capture/metadata/generation/individual
+booleans were not emitted on failure; exact failed predicate remains UNKNOWN.
+Final generation 30 clean/observation documents cannot reconstruct signal capture.
+New JSON-decoded ledger vs integer runtime ledger is a static comparison risk,
+not established cause. No gameplay defect or failed atomicity is claimed.
+
+First failure stopped sequence. No third paid cold replay, exports, package menu
+checks, archived transaction, artifact audit/publication or branch merge occurred.
+No further correction/run/retry, cap increase, dropped assertion or narrower
+acceptance selected. Missing fact before another supported selection is actual
+signal-time primary/metadata/generation and comparison results. Independent high
+actual-outcome review confirms STOP/withhold. Original earned debt/actual kill/
+normal Resume/real pilot/exit/physical board/atomic receipt+ack/further paid cold
+replay/exact package contract remains fully OPEN; all 36 parents/ten gates remain open.
+
+New stages 108.444067826s plus retained 140.960529446s/three failures give
+249.404597272s (four failures total, no nested costs). All four owners terminal;
+19 observed PID/start identities absent, outer
+survivors[], both actual game children reaped. Source/index/import cache guards
+hold. Profiles archive streamed against exact file hashes/directory modes/links
+and fresh full snapshot (67 entries); helper sources
+preserved; unused passing build notes explicitly marked DRAFT-NOT-PUBLISHED.
+Owned worktree/profile/helpers removed in 9.26min
+inside original 45min; only
+`/srv/mudds-work/breach-atomic-handoff-20261020/results/` remains. Original
+`/srv/mudds-work/breach-interruption-fixed-boot-20261018/results/` untouched;
+old 3c archive/tag intact. Source candidate protected on its existing pushed branch.
+All engines headless/Dummy; native Windows/GPU/devices/audio/human/final NOT_RUN;
+CI owner hold remains. No successor task selected.

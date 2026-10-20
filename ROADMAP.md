@@ -65,27 +65,51 @@ Each still lacks its required acceptance. The other 17 contain qualification
 or diagnostic automation, including opt-in startup/release wiring. They are not
 17 new gameplay implementations. The
 [current branch-by-branch status](docs/history/ROADMAP_DELIVERIES.md#remaining-branch-status-after-duplicate-closeouts--2026-10-20)
-names the actual failures and retained source for all 20. This cleanup changes
+names all 20 candidates; the Breach row is superseded by the failed closeout below.
+This cleanup changes
 branch ownership, not the number of completed roadmap outcomes.
 
-**Selected existing delivery: Breach interruption release capability, 14:37–15:22 UTC.**
-Reuse `feat/breach-interruption-fixed-boot-20261018`; retain original two failures
-and reopened atomic-check failure, cumulative 140.961s. Concrete source/raw fact:
-the physical debt retry also arms Torpedo, then GameFlow saves its newly seen
-tutorial. The old probe reads latest shared-store metadata after that later commit.
-Capture the actual paid document at the existing board interaction signal before
-tutorial publication, and verify receipt plus paid terminal in that same document.
-Keep all original earned-debt/actual kill/distinct normal Resume/real pilot/exit/
-physical retry/further paid cold replay, unrelated data and package checks.
-No direct reward calls, weakened atomicity, cap increase or replacement happy path.
-One medium integrator owns the existing four release/startup/probe files; one high
-reviewer checks callback ordering, atomic document and full transaction fidelity.
-No engines before exact clean candidate review and frozen commands. Estimate
-10–15min integration/review, 10–15min focused/transaction/package checks. First
-unexpected failure stops; no automatic correction or unchanged retry. Accepted
-release capability requires full source and exported archive transactions, strict
-menu starts, paired clean exports, notes, main merge/push and branch/scratch closure.
-Ordinary combat and native/human release qualification remain separate/open.
+**Selected correction within the same Breach delivery: JSON ledger equality.**
+Original14:37–15:22UTC/45min window and cumulative249.405s/four failures retained.
+No budget reset. Retained Godot4.7.1 source proves Dictionary equality compares
+numeric Variant types strictly; JSON decodes numbers as FLOAT while reward authority
+retains newly built INT counters. Therefore853's whole-ledger equality is invalid
+for the successful paid result. This establishes a bad sixth predicate, not success
+of any earlier capture predicate. Normalize ONLY the expected live reward ledger
+using the existing `_canonical()` JSON helper. Retain all eight semantic checks,
+raw primary JSON and exact atomic receipt+terminal requirement. Emit named predicate
+results and safe capture metadata on failure so another composite failure is usable.
+Reuse the same branch; one medium integrator, high review before any engines.
+Original source1000s/child300s, privacy/compile, paired exports/three strict startups,
+actual archive-extracted transaction and package audit remain required. First new
+failure stops; no further correction, cap increase or acceptance narrowing selected.
+Earlier STOP/raw/source remain immutable in the original results; repair runs in
+`/srv/mudds-work/breach-atomic-handoff-20261020/repair-1/` and carries all prior costs.
+
+**Breach interruption attempt stopped; existing candidate withheld.**
+Existing `feat/breach-interruption-fixed-boot-20261018` now retains clean pushed
+853e5ee19, unmerged. Import/probe compile/privacy pass. Full source transaction
+FAIL 71.057s at the new combined atomic-document capture assertion after successful
+cold Resume, real pilot/exit, physical board discovery and exact one paid receipt.
+Third cold replay, all exports/startups and archive transaction are NOT_RUN.
+
+The original late-metadata boundary is established: physical debt retry pays and
+arms Torpedo, then the next tutorial saves to the same store. The correction
+captures the primary at the board signal, but its eight-predicate assertion fails
+without emitting capture values. Exact failed predicate remains UNKNOWN. Missing
+fact: captured document/metadata/generation and each comparison result at that
+boundary. A possible integer-vs-JSON-float ledger comparison issue is unproven.
+No cause is inferred from later saved documents and no gameplay defect is claimed.
+
+No further correction, engine run, cap increase or acceptance change is selected.
+Prior 140.961s/three failures retained; new 108.444s gives 249.405s total
+stages. Independent review: STOP/withhold. All 19
+owned identities absent; profiles/helpers verified and archived, owned worktree
+removed in 9.26min inside original 45min. Only
+`/srv/mudds-work/breach-atomic-handoff-20261020/results/` remains. Existing branch
+is protected; original source/results and full earned-debt/kill/Resume/atomic
+payment/third cold replay/package requirement remain open. Checkpoint stays fdae1cb.
+[Actual failed closeout](docs/history/ROADMAP_DELIVERIES.md#breach-atomic-capture-attempt-stopped--2026-10-20).
 
 **Current UI task stopped: active-tooltip baseline not reproduced.**
 Existing candidate `fix/exit-tooltip-order-20261020` remains unmerged/withheld.
@@ -213,7 +237,7 @@ contracts and cumulative attempt records remain in the retained history.
 | --- | --- | --- |
 | PLAY-DEFENSE ordinary route /13 | Candidatea480c0fbb pushed/unmerged: actual E Deploy accepted, but corrective walk_arrow stationary33.15s and whole34s timeout before boarding. | PARK after original35.963s and one corrective84.239s failure; cumulative406.401s including16 passing stages. No player kill/payment/home/reset/UIexit; no second repair/retry selected. Unique candidates/results preserved; owned scratch cleaned28.24min. |
 | Ember first-relay cold cut /14,31 | [Archive923d7b3](docs/history/ROADMAP_DELIVERIES.md#ember-first-relay-cold-cut--runtime-completes-parent-comparison-fails) FAIL312.812s at parent exact durable-state comparison; arm-9/resume0, engine diagnostics0, runtime continuation and receipts0→1. Only two compared coordinate scalars differ by one binary64 ULP. | STOPPED; no repair/retry/cap increase or retroactive comparison relaxation. Contract review and exact-runtime caller correction complete; corrected full package run NOT_RUN and requires a separately frozen selection. No full-cut/location/canonical/installed acceptance; all owned scratch cleaned9.50min within20min. |
-| Jovian postdock exit /16,20,26 | [Corrective candidate0d225bee8](docs/history/ROADMAP_DELIVERIES.md#docked-pilot-hold--focused-pass-full-exit-stops-at-cabin-walk): pose322/import/compile PASS; full route145.995s FAIL at15s cabin walk after actual standing, retained pilot at exact dock. Unmerged/withheld; exports NOT_RUN. | PARKED after failed runtime plus one corrective attempt: combined392.470s current stages plus retained8054/e147 parser failures. No second repair, retry, tolerance/cap increase or renamed adjacent probe. Walking cause unproved; later node-path errors are inherited failure capture. All owned scratch cleaned17.09min inside original45min. |
+| Jovian postdock exit /16,20,26 | [Corrective candidate0d225bee8](docs/history/ROADMAP_DELIVERIES.md#docked-pilot-hold--focused-pass-full-exit-stops-at-cabin-walk): pose322/import/compile PASS; full route145.995s FAIL at15s cabin walk after actual standing, retained pilot at exact dock. Unmerged/withheld; exports NOT_RUN. | PARKED after failed runtime plus one corrective attempt: combined392.470s current stages plus retained8054/e147 parser failures. No second repair, retry, tolerance/cap increase or renamed adjacent probe. Walking cause unproved; later node-path errors are inherited failure capture. All owned scratch cleaned17.09min inside original 45min. |
 | Habitat common-entry view /9,12 | [Source8a6339b91](docs/history/ROADMAP_DELIVERIES.md#habitat-arrival-view--readback-timed-out-before-image): import passes; full-Main player-height readback times out180.842s before PNG or view metadata. Cumulative201.494s; no observed defect/no-finding. | PARKED. Concrete supported capture-boundary change before selection; no renderer/room substitute, cap increase or unchanged retry. Actual eye stage was not proved reached; accepted Habitat runtime scopes remain. |
 | Courier clear /11 | [Candidatecb9d76fa5](docs/history/ROADMAP_DELIVERIES.md#courier-ordinary-clear--escaped-without-player-damage), pushed/unmerged: prechecks pass; ordinary attempt fails70.377s, ESCAPED at1400m, hull78/78, no player hit/kill or home completion. Cumulative165.917s. | PARKED/withheld. Fresh Courier-window emission/ray/resolver facts are missing; generic shot receipt can be stale. No weapon/aim cause established, repair/retry or public checkpoint selected. Preserve original route/caps; other Courier outcomes need separate selection. |
 | Matching RPC-cache templates /25,32 | [Linux built; Windows cold/incremental compilation timed out](docs/history/ROADMAP_DELIVERIES.md#matching-rpc-cache-templates--stopped-at-windows-compilation-budget). No accepted matching pair; callback repair is unverified. | PARKED; no further compilation or dependent browser attempt selected. Existing recipe/JSON fixture remain delivered; empty callable metadata and similar Window errors establish no cause. |
@@ -222,7 +246,7 @@ contracts and cumulative attempt records remain in the retained history.
 | WALK-OBSERVATION /7,9 | Two caller failures retained; numeric e390/unchanged game4c58 completes54-goal travel/view/home prefix then FAIL89.064s on rootWindow signal disconnections after focused Exit. | PARKED; full task remains unaccepted, no clean exit0. Capture identifies the Tooltip with stored pairs still present across errors. Laterbae551d58 private route PASS, but no visible tooltip/retirement, so repair acceptance INCONCLUSIVE and candidate withheld. No second attempt selected. |
 | PERIMETER-LIVE /11 | Runtime/admission shipped fdae1cb: all selected focused/production checks, paired exports, three strict startups and package audit PASS. Existing branch merged/pushed/deleted and owned scratch cleaned. | Scoped integration DONE; full ordinary weapons/home/recovery/repeats/network/native remains OPEN. Prior 363.897s/three failures retained; total stages 742.767s. |
 | PLAY-BEACON-HOME /13 | Candidatea612ea686 FAIL37.713s guarded/37.419s driver at ActivityBoardButton Return/frame1233; same two root Window signal-disconnection diagnostics. Eleven prechecks pass; no settlement/home/L/E reached, no file captures. Unmerged/withheld. | PARKED on UI-BOARD-FOCUS. Recurrence supplies no popup/connection-removal cause; no retry/repair/cap change. Preserve original UI two-component9.627s and Mining budgets. |
-| BREACH-INTERRUPTION /13,31,32 | Originale9/repair3c fail board arming35.365/35.638s. After accepted owner fix e3, unchanged probe c159 fails69.957s at atomic-payment commit assertion after cold Resume/one matching receipt; third cold replay NOT_RUN. | Cumulative140.961s STOP/PARK; candidates unmerged/withheld, no recovery checkpoint. No further diagnosis/repair/run, fourth automatic attempt or renamed retry selected; concrete causal fact/change required. |
+| BREACH-INTERRUPTION /13,31,32 | Candidate 853e5ee19 unmerged/withheld. Fresh import/compile/privacy PASS; sourceFAIL 71.057s at combined capture assertion after actual cold Resume/real pilot/exit/one exact paid receipt. Third cold replay/exports/archive case NOT_RUN. | Old latest-metadata boundary established, new exact failed predicate UNKNOWN because capture values were not emitted. Need actual captured document/metadata/generation/comparison results. No retry/repair/cap change selected; cumulative 249.405s retains all four failures. |
 | HALYARD-GUNNER-DAMAGE /11,16 | Original 51.847s and one caller repair 52.025s both fail co-pilot admission; actual new damage proof NOT_RUN. | Parked after cumulative 103.872s review. No further diagnosis/fix/run without concrete reopening fact/change; candidates unmerged, no weapon defect established. |
 | HELM-YAW-HANDBACK / 18,20 | Original146.578s failure; one repair reaches cabin walking then FAIL156.016s at >=0.6m/15s. | Recorded cumulative priority review parked it. Explicit selection required before further diagnosis/fix/run; no movement cause established. |
 | CABIN-PASSENGER-ROLE / 18,20 | Candidate38c079086 HUD36 and actual handback PASSENGER pass, full required route fails walking. Unmerged/withheld; no package. | Preserve full route; no acceptance narrowing or automatic second repair. |

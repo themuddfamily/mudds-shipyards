@@ -1342,14 +1342,47 @@ func _run_breach(game: GameFlow, store: UserDataStore, entry: String) -> void:
 			"the further distinct cold process retains the complete paid ledger and terminal without a second receipt")
 	else:
 		var payment_document: Variant = JSON.parse_string(str(payment_capture.get("document_json", "")))
-		_check(payment_document is Dictionary \
-			and payment_document.get("commit", {}) == payment_commit \
-			and int(payment_document.get("generation", -1)) == int(payment_capture.get("store_generation", -2)) \
-			and str(payment_commit.get("id", "")).begins_with("game-flow-reward-") \
-			and payment_document.get("payload", {}).get("heavy_breach_session", {}) == expected \
-			and payment_document.get("payload", {}).get("game_flow_reward_store", {}) == reward_after \
-			and payment_document.get("payload", {}).get("runtime_settings", {}) == foreign_settings \
-			and payment_document.get("payload", {}).get("jovian_cargo_session", {}) == foreign_cargo,
+		var document_is_dictionary: bool = payment_document is Dictionary
+		var document: Dictionary = payment_document if document_is_dictionary else {}
+		var payload_value: Variant = document.get("payload")
+		var payload: Dictionary = payload_value if payload_value is Dictionary else {}
+		var generation_value: Variant = document.get("generation")
+		var generation_is_numeric: bool = generation_value is int or generation_value is float
+		# JSON parsing represents numbers as floats; the live authority creates
+		# integer receipt fields. Normalize only the expected live ledger using
+		# the existing JSON canonicalizer, retaining the actual primary wire text.
+		var payment_checks := {
+			"document_is_dictionary": document_is_dictionary,
+			"commit_matches": document_is_dictionary and document.get("commit", {}) == payment_commit,
+			"generation_matches": generation_is_numeric and int(generation_value) == int(payment_capture.get("store_generation", -2)),
+			"reward_commit_prefix": str(payment_commit.get("id", "")).begins_with("game-flow-reward-"),
+			"terminal_matches": payload.get("heavy_breach_session", {}) == expected,
+			"single_receipt_matches": payload.get("game_flow_reward_store", {}) == _canonical(reward_after),
+			"foreign_settings_match": payload.get("runtime_settings", {}) == foreign_settings,
+			"foreign_cargo_matches": payload.get("jovian_cargo_session", {}) == foreign_cargo,
+		}
+		var payment_matches := true
+		for predicate: String in payment_checks:
+			payment_matches = payment_matches and bool(payment_checks[predicate])
+		if not payment_matches:
+			var ledger_value: Variant = payload.get("game_flow_reward_store")
+			var ledger: Dictionary = ledger_value if ledger_value is Dictionary else {}
+			var receipt_value: Variant = ledger.get("last_receipt")
+			var receipt: Dictionary = receipt_value if receipt_value is Dictionary else {}
+			print("BREACH_PAYMENT_CAPTURE_MISMATCH: " + JSON.stringify({
+				"predicates": payment_checks,
+				"captured_commit_id": str(payment_commit.get("id", "")),
+				"captured_store_generation": payment_capture.get("store_generation", -1),
+				"document_generation": generation_value if generation_is_numeric else null,
+				"types": {"document": typeof(payment_document), "payload": typeof(payload_value),
+					"document_generation": typeof(generation_value), "ledger": typeof(ledger_value),
+					"receipt": typeof(receipt_value), "persisted_total_receipts": typeof(ledger.get("total_receipts")),
+					"live_total_receipts": typeof(reward_after.get("total_receipts")),
+					"persisted_receipt_serial": typeof(ledger.get("receipt_serial")),
+					"live_receipt_serial": typeof(reward_after.get("receipt_serial")),
+					"persisted_activity_generation": typeof(receipt.get("activity_generation")),
+					"live_activity_generation": typeof(reward_after.last_receipt.get("activity_generation"))}}))
+		_check(payment_matches,
 			"the physical board signal captures one persisted atomic reward document with the exact single receipt and terminal acknowledgement before later tutorial saves")
 		if _failures.is_empty():
 			var bytes := FileAccess.get_file_as_bytes(str(store.get("_path")))
