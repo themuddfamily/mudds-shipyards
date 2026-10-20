@@ -6,13 +6,13 @@ Nine of the eventual 17 craft exist; eight still need supported specifications
 and implementation. Partial acceptance is retained in the backlog; it is not
 whole-feature completion.
 
-Latest playable checkpoint: **3767687**. Station Defense relief enemies now
-respect the encounter flight boundary while retreating, rather than aborting
-the encounter by flying themselves outside it. Includes the earlier accepted
-Jovian passenger exit/reboarding fixes. Full ordinary Defense remains open.
-[Windows ZIP](builds/windows/MuddsShipyards-3767687-checkpoint.zip),
-[Windows notes](builds/windows/MuddsShipyards-3767687-notes.txt),
-[Linux notes](builds/linux/MuddsShipyards-3767687-linux-notes.txt).
+Latest playable checkpoint: **39d93d2**. Normal landing assist now discovers
+the current streamed Cinder cargo berth and docks Jovian through the existing
+physical reservation/occupancy path. Includes the prior Defense boundary and
+Jovian reboarding fixes. Full ordinary Cinder supply and Defense remain open.
+[Windows ZIP](builds/windows/MuddsShipyards-39d93d2-checkpoint.zip),
+[Windows notes](builds/windows/MuddsShipyards-39d93d2-notes.txt),
+[Linux notes](builds/linux/MuddsShipyards-39d93d2-linux-notes.txt).
 
 This page is the working queue. The
 [36-parent crosswalk and named children](docs/ROADMAP_BACKLOG.md#coverage-of-the-original-remaining-outcomes)
@@ -41,6 +41,17 @@ presentation findings, unresolved policies and measurement cases have not all
 been defined. Do not turn test counts, commits or row counts into project progress.
 
 ## Execution now
+
+**Cinder cargo landing prerequisite DONE — `39d93d26b`.** The original
+production-Main regression fails only GameFlow berth discovery before the fix;
+afterward normal request ingress reaches strict physical docking with the exact
+lease and unchanged home berth. Twenty focused checks pass in source and against
+exported Linux game data; existing streaming and landing-clearance suites pass.
+Fresh paired checkpoint, strict startups and matching package contents pass.
+Owned scratch is removed. No new branch/worktree. Full **PLAY-CINDER-SUPPLY**
+remains OPEN: ordinary outbound flight, three supply phases, physical one-crate
+transfer, durable once-only payment and usable home return must pass together.
+[Delivery and validation limits](docs/history/ROADMAP_DELIVERIES.md#cinder-cargo--normal-landing-assist-integration--2026-10-21).
 
 **Existing working-branch backlog cleared; unfinished product outcomes remain open.**
 

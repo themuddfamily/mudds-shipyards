@@ -19734,3 +19734,79 @@ Main sole branch/eight protected worktrees untouched; no new branch/worktree.
 Runtime/export inputs byte-unchanged from3767687, no identical rebuild. Original
 20-candidate inventory stays nine accepted/superseded and eleven unqualified;
 all broad parents/phase and remaining baseline/endurance/native gates stay open.
+
+
+## Cinder cargo — normal landing assist integration — 2026-10-21
+
+Existing PLAY-CINDER-SUPPLY parent13 prerequisite, accepted runtime
+`39d93d26bf5be427ea5ca5dcd2600dd7cd5f2cb5`. Production cargo access lives under
+Main's streamed cluster, outside World's resident berth registry. GameFlow
+previously fell back only to HULK, leaving normal cargo landing undiscoverable.
+The repair consults resident, HULK, then current cargo berth, using the existing
+ShipBerth compatibility/collision/speed/capture evaluator and exact normal
+reservation/occupancy/release path. It rereads current streamed ownership and
+refuses queued, detached or moved cargo endpoints. No retained berth cache,
+second registry, tolerance, lease protocol, cargo quantity or reward policy change.
+
+One implementation agent and independent lifecycle reviewer; root owns engines,
+Git, packages and cleanup. Only game_flow.gd and the existing production streaming
+test change. The default test body remains unchanged; --cargo-landing adds the
+focused case. Initial flight/capture context is staged and disclosed. No pose,
+velocity or lease fixture writes follow the positive GameFlow request. This is
+not an ordinary outbound flight or complete supply delivery.
+
+Actual bounded validation, all automated engines headless/Dummy with private
+profiles; raw logs and manifests retained under
+`/srv/mudds-work/cinder-cargo-landing-20261021/results/`:
+
+- Test-only source6fdc838b0: compile PASS16.300s; baseline31.936s/exit1, five setup
+  checks PASS and sole failure GameFlow cargo selection. Direct physical berth
+  capture accepts root inside and full final hull fit; capture_hull_inside=false
+  remains an honest diagnostic, not a requirement weakened by this repair.
+- First runtime91cf9415a compile17.068s has three inference errors (engine exit0);
+  retained as FAIL. Three explicit type declarations corrected on39d93d26b;
+  clean compile16.184s. The failed commit/result is retained in accepted history.
+- Focused runtime:20checks/34.036s/exit0, exact one success marker and clean log.
+  Resident/HULK priority, preview purity, incompatible/busy/outside refusal,
+  reparent/unload/free/replacement currentness and positive strict physical dock
+  pass. Exact replacement berth/token/occupied lease and original home retained.
+- Existing default streaming:39checks/91.685s. Existing landing clearance and
+  lifecycle:96checks/42.957s. Both exit0/clean logs.
+- Fresh clean-commit Windows export11.624s and Linux export25.844s. Source exact;
+  Windows refreshes only .godot/editor/filesystem_cache10, explicitly compared
+  in cache-difference.json; all imported/game cache entries remain exact. The
+  initially strict cache equality assertion and its resolved difference are
+  retained. Linux cache exact. No export rerun.
+- Strict startups: Linux executable23.804s, extracted archive25.444s, Windows
+  embedded payload under Linux Godot27.772s, all exit0 and sentinel1. Actual
+  Linux raw startup logs and sidecars checked. Native Windows remains NOT_RUN.
+- Same external focused test against actual exported Linux data:20checks/
+  28.128s/exit0/clean log/source and cache exact. This uses the editor engine
+  with --main-pack and an external script; export templates are not claimed
+  to honor external test overrides.
+- Package audit PASS:1525 actual PCK entries match across Windows/Linux,
+  stock PE template code and exact Linux archive binary/icon/installer
+  bytes/modes/epoch/desktop source metadata verified.
+
+Repository checkpoint39d93d2 includes Windows EXE, ZIP and notes in builds/windows,
+and Linux executable/archive/notes in builds/linux. Windows EXE184688304bytes
+SHA256f52baf9a193d0ceca95244f3c918a58d904bdd4b76c8279de63aef347e45cc0f;
+ZIP103220425bytes SHA256c7f71f241663da8cd4716e71d97728a9a4fcd62794d4bf8aa83f198c232501b7,
+reopened with both EXE and notes bytes verified exactly. No Downloads publication.
+
+Cleanup completed2026-10-20T23:46:10.737959UTC (2026-10-21 local):13 terminal
+owners,22 observed process identities absent. All186 scratch entries archived,
+reopened and byte/mode/link verified before removal; profiles.tar.gz3280433bytes
+SHA2567a591aefa86caceac4de8ffcc914eaaac05c246821e2992811f80b871ebdf95c.
+Eight protected detached worktrees untouched; no new branch/worktree or hosted CI.
+
+Independent source, focused-result and final package reviews GO; reviewer
+rehashed every packaged entry and checkpoint ZIP member.
+
+Only the landing capability is complete. Full PLAY-CINDER-SUPPLY retains its
+ordinary Jovian outbound, occupied cargo berth/source2, normal activity UI,
+load_crate→clear_gate→dock_platform under120s, physical terminal E transfer1
+(source2→1/destination0→1), durable once-only payment, home dock and usable exit,
+whole journey300s. Ten-run replenishment and Hauler stock policy remain separate.
+Native Windows/GPU/devices/listening/human/final release gates remain NOT_RUN;
+all36 original parents and ten phase gates remain open.
