@@ -1,0 +1,22 @@
+Mudds Shipyards development checkpoint 820cc38
+Source commit: 820cc38ef894251d8fc9f014b27bc0556385cbf1
+
+Player-visible change
+- Controls Help CLOSE keeps readable text while hovered or pressed, including all existing colour palettes and high-contrast mode. The button uses darker local fills and palette-aware text.
+- Help paging, focus, close behavior and other menu buttons' authored default paints are retained.
+
+Validation performed
+- Clean source import PASS.
+- Existing accessibility suite PASS, including32 actual production Help CLOSE paint comparisons across4 palettes x2 contrast modes x4 states. Minimum regular7.767:1/high-contrast7.767:1 clears existing4.5/7 floors. Palette restoration, focus/outline/geometry/navigation/paging/dismissal and ordinary Resume defaults also pass.
+- Existing Help overlay accessibility suite20 assertions PASS.
+- Clean Windows/Linux exports PASS; direct Linux/archive strict startup PASS, each exit0 and exactly one STARTUP_MENU_READY_OK.
+- Windows embedded payload through supported Linux engine PASS: exit0 and exactly one STARTUP_MENU_READY_OK. Native Windows was not run.
+- Actual Windows/Linux PCK inventories match all1521 entries; stockPE.text and exact Linux archive binary/icon/installer bytes, modes, source epoch and metadata verified.
+- All9 frozen stages PASS first attempt, zero diagnostics;159.893s combined. Original caps/budget retained.
+
+Open qualification
+- Other Help controls, other UI views and broad accessibility remain open; this is one named local paint fix.
+- Headless theme-paint measurements do not establish rendered/human readability or physical keyboard/controller feel.
+- Native Windows execution NOT_RUN (owner hold retained). Native GPU/performance, physical devices, real audio/listening, human/full-release and final candidate gates NOT_RUN/open.
+- Full unfiltered final regression and final-package Guided NOT_RUN; earlier Guided3/3 remains scoped to3d92b91.
+- Parked ordinary Wing driver remains unmerged/unqualified; this checkpoint retains accepted f671da9 Wing admission, without claiming full kills/home.

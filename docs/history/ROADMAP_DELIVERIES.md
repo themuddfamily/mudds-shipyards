@@ -15478,3 +15478,1974 @@ helpers removed at5.36min within45min. Only
 including exact source/commands, raw first failures/peer receipts, profile archive
 and helper sources. Original passenger-exit/reboard/reclaim/redeparture, native,
 world/endurance, broad parents and all ten gates remain open. No successor selected.
+
+
+## Docked pilot hold — focused pass, full exit stops at cabin walk
+
+NET-JOVIAN-DOCKED-PILOT-HOLD / parents16,20,26, selection98fbe1c03. Corrective
+candidate `0d225bee8777ba4f1d792aa9f9a41a38371f2101`, branch
+`fix/docked-pilot-hold-20261020`, pushed/unmerged/withheld. Same original
+05:35→06:20UTC45min budget; no reset of earlier2aed route166.940s or8054/e147
+parser failures. Root retained source evidence before selecting this one repair.
+
+Saved original first-pilot-failure data proves exact false operand: current dock
+position difference moves0.494335174767→0.500293731897m across original0.5m limit,
+with unchanged source5/delivery5, actual pilot predicate true and neutral input.
+The0.005958557m drift is one60Hz step of observed0.357461m/s residual velocity.
+Latest operation says landed+docked/not landing; source still uses airborne
+prediction/deadband. Source stream was correctly initialized on clients; no
+null-source hypothesis. Passenger's first snapshot was mid-rise0.05/0.45s after
+shared pilot abort, so it did not establish a separate standing defect.
+
+One high implementer owned network_remote_craft_pose_stream.gd and its existing
+full pose suite. Root owned only the retained selected caller's off-tree source
+receipt: valid instance identity/stream without get_path. Reconciliation holds
+current authoritative dock pose/velocity without lead/deadband, preserves existing
+no-sample/destroyed/local-landing/authority/stale/world-frame paths, and resumes
+flight prediction for a newer airborne sample. Unchanged state does not grow
+correction counters. Independent high review GO before engines; all original
+route predicates/tolerances/limits retained.
+
+Fresh import20.674s, full existing pose suite42.374s/322 assertions and original
+caller check-only16.487s PASS/zero diagnostics. One full original host/two-client
+route FAIL145.995s. Corrected current attempt225.530s; with earlier166.940s gives
+392.470s current chain, earlier two parser failures retained separately.
+
+Actual strict home return/convergence and passenger stand/host.stand_checked now
+pass. At later failure the original pilot remains at exact host dock (error0.0m),
+source5/delivery5, landed generation1 and occupied home lease retained. These are
+passed prefixes of a failed task, not full passenger-exit acceptance. Host15s
+cabin-walk/hatch-approach predicate fails; same supported/control-enabled passenger
+at(-52.6118,2.11189,64.56992) cannot finish goal(-52.22,2.41,65.82). Client pilot
+then fails waiting for host hatch confirmation under shared host abort. No actual
+hatch exit/ground walk, selected success marker or three peer exit0. No walking
+runtime cause is established. Two remaining get_path diagnostics arise from
+inherited first-failure snapshot → producer-state → node_identity; the corrected
+postdock receipt no longer invokes that invalid path.
+
+Cumulative priority review parks this failed runtime plus one corrective attempt.
+No additional repair/retry/cap increase/renamed neighbor probe, shortened proof or
+integration. All export/startup/package stages NOT_RUN after first failure; no
+checkpoint. Latest public remains923d7b3. Hauler stock/navigator refusal/Bomber
+choices remain independent production dependencies; no answer or successor inferred.
+
+All automated engines used Dummy/headless or existing private explicitx11 input-
+only peers. All25 new observed process identities absent and owners terminal;
+85 unique profile entries archived/hash-verified. Clean pushed candidate worktree/
+cache/profile/helper duplicates removed at17.09min from original05:35, inside45min.
+Only `/srv/mudds-work/docked-pilot-hold-20261020/results/` remains for this attempt,
+including exact pin/arguments/reviews/first failures/peer receipts/profile archive.
+Parent20's full exit/reboard/reclaim/redeparture, other crew/world/endurance,
+native hardware and all broad/final-release gates remain open.
+
+
+## Beacon outbound travel envelope — proposal recorded
+
+TRAVEL-LIMIT[Beacon outbound] / parent13,2026-10-20: source-only bounded definition,
+root integration plus one medium read-only mapper. Existing installer family was
+already delivered; remaining final-candidate/graphical gates did not justify
+reimplementation or unchanged qualification. No engine, runtime edit, package,
+temporary file or parked route run. The backlog now defines one proposed30s
+unpaused monotonic elapsed leg, engine-start input at occupied Torrent berth to
+controlled first Beacon32m/speed≤0.45 approach.30s/60s question newly asked;
+no answer/default inferred, family remains WAITING agreement, not DONE.
+
+Existing e06550e accepted record supplies only simulation-frame observations:
+launch stage776→approach1353 gives9.6167s at60Hz; departed924→1353 gives7.1500s.
+No segment monotonic launch timestamp is retained. Full63.879s driver duration
+is not travel. Distances/tuning, frame transform, exact proposed clock and
+exclusions live in the [finite backlog contract](../ROADMAP_BACKLOG.md#beacon-outbound-travel-envelope--proposal-awaiting-decision).
+No timing, native/human or full journey acceptance implied; all12 activities,
+return travel, original phase gates and parked Beacon/UI budgets preserved.
+Execution-now history was consolidated into its existing accepted/parked tables;
+Jovian392.470s/failure-plus-corrective-attempt limit remains explicit. No successor
+or new progress percentage inferred from the planning result.
+
+Source review confirms clock boundaries/numbers; thrust-alignment wording corrected.
+All33 working-roadmap links/new proposal links,36 original promise/family columns,
+ten phase gates, existing pending/parked rows and finish/release rules pass local
+checks; whitespace clean. Working roadmap257→224lines. No scratch was created.
+
+
+## Ember first-relay cold cut — runtime completes, parent comparison fails
+
+WORLD-SAVE-EMBER-FIRST-RELAY / parents14,31, selection28f7c2a27 on2026-10-20
+06:05UTC→06:25UTC/20min. One high source mapper plus root: original requirement
+allows naming resume OR safe-recovery. No instruction requires owner approval
+for this specific cut; an initially suggested owner decision was an inference,
+withdrawn before work. Existing cold-yard/passive Ember behavior is this contract,
+not a waiver of separate cold surface/whole-Main/canonical promises.
+
+Exact archive923d7b3 SHA593b48f12abf84932619af53fd5306f36bed39f2ee4cc9627c70b7174356f827
+supplies extracted Linux ELF148897840bytes/SHA
+1f21248cb3cabcc94b76d0e7f40a2ed8fd8a8a1d6440c3db0601dbb2a32f36e7;
+compiled source923d7b3261175a14991813cf6e479c7c95be283d. Driver source
+28f7c2a27f5072bbc4f5bd352ab4e9f74ebfd7e4; runtime/test/tools assets unchanged
+between those commits. Existing native-export Ember pilot selector, same private
+real files, no external script/pack/path override. Every automated Godot process
+headless/Dummy; no display/audio/hosted-CI/native-Windows run.
+
+One full attempt FAIL312.812s. Actual default selected craft is Bulwark. It
+lands under genuine caldera lease, walks first relay on supported terrain and
+commits positive original generation/index1 of2/next ember_return_beacon,
+unpaid0. Driver independently matches actual saved document, then SIGKILLs and
+reaps actual arm1713707 exit-9 with committed bytes intact. Distinct resume1713976
+exits0 after current fence/yard on-foot controls, passive checkpoint preservation,
+new real boarding, original-generation adoption on later admission, receipt
+retirement, final survey/payment0→1 and paid-terminal retry/save checks. One
+crash event, terminal IN_WORLD_RECOVERY_OK and zero engine diagnostics.
+
+The parent driver still FAILS at run_package_probes.sh:557, exact comparison
+fresh process changed durable Ember journey progress. Independent narrow diff
+of the two reported boundary documents shows only:
+
+- completion.detached_session.checkpoint.orbital_coordinate.offset_meters[0]
+- completion.detached_session.checkpoint.surface_tangent_meters[0]
+Each180.34764099121094→180.34764099121097, delta2.842170943040401e-14m/one binary64
+ULP. No other compared boundary field differs. This is concrete representation-
+level evidence, not an established corruption cause or accepted exact-preservation
+result. Internal successful runtime checks do not override the parent failure.
+No comparison tolerance, retry, repair or cap increase applied. Original300s
+per arm/resume and660s outer preserved; no timeout occurred.
+
+No runtime change or duplicate checkpoint. Canonical outbound NOT_RUN,
+standing_pose_restore NOT_SUPPORTED and two disclosed initial orbital/corridor
+placements remain; no full ordinary flight/home, cold surface location, installed,
+native GPU/device/audio/human/final-release qualification follows. Prior KIT,
+Ember window-close and Jovian failures retain their own gates/budgets.
+
+All9 observed process identities absent, owners terminal; source/import-cache,
+package/export metadata identities stable and all five input artifacts hash-
+verified. Unique raw logs/interrupted/final documents and the private wrapper
+profile archive retained; worktree/cache/helpers/extracted duplicate removed at
+9.50min within20min. Only `/srv/mudds-work/ember-first-relay-20261020/results/`
+remains, including exact arguments/source/input identities and coordinate diff.
+A separately selected coordinate/representation-contract review must precede
+another attempt. No automatic successor; all broad parents/phase gates stay open.
+
+
+## Ember coordinate contract — package caller corrected
+
+2026-10-20; WORLD-SAVE-EMBER-FIRST-RELAY, parents14/31. This is a production
+release-checker correction, not a passing recovery qualification or new gameplay.
+Original archive923d7b3 attempt stays FAIL312.812s. No engine/export/retry run.
+
+Read-only review of retained arm/resume data proves the arm runtime boundary
+already has180.34764099121097, exactly equal to resume. The first saved wire
+contains180.34764099121094; a later unrelated commit re-encodes the parsed Godot
+number as.97. Both affected coordinates explain the prior mismatch; physical
+progress did not change. USER_DATA_STORE.md promises JSON-number semantics;
+in_world_interruption_probe.gd:_ember_document_text explicitly binds parsed
+actual document, runtime boundary, generation and commit inside Godot.
+
+Changed only tools/release/run_package_probes.sh's Ember cross-process predicate
+to compare emitted runtime boundaries exactly. Recovered wire parsing/type checks
+remain, as do independently read ready/paid documents, actual kill/reap and exact
+prekill bytes, route/generation, safe-yard/boarding, crash and once-only payment
+checks. No tolerance, datastore format change or route reduction. Independent
+read-only review GO.
+
+Validation: bash -n tools/release/run_package_probes.sh PASS. Compiled the exact
+production predicate with Python ast and replayed retained arm/resume tokens:
+actual runtime pair accepted, original raw wire mismatch reproduced. Independently
+mutating each of74 boundary scalar leaves is rejected; every float mutation is
+one binary64 ULP. This verifies the changed equality, not a fresh full run.
+
+Original20min boundary06:05–06:25UTC retained. Review/correction completed within
+it; no further312s package run fits, so corrected full qualification NOT_RUN.
+A later separately selected corrective attempt must freeze source/package hashes,
+original route/300s per-process/660s outer caps, total budget and cleanup, retain
+prior312.812s cost, and stop on first failure. No automatic successor selected.
+No new worktree/process/profile/package scratch created; unique old raw results
+remain under /srv/mudds-work/ember-first-relay-20261020/results/. Roadmap now names
+contract review, caller correction and complete package qualification as separate
+finite deliverables with explicit completion checks, without closing the parent.
+
+
+## Ember corrective package attempt — preparation failure
+
+2026-10-20; WORLD-SAVE-EMBER-FIRST-RELAY, parents14/31. Selectioncc2b44ffd,
+corrected caller964794a03, same compiled923d7b326 archive/ELF. Separate bounded
+06:22–06:37UTC/15min attempt retained original300s per process/660s outer,
+prior original20min allocation and runtime FAIL312.811736s. No cap increase.
+
+Preparation failed: root incorrectly expected the export-result.json sidecar
+inside the archive; extraction asserted after writing the correct ELF. The
+shell then unconditionally launched the next checker command despite that
+failure. Checker exits1 after4.635531s, missing adjacent export-result.json.
+Driver processes=[], owned_children_reaped=true, engine diagnostics0; no Godot
+game starts. Corrected full qualification remains NOT_RUN, not a pass or new
+runtime defect. Original failed result is unchanged. No repair/retry executed.
+
+Independent cumulative review PARK: original runtime312.811736s plus corrective
+preflight4.635531s =317.447268s measured attempts; preparation is additional.
+No further automatic correction, retry or renamed adjacent probe selected.
+Latest playable remains923d7b3; native/ordinary/canonical/installed/full-world
+acceptance stays open.
+
+Cleanup verified owner FINISHED and all6 observed process identities absent;
+source/import-cache unchanged, four actual original/extracted package inputs
+hash-verified. Profile archive verified (one symlink entry), helper source copies
+hash-verified. Clean integrated/pushed detached worktree, profile, helpers and
+duplicate extracted ELF removed at1.77min within15min. Only unique raw results
+remain at /srv/mudds-work/ember-first-relay-corrective-20261020/results/,
+including preparation-failure.json, source/package-input.json, driver logs,
+owner/result/observed-process records, archived helpers/profile and cleanup.json.
+
+
+## On-foot help — one minimum-scale 16:10 cell accepted
+
+2026-10-20; ACCESS-HELP / parents12,29, source5ac9d3ef04c7da958b08a5cd0163c4fde2437965.
+Actual Main starts normally; actual GameHUD publishes its ordinary on_foot
+context rows. Temporary subclass reuses existing ultrawide _measure and
+_check_layout_report without changing their criteria. Live window1920×1200,
+requested/effective scale0.75, logical2560×1600, default keyboard prompts,
+normal palette. All20 rows/four pages measured. No runtime change or new build.
+
+One headless/Dummy import PASS20.825265s; selected check PASS30.859662s,
+exit0/one ULTRAWIDE_LAYOUT_TEST_OK/124 assertions/diagnostics0, combined51.684928s.
+All four reports: viewport/safe overflow[],overlap[],asymmetry[], smallest
+font7.5px≥existing6.75px floor. Visible binding/action labels are nonempty,
+unclipped, smart-wrapped and panel-contained. Five rows per page, enabled
+Previous/Next boundaries, focus after advancing/returning, Close focus/dismissal
+all pass. Independent source/harness and actual-result review GO; no further run.
+This is source geometry/programmatic-focus qualification, not a new feature,
+rendered/human readability, physical device/native GPU, other help cells or final
+candidate acceptance. Generic root-user warning remains in raw log.
+
+Original selection provisionally said06:27–06:42; actual preparation began
+06:25, so deadline was brought forward to06:40, retaining15min rather than
+expanding it. Cleanup completed3.46min from actual start: both owners terminal,
+all6 observed process identities absent, source/import cache unchanged during
+check,10profile archive entries verified, helper copies hash-verified; owned
+clean integrated/pushed worktree/profile/helpers removed. Only unique results
+remain at /srv/mudds-work/help-onfoot-cell-20261020/results/. No production
+repair was justified; no new validator/test family or automatic successor.
+
+
+## Tractor look inversion — shipped on 34d4b9e
+
+2026-10-20; TRACTOR-LOOK-INVERSION, parents8/29. Source
+34d4b9e097684d5f4044f98f0bd18d9f322fade2 integrated/pushed in fcfc1f25e.
+Existing Invert on-foot vertical look now also governs the tractor's mouse and
+right-stick pitch. GameFlow forwards the saved initial and live preference;
+defaultfalse/yaw/rate/clamps/ownership and independent flight inversion retained.
+No new setting or remap/boarding/physics redesign. Independent code review GO.
+
+Original45min06:30–07:15UTC retained. Importa80349ca6 PASS20.607823s; first full
+tractor headless FAIL31.932909s on all six new mouse assertions, pad checks pass.
+Exact local Godot4.7.1 source confirms headless capture is a no-op/VISIBLE, so
+existing mouse guard rejects the test events. No game defect inferred. One
+separate selection adds existing input-only matrix declaration and capture
+assertion; runtime unchanged. Corrective full tractor passes162 checks32.100100s
+on private Xvfb/explicitx11/dummy renderer/Dummy audio. All six original mouse
+checks remain active, both pad directions/rates/yaw/clamps retained; no skip or
+capture-guard bypass. Original STOP hash-verified/archived and retired only after
+that exact corrective pass. Root initially guessed the wrong literal capture
+PASS label in postprocessing; actual log inspected, no suite rerun.
+
+Actual Main persisted/live settings PASS11 assertions30.487749s; existing runtime
+settings PASS156 checks1.027669s. Windows/Linux clean exports PASS26.890369/
+25.766899s; Linux direct/archive strict startups PASS22.205727/23.686922s;
+Windows embedded payload through Linux engine PASS26.183683s. All three require
+exit0 and exactly one STARTUP_MENU_READY_OK. Audit PASS5.505897s: actual1521-entry
+PCK parity, compiled tractor/GameFlow presence, tests/tools absent, stock PE.text,
+exact five-file Linux archive bytes/modes/epoch/desktop metadata and source.
+All10 accepted stages214.462836s, plus original failed31.932909s =246.395745s;
+zero diagnostics in accepted stages. Independent final result review GO.
+
+Published repo builds/windows EXE+ZIP+notes and builds/linux ELF/archive/metadata/
+startup records+notes (11files), copied bytes hash-verified. EXE184656384bytes
+SHA2568e79f06c321eea1cf47e1fca8d514c485914c5f43657a6c4116010b8a644df28;
+ELF148898096bytes SHA256035de3e4bb56d9bd26bdee403eda4c0cf0e5a4075b36dcc4436f02d73567eaea;
+tar95311773bytes SHA25665839b0e628e641c21ff51c6c240d6dcad8a708663266050638fad57724eb5a5.
+Native Windows/GPU/performance/physical devices/listening/human/full release,
+full unfiltered matrix and final Guided NOT_RUN/open;3d92b91 Guided3/3 retained
+only on those bytes. Broad parents/phase gates remain open.
+
+Cleanup original helper assumed every owner exit0; amended only to accept the
+known retained original tractor exit1, still requiring all owners FINISHED.
+All61 observed identities absent;11published files hash-verified,25profile
+archive entries verified, helper copies hash-verified. Clean integrated/pushed
+owned worktree/import cache, profiles/helpers and duplicate exports removed at
+13.97min inside original45min. Only unique results remain at
+/srv/mudds-work/tractor-look-inversion-20261020/results/. No automatic successor.
+
+
+## Paired Wing board admission — shipped on f671da9
+
+2026-10-20; COMBAT-WING-ADMISSION / parent11. Source
+f671da9511873d499756a071700090a4e50dcacd integrated/pushed in0c19399fc.
+The existing Wing encounter lacked normal entry: automatic cycling needed a
+second one-shot guided phase and scene restart reset its cursor. It is now the
+third existing combat-board contract after Heavy Breach/Torpedo. On-foot arm/
+cancel, actual craft/departure/registered-authority gate, two existing Wing
+actors/coordinator, objectives and terminal cleanup integrated. Solo-only gates
+refuse network arm/start/fire and revoke on transition. No automatic sandbox
+spawn/guided reset or new geometry/weapon AI. Wing explicitly offers no credit
+reward; no new paid activity/reward ID/schema, prior two-contract payout/debt
+paths retained. Parked Perimeter/Courier candidates untouched.
+
+Source review found/fixed a board-Wing objective issue: inactive healthy/missing
+members cannot count as destroyed. Both actual dead members clear; healthy
+retirement/missing abort, legacy automatic Wing scope preserved. Independent
+source review GO. Original import PASS20.777718s/director151 PASS38.317333s;
+board test PARSE FAIL16.170633s before assertions, three new dynamic fixture
+results lacked explicit types. One separately selected correction changes only
+Dictionary/Dictionary/bool declarations, not runtime/assertions; related new
+declarations source-reviewed. Original STOP/raw failure preserved/hash-verified;
+live STOP retired only after corrected full board59 PASS25.586591s. Same original
+06:49–07:49UTC/60min budget and all caps retained; no second correction/retry.
+
+Actual Main28 PASS31.894529s: disclosed staged third-offer memory record/avatar
+placements and withdrawal phase boundary; real E/cancel, actual localhost host
+refusal, Arrow sensor/boarding, real berth movement, real registered pair with
+one firing suppressor/one covered flanker, truthful HUD/no-credit, withdrawal
+revocation/unregistration/rotation/no-debt/stale-terminal replay. Main never
+injects damage/kills or completes home. Existing board component clear uses
+disclosed simulated damage, not ordinary player-weapon qualification.
+HUD8 PASS2.413807s/audio11 PASS15.804738s; Windows/Linux exports PASS26.727986/
+25.680315s; strict Linux binary/archive startups PASS22.523985/23.475077s;
+Windows embedded payload via Linux engine PASS25.865373s. Each startup exit0+
+exactly one STARTUP_MENU_READY_OK. Audit PASS5.669972s: actual1521-entry PCK parity,
+compiled board/director presence, no tests/tools, stock PE.text and exact Linux
+archive binary/icon/installers/desktop bytes/modes/source epoch/metadata.
+All12 accepted stages264.737422s plus original failure16.170633s =280.908055s;
+zero diagnostics in accepted stages. Independent final publication review GO.
+
+Repo builds/windows EXE/ZIP/notes and Linux ELF/archive/metadata/startup/notes
+published as11 hash-verified files. EXE184659504bytes
+SHA2562836207515cfa40683f9a01104f39167cd90b51fa7808f3bd216b94f9536d740;
+ELF148901216bytes SHA25605409c2318344556bb938fa5c828ebc1d91ce81f2cd504a60e89ca6771c3eff5;
+tar95314415bytes SHA256fb659d29fbfbc69e8de5157f9b33c5a182f132c64ed8a5a24fb53053ab6ce80f.
+Full COMBAT-WING two ordinary player-weapon kills+safe physical home remains
+NOT_RUN; missing supported native observer/driver and honest third-posting
+prerequisite must be frozen next. No staged proof closes that parent. Repeat/
+recovery/shared/native/device/GPU/audio/human/final gates remain open; native
+Windows hold and original Guided3/3-on3d92b91 scopes retained.
+
+Cleanup18.68min inside original60min: all64 observed identities absent, all owners
+FINISHED (known original board exit1 retained),11published files hash-verified,
+29profile entries archived/verified, helper copies hash-verified. Clean integrated/
+pushed owned worktree/import cache/profiles/helpers and duplicate exports removed.
+Only unique raw results remain at /srv/mudds-work/paired-wing-admission-20261020/results/.
+
+
+## Ordinary Wing route — board admission driver fails
+
+2026-10-20. COMBAT-WING/parent11 candidate b40c62eb3b31e7350506e67c76313d1ec546ec7e
+is clean/pushed on feat/wing-ordinary-route-20261020, unmerged/unpublished.
+Latest accepted playable remainsf671da9. Original07:14–08:14UTC/60min retained.
+Seven-file driver/observer/private-selector/test change, no gameplay tuning,
+weapon/pose/damage/phase/reward changes. Empty-profile route intended two honest
+Heavy/Torpedo withdrawals, then actual Wing kills/home/UI exit; no seeded posting
+or fake wins. Existing native cap300s, isolated owned X11/Dummy rendering/audio,
+independent abort retained.
+
+Import19.635299s, Python safety9.051988s and privacy1.163528s PASS. Observer first
+FAIL100.874336s/exit143 after GDScript dynamic expression inference error at1037.
+One separately selected explicit bool annotation, expression/assertions unchanged,
+independently reviewed: observer20 assertions PASS15.693361s. Original source/failure
+retained; prior unchanged check scopes retained. Windows/Linux exports26.664730/
+25.817163s PASS; direct/archive strict startups22.292155/23.666810s PASS; Windows
+embedded PCK through Linux engine25.997728s PASS (not native Windows). Audit5.751106s
+PASS:1521 actual PCK entries match, stockPE.text, exact five-member archive bytes/
+modes/source epoch/metadata. No final-release qualification.
+
+Actual route FAIL: first board arm at frame923, player(7.999083,-0.018329,-23.279005)
+versus board(8,1,-26), distance2.905307m exceeds production2.8m radius. Candidate=true
+alone does not establish board admission. Driver waypoint[8,0,-23.3] plus settled/
+candidate-only arm guard sends E outside range, then wing_armed_wait ignores rejection.
+Board out_of_range, armed=false, sortie_generation0, director idle. Root stopped exact
+supervisor1742540/start129446305; stage143/67.689619s, driver67.302s success=false,
+no game diagnostics. No boarding/departure, prerequisite withdrawal, Wing weapon hit,
+kill, return or normal UI exit qualified. Final input-release/helper/game/Xvfb reaped
+fields and observed PID absence supersede stale pre-final game_legs snapshot.
+
+Ten passing stages175.733867s; all12 stages344.297822s including both failures.
+Independent cumulative review PARK/noGO. No automatic second repair, cap increase,
+retry or narrowed proof. Future unselected seam: board approach inside actual3D
+range with margin, prompt rejection handling; gameplay radius unchanged and complete
+original route retained. No automatic adjacent run; independent production selection
+comes first unless priority explicitly reopens this chain with cumulative costs.
+
+Cleanup23.77min within original60min:65 observed identities absent, all owners terminal,
+inputs released; seven unique EXE/tar/metadata files copied and hash-verified privately,
+ELF hash verified within tar,25 profile entries archived/hash/mode/symlink verified,
+helper copies hash-verified. Pushed clean owned checkout/cache/profiles/helpers removed.
+Only /srv/mudds-work/wing-ordinary-route-20261020/results/ remains. Unique candidate
+builds withheld there; no change to repository playable packages. Native Windows,
+native GPU/devices/listening/human/final release remain NOT_RUN/open. All36 parents
+and ten phase gates remain open; no project percentage claimed.
+
+
+## Help Close contrast — shipped on 820cc38
+
+2026-10-20. ACCESS-HELP/parents12,29. Source820cc38ef894251d8fc9f014b27bc0556385cbf1; integrated/pushed and paired
+checkpoint published. Source review found CLOSE pressed NOMINAL.darkened0.35
+cannot reach4.5 even with white text; hover also below7 for default/tritanopia
+high-contrast variants. Explicitly selected both before edits. Local CLOSE hover/
+pressed darkening0.70/0.65 plus palette-aware PRIMARY text; optional shared helper
+arguments retain previous defaults0.55/0.35 for all other menu consumers. No
+input/gameplay/persistence or test-family change. Existing focused test extended.
+
+All9 stages PASS first attempt, zero diagnostics, 159.893476s combined:
+import, existing accessibility252 checks, Help20 checks, paired exports, Linux direct/
+archive strict startup, Windows embedded payload strict startup through Linux
+engine, and existing package audit.32 actual HelpCloseButton normal/focus/hover/
+pressed paint pairs across4 palettes×2 contrast modes clear existing4.5/7 floors,
+minimum7.767 regular and7.767 high contrast. Palette restoration, original
+focus outline/geometry/navigation/page, paging/Close and other Resume defaults pass.
+Actual1521-entry PCK parity, stockPE.text, exact five-file Linux archive bytes/
+modes/epoch/metadata pass. Native Windows not run. Headless theme measurements
+supply no rendered/human readability or physical-device acceptance.
+
+Cleanup7.47min inside conservative original07:41–08:21UTC/40min: all
+53 observed identities absent, owners terminal,11 published files hash-verified,
+21 profile entries archived/hash/mode/symlink verified and helpers preserved.
+Owned clean pushed/integrated checkout/import cache/profiles/helpers and duplicate
+exports removed; only /srv/mudds-work/help-close-contrast-20261020/results/ remains.
+EXE/checkpointZIP/notes are in builds/windows/; Linux package/metadata/notes in
+builds/linux/. Other Help controls/UI views and all36 broad parents/ten gates
+remain open. Native GPU/devices/listening/human/final-release/full-matrix gates
+NOT_RUN/open; original Guided3/3 remains on3d92b91. Parked ordinary Wing candidate
+remains unmerged/unqualified and is not adopted by this checkpoint.
+
+
+## Shared menu contrast — shipped on d00ae72
+
+2026-10-20. ACCESS-VIEWS/parents12,29. Sourced00ae72254545308978bb33d101ccd935f9b2fd0, integrated/pushed and paired
+checkpoint published. Following local Help CLOSE acceptance, remaining shared
+menu consumers still used the same bright hover0.55/pressed0.35 fills; nominal
+pressed could not reach4.5 even with white. Corrected shared cause once: defaults
+hover0.75/pressed0.70, palette-aware PRIMARY text. Normal/focus, geometry/actions/
+navigation unchanged; local Help CLOSE0.70/0.65 retained. Prior unchanged-default
+test explicitly migrated to the new readable shared contract, no weakened floor.
+Only hud.gd and existing accessibility_presets_test.gd changed; no new test family,
+validator/schema, gameplay or persistence change. Root source/final review GO.
+
+All10 frozen stages PASS first attempt, zero diagnostics,167.942272s: import,
+accessibility443, Help20, controller/pause navigation, paired exports, three
+strict startups and existing actual PCK/PE/archive audit.160 actual Resume/Settings/
+Restart/Exit/Activity Back paints cover all5 shared roles across4states×4palettes×
+2contrast; minimum8.359 regular and8.359 high contrast clears existing4.5/7 floors.
+Reset, focus/outline/global rect/minimum/nav/action connections and Help/title
+paint regressions pass. These are real production controls, not styled test clones.
+Actual1521-entry PCK parity, stockPE.text, exact five-file Linux archive bytes/
+modes/source epoch/metadata and strict exit0/exactly1 STARTUP_MENU_READY_OK pass.
+Windows embedded payload used Linux engine; native Windows NOT_RUN.
+
+Cleanup8.12min within original07:49–08:29UTC/40min: all56 observed identities
+absent, owners terminal,11 public files hash-verified,23 profile entries archived/
+hash/mode/symlink verified, helper copies preserved. Owned clean pushed/integrated
+checkout/import cache/profiles/helpers/duplicate exports removed. Only
+/srv/mudds-work/menu-button-contrast-20261020/results/ remains. Windows EXE/ZIP/
+notes and Linux package/meta/notes are in repository builds/. Theme measurements
+supply no rendered/human readability, physical input or every-menu-journey claim.
+Disabled paints/other UI/art remain separate; all36 parents/ten phase gates open.
+Native GPU/devices/listening/human/final release/full matrix NOT_RUN/open; earlier
+Guided3/3 stays on3d92b91. Parked ordinary Wing remains unmerged/unqualified; no
+new adjacent run, repair or cap increase selected.
+
+
+## Station Defense physical interaction — shipped on a59127c
+
+2026-10-20. DEFENSE-PHYSICAL-INTERACTION/parent13. Runtime source4583734e8 plus
+one test declaration annotation gives packaged sourcea59127cc8614fca2f56343720764f9c104253bca; integrated/pushed,
+paired checkpoint published. Original07:58–08:58UTC/60min retained. Initial
+PLAY-DEFENSE driver preflight stopped cleanly before edits/engines after proving
+physical board lacked get_interaction_prompt (GameFlow candidate protocol) and
+ordinary terminal E Reset. No knowingly failing route or Nearby UI substitute.
+Actual Arrow/34s mapping retained; production interface fix explicitly selected.
+
+Board now exposes read-only snapshot action/prompt with session refusal/debt
+priority. Ordinary GameFlow E handles the exact physical board once per press
+through existing start/reset wrappers. Idle Deploy, active status-only, terminal
+Reset, pending-report settlement retry; no samepress reset/deploy after payment.
+Direct interact/Nearby/reset/recover APIs unchanged. Preserve2.6m3D/facing/armed/
+onfoot gates, immediate whole34s inclboarding/lulls,4actors1/2/1, health/reward/
+persistence/network owners. Only board/GameFlow/new focused test+UID/existing
+placement assertions changed; no driver/observer/CLI/tuning/timer or schema edits.
+
+Import20.646822s PASS. Original placement parseFAIL16.380624s: new chainedVariant
+before_retry_generation inferred declaration. One separately selected explicitint
+annotation, expression/assertions/production unchanged; independent source review
+GO. Import scope retained on identical production/classes. Full corrective
+placement62 assertions PASS135.680257s; actual Main15 PASS31.901695s. Main stages
+avatar pose and terminal owner-abort/refusal flag, then uses real overlapping
+Area3D/facing/Player Input.action_press E to prove discovery,3D-range refusal,
+competing Heavy board/armed gate, Deploy, active preservation, terminal Reset and
+next Deploy. No manufactured victory/reward. Placement preserves genuine live
+resolver completion, real-file debt/cold/refusal/repairedretry and once-only
+payment fixtures. Both sources/scopes independently reviewed; no ordinary full
+walk/combat/home acceptance inferred.
+
+All9 accepted stages PASS, zero diagnostics,318.384764s; retained failure gives
+cumulative334.765388s. Clean paired exports/three strict startups and actual
+1521-entry PCK parity/stockPE.text/exact five-file Linux archive bytes/modes/
+epoch/metadata pass. Strict startup exit0/exactly1 STARTUP_MENU_READY_OK; Windows
+embedded payload used Linux engine, native Windows NOT_RUN. EXE/ZIP/notes in
+repository builds/windows/, Linux package/meta/notes in builds/linux/.
+
+Cleanup23.44min within original60: all55 observed identities absent, owners
+terminal (known original placementexit1 retained),11 public files hash-verified,
+39 profile entries archived/hash/mode/symlink verified, helpers preserved.
+Owned clean pushed/integrated checkout/import cache/profiles/helpers/duplicate
+exports removed; only /srv/mudds-work/defense-first-play-20261020/results/ remains.
+Full PLAY-DEFENSE empty-profile ordinary Arrow/waves/payment/home/reset/UIexit
+still requires its supported driver and originalCAP300/34s; no new execution
+selected here. Parked Wing/Perimeter/Breach/Tooltip unchanged. Native GPU/devices/
+listening/human/final-release/full-matrix NOT_RUN/open, Guided3/3 stays scoped to
+3d92b91. All36 broad parents and ten phase gates remain open.
+
+
+## Ordinary Station Defense — Deploy accepted, post-Deploy walk times out
+
+2026-10-20. PLAY-DEFENSE / parent13, original08:23–09:23UTC/60min. Candidate
+c8dcd038deb5d3e5c3fd78cdf1d4f04e51aa689d plus exact corrective candidate
+**a480c0fbb800e00fbe72838e5368d84add9eaa40**, both pushed on
+feat/defense-ordinary-route-20261020, unmerged/unpublished. Latest accepted
+playable remainsa59127c. One high implementer and one independent high source/
+result reviewer; no nested agents. Runtime owners,34s clock, actors, health,
+weapons, pose/velocity and existing driver defaults/CAP300 unchanged.
+
+Five original owned files implement private station-defense selector, detached
+physics/actual resolver observations and full empty-profile Arrow ordinary
+walk/Deploy/board/depart/four-kill/once-payment/strict-home/physical Reset/next
+Deploy/UIexit0 driver. Actual game-owned save is independently read; every
+physics sample including exit tail validated, new OS input final sample only.
+Source review corrected Main currentness, legitimate terminal registration
+retirement/frozen kill generation, guarded getter passivity and exit-tail checks
+before first engines. Source GO is not runtime acceptance.
+
+Original import20.697800s,87Python safety9.043732s, startup privacy1.032190s,
+Windows export27.681766s/Linux26.304939s, direct startup22.427727s/archive23.729486s/
+Windows embedded payload through Linux25.936816s, actual package audit5.796054s
+PASS. Strict startups exit0/exactly1STARTUP_MENU_READY_OK; actual1521PCK entries
+match, stockPE.text/ELF/exact5file archive/bytes/modes/source epoch/metadata checked.
+No native Windows claim. Ordinary route FAIL35.963291s (driver35.687): after
+requestframe1123, pre-consumptionframe1124 still nativeEfalse/empty result/idle0,
+board candidate true/distance1.822546/facing.989. Driver incorrectly classified
+missing acknowledgement as rejection; no actual Deploy edge or combat occurred.
+
+Root separately selected ONE correction in main1a06746ca within the original
+window, retaining all costs. Only twoPythonfiles66+/1−: empty/pre-E pending
+samples wait within original90frame deadline; explicit rejection evaluated after
+observedE, no retap. Three focused regressions cover pending→E/active acceptance,
+pre/postE explicit rejection and original90/91frame boundary. Clean candidate and
+independent source GO; original import/privacy scopes retained because GDScript/
+scenes/resources unchanged.90Python safety8.877092s, refreshed Windows10.695418s/
+Linux25.779762s, direct22.215329s/archive23.981871s/WinPCKLinux25.912202s and actual
+audit6.085884s PASS. All runs silent/headless or authenticated privateXvfb explicit
+x11/Dummy; no active desktop, physical audio, hosted CI or native GPU test.
+
+Corrective ordinary route FAIL84.239347s (driver83.978), exact assertion
+`unchanged whole 34-second encounter; first failure stops`. Actual E rise1136,
+release1144; active1137 generation1 with valid actual board candidate/range/facing.
+walk_arrow entered1137, but visited contains only five pre-Deploy board waypoints.
+Final player coordinate(11.8886785507202,-.0198632758110762,-23.6401290893555)
+persists rawframes1189–3178 inclusive,1990samples/33.15s; grounded/supported/control
+remain true, support path endsExposedDockLattice/HeroBerthNode. Encounter timed_out
+frame3177 elapsed34.016666666666. Arrow remains parked, core75/alive;15 resolver
+events all hostile2121, playerkill0, ledger0. No boarding/departure/payment/home/
+Reset/nextDeploy/normalUIexit. Collision/steering cause not established.
+
+Independent cumulative result verdict **PARK**. Sixteen passing stages286.198068s
+plus35.963291s original and84.239347s corrective failures =406.400707s total.
+Both attempt diagnostics0, input release/helper/game/Xvfb reaping true. No second
+repair/probe, retry, cap increase or acceptance narrowing. Future work needs a
+concrete post-Deploy walking cause/change and separate selection with full route,
+whole34s andCAP300 preserved. Earlier physical-entry acceptance remains unchanged;
+this driver does not close PLAY-DEFENSE or make a new public checkpoint.
+
+Cleanup28.24min within original60min: all113 observed PID/starttick identities
+absent, owners terminal, both unique candidates' seven EXE/archive/metadata files
+each retained privately/hash-verified and each ELF verified in its tarball.
+37 profile entries archived/hash/mode/symlink verified, helper sources preserved.
+Owned clean pushed/unmerged checkout/import cache/profiles/helpers/duplicate
+exports removed. Only /srv/mudds-work/defense-ordinary-route-20261020/results/
+remains. Native Windows/GPU/devices/audio/human/final/full-matrix remain open;
+Guided3/3 remains scoped to3d92b91. All36 parents and ten phase gates remain open.
+
+
+## Destination Board status palette — shipped on c47ca33
+
+2026-10-20. ACCESS-DESTINATIONS / parents12,29. Source/checkpoint
+**c47ca3366fc6f74951447ab51073a67abb5347e2**, main integration9fc79b370,
+notes86d0a9731, committed/pushed. Original08:54–09:39UTC/45min retained. One
+medium implementer, root independent source/result review; no extra reviewer
+needed for this bounded presentation change. Only scripts/ui/hud.gd and existing
+tests/hud_panel_layout_test.gd changed,92+/1−; no new validator/test family.
+
+Actual source defect: _label registers initial font_color role, while retained
+_update_planetary_destination_row assigned modulate to the new status role.
+Creation-role colour multiplied by new-role modulation, and later palette changes
+repainted the stale initial registration. Local status helper now changes that
+existing matching theme_color/font_color entry's role, applies it immediately
+through the existing palette/outline owner and sets modulation white. No appended
+registration on each refresh, global palette helper change, destination catalog,
+travel/save/network authority, node replacement, text/action/focus change or parked
+route adoption.
+
+The extended existing catalog-backed destination case retains the same Ember
+status Label through ready→cruising→unavailable→ready. It verifies immediate
+current-role paint before any palette repaint, neutral modulation, all4palettes×
+2contrast modes for each state (32 combinations), exact status/action copy,
+disabled/focus gates, retained Back focus and one font-colour registration after
+every refresh. Existing full suite assertions stay intact.
+
+All10 frozen stages PASS first attempt, zero diagnostics:
+- Clean import19.642085s.
+- Full HUD panel layout552checks11.756838s, including the new retained-status cases.
+- Full accessibility443checks11.871981s.
+- Actual Main Destination Console production16assertions32.935486s, including
+  physical catalog/route display and detach/re-entry ownership.
+- Windows export26.690490s and Linux export26.061357s.
+- Linux executable startup22.340615s, archive startup23.990065s and Windows
+  embedded payload through Linux26.221458s: each exit0/exactly1STARTUP_MENU_READY_OK.
+- Actual package audit5.765371s: matching1521PCK entries, stockPE.text/ELFmachine,
+  exact5file Linux archive/binary/icon/installer bytes, modes/source epoch and
+  metadata. Windows native execution NOT_RUN; no native GPU claim.
+Combined207.275748s. All automated Godot headless/Dummy; no active desktop,
+physical audio or hosted CI run. Source/checks protect actual Control/theme
+properties; no rendered/human readability or physical-device acceptance inferred.
+
+Reviewed WindowsEXE/notes/two-member checkpointZIP and Linux ELF/archive/metadata/
+strict startup logs/notes published in repository builds,11 files hash-verified.
+Notes contain exact source and actual limits. No Downloads publication.
+Cleanup7.77min within original45min: all55 observed PID/starttick identities
+absent, owners terminal;28 profile entries archived/hash/mode/symlink verified,
+helper sources preserved. Owned clean pushed/integrated checkout/import cache/
+profiles/helpers/duplicate exports removed; only
+/srv/mudds-work/destination-status-palette-20261020/results/ remains.
+
+Full UI matrix/rendered/human/devices, planetary journeys, native Windows/GPU,
+real audio/listening and final-release/unfiltered matrix gates remain open.
+Guided3/3 remains scoped to3d92b91; Defense/Wing/Perimeter/Breach/Tooltip parked
+chains remain unaccepted. All36 broad parents and ten phase gates remain open.
+
+
+## Gameplay status palettes — shipped on 941ef73
+
+2026-10-20. ACCESS-GAMEPLAY status / parents12,29. Source/checkpoint
+**941ef73242b44dcb28d22ee3a1cec5ec459d800b**, main integration92d0aae6e,
+notese4f78e5e7, committed/pushed. Original09:11–09:56UTC/45min retained. One
+medium implementer and root independent source/result review; no additional
+reviewer for bounded presentation-only change. Exactly scripts/ui/hud.gd and
+existing tests/accessibility_presets_test.gd,166+/27−, no new test/evidence family.
+
+Concrete defect: six _label-created gameplay readouts retained creation-time
+font_color roles and multiplied new roles through modulate. Mode, engine,
+throttle, hull damage, component status and target lock now update existing
+registration roles and apply them once with neutral white modulation. Accepted
+Destination helper generalized and its call migrated. Four duplicate modulation
+refresh paths removed; registered entries repaint palette/high contrast directly.
+Enemy health bar/planetary refresh retained. Engine/hull accessibility report
+fields return font_color×modulate, preserving expected current role values and
+schema. No authority, wording, visibility, threshold, target marker/name, geometry
+or component lifecycle role changes.
+
+Root source review caught repeated linear palette-registry scans in the new
+high-frequency telemetry path before engines. Label-local last-successful-role
+metadata now short-circuits unchanged roles; only actual role transitions scan,
+metadata written only after an existing entry is updated/applied. No global cache
+or appended registrations. Palette repaint remains authoritative. Explicit types
+used for all new call/member-chain GDScript locals.
+
+Existing accessibility suite extends32 finite states: four modes, four engine
+states including fallback, five throttle states including±.04 boundaries, five
+hull states, nine component/lifecycle/fallback presentations, five target-lock
+states including fallback. Four palettes×contrast off/on yields256 cases with
+768 actual Control font-paint comparisons: immediate/default, palette-after-state,
+state-after-palette. Same retained label/neutral modulation/one current-role
+registration, copy/visibility and prior assertions protected. Component inputs
+are detached presentation fixtures, not ordinary damage or recovery acceptance.
+
+All11 frozen stages PASS first attempt, zero diagnostics:
+- Import20.651257s.
+- Full accessibility1979checks80.707939s, original120s cap.
+- Existing target-lock6assertions1.976198s,60s cap.
+- Existing production sensor-reticle/component90assertions36.063229s,180s cap.
+- Full HUD panel layout552checks11.784322s,120s cap; includes all32 accepted
+  Destination current-role/palette/contrast comparisons.
+- Windows export26.667550s and Linux export25.746011s.
+- Linux executable startup22.341074s, archive23.948510s and Windows embedded
+  payload through Linux25.727725s: each exit0/exactly1STARTUP_MENU_READY_OK.
+- Actual audit5.945206s: matching1521PCK entries, stockPE.text/ELFmachine, exact
+  five-file Linux archive/binary/icon/installer bytes/modes/source epoch/metadata.
+Combined281.559022s; no correction/retry/cap increase. Every automated Godot
+headless/Dummy, no active desktop, physical audio, native Windows/GPU or hosted CI.
+
+Reviewed WindowsEXE/notes/two-member checkpointZIP and Linux ELF/archive/metadata/
+strict startup logs/notes published under repository builds;11 files hash-verified,
+notes contain actual source and limits. No Downloads publication.
+Cleanup9.92min within original45min: all59 observed PID/starttick identities
+absent, owners terminal;30 profile entries archived/hash/mode/symlink verified,
+helpers preserved. Owned clean pushed/integrated checkout/import cache/profiles/
+helpers/duplicate exports removed; only
+/srv/mudds-work/gameplay-status-palette-20261020/results/ remains.
+
+Headless Control/theme acceptance does not qualify rendered/human readability,
+physical devices, full combat/ordinary journeys, native Windows/GPU, real audio/
+listening, final unfiltered regression or release. Guided3/3 remains3d92b91 scope;
+parked Defense/Wing/Perimeter/Breach/Tooltip and KIT-RELOAD remain unaccepted.
+Freight terminal workflow remains pending. All36 parents and ten phase gates open.
+
+
+## Settings and activity feedback palettes — shipped on 2ed93ca
+
+2026-10-20. ACCESS-RECOVERY/NEARBY/ACTIVITY, parents12,29. Source/checkpoint
+**2ed93caafa738ffdde731ce907cb727005bfa308**, integration9732a6b7a,
+notes4fc827d0b, committed/pushed. Original09:25–10:10UTC/45min retained. One medium
+implementer and root independent source/result review. Exactly HUD plus four
+existing caller suites,177+/14−; no new test file, generic matrix, helper, schema
+or validator family.
+
+Four remaining _label-created text families multiplied their initial font role
+by new-state modulation: settings save result, settings recovery title, nearby
+action feedback and activity selection status including rejected Patrol branch.
+All14 callsites now use unchanged _set_label_palette_role. No remaining
+.modulate=_c Label caller in this file; the two actual enemy health-bar paints
+are deliberately outside this repair. Copy/visibility/actions/focus, actual
+settings writes/repair, activity/reward/network/save authority remain unchanged.
+
+Four existing suites add public caller outcomes and actual current-role/effective
+font paint/white modulation, retained identity/one font registration and one
+subsequent deuteranopia/high-contrast repaint each. Outcomes cover save fail/success,
+available/blocked/corrupt recovery, nearby unavailable/start/reset/reward/refusal,
+selection ready/locked/repeat/stock/failure and Patrol refusal. Presentation
+fixtures do not establish real disk repair, reward transfer or ordinary journey.
+The unchanged generic matrix remains accepted on941ef73; it was not rerun here.
+
+All12 frozen stages PASS first attempt, zero diagnostics:
+- Import20.641366s.
+- Full save-feedback11assertions2.422170s; recovery HUD35assertions2.521083s.
+- Full nearby feedback26assertions2.568779s; controller/pause navigation113
+  assertions3.168176s; each original120s cap.
+- Full HUD panel layout552checks11.812366s, includes32 retained Destination
+  palette/contrast comparisons; original120s cap.
+- Windows export26.836906s and Linux export26.763229s.
+- Linux executable startup22.071636s, archive23.473715s and Windows embedded
+  payload through Linux26.148304s: each exit0/exactly1STARTUP_MENU_READY_OK.
+- Actual audit5.819685s: matching1521PCK entries, stockPE.text/ELFmachine and exact
+  five-file Linux archive/binary/icon/installer bytes/modes/source epoch/metadata.
+Combined174.247414s; no correction/retry/cap increase. All automated Godot
+headless/Dummy; no active desktop, physical audio, native Windows/GPU or hosted CI.
+
+Reviewed WindowsEXE/notes/two-member checkpointZIP and Linux ELF/archive/metadata/
+strict startup logs/notes published under repository builds,11 files hash-verified.
+No Downloads publication. Cleanup9.57min within original45min: all62 observed
+PID/starttick identities absent, owners terminal;27 profile entries archived/hash/
+mode/symlink verified, helpers preserved. Owned clean pushed/integrated checkout/
+import cache/profiles/helpers/duplicate exports removed. Only
+/srv/mudds-work/feedback-status-palette-20261020/results/ remains.
+
+User-requested parent-folder housekeeping then compacted six closed owned task
+records: help-close-contrast, menu-button-contrast, defense-first-play,
+destination-status-palette, gameplay-status-palette and feedback-status-palette
+(all20261020).739 loose files became97; approximately300MB saved. Each complete
+original results tree is in its task results/raw-results.tar.gz, checked entry
+by entry for bytes/hash/mode/link before removing loose originals. Archive index
+and README explain original paths; summaries and five reusable helper sources
+remain loose. Every published artifact rehashed and observed process identity
+rechecked before compaction; no live/shared/parked checkout or unique record lost.
+The private combined summary is results/closed-records-summary.json in this task.
+This housekeeping does not count as gameplay or parent completion. Repeated
+completed-delivery detail in active ROADMAP was shortened to existing history
+links; original contracts/cumulative failures remain in backlog/history.
+
+Headless caller/theme checks do not close rendered/human/device, full settings
+recovery/activity/ordinary journey, native Windows/GPU, real audio/listening,
+unfiltered final regression or release gates. Guided3/3 remains3d92b91 scope;
+parked Activity Board/Tooltip/Defense/Wing/Perimeter/Breach/KIT-RELOAD unchanged.
+Freight workflow remains pending. All36 parents and ten phase gates remain open.
+
+
+## Arrow ordinary return and reuse — shipped on ed1167b
+
+Accepted clean source `ed1167be2475c2417f84a8b15bb91c8ac921b289`, pushed on
+`feat/arrow-return-reuse-20261020` and merged into main. Adds one executable
+release acceptance route through existing startup/observer/OS-input owners;
+no gameplay, physics, control/tuning or authority behavior is changed.
+
+**Actual whole route:** fresh empty private profile/Begin Shift; supported
+clear-apron walk to Arrow; real candidate/priority/range-gated E boarding and
+pilot reservation/seat; default flight demand, physical departure/free lease;
+ordinary L assist to strict token-bound occupied home dock; neutral automatic
+OFFLINE and physical exterior exit; supported12.766m clear walk releasing
+reboard suppression; second actual boarding/departure/home/OFFLINE/exit; normal
+focused EXIT TO DESKTOP and actual process exit0. Excursions17.390/18.052m,
+91.419m supported walking,4629 consecutive validated physics receipts. Raw
+neutral-to-exit spans230/232 frames independently checked for no flight demand.
+OS inputs act only on the latest sample; all intermediate/tail receipts are
+validated. Route106.765s under unchanged wholeCAP300. Dummy renderer, disabled
+render loop and own authenticated X11/Dummy audio establish that Linux input
+environment only; no rendered/native GPU/device claim.
+
+**Failures retained:** initial35d894b77 passes nine prerequisites161.693s, then
+fails4.897s before play on lazy observer capture type inference. One explicit
+Dictionary annotation yieldsf39183902; direct observer check-only added, ten
+prerequisites pass149.884s, actual approach fails33.808s on a premature driver
+assertion. Evaluatedseq525/frame974 is supported at(-38.540359,.0491382,21.9952),
+Arrow candidate plus station candidate, distance9.561m, no E/boarding/flight.
+Raw tail526–527 remains supported/default-controlled. Cumulative350.281s stops
+for independent priority review. Explicit reopening removes only that mid-walk
+assertion and adds one no-E/priority regression. The actual boarding gate remains
+candidate/no-station/≤7m/unblocked/settled; original route/cap,09:58–10:58UTC60min
+deadline and all earlier costs remain unchanged.
+
+**Reviewed-source checks:** full native-driver83 tests, clean import, direct
+observer check-only and startup privacy726 PASS. Windows/Linux clean exports,
+direct/archive/Windows-payload strict startups each exit0/sentinel1, actual1521
+matching PCK entries, stockPE.text/ELF and exact archive bytes/modes/source epoch
+and metadata PASS. ONE whole reviewed route passes106.765s; independent abort,
+input release and input-helper/game/Xvfb cleanup confirmed. All11 reviewed stages
+pass258.088s; all original+annotation+reviewed executions608.369s. Python fixtures
+prove sequencing/refusal only; actual archive route supplies ordinary play proof.
+No GitHub Actions or Downloads publication.
+
+Windows EXE/ZIP/notes and Linux ELF/archive/notes are in repository builds/.
+[Windows notes](../../builds/windows/MuddsShipyards-ed1167b-notes.txt),
+[Linux notes](../../builds/linux/MuddsShipyards-ed1167b-linux-notes.txt).
+Public hashes/notes/ZIP and private failed-source artifacts/raw/profile/helper
+records are retained under /srv/mudds-work/arrow-return-reuse-20261020/results/.
+Cleanup complete:190 observed PID/start identities absent,11 published files
+hash-verified,67 profile entries archived/verified, three implementation input
+fragments preserved. Owned checkout/profiles/helpers removed; only results/
+remains. All495 original record entries verified before compacting445 loose
+files to18; archive SHA-256 is recorded in raw-results-index.json. Final archive
+and retained summary/helper/public hashes rechecked. Closure including compaction
+42.38min within original60min budget.
+
+**Open:** full CRAFT-ACCEPT-ARROW weapons, damage/repair/destruction recovery,
+cross-craft/Main re-entry and art/control gates. Original Sandbox/all-nine54
+waypoints/crash/reuse, Defense board route and other parked outcomes unchanged.
+Native Windows/GPU/device/audio/human/endurance/final-candidate/unfiltered matrix
+remain NOT_RUN/open; all36 parents/ten gates remain open.
+
+### Retained Arrow route selection and corrective decisions
+
+### Selected — Arrow ordinary return and reuse command
+
+**CRAFT-ACCEPT-ARROW, parents7/10/11; executable release capability.** Deliver
+`run_native_sortie.py --route arrow-return-reuse` for one fresh ordinary package
+session: Begin Shift, same supported Player walks the clear Freight-side lane to
+Arrow, physical E boarding, normal flight demand/lease release and excursion,
+strict occupied home dock, neutral automatic OFFLINE and physical exit; walk
+more than7m clear to release reboard suppression, then a second real boarding,
+flight/home/offline/exit and normal UI quit. No teleport, gameplay calls, tuning,
+time-scale override, staged damage or synthetic in-engine input.
+
+Implementation owns only startup loader selector, read-only native-sortie
+observer, existing Python OS driver and its existing Python/startup-privacy
+checks. Retain all physics observations for identity/default controls/tuning,
+supported walking, actual departure and strict berth/lease/exit transitions;
+OS input acts on the latest observation. Root reviews source before execution.
+
+**Freeze:**2026-10-20 09:58–10:58UTC,60min including cleanup; estimate25–35min
+implementation/review,10–15min checks/export, one originalCAP300 ordinary route.
+After clean candidate: full existing native-driver Python suite; headless/Dummy
+import and startup privacy; paired clean exports, direct/archive/payload strict
+startup and actual PCK/PE/archive audit; exactly one isolated X11/Dummy Arrow
+route from its exported ELF, exit0 plus `NATIVE_ARROW_RETURN_REUSE_OK`.
+Root freezes exact pin/commands/owners before engine execution. First unexpected
+failure stops all later stages; no automatic correction, rerun or cap increase.
+Withhold candidate/publication on failure and retain all elapsed work/results.
+
+**First stop / one selected correction:** candidate35d894b77 remains unpublished.
+Nine prerequisite stages pass161.693s; actual route fails4.897s before play with
+observer1026 `capture` inferred from an untyped world method. Cumulative166.590s;
+no flight/reuse accepted, input/helper/game/Xvfb reaped. Select exactly one
+`capture: Dictionary` annotation, preserving the original09:58–10:58/60min budget
+and whole two-flightCAP300 route. Root reviews the one-line diff; rerun the full
+original sequence on the clean corrected pin, adding a direct observer
+`--check-only` after import to exercise this lazy script before packaging.
+Retain every original result/source/export; another failure stops for cumulative
+priority review, with no automatic second correction or rerun.
+
+**Cumulative priority review / explicit driver reopening:** correctedf39183902
+passes ten prerequisite stages149.884s, then the full route stops33.808s during
+supported approach, before boarding: Arrow and a station interaction are both
+candidates at9.561m, with no E press. The driver aborts before its unchanged7m
+boarding gate. Raw tail remains supported/default-controlled; no game diagnostics.
+Original+corrective total350.281s retained; both candidates remain unpublished.
+Independent source/raw review supports removing only this premature walking
+assertion plus a focused no-E regression. The real boarding gate still requires
+Arrow candidate, no station candidate, distance≤7m, unblocked reboard and settled
+movement. This changes no interaction priority or gameplay authority.
+Root explicitly selects that two-file driver/test correction under the SAME
+original09:58–10:58UTC budget, two flights/reuse/UIquit and CAP300. Re-run original
+full checks plus direct observer check-only on its clean pin. Any further failure
+PARKS the chain: no further correction, retry, cap increase or narrower acceptance.
+
+Success qualifies only this ordinary return/reuse capability on its named bytes.
+Weapon hits, damage/repair/destruction recovery, cross-craft/Main re-entry,
+rendered/native/device/full craft gates remain open. Original all-nine/54-waypoint
+Sandbox and parked Defense board→Arrow route stay unchanged; neither is
+accepted by this independent craft route. Independent production alternative:
+Freight terminal integration is concrete but awaits its already-asked workflow
+choice; no alternative gameplay behavior is invented while it is pending.
+
+
+## Arrow precision hit — parked without observed native fire
+
+WEAPON-ARROW / parents7,11 / part of CRAFT-ACCEPT-ARROW. Selected2026-10-20
+10:47UTC, original80min cumulative budget/deadline12:07UTC. One high-effort
+implementer owned only `native_sortie_observer.gd`, `run_native_sortie.py` and
+`test_native_sortie.py`; one independent high-effort reviewer, root integration.
+Source handoff reused; no new general mapping or runtime weapon feature.
+
+The fixed outcome was one ordinary native precision-emitter hit on the authored
+moving DRONE-01, source1102 / arrow_precision_recon_emitter, fresh matching
+request/result/target-context sequence and presentation receipt, health100→76
+and24damage, then the retained two-flight strict home/OFFLINE/exit/clear/reboard/
+normal UI-quit route. Default tuning, same actors and every-physics receipts;
+weapon brake/aim/fire/attitude restoration≤25s within originalCAP300. No staged
+target, frozen motion, direct damage, changed controls, encounter clear or
+Sandbox/Defense reopening. Estimate45–60min implementation/review plus10–20min
+checks/package/cleanup. A separately selected single correction was allowed only
+after reviewing its exact failed boundary; any subsequent failure would PARK.
+
+Original clean candidate2514915394696c89c638e7658acad825d59e0ec1: first full
+native-driver suite runs87tests with one failure, guarded10.953950050s. The new
+restore-attitude fixture inherited capture=False and reached the correctly
+retained capture-before-landing assertion. No engine/export/gameplay run began.
+Independent review supports only adding capture=True at that restored snapshot;
+root separately selects/applies that one-line test correction. Original source,
+reviews, helper/config freeze, raw log and STOP remain preserved.
+
+Corrected clean candidatea8102592d04a07835c0bcb95fd5c85c641e165ab:
+- Exact one-line fixture-only diff; runtime/observer/driver acceptance unchanged.
+  Both source reviews GO, feature branch pushed. No main integration/publication.
+- Ten frozen prechecks PASS178.960906780s: driver87tests, clean Dummy-audio import,
+  direct observer check-only, startup privacy, clean Windows/Linux exports,
+  direct Linux/archive/Windows-payload strict startup, actual package audit.
+  Three startups require exit0/exactly one STARTUP_MENU_READY_OK. Actual paired
+  PCK1521entries, stock PE.text/ELF and archive bytes/modes/epoch/metadata match.
+- ONE actual archive executable route FAIL63.079s, guarded native stage
+  65.679476735s, on the unchanged25s weapon phase. Real supported walk/boarding/
+  departure reaches weapon_brake frame1308, weapon_aim1351, weapon_fire1581.
+  Final validated frame2476 remains airborne, braked, capture accepted, hull82;
+  target100, no request. Raw log2029 consecutive observations frames449–2477:
+  native_fire true in0, shot.present in0, target health100 throughout.
+- Error: `Arrow brake aim fire and attitude restoration within 25 seconds`.
+  Zero game diagnostics. Inputs released, helper/game/Xvfb reaped. No hit,
+  restoration, landing, reuse or normal UI-quit acceptance; failure cleanup is
+  not successful player exit. No fire-delivery, weapon or aim cause established.
+- Corrective11stage cost244.640383515s; original failure10.953950050s makes
+  **cumulative255.594333565s**. PARK as selected: no second correction, retry,
+  cap increase, new selector or renamed adjacent probe. Future selection needs
+  a concrete supported fact/change addressing missing observed fire, retaining
+  original route, cumulative costs and first-failure stopping condition.
+
+Raw/private records: `/srv/mudds-work/arrow-weapon-hit-20261020/results/`.
+Cleanup14.95min from original selection: all12 stage owners terminal,67 process
+identities absent;8 private candidate artifacts/hash records preserved, including
+actual tested archive ELF and unique EXE/tar/export/startup records.24 private
+profile entries archived/verified; helpers preserved; clean pushed owned worktree,
+profiles and helper directory removed. Unrelated scratch untouched. No candidate
+checkpoint ZIP or Downloads publication. Latest accepted playable remainsed1167b.
+Broader craft/combat/damage/recovery/crosscraft/Main/art/native/device/audio/human/
+final gates remain open; no hosted CI run, native Windows or GPU qualification.
+
+Closed records compacted177→19 loose files; all196 original entries verified in
+archive member order for mode/type/link/hash before removal. Source/state was
+rechecked before deleting loose originals. Archive `raw-results.tar.gz` SHA256:
+`4c58295cbd1e10d8446afbf1ff91f883d3a997285dba546093390b577d3675e0`,
+321696010bytes. Index/README, source/reviews, both STOPs, failure facts and cleanup
+remain accessible; original binaries, logs, stage configs and profiles remain
+inside the archive under `results/`. Closure including compaction17.19min from
+original10:47UTC selection, within original80min. No further run was started.
+
+
+## Aboard help — one minimum-scale 16:10 cell accepted
+
+ACCESS-HELP[aboard,1920×1200,0.75], parents12/29, source
+`e5dfe111722a6c2068462761753829440ad5afc1`. Selected2026-10-20
+11:06UTC, fixed15min cumulative deadline11:21UTC including preparation/cleanup.
+One low-effort read-only handoff agent located the existing on-foot helper and
+confirmed the20 ordinary aboard rows. Root owns execution/result review. This
+is source qualification, not a missing gameplay implementation or crew journey.
+
+Reused `/srv/mudds-work/help-onfoot-cell-20261020/results/helpers/help.gd`,
+extending existing `tests/ultrawide_layout_test.gd`. Only context/diagnostic
+strings change from on_foot/on-foot to aboard; all original checks/thresholds/
+exemptions stay fixed. Helper SHA256
+`eab8cf08e482e44c1cadb91e857d56a57f9c4d4f3b518192c412fbd01e1e0c0c`.
+Actual Main/start_shift/HUD, real root1920×1200 and requested/effective scale0.75;
+all20 rows/four pages, viewport/safe-area/font/overlap/centre checks, unclipped
+wrapping and panel containment, five visible rows/page, Previous/Next boundary
+focus/backward paging and focused Close. No production changes or new test family.
+
+Frozen commands, through reused guarded/suite_process runners with fresh
+private XDG/TMPDIR profiles and HOME unchanged:
+- Godot `--headless --audio-driver Dummy --path WORKTREE --editor --import`,
+  cap180s, cache permitted. PASS20.781475784s, zero diagnostics/exit0.
+- Same engine/headless/Dummy/path with `--script HELP_HELPER`, cap90s,
+  cache/source/index unchanged. PASS31.076083072s,124 assertions, exactly one
+  ULTRAWIDE_LAYOUT_TEST_OK, exit0/zero diagnostics. Four actual measurement
+  records identify aboard_help_page_1–4, each with no viewport/safe overflow,
+  overlap or asymmetric centre; minimum measured font7.5px, clearance1.5px.
+
+Both stages first-attempt PASS, total51.857558856s. Root read the actual four
+page records and terminal result; no repeated verification or runtime fix.
+Headless Control geometry/focus only: no rendered/human/physical-device,
+actual crew walk/seat/authority, other mode/scale/aspect or final-candidate claim.
+Existing authored readability floor retained, not a new subjective legibility
+standard. No identical playable rebuild needed; accepted checkpointed1167b stays
+unchanged. No hosted CI, active desktop/audio or parked route was invoked.
+
+Records `/srv/mudds-work/help-aboard-cell-20261020/results/`: exact source,
+commands/helper hashes, raw stage logs/results and helper source preserved.
+Cleanup2.91min from original11:06 selection, within original15min: both owners
+terminal, all6 recorded process identities absent;10 private profile entries
+archived/hash-verified, helper copies verified, clean owned worktree/profiles/
+helper directory removed. Only results/ remains; no new sibling scratch files.
+
+
+## Arrow precision hit and return — shipped on 51257b3
+
+WEAPON-ARROW named pilot-hit qualification, parents7/11, within still-open
+CRAFT-ACCEPT-ARROW. Clean accepted source
+`51257b32393e2798c2f6922f33a04b6fcd31bb36`, source mergee06777c38.
+The runtime weapon was already implemented; this delivers executable ordinary
+acceptance automation in existing observer/driver/tests, not a new weapon/ship.
+
+Original source251491539 fixture failure10.953950050s, one exact capture=True
+fixture correctiona8102592d and failed native attempt remain preserved in
+[the prior result](#arrow-precision-hit--parked-without-observed-native-fire).
+Its ten passing prechecks178.960906780s and failed native stage65.679476735s
+make prior255.594333565s. The chain was parked, not silently retried.
+
+Reopening selected11:11UTC after one bounded independent source audit found a
+concrete inconsistency: F was held for one supervisor update, then Desktop.keys
+sent keyup without acknowledging a post-keydown physics sample. Other actions
+use existing Pilot.tap, retaining at least0.15wall seconds AND6 observed physics
+frames. This is supported correction scope, not proof of exact old scheduling.
+One implementer changes only driver/tests againsta8102592d; independent high
+review plus root source review GO. One admitted tap sets the prefire baseline/
+stage; weapon_fire never rearms and waits for both tap and observed native release
+before restoration. No observer/runtime/tuning/target/authority change in this
+reopening. Original10:47UTC start,80min deadline12:07UTC, prior costs,25s weapon
+phase andCAP300 retained. First unexpected failure would PARK; none occurred.
+
+All11 frozen source/package stages PASS303.151867314s:
+- Native-driver89tests, clean import, direct observer check-only and startup
+  privacy726checks, each at its existing120/180/120/120s stage cap.
+- Clean Windows/Linux exports cap180s each; direct Linux/archive and Windows
+  embedded payload through Linux Godot cap120s each, each actual exit0 with
+  exactly one STARTUP_MENU_READY_OK. Native Windows execution NOT_RUN/held.
+- Actual paired PCK1521entries, stock PE.text/ELF and exact archive bytes/modes/
+  source epoch/metadata audited at90s cap.
+- ONE audited archive executable route PASS120.991s (guarded native stage
+  123.531799347s), originalCAP300/outer330. Brake/aim/fire/full attitude restore
+  10.626108622s within25s. Source1102 / arrow_precision_recon_emitter / sequence0 /
+  presentation receipt1, same current Arrow/target/adapter, request/result/target
+  source context all match, real applied24damage/health100→76.
+- Root independently read all5179 consecutive physics observations. One
+  continuous observed F interval1537–1544, hit frame1538, unchanged shot/target76
+  through both returns and quit; no additional shot. Restored frame1764 precedes
+  native landing. Both strict token-bound home docks, neutral OFFLINE exits,
+  12.702m clear walk/real reboard and normal focused UI quit with actual exit0.
+  Walking92.022m; recorded excursions8.066/17.390m and neutral-to-exit spans
+  228/230frames. Separate raw scans confirm continuous no-flight-demand runs
+  229/231frames. Zero diagnostics; inputs released, game/Xvfb/helper reaped.
+
+Cumulative stage cost **558.746200879s**, including all prior255.594333565s;
+no budget reset or unchanged repeat. Source committed/pushed, merged/pushed;
+11 public files hash-verified by existing publication workflow: Windows EXE/
+checkpoint ZIP/notes and Linux ELF/tar/notes/startup/metadata under repository
+builds/. Actual tested ELF extracted from the audited archive. No Downloads or
+hosted CI action. Final result review and notes preserve exact source/limits.
+
+Records `/srv/mudds-work/arrow-fire-hold-20261020/results/`; original failed
+records remain separately archived and unchanged. Cleanup completed35.58min from original10:47 selection: all11 stage owners
+terminal,66 process identities absent;11 public files hash-verified,23 private
+profile entries archived/verified, unique export metadata/helpers preserved,
+clean integrated/pushed owned worktree/profiles/helper directory removed.
+Closed records compacted136→18 loose files, all151 entries verified in member
+order for type/mode/link/hash plus fresh source recheck before removal.
+Archive122119791bytes, SHA256
+`2733db51e312b5ab6ca2b9b5b8bfb7522a88f880247dd4b79a3eac442c394669`.
+Index/README, source/reviews/summary/publication/cleanup and five reusable helper
+sources stay loose; raw stage logs/configs, profiles and actual tested ELF remain
+inside the checked archive under results/. Cleanup/compaction36.64min within
+original80min; only results/ remains and no new gameplay run was started. Broader common combat/weapon cases,
+incoming/component damage/repair/destruction recovery, crosscraft/Main/art,
+physical devices/audio/listening/human/native GPU/native Windows/final-candidate
+and full-release gates remain open. Sandbox/Defense/Wing/other parked routes
+retain their original status and costs. No broad parent or phase closes here.
+
+
+## Sampled remote pitch — turn and release accepted
+
+HELM-PITCH turn/release child / parent18, sourcequalification only. Clean source
+`f9682a38c196a1f895f37694b740f4d80245011c`, merged/pushed as82efbbab4.
+No missing runtime pitch capability was found. One high-effort bounded source
+handoff identified the existing ordinary three-process route and input scope;
+one high implementer, one independent high reviewer and root integration.
+Selected2026-10-20 11:27UTC, original60min cumulative deadline12:27UTC.
+
+The23-line pitch specialization extends the existing yaw caller through narrow
+steering profile/action/measurement/neutral hooks, retaining shared boarding,
+≥5m departure/brake, identity/berth checks and host-owned clocks. No329-line
+parallel copy, production/runtime change or new validator/evidence family.
+Owned files: existing `tests/network/jovian_network_two_client_yaw_test.gd`,
+new pitch counterpart and UID. Yaw defaults retain filenames, metric keys,
+marker, directions, signs, reference axis and original thresholds.
+Pitch uses pitch_up(+1)/pitch_down(−1), signed nose projection around the actual
+recorded RIGHT axis; one original pilot and copilot, same enabled producer,
+source/wire streams/session/seat/entity/ownership, released berth throughout.
+
+Input is **synthetic Godot InputEventAction via Input.parse_input_event**,
+then actual production LocalShipInputSource sampling, current GameFlow capture/
+send, ENet and actual host simulation. No provider override or direct command/
+pose staging. This is not OS keyboard delivery or hardware/controller proof.
+Original handback is independently required and stays PARKED; these scenario
+hooks do not enter or repair it. Session/process cleanup is not handback proof.
+
+Exact four-stage freeze: headless Dummy-audio import180s; direct pitch check-only
+120s; ONE pitch and ONE changed-yaw regression with existing coordinator300s/
+10s exit grace and outer360s each. Both source reviews GO before engines; first
+unexpected failure would STOP with no automatic correction/retry. No failures:
+- Import20.614814393s and direct compile16.434572342s PASS.
+- Pitch130.723652051s PASS. Host up+4.800000817° in567ms, down−4.200001141°
+  in364ms, both within existing≥3°/2s contract. Fresh delivered holding-neutral
+  within original1s authorization budget, not timeout neutrality; measured
+  drift0° across1s for both directions. Both actual current-owner clients
+  converge≤2° within existing host-owned2s: pilot0.685285°/0.328649°, copilot0°.
+- Changed-yaw regression130.817426669s PASS. Left+4.200000288°/287ms,
+  right−4.199999434°/391ms; drift0°, pilot errors0.306467°/0.205584° and
+  copilot0°. Original clock/handback boundaries unchanged.
+- Both routes retain real independent host/client/client_b processes, original
+  boarding/forward-flight/brake and physical replica support. All6 actual peer
+  exits0, one coordinator-only marker per route and zero full raw diagnostics.
+  Child arguments explicitly x11/Dummy with private Xvfb, dummy renderer and
+  disabled render loop. Source/index/cache unchanged after import.
+
+Total four-stage time298.590465455s. Root read actual host prepare/turn/stable/
+complete and both actual client convergence files, cross-checked preserved
+identity/producer/source+wire streams/released berth, fresh delivered cursors,
+all three done/exit receipts and observed absent PID/start identities for each
+route. No green summary alone is substituted for these runtime facts.
+Source committed/pushed and merged/pushed; qualification closes only the pitch
+turn/release child, with HELM-PITCH/parent18 full handback/devices still open.
+No identical playable rebuild for caller-only qualification; checkpoint51257b3
+remains latest accepted playable. Native Windows/GPU/real audio/listening/
+physical devices/human/endurance/final-candidate/full-release gates stay open.
+No GitHub CI, Downloads publication, parked handback retry or successor selected.
+
+Raw records `/srv/mudds-work/jovian-remote-pitch-20261020/results/`.
+Cleanup10.75min from original11:27 selection: four owners terminal, all36
+process identities absent,171 private profile entries archived/hash-verified,
+helpers preserved, clean integrated/pushed owned worktree/profiles/helpers
+removed. Records compacted55→13 loose files after all60 original entries were
+verified in member order for mode/type/link/hash, plus fresh source recheck
+before removal. Archive11040046bytes, SHA256
+`be3f9534c469a9711edceacf3da7703017e2e7feed7fef7fd6688228cd6cdd7c`.
+Index/README, source/reviews/summary/cleanup and3 reusable helpers remain loose;
+original stage/raw peer/profile records are under results/ inside the archive.
+Cleanup/compaction11.72min within original60min; only task results/ remains.
+
+
+## Sampled continuous roll rate — turn and release accepted
+
+HELM-ROLL-RATE turn/release child / parent18, sourcequalification only. Clean
+source `73f4a4f675eea0cfc2468bbffe1c763a0cad10f9`, merged/pushed asb7284cbb7.
+Selected2026-10-20 11:41UTC, original60min deadline12:41UTC, including preparation,
+review, exact checks and cleanup. Root verified existing mapper left−1/right+1
+and HeroShip rotation about local FORWARD(-Z); one high implementer and one
+independent high reviewer, root integration. No runtime gap/change inferred.
+
+Three owned files only: existing shared yaw caller plus23-line roll-rate caller
+and UID. Optional measured_vector defaults to nose, preserving original yaw/
+pitch math/keys/markers/contracts; roll measures actual up's signed change about
+recorded nose with positive sign. Axis descriptions/metric names now use the
+selected axis. No second shared route copy, validator/version family or
+production control/tuning/pose/authority change.
+
+Continuous roll rate is distinct from G barrel roll: roll-only checks reject
+barrel_roll/fire/fire_pressed/landing and other command actions, active barrel
+animation, nonzero authoritative wire barrel request or pilot capture request.
+Current Command/active/request facts are retained in actual peer receipts;
+non-authoritative copilot has no pilot request record, not a claimed zero owner.
+
+Input scope: **synthetic Godot InputEventAction via Input.parse_input_event**,
+then actual production LocalShipInputSource/sample/capture/send/ENet/host hull.
+No provider override or direct command/pose staging. It does not qualify OS
+keyboard delivery, Q/R binding hardware, controller axis2 or native devices.
+Original three-process crew boarding/≥5m departure/brake and enabled producer/
+source+wire/session/actor/seat/entity/ownership/released-berth checks are retained.
+Original handback remains required/PARKED, neither retried nor qualified here.
+
+Both clean-pin source reviews GO before engines. Five frozen stages, first
+unexpected failure STOP/no automatic correction/retry; all first-attempt PASS:
+- Headless Dummy-audio import180s cap PASS20.654028320s; direct roll check-only
+  120s cap PASS16.509752161s.
+- ONE roll route PASS130.738291664s: left−5.866666764°/535ms and
+  right+5.866665910°/546ms, each≥3° inside original host-owned2s. Fresh delivered
+  holding-neutral≤1s, not timeout neutrality; measured roll drift0° for1s.
+  Both actual current-owner client attitudes converge≤2° within original2s:
+  pilot0.437007°/0.243893°, copilot0°. Host/pilot request counters0 and all
+  observed barrel animation flags false throughout selected roll gates.
+- ONE affected pitch regression PASS131.398209030s: +4.800000817°/403ms and
+  −4.800000390°/578ms, measured drift0°, pilot errors0.498893°/0.303902°,
+  copilot0°. Original pitch contract unchanged.
+- ONE affected yaw regression PASS130.879258635s: +4.200000288°/284ms and
+  −4.799999536°/629ms, measured drift0°, pilot errors0.356083°/0.268341°,
+  copilot0°. Original yaw contract unchanged.
+
+Each route retains original coordinator300s,10s exit grace/outer360s and
+inherited child private Xvfb/explicit x11/Dummy audio/dummy renderer/disabled
+render loop. All9 actual peer OS exits0, one coordinator-only marker per route,
+zero complete raw diagnostics; source/index/cache unchanged after import.
+Total five-stage time430.179539810s. Root read host prepare/turn/stable/complete
+and both actual replica files, verified unchanged identities/producer/source+
+wire streams/released berth and fresh neutral delivery, actual barrel flags/
+requests/command fields, done/exit receipts and observed PID/start identities.
+A summary alone was not substituted for runtime facts.
+
+Source committed/pushed and merged/pushed. No identical playable rebuild for
+caller-only qualification: latest accepted playable remains51257b3. Full
+HELM-ROLL-RATE/parent18 handback/devices and native Windows/GPU/audio/listening/
+human/endurance/final-candidate/full-release gates remain open. No GitHub CI,
+Downloads publication, parked route retry or successor selected.
+
+Records `/srv/mudds-work/jovian-remote-roll-rate-20261020/results/`.
+Cleanup14.30min from original11:41 selection: five owners terminal, all51
+recorded process identities absent;254 private profile entries archived/hash-
+verified, helper sources preserved, clean integrated/pushed owned worktree/
+profiles/helper directory removed. Records compacted66→13 loose files after all
+72 original entries verified in member order for mode/type/link/hash plus fresh
+source recheck before removal. Archive12999506bytes, SHA256
+`1f1ae7f86d46d9dab0e2a5e6045895c7fc29ce2db7e15194a57f87083b1744b5`.
+Index/README, source/reviews/summary/cleanup and3 reusable helpers remain loose;
+raw stage/peer/profile originals stay under results/ in the verified archive.
+Cleanup/compaction15.40min within original60min; only task results/ remains.
+
+
+## Branch accountability and Race timeout diagnosis — 2026-10-20
+
+Owner requested completed work be merged/pushed and branches deleted, then asked
+why45 remote heads remained. That count included main, duplicate attempts,
+completed diagnostics and integrated changes, as well as genuinely failed work.
+The earlier practice of moving to independent work after a failed bounded attempt
+left too many source branches without a clear account. No failed candidate is
+merged simply to reduce that count.
+
+### Cleanup actually performed
+
+Refreshed live remote heads; checked ancestry, exact patch equivalence, real file
+identity for aggregate integrations, registered worktree ownership and retained
+successor reachability. Atomic remote deletions used exact expected-OID leases;
+local deletions also compared exact expected tips. An initial atomic batch was
+rejected because11 cached refs were already absent remotely; it deleted nothing.
+A live-head query distinguished those stale references before the corrected batch.
+
+- 110 ancestor-of-main local refs and66 live remote refs deleted;11 already-absent
+remote tracking refs removed.
+- 17 further remote/16 local refs deleted:8 all-patch-equivalent integrated refs,
+2 accepted aggregate integrations,7 duplicate attempt refs whose full commit
+history remains in retained successors.
+- 14 local-only refs deleted:12 all-patch-equivalent to main,2 exact histories
+reachable through retained live remote holds.
+- The completed Race diagnostic source was preserved in verified bundle/patch/
+source files and pushed archive tag, then its local/remote branch deleted.
+
+Totals: **141 local branches and84 live remote branches deleted**; **44 local
+branches and27 live remote heads remain**, including main. This is26 remote
+non-main source branches, not26 independently unfinished features. Older registered
+worktrees and unique local-only `fix/durable-suite-launch`,
+`hold/sandbox-settle-facing-20261017` and `native-sortie` remain protected;
+their acceptance is not inferred from their existence. Exact deletion tips and
+preservation proofs remain in the current results directory named below.
+
+### Every retained remote non-main branch
+
+Several rows share one cause or journey. A parked status records failed acceptance;
+it does not establish a production defect or authorize another probe. Finish one
+supported correction with its full retained acceptance before selecting another.
+
+| Outcome / retained branches | What actually remains / next boundary |
+| --- | --- |
+| Browser timeout — `diag/browser-release-cache-20261020`, `fix/net-timeout-release-accept-20261020` | Native SceneCache callback captured; prepared acceptance depends on matching templates. Windows compilation exhausted cold/incremental budgets. No accepted matching pair or complete ordinary timeout/retry route; no automatic third compile. |
+| UI board transition — `fix/ui-board-focus-20261018`, `feat/mining-first-play-20261018`, `feat/beacon-home-20261020` | Same native root-Window disconnect errors block actual activity transitions; isolated components did not reproduce original cause. Mining/Beacon full journeys remain unaccepted. Identify the actual popup/removal cause before repair/replay. |
+| Observation — `fix/exit-tooltip-order-20261020`, `fix/ordinary-controls-observation-20261017` | Later complete travel/view/home route passes, but repair proof never exercised a visible original TooltipPanel, so candidate withheld. Earlier ordinary-controls branch acceptance remains UNKNOWN from recovered records; recover its exact result rather than call it accepted. |
+| Breach recovery — `feat/breach-interruption-20261018`, `feat/breach-interruption-fixed-boot-20261018` | Earlier arm prerequisite superseded; corrected real cold recovery still fails atomic payment assertion. No third paid cold process; retained140.961s failed chain. |
+| Courier — `feat/courier-ordinary-route-20261020` | Actual runner escapes78/78 without player hit; no return. Fresh emission/ray/resolver cause missing; do not infer an aim or weapon fix. |
+| Defense — `feat/defense-ordinary-route-20261020` | Deploy works; post-Deploy player remains stationary until original34s encounter deadline. Walking cause unproved; full combat/payment/home/reset not accepted. |
+| Perimeter — `feat/perimeter-live-20261020` | Implementation and focused checks exist, but full GameFlow suite times out before physical Hold entry. No integration/checkpoint; concrete startup-boundary change required before another check. |
+| Wing — `feat/wing-ordinary-route-20261020` | First real board press2.905m exceeds2.8m range; no prerequisites/combat/home reached. Supported future correction is actual3D approach margin plus explicit rejection handling, retaining full route and344.298s cumulative stages. |
+| Helm handback — `work/jovian-helm-handback-20261018`, `fix/cabin-passenger-role-20261018` | Role/HUD prefix corrected, but original required cabin walk fails0.6m/15s. No walking cause or accepted full handback. |
+| Jovian postdock exit — `work/jovian-passenger-exit-20261018`, `fix/jovian-exit-caller-syntax-20261020`, `fix/docked-pilot-hold-20261020` | Parse/caller predecessors and dock-hold corrective source retained.322 pose checks and standing pass; full passenger exit fails15s cabin walk. Reboard/pilot exit/reclaim/redepart remain gated. |
+| Halyard ordinary boarding — `work/halyard-ordinary-board-20261018` | Two consumed-state comparisons fail after actual seating. No causal runtime defect identified; moving-cabin/server-stop baseline remains gated. |
+| Halyard gunner damage — `test/halyard-gunner-damage-20261018` | Both original/caller repair fail co-pilot admission; actual damage case not reached. No third variant selected. |
+| Jovian reload — `work/jovian-reload-boundary-20261018` | Main ready/restore accepted27.762s; first normal frame pair incomplete before original30s. Original reload source/history remains reachable here. Concrete startup repair required, not longer cap. |
+| Salvage access — `work/salvage-ordinary-access-20261018` | Both original/repair fail outbound20. Full supported three-position access remains unmet; inspect/revisit gated. |
+| Fire restart — `hold/fire-restart-viewport-20261018` | Original and viewport repair fail Fire row intersection before capture/save/reader. No persisted remap/sampler acceptance; geometry observations alone establish no scrolling cause. |
+| HULK revisit — `hold/hulk-revisit-departure-20261017` | Original and repair retained in this one history. Reload/dock/exit reached; original300s expires during new interior walk before breaker event. Full revisit/once-only cell/reward not accepted. |
+| Rime crew arrival — `hold/rime-crew-arrival-typing-20261018` | Original parse failure plus typed repair retained in this one history. Repair reaches approach but fails original120s physical landing gate. Survey/home not accepted. |
+| Earlier boarding diagnosis — `work/jovian-pilot-state-20261018` | Diagnostic capture completed; ordinary boarding subsequently accepted onfff5f7221. Unique old diagnostic/caller content remains source history, not another missing boarding feature; do not replay it. |
+
+### Race diagnostic completed; original suite still fails
+
+Original baseline failure had no boundary after unpaid fallback attempt1. Selected
+BASE-DIAG on3d24d9a6a at12:07UTC,40min budget through12:47UTC. Root plus one medium
+read-only reviewer approved diagnostic dd38c163f4d058ec214445140833e785ad0ce127:
+18 added lines of timestamps/prints only; all original operations, assertions,
+branches and yields retained. No production change or timeout adjustment.
+
+Clean import PASS20.874530s; direct compile PASS16.233114s. Exactly one original
+suite run at300s FAIL/exit124 after300.299932s. It completes81 assertions with no
+failed assertion event and creates19 Main lifetimes. Actual synchronous attach
+totals212.820692s. At299.268286s lifetime19 starts original three-frame retirement;
+no retirement completion or subsequent fresh cold-IDLE verification appears before
+supervised termination. This establishes this attempt's last boundary, not an
+unchanged performance benchmark or a specific avoidable startup cause. Full Race
+suite remains FAIL; no repair/retry, cap increase or reduced fixture selected.
+Total stage cost337.407576s; exact source/cache guards remain stable after import.
+
+All three supervisors terminal/absent and six observed child identities absent.
+106 private profile entries archived with byte/mode/link verification and fresh
+source comparison before deletion; profiles archive SHA256
+`db4aa27d80260f333c5f5c0599ba140df42a6529d7589dfd9bef1c003e60408d`.
+Diagnostic bundle verified; exact source retained in pushed tag
+`archive/diagnostics/race-baseline-boundary-20261020`. Owned worktree/profiles/
+helper directories removed; only results remain under
+`/srv/mudds-work/race-baseline-boundary-20261020/results/`.
+No runtime changes or identical checkpoint rebuild. All36 parent outcomes/ten
+phase gates, native/hardware/human and final-candidate limits remain open.
+
+
+## Existing Wing branch closeout — 2026-10-20 13:18UTC
+
+Owner priority was finishing existing attempts, not accumulating new branches.
+Existing `feat/wing-ordinary-route-20261020` was reused throughout; clean pushed
+source `aa26baf58f3e5d9a5e16c1b7b94683df467b6f6c` remains FAILED and unmerged.
+No new source branch or published checkpoint was created. Counts remain44local,
+27live remote includingmain; all26non-main remotes retain the accountability
+mapping above. Previously deleted141local/84live remote refs are unchanged.
+
+Actual ordinary route improvements: board approach accepts within real2.8m range;
+normalL uses actual home capture rather than an arbitrary waypoint. Production
+board encounter authorization now withdraws on its exact target's accepted
+landing assist while GameFlow remains FREE_FLIGHT, using existing synchronous
+fire refusal and standdown. Full Heavy/Torpedo withdrawals, strict home docks,
+shutdowns and physical exits passed in both subsequent actual route attempts.
+The lifecycle change passed40 admission and151 existing director assertions.
+
+Final camera caller candidate reuses the established Arrow optical-axis control,
+blocks unresolved/nonzero mouse sweeps before timed nativeF, and emits detached
+real camera/request-ray telemetry. Independent source review GO;99driver tests,
+22observer assertions, fresh paired exports, direct/archive/Windows-payload strict
+startups and actual1521matching PCK/PE/ELF/archive audit pass. This does NOT qualify
+moving-target firing: final97.220s route submitted no player shot, no hit/kill,
+destroyed player4763 after Wing began with67.333hull; both opponents remained38.
+Required Wing clear, final strict home/OFFLINE exit and normal UIexit remain absent.
+No claim of a runtime weapon defect, no damage/health/AI/timer changes, no relaxed
+acceptance and no further retry. Native hardware/audio/human gates remainNOT_RUN.
+
+Supervised stage costs, without nested-driver double counting: historical344.297822s;
+board224.23007358051836s; normalL57.46298702200875s;
+landing runtime292.740452804137s; camera244.79594166693278s;
+total1163.527277073597s. Original12:24–13:24UTC/60min wall budget retained.
+Final input/helper/game/Xvfb cleanup confirmed;190 observed owned identities absent.
+Unique failed packages and metadata preserved and hash checked; profiles archived
+with sequential member/byte/mode/link verification and fresh original snapshot.
+Clean source matches remote exactOID; owned worktree, profiles and helpers removed.
+Only `/srv/mudds-work/wing-route-correction-20261020/results/` remains, including
+`cleanup.json`, `aim-review.json`, exact raw route results and retained candidate
+packages. This branch remains explicitly unfinished; unrelated work is unselected.
+
+
+## Wing motion-tracking correction remains unaccepted — 2026-10-20 13:29UTC
+
+Same existing branch reused; clean pushed source0c5788dd0 (controller1d33ada96).
+Actual199prior fight frames proved the static controller never reached precision:
+maxalignment.999572297, nozero correction, only25attitude changes; camera/hull
+axes matched≤3e-7. No historical optical-offset cause is claimed. Separately
+selected13:22–13:42UTC/20min correction retained original60min selection and all
+prior1163.527277073597s costs. No unrelated roadmap work was started.
+
+Wing-local controller now measures actual mouse authority/ack delay, applies exact
+relative LOS angular-rate feed-forward for that actuation delay, and retains real
+observed>.99998 trigger precision, no outstanding sweep, timed F pulse and zero
+concurrent steering. Independent source review GO. One existing test fixture
+simulates actual HeroShip local rotation-vector impulses with combined yaw/pitch,
+pitch±.4rad/s,1/4/7frame delays and reduced authority, requiring repeated precision
+F admissions inside200frames. All100existing driver tests PASS. This is bounded
+controller evidence, not actual kill acceptance. Game/observer unchanged; exact
+hash-verifiedaa26baf ELF reused from its audited package and prior strict startups.
+
+The one native route FAIL99.709s: Heavy strict home/OFFLINEphysicalexit2223,
+Torpedo exit3868, both naturalWITHDRAWN and next posting; Wing starts4619,
+fight4657 at67.333hull. Distinct player sequences0/frame4716/receipt14 and
+1/frame4748/receipt18 both accepted+resolved MISS,0damage/nohit/nokill; both
+opponents remain38health; player destroyed4855. Required2Wingkills/clear, final
+strict home/OFFLINEphysicalexit and normalUIexit remain absent. Emitted rays pass
+5.53499m/4.79162m from Lead's first post-result observed center; those observations
+are not exact query-time collision transforms. Trigger dispatch/receipt timing is
+missing, so latency remains a hypothesis to correlate, not an established cause.
+No relaxed acceptance, runtime tuning or blind retry; no production weapon defect
+claimed. Independent raw review confirms all inputs released/game/helper/Xvfb reaped,
+0diagnostics. Current source remains failed/unmerged; no checkpoint publication.
+
+New supervised stages11.0387686570175+100.00322267203592=111.04199132905342s;
+cumulative1274.5692684026503s. Source exact remoteOID verified and clean;200 owned
+process identities absent. Reopened worktree/profiles/helpers/extracted ELF removed;
+profiles sequentially byte/mode/link verified and fresh original snapshot compared.
+Only existing results directory remains, with tracking-review.json,
+tracking-source.json, tracking-STOP.json, tracking-cleanup.json and archived helpers/
+profiles. Existing retained failed packages remain untouched. All26non-main remote
+branches still accounted; no branch added/deleted by this failed correction.
+
+
+## Wing branch accounted; landing fix shipped — 2026-10-20
+
+Completed production behavior is now integrated/pushed as9e9d1beff97a8ce4f9ca23009d0b7c4511035551:
+only06630f5d's independent5line director guard and existing admission test extension,
+not the unsuccessful qualification observer/selector/driver. Exact live target
+accepted landing withdraws board combat through existing fire refusal/standdown,
+without reward or automatic rearm. Independent review verified exact semantic
+baseline and final files. Full Wing original2actualplayerweaponkills and complete
+safe home/OFFLINEphysicalexit/UIquit remains FAILED/open; no subset completes it.
+
+Latest heldF diagnostic9a68aa01f:100focused checks pass; actualroute FAIL102.037s.
+Heavy/Torpedo naturalWITHDRAWN strict home exits2330/3985, .170m error and226/229
+neutralframes; Wing entered39.333hull, destroyed4938.8distinct requests, generic
+hittrue2times but targetentity0/noapplieddamage;0actualWingdamagehits/0kills, both
+opponents38health. All inputs/helper/game/Xvfb reaped;0diagnostics. No furtherretry.
+Retained emitted-ray geometry supports near-reticle miss with farpoint convergence
+amplifying parallax, not a productionmask/center bug. Trigger timing remains
+unrecorded; no exact collision-query transform or native aim qualification claimed.
+
+Failed unique source archived under pushed annotatedtag
+archive/diagnostics/wing-ordinary-route-20261020 peeling9a68aa01f1d10d6902bd36a8e59890d1cfeef1f5.
+Bundle verifies against reachableparents; all7tarfiles byte-match taggedsource,
+patch/tar/bundle hashesverified. Production director/test match integratedmain.
+Owned sourceWT removed; local/remotebranch deleted with exactexpectedOIDlease;
+remote absence verified. Independent archive/accountingreviewPASS. This accounts
+for failed diagnostics rather than merging them or declaring Wing done. Totals now
+142local/85live remote refs deleted;43local/26live remote remain includingmain,
+25remote non-main. Initial26-branch table above is historical; Wingrow now archived.
+
+Fresh9e9d1be checkpoint:9selected stages ALLPASS: import; actualMain40admission/
+151director assertions; cleanWindows/Linux exports; directLinux/archiveLinux strict
+startup exit0 andexact1STARTUP_MENU_READY_OK; Windows embeddedpayload through
+LinuxGodot same strict result; actual1521matchingPCKentries, stockPE.text/ELF,
+archivebytes/modes/sourceepoch/metadata audit. AllGodotDummy/headless; no hostedCI.
+No fullsortierun on freshmainpackage claimed. WindowsEXE/checkpointZIP/concise notes
+in builds/windows and pairedLinuxpackage/notes in builds/linux,11publicationfiles
+hashrecorded; ZIPbinary/notes bytesverified. Independent finalpublicationreviewGO.
+NativeWindows/GPU/devices/audio/listening/human/finalreview remainNOT_RUN.
+
+Preserved stages: prior1274.5692684026503 + heldF113.18184935068712 +
+release193.60444211913273 =1581.3555598724702s; originalselections/budgets preserved.
+Current raw and source/artifact/branch/cleanup records remain at
+/srv/mudds-work/wing-route-correction-20261020/results/ . Owned temporary profile,
+helper and extractedpayload cleanup follows publication verification; olderretired
+worktrees remain protected. No unrelatedroadmaptask was selected.
+
+
+## Active-tooltip baseline stopped and two test-only branches accounted — 2026-10-20
+
+Owner priority remains finishing/accounting existing work. Current main unchanged
+at production checkpoint9e9d1be plus documentation; no new gameplay build required.
+
+### Two old source branches closed without feature promotion
+
+`work/jovian-pilot-state-20261018` exact25fe2080dacd5df498f578de8960ecf9568ab469
+contained only3testfiles and3diagnostic/caller commits. Accepted ordinary boarding
+fff5f7221 is already main ancestor; no runtime change was unaccounted. Verified
+bundle, merge-base patch, exact3-file archive and manifest remain under
+/srv/mudds-work/jovian-pilot-state-20261018/results/branch-archive/ . Pushed annotated
+tag archive/diagnostics/jovian-pilot-state-20261018 peels exactsource. Local/live
+remote branch and tracking ref deleted with expectedOID protection; no owning
+worktree/process, original results preserved, no boarding replay or new acceptance.
+
+`fix/ordinary-controls-observation-20261017` exactb6d5d4a7c933bb0100b1daab685d7ab057a91954
+contained only13line observation synchronization in two existing tests. Commit
+explicitly left runtime validation pending; neither main nor retained UI successor
+contains its exactpatch. Preserve acceptance UNKNOWN/UNVALIDATED rather than call
+it passed. Verified bundle/patch/two-file source archive and manifests remain under
+/srv/mudds-work/ordinary-controls-observation-20261017/results/branch-archive/ .
+Pushed annotatedtag archive/diagnostics/ordinary-controls-observation-20261017 peels
+exactsource; local/live remote/tracking refs deleted with exactOID checks. No
+runtime changes, engine tests, replay or diagnostic merge; walking/support
+qualification remains open. Root independently reverified both bundles, source
+file bytes/modes, artifact hashes, remote peeled tags and branch absence.
+
+Totals now144local/87live remote refs deleted;41local/24live remote remain including
+main,23remote non-main. The initial26-branch table above is historical; these two
+rows and Wing are now archival closeouts, not runtime completion claims.
+
+### Actual-tooltip baseline did not reach the regression
+
+Selected13:55–14:20UTC/25min, retaining original733.226s and all priorfailedcaptures/
+private fullroute pass. New fixture4b2b301cb10e1be7a3bcada842cb888495ec4c13 only extends
+existing safe_start_production_recovery_test.gd with opt-in actualMain childcases;
+normal suite unchanged. It configures in-memory store, opens actualpause, focuses
+realExit first, reportsnativeXID/Destination screenrect and requires the original
+visibleembeddedTooltipPanel child with realrootbindings. ExternalOSXTest hover/
+Return orrealWM_DELETE owns input; passive lifecycle callbacks observe retirement.
+No fabricatedpopup/nativeconnectionmutation/quitoverride or extraquitwaits. Host
+requires allinput/helper/game/Xvfb cleanup flags and no cleanup error for success.
+Independent high source/hostreviewGO before engines; exactoldpair-only baseline
+classification does not suppress candidate errors.
+
+CleanDummy import PASS19.649723773123696s. One isolated X11/Dummy baselineHUD
+FAIL61.27005913294852s (host60.99715262884274): actualMain/originalDestinationrect
+andfocusedExit READY at30597ms; FAIL at60598ms because original visibleembedded
+TooltipPanel was not observed within30s. NoACTIVE/rootpopupbindings, no original
+focus_entered/tree_exited disconnectpair and no classifieddiagnostics. Expected
+reproduction false, process exit1. This does not establish tooltip lifetime repair
+or a new production defect. GameFlowcandidatebae551d58 NOT applied; no new engine
+attempt/export/publication. MissingactualGUIhover owner/pointer-window mapping/
+foreground state is recorded without claiming which one caused the setup failure.
+
+Independent outcome review confirms STOP and all4hostcleanupflags true, no outer
+survivors. Exactfixture source is preserved in verified bundle/patch/single-file
+archive under pushedannotatedtag archive/diagnostics/tooltip-close-fixture-20261020.
+Existing unacceptedruntimebranch fix/exit-tooltip-order-20261020 remains protected;
+no publicfix/WALK/Board/RPC promotion. Ten owned process identities absent; private
+profiles sequentially byte/mode/link verified and fresh original snapshot compared,
+helpers archived; clean detached checkout/cache and live profiles/helpers removed.
+Only /srv/mudds-work/tooltip-close-20261020/results/ remains. New stages80.91978290607221s,
+retainedtotal814.1457829060722s; no budgetreset/retry. Native/device/audio/human/final
+qualification remainsNOT_RUN/open. Latest playable checkpoint stays9e9d1be.
+
+
+## Perimeter live branch finished — 2026-10-20
+
+Existing `feat/perimeter-live-20261020` candidate aa88b5a73 is integrated in clean
+fdae1cb35ae1556ea1aef70146ca5d7b62b5a691, merged and pushed to main. Fourth board
+contract preserves Heavy→Torpedo→Wing; dedicated core, lance picket/scatter
+flanker/repeating press,90s strict>35% objective, integrity/countdown HUD and
+source/phase/network/teardown fences are now executable production behavior.
+Heavy/Torpedo payment allowlists, old saved indices and shipped landing guard
+remain intact. Independent high source and actual-result review: GO.
+
+Concrete correction to original parked attempt: original Breach test restored
+byte-for-byte main; all Hold physical-admission assertions moved intact to the
+existing Hold test opt-in. No cap increase, dropped assertion or startup-speed
+claim. Actual checks: director153/asset12/board69/HUD11/stagedHold 52/Wing40,
+Hold physical board/seat/departure19, retained Breach/recovery48. Breach76.650s
+inside unchanged 90s; Hold32.203s inside its separate unchanged 90s. Staged tests
+exercise objective boundaries; this does not establish ordinary weapon kills,
+full90s combat/home, recovery/repeats or multiplayer acceptance.
+
+Windows/Linux clean exports, direct ELF/archive and Windows embedded payload
+strict startup checks exit0/exactlyoneSTARTUP_MENU_READY_OK; actual package audit
+finds1525 matching entries, stock PE.text and
+exact Linux archive members/bytes/modes/epoch. Eleven public checkpoint files
+hash-verified, Windows ZIP exactEXE+notes. Native Windows/GPU/performance/devices/
+listening/human/final gates remainNOT_RUN; owner CI hold retained.
+
+New supervised stage time378.870363s, retained363.896517s/three failures,
+cumulative742.766880s. Raw results/source authorization/reviews/package audit/
+publication and cleanup live at
+`/srv/mudds-work/perimeter-live-integration-20261020/results/`; original
+`/srv/mudds-work/perimeter-live-20261020/results/` remains untouched.
+All owners terminal; 70 observed PID/start
+identities absent. Profiles archived and streaming-verified including directory
+modes/file hashes/symlink targets plus fresh full snapshot; helper sources and
+unique export metadata preserved. Owned worktree/profile/helpers removed in
+16.08min from14:12UTC inside45min window.
+Local/remote branch removal uses exactOID leases after ancestry/pushed-main
+checks; tracking ref removed. Counts145local/88remote deleted;40local/23remote
+heads remain including main,22non-main remote. Counts describe refs, not product
+completion. All 36 parent outcomes and ten phase gates remain open.
+
+
+## Remaining branch status after duplicate closeouts — 2026-10-20
+
+Previous goal turn delivered Perimeter runtime/admission and its checkpoint.
+This turn accounts for existing duplicate attempts; it adds no gameplay acceptance,
+new probe, engine run or checkpoint. Source of the inventory is current live HTTPS
+heads, unique commits against main 688866b05, existing failed-result records and
+registered worktree ownership. None of these 20 remote candidates owns a registered
+worktree. Separate older local/detached worktrees remain protected.
+
+Three candidates contain ordinary gameplay fixes, each withheld against its
+retained required acceptance. The other 17 contain qualification/diagnostic/release
+automation, including opt-in startup CLI wiring; they are not 17 unfinished gameplay
+implementations. Failed checks do not themselves establish runtime defects.
+A new run still requires a supported concrete change and explicit bounded selection;
+this inventory does not schedule retries or authorize weaker acceptance.
+
+### Exact duplicate source closed safely
+
+1. `feat/breach-interruption-20261018`, exact tip
+   `3c10a071b0e52c18c1e9f10fb41481a603cabae5`: original two commits have equal
+   range-diff patches to retained fixed-boot successor
+   `c1598ad67dce23190c51083780a443989b18ee3a`. All four changed files have identical
+   blobs. Original history preserved by verified bundle, binary patch, exact
+   four-file archive and pushed annotated tag
+   `archive/diagnostics/breach-interruption-20261018`. Existing raw results unchanged;
+   archive manifests at
+   `/srv/mudds-work/breach-interruption-20261018/results/branch-archive/`.
+   The successor's full atomic-payment/cold-replay requirement remains FAILED/open.
+2. `fix/jovian-exit-caller-syntax-20261020`, exact tip
+   `2aed310cd802de197f1487fe89b8489a4525146c`: sole changed test file exactly matches
+   `4d5cdab74633cf587226039ed0247ea54e3e648b`, an ancestor of retained docked-pilot
+   candidate `0d225bee8777ba4f1d792aa9f9a41a38371f2101`. Original commit is not
+   claimed as an ancestor. Verified bundle, patch and exact one-file archive plus
+   pushed tag `archive/diagnostics/jovian-exit-caller-syntax-20261020` preserve it.
+   Existing raw results unchanged; archive manifests at
+   `/srv/mudds-work/jovian-exit-caller-syntax-20261020/results/branch-archive/`.
+   Full passenger exit/reboard/reclaim/redeparture remains FAILED/open.
+
+Both local/live remote/tracking refs deleted only after checking current exact
+remote tips, registered worktree ownership, pushed tag identity and archive hashes.
+Remote deletion used expected-OID leases; local deletion compared exact old tips.
+Prior 39 Breach/22 Jovian observed PID/start identities absent; no new game processes or
+worktrees launched. Independent low review verifies all hashes/bundles/source bytes,
+source equivalence, tag identities, deletion and protected successor tips: GO.
+No unaccepted diagnostic code was merged. Totals 147 local/90 live remote branches
+deleted; 38 local/21 live remote heads remain including main, 20 non-main remote.
+These are ref counts, not completed roadmap outcomes. All 36 original parent
+outcomes/ten phase gates and native/GPU/devices/listening/human/final gates remain
+open. Current playable checkpoint remains fdae1cb; GitHub Actions remains disabled.
+
+### Every remaining remote candidate
+
+| Branch | Exact tip prefix | Source type | Retained acceptance blocker |
+| --- | --- | --- | --- |
+| `diag/browser-release-cache-20261020` | `783c8c87206a` | Automation | Native RPC-cache callback captured; matching Windows/Linux template pair absent after compilation budgets. Browser timeout/retry route not accepted. |
+| `feat/beacon-home-20261020` | `a612ea686dc1` | Automation | Board transition hits original Window disconnect errors; settlement/home/physical exit not reached. |
+| `feat/breach-interruption-fixed-boot-20261018` | `c1598ad67dce` | Release automation | Cold Resume reaches exact paid terminal/one receipt, then atomic-payment commit assertion fails. Further paid cold replay and package transaction NOT_RUN; cumulative140.961s retained. |
+| `feat/courier-ordinary-route-20261020` | `cb9d76fa54ac` | Automation | Runner escapes at78/78 hull with no player hit/kill. Fresh emission/ray/resolver cause missing; home not completed. |
+| `feat/defense-ordinary-route-20261020` | `a480c0fbb800` | Automation | Deploy succeeds, player then stationary until original34s encounter deadline. Walking cause unproved; combat/payment/home/reset absent. |
+| `feat/mining-first-play-20261018` | `20bd1ab7482a` | Automation | Full ordinary Mining journey remains blocked by native root-Window disconnect errors; component success does not accept the journey. |
+| `fix/cabin-passenger-role-20261018` | `38c079086dbc` | GAMEPLAY FIX | Confirmed standing berth displays PASSENGER correctly in focused checks. Required full handback still fails actual>=0.6m cabin walk inside15s; withheld. |
+| `fix/docked-pilot-hold-20261020` | `0d225bee8777` | GAMEPLAY FIX | 322 pose checks and postdock standing pass; full passenger exit stops at15s cabin walk. Reboard/pilot exit/reclaim/redeparture unaccepted; withheld. |
+| `fix/exit-tooltip-order-20261020` | `bae551d5836e` | GAMEPLAY FIX | Historical Observation journey passes, but required original visible TooltipPanel was not exercised. Actual-Main hover baseline did not reproduce it; repair INCONCLUSIVE/withheld. |
+| `fix/net-timeout-release-accept-20261020` | `e5b9dd25f82c` | Release automation | Prepared original browser acceptance fixture depends on matching templates. Windows compile budgets exhausted; no matching pair/full timeout route accepted. |
+| `fix/ui-board-focus-20261018` | `e646fc792e3d` | Diagnostic test | Actual popup geometry/lifecycle observations only; original Window disconnect cause/removal repair unproved. Mining/Beacon depend on it. |
+| `hold/fire-restart-viewport-20261018` | `38e47596093d` | Automation | Fire row intersection fails before capture/save/reader. Persisted remap/sampler requirement not exercised; scrolling cause unproved. |
+| `hold/hulk-revisit-departure-20261017` | `2298e4889316` | Automation | Reload/dock/exit reached; original300s expires during interior walk before breaker event. Full revisit/once-only cell/reward remains open. |
+| `hold/rime-crew-arrival-typing-20261018` | `68cc7d989910` | Automation | Typed caller passes parse stage; ordinary two-crew route fails original120s physical landing gate. Survey/home not accepted. |
+| `test/halyard-gunner-damage-20261018` | `3a7c4b4bfd47` | Automation | Original and caller repair fail co-pilot admission. Actual damage case not reached; no third attempt selected. |
+| `work/halyard-ordinary-board-20261018` | `f3d53bda602d` | Automation | Two consumed-state comparisons fail after actual seating. No causal runtime defect established; moving-cabin/server-stop baseline remains open. |
+| `work/jovian-helm-handback-20261018` | `535c4b01dcf0` | Automation | Full pilot handback fails actual cabin walk>=0.6m/15s. Retained passenger-role candidate corrects presentation only; walking cause unproved. |
+| `work/jovian-passenger-exit-20261018` | `e147b6d49ede` | Automation | Original parse/caller failures retained. Later corrected caller survives in docked-pilot successor; full exit still fails cabin walking, not accepted. |
+| `work/jovian-reload-boundary-20261018` | `f432bd63008c` | Automation | Main ready/restore accepted27.762s; first normal frame pair incomplete inside original30s. Concrete startup repair missing; no cap increase. |
+| `work/salvage-ordinary-access-20261018` | `641bbdbb0ed3` | Automation | Original and one repair fail outbound20. Actual supported inspection/return/revisit unmet; walking cause unproved. |
+
+
+## Breach atomic capture attempt stopped — 2026-10-20
+
+Existing `feat/breach-interruption-fixed-boot-20261018` reused; clean pushed
+853e5ee19706233a193aa6b0a432d8435f320211 remains unmerged/withheld. Main runtime
+and current fdae1cb checkpoint unchanged. No new branch was created or deleted;
+counts stay 147 local/90 remote deleted, 38 local/21 remote including main, 20 non-main.
+
+Separately selected 14:37–15:22UTC/45min after concrete source/raw fact: board debt
+retry pays then arms Torpedo; GameFlow publishes its new tutorial to the same store.
+Old probe reads latest metadata after that later commit. Raw tutorial seen sets
+corroborate the ordering; old failed sampled metadata ID was never emitted and is
+not invented. One medium implementer integrated the existing four-file capability
+with current main9ccd, preserved docking/other cases, and added original-actor/
+board-generation/successful-sortie signal capture of actual primary JSON/metadata.
+Same-document full ledger+terminal+foreign data assertions added to existing probe
+and package consumer; all later assertions/no-op bytes/third cold replay retained.
+High source/helper review GO before engines. Source 1000s/child 300s caps unchanged.
+
+Fresh import 20.615469s, probe check-only 15.609487s, privacy 1.161630s PASS. Exactly
+one full source transaction FAIL 71.057482s at new eight-predicate capture assertion.
+Arm reaches genuine debt/readiness and actual owned SIGKILL/reap; interrupted
+document bytes remain unchanged. Distinct Resume reaches real saved Arrow pilot,
+production exit, physical board discovery and exact paid terminal/one receipt.
+Combined signal-capture assertion fails. Its capture/metadata/generation/individual
+booleans were not emitted on failure; exact failed predicate remains UNKNOWN.
+Final generation 30 clean/observation documents cannot reconstruct signal capture.
+New JSON-decoded ledger vs integer runtime ledger is a static comparison risk,
+not established cause. No gameplay defect or failed atomicity is claimed.
+
+First failure stopped sequence. No third paid cold replay, exports, package menu
+checks, archived transaction, artifact audit/publication or branch merge occurred.
+No further correction/run/retry, cap increase, dropped assertion or narrower
+acceptance selected. Missing fact before another supported selection is actual
+signal-time primary/metadata/generation and comparison results. Independent high
+actual-outcome review confirms STOP/withhold. Original earned debt/actual kill/
+normal Resume/real pilot/exit/physical board/atomic receipt+ack/further paid cold
+replay/exact package contract remains fully OPEN; all 36 parents/ten gates remain open.
+
+New stages 108.444067826s plus retained 140.960529446s/three failures give
+249.404597272s (four failures total, no nested costs). All four owners terminal;
+19 observed PID/start identities absent, outer
+survivors[], both actual game children reaped. Source/index/import cache guards
+hold. Profiles archive streamed against exact file hashes/directory modes/links
+and fresh full snapshot (67 entries); helper sources
+preserved; unused passing build notes explicitly marked DRAFT-NOT-PUBLISHED.
+Owned worktree/profile/helpers removed in 9.26min
+inside original 45min; only
+`/srv/mudds-work/breach-atomic-handoff-20261020/results/` remains. Original
+`/srv/mudds-work/breach-interruption-fixed-boot-20261018/results/` untouched;
+old 3c archive/tag intact. Source candidate protected on its existing pushed branch.
+All engines headless/Dummy; native Windows/GPU/devices/audio/human/final NOT_RUN;
+CI owner hold remains. No successor task selected.
+
+
+## Breach interruption branch finished — 2026-10-20
+
+Existing `feat/breach-interruption-fixed-boot-20261018` is integrated in clean
+c78e0ac5e23043d688ac1b791d573807f1b101d8, merged and pushed to main. This delivers the original
+BREACH-INTERRUPTION executable release capability / parents 13,31,32. It adds the
+opt-in selector/probe/package consumer, preserves current main's docking/other
+recovery paths, and changes no production gameplay/reward authority/AI/timers.
+Original c159 source is retained as an ancestor. The older equivalent 3c branch
+was separately archived, never replayed or accepted by that cleanup.
+
+Concrete diagnosed correction: the physical board debt retry pays then arms the
+next Torpedo sortie; GameFlow subsequently saves tutorial-prompt-seen. Original
+interrupted/final tutorial seen sets and callback order establish that intervening
+commit. Old failed payment metadata itself was not emitted and its precise ID
+is not claimed. Capture at existing interaction_resolved for original actor,
+current board generation and accepted sortie_armed reads actual primary wire JSON
+and metadata after payment/before tutorial. Runtime and package consumer verify
+exact full reward ledger, acknowledged terminal and foreign settings/cargo in
+that SAME persisted document. Observer disconnects after interaction and teardown.
+All original later assertions, no-op file-byte equality and third cold replay
+remain; child300s/transaction1000s remain. High source review and independent
+actual-result/package review: GO.
+
+Import, probe compile, startup CLI/privacy and full source transaction pass.
+Full source and exact archived Linux native executable each own three distinct
+game processes: actual earned unpaid debt/live readiness→owned SIGKILL/reap with
+unchanged document; normal cold Resume/real saved Arrow pilot/production exit/
+physical board atomic payment; further cold paid replay retaining exactly one
+receipt and both clean recovery markers. The original staged placements,
+shortened boarding and direct real-picket damage remain disclosed. This is not
+ordinary flight/combat, original active-combat/timer/pose restoration or Torpedo
+recovery acceptance. The transaction audit records
+`game-flow-reward-0000000026` (source) and
+`game-flow-reward-0000000026` (archive).
+
+Paired clean exports, direct/archive Linux and Windows embedded payload strict
+menu checks all passed with exit0/exactly one STARTUP_MENU_READY_OK. Artifact audit matches
+1525 actual PCK entries/stock PE.text/exact Linux
+archive binary/icon/installers/modes/epoch/metadata. Archived transaction extraction
+verifies exact five members, ELF and external export metadata before native-export
+execution with no external script/PCK override. Eleven published checkpoint files
+hash-verified; Windows ZIP exactly tested EXE+notes. All Godot headless/Dummy.
+Native Windows/GPU/performance/devices/listening/human/final gates remain NOT_RUN;
+GitHub Actions disabled. Current checkpoint c78e0ac; ordinary Hold/Wing remain open. The853 failed
+capture assertion is resolved by source-proven JSON FLOAT/live INT dictionary
+semantics. Only expected live ledger uses existing canonical JSON conversion;
+actual primary and all eight exact comparisons remain, with named safe failure
+diagnostics. Retained source-comparison-proof records hashes of Godot JSON/
+Dictionary/Variant code. Earlier STOP hash is unchanged before publication/cleanup.
+
+New supervised stages 352.042694s plus retained 249.404597s/four failures give
+601.447291s, no nested process double counting. Raw authorizations/source review/
+source and archive transactions/package inventory/publication/cleanup live at
+`/srv/mudds-work/breach-atomic-handoff-20261020/repair-1/results/`. Original results at
+`/srv/mudds-work/breach-interruption-fixed-boot-20261018/results/` untouched.
+All owners terminal, 76 observed PID/start
+identities absent. Exact profile archive streamed for file hashes, directory modes,
+links and fresh full source snapshot; helper source and unique export metadata
+preserved. Owned worktree/profile/helpers removed in
+24.78min from14:37 within45min. Original failed attempt results/STOP remain unchanged
+at the parent results directory; only repair-owned worktree/profile/helpers removed.
+Branch local/remote/tracking refs deleted with expectedOID protection after
+containment in pushed main. Totals148local/91remote deleted;37local/20live remote
+heads remain including main,19non-main remote (three withheld gameplay fixes,
+16 automation/diagnostics). Ref cleanup does not imply all36 parents/ten phase
+gates are complete; all remain open.
+
+
+## Halyard ordinary boarding branch finished — 2026-10-20
+
+Existing `work/halyard-ordinary-board-20261018` / original f3d53bda6 reused,
+clean accepted source 4bc0e3b384b3384a5aca644d5a57b7e52a932412. Main cb509 merged, existing current
+navigator/shared profiles retained. Source corrective delta only changes projected
+primitive comparison representation in `_ordinary_fields`: full-precision JSON
+roundtrip preserves every key/value/fraction without mutating raw network data
+or host manifests. No production networking/seat/physics/role/runtime change.
+
+Concrete source proof: ownership authority creates INT identity fields; binary
+Variant decoder/snapshot duplicates preserve them. Host receipt `_read` parses
+JSON numbers as FLOAT, while old projection only converted StringName. Godot
+Dictionary::recursive_equal/Variant::hash_compare reject INT versus FLOAT.
+Both retained clients received the exact host Halyard ownership values, yet this
+comparison would reject them when reached. That is a caller defect, not proof
+of production ownership failure or success of earlier guards. Source proof stores
+Godot JSON/Variant/Dictionary/marshalls hashes and original STOP hash.
+
+High pre-engine source/helper review GO. Fresh import/compile PASS; ONE unchanged
+ordinary profile PASS 130.472090s, exact HALYARD_ORDINARY_TWO_CLIENT_BOARD_OK.
+Non-playing actual Main authority plus two authenticated original independent
+clients use normal menus/spawn, authored continuous station/cabin walks and real
+Interact pilot plus crew_port_00 passenger seats. No actor/craft placement or
+forced claim/seat/role. Retained host and consumed client peer/avatar/body/frame/
+seat/claim/ownership generations, exclusive claims, current controls and honest
+PILOT/PASSENGER HUD all pass, then explicit terminal handshake. Actual three peer
+Godot PIDs distinct, all three `.done.complete=true`, failures[], actual OS exits0;
+coordinator0 and marker exactly1. All peer PIDs observed by identity and absent.
+Original 300s suite/360s outer/8s consumed/15s walk/10s exit limits unchanged.
+No checks dropped or tolerant numeric matching added; all exact comparison fields
+remain. Independent actual-result review GO.
+
+Coordinator headless and every Godot uses Dummy; each peer uses private Xvfb,
+explicit x11/input-only dummy renderer, private XDG and independent abort path.
+No user-desktop/input/audio run. This closes original HALYARD-BOARD /16,26 only.
+Moving-cabin/departure and then authority-stop require their own original cases;
+full dedicated-server/two-client/endurance/native GPU/Windows/device/listening/
+human/final qualification remains OPEN/NOT_RUN. No adjacent case selected.
+Only excluded test file changed; c78e0ac checkpoint and 11 public artifact hashes
+unchanged, no identical checkpoint export or native/package claim.
+
+New supervised stages 166.878104s; original two failed routes 135.904+135.833=
+271.737s retained separately. Earlier import/compile/implementation elapsed was
+not recorded and is not invented or hidden inside a reset total. Old source and
+raw records at `/srv/mudds-work/halyard-ordinary-board-20261018/results/`
+remain unchanged, including original STOP. Accepted authorizations/proof/source/
+result reviews, raw peer receipts and cleanup live at
+`/srv/mudds-work/halyard-board-integration-20261020/results/`.
+All three owners terminal; 21 observed
+owned PID/start identities absent. 35 direct raw
+peer files copied/hash-verified, full profiles archived/stream-verified against
+all 145 files/directories/links and fresh
+source snapshot, helpers retained. Owned worktree/profile/helpers removed in
+8.74min from15:09 inside30min.
+Integrated source pushed main, then local/remote/tracking branch deleted after
+ownership/ancestry/current tips with exact expectedOID protection. Counts 149 local/
+92 remote deleted;36 local/19 live remote includingmain,18non-main (three withheld
+runtime fixes/15 automation). All 36 parents/ten phase gates remain open; no
+project percentage inferred from refs/check counts. GitHub CI hold retained.
+
+
+## Integrated local branches and superseded Jovian caller closed — 2026-10-20
+
+Continues the owner's branch-completion/cleanup priority, following accepted
+Halyard BOARD on 4bc0e3b38. No new feature branch, engine run, gameplay acceptance,
+checkpoint or hosted CI run. Main selection was pushed 7042bc84a.
+
+**Fifteen already-integrated local branches closed.** `perf/game-flow-cost`
+(df86280b5b3985770be527af71c6c247f311aae7) is an ancestor of pushed main.
+The following 14 contain only exact stable patch-ID matches to commits in pushed
+main, 20 patches in total. Original commit ancestry is not claimed for these
+cherry-picked changes. Their complete unique histories survive in a verified Git
+bundle, with exact original tips and main commit mappings in the cleanup manifest.
+
+| Removed local branch | Original tip | Removed clean worktree |
+| --- | --- | --- |
+| `agent/bomber-detour` | `240e8acc2dd7` | `/tmp/mudds-bomber-detour` |
+| `agent/fitout-fix` | `7126cc50fd9b` | `/tmp/mudds-fitout-fix` |
+| `agent/freight-presentation` | `b0eecc5fcbad` | `/tmp/mudds-freight-presentation` |
+| `agent/runtime-delivery` | `f5f572be7645` | `/tmp/mudds-runtime-delivery` |
+| `agent/sandbox-fleet` | `b5e232c958de` | `/tmp/mudds-sandbox-fleet` |
+| `agent/sandbox-flow` | `8d471d3e883b` | `/tmp/mudds-sandbox-flow` |
+| `agent/shared-cruise-fix` | `79f0964aec98` | `/tmp/mudds-shared-cruise-fix` |
+| `agent/startup-fix` | `5f2aa862c874` | `/tmp/mudds-startup-fix` |
+| `fix/ember-landing-20261016` | `bc6dca07401e` | `/tmp/mudds-ember-landing` |
+| `fix/gunner-input-driver` | `328c27b4dd08` | `/tmp/mudds-gunner-input` |
+| `fix/jovian-roof-shading` | `4dfc145e208b` | `/tmp/mudds-jovian-roof-shading` |
+| `fix/rime-walk-cost` | `ead62724ecc6` | `/tmp/mudds-rime-walk-cost` |
+| `perf/cushion-arrays` | `5dae8446ae22` | `/tmp/mudds-cushion-arrays` |
+| `station-build-cost` | `b948de4d44be` | `/tmp/mudds-station-build` |
+
+The 15 worktrees were clean including untracked files; no accessible live process
+had a cwd or path argument within them. Removal used Git's ordinary worktree
+checks, without forced deletion. Remote absence, current exact tips and pushed
+integration were checked; local ref deletion compared expected OIDs. Eight other
+registered detached worktrees and two worktrees owning unmatched source remain
+protected. No user source or unique unfinished branch was discarded.
+
+**Original Jovian passenger-exit caller archived.**
+`work/jovian-passenger-exit-20261018`, exact tip
+`e147b6d49edeaf7ab70238b69c30207a20adabdf`, contains the two original failed
+caller commits. Its only changed file is
+`tests/network/jovian_network_two_client_return_test.gd`. Later correction
+`4d5cdab74633cf587226039ed0247ea54e3e648b` repairs the retained lambda predicates
+and is an ancestor of protected `fix/docked-pilot-hold-20261020` at
+`0d225bee8777ba4f1d792aa9f9a41a38371f2101`. Old and corrected files are not
+claimed byte-identical. Exact original history, binary patch, one-file source tar
+and correction diff are preserved; tar contents and Git bundle verify. All 30
+pre-existing result files retain their hashes. Pushed annotated tag
+`archive/diagnostics/jovian-passenger-exit-20261018` resolves to the exact old tip.
+
+No registered worktree owned that branch. Local, live remote and tracking refs
+were removed after current ownership/tip/tag checks, using an expected-OID lease
+for the remote deletion. The retained successor's full passenger exit still
+fails its original 15-second cabin walk; reboard/pilot exit/reclaim/redeparture
+remain unaccepted. No test rerun, larger deadline or production merge follows.
+
+Archive and cleanup manifests:
+`/srv/mudds-work/jovian-passenger-exit-20261018/results/branch-archive/`.
+This existing scratch root still contains only preserved `results/`.
+
+**Retained local-only exceptions:** `agent/cargo-capture-fix` (optional cargo
+capture separation), `fix/durable-suite-launch` (detached supervision),
+`hold/sandbox-settle-facing-20261017` (braking waypoint orientation),
+`native-sortie` (seven original input/observer commits), and
+`sandbox-route-runner` (one unmatched pedestrian-aisle commit plus three integrated
+patches). These five have unmatched commits; their branches and two clean
+worktrees are preserved pending individual source accounting. Patch mismatch is
+not proof that the current product lacks their behavior.
+
+Totals: 165 local and 93 live remote branches deleted; 20 local and 18 live remote
+heads remain including main, 17 non-main remote. The remaining remote candidates
+contain three withheld gameplay fixes and 14 automation/diagnostic candidates.
+Counts describe refs, not product progress. All 36 original parent outcomes and
+ten phase gates remain open; native/human gates remain NOT_RUN and CI disabled.
+Playable checkpoint c78e0ac is unchanged.
+
+
+## Five local-only branches accounted and closed — 2026-10-20
+
+Continues the owner's cleanup priority from pushed a0a7ca3ab. Finite independent
+source accounting plus root comparison resolved all five local-only exceptions.
+No new branch, engine invocation, route retry, gameplay change or checkpoint.
+
+| Removed local branch | Original tip | Actual disposition |
+| --- | --- | --- |
+| `agent/cargo-capture-fix` | `385c3cf2af5d8859787aa9d94592aaa496357893` | Integrated on main ancestor `e0f05ef2b`: input-only matrix, explicit capture dispatch and separate helper remain. Integration uses `preload` instead of `load`; helper differs only by trailing blank line. Later Hauler coverage preserves separation. |
+| `fix/durable-suite-launch` | `d83f5c38530364971de45219a1d3e3f9176c6f1e` | Integrated on main ancestor `896732380`; launcher and complete tests match current main byte-for-byte. Detached ownership/readiness/ack, lock retention, PID/start identity and terminal cleanup remain. |
+| `native-sortie` | `f69eff5d394d3731edfe4bf221d4a0c724979e37` | Original seven-commit diagnostic driver superseded by evolved main harness. Original history preserved under `archive/diagnostics/native-sortie-original`; no exact whole-file integration or new acceptance claimed. |
+| `sandbox-route-runner` | `914830bded58f5c38f5b4f85cae5ce4424295cab` | All 54 waypoint tuples exactly match current main, including unmatched aisle-coordinate patch `d7fec297c`; other three patches were verified integrated in the prior closeout. History preserved under `archive/diagnostics/sandbox-route-runner-original`. |
+| `hold/sandbox-settle-facing-20261017` | `7cb633d5202386afb40b2d77bb1bed4cacf2f674` | Deliberately withheld failed guard is genuinely absent from main. Exact history preserved under `archive/diagnostics/sandbox-settle-facing-20261017`. Original 300s full Sandbox/recovery/reuse requirement remains FAILED/open; no further attempt selected. |
+
+Original native input helpers, Xlib containment, Desktop lifecycle, independent
+stop, and Pilot enter/tap/aim methods match main structurally. Guided pilot/run
+and observer have evolved; private X11/Dummy admission, authored camera/walk
+observation, physics-frame pulses and independent abort cleanup remain. Both UID
+files match exactly. Original Python regression file retains its lines with
+2,595 additions and zero deletions. These source comparisons account for old
+tooling; they are not current route, native GPU, device or human qualification.
+
+The settle-facing trial's recorded 306.358s failure at the original 300s deadline
+remains unchanged: recovery walk did not complete reuse. The full original
+Sandbox requirement remains open, rather than being replaced by a waypoint-only
+pass. Current main does not gain the failed guard through this cleanup.
+
+All five original unique histories are preserved in a verified Git bundle.
+Each branch also has its exact binary patch and changed-file tar; tar contents
+were checked against original Git blobs. The three annotated archive tags were
+pushed and their peeled remote tips checked before deletion. All 74 relocated
+original native raw/build files still match their earlier relocation manifest;
+26 settle-facing files plus the relocation manifest retain their hashes. No raw
+failure or historical executable was discarded or copied into a new checkpoint.
+
+Archive and source accounting:
+`/srv/mudds-work/local-branch-closeout-20261020/results/`.
+This new cleanup root contains only retained results. Existing native artifacts
+remain at `/srv/mudds-work/retained-worktree-artifacts/mudds-native-sortie/`;
+settle results remain at `/srv/mudds-work/sandbox-settle-facing-results-20261017/`.
+
+No live remote head owned any of these five branches. Exact local tips, pushed
+main integration, tags and registered worktree ownership were rechecked before
+expected-OID local ref deletion. Cargo and Sandbox runner's two worktrees had
+empty tracked/untracked status, only generated ignores and no accessible process
+cwd/path owners; ordinary Git worktree removal succeeded without force. Eight
+other detached worktrees remain protected, including known uncommitted-work
+exceptions; they were not re-audited or removed in this closeout.
+
+Totals: 170 local and 93 live remote branches deleted; 15 local and 18 live remote
+heads remain including main, 17 non-main remote. No local-only branch exception
+remains. The 17 remote candidates still include three withheld gameplay fixes and
+14 automation/diagnostic candidates with their original recorded blockers.
+Source/archive verification does not accept those journeys. All 36 original
+parent outcomes and ten phase gates remain open; native/human gates remain
+NOT_RUN, playable c78e0ac unchanged and GitHub Actions disabled.

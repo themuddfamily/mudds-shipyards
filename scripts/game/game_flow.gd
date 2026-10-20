@@ -958,7 +958,16 @@ var _caption_accepted_count := 0
 var _caption_rejected_count := 0
 var _reduced_dynamic_range := false
 
-var phase := Phase.INTRO
+var phase := Phase.INTRO:
+	set(value):
+		phase = value
+		# Hold belongs to one physical FREE_FLIGHT departure. Withdraw its
+		# sources in the same phase transition that removes its fire authority.
+		if value != Phase.FREE_FLIGHT and is_inside_tree():
+			var director := get_node_or_null(^"EncounterScenarios") as EncounterScenarioDirector
+			if is_instance_valid(director) and director.is_running() \
+					and director.get_active_scenario() == EncounterScenarioDirector.SCENARIO_PERIMETER_HOLD:
+				director.abort(EncounterScenarioDirector.OUTCOME_WITHDRAWN)
 var destroyed_targets := 0
 var total_targets := 0
 var _near_ship := false
@@ -1624,6 +1633,7 @@ func host_network_session(
 	if _planetary_visit_blocks_network_session() and not _network_planetary_journey.can_adopt_restored_surface():
 		return _refuse_network_session_during_planetary_visit(&"server")
 	_network_session_mode = &"server"
+	_withdraw_perimeter_hold_for_network()
 	_network_session_retry_mode = &"server"
 	_set_station_defense_network_presentation_only(false)
 	_set_torpedo_boat_network_presentation_only(false)
@@ -1654,6 +1664,7 @@ func join_network_session(
 	if _planetary_visit_blocks_network_session():
 		return _refuse_network_session_during_planetary_visit(&"client")
 	_network_session_mode = &"client"
+	_withdraw_perimeter_hold_for_network()
 	_network_session_retry_mode = &"client"
 	_set_station_defense_network_presentation_only(true)
 	_set_torpedo_boat_network_presentation_only(true)
@@ -7356,6 +7367,18 @@ func _publish_network_session_result(result: Dictionary, role: StringName) -> vo
 
 
 func _on_network_session_started(mode: StringName) -> void:
+	if is_instance_valid(heavy_breach_activity_board):
+		var board_snapshot := heavy_breach_activity_board.call(&"get_snapshot") as Dictionary
+		if StringName(board_snapshot.get("offered_scenario", &"")) == EncounterScenarioDirector.SCENARIO_PAIRED_WING \
+				and bool(board_snapshot.get("sortie_armed", false)):
+			heavy_breach_activity_board.call(&"cancel_solo_wing_for_network")
+			_heavy_breach_sortie_generation = 0
+			if not _piloting:
+				_restore_on_foot_objective()
+		var encounter := get_node_or_null(^"EncounterScenarios") as EncounterScenarioDirector
+		if is_instance_valid(encounter) and encounter.is_running() \
+				and encounter.get_active_scenario() == EncounterScenarioDirector.SCENARIO_PAIRED_WING:
+			encounter.abort(EncounterScenarioDirector.OUTCOME_WITHDRAWN)
 	_disconnect_client_navigator_audio()
 	_sync_client_navigator_audio_lifetime()
 	_sync_lan_discovery_responder(mode)
@@ -9332,6 +9355,11 @@ func _on_heavy_breach_board_snapshot_changed(snapshot: Dictionary) -> void:
 	if _heavy_breach_objective_posted \
 			and int(snapshot.get("active_director_generation", 0)) == 0:
 		_heavy_breach_objective_posted = false
+		var terminal := snapshot.get("director", {}) as Dictionary
+		if StringName(terminal.get("scenario", &"")) == EncounterScenarioDirector.SCENARIO_PAIRED_WING \
+				and is_instance_valid(hud):
+			hud.toast("Paired wing %s" % str(terminal.get("outcome", &"ended")).replace("_", " "),
+				"Solo encounter — no credit reward", 3.6)
 		if phase == Phase.FREE_FLIGHT and _piloting and is_instance_valid(hud):
 			hud.set_objective(
 				"Free flight — explore, fight, or return to a compatible registered berth",
@@ -9571,9 +9599,48 @@ func _present_ship_service_result(result: Dictionary, source: Area3D) -> void:
 	hud.toast("Ship service unavailable", detail, 2.8)
 
 
+func is_perimeter_hold_solo_authorized() -> bool:
+	return _network_session_mode.is_empty() and not _network_session_is_live()
+
+
+func _withdraw_perimeter_hold_for_network() -> void:
+	var director := get_node_or_null(^"EncounterScenarios") as EncounterScenarioDirector
+	if is_instance_valid(director) and director.is_running() \
+			and director.get_active_scenario() == EncounterScenarioDirector.SCENARIO_PERIMETER_HOLD:
+		director.abort(EncounterScenarioDirector.OUTCOME_WITHDRAWN)
+
+
 ## The board proves the on-foot range and generation once. It deliberately does
 ## not start combat against the avatar: GameFlow retains that admitted board
 ## generation until a selected production craft physically clears its berth.
+## Paired Wing currently has solo runtime ownership only.
+func is_paired_wing_solo_available() -> bool:
+	return _network_session_mode.is_empty() and not _network_session_is_live()
+
+
+func is_paired_wing_launch_authorized(target: Node3D) -> bool:
+	if not is_paired_wing_solo_available() or phase != Phase.FREE_FLIGHT \
+			or not _piloting or not _sortie_departed_berth \
+			or not _heavy_breach_sortie_is_armed() \
+			or StringName(heavy_breach_activity_board.call(&"get_offered_scenario")) != EncounterScenarioDirector.SCENARIO_PAIRED_WING \
+			or not is_instance_valid(active_ship) or target != active_ship \
+			or not is_instance_valid(combat_authority):
+		return false
+	var source_id := int(PLAYER_SOURCE_IDS.get(active_ship.get_ship_id(), 0))
+	return source_id > 0 and combat_authority.get_source_id(active_ship) == source_id
+
+
+func _board_sortie_title(scenario: StringName) -> String:
+	if scenario == EncounterScenarioDirector.SCENARIO_PERIMETER_HOLD:
+		return "Perimeter Hold"
+	match scenario:
+		EncounterScenarioDirector.SCENARIO_PAIRED_WING:
+			return "Paired wing"
+		EncounterScenarioDirector.SCENARIO_TORPEDO_RUN:
+			return "Torpedo run"
+	return "Heavy breach"
+
+
 func _arm_heavy_breach_sortie(board: Area3D) -> bool:
 	if (
 		board != heavy_breach_activity_board
@@ -9588,28 +9655,31 @@ func _arm_heavy_breach_sortie(board: Area3D) -> bool:
 	):
 		if is_instance_valid(hud):
 			hud.toast(
-				"Heavy breach unavailable",
+				"Combat sortie unavailable",
 				"Finish the current activity before arming another sortie",
 				3.0
 			)
+		return false
+	if StringName(board.call(&"get_offered_scenario")) == EncounterScenarioDirector.SCENARIO_PERIMETER_HOLD \
+			and not is_perimeter_hold_solo_authorized():
+		if is_instance_valid(hud):
+			hud.toast("Perimeter Hold unavailable", "This contract requires a solo shift", 3.0)
 		return false
 	var generation := int(board.call(&"get_generation"))
 	var result := board.call(&"arm_sortie", player, generation) as Dictionary
 	if not bool(result.get("accepted", false)):
 		if is_instance_valid(hud):
 			hud.toast(
-				"Heavy breach not armed",
+				"Combat sortie not armed",
 				str(result.get("reason", &"board_rejected")).replace("_", " ").capitalize(),
 				3.0
 			)
 		return false
 	_heavy_breach_sortie_generation = int(result.get("sortie_generation", 0))
-	var posted_title := "Heavy breach"
-	if board.has_method(&"get_offered_scenario") and StringName(
-		board.call(&"get_offered_scenario")
-	) == EncounterScenarioDirector.SCENARIO_TORPEDO_RUN:
-		posted_title = "Torpedo run"
-	_publish_board_sortie_briefing(posted_title == "Torpedo run")
+	var scenario := StringName(board.call(&"get_offered_scenario"))
+	var posted_title := _board_sortie_title(scenario)
+	if scenario in [EncounterScenarioDirector.SCENARIO_HEAVY_BREACH, EncounterScenarioDirector.SCENARIO_TORPEDO_RUN]:
+		_publish_board_sortie_briefing(scenario == EncounterScenarioDirector.SCENARIO_TORPEDO_RUN)
 	if is_instance_valid(hud):
 		hud.set_objective(
 			"Board a combat-capable spacecraft and physically clear its berth",
@@ -9617,7 +9687,9 @@ func _arm_heavy_breach_sortie(board: Area3D) -> bool:
 		)
 		hud.toast(
 			"%s sortie armed" % posted_title,
-			"Choose a craft and launch; the contact will commit after departure",
+			"Solo encounter — no credit reward; launch to meet both contacts"
+				if scenario == EncounterScenarioDirector.SCENARIO_PAIRED_WING
+				else "Choose a craft and launch; the contact will commit after departure",
 			3.6
 		)
 	_sync_activity_hud()
@@ -9632,13 +9704,14 @@ func _cancel_armed_heavy_breach_sortie(board: Area3D) -> bool:
 		or not board.has_method(&"get_generation")
 	):
 		return false
+	var posted_title := _board_sortie_title(StringName(board.call(&"get_offered_scenario")))
 	var result := board.call(
 		&"abort_and_reset", player, int(board.call(&"get_generation"))
 	) as Dictionary
 	if not bool(result.get("accepted", false)):
 		if is_instance_valid(hud):
 			hud.toast(
-				"Heavy breach cancellation rejected",
+				"%s cancellation rejected" % posted_title,
 				str(result.get("reason", &"board_rejected")).replace("_", " ").capitalize(),
 				3.0
 			)
@@ -9647,7 +9720,7 @@ func _cancel_armed_heavy_breach_sortie(board: Area3D) -> bool:
 	if is_instance_valid(hud):
 		_restore_on_foot_objective()
 		hud.toast(
-			"Heavy breach sortie cancelled",
+			"%s sortie cancelled" % posted_title,
 			"The deck board is ready to arm again",
 			3.0
 		)
@@ -9678,14 +9751,15 @@ func _try_launch_armed_heavy_breach() -> bool:
 		or not heavy_breach_activity_board.has_method(&"launch_armed_sortie")
 	):
 		return false
+	var posted_title := _board_sortie_title(StringName(heavy_breach_activity_board.call(&"get_offered_scenario")))
 	var expected_source_id := int(PLAYER_SOURCE_IDS.get(active_ship.get_ship_id(), 0))
 	if expected_source_id <= 0 \
 			or not is_instance_valid(combat_authority) \
 			or combat_authority.get_source_id(active_ship) != expected_source_id:
 		if is_instance_valid(hud):
 			hud.set_objective(
-				"This craft has no Heavy Breach weapon authority — return and launch a combat-capable ship",
-				"HEAVY BREACH SORTIE ARMED"
+				"This craft has no %s weapon authority — return and launch a combat-capable ship" % posted_title,
+				"%s SORTIE ARMED" % posted_title.to_upper()
 			)
 		return false
 	var result := heavy_breach_activity_board.call(
@@ -9697,7 +9771,7 @@ func _try_launch_armed_heavy_breach() -> bool:
 			_heavy_breach_sortie_generation = 0
 		if is_instance_valid(hud):
 			hud.set_objective(
-				"Heavy breach launch interrupted — retain the craft and retry departure coordination"
+				"%s launch interrupted — retain the craft and retry departure coordination" % posted_title
 			)
 		return false
 	_heavy_breach_sortie_generation = 0
@@ -9705,7 +9779,14 @@ func _try_launch_armed_heavy_breach() -> bool:
 	if is_instance_valid(audio) and audio.has_method(&"play_combat_alert"):
 		audio.call(&"play_combat_alert")
 	if is_instance_valid(hud):
-		if StringName(result.get("scenario", &"")) == EncounterScenarioDirector.SCENARIO_TORPEDO_RUN:
+		if StringName(result.get("scenario", &"")) == EncounterScenarioDirector.SCENARIO_PERIMETER_HOLD:
+			hud.set_objective("Defend the protected core for 90 seconds — keep integrity above 35%", "PERIMETER HOLD")
+		elif StringName(result.get("scenario", &"")) == EncounterScenarioDirector.SCENARIO_PAIRED_WING:
+			hud.set_objective(
+				"Destroy both wing contacts — break suppression and flank; no credit reward",
+				"PAIRED WING"
+			)
+		elif StringName(result.get("scenario", &"")) == EncounterScenarioDirector.SCENARIO_TORPEDO_RUN:
 			hud.set_objective(
 				"Destroy the torpedo boat — break across its torpedoes or shoot them down",
 				"TORPEDO RUN"
@@ -9764,6 +9845,21 @@ func _on_interact_requested() -> void:
 			return
 		if station_interaction_candidate is StationSeat:
 			_sit_in_station_seat(station_interaction_candidate as StationSeat)
+			return
+		if is_instance_valid(world) \
+				and station_interaction_candidate == world.get_station_defense_activity_board():
+			var defense_board := station_interaction_candidate as StationDefenseActivityBoard
+			# Resolve once per press. A successful pending-report retry must not
+			# fall through to reset or deploy in this same interaction.
+			var defense_action := defense_board.get_physical_interaction_action()
+			var defense_result: Dictionary = {}
+			if defense_action in [&"deploy", &"retry_reward"]:
+				defense_result = _start_physical_station_defense_board()
+			elif defense_action == &"reset" and not _heavy_breach_sortie_is_armed():
+				defense_result = _reset_physical_station_defense_board()
+			if bool(defense_result.get("accepted", false)):
+				audio.play_ui_confirm()
+				_sync_activity_hud()
 			return
 		if station_interaction_candidate == heavy_breach_activity_board:
 			var heavy_breach_changed := (
@@ -17682,6 +17778,9 @@ func get_live_combat_source_roster_audit() -> Dictionary:
 		{"entity": get_node_or_null("WingSkirmisherWing") as FlankingSkirmisherOpponent, "source_id": 2104},
 		{"entity": get_node_or_null("CourierRunner") as CourierRunnerOpponent, "source_id": 2105},
 		{"entity": get_node_or_null("TorpedoBoat") as TorpedoBoatOpponent, "source_id": 2106},
+		{"entity": get_node_or_null("PerimeterPicket") as StandoffPicketOpponent, "source_id": 2131},
+		{"entity": get_node_or_null("PerimeterScatter") as FlankingSkirmisherOpponent, "source_id": 2132},
+		{"entity": get_node_or_null("PerimeterPress") as ResolverBackedOpponent, "source_id": 2133},
 	]
 	for authored in authored_reinforcements:
 		var reinforcement := authored["entity"] as RangeOpponent
@@ -21115,9 +21214,7 @@ func _sync_heavy_breach_activity_hud() -> bool:
 		running_scenario = StringName(snapshot.get("offered_scenario", running_scenario))
 	hud.call(
 		&"set_activity_objective",
-		"Torpedo run"
-			if running_scenario == EncounterScenarioDirector.SCENARIO_TORPEDO_RUN
-			else "Heavy breach",
+		_board_sortie_title(running_scenario),
 		snapshot
 	)
 	return true
@@ -25032,6 +25129,7 @@ func _apply_all_runtime_settings() -> void:
 	# the on-foot look preference rather than the flight one.
 	if is_instance_valid(tow_tractor):
 		tow_tractor.mouse_sensitivity = runtime_settings.on_foot_mouse_sensitivity
+		tow_tractor.invert_mouse_y = runtime_settings.invert_on_foot_y
 		tow_tractor.set_camera_fov(runtime_settings.camera_fov, runtime_settings.limit_ultrawide_fov)
 	runtime_settings.apply_audio_settings()
 	_apply_reduced_dynamic_range_setting()
@@ -25209,6 +25307,7 @@ func _apply_opponent_weapon_heat_presentation_profile() -> void:
 	# opponent's heat vent and destruction flash; the picket's lance bolts too.
 	for reinforcement_path: NodePath in [
 		^"StandoffPicket", ^"WingSkirmisherLead", ^"WingSkirmisherWing", ^"CourierRunner",
+		^"PerimeterPicket", ^"PerimeterScatter", ^"PerimeterPress",
 	]:
 		var reinforcement := get_node_or_null(reinforcement_path) as RangeOpponent
 		if is_instance_valid(reinforcement):
@@ -25380,6 +25479,8 @@ func _on_runtime_setting_changed(setting: StringName, _value: Variant) -> void:
 			fleet_ship.invert_mouse_y = runtime_settings.invert_ship_y
 	elif setting == &"invert_on_foot_y":
 		player.invert_mouse_y = runtime_settings.invert_on_foot_y
+		if is_instance_valid(tow_tractor):
+			tow_tractor.invert_mouse_y = runtime_settings.invert_on_foot_y
 	elif setting == &"camera_fov" or setting == &"limit_ultrawide_fov":
 		# One seam for both keys: the authored angle and the ultrawide opt-out
 		# are two halves of the same resolved FOV, so either edit re-derives it.

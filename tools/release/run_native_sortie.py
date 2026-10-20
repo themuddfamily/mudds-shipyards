@@ -4,6 +4,7 @@
 Usage: run_native_sortie.py GAME.x86_64 --output NEW_RESULT_DIRECTORY
 Use --route beacon-entry for normal Torrent departure and actual first Beacon HUD start.
 Use --route beacon-settlement to continue through all four beacons and durable settlement.
+Use --route arrow-return-reuse for one Arrow precision hit, two home exits and normal UI quit.
 Use --route sandbox for the full five-branch/eight-craft/crash/reuse scenario.
 Use --route sandbox-walk for the on-foot prerequisite only.
 Use --route hulk-arrival for the Guided prelude then the streamed HULK dock/exit.
@@ -2742,6 +2743,466 @@ class HabitatRestartPilot(HabitatLoopPilot):
                 'interaction_complete': self.interaction_complete}
 
 
+
+class ArrowReturnReusePilot(Pilot):
+    """One native precision hit, two physical Arrow sorties and normal UI exit."""
+    MARKER = 'NATIVE_ARROW_RETURN_REUSE_OK'
+    IDS = ('main_id', 'world_id', 'player_id', 'capsule_id', 'shape_id',
+           'ship_id', 'berth_id', 'source_id', 'seat_id', 'pid',
+           'target_instance_id', 'target_adapter_id', 'camera_id')
+    WEAPON_STAGES = ('weapon_brake', 'weapon_aim', 'weapon_fire', 'weapon_restore')
+    WEAPON_CAP = 25
+    OUTBOUND = (('central_forward', [0, 0, 13.5]),
+                ('port_arm', [-35, 0, 13.5]), ('arrow_clearance', [-35, 0, 22]))
+
+    def __init__(self):
+        super().__init__()
+        self.initial = self.observed_previous = self.last_state = None
+        self.receipts, self.visited, self.trips, self.native_edges = {}, [], [], []
+        self.walked = self.excursion = 0
+        self.walk_index = self.flight = 0
+        self.departed = self.thrust_seen = self.landing_seen = False
+        self.neutral_start = None
+        self.clear_seen = False
+        self.boarding_seen = self.disembarking_seen = False
+        self.mouse_pending = None
+        self.ui_key = None
+        self.ui_until = self.ui_release_until = 0
+        self.quit_requested = False
+        self.observations = 0
+        self.weapon_started = self.weapon_start_frame = None
+        self.weapon_native_seen = False
+        self.weapon = {}
+        self.target_moved = False
+
+    def receipt(self, s):
+        fields = self.IDS + ('frame', 'sequence', 'phase', 'player', 'position', 'candidate',
+                            'boarding_distance', 'station_candidate', 'reboard_blocked',
+                            'native_interact', 'native_landing', 'native_thrust', 'engine',
+                            'lease', 'lease_free', 'lease_token', 'contract', 'parked_exact',
+                            'seated', 'seated_at_pilot', 'boarding_reserved', 'grounded',
+                            'supported', 'support_collider', 'boarding_confirmation')
+        return {key: s[key] for key in fields}
+
+    def key_for(self, event): return event+'_'+str(self.flight+1)
+
+    def weapon_receipt(self, s):
+        return {**self.receipt(s), 'native_fire': s['native_fire'],
+                'shot': s['shot'], 'target': s['target'],
+                'right': s['right'], 'up': s['up'], 'back': s['back'],
+                'camera': s['camera'], 'camera_right': s['camera_right'],
+                'camera_up': s['camera_up'], 'camera_back': s['camera_back']}
+
+    def check_weapon_deadline(self, now):
+        if self.weapon_started is not None and self.stage in self.WEAPON_STAGES:
+            require(now-self.weapon_started <= self.WEAPON_CAP,
+                    'Arrow brake aim fire and attitude restoration within 25 seconds')
+
+    def validate_weapon(self, s):
+        target, shot = s['target'], s['shot']
+        require(target['name'] == 'TargetDrone01' and target['target_id'] == 'DRONE-01'
+                and target['base_position'] == [-13, 7, -95]
+                and target['maximum_health'] == 100 and not target['destroyed']
+                and s['ship_tuning']['cooldown'] == .38 and not s['ship_invert_y'],
+                'same authored moving DRONE-01 and default precision emitter')
+        self.target_moved |= norm(sub(target['position'], self.initial['target']['position'])) > .01
+        if self.stage in self.WEAPON_STAGES:
+            require(self.flight == 0 and s['phase'] == 'FREE_FLIGHT' and s['engine'] == 'ONLINE'
+                    and not s['landed'] and not s['landing_active'] and s['lease_free']
+                    and not s['native_landing'], 'first-flight free Arrow during bounded weapon phase')
+        if self.weapon_start_frame is not None and self.stage in self.WEAPON_STAGES:
+            require(s['frame']-self.weapon_start_frame <= self.WEAPON_CAP*60,
+                    'Arrow weapon phase physics budget within original route cap')
+        if s['native_fire']:
+            require(self.flight == 0 and self.stage == 'weapon_fire'
+                    and 'pre_fire' in self.weapon,
+                    'native fire confined to first-flight weapon request')
+            if not self.weapon_native_seen:
+                self.weapon['native_fire'] = self.weapon_receipt(s)
+            self.weapon_native_seen = True
+        if 'hit' in self.weapon:
+            require(shot == self.weapon['hit']['shot'] and target['health'] == 76
+                    and target['hit_source'] == self.weapon['hit']['target']['hit_source'],
+                    'single Arrow hit retained unchanged through both return flights')
+            return
+        if not shot['present']:
+            require(target['health'] == 100 and target['hit_source']['sequence'] == -1,
+                    'untouched target health before native Arrow shot')
+            return
+        request = shot['request']
+        before = self.weapon.get('pre_fire')
+        require(self.stage == 'weapon_fire' and self.flight == 0 and before is not None
+                and self.weapon_native_seen and s['frame'] > before['frame']
+                and s['sequence'] > before['sequence'] and self.target_moved,
+                'fresh result follows observed native first-flight fire on moving target')
+        baseline = before['shot']['request'].get('sequence', -1)
+        context = target['hit_source']
+        require(request['sequence'] == baseline+1 and request['presentation_receipt_id'] >= 0
+                and all(request[key] == context[key] for key in
+                        ('source_id', 'source_entity_id', 'weapon_id', 'sequence', 'presentation_receipt_id'))
+                and request['source_id'] == shot['source_id'] == 1102
+                and request['source_entity_id'] == shot['source_entity_id'] == s['ship_id']
+                and request['weapon_id'] == 'arrow_precision_recon_emitter'
+                and request['range'] == 480 and request['damage'] == 24,
+                'fresh matching Arrow request source sequence and presentation hit receipt')
+        damage = shot['damage_result']
+        require(shot['accepted'] and shot['resolved'] and shot['hit'] and shot['damaged']
+                and shot['status'] == 'damaged' and not shot['destroyed']
+                and shot['target_entity_id'] == s['target_instance_id']
+                and shot['damageable_id'] == s['target_adapter_id']
+                and shot['applied_damage'] == 24 and shot['remaining_health'] == 76
+                and damage.get('accepted') and damage.get('applied_damage') == 24
+                and damage.get('health') == 76 and damage.get('maximum_health') == 100
+                and not damage.get('destroyed') and before['target']['health'] == 100
+                and target['health'] == 76,
+                'authoritative actual DRONE-01 hit applies precisely 24 damage from 100 to 76')
+        self.weapon['hit'] = self.weapon_receipt(s)
+
+    def weapon_aim(self, s, direction):
+        local = [dot(unit(direction), s[a]) for a in ('camera_right', 'camera_up', 'camera_back')]
+        yaw = math.atan2(local[0], -local[2])
+        pitch = math.atan2(local[1], math.hypot(local[0], local[2]))
+        sensitivity = s['ship_tuning']['mouse']
+        clamp = lambda value: round(max(-35, min(35, value*.4/sensitivity)))
+        return clamp(yaw), clamp(-pitch), -local[2]
+
+    def restore_attitude(self, s, keys):
+        original = self.initial
+        axes = ('right', 'up', 'back')
+        cross = lambda a,b: [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]]
+        rotation = [sum(cross(s[axis], original[axis])[i] for axis in axes)/2 for i in range(3)]
+        local = [dot(rotation, s[axis]) for axis in axes]
+        if abs(local[2]) > .025: keys.add('q' if local[2] > 0 else 'r')
+        sensitivity = s['ship_tuning']['mouse']
+        clamp = lambda value: round(max(-35, min(35, value*.4/sensitivity)))
+        dx, dy = clamp(-local[1]), clamp(-local[0])
+        restored = all(norm(sub(s[axis], original[axis])) < .04 for axis in axes)
+        return dx, dy, restored
+
+    def require_home(self, s, contract=True):
+        require(s['landed'] and s['parked_exact'] and s['lease'] and s['lease_token']
+                and (not contract or s['contract']), 'strict exact occupied Arrow home lease')
+
+    def require_foot(self, s):
+        require(s['phase'] == 'APPROACH_SHIP' and not s['seated'] and not s['piloted']
+                and not s['transition_busy'] and s['control_enabled'] and s['capsule_enabled']
+                and s['grounded'] and s['supported'] and s['support_collider']
+                and s['player_camera'], 'ordinary supported Arrow walking and exterior controls')
+
+    def validate_observation(self, s):
+        """Validate all receipts, including intermediate batches and the quit tail."""
+        self.last_state = s
+        require(s.get('mode') == 'arrow-return-reuse' and s.get('actors_current'),
+                'current ordinary Arrow observer actors')
+        self.frame = s['frame']
+        if self.initial is None:
+            require(s['phase'] == 'INTRO' and not s['paused'] and not s['guided_complete']
+                    and norm(sub(s['player'], s['spawn'])) < .75
+                    and math.hypot(s['spawn'][0]+8.5, s['spawn'][2]-11) < .1
+                    and abs(s['spawn'][1]-.18) < .65, 'fresh authored Arrow title and hub spawn')
+            self.require_home(s, False)
+            require(norm(sub(s['back'], [1, 0, 0])) < .001
+                    and norm(sub(s['up'], [0, 1, 0])) < .001,
+                    'authored west-facing upright Arrow starting attitude')
+            self.initial = s
+        initial, previous = self.initial, self.observed_previous
+        require(all(s[k] == initial[k] and s[k] for k in self.IDS)
+                and s['capsule_geometry'] == initial['capsule_geometry'],
+                'same Main world Player capsule Arrow seat input owner and home berth')
+        require(s['definition_id'] == 'arrow_provisional' and s['home_id'] == 'arrow_recon_berth'
+                and s['default_sampler'] and s['default_controls'] and s['tuning_unchanged']
+                and s['walk_tuning'] == LifeTowPilot.DEFAULT_WALK
+                and s['ship_tuning'] == initial['ship_tuning'] and s['physics_ticks'] == 60
+                and s['time_scale'] == 1, 'default sampler controls and authored Arrow tuning')
+        require(not s['destroyed'] and s['hull'] == initial['hull'] and not s['remote_piloted']
+                and not s['guided_complete'], 'live unchanged ordinary Arrow hull without recovery')
+        require(s['sequence'] == (previous['sequence']+1 if previous else s['sequence']),
+                'every consecutive Arrow receipt retained')
+        if previous:
+            require(s['frame'] == previous['frame']+1, 'every consecutive Arrow physics frame retained')
+        self.validate_weapon(s)
+        self.observations += 1
+        if not self.phases or self.phases[-1] != s['phase']: self.phases.append(s['phase'])
+        require(s['phase'] in ('INTRO', 'APPROACH_SHIP', 'BOARDING', 'START_ENGINES',
+                               'FREE_FLIGHT', 'SHUT_DOWN', 'DISEMBARKING'), 'ordinary Arrow lifecycle phases only')
+        if s['paused']:
+            require(self.stage in ('pause', 'quit_wait') and len(self.trips) == 2,
+                    'pause follows both completed Arrow returns')
+        pressed = s['native_interact'] and not (previous and previous['native_interact'])
+        if pressed:
+            self.native_edges.append({'frame': s['frame'], 'stage': self.stage, 'flight': self.flight+1})
+        confirmation = s['boarding_confirmation'].get('adapter', {}).get('view', {}).get('state')
+        require(confirmation != 'rejected', 'production Arrow boarding confirmation must not reject')
+        if s['phase'] == 'BOARDING':
+            request = self.receipts.get(self.key_for('board'))
+            require(self.stage == 'board' and request is not None and request['candidate']
+                    and request['boarding_distance'] <= 7 and not request['station_candidate']
+                    and not request['reboard_blocked'] and request['frame'] < s['frame']
+                    and all(request[k] == s[k] for k in self.IDS)
+                    and any(e['stage'] == 'board' and e['flight'] == self.flight+1 for e in self.native_edges)
+                    and s['transition_busy'] and s['boarding_reserved'],
+                    'BOARDING requires current candidate and distinct actual E with retained reservation')
+            require(confirmation == 'boarding', 'actual Arrow boarding presentation')
+            self.boarding_seen = True
+        if s['seated'] and not s['transition_busy']:
+            require(s['seated_at_pilot'] and s['piloted'] and s['active_ship'] and s['ship_camera']
+                    and not s['capsule_enabled'], 'actual same Arrow pilot seat camera and command owner')
+        if s['phase'] in ('START_ENGINES', 'FREE_FLIGHT', 'SHUT_DOWN'):
+            require(s['active_ship'] and s['seated_at_pilot'] and s['piloted'],
+                    'same active seated Arrow throughout flight')
+        if self.stage in ('walk', 'approach', 'clear', 'reapproach', 'pause', 'quit_wait'):
+            self.require_foot(s)
+            self.require_home(s, self.flight > 0 or len(self.trips) == 2)
+            if previous and previous['phase'] == 'APPROACH_SHIP' and not previous['transition_busy']:
+                step = norm(sub(s['player'], previous['player']))
+                require(step <= LifeTowPilot.DEFAULT_WALK['sprint']/60*1.25+.02,
+                        'continuous supported Arrow walking without teleport')
+                self.walked += step
+        if self.stage == 'launch':
+            self.thrust_seen |= s['native_thrust'] and s['flight_demand'] and s['engine'] == 'ONLINE'
+            self.excursion = max(self.excursion, norm(sub(s['position'], s['parked'])))
+            self.departed |= (self.thrust_seen and s['lease_free'] and not s['landed']
+                              and s['phase'] == 'FREE_FLIGHT' and self.excursion > 8)
+        if self.stage in ('land', 'shutdown', 'exit'):
+            self.landing_seen |= s['native_landing']
+        if self.stage == 'shutdown':
+            if s['flight_demand']:
+                self.neutral_start = None
+            elif self.neutral_start is None:
+                self.neutral_start = s['frame']
+            self.require_home(s)
+        if s['phase'] == 'DISEMBARKING':
+            request = self.receipts.get(self.key_for('exit'))
+            require(self.stage == 'exit' and request is not None and request['engine'] == 'OFFLINE'
+                    and request['contract'] and request['lease'] and request['parked_exact']
+                    and all(request[k] == s[k] for k in self.IDS)
+                    and any(e['stage'] == 'exit' and e['flight'] == self.flight+1 for e in self.native_edges),
+                    'DISEMBARKING requires strict offline home and separate actual E')
+            require(confirmation == 'disembarking', 'actual Arrow exit presentation')
+            self.disembarking_seen = True
+        self.observed_previous = s
+
+    def walk_to(self, s, target, keys):
+        off = sub(target, s['player']); off[1] = 0
+        distance, speed = norm(off), math.hypot(s['velocity'][0], s['velocity'][2])
+        if distance <= .30 and abs(target[1]-s['player'][1]) <= .65 and speed <= .35:
+            return 0, True
+        direction = unit(off)
+        yaw = math.atan2(dot(direction, s['walk_right']), dot(direction, s['walk_forward']))
+        dx = round(max(-360, min(360, yaw/s['walk_tuning']['mouse'])))
+        commanded = s['walk_tuning']['sprint'] if distance > 3 else s['walk_tuning']['walk']
+        stopping = speed*speed/(2*s['walk_tuning']['deceleration']) + max(speed, commanded)/20 + .10
+        if abs(yaw) < .08 and distance > .30 and (speed <= .35 or distance > stopping):
+            keys.add('w')
+            if distance > 3: keys.add('Shift_L')
+        return dx, False
+
+    def request_e(self, event, s, now):
+        if self.tap_key is None and not s['native_interact']:
+            self.tap('e', now)
+            if self.tap_key == 'e':
+                self.receipts[self.key_for(event)] = self.receipt(s)
+                self.enter(event, s)
+
+    def ui_update(self, s, now):
+        keys = set()
+        if s['paused']:
+            ui = s['ui']
+            require(ui['main_visible'] and ui['exit_visible'] and ui['exit_enabled']
+                    and ui['exit_text'] == 'EXIT TO DESKTOP' and ui['exit_path'],
+                    'actual enabled normal EXIT TO DESKTOP control')
+        if self.ui_key is not None:
+            if now < self.ui_until: return {self.ui_key}, 0, 0, False
+            self.ui_key = None
+            self.ui_release_until = now+.10
+            return keys, 0, 0, False
+        if self.quit_requested or now < self.ui_release_until or any(s['native_keys'].values()):
+            return keys, 0, 0, False
+        key = None
+        if not s['paused']:
+            require(self.stage == 'pause', 'normal pause stays open until requested UI exit')
+            key = 'Escape'
+        elif s['ui']['focus_is_exit']:
+            self.receipts['exit_ui'] = {'sequence': s['sequence'], 'ui': s['ui'].copy()}
+            self.quit_requested = True
+            self.stage = 'quit_wait'
+            key = 'Return'
+        else:
+            require(s['ui']['focus_path'], 'ordinary pause keyboard focus')
+            key = 'Tab'
+        self.ui_key, self.ui_until = key, now+.08
+        keys.add(key)
+        return keys, 0, 0, False
+
+    def update(self, s, now):
+        # The supervisor validates every receipt before this one OS-input update.
+        require(self.last_state is s, 'latest already-validated Arrow observation')
+        self.check_weapon_deadline(now)
+        if self.stage in ('pause', 'quit_wait'): return self.ui_update(s, now)
+        keys, dx, dy = set(), 0, 0
+        if self.stage == 'boot' and s['menu_ready']:
+            self.enter('begin_shift', s)
+            self.request_e('begin_shift', s, now)
+        elif self.stage == 'begin_shift' and s['phase'] == 'APPROACH_SHIP' and s['grounded'] and s['supported']:
+            require(any(e['stage'] == 'begin_shift' for e in self.native_edges), 'actual Begin Shift E')
+            self.enter('walk', s)
+        elif self.stage == 'walk':
+            name, target = self.OUTBOUND[self.walk_index]
+            dx, reached = self.walk_to(s, target, keys)
+            if reached:
+                self.visited.append({'name': name, **self.receipt(s)})
+                self.walk_index += 1
+                if self.walk_index == len(self.OUTBOUND):
+                    self.enter('approach', s)
+                    self.walk_index = 0
+        elif self.stage in ('approach', 'reapproach'):
+            if s['candidate'] and not s['station_candidate'] and s['boarding_distance'] <= 7 \
+                    and not s['reboard_blocked'] and norm(s['velocity']) <= .35:
+                clear = self.receipts.get('walk_clear', {})
+                require(self.flight == 0 or (self.clear_seen and clear.get('boarding_distance', 0) > 7
+                        and not clear.get('reboard_blocked', True)
+                        and all(clear.get(k) == s[k] for k in self.IDS)
+                        and self.receipts['exited_1']['frame'] < clear['frame'] < s['frame']),
+                        'actual clear walk before second boarding')
+                self.request_e('board', s, now)
+            else:
+                goals = [[s['boarding'][0], 0, 22], s['boarding']]
+                dx, reached = self.walk_to(s, goals[self.walk_index], keys)
+                if reached and self.walk_index == 0: self.walk_index = 1
+        elif self.stage == 'board' and s['phase'] == 'START_ENGINES' and not s['transition_busy']:
+            require(self.boarding_seen and any(e['stage'] == 'board' and e['flight'] == self.flight+1 for e in self.native_edges)
+                    and s['boarding_confirmation'].get('adapter', {}).get('view', {}).get('state') == 'seated',
+                    'actual boarding transition and E before Arrow seated receipt')
+            self.require_home(s, self.flight > 0)
+            self.receipts[self.key_for('seated')] = self.receipt(s)
+            self.enter('launch', s)
+        elif self.stage == 'launch':
+            off = sub(s['capture_position'], s['position']); off[1] = 0
+            signed = dot(off, [-v for v in s['back']])
+            if self.departed and (s['capture'] or abs(signed) < 6):
+                keys.add('Prior')
+                if norm(s['ship_velocity']) <= .35 and s['capture']:
+                    if self.flight == 0:
+                        self.weapon_started, self.weapon_start_frame = now, s['frame']
+                        self.weapon['brake'] = self.weapon_receipt(s)
+                        self.mouse_pending = None
+                        self.enter('weapon_aim', s)
+                    else:
+                        self.tap('l', now)
+                        if self.tap_key == 'l':
+                            self.receipts[self.key_for('landing')] = self.receipt(s)
+                            self.enter('land', s)
+                elif self.flight == 0:
+                    self.weapon_started, self.weapon_start_frame = now, s['frame']
+                    self.weapon['brake'] = self.weapon_receipt(s)
+                    self.mouse_pending = None
+                    self.enter('weapon_brake', s)
+            else: keys.add('w' if signed >= 0 else 's')
+        elif self.stage == 'weapon_brake':
+            keys.add('Prior')
+            if norm(s['ship_velocity']) <= .35:
+                require(s['capture'], 'Arrow brake stays within existing capture approach')
+                self.enter('weapon_aim', s)
+        elif self.stage == 'weapon_aim':
+            keys.add('Prior')
+            dx, dy, alignment = self.weapon_aim(s, sub(s['target']['position'], s['camera']))
+            if alignment > .99998 and norm(s['ship_velocity']) <= .35 and self.mouse_pending is None:
+                require(not s['native_fire'] and not s['shot']['present'] and s['target']['health'] == 100,
+                        'unfired native weapon and full target health at fire baseline')
+                self.tap('f', now)
+                if self.tap_key == 'f':
+                    self.weapon['pre_fire'] = self.weapon_receipt(s)
+                    self.enter('weapon_fire', s)
+                    dx = dy = 0
+        elif self.stage == 'weapon_fire':
+            keys.add('Prior')
+            # Shared tap timing retains this one continuous F press for at
+            # least .15 seconds and six observed physics frames. Never rearm it.
+            if 'hit' in self.weapon and self.tap_key != 'f' and not s['native_fire']:
+                self.mouse_pending = None
+                self.enter('weapon_restore', s)
+        elif self.stage == 'weapon_restore':
+            keys.add('Prior')
+            dx, dy, restored = self.restore_attitude(s, keys)
+            if restored and self.mouse_pending is None and norm(s['ship_velocity']) <= .35:
+                require(s['capture'] and 'hit' in self.weapon, 'hit and original Arrow capture before landing')
+                dx = dy = 0
+                keys.discard('q'); keys.discard('r')
+                self.weapon['restored'] = self.weapon_receipt(s)
+                self.weapon['elapsed_seconds'] = now-self.weapon_started
+                self.check_weapon_deadline(now)
+                self.tap('l', now)
+                if self.tap_key == 'l':
+                    self.receipts[self.key_for('landing')] = self.receipt(s)
+                    self.enter('land', s)
+        elif self.stage == 'land':
+            keys.add('Prior')
+            if s['phase'] == 'SHUT_DOWN' and s['landed']:
+                require(self.departed and self.landing_seen, 'actual departure and native landing request before return')
+                self.require_home(s)
+                self.receipts[self.key_for('docked')] = self.receipt(s)
+                keys.clear()
+                self.enter('shutdown', s)
+            elif not s['landing_active'] and s['capture']: self.tap('l', now)
+        elif self.stage == 'shutdown' and s['engine'] == 'OFFLINE':
+            if self.neutral_start is not None and s['frame']-self.neutral_start >= 89:
+                self.receipts[self.key_for('offline')] = self.receipt(s)
+                self.request_e('exit', s, now)
+        elif self.stage == 'exit' and s['phase'] == 'APPROACH_SHIP' and not s['transition_busy']:
+            self.require_foot(s); self.require_home(s)
+            require(self.disembarking_seen and norm(sub(s['player'], s['exit'])) < .65
+                    and any(e['stage'] == 'exit' and e['flight'] == self.flight+1 for e in self.native_edges),
+                    'actual separate E and supported physical Arrow exit')
+            self.receipts[self.key_for('exited')] = self.receipt(s)
+            self.trips.append({'flight': self.flight+1, 'excursion_m': self.excursion,
+                               'neutral_frames': s['frame']-self.neutral_start})
+            if len(self.trips) == 2:
+                self.tap_key = None
+                self.enter('pause', s)
+            else:
+                self.flight += 1
+                self.excursion = 0
+                self.departed = self.thrust_seen = self.landing_seen = False
+                self.boarding_seen = self.disembarking_seen = False
+                self.neutral_start = None
+                self.enter('clear', s)
+        elif self.stage == 'clear':
+            dx, reached = self.walk_to(s, [-35, 0, 22], keys)
+            if reached and s['boarding_distance'] > 7 and not s['reboard_blocked']:
+                self.clear_seen = True
+                self.receipts['walk_clear'] = self.receipt(s)
+                self.walk_index = 0
+                self.enter('reapproach', s)
+        if self.tap_key is not None:
+            if now < self.tap_until or self.frame < self.tap_frame+6: keys.add(self.tap_key)
+            else:
+                self.tap_key = None
+                self.tap_cooldown = now+.3
+                self.tap_release_frame = self.frame
+        facing = s['camera_back'] if self.stage in self.WEAPON_STAGES else s['walk_forward']
+        if self.mouse_pending is not None:
+            if norm(sub(facing, self.mouse_pending)) < .00001: dx = dy = 0
+            else: self.mouse_pending = None
+        if dx or dy: self.mouse_pending = facing[:]
+        self.check_weapon_deadline(now)
+        return keys, dx, dy, False
+
+    def finish(self, exit_code):
+        require(exit_code == 0 and self.quit_requested and self.stage == 'quit_wait'
+                and len(self.trips) == 2 and self.clear_seen and 'exit_ui' in self.receipts
+                and 'hit' in self.weapon and 'restored' in self.weapon
+                and self.weapon['elapsed_seconds'] <= self.WEAPON_CAP
+                and all(t['excursion_m'] > 8 for t in self.trips),
+                'two ordinary Arrow flights and normal UI exit zero before success')
+        self.result = {'completion_marker': self.MARKER, 'trips': self.trips,
+                       'receipts': self.receipts, 'visited': self.visited, 'walked_m': self.walked,
+                       'native_interact_edges': self.native_edges, 'phases': self.phases,
+                       'physics_observations': self.observations, 'normal_ui_exit': True,
+                       'weapon': self.weapon, 'weapon_hit_qualification': 'ARROW_DRONE_01_24_DAMAGE',
+                       'weapons_damage_recovery_crosscraft_acceptance': 'NOT_RUN'}
+        return self.result
+
+
 class SandboxWalkPilot(Pilot):
     """Five station branches through ordinary controls; fleet/crash gate stays open.
 
@@ -3389,7 +3850,7 @@ def stop(process):
 
 
 def run(binary, output, route="guided"):
-    require(route in ("guided", "beacon-entry", "beacon-settlement", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
+    require(route in ("arrow-return-reuse", "guided", "beacon-entry", "beacon-settlement", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
     output.mkdir(parents=True, exist_ok=False)
     game = xvfb = desktop = pilot = None
     temporary_profile = None
@@ -3480,7 +3941,7 @@ def run(binary, output, route="guided"):
                     leg_result['window'] = hex(window)
                     desktop.focus(window)
                     pilot = HabitatRestartPilot(cold=bool(leg)) if restart_files else {
-                        "guided": Pilot, "beacon-entry": BeaconEntryPilot, "beacon-settlement": BeaconSettlementPilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
+                        "arrow-return-reuse": ArrowReturnReusePilot, "guided": Pilot, "beacon-entry": BeaconEntryPilot, "beacon-settlement": BeaconSettlementPilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
                         "hulk-arrival": HulkArrivalPilot, "hulk-breaker": HulkBreakerPilot,
                         "hulk-home": HulkHomePilot, "habitat-loop": HabitatLoopPilot, "life-tow": LifeTowPilot, "life-gantry": lambda: LifeTowPilot("life-gantry"), "life-arm": lambda: LifeTowPilot("life-arm"), "life-patrol": lambda: LifeTowPilot("life-patrol")}[route]()
                     with selectors.DefaultSelector() as selector:
@@ -3489,6 +3950,16 @@ def run(binary, output, route="guided"):
                         with (output/'game.log').open('ab') as log:
                             while pilot.result is None:
                                 if game.poll() is not None:
+                                    if isinstance(pilot, ArrowReturnReusePilot):
+                                        require(pilot.quit_requested, 'Arrow process exits only after normal UI request')
+                                        drain_game_output(game, output/'game.log')
+                                        tail = (output/'game.log').read_bytes().splitlines()
+                                        for observation in observations_from_lines(tail):
+                                            if observation['sequence'] > pilot.last_state['sequence']:
+                                                pilot.validate_observation(observation)
+                                        pilot.finish(game.wait())
+                                        leg_result.update(exit_code=0, reaped=True, normal_ui_exit=True)
+                                        break
                                     if not restart_files: raise RuntimeError(f'game exited during {pilot.stage}: {game.returncode}')
                                     require(pilot.quit_requested and pilot.stage == 'restart_exit_wait',
                                             'game exits only after actual EXIT TO DESKTOP activation')
@@ -3497,6 +3968,8 @@ def run(binary, output, route="guided"):
                                     break
                                 if xvfb.poll() is not None: raise RuntimeError('owned Xvfb exited during sortie')
                                 if time.monotonic()-start >= CAP: raise TimeoutError('300-second sortie cap')
+                                if isinstance(pilot, ArrowReturnReusePilot):
+                                    pilot.check_weapon_deadline(time.monotonic())
                                 for key,_ in selector.select(.1):
                                     chunk = os.read(key.fd,262144)
                                     if not chunk: continue
@@ -3505,7 +3978,7 @@ def run(binary, output, route="guided"):
                                     lines = pending.split(b'\n'); pending=lines.pop()
                                     observations = observations_from_lines(lines)
                                     if observations:
-                                        if isinstance(pilot, LifeTowPilot):
+                                        if isinstance(pilot, (LifeTowPilot, ArrowReturnReusePilot)):
                                             for observation in observations:
                                                 pilot.validate_observation(observation)
                                         state = observations[-1]
@@ -3576,6 +4049,8 @@ def run(binary, output, route="guided"):
             result['actual_file_snapshots'] = restart_files.snapshots
         if pilot is not None:
             result['partial_sortie'] = {'stage': pilot.stage, 'stages': pilot.stages, 'phases': pilot.phases}
+            if isinstance(pilot, ArrowReturnReusePilot):
+                result['partial_sortie'].update(last_state=pilot.last_state, receipts=pilot.receipts, trips=pilot.trips, weapon=pilot.weapon)
             if isinstance(pilot, HabitatRestartPilot):
                 result['partial_restart'] = pilot.report()
             if isinstance(pilot, (HabitatLoopPilot, LifeTowPilot)):
@@ -3641,7 +4116,7 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('binary')
     parser.add_argument('--output',required=True,type=Path)
-    parser.add_argument('--route', choices=('guided', 'beacon-entry', 'beacon-settlement', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
+    parser.add_argument('--route', choices=('arrow-return-reuse', 'guided', 'beacon-entry', 'beacon-settlement', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
                         help='beacon-settlement continues the accepted entry through four physical beacons and durable reward; beacon-entry departs normally and physically reaches/starts the first Beacon through actual pause controls; life-patrol walks Habitat through the real door beside patrol drones and boards Torrent; life-arm walks Aft stairs past the live service arm and boards Zenith; life-gantry walks Freight past the live gantry and boards Jovian; life-tow walks Central beside live tow service and boards Torrent; hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
     args=parser.parse_args()
     try: binary=validate_binary(args.binary)

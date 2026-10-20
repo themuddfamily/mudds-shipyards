@@ -128,6 +128,7 @@ const CAMERA_ARM_SWEEP_RADIUS := 0.32
 @export_range(0.5, 40.0, 0.5) var coast_deceleration := 7.0
 @export_range(10.0, 240.0, 1.0) var maximum_steer_rate_degrees := 104.0
 @export_range(0.0005, 0.02, 0.0001) var mouse_sensitivity := 0.0025
+@export var invert_mouse_y: bool = false
 
 ## Speed at which steering authority is fully developed. Below it the rate falls
 ## off toward [constant STATIONARY_STEER_FRACTION] so the tug still pivots while
@@ -285,7 +286,8 @@ func _update_gamepad_look(delta: float) -> bool:
 	if step.is_zero_approx():
 		return false
 	_camera_yaw_offset = wrapf(_camera_yaw_offset - step.x, -PI, PI)
-	_camera_pitch = clampf(_camera_pitch - step.y, deg_to_rad(-46.0), deg_to_rad(38.0))
+	var pitch_direction := 1.0 if invert_mouse_y else -1.0
+	_camera_pitch = clampf(_camera_pitch + step.y * pitch_direction, deg_to_rad(-46.0), deg_to_rad(38.0))
 	_camera_pitch_pivot.rotation.x = _camera_pitch
 	return true
 
@@ -301,8 +303,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		-PI,
 		PI
 	)
+	var pitch_direction := 1.0 if invert_mouse_y else -1.0
 	_camera_pitch = clampf(
-		_camera_pitch - motion.relative.y * mouse_sensitivity,
+		_camera_pitch + motion.relative.y * mouse_sensitivity * pitch_direction,
 		deg_to_rad(-46.0),
 		deg_to_rad(38.0)
 	)

@@ -1237,7 +1237,7 @@ func _refresh_mode_readouts() -> void:
 			_mode_label.text = "ON FOOT  //  ABOARD %s" % _state_location
 		_:
 			_mode_label.text = "ON FOOT  //  %s" % _state_location
-	_mode_label.modulate = _c(CAUTION) if piloting else _c(NOMINAL)
+	_set_label_palette_role(_mode_label, CAUTION if piloting else NOMINAL)
 	_telemetry_panel.visible = piloting
 	if _hero_component_hud_binding != null:
 		_hero_component_hud_binding.set_presenting(piloting)
@@ -2106,10 +2106,10 @@ func update_ship_telemetry(data: Dictionary) -> void:
 	_throttle_label.text = "THROTTLE  //  %s" % (
 		"REVERSE" if throttle < -0.04 else ("FORWARD" if throttle > 0.04 else "NEUTRAL")
 	)
-	_throttle_label.modulate = _c(CAUTION) if throttle < -0.04 else _c(MUTED)
+	_set_label_palette_role(_throttle_label, CAUTION if throttle < -0.04 else MUTED)
 	_hull_bar.value = clampf(hull / maximum_hull, 0.0, 1.0) * 100.0
 	_render_damage_status_label()
-	_damage_status_label.modulate = _damage_status_color(damage_status)
+	_set_label_palette_role(_damage_status_label, _damage_status_role(damage_status))
 	set_engine_state(str(data.get("engine_state", "OFFLINE")))
 	if _flight_cue_layer != null:
 		_flight_cue_layer.update_from_telemetry(data)
@@ -2264,8 +2264,9 @@ func _present_bound_hero_component_report(report: Dictionary) -> void:
 	_component_status_label.text = str(presentation.get("text", ""))
 	_component_status_label.visible = bool(presentation.get("visible", false)) and _state_mode == MODE_PILOTING
 	var wording := StringName(presentation.get("wording", &"nominal"))
-	_component_status_label.modulate = _c(DANGER) if wording in [&"critical", &"failed"] else (
-		_c(CAUTION) if wording == &"degraded" else _c(MUTED)
+	_set_label_palette_role(
+		_component_status_label,
+		DANGER if wording in [&"critical", &"failed"] else (CAUTION if wording == &"degraded" else MUTED)
 	)
 
 
@@ -2629,9 +2630,9 @@ func set_engine_state(state: String) -> void:
 	_state_engine = normalized
 	_engine_label.text = "ENGINE  //  " + normalized
 	match normalized:
-		"ONLINE": _engine_label.modulate = _c(NOMINAL)
-		"STARTING": _engine_label.modulate = _c(CAUTION)
-		_: _engine_label.modulate = _c(DANGER)
+		"ONLINE": _set_label_palette_role(_engine_label, NOMINAL)
+		"STARTING": _set_label_palette_role(_engine_label, CAUTION)
+		_: _set_label_palette_role(_engine_label, DANGER)
 
 
 func set_target_count(destroyed: int, total: int) -> void:
@@ -2646,7 +2647,7 @@ func set_target_lock_state(state: StringName, target_name: String = "") -> void:
 	if not is_instance_valid(_reticle_state_label):
 		return
 	_reticle_state_label.text = "%s  %s" % [presentation.marker, presentation.label]
-	_reticle_state_label.modulate = _c(presentation.role)
+	_set_label_palette_role(_reticle_state_label, StringName(presentation.role))
 
 
 static func get_target_lock_presentation(state: StringName, target_name: String = "") -> Dictionary:
@@ -2969,7 +2970,7 @@ func set_settings_status(text: String, success: bool = true) -> void:
 	if _settings_status_label == null:
 		return
 	_settings_status_label.text = text
-	_settings_status_label.modulate = _c(NOMINAL_SOFT) if success else _c(DANGER)
+	_set_label_palette_role(_settings_status_label, NOMINAL_SOFT if success else DANGER)
 	_settings_status_label.visible = not text.is_empty()
 
 
@@ -3123,7 +3124,7 @@ func present_runtime_settings_repair_report(report: Dictionary) -> bool:
 	):
 		_settings_repair_confirmation = str(status.get("confirmation", ""))
 		_settings_repair_title.text = "SETTINGS BACKUP RECOVERY AVAILABLE"
-		_settings_repair_title.modulate = _c(CAUTION)
+		_set_label_palette_role(_settings_repair_title, CAUTION)
 		_settings_repair_detail.text = (
 			"A verified backup can replace the unreadable primary settings file. "
 			+ "Nothing will be repaired until you confirm and the settings owner completes the request."
@@ -3173,7 +3174,7 @@ func present_runtime_settings_repair_report(report: Dictionary) -> bool:
 
 func _show_settings_repair_failure(title: String, detail: String) -> void:
 	_settings_repair_title.text = title
-	_settings_repair_title.modulate = _c(DANGER)
+	_set_label_palette_role(_settings_repair_title, DANGER)
 	_settings_repair_detail.text = detail
 	_settings_repair_confirm_button.visible = false
 	_settings_repair_confirm_button.disabled = true
@@ -4569,8 +4570,8 @@ func get_accessibility_report() -> Dictionary:
 		"caution_color": _c(CAUTION),
 		"danger_color": _c(DANGER),
 		"muted_color": _c(MUTED),
-		"engine_label_color": _engine_label.modulate if is_instance_valid(_engine_label) else Color.WHITE,
-		"hull_label_color": _damage_status_label.modulate if is_instance_valid(_damage_status_label) else Color.WHITE,
+		"engine_label_color": _engine_label.get_theme_color("font_color") * _engine_label.modulate if is_instance_valid(_engine_label) else Color.WHITE,
+		"hull_label_color": _damage_status_label.get_theme_color("font_color") * _damage_status_label.modulate if is_instance_valid(_damage_status_label) else Color.WHITE,
 		"reduced_motion": _reduced_motion,
 		"reduced_flash": _reduced_flash,
 		"damage_flash_alpha": get_damage_flash_alpha(),
@@ -4584,17 +4585,6 @@ func get_accessibility_report() -> Dictionary:
 
 
 func _refresh_state_tints() -> void:
-	if is_instance_valid(_mode_label):
-		_mode_label.modulate = _c(CAUTION) if _state_piloting else _c(NOMINAL)
-	if is_instance_valid(_engine_label):
-		match _state_engine:
-			"ONLINE": _engine_label.modulate = _c(NOMINAL)
-			"STARTING": _engine_label.modulate = _c(CAUTION)
-			_: _engine_label.modulate = _c(DANGER)
-	if is_instance_valid(_throttle_label):
-		_throttle_label.modulate = _c(CAUTION) if _state_throttle_reverse else _c(MUTED)
-	if is_instance_valid(_damage_status_label):
-		_damage_status_label.modulate = _damage_status_color(_state_damage)
 	if is_instance_valid(_enemy_health_bar):
 		_enemy_health_bar.modulate = _c(DANGER) if _state_enemy_breaking else _c(CAUTION)
 	_refresh_planetary_cruise_row()
@@ -6407,7 +6397,7 @@ func _update_planetary_destination_row(card: Control, row: Dictionary) -> void:
 	) as Label
 	if is_instance_valid(status):
 		status.text = "STATUS  //  %s" % str(row.get("status_text", "UNAVAILABLE"))
-		status.modulate = _c(border_role)
+		_set_label_palette_role(status, border_role)
 	var action := card.find_child(
 		"PlanetaryDestinationAction_%s" % destination_id, true, false
 	) as Button
@@ -6416,6 +6406,26 @@ func _update_planetary_destination_row(card: Control, row: Dictionary) -> void:
 		action.disabled = not bool(row.get("action_enabled", false))
 		action.focus_mode = Control.FOCUS_NONE if action.disabled else Control.FOCUS_ALL
 		_planetary_destination_buttons[destination_id] = action
+
+
+## Retained status labels must change their registered role so later palette
+## changes repaint the current state. Modulation would multiply two colours.
+func _set_label_palette_role(status: Label, role: StringName) -> void:
+	status.modulate = Color.WHITE
+	# Telemetry repeats the same role every physics tick. The registry already
+	# repaints palette changes, so only a role transition needs a lookup.
+	if status.get_meta(&"hud_palette_role", &"") == role:
+		return
+	for entry: Dictionary in _palette_targets:
+		if (
+			entry.get("kind") == &"theme_color"
+			and entry.get("node") == status
+			and entry.get("property") == &"font_color"
+		):
+			entry["role"] = role
+			_apply_palette_target(entry)
+			status.set_meta(&"hud_palette_role", role)
+			return
 
 
 ## A sector-site row asks GameFlow for that place's briefing card. The HUD owns
@@ -6742,7 +6752,7 @@ func set_nearby_activity_snapshot(snapshot: Dictionary) -> Dictionary:
 		_nearby_activity_feedback.text = (
 			"CINDER REACH IS OUT OF STREAMING RANGE  //  LAUNCH TOWARD ITS MARKER TO LOAD FIELD ACTIVITIES"
 		)
-		_nearby_activity_feedback.modulate = _c(CAUTION)
+		_set_label_palette_role(_nearby_activity_feedback, CAUTION)
 	_present_nearby_convoy_semantic_transition(view)
 	return view
 
@@ -6902,27 +6912,27 @@ func apply_nearby_activity_action_result(
 		))
 	):
 		_nearby_activity_feedback.text = "%s  //  REWARD FILED" % title
-		_nearby_activity_feedback.modulate = _c(NOMINAL_SOFT)
+		_set_label_palette_role(_nearby_activity_feedback, NOMINAL_SOFT)
 	elif accepted:
 		_nearby_activity_feedback.text = "%s  //  %s" % [
 			title,
 			"STARTED" if action == &"start_requested" else "RESET",
 		]
-		_nearby_activity_feedback.modulate = _c(NOMINAL_SOFT)
+		_set_label_palette_role(_nearby_activity_feedback, NOMINAL_SOFT)
 	elif activity_id == &"station_defense" and reason in [
 		&"out_of_range", &"on_foot_required", &"invalid_actor_or_content",
 	]:
 		_nearby_activity_feedback.text = (
 			"STATION DEFENSE  //  REPORT ON FOOT TO THE MARKED DECK BOARD"
 		)
-		_nearby_activity_feedback.modulate = _c(CAUTION)
+		_set_label_palette_role(_nearby_activity_feedback, CAUTION)
 	else:
 		_nearby_activity_feedback.text = "%s NOT %s  //  %s" % [
 			title,
 			"STARTED" if action == &"start_requested" else "RESET",
 			str(reason).replace("_", " ").to_upper(),
 		]
-		_nearby_activity_feedback.modulate = _c(CAUTION)
+		_set_label_palette_role(_nearby_activity_feedback, CAUTION)
 	return true
 
 
@@ -9454,7 +9464,7 @@ func set_patrol_branch_selection_state(
 			"ROUTE NOT CHANGED  //  "
 			+ str(status_reason).replace("_", " ").to_upper()
 		)
-		_activity_selection_status_label.modulate = _c(DANGER)
+		_set_label_palette_role(_activity_selection_status_label, DANGER)
 	return true
 
 
@@ -9657,22 +9667,22 @@ func _refresh_activity_selection_page(status_reason: StringName) -> void:
 	}.get(_activity_selection_kind, String(_activity_selection_kind).to_upper()) as String
 	if _activity_selection_locked and status_reason == &"repeat_ready":
 		_activity_selection_status_label.text = "READY  //  REPEAT " + selected_text
-		_activity_selection_status_label.modulate = _c(NOMINAL_SOFT)
+		_set_label_palette_role(_activity_selection_status_label, NOMINAL_SOFT)
 	elif _activity_selection_locked:
 		_activity_selection_status_label.text = "LOCKED  //  CURRENT SORTIE ALREADY STARTED"
-		_activity_selection_status_label.modulate = _c(CAUTION)
+		_set_label_palette_role(_activity_selection_status_label, CAUTION)
 	elif status_reason == &"insufficient_source_quantity":
 		_activity_selection_status_label.text = "UNAVAILABLE  //  INSUFFICIENT FABRICATION KITS"
-		_activity_selection_status_label.modulate = _c(CAUTION)
+		_set_label_palette_role(_activity_selection_status_label, CAUTION)
 	elif status_reason in [&"", &"selected", &"already_selected"]:
 		_activity_selection_status_label.text = "READY  //  " + selected_text
-		_activity_selection_status_label.modulate = _c(NOMINAL_SOFT)
+		_set_label_palette_role(_activity_selection_status_label, NOMINAL_SOFT)
 	else:
 		_activity_selection_status_label.text = (
 			"NOT CHANGED  //  "
 			+ str(status_reason).replace("_", " ").to_upper()
 		)
-		_activity_selection_status_label.modulate = _c(DANGER)
+		_set_label_palette_role(_activity_selection_status_label, DANGER)
 
 
 func _refresh_patrol_branch_choices() -> void:
@@ -9853,7 +9863,11 @@ func _set_help_text(rows: Array) -> void:
 		_help_next_button.focus_mode = Control.FOCUS_ALL
 		_help_next_button.pressed.connect(_next_help_page)
 		navigation.add_child(_help_next_button)
-		_help_close_button = _menu_button("CLOSE", NOMINAL)
+		# Preserve the help action's local hover/pressed fills, including its
+		# accepted high-contrast presentation.
+		_help_close_button = _menu_button("CLOSE", NOMINAL, 0.70, 0.65)
+		_tint_theme_color(_help_close_button, &"font_hover_color", PRIMARY)
+		_tint_theme_color(_help_close_button, &"font_pressed_color", PRIMARY)
 		_help_close_button.name = "HelpCloseButton"
 		_help_close_button.tooltip_text = "Close controls help"
 		_help_close_button.focus_mode = Control.FOCUS_ALL
@@ -10007,10 +10021,10 @@ func _c(role: StringName) -> Color:
 	return _palette.get(role, _palette[PaletteType.ROLE_PRIMARY]) as Color
 
 
-func _damage_status_color(damage_status: String) -> Color:
+func _damage_status_role(damage_status: String) -> StringName:
 	if damage_status in ["CRITICAL", "DESTROYED"]:
-		return _c(DANGER)
-	return _c(CAUTION) if damage_status == "DAMAGED" else _c(MUTED)
+		return DANGER
+	return CAUTION if damage_status == "DAMAGED" else MUTED
 
 
 func _damage_status_accessible_text(damage_status: String) -> String:
@@ -10192,21 +10206,25 @@ func _bar(role: StringName) -> ProgressBar:
 	return bar
 
 
-func _menu_button(text: String, role: StringName) -> Button:
+func _menu_button(
+	text: String, role: StringName, hover_darken := 0.75, pressed_darken := 0.70
+) -> Button:
 	var button := Button.new()
 	button.text = text
 	button.custom_minimum_size.y = 48.0
 	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	button.add_theme_font_size_override("font_size", 13)
 	_tint_theme_color(button, &"font_color", PRIMARY)
+	_tint_theme_color(button, &"font_hover_color", PRIMARY)
+	_tint_theme_color(button, &"font_pressed_color", PRIMARY)
 	button.add_theme_stylebox_override("normal", _box(Color("142536"), 4, 1, Color("315367")))
-	var hover := _fill_box(role, 4, 0.55)
+	var hover := _fill_box(role, 4, hover_darken)
 	hover.border_width_left = 1
 	hover.border_width_top = 1
 	hover.border_width_right = 1
 	hover.border_width_bottom = 1
 	_register_palette_target({"kind": &"box_border", "box": weakref(hover), "role": role, "darken": 0.0})
-	var pressed := _fill_box(role, 4, 0.35)
+	var pressed := _fill_box(role, 4, pressed_darken)
 	pressed.border_width_left = 1
 	pressed.border_width_top = 1
 	pressed.border_width_right = 1

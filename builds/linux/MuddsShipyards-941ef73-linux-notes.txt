@@ -1,0 +1,22 @@
+Mudds Shipyards development checkpoint 941ef73
+Source commit: 941ef73242b44dcb28d22ee3a1cec5ec459d800b
+
+Player-visible change
+- Gameplay mode, engine, throttle, hull damage, component status and target-lock text use their current role colour once, rather than multiplying it by the colour from creation.
+- Those readouts follow accessibility palette and high-contrast switches after state changes. Existing target names/shape markers, wording, visibility, state thresholds and reticle geometry are retained.
+- Destination Board status keeps its accepted palette behaviour through the shared helper. Unchanged telemetry roles avoid repeated registry scans.
+
+Validation performed
+- Clean source import PASS.
+- Full existing accessibility suite 1979 checks PASS, including32 finite gameplay states x4palettes x2contrast:256 state cases and768 actual label paint comparisons. Immediate/default paint, palette-after-state and state-after-palette, neutral modulation, retained identity/copy/visibility and exactly one current-role registration verified. Existing engine/hull colour report assertions retained and report effective font paint.
+- Existing target-lock presentation 6, production sensor-reticle/component 90 and full HUD panel layout 552 checks PASS, including32 retained Destination palette/contrast comparisons.
+- Clean Windows/Linux exports PASS; Linux executable/archive strict startups PASS, each exit0 plus exactly one STARTUP_MENU_READY_OK.
+- Windows embedded payload through supported Linux engine PASS: exit0 plus exactly one STARTUP_MENU_READY_OK. Native Windows was not run.
+- Actual Windows/Linux PCK inventories match all1521 entries; stockPE.text/ELF and exact Linux archive binary/icon/installer bytes, modes, source epoch and metadata verified.
+- All11 frozen stages PASS first attempt, zero diagnostics; 281.559s combined. Original09:11-09:56UTC/45min budget and command caps retained.
+
+Open qualification
+- Headless checks establish actual Control/theme properties; rendered/human readability, physical devices and full accessibility/combat journeys remain open.
+- No weapon, damage, AI, network, save, transfer or reward authority changed. Parked Defense/Wing/Perimeter/Breach/Tooltip routes remain unaccepted; Freight workflow choice stays pending.
+- Native Windows execution NOT_RUN (owner hold retained). Native GPU/performance, physical devices, real audio/listening, human/full-release/final candidate and unfiltered final regression gates NOT_RUN/open.
+- Accepted Guided3/3 remains scoped to3d92b91, not this package.

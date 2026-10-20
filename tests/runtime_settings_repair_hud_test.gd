@@ -35,6 +35,8 @@ func _run() -> void:
 	available.last_status.confirmation = "mutated-after-ingress"
 	var panel := hud.get("_settings_repair_panel") as PanelContainer
 	var title := hud.get("_settings_repair_title") as Label
+	var title_identity: int = title.get_instance_id()
+	_check_status_palette(hud, &"_settings_repair_title", title_identity, &"caution", "backup available")
 	var detail := hud.get("_settings_repair_detail") as Label
 	var button := hud.get("_settings_repair_confirm_button") as Button
 	var settings_page := hud.get("_settings_page") as Control
@@ -102,9 +104,15 @@ func _run() -> void:
 		and not button.visible,
 		"newer authority cannot expose the repair action"
 	)
+	_check_status_palette(hud, &"_settings_repair_title", title_identity, &"danger", "newer data preserved")
+	hud.set_hud_palette(&"deuteranopia")
+	_check_status_palette(hud, &"_settings_repair_title", title_identity, &"danger", "blocked palette repaint")
+	hud.set_high_contrast_hud(true)
+	_check_status_palette(hud, &"_settings_repair_title", title_identity, &"danger", "blocked contrast repaint")
 	_check(root.gui_get_focus_owner() == back,
 		"repair report preserves another Options control's focus")
 	hud.present_runtime_settings_repair_report(available)
+	_check_status_palette(hud, &"_settings_repair_title", title_identity, &"caution", "backup available again")
 	button.grab_focus()
 	_check(root.gui_get_focus_owner() == button,
 		"live repair action owns focus before its failure report")
@@ -119,6 +127,7 @@ func _run() -> void:
 		and not button.visible,
 		"corrupt authority cannot be presented as repaired"
 	)
+	_check_status_palette(hud, &"_settings_repair_title", title_identity, &"danger", "corrupt settings blocked")
 	_check(root.gui_get_focus_owner() == save and save.is_visible_in_tree()
 		and not save.disabled and save.focus_mode != Control.FOCUS_NONE,
 		"repair failure hands disappearing confirmation focus to the live Save action")
@@ -264,3 +273,27 @@ func _check(condition: bool, message: String) -> void:
 	_assertions += 1
 	if not condition:
 		_failures.append(message)
+
+
+func _check_status_palette(
+	hud: GameHUD, field: StringName, identity: int, role: StringName, outcome: String
+) -> void:
+	var label: Label = hud.get(field) as Label
+	var expected: Color = GameHUD.PaletteType.get_role_color(
+		hud.get_hud_palette_id(), role, hud.is_high_contrast_hud()
+	)
+	var entries: int = 0
+	var registered_role: StringName = &""
+	var targets: Array = hud.get("_palette_targets") as Array
+	for entry: Dictionary in targets:
+		if entry.get("kind") == &"theme_color" and entry.get("node") == label \
+				and entry.get("property") == &"font_color":
+			entries += 1
+			registered_role = StringName(entry.get("role", &""))
+	_check(
+		label.get_instance_id() == identity and entries == 1 and registered_role == role
+		and label.modulate == Color.WHITE
+		and label.get_theme_color("font_color") == expected
+		and label.get_theme_color("font_color") * label.modulate == expected,
+		outcome + " retains one current font role and applies its colour once"
+	)
