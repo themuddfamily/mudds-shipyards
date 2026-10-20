@@ -2714,3 +2714,8 @@ private marker leak in corrected run. Original import20.822787s PASS and failed
 caller2.544507s retained; cumulative26.873975s, no failure/budget reset. Integrate
 only exact tested file, no production save edits/checkpoint. Other unsupported
 formats/package/native/recovery gates open; all36parents/10phase gates still open.
+
+Integrated/pushed e67e06bfb; owned worktree/cache removed after source/PID checks.
+Only save-unsupported-files-20261020/results/ remains, with hash-verified helpers
+and profiles.tar.gz retaining85 files/3 symlinks with original bytes/modes/targets.
+Freeze→cleanup12.9min including failed caller and one correction; budget retained.

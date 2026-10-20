@@ -14632,10 +14632,20 @@ invokerPID1639834 and fresh childPIDs1639855/1639878 captured and independently
 observed; all15 owner/descendant identities across original/corrected stages
 absent. Total actual stages26.873975s including failed attempt. Exact tested
 file integrated into main; code branch/history and raw fixtures/logs retained
-under `/srv/mudds-work/save-unsupported-files-20261020/` pending owned cleanup.
+under `/srv/mudds-work/save-unsupported-files-20261020/results/`.
 
 This qualifies only the named future outer-envelope source/Linux real-file case.
 Nested settings/legacy formats, installed/packages/native/UI recovery remain
 unperformed where recorded; SAVE-UNSUPPORTED broader scope and all36parents/
 10phase gates stay open. No new gameplay/build changes or checkpoint. Windows
 matching-template work remains parked with both timeouts preserved.
+
+Integrated and pushed e67e06bfb. After remote-source and actual PID checks, removed
+clean owned worktree/generated cache and disposable helper/profile directories.
+Unique helpers copied/hash-verified; profiles.tar.gz preserves85 actual files
+and3 template symlinks, every archived file byte hash/mode and link target checked
+against the original before deletion (3,275,432 bytes, SHA256
+91ad7ff90379a80f2f307f8eb0a40eee65137950f92514ac45aff7f1ead22564).
+Only results/ remains, including the initial failure and accepted corrected run.
+Freeze commit→cleanup771.850s/12.9min against30–45min edit/review plus2–5min checks/
+cleanup estimate, original60min split budget not reset. No broad gate closes.
