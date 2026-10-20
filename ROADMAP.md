@@ -49,11 +49,33 @@ Source923d7b326 is integrated/pushed; checkpoint is in repository builds.
 Owned scratch is cleaned at6.54min against the60min card; all66 observed process
 identities are absent. [Actual result and remaining limits](docs/history/ROADMAP_DELIVERIES.md#begin-shift-focus-contrast--shipped-on-923d7b3).
 
-No title successor is selected. At the next selection, take one independent
-unfinished player/build outcome from the existing inventory and freeze its
-files, proof and stop before running it. Do not rerun accepted title checks or
-reopen a parked route unchanged. The already-asked Hauler stock and navigator
-refusal choices remain production dependencies, not inferred answers.
+**Selected NET-JOVIAN-EXIT-CALLER-SYNTAX**, parents16/20/26,2026-10-20
+05:35UTC;45min total/deadline06:20UTC. Deliver one runnable select-only
+postdock passenger-exit continuation of the original host/two-client return.
+The retained8054a2cc4/e147b6d49 callers failed parsing before gameplay. This is
+the separately selected full syntax correction/review required by their parked
+contract, not a production networking repair or budget reset.
+
+One implementer owns only tests/network/jovian_network_two_client_return_test.gd:
+reapply the retained continuation to current main, correct all unsupported
+multiline lambda syntax, preserve original default behavior and every assertion,
+identity/lease/arrival/exit criterion and deadline. One independent reviewer checks
+syntax changes/default-route preservation before engines. No speculative runtime
+change. Implementation/review15–25min; checks/cleanup10–15min,45min whole cap.
+
+Frozen checks: clean headless import180s; original check-only script300s; then
+only if both and review pass, exactly one headless coordinator invocation of
+`tests/network/jovian_network_two_client_return_test.gd -- --postdock-passenger-exit`
+at original300s suite/360s outer cap. Peers use existing private Xvfb/x11/Dummy
+workflow. Preserve300s peer deadline,15s walks,8s transitions,120s return and5s
+arrival convergence. Require real host/client/client_b exit0, one selected success
+marker, diagnostics0, original pilot retained, passenger supported exterior walk
+and released cabin claims. First failure stops; no automatic repair/retry.
+
+Caller-only release/qualification capability needs no identical playable rebuild.
+Integrate only on complete selected proof/review; otherwise push/withhold candidate,
+record actual boundary and all earlier failures, clean owned scratch. Threading
+remains gated on UI-BOARD-FOCUS; Hauler/navigator/Bomber choices remain unanswered.
 
 ### Waiting decisions — not executable tasks
 
