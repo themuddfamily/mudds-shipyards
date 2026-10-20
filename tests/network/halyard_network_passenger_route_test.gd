@@ -3024,7 +3024,7 @@ func _ordinary_authority_stop_host(baseline: Dictionary) -> bool:
 		return false
 	_write("host.authority_stopped", {"events": _ordinary_authority_events})
 	if not await _ordinary_boundary(func():
-		return not _ordinary_authority_adapter.is_session_active()
+		return (not _ordinary_authority_adapter.is_session_active()
 			and (_ordinary_authority_adapter.get_boarding_snapshot().get("occupancies", []) as Array).is_empty()
 			and int(_ordinary_authority_adapter.get_owned_ship(_craft.get_ship_id()).get("owner_peer_id", 0)) == 0
 			and int(_ordinary_authority_adapter.get_remote_ship_command_snapshot().get("pilot_count", -1)) == 0
@@ -3033,7 +3033,7 @@ func _ordinary_authority_stop_host(baseline: Dictionary) -> bool:
 			and (_game.get("_network_remote_pilots") as Dictionary).is_empty()
 			and (_game.get("_network_moving_interior_records") as Dictionary).is_empty()
 			and not _craft.is_remote_piloted() and _craft.get_command_source() == _craft.get_local_input_source()
-			and _craft.get_crew_role_authority() == null,
+			and _craft.get_crew_role_authority() == null),
 		8.0, "server-stop retires exact retained body, role owner, helm, boarding and ship ownership grants"):
 		return false
 	for role in ["client", "client_b"]:
@@ -3081,15 +3081,15 @@ func _ordinary_authority_stop_client() -> bool:
 	_write(_role + ".authority_stop_ready", {"pid": OS.get_process_id(), "peer_id": _ordinary_peer_id,
 		"peer_generation": _ordinary_initial_peer_generation, "player_id": str(_ordinary_player_id),
 		"boarding": _ordinary_fields(old_claim, ["ship_id", "seat_id", "role"])})
-	if not await _ordinary_boundary(func(): return int(_ordinary_authority_events.server_disconnected) == 1
+	if not await _ordinary_boundary(func(): return (int(_ordinary_authority_events.server_disconnected) == 1
 		and int(_ordinary_authority_events.session_stopped) == 1
-		and _ordinary_authority_events.reason == "server_disconnected", 8.0,
+		and _ordinary_authority_events.reason == "server_disconnected"), 8.0,
 		"actual original client transport emits server_disconnected and production adapter stops for that reason"):
 		return false
 	if not await _wait_file("host.authority_stopped", 8.0):
 		return false
 	if not await _ordinary_boundary(func():
-		return _player.get_instance_id() == _ordinary_player_id and not _game.get("_transition_busy")
+		return (_player.get_instance_id() == _ordinary_player_id and not _game.get("_transition_busy")
 			and not _ordinary_authority_adapter.is_session_active() and _ordinary_authority_adapter.get_server_offer().is_empty()
 			and _ordinary_authority_adapter.multiplayer.get_unique_id() == 1
 			and str(_game.get("_network_session_mode")).is_empty()
@@ -3104,7 +3104,7 @@ func _ordinary_authority_stop_client() -> bool:
 			and presenter.get_drawn_entity_ids().is_empty()
 			and _ordinary_authority_adapter.get_passenger_replica_snapshot().is_empty()
 			and _ordinary_authority_adapter.get_moving_interior_latest_relationship(
-				StringName(_ordinary_walking_identity.entity_id)).is_empty(),
+				StringName(_ordinary_walking_identity.entity_id)).is_empty()),
 		8.0, "production stopped owner retires old admission, boarding, body stream, cabin prediction, crew seat and remote helm identities"):
 		return false
 	if _role == "client":
@@ -3122,8 +3122,8 @@ func _ordinary_authority_stop_client() -> bool:
 				sampled.local_throttle = true
 		source.command_produced.connect(observe)
 		_ordinary_action(&"move_forward", true, 0.25)
-		var usable := await _ordinary_boundary(func(): return bool(sampled.local_throttle)
-			and _craft.get_last_ship_command().throttle > 0.15 and source.is_enabled_owner(),
+		var usable := await _ordinary_boundary(func(): return (bool(sampled.local_throttle)
+			and _craft.get_last_ship_command().throttle > 0.15 and source.is_enabled_owner()),
 			8.0, "former pilot ordinary throttle samples and reaches actual solo ship consumer after host loss")
 		_ordinary_action(&"move_forward", false)
 		source.command_produced.disconnect(observe)
