@@ -2693,3 +2693,13 @@ processes without duplicating existing validators. Only the existing crash-point
 test file is implementation-owned; no production behavior gap is asserted in
 advance. HUD-PATROL source review found no discrepancy and made no edits/runs.
 Broad SAVE-UNSUPPORTED stays open outside this exact named source/filesystem case.
+
+SAVE-UNSUPPORTED initialbcc699839 check: guarded import20.822787s PASS; suite
+2.544507s FAIL in the child ownership caller before fresh save operations,
+ERROR/ECHILD from is_process_running(invoker), child2 not launched. Eight observed
+identities absent; raw failure preserved. Pinned engine source845–878 and881+
+uses waitpid for liveness and popen/pclose for captured synchronous execution.
+Independent review GO for exactly two invalid query removals/accurate identity
+wording; one60s rerun selected on unchanged accepted import cache, not a save
+implementation repair. No data assertions/caps/diagnostic handling weakened;
+original failure and total task budget retained. No further automatic repair.

@@ -154,6 +154,19 @@ settings/legacy formats, installed/package/native/UI recovery and broad parents
 stay open. No new gameplay checkpoint is needed for a test-only qualification.
 Windows template compilation remains parked with both timeouts retained.
 
+Initial candidatebcc699839: importPASS20.823s, suiteFAIL2.545s at child1's
+unsupported parent-liveness query, child2 not launched; all8 observed identities
+absent. This is a caller failure, no save defect established. Actual pinned Unix
+source confirms is_process_running uses waitpid/ECHILD and captured OS.execute
+already waits/reaps via pclose. After independent review, select exactly one
+caller correction: remove both invalid is_process_running predicates (child on
+invoker, parent on already-reaped child), with accurate identity descriptions.
+Keep nonce/ownerfile, actual distinct PIDs, external supervisor, every data/mode/
+diagnostic assertion and60s suite cap. No production edits or suppressed errors.
+Retain accepted import/cache (only non-global test code changes); one separately
+frozen suite run, then STOP on any unexpected failure with no further repair.
+Original failure/time and30–45min plus2–5min/cumulative60min budget stay binding.
+
 ## Latest playable result
 
 **Inline browser recovery delivered and packaged on 20e90c9.** The title/pause
