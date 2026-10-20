@@ -740,7 +740,7 @@ Recovery proof uses an owned actual OS SIGKILL, distinct restart, protected real
 | RECOVERY-CUTS-DEFINE | Uncovered installed context/activity/OS-interruption cases | 2,31 | GATED; explicit state contracts and exact installed Linux package |
 | SAVE-MIGRATION | Real-file valid migration with distinct-process reload | 31,32 | GATED; exact current format/fixture and uncovered case |
 | SAVE-CORRUPT | Corrupt-data fallback and usable recovery | 31,32 | GATED; specified fallback, protected data retained |
-| SAVE-UNSUPPORTED | Unsupported data refuses destructive overwrite | 31,32 | GATED; exact fixture, secret-free diagnostics |
+| SAVE-UNSUPPORTED | Unsupported data refuses destructive overwrite | 31,32 | Future outer-envelope primary/tmp/bak source/Linux real-file case DONE4b66b3548: retained loaded authority and2fresh processes preserve names/bytes/modes. Other formats/native/installed scope remains GATED; no broad closure |
 | CHECKPOINT-HELM-EDGE | Fresh paired playable command-delivery checkpoint | 6,32 | DONE; 2c73494, both exports/three startups/exact payload and archive checks |
 | PACKAGE-FINAL | Exact final Windows/Linux package qualification | 6,32 | GATED; frozen final candidate, existing exports/inventory/startups |
 | INSTALL-WIN-FINAL | Matching NSIS installer artifact/extraction identity | 32 | GATED; final package, native execution remains excluded |
@@ -2703,3 +2703,14 @@ Independent review GO for exactly two invalid query removals/accurate identity
 wording; one60s rerun selected on unchanged accepted import cache, not a save
 implementation repair. No data assertions/caps/diagnostic handling weakened;
 original failure and total task budget retained. No further automatic repair.
+
+SAVE-UNSUPPORTED accepted source/Linux case4b66b354883eedac9b309177dbae143b2dd39c0e:
+corrected suitePASS3.506682s/118 parent assertions,23 per actual fresh child;
+PID1639834 invokes1639855/1639878. All15 observed owner/descendant identities
+absent. Actual retained loaded commits, fresh load/read-only/commit/recover/
+restore/discard refusals leave three future canonical fixtures and unrelated
+sentinels unchanged, including file/directory modes. No diagnostics or synthetic
+private marker leak in corrected run. Original import20.822787s PASS and failed
+caller2.544507s retained; cumulative26.873975s, no failure/budget reset. Integrate
+only exact tested file, no production save edits/checkpoint. Other unsupported
+formats/package/native/recovery gates open; all36parents/10phase gates still open.

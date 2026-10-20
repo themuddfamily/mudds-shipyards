@@ -63,7 +63,8 @@ BROWSER-FIXTURE-JSON is complete: actual JSON sequence numbers normalize safely,
 Three stages took51.654s; all ten observed process identities are absent. Only the
 tested fixture file is integrated; no ordinary-route retry or gameplay checkpoint.
 All build owners are terminal; matching-template completion remains parked.
-Only the independent save-protection case selected below is executable.
+The independent save-protection case below is DONE in its named source/Linux
+real-file scope. No executable card is currently selected.
 The later acceptance candidatee5b9dd25f is prepared and branch-pushed: original
 browser-support files plus accepted fixture, with passive capture excluded. It is
 unmerged/unqualified; no check/export/route was run during assembly. Its clean
@@ -166,6 +167,17 @@ diagnostic assertion and60s suite cap. No production edits or suppressed errors.
 Retain accepted import/cache (only non-global test code changes); one separately
 frozen suite run, then STOP on any unexpected failure with no further repair.
 Original failure/time and30–45min plus2–5min/cumulative60min budget stay binding.
+
+Accepted result2026-10-20: corrected candidate4b66b3548, suitePASS3.507s,
+118 parent assertions and23 in each of two actual fresh children. Invoking
+PID1639834, childPIDs1639855/1639878 observed by the independent supervisor;
+all15 observed identities across original and corrected stages absent. Retained
+loaded commits and all six fresh API calls refuse as specified; three fixtures
+retain exact names/bytes/Unix modes and unrelated sentinel. No diagnostics or
+opaque marker leak in corrected run. Original failed caller remains recorded.
+Cumulative check time26.874s includes import and initial failure; exact tested
+file integrated. No production save change or new playable checkpoint; other
+SAVE-UNSUPPORTED formats/native/installed and wider recovery gates remain open.
 
 ## Latest playable result
 

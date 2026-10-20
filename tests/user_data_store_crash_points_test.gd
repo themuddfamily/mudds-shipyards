@@ -9,6 +9,9 @@ const Settings := preload("res://scripts/settings/runtime_settings.gd")
 const Adapter := preload("res://scripts/settings/runtime_settings_store_adapter.gd")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
 const Filesystem := preload("res://scripts/persistence/user_data_filesystem.gd")
+const UNSUPPORTED_MARKER := "SYNTHETIC_PRIVATE_FUTURE_SAVE_CONTENT_7fe092b1"
+const UNSUPPORTED_CHILD_OK := "SAVE_UNSUPPORTED_CHILD_OK "
+const UNSUPPORTED_CASES := ["primary", "temporary", "backup"]
 
 var _failures := PackedStringArray()
 var _assertions := 0
@@ -47,6 +50,9 @@ func _init() -> void:
 
 
 func _run() -> void:
+	if "--save-unsupported-child" in OS.get_cmdline_user_args():
+		_run_unsupported_child()
+		return
 	_root = "user://user_data_crash_points_%d" % Time.get_ticks_usec()
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_root))
 	_test_crash_between_backup_and_publish_reloads_and_saves()
@@ -55,6 +61,8 @@ func _run() -> void:
 	_test_crash_during_commit_from_backup_reloads_and_saves()
 	_test_crash_during_commit_from_rotated_copy_reloads_and_saves()
 	_test_newer_history_survives_saving_and_crash_recovery()
+	if _failures.is_empty():
+		_test_unsupported_files_survive_two_processes()
 	_finish()
 
 
@@ -279,6 +287,217 @@ func _history_bytes_match(expected: Dictionary) -> bool:
 		if not FileAccess.file_exists(history_path) or FileAccess.get_file_as_bytes(history_path) != expected[history_path]:
 			return false
 	return true
+
+
+## The retained authority and two genuinely fresh processes must all refuse a
+## future outer envelope before any transaction or quarantine can touch disk.
+func _test_unsupported_files_survive_two_processes() -> void:
+	if not _unsupported_check(DisplayServer.get_name() == "headless"
+			and AudioServer.get_driver_name() == "Dummy",
+			"unsupported files: parent uses headless/Dummy"):
+		return
+	if OS.has_feature("windows"):
+		print("UNSUPPORTED_FILES_UNIX_MODES_UNAVAILABLE: Windows; names and bytes remain checked")
+	var nonce := Crypto.new().generate_random_bytes(16).hex_encode()
+	var owned_root := _root.path_join("unsupported_" + nonce)
+	if not _unsupported_check(DirAccess.make_dir_recursive_absolute(
+			ProjectSettings.globalize_path(owned_root)) == OK,
+			"unsupported files: create the owned fixture root"):
+		return
+	var owner := {"nonce": nonce, "parent_pid": OS.get_process_id()}
+	if not _unsupported_check(Filesystem.new().write_bytes_and_flush(
+			owned_root.path_join("owner.json"), JSON.stringify(owner).to_utf8_buffer()) == OK,
+			"unsupported files: publish the child ownership guard"):
+		return
+	var snapshots := {}
+	for label in UNSUPPORTED_CASES:
+		var directory := owned_root.path_join(label)
+		if not _unsupported_check(DirAccess.make_dir_recursive_absolute(
+				ProjectSettings.globalize_path(directory)) == OK,
+				"unsupported %s: create fixture directory" % label):
+			return
+		var path := directory.path_join("profile.json")
+		var store := Store.new(path) as UserDataStore
+		if not _unsupported_check(bool(store.load().accepted),
+				"unsupported %s: real empty store loads" % label):
+			return
+		for generation in [1, 2]:
+			if not _unsupported_check(bool(store.commit({"credits": generation * 100},
+					generation - 1, "unsupported-seed-%d" % generation).accepted),
+					"unsupported %s: real generation %d publishes" % [label, generation]):
+				return
+		var future_path: String = path + {"primary": "", "temporary": ".tmp", "backup": ".bak"}[label]
+		var future := {"schema_version": Store.SCHEMA_VERSION + 1,
+			"opaque_future_payload": {"private_marker": UNSUPPORTED_MARKER, "shape": [null, true, {"future": 9}]}}
+		if not _unsupported_check(Filesystem.new().write_bytes_and_flush(future_path,
+				JSON.stringify(future).to_utf8_buffer()) == OK,
+				"unsupported %s: publish opaque future envelope" % label):
+			return
+		if not _unsupported_check(Filesystem.new().write_bytes_and_flush(
+				directory.path_join("unrelated.txt"), "UNRELATED FILE MUST SURVIVE\n".to_utf8_buffer()) == OK,
+				"unsupported %s: publish unrelated sentinel" % label):
+			return
+		var files := DirAccess.get_files_at(directory)
+		files.sort()
+		if not OS.has_feature("windows"):
+			for index in files.size():
+				if not _unsupported_check(FileAccess.set_unix_permissions(directory.path_join(files[index]),
+						384 if index % 2 == 0 else 416) == OK,
+						"unsupported %s: set distinct Unix file modes" % label):
+					return
+		var before := _unsupported_snapshot(directory)
+		if not _unsupported_check(_unsupported_fixture_shape(before, label),
+				"unsupported %s: snapshot exact fixture names, bytes and modes" % label):
+			return
+		var refused := store.commit({"credits": 999}, store.get_generation(), "unsupported-retained")
+		if not _unsupported_check(not bool(refused.accepted) and refused.reason == &"newer_schema"
+				and _unsupported_snapshot(directory) == before,
+				"unsupported %s: legitimately loaded authority refuses commit without changing files" % label):
+			return
+		snapshots[label] = before
+	var child_pids := [OS.get_process_id()]
+	for launch in [1, 2]:
+		var output: Array = []
+		var arguments := PackedStringArray(["--headless", "--audio-driver", "Dummy", "--path",
+			ProjectSettings.globalize_path("res://"), "--script",
+			"res://tests/user_data_store_crash_points_test.gd", "--", "--save-unsupported-child",
+			"--owned-root=" + owned_root, "--owned-nonce=" + nonce,
+			"--owned-parent-pid=" + str(OS.get_process_id())])
+		# OS.execute waits for this finite child. The independent outer suite
+		# process guard owns the deadline and all descendants; never retry a child.
+		var exit_code := OS.execute(OS.get_executable_path(), arguments, output, true)
+		var diagnostics := "\n".join(output)
+		print("UNSUPPORTED CHILD %d STDOUT/STDERR BEGIN\n%s\nUNSUPPORTED CHILD %d STDOUT/STDERR END"
+			% [launch, diagnostics, launch])
+		if not _unsupported_check(exit_code == 0 and not diagnostics.contains(UNSUPPORTED_MARKER)
+				and diagnostics.count(UNSUPPORTED_CHILD_OK) == 1
+				and not diagnostics.contains("USER_DATA_STORE_CRASH_POINTS_TEST_OK"),
+				"unsupported files: child %d exits cleanly without leaking opaque content" % launch):
+			return
+		var child_pid := 0
+		for line in diagnostics.split("\n"):
+			if line.begins_with(UNSUPPORTED_CHILD_OK):
+				var receipt: Variant = JSON.parse_string(line.trim_prefix(UNSUPPORTED_CHILD_OK))
+				if receipt is Dictionary and receipt.get("nonce") == nonce \
+						and int(receipt.get("parent_pid", 0)) == OS.get_process_id():
+					child_pid = int(receipt.get("pid", 0))
+		if not _unsupported_check(child_pid > 0 and not child_pids.has(child_pid),
+				"unsupported files: child %d has a distinct actual PID after synchronous exit" % launch):
+			return
+		child_pids.append(child_pid)
+		for label in UNSUPPORTED_CASES:
+			if not _unsupported_check(_unsupported_snapshot(owned_root.path_join(label)) == snapshots[label],
+					"unsupported %s: child %d preserves original names, bytes and modes" % [label, launch]):
+				return
+
+
+func _run_unsupported_child() -> void:
+	var passed := _verify_unsupported_child()
+	if passed:
+		print(UNSUPPORTED_CHILD_OK + JSON.stringify({"pid": OS.get_process_id(),
+			"parent_pid": _unsupported_argument("--owned-parent-pid=").to_int(),
+			"nonce": _unsupported_argument("--owned-nonce=")}))
+	quit(0 if passed else 1)
+
+
+func _verify_unsupported_child() -> bool:
+	var owned_root := _unsupported_argument("--owned-root=")
+	var nonce := _unsupported_argument("--owned-nonce=")
+	var parent_pid := _unsupported_argument("--owned-parent-pid=").to_int()
+	if not _unsupported_check(DisplayServer.get_name() == "headless"
+			and AudioServer.get_driver_name() == "Dummy"
+			and nonce.length() == 32 and nonce.is_valid_hex_number(false)
+			and parent_pid > 0 and parent_pid != OS.get_process_id()
+			and owned_root.begins_with("user://user_data_crash_points_")
+			and owned_root.ends_with("/unsupported_" + nonce)
+			and not owned_root.contains("..") and not owned_root.contains("\\"),
+			"unsupported child: explicit private root, nonce, parent and headless/Dummy guards"):
+		return false
+	var owner: Variant = JSON.parse_string(FileAccess.get_file_as_string(owned_root.path_join("owner.json")))
+	if not _unsupported_check(owner is Dictionary and owner.get("nonce") == nonce
+			and int(owner.get("parent_pid", 0)) == parent_pid,
+			"unsupported child: root matches the invoking parent identity"):
+		return false
+	for label in UNSUPPORTED_CASES:
+		var directory := owned_root.path_join(label)
+		var before := _unsupported_snapshot(directory)
+		if not _unsupported_check(_unsupported_fixture_shape(before, label),
+				"unsupported %s child: actual future fixture and file modes are present" % label):
+			return false
+		var store := Store.new(directory.path_join("profile.json")) as UserDataStore
+		for action in ["load", "load_read_only", "commit", "recover_interrupted_transaction",
+				"restore_backup_to_primary", "discard_interrupted_transaction"]:
+			var result: Dictionary
+			if action == "commit":
+				# Failed load supplies no authority. Do not manufacture loaded state.
+				result = store.commit({"credits": 999}, store.get_generation(), "unsupported-fresh")
+			else:
+				result = store.call(action)
+			var expected := &"not_loaded" if action == "commit" else &"newer_schema"
+			if not _unsupported_check(not bool(result.get("accepted", true)) and result.get("reason") == expected
+					and _unsupported_snapshot(directory) == before,
+					"unsupported %s child: %s refuses and preserves every file" % [label, action]):
+				return false
+	return true
+
+
+func _unsupported_argument(prefix: String) -> String:
+	for argument in OS.get_cmdline_user_args():
+		if argument.begins_with(prefix):
+			return argument.trim_prefix(prefix)
+	return ""
+
+
+func _unsupported_snapshot(directory: String) -> Dictionary:
+	var access := DirAccess.open(directory)
+	if access == null:
+		return {}
+	access.include_hidden = true
+	access.include_navigational = false
+	var entries := {}
+	access.list_dir_begin()
+	var name := access.get_next()
+	while not name.is_empty():
+		var path := directory.path_join(name)
+		entries[name] = {"directory": access.current_is_dir(),
+			"bytes": FileAccess.get_file_as_bytes(path) if not access.current_is_dir() else PackedByteArray(),
+			"mode": null if OS.has_feature("windows") else FileAccess.get_unix_permissions(path)}
+		name = access.get_next()
+	access.list_dir_end()
+	return {"mode": null if OS.has_feature("windows") else FileAccess.get_unix_permissions(directory),
+		"entries": entries}
+
+
+func _unsupported_fixture_shape(snapshot: Dictionary, label: String) -> bool:
+	var entries := snapshot.get("entries", {}) as Dictionary
+	var expected := ["profile.json", "profile.json.bak", "unrelated.txt"]
+	if label == "temporary":
+		expected.append("profile.json.tmp")
+	var names := entries.keys()
+	names.sort()
+	expected.sort()
+	if names != expected:
+		return false
+	for index in expected.size():
+		var entry := entries[expected[index]] as Dictionary
+		if bool(entry.directory):
+			return false
+		if OS.has_feature("windows"):
+			if entry.mode != null:
+				return false
+		elif int(entry.mode) != (384 if index % 2 == 0 else 416):
+			return false
+	var future_name: String = "profile.json" + {"primary": "", "temporary": ".tmp", "backup": ".bak"}[label]
+	var bytes: PackedByteArray = entries[future_name].bytes
+	var envelope: Variant = JSON.parse_string(bytes.get_string_from_utf8())
+	return envelope is Dictionary and envelope.get("schema_version") == Store.SCHEMA_VERSION + 1 \
+		and bytes.get_string_from_utf8().contains(UNSUPPORTED_MARKER) \
+		and entries["unrelated.txt"].bytes == "UNRELATED FILE MUST SURVIVE\n".to_utf8_buffer()
+
+
+func _unsupported_check(condition: bool, description: String) -> bool:
+	_check(condition, description)
+	return condition
 
 
 func _check(condition: bool, description: String) -> void:

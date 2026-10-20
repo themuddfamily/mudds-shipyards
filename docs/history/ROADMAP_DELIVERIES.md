@@ -14607,3 +14607,35 @@ template and both Windows failure logs. Closure5187.663s/86.5min from original
 70af dependency freeze, before its90min deadline; neither failed attempt nor
 budget was reset. Build card parked; no further retry selected. Original route
 FAIL/PARKED and all broader/native/human/final gates remain unchanged.
+
+
+## Future-save outer envelopes — source/Linux real-file case accepted
+
+2026-10-20. Source4b66b354883eedac9b309177dbae143b2dd39c0e extends only the
+existing user_data_store_crash_points_test.gd, preserving old cases. Actual
+UserDataStore commits seed supported primary/backup; opaque schema+1 data at
+primary/.tmp/.bak is protected against retained-authority commit and fresh load,
+read-only load, commit, recovery, restore and discard. Exact filenames/bytes/
+Unix modes and unrelated sentinel remain unchanged across two fresh engines.
+No Store authority fields, fake filesystem or production save logic changed.
+
+Initialbcc699839 importPASS20.822787s, suiteFAIL2.544507s at caller query before
+fresh save API actions: Godot Unix is_process_running uses waitpid and rejects
+non-child PID. Child2 not launched. Independent source review confirmed captured
+OS.execute waits/reaps via pclose, and approved the exact two invalid query
+removals/identity wording. Freeze f6fb1f637 retained failure and original budget;
+no diagnostic suppression or cap/assertion changes, no further repair selected.
+
+Corrected once-only60s-cap suitePASS3.506682s,118 parent assertions plus23 each
+child, exactly one parent marker/no diagnostics/no opaque content leak. Actual
+invokerPID1639834 and fresh childPIDs1639855/1639878 captured and independently
+observed; all15 owner/descendant identities across original/corrected stages
+absent. Total actual stages26.873975s including failed attempt. Exact tested
+file integrated into main; code branch/history and raw fixtures/logs retained
+under `/srv/mudds-work/save-unsupported-files-20261020/` pending owned cleanup.
+
+This qualifies only the named future outer-envelope source/Linux real-file case.
+Nested settings/legacy formats, installed/packages/native/UI recovery remain
+unperformed where recorded; SAVE-UNSUPPORTED broader scope and all36parents/
+10phase gates stay open. No new gameplay/build changes or checkpoint. Windows
+matching-template work remains parked with both timeouts preserved.
