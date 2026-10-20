@@ -9853,7 +9853,11 @@ func _set_help_text(rows: Array) -> void:
 		_help_next_button.focus_mode = Control.FOCUS_ALL
 		_help_next_button.pressed.connect(_next_help_page)
 		navigation.add_child(_help_next_button)
-		_help_close_button = _menu_button("CLOSE", NOMINAL)
+		# Keep the help action readable while held or hovered, including the
+		# high-contrast palettes. Other menu buttons retain their authored fills.
+		_help_close_button = _menu_button("CLOSE", NOMINAL, 0.70, 0.65)
+		_tint_theme_color(_help_close_button, &"font_hover_color", PRIMARY)
+		_tint_theme_color(_help_close_button, &"font_pressed_color", PRIMARY)
 		_help_close_button.name = "HelpCloseButton"
 		_help_close_button.tooltip_text = "Close controls help"
 		_help_close_button.focus_mode = Control.FOCUS_ALL
@@ -10192,7 +10196,9 @@ func _bar(role: StringName) -> ProgressBar:
 	return bar
 
 
-func _menu_button(text: String, role: StringName) -> Button:
+func _menu_button(
+	text: String, role: StringName, hover_darken := 0.55, pressed_darken := 0.35
+) -> Button:
 	var button := Button.new()
 	button.text = text
 	button.custom_minimum_size.y = 48.0
@@ -10200,13 +10206,13 @@ func _menu_button(text: String, role: StringName) -> Button:
 	button.add_theme_font_size_override("font_size", 13)
 	_tint_theme_color(button, &"font_color", PRIMARY)
 	button.add_theme_stylebox_override("normal", _box(Color("142536"), 4, 1, Color("315367")))
-	var hover := _fill_box(role, 4, 0.55)
+	var hover := _fill_box(role, 4, hover_darken)
 	hover.border_width_left = 1
 	hover.border_width_top = 1
 	hover.border_width_right = 1
 	hover.border_width_bottom = 1
 	_register_palette_target({"kind": &"box_border", "box": weakref(hover), "role": role, "darken": 0.0})
-	var pressed := _fill_box(role, 4, 0.35)
+	var pressed := _fill_box(role, 4, pressed_darken)
 	pressed.border_width_left = 1
 	pressed.border_width_top = 1
 	pressed.border_width_right = 1
