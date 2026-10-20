@@ -108,6 +108,10 @@ NO-GO despite the separately accepted runtime fix above. Its first kill at about
 left less than the remaining10.5s authored delays, even with instantaneous other
 kills. Establish a feasible ordinary boarding/combat plan before another full
 qualification; no full retry, shorter contract or timer change is selected.
+Owner clock-start choice is now pending: preserve board-start timing, or arm at
+the board and begin the34s encounter on launch. Current board-start rule stays
+in force until answered. Read-only timing review found no proven clear-fire plan;
+no new engine attempt was made.
 
 Unique source survives in pushed `archive/withheld/defense-completed-motion-20261020`
 and verified incremental bundle/patch/five-file tar. Eight unqualified artifacts
