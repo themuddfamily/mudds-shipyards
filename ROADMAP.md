@@ -222,6 +222,20 @@ exact package commands/caps before execution. Native Windows/GPU/device/human
 qualification stays NOT_RUN. This repairs this defect only; broad recovery and
 all parent/phase requirements remain open. Preserve results, clean owned scratch.
 
+Attempt result2026-10-20: candidate1092a00eb pushed on
+`fix/corrupt-save-retention-20261020`, unmerged/withheld. Independent source
+review GO after correcting an empty-primary regression before engines. Fresh
+importPASS19.646s; store suiteFAIL0.906s at a new test declaration,
+`tests/user_data_store_test.gd:306`: cannot infer `damaged` from a Variant loop
+value. No runtime assertions executed. Binding/crash suites and all checkpoint
+exports/startups/audit NOT_RUN. Original failure retained; no repair/retry or cap
+increase selected. Production preservation is not accepted and no new build is
+claimed. Four observed descendant identities and both stage owners absent;
+owned worktree/helpers/profiles removed after pushed source and byte/mode-verified
+profile archive retained in task results. Next action is a separately selected
+exact test typing correction, retaining this failure and original cumulative
+budget; do not treat the source review as runtime proof.
+
 ## Latest playable result
 
 **Inline browser recovery delivered and packaged on 20e90c9.** The title/pause
