@@ -17449,3 +17449,68 @@ remains. The 17 remote candidates still include three withheld gameplay fixes an
 Source/archive verification does not accept those journeys. All 36 original
 parent outcomes and ten phase gates remain open; native/human gates remain
 NOT_RUN, playable c78e0ac unchanged and GitHub Actions disabled.
+
+
+## Docked-pilot closeout — chair cleared, hatch route still fails — 2026-10-20
+
+Previous turn closed five local-only source exceptions; this turn resumed one
+retained gameplay-fix branch toward its original full acceptance. No new branch.
+Selection pushed on f05ad4a77: 15:35–16:20UTC/45min, first unexpected failure
+stops, unchanged route/deadlines/criteria, checkpoint only after full pass.
+
+**Concrete source correction:** old host/client receipts agree on supported
+standing position near ship-local(-0.388191,0.481892,-7.269920), with current
+on-foot input; first cabin-stand walk already passed. The subsequent direct
+hatch diagonal intersects the solid inherited pilot-chair back. Jovian collider
+uses the live mesh AABB; rotated chair/capsule envelope approximately matches
+that stop. Full-radius prediction is an envelope, not an exact capsule-corner
+contact calculation. Independent high review GO for one aft port clearance point
+`(-1.10,0.52,-6.70)` before every original hatch waypoint. No production input,
+remote stepping, body, seat, collision, pose or authority change was added.
+
+Existing `fix/docked-pilot-hold-20261020` merged current main cleanly, then
+pushed bf7fb636ee12cc03a3d194d29adb554c4972ed11. Dock pose repair and focused tests
+remain byte-identical to 0d225bee8. Only five subsequent caller lines add the
+ordinary clearance walk. Clean-pin source review GO; original suite300s,
+outer360s, walk15s, boundaries8s and exit10s remain. All Godot invocations use
+Dummy; coordinator headless, peers private Xvfb with explicit x11.
+
+| Stage | Actual result |
+| --- | --- |
+| Import | PASS20.709943054s |
+| Dock pose suite | PASS42.684051100s,322 assertions, one marker |
+| Compile | PASS16.752319090s |
+| Full original passenger-exit journey | FAIL147.310577451s; all three actual peers exit1, zero success marker |
+| Paired exports, strict startups, package audit | NOT_RUN after first failure |
+
+Actual ordinary boarding/departure/strict home return and passenger chair release
+complete. Client logs prove cabin stand, new clearance and original route[0]
+pass; the old chair obstruction is cleared. Original route[1] fails. Original
+route[2], hatch Interact, exterior body/claim release and ground walk are not
+reached; full acceptance remains FAILED. Host stop is supported standing at
+ship-local(-1.282619,0.481719,-8.546745), current intent5654, occupied exact dock;
+local prediction stops at(-1.808334,0.760481,-8.525467). Do not describe them as
+identical at this new boundary.
+
+The caller walks route[0..2] before hatch Interact. Production disables the door
+blocker only when canopy and hinge are fully open. The host stop is consistent
+with that doorway boundary, but receipts omit canopy/hinge/blocker/contact state.
+Closed-door or step-up causation remains unproved. Inherited off-tree get_path
+errors occur during failure capture, not in the corrected postdock receipt.
+Independent actual-result review STOP; no second repair, retry, deadline increase
+or adjacent probe selected. The runtime fix remains unmerged/withheld.
+
+New stages227.456890695s plus prior392.469917300s give619.926807995s. Original
+8054/e147 parser failures remain retained separately; these totals do not include
+unrecorded earlier setup or turn time. All four stage owners terminal,25 observed
+PID/start identities absent. Archive188 profile entries verified by streamed
+hashes/modes/directory/symlink checks; direct peer raw files and all helper sources
+retained. Owned worktree/profile/helpers removed in6.01min inside45min. Only
+`/srv/mudds-work/docked-pilot-closeout-20261020/results/` remains. Original
+0d225bee8 STOP and earlier profiles/results are unchanged.
+
+Branch counts unchanged:15 local/18 live remote including main,17 non-main
+remote;170 local/93 remote refs deleted cumulatively. Public c78e0ac unchanged;
+no new playable checkpoint. Full postdock exit/reboard/pilot exit/reclaim/reuse,
+other craft, native/GPU/device/audio/human and final gates remain open. All36
+parents/ten phase gates stay open; GitHub Actions remains disabled.
