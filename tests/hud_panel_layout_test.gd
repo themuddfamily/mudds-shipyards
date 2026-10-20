@@ -693,6 +693,82 @@ func _test_planetary_destination_layout() -> void:
 		and back.get_node_or_null(back.focus_neighbor_top) == ember,
 		"the board opens on the sole routed world and skips unavailable Aurora in controller focus",
 	)
+	# A live catalog refresh retains the label. Its current status role must
+	# replace the original role rather than multiply it through modulation.
+	var status_label: Label = ember.get_parent().find_child(
+		"PlanetaryDestinationStatus", true, false
+	) as Label
+	var original_palette: StringName = _hud.get_hud_palette_id()
+	var original_high_contrast: bool = _hud.is_high_contrast_hud()
+	var state_index: int = 0
+	for state: Array in [
+		[&"ready", "READY — EMBER MOON", GameHUD.NOMINAL, true],
+		[&"cruising", "CRUISING — EMBER MOON", GameHUD.CAUTION, false],
+		[&"unavailable", "UNAVAILABLE — SYSTEM OFFLINE", GameHUD.MUTED, false],
+		[&"ready", "READY — EMBER MOON", GameHUD.NOMINAL, true],
+	]:
+		var status_id: StringName = state[0]
+		var status_text: String = state[1]
+		var status_role: StringName = state[2]
+		var action_enabled: bool = state[3]
+		var refreshed: Dictionary = catalog.get_presentation_snapshot({
+			&"ember_moon": {
+				"status_id": status_id,
+				"status_text": status_text,
+				"action_enabled": action_enabled,
+				"engagement_requested": false,
+			},
+		})
+		_check(_hud.set_planetary_destination_snapshot(refreshed),
+			"the retained board accepts the %s status refresh" % status_id)
+		var retained_status: Label = ember.get_parent().find_child(
+			"PlanetaryDestinationStatus", true, false
+		) as Label
+		var expected_focus: Button = ember if state_index == 0 else back
+		_check(
+			retained_status == status_label
+			and status_label.text == "STATUS  //  %s" % status_text
+			and ember.disabled == (not action_enabled)
+			and ember.focus_mode == (Control.FOCUS_ALL if action_enabled else Control.FOCUS_NONE)
+			and ember.text == ("LAUNCH EXPEDITION" if action_enabled else "ROUTE UNAVAILABLE")
+			and aurora.disabled
+			and root.gui_get_focus_owner() == expected_focus
+			and back.get_node_or_null(back.focus_neighbor_top) == (ember if action_enabled else back),
+			"%s refresh retains status identity, copy, action gates and usable focus" % status_id,
+		)
+		var refreshed_color: Color = GameHUD.PaletteType.get_role_color(
+			_hud.get_hud_palette_id(), status_role, _hud.is_high_contrast_hud()
+		)
+		_check(
+			status_label.modulate == Color.WHITE
+			and status_label.get_theme_color("font_color") == refreshed_color,
+			"%s refresh applies its current status role immediately" % status_id,
+		)
+		for palette_id: StringName in GameHUD.PaletteType.get_mode_ids():
+			_hud.set_hud_palette(palette_id)
+			for high_contrast: bool in [false, true]:
+				_hud.set_high_contrast_hud(high_contrast)
+				var expected_color: Color = GameHUD.PaletteType.get_role_color(
+					palette_id, status_role, high_contrast
+				)
+				_check(
+					status_label.modulate == Color.WHITE
+					and status_label.get_theme_color("font_color") == expected_color,
+					"%s status uses its current role once in %s with high contrast %s"
+						% [status_id, palette_id, high_contrast],
+				)
+		var font_entries: int = 0
+		var palette_targets: Array = _hud.get("_palette_targets") as Array
+		for entry: Dictionary in palette_targets:
+			if entry.get("kind") == &"theme_color" \
+					and entry.get("node") == status_label \
+					and entry.get("property") == &"font_color":
+				font_entries += 1
+		_check(font_entries == 1,
+			"%s refresh keeps one status font-colour registration" % status_id)
+		state_index += 1
+	_hud.set_hud_palette(original_palette)
+	_hud.set_high_contrast_hud(original_high_contrast)
 	var dirty: Array[String] = []
 	var cases := 0
 	for viewport: Vector2 in [
