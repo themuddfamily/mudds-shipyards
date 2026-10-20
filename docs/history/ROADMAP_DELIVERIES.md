@@ -18303,3 +18303,100 @@ not qualify it. Endurance, late join, full craft/role/world/reuse/server baselin
 package/native GPU/hardware/device/human/final acceptance remain open. No gameplay
 or graphics change and no duplicate playable export; latest checkpoint0070248
 unchanged. Main remains sole local/remote working branch; CI hold unchanged.
+
+
+## Halyard real authority stop — accepted — 2026-10-20
+
+**HALYARD-AUTHORITY-STOP /16,26 DONE on current Linux source082da79c903bf50b14d76797adeff2ed4b34b2cc.**
+Existing test caller only: `tests/network/halyard_network_passenger_route_test.gd`.
+Selection6806142ef; initial source8f4dad1d2; grouping correctione3f1164fc;
+explicit WeakRef correction082da79c9. All tested detached in the same worktree,
+then fast-forwarded into main and pushed after actual PASS and independent GO.
+No branch, worktree, new validator or helper file created.
+
+### Original case and actual player outcome
+
+Original contract remains the independently defined HALYARD-AUTHORITY-STOP above:
+complete accepted ordinary BOARD/MOVING prefix, then authoritative Main stops
+once with both original remote occupants still aboard. New selector
+`--ordinary-two-client-authority-stop` implies both full prefixes; exact marker
+`HALYARD_ORDINARY_TWO_CLIENT_AUTHORITY_STOP_OK`. No fixture teleport, transform or
+authority injection, handler invocation, client-initiated leave or SIGKILL.
+
+Actual same pilot departs5.174836m; same passenger completes moving stand/walk/
+approach/sit/stand/approach/reseat and both clients consume every current stage.
+Both register observers on their actual retained SceneMultiplayer/adapter before
+the host stop. Host shutdown_network_session returns accepted and produces one
+session_stopped(halyard_ordinary_authority_stop). Each original client receives
+one actual server_disconnected and one session_stopped(server_disconnected).
+Both remain aboard at the stop, after host and both clients' moving_complete.
+
+Exact retained contexts are checked: host original passenger body/remote helm
+freed, old role-owner assignments empty, old simulation body count0; stopped
+adapter has no occupancies/owner/pilots. Clients' old boarding/crew-seat/remote
+helm contexts clear, old body source unbound, exact previous prediction admission
+retired, frame no longer predicts, old presenter detached with no drawn entities,
+old replica/relationship empty. Former pilot retains ordinary local cockpit,
+restored source authority and disconnected network capture; ordinary throttle
+is sampled and reaches actual ship command consumer. Same former passenger is
+unseated, supported, control-enabled in IN_FLIGHT_CABIN, registered under solo
+frame authority, and walks **0.616111755m in cabin-local coordinates** through
+ordinary input within original15s. Both consumed HUDs report actual lost-host
+state/current solo roles and respond to actual pause/Resume UI. Old grants stay
+retired afterward; no forced stand/recovery pose is invented for the pilot.
+
+### Frozen commands, failures and result
+
+Godot4.7.1 `/tmp/mudds-tools/godot-4.7.1/godot`, SHA256
+32f8d7596c4b41185512b1c49d69f2da3be018fd784a53e349fa92a98a97bcde.
+Compile uses --headless --audio-driver Dummy --check-only --script
+res://tests/network/halyard_network_passenger_route_test.gd with repository path;
+route removes --check-only and appends -- --ordinary-two-client-authority-stop.
+Each real peer uses own Xvfb display, explicit --display-driver x11, dummy input
+renderer and --audio-driver Dummy. Private XDG/TMP dirs; inherited desktop,
+Wayland, test-matrix, Godot override and probe variables cleared; HOME preserved.
+Original compile300s/full internal300s/outer360s/walk15s/transitions8s/exit10s
+remain unchanged. Exact commands/environment/source/cache recorded before runs.
+
+| Stage | Actual result | File timestamp interval |
+| --- | --- | --- |
+| Initial compile8f4dad1d2 | FAIL: ungrouped multiline lambda return at3027; no gameplay | 0.756010s |
+| Grouping correctione3f1164fc compile | FAIL: two weakref locals infer Variant at3000/3001 under warnings-as-errors; source unchanged | 16.728230s |
+| Explicit WeakRef correction082da79c9 compile | PASS0, zero diagnostics; source unchanged | 16.384226s |
+| Complete original route082da79c9 | PASS0,307checks/0failures, one exact marker; source/cache unchanged | 142.081958s |
+
+Failures were reviewed before each precise syntax/type correction; unchanged
+scenario, assertions, limits and assignment deadline. No gameplay attempt ran
+before final compile PASS. Intervals above are owner.json mtime minus
+command.json mtime, not claimed exact monotonic stage measurements; sum175.950424s.
+Actual Godot host1951451/client1951657/client_b1951676 each has matching pid/done,
+complete=true, empty failures, exit file0 and absent OS PID. Distinct displays
+:99/:100/:101, Wayland empty. Host76/pilot77/passenger102 checks plus orchestrator;
+terminal handshakes all complete, engine/runtime diagnostics0. One final source/
+cache freeze matches byte-for-byte and Git source clean. Independent HIGH review
+GO checks original contract/source and all97 retained file hashes, actual raw
+stop/recovery/terminal receipts and walk; no acceptance weakening found.
+
+### Retention, integration and limits
+
+Raw/result root:
+`/srv/mudds-work/halyard-board-integration-20261020/results/authority-stop/`.
+Contains selection, all four stage command/owner/log records, source/cache freezes,
+route/peer-artifacts,97-file index/result, independent review.txt and cleanup.json.
+Owned authority-stop-scratch profiles archived as profiles.tar.gz18258bytes,
+SHA256a6b93b1449e25d63de32d2d56f5f07b5ef74ebeb2531dcc7529804363f6d2354.
+All168 archive entries reopened and checked for exact member set, file bytes/
+hashes, modes and symlink targets before deleting that exact owned scratch root.
+Cleanup18:20:22UTC,11.37min into original18:09–19:09 assignment; four owners
+terminal(expected1/1/0/0), all17 observed PID/start-tick identities absent and no
+live process cwd/exe under owned scratch. Original other roots/protected worktrees
+untouched. Main remains the sole local/live remote working branch; CI hold intact.
+
+This closes real graceful authority loss and usable solo controls after the full
+moving passenger route on current Linux source. Full dedicated-server baseline,
+original30-minute/adverse-network endurance, late join, full role/world journeys,
+reconnect/migration, current/final packages, native GPU/Windows/devices/listening/
+human and final release qualification remain OPEN/NOT_RUN as applicable. No
+gameplay/graphics bytes changed and no identical checkpoint export needed;
+latest playable checkpoint0070248 unchanged. All36 parent outcomes/ten phases
+remain open; this is one named outcome, not a project percentage.

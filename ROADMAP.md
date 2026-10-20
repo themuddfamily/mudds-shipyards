@@ -78,31 +78,23 @@ This clears the branch queue; it does not close their unfinished gameplay,
 qualification or release requirements. No unaccepted source was merged to reduce
 a branch count. Eight previously protected detached worktrees remain unchanged.
 
-**Selected HALYARD-AUTHORITY-STOP /16,26 — one complete original case.**
-BOARD and full MOVING-CABIN are accepted. Extend the existing passenger caller
-with `--ordinary-two-client-authority-stop` and
-`HALYARD_ORDINARY_TWO_CLIENT_AUTHORITY_STOP_OK`, preserving the full ordinary
-boarding/departure/moving walk/chair cycle. Then the same non-playing authority
-calls existing shutdown_network_session once while both original clients remain
-aboard. Require their actual production server_disconnected events, retirement
-of old grants/prediction/body/seat/helm bindings and usable ordinary solo controls.
-Former passenger must walk >0.6m supported through normal sampled inputs and
-show a real UI response. No direct disconnect-handler call, transform/authority
-injection, client-leave substitute, SIGKILL, migration or reconnect claim.
-One implementer owns only tests/network/halyard_network_passenger_route_test.gd;
-root owns independent review, detached candidate freeze, checks, accepted main
-integration, commit/push and owned cleanup. No new branch/worktree. Preserve
-original30–60min assignment, compile300s/full internal300s/outer360s, walk15s,
-role/consumed transitions8s and exit10s. Compile same clean source with Godot
---headless --audio-driver Dummy --check-only --script res://tests/network/
-halyard_network_passenger_route_test.gd; full command removes --check-only and
-adds -- --ordinary-two-client-authority-stop. All peers retain own Xvfb display,
-explicit x11 and Dummy audio. Freeze exact source/commands/cache before engines.
-Require all three actual OS exits0, complete handshakes and zero diagnostics.
-First failure stops for concrete review; no automatic repair or adjacent task.
-Record actual outcome, preserve raw records in existing Halyard results/
-authority-stop/, remove owned profiles, and integrate only accepted source.
-No endurance, native/hardware or full server-baseline acceptance follows.
+**HALYARD-AUTHORITY-STOP DONE — current source `082da79c9`.**
+The complete ordinary boarding/departure/moving walk/chair sequence passes, then
+its non-playing host stops once while the original pilot and passenger remain
+aboard. Both original clients receive actual transport server_disconnected and
+production session_stopped events. Old boarding, prediction, body, crew-seat and
+helm bindings retire. The pilot samples usable local throttle; the same former
+passenger walks 0.616 metres supported in the solo cabin. Both use real pause
+and Resume controls. All three actual game processes exit0; one marker and zero
+runtime diagnostics in142.082s within the original300s/outer360s limits.
+Two compile failures were corrected only by grouping lambda expressions and
+explicit WeakRef types; no route or acceptance changes. Independent review GO;
+accepted source pushed to main. Owned profiles archived/verified and removed,
+all17 observed identities absent; no new branch/worktree. Current Linux source
+qualification only: full server baseline, endurance, reconnect/migration,
+native/hardware and final-candidate gates remain open. No game-code change or
+identical rebuild; latest playable checkpoint remains0070248.
+[Original case, actual results and cleanup](docs/history/ROADMAP_DELIVERIES.md#halyard-real-authority-stop--accepted--2026-10-20).
 
 **HALYARD-MOVING-CABIN DONE — current source `2e117e64f`.**
 The original non-playing authority and two independent clients complete ordinary
@@ -120,9 +112,9 @@ limits are unchanged. Independent final review passed; source/cache unchanged.
 Owned profiles are preserved/removed and all 30 observed process identities are
 absent. No new branch or worktree; accepted source is pushed in main.
 This qualifies current Linux source with isolated input-only Xvfb sessions.
-Authority-stop, endurance, native/hardware, full role journeys and the complete
-server baseline remain open; no successor is scheduled. No gameplay change or
-new checkpoint; latest playable build remains `0070248`.
+Authority-stop is accepted separately above. Endurance, native/hardware, full
+role journeys and the complete server baseline remain open; no successor is
+scheduled. No gameplay change or new checkpoint; latest playable build remains `0070248`.
 [Full original case, failure, correction and cleanup](docs/history/ROADMAP_DELIVERIES.md#halyard-ordinary-moving-cabin--accepted--2026-10-20).
 
 **Ember first-relay cold recovery DONE on package `923d7b3`.**
@@ -406,7 +398,7 @@ contracts and cumulative attempt records remain in the retained history.
 | FIRE-RESTART /8,29,31 | Original and viewport caller repair fail visible Fire row intersection before capture/save/restart sampler; no persisted remap proof. Source archived WITHHELD; working refs deleted. | OPEN/PARKED; concrete visible-row cause/change needed before separately frozen original writer/reader acceptance; original300s per process retained. No inferred scrolling cause or retry. |
 | HULK-REVISIT /13,31 | Original departure check fails; sole repair reaches reload/dock/shutdown/exit then original300s deadline during new interior walk, before breaker event/receipt. Source archived WITHHELD; working refs deleted. | OPEN/PARKED; establish a concrete production cause/change, retain full physical revisit and once-only cell/reward contract. No cap increase or unchanged retry. |
 | SHARED-RIME-BASELINE /3,27 | Original parse failure and typed caller repair retained; repair reaches approach but fails original120s physical landing gate. Survey/home not accepted. Source archived WITHHELD; working refs deleted. | OPEN/PARKED; landing cause unestablished. Preserve full two-crew outbound/survey/reward/save/home and original limits; no automatic rerun. |
-| HALYARD-AUTHORITY-STOP /16,26 | NOT_RUN; original case requires real authoritative server shutdown while both occupants remain aboard, production disconnect events and usable solo controls. | BOARD and MOVING-CABIN prerequisites DONE; separately freeze the full original case before engines. No SIGKILL, migration, reconnect or authority-stop acceptance follows from normal test teardown. |
+| HALYARD-AUTHORITY-STOP /16,26 | DONE082da79c9: complete BOARD/MOVING prefix, actual one host shutdown with both original occupants aboard, real disconnect events/old-binding retirement, pilot throttle, passenger solo walk0.616m and both real pause/Resume;142.082s, three actual OS0. | Current Linux-source scope only. Full baseline/endurance/native/reconnect/migration remain open; [accepted original case](docs/history/ROADMAP_DELIVERIES.md#halyard-real-authority-stop--accepted--2026-10-20). |
 
 VIP, Ember native close smoke, Rime arrival, HULK revisit, Fire restart, Sandbox,
 Convoy/Patrol/Q4/Q5 and software-renderer capture stalls retain their existing
