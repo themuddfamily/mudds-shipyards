@@ -54,12 +54,28 @@ source scopes; they are no longer current tasks. The cache callback repair is
 still an unverified candidate. Empty release callable metadata does not prove a
 cause, and no shared cause with the Window failure is established.
 
-No engine/check job or executable card is active. The one Popup capture has
-stopped at its recorded missing native fact; other waiting and parked outcomes
-are not READY. No additional diagnostic layer or unchanged retry is scheduled.
-The lifecycle breakdown does not schedule five more assignments: select one
-existing child and freeze its exact files, route, proof and stopping condition
-before execution. Do not start a whole family at once.
+**Selected next: one process-exit tooltip cleanup-order repair attempt.**
+The completed capture supplies actual Tooltip ownership; source review identifies
+an existing bound Viewport API that retires it before root teardown. This is a
+candidate mechanism, not a proven comparator fix. One medium implementer owns
+`game_flow.gd` and one existing shutdown integration test; one high reviewer.
+Only actual HUD Exit/OS close may disable GUI input, after best-effort shutdown
+marking. `mark_orderly_shutdown`, Restart Shift/reload and ordinary tooltip use
+must remain unchanged. No new waits, native signal manipulation or diagnostics
+suppression; original OS/HUD quit semantics remain.
+
+Estimate5–10min implementation/review,5–10min checks; a successful production
+checkpoint adds10–15min. Before engines freeze clean source and exact commands:
+fresh Dummy import180s, selected existing focused integration180s, privacy60s,
+private Linux export180s, strict startup120s, artifact audit90s and the unchanged
+full Observation route CAP300/outer330 with the existing passive trace. Require
+normal Exit0, zero diagnostics, actual tooltip retirement before root teardown
+and original travel/view/home criteria; do not suppress known errors. First
+unexpected failure STOP, no second repair/run or cap increase. Preserve all
+four earlier failures/515.027s checks and original02:54:57→04:24:57UTC90min budget.
+A pass permits integration of only production/test changes and a fresh clean
+paired checkpoint; otherwise source/package remain withheld and owned scratch
+is cleaned. Other waiting and parked outcomes remain outside this selection.
 
 ### Waiting decisions — not executable tasks
 
