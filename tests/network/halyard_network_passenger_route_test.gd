@@ -2831,7 +2831,10 @@ func _ordinary_fields(record: Dictionary, keys: Array) -> Dictionary:
 				result[key] = str(value)
 			elif typeof(value) in [TYPE_NIL, TYPE_BOOL, TYPE_INT, TYPE_FLOAT, TYPE_STRING]:
 				result[key] = value
-	return result
+	# Receipt JSON decodes numbers as floats, while network variants retain ints.
+	# Compare projected primitives in the same JSON representation, preserving
+	# fractional values and leaving the source records untouched.
+	return JSON.parse_string(JSON.stringify(result, "", true, true)) as Dictionary
 
 
 func _ordinary_boundary(predicate: Callable, seconds: float, description: String) -> bool:
