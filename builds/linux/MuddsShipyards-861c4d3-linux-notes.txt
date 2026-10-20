@@ -1,0 +1,31 @@
+Mudds Shipyards development checkpoint — 2026-10-20
+Source: 861c4d39b3f1b820d3e9e4469e7f5a20ceb62f40
+
+Player-visible changes
+- A remote-piloted freighter holds its committed berth pose after docking.
+- A standing Jovian passenger can use the exit while the other pilot stays aboard,
+  traverse the physical hatch route, reach supported ground and walk away.
+- Looking toward that exit no longer selects the peripheral engineer chair.
+  Deliberately aiming at the engineer chair still selects it.
+
+Actual validation
+- Final source import, compile and original ordinary non-playing host plus two
+  independent clients: PASS; full route 138.469674438s, three actual OS exits0,
+  one success marker, no diagnostics. Same player, all seven physical exit poses,
+  supported ground walk, passenger claim/body retirement and retained pilot.
+- Station interaction (including deliberate/peripheral engineer targeting),
+  docked-pose322 and exit-support11 checks PASS on 92948c95d; production and
+  focused-test bytes are identical in this source. Final receipt-only correction
+  prevents querying a scene path on a detached retiring body; no gate was relaxed.
+- Clean-commit Windows and Linux exports PASS. Actual PCK contents match.
+- Linux executable, extracted Linux archive and Windows embedded payload loaded
+  by the Linux Godot runtime each reach menu with exit0 and STARTUP_MENU_READY_OK.
+- Linux archive contents/modes/epoch/metadata and Windows stock PE code audited.
+- All automated runs silent (Dummy audio), headless or isolated Xvfb/x11.
+
+NOT_RUN / remaining qualification
+Native Windows execution, native GPU/performance, physical input devices, audible
+review, human review, hosted CI and final-release qualification. Windows payload
+startup on Linux does not establish native Windows execution. Postdock reboard,
+pilot exit/reclaim/redeparture, other craft, second landing and wider multiplayer
+matrix remain separate open roadmap requirements.

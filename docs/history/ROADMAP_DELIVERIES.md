@@ -17722,3 +17722,75 @@ sources verified before owned worktree/profile/helpers removal13.78min/45min.
 Profile archive SHA256
 `005214e2367551d6fec565241ab3fdf73ee1801e1cf13bbc936d4700a9ccfde2`.
 Latest playable remains c78e0ac; no merge or new checkpoint yet.
+
+
+## Physical Jovian passenger exit accepted and branch closed — 2026-10-20
+
+Finished existing fix/docked-pilot-hold-20261020 on exact source
+`861c4d39b3f1b820d3e9e4469e7f5a20ceb62f40`, integrated and pushed in main
+`2352d18c37c8f677d4a1e1e4f69cd2e1dd26e516`. No new branch or CI run.
+
+Production now holds accepted dock poses instead of predicting residual remote
+pilot drift. Confirmed landed/offline Jovian passengers use the authored physical
+exterior exit rather than generic-spawn teleport, with the same Player and the
+other pilot retained. An explicit supported on-foot transition traverses the
+chair-clearance prefix and every original exterior pose; craft/generation/actor
+ownership guards completion and cancellation. Deliberate45° engineer targeting
+prevents a peripheral chair from masking intended exit aim, retaining direct
+chair use and unchanged other seats. Caller approaches inside before E and then
+observes every original production exit transform. Two caller-only corrections
+isolate the new chair fixture after old tests and guard scene-path reads on a
+valid detached retiring body; no diagnostics or predicates were filtered.
+
+**Actual acceptance:** final-pin import20.741081608s and compile16.693312134s
+PASS. Original ordinary non-playing host plus two independent clients full
+journey138.469674438s PASS, marker once, no diagnostics. Correct craft is available
+and self-reserved at6.611579m<7; station candidate absent while peripheral engineer
+dot0.332564 is excluded. Ordinary E requests1→2/disembarked. Same Player traverses
+seven exact live route poses/frame;54 samples observe6.170576m physical motion.
+Original ground endpoint then1.230194m supported ordinary walking pass. Host
+cabin/chair/body/publication retirement, exact home and retained original pilot/
+source pass. All three actual OS peers exit0 with no failures. Independent high
+source/journey reviews GO. Focused station interaction66.130428294s, pose322/
+42.862720346s and support11/32.106853149s PASS on92948c95d; their production/test
+bytes are identical on final pin, so these unchanged checks were not repeated.
+
+**Checkpoint:** both clean-commit exports PASS (Windows26.705191725s,
+Linux25.806513122s). Linux binary22.545687944s, extracted archive24.116723460s and
+Windows embedded payload via Linux runtime26.585155738s each exit0 with exactly
+one STARTUP_MENU_READY_OK; no diagnostics. Audit5.539234067s verifies1525 matching
+actual PCK entries excluding tests/tools, stock Windows PE code, x86-64 Linux,
+exact five-member archive bytes/modes/epoch and metadata. Independent bounded
+artifact review GO. Eleven new public files hash-verified; previous c78 checkpoint's
+eleven files unchanged. Windows EXE, checkpoint ZIP and notes are in builds/windows/;
+Linux binary/archive/notes/startup records are in builds/linux/. Only build notes
+are tracked; binaries remain local development artifacts.
+
+[Windows checkpoint](../../builds/windows/MuddsShipyards-861c4d3-checkpoint.zip),
+[Windows notes](../../builds/windows/MuddsShipyards-861c4d3-notes.txt),
+[Linux notes](../../builds/linux/MuddsShipyards-861c4d3-linux-notes.txt).
+
+Native Windows, GPU/performance, physical devices, audible/human review, hosted
+CI, current full matrix/endurance and final release remain NOT_RUN/open.
+Postdock reboard, pilot exit/reclaim/redeparture, other craft and second-land
+reuse remain distinct open requirements. All36 original parents/ten phases open.
+
+**Closure:** final307.202574235s+prior1552.809932986s=
+1860.012507221s current stages; original8054/e147 parser failures
+and unknown earlier setup remain separately retained. The two failed attempts in
+this selection retain their STOP/raw archives; no cost reset or retroactive pass.
+All65 final union PID/start identities absent; owners terminal. Profile archive
+verifies267 entries; SHA256
+`48ab60d198df8323d32a7f1893412cdfaaf5972d4ff40c5eda0ff3052b05920a`.
+Owned worktree/private profiles/helpers removed23.65min from16:19, inside45min.
+Only results remains at
+`/srv/mudds-work/jovian-retired-body-observation-20261020/results/`.
+
+Before deletion, rechecked live exact branch tip, no registered worktree ownership,
+and tip ancestry in pushed main. Remote deletion used expected-OID lease; local
+and tracking refs removed with expected old OIDs. All three refs absent after.
+Totals171 local/94 live remote branches deleted;14 local/17 live remote heads
+remain including main (16 non-main remote). Two ordinary gameplay candidates
+(passenger role display, tooltip retirement) and14 automation/diagnostic/release
+candidates remain. Ref counts are housekeeping; the delivered product result is
+physical passenger exit while the original pilot remains aboard.
