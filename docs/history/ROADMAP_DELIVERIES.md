@@ -19311,3 +19311,53 @@ or worktree; eight protected detached worktrees untouched. Main sole local/live
 remote branch; accepted source and roadmap closeout pushed. All36 parent outcomes
 and ten phase gates remain open. Defense clock-start owner choice remains pending;
 its original34s board-start rule is preserved until answered.
+
+## Existing Salvage access round trip qualified — 2026-10-20
+
+WALK-SALVAGE-ACCESS DONE9749f742c0a500e21108bc631af6cc035c4c9058; accepted source
+merged/pushed main. Original20-candidate inventory now has eight accepted or
+superseded outcomes and twelve unqualified candidates. Historical failed-source
+tags remain retained; no new branch/worktree or duplicate runtime export.
+
+Old Salvage attempts already used the correct input-only backend. Concrete
+source/raw geometry instead explains the repaired stop: Annex origin(72,.38,38)
+and yaw+90 put the rear roof column at worldx90.775..91.225,z40.775..41.225.
+Repaired body90.79643,.380263,40.39536 matches column minZ−capsule.38. This is
+contact inference, not a captured wall ID: final settle reports only the floor.
+The original rear-rail face and column leave.705m, less than.76m capsule diameter;
+the previous local18.5 inset still crosses the column's expanded front edge.
+
+The existing caller now inserts Annexlocal(0,17.5),(-12.5,17.5) before the original
+(-12.5,18.5) target, retaining every original goal and automatic reverse route.
+Existing floor spans the lane between equipment ending16.5 and columns beginning
+18.775. No geometry/controller/input change, actor placement, margin, goal-radius
+or deadline increase. Default/capture bodies remain byte-identical; stripping
+comment/two targets reproduces archived641bbdbb source exactly.
+
+Compile PASS16.500s; ONE original route PASS103.697416s,64 assertions, exactly one
+WALK_SALVAGE_ACCESS_TEST_OK, actual exit0, clean engine/Xvfb logs and source/cache
+unchanged. All29 outward and29 reversed waypoints plus retained hub spawn pass.
+New detour, previously blocked original target and all three terrace inspection
+positions succeed both ways with the same controlled unseated Player. Normal
+spawn/intro retained; arrival is checked within.20 before original four-tick
+release/settle, not a newly asserted fully stopped or final-distance guarantee.
+Actual supports hold at waypoint checks.240-loop/300s inner/360s independent abort
+limits unchanged. Both arrival and home inspection/manifest snapshots unchanged.
+Independent HIGH source and actual-result review GO.
+
+This qualifies access only. Ordinary inspections/publication and durable fresh-
+process revisit remain separate children. InputEvent mouse/held-action helpers on
+privateXvfb/explicitx11/Dummy/dummy renderer are retained; no OS-XTest, rendered
+appearance, nativeGPU, Windows, device or human qualification is inferred.
+Production/export inputs exactly match accepted3767687, still the current build;
+original caller-only handoff requires no identical rebuild. Hosted Actions held.
+
+Prior failed route stages121.841868s retained; new compile/route120.197642s gives
+242.039510s for those selected stages. Earlier import/compile raw remain separately
+in original history. Commands/freezes/logs/reviews/hashes and costs are at
+/srv/mudds-work/salvage-access-clearance-20261020/results/. All2 owners terminal,
+5 observed PID/start identities absent;34 profile entries archived/reopened/
+verified before owned scratch removal22:02:26UTC. Eight protected worktrees
+untouched; main sole local/live remote branch. Accepted source and roadmap
+closeout pushed; all36 parents/ten phase gates remain open. Defense clock choice
+is still pending, with the current34s board-start behavior unchanged.
