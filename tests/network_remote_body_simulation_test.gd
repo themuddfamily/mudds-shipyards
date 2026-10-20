@@ -1261,9 +1261,10 @@ func _assert_interaction_highwater_survives_body_reentry() -> void:
 	_set_plan(0, Vector2.ZERO, true)
 	await _drive(30)
 	var record := simulation.get_body_record(entity)
+	var crew_owner := _craft.get_crew_role_authority()
 	var replay_suppressed: bool = int(simulation.get_audit().get("interactions", 0)) == interactions_before \
 		and record.get("seat_state") == &"standing" and not body.is_seated() \
-		and _server.get_crew_assignment(_client_peer_ids[0], entity).is_empty()
+		and crew_owner != null and crew_owner.get_assignment(_client_peer_ids[0], entity).is_empty()
 	_check(source.get_interaction_request_id() == retained_id and replay_suppressed,
 		"neutral rebind packets retaining old Interact do not execute an interaction or claim a crew chair")
 	if not replay_suppressed:
@@ -1278,12 +1279,13 @@ func _assert_interaction_highwater_survives_body_reentry() -> void:
 	})
 	source.bind(entity, 1)
 	await _drive(20)
+	crew_owner = _craft.get_crew_role_authority()
 	var rebound_suppressed: bool = _body(entity) == body \
 		and source.get_interaction_request_id() == retained_id \
 		and int(simulation.get_audit().get("interactions", 0)) == interactions_before \
 		and simulation.get_body_record(entity).get("seat_state") == &"standing" \
 		and not body.is_seated() \
-		and _server.get_crew_assignment(_client_peer_ids[0], entity).is_empty()
+		and crew_owner != null and crew_owner.get_assignment(_client_peer_ids[0], entity).is_empty()
 	_check(rebound_suppressed,
 		"peer_rebound admission preserves the retained body and source high-water mark without replaying Interact")
 	if not rebound_suppressed:
@@ -1334,10 +1336,28 @@ func _assert_one_fresh_crew_interaction(index: int, interactions_before: int, la
 	, 3.0)
 	await _drive(20)
 	var body := _body(entity)
+	var crew_owner := _craft.get_crew_role_authority()
+	var assignment: Dictionary = crew_owner.get_assignment(_client_peer_ids[index], entity) if crew_owner != null else {}
+	var audit := simulation.get_audit()
+	var record := simulation.get_body_record(entity)
+	var source_audit := source.get_audit()
+	print("REMOTE_BODY_FRESH_INTERACTION %s" % JSON.stringify({
+		"case": label,
+		"settled_seated": seated,
+		"body_seated": body != null and body.is_seated(),
+		"seat_state": record.get("seat_state", &"missing_body"),
+		"interaction_delta": int(audit.get("interactions", 0)) - interactions_before,
+		"seat_claim_delta": int(audit.get("seat_claims", 0)) - claims_before,
+		"crew_owner_present": crew_owner != null,
+		"assignment": assignment,
+		"source_interaction_id": source.get_interaction_request_id(),
+		"source_stream_id": source_audit.get("stream_id", -1),
+		"body_last_interaction_id": record.get("last_interaction_id", -1),
+	}))
 	_check(seated and body != null and body.is_seated()
-		and int(simulation.get_audit().get("interactions", 0)) == interactions_before + 1
-		and int(simulation.get_audit().get("seat_claims", 0)) == claims_before + 1
-		and not _server.get_crew_assignment(_client_peer_ids[index], entity).is_empty(),
+		and int(audit.get("interactions", 0)) == interactions_before + 1
+		and int(audit.get("seat_claims", 0)) == claims_before + 1
+		and not assignment.is_empty(),
 		"%s: the next genuinely fresh press claims a production crew chair exactly once" % label)
 
 
