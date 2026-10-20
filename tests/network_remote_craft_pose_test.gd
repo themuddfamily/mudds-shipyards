@@ -48,6 +48,7 @@ class CraftProxy extends CharacterBody3D:
 	var last_ship_command: ShipCommand = null
 	var command_source: ShipCommandSource = null
 	var barrel_roll_active := false
+	var landing_active := false
 
 	func get_ship_id() -> StringName:
 		return proxy_ship_id
@@ -60,6 +61,9 @@ class CraftProxy extends CharacterBody3D:
 
 	func is_barrel_roll_active() -> bool:
 		return barrel_roll_active
+
+	func is_landing_active() -> bool:
+		return landing_active
 
 
 var _host: GameFlow = null
@@ -112,6 +116,7 @@ func _run() -> void:
 		await _assert_b_host_publishes_the_pose()
 		await _assert_c_the_pilot_copy_is_reconciled()
 		_assert_c_neutral_pilot_rotation_settles()
+		_assert_c_docked_pilot_holds()
 		await _assert_d_the_crewmate_copy_interpolates()
 		await _assert_e_the_remote_pilot_is_seated()
 		await _assert_f_ownership_is_released()
@@ -1228,6 +1233,115 @@ func _assert_c_neutral_pilot_rotation_settles() -> void:
 		_check(previous_angle < deg_to_rad(2.0) and previous_angle < initial_angle,
 			"neutral rotation at throttle %.0f settles below two degrees within two seconds (%.4f degrees)"
 			% [throttle, rad_to_deg(previous_angle)])
+	proxy.queue_free()
+
+
+func _assert_c_docked_pilot_holds() -> void:
+	var proxy := _spawn_proxy("DockedPilotCopy")
+	var stream := PoseStream.new()
+	var residual_velocity := Vector3(0.357461, 0.0, 0.0)
+	var residual_offset := Vector3(0.494335, 0.0, 0.0)
+	proxy.velocity = residual_velocity
+	var untouched := proxy.global_transform
+	var verdict := stream.reconcile_pilot(proxy, SHIP_ID, 200.0, TICK)
+	_check(verdict.status == &"no_sample" and proxy.global_transform == untouched and proxy.velocity == residual_velocity,
+		"a pilot without an authoritative sample is left untouched")
+	var pose := PoseStream.build_pose_entry(proxy, SHIP_ID, _pilot_id(), 0)
+	var docked_operation := {
+		"engine": HeroShip.ENGINE_OFFLINE, "landed": true, "docked": true, "landing": false,
+		"canopy": 0.0, "canopy_open": false, "readout": "DOCKED", "readout_color": Color.WHITE,
+		"renderers": [],
+	}
+	pose["operation_presentation"] = docked_operation.duplicate(true)
+	pose["velocity_world"] = Vector3.ZERO
+	_check(stream.consume_movement_section([pose]) == 1, "docked pilot fixture accepts a valid authoritative operation")
+	var target := Transform3D(Basis(pose.rotation), pose.position)
+	proxy.global_position += residual_offset
+	proxy.global_basis = Basis(Quaternion(Vector3.UP, 0.02))
+	_check(residual_offset.length() < PoseStream.CORRECTION_DEADBAND_METERS \
+		and (residual_offset + residual_velocity * TICK).length() > PoseStream.CORRECTION_DEADBAND_METERS,
+		"the docked regression starts inside the deadband but would cross berth tolerance next tick")
+	var report := stream.advance_replica([proxy], proxy, null, 200.0, TICK)
+	_check(int(report.corrected) == 1 and int(report.snapped) == 0 \
+		and proxy.global_transform == target and proxy.velocity == Vector3.ZERO,
+		"a current committed dock restores exact authoritative pose and velocity below the prediction deadband")
+	proxy.global_position += proxy.velocity * TICK
+	var held_audit := stream.get_audit()
+	for frame in 4:
+		report = stream.advance_replica([proxy], proxy, null, 200.0, TICK)
+	_check(proxy.global_transform == target and proxy.velocity == Vector3.ZERO \
+		and int(stream.get_audit().corrections) == int(held_audit.corrections) \
+		and int(stream.get_audit().snaps) == int(held_audit.snaps),
+		"an unchanged docked sample holds across ticks without repeated correction or snap counts")
+	pose["pose_tick"] = 3
+	pose["operation_tick"] = 3
+	pose["velocity_world"] = Vector3(0.25, 0.0, 0.0)
+	_check(stream.consume_movement_section([pose]) == 1, "a current dock velocity update is admitted")
+	report = stream.advance_replica([proxy], proxy, null, 200.0, TICK)
+	_check(int(report.corrected) == 1 and proxy.global_transform == target and proxy.velocity == pose.velocity_world,
+		"a dock velocity-only correction copies host velocity without extrapolating the pose")
+	pose["velocity_world"] = Vector3.ZERO
+	# Every part of the committed-dock predicate is required.
+	for field: String in ["landed", "docked", "landing"]:
+		pose["pose_tick"] = int(pose.pose_tick) + 3
+		pose["operation_tick"] = pose.pose_tick
+		pose["operation_presentation"] = docked_operation.duplicate(true)
+		pose.operation_presentation[field] = field == "landing"
+		_check(stream.consume_movement_section([pose]) == 1, "%s boundary fixture is current" % field)
+		proxy.global_transform = target
+		proxy.global_position += residual_offset
+		proxy.velocity = residual_velocity
+		untouched = proxy.global_transform
+		verdict = stream.reconcile_pilot(proxy, SHIP_ID, 200.0, TICK)
+		_check(verdict.status == &"within_deadband" and proxy.global_transform == untouched \
+			and proxy.velocity == residual_velocity, "%s boundary preserves flight/landing prediction behavior" % field)
+	pose["pose_tick"] = int(pose.pose_tick) + 3
+	pose["operation_tick"] = pose.pose_tick
+	pose["operation_presentation"] = docked_operation.duplicate(true)
+	stream.consume_movement_section([pose])
+	proxy.landing_active = true
+	verdict = stream.reconcile_pilot(proxy, SHIP_ID, 200.0, TICK)
+	_check(verdict.status == &"landing" and proxy.global_transform == untouched and proxy.velocity == residual_velocity,
+		"a local landing controller retains its existing guard even with a committed host dock")
+	proxy.landing_active = false
+	stream.advance_replica([proxy], proxy, proxy, 200.0, TICK)
+	_check(proxy.global_transform == untouched and proxy.velocity == residual_velocity,
+		"the dock hold leaves a locally authoritative craft untouched")
+	var translation := Vector3(1200.0, -50.0, 75.0)
+	stream.notify_common_world_translation(translation)
+	target.origin += translation
+	stream.advance_replica([proxy], proxy, null, 200.0, TICK)
+	_check(proxy.global_transform == target and proxy.velocity == Vector3.ZERO,
+		"a dock hold uses the rebased decoded world pose")
+	# A newer airborne sample must resume the existing lead and blend policy.
+	pose["pose_tick"] = int(pose.pose_tick) + 3
+	pose["operation_tick"] = pose.pose_tick
+	pose["position"] = target.origin
+	pose["velocity_world"] = Vector3(6.0, 0.0, 0.0)
+	pose.operation_presentation["landed"] = false
+	pose.operation_presentation["docked"] = false
+	_check(stream.consume_movement_section([pose]) == 1, "a newer airborne operation replaces the committed dock")
+	proxy.global_position = target.origin + Vector3(3.0, 0.0, 0.0)
+	proxy.velocity = residual_velocity
+	var before := proxy.global_position
+	report = stream.advance_replica([proxy], proxy, null, 200.0, TICK)
+	var lead_ticks := clampf(maxf(0.0, stream.get_clock() - float(pose.pose_tick)) \
+		+ 0.2 / PoseStream.TICK_SECONDS + PoseStream.HELM_QUANTIZATION_TICKS, 0.0, PoseStream.MAX_LEAD_TICKS)
+	var predicted := target.origin + (pose.velocity_world as Vector3) * lead_ticks * TICK
+	var expected_position := before.lerp(predicted, 1.0 - exp(-PoseStream.POSITION_CORRECTION_RATE * TICK))
+	var expected_velocity := residual_velocity.lerp(pose.velocity_world, 1.0 - exp(-PoseStream.VELOCITY_CORRECTION_RATE * TICK))
+	_check(int(report.corrected) == 1 and proxy.global_position.is_equal_approx(expected_position) \
+		and proxy.velocity.is_equal_approx(expected_velocity), "a newer airborne sample resumes RTT prediction and exponential correction")
+	pose["pose_tick"] = int(pose.pose_tick) + 3
+	pose["operation_tick"] = pose.pose_tick
+	pose["operation_presentation"] = docked_operation.duplicate(true)
+	pose["destroyed"] = true
+	_check(stream.consume_movement_section([pose]) == 1, "the destroyed dock fixture is admitted")
+	untouched = proxy.global_transform
+	var before_velocity := proxy.velocity
+	verdict = stream.reconcile_pilot(proxy, SHIP_ID, 200.0, TICK)
+	_check(verdict.status == &"destroyed" and proxy.global_transform == untouched and proxy.velocity == before_velocity,
+		"a destroyed sample keeps its existing guard ahead of the dock hold")
 	proxy.queue_free()
 
 

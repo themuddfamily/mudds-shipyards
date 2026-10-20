@@ -93,7 +93,56 @@ func _run() -> void:
 		absf(player.global_position.y - deck_y) <= DECK_TOLERANCE and player.is_on_floor(),
 		"the pilot stands on the slab (%.3f m above it)" % (player.global_position.y - deck_y)
 	)
+	await _assert_on_foot_exterior_exit(game, player)
 	await _finish(game)
+
+
+func _assert_on_foot_exterior_exit(game: GameFlow, player: PlayerController) -> void:
+	var frame := Node3D.new()
+	frame.name = "SupportedPassengerExitFrame"
+	game.add_child(frame)
+	frame.global_transform = Transform3D(Basis.IDENTITY, player.global_position)
+	var waypoint := frame.global_transform * Transform3D(Basis.IDENTITY, Vector3(0.2, 0.0, 0.0))
+	var target := frame.global_transform * Transform3D(Basis.IDENTITY, Vector3(0.4, 0.0, 0.0))
+	var route: Array[Transform3D] = [waypoint]
+	var start := player.global_transform
+	var standing_layer := player.collision_layer
+	var standing_mask := player.collision_mask
+	var shape := player.get_node(^"PlayerCollision") as CollisionShape3D
+	_check(not player.begin_on_foot_exterior_exit(target, 0.15, null, route)
+		and player.global_transform == start and player.is_control_enabled(),
+		"walking exterior exit refuses a missing live frame without changing the supported body")
+	var completion := {"count": 0, "collision_ready": false}
+	player.disembarking_completed.connect(func() -> void:
+		completion.count += 1
+		completion.collision_ready = player.collision_layer == standing_layer \
+			and player.collision_mask == standing_mask and not shape.disabled,
+		CONNECT_ONE_SHOT)
+	var accepted := player.begin_on_foot_exterior_exit(target, 0.15, frame, route)
+	_check(accepted and not player.is_seated() and not player.is_control_enabled()
+		and player.global_transform == start and player.collision_layer == 0,
+		"supported walking passenger starts physical exit directly without acquiring a seat or teleporting")
+	if accepted:
+		# The shared disembark path must resolve its endpoint through the live
+		# reference frame, including a rebase during an already-running exit.
+		frame.global_position += Vector3.RIGHT * 0.1
+		var seated_seen := false
+		for _tick in 120:
+			await physics_frame
+			seated_seen = seated_seen or player.is_seated()
+			if int(completion.count) > 0:
+				break
+		_check(int(completion.count) == 1 and bool(completion.collision_ready)
+			and not seated_seen and not player.is_control_enabled(),
+			"walking exit completes once with collision restored and controls left to its coordinator")
+		_check(player.global_position.distance_to(target.origin + Vector3.RIGHT * 0.1) <= 0.01,
+			"walking exit follows the reference frame to its supported authored endpoint")
+		player.set_control_enabled(true)
+		await physics_frame
+		await physics_frame
+		_check(player.is_on_floor() and not shape.disabled,
+			"walking exterior exit resumes as an ordinary supported colliding body")
+	frame.queue_free()
 
 
 func _wait_until(predicate: Callable, frames: int) -> bool:

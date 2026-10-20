@@ -580,7 +580,10 @@ func _primitive_fields(record: Dictionary, keys: Array) -> Dictionary:
 func _node_identity(node: Node) -> Dictionary:
 	if not is_instance_valid(node):
 		return {"valid": false}
-	return {"valid": true, "instance_id": str(node.get_instance_id()), "path": str(node.get_path())}
+	# A retiring publication can retain a valid node after scene-tree removal.
+	# Keep its identity without asking the detached node for a scene path.
+	return {"valid": true, "instance_id": str(node.get_instance_id()),
+		"path": str(node.get_path()) if node.is_inside_tree() else ""}
 
 
 func _producer_state(source: ShipCommandSource) -> Dictionary:

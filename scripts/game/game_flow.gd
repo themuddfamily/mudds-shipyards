@@ -394,8 +394,8 @@ const FLIGHT_PATH_SAFE_HORIZONTAL_ASPECT_LIMIT := 0.52
 const FLIGHT_PATH_SAFE_VERTICAL_VIEWPORT_RATIO := 0.18
 const BOARDING_FALLBACK_REACH := 7.0
 const STATION_SEAT_MAX_REACH := 3.25
-# The cabin-adjacent engineer chair requires a deliberate look within 45 degrees.
-const HALYARD_ENGINEER_SEAT_MIN_FACING_DOT := cos(PI / 4.0)
+# Cabin-adjacent engineer chairs require a deliberate look within 45 degrees.
+const CABIN_ENGINEER_SEAT_MIN_FACING_DOT := cos(PI / 4.0)
 const OPPONENT_SOURCE_ID := 2101
 const RANGE_OPPONENT_NETWORK_ID: StringName = &"range_defence_interceptor"
 const STATION_DEFENSE_WEAPON_ID: StringName = &"perimeter_defense_pulse"
@@ -1076,6 +1076,8 @@ var _tutorial_prompt_seen_commit_serial := 0
 var _transition_busy := false
 var _network_exterior_canopy_ship: HeroShip
 var _network_exterior_canopy_generation := 0
+var _network_exterior_passenger := false
+var _network_exterior_player_id := 0
 var _network_exterior_recovery_pose := Transform3D.IDENTITY
 var _network_exterior_loss_pose := Transform3D.IDENTITY
 ## Every awaited boarding/disembarking coroutine captures this generation. A
@@ -10824,6 +10826,8 @@ func _release_network_exterior_canopy_motion(generation: int = -1) -> void:
 	var owner := _network_exterior_canopy_generation
 	_network_exterior_canopy_ship = null
 	_network_exterior_canopy_generation = 0
+	_network_exterior_passenger = false
+	_network_exterior_player_id = 0
 	if is_instance_valid(craft):
 		craft.release_network_canopy_motion(owner)
 
@@ -10836,14 +10840,17 @@ func _cancel_network_exterior_transition(craft_lost: bool = false) -> void:
 	var craft := _network_exterior_canopy_ship
 	var recovery_pose := _network_exterior_recovery_pose
 	var loss_pose := _network_exterior_loss_pose
+	var passenger_exit := _network_exterior_passenger
+	var player_id := _network_exterior_player_id
 	_release_network_exterior_canopy_motion()
 	_transition_generation += 1
 	_transition_busy = false
 	_piloting = false
-	if is_instance_valid(craft):
+	if is_instance_valid(craft) and not passenger_exit:
 		craft.set_piloted(false)
 		craft.get_camera().current = false
-	if is_instance_valid(player) and is_instance_valid(world):
+	if is_instance_valid(player) and is_instance_valid(world) \
+			and (not passenger_exit or player.get_instance_id() == player_id):
 		var exit_pose: Transform3D = loss_pose if craft_lost or not is_instance_valid(craft) or craft.is_destroyed() else recovery_pose
 		if not craft_lost and is_instance_valid(craft) and craft.is_inside_tree() \
 				and not craft.is_destroyed() and player.is_inside_tree():
@@ -10877,7 +10884,12 @@ func _is_transition_current(
 			or not player.is_inside_tree() or not is_ancestor_of(player):
 		return false
 	var craft := transition_ship as HeroShip
-	if active_ship != craft or craft.is_queued_for_deletion() or not craft.is_inside_tree() \
+	var passenger_exit := expected_phase == Phase.DISEMBARKING and _network_exterior_passenger
+	if passenger_exit and (_network_exterior_canopy_ship != craft \
+			or _network_exterior_canopy_generation != generation \
+			or player.get_instance_id() != _network_exterior_player_id):
+		return false
+	if (active_ship != craft and not passenger_exit) or craft.is_queued_for_deletion() or not craft.is_inside_tree() \
 			or not is_ancestor_of(craft) or craft.is_destroyed():
 		return false
 	if expected_phase == Phase.BOARDING:
@@ -11851,8 +11863,11 @@ func _consume_network_ember_passenger_retirement(epoch: int, ship_id: StringName
 
 ## Shared exterior motion after local physical acceptance or a confirmed
 ## remote departure. It owns avatar/camera presentation, never a berth lease.
-func _disembark_ship_to_exterior(transition_ship: HeroShip) -> void:
-	if not is_instance_valid(transition_ship) or active_ship != transition_ship:
+func _disembark_ship_to_exterior(transition_ship: HeroShip, passenger_exit: bool = false) -> void:
+	if not is_instance_valid(transition_ship) \
+			or (not passenger_exit and active_ship != transition_ship) \
+			or (passenger_exit and (not transition_ship is JovianLightFreighter \
+				or not _network_client_boarding_is_live())):
 		return
 	var entry := _get_ship_entry_descriptor(transition_ship)
 	var entry_noun := str(entry.get("noun", "canopy"))
@@ -11860,13 +11875,22 @@ func _disembark_ship_to_exterior(transition_ship: HeroShip) -> void:
 	_transition_busy = true
 	_capture_solo_safe_recovery_context()
 	var transition_generation := _begin_transition_generation()
-	if _network_client_boarding_is_live() and transition_ship.acquire_network_canopy_motion(transition_generation):
+	var canopy_acquired := _network_client_boarding_is_live() \
+		and transition_ship.acquire_network_canopy_motion(transition_generation)
+	if canopy_acquired or passenger_exit:
 		_network_exterior_canopy_ship = transition_ship
 		_network_exterior_canopy_generation = transition_generation
+		_network_exterior_passenger = passenger_exit
+		_network_exterior_player_id = player.get_instance_id()
 		# Main teardown can reach session cleanup after its craft subtree has
 		# left the tree. Retain supported recovery poses before any await.
 		_network_exterior_recovery_pose = player.settle_exit_onto_support(transition_ship.get_exit_transform())
 		_network_exterior_loss_pose = world.get_player_spawn()
+	if passenger_exit:
+		player.set_control_enabled(false)
+		if not canopy_acquired:
+			_cancel_network_exterior_transition()
+			return
 	phase = Phase.DISEMBARKING
 	_present_boarding_confirmation(&"disembarking", transition_ship)
 	hud.set_interaction("", false)
@@ -11877,15 +11901,24 @@ func _disembark_ship_to_exterior(transition_ship: HeroShip) -> void:
 	if not _is_transition_current(transition_generation, transition_ship, Phase.DISEMBARKING):
 		_release_network_exterior_canopy_motion(transition_generation)
 		return
-	_clear_bomber_payload_loop(&"pilot_disembarked")
-	transition_ship.set_piloted(false)
-	transition_ship.get_camera().current = false
+	if not passenger_exit:
+		_clear_bomber_payload_loop(&"pilot_disembarked")
+		transition_ship.set_piloted(false)
+		transition_ship.get_camera().current = false
 	player.set_camera_active(true)
 	var exterior_waypoints := transition_ship.get_exterior_exit_waypoints()
-	if not player.begin_disembark(
-			player.settle_exit_onto_support(transition_ship.get_exit_transform()),
-			disembarking_motion_time,
-			transition_ship if not exterior_waypoints.is_empty() else null, exterior_waypoints):
+	if passenger_exit:
+		# A berth holder starts aft of the pilot's seat-swap reach. Clear the
+		# cockpit jamb before joining the unchanged six-point hatch/stair route.
+		exterior_waypoints.push_front(transition_ship.global_transform \
+			* Transform3D(Basis.IDENTITY, Vector3(-1.10, 0.52, -6.70)))
+	var exit_pose: Transform3D = player.settle_exit_onto_support(transition_ship.get_exit_transform())
+	var motion_started: bool = player.begin_on_foot_exterior_exit(
+		exit_pose, disembarking_motion_time, transition_ship, exterior_waypoints
+	) if passenger_exit else player.begin_disembark(
+		exit_pose, disembarking_motion_time,
+		transition_ship if not exterior_waypoints.is_empty() else null, exterior_waypoints)
+	if not motion_started:
 		if _network_exterior_canopy_generation == transition_generation:
 			_cancel_network_exterior_transition()
 			return
@@ -11897,7 +11930,8 @@ func _disembark_ship_to_exterior(transition_ship: HeroShip) -> void:
 	if not _is_transition_current(transition_generation, transition_ship, Phase.DISEMBARKING):
 		_release_network_exterior_canopy_motion(transition_generation)
 		return
-	_authorize_cinder_cargo_terminal_actor(transition_ship)
+	if not passenger_exit:
+		_authorize_cinder_cargo_terminal_actor(transition_ship)
 	audio.play_canopy(false)
 	transition_ship.set_canopy_open(false, canopy_motion_time)
 	await transition_ship.canopy_motion_finished
@@ -11919,6 +11953,14 @@ func _disembark_ship_to_exterior(transition_ship: HeroShip) -> void:
 	if hud.has_method("clear_hero_component_ship"):
 		hud.clear_hero_component_ship()
 	hud.set_interaction("", false)
+	if passenger_exit:
+		phase = Phase.COMPLETE if _guided_activity_complete else Phase.APPROACH_SHIP
+		hud.set_objective("Explore the shipyard or board another spacecraft")
+		hud.toast("Back on the deck", "The session host released your berth aboard %s" % transition_ship.get_display_name())
+		audio.set_on_foot(true)
+		audio.play_ui_confirm()
+		_transition_busy = false
+		return
 	if (
 		transition_ship == ship
 		and not _sandbox_sortie
@@ -14738,7 +14780,19 @@ func _release_network_client_boarding_presentation(
 		if _boarding_area == area:
 			_boarding_area = null
 		return
+	# The host's accepted operation sample selects the physical route. An
+	# observer's local flight flags are not authoritative landed/engine state.
+	var sample := _network_craft_pose_stream.latest_sample(craft.get_ship_id())
+	var operation := sample.get("operation_presentation", {}) as Dictionary
+	var physical_passenger_exit := craft is JovianLightFreighter \
+		and not sample.is_empty() and not bool(sample.get("destroyed", false)) \
+		and bool(operation.get("landed", false)) and bool(operation.get("docked", false)) \
+		and not bool(operation.get("landing", true)) \
+		and StringName(operation.get("engine", &"")) == HeroShip.ENGINE_OFFLINE
 	_release_cabin_occupancy()
+	if physical_passenger_exit:
+		_disembark_ship_to_exterior(craft, true)
+		return
 	if is_instance_valid(area):
 		area.release_reservation(player)
 	if _boarding_area == area:
@@ -18310,11 +18364,14 @@ func _find_station_interaction_candidate() -> Node3D:
 			var facing_dot: float = facing.dot(offset / distance)
 			if facing_dot < 0.05:
 				continue
-			# This chair borders the hatch and ordinary walking cabin route.
-			# Only deliberately aiming at it replaces those existing interactions.
-			if candidate is ShipCrewSeat and candidate.get_ship() is HalyardCrewTransport \
-					and candidate.get_seat_id() == HalyardCrewTransport.ENGINEER_SEAT_ID \
-					and facing_dot < HALYARD_ENGINEER_SEAT_MIN_FACING_DOT:
+			# These chairs border the hatch and ordinary walking cabin route.
+			# Only deliberately aiming at them replaces those existing interactions.
+			if candidate is ShipCrewSeat \
+					and ((candidate.get_ship() is HalyardCrewTransport \
+						and candidate.get_seat_id() == HalyardCrewTransport.ENGINEER_SEAT_ID) \
+						or (candidate.get_ship() is JovianLightFreighter \
+							and candidate.get_seat_id() == JovianLightFreighter.ENGINEER_SEAT_ID)) \
+					and facing_dot < CABIN_ENGINEER_SEAT_MIN_FACING_DOT:
 				continue
 			# Favour what the player is looking at without making a slightly
 			# off-centre nearby control impossible to use.
