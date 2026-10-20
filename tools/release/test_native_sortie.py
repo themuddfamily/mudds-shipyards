@@ -2405,6 +2405,65 @@ class StationDefenseSafetyTests(unittest.TestCase):
             s['board'].update(change)
             with self.assertRaisesRegex(AssertionError, 'actual E Deploy'): pilot.validate_observation(s)
 
+    def pending_deploy(self):
+        pilot = native.StationDefensePilot()
+        s = self.baseline()
+        s.update(velocity=[0, 0, 0], walk_forward=[0, 0, -1])
+        s['board']['last_result'] = {}
+        pilot.validate_observation(s)
+        pilot.frame = s['frame']
+        pilot.tap('e', 0)
+        pilot.stage = 'deploy_wait'
+        pilot.request_frame = s['frame']
+        pilot.receipts['deploy_press'] = pilot.receipt(s)
+        return pilot, s
+
+    def deploy_tick(self, pilot, s, **changes):
+        s = copy.deepcopy(s)
+        s.update(sequence=s['sequence']+1, frame=s['frame']+1, **changes)
+        pilot.validate_observation(s)
+        controls = pilot.update(s, (s['frame']-100)/60)
+        return s, controls
+
+    def test_deploy_empty_pending_waits_for_actual_e_and_accepted_generation(self):
+        pilot, s = self.pending_deploy()
+        s, controls = self.deploy_tick(pilot, s)
+        self.assertEqual(pilot.stage, 'deploy_wait')
+        self.assertEqual(controls[0], {'e'})
+        self.assertEqual(pilot.tap_frame, 100)
+        self.assertIsNone(pilot.deployed)
+        s = copy.deepcopy(s)
+        s['board']['last_result'] = {'accepted': True}
+        s['defense']['activity'].update(state_id='active', generation=1, elapsed_seconds=.016)
+        s, _ = self.deploy_tick(pilot, s, native_interact=True)
+        self.assertEqual(pilot.stage, 'walk_arrow')
+        self.assertEqual(pilot.deployed['defense']['activity']['generation'], 1)
+        self.assertEqual(pilot.tap_frame, 100)
+        self.assertIsNone(pilot.result)
+
+    def test_deploy_nonempty_rejection_stops_only_after_actual_e(self):
+        pilot, s = self.pending_deploy()
+        s = copy.deepcopy(s)
+        s['board']['last_result'] = {'accepted': False, 'reason': 'out_of_range'}
+        s, _ = self.deploy_tick(pilot, s)
+        self.assertEqual(pilot.stage, 'deploy_wait')
+        with self.assertRaisesRegex(AssertionError, 'physical Deploy rejected; no retry'):
+            self.deploy_tick(pilot, s, native_interact=True)
+        self.assertEqual(pilot.tap_frame, 100)
+        self.assertIsNone(pilot.result)
+
+    def test_deploy_empty_pending_retains_original_90_frame_bound_without_retap(self):
+        pilot, s = self.pending_deploy()
+        for _frame in range(90):
+            s, _ = self.deploy_tick(pilot, s)
+        self.assertEqual(s['frame'], pilot.request_frame+90)
+        self.assertEqual(pilot.stage, 'deploy_wait')
+        self.assertEqual(pilot.tap_frame, 100)
+        self.assertIsNone(pilot.tap_key)
+        with self.assertRaisesRegex(AssertionError, 'physical E did not deploy; no retry'):
+            self.deploy_tick(pilot, s)
+        self.assertEqual(native.CAP, 300)
+
     def test_final_input_requires_prior_validation_and_ui_exit_is_not_prefix_success(self):
         pilot, s = self.pilot_active()
         with self.assertRaisesRegex(AssertionError, 'final validated'): pilot.update(copy.deepcopy(s), 1)

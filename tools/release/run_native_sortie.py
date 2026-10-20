@@ -2792,7 +2792,13 @@ class StationDefensePilot(Pilot):
             if self.deployed is not None:
                 self.begin_walk('walk_arrow', [[9, .18, 12.5], [-35, .18, 13.5], [-35, .18, 20]], s)
             else:
-                require(s['board']['last_result'].get('accepted', False), 'physical Deploy rejected; no retry')
+                result = s['board']['last_result']
+                deploy_edge = any(edge['pressed'] and edge['sample']['frame'] > self.receipts['deploy_press']['frame']
+                                  for edge in self.native_edges)
+                # XTest dispatch can precede Godot's first observed E edge.
+                # An empty receipt is still pending, never an actual rejection.
+                require(not (deploy_edge and result and not result.get('accepted', False)),
+                        'physical Deploy rejected; no retry')
                 require(self.frame <= self.request_frame + 90, 'physical E did not deploy; no retry')
         elif self.stage == 'board_wait':
             if s['piloted'] and s['seated'] and s['active_ship'] and s['seated_at_pilot'] and not s['transition_busy']:
