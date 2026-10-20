@@ -78,6 +78,18 @@ diagnostic or release automation. The
 records the earlier20 candidates; accepted Breach, Halyard, docked-pilot and
 passenger-role work plus superseded Jovian exit/handback callers remove six.
 
+**Selected tooltip branch accounting: 17:15–17:30 UTC, 15min.**
+Preserve all five unique commits/seven files of fix/exit-tooltip-order-20261020
+in a verified bundle, patch and exact source archive, with a pushed withheld tag.
+Current evidence is INCONCLUSIVE for the active-tooltip regression; the full
+private Observation route pass does not establish the missing visible-tooltip
+lifecycle. Keep runtime unmerged and WALK-OBSERVATION/tooltip repair open.
+One agent owns source/evidence accounting and archival files; root independently
+verifies bytes/history, live tips/ownership and tag before exact branch deletion.
+No engine run, implementation, acceptance change or checkpoint. Record original
+814.146s checks and actual missing hover owner/pointer/window/foreground state.
+Finish with commit/push and the exact retained requirement, not feature completion.
+
 **Passenger-role fix and full yaw/handback accepted; both related branches closed.**
 Source007024839 merged and pushed in main2f75e834b. Confirmed standing passenger
 HUD uses the current cabin claim/craft, preserving pilot/crew precedence and
