@@ -74,7 +74,7 @@ production admission before writing another diagnostic selector.
 **06:49–07:49UTC /60min** including implementation/review/checkpoint/cleanup;
 implementation estimate20–30min. One high implementation agent owns existing
 heavy_breach_activity_board.gd, encounter_scenario_director.gd, game_flow.gd,
-existing board audio binding if needed, plus focused tests/UIDs. Add existing
+existing board audio binding/presenter if needed, plus focused tests/UIDs. Add existing
 Paired Wing encounter as third combat-board contract after Heavy Breach/Torpedo,
 with accurate on-foot arm/cancel, departure-gated launch, existing two-member
 suppression/flank roster, HUD objective/terminal feedback and abort cleanup.
@@ -89,8 +89,10 @@ Courier candidates; future integration must retain both named outcomes.
 
 Focused checks protect new admission/lifecycle, not full parent completion:
 clean import180s; existing encounter_scenario_director_test.gd120s and
-heavy_breach_activity_board_test.gd120s; one focused actual-Main Wing admission
-integration120s; relevant existing board HUD/audio tests120s each. All headless/
+heavy_breach_activity_board_production_test.gd120s;
+paired_wing_game_flow_admission_test.gd120s;
+heavy_breach_activity_hud_test.gd120s and
+audio/heavy_breach_activity_board_audio_integration_test.gd120s. All headless/
 Dummy unless the existing suite declares display input, then isolated Xvfb/
 x11/dummy renderer/Dummy audio at the same cap. Freeze exact test names before
 engines. Require real registered roster, ordinary phase/authority gating,
