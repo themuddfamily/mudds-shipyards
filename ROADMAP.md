@@ -80,17 +80,19 @@ records the earlier 20 candidates; accepted Breach and Halyard closeouts and the
 archived superseded Jovian caller remove three.
 This cleanup changes branch ownership, not the number of completed roadmap outcomes.
 
-**Selected missing interaction observation: 16:12–16:27 UTC, 15min.**
-Use the existing docked-pilot branch and original full caller once to record the
-actual boarding/station candidates, nearby controls, range, area availability/
-reservation and reboard suppression at the failing pre-E boundary. Add only
-these read-only fields to its existing receipt; no route, aim, input, predicate,
-production behavior or original deadline changes. This is a targeted diagnostic
-reproduction of the named missing fact, not exit acceptance or a gameplay fix.
-Import/compile then one original300s-suite/360s-outer case; preserve terminal
-failure and all raw data. No export, unchanged second run or adjacent probe.
-Finish by pushing the accounted source/result and cleaning owned scratch.
-Prior951.245s and original parser failures remain; no cost reset.
+**Interaction diagnostic closed; candidate remains unmerged.**
+One unchanged original journey on `2055f1f52` reproduced the failure and captured
+the missing fact: the actual Jovian boarding candidate is valid/available,
+reserved to this player and within reach (6.639m < 7m), but the nearby engineer
+chair `passenger_port_01` is selected as station candidate at facing dot0.348.
+This competing station makes the original pre-Interact predicate false. No E
+was pressed, so the production physical exit remains unexercised by this journey.
+Import20.669s and compile16.986s pass; the single full case fails142.894s.
+New180.549s plus prior951.245s =1131.794s current stages; original parser failures
+remain separate. No second run, export or new branch. The supported next repair
+is interaction selection on this same existing branch, retaining deliberate
+engineer-chair access and the full original exit acceptance.
+[Diagnostic result](docs/history/ROADMAP_DELIVERIES.md#jovian-exit-interaction-conflict-observed--2026-10-20).
 
 **Physical passenger-exit repair remains withheld at interaction discovery.**
 Existing `fix/docked-pilot-hold-20261020` is pushed on de57a6e15 and unmerged.
@@ -286,7 +288,7 @@ contracts and cumulative attempt records remain in the retained history.
 | --- | --- | --- |
 | PLAY-DEFENSE ordinary route /13 | Candidatea480c0fbb pushed/unmerged: actual E Deploy accepted, but corrective walk_arrow stationary33.15s and whole34s timeout before boarding. | PARK after original35.963s and one corrective84.239s failure; cumulative406.401s including16 passing stages. No player kill/payment/home/reset/UIexit; no second repair/retry selected. Unique candidates/results preserved; owned scratch cleaned28.24min. |
 | Ember first-relay cold cut /14,31 | [Archive923d7b3](docs/history/ROADMAP_DELIVERIES.md#ember-first-relay-cold-cut--runtime-completes-parent-comparison-fails) FAIL312.812s at parent exact durable-state comparison; arm-9/resume0, engine diagnostics0, runtime continuation and receipts0→1. Only two compared coordinate scalars differ by one binary64 ULP. | STOPPED; no repair/retry/cap increase or retroactive comparison relaxation. Contract review and exact-runtime caller correction complete; corrected full package run NOT_RUN and requires a separately frozen selection. No full-cut/location/canonical/installed acceptance; all owned scratch cleaned9.50min within20min. |
-| Jovian postdock exit /16,20,26 | [Candidate de57a6e15](docs/history/ROADMAP_DELIVERIES.md#physical-jovian-passenger-exit--focused-pass-ordinary-interaction-not-found--2026-10-20): compile/pose322/focused exit11 PASS. Full original143.680s FAIL at8s interaction discovery after host-confirmed cabin walk; E not pressed, production exit unexercised by journey. Unmerged/withheld, exports NOT_RUN. | STOPPED. Combined951.245s stages plus original parser failures retained. Missing actual boarding/station candidate, reach and area availability at intended E; no further repair/retry or cap/tolerance increase selected. All28 identities absent;211 profile entries verified; owned scratch cleaned19.06min within original45min. |
+| Jovian postdock exit /16,20,26 | Candidate2055f1f52 remains unmerged. Prior pose322/focused exit11 PASS. One diagnostic full142.894s FAIL before E: available boarding candidate is masked by engineer-chair station selection. Production exit remains unexercised by journey. | Diagnostic closed; no second run/export. Combined1131.794s plus original parser failures. All22 identities absent;170 archive entries verified; owned scratch removed5.77min/15min. Next repair must resolve intentional exit aim versus peripheral chair selection and preserve the original full acceptance. |
 | Habitat common-entry view /9,12 | [Source8a6339b91](docs/history/ROADMAP_DELIVERIES.md#habitat-arrival-view--readback-timed-out-before-image): import passes; full-Main player-height readback times out180.842s before PNG or view metadata. Cumulative201.494s; no observed defect/no-finding. | PARKED. Concrete supported capture-boundary change before selection; no renderer/room substitute, cap increase or unchanged retry. Actual eye stage was not proved reached; accepted Habitat runtime scopes remain. |
 | Courier clear /11 | [Candidatecb9d76fa5](docs/history/ROADMAP_DELIVERIES.md#courier-ordinary-clear--escaped-without-player-damage), pushed/unmerged: prechecks pass; ordinary attempt fails70.377s, ESCAPED at1400m, hull78/78, no player hit/kill or home completion. Cumulative165.917s. | PARKED/withheld. Fresh Courier-window emission/ray/resolver facts are missing; generic shot receipt can be stale. No weapon/aim cause established, repair/retry or public checkpoint selected. Preserve original route/caps; other Courier outcomes need separate selection. |
 | Matching RPC-cache templates /25,32 | [Linux built; Windows cold/incremental compilation timed out](docs/history/ROADMAP_DELIVERIES.md#matching-rpc-cache-templates--stopped-at-windows-compilation-budget). No accepted matching pair; callback repair is unverified. | PARKED; no further compilation or dependent browser attempt selected. Existing recipe/JSON fixture remain delivered; empty callable metadata and similar Window errors establish no cause. |

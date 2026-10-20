@@ -17608,3 +17608,53 @@ merged or branch deleted to improve counts. Public c78e0ac unchanged; no new
 checkpoint. Full passenger exit/reboard/pilot exit/reclaim/redeparture, other
 craft and all36 parent outcomes/ten phase gates stay open. Native/GPU/device/
 audio/human/final gates remain NOT_RUN; GitHub Actions remains disabled.
+
+
+## Jovian exit interaction conflict observed — 2026-10-20
+
+The existing docked-pilot candidate2055f1f52 remains pushed and unmerged.
+This16:12–16:27UTC selection added33 receipt-only lines and reproduced the
+original full journey once with unchanged route, aim, controls, predicates and
+caps. No gameplay fix, new branch, export or second run. The read-only receipt
+is diagnostic, not acceptance of physical exit.
+
+Import20.668846968s and compile16.986053232s pass. Full ordinary host/two-client
+case fails142.894463217s at the same pre-E interaction predicate. Actual Jovian
+boarding candidate is valid, available, reserved to this player, boardable,
+OFFLINE/not locally piloted, within6.638959885m of7m fallback reach and not
+reboard-blocked. Competing station candidate is engineer passenger_port_01 at
+1.800397635m, facing dot0.348077744; source admits station candidates above0.05.
+Both pre-E and first-failure receipts capture the same selected identities.
+Thus the station-null conjunct fails, rather than boarding discovery/range.
+
+No E request occurred (initial boarding requests/confirmations remain1/1).
+No exit samples, route or motion observed. Other pilot wait and host retirement
+failures are consequences of this unreached boundary. All three peers exit1;
+no success marker. Host release timeout records the first shared abort; client_b
+records its still-false interaction predicate14ms later. The pilot's local
+authority predicate remains true. Existing off-tree get_path diagnostics remain disclosed.
+The original ground endpoint, claim/body retirement, same-player supported
+walking and retained-pilot/three-peer completion criteria remain required.
+
+New180.549363417s plus prior951.244981547s =1131.794344963s current stages;
+original8054/e147 parser failures and unknown earlier setup remain separate.
+This is diagnostic cost, not product progress. The supported next source repair
+is ordinary exit aim competing with peripheral engineer-seat discovery, while
+preserving deliberate chair access. No repair is claimed by this diagnostic.
+
+Raw result root:
+`/srv/mudds-work/jovian-interaction-discovery-20261020/results/`.
+The existing branch inventory remains15 local/18 live remote heads including
+main (17 non-main remote): three gameplay-fix candidates and14 automation/
+diagnostic/release candidates. No new branch was created for this attempt.
+Latest playable remains c78e0ac; hosted CI and native/GPU/human gates NOT_RUN.
+
+Independent source review GO for diagnostic-only scope; terminal review STOP
+for acceptance and confirms the observed competing-station cause. Verified
+archive preserves170 entries and59 direct peer raw files;
+SHA256 `efcab0a51d5515cdf1c3fbcfd3e937200708b1b6b068cc3268b6421b2b6898d9`.
+All22 union PID/start identities absent, owners terminal, no survivors.
+Worktree/private profiles/helpers removed; only results remains. Cleanup
+5.77min from16:12, within selected15min. Candidate branch remains
+intentionally retained because its gameplay change is unaccepted; no deletion
+is presented as completed product work.
