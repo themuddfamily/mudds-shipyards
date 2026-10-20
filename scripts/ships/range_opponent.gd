@@ -365,6 +365,8 @@ const FORWARD_PRONG_POSITIONS := [
 ## Instance-owned, so the meshes are freed with the craft and never outlive it.
 var _chamfered_cylinder_cache: Dictionary = {}
 var _active := false
+var _encounter_movement_frame: Node3D
+var _encounter_movement_bounds := AABB()
 var _built := false
 var _hull_damage: RangeOpponentComponentDamageAdapter
 var _damage_audio_binding: RefCounted
@@ -494,6 +496,7 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	clear_encounter_movement_bounds()
 	_tearing_down = true
 	_unbind_damage_audio()
 	_clear_destruction_effects()
@@ -513,6 +516,7 @@ func _physics_process(delta: float) -> void:
 		_cancel_evasive_maneuver(&"target_awareness_lost")
 		_cancel_pressure_turn(&"target_awareness_lost")
 		velocity = velocity.move_toward(Vector3.ZERO, acceleration * mobility * 0.45 * delta)
+		velocity = _bound_encounter_velocity(velocity, delta)
 		move_and_slide()
 		return
 
@@ -543,6 +547,7 @@ func _physics_process(delta: float) -> void:
 		acceleration * mobility * delta
 	)
 	_update_attitude(target_direction, delta)
+	velocity = _bound_encounter_velocity(velocity, delta)
 	move_and_slide()
 	_resolve_slide_collisions()
 	_update_weapon(target_position, target_direction, distance, delta)
@@ -569,6 +574,53 @@ func _process(delta: float) -> void:
 	):
 		visible = false
 		_schedule_dormant_presentation_release()
+
+
+## An encounter may bound its own roster's movement in its local frame. Other
+## opponents retain their ordinary unbounded steering and coast.
+func set_encounter_movement_bounds(frame: Node3D, local_bounds: AABB) -> bool:
+	if not is_instance_valid(frame) or not frame.is_inside_tree() \
+		or frame.is_queued_for_deletion() or not frame.is_ancestor_of(self) \
+		or not local_bounds.position.is_finite() or not local_bounds.size.is_finite() \
+		or local_bounds.size.x <= 0.0 or local_bounds.size.y <= 0.0 or local_bounds.size.z <= 0.0:
+		return false
+	_encounter_movement_frame = frame
+	_encounter_movement_bounds = local_bounds
+	return true
+
+
+func clear_encounter_movement_bounds() -> void:
+	_encounter_movement_frame = null
+	_encounter_movement_bounds = AABB()
+
+
+func _bound_encounter_velocity(step_velocity: Vector3, delta: float) -> Vector3:
+	if not is_instance_valid(_encounter_movement_frame) \
+		or not _encounter_movement_frame.is_inside_tree() \
+		or _encounter_movement_frame.is_queued_for_deletion() \
+		or not _encounter_movement_frame.is_ancestor_of(self) \
+		or not is_finite(delta) or delta <= 0.0 or not step_velocity.is_finite():
+		return step_velocity
+	var frame := _encounter_movement_frame.global_transform
+	if not frame.is_finite() or is_zero_approx(frame.basis.determinant()):
+		return step_velocity
+	var local_origin := frame.affine_inverse() * global_position
+	# Never pull an externally placed or invalid origin back into the arena.
+	# The encounter's existing public abort remains responsible for those exits.
+	if not local_origin.is_finite() or not _encounter_movement_bounds.has_point(local_origin):
+		return step_velocity
+	var local_velocity := frame.basis.inverse() * step_velocity
+	# AABB excludes its upper face. Leave a solver-sized numerical margin there
+	# without introducing motion when an already-valid origin is near an edge.
+	var margin := maxf(safe_margin, 0.001)
+	for axis in 3:
+		var inset := minf(margin, _encounter_movement_bounds.size[axis] * 0.25)
+		var lower := _encounter_movement_bounds.position[axis] + inset
+		var upper := _encounter_movement_bounds.end[axis] - inset
+		var minimum_speed := minf(0.0, (lower - local_origin[axis]) / delta)
+		var maximum_speed := maxf(0.0, (upper - local_origin[axis]) / delta)
+		local_velocity[axis] = clampf(local_velocity[axis], minimum_speed, maximum_speed)
+	return frame.basis * local_velocity
 
 
 ## Assigns the craft that the range defender should pursue and engage.

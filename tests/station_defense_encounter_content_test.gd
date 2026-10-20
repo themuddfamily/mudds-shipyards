@@ -1813,6 +1813,71 @@ func _test_checked_in_encounter_content() -> void:
 		"content owns no hidden clock, damage path, internal authority, or resolver node"
 	)
 
+	# Exercise the relief movers for real physics time after all original tactic
+	# assertions. Their authored outer stand-off exceeds the arena's depth, so
+	# unbounded retreat used to abort this encounter before the pair was cleared.
+	var movement_reset := content.reset(content.get_generation())
+	var movement_start := content.start(int(movement_reset.activity.generation))
+	var movement_generation := int(movement_start.activity.generation)
+	var movement_alpha_terminal := await _shoot(authority, attacker, alpha)
+	var movement_relief := content.advance_physics(2.5, movement_generation)
+	_check(
+		movement_reset.accepted and movement_start.accepted
+		and movement_alpha_terminal.destroyed and movement_relief.accepted
+		and beta.is_active() and gamma.is_active()
+		and beta.can_process() and gamma.can_process()
+		and beta.is_physics_processing() and gamma.is_physics_processing(),
+		"same renewed roster enters relief before the sustained autonomous movement regression"
+	)
+	var relief_origins_contained := true
+	var relief_motion_continuous := true
+	var relief_steps := 0
+	var gamma_travelled := 0.0
+	var gamma_touched_escape_face := false
+	var previous_origins: Array[Vector3] = [beta.global_position, gamma.global_position]
+	var sustained_relief_result: Dictionary = {}
+	for _step in 300:
+		await physics_frame
+		var physics_delta: float = gamma.get_physics_process_delta_time()
+		var pair: Array[RangeOpponent] = [beta, gamma]
+		for index in pair.size():
+			var entity := pair[index]
+			var local_origin := content.to_local(entity.global_position)
+			relief_origins_contained = relief_origins_contained and local_origin.is_finite() \
+				and StationDefenseEncounterContent.HOSTILE_ORIGIN_LEASH.has_point(local_origin)
+			relief_motion_continuous = relief_motion_continuous \
+				and entity.global_position.distance_to(previous_origins[index]) \
+					<= StationDefenseEncounterContent.BREAKER_CHASE_SPEED * physics_delta + 0.01
+			if entity == gamma:
+				gamma_travelled += entity.global_position.distance_to(previous_origins[index])
+				gamma_touched_escape_face = gamma_touched_escape_face \
+					or local_origin.z <= StationDefenseEncounterContent.HOSTILE_ORIGIN_LEASH.position.z + 0.01
+			previous_origins[index] = entity.global_position
+		sustained_relief_result = content.advance_physics(physics_delta, movement_generation)
+		relief_steps += 1
+		if not bool(sustained_relief_result.get("accepted", false)) \
+			or StringName(content.get_snapshot().host.activity.state_id) != &"active":
+			break
+	_check(
+		relief_steps == 300 and relief_origins_contained and relief_motion_continuous
+		and gamma_travelled > 1.0 and gamma_touched_escape_face
+		and bool(sustained_relief_result.get("accepted", false))
+		and content.get_snapshot().host.activity.state_id == &"active"
+		and content.get_snapshot().last_leash_exit.is_empty()
+		and beta.is_active() and gamma.is_active()
+		and beta.can_process() and gamma.can_process()
+		and beta.is_physics_processing() and gamma.is_physics_processing(),
+		"five seconds of enabled real relief motion reaches Gamma's old escape face while staying inside the unchanged leash without relocation"
+	)
+	# Normal real resolver kills still retire these same bounded actors.
+	var movement_beta_terminal := await _shoot(authority, attacker, beta)
+	var movement_gamma_terminal := await _shoot(authority, attacker, gamma)
+	_check(
+		movement_beta_terminal.destroyed and movement_gamma_terminal.destroyed
+		and not beta.is_active() and not gamma.is_active(),
+		"bounded relief actors retain ordinary resolver destruction and retirement"
+	)
+
 	root.remove_child(content)
 	content.queue_free()
 	root.remove_child(attacker)

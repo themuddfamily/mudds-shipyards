@@ -2180,6 +2180,9 @@ func _wire_hostile_combat(errors: PackedStringArray) -> void:
 		if not is_instance_valid(entity) or source_id <= 0:
 			_append_unique(errors, "hostile source identity unavailable: %s" % key)
 			continue
+		if not entity.set_encounter_movement_bounds(self, HOSTILE_ORIGIN_LEASH):
+			_append_unique(errors, "hostile movement bounds unavailable: %s" % key)
+			continue
 		entity.set_target(_protected_asset)
 		if entity is StandoffPicketOpponent:
 			var picket := entity as StandoffPicketOpponent
