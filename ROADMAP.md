@@ -99,7 +99,7 @@ not adopted. Hauler still waits on its already-asked stock choice.
 
 ### Selected Help CLOSE hover/pressed-text fix
 
-ACCESS-HELP / parents12,29; independent of parked Wing. **07:42–08:22UTC/40min**
+ACCESS-HELP / parents12,29; independent of parked Wing. **07:41–08:21UTC/40min**
 including implementation/review, focused checks, paired checkpoint and cleanup.
 Source finding: HelpCloseButton uses NOMINAL pressed fill darkened0.35, about
 #40969b; even pure-white text reaches only3.487:1, below existing4.5 regular/
