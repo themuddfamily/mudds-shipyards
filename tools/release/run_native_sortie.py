@@ -3896,6 +3896,21 @@ class PairedWingPilot(SandboxPilot):
             require(result['accepted'] and result['reason'] == 'sortie_armed',
                     'actual board E arm rejected: ' + result['reason'])
 
+    def begin_home_landing(self, s, now):
+        # Capture is the actual berth's admission, not an arbitrary return waypoint.
+        # Keep every original strict alignment, heading, attitude and speed guard.
+        forward = [-v for v in s['back']]
+        alignment = dot(unit(sub(s['parked'], s['position'])), forward)
+        if not (self.departed and s['capture'] and alignment > .995
+                and s['upright'] > .94 and norm(s['velocity']) <= .35
+                and dot(forward, self.parked_forward) < -.95):
+            return False
+        self.tap('l', now)
+        if self.tap_key != 'l':
+            return False
+        self.enter('wing_land', s)
+        return True
+
     def observe_hits(self, s):
         """Independently correlate observer receipts against this flight's baseline."""
         shot = s['shot']
@@ -4031,7 +4046,9 @@ class PairedWingPilot(SandboxPilot):
         if self.leg == 2 and self.shot_sequence is not None:
             require({m['id'] for m in s['members']} == self.member_ids, 'same two actual Wing actor identities')
             self.observe_hits(s)
-        if self.stage == 'boot' and s['menu_ready']:
+        if self.stage in ('return_align', 'return', 'align_berth') and self.begin_home_landing(s, now):
+            keys.update(('Prior', 'h'))
+        elif self.stage == 'boot' and s['menu_ready']:
             self.enter('begin_shift', s); self.tap('e', now)
         elif self.stage == 'begin_shift' and s['phase'] == 'APPROACH_SHIP':
             self.walk_route([[-8.5, 0, 6], [8, 0, 6], self.BOARD_APPROACH], s, 'wing_walk_board')
@@ -4141,10 +4158,6 @@ class PairedWingPilot(SandboxPilot):
             keys.update(('Prior','h'))
             off = sub(s['parked'], s['position'])
             dx, dy, align = self.aim(s, [s['camera'][i]+off[i] for i in range(3)])
-            if align > .995 and s['upright'] > .94 and speed <= .35:
-                require(s['capture'] and self.departed, 'actual registered home capture after departure')
-                require(dot([-v for v in s['back']], self.parked_forward) < -.95, 'ordinary nose-first home return')
-                self.enter('wing_land', s); self.tap('l', now)
         elif self.stage == 'wing_land':
             if s['phase'] == 'SHUT_DOWN':
                 require(s['contract'] and s['lease'] and s['parked_exact'], 'strict exact occupied home berth')

@@ -54,6 +54,57 @@ class NativeSortieSafetyTests(unittest.TestCase):
         board.update(armed=True, last_result={'accepted': True, 'reason': 'sortie_armed'})
         pilot.check_arm_result(board)
 
+    def wing_return_capture_observation(self):
+        # Actual retained frame1514: ordinary home capture already admits landing.
+        return {'frame': 1514, 'phase': 'FREE_FLIGHT', 'capture': True,
+                'position': [0, 6.5190052986145, -43.8607788085938],
+                'parked': [0, 1.14999997615814, -10],
+                'back': [-.00724258087575436, .121744148433208, -.99253511428833],
+                'velocity': [0, 0, 0], 'upright': .940855801105499}
+
+    def test_wing_real_home_capture_lands_before_arbitrary_return_waypoint(self):
+        for stage in ('return_align', 'return', 'align_berth'):
+            with self.subTest(stage=stage):
+                pilot = native.PairedWingPilot()
+                pilot.stage = stage
+                pilot.departed = True
+                pilot.parked_forward = [0, 0, -1]
+                state = self.wing_return_capture_observation()
+                pilot.frame = state['frame']
+                self.assertGreater(native.norm(native.sub(state['position'], [0, 2, -18])), 1)
+                self.assertTrue(pilot.begin_home_landing(state, 1))
+                self.assertEqual(pilot.stage, 'wing_land')
+                keys = set()
+                pilot.pulse(keys, 1)
+                self.assertEqual(keys, {'l'})
+
+    def test_wing_capture_landing_preserves_departure_and_strict_return_guards(self):
+        cases = [('capture refused', {'capture': False}, True, [0, 0, -1]),
+                 ('never departed', {}, False, [0, 0, -1]),
+                 ('return alignment', {'back': [0, 0, 1]}, True, [0, 0, -1]),
+                 ('return heading', {}, True, [0, 0, 1]),
+                 ('upright boundary', {'upright': .94}, True, [0, 0, -1]),
+                 ('too fast', {'velocity': [.351, 0, 0]}, True, [0, 0, -1])]
+        for reason, changes, departed, parked_forward in cases:
+            with self.subTest(reason=reason):
+                pilot = native.PairedWingPilot()
+                pilot.stage = 'return_align'
+                pilot.departed = departed
+                pilot.parked_forward = parked_forward
+                state = self.wing_return_capture_observation()
+                state.update(changes)
+                pilot.frame = state['frame']
+                self.assertFalse(pilot.begin_home_landing(state, 1))
+                self.assertEqual(pilot.stage, 'return_align')
+                self.assertIsNone(pilot.tap_key)
+        pilot = native.PairedWingPilot()
+        pilot.stage = 'return_align'
+        pilot.departed = True
+        pilot.parked_forward = [0, 0, -1]
+        pilot.tap_cooldown = 2
+        self.assertFalse(pilot.begin_home_landing(self.wing_return_capture_observation(), 1))
+        self.assertEqual(pilot.stage, 'return_align')
+
     def wing_hit_observation(self):
         return {'ship_id': 7, 'source_id': 1101, 'expected_source_id': 1101,
                 'shot_baseline': True, 'kill_proofs': {},
