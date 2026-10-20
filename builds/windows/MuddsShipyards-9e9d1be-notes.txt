@@ -1,0 +1,11 @@
+Mudds Shipyards development checkpoint 9e9d1be
+Source commit: 9e9d1beff97a8ce4f9ca23009d0b7c4511035551
+
+Player-visible change
+Active board encounters stand down when the player begins accepted automatic home landing. This closes the interval where landing assist was active but the encounter still treated FREE_FLIGHT as combat authorization. Withdrawal grants no combat reward; cancelling landing does not restart the encounter. Completed combat outcomes remain unchanged.
+
+Validation
+Fresh actual-Main admission test: 40 assertions. Existing encounter director test: 151 assertions. Clean Windows/Linux exports, direct Linux and archived Linux menu checks, Windows embedded payload startup through Linux Godot, and actual package identity/archive audit all passed. Startup checks require exit 0 and exactly one STARTUP_MENU_READY_OK. Automated Godot checks used Dummy audio. The same runtime fix also completed ordinary Heavy/Torpedo withdrawal, strict home, shutdown and physical exit in the preserved diagnostic candidates; no full-sortie run on this fresh package is claimed.
+
+Qualification limits
+Wing's full ordinary two-player-weapon-kill and return requirement remains FAILED/open. Its unsuccessful driver/observer/selector work is archived and is not included in this main build. Native Windows execution, native GPU/performance, physical devices, real audio/listening and human/final-release review remain NOT_RUN. Windows payload loading through Linux Godot is not native Windows execution. GitHub Actions remains disabled. Repository builds only.

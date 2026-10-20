@@ -16898,3 +16898,50 @@ Only existing results directory remains, with tracking-review.json,
 tracking-source.json, tracking-STOP.json, tracking-cleanup.json and archived helpers/
 profiles. Existing retained failed packages remain untouched. All26non-main remote
 branches still accounted; no branch added/deleted by this failed correction.
+
+
+## Wing branch accounted; landing fix shipped — 2026-10-20
+
+Completed production behavior is now integrated/pushed as9e9d1beff97a8ce4f9ca23009d0b7c4511035551:
+only06630f5d's independent5line director guard and existing admission test extension,
+not the unsuccessful qualification observer/selector/driver. Exact live target
+accepted landing withdraws board combat through existing fire refusal/standdown,
+without reward or automatic rearm. Independent review verified exact semantic
+baseline and final files. Full Wing original2actualplayerweaponkills and complete
+safe home/OFFLINEphysicalexit/UIquit remains FAILED/open; no subset completes it.
+
+Latest heldF diagnostic9a68aa01f:100focused checks pass; actualroute FAIL102.037s.
+Heavy/Torpedo naturalWITHDRAWN strict home exits2330/3985, .170m error and226/229
+neutralframes; Wing entered39.333hull, destroyed4938.8distinct requests, generic
+hittrue2times but targetentity0/noapplieddamage;0actualWingdamagehits/0kills, both
+opponents38health. All inputs/helper/game/Xvfb reaped;0diagnostics. No furtherretry.
+Retained emitted-ray geometry supports near-reticle miss with farpoint convergence
+amplifying parallax, not a productionmask/center bug. Trigger timing remains
+unrecorded; no exact collision-query transform or native aim qualification claimed.
+
+Failed unique source archived under pushed annotatedtag
+archive/diagnostics/wing-ordinary-route-20261020 peeling9a68aa01f1d10d6902bd36a8e59890d1cfeef1f5.
+Bundle verifies against reachableparents; all7tarfiles byte-match taggedsource,
+patch/tar/bundle hashesverified. Production director/test match integratedmain.
+Owned sourceWT removed; local/remotebranch deleted with exactexpectedOIDlease;
+remote absence verified. Independent archive/accountingreviewPASS. This accounts
+for failed diagnostics rather than merging them or declaring Wing done. Totals now
+142local/85live remote refs deleted;43local/26live remote remain includingmain,
+25remote non-main. Initial26-branch table above is historical; Wingrow now archived.
+
+Fresh9e9d1be checkpoint:9selected stages ALLPASS: import; actualMain40admission/
+151director assertions; cleanWindows/Linux exports; directLinux/archiveLinux strict
+startup exit0 andexact1STARTUP_MENU_READY_OK; Windows embeddedpayload through
+LinuxGodot same strict result; actual1521matchingPCKentries, stockPE.text/ELF,
+archivebytes/modes/sourceepoch/metadata audit. AllGodotDummy/headless; no hostedCI.
+No fullsortierun on freshmainpackage claimed. WindowsEXE/checkpointZIP/concise notes
+in builds/windows and pairedLinuxpackage/notes in builds/linux,11publicationfiles
+hashrecorded; ZIPbinary/notes bytesverified. Independent finalpublicationreviewGO.
+NativeWindows/GPU/devices/audio/listening/human/finalreview remainNOT_RUN.
+
+Preserved stages: prior1274.5692684026503 + heldF113.18184935068712 +
+release193.60444211913273 =1581.3555598724702s; originalselections/budgets preserved.
+Current raw and source/artifact/branch/cleanup records remain at
+/srv/mudds-work/wing-route-correction-20261020/results/ . Owned temporary profile,
+helper and extractedpayload cleanup follows publication verification; olderretired
+worktrees remain protected. No unrelatedroadmaptask was selected.

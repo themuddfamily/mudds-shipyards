@@ -6,12 +6,13 @@ Nine of the eventual 17 craft exist; eight still need supported specifications
 and implementation. Partial acceptance is retained in the backlog; it is not
 whole-feature completion.
 
-Latest playable checkpoint: **51257b3**. Its Arrow route proves one actual
-precision-emitter hit and two flights/home docks/offline exits/reboarding/normal
-UI quit. It qualifies existing gameplay, not a new ship, weapon or completed Arrow.
-[Windows ZIP](builds/windows/MuddsShipyards-51257b3-checkpoint.zip),
-[Windows notes](builds/windows/MuddsShipyards-51257b3-notes.txt),
-[Linux notes](builds/linux/MuddsShipyards-51257b3-linux-notes.txt).
+Latest playable checkpoint: **9e9d1be**. Active board encounters now stand down
+when normal automatic home landing begins. Fresh focused checks and package
+startups pass; full Wing two-kill/home qualification remains open. Earlier51257b3
+Arrow hit/two-flight qualification is retained without claiming a new full-sortie
+run on this package. [Windows ZIP](builds/windows/MuddsShipyards-9e9d1be-checkpoint.zip),
+[Windows notes](builds/windows/MuddsShipyards-9e9d1be-notes.txt),
+[Linux notes](builds/linux/MuddsShipyards-9e9d1be-linux-notes.txt).
 
 This page is the working queue. The
 [36-parent crosswalk and named children](docs/ROADMAP_BACKLOG.md#coverage-of-the-original-remaining-outcomes)
@@ -42,64 +43,36 @@ been defined. Do not turn test counts, commits or row counts into project progre
 ## Execution now
 
 **Current focus: account for and finish existing unmerged work.**
-Owner explicitly requested this priority; no new helm or unrelated roadmap task
-is selected. Branch accounting is complete in the
-[existing delivery history](docs/history/ROADMAP_DELIVERIES.md#branch-accountability-and-race-timeout-diagnosis--2026-10-20):
-141 local and84 live remote refs deleted; integrated equivalents and duplicate
-attempt histories accounted for. Remaining26 remote non-main branches are mapped
-to their actual failed/pending outcomes, not counted as26 unfinished features.
-Unique failed sources and older registered worktrees remain protected.
+Owner requested this priority. Branch accounting and closeouts are recorded in
+[delivery history](docs/history/ROADMAP_DELIVERIES.md#branch-accountability-and-race-timeout-diagnosis--2026-10-20).
+**142local/85live remote branches deleted;43local/26live remote remain including
+main (25non-main remote).** These include failed/pending attempts and diagnostics,
+not25independently unfinished features. Unique sources remain protected.
 
-The one already-running Race diagnosis is now terminal:81 assertions pass,
-19 Main lifetimes,212.821s total synchronous attach; the unchanged300s cap expires
-in19th retirement. No production fix or full-suite pass; source archived under
-`archive/diagnostics/race-baseline-boundary-20261020`, diagnostic branch/worktree/
-profiles/helpers removed. No engine run remains active.
+**Wing branch accounted and closed; full COMBAT-WING remains FAILED/open.**
+The independent production landing-withdrawal fix is merged/pushed as9e9d1beff and
+published in the checkpoint above. Exact live board target automatic landing now
+revokes combat dispatch through existing WITHDRAWN/standdown; cancelled landing
+does not rearm and withdrawal grants no reward. ActualMain40/director151 assertions,
+paired exports, three strict menu startups and1521-entry package audit PASS.
+Ordinary Heavy/Torpedo withdrawals, strict home docks, shutdown and physical exits
+also repeatedly passed on diagnostic candidates containing this same runtime fix.
+No full-sortie qualification is claimed for the fresh main package.
 
-**Current existing task: COMBAT-WING, parent11 — FAILED, unmerged.**
-Clean source `0c5788dd0` is pushed on the existing
-`feat/wing-ordinary-route-20261020` branch. No unrelated task/branch selected;
-no Wing checkpoint published and no whole combat deliverable claimed.
+Failed qualification source9a68aa01f is preserved under pushed tag
+`archive/diagnostics/wing-ordinary-route-20261020`, with verified bundle, seven-file
+source archive and patch. Its observer/selector/driver changes are excluded from
+main. Local/remote feature branch deleted with exactOID protection; owned worktree
+removed. Latest trial102.037s:8shots,0Wingdamagehits/kills, both opponents38health;
+third strict home/OFFLINE physical exit and normalUIquit missing. Native trigger
+control remains unqualified; no further trial selected. Full two actual player-
+weapon kills and complete safe return remain the original acceptance requirement.
 
-Working route portions: ordinary board E and normalL corrected; board encounter
-landing authorization withdraws through existing standdown. Both Heavy/Torpedo
-sorties repeatedly pass real withdrawals, strict home docks, OFFLINE waits and
-physical exits. Landing admission40/director151, observer22, fresh paired exports,
-three strict startups and actual1521matching package entries remain retained.
-
-Latest caller correction tracks actual relative angular rate and measures mouse
-response/acknowledgment delay. Existing100driver tests PASS, including combined
-pitch/yaw .4rad/s,1/4/7frame delays and reduced authority, actual precision and
-repeated F admission inside200frames. Full route still FAIL99.709s: two distinct
-accepted/resolved player shots both MISS, no hits/kills; entered Wing67.333hull,
-destroyed4855, both opponents38health. Two kills/clear, third strict home/OFFLINE
-physical exit and normal UIexit remain missing. Model success does not qualify
-native control. No damage/health/AI/timer/cap/acceptance change was made.
-
-Retained shot geometry: camera ray/Lead-center separation1.829/2.117m;
-emitted muzzle ray5.535/4.792m, consistent with1000m fallback convergence.
-Actor centers are inside real collision boxes and masks agree. Qualifying aim
-observations precede first shot results6–8frames; exact dispatch/query times remain
-unrecorded. Post-tick geometry is not exact query-time proof. No production weapon
-or collision defect is established.
-
-**Closeout now: integrate proven landing withdrawal; archive failed Wing driver.**
-Held-F source9a68aa01f/100focused checks passes, full routeFAIL102.037s:8shots,
-0Wingdamagehits/kills, both opponents38health; prerequisite home journeys pass.
-Wing remains FAILED/open; no further controller retry is selected. The source
-branch contains a proven independent production fix and unsuccessful qualification
-instrumentation, rather than one accepted Wing deliverable. Preserve that split.
-
-Independent review GO:06630f5d0 applies exactly to main as director+existingtest
-only, no observer/driver/selector dependency. Integrate this completed landing
-behavior, retaining original Wing two-kill/full-return requirement as open. Fresh
-checkpoint card13:38–13:53UTC/15min, all prior selections/costs retained. Main
-runtime+existingadmissiontest only; import180s/admission120s/director300s, paired
-exports180s each, three strict startups120s each and actualartifactaudit90s. First
-failure stops; nativeWindows/GPU/audio/human gates remainNOT_RUN. Publish onlythe
-actual landing-withdrawal change and actualvalidation. Archive unique failed
-qualification source with verified bundle/patch/tag, clean owned scratch, then
-delete existingbranch with exactOIDleases. Archiving does not completeWing.
+All failed/successful stage costs retained:1581.356s supervised total; no nested
+elapsed double counting. NativeWindows/GPU/devices/audio/human/final gates remain
+NOT_RUN/open. Raw results, failed packages, source and cleanup records remain only
+under `/srv/mudds-work/wing-route-correction-20261020/results/`; no unrelated task
+was selected. Race timeout diagnosis remains archived, with no baseline-suite pass.
 
 **Ready production cards: 0. Prepared production cards waiting on decisions: 3.**
 The decisions below remain pending; they do not prevent finishing independently
