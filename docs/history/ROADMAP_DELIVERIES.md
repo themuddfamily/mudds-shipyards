@@ -16646,3 +16646,79 @@ before removal. Archive11040046bytes, SHA256
 Index/README, source/reviews/summary/cleanup and3 reusable helpers remain loose;
 original stage/raw peer/profile records are under results/ inside the archive.
 Cleanup/compaction11.72min within original60min; only task results/ remains.
+
+
+## Sampled continuous roll rate — turn and release accepted
+
+HELM-ROLL-RATE turn/release child / parent18, sourcequalification only. Clean
+source `73f4a4f675eea0cfc2468bbffe1c763a0cad10f9`, merged/pushed asb7284cbb7.
+Selected2026-10-20 11:41UTC, original60min deadline12:41UTC, including preparation,
+review, exact checks and cleanup. Root verified existing mapper left−1/right+1
+and HeroShip rotation about local FORWARD(-Z); one high implementer and one
+independent high reviewer, root integration. No runtime gap/change inferred.
+
+Three owned files only: existing shared yaw caller plus23-line roll-rate caller
+and UID. Optional measured_vector defaults to nose, preserving original yaw/
+pitch math/keys/markers/contracts; roll measures actual up's signed change about
+recorded nose with positive sign. Axis descriptions/metric names now use the
+selected axis. No second shared route copy, validator/version family or
+production control/tuning/pose/authority change.
+
+Continuous roll rate is distinct from G barrel roll: roll-only checks reject
+barrel_roll/fire/fire_pressed/landing and other command actions, active barrel
+animation, nonzero authoritative wire barrel request or pilot capture request.
+Current Command/active/request facts are retained in actual peer receipts;
+non-authoritative copilot has no pilot request record, not a claimed zero owner.
+
+Input scope: **synthetic Godot InputEventAction via Input.parse_input_event**,
+then actual production LocalShipInputSource/sample/capture/send/ENet/host hull.
+No provider override or direct command/pose staging. It does not qualify OS
+keyboard delivery, Q/R binding hardware, controller axis2 or native devices.
+Original three-process crew boarding/≥5m departure/brake and enabled producer/
+source+wire/session/actor/seat/entity/ownership/released-berth checks are retained.
+Original handback remains required/PARKED, neither retried nor qualified here.
+
+Both clean-pin source reviews GO before engines. Five frozen stages, first
+unexpected failure STOP/no automatic correction/retry; all first-attempt PASS:
+- Headless Dummy-audio import180s cap PASS20.654028320s; direct roll check-only
+  120s cap PASS16.509752161s.
+- ONE roll route PASS130.738291664s: left−5.866666764°/535ms and
+  right+5.866665910°/546ms, each≥3° inside original host-owned2s. Fresh delivered
+  holding-neutral≤1s, not timeout neutrality; measured roll drift0° for1s.
+  Both actual current-owner client attitudes converge≤2° within original2s:
+  pilot0.437007°/0.243893°, copilot0°. Host/pilot request counters0 and all
+  observed barrel animation flags false throughout selected roll gates.
+- ONE affected pitch regression PASS131.398209030s: +4.800000817°/403ms and
+  −4.800000390°/578ms, measured drift0°, pilot errors0.498893°/0.303902°,
+  copilot0°. Original pitch contract unchanged.
+- ONE affected yaw regression PASS130.879258635s: +4.200000288°/284ms and
+  −4.799999536°/629ms, measured drift0°, pilot errors0.356083°/0.268341°,
+  copilot0°. Original yaw contract unchanged.
+
+Each route retains original coordinator300s,10s exit grace/outer360s and
+inherited child private Xvfb/explicit x11/Dummy audio/dummy renderer/disabled
+render loop. All9 actual peer OS exits0, one coordinator-only marker per route,
+zero complete raw diagnostics; source/index/cache unchanged after import.
+Total five-stage time430.179539810s. Root read host prepare/turn/stable/complete
+and both actual replica files, verified unchanged identities/producer/source+
+wire streams/released berth and fresh neutral delivery, actual barrel flags/
+requests/command fields, done/exit receipts and observed PID/start identities.
+A summary alone was not substituted for runtime facts.
+
+Source committed/pushed and merged/pushed. No identical playable rebuild for
+caller-only qualification: latest accepted playable remains51257b3. Full
+HELM-ROLL-RATE/parent18 handback/devices and native Windows/GPU/audio/listening/
+human/endurance/final-candidate/full-release gates remain open. No GitHub CI,
+Downloads publication, parked route retry or successor selected.
+
+Records `/srv/mudds-work/jovian-remote-roll-rate-20261020/results/`.
+Cleanup14.30min from original11:41 selection: five owners terminal, all51
+recorded process identities absent;254 private profile entries archived/hash-
+verified, helper sources preserved, clean integrated/pushed owned worktree/
+profiles/helper directory removed. Records compacted66→13 loose files after all
+72 original entries verified in member order for mode/type/link/hash plus fresh
+source recheck before removal. Archive12999506bytes, SHA256
+`1f1ae7f86d46d9dab0e2a5e6045895c7fc29ce2db7e15194a57f87083b1744b5`.
+Index/README, source/reviews/summary/cleanup and3 reusable helpers remain loose;
+raw stage/peer/profile originals stay under results/ in the verified archive.
+Cleanup/compaction15.40min within original60min; only task results/ remains.

@@ -38,24 +38,20 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 ## Execution now
 
-**Active: HELM-ROLL-RATE turn/release caller, selected11:41UTC2026-10-20.**
-Continuous Q/R roll-rate is separate from the G barrel-roll edge. Production
-already maps left−1/right+1 and rotates about local FORWARD; use the actual up
-vector's signed change about the retained nose to measure roll. One implementer
-extends the shared steering caller with an optional measured-vector hook and a
-small roll specialization; no copied route or runtime change.
+**HELM-ROLL-RATE turn/release is accepted on source73f4a4f67.** Both synthetic
+Godot roll actions reach actual host rotation−5.867°/+5.867° in535/546ms,
+fresh neutral≤1s, measured roll drift0° and both actual client attitudes≤2°.
+Host/pilot barrel-roll request counters remain0 and no barrel animation is active.
+Both affected pitch/yaw regressions pass. All9 actual peer exits0/zero diagnostics,
+source/cache stable; five stages PASS430.180s.
+[Actual result and scope](docs/history/ROADMAP_DELIVERIES.md#sampled-continuous-roll-rate--turn-and-release-accepted).
 
-| Field | Fixed result and limit |
-| --- | --- |
-| Result | Original three-process crew boarding/≥5m departure/brake, both sampled roll-rate signs cause≥3° host roll within host-owned2s, fresh neutral≤1s, measured roll drift≤0.5° for1s and both actual client quaternion attitudes≤2° within2s. |
-| Ownership/input | Shared yaw caller plus tiny roll-rate caller/UID only. Synthetic Godot actions→production LocalShipInputSource→ENet→actual host, not OS/hardware/provider injection. Preserve source/wire streams, authenticated actors/seat/entity/ownership, released berth and neutral other actions; no fire/landing/barrel-roll command. |
-| Checks | After clean pin/two reviews: headless Dummy import180s, roll direct check-only120s, ONE roll and ONE each affected pitch/yaw regression, original coordinator300s/10s exit grace/outer360s each. Child private Xvfb/x11/Dummy stays inherited; all3 actual OS exits0, one coordinator marker/zero raw diagnostics, source/cache stable. |
-| Budget/stop | ≤20min implementation plus review/checks/cleanup inside original11:41–12:41UTC/60min. First unexpected failure STOP; no automatic repair/retry or relaxed limits. Release actions/reap owned processes on every path. |
-| Closure | Commit/push actual source result, preserve checked logs/profiles and remove owned scratch. Handback remains required/PARKED; no hardware/native/endurance/full-parent claim or identical playable rebuild for caller-only changes. |
-
-Accepted pitch/yaw turn-release scopes remain source-specific; their changed
-shared measurement/neutral guard justifies one affected regression each. Latest
-accepted playable remains51257b3. No other helm action or parked route selected.
+No runtime change or identical playable rebuild; checkpoint51257b3 retained.
+Handback stays required/PARKED; OS/hardware/native/endurance/full-parent gates
+remain open. Worktree/profiles/helpers removed;51 process identities absent,
+254 profile entries archived/verified. Records compacted66→13 loose files with
+all72 entries verified. Cleanup/compaction15.40min within original11:41–12:41UTC/
+60min; only results/ remains. No successor or further engine run selected.
 
 ### Next production alternative: Freight physical terminal interface
 
@@ -101,6 +97,7 @@ the existing history. These are accepted slices, not closed broad parents.
 
 | Outcome | Accepted scope / remaining boundary |
 | --- | --- |
+| Remote continuous roll-rate turn/release | [Source73f4a4f67](docs/history/ROADMAP_DELIVERIES.md#sampled-continuous-roll-rate--turn-and-release-accepted): both synthetic sampled signs reach actual host/replicas with fresh neutral and measured stability, no barrel request/activity. Changed pitch/yaw pass too. Handback/device/native/endurance/full-parent gates remain open. |
 | Remote pitch turn/release | [Sourcef9682a38c](docs/history/ROADMAP_DELIVERIES.md#sampled-remote-pitch--turn-and-release-accepted): both synthetic sampled directions reach actual host, fresh neutral/drift and both client attitudes pass; changed yaw regression passes too. Handback remains PARKED; no OS/device/native/endurance/full-parent acceptance. |
 | Aboard help, one cell | [Source e5dfe1117](docs/history/ROADMAP_DELIVERIES.md#aboard-help--one-minimum-scale-1610-cell-accepted): all20 ordinary aboard rows/four pages at1920×1200/.75,124 assertions; source headless layout/wrapping/focus/Close only. Other cells, rendered/device/crew gameplay and final candidate remain open. |
 | Arrow pilot precision hit and return/reuse | [Checkpoint51257b3](docs/history/ROADMAP_DELIVERIES.md#arrow-precision-hit-and-return--shipped-on-51257b3): one native timed F press, fresh source/target/sequence/receipt and actual24damage100→76, full two-flight home/offline exits/reboard/UIquit120.991s; source changes extend acceptance automation. Broader craft/combat/damage/recovery/art/native/final remain open. |
