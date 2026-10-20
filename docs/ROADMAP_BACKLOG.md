@@ -115,14 +115,14 @@ Finish means the named existing route passes on its frozen candidate, or the nam
 | SCOPE-ROSTER | Reconcile original twelve plus modern five craft, stations, opponents/weapons, activities, worlds, roles and targets | 4 | DONE as [finite named roster](COMPLETION_SCOPE.md#finite-release-roster--scope-roster): original12+modern5/eventual17, current9/missing8; other named inventories and unresolved boundaries preserved. No gameplay/qualification completion implied |
 | SCOPE-LIMIT | Release guest count and playing-host decision | 4,26 | WAITING; already-asked owner decision |
 | SCOPE-DESKTOP | Required desktop target list | 4,32 | WAITING final owner list: Windows Desktop/Linux x86_64 presets exist; Phase9 conditionally requires other non-Windows targets without naming one. Source investigation DONE; no third-target promise or deferral inferred |
-| PLAN-NEXT | Assign the next bounded queue | 5 | Passive release callback capture complete on783c8c872, diagnostic-only: private package/readiness checks pass and known failed route captured; no gameplay acceptance. Correction definition complete; RPC-CACHE-BUILD-RECIPE implemented/integrated onf45c9094f with24 inert tests passing; actual template builds await dependencies and runtime acceptance remains gated below. [Current checkpoints, waiting decisions and card fields](../ROADMAP.md#execution-now). Navigator rejection/Hauler cargo retain policy waits. This scheduling work is not a whole-project estimate or gameplay delivery |
+| PLAN-NEXT | Assign the next bounded queue | 5 | Current queue reconciled on2026-10-20: closed recipe/fixture/save checks separated from prepared Popup diagnosis and parked Windows-template compilation. LIFE-PACKAGE-DEFINE DONE as the finite definition below. [Current status and stopping conditions](../ROADMAP.md#execution-now). Policy waits and all original parent gates retained; no whole-project estimate or gameplay delivery implied |
 | GUIDED-FINAL | Final-package Guided ordinary-input sortie, original 3/3 | 7 | GATED; final package, earlier f676c50 acceptance retained |
 | SANDBOX-RECOVERY | Original all-nine/54-waypoint recovery walk and reuse | 7 | PARKED; supported changed input/runtime cause required |
 | SETTINGS-INPUT | Recover original runner, profile and logs | 7,8,29 | WAITING; original artifacts, no substitute Gate C |
 | SETTINGS-RETURN | Original Settings/re-entry route, including gamepad return | 7,8,29 | GATED; SETTINGS-INPUT and supported correction |
 | LIFE-VISIBLE | Four-cycle source phantom-geometry qualification | 7 | DONE; d7be01487, staged/headless source scope |
 | LIFE-REUSE | Twelve-cycle source all-nine reuse qualification | 7 | DONE; d7be01487, staged/headless source scope |
-| LIFE-PACKAGE-DEFINE | Name uncovered packaged ordinary-play lifecycle cases | 7 | DEFINE; preserve both source passes, no automatic rerun |
+| LIFE-PACKAGE-DEFINE | Name uncovered packaged ordinary-play lifecycle cases | 7 | DONE as the [finite packaged lifecycle boundary](#packaged-ordinary-lifecycle--life-package-define) below; definition only, source passes retained, no package route executed or successor selected |
 | CONTROL-FINDINGS | List observed unresolved control/help defects | 8 | DONE as bounded source review: advertised Right Stick LOOK has no Player/Tow consumer; GAMEPAD-LOOK packaged99e79c3 separately. Existing mixed prompts/distance help/sprint fixes retained; physical-device acceptance remains open. |
 | GAMEPAD-LOOK | Continuous right-stick local camera look | 8,29 | DONE in99e79c3: Player/tractor real camera, authored delta rate/deadzone/clamps/inversion and handoff clearing; full focused checks/paired checkpoint pass. Physical controller/full ordinary route remains open. |
 | UI-BOARD-FOCUS | Keyboard Activity Board transition retains valid visible focus without engine signal-disconnection errors | 8,13,29 | PARKED: key-only4.673s and changed tooltip4.954s components both NOT_REPRODUCED. Second establishes one visible embedded popup with matching root recipients and successful teardown. Original popup identity/connection-removal event unknown; no production cause/fix. Two-attempt cumulative9.627s, original investigation budget retained. Actual full-Main Beacon-home candidatea612ea686 recurs at37.713s/frame1233; page transitions but same two diagnostics, still no popup/removal identity. No new causal fact or retry selected |
@@ -847,6 +847,35 @@ The last full matrix's eleven failed suites are below. `BASE-DIAG` selects **one
 | `game_flow_rime_client_pad_controls_test.gd` | On3e39ed8da corrected headless run first scenario completes, return17.099s; second held-edge starts264.733s and still progresses at291.862s before original 300s timeout. Diagnosis above; preserve180 edge waits/1,440-tick exposure and100 jump waits. Next: reduce a measured production hotpath, then affected original checks; no unchanged rerun or timing relaxation. |
 | `network_emberline_bolt_test.gd` | Retained failure waits on later dead-peer baseline before reset; pending-generation errors follow. Q1 isolated `e026cf620` instrumented probe passes 154 under original limits, so no repair/root cause is proven. Retain old matrix FAIL; cover next combined matrix without another unchanged isolated run. |
 | `station_light_overlap_census_test.gd` | Historical expected rows/environment unresolved; mismatch repeats on its own freeze. Recover measurement basis before changing expectations; never replace hashes just to pass. |
+
+### Packaged ordinary lifecycle — LIFE-PACKAGE-DEFINE
+
+Definition DONE by source/contract review, 2026-10-20; no engine, test or package
+run. LIFE-VISIBLE and LIFE-REUSE remain accepted on d7be01487 in their recorded
+source scopes. The existing four-cycle phantom audit and twelve-cycle soak are
+not ordinary packaged journeys: both inject MemoryFilesystem and instantiate
+Main directly; the soak shortens boarding motions, forces completed-guide state,
+stages the home approach, injects damage and detaches/re-adds the same Main for
+save/re-entry. The phantom audit also stages cabin/bunk traverses. Its visible
+renderer census is a scene-tree contract, not a rendered-image review.
+
+Only these remaining lifecycle outcomes are identified; reuse existing children
+rather than create another fleet/cycle matrix or automatically schedule runs:
+
+| Existing outcome | Uncovered packaged ordinary completion | Dependency / exact runnable boundary |
+| --- | --- | --- |
+| GUIDED-FINAL | Original Guided sortie, landing, neutral shutdown and physical exit, 3/3 fresh processes/profiles on the chosen final package | Final package GATED. Existing `tools/release/run_native_sortie.py BINARY --output DIR --route guided` supplies OS input/default samplers; retain original shutdown timing and earlier package-specific passes. No missing driver inferred. |
+| SANDBOX-RECOVERY | Full original nine-craft/54-waypoint route, eight initial excursions, actual crash, same-player recall, occupied-berth regeneration, supported recovery walk and craft reuse, 1/1 within original300s | PARKED; `--route sandbox` exists, but retained run expires before reuse. A supported changed input/runtime cause is required before selection; a shortened reuse-only continuation cannot accept the failed full route. |
+| CRAFT-ACCEPT-* / CRAFT-ROLE / RECOVERY-CABIN-DEFINE / CREW-RECOVERY-ORDINARY | Applicable ordinary hatch/chair/bunk walk, sit/action/sleep/wake/stand, helm-or-exit, landing/reuse and cross-craft continuation without staged aisles, damage or return poses | Freeze one supported craft/physical role and its complete journey; existing focused/staged checks do not provide a full package OS-input command. The native sortie selector has no fleet cabin/bunk/crew acceptance route. Preserve accepted Habitat loop/restart and all recorded crew scopes; Bomber role interpretation and parked Halyard boundaries remain dependencies. |
+| SETTINGS-RETURN / existing RECOVERY-KILL and installed recovery children | Ordinary save/quit or owned interruption, distinct-process continuation with usable controls and conserved activity/reward/data, according to each settled context | SETTINGS-INPUT originals remain WAITING; installed cuts require their exact candidate/context/driver. Same-Main memory-store detach/re-add is not disk restart. Habitat restart and named accepted recovery cuts remain DONE; this definition neither duplicates nor reopens them. |
+| LIFECYCLE[chosen candidate] | Packaged repeated sortie/activity/cabin/recovery/Main transitions retain clean quiescent presentation and bounded resources, with usable controls between transitions | Source four/twelve-cycle checks remain unchanged anchors. No existing native-sortie selector combines ordinary repeated cycles, cabin/bunk, Main re-entry and the lifecycle resource/renderer observations. Missing seam: one declared package ordinary-input route and its observation/rest-state sampling boundary, with original repetition/resource limits retained. No command or ordinary-pass claim is invented here. |
+
+The original normal-controls contract remains Guided3/3, Sandbox1/1 and
+Settings/re-entry1/1, plus all applicable craft/station/crew/combat/recovery
+requirements; this definition closes none of them. Repeated activity rewards,
+network endurance, capture sets and native GPU/device/audio/human reviews retain
+their own existing owners and gates. No new runtime defect or implementation is
+established, no source pass is rerun, and no automatic successor queue follows.
 
 ## Station, craft, combat and presentation
 

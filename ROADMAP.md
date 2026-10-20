@@ -37,51 +37,29 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 ## Execution now
 
-**Build capability delivered: RPC-CACHE-BUILD-RECIPE (parents 25/32), source
-f45c9094f.** The existing isolated builder now supports the narrow RPC-cache
-patch on Windows or Linux release templates. The candidate reuses the exact callback originally connected,
-instead of reconstructing it during cache cleanup. Independent source/lifecycle
-review supports this candidate; it is not a verified fix.
-[Exact ownership, checks and stop boundary](docs/ROADMAP_BACKLOG.md#release-rpc-cache-correction--implementation-cards).
+**Latest completed planning task: LIFE-PACKAGE-DEFINE (parent 7).** The
+[finite lifecycle breakdown](docs/ROADMAP_BACKLOG.md#packaged-ordinary-lifecycle--life-package-define)
+now separates five existing outcome groups, their actual dependencies and the
+missing packaged ordinary-route seam. This was a source/contract review with
+one bounded backlog edit, no engine run and no gameplay completion claim.
 
-| Child | State | Deliverable and completion check |
+| Work | Actual state | Completion / next boundary |
 | --- | --- | --- |
-| RPC-CACHE-BUILD-RECIPE | DONE; integrated, feature branch pushed | Isolated RPC mode, two-platform planning/staging and pinned two-file native patch. All24 existing/extended inert tool tests pass under60s cap. Actual engine compilation/runtime NOT_RUN; no new playable checkpoint. |
-| RPC-CACHE-TEMPLATES | STOP after cold + one incremental timeout; Linux PASS | Linux SHA4fe7e2cf,2934.911s. Windows cold3600s cap/3611.847s stage, incremental480s cap/492.111s stage; both exit1/no diagnostics, no accepted PE. All15,090 observed identities absent. Closed/cleaned at86.5min within original90min; no further retry. Pair/collection/runtime remain unavailable. |
-| BROWSER-FIXTURE-JSON | DONE; source fixture integrated | Actual JSON numbers normalize safely;62 assertions and real raw0→admitting1→raw2→stop3 handoff pass with original3s limits. No packaged-client acceptance. |
-| NET-TIMEOUT-RELEASE-ACCEPT | GATED on matching templates | Relevant focused checks, clean paired exports/strict startups/package checks, then original full ordinary route with unchanged criteria/limits. The fixture handoff prerequisite now passes; native runtime effectiveness remains unverified. No execution selected yet. |
+| LIFE-PACKAGE-DEFINE /7 | DONE as definition only | Five existing outcome groups now have explicit uncovered behavior and runnable/dependency boundaries. Four/twelve-cycle source passes remain accepted; no package journey was rerun or newly accepted. |
+| WALK-OBSERVATION exit diagnosis /7,8,9,29,32 | PREPARED; source-reviewed candidate9743b650f, checks NOT_RUN | One passive capture may identify the actual Popup/lifetime boundary. Existing full walk remains FAIL. [Frozen scope and cumulative budget](#selected-diagnosis--popup-lifetime-during-normal-exit) prohibit an automatic repair or repeated probe. |
+| Matching RPC-cache templates /25,32 | PARKED; Linux built, Windows cold and incremental attempts timed out | No accepted matching pair; no further compilation or dependent browser route selected. [Retained result](docs/history/ROADMAP_DELIVERIES.md#matching-rpc-cache-templates--stopped-at-windows-compilation-budget). |
 
-**Current action:** template attempt stopped after the cold build and one
-explicitly reviewed incremental finish both reached their compiler caps. No
-further retry, collection, game export or runtime route is selected. Cleaned
-both duplicate worktrees and disposable helpers/profiles; exact Linux template,
-reusable source/SDK/object cache and raw results remain. Original cumulative90min
-budget was not reset; closure at86.5min. [Original commands and result](docs/ROADMAP_BACKLOG.md#release-rpc-cache-correction--implementation-cards).
-Preparation took6.8min versus15–30min estimate; required SDK files/source pins
-verified and preparation actors gone. No game capture or public checkpoint selected.
-BROWSER-FIXTURE-JSON is complete: actual JSON sequence numbers normalize safely,
-62 assertions pass and the unchanged driver completed raw→admitting→raw→stop.
-Three stages took51.654s; all ten observed process identities are absent. Only the
-tested fixture file is integrated; no ordinary-route retry or gameplay checkpoint.
-All build owners are terminal; matching-template completion remains parked.
-The independent save-protection case below is DONE in its named source/Linux
-real-file scope. No executable card is currently selected.
-The later acceptance candidatee5b9dd25f is prepared and branch-pushed: original
-browser-support files plus accepted fixture, with passive capture excluded. It is
-unmerged/unqualified; no check/export/route was run during assembly. Its clean
-worktree is removed; pushed source and reviewed helper drafts remain retained.
-Recipe commit→owned cleanup:4.8min against45–60min implementation/review estimate;
-unit stage0.514s. [Result and usage](docs/history/ROADMAP_DELIVERIES.md#rpc-cache-release-template-recipe--implemented).
+The RPC build recipe and browser JSON fixture are delivered in their recorded
+source scopes; they are no longer current tasks. The cache callback repair is
+still an unverified candidate. Empty release callable metadata does not prove a
+cause, and no shared cause with the Window failure is established.
 
-The passive capture is complete: same valid native SceneCacheInterface callback
-remains attached after5,006ms release timeout. Original route still exits1/
-success:false. Diagnostic branch783c8c872 remains unmerged/withheld; package/logs
-preserved and owned scratch cleaned. [Actual result](docs/history/ROADMAP_DELIVERIES.md#release-timeout-callback-capture--known-failure-captured).
-
-Source review rules out the earlier bind-omission hypothesis: signal comparison
-intentionally ignores bind wrappers. Empty release method metadata is expected.
-The exact reconstructed native-identity mismatch remains unknown; do not call the
-candidate a confirmed fix or alter general callable comparison.
+No engine/check job is active. The prepared Popup diagnosis is the only already
+selected executable card; it remains subject to its original cumulative deadline
+and exact-command freeze. Other waiting and parked outcomes are not READY.
+The lifecycle breakdown does not schedule five more assignments: select one
+existing child and freeze its exact files, route, proof and stopping condition
+before execution. Do not start a whole family at once.
 
 ### Waiting decisions — not executable tasks
 
@@ -122,63 +100,23 @@ a fixed task count per ship. Retain complete CRAFT-ACCEPT journeys.
 Keep at most three executable cards. Before starting another qualification chain,
 identify an independent production alternative or record its concrete missing
 definition. Do not expand an investigation into a succession of adjacent probes.
-The release capture is complete; no repeated observation is selected. The build recipe is delivered; actual patched templates are the next dependency.
+The earlier RPC-cache capture is complete. Matching patched templates remain
+unavailable and Windows compilation is parked; neither is an automatic next task.
 
-## Selected independent save-protection check
+## Unsupported-save protection — completed scoped check
 
-**SAVE-UNSUPPORTED[future outer envelope / real files]** (parents31/32),
-qualification of existing refusal behavior. Root freezes this bounded case before
-edits: extend only `tests/user_data_store_crash_points_test.gd`, one medium
-implementer, one independent high lifecycle/data-preservation review. Use one clean
-owned worktree; existing production save owners unchanged unless a separately
-selected reproduced defect requires a repair.
+**SAVE-UNSUPPORTED[future outer envelope / real files]**, parents31/32, is DONE
+in source/Linux real-file scope on4b66b3548. A legitimately loaded store and two
+fresh child processes refuse destructive operations after a future envelope is
+published at primary/tmp/backup; exact names, bytes, Unix modes and unrelated
+files remain. The corrected suite passes118 parent assertions and23 per child,
+with no diagnostics or opaque-marker leak. All15 observed process identities
+are absent. No production change or new gameplay checkpoint was needed.
 
-Create synthetic current primary/backup via actual UserDataStore commits, then
-publish a schema_version=SCHEMA_VERSION+1 envelope at primary, .tmp or .bak in
-three owned fixture directories. Keep opaque synthetic marker content, another
-unrelated file, exact bytes/names and Unix modes. A retained legitimately loaded
-store must refuse commit as newer_schema after publication. Two fresh headless/
-Dummy child processes then attempt load/read-only-load/commit/recovery/restore/
-discard and independently verify refusal plus unchanged files. Fresh commit may
-correctly refuse not_loaded after failed load; never fabricate loaded authority.
-Require distinct actual parent/child PIDs, unmodified bytes/names/modes, no marker
-content in captured diagnostics and no owned survivors. Preserve existing crash
-cases. No fake filesystem, field assignment, actual user files or new validator.
-
-Proof once after review/clean candidate: guarded fresh import180s; existing crash-
-point suite60s exit0/exactly one USER_DATA_STORE_CRASH_POINTS_TEST_OK. Every engine,
-including child invocations, headless/--audio-driver Dummy, private XDG/TMPDIR,
-HOME unchanged, source/index/cache/engine/process guards. Estimate30–45min edit/
-review plus2–5min checks/cleanup; split before60min. First unexpected failure STOP,
-no automatic repair/retry/cap increase. Commit/push and clean owned scratch.
-This closes only the named source/Linux real-file case if it passes; nested
-settings/legacy formats, installed/package/native/UI recovery and broad parents
-stay open. No new gameplay checkpoint is needed for a test-only qualification.
-Windows template compilation remains parked with both timeouts retained.
-
-Initial candidatebcc699839: importPASS20.823s, suiteFAIL2.545s at child1's
-unsupported parent-liveness query, child2 not launched; all8 observed identities
-absent. This is a caller failure, no save defect established. Actual pinned Unix
-source confirms is_process_running uses waitpid/ECHILD and captured OS.execute
-already waits/reaps via pclose. After independent review, select exactly one
-caller correction: remove both invalid is_process_running predicates (child on
-invoker, parent on already-reaped child), with accurate identity descriptions.
-Keep nonce/ownerfile, actual distinct PIDs, external supervisor, every data/mode/
-diagnostic assertion and60s suite cap. No production edits or suppressed errors.
-Retain accepted import/cache (only non-global test code changes); one separately
-frozen suite run, then STOP on any unexpected failure with no further repair.
-Original failure/time and30–45min plus2–5min/cumulative60min budget stay binding.
-
-Accepted result2026-10-20: corrected candidate4b66b3548, suitePASS3.507s,
-118 parent assertions and23 in each of two actual fresh children. Invoking
-PID1639834, childPIDs1639855/1639878 observed by the independent supervisor;
-all15 observed identities across original and corrected stages absent. Retained
-loaded commits and all six fresh API calls refuse as specified; three fixtures
-retain exact names/bytes/Unix modes and unrelated sentinel. No diagnostics or
-opaque marker leak in corrected run. Original failed caller remains recorded.
-Cumulative check time26.874s includes import and initial failure; exact tested
-file integrated. No production save change or new playable checkpoint; other
-SAVE-UNSUPPORTED formats/native/installed and wider recovery gates remain open.
+[Original failed caller, corrected check and retained scope](docs/history/ROADMAP_DELIVERIES.md#future-save-outer-envelopes--sourcelinux-real-file-case-accepted)
+remain authoritative. Cumulative checks26.874s include the original failure;
+other formats, installed/native/UI recovery and broad parents stay open. This
+accepted check is history, not an executable task.
 
 ## Save-preservation repair delivered
 
@@ -225,11 +163,13 @@ ELF hash/startup/artifact results reused without another export. Caller branch
 
 Next requires a separately selected cause/owner for the Window lifetime/signal
 failure during normal UI exit. Similar prior diagnostics do not establish a
-shared cause. No further probe/fix/retry/cap increase selected. Original full
+shared cause. Only the passive diagnosis below is selected; no gameplay repair,
+acceptance retry or cap increase is selected. Original full
 hub→Observation/look→hub/UI-exit criteria remain. Cumulative333.882s checks and
 24.8min original freeze→cleanup stay inside90min split; no budget reset.
 Latest public49047eb unchanged; unique raw/private archives retained, duplicate
-checkouts/ELFs/helpers/profiles cleaned. No executable card selected.
+checkouts/ELFs/helpers/profiles cleaned. The later diagnostic source is retained
+separately; its checks have not run.
 
 ### Selected diagnosis — popup lifetime during normal Exit
 
@@ -241,17 +181,23 @@ no binding-omission or callback-identity cause is established. Normal Exit scrip
 no script Popup/root-signal lifetime mutation found. Missing actual Popup identity
 and event ordering prevent a production repair; do not infer shared Board cause.
 
+Prepared candidate **9743b650f** changes only the observer; independent source
+review passes, its branch is pushed and the unused clean checkout is removed.
+Compiler/import, export and runtime
+checks are **NOT_RUN**. It is not integrated into gameplay main.
+
 One high implementer owns only `scripts/diagnostics/native_sortie_observer.gd`
 on private `diag/observation-exit-popup-20261020`, basecaller e390/game4c58; high
 independent lifecycle reviewer, root validation/cleanup. No recursive agents.
 Selected-only passive capture starts before Main: existing Popup census plus
 node_added watches, ID/string-only popup visibility/tree-exiting/tree-exited
 callbacks, root connection-list snapshots for the two native signals and only
-changed fingerprints; read only root-pair incoming Popup links as well. Record actual receiver ID/class/path/theme/visibility/
+changed fingerprints (including receiver metadata, not proof of a native-key
+change); read only root-pair incoming Popup links as well. Record actual receiver ID/class/path/theme/visibility/
 embedded/in-tree/queued state and scalar Callable metadata; no retained Node or
 Callable registry. Existing observer payload, physics cadence, route and controls
-unchanged. Never connect root focus_entered/tree_exited: a new listener could mask
-the missing-map error. No hide/free/reparent/disconnect/state/input mutation,
+unchanged. Never connect root focus_entered/tree_exited: a new listener would
+alter the suspect native signal bookkeeping. No hide/free/reparent/disconnect/state/input mutation,
 deferred wait, diagnostics suppression or invented native event ordering.
 
 Capture goal: identify the actual Popup registered on root and its observed
@@ -259,6 +205,8 @@ lifetime/slot disappearance at the retained failure, or name the precise missing
 fact. Trace prefix OBSERVATION_POPUP_LIFETIME, no new validator/schema family.
 Estimate15–20min implementation/review plus5–10min checks/one full route. Original
 three attempts/90min cumulative budget retained (24.8min before this mapping).
+Original freeze02:54:57UTC on2026-10-20; deadline04:24:57UTC. Planning time does
+not reset this budget; if insufficient time remains, leave capture NOT_RUN.
 Before engines finalsourceGO+cleanpin+exactcommands: import180s, privacy60s,
 private Linux export180s, strict binary startup120s, existing artifact audit90s,
 original fullrouteCAP300/outer330 on isolated authenticatedX11/Dummy/dummy-renderer.
@@ -293,7 +241,7 @@ contracts and cumulative attempt records remain in the retained history.
 | --- | --- | --- |
 | BROWSER-ORDINARY /25 | Candidatee944f52:89Python/privacy/35join/package checks pass, actual routeFAIL40.554s at NetworkSession tree_exited disconnect error; cleanup fixture command rejected. | PARKED/unmerged/withheld. Subsequent passive capture identifies retained native RPC-cache callback; it does not qualify the route. Full continuation NOT_RUN. Original raw data/eight builds preserved; scratch cleaned. |
 | AFT-CONSOLE-VIEW /9,12 | Standalone actual-module Xvfb/Forward+/llvmpipe capture FAIL120.485s after camera setup; no image or visual finding. | PARKED; source/root cause unproven. No cap increase, alternate backend/view or retry selected. Owned scratch cleaned; raw results retained. |
-| WALK-OBSERVATION /7,9 | Two caller failures retained; numeric e390/unchanged game4c58 completes54-goal travel/view/home prefix then FAIL89.064s on rootWindow signal disconnections after focused Exit. | PARKED; full task remains unaccepted, no clean exit0. Separate Window cause/owner required; no probe/repair/retry selected. |
+| WALK-OBSERVATION /7,9 | Two caller failures retained; numeric e390/unchanged game4c58 completes54-goal travel/view/home prefix then FAIL89.064s on rootWindow signal disconnections after focused Exit. | PARKED; full task remains unaccepted, no clean exit0. Only the separately frozen passive Popup diagnosis is prepared; no repair or acceptance retry selected. |
 | PERIMETER-LIVE /11 | Candidateaa88b5a73 unmerged; staged Hold52/director149/asset12/board58/HUD9 pass. GameFlow FAIL90.178s before Hold entry; exports NOT_RUN. | PARKED after cumulative363.897s/three failures and independent review. Concrete change addressing retained full GameFlow route boundary plus separate selection required; no additional correction/retry/cap increase/narrowed acceptance. |
 | PLAY-BEACON-HOME /13 | Candidatea612ea686 FAIL37.713s guarded/37.419s driver at ActivityBoardButton Return/frame1233; same two root Window signal-disconnection diagnostics. Eleven prechecks pass; no settlement/home/L/E reached, no file captures. Unmerged/withheld. | PARKED on UI-BOARD-FOCUS. Recurrence supplies no popup/connection-removal cause; no retry/repair/cap change. Preserve original UI two-component9.627s and Mining budgets. |
 | BREACH-INTERRUPTION /13,31,32 | Originale9/repair3c fail board arming35.365/35.638s. After accepted owner fix e3, unchanged probe c159 fails69.957s at atomic-payment commit assertion after cold Resume/one matching receipt; third cold replay NOT_RUN. | Cumulative140.961s STOP/PARK; candidates unmerged/withheld, no recovery checkpoint. No further diagnosis/repair/run, fourth automatic attempt or renamed retry selected; concrete causal fact/change required. |
