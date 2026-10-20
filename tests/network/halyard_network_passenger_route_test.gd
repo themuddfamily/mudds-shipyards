@@ -68,7 +68,12 @@ const ORDINARY_HALYARD_APPROACH := [
 	Vector3(37, 4.2, 68.3), Vector3(32.4, 4.2, 68.2), Vector3(32, 4.2, 62.2),
 	Vector3(32, 4.2, 54.2),
 ]
+var _ordinary_two_client_moving := false
+# Shared ordinary prefix/orchestration is also enabled for its moving continuation.
 var _ordinary_two_client_board := false
+var _ordinary_motion_active := false
+var _ordinary_motion_min_speed := 0.0
+var _ordinary_motion_samples := 0
 var _ordinary_complete := false
 var _ordinary_first_failure := false
 var _ordinary_player_id := 0
@@ -89,9 +94,11 @@ func _init() -> void:
 
 func _run() -> void:
 	var args := OS.get_cmdline_user_args()
-	_ordinary_two_client_board = "--ordinary-two-client-board" in args
+	_ordinary_two_client_moving = "--ordinary-two-client-moving" in args
+	_ordinary_two_client_board = "--ordinary-two-client-board" in args or _ordinary_two_client_moving
 	if _ordinary_two_client_board:
 		args.erase("--ordinary-two-client-board")
+		args.erase("--ordinary-two-client-moving")
 		await _ordinary_run(args)
 		return
 	if "--exit-receipt-only" in args:
@@ -292,7 +299,9 @@ func _orchestrate() -> void:
 	quit(0 if _failures.is_empty() else 1)
 
 func _print_peer_success() -> void:
-	if _ordinary_two_client_board:
+	if _ordinary_two_client_moving:
+		print("HALYARD_ORDINARY_TWO_CLIENT_MOVING_OK checks=%d" % _checks)
+	elif _ordinary_two_client_board:
 		print("HALYARD_ORDINARY_TWO_CLIENT_BOARD_OK checks=%d" % _checks)
 	elif _ember_surface:
 		print("HALYARD_NETWORK_EMBER_PASSENGER_TERRAIN_OK checks=%d" % _checks)
@@ -339,7 +348,9 @@ func _peer_arguments(role: String, display: PackedStringArray) -> PackedStringAr
 	if not _package_under_test.is_empty():
 		args.append_array(["--main-pack", _package_under_test])
 	args.append_array(["--script", script, "--", role, _directory, str(_port)])
-	if _ordinary_two_client_board:
+	if _ordinary_two_client_moving:
+		args.append("--ordinary-two-client-moving")
+	elif _ordinary_two_client_board:
 		args.append("--ordinary-two-client-board")
 	if _ember_surface:
 		args.append("--ember-surface")
@@ -1450,6 +1461,9 @@ func _ticks(count: int) -> void:
 	for _index in count:
 		await physics_frame
 		await process_frame
+		if _ordinary_motion_active and is_instance_valid(_craft):
+			_ordinary_motion_min_speed = minf(_ordinary_motion_min_speed, _craft.velocity.length())
+			_ordinary_motion_samples += 1
 
 func _wait_file(name: String, seconds: float) -> bool:
 	if _ordinary_two_client_board:
@@ -2377,10 +2391,13 @@ func _ordinary_peer_generation(peer_id: int) -> int:
 	return 0
 
 func _ordinary_walk_to(target: Vector3, cabin: bool) -> bool:
+	var moving_target := _craft.to_local(target) if _ordinary_two_client_moving and cabin else Vector3.ZERO
 	await _ordinary_look(target + Vector3.UP * 1.4)
 	var deadline := Time.get_ticks_msec() + 15000
 	var settled := 0
 	while Time.get_ticks_msec() < deadline and not _ordinary_aborted():
+		if _ordinary_two_client_moving and cabin:
+			target = _craft.to_global(moving_target)
 		var delta := (target - _player.global_position).slide(Vector3.UP)
 		var authoritative_delta := delta
 		var current := true
@@ -2425,7 +2442,10 @@ func _ordinary_release_walk() -> void:
 		_ordinary_action(action, false)
 
 func _ordinary_look(target: Vector3) -> void:
+	var local_target := _craft.to_local(target) if _ordinary_two_client_moving else Vector3.ZERO
 	for _index in 4:
+		if _ordinary_two_client_moving:
+			target = _craft.to_global(local_target)
 		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 			var click := InputEventMouseButton.new()
 			click.button_index = MOUSE_BUTTON_LEFT
@@ -2598,6 +2618,8 @@ func _ordinary_host() -> void:
 	if not _ordinary_require(_ordinary_manifest_current(manifest),
 		"both consumed client confirmations preserve authoritative distinct seats and stationary craft"):
 		return
+	if _ordinary_two_client_moving and not await _ordinary_moving_host(manifest):
+		return
 	_write("host.release", {})
 	for role in ["client", "client_b"]:
 		if not await _wait_file(role + ".leaving", 12.0):
@@ -2683,12 +2705,251 @@ func _ordinary_client() -> void:
 		"consumed client body/frame/seat/ownership generations match host and honest role UI"):
 		return
 	_write(_role + ".retained", {})
+	if _ordinary_two_client_moving and not await _ordinary_moving_client(manifest):
+		return
 	if not await _wait_file("host.release", 12.0):
 		return
 	_write(_role + ".leaving", {})
 	if not await _wait_file("host.leaving", 12.0):
 		return
 	_ordinary_complete = true
+
+
+# This continuation starts only after every original stationary BOARD check.
+# Host barriers sample actual authoritative movement during each physical action;
+# clients independently prove consumed current state before the next action.
+const ORDINARY_MOVING_STAGES := ["stand", "walk", "approach", "sit", "stand_again", "approach_again", "reseat"]
+
+func _ordinary_hull_sample() -> Dictionary:
+	var position := _craft.global_position
+	return {"position": [position.x, position.y, position.z], "speed": _craft.velocity.length(),
+		"tick": Engine.get_physics_frames(), "min_sampled_speed": _ordinary_motion_min_speed,
+		"motion_samples": _ordinary_motion_samples}
+
+func _ordinary_motion_begin() -> Dictionary:
+	_ordinary_motion_min_speed = _craft.velocity.length()
+	_ordinary_motion_samples = 0
+	_ordinary_motion_active = true
+	return _ordinary_hull_sample()
+
+func _ordinary_motion_end() -> Dictionary:
+	var sample := _ordinary_hull_sample()
+	_ordinary_motion_active = false
+	return sample
+
+func _ordinary_hull_moved(before: Dictionary, after: Dictionary) -> bool:
+	var a: Array = before.get("position", [])
+	var b: Array = after.get("position", [])
+	if a.size() != 3 or b.size() != 3:
+		return false
+	return Vector3(float(a[0]), float(a[1]), float(a[2])).distance_to(
+		Vector3(float(b[0]), float(b[1]), float(b[2]))) > 0.01 \
+		and float(before.get("speed", 0.0)) > 0.1 and float(after.get("speed", 0.0)) > 0.1 \
+		and int(after.get("tick", 0)) > int(before.get("tick", 0)) \
+		and int(after.get("motion_samples", 0)) >= 2 and float(after.get("min_sampled_speed", 0.0)) > 0.1
+
+func _ordinary_moving_walker_current(peer: int) -> bool:
+	var avatar := GameFlow.network_client_boarding_avatar_id(peer)
+	var simulation := _game.get_network_remote_body_simulation()
+	var body := simulation.get_body(avatar) as PlayerController
+	var owner: CrewSeatRoleAuthority = _craft.get_crew_role_authority()
+	var publication := _ordinary_publication(avatar)
+	return body != null and owner != null and not body.is_seated() and body.is_on_floor() \
+		and body.get_cabin_containment_report().get("frame") == _craft \
+		and owner.get_assignment(peer, avatar).is_empty() \
+		and publication.get("occupant") == body and int(publication.get("owner_peer_id", 0)) == peer \
+		and int(publication.get("published_state", -1)) == NetworkMovingInteriorRelationship.STATE_WALKING
+
+func _ordinary_moving_host_current(baseline: Dictionary, seated: bool, body: PlayerController, helm: NetworkRemotePilotCommandSource) -> bool:
+	var pilot := int(baseline.pilot_peer)
+	var passenger := int(baseline.passenger_peer)
+	var current := _ordinary_manifest(pilot, passenger)
+	var owner: CrewSeatRoleAuthority = _craft.get_crew_role_authority()
+	if owner == null or _game.get_network_remote_body_simulation().get_body(
+		GameFlow.network_client_boarding_avatar_id(passenger)) != body \
+		or _craft.get_command_source() != helm or not helm.is_holding_command() \
+		or int(helm.get_audit().get("pilot_peer_id", 0)) != pilot \
+		or float((helm.get_audit().get("controls", {}) as Dictionary).get("throttle", 0.0)) <= 0.0 \
+		or _craft.get_last_ship_command().throttle <= 0.0 \
+		or _craft.velocity.length() <= 0.1 or _craft.get_telemetry().get("engine_state") != HeroShip.ENGINE_ONLINE:
+		return false
+	for key in ["pilot_peer", "passenger_peer", "pilot_peer_generation", "passenger_peer_generation",
+		"ship_id", "ownership", "pilot_seat", "passenger_boarding"]:
+		if current.get(key) != baseline.get(key):
+			return false
+	var identity_keys := ["entity_id", "entity_generation", "parent_frame_id", "parent_frame_generation"]
+	for key in ["pilot_body", "passenger_body"]:
+		if _ordinary_fields(current.get(key, {}) as Dictionary, identity_keys) != \
+			_ordinary_fields(baseline.get(key, {}) as Dictionary, identity_keys):
+			return false
+	var assignments: Array = owner.get_snapshot().get("assignments", [])
+	var occupancy_count := 0
+	for held: Dictionary in _game.network_session.get_boarding_snapshot().get("occupancies", []):
+		if held.get("ship_id") == _craft.get_ship_id():
+			occupancy_count += 1
+	return occupancy_count == 2 and assignments.size() == (1 if seated else 0) \
+		and _ordinary_pilot_is_current(pilot) \
+		and (_ordinary_passenger_is_current(passenger) if seated else _ordinary_moving_walker_current(passenger)) \
+		and _game.phase == GameFlow.Phase.INTRO and not _player.is_seated() and not _player.is_control_enabled()
+
+func _ordinary_moving_host(baseline: Dictionary) -> bool:
+	var start := _craft.global_position
+	var passenger := int(baseline.passenger_peer)
+	var body := _game.get_network_remote_body_simulation().get_body(
+		GameFlow.network_client_boarding_avatar_id(passenger)) as PlayerController
+	var helm := _craft.get_command_source() as NetworkRemotePilotCommandSource
+	if not _ordinary_require(body != null and helm != null, "moving continuation retains original authoritative passenger body and remote pilot helm"):
+		return false
+	_write("host.moving_go", {})
+	if not await _ordinary_boundary(func(): return _craft.global_position.distance_to(start) > 5.0 \
+		and _ordinary_moving_host_current(baseline, true, body, helm), 8.0,
+		"same original sampled remote helm physically departs over five metres with retained seats and current ownership"):
+		return false
+	_write("host.departed", {"distance": _craft.global_position.distance_to(start), "sample": _ordinary_hull_sample()})
+	for role in ["client", "client_b"]:
+		if not await _wait_file(role + ".departure_retained", 8.0):
+			return false
+	var previous_claim := int((baseline.passenger_seat as Dictionary).claim_sequence)
+	for stage: String in ORDINARY_MOVING_STAGES:
+		var seated := stage in ["sit", "reseat"]
+		var before := _ordinary_motion_begin()
+		var body_before := _craft.to_local(body.global_position)
+		var delivered := int(helm.get_audit().get("delivered", 0))
+		_write("host.moving_" + stage + "_go", {"sample": before})
+		if not await _wait_file("client_b.moving_" + stage + "_done", 15.0 if stage in ["walk", "approach", "approach_again"] else 8.0):
+			return false
+		if not await _ordinary_boundary(func(): return _ordinary_moving_host_current(baseline, seated, body, helm),
+			8.0, "moving host retains exact original actors, helm, frames and supported current role after " + stage):
+			return false
+		var after := _ordinary_motion_end()
+		var receipt := _read("client_b.moving_" + stage + "_done")
+		if not _ordinary_require(_ordinary_hull_moved(before, after) \
+			and _ordinary_hull_moved(receipt.get("before", {}) as Dictionary, receipt.get("after", {}) as Dictionary) \
+			and int(helm.get_audit().get("delivered", 0)) > delivered,
+			"host and consumed passenger hull samples prove real movement during " + stage + " with fresh sampled helm commands"):
+			return false
+		if stage == "walk" and not _ordinary_require(_craft.to_local(body.global_position).distance_to(body_before) > 0.6 \
+			and float(receipt.get("walk_distance", 0.0)) > 0.6,
+			"same authoritative and predicted passenger both walk over point six metres within the moving hull"):
+			return false
+		var manifest := _ordinary_manifest(int(baseline.pilot_peer), passenger)
+		if seated:
+			var claim := int((manifest.passenger_seat as Dictionary).get("claim_sequence", 0))
+			if not _ordinary_require(claim > previous_claim, "ordinary moving " + stage + " earns a fresh authoritative chair claim"):
+				return false
+			previous_claim = claim
+		_write("host.moving_" + stage + "_checked", manifest)
+		for role in ["client", "client_b"]:
+			if not await _wait_file(role + ".moving_" + stage + "_retained", 8.0):
+				return false
+	_write("host.moving_complete", {})
+	return await _wait_file("client.moving_complete", 8.0) and await _wait_file("client_b.moving_complete", 8.0)
+
+func _ordinary_moving_consumed_current(manifest: Dictionary, seated: bool) -> bool:
+	if _craft.velocity.length() <= 0.1 or _craft.get_telemetry().get("engine_state") != HeroShip.ENGINE_ONLINE:
+		return false
+	if seated:
+		return _ordinary_consumed_manifest_current(manifest)
+	# Preserve the accepted exact ownership, boarding, peer and frame projections.
+	# Only the passenger's current role/state differs during a legitimate stand.
+	if not _ordinary_same_identity() or not _ordinary_walking_identity_is_preserved():
+		return false
+	if _role == "client" and not _ordinary_local_pilot_is_current():
+		return false
+	if _role == "client_b":
+		var view := _game.network_session.get_passenger_replica_snapshot()
+		if not _ordinary_supported_cabin() or _player.is_seated() or not _ordinary_hud_role_is_current(&"passenger") \
+			or _craft.get_crew_role_authority() != null or _game.get("_network_engineer_source") != null \
+			or not (view.get("assignment", {}) as Dictionary).is_empty() or bool(view.get("seated", false)):
+			return false
+		var source := _game.get_network_remote_body_intent_source()
+		if source.get_entity_id() != StringName(_ordinary_walking_identity.entity_id) \
+			or source.get_entity_generation() != int(_ordinary_walking_identity.entity_generation):
+			return false
+		for producer in [_craft.get("_default_local_command_source"), _craft.get("_command_source")]:
+			if producer is ShipCommandSource and producer.is_enabled_owner():
+				return false
+	var ownership: Dictionary = {}
+	for row: Dictionary in (_game.network_session.get_authoritative_snapshot().get("sections", {}) as Dictionary).get("ownership", []):
+		if row.get("ship_id") == _craft.get_ship_id():
+			ownership = row
+	if _ordinary_fields(ownership, ["ship_id", "ship_generation", "owner_peer_id", "ownership_generation"]) != manifest.ownership \
+		or int(ownership.get("owner_peer_generation", 0)) != int(manifest.pilot_peer_generation):
+		return false
+	var expected_boarding: Dictionary = manifest.pilot_seat if _role == "client" else manifest.passenger_boarding
+	if _ordinary_fields(_game.get("_network_client_boarding_claim") as Dictionary, ["ship_id", "seat_id", "role"]) != \
+		_ordinary_fields(expected_boarding, ["ship_id", "seat_id", "role"]):
+		return false
+	for kind in ["pilot_body", "passenger_body"]:
+		var expected: Dictionary = manifest.get(kind, {})
+		var latest := _game.network_session.get_moving_interior_latest_relationship(StringName(expected.entity_id))
+		var keys := ["entity_id", "entity_generation", "parent_frame_id", "parent_frame_generation"]
+		if not (_role == "client" and kind == "pilot_body"):
+			keys.append("occupancy_state")
+		if _ordinary_fields(latest, keys) != _ordinary_fields(expected, keys):
+			return false
+	return true
+
+func _ordinary_moving_client(baseline: Dictionary) -> bool:
+	if not await _wait_file("host.moving_go", 8.0):
+		return false
+	if _role == "client":
+		# Production LocalShipInputSource samples this ordinary throttle; no
+		# command, engine, transform or velocity is set by this fixture.
+		_ordinary_action(&"move_forward", true, 0.35)
+	if not await _wait_file("host.departed", 8.0):
+		return false
+	if not await _ordinary_boundary(func(): return _craft.velocity.length() > 0.1 \
+		and _craft.get_telemetry().get("engine_state") == HeroShip.ENGINE_ONLINE \
+		and _ordinary_consumed_manifest_current(baseline), 8.0,
+		"original peer consumes genuinely departing craft with unchanged seated identities"):
+		return false
+	_write(_role + ".departure_retained", {})
+	for stage: String in ORDINARY_MOVING_STAGES:
+		if _role == "client_b":
+			if not await _wait_file("host.moving_" + stage + "_go", 8.0):
+				return false
+			var before := _ordinary_motion_begin()
+			var local_before := _craft.to_local(_player.global_position)
+			if stage == "walk":
+				if not await _ordinary_walk_to(_craft.to_global(Vector3(0.0, 0.52, -6.80)), true):
+					return false
+			elif stage in ["approach", "approach_again"]:
+				if not await _ordinary_walk_to((_station_contract().entry_transform as Transform3D).origin, true):
+					return false
+			elif stage in ["stand", "stand_again"]:
+				await _ordinary_press(&"interact")
+				if not await _ordinary_boundary(func(): return _ordinary_supported_cabin() and not _player.is_seated(),
+					8.0, "ordinary Interact restores supported moving passenger stand: " + stage):
+					return false
+			else:
+				await _ordinary_look(_station_anchor().global_position + Vector3.UP * 1.2)
+				if not await _ordinary_boundary(func(): return _game.station_interaction_candidate is ShipCrewSeat \
+					and (_game.station_interaction_candidate as ShipCrewSeat).get_seat_anchor() == _station_anchor(),
+					8.0, "ordinary moving approach discovers same real crew_port_00 chair"):
+					return false
+				await _ordinary_press(&"interact")
+				if not await _ordinary_boundary(_ordinary_local_passenger_is_current, 8.0,
+					"ordinary moving chair Interact seats original passenger: " + stage):
+					return false
+			var after := _ordinary_motion_end()
+			if not _ordinary_require(_ordinary_hull_moved(before, after), "consumed hull genuinely moves throughout passenger " + stage):
+				return false
+			_write("client_b.moving_" + stage + "_done", {"before": before, "after": after,
+				"walk_distance": _craft.to_local(_player.global_position).distance_to(local_before)})
+		if not await _wait_file("host.moving_" + stage + "_checked", 30.0):
+			return false
+		var manifest := _read("host.moving_" + stage + "_checked")
+		if not await _ordinary_boundary(func(): return _ordinary_moving_consumed_current(manifest, stage in ["sit", "reseat"]),
+			8.0, "both peers consume current host body/frame/ownership and legitimate role after moving " + stage):
+			return false
+		_write(_role + ".moving_" + stage + "_retained", {})
+	if not await _wait_file("host.moving_complete", 8.0):
+		return false
+	if _role == "client":
+		_ordinary_action(&"move_forward", false)
+	_write(_role + ".moving_complete", {})
+	return true
 
 
 func _ordinary_manifest(pilot_peer: int, passenger_peer: int) -> Dictionary:
@@ -2862,6 +3123,7 @@ func _ordinary_failure_snapshot(description: String) -> Dictionary:
 		"wall": Time.get_unix_time_from_system(), "ticks": Engine.get_physics_frames(),
 		"peer_id": _ordinary_peer_id, "peer_generation": _ordinary_initial_peer_generation,
 		"original_player_id": str(_ordinary_player_id), "walking_identity": _ordinary_walking_identity,
+		"moving_selected": _ordinary_two_client_moving,
 		"shared_abort": _ordinary_fields(_read("abort"), ["role", "description", "snapshot"])}
 	if not is_instance_valid(_game) or not is_instance_valid(_craft) or not is_instance_valid(_player):
 		snapshot["missing"] = "Main, craft or Player unavailable"
