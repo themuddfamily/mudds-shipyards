@@ -87,6 +87,7 @@ func _run() -> void:
 	_hud.name = "PanelLayoutHUD"
 	root.add_child(_hud)
 	await process_frame
+	await _test_intro_layout()
 	await _seed_worst_case_content()
 
 	await _test_contract_floor()
@@ -105,6 +106,78 @@ func _run() -> void:
 	_hud.queue_free()
 	await process_frame
 	_finish()
+
+
+## Measure the shipping intro before gameplay hides it. Window content sizing
+## matches ultrawide_layout_test so each case has its actual requested viewport.
+func _test_intro_layout() -> void:
+	var previous_size := root.size
+	var previous_content_size := root.content_scale_size
+	var previous_aspect := root.content_scale_aspect
+	var previous_scale := _hud.get_ui_scale()
+	var viewports := [Vector2(1024.0, 768.0)]
+	viewports.append_array(SUPPORTED_VIEWPORTS)
+	viewports.append(Vector2(5120.0, 1440.0))
+	var required_texts := [
+		"INSPIRED BY ZOLARKETH'S CLASSIC SANDBOX",
+		"MUDDS",
+		"SHIPYARDS",
+		"MODERN FAN REMAKE  /  VERTICAL SLICE 02",
+		"Walk the yard. Board the ship. Apply thrust.\nThe launch deck is waiting.",
+		"STANDALONE FAN PROTOTYPE",
+	]
+	var intro := _hud.get("_intro") as Control
+	var begin := _hud.find_child("IntroBeginShiftButton", true, false) as Button
+	for viewport_size: Vector2 in viewports:
+		root.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
+		root.content_scale_size = Vector2i(viewport_size)
+		root.size = Vector2i(viewport_size)
+		await process_frame
+		await process_frame
+		_hud.set_ui_scale(1.0)
+		_hud.show_intro()
+		await process_frame
+		await process_frame
+		var context := "intro %dx%d" % [int(viewport_size.x), int(viewport_size.y)]
+		_check(root.get_visible_rect().size == viewport_size,
+			"%s uses the actual requested viewport" % context)
+		var viewport_rect := Rect2(Vector2.ZERO, viewport_size)
+		var controls: Array[Control] = []
+		for text: String in required_texts:
+			var found: Label
+			for candidate in intro.find_children("*", "Label", true, false):
+				if (candidate as Label).text == text:
+					found = candidate as Label
+					break
+			_check(found != null, "%s retains title copy: %s" % [context, text])
+			if found != null:
+				controls.append(found)
+		for button_name: String in [
+			"IntroBeginShiftButton", "IntroServerBrowserButton", "IntroCreditsButton"
+		]:
+			var button := intro.find_child(button_name, true, false) as Button
+			_check(button != null, "%s retains %s" % [context, button_name])
+			if button != null:
+				_check(not button.disabled and button.focus_mode == Control.FOCUS_ALL,
+					"%s keeps %s enabled and focusable" % [context, button_name])
+				controls.append(button)
+		for index in controls.size():
+			var control := controls[index]
+			var rect := control.get_global_rect()
+			_check(control.is_visible_in_tree() and viewport_rect.encloses(rect),
+				"%s contains %s completely: %s" % [context, control.name, rect])
+			for other_index in range(index + 1, controls.size()):
+				var other := controls[other_index]
+				_check(not rect.intersects(other.get_global_rect()),
+					"%s keeps %s and %s disjoint" % [context, control.name, other.name])
+		_check(begin != null and root.gui_get_focus_owner() == begin,
+			"%s retains enabled Begin Shift focus after layout settles" % context)
+	root.content_scale_aspect = previous_aspect
+	root.content_scale_size = previous_content_size
+	root.size = previous_size
+	_hud.set_ui_scale(previous_scale)
+	await process_frame
+	await process_frame
 
 
 ## Drives every panel to the largest content the game ever gives it, and makes

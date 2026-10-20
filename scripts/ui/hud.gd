@@ -4679,6 +4679,9 @@ func _build_intro() -> void:
 
 	var corner := MarginContainer.new()
 	corner.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	# The title and both stacked actions exceed the authored minimum height.
+	# Keep their bottom margin when the container grows to fit its contents.
+	corner.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	corner.offset_left = 72.0
 	corner.offset_right = 690.0
 	corner.offset_top = -410.0
