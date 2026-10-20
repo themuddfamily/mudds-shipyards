@@ -142,7 +142,7 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | WALK-FREIGHT | Freight terminals | 7,9 | UNSCHEDULED; exact production-roster route |
 | WALK-FLEET | Fleet Dock berths | 7,9 | UNSCHEDULED; exact production-roster route |
 | WALK-ANNEX | Fresh normal hub→Annex console→hub with one actual restock | 7,9 | DONE source9af57671d;81.387s, same supported Player, kits5→6/one Annex update/Aft unchanged, disclosed pre-walk craft/repair fixtures; no whole-station closure |
-| WALK-OBSERVATION | Observation supported return | 7,9 | UNSCHEDULED; exact production-roster route |
+| WALK-OBSERVATION | Observation supported return | 7,9 | STOP on9dc645534: six source/package stages pass, first ordinary sample actors_current=false at boot; no walking/normal exit exercised. Full hub→actual ObservationPad/look→hub/UI-exit retained; source startup-guard diagnosis separately required, no retry selected. |
 | WALK-SALVAGE | Salvage three-component manifest | 7,9 | OPEN; definition DONE, ordered ACCESS/INSPECT/REVISIT children below; existing connector-staged memory-store scope retained |
 | WALK-SALVAGE-ACCESS | Hub→three inspection positions→hub by same supported Player | 7,9 | FAILED/PARKED: original46c059cf1 61.019s plus one repair641bbdbb0 60.822s, both outbound20; unchanged fullroute/limits, no further diagnosis/fix/run selected |
 | WALK-SALVAGE-INSPECT | Ordinary three components and manifest publication after actual approach | 7,9 | GATED on ACCESS; freeze exact continuation before execution |

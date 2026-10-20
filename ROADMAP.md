@@ -207,46 +207,21 @@ HUD29, confirmation integration12 and GameFlow18 assertions pass; all10 frozen
 source/package stages pass without retries. [Actual outcome and limits](docs/history/ROADMAP_DELIVERIES.md#blocked-save-repair-feedback--shipped-on-49047eb).
 This finishes the named feedback follow-up, not a broad recovery parent.
 
-## Selected station qualification — Observation return
+## Observation walk — stopped at caller startup
 
-**WALK-OBSERVATION**, parents7/9; qualification of delivered station geometry,
-not new content or historical reconstruction acceptance. Source mapping identifies
-ObservationLogisticsSpur (not Habitat common room), a geometry-only module with
-no interaction. Result: normal Start Shift, original supported Player walks from
-hub through the existing Annex connector to the Observation viewing pad, looks
-at its actual lens/instrument, returns to the original hub and exits by normal UI.
-No craft/kit fixture, teleport, movement override, rescue or invented Interact.
+**WALK-OBSERVATION**, parents7/9, remains OPEN. Candidate9dc645534 is pushed
+on `qual/observation-walk-20261020`, unmerged/withheld. Existing Python80 tests,
+import, privacy, private Linux export, strict menu startup and artifact audit
+pass. The one ordinary attempt fails at its first observation: actors_current
+false, frame450/sequence1, stageboot. No walking leg or normal UI exit ran; no
+production walking defect is established. No repair/retry/cap increase selected.
 
-One medium implementer owns only `tools/release/run_native_sortie.py`,
-`scripts/diagnostics/native_sortie_observer.gd`, `scripts/game/startup_loader.gd`,
-`tools/release/test_native_sortie.py`, `tests/startup_cli_privacy_test.gd` in owned
-`qual/observation-walk-20261020`; independent high reviewer checks input isolation,
-passive observer and lifecycle; root integrates/checks/exports/cleans. No recursion.
-Extend existing runner/observer, no parallel harness or validator. Map original
-Annex prefix without its craft/kit fixtures; then Annex local(0,18.5), world
-(91,38),(92.5,38), Spur local(0,11),(0,24),(-6.75,24),(-6.75,32),(-8,31.4), and
-reverse to original spawn. Destination requires actual ObservationPad support,
-Spur local x[-10.5,-3],z[26,38], >=60 actual physics frames and real mouse-look
-toward lens02. Same Main/world/Player/capsule/shape identity, unchanged tuning,
-default sampler, supported movement and fresh observations throughout; no proof
-from helper intent alone. Keep original native runner CAP300, each goal15s,
-arrival0.30m/stopped0.35 and normal UI exit0; first unexpected failure STOP.
-
-Before engines review and commit exact candidate. Private XDG/TMPDIR, HOME
-unchanged, pinned stock Godot4.7.1, Dummy audio always. Source checks: Python
-existing native driver suite60s; headless fresh import180s and existing startup
-CLI privacy60s. Then clean private Linux export180s, strict binary startup120s
-(exit0/one STARTUP_MENU_READY_OK), actual artifact audit90s, one original full
-ordinary driver invocation with its300s cap (outer cleanup330s). Render only on
-owned authenticated Xvfb, explicitx11/Dummy/software renderer, independent abort,
-release inputs/cursor and reap owned processes. Freeze actual pin/configs before
-execution. Estimate30–45min implement/review +10–15min checks/route; split before
-90min total. No automatic repair/retry/cap increase or route narrowing on failure.
-No public paired checkpoint for qualification-only selector/caller additions;
-latest playable49047eb stays current. Any demonstrated game defect needs its own
-production repair selection and required checkpoint. Native Windows/GPU/device/
-human/readability and whole-station/final integrated gates remain OPEN/NOT_RUN.
-Commit/push actual scope and clean owned scratch preserving unique results.
+Original full hub→Observation viewing pad→hub→UI-exit contract is retained.
+Next action is separately selected source diagnosis of the first actor-current
+startup guard, preserving the failed sample and original budget. [Exact result,
+limits and cleanup](docs/history/ROADMAP_DELIVERIES.md#observation-walk--caller-startup-failure).
+Latest public checkpoint remains49047eb. Only owned raw results and one withheld
+private package remain; duplicate checkout/ELF/helpers/profiles were cleaned.
 
 ## Latest playable result
 
@@ -273,6 +248,7 @@ contracts and cumulative attempt records remain in the retained history.
 | --- | --- | --- |
 | BROWSER-ORDINARY /25 | Candidatee944f52:89Python/privacy/35join/package checks pass, actual routeFAIL40.554s at NetworkSession tree_exited disconnect error; cleanup fixture command rejected. | PARKED/unmerged/withheld. Subsequent passive capture identifies retained native RPC-cache callback; it does not qualify the route. Full continuation NOT_RUN. Original raw data/eight builds preserved; scratch cleaned. |
 | AFT-CONSOLE-VIEW /9,12 | Standalone actual-module Xvfb/Forward+/llvmpipe capture FAIL120.485s after camera setup; no image or visual finding. | PARKED; source/root cause unproven. No cap increase, alternate backend/view or retry selected. Owned scratch cleaned; raw results retained. |
+| WALK-OBSERVATION /7,9 | Candidate9dc645534; six source/package stages PASS, ordinary FAIL22.304s at first actors_current=false sample before walking. | STOP; caller startup diagnosis separately required; no retry/cap increase or gameplay defect established. |
 | PERIMETER-LIVE /11 | Candidateaa88b5a73 unmerged; staged Hold52/director149/asset12/board58/HUD9 pass. GameFlow FAIL90.178s before Hold entry; exports NOT_RUN. | PARKED after cumulative363.897s/three failures and independent review. Concrete change addressing retained full GameFlow route boundary plus separate selection required; no additional correction/retry/cap increase/narrowed acceptance. |
 | PLAY-BEACON-HOME /13 | Candidatea612ea686 FAIL37.713s guarded/37.419s driver at ActivityBoardButton Return/frame1233; same two root Window signal-disconnection diagnostics. Eleven prechecks pass; no settlement/home/L/E reached, no file captures. Unmerged/withheld. | PARKED on UI-BOARD-FOCUS. Recurrence supplies no popup/connection-removal cause; no retry/repair/cap change. Preserve original UI two-component9.627s and Mining budgets. |
 | BREACH-INTERRUPTION /13,31,32 | Originale9/repair3c fail board arming35.365/35.638s. After accepted owner fix e3, unchanged probe c159 fails69.957s at atomic-payment commit assertion after cold Resume/one matching receipt; third cold replay NOT_RUN. | Cumulative140.961s STOP/PARK; candidates unmerged/withheld, no recovery checkpoint. No further diagnosis/repair/run, fourth automatic attempt or renamed retry selected; concrete causal fact/change required. |

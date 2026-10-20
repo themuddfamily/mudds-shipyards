@@ -4,6 +4,50 @@ Moved from ROADMAP.md on 2026-10-17. These are source-specific historical
 results, not the active queue or proof of current full-project acceptance.
 Return to the [working roadmap](../../ROADMAP.md).
 
+## Observation walk — caller startup failure
+
+WALK-OBSERVATION parents7/9, exact candidate
+`9dc645534d6966b5f345465f189585b01e2f3722`, branch
+`qual/observation-walk-20261020` pushed/unmerged. Qualification of existing
+ObservationLogisticsSpur geometry only, not new content or topology provenance.
+One medium implementer plus high independent isolation/lifecycle reviewer;
+source GO after retaining paused actor IDs/tuning and actual camera basis.
+Five existing files only: native runner, passive observer, startup selector and
+existing Python/privacy tests. No gameplay owner or fixture placement change.
+
+Frozen route: normal Start Shift, same supported Player from authored hub via
+existing Annex prefix without craft/kit fixtures, actual Spur ObservationPad
+(localx[-10.5,-3],z[26,38]), >=60 physics frames and actual mouse camera-look toward
+lens02, reverse walk to original hub, normal focused UI Exit with actual exit0.
+Every sample checks original identities/default InputMap/tuning and physical
+support, no teleport/rescue; goal15s/arrival.30/stopped.35, original globalCAP300,
+independent outer330s cleanup. PrivateXvfb+explicitx11/Dummy/dummy-renderer, no
+rendered readability/native GPU/human claim. No public checkpoint for caller-only
+qualification additions. First unexpected failure stops the attempt.
+
+Python80 tests PASS10.677s; fresh import19.641, startup privacy1.023, private Linux
+export41.679, strict binary menu startup22.359 and actual archive audit4.233 pass.
+Actual1,521 PCK entries, exact archive binary/icon/installer bytes/modes/source
+epoch verified; menu check exit0/one STARTUP_MENU_READY_OK.
+Ordinary stageFAIL22.304s (driver21.908s): first sample actors_current=false,
+frame450/sequence1, process1655520, boot, no main_id or walking receipts. This is
+before the broad current-actor guard reaches Spur/pad lookup. No specific failed
+predicate, game walking defect, successful route or UI exit is established.
+No matched engine diagnostic; failure abort releases inputs/helper/game/Xvfb,
+not normal UI completion. No automatic correction/retry/cap increase selected.
+
+All7 guarded stages121.917s cumulative, six pass/one failure. Original contract
+freeze→cleanup558.603s/9.3min within90min total split; no budget reset. All34
+observed descendant identities absent and stage owners terminal. Source pushed,
+raw logs/configs/helpers and failed sample retained under
+`/srv/mudds-work/observation-walk-20261020/results/`. One withheld archive95,314,685
+bytes retains exact ELF SHA9e246670ed24cb3f104ad0351932a759c7cd6e013eca020d906bdd4450ee9fd7;
+archive SHA02e5bdbf8aebe7b39cb179d9726b7ddc7aa86b36467df2cec41215a2be231595.
+Private profiles archived/byte-mode verified; duplicate ELF/worktree/helpers/
+profiles removed. Next: separately select bounded source diagnosis of first
+actor-current startup guard, retaining the failed sample/full route and budget.
+Latest public49047eb and all broad/native/device/human gates unchanged.
+
 ## Blocked save-repair feedback — shipped on 49047eb
 
 Source `49047ebcf5c6824e62f6b6b6408cde85d39d2b78`, integrated by main merge
