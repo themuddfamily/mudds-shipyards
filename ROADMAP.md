@@ -1,30 +1,16 @@
 # Development roadmap
 
-**Status: playable development alpha; project completion is unproven.** Latest
-accepted checkpoint: **ed1167b**. Its private release route completes two ordinary
-Arrow flights, strict home returns, supported exits/reboarding and normal UI quit.
-This adds executable acceptance coverage; the broader craft gates remain open.
-Settings save/recovery and activity feedback use their current role colours once and follow palette/high-contrast changes.
-Six gameplay readouts apply their current
-role colour once and follow palette/high-contrast switches: mode, engine,
-throttle, hull damage, component status and target lock.
-Destination Board status refreshes apply
-the current palette role once and follow palette/high-contrast changes.
-The physical Station Defense board supports
-ordinary E Deploy/status/terminal Reset and settlement retry through existing
-owners. Shared menu contrast and the local Help CLOSE paints are retained.
-The existing combat board offers solo
-Paired Wing after Heavy Breach/Torpedo, with on-foot arm/cancel and launch only
-after boarding and physical departure. Wing explicitly offers no credit reward.
-It retains tractor inversion, title readability/overflow, Convoy guidance,
-planetary credits and earlier save protection.
+**Status: playable development alpha; project completion is unproven.**
+Latest accepted checkpoint: **ed1167b**, with two ordinary Arrow flights,
+home returns, supported exits/reboarding and normal UI quit. This qualifies an
+existing capability; it does not finish Arrow or add a new ship or mission.
 [Windows notes](builds/windows/MuddsShipyards-ed1167b-notes.txt) and
-[Linux notes](builds/linux/MuddsShipyards-ed1167b-linux-notes.txt) state checks and
-limits. Inline browser progress/timeout/retry remains accepted on20e90c9;
-paused LAN discovery on042c701. Beacon departure/traversal/once-only saved reward
-qualification on e06550e is retained in its recorded scope. Beacon home/dock/exit, Perimeter Hold,
-client rejection and real listening remain unfinished. All36 original parents
-and ten phase gates remain open.
+[Linux notes](builds/linux/MuddsShipyards-ed1167b-linux-notes.txt) retain actual
+validation and limits. All 36 original parents and ten phase gates remain open.
+
+Read this page for **what to do next**, the [backlog](docs/ROADMAP_BACKLOG.md)
+for complete remaining scope, and [delivery history](docs/history/ROADMAP_DELIVERIES.md)
+for attempt records. No finished or parked item is an active assignment.
 
 ## What separates this alpha from completion
 
@@ -52,101 +38,52 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 ## Execution now
 
-### Arrow ordinary return and reuse — shipped on ed1167b
+**No implementation or engine run is active.** This revision replaces the
+history feed with one prepared next assignment and explicit prerequisites.
+It is a planning change only; it delivers no gameplay or qualification result.
 
-Fresh ordinary archive session completes two Arrow flights, strict home docks,
-neutral OFFLINE/physical exits, a12.766m supported clear walk and actual reboard,
-then normal UI quit/exit0. Actual route106.765s under originalCAP300;4629 physics
-receipts,91.419m walking, zero diagnostics and complete input/process cleanup.
-All11 reviewed-source stages PASS; both earlier failures and cumulative608.369s
-remain retained. [Checks, corrections and scope](docs/history/ROADMAP_DELIVERIES.md#arrow-ordinary-return-and-reuse--shipped-on-ed1167b).
-Weapons/damage/recovery/cross-craft/Main/native/full craft gates remain open.
-Owned worktree/profiles removed;190 process identities absent,11 public files
-verified. Records compacted445→18 files with originals verified; closure including
-compaction42.38min within original60min. Only the task results folder remains.
+Only one assignment per implementer is active. The next card below is prepared,
+not running. A successful card closes its named result and stops; selecting a
+successor is a separate decision against the remaining product scope. Do not
+turn a completed source handoff into another general research assignment.
 
-Latest accepted route: Arrow ordinary return/reuse oned1167b. Settings/activity
-feedback colour repair remains accepted on2ed93ca.
-Six gameplay status palette repairs remain accepted on941ef73.
-Destination Board status palette repair remains accepted onc47ca33.
-Station Defense physical E interaction remains accepted ona59127c. Accepted Wing
-board admission remains onf671da9; its full ordinary route is still parked.
-[Admission scope and checks](docs/history/ROADMAP_DELIVERIES.md#paired-wing-board-admission--shipped-on-f671da9)
-remain in the existing history and accepted-outcome table.
+### Next: WEAPON-ARROW — ordinary pilot hit and return
 
-### Ordinary Wing route — parked after admission-driver failure
+**Type:** release automation / qualification of existing gameplay, parents7/11;
+part of CRAFT-ACCEPT-ARROW. Source handoff complete on814c801d0. No missing
+precision-emitter runtime implementation has been established.
 
-Candidateb40c62eb3 remains pushed, unmerged and unpublished. Its board request
-was outside the production3D radius; full Wing combat/home remains unaccepted.
-Cumulative344.298s and original60min budget are retained. No retry or second
-correction selected. [Full result and reopening condition](docs/history/ROADMAP_DELIVERIES.md#ordinary-wing-route--board-admission-driver-fails).
+| Field | Bounded assignment |
+| --- | --- |
+| Result | Extend the existing ordinary Arrow route so the pilot lands one genuine precision-emitter hit on the authored moving DRONE-01, then completes the existing two-flight home/exit/reboard/UI-quit route. |
+| Owners | One implementer: `scripts/diagnostics/native_sortie_observer.gd`, `tools/release/run_native_sortie.py`, `tools/release/test_native_sortie.py`. One independent lifecycle/receipt reviewer. Extend existing code and focused tests; no parallel route copy. |
+| Decisive check | Actual native fire produces a fresh source1102 / `arrow_precision_recon_emitter` request and authoritative24-damage result on the same target: health100→76, with matching sequence and presentation receipt in target hit context. Then both strict home/offline exits, supported clear/reboard and normal UI exit0. A generic retained accepted-shot flag is insufficient. |
+| Entry and protected behavior | Fresh ordinary archive session; existing authored moving target and default tuning. First-flight brake/aim/fire/restore-attitude phase only; second flight unchanged. Preserve original CAP300 and every-physics-receipt validation, input release and independent abort. No target placement/freeze, direct damage, encounter-clear claim or Sandbox/Defense retry. |
+| Estimate and execution gate | 45–60min implementation/review, then10–20min focused checks/package/cleanup; estimate only. Before any engine run, freeze exact candidate, commands, markers and per-stage caps in the task record. Aim/fire/attitude restoration gets at most25s within the original300s route, not an increased route cap. Split before90min if implementation exceeds this scope. |
+| Stop and closure | First unexpected failure stops the attempt; preserve the candidate, exact failed boundary and cumulative cost. No automatic repair/probe/retry. On pass, review actual hit/route records, commit/push and clean owned scratch; any new accepted package uses the existing export/startup/audit workflow. Close only WEAPON-ARROW's named hit qualification, leaving broader craft/damage/recovery/art/native/final gates open. |
 
-### Help CLOSE contrast — delivered in checkpoint820cc38
+This is a known executable integration seam, not evidence that the entire weapon
+or craft is finished. Unobstructed fire and safe attitude restoration remain
+runtime questions; failure must not expand this into an encounter project.
 
-Accepted local hover/pressed text repair; rendered/device/human/broad UI gates
-remain open. [Actual checks, package and cleanup](docs/history/ROADMAP_DELIVERIES.md#help-close-contrast--shipped-on-820cc38).
+### Next production alternative: Freight physical terminal interface
 
-### Shared menu-button contrast — delivered in checkpointd00ae72
+**FREIGHT-TERMINAL-INTERFACE is WAITING, not READY.** It is a known missing
+player interaction: existing Freight screens/kiosk are decorative. The
+[existing handoff](docs/ROADMAP_BACKLOG.md#freight-terminals--physical-interface-and-existing-transfer-owner)
+names runtime owners, conserved manifests and ordered completion checks.
+The already-asked workflow choice below must resolve before implementation.
+Once resolved, select only the physical interface capability, then separately
+qualify delivery/cold reload/full branch. Do not count this planning pass or the
+Arrow route as delivering the terminal, and do not bypass parked KIT-RELOAD.
 
-Accepted shared hover/pressed text repair; layout/actions and local Help paints
-retained. [Actual checks and limits](docs/history/ROADMAP_DELIVERIES.md#shared-menu-contrast--shipped-on-d00ae72).
+### After these cards
 
-### Station Defense physical interaction — delivered in checkpointa59127c
-
-Ordinary E Deploy/status/Reset/retry accepted through existing owners, with
-separate presses, refusal/debt gates and unchanged34s encounter. Full combat/home
-remains open. [Checks, retained correction and cleanup](docs/history/ROADMAP_DELIVERIES.md#station-defense-physical-interaction--shipped-on-a59127c).
-
-### Station Defense ordinary route — parked after post-Deploy walk timeout
-
-Candidatea480c0fbb remains pushed/unmerged/unpublished. Deploy worked; the
-post-Deploy walk stayed stationary33.15s and the whole34s encounter timed out
-before boarding. No player kill/payment/home/reset/UIexit. Cumulative406.401s
-retained; no second repair/retry selected. [Full result and reopening condition](docs/history/ROADMAP_DELIVERIES.md#ordinary-station-defense--deploy-accepted-post-deploy-walk-times-out).
-
-### Destination Board status palette — shipped on c47ca33
-
-Retained status role/palette/high-contrast update accepted; full planetary
-journeys and rendered/device/human/final gates remain open. [Actual checks and cleanup](docs/history/ROADMAP_DELIVERIES.md#destination-board-status-palette--shipped-on-c47ca33).
-
-### Gameplay status palettes — shipped on 941ef73
-
-Six gameplay readouts use their current role once; unchanged telemetry skips
-registry scans. Copy/visibility/thresholds/reticle geometry retained. [Actual checks, package and limits](docs/history/ROADMAP_DELIVERIES.md#gameplay-status-palettes--shipped-on-941ef73).
-
-### Settings and activity feedback palettes — shipped on 2ed93ca
-
-Four remaining feedback Label families now use the unchanged current-role
-helper: settings save result, recovery title, nearby action feedback and activity
-selection status. Copy/visibility/actions/focus/authority retained. All12 frozen
-stages passed first attempt,174.247s; caller suites11/35/26/113 assertions,
-HUD layout552, paired exports/three strict startups/1521-entry package audit.
-[Checkpoint2ed93ca, actual validation and limits](docs/history/ROADMAP_DELIVERIES.md#settings-and-activity-feedback-palettes--shipped-on-2ed93ca).
-
-Owned checkout/profiles removed9.57min within original45min. Six closed task
-record folders compacted from739 to97 loose files; originals preserved in checked
-archives. Two more closed accepted records (Paired Wing admission and tractor
-inversion) are now compacted from281 to29 loose files, saving about115MiB.
-Original archive entries and published build hashes were verified; all recorded
-owned processes are absent. Summaries and reusable helpers remain accessible.
-No broader UI, recovery/activity journey, native/human or final-release
-acceptance claimed.
-
-### Freight terminal integration — bounded handoff, workflow pending
-
-WALK-FREIGHT source preflight found missing production interaction: Freight's
-screens/kiosk are decorative; reusable source terminal is not instantiated and
-the destination terminal is on Cinder. Existing Jovian cargo binds ship/berth
-manifests and transfers automatically on landing. Corrected the completion roster
-from implemented to missing physical integration; no knowingly incomplete walk
-or new engine probe was run.
-
-[Ordered handoff](docs/ROADMAP_BACKLOG.md#freight-terminals--physical-interface-and-existing-transfer-owner)
-now separates physical interface, genuine existing transfer journey, original
-parked KIT-RELOAD and full ordinary branch acceptance. Original conservation,
-committed receipt/reload and same-ship return remain required; inspect-only cannot
-close the row. One workflow question is pending below. No production task or
-qualification execution selected; no scratch checkout created.
+Do not pre-assign an entire CRAFT-ACCEPT, ART-FINDINGS or PLAY-* family. Select
+one existing child whose dependency is actually satisfied and whose visible
+result can be stated in one sentence. If none is ready, record the specific
+missing input in that existing child; do not manufacture a validator, another
+scope inventory, or a renamed parked probe to fill the queue.
 
 ### Waiting decisions — not executable tasks
 
@@ -219,22 +156,6 @@ identify an independent production alternative or record its concrete missing
 definition. Do not expand an investigation into a succession of adjacent probes.
 The earlier RPC-cache capture is complete. Matching patched templates remain
 unavailable and Windows compilation is parked; neither is an automatic next task.
-
-## Observation walk — normal exit remains blocked
-
-WALK-OBSERVATION remains unaccepted: completing all54 waypoints/view/home does
-not pass the required normal UI exit. See its parked row below and the existing
-[numeric caller result](docs/history/ROADMAP_DELIVERIES.md#observation-numeric-contract--runtime-exit-failure).
-
-### Selected diagnosis — popup lifetime during normal Exit
-
-The diagnosis is stopped. The [retained capture](docs/history/ROADMAP_DELIVERIES.md#observation-popup-lifetime-capture--failure-boundary-identified)
-identifies the TooltipPanel below PlanetaryDestinationOpenButton; both stored
-connection pairs remain across the error. Attempted native Callable identity and
-cause are unresolved; no shared cause with Board/RPC is established. The later
-cleanup-order candidate remains unmerged/inconclusive. Preserve the complete
-route, original90min budget and cumulative733.226s across the four retained
-failures; no automatic probe, repair, retry or cap increase is selected.
 
 ## Latest playable result
 
@@ -329,8 +250,9 @@ candidate qualification remain open. All36 parents/ten phase gates remain open.
    larger parent journey gates before implementation; do not retroactively narrow
    a failed card's frozen acceptance.
 2. Keep the selected result fixed. A new defect ends that attempt; it does not
-   silently enlarge it. Record the failed outcome and remaining work. Failed task
-   plus one attempted repair requires cumulative priority review before more work;
+   silently enlarge it. Record the failed outcome and remaining work. There is no
+   automatic repair allowance: any repair must first be separately selected.
+   Failed task plus one attempted repair requires cumulative priority review before more work;
    renaming a card does not reset the budget. Reopening parked work also needs
    a named production change, changed environment, resolved dependency or new fact
    addressing its retained failure. Priority review alone is not a reason to rerun.

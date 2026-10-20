@@ -100,6 +100,12 @@ Reconciled on 2026-10-18 after the owner requested smaller, provable goals.
 ROADMAP.md schedules a small executable queue with owners, actions and budgets;
 the retained postdock cards split the exit/reuse family into five ordered outcomes.
 These rows replace the earlier grouped “per craft/role/world” inventory.
+A family row such as CRAFT-ACCEPT is a completion container, not an executable
+assignment. Its next bounded action must be selected in the working roadmap;
+never interpret all remaining clauses in a row as one session's task. An existing
+source handoff is reused until a relevant source change invalidates it. Planning,
+implementation and qualification are reported separately; adding smaller rows
+alone does not deliver any of their runtime outcomes.
 They are a scope inventory, not an implementation estimate or a project percentage.
 
 **States:** UNSCHEDULED = named scenario, not yet assigned/frozen; DEFINE =
@@ -437,7 +443,7 @@ their recorded scopes; none was rerun by this definition.
 | Case | Binding-specific finish | Existing owner/check anchor |
 | --- | --- | --- |
 | WEAPON-TORRENT | Guided range profile in the two named phases versus authored combat profile; actual registered damage | GameFlow profile selection; weapon_definition_migration_test.gd |
-| WEAPON-ARROW | Actual pilot precision-emitter selection/damage through the common chain | Arrow resource, HeroShip, GameFlow; migration/common combat checks |
+| WEAPON-ARROW | Next qualification: one ordinary pilot precision-emitter hit, fresh source1102/weapon/sequence/receipt correlation and actual DRONE-01 health100→76, followed by preserved Arrow return/reuse route. Prepared, not running; broader combat/craft gates remain open. | [Bounded assignment](../ROADMAP.md#next-weapon-arrow--ordinary-pilot-hit-and-return); existing observer/driver/tests, Arrow resource, HeroShip, GameFlow; migration/common combat checks |
 | WEAPON-JOVIAN | Actual pilot heavy-cannon selection/damage through the common chain | Jovian resource, HeroShip, GameFlow; migration/common combat checks |
 | WEAPON-ZENITH | Actual pilot repeater selection/damage through the common chain | Zenith resource, HeroShip, GameFlow; migration/common combat checks |
 | WEAPON-HALYARD | Both pilot and admitted gunner use the same lance/heat/cooldown; real damage beyond a request receipt | Halyard crew consumer and HeroShip; existing gunner gameplay test stops at emitted request; attempted actual-hit extension is parked at ordinary seat admission |
