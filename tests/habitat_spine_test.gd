@@ -1443,9 +1443,9 @@ func _test_service_and_visual_detail(module: HabitatSpine) -> void:
 	var performance := module.get_performance_contract()
 	_check(
 		int(performance.static_bodies) == 245
-		and int(performance.collision_shapes) == 266
+		and int(performance.collision_shapes) == 272
 		and bool(performance.within_budget),
-		"23 fixed seats add only the expected eight Habitat interaction shapes beside 245 solid bodies"
+		"23 fixed seats and six usable bunks yield 272 collision shapes beside unchanged 245 solid bodies"
 	)
 
 	var pressure_ribs := module.find_children("*", "Node3D", true, false).filter(

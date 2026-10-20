@@ -1,0 +1,21 @@
+Mudds Shipyards checkpoint 3d92b91
+Source: 3d92b91813d9e407e14ee4689c771e45af2c2042
+
+Player-visible changes
+- A restored Convoy escort now explains that it is paused and names the craft to board, launch and return to Cinder Reach. The objective stays honest while using another craft, then shows live progress after the saved craft resumes.
+- Credits now include the three existing temperate planetary ambience loops and their original procedural-synthesis source. Audio playback and sound files are unchanged.
+
+Actual validation
+- Clean isolated import; existing Convoy retained-feedback test: 20 assertions, including actual fresh Main, wrong-craft frozen state, accepted saved-craft rebind, fallback names and terminal/reset guidance.
+- Existing Credits page test: 25 assertions, including title/pause entry, focus/back/scroll behavior, registered asset attribution and engine notices.
+- Clean Windows and Linux exports; actual Windows payload confirms the new planetary-audio credits entry.
+- Three strict silent startup checks (Linux binary, extracted Linux archive, Windows payload via Linux Godot): exit 0 and exactly one STARTUP_MENU_READY_OK each.
+- Matching actual Windows/Linux PCK entries: 1521; stock Windows code section; exact Linux archive bytes/modes/source epoch and export metadata verified.
+- All 10 frozen stages passed on their first run, 203.594s combined. Every automated engine invocation used Dummy audio and an isolated profile/display policy.
+
+Limits
+Native Windows execution, native GPU performance, real-device audio/listening and human visual review: NOT_RUN. These focused checks do not qualify the full Convoy journey, endurance, whole-game regression matrix or final release. Previously observed native-tooltip shutdown errors remain unresolved; the separate cleanup-order candidate is unmerged.
+
+Files
+Windows: MuddsShipyards-3d92b91.exe and MuddsShipyards-3d92b91-checkpoint.zip
+Linux: MuddsShipyards-3d92b91.x86_64 and MuddsShipyards-3d92b91-linux-x86_64.tar.gz

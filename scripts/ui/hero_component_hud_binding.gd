@@ -10,7 +10,8 @@ var _ship_reference: WeakRef
 var _presentation_requested := false
 var _tree_suspended := false
 var _repairing_component_id: StringName = &""
-var _accepted_ledger_generation := 0
+var _accepted_report_source: StringName = &"local"
+var _accepted_report_generation := 0
 var _accepted_report_revision := -1
 var _accepted_report: Dictionary = {}
 var _passive_repair_caption_active := false
@@ -28,6 +29,8 @@ func attach(hud: Node, ship: Node) -> bool:
 	_hud_reference = weakref(hud)
 	_ship_reference = weakref(ship)
 	ship.connect(&"component_damage_changed", _on_component_damage_changed)
+	if ship.has_signal("component_damage_display_changed"):
+		ship.connect(&"component_damage_display_changed", _on_component_damage_display_changed)
 	if ship.has_signal("component_repair_progressed"):
 		ship.connect(&"component_repair_progressed", _on_component_repair_progressed)
 	if ship.has_signal("hull_changed"):
@@ -44,6 +47,7 @@ func detach() -> void:
 	var ship := _get_ship()
 	if is_instance_valid(ship):
 		_disconnect_if_connected(ship, &"component_damage_changed", _on_component_damage_changed)
+		_disconnect_if_connected(ship, &"component_damage_display_changed", _on_component_damage_display_changed)
 		_disconnect_if_connected(ship, &"component_repair_progressed", _on_component_repair_progressed)
 		_disconnect_if_connected(ship, &"hull_changed", _on_hull_changed)
 		_disconnect_if_connected(ship, &"destroyed", _on_ship_destroyed)
@@ -55,7 +59,8 @@ func detach() -> void:
 	_presentation_requested = false
 	_tree_suspended = false
 	_repairing_component_id = &""
-	_accepted_ledger_generation = 0
+	_accepted_report_source = &"local"
+	_accepted_report_generation = 0
 	_accepted_report_revision = -1
 	_accepted_report = {}
 
@@ -92,7 +97,7 @@ func refresh() -> bool:
 	):
 		_clear_hud()
 		return false
-	var report := ship.call("get_component_damage_report") as Dictionary
+	var report := _display_report(ship)
 	var order := _report_order(report)
 	if order < 0:
 		return false
@@ -133,6 +138,22 @@ func _on_component_damage_changed(_component_id: StringName, _state: int, _integ
 	refresh()
 
 
+func _on_component_damage_display_changed() -> void:
+	var ship := _get_ship()
+	if is_instance_valid(ship):
+		var source := _report_source(_display_report(ship))
+		if source != _accepted_report_source:
+			# Clear can happen while the row is hidden/suspended. Fence that
+			# source boundary now, even if the next repaint sees host data again.
+			_accepted_report_source = source
+			_accepted_report_generation = 0
+			_accepted_report_revision = -1
+			_accepted_report = {}
+			_repairing_component_id = &""
+			_passive_repair_caption_active = false
+	refresh()
+
+
 func _on_hull_changed(_current: float, _maximum: float) -> void:
 	# Hull remains unrelated authority; its signal is only a reliable notification
 	# that a localized component observation has just committed at finer-than-stage cadence.
@@ -146,10 +167,14 @@ func _on_ship_destroyed(_world_position: Vector3, _inherited_velocity: Vector3) 
 
 
 func _on_component_repair_progressed(progress: Dictionary) -> void:
+	# Host stages can improve without a local repair receipt. A local receipt
+	# cannot label those independent display facts as a repair or completion.
+	if _accepted_report_source != &"local":
+		return
 	var progress_generation := _strict_int(progress, "generation", -1)
 	var progress_revision := _strict_int(progress, "revision", -1)
 	if (
-		progress_generation != _accepted_ledger_generation
+		progress_generation != _accepted_report_generation
 		or progress_revision <= _accepted_report_revision
 	):
 		return
@@ -165,9 +190,10 @@ func _on_component_repair_progressed(progress: Dictionary) -> void:
 	):
 		_clear_hud()
 		return
-	var report := ship.call("get_component_damage_report") as Dictionary
+	var report := _display_report(ship)
 	if (
-		_strict_int(report, "ledger_generation", -1) != progress_generation
+		_report_source(report) != &"local"
+		or _strict_int(report, "ledger_generation", -1) != progress_generation
 		or _strict_int(report, "revision", -1) != progress_revision
 		or _report_order(report) <= 0
 	):
@@ -251,13 +277,18 @@ func _match_repair_progress(progress: Dictionary, report: Dictionary) -> Diction
 
 
 func _report_order(report: Dictionary) -> int:
-	var generation := _strict_int(report, "ledger_generation", -1)
-	var revision := _strict_int(report, "revision", -1)
+	var source := _report_source(report)
+	var generation := _report_generation(report)
+	var revision := _report_revision(report)
 	if generation <= 0 or revision < 0:
 		return -1
-	if generation < _accepted_ledger_generation:
+	# Host pose ticks and local ledger revisions have no shared ordering.
+	# A source change always samples that source's current detached report.
+	if source != _accepted_report_source:
+		return 1
+	if generation < _accepted_report_generation:
 		return -1
-	if generation == _accepted_ledger_generation:
+	if generation == _accepted_report_generation:
 		if revision < _accepted_report_revision:
 			return -1
 		return 0 if revision == _accepted_report_revision else 1
@@ -265,9 +296,28 @@ func _report_order(report: Dictionary) -> int:
 
 
 func _accept_report(report: Dictionary) -> void:
-	_accepted_ledger_generation = _strict_int(report, "ledger_generation", 0)
-	_accepted_report_revision = _strict_int(report, "revision", -1)
+	_accepted_report_source = _report_source(report)
+	_accepted_report_generation = _report_generation(report)
+	_accepted_report_revision = _report_revision(report)
 	_accepted_report = report.duplicate(true)
+
+
+func _display_report(ship: Node) -> Dictionary:
+	var method: StringName = &"get_component_damage_display_report" \
+		if ship.has_method("get_component_damage_display_report") else &"get_component_damage_report"
+	return ship.call(method) as Dictionary
+
+
+func _report_source(report: Dictionary) -> StringName:
+	return StringName(report.get("display_source", &"local"))
+
+
+func _report_generation(report: Dictionary) -> int:
+	return _strict_int(report, "display_generation" if _report_source(report) == &"host" else "ledger_generation", -1)
+
+
+func _report_revision(report: Dictionary) -> int:
+	return _strict_int(report, "display_revision" if _report_source(report) == &"host" else "revision", -1)
 
 
 ## Pure projection of the ship's current published snapshots. Generation one is
@@ -275,6 +325,9 @@ func _accept_report(report: Dictionary) -> void:
 ## that reset-for-reuse ran. Readiness requires the complete recovery audit and
 ## its nested presentation audit, never a nominal roster on its own.
 func _lifecycle_snapshot(report: Dictionary) -> Dictionary:
+	if _report_source(report) == &"host":
+		# A host life is not evidence that this machine's reuse audit completed.
+		return {"destroyed": bool(report.get("display_destroyed", false))}
 	var ship := _get_ship()
 	if not is_instance_valid(ship) or not ship.has_method("get_telemetry"):
 		return {}

@@ -52,6 +52,7 @@ func _run() -> void:
 	await _test_keyboard_landing_binding_prompts(hud)
 	await _test_keyboard_navigation_binding_prompts(hud)
 	await _test_tractor_binding_prompts(hud)
+	_test_activity_selection_status_palette(hud)
 	hud.set_paused(false)
 	paused = false
 	hud.queue_free()
@@ -580,6 +581,30 @@ func _apply_compatible_tractor_profile(hud: GameHUD, profile: InputBindingProfil
 		"the HUD accepts the intended tractor fixture before presentation assertions")
 
 
+func _test_activity_selection_status_palette(hud: GameHUD) -> void:
+	var status: Label = hud.get("_activity_selection_status_label") as Label
+	var identity: int = status.get_instance_id()
+	for outcome: Array in [
+		[false, &"selected", &"nominal_soft", "READY  //  CINDER PATROL"],
+		[true, &"", &"caution", "LOCKED  //  CURRENT SORTIE ALREADY STARTED"],
+		[true, &"repeat_ready", &"nominal_soft", "READY  //  REPEAT CINDER PATROL"],
+		[false, &"insufficient_source_quantity", &"caution", "UNAVAILABLE  //  INSUFFICIENT FABRICATION KITS"],
+		[false, &"unavailable", &"danger", "NOT CHANGED  //  UNAVAILABLE"],
+		[false, &"already_selected", &"nominal_soft", "READY  //  CINDER PATROL"],
+	]:
+		hud.set_activity_selection_state(&"patrol", bool(outcome[0]), StringName(outcome[1]))
+		_check(status.text == String(outcome[3]), "selection outcome keeps its authored status copy")
+		_check_status_palette(hud, &"_activity_selection_status_label", identity, StringName(outcome[2]), String(outcome[1]))
+	_check(hud.set_patrol_branch_selection_state(&"platform_sweep", false, &"unavailable"),
+		"the caller can present a refused Patrol route change")
+	_check(status.text == "ROUTE NOT CHANGED  //  UNAVAILABLE", "Patrol refusal remains explicit")
+	_check_status_palette(hud, &"_activity_selection_status_label", identity, &"danger", "Patrol route refused")
+	hud.set_hud_palette(&"deuteranopia")
+	_check_status_palette(hud, &"_activity_selection_status_label", identity, &"danger", "selection palette repaint")
+	hud.set_high_contrast_hud(true)
+	_check_status_palette(hud, &"_activity_selection_status_label", identity, &"danger", "selection contrast repaint")
+
+
 func _destination_snapshot() -> Dictionary:
 	var ember := _row(
 		&"ember_moon", "Ember Moon", true, true, &"ember_route", "ENGAGE CRUISE"
@@ -676,3 +701,27 @@ func _finish() -> void:
 	for failure in _failures:
 		push_error(failure)
 	quit(1)
+
+
+func _check_status_palette(
+	hud: GameHUD, field: StringName, identity: int, role: StringName, outcome: String
+) -> void:
+	var label: Label = hud.get(field) as Label
+	var expected: Color = GameHUD.PaletteType.get_role_color(
+		hud.get_hud_palette_id(), role, hud.is_high_contrast_hud()
+	)
+	var entries: int = 0
+	var registered_role: StringName = &""
+	var targets: Array = hud.get("_palette_targets") as Array
+	for entry: Dictionary in targets:
+		if entry.get("kind") == &"theme_color" and entry.get("node") == label \
+				and entry.get("property") == &"font_color":
+			entries += 1
+			registered_role = StringName(entry.get("role", &""))
+	_check(
+		label.get_instance_id() == identity and entries == 1 and registered_role == role
+		and label.modulate == Color.WHITE
+		and label.get_theme_color("font_color") == expected
+		and label.get_theme_color("font_color") * label.modulate == expected,
+		outcome + " retains one current font role and applies its colour once"
+	)

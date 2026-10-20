@@ -1,0 +1,22 @@
+Mudds Shipyards development checkpoint 923d7b3
+Source commit: 923d7b3261175a14991813cf6e479c7c95be283d
+
+Player-visible change
+- Begin Shift keeps dark readable text when initially focused or pressed. The existing focus outline, title layout, navigation and accessibility palette switching remain.
+
+Validation performed
+- Clean baseline actual GameHUD measured default focus1.335:1 and pressed1.713:1 contrast. Existing normal/hover text already passed.
+- Existing accessibility suite PASS, including32 actual title-button paint comparisons across4 palettes x2 contrast modes x4 states. Minimum6.324:1 regular and7.357:1 high contrast, above the adopted4.5/7 floors. Initial focus, outline, geometry/navigation and palette restoration retained.
+- Existing controller/pause navigation and full HUD panel layout suites PASS, including eight actual title viewport cases.
+- Actual default1024x768 focused title before/after reviewed on isolated X11/Forward+/llvmpipe. Dark text replaces inherited light focus text; all recorded control/renderer metadata exactly equal. Production HUD component, not full Main/world review.
+- Source import and clean Windows/Linux exports PASS.
+- Direct Linux and archive startup checks PASS: exit0 and exactly one STARTUP_MENU_READY_OK each.
+- Windows embedded payload through approved Linux Godot PASS: exit0 and exactly one STARTUP_MENU_READY_OK. This is not native Windows execution.
+- Actual Windows/Linux PCK inventories match all1521 entries; stock Windows PE .text retained; exact Linux archive binary/icon/installer bytes, modes, source epoch and export metadata PASS.
+- All11 post-fix stages PASS first attempt, zero diagnostics,159.744s combined. Baseline import/measurement23.770s; cumulative183.514s.
+
+Open qualification
+- This closes the named Begin Shift focus/pressed paint finding. Other title states, saved recovery, ordinary browser/credits return and broad accessibility remain open.
+- Native Windows execution: NOT_RUN (owner hold retained).
+- Native GPU/performance, physical devices, audible audio, human-review/full-release and exact final-candidate gates: NOT_RUN/open in their original scopes.
+- Full unfiltered release matrix and final-package Guided acceptance: NOT_RUN. Earlier checkpoint3d92b91 Guided3/3 remains scoped to those bytes.

@@ -1,0 +1,12 @@
+Mudds Shipyards development checkpoint c78e0ac
+Source commit: c78e0ac5e23043d688ac1b791d573807f1b101d8
+
+What changed
+The release workflow now checks Heavy Breach earned-reward recovery across an actual killed game, normal cold Resume and a further cold paid replay. Its physical board interaction captures the persisted payment transaction before the next sortie's tutorial save. That document must contain both the single reward receipt and the paid terminal acknowledgement. The live expected ledger is serialized to match the persisted JSON representation; all fields remain checked exactly. The existing checkpoint's Perimeter Hold fourth contract and automatic-landing encounter withdrawal remain included.
+
+Validation
+Fresh probe compile and startup CLI/privacy checks passed. Full source and archived Linux executable transactions each earned unpaid debt, reached live durable readiness, killed/reaped the actual owned game, resumed in a distinct process through the saved Arrow's real pilot/production exit/physical board payment, then loaded the paid state in a third distinct process without another receipt. Each payment capture contains the complete exact paid terminal, reward ledger, unrelated settings and cargo. Original child300s/transaction1000s limits remain; no checks were dropped. Setup discloses staged board/flight placement, shortened boarding and direct damage to the real picket; it does not qualify ordinary combat.
+Clean Windows/Linux exports, direct and archived Linux strict menu startups, Windows embedded payload startup through Linux Godot and actual matching package/archive identity audit passed. Menu readiness requires exit 0 and exactly one STARTUP_MENU_READY_OK. All automated Godot invocations were headless with Dummy audio. The archived transaction executes its extracted Linux export without external script or pack overrides.
+
+Qualification limits
+This closes the earned Heavy Breach terminal-debt interruption release case only. Active-combat/flight-pose restoration is not supported by this case. Full ordinary Hold combat/home/recovery/repeats/multiplayer and Wing two-kill/home requirements remain OPEN. Native Windows execution, native GPU/performance, physical devices, real audio/listening and human/final-release qualification remain NOT_RUN. Linux headless execution and Windows payload loading through Linux Godot do not establish those gates. GitHub Actions remains disabled. Repository builds only.

@@ -41,6 +41,15 @@ func _run() -> void:
 	_check(bool(router.detach().accepted), "router detaches crew source")
 	_check(router.get_binding_count() == 0, "detach clears crew binding")
 	_check(bool(router.bind_source(source, &"crew").accepted), "crew source rebinds")
+
+	for cue: StringName in [&"crew_engineer_repair_started", &"crew_engineer_repair_progress",
+			&"crew_engineer_repair_interrupted", &"crew_engineer_repair_completed"]:
+		source.semantic_crew_cue_emitted.emit(cue, &"engineer", 1.0)
+		_check(_has_cue(&"crew", cue), "existing engineer repair identity %s is routed unchanged" % cue)
+	var before_wrong_role := _events.size()
+	source.semantic_crew_cue_emitted.emit(&"crew_engineer_repair_started", &"passenger", 1.0)
+	_check(_events.size() == before_wrong_role, "repair identities remain fenced to the engineer role")
+
 	for failure in _failures:
 		push_error(failure)
 	print("halyard_crew_semantic_audio_router_test: %d assertions" % _assertions)

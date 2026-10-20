@@ -16,6 +16,7 @@ func _run() -> void:
 	root.add_child(hud)
 	await process_frame
 	await _test_intro_start_prompt(hud)
+	_test_mixed_movement_prompts(hud)
 	var presenter: Variant = hud.get("_runtime_input_glyph_presenter")
 	var interact_actions: Array[StringName] = [&"interact"]
 	_check(presenter != null, "HUD retains the runtime glyph presenter")
@@ -108,6 +109,41 @@ func _test_intro_start_prompt(hud: GameHUD) -> void:
 		"native mouse look reaches the retained HUD resolver without a click")
 	_check(hud.get_action_prompt(&"fire") == "Left Mouse",
 		"the retained HUD refreshes Fire to the mouse binding on mouse look")
+
+
+func _test_mixed_movement_prompts(hud: GameHUD) -> void:
+	var defaults: InputBindingProfile = hud.get("_input_binding_defaults").duplicate_profile()
+	var profile := defaults.duplicate_profile()
+	profile.set_bindings(&"move_forward", [{"device": &"gamepad", "type": &"joy_button", "button_index": JOY_BUTTON_MISC1}])
+	var service: InputRebindService = hud.get("_input_rebind_service")
+	var compatible := service.is_profile_compatible_with_defaults(profile)
+	_check(compatible, "mixed movement fixture is compatible with the complete action inventory")
+	if not compatible:
+		return
+	hud.set_settings_snapshot({"input_binding_profile": profile.to_dictionary()})
+	_check((hud.get("_input_binding_profile") as InputBindingProfile).to_dictionary() == profile.to_dictionary(),
+		"the HUD applies the mixed movement fixture before help assertions")
+	var presenter: RuntimeInputGlyphPresenter = hud.get("_runtime_input_glyph_presenter")
+	presenter.set_device_family(&"gamepad_generic")
+	var movement: Array[StringName] = [&"move_forward", &"move_back", &"move_left", &"move_right"]
+	var expected := "Misc Button / Left Stick Down / Left Stick Left / Left Stick Right"
+	_check(str(hud.call("_action_prompts", movement)) == expected,
+		"mixed movement prompts retain a leading button and every distinct stick direction")
+	hud.set_mode("on_foot")
+	hud.call("_set_help_text", hud.call("_help_rows_for_mode", &"on_foot"))
+	var rows := hud.get("_help_row_controls") as Array
+	var move_row := rows[0] as Dictionary
+	_check((move_row.detail as Label).text == "MOVE" and (move_row.key as Label).text == expected,
+		"the MOVE help row displays the remapped button alongside the remaining stick directions")
+	movement.reverse()
+	_check(str(hud.call("_action_prompts", movement)) == "Left Stick Right / Left Stick Left / Left Stick Down / Misc Button",
+		"mixed movement prompts retain the same distinct bindings in reverse action order")
+	hud.set_settings_snapshot({"input_binding_profile": defaults.to_dictionary()})
+	presenter = hud.get("_runtime_input_glyph_presenter")
+	presenter.set_device_family(&"gamepad_generic")
+	_check(str(hud.call("_action_prompts", movement)) == "Left Stick",
+		"default movement directions still abbreviate to Left Stick without an unbound hint")
+	presenter.set_device_family(&"keyboard")
 
 
 func _apply_start_profile(hud: GameHUD, profile: InputBindingProfile) -> void:

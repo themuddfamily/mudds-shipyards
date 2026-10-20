@@ -1,5 +1,7 @@
 extends SceneTree
 
+## test-matrix-display: input-only
+
 ## Focused suite for the drivable yard tow tractor.
 ##
 ## The station's own geometry is being actively corrected by a parallel pass, so
@@ -46,6 +48,7 @@ func _run() -> void:
 	_check_construction_contract()
 	_check_wheel_batch_contract()
 	_check_authority_exclusions()
+	await _check_gamepad_camera_look()
 	await _check_handling()
 	await _check_drives_off_edge_and_recovers()
 	await _check_slope_and_kerb()
@@ -1129,3 +1132,184 @@ func _finish() -> void:
 	else:
 		print("TOW_TRACTOR_TEST_FAILED: ", "; ".join(_failures))
 		quit(1)
+
+
+func _check_gamepad_camera_look() -> void:
+	var tractor := TRACTOR_SCENE.instantiate() as TowTractor
+	tractor.position = Vector3(6.0, 0.2, OPEN_LANE_Z)
+	_root.add_child(tractor)
+	await process_frame
+	tractor.set_physics_process(false)
+	tractor.set_driven(true)
+	var yaw := tractor.get_node("CameraRig") as Node3D
+	var pitch := tractor.get_node("CameraRig/CameraPitch") as Node3D
+	var camera := tractor.get_camera()
+	var before_basis := camera.global_basis
+	_gamepad_look_axes(Vector2.RIGHT)
+	tractor._physics_process(0.1)
+	_check(is_equal_approx(yaw.rotation.y, -0.25)
+		and not camera.global_basis.is_equal_approx(before_basis),
+		"GAMEPAD_LOOK_TRACTOR: right stick rotates the actual camera at 2.5 rad/s")
+	tractor._physics_process(0.1)
+	_check(is_equal_approx(yaw.rotation.y, -0.5),
+		"GAMEPAD_LOOK_TRACTOR: held stick continues without another motion event")
+	Input.action_press(&"move_forward")
+	var driving_yaw := yaw.rotation.y
+	tractor._physics_process(0.1)
+	_check(tractor.get_drive_speed() > 0.5
+		and is_equal_approx(yaw.rotation.y, driving_yaw - 0.25),
+		"GAMEPAD_LOOK_TRACTOR: held stick keeps its authored rate while driving")
+	Input.action_release(&"move_forward")
+	Input.action_press(&"brake")
+	tractor._physics_process(0.1)
+	Input.action_release(&"brake")
+	_gamepad_look_axes(Vector2.ZERO)
+	var stopped := yaw.rotation.y
+	tractor._physics_process(0.1)
+	_check(is_equal_approx(yaw.rotation.y, stopped), "GAMEPAD_LOOK_TRACTOR: released stick stops look")
+	_gamepad_look_axes(Vector2.RIGHT)
+	tractor._physics_process(0.05)
+	tractor._physics_process(0.05)
+	_check(is_equal_approx(yaw.rotation.y, stopped - 0.25),
+		"GAMEPAD_LOOK_TRACTOR: split physics delta preserves angular speed")
+	_gamepad_look_axes(Vector2(0.1, 0.1))
+	var deadzone_pose := Vector2(yaw.rotation.y, pitch.rotation.x)
+	tractor._physics_process(0.1)
+	_check(Vector2(yaw.rotation.y, pitch.rotation.x).is_equal_approx(deadzone_pose),
+		"GAMEPAD_LOOK_TRACTOR: radial deadzone suppresses small diagonal drift")
+	_gamepad_look_axes(Vector2.ONE)
+	var diagonal_pose := Vector2(yaw.rotation.y, pitch.rotation.x)
+	tractor._physics_process(0.1)
+	_check(is_equal_approx(Vector2(yaw.rotation.y, pitch.rotation.x).distance_to(diagonal_pose), 0.25),
+		"GAMEPAD_LOOK_TRACTOR: diagonal look has normalized total angular speed")
+	_gamepad_look_axes(Vector2.DOWN)
+	var before_pitch := pitch.rotation.x
+	tractor._physics_process(0.1)
+	_check(is_equal_approx(pitch.rotation.x, before_pitch - 0.25),
+		"GAMEPAD_LOOK_TRACTOR: stick pitch follows the existing tractor direction")
+	_gamepad_look_axes(Vector2.LEFT)
+	tractor.set("_camera_yaw_offset", PI - 0.01)
+	yaw.rotation.y = PI - 0.01
+	tractor._physics_process(0.1)
+	_check(is_equal_approx(yaw.rotation.y, -PI + 0.24),
+		"GAMEPAD_LOOK_TRACTOR: stick yaw wraps at the existing boundary")
+	_gamepad_look_axes(Vector2.DOWN)
+	tractor._physics_process(2.0)
+	_check(is_equal_approx(pitch.rotation.x, deg_to_rad(-46.0)),
+		"GAMEPAD_LOOK_TRACTOR: lower stick pitch respects the existing clamp")
+	_gamepad_look_axes(Vector2.UP)
+	tractor._physics_process(2.0)
+	_check(is_equal_approx(pitch.rotation.x, deg_to_rad(38.0)),
+		"GAMEPAD_LOOK_TRACTOR: upper stick pitch respects the existing clamp")
+	_check(not tractor.invert_mouse_y, "TRACTOR_LOOK_INVERSION: default preserves the authored pitch direction")
+	var previous_mouse_mode := Input.mouse_mode
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	_check(Input.mouse_mode == Input.MOUSE_MODE_CAPTURED,
+		"TRACTOR_LOOK_INVERSION: isolated display establishes mouse capture before mouse checks")
+	for inverted: bool in [false, true]:
+		tractor.invert_mouse_y = inverted
+		var direction := 1.0 if inverted else -1.0
+		tractor.set("_camera_pitch", 0.0)
+		pitch.rotation.x = 0.0
+		tractor.set("_camera_yaw_offset", 0.0)
+		_gamepad_look_axes(Vector2.ONE)
+		tractor._physics_process(0.1)
+		var diagonal_step := 0.25 / sqrt(2.0)
+		_check(is_equal_approx(pitch.rotation.x, diagonal_step * direction)
+			and is_equal_approx(yaw.rotation.y, -diagonal_step),
+			"TRACTOR_LOOK_INVERSION: pad inversion=%s changes only pitch, preserving normalized rate and yaw" % inverted)
+		_gamepad_look_axes(Vector2.DOWN)
+		tractor._physics_process(2.0)
+		_check(is_equal_approx(pitch.rotation.x, deg_to_rad(38.0 if inverted else -46.0)),
+			"TRACTOR_LOOK_INVERSION: pad down inversion=%s retains pitch clamp" % inverted)
+		_gamepad_look_axes(Vector2.UP)
+		tractor._physics_process(2.0)
+		_check(is_equal_approx(pitch.rotation.x, deg_to_rad(-46.0 if inverted else 38.0)),
+			"TRACTOR_LOOK_INVERSION: pad up inversion=%s retains opposite clamp" % inverted)
+		_gamepad_look_axes(Vector2.ZERO)
+		tractor.set("_camera_pitch", 0.0)
+		pitch.rotation.x = 0.0
+		tractor.set("_camera_yaw_offset", 0.0)
+		var motion := InputEventMouseMotion.new()
+		motion.relative = Vector2(20.0, 20.0)
+		tractor._unhandled_input(motion)
+		_check(is_equal_approx(pitch.rotation.x, 20.0 * tractor.mouse_sensitivity * direction)
+			and is_equal_approx(float(tractor.get("_camera_yaw_offset")), -20.0 * tractor.mouse_sensitivity),
+			"TRACTOR_LOOK_INVERSION: mouse inversion=%s changes only pitch and preserves sensitivity/yaw" % inverted)
+		motion.relative = Vector2(0.0, 10000.0)
+		tractor._unhandled_input(motion)
+		_check(is_equal_approx(pitch.rotation.x, deg_to_rad(38.0 if inverted else -46.0)),
+			"TRACTOR_LOOK_INVERSION: mouse down inversion=%s retains pitch clamp" % inverted)
+		motion.relative.y = -10000.0
+		tractor._unhandled_input(motion)
+		_check(is_equal_approx(pitch.rotation.x, deg_to_rad(-46.0 if inverted else 38.0)),
+			"TRACTOR_LOOK_INVERSION: mouse up inversion=%s retains opposite clamp" % inverted)
+	tractor.invert_mouse_y = false
+	Input.mouse_mode = previous_mouse_mode
+	_gamepad_look_axes(Vector2.RIGHT)
+	tractor.set_driven(false)
+	tractor.set_driven(true)
+	_gamepad_tractor_stays_still(tractor, yaw, "driver handoff clears held look")
+	_gamepad_look_axes(Vector2.RIGHT)
+	camera.clear_current()
+	tractor._physics_process(0.1)
+	camera.make_current()
+	_gamepad_tractor_stays_still(tractor, yaw, "current-camera loss clears held look")
+	_gamepad_look_axes(Vector2.RIGHT)
+	paused = true
+	paused = false
+	_gamepad_tractor_stays_still(tractor, yaw, "pause and resume clear held look")
+	_gamepad_look_axes(Vector2.RIGHT)
+	tractor.notification(MainLoop.NOTIFICATION_APPLICATION_FOCUS_OUT)
+	tractor._physics_process(0.1)
+	tractor.notification(MainLoop.NOTIFICATION_APPLICATION_FOCUS_IN)
+	_gamepad_tractor_stays_still(tractor, yaw, "application focus loss clears held look")
+	_gamepad_look_axes(Vector2.RIGHT)
+	Input.joy_connection_changed.emit(0, false)
+	_gamepad_tractor_stays_still(tractor, yaw, "active pad disconnect clears held look")
+	var menu := Button.new()
+	root.add_child(menu)
+	_gamepad_look_axes(Vector2.RIGHT)
+	menu.grab_focus()
+	var menu_yaw := yaw.rotation.y
+	tractor._physics_process(0.1)
+	menu.release_focus()
+	tractor._physics_process(0.1)
+	_check(is_equal_approx(yaw.rotation.y, menu_yaw),
+		"GAMEPAD_LOOK_TRACTOR: focused modal UI clears held look before and after closing")
+	menu.queue_free()
+	_gamepad_look_axes(Vector2.RIGHT)
+	_root.remove_child(tractor)
+	_root.add_child(tractor)
+	camera.make_current()
+	_gamepad_tractor_stays_still(tractor, yaw, "tree exit clears held look")
+	_gamepad_look_axes(Vector2.RIGHT, 0)
+	var start_device_yaw := yaw.rotation.y
+	_gamepad_look_axis(JOY_AXIS_RIGHT_Y, -1.0, 1)
+	tractor._physics_process(0.1)
+	_check(is_equal_approx(yaw.rotation.y, start_device_yaw),
+		"GAMEPAD_LOOK_TRACTOR: switching devices never mixes right-stick axes")
+	_gamepad_look_axes(Vector2.ZERO, 1)
+	tractor.set_driven(false)
+	tractor.queue_free()
+	await process_frame
+
+
+func _gamepad_tractor_stays_still(tractor: TowTractor, yaw: Node3D, description: String) -> void:
+	var before := yaw.rotation.y
+	tractor._physics_process(0.1)
+	_check(is_equal_approx(yaw.rotation.y, before), "GAMEPAD_LOOK_TRACTOR: " + description)
+
+
+func _gamepad_look_axes(axes: Vector2, device: int = 0) -> void:
+	_gamepad_look_axis(JOY_AXIS_RIGHT_X, axes.x, device)
+	_gamepad_look_axis(JOY_AXIS_RIGHT_Y, axes.y, device)
+
+
+func _gamepad_look_axis(axis: JoyAxis, value: float, device: int) -> void:
+	var event := InputEventJoypadMotion.new()
+	event.device = device
+	event.axis = axis
+	event.axis_value = value
+	Input.parse_input_event(event)
+	Input.flush_buffered_events()

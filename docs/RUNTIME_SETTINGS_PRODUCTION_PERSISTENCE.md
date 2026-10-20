@@ -30,7 +30,7 @@ The atomic adapter loads exactly once, then GameFlow restores the safe-start
 record and publishes `STARTING`, all before the first
 `_apply_all_runtime_settings()`. A validated settings section, including the
 complete `InputBindingProfile`, is therefore installed before InputMap and the
-Player, five ships, tow tractor, audio buses, window, world-quality owner, and
+Player, registered fleet, tow tractor, audio buses, window, world-quality owner, and
 HUD consume the snapshot.
 
 An empty settings authority leaves authored defaults live; safe-start then owns
@@ -103,7 +103,7 @@ and re-entry never call it or infer process exit.
 ## Focused verification
 
 ```sh
-godot --headless --editor --path . --quit
+godot --headless --audio-driver Dummy --editor --path . --quit
 godot --headless --audio-driver Dummy --path . \
   --script res://tests/runtime_settings_store_adapter_test.gd
 godot --headless --audio-driver Dummy --path . \
@@ -121,3 +121,56 @@ the tree. It covers validated startup, complete binding application, change,
 no-op, reset, explicit save, failed save, signal re-entry, unrelated namespace
 preservation, detached status, corrupt/newer/failed/empty loads, and whole-Main
 detach/re-entry without accessing the real production user-data path.
+
+## Remaining remapping outcomes
+
+REMAP-DEFINE source inventory on `c1fc23871` (2026-10-18), parents8/29.
+This is a finite source definition, not renewed runtime or device acceptance.
+The current authored profile has23 non-ui actions and22 visible remapping rows;
+`capture_screenshot` is hidden/protected. Engine ui navigation is excluded by
+InputRebindService's project-action filter, not removed by profile application.
+
+The shared `sprint_boost` row is labelled “Sprint / boost” and exposes HOLD/
+TOGGLE without a ship-only restriction. HUD commits that option into the same
+profile that GameFlow applies to all registered fleet sources. At inventory,
+ship boost used transformed held state, but Player._sample_sprint_held() read
+Input directly and physics used that raw state for sprint speed, ignoring the
+advertised on-foot toggle choice. This concrete consumer repair is
+accepted in checkpointbd4e15d. Preserve remote _remote_run authority and
+control-disable/scene lifecycle fences; no replacement settings store is needed.
+
+| Remaining outcome | Existing scope and boundary |
+| --- | --- |
+| Distinct-process remap/options restoration with usable menu/gameplay | game_flow_runtime_input_rebind_persistence_test covers HUD remap/conflict and recreated settings/HUD using an in-memory store; input_binding_persistence_test covers explicit InputMap apply/reentry. These are not OS-process restart proof. |
+| Ordinary conflict/reset/return usability | Existing HUD integration covers capture, stale/cancel/reset, reserved screenshot and last controller-Pause guard, including GUI routing. Actual device/focus full route remains open. |
+| Packaged/user-file failure/recovery journey | Adapter and production checks cover atomic failed writes, corrupt/newer preservation and fallback/live retention. No additional missing persistence implementation identified; selected physical/durable journey acceptance remains open. |
+| Hardware/controller-only completion | Synthetic controller sortie/expedition scopes do not prove actual hardware or every required action. Retain original hardware/focus/full-route gates. |
+
+Other on-foot movement and tow-tractor curve/toggle meanings require an explicit
+context contract: InputMap already supplies their bindings/deadzones, while the
+ship transform supplies curve/toggle execution. This inventory does not assume
+new behavior for every action/context pair. Keep SETTINGS-INPUT's original
+runner/profile/log dependency WAITING and the failed Settings-return route parked;
+none of these finite definitions replaces or reopens it.
+
+## Local walking sprint application
+
+Checkpoint `bd4e15d` wires the shared sprint profile into PlayerController's
+existing local sampler through one InputActionTransform. GameFlow preflights
+`can_apply_sprint_input_profile()` alongside fleet consumers before InputMap or
+bank mutation and calls `apply_sprint_input_profile()` after synchronous commits.
+Detached settings-only GameFlows with no Player still apply InputMap; fleet
+source counts retain their existing meaning. No second settings store exists.
+
+Equal live sprint bindings/options retain the latch; changed options/bindings
+replace it. Control disable, boarding/disembark/recovery, remote handoff and
+actual tree exit clear local sprint intent. Local enable/reentry primes physical
+held state so a held key is not a new toggle press. While remote drive is enabled,
+only accepted remote run drives sprint and priming never reads host Input.
+
+The existing sprint reentry test preserves its ship assertions and covers the
+retained Player, staged supported physics speed across release/second press,
+live/default/HOLD/reset and lifecycle/remote boundaries. Existing rebind integration,
+rebind persistence and production settings suites pass on this checkpoint.
+These synthetic/in-memory/manual-physics checks do not close the distinct-process,
+ordinary Settings-route or physical-device/full-controller gates above.

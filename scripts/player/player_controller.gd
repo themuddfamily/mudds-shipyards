@@ -27,6 +27,8 @@ enum CameraViewMode {
 	FIRST_PERSON,
 }
 
+const GamepadLookInput := preload("res://scripts/player/gamepad_look_input.gd")
+
 ## Authored vertical FOV of the on-foot rig, and the value it falls back to
 ## before the settings owner pushes the player's `camera_fov`.
 const DEFAULT_AUTHORED_CAMERA_FOV := 72.0
@@ -224,7 +226,14 @@ const LEGACY_MOTION_LIBRARY_SHA256 := "4af3e12abb02e2dca75ac441c782c2530d7090fe8
 @onready var _interaction_origin: Marker3D = %InteractionOrigin
 @onready var _interaction_area: Area3D = %InteractionArea
 
+var _gamepad_look := GamepadLookInput.new()
 var _control_enabled: bool = true
+# The shared profile owns sprint semantics; this controller owns only its local
+# latch. Remote run intent never passes through this transform.
+var _sprint_input_transform := InputActionTransform.new(
+	&"sprint_boost", InputBindingProfile.default_action_options(),
+)
+var _sprint_input_bindings: Array[Dictionary] = []
 var _camera_active: bool = true
 ## Authored vertical FOV last requested through [method set_camera_fov], before
 ## the ultrawide policy, so a display resize can re-derive the effective angle.
@@ -328,6 +337,12 @@ var _pilot_integrity_probe_elapsed := 0.0
 ## over the surface it is stepping onto. Derived from the live capsule so a
 ## future collision-shape change cannot silently stale it.
 var _step_probe_reach := 0.40
+## Read-only proof of the last completed actor tick. An event exists only when
+## the real step solver returned true; a later non-step or seated tick expires it.
+var _step_up_event: Dictionary = {}
+var _completed_motion_frame := -1
+var _completed_motion_start := Vector3.ZERO
+var _completed_motion_end := Vector3.ZERO
 var _imported_skeleton_pose_contract: Array[Dictionary] = []
 
 ## Server-owned remote body seam.
@@ -434,6 +449,9 @@ func _ready() -> void:
 
 
 func _enter_tree() -> void:
+	_gamepad_look.attach(get_viewport())
+	_sprint_input_transform.attach(_sprint_input_transform.get_generation())
+	_prime_local_sprint_input()
 	_bind_viewport_field_of_view_policy()
 	# A deferred completion queued while this retained Player was detached must
 	# not be lost, but it is only current once the whole hierarchy is live again.
@@ -441,13 +459,25 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
+	_gamepad_look.detach()
+	# Leaving the tree relinquishes local intent, even for a retained Player.
+	_reset_local_sprint_input()
+	_sprint_input_transform.detach(_sprint_input_transform.get_generation())
 	# Peer release can remove this body before GameFlow's context sweep. The
 	# body lifetime owns this cleanup, including the tree_exiting observation.
 	clear_rime_pad_step_guard(_rime_pad_guard_token)
 	_unbind_viewport_field_of_view_policy()
 
 
+func _notification(what: int) -> void:
+	if _gamepad_look != null:
+		_gamepad_look.handle_notification(what)
+
+
 func _physics_process(delta: float) -> void:
+	_step_up_event.clear()
+	var tick_start := global_position
+	_update_gamepad_look(delta)
 	_ensure_motion_authority(_advance_pilot_integrity_probe(delta))
 	if _embodiment_state != EmbodimentState.ON_FOOT:
 		if (
@@ -460,6 +490,7 @@ func _physics_process(delta: float) -> void:
 		_update_embodiment(delta)
 		_advance_motion_animation(delta)
 		_update_grounded_foot_placement()
+		_finish_motion_observation(tick_start)
 		return
 
 	var desired_direction := Vector3.ZERO
@@ -468,7 +499,7 @@ func _physics_process(delta: float) -> void:
 	if _control_enabled or _remote_drive_enabled:
 		var input_vector := _sample_move_vector()
 		desired_direction = _camera_relative_direction(input_vector)
-		is_sprinting = _sample_sprint_held() and not desired_direction.is_zero_approx()
+		is_sprinting = _sample_sprint_held(delta) and not desired_direction.is_zero_approx()
 		_update_horizontal_velocity(desired_direction, is_sprinting, delta)
 
 		if _sample_jump_edge() and is_on_floor():
@@ -485,9 +516,19 @@ func _physics_process(delta: float) -> void:
 	_apply_gravity(delta)
 	_move_in_interior_collision_frame(delta)
 	_resolve_cabin_containment()
+	_finish_motion_observation(tick_start)
 	_update_facing(desired_direction, delta)
 	_update_authored_locomotion(is_sprinting, delta, true)
 	_update_grounded_foot_placement()
+
+
+func _finish_motion_observation(tick_start: Vector3) -> void:
+	if not _step_up_event.is_empty():
+		_step_up_event["tick_start"] = tick_start
+		_step_up_event["tick_end"] = global_position
+	_completed_motion_frame = Engine.get_physics_frames()
+	_completed_motion_start = tick_start
+	_completed_motion_end = global_position
 
 
 ## The three input samplers. Exactly one source is live at a time: the host's
@@ -499,10 +540,60 @@ func _sample_move_vector() -> Vector2:
 	return Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 
 
-func _sample_sprint_held() -> bool:
+func _sample_sprint_held(delta: float = 0.0) -> bool:
 	if _remote_drive_enabled:
 		return _remote_run
-	return Input.is_action_pressed("sprint_boost")
+	if not _control_enabled or not is_inside_tree():
+		return false
+	var sample := _sample_local_sprint_input(delta)
+	return bool(sample.accepted) and bool(sample.pressed)
+
+
+## Preflight is side-effect free so GameFlow can validate every consumer before
+## changing InputMap or committing any ship bank.
+func can_apply_sprint_input_profile(profile: InputBindingProfile) -> bool:
+	return profile != null and not InputBindingProfile.normalize_action_options(
+		profile.get_action_options(&"sprint_boost"),
+	).is_empty()
+
+
+func apply_sprint_input_profile(profile: InputBindingProfile) -> bool:
+	if not can_apply_sprint_input_profile(profile):
+		return false
+	var options := profile.get_action_options(&"sprint_boost")
+	var bindings := profile.get_bindings(&"sprint_boost")
+	if options == _sprint_input_transform.get_action_options() and bindings == _sprint_input_bindings:
+		return true
+	_sprint_input_bindings = bindings
+	_sprint_input_transform = InputActionTransform.new(&"sprint_boost", options)
+	if is_inside_tree():
+		_sprint_input_transform.attach(_sprint_input_transform.get_generation())
+		_prime_local_sprint_input()
+	return true
+
+
+func _sample_local_sprint_input(delta: float, prime: bool = false) -> Dictionary:
+	# InputMap already resolved the action deadzone. Lift its logical strength
+	# back into the existing transform's domain, as LocalShipInputSource does,
+	# so the saved deadzone is not applied a second time.
+	var strength := Input.get_action_strength(&"sprint_boost")
+	if strength > 0.0:
+		var deadzone := float(_sprint_input_transform.get_action_options().deadzone)
+		strength = deadzone + strength * (1.0 - deadzone)
+	return _sprint_input_transform.process_sample(
+		strength, Input.is_action_pressed(&"sprint_boost"), delta,
+		_sprint_input_transform.get_generation(), false, prime,
+	)
+
+
+func _prime_local_sprint_input() -> void:
+	if not _remote_drive_enabled and _sprint_input_transform.is_attached():
+		_sample_local_sprint_input(0.0, true)
+
+
+func _reset_local_sprint_input() -> void:
+	_sprint_input_transform.reset(_sprint_input_transform.get_generation())
+	_prime_local_sprint_input()
 
 
 func _sample_jump_edge() -> bool:
@@ -517,8 +608,11 @@ func _sample_jump_edge() -> bool:
 ## relinquishes the camera and the host's input for good: a remote body never
 ## becomes current and never captures the mouse, whatever else is called on it.
 func set_remote_drive_enabled(enabled: bool) -> void:
+	if enabled != _remote_drive_enabled:
+		_reset_local_sprint_input()
 	_remote_drive_enabled = enabled
 	if enabled:
+		_gamepad_look.clear()
 		_control_enabled = false
 		set_camera_active(false)
 		set_process_unhandled_input(false)
@@ -653,7 +747,15 @@ func _move_in_interior_collision_frame(delta: float) -> void:
 	move_and_slide()
 	_remote_floor_support_rejected = false
 	_recover_floor_snap_penetration(pre_move_transform, pre_move_velocity, was_on_floor)
-	_resolve_step_up(pre_move_transform, pre_move_velocity, delta)
+	if _resolve_step_up(pre_move_transform, pre_move_velocity, delta):
+		var shape := _player_collision.shape
+		var movement_up := _get_movement_up_direction()
+		_step_up_event = {"frame": Engine.get_physics_frames(),
+			"player_id": get_instance_id(), "capsule_id": _player_collision.get_instance_id(),
+			"shape_id": shape.get_instance_id(), "start": pre_move_transform.origin,
+			"landing": global_position, "intended": pre_move_velocity.slide(movement_up) * delta,
+			"up": movement_up, "collision_transform": collision_transform,
+			"bounds": _get_step_up_bounds()}
 	if shifted:
 		var carried_transform := collision_transform.affine_inverse()
 		global_transform = carried_transform * global_transform
@@ -743,6 +845,7 @@ func _process(delta: float) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	_gamepad_look.observe(event, _owns_gamepad_look())
 	# Observe before camera/control/UI guards: a GUI-handled release must still
 	# retire the old press, including release/repress between physics ticks.
 	if _interact_handoff_blocked:
@@ -814,6 +917,25 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
+func _owns_gamepad_look() -> bool:
+	return is_inside_tree() and not is_queued_for_deletion() \
+		and _camera_active and _control_enabled and not _remote_drive_enabled \
+		and not _sleeping_context and not get_tree().paused \
+		and is_instance_valid(_camera) and _camera.current
+
+
+func _update_gamepad_look(delta: float) -> void:
+	var step := _gamepad_look.angular_step(delta, _owns_gamepad_look())
+	if step.is_zero_approx():
+		return
+	_camera_yaw.rotate_y(-step.x)
+	_camera_yaw.rotation.y = wrapf(_camera_yaw.rotation.y, -PI, PI)
+	var pitch_direction := 1.0 if invert_mouse_y else -1.0
+	var pitch_limits := _get_pitch_limits()
+	_pitch = clampf(_pitch + step.y * pitch_direction, pitch_limits.x, pitch_limits.y)
+	_camera_pitch.rotation.x = _pitch
+
+
 func _gameplay_interact_just_pressed() -> bool:
 	if _interact_handoff_blocked:
 		# A release alone can leave just_pressed true for this physics tick.
@@ -839,11 +961,14 @@ func set_control_enabled(enabled: bool) -> void:
 	):
 		return
 	if enabled and not _control_enabled:
+		_prime_local_sprint_input()
 		_interact_handoff_blocked = Input.is_action_pressed(&"interact") \
 			or Input.is_action_just_pressed(&"interact")
 		_interact_handoff_released = not Input.is_action_pressed(&"interact")
 	_control_enabled = enabled
 	if not enabled:
+		_gamepad_look.clear()
+		_reset_local_sprint_input()
 		# Stop only deck-tangent locomotion. Zeroing world X/Z corrupts the local
 		# vertical component aboard a pitched or rolled moving interior.
 		var movement_up := _get_movement_up_direction()
@@ -857,6 +982,8 @@ func set_camera_active(active: bool) -> void:
 	if active and _remote_drive_enabled:
 		return
 	_camera_active = active
+	if not active:
+		_gamepad_look.clear()
 	# Remote bodies are configured before tree entry. Disable the authored
 	# current camera then, before its enter-tree callback can select a view.
 	var camera := _camera if is_instance_valid(_camera) else get_node_or_null("%PlayerCamera") as Camera3D
@@ -902,6 +1029,8 @@ func begin_boarding(
 	# completion still wakes older coordinators to reject their own generations.
 	_boarding_completion_pending = false
 	_boarding_completion_parent = null
+	_reset_local_sprint_input()
+	_gamepad_look.clear()
 	_control_enabled = false
 	velocity = Vector3.ZERO
 	_clear_landing_recovery()
@@ -952,6 +1081,8 @@ func begin_disembark(
 	if _embodiment_state != EmbodimentState.SEATED:
 		return false
 
+	_reset_local_sprint_input()
+	_gamepad_look.clear()
 	_control_enabled = false
 	velocity = Vector3.ZERO
 	_clear_landing_recovery()
@@ -1024,6 +1155,8 @@ func settle_exit_onto_support(exit_transform: Transform3D) -> Transform3D:
 ## return without continuing to mutate the recovered player.
 func force_recovery_to_on_foot(target: Transform3D) -> void:
 	var interrupted_state := _embodiment_state
+	_reset_local_sprint_input()
+	_gamepad_look.clear()
 	_control_enabled = false
 	_station_seated_context = false
 	_sleeping_context = false
@@ -1077,6 +1210,8 @@ func set_station_seated_context(enabled: bool) -> void:
 		_station_disembark_pending = true
 	_station_seated_context = enabled and _embodiment_state == EmbodimentState.SEATED
 	if not _station_seated_context:
+		_reset_local_sprint_input()
+		_gamepad_look.clear()
 		_control_enabled = false
 
 
@@ -1089,6 +1224,8 @@ func is_station_seated() -> bool:
 ## available to wake, while look and locomotion stay suspended during rest.
 func set_sleeping_context(enabled: bool) -> void:
 	_sleeping_context = enabled and is_seated()
+	if _sleeping_context:
+		_gamepad_look.clear()
 	set_station_seated_context(enabled)
 	if is_seated():
 		_set_motion_state(
@@ -3060,6 +3197,14 @@ func _resolve_step_probe_reach() -> float:
 ## the live body rather than from duplicated nominal constants so a future
 ## capsule or floor-angle change cannot silently stale it.
 func get_step_up_assist_audit() -> Dictionary:
+	var audit := _get_step_up_bounds()
+	audit["completed_motion"] = {} if _completed_motion_frame < 0 else {
+		"frame": _completed_motion_frame, "start": _completed_motion_start,
+		"end": _completed_motion_end, "step_up": _step_up_event.duplicate(true)}
+	return audit
+
+
+func _get_step_up_bounds() -> Dictionary:
 	var capsule_radius := 0.0
 	var capsule_height := 0.0
 	if _player_collision != null and is_instance_valid(_player_collision):
@@ -3075,6 +3220,7 @@ func get_step_up_assist_audit() -> Dictionary:
 		"capsule_radius": capsule_radius,
 		"capsule_height": capsule_height,
 		"floor_max_angle_rad": floor_max_angle,
+		"safe_margin": safe_margin,
 		"movement_up": _get_movement_up_direction(),
 		"requires_floor_contact": true,
 		"requires_wall_contact": true,

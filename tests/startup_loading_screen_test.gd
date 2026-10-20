@@ -796,6 +796,7 @@ func _test_boot_presents_before_it_builds() -> void:
 					"real gameplay remains uninitialized between loading phases")
 				if not defense_checked.done and boot.get_startup_report().stages[-1].label == "Connecting yard activities":
 					_check_station_defense_startup(live_main, "staged Boot before gameplay initialization")
+					_check_heavy_breach_startup(live_main, "staged Boot before gameplay initialization")
 					defense_checked.done = true
 	process_frame.connect(watcher)
 	var main := await boot.run_startup()
@@ -1086,6 +1087,7 @@ func _test_direct_instantiation_is_unstaged() -> void:
 		"a directly instantiated coordinator completes gameplay startup synchronously in _ready()"
 	)
 	_check_station_defense_startup(main, "synchronous Main before gameplay")
+	_check_heavy_breach_startup(main, "synchronous Main before gameplay")
 	_check(
 		not main.prepare_staged_startup(),
 		"staged startup is refused once Main is already in the tree"
@@ -1109,6 +1111,24 @@ func _test_direct_instantiation_is_unstaged() -> void:
 	main.queue_free()
 	await process_frame
 	await process_frame
+
+
+func _check_heavy_breach_startup(main: GameFlow, context: String) -> void:
+	var world := main.world as ShipyardWorld
+	var board := world.get_heavy_breach_activity_board() as HeavyBreachActivityBoard if world != null else null
+	var objective := world.get_heavy_breach_protected_objective() if world != null else null
+	var director := main.get_node_or_null(^"EncounterScenarios") as EncounterScenarioDirector
+	var combat := main.get_combat_authority()
+	var snapshot := board.get_snapshot() if board != null else {}
+	var retained_objective := board.get("_protected_objective") as Node3D if board != null else null
+	_check(board != null and board == main.heavy_breach_activity_board
+		and board.get_parent() == world
+		and bool(snapshot.get("attached", false)) and bool(snapshot.get("configured", false))
+		and director != null and int(snapshot.get("director_instance_id", 0)) == director.get_instance_id()
+		and combat != null and int(snapshot.get("combat_authority_instance_id", 0)) == combat.get_instance_id()
+		and objective != null and objective.get_parent() == world
+		and retained_objective != null and retained_objective.get_instance_id() == objective.get_instance_id(),
+		"%s binds the physical Heavy Breach board to its exact director, shared combat and protected objective owners" % context)
 
 
 func _check_station_defense_startup(main: GameFlow, context: String) -> void:

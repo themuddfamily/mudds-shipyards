@@ -23,6 +23,7 @@ signal canopy_motion_finished(open: bool)
 signal camera_view_changed(view: StringName)
 signal damage_stage_changed(stage: int, status: StringName)
 signal component_damage_changed(component_id: StringName, state: int, integrity: float)
+signal component_damage_display_changed()
 signal component_repair_progressed(progress: Dictionary)
 signal component_repair_interrupted(receipt: Dictionary)
 signal destroyed(world_position: Vector3, inherited_velocity: Vector3)
@@ -451,6 +452,7 @@ var _network_engine_visual_root: Node3D
 var _network_engine_definition: ShipDefinition
 var _network_operation_source: Dictionary = {}
 var _network_operation_state: Dictionary = {}
+var _network_component_powers: Dictionary = {}
 var _network_operation_overlays: Dictionary = {}
 var _network_operation_batches: Dictionary = {}
 var _network_operation_core_materials: Dictionary = {}
@@ -756,6 +758,7 @@ func set_piloted(piloted: bool) -> void:
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	else:
 		_clear_pending_look_motion()
+	component_damage_display_changed.emit()
 
 
 ## Enables or suspends flight simulation for a craft flown from an injected
@@ -784,6 +787,7 @@ func set_remote_piloted(piloted: bool) -> void:
 		(_command_source as LocalShipInputSource).reset_stream()
 	if not piloted:
 		_clear_pending_look_motion()
+	component_damage_display_changed.emit()
 
 
 ## True while the craft simulates flight from a remote helm (see
@@ -1517,6 +1521,10 @@ func _set_landing_phase(next_phase: StringName) -> void:
 
 func is_landing_active() -> bool:
 	return _landing_active
+
+
+func is_barrel_roll_active() -> bool:
+	return _roll_animation > 0.0
 
 
 ## Derives a ship-local envelope from every enabled root collision shape. This
@@ -2638,6 +2646,62 @@ func get_network_damage_presentation_snapshot() -> Dictionary:
 		"components": _component_damage.get_component_states()}
 
 
+## HUD-only scalars from the already accepted host display life. Gameplay
+## telemetry keeps the retained local simulation as its source of authority.
+func get_network_hull_telemetry_presentation() -> Dictionary:
+	if not _network_damage_presentation_enabled or _network_damage_state.is_empty() \
+			or not is_instance_valid(_network_damage_presentation):
+		return {}
+	return {
+		"hull": 0.0 if bool(_network_damage_state.destroyed) else float(_network_damage_state.health),
+		"maximum_hull": float(_network_damage_state.maximum_health),
+		"damage_status": _network_damage_presentation.get_status(),
+	}
+
+
+## Observer HUD scalars from accepted operation display facts. This machine's
+## pilot retains predicted engine/throttle; gameplay telemetry stays local.
+func get_network_operation_telemetry_presentation() -> Dictionary:
+	if not _network_damage_presentation_enabled or _network_operation_state.is_empty() \
+			or _is_piloted_from_this_machine():
+		return {}
+	var engine: StringName = ENGINE_OFFLINE if bool(_network_operation_state.get("destroyed", false)) \
+		else StringName(_network_operation_state.engine)
+	return {
+		"engine_state": engine,
+		"throttle": float(_network_operation_state.get("throttle", 0.0)) if engine == ENGINE_ONLINE else 0.0,
+	}
+
+
+## The observer HUD consumes accepted host output, independently of the local
+## component ledger. A legacy row has no override. Terminal rows retain the
+## host's actual component outputs independently of weapon readiness.
+func get_network_component_power_telemetry_presentation() -> Dictionary:
+	if not _network_damage_presentation_enabled \
+			or _is_piloted_from_this_machine():
+		return {}
+	return _network_component_powers.duplicate()
+
+
+## Detached component display facts. Host display ordering is deliberately
+## separate from the retained local ledger and its repair/recovery receipts.
+func get_component_damage_display_report() -> Dictionary:
+	if not _network_damage_presentation_enabled or _network_damage_state.is_empty() \
+			or _is_piloted_from_this_machine():
+		return get_component_damage_report()
+	var components: Array = (_network_damage_state.components as Array).duplicate(true)
+	for component: Dictionary in components:
+		component["state_id"] = ShipComponentDamage.state_id_for(int(component.state))
+	return {
+		"configured": true,
+		"components": components,
+		"display_source": &"host",
+		"display_generation": int(_network_damage_state.generation),
+		"display_revision": int(_network_damage_state.tick),
+		"display_destroyed": bool(_network_damage_state.destroyed),
+	}
+
+
 func set_network_damage_presentation_enabled(enabled: bool) -> void:
 	_network_damage_presentation_enabled = enabled
 	if not enabled:
@@ -2705,7 +2769,10 @@ func apply_network_damage_presentation(sample: Dictionary) -> Dictionary:
 	_damage_presentation.visible = false
 	_network_damage_presentation.visible = true
 	_network_damage_state = {"generation": generation, "tick": tick, "destroyed": destroyed,
-		"health": state.health, "components": (state.components as Array).duplicate(true)}
+		"health": state.health, "maximum_health": state.maximum_health,
+		"components": (state.components as Array).duplicate(true)}
+	_update_cockpit_flight_instruments()
+	component_damage_display_changed.emit()
 	return {"applied": true, "destruction_started": destruction_started}
 
 
@@ -2719,10 +2786,12 @@ func clear_network_damage_presentation() -> void:
 		collision_mask = int(_network_damage_source_visibility.mask)
 	_network_damage_source_visibility.clear()
 	_network_damage_state.clear()
+	_update_cockpit_flight_instruments()
 	_network_damage_cues = 0
 	if is_instance_valid(_network_damage_presentation):
 		_network_damage_presentation.reset_for_reuse()
 		_network_damage_presentation.visible = false
+	component_damage_display_changed.emit()
 
 
 func set_network_damage_reduced_flash(enabled: bool) -> void:
@@ -2840,7 +2909,8 @@ func get_network_operation_presentation_snapshot() -> Dictionary:
 		var node: Node3D = _network_engine_renderers[path]
 		if is_instance_valid(node):
 			rows.append(_pack_network_engine_renderer(_network_engine_renderer_row(path, node)))
-	return {"engine": _engine_state, "landed": _landed, "docked": _docked_latch,
+	return {"engine": _engine_state, "throttle": _throttle if _engine_state == ENGINE_ONLINE and not _destroyed else 0.0,
+		"landed": _landed, "docked": _docked_latch,
 		"landing": _landing_active, "canopy": clampf(_canopy_pivot.rotation.x / CANOPY_OPEN_ANGLE, 0.0, 1.0) if is_instance_valid(_canopy_pivot) else 0.0,
 		"canopy_open": _canopy_open, "renderers": rows, "renderer_kinds": get_network_engine_renderer_kinds(),
 		"readout": _cockpit_readout.text if is_instance_valid(_cockpit_readout) else "",
@@ -2858,10 +2928,13 @@ func get_network_engine_renderer_kinds() -> Array:
 func apply_network_operation_presentation(sample: Dictionary) -> void:
 	if not _network_damage_presentation_enabled or not is_inside_tree():
 		return
+	_ensure_network_engine_renderers()
+	# Replace even when a legacy row omits operation facts altogether. Accepted
+	# optional powers must not depend on a previous engine/renderer sample.
+	_network_component_powers = (sample.get("component_powers", {}) as Dictionary).duplicate()
 	var operation := sample.get("operation_presentation", {}) as Dictionary
 	if operation.is_empty():
 		return
-	_ensure_network_engine_renderers()
 	if _network_operation_source.is_empty():
 		_network_operation_source = {"canopy": clampf(_canopy_pivot.rotation.x / CANOPY_OPEN_ANGLE, 0.0, 1.0) if is_instance_valid(_canopy_pivot) else 0.0,
 			"canopy_open": _canopy_open, "renderers": {}, "policy": _network_operation_solo_policy(),
@@ -2879,7 +2952,7 @@ func apply_network_operation_presentation(sample: Dictionary) -> void:
 	var grade := [int(sample.get("entity_generation", 0)), (sample.get("hull_presentation", {}) as Dictionary).get("components", [])]
 	if operation.engine != _network_operation_state.get("engine", &"") or grade != _network_operation_state.get("grade", []):
 		_network_operation_starting.clear()
-	_network_operation_state = operation
+	_network_operation_state = operation.duplicate(true)
 	_network_operation_state["destroyed"] = bool(sample.get("destroyed", false))
 	_network_operation_state["grade"] = grade
 	if operation.engine == ENGINE_STARTING and _network_operation_starting.is_empty():
@@ -2956,6 +3029,28 @@ func _reassert_network_operation_presentation() -> void:
 	if is_instance_valid(_cockpit_readout):
 		_cockpit_readout.text = state.readout
 		_cockpit_readout.modulate = state.readout_color
+	_update_cockpit_flight_instruments()
+
+
+## Observers display host throttle; this machine's pilot keeps its prediction.
+## An eligible host hull projection also owns the pilot's physical hull gauge;
+## GameFlow clears that projection when this machine has local hull authority.
+func _update_cockpit_flight_instruments() -> void:
+	if not is_instance_valid(_cockpit_readout):
+		return
+	var instruments := _cockpit_readout.get_node_or_null("LiveFlightInstruments") as CockpitFlightInstruments
+	if instruments == null:
+		return
+	var display_throttle := _throttle
+	var display_hull := _hull / maxf(maximum_hull, 0.001)
+	if _network_damage_presentation_enabled and not _network_damage_state.is_empty():
+		display_hull = 0.0 if bool(_network_damage_state.destroyed) else \
+			float(_network_damage_state.health) / float(_network_damage_state.maximum_health)
+	if _network_damage_presentation_enabled and not _network_operation_state.is_empty() \
+			and not _is_piloted_from_this_machine():
+		display_throttle = float(_network_operation_state.get("throttle", 0.0)) \
+			if _network_operation_state.engine == ENGINE_ONLINE and not bool(_network_operation_state.get("destroyed", false)) else 0.0
+	instruments.update_readings(velocity.length(), display_throttle, display_hull)
 
 
 func _network_operation_solo_policy() -> Array:
@@ -2967,7 +3062,10 @@ func clear_network_operation_presentation() -> void:
 	if _network_canopy_motion_owner > 0:
 		release_network_canopy_motion(_network_canopy_motion_owner)
 	_network_operation_state.clear()
+	_network_component_powers.clear()
 	_network_operation_starting.clear()
+	# Recompute from current solo state, including changes made while projected.
+	_update_cockpit_flight_instruments()
 	if _network_operation_source.is_empty():
 		return
 	for path: String in _network_operation_source.renderers:
@@ -5588,9 +5686,7 @@ func _update_presentation(delta: float, command: ShipCommand) -> void:
 		# Reserve the upper speed strip even for the longer bomber descriptor.
 		_cockpit_readout.font_size = mini(42, floori(150.0 / _cockpit_readout.text.get_slice_count("\n")))
 		_cockpit_readout.modulate = system_color if system_color is Color else Color("8de8e4")
-		var instruments := _cockpit_readout.get_node_or_null("LiveFlightInstruments") as CockpitFlightInstruments
-		if instruments != null:
-			instruments.update_readings(velocity.length(), _throttle, _hull / maxf(maximum_hull, 0.001))
+		_update_cockpit_flight_instruments()
 	if _cockpit_practical_light != null:
 		var practical_energy := 0.04
 		if _engine_state == ENGINE_STARTING:

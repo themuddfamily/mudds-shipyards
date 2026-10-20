@@ -401,6 +401,7 @@ var _boarding_ramp_collision: CollisionShape3D
 var _weapon_definition: WeaponDefinition
 var _ship_perspective_audio_binding: RefCounted
 
+signal navigator_ping_cleared(previous_receipt: Dictionary, reason: StringName)
 signal loadmaster_manifest_intent_accepted(receipt: Dictionary)
 signal loadmaster_manifest_cleared(generation: int, reason: StringName)
 
@@ -833,10 +834,14 @@ func get_navigator_ping_snapshot() -> Dictionary:
 	}.duplicate(true)
 
 
-func _clear_navigator_ping(_reason: StringName, advance_generation: bool = true) -> void:
+func _clear_navigator_ping(reason: StringName, advance_generation: bool = true) -> void:
+	var previous := _navigator_ping_receipt.duplicate(true)
 	_navigator_ping_receipt = {}
 	if advance_generation:
 		_navigator_ping_generation += 1
+	# Commit the clear before notifying presentation; reentrant cleanup is silent.
+	if not previous.is_empty():
+		navigator_ping_cleared.emit(previous, reason)
 
 
 func is_loadmaster_station_available() -> bool:

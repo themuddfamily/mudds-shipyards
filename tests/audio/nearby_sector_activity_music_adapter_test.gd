@@ -31,6 +31,26 @@ func _run() -> void:
 	_check(retained_snapshot.activity_kind == &"patrol", "normalized snapshot retains its activity kind")
 	_check(retained_snapshot.activity_state == &"active", "normalized snapshot retains its activity state")
 	_check(adapter.present_activity_snapshot(active).reason == &"stale_activity_generation", "duplicate generation is rejected")
+	var complete := {"generation": 2, "activity_kind": &"patrol", "activity_state": &"complete"}
+	_check(bool(adapter.present_activity_snapshot(complete).accepted), "same-run completion reaches music")
+	_check(bed.get_presentation_state() == &"activity_complete", "same-run completion owns the actual bed")
+	_check(adapter.present_activity_snapshot(complete).reason == &"stale_activity_generation", "duplicate completion is rejected")
+	_check(adapter.present_activity_snapshot({
+		"generation": 2, "activity_kind": &"patrol", "activity_state": &"active",
+	}).reason == &"stale_activity_generation", "terminal run cannot replay active music")
+	_check(adapter.present_activity_snapshot({
+		"generation": 1, "activity_kind": &"patrol", "activity_state": &"complete",
+	}).reason == &"stale_activity_generation", "older completion cannot replace current music")
+	_check(bool(adapter.present_activity_snapshot({
+		"generation": 2, "activity_kind": &"patrol", "activity_state": &"reset",
+	}).accepted), "same-run reset clears completion music")
+	_check(bed.get_presentation_state() == &"station", "reset restores the actual station base rather than assumed orbit")
+	_check(adapter.present_activity_snapshot({
+		"generation": 2, "activity_kind": &"patrol", "activity_state": &"active",
+	}).reason == &"stale_activity_generation", "reset run cannot replay active music")
+	_check(bool(adapter.present_activity_snapshot({
+		"generation": 2, "activity_kind": &"patrol", "activity_state": &"idle",
+	}).accepted), "same-run idle may follow reset without reopening music")
 	_check(bool(adapter.present_activity_snapshot({
 		"generation": 3, "activity_kind": &"patrol", "activity_state": &"complete",
 	}).accepted), "completion reaches music")
@@ -39,6 +59,12 @@ func _run() -> void:
 	_check(adapter.present_activity_snapshot({
 		"generation": 4, "activity_kind": &"patrol", "activity_state": &"active",
 	}).reason == &"music_state_rejected", "combat preempts activity music")
+	_check(int(adapter.get_snapshot().last_activity_generation) == 4, "combat retains the current suppressed activity fact")
+	_check(bool(adapter.present_base_phase(&"orbit").accepted), "base phase releases combat suppression")
+	_check(bed.get_presentation_state() == &"activity_active", "current suppressed activity resumes after combat")
+	var observations := int(bed.get_music_director().get_snapshot().observation_count)
+	adapter.present_base_phase(&"orbit")
+	_check(int(bed.get_music_director().get_snapshot().observation_count) == observations, "unchanged frames do not replay activity or phase observations")
 	_check(bool(adapter.detach().accepted), "detach clears adapter and disables its bed")
 	_check(not bool(adapter.get_snapshot().attached), "adapter reports detached lifecycle")
 	_check(adapter.present_activity_snapshot(active).reason == &"not_attached", "detached adapter rejects snapshots")

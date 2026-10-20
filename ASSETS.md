@@ -682,6 +682,24 @@ further without contradicting a registered source observation.
 - **Not signed off:** a human listening pass and real-device mix review remain
   outstanding.
 
+## `assets/audio/planetary/`
+
+- Purpose: three temperate surface ambience loops referenced by
+  `temperate_surface_audio_catalog.tres`: exterior moving air
+  (`temperate_exterior_wind_air_v1.wav`), interior cabin air
+  (`temperate_interior_cabin_air_v1.wav`), and coastal water
+  (`temperate_coastal_water.wav`).
+- Editable source: `tools/audio/generate_planetary_surface_audio_v1.py`;
+  deterministic fixed-seed offline periodic oscillator synthesis. No recording,
+  sample library, historical Keth material or third-party sound is used.
+- Asset identity and authorship are recorded in
+  `temperate_surface_audio_v1_asset_manifest.json`; its three WAV hashes and
+  generator hash match the checked-in files.
+- Project status: project-original modern sound design, not recovered or
+  authenticated original Keth Shipyards audio. This attribution does not claim
+  that any world uses every loop or that the audible mix has been reviewed;
+  real-device listening remains outstanding.
+
 ## `assets/audio/music/`
 
 - Purpose: nine seamless loops that make up three bounded music/ambient beds for

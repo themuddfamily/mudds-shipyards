@@ -65,6 +65,17 @@ class StoreWithoutProvenance extends RefCounted:
 		return backing.commit(payload, generation, commit_id)
 
 
+class CinderSnapshotStore extends RefCounted:
+	var payload: Dictionary = {}
+	var commit_calls := 0
+	func get_snapshot() -> Dictionary: return payload.duplicate(true)
+	func get_generation() -> int: return 1
+	func get_loaded_source() -> StringName: return &"primary"
+	func commit(_payload: Dictionary, _generation: int, _commit_id: String) -> Dictionary:
+		commit_calls += 1
+		return {"accepted": false}
+
+
 var _assertions := 0
 var _failures := PackedStringArray()
 
@@ -94,6 +105,9 @@ func _run() -> void:
 	))
 	_check(not bool(missing_handoff.accepted) and missing_handoff.reason == &"reward_terminal_handoff_invalid",
 		"a race request without its durable terminal handoff grants nothing")
+
+	var missing_cinder: Dictionary = authority.commit(_request(AuthorityScript.CINDER_CARGO_ACTIVITY_ID, 1, AuthorityScript.CARGO_REWARD_ID))
+	_check(not bool(missing_cinder.accepted) and missing_cinder.reason == &"reward_terminal_handoff_invalid", "unearned Cinder compact request cannot mint a payment")
 
 	# Build the terminal handoff through its live route/session and exact codec.
 	var director := ActivityDirector.new()
@@ -359,6 +373,8 @@ func _run() -> void:
 			) == 1,
 		"the existing Jovian delivery establishes the shared fabrication-kit reward counter"
 	)
+	_check(_save_actual_cinder_completion(store), "genuine Cinder transfer is checkpointed before its reward")
+	_test_cinder_terminal_refusals(store)
 	var cinder_cargo := authority.commit(_request(
 		&"cinder_kit_cargo_run",
 		1,
@@ -403,6 +419,9 @@ func _run() -> void:
 			and not bool(restored.inventory_authority),
 		"reload retains the receipt summary without inventing currency or inventory authority"
 	)
+
+	var paid_cinder: Dictionary = restored_authority.commit(_request(AuthorityScript.CINDER_CARGO_ACTIVITY_ID, 1, AuthorityScript.CARGO_REWARD_ID))
+	_check(not bool(paid_cinder.accepted) and paid_cinder.reason == &"reward_generation_already_committed" and bool(reloaded_store.get_snapshot().cinder_cargo_delivery.delivery.reward_receipt.granted), "atomic Cinder paid acknowledgement prevents cold replay")
 
 	var paid_breach := restored_authority.commit(_request(&"shipyard_heavy_breach", 1, &"return_heavy_breach_credit"))
 	_check(not paid_breach.accepted and paid_breach.reason == &"reward_generation_already_committed"
@@ -533,6 +552,60 @@ func _test_hulk_terminal_gate() -> void:
 	fresh.configure(store)
 	_check(fresh.commit(request).reason == &"reward_already_recorded" and store.get_generation() == generation,
 		"a fresh authority uses the legitimate paid ledger to keep hulk salvage permanently one-shot")
+
+
+func _test_cinder_terminal_refusals(store: UserDataStore) -> void:
+	var request: Dictionary = _request(AuthorityScript.CINDER_CARGO_ACTIVITY_ID, 1, AuthorityScript.CARGO_REWARD_ID)
+	var untrusted: StoreWithoutProvenance = StoreWithoutProvenance.new()
+	untrusted.backing = store
+	var untrusted_authority: GameFlowRewardAuthority = AuthorityScript.new()
+	untrusted_authority.configure(untrusted)
+	_check(untrusted_authority.commit(request).reason == &"reward_store_recovery_required" and untrusted.commit_calls == 0, "Cinder debt requires primary recovery provenance")
+	for variation: String in ["quantity", "ledger", "generation", "legacy", "extra"]:
+		var snapshot_store: CinderSnapshotStore = CinderSnapshotStore.new()
+		snapshot_store.payload = store.get_snapshot()
+		var record: Dictionary = snapshot_store.payload.cinder_cargo_delivery
+		match variation:
+			"quantity": record.delivery.quantity = 2
+			"ledger": record.delivery.transfer_proof.ledger.receipt_id += 1
+			"generation": record.delivery.generation += 1
+			"legacy": record.schema_version = 1
+			"extra": record.delivery["invented_entitlement"] = true
+		var authority: GameFlowRewardAuthority = AuthorityScript.new()
+		authority.configure(snapshot_store)
+		_check(not authority.commit(request).accepted and snapshot_store.commit_calls == 0, "authority independently rejects Cinder terminal " + variation)
+	var mismatch_store: CinderSnapshotStore = CinderSnapshotStore.new()
+	mismatch_store.payload = store.get_snapshot()
+	var mismatch_authority: GameFlowRewardAuthority = AuthorityScript.new()
+	mismatch_authority.configure(mismatch_store)
+	_check(mismatch_authority.commit(_request(AuthorityScript.CINDER_CARGO_ACTIVITY_ID, 2, AuthorityScript.CARGO_REWARD_ID)).reason == &"reward_generation_mismatch" and mismatch_store.commit_calls == 0, "Cinder request generation must match exact earned proof")
+
+
+func _save_actual_cinder_completion(store: UserDataStore) -> bool:
+	var transfer: CargoTransferAuthority = CargoTransferAuthority.new()
+	root.add_child(transfer)
+	var source: Node = Node.new()
+	var destination: Node = Node.new()
+	transfer.add_child(source)
+	transfer.add_child(destination)
+	var item: CargoItemDefinition = CargoItemDefinition.new()
+	item.item_id = &"cinder_supply_crates"
+	item.display_name = "Cinder supply crates"
+	item.unit_capacity = 1
+	transfer.register_item(item)
+	var source_handle: Dictionary = transfer.register_entity(source, &"source", &"source_manifest", 8, {&"cinder_supply_crates": 4}).handle
+	var destination_handle: Dictionary = transfer.register_entity(destination, &"destination", &"destination_manifest", 8).handle
+	var contract: CargoDeliveryContract = CargoDeliveryContract.new(&"cinder_platform_supply_run", source_handle, destination_handle, &"cinder_supply_crates", 1, [&"load_crate", &"clear_gate", &"dock_platform"], 120.0)
+	var activity: CargoDeliveryActivity = CargoDeliveryActivity.new(transfer, contract)
+	activity.start(0)
+	for phase: StringName in [&"load_crate", &"clear_gate", &"dock_platform"]:
+		activity.submit_phase(phase, activity.get_generation())
+	var delivered: Dictionary = activity.submit_transfer(activity.get_generation())
+	var persistence: CinderCargoDeliveryPersistence = CinderCargoDeliveryPersistence.new()
+	persistence.configure(store, CinderCargoDeliveryPersistence.SLOT_ID)
+	var saved: Dictionary = persistence.save(activity, transfer, "unit-cinder-terminal")
+	transfer.free()
+	return bool(delivered.accepted) and bool(saved.accepted)
 
 
 func _save_actual_jovian_completion(store: UserDataStore) -> bool:

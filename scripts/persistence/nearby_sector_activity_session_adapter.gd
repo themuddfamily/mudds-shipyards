@@ -37,6 +37,23 @@ static func capture_asteroid_session(route_state: Dictionary, paid: bool) -> Dic
 	return JSON.parse_string(JSON.stringify(record)) as Dictionary
 
 
+## Start Fresh retires only ACTIVE progress, preserving its generation as a
+## tombstone against retained writers. Terminal debt and paid history stay exact.
+static func plan_asteroid_decline(value: Variant) -> Dictionary:
+	var checked := validate_asteroid_session(value)
+	if not bool(checked.get("accepted", false)):
+		return checked
+	var record: Dictionary = value.duplicate(true)
+	var entry: Dictionary = record.activities[0]
+	if int(entry.state) == CheckpointRouteActivity.State.ACTIVE:
+		var state: Dictionary = entry.progress.duplicate(true)
+		state.state = CheckpointRouteActivity.State.IDLE
+		state.next_checkpoint_index = 0
+		state.failure_reason = ""
+		record = capture_asteroid_session(state, false)
+	return {"accepted": true, "reason": &"asteroid_decline_planned", "session_record": record}
+
+
 static func validate_asteroid_session(value: Variant) -> Dictionary:
 	if not value is Dictionary or value.size() != 2 \
 			or not (value.get("schema_version") is int or value.get("schema_version") is float) \

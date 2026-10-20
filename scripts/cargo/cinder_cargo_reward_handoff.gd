@@ -15,14 +15,17 @@ var _last_result: Dictionary = {}
 var _completion_generation := 0
 var _automatic_result_pending := false
 var _attached := false
+var _checkpoint: Callable
+var _routing := false
 
 
-func attach(activity: CargoDeliveryActivity, adapter: RefCounted) -> Dictionary:
+func attach(activity: CargoDeliveryActivity, adapter: RefCounted, checkpoint: Callable = Callable()) -> Dictionary:
 	if _attached:
 		return _result(false, &"cargo_reward_handoff_already_attached")
 	if activity == null or adapter == null \
 			or not adapter.has_method(&"consume") or not adapter.has_method(&"get_snapshot"):
 		return _result(false, &"cargo_reward_handoff_invalid")
+	_checkpoint = checkpoint
 	_activity = activity
 	_adapter = adapter
 	_activity.completed.connect(_on_cargo_completed)
@@ -63,6 +66,18 @@ func request(expected_generation: int) -> Dictionary:
 
 
 func _route_completion(cargo: Dictionary, expected_generation: int) -> Dictionary:
+	if _routing or _activity == null or cargo != _activity.get_snapshot():
+		return _result(false, &"cargo_reward_owner_changed")
+	_routing = true
+	var owner: CargoDeliveryActivity = _activity
+	if _checkpoint.is_valid() and int(cargo.get("state", -1)) == CargoDeliveryActivity.State.COMPLETED:
+		var saved: Variant = _checkpoint.call(cargo.duplicate(true))
+		if not saved is Dictionary or not bool(saved.get("accepted", false)):
+			_routing = false
+			return _retain(_result(false, &"cargo_terminal_save_pending"))
+	if not _attached or _activity != owner or owner.get_snapshot() != cargo:
+		_routing = false
+		return _result(false, &"cargo_reward_owner_changed")
 	var generation := int(cargo.get("generation", 0))
 	var completed := int(cargo.get("state", -1)) == CargoDeliveryActivity.State.COMPLETED
 	var normalized := {
@@ -72,6 +87,9 @@ func _route_completion(cargo: Dictionary, expected_generation: int) -> Dictionar
 		"generation": generation,
 	}.duplicate(true)
 	var result := _adapter.call("consume", normalized, expected_generation) as Dictionary
+	_routing = false
+	if not _attached or _activity != owner or owner.get_snapshot() != cargo:
+		return _result(false, &"cargo_reward_owner_changed")
 	if bool(result.get("accepted", false)):
 		_completion_generation = generation
 	var retained := _retain(result)

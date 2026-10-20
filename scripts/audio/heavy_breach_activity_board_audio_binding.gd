@@ -4,7 +4,7 @@ extends RefCounted
 ## Presentation-only consumer for the physical heavy-breach activity board.
 ## Admission, objective, combat, and reward authority remain caller-owned.
 ##
-## The board posts two contracts. Heavy Breach and Torpedo Run each get their
+## The board posts three contracts. Heavy Breach and Torpedo Run each get their
 ## own armed and terminal cues; [constant CUE_STREAMS] names the authored board
 ## tone the owning board voices for each cue (cues without an entry stay
 ## semantic-only, so a rejected out-of-range press is not audible).
@@ -13,6 +13,7 @@ signal semantic_board_cue_emitted(cue_id: StringName, intensity: float)
 
 const MAXIMUM_SIMULTANEOUS_VOICES := 2
 const SCENARIO_HEAVY_BREACH: StringName = &"heavy_breach"
+const SCENARIO_PAIRED_WING: StringName = &"paired_wing"
 const SCENARIO_TORPEDO_RUN: StringName = &"torpedo_run"
 const CUE_TORPEDO_RUN_ARMED: StringName = &"torpedo_run_board_armed"
 const CUE_TORPEDO_RUN_CLEARED: StringName = &"torpedo_run_board_cleared"
@@ -24,6 +25,9 @@ const CUE_STREAMS := {
 	CUE_TORPEDO_RUN_ARMED: [BOARD_TONE_DIRECTORY + "torpedo_board_armed_v1.wav", 1.0],
 	CUE_TORPEDO_RUN_CLEARED: [BOARD_TONE_DIRECTORY + "torpedo_board_cleared_v1.wav", 1.0],
 	CUE_TORPEDO_RUN_FAILED: [BOARD_TONE_DIRECTORY + "torpedo_board_failed_v1.wav", 1.0],
+	&"paired_wing_board_armed": [BOARD_TONE_DIRECTORY + "torpedo_board_armed_v1.wav", 0.9],
+	&"paired_wing_board_cleared": [BOARD_TONE_DIRECTORY + "torpedo_board_cleared_v1.wav", 0.9],
+	&"paired_wing_board_failed": [BOARD_TONE_DIRECTORY + "torpedo_board_failed_v1.wav", 0.9],
 	&"heavy_breach_board_admitted": [BOARD_TONE_DIRECTORY + "torpedo_board_armed_v1.wav", 0.75],
 	&"heavy_breach_board_success": [BOARD_TONE_DIRECTORY + "torpedo_board_cleared_v1.wav", 0.75],
 	&"heavy_breach_board_terminal": [BOARD_TONE_DIRECTORY + "torpedo_board_failed_v1.wav", 0.75],
@@ -63,6 +67,9 @@ func present_interaction(result: Dictionary) -> Dictionary:
 	if bool(result.get("accepted", false)) and _interaction_scenario(result) == SCENARIO_TORPEDO_RUN \
 			and reason in [&"sortie_armed", &"torpedo_run_started"]:
 		cue = CUE_TORPEDO_RUN_ARMED
+	if bool(result.get("accepted", false)) and _interaction_scenario(result) == SCENARIO_PAIRED_WING \
+			and reason in [&"sortie_armed", &"paired_wing_started"]:
+		cue = &"paired_wing_board_armed"
 	# The board generation only advances on reset or stream-out, so the sortie
 	# (or director) generation keeps the second and later arms audible.
 	var sortie := int(result.get("sortie_generation", result.get("director_generation", 0)))
@@ -72,11 +79,13 @@ func present_interaction(result: Dictionary) -> Dictionary:
 func present_terminal(scenario_id: StringName, outcome: StringName, generation: int) -> Dictionary:
 	if not _attached:
 		return _result(false, &"not_attached")
-	if scenario_id not in [SCENARIO_HEAVY_BREACH, SCENARIO_TORPEDO_RUN] or generation < 1:
+	if scenario_id not in [SCENARIO_HEAVY_BREACH, SCENARIO_TORPEDO_RUN, SCENARIO_PAIRED_WING] or generation < 1:
 		return _result(false, &"foreign_terminal")
 	var cue := &"heavy_breach_board_success" if outcome == &"cleared" else &"heavy_breach_board_terminal"
 	if scenario_id == SCENARIO_TORPEDO_RUN:
 		cue = CUE_TORPEDO_RUN_CLEARED if outcome == &"cleared" else CUE_TORPEDO_RUN_FAILED
+	if scenario_id == SCENARIO_PAIRED_WING:
+		cue = &"paired_wing_board_cleared" if outcome == &"cleared" else &"paired_wing_board_failed"
 	_emit(cue, "%d:terminal:%s" % [generation, outcome])
 	return _result(true, &"terminal_presented")
 

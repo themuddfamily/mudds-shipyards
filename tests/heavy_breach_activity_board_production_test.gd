@@ -3,6 +3,7 @@ extends SceneTree
 const WORLD_SCENE := preload("res://scenes/world/shipyard_world.tscn")
 const PICKET_SCENE := preload("res://scenes/ships/standoff_picket_opponent.tscn")
 const SKIRMISHER_SCENE := preload("res://scenes/ships/flanking_skirmisher_opponent.tscn")
+const PRESS_SCENE := preload("res://scenes/ships/press_repeater_opponent.tscn")
 const TORPEDO_BOAT_SCENE := preload("res://scenes/ships/torpedo_boat_opponent.tscn")
 
 class MemoryFilesystem extends UserDataFilesystem:
@@ -118,6 +119,14 @@ func _run() -> void:
 	torpedo_boat.name = "TorpedoBoat"
 	_wire(torpedo_boat)
 	host.add_child(torpedo_boat)
+	var hold_actors: Array[Node3D] = []
+	for scene: PackedScene in [PICKET_SCENE, SKIRMISHER_SCENE, PRESS_SCENE]:
+		var craft := scene.instantiate() as Node3D
+		craft.name = ["PerimeterPicket", "PerimeterScatter", "PerimeterPress"][hold_actors.size()]
+		craft.set("source_id", 2131 + hold_actors.size())
+		_wire(craft)
+		host.add_child(craft)
+		hold_actors.append(craft)
 	var world := WORLD_SCENE.instantiate() as ShipyardWorld
 	host.add_child(world)
 	await process_frame
@@ -329,6 +338,51 @@ func _run() -> void:
 			== EncounterScenarioDirector.STATE_CONCLUDED,
 		"world re-entry preserves the board identity while clearing its active contract"
 	)
+	# Third contract uses the existing live pair, then posts the fourth Hold contract.
+	target.global_position = board.global_position + Vector3(1.5, 0.0, 0.0)
+	_check(board.get_offered_scenario() == EncounterScenarioDirector.SCENARIO_PAIRED_WING
+		and "NO CREDIT REWARD" in board.get_interaction_prompt()
+		and "NO CREDIT REWARD" in board_label.text,
+		"Torpedo conclusion posts the solo no-credit Paired Wing")
+	var wing_arm: Dictionary = board.arm_sortie(target, board.get_generation())
+	_check(wing_arm.accepted and board.is_sortie_armed() and not director.is_running(),
+		"Wing admission arms without dispatching against the on-foot actor")
+	var wing_generation := int(wing_arm.sortie_generation)
+	var cancelled: Dictionary = board.abort_and_reset(target, board.get_generation())
+	_check(cancelled.accepted and not board.is_sortie_armed()
+		and board.launch_armed_sortie(target, wing_generation).reason == &"stale_sortie_generation"
+		and board.get_offered_scenario() == EncounterScenarioDirector.SCENARIO_PAIRED_WING,
+		"cancellation fences the Wing admission and keeps the same offer")
+	var wing_started: bool = board.interact(target, board.get_generation())
+	_check(wing_started and director.get_roster().size() == 2
+		and director.is_board_sortie_running() and screen.is_active() and second_screen.is_active()
+		and authority.get_source_id(screen) > 0 and authority.get_source_id(second_screen) > 0,
+		"Wing uses both existing registered members under explicit board ownership")
+	# Component objective simulation only; this is not a player weapon or home-route proof.
+	screen.apply_damage(screen.maximum_health, screen.global_position)
+	second_screen.apply_damage(second_screen.maximum_health, second_screen.global_position)
+	for _frame in 8:
+		await physics_frame
+		await process_frame
+	_check(director.is_concluded() and director.get_outcome() == EncounterScenarioDirector.OUTCOME_CLEARED
+		and director.get_roster().is_empty() and _reward_requests.size() == 1
+		and board.get_offered_scenario() == EncounterScenarioDirector.SCENARIO_PERIMETER_HOLD
+		and int(board.get_reward_handoff_snapshot().pending_reward_generation) == 0,
+		"Wing clear stands down, grants no credit and posts Perimeter Hold")
+	board.call(&"_on_scenario_concluded", EncounterScenarioDirector.SCENARIO_PAIRED_WING, EncounterScenarioDirector.OUTCOME_CLEARED)
+	_check(_reward_requests.size() == 1 and board.get_offered_scenario() == EncounterScenarioDirector.SCENARIO_PERIMETER_HOLD,
+		"replayed Wing terminal cannot pay or rotate twice")
+	_check(board.get_offered_scenario() == EncounterScenarioDirector.SCENARIO_PERIMETER_HOLD,
+		"the first three contracts rotate to a fourth Perimeter Hold offer")
+	target.global_position = board.global_position + Vector3(1.5, 0.0, 0.0)
+	var hold_started: bool = board.interact(target, board.get_generation())
+	_check(hold_started and director.get_roster().size() == 3
+		and world.get_perimeter_hold_asset() != objective
+		and hold_actors[1].get_wing_role() == WingCoordinator.ROLE_FLANKER,
+		"the fourth physical offer launches distinct dedicated actors and a real flanker against its own core")
+	director.abort(EncounterScenarioDirector.OUTCOME_WITHDRAWN)
+	_check(_reward_requests.size() == 1 and board.get_offered_scenario() == EncounterScenarioDirector.SCENARIO_HEAVY_BREACH,
+		"withdrawing Hold returns to the first offer without a reward handoff")
 	# A real later clear uses a new reward epoch without restoring director state.
 	target.global_position = board.global_position + Vector3(1.5, 0.0, 0.0)
 	var later_started: bool = board.interact(target, board.get_generation())
@@ -348,6 +402,24 @@ func _run() -> void:
 	_check(torpedo_started and _reward_requests.size() == 3 and _reward_requests.back().activity_id == HeavyBreachActivityBoard.TORPEDO_RUN_ACTIVITY_ID
 		and _recovery_store.get_snapshot().heavy_breach_session.session.completion.reward_granted,
 		"a genuinely cleared rotated Torpedo Run shares terminal recovery with its distinct reward identity")
+	_check(board.get_offered_scenario() == EncounterScenarioDirector.SCENARIO_PAIRED_WING,
+		"the later Torpedo clear still posts the third Wing contract before Hold")
+	var wing_again: bool = board.interact(target, board.get_generation())
+	_check(wing_again and director.get_active_scenario() == EncounterScenarioDirector.SCENARIO_PAIRED_WING
+		and director.get_roster().size() == 2 and screen.is_active() and second_screen.is_active(),
+		"the rotated Wing contract genuinely reuses both live members before the later Hold")
+	director.abort(EncounterScenarioDirector.OUTCOME_WITHDRAWN)
+	_check(director.get_outcome() == EncounterScenarioDirector.OUTCOME_WITHDRAWN
+		and director.get_roster().is_empty()
+		and board.get_offered_scenario() == EncounterScenarioDirector.SCENARIO_PERIMETER_HOLD
+		and _reward_requests.size() == 3 and board.get_reward_handoff_snapshot().pending_reward_generation == 0,
+		"withdrawing the real intervening Wing posts fourth-contract Hold without credit or debt")
+	var hold_again: bool = board.interact(target, board.get_generation())
+	director.set("_elapsed", 90.0)
+	director.call(&"_physics_process", 0.0)
+	_check(hold_again and director.get_outcome() == EncounterScenarioDirector.OUTCOME_CLEARED
+		and _reward_requests.size() == 3 and board.get_reward_handoff_snapshot().pending_reward_generation == 0,
+		"clearing Hold never falls back to Breach credit or creates terminal reward debt")
 	await _test_legacy_paid_floor(host)
 	_test_refused_documents(host)
 	host.queue_free()
@@ -547,11 +619,11 @@ func _test_fresh_debt_recovery(host: Node3D, objective: Node3D, director: Encoun
 	_check(wire_record.session.offered_index is float
 		and HeavyBreachActivityBoard.validate_session_record(wire_record),
 		"the genuine persisted JSON-number offer validates before fresh debt recovery")
-	for index: int in [0, 1]:
+	for index: int in [0, 1, 2, 3]:
 		wire_record.session.offered_index = float(index)
 		_check(HeavyBreachActivityBoard.validate_session_record(wire_record),
 			"the supported JSON offer %d retains the exact terminal contract" % index)
-	for index: float in [0.5, 1.5, -1.0, 2.0]:
+	for index: float in [0.5, 1.5, 2.5, 3.5, -1.0, 4.0]:
 		wire_record.session.offered_index = index
 		_check(not HeavyBreachActivityBoard.validate_session_record(wire_record),
 			"fractional or unsupported JSON offer %s cannot restore a terminal contract" % index)

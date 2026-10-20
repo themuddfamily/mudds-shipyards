@@ -125,6 +125,7 @@ class MemoryFilesystem extends FILESYSTEM_SCRIPT:
 
 class FaultFilesystem extends UserDataFilesystem:
 	var reject_sessions := false
+	var reject_declines := false
 	var reject_rewards := true
 	var refused_reward := false
 	var fail_reset_sync := false
@@ -135,6 +136,13 @@ class FaultFilesystem extends UserDataFilesystem:
 		var document: Variant = JSON.parse_string(bytes.get_string_from_utf8())
 		if document is Dictionary:
 			var commit_id := str(document.get("commit", {}).get("id", ""))
+			if commit_id.begins_with("decline-planetary-visits-") and document.payload.has(ASTEROID_SLOT):
+				if reject_declines:
+					return ERR_UNAVAILABLE
+				if on_reset_write.is_valid() and int(document.payload[ASTEROID_SLOT].activities[0].state) == CheckpointRouteActivity.State.IDLE:
+					var callback := on_reset_write
+					on_reset_write = Callable()
+					callback.call()
 			if commit_id.begins_with("game-flow-asteroid-"):
 				if reject_sessions:
 					return ERR_UNAVAILABLE
@@ -151,7 +159,9 @@ class FaultFilesystem extends UserDataFilesystem:
 		var reset := false
 		if from_path.ends_with(".tmp"):
 			var document: Variant = JSON.parse_string(FileAccess.get_file_as_string(from_path))
-			if document is Dictionary and str(document.get("commit", {}).get("id", "")).begins_with("game-flow-asteroid-"):
+			if document is Dictionary and document.payload.has(ASTEROID_SLOT) and (
+					str(document.get("commit", {}).get("id", "")).begins_with("game-flow-asteroid-")
+					or str(document.get("commit", {}).get("id", "")).begins_with("decline-planetary-visits-")):
 				reset = int(document.payload[ASTEROID_SLOT].activities[0].state) == CheckpointRouteActivity.State.IDLE
 		var result := super.rename_path(from_path, to_path)
 		if result == OK and reset:
@@ -220,6 +230,7 @@ func _run() -> void:
 	await process_frame
 	await process_frame
 	await _test_main_durable_threading()
+	await _test_start_fresh_threading()
 	_finish()
 
 
@@ -953,6 +964,10 @@ func _test_main_durable_threading() -> void:
 	third_fault.reject_rewards = false
 	var third := await _main_game(path, third_fault)
 	var third_binding := await _main_binding(third)
+	_check(_choose_start_fresh(third) and third.get_recovery_available_snapshot().is_empty()
+		and third.get("_runtime_settings_user_data_store").get_snapshot()[ASTEROID_SLOT] == terminal
+		and third_binding.capture_asteroid_field_session() == terminal and _main_receipts(third) == 0,
+		"public Start Fresh preserves genuine earned-unpaid completion and its pending payment")
 	_check(third_binding.capture_asteroid_field_session() == terminal and _main_receipts(third) == 0,
 		"another actual fresh Main restores only the exact unpaid terminal and generation")
 	var mismatch: Dictionary = third.call("_commit_game_flow_activity_reward", _asteroid_request(2))
@@ -987,6 +1002,10 @@ func _test_main_durable_threading() -> void:
 	fourth_fault.reject_rewards = false
 	var fourth := await _main_game(path, fourth_fault)
 	var fourth_binding := await _main_binding(fourth)
+	_check(_choose_start_fresh(fourth) and fourth.get_recovery_available_snapshot().is_empty()
+		and fourth.get("_runtime_settings_user_data_store").get_snapshot()[ASTEROID_SLOT] == paid
+		and fourth_binding.capture_asteroid_field_session() == paid and _main_receipts(fourth) == 2,
+		"public Start Fresh preserves genuine paid completion and the independent once-only ledger")
 	var duplicate: Dictionary = fourth.call("_commit_game_flow_activity_reward", _asteroid_request(1))
 	_check(fourth_binding.capture_asteroid_field_session() == paid and not duplicate.accepted
 		and duplicate.reason == &"reward_generation_already_committed" and _main_receipts(fourth) == 2,
@@ -1031,6 +1050,144 @@ func _test_main_durable_threading() -> void:
 	await _backup_and_newer_refusal(path)
 	await _reset_callback_fence()
 	await _legacy_paid_floor(path)
+
+
+## Use the current public recovery token, never inject a notice or bypass its
+## fencing. False means the real startup did not offer this choice.
+func _choose_start_fresh(game: GameFlow) -> bool:
+	var pending := game.get_recovery_available_snapshot()
+	if not _check(not pending.is_empty(), "real interrupted Main exposes its public Start Fresh choice"):
+		return false
+	(game.hud as GameHUD).session_recovery_discard_requested.emit(
+		int(pending.get("session_id", 0)), int(pending.get("startup_generation", 0)))
+	return true
+
+
+func _test_start_fresh_threading() -> void:
+	var path := "user://asteroid_start_fresh_%d.json" % Time.get_ticks_usec()
+	var seed := await _main_game(path, FaultFilesystem.new())
+	var binding := await _main_board(seed)
+	_main_position(seed, THREADING_ROUTE.get_checkpoint_position(0))
+	if not _press_start(seed, EXPECTED_ACTIVITY_ID):
+		await _main_dispose(seed)
+		return
+	_main_advance(seed, 0)
+	var seed_store: UserDataStore = seed.get("_runtime_settings_user_data_store")
+	var payload := seed_store.get_snapshot()
+	payload["asteroid_unrelated"] = {"keep": "start-fresh", "amount": 47}
+	_check(seed_store.commit(payload, seed_store.get_generation(), "unit-start-fresh-unrelated").accepted,
+		"Start Fresh fixture earns real active progress in a real shared file")
+	var active: Dictionary = seed_store.get_snapshot()[ASTEROID_SLOT]
+	await _main_dispose(seed)
+
+	var title_fault := FaultFilesystem.new()
+	var title := await _main_game(path, title_fault)
+	var title_store: UserDataStore = title.get("_runtime_settings_user_data_store")
+	_check(not is_instance_valid(title.call("_get_nearby_activity_binding")),
+		"title Start Fresh runs with the actual Cinder binding absent")
+	var before := title_store.get_snapshot()
+	var bytes := FileAccess.get_file_as_bytes(path)
+	title_fault.reject_declines = true
+	_check(_choose_start_fresh(title) and not title.get_recovery_available_snapshot().is_empty()
+		and title_store.get_snapshot() == before and FileAccess.get_file_as_bytes(path) == bytes,
+		"refused title Start Fresh preserves durable active progress, unrelated bytes and the current choice")
+	title_fault.reject_declines = false
+	title_fault.fail_reset_sync = true
+	_check(_choose_start_fresh(title) and not title.get_recovery_available_snapshot().is_empty()
+		and not title_fault.fail_reset_sync and title_store.get_loaded_source() == &"primary",
+		"published-but-refused title decline reloads actual authoritative primary and retains its choice without a binding")
+	var tombstone: Dictionary = title_store.get_snapshot()[ASTEROID_SLOT]
+	_check(int(tombstone.activities[0].state) == CheckpointRouteActivity.State.IDLE
+		and tombstone.activities[0].generation == active.activities[0].generation
+		and int(tombstone.activities[0].progress.next_checkpoint_index) == 0
+		and not tombstone.activities[0].reward_requested and not tombstone.activities[0].reward_granted
+		and title_store.get_snapshot().asteroid_unrelated == before.asteroid_unrelated
+		and title_store.get_snapshot().runtime_settings == before.runtime_settings,
+		"title decline publishes the same-generation canonical IDLE tombstone and preserves shared data")
+	_check(_choose_start_fresh(title) and title.get_recovery_available_snapshot().is_empty()
+		and title_store.get_snapshot()[ASTEROID_SLOT] == tombstone,
+		"title retry accepts the already-authoritative tombstone before the old asteroid world streams")
+	binding = await _main_binding(title)
+	_check(binding.capture_asteroid_field_session() == tombstone,
+		"later actual Cinder streaming adopts the title tombstone without reviving abandoned gates")
+	var stale: Dictionary = title.call("_save_cinder_asteroid_session", binding, active)
+	_check(not stale.accepted and stale.reason == &"asteroid_session_stale_or_unpaid"
+		and title_store.get_snapshot()[ASTEROID_SLOT] == tombstone,
+		"a retained same-generation active writer cannot overwrite the durable IDLE tombstone")
+	binding = await _main_board(title)
+	_main_position(title, THREADING_ROUTE.get_checkpoint_position(0))
+	if not _press_start(title, EXPECTED_ACTIVITY_ID):
+		await _main_dispose(title)
+		return
+	_main_advance(title, 0)
+	active = binding.capture_asteroid_field_session()
+	await _main_dispose(title)
+
+	var live_fault := FaultFilesystem.new()
+	var live := await _main_game(path, live_fault)
+	binding = await _main_binding(live)
+	var live_store: UserDataStore = live.get("_runtime_settings_user_data_store")
+	_check(binding.capture_asteroid_field_session() == active,
+		"cold Main restores only the genuinely admitted later active generation")
+	bytes = FileAccess.get_file_as_bytes(path)
+	live_fault.reject_declines = true
+	_check(_choose_start_fresh(live) and not live.get_recovery_available_snapshot().is_empty()
+		and binding.capture_asteroid_field_session() == active and FileAccess.get_file_as_bytes(path) == bytes,
+		"refused live Start Fresh preserves exact live cursor, durable bytes and current choice")
+	live_fault.reject_declines = false
+	var callback_results: Array[Dictionary] = []
+	var old_director: ActivityDirector = binding.get("_asteroid_run_director")
+	live_fault.on_reset_write = func() -> void:
+		callback_results.append(binding.submit_asteroid_field_run_position(THREADING_ROUTE.get_checkpoint_position(1)))
+		callback_results.append(binding.restore_asteroid_field_session(active))
+		callback_results.append(binding.reset_asteroid_field_run())
+		callback_results.append(binding.request_asteroid_field_run_reward())
+	live_fault.fail_reset_sync = true
+	_check(_choose_start_fresh(live) and not live.get_recovery_available_snapshot().is_empty()
+		and not live_fault.fail_reset_sync,
+		"published-but-refused Start Fresh keeps its public choice while reconciling actual primary publication")
+	tombstone = live_store.get_snapshot()[ASTEROID_SLOT]
+	_check(callback_results.size() == 4 and callback_results.all(func(result: Dictionary) -> bool:
+		return not result.accepted and result.reason == &"asteroid_reset_publication_in_progress")
+		and binding.capture_asteroid_field_session() == tombstone
+		and int(tombstone.activities[0].state) == CheckpointRouteActivity.State.IDLE
+		and tombstone.activities[0].generation == active.activities[0].generation
+		and _main_receipts(live) == 0,
+		"publication callbacks cannot advance, restore, reset or pay the frozen live owner before same-generation retirement")
+	var old_write := old_director.submit_position(EXPECTED_ACTIVITY_ID, THREADING_ROUTE.get_checkpoint_position(1), int(active.activities[0].generation))
+	_check(not old_write.accepted and old_write.reason == &"director_detached"
+		and binding.capture_asteroid_field_session() == tombstone,
+		"the retained old director loses production mutation authority after accepted publication")
+	_check(_choose_start_fresh(live) and live.get_recovery_available_snapshot().is_empty()
+		and binding.capture_asteroid_field_session() == tombstone
+		and live_store.get_snapshot().asteroid_unrelated == before.asteroid_unrelated,
+		"live retry dismisses the current choice without changing the authoritative tombstone or unrelated progress")
+	await _main_dispose(live)
+	var cold_fault := FaultFilesystem.new()
+	var cold := await _main_game(path, cold_fault)
+	var cold_binding := await _main_binding(cold)
+	_check(cold_binding.capture_asteroid_field_session() == tombstone and _main_receipts(cold) == 0,
+		"another actual cold Main cannot revive the abandoned active generation or manufacture a receipt")
+	# The retained-owner case uses the real route's admitted first gate and the
+	# same file, then removes the actual streamed binding in the write callback.
+	_check(cold_binding.start_asteroid_field_run(THREADING_ROUTE.get_checkpoint_position(0)).accepted
+		and cold_binding.submit_asteroid_field_run_position(THREADING_ROUTE.get_checkpoint_position(0)).accepted
+		and bool((cold.call("_save_cinder_asteroid_session", cold_binding) as Dictionary).accepted),
+		"retained-owner fixture admits genuine later route progress through the production save owner")
+	var retained_active := cold_binding.capture_asteroid_field_session()
+	var parent := cold_binding.get_parent()
+	cold_fault.on_reset_write = func() -> void:
+		parent.remove_child(cold_binding)
+	_check(_choose_start_fresh(cold) and not cold.get_recovery_available_snapshot().is_empty()
+		and not cold_binding.is_inside_tree(),
+		"removing the live binding during publication preserves the recovery choice for its changed owner")
+	parent.add_child(cold_binding)
+	var retired_save: Dictionary = cold.call("_save_cinder_asteroid_session", cold_binding, retained_active)
+	_check(not cold_binding.submit_asteroid_field_run_position(THREADING_ROUTE.get_checkpoint_position(1)).accepted
+		and not cold_binding.reset_asteroid_field_run().accepted and not retired_save.accepted
+		and int(cold.get("_runtime_settings_user_data_store").get_snapshot()[ASTEROID_SLOT].activities[0].state) == CheckpointRouteActivity.State.IDLE,
+		"a retained binding reattached after publication cannot advance or restore abandoned progress")
+	await _main_dispose(cold)
 
 
 func _backup_and_newer_refusal(path: String) -> void:
@@ -1092,6 +1249,9 @@ func _backup_and_newer_refusal(path: String) -> void:
 		and newer_startup_payload.asteroid_unrelated == seeded_payload.asteroid_unrelated,
 		"shared startup preserves the exact unsupported activity slot, paid receipt and unrelated data")
 	var original_bytes := FileAccess.get_file_as_bytes(newer_path)
+	_check(_choose_start_fresh(fresh) and not fresh.get_recovery_available_snapshot().is_empty()
+		and FileAccess.get_file_as_bytes(newer_path) == original_bytes,
+		"public Start Fresh refuses unsupported asteroid data without overwriting it or dismissing the choice")
 	if not _press_start(fresh, EXPECTED_ACTIVITY_ID):
 		await _main_dispose(fresh)
 		return
@@ -1190,7 +1350,7 @@ func _main_board(game: GameFlow) -> NearbySectorActivityBinding:
 	if not pending.is_empty():
 		var store: UserDataStore = game.get("_runtime_settings_user_data_store")
 		var before := store.get_snapshot()
-		(game.hud as GameHUD).session_recovery_discard_requested.emit(
+		(game.hud as GameHUD).session_recovery_continue_requested.emit(
 			int(pending.get("session_id", 0)), int(pending.get("startup_generation", 0)))
 		var after := store.get_snapshot()
 		_check(game.get_recovery_available_snapshot().is_empty()
@@ -1198,7 +1358,7 @@ func _main_board(game: GameFlow) -> NearbySectorActivityBinding:
 			and after.get("game_flow_reward_store") == before.get("game_flow_reward_store")
 			and after.get("runtime_settings") == before.get("runtime_settings")
 			and after.get("asteroid_unrelated") == before.get("asteroid_unrelated"),
-			"ordinary Start Fresh declines actor recovery while preserving earned activity and shared data")
+			"ordinary Resume preserves the accepted activity and shared data")
 	game.set_physics_process(true)
 	game.start_shift()
 	var craft := game.get_guided_ship()

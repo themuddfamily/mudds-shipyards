@@ -125,8 +125,18 @@ func _host() -> void:
 	if not await _wait_marker("client", "starting-grade"):
 		return
 	_craft._update_engine(_craft.engine_start_time + 0.01)
+	var instrument_ship := _game.get_node("JovianLightFreighter") as HeroShip
+	instrument_ship.request_engine_start()
+	instrument_ship._update_engine(instrument_ship.engine_start_time + 0.01)
+	instrument_ship.set("_throttle", 0.65)
+	instrument_ship._update_presentation(1.0 / 60.0, ShipCommand.new())
 	_write("engine-witness", true)
 	if not await _wait_marker("client", "engine-witness"):
+		return
+	instrument_ship.set("_throttle", -0.45)
+	instrument_ship._update_presentation(1.0 / 60.0, ShipCommand.new())
+	_write("reverse-throttle", true)
+	if not await _wait_marker("client", "reverse-throttle"):
 		return
 	_assert_snapshot_envelope("running engine")
 	var second := _game.get_node("HalyardCrewTransport") as HeroShip
@@ -144,6 +154,8 @@ func _host() -> void:
 			break
 		_craft._update_landing(0.1)
 	_craft.request_engine_stop(false)
+	instrument_ship.request_engine_stop(false)
+	instrument_ship._update_presentation(1.0 / 60.0, ShipCommand.new())
 	_craft.set_canopy_open(true, 0.0)
 	_write("dock-witness", true)
 	if not await _wait_marker("client", "dock-witness") or not await _wait_marker("operation-late", "dock-witness"):
@@ -180,6 +192,10 @@ func _host() -> void:
 	_craft.apply_damage(_craft.maximum_hull * 0.5)
 	_write("wounded", _craft.get_network_damage_presentation_snapshot())
 	if not await _wait_marker("client", "wounded"):
+		return
+	_craft.get_component_damage().tick_repair(100.0, true)
+	_write("repaired-components", _craft.get_network_damage_presentation_snapshot().components)
+	if not await _wait_marker("client", "repaired-components"):
 		return
 	_game._piloting = false
 	_craft.apply_damage(_craft.maximum_hull + 1.0)
@@ -219,6 +235,7 @@ func _host() -> void:
 		var ship := _game.ships[index] as HeroShip
 		ship.request_engine_start()
 		ship._update_engine(ship.engine_start_time + 0.01)
+		ship.set("_throttle", (0.15 + float(index) * 0.07) * (1.0 if index % 2 == 0 else -1.0))
 		ship.apply_damage(ship.maximum_hull * (0.12 + float(index) * 0.025))
 		ship._sync_engine_visuals_immediately()
 		fleet[ship.get_ship_id()] = {"hull": ship.get_network_damage_presentation_snapshot(),
@@ -241,6 +258,10 @@ func _client() -> void:
 	var source_visibility := _craft.get_variant_visual_root().visible
 	var source_layer := _craft.collision_layer
 	var source_mask := _craft.collision_mask
+	var instrument_ship := _game.get_node("JovianLightFreighter") as HeroShip
+	var solo_instrument_engine: Variant = instrument_ship.get("_engine_state")
+	var solo_throttle := float(instrument_ship.get("_throttle"))
+	instrument_ship._update_presentation(1.0 / 60.0, ShipCommand.new())
 	var solo_engine: Variant = _craft.get("_engine_state")
 	var solo_landed := bool(_craft.get("_landed"))
 	var solo_docked := bool(_craft.get("_docked_latch"))
@@ -249,6 +270,10 @@ func _client() -> void:
 	var source_renderers := _craft.get_network_operation_presentation_snapshot()
 	_check(_game.join_network_session("127.0.0.1", _port).get("accepted", false), "production independent client joins")
 	_check(await _wait(func() -> bool: return not _game.get_network_session().get_server_offer().is_empty()), "client admitted")
+	# Presentation selection only: these peers still observe on foot. Keep one
+	# real binding throughout later host updates, clear and whole-Main reentry.
+	_game.hud.set_mode("piloting")
+	_check(_game.hud.bind_hero_component_ship(_craft), "observer stages the actual retained component HUD binding")
 	_check(await _wait(func() -> bool: return _game._network_craft_pose_stream.get_tracked_ship_ids().size() == _game.ships.size()),
 		"real full peer snapshot admits the complete retained nine-craft roster")
 	_mark("ready")
@@ -262,12 +287,20 @@ func _client() -> void:
 			"late live peer quietly adopts the running host engine")
 		_check(_craft.get("_engine_state") == solo_engine and _craft.get("_docked_latch") == solo_docked,
 			"late engine adoption keeps source operation authority")
+		_assert_throttle_instrument(-0.45, "late full peer adopts signed running host throttle")
+		_assert_operation_hud(instrument_ship, HeroShip.ENGINE_ONLINE, -0.45,
+			"late full peer publishes received host ONLINE/reverse facts to actual HUD controls")
+		_check(instrument_ship.get("_engine_state") == solo_instrument_engine and float(instrument_ship.get("_throttle")) == solo_throttle,
+			"late throttle adoption retains source engine and input authority")
 		_mark("engine-witness")
 		_check(await _wait(func() -> bool: return (_craft.get("_canopy_pivot") as Node3D).rotation.x > 0.1),
 			"late peer follows host touchdown canopy and engine stop")
 		_mark("dock-witness")
 		await _assert_parked_operation(solo_engine, solo_landed, solo_docked, solo_canopy)
 		_game.shutdown_network_session(&"operation_peer_complete")
+		_assert_throttle_instrument(solo_throttle, "late peer clear immediately restores source instrument", false)
+		_assert_operation_hud(instrument_ship, StringName(solo_instrument_engine), solo_throttle,
+			"late peer disconnect publishes the retained local engine and throttle to the HUD")
 		_check((_craft.get_network_operation_presentation_audit().state as Dictionary).is_empty()
 			and _craft.get_network_operation_presentation_snapshot().renderers == source_renderers.renderers,
 			"live late disconnect restores source renderer transforms/material grades/lights")
@@ -279,6 +312,8 @@ func _client() -> void:
 		_mark("pose")
 		_check(await _wait(func() -> bool: return _craft.get_network_operation_presentation_audit().state.get("engine") == HeroShip.ENGINE_STARTING),
 			"real host STARTING engine phase reaches current observer")
+		_assert_operation_hud(_craft, HeroShip.ENGINE_STARTING, 0.0,
+			"current observer HUD shows received host STARTING and neutral throttle")
 		_game.runtime_settings.reduced_flash = true
 		_game._apply_combat_effect_reduced_flash()
 		var starting := _craft.get_network_operation_presentation_audit().state as Dictionary
@@ -293,7 +328,21 @@ func _client() -> void:
 		_check(await _wait(func() -> bool: return FileAccess.file_exists(_directory + "/engine-witness")), "host engine transition is committed")
 		_check(await _wait(func() -> bool: return bool((_craft.get("_engine_glows") as Array)[0].visible)),
 			"online host exhaust is visible on the independent observer")
+		_check(await _wait(func() -> bool: return (instrument_ship.get_network_operation_presentation_audit().state as Dictionary).get("engine") == HeroShip.ENGINE_ONLINE),
+			"current observer adopts the Jovian ONLINE operation row")
+		_assert_throttle_instrument(0.65, "current peer displays positive running host throttle")
+		_assert_operation_hud(instrument_ship, HeroShip.ENGINE_ONLINE, 0.65,
+			"current observer HUD shows received host ONLINE and forward throttle")
 		_mark("engine-witness")
+		_check(await _wait(func() -> bool: return FileAccess.file_exists(_directory + "/reverse-throttle")), "host reverse throttle is committed")
+		_check(await _wait(func() -> bool: return float((instrument_ship.get_network_operation_presentation_audit().state as Dictionary).get("throttle", -0.45)) == -0.45),
+			"current observer receives the reverse throttle operation update")
+		_assert_throttle_instrument(-0.45, "current peer displays negative running host throttle")
+		_assert_operation_hud(instrument_ship, HeroShip.ENGINE_ONLINE, -0.45,
+			"current observer HUD follows received host reverse throttle")
+		_check(instrument_ship.get("_engine_state") == solo_instrument_engine and float(instrument_ship.get("_throttle")) == solo_throttle,
+			"signed throttle display retains source engine and input authority")
+		_mark("reverse-throttle")
 		_check(await _wait(func() -> bool: return FileAccess.file_exists(_directory + "/dock-witness")), "host touchdown and stop are committed")
 		_check(await _wait(func() -> bool: return (_craft.get("_canopy_pivot") as Node3D).rotation.x > 0.1),
 			"docked host canopy pose reaches the independent observer")
@@ -306,23 +355,51 @@ func _client() -> void:
 		var expected := _read("wounded") as Dictionary
 		_check(rig.get_health_ratio() == 0.5 and _craft.get_network_damage_presentation_audit().state.components == expected.components,
 			"the shared rig presents the exact host component roster and wounded hull")
+		_assert_hull_instrument(_craft, 0.5, "current peer physical hull text, arc and color display committed host damage")
+		_assert_hull_hud(0.5, &"damaged", "current peer HUD frame and bar display committed host hull damage")
+		_assert_component_hud(expected.components, false, "current peer actual component row agrees with the accepted host silhouette")
 		_check(_craft.get_network_damage_presentation_snapshot() == solo and source.get_engine_power_multiplier() == source_power,
 			"remote display leaves local hull, components and flight multiplier untouched")
 		_game._piloting = true
 		_game._advance_network_craft_pose_replica(1.0 / 60.0)
+		# The active craft retains its predicted local instrument policy as its
+		# operation projection is cleared on local-authority eligibility.
+		var active_readout := _craft.get("_cockpit_readout") as Label3D
+		var active_throttle := active_readout.get_node("LiveFlightInstruments/LiveStatusRepeaters/ThrottleReadout") as Label3D
+		_check(active_throttle.text == "%+03d\nTHR %%" % roundi(float(_craft.get("_throttle")) * 100.0),
+			"local-authority flight immediately restores its predicted throttle instrument")
 		_check((_craft.get_network_damage_presentation_audit().state as Dictionary).is_empty()
 			and source.visible and _craft.get_network_damage_presentation_snapshot() == solo
 			and (_craft.get_network_operation_presentation_audit().state as Dictionary).is_empty(),
 			"local-authority flight eligibility restores its source and refuses remote damage display")
+		_assert_hull_instrument(_craft, float(solo.health) / float(solo.maximum_health),
+			"local-authority eligibility immediately restores the retained local hull gauge", false)
+		_assert_hull_hud(float(solo.health) / float(solo.maximum_health), &"healthy",
+			"local-authority eligibility restores the current retained local HUD hull")
+		_assert_operation_hud(_craft, StringName(solo_engine), float(_craft.get("_throttle")),
+			"local-authority eligibility restores retained local HUD engine and throttle")
+		_assert_component_hud(solo.components, false, "local-authority eligibility refreshes the bound row to current local components")
 		_game._piloting = false
 		_check(await _wait(func() -> bool: return not (_craft.get_network_damage_presentation_audit().state as Dictionary).is_empty()),
 			"returning to observer eligibility resumes only the retained display rig")
+		_assert_component_hud(expected.components, false, "observer reentry restores host components in the same actual HUD row")
 		_mark("wounded")
+		_check(await _wait(func() -> bool: return FileAccess.file_exists(_directory + "/repaired-components") \
+			and _craft.get_network_damage_presentation_audit().state.get("components", []) == _read("repaired-components")),
+			"same-life authoritative host component repair reaches the existing observer")
+		_assert_component_hud(_read("repaired-components") as Array, false,
+			"received host repair refreshes the actual component row without inventing a local repair receipt")
+		_mark("repaired-components")
 	_check(await _wait(func() -> bool: return bool(_craft.get_network_damage_presentation_audit().state.get("destroyed", false))), "host hull loss reaches the client")
 	var dead := _game._network_craft_pose_stream.latest_sample(_craft.get_ship_id())
 	var dead_rig := _craft.get_network_damage_presentation_audit().rig as HeroDamagePresentation
 	_check(not _craft.get_variant_visual_root().visible and _craft.collision_layer == 0 and _craft.collision_mask == 0
 		and dead_rig.get_status() == &"destroyed", "destroyed remote hull and its ghost collision are absent")
+	_assert_hull_instrument(_craft, 0.0, "current and late dead adoption set physical hull text and arc to zero with critical color")
+	_assert_hull_hud(0.0, &"destroyed", "current and late adoption publish host destruction to the actual HUD frame and empty hull bar")
+	_assert_component_hud([], true, "current and late host destruction refresh the actual retained component row")
+	_assert_operation_hud(_craft, HeroShip.ENGINE_OFFLINE, 0.0,
+		"current and late received destruction publish OFFLINE and neutral throttle to the actual HUD")
 	_check(int(_craft.get_network_damage_presentation_audit().destruction_cues) == (1 if _role == "client" else 0),
 		"current destruction occurs once and late dead adoption replays no burst")
 	var stale := dead.duplicate(true)
@@ -334,6 +411,8 @@ func _client() -> void:
 	stale.mode = Pose.MODE
 	_game._network_craft_pose_stream.consume_movement_section([stale])
 	_check(bool(_game._network_craft_pose_stream.latest_sample(_craft.get_ship_id()).destroyed), "same-life healthy replay cannot resurrect the terminal hull")
+	_assert_hull_hud(0.0, &"destroyed", "rejected same-life healthy replay retains the terminal host HUD hull")
+	_assert_component_hud([], true, "same-life stale recovery leaves the actual component row destroyed")
 	_game.runtime_settings.reduced_flash = true
 	_game._apply_combat_effect_reduced_flash()
 	_check(dead_rig.is_reduced_flash_enabled(), "copied rig follows reduced flash during a paused interval")
@@ -344,6 +423,12 @@ func _client() -> void:
 		and is_equal_approx(dead_rig.get_health_ratio(), 1.0) and dead_rig.get_component_effect_ids().is_empty()
 		and dead_rig == _craft.get_network_damage_presentation_audit().rig,
 		"regeneration restores hull/collision and clears old damage using the same display rig")
+	_assert_hull_instrument(_craft, 1.0, "current and late new-generation revival restore the physical hull gauge and healthy color")
+	_assert_hull_hud(1.0, &"healthy", "current and late host regeneration restore the actual HUD hull bar and healthy frame")
+	_assert_component_hud(_craft.get_network_damage_presentation_audit().state.components, false,
+		"new host life restores its nominal component row without local recovery-audit wording")
+	_assert_operation_hud(_craft, HeroShip.ENGINE_OFFLINE, 0.0,
+		"current and late host regeneration publishes the new life's stopped engine and neutral HUD throttle")
 	_check(await _wait(func() -> bool: return (_craft.global_position - _game._network_station_frame_origin()).distance_to(_read("regenerated") as Vector3) < 0.5),
 		"regenerated craft reaches its host-owned berth in station coordinates")
 	var generation_before := _game._network_craft_pose_stream.latest_sample(_craft.get_ship_id())
@@ -360,25 +445,44 @@ func _client() -> void:
 	_game._network_craft_pose_stream.consume_movement_section([dead, epoch])
 	_check(_game._network_craft_pose_stream.latest_sample(_craft.get_ship_id()) == generation_before,
 		"prior terminal life and another session epoch cannot replace regenerated state")
+	_assert_hull_hud(1.0, &"healthy", "rejected old life and other session epoch retain the revived host HUD")
+	_assert_component_hud(_craft.get_network_damage_presentation_audit().state.components, false,
+		"old-life and other-epoch replays leave revived host components intact")
 	_mark("regenerated")
 	_check(await _wait(func() -> bool: return (_craft.get_network_damage_presentation_audit().state as Dictionary).is_empty()), "alive coast expiry clears the temporary hull display")
 	_check(source.visible and _craft.get_variant_visual_root().visible == source_visibility
 		and _craft.get_network_damage_presentation_snapshot() == solo, "coast expiry restores exact retained source presentation and damage")
+	_assert_hull_instrument(_craft, float(solo.health) / float(solo.maximum_health),
+		"coast clear immediately restores the retained local physical hull gauge", false)
+	_assert_hull_hud(float(solo.health) / float(solo.maximum_health), &"healthy",
+		"coast clear restores current retained local health in the actual HUD")
+	_assert_component_hud(solo.components, false, "coast clear restores current local components despite host generation two")
 	_mark("coasted")
 	_check(await _wait(func() -> bool: return is_equal_approx(float(_craft.get_network_damage_presentation_audit().state.get("health", -1)), _craft.maximum_hull) \
 		and not dead_rig.get_component_effect_ids().is_empty()), "host component-only damage projects while hull remains full")
+	_assert_hull_instrument(_craft, 1.0, "component-only damage retains the host's full physical hull gauge")
 	_mark("component")
 	_check(await _wait(func() -> bool: return _game._network_craft_pose_stream.get_clock() - float(_game._network_craft_pose_stream.latest_sample(_craft.get_ship_id()).pose_tick) > Pose.STALE_SAMPLE_TICKS),
 		"component-only damage outlives its pose coast")
 	_check(not dead_rig.get_component_effect_ids().is_empty(), "non-nominal component sections remain visible with full hull after coast")
+	_assert_hull_instrument(_craft, 1.0, "component-only damage keeps the full host hull gauge beyond pose coast")
+	_assert_hull_hud(1.0, &"healthy", "component-only retained host presentation keeps full HUD hull beyond pose coast")
+	_assert_component_hud(_craft.get_network_damage_presentation_audit().state.components, false,
+		"component-only host damage stays in the actual component row beyond pose coast")
 	_mark("component-held")
 	_check(await _wait(func() -> bool: return is_equal_approx(float(_craft.get_network_damage_presentation_audit().state.get("health", -1)), _craft.maximum_hull * 0.5)),
 		"fresh committed damage reopens presentation after coast without a new life")
+	_assert_hull_instrument(_craft, 0.5, "current and late fresh damage updates the physical hull gauge after coast")
+	_assert_hull_hud(0.5, &"damaged", "current and late fresh host damage updates the HUD after coast")
 	_mark("reopened")
 	_check(await _wait(func() -> bool: return _game._network_craft_pose_stream.get_clock() - float(_game._network_craft_pose_stream.latest_sample(_craft.get_ship_id()).pose_tick) > Pose.STALE_SAMPLE_TICKS),
 		"parked damaged craft passes the stale pose window")
 	_check(is_equal_approx(float(_craft.get_network_damage_presentation_audit().state.get("health", -1)), _craft.maximum_hull * 0.5),
 		"committed parked damage remains displayed beyond pose coast expiry")
+	_assert_hull_instrument(_craft, 0.5, "parked host damage remains on the physical hull gauge after pose expiry")
+	_assert_hull_hud(0.5, &"damaged", "parked host damage remains on the actual HUD frame and bar after pose expiry")
+	_assert_component_hud(_craft.get_network_damage_presentation_audit().state.components, false,
+		"parked host component damage remains in the actual HUD after pose expiry")
 	_mark("held")
 	await _assert_fleet_presentation()
 	_mark("fleet")
@@ -393,12 +497,104 @@ func _client() -> void:
 		and _craft.get_variant_visual_root().visible == source_visibility and _craft.collision_layer == source_layer
 		and _craft.collision_mask == source_mask and _craft.get_network_damage_presentation_snapshot() == solo,
 		"disconnect and whole-Main reentry restore exact solo hull/components/collision/visibility")
+	_assert_hull_instrument(_craft, float(solo.health) / float(solo.maximum_health),
+		"disconnect and whole-Main reentry immediately restore the current local hull gauge", false)
+	_assert_hull_hud(float(solo.health) / float(solo.maximum_health), &"healthy",
+		"disconnect and whole-Main reentry restore the current retained local HUD hull")
+	_assert_component_hud(solo.components, false, "disconnect and whole-Main reentry restore the actual local component row")
+	_assert_throttle_instrument(solo_throttle, "session/reentry clear immediately restores source instrument", false)
+	_assert_operation_hud(instrument_ship, StringName(solo_instrument_engine), solo_throttle,
+		"session/reentry clear publishes the current retained local operation HUD")
 	await process_frame
+	_assert_throttle_instrument(solo_throttle, "source instrument remains local after deferred callbacks")
+	_assert_hull_instrument(_craft, float(solo.health) / float(solo.maximum_health),
+		"source physical hull gauge remains local after deferred callbacks")
+	_assert_hull_hud(float(solo.health) / float(solo.maximum_health), &"healthy",
+		"retained local HUD hull remains restored after deferred callbacks")
+	_assert_component_hud(solo.components, false, "deferred callbacks cannot restore the old host component row")
 	_check((_craft.get_network_operation_presentation_audit().state as Dictionary).is_empty()
 		and _craft.get("_engine_state") == solo_engine and bool(_craft.get("_landed")) == solo_landed
 		and bool(_craft.get("_docked_latch")) == solo_docked and bool(_craft.get("_canopy_open")) == solo_canopy
 		and _craft.get_network_operation_presentation_snapshot().renderers == source_renderers.renderers,
 		"session/reentry fences deferred operation callbacks and restores exact retained source renderers/owners")
+
+
+func _assert_component_hud(components: Array, destroyed: bool, description: String) -> void:
+	var row: Dictionary = _game.hud.get_hero_component_hud_snapshot()
+	var label := _game.hud.find_child("ComponentStatus", true, false) as Label
+	var matches: bool = label != null and label.visible and label.text == row.get("text") \
+		and not bool(row.get("repairing", true))
+	if destroyed:
+		matches = matches and row.get("wording") == &"destroyed" and label.text == "[X] DESTROYED  //  HULL LOST"
+	else:
+		var worst: Dictionary = {}
+		for component: Dictionary in components:
+			if worst.is_empty() or float(component.integrity) < float(worst.integrity):
+				worst = component
+		var integrity := float(worst.get("integrity", -1.0))
+		var stage := ShipComponentDamage.state_id_for(int(worst.get("state", -1)))
+		var wording: StringName = &"failed" if stage == &"failed" else (&"critical" if integrity <= 0.4 \
+			else (&"degraded" if stage == &"impaired" else &"nominal"))
+		matches = matches and row.get("component_id") == worst.get("id") and row.get("component_stage") == stage \
+			and is_equal_approx(float(row.get("integrity", -2.0)), integrity) and row.get("wording") == wording
+	_check(matches, description)
+
+
+## These peers observe on foot. Select the retained craft only for the real HUD
+## publisher, without inventing a pilot grant or advancing local flight authority.
+func _assert_hull_hud(expected: float, stage: StringName, description: String) -> void:
+	var previous_ship := _game.active_ship
+	_game.active_ship = _craft
+	_game._publish_active_ship_telemetry_to_hud()
+	var frame: Dictionary = _game.hud.get_hull_frame_damage_snapshot()
+	var bar := _game.hud.get("_hull_bar") as ProgressBar
+	_check(is_equal_approx(float(frame.health_ratio), expected) and frame.stage == stage
+		and is_equal_approx(bar.value, expected * 100.0), description)
+	_game.active_ship = previous_ship
+
+
+## Select an observed craft for the existing HUD publisher without claiming a
+## pilot seat. Source samples above arrived through each real peer's session.
+func _assert_operation_hud(ship: HeroShip, engine: StringName, throttle: float, description: String) -> void:
+	var previous_ship: HeroShip = _game.active_ship
+	_game.active_ship = ship
+	var raw: Dictionary = ship.get_telemetry()
+	var returned: Dictionary = _game._publish_active_ship_telemetry_to_hud()
+	var engine_label := _game.hud.get("_engine_label") as Label
+	var throttle_bar := _game.hud.get("_throttle_bar") as ProgressBar
+	var throttle_label := _game.hud.get("_throttle_label") as Label
+	var direction: String = "REVERSE" if throttle < -0.04 else ("FORWARD" if throttle > 0.04 else "NEUTRAL")
+	_check(engine_label.text == "ENGINE  //  " + String(engine)
+		and is_equal_approx(throttle_bar.value, absf(throttle) * 100.0)
+		and throttle_label.text == "THROTTLE  //  " + direction, description)
+	_check(returned == raw and ship.get_telemetry() == raw,
+		"received operation HUD presentation leaves the publisher result and gameplay telemetry local")
+	_game.active_ship = previous_ship
+
+
+func _assert_hull_instrument(ship: HeroShip, expected: float, description: String, update: bool = true) -> void:
+	if update:
+		ship._update_presentation(1.0 / 60.0, ShipCommand.new())
+		ship._reassert_network_operation_presentation()
+	var readout := ship.get("_cockpit_readout") as Label3D
+	var physical := readout.get_node("LiveFlightInstruments/LiveStatusRepeaters/HullReadout") as Label3D
+	var dial := readout.get_node("LiveFlightInstruments/LiveStatusRepeaters/HullGauge") as MeshInstance3D
+	var color := Color("ff6b5f") if expected <= 0.3 else Color("8de8e4")
+	_check(physical.text == "%03d\nHULL %%" % roundi(expected * 100.0)
+		and is_equal_approx(float(dial.get_instance_shader_parameter(&"fill")), expected)
+		and physical.modulate == color and dial.get_instance_shader_parameter(&"ink") == color, description)
+
+
+func _assert_throttle_instrument(expected: float, description: String, update: bool = true) -> void:
+	var ship := _game.get_node("JovianLightFreighter") as HeroShip
+	if update:
+		ship._update_presentation(1.0 / 60.0, ShipCommand.new())
+		ship._reassert_network_operation_presentation()
+	var readout := ship.get("_cockpit_readout") as Label3D
+	var physical := readout.get_node("LiveFlightInstruments/LiveStatusRepeaters/ThrottleReadout") as Label3D
+	var operation := ship.get_network_operation_presentation_audit().state as Dictionary
+	_check(physical.text == "%+03d\nTHR %%" % roundi(expected * 100.0)
+		and (is_zero_approx(expected) or (operation.get("engine") == HeroShip.ENGINE_ONLINE and readout.text.begins_with("ONLINE"))), description)
 
 
 func _assert_fleet_presentation() -> void:
@@ -414,15 +610,26 @@ func _assert_fleet_presentation() -> void:
 			var hull := ship.get_network_damage_presentation_audit().state as Dictionary
 			var operation := ship.get_network_operation_presentation_audit().state as Dictionary
 			if hull.get("health", -1.0) != expected.hull.health or hull.get("components", []) != expected.hull.components \
-					or operation.get("engine") != expected.operation.engine:
+					or operation.get("engine") != expected.operation.engine or operation.get("throttle") != expected.operation.throttle:
 				return false
 		return true), "current/late full peers present exact all-nine operated hull/component/engine facts")
+	var fleet := _read("fleet") as Dictionary
+	for ship: HeroShip in _game.ships:
+		var hull: Dictionary = fleet[ship.get_ship_id()].hull
+		_assert_hull_instrument(ship, float(hull.health) / float(hull.maximum_health),
+			"current/late fleet physical hull gauge follows the exact host ratio: %s" % ship.get_ship_id())
+		var operation: Dictionary = fleet[ship.get_ship_id()].operation
+		_assert_operation_hud(ship, StringName(operation.engine), float(operation.throttle),
+			"current/late fleet HUD follows received host engine and signed throttle: %s" % ship.get_ship_id())
 
 
 func _assert_parked_operation(engine: Variant, landed: bool, docked: bool, canopy: bool) -> void:
 	_check(await _wait(func() -> bool: return FileAccess.file_exists(_directory + "/operation-coast") \
 		and not bool(_game._network_craft_pose_stream.latest_sample(_craft.get_ship_id()).get("pose_active", true))),
 		"settled operation row survives host-on-foot motion coast")
+	_assert_throttle_instrument(0.0, "host shutdown changes physical throttle from signed ONLINE to neutral OFFLINE")
+	_assert_operation_hud(_game.get_node("JovianLightFreighter") as HeroShip, HeroShip.ENGINE_OFFLINE, 0.0,
+		"current and late HUD follows received host shutdown with OFFLINE and neutral throttle")
 	var operation := _craft.get_network_operation_presentation_audit().state as Dictionary
 	_check(operation.get("engine") == HeroShip.ENGINE_OFFLINE and bool(operation.get("docked", false))
 		and bool(operation.get("landed", false)) and not bool((_craft.get("_engine_glows") as Array)[0].visible)

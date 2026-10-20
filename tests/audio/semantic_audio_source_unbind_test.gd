@@ -36,6 +36,21 @@ func _run() -> void:
 	_check(bool(router.bind_source(source, &"combat").accepted), "unbound source can rebind")
 	_check(router.unbind_source(source, &"music").reason == &"source_kind_mismatch", "rebound source still fences kind")
 
+
+	# Exact source retirement must reset its own last-event fence so its first
+	# identical event is valid on re-entry, while another source keeps its fence.
+	source.semantic_cue_emitted.emit(&"repair_reentry", Vector3.ZERO, 1.0)
+	var before_reentry := _events.size()
+	_check(bool(router.unbind_source(source, &"combat").accepted), "last-emitting source unbinds")
+	_check(bool(router.bind_source(source, &"combat").accepted), "last-emitting source rebinds")
+	source.semantic_cue_emitted.emit(&"repair_reentry", Vector3.ZERO, 1.0)
+	_check(_events.size() == before_reentry + 1, "exact unbind retires removed source dedup for identical first re-entry event")
+	other.semantic_music_cue_emitted.emit(&"retained_fence", 1.0)
+	var before_other_duplicate := _events.size()
+	_check(bool(router.unbind_source(source, &"combat").accepted), "non-emitting source unbinds exactly")
+	other.semantic_music_cue_emitted.emit(&"retained_fence", 1.0)
+	_check(_events.size() == before_other_duplicate, "exact unbind preserves the retained source's duplicate fence")
+
 	var director := Director.new()
 	root.add_child(director)
 	await process_frame

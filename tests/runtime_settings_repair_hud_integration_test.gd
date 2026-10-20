@@ -152,6 +152,83 @@ func _run() -> void:
 		"binding rejection performs no write and reports the actual final failure"
 	)
 
+	var blocked_path := "memory://repair-hud-preservation-blocked.json"
+	var blocked_fixture := _backup_recovery_fixture(blocked_path)
+	var blocked_filesystem := blocked_fixture.filesystem as FakeFilesystem
+	var blocked_store := blocked_fixture.store as UserDataStore
+	var blocked_flow := GameFlowType.new()
+	blocked_flow.configure_runtime_settings_persistence(
+		blocked_store, "memory://repair-hud-preservation-blocked.cfg"
+	)
+	blocked_flow.call("_initialize_runtime_settings")
+	var blocked_hud := HudType.new()
+	root.add_child(blocked_hud)
+	await process_frame
+	blocked_flow.set("hud", blocked_hud)
+	blocked_flow.call("_connect_runtime_settings_repair_hud")
+	var blocked_inspected := blocked_flow.call("_publish_runtime_settings_repair_to_hud") as Dictionary
+	var blocked_button := blocked_hud.get("_settings_repair_confirm_button") as Button
+	_check(
+		blocked_inspected.get("reason", &"") == &"repair_available"
+		and blocked_button.visible and not blocked_button.disabled,
+		"real backup recovery offers confirmation before the preservation collision"
+	)
+	# A different retained damaged copy must never be overwritten to repair this save.
+	blocked_filesystem.files[blocked_path + ".recovery"] = "older-damaged-save".to_utf8_buffer()
+	var blocked_files_before := blocked_filesystem.files.duplicate(true)
+	var blocked_snapshot_before := blocked_store.get_snapshot()
+	var blocked_metadata_before := blocked_store.get_commit_metadata()
+	var blocked_source_before := blocked_store.get_loaded_source()
+	blocked_button.pressed.emit()
+	var blocked_report := blocked_flow.get_runtime_settings_repair_report()
+	var blocked_status := blocked_hud.get("_settings_status_label") as Label
+	var blocked_title := blocked_hud.get("_settings_repair_title") as Label
+	var blocked_detail := blocked_hud.get("_settings_repair_detail") as Label
+	var blocked_panel := blocked_hud.get("_settings_repair_panel") as PanelContainer
+	_check(
+		not bool(blocked_report.last_status.get("accepted", true))
+		and blocked_report.last_status.reason == &"primary_quarantine_failed"
+		and bool(blocked_report.last_status.get("repair_authority_cleared", false))
+		and not bool(blocked_report.last_status.get("repair_retryable", true))
+		and blocked_filesystem.files == blocked_files_before
+		and blocked_store.get_generation() == 1
+		and blocked_store.get_snapshot() == blocked_snapshot_before
+		and blocked_store.get_commit_metadata() == blocked_metadata_before
+		and blocked_store.get_loaded_source() == blocked_source_before,
+		"actual confirmation refuses the collision with every file and loaded save authority unchanged"
+	)
+	_check(
+		blocked_panel.visible
+		and blocked_title.text == "SETTINGS RECOVERY BLOCKED"
+		and blocked_detail.text.contains("damaged save and verified backup were retained")
+		and blocked_detail.text.contains("could not safely preserve the damaged copy")
+		and blocked_detail.text.contains("replacement was blocked")
+		and blocked_status.visible
+		and blocked_status.text == "BACKUP REPAIR BLOCKED  //  SAVE FILES PRESERVED"
+		and not blocked_status.text.contains("PRIMARY_QUARANTINE_FAILED")
+		and not blocked_title.text.contains("AMBIGUOUS")
+		and not blocked_status.text.contains("REPAIRED"),
+		"blocked repair shows deterministic preservation copy and never reports success or technical codes"
+	)
+	_check(
+		not blocked_button.visible and blocked_button.disabled
+		and not blocked_hud.get_runtime_settings_repair_presentation().confirmation_available
+		and not bool(blocked_report.prepared)
+		and blocked_report.observed_generation == -1
+		and not bool(blocked_flow.get("_runtime_settings_repair_resolved")),
+		"refusal retires the real binding plan and HUD confirmation without resolving repair"
+	)
+	blocked_button.pressed.emit()
+	_check(
+		blocked_filesystem.files == blocked_files_before
+		and blocked_store.get_generation() == 1
+		and blocked_flow.get_runtime_settings_repair_report() == blocked_report
+		and blocked_status.text == "BACKUP REPAIR BLOCKED  //  SAVE FILES PRESERVED",
+		"retired confirmation cannot replay the old token or overwrite the blocked result"
+	)
+
+	blocked_hud.queue_free()
+	blocked_flow.free()
 	hud.queue_free()
 	failed_hud.queue_free()
 	flow.free()

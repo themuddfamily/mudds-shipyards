@@ -12,6 +12,7 @@ class FakeFilesystem extends UserDataFilesystem:
 	var files: Dictionary = {}
 	var directories: Dictionary = {}
 	var fail_write_once := false
+	var fail_write_path := ""
 	var partial_write_on_failure := false
 	var rename_failures: Dictionary = {}
 	var remove_failures: Dictionary = {}
@@ -41,7 +42,7 @@ class FakeFilesystem extends UserDataFilesystem:
 		return {"error": OK, "bytes": bytes}
 
 	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
-		if fail_write_once:
+		if fail_write_once and (fail_write_path.is_empty() or path == fail_write_path):
 			fail_write_once = false
 			if partial_write_on_failure:
 				files[path] = bytes.slice(0, maxi(1, bytes.size() / 2))
@@ -91,6 +92,9 @@ func _run() -> void:
 	_test_exact_commits_and_detached_snapshots()
 	_test_numeric_precision_and_legacy_checksums()
 	_test_primary_then_backup_recovery()
+	_test_corrupt_primary_retention()
+	_test_corrupt_primary_retention_failures()
+	_test_interrupted_recovery_retains_corrupt_primary()
 	_test_corrupt_and_both_invalid_behavior()
 	_test_future_schema_and_unknown_fields()
 	_test_stale_temp_and_interrupted_write()
@@ -228,6 +232,122 @@ func _test_primary_then_backup_recovery() -> void:
 	_check(bool(repaired.accepted) and int(repaired.generation) == 2, "an explicit commit after backup load repairs a corrupt primary")
 	_check(int(_decode(filesystem, PATH + ".bak").generation) == 1, "backup-based repair retains the last-known-good backup")
 	_check(store.get_generation() == 2, "independent already-loaded instances are not mutated by recovery")
+
+
+func _test_corrupt_primary_retention() -> void:
+	var damaged := "current-corrupt-primary".to_utf8_buffer()
+	for matching in [false, true]:
+		var filesystem := FakeFilesystem.new()
+		_two_commit_store(filesystem)
+		filesystem.files[PATH] = damaged.duplicate()
+		filesystem.files[PATH + ".recovery"] = damaged.duplicate() if matching else "older-corrupt-primary".to_utf8_buffer()
+		var before := _copy_files(filesystem.files)
+		var store := Store.new(PATH, filesystem)
+		_check(bool(store.load().accepted) and bool(store.get_recovery_receipt().available) == matching, "fallback byte-verifies an existing archive (matching=%s)" % matching)
+		var repaired := store.commit({"value": 3}, 1, "retention-repair")
+		if matching:
+			_check(bool(repaired.accepted) and filesystem.files[PATH + ".recovery"] == damaged and filesystem.files[PATH + ".bak"] == before[PATH + ".bak"], "matching archive permits repair without changing archive or verified backup")
+		else:
+			_check(not bool(repaired.accepted) and repaired.reason == &"primary_quarantine_failed" and filesystem.files == before and store.get_generation() == 1, "different occupied archive blocks repair and preserves every original byte")
+
+	for changed_path in [PATH, PATH + ".recovery"]:
+		var filesystem := FakeFilesystem.new()
+		_two_commit_store(filesystem)
+		filesystem.files[PATH] = damaged.duplicate()
+		var store := Store.new(PATH, filesystem)
+		store.load()
+		_check(bool(store.get_recovery_receipt().available), "load initially retains the corrupt primary")
+		filesystem.files[changed_path] = "changed-after-load".to_utf8_buffer()
+		var before := _copy_files(filesystem.files)
+		var refused := store.commit({"value": 3}, 1, "stale-receipt-repair")
+		_check(not bool(refused.accepted) and refused.reason == &"primary_quarantine_failed" and not bool(store.get_recovery_receipt().available) and filesystem.files == before, "a stale successful receipt cannot authorize deleting changed primary/archive bytes")
+
+	var empty_fs := FakeFilesystem.new()
+	_two_commit_store(empty_fs)
+	empty_fs.files[PATH] = PackedByteArray()
+	var empty_backup := (empty_fs.files[PATH + ".bak"] as PackedByteArray).duplicate()
+	var empty_store := Store.new(PATH, empty_fs)
+	_check(bool(empty_store.load().accepted) and bool(empty_store.get_recovery_receipt().available), "zero-byte corrupt primary is retained as a verified empty archive")
+	_check(bool(empty_store.commit({"value": 3}, 1, "empty-retention-repair").accepted) and empty_fs.files.has(PATH + ".recovery") and (empty_fs.files[PATH + ".recovery"] as PackedByteArray).is_empty() and empty_fs.files[PATH + ".bak"] == empty_backup, "zero-byte corrupt primary still repairs normally with its valid backup preserved")
+
+	var read_only_fs := FakeFilesystem.new()
+	_two_commit_store(read_only_fs)
+	read_only_fs.files[PATH] = damaged.duplicate()
+	var read_only := Store.new(PATH, read_only_fs)
+	_check(bool(read_only.load_read_only().accepted) and not read_only_fs.files.has(PATH + ".recovery"), "read-only fallback leaves archival to an explicit repair")
+	_check(bool(read_only.commit({"value": 3}, 1, "read-only-retention-repair").accepted) and read_only_fs.files[PATH + ".recovery"] == damaged, "explicit repair after read-only load creates and verifies the archive before replacement")
+
+	var directory_fs := FakeFilesystem.new()
+	_two_commit_store(directory_fs)
+	directory_fs.files[PATH] = damaged.duplicate()
+	directory_fs.directories[PATH + ".recovery"] = true
+	var directory_store := Store.new(PATH, directory_fs)
+	directory_store.load()
+	var directory_before := _copy_files(directory_fs.files)
+	var directory_refused := directory_store.commit({"value": 3}, 1, "directory-retention-repair")
+	_check(not bool(directory_refused.accepted) and directory_refused.reason == &"primary_quarantine_failed" and directory_fs.files == directory_before and directory_fs.directory_exists(PATH + ".recovery"), "archive directory collision refuses repair without changing files or the directory")
+
+	var staging_fs := FakeFilesystem.new()
+	_two_commit_store(staging_fs)
+	staging_fs.files[PATH] = damaged.duplicate()
+	var staging_store := Store.new(PATH, staging_fs)
+	staging_store.load()
+	var backup := (staging_fs.files[PATH + ".bak"] as PackedByteArray).duplicate()
+	staging_fs.replace_path_after_write = PATH
+	staging_fs.replacement_bytes_after_write = "changed-during-staging".to_utf8_buffer()
+	var staging_refused := staging_store.commit({"value": 3}, 1, "staging-retention-repair")
+	_check(not bool(staging_refused.accepted) and staging_refused.reason == &"primary_quarantine_failed" and staging_fs.files[PATH] == "changed-during-staging".to_utf8_buffer() and staging_fs.files[PATH + ".recovery"] == damaged and staging_fs.files[PATH + ".bak"] == backup and not staging_fs.files.has(PATH + ".tmp"), "repair verifies the current corrupt primary after staging before deleting it")
+
+
+func _test_corrupt_primary_retention_failures() -> void:
+	for failure in ["primary_read", "archive_write", "archive_verify", "archive_reuse_read"]:
+		var filesystem := FakeFilesystem.new()
+		_two_commit_store(filesystem)
+		var damaged: PackedByteArray = ("corrupt-for-" + failure).to_utf8_buffer()
+		filesystem.files[PATH] = damaged.duplicate()
+		var store := Store.new(PATH, filesystem)
+		store.load()
+		var backup := (filesystem.files[PATH + ".bak"] as PackedByteArray).duplicate()
+		if failure != "archive_reuse_read":
+			filesystem.files.erase(PATH + ".recovery")
+		match failure:
+			"primary_read":
+				# Initial authority read, post-stage authority read, quarantine read.
+				filesystem.read_failures[PATH] = 3
+			"archive_write":
+				filesystem.fail_write_once = true
+				filesystem.fail_write_path = PATH + ".recovery"
+			"archive_verify", "archive_reuse_read":
+				filesystem.read_failures[PATH + ".recovery"] = 1
+		var refused := store.commit({"value": 3}, 1, "failed-retention-repair")
+		_check(not bool(refused.accepted) and refused.reason == &"primary_quarantine_failed" and not bool(store.get_recovery_receipt().available) and filesystem.files[PATH] == damaged and filesystem.files[PATH + ".bak"] == backup and not filesystem.files.has(PATH + ".tmp") and store.get_generation() == 1, "%s: failed retention leaves corrupt primary and verified backup intact" % failure)
+
+	var retry_fs := FakeFilesystem.new()
+	_two_commit_store(retry_fs)
+	retry_fs.files[PATH] = "retry-corrupt".to_utf8_buffer()
+	retry_fs.fail_write_once = true
+	retry_fs.fail_write_path = PATH + ".recovery"
+	var retry := Store.new(PATH, retry_fs)
+	_check(bool(retry.load().accepted) and not bool(retry.get_recovery_receipt().available), "failed load-time archival still allows backup inspection")
+	_check(bool(retry.commit({"value": 3}, 1, "retention-retry").accepted) and retry_fs.files[PATH + ".recovery"] == "retry-corrupt".to_utf8_buffer(), "explicit repair retries and verifies an archive after a transient load-time failure")
+
+
+func _test_interrupted_recovery_retains_corrupt_primary() -> void:
+	for matching in [false, true]:
+		var filesystem := FakeFilesystem.new()
+		_two_commit_store(filesystem)
+		var staged := (filesystem.files[PATH] as PackedByteArray).duplicate()
+		var damaged := "interrupted-corrupt-primary".to_utf8_buffer()
+		filesystem.files[PATH] = damaged.duplicate()
+		filesystem.files[PATH + ".tmp"] = staged
+		filesystem.files[PATH + ".recovery"] = damaged.duplicate() if matching else "older-corrupt".to_utf8_buffer()
+		var before := _copy_files(filesystem.files)
+		var store := Store.new(PATH, filesystem)
+		var recovered := store.recover_interrupted_transaction()
+		if matching:
+			_check(bool(recovered.accepted) and filesystem.files[PATH] == staged and filesystem.files[PATH + ".recovery"] == damaged and filesystem.files[PATH + ".bak"] == before[PATH + ".bak"], "interrupted repair reuses only an identical retained corrupt primary")
+		else:
+			_check(not bool(recovered.accepted) and recovered.reason == &"primary_quarantine_failed" and filesystem.files == before, "interrupted repair with a different archive preserves primary backup and staged transaction")
 
 
 func _test_corrupt_and_both_invalid_behavior() -> void:
@@ -398,7 +518,15 @@ func _test_explicit_backup_restoration() -> void:
 	corrupt.load()
 	var corrupt_restore := corrupt.restore_backup_to_primary()
 	_check(bool(corrupt_restore.accepted) and corrupt_restore.reason == &"backup_restored", "explicit restoration repairs a corrupt primary")
-	_check(filesystem.files[PATH] == backup_bytes and filesystem.files[PATH + ".tmp"] == corrupt_bytes, "corrupt primary bytes are quarantined instead of discarded")
+	_check(filesystem.files[PATH] == backup_bytes and filesystem.files[PATH + ".tmp"] == corrupt_bytes and filesystem.files[PATH + ".recovery"] == corrupt_bytes, "backup restoration retains durable corrupt bytes as well as the temporary copy")
+
+	filesystem = FakeFilesystem.new()
+	_two_commit_store(filesystem)
+	filesystem.files[PATH] = corrupt_bytes.duplicate()
+	filesystem.files[PATH + ".recovery"] = "older-corrupt-primary".to_utf8_buffer()
+	var retained_backup := (filesystem.files[PATH + ".bak"] as PackedByteArray).duplicate()
+	var collision := Store.new(PATH, filesystem).restore_backup_to_primary()
+	_check(not bool(collision.accepted) and collision.reason == &"primary_quarantine_failed" and filesystem.files[PATH] == corrupt_bytes and filesystem.files[PATH + ".bak"] == retained_backup and filesystem.files[PATH + ".recovery"] == "older-corrupt-primary".to_utf8_buffer(), "backup restoration refuses to discard corrupt primary when a different durable archive exists")
 
 	filesystem = FakeFilesystem.new()
 	_two_commit_store(filesystem)

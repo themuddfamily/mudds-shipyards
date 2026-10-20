@@ -1,0 +1,21 @@
+Mudds Shipyards development checkpoint c47ca33
+Source commit: c47ca3366fc6f74951447ab51073a67abb5347e2
+
+Player-visible change
+- Destination Board status text keeps the intended colour when its state changes. Refreshes no longer multiply the old status colour by the new one.
+- Existing status labels follow the current accessibility palette and high-contrast setting after ready, travelling and unavailable transitions.
+
+Validation performed
+- Clean source import PASS.
+- Existing full HUD panel layout suite 552 checks PASS. Its real catalog-backed Destination Board case retains one label through ready/cruising/unavailable/ready, measures immediate font colour and neutral modulation, all32 current-role palette/high-contrast pairs, and preserves copy/action gating/focus and one font-colour registration per label.
+- Existing full accessibility suite 443 checks and actual Main Destination Console production suite 16 assertions PASS. Existing assertions retained.
+- Clean Windows/Linux exports PASS; Linux executable and archive strict startup checks PASS, each exit0 plus exactly one STARTUP_MENU_READY_OK.
+- Windows embedded payload through supported Linux engine PASS: exit0 plus exactly one STARTUP_MENU_READY_OK. Native Windows was not run.
+- Actual Windows/Linux PCK inventories match all1521 entries; stockPE.text and exact Linux archive binary/icon/installer bytes, modes, source epoch and metadata verified.
+- All10 frozen stages PASS first attempt, zero diagnostics; 207.276s combined. Original08:54-09:39UTC/45min task budget and command caps retained.
+
+Open qualification
+- Checks establish actual headless Control/theme properties, not rendered or human readability, physical-device feel or the full accessibility matrix.
+- Full planetary travel/save/reward/home qualification remains open; the display repair changes no journey authority.
+- Native Windows execution NOT_RUN (owner hold retained). Native GPU/performance, physical devices, real audio/listening, human/full-release and final candidate gates NOT_RUN/open.
+- Full unfiltered final regression and final-package Guided NOT_RUN; accepted Guided3/3 remains scoped to3d92b91. Parked Defense/Wing/Perimeter/Breach/Tooltip routes are not adopted or qualified.

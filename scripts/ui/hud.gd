@@ -521,6 +521,8 @@ var _planetary_destination_buttons: Dictionary = {}
 var _planetary_destination_snapshot: Dictionary = {}
 var _settings_page: Control
 var _settings_scroll: ScrollContainer
+var _settings_scroll_request_pending: bool = false
+var _settings_scroll_request_target: Control
 var _settings_controls: Dictionary = {}
 var _settings_value_labels: Dictionary = {}
 const _CONTROLLER_GLYPH_FAMILY_KEY := &"controller_glyph_family"
@@ -891,6 +893,8 @@ func _on_viewport_gui_focus_changed(control: Control) -> void:
 		_pause_reentry_focus_target = control
 		if _settings_page != null and _settings_page.visible and _settings_page.is_ancestor_of(control):
 			_settings_focus_target = control
+			if is_instance_valid(_settings_scroll) and _settings_scroll.is_ancestor_of(control):
+				_request_settings_scroll(control)
 		if _server_browser_page != null and _server_browser_page.visible and _server_browser_page.is_ancestor_of(control):
 			_server_browser_focus_target = control
 
@@ -1233,7 +1237,7 @@ func _refresh_mode_readouts() -> void:
 			_mode_label.text = "ON FOOT  //  ABOARD %s" % _state_location
 		_:
 			_mode_label.text = "ON FOOT  //  %s" % _state_location
-	_mode_label.modulate = _c(CAUTION) if piloting else _c(NOMINAL)
+	_set_label_palette_role(_mode_label, CAUTION if piloting else NOMINAL)
 	_telemetry_panel.visible = piloting
 	if _hero_component_hud_binding != null:
 		_hero_component_hud_binding.set_presenting(piloting)
@@ -1350,7 +1354,11 @@ func _action_prompts(actions: Array[StringName]) -> String:
 				stick = "Left Stick"
 			elif token.contains(".right_stick."):
 				stick = "Right Stick"
-			if shared_stick.is_empty():
+			# Every resolved prompt must name a direction on the same stick.
+			# A leading button/key must prevent later axes from hiding it.
+			if stick.is_empty():
+				shared_stick = "mixed"
+			elif shared_stick.is_empty():
 				shared_stick = stick
 			elif shared_stick != stick:
 				shared_stick = "mixed"
@@ -1371,14 +1379,21 @@ func _look_prompt() -> String:
 
 func _view_distance_prompts() -> String:
 	var view := _action_prompts([&"toggle_ship_camera_view"])
-	var distance := (
-		_action_prompts([&"camera_distance_out"])
-		if InputGlyphResolverType.GAMEPAD_FAMILIES.has(
-			_input_glyph_resolver.get_preferred_device_family()
-		)
-		else "Mouse Wheel"
-	)
-	return "%s / %s" % [view, distance]
+	var controller_active := _controller_prompt_active()
+	var distance := PackedStringArray()
+	# HeroShip also accepts wheel events directly, independently of the
+	# remappable action bindings. Keep that live desktop alternative visible.
+	if not controller_active:
+		distance.append("Mouse Wheel")
+	for action: StringName in [&"camera_distance_in", &"camera_distance_out"]:
+		var resolved: Dictionary = _runtime_input_glyph_presenter.resolve_action(action)
+		var family: StringName = resolved.get("device_family", &"unknown")
+		var matches_device := InputGlyphResolverType.GAMEPAD_FAMILIES.has(family) if controller_active else family in [&"keyboard", &"mouse"]
+		if bool(resolved.get("valid", false)) and matches_device:
+			var text := str(resolved.get("text", "Unbound Input"))
+			if text not in distance:
+				distance.append(text)
+	return "%s / %s" % [view, " / ".join(distance) if not distance.is_empty() else "Unbound Input"]
 
 
 ## The embodiment the HUD is currently presenting. Exposed so a regression can
@@ -1467,12 +1482,18 @@ func set_activity_objective(display_name: String, snapshot: Dictionary) -> void:
 					"%.0fm" % activation_distance if activation_distance >= 0.0 else "--"
 				)
 			&"active":
-				activity_text = "CONVOY  L%d/%d  %s  %s" % [
-					mini(next_index + 1, checkpoint_count),
-					checkpoint_count,
-					"%.0fm" % escort_distance if escort_distance >= 0.0 else "--",
-					_format_activity_time(current_time),
-				]
+				if bool(snapshot.get("runtime_rebind_pending", false)):
+					var craft_name := str(snapshot.get("resume_craft_display_name", "the saved escort craft")).strip_edges()
+					if craft_name.is_empty():
+						craft_name = "the saved escort craft"
+					activity_text = "CONVOY  SAVED ESCORT PAUSED  //  Board %s, launch and return to Cinder Reach to resume" % craft_name
+				else:
+					activity_text = "CONVOY  L%d/%d  %s  %s" % [
+						mini(next_index + 1, checkpoint_count),
+						checkpoint_count,
+						"%.0fm" % escort_distance if escort_distance >= 0.0 else "--",
+						_format_activity_time(current_time),
+					]
 			&"completed":
 				activity_text = "CONVOY  ARRIVED  %s  %d/%d" % [
 					_format_activity_time(current_time),
@@ -2085,10 +2106,10 @@ func update_ship_telemetry(data: Dictionary) -> void:
 	_throttle_label.text = "THROTTLE  //  %s" % (
 		"REVERSE" if throttle < -0.04 else ("FORWARD" if throttle > 0.04 else "NEUTRAL")
 	)
-	_throttle_label.modulate = _c(CAUTION) if throttle < -0.04 else _c(MUTED)
+	_set_label_palette_role(_throttle_label, CAUTION if throttle < -0.04 else MUTED)
 	_hull_bar.value = clampf(hull / maximum_hull, 0.0, 1.0) * 100.0
 	_render_damage_status_label()
-	_damage_status_label.modulate = _damage_status_color(damage_status)
+	_set_label_palette_role(_damage_status_label, _damage_status_role(damage_status))
 	set_engine_state(str(data.get("engine_state", "OFFLINE")))
 	if _flight_cue_layer != null:
 		_flight_cue_layer.update_from_telemetry(data)
@@ -2243,8 +2264,9 @@ func _present_bound_hero_component_report(report: Dictionary) -> void:
 	_component_status_label.text = str(presentation.get("text", ""))
 	_component_status_label.visible = bool(presentation.get("visible", false)) and _state_mode == MODE_PILOTING
 	var wording := StringName(presentation.get("wording", &"nominal"))
-	_component_status_label.modulate = _c(DANGER) if wording in [&"critical", &"failed"] else (
-		_c(CAUTION) if wording == &"degraded" else _c(MUTED)
+	_set_label_palette_role(
+		_component_status_label,
+		DANGER if wording in [&"critical", &"failed"] else (CAUTION if wording == &"degraded" else MUTED)
 	)
 
 
@@ -2608,9 +2630,9 @@ func set_engine_state(state: String) -> void:
 	_state_engine = normalized
 	_engine_label.text = "ENGINE  //  " + normalized
 	match normalized:
-		"ONLINE": _engine_label.modulate = _c(NOMINAL)
-		"STARTING": _engine_label.modulate = _c(CAUTION)
-		_: _engine_label.modulate = _c(DANGER)
+		"ONLINE": _set_label_palette_role(_engine_label, NOMINAL)
+		"STARTING": _set_label_palette_role(_engine_label, CAUTION)
+		_: _set_label_palette_role(_engine_label, DANGER)
 
 
 func set_target_count(destroyed: int, total: int) -> void:
@@ -2625,7 +2647,7 @@ func set_target_lock_state(state: StringName, target_name: String = "") -> void:
 	if not is_instance_valid(_reticle_state_label):
 		return
 	_reticle_state_label.text = "%s  %s" % [presentation.marker, presentation.label]
-	_reticle_state_label.modulate = _c(presentation.role)
+	_set_label_palette_role(_reticle_state_label, StringName(presentation.role))
 
 
 static func get_target_lock_presentation(state: StringName, target_name: String = "") -> Dictionary:
@@ -2948,7 +2970,7 @@ func set_settings_status(text: String, success: bool = true) -> void:
 	if _settings_status_label == null:
 		return
 	_settings_status_label.text = text
-	_settings_status_label.modulate = _c(NOMINAL_SOFT) if success else _c(DANGER)
+	_set_label_palette_role(_settings_status_label, NOMINAL_SOFT if success else DANGER)
 	_settings_status_label.visible = not text.is_empty()
 
 
@@ -3102,7 +3124,7 @@ func present_runtime_settings_repair_report(report: Dictionary) -> bool:
 	):
 		_settings_repair_confirmation = str(status.get("confirmation", ""))
 		_settings_repair_title.text = "SETTINGS BACKUP RECOVERY AVAILABLE"
-		_settings_repair_title.modulate = _c(CAUTION)
+		_set_label_palette_role(_settings_repair_title, CAUTION)
 		_settings_repair_detail.text = (
 			"A verified backup can replace the unreadable primary settings file. "
 			+ "Nothing will be repaired until you confirm and the settings owner completes the request."
@@ -3115,6 +3137,13 @@ func present_runtime_settings_repair_report(report: Dictionary) -> bool:
 		_show_settings_repair_failure(
 			"NEWER SETTINGS DATA PRESERVED",
 			"These settings belong to a newer game version. They were not changed or downgraded."
+		)
+		return true
+	if reason == &"primary_quarantine_failed":
+		_show_settings_repair_failure(
+			"SETTINGS RECOVERY BLOCKED",
+			"The damaged save and verified backup were retained. "
+			+ "Recovery could not safely preserve the damaged copy, so replacement was blocked."
 		)
 		return true
 	if bool(status.get("repair_authority_cleared", false)) or reason in [
@@ -3145,7 +3174,7 @@ func present_runtime_settings_repair_report(report: Dictionary) -> bool:
 
 func _show_settings_repair_failure(title: String, detail: String) -> void:
 	_settings_repair_title.text = title
-	_settings_repair_title.modulate = _c(DANGER)
+	_set_label_palette_role(_settings_repair_title, DANGER)
 	_settings_repair_detail.text = detail
 	_settings_repair_confirm_button.visible = false
 	_settings_repair_confirm_button.disabled = true
@@ -4541,8 +4570,8 @@ func get_accessibility_report() -> Dictionary:
 		"caution_color": _c(CAUTION),
 		"danger_color": _c(DANGER),
 		"muted_color": _c(MUTED),
-		"engine_label_color": _engine_label.modulate if is_instance_valid(_engine_label) else Color.WHITE,
-		"hull_label_color": _damage_status_label.modulate if is_instance_valid(_damage_status_label) else Color.WHITE,
+		"engine_label_color": _engine_label.get_theme_color("font_color") * _engine_label.modulate if is_instance_valid(_engine_label) else Color.WHITE,
+		"hull_label_color": _damage_status_label.get_theme_color("font_color") * _damage_status_label.modulate if is_instance_valid(_damage_status_label) else Color.WHITE,
 		"reduced_motion": _reduced_motion,
 		"reduced_flash": _reduced_flash,
 		"damage_flash_alpha": get_damage_flash_alpha(),
@@ -4556,17 +4585,6 @@ func get_accessibility_report() -> Dictionary:
 
 
 func _refresh_state_tints() -> void:
-	if is_instance_valid(_mode_label):
-		_mode_label.modulate = _c(CAUTION) if _state_piloting else _c(NOMINAL)
-	if is_instance_valid(_engine_label):
-		match _state_engine:
-			"ONLINE": _engine_label.modulate = _c(NOMINAL)
-			"STARTING": _engine_label.modulate = _c(CAUTION)
-			_: _engine_label.modulate = _c(DANGER)
-	if is_instance_valid(_throttle_label):
-		_throttle_label.modulate = _c(CAUTION) if _state_throttle_reverse else _c(MUTED)
-	if is_instance_valid(_damage_status_label):
-		_damage_status_label.modulate = _damage_status_color(_state_damage)
 	if is_instance_valid(_enemy_health_bar):
 		_enemy_health_bar.modulate = _c(DANGER) if _state_enemy_breaking else _c(CAUTION)
 	_refresh_planetary_cruise_row()
@@ -4651,6 +4669,9 @@ func _build_intro() -> void:
 
 	var corner := MarginContainer.new()
 	corner.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	# The title and both stacked actions exceed the authored minimum height.
+	# Keep their bottom margin when the container grows to fit its contents.
+	corner.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	corner.offset_left = 72.0
 	corner.offset_right = 690.0
 	corner.offset_top = -410.0
@@ -4695,6 +4716,8 @@ func _build_intro() -> void:
 	start.add_theme_font_size_override("font_size", 16)
 	start.add_theme_color_override("font_color", INK)
 	start.add_theme_color_override("font_hover_color", INK)
+	start.add_theme_color_override("font_focus_color", INK)
+	start.add_theme_color_override("font_pressed_color", INK)
 	start.add_theme_stylebox_override("normal", _fill_box(NOMINAL, 4))
 	start.add_theme_stylebox_override("hover", _fill_box(NOMINAL_SOFT, 4))
 	start.add_theme_stylebox_override("pressed", _fill_box(CAUTION, 4))
@@ -5095,8 +5118,19 @@ func _build_bomber_status_panel() -> void:
 
 
 func update_network_session_status(snapshot: Dictionary) -> void:
+	var previous := _network_status_presenter.get_snapshot()
 	var presentation := _network_status_presenter.present_snapshot(snapshot)
 	_render_runtime_status(presentation, &"network")
+	# Rejected fenced receipts retain the presenter's previous snapshot. They
+	# must not replay old session copy over a newer browser validation message.
+	# Legacy unfenced receipts remain caller-owned updates on every publication.
+	var fenced := snapshot.has("session_id") or snapshot.has("generation") \
+		or snapshot.has("sequence") or snapshot.has("event_sequence")
+	if not presentation.has("error") and (
+		presentation != previous or not fenced
+	):
+		if is_instance_valid(_server_browser_feedback):
+			_server_browser_feedback.text = str(presentation.get("message", ""))
 	_update_server_browser_disconnect()
 
 
@@ -6363,7 +6397,7 @@ func _update_planetary_destination_row(card: Control, row: Dictionary) -> void:
 	) as Label
 	if is_instance_valid(status):
 		status.text = "STATUS  //  %s" % str(row.get("status_text", "UNAVAILABLE"))
-		status.modulate = _c(border_role)
+		_set_label_palette_role(status, border_role)
 	var action := card.find_child(
 		"PlanetaryDestinationAction_%s" % destination_id, true, false
 	) as Button
@@ -6372,6 +6406,26 @@ func _update_planetary_destination_row(card: Control, row: Dictionary) -> void:
 		action.disabled = not bool(row.get("action_enabled", false))
 		action.focus_mode = Control.FOCUS_NONE if action.disabled else Control.FOCUS_ALL
 		_planetary_destination_buttons[destination_id] = action
+
+
+## Retained status labels must change their registered role so later palette
+## changes repaint the current state. Modulation would multiply two colours.
+func _set_label_palette_role(status: Label, role: StringName) -> void:
+	status.modulate = Color.WHITE
+	# Telemetry repeats the same role every physics tick. The registry already
+	# repaints palette changes, so only a role transition needs a lookup.
+	if status.get_meta(&"hud_palette_role", &"") == role:
+		return
+	for entry: Dictionary in _palette_targets:
+		if (
+			entry.get("kind") == &"theme_color"
+			and entry.get("node") == status
+			and entry.get("property") == &"font_color"
+		):
+			entry["role"] = role
+			_apply_palette_target(entry)
+			status.set_meta(&"hud_palette_role", role)
+			return
 
 
 ## A sector-site row asks GameFlow for that place's briefing card. The HUD owns
@@ -6698,7 +6752,7 @@ func set_nearby_activity_snapshot(snapshot: Dictionary) -> Dictionary:
 		_nearby_activity_feedback.text = (
 			"CINDER REACH IS OUT OF STREAMING RANGE  //  LAUNCH TOWARD ITS MARKER TO LOAD FIELD ACTIVITIES"
 		)
-		_nearby_activity_feedback.modulate = _c(CAUTION)
+		_set_label_palette_role(_nearby_activity_feedback, CAUTION)
 	_present_nearby_convoy_semantic_transition(view)
 	return view
 
@@ -6858,27 +6912,27 @@ func apply_nearby_activity_action_result(
 		))
 	):
 		_nearby_activity_feedback.text = "%s  //  REWARD FILED" % title
-		_nearby_activity_feedback.modulate = _c(NOMINAL_SOFT)
+		_set_label_palette_role(_nearby_activity_feedback, NOMINAL_SOFT)
 	elif accepted:
 		_nearby_activity_feedback.text = "%s  //  %s" % [
 			title,
 			"STARTED" if action == &"start_requested" else "RESET",
 		]
-		_nearby_activity_feedback.modulate = _c(NOMINAL_SOFT)
+		_set_label_palette_role(_nearby_activity_feedback, NOMINAL_SOFT)
 	elif activity_id == &"station_defense" and reason in [
 		&"out_of_range", &"on_foot_required", &"invalid_actor_or_content",
 	]:
 		_nearby_activity_feedback.text = (
 			"STATION DEFENSE  //  REPORT ON FOOT TO THE MARKED DECK BOARD"
 		)
-		_nearby_activity_feedback.modulate = _c(CAUTION)
+		_set_label_palette_role(_nearby_activity_feedback, CAUTION)
 	else:
 		_nearby_activity_feedback.text = "%s NOT %s  //  %s" % [
 			title,
 			"STARTED" if action == &"start_requested" else "RESET",
 			str(reason).replace("_", " ").to_upper(),
 		]
-		_nearby_activity_feedback.modulate = _c(CAUTION)
+		_set_label_palette_role(_nearby_activity_feedback, CAUTION)
 	return true
 
 
@@ -7270,10 +7324,17 @@ func _request_server_browser_disconnect() -> void:
 
 
 func _server_browser_session_action(presentation: Dictionary) -> Dictionary:
+	if presentation.has("error"):
+		return {}
+	var retry: Dictionary = {}
 	for action: Dictionary in presentation.get("actions", []):
-		if action.get("id", &"") in [&"cancel", &"disconnect"] and bool(action.get("focusable", false)):
+		if not bool(action.get("focusable", false)):
+			continue
+		if action.get("id", &"") in [&"cancel", &"disconnect"]:
 			return action
-	return {}
+		if action.get("id", &"") == &"retry":
+			retry = action
+	return retry
 
 
 func _show_server_browser_page() -> void:
@@ -8129,7 +8190,20 @@ func _scroll_to_input_binding(control: Control) -> void:
 ## capture and pause-focus restoration can schedule this at the same time as a
 ## whole HUD subtree is being retired, so the callback owns the liveness check.
 func _request_settings_scroll(control: Control) -> void:
-	_ensure_settings_control_visible.call_deferred(control)
+	# Focus tracking, binding capture and re-entry can all request the same
+	# row before container sorting updates its position after a scroll change.
+	_settings_scroll_request_target = control
+	if _settings_scroll_request_pending:
+		return
+	_settings_scroll_request_pending = true
+	_flush_settings_scroll_request.call_deferred()
+
+
+func _flush_settings_scroll_request() -> void:
+	var target: Control = _settings_scroll_request_target
+	_settings_scroll_request_pending = false
+	_settings_scroll_request_target = null
+	_ensure_settings_control_visible(target)
 
 
 func _ensure_settings_control_visible(control: Control) -> void:
@@ -8149,9 +8223,20 @@ func _ensure_settings_control_visible(control: Control) -> void:
 		or not control.is_inside_tree()
 		or not control.is_visible_in_tree()
 		or not _settings_page.is_ancestor_of(control)
+		or not _settings_scroll.is_ancestor_of(control)
+		or get_viewport().gui_get_focus_owner() != control
 	):
 		return
-	_settings_scroll.ensure_control_visible(control)
+	# Round overflow outwards in scroll-local units: native focus following can
+	# truncate a fractional delta and leave a scaled row partially clipped.
+	var relative: Transform2D = _settings_scroll.get_global_transform().affine_inverse() * control.get_global_transform()
+	var rect: Rect2 = relative * Rect2(Vector2.ZERO, control.size)
+	var correction: int = 0
+	if rect.position.y < 0.0:
+		correction = floori(rect.position.y)
+	elif rect.end.y > _settings_scroll.size.y:
+		correction = ceili(rect.end.y - _settings_scroll.size.y)
+	_settings_scroll.scroll_vertical += correction
 
 
 func _binding_button(text: String) -> Button:
@@ -9379,7 +9464,7 @@ func set_patrol_branch_selection_state(
 			"ROUTE NOT CHANGED  //  "
 			+ str(status_reason).replace("_", " ").to_upper()
 		)
-		_activity_selection_status_label.modulate = _c(DANGER)
+		_set_label_palette_role(_activity_selection_status_label, DANGER)
 	return true
 
 
@@ -9582,19 +9667,22 @@ func _refresh_activity_selection_page(status_reason: StringName) -> void:
 	}.get(_activity_selection_kind, String(_activity_selection_kind).to_upper()) as String
 	if _activity_selection_locked and status_reason == &"repeat_ready":
 		_activity_selection_status_label.text = "READY  //  REPEAT " + selected_text
-		_activity_selection_status_label.modulate = _c(NOMINAL_SOFT)
+		_set_label_palette_role(_activity_selection_status_label, NOMINAL_SOFT)
 	elif _activity_selection_locked:
 		_activity_selection_status_label.text = "LOCKED  //  CURRENT SORTIE ALREADY STARTED"
-		_activity_selection_status_label.modulate = _c(CAUTION)
+		_set_label_palette_role(_activity_selection_status_label, CAUTION)
+	elif status_reason == &"insufficient_source_quantity":
+		_activity_selection_status_label.text = "UNAVAILABLE  //  INSUFFICIENT FABRICATION KITS"
+		_set_label_palette_role(_activity_selection_status_label, CAUTION)
 	elif status_reason in [&"", &"selected", &"already_selected"]:
 		_activity_selection_status_label.text = "READY  //  " + selected_text
-		_activity_selection_status_label.modulate = _c(NOMINAL_SOFT)
+		_set_label_palette_role(_activity_selection_status_label, NOMINAL_SOFT)
 	else:
 		_activity_selection_status_label.text = (
 			"NOT CHANGED  //  "
 			+ str(status_reason).replace("_", " ").to_upper()
 		)
-		_activity_selection_status_label.modulate = _c(DANGER)
+		_set_label_palette_role(_activity_selection_status_label, DANGER)
 
 
 func _refresh_patrol_branch_choices() -> void:
@@ -9775,7 +9863,11 @@ func _set_help_text(rows: Array) -> void:
 		_help_next_button.focus_mode = Control.FOCUS_ALL
 		_help_next_button.pressed.connect(_next_help_page)
 		navigation.add_child(_help_next_button)
-		_help_close_button = _menu_button("CLOSE", NOMINAL)
+		# Preserve the help action's local hover/pressed fills, including its
+		# accepted high-contrast presentation.
+		_help_close_button = _menu_button("CLOSE", NOMINAL, 0.70, 0.65)
+		_tint_theme_color(_help_close_button, &"font_hover_color", PRIMARY)
+		_tint_theme_color(_help_close_button, &"font_pressed_color", PRIMARY)
 		_help_close_button.name = "HelpCloseButton"
 		_help_close_button.tooltip_text = "Close controls help"
 		_help_close_button.focus_mode = Control.FOCUS_ALL
@@ -9929,10 +10021,10 @@ func _c(role: StringName) -> Color:
 	return _palette.get(role, _palette[PaletteType.ROLE_PRIMARY]) as Color
 
 
-func _damage_status_color(damage_status: String) -> Color:
+func _damage_status_role(damage_status: String) -> StringName:
 	if damage_status in ["CRITICAL", "DESTROYED"]:
-		return _c(DANGER)
-	return _c(CAUTION) if damage_status == "DAMAGED" else _c(MUTED)
+		return DANGER
+	return CAUTION if damage_status == "DAMAGED" else MUTED
 
 
 func _damage_status_accessible_text(damage_status: String) -> String:
@@ -10114,21 +10206,25 @@ func _bar(role: StringName) -> ProgressBar:
 	return bar
 
 
-func _menu_button(text: String, role: StringName) -> Button:
+func _menu_button(
+	text: String, role: StringName, hover_darken := 0.75, pressed_darken := 0.70
+) -> Button:
 	var button := Button.new()
 	button.text = text
 	button.custom_minimum_size.y = 48.0
 	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	button.add_theme_font_size_override("font_size", 13)
 	_tint_theme_color(button, &"font_color", PRIMARY)
+	_tint_theme_color(button, &"font_hover_color", PRIMARY)
+	_tint_theme_color(button, &"font_pressed_color", PRIMARY)
 	button.add_theme_stylebox_override("normal", _box(Color("142536"), 4, 1, Color("315367")))
-	var hover := _fill_box(role, 4, 0.55)
+	var hover := _fill_box(role, 4, hover_darken)
 	hover.border_width_left = 1
 	hover.border_width_top = 1
 	hover.border_width_right = 1
 	hover.border_width_bottom = 1
 	_register_palette_target({"kind": &"box_border", "box": weakref(hover), "role": role, "darken": 0.0})
-	var pressed := _fill_box(role, 4, 0.35)
+	var pressed := _fill_box(role, 4, pressed_darken)
 	pressed.border_width_left = 1
 	pressed.border_width_top = 1
 	pressed.border_width_right = 1

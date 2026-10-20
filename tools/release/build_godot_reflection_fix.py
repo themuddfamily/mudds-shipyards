@@ -7,6 +7,9 @@ Default: print the plan, without writes or network access.
 --target: editor (default) or template_release for private Linux release exports.
 --mesh-content-revision: opt in to the separate RD mesh revision feature build.
 --retained-probe-lifecycle: cancel pending probe capture on scenario detach.
+--rpc-cache-teardown: separate, unqualified callback identity candidate; requires
+  --target template_release and an absolute owned --cache-root.
+--platform: linuxbsd (default) or windows (RPC mode only; cross-compiled, never run).
 
 Neither target changes installed engines/templates. This recipe pins inputs and
 options, not host compiler binaries. Template results stay separate from editor
@@ -90,6 +93,67 @@ PROBE_BEFORE_SHA = "80f0761682f6df8abe683f843f6fc8fd1fc9a646783298491d597f2634b5
 PROBE_AFTER_SHA = "811f5b85bf66e05b8dc755d4257cc7934c7760491f2c7d78ad27e413ecd243fa"
 
 
+RPC_PATCH = PATCH.with_name("godot-4.7.1-rpc-cache-teardown.patch")
+RPC_PATCH_SHA = "9872b34e98dcdd4ecec56f540e7f7af149380192a07dd6b10b19d150c035c8c4"
+RPC_SUFFIX = "mudds_rpc_cache_teardown"
+RPC_TARGETS = {
+    "modules/multiplayer/scene_cache_interface.h": (
+        "4ab5891eced7bf190a67d94fafe901f238dae2649eb62426381846cc9d7e6b0e",
+        "b4e35aee6e4f91be622500ba462b1f003fc673f69306d99388a4155025783abf"),
+    "modules/multiplayer/scene_cache_interface.cpp": (
+        "a1bcead63f35e7d86cef4dd4e461760aa69affcc4393fdc5554eadc6019b0190",
+        "ee26b6579677b3a42bf30c8c1e498e9301aeb9e3ad06370780f2f6a0cc130360"),
+}
+
+
+def owned_cache_root(value):
+    """Check without creating anything, including during a dry plan."""
+    root = Path(value)
+    require(root.is_absolute() and ".." not in root.parts, "RPC cache root must be absolute without '..'")
+    require(root != Path(root.anchor), "RPC cache root must be a private directory")
+    for path in (root, *root.parents):
+        require(not path.is_symlink(), "RPC cache root must not traverse symlinks")
+        if path.exists():
+            require(path.is_dir(), "RPC cache root ancestor is not a directory")
+    owner = next(path for path in (root, *root.parents) if path.exists())
+    require(owner.stat().st_uid == os.getuid(), "RPC cache root must be owned by the current user")
+    return root
+
+
+def apply_rpc_patch(source, env, log):
+    require(sha(RPC_PATCH) == RPC_PATCH_SHA, "Reviewed RPC cache patch bytes changed")
+    before = all(sha(source / name) == hashes[0] for name, hashes in RPC_TARGETS.items())
+    after = all(sha(source / name) == hashes[1] for name, hashes in RPC_TARGETS.items())
+    require(before or after, "Mixed or unexpected RPC cache source; refusing partial patch")
+    rows = []
+    if before:
+        rows.append(run(["patch", "--batch", "--forward", "--fuzz=0", "-p1", "-i", str(RPC_PATCH)],
+                        env, source, log, 30))
+    require(all(sha(source / name) == hashes[1] for name, hashes in RPC_TARGETS.items()),
+            "Patched RPC cache target SHA mismatch")
+    return rows
+
+
+def inspect_binary(binary, target_platform):
+    require(binary.is_file() and not binary.is_symlink(), "Expected target binary missing or symlink")
+    with binary.open("rb") as stream:
+        if target_platform == "linuxbsd":
+            require(stream.read(4) == b"\x7fELF", "Expected target ELF missing")
+            return
+        require(stream.read(2) == b"MZ", "Expected Windows PE DOS header")
+        stream.seek(0x3c)
+        offset = stream.read(4)
+        require(len(offset) == 4, "Truncated Windows PE DOS header")
+        stream.seek(int.from_bytes(offset, "little"))
+        header = stream.read(26)
+        require(len(header) == 26 and header[:4] == b"PE\0\0"
+                and int.from_bytes(header[4:6], "little") == 0x8664
+                and int.from_bytes(header[20:22], "little") >= 2
+                and int.from_bytes(header[22:24], "little") & 0x2
+                and int.from_bytes(header[24:26], "little") == 0x20b,
+                "Expected executable Windows x86_64 PE32+ target")
+
+
 class Cancelled(Exception):
     pass
 
@@ -124,7 +188,8 @@ def download(url, path, expected):
     require(not path.is_symlink() and sha(path) == expected, "Input SHA mismatch: " + str(path))
 
 
-def source_tree(archive, source, mesh_content_revision=False, retained_probe_lifecycle=False):
+def source_tree(archive, source, mesh_content_revision=False, retained_probe_lifecycle=False,
+                rpc_cache_teardown=False):
     """Reject unsafe members; verify shipped source on every reuse."""
     with tarfile.open(archive, "r:xz") as tar:
         members = tar.getmembers()
@@ -137,7 +202,7 @@ def source_tree(archive, source, mesh_content_revision=False, retained_probe_lif
             require(member.name not in names, "Duplicate archive member")
             names.add(member.name)
         if not source.exists():
-            tar.extractall(CACHE, members=members, filter="data")
+            tar.extractall(source.parent, members=members, filter="data")
         require(source.is_dir() and not source.is_symlink(), "Invalid source directory")
         for member in members:
             if not member.isfile():
@@ -145,7 +210,9 @@ def source_tree(archive, source, mesh_content_revision=False, retained_probe_lif
             relative = PurePosixPath(member.name).relative_to(SOURCE_NAME)
             path = source / str(relative)
             require(not path.is_symlink(), "Source symlink: " + str(path))
-            if str(relative) == TARGET:
+            if rpc_cache_teardown and str(relative) in RPC_TARGETS:
+                require(sha(path) in RPC_TARGETS[str(relative)], "Unexpected RPC cache target bytes")
+            elif not rpc_cache_teardown and str(relative) == TARGET:
                 require(sha(path) in (BEFORE_SHA, AFTER_SHA), "Unexpected patch target bytes")
             elif mesh_content_revision and str(relative) in MESH_TARGETS:
                 require(sha(path) in MESH_TARGETS[str(relative)], "Unexpected mesh revision target bytes")
@@ -256,11 +323,24 @@ def main():
     parser.add_argument("--target", choices=("editor", "template_release"), default="editor")
     parser.add_argument("--mesh-content-revision", action="store_true")
     parser.add_argument("--retained-probe-lifecycle", action="store_true")
+    parser.add_argument("--rpc-cache-teardown", action="store_true")
+    parser.add_argument("--platform", choices=("linuxbsd", "windows"), default="linuxbsd")
+    parser.add_argument("--cache-root", help="Absolute owned private cache root, required for RPC mode")
     parser.add_argument("--jobs", type=int, choices=range(1, 5), default=2)
     parser.add_argument("--timeout", type=int, default=3600, help="Compile wall cap, at most 3600s")
     args = parser.parse_args()
     require(0 < args.timeout <= 3600, "Compile timeout must be 1..3600 seconds")
-    source = CACHE / SOURCE_NAME
+    rpc = args.rpc_cache_teardown
+    require(not rpc or not (args.mesh_content_revision or args.retained_probe_lifecycle),
+            "RPC cache mode is mutually exclusive with rendering patch modes")
+    require(not rpc or args.target == "template_release", "RPC cache mode requires template_release")
+    require(rpc or args.platform == "linuxbsd", "Windows platform requires RPC cache mode")
+    require(rpc or args.cache_root is None, "--cache-root requires RPC cache mode")
+    require(not rpc or args.cache_root is not None, "RPC cache mode requires --cache-root")
+    cache = owned_cache_root(args.cache_root) / args.platform if rpc else CACHE
+    if rpc:
+        owned_cache_root(str(cache))
+    source = cache / SOURCE_NAME
     suffix = MESH_SUFFIX if args.mesh_content_revision else SUFFIX
     build_name = MESH_BUILD_NAME if args.mesh_content_revision else BUILD_NAME
     if args.retained_probe_lifecycle:
@@ -273,20 +353,41 @@ def main():
     if args.retained_probe_lifecycle:
         mode += "-retained-probe-lifecycle"
     target_suffix = "" if args.target == "editor" else "-template_release"
-    log = CACHE / f"build{mode}{target_suffix}.log"
-    result = CACHE / f"build-result{mode}{target_suffix}.json"
+    log = cache / f"build{mode}{target_suffix}.log"
+    result = cache / f"build-result{mode}{target_suffix}.json"
     template_directory = "export_templates-mesh-content-revision" if args.mesh_content_revision else "export_templates"
     if args.retained_probe_lifecycle:
         template_directory += "-retained-probe-lifecycle"
-    template = (CACHE / template_directory / "4.7.1.stable/linux_release.x86_64"
+    template = (cache / template_directory / "4.7.1.stable/linux_release.x86_64"
                 if args.target == "template_release" else None)
+    if rpc:
+        suffix = RPC_SUFFIX
+        build_name = "mudds_rpc_cache_teardown_" + args.platform
+        extension = ".exe" if args.platform == "windows" else ""
+        binary = source / f"bin/godot.{args.platform}.template_release.x86_64.{suffix}{extension}"
+        options = ["platform=" + args.platform if option.startswith("platform=") else
+                   "extra_suffix=" + suffix if option.startswith("extra_suffix=") else option
+                   for option in options]
+        if args.platform == "windows":
+            options.append("use_mingw=yes")
+        log = cache / f"build-rpc-cache-teardown-{args.platform}-template_release.log"
+        result = cache / f"build-result-rpc-cache-teardown-{args.platform}-template_release.json"
+        filename = "windows_release_x86_64.exe" if args.platform == "windows" else "linux_release.x86_64"
+        template = cache / "export_templates-rpc-cache-teardown" / "4.7.1.stable" / filename
     plan = {"source_commit": SOURCE_COMMIT, "source_url": SOURCE_URL, "source_sha256": SOURCE_SHA,
             "patch": str(PATCH), "patch_sha256": PATCH_SHA, "scons_version": "4.10.1",
-            "scons_wheel_sha256": WHEEL_SHA, "cache": str(CACHE), "binary": str(binary),
+            "scons_wheel_sha256": WHEEL_SHA, "cache": str(cache), "binary": str(binary),
             "custom_build_name": build_name, "options": options, "jobs": args.jobs,
             "target": args.target, "log": str(log), "result": str(result),
             "release_template": str(template) if template else None,
             "compile_timeout": args.timeout, "default_engine_templates_changed": False}
+    if rpc:
+        plan.update(rpc_cache_teardown=True, platform=args.platform, patch=str(RPC_PATCH),
+                    patch_sha256=RPC_PATCH_SHA, target_sha256=RPC_TARGETS,
+                    qualification="NOT_RUN; callback candidate effectiveness unproved",
+                    dependencies=(["x86_64-w64-mingw32-gcc", "x86_64-w64-mingw32-g++",
+                                   "x86_64-w64-mingw32-ar", "x86_64-w64-mingw32-windres", "patch"] if args.platform == "windows"
+                                  else ["gcc", "g++", "ar", "pkg-config", "patch"]))
     if args.mesh_content_revision:
         plan.update(mesh_content_revision=True, mesh_patch=str(MESH_PATCH),
                     mesh_patch_sha256=MESH_PATCH_SHA)
@@ -298,60 +399,66 @@ def main():
         return
     install_cancellation()
     require(sys.platform == "linux" and platform.machine() == "x86_64", "Linux x86_64 only")
-    for tool in ("gcc", "g++", "ar", "pkg-config", "patch"):
+    for tool in plan.get("dependencies", ("gcc", "g++", "ar", "pkg-config", "patch")):
         require(shutil.which(tool), "Missing build dependency: " + tool)
-    require(sha(PATCH) == PATCH_SHA, "Reviewed patch bytes changed")
+    require(sha(RPC_PATCH if rpc else PATCH) == (RPC_PATCH_SHA if rpc else PATCH_SHA),
+            "Reviewed patch bytes changed")
     if args.mesh_content_revision:
         require(sha(MESH_PATCH) == MESH_PATCH_SHA, "Reviewed mesh revision patch bytes changed")
     if args.retained_probe_lifecycle:
         require(sha(PROBE_PATCH) == PROBE_PATCH_SHA, "Reviewed retained probe patch bytes changed")
     os.umask(0o077)
-    CACHE.mkdir(mode=0o700, parents=True, exist_ok=True)
-    CACHE.chmod(0o700)
-    with (CACHE / "build.lock").open("a") as lock:
+    cache.mkdir(mode=0o700, parents=True, exist_ok=True)
+    cache.chmod(0o700)
+    with (cache / "build.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         env = os.environ.copy()  # HOME remains inherited.
         for key in ("DISPLAY", "WAYLAND_DISPLAY", "WAYLAND_SOCKET", "XAUTHORITY", "PYTHONPATH", "PYTHONHOME"):
             env.pop(key, None)
         for key in ("XDG_DATA_HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_STATE_HOME",
                     "XDG_RUNTIME_DIR", "XDG_DATA_DIRS", "XDG_CONFIG_DIRS", "TMPDIR"):
-            path = CACHE / "profile" / key.lower()
+            path = cache / "profile" / key.lower()
             path.mkdir(mode=0o700, parents=True, exist_ok=True)
             path.chmod(0o700)
             env[key] = str(path)
         env.update(PYTHONDONTWRITEBYTECODE="1", PYTHONNOUSERSITE="1", PIP_CONFIG_FILE=os.devnull,
                    GIT_OPTIONAL_LOCKS="0", BUILD_NAME=build_name, SOURCE_DATE_EPOCH="0")
-        archive = CACHE / (SOURCE_NAME + ".tar.xz")
+        archive = cache / (SOURCE_NAME + ".tar.xz")
         download(SOURCE_URL, archive, SOURCE_SHA)
         source_tree(archive, source, mesh_content_revision=args.mesh_content_revision,
-                    retained_probe_lifecycle=args.retained_probe_lifecycle)
-        wheel = CACHE / WHEEL_NAME
+                    retained_probe_lifecycle=args.retained_probe_lifecycle, rpc_cache_teardown=rpc)
+        wheel = cache / WHEEL_NAME
         download(WHEEL_URL, wheel, WHEEL_SHA)
-        python = CACHE / "venv/bin/python"
+        python = cache / "venv/bin/python"
         if not python.exists():
-            venv.EnvBuilder(with_pip=True).create(CACHE / "venv")
+            venv.EnvBuilder(with_pip=True).create(cache / "venv")
         rows = [run([str(python), "-m", "pip", "install", "--no-index", "--no-deps",
-                     "--disable-pip-version-check", str(wheel)], env, CACHE, log, 120)]
+                     "--disable-pip-version-check", str(wheel)], env, cache, log, 120)]
         if not args.build:
             print("PREPARED; patch unapplied unless already built; no compilation", flush=True)
             return
-        if sha(source / TARGET) == BEFORE_SHA:
+        if rpc:
+            rows.extend(apply_rpc_patch(source, env, log))
+        elif sha(source / TARGET) == BEFORE_SHA:
             rows.append(run(["patch", "--batch", "--forward", "--fuzz=0", "-p1", "-i", str(PATCH)],
                             env, source, log, 30))
-        require(sha(source / TARGET) == AFTER_SHA, "Patched target SHA mismatch")
+        if not rpc:
+            require(sha(source / TARGET) == AFTER_SHA, "Patched target SHA mismatch")
         if args.mesh_content_revision:
             rows.extend(apply_mesh_patch(source, env, log))
         if args.retained_probe_lifecycle:
             rows.extend(apply_retained_probe_patch(source, env, log))
         rows.append(run([str(python), "-m", "SCons", f"-j{args.jobs}", *options],
                         env, source, log, args.timeout))
-        require(binary.is_file(), "Expected target binary missing")
-        with binary.open("rb") as stream:
-            require(stream.read(4) == b"\x7fELF", "Expected target ELF missing")
-        rows.append(run([str(binary), "--headless", "--audio-driver", "Dummy", "--version"],
-                        env, CACHE, log, 30))
+        inspect_binary(binary, args.platform)
+        if args.platform == "linuxbsd":
+            rows.append(run([str(binary), "--headless", "--audio-driver", "Dummy", "--version"],
+                            env, cache, log, 30))
         source_tree(archive, source, mesh_content_revision=args.mesh_content_revision,
-                    retained_probe_lifecycle=args.retained_probe_lifecycle)
+                    retained_probe_lifecycle=args.retained_probe_lifecycle, rpc_cache_teardown=rpc)
+        if rpc:
+            require(all(sha(source / name) == hashes[1] for name, hashes in RPC_TARGETS.items()),
+                    "Post-build RPC cache target SHA mismatch")
         if template:
             template.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
             require(not template.is_symlink(), "Private release template must not be a symlink")
@@ -362,7 +469,8 @@ def main():
             require(sha(template) == sha(binary), "Existing private release template differs from built target")
             plan["release_template_sha256"] = sha(template)
         plan.update(binary_sha256=sha(binary), binary_bytes=binary.stat().st_size, commands=rows,
-                    purpose=("Private Linux --export-release template; runtime qualification NOT_RUN"
+                    purpose=((f"Private {args.platform}" if rpc else "Private Linux")
+                             + " --export-release template; runtime qualification NOT_RUN"
                              if template else "Explicit GODOT_BIN for station traversal/ReflectionProbe validation; not qualified"))
         result.write_text(json.dumps(plan, indent=2) + "\n")
         print(f"BUILT {binary}\nSHA256 {plan['binary_sha256']}", flush=True)

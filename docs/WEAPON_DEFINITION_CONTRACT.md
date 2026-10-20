@@ -65,22 +65,85 @@ name its evidence and still receives no runtime authority from that status.
 
 ## Current registration map
 
-Every production call to `LiveCombatAuthority.register_source()` is accounted
-for below. Values are `range / damage / origin tolerance`; cadence is still
-owned by each ship or opponent lifecycle and is not part of the resolver
-dictionary.
+Player binding inventory reviewed against production source `a0d446645` on
+2026-10-18. GameFlow registers **nine** player source identities 1101–1109,
+all in faction `shipyard_flight_test`. This is a source map, not current-package
+combat acceptance. The signal name `projectile_fired` alone does not establish
+travelling projectile authority.
+
+| Craft definition / actual firing role | Weapon and profile owner | Production behavior |
+| --- | --- | --- |
+| `torrent_provisional.tres` / pilot | `torrent_compact_pulse_cannon`; `torrent_combat_pulse.tres` | Hitscan 360m/34 damage/.22s. Only Torrent in guided LAUNCH/TARGET_PRACTICE selects legacy `range_pulse_cannon`360m/50 instead. |
+| `arrow_provisional.tres` / pilot | `arrow_precision_recon_emitter`; `arrow_combat_pulse.tres` | Hitscan 480m/24/.38s. |
+| `jovian_provisional.tres` / pilot | `jovian_heavy_defensive_cannon`; `jovian_combat_pulse.tres` | Hitscan 650m/70/.62s. |
+| `zenith_b7_observed.tres` / pilot | `zenith_interceptor_repeater`; `zenith_combat_pulse.tres` | Hitscan 420m/28/.24s. |
+| `halyard_new_design.tres` / pilot and physical co-pilot station gunner | `halyard_long_range_defensive_lance`; `halyard_combat_pulse.tres` | Hitscan 560m/52/.95s. Gunner feeds inherited fire path and shares pilot heat/cooldown; no separate ammunition. |
+| `bulwark_new_design.tres` / pilot | `bulwark_sustained_pulse_cannon`; `bulwark_combat_pulse.tres` | Hitscan 360m/50/.30s. |
+| `bulwark_new_design.tres` / physical gunner | `picket_siege_lance`; `_crew_lance_definition()` in `bulwark_heavy_gunship.gd` | Runtime copy converts the checked-in projectile definition to HITSCAN and clears travel. 560m/22 damage/4.8s base cooldown, .45s charge; initial 2 rounds/cap 8 per actor. Damage scales charge/cooldown; rounds debit only after accepted resolver submission. |
+| `cinder_light_interceptor_new_design.tres` / pilot | `cinder_light_repeater`; runtime WeaponDefinition in `cinder_light_interceptor.gd` | Hitscan 320m/18/.28s. |
+| `cinder_cargo_hauler_new_design.tres` / pilot | `cinder_cargo_mass_driver`; runtime WeaponDefinition in `cinder_cargo_hauler.gd` | Actual travelling bolt: 180m/26/.70s,150m/s,1.2s lifetime,.45m radius. GameFlow's three-slot MassDriverBoltPool owns flight/terminal handoff. Inherited pilot heat remains active. |
+| `cinder_long_range_bomber_new_design.tres` / pilot fire edge | `bomber_payload_release` / `cinder_payload_alpha`; GameFlow payload profile and BomberPayloadAuthority | Actual travelling payload: 900m/80, four rounds/rotating hardpoints,1s release cooldown, ship velocity +forward220m/s, gravity,30s lifetime. Inherited cannon disabled. Extra crew/navigation definition still WAITING. |
+
+Ship definitions are under `assets/ships/`; named checked-in pulse resources are
+under `assets/weapons/`; ship consumers are under `scripts/ships/`.
+`GameFlow._get_player_weapon_profiles()` and `_initialize_live_combat()` perform
+actual registration. The source IDs are Torrent 1101, Arrow 1102, Jovian 1103,
+Zenith 1104, Halyard 1105, Bomber 1106, Bulwark 1107, CinderLight 1108, Cargo 1109.
+The old source comment that Cargo has no gun profile is superseded by the actual
+mass-driver registration branch; do not infer a missing cannon from that comment.
+
+The eight inherited pilot weapons use HeroShip's live heat/cadence gate even
+when the resource's resolver-heat flag is false: +.28 per shot, .50/s cooling,
+1s overheat recovery and recovery heat ceiling .35. They have no ammunition
+ledger. Reuse/destruction/offline engine/failed component/heat/cooldown refuse
+fire; component damage scales cadence. A Halyard crew request reaches
+`_fire_weapon_with_aim()` and the same GameFlow/LiveCombatAuthority/resolver
+path. Bulwark's gunner instead charges, revalidates and submits its separate
+limited-ammunition hitscan. Picket opponent travel is not this crew copy.
+
+Cargo branches into actual authority flight and terminal resolution. Bomber's
+ordered fire edge flows through session/admission, BomberPayloadAuthority,
+BomberPayloadProjectile and BomberPayloadCombatAdapter terminal resolution;
+clients cannot create local authority. Dead/failed-wing/stale generation or
+sequence/unavailable hardpoint/cooldown/exhaustion refuse without spending ammo;
+expiry terminates without damage. Generic resolver ammunition conversion being
+unsupported does not mean these caller-owned ammunition systems are absent.
+
+Common accepted-hit ownership stays with LiveCombatAuthority/CombatResolver:
+registered live source and authorized profile, source exclusion, first physical
+obstruction, registered Damageable endpoint, faction refusal, distinct miss/world/
+non-damageable outcomes and once-only damage per sequence. Crew-selected target
+names and an emitted request are not proof of terminal damage.
+
+Jovian `freight_defense_slot` and Cargo `cinder_gunner` policy records have no
+ship firing consumer; they are not delivered crew weapons. Engineer/passenger/
+navigator/loadmaster schemas do not grant firing authority. Eight missing
+originals—Titan, Vortex, Paradox, Katana, Predator, Dynamic, Utopia, Salyut—have
+UNKNOWN bindings, not zero weapons or accepted deferrals. Bomber's additional
+crew/navigation promise remains at its existing explicit decision boundary.
+
+The attempted Halyard ordinary actual-hit extension is currently FAILED/PARKED:
+original 0b157138b (51.847s) and one caller repair 3a7c4b4bf (52.025s) both stop at the
+existing physical co-pilot admission, before new FIRE/damage assertions. Binding
+presence above is not a current ordinary-hit pass. Cause unestablished; no
+weapon/runtime change or third retry is selected. See the retained roadmap
+failure contract; network boarding and moving-cabin gates remain separate.
+
+### Retained opponent registration context
+
+The earlier table below is retained historical context, not an exhaustive current
+opponent census or a new migration assignment. Its rows were not requalified by
+the player-binding inventory. Existing runtime/encounter owners remain authoritative.
 
 | Registration owner | Source IDs and faction | Weapon profiles | Migration state |
 | --- | --- | --- | --- |
-| `GameFlow` player fleet | Torrent `1101`, Arrow `1102`, Jovian `1103`, Zenith `1104`, Halyard `1105`, Cinder bomber `1106`, Bulwark `1107`; `shipyard_flight_test` | All: `range_pulse_cannon` `360 / 50 / 24`. Combat: Torrent `torrent_compact_pulse_cannon` `360 / 34 / 24`; Arrow `arrow_precision_recon_emitter` `480 / 24 / 24`; Jovian `jovian_heavy_defensive_cannon` `650 / 70 / 32`; Zenith `zenith_interceptor_repeater` `420 / 28 / 24`; Halyard `halyard_long_range_defensive_lance` `560 / 52 / 30`; Cinder `bomber_payload_release` `900 / 80 / 30`; Bulwark pilot `bulwark_sustained_pulse_cannon` `360 / 50 / 24` and gunner `picket_siege_lance` from its checked-in definition. | The six direct-ship pilot combat profiles are converted from distinct checked-in resources in `assets/weapons/`. Bulwark registers its pilot and retained gunner profiles atomically on source `1107`; gunner attachment never replaces an existing pilot dictionary. Cinder's payload profile remains unmigrated. |
 | `GameFlow` range defender | `2101`; `range_defence` | `defence_pulse_cannon` `420 / 11 / 18` | Unmigrated. |
 | `StandoffPicketOpponent` | `2102`; `range_defence` | `picket_lance_cannon` `520 / 21 / 22` | Unmigrated component-local dictionary. |
 | `ResolverBackedOpponent` skirmishers | `2103`, `2104`; `range_defence` | `skirmisher_repeater` `150 / 6 / 22` | Unmigrated component-local dictionary. |
 | `ResolverBackedOpponent` courier | `2105`; `range_defence` | `courier_tail_deterrent` `110 / 8 / 22` | Unmigrated component-local dictionary. |
 | `StationDefenseEncounterContent` | `2121`, `2122`, `2123`; checked-in `perimeter_raiders` faction | `perimeter_defense_pulse` `170 / 11 / 18` | Unmigrated shared encounter dictionary; the atomic-acquire and wire paths submit the same profile. |
 
-Tests construct additional registration dictionaries, but they are fixtures and
-not production profile owners.
+Tests may construct other profiles; fixtures are not additional production owners.
 
 ## Bounded converter and next migration seam
 
@@ -132,10 +195,11 @@ for precision-role reach.
 registration, sequence, receipt, validation, and damage state, including
 detach/re-entry.
 
-The next migration should choose one row above, add its checked-in definition,
-and prove exact behavior before removing that row's dictionary. Cadence can
+Any further migration needs a named production consumer or explicit original
+requirement; this inventory schedules no format-only migration. Preserve exact
+behavior before replacing an existing profile owner. Cadence can
 move only after the relevant cooldown tests demonstrate identical accepted-shot
 timing. Presentation/audio IDs can become active routing inputs only after pool
-and cue tests prove the same atomic acceptance behavior. Beam resolution,
-ammunition, and allowed friendly fire remain unsupported and must continue to
-fail closed rather than being approximated.
+and cue tests prove the same atomic acceptance behavior. Beam resolution, generic ammunition conversion and allowed friendly-fire
+conversion remain unsupported in this converter and fail closed. This limitation
+does not revoke the caller-owned live ammunition systems described above.
