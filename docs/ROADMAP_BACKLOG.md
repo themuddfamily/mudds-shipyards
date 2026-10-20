@@ -709,7 +709,7 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | NET-JOVIAN-PASSENGER-EXIT | Original passenger reaches supported ground while pilot retains helm | 16,20,26 | DONE on861c4d39b, merged2352d18c3: original full138.470s journey PASS clean, all seven physical route poses, same-player supported ground walk, legitimate passenger claim/body retirement, retained pilot and actual3peer exits0. Paired checkpoint861c4d3; exact-tip local/remote/tracking branch deletion and owned cleanup complete. Broader postdock reuse remains separate. [Acceptance](history/ROADMAP_DELIVERIES.md#physical-jovian-passenger-exit-accepted-and-branch-closed--2026-10-20) |
 | NET-JOVIAN-DOCKED-PILOT-HOLD | A still-owned remote pilot retains the committed authoritative dock pose/velocity | 16,20,26 | DONE within accepted passenger-exit chain861c4d39b, merged2352d18c3. Pose322 regression PASS; final original138.470s three-peer journey retains exact committed home/pilot/source through supported passenger exit and actual3OS exits0, no diagnostics. Paired checkpoint861c4d3; branch/owned cleanup complete. Same integration and build as EXIT, not a separately counted delivery. |
 | NET-JOVIAN-PASSENGER-REBOARD | Original passenger reclaims original co-pilot chair | 16,20,26 | DONE scoped ordinary three-peer Linux journey49bc7b736. Full original departure/home landing/physical exit/groundwalk/reboard/fresh chair PASS149.242s; both clients consume exact chair, original pilot and strict home lease retained;3actualOS0/clean logs. Actual unconsumed pre-bind hatch ID identified; producer retires old edges while preserving fresh/retry behavior. Source98/body42 PASS; fresh paired checkpoint/strict menus/package audit and independent review GO; owned scratch removed. Full parent/baseline/endurance/native gates remain open. [Delivery](history/ROADMAP_DELIVERIES.md#jovian-passenger-reboard--accepted--2026-10-20). |
-| NET-JOVIAN-PILOT-EXIT | Original pilot releases helm and walks onto supported berth ground | 16,20,26 | GATED on passenger reboard; passenger stays seated |
+| NET-JOVIAN-PILOT-EXIT | Original pilot releases helm and walks onto supported berth ground | 16,20,26 | DONE scoped ordinary three-peer Linux journey63186dc80. Complete accepted passenger prefix, original pilot authored exit and1.255m supported walk; exact old authority/source/queue/seat/body/publication retired, both clients consume release, passenger chair and strict occupied home lease retained. PASS153.310s/3actualOS0/cleanlogs. Initial impossible pose-header check corrected with fresh same-hull retirement-boundary comparison; original failure retained. Runtime unchanged49bc7b7; owned scratch removed, main sole branch. [Delivery](history/ROADMAP_DELIVERIES.md#jovian-original-pilot-exit--accepted--2026-10-20). |
 | NET-JOVIAN-PILOT-RECLAIM | Original pilot returns to same hull and acquires current helm authority | 16,20,26 | GATED on pilot exit; old command generations stay retired |
 | NET-JOVIAN-REDEPART | Same crew/hull departs at least5m and brakes after physical reuse | 16,20,26 | GATED on pilot reclaim; no second landing/endurance expansion |
 | CONVOY-ACTOR-DEFINE | Uncovered Convoy tender live/dead/reset/late/disconnect cases | 22 | DEFINE; actual native-gameplay coverage versus authority tests |
@@ -2206,22 +2206,28 @@ Native Windows/GPU/devices/human/full baseline/endurance/parent gates remain ope
 
 ### NET-JOVIAN-PILOT-EXIT — release helm and reach ground
 
-- **Parents/result:**16/20/26. After 2, original pilot stands and walks through
-  the real hatch to supported berth ground and walks at least 1m; passenger stays
-  in its original chair. Reclaim and departure are cards 4/5.
-- **Boundary/owner:** root; existing return caller/ordinary input helpers. Use
-  accepted 2 source and actual prior route. Do not keep a seated-pilot predicate
-  as the success condition for an exited pilot or give the passenger the helm.
-- **Proof:** original actors persist; actual pilot seat/source/ownership releases
-  are reflected by host and clients, old commands cannot move the hull, no stale
-  cabin/chair/hatch/body claim survives exit, and the same hull retains occupied
-  home lease/committed landed generation. Require ground by authored exit before
-  further walking; spawn relocation cannot satisfy the result.
-- **Next/budget/stop:** GATED on 2. Freeze selected continuation/marker and clean
-  source; 30–60 min, split before 90. Compile 300s, one route 300s/outer 360s and the
-  same15/8/120/5s stage limits. First failure ends qualification with exact owner.
-- **Close:** actual result/source/limits, commit/push, cleanup; fresh paired
-  checkpoint only for a separately accepted runtime repair.
+**DONE63186dc80, parents16/20/26.** Full accepted passenger-reboard journey first;
+original pilot then uses ordinary landed Interact, traverses the complete authored
+hatch/airstair route with the same Player, reaches supported berth ground and
+walks1.254681m through normal movement. No fabricated intermediate cabin body;
+production's landed pilot exit is a direct physical disembark. Passenger stays
+in its exact original co-pilot chair; reclaim/redeparture remain separate.
+
+Host old source freed, pilot command queue reset, ownership0/gen2, exact pilot
+seat/role/body/publication/relationship retired. Both clients consume released
+ownership and a fresh same-hull pose after the actual host retirement boundary.
+Client helm remains quiet during supported ground input; hull displacement and
+speed stay0, strict occupied home lease and landed generation1 remain valid.
+Full route153.310s/4338checks/3actualOS0/clean logs; independent GO. Original
+300s/outer360s/waypoint15s/transition8s/landing120s/convergence5s/exit10s retained.
+
+Initial153.970s failure was an unsupported new caller expectation: a coasting
+pose attribution never becomes0. Actual ownership and controls already retired.
+Only that observation changed; original failed source/raw preserved. Runtime,
+assets and tools match49bc7b736; no identical rebuild. Owned scratch archived,
+348 entries verified/removed;30 observed identities absent; integrated/pushed
+main remains sole branch. [Proof and limits](history/ROADMAP_DELIVERIES.md#jovian-original-pilot-exit--accepted--2026-10-20).
+Full parent/baseline/endurance/native/hardware/human/final gates remain open.
 
 ### NET-JOVIAN-PILOT-RECLAIM — reacquire the same helm
 
@@ -2233,7 +2239,7 @@ Native Windows/GPU/devices/human/full baseline/endurance/parent gates remain ope
   ownership and client-consumed seat/source/stream/delivery epoch agree; released
   generations stay retired and old commands remain refused. Physically occupied
   home lease and landed state remain valid until card 5.
-- **Next/budget/stop:** GATED on 3. Freeze selected continuation/marker/source;
+- **Next/budget/stop:** READY after accepted3; not selected. Freeze continuation/marker/source;
  30–60 min, split before 90. Compile 300s and one route 300s/outer 360s, existing
  15/8/120/5s stage limits. First failure records owner and ends the card.
 - **Close:** actual proof/pin, commit/push, owned cleanup; same runtime-checkpoint

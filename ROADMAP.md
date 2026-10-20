@@ -77,20 +77,28 @@ This clears the branch queue; it does not close their unfinished gameplay,
 qualification or release requirements. No unaccepted source was merged to reduce
 a branch count. Eight previously protected detached worktrees remain unchanged.
 
-**Selected: NET-JOVIAN-PILOT-EXIT /16,20,26.** One case,19:45–20:35UTC/50min.
-Extend the full accepted passenger-reboard journey with original pilot stand,
-authored physical hatch exit, supported berth ground and at least1m walk while
-the same passenger stays seated. Preserve original actors, pilot authority/source
-retirement, old-command refusal, stationary hull, occupied home lease and landed
-generation. No reclaim/redeparture, staged poses or authority writes. One HIGH
-implementer owns only the existing return caller; independent HIGH review;
-root owns integration/engines/docs/cleanup. No new branch/worktree/CI. Freeze
-selector --postdock-pilot-exit and marker JOVIAN_NETWORK_TWO_CLIENT_PILOT_EXIT_OK;
-compile300s and original route300s/outer360s, waypoint15/transition8/landing120/
-convergence5/exit10. First failure ends qualification for concrete review; no
-automatic repair/retry. Caller-only work needs no identical rebuild; a discovered
-runtime defect requires separate focused proof and fresh checkpoint. Close with
-actual outcome, preserved failures, pushed accepted source and owned cleanup.
+**NET-JOVIAN-PILOT-EXIT DONE — source `63186dc80`.**
+The full original passenger boarding/departure/home landing/exit/reboard/chair
+journey passes, then the original pilot uses normal Interact to physically leave
+through all authored hatch/airstair waypoints and walks1.255m supported on berth
+ground. Host retires its exact old pilot source, command queue, ownership, seat,
+body/publication and relationship; both clients consume that retirement. The same
+passenger stays in its exact co-pilot chair, hull error/speed remain0 and the
+strict occupied home lease/landed generation hold through final release.
+
+Full route PASS153.310s,4338 checks/zero failures, three actual OS0 and clean logs.
+The first153.970s failure is retained: the new caller incorrectly expected a
+coasting pose header's pilot attribution to become0. That field never emits0;
+actual ownership already retired correctly. A reviewed observation correction
+requires a fresh same-hull pose after the host retirement boundary instead.
+No production behavior or original scope/cap changed. Independent final GO.
+Owned scratch removed after348 profile entries verified;30 observed identities
+absent. Accepted source pushed; no new branch/worktree. Redundant attempt tag
+removed after its failed source became reachable through accepted pushed main.
+Runtime/assets match49bc7b736 exactly, so latest playable remains49bc7b7 without
+an identical rebuild. Pilot reclaim/redeparture, full baseline/endurance/native
+and all parent/phase gates remain open. No adjacent case selected.
+[Original requirement, failed check and full acceptance](docs/history/ROADMAP_DELIVERIES.md#jovian-original-pilot-exit--accepted--2026-10-20).
 
 **NET-JOVIAN-PASSENGER-REBOARD DONE — source `49bc7b736`.**
 The full original ordinary boarding/departure/home landing/physical exit/ground
@@ -339,9 +347,9 @@ supported existing failures. No completed probe schedules an adjacent probe.
 ### Completed production repair — Jovian passenger reboard
 
 NET-JOVIAN-PASSENGER-REBOARD is accepted on49bc7b736 with its fresh checkpoint
-and full original journey, as recorded above. Its next existing dependent case
-is [NET-JOVIAN-PILOT-EXIT](docs/ROADMAP_BACKLOG.md#net-jovian-pilot-exit--release-helm-and-reach-ground),
-selected above. The full prerequisite journey is retained in that continuation.
+and full original journey, as recorded above. Original pilot exit is also accepted above. The next dependent case is
+[NET-JOVIAN-PILOT-RECLAIM](docs/ROADMAP_BACKLOG.md#net-jovian-pilot-reclaim--reacquire-the-same-helm),
+not selected here.
 
 ### Next three production deliveries
 

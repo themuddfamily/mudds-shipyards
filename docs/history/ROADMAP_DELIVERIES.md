@@ -18780,3 +18780,70 @@ main; main remains sole local/live remote branch. CI hold unchanged.
 NET-JOVIAN-PASSENGER-REBOARD closes only this named journey. Later original pilot
 exit/reclaim/redeparture, full multiplayer baseline/endurance, all36 parents and
 ten phase gates remain open. No adjacent task or unchanged rerun selected.
+
+## Jovian original pilot exit — accepted — 2026-10-20
+
+**NET-JOVIAN-PILOT-EXIT accepted63186dc8092dc0923610bce4e8e1c166ad1ecbd9.**
+The entire ordinary passenger boarding/departure/home landing/physical exit/
+groundwalk/reboard/requested chair journey remains the prerequisite. After both
+actual clients complete it, the original pilot uses ordinary Interact, leaves
+through the authored hatch/airstair route and walks1.254681m on supported berth
+ground. Same actors, passenger exact chair, stationary hull and strict occupied
+home berth remain current. This closes only this named original case.
+
+One HIGH implementer owns only existing return caller; independent HIGH reviewer,
+root integration/commands/cleanup. No game-code, pose/claim/authority writes,
+new branch/worktree or hosted CI. A ready/go/both-armed/input-go barrier changes
+phase predicates only after the complete prior journey, before pilot action.
+Landed production exit directly calls physical disembark; no nonexistent walking
+cabin body is injected. Exact original authored waypoints/reference frame and
+54 actual motion samples are observed before supported endpoint and ground input.
+
+Initial1fe889ee3 compiles16.944s, then full route FAIL153.970s. Host actually
+retires old source/binding/queue/ownership/pilotclaim/body/publication; clients
+consume ownership0/gen2 and withdrawn pilot relationship. Pilot already traverses
+the route and reaches supported endpoint0.228m away, passenger/home remain held.
+The new caller nevertheless requires pose.pilot_peer_id0. Actual pose producer
+clamps wire owner>=1 and deliberately retains last-pilot attribution through its
+600-tick coast; this is not the ownership registry. Earlier source review missed
+that assumption. Thus the failure does not establish a production authority bug;
+>=1m walk remains unrun on this attempt. All86 raw files/source/failure retained,
+three actual OS1 and no marker. No deadline or outcome was weakened.
+
+After concrete independent source review, the sole observation correction63186dc80
+requires nonempty same-hull pose at/after positive host.pilot_exit_retired.home.
+pose_tick. Both use the boarding clock; ownership snapshot timestamps can use a
+different domain and are not compared. Actual released ownership, source/queue/
+claim/relationship retirement, physical exit, groundwalk, passenger/home and all
+original checks remain intact. Corrected compile PASS16.720s; complete route
+PASS153.310112s/4338checks/zero failures/one JOVIAN_NETWORK_TWO_CLIENT_PILOT_EXIT_OK.
+Actual host1980427/client1980575/client_b1980594 each OS0, empty failures, full
+retained/leaving handshake and clean logs. All95 copied file hashes independently
+verified; source/cache unchanged. Both clients consume pose6114>=retirement5891,
+ownership0/gen2/released while coast header honestly retains last pilot117760399.
+Host source freed, remote pilot_count0 and exact old pilot occupancy/role/body/
+movement/publication gone. Pilot helm transmission count stays unchanged during
+ordinary groundwalk; hull error0/speed0. Passenger exact co_pilot claim3/body and
+both current relationships survive; strict occupied physical lease, dock contract
+and committed landed generation1 remain. Independent final GO.
+
+Original19:45–20:35UTC/50min window retained; cleanup20:01:02UTC. Full300s/outer360s,
+waypoint15s/transition8s/landing120s/convergence5s/exit10s unchanged. All engines
+Dummy audio, peers private Xvfb/explicitx11. Four stages340.944697s total, measured
+as owner-file mtime intervals; initial failure is not discarded or budget-reset.
+
+/srv/mudds-work/jovian-pilot-exit-20261020/results/ retains commands/freezes,
+original86 and accepted95 raw files, reviews and verified failed-source bundle/
+patch/tar. Temporary archive tag was removed locally/remotely with exact expected
+object3fa6200a64e0b0b89f18b2e015eaa82236bb5aca after failed1fe889ee3 became an
+ancestor of accepted pushed63186dc80; no redundant attempt ref remains. All four
+owners terminal and30 observed PID/start identities absent;348 profile entries
+reopened/verified exact bytes/hashes/modes/links before exact owned scratch removal.
+Archive72036bytes SHA2565cf9ed6c919ecde7b1e93e21789c48e0378b591c95b9feaed30dec2d5b272a1d.
+Eight protected worktrees unchanged, main sole local/live remote branch.
+
+Runtime/assets/tools exactly match49bc7b736 (Git diff verified); no identical
+checkpoint rebuild. Latest playable49bc7b7 remains current. Pilot reclaim and
+redeparture, full baseline/endurance, all36 parent outcomes/ten phase gates and
+native Windows/GPU/device/audio/human/final acceptance remain OPEN/NOT_RUN as
+applicable. No adjacent task selected. Accepted caller and closeout pushed to main.
