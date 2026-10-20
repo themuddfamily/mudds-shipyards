@@ -80,6 +80,21 @@ records the earlier 20 candidates; accepted Breach and Halyard closeouts and the
 archived superseded Jovian caller remove three.
 This cleanup changes branch ownership, not the number of completed roadmap outcomes.
 
+**Selected same-branch interaction repair: 16:19–17:04 UTC, 45min.**
+Resolve the captured peripheral engineer-chair selection that masks intentional
+Jovian exit aim, preserving deliberate engineer access. One implementer owns
+GameFlow and the existing focused interaction test; root owns original full
+journey, integration and package checks. No new branch or adjacent roadmap task.
+Acceptance retains original ordinary host/two-client journey, every authored
+exit waypoint, same supported player/ground walk, legitimate body/claim retirement,
+retained pilot and three actual peer exits0. Preserve original route/aim/caps.
+Run focused interaction, compile, pose/support and full case once; stop at first
+unexpected failure. If accepted, export paired checkpoint with strict startup,
+review, merge/push, publish locally and delete completed branch/owned scratch.
+If failed, preserve exact result and clean owned scratch within this window;
+no unchanged retries, relaxed acceptance or speculative adjacent repair.
+Prior1131.794s and original parser failures stay accounted.
+
 **Interaction diagnostic closed; candidate remains unmerged.**
 One unchanged original journey on `2055f1f52` reproduced the failure and captured
 the missing fact: the actual Jovian boarding candidate is valid/available,
