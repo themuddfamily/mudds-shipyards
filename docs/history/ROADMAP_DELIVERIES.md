@@ -18128,3 +18128,77 @@ accepted/superseded closure and fourteen as source-preserved unqualified archive
 These counts measure housekeeping only. Latest playable checkpoint0070248 remains;
 all36 parent outcomes/ten phase gates are still open. Native Windows/GPU/devices,
 listening/human/installed/final qualification NOT_RUN; GitHub Actions remains held.
+
+
+## Ember first-relay cold recovery — exact package accepted — 2026-10-20
+
+WORLD-SAVE-EMBER-FIRST-RELAY / parents14,31. Full named staged/headless safe-yard
+recovery contract PASS on immutable compiled923d7b3261175a14991813cf6e479c7c95be283d
+archive ELF, corrected integrated caller6112944d08901b941a50f761a4cf84d0f0afd23b.
+No game, predicate or datastore changes, tolerance, shorter route or higher cap.
+Original runtime FAIL312.811736s and subsequent no-game preflight FAIL4.635531s
+remain failures; measured prior attempts317.447268s. The concrete preparation
+cause is addressed: archive contains no export metadata; existing external
+sidecar is staged beside resolved extracted ELF and fully validated before launch.
+No unconditionally launched checker after failed extraction/preparation.
+
+Independent read-only handoff inspection and root preflight verify the original
+three published package inputs against both retained package-input records:
+
+| Input under builds/linux | Bytes | SHA256 |
+| --- | --- | --- |
+| MuddsShipyards-923d7b3-linux-x86_64.tar.gz | 95310962 | 593b48f12abf84932619af53fd5306f36bed39f2ee4cc9627c70b7174356f827 |
+| MuddsShipyards-923d7b3.x86_64 | 148897840 | 1f21248cb3cabcc94b76d0e7f40a2ed8fd8a8a1d6440c3db0601dbb2a32f36e7 |
+| MuddsShipyards-923d7b3.x86_64.export-result.json | 1160 | 32aa818938bebe01c3aec8202302b1958ba5cd2bfefde1ef035e726f5c3bc557 |
+
+Extracted executable member is
+`MuddsShipyards-923d7b3/MuddsShipyards-923d7b3.x86_64`; exact archive ELF equals
+standalone binary. Metadata Linux/schema1/compiled source/bytes/hash validate.
+Ember probe tail from _ember_document_text through EOF is byte-identical between
+compiled source and current driver checkout:11059bytes,
+SHAdd640501767e22e80a9509140a4e99be45a9fc2895e8febd1b547fd211b5d7cd.
+Breach additions elsewhere do not substitute a different Ember scenario.
+
+One clean pushed caller, existing suite_process.py supervisor with original660s
+outer and run_package_probes.sh --in-world-interruption --native-export
+--activity=ember, pilot context/300s each game. Private TMPDIR/XDG real files,
+inherited HOME, no inherited display; both actual games --headless --audio-driver
+Dummy. No new import, export, branch or worktree. Fresh results paths; prior STOP
+and original raw roots unchanged. Source/cache manifests remain byte-identical.
+
+Actual arm PID1941025 reaches live first-relay readiness, unpaid receipt0,
+supported on-foot Bulwark/real caldera lease and original passive journey. Actual
+owned SIGKILL exits-9 and committed document bytes remain unchanged. Distinct
+Boot resume PID1941296 exits0 with terminal IN_WORLD_RECOVERY_OK. Exact emitted
+runtime boundaries equal, real saved documents bind to runtime payloads; cold
+safe-yard control-enabled state and fresh real boarding accepted. Original
+checkpoint/generation adopted, host attachment advances1→2, final objective
+completes original route and genuine ember_beacon_data receipt advances0→1.
+Repeated reward retries/save preserve payment; paid document equals independently
+read document at exit. Unrelated settings/tutorial data preserved; one crash
+event and final clean crash/clean_shutdown safe-start markers. No engine/script
+diagnostics. Supervisor FINISHED/exit0, one IN_WORLD_INTERRUPTION_CHECK_PASS,
+both game processes reaped. Independent full-result review GO.
+
+Timing: command-record→terminal-status file timestamp interval308.992257s;
+not a separately instrumented monotonic stage timer. Additive to prior measured
+317.447268s gives approximately626.440s known attempt wall time; earlier setup
+is not newly reconstructed. Original300s per process/660s outer remain unchanged.
+Selection17:35–17:50UTC/15min; verified owned cleanup17:42:43UTC,7.72min.
+Five observed process identities absent; no process cwd/exe under owned scratch.
+Staged ELF/metadata hashes verified before removal; driver private profile already
+removed and owned staging/tmp deleted. All three original package inputs unchanged.
+No helper, branch or worktree was created. Only new retained raw results:
+`/srv/mudds-work/ember-first-relay-20261020/results/package-handoff/`, including
+preflight/command/owner, driver documents/logs/manifests, acceptance-review and
+cleanup. Result JSON SHA2563406ffc30489816a581fa57282cda442114ac23bb7585f0d57c79905f60b1960.
+
+Accepted scope remains staged planetary cold safe-yard recovery with disclosed
+orbital_anchor_hold/initial_corridor_entry placements. canonical_outbound=NOT_RUN,
+standing_pose_restore=NOT_SUPPORTED, normal_controls/native_GPU=NOT_RUN.
+This does not qualify cold surface standing restoration, ordinary/canonical
+outbound, current/final package, installed recovery, other cuts/worlds or whole
+parent/phase. Other world-save boundaries remain DEFINE; no successor selected.
+Latest playable0070248 unchanged; no new checkpoint warranted by unchanged game
+bytes. Main remains sole local/remote working branch. Native Windows, hardware,
+listening/human and final release gates remain open/NOT_RUN; CI hold unchanged.

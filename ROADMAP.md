@@ -78,28 +78,21 @@ This clears the branch queue; it does not close their unfinished gameplay,
 qualification or release requirements. No unaccepted source was merged to reduce
 a branch count. Eight previously protected detached worktrees remain unchanged.
 
-**Selected WORLD-SAVE-EMBER-FIRST-RELAY:17:35–17:50 UTC,15min.**
-Finish the original exact-package cold safe-yard recovery on archive923d7b326,
-using the integrated exact-runtime comparison caller. Concrete preparation repair:
-the archive has no export metadata; stage its verified external export-result.json
-beside the resolved extracted ELF, validate both before launch, and launch only
-if preparation passes. Independent handoff inspection confirms all original
-archive/ELF/metadata hashes and identical embedded Ember probe logic in current
-source. No gameplay or predicate change, tolerance, source substitution or cap
-increase. Prior312.811736s runtime failure plus4.635531s preflight remains317.447268s;
-new costs are additive. Original300s per game/660s outer limits remain.
-Root owns extraction/preflight, existing suite_process.py supervisor and original
-run_package_probes.sh --in-world-interruption --native-export --activity=ember
-pilot command; private real files/headless/Dummy and actual owned SIGKILL/reap,
-distinct Boot Resume, exact passive progress, fresh boarding/original completion
-and one payment are all required. Estimate2min preparation,5–7min check,2min
-cleanup/accounting. Stop first failure; no adjacent probe or automatic repair.
-Use current clean pushed caller, no new branch/worktree/import/export. Preserve
-canonical_outbound=NOT_RUN, standing_pose_restore=NOT_SUPPORTED and all original
-fixture disclosures. Qualification applies to the named923d7b3 package, not final
-current source; latest playable checkpoint0070248 stays unchanged. Retain raw
-results under existing Ember results/package-handoff/, remove owned staging/tmp,
-then record actual outcome, commit/push and close this selection.
+**Ember first-relay cold recovery DONE on package `923d7b3`.**
+The full named check passes: save the unpaid first relay, kill and reap the game,
+restart through Boot into the safe yard with exact progress retained, board
+again, complete the original survey and receive exactly one durable reward.
+Actual process exits are -9 and 0, logs are clean, and source/cache stay unchanged.
+The original archive and external metadata were verified before staging; no game
+or comparison change. Caller `6112944d0` qualifies the immutable `923d7b326`
+package with the original 300-second process and 660-second overall limits.
+Earlier failures remain recorded. Independent review passed; temporary staging
+and profiles are removed, and all five observed process identities are absent.
+Cleanup took 7.72 minutes within the selected 15-minute window. Main remains the
+sole working branch; latest playable build `0070248` is unchanged.
+Canonical outbound, normal controls and native GPU remain NOT_RUN; standing-pose
+restoration remains NOT_SUPPORTED. Other world/recovery requirements stay open.
+[Full result, timing and retained scope](docs/history/ROADMAP_DELIVERIES.md#ember-first-relay-cold-recovery--exact-package-accepted--2026-10-20).
 
 **Remaining ten working branches accounted for and deleted.**
 Browser-cache diagnostic and network-timeout acceptance preparation, Courier,
@@ -351,7 +344,6 @@ contracts and cumulative attempt records remain in the retained history.
 | Outcome | Last actual result | Condition before more work |
 | --- | --- | --- |
 | PLAY-DEFENSE ordinary route /13 | Candidatea480c0fbb archived WITHHELD; working refs deleted, source unmerged: actual E Deploy accepted, but corrective walk_arrow stationary33.15s and whole34s timeout before boarding. | PARK after original35.963s and one corrective84.239s failure; cumulative406.401s including16 passing stages. No player kill/payment/home/reset/UIexit; no second repair/retry selected. Unique candidates/results preserved; owned scratch cleaned28.24min. |
-| Ember first-relay cold cut /14,31 | [Archive923d7b3](docs/history/ROADMAP_DELIVERIES.md#ember-first-relay-cold-cut--runtime-completes-parent-comparison-fails) FAIL312.812s at parent exact durable-state comparison; arm-9/resume0, engine diagnostics0, runtime continuation and receipts0→1. Only two compared coordinate scalars differ by one binary64 ULP. | STOPPED; no repair/retry/cap increase or retroactive comparison relaxation. Contract review and exact-runtime caller correction complete; corrected full package run NOT_RUN and requires a separately frozen selection. No full-cut/location/canonical/installed acceptance; all owned scratch cleaned9.50min within20min. |
 | Jovian postdock reuse /16,20,26 | DONE on861c4d39b, merged2352d18c3; original138.470s clean three-peer journey, all seven physical exit poses, same-player supported ground walk, retired passenger claim/body and retained pilot; all3 actual OS exits0. Fresh paired checkpoint861c4d3. | Branch local/remote/tracking deleted, owned scratch cleaned23.65min/45min. Reboard/pilot exit/reclaim/redeparture/other craft/second landing remain open; no automatic next case. |
 | Habitat common-entry view /9,12 | [Source8a6339b91](docs/history/ROADMAP_DELIVERIES.md#habitat-arrival-view--readback-timed-out-before-image): import passes; full-Main player-height readback times out180.842s before PNG or view metadata. Cumulative201.494s; no observed defect/no-finding. | PARKED. Concrete supported capture-boundary change before selection; no renderer/room substitute, cap increase or unchanged retry. Actual eye stage was not proved reached; accepted Habitat runtime scopes remain. |
 | Courier clear /11 | [Candidatecb9d76fa5](docs/history/ROADMAP_DELIVERIES.md#courier-ordinary-clear--escaped-without-player-damage), archived WITHHELD, working refs deleted/source unmerged: prechecks pass; ordinary attempt fails70.377s, ESCAPED at1400m, hull78/78, no player hit/kill or home completion. Cumulative165.917s. | PARKED/withheld. Fresh Courier-window emission/ray/resolver facts are missing; generic shot receipt can be stale. No weapon/aim cause established, repair/retry or public checkpoint selected. Preserve original route/caps; other Courier outcomes need separate selection. |

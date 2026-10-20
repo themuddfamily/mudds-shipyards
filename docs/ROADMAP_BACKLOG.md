@@ -77,7 +77,7 @@ parents 11/21 share damage ownership. Do not count these twice.
 | 28 | Benchmark and optimize on representative native hardware | PERF-MACHINE/ROUTE/RUN/FIX | **Definition — PERF-ROUTES-DEFINE.** Define any required representative workloads beyond the seven delivered selectors, including how whole orbit-to-surface repetition maps to existing world endurance. Additional craft/world/cycle choices are unspecified; repeating cabin/surface paths and combat reuse already exist. Actual minimum/target hardware, measurement cells, original-length native runs and demonstrated hotspot fixes remain. |
 | 29 | Complete real-device controls and accessibility review | INPUT-DEVICE/REMAP, ACCESS-VIEW/COMFORT | **Overflow capability DONE — ACCESS-TITLE on checkpoint19e7990.** Multiplayer is now inside the1024x768 title viewport; actual same-view comparison and eight-viewport retained-control/focus regression pass. ACCESS-TITLE-FOCUS is DONE checkpoint923d7b3: measured focus/press correction,32 paint pairs, same-view and paired package checks pass. Other view/remap/comfort/state/device gates remain. |
 | 30 | Finish authored audio and the real-device mix pass | AUDIO-CONTENT/MIX | **Implementation prerequisite — AUDIO-NAVIGATOR-CLIENT-REJECTION.** Already-asked refusal-scope choice WAITING. After resolution, freeze correct requester-correlated refusal feedback without stale/replayed responses. Accepted/clear playback stays delivered; other audio and real mix require their routes/devices/backend and explicit audible authorization. |
-| 31 | Finish production crash and save recovery | RECOVERY-CONTRACT/FIX/KILL, ACT-WRITE, WORLD-SAVE | **Stopped qualification — WORLD-SAVE-EMBER-FIRST-RELAY.** Existing permitted safe-yard contract defined without an extra approval gate. Archive923d7b3 runtime completes, but parent exact-state comparison FAIL312.812s on two coordinate scalars differing by one binary64 ULP. Contract review identifies JSON parse/re-encode representation; exact-runtime caller correction is focused-checked. Corrective preflight fails4.636s on missing package sidecar before any game process; cumulative review PARKS chain. Corrected full cut NOT_RUN; no passing cut/cold surface-restoration claim. Other contexts/activity writes, installed cuts and migration/corrupt/unsupported cases retain accepted scopes/gates. |
+| 31 | Finish production crash and save recovery | RECOVERY-CONTRACT/FIX/KILL, ACT-WRITE, WORLD-SAVE | **Definition — WORLD-SAVE-DEFINE[one remaining boundary].** Ember first-relay safe-yard cut DONE on exact packaged923d7b326 with caller6112944d0: actual kill/reap-9, distinct Resume0, exact passive progress, fresh boarding/original completion and one durable reward, zero diagnostics. Original failures retained; no tolerance/cap increase. Other world/context boundaries, installed cuts and migration/corrupt/unsupported cases remain open. Canonical outbound NOT_RUN, standing-pose restore NOT_SUPPORTED; no whole-parent closure. |
 | 32 | Qualify installation, updates and supported desktop platforms | PACKAGE-WIN/LINUX, INSTALL-WIN/LINUX, LINUX-BUNDLE/DESKTOP | **Qualification — LINUX-LAUNCH-DESKTOP.** WAITING on clean isolated graphical session and frozen installed candidate/ordinary route. Prove actual installed desktop entry launches/completes it; headless startup is insufficient. Direct-ELF, final packages/NSIS, six Linux transactions and extra-target definition remain; native Windows exclusions stand. |
 | 33 | Complete all required graphical capture gates | CAPTURE (each required registry ID) | **Qualification — caption-presenter-forward-render.** GATED on frozen candidate/original runnable harness. Produce its one declared PNG, verify source/output identity and inspect at original resolution; stop at set/result. Full 13-set/143-PNG registry stays binding; caption-production/station-operations keep parked reopening conditions. |
 | 34 | Complete release licensing, trusted signing and distribution | RIGHTS, SIGN, DISTRIBUTE | **Dependency — RIGHTS[project release terms].** Record owner-chosen release-terms text and explicit distribution disposition; engine notices do not settle this family. Other asset/media rights, external trusted signing credentials and accepted-candidate/authorized-destination distribution remain separate. |
@@ -558,8 +558,8 @@ test is an owner/regression anchor, not a runnable ordinary route.
 | EMBER-NATIVE-SMOKE | Native observer normal-window-close smoke | 1 | PARKED; failed fixture/repair and priority review retained |
 | EMBER-PACKAGE-ABANDON | Packaged ordinary physical abandonment/home return | 1,14 | GATED; supported OS-input route, old external-driver path UNSUPPORTED |
 | WORLD-ABANDON-DEFINE | Applicable Aurora/Rime abandonment and Ember reuse/durability cases | 1,14 | DEFINE; explicit physical/durable outcomes, source pass retained |
-| WORLD-SAVE-DEFINE | Uncovered world survey/reward/reboard/visit disk boundaries | 14,31 | Ember first-relay cold contract defined below: safe-yard with passive original progress. Its package cut failed the parent coordinate comparison; other Ember/Aurora/Rime boundaries remain DEFINE, no whole-family closure. |
-| WORLD-SAVE-EMBER-FIRST-RELAY | Cold safe-yard recovery retains first-relay progress and later pays the original survey once | 14,31 | FAIL/STOPPED archive923d7b3: runtime arm-9/resume0, receipts0→1, but parent exact-state comparison fails312.812s on two one-ULP coordinate scalar differences. Exact-runtime caller correction reviewed and focused-checked after representation review; no tolerance. Corrective preflight FAIL4.636s before game launch (missing sidecar); chain PARKED after cumulative review. Corrected full cut NOT_RUN; original failure retained, no cap increase. [Actual result](history/ROADMAP_DELIVERIES.md#ember-first-relay-cold-cut--runtime-completes-parent-comparison-fails). Canonical outbound NOT_RUN, standing-pose restore NOT_SUPPORTED; no blanket location waiver. |
+| WORLD-SAVE-DEFINE | Uncovered world survey/reward/reboard/visit disk boundaries | 14,31 | Ember first-relay safe-yard contract defined and exact-package cut accepted below; other Ember/Aurora/Rime boundaries remain DEFINE, no whole-family closure. |
+| WORLD-SAVE-EMBER-FIRST-RELAY | Cold safe-yard recovery retains first-relay progress and later pays the original survey once | 14,31 | DONE on exact archive923d7b326/caller6112944d0: saved unpaid relay, real SIGKILL/reap-9, distinct Boot Resume0, exact runtime boundary, safe yard/fresh boarding/attachment1→2/original completion and once-only receipt0→1, zero diagnostics. Correctly staged external metadata; no gameplay/predicate change/tolerance. Original300s/game/660s outer and317.447268s failed costs retained; new wall interval308.992s. [Accepted result](history/ROADMAP_DELIVERIES.md#ember-first-relay-cold-recovery--exact-package-accepted--2026-10-20). Canonical outbound/normal controls/native GPU NOT_RUN, standing-pose restore NOT_SUPPORTED; current/final-package and broader world gates remain open. |
 | WORLD-EDGE-DEFINE | Applicable solo cancellation/refusal/failure/repeat cases | 14 | DEFINE; exact original cases and route limits |
 | SOLO-EMBER | Ember canonical physical survey round trip | 14 | GATED; freeze uncovered candidate/scenario, prior source passes retained |
 | CONTENT-EMBER | Ember finite remaining authored content/presentation findings | 15 | Definition DONE on 7c0bc2967: no missing implementation identified in the inspected authored-content scope; see boundary below. Full ordinary/repeat/shared/hardware qualification remains open |
@@ -2866,7 +2866,30 @@ ember_active_journey_checkpoint_resume_test.gd supplies its focused MemoryFilesy
 progress/payment anchor, not real-file cold proof. Existing accepted sources keep
 their recorded scopes; no runtime repair is inferred from naming this contract.
 
-**One exact-package result — FAIL/STOPPED:** driver28f7c2a27 used actual
+**Accepted exact-package cut — 2026-10-20:** after independently verifying the
+original archive/ELF/external export-result.json, root stages the metadata beside
+the resolved extracted executable. Integrated caller6112944d0 launches only after
+root preparation PASS. Compiled source923d7b326, same byte-identical Ember probe logic.
+Full original staged/headless/Dummy contract PASS: arm1941025 killed/reaped-9,
+distinct Boot resume1941296 exits0, exact runtime boundary retained, cold safe
+yard/fresh boarding, attachment generation1→2, original route completes, one
+real ember_beacon_data receipt0→1; repeated reward retries/save remain once-only.
+Paid document equals independently read exit document; unrelated settings/tutorial
+data and clean crash/safe-start markers verified. No engine/script diagnostics;
+source/cache manifests unchanged. Independent result review GO.
+Original300s per process/660s outer caps unchanged. Command-record→terminal-status
+wall interval308.992s (file timestamps, not a separately instrumented monotonic
+timer), additive to retained failed317.447268s; approximately626.440s combined.
+Owned staging/private tmp removed at17:42:43,7.72min into15min selection; five
+observed identities absent. New raw records only under existing
+`/srv/mudds-work/ember-first-relay-20261020/results/package-handoff/`.
+No branch/worktree/new export/checkpoint. Canonical outbound/normal controls/native
+GPU NOT_RUN, standing-pose restore NOT_SUPPORTED. This is the named old-package
+safe-recovery cut, not current/final-source, ordinary/canonical/installed or full
+world acceptance. Original failed attempts below remain failures.
+[Delivery](history/ROADMAP_DELIVERIES.md#ember-first-relay-cold-recovery--exact-package-accepted--2026-10-20).
+
+**Original exact-package attempt — FAIL/STOPPED (retained):** driver28f7c2a27 used actual
 archive-extracted Linux source923d7b326 (game/driver code unchanged between those
 commits), native-export/headless/Dummy,300s each process/660s outer/20min whole.
 Existing default selector chooses Bulwark; genuine first relay is unpaid and
@@ -2890,13 +2913,13 @@ independent-file, kill/byte, route/generation and reward guards. Retained-data
 replay accepts the actual exact pair and rejects74 independently changed scalar
 values (each float by one ULP); bash syntax passes, independent review GO.
 No tolerance or datastore behavior change. Original312.812s FAIL remains;
-corrected full package run NOT_RUN. Review/correction fit the original20min
-boundary, but another312s run does not fit before06:25UTC. A new explicitly
+corrected full package run was NOT_RUN at that selection. Review/correction fit
+the original20min boundary, but another312s run does not fit before06:25UTC. A new explicitly
 frozen attempt must retain cumulative costs and original route/caps, rather than
 silently extend/reset the old budget. No automatic successor selected.
 [Correction scope](history/ROADMAP_DELIVERIES.md#ember-coordinate-contract--package-caller-corrected).
 
-**One corrective selection — FAIL/PARKED:** clean drivercc2b44ffd, same archive,
+**Earlier corrective selection — FAIL/PARKED (retained):** clean drivercc2b44ffd, same archive,
 06:22–06:37UTC/15min. Preparation mistakenly expected export metadata inside
 the archive, asserted, and the unconditional next shell command launched the
 checker anyway. Preflight exits1/4.636s on missing adjacent export-result.json;
