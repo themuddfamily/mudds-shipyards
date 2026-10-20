@@ -74,6 +74,29 @@ NOT_RUN/open. Raw results, failed packages, source and cleanup records remain on
 under `/srv/mudds-work/wing-route-correction-20261020/results/`; no unrelated task
 was selected. Race timeout diagnosis remains archived, with no baseline-suite pass.
 
+**Selected existing UI closeout: active-tooltip process exit,13:55–14:20UTC/25min.**
+Candidatebae551d58 on existingfix/exit-tooltip-order-20261020 has a complete
+Observation route pass but nevercreated the original failingTooltipPanel. Retain
+its original733.226s stage history/failedcaptures and full Observation scope. New
+bounded repair acceptance is actual native tooltip teardown under normalHUDExit
+and WMclose; historical travel/view/home pass is retained, not re-labelled a fresh
+current-package journey. No broader Board/RPC fix is inferred.
+One high implementer extends onlyexisting safe-start test with actualMain child
+cases; root stages exactcurrentmain baseline on detached owned checkout (no new
+branch). Physical hover mustcreate original visibleembeddedTooltipPanel beneath
+Destinationbutton while Exit remainsfocused. Baseline HUDclose mustreproduce the
+originaltwo rootdisconnecterrors; otherwise STOP. Then apply existing10line
+GameFlow candidate and normaltest extension, require actualHUD/WMexit0, active
+originaltooltip retirement andzero diagnostics; marker/RestartShift input retained.
+No synthetictooltip, nativeconnectionmutation, extra quitwaits or filtering.
+Checks frozenbeforeengine: cleanimport180s; onebaselineX11/DummyHUD90s; aftersource
+review focused180s and patchedHUD/WM90s each; then freshpairedexports180s each,
+three strictmenu startups120s each and actualartifactaudit90s. Independentreview;
+first unexpected failurestops. PublishonlyprovenUIclosebehavior; archiveuniqueold
+diagnostics anddeleteexistingbranch afterintegration. No newcontroller/fullroute
+retry selected. Separately, archivecompleted supersededboardingtest-onlybranch
+withoutreplay afterverifiedsource preservation; no productcompletionclaim.
+
 **Ready production cards: 0. Prepared production cards waiting on decisions: 3.**
 The decisions below remain pending; they do not prevent finishing independently
 supported existing failures. No completed probe schedules an adjacent probe.
