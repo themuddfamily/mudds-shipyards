@@ -48,6 +48,39 @@ profiles removed. Next: separately select bounded source diagnosis of first
 actor-current startup guard, retaining the failed sample/full route and budget.
 Latest public49047eb and all broad/native/device/human gates unchanged.
 
+### Observation caller causal correction — second validation failure
+
+Separately selected exact correction
+`4c58efa2723e8798319ef45d8ae6b489fc16c630` remains pushed/unmerged. Local pinned
+Node.cpp2151 starts ancestor search at candidate.parent; helper
+`_ember_node_current` therefore rejects Main itself deterministically. Only
+selected root predicate changed to valid/in-tree/notqueued Main plus unchanged
+loader identity; every descendant/helper, route/assertion/deadline retained.
+Independent high causal and final diff review GO. Original failure not reset.
+
+Retained unchanged Python80 result. Corrected fresh importPASS20.700s, privacy
+1.157, private export41.745, strict startup22.288, artifact audit4.117. One ordinary
+attemptFAIL22.214s (driver21.887), boot/sequence1/frame452, actual actors_current
+true/Main+world+Player+pad/lens IDs present. Exact capsule/default conjunction
+fails: actual native serialized radius/height0.379999995231628/1.94000005722046
+versus caller literals. InputMap default flagtrue,60Hz/time1 and raw tuning
+retained. No Begin Shift/walking/viewing/home/normal UI exit exercised and no
+production defect established. Error diagnostics0; abort cleanup inputs/helper/
+game/Xvfb true, all observed identities absent. No second correction/probe/retry/
+cap increase selected; priority review needed before further numeric-contract work.
+
+Cumulative13 stages234.138s includes both failed ordinary attempts;11 source/
+package stages pass. Original freeze→corrected cleanup956.023s/15.9min within
+original90min split, not a new budget. All65 observed descendant identities
+across original/correction absent; owners terminal. Corrected private archive
+95,313,707 bytes SHA3f05cb7563616f892d7a82bbed9ba82429c3551eaaeece6fde77bb7d9347bd9d
+retains exact audited ELF; original distinct package/failure unchanged. Profile
+archive3,266,230 bytes verifies3 files/6 template symlinks. Raw helpers/configs/
+logs/failed sample/withheld package retained in
+`/srv/mudds-work/observation-walk-20261020/correction-1/results/`; duplicate
+checkout/ELF/helpers/profiles removed. Latest public49047eb unchanged; no route
+or broad/native/human gate closes.
+
 ## Blocked save-repair feedback — shipped on 49047eb
 
 Source `49047ebcf5c6824e62f6b6b6408cde85d39d2b78`, integrated by main merge

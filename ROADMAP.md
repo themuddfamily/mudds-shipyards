@@ -207,42 +207,28 @@ HUD29, confirmation integration12 and GameFlow18 assertions pass; all10 frozen
 source/package stages pass without retries. [Actual outcome and limits](docs/history/ROADMAP_DELIVERIES.md#blocked-save-repair-feedback--shipped-on-49047eb).
 This finishes the named feedback follow-up, not a broad recovery parent.
 
-## Observation walk — stopped at caller startup
+## Observation walk — caller validation remains open
 
-**WALK-OBSERVATION**, parents7/9, remains OPEN. Candidate9dc645534 is pushed
-on `qual/observation-walk-20261020`, unmerged/withheld. Existing Python80 tests,
-import, privacy, private Linux export, strict menu startup and artifact audit
-pass. The one ordinary attempt fails at its first observation: actors_current
-false, frame450/sequence1, stageboot. No walking leg or normal UI exit ran; no
-production walking defect is established. No repair/retry/cap increase selected.
+**WALK-OBSERVATION**, parents7/9, remains OPEN. Candidate4c58efa27 is pushed
+on `qual/observation-walk-20261020`, unmerged/withheld. Original9dc attempt failed
+at root actor readiness; pinned source proves its descendant-only helper was
+incorrectly applied to Main itself. The separately reviewed one-predicate
+correction makes that actor guard pass without changing any route or deadline.
 
-Original full hub→Observation viewing pad→hub→UI-exit contract is retained.
-Next action is separately selected source diagnosis of the first actor-current
-startup guard, preserving the failed sample and original budget. [Exact result,
-limits and cleanup](docs/history/ROADMAP_DELIVERIES.md#observation-walk--caller-startup-failure).
-Latest public checkpoint remains49047eb. Only owned raw results and one withheld
-private package remain; duplicate checkout/ELF/helpers/profiles were cleaned.
+The corrected ordinary attempt stops at the next default/capsule guard, still
+at boot. Raw capsule dimensions0.379999995231628/1.94000005722046 differ from its
+exact nominal literals. No walking leg, viewing dwell or normal UI exit ran;
+no production walking defect is established. One attempt plus one causal
+correction used; no further diagnosis/correction/retry/cap increase selected.
+Original full hub→ObservationPad/look→hub/UI-exit contract is retained. Any further
+caller numeric-contract correction needs a separate priority review, preserving
+both failures and cumulative budget. [Actual results and cleanup](docs/history/ROADMAP_DELIVERIES.md#observation-walk--caller-startup-failure).
 
-### Separately selected caller correction
-
-Source diagnosis: `_ember_node_current(node)` requires Main to be an ancestor
-of `node`; the selected observer incorrectly passes Main itself. Pinned Node
-source walks the candidate's parents, so this predicate is always false for the
-root. Raw first sample fails before main_id, exactly matching that guard.
-Root changes only that selected root predicate to explicit live/in-tree/not-
-queued Main checks, retaining exact loader identity and descendant checks for
-Player/world/Spur. Independent high causal/diff review before engines. No global
-helper, readiness waiting, route/assertion/tuning or deadline change.
-
-Original failure/time and90min total split retained. Recreate owned clean
-candidate, fresh import180s (cache removed), privacy60s, private Linux export180s,
-strict binary startup120s, exact artifact audit90s, original full route once with
-CAP300/outer330. Existing80 Python safety tests are unchanged and their accepted
-result is retained. Estimate5–10min correction/review plus5–10min checks/route.
-First new unexpected failure STOP; no second correction/retry/cap increase or
-acceptance narrowing selected. Freeze exact pin/commands before engines, same
-private Xvfb/x11/Dummy/dummy-renderer/input release/process guards. Source-only
-qualification; no public checkpoint or broad/native/human acceptance implied.
+Existing Python80 checks retained; corrected import/privacy/private Linux export/
+strict startup/artifact audit pass. Cumulative13 stages234.138s,11 pass/two failed
+ordinary attempts; this is not gameplay progress. Latest public49047eb unchanged.
+Only original/corrected raw results and unique withheld package archives remain;
+duplicate checkouts/ELFs/helpers/profiles cleaned. No executable card selected.
 
 ## Latest playable result
 
@@ -269,7 +255,7 @@ contracts and cumulative attempt records remain in the retained history.
 | --- | --- | --- |
 | BROWSER-ORDINARY /25 | Candidatee944f52:89Python/privacy/35join/package checks pass, actual routeFAIL40.554s at NetworkSession tree_exited disconnect error; cleanup fixture command rejected. | PARKED/unmerged/withheld. Subsequent passive capture identifies retained native RPC-cache callback; it does not qualify the route. Full continuation NOT_RUN. Original raw data/eight builds preserved; scratch cleaned. |
 | AFT-CONSOLE-VIEW /9,12 | Standalone actual-module Xvfb/Forward+/llvmpipe capture FAIL120.485s after camera setup; no image or visual finding. | PARKED; source/root cause unproven. No cap increase, alternate backend/view or retry selected. Owned scratch cleaned; raw results retained. |
-| WALK-OBSERVATION /7,9 | Candidate9dc645534; six source/package stages PASS, ordinary FAIL22.304s at first actors_current=false sample before walking. | STOP; caller startup diagnosis separately required; no retry/cap increase or gameplay defect established. |
+| WALK-OBSERVATION /7,9 | Original9dc root guard fails; causal4c58 correction passes actors but ordinary FAIL22.214s on exact capsule/default comparison before walking. | PARKED after original+one correction; both raw failures retained, no further correction/retry/cap increase selected. No gameplay defect established. |
 | PERIMETER-LIVE /11 | Candidateaa88b5a73 unmerged; staged Hold52/director149/asset12/board58/HUD9 pass. GameFlow FAIL90.178s before Hold entry; exports NOT_RUN. | PARKED after cumulative363.897s/three failures and independent review. Concrete change addressing retained full GameFlow route boundary plus separate selection required; no additional correction/retry/cap increase/narrowed acceptance. |
 | PLAY-BEACON-HOME /13 | Candidatea612ea686 FAIL37.713s guarded/37.419s driver at ActivityBoardButton Return/frame1233; same two root Window signal-disconnection diagnostics. Eleven prechecks pass; no settlement/home/L/E reached, no file captures. Unmerged/withheld. | PARKED on UI-BOARD-FOCUS. Recurrence supplies no popup/connection-removal cause; no retry/repair/cap change. Preserve original UI two-component9.627s and Mining budgets. |
 | BREACH-INTERRUPTION /13,31,32 | Originale9/repair3c fail board arming35.365/35.638s. After accepted owner fix e3, unchanged probe c159 fails69.957s at atomic-payment commit assertion after cold Resume/one matching receipt; third cold replay NOT_RUN. | Cumulative140.961s STOP/PARK; candidates unmerged/withheld, no recovery checkpoint. No further diagnosis/repair/run, fourth automatic attempt or renamed retry selected; concrete causal fact/change required. |
