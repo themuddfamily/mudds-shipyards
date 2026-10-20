@@ -76,38 +76,23 @@ interceptor encounter proof in the same Torrent scope, without a second delivery
 [Exact scope, unchanged contract and actual results](docs/history/ROADMAP_DELIVERIES.md#guided-checkpoint3d92b91--original-ordinary-route-accepted3of3).
 All18 process identities absent; owned cleanup5.43min, no new build/source change.
 GUIDED-FINAL, other encounters, Sandbox/Settings and broader gates remain open.
-**Selected implementation: COMBAT-COURIER ordinary packaged route, parent11.**
-Normal entry already exists: Guided range clear → keep initial defender alive
-for4.5 physics seconds → automatic first courier dispatch. No encounter selector
-or production combat integration is missing. Root owns existing
-`run_native_sortie.py`/`test_native_sortie.py`; one medium implementer owns only
-`native_sortie_observer.gd`, `startup_loader.gd` and existing startup privacy test.
-One high reviewer checks read-only observation, scalar retained hit/kill receipts
-and full-route acceptance before engines. No recursive agents.
+**COMBAT-COURIER clear attempt STOPPED; candidate withheld.** Source
+`cb9d76fa5` is pushed on `feat/courier-ordinary-route-20261020`, unmerged.
+Python82, fresh import, privacy, private Linux export and strict menu startup
+pass. One full ordinary attempt fails after70.377s: real dispatch after270
+physics frames, then courier `ESCAPED` at27.933 scenario seconds/1400m with78/78
+hull and no player hit/kill receipt. Commanded fire alone did not pass. Zero
+engine diagnostics; inputs/helper/game/Xvfb cleaned up. No home completion,
+repair/retry, Windows export or public checkpoint. Original full-route cap and
+first-failure stop remain;165.917s cumulative checks.
 
-Add explicit silent-private `courier-intercept` route/mode. Reuse unchanged
-Guided prefix/defender/home/neutral-shutdown/physical exit; wait without firing
-at defender, pursue actual runner using authored controls/weapons. Read-only
-Courier/director snapshot includes actor identity/pose/velocity/health, scenario/
-generation/outcome/escape progress and retained scalar accepted/resolved player
-hit+kill receipts tied to source ship/target/sequence/positive damage. Require
-actual courier destruction before1400m escape AND CLEARED; generic fire, escape,
-withdrawal, disappearance or roster deactivation cannot pass. Then clear initial
-defender and finish home. Preserve4.5s dispatch,82% distress,2.4s escort,700m/7s
-disengagement and150s backstop; no fixture placement, direct damage, tuning,
-authority, event-order or timing changes. Escape/withdrawal/recovery remain
-separate cases; prior Guided3/3 is reused, not repeated as a separate assignment.
-
-Estimate25–35min implementation/review,10min focused/export/one full ordinary
-route,10min checkpoint if accepted; stop/split at60min from selection. Freeze
-clean source/commands before engines: existing Python driver tests60s, fresh
-Dummy import180s, privacy60s, private Linux export180s/strict startup120s, original
-full normal route CAP300/outer330 once, then Windows export180s, archive/payload
-strict startups120s each and actual package audit90s. First unexpected failure
-STOP; no automatic repair/retry, cap increase, shortened journey or expected-error
-suppression. Only complete route/zero diagnostics permits integration and paired
-checkpoint; otherwise retain withheld source/raw artifacts and clean owned
-scratch. Native Windows/GPU/device/audio/human and broader combat/release stay open.
+The [Courier breakdown](docs/ROADMAP_BACKLOG.md#courier-intercept--bounded-outcomes)
+now separates clear, escape, phase withdrawal, distance withdrawal and recovery.
+These are separate outcomes, not five READY jobs or a project completion count.
+The failed clear requires a concrete supported change before a separately frozen
+attempt; the other routes must be selected independently. Existing Guided3/3
+and public checkpoint3d92b91 remain accepted in their recorded scopes.
+[Source, actual result and retained artifacts](docs/history/ROADMAP_DELIVERIES.md#courier-ordinary-clear--escaped-without-player-damage).
 Tooltip cleanup-order candidate remains unmerged/unproved; no retry is scheduled.
 
 ### Waiting decisions — not executable tasks

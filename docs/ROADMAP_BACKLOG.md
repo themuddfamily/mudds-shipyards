@@ -205,11 +205,40 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | BUILD-SPLIT-SALYUT | Salyut named hull/handling/access/role/recovery build cards | 10,36 | GATED; SPEC-SALYUT, split before any implementation |
 | CRAFT-ACCEPT-SALYUT | Salyut full craft loop | 7,10,11,36 | GATED; its specified production capabilities delivered |
 | COMBAT-INTERCEPTOR | Initial interceptor pressure encounter | 11 | DONE in checkpoint3d92b91 Guided starter-Torrent scope: same original3/3 ordinary route proves actual player fire/defender destruction, physical home landing/shutdown/exit and usable controls. [One shared proof, no duplicate delivery](history/ROADMAP_DELIVERIES.md#guided-checkpoint3d92b91--original-ordinary-route-accepted3of3). Other craft/encounter/damage/recovery requirements remain in their named owners |
-| COMBAT-COURIER | Courier Intercept | 11 | UNSCHEDULED; normal authorized sortie → destroy the live runner through actual player weapon damage before its escape boundary → safe return. EncounterScenarioDirector owns courier_intercept; success, escape, withdrawal and recovery are separate cases, not one oversized repair assignment |
+| COMBAT-COURIER | Courier Intercept | 11 | Clear candidatecb9d76fa5 WITHHELD/unmerged after one ordinary route70.377s FAIL: actual courier escapes1400m at78/78 hull, no player hit/kill. Five prechecks PASS; no home/checkpoint/retry. [Separate bounded outcomes](#courier-intercept--bounded-outcomes) preserve clear/escape/two withdrawals/recovery and original full journey |
 | COMBAT-WING | Paired Wing Break | 11 | UNSCHEDULED; normal authorized sortie → destroy both live paired_wing members through real weapons → safe return. Preserve suppression/flank behavior; direct damage/roster removal is not ordinary combat proof |
 | COMBAT-PERIMETER | Perimeter Hold | 11 | PERIMETER-LIVE candidateaa88b5a73 PARKED/unmerged: staged runtime52 assertions pass; full GameFlow route90s timeout before Hold entry. No exports/accepted delivery. Retain original ordinary weapon/home, failure/recovery and repeat requirements; see bounded handoff below |
 | COMBAT-BREACH | Heavy Breach | 11 | Same ordinary sortie as PLAY-BREACH below; one successful route may satisfy both parents, without counting two deliveries. Additional supported damage/recovery/craft cases remain explicit; BREACH-INTERRUPTION stays PARKED |
 | COMBAT-TORPEDO | Torpedo Run evade/intercept/destroy/fail/abort | 11,23 | PLAY-TORPEDO supplies the first actual boat-clear/home sortie. Freeze evade/intercept, failure, abort and solo restoration separately afterward; one happy-path clear cannot close all cases or TORPEDO authority/restoration |
+
+### Courier Intercept — bounded outcomes
+
+Parent11 retains the whole encounter; these cards prevent one failed clear from
+turning into an unbounded repair/qualification chain. Normal first entry already
+exists: fresh Guided Torrent → actual four range kills → keep initial defender
+alive → automatic courier dispatch after4.5 physics seconds. The initial defender
+must remain alive until the selected courier outcome; killing it changes phase
+and withdraws the scenario. All ordinary routes retain actual default controls,
+same actors, live weapons and the original home landing/shutdown/physical exit.
+
+| Card | One result and its decisive proof | Current boundary |
+| --- | --- | --- |
+| COURIER-CLEAR | Player destroys the actual runner before1400m; retained positive accepted/resolved source-ship/target/generation/sequence kill receipt plus director CLEARED, then clear defender and complete home. | PARKED after candidatecb9d76fa5 single FAIL70.377s. Dispatch works;78/78 runner escapes with no hit. A concrete supported driver/runtime change is required before a new frozen attempt; no automatic repair or unchanged retry. |
+| COURIER-ESCAPE | Actual live runner reaches original boundary with positive hull; director ESCAPED stands down all dispatched actors, then player clears defender and completes home. | UNSCHEDULED. The failed clear observed escape but did not complete this distinct home/stand-down contract; no acceptance transferred. |
+| COURIER-WITHDRAW-PHASE | With courier actually running, destroy initial defender through real fire; normal RETURN_TO_YARD causes WITHDRAWN and stops courier/escort fire, then complete home. | UNSCHEDULED. Earlier Guided3/3 killed defender before courier dispatch, so it does not prove this live-withdrawal case. |
+| COURIER-WITHDRAW-DISTANCE | Remain beyond the scenario's own700m origin radius for7 physics seconds while authorized; WITHDRAWN stands down courier/escort, then clear defender and complete home. | UNSCHEDULED. Observation must expose the actual director origin/grace without changing authority; escape,150s expiry and phase withdrawal cannot substitute. |
+| COURIER-RECOVERY | One specifically named interruption/cold continuation preserves the intended safe context without stale courier/escort authority or duplicate outcome. | DEFINE before selection: name interruption boundary and existing save/recovery expectation; retain broader recovery ownership. No invented active-encounter resume guarantee. |
+
+Only a separately selected card becomes executable: freeze clean source/package,
+exact owners/commands, one ordinary CAP300/outer330 attempt and first-failure
+stop. Preserve4.5s dispatch,82% distress,2.4s escort,1400m escape,700m/7s
+disengagement and150s backstop. No direct damage, actor placement, shortened
+limits or schema/validator family. The existing driver/observer/privacy tests
+are the implementation seam; add the smallest behavior-specific checks.
+Estimate one driver/observer route at30–60min implementation/review plus10–20min
+checks/package/cleanup; split before90min. These are planning estimates, not
+permission to restart a failed card's clock. First successful packaged clear
+still leaves other craft, encounter, damage, recovery and parent11 gates open.
 
 ### Perimeter Hold — missing production integration
 

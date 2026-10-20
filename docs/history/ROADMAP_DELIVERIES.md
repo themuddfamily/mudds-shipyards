@@ -15181,3 +15181,51 @@ and process/source/artifact guards. Selection→owned cleanup5.43min versus5–1
 estimate/30min split. Public checkpoint bytes/notes are unchanged; qualification
 alone requires no identical rebuild. Native Windows/GPU/device/audio/human,
 GUIDED-FINAL, Sandbox/Settings, full matrix and all broad phase gates remain open.
+
+## Courier ordinary clear — escaped without player damage
+
+COMBAT-COURIER / parent11, candidate
+`cb9d76fa54ac96c5842f3adf54954040f0c40ab1`, branch
+`feat/courier-ordinary-route-20261020` pushed/unmerged. Selection194e3ff79
+froze60min, one normal CAP300/outer330 route, and first unexpected failure STOP.
+Root owned existing Python driver/tests; one medium implementer owned passive
+observer/startup selector/privacy test; one high independent source reviewer GO.
+No production combat/authority/tuning changes or new validator family.
+
+New private `courier-intercept` route reuses Guided's ordinary walk/board/launch/
+four range kills, keeps initial defender alive for automatic courier dispatch,
+and aims/fires through OS XTest/default sampler. Read-only observer retains
+scalar actual source-ship/target/generation/sequence positive damage and kill
+receipts through actor deactivation. Acceptance requires actual destruction
+before1400m AND director CLEARED, then original defender/home/neutral shutdown/
+physical E exit. Escape, withdrawal or generic fire cannot pass. Original4.5s,
+82%,2.4s,700m/7s and150s configuration remains unchanged.
+
+Five prechecks PASS: Python82 tests9.057s; fresh Dummy import20.693; privacy1.167;
+private Linux export41.915; strict binary startup22.321 with exit0/exactly one
+STARTUP_MENU_READY_OK. One ordinary route FAIL70.763s guarded/70.377s driver:
+four actual range kills, first courier dispatch270 physics frames after waiting,
+then director ESCAPED at27.933 scenario seconds/progress1.0. Runner78/78 hull;
+no player hit/kill receipt, no clear or home completion. Actual input remained
+live:1,660 command-fire samples while courier active, but no target-specific
+positive damage. Retained observations do not establish the underlying miss/
+pursuit cause. No engine diagnostics; release/helper/game/Xvfb cleanup all true.
+Cumulative checks165.917s. Windows export, archive startup, Windows-payload
+startup and final artifact audit NOT_RUN after STOP. No second attempt, repair,
+cap increase, suppressed error, integration or checkpoint. Latest public3d92b91
+bytes/notes remain unchanged; earlier Guided3/3 is not repeated or revoked.
+
+Raw selection/source hashes, source review, six stage owners/results/process
+identities, full game observations and exact withheld Linux tarball/startup
+metadata remain under
+`/srv/mudds-work/courier-ordinary-route-20261020/results/`. Tar's embedded ELF
+hash matches the actual played binary. All31 observed process identities absent;
+nine unique profile files archived and hash-verified. Clean pushed source
+worktree/import/export duplicates and live profiles removed; helper sources
+archived with results. Closure10.21min from selection, within original60min cap.
+
+The existing backlog now splits clear, escape, phase withdrawal, distance
+withdrawal and one explicitly defined recovery case. None is silently READY or
+accepted from this failure. Clear is PARKED until a concrete supported change
+and separately frozen selection; other cases require their own full contract.
+Native Windows/GPU/device/audio/human and broader combat/release gates stay open.
