@@ -21,6 +21,12 @@ func _run() -> void:
 	await process_frame
 	await physics_frame
 
+	var clears: Array[Dictionary] = []
+	craft.navigator_ping_cleared.connect(func(previous: Dictionary, reason: StringName) -> void:
+		clears.append({"receipt": previous.duplicate(true), "reason": reason})
+		_check((craft.get_navigator_ping_snapshot().get("receipt", {}) as Dictionary).is_empty(), "ship commits empty receipt before clear notification")
+		craft._clear_navigator_ping(&"reentrant_cleanup")
+	)
 	var interaction := craft.get_navigator_interaction()
 	var anchor := craft.get_navigator_station_anchor()
 	_check(interaction != null, "Cinder exposes a ship-owned navigator Area3D interaction")
@@ -81,6 +87,9 @@ func _run() -> void:
 	_check(StringName((ping_snapshot.get("receipt", {}) as Dictionary).get("marker_id", &"")) == &"route_beacon", "the navigator exposes a detached ping receipt")
 	_check(not bool(ping_snapshot.get("movement_authority", true)) and not bool(ping_snapshot.get("cargo_authority", true)), "the ping receipt grants no movement or cargo authority")
 	interaction.clear_for_detach()
+	_check(clears.size() == 1 and clears[0].receipt == ping_snapshot.receipt and clears[0].reason == &"role_released", "ship clear carries the exact previous local receipt once")
+	craft._clear_navigator_ping(&"repeated_cleanup")
+	_check(clears.size() == 1, "empty and reentrant clear cleanup stay silent")
 	_check(authority.get_assignment(89, &"navigator_fresh").is_empty(), "detach releases the navigator assignment without caller release")
 	_check((craft.get_navigator_ping_snapshot().get("receipt", {}) as Dictionary).is_empty(), "detach clears the navigator ping receipt")
 	interaction.refresh_availability()

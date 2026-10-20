@@ -75,6 +75,7 @@ func _initialize() -> void:
 	)
 
 	var paused := _convoy(148.0, false, 0.8)
+	paused.activity_kind = &"convoy_escort"
 	paused.runtime_rebind_pending = true
 	paused.resume_craft_display_name = "Bulwark Heavy Gunship"
 	var paused_before := paused.duplicate(true)
@@ -86,16 +87,31 @@ func _initialize() -> void:
 		and paused_card.convoy_feedback.threat_id == &"resume_pending"
 		and paused == paused_before,
 		"frozen critical samples give calm resume guidance without warning cues or authority mutation")
+	hud.set_activity_objective("Emberline convoy", paused)
+	_check(str(hud.get_activity_objective_report().text) == "CONVOY  SAVED ESCORT PAUSED  //  Board Bulwark Heavy Gunship, launch and return to Cinder Reach to resume"
+		and paused == paused_before,
+		"the paused objective names the saved craft without stale live progress or snapshot mutation")
+	var unnamed := paused.duplicate(true)
+	unnamed.resume_craft_display_name = "   "
+	hud.set_activity_objective("Emberline convoy", unnamed)
+	_check(str(hud.get_activity_objective_report().text) == "CONVOY  SAVED ESCORT PAUSED  //  Board the saved escort craft, launch and return to Cinder Reach to resume",
+		"blank saved craft names retain the nearby card's resume fallback")
 	paused.state_id = &"failed"
 	paused.terminal_reason = &"escort_separation_exceeded"
 	view = hud.set_nearby_activity_snapshot({"host": {"activity": paused}})
+	hud.set_activity_objective("Emberline convoy", paused)
 	_check(not _convoy_text(_convoy_row(hud)).contains("SAVED ESCORT PAUSED")
-		and _convoy_card(view).semantic_cue_id == &"convoy_escort_lost",
+		and _convoy_card(view).semantic_cue_id == &"convoy_escort_lost"
+		and str(hud.get_activity_objective_report().text).begins_with("CONVOY  LOST")
+		and not str(hud.get_activity_objective_report().text).contains("SAVED ESCORT PAUSED"),
 		"terminal authority clears frozen guidance even if an old presentation flag remains")
 	paused.state_id = &"idle"
 	view = hud.set_nearby_activity_snapshot({"host": {"activity": paused}})
+	hud.set_activity_objective("Emberline convoy", paused)
 	_check(not _convoy_text(_convoy_row(hud)).contains("SAVED ESCORT PAUSED")
-		and _convoy_text(_convoy_row(hud)).contains("RENDEZVOUS WITH SUPPLY TENDER"),
+		and _convoy_text(_convoy_row(hud)).contains("RENDEZVOUS WITH SUPPLY TENDER")
+		and str(hud.get_activity_objective_report().text).begins_with("CONVOY  RENDEZVOUS")
+		and not str(hud.get_activity_objective_report().text).contains("SAVED ESCORT PAUSED"),
 		"a reset clears frozen guidance and restores the ordinary rendezvous instruction")
 
 	await _test_restored_convoy_resume_guidance()
@@ -145,6 +161,8 @@ func _test_restored_convoy_resume_guidance() -> void:
 		and not cold_text.contains("TO LOSS") and not cold_text.contains("ESCORT SECURE")
 		and (_convoy_row(hud).get_child(1) as Button).disabled,
 		"the unloaded retained convoy row explains the frozen save and names the actual saved craft")
+	_check(str(hud.get_activity_objective_report().text) == "CONVOY  SAVED ESCORT PAUSED  //  " + instruction,
+		"the cold Main objective explains the paused save instead of stale leg, range and time")
 	var wrong_craft := second.active_ship
 	_prepare_escort_flight(second, wrong_craft)
 	await _load_cinder(second, wrong_craft)
@@ -157,6 +175,8 @@ func _test_restored_convoy_resume_guidance() -> void:
 		and not frozen_text.contains("ESCORT SECURE") and not frozen_text.contains("TO LOSS")
 		and not frozen_text.contains("m /"),
 		"loading Cinder in another craft preserves resume guidance and suppresses stale range/threat")
+	_check(str(hud.get_activity_objective_report().text) == "CONVOY  SAVED ESCORT PAUSED  //  " + instruction,
+		"the wrong-craft objective keeps saved-craft guidance after Cinder loads")
 	for _tick in 3:
 		second.call("_physics_process", 0.25)
 	_check(second.cinder_convoy_host.capture_persistence_state() == frozen_state,
@@ -172,6 +192,11 @@ func _test_restored_convoy_resume_guidance() -> void:
 		and resumed_text.contains("ESCORT SECURE")
 		and float(second.get_active_activity_snapshot().elapsed_seconds) > float((frozen_state.activity_state as Dictionary).elapsed_seconds),
 		"the existing accepted Bulwark rebind resumes its clock and automatically clears guidance")
+	var resumed_objective := str(hud.get_activity_objective_report().text)
+	_check(resumed_objective.begins_with("CONVOY  L")
+		and not resumed_objective.contains("SAVED ESCORT PAUSED")
+		and not resumed_objective.contains(instruction),
+		"accepted rebind restores ordinary live objective progress and retires resume guidance")
 	await _retire_main(second)
 
 

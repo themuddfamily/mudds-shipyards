@@ -1,4 +1,4 @@
-[gd_scene load_steps=36 format=3]
+[gd_scene load_steps=37 format=3]
 
 [ext_resource type="Script" path="res://scripts/game/game_flow.gd" id="1_flow"]
 [ext_resource type="PackedScene" path="res://scenes/world/shipyard_world.tscn" id="2_world"]
@@ -21,6 +21,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ships/flanking_skirmisher_opponent.tscn" id="18_skirmisher"]
 [ext_resource type="PackedScene" path="res://scenes/ships/courier_runner_opponent.tscn" id="19_courier"]
 [ext_resource type="PackedScene" path="res://scenes/ships/torpedo_boat_opponent.tscn" id="40_torpedo_boat"]
+[ext_resource type="PackedScene" path="res://scenes/ships/press_repeater_opponent.tscn" id="41_press"]
 [ext_resource type="Script" path="res://scripts/combat/encounter_scenario_director.gd" id="20_scenarios"]
 [ext_resource type="Script" path="res://scripts/combat/wing_coordinator.gd" id="21_wing"]
 [ext_resource type="Script" path="res://scripts/activities/activity_director.gd" id="22_activity_director"]
@@ -82,6 +83,18 @@ source_id = 2104
 release_visuals_while_dormant = true
 
 [node name="TorpedoBoat" parent="." instance=ExtResource("40_torpedo_boat")]
+release_visuals_while_dormant = true
+
+[node name="PerimeterPicket" parent="." instance=ExtResource("16_picket")]
+release_visuals_while_dormant = true
+source_id = 2131
+defender_path = NodePath("../NoAmbientPerimeterDefender")
+
+[node name="PerimeterScatter" parent="." instance=ExtResource("18_skirmisher")]
+release_visuals_while_dormant = true
+source_id = 2132
+
+[node name="PerimeterPress" parent="." instance=ExtResource("41_press")]
 release_visuals_while_dormant = true
 
 [node name="EncounterScenarios" type="Node" parent="."]

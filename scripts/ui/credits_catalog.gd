@@ -196,6 +196,12 @@ const ASSET_ENTRIES: Array[Dictionary] = [
 		"licence": "Original procedural synthesis for Mudds Shipyards; no recorded, sampled or third-party sound.",
 	},
 	{
+		"register": "assets/audio/planetary/",
+		"kind": "Sounds",
+		"credit": "Temperate exterior air, cabin air and coastal-water ambience (tools/audio/generate_planetary_surface_audio_v1.py).",
+		"licence": "Original fixed-seed offline synthesis for Mudds Shipyards; no recording, sample library or historical Keth sound.",
+	},
+	{
 		"register": "assets/audio/music/",
 		"kind": "Music",
 		"credit": "Station, flight and surface ambient music beds (tools/audio/generate_station_music_v1.py, tools/audio/generate_flight_music_v1.py).",

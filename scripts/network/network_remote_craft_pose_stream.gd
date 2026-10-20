@@ -32,7 +32,8 @@ extends RefCounted
 ##   is extrapolated forward by the round trip (that is how far the local copy
 ##   leads the host's) and the local copy is pulled toward it -- nothing inside
 ##   `CORRECTION_DEADBAND_METERS`, an exponential blend beyond it, and a hard
-##   snap past `SNAP_DISTANCE_METERS` / `SNAP_ANGLE_RADIANS`;
+##   snap past `SNAP_DISTANCE_METERS` / `SNAP_ANGLE_RADIANS`. A committed dock
+##   holds the authoritative pose and velocity without prediction or deadband;
 ## * every **other** craft is interpolated between the two samples that bracket
 ##   a render clock running `INTERPOLATION_DELAY_TICKS` behind the newest
 ##   arrival, and briefly extrapolated when the stream stalls.
@@ -47,6 +48,7 @@ const COAST_TICKS := 600
 const TICK_SECONDS := 1.0 / 60.0
 const MAX_DISPLAY_BYTES := 8192
 const MAX_DISPLAY_INFLATED_BYTES := 65536
+const COMPONENT_POWER_FIELDS := ["engine_power", "weapon_power", "targeting_power"]
 
 const SAMPLE_HISTORY := 8
 const STALE_SAMPLE_TICKS := 120
@@ -107,7 +109,7 @@ static func build_pose_entry(
 	if not transform.origin.is_finite() or not velocity.is_finite():
 		return {}
 	var hull: Dictionary = (craft as HeroShip).get_network_damage_presentation_snapshot() if craft is HeroShip else {}
-	return {
+	var entry := {
 		"entity_id": pose_entity_id(ship_id),
 		"entity_generation": maxi(1, int(hull.get("component_generation", 1))),
 		"hull_presentation": hull,
@@ -122,6 +124,13 @@ static func build_pose_entry(
 		"velocity_world": velocity,
 		"destroyed": destroyed,
 	}
+	if craft is HeroShip:
+		# One live sample preserves subclass routing and the current hull stutter;
+		# component integrity alone cannot reproduce these operational outputs.
+		var telemetry: Dictionary = (craft as HeroShip).get_telemetry()
+		for field: String in COMPONENT_POWER_FIELDS:
+			entry[field] = telemetry[field]
+	return entry
 
 
 # --- host half ---------------------------------------------------------------
@@ -439,7 +448,7 @@ func advance_replica(
 ## The host's sample is extrapolated by how far the local copy leads it: the
 ## time since the sample was taken plus one round trip (the local copy already
 ## contains the helm input the host has not simulated yet) plus the helm's own
-## send quantisation.
+## send quantisation. A committed dock instead holds the current host sample.
 func reconcile_pilot(craft: Node3D, ship_id: StringName, round_trip_ms: float, delta: float) -> Dictionary:
 	var latest := latest_sample(ship_id)
 	if latest.is_empty() or not is_instance_valid(craft):
@@ -448,14 +457,19 @@ func reconcile_pilot(craft: Node3D, ship_id: StringName, round_trip_ms: float, d
 		return {"status": &"destroyed"}
 	if craft.has_method(&"is_landing_active") and bool(craft.call(&"is_landing_active")):
 		return {"status": &"landing"}
-	var lead_ticks := clampf(
-		maxf(0.0, _clock - float(latest.pose_tick))
-			+ maxf(0.0, round_trip_ms) / 1000.0 / TICK_SECONDS
-			+ HELM_QUANTIZATION_TICKS,
-		0.0, MAX_LEAD_TICKS
-	)
+	var operation: Dictionary = latest.operation_presentation
+	var hold_docked := bool(operation.get("landed", false)) and bool(operation.get("docked", false)) \
+		and not bool(operation.get("landing", false))
 	var host_velocity: Vector3 = latest.velocity_world
-	var target_position: Vector3 = (latest.position as Vector3) + host_velocity * lead_ticks * TICK_SECONDS
+	var target_position: Vector3 = latest.position
+	if not hold_docked:
+		var lead_ticks := clampf(
+			maxf(0.0, _clock - float(latest.pose_tick))
+				+ maxf(0.0, round_trip_ms) / 1000.0 / TICK_SECONDS
+				+ HELM_QUANTIZATION_TICKS,
+			0.0, MAX_LEAD_TICKS
+		)
+		target_position += host_velocity * lead_ticks * TICK_SECONDS
 	var target_rotation: Quaternion = latest.rotation
 	var current := craft.global_transform
 	var current_rotation := current.basis.orthonormalized().get_rotation_quaternion()
@@ -469,6 +483,20 @@ func reconcile_pilot(craft: Node3D, ship_id: StringName, round_trip_ms: float, d
 			craft.reset_physics_interpolation()
 		_snaps += 1
 		return {"status": &"snapped", "error": position_error.length(), "angle": angle_error}
+	if hold_docked:
+		# A committed dock has no predicted flight to preserve. Even a small
+		# offset or residual local velocity can drift beyond berth tolerance.
+		var target_transform := Transform3D(Basis(target_rotation), target_position)
+		var pose_changed := current != target_transform
+		var velocity_changed := craft is CharacterBody3D and (craft as CharacterBody3D).velocity != host_velocity
+		if pose_changed or velocity_changed:
+			if pose_changed:
+				craft.global_transform = target_transform
+			if craft is CharacterBody3D:
+				(craft as CharacterBody3D).velocity = host_velocity
+			_corrections += 1
+			return {"status": &"corrected", "error": position_error.length(), "angle": angle_error}
+		return {"status": &"within_deadband", "error": position_error.length(), "angle": angle_error}
 	var corrected := false
 	var step := maxf(0.0, delta)
 	if position_error.length() > CORRECTION_DEADBAND_METERS:
@@ -618,6 +646,9 @@ func _sample_from_entry(entry: Dictionary, display_batch: Dictionary = {}, stati
 		var operation_fields := ["engine", "landed", "docked", "landing", "canopy", "canopy_open", "readout", "readout_color", "renderers"]
 		for index in operation_fields.size():
 			operation[operation_fields[index]] = decoded[9][index]
+		# Preserve the original packed row so older admitted peers still decode
+		# poses. Missing optional header data means neutral, never a stale helm.
+		operation["throttle"] = entry.get("operation_throttle", 0.0)
 		if not operation.renderers is Array or operation.renderers.size() != shape.paths.size():
 			return {}
 		var renderers: Array = []
@@ -687,7 +718,16 @@ func _sample_from_entry(entry: Dictionary, display_batch: Dictionary = {}, stati
 			or not operation_tick is int or int(operation_tick) < int(pose_tick) \
 			or not entry.get("pose_active", true) is bool:
 		return {}
+	var powers: Dictionary = {}
+	for field: String in COMPONENT_POWER_FIELDS:
+		if entry.has(field):
+			if not _bounded_number(entry[field], 0.0, 1.0):
+				return {}
+			powers[field] = float(entry[field])
+	if not powers.is_empty() and powers.size() != COMPONENT_POWER_FIELDS.size():
+		return {}
 	return {
+		"component_powers": powers,
 		"operation_presentation": (operation as Dictionary).duplicate(true),
 		"operation_tick": int(operation_tick), "pose_active": bool(entry.get("pose_active", true)),
 		"entity_generation": int(generation), "craft_epoch": int(epoch), "hull_presentation": (hull as Dictionary).duplicate(true),
@@ -747,7 +787,8 @@ func _valid_operation_presentation(operation: Dictionary) -> bool:
 	for field: String in ["landed", "docked", "landing", "canopy_open"]:
 		if not operation.get(field) is bool:
 			return false
-	if not _bounded_number(operation.get("canopy"), 0.0, 1.0) or not operation.get("readout") is String \
+	if not _bounded_number(operation.get("throttle", 0.0), -1.0, 1.0) \
+			or not _bounded_number(operation.get("canopy"), 0.0, 1.0) or not operation.get("readout") is String \
 			or operation.readout.length() > 256 or not _finite_color(operation.get("readout_color")) \
 			or not operation.get("renderers") is Array or operation.renderers.size() > 64:
 		return false
@@ -794,6 +835,10 @@ static func pack_display_facts(entries: Array) -> Array:
 		var wire: Dictionary = {}
 		for field: String in ["entity_id", "entity_generation", "owner_peer_id", "mode"]:
 			wire[field] = entry[field]
+		# Optional primitive headers leave the compressed display rows unchanged.
+		for field: String in COMPONENT_POWER_FIELDS:
+			if entry.has(field):
+				wire[field] = entry[field]
 		var hull: Dictionary = entry.hull_presentation
 		var components: Array = []
 		var placements: Array = []
@@ -801,6 +846,10 @@ static func pack_display_facts(entries: Array) -> Array:
 			components.append(component.integrity)
 			placements.append([component.local_position, component.local_radius])
 		var operation: Dictionary = entry.operation_presentation
+		# Older receivers ignore this optional primitive header. Keep neutral
+		# rows byte-compatible and leave the ten-field display layout untouched.
+		if operation.get("throttle", 0.0) != 0.0:
+			wire["operation_throttle"] = operation.throttle
 		var paths: Array = []
 		var renderers: Array = []
 		for row: Array in operation.renderers:

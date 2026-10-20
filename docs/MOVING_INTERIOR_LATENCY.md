@@ -20,6 +20,69 @@ opens real ENet sockets, so it has to take that lane. (The existing
 `tests/network/moving_interior_latency_test.gd` is a different, data-only
 regression over `NetworkMovingInteriorLatencyValidator` and is unchanged.)
 
+## Finite profile contract — NET-PROFILES-DEFINE, 2026-10-18
+
+Definition only, inspected on source51cc486e6. No new runtime or test result is
+claimed. Parent26 and the original independent-process/endurance gates stay open.
+The following existing checks have different scope and must not be combined into
+an unsupported whole-session latency claim.
+
+| Existing check | Exact profile and owner | What it establishes / limit |
+| --- | --- | --- |
+| `tests/network_moving_interior_latency_test.gd`, PROFILES | clean:0ms/0 jitter/0 loss/60 rounds; lan:80ms±20/0 loss/180; regional:200ms±60/0 loss/90; intercontinental:350ms±120/2% configured random loss/90; stall:80ms±20/0 loss/150 rounds,90 stalled ticks | One-way simulated relationship-stream delays at60Hz; seeded drop/delivery scheduling and natural reordering. Five profiles run together; these are not five independent process journeys or RTT settings. |
+| Same test, TransportShim.enqueue/pump | Only server-published moving-interior relationships and release tombstones are held/dropped, then returned to the authority RPC | Real loopback ENet, production Main/Halyard and two adapters in one engine. No impairment of helm, boarding, handshake, combat or all session traffic. Stall drops this stream for1.5 simulated seconds; it does not stop host physics. |
+| `tests/network/moving_interior_latency_test.gd` | Caller-supplied100 snapshots, two omitted;100ms±6ms arrivals against20ms jitter/2% loss policy | Data-only validator regression. No socket, Main, body or actual delayed packet. |
+| `tests/network/network_authority_three_process_test.gd` and `network_authority_peer.gd` | Three OS processes,24s harness deadline. Server injects50 command sequence slots with30–50ms waits, omits17, withholds23 then submits it late after100ms | Production command acceptance/order and broad authority lifecycle. The logged100ms RTT/2% loss/20ms jitter label is not a measured whole-ENet link profile: commands in this loop enter the server's command consumer directly. Preserve the test; do not count the label as network shaping. |
+| `tests/network_remote_pilot_helm_test.gd`, default long-stall route | Actual host Main/craft physics stop for600 continuing client steps before roll and before landing; existing2s action deadlines | Independent helm recovery and ownership/clock checks. A simulation stall is separate from stream packet loss and from native hardware performance. Earlier checkpoint results retain their sources; no unchanged parked retry selected. |
+
+The sweep's existing invariants remain fixed: reconstruction≤0.0005m, bounded
+0.25s extrapolation at the authored walking speed,8m teleport threshold, live
+cabin containment, monotonic generation/cursors, fresh reconnect/retirement and
+correct release. Wire acceptance/authority and budget owners remain production
+NetworkEnetSessionAdapter and existing relationship/replica components; the shim
+has no gameplay authority. Profile names are existing regression parameters,
+not a newly declared supported geographical service guarantee.
+
+Existing bounded commands, for a separately selected frozen-source check in a
+private profile (not run by this definition):
+
+```bash
+# Retain the default300s suite cap and network lane; headless/Dummy.
+tools/release/run_test_matrix.sh --godot /tmp/mudds-tools/godot-4.7.1/godot \
+  --audio-driver Dummy --mode headless --jobs 1 \
+  --scope tests/network_moving_interior_latency_test.gd
+
+tools/release/run_test_matrix.sh --godot /tmp/mudds-tools/godot-4.7.1/godot \
+  --audio-driver Dummy --mode headless --jobs 1 \
+  --scope tests/network/network_authority_three_process_test.gd
+```
+
+The physical helm route is classified input-only. Its existing full default
+command must run on private Xvfb with explicit x11/Dummy and input cleanup;
+headless command injection is not a replacement. No host-stall rerun is selected.
+
+Remaining parent acceptance is finite by outcome, not by multiplying these tests:
+
+1. **Dedicated baseline:** retain SERVER-BASELINE and its frozen ordinary crew,
+   flight and recovery contract. Halyard BOARD is parked; moving cabin and
+   authority stop remain gated. This definition does not reopen them.
+2. **Impaired independent session:** server plus two independently scheduled
+   clients must exercise the original100ms RTT/2% loss/jitter/reorder scenario
+   on the actual relevant transport, with measured applied timing/drop/reorder
+   and original authority/lifecycle limits. No existing command above implements
+   that complete route. Reuse the existing process/session owners; select a
+   bounded executable scenario only after its ordinary baseline is available.
+   Do not add a validator or reinterpret direct consumer delays as this delivery.
+3. **Thirty-minute endurance:** original continuous30min, two-client moving
+   interior route, declared profile, zero authority divergence/duplicate seats/
+   unbounded queues/leaks and existing publication budgets. Exact end-to-end
+   driver is still NET-ENDURANCE-DEFINE, gated by the stable baseline. A570-tick
+   sweep or synthetic1800-second clock advance cannot close it.
+
+No new gameplay repair is justified by this source definition. Capacity remains
+an owner decision; native-platform/device/GPU gates keep their existing status.
+Stop here: no additional profile family, schema, acceptance relaxation or run.
+
 ## Immediate post-stall actions checkpoint — 2026-10-08
 
 Checkpoint `d448e3f` fixes the reproduced immediate-action gap in `d49bde8`:

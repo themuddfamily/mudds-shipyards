@@ -35,6 +35,8 @@ func _run() -> void:
 	available.last_status.confirmation = "mutated-after-ingress"
 	var panel := hud.get("_settings_repair_panel") as PanelContainer
 	var title := hud.get("_settings_repair_title") as Label
+	var title_identity: int = title.get_instance_id()
+	_check_status_palette(hud, &"_settings_repair_title", title_identity, &"caution", "backup available")
 	var detail := hud.get("_settings_repair_detail") as Label
 	var button := hud.get("_settings_repair_confirm_button") as Button
 	var settings_page := hud.get("_settings_page") as Control
@@ -102,9 +104,15 @@ func _run() -> void:
 		and not button.visible,
 		"newer authority cannot expose the repair action"
 	)
+	_check_status_palette(hud, &"_settings_repair_title", title_identity, &"danger", "newer data preserved")
+	hud.set_hud_palette(&"deuteranopia")
+	_check_status_palette(hud, &"_settings_repair_title", title_identity, &"danger", "blocked palette repaint")
+	hud.set_high_contrast_hud(true)
+	_check_status_palette(hud, &"_settings_repair_title", title_identity, &"danger", "blocked contrast repaint")
 	_check(root.gui_get_focus_owner() == back,
 		"repair report preserves another Options control's focus")
 	hud.present_runtime_settings_repair_report(available)
+	_check_status_palette(hud, &"_settings_repair_title", title_identity, &"caution", "backup available again")
 	button.grab_focus()
 	_check(root.gui_get_focus_owner() == button,
 		"live repair action owns focus before its failure report")
@@ -119,9 +127,38 @@ func _run() -> void:
 		and not button.visible,
 		"corrupt authority cannot be presented as repaired"
 	)
+	_check_status_palette(hud, &"_settings_repair_title", title_identity, &"danger", "corrupt settings blocked")
 	_check(root.gui_get_focus_owner() == save and save.is_visible_in_tree()
 		and not save.disabled and save.focus_mode != Control.FOCUS_NONE,
 		"repair failure hands disappearing confirmation focus to the live Save action")
+	hud.present_runtime_settings_repair_report(available)
+	button.grab_focus()
+	_check(hud.present_runtime_settings_repair_report({
+		"schema_version": 1,
+		"attached": true,
+		"last_status": {
+			"accepted": false,
+			"reason": &"primary_quarantine_failed",
+			"repair_authority_cleared": true,
+			"repair_retryable": false,
+		},
+	}), "known preservation refusal is presented despite cleared repair authority")
+	_check(
+		panel.visible
+		and title.text == "SETTINGS RECOVERY BLOCKED"
+		and detail.text.contains("damaged save and verified backup were retained")
+		and detail.text.contains("could not safely preserve the damaged copy")
+		and detail.text.contains("replacement was blocked")
+		and not detail.text.contains("primary_quarantine_failed")
+		and not button.visible and button.disabled
+		and not hud.get_runtime_settings_repair_presentation().confirmation_available
+		and save.focus_neighbor_bottom.is_empty()
+		and back.focus_neighbor_top.is_empty()
+		and root.gui_get_focus_owner() == save,
+		"preservation refusal explains the blocked replacement and retires confirmation and focus links"
+	)
+	button.pressed.emit()
+	_check(emitted == [token], "blocked preservation report cannot replay the previous token")
 	_check(hud.present_runtime_settings_repair_report({
 		"schema_version": 1,
 		"attached": true,
@@ -236,3 +273,27 @@ func _check(condition: bool, message: String) -> void:
 	_assertions += 1
 	if not condition:
 		_failures.append(message)
+
+
+func _check_status_palette(
+	hud: GameHUD, field: StringName, identity: int, role: StringName, outcome: String
+) -> void:
+	var label: Label = hud.get(field) as Label
+	var expected: Color = GameHUD.PaletteType.get_role_color(
+		hud.get_hud_palette_id(), role, hud.is_high_contrast_hud()
+	)
+	var entries: int = 0
+	var registered_role: StringName = &""
+	var targets: Array = hud.get("_palette_targets") as Array
+	for entry: Dictionary in targets:
+		if entry.get("kind") == &"theme_color" and entry.get("node") == label \
+				and entry.get("property") == &"font_color":
+			entries += 1
+			registered_role = StringName(entry.get("role", &""))
+	_check(
+		label.get_instance_id() == identity and entries == 1 and registered_role == role
+		and label.modulate == Color.WHITE
+		and label.get_theme_color("font_color") == expected
+		and label.get_theme_color("font_color") * label.modulate == expected,
+		outcome + " retains one current font role and applies its colour once"
+	)

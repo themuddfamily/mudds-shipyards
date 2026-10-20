@@ -1,0 +1,28 @@
+Mudds Shipyards development checkpoint — paused LAN discovery
+Source: 042c701e2c526ebc21b7273b8aa53af07f752d7c
+
+Player-visible change:
+LAN server-browser Refresh now completes while the game is paused. Paused hosts
+continue answering discovery probes. Gameplay remains paused during the search.
+
+Validation:
+The unchanged production code first reproduced the exact paused-refresh failure.
+The fixed source passes27 LAN checks (automatic paused UDP discovery, host row,
+live capacity, join endpoint, frozen gameplay heartbeat, stopped-host refresh,
+cancellation and socket/state cleanup) and7 existing browser integration checks.
+Both clean exports and3strict silent menu startups pass: Linux binary, Linux
+archive, and Windows embedded payload under the supported Linux Godot engine.
+Actual Windows/Linux PCK resources match all1521 entries; stock Windows PE text,
+x86_64 Linux executable and exact archive content/modes/source metadata pass.
+All owned processes have exited. No unexpected test failure or repair occurred.
+
+Scope limits:
+This checkpoint qualifies the focused pause/discovery fix. Full ordinary Main
+server-browser/admission/reconnect, chosen capacity, multiplayer endurance and
+final integrated regression remain OPEN. Native Windows execution, native GPU,
+physical devices, audible listening and human review: NOT_RUN.
+Existing Beacon home and Perimeter Hold candidates remain unmerged/parked.
+No complete new combat/activity journey is claimed by this checkpoint.
+
+Windows: MuddsShipyards-042c701.exe (checkpoint ZIP includes EXE and these notes).
+Linux: MuddsShipyards-042c701.x86_64 and matching linux-x86_64.tar.gz.

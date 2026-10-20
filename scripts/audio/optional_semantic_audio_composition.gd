@@ -12,6 +12,11 @@ const NAVIGATOR_COMPOSITION := preload("res://scripts/audio/cinder_navigator_pin
 var _audio_director: Node
 var _cinder_adapter: Node
 var _final_approach_adapter: Node
+var _local_navigator_composition: Node
+var _local_navigator_claim: Dictionary = {}
+var _client_navigator_composition: Node
+var _client_navigator_context: Dictionary = {}
+var _client_navigator_generation := 0
 var _navigator_composition: Node
 var _cinder_craft: Node
 var _cruise: Node
@@ -70,6 +75,8 @@ func present_cinder_rejected(result: Dictionary) -> Dictionary:
 		return _result(false, &"not_attached")
 	return _cinder_adapter.present_rejected(result)
 
+# Bridge receipts and authorized physical local outcomes have independent
+# owners. Changing the bridge generation must not retire a captured local clear.
 func set_navigator_generation(generation: int) -> Dictionary:
 	if not _attached:
 		return _result(false, &"not_attached")
@@ -92,15 +99,121 @@ func set_navigator_generation(generation: int) -> Dictionary:
 	_navigator_generation = generation
 	return _result(true, &"navigator_bound")
 
+func set_local_navigator_claim(claim: Dictionary) -> Dictionary:
+	if not _attached:
+		return _result(false, &"local_navigator_unavailable")
+	if claim == _local_navigator_claim and _local_navigator_composition != null \
+			and _local_navigator_composition.local_is_attached():
+		return _result(true, &"local_navigator_unchanged")
+	clear_local_navigator()
+	if _local_navigator_composition == null or not is_instance_valid(_local_navigator_composition):
+		_local_navigator_composition = NAVIGATOR_COMPOSITION.new()
+		_local_navigator_composition.name = "CinderSoloNavigatorPingAudioComposition"
+		add_child(_local_navigator_composition)
+	var attached: Dictionary = _local_navigator_composition.attach_local(_audio_director, claim)
+	if bool(attached.get("accepted", false)):
+		_local_navigator_claim = claim.duplicate()
+	return attached
+
+func present_cinder_local_navigator_result(result: Dictionary, claim: Dictionary, sequence: int) -> Dictionary:
+	if not _attached or claim != _local_navigator_claim or _local_navigator_composition == null:
+		return _result(false, &"local_navigator_not_attached")
+	return _local_navigator_composition.present_local_result(result, claim, sequence)
+
+func retire_local_navigator_if_lost() -> void:
+	if _local_navigator_composition != null and is_instance_valid(_local_navigator_composition):
+		_local_navigator_composition.retire_local_if_lost()
+
+func clear_local_navigator() -> void:
+	if _local_navigator_composition != null and is_instance_valid(_local_navigator_composition):
+		_local_navigator_composition.detach()
+	_local_navigator_claim.clear()
+
 func present_cinder_navigator_bridge_result(result: Dictionary) -> Dictionary:
 	if not _attached or _navigator_generation <= 0 \
 			or _navigator_composition == null or not is_instance_valid(_navigator_composition):
 		return _result(false, &"navigator_not_attached")
 	return _navigator_composition.present_bridge_result(result)
 
+## This client source is independent of host generation and local ledger claims.
+## The coordinator supplies an exact live adapter/craft/recipient context.
+func set_client_navigator_context(context: Dictionary) -> void:
+	if context == _client_navigator_context:
+		return
+	clear_client_navigator()
+	if _attached:
+		_client_navigator_context = context.duplicate()
+
+func present_cinder_client_navigator_command(command: Dictionary, context: Dictionary) -> Dictionary:
+	if not _attached or context.is_empty() or context != _client_navigator_context:
+		return _result(false, &"client_navigator_context_mismatch")
+	var captured_context := context.duplicate()
+	var action := StringName(command.get("action", &""))
+	if action != &"passenger_ping" and action != &"passenger_ping_clear":
+		return _result(false, &"unsupported_client_command")
+	var generation := int(command.get("ship_generation", 0))
+	if _client_navigator_generation == 0:
+		# Unknown clears cannot establish a source or manufacture acceptance.
+		if action != &"passenger_ping" or generation <= 0:
+			return _result(false, &"client_navigator_no_active_receipt")
+		if _client_navigator_composition == null or not is_instance_valid(_client_navigator_composition):
+			_client_navigator_composition = NAVIGATOR_COMPOSITION.new()
+			_client_navigator_composition.name = "CinderClientNavigatorPingAudioComposition"
+			add_child(_client_navigator_composition)
+		var attached: Dictionary = _client_navigator_composition.attach(_audio_director, generation)
+		if not bool(attached.get("accepted", false)):
+			return attached
+		var source: Node = _client_navigator_composition
+		var presented: Dictionary = source.present_receipt(command)
+		if not bool(presented.get("accepted", false)):
+			source.detach()
+			return presented
+		if not _attached or captured_context != _client_navigator_context or source != _client_navigator_composition or not source._attached:
+			return _result(false, &"client_navigator_retired_during_dispatch")
+		_client_navigator_generation = generation
+		return presented
+	if generation != _client_navigator_generation:
+		if generation < _client_navigator_generation or action != &"passenger_ping":
+			return _result(false, &"client_navigator_ship_generation_mismatch")
+		# A newer actual accepted publication may replace a bridge owner on the
+		# same craft instance. Validate it through the existing binding before
+		# retiring the old source; malformed data and unknown clears cannot do so.
+		var previous_source: Node = _client_navigator_composition
+		var replacement: Node = NAVIGATOR_COMPOSITION.new()
+		add_child(replacement)
+		var attached: Dictionary = replacement.attach(_audio_director, generation)
+		if not bool(attached.get("accepted", false)):
+			replacement.queue_free()
+			return attached
+		var presented: Dictionary = replacement.present_receipt(command)
+		if not bool(presented.get("accepted", false)):
+			replacement.detach()
+			replacement.queue_free()
+			return presented
+		if not _attached or captured_context != _client_navigator_context or previous_source != _client_navigator_composition:
+			replacement.detach()
+			replacement.queue_free()
+			return _result(false, &"client_navigator_retired_during_dispatch")
+		previous_source.detach()
+		previous_source.queue_free()
+		_client_navigator_composition = replacement
+		_client_navigator_generation = generation
+		return presented
+	if action == &"passenger_ping_clear":
+		return _client_navigator_composition.present_receipt_clear(command)
+	return _client_navigator_composition.present_receipt(command)
+
+func clear_client_navigator() -> void:
+	if _client_navigator_composition != null and is_instance_valid(_client_navigator_composition):
+		_client_navigator_composition.detach()
+	_client_navigator_context.clear()
+	_client_navigator_generation = 0
+
 func detach() -> Dictionary:
+	clear_client_navigator()
 	if not _attached:
 		return _result(true, &"already_detached")
+	clear_local_navigator()
 	_unbind(&"crew", _cinder_adapter)
 	_unbind(&"planetary", _final_approach_adapter)
 	if _navigator_composition != null and is_instance_valid(_navigator_composition):
@@ -121,6 +234,13 @@ func get_snapshot() -> Dictionary:
 		"attached": _attached,
 		"cinder": _cinder_adapter.get_snapshot() if _cinder_adapter != null else {"attached": false},
 		"final_approach": _final_approach_adapter.get_snapshot() if _final_approach_adapter != null else {"attached": false},
+		"local_navigator": {
+			"attached": _attached and _local_navigator_composition != null and _local_navigator_composition.local_is_attached(),
+		},
+		"client_navigator": {
+			"attached": _attached and _client_navigator_generation > 0,
+			"generation": _client_navigator_generation,
+		},
 		"navigator": {
 			"attached": _attached and _navigator_generation > 0,
 			"generation": _navigator_generation,

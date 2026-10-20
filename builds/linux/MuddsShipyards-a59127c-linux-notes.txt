@@ -1,0 +1,22 @@
+Mudds Shipyards development checkpoint a59127c
+Source commit: a59127cc8614fca2f56343720764f9c104253bca
+
+Player-visible change
+- The physical Station Defense board now advertises ordinary E interaction: Deploy when idle, status while active, and Reset after a terminal run. Active E does not abort or restart the encounter.
+- An unpaid report offers settlement retry before Reset; retry, Reset and the next Deploy require separate presses. Refused save sessions remain protected.
+- The existing Nearby menu start/reset/recover APIs and actual combat,34-second immediate-start timer, four-actor1/2/1 waves, range and reward owners retain their contracts.
+
+Validation performed
+- Clean source import PASS.
+- Existing full Station Defense production-placement suite62 assertions PASS, including actual resolver/roster and genuine real-file unpaid/cold recovery/debt/refusal selection. It uses disclosed scripted combat/lull fixtures, not ordinary full play.
+- New actual Main interaction suite15 assertions PASS: real overlapping Area3D/facing/ordinary Player E input, actual3D range refusal, competing Heavy board/armed-sortie fence, Deploy, active status-only, terminal Reset and next Deploy, refused session protection. Avatar poses, owner-abort terminal and refusal flag are disclosed fixtures; no victory or reward is manufactured.
+- Clean Windows/Linux exports PASS; Linux direct/archive strict startups PASS, each exit0 plus exactly one STARTUP_MENU_READY_OK.
+- Windows embedded payload through supported Linux engine PASS: exit0 plus exactly one STARTUP_MENU_READY_OK. Native Windows was not run.
+- Actual Windows/Linux PCK inventories match all1521 entries; stockPE.text and exact Linux archive binary/icon/installer bytes, modes, source epoch and metadata verified.
+- All9 accepted stages PASS, zero diagnostics;318.385s combined. Original placement parse failure16.381s retained; one explicitint declaration correction, expression/assertions/production unchanged. Accepted plus failed stages334.765s; import scope retained on identical production/classes. Original07:58–08:58UTC/60min and command caps retained. Driver work stopped during source preflight before edits/engines when missing physical interface was found; no knowingly failing route was run.
+
+Open qualification
+- Full PLAY-DEFENSE ordinary walk/board/depart, real player-weapon three-wave clear/payment, safe home and physical reset remains NOT_RUN. No ordinary-route driver is included or full parent closed by this entry fix.
+- Physical keyboard/controller feel and rendered/human presentation remain open.
+- Native Windows execution NOT_RUN (owner hold retained). Native GPU/performance, physical devices, real audio/listening, human/full-release and final candidate gates NOT_RUN/open.
+- Full unfiltered final regression and final-package Guided NOT_RUN; earlier Guided3/3 remains scoped to3d92b91. Parked Wing/Perimeter/Breach/Tooltip routes are not adopted or qualified.

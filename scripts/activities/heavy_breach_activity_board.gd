@@ -10,10 +10,11 @@ extends Area3D
 ##
 ## The board posts one contract at a time and rotates to the next after every
 ## sortie it launched concludes: Heavy Breach (break the charged picket), then
-## Torpedo Run (kill a torpedo boat whose seekers can be dodged or shot down).
-## Both pay through the same generation-fenced reward handoff, once per cleared
+## Torpedo Run (kill its seeker boat), Paired Wing (solo combat), then
+## Perimeter Hold (defend a real core for 90 seconds). Only the first two
+## pay through the generation-fenced reward handoff, once per cleared
 ## earned completion; reward generations survive fresh load independently of
-## director actor epochs. Each contract files its own reward id.
+## director actor epochs. Each paid contract files its own reward id.
 
 signal interaction_resolved(actor: Node, result: Dictionary)
 signal snapshot_changed(snapshot: Dictionary)
@@ -45,15 +46,20 @@ const BOARD_VOICE_POSITION := Vector3(0.0, 1.5, 0.6)
 const OFFERED_SCENARIOS: Array[StringName] = [
 	EncounterScenarioDirector.SCENARIO_HEAVY_BREACH,
 	EncounterScenarioDirector.SCENARIO_TORPEDO_RUN,
+	EncounterScenarioDirector.SCENARIO_PAIRED_WING,
+	EncounterScenarioDirector.SCENARIO_PERIMETER_HOLD,
 ]
 const SCENARIO_TITLES := {
 	EncounterScenarioDirector.SCENARIO_HEAVY_BREACH: "HEAVY BREACH",
 	EncounterScenarioDirector.SCENARIO_TORPEDO_RUN: "TORPEDO RUN",
+	EncounterScenarioDirector.SCENARIO_PAIRED_WING: "PAIRED WING",
+	EncounterScenarioDirector.SCENARIO_PERIMETER_HOLD: "PERIMETER HOLD",
 }
 const LABEL_BASE_TEXT := "HEAVY BREACH\nACTIVITY BOARD"
 
 var _director: EncounterScenarioDirector
 var _combat_authority: LiveCombatAuthority
+var _perimeter_asset: StationDefensePerimeterAsset
 var _protected_objective: Node3D
 var _reward_adapter: RefCounted
 var _last_reward_result: Dictionary = {}
@@ -199,7 +205,8 @@ func _on_audio_interaction_resolved(_actor: Node, result: Dictionary) -> void:
 func configure_external_owners(
 		protected_objective: Node3D,
 		director: EncounterScenarioDirector,
-		combat_authority: LiveCombatAuthority
+		combat_authority: LiveCombatAuthority,
+		perimeter_asset: StationDefensePerimeterAsset = null
 	) -> Dictionary:
 	if not is_inside_tree() or is_queued_for_deletion():
 		return _result(false, &"board_unavailable")
@@ -217,6 +224,7 @@ func configure_external_owners(
 	_director = director
 	_combat_authority = combat_authority
 	_protected_objective = protected_objective
+	_perimeter_asset = perimeter_asset
 	if not _director.scenario_concluded.is_connected(_on_scenario_concluded):
 		_director.scenario_concluded.connect(_on_scenario_concluded)
 	return _result(true, &"configured")
@@ -263,14 +271,14 @@ static func validate_session_record(record: Variant) -> bool:
 	if session.size() != 4 or str(session.get("component_id", "")) != str(COMPONENT_ID) \
 			or not _valid_generation(session.get("generation_floor")) \
 			or not _valid_generation(session.get("offered_index")) \
-			or int(session.offered_index) not in [0, 1] or not session.get("completion") is Dictionary:
+			or int(session.offered_index) not in [0, 1, 2, 3] or not session.get("completion") is Dictionary:
 		return false
 	var completion: Dictionary = session.completion
 	if completion.is_empty():
 		return true
 	var scenario := StringName(completion.get("scenario", ""))
 	var activity := ACTIVITY_ID if scenario == EncounterScenarioDirector.SCENARIO_HEAVY_BREACH else TORPEDO_RUN_ACTIVITY_ID
-	return completion.size() == 7 and OFFERED_SCENARIOS.has(scenario) \
+	return completion.size() == 7 and scenario in [EncounterScenarioDirector.SCENARIO_HEAVY_BREACH, EncounterScenarioDirector.SCENARIO_TORPEDO_RUN] \
 		and str(completion.get("activity_id", "")) == str(activity) \
 		and str(completion.get("state_id", "")) == "concluded" and str(completion.get("outcome", "")) == "cleared" \
 		and _valid_generation(completion.get("generation")) and int(completion.generation) > 0 \
@@ -378,6 +386,8 @@ func get_interaction_prompt() -> String:
 		return "[ E ]  %s ACTIVE" % _scenario_title(_director.get_active_scenario())
 	if _sortie_armed:
 		return "[ E ]  CANCEL %s SORTIE" % _scenario_title(get_offered_scenario())
+	if get_offered_scenario() == EncounterScenarioDirector.SCENARIO_PAIRED_WING:
+		return "SOLO ONLY — PAIRED WING UNAVAILABLE" if not _director.is_paired_wing_solo_available() else "[ E ]  ARM PAIRED WING SORTIE — NO CREDIT REWARD"
 	return "[ E ]  ARM %s SORTIE" % _scenario_title(get_offered_scenario())
 
 
@@ -451,6 +461,10 @@ func arm_sortie(actor: Node, expected_generation: int = 0) -> Dictionary:
 		}.duplicate(true)
 		interaction_resolved.emit(actor, _last_result.duplicate(true))
 		return _last_result.duplicate(true)
+	if get_offered_scenario() == EncounterScenarioDirector.SCENARIO_PAIRED_WING and not _director.is_paired_wing_solo_available():
+		_last_result = _result(false, &"paired_wing_solo_only")
+		interaction_resolved.emit(actor, _last_result.duplicate(true))
+		return _last_result.duplicate(true)
 	_sortie_generation += 1
 	_sortie_armed = true
 	_armed_actor_instance_id = actor.get_instance_id()
@@ -503,6 +517,19 @@ func launch_armed_sortie(target: Node3D, expected_sortie_generation: int) -> Dic
 	interaction_resolved.emit(target, _last_result.duplicate(true))
 	snapshot_changed.emit(get_snapshot())
 	return _last_result.duplicate(true)
+
+
+## Session ownership transition invalidates a retained solo admission even
+## when the avatar is away from the board. It grants no launch or reward.
+func cancel_solo_wing_for_network() -> void:
+	if get_offered_scenario() != EncounterScenarioDirector.SCENARIO_PAIRED_WING \
+			or not _sortie_armed or not is_instance_valid(_director) \
+			or _director.is_paired_wing_solo_available():
+		return
+	_sortie_armed = false
+	_sortie_generation += 1
+	_armed_actor_instance_id = 0
+	snapshot_changed.emit(get_snapshot())
 
 
 func interact(actor: Node = null, expected_generation: int = 0) -> bool:
@@ -647,6 +674,7 @@ func _on_scenario_concluded(scenario_id: StringName, outcome: StringName) -> voi
 		_audio_binding.present_terminal(scenario_id, outcome, _active_director_generation)
 	_offered_index = posmod(_offered_index + 1, OFFERED_SCENARIOS.size())
 	if outcome == EncounterScenarioDirector.OUTCOME_CLEARED \
+			and scenario_id in [EncounterScenarioDirector.SCENARIO_HEAVY_BREACH, EncounterScenarioDirector.SCENARIO_TORPEDO_RUN] \
 			and _reward_adapter != null and generation > _highest_reward_generation:
 		var request := {
 			"activity_id": _reward_activity_id(scenario_id),
@@ -722,6 +750,15 @@ func _board_scenario_is_running() -> bool:
 
 func _begin_offered_scenario(target: Node3D) -> bool:
 	match get_offered_scenario():
+		EncounterScenarioDirector.SCENARIO_PAIRED_WING:
+			return _director.begin_board_paired_wing(target)
+		EncounterScenarioDirector.SCENARIO_PERIMETER_HOLD:
+			if not is_instance_valid(_perimeter_asset):
+				return false
+			var renewed := _perimeter_asset.renew(_perimeter_asset.handle_generation)
+			if not bool(renewed.get("accepted", false)):
+				return false
+			return _director.begin_perimeter_hold(target, _perimeter_asset)
 		EncounterScenarioDirector.SCENARIO_TORPEDO_RUN:
 			return _director.begin_torpedo_run(target)
 		_:
@@ -731,10 +768,14 @@ func _begin_offered_scenario(target: Node3D) -> bool:
 func _reward_activity_id(scenario_id: StringName) -> StringName:
 	if scenario_id == EncounterScenarioDirector.SCENARIO_TORPEDO_RUN:
 		return TORPEDO_RUN_ACTIVITY_ID
-	return ACTIVITY_ID
+	return ACTIVITY_ID if scenario_id == EncounterScenarioDirector.SCENARIO_HEAVY_BREACH else &""
 
 
 func _started_reason(scenario_id: StringName) -> StringName:
+	if scenario_id == EncounterScenarioDirector.SCENARIO_PAIRED_WING:
+		return &"paired_wing_started"
+	if scenario_id == EncounterScenarioDirector.SCENARIO_PERIMETER_HOLD:
+		return &"perimeter_hold_started"
 	if scenario_id == EncounterScenarioDirector.SCENARIO_TORPEDO_RUN:
 		return &"torpedo_run_started"
 	return &"heavy_breach_started"
@@ -759,6 +800,9 @@ func _refresh_board_label() -> void:
 	var offered := get_offered_scenario()
 	label.text = LABEL_BASE_TEXT if offered == EncounterScenarioDirector.SCENARIO_HEAVY_BREACH \
 		else "%s\nPOSTED: %s" % [LABEL_BASE_TEXT, _scenario_title(offered)]
+
+	if offered == EncounterScenarioDirector.SCENARIO_PAIRED_WING:
+		label.text += "\nSOLO — NO CREDIT REWARD"
 
 
 func _build_physical_board() -> void:

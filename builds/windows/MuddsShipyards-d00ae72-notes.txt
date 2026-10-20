@@ -1,0 +1,22 @@
+Mudds Shipyards development checkpoint d00ae72
+Source commit: d00ae72254545308978bb33d101ccd935f9b2fd0
+
+Player-visible change
+- Shared menu buttons keep readable light text while hovered or pressed, including accessibility palettes and high-contrast mode. Role-tinted fills are darker and hover/pressed text follows the active palette.
+- Resume, Settings, Restart, Exit, Back and other existing shared menu consumers receive the correction. Existing normal paints, focus outlines, layout and actions remain; Help CLOSE retains its accepted local paints.
+
+Validation performed
+- Clean source import PASS.
+- Existing accessibility suite443 checks PASS, including160 actual production menu-button paint pairs across5 role buttons x4 states x4 palettes x2 contrast modes; minimum regular8.359:1/high-contrast8.359:1 clears existing4.5/7 floors. Paint restoration, focus/outline/geometry/navigation and actual Help/title regressions pass.
+- Existing Help20 assertions and controller/pause navigation suite PASS.
+- Clean Windows/Linux exports PASS; Linux direct/archive strict startups PASS, exit0 plus exactly one STARTUP_MENU_READY_OK each.
+- Windows embedded payload through supported Linux engine PASS: exit0 plus exactly one STARTUP_MENU_READY_OK. Native Windows was not run.
+- Actual Windows/Linux PCK inventories match all1521 entries; stockPE.text and exact Linux archive binary/icon/installer bytes, modes, source epoch and metadata verified.
+- All10 frozen stages PASS first attempt, zero diagnostics;167.942s combined. Original caps/budget retained.
+
+Open qualification
+- Theme-paint checks cover the named states and representative real consumers of every existing menu role; they do not establish every menu journey, disabled-state design or whole-game accessibility.
+- Headless measurements do not establish rendered/human readability or physical keyboard/controller feel.
+- Native Windows execution NOT_RUN (owner hold retained). Native GPU/performance, physical devices, real audio/listening, human/full-release and final candidate gates NOT_RUN/open.
+- Full unfiltered final regression and final-package Guided NOT_RUN; earlier Guided3/3 remains scoped to3d92b91.
+- Parked ordinary Wing driver remains unmerged/unqualified; this retains accepted Wing admission without claiming full kills/home.

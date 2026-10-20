@@ -15,6 +15,7 @@ var _attached := false
 var _generation := 0
 var _last_activity_generation := -1
 var _last_snapshot: Dictionary = {}
+var _base_phase: StringName = &"station"
 
 
 func configure(bed: StationMusicBed) -> Dictionary:
@@ -23,6 +24,7 @@ func configure(bed: StationMusicBed) -> Dictionary:
 	if _bed != null:
 		return _result(false, &"already_configured")
 	_bed = bed
+	_base_phase = bed.get_presentation_state()
 	return _result(true, &"configured")
 
 
@@ -45,11 +47,18 @@ func present_activity_snapshot(snapshot: Dictionary) -> Dictionary:
 	if not bool(decoded.get("accepted", false)):
 		return _result(false, StringName(decoded.get("reason", &"invalid_snapshot")))
 	var generation := int(decoded.generation)
-	if generation <= _last_activity_generation:
+	if generation < _last_activity_generation:
 		return _result(false, &"stale_activity_generation")
-	var accepted := _bed.notify_activity_state(decoded.activity_kind, decoded.activity_state)
-	if not accepted:
-		return _result(false, &"music_state_rejected")
+	if generation == _last_activity_generation:
+		var previous_state := StringName(_last_snapshot.get("activity_state", &"idle"))
+		# Generation identifies a run, not every observation within it. Permit
+		# forward completion/clear facts without reopening a terminal run.
+		if decoded.activity_kind != _last_snapshot.get("activity_kind") \
+				or decoded.activity_state == previous_state \
+				or decoded.activity_state == &"active" \
+				or previous_state == &"idle" \
+				or (previous_state == &"reset" and decoded.activity_state != &"idle"):
+			return _result(false, &"stale_activity_generation")
 	_last_activity_generation = generation
 	# Retain only the validated routing tuple. Activity snapshots may carry
 	# caller-owned payloads (including decoded audio resources); none of those
@@ -60,7 +69,48 @@ func present_activity_snapshot(snapshot: Dictionary) -> Dictionary:
 		"activity_kind": decoded.activity_kind,
 		"activity_state": decoded.activity_state,
 	}
+	# Retain current facts even when a higher-priority phase suppresses their
+	# music. Releasing that phase resumes the current fact, not an older cue.
+	if not _present_current_activity():
+		return _result(false, &"music_state_rejected")
 	return _result(true, &"activity_music_presented")
+
+
+## GameFlow owns the base phase; this bridge only overlays its current activity.
+## Restating an unchanged frame must not alternate base/activity observations,
+## retrigger semantic cues, or restart the resident loops.
+func present_base_phase(phase: StringName) -> Dictionary:
+	if not _attached or _bed == null:
+		return _result(false, &"not_attached")
+	var state := StringName(_last_snapshot.get("activity_state", &"idle"))
+	var desired := phase
+	if phase not in [&"combat", &"landing"]:
+		if state == &"active":
+			desired = &"activity_active"
+		elif state == &"complete":
+			desired = &"activity_complete"
+	if phase == _base_phase and _bed.get_presentation_state() == desired:
+		return _result(true, &"music_phase_unchanged")
+	if not _bed.notify_music_phase(phase):
+		return _result(false, &"music_state_rejected")
+	_base_phase = phase
+	if phase not in [&"combat", &"landing"] and not _present_current_activity():
+		return _result(false, &"music_state_rejected")
+	return _result(true, &"music_phase_presented")
+
+
+func _present_current_activity() -> bool:
+	if _last_snapshot.is_empty():
+		return true
+	if _bed.get_presentation_state() in [&"combat", &"landing"]:
+		return false
+	var state := StringName(_last_snapshot.get("activity_state", &"idle"))
+	if state in [&"reset", &"idle"]:
+		return _bed.get_presentation_state() == _base_phase \
+			or _bed.notify_music_phase(_base_phase)
+	var desired: StringName = &"activity_complete" if state == &"complete" else &"activity_active"
+	return _bed.get_presentation_state() == desired \
+		or _bed.notify_activity_state(StringName(_last_snapshot.activity_kind), state)
 
 
 func detach() -> Dictionary:
@@ -70,8 +120,14 @@ func detach() -> Dictionary:
 	_generation += 1
 	_last_activity_generation = -1
 	_last_snapshot.clear()
+	if _bed.get_presentation_state() in [&"activity_active", &"activity_complete"]:
+		_bed.notify_music_phase(_base_phase)
 	_bed.set_bed_enabled(false)
 	return _result(true, &"detached")
+
+
+func is_attached() -> bool:
+	return _attached
 
 
 func get_snapshot() -> Dictionary:

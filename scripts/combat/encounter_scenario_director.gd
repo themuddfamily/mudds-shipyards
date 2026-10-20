@@ -88,14 +88,16 @@ const SCENARIO_HEAVY_BREACH: StringName = &"heavy_breach"
 ## telegraphed seeker torpedoes that can be dodged or shot down. The boat is the
 ## objective.
 const SCENARIO_TORPEDO_RUN: StringName = &"torpedo_run"
+const SCENARIO_PERIMETER_HOLD: StringName = &"perimeter_hold"
+const ScenarioCatalog := preload("res://scripts/combat/combat_scenario_catalog.gd")
 const SCENARIO_IDS: Array[StringName] = [
 	SCENARIO_COURIER_INTERCEPT, SCENARIO_PAIRED_WING, SCENARIO_STATION_DEFENSE,
 	SCENARIO_CONVOY_INTERDICTION, SCENARIO_HEAVY_STANDOFF, SCENARIO_WING_REGROUP,
-	SCENARIO_HEAVY_BREACH, SCENARIO_TORPEDO_RUN,
+	SCENARIO_HEAVY_BREACH, SCENARIO_TORPEDO_RUN, SCENARIO_PERIMETER_HOLD,
 ]
 ## Scenarios a physical station board arms before launch. They are authorized in
 ## sandbox FREE_FLIGHT for the sortie the board admitted, and only then.
-const BOARD_SCENARIO_IDS: Array[StringName] = [SCENARIO_HEAVY_BREACH, SCENARIO_TORPEDO_RUN]
+const BOARD_SCENARIO_IDS: Array[StringName] = [SCENARIO_HEAVY_BREACH, SCENARIO_TORPEDO_RUN, SCENARIO_PAIRED_WING, SCENARIO_PERIMETER_HOLD]
 ## Where the torpedo boat enters relative to the caller: ahead, high and wide,
 ## already at the edge of its stand-off band so the first lock reads at once.
 const TORPEDO_RUN_ENTRY_DISTANCE := 170.0
@@ -107,6 +109,7 @@ const STATE_ARMING: StringName = &"arming"
 const STATE_RUNNING: StringName = &"running"
 const STATE_CONCLUDED: StringName = &"concluded"
 
+const OUTCOME_LOST: StringName = &"lost"
 const OUTCOME_PENDING: StringName = &"pending"
 ## The player met the objective.
 const OUTCOME_CLEARED: StringName = &"cleared"
@@ -121,7 +124,7 @@ const OUTCOME_ABORTED: StringName = &"aborted"
 ## The unconditional time backstop.
 const OUTCOME_EXPIRED: StringName = &"expired"
 const TERMINAL_OUTCOMES: Array[StringName] = [
-	OUTCOME_CLEARED, OUTCOME_ESCAPED, OUTCOME_WITHDRAWN, OUTCOME_ABORTED, OUTCOME_EXPIRED,
+	OUTCOME_CLEARED, OUTCOME_ESCAPED, OUTCOME_WITHDRAWN, OUTCOME_ABORTED, OUTCOME_EXPIRED, OUTCOME_LOST,
 ]
 const TACTIC_SUPPRESS: StringName = &"suppress"
 const TACTIC_FLANK_UNDER_COVER: StringName = &"flank_under_cover"
@@ -201,6 +204,13 @@ const CONTENT_NOTE := (
 @export var breach_picket_path := NodePath("../StandoffPicket")
 @export var torpedo_boat_path := NodePath("../TorpedoBoat")
 
+@export var perimeter_picket_path := NodePath("../PerimeterPicket")
+@export var perimeter_scatter_path := NodePath("../PerimeterScatter")
+@export var perimeter_press_path := NodePath("../PerimeterPress")
+
+var _perimeter_catalog := ScenarioCatalog.new()
+var _perimeter_asset: Node3D
+var _perimeter_health_ratio := -1.0
 var _state: StringName = STATE_IDLE
 var _scenario: StringName = SCENARIO_NONE
 var _outcome: StringName = OUTCOME_PENDING
@@ -244,6 +254,8 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
+	if _state == STATE_RUNNING and _scenario == SCENARIO_PERIMETER_HOLD:
+		_conclude(OUTCOME_WITHDRAWN)
 	_heavy_breach_audio_binding.detach()
 
 
@@ -443,6 +455,9 @@ func is_fire_authorized(member: Node) -> bool:
 		and coordinator.is_member_disengaging(member as Node3D)
 	):
 		return false
+	if _scenario == SCENARIO_PERIMETER_HOLD:
+		return _is_target_alive() and _measured_perimeter_health_ratio(_perimeter_asset) > float(_perimeter_catalog.get_scenario(SCENARIO_PERIMETER_HOLD).protected_health_floor) \
+			and _is_participant_active(member as Node3D)
 	if _scenario == SCENARIO_STATION_DEFENSE:
 		if not _is_protected_anchor_alive():
 			return false
@@ -481,7 +496,7 @@ func is_fire_authorized(member: Node) -> bool:
 func is_picket_dispatch_authorized(member: Node, expected_generation: int) -> bool:
 	return (
 		expected_generation == _scenario_generation
-		and _scenario == SCENARIO_HEAVY_BREACH
+		and _scenario in [SCENARIO_HEAVY_BREACH, SCENARIO_PERIMETER_HOLD]
 		and member == _breach_picket
 		and is_fire_authorized(member)
 	)
@@ -605,6 +620,52 @@ func begin_torpedo_run(target: Node3D) -> bool:
 		DEFAULT_REGROUP_HEALTH_RATIO,
 		true,
 	)
+
+
+## The existing pair is admitted explicitly by the deck board in solo flight.
+## Automatic guided cycling keeps its existing phase contract.
+func begin_board_paired_wing(target: Node3D) -> bool:
+	var host := get_node_or_null(encounter_host_path)
+	if host is GameFlow and not (host as GameFlow).is_paired_wing_launch_authorized(target):
+		return false
+	if _get_skirmishers().size() != 2 or not is_instance_valid(_get_wing_coordinator()):
+		return false
+	return _begin_scenario(SCENARIO_PAIRED_WING, target, null, null,
+		DEFAULT_HEAVY_STANDOFF_RANGE, DEFAULT_HEAVY_ADVANCE_HEALTH_RATIO,
+		DEFAULT_REGROUP_RANGE, DEFAULT_REGROUP_HEALTH_RATIO, true)
+
+
+## A physical board supplies the dedicated renewable asset. Admission requires
+## an actual measurable Damageable; a marker can never stand in for integrity.
+func begin_perimeter_hold(target: Node3D, asset: Node3D) -> bool:
+	if _measured_perimeter_health_ratio(asset) <= float(_perimeter_catalog.get_scenario(SCENARIO_PERIMETER_HOLD).protected_health_floor):
+		return false
+	for path in [perimeter_picket_path, perimeter_scatter_path, perimeter_press_path]:
+		if not is_instance_valid(get_node_or_null(path)):
+			return false
+	return _begin_scenario(SCENARIO_PERIMETER_HOLD, target, asset, null,
+		DEFAULT_HEAVY_STANDOFF_RANGE, DEFAULT_HEAVY_ADVANCE_HEALTH_RATIO,
+		DEFAULT_REGROUP_RANGE, DEFAULT_REGROUP_HEALTH_RATIO, true)
+
+
+func _measured_perimeter_health_ratio(asset: Node3D) -> float:
+	if not _is_live_anchor(asset) or not asset.has_method(&"get_damageable_component"):
+		return -1.0
+	var damageable := asset.call(&"get_damageable_component") as Damageable
+	if not is_instance_valid(damageable) or not damageable.is_inside_tree():
+		return -1.0
+	var maximum := damageable.get_maximum_health()
+	var health := damageable.get_health()
+	if not is_finite(maximum) or maximum <= 0.0 or not is_finite(health):
+		return -1.0
+	return clampf(health / maximum, 0.0, 1.0)
+
+
+func is_paired_wing_solo_available() -> bool:
+	var host := get_node_or_null(encounter_host_path)
+	if host is GameFlow:
+		return (host as GameFlow).is_paired_wing_solo_available()
+	return true
 
 
 ## A client retains its solo Torpedo Run for disconnect recovery. Its timer
@@ -739,6 +800,8 @@ func _begin_scenario(
 	# diagnostic: `get_validation_errors()` already names an unrecognised entry
 	# in the authored roster, and the frozen matrix treats stray warnings in a
 	# suite log as failures.
+	if scenario_id == SCENARIO_PAIRED_WING and not is_paired_wing_solo_available():
+		return false
 	if not SCENARIO_IDS.has(scenario_id):
 		return false
 	if _state == STATE_RUNNING:
@@ -759,10 +822,16 @@ func _begin_scenario(
 			or not is_instance_valid(_get_breach_picket())
 			or _get_skirmishers().is_empty()):
 		return false
+	if scenario_id == SCENARIO_PERIMETER_HOLD:
+		var host := get_node_or_null(encounter_host_path)
+		if host is GameFlow and not bool(host.call(&"is_perimeter_hold_solo_authorized")):
+			return false
+		if _measured_perimeter_health_ratio(protected_anchor) <= float(_perimeter_catalog.get_scenario(SCENARIO_PERIMETER_HOLD).protected_health_floor):
+			return false
 	if scenario_id == SCENARIO_TORPEDO_RUN and not is_instance_valid(_get_torpedo_boat()):
 		return false
 	_reset_run_state()
-	_board_sortie = board_sortie or scenario_id == SCENARIO_HEAVY_BREACH
+	_board_sortie = board_sortie or scenario_id in [SCENARIO_HEAVY_BREACH, SCENARIO_PERIMETER_HOLD]
 	_torpedo_boat = _get_torpedo_boat() if scenario_id == SCENARIO_TORPEDO_RUN else null
 	_protected_anchor = protected_anchor if scenario_id == SCENARIO_STATION_DEFENSE else null
 	if scenario_id == SCENARIO_CONVOY_INTERDICTION:
@@ -774,6 +843,11 @@ func _begin_scenario(
 	else:
 		_cargo_target = null
 		_breach_picket = null
+	if scenario_id == SCENARIO_PERIMETER_HOLD:
+		_perimeter_asset = protected_anchor
+		_protected_anchor = protected_anchor
+		_perimeter_health_ratio = _measured_perimeter_health_ratio(protected_anchor)
+		_breach_picket = get_node_or_null(perimeter_picket_path) as Node3D
 	if scenario_id == SCENARIO_HEAVY_STANDOFF:
 		_heavy_standoff_range = heavy_standoff_range
 		_heavy_advance_health_ratio = heavy_advance_health_ratio
@@ -810,11 +884,15 @@ func _begin_scenario(
 			_launch_heavy_breach()
 		SCENARIO_TORPEDO_RUN:
 			_launch_torpedo_run()
+		SCENARIO_PERIMETER_HOLD:
+			_launch_perimeter_hold()
 	if scenario_id == SCENARIO_HEAVY_STANDOFF:
 		_update_heavy_posture()
 	if scenario_id == SCENARIO_WING_REGROUP:
 		_update_regroup_posture()
-	if _roster.is_empty():
+	if _state != STATE_RUNNING:
+		return false
+	if _roster.is_empty() or (scenario_id == SCENARIO_PERIMETER_HOLD and _roster.size() != 3):
 		# Nothing could be staged. Terminating immediately is the only honest
 		# result; leaving the director RUNNING with an empty roster is precisely
 		# the non-terminating state this component exists to make impossible.
@@ -886,6 +964,24 @@ func _is_current() -> bool:
 # ---------------------------------------------------------- termination ----
 
 func _evaluate_termination(delta: float) -> StringName:
+	# Hold's exact health/time precedence is catalog-owned. Supply measured
+	# state explicitly; never accept the catalog's optional healthy default.
+	if _scenario == SCENARIO_PERIMETER_HOLD:
+		_perimeter_health_ratio = _measured_perimeter_health_ratio(_perimeter_asset)
+		if _is_player_disengaged():
+			_disengaged_elapsed += delta
+		else:
+			_disengaged_elapsed = 0.0
+		if _perimeter_health_ratio < 0.0:
+			return OUTCOME_LOST if _is_target_alive() else OUTCOME_ABORTED
+		var evaluated := _perimeter_catalog.evaluate(SCENARIO_PERIMETER_HOLD, {
+			"player_alive": _is_target_alive(),
+			"phase_authorized": _is_phase_authorized(),
+			"disengaged": _disengaged_elapsed >= disengage_grace,
+			"protected_health_ratio": _perimeter_health_ratio,
+			"elapsed_seconds": _elapsed,
+		})
+		return StringName(evaluated.get("outcome", OUTCOME_ABORTED))
 	# 1. The player is gone.
 	if not _is_target_alive():
 		return OUTCOME_ABORTED
@@ -908,6 +1004,18 @@ func _evaluate_termination(delta: float) -> StringName:
 			return OUTCOME_ABORTED
 		if not _is_torpedo_boat_destroyed() and not _is_participant_active(_torpedo_boat):
 			return OUTCOME_ABORTED
+	if _scenario == SCENARIO_PAIRED_WING and _board_sortie:
+		# A board contract promises both kills. Healthy retirement or actor loss
+		# is an interrupted encounter, never a cleared objective.
+		if _roster.size() != 2:
+			return OUTCOME_ABORTED
+		for member in _roster:
+			if not is_instance_valid(member) or not member.is_inside_tree() \
+					or member.is_queued_for_deletion():
+				return OUTCOME_ABORTED
+			if not _is_participant_active(member) and (not member.has_method(&"get_health") \
+					or float(member.call(&"get_health")) > 0.0):
+				return OUTCOME_ABORTED
 	# 2. The host left the authorized phase.
 	if not _is_phase_authorized():
 		return OUTCOME_WITHDRAWN
@@ -1058,7 +1166,37 @@ func _protected_objective_health_ratio() -> float:
 	return clampf(float(_protected_anchor.call(&"get_health")) / maximum, 0.0, 1.0)
 
 
+func _on_perimeter_asset_health_changed(_current: float, _maximum: float) -> void:
+	if _scenario != SCENARIO_PERIMETER_HOLD or _state != STATE_RUNNING:
+		return
+	_perimeter_health_ratio = _measured_perimeter_health_ratio(_perimeter_asset)
+	var outcome := _evaluate_termination(0.0)
+	if outcome != OUTCOME_PENDING:
+		_conclude(outcome)
+
+
+func _on_perimeter_asset_lost() -> void:
+	if _scenario == SCENARIO_PERIMETER_HOLD and _state == STATE_RUNNING:
+		_perimeter_health_ratio = -1.0
+		_conclude(OUTCOME_LOST)
+
+
+func _on_perimeter_target_lost() -> void:
+	if _scenario == SCENARIO_PERIMETER_HOLD and _state == STATE_RUNNING:
+		_conclude(OUTCOME_ABORTED)
+
+
 func _stand_down() -> void:
+	if is_instance_valid(_perimeter_asset):
+		if _perimeter_asset.tree_exiting.is_connected(_on_perimeter_asset_lost):
+			_perimeter_asset.tree_exiting.disconnect(_on_perimeter_asset_lost)
+		var damageable := _perimeter_asset.call(&"get_damageable_component") as Damageable
+		if is_instance_valid(damageable) and damageable.health_changed.is_connected(_on_perimeter_asset_health_changed):
+			damageable.health_changed.disconnect(_on_perimeter_asset_health_changed)
+	if is_instance_valid(_target) and _target.tree_exiting.is_connected(_on_perimeter_target_lost):
+		_target.tree_exiting.disconnect(_on_perimeter_target_lost)
+	if _target is HeroShip and (_target as HeroShip).destroyed.is_connected(_on_perimeter_target_lost.unbind(2)):
+		(_target as HeroShip).destroyed.disconnect(_on_perimeter_target_lost.unbind(2))
 	_restore_regroup_postures()
 	var coordinator := _get_wing_coordinator()
 	if is_instance_valid(coordinator):
@@ -1071,6 +1209,7 @@ func _stand_down() -> void:
 			member.call(&"deactivate")
 	_roster.clear()
 	_target = null
+	_perimeter_asset = null
 	_protected_anchor = null
 	_cargo_target = null
 	_breach_picket = null
@@ -1092,9 +1231,53 @@ func _reset_run_state() -> void:
 	_regroup_range = DEFAULT_REGROUP_RANGE
 	_regroup_health_ratio = DEFAULT_REGROUP_HEALTH_RATIO
 	_outcome = OUTCOME_PENDING
+	_perimeter_health_ratio = -1.0
 
 
 # ------------------------------------------------------------ scenarios ----
+
+func _launch_perimeter_hold() -> void:
+	var picket := _breach_picket
+	var scatter := get_node_or_null(perimeter_scatter_path) as FlankingSkirmisherOpponent
+	var press := get_node_or_null(perimeter_press_path) as ResolverBackedOpponent
+	if not is_instance_valid(picket) or scatter == null or press == null:
+		return
+	var origin := _perimeter_asset.global_position
+	var forward := -_target.global_basis.z.normalized()
+	var lateral := forward.cross(Vector3.UP).normalized()
+	if lateral.length_squared() < 0.001:
+		lateral = Vector3.RIGHT
+	var placements := [origin - forward * 132.0 + Vector3.UP * 28.0,
+		_target.global_position - forward * 76.0 + lateral * 56.0 + Vector3.UP * 18.0,
+		origin + forward * 94.0 - lateral * 54.0 + Vector3.UP * 22.0]
+	var index := 0
+	for member: Node3D in [picket, scatter, press]:
+		var aim := _target if member == scatter else _perimeter_asset
+		var facing: Vector3 = (aim.global_position - placements[index]).normalized()
+		var up := Vector3.UP if absf(facing.dot(Vector3.UP)) < 0.965 else Vector3.FORWARD
+		var spawn := Transform3D(Basis.looking_at(facing, up).orthonormalized(), placements[index])
+		var activation: Dictionary
+		if member == picket:
+			activation = picket.call(&"activate_authorized_dispatch", spawn, aim,
+				self, _scenario_generation, null)
+		else:
+			activation = member.call(&"activate", spawn)
+			member.call(&"set_target", aim)
+		if not bool(activation.get("accepted", false)):
+			_conclude(OUTCOME_ABORTED)
+			return
+		_roster.append(member)
+		index += 1
+	# This independent scatter screens the pilot using the existing rear-arc
+	# motion/fire consumer. Enlisting a lone craft would force it to anchor.
+	scatter.assign_wing_role(WingCoordinator.ROLE_FLANKER)
+	var damageable := _perimeter_asset.call(&"get_damageable_component") as Damageable
+	damageable.health_changed.connect(_on_perimeter_asset_health_changed)
+	_perimeter_asset.tree_exiting.connect(_on_perimeter_asset_lost)
+	_target.tree_exiting.connect(_on_perimeter_target_lost)
+	if _target is HeroShip:
+		(_target as HeroShip).destroyed.connect(_on_perimeter_target_lost.unbind(2))
+
 
 func _launch_courier() -> void:
 	var courier := _get_courier()
@@ -1407,12 +1590,21 @@ func _restore_regroup_postures() -> void:
 func _is_phase_authorized() -> bool:
 	var host := get_node_or_null(encounter_host_path)
 	if host is GameFlow:
+		if _scenario == SCENARIO_PERIMETER_HOLD and not bool(host.call(&"is_perimeter_hold_solo_authorized")):
+			return false
 		# The physical station board arms Heavy Breach before launch, but GameFlow
 		# does not begin the director-owned encounter until the chosen craft has
 		# actually departed into FREE_FLIGHT. Keep that one explicit scenario
 		# authorized for its sortie without widening the guided interceptor phase
 		# or allowing any other automatic scenario to start in sandbox flight.
+		if _scenario == SCENARIO_PAIRED_WING and not is_paired_wing_solo_available():
+			return false
 		if _state == STATE_RUNNING and _board_sortie and BOARD_SCENARIO_IDS.has(_scenario):
+			# Accepted automatic landing keeps GameFlow in FREE_FLIGHT until
+			# touchdown. Recheck the exact live sortie target at dispatch, so
+			# its existing withdrawal/stand-down path also contains this return.
+			if _is_target_alive() and _target is HeroShip and (_target as HeroShip).is_landing_active():
+				return false
 			return (host as GameFlow).phase == GameFlow.Phase.FREE_FLIGHT
 		return (host as GameFlow).phase == GameFlow.Phase.INTERCEPTOR_ENGAGEMENT
 	# A non-coordinator host (isolated fixtures, evidence harnesses, tools) has
@@ -1587,6 +1779,8 @@ func _announce_begin() -> void:
 				"Break the charged picket before it reaches the protected objective",
 				4.0
 			)
+		SCENARIO_PERIMETER_HOLD:
+			_toast("Perimeter Hold", "Protect the core for 90 seconds — keep integrity above 35%", 4.0)
 		SCENARIO_TORPEDO_RUN:
 			_toast(
 				"Torpedo boat on approach",
@@ -1604,10 +1798,14 @@ func _announce_conclusion(outcome: StringName) -> void:
 				_toast("Cargo protected", "The interdiction wing is broken", 3.2)
 			elif _scenario == SCENARIO_HEAVY_BREACH:
 				_toast("Breach stopped", "The heavy picket is down", 3.2)
+			elif _scenario == SCENARIO_PERIMETER_HOLD:
+				_toast("Perimeter held", "The protected core survived the defense window", 3.2)
 			elif _scenario == SCENARIO_TORPEDO_RUN:
 				_toast("Torpedo boat destroyed", "No more seekers in the air", 3.2)
 			else:
 				_toast("Wing broken", "Both contacts are down", 3.2)
+		OUTCOME_LOST:
+			_toast("Perimeter lost", "Protected core integrity reached 35% or lower", 3.6)
 		OUTCOME_ESCAPED:
 			_toast(
 				"Cargo escaped" if _scenario == SCENARIO_CONVOY_INTERDICTION else "Courier escaped",
@@ -1653,6 +1851,7 @@ func get_evidence_metadata() -> Dictionary:
 
 
 func get_audit_report() -> Dictionary:
+	var observed_perimeter_health := _measured_perimeter_health_ratio(_perimeter_asset) if _state == STATE_RUNNING else _perimeter_health_ratio
 	var errors := get_validation_errors()
 	var roster_names := PackedStringArray()
 	for member in _roster:
@@ -1700,6 +1899,12 @@ func get_audit_report() -> Dictionary:
 		"breach_picket": String(_breach_picket.name) if is_instance_valid(_breach_picket) else "",
 		"torpedo_boat": String(_torpedo_boat.name) if is_instance_valid(_torpedo_boat) else "",
 		"board_sortie": _board_sortie,
+		"perimeter_hold": {
+			"duration_seconds": _perimeter_catalog.get_scenario(SCENARIO_PERIMETER_HOLD).get("duration_seconds", 90.0),
+			"remaining_seconds": maxf(0.0, float(_perimeter_catalog.get_scenario(SCENARIO_PERIMETER_HOLD).duration_seconds) - _elapsed),
+			"integrity_available": observed_perimeter_health >= 0.0,
+			"health_ratio": observed_perimeter_health,
+		},
 		"heavy_standoff_range": _heavy_standoff_range,
 		"heavy_advance_health_ratio": _heavy_advance_health_ratio,
 		"regroup_range": _regroup_range,
@@ -1749,14 +1954,17 @@ func get_validation_errors() -> PackedStringArray:
 	if _state == STATE_RUNNING and _scenario == SCENARIO_HEAVY_BREACH \
 			and (not _is_protected_anchor_alive() or not is_instance_valid(_breach_picket)):
 		errors.append("a running heavy breach must retain its protected objective and picket")
+	if _state == STATE_RUNNING and _scenario == SCENARIO_PERIMETER_HOLD \
+			and _measured_perimeter_health_ratio(_perimeter_asset) < 0.0:
+		errors.append("a running Perimeter Hold must retain measured protected integrity")
 	if _state == STATE_RUNNING and _scenario == SCENARIO_TORPEDO_RUN \
 			and not is_instance_valid(_torpedo_boat):
 		errors.append("a running torpedo run must retain its torpedo boat")
 	if not is_finite(_elapsed) or _elapsed < 0.0:
 		errors.append("scenario elapsed time must be finite and non-negative")
-	if _state == STATE_RUNNING and _elapsed > scenario_time_limit:
+	if _state == STATE_RUNNING and _scenario != SCENARIO_PERIMETER_HOLD and _elapsed > scenario_time_limit:
 		errors.append("a running scenario has outlived its unconditional time limit")
-	if _state == STATE_RUNNING and _launched and _active_roster_count() == 0:
+	if _state == STATE_RUNNING and _scenario != SCENARIO_PERIMETER_HOLD and _launched and _active_roster_count() == 0:
 		errors.append("a running scenario retains no live participant")
 	if _state != STATE_RUNNING and not _roster.is_empty():
 		errors.append("a scenario that is not running still holds a dispatched roster")

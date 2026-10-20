@@ -1,0 +1,22 @@
+Mudds Shipyards development checkpoint 19e7990
+Source commit: 19e799036ae5cc1b51f0dc6bd94ab936a8753ec9
+
+Player-visible change
+- The startup title menu grows upward to fit its contents. Multiplayer / Server Browser now stays fully visible at the 1024x768 minimum viewport, with the bottom margin retained.
+
+Validation performed
+- Existing HUD panel layout suite PASS, including actual title/button containment, nonoverlap and retained Begin Shift focus at eight supported viewport sizes.
+- Controller/pause navigation 96 assertions PASS; Credits 25 assertions PASS.
+- Same production-HUD default-profile Forward+ software-rendered before/after view at 1024x768: Multiplayer moved from y771..811 (outside the window) to y666..706 (inside). Intro stays authored 1x; requested UI scale1.0, reported gameplay-HUD effective scale0.867797.
+- Source import, clean Windows and Linux exports PASS.
+- Strict direct Linux and archive startup checks PASS: exit0 and exactly one STARTUP_MENU_READY_OK each.
+- Windows embedded-payload startup through approved Linux Godot PASS: exit0 and exactly one STARTUP_MENU_READY_OK. This is not native Windows execution.
+- Actual Windows/Linux PCK inventories match all1521 entries; stock Windows PE .text retained; exact Linux archive binary/icon/installer bytes, modes, source epoch and export metadata PASS.
+- All eleven post-fix stages PASS first attempt, zero diagnostics,157.555s combined. Baseline review included separately; total185.901s.
+
+Open qualification
+- Focused Begin Shift light text on cyan is a separate contrast finding; this checkpoint fixes menu overflow only.
+- Default title-component inspection does not qualify saved-profile recovery, all aspect/scale/accessibility states, ordinary browser/credits return, full-Main/world visual quality or real devices.
+- Native Windows execution: NOT_RUN (owner hold retained).
+- Native GPU/performance, physical devices, audible audio, human-review/full-release and exact final-candidate gates: NOT_RUN/open in their original scopes.
+- Full unfiltered release matrix and final-package Guided acceptance: NOT_RUN. Earlier checkpoint3d92b91 Guided3/3 remains scoped to those bytes.

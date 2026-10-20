@@ -4,6 +4,7 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 const WORLD_LAYER := PhysicsLayers.WORLD
 const PLAYER_RADIUS := 0.38
 const PLAYER_HEIGHT := 1.94
+const MISSING_STATION_BUNKS := "all six Habitat BunkAlcove01–06 roots expose StationBunkInteraction as StationSeat"
 
 ## Extra simulated physics frames granted on top of the frames a wait's nominal
 ## duration implies. This is a frame count, never a wall-clock grace: locomotion,
@@ -43,6 +44,13 @@ func _run() -> void:
 	var world := game.get_node("ShipyardWorld") as ShipyardWorld
 	var player := game.get_node("Player") as PlayerController
 	var habitat := world.get_node_or_null("HabitatSpine") as HabitatSpine
+	if OS.get_cmdline_user_args().has("--bunk-rest-only"):
+		_check(habitat != null, "focused rest fixture uses the real Main Habitat")
+		if habitat != null:
+			await _test_production_bunk_rest(game, world, player, habitat)
+		await _cleanup(game)
+		_finish()
+		return
 	_test_integrated_identity_and_preserved_world(world, habitat)
 	if habitat == null:
 		await _cleanup(game)
@@ -53,8 +61,324 @@ func _run() -> void:
 	await _test_production_player_traversal(game, world, player, habitat)
 	await _test_production_player_garden_traversal(game, player, habitat)
 	await _test_room_support_and_open_branch(world, habitat)
+	await _test_production_bunk_rest(game, world, player, habitat)
 	await _cleanup(game)
 	_finish()
+
+
+## Focused station-rest proof, using the production Main and all six actual bunk
+## roots. Only the first wake handoff is staged; all later sleep/wake/reuse and
+## locomotion use live Input. This does not accept the full hub-to-Habitat walk.
+func _test_production_bunk_rest(
+		game: GameFlow, world: ShipyardWorld, player: PlayerController, habitat: HabitatSpine
+	) -> void:
+	var bunks: Array[StationSeat] = []
+	for index in 6:
+		var bunk_root := habitat.find_child("BunkAlcove%02d" % (index + 1), true, false)
+		if bunk_root != null:
+			var component := bunk_root.get_node_or_null("StationBunkInteraction") as StationSeat
+			if component != null:
+				bunks.append(component)
+	# Frozen old-code failure: do not dereference nonexistent components or name
+	# the not-yet-installed script class, so the test-only pin compiles first.
+	_check(bunks.size() == 6, MISSING_STATION_BUNKS)
+	if bunks.size() != 6:
+		return
+
+	var anchors: Array[int] = []
+	var wake_positions: Array[Vector3] = []
+	var actor := Node.new()
+	var other_actor := Node.new()
+	game.add_child(actor)
+	game.add_child(other_actor)
+	var capsule := CapsuleShape3D.new()
+	capsule.radius = PLAYER_RADIUS
+	capsule.height = PLAYER_HEIGHT
+	for index in bunks.size():
+		var bunk := bunks[index]
+		var anchor := bunk.get_seat_anchor()
+		_check(anchor != null and bunk.is_ancestor_of(anchor), "bunk %d owns its actual rest anchor" % (index + 1))
+		if anchor == null:
+			actor.queue_free()
+			other_actor.queue_free()
+			return
+		_check(not anchors.has(anchor.get_instance_id()), "bunk %d has a distinct rest anchor" % (index + 1))
+		anchors.append(anchor.get_instance_id())
+		var wake := bunk.get_exit_transform()
+		_check(not wake_positions.has(wake.origin), "bunk %d has a distinct wake handoff" % (index + 1))
+		wake_positions.append(wake.origin)
+		_check(bunk.get_entry_transform().is_equal_approx(wake), "bunk %d uses its authored wake handoff for entry" % (index + 1))
+		_check(absf(anchor.global_basis.y.dot(Vector3.UP)) < 0.01, "bunk %d rests the body horizontally" % (index + 1))
+		var mattress := bunk.get_parent().get_node_or_null("Mattress") as StaticBody3D
+		var mattress_collision := bunk.get_parent().get_node_or_null("Mattress/Collision") as CollisionShape3D
+		_check(mattress != null and mattress_collision != null and mattress_collision.shape is BoxShape3D,
+			"bunk %d retains its actual collision-backed mattress" % (index + 1))
+		if mattress == null or mattress_collision == null or not mattress_collision.shape is BoxShape3D:
+			actor.queue_free()
+			other_actor.queue_free()
+			return
+		var mattress_half: Vector3 = (mattress_collision.shape as BoxShape3D).size * 0.5
+		var rest_foot: Vector3 = mattress_collision.to_local(anchor.global_position)
+		var rest_head: Vector3 = mattress_collision.to_local(anchor.global_position + anchor.global_basis.y * PLAYER_HEIGHT)
+		_check(absf(rest_foot.x) <= mattress_half.x - PLAYER_RADIUS
+			and absf(rest_head.x) <= mattress_half.x - PLAYER_RADIUS
+			and absf(rest_foot.z) < mattress_half.z and absf(rest_head.z) < mattress_half.z
+			and rest_foot.y - mattress_half.y >= -0.005 and rest_foot.y - mattress_half.y <= 0.06,
+			"bunk %d places its horizontal body over the real mattress bounds and top" % (index + 1))
+		var mattress_hit := await _ray(world, anchor.global_position + Vector3.UP * 0.1,
+			anchor.global_position - Vector3.UP * 0.3)
+		_check(mattress_hit.get("collider") == mattress,
+			"bunk %d rest anchor has actual mattress support" % (index + 1))
+		var floor_hit := await _ray(world, wake.origin + Vector3.UP * 0.6, wake.origin - Vector3.UP * 1.0)
+		var floor_position: Vector3 = floor_hit.get("position", Vector3.UP)
+		_check(not floor_hit.is_empty() and absf(floor_position.y) <= 0.035
+			and wake.origin.y - floor_position.y >= -0.005 and wake.origin.y - floor_position.y <= 0.18,
+			"bunk %d wakes just above actual aisle floor" % (index + 1))
+		var obstacles := await _intersect_shape(world, capsule,
+			Transform3D(wake.basis, wake.origin + wake.basis.y * (PLAYER_HEIGHT * 0.5)), 24)
+		_check(obstacles.is_empty(), "bunk %d wake handoff clears the production capsule" % (index + 1))
+		_check("SLEEP" in bunk.get_interaction_prompt() and "WAKE" in bunk.get_seated_prompt(),
+			"bunk %d exposes sleep and wake interactions" % (index + 1))
+		_check(bunk.try_reserve(actor) and bunk.is_reserved_for(actor) and not bunk.is_available(),
+			"bunk %d reserves exactly one occupant" % (index + 1))
+		_check(not bunk.try_reserve(other_actor) and not bunk.finish_transition(other_actor)
+			and not bunk.begin_release(other_actor) and not bunk.release(other_actor),
+			"bunk %d rejects a foreign occupant at every reservation step" % (index + 1))
+		bunk.cancel_reservation(other_actor)
+		_check(bunk.is_reserved_for(actor) and bunk.finish_transition(actor)
+			and bunk.begin_release(actor) and bunk.release(actor) and bunk.is_available(),
+			"bunk %d releases only its exact occupant and becomes reusable" % (index + 1))
+	actor.queue_free()
+	other_actor.queue_free()
+	if not _failures.is_empty():
+		return
+
+	# Idle module lifecycle must suppress and restore the real discovery areas.
+	# This happens before placing the Player, so disabling its floor never
+	# substitutes an unsupported fall for the focused rest interaction.
+	habitat.set_module_enabled(false)
+	await physics_frame
+	await process_frame
+	for station_bunk in bunks:
+		_check(not station_bunk.is_enabled() and station_bunk.collision_layer == 0
+			and not station_bunk.monitorable and station_bunk.get_interaction_prompt().is_empty(),
+			"disabled Habitat suppresses discovery for %s" % station_bunk.get_parent().name)
+	habitat.set_module_enabled(true)
+	await physics_frame
+	await process_frame
+	for station_bunk in bunks:
+		var discovery_shape := station_bunk.get_node("InteractionShape") as CollisionShape3D
+		_check(station_bunk.is_available() and station_bunk.collision_layer == StationSeat.INTERACTABLE_LAYER
+			and station_bunk.monitorable and not discovery_shape.disabled
+			and "SLEEP" in station_bunk.get_interaction_prompt(),
+			"reenabled Habitat restores discovery for %s" % station_bunk.get_parent().name)
+	if not _failures.is_empty():
+		return
+
+	var bunk := bunks[0]
+	var wake := bunk.get_exit_transform()
+	# Exactly one deterministic scenario placement, at the real production
+	# handoff rather than a made-up nearby point or a forced sleeping state.
+	player.teleport_to(wake)
+	await physics_frame
+	await physics_frame
+	await process_frame
+	var camera_mode := player.get_camera_view_mode()
+	if not await _sleep_with_live_bunk_input(game, player, bunk, "initial sleep"):
+		return
+	_check(player.is_seated_at(bunk.get_seat_anchor()) and bunk.is_reserved_for(player),
+		"sleep attaches the same production Player to its reserved rest anchor")
+	_check(game._ship_rest_overlay != null and game._ship_rest_overlay.visible,
+		"station sleep displays the existing wake presentation")
+	_check(not player.is_cabin_containment_active() and not game._piloting
+		and game._cabin_ship == null and game._solo_crew_ship == null,
+		"station sleep borrows no ship cabin, helm or crew seat claim")
+	for craft in game.ships:
+		var boarding := craft.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
+		_check(not craft.is_piloted() and (boarding == null or boarding.get_reservation_token() != player),
+			"station rest acquires no boarding or pilot claim on %s" % craft.name)
+	var rest_position := player.global_position
+	Input.action_press("move_forward")
+	for _tick in 12:
+		await physics_frame
+		await process_frame
+	Input.action_release("move_forward")
+	_check(player.global_position.distance_to(rest_position) < 0.03 and player.is_sleeping(),
+		"sleep ignores walking input while attached to the authored berth")
+	if not await _wake_with_live_bunk_input(game, player, bunk, "initial wake"):
+		return
+	_check(player.get_camera_view_mode() == camera_mode, "station wake preserves the chosen camera view")
+
+	# Turning the view is allowed; the body's position is never assigned again.
+	# The first alcove faces the negative-local-X side, so decreasing world Z
+	# walks away from its mouth into the shared circulation aisle.
+	player.global_basis = Basis.IDENTITY
+	player._camera_yaw.rotation.y = 0.0
+	_check(await _drive_player_z(player, wake.origin.z - 0.65, true, 1.0),
+		"ordinary walking moves the awake player away from the bunk")
+	_check(player.is_on_floor() and player.global_position.y > -0.1,
+		"awake walking remains supported on the authored station floor")
+	# A crossing helper deliberately leaves normal momentum intact. This short
+	# return needs an actual settled handoff before facing the discovery target,
+	# so brake through live movement/release input within the same frame budget.
+	var crossed_wake := false
+	var returned_to_wake := false
+	var settled_frames := 0
+	var return_target_z: float = wake.origin.z + 0.04
+	var physics_step: float = 1.0 / float(Engine.physics_ticks_per_second)
+	for _tick in _frame_budget(1.0):
+		crossed_wake = crossed_wake or player.global_position.z >= wake.origin.z
+		var remaining: float = return_target_z - player.global_position.z
+		var speed_z: float = player.velocity.z
+		var stopping_distance: float = speed_z * speed_z / (2.0 * player.ground_deceleration)
+		# Account for the next movement step when deciding to release the key.
+		var keep_moving: bool = absf(remaining) > 0.025 and (
+			speed_z * remaining <= 0.0
+			or stopping_distance + absf(speed_z) * physics_step < absf(remaining)
+		)
+		Input.action_release("move_forward")
+		Input.action_release("move_back")
+		if keep_moving:
+			Input.action_press("move_back" if remaining > 0.0 else "move_forward")
+		await physics_frame
+		await process_frame
+		crossed_wake = crossed_wake or player.global_position.z >= wake.origin.z
+		var horizontal_speed: float = Vector2(player.velocity.x, player.velocity.z).length()
+		if crossed_wake and absf(player.global_position.z - wake.origin.z) <= 0.12 \
+				and horizontal_speed <= 0.05 and player.is_on_floor():
+			settled_frames += 1
+			if settled_frames >= 3:
+				returned_to_wake = true
+				break
+		else:
+			settled_frames = 0
+	Input.action_release("move_forward")
+	Input.action_release("move_back")
+	_check(returned_to_wake, "ordinary walking returns to the same wake handoff for reuse")
+	if not returned_to_wake:
+		_print_bunk_rest_failure(game, player, bunk, "return did not settle at authored wake")
+		return
+	player.global_basis = wake.basis
+	player._camera_yaw.rotation.y = 0.0
+	if not await _sleep_with_live_bunk_input(game, player, bunk, "reuse after walking"):
+		return
+	game.hud.set_paused(true)
+	for _tick in 3:
+		await process_frame
+	_check(player.is_sleeping() and game.hud._pause.visible
+		and game.hud.layer > game._ship_rest_overlay.layer,
+		"pause preserves station sleep with its menu above the rest shade")
+	game.hud.set_paused(false)
+	if not await _wake_with_live_bunk_input(game, player, bunk, "wake after pause"):
+		return
+	if not await _sleep_with_live_bunk_input(game, player, bunk, "sleep before Main detach"):
+		return
+	root.remove_child(game)
+	root.add_child(game)
+	await process_frame
+	await physics_frame
+	_check(_station_rest_awake(game, player) and bunk.is_available(),
+		"Main detach cancels station sleep, frees the bunk and restores awake control")
+	if not _station_rest_awake(game, player):
+		return
+	if not await _sleep_with_live_bunk_input(game, player, bunk, "reuse after Main detach"):
+		return
+	var owner := bunk.get_parent()
+	var owner_parent := owner.get_parent()
+	owner_parent.remove_child(owner)
+	await process_frame
+	await process_frame
+	await physics_frame
+	_check(_station_rest_awake(game, player) and bunk.is_available() == false
+		and not bunk.is_reserved_for(player),
+		"retained bunk-owner removal cancels sleep and releases its exact reservation")
+	owner_parent.add_child(owner)
+	await process_frame
+	await physics_frame
+	if not _station_rest_awake(game, player):
+		return
+	if not await _sleep_with_live_bunk_input(game, player, bunk, "reuse after retained owner return"):
+		return
+	owner.queue_free()
+	await process_frame
+	await process_frame
+	await physics_frame
+	_check(_station_rest_awake(game, player),
+		"removing the real bunk owner safely restores an awake controllable Player")
+	for _tick in 8:
+		await physics_frame
+	_check(player.is_on_floor() and player.global_position.distance_to(wake.origin) < 0.4,
+		"owner-loss recovery lands on the same supported authored aisle floor")
+
+
+func _sleep_with_live_bunk_input(game: GameFlow, player: PlayerController, bunk: StationSeat, description: String) -> bool:
+	for _tick in 4:
+		await physics_frame
+		await process_frame
+	var discovered: bool = game.station_interaction_candidate == bunk and "SLEEP" in bunk.get_interaction_prompt()
+	_check(discovered, "%s discovers the actual station bunk through normal facing and proximity" % description)
+	if not discovered:
+		_print_bunk_rest_failure(game, player, bunk, description)
+		return false
+	Input.action_press("interact")
+	await physics_frame
+	await process_frame
+	Input.action_release("interact")
+	var reached := await _wait_for_rest_state(game, player, true)
+	_check(reached, "%s uses ordinary E to sleep" % description)
+	if not reached:
+		_print_bunk_rest_failure(game, player, bunk, description)
+	return reached
+
+
+func _wake_with_live_bunk_input(game: GameFlow, player: PlayerController, bunk: StationSeat, description: String) -> bool:
+	Input.action_press("interact")
+	await physics_frame
+	await process_frame
+	Input.action_release("interact")
+	var reached := await _wait_for_rest_state(game, player, false)
+	_check(reached and bunk.is_available(), "%s uses ordinary E and releases the reserved bunk" % description)
+	if not reached or not bunk.is_available():
+		_print_bunk_rest_failure(game, player, bunk, description)
+	for _tick in 8:
+		await physics_frame
+		await process_frame
+	_check(player.is_on_floor(), "%s restores supported floor collision" % description)
+	return reached
+
+
+func _print_bunk_rest_failure(game: GameFlow, player: PlayerController, bunk: StationSeat, description: String) -> void:
+	var candidate: Node3D = game.station_interaction_candidate
+	var candidate_path: String = str(candidate.get_path()) if is_instance_valid(candidate) else "<none>"
+	var nearby: Array[Node3D] = player.get_nearby_interactables()
+	print("HABITAT_BUNK_REST_FAILURE_STATE: ", {
+		"case": description,
+		"player_pose": player.global_transform,
+		"wake_pose": bunk.get_exit_transform(),
+		"velocity": player.velocity,
+		"interaction_origin": player.get_interaction_origin(),
+		"interaction_direction": player.get_interaction_direction(),
+		"bunk_position": bunk.global_position,
+		"candidate_path": candidate_path,
+		"nearby_contains_bunk": nearby.has(bunk),
+		"bunk_available": bunk.is_available(),
+		"bunk_collision_layer": bunk.collision_layer,
+	})
+
+
+func _wait_for_rest_state(game: GameFlow, player: PlayerController, sleeping: bool) -> bool:
+	for _tick in _frame_budget(2.0):
+		await physics_frame
+		await process_frame
+		if not game._transition_busy and (player.is_sleeping() if sleeping else _station_rest_awake(game, player)):
+			return true
+	return false
+
+
+func _station_rest_awake(game: GameFlow, player: PlayerController) -> bool:
+	return not player.is_sleeping() and not player.is_seated() and player.is_control_enabled() \
+		and not game._station_seated and not game._transition_busy \
+		and (game._ship_rest_overlay == null or not game._ship_rest_overlay.visible)
 
 
 func _test_integrated_identity_and_preserved_world(world: ShipyardWorld, habitat: HabitatSpine) -> void:
@@ -595,7 +919,7 @@ func _check(condition: bool, description: String) -> void:
 
 func _finish() -> void:
 	if _failures.is_empty():
-		print("HABITAT_INTEGRATION_TEST_OK")
+		print("HABITAT_BUNK_REST_TEST_OK" if OS.get_cmdline_user_args().has("--bunk-rest-only") else "HABITAT_INTEGRATION_TEST_OK")
 		quit(0)
 	else:
 		print("HABITAT_INTEGRATION_TEST_FAILED: ", "; ".join(_failures))

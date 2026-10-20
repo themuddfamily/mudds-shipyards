@@ -1,0 +1,24 @@
+Mudds Shipyards development checkpoint 34d4b9e
+Source commit: 34d4b9e097684d5f4044f98f0bd18d9f322fade2
+
+Player-visible change
+- Invert on-foot vertical look now also applies while driving the yard tractor, for both mouse and right stick.
+- Saved preference applies at startup; changing it in Settings updates Player and tractor immediately. The independent flight inversion preference, yaw, look rates and pitch limits remain.
+
+Validation performed
+- Clean source import PASS.
+- Full tow tractor suite PASS, including uninverted/inverted mouse and right-stick pitch, yaw/rate and both pitch clamps, alongside existing handling/boarding/lifecycle checks.
+- Focused actual Main integration PASS: saved inversion=true at startup, live false/true updates to Player and tractor, shared sensitivity, independent flight preference and absent optional tractor safety. Isolated in-memory settings fixture.
+- Existing full runtime settings suite PASS.
+- Clean Windows and Linux exports PASS.
+- Direct Linux and archive-extracted startup checks PASS: exit0 plus exactly one STARTUP_MENU_READY_OK each.
+- Windows embedded payload via supported Linux engine PASS: exit0 plus exactly one STARTUP_MENU_READY_OK. Native Windows execution was not performed.
+- Actual Windows/Linux PCK inventories match all1521 entries; stock Windows PE .text retained. Linux archive binary/icon/installer bytes, modes, source epoch and export metadata verified.
+- All10 accepted stages PASS, zero diagnostics, 214.463s combined. Original headless tractor attempt failed31.933s because headless display cannot capture mouse; original failure is retained. Cumulative accepted plus failed stages 246.396s.
+- Tractor suite uses isolated Xvfb with explicit x11/dummy rendering and Dummy audio, with real capture asserted. Other automated Godot checks use headless/Dummy. No active desktop input.
+
+Open qualification
+- Physical keyboard/mouse/controller ordinary journeys, native GPU/performance, actual listening and human/full-release review: NOT_RUN/open.
+- Native Windows execution: NOT_RUN (owner hold retained).
+- Full unfiltered final release matrix, final-package Guided and other outstanding roadmap gates: NOT_RUN/open. Earlier Guided3/3 remains on3d92b91 bytes.
+- This fixes the tractor inversion mismatch only; broader settings/remapping and full craft/station acceptance remain open.

@@ -10,6 +10,21 @@ func _init() -> void:
 
 
 func _run() -> void:
+	for route: String in ["arrow-return-reuse", "life-tow", "life-gantry", "life-arm", "life-patrol", "beacon-entry", "beacon-settlement"]:
+		var life_args := PackedStringArray(["--native-sortie-observer=" + route])
+		_check(StartupLoaderType.native_sortie_request(life_args, "X11", "Dummy", true).accepted,
+			"%s explicitly admits only the silent private X11 observer" % route)
+		for row: Array in [["headless", "Dummy", true], ["wayland", "Dummy", true], ["X11", "PulseAudio", true], ["X11", "Dummy", false]]:
+			_check(not StartupLoaderType.native_sortie_request(life_args, row[0], row[1], row[2]).accepted,
+				"%s requires private X11 and Dummy audio" % route)
+		for conflict: String in ["--native-sortie-observer=arrow-return-reuse", "--native-sortie-observer=beacon-settlement", "--native-sortie-observer=beacon-entry", "--native-sortie-observer", "--native-sortie-observer=life-tow", "--native-sortie-observer=life-gantry", "--native-sortie-observer=life-arm", "--native-sortie-observer=life-patrol", "--native-sortie-observer=habitat-restart", "--native-sortie-observer=habitat-loop", "--native-sortie-observer=sandbox-walk", "--native-sortie-observer=sandbox", "--native-sortie-observer=ember", "--native-sortie-observer=hulk-arrival", "--native-sortie-observer=hulk-breaker", "--native-sortie-observer=hulk-home", "--startup-check", "--frame-capture", "--version", "--help", "--support-info", "--support-export", "--reflection-reentry-check", "--in-world-interruption-stage=arm"]:
+			var conflicting := life_args.duplicate()
+			conflicting.append(conflict)
+			_check(not StartupLoaderType.native_sortie_request(conflicting, "X11", "Dummy", true).accepted,
+				"%s rejects duplicate or competing mode: %s" % [route, conflict])
+		for malformed: String in ["--native-sortie-observer=Arrow-return-reuse", "--native-sortie-observer=arrow-return-reuse-extra", "--native-sortie-observer=arrow-return-reuse=", "--native-sortie-observer arrow-return-reuse", "--native-sortie-observer=Beacon-settlement", "--native-sortie-observer=beacon-settlement-extra", "--native-sortie-observer=beacon-settlement=", "--native-sortie-observer beacon-settlement", "--native-sortie-observer=Beacon-entry", "--native-sortie-observer=beacon-entry-extra", "--native-sortie-observer=beacon-entry=", "--native-sortie-observer beacon-entry", "--native-sortie-observer=Life-patrol", "--native-sortie-observer=life-patrol-extra", "--native-sortie-observer=life-patrol=", "--native-sortie-observer life-patrol","--native-sortie-observer=Life-arm", "--native-sortie-observer=life-arm-extra", "--native-sortie-observer=life-arm=", "--native-sortie-observer life-arm", "--native-sortie-observer=Life-tow", "--native-sortie-observer=Life-gantry", "--native-sortie-observer=life-gantry-extra", "--native-sortie-observer=life-gantry=", "--native-sortie-observer life-gantry", "--native-sortie-observer=life-tow-extra", "--native-sortie-observer=life-tow=", "--native-sortie-observer life-tow"]:
+			_check(not StartupLoaderType.native_sortie_request(PackedStringArray([malformed]), "X11", "Dummy", true).accepted,
+				"%s rejects malformed observer selector: %s" % [route, malformed])
 	var native_args := PackedStringArray(["--native-sortie-observer"])
 	_check(not StartupLoaderType.native_sortie_request(PackedStringArray(), "X11", "Dummy", true).requested,
 		"ordinary Boot leaves the native sortie observer unloaded")
@@ -65,6 +80,34 @@ func _run() -> void:
 	for malformed in ["--native-sortie-observer=Ember", "--native-sortie-observer=ember-extra", "--native-sortie-observer=ember=", "--native-sortie-observer ember"]:
 		_check(not StartupLoaderType.native_sortie_request(PackedStringArray([malformed]), "X11", "Dummy", true).accepted,
 			"Ember rejects malformed selector: %s" % malformed)
+	var habitat_args := PackedStringArray(["--native-sortie-observer=habitat-loop"])
+	_check(StartupLoaderType.native_sortie_request(habitat_args, "X11", "Dummy", true).accepted,
+		"Habitat loop admits explicit silent private OS input")
+	for row: Array in [["headless", "Dummy", true], ["wayland", "Dummy", true], ["X11", "PulseAudio", true], ["X11", "Dummy", false]]:
+		_check(not StartupLoaderType.native_sortie_request(habitat_args, row[0], row[1], row[2]).accepted,
+			"Habitat loop preserves private X11 and Dummy admission")
+	for conflict in ["--native-sortie-observer", "--native-sortie-observer=habitat-loop", "--native-sortie-observer=sandbox", "--native-sortie-observer=ember", "--native-sortie-observer=hulk-home", "--startup-check", "--frame-capture", "--version", "--help", "--support-info", "--support-export", "--reflection-reentry-check", "--in-world-interruption-stage=arm"]:
+		var habitat_conflicting := habitat_args.duplicate()
+		habitat_conflicting.append(conflict)
+		_check(not StartupLoaderType.native_sortie_request(habitat_conflicting, "X11", "Dummy", true).accepted,
+			"Habitat loop rejects duplicate or competing mode: %s" % conflict)
+	for malformed in ["--native-sortie-observer=Habitat-loop", "--native-sortie-observer=habitat-loop-extra", "--native-sortie-observer=habitat-loop=", "--native-sortie-observer habitat-loop"]:
+		_check(not StartupLoaderType.native_sortie_request(PackedStringArray([malformed]), "X11", "Dummy", true).accepted,
+			"Habitat loop rejects malformed selector: %s" % malformed)
+	var restart_args := PackedStringArray(["--native-sortie-observer=habitat-restart"])
+	_check(StartupLoaderType.native_sortie_request(restart_args, "X11", "Dummy", true).accepted,
+		"Habitat restart admits explicit silent private OS input")
+	for row: Array in [["headless", "Dummy", true], ["wayland", "Dummy", true], ["X11", "PulseAudio", true], ["X11", "Dummy", false]]:
+		_check(not StartupLoaderType.native_sortie_request(restart_args, row[0], row[1], row[2]).accepted,
+			"Habitat restart preserves private X11 and Dummy admission")
+	for conflict: String in ["--native-sortie-observer", "--native-sortie-observer=habitat-restart", "--native-sortie-observer=habitat-loop", "--native-sortie-observer=sandbox", "--native-sortie-observer=ember", "--native-sortie-observer=hulk-home", "--startup-check", "--frame-capture", "--version", "--help", "--support-info", "--support-export", "--reflection-reentry-check", "--in-world-interruption-stage=arm"]:
+		var restart_conflicting: PackedStringArray = restart_args.duplicate()
+		restart_conflicting.append(conflict)
+		_check(not StartupLoaderType.native_sortie_request(restart_conflicting, "X11", "Dummy", true).accepted,
+			"Habitat restart rejects duplicate or competing mode: %s" % conflict)
+	for malformed: String in ["--native-sortie-observer=Habitat-restart", "--native-sortie-observer=habitat-restart-extra", "--native-sortie-observer=habitat-restart=", "--native-sortie-observer habitat-restart"]:
+		_check(not StartupLoaderType.native_sortie_request(PackedStringArray([malformed]), "X11", "Dummy", true).accepted,
+			"Habitat restart rejects malformed selector: %s" % malformed)
 	var fleet_args := PackedStringArray(["--native-sortie-observer=sandbox"])
 	_check(StartupLoaderType.native_sortie_request(fleet_args, "X11", "Dummy", true).accepted,
 		"full Sandbox observation admits only the same silent private input route")
@@ -121,7 +164,7 @@ func _run() -> void:
 	beacon_args.append("--in-world-interruption-activity=beacon")
 	_check(StartupLoaderType.in_world_probe_request(beacon_args, "headless", "Dummy").accepted,
 		"the beacon interruption selector admits the supported pilot context")
-	for context in ["cabin", "rest", "crew", "engineer", "on_foot"]:
+	for context in ["cabin", "rest", "crew", "engineer", "on_foot", "docking"]:
 		var unsupported := beacon_args.duplicate()
 		unsupported.append("--in-world-interruption-context=" + context)
 		_check(not StartupLoaderType.in_world_probe_request(unsupported, "headless", "Dummy").accepted,
@@ -129,7 +172,7 @@ func _run() -> void:
 	var scan_args := PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity=scan"])
 	_check(StartupLoaderType.in_world_probe_request(scan_args, "headless", "Dummy").accepted,
 		"scan interruption admits its supported pilot recovery")
-	for context in ["cabin", "rest", "crew", "engineer", "on_foot"]:
+	for context in ["cabin", "rest", "crew", "engineer", "on_foot", "docking"]:
 		var unsupported := scan_args.duplicate()
 		unsupported.append("--in-world-interruption-context=" + context)
 		_check(not StartupLoaderType.in_world_probe_request(unsupported, "headless", "Dummy").accepted,
@@ -140,7 +183,7 @@ func _run() -> void:
 	var mining_args := PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity=mining"])
 	_check(StartupLoaderType.in_world_probe_request(mining_args, "headless", "Dummy").accepted,
 		"the mining interruption selector admits the supported pilot context")
-	for context in ["cabin", "rest", "crew", "engineer", "on_foot"]:
+	for context in ["cabin", "rest", "crew", "engineer", "on_foot", "docking"]:
 		var unsupported := mining_args.duplicate()
 		unsupported.append("--in-world-interruption-context=" + context)
 		_check(not StartupLoaderType.in_world_probe_request(unsupported, "headless", "Dummy").accepted,
@@ -151,7 +194,7 @@ func _run() -> void:
 	var hulk_args := PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity=hulk"])
 	_check(StartupLoaderType.in_world_probe_request(hulk_args, "headless", "Dummy").accepted,
 		"hulk interruption admits its supported pilot recovery")
-	for context in ["cabin", "rest", "crew", "engineer", "on_foot"]:
+	for context in ["cabin", "rest", "crew", "engineer", "on_foot", "docking"]:
 		var unsupported := hulk_args.duplicate()
 		unsupported.append("--in-world-interruption-context=" + context)
 		_check(not StartupLoaderType.in_world_probe_request(unsupported, "headless", "Dummy").accepted,
@@ -159,10 +202,23 @@ func _run() -> void:
 	_check(not StartupLoaderType.in_world_probe_request(hulk_args, "x11", "Dummy").accepted
 		and not StartupLoaderType.in_world_probe_request(hulk_args, "headless", "PulseAudio").accepted,
 		"hulk refuses active display and audible driver before Main loading")
+	for breach_stage in ["arm", "resume"]:
+		var breach_args := PackedStringArray(["--in-world-interruption-stage=" + breach_stage, "--in-world-interruption-activity=breach"])
+		_check(StartupLoaderType.in_world_probe_request(breach_args, "headless", "Dummy").accepted,
+			"Heavy Breach admits its explicit silent terminal recovery stage: %s" % breach_stage)
+		for context in ["cabin", "rest", "crew", "engineer", "on_foot", "docking"]:
+			var unsupported := breach_args.duplicate()
+			unsupported.append("--in-world-interruption-context=" + context)
+			_check(not StartupLoaderType.in_world_probe_request(unsupported, "headless", "Dummy").accepted,
+				"Heavy Breach refuses unsupported recovery context: %s" % context)
+		_check(not StartupLoaderType.in_world_probe_request(breach_args, "X11", "Dummy").accepted
+			and not StartupLoaderType.in_world_probe_request(breach_args, "headless", "PulseAudio").accepted
+			and not StartupLoaderType.in_world_probe_request(breach_args, "headless", "Dummy", true).accepted,
+			"Heavy Breach preserves silent headless admission and rejects private engineer widening")
 	var ember_args := PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity=ember"])
 	_check(StartupLoaderType.in_world_probe_request(ember_args, "headless", "Dummy").accepted,
 		"ember interruption admits its supported pilot recovery")
-	for context in ["cabin", "rest", "crew", "engineer", "on_foot"]:
+	for context in ["cabin", "rest", "crew", "engineer", "on_foot", "docking"]:
 		var unsupported := ember_args.duplicate()
 		unsupported.append("--in-world-interruption-context=" + context)
 		_check(not StartupLoaderType.in_world_probe_request(unsupported, "headless", "Dummy").accepted,
@@ -179,7 +235,7 @@ func _run() -> void:
 	var defense_args := PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity=stationdefense"])
 	_check(StartupLoaderType.in_world_probe_request(defense_args, "headless", "Dummy").accepted,
 		"station-defense interruption admits only its supported pilot recovery")
-	for context in ["cabin", "rest", "crew", "engineer", "on_foot"]:
+	for context in ["cabin", "rest", "crew", "engineer", "on_foot", "docking"]:
 		var unsupported := defense_args.duplicate()
 		unsupported.append("--in-world-interruption-context=" + context)
 		_check(not StartupLoaderType.in_world_probe_request(unsupported, "headless", "Dummy").accepted,
@@ -204,6 +260,25 @@ func _run() -> void:
 		_check(not StartupLoaderType.in_world_probe_request(foot_args, "headless", "PulseAudio").accepted
 			and not StartupLoaderType.in_world_probe_request(foot_args, "headless", "Dummy", true).accepted,
 			"on-foot recovery requires actual Dummy and cannot inherit engineer input admission")
+	for stage in ["arm", "resume"]:
+		var docking_args := PackedStringArray(["--in-world-interruption-stage=" + stage,
+			"--in-world-interruption-context=docking", "--in-world-interruption-activity=convoy"])
+		var request := StartupLoaderType.in_world_probe_request(docking_args, "headless", "Dummy")
+		_check(request.accepted and request.recovery_context == "docking" and request.activity == "convoy",
+			"actual docking convoy admits only the explicit silent %s stage" % stage)
+		for unsafe_display in ["X11", "wayland"]:
+			_check(not StartupLoaderType.in_world_probe_request(docking_args, unsafe_display, "Dummy").accepted,
+				"docking interruption remains isolated from rendered displays")
+		for unsafe_audio in ["", "PulseAudio", "WASAPI"]:
+			_check(not StartupLoaderType.in_world_probe_request(docking_args, "headless", unsafe_audio).accepted,
+				"docking interruption requires the actual Dummy driver")
+		_check(not StartupLoaderType.in_world_probe_request(docking_args, "headless", "Dummy", true).accepted,
+			"docking cannot inherit private engineer input admission")
+		for conflict in ["--startup-check", "--frame-capture", "--version", "--support-info", "--support-export"]:
+			var conflicting := docking_args.duplicate()
+			conflicting.append(conflict)
+			_check(not StartupLoaderType.in_world_probe_request(conflicting, "headless", "Dummy").accepted,
+				"docking refuses competing exit modes before Main loading")
 	var engineer_args := PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-context=engineer"])
 	_check(StartupLoaderType.in_world_probe_request(engineer_args, "X11", "Dummy", true).accepted,
 		"engineer admits only the explicitly owned private X11 Dummy input path")
@@ -215,7 +290,7 @@ func _run() -> void:
 		"engineer refuses unowned X11 and audible input")
 	_check(not StartupLoaderType.in_world_probe_request(probe_args, "headless", "Dummy", true).accepted,
 		"private engineer input marker cannot broaden other contexts")
-	for other_activity in ["beacon", "mining", "stationdefense", "scan", "hulk", "ember"]:
+	for other_activity in ["beacon", "mining", "stationdefense", "scan", "hulk", "ember", "breach"]:
 		var incompatible := engineer_args.duplicate()
 		incompatible.append("--in-world-interruption-activity=" + other_activity)
 		_check(not StartupLoaderType.in_world_probe_request(incompatible, "X11", "Dummy", true).accepted,
@@ -229,6 +304,9 @@ func _run() -> void:
 		_check(not bool(StartupLoaderType.in_world_probe_request(probe_args, "headless", audio_driver).accepted),
 			"the fixture requires the actual Dummy driver: %s" % audio_driver)
 	for unsafe in [
+		PackedStringArray(["--in-world-interruption-activity=breach"]),
+		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity", "breach"]),
+		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity=breach", "--in-world-interruption-activity=breach"]),
 		PackedStringArray(["--in-world-interruption-activity=hulk"]),
 		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity", "hulk"]),
 		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity=hulk", "--in-world-interruption-activity=hulk"]),
@@ -245,6 +323,9 @@ func _run() -> void:
 		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity=unknown"]),
 		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity", "beacon"]),
 		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity=beacon", "--in-world-interruption-activity=beacon"]),
+		PackedStringArray(["--in-world-interruption-context=docking"]),
+		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-context", "docking"]),
+		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-context=docking", "--in-world-interruption-context=docking"]),
 		PackedStringArray(["--in-world-interruption-context=on_foot"]),
 		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-context=on_foot", "--in-world-interruption-context=on_foot"]),
 		PackedStringArray(["--in-world-interruption-context=cabin"]),

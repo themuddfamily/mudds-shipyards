@@ -37,10 +37,21 @@ func _run() -> void:
 		"detail": "Session closed: connection_failed", "retryable": true,
 	})
 	_check(unreachable.message.begins_with("Could not reach the session host.") and unreachable.message.contains("Check the address"), "failed initial connection gives readable host troubleshooting")
+	var timed_out := presenter.present_snapshot({
+		"state": &"disconnected", "role": &"client",
+		"detail": "Session closed: connection_timeout", "retryable": true,
+	})
+	_check(timed_out.message.begins_with("The session host did not admit the connection in time.") and timed_out.message.contains("Check the address") and timed_out.message.contains("NEXT ACTION // RETRY CONNECTION"), "join deadline explains the timeout and available recovery in readable text")
+	_check(timed_out.actions.size() == 1 and timed_out.actions[0].id == &"retry" and timed_out.actions[0].focusable and presenter.request_retry().accepted and not presenter.request_disconnect().accepted, "join timeout exposes a focusable caller-owned retry without an active disconnect")
+	var timeout_without_retry := presenter.present_snapshot({
+		"state": &"disconnected", "detail": "Session closed: connection_timeout", "retryable": false,
+	})
+	_check(timeout_without_retry.actions.is_empty() and not presenter.request_retry().accepted, "timeout guidance cannot grant retry when the caller forbids it")
 	var reconnect_started := presenter.present_snapshot({
 		"state": &"connecting", "role": &"client", "detail": "Contacting the session host.",
 	})
 	_check(reconnect_started.message.begins_with("Contacting the session host.") and not reconnect_started.message.contains("was lost") and reconnect_started.actions[0].id == &"cancel", "retry replaces terminal host-loss copy with current connecting guidance")
+	_check(not reconnect_started.message.contains("did not admit") and not presenter.request_retry().accepted, "a fresh retry clears stale timeout guidance and retry authority")
 	var full_source := {
 		"state": &"disconnected", "role": &"client",
 		"detail": "Session closed: session_full", "retryable": true,
@@ -141,7 +152,7 @@ func _run() -> void:
 		"detach clears the cursor and cached authoritative rows before reuse"
 	)
 	if _failures.is_empty():
-		print("NETWORK_SESSION_STATUS_PRESENTER_TEST_OK: 35 assertions")
+		print("NETWORK_SESSION_STATUS_PRESENTER_TEST_OK: 39 assertions")
 	else:
 		for failure in _failures:
 			push_error(failure)

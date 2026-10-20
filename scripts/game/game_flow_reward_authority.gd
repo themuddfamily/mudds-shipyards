@@ -2,7 +2,7 @@ class_name GameFlowRewardAuthority
 extends RefCounted
 
 ## The production reward authority for the four GameFlow-owned route activities,
-## the Cinder derelict scan, beacon run and asteroid belt threading run, the
+## the Cinder platform supply, derelict scan, beacon run and asteroid belt threading run, the
 ## physical Heavy Breach board (Heavy Breach and Torpedo Run contracts), and the retained Ember relay survey. It turns their non-authoritative completion
 ## handoffs into one persisted Shipyard return-incentive receipt. It owns no
 ## activity, inventory, currency, ship, berth, combat, or network state.
@@ -434,6 +434,25 @@ func commit(request: Variant) -> Dictionary:
 			return _reject(&"reward_generation_already_committed")
 		convoy_completion = saved_convoy
 
+	var cinder_cargo_completion: Dictionary = {}
+	if activity_id == CINDER_CARGO_ACTIVITY_ID:
+		if not _store.has_method(&"get_loaded_source") or _store.call(&"get_loaded_source") != &"primary":
+			_commit_active = false
+			return _reject(&"reward_store_recovery_required")
+		var terminal: Variant = (payload as Dictionary).get(String(CinderCargoDeliveryPersistence.SLOT_ID))
+		var validated: Dictionary = CinderCargoDeliveryPersistence.validate_terminal_record(terminal)
+		if not bool(validated.get("accepted", false)):
+			_commit_active = false
+			return _reject(&"reward_terminal_handoff_invalid")
+		cinder_cargo_completion = terminal.delivery
+		if int(cinder_cargo_completion.generation) != activity_generation:
+			_commit_active = false
+			return _reject(&"reward_generation_mismatch")
+		if bool(cinder_cargo_completion.reward_receipt.granted):
+			_record = current
+			_commit_active = false
+			return _reject(&"reward_generation_already_committed")
+
 	var cargo_completion: Dictionary = {}
 	if activity_id == CARGO_ACTIVITY_ID:
 		if not _store.has_method(&"get_loaded_source") or _store.call(&"get_loaded_source") == &"backup":
@@ -577,6 +596,8 @@ func commit(request: Variant) -> Dictionary:
 	if not convoy_completion.is_empty():
 		var acknowledged := (next_payload.cinder_convoy_session.activities[0] as Dictionary)
 		acknowledged.reward_granted = true
+	if not cinder_cargo_completion.is_empty():
+		next_payload[String(CinderCargoDeliveryPersistence.SLOT_ID)].delivery.reward_receipt.granted = true
 	if not cargo_completion.is_empty():
 		(next_payload.jovian_cargo_session.activities[0] as Dictionary).reward_granted = true
 
@@ -586,6 +607,11 @@ func commit(request: Variant) -> Dictionary:
 		store_generation,
 		"%s%010d" % [COMMIT_PREFIX, store_generation + 1]
 	) as Dictionary
+	if activity_id == CINDER_CARGO_ACTIVITY_ID and not bool(committed.get("accepted", false)) and _store.has_method(&"load"):
+		var published: Dictionary = _store.call(&"load")
+		var expected_published: Dictionary = JSON.parse_string(JSON.stringify(next_payload, "", true, true)) as Dictionary
+		if bool(published.get("accepted", false)) and _store.call(&"get_loaded_source") == &"primary" and (_store.call(&"get_snapshot") as Dictionary) == expected_published:
+			committed = {"accepted": true, "reason": &"reward_publication_recovered"}
 	_commit_active = false
 	if not bool(committed.get("accepted", false)):
 		var failure := _reject(&"reward_store_commit_rejected")
@@ -688,6 +714,14 @@ func get_asteroid_paid_generation_floor() -> int:
 	if receipt.is_empty() or StringName(receipt.activity_id) != CINDER_ASTEROID_RUN_ACTIVITY_ID:
 		return 0
 	return int(receipt.activity_generation)
+
+
+## Legacy payment establishes an epoch floor only, never missing cargo debt.
+func get_cinder_cargo_paid_generation_floor() -> int:
+	if not _configured or not bool(validate_record(_record).get("accepted", false)) or not _store.has_method(&"get_loaded_source") or _store.call(&"get_loaded_source") not in [&"primary", &"empty"]:
+		return 0
+	var receipt: Dictionary = _record.last_receipt
+	return int(receipt.activity_generation) if not receipt.is_empty() and StringName(receipt.activity_id) == CINDER_CARGO_ACTIVITY_ID else 0
 
 
 func get_snapshot() -> Dictionary:

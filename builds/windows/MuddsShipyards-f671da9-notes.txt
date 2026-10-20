@@ -1,0 +1,24 @@
+Mudds Shipyards development checkpoint f671da9
+Source commit: f671da9511873d499756a071700090a4e50dcacd
+
+Player-visible change
+- Paired Wing Break joins the existing combat board rotation after Heavy Breach and Torpedo Run. Arm it on foot, board a combat-capable craft and physically depart to launch the existing two-opponent suppression/flank encounter.
+- Wing admission, objectives, cancellation and terminal feedback identify the correct contract. It explicitly offers no credit reward; existing Heavy Breach/Torpedo payouts and pending debt retain their contracts.
+- The new board contract is solo-only; unsupported network admission is refused. Automatic sandbox encounter spawning and the guided first-sortie lifecycle remain.
+
+Validation performed
+- Clean source import PASS.
+- Existing director and production combat-board suites PASS, including the new third contract, authority/lifecycle fences and prior two-contract regressions.
+- Focused actual Main Wing admission integration PASS. Staged setup protects the new board/phase/departure integration; it is not ordinary full-sortie acceptance.
+- Existing board HUD and audio integration suites PASS with correct Wing/no-credit presentation and terminal handling. Dummy audio supplies no listening proof.
+- Clean Windows/Linux exports PASS.
+- Linux direct and archive-extracted strict startups PASS: exit0 plus exactly one STARTUP_MENU_READY_OK each.
+- Windows embedded payload through supported Linux engine PASS: exit0 plus exactly one STARTUP_MENU_READY_OK; no native Windows run.
+- Actual Windows/Linux PCK inventories match all1521 entries; stock PE .text and exact Linux archive bytes/modes/source epoch/metadata verified.
+- All12 accepted stages PASS, zero diagnostics, 264.737s combined, original caps retained. Original board test parse failure16.171s retained; one explicit-type correction, runtime/assertions unchanged. Cumulative accepted plus failed stages 280.908s. Import/director passes retain scope on identical production source before test-only correction.
+
+Open qualification
+- Full COMBAT-WING ordinary route still requires both genuine player-weapon kills and safe physical home return; NOT_RUN. Driver selector/target-specific observations still need their separately selected capability.
+- Other encounter outcomes, repeats/recovery, shared Wing and all outstanding roadmap gates remain open. No Perimeter/Courier parked candidate is adopted or qualified here.
+- Native Windows execution NOT_RUN (owner hold retained). Native GPU/performance, physical devices, listening, human/full-release and final candidate gates NOT_RUN/open.
+- Full unfiltered final release matrix and final-package Guided NOT_RUN; earlier Guided3/3 stays scoped to3d92b91 bytes.
