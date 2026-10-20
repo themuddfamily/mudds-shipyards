@@ -16503,7 +16503,7 @@ archived/hash-verified, helper copies verified, clean owned worktree/profiles/
 helper directory removed. Only results/ remains; no new sibling scratch files.
 
 
-## Arrow precision hit and return — shipped on51257b3
+## Arrow precision hit and return — shipped on 51257b3
 
 WEAPON-ARROW named pilot-hit qualification, parents7/11, within still-open
 CRAFT-ACCEPT-ARROW. Clean accepted source
@@ -16559,8 +16559,18 @@ builds/. Actual tested ELF extracted from the audited archive. No Downloads or
 hosted CI action. Final result review and notes preserve exact source/limits.
 
 Records `/srv/mudds-work/arrow-fire-hold-20261020/results/`; original failed
-records remain separately archived and unchanged. Cleanup is the remaining
-closure action, not a gameplay rerun. Broader common combat/weapon cases,
+records remain separately archived and unchanged. Cleanup completed35.58min from original10:47 selection: all11 stage owners
+terminal,66 process identities absent;11 public files hash-verified,23 private
+profile entries archived/verified, unique export metadata/helpers preserved,
+clean integrated/pushed owned worktree/profiles/helper directory removed.
+Closed records compacted136→18 loose files, all151 entries verified in member
+order for type/mode/link/hash plus fresh source recheck before removal.
+Archive122119791bytes, SHA256
+`2733db51e312b5ab6ca2b9b5b8bfb7522a88f880247dd4b79a3eac442c394669`.
+Index/README, source/reviews/summary/publication/cleanup and five reusable helper
+sources stay loose; raw stage logs/configs, profiles and actual tested ELF remain
+inside the checked archive under results/. Cleanup/compaction36.64min within
+original80min; only results/ remains and no new gameplay run was started. Broader common combat/weapon cases,
 incoming/component damage/repair/destruction recovery, crosscraft/Main/art,
 physical devices/audio/listening/human/native GPU/native Windows/final-candidate
 and full-release gates remain open. Sandbox/Defense/Wing/other parked routes

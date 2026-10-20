@@ -46,9 +46,12 @@ clear/reboard and normal UI quit. All5179 raw physics receipts reviewed;89 drive
 tests and all11 frozen stages pass, including paired packages/strict startups/
 audit. Both earlier failures and cumulative558.746s remain retained.
 [Exact checks and reopening fact](docs/history/ROADMAP_DELIVERIES.md#arrow-precision-hit-and-return--shipped-on-51257b3).
-No further engine run or successor is selected; owned cleanup is the remaining
-closure action. Broader craft/damage/recovery/crosscraft/Main/art/native/final
-gates stay open. Aboard Help retains its separate source-only scope.
+Owned worktree/profiles/helpers removed;66 process identities absent and11
+public files hash-verified. Records compacted136→18 loose files after all151
+entries were verified. Cleanup/compaction36.64min from original10:47 selection,
+within original80min. Only the task results folder remains. No further engine
+run or successor is selected. Broader craft/damage/recovery/crosscraft/Main/art/
+native/final gates stay open; Aboard Help keeps its source-only scope.
 
 ### Next production alternative: Freight physical terminal interface
 
