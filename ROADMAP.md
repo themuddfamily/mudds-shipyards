@@ -77,6 +77,24 @@ This clears the branch queue; it does not close their unfinished gameplay,
 qualification or release requirements. No unaccepted source was merged to reduce
 a branch count. Eight previously protected detached worktrees remain unchanged.
 
+**Selected: NET-JOVIAN-REDEPART /16,20,26.** One existing case,
+20:28–21:18UTC/50min. Full accepted physical passenger/pilot exit/reboard/reclaim
+journey first, including actual old-stream refusal. Same original pilot then
+uses ordinary thrust to move the same hull>=5m along its departure nose, releasing
+the occupied home berth; ordinary brake holds speed<=0.5m/s for1s. Both actual
+client hulls converge<=0.5m with fresh consumed stopped pose and current roles.
+New pilot claim/source/owner/epochs and exact passenger chair/body/frame persist;
+old identities stay retired. No second landing, staging or fabricated authority.
+Existing return caller only; one HIGH implementer and independent HIGH review;
+root engines/integration/cleanup. No new branch/worktree/CI. Selector
+--postdock-redepart; coordinator marker JOVIAN_NETWORK_TWO_CLIENT_REDEPART_OK.
+Compile300/full300/outer360, forward10/brake10/convergence5/barrier8/exit10 and
+all prefix caps unchanged. Prior165.990s full prefix plus bounded continuation
+fits original300s; no cap enlargement or shortened prefix. First failure stops
+qualification for concrete review; no automatic repair/retry. Merge/push accepted
+work and clean owned scratch before another case. Caller-only no identical rebuild;
+a real runtime repair requires focused checks and a fresh checkpoint.
+
 **NET-JOVIAN-PILOT-RECLAIM DONE — source `07ec703c7`.**
 After the complete passenger exit/reboard and pilot exit/groundwalk journey,
 the same original pilot clears the hatch lockout, walks back through the authored
@@ -96,7 +114,7 @@ change or cap increase. All five owners terminal/32 observed identities absent;
 source integrated/pushed; main remains the sole branch, no new worktree.
 Runtime/assets/tools match49bc7b736; latest playable49bc7b7 remains current.
 [Proof and limits](docs/history/ROADMAP_DELIVERIES.md#jovian-original-pilot-helm-reclaim--accepted--2026-10-20).
-No adjacent case selected; repeat departure and full parent/phase gates remain open.
+Repeat departure is selected above; full parent/phase gates remain open.
 
 **NET-JOVIAN-PILOT-EXIT DONE — source `63186dc80`.**
 The full original passenger boarding/departure/home landing/exit/reboard/chair
@@ -370,7 +388,7 @@ supported existing failures. No completed probe schedules an adjacent probe.
 NET-JOVIAN-PASSENGER-REBOARD is accepted on49bc7b736 with its fresh checkpoint
 and full original journey, as recorded above. Original pilot exit and
 [NET-JOVIAN-PILOT-RECLAIM](docs/ROADMAP_BACKLOG.md#net-jovian-pilot-reclaim--reacquire-the-same-helm)
-are also accepted above. Repeat departure remains open and is not selected.
+are also accepted above. Repeat departure is selected above.
 
 ### Next three production deliveries
 
