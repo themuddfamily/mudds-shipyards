@@ -148,6 +148,63 @@ class NativeSortieSafetyTests(unittest.TestCase):
         self.assertEqual(keys, set())
         self.assertIsNone(pilot.tap_key)
 
+    def test_wing_tracking_converges_with_moving_targets_and_delayed_pixel_actuation(self):
+        # Simulate production 60Hz pixel impulses, not an arithmetic helper:
+        # local rotation-vector exponential, damage-scaled authority, and delayed
+        # observation of actual attitude changes. No Godot/display is launched.
+        def rotate(vector, rotation):
+            angle = native.norm(rotation)
+            if angle == 0: return vector[:]
+            axis = [v/angle for v in rotation]
+            cross = [axis[1]*vector[2]-axis[2]*vector[1],
+                     axis[2]*vector[0]-axis[0]*vector[2],
+                     axis[0]*vector[1]-axis[1]*vector[0]]
+            return [vector[i]*math.cos(angle) + cross[i]*math.sin(angle)
+                    + axis[i]*native.dot(axis, vector)*(1-math.cos(angle)) for i in range(3)]
+        for delay, power, rate in ((1, 1, .12), (4, .65, .25), (7, .8, -.2)):
+            with self.subTest(delay=delay, power=power, angular_rate=rate):
+                pilot = native.PairedWingPilot()
+                state = self.wing_precision_observation()
+                state['velocity'] = [0, 0, 0]
+                axes = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+                queued = []
+                admissions = 0
+                previous_fire = False
+                precision_frames = 0
+                for frame in range(360):
+                    for due, dx, dy in queued[:]:
+                        if due > frame: continue
+                        # HeroShip uses local (-dy,-dx,0)*sensitivity*damage_power.
+                        rotation = [-dy*.0022*power, -dx*.0022*power, 0]
+                        rotated = [rotate(v, rotation) for v in ([1, 0, 0], [0, 1, 0], [0, 0, 1])]
+                        axes = [[sum(axes[j][i]*column[j] for j in range(3))
+                                 for i in range(3)] for column in rotated]
+                        queued.remove((due, dx, dy))
+                    seconds = frame/60
+                    angle = .25 + rate*seconds
+                    target = [70*math.sin(angle), 0, -70*math.cos(angle)]
+                    velocity = [70*rate*math.cos(angle), 0, 70*rate*math.sin(angle)]
+                    state['aim'] = dict(zip(('camera_right', 'camera_up', 'camera_back'), axes))
+                    pilot.frame = frame
+                    alignment = native.dot(native.unit(target), [-v for v in axes[2]])
+                    if alignment > .99998: precision_frames += 1
+                    dx, dy = pilot.precision_weapon_input(state, target, seconds, velocity)
+                    if dx or dy:
+                        self.assertFalse(queued, 'never queue another sweep before actual acknowledgement')
+                        queued.append((frame+delay, dx, dy))
+                        pilot.mouse_pending = axes[2][:]
+                    keys = set(); pilot.pulse(keys, seconds)
+                    fire = 'f' in keys
+                    if fire and not previous_fire:
+                        self.assertGreater(alignment, .99998, 'trigger needs observed precision')
+                        admissions += 1
+                    if fire: self.assertEqual((dx, dy), (0, 0))
+                    previous_fire = fire
+                self.assertGreaterEqual(precision_frames, 2)
+                self.assertGreaterEqual(admissions, 2, 'moving target tracking must actually admit repeated shots')
+                self.assertEqual(pilot.weapon_latency_frames, delay)
+                self.assertAlmostEqual(pilot.weapon_pixel_scale, .0022*power, delta=.00015)
+
     def wing_hit_observation(self):
         return {'ship_id': 7, 'source_id': 1101, 'expected_source_id': 1101,
                 'shot_baseline': True, 'kill_proofs': {},

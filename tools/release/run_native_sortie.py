@@ -3871,6 +3871,9 @@ class PairedWingPilot(SandboxPilot):
         self.supported_walk_m = 0
         self.exit_origin = None
         self.arm_requests = []
+        self.weapon_command = None
+        self.weapon_latency_frames = 1
+        self.weapon_pixel_scale = None
 
     def enter(self, stage, s):
         Pilot.enter(self, stage, s)
@@ -3911,17 +3914,59 @@ class PairedWingPilot(SandboxPilot):
         self.enter('wing_land', s)
         return True
 
-    def precision_weapon_input(self, s, target, now):
-        # Reuse Arrow's proven optical-axis control with the freshest real
-        # target position. This is hitscan: no projectile lead is invented.
-        if self.tap_key == 'f':
-            # Complete the normal timed/physical-frame F pulse without adding
-            # a steering sweep during the same press.
+    def precision_weapon_input(self, s, target, now, target_velocity=None):
+        # One command is outstanding at a time. Measure actual pixels->attitude
+        # authority (including existing component damage) and physical ack delay.
+        axes = s['aim']
+        back = axes['camera_back']
+        nominal = s['tuning']['mouse']
+        if self.weapon_pixel_scale is None: self.weapon_pixel_scale = nominal
+        command = self.weapon_command
+        if command is not None:
+            if norm(sub(back, command['back'])) < .00001:
+                return 0, 0
+            self.weapon_latency_frames = max(1, self.frame-command['frame'])
+            yaw = -math.atan2(dot(back, command['right']), dot(back, command['back']))
+            pitch = math.atan2(dot(back, command['up']), dot(back, command['back']))
+            pixels_squared = command['dx']**2 + command['dy']**2
+            measured = (yaw*command['dx'] + pitch*command['dy']) / pixels_squared
+            if math.isfinite(measured) and nominal*.05 <= measured <= nominal*1.1:
+                self.weapon_pixel_scale = min(nominal, measured)
+            self.weapon_command = None
+            self.mouse_pending = None
+        if self.tap_key == 'f' or self.mouse_pending is not None:
             return 0, 0
-        optical = dict(s, **s['aim'], ship_tuning=s['tuning'])
-        dx, dy, alignment = ArrowReturnReusePilot.weapon_aim(self, optical, sub(target, s['camera']))
-        if alignment > .99998 and self.mouse_pending is None and dx == 0 and dy == 0:
+        relative = sub(target, s['camera'])
+        right, up, forward = [dot(relative, axes[a]) for a in ('camera_right', 'camera_up', 'camera_back')]
+        forward = -forward
+        horizontal = math.hypot(right, forward)
+        distance = norm(relative)
+        alignment = forward/max(distance, 1e-9)
+        # Fire only inside the actual observed precision cone, never a predicted
+        # ray. A timed F pulse owns a zero-steering interval until fully released.
+        if alignment > .99998:
             self.tap('f', now)
+            if self.tap_key == 'f': return 0, 0
+        yaw = math.atan2(right, forward)
+        pitch = math.atan2(up, horizontal)
+        # No target-motion history survives an actor switch: use this member's
+        # current velocity only; actuation calibration belongs to the same ship.
+        velocity = sub(target_velocity or [0, 0, 0], s.get('velocity', [0, 0, 0]))
+        vr, vu, vf = [dot(velocity, axes[a]) for a in ('camera_right', 'camera_up', 'camera_back')]
+        vf = -vf
+        # Feed forward the line-of-sight angular motion during measured input
+        # actuation delay. Hitscan flight time is zero; no projectile lead exists.
+        yaw_rate = (forward*vr-right*vf)/max(horizontal*horizontal, 1e-9)
+        horizontal_rate = (right*vr+forward*vf)/max(horizontal, 1e-9)
+        pitch_rate = (horizontal*vu-up*horizontal_rate)/max(distance*distance, 1e-9)
+        seconds = self.weapon_latency_frames/60
+        scale = self.weapon_pixel_scale
+        clamp = lambda value: round(max(-35, min(35, value/scale)))
+        dx, dy = clamp(yaw+yaw_rate*seconds), clamp(-pitch-pitch_rate*seconds)
+        if dx or dy:
+            self.weapon_command = {'frame': self.frame, 'dx': dx, 'dy': dy,
+                                   'right': axes['camera_right'][:], 'up': axes['camera_up'][:],
+                                   'back': back[:]}
         return dx, dy
 
     def observe_hits(self, s):
@@ -4151,7 +4196,7 @@ class PairedWingPilot(SandboxPilot):
                 # Keep one exact actor until destroyed; both are the existing roster.
                 if self.target not in [m['id'] for m in targets]: self.target = targets[0]['id']
                 target = next(m for m in targets if m['id'] == self.target)
-                dx, dy = self.precision_weapon_input(s, target['position'], now)
+                dx, dy = self.precision_weapon_input(s, target['position'], now, target['velocity'])
         elif self.stage == 'return_align':
             keys.update(('Prior', 'h'))
             off = sub([0, 2, -18], s['position'])
