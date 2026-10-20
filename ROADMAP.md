@@ -77,6 +77,21 @@ This clears the branch queue; it does not close their unfinished gameplay,
 qualification or release requirements. No unaccepted source was merged to reduce
 a branch count. Eight previously protected detached worktrees remain unchanged.
 
+**Selected: PLAY-DEFENSE — supported post-Deploy walk correction /13.**
+One existing unfinished case,20:44–21:44UTC/60min. Original failure and sole repair
+remain failed, cumulative406.401s. Source now identifies a concrete intersection:
+original straight Arrow path crosses collidable mast-foot lamp hood clearance at
+the recorded stop. This is geometric inference, not a recorded collider ID.
+Recover existing five-file caller/observer selector onto current main; prepend
+supported interior waypoint(9,.18,-24.5), then retain every original Arrow waypoint.
+No production geometry removal. Full empty-profile physical Deploy/ordinary Arrow
+boarding/departure/four actual player kills/once payment/strict home/physical Reset/
+next Deploy/normal UIexit contract retained. Whole34s encounter/CAP300/outer360
+unchanged. One HIGH implementer and independent HIGH source/result review; root
+packages/commands/integration/cleanup. No new branch/worktree/hostedCI. First
+failure ends qualification; no automatic repair/retry. Accepted source must be
+merged/pushed and owned profiles cleaned before another case.
+
 **NET-JOVIAN-REDEPART DONE — source `bc7f9f9c4`.**
 The complete ordinary Jovian journey now covers initial boarding/flight/home
 landing, passenger physical exit/reboard, pilot physical exit/groundwalk/reclaim,
