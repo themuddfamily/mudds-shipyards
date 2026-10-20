@@ -1,10 +1,10 @@
 # Development roadmap
 
 **Status: playable development alpha; project completion is unproven.** Latest
-accepted checkpoint: **49047eb**, explaining blocked save repair and retaining
-damaged-save preservation.
-[Windows notes](builds/windows/MuddsShipyards-49047eb-notes.txt) and
-[Linux notes](builds/linux/MuddsShipyards-49047eb-linux-notes.txt) state checks and
+accepted checkpoint: **3d92b91**, explaining paused saved Convoy objectives and
+crediting the existing planetary ambience loops; earlier save protection remains.
+[Windows notes](builds/windows/MuddsShipyards-3d92b91-notes.txt) and
+[Linux notes](builds/linux/MuddsShipyards-3d92b91-linux-notes.txt) state checks and
 limits. Inline browser progress/timeout/retry remains accepted on20e90c9;
 paused LAN discovery on042c701. Beacon departure/traversal/once-only saved reward
 qualification on e06550e is retained in its recorded scope. Beacon home/dock/exit, Perimeter Hold,
@@ -55,33 +55,20 @@ source scopes; they are no longer current tasks. The cache callback repair is
 still an unverified candidate. Empty release callable metadata does not prove a
 cause, and no shared cause with the Window failure is established.
 
-**Selected independent delivery: Convoy resume objective and planetary audio credits.**
-Parent13 HUD-CONVOY has a concrete mismatch: the saved escort is frozen pending
-craft rebind and its Nearby row explains that, but the objective still displays
-live leg/distance/time. One medium implementer owns only `scripts/ui/hud.gd`
-and `tests/cinder_convoy_retained_feedback_test.gd`; consume already forwarded
-rebind/name fields, restore live progress only after the existing accepted rebind,
-and preserve authoritative save/reward/actor behavior. No parked Convoy suite is
-reopened. Root independently owns only `ASSETS.md` and
-`scripts/ui/credits_catalog.gd` to register/credit the three existing procedural
-planetary ambience loops. No audio synthesis, playback or mix changes.
+**Delivered on checkpoint3d92b91: saved Convoy objective and planetary ambience credits.**
+Cold-restored/wrong-craft Convoy objectives now explain the paused save and name
+the craft to board; accepted rebind restores live progress. Credits now include
+the three actual procedural surface ambience loops. Source3d92b9181 is integrated
+and pushed. Existing Convoy20/Credits25 assertions, actual Windows-payload credits,
+paired exports, three strict startups and artifact audit all PASS first attempt:
+10 stages203.594s, all45 process identities absent, owned cleanup at9.0min from
+selection against45min cap. [Player changes, actual checks and limits](docs/history/ROADMAP_DELIVERIES.md#saved-convoy-objective-and-planetary-credits--shipped-on-3d92b91).
 
-Estimate15–20min edit/integration,5–10min focused checks,5–10min paired checkpoint;
-stop/split at45min from this selection. Root reviews both bounded changes, commits
-an integrated clean candidate, then freezes exact commands: fresh Dummy import180s;
-existing Convoy retained-feedback suite300s (original default), Credits page90s;
-one focused actual-payload credits check60s; clean Windows/Linux exports180s each;
-three strict menu-ready startups120s each and existing artifact audit90s.
-First unexpected failure STOP, no automatic retry/repair/cap increase. Success
-requires correct frozen-craft guidance/cold/wrong-craft/rebound states, credits
-visible from existing menu routes, actual matching packaged credits, then EXE,
-checkpoint ZIP and concise build notes in repository builds. Native hardware,
-real listening and broader activity/release gates remain NOT_RUN.
-
-Tooltip cleanup-order attempt remains stopped: private route PASS but active
-Tooltip regression unproved;bae551d58 stays pushed/unmerged. No repeat, altered
-hover/timing, or public fix claim is selected. Original failures/733.226s and
-60.76min of its90min family budget remain retained independently of this work.
+RIGHTS-DEFINE is complete as a [finite source-backed family map](docs/ROADMAP_BACKLOG.md#rights-families-and-missing-documents--rights-define),
+not legal clearance or a release gate. Missing project release terms and separate
+historical-media redistribution records remain explicit; the settled creator-
+permission account is preserved. No additional executable card is selected.
+Tooltip cleanup-order candidate remains unmerged/unproved; no retry is scheduled.
 
 ### Waiting decisions — not executable tasks
 
@@ -200,7 +187,7 @@ retains its own package/result and stops without a gameplay repair.
 Five import/privacy/export/strict-startup/artifact checks pass. The full ordinary
 route still FAILS90.724s on the two original root signal errors after all54
 waypoints, actual60-frame view and supported home return. No normal exit0 or
-WALK acceptance; latest public49047eb unchanged.
+WALK acceptance; that diagnosis published no checkpoint.
 
 The receiver is a visible embedded **TooltipPanel beneath
 PlanetaryDestinationOpenButton**. Both root outgoing and Popup incoming
@@ -220,19 +207,17 @@ a repair. No further probe/repair/retry selected.
 
 ## Latest playable result
 
-**Blocked save-repair feedback delivered and packaged on49047eb.** When a
-recovery copy cannot safely be preserved, the player sees that replacement was
-blocked and save files were retained. The known refusal clears confirmation;
-true publication ambiguity keeps its existing message. Damaged-save preservation
-from9326614 and browser inline progress/timeout/Retry remain included.
+**Checkpoint3d92b91** fixes misleading live progress on a paused saved Convoy
+escort and adds the missing planetary ambience attribution. It retains earlier
+save-preservation/blocked-feedback, browser and accepted gameplay improvements.
 
-[Windows ZIP](builds/windows/MuddsShipyards-49047eb-checkpoint.zip),
-[build notes](builds/windows/MuddsShipyards-49047eb-notes.txt),
-[actual validation and scope](docs/history/ROADMAP_DELIVERIES.md#blocked-save-repair-feedback--shipped-on-49047eb).
-The browser's full ordinary journey and native callback route remain unfinished.
-Earlier accepted gameplay outcomes retain their recorded scopes in the
-[delivery history](docs/history/ROADMAP_DELIVERIES.md). No whole activity, craft,
-roadmap parent or phase closes from this feedback change.
+[Windows checkpoint ZIP](builds/windows/MuddsShipyards-3d92b91-checkpoint.zip),
+[build notes](builds/windows/MuddsShipyards-3d92b91-notes.txt),
+[actual validation and scope](docs/history/ROADMAP_DELIVERIES.md#saved-convoy-objective-and-planetary-credits--shipped-on-3d92b91).
+Full Convoy play/endurance, native Windows/GPU/device/audio/human review and final
+release remain open. Native-tooltip shutdown failure and its unproved cleanup
+candidate are not resolved by this independent delivery. No broad parent or
+phase closes from these two content/UI changes.
 
 ## Parked failures and dependent work
 

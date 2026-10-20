@@ -15042,3 +15042,73 @@ original retained515.027s gives733.226s cumulative checks; all four original
 failed ordinary attempts retained. Original02:54:57UTC freeze→cleanup60.76min
 inside unchanged90min, not a new clock. Latest public49047eb unchanged; broad
 parents/phase/native/device/audible/human gates stay open.
+
+## Saved Convoy objective and planetary credits — shipped on 3d92b91
+
+Source3d92b91813d9e407e14ee4689c771e45af2c2042 is integrated/pushed;
+Windows EXE/checkpoint ZIP/notes and matching Linux binary/tar/notes are in
+repository builds/. No Downloads publication. Credits source d1143b04d and
+Convoy objective3d92b9181 are the only production changes, with ASSETS register
+and existing focused-test extensions; GameFlow and the unproved tooltip repair
+are unchanged/excluded.
+
+**HUD-CONVOY[restored objective], parent13:** actual cold Main restores ACTIVE
+Convoy frozen pending saved-craft rebind. The Nearby row already explained the
+pause; the objective incorrectly displayed old live leg/range/time. Its ACTIVE
+branch now consumes the same forwarded rebind flag and saved-craft name/fallback.
+Cold/wrong-craft objectives give paused guidance; accepted rebind restores live
+progress. Terminal and idle authority retain precedence over stale flags; no
+save, actor, reward or thawing-policy mutation. Existing word-smart label wrap
+is retained. Broader HUD durable-reset/select/start and full ordinary Convoy /
+parked save/endurance requirements remain open.
+
+**RIGHTS[planetary audio attribution], parents30/34:** the three existing
+exterior-air/cabin-air/coastal-water loops were absent from ASSETS and in-game
+credits. Their actual WAV and generator hashes match the existing authorship
+manifest; one register entry and matching CreditsCatalog entry now identify the
+project-original synthesis, with no recordings/samples/historical sound claim.
+No media bytes, synthesis, audio selection/playback or mix changed. RIGHTS-DEFINE
+also now names six source-backed families/document gaps in the existing backlog;
+that definition is not legal clearance, a licence choice or a release pass.
+Existing Godot binary-derived notices already work, so no duplicate packaging
+notice project is created. Settled creator-permission account remains unchanged.
+
+### Actual frozen checks — all pass first attempt
+
+| Stage | Actual seconds | Evidence |
+| --- | ---: | --- |
+| import | 20.712 | Fresh headless/Dummy import. |
+| convoy | 48.003 | 20 assertions: actual save/cold Main, wrong craft, accepted rebind, calm objective/fallback, stale terminal/idle flags and unchanged frozen authority. |
+| credits | 3.104 | 25 assertions: startup/pause entry, focus/back/scroll, asset-register attribution and expanded engine notices. |
+| windows_export | 26.741 | Clean Windows export. |
+| linux_export | 26.056 | Clean Linux export. |
+| linux_startup | 22.626 | Actual Linux binary: exit0 and one STARTUP_MENU_READY_OK. |
+| archive_startup | 23.832 | Actual extracted Linux archive: exit0 and one menu-ready marker. |
+| windows_payload_startup | 26.081 | Actual Windows payload through pinned Linux Godot: exit0 and one menu-ready marker. |
+| payload_credits | 0.771 | Actual packed CreditsCatalog contains the new planetary audio attribution. |
+| audit | 5.667 | Matching PCK1521, no tests/tools, stock PE code, ELF architecture and exact Linux tar bytes/modes/epoch/source metadata. |
+
+Combined203.594s; no failure, retry or cap increase. All45 observed process
+identities absent. Profiles archived with exact file hashes/symlink targets
+verified, public checkpoint copied/hash-verified, ZIP member bytes verified.
+Clean pushed implementation and integrated worktrees, duplicate private binaries,
+import caches/helpers/profiles removed. Only
+`/srv/mudds-work/convoy-surface-credits-20261020/results/` remains: source/check
+freeze, raw logs/process guards, inventories, publication hashes and review.
+Selection→owned cleanup9.0min against45min cap; source/checkpoint/publish complete.
+
+[Windows notes](../../builds/windows/MuddsShipyards-3d92b91-notes.txt) and
+[Linux notes](../../builds/linux/MuddsShipyards-3d92b91-linux-notes.txt) state player
+changes and actual validation. Artifact hashes:
+
+- `MuddsShipyards-3d92b91.exe`: 184,656,160bytes, SHA256 `e83b5e2a27405357705faaf9b30a9d9e2c1f084ff68987a1b6deb87c89236b29`.
+
+- `MuddsShipyards-3d92b91.x86_64`: 148,897,872bytes, SHA256 `b067e22c7187447da2dd86c4fe3e079a1f254c8185aa416e1b11daa0722040b9`.
+
+- `MuddsShipyards-3d92b91-linux-x86_64.tar.gz`: 95,311,847bytes, SHA256 `bafecdc0d2e550bc69f65220352fcb68787577c18710de446416ce86102c7a08`.
+
+Native Windows execution, native GPU/device/audio/listening and human visual
+review remain NOT_RUN. Focused staged save/rebind checks are not full ordinary
+Convoy play, installed crash recovery, endurance, whole-matrix or release proof.
+All36 broad parents and ten phase gates remain open. The existing tooltip
+cleanup-order candidate is unmerged/unproved and not part of this checkpoint.

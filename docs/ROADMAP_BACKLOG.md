@@ -409,7 +409,7 @@ test is an owner/regression anchor, not a runnable ordinary route.
 | HUD-RACE | Race durable reset/select/start/fresh-Main UI | 13 | Source review already found no concrete discrepancy; no edits/runs or ordinary acceptance. Do not repeat unchanged source triage; full qualification remains unscheduled |
 | HUD-PATROL | Patrol durable reset/select/start/fresh-Main UI | 13 | Source review already found no concrete discrepancy; no edits/runs or ordinary acceptance. Do not repeat unchanged source triage; full qualification remains unscheduled |
 | HUD-CARGO | Cargo durable reset/select/start/fresh-Main UI | 13 | Supply-status child DONE0c2dc2e: depleted hold reports insufficient kits after reset/reselection; cargo127/nearby HUD13 and paired checkpoint pass. Broader durable UI/restart remains open; KIT-RELOAD stays parked |
-| HUD-CONVOY | Convoy durable reset/select/start/fresh-Main UI | 13 | UNSCHEDULED; correct existing owner only on actual discrepancy |
+| HUD-CONVOY | Convoy durable reset/select/start/fresh-Main UI | 13 | Restored-objective discrepancy DONE on checkpoint3d92b91: cold/wrong-craft saved escort shows paused guidance, accepted craft rebind restores live progress; existing retained-feedback20 assertions pass. Wider durable reset/select/start/full ordinary Convoy scope remains open; parked save suite not reopened |
 | ACT-WRITES-DEFINE | Uncovered activity/write-boundary cells | 13,31 | DONE definition only; finite durable owner/boundary map below, with terminal-only owners distinguished; exact-package/real-file/ordinary recovery acceptance remains open |
 | BOOT-BREACH-OWNERS | Physical Heavy Breach board has exact production owners before gameplay | 9,11,13 | DONE packagede3d1ada; two exact old owner failures, final full startup/48-check production route and strict paired checkpoint pass; original interruption transaction remains parked |
 | BREACH-INTERRUPTION | Exported Heavy Breach real-file earned debt/kill/recovery/paid replay | 13,31,32 | FAILED/PARKED: after originale9/repair3c board failures and accepted startupfixe3, unchanged-probe reopeningc159 fails69.957s at atomic-payment commit assertion; third cold replay NOT_RUN. Cumulative140.961s; unmerged/withheld, no further run/repair selected |
@@ -765,7 +765,7 @@ Recovery proof uses an owned actual OS SIGKILL, distinct restart, protected real
 | capture-station-operations | Registered capture set, 7 PNGs | 12,33 | PARKED; supported changed environment/mitigation required |
 | capture-varied-encounters | Registered capture set, 18 PNGs | 12,33 | GATED; frozen candidate and original runnable harness |
 | capture-zenith-visuals | Registered capture set, 7 PNGs | 12,33 | GATED; frozen candidate and original runnable harness |
-| RIGHTS-DEFINE | Finite project/asset/source licensing families and missing documents | 34 | DEFINE; preserve settled creator permission, no repeated question |
+| RIGHTS-DEFINE | Finite project/asset/source licensing families and missing documents | 34 | DONE as the [source-backed rights-family map](#rights-families-and-missing-documents--rights-define); definition only, no blanket rights clearance. Creator-permission account retained; project release terms and historical media redistribution documents remain distinct gaps |
 | SIGN-FINAL | Trusted game/installer/uninstaller signatures and expected publisher | 34 | WAITING; trusted external certificate/credentials, exact artifacts |
 | MATRIX-FINAL | Existing unfiltered local --mode all on one frozen candidate | 6,35 | GATED; targeted repairs/integration, original caps and no exclusions |
 | FINAL-RECONCILE | All original promises and applicable final-candidate results | 2,35 | GATED; existing candidate record/SHA256SUMS, zero P0/P1 and reviewed P2 |
@@ -802,8 +802,8 @@ with actual uncovered outcomes. In particular, the eight BUILD-SPLIT rows are
 placeholders for future capability cards, not eight complete ship builds.
 Weapon/damage cells, historical relationships, presentation defects, repeated
 activity/write/save cases, adverse network profiles, performance measurements,
-readability cells, audio scenarios, installed interruption cuts and licensing
-families still have unresolved multiplicities. **A defensible whole-project
+readability cells, audio scenarios, installed interruption cuts and family-specific rights/document
+dispositions still have unresolved multiplicities. **A defensible whole-project
 remaining-job count and completion date are therefore not yet available.**
 No new validator, tracker or evidence chain belongs to this decomposition.
 
@@ -2102,6 +2102,34 @@ Scope: original §6 and retained installed-interruption milestone. Final-candida
 | MATRIX[one frozen integrated candidate] | GATED on targeted repairs/integration | Clean import and existing unfiltered `--mode all` matrix at original suite/long caps, no exclusions, including isolated graphics. Stop at complete result; failures become named child fixes. Do not rerun whole matrix for every small change. |
 | FINAL-RECONCILE[one candidate] | GATED on required content, matrix and applicable platform/device/performance/audio/endurance/install/capture/signing results | Reconcile all original promises and exact candidate results with existing `release_candidate.py`, candidate record and `SHA256SUMS`. Zero open P0/P1, explicit reviewed P2/residual-risk dispositions including RENDER-001 where applicable. Changed source invalidates affected qualification; owner exclusions stay excluded. Stop at actual complete or named unmet gates, never a new evidence layer. |
 | DISTRIBUTE[accepted candidate] | GATED on FINAL-RECONCILE and authorized destination/publication | Publish exact qualified artifacts/checksums and concise player-facing notes using existing release flow. Stop after byte identity and download checks. No Downloads copy or public publication implied by local checkpoints. |
+
+### Rights families and missing documents — RIGHTS-DEFINE
+
+Definition DONE on2026-10-20 from the current asset register, credits catalog,
+README and actual checkpoint3d92b91 inventories. This finite routing map does not
+certify every asset's rights, select a project licence, or close parent34. A
+RIGHTS assignment selects one actual family/document gap; no per-file validator
+or new provenance chain is needed.
+
+| Current family | Existing source / player-facing notice | Remaining artifact or boundary |
+| --- | --- | --- |
+| Project code, gameplay definitions and standalone installer | README records project-original work and no project LICENSE; repository history identifies source. | Project release-terms text is absent. Engine MIT text does not select a licence for this project's own code. Record the owner's chosen terms before claiming this family cleared; no licence is inferred here. |
+| Authored geometry, vector/procedural graphics and Blender sources | ASSETS.md and CreditsCatalog attribute project-original models, markings, materials and generators. Actual package includes the registered project-original Zenith blend. | Retain registered authorship and exact distributed inputs. Offline tool credits describe creation tools; they do not supply the missing project release terms. New external source material requires its own recorded disposition. |
+| Procedurally synthesized sound and music | ASSETS.md, generator sources/manifests and in-game credits. Planetary air/cabin/water attribution now included on3d92b91; its three WAV and generator hashes match the existing manifest. | Authorship/attribution is recorded in the named scope. This does not establish listening, historical authenticity or all audio/runtime acceptance; project release terms remain separate. |
+| Generated raster artwork and registered derivatives | ASSETS.md records image-generation source, dates/prompts/metadata and derived-map recipes; credits preserve that authorship. | Preserve the actual registered source/derivative relationship and chosen project distribution terms. Do not promote generated concepts into historical evidence or infer a blanket grant for unrelated imagery. |
+| Godot engine, bundled components and default font | CreditsCatalog obtains Engine.get_license_text/get_copyright_info/get_license_info from the running binary; existing credits test checks the page and expanded notices. No additional project font is registered. | Keep those notices reachable on the final exact package. Existing source/package checks support their recorded candidate only; signatures, native execution and final release qualification retain separate gates. |
+| Historical research media and original-game claims | Source ledger and ASSETS.md distinguish referenced B7 video/frame material from project-original runtime assets; original Roblox assets/scripts are not represented as bundled work. | Owner's creator-permission question remains settled as recorded in README; no repeated permission question or written grant is invented. Redistribution rights for the referenced B7 media itself are not recorded: keep that media unbundled unless its own disposition changes. Historical identity/evidence gates stay open. |
+
+The [Godot licensing guide](https://docs.godotengine.org/en/stable/about/complying_with_licenses.html)
+describes the existing engine-notice approach; project terms remain separate.
+
+The creation tools named in CreditsCatalog (Blender, image generation, Python /
+numpy / scipy) are not an extra shipped-runtime licence family merely because
+they produced an asset. Actual checkpoint inventories exclude tools/ and tests/;
+registered authored source and metadata still belong to their families above.
+The existing credits UI already carries Godot notices, so no duplicate external
+notice-packaging project is scheduled. Trusted signing and distribution remain
+SIGN-FINAL/DISTRIBUTE, not substitutes for resolving these document gaps.
 
 ### Activity recovery — progress, player state and uncovered capabilities
 
