@@ -19466,3 +19466,60 @@ Qualification uses real distinct Godot Main processes, actual default files and
 ordinary InputEvents/held controls on private Xvfb/x11/dummy renderer/Dummy audio.
 It does not qualify production Boot, OS-XTest, native Windows/GPU/devices/human,
 final package or all station routes. Those existing gates remain separate.
+
+
+## Existing Fire restart — saved profile restored, raw-key sampler still unqualified — 2026-10-20
+
+FIRE-RESTART remains OPEN/unqualified. Reopening condition was shipped Settings
+focus correction4d7ac4386c/cf83988e25: current-focus guarded/coalesced/scroll-local
+correction replaces the archived native calls. Exact38e475960 writer/reader
+modes restored in existing production-persistence test; current default runner
+and all default bodies unchanged. First current writer failed original visible
+Fire intersection before capture. Source identified a fixture mismatch: it
+focuses Fire immediately after page open; passing SettingsUI geometry fixtures
+allow two layout frames first. Sole +2line correction864631980 adds those frames,
+preserving all original postfocus waits/predicates/300s per process/headless1280.
+No directly observed native/timing cause or production remapping bug is claimed.
+
+ONE corrected writer2153851 passes all17checks/OS0/explicitWRITER_OK and suiteOK:
+focused Fire y560.842..591.158 intersects originalscroll133.579..592.105; rawF13
+capture and real default-store Apply+Save accept exactlyone transaction, preserve
+original gamepad axis5 and unrelatedsentinel. Distinct reader2154092 starts only
+after writerOS0/exactmarker/frozenmanifests/allwriteridentitiesabsent. It reads the
+SAME actual user:// file, with before-Main bytes exactly equal to retained writer.
+Normal production authority load, visible F13 row/InputMap/gamepad agreement,
+production LocalShipInputSource profile audit and released baseline all PASS.
+RawF13press then returns fire=false/input_map=false vs requiredtrue: readerFAIL.
+F13release/formerF/leftmouse rejection and readercompletion not reached. Cleanup
+releases inputs/capture. No runtime input-dispatch/focus/queue cause established;
+no additional probe/repair/retry/backend/cap change selected after this failure.
+
+Actual writer6860bytes/gen8/SHA256
+b80de596d414a6cde4970ac4446281550f1e4e0f83a86d90277d1bfca0ce632e;
+failedreader7482bytes/gen12/SHA256
+a605deb62e2098d838fc2bcbb685518619fc29e539d1a58e3dc58762fab6b1c9
+retains identical disk inputprofile and sentinel. This supplies scoped save and
+profile-reload proof, not the original full sampler or physical-device result.
+No MemoryFilesystem/callback replacement/profile seeding/Input.action_press.
+Original synthetic raw events/focus notification disclosed; no OS-XTest/native/
+GPU/fullSettings/combat/final-package claim. Independent final review NO-GO.
+
+Selected stage intervals (seconds): writer-layout=31.1124251, reader=31.0324237, compile=16.1282203, compile-layout=16.2202218, writer=30.8044207. Total 125.2977116s.
+Original432.527s wholeattemptwall retained separately: different timing bases,
+not a project progress measure. All source/cache manifests remain exact.
+
+Both unique commits/three changed files retained under pushed refs/tags/archive/withheld/fire-restart-current-scroll-20261020;
+annotated object aeffd0daeb4e323872abbba04dc0219a892b3354/peeled 86463198091ed822ef7004fda7fc708d0c1f2f92.
+Verified incrementalbundle 7323bytes/SHA2561b9ba7c271bb8358fad407ab11dec738226b28de9d1b9893923772333bad9a1c,
+binarypatch and exact Gitblob tar recorded in source-preservation.json.
+No unaccepted source merged. Results: /srv/mudds-work/fire-restart-current-scroll-20261020/results/
+contains cards/source+failure+final reviews, authentic handoff/raw primaries,
+logs/results/manifests and archives. Root returned main before this closeout.
+
+All5 owners terminal/10 observed PID+starttick identities absent; all79
+profile entries reopened/byte+mode+link verified before scratch removal 2026-10-20T22:33:37.871998+00:00.
+Profile archive 9230bytes/SHA2562de8b1bfde758d7376b1ef1c72f513a32e4facd00b63dcf887a7f0c3f1d0ea8c.
+No new branch/worktree; eight protected detached worktrees unchanged. Runtime/
+export/checkpoint3767687 unchanged, no identical rebuild. Original20 inventory
+stays eight accepted/superseded and twelve unqualified; all36parents/tenphase
+gates and outstanding hardware/human/final requirements remain open.
