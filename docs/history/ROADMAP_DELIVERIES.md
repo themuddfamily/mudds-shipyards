@@ -19613,3 +19613,49 @@ No dormant-actor optimization or unrelated startup edit was substituted for
 these missing facts. Prior protected source tags, raw traces and failure budgets
 remain authoritative. ROADMAP/backlog rows now distinguish these blockers;
 no original full journey, native/hardware/human or final gate was weakened.
+
+
+## Existing tooltip hover admission — original close error not reproduced — 2026-10-20
+
+Existing UI-BOARD-FOCUS / WALK-OBSERVATION blocker only. No runtime fix, original
+journey acceptance, checkpoint or inventory completion credit. The twenty-candidate
+inventory remains nine accepted/superseded and eleven unqualified.
+
+Actual-Main candidate fa3e3e771 retains the archived isolated-store child,
+real Destination/Exit focus, single external XTest hover, original real visible
+embedded TooltipPanel/direct-parent/root-binding criteria, 30s hover and actual
+85s host/90s outer limits. Passive native/window/GUI observations establish why
+prior hover failed: native (800,468) maps to GUI (1000,585), outside Destination
+[595,444.5,410,48], with its surrounding VBox hovered, mouse visible and window
+focused. No popup; original 30s child FAIL. Compile16.332s/run61.317s.
+
+Local Godot4.7.1 CanvasItem::get_screen_transform uses the popup base transform;
+Window returns identity when embedding subwindows, omitting root stretch.
+The sole follow-up b370ce804 corrects READY reporting with actual window-origin
+translation * root screen transform * Destination global-with-canvas transform.
+No hardcoded ratio, cursor correction, added waits, cap or runtime change.
+
+Compile16.236s. One corrected HUD baseline32.832s: native (640,375) maps to GUI
+(800,468.75), actual Destination hovered, real visible embedded TooltipPanel
+920364533659 with both valid native root callbacks and retained Exit focus.
+Ordinary Return exits actual game0 with no ERROR/WARNING. Host exits1 because
+its strict required original two-error pair is absent: AssertionError([]).
+Popup begins exiting with bindings; Main/root exit snapshots have none; popup
+exited callback follows root exit. This proves admission and clean behavior in
+this case, not the cause or repair of the original Observation/Beacon failure.
+No WM-close/full-route retry or archived runtime patch selected. The missing
+boundary remains actual popup/connection-removal identity in that failing path.
+
+Results /srv/mudds-work/tooltip-hover-admission-20261020/results/ retain original
+logs, native queries, manifests, cards and independent source/result reviews.
+All four stages source/cache unchanged. Both hosts release inputs/reap helpers,
+game and Xvfb; all4 supervisors terminal/all16 observed identities absent.
+All60 scratch entries archived/reopened/verified then removed23:00:42UTC;
+profiles.tar.gz8185bytes SHA256
+80d8be0173e7b57171433eb4f86b5c082a060dd5e64e264028225ee4b44c281f.
+
+Two unique diagnostic commits/one source file remain unmerged, preserved by
+verified incremental bundle/binary patch/exact source tar and pushed annotated
+archive/diagnostics/tooltip-hover-admission-20261020 (peeled b370ce804).
+Main is sole local/live remote branch; eight protected worktrees untouched.
+Runtime/export inputs remain3767687; no identical checkpoint rebuild.
