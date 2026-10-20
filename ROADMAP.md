@@ -76,25 +76,24 @@ Game source unchanged; no duplicate checkpoint. [Full result and cleanup](docs/h
 Do not repeat this accepted source unchanged. Independent production alternatives
 still need the named Hauler stock, navigator refusal and Bomber rearm definitions.
 
-**Selected review: STATION-FINDINGS[Habitat common-room arrival], parents9/12.**
-One medium mapper found existing full-Main capture uses y2.55, above1.94m player
-body height, with no eye/output selector. Existing isolated chair captures do not
-establish an actual world view. Root will use one private photo helper derived
-from the existing Main capture seam: actual retained Habitat/lighting, common-entry
-marker x0/z18.65, measured avatar `eye_pivot.y` above floor, actual player FOV,
-horizontal +localZ view. Hide overlays only; no geometry/material/actor fixtures,
-ordinary-route, UI, visual-quality or native-performance acceptance inferred.
+**Habitat common-room arrival review PARKED: no image.** On clean source
+`8a6339b91`, fresh import passes20.652s, but the one full-Main player-height
+Forward+ readback times out180.842s before a PNG or view metadata; actual X11/
+llvmpipe device startup is logged. Cumulative201.494s, no game-source edit,
+visual finding/no-finding, native qualification or new checkpoint. Supervisor
+reaped its owned processes; no repair, second capture or cap increase.
 
-Root owns only private capture helper and roadmap result; no runtime repair is
-selected without an actual named finding. Freeze clean source, commands and
-one1400x900 PNG before engines. Fresh headless Dummy import180s, then one full
-Main Forward+ capture180s on authenticated owned Xvfb/explicitx11/Dummy and
-Lavapipe software Vulkan. Independent timeout/process/display cleanup; no active
-desktop/audio. Fixed30min from this selection commit; stop on one valid image and
-review or first failure. No automatic retry, cap increase, replacement isolated
-module or parked station-operations/Aft/Central capture. End with named defect
-and repair owner, or explicit limited no-finding; commit/push and clean owned
-scratch. Existing Habitat walk/rest/clearance passes remain in scope separately.
+The private helper was configured to use the actual Habitat common-entry marker,
+measured avatar eye/capsule and player FOV, existing Main/lighting and no actor/
+geometry fixtures. It did not emit metadata proving that stage was reached.
+The old integrated camera's y2.55 is not a standing-eye substitute. No isolated
+room capture or different branch may be used to claim this failed world view.
+A concrete supported capture-boundary change is required before separately
+selecting another full-Main attempt. [Result and retained scope](docs/history/ROADMAP_DELIVERIES.md#habitat-arrival-view--readback-timed-out-before-image).
+Accepted Habitat walking/rest/service outcomes and other unreviewed views remain.
+All 6 observed process identities are absent; 298 unique profile files archived/
+verified, owned worktree/cache/profiles/helper duplicates removed. Closure 5.8min
+within the original 30min cap.
 
 | Work | Actual state | Completion / next boundary |
 | --- | --- | --- |

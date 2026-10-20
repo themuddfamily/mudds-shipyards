@@ -15284,3 +15284,38 @@ It does not qualify final package/full matrix, native Windows/GPU, actual device
 audible audio, ordinary Halyard or yaw-handback routes, capacity or endurance.
 Their exact gates and retained failures remain; do not repeat this accepted
 source unchanged. Broader parent/phase gates remain open.
+
+## Habitat arrival view — readback timed out before image
+
+STATION-FINDINGS[Habitat common-room arrival], parents9/12, clean pushed source
+`8a6339b915f675c10876eaad5820165189ebf6e3`. One medium read-only mapper found
+existing habitat_integration_test --capture uses local eye(0,2.55,18.8), target
+(0,1.75,27.2), FOV56 with no view/output selector. Its y2.55 exceeds the authored
+1.94m player body; isolated Habitat chair frames use a custom environment and
+do not establish the selected full-Main arrival view. No runtime defect inferred.
+
+Root froze one private photo helper derived from that Main capture seam. Intended
+view: actual RouteCommonEntry x0/z18.65, measured avatar eye above actual capsule
+bottom plus safe margin, actual player FOV/aspect/near/far, horizontal local+Z,
+1400x900, production Main/world/lighting with overlays hidden. No actor placement,
+geometry/material fixture or module replacement. The helper never emitted its
+metadata, so reaching that intended measured-camera stage is unproven.
+
+Fresh headless Dummy import PASS20.652s within180s. One authenticated owned-Xvfb
+Forward+ capture, explicitx11/Dummy and Lavapipe software Vulkan, FAIL180.842s:
+exit124, timeout diagnostic, zero completion markers, no PNG or view metadata.
+Actual Vulkan1.4.305/llvmpipe LLVM19.1.7 startup is logged; exact blocking Main/
+lifecycle/draw boundary remains unobserved. Cumulative201.494s. Supervisor
+terminates/reaps owned processes. No visual finding or no-finding claim, runtime
+repair, second capture, cap increase, different-room substitution or checkpoint.
+Do not transfer isolated geometry/readability or native-performance acceptance.
+
+All6 observed process identities absent; stage owners terminal. All298 unique
+profile files archived/hash-verified; fresh detached worktree/import/shader cache,
+live profiles and helper duplicates removed. Source/commands/helper hashes,
+raw owner/process/log records, exact failed helper and profile archive retained
+only under `/srv/mudds-work/habitat-arrival-view-20261020/results/`. Closure5.8min
+within original30min. Public checkpoint3d92b91 and accepted Habitat ordinary walk,
+rest/restart/service scopes remain unchanged. Other actual presentation views
+remain open. A concrete supported change at the failed full-Main capture boundary
+is required before a new frozen attempt; renaming the room does not reset it.
