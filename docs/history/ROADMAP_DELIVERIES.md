@@ -16815,3 +16815,44 @@ helper directories removed; only results remain under
 `/srv/mudds-work/race-baseline-boundary-20261020/results/`.
 No runtime changes or identical checkpoint rebuild. All36 parent outcomes/ten
 phase gates, native/hardware/human and final-candidate limits remain open.
+
+
+## Existing Wing branch closeout — 2026-10-20 13:18UTC
+
+Owner priority was finishing existing attempts, not accumulating new branches.
+Existing `feat/wing-ordinary-route-20261020` was reused throughout; clean pushed
+source `aa26baf58f3e5d9a5e16c1b7b94683df467b6f6c` remains FAILED and unmerged.
+No new source branch or published checkpoint was created. Counts remain44local,
+27live remote includingmain; all26non-main remotes retain the accountability
+mapping above. Previously deleted141local/84live remote refs are unchanged.
+
+Actual ordinary route improvements: board approach accepts within real2.8m range;
+normalL uses actual home capture rather than an arbitrary waypoint. Production
+board encounter authorization now withdraws on its exact target's accepted
+landing assist while GameFlow remains FREE_FLIGHT, using existing synchronous
+fire refusal and standdown. Full Heavy/Torpedo withdrawals, strict home docks,
+shutdowns and physical exits passed in both subsequent actual route attempts.
+The lifecycle change passed40 admission and151 existing director assertions.
+
+Final camera caller candidate reuses the established Arrow optical-axis control,
+blocks unresolved/nonzero mouse sweeps before timed nativeF, and emits detached
+real camera/request-ray telemetry. Independent source review GO;99driver tests,
+22observer assertions, fresh paired exports, direct/archive/Windows-payload strict
+startups and actual1521matching PCK/PE/ELF/archive audit pass. This does NOT qualify
+moving-target firing: final97.220s route submitted no player shot, no hit/kill,
+destroyed player4763 after Wing began with67.333hull; both opponents remained38.
+Required Wing clear, final strict home/OFFLINE exit and normal UIexit remain absent.
+No claim of a runtime weapon defect, no damage/health/AI/timer changes, no relaxed
+acceptance and no further retry. Native hardware/audio/human gates remainNOT_RUN.
+
+Supervised stage costs, without nested-driver double counting: historical344.297822s;
+board224.23007358051836s; normalL57.46298702200875s;
+landing runtime292.740452804137s; camera244.79594166693278s;
+total1163.527277073597s. Original12:24–13:24UTC/60min wall budget retained.
+Final input/helper/game/Xvfb cleanup confirmed;190 observed owned identities absent.
+Unique failed packages and metadata preserved and hash checked; profiles archived
+with sequential member/byte/mode/link verification and fresh original snapshot.
+Clean source matches remote exactOID; owned worktree, profiles and helpers removed.
+Only `/srv/mudds-work/wing-route-correction-20261020/results/` remains, including
+`cleanup.json`, `aim-review.json`, exact raw route results and retained candidate
+packages. This branch remains explicitly unfinished; unrelated work is unselected.
