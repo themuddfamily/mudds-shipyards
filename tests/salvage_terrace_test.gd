@@ -170,6 +170,22 @@ func _test_walk_salvage_access(game: GameFlow, inspect: bool = false, revisit: b
 			and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED,
 			"ordinary production intro Interact starts the retained normal Player"):
 		return
+	if revisit:
+		var recovered_position := player.global_position
+		var expected_exit := game.ship.get_exit_transform().origin
+		print("WALK_SALVAGE_REVISIT_RECOVERED_EXIT: ", {"retained_spawn": retained_spawn,
+			"actual_postintro": recovered_position, "expected_exit": expected_exit,
+			"phase": game.phase, "mouse_mode": Input.mouse_mode, "floor": player.is_on_floor(),
+			"recovery_hud": game.get_session_diagnostics_snapshot().get("recovery_hud", {})})
+		if not _salvage_access_check(_salvage_access_player_current(game, player) and player.is_on_floor()
+				and Vector2(recovered_position.x, recovered_position.z).distance_to(
+					Vector2(expected_exit.x, expected_exit.z)) <= 0.20,
+				"ordinary loaded-profile intro resumes the same supported Player at the authored Torrent exit"):
+			return
+		# Recovery starts at the physical exit; walk back before the retained route.
+		if not await _walk_salvage_access_to(game, player, retained_spawn,
+				"recovered exit to retained hub spawn", 0):
+			return
 	# Literal accepted WALK-ANNEX prefix through the Annex connector apron.
 	# These goals set horizontal destinations only; physics determines height.
 	var goals: Array[Vector3] = [
