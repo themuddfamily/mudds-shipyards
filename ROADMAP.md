@@ -288,6 +288,17 @@ reach/reuse covers nine craft and shares existing CRAFT-ACCEPT journeys.
 No three-berth threshold substitute, renamed Sandbox retry or new engine run
 selected. Fleet access/reuse and presentation acceptance remain open.
 
+### Fleet snapshot budget — existing accepted result reconciled
+
+NET-FULL-SNAPSHOT was incorrectly listed as unscheduled. Retained raw results
+on accepted330a39ce3 show the complete Main/ENet suite PASS382 in172.837s:
+nine-craft forced-full/live envelopes4656/4656 bytes, exact snapshot decoding
+and transport fragmentation within the unchanged12000-byte ceiling.
+[Existing delivery and retained failure/repair](docs/history/ROADMAP_DELIVERIES.md#net-component-powers--host-output-and-bounded-live-updates-accepted).
+The aggregate child is DONE on that source. No new engine run, CPU benchmark or
+gameplay delivery is claimed; ordinary multiplayer, native, endurance and final
+candidate qualification remain open. All36 parents/ten phase gates remain open.
+
 ## Finish rules for every next task
 
 1. Select one named player/build outcome from the inventory. State parent, exact
