@@ -1,0 +1,12 @@
+Mudds Shipyards development checkpoint fdae1cb
+Source commit: fdae1cb35ae1556ea1aef70146ca5d7b62b5a691
+
+Player-visible change
+Perimeter Hold is now the fourth physical Activity Board contract, after Heavy Breach, Torpedo Run and Paired Wing. Solo admission launches a dedicated protected core and three distinct live attackers: a charged picket, scatter flanker and repeating-fire press craft. The HUD shows remaining time and core integrity. The catalog objective is 90 physics seconds with core integrity strictly above 35%; reaching 35% fails even at the timeout boundary. Hold and Wing grant no credit. Existing Heavy/Torpedo receipts and saved offers remain supported. Automatic landing, phase changes and teardown withdraw the live sources; returning to the board can reuse the actors and core.
+
+Validation
+Existing director (153), asset (12), board (69), HUD (11), staged Hold runtime (52), actual-Main Wing admission (40), actual-Main Hold physical board/seat/departure (19) and original Breach production/recovery route (48 assertions) passed. The original Breach test is byte-identical to main; Hold admission was moved intact to the existing Hold test's opt-in case. Both production cases retain their 90-second limits; Breach completed in 76.650 seconds. Objective boundaries and lifecycle are staged runtime checks, not a full ordinary 90-second sortie.
+Clean Windows and Linux exports, direct and archived Linux menu startups, Windows embedded payload startup through Linux Godot, and actual package identity/archive audit passed. Menu checks require exit 0 and exactly one STARTUP_MENU_READY_OK. All automated Godot checks were headless with Dummy audio.
+
+Qualification limits
+Full ordinary Hold weapon engagement, usable home return, failure/recovery, repeats and applicable multiplayer remain OPEN. Wing's ordinary two-player-weapon-kill/home requirement remains FAILED/open; its archived diagnostic driver is not included. Native Windows execution, native GPU/performance, physical devices, real audio/listening and human/final-release review remain NOT_RUN. Windows payload loading through Linux Godot is not native Windows execution. GitHub Actions remains disabled. Builds remain inside this repository.
