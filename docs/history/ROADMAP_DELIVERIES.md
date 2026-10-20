@@ -15770,3 +15770,62 @@ archive entries verified, helper copies hash-verified. Clean integrated/pushed
 owned worktree/import cache, profiles/helpers and duplicate exports removed at
 13.97min inside original45min. Only unique results remain at
 /srv/mudds-work/tractor-look-inversion-20261020/results/. No automatic successor.
+
+
+## Paired Wing board admission — shipped on f671da9
+
+2026-10-20; COMBAT-WING-ADMISSION / parent11. Source
+f671da9511873d499756a071700090a4e50dcacd integrated/pushed in0c19399fc.
+The existing Wing encounter lacked normal entry: automatic cycling needed a
+second one-shot guided phase and scene restart reset its cursor. It is now the
+third existing combat-board contract after Heavy Breach/Torpedo. On-foot arm/
+cancel, actual craft/departure/registered-authority gate, two existing Wing
+actors/coordinator, objectives and terminal cleanup integrated. Solo-only gates
+refuse network arm/start/fire and revoke on transition. No automatic sandbox
+spawn/guided reset or new geometry/weapon AI. Wing explicitly offers no credit
+reward; no new paid activity/reward ID/schema, prior two-contract payout/debt
+paths retained. Parked Perimeter/Courier candidates untouched.
+
+Source review found/fixed a board-Wing objective issue: inactive healthy/missing
+members cannot count as destroyed. Both actual dead members clear; healthy
+retirement/missing abort, legacy automatic Wing scope preserved. Independent
+source review GO. Original import PASS20.777718s/director151 PASS38.317333s;
+board test PARSE FAIL16.170633s before assertions, three new dynamic fixture
+results lacked explicit types. One separately selected correction changes only
+Dictionary/Dictionary/bool declarations, not runtime/assertions; related new
+declarations source-reviewed. Original STOP/raw failure preserved/hash-verified;
+live STOP retired only after corrected full board59 PASS25.586591s. Same original
+06:49–07:49UTC/60min budget and all caps retained; no second correction/retry.
+
+Actual Main28 PASS31.894529s: disclosed staged third-offer memory record/avatar
+placements and withdrawal phase boundary; real E/cancel, actual localhost host
+refusal, Arrow sensor/boarding, real berth movement, real registered pair with
+one firing suppressor/one covered flanker, truthful HUD/no-credit, withdrawal
+revocation/unregistration/rotation/no-debt/stale-terminal replay. Main never
+injects damage/kills or completes home. Existing board component clear uses
+disclosed simulated damage, not ordinary player-weapon qualification.
+HUD8 PASS2.413807s/audio11 PASS15.804738s; Windows/Linux exports PASS26.727986/
+25.680315s; strict Linux binary/archive startups PASS22.523985/23.475077s;
+Windows embedded payload via Linux engine PASS25.865373s. Each startup exit0+
+exactly one STARTUP_MENU_READY_OK. Audit PASS5.669972s: actual1521-entry PCK parity,
+compiled board/director presence, no tests/tools, stock PE.text and exact Linux
+archive binary/icon/installers/desktop bytes/modes/source epoch/metadata.
+All12 accepted stages264.737422s plus original failure16.170633s =280.908055s;
+zero diagnostics in accepted stages. Independent final publication review GO.
+
+Repo builds/windows EXE/ZIP/notes and Linux ELF/archive/metadata/startup/notes
+published as11 hash-verified files. EXE184659504bytes
+SHA2562836207515cfa40683f9a01104f39167cd90b51fa7808f3bd216b94f9536d740;
+ELF148901216bytes SHA25605409c2318344556bb938fa5c828ebc1d91ce81f2cd504a60e89ca6771c3eff5;
+tar95314415bytes SHA256fb659d29fbfbc69e8de5157f9b33c5a182f132c64ed8a5a24fb53053ab6ce80f.
+Full COMBAT-WING two ordinary player-weapon kills+safe physical home remains
+NOT_RUN; missing supported native observer/driver and honest third-posting
+prerequisite must be frozen next. No staged proof closes that parent. Repeat/
+recovery/shared/native/device/GPU/audio/human/final gates remain open; native
+Windows hold and original Guided3/3-on3d92b91 scopes retained.
+
+Cleanup18.68min inside original60min: all64 observed identities absent, all owners
+FINISHED (known original board exit1 retained),11published files hash-verified,
+29profile entries archived/verified, helper copies hash-verified. Clean integrated/
+pushed owned worktree/import cache/profiles/helpers and duplicate exports removed.
+Only unique raw results remain at /srv/mudds-work/paired-wing-admission-20261020/results/.

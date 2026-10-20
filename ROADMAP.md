@@ -1,12 +1,13 @@
 # Development roadmap
 
 **Status: playable development alpha; project completion is unproven.** Latest
-accepted checkpoint: **34d4b9e**. Tractor mouse and right-stick vertical look now
-honor the existing on-foot inversion preference at startup and on live changes.
-It retains the Begin Shift readability/title overflow, saved Convoy guidance,
+accepted checkpoint: **f671da9**. The existing combat board now offers solo
+Paired Wing after Heavy Breach/Torpedo, with on-foot arm/cancel and launch only
+after boarding and physical departure. Wing explicitly offers no credit reward.
+It retains tractor inversion, title readability/overflow, Convoy guidance,
 planetary credits and earlier save protection.
-[Windows notes](builds/windows/MuddsShipyards-34d4b9e-notes.txt) and
-[Linux notes](builds/linux/MuddsShipyards-34d4b9e-linux-notes.txt) state checks and
+[Windows notes](builds/windows/MuddsShipyards-f671da9-notes.txt) and
+[Linux notes](builds/linux/MuddsShipyards-f671da9-linux-notes.txt) state checks and
 limits. Inline browser progress/timeout/retry remains accepted on20e90c9;
 paused LAN discovery on042c701. Beacon departure/traversal/once-only saved reward
 qualification on e06550e is retained in its recorded scope. Beacon home/dock/exit, Perimeter Hold,
@@ -39,94 +40,34 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 ## Execution now
 
-**TRACTOR-LOOK-INVERSION delivered in checkpoint34d4b9e**, parents8/29.
-The player can now use the saved/live on-foot inversion setting consistently
-while walking or driving the tractor, with both mouse and right stick. No new
-option, flight-inversion change or broader controls acceptance.
+**COMBAT-WING-ADMISSION delivered in checkpointf671da9**, parent11.
+This closes the missing production entry to the existing encounter, not full
+COMBAT-WING acceptance. Third combat-board contract: arm/cancel on foot, board
+a combat-capable craft, depart, fight the two existing suppression/flank actors.
+Solo-only admission/start/fire, correct objectives/terminal/abort and no-credit
+disclosure are integrated; Breach/Torpedo payouts and debts remain.
 
 | Small deliverable | Decisive check | Actual result |
 | --- | --- | --- |
-| Tractor pitch honors existing preference | Mouse/pad normal and inverted pitch, unchanged yaw/rate/clamps, existing full tractor suite | PASS162 assertions on isolated X11/dummy display, actual mouse capture asserted;32.100s. |
-| Initial/live settings reach actual consumers | Saved true at Main startup, live false/true on Player/tractor, independent flight setting and absent optional tractor | PASS11 assertions,30.488s; existing runtime-settings156 checks also PASS. |
-| Playable checkpoint and cleanup | Clean paired exports, three strict startups, actual package audit and published bytes, no owned process/scratch left | PASS1521-entry Windows/Linux PCK parity and archive/PE/source identity; all61 observed identities absent,11 published files hash-verified, unique data archived, owned checkout/profile/helpers removed. |
+| Correct board/encounter lifecycle | Third rotation, stale/cancel fencing, both destroyed required; healthy retirement/missing contacts abort; no Wing payout | Director151 and board59 assertions PASS. Component clear uses disclosed damage simulation, not ordinary weapon qualification. |
+| Actual Main admission | Staged third-offer/avatar setup, real E/cancel, actual host refusal, Arrow boarding and physical berth departure, registered Wing pair, suppression/flank and withdrawal cleanup | PASS28 assertions;31.895s. Main test never damages/kills or completes home route. HUD8/audio11 checks also PASS. |
+| Playable checkpoint and cleanup | Paired exports, three strict startups, PCK/PE/archive/source identity; clean owned processes/artifacts | PASS1521-entry PCK parity; all64 observed identities absent,11 published files hash-verified,29 profile entries archived/verified; owned checkout/profile/helpers removed. |
 
-Original import20.608s passes; first headless tractor attempt FAIL31.933s because
-headless cannot capture mouse. One explicitly selected display correction keeps
-all assertions and runtime code; full suite and all remaining gates pass. Original
-failure remains retained. Accepted stages214.463s, including failed stage246.396s;
-whole closure13.97min inside original06:30–07:15UTC/45min. No extra retry or cap
-increase. [Actual scope and cleanup](docs/history/ROADMAP_DELIVERIES.md#tractor-look-inversion--shipped-on-34d4b9e).
+Original board test parse failure16.171s remains retained. One explicit-type
+correction changes only three declarations; runtime/assertions unchanged. Import/
+director accepted scopes retained on identical production. All12 accepted stages
+264.737s; cumulative with failure280.908s, closure18.68min inside original
+06:49–07:49UTC/60min. No second correction, cap increase or extra run.
+[Actual scope and cleanup](docs/history/ROADMAP_DELIVERIES.md#paired-wing-board-admission--shipped-on-f671da9).
 
-On-foot help's one1920×1200/.75 cell remains accepted on5ac9d3ef0; other cells,
-rendered/human/device/full ordinary journeys and final-candidate gates remain
-open. Ember corrective preflight remains parked; prior failure317.447s retained.
-No automatic successor selected. The known HAULER-CARGO-MANIFEST production seam
-still waits on the already-asked stock decision; no ready implementation inferred.
-
-### Selected production capability — Paired Wing board admission
-
-COMBAT-WING-ADMISSION / parent11. Source review finds no normal access to
-paired_wing: automatic director cycling needs a second INTERCEPTOR_ENGAGEMENT,
-but guided engagement is one-shot and restart resets the sequence. No native
-sortie driver can currently prove the full Wing route. Deliver the missing
-production admission before writing another diagnostic selector.
-
-**06:49–07:49UTC /60min** including implementation/review/checkpoint/cleanup;
-implementation estimate20–30min. One high implementation agent owns existing
-heavy_breach_activity_board.gd, encounter_scenario_director.gd, game_flow.gd,
-existing board audio binding/presenter if needed, plus focused tests/UIDs. Add existing
-Paired Wing encounter as third combat-board contract after Heavy Breach/Torpedo,
-with accurate on-foot arm/cancel, departure-gated launch, existing two-member
-suppression/flank roster, HUD objective/terminal feedback and abort cleanup.
-No new board geometry, actor/weapon AI, automatic sandbox spawns or guided reset.
-
-This is a **solo combat encounter**, not another paid nearby activity: no new
-reward amount, receipt or save schema. Clearly disclose no credit reward for
-this contract, preserve all Breach/Torpedo rewards/debts/rotation and refuse this
-new contract in network sessions until its own support is delivered. Catalog
-specifies Wing combat, not a payout. Do not adopt/reopen parked Perimeter or
-Courier candidates; future integration must retain both named outcomes.
-
-Focused checks protect new admission/lifecycle, not full parent completion:
-clean import180s; existing encounter_scenario_director_test.gd120s and
-heavy_breach_activity_board_production_test.gd120s;
-paired_wing_game_flow_admission_test.gd120s;
-heavy_breach_activity_hud_test.gd120s and
-audio/heavy_breach_activity_board_audio_integration_test.gd120s. All headless/
-Dummy unless the existing suite declares display input, then isolated Xvfb/
-x11/dummy renderer/Dummy audio at the same cap. Freeze exact test names before
-engines. Require real registered roster, ordinary phase/authority gating,
-correct labels/no fabricated payout, cancellation/terminal cleanup, stale/replay
-and previous two-contract regressions. Test placements are disclosed staged
-setup, not ordinary full-route acceptance. First failed invocation stops; no
-automatic correction/retry or cap increase.
-
-If accepted, clean paired exports180s each, three strict startups120s each and
-existing PCK/PE/archive audit90s; repo EXE/ZIP/notes only, native Windows/device/
-GPU/listening/human/final gates NOT_RUN. Archive/hash-verify unique data and
-remove owned checkout/profile/helpers after process absence/publication checks.
-Full COMBAT-WING still requires both real player-weapon kills and safe physical
-home return through a supported ordinary driver; no narrower proof closes it.
-Independent Hauler implementation remains blocked on its pending stock decision.
-
-#### Wing board test declarations — one corrective selection
-
-Original candidate0f1364175: import PASS20.778s, director PASS38.317s,
-board suite FAIL16.171s at parse, before any assertion. Three new untyped
-`:=` declarations call methods on the dynamically typed fixture board; GDScript
-cannot infer wing_arm/cancelled/wing_started. Main/HUD/audio/exports NOT_RUN.
-Retain original75.266s and original06:49–07:49UTC/60min allocation.
-
-Select one test-only correction: explicit Dictionary types on arm/cancel and
-bool on interact, matching their actual return types; source-review related new declarations before engines, no runtime or
-assertion changes. Clean committed correction reuses accepted import/director
-scope because production/assets/classes are identical, then full board suite120s
-followed by the original remaining checks/caps. Root binds the one corrective
-board stage to original STOP SHA256 and exact new source; archive/verify original
-failure before retiring the live STOP only after that full suite passes.
-First further failure stops and cumulative priority review parks the chain;
-no second automatic repair/retry/cap increase. No qualification or build accepted
-yet. Original full combat parent remains open.
+**Next single action:** freeze the missing ordinary Wing driver/observation seam:
+real posted-board admission, both named members' player-weapon destruction and
+safe physical home return. Name the third-posting/profile prerequisite honestly;
+do not use fixture damage, actor removal, phase writes or implicit prior wins as
+that proof. No full-route run is selected yet. Other combat outcomes/repeats/
+recovery/network/native/human and all broad parent gates remain open. Parked
+Perimeter/Courier candidates are neither adopted nor qualified. Hauler's
+independent production seam still waits on its already-asked stock choice.
 
 ### Waiting decisions — not executable tasks
 
@@ -152,6 +93,7 @@ the existing history. These are accepted slices, not closed broad parents.
 
 | Outcome | Accepted scope / remaining boundary |
 | --- | --- |
+| Paired Wing board admission | [Checkpointf671da9](docs/history/ROADMAP_DELIVERIES.md#paired-wing-board-admission--shipped-on-f671da9): third solo board contract, departure/authority gates, actual Wing roster/objective/no-credit lifecycle pass. Full ordinary two-kill/home and other encounter gates remain open. |
 | On-foot help, one cell | [Source5ac9d3ef0](docs/history/ROADMAP_DELIVERIES.md#on-foot-help--one-minimum-scale-1610-cell-accepted): all four pages at1920×1200/.75 pass geometry/wrapping/focus. Other help modes/cells, rendered/human/device and final candidate remain open. |
 | Tractor look inversion | [Checkpoint34d4b9e](docs/history/ROADMAP_DELIVERIES.md#tractor-look-inversion--shipped-on-34d4b9e): saved/live existing on-foot inversion reaches tractor mouse/pad pitch; full tractor/settings/package checks pass. Physical devices, ordinary/full controls and final candidate remain open. |
 | Begin Shift focus / press | [Checkpoint923d7b3](docs/history/ROADMAP_DELIVERIES.md#begin-shift-focus-contrast--shipped-on-923d7b3): dark text clears measured4.5/7 contrast floors across existing palettes. Other readability, saved profiles, devices and final accessibility remain open. |
@@ -209,15 +151,15 @@ failures; no automatic probe, repair, retry or cap increase is selected.
 
 ## Latest playable result
 
-**Checkpoint34d4b9e** applies on-foot vertical-look inversion to the tractor's
-mouse and right-stick camera, including saved startup and live Settings changes.
-It retains earlier title readability/overflow, Convoy, credits and save fixes.
+**Checkpointf671da9** adds solo Paired Wing to the combat board rotation, with
+accurate admission/objective/terminal feedback and no credit reward. It retains
+tractor inversion, earlier title readability/overflow, Convoy, credits and saves.
 
-[Windows checkpoint ZIP](builds/windows/MuddsShipyards-34d4b9e-checkpoint.zip),
-[build notes](builds/windows/MuddsShipyards-34d4b9e-notes.txt),
-[actual validation and limits](docs/history/ROADMAP_DELIVERIES.md#tractor-look-inversion--shipped-on-34d4b9e).
-Native Windows/GPU/device/audio/human review and final release remain open.
-Guided3/3 on3d92b91 is not transferred to this package.
+[Windows checkpoint ZIP](builds/windows/MuddsShipyards-f671da9-checkpoint.zip),
+[build notes](builds/windows/MuddsShipyards-f671da9-notes.txt),
+[actual validation and limits](docs/history/ROADMAP_DELIVERIES.md#paired-wing-board-admission--shipped-on-f671da9).
+Full ordinary Wing kills/home, native Windows/GPU/device/audio/human and final
+release remain open. Guided3/3 on3d92b91 is not transferred to this package.
 
 ## Parked failures and dependent work
 
