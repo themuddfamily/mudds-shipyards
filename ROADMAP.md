@@ -50,7 +50,7 @@ push accepted work and delete the branch, or preserve its unique source/results
 and record the exact unmet requirement and blocker. A failed check does not
 automatically authorize an adjacent task or retry.
 
-**165 local and 93 live remote branches deleted; 20 local and 18 live remote
+**170 local and 93 live remote branches deleted; 15 local and 18 live remote
 branches remain, including main (17 non-main remote).** Counts describe refs,
 not completed features. [Branch accounting and closeouts](docs/history/ROADMAP_DELIVERIES.md#branch-accountability-and-race-timeout-diagnosis--2026-10-20)
 preserve the underlying roadmap requirements.
@@ -62,11 +62,13 @@ verified bundle. The superseded original Jovian exit caller is archived under a
 pushed tag and its local/remote branch deleted. Full exit still fails cabin walking
 in the retained docked-pilot candidate; no failed journey is accepted.
 
-Five local-only branches still contain unmatched changes and remain protected:
-`agent/cargo-capture-fix`, `fix/durable-suite-launch`,
-`hold/sandbox-settle-facing-20261017`, `native-sortie`, and
-`sandbox-route-runner`. These require individual source accounting before closure.
-[Cleanup and retained exceptions](docs/history/ROADMAP_DELIVERIES.md#integrated-local-branches-and-superseded-jovian-caller-closed--2026-10-20).
+The five local-only exceptions are now accounted for and removed. Cargo capture
+and the durable suite launcher are already integrated; the original native and
+Sandbox route tooling are superseded by main. The withheld settle-facing guard
+remains absent and failed. Exact original histories survive in a verified bundle;
+three diagnostic histories also have pushed archive tags. Two clean cache-only
+worktrees are removed. Full Sandbox/recovery/reuse remains FAILED/open.
+[Five-branch closeout](docs/history/ROADMAP_DELIVERIES.md#five-local-only-branches-accounted-and-closed--2026-10-20).
 
 Of the 17 remaining remote candidates, **three contain ordinary gameplay fixes**
 (passenger role display, docked-pilot pose holding, tooltip retirement on close).

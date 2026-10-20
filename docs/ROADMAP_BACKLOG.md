@@ -321,7 +321,11 @@ fixes/15 automation at that point). The superseded original Jovian exit caller
 is now archived under a pushed tag and removed, leaving 17 non-main remote
 candidates (three gameplay fixes/14 automation). Full Jovian exit remains OPEN.
 Fifteen already-integrated local branches and their clean worktrees are also
-removed; five local-only branches with unmatched changes remain protected.
+removed. The five local-only exceptions are now accounted for and removed too:
+cargo capture and durable supervision are integrated; original native/Sandbox
+route tooling is superseded and archived. The failed settle-facing guard remains
+withheld, with exact history under an archive tag; full Sandbox/recovery/reuse
+remains FAILED/open. No local-only branch exception remains.
 No new gameplay or release qualification follows from deleting those duplicate refs.
 
 ### Perimeter Hold — missing production integration

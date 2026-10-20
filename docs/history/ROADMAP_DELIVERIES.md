@@ -17391,3 +17391,61 @@ contain three withheld gameplay fixes and 14 automation/diagnostic candidates.
 Counts describe refs, not product progress. All 36 original parent outcomes and
 ten phase gates remain open; native/human gates remain NOT_RUN and CI disabled.
 Playable checkpoint c78e0ac is unchanged.
+
+
+## Five local-only branches accounted and closed — 2026-10-20
+
+Continues the owner's cleanup priority from pushed a0a7ca3ab. Finite independent
+source accounting plus root comparison resolved all five local-only exceptions.
+No new branch, engine invocation, route retry, gameplay change or checkpoint.
+
+| Removed local branch | Original tip | Actual disposition |
+| --- | --- | --- |
+| `agent/cargo-capture-fix` | `385c3cf2af5d8859787aa9d94592aaa496357893` | Integrated on main ancestor `e0f05ef2b`: input-only matrix, explicit capture dispatch and separate helper remain. Integration uses `preload` instead of `load`; helper differs only by trailing blank line. Later Hauler coverage preserves separation. |
+| `fix/durable-suite-launch` | `d83f5c38530364971de45219a1d3e3f9176c6f1e` | Integrated on main ancestor `896732380`; launcher and complete tests match current main byte-for-byte. Detached ownership/readiness/ack, lock retention, PID/start identity and terminal cleanup remain. |
+| `native-sortie` | `f69eff5d394d3731edfe4bf221d4a0c724979e37` | Original seven-commit diagnostic driver superseded by evolved main harness. Original history preserved under `archive/diagnostics/native-sortie-original`; no exact whole-file integration or new acceptance claimed. |
+| `sandbox-route-runner` | `914830bded58f5c38f5b4f85cae5ce4424295cab` | All 54 waypoint tuples exactly match current main, including unmatched aisle-coordinate patch `d7fec297c`; other three patches were verified integrated in the prior closeout. History preserved under `archive/diagnostics/sandbox-route-runner-original`. |
+| `hold/sandbox-settle-facing-20261017` | `7cb633d5202386afb40b2d77bb1bed4cacf2f674` | Deliberately withheld failed guard is genuinely absent from main. Exact history preserved under `archive/diagnostics/sandbox-settle-facing-20261017`. Original 300s full Sandbox/recovery/reuse requirement remains FAILED/open; no further attempt selected. |
+
+Original native input helpers, Xlib containment, Desktop lifecycle, independent
+stop, and Pilot enter/tap/aim methods match main structurally. Guided pilot/run
+and observer have evolved; private X11/Dummy admission, authored camera/walk
+observation, physics-frame pulses and independent abort cleanup remain. Both UID
+files match exactly. Original Python regression file retains its lines with
+2,595 additions and zero deletions. These source comparisons account for old
+tooling; they are not current route, native GPU, device or human qualification.
+
+The settle-facing trial's recorded 306.358s failure at the original 300s deadline
+remains unchanged: recovery walk did not complete reuse. The full original
+Sandbox requirement remains open, rather than being replaced by a waypoint-only
+pass. Current main does not gain the failed guard through this cleanup.
+
+All five original unique histories are preserved in a verified Git bundle.
+Each branch also has its exact binary patch and changed-file tar; tar contents
+were checked against original Git blobs. The three annotated archive tags were
+pushed and their peeled remote tips checked before deletion. All 74 relocated
+original native raw/build files still match their earlier relocation manifest;
+26 settle-facing files plus the relocation manifest retain their hashes. No raw
+failure or historical executable was discarded or copied into a new checkpoint.
+
+Archive and source accounting:
+`/srv/mudds-work/local-branch-closeout-20261020/results/`.
+This new cleanup root contains only retained results. Existing native artifacts
+remain at `/srv/mudds-work/retained-worktree-artifacts/mudds-native-sortie/`;
+settle results remain at `/srv/mudds-work/sandbox-settle-facing-results-20261017/`.
+
+No live remote head owned any of these five branches. Exact local tips, pushed
+main integration, tags and registered worktree ownership were rechecked before
+expected-OID local ref deletion. Cargo and Sandbox runner's two worktrees had
+empty tracked/untracked status, only generated ignores and no accessible process
+cwd/path owners; ordinary Git worktree removal succeeded without force. Eight
+other detached worktrees remain protected, including known uncommitted-work
+exceptions; they were not re-audited or removed in this closeout.
+
+Totals: 170 local and 93 live remote branches deleted; 15 local and 18 live remote
+heads remain including main, 17 non-main remote. No local-only branch exception
+remains. The 17 remote candidates still include three withheld gameplay fixes and
+14 automation/diagnostic candidates with their original recorded blockers.
+Source/archive verification does not accept those journeys. All 36 original
+parent outcomes and ten phase gates remain open; native/human gates remain
+NOT_RUN, playable c78e0ac unchanged and GitHub Actions disabled.
