@@ -56,30 +56,36 @@ in19th retirement. No production fix or full-suite pass; source archived under
 `archive/diagnostics/race-baseline-boundary-20261020`, diagnostic branch/worktree/
 profiles/helpers removed. No engine run remains active.
 
-**Selected existing task: COMBAT-WING return-capture correction, parent11.**
-Same branch and original12:24–13:24UTC/60min budget; no unrelated task selected.
-Source6640b5528 fixes board admission (actual2.21849m E accepted). All ten focused/
-package stages pass, but full route FAIL45.659s during first Heavy return: craft
-is destroyed before home. Current269.527s plus original344.298s stages retained.
+**Selected existing task: COMBAT-WING landing authorization, parent11.**
+Same existing branch, original12:24–13:24UTC/60min budget; no unrelated task.
+Both caller corrections remain: actual board E accepted2.21849m, normalL delivered
+and actual assist starts. Full second route still FAIL46.695s: assist=true while
+GameFlow remains FREE_FLIGHT/director RUNNING; craft destroyed during autopilot.
+All prior stages retained:344.298+269.527+57.463=671.288s.
 
-Independent cumulative review identifies the next supported caller seam: capture
-is accepted continuously from frame1450; by1514 actual speed0/upright/return heading
-meet landing conditions. Driver nevertheless transits toward arbitrary[0,2,-18],
-overshoots and stops1.0668m away, never reaching its1m transition before destruction.
-No runtime/damage-source defect is established. Root explicitly selects one
-correction: use ordinary L when actual home capture and existing departure/attitude/
-speed guards permit. Preserve strict physical docking/offline exits, natural Heavy/
-Torpedo withdrawals, two actual Wing kills and UIexit0; originalCAP300 unchanged.
+High lifecycle review supports one production correction: running board sorties
+must revoke authorization when their exact live target enters accepted automatic
+landing. This follows existing landing-containment/dispatch-recheck contracts;
+it is an inference about scenario withdrawal, not hull immunity. Director's
+current phase-only FREE_FLIGHT guard misses this state. Leave GameFlow phase,
+damage, AI tuning, pilot and landing timers unchanged; existing WITHDRAWN/standdown
+owns retirement. Terminal CLEARED, scenario generation, source cleanup, solo/
+network-suspension and admission boundaries remain protected.
 
-One high implementer owns only existing Python driver and its test; one high
-reviewer checks original-guard preservation. Estimate5–10min implementation/review,
-up to90s driver tests plus one nativeCAP300/outer360s route. Reuse unchanged audited
-6640b55 game EXE/ELF/archive and ten passed gates: only caller/test files change,
-not embedded sources. Retain both source identities explicitly. Before execution,
-freeze new caller pin and exact prior STOP hash; first new failure stops again.
-No automatic further correction, rebuild, cap increase or acceptance reduction.
-Success requires original full route, accepted main integration/push/publication
-and existing branch/worktree cleanup.
+One high implementer owns `scripts/combat/encounter_scenario_director.gd` and the
+existing `tests/paired_wing_game_flow_admission_test.gd`; high independent review.
+Add actual production landing admission held FREE_FLIGHT, synchronous fire refusal,
+once-only withdrawal/unregistration/no reward/rotation and no automatic rearm after
+cancellation; retain old explicit phase-withdrawal regression. Estimate5–10min
+implementation/review. Frozen checks: import180s; changed admission120s; original
+director300s; fresh Windows/Linux exports180s each; strict direct/archive/Windows
+payload startups120s each; actual artifact audit90s; one full isolatedX11/Dummy
+paired-wing routeCAP300/outer360s. Unchanged caller/privacy/observer scopes retain
+prior passes explicitly; new runtime requires fresh paired checkpoint if accepted.
+Before engines freeze new source and exact retained STOP hash. First new failure
+stops; no automatic further correction or cap/acceptance reduction. Full honest
+Heavy/Torpedo withdrawals→two actual Wing kills→strict home/offline physical exits→
+UIexit0 remains decisive, followed by main merge/push and branch/worktree cleanup.
 
 **Ready production cards: 0. Prepared production cards waiting on decisions: 3.**
 The decisions below remain pending; they do not prevent finishing independently
