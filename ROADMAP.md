@@ -119,6 +119,19 @@ original combat outcome. A failed route does not qualify the encounter or
 replace it with admission-only proof. Independent Hauler implementation remains
 waiting on its stock decision; parked Perimeter/Courier are not this route.
 
+### Selected correction to the Wing observer declaration
+
+The first observer check stopped with a GDScript type-inference error at
+native_sortie_observer.gd:1037; owned processes are terminal with no survivors.
+Import19.635s, driver safety9.052s and privacy1.164s passed; the failed observer
+consumed100.874s. Retain all130.725s and its raw failure. No exports or route ran.
+Select one explicit `bool` annotation for the dynamic actor-identity expression,
+with expression, assertions and full route unchanged. Independent source review
+precedes one corrective observer check120s. Retain unchanged earlier checks;
+then original exports/startups/audit and single300s route only if it passes.
+Original07:14–08:14UTC/60min remains binding. Another failure triggers cumulative
+review and parks this chain; no adjacent repair, cap increase or narrow substitute.
+
 ### Waiting decisions — not executable tasks
 
 These questions have already been asked. Keep them pending without asking again
