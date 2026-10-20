@@ -2845,8 +2845,16 @@ func _ordinary_moving_host(baseline: Dictionary) -> bool:
 	_write("host.moving_complete", {})
 	return await _wait_file("client.moving_complete", 8.0) and await _wait_file("client_b.moving_complete", 8.0)
 
+# Passenger physics retains its offline local simulation. Accepted host engine
+# facts are exposed by the production observer presentation getter, with no
+# fallback to local telemetry when that accepted presentation is absent.
+func _ordinary_moving_engine_online() -> bool:
+	if _role == "client_b":
+		return _craft.get_network_operation_telemetry_presentation().get("engine_state") == HeroShip.ENGINE_ONLINE
+	return _craft.get_telemetry().get("engine_state") == HeroShip.ENGINE_ONLINE
+
 func _ordinary_moving_consumed_current(manifest: Dictionary, seated: bool) -> bool:
-	if _craft.velocity.length() <= 0.1 or _craft.get_telemetry().get("engine_state") != HeroShip.ENGINE_ONLINE:
+	if _craft.velocity.length() <= 0.1 or not _ordinary_moving_engine_online():
 		return false
 	if seated:
 		return _ordinary_consumed_manifest_current(manifest)
@@ -2900,7 +2908,7 @@ func _ordinary_moving_client(baseline: Dictionary) -> bool:
 	if not await _wait_file("host.departed", 8.0):
 		return false
 	if not await _ordinary_boundary(func(): return _craft.velocity.length() > 0.1 \
-		and _craft.get_telemetry().get("engine_state") == HeroShip.ENGINE_ONLINE \
+		and _ordinary_moving_engine_online() \
 		and _ordinary_consumed_manifest_current(baseline), 8.0,
 		"original peer consumes genuinely departing craft with unchanged seated identities"):
 		return false
@@ -3143,6 +3151,24 @@ func _ordinary_failure_snapshot(description: String) -> Dictionary:
 	snapshot["nearby"] = str(_player.get_nearby_interactables())
 	snapshot["craft_pose"] = str(_craft.global_transform)
 	snapshot["craft_velocity"] = str(_craft.velocity)
+	if _ordinary_two_client_moving:
+		var telemetry := _craft.get_telemetry()
+		var operation := _craft.get_network_operation_telemetry_presentation()
+		var operation_audit := _craft.get_network_operation_presentation_audit()
+		snapshot["moving_engine"] = {
+			"source": "accepted_host_operation_presentation" if _role == "client_b" else "local_simulation",
+			"raw_telemetry": telemetry, "operation_presentation": operation,
+			"operation_audit": {"state": operation_audit.get("state", {}),
+				"source_policy": (operation_audit.get("source", {}) as Dictionary).get("policy", []),
+				"owns_operation_authority": operation_audit.get("owns_operation_authority", false)}}
+		var baseline := _read("host.seats_confirmed")
+		if _role in ["client", "client_b"] and not baseline.is_empty():
+			snapshot["moving_departure_gates"] = {
+				"speed_above_point_one": _craft.velocity.length() > 0.1,
+				"raw_engine_online": telemetry.get("engine_state") == HeroShip.ENGINE_ONLINE,
+				"accepted_operation_engine_online": operation.get("engine_state") == HeroShip.ENGINE_ONLINE,
+				"selected_engine_online": _ordinary_moving_engine_online(),
+				"baseline_consumed_current": _ordinary_consumed_manifest_current(baseline)}
 	snapshot["claim"] = _ordinary_fields(_game.get("_network_client_boarding_claim") as Dictionary,
 		["ship_id", "seat_id", "role"])
 	snapshot["body_source"] = source.get_audit() if source != null else {}
