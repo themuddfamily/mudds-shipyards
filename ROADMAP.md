@@ -95,27 +95,33 @@ All 6 observed process identities are absent; 298 unique profile files archived/
 verified, owned worktree/cache/profiles/helper duplicates removed. Closure 5.8min
 within the original 30min cap.
 
-**Selected review: ACCESS-TITLE[default intro,1024x768,requested scale1.0], parent29.**
-One medium source mapper confirmed actual production scenes/ui/hud.tscn can
-render this default-profile state independently of Main: same intro Controls,
-nebula/shade, title/copy, three buttons and initial Begin Shift focus. No saved
-palette/binding/recovery offer, browser/credits return, full-Main startup, device
-or world-view acceptance is inferred. This is independent of parked Habitat
-readback; no substitute image or renderer for that failure.
+**ACCESS-TITLE default1024x768 review DONE as finding, not acceptance.** Source
+3d57a4b3d import20.712s and actual production-HUD photo7.634s pass. Image and
+measured Controls agree: Multiplayer rectangle(72,771,618,40) lies entirely below
+768px window; Begin Shift ends761px. Fixed348px bottom-left menu container expands
+downward to453px minimum, clipping its final action. Actual initial focus is
+Begin Shift; requested1.0/effective HUD0.867797, intro remains authored1x.
+This is a default title-component finding, no full-Main/browser/credits/device gate.
+Focused Begin Shift light text on cyan is a separate unaccepted contrast finding.
 
-Root owns one private capture helper and roadmap result. Match existing minimum
-4:3 window/content-scale policy, record actual requested/effective HUD scale and
-intro transform (intro is authored1x), essential text/button rectangles and focus.
-Source suggests the fixed348px bottom-left container may overflow its minimum
-content height; capture/measure before asserting a defect. First render is a
-review, not a claim that containment passed. No UI repair until a concrete finding.
-Clean source/commands freeze before engines: fresh Dummy import180s, one actual
-2D Forward+ photo90s on authenticated Xvfb/explicitx11/Dummy/Lavapipe; no Main,
-geometry fixtures, desktop focus or audible output. One1024x768 PNG plus metadata,
-then inspect for clipping/overlap/readability; stop on valid view and finding or
-limited no-finding, or first unexpected failure. No retry/cap increase. Fixed30min
-from this selection commit. Preserve all other aspect/scale/state gates; commit/
-push and clean owned worktree/cache/profile/helper duplicates.
+**Selected implementation: ACCESS-TITLE overflow, parent29.** One medium
+implementer owns scripts/ui/hud.gd and existing tests/hud_panel_layout_test.gd;
+root owns integration/private same-view comparison/checkpoint. Keep authored
+text/scale, controls, focus and credits/recovery/browser semantics. Make the
+bottom-anchored menu grow upward to retain its bottom margin; do not shrink fonts
+or remove controls. Regression measures actual Labels/Buttons within each
+supported viewport including original1024x768 and retains enabled Begin Shift
+focus. No contrast repair in this card. Stop after this visible fix and fresh
+paired checkpoint, or first unexpected failure; no repair/retry/cap increase.
+
+Preserve original review30min deadline measured from3d57a4b3d; no clock reset.
+Before engines pin clean source/exact commands: import180s, existing full HUD
+panel layout90s, controller navigation90s, credits60s, unchanged same-view photo90s,
+Windows/Linux exports180s each, three strict menu-ready startups120s each, actual
+paired-artifact audit90s. All silent/headless or authenticated private Xvfb, Dummy,
+explicitx11 for rendering. Only full passes plus visual comparison allow main
+integration and Windows EXE/checkpoint ZIP/notes in builds/windows. Other aspect/
+state/device/full-Main gates and contrast finding remain open; clean owned scratch.
 
 | Work | Actual state | Completion / next boundary |
 | --- | --- | --- |
