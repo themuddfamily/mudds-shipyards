@@ -74,6 +74,18 @@ coverage.
 - Prefer implementation and direct validation over multiple overlapping audits.
   One concrete implementer plus one bounded reviewer is normally enough.
 
+## Completed branch cleanup
+
+- Integrate accepted work into `main` and push it regularly. At task closure,
+  delete its local and remote branch once its tip is contained in pushed `main`
+  and its owned worktree/process cleanup is complete.
+- Before deleting, check current remote tips and registered worktree ownership;
+  protect concurrent updates with exact expected commit IDs.
+- Preserve unmerged failed, parked or unfinished work until its unique changes
+  are accounted for. Do not merge an unaccepted candidate merely to delete it.
+- Report retained exceptions explicitly. Branch cleanup is part of completion,
+  not a separate future housekeeping task.
+
 ## Production progress and evidence policy
 
 Evidence exists to verify product work; it is not a substitute for product
