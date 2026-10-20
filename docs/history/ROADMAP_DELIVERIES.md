@@ -15946,3 +15946,54 @@ Disabled paints/other UI/art remain separate; all36 parents/ten phase gates open
 Native GPU/devices/listening/human/final release/full matrix NOT_RUN/open; earlier
 Guided3/3 stays on3d92b91. Parked ordinary Wing remains unmerged/unqualified; no
 new adjacent run, repair or cap increase selected.
+
+
+## Station Defense physical interaction — shipped on a59127c
+
+2026-10-20. DEFENSE-PHYSICAL-INTERACTION/parent13. Runtime source4583734e8 plus
+one test declaration annotation gives packaged sourcea59127cc8614fca2f56343720764f9c104253bca; integrated/pushed,
+paired checkpoint published. Original07:58–08:58UTC/60min retained. Initial
+PLAY-DEFENSE driver preflight stopped cleanly before edits/engines after proving
+physical board lacked get_interaction_prompt (GameFlow candidate protocol) and
+ordinary terminal E Reset. No knowingly failing route or Nearby UI substitute.
+Actual Arrow/34s mapping retained; production interface fix explicitly selected.
+
+Board now exposes read-only snapshot action/prompt with session refusal/debt
+priority. Ordinary GameFlow E handles the exact physical board once per press
+through existing start/reset wrappers. Idle Deploy, active status-only, terminal
+Reset, pending-report settlement retry; no samepress reset/deploy after payment.
+Direct interact/Nearby/reset/recover APIs unchanged. Preserve2.6m3D/facing/armed/
+onfoot gates, immediate whole34s inclboarding/lulls,4actors1/2/1, health/reward/
+persistence/network owners. Only board/GameFlow/new focused test+UID/existing
+placement assertions changed; no driver/observer/CLI/tuning/timer or schema edits.
+
+Import20.646822s PASS. Original placement parseFAIL16.380624s: new chainedVariant
+before_retry_generation inferred declaration. One separately selected explicitint
+annotation, expression/assertions/production unchanged; independent source review
+GO. Import scope retained on identical production/classes. Full corrective
+placement62 assertions PASS135.680257s; actual Main15 PASS31.901695s. Main stages
+avatar pose and terminal owner-abort/refusal flag, then uses real overlapping
+Area3D/facing/Player Input.action_press E to prove discovery,3D-range refusal,
+competing Heavy board/armed gate, Deploy, active preservation, terminal Reset and
+next Deploy. No manufactured victory/reward. Placement preserves genuine live
+resolver completion, real-file debt/cold/refusal/repairedretry and once-only
+payment fixtures. Both sources/scopes independently reviewed; no ordinary full
+walk/combat/home acceptance inferred.
+
+All9 accepted stages PASS, zero diagnostics,318.384764s; retained failure gives
+cumulative334.765388s. Clean paired exports/three strict startups and actual
+1521-entry PCK parity/stockPE.text/exact five-file Linux archive bytes/modes/
+epoch/metadata pass. Strict startup exit0/exactly1 STARTUP_MENU_READY_OK; Windows
+embedded payload used Linux engine, native Windows NOT_RUN. EXE/ZIP/notes in
+repository builds/windows/, Linux package/meta/notes in builds/linux/.
+
+Cleanup23.44min within original60: all55 observed identities absent, owners
+terminal (known original placementexit1 retained),11 public files hash-verified,
+39 profile entries archived/hash/mode/symlink verified, helpers preserved.
+Owned clean pushed/integrated checkout/import cache/profiles/helpers/duplicate
+exports removed; only /srv/mudds-work/defense-first-play-20261020/results/ remains.
+Full PLAY-DEFENSE empty-profile ordinary Arrow/waves/payment/home/reset/UIexit
+still requires its supported driver and originalCAP300/34s; no new execution
+selected here. Parked Wing/Perimeter/Breach/Tooltip unchanged. Native GPU/devices/
+listening/human/final-release/full-matrix NOT_RUN/open, Guided3/3 stays scoped to
+3d92b91. All36 broad parents and ten phase gates remain open.

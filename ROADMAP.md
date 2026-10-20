@@ -1,16 +1,16 @@
 # Development roadmap
 
 **Status: playable development alpha; project completion is unproven.** Latest
-accepted checkpoint: **d00ae72**. Shared menu buttons now keep readable text
-while hovered/pressed across the existing palettes and contrast modes.
-The accepted local Help CLOSE paints are retained.
+accepted checkpoint: **a59127c**. The physical Station Defense board now supports
+ordinary E Deploy/status/terminal Reset and settlement retry through existing
+owners. Shared menu contrast and the local Help CLOSE paints are retained.
 The existing combat board offers solo
 Paired Wing after Heavy Breach/Torpedo, with on-foot arm/cancel and launch only
 after boarding and physical departure. Wing explicitly offers no credit reward.
 It retains tractor inversion, title readability/overflow, Convoy guidance,
 planetary credits and earlier save protection.
-[Windows notes](builds/windows/MuddsShipyards-d00ae72-notes.txt) and
-[Linux notes](builds/linux/MuddsShipyards-d00ae72-linux-notes.txt) state checks and
+[Windows notes](builds/windows/MuddsShipyards-a59127c-notes.txt) and
+[Linux notes](builds/linux/MuddsShipyards-a59127c-linux-notes.txt) state checks and
 limits. Inline browser progress/timeout/retry remains accepted on20e90c9;
 paused LAN discovery on042c701. Beacon departure/traversal/once-only saved reward
 qualification on e06550e is retained in its recorded scope. Beacon home/dock/exit, Perimeter Hold,
@@ -43,7 +43,7 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 ## Execution now
 
-Latest delivered: shared menu-button contrast, recorded below. Accepted Wing
+Latest delivered: Station Defense physical E interaction, recorded below. Accepted Wing
 board admission remains onf671da9; its full ordinary route is still parked.
 [Admission scope and checks](docs/history/ROADMAP_DELIVERIES.md#paired-wing-board-admission--shipped-on-f671da9)
 remain in the existing history and accepted-outcome table.
@@ -126,62 +126,40 @@ absent,11 public files hash-verified,23 profile entries archived/verified,
 helpers preserved; owned checkout/cache/profiles/helpers removed.
 [Actual delivery](docs/history/ROADMAP_DELIVERIES.md#shared-menu-contrast--shipped-on-d00ae72).
 
-### Station Defense full-play driver — source-blocked before edits
+### Station Defense physical interaction — delivered in checkpointa59127c
 
-PLAY-DEFENSE preflight found a concrete missing production interface before any
-edits, tests, engines or export: GameFlow excludes station candidates without
-`get_interaction_prompt()`, and StationDefenseActivityBoard lacks it. Its existing
-`interact()` starts/retries debt, while Reset is separate. Thus the required E
-Deploy/Reset route cannot run. Worktree remains clean; no knowingly failing
-route or substitute Nearby UI proof selected. Original full3wave/fourkill/payment/
-home/reset contract stays open. Source mapping established actual Arrow support
-and whole34s semantics; neither clock nor roster needs a speculative change.
+DEFENSE-PHYSICAL-INTERACTION / parent13. Physical E now discovers the board and
+routes idle Deploy, active status-only, terminal Reset and pending-report retry
+through existing GameFlow owners. Settlement/reset/next Deploy use separate
+presses; refused sessions stay protected. Direct board/Nearby APIs,2.6m3D range/
+facing/armed-sortie gates, immediate whole34s and four1/2/1 actors remain.
 
-### Selected Station Defense physical interaction fix
+Initial full-play driver preflight stopped before edits/engines when it found
+missing get_interaction_prompt and terminal E Reset. The production fix replaced
+that blocked assignment within the same original07:58–08:58UTC/60min. No knowingly
+failing route or substitute menu proof was run. Full PLAY-DEFENSE remains open.
 
-DEFENSE-PHYSICAL-INTERACTION / parent13. Retain original **07:58–08:58UTC/60min**
-including preflight, implementation/review/checks, paired build and cleanup.
-Add snapshot-driven physical prompt and dedicated ordinary-interaction dispatch
-through existing GameFlow start/reset wrappers. Idle E Deploy; active status-only
-(no destructive reset); completed/failed/aborted E Reset through existing reset
-owner; pending debt E retries settlement first; refused session stays protected.
-Keep direct `interact()`/Nearby UI start and explicit reset/recover APIs compatible.
-Preserve3D2.6m range/facing, on-foot/armed-sortie gates,34s immediate-start clock,
-1/2/1 roster, combat/health/rewards/persistence/network and role owners.
+Existing full placement62 and actual Main interaction15 assertions PASS. Main
+uses real Area3D/facing/Player E input with disclosed staged avatar/owner-abort/
+refusal fixtures; no victory/reward was fabricated. Genuine real-file debt/retry/
+refusal is covered by full placement. All9 accepted stages PASS, zero diagnostics,
+318.385s; original placement parse failure16.381s retained, one explicit-int test
+declaration correction only, assertions/production unchanged. Cumulative
+334.765s. Paired exports, three strict startups, actual1521-entry PCK/PE/archive
+audit PASS. Native Windows/GPU/devices/listening/human/final remain NOT_RUN/open.
 
-One high implementer owns scripts/activities/station_defense_activity_board.gd,
-scripts/game/game_flow.gd and a focused actual-Main interaction regression/UID;
-extend existing production-placement regression only if needed for genuine debt
-prompt selection. One high reviewer, root integration/publication/cleanup.
-Estimate15–25min implementation/review; no driver/observer/CLI changes now.
+Cleanup23.44min inside original60min: all55 observed identities absent,11
+published files hash-verified,39 profile entries archived/verified, helpers
+preserved. Owned checkout/cache/profiles/helpers/duplicate exports removed.
+[Actual delivery](docs/history/ROADMAP_DELIVERIES.md#station-defense-physical-interaction--shipped-on-a59127c).
 
-Freeze clean source/exact commands before engines: import180s; existing full
-station_defense_production_placement_test.gd300s; new actual-Main physical
-tests/game_flow_station_defense_interaction_test.gd120s. Disclose staged avatar/terminal setup: actual nearby-area
-candidate/facing/ordinary Player E intent must select board, Deploy begins real
-encounter, active repress preserves it, terminal Reset exposes next Deploy;
-range/facing/competing-board/refusal and debt fences retain existing owners.
-This is production entry/reset regression, not full ordinary combat acceptance.
-Paired exports180s each; three strict startups120s each; existing PCK/PE/archive
-audit90s. Every Godot headless/Dummy. First unexpected failure stops, no automatic
-repair/retry/cap increase or renamed adjacent test. Publish only reviewed passing
-checkpoint. Archive/hash-verify unique data/public files and remove owned clean
-pushed/integrated checkout/cache/profiles/helpers/duplicate exports. Full
-PLAY-DEFENSE driver/combat/payment/home remains separately unqualified; parked
-Wing/Perimeter/Breach/Tooltip and native/hardware/human/final gates stay open.
-
-### Selected single placement-test declaration correction
-
-Import PASS20.646822s; placement test stopped at parse error16.380624s before
-assertions: newly added `before_retry_generation :=` cannot infer the chained
-Variant return. Owned supervisor terminal, no survivors; exports/new Main test
-NOT_RUN. Retain source4583734e8 and all37.027447s plus raw failure.
-Select exactly `var before_retry_generation: int = ...`, expression/assertions/
-production code unchanged. One source-only implementation/review, one full
-corrective placement300s; retain accepted import on identical production/classes,
-then original new Main120s/exports/startups/audit only if it passes. Original
-07:58–08:58UTC/60min unchanged. Another unexpected failure triggers cumulative
-review/park; no second repair, cap increase or narrowed proof.
+**Next single action:** freeze the missing ordinary Station Defense driver on the
+now-usable physical interface: empty profile, normal walk/Deploy, existing Arrow
+board/depart, real four-actor player-weapon clear before unchanged34s/core alive,
+one durable payment, strict home/dock/physical exit, board Reset/next Deploy and
+normal UI exit0. ExistingCAP300; no fixture damage, pose/phase/timer writes or
+seeded prelude. No new run selected yet. Preserve parked Wing/Perimeter/Breach/
+Tooltip budgets and all36 broad parents/ten gates.
 
 ### Waiting decisions — not executable tasks
 
@@ -207,6 +185,7 @@ the existing history. These are accepted slices, not closed broad parents.
 
 | Outcome | Accepted scope / remaining boundary |
 | --- | --- |
+| Station Defense physical interaction | [Checkpointa59127c](docs/history/ROADMAP_DELIVERIES.md#station-defense-physical-interaction--shipped-on-a59127c): ordinary E discovery/Deploy/status/Reset/retry through existing owners; actual Main15/full placement62 and paired package checks PASS. Full ordinary combat/payment/home remains unqualified. |
 | Shared menu contrast | [Checkpointd00ae72](docs/history/ROADMAP_DELIVERIES.md#shared-menu-contrast--shipped-on-d00ae72): role-tinted hover/pressed fills and palette-aware text corrected in shared helper;160 actual menu paints plus existing Help/title/navigation pass. Paired exports/startups/audit accepted; broad UI/rendered/device/human/final gates open. |
 | Help CLOSE contrast | [Checkpoint820cc38](docs/history/ROADMAP_DELIVERIES.md#help-close-contrast--shipped-on-820cc38): readable hover/pressed paints,32 actual paint pairs and existing Help navigation PASS; paired exports/startups/audit. Other UI/rendered/device/human/final gates remain open. |
 | Paired Wing board admission | [Checkpointf671da9](docs/history/ROADMAP_DELIVERIES.md#paired-wing-board-admission--shipped-on-f671da9): third solo board contract, departure/authority gates, actual Wing roster/objective/no-credit lifecycle pass. Full ordinary two-kill/home and other encounter gates remain open. |
@@ -267,16 +246,17 @@ failures; no automatic probe, repair, retry or cap increase is selected.
 
 ## Latest playable result
 
-**Checkpointd00ae72** keeps shared menu-button text readable while hovered or
-pressed across existing palettes and contrast modes. It retains Help CLOSE,
-Paired Wing board admission, tractor inversion, title readability/overflow,
-Convoy, credits and saves.
+**Checkpointa59127c** makes the physical Station Defense board usable through
+ordinary E, with safe active status, terminal Reset and report settlement retry.
+It retains shared menu/Help contrast, Paired Wing admission, tractor inversion,
+title readability/overflow, Convoy, credits and saves.
 
-[Windows checkpoint ZIP](builds/windows/MuddsShipyards-d00ae72-checkpoint.zip),
-[build notes](builds/windows/MuddsShipyards-d00ae72-notes.txt),
-[actual validation and limits](docs/history/ROADMAP_DELIVERIES.md#shared-menu-contrast--shipped-on-d00ae72).
-Full ordinary Wing kills/home, native Windows/GPU/device/audio/human and final
-release remain open. Guided3/3 on3d92b91 is not transferred to this package.
+[Windows checkpoint ZIP](builds/windows/MuddsShipyards-a59127c-checkpoint.zip),
+[build notes](builds/windows/MuddsShipyards-a59127c-notes.txt),
+[actual validation and limits](docs/history/ROADMAP_DELIVERIES.md#station-defense-physical-interaction--shipped-on-a59127c).
+Full ordinary Defense combat/payment/home, Wing kills/home, native Windows/GPU/
+device/audio/human and final release remain open. Guided3/3 on3d92b91 is not
+transferred to this package.
 
 ## Parked failures and dependent work
 
