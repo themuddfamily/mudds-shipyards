@@ -57,6 +57,10 @@ func _init() -> void:
 
 
 func _run() -> void:
+	if OS.get_cmdline_user_args().has("--cargo-landing"):
+		await _run_cargo_landing()
+		_finish()
+		return
 	var game := MAIN_SCENE.instantiate() as GameFlow
 	_check(game != null, "production Main instantiates with the Cinder streaming composition")
 	if game == null:
@@ -98,6 +102,202 @@ func _run() -> void:
 	await _test_deferred_quality_sync_currentness()
 	await _test_queued_binding_boundaries()
 	_finish()
+
+
+## Focused Main regression, not an ordinary outbound journey: only the initial
+## flight/capture context is staged. Landing admission, leases and every motion
+## after the one request belong to GameFlow, HeroShip and ShipBerth.
+func _run_cargo_landing() -> void:
+	var game := MAIN_SCENE.instantiate() as GameFlow
+	var store := Store.new(STORE_PATH, MemoryFilesystem.new()) as UserDataStore
+	_check(game.configure_runtime_settings_persistence(store,
+		"memory://cinder-cargo-landing-legacy.cfg"), "cargo landing isolates Main persistence")
+	root.add_child(game)
+	await process_frame
+	await physics_frame
+	await process_frame
+	var binding := game.get_node_or_null(^"CinderStreamingProductionBinding") as CinderStreamingProductionBinding
+	var bootstrap := game.get_node_or_null(^"CinderStreamingBootstrap") as CinderStreamingBootstrap
+	var jovian := _cargo_landing_ship(game, &"jovian_provisional")
+	var torrent := game.get_guided_ship()
+	_check(binding != null and bootstrap != null and jovian != null and torrent != null,
+		"cargo landing uses production Main, streaming binding and original craft")
+	if binding == null or bootstrap == null or jovian == null or torrent == null:
+		await _cleanup(game)
+		return
+	var home_id := jovian.get_home_berth_id()
+	var home_report := game.call(&"_get_landing_assist_report_for_ship", jovian) as Dictionary
+	_check(home_report.get("selected_berth_id") == home_id,
+		"resident home berth selection remains available before streaming")
+	game.runtime_settings.graphics_profile = RuntimeSettings.GraphicsProfile.LOW
+	game.world.apply_visual_quality(NearbySectorCluster.DetailQuality.LOW)
+	game.call(&"_release_ship_berth", jovian)
+	game.active_ship = jovian
+	game.set("_piloting", true)
+	game.set("_sortie_departed_berth", true)
+	game.phase = GameFlow.Phase.FREE_FLIGHT
+	jovian.set_piloted(true)
+	jovian.set("_landed", false)
+	jovian.global_position = LOCATION.get_anchor_position() + Vector3(0.0, 0.0, 499.9)
+	var before_tick := int(binding.get_snapshot().get("physics_tick_count", -1))
+	await _wait_for_binding_tick(binding, before_tick)
+	await _wait_for_cluster(bootstrap)
+	var cluster := bootstrap.get_loaded_instance() as NearbySectorCluster
+	_check(cluster != null, "actual GameFlow actor-tracking physics loads Cinder")
+	if cluster == null:
+		await _cleanup(game)
+		return
+	var access := cluster.get_cinder_cargo_access()
+	var berth := access.get_berth()
+	var berth_id := berth.get_berth_id()
+	_cargo_landing_stage_capture(jovian, berth)
+	var capture := _cargo_landing_capture(jovian, berth)
+	_check(berth.is_inside_tree() and not berth.is_queued_for_deletion()
+		and berth_id == &"cinder_cargo_jovian_berth"
+		and berth.get_reservation_owner() == null and berth.get_occupant() == null
+		and berth.can_accept(jovian.get_ship_definition(), jovian)
+		and bool(capture.get("assist_capture_accepted", false)),
+		"live unreserved streamed cargo berth accepts actual Jovian full-hull capture")
+	var preview_before := berth.audit()
+	var preview := game.call(&"_get_landing_assist_report_for_ship", jovian) as Dictionary
+	var selected: bool = (preview.get("selected_berth_id") == berth_id
+		and bool(preview.get("assist_capture_accepted", false)))
+	print("CINDER_CARGO_LANDING_PREVIEW: ", {"direct_capture": capture, "game_flow": preview})
+	_check(selected, "GameFlow landing preview selects the current streamed Cinder cargo berth")
+	# Stop at the causal baseline failure; no request or further fixture changes
+	# can hide missing discovery behind a direct berth reservation.
+	if not selected:
+		await _cleanup(game)
+		return
+	_check(game.call(&"_resolve_berth_node", berth_id) == berth,
+		"GameFlow resolves the exact current cargo berth")
+	_check(preview_before == berth.audit()
+		and bool(preview.get("preview_non_mutating", false)),
+		"cargo preview preserves physical reservation and occupancy")
+
+	# Compatibility and out-of-volume refusal use the original physical owner.
+	var torrent_pose := torrent.global_transform
+	torrent.global_transform = jovian.global_transform
+	var incompatible := game.call(&"_get_landing_assist_report_for_ship", torrent) as Dictionary
+	_check(not berth.can_accept(torrent.get_ship_definition(), torrent)
+		and incompatible.get("selected_berth_id", &"") != berth_id,
+		"incompatible Torrent cannot acquire the cargo berth")
+	var hulk_berth := cluster.get_station_hulk_berth()
+	torrent.global_transform = hulk_berth.get_assist_capture_transform()
+	var hulk_report := game.call(&"_get_landing_assist_report_for_ship", torrent) as Dictionary
+	_check(hulk_report.get("selected_berth_id") == hulk_berth.get_berth_id()
+		and game.call(&"_resolve_berth_node", hulk_berth.get_berth_id()) == hulk_berth,
+		"existing streamed HULK selection and exact resolver remain intact")
+	torrent.global_transform = torrent_pose
+	jovian.global_position += Vector3(100.0, 0.0, 0.0)
+	var outside := game.call(&"_get_landing_assist_report_for_ship", jovian) as Dictionary
+	_check(not bool(_cargo_landing_capture(jovian, berth).get("assist_capture_accepted", true))
+		and outside.get("selected_berth_id", &"") != berth_id,
+		"out-of-capture Jovian receives no cargo landing selection")
+	_cargo_landing_stage_capture(jovian, berth)
+	var hauler := _cargo_landing_ship(game, &"cinder_cargo_hauler")
+	_check(hauler != null, "production compatible Hauler is present for exclusive lease refusal")
+	if hauler == null:
+		await _cleanup(game)
+		return
+	# Only a negative availability fixture: GameFlow owns this competing lease;
+	# the positive landing below never calls try_reserve or occupy directly.
+	var busy_reserved := bool(game.call(&"_reserve_berth_for_ship", hauler, berth_id, false))
+	var busy := game.call(&"_get_landing_assist_report_for_ship", jovian) as Dictionary
+	_check(busy_reserved and berth.get_reservation_owner() == hauler
+		and busy.get("selected_berth_id", &"") != berth_id,
+		"another current craft's exclusive cargo lease refuses Jovian preview")
+	game.call(&"_release_ship_berth", hauler)
+
+	var berth_parent := berth.get_parent()
+	berth.reparent(game)
+	_check(game.call(&"_resolve_berth_node", berth_id) == null
+		and (game.call(&"_get_landing_assist_report_for_ship", jovian) as Dictionary).get(
+			"selected_berth_id", &"") != berth_id,
+		"a live cargo berth moved outside its current access cannot be resolved or selected")
+	berth.reparent(berth_parent)
+	var old_cluster_id := cluster.get_instance_id()
+	var old_berth_ref: WeakRef = weakref(berth)
+	# Reuse the existing exact caller-tick fade/retirement fixture. The normal
+	# initial load above and the new generation below still use real tracking.
+	game.set_physics_process(false)
+	jovian.global_position = LOCATION.get_anchor_position() + Vector3(0.0, 0.0, 650.1)
+	for _tick in 31:
+		binding.physics_tick_from_caller_sample(1.0 / 60.0, _ship_sample(jovian))
+	_check(bootstrap.get_loaded_instance() == null
+		and game.call(&"_resolve_berth_node", berth_id) == null,
+		"retired queued Cinder generation cannot resolve its cargo berth")
+	game.set_physics_process(true)
+	await process_frame
+	await process_frame
+	_check(old_berth_ref.get_ref() == null, "unload frees the old cargo berth")
+	jovian.global_position = LOCATION.get_anchor_position() + Vector3(0.0, 0.0, 499.9)
+	before_tick = int(binding.get_snapshot().get("physics_tick_count", -1))
+	await _wait_for_binding_tick(binding, before_tick)
+	await _wait_for_cluster(bootstrap)
+	cluster = bootstrap.get_loaded_instance() as NearbySectorCluster
+	_check(cluster != null and cluster.get_instance_id() != old_cluster_id,
+		"actual tracking loads one replacement Cinder generation")
+	if cluster == null:
+		await _cleanup(game)
+		return
+	berth = cluster.get_cinder_cargo_access().get_berth()
+	_cargo_landing_stage_capture(jovian, berth)
+	preview = game.call(&"_get_landing_assist_report_for_ship", jovian) as Dictionary
+	_check(game.call(&"_resolve_berth_node", berth_id) == berth
+		and preview.get("selected_berth_id") == berth_id
+		and bool(preview.get("assist_capture_accepted", false)),
+		"replacement generation resolves and selects only its new current cargo berth")
+	if not _failures.is_empty():
+		await _cleanup(game)
+		return
+
+	print("CINDER_CARGO_LANDING_REQUEST: staged flight/capture only; no pose, velocity or lease writes follow")
+	game.call(&"_try_request_landing")
+	_check(jovian.is_landing_active() and bool(game.get("_landing_request_active"))
+		and game.get("_active_landing_berth_id") == berth_id
+		and berth.get_reservation_owner() == jovian,
+		"normal GameFlow request ingress reserves the cargo berth and starts physical assist")
+	var deadline := Time.get_ticks_msec() + 120000
+	while jovian.is_landing_active() and Time.get_ticks_msec() < deadline:
+		await physics_frame
+		await process_frame
+	var landed := jovian.get_landing_contract_report()
+	var tokens := game.get("_berth_tokens") as Dictionary
+	var ids := game.get("_reserved_berth_ids") as Dictionary
+	var token := StringName(tokens.get(jovian.get_instance_id(), &""))
+	_check(game.phase == GameFlow.Phase.SHUT_DOWN
+		and bool(jovian.get_telemetry().get("landed", false))
+		and bool(landed.get("contract_accepted", false))
+		and bool(landed.get("strict_dock_acceptance", false))
+		and landed.get("berth_id") == berth_id
+		and ids.get(jovian.get_instance_id()) == berth_id
+		and not token.is_empty() and berth.has_valid_lease(jovian, token, jovian.get_ship_id())
+		and berth.get_occupant() == jovian and berth.get_reservation_owner() == jovian
+		and jovian.get_home_berth_id() == home_id,
+		"actual physics commits strict cargo dock, exact GameFlow token and occupied lease without changing home")
+	print("CINDER_CARGO_LANDING_FINAL: ", landed)
+	await _cleanup(game)
+
+
+func _cargo_landing_ship(game: GameFlow, ship_id: StringName) -> HeroShip:
+	for craft: HeroShip in game.ships:
+		if craft.get_ship_id() == ship_id:
+			return craft
+	return null
+
+
+func _cargo_landing_stage_capture(ship: HeroShip, berth: ShipBerth) -> void:
+	var dock := berth.get_dock_transform()
+	ship.global_transform = Transform3D(dock.basis, dock.origin + Vector3.UP * 3.0)
+	ship.velocity = Vector3.ZERO
+	ship.set("_landed", false)
+
+
+func _cargo_landing_capture(ship: HeroShip, berth: ShipBerth) -> Dictionary:
+	var collision := ship.get_landing_collision_report()
+	return berth.evaluate_assist_capture_candidate(ship.global_transform,
+		collision.get("local_bounds", AABB()) as AABB, ship.velocity, ship.landing_maximum_speed)
 
 
 func _test_composition_startup_and_player_tracking(
