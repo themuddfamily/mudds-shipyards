@@ -207,57 +207,29 @@ HUD29, confirmation integration12 and GameFlow18 assertions pass; all10 frozen
 source/package stages pass without retries. [Actual outcome and limits](docs/history/ROADMAP_DELIVERIES.md#blocked-save-repair-feedback--shipped-on-49047eb).
 This finishes the named feedback follow-up, not a broad recovery parent.
 
-## Observation walk — caller validation remains open
+## Observation walk — normal exit remains blocked
 
-**WALK-OBSERVATION**, parents7/9, remains OPEN. Candidate4c58efa27 is pushed
-on `qual/observation-walk-20261020`, unmerged/withheld. Original9dc attempt failed
-at root actor readiness; pinned source proves its descendant-only helper was
-incorrectly applied to Main itself. The separately reviewed one-predicate
-correction makes that actor guard pass without changing any route or deadline.
+**WALK-OBSERVATION**, parents7/9, remains OPEN. Caller e390b97ba with unchanged
+private game4c58efa27 exercised all54 waypoints/346.068m: actual ObservationPad,
+60 viewing frames with lens-directed camera, then supported return to original
+hub with the same Player. Actual focused Exit activation then emits two root
+Window nonexistent-connection errors (`focus_entered` / `tree_exited`); normal
+exit0 is not established. Full task is FAIL, not a shortened travel acceptance.
 
-The corrected ordinary attempt stops at the next default/capsule guard, still
-at boot. Raw capsule dimensions0.379999995231628/1.94000005722046 differ from its
-exact nominal literals. No walking leg, viewing dwell or normal UI exit ran;
-no production walking defect is established. One attempt plus one causal
-correction used; no further diagnosis/correction/retry/cap increase selected.
-Original full hub→ObservationPad/look→hub/UI-exit contract is retained. Any further
-caller numeric-contract correction needs a separate priority review, preserving
-both failures and cumulative budget. [Actual results and cleanup](docs/history/ROADMAP_DELIVERIES.md#observation-walk--caller-startup-failure).
+Root self-descendant and native-float caller failures are retained; reviewed
+numeric correction uses existing finite1e-6 nominal bounds PLUS exact initial
+raw-geometry stability. Only two Python files changed,82 tests pass; actual game
+ELF hash/startup/artifact results reused without another export. Caller branch
+`qual/observation-walk-20261020` pushed/unmerged; no gameplay repair yet.
+[Actual result and retained failures](docs/history/ROADMAP_DELIVERIES.md#observation-numeric-contract--runtime-exit-failure).
 
-Existing Python80 checks retained; corrected import/privacy/private Linux export/
-strict startup/artifact audit pass. Cumulative13 stages234.138s,11 pass/two failed
-ordinary attempts; this is not gameplay progress. Latest public49047eb unchanged.
-Only original/corrected raw results and unique withheld package archives remain;
-duplicate checkouts/ELFs/helpers/profiles cleaned. No executable card selected.
-
-### Selected numeric-contract correction after priority review
-
-The retained native sample differs from nominal capsule dimensions by ~4.8e-9/
-~5.7e-8m. Existing LifeTow geometry checks already use finite nonboolean two-number
-comparison within1e-6. One medium implementer changes only the selected Python
-capsule check to that existing nominal rule PLUS exact equality to the initial
-raw geometry on all subsequent samples; same body/shape IDs and every control,
-tuning, waypoint, support, look, exit and deadline requirement remain. Existing
-Python tests accept the actual retained pair and reject nonfinite/bool/wrong-
-shape/out-of-bound values and later drift even inside the nominal tolerance.
-Independent high pre-edit and final diff review required; no new validator.
-
-Priority: this deterministic caller interface mismatch is bounded; the independent
-BASE-DIAG race alternative needs an unestablished cause/probe. Original two
-failures and90min total budget retained. Ownership only
-`tools/release/run_native_sortie.py` / `tools/release/test_native_sortie.py` in
-owned `numeric-contract/worktree`, existing qualification branch. Estimate10–15min
-edit/review +5–10min checks. First new failure STOP; no further repair selected.
-
-No game/source/export change: verify only those two excluded Python files differ
-from4c58efa27, then extract and hash-check its retained exact ELF (SHA9443810d…)
-from archive SHA3f05cb75…. Prior actual startup/PCK/archive checks remain applicable
-to those unchanged bytes; record game source4c58 separately from new caller pin.
-Freeze exact commands: existing Python suite60s then one original full ordinary
-route CAP300/outer330, fresh isolated X11/Dummy/private profile, unchanged input/
-process/source guards. No repeated import/export/startup or new public checkpoint.
-No native/rendered/human or broad parent acceptance inferred. Commit/push actual
-result, preserve both failures and unique package, clean duplicate scratch.
+Next requires a separately selected cause/owner for the Window lifetime/signal
+failure during normal UI exit. Similar prior diagnostics do not establish a
+shared cause. No further probe/fix/retry/cap increase selected. Original full
+hub→Observation/look→hub/UI-exit criteria remain. Cumulative333.882s checks and
+24.8min original freeze→cleanup stay inside90min split; no budget reset.
+Latest public49047eb unchanged; unique raw/private archives retained, duplicate
+checkouts/ELFs/helpers/profiles cleaned. No executable card selected.
 
 ## Latest playable result
 
@@ -284,7 +256,7 @@ contracts and cumulative attempt records remain in the retained history.
 | --- | --- | --- |
 | BROWSER-ORDINARY /25 | Candidatee944f52:89Python/privacy/35join/package checks pass, actual routeFAIL40.554s at NetworkSession tree_exited disconnect error; cleanup fixture command rejected. | PARKED/unmerged/withheld. Subsequent passive capture identifies retained native RPC-cache callback; it does not qualify the route. Full continuation NOT_RUN. Original raw data/eight builds preserved; scratch cleaned. |
 | AFT-CONSOLE-VIEW /9,12 | Standalone actual-module Xvfb/Forward+/llvmpipe capture FAIL120.485s after camera setup; no image or visual finding. | PARKED; source/root cause unproven. No cap increase, alternate backend/view or retry selected. Owned scratch cleaned; raw results retained. |
-| WALK-OBSERVATION /7,9 | Original9dc root guard fails; causal4c58 correction passes actors but ordinary FAIL22.214s on exact capsule/default comparison before walking. | PARKED after original+one correction; both raw failures retained, no further correction/retry/cap increase selected. No gameplay defect established. |
+| WALK-OBSERVATION /7,9 | Two caller failures retained; numeric e390/unchanged game4c58 completes54-goal travel/view/home prefix then FAIL89.064s on rootWindow signal disconnections after focused Exit. | PARKED; full task remains unaccepted, no clean exit0. Separate Window cause/owner required; no probe/repair/retry selected. |
 | PERIMETER-LIVE /11 | Candidateaa88b5a73 unmerged; staged Hold52/director149/asset12/board58/HUD9 pass. GameFlow FAIL90.178s before Hold entry; exports NOT_RUN. | PARKED after cumulative363.897s/three failures and independent review. Concrete change addressing retained full GameFlow route boundary plus separate selection required; no additional correction/retry/cap increase/narrowed acceptance. |
 | PLAY-BEACON-HOME /13 | Candidatea612ea686 FAIL37.713s guarded/37.419s driver at ActivityBoardButton Return/frame1233; same two root Window signal-disconnection diagnostics. Eleven prechecks pass; no settlement/home/L/E reached, no file captures. Unmerged/withheld. | PARKED on UI-BOARD-FOCUS. Recurrence supplies no popup/connection-removal cause; no retry/repair/cap change. Preserve original UI two-component9.627s and Mining budgets. |
 | BREACH-INTERRUPTION /13,31,32 | Originale9/repair3c fail board arming35.365/35.638s. After accepted owner fix e3, unchanged probe c159 fails69.957s at atomic-payment commit assertion after cold Resume/one matching receipt; third cold replay NOT_RUN. | Cumulative140.961s STOP/PARK; candidates unmerged/withheld, no recovery checkpoint. No further diagnosis/repair/run, fourth automatic attempt or renamed retry selected; concrete causal fact/change required. |

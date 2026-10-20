@@ -81,6 +81,55 @@ logs/failed sample/withheld package retained in
 checkout/ELF/helpers/profiles removed. Latest public49047eb unchanged; no route
 or broad/native/human gate closes.
 
+### Observation numeric contract — runtime exit failure
+
+Priority review selects caller-only correction
+`e390b97ba9d136c9e16081635702aeb078e3e104`: exact2 Python files relative to game
+source4c58efa2723e8798319ef45d8ae6b489fc16c630. Existing LifeTow finite/nonbool/
+len2/nominal1e-6 capsule rule replaces impossible nominal-literal equality, PLUS
+exact initial raw-geometry equality on every subsequent sample. Body/shape IDs,
+controls/tuning, full route, support/camera/exit and all original limits unchanged.
+New regressions accept actual retained float pair and reject malformed/out-of-
+range values and later drift even inside tolerance. Independent high pre-edit/
+final source review GO; Python82 passes10.680s. Sourcebranch pushed/unmerged.
+
+No Godot source/resource changes: reuse exact archived game ELF SHA
+9443810d9912211a75fd6bf4f91f45c473cd89609b1bf0756e46c8aeb1c4c954, game source4c58,
+separately from caller e390. Archive/source-diff and ELF hash checked before/after;
+prior strict startup/PCK/archive checks apply to those unchanged bytes. No repeated
+import/export/startup or new public checkpoint.
+
+One ordinary attemptFAIL89.064s (driver88.696): PID1659996, samePlayer274357815890,
+all54 waypoints/346.0680529m, supported actual ObservationPad at local
+(-7.9382,.00116,31.4332), then supported original hub return. Independent raw
+review verifies60 elapsed viewing frames2332–2392/61 consecutive samples with
+same Main/world/Player/capsule/shape/Spur/pad/lens/camera IDs, actual pad support,
+local bounds and unchanged controls/geometry. Lens alignment0.99999884; actual
+camera changed. Hub return(-8.66758,-.01823,10.91072) followed by ordinary pause,
+observed focused/enabled ExitButton and actual Return press/release. This records
+the travel/view/home prefix; no full task acceptance or narrowed finish rule.
+
+At restart_exit_wait, raw log4088/4090 emits two errors: attempt to disconnect
+nonexistent root Window#25014830472 connections, signals focus_entered and
+ tree_exited, callable empty. Driver successfalse/diagnostic_count2; gameleg
+exit_code:null and no normal_ui_exit receipt, so clean UI exit0 is not established.
+Abort cleanup releases inputs/helper/game/Xvfb. Similar parked Activity Board
+Window diagnostics do not prove a shared cause. No new engine probe, production
+repair, further caller fix, retry or cap increase selected.
+
+Cumulative15 stages333.882s includes all three failed attempts,12 checks pass;
+this is not a gameplay-progress percentage. Original freeze→cleanup1486.798s/
+24.8min within original90min split. All73 observed descendant identities across
+three attempts absent; owners terminal. Unique original/corrected game archives
+unchanged; extracted duplicate ELF removed after archive/hash verification.
+Numeric profile archive765 bytes verifies2 symlinks/no regular files; source
+checkout/helpers/profiles removed. Raw logs, exact commands, source/game pins,
+failed sample and independent result review retained at
+`/srv/mudds-work/observation-walk-20261020/numeric-contract/results/`.
+Next requires separately selecting the production Window lifetime/signal cause
+for normal UI exit; no automatic repeat. Public49047eb and broad/native/human
+acceptance remain unchanged.
+
 ## Blocked save-repair feedback — shipped on 49047eb
 
 Source `49047ebcf5c6824e62f6b6b6408cde85d39d2b78`, integrated by main merge
