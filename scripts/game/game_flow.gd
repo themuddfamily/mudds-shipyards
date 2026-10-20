@@ -23462,15 +23462,15 @@ func _get_current_cinder_cargo_berth() -> ShipBerth:
 	if not is_instance_valid(world) or not world.is_inside_tree() \
 			or world.is_queued_for_deletion():
 		return null
-	var cluster := world.get_nearby_sector_cluster()
+	var cluster: NearbySectorCluster = world.get_nearby_sector_cluster()
 	if not is_instance_valid(cluster) or not cluster.is_inside_tree() \
 			or cluster.is_queued_for_deletion():
 		return null
-	var access := cluster.get_cinder_cargo_access()
+	var access: CinderCargoAccess = cluster.get_cinder_cargo_access()
 	if not is_instance_valid(access) or not access.is_inside_tree() \
 			or access.is_queued_for_deletion() or not cluster.is_ancestor_of(access):
 		return null
-	var berth := access.get_berth()
+	var berth: ShipBerth = access.get_berth()
 	if not is_instance_valid(berth) or not berth.is_inside_tree() \
 			or berth.is_queued_for_deletion() or berth.get_parent() != access:
 		return null
