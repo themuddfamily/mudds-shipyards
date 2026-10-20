@@ -1,0 +1,41 @@
+--- a/modules/multiplayer/scene_cache_interface.h
++++ b/modules/multiplayer/scene_cache_interface.h
+@@ -31,6 +31,7 @@
+ #pragma once
+ 
+ #include "core/object/ref_counted.h"
++#include "core/variant/callable.h"
+ 
+ class Node;
+ class SceneMultiplayer;
+@@ -44,6 +45,7 @@
+ 	//path sent caches
+ 	struct NodeCache {
+ 		int cache_id = 0;
++		Callable tree_exited_callback;
+ 		HashMap<int, int> recv_ids; // peer id, remote cache id
+ 		HashMap<int, bool> confirmed_peers; // peer id, confirmed
+ 	};
+--- a/modules/multiplayer/scene_cache_interface.cpp
++++ b/modules/multiplayer/scene_cache_interface.cpp
+@@ -42,8 +42,9 @@
+ 	const ObjectID oid = p_node->get_instance_id();
+ 	NodeCache *nc = nodes_cache.getptr(oid);
+ 	if (!nc) {
+-		nodes_cache[oid] = NodeCache();
+-		p_node->connect(SceneStringName(tree_exited), callable_mp(this, &SceneCacheInterface::_remove_node_cache).bind(oid), Object::CONNECT_ONE_SHOT);
++		NodeCache &cache = nodes_cache[oid];
++		cache.tree_exited_callback = callable_mp(this, &SceneCacheInterface::_remove_node_cache).bind(oid);
++		p_node->connect(SceneStringName(tree_exited), cache.tree_exited_callback, Object::CONNECT_ONE_SHOT);
+ 	}
+ 	return nodes_cache[oid];
+ }
+@@ -298,7 +299,7 @@
+ 	for (KeyValue<ObjectID, NodeCache> &E : nodes_cache) {
+ 		Object *obj = ObjectDB::get_instance(E.key);
+ 		ERR_CONTINUE(!obj);
+-		obj->disconnect(SceneStringName(tree_exited), callable_mp(this, &SceneCacheInterface::_remove_node_cache));
++		obj->disconnect(SceneStringName(tree_exited), E.value.tree_exited_callback);
+ 	}
+ 	peers_info.clear();
+ 	nodes_cache.clear();
