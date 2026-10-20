@@ -80,49 +80,42 @@ records the earlier 20 candidates; accepted Breach and Halyard closeouts and the
 archived superseded Jovian caller remove three.
 This cleanup changes branch ownership, not the number of completed roadmap outcomes.
 
-**Selected physical passenger-exit repair: 15:47–16:32 UTC, 45min.**
-Reuse existing docked-pilot branch. Source now proves confirmed nonpilot departure
-teleports to generic station spawn; it cannot satisfy the required authored-ground
-endpoint. The caller also mistakes post-confirmation exterior animation poses for
-pre-Interact walking goals. Correct both ends of this same original journey:
-ordinary supported cabin walk and Interact outside the pilot-swap radius, then
-confirmed physical exit along the existing authored route while the other pilot
-retains helm/ownership/source and landed pose. Preserve the original endpoint,
-retirement, identity, ground-walk and actual three-peer exit assertions.
+**Selected missing interaction observation: 16:12–16:27 UTC, 15min.**
+Use the existing docked-pilot branch and original full caller once to record the
+actual boarding/station candidates, nearby controls, range, area availability/
+reservation and reboard suppression at the failing pre-E boundary. Add only
+these read-only fields to its existing receipt; no route, aim, input, predicate,
+production behavior or original deadline changes. This is a targeted diagnostic
+reproduction of the named missing fact, not exit acceptance or a gameplay fix.
+Import/compile then one original300s-suite/360s-outer case; preserve terminal
+failure and all raw data. No export, unchanged second run or adjacent probe.
+Finish by pushing the accounted source/result and cleaning owned scratch.
+Prior951.245s and original parser failures remain; no cost reset.
 
-One implementer owns GameFlow/its focused existing seam test; root owns the
-original caller. Independent high review before engines. Original300s suite,
-360s outer,15s walks,8s boundary/exit and10s peer grace stay fixed. First unexpected
-failure stops. Focused lifecycle/pose/seam checks, full original journey once;
-paired checkpoint exports and strict silent isolated startup/audit only after
-full acceptance. Merge/push/delete and owned cleanup finish the card. Prior
-619.927s stages and original parser failures remain; no cost reset.
+**Physical passenger-exit repair remains withheld at interaction discovery.**
+Existing `fix/docked-pilot-hold-20261020` is pushed on de57a6e15 and unmerged.
+Source exposed generic-spawn teleport on confirmed Jovian passenger departure.
+The candidate adds a supported on-foot physical exit along the original authored
+route, retaining the other pilot, and corrects the caller's pre-Interact approach.
+Accepted host operation facts choose the landed/offline path; local prediction
+never becomes authority. Source review GO is not journey acceptance.
 
-The first physical-exit candidate 87b313468 stopped before gameplay: import
-passed20.654s, then pose-stage loading found two inferred-type errors in new
-GameFlow `exit_pose`/`motion_started` declarations. Failed38.440s and all raw
-records retained; no journey/export ran. Within the same15:47–16:32 window,
-select one exact type-only correction (`Transform3D`, `bool`), independently
-review it, then compile before focused suites and the unchanged full journey.
-Prior stages now658.367s plus separately retained parser failures. No deadline
-extension, criteria change or unchanged rerun. First further failure stops.
+Compile, all322 dock-pose checks and11 focused exit/support assertions pass.
+The full original three-peer journey FAILS143.680s at the8s ordinary interaction
+discovery predicate after supported inboard walking and host confirmation.
+Interact was never pressed; the new production departure remains unexercised by
+this journey. Boarding candidate, competing station candidate, reach and area
+availability were not captured, so the failing discovery gate is unproved.
 
-**Docked-pilot branch closeout stopped at a later hatch-route boundary.**
-Existing branch `fix/docked-pilot-hold-20261020` is pushed on bf7fb636e and remains
-unmerged/withheld. Source proved the original diagonal crossed the solid pilot
-chair; the reviewed ordinary clearance point now passes, followed by original
-route[0]. Full original journey still FAILS in 147.311s at route[1], before hatch
-Interact, exterior release or ground walk. No acceptance requirement was removed.
-
-Import, all 322 pose assertions and compile pass. New stages total 227.457s;
-prior 392.470s remain, giving 619.927s plus separately retained original parser
-failures. No retry or further repair is selected. Source walks route[0..2]
-before hatch Interact; the new host stop is consistent with the doorway, but
-canopy/hinge/blocker/contact state was not recorded, so causation is unproved.
-All 25 observed process identities absent; 188 profile entries archived and
-verified. Owned worktree/profile/helpers removed in 6.01min within the selected
-45min window. Exports/startups/audit NOT_RUN; playable c78e0ac unchanged.
-[Actual result and missing fact](docs/history/ROADMAP_DELIVERIES.md#docked-pilot-closeout--chair-cleared-hatch-route-still-fails--2026-10-20).
+Two compiler stops were preserved and corrected only by explicit declarations;
+no journey ran in either. Latest stages255.694s plus prior695.551s give951.245s,
+with original parser failures separate. No further repair/retry selected. All28
+observed identities absent;211 profile entries verified; owned scratch removed
+19.06min from the original15:47 selection, inside45min. Earlier two compiler
+attempt roots also contain only preserved results. Exports/startups/audit NOT_RUN;
+playable c78e0ac unchanged. Full exit/retirement/ground-walk/peer acceptance stays
+open; no requirement was dropped to merge the candidate.
+[Actual result and retained gap](docs/history/ROADMAP_DELIVERIES.md#physical-jovian-passenger-exit--focused-pass-ordinary-interaction-not-found--2026-10-20).
 
 **Existing Halyard boarding branch finished and merged on 4bc0e3b38.**
 Full original ordinary menus/spawn/continuous walks and real pilot/passenger
@@ -293,7 +286,7 @@ contracts and cumulative attempt records remain in the retained history.
 | --- | --- | --- |
 | PLAY-DEFENSE ordinary route /13 | Candidatea480c0fbb pushed/unmerged: actual E Deploy accepted, but corrective walk_arrow stationary33.15s and whole34s timeout before boarding. | PARK after original35.963s and one corrective84.239s failure; cumulative406.401s including16 passing stages. No player kill/payment/home/reset/UIexit; no second repair/retry selected. Unique candidates/results preserved; owned scratch cleaned28.24min. |
 | Ember first-relay cold cut /14,31 | [Archive923d7b3](docs/history/ROADMAP_DELIVERIES.md#ember-first-relay-cold-cut--runtime-completes-parent-comparison-fails) FAIL312.812s at parent exact durable-state comparison; arm-9/resume0, engine diagnostics0, runtime continuation and receipts0→1. Only two compared coordinate scalars differ by one binary64 ULP. | STOPPED; no repair/retry/cap increase or retroactive comparison relaxation. Contract review and exact-runtime caller correction complete; corrected full package run NOT_RUN and requires a separately frozen selection. No full-cut/location/canonical/installed acceptance; all owned scratch cleaned9.50min within20min. |
-| Jovian postdock exit /16,20,26 | [Candidate bf7fb636e](docs/history/ROADMAP_DELIVERIES.md#docked-pilot-closeout--chair-cleared-hatch-route-still-fails--2026-10-20): pose322/import/compile PASS; reviewed chair-clearance and original route[0] pass. Full original route147.311s FAIL at route[1] before hatch Interact. Unmerged/withheld; exports NOT_RUN. | STOPPED after one separately selected source-supported caller correction. Combined619.927s current stages plus original parser failures retained. Missing actual canopy/hinge/blocker/contact state at doorway; no second correction, cap/tolerance increase or adjacent probe selected. All25 identities absent;188 profile entries verified; owned scratch cleaned6.01min within45min. |
+| Jovian postdock exit /16,20,26 | [Candidate de57a6e15](docs/history/ROADMAP_DELIVERIES.md#physical-jovian-passenger-exit--focused-pass-ordinary-interaction-not-found--2026-10-20): compile/pose322/focused exit11 PASS. Full original143.680s FAIL at8s interaction discovery after host-confirmed cabin walk; E not pressed, production exit unexercised by journey. Unmerged/withheld, exports NOT_RUN. | STOPPED. Combined951.245s stages plus original parser failures retained. Missing actual boarding/station candidate, reach and area availability at intended E; no further repair/retry or cap/tolerance increase selected. All28 identities absent;211 profile entries verified; owned scratch cleaned19.06min within original45min. |
 | Habitat common-entry view /9,12 | [Source8a6339b91](docs/history/ROADMAP_DELIVERIES.md#habitat-arrival-view--readback-timed-out-before-image): import passes; full-Main player-height readback times out180.842s before PNG or view metadata. Cumulative201.494s; no observed defect/no-finding. | PARKED. Concrete supported capture-boundary change before selection; no renderer/room substitute, cap increase or unchanged retry. Actual eye stage was not proved reached; accepted Habitat runtime scopes remain. |
 | Courier clear /11 | [Candidatecb9d76fa5](docs/history/ROADMAP_DELIVERIES.md#courier-ordinary-clear--escaped-without-player-damage), pushed/unmerged: prechecks pass; ordinary attempt fails70.377s, ESCAPED at1400m, hull78/78, no player hit/kill or home completion. Cumulative165.917s. | PARKED/withheld. Fresh Courier-window emission/ray/resolver facts are missing; generic shot receipt can be stale. No weapon/aim cause established, repair/retry or public checkpoint selected. Preserve original route/caps; other Courier outcomes need separate selection. |
 | Matching RPC-cache templates /25,32 | [Linux built; Windows cold/incremental compilation timed out](docs/history/ROADMAP_DELIVERIES.md#matching-rpc-cache-templates--stopped-at-windows-compilation-budget). No accepted matching pair; callback repair is unverified. | PARKED; no further compilation or dependent browser attempt selected. Existing recipe/JSON fixture remain delivered; empty callable metadata and similar Window errors establish no cause. |
