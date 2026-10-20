@@ -2264,10 +2264,19 @@ class ArrowReturnReuseTests(unittest.TestCase):
                  player=[-8.5, .18, 11], spawn=[-8.5, .18, 11], position=[-43, 1.15, 15.5],
                  parked=[-43, 1.15, 15.5], boarding=[-47.5, .06, 18.9], exit=[-47.8, 0, 18.9],
                  capture_position=[-58, 9.15, 15.5], back=[1, 0, 0],
+                 right=[0, 0, -1], up=[0, 1, 0], camera=[-38, 3, 15.5],
+                 camera_right=[0, 0, -1], camera_up=[0, 1, 0], camera_back=[1, 0, 0],
+                 ship_invert_y=False, shot={'present': False, 'request': {}},
+                 target={'name': 'TargetDrone01', 'target_id': 'DRONE-01',
+                         'base_position': [-13, 7, -95], 'position': [-12, 7, -95],
+                         'health': 100, 'maximum_health': 100, 'destroyed': False,
+                         'components': {'components': {}},
+                         'hit_source': {'source_id': 0, 'source_entity_id': 0, 'weapon_id': '',
+                                        'sequence': -1, 'presentation_receipt_id': -1}},
                  velocity=[0, 0, 0], ship_velocity=[0, 0, 0], walk_forward=[0, 0, -1], walk_right=[1, 0, 0],
                  capsule_geometry=[.38, 1.8], capsule_enabled=True,
                  default_sampler=True, default_controls=True, tuning_unchanged=True,
-                 walk_tuning=native.LifeTowPilot.DEFAULT_WALK.copy(), ship_tuning={'mouse': .0022},
+                 walk_tuning=native.LifeTowPilot.DEFAULT_WALK.copy(), ship_tuning={'mouse': .0022, 'cooldown': .38},
                  physics_ticks=60, time_scale=1, destroyed=False, hull=82, remote_piloted=False,
                  control_enabled=True, seated=False, seated_at_pilot=False, piloted=False,
                  active_ship=False, player_camera=True, ship_camera=False, transition_busy=False,
@@ -2284,11 +2293,11 @@ class ArrowReturnReuseTests(unittest.TestCase):
                      'focus_path': '/Main/HUD/Exit', 'focus_is_exit': True})
         return s
 
-    def tick(self, pilot, s, update=True, **changes):
+    def tick(self, pilot, s, update=True, now=None, **changes):
         s.update(changes); s['frame'] += 1; s['sequence'] += 1
         snapshot = copy.deepcopy(s)
         pilot.validate_observation(snapshot)
-        if update: return pilot.update(snapshot, s['frame']/60)
+        if update: return pilot.update(snapshot, s['frame']/60 if now is None else now)
 
     def start(self):
         p, s = native.ArrowReturnReusePilot(), self.observation()
@@ -2312,6 +2321,64 @@ class ArrowReturnReuseTests(unittest.TestCase):
         self.assertEqual(p.stage, 'board')
         return p, s
 
+    def hit(self, s):
+        request = {'source_id': 1102, 'source_entity_id': s['ship_id'],
+                   'weapon_id': 'arrow_precision_recon_emitter', 'sequence': 0,
+                   'presentation_receipt_id': 7, 'range': 480, 'damage': 24,
+                   'origin': [-58, 1.15, 15.5], 'direction': [0, 0, -1]}
+        context = {k: request[k] for k in ('source_id', 'source_entity_id', 'weapon_id',
+                                         'sequence', 'presentation_receipt_id')}
+        target = copy.deepcopy(s['target'])
+        target.update(health=76, hit_source=context)
+        return {'target': target, 'native_fire': True,
+                'shot': {'present': True, 'request': request, 'accepted': True, 'resolved': True,
+                         'hit': True, 'damaged': True, 'status': 'damaged', 'destroyed': False,
+                         'source_id': 1102, 'source_entity_id': s['ship_id'],
+                         'target_entity_id': s['target_instance_id'], 'damageable_id': s['target_adapter_id'],
+                         'applied_damage': 24, 'remaining_health': 76,
+                         'damage_result': {'accepted': True, 'applied_damage': 24, 'health': 76,
+                                           'maximum_health': 100, 'destroyed': False}}}
+
+    def weapon_request(self, p, s):
+        self.assertEqual(p.stage, 'weapon_aim')
+        direction = native.unit(native.sub(s['target']['position'], s['camera']))
+        right = native.unit([-direction[2], 0, direction[0]])
+        up = [right[1]*direction[2]-right[2]*direction[1],
+              right[2]*direction[0]-right[0]*direction[2],
+              right[0]*direction[1]-right[1]*direction[0]]
+        target = copy.deepcopy(s['target']); target['position'][0] += .1
+        keys, *_ = self.tick(p, s, camera_back=[-v for v in direction],
+                             camera_right=right, camera_up=up, target=target)
+        # Consume the pending physical mouse delivery and any prior E tap's
+        # release/cooldown before the shared tap owner accepts the first F.
+        for _ in range(40):
+            if p.stage != 'weapon_aim': break
+            self.assertNotIn('pre_fire', p.weapon)
+            keys, *_ = self.tick(p, s)
+        self.assertEqual(p.stage, 'weapon_fire')
+        self.assertIn('f', keys)
+        self.assertEqual(p.weapon['pre_fire']['target']['health'], 100)
+
+    def weapon_hit_and_restore(self, p, s):
+        self.weapon_request(p, s)
+        keys, *_ = self.tick(p, s, **self.hit(s))
+        self.assertIn('f', keys)
+        self.assertIn('hit', p.weapon)
+        self.release_fire(p, s)
+        self.assertEqual(p.stage, 'weapon_restore')
+        for _ in range(35): self.tick(p, s)
+        self.assertIn('restored', p.weapon)
+
+    def release_fire(self, p, s):
+        for _ in range(12):
+            keys, *_ = self.tick(p, s, native_fire=True)
+            self.assertEqual(p.stage, 'weapon_fire')
+            if 'f' not in keys: break
+        else: self.fail('shared F tap did not release after its normal lifetime')
+        self.assertIsNone(p.tap_key)
+        keys, *_ = self.tick(p, s, native_fire=False)
+        self.assertNotIn('f', keys)
+
     def fly_and_exit(self, p, s):
         self.tick(p, s, phase='BOARDING', native_interact=True, candidate=False,
                   transition_busy=True, control_enabled=False, boarding_reserved=True,
@@ -2326,7 +2393,11 @@ class ArrowReturnReuseTests(unittest.TestCase):
                   engine='ONLINE', phase='FREE_FLIGHT', landed=False, lease=False,
                   lease_free=True, lease_token='', parked_exact=False,
                   position=[-60, 1.15, 15.5], capture=True)
-        for _ in range(35): self.tick(p, s, native_thrust=False)
+        if p.flight == 0:
+            self.tick(p, s, native_thrust=False)
+            self.weapon_hit_and_restore(p, s)
+        else:
+            for _ in range(35): self.tick(p, s, native_thrust=False)
         self.assertEqual(p.stage, 'land')
         self.tick(p, s, native_landing=True)
         self.tick(p, s, phase='SHUT_DOWN', landed=True, lease=True, lease_free=False,
@@ -2378,6 +2449,125 @@ class ArrowReturnReuseTests(unittest.TestCase):
         self.assertTrue(all(t['excursion_m'] > 8 and t['neutral_frames'] >= 90 for t in result['trips']))
         self.assertGreater(result['receipts']['board_2']['frame'], result['receipts']['walk_clear']['frame'])
         self.assertEqual([e['flight'] for e in p.native_edges if e['stage'] == 'board'], [1, 2])
+
+    def ready_to_fire(self):
+        p, s = self.start()
+        # The normal route has separate lifecycle coverage below. These tests
+        # isolate the shot boundary with an already admitted airborne pilot.
+        p.stage = 'weapon_aim'
+        p.weapon_started, p.weapon_start_frame = s['frame']/60, s['frame']
+        p.weapon['brake'] = p.weapon_receipt(s)
+        s.update(phase='FREE_FLIGHT', engine='ONLINE', landed=False, lease=False, lease_free=True,
+                 seated=True, seated_at_pilot=True, piloted=True, active_ship=True,
+                 capsule_enabled=False, ship_camera=True)
+        self.weapon_request(p, s)
+        return p, s
+
+    def test_fire_uses_one_shared_tap_until_both_time_and_physics_minima(self):
+        for pending in ('frames', 'wall_time'):
+            with self.subTest(pending=pending):
+                p, s = self.ready_to_fire()
+                press_frame, press_time = p.tap_frame, p.tap_until-.15
+                baseline = p.weapon['pre_fire']
+                count = 5 if pending == 'frames' else 6
+                for index in range(count):
+                    elapsed = .20 if pending == 'frames' else .14*(index+1)/count
+                    keys, *_ = self.tick(p, s, native_fire=True, now=press_time+elapsed)
+                    self.assertIn('f', keys)
+                self.assertEqual(s['frame'], press_frame+count)
+                release_time = press_time+(.201 if pending == 'frames' else .151)
+                keys, *_ = self.tick(p, s, native_fire=True, now=release_time)
+                self.assertNotIn('f', keys)
+                self.assertIsNone(p.tap_key)
+                for index in range(25):
+                    keys, *_ = self.tick(p, s, native_fire=False, now=release_time+(index+1)/60)
+                    self.assertNotIn('f', keys)
+                    self.assertEqual(p.stage, 'weapon_fire')
+                    self.assertIs(p.weapon['pre_fire'], baseline)
+                self.assertEqual(sum(e['stage'] == 'weapon_fire' for e in p.stages), 1)
+
+    def test_aligned_aim_does_not_store_baseline_or_advance_while_tap_unavailable(self):
+        for busy in ('key', 'time', 'frames'):
+            with self.subTest(busy=busy):
+                p, s = self.ready_to_fire()
+                p.stage = 'weapon_aim'; p.weapon.pop('pre_fire')
+                p.tap_key = 'e' if busy == 'key' else None
+                p.tap_until = s['frame']/60+1
+                p.tap_cooldown = s['frame']/60+1 if busy == 'time' else 0
+                p.tap_release_frame = s['frame'] if busy == 'frames' else -100
+                keys, *_ = self.tick(p, s)
+                self.assertEqual(p.stage, 'weapon_aim')
+                self.assertNotIn('pre_fire', p.weapon)
+                self.assertNotIn('f', keys)
+
+    def test_weapon_rejects_stale_wrong_target_source_sequence_and_hit_receipts(self):
+        mutations = [lambda p,s,h: h['shot'].update(accepted=False),
+                     lambda p,s,h: h['shot'].update(hit=False),
+                     lambda p,s,h: h['shot'].update(damaged=False),
+                     lambda p,s,h: h['shot'].update(target_entity_id=999),
+                     lambda p,s,h: h['shot'].update(damageable_id=999),
+                     lambda p,s,h: h['shot'].update(source_id=1001),
+                     lambda p,s,h: h['shot']['request'].update(source_entity_id=999),
+                     lambda p,s,h: h['shot']['request'].update(weapon_id='torrent'),
+                     lambda p,s,h: h['shot']['request'].update(sequence=-1),
+                     lambda p,s,h: h['shot']['request'].update(sequence=1),
+                     lambda p,s,h: h['shot']['request'].update(presentation_receipt_id=-1),
+                     lambda p,s,h: h['target']['hit_source'].update(presentation_receipt_id=8),
+                     lambda p,s,h: h['target']['hit_source'].update(source_id=1001),
+                     lambda p,s,h: h['target']['hit_source'].update(sequence=1),
+                     lambda p,s,h: h['shot']['damage_result'].update(applied_damage=23),
+                     lambda p,s,h: h['target'].update(health=75),
+                     lambda p,s,h: h.update(native_fire=False),
+                     lambda p,s,h: setattr(p, 'stage', 'launch'),
+                     lambda p,s,h: setattr(p, 'flight', 1)]
+        for mutate in mutations:
+            with self.subTest(mutate=mutate):
+                p, s = self.ready_to_fire(); hit = self.hit(s)
+                mutate(p, s, hit)
+                with self.assertRaises(AssertionError): self.tick(p, s, update=False, **hit)
+        p, s = self.start()
+        with self.assertRaises(AssertionError): self.tick(p, s, update=False, **self.hit(s))
+
+    def test_weapon_cannot_land_before_hit_and_full_attitude_restoration(self):
+        p, s = self.ready_to_fire()
+        keys, *_ = self.tick(p, s)
+        self.assertIn('f', keys)
+        self.assertNotIn('l', keys)
+        self.assertEqual(p.stage, 'weapon_fire')
+        self.tick(p, s, **self.hit(s)); self.release_fire(p, s)
+        # A matching nose alone does not establish restored attitude.
+        keys, *_ = self.tick(p, s, right=[0, .2, -.98], up=[0, .98, .2])
+        self.assertNotIn('l', keys)
+        self.assertEqual(p.stage, 'weapon_restore')
+        self.tick(p, s, right=[0, 0, -1], up=[0, 1, 0], capture=True)
+        for _ in range(25):
+            if p.stage == 'land': break
+            self.tick(p, s)
+        self.assertEqual(p.stage, 'land')
+        self.assertGreater(p.weapon['hit']['frame'], p.weapon['pre_fire']['frame'])
+        self.assertGreater(p.weapon['restored']['frame'], p.weapon['hit']['frame'])
+
+    def test_weapon_25_second_deadline_includes_braking_and_stalled_observations(self):
+        p, s = self.ready_to_fire()
+        p.check_weapon_deadline(p.weapon_started+25)
+        with self.assertRaisesRegex(AssertionError, '25 seconds'):
+            p.check_weapon_deadline(p.weapon_started+25.001)
+        p.weapon_start_frame = s['frame']-1500
+        with self.assertRaisesRegex(AssertionError, 'physics budget'):
+            self.tick(p, s, update=False)
+        self.assertEqual(native.CAP, 300)
+
+    def test_second_flight_and_quit_tail_reject_another_shot(self):
+        p, s = self.reused()
+        self.assertEqual(p.flight, 1)
+        self.assertEqual(sum(e['stage'] == 'weapon_aim' for e in p.stages), 1)
+        self.assertEqual(p.weapon['hit']['shot']['applied_damage'], 24)
+        for mutate in (lambda snapshot: snapshot.update(native_fire=True),
+                       lambda snapshot: snapshot['shot']['request'].update(sequence=1),
+                       lambda snapshot: snapshot['target'].update(health=52)):
+            snapshot = copy.deepcopy(s); snapshot['frame'] += 1; snapshot['sequence'] += 1
+            mutate(snapshot)
+            with self.assertRaises(AssertionError): p.validate_observation(snapshot)
 
     def test_every_intermediate_receipt_rejects_changed_actors_controls_support_and_motion(self):
         mutations = [dict(player_id=999), dict(capsule_id=999), dict(shape_id=999),
