@@ -16575,3 +16575,74 @@ incoming/component damage/repair/destruction recovery, crosscraft/Main/art,
 physical devices/audio/listening/human/native GPU/native Windows/final-candidate
 and full-release gates remain open. Sandbox/Defense/Wing/other parked routes
 retain their original status and costs. No broad parent or phase closes here.
+
+
+## Sampled remote pitch — turn and release accepted
+
+HELM-PITCH turn/release child / parent18, sourcequalification only. Clean source
+`f9682a38c196a1f895f37694b740f4d80245011c`, merged/pushed as82efbbab4.
+No missing runtime pitch capability was found. One high-effort bounded source
+handoff identified the existing ordinary three-process route and input scope;
+one high implementer, one independent high reviewer and root integration.
+Selected2026-10-20 11:27UTC, original60min cumulative deadline12:27UTC.
+
+The23-line pitch specialization extends the existing yaw caller through narrow
+steering profile/action/measurement/neutral hooks, retaining shared boarding,
+≥5m departure/brake, identity/berth checks and host-owned clocks. No329-line
+parallel copy, production/runtime change or new validator/evidence family.
+Owned files: existing `tests/network/jovian_network_two_client_yaw_test.gd`,
+new pitch counterpart and UID. Yaw defaults retain filenames, metric keys,
+marker, directions, signs, reference axis and original thresholds.
+Pitch uses pitch_up(+1)/pitch_down(−1), signed nose projection around the actual
+recorded RIGHT axis; one original pilot and copilot, same enabled producer,
+source/wire streams/session/seat/entity/ownership, released berth throughout.
+
+Input is **synthetic Godot InputEventAction via Input.parse_input_event**,
+then actual production LocalShipInputSource sampling, current GameFlow capture/
+send, ENet and actual host simulation. No provider override or direct command/
+pose staging. This is not OS keyboard delivery or hardware/controller proof.
+Original handback is independently required and stays PARKED; these scenario
+hooks do not enter or repair it. Session/process cleanup is not handback proof.
+
+Exact four-stage freeze: headless Dummy-audio import180s; direct pitch check-only
+120s; ONE pitch and ONE changed-yaw regression with existing coordinator300s/
+10s exit grace and outer360s each. Both source reviews GO before engines; first
+unexpected failure would STOP with no automatic correction/retry. No failures:
+- Import20.614814393s and direct compile16.434572342s PASS.
+- Pitch130.723652051s PASS. Host up+4.800000817° in567ms, down−4.200001141°
+  in364ms, both within existing≥3°/2s contract. Fresh delivered holding-neutral
+  within original1s authorization budget, not timeout neutrality; measured
+  drift0° across1s for both directions. Both actual current-owner clients
+  converge≤2° within existing host-owned2s: pilot0.685285°/0.328649°, copilot0°.
+- Changed-yaw regression130.817426669s PASS. Left+4.200000288°/287ms,
+  right−4.199999434°/391ms; drift0°, pilot errors0.306467°/0.205584° and
+  copilot0°. Original clock/handback boundaries unchanged.
+- Both routes retain real independent host/client/client_b processes, original
+  boarding/forward-flight/brake and physical replica support. All6 actual peer
+  exits0, one coordinator-only marker per route and zero full raw diagnostics.
+  Child arguments explicitly x11/Dummy with private Xvfb, dummy renderer and
+  disabled render loop. Source/index/cache unchanged after import.
+
+Total four-stage time298.590465455s. Root read actual host prepare/turn/stable/
+complete and both actual client convergence files, cross-checked preserved
+identity/producer/source+wire streams/released berth, fresh delivered cursors,
+all three done/exit receipts and observed absent PID/start identities for each
+route. No green summary alone is substituted for these runtime facts.
+Source committed/pushed and merged/pushed; qualification closes only the pitch
+turn/release child, with HELM-PITCH/parent18 full handback/devices still open.
+No identical playable rebuild for caller-only qualification; checkpoint51257b3
+remains latest accepted playable. Native Windows/GPU/real audio/listening/
+physical devices/human/endurance/final-candidate/full-release gates stay open.
+No GitHub CI, Downloads publication, parked handback retry or successor selected.
+
+Raw records `/srv/mudds-work/jovian-remote-pitch-20261020/results/`.
+Cleanup10.75min from original11:27 selection: four owners terminal, all36
+process identities absent,171 private profile entries archived/hash-verified,
+helpers preserved, clean integrated/pushed owned worktree/profiles/helpers
+removed. Records compacted55→13 loose files after all60 original entries were
+verified in member order for mode/type/link/hash, plus fresh source recheck
+before removal. Archive11040046bytes, SHA256
+`be3f9534c469a9711edceacf3da7703017e2e7feed7fef7fd6688228cd6cdd7c`.
+Index/README, source/reviews/summary/cleanup and3 reusable helpers remain loose;
+original stage/raw peer/profile records are under results/ inside the archive.
+Cleanup/compaction11.72min within original60min; only task results/ remains.

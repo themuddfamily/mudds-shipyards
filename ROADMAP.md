@@ -38,23 +38,19 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 ## Execution now
 
-**Active: HELM-PITCH turn/release caller, selected11:27UTC2026-10-20.**
-Qualify existing remote pitch through the actual production sampler and three
-independent processes; no missing runtime pitch feature was found. One
-implementer extends the existing yaw caller with narrow steering hooks and a
-small pitch specialization, avoiding a second copy of the shared route.
+**HELM-PITCH turn/release is accepted on sourcef9682a38c.** Both synthetic
+Godot pitch actions reach the production sampler and actual host: +4.8°/−4.2°
+in567/364ms, fresh neutral≤1s, zero measured neutral drift and both actual client
+attitudes within2°. The changed yaw caller also passes its complete original
+route. All6 actual peer exits0, zero diagnostics, source/cache stable; four
+stages PASS298.590s. [Actual checks and scope](docs/history/ROADMAP_DELIVERIES.md#sampled-remote-pitch--turn-and-release-accepted).
 
-| Field | Fixed result and limit |
-| --- | --- |
-| Result | Original crew boarding/≥5m departure/brake, then both sampled pitch directions reach fresh same-stream host input and signed nose rotation≥3° within host-owned2s; fresh neutral≤1s, ≤0.5° drift for1s, both actual client attitudes≤2° within2s. |
-| Ownership | Existing `jovian_network_two_client_yaw_test.gd`, new small pitch caller and UID only; production runtime and inherited boarding/flight/coordinator unchanged. One implementer and one independent reviewer. |
-| Input scope | Synthetic Godot InputEventAction through actual default LocalShipInputSource, not an injected provider, OS input or physical hardware proof. Preserve authenticated actors/source/streams/seat/entity/ownership and released berth. |
-| Checks | Freeze clean pin and exact commands before engines: Dummy-audio headless import180s, direct pitch check-only120s, then ONE pitch and ONE changed-yaw regression, original coordinator300s/10s exit grace and outer360s each. Child peers stay on private Xvfb/x11 with Dummy audio. Require all3 actual OS exits0, one coordinator marker/zero raw diagnostics, source/cache unchanged after import. |
-| Budget/stop | ≤25min implementation, then review/checks/cleanup within original11:27–12:27UTC/60min. First unexpected failure STOP; no automatic correction/retry. Release actions and reap owned processes on every path. |
-| Closure | Commit/push actual source-only result and clean owned scratch. Full HELM-PITCH handback remains required/PARKED separately; no handback retry, native/device/endurance/parent closure or identical gameplay rebuild. |
-
-Latest accepted playable remains51257b3. Its named Arrow hit/return/reuse
-qualification and all broader open craft gates retain their recorded scope.
+No runtime change or identical playable rebuild; checkpoint51257b3 retained.
+Full handback remains required/PARKED, and physical-device/native/endurance/
+final gates remain open. Worktree/profiles/helpers removed;36 process identities
+absent,171 profile entries archived/verified. Closed records compacted55→13 files
+with all60 original entries verified; cleanup/compaction11.72min within original
+11:27–12:27UTC/60min. Only results/ remains. No successor or engine run selected.
 
 ### Next production alternative: Freight physical terminal interface
 
@@ -100,6 +96,7 @@ the existing history. These are accepted slices, not closed broad parents.
 
 | Outcome | Accepted scope / remaining boundary |
 | --- | --- |
+| Remote pitch turn/release | [Sourcef9682a38c](docs/history/ROADMAP_DELIVERIES.md#sampled-remote-pitch--turn-and-release-accepted): both synthetic sampled directions reach actual host, fresh neutral/drift and both client attitudes pass; changed yaw regression passes too. Handback remains PARKED; no OS/device/native/endurance/full-parent acceptance. |
 | Aboard help, one cell | [Source e5dfe1117](docs/history/ROADMAP_DELIVERIES.md#aboard-help--one-minimum-scale-1610-cell-accepted): all20 ordinary aboard rows/four pages at1920×1200/.75,124 assertions; source headless layout/wrapping/focus/Close only. Other cells, rendered/device/crew gameplay and final candidate remain open. |
 | Arrow pilot precision hit and return/reuse | [Checkpoint51257b3](docs/history/ROADMAP_DELIVERIES.md#arrow-precision-hit-and-return--shipped-on-51257b3): one native timed F press, fresh source/target/sequence/receipt and actual24damage100→76, full two-flight home/offline exits/reboard/UIquit120.991s; source changes extend acceptance automation. Broader craft/combat/damage/recovery/art/native/final remain open. |
 | Arrow ordinary return/reuse | [Checkpoint ed1167b](docs/history/ROADMAP_DELIVERIES.md#arrow-ordinary-return-and-reuse--shipped-on-ed1167b): actual archive OS-input two flights/home/offline exits, >7m clear/reboard and normal UI quit PASS106.765s/CAP300; prior two failures retained. Broad craft/native/final gates open. |
