@@ -239,6 +239,38 @@ profiles/helpers removed; only results remain. Headless theme scope; rendered,
 human, devices, full combat/ordinary journeys/native/final gates stay open. No
 successor or parked-route retry selected.
 
+### Selected settings and activity feedback palette repair
+
+ACCESS-RECOVERY / ACCESS-NEARBY / ACCESS-ACTIVITY, parents12,29. **09:25–10:10UTC/
+45min** including implementation/review/checkpoint/cleanup. Four remaining
+Label callers still multiply registered initial text colour by new role via
+modulate: settings save result, settings recovery title, nearby action feedback,
+activity selection status (including rejected Patrol branch). Enemy health bar is
+not a Label and remains outside this repair.
+
+One medium implementer owns scripts/ui/hud.gd and four existing caller suites:
+settings_persistence_feedback_ui_test.gd, runtime_settings_repair_hud_test.gd,
+nearby_activity_hud_integration_test.gd, controller_pause_navigation_prompt_test.gd.
+Root reviews/integrates/packages. Replace only those four Label families' role
+modulation with accepted _set_label_palette_role; helper/authority/wording/actions/
+visibility/focus/report schemas unchanged. Existing generic six-family palette
+matrix remains accepted on941ef73; do not repeat or expand it. Add smallest caller
+regressions for current role/effective colour/white modulation through each real
+message outcome and one subsequent palette/high-contrast change. No new harness,
+validator or test file. Explicit types for new GDScript call/member-chain locals.
+Estimate15–25min implementation/source review.
+
+Freeze clean source/exact commands before engines: headless/Dummy import180s;
+four full existing caller suites above120s each with their existing success
+markers; retained hud_panel_layout_test.gd120s. Paired exports180s each, three
+strict startup checks120s each (exit0/exactly1STARTUP_MENU_READY_OK), actual
+PCK/PE/archive audit90s. First unexpected failure stops; no automatic repair/
+retry/cap increase or broad parked Activity Board/Tooltip route execution.
+Publish reviewed passing checkpoint under repository builds. Archive/hash-verify
+unique results and remove owned clean pushed idle scratch within45min. Headless
+caller/theme checks do not close rendered/human/device/recovery/full journeys or
+final release gates. Freight workflow remains pending and independent.
+
 ### Freight terminal integration — bounded handoff, workflow pending
 
 WALK-FREIGHT source preflight found missing production interaction: Freight's
