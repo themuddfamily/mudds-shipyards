@@ -1,8 +1,10 @@
 # Development roadmap
 
 **Status: playable development alpha; project completion is unproven.** Latest
-accepted checkpoint: **2ed93ca**. Settings save/recovery and activity feedback
-now use their current role colours once and follow palette/high-contrast changes.
+accepted checkpoint: **ed1167b**. Its private release route completes two ordinary
+Arrow flights, strict home returns, supported exits/reboarding and normal UI quit.
+This adds executable acceptance coverage; the broader craft gates remain open.
+Settings save/recovery and activity feedback use their current role colours once and follow palette/high-contrast changes.
 Six gameplay readouts apply their current
 role colour once and follow palette/high-contrast switches: mode, engine,
 throttle, hull damage, component status and target lock.
@@ -16,8 +18,8 @@ Paired Wing after Heavy Breach/Torpedo, with on-foot arm/cancel and launch only
 after boarding and physical departure. Wing explicitly offers no credit reward.
 It retains tractor inversion, title readability/overflow, Convoy guidance,
 planetary credits and earlier save protection.
-[Windows notes](builds/windows/MuddsShipyards-2ed93ca-notes.txt) and
-[Linux notes](builds/linux/MuddsShipyards-2ed93ca-linux-notes.txt) state checks and
+[Windows notes](builds/windows/MuddsShipyards-ed1167b-notes.txt) and
+[Linux notes](builds/linux/MuddsShipyards-ed1167b-linux-notes.txt) state checks and
 limits. Inline browser progress/timeout/retry remains accepted on20e90c9;
 paused LAN discovery on042c701. Beacon departure/traversal/once-only saved reward
 qualification on e06550e is retained in its recorded scope. Beacon home/dock/exit, Perimeter Hold,
@@ -50,68 +52,18 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 ## Execution now
 
-### Selected — Arrow ordinary return and reuse command
+### Arrow ordinary return and reuse — shipped on ed1167b
 
-**CRAFT-ACCEPT-ARROW, parents7/10/11; executable release capability.** Deliver
-`run_native_sortie.py --route arrow-return-reuse` for one fresh ordinary package
-session: Begin Shift, same supported Player walks the clear Freight-side lane to
-Arrow, physical E boarding, normal flight demand/lease release and excursion,
-strict occupied home dock, neutral automatic OFFLINE and physical exit; walk
-more than7m clear to release reboard suppression, then a second real boarding,
-flight/home/offline/exit and normal UI quit. No teleport, gameplay calls, tuning,
-time-scale override, staged damage or synthetic in-engine input.
+Fresh ordinary archive session completes two Arrow flights, strict home docks,
+neutral OFFLINE/physical exits, a12.766m supported clear walk and actual reboard,
+then normal UI quit/exit0. Actual route106.765s under originalCAP300;4629 physics
+receipts,91.419m walking, zero diagnostics and complete input/process cleanup.
+All11 reviewed-source stages PASS; both earlier failures and cumulative608.369s
+remain retained. [Checks, corrections and scope](docs/history/ROADMAP_DELIVERIES.md#arrow-ordinary-return-and-reuse--shipped-on-ed1167b).
+Weapons/damage/recovery/cross-craft/Main/native/full craft gates remain open.
 
-Implementation owns only startup loader selector, read-only native-sortie
-observer, existing Python OS driver and its existing Python/startup-privacy
-checks. Retain all physics observations for identity/default controls/tuning,
-supported walking, actual departure and strict berth/lease/exit transitions;
-OS input acts on the latest observation. Root reviews source before execution.
-
-**Freeze:**2026-10-20 09:58–10:58UTC,60min including cleanup; estimate25–35min
-implementation/review,10–15min checks/export, one originalCAP300 ordinary route.
-After clean candidate: full existing native-driver Python suite; headless/Dummy
-import and startup privacy; paired clean exports, direct/archive/payload strict
-startup and actual PCK/PE/archive audit; exactly one isolated X11/Dummy Arrow
-route from its exported ELF, exit0 plus `NATIVE_ARROW_RETURN_REUSE_OK`.
-Root freezes exact pin/commands/owners before engine execution. First unexpected
-failure stops all later stages; no automatic correction, rerun or cap increase.
-Withhold candidate/publication on failure and retain all elapsed work/results.
-
-**First stop / one selected correction:** candidate35d894b77 remains unpublished.
-Nine prerequisite stages pass161.693s; actual route fails4.897s before play with
-observer1026 `capture` inferred from an untyped world method. Cumulative166.590s;
-no flight/reuse accepted, input/helper/game/Xvfb reaped. Select exactly one
-`capture: Dictionary` annotation, preserving the original09:58–10:58/60min budget
-and whole two-flightCAP300 route. Root reviews the one-line diff; rerun the full
-original sequence on the clean corrected pin, adding a direct observer
-`--check-only` after import to exercise this lazy script before packaging.
-Retain every original result/source/export; another failure stops for cumulative
-priority review, with no automatic second correction or rerun.
-
-**Cumulative priority review / explicit driver reopening:** correctedf39183902
-passes ten prerequisite stages149.884s, then the full route stops33.808s during
-supported approach, before boarding: Arrow and a station interaction are both
-candidates at9.561m, with no E press. The driver aborts before its unchanged7m
-boarding gate. Raw tail remains supported/default-controlled; no game diagnostics.
-Original+corrective total350.281s retained; both candidates remain unpublished.
-Independent source/raw review supports removing only this premature walking
-assertion plus a focused no-E regression. The real boarding gate still requires
-Arrow candidate, no station candidate, distance≤7m, unblocked reboard and settled
-movement. This changes no interaction priority or gameplay authority.
-Root explicitly selects that two-file driver/test correction under the SAME
-original09:58–10:58UTC budget, two flights/reuse/UIquit and CAP300. Re-run original
-full checks plus direct observer check-only on its clean pin. Any further failure
-PARKS the chain: no further correction, retry, cap increase or narrower acceptance.
-
-Success qualifies only this ordinary return/reuse capability on its named bytes.
-Weapon hits, damage/repair/destruction recovery, cross-craft/Main re-entry,
-rendered/native/device/full craft gates remain open. Original all-nine/54-waypoint
-Sandbox and parked Defense board→Arrow route stay unchanged; neither is
-accepted by this independent craft route. Independent production alternative:
-Freight terminal integration is concrete but awaits its already-asked workflow
-choice; no alternative gameplay behavior is invented while it is pending.
-
-Latest delivered: settings and activity feedback colour repair, recorded below.
+Latest accepted route: Arrow ordinary return/reuse oned1167b. Settings/activity
+feedback colour repair remains accepted on2ed93ca.
 Six gameplay status palette repairs remain accepted on941ef73.
 Destination Board status palette repair remains accepted onc47ca33.
 Station Defense physical E interaction remains accepted ona59127c. Accepted Wing
@@ -218,6 +170,7 @@ the existing history. These are accepted slices, not closed broad parents.
 
 | Outcome | Accepted scope / remaining boundary |
 | --- | --- |
+| Arrow ordinary return/reuse | [Checkpoint ed1167b](docs/history/ROADMAP_DELIVERIES.md#arrow-ordinary-return-and-reuse--shipped-on-ed1167b): actual archive OS-input two flights/home/offline exits, >7m clear/reboard and normal UI quit PASS106.765s/CAP300; prior two failures retained. Broad craft/native/final gates open. |
 | Settings/activity feedback palettes | [Checkpoint2ed93ca](docs/history/ROADMAP_DELIVERIES.md#settings-and-activity-feedback-palettes--shipped-on-2ed93ca): save/recovery/nearby/selection text uses current role once; caller suites and retained layout/package checks PASS. Existing copy/actions/focus/authority and helper retained; headless theme scope, broader journeys/native/human/final open. |
 | Gameplay status palettes | [Checkpoint941ef73](docs/history/ROADMAP_DELIVERIES.md#gameplay-status-palettes--shipped-on-941ef73): six gameplay status label families use their current role once and follow palette/high contrast.256 finite state cases/768 actual paints, full accessibility/target-lock/sensor/layout and paired package checks PASS. Text/visibility/thresholds/geometry/authority retained; headless theme scope, broader rendered/device/human/full journeys/final open. |
 | Destination Board status palette | [Checkpointc47ca33](docs/history/ROADMAP_DELIVERIES.md#destination-board-status-palette--shipped-on-c47ca33): retained status role updates once and follows current accessibility palette/high contrast;32 actual palette/contrast pairs, full HUD layout/accessibility/Main console and paired package checks PASS. Headless theme scope; rendered/device/human/full journeys/final remain open. |
@@ -282,15 +235,16 @@ failures; no automatic probe, repair, retry or cap increase is selected.
 
 ## Latest playable result
 
-**Checkpoint2ed93ca** corrects settings save/recovery and activity feedback text
-colours across state and accessibility palette/high-contrast changes. It retains
-the six gameplay readout and Destination Board fixes, physical Station Defense E,
-shared menu/Help contrast, Paired Wing admission, tractor inversion, title
-readability, Convoy, credits and saves.
+**Checkpoint ed1167b** adds the private ordinary Arrow return/reuse command,
+accepted on the actual Linux archive executable: two departures/home docks,
+neutral shutdowns/exits, supported clear-walk/reboarding and normal UI quit.
+It retains settings/activity and gameplay/Destination palette fixes, physical
+Station Defense E, menu/Help contrast, Wing admission, tractor inversion, title,
+Convoy, credits and saves. No new ship or combat mission is claimed.
 
-[Windows checkpoint ZIP](builds/windows/MuddsShipyards-2ed93ca-checkpoint.zip),
-[build notes](builds/windows/MuddsShipyards-2ed93ca-notes.txt),
-[actual validation and limits](docs/history/ROADMAP_DELIVERIES.md#settings-and-activity-feedback-palettes--shipped-on-2ed93ca).
+[Windows checkpoint ZIP](builds/windows/MuddsShipyards-ed1167b-checkpoint.zip),
+[build notes](builds/windows/MuddsShipyards-ed1167b-notes.txt),
+[actual validation and limits](docs/history/ROADMAP_DELIVERIES.md#arrow-ordinary-return-and-reuse--shipped-on-ed1167b).
 Full ordinary Defense combat/payment/home, Wing kills/home, native Windows/GPU/
 device/audio/human and final release remain open. Guided3/3 on3d92b91 is not
 transferred to this package.

@@ -16259,3 +16259,123 @@ recovery/activity/ordinary journey, native Windows/GPU, real audio/listening,
 unfiltered final regression or release gates. Guided3/3 remains3d92b91 scope;
 parked Activity Board/Tooltip/Defense/Wing/Perimeter/Breach/KIT-RELOAD unchanged.
 Freight workflow remains pending. All36 parents and ten phase gates remain open.
+
+
+## Arrow ordinary return and reuse — shipped on ed1167b
+
+Accepted clean source `ed1167be2475c2417f84a8b15bb91c8ac921b289`, pushed on
+`feat/arrow-return-reuse-20261020` and merged into main. Adds one executable
+release acceptance route through existing startup/observer/OS-input owners;
+no gameplay, physics, control/tuning or authority behavior is changed.
+
+**Actual whole route:** fresh empty private profile/Begin Shift; supported
+clear-apron walk to Arrow; real candidate/priority/range-gated E boarding and
+pilot reservation/seat; default flight demand, physical departure/free lease;
+ordinary L assist to strict token-bound occupied home dock; neutral automatic
+OFFLINE and physical exterior exit; supported12.766m clear walk releasing
+reboard suppression; second actual boarding/departure/home/OFFLINE/exit; normal
+focused EXIT TO DESKTOP and actual process exit0. Excursions17.390/18.052m,
+91.419m supported walking,4629 consecutive validated physics receipts. Raw
+neutral-to-exit spans230/232 frames independently checked for no flight demand.
+OS inputs act only on the latest sample; all intermediate/tail receipts are
+validated. Route106.765s under unchanged wholeCAP300. Dummy renderer, disabled
+render loop and own authenticated X11/Dummy audio establish that Linux input
+environment only; no rendered/native GPU/device claim.
+
+**Failures retained:** initial35d894b77 passes nine prerequisites161.693s, then
+fails4.897s before play on lazy observer capture type inference. One explicit
+Dictionary annotation yieldsf39183902; direct observer check-only added, ten
+prerequisites pass149.884s, actual approach fails33.808s on a premature driver
+assertion. Evaluatedseq525/frame974 is supported at(-38.540359,.0491382,21.9952),
+Arrow candidate plus station candidate, distance9.561m, no E/boarding/flight.
+Raw tail526–527 remains supported/default-controlled. Cumulative350.281s stops
+for independent priority review. Explicit reopening removes only that mid-walk
+assertion and adds one no-E/priority regression. The actual boarding gate remains
+candidate/no-station/≤7m/unblocked/settled; original route/cap,09:58–10:58UTC60min
+deadline and all earlier costs remain unchanged.
+
+**Reviewed-source checks:** full native-driver83 tests, clean import, direct
+observer check-only and startup privacy726 PASS. Windows/Linux clean exports,
+direct/archive/Windows-payload strict startups each exit0/sentinel1, actual1521
+matching PCK entries, stockPE.text/ELF and exact archive bytes/modes/source epoch
+and metadata PASS. ONE whole reviewed route passes106.765s; independent abort,
+input release and input-helper/game/Xvfb cleanup confirmed. All11 reviewed stages
+pass258.088s; all original+annotation+reviewed executions608.369s. Python fixtures
+prove sequencing/refusal only; actual archive route supplies ordinary play proof.
+No GitHub Actions or Downloads publication.
+
+Windows EXE/ZIP/notes and Linux ELF/archive/notes are in repository builds/.
+[Windows notes](../../builds/windows/MuddsShipyards-ed1167b-notes.txt),
+[Linux notes](../../builds/linux/MuddsShipyards-ed1167b-linux-notes.txt).
+Public hashes/notes/ZIP and private failed-source artifacts/raw/profile/helper
+records are retained under /srv/mudds-work/arrow-return-reuse-20261020/results/.
+Cleanup is recorded after publication; original60min budget remains binding.
+
+**Open:** full CRAFT-ACCEPT-ARROW weapons, damage/repair/destruction recovery,
+cross-craft/Main re-entry and art/control gates. Original Sandbox/all-nine54
+waypoints/crash/reuse, Defense board route and other parked outcomes unchanged.
+Native Windows/GPU/device/audio/human/endurance/final-candidate/unfiltered matrix
+remain NOT_RUN/open; all36 parents/ten gates remain open.
+
+### Retained Arrow route selection and corrective decisions
+
+### Selected — Arrow ordinary return and reuse command
+
+**CRAFT-ACCEPT-ARROW, parents7/10/11; executable release capability.** Deliver
+`run_native_sortie.py --route arrow-return-reuse` for one fresh ordinary package
+session: Begin Shift, same supported Player walks the clear Freight-side lane to
+Arrow, physical E boarding, normal flight demand/lease release and excursion,
+strict occupied home dock, neutral automatic OFFLINE and physical exit; walk
+more than7m clear to release reboard suppression, then a second real boarding,
+flight/home/offline/exit and normal UI quit. No teleport, gameplay calls, tuning,
+time-scale override, staged damage or synthetic in-engine input.
+
+Implementation owns only startup loader selector, read-only native-sortie
+observer, existing Python OS driver and its existing Python/startup-privacy
+checks. Retain all physics observations for identity/default controls/tuning,
+supported walking, actual departure and strict berth/lease/exit transitions;
+OS input acts on the latest observation. Root reviews source before execution.
+
+**Freeze:**2026-10-20 09:58–10:58UTC,60min including cleanup; estimate25–35min
+implementation/review,10–15min checks/export, one originalCAP300 ordinary route.
+After clean candidate: full existing native-driver Python suite; headless/Dummy
+import and startup privacy; paired clean exports, direct/archive/payload strict
+startup and actual PCK/PE/archive audit; exactly one isolated X11/Dummy Arrow
+route from its exported ELF, exit0 plus `NATIVE_ARROW_RETURN_REUSE_OK`.
+Root freezes exact pin/commands/owners before engine execution. First unexpected
+failure stops all later stages; no automatic correction, rerun or cap increase.
+Withhold candidate/publication on failure and retain all elapsed work/results.
+
+**First stop / one selected correction:** candidate35d894b77 remains unpublished.
+Nine prerequisite stages pass161.693s; actual route fails4.897s before play with
+observer1026 `capture` inferred from an untyped world method. Cumulative166.590s;
+no flight/reuse accepted, input/helper/game/Xvfb reaped. Select exactly one
+`capture: Dictionary` annotation, preserving the original09:58–10:58/60min budget
+and whole two-flightCAP300 route. Root reviews the one-line diff; rerun the full
+original sequence on the clean corrected pin, adding a direct observer
+`--check-only` after import to exercise this lazy script before packaging.
+Retain every original result/source/export; another failure stops for cumulative
+priority review, with no automatic second correction or rerun.
+
+**Cumulative priority review / explicit driver reopening:** correctedf39183902
+passes ten prerequisite stages149.884s, then the full route stops33.808s during
+supported approach, before boarding: Arrow and a station interaction are both
+candidates at9.561m, with no E press. The driver aborts before its unchanged7m
+boarding gate. Raw tail remains supported/default-controlled; no game diagnostics.
+Original+corrective total350.281s retained; both candidates remain unpublished.
+Independent source/raw review supports removing only this premature walking
+assertion plus a focused no-E regression. The real boarding gate still requires
+Arrow candidate, no station candidate, distance≤7m, unblocked reboard and settled
+movement. This changes no interaction priority or gameplay authority.
+Root explicitly selects that two-file driver/test correction under the SAME
+original09:58–10:58UTC budget, two flights/reuse/UIquit and CAP300. Re-run original
+full checks plus direct observer check-only on its clean pin. Any further failure
+PARKS the chain: no further correction, retry, cap increase or narrower acceptance.
+
+Success qualifies only this ordinary return/reuse capability on its named bytes.
+Weapon hits, damage/repair/destruction recovery, cross-craft/Main re-entry,
+rendered/native/device/full craft gates remain open. Original all-nine/54-waypoint
+Sandbox and parked Defense board→Arrow route stay unchanged; neither is
+accepted by this independent craft route. Independent production alternative:
+Freight terminal integration is concrete but awaits its already-asked workflow
+choice; no alternative gameplay behavior is invented while it is pending.

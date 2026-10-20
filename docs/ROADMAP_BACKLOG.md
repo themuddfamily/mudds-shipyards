@@ -181,7 +181,7 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | DAMAGE-DEFINE | Uncovered craft/role component-damage/recovery cells | 11,21 | Definition DONE on82a7564cb; COMPONENT_DAMAGE_MODEL_CONTRACT.md maps five IDs/all nine craft, real role exceptions, repair/reset owners and concrete remote row gap; no gameplay pass |
 | ART-FINDINGS | Finite actual UI/animation/effect/lighting/terrain/weather defects | 12,15 | DEFINE; named before/after view and affected route |
 | CRAFT-ACCEPT-TORRENT | Torrent full solo craft loop | 7,10,11 | GATED; craft capabilities and exact full-route command |
-| CRAFT-ACCEPT-ARROW | Arrow full solo craft loop | 7,10,11 | GATED; craft capabilities and exact full-route command |
+| CRAFT-ACCEPT-ARROW | Arrow full solo craft loop | 7,10,11 | Ordinary return/reuse subroute DONE checkpointed1167b: actual archive two flights, strict home/offline exits, supported clear/reboard and normal UI quit106.765s/CAP300. [Result](history/ROADMAP_DELIVERIES.md#arrow-ordinary-return-and-reuse--shipped-on-ed1167b). Full weapon/damage/recovery/cross-craft/Main/art/device/final acceptance remains GATED; no Sandbox/Defense closure |
 | CRAFT-ACCEPT-JOVIAN | Jovian full solo craft loop | 7,10,11 | GATED; craft capabilities and exact full-route command |
 | CRAFT-ACCEPT-ZENITH | Zenith full solo craft loop | 7,10,11 | GATED; craft capabilities and exact full-route command |
 | CRAFT-ACCEPT-HALYARD | Halyard full solo craft loop | 7,10,11 | GATED; craft capabilities and exact full-route command |
