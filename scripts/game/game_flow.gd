@@ -23749,6 +23749,10 @@ func _present_runtime_settings_repair_result(result: Dictionary) -> void:
 		return
 	if hud.has_method(&"present_runtime_settings_repair_report"):
 		hud.present_runtime_settings_repair_report(get_runtime_settings_repair_report())
+	if result.get("reason", &"") == &"primary_quarantine_failed":
+		if hud.has_method(&"set_settings_status"):
+			hud.set_settings_status("BACKUP REPAIR BLOCKED  //  SAVE FILES PRESERVED", false)
+		return
 	if hud.has_method(&"set_settings_status"):
 		hud.set_settings_status(
 			"BACKUP REPAIR FAILED  //  %s"
