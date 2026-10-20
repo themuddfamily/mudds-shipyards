@@ -109,6 +109,25 @@ Full COMBAT-WING still requires both real player-weapon kills and safe physical
 home return through a supported ordinary driver; no narrower proof closes it.
 Independent Hauler implementation remains blocked on its pending stock decision.
 
+#### Wing board test declarations — one corrective selection
+
+Original candidate0f1364175: import PASS20.778s, director PASS38.317s,
+board suite FAIL16.171s at parse, before any assertion. Three new untyped
+`:=` declarations call methods on the dynamically typed fixture board; GDScript
+cannot infer wing_arm/cancelled/wing_started. Main/HUD/audio/exports NOT_RUN.
+Retain original75.266s and original06:49–07:49UTC/60min allocation.
+
+Select one test-only correction: explicit Dictionary types on those three
+results, source-review related new declarations before engines, no runtime or
+assertion changes. Clean committed correction reuses accepted import/director
+scope because production/assets/classes are identical, then full board suite120s
+followed by the original remaining checks/caps. Root binds the one corrective
+board stage to original STOP SHA256 and exact new source; archive/verify original
+failure before retiring the live STOP only after that full suite passes.
+First further failure stops and cumulative priority review parks the chain;
+no second automatic repair/retry/cap increase. No qualification or build accepted
+yet. Original full combat parent remains open.
+
 ### Waiting decisions — not executable tasks
 
 These questions have already been asked. Keep them pending without asking again
