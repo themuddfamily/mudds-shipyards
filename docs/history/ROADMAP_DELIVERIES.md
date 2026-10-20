@@ -19694,3 +19694,43 @@ Source unchanged in all stages; export allows cache changes, compile/run cache
 unchanged. Main sole branch, protected worktrees untouched, checkpoint3767687
 unchanged. Missing fact remains actual popup/connection-removal identity in the
 original failing caller, not another generic transition or tooltip variant.
+
+
+## SERVER-BASELINE — ordinary client pilot disconnect accepted — 2026-10-21
+
+Accepted caller21817ab4b, merged/pushed. One original parent26 case, not full
+SERVER-BASELINE, endurance, package/native qualification or a new gameplay fix.
+Existing Halyard caller adds --ordinary-two-client-pilot-loss after the exact
+ordinary BOARD and seven MOVING stages. No actor/authority/pose injection,
+automatic passenger helm, forced stop or cap change. Production already supports
+unpiloted coasting, scoped peer cleanup and departing-client solo restoration.
+
+One original pilot invokes public GameFlow.shutdown_network_session once while
+server and passenger remain. Actual server transport and adapter disconnect each
+occur once for peer505347298, session_stopped0; pilot body/seat/publication/helm/
+command queue retire, hull owner0/ownership generation2. Passenger1601996866
+retains original body/frame generation1 and chair claim5; ordinary stand/reseat
+earns claim7 on the same crew_port_00 chair generation1, consumed by the survivor.
+Departing samePlayer retires old grants, samples actual peer1 solo throttle and
+uses real pause/Resume. Original full prefix includes5.019m departure and1.029m
+supported moving-cabin walk before the loss barrier.
+
+Compile16.680s; ONE full route145.446s, 321 checks/no failures, one
+HALYARD_ORDINARY_TWO_CLIENT_PILOT_LOSS_OK and all three actualOS0. Clean full
+coordinator/peer logs; source/cache unchanged. Independent source/final GO and95
+byte-exact raw files retained under
+/srv/mudds-work/halyard-pilot-loss-20261021/results/. Original300s scenario,
+360s outer,15s walk,8s role and10s exit grace remain. Headless coordinator and
+private per-peer Xvfb/x11/Dummy use synthetic input through existing production
+controllers and real ENet; this is current Linux-source qualification.
+
+Command: `/tmp/mudds-tools/godot-4.7.1/godot --headless --audio-driver Dummy --path /srv/mudds-shipyards --script res://tests/network/halyard_network_passenger_route_test.gd -- --ordinary-two-client-pilot-loss`.
+
+Accepted source pushed before cleanup. All2 supervisors terminal/all16 observed
+identities absent;179 scratch entries archived/reopened/verified then removed
+23:23:09UTC, profiles.tar.gz18533bytes/SHA256
+39c7be17d8501d80061790126c661037470f8a0a559befa39073c4320f1472e4.
+Main sole branch/eight protected worktrees untouched; no new branch/worktree.
+Runtime/export inputs byte-unchanged from3767687, no identical rebuild. Original
+20-candidate inventory stays nine accepted/superseded and eleven unqualified;
+all broad parents/phase and remaining baseline/endurance/native gates stay open.

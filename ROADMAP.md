@@ -77,6 +77,16 @@ This clears the branch queue; it does not close remaining gameplay,
 qualification or release requirements. No unaccepted source was merged to reduce
 a branch count. Eight previously protected detached worktrees remain unchanged.
 
+**SERVER-BASELINE pilot-disconnect case DONE — `21817ab4b`.**
+After the full ordinary boarding and moving-cabin route, the original pilot
+leaves once. The server retires that pilot's authority, while the same passenger
+stays connected and can stand/reseat; the departing pilot has usable solo
+throttle and pause/Resume. All three game processes exit0 with clean logs in
+145.446s. Accepted Linux-source case merged/pushed; owned scratch removed.
+Full baseline/endurance/package/native gates remain open. Runtime3767687 is
+unchanged; no identical checkpoint rebuild.
+[Case, command and validation](docs/history/ROADMAP_DELIVERIES.md#server-baseline--ordinary-client-pilot-disconnect-accepted--2026-10-21).
+
 **UI blocker remains parked after two bounded captures.**
 Correct native coordinates admit the real Destination tooltip, but ordinary Exit
 closes cleanly. A clean Linux release capture of the shared Beacon entry prefix
