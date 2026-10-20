@@ -24,6 +24,7 @@ func _run() -> void:
 	_test_high_contrast_variants()
 	await _test_hud_palette_application()
 	await _test_hud_high_contrast_application()
+	await _test_gameplay_status_palette_transitions()
 	await _test_intro_begin_shift_text_contrast()
 	await _test_help_close_text_contrast()
 	await _test_menu_button_text_contrast()
@@ -778,6 +779,149 @@ func _test_hud_palette_application() -> void:
 	hud.queue_free()
 	await process_frame
 	await process_frame
+
+
+## Retained gameplay readouts change their registered font role. Applying a
+## palette before or after a state transition must paint that role exactly once.
+func _test_gameplay_status_palette_transitions() -> void:
+	var hud: GameHUD = GameHUD.new()
+	root.add_child(hud)
+	await process_frame
+	var families: Dictionary = {
+		&"_mode_label": [
+			["piloting", GameHUD.CAUTION, "PILOTING  //  "],
+			["driving", GameHUD.NOMINAL, "DRIVING  //  "],
+			["aboard", GameHUD.NOMINAL, "ON FOOT  //  ABOARD "],
+			["on_foot", GameHUD.NOMINAL, "ON FOOT  //  "],
+		],
+		&"_engine_label": [
+			["ONLINE", GameHUD.NOMINAL, "ENGINE  //  ONLINE"],
+			["STARTING", GameHUD.CAUTION, "ENGINE  //  STARTING"],
+			["OFFLINE", GameHUD.DANGER, "ENGINE  //  OFFLINE"],
+			["UNKNOWN", GameHUD.DANGER, "ENGINE  //  UNKNOWN"],
+		],
+		&"_throttle_label": [
+			[-0.5, GameHUD.CAUTION, "THROTTLE  //  REVERSE"],
+			[0.5, GameHUD.MUTED, "THROTTLE  //  FORWARD"],
+			[0.0, GameHUD.MUTED, "THROTTLE  //  NEUTRAL"],
+			[-0.04, GameHUD.MUTED, "THROTTLE  //  NEUTRAL"],
+			[0.04, GameHUD.MUTED, "THROTTLE  //  NEUTRAL"],
+		],
+		&"_damage_status_label": [
+			["healthy", GameHUD.MUTED, "HULL  //  OK"],
+			["damaged", GameHUD.CAUTION, "HULL  //  ! DAMAGED !"],
+			["critical", GameHUD.DANGER, "HULL  //  !! CRITICAL !!"],
+			["destroyed", GameHUD.DANGER, "HULL  //  !! DESTROYED !!"],
+			["unknown", GameHUD.MUTED, "HULL  //  OK"],
+		],
+		&"_component_status_label": [
+			["nominal", GameHUD.MUTED, "NOMINAL"],
+			["degraded", GameHUD.CAUTION, "DEGRADED"],
+			["critical", GameHUD.DANGER, "CRITICAL"],
+			["failed", GameHUD.DANGER, "FAILED"],
+			["repairing", GameHUD.MUTED, "REPAIRING"],
+			["destroyed", GameHUD.MUTED, "[X] DESTROYED  //  HULL LOST"],
+			["respawn_ready", GameHUD.MUTED, "[+] RESPAWN READY  //  RECOVERY VERIFIED"],
+			["recovery_pending", GameHUD.MUTED, "[!] RECOVERY PENDING  //  AUDIT NOT READY"],
+			["unconfigured", GameHUD.MUTED, ""],
+		],
+		&"_reticle_state_label": [
+			[&"acquired", GameHUD.NOMINAL, "[+]  LOCKED  RANGE DRONE"],
+			[&"friendly_blocked", GameHUD.CAUTION, "[=]  FRIENDLY  HOLD FIRE"],
+			[&"invalid", GameHUD.MUTED, "[?]  INVALID TARGET"],
+			[&"searching", GameHUD.NOMINAL_SOFT, "[...]  SEARCHING"],
+			[&"unknown", GameHUD.NOMINAL_SOFT, "[...]  SEARCHING"],
+		],
+	}
+	var retained_labels: Dictionary = {}
+	for family: StringName in families:
+		retained_labels[family] = hud.get(family) as Label
+	for mode_id: StringName in Palette.get_mode_ids():
+		for high_contrast: bool in [false, true]:
+			for family: StringName in families:
+				var label: Label = retained_labels[family] as Label
+				for state: Array in families[family]:
+					hud.set_hud_palette(Palette.MODE_NONE)
+					hud.set_high_contrast_hud(false)
+					_apply_gameplay_status_state(hud, family, state[0])
+					var retained_text: String = label.text
+					var retained_visible: bool = label.visible
+					_check(
+						retained_text == "" if str(state[2]).is_empty() else retained_text.contains(str(state[2])),
+						"%s/%s keeps its authored status wording" % [family, state[0]]
+					)
+					_assert_gameplay_status_paint(hud, family, label, StringName(state[1]), Palette.MODE_NONE, false)
+					hud.set_hud_palette(mode_id)
+					hud.set_high_contrast_hud(high_contrast)
+					_assert_gameplay_status_paint(hud, family, label, StringName(state[1]), mode_id, high_contrast)
+					_check(label.text == retained_text and label.visible == retained_visible,
+						"palette changes preserve %s/%s text and visibility" % [family, state[0]])
+					# Exercise an actual different state under the active palette,
+					# then return through the production setter to the tested state.
+					var alternate: Array = families[family][0] if state != families[family][0] else families[family][1]
+					_apply_gameplay_status_state(hud, family, alternate[0])
+					_apply_gameplay_status_state(hud, family, state[0])
+					_assert_gameplay_status_paint(hud, family, label, StringName(state[1]), mode_id, high_contrast)
+					_check(label.text == retained_text and label.visible == retained_visible,
+						"state changes preserve %s/%s copy and visibility across palettes" % [family, state[0]])
+	hud.queue_free()
+	await process_frame
+
+
+func _apply_gameplay_status_state(hud: GameHUD, family: StringName, state: Variant) -> void:
+	match family:
+		&"_mode_label": hud.set_mode(str(state))
+		&"_engine_label": hud.set_engine_state(str(state))
+		&"_throttle_label": hud.update_ship_telemetry({"throttle": float(state)})
+		&"_damage_status_label": hud.update_ship_telemetry({"damage_status": str(state)})
+		&"_reticle_state_label": hud.set_target_lock_state(StringName(state), " range drone ")
+		&"_component_status_label":
+			hud.set_mode("piloting")
+			var wording: String = str(state)
+			var component_state: StringName = &"nominal"
+			var integrity: float = 1.0
+			match wording:
+				"degraded", "repairing":
+					component_state = &"impaired"
+					integrity = 0.6
+				"critical":
+					component_state = &"impaired"
+					integrity = 0.35
+				"failed":
+					component_state = &"failed"
+					integrity = 0.0
+			var lifecycle: Dictionary = {}
+			if wording == "destroyed": lifecycle["destroyed"] = true
+			if wording == "respawn_ready": lifecycle["recovery_ready"] = true
+			if wording == "recovery_pending": lifecycle["recovery_pending"] = true
+			hud.call("_present_bound_hero_component_report", {
+				"configured": wording != "unconfigured",
+				"components": [{"id": &"core_systems", "state_id": component_state, "integrity": integrity}],
+				"repairing_component_id": &"core_systems" if wording == "repairing" else &"",
+				"lifecycle": lifecycle,
+			})
+
+
+func _assert_gameplay_status_paint(
+	hud: GameHUD, family: StringName, retained: Label, role: StringName,
+	mode_id: StringName, high_contrast: bool
+) -> void:
+	var label: Label = hud.get(family) as Label
+	var expected: Color = Palette.get_role_color(mode_id, role, high_contrast)
+	var entries: Array = hud.get("_palette_targets") as Array
+	var registration_count: int = 0
+	var registered_role: StringName = &""
+	for entry: Dictionary in entries:
+		if entry.get("node") == label and entry.get("kind") == &"theme_color" and entry.get("property") == &"font_color":
+			registration_count += 1
+			registered_role = StringName(entry.get("role", &""))
+	_check(
+		label == retained and label.modulate == Color.WHITE
+		and label.get_theme_color("font_color") == expected
+		and registration_count == 1 and registered_role == role,
+		"%s paints current %s exactly once in %s high-contrast=%s with one retained registration"
+			% [family, role, mode_id, high_contrast]
+	)
 
 
 func _test_hud_scale_and_motion() -> void:

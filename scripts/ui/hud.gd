@@ -1237,7 +1237,7 @@ func _refresh_mode_readouts() -> void:
 			_mode_label.text = "ON FOOT  //  ABOARD %s" % _state_location
 		_:
 			_mode_label.text = "ON FOOT  //  %s" % _state_location
-	_mode_label.modulate = _c(CAUTION) if piloting else _c(NOMINAL)
+	_set_label_palette_role(_mode_label, CAUTION if piloting else NOMINAL)
 	_telemetry_panel.visible = piloting
 	if _hero_component_hud_binding != null:
 		_hero_component_hud_binding.set_presenting(piloting)
@@ -2106,10 +2106,10 @@ func update_ship_telemetry(data: Dictionary) -> void:
 	_throttle_label.text = "THROTTLE  //  %s" % (
 		"REVERSE" if throttle < -0.04 else ("FORWARD" if throttle > 0.04 else "NEUTRAL")
 	)
-	_throttle_label.modulate = _c(CAUTION) if throttle < -0.04 else _c(MUTED)
+	_set_label_palette_role(_throttle_label, CAUTION if throttle < -0.04 else MUTED)
 	_hull_bar.value = clampf(hull / maximum_hull, 0.0, 1.0) * 100.0
 	_render_damage_status_label()
-	_damage_status_label.modulate = _damage_status_color(damage_status)
+	_set_label_palette_role(_damage_status_label, _damage_status_role(damage_status))
 	set_engine_state(str(data.get("engine_state", "OFFLINE")))
 	if _flight_cue_layer != null:
 		_flight_cue_layer.update_from_telemetry(data)
@@ -2264,8 +2264,9 @@ func _present_bound_hero_component_report(report: Dictionary) -> void:
 	_component_status_label.text = str(presentation.get("text", ""))
 	_component_status_label.visible = bool(presentation.get("visible", false)) and _state_mode == MODE_PILOTING
 	var wording := StringName(presentation.get("wording", &"nominal"))
-	_component_status_label.modulate = _c(DANGER) if wording in [&"critical", &"failed"] else (
-		_c(CAUTION) if wording == &"degraded" else _c(MUTED)
+	_set_label_palette_role(
+		_component_status_label,
+		DANGER if wording in [&"critical", &"failed"] else (CAUTION if wording == &"degraded" else MUTED)
 	)
 
 
@@ -2629,9 +2630,9 @@ func set_engine_state(state: String) -> void:
 	_state_engine = normalized
 	_engine_label.text = "ENGINE  //  " + normalized
 	match normalized:
-		"ONLINE": _engine_label.modulate = _c(NOMINAL)
-		"STARTING": _engine_label.modulate = _c(CAUTION)
-		_: _engine_label.modulate = _c(DANGER)
+		"ONLINE": _set_label_palette_role(_engine_label, NOMINAL)
+		"STARTING": _set_label_palette_role(_engine_label, CAUTION)
+		_: _set_label_palette_role(_engine_label, DANGER)
 
 
 func set_target_count(destroyed: int, total: int) -> void:
@@ -2646,7 +2647,7 @@ func set_target_lock_state(state: StringName, target_name: String = "") -> void:
 	if not is_instance_valid(_reticle_state_label):
 		return
 	_reticle_state_label.text = "%s  %s" % [presentation.marker, presentation.label]
-	_reticle_state_label.modulate = _c(presentation.role)
+	_set_label_palette_role(_reticle_state_label, StringName(presentation.role))
 
 
 static func get_target_lock_presentation(state: StringName, target_name: String = "") -> Dictionary:
@@ -4569,8 +4570,8 @@ func get_accessibility_report() -> Dictionary:
 		"caution_color": _c(CAUTION),
 		"danger_color": _c(DANGER),
 		"muted_color": _c(MUTED),
-		"engine_label_color": _engine_label.modulate if is_instance_valid(_engine_label) else Color.WHITE,
-		"hull_label_color": _damage_status_label.modulate if is_instance_valid(_damage_status_label) else Color.WHITE,
+		"engine_label_color": _engine_label.get_theme_color("font_color") * _engine_label.modulate if is_instance_valid(_engine_label) else Color.WHITE,
+		"hull_label_color": _damage_status_label.get_theme_color("font_color") * _damage_status_label.modulate if is_instance_valid(_damage_status_label) else Color.WHITE,
 		"reduced_motion": _reduced_motion,
 		"reduced_flash": _reduced_flash,
 		"damage_flash_alpha": get_damage_flash_alpha(),
@@ -4584,17 +4585,6 @@ func get_accessibility_report() -> Dictionary:
 
 
 func _refresh_state_tints() -> void:
-	if is_instance_valid(_mode_label):
-		_mode_label.modulate = _c(CAUTION) if _state_piloting else _c(NOMINAL)
-	if is_instance_valid(_engine_label):
-		match _state_engine:
-			"ONLINE": _engine_label.modulate = _c(NOMINAL)
-			"STARTING": _engine_label.modulate = _c(CAUTION)
-			_: _engine_label.modulate = _c(DANGER)
-	if is_instance_valid(_throttle_label):
-		_throttle_label.modulate = _c(CAUTION) if _state_throttle_reverse else _c(MUTED)
-	if is_instance_valid(_damage_status_label):
-		_damage_status_label.modulate = _damage_status_color(_state_damage)
 	if is_instance_valid(_enemy_health_bar):
 		_enemy_health_bar.modulate = _c(DANGER) if _state_enemy_breaking else _c(CAUTION)
 	_refresh_planetary_cruise_row()
@@ -6407,7 +6397,7 @@ func _update_planetary_destination_row(card: Control, row: Dictionary) -> void:
 	) as Label
 	if is_instance_valid(status):
 		status.text = "STATUS  //  %s" % str(row.get("status_text", "UNAVAILABLE"))
-		_set_planetary_destination_status_role(status, border_role)
+		_set_label_palette_role(status, border_role)
 	var action := card.find_child(
 		"PlanetaryDestinationAction_%s" % destination_id, true, false
 	) as Button
@@ -6420,8 +6410,12 @@ func _update_planetary_destination_row(card: Control, row: Dictionary) -> void:
 
 ## Retained status labels must change their registered role so later palette
 ## changes repaint the current state. Modulation would multiply two colours.
-func _set_planetary_destination_status_role(status: Label, role: StringName) -> void:
+func _set_label_palette_role(status: Label, role: StringName) -> void:
 	status.modulate = Color.WHITE
+	# Telemetry repeats the same role every physics tick. The registry already
+	# repaints palette changes, so only a role transition needs a lookup.
+	if status.get_meta(&"hud_palette_role", &"") == role:
+		return
 	for entry: Dictionary in _palette_targets:
 		if (
 			entry.get("kind") == &"theme_color"
@@ -6430,6 +6424,7 @@ func _set_planetary_destination_status_role(status: Label, role: StringName) -> 
 		):
 			entry["role"] = role
 			_apply_palette_target(entry)
+			status.set_meta(&"hud_palette_role", role)
 			return
 
 
@@ -10026,10 +10021,10 @@ func _c(role: StringName) -> Color:
 	return _palette.get(role, _palette[PaletteType.ROLE_PRIMARY]) as Color
 
 
-func _damage_status_color(damage_status: String) -> Color:
+func _damage_status_role(damage_status: String) -> StringName:
 	if damage_status in ["CRITICAL", "DESTROYED"]:
-		return _c(DANGER)
-	return _c(CAUTION) if damage_status == "DAMAGED" else _c(MUTED)
+		return DANGER
+	return CAUTION if damage_status == "DAMAGED" else MUTED
 
 
 func _damage_status_accessible_text(damage_status: String) -> String:
