@@ -16385,3 +16385,74 @@ Sandbox and parked Defense board→Arrow route stay unchanged; neither is
 accepted by this independent craft route. Independent production alternative:
 Freight terminal integration is concrete but awaits its already-asked workflow
 choice; no alternative gameplay behavior is invented while it is pending.
+
+
+## Arrow precision hit — parked without observed native fire
+
+WEAPON-ARROW / parents7,11 / part of CRAFT-ACCEPT-ARROW. Selected2026-10-20
+10:47UTC, original80min cumulative budget/deadline12:07UTC. One high-effort
+implementer owned only `native_sortie_observer.gd`, `run_native_sortie.py` and
+`test_native_sortie.py`; one independent high-effort reviewer, root integration.
+Source handoff reused; no new general mapping or runtime weapon feature.
+
+The fixed outcome was one ordinary native precision-emitter hit on the authored
+moving DRONE-01, source1102 / arrow_precision_recon_emitter, fresh matching
+request/result/target-context sequence and presentation receipt, health100→76
+and24damage, then the retained two-flight strict home/OFFLINE/exit/clear/reboard/
+normal UI-quit route. Default tuning, same actors and every-physics receipts;
+weapon brake/aim/fire/attitude restoration≤25s within originalCAP300. No staged
+target, frozen motion, direct damage, changed controls, encounter clear or
+Sandbox/Defense reopening. Estimate45–60min implementation/review plus10–20min
+checks/package/cleanup. A separately selected single correction was allowed only
+after reviewing its exact failed boundary; any subsequent failure would PARK.
+
+Original clean candidate2514915394696c89c638e7658acad825d59e0ec1: first full
+native-driver suite runs87tests with one failure, guarded10.953950050s. The new
+restore-attitude fixture inherited capture=False and reached the correctly
+retained capture-before-landing assertion. No engine/export/gameplay run began.
+Independent review supports only adding capture=True at that restored snapshot;
+root separately selects/applies that one-line test correction. Original source,
+reviews, helper/config freeze, raw log and STOP remain preserved.
+
+Corrected clean candidatea8102592d04a07835c0bcb95fd5c85c641e165ab:
+- Exact one-line fixture-only diff; runtime/observer/driver acceptance unchanged.
+  Both source reviews GO, feature branch pushed. No main integration/publication.
+- Ten frozen prechecks PASS178.960906780s: driver87tests, clean Dummy-audio import,
+  direct observer check-only, startup privacy, clean Windows/Linux exports,
+  direct Linux/archive/Windows-payload strict startup, actual package audit.
+  Three startups require exit0/exactly one STARTUP_MENU_READY_OK. Actual paired
+  PCK1521entries, stock PE.text/ELF and archive bytes/modes/epoch/metadata match.
+- ONE actual archive executable route FAIL63.079s, guarded native stage
+  65.679476735s, on the unchanged25s weapon phase. Real supported walk/boarding/
+  departure reaches weapon_brake frame1308, weapon_aim1351, weapon_fire1581.
+  Final validated frame2476 remains airborne, braked, capture accepted, hull82;
+  target100, no request. Raw log2029 consecutive observations frames449–2477:
+  native_fire true in0, shot.present in0, target health100 throughout.
+- Error: `Arrow brake aim fire and attitude restoration within 25 seconds`.
+  Zero game diagnostics. Inputs released, helper/game/Xvfb reaped. No hit,
+  restoration, landing, reuse or normal UI-quit acceptance; failure cleanup is
+  not successful player exit. No fire-delivery, weapon or aim cause established.
+- Corrective11stage cost244.640383515s; original failure10.953950050s makes
+  **cumulative255.594333565s**. PARK as selected: no second correction, retry,
+  cap increase, new selector or renamed adjacent probe. Future selection needs
+  a concrete supported fact/change addressing missing observed fire, retaining
+  original route, cumulative costs and first-failure stopping condition.
+
+Raw/private records: `/srv/mudds-work/arrow-weapon-hit-20261020/results/`.
+Cleanup14.95min from original selection: all12 stage owners terminal,67 process
+identities absent;8 private candidate artifacts/hash records preserved, including
+actual tested archive ELF and unique EXE/tar/export/startup records.24 private
+profile entries archived/verified; helpers preserved; clean pushed owned worktree,
+profiles and helper directory removed. Unrelated scratch untouched. No candidate
+checkpoint ZIP or Downloads publication. Latest accepted playable remainsed1167b.
+Broader craft/combat/damage/recovery/crosscraft/Main/art/native/device/audio/human/
+final gates remain open; no hosted CI run, native Windows or GPU qualification.
+
+Closed records compacted177→19 loose files; all196 original entries verified in
+archive member order for mode/type/link/hash before removal. Source/state was
+rechecked before deleting loose originals. Archive `raw-results.tar.gz` SHA256:
+`4c58295cbd1e10d8446afbf1ff91f883d3a997285dba546093390b577d3675e0`,
+321696010bytes. Index/README, source/reviews, both STOPs, failure facts and cleanup
+remain accessible; original binaries, logs, stage configs and profiles remain
+inside the archive under `results/`. Closure including compaction17.19min from
+original10:47UTC selection, within original80min. No further run was started.

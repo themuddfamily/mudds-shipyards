@@ -38,35 +38,25 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 ## Execution now
 
-**Active assignment: WEAPON-ARROW, selected10:47UTC on2026-10-20.**
-One implementer owns the three source files below in an isolated worktree;
-root owns integration and checks. Implementation/review45–60min, then checks,
-package and cleanup10–20min; cumulative deadline12:07UTC (80min). No engine run
-has started. Source handoff is reused; no further general mapping is selected.
+**No implementation or engine run is active.** WEAPON-ARROW stopped after its
+single fixture correction and packaged failure. Candidatea8102592d is pushed,
+unmerged and unpublished; latest accepted checkpoint remainsed1167b.
 
-Only one assignment per implementer is active. The card below is selected;
-its actual candidate and exact check commands are frozen after source review. A successful card closes its named result and stops; selecting a
-successor is a separate decision against the remaining product scope. Do not
-turn a completed source handoff into another general research assignment.
+### WEAPON-ARROW — parked after native fire was not observed
 
-### Next: WEAPON-ARROW — ordinary pilot hit and return
-
-**Type:** release automation / qualification of existing gameplay, parents7/11;
-part of CRAFT-ACCEPT-ARROW. Source handoff complete on814c801d0. No missing
-precision-emitter runtime implementation has been established.
-
-| Field | Bounded assignment |
-| --- | --- |
-| Result | Extend the existing ordinary Arrow route so the pilot lands one genuine precision-emitter hit on the authored moving DRONE-01, then completes the existing two-flight home/exit/reboard/UI-quit route. |
-| Owners | One implementer: `scripts/diagnostics/native_sortie_observer.gd`, `tools/release/run_native_sortie.py`, `tools/release/test_native_sortie.py`. One independent lifecycle/receipt reviewer. Extend existing code and focused tests; no parallel route copy. |
-| Decisive check | Actual native fire produces a fresh source1102 / `arrow_precision_recon_emitter` request and authoritative24-damage result on the same target: health100→76, with matching sequence and presentation receipt in target hit context. Then both strict home/offline exits, supported clear/reboard and normal UI exit0. A generic retained accepted-shot flag is insufficient. |
-| Entry and protected behavior | Fresh ordinary archive session; existing authored moving target and default tuning. First-flight brake/aim/fire/restore-attitude phase only; second flight unchanged. Preserve original CAP300 and every-physics-receipt validation, input release and independent abort. No target placement/freeze, direct damage, encounter-clear claim or Sandbox/Defense retry. |
-| Estimate and execution gate | 45–60min implementation/review, then10–20min focused checks/package/cleanup; estimate only. Before any engine run, freeze exact candidate, commands, markers and per-stage caps in the task record. Aim/fire/attitude restoration gets at most25s within the original300s route, not an increased route cap. Split before90min if implementation exceeds this scope. |
-| Stop and closure | First unexpected failure stops the attempt; preserve the candidate, exact failed boundary and cumulative cost. No automatic repair/probe/retry. On pass, review actual hit/route records, commit/push and clean owned scratch; any new accepted package uses the existing export/startup/audit workflow. Close only WEAPON-ARROW's named hit qualification, leaving broader craft/damage/recovery/art/native/final gates open. |
-
-This is a known executable integration seam, not evidence that the entire weapon
-or craft is finished. Unobstructed fire and safe attitude restoration remain
-runtime questions; failure must not expand this into an encounter project.
+The ordinary pilot reached flight/aim, then the unchanged25s weapon phase
+expired with no observed native fire or shot result; DRONE-01 stayed100/100.
+No hit, attitude restoration, home/reuse or normal UI exit was accepted on this
+candidate. Ten prechecks passed, including paired exports/strict startup/audit;
+zero runtime diagnostics and complete input/process cleanup. Cumulative stage
+cost255.594s includes the first fixture failure and single correction.
+[Exact attempt and reopening boundary](docs/history/ROADMAP_DELIVERIES.md#arrow-precision-hit--parked-without-observed-native-fire).
+No second correction, unchanged retry, cap increase or adjacent probe selected.
+The known fact is missing observed fire, not a demonstrated weapon/aim defect.
+Owned checkout/profiles/helpers removed;67 process identities absent and8 private
+candidate files preserved. Records compacted177→19 loose files after full
+verification; closure including compaction17.19min within original80min. Only
+the task results folder remains.
 
 ### Next production alternative: Freight physical terminal interface
 
