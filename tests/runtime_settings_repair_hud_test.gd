@@ -122,6 +122,34 @@ func _run() -> void:
 	_check(root.gui_get_focus_owner() == save and save.is_visible_in_tree()
 		and not save.disabled and save.focus_mode != Control.FOCUS_NONE,
 		"repair failure hands disappearing confirmation focus to the live Save action")
+	hud.present_runtime_settings_repair_report(available)
+	button.grab_focus()
+	_check(hud.present_runtime_settings_repair_report({
+		"schema_version": 1,
+		"attached": true,
+		"last_status": {
+			"accepted": false,
+			"reason": &"primary_quarantine_failed",
+			"repair_authority_cleared": true,
+			"repair_retryable": false,
+		},
+	}), "known preservation refusal is presented despite cleared repair authority")
+	_check(
+		panel.visible
+		and title.text == "SETTINGS RECOVERY BLOCKED"
+		and detail.text.contains("damaged save and verified backup were retained")
+		and detail.text.contains("could not safely preserve the damaged copy")
+		and detail.text.contains("replacement was blocked")
+		and not detail.text.contains("primary_quarantine_failed")
+		and not button.visible and button.disabled
+		and not hud.get_runtime_settings_repair_presentation().confirmation_available
+		and save.focus_neighbor_bottom.is_empty()
+		and back.focus_neighbor_top.is_empty()
+		and root.gui_get_focus_owner() == save,
+		"preservation refusal explains the blocked replacement and retires confirmation and focus links"
+	)
+	button.pressed.emit()
+	_check(emitted == [token], "blocked preservation report cannot replay the previous token")
 	_check(hud.present_runtime_settings_repair_report({
 		"schema_version": 1,
 		"attached": true,

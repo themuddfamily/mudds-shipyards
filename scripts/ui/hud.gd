@@ -3132,6 +3132,13 @@ func present_runtime_settings_repair_report(report: Dictionary) -> bool:
 			"These settings belong to a newer game version. They were not changed or downgraded."
 		)
 		return true
+	if reason == &"primary_quarantine_failed":
+		_show_settings_repair_failure(
+			"SETTINGS RECOVERY BLOCKED",
+			"The damaged save and verified backup were retained. "
+			+ "Recovery could not safely preserve the damaged copy, so replacement was blocked."
+		)
+		return true
 	if bool(status.get("repair_authority_cleared", false)) or reason in [
 		&"authority_changed", &"authority_changed_during_staging",
 		&"directory_sync_failed", &"atomic_replace_failed",
