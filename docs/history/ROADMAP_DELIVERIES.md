@@ -17932,3 +17932,74 @@ main (14 non-main remote) remain. One ordinary gameplay candidate (tooltip
 retirement) and13 automation/diagnostic/release candidates remain. These are ref
 counts; the named production result is honest confirmed-passenger HUD with a
 complete recorded yaw/handback journey, not another whole parent or phase.
+
+
+## Tooltip candidate accounted and archived — unqualified — 2026-10-20
+
+Accounts for existing fix/exit-tooltip-order-20261020 exact tip
+`bae551d5836ed5d17bb0752e109313b3a5fa4fd9`. This is branch housekeeping explicitly
+requested by the owner, not a gameplay delivery, accepted regression fix or
+completed WALK-OBSERVATION. No engines, runtime/test changes or checkpoint.
+Latest playable0070248 unchanged; all36 original parents/ten phases remain open.
+
+**Why source remains withheld:** historical private candidate's complete
+Observation route passes54 goals/345.752758818m/60-frame view/home/normal Exit0
+with zero diagnostics. Its trace has55 initially invisible PopupMenus and no
+original visible TooltipPanel, so the separately required active-tooltip repair
+acceptance is INCONCLUSIVE. The later real-Main fixture also failed to produce
+the original tooltip. Neither necessity nor acceptance of the10-line GUI-input
+retirement fix is established. Original814.146s checks/failures remain preserved.
+
+The original failed trace observed a visible embedded TooltipPanel with root
+focus_entered/tree_exited bindings through tree_exiting, followed by disconnect
+errors; no connection-removal event or native Callable equality/hash/data cause
+was established. Missing before a future separately selected repair: real hover
+owner, native pointer/window coordinates/foreground at Destination and original
+visible tooltip/root bindings, then actual retirement before ordinary close.
+Full integrated travel/view/home/normal-exit acceptance remains required. No
+synthesized popup, error filter, relaxed contract or unchanged retry is authorized
+by archiving. Older whole observer/driver/startup files must not replace newer
+accepted main work (including Arrow and Heavy Breach startup admission).
+
+**Lossless source preservation:** five unique commits, all still unmerged:
+
+- `9dc645534d6966b5f345465f189585b01e2f3722`
+- `4c58efa2723e8798319ef45d8ae6b489fc16c630`
+- `e390b97ba9d136c9e16081635702aeb078e3e104`
+- `9743b650f0f9231f500659654e7fe9b2517b89ab`
+- `bae551d5836ed5d17bb0752e109313b3a5fa4fd9`
+
+Seven exact source files preserve the ordinary Observation caller, float/root
+identity corrections, passive popup trace and proposed GameFlow close preparation
+plus focused tests. Main does not contain the proposed runtime seam or equivalent
+behavior; no supersedence or integration is claimed. The verified minimal Git
+bundle retains all five commits with prerequisite parents reachable in main;
+aggregate binary patch and exact seven-file tar retain contents/modes/blob IDs.
+Archive root:
+`/srv/mudds-work/branch-closeouts-20261020/results/exit-tooltip-order/`.
+
+source.bundle: 37426bytes, SHA256 `9393b25816875636c51b58b0de9e9a57004b3b03dbb2141ce9c96ddf9ec955bf`.
+
+changes.patch: 56884bytes, SHA256 `0ead74eec26a6245aaa53e8c36b10289d09cf2a9ac2535bfe666e7ff001e08b3`.
+
+source.tar.gz: 377399bytes, SHA256 `03a7dbd67d4760f28a2fc8ec7e54210d8765f8b80cfe06165d0ce212d5ac26e3`.
+
+Root independently verifies every artifact hash, bundle/list-heads, all five
+unique IDs, exact aggregate patch and seven tar members against Git blobs/bytes/
+modes. Pushed annotated tag `archive/withheld/exit-tooltip-order-20261020`,
+object `042b98f117168928b34b9f9aa9142eb8160b7543`, peels to exactbae tip before deletion and remains
+verified afterward. [Archived source](https://github.com/themuddfamily/mudds-shipyards/tree/archive/withheld/exit-tooltip-order-20261020).
+
+Live exact branch tip and registered ownership rechecked; no owned worktree.
+Remote deletion uses expected-OID lease, local/tracking refs expected-OID CAS.
+All three working refs absent afterward. No worktree, engine, profile or temporary
+helper was created for this accounting; only intentional archive/results files.
+Original raw roots/private withheld package remain untouched. Closure2.3min
+from17:15 within selected15min. The archived source is recoverable, not discarded
+or silently merged to improve a branch count.
+
+Totals174 local/97 live remote branches deleted;11 local/14 live remote heads including
+main (13 non-main remote) remain. Remaining candidates are qualification/
+diagnostic/release automation, sometimes with opt-in runtime CLI wiring. The
+unqualified tooltip requirement remains OPEN despite its working branch deletion.
+Native/hardware/human/final gates and CI hold are unchanged.

@@ -51,8 +51,8 @@ push accepted work and delete the branch, or preserve its unique source/results
 and record the exact unmet requirement and blocker. A failed check does not
 automatically authorize an adjacent task or retry.
 
-**173 local and 96 live remote branches deleted; 12 local and 15 live remote
-branches remain, including main (14 non-main remote).** Counts describe refs,
+**174 local and 97 live remote branches deleted; 11 local and 14 live remote
+branches remain, including main (13 non-main remote).** Counts describe refs,
 not completed features. [Branch accounting and closeouts](docs/history/ROADMAP_DELIVERIES.md#branch-accountability-and-race-timeout-diagnosis--2026-10-20)
 preserve the underlying roadmap requirements.
 
@@ -71,24 +71,29 @@ three diagnostic histories also have pushed archive tags. Two clean cache-only
 worktrees are removed. Full Sandbox/recovery/reuse remains FAILED/open.
 [Five-branch closeout](docs/history/ROADMAP_DELIVERIES.md#five-local-only-branches-accounted-and-closed--2026-10-20).
 
-Of the14 remaining remote candidates, **one contains an ordinary gameplay fix**
-(tooltip retirement on close), still unaccepted. The other13 contain qualification,
-diagnostic or release automation. The
-[branch inventory](docs/history/ROADMAP_DELIVERIES.md#remaining-branch-status-after-duplicate-closeouts--2026-10-20)
-records the earlier20 candidates; accepted Breach, Halyard, docked-pilot and
-passenger-role work plus superseded Jovian exit/handback callers remove six.
+The13 remaining remote candidates contain qualification, diagnostic or release
+automation, including opt-in startup wiring. The unproven tooltip runtime candidate
+is preserved under a WITHHELD archive tag; its underlying requirement remains OPEN.
+The [earlier20-branch inventory](docs/history/ROADMAP_DELIVERIES.md#remaining-branch-status-after-duplicate-closeouts--2026-10-20)
+retains original status: six references closed through accepted/superseded work,
+and the unqualified tooltip candidate archived, leave13. These ref counts do not
+measure completed roadmap outcomes.
 
-**Selected tooltip branch accounting: 17:15–17:30 UTC, 15min.**
-Preserve all five unique commits/seven files of fix/exit-tooltip-order-20261020
-in a verified bundle, patch and exact source archive, with a pushed withheld tag.
-Current evidence is INCONCLUSIVE for the active-tooltip regression; the full
-private Observation route pass does not establish the missing visible-tooltip
-lifecycle. Keep runtime unmerged and WALK-OBSERVATION/tooltip repair open.
-One agent owns source/evidence accounting and archival files; root independently
-verifies bytes/history, live tips/ownership and tag before exact branch deletion.
-No engine run, implementation, acceptance change or checkpoint. Record original
-814.146s checks and actual missing hover owner/pointer/window/foreground state.
-Finish with commit/push and the exact retained requirement, not feature completion.
+**Tooltip candidate accounted for as WITHHELD; working branch deleted.**
+All five unique commits/seven exact source files survive in verified bundle,
+binary patch, source archive and pushed tag
+`archive/withheld/exit-tooltip-order-20261020`. Its10-line close-time GUI-input
+change is unmerged and unqualified. The private Observation route passed, but
+never exercised the original visible embedded TooltipPanel; later baseline also
+failed to produce it. Original814.146s checks remain preserved. No new engine,
+implementation, acceptance or checkpoint; playable0070248 unchanged.
+Local/remote/tracking branch removed after archive/tag/live-tip/ownership checks.
+WALK-OBSERVATION and the actual tooltip-close regression remain OPEN. Before any
+further repair attempt, observe the real visible tooltip/root bindings and
+actual hover owner/pointer/window/foreground state; retain original normal-close
+and complete travel/view/home acceptance. Historical source must be adapted to
+current owners rather than overwriting newer observer/driver/startup work.
+[Withheld archive and unmet requirement](docs/history/ROADMAP_DELIVERIES.md#tooltip-candidate-accounted-and-archived--unqualified--2026-10-20).
 
 **Passenger-role fix and full yaw/handback accepted; both related branches closed.**
 Source007024839 merged and pushed in main2f75e834b. Confirmed standing passenger
@@ -169,19 +174,17 @@ attempt's `results/` remains. Native Windows/GPU/devices/audio/human/final gates
 remain NOT_RUN/open and CI disabled.
 [Delivery and limits](docs/history/ROADMAP_DELIVERIES.md#breach-interruption-branch-finished--2026-10-20).
 
-**Current UI task stopped: active-tooltip baseline not reproduced.**
-Existing candidate `fix/exit-tooltip-order-20261020` remains unmerged/withheld.
-Its historical full Observation route passed, but did not create the original
-visible TooltipPanel. The new actual-Main fixture opened the real pause controls
-and focused Exit; physical hovering did not create the required original embedded
-tooltip within 30 seconds. Therefore no original disconnect pair was reproduced,
-no production fix was applied, and no second engine attempt is selected.
+**Active-tooltip baseline remains unproved.**
+The original candidate is now archived WITHHELD, with its working refs removed.
+Its historical private Observation route passed without the original visible
+TooltipPanel. The later actual-Main fixture opened real pause controls and focused
+Exit, but physical hovering produced no required original tooltip within30s.
+No original disconnect pair was reproduced or fix applied by that setup.
 
-Missing fact before a further repair attempt: the actual GUI hover owner, native
-pointer/window coordinates and visible foreground at the intended Destination
-button. Do not infer a cause, synthesize a popup, weaken original acceptance or
-replay the full route merely because this setup failed. Require the original
-visible tooltip/root bindings before testing normal HUD/WM process close.
+Missing fact before a future repair: actual GUI hover owner, native pointer/window
+coordinates and visible foreground at Destination, plus original visible tooltip/
+root bindings. No popup synthesis, acceptance relaxation or unchanged retry is
+selected. The actual lifecycle must be exercised before normal HUD/WM close proof.
 
 Fixture source4b2b301cb is preserved under pushed tag
 `archive/diagnostics/tooltip-close-fixture-20261020`. Import passed; baseline stopped
@@ -301,7 +304,7 @@ contracts and cumulative attempt records remain in the retained history.
 | Matching RPC-cache templates /25,32 | [Linux built; Windows cold/incremental compilation timed out](docs/history/ROADMAP_DELIVERIES.md#matching-rpc-cache-templates--stopped-at-windows-compilation-budget). No accepted matching pair; callback repair is unverified. | PARKED; no further compilation or dependent browser attempt selected. Existing recipe/JSON fixture remain delivered; empty callable metadata and similar Window errors establish no cause. |
 | BROWSER-ORDINARY /25 | Candidatee944f52:89Python/privacy/35join/package checks pass, actual routeFAIL40.554s at NetworkSession tree_exited disconnect error; cleanup fixture command rejected. | PARKED/unmerged/withheld. Subsequent passive capture identifies retained native RPC-cache callback; it does not qualify the route. Full continuation NOT_RUN. Original raw data/eight builds preserved; scratch cleaned. |
 | AFT-CONSOLE-VIEW /9,12 | Standalone actual-module Xvfb/Forward+/llvmpipe capture FAIL120.485s after camera setup; no image or visual finding. | PARKED; source/root cause unproven. No cap increase, alternate backend/view or retry selected. Owned scratch cleaned; raw results retained. |
-| WALK-OBSERVATION /7,9 | Two caller failures retained; numeric e390/unchanged game4c58 completes54-goal travel/view/home prefix then FAIL89.064s on rootWindow signal disconnections after focused Exit. | PARKED; full task remains unaccepted, no clean exit0. Capture identifies the Tooltip with stored pairs still present across errors. Laterbae551d58 private route PASS, but no visible tooltip/retirement, so repair acceptance INCONCLUSIVE and candidate withheld. No second attempt selected. |
+| WALK-OBSERVATION /7,9 | Original full route fails rootWindow disconnect after Exit. Privatebae551d58 later passes54-goal travel/view/home/Exit, but lacks original visible TooltipPanel; repair INCONCLUSIVE. All five unique commits/seven files archived under pushed archive/withheld/exit-tooltip-order-20261020; working refs deleted, runtime unmerged. | OPEN. Observe actual original visible tooltip/root bindings and hover owner/pointer/window/foreground state before separately selected normal-close repair proof; full integrated travel/view/home acceptance retained. No new run or unchanged retry. |
 | PERIMETER-LIVE /11 | Runtime/admission shipped fdae1cb: all selected focused/production checks, paired exports, three strict startups and package audit PASS. Existing branch merged/pushed/deleted and owned scratch cleaned. | Scoped integration DONE; full ordinary weapons/home/recovery/repeats/network/native remains OPEN. Prior 363.897s/three failures retained; total stages 742.767s. |
 | PLAY-BEACON-HOME /13 | Candidatea612ea686 FAIL37.713s guarded/37.419s driver at ActivityBoardButton Return/frame1233; same two root Window signal-disconnection diagnostics. Eleven prechecks pass; no settlement/home/L/E reached, no file captures. Unmerged/withheld. | PARKED on UI-BOARD-FOCUS. Recurrence supplies no popup/connection-removal cause; no retry/repair/cap change. Preserve original UI two-component9.627s and Mining budgets. |
 | HALYARD-GUNNER-DAMAGE /11,16 | Original 51.847s and one caller repair 52.025s both fail co-pilot admission; actual new damage proof NOT_RUN. | Parked after cumulative 103.872s review. No further diagnosis/fix/run without concrete reopening fact/change; candidates unmerged, no weapon defect established. |
