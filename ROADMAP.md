@@ -223,6 +223,27 @@ limits and cleanup](docs/history/ROADMAP_DELIVERIES.md#observation-walk--caller-
 Latest public checkpoint remains49047eb. Only owned raw results and one withheld
 private package remain; duplicate checkout/ELF/helpers/profiles were cleaned.
 
+### Separately selected caller correction
+
+Source diagnosis: `_ember_node_current(node)` requires Main to be an ancestor
+of `node`; the selected observer incorrectly passes Main itself. Pinned Node
+source walks the candidate's parents, so this predicate is always false for the
+root. Raw first sample fails before main_id, exactly matching that guard.
+Root changes only that selected root predicate to explicit live/in-tree/not-
+queued Main checks, retaining exact loader identity and descendant checks for
+Player/world/Spur. Independent high causal/diff review before engines. No global
+helper, readiness waiting, route/assertion/tuning or deadline change.
+
+Original failure/time and90min total split retained. Recreate owned clean
+candidate, fresh import180s (cache removed), privacy60s, private Linux export180s,
+strict binary startup120s, exact artifact audit90s, original full route once with
+CAP300/outer330. Existing80 Python safety tests are unchanged and their accepted
+result is retained. Estimate5–10min correction/review plus5–10min checks/route.
+First new unexpected failure STOP; no second correction/retry/cap increase or
+acceptance narrowing selected. Freeze exact pin/commands before engines, same
+private Xvfb/x11/Dummy/dummy-renderer/input release/process guards. Source-only
+qualification; no public checkpoint or broad/native/human acceptance implied.
+
 ## Latest playable result
 
 **Blocked save-repair feedback delivered and packaged on49047eb.** When a
