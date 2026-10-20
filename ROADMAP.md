@@ -56,12 +56,26 @@ in19th retirement. No production fix or full-suite pass; source archived under
 `archive/diagnostics/race-baseline-boundary-20261020`, diagnostic branch/worktree/
 profiles/helpers removed. No engine run remains active.
 
-Next single action: prepare a bounded correction of the **existing Wing route**,
-whose actual board press was2.905m away against the unchanged2.8m radius. Keep
-its original complete posting prerequisites/two real kills/home/UI-exit acceptance
-and retained344.298s failed-stage cost. Freeze exact source/driver ownership,
-full command/caps and a new explicit priority selection before any edit/run;
-no automatic retry or blanket revival of parked branches.
+**Selected existing task: COMBAT-WING ordinary route correction, parent11.**
+Owner priority explicitly reopens this chain on the measured cause: board press
+2.905m outside unchanged2.8m range. Reuse the existing
+`feat/wing-ordinary-route-20261020` branch; merge current main into it, preserving
+all later changes. One high-effort implementer owns its original seven driver/
+observer/startup/privacy/test files; root owns integration/checks/packages/docs.
+Correct actual3D approach with margin and handle explicit board rejection. Do not
+change gameplay radius, posting order, opponents, damage, timers or acceptance.
+
+Selection12:24–13:24UTC/60min; prior344.298s stage cost remains retained. Estimate
+15–20min integration/correction/review,10–15min checks,10–15min packaging/cleanup.
+Before engines, review exact source and freeze helper commands. Original checks:
+import180s; Python driver90s; privacy120s; Wing observer120s; Windows/Linux exports
+180s each; strict direct/archive/Windows-payload startups120s each; artifact audit
+90s; exactly one native isolated-X11/Dummy full paired-wing route at original
+300s (outer360s). Existing first-failure stop/independent abort/input cleanup apply.
+Finish requires honest Heavy/Torpedo posting prerequisites, two actual Wing player
+weapon kills, physical home/offline exit and normal UI quit, then accepted main
+integration/push, checkpoint notes and branch/worktree cleanup. No narrower proof,
+automatic second correction, unrelated next task or cap increase selected.
 
 **Ready production cards: 0. Prepared production cards waiting on decisions: 3.**
 The decisions below remain pending; they do not prevent finishing independently
