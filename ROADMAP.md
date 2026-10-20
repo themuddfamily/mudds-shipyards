@@ -79,6 +79,20 @@ retains original status: six references closed through accepted/superseded work,
 and the unqualified tooltip candidate archived, leave13. These ref counts do not
 measure completed roadmap outcomes.
 
+**Selected UI-route branch accounting: 17:21–17:41 UTC, 20min.**
+Account existing fix/ui-board-focus-20261018, feat/mining-first-play-20261018
+and feat/beacon-home-20261020. Three independent archive owners inspect disjoint
+source/evidence and prepare verified bundles/patches/exact-file archives; root
+checks history/bytes, pushes WITHHELD tags and deletes exact working refs only
+after preservation and current-tip/worktree checks. No engines, gameplay change,
+forced merge, acceptance change or checkpoint. Preserve original UI component
+9.627798881s, Mining61.9252887s failed cumulative and Beacon37.713s actual route,
+with original full contracts and reopen facts. UI remains NOT_REPRODUCED; Mining
+full extraction/reward/home and Beacon full home/exit remain unaccepted. Existing
+Beacon traversal/settlement acceptance stays distinct and included in main.
+Finish with one committed/pushed accounting record and clear retained gaps;
+branch deletion supplies no gameplay or parent/phase completion.
+
 **Tooltip candidate accounted for as WITHHELD; working branch deleted.**
 All five unique commits/seven exact source files survive in verified bundle,
 binary patch, source archive and pushed tag
