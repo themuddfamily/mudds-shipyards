@@ -15,6 +15,7 @@ var _handback_craft_id := 0
 var _handback_ship_source: ShipCommandSource
 var _handback_capture := Callable()
 var _handback_walk_start: Dictionary = {}
+var _handback_walk_clearance: Dictionary = {}
 var _handback_sent_after_release := -1
 
 
@@ -179,15 +180,42 @@ func _client_handback() -> bool:
 	var local_start := _craft.to_local(_player.global_position)
 	var walk_deadline := Time.get_ticks_msec() + 15000
 	if _role == "client":
-		_action(&"move_back", true)
+		# Facing aft, move_back runs into the solid pilot chair after only
+		# 0.572m. Strafe into the port corridor before measuring the same walk.
+		var right := (-_player.get_camera().global_basis.z).slide(Vector3.UP).normalized().cross(Vector3.UP)
+		var clearance_action: StringName = &"move_right" if right.dot(-_craft.global_basis.x) > 0.0 else &"move_left"
 		if not await _handback_wait(func():
 			var source := _game.get_network_remote_body_intent_source()
 			var relationship := _game.network_session.get_moving_interior_latest_relationship(source.get_entity_id())
 			var pose: Transform3D = relationship.get("frame_local_transform", Transform3D.IDENTITY)
+			_action(clearance_action, _craft.to_local(_player.global_position).x > -1.0, 0.35)
+			return _handback_local_current(true) and _craft.to_local(_player.global_position).x <= -1.0 \
+				and pose.origin.x <= -1.0 \
+				and int(relationship.get("server_tick", -1)) > int(_handback_walk_start.published_tick),
+			_handback_remaining(walk_deadline),
+			"ordinary strafe clears solid pilot chair on original local Player and fresh host pose within the same15s walk budget"):
+			return false
+		_action(clearance_action, false)
+		Input.action_release(clearance_action)
+		var cleared_source := _game.get_network_remote_body_intent_source()
+		var cleared_relationship := _game.network_session.get_moving_interior_latest_relationship(cleared_source.get_entity_id())
+		var cleared_pose: Transform3D = cleared_relationship.get("frame_local_transform", Transform3D.IDENTITY)
+		var back_direction := (_craft.global_basis.inverse() * _player.get_camera().global_basis.z).slide(Vector3.UP).normalized()
+		_handback_walk_clearance = {"local_position": _vector_values(_craft.to_local(_player.global_position)),
+			"authoritative_position": _vector_values(cleared_pose.origin), "published_tick": int(cleared_relationship.get("server_tick", -1)),
+			"back_direction": _vector_values(back_direction)}
+		_action(&"move_back", true)
+		if not await _handback_wait(func():
+			var current_source := _game.get_network_remote_body_intent_source()
+			var current_relationship := _game.network_session.get_moving_interior_latest_relationship(current_source.get_entity_id())
+			var current_pose: Transform3D = current_relationship.get("frame_local_transform", Transform3D.IDENTITY)
 			return _handback_local_current(true) \
 				and (_craft.to_local(_player.global_position) - local_start).slide(Vector3.UP).length() >= 0.6 \
-				and (pose.origin - _vector_from(_handback_walk_start.local_position)).slide(Vector3.UP).length() >= 0.6 \
-				and int(relationship.get("server_tick", -1)) > int(_handback_walk_start.published_tick),
+				and (current_pose.origin - _vector_from(_handback_walk_start.local_position)).slide(Vector3.UP).length() >= 0.6 \
+				and (_craft.to_local(_player.global_position) - _vector_from(_handback_walk_clearance.local_position)).dot(back_direction) >= 0.6 \
+				and (current_pose.origin - _vector_from(_handback_walk_clearance.authoritative_position)).dot(back_direction) >= 0.6 \
+				and int(current_relationship.get("server_tick", -1)) > int(_handback_walk_start.published_tick) \
+				and int(current_relationship.get("server_tick", -1)) > int(_handback_walk_clearance.published_tick),
 			_handback_remaining(walk_deadline),
 			"ordinary move_back moves original local Player and its fresh received authoritative walking pose>=0.6m inside15s"):
 			return false
@@ -417,6 +445,7 @@ func _pilot_is_current(peer: int) -> bool:
 
 func _handback_receipt() -> Dictionary:
 	var receipt := {"stage": _handback_stage, "ownership": _handback_ownership(),
+		"walk_clearance": _handback_walk_clearance,
 		"claim": _primitive_fields(_handback_claim(), ["ship_id", "ship_generation", "peer_id", "avatar_id", "role", "seat_id", "seat_generation", "claim_sequence"]),
 		"pose_tick": int(_game.get("_network_boarding_server_tick")),
 		"player": _node_identity(_player), "craft": _node_identity(_craft),
@@ -453,7 +482,8 @@ func _failure_snapshot(description: String) -> Dictionary:
 	var snapshot := super._failure_snapshot(description)
 	var handback := {"stage": _handback_stage, "start": _handback_start,
 		"local": _handback_local, "authorized": _handback_authorized, "completed": _handback_completed,
-		"walk_start": _handback_walk_start, "interact": Input.is_action_pressed(&"interact"),
+		"walk_start": _handback_walk_start, "walk_clearance": _handback_walk_clearance,
+		"interact": Input.is_action_pressed(&"interact"),
 		"move_back": Input.is_action_pressed(&"move_back")}
 	if not _handback_start.is_empty() and is_instance_valid(_game) and is_instance_valid(_craft):
 		handback["actual"] = _handback_receipt()
