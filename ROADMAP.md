@@ -49,9 +49,9 @@ review supports this candidate; it is not a verified fix.
 | RPC-CACHE-TEMPLATES | Next; GATED on provisioned build dependencies | Matching patched Windows/Linux release templates from the same pinned source/patch; actual builds and template hashes. Freeze commands and limits before execution. SCons/Windows cross-compiler currently absent; both platform recipes now exist. |
 | NET-TIMEOUT-RELEASE-ACCEPT | GATED on matching templates and separately corrected fixture command | Relevant focused checks, clean paired exports/strict startups/package checks, then original full ordinary route with unchanged criteria/limits. Fixture cleanup rejection still blocks clean acceptance. No execution selected yet. |
 
-**Next single action:** provision the declared build dependencies and freeze
-actual matching-template build commands/limits, preserving default required
-features. No actual build/install is selected by the completed recipe card.
+**Selected next action:** provision pinned source/toolchain/SDK inputs under the
+[bounded preparation card](docs/ROADMAP_BACKLOG.md#release-rpc-cache-correction--implementation-cards), preserving required default features. Actual compilation
+will be frozen separately after preparation; no game capture is selected.
 Recipe commit→owned cleanup:4.8min against45–60min implementation/review estimate;
 unit stage0.514s. [Result and usage](docs/history/ROADMAP_DELIVERIES.md#rpc-cache-release-template-recipe--implemented).
 

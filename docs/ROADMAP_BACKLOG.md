@@ -1472,6 +1472,44 @@ per-platform cap no greater than the existing3600s recipe ceiling, and independe
 abort/reap guards. Freeze actual commands/output paths/dependencies before build;
 stop on first unexpected failure. This definition does not execute/provision it.
 
+**RPC-CACHE-TEMPLATE-PREP — selected2026-10-20 before install/prepare.**
+This provisions the preceding build dependency; no compile/game run is selected.
+Root owns execution under `/srv/mudds-work/rpc-cache-templates-20261020/`; one
+medium read-only dependency mapper confirmed the pinned source defaults. No
+recursive agents. Existing source/patch/recipe pins remain unchanged.
+
+Run `apt-get install -y --no-install-recommends g++-mingw-w64-x86-64-posix libwayland-bin`
+with noninteractive frontend, cap600s. Cached package simulation must show no
+upgrades/removals; record installed package versions and compiler POSIX thread
+model. No apt upgrade/update, driver replacement, system SCons or unrelated dev
+library installation. Existing native GCC/ar/patch/pkg-config are present.
+
+From an exact clean recipe worktree, run the existing builder `--prepare
+--rpc-cache-teardown --target template_release --platform PLATFORM --cache-root
+/srv/mudds-work/rpc-cache-templates-20261020/cache --jobs 2 --timeout 1800` once
+per linuxbsd/windows, each outer cap300s. This pins/downloads/extracts the existing
+official source archive and SCons4.10.1 wheel into separate owned platform caches,
+then installs that wheel only in their private venvs. No source patch or compile.
+
+SDK preparation uses only the pinned source's installers from each source root:
+Linux `misc/scripts/install_accesskit.py`; Windows that script plus
+`install_angle.py`, `install_winrt.py`, `install_d3d12_sdk_windows.py`. Each600s,
+one invocation only; private XDG/TMPDIR, inherited HOME and LOCALAPPDATA unset so
+outputs stay in source `bin/build_deps`. Preserve source hashes, raw outputs and
+owned process identities. Exact dependency versions from source: AccessKit0.21.2,
+ANGLEchromium/7219, WinRT72, Mesa25.3.1-3, Agility1.618.5, PIX1.0.240308001.
+PIX remains default-disabled; no renderer/accessibility disabling flag. Read the
+actual extracted scripts before execution to verify destinations/defaults.
+[Windows default detection](https://raw.githubusercontent.com/godotengine/godot/a13da4feb8d8aefc283c3763d33a2f170a18d541/platform/windows/detect.py),
+[Linux default detection](https://raw.githubusercontent.com/godotengine/godot/a13da4feb8d8aefc283c3763d33a2f170a18d541/platform/linuxbsd/detect.py).
+
+Acceptance: exact source/wheel/SDK inputs prepared, default features still
+available and owned actors gone, or precise first failure. Any unexpected failure
+STOP; no automatic repair/retry/source URL change or cap increase. No package or
+runtime acceptance follows. Estimate15–30min prep/inspection; retain reusable
+source/toolchain inputs instead of deleting required build artifacts. Commit/push
+result before selecting actual compile commands; preserve original browser gates.
+
 **NET-TIMEOUT-RELEASE-ACCEPT — dependent runtime acceptance.** GATED on those
 matching templates plus a separate bounded correction for the known fixture
 command rejection; its cause is not diagnosed by this card. Existing safe export
