@@ -394,8 +394,8 @@ const FLIGHT_PATH_SAFE_HORIZONTAL_ASPECT_LIMIT := 0.52
 const FLIGHT_PATH_SAFE_VERTICAL_VIEWPORT_RATIO := 0.18
 const BOARDING_FALLBACK_REACH := 7.0
 const STATION_SEAT_MAX_REACH := 3.25
-# The cabin-adjacent engineer chair requires a deliberate look within 45 degrees.
-const HALYARD_ENGINEER_SEAT_MIN_FACING_DOT := cos(PI / 4.0)
+# Cabin-adjacent engineer chairs require a deliberate look within 45 degrees.
+const CABIN_ENGINEER_SEAT_MIN_FACING_DOT := cos(PI / 4.0)
 const OPPONENT_SOURCE_ID := 2101
 const RANGE_OPPONENT_NETWORK_ID: StringName = &"range_defence_interceptor"
 const STATION_DEFENSE_WEAPON_ID: StringName = &"perimeter_defense_pulse"
@@ -18364,11 +18364,14 @@ func _find_station_interaction_candidate() -> Node3D:
 			var facing_dot: float = facing.dot(offset / distance)
 			if facing_dot < 0.05:
 				continue
-			# This chair borders the hatch and ordinary walking cabin route.
-			# Only deliberately aiming at it replaces those existing interactions.
-			if candidate is ShipCrewSeat and candidate.get_ship() is HalyardCrewTransport \
-					and candidate.get_seat_id() == HalyardCrewTransport.ENGINEER_SEAT_ID \
-					and facing_dot < HALYARD_ENGINEER_SEAT_MIN_FACING_DOT:
+			# These chairs border the hatch and ordinary walking cabin route.
+			# Only deliberately aiming at them replaces those existing interactions.
+			if candidate is ShipCrewSeat \
+					and ((candidate.get_ship() is HalyardCrewTransport \
+						and candidate.get_seat_id() == HalyardCrewTransport.ENGINEER_SEAT_ID) \
+						or (candidate.get_ship() is JovianLightFreighter \
+							and candidate.get_seat_id() == JovianLightFreighter.ENGINEER_SEAT_ID)) \
+					and facing_dot < CABIN_ENGINEER_SEAT_MIN_FACING_DOT:
 				continue
 			# Favour what the player is looking at without making a slightly
 			# off-centre nearby control impossible to use.

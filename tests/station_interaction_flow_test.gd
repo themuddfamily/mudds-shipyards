@@ -81,6 +81,7 @@ func _run() -> void:
 	)
 
 	await _test_production_station_seat(game, player)
+	await _test_cabin_engineer_aim(game, player)
 	await _test_activity_board_console(game, player)
 
 	# A remote door must not disturb the established physical ship interaction.
@@ -146,6 +147,60 @@ func _test_production_station_seat(game: GameFlow, player: PlayerController) -> 
 		player.is_control_enabled() and seat.is_available() and not seat.is_reserved_for(player),
 		"standing restores locomotion and releases the chair for reuse"
 	)
+
+
+func _test_cabin_engineer_aim(game: GameFlow, player: PlayerController) -> void:
+	for craft: HeroShip in [game.get_node("HalyardCrewTransport"), game.get_node("JovianLightFreighter")]:
+		var contract: Dictionary = craft.call(&"get_engineer_station_role_contract")
+		var anchor := contract.get("seat") as Marker3D
+		var seat := anchor.get_node_or_null("SoloEngineerSeatInteraction") as ShipCrewSeat
+		_check(seat != null and not seat.get_role_contract().is_empty(),
+			"%s engineer discovery retains its physical seat contract" % craft.get_display_name())
+		if seat == null:
+			continue
+		player.teleport_to(contract.entry_transform)
+		await physics_frame
+		await physics_frame
+		await process_frame
+		await process_frame
+		_check(seat in player.get_nearby_interactables(),
+			"%s engineer is physically discoverable from its supported approach" % craft.get_display_name())
+		var camera := player.get_camera()
+		var camera_basis := camera.global_basis
+		var toward := (seat.global_position - player.get_interaction_origin()).normalized()
+		var peripheral := toward.rotated(Vector3.UP, deg_to_rad(70.0))
+		camera.look_at(camera.global_position + peripheral, Vector3.UP)
+		var peripheral_dot := player.get_interaction_direction().dot(toward)
+		_check(peripheral_dot > 0.05 and peripheral_dot < cos(PI / 4.0),
+			"engineer regression aim lies inside ordinary discovery but outside deliberate chair aim")
+		_check(game._find_station_interaction_candidate() != seat,
+			"%s peripheral engineer leaves ordinary hatch and cabin interactions available" % craft.get_display_name())
+		camera.look_at(camera.global_position + toward, Vector3.UP)
+		_check(game._find_station_interaction_candidate() == seat,
+			"%s deliberate engineer aim still selects the physical chair" % craft.get_display_name())
+		camera.global_basis = camera_basis
+
+	# The narrower engineer rule must not change ordinary passenger selection.
+	var jovian := game.get_node("JovianLightFreighter") as JovianLightFreighter
+	var passenger_contract := jovian.get_passenger_station_role_contract()
+	var passenger_anchor := passenger_contract.get("seat") as Marker3D
+	var passenger := passenger_anchor.get_node("SoloPassengerSeatInteraction") as ShipCrewSeat
+	player.teleport_to(passenger_contract.entry_transform)
+	await physics_frame
+	await physics_frame
+	await process_frame
+	await process_frame
+	var camera := player.get_camera()
+	var camera_basis := camera.global_basis
+	var toward := (passenger.global_position - player.get_interaction_origin()).normalized()
+	var peripheral := toward.rotated(Vector3.UP, deg_to_rad(70.0))
+	camera.look_at(camera.global_position + peripheral, Vector3.UP)
+	_check(passenger in player.get_nearby_interactables()
+		and player.get_interaction_direction().dot(toward) > 0.05
+		and player.get_interaction_direction().dot(toward) < cos(PI / 4.0)
+		and game._find_station_interaction_candidate() == passenger,
+		"Jovian passenger keeps ordinary peripheral chair selection")
+	camera.global_basis = camera_basis
 
 
 func _test_activity_board_console(game: GameFlow, player: PlayerController) -> void:
