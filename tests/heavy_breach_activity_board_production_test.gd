@@ -335,16 +335,16 @@ func _run() -> void:
 		and "NO CREDIT REWARD" in board.get_interaction_prompt()
 		and "NO CREDIT REWARD" in board_label.text,
 		"Torpedo conclusion posts the solo no-credit Paired Wing")
-	var wing_arm := board.arm_sortie(target, board.get_generation())
+	var wing_arm: Dictionary = board.arm_sortie(target, board.get_generation())
 	_check(wing_arm.accepted and board.is_sortie_armed() and not director.is_running(),
 		"Wing admission arms without dispatching against the on-foot actor")
 	var wing_generation := int(wing_arm.sortie_generation)
-	var cancelled := board.abort_and_reset(target, board.get_generation())
+	var cancelled: Dictionary = board.abort_and_reset(target, board.get_generation())
 	_check(cancelled.accepted and not board.is_sortie_armed()
 		and board.launch_armed_sortie(target, wing_generation).reason == &"stale_sortie_generation"
 		and board.get_offered_scenario() == EncounterScenarioDirector.SCENARIO_PAIRED_WING,
 		"cancellation fences the Wing admission and keeps the same offer")
-	var wing_started := board.interact(target, board.get_generation())
+	var wing_started: bool = board.interact(target, board.get_generation())
 	_check(wing_started and director.get_roster().size() == 2
 		and director.is_board_sortie_running() and screen.is_active() and second_screen.is_active()
 		and authority.get_source_id(screen) > 0 and authority.get_source_id(second_screen) > 0,
