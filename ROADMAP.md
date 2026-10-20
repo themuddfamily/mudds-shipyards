@@ -235,8 +235,9 @@ checkouts/ELFs/helpers/profiles cleaned. No executable card selected.
 
 WALK-OBSERVATION/CONTROL-FIX, parents7/8/9/29/32, diagnosis only. New source fact:
 pinned Popup.cpp52–75 owns the exact root focus_entered/tree_exited pair;
-Object.cpp1644 means source signal_map entry missing, not a callable-comparator
-slot mismatch. Normal Exit script only marks orderly state then SceneTree.quit;
+Exact numbered Object.cpp1644 checks a missing base-comparator key while the
+signal map exists. Pre-edit review corrected the initial map-missing reading;
+no binding-omission or callback-identity cause is established. Normal Exit script only marks orderly state then SceneTree.quit;
 no script Popup/root-signal lifetime mutation found. Missing actual Popup identity
 and event ordering prevent a production repair; do not infer shared Board cause.
 
@@ -246,7 +247,7 @@ independent lifecycle reviewer, root validation/cleanup. No recursive agents.
 Selected-only passive capture starts before Main: existing Popup census plus
 node_added watches, ID/string-only popup visibility/tree-exiting/tree-exited
 callbacks, root connection-list snapshots for the two native signals and only
-changed fingerprints. Record actual receiver ID/class/path/theme/visibility/
+changed fingerprints; read only root-pair incoming Popup links as well. Record actual receiver ID/class/path/theme/visibility/
 embedded/in-tree/queued state and scalar Callable metadata; no retained Node or
 Callable registry. Existing observer payload, physics cadence, route and controls
 unchanged. Never connect root focus_entered/tree_exited: a new listener could mask
