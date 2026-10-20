@@ -18202,3 +18202,104 @@ parent/phase. Other world-save boundaries remain DEFINE; no successor selected.
 Latest playable0070248 unchanged; no new checkpoint warranted by unchanged game
 bytes. Main remains sole local/remote working branch. Native Windows, hardware,
 listening/human and final release gates remain open/NOT_RUN; CI hold unchanged.
+
+
+## Halyard ordinary moving cabin — accepted — 2026-10-20
+
+HALYARD-MOVING-CABIN /parents16,24,26. Original card at the earlier
+HALYARD-MOVING-CABIN section remains binding. BOARD prerequisite4bc0e3b38 was
+accepted and its caller remained unchanged before this assignment. Selection
+pushed e7f422a93; one implementation agent owned only
+`tests/network/halyard_network_passenger_route_test.gd`. Root independently
+reviewed source and owned frozen checks/integration/cleanup. No new branch or
+worktree. Assignment began17:47UTC with original45–60min estimate/18:47 stop.
+
+Implemented distinct `--ordinary-two-client-moving` and
+`HALYARD_ORDINARY_TWO_CLIENT_MOVING_OK`, preserving complete existing stationary
+BOARD prefix and original BOARD behavior. Source candidate9f4c82fb455162ae6ff5d5fdb7af9f3f6aec2cb9
+adds the original full ordinary continuation; correction source
+2e117e64f9857ba5e738a66ded1066d6275711fb is accepted and pushed in main.
+Detached source commits were tested before fast-forward integration; main
+advanced only after the corrected full case passed. No working branch was left.
+
+One non-playing Main authority plus independent original client pilot and
+client_b passenger at crew_port_00. Real HUD Manual Join/Begin Shift, supported
+authored station approach/hatch/chair inputs and original exact consumed-seat
+confirmation precede departure. Pilot demand-starts through sampled ordinary
+move_forward throttle0.35; no initial flight envelope, engine/command/transform,
+body or authority injection. Both clients acknowledge moving seated state before
+passenger action. Then stand→walk→approach→sit→stand→approach→reseat, with current
+host physical body/helm/peer/frame/role and both peers' actual consumed state.
+Moving-only walk/look targets remain craft-local while ordinary body intents
+move the real actors. Existing BOARD predicates and thresholds remain unchanged.
+
+**First attempt retained — FAIL.** Candidate9f4c82fb4 compiles exit0/clean, then
+full route fails141.233946s at client_b initial departure consumption. Physical
+host departure5.019m and pilot acknowledgement pass; passenger remains genuinely
+seated/current, speed20.320m/s, role/ownership/body/frame generations retained.
+Combined gate reads local get_telemetry engine ONLINE on an observer. Raw omits
+its individual engine/leaf values, so no sole false conjunct or gameplay defect
+is claimed. First aborted boundary is client_b; all three actual peer exits1,
+175 checks/12 propagated or terminal failures. Source/cache unchanged; all14
+observed route identities absent. All53 peer raw files copied/hash-verified.
+
+Read-only source review identifies a concrete caller contract mismatch:
+HeroShip.get_telemetry preserves local _engine_state, while accepted host engine
+state is separately exposed by get_network_operation_telemetry_presentation.
+apply_network_operation_presentation does not replace local simulation; GameFlow
+merges the projection at HUD boundary. Existing network_remote_craft_pose_test
+proves host ONLINE display with observer local telemetry unchanged. Root
+explicitly selects one15min caller-only correction inside the original18:47
+assignment deadline. Passenger ONLINE now requires actual accepted host operation
+presentation with no raw fallback; pilot prediction/host authoritative checks
+remain raw. No route, role, ownership, motion, distance or deadline relaxation.
+Failure snapshots add raw/display operation audit and individual departure gates.
+No automatic third variant selected. Both source commits remain in accepted main.
+
+**Corrected full case — PASS.** One compile and one complete original route;
+all270 checks, one selected marker, zero engine/script diagnostics, supervisor
+FINISHED/exit0. Actual host1946958/client1947110/client_b1947129 exit0 and all
+three .done documents explicitly complete with empty failures. Independent
+Xvfb displays :99/:100/:101, explicit x11/input-only dummy renderer, all Godot
+invocations --audio-driver Dummy; orchestrator headless. No active desktop/input
+or real audio. Source/cache manifests remain identical.
+
+Physical departure5.174836m at3.824996m/s. Passenger sampled local walk1.180874m;
+executed host assertion separately requires same authoritative body walk>.6m.
+Same original peer/body/frame/ownership throughout; current legitimate chair
+claims1→3→5. Per-action authority and passenger hull movement and fresh sampled
+helm delivery required, with both client consumed-state acknowledgements after
+each stage. Passenger per-action motion sample counts37/39/36/52/33/19/59; all
+sampled speeds>3.9m/s and positive hull displacement2.89/6.04/8.40/14.98/8.88/
+9.53/22.30m. Body support, walking versus seated states and fresh chair claims
+are checked rather than comparing stale pre-stand role records.
+
+Original compile300s/full internal300s/outer360s, walk15s/transition8s and exit
+10s limits retained. Command-record→terminal-status file timestamp intervals:
+compile16.428226s, first route141.233946s, correction compile16.408226s, full
+corrected route141.297947s; known stages315.368345s. These are recorded wall
+intervals, not newly instrumented monotonic timers. Earlier BOARD failures and
+accepted BOARD result remain separate retained history, not reset or reclassified.
+
+Independent high-effort final review reads original card, executed source hash,
+all three raw peer logs/done/actual exits, seven receipts/manifests/dual acks and
+all92 final artifact hashes: GO, no original acceptance gap. Root independently
+checks departure/walk/motion receipts, fresh claims, exact marker, all OS exits,
+diagnostics and source/cache guards. No weaker/staged replacement accepted.
+
+Owned cleanup18:04:39UTC,17.66min into original assignment. All four supervisors
+terminal at their actual exit codes and30 observed identities absent. Full owned
+profiles retained in profiles.tar.gz:38417bytes,
+SHA366f719aaeca4a50d1c016d7ad2e2a7b0f8cad79c02832e1af87b38171ffdd59;
+all282 entries/bytes/modes/symlink targets verified before removal. No process
+cwd/exe under scratch; owned profiles/tmp removed. Both raw routes retained in
+existing `/srv/mudds-work/halyard-board-integration-20261020/results/moving-cabin/`.
+Only intentional results/archive records remain; no helper/worktree/branch created.
+
+Accepted scope is current-source ordinary Halyard departure and moving passenger
+chair/walk cycle, with original actors and input consumers. Graceful authority
+stop is independently defined and still NOT_RUN/unselected; normal teardown does
+not qualify it. Endurance, late join, full craft/role/world/reuse/server baseline,
+package/native GPU/hardware/device/human/final acceptance remain open. No gameplay
+or graphics change and no duplicate playable export; latest checkpoint0070248
+unchanged. Main remains sole local/remote working branch; CI hold unchanged.

@@ -78,31 +78,26 @@ This clears the branch queue; it does not close their unfinished gameplay,
 qualification or release requirements. No unaccepted source was merged to reduce
 a branch count. Eight previously protected detached worktrees remain unchanged.
 
-**Selected HALYARD-MOVING-CABIN /16,24,26 — one complete ordinary case.**
-BOARD prerequisite is accepted on4bc0e3b38 and its caller remains unchanged.
-Implement the missing moving selector in existing
-`tests/network/halyard_network_passenger_route_test.gd`: original non-playing
-Main authority, independent client pilot and client_b passenger at crew_port_00.
-After existing ordinary approach/boarding and exact consumed seat confirmations,
-same pilot departs >5m; same supported passenger walks >0.6m, sits, stands and
-reseats while the hull genuinely moves. Preserve actual host/peer current body,
-frame, role and legitimate generation transitions. No staged flight/transform,
-body/authority injection, walk-only substitute or altered BOARD result.
-One implementer owns that caller; root owns review/integration, existing isolated
-process supervision, result and cleanup. No new branch or adjacent assignment.
-Original45–60min assignment; compile300s, one full internal300s/outer360s route,
-walk15s, role/consumed transitions8s and exit grace10s. Exact selected flag:
-`--ordinary-two-client-moving`; marker `HALYARD_ORDINARY_TWO_CLIENT_MOVING_OK`.
-Compile command: Godot --headless --audio-driver Dummy --path this clean source
---check-only --script res://tests/network/halyard_network_passenger_route_test.gd.
-Full command: same headless/Dummy source script, without --check-only, followed
-by -- --ordinary-two-client-moving; peers retain private Xvfb/explicit x11/Dummy.
-Freeze implemented source and exact command/PIDs/cache before launch; all three
-actual peer OS exits0, explicit complete, zero diagnostics and owned cleanup
-required. First failure stops; no automatic repair/cap increase. Commit/push,
-record actual full outcome and remove owned profiles/helpers before closure.
-This is current-source qualification capability, not new gameplay, endurance,
-authority-stop, late join, planetary travel or full server-baseline acceptance.
+**HALYARD-MOVING-CABIN DONE — current source `2e117e64f`.**
+The original non-playing authority and two independent clients complete ordinary
+boarding, then the same pilot physically departs 5.175 metres. The same passenger
+stands, walks 1.181 metres, sits, stands and reseats while the hull genuinely
+moves. Host physical support/identity checks and both clients' consumed current
+state pass at every stage; chair claims advance 1→3→5. All three actual game
+processes exit 0 with clean logs and one completion marker.
+The existing caller now has one complete moving selector. Its first attempt
+failed an invalid passenger-local engine check; one bounded correction consumes
+the existing accepted host engine presentation instead, preserving ONLINE and
+all original route/ownership/motion checks. Both attempts remain recorded.
+Original 300-second route, 360-second outer, 15-second walk and 8-second role
+limits are unchanged. Independent final review passed; source/cache unchanged.
+Owned profiles are preserved/removed and all 30 observed process identities are
+absent. No new branch or worktree; accepted source is pushed in main.
+This qualifies current Linux source with isolated input-only Xvfb sessions.
+Authority-stop, endurance, native/hardware, full role journeys and the complete
+server baseline remain open; no successor is scheduled. No gameplay change or
+new checkpoint; latest playable build remains `0070248`.
+[Full original case, failure, correction and cleanup](docs/history/ROADMAP_DELIVERIES.md#halyard-ordinary-moving-cabin--accepted--2026-10-20).
 
 **Ember first-relay cold recovery DONE on package `923d7b3`.**
 The full named check passes: save the unpaid first relay, kill and reap the game,
@@ -385,8 +380,7 @@ contracts and cumulative attempt records remain in the retained history.
 | FIRE-RESTART /8,29,31 | Original and viewport caller repair fail visible Fire row intersection before capture/save/restart sampler; no persisted remap proof. Source archived WITHHELD; working refs deleted. | OPEN/PARKED; concrete visible-row cause/change needed before separately frozen original writer/reader acceptance; original300s per process retained. No inferred scrolling cause or retry. |
 | HULK-REVISIT /13,31 | Original departure check fails; sole repair reaches reload/dock/shutdown/exit then original300s deadline during new interior walk, before breaker event/receipt. Source archived WITHHELD; working refs deleted. | OPEN/PARKED; establish a concrete production cause/change, retain full physical revisit and once-only cell/reward contract. No cap increase or unchanged retry. |
 | SHARED-RIME-BASELINE /3,27 | Original parse failure and typed caller repair retained; repair reaches approach but fails original120s physical landing gate. Survey/home not accepted. Source archived WITHHELD; working refs deleted. | OPEN/PARKED; landing cause unestablished. Preserve full two-crew outbound/survey/reward/save/home and original limits; no automatic rerun. |
-| HALYARD-MOVING-CABIN / 16,26 | NOT_RUN; exact retained card requires supported walk/sit/stand/reseat during departure. | BOARD prerequisite accepted; separately freeze original moving case before engines. No moving/departure acceptance follows from boarding. |
-| HALYARD-AUTHORITY-STOP / 16,26 | NOT_RUN; exact retained card requires usable solo controls after actual server stop. | GATED on accepted moving-cabin route. |
+| HALYARD-AUTHORITY-STOP /16,26 | NOT_RUN; original case requires real authoritative server shutdown while both occupants remain aboard, production disconnect events and usable solo controls. | BOARD and MOVING-CABIN prerequisites DONE; separately freeze the full original case before engines. No SIGKILL, migration, reconnect or authority-stop acceptance follows from normal test teardown. |
 
 VIP, Ember native close smoke, Rime arrival, HULK revisit, Fire restart, Sandbox,
 Convoy/Patrol/Q4/Q5 and software-renderer capture stalls retain their existing
