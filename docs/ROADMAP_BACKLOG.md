@@ -708,7 +708,7 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | NET-DOCK-DEFINE | Supported craft dock/exit/reboard/redeparture acceptance cases | 20 | DONE definition only; next five Jovian instances below, all other craft/roles remain unscheduled |
 | NET-JOVIAN-PASSENGER-EXIT | Original passenger reaches supported ground while pilot retains helm | 16,20,26 | DONE on861c4d39b, merged2352d18c3: original full138.470s journey PASS clean, all seven physical route poses, same-player supported ground walk, legitimate passenger claim/body retirement, retained pilot and actual3peer exits0. Paired checkpoint861c4d3; exact-tip local/remote/tracking branch deletion and owned cleanup complete. Broader postdock reuse remains separate. [Acceptance](history/ROADMAP_DELIVERIES.md#physical-jovian-passenger-exit-accepted-and-branch-closed--2026-10-20) |
 | NET-JOVIAN-DOCKED-PILOT-HOLD | A still-owned remote pilot retains the committed authoritative dock pose/velocity | 16,20,26 | DONE within accepted passenger-exit chain861c4d39b, merged2352d18c3. Pose322 regression PASS; final original138.470s three-peer journey retains exact committed home/pilot/source through supported passenger exit and actual3OS exits0, no diagnostics. Paired checkpoint861c4d3; branch/owned cleanup complete. Same integration and build as EXIT, not a separately counted delivery. |
-| NET-JOVIAN-PASSENGER-REBOARD | Original passenger reclaims original co-pilot chair | 16,20,26 | OPEN/GATED on runtime Interact-lifecycle repair. Supported corridor clears9.03m and real new boarding succeeds; corrected caller515e31d10 proves changed host body/new claim3/currentgen1/advancedstream2. Host nevertheless takes chair before requested chair input while client stands; final161.106s FAIL, all3actualOS1. Source retains input highwater but new body resets consumer0; exact first wire not captured. Prior hatch/clearance/unsupported-generation failures retained, cumulative680.117s; original caps. Source/raw archived WITHHELD/unmerged, owned scratch removed. Runtime repair SELECTED19:04–20:19: focused red regression first, bounded consumer/lifecycle fix, full original route and fresh paired checkpoint; no acceptance yet. [Boundary](history/ROADMAP_DELIVERIES.md#jovian-reboard-corridor--runtime-interaction-lifecycle-gap--2026-10-20). |
+| NET-JOVIAN-PASSENGER-REBOARD | Original passenger reclaims original co-pilot chair | 16,20,26 | OPEN/FAILED. Candidate8b4c9dc35 consumed-Interact lifecycle fix passes focused42/source88 but full original route still fails161.350s: premature host chair claim, local passenger standing, chair walk fails. Exact offending input/cause unresolved. Independent NO-GO; source preserved under pushed WITHHELD tag, no runtime merge/checkpoint. All owners terminal,26 identities absent,269 scratch entries verified/removed. No new task/retry selected. [Closeout](history/ROADMAP_DELIVERIES.md#jovian-reboard-interaction-repair--withheld--2026-10-20). |
 | NET-JOVIAN-PILOT-EXIT | Original pilot releases helm and walks onto supported berth ground | 16,20,26 | GATED on passenger reboard; passenger stays seated |
 | NET-JOVIAN-PILOT-RECLAIM | Original pilot returns to same hull and acquires current helm authority | 16,20,26 | GATED on pilot exit; old command generations stay retired |
 | NET-JOVIAN-REDEPART | Same crew/hull departs at least5m and brakes after physical reuse | 16,20,26 | GATED on pilot reclaim; no second landing/endurance expansion |
@@ -2196,7 +2196,13 @@ before the requested chair input. Existing source retains interaction highwater;
 new body consumer starts0. No first-packet trace is claimed, but this concrete
 lifecycle mismatch is the ready production repair in ROADMAP. Require focused
 regression, full original route and fresh checkpoint; no caller workaround.
-Cumulative680.117s and all original caps/failures retained, no acceptance yet.
+Cumulative prior680.117s and all original caps/failures retained. The separate
+consumer-lifecycle candidate8b4c9dc35 passes focused42 and unchanged source88,
+but full route still fails161.350s with the same premature host chair claim/local
+standing mismatch. The generated-but-unconsumed hatch/new edge is not proved by
+the focused already-consumed-counter case; actual offending edge remains unknown.
+Independent NO-GO; archived unmerged, owned scratch verified/removed19:25UTC.
+No retry selected and no reboard acceptance. See the linked closeout above.
 
 ### NET-JOVIAN-PILOT-EXIT — release helm and reach ground
 

@@ -18629,3 +18629,65 @@ No new branch/worktree, protected roots untouched, main sole working branch.
 CI hold intact, latest playable0070248 unchanged. No reboard/parent/phase/native/
 hardware/endurance/final acceptance follows; later pilot exit/reclaim/departure
 remain dependent. The ready runtime repair is recorded in ROADMAP.
+
+## Jovian reboard interaction repair — WITHHELD — 2026-10-20
+
+**Result: FAILED; source unmerged, no fresh checkpoint, no next task selected.**
+Original19:04–20:19UTC/75min assignment stopped19:25UTC, within its deadline.
+Candidate8b4c9dc352e050e803b407199482193b2e131f97 preserves already-consumed
+Interact history per authenticated owner across body replacement and live-source
+rebind, with peer/session retirement fences. It leaves the intent source unchanged.
+The regression was red against unchanged runtime, then green after this fix;
+that bounded result does not establish the actual Jovian product behavior.
+
+Nine sequential stages retain exact source/environment/commands and logs:
+initial strict compile failed16.240s; typed compile passed16.288s; original runtime
+regression failed as expected44.885s. Fixed compile passed16.372s; fixed regression
+failed54.429s because its chair observation read the adapter's separate seat
+registry. After bounded review, only the test consumer was corrected to the
+actual craft crew-role authority. Compile passed16.524s; focused regression
+passed42 assertions54.753s, including neutral suppression, peer_rebound callback,
+fresh chair exactly once, different owner and same-adapter rehost. The unchanged
+input-source suite passed88 assertions0.708s. Callback coverage is not native
+transport-migration qualification.
+
+The full unchanged ordinary Jovian route then FAILED161.350s, three actual OS1,
+no success marker. Physical departure, home landing, supported exterior walk,
+9m lockout clearance and fresh boarding complete. At host.reboard_cabin_checked,
+actual new body3891139731305 already has co_pilot_station assignment claim3 and
+record sitting/seated; client_b.reboard_cabin_consumed is standing with empty
+assignment. No requested chair press/chair receipt occurs. Original passenger
+cannot reach authored chair goal within15s. Pilot/home state remains retained;
+its wait fails when passenger continuation fails. No pose/claim/input injection,
+caller workaround, route/cap reduction or extended timeout was accepted.
+
+Independent HIGH final NO-GO verifies all72 copied peer file hashes and actual
+host1969026/client1969186/client_b1969205 done/exit1. Source repair covers only
+previously consumed interaction IDs. GameFlow may sample ordinary Interact for
+movement independently of boarding RPC; the source retains IDs across rebind.
+An unconsumed hatch edge, genuinely new sampled edge or floor reset cannot be
+distinguished from retained raw without actual per-intent values. Do not claim
+the specific cause resolved or the Jovian bug fixed because focused tests pass.
+
+Results remain at
+/srv/mudds-work/jovian-passenger-physical-exit-20261020/results/reboard/interaction-repair/.
+All nine stages total381.549258s (owner-file mtime intervals, not exact monotonic
+measurements), plus prior qualification680.117371s; no prior failure discarded.
+Source/cache unchanged for every runtime stage; strict compile permitted cache
+updates. Every Godot uses Dummy audio; route peers isolated Xvfb/explicitx11.
+Original full300s/outer360s, waypoint15s/transition8s/landing120s/convergence5s
+and inherited exit caps remain intact. No hosted CI run.
+
+Complete candidate preserved in verified bundle, binary patch and source tar;
+pushed tag archive/withheld/jovian-reboard-interaction-repair-20261020 object
+daa7f1dc5130251870b1f97562d1b9a2fda24b7b. Main receives documentation only.
+All nine owner records terminal,26 observed PID/start-tick identities absent,
+no live process cwd/exe beneath owned scratch. Profiles archive47507bytes,
+SHA256 febb245195a411fa6553798cd6cd0ded23def079c1bb7d6ceaef3f5270c64dcc;
+all269 entries reopened/verified exact modes/bytes/hashes/link targets before
+owned reboard-interaction-scratch removal19:25:03UTC. Eight protected detached
+worktrees untouched; main sole local/live remote branch. No new worktree/branch.
+Latest playable0070248 remains current; all36 parents/ten phase gates, reboard,
+dependent pilot exit/reclaim/redeparture, native/hardware/endurance/full final
+acceptance remain open. Future work needs a bounded actual-edge diagnosis before
+another implementation; no automatic retry or adjacent roadmap task was started.

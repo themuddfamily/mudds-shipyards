@@ -78,58 +78,28 @@ This clears the branch queue; it does not close their unfinished gameplay,
 qualification or release requirements. No unaccepted source was merged to reduce
 a branch count. Eight previously protected detached worktrees remain unchanged.
 
-**Selected runtime repair: prevent retained Interact replay on reboard.**
-Existing NET-JOVIAN-PASSENGER-REBOARD prerequisite,19:04–20:19UTC/75min; split
-before90min. One HIGH implementer owns NetworkRemoteBodySimulation and its
-existing simulation suite; root owns original return caller, docs/Git/engines,
-independent review, checkpoint and cleanup. No new branch/worktree/CI. Existing
-intent-source highwater and retry behavior stays intact. First deliver focused
-regression in tests/network_remote_body_simulation_test.gd selected by
---interaction-reentry-only; root freezes clean source and demonstrates failure
-against unchanged runtime before implementation. Then bounded runtime repair,
-current tests and full original ordinary reboard acceptance, not a caller bypass.
-Exact checks: Godot4.7.1 --headless --audio-driver Dummy --path this repository,
---check-only --script res://tests/network_remote_body_simulation_test.gd (300s);
-focused run removes --check-only and adds -- --interaction-reentry-only (300s).
-Unchanged tests/network/network_remote_body_intent_source_test.gd runs300s.
-Full return caller515e31d10 preserved source with --postdock-passenger-reboard
-runs original300s/outer360s/15s waypoint/8s transition/120s landing/5s convergence;
-private Xvfb/explicitx11/Dummy for peers, three actual OS0 and one exact marker.
-Freeze exact candidate/commands/env/cache per stage. Independent HIGH lifecycle
-review must cover fresh press, same owner reentry and actual session/rehost fences.
-Passing meaningful runtime checkpoint requires existing safe clean-commit paired
-exports (180s each), silent strict ELF/archive/Windows-payload menu checks (120s
-each, exit0 + STARTUP_MENU_READY_OK), matching actual package inventory audit,
-EXE/ZIP/notes in builds/windows and Linux counterparts. Native Windows/GPU/device/
-human gates remain NOT_RUN. Prior qualification680.117s/failures remain retained;
-no reset or reduction of the full original contract. Stop unexpected failure for
-concrete review, no automatic variant. Keep only results/interaction-repair after
-verified owned reboard-interaction-scratch cleanup; integrate/push accepted source.
+**Jovian reboard repair stopped FAILED; no new task selected.**
+Candidate `8b4c9dc35` retains consumed Interact history across replacement bodies.
+Its focused reentry/rebind/new-owner/rehost checks pass42 assertions; unchanged
+input-source checks pass88. The full original route still fails in161.350s:
+host claims the co-pilot chair before the requested press while the client stands,
+then the ordinary chair walk cannot finish. This is the same unmet product
+contract, not accepted progress. The focused case does not cover every input
+edge of the real hatch journey; exact offending input and cause remain unresolved.
+Independent review NO-GO. No production source merged and no new checkpoint.
 
-**Jovian reboard now blocked on an observed runtime interaction mismatch.**
-The supported x=-42 apron corridor clears the existing lockout at9.03m and
-returns to a genuine hatch candidate. Actual boarding succeeds: new host body,
-claim sequence3, current entity generation1 and advanced input stream2. An early
-caller incorrectly demanded generation>old; existing producer defaults1 and
-supports same-generation rebinding. That comparison was corrected to require
-current host/client agreement, a changed body/new claim and advanced matching
-stream, retaining the full original physical journey and every chair condition.
-The final run then observes the host claim co_pilot_station before the caller's
-chair interaction, while the client remains standing. Chair walk/convergence fail.
-Source establishes the mismatch: local intent source preserves Interact highwater
-across rebind, but each new remote body starts last_interaction_id0 and treats
-the carried counter as a fresh chair input. Exact first replay packet was not
-captured. Preserve source highwater/retry behavior; a runtime consumer/lifecycle
-repair and focused regression are required, not another caller workaround.
-Both corridor compiles PASS; routes FAIL152.354s/161.106s, three actual OS1 each,
-zero markers and source/cache unchanged. Independent reviews NO-GO. Cumulative
-all attempts680.117s retained; original18:23–19:23 assignment closed at37.59min.
-Both corridor commits/source/raw preserved under pushed WITHHELD tag; no source
-merged. All60 observed identities across attempts absent; owned scratch removed.
-Main sole working branch, latest checkpoint0070248 unchanged. See the ready
-production repair below; full reboard/pilot exit/reclaim/redeparture stay open.
-[Original failures](docs/history/ROADMAP_DELIVERIES.md#jovian-reboard-clearance-correction--stopped-at-supported-walk--2026-10-20),
-[corridor and actual runtime boundary](docs/history/ROADMAP_DELIVERIES.md#jovian-reboard-corridor--runtime-interaction-lifecycle-gap--2026-10-20).
+The complete candidate is preserved under pushed archive tag
+`archive/withheld/jovian-reboard-interaction-repair-20261020`, with a verified
+bundle, patch, source tar and actual failure records. All nine stage owners are
+terminal;26 observed process identities are absent. Owned scratch was archived,
+269 entries verified and the directory removed. Protected worktrees remain.
+The19:04–20:19 assignment stopped at19:25UTC, before its original deadline;
+no extended cap or automatic retry. Prior680.117s of failed qualification and
+this381.549s of checks remain recorded. Main is the sole local/live remote
+branch. Latest playable remains0070248. Reboard and dependent pilot exit/reclaim/
+redeparture remain OPEN. A future attempt must first explain the actual offending
+hatch/body interaction edge; another consumed-counter-only test is insufficient.
+[Failure, retained source and cleanup](docs/history/ROADMAP_DELIVERIES.md#jovian-reboard-interaction-repair--withheld--2026-10-20).
 
 **HALYARD-AUTHORITY-STOP DONE — current source `082da79c9`.**
 The complete ordinary boarding/departure/moving walk/chair sequence passes, then
