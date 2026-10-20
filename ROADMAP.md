@@ -78,6 +78,32 @@ This clears the branch queue; it does not close their unfinished gameplay,
 qualification or release requirements. No unaccepted source was merged to reduce
 a branch count. Eight previously protected detached worktrees remain unchanged.
 
+**Selected HALYARD-AUTHORITY-STOP /16,26 — one complete original case.**
+BOARD and full MOVING-CABIN are accepted. Extend the existing passenger caller
+with `--ordinary-two-client-authority-stop` and
+`HALYARD_ORDINARY_TWO_CLIENT_AUTHORITY_STOP_OK`, preserving the full ordinary
+boarding/departure/moving walk/chair cycle. Then the same non-playing authority
+calls existing shutdown_network_session once while both original clients remain
+aboard. Require their actual production server_disconnected events, retirement
+of old grants/prediction/body/seat/helm bindings and usable ordinary solo controls.
+Former passenger must walk >0.6m supported through normal sampled inputs and
+show a real UI response. No direct disconnect-handler call, transform/authority
+injection, client-leave substitute, SIGKILL, migration or reconnect claim.
+One implementer owns only tests/network/halyard_network_passenger_route_test.gd;
+root owns independent review, detached candidate freeze, checks, accepted main
+integration, commit/push and owned cleanup. No new branch/worktree. Preserve
+original30–60min assignment, compile300s/full internal300s/outer360s, walk15s,
+role/consumed transitions8s and exit10s. Compile same clean source with Godot
+--headless --audio-driver Dummy --check-only --script res://tests/network/
+halyard_network_passenger_route_test.gd; full command removes --check-only and
+adds -- --ordinary-two-client-authority-stop. All peers retain own Xvfb display,
+explicit x11 and Dummy audio. Freeze exact source/commands/cache before engines.
+Require all three actual OS exits0, complete handshakes and zero diagnostics.
+First failure stops for concrete review; no automatic repair or adjacent task.
+Record actual outcome, preserve raw records in existing Halyard results/
+authority-stop/, remove owned profiles, and integrate only accepted source.
+No endurance, native/hardware or full server-baseline acceptance follows.
+
 **HALYARD-MOVING-CABIN DONE — current source `2e117e64f`.**
 The original non-playing authority and two independent clients complete ordinary
 boarding, then the same pilot physically departs 5.175 metres. The same passenger
