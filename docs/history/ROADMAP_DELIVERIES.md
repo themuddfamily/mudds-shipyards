@@ -15565,3 +15565,60 @@ Source review confirms clock boundaries/numbers; thrust-alignment wording correc
 All33 working-roadmap links/new proposal links,36 original promise/family columns,
 ten phase gates, existing pending/parked rows and finish/release rules pass local
 checks; whitespace clean. Working roadmap257→224lines. No scratch was created.
+
+
+## Ember first-relay cold cut — runtime completes, parent comparison fails
+
+WORLD-SAVE-EMBER-FIRST-RELAY / parents14,31, selection28f7c2a27 on2026-10-20
+06:05UTC→06:25UTC/20min. One high source mapper plus root: original requirement
+allows naming resume OR safe-recovery. No instruction requires owner approval
+for this specific cut; an initially suggested owner decision was an inference,
+withdrawn before work. Existing cold-yard/passive Ember behavior is this contract,
+not a waiver of separate cold surface/whole-Main/canonical promises.
+
+Exact archive923d7b3 SHA593b48f12abf84932619af53fd5306f36bed39f2ee4cc9627c70b7174356f827
+supplies extracted Linux ELF148897840bytes/SHA
+1f21248cb3cabcc94b76d0e7f40a2ed8fd8a8a1d6440c3db0601dbb2a32f36e7;
+compiled source923d7b3261175a14991813cf6e479c7c95be283d. Driver source
+28f7c2a27f5072bbc4f5bd352ab4e9f74ebfd7e4; runtime/test/tools assets unchanged
+between those commits. Existing native-export Ember pilot selector, same private
+real files, no external script/pack/path override. Every automated Godot process
+headless/Dummy; no display/audio/hosted-CI/native-Windows run.
+
+One full attempt FAIL312.812s. Actual default selected craft is Bulwark. It
+lands under genuine caldera lease, walks first relay on supported terrain and
+commits positive original generation/index1 of2/next ember_return_beacon,
+unpaid0. Driver independently matches actual saved document, then SIGKILLs and
+reaps actual arm1713707 exit-9 with committed bytes intact. Distinct resume1713976
+exits0 after current fence/yard on-foot controls, passive checkpoint preservation,
+new real boarding, original-generation adoption on later admission, receipt
+retirement, final survey/payment0→1 and paid-terminal retry/save checks. One
+crash event, terminal IN_WORLD_RECOVERY_OK and zero engine diagnostics.
+
+The parent driver still FAILS at run_package_probes.sh:557, exact comparison
+fresh process changed durable Ember journey progress. Independent narrow diff
+of the two reported boundary documents shows only:
+
+- completion.detached_session.checkpoint.orbital_coordinate.offset_meters[0]
+- completion.detached_session.checkpoint.surface_tangent_meters[0]
+Each180.34764099121094→180.34764099121097, delta2.842170943040401e-14m/one binary64
+ULP. No other compared boundary field differs. This is concrete representation-
+level evidence, not an established corruption cause or accepted exact-preservation
+result. Internal successful runtime checks do not override the parent failure.
+No comparison tolerance, retry, repair or cap increase applied. Original300s
+per arm/resume and660s outer preserved; no timeout occurred.
+
+No runtime change or duplicate checkpoint. Canonical outbound NOT_RUN,
+standing_pose_restore NOT_SUPPORTED and two disclosed initial orbital/corridor
+placements remain; no full ordinary flight/home, cold surface location, installed,
+native GPU/device/audio/human/final-release qualification follows. Prior KIT,
+Ember window-close and Jovian failures retain their own gates/budgets.
+
+All9 observed process identities absent, owners terminal; source/import-cache,
+package/export metadata identities stable and all five input artifacts hash-
+verified. Unique raw logs/interrupted/final documents and the private wrapper
+profile archive retained; worktree/cache/helpers/extracted duplicate removed at
+9.50min within20min. Only `/srv/mudds-work/ember-first-relay-20261020/results/`
+remains, including exact arguments/source/input identities and coordinate diff.
+A separately selected coordinate/representation-contract review must precede
+another attempt. No automatic successor; all broad parents/phase gates stay open.

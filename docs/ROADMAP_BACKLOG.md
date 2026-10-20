@@ -77,7 +77,7 @@ parents 11/21 share damage ownership. Do not count these twice.
 | 28 | Benchmark and optimize on representative native hardware | PERF-MACHINE/ROUTE/RUN/FIX | **Definition — PERF-ROUTES-DEFINE.** Finish the finite missing fleet/cabin/combat/surface/repeat scenario list and existing-runner seams after seven delivered selections. Actual minimum/target hardware, measurement cells, original-length native runs and demonstrated hotspot fixes remain. |
 | 29 | Complete real-device controls and accessibility review | INPUT-DEVICE/REMAP, ACCESS-VIEW/COMFORT | **Overflow capability DONE — ACCESS-TITLE on checkpoint19e7990.** Multiplayer is now inside the1024x768 title viewport; actual same-view comparison and eight-viewport retained-control/focus regression pass. ACCESS-TITLE-FOCUS is DONE checkpoint923d7b3: measured focus/press correction,32 paint pairs, same-view and paired package checks pass. Other view/remap/comfort/state/device gates remain. |
 | 30 | Finish authored audio and the real-device mix pass | AUDIO-CONTENT/MIX | **Implementation prerequisite — AUDIO-NAVIGATOR-CLIENT-REJECTION.** Already-asked refusal-scope choice WAITING. After resolution, freeze correct requester-correlated refusal feedback without stale/replayed responses. Accepted/clear playback stays delivered; other audio and real mix require their routes/devices/backend and explicit audible authorization. |
-| 31 | Finish production crash and save recovery | RECOVERY-CONTRACT/FIX/KILL, ACT-WRITE, WORLD-SAVE | **Qualification — WORLD-SAVE-EMBER-FIRST-RELAY.** Cold contract now explicitly uses the existing permitted safe-yard/passive-progress path for this cut; no extra owner approval is required. Select the existing real-file Linux package kill/restart and once-only continuation proof. Canonical flight/cold surface restoration are not supplied by this scenario. Other contexts/activity writes, installed cuts and migration/corrupt/unsupported cases retain accepted scopes/gates. |
+| 31 | Finish production crash and save recovery | RECOVERY-CONTRACT/FIX/KILL, ACT-WRITE, WORLD-SAVE | **Stopped qualification — WORLD-SAVE-EMBER-FIRST-RELAY.** Existing permitted safe-yard contract defined without an extra approval gate. Archive923d7b3 runtime completes, but parent exact-state comparison FAIL312.812s on two coordinate scalars differing by one binary64 ULP. Resolve exact-coordinate/representation contract separately before another run; no passing cut/cold surface-restoration claim. Other contexts/activity writes, installed cuts and migration/corrupt/unsupported cases retain accepted scopes/gates. |
 | 32 | Qualify installation, updates and supported desktop platforms | PACKAGE-WIN/LINUX, INSTALL-WIN/LINUX, LINUX-BUNDLE/DESKTOP | **Qualification — LINUX-LAUNCH-DESKTOP.** WAITING on clean isolated graphical session and frozen installed candidate/ordinary route. Prove actual installed desktop entry launches/completes it; headless startup is insufficient. Direct-ELF, final packages/NSIS, six Linux transactions and extra-target definition remain; native Windows exclusions stand. |
 | 33 | Complete all required graphical capture gates | CAPTURE (each required registry ID) | **Qualification — caption-presenter-forward-render.** GATED on frozen candidate/original runnable harness. Produce its one declared PNG, verify source/output identity and inspect at original resolution; stop at set/result. Full 13-set/143-PNG registry stays binding; caption-production/station-operations keep parked reopening conditions. |
 | 34 | Complete release licensing, trusted signing and distribution | RIGHTS, SIGN, DISTRIBUTE | **Dependency — RIGHTS[project release terms].** Record owner-chosen release-terms text and explicit distribution disposition; engine notices do not settle this family. Other asset/media rights, external trusted signing credentials and accepted-candidate/authorized-destination distribution remain separate. |
@@ -470,8 +470,8 @@ test is an owner/regression anchor, not a runnable ordinary route.
 | EMBER-NATIVE-SMOKE | Native observer normal-window-close smoke | 1 | PARKED; failed fixture/repair and priority review retained |
 | EMBER-PACKAGE-ABANDON | Packaged ordinary physical abandonment/home return | 1,14 | GATED; supported OS-input route, old external-driver path UNSUPPORTED |
 | WORLD-ABANDON-DEFINE | Applicable Aurora/Rime abandonment and Ember reuse/durability cases | 1,14 | DEFINE; explicit physical/durable outcomes, source pass retained |
-| WORLD-SAVE-DEFINE | Uncovered world survey/reward/reboard/visit disk boundaries | 14,31 | Ember first-relay cold contract defined below: safe-yard with passive original progress. Its package cut selected separately; other Ember/Aurora/Rime boundaries remain DEFINE, no whole-family closure. |
-| WORLD-SAVE-EMBER-FIRST-RELAY | Cold safe-yard recovery retains first-relay progress and later pays the original survey once | 14,31 | Selected exact archive-extracted checkpoint923d7b3, existing native-export Ember driver. Contract below; one owned kill/distinct restart, protected data and usable boarding. Staged flight placements disclosed, canonical outbound NOT_RUN and standing-pose restore NOT_SUPPORTED; no blanket location waiver. |
+| WORLD-SAVE-DEFINE | Uncovered world survey/reward/reboard/visit disk boundaries | 14,31 | Ember first-relay cold contract defined below: safe-yard with passive original progress. Its package cut failed the parent coordinate comparison; other Ember/Aurora/Rime boundaries remain DEFINE, no whole-family closure. |
+| WORLD-SAVE-EMBER-FIRST-RELAY | Cold safe-yard recovery retains first-relay progress and later pays the original survey once | 14,31 | FAIL/STOPPED archive923d7b3: runtime arm-9/resume0, receipts0→1, but parent exact-state comparison fails312.812s on two one-ULP coordinate scalar differences. No repair/retry/cap increase or relaxed acceptance; separate representation-contract review needed. [Actual result](history/ROADMAP_DELIVERIES.md#ember-first-relay-cold-cut--runtime-completes-parent-comparison-fails). Canonical outbound NOT_RUN, standing-pose restore NOT_SUPPORTED; no blanket location waiver. |
 | WORLD-EDGE-DEFINE | Applicable solo cancellation/refusal/failure/repeat cases | 14 | DEFINE; exact original cases and route limits |
 | SOLO-EMBER | Ember canonical physical survey round trip | 14 | GATED; freeze uncovered candidate/scenario, prior source passes retained |
 | CONTENT-EMBER | Ember finite remaining authored content/presentation findings | 15 | Definition DONE on 7c0bc2967: no missing implementation identified in the inspected authored-content scope; see boundary below. Full ordinary/repeat/shared/hardware qualification remains open |
@@ -2690,6 +2690,23 @@ Existing in_world_interruption_probe.gd:2402 onward encodes this exact cut;
 ember_active_journey_checkpoint_resume_test.gd supplies its focused MemoryFilesystem
 progress/payment anchor, not real-file cold proof. Existing accepted sources keep
 their recorded scopes; no runtime repair is inferred from naming this contract.
+
+**One exact-package result — FAIL/STOPPED:** driver28f7c2a27 used actual
+archive-extracted Linux source923d7b326 (game/driver code unchanged between those
+commits), native-export/headless/Dummy,300s each process/660s outer/20min whole.
+Existing default selector chooses Bulwark; genuine first relay is unpaid and
+supported on foot. Owned arm1713707 is reaped-9, distinct resume1713976 exits0;
+zero engine diagnostics. Runtime cold yard/controls/new boarding/original route
+adoption/payment and late paid-terminal checks pass. Parent comparison fails:
+orbital_coordinate.offset_meters[0] and surface_tangent_meters[0] change
+180.34764099121094→180.34764099121097, each one binary64 ULP2.842e-14m. No other
+compared Ember-boundary field differs. Do not infer corruption or call the whole
+cut accepted; original exact criterion was not changed. Overall312.812s, no retry,
+repair/cap increase or new build. All9 observed processes absent, five package
+inputs hash-verified and owned scratch removed9.50min within20min. Exact package,
+source/cache identities stable. [Raw scope/result](history/ROADMAP_DELIVERIES.md#ember-first-relay-cold-cut--runtime-completes-parent-comparison-fails).
+A separately selected representation/coordinate-contract review must address this
+actual failure before another run; no automatic successor is selected.
 
 ### Hauler supply integration boundaries
 

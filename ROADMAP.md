@@ -38,27 +38,27 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 ## Execution now
 
-**Selected WORLD-SAVE-EMBER-FIRST-RELAY**, parents14/31,2026-10-20
-06:05UTC→06:25UTC/20min total. The [cold contract](docs/ROADMAP_BACKLOG.md#ember-first-relay-cold-recovery--bounded-contract)
-uses existing safe-yard recovery with original passive survey progress; original
-scope allows safe recovery and requires no extra approval for this cut.
+**WORLD-SAVE Ember first-relay contract defined; package cut STOPPED**, parents14/31.
+The original specification permits resume or safe recovery. This cut uses the
+existing safe-yard/passive-progress behavior; no extra approval is required and
+no blanket cold surface-location promise is waived.
 
-Root owns only roadmap/backlog/history records and the existing package-driver
-invocation; no game/test/driver code change. Use actual archive-extracted Linux
-checkpoint923d7b3 with its unchanged export metadata and byte identities.
-Exact existing command: run_package_probes.sh --in-world-interruption
---native-export --activity=ember, pilot context, Dummy/headless, private data.
-Freeze argument arrays/env/source/artifact hashes in owned results before launch.
-Original300s per arm/resume process,660s outer cap; first failure stops without
-repair/retry/cap increase. Check one real partial-save kill/distinct cold Resume,
-safe supported yard, unchanged passive route, fresh boarding and one payment.
-Expected checks6–11min plus cleanup; whole20min is the overriding limit.
+One archive-extracted923d7b3 attempt fails312.812s at the parent driver's exact
+Ember-state comparison. Actual owned arm kill/reap is-9, distinct resume exits0;
+engine diagnostics0, one crash and receipts0→1. Runtime cold yard/controls,
+boarding, original-generation continuation and paid-terminal checks pass, but
+those are prefixes/internal checks of an overall failed qualification.
+Two coordinate scalars differ by one binary64 ULP (2.84e-14m); no other field in
+the compared boundary differs. No corruption cause or passing result inferred.
+[Exact result and limit](docs/history/ROADMAP_DELIVERIES.md#ember-first-relay-cold-cut--runtime-completes-parent-comparison-fails).
 
-This is a staged archive-package interruption scenario: canonical outbound
-NOT_RUN, standing-pose restore NOT_SUPPORTED; no surface-location/full journey/
-installed/native hardware gate closes. No duplicate playable build is needed.
-Prior parked KIT/Jovian/Ember-window-close routes retain their limits; this cut
-supplies none of their missing proofs. Beacon30/60 choice remains unanswered.
+First failure ended the attempt: no repair/retry/comparison relaxation or cap
+increase. A separately selected review must resolve the exact-coordinate contract
+and demonstrated representation boundary before another run. All9 observed
+identities absent, five input artifacts hash-verified, owned worktree/profile/
+helpers/extracted duplicate removed at9.50min within20min. No new build; latest
+playable remains923d7b3. Other world cuts/full journeys and Beacon30/60 choice
+remain open. No automatic successor selected.
 
 ### Waiting decisions — not executable tasks
 
@@ -155,6 +155,7 @@ contracts and cumulative attempt records remain in the retained history.
 
 | Outcome | Last actual result | Condition before more work |
 | --- | --- | --- |
+| Ember first-relay cold cut /14,31 | [Archive923d7b3](docs/history/ROADMAP_DELIVERIES.md#ember-first-relay-cold-cut--runtime-completes-parent-comparison-fails) FAIL312.812s at parent exact durable-state comparison; arm-9/resume0, engine diagnostics0, runtime continuation and receipts0→1. Only two compared coordinate scalars differ by one binary64 ULP. | STOPPED; no repair/retry/cap increase or retroactive comparison relaxation. Separate bounded contract/representation review before another run. No full-cut/location/canonical/installed acceptance; all owned scratch cleaned9.50min within20min. |
 | Jovian postdock exit /16,20,26 | [Corrective candidate0d225bee8](docs/history/ROADMAP_DELIVERIES.md#docked-pilot-hold--focused-pass-full-exit-stops-at-cabin-walk): pose322/import/compile PASS; full route145.995s FAIL at15s cabin walk after actual standing, retained pilot at exact dock. Unmerged/withheld; exports NOT_RUN. | PARKED after failed runtime plus one corrective attempt: combined392.470s current stages plus retained8054/e147 parser failures. No second repair, retry, tolerance/cap increase or renamed adjacent probe. Walking cause unproved; later node-path errors are inherited failure capture. All owned scratch cleaned17.09min inside original45min. |
 | Habitat common-entry view /9,12 | [Source8a6339b91](docs/history/ROADMAP_DELIVERIES.md#habitat-arrival-view--readback-timed-out-before-image): import passes; full-Main player-height readback times out180.842s before PNG or view metadata. Cumulative201.494s; no observed defect/no-finding. | PARKED. Concrete supported capture-boundary change before selection; no renderer/room substitute, cap increase or unchanged retry. Actual eye stage was not proved reached; accepted Habitat runtime scopes remain. |
 | Courier clear /11 | [Candidatecb9d76fa5](docs/history/ROADMAP_DELIVERIES.md#courier-ordinary-clear--escaped-without-player-damage), pushed/unmerged: prechecks pass; ordinary attempt fails70.377s, ESCAPED at1400m, hull78/78, no player hit/kill or home completion. Cumulative165.917s. | PARKED/withheld. Fresh Courier-window emission/ray/resolver facts are missing; generic shot receipt can be stale. No weapon/aim cause established, repair/retry or public checkpoint selected. Preserve original route/caps; other Courier outcomes need separate selection. |
