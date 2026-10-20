@@ -41,6 +41,44 @@ func _run() -> void:
 	hud.call("_show_settings_page")
 	await process_frame
 	_check(root.get_viewport().gui_get_focus_owner() == payload_selector, "settings re-entry restores last focused control")
+
+	var scroll: ScrollContainer = hud.get("_settings_scroll") as ScrollContainer
+	var first_control: Control = controls[&"ship_mouse_sensitivity"] as Control
+	var graphics_profile: Control = controls[&"graphics_profile"] as Control
+	first_control.grab_focus()
+	scroll.scroll_vertical = 0
+	await process_frame
+	var relative: Transform2D = scroll.get_global_transform().affine_inverse() * graphics_profile.get_global_transform()
+	var graphics_rect: Rect2 = relative * Rect2(Vector2.ZERO, graphics_profile.size)
+	_check(graphics_rect.end.y > scroll.size.y, "obsolete focus target starts outside the visible scroll area")
+	# An old request must not scroll away from the control now being edited.
+	hud.call("_request_settings_scroll", graphics_profile)
+	await process_frame
+	_check(scroll.scroll_vertical == 0, "queued obsolete focus request leaves current row visible")
+	_check(root.get_viewport().gui_get_focus_owner() == first_control, "queued obsolete focus request preserves current focus")
+
+	graphics_profile.grab_focus()
+	await process_frame
+	scroll.scroll_vertical = 0
+	await process_frame
+	# Duplicate focus/capture requests must apply only one correction against
+	# the current child geometry, rather than overshooting the focused row.
+	hud.call("_request_settings_scroll", graphics_profile)
+	hud.call("_request_settings_scroll", graphics_profile)
+	await process_frame
+	relative = scroll.get_global_transform().affine_inverse() * graphics_profile.get_global_transform()
+	graphics_rect = relative * Rect2(Vector2.ZERO, graphics_profile.size)
+	_check(graphics_rect.position.y >= 0.0 and graphics_rect.end.y <= scroll.size.y, "duplicate queued requests fully reveal the current row without overshoot")
+	_check(root.get_viewport().gui_get_focus_owner() == graphics_profile, "duplicate queued requests preserve current focus")
+
+	hud.call("_request_settings_scroll", graphics_profile)
+	hud.call("_show_pause_main")
+	var closed_page_scroll: int = scroll.scroll_vertical
+	var pause_focus: Control = root.get_viewport().gui_get_focus_owner()
+	await process_frame
+	_check(scroll.scroll_vertical == closed_page_scroll, "queued request cannot scroll a closed Settings page")
+	_check(root.get_viewport().gui_get_focus_owner() == pause_focus, "queued request preserves pause-page focus")
+
 	hud.queue_free()
 	await process_frame
 	if _failures.is_empty():

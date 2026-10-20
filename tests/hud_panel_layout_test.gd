@@ -87,6 +87,7 @@ func _run() -> void:
 	_hud.name = "PanelLayoutHUD"
 	root.add_child(_hud)
 	await process_frame
+	await _test_intro_layout()
 	await _seed_worst_case_content()
 
 	await _test_contract_floor()
@@ -105,6 +106,78 @@ func _run() -> void:
 	_hud.queue_free()
 	await process_frame
 	_finish()
+
+
+## Measure the shipping intro before gameplay hides it. Window content sizing
+## matches ultrawide_layout_test so each case has its actual requested viewport.
+func _test_intro_layout() -> void:
+	var previous_size := root.size
+	var previous_content_size := root.content_scale_size
+	var previous_aspect := root.content_scale_aspect
+	var previous_scale := _hud.get_ui_scale()
+	var viewports := [Vector2(1024.0, 768.0)]
+	viewports.append_array(SUPPORTED_VIEWPORTS)
+	viewports.append(Vector2(5120.0, 1440.0))
+	var required_texts := [
+		"INSPIRED BY ZOLARKETH'S CLASSIC SANDBOX",
+		"MUDDS",
+		"SHIPYARDS",
+		"MODERN FAN REMAKE  /  VERTICAL SLICE 02",
+		"Walk the yard. Board the ship. Apply thrust.\nThe launch deck is waiting.",
+		"STANDALONE FAN PROTOTYPE",
+	]
+	var intro := _hud.get("_intro") as Control
+	var begin := _hud.find_child("IntroBeginShiftButton", true, false) as Button
+	for viewport_size: Vector2 in viewports:
+		root.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
+		root.content_scale_size = Vector2i(viewport_size)
+		root.size = Vector2i(viewport_size)
+		await process_frame
+		await process_frame
+		_hud.set_ui_scale(1.0)
+		_hud.show_intro()
+		await process_frame
+		await process_frame
+		var context := "intro %dx%d" % [int(viewport_size.x), int(viewport_size.y)]
+		_check(root.get_visible_rect().size == viewport_size,
+			"%s uses the actual requested viewport" % context)
+		var viewport_rect := Rect2(Vector2.ZERO, viewport_size)
+		var controls: Array[Control] = []
+		for text: String in required_texts:
+			var found: Label
+			for candidate in intro.find_children("*", "Label", true, false):
+				if (candidate as Label).text == text:
+					found = candidate as Label
+					break
+			_check(found != null, "%s retains title copy: %s" % [context, text])
+			if found != null:
+				controls.append(found)
+		for button_name: String in [
+			"IntroBeginShiftButton", "IntroServerBrowserButton", "IntroCreditsButton"
+		]:
+			var button := intro.find_child(button_name, true, false) as Button
+			_check(button != null, "%s retains %s" % [context, button_name])
+			if button != null:
+				_check(not button.disabled and button.focus_mode == Control.FOCUS_ALL,
+					"%s keeps %s enabled and focusable" % [context, button_name])
+				controls.append(button)
+		for index in controls.size():
+			var control := controls[index]
+			var rect := control.get_global_rect()
+			_check(control.is_visible_in_tree() and viewport_rect.encloses(rect),
+				"%s contains %s completely: %s" % [context, control.name, rect])
+			for other_index in range(index + 1, controls.size()):
+				var other := controls[other_index]
+				_check(not rect.intersects(other.get_global_rect()),
+					"%s keeps %s and %s disjoint" % [context, control.name, other.name])
+		_check(begin != null and root.gui_get_focus_owner() == begin,
+			"%s retains enabled Begin Shift focus after layout settles" % context)
+	root.content_scale_aspect = previous_aspect
+	root.content_scale_size = previous_content_size
+	root.size = previous_size
+	_hud.set_ui_scale(previous_scale)
+	await process_frame
+	await process_frame
 
 
 ## Drives every panel to the largest content the game ever gives it, and makes
@@ -620,6 +693,82 @@ func _test_planetary_destination_layout() -> void:
 		and back.get_node_or_null(back.focus_neighbor_top) == ember,
 		"the board opens on the sole routed world and skips unavailable Aurora in controller focus",
 	)
+	# A live catalog refresh retains the label. Its current status role must
+	# replace the original role rather than multiply it through modulation.
+	var status_label: Label = ember.get_parent().find_child(
+		"PlanetaryDestinationStatus", true, false
+	) as Label
+	var original_palette: StringName = _hud.get_hud_palette_id()
+	var original_high_contrast: bool = _hud.is_high_contrast_hud()
+	var state_index: int = 0
+	for state: Array in [
+		[&"ready", "READY — EMBER MOON", GameHUD.NOMINAL, true],
+		[&"cruising", "CRUISING — EMBER MOON", GameHUD.CAUTION, false],
+		[&"unavailable", "UNAVAILABLE — SYSTEM OFFLINE", GameHUD.MUTED, false],
+		[&"ready", "READY — EMBER MOON", GameHUD.NOMINAL, true],
+	]:
+		var status_id: StringName = state[0]
+		var status_text: String = state[1]
+		var status_role: StringName = state[2]
+		var action_enabled: bool = state[3]
+		var refreshed: Dictionary = catalog.get_presentation_snapshot({
+			&"ember_moon": {
+				"status_id": status_id,
+				"status_text": status_text,
+				"action_enabled": action_enabled,
+				"engagement_requested": false,
+			},
+		})
+		_check(_hud.set_planetary_destination_snapshot(refreshed),
+			"the retained board accepts the %s status refresh" % status_id)
+		var retained_status: Label = ember.get_parent().find_child(
+			"PlanetaryDestinationStatus", true, false
+		) as Label
+		var expected_focus: Button = ember if state_index == 0 else back
+		_check(
+			retained_status == status_label
+			and status_label.text == "STATUS  //  %s" % status_text
+			and ember.disabled == (not action_enabled)
+			and ember.focus_mode == (Control.FOCUS_ALL if action_enabled else Control.FOCUS_NONE)
+			and ember.text == ("LAUNCH EXPEDITION" if action_enabled else "ROUTE UNAVAILABLE")
+			and aurora.disabled
+			and root.gui_get_focus_owner() == expected_focus
+			and back.get_node_or_null(back.focus_neighbor_top) == (ember if action_enabled else back),
+			"%s refresh retains status identity, copy, action gates and usable focus" % status_id,
+		)
+		var refreshed_color: Color = GameHUD.PaletteType.get_role_color(
+			_hud.get_hud_palette_id(), status_role, _hud.is_high_contrast_hud()
+		)
+		_check(
+			status_label.modulate == Color.WHITE
+			and status_label.get_theme_color("font_color") == refreshed_color,
+			"%s refresh applies its current status role immediately" % status_id,
+		)
+		for palette_id: StringName in GameHUD.PaletteType.get_mode_ids():
+			_hud.set_hud_palette(palette_id)
+			for high_contrast: bool in [false, true]:
+				_hud.set_high_contrast_hud(high_contrast)
+				var expected_color: Color = GameHUD.PaletteType.get_role_color(
+					palette_id, status_role, high_contrast
+				)
+				_check(
+					status_label.modulate == Color.WHITE
+					and status_label.get_theme_color("font_color") == expected_color,
+					"%s status uses its current role once in %s with high contrast %s"
+						% [status_id, palette_id, high_contrast],
+				)
+		var font_entries: int = 0
+		var palette_targets: Array = _hud.get("_palette_targets") as Array
+		for entry: Dictionary in palette_targets:
+			if entry.get("kind") == &"theme_color" \
+					and entry.get("node") == status_label \
+					and entry.get("property") == &"font_color":
+				font_entries += 1
+		_check(font_entries == 1,
+			"%s refresh keeps one status font-colour registration" % status_id)
+		state_index += 1
+	_hud.set_hud_palette(original_palette)
+	_hud.set_high_contrast_hud(original_high_contrast)
 	var dirty: Array[String] = []
 	var cases := 0
 	for viewport: Vector2 in [

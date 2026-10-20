@@ -11,6 +11,8 @@ extends Node3D
 ## production-places this same scene and the real destination terminal at those
 ## slots; standalone instantiation remains supported for focused validation.
 
+const SupplyBerth := preload("res://scripts/world/cinder_cargo_supply_berth.gd")
+
 const SCHEMA_VERSION := 1
 const COMPONENT_ID: StringName = &"cinder-cargo-access"
 const CONTENT_STATUS: StringName = &"NEW"
@@ -42,6 +44,12 @@ const BERTH_DOCK_LOCAL := Transform3D(
 	Basis(Vector3.UP, PI),
 	Vector3(-29.0, 4.15, 0.0)
 )
+## The Hauler floor collider reaches 1.35 m below its root. Its smaller hull
+## shares the same deck and yaw, with a separate exact physical contact pose.
+const HAULER_DOCK_LOCAL := Transform3D(
+	Basis(Vector3.UP, PI),
+	Vector3(-29.0, 4.25, 0.0)
+)
 ## Frozen copy of the live Jovian `ExitPoint`, in craft-local space. b5c5916af
 ## ("Build Jovian pilot doorway and supported boarding route") rebuilt the
 ## freighter's port side and moved this marker outboard to the foot of the new
@@ -72,7 +80,7 @@ const ASSIST_MAXIMUM_TILT_DEGREES := 75.0
 ## volume. The target stays level with the docked ship root on the authored
 ## departure side of the berth.
 const SUPPLY_CLEAR_GATE_MARGIN := 12.0
-const COMPATIBILITY_TAGS: Array[StringName] = [&"light_freighter"]
+const COMPATIBILITY_TAGS: Array[StringName] = [&"light_freighter", &"cargo_hauler"]
 
 const LANDING_DECK_TOP := 2.9
 const CATWALK_TOP := 3.8
@@ -139,6 +147,7 @@ const CARGO_ACTIVITY_STATE_ACTIVE := 1
 ## back to the Jovian's berth exit. Keep the place names in the header so the
 ## direction is useful before the terminal itself fills the player's view.
 const ROUTE_IDENTITY_HEADER := "< CINDER CARGO TERMINAL | JOVIAN BERTH >"
+const HAULER_ROUTE_IDENTITY_HEADER := "< CINDER CARGO TERMINAL | HAULER BERTH >"
 const ROUTE_IDENTITY_COPY_COUNT := 3
 const ROUTE_IDENTITY_LABEL_LOCAL := Vector3(-14.15, 5.96, 18.99)
 
@@ -230,6 +239,9 @@ var _terminal_actor: WeakRef
 var _terminal_actor_ship: WeakRef
 var _terminal_actor_lease: StringName = &""
 var _terminal_actor_attachment_generation := 0
+var _hauler_exit: WeakRef
+var _hauler_exit_owner: WeakRef
+var _hauler_exit_original := Transform3D.IDENTITY
 var _cargo_presentation_state: Dictionary = {}
 var _cue_presentation_energy := 1.5
 var _hazard_presentation_energy := 1.5
@@ -237,6 +249,8 @@ var _hazard_presentation_energy := 1.5
 
 func _enter_tree() -> void:
 	_attachment_generation += 1
+	if _built:
+		call_deferred("_restore_attached_hauler_handoff")
 
 
 func _ready() -> void:
@@ -252,6 +266,71 @@ func _ready() -> void:
 	_build_structure()
 	_build_route_markers_and_cues()
 	_tag_authored_tree(self)
+
+
+func _exit_tree() -> void:
+	_restore_hauler_exit()
+
+
+func _restore_attached_hauler_handoff() -> void:
+	if is_inside_tree() and not is_queued_for_deletion() and is_instance_valid(_berth):
+		_on_supply_berth_occupancy_changed(_berth.get_occupant())
+
+
+func _is_supply_hauler(ship: Node) -> bool:
+	return ship is HeroShip and not ship.is_queued_for_deletion() \
+		and (ship as HeroShip).get_ship_id() == SupplyBerth.HAULER_ID
+
+
+func _on_supply_berth_occupancy_changed(ship: Node) -> void:
+	_restore_hauler_exit()
+	if _is_supply_hauler(ship):
+		var exit_marker := ship.get_node_or_null(^"ExitPoint") as Marker3D
+		if exit_marker != null:
+			_hauler_exit = weakref(exit_marker)
+			_hauler_exit_owner = weakref(ship)
+			_hauler_exit_original = exit_marker.transform
+			# Production binds the marker to its home deck. Cinder's contact pose
+			# uses this hull's actual keel; keep the same marker, x/z and basis,
+			# and place only its feet on our existing landing deck.
+			var local_dock := global_transform.affine_inverse() * _berth.get_dock_transform()
+			exit_marker.position.y = LANDING_DECK_TOP - local_dock.origin.y
+			exit_marker.tree_exiting.connect(_restore_hauler_exit)
+			ship.tree_exiting.connect(_restore_hauler_exit)
+	_refresh_route_identity_header()
+
+
+func _restore_hauler_exit() -> void:
+	var marker := _hauler_exit.get_ref() as Marker3D if _hauler_exit != null else null
+	var ship := _hauler_exit_owner.get_ref() as Node if _hauler_exit_owner != null else null
+	_hauler_exit = null
+	_hauler_exit_owner = null
+	if is_instance_valid(marker):
+		marker.transform = _hauler_exit_original
+		if marker.tree_exiting.is_connected(_restore_hauler_exit):
+			marker.tree_exiting.disconnect(_restore_hauler_exit)
+	if is_instance_valid(ship) and ship.tree_exiting.is_connected(_restore_hauler_exit):
+		ship.tree_exiting.disconnect(_restore_hauler_exit)
+	_refresh_route_identity_header()
+
+
+func _get_route_identity_header() -> String:
+	if _hauler_exit != null and is_instance_valid(_berth) \
+		and _is_supply_hauler(_berth.get_occupant()):
+		return HAULER_ROUTE_IDENTITY_HEADER
+	return ROUTE_IDENTITY_HEADER
+
+
+func _refresh_route_identity_header() -> void:
+	var label := get_node_or_null(^"VisualRouteCues/CargoAccessLabel") as Label3D
+	if label == null:
+		return
+	var status_start := label.text.find("\n")
+	if status_start < 0:
+		return
+	label.text = _get_route_identity_header() + label.text.substr(status_start)
+	if not _cargo_presentation_state.is_empty():
+		_cargo_presentation_state["label_text"] = label.text
 
 
 func get_berth() -> ShipBerth:
@@ -354,6 +433,9 @@ func authorize_disembarked_terminal_actor(
 	):
 		return {"accepted": false, "reason": &"stale_berth_lease"}
 	var exit_marker := get_route_marker(&"berth_exit")
+	if _is_supply_hauler(ship):
+		var exit_owner: Node = _hauler_exit_owner.get_ref() if _hauler_exit_owner != null else null
+		exit_marker = _hauler_exit.get_ref() as Marker3D if _hauler_exit != null and exit_owner == ship else null
 	if not is_instance_valid(exit_marker) \
 		or actor.global_position.distance_to(exit_marker.global_position) > 2.5:
 		return {"accepted": false, "reason": &"actor_not_disembarked_at_berth"}
@@ -508,7 +590,7 @@ func apply_cargo_presentation_snapshot(snapshot: Dictionary) -> Dictionary:
 	var label := get_node_or_null(^"VisualRouteCues/CargoAccessLabel") as Label3D
 	if label == null:
 		return {"accepted": false, "reason": &"cargo_route_presentation_missing"}
-	var label_text := "%s\n%s" % [ROUTE_IDENTITY_HEADER, status_text]
+	var label_text := "%s\n%s" % [_get_route_identity_header(), status_text]
 	label.text = label_text
 	label.modulate = label_color
 	_apply_route_cue_geometry(geometry_scale, geometry_turn_degrees)
@@ -1303,7 +1385,10 @@ func _get_contract_errors(actual_budget: Dictionary) -> PackedStringArray:
 
 
 func _build_berth() -> void:
-	_berth = ShipBerth.new()
+	var supply_berth := SupplyBerth.new()
+	supply_berth.hauler_dock_transform = HAULER_DOCK_LOCAL
+	_berth = supply_berth
+	_berth.occupancy_changed.connect(_on_supply_berth_occupancy_changed)
 	_berth.name = "JovianCargoBerth"
 	_berth.berth_id = BERTH_ID
 	_berth.compatibility_tags = PackedStringArray(COMPATIBILITY_TAGS)
@@ -1625,7 +1710,7 @@ func get_route_identity_visual_audit() -> Dictionary:
 	if not bool(get_route_cue_visual_allocation_audit().valid):
 		errors.append("cargo_route_identity_host_batch_drift")
 	if label == null or label.position != ROUTE_IDENTITY_LABEL_LOCAL \
-			or not label.text.begins_with(ROUTE_IDENTITY_HEADER + "\n"):
+			or not label.text.begins_with(_get_route_identity_header() + "\n"):
 		errors.append("cargo_route_identity_label_drift")
 	var rail := get_node_or_null(^"Rails/CrossRailNorth") as StaticBody3D
 	var rail_collision := (

@@ -85,6 +85,7 @@ func _run() -> void:
 	await _test_queued_target_aborts_an_active_scenario()
 	await _test_paired_wing_cleared_when_broken()
 	await _test_paired_wing_suppression_opens_crossfire()
+	await _test_board_wing_rejects_retired_or_missing_members()
 	await _test_station_defense_guard_opens_intercept_crossfire()
 	await _test_convoy_interdiction_generation_and_screen_guard()
 	await _test_heavy_standoff_advances_on_range_or_health()
@@ -92,6 +93,7 @@ func _run() -> void:
 	await _test_wing_regroup_recovers_before_critical_breakaway()
 	await _test_time_backstop_with_an_unreachable_objective()
 	await _test_fire_authorization_is_withdrawn_on_the_concluding_frame()
+	await _test_perimeter_requires_real_integrity()
 	await _test_production_bounds_and_audit()
 	_check(
 		root.get_child_count() == original_children,
@@ -1108,6 +1110,27 @@ func _test_wing_regroup_recovers_before_critical_breakaway() -> void:
 	await _free_fixture(fixture)
 
 
+func _test_board_wing_rejects_retired_or_missing_members() -> void:
+	for remove_member in [false, true]:
+		var fixture := await _make_fixture()
+		var director: EncounterScenarioDirector = fixture.director
+		_check(director.begin_board_paired_wing(fixture.target)
+			and director.get_roster().size() == 2,
+			"board Wing retains the existing pair for its two-kill objective")
+		var member := director.get_roster()[0]
+		if remove_member:
+			(fixture.host as Node3D).remove_child(member)
+		else:
+			member.call(&"deactivate")
+		await _advance_until(func() -> bool: return director.is_concluded(), 60)
+		_check(director.get_outcome() == EncounterScenarioDirector.OUTCOME_ABORTED
+			and director.get_roster().is_empty(),
+			"healthy retirement or missing actor aborts board Wing instead of inventing a kill")
+		if remove_member:
+			member.queue_free()
+		await _free_fixture(fixture)
+
+
 func _test_time_backstop_with_an_unreachable_objective() -> void:
 	var fixture := await _make_fixture()
 	var director: EncounterScenarioDirector = fixture.director
@@ -1267,6 +1290,18 @@ func _test_production_bounds_and_audit() -> void:
 
 
 # ------------------------------------------------------------- helpers ----
+
+func _test_perimeter_requires_real_integrity() -> void:
+	var fixture := await _make_fixture()
+	var marker := Node3D.new()
+	fixture.host.add_child(marker)
+	_check(not fixture.director.begin_perimeter_hold(fixture.target, marker),
+		"a collisionless marker cannot launch Perimeter Hold as a healthy protected asset")
+	_check(EncounterScenarioDirector.BOARD_SCENARIO_IDS.has(&"perimeter_hold")
+		and EncounterScenarioDirector.TERMINAL_OUTCOMES.has(&"lost"),
+		"Hold keeps board sortie authorization and a distinct terminal loss contract")
+	await _free_fixture(fixture)
+
 
 func _assert_fully_terminated(fixture: Dictionary, branch: String) -> void:
 	var director: EncounterScenarioDirector = fixture.director

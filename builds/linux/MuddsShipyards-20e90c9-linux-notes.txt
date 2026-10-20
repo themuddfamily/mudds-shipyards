@@ -1,0 +1,37 @@
+Mudds Shipyards development checkpoint — inline browser session recovery
+Source: 20e90c98439d4cb9721de07f98813d0339f10eeb
+
+Player-visible change:
+The server browser now shows current connection progress and timeout guidance
+inside the browser, including before Begin Shift. After a retryable timeout,
+Retry Connection is available in the browser's existing session-action button.
+A fresh attempt restores Cancel; existing Cancel/Disconnect keep priority.
+Rejected status receipts preserve newer endpoint-validation messages, and retry
+continues through GameFlow using its retained endpoint and current permission.
+
+Scope limits:
+Focused HUD/intent/focus contracts only. Full ordinary Main/browser OS-input
+unreachable-host/admission/retry and rendered readability remain NOT_RUN, with
+capacity/endurance/final integrated gates OPEN. Native Windows execution, native
+GPU, physical devices, audible listening and human review: NOT_RUN.
+Threading is still gated on the separate Activity Board focus failure. Beacon
+home, Perimeter Hold and the failed Aft console capture remain parked. This
+checkpoint closes no broad roadmap parent or whole activity journey.
+
+Actual validation:
+Five focused suites: manual HUD36, browser HUD40, focus57, presenter39,
+manual GameFlow10:182 assertions PASS. Both clean exports PASS. Linux binary,
+Linux archive and Windows payload using Linux engine each exit0 with exactly
+one STARTUP_MENU_READY_OK. Actual1521 PCK entries match; stock Windows PE text
+and exact Linux archive bytes/modes/source epoch pass. Windows payload probing
+does not qualify native Windows execution.
+
+Cumulative attempt history:
+Original production reproduced the exact stale browser timeout message failure.
+Pre-engine review caught legacy/malformed receipt arbitration; corrected before
+candidate engine checks. First candidate then failed the existing Cancel-priority
+assertion. After explicit cumulative priority review, one helper-only correction
+restored Cancel/Disconnect priority and retained Retry fallback; tests unchanged.
+Final12 stages all PASS; original failure remains in retained raw results.
+Cumulative17 stages:16 accepted/1 unexpected failure,193.759s;
+all 78 observed process identities absent.

@@ -9,6 +9,7 @@ extends Node
 const SLOT: StringName = &"cinder_convoy_session"
 const ON_FOOT_CRAFT_ID: StringName = &"bulwark_heavy_gunship"
 const ON_FOOT_BERTH_ID: StringName = &"bulwark_fleet_dock_berth"
+const DOCKING_INITIALIZATION := "existing_convoy_motion_fixture_then_home_approach_3m_above_registered_berth_real_landing_request_two_assist_physics_ticks"
 const ON_FOOT_INITIALIZATION := "existing_convoy_motion_fixture_then_home_approach_3m_above_registered_berth_real_landing_and_exterior_exit"
 
 var stage := ""
@@ -17,6 +18,8 @@ var activity := "convoy"
 var _assertions := 0
 var _failures := PackedStringArray()
 var _started := false
+var _breach_payment_board: HeavyBreachActivityBoard
+var _breach_payment_observer: Callable
 
 
 func on_startup_completed(main: Node) -> void:
@@ -69,6 +72,12 @@ func run_with_main(game: GameFlow, entry: String) -> void:
 		return
 	if recovery_context == "on_foot" and activity != "convoy":
 		_fail("settled exterior interruption supports only the existing convoy boundary")
+		return
+	if recovery_context == "docking":
+		if activity != "convoy":
+			_fail("docking interruption supports only the existing convoy boundary")
+			return
+		await _run_docking(game, store, entry)
 		return
 	if recovery_context == "engineer":
 		await _run_engineer(game, store, entry)
@@ -289,6 +298,229 @@ func run_with_main(game: GameFlow, entry: String) -> void:
 		and game.get_tree() == get_tree(), "continuation retains the supplied Main and its authority")
 	if _failures.is_empty():
 		print("IN_WORLD_RECOVERY_OK: " + JSON.stringify(outcome))
+		get_tree().quit(0)
+	else:
+		print("IN_WORLD_RECOVERY_FAILED")
+		get_tree().quit(1)
+
+
+## This cut uses the existing escort fixture, then the actual landing request.
+## Landing deliberately fails its running convoy; Resume preserves that terminal
+## until an explicit public reset starts a distinct escort. No old assist resumes.
+func _docking_context_matches(context: Dictionary, craft: HeroShip) -> bool:
+	return context == {"location": "mudds_home_berth", "mode": "pilot",
+		"craft_id": String(ON_FOOT_CRAFT_ID), "berth_id": String(ON_FOOT_BERTH_ID)} \
+		and craft.get_ship_id() == ON_FOOT_CRAFT_ID and craft.get_home_berth_id() == ON_FOOT_BERTH_ID
+
+
+func _docking_observation(game: GameFlow, craft: HeroShip) -> Dictionary:
+	var berth := game.world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
+	var area := craft.get_node("ShipBoardingArea") as ShipBoardingArea
+	var observed := _interruption_runtime_observation(game)
+	observed["landing"] = craft.get_landing_contract_report()
+	observed["landing_request_active"] = bool(game.get("_landing_request_active"))
+	observed["active_landing_berth_id"] = String(game.get("_active_landing_berth_id"))
+	observed["landed"] = bool(craft.get_telemetry().get("landed", false))
+	observed["home_berth_id"] = String(berth.get_berth_id())
+	observed["home_berth_instance_id"] = berth.get_instance_id()
+	observed["berth_reservation_token"] = String(berth.get_reservation_token(craft))
+	observed["berth_lease_current"] = berth.has_valid_lease(craft, berth.get_reservation_token(craft), craft.get_ship_id())
+	observed["berth_reserved_by_craft"] = berth.get_reservation_owner() == craft
+	observed["berth_occupied_by_craft"] = berth.get_occupant() == craft
+	observed["berth_unoccupied"] = berth.get_occupant() == null
+	observed["hatch_reserved_by_player"] = area.get_reservation_token() == game.player
+	observed["player_at_pilot_seat"] = game.player.is_seated_at(craft.get_pilot_seat_anchor())
+	observed["craft_at_home"] = craft.global_position.distance_to(berth.get_dock_transform().origin) < 0.1
+	observed["distance_to_dock_m"] = craft.global_position.distance_to(berth.get_dock_transform().origin)
+	observed["owed_rewards"] = (game.get("_owed_game_flow_activity_rewards") as Array).duplicate(true)
+	return observed
+
+
+func _docking_boundary_matches(game: GameFlow, store: UserDataStore, convoy: Dictionary, rewards: Dictionary) -> bool:
+	var boundary := convoy.activities[0].progress.convoy_session_state as Dictionary
+	return store.get_snapshot().get(String(SLOT), {}) == convoy \
+		and store.get_snapshot().get("game_flow_reward_store", {}) == rewards \
+		and game.get_active_activity_snapshot().state_id == &"failed" \
+		and _canonical(game.cinder_convoy_host.capture_persistence_state()) == boundary.host_state \
+		and _restored_threat_boundary_matches(game, boundary) \
+		and (game.get("_owed_game_flow_activity_rewards") as Array).is_empty()
+
+
+func _run_docking(game: GameFlow, store: UserDataStore, entry: String) -> void:
+	var main_id := game.get_instance_id()
+	game.set_physics_process(false)
+	var craft := game.get_node("BulwarkHeavyGunship") as HeroShip
+	game.canopy_motion_time = 0.01
+	game.boarding_motion_time = 0.02
+	if stage == "arm":
+		game.call("_on_settings_save_requested")
+		game.start_shift()
+		game.call("_board_ship", craft)
+		_check(await _wait_for_real_pilot(game, craft), "docking arm acquires the actual Bulwark pilot before disclosed escort placement")
+		_check(_docking_context_matches(store.get_snapshot().get(GameFlow.SOLO_SAFE_RECOVERY_SLOT, {}), craft),
+			"docking arm saves only the actual four-field Bulwark pilot/home preference")
+		if not _failures.is_empty():
+			get_tree().quit(1)
+			return
+		var selected := game.select_activity_kind(GameFlow.ACTIVITY_KIND_CONVOY_ESCORT)
+		await _position_escort_fixture(game, craft)
+		var first := game.request_activity_start(GameFlow.CINDER_CONVOY_ACTIVITY_ID)
+		var first_arrival := await finish_convoy(game, craft)
+		var reset := game.reset_active_activity()
+		craft.global_position = GameFlow.CINDER_CONVOY_ACTIVATION_CENTER
+		var second := game.request_activity_start(GameFlow.CINDER_CONVOY_ACTIVITY_ID)
+		for _tick in 4:
+			craft.global_position = (game.cinder_convoy_host.get_snapshot().entity_position as Vector3) + GameFlow.CINDER_CONVOY_ESCORT_LANE_OFFSET
+			game.call("_physics_process", 0.25)
+		_check(selected.accepted and first.accepted and first_arrival and reset and second.accepted
+			and _convoy_receipts(game) == 1 and game.get_active_activity_snapshot().state_id == &"active",
+			"the existing escort fixture starts a moving second convoy after exactly one real paid arrival")
+		if not _failures.is_empty():
+			get_tree().quit(1)
+			return
+		# Ordinary thrust clears the hull's docked latch. Main remains stopped as
+		# in the escort fixture; only the craft's actual physics advances here.
+		Input.action_press(&"hover")
+		Input.action_press(&"move_forward")
+		await _settle_frames(6)
+		Input.action_release(&"move_forward")
+		Input.action_release(&"hover")
+		_check(not bool(craft.get_telemetry().get("landed", true)), "ordinary thrust clears the real Bulwark docking latch")
+		var berth := game.world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
+		var old_token := berth.get_reservation_token(craft)
+		craft.global_transform = berth.get_dock_transform().translated_local(Vector3(0.0, 3.0, 0.0))
+		craft.velocity = Vector3.ZERO
+		var signals := {"completed": 0, "aborted": 0}
+		craft.landing_completed.connect(func(): signals.completed += 1)
+		craft.landing_aborted.connect(func(_reason: StringName): signals.aborted += 1)
+		game.call("_try_request_landing")
+		var accepted := craft.get_landing_contract_report()
+		var requested_token := berth.get_reservation_token(craft)
+		var requested_position := craft.global_position
+		_check(craft.is_landing_active() and bool(game.get("_landing_request_active"))
+			and accepted.contract_accepted and accepted.reservation_token_bound
+			and accepted.berth_instance_id == berth.get_instance_id()
+			and accepted.berth_id == craft.get_home_berth_id()
+			and not requested_token.is_empty() and requested_token != old_token
+			and berth.get_reservation_owner() == craft and berth.get_occupant() == null,
+			"the normal landing request acquires a new actual target berth lease and active assist")
+		if not _failures.is_empty():
+			get_tree().quit(1)
+			return
+		await _settle_frames(2)
+		var observed := _docking_observation(game, craft)
+		observed["completed_signals"] = signals.completed
+		observed["aborted_signals"] = signals.aborted
+		observed["advanced_distance_m"] = craft.global_position.distance_to(requested_position)
+		observed["requested_elapsed"] = accepted.elapsed
+		_check(observed.landing.active and observed.landing.elapsed > accepted.elapsed
+			and observed.advanced_distance_m > 0.0 and not observed.landed
+			and observed.berth_lease_current and observed.berth_reserved_by_craft and observed.berth_unoccupied
+			and observed.landing.reservation_token_bound and observed.landing.berth_instance_id == berth.get_instance_id()
+			and observed.landing.reserved_ship_id == craft.get_ship_id()
+			and berth.get_reservation_token(craft) == requested_token
+			and observed.landing_request_active and observed.active_landing_berth_id == String(berth.get_berth_id())
+			and observed.hatch_reserved_by_player and observed.player_at_pilot_seat
+			and signals.completed == 0 and signals.aborted == 0,
+			"two actual assist physics ticks move the real hull while its exact live lease remains uncompleted and unaborted")
+		game.call("_capture_solo_safe_recovery_context")
+		var saved := game.save_cinder_convoy_session()
+		var convoy: Dictionary = store.get_snapshot().get(String(SLOT), {})
+		var boundary := _stored_session_state(store)
+		var context: Dictionary = store.get_snapshot().get(GameFlow.SOLO_SAFE_RECOVERY_SLOT, {})
+		var rewards: Dictionary = store.get_snapshot().get("game_flow_reward_store", {})
+		_check(saved.accepted and game.get_active_activity_snapshot().state_id == &"failed"
+			and game.get("_convoy_terminal_reason") == &"landing_requested"
+			and float(boundary.host_state.movement_distance) > 0.0
+			and _canonical(game.cinder_convoy_host.capture_persistence_state()) == boundary.host_state
+			and _canonical(game.cinder_convoy_threat.capture_persistence_state()) == boundary.threat_state
+			and _docking_context_matches(context, craft) and observed.owed_rewards.is_empty()
+			and _convoy_receipts(game) == 1,
+			"actual accepted landing leaves the failed second convoy durable, debt-free and unpaid with only the four-field pilot preference")
+		if not _failures.is_empty():
+			get_tree().quit(1)
+			return
+		get_tree().paused = true
+		print("IN_WORLD_INTERRUPTION_READY: " + JSON.stringify({"boundary": boundary, "convoy_record": convoy,
+			"reward_store": rewards, "receipts": 1, "safe_context": context, "docking_observation": observed,
+			"runtime_observation": _interruption_runtime_observation(game), "initialization": DOCKING_INITIALIZATION,
+			"activity": activity, "recovery_context": recovery_context, "entry": entry,
+			"loaded_main_instance_id": main_id, "approach_pose_restore": "NOT_SUPPORTED"}))
+		return
+	var convoy: Dictionary = store.get_snapshot().get(String(SLOT), {})
+	var rewards: Dictionary = store.get_snapshot().get("game_flow_reward_store", {})
+	var context: Dictionary = store.get_snapshot().get(GameFlow.SOLO_SAFE_RECOVERY_SLOT, {})
+	var boundary := _stored_session_state(store)
+	var recovery := game.get_recovery_available_snapshot()
+	var crash_events := 0
+	for event: Dictionary in game.get_session_recovery_diagnostic_snapshot().get("events", []):
+		if event.get("event_code") == "crash_detected":
+			crash_events += 1
+	var before_receipts := _convoy_receipts(game)
+	_check(game.get_cinder_convoy_session_persistence_report().restore_status.get("accepted", false)
+		and _docking_boundary_matches(game, store, convoy, rewards) and _docking_context_matches(context, craft)
+		and boundary.escort_ship_id == craft.get_ship_id() and before_receipts == 1
+		and crash_events == 1 and not recovery.is_empty() and recovery.get("state") == "running"
+		and not craft.is_landing_active() and not bool(game.get("_landing_request_active")),
+		"fresh Boot preserves the actual failed convoy and retained threat/debt/reward boundary without restoring old assist authority")
+	if not _failures.is_empty():
+		get_tree().quit(1)
+		return
+	var resumed: Dictionary = game.call("_handle_hud_session_recovery_choice", &"normal_start",
+		int(recovery.session_id), int(recovery.startup_generation))
+	game.start_shift()
+	var settled := await _wait_for_real_pilot(game, craft)
+	var safe := _docking_observation(game, craft)
+	_check(resumed.get("accepted", false) and settled and safe.craft_at_home
+		and safe.berth_occupied_by_craft and safe.berth_reserved_by_craft and safe.berth_lease_current
+		and safe.hatch_reserved_by_player and safe.player_at_pilot_seat and not safe.player_sleeping
+		and not safe.cabin_containment and not safe.landing.active and not safe.landing_request_active
+		and safe.active_landing_berth_id.is_empty() and _docking_boundary_matches(game, store, convoy, rewards),
+		"ordinary cold Resume acquires fresh supported home pilot, seat, berth and hatch while preserving the exact failed boundary")
+	if not _failures.is_empty():
+		get_tree().quit(1)
+		return
+	Input.action_press(&"move_forward")
+	await _settle_frames(2)
+	Input.action_release(&"move_forward")
+	var control := {"engine_online": str(craft.get_telemetry().get("engine_state", "")).to_upper() == "ONLINE",
+		"throttle": craft.get_last_ship_command().throttle, "landing_active": craft.is_landing_active()}
+	_check(control.engine_online and control.throttle > 0.0 and not control.landing_active
+		and _docking_boundary_matches(game, store, convoy, rewards),
+		"normal throttle works before fixture placement and preserves exact failed convoy, retained threat, debt and receipt")
+	if not _failures.is_empty():
+		get_tree().quit(1)
+		return
+	await _position_escort_fixture(game, craft)
+	var reset := game.reset_active_activity()
+	_check(reset and game.get_active_activity_snapshot().state_id == &"idle" and _convoy_receipts(game) == before_receipts,
+		"an explicit existing public reset retires the preserved failed convoy without paying it")
+	var next := game.request_activity_start(GameFlow.CINDER_CONVOY_ACTIVITY_ID)
+	var continuation_generation := int(game.get_active_activity_snapshot().generation)
+	_check(next.accepted and continuation_generation > int(convoy.activities[0].generation),
+		"the existing owner starts a distinct convoy generation after the explicit reset")
+	if not _failures.is_empty():
+		get_tree().quit(1)
+		return
+	var arrived := await finish_convoy(game, craft)
+	game.call("_retry_owed_game_flow_activity_rewards")
+	game.call("_retry_owed_game_flow_activity_rewards")
+	_check(arrived and _convoy_receipts(game) == before_receipts + 1
+		and game.get_active_activity_snapshot().state_id == &"completed"
+		and store.get_snapshot()[String(SLOT)].activities[0].reward_granted,
+		"the distinct escort fixture commits exactly one second receipt despite repeated production reward retry")
+	var closed := game.mark_orderly_shutdown()
+	_check(closed.get("accepted", false) and game.get_instance_id() == main_id and game.get_tree() == get_tree(),
+		"the recovered Boot Main retains its owners and orderly closes both markers")
+	if _failures.is_empty():
+		print("IN_WORLD_RECOVERY_OK: " + JSON.stringify({"boundary": boundary, "convoy_record": convoy,
+			"reward_store": rewards, "receipts_before": before_receipts, "receipts_after": _convoy_receipts(game),
+			"crash_events": crash_events, "safe_context": context, "safe_recovery_observation": safe,
+			"control_observation": control, "continuation_generation": continuation_generation, "runtime_observation": _interruption_runtime_observation(game),
+			"initialization": DOCKING_INITIALIZATION, "approach_pose_restore": "NOT_SUPPORTED",
+			"continuation_method": "ordinary_cold_home_pilot_resume_throttle_explicit_reset_then_distinct_convoy_motion_fixture",
+			"assertions": _assertions, "activity": activity, "recovery_context": recovery_context,
+			"entry": entry, "loaded_main_instance_id": main_id}))
 		get_tree().quit(0)
 	else:
 		print("IN_WORLD_RECOVERY_FAILED")
@@ -892,6 +1124,31 @@ func _run_mining(game: GameFlow, store: UserDataStore, entry: String) -> void:
 const BREACH_FIXTURE := "staged_on_foot_board_and_Arrow_entry_shortened_boarding_real_departure_then_direct_damage_on_real_charged_picket"
 
 
+func _disconnect_breach_payment_observer() -> void:
+	if is_instance_valid(_breach_payment_board) and _breach_payment_observer.is_valid() \
+			and _breach_payment_board.interaction_resolved.is_connected(_breach_payment_observer):
+		_breach_payment_board.interaction_resolved.disconnect(_breach_payment_observer)
+	_breach_payment_board = null
+	_breach_payment_observer = Callable()
+
+
+func _exit_tree() -> void:
+	_disconnect_breach_payment_observer()
+
+
+## Read the primary synchronously at the board's completed physical admission.
+## GameFlow can save the next sortie's tutorial after arm_sortie returns.
+func _capture_breach_payment(actor: Node, result: Dictionary, expected_actor: Node,
+		expected_generation: int, store: UserDataStore, capture: Dictionary) -> void:
+	if not capture.is_empty() or actor != expected_actor or not bool(result.get("accepted", false)) \
+			or result.get("reason") != &"sortie_armed" \
+			or int(result.get("generation", -1)) != expected_generation:
+		return
+	capture.document_json = FileAccess.get_file_as_string(str(store.get("_path")))
+	capture.commit = store.get_commit_metadata()
+	capture.store_generation = store.get_generation()
+
+
 func _breach_receipts(game: GameFlow) -> int:
 	var record: Dictionary = game.get_activity_reward_report().authority.record
 	return int(record.reward_counts.get(String(HeavyBreachActivityBoard.REWARD_ID), 0))
@@ -1032,6 +1289,7 @@ func _run_breach(game: GameFlow, store: UserDataStore, entry: String) -> void:
 		"fresh Boot restores terminal debt or paid acknowledgement without recreating old combat or pilot claims")
 	var safe_observation := {}
 	var payment_commit := {}
+	var payment_capture := {}
 	if paid_replay:
 		_check(recovery.is_empty() and crash_events == 0,
 			"the further cold process observes clean prior shutdown without inventing another crash")
@@ -1061,8 +1319,12 @@ func _run_breach(game: GameFlow, store: UserDataStore, entry: String) -> void:
 				"production pilot exit releases real ownership before the staged on-foot board retry")
 			_check(await _breach_board_fixture(game, board), "the recovered on-foot Player discovers the physical unpaid board")
 			if _failures.is_empty():
+				_breach_payment_board = board
+				_breach_payment_observer = _capture_breach_payment.bind(game.player, board.get_generation(), store, payment_capture)
+				board.interaction_resolved.connect(_breach_payment_observer)
 				await _breach_press_interaction()
-				payment_commit = store.get_commit_metadata()
+				_disconnect_breach_payment_observer()
+				payment_commit = payment_capture.get("commit", {})
 	var paid: Dictionary = store.get_snapshot().heavy_breach_session
 	var reward_after: Dictionary = game.get_activity_reward_report().authority.record
 	var expected := boundary.duplicate(true)
@@ -1079,8 +1341,16 @@ func _run_breach(game: GameFlow, store: UserDataStore, entry: String) -> void:
 		_check(reward_before == reward_after and boundary == paid,
 			"the further distinct cold process retains the complete paid ledger and terminal without a second receipt")
 	else:
-		_check(str(payment_commit.get("id", "")).begins_with("game-flow-reward-"),
-			"payment and terminal acknowledgement use the one existing atomic reward transaction")
+		var payment_document: Variant = JSON.parse_string(str(payment_capture.get("document_json", "")))
+		_check(payment_document is Dictionary \
+			and payment_document.get("commit", {}) == payment_commit \
+			and int(payment_document.get("generation", -1)) == int(payment_capture.get("store_generation", -2)) \
+			and str(payment_commit.get("id", "")).begins_with("game-flow-reward-") \
+			and payment_document.get("payload", {}).get("heavy_breach_session", {}) == expected \
+			and payment_document.get("payload", {}).get("game_flow_reward_store", {}) == reward_after \
+			and payment_document.get("payload", {}).get("runtime_settings", {}) == foreign_settings \
+			and payment_document.get("payload", {}).get("jovian_cargo_session", {}) == foreign_cargo,
+			"the physical board signal captures one persisted atomic reward document with the exact single receipt and terminal acknowledgement before later tutorial saves")
 		if _failures.is_empty():
 			var bytes := FileAccess.get_file_as_bytes(str(store.get("_path")))
 			await _breach_press_interaction()
@@ -1093,7 +1363,8 @@ func _run_breach(game: GameFlow, store: UserDataStore, entry: String) -> void:
 	_check(closed.get("accepted", false) and game.get_instance_id() == main_id and game.get_tree() == get_tree(),
 		"the exact Boot Main closes both existing recovery marker owners")
 	var outcome := {"boundary": boundary, "paid_boundary": paid, "receipts_before": baseline,
-		"receipts_after": _breach_receipts(game), "payment_commit": payment_commit, "paid_replay": paid_replay,
+		"receipts_after": _breach_receipts(game), "payment_commit": payment_commit,
+		"payment_capture": payment_capture, "paid_replay": paid_replay,
 		"reward_record": reward_after, "foreign_reward_record": reward_before,
 		"foreign_settings": foreign_settings, "foreign_cargo": foreign_cargo, "crash_events": crash_events,
 		"runtime_observation": observations, "safe_recovery_observation": safe_observation,

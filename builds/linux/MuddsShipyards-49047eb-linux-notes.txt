@@ -1,0 +1,37 @@
+Mudds Shipyards development checkpoint — clear blocked save-repair feedback
+Source: 49047ebcf5c6824e62f6b6b6408cde85d39d2b78
+
+Player-visible change:
+If recovery cannot safely preserve the damaged save before replacement, Options
+now says SETTINGS RECOVERY BLOCKED and explains that the damaged save and verified
+backup were retained. The status banner says BACKUP REPAIR BLOCKED // SAVE FILES
+PRESERVED. This known refusal is no longer described as an ambiguous publication
+and its internal error code is no longer shown in that banner. Confirmation is
+retired after refusal. Actual publication ambiguity retains its existing message.
+The save-preservation behavior shipped on9326614 remains included unchanged.
+
+Actual focused validation:
+HUD29, real GameFlow/HUD confirmation integration12, GameFlow repair18 assertions
+PASS. Integration uses the real binding and store with an occupied recovery copy,
+presses confirmation, and verifies every fixture file plus loaded save authority
+unchanged. The blocked message is visible, old token/action retired, and replay
+cannot produce a write or false success. Existing successful and ambiguous repair
+cases remain covered. These are headless behavior checks, not rendered review.
+
+Limits:
+No persistence, retry or recovery policy change. Existing single-writer portable
+flush/verification contract. Native Windows execution, native GPU, physical
+devices, audible listening, rendered readability and human review: NOT_RUN.
+Full final integrated regression, broad recovery/roadmap parents and active-run
+policy decisions remain OPEN. Windows embedded-payload probing on Linux does not
+qualify native Windows execution.
+
+Package validation:
+Paired clean stock-template Windows/Linux exports PASS. Linux binary, Linux
+archive and Windows embedded payload on the Linux engine each exit0 with exactly
+one STARTUP_MENU_READY_OK. Actual1,521 PCK entries match; Windows PE code matches
+the stock template; Linux archive binary/icon/installer bytes, modes and source
+epoch match. Raw root-user notices remain; accepted stages have no matched
+production-error diagnostics.
+
+All10 frozen stages passed, 185.977s total guarded stage time; no retries.

@@ -325,13 +325,25 @@ tick and local ledger ordering remain independent; host reports cannot invent
 local repair/recovery facts. Old actual row/label regression, existing local
 HUD checks, full pose and independent Main/ENet checks pass; see delivery history.
 
-The HUD's engine/weapon/targeting power scalars also remain local. Host integrity
-alone cannot define their replacement: critical-hull stutter and Halyard routing
-change live powers. Keep this unresolved projection separate from the finite
-component-row repair; no invented host operational facts or wire change follows
-from this inventory. Host display eligibility must preserve client/session and
-locally-flown exclusions, accepted generation/tick order, destruction fencing,
-and clear/re-entry behavior. Display facts never mutate local simulation.
+The HUD power gap is repaired in checkpoint `330a39c`. Per-craft pose entries
+sample all three actual live powers together from `HeroShip.get_telemetry()`,
+including critical-hull stutter and Halyard routing. Existing optional primitive
+headers carry a validated complete finite bounded trio without changing the
+compressed row layout. The detached power projection is separate from the
+component report/repair ledger; the existing HUD publisher merges it only for an
+eligible observer. Newer missing-field rows clear prior powers; local pilot,
+generation/epoch/tick, terminal, disable/rebind/clear boundaries remain enforced.
+Terminal display preserves actual host multipliers, independently of readiness.
+
+The first Main/ENet run found an oversized12408-byte live delta. The existing
+codec now selects the complete existing full form only when it fits the unchanged
+12000-byte transport limit, then resumes normal deltas from that baseline. No
+power values, decoder/schema or ceilings changed. Full pose302, original Main/
+ENet382 (nine-craft full/live4656/4656), Halyard70/localHUD104, codec and paired
+package gates pass. [Full accepted result and retained original contract](history/ROADMAP_DELIVERIES.md#net-component-powers--host-output-and-bounded-live-updates-accepted)
+preserve both prior failures and cumulative time. This staged/headless/display
+proof does not establish ordinary crew admission, full multiplayer endurance or
+native/human/final qualification. Display facts never mutate local simulation.
 
 Existing adapter checks cover attribution/stages/authorization/repair/cleanup;
 Main integration explicitly enumerates five earlier craft; nine-craft recovery

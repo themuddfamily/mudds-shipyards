@@ -217,7 +217,7 @@ static func native_sortie_request(args: PackedStringArray, display_name: String,
 			count += 1
 	if count == 0:
 		return {"requested": false, "accepted": false}
-	var accepted := count == 1 and ("--native-sortie-observer" in args or "--native-sortie-observer=sandbox-walk" in args or "--native-sortie-observer=sandbox" in args or "--native-sortie-observer=hulk-arrival" in args or "--native-sortie-observer=hulk-breaker" in args or "--native-sortie-observer=hulk-home" in args or "--native-sortie-observer=ember" in args) \
+	var accepted := count == 1 and ("--native-sortie-observer=arrow-return-reuse" in args or "--native-sortie-observer" in args or "--native-sortie-observer=sandbox-walk" in args or "--native-sortie-observer=sandbox" in args or "--native-sortie-observer=hulk-arrival" in args or "--native-sortie-observer=hulk-breaker" in args or "--native-sortie-observer=hulk-home" in args or "--native-sortie-observer=ember" in args or "--native-sortie-observer=habitat-loop" in args or "--native-sortie-observer=habitat-restart" in args or "--native-sortie-observer=life-tow" in args or "--native-sortie-observer=life-gantry" in args or "--native-sortie-observer=life-arm" in args or "--native-sortie-observer=life-patrol" in args or "--native-sortie-observer=beacon-entry" in args or "--native-sortie-observer=beacon-settlement" in args) \
 		and display_name.to_lower() == "x11" and audio_driver_name == "Dummy" and private_input_owned
 	for argument in args:
 		if argument in ["--version", "--help", "--support-info", "--support-export", "--startup-check", "--frame-capture", "--reflection-reentry-check"] \
@@ -243,7 +243,7 @@ static func in_world_probe_request(args: PackedStringArray, display_name: String
 		return {"requested": false, "accepted": false}
 	var rejected := {"requested": true, "accepted": false, "reason": &"unsafe_in_world_probe"}
 	if stages.size() != 1 or stages[0] not in ["arm", "resume"] \
-			or contexts.size() > 1 or (not contexts.is_empty() and contexts[0] not in ["pilot", "cabin", "rest", "crew", "engineer", "on_foot"]) \
+			or contexts.size() > 1 or (not contexts.is_empty() and contexts[0] not in ["pilot", "cabin", "rest", "crew", "engineer", "on_foot", "docking"]) \
 			or activities.size() > 1 or (not activities.is_empty() and activities[0] not in ["convoy", "beacon", "mining", "stationdefense", "scan", "hulk", "ember", "breach"]):
 		return rejected
 	var activity := activities[0] if not activities.is_empty() else "convoy"

@@ -8,6 +8,21 @@ const FRAME_BUDGET_GRACE := 30
 ## Nominal simulated seconds every legacy delayed sequence tail is given to fire.
 const SEQUENCE_TAIL_SECONDS := 0.45
 
+class RepairRequestSpy:
+	extends AudioDirector
+	var requests: Array[Dictionary] = []
+
+	func _play_resident(stream_id: StringName, bus: StringName, volume_db: float) -> bool:
+		requests.append({"stream_id": stream_id, "bus": bus, "volume_db": volume_db,
+			"effective_volume_db": volume_db + _effect_attenuation_db()})
+		return super._play_resident(stream_id, bus, volume_db)
+
+
+class CrewSource:
+	extends Node
+	signal semantic_crew_cue_emitted(cue_id: StringName, role: StringName, intensity: float)
+
+
 var _failures: Array[String] = []
 var _assertions := 0
 
@@ -29,6 +44,7 @@ func _run() -> void:
 
 	_test_fixed_hierarchy(director)
 	_test_resident_bank(director)
+	await _test_crew_repair_dispatch()
 	_test_reduced_range_survives_mix_mode(director)
 	await _test_request_churn(director)
 	await _test_detach_reentry_cycles(director)
@@ -36,6 +52,57 @@ func _run() -> void:
 	await _test_queued_reentry_restore_is_inert()
 	await _test_clean_lifecycle(director)
 	_finish()
+
+
+func _test_crew_repair_dispatch() -> void:
+	var director := RepairRequestSpy.new()
+	var source := CrewSource.new()
+	root.add_child(director)
+	root.add_child(source)
+	await process_frame
+	var events: Array[StringName] = []
+	var generic_events: Array[StringName] = []
+	director.semantic_cue_emitted.connect(func(_source: StringName, cue: StringName,
+			_intensity: float, _position: Vector3) -> void: events.append(cue))
+	director.cue_started.connect(func(cue: StringName) -> void: generic_events.append(cue))
+	_check(bool(director.bind_semantic_audio_source(source, &"crew").accepted), "repair dispatch uses a bound semantic crew source")
+	var synthesis_before := director.get_synthesis_report()
+	for cue: StringName in [&"crew_engineer_repair_started", &"crew_engineer_repair_completed", &"crew_engineer_repair_interrupted"]:
+		source.semantic_crew_cue_emitted.emit(cue, &"engineer", 1.0)
+	_check(director.requests.size() == 3 and events.size() == 3 and generic_events.is_empty(),
+		"each accepted repair edge requests one sound and one semantic caption without generic echo")
+	var expected_streams := [AudioDirector.STREAM_UI_CONFIRM, AudioDirector.STREAM_TARGET_DESTROYED_PRIMARY,
+		AudioDirector.STREAM_COMBAT_ALERT_PRIMARY]
+	var expected_volumes := [-7.0, -1.0, -4.0]
+	for index in mini(3, director.requests.size()):
+		var request := director.requests[index]
+		_check(request.stream_id == expected_streams[index] and request.bus == &"UI"
+			and is_equal_approx(float(request.volume_db), float(expected_volumes[index])),
+			"repair dispatch %d uses its distinct existing template, authored level and UI bus" % index)
+	var request_count := director.requests.size()
+	source.semantic_crew_cue_emitted.emit(&"crew_engineer_repair_interrupted", &"engineer", 1.0)
+	source.semantic_crew_cue_emitted.emit(&"crew_engineer_repair_progress", &"engineer", 0.5)
+	source.semantic_crew_cue_emitted.emit(&"unknown_repair", &"engineer", 1.0)
+	source.semantic_crew_cue_emitted.emit(&"crew_engineer_repair_started", &"passenger", 1.0)
+	source.semantic_crew_cue_emitted.emit(&"crew_engineer_repair_started", &"engineer", NAN)
+	source.semantic_crew_cue_emitted.emit(&"crew_engineer_repair_started", &"engineer", 0.0)
+	_check(director.requests.size() == request_count, "duplicate, progress, unknown, wrong-role, invalid and zero-intensity input requests no sound")
+	director.call(&"_on_semantic_cue", &"ship", &"crew_engineer_repair_started", 1.0, Vector3.ZERO)
+	_check(director.requests.size() == request_count, "the same cue from another semantic source has no crew repair playback")
+	director.set_reduced_dynamic_range(true)
+	source.semantic_crew_cue_emitted.emit(&"crew_engineer_repair_started", &"engineer", 1.0)
+	_check(director.requests.size() == request_count + 1
+		and is_equal_approx(float(director.requests[-1].effective_volume_db), -19.0),
+		"repair dispatch uses current reduced-range attenuation at its resident pool boundary")
+	_check(bool(director.unbind_semantic_audio_source(source, &"crew").accepted), "repair source unbinds exactly")
+	source.semantic_crew_cue_emitted.emit(&"crew_engineer_repair_completed", &"engineer", 1.0)
+	_check(director.requests.size() == request_count + 1, "unbound crew input cannot request repair playback")
+	_check(director.get_synthesis_report() == synthesis_before and _all_timers_stopped(director)
+		and _all_players_stopped_and_detached(director) and bool(director.get_audit_report().valid),
+		"Dummy repair dispatch preserves bank identities, silent backend, fixed voices and stopped sequence timers")
+	director.queue_free()
+	source.queue_free()
+	await process_frame
 
 
 ## Reduced dynamic range must hold across the on-foot/piloting ambience mode

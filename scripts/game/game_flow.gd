@@ -626,6 +626,8 @@ var nearby_activity_music_adapter: Node
 var halyard_crew_semantic_audio_binding: Node
 var _halyard_crew_semantic_bound := false
 var _last_halyard_crew_event_sequence := -2
+var _halyard_crew_audio_source_instance_id := 0
+var _last_halyard_crew_repair_observation: Dictionary = {}
 var optional_semantic_audio_composition: Node
 var _bomber_payload_ship: CinderLongRangeBomber
 var _bomber_payload_generation := 0
@@ -956,7 +958,16 @@ var _caption_accepted_count := 0
 var _caption_rejected_count := 0
 var _reduced_dynamic_range := false
 
-var phase := Phase.INTRO
+var phase := Phase.INTRO:
+	set(value):
+		phase = value
+		# Hold belongs to one physical FREE_FLIGHT departure. Withdraw its
+		# sources in the same phase transition that removes its fire authority.
+		if value != Phase.FREE_FLIGHT and is_inside_tree():
+			var director := get_node_or_null(^"EncounterScenarios") as EncounterScenarioDirector
+			if is_instance_valid(director) and director.is_running() \
+					and director.get_active_scenario() == EncounterScenarioDirector.SCENARIO_PERIMETER_HOLD:
+				director.abort(EncounterScenarioDirector.OUTCOME_WITHDRAWN)
 var destroyed_targets := 0
 var total_targets := 0
 var _near_ship := false
@@ -983,6 +994,17 @@ var _solo_crew_lifetime_hook: Node
 var _solo_crew_lifetime_callback: Callable
 var _solo_crew_seat_id: StringName = &""
 var _solo_crew_role: StringName = &""
+# Captured host scope outlives seat fields until Cinder commits its real clear.
+var _solo_navigator_audio_network_context: Dictionary = {}
+var _client_navigator_audio_adapter: NetworkSessionAdapterType
+var _client_navigator_audio_callback: Callable
+var _client_navigator_audio_epoch := 0
+var _client_navigator_audio_migration := 0
+var _client_navigator_audio_context: Dictionary = {}
+# Only successful applied commands enter this session history. Retiring a craft
+# source must not make a previously observed publication fresh on cabin re-entry.
+var _client_navigator_audio_seen: Dictionary = {}
+var _client_navigator_audio_presenting_transition := ""
 var _network_engineer_binding: NetworkJovianEngineerBindingType
 var _network_engineer_generation := 0
 var _network_engineer_pending_seat: ShipCrewSeat
@@ -1611,6 +1633,7 @@ func host_network_session(
 	if _planetary_visit_blocks_network_session() and not _network_planetary_journey.can_adopt_restored_surface():
 		return _refuse_network_session_during_planetary_visit(&"server")
 	_network_session_mode = &"server"
+	_withdraw_perimeter_hold_for_network()
 	_network_session_retry_mode = &"server"
 	_set_station_defense_network_presentation_only(false)
 	_set_torpedo_boat_network_presentation_only(false)
@@ -1641,6 +1664,7 @@ func join_network_session(
 	if _planetary_visit_blocks_network_session():
 		return _refuse_network_session_during_planetary_visit(&"client")
 	_network_session_mode = &"client"
+	_withdraw_perimeter_hold_for_network()
 	_network_session_retry_mode = &"client"
 	_set_station_defense_network_presentation_only(true)
 	_set_torpedo_boat_network_presentation_only(true)
@@ -3950,7 +3974,7 @@ func _decline_interrupted_planetary_visits() -> Dictionary:
 	var payload := store.get_snapshot()
 	var has_visits := _aurora_shared_survey_checkpoint_pending
 	for slot in [String(AURORA_EXPEDITION_PERSISTENCE_SLOT), String(RIME_EXPEDITION_PERSISTENCE_SLOT),
-			"cinder_structure_scan_session", "cinder_beacon_session", String(CINDER_MINING_CAPACITY_PERSISTENCE_SLOT),
+			"cinder_structure_scan_session", "cinder_beacon_session", NearbySectorActivitySessionAdapter.ASTEROID_SESSION_SLOT, String(CINDER_MINING_CAPACITY_PERSISTENCE_SLOT),
 			String(EMBER_RELAY_SURVEY_PERSISTENCE_SLOT), String(EMBER_RELAY_SURVEY_PERSISTENCE_SLOT) + "_declined",
 			AURORA_SHARED_SURVEY_SLOT, AURORA_DECLINED_SHARED_SURVEY_SLOT,
 			String(AURORA_EXPEDITION_PERSISTENCE_SLOT) + "_declined", String(RIME_EXPEDITION_PERSISTENCE_SLOT) + "_declined"]:
@@ -4009,6 +4033,19 @@ func _decline_interrupted_planetary_visits() -> Dictionary:
 			checked = CinderBeaconTraversalActivity.validate_persistence_record(next.cinder_beacon_session)
 			if not bool(checked.get("accepted", false)):
 				return checked
+	var asteroid_slot := NearbySectorActivitySessionAdapter.ASTEROID_SESSION_SLOT
+	if next.has(asteroid_slot):
+		var planned := NearbySectorActivitySessionAdapter.plan_asteroid_decline(next[asteroid_slot])
+		if not bool(planned.get("accepted", false)):
+			return planned
+		var entry: Dictionary = next[asteroid_slot].activities[0]
+		if int(entry.state) == CheckpointRouteActivity.State.ACTIVE and is_instance_valid(nearby):
+			var live := nearby.call("get_activity_snapshot", &"asteroid_field_run") as Dictionary
+			if int(live.get("state", -1)) == CheckpointRouteActivity.State.COMPLETED \
+					and int(live.get("generation", -1)) >= int(entry.generation):
+				return {"accepted": false, "reason": &"asteroid_terminal_save_pending"}
+		next[asteroid_slot] = planned.session_record
+	var asteroid_declined : bool = payload.has(asteroid_slot) and next[asteroid_slot] != payload[asteroid_slot]
 	if next.has(String(CINDER_MINING_CAPACITY_PERSISTENCE_SLOT)):
 		var mining := CinderMiningCapacityPersistence.new()
 		mining.configure(store, CINDER_MINING_CAPACITY_PERSISTENCE_SLOT)
@@ -4103,11 +4140,27 @@ func _decline_interrupted_planetary_visits() -> Dictionary:
 			var guarded := beacon_guard.begin_beacon_reset_publication(beacon_before, beacon_reset)
 			if not bool(guarded.get("accepted", false)):
 				return guarded
+		var asteroid_guard: NearbySectorActivityBinding
+		var asteroid_before: Dictionary = {}
+		var asteroid_reset: Dictionary = {}
+		if is_instance_valid(nearby) and asteroid_declined:
+			asteroid_guard = nearby as NearbySectorActivityBinding
+			if not is_instance_valid(asteroid_guard):
+				if is_instance_valid(beacon_guard):
+					beacon_guard.finish_beacon_reset_publication(beacon_before, beacon_reset, false)
+				return {"accepted": false, "reason": &"asteroid_reset_owner_changed"}
+			asteroid_before = asteroid_guard.capture_asteroid_field_session()
+			asteroid_reset = next[asteroid_slot]
+			var guarded := asteroid_guard.begin_asteroid_reset_publication(asteroid_before, asteroid_reset)
+			if not bool(guarded.get("accepted", false)):
+				if is_instance_valid(beacon_guard):
+					beacon_guard.finish_beacon_reset_publication(beacon_before, beacon_reset, false)
+				return guarded
 		var committed := store.commit(next, generation, "decline-planetary-visits-%010d" % (generation + 1))
 		var beacon_published := bool(committed.get("accepted", false))
-		if is_instance_valid(beacon_guard) and not beacon_published and bool(committed.get("published", false)):
+		if (is_instance_valid(beacon_guard) or asteroid_declined) and not beacon_published and bool(committed.get("published", false)):
 			# Directory sync may refuse after publication. Reconcile only the exact
-			# primary outcome, while its live beacon owner is still protected.
+			# primary outcome, while any present reset owners remain protected.
 			var loaded := store.load()
 			var planned: Dictionary = JSON.parse_string(JSON.stringify(next, "", true, true))
 			beacon_published = bool(loaded.get("accepted", false)) \
@@ -4123,8 +4176,20 @@ func _decline_interrupted_planetary_visits() -> Dictionary:
 					beacon_finished = {"accepted": false, "reason": &"beacon_reset_owner_changed"}
 			else:
 				beacon_finished = {"accepted": false, "reason": &"beacon_reset_owner_changed"}
+		var asteroid_finished := {"accepted": true}
+		if is_instance_valid(asteroid_guard):
+			var current := asteroid_guard == _get_nearby_activity_binding() \
+				and asteroid_guard.is_inside_tree() and not asteroid_guard.is_queued_for_deletion()
+			# Even a retained, replaced owner must retire after actual publication.
+			asteroid_finished = asteroid_guard.finish_asteroid_reset_publication(asteroid_before, asteroid_reset, beacon_published)
+			if not current:
+				asteroid_finished = {"accepted": false, "reason": &"asteroid_reset_owner_changed"}
+		elif not asteroid_reset.is_empty():
+			asteroid_finished = {"accepted": false, "reason": &"asteroid_reset_owner_changed"}
 		if not bool(committed.get("accepted", false)):
 			return committed
+		if not bool(asteroid_finished.get("accepted", false)):
+			return asteroid_finished
 		if not bool(beacon_finished.get("accepted", false)):
 			return beacon_finished
 		_runtime_settings_commit_serial = maxi(_runtime_settings_commit_serial, store.get_generation())
@@ -4211,7 +4276,9 @@ func _start_fresh_after_interrupted_session() -> Dictionary:
 				{"key": &"beacon_traversal", "id": CinderBeaconTraversalActivity.ACTIVITY_ID,
 					"active": CinderBeaconTraversalActivity.State.ACTIVE},
 				{"key": &"mining", "id": CinderMiningPlatformActivity.ACTIVITY_ID,
-					"active": CinderMiningPlatformActivity.State.ACTIVE}]:
+					"active": CinderMiningPlatformActivity.State.ACTIVE},
+				{"key": &"asteroid_field_run", "id": NearbySectorActivitySessionAdapter.ASTEROID_ACTIVITY_ID,
+					"active": CheckpointRouteActivity.State.ACTIVE}]:
 			var snapshot := binding.call("get_activity_snapshot", activity.key) as Dictionary
 			if int(snapshot.get("state", -1)) == int(activity.active):
 				var reset := _reset_nearby_activity(binding, activity.id)
@@ -5601,6 +5668,7 @@ func _publish_active_ship_telemetry_to_hud() -> Dictionary:
 	var display: Dictionary = telemetry.duplicate()
 	display.merge(active_ship.get_network_hull_telemetry_presentation(), true)
 	display.merge(active_ship.get_network_operation_telemetry_presentation(), true)
+	display.merge(active_ship.get_network_component_power_telemetry_presentation(), true)
 	_decorate_flight_path_telemetry(display)
 	hud.update_ship_telemetry(display)
 	return telemetry
@@ -7299,6 +7367,20 @@ func _publish_network_session_result(result: Dictionary, role: StringName) -> vo
 
 
 func _on_network_session_started(mode: StringName) -> void:
+	if is_instance_valid(heavy_breach_activity_board):
+		var board_snapshot := heavy_breach_activity_board.call(&"get_snapshot") as Dictionary
+		if StringName(board_snapshot.get("offered_scenario", &"")) == EncounterScenarioDirector.SCENARIO_PAIRED_WING \
+				and bool(board_snapshot.get("sortie_armed", false)):
+			heavy_breach_activity_board.call(&"cancel_solo_wing_for_network")
+			_heavy_breach_sortie_generation = 0
+			if not _piloting:
+				_restore_on_foot_objective()
+		var encounter := get_node_or_null(^"EncounterScenarios") as EncounterScenarioDirector
+		if is_instance_valid(encounter) and encounter.is_running() \
+				and encounter.get_active_scenario() == EncounterScenarioDirector.SCENARIO_PAIRED_WING:
+			encounter.abort(EncounterScenarioDirector.OUTCOME_WITHDRAWN)
+	_disconnect_client_navigator_audio()
+	_sync_client_navigator_audio_lifetime()
 	_sync_lan_discovery_responder(mode)
 	_network_hud_session_epoch += 1
 	_network_hud_session_retired = false
@@ -7358,6 +7440,13 @@ func _on_network_session_started(mode: StringName) -> void:
 
 
 func _on_network_session_stopped(reason: StringName) -> void:
+	_disconnect_client_navigator_audio()
+	# Stopped-session teardown must not announce the old host claim as a fresh
+	# physical stand when binding detach synchronously clears its ship receipt.
+	if not _solo_navigator_audio_network_context.is_empty():
+		if is_instance_valid(optional_semantic_audio_composition):
+			optional_semantic_audio_composition.clear_local_navigator()
+		_solo_navigator_audio_network_context.clear()
 	# Flush only progress accepted while the prior host/lease was live.
 	_flush_shared_aurora_survey_checkpoint()
 	_network_planetary_journey.detach()
@@ -7425,6 +7514,9 @@ func _on_network_session_stopped(reason: StringName) -> void:
 	_detach_network_ship_authority_composition(reason)
 	_detach_network_halyard_command_bridge()
 	_detach_halyard_crew_semantic_audio()
+	# The Director just retired its router sources; retire matching optional
+	# attachment state so re-entry binds actual sources instead of stale flags.
+	_detach_optional_semantic_audio()
 	# The session is gone, and its role with it: a client whose host dropped
 	# lands, fires and travels on its own again rather than waiting on a host
 	# that is no longer there. RETRY still knows which role to reopen.
@@ -7571,6 +7663,7 @@ func _on_network_migration_result(result: Dictionary) -> void:
 	var generation := int(
 		network_session.get_migration_snapshot().get("migration_generation", 0)
 	)
+	_sync_client_navigator_audio_lifetime()
 	# Migration retires physical crew claims on the host. Release this
 	# confirmed chair and its borrowed input producer in the same boundary,
 	# before relationship recovery can make the body appear on foot.
@@ -9262,6 +9355,11 @@ func _on_heavy_breach_board_snapshot_changed(snapshot: Dictionary) -> void:
 	if _heavy_breach_objective_posted \
 			and int(snapshot.get("active_director_generation", 0)) == 0:
 		_heavy_breach_objective_posted = false
+		var terminal := snapshot.get("director", {}) as Dictionary
+		if StringName(terminal.get("scenario", &"")) == EncounterScenarioDirector.SCENARIO_PAIRED_WING \
+				and is_instance_valid(hud):
+			hud.toast("Paired wing %s" % str(terminal.get("outcome", &"ended")).replace("_", " "),
+				"Solo encounter — no credit reward", 3.6)
 		if phase == Phase.FREE_FLIGHT and _piloting and is_instance_valid(hud):
 			hud.set_objective(
 				"Free flight — explore, fight, or return to a compatible registered berth",
@@ -9501,9 +9599,48 @@ func _present_ship_service_result(result: Dictionary, source: Area3D) -> void:
 	hud.toast("Ship service unavailable", detail, 2.8)
 
 
+func is_perimeter_hold_solo_authorized() -> bool:
+	return _network_session_mode.is_empty() and not _network_session_is_live()
+
+
+func _withdraw_perimeter_hold_for_network() -> void:
+	var director := get_node_or_null(^"EncounterScenarios") as EncounterScenarioDirector
+	if is_instance_valid(director) and director.is_running() \
+			and director.get_active_scenario() == EncounterScenarioDirector.SCENARIO_PERIMETER_HOLD:
+		director.abort(EncounterScenarioDirector.OUTCOME_WITHDRAWN)
+
+
 ## The board proves the on-foot range and generation once. It deliberately does
 ## not start combat against the avatar: GameFlow retains that admitted board
 ## generation until a selected production craft physically clears its berth.
+## Paired Wing currently has solo runtime ownership only.
+func is_paired_wing_solo_available() -> bool:
+	return _network_session_mode.is_empty() and not _network_session_is_live()
+
+
+func is_paired_wing_launch_authorized(target: Node3D) -> bool:
+	if not is_paired_wing_solo_available() or phase != Phase.FREE_FLIGHT \
+			or not _piloting or not _sortie_departed_berth \
+			or not _heavy_breach_sortie_is_armed() \
+			or StringName(heavy_breach_activity_board.call(&"get_offered_scenario")) != EncounterScenarioDirector.SCENARIO_PAIRED_WING \
+			or not is_instance_valid(active_ship) or target != active_ship \
+			or not is_instance_valid(combat_authority):
+		return false
+	var source_id := int(PLAYER_SOURCE_IDS.get(active_ship.get_ship_id(), 0))
+	return source_id > 0 and combat_authority.get_source_id(active_ship) == source_id
+
+
+func _board_sortie_title(scenario: StringName) -> String:
+	if scenario == EncounterScenarioDirector.SCENARIO_PERIMETER_HOLD:
+		return "Perimeter Hold"
+	match scenario:
+		EncounterScenarioDirector.SCENARIO_PAIRED_WING:
+			return "Paired wing"
+		EncounterScenarioDirector.SCENARIO_TORPEDO_RUN:
+			return "Torpedo run"
+	return "Heavy breach"
+
+
 func _arm_heavy_breach_sortie(board: Area3D) -> bool:
 	if (
 		board != heavy_breach_activity_board
@@ -9518,28 +9655,31 @@ func _arm_heavy_breach_sortie(board: Area3D) -> bool:
 	):
 		if is_instance_valid(hud):
 			hud.toast(
-				"Heavy breach unavailable",
+				"Combat sortie unavailable",
 				"Finish the current activity before arming another sortie",
 				3.0
 			)
+		return false
+	if StringName(board.call(&"get_offered_scenario")) == EncounterScenarioDirector.SCENARIO_PERIMETER_HOLD \
+			and not is_perimeter_hold_solo_authorized():
+		if is_instance_valid(hud):
+			hud.toast("Perimeter Hold unavailable", "This contract requires a solo shift", 3.0)
 		return false
 	var generation := int(board.call(&"get_generation"))
 	var result := board.call(&"arm_sortie", player, generation) as Dictionary
 	if not bool(result.get("accepted", false)):
 		if is_instance_valid(hud):
 			hud.toast(
-				"Heavy breach not armed",
+				"Combat sortie not armed",
 				str(result.get("reason", &"board_rejected")).replace("_", " ").capitalize(),
 				3.0
 			)
 		return false
 	_heavy_breach_sortie_generation = int(result.get("sortie_generation", 0))
-	var posted_title := "Heavy breach"
-	if board.has_method(&"get_offered_scenario") and StringName(
-		board.call(&"get_offered_scenario")
-	) == EncounterScenarioDirector.SCENARIO_TORPEDO_RUN:
-		posted_title = "Torpedo run"
-	_publish_board_sortie_briefing(posted_title == "Torpedo run")
+	var scenario := StringName(board.call(&"get_offered_scenario"))
+	var posted_title := _board_sortie_title(scenario)
+	if scenario in [EncounterScenarioDirector.SCENARIO_HEAVY_BREACH, EncounterScenarioDirector.SCENARIO_TORPEDO_RUN]:
+		_publish_board_sortie_briefing(scenario == EncounterScenarioDirector.SCENARIO_TORPEDO_RUN)
 	if is_instance_valid(hud):
 		hud.set_objective(
 			"Board a combat-capable spacecraft and physically clear its berth",
@@ -9547,7 +9687,9 @@ func _arm_heavy_breach_sortie(board: Area3D) -> bool:
 		)
 		hud.toast(
 			"%s sortie armed" % posted_title,
-			"Choose a craft and launch; the contact will commit after departure",
+			"Solo encounter — no credit reward; launch to meet both contacts"
+				if scenario == EncounterScenarioDirector.SCENARIO_PAIRED_WING
+				else "Choose a craft and launch; the contact will commit after departure",
 			3.6
 		)
 	_sync_activity_hud()
@@ -9562,13 +9704,14 @@ func _cancel_armed_heavy_breach_sortie(board: Area3D) -> bool:
 		or not board.has_method(&"get_generation")
 	):
 		return false
+	var posted_title := _board_sortie_title(StringName(board.call(&"get_offered_scenario")))
 	var result := board.call(
 		&"abort_and_reset", player, int(board.call(&"get_generation"))
 	) as Dictionary
 	if not bool(result.get("accepted", false)):
 		if is_instance_valid(hud):
 			hud.toast(
-				"Heavy breach cancellation rejected",
+				"%s cancellation rejected" % posted_title,
 				str(result.get("reason", &"board_rejected")).replace("_", " ").capitalize(),
 				3.0
 			)
@@ -9577,7 +9720,7 @@ func _cancel_armed_heavy_breach_sortie(board: Area3D) -> bool:
 	if is_instance_valid(hud):
 		_restore_on_foot_objective()
 		hud.toast(
-			"Heavy breach sortie cancelled",
+			"%s sortie cancelled" % posted_title,
 			"The deck board is ready to arm again",
 			3.0
 		)
@@ -9608,14 +9751,15 @@ func _try_launch_armed_heavy_breach() -> bool:
 		or not heavy_breach_activity_board.has_method(&"launch_armed_sortie")
 	):
 		return false
+	var posted_title := _board_sortie_title(StringName(heavy_breach_activity_board.call(&"get_offered_scenario")))
 	var expected_source_id := int(PLAYER_SOURCE_IDS.get(active_ship.get_ship_id(), 0))
 	if expected_source_id <= 0 \
 			or not is_instance_valid(combat_authority) \
 			or combat_authority.get_source_id(active_ship) != expected_source_id:
 		if is_instance_valid(hud):
 			hud.set_objective(
-				"This craft has no Heavy Breach weapon authority — return and launch a combat-capable ship",
-				"HEAVY BREACH SORTIE ARMED"
+				"This craft has no %s weapon authority — return and launch a combat-capable ship" % posted_title,
+				"%s SORTIE ARMED" % posted_title.to_upper()
 			)
 		return false
 	var result := heavy_breach_activity_board.call(
@@ -9627,7 +9771,7 @@ func _try_launch_armed_heavy_breach() -> bool:
 			_heavy_breach_sortie_generation = 0
 		if is_instance_valid(hud):
 			hud.set_objective(
-				"Heavy breach launch interrupted — retain the craft and retry departure coordination"
+				"%s launch interrupted — retain the craft and retry departure coordination" % posted_title
 			)
 		return false
 	_heavy_breach_sortie_generation = 0
@@ -9635,7 +9779,14 @@ func _try_launch_armed_heavy_breach() -> bool:
 	if is_instance_valid(audio) and audio.has_method(&"play_combat_alert"):
 		audio.call(&"play_combat_alert")
 	if is_instance_valid(hud):
-		if StringName(result.get("scenario", &"")) == EncounterScenarioDirector.SCENARIO_TORPEDO_RUN:
+		if StringName(result.get("scenario", &"")) == EncounterScenarioDirector.SCENARIO_PERIMETER_HOLD:
+			hud.set_objective("Defend the protected core for 90 seconds — keep integrity above 35%", "PERIMETER HOLD")
+		elif StringName(result.get("scenario", &"")) == EncounterScenarioDirector.SCENARIO_PAIRED_WING:
+			hud.set_objective(
+				"Destroy both wing contacts — break suppression and flank; no credit reward",
+				"PAIRED WING"
+			)
+		elif StringName(result.get("scenario", &"")) == EncounterScenarioDirector.SCENARIO_TORPEDO_RUN:
 			hud.set_objective(
 				"Destroy the torpedo boat — break across its torpedoes or shoot them down",
 				"TORPEDO RUN"
@@ -9694,6 +9845,21 @@ func _on_interact_requested() -> void:
 			return
 		if station_interaction_candidate is StationSeat:
 			_sit_in_station_seat(station_interaction_candidate as StationSeat)
+			return
+		if is_instance_valid(world) \
+				and station_interaction_candidate == world.get_station_defense_activity_board():
+			var defense_board := station_interaction_candidate as StationDefenseActivityBoard
+			# Resolve once per press. A successful pending-report retry must not
+			# fall through to reset or deploy in this same interaction.
+			var defense_action := defense_board.get_physical_interaction_action()
+			var defense_result: Dictionary = {}
+			if defense_action in [&"deploy", &"retry_reward"]:
+				defense_result = _start_physical_station_defense_board()
+			elif defense_action == &"reset" and not _heavy_breach_sortie_is_armed():
+				defense_result = _reset_physical_station_defense_board()
+			if bool(defense_result.get("accepted", false)):
+				audio.play_ui_confirm()
+				_sync_activity_hud()
 			return
 		if station_interaction_candidate == heavy_breach_activity_board:
 			var heavy_breach_changed := (
@@ -9768,6 +9934,14 @@ func _release_solo_crew_authority() -> bool:
 			return false
 	if _network_engineer_binding != null and _network_engineer_binding.owns_role_authority(_solo_crew_authority):
 		_network_engineer_binding.next_role_sequence(_solo_crew_authority, _solo_crew_sequence)
+	# Shared network authority survives stand. Generic occupant release drops
+	# its ledger first; Cinder clears on physics, after these seat fields retire.
+	if is_instance_valid(optional_semantic_audio_composition):
+		if _network_engineer_binding != null and _network_engineer_binding.owns_role_authority(_solo_crew_authority):
+			optional_semantic_audio_composition.retire_local_navigator_if_lost()
+		else:
+			optional_semantic_audio_composition.clear_local_navigator()
+			_solo_navigator_audio_network_context.clear()
 	_solo_crew_authority = null
 	_solo_crew_ship = null
 	_solo_crew_sequence = 0
@@ -9990,6 +10164,7 @@ func _sit_in_solo_crew_seat(seat: ShipCrewSeat) -> void:
 	player.set_station_seated_context(true)
 	player.set_control_enabled(true)
 	_transition_busy = false
+	_bind_solo_navigator_audio_claim()
 	hud.set_mode("cabin", craft.get_display_name())
 	hud.set_objective("%s aboard %s — %s" % [String(_solo_crew_role).capitalize(), craft.get_display_name(), "hold FIRE for siege lance; stand to walk the cabin or take the pilot seat" if _solo_crew_role == &"gunner" else "stand to walk the cabin or take the pilot seat"])
 	audio.play_ui_confirm()
@@ -10130,6 +10305,7 @@ func _cancel_solo_crew_seat() -> void:
 ## FIRE and engineer component-selection steps are consumed here; flight and
 ## GameFlow edges never leave this crew lane.
 func _update_solo_gunner_input(delta: float) -> void:
+	_sync_solo_navigator_audio_lifetime()
 	if not _solo_gunner_input_is_available():
 		_reset_solo_gunner_input()
 		return
@@ -10157,7 +10333,16 @@ func _update_solo_gunner_input(delta: float) -> void:
 		if _solo_crew_seat_id == CinderCargoHauler.NAVIGATOR_STATION_SEAT_ID:
 			if command.fire and not previous_fire and _solo_gunner_source_is_current():
 				_solo_crew_sequence = maxi(_solo_crew_sequence, int(_solo_crew_authority.get_last_intent(1, SOLO_CREW_AVATAR_ID).get("request_sequence", 0))) + 1
-				_solo_crew_ship.submit_navigator_ping(1, SOLO_CREW_AVATAR_ID, _solo_crew_sequence)
+				var claim := _solo_navigator_audio_claim()
+				var sequence := _solo_crew_sequence
+				var craft := _solo_crew_ship as CinderCargoHauler
+				var outcome: Dictionary = craft.submit_navigator_ping(1, SOLO_CREW_AVATAR_ID, sequence)
+				if not claim.is_empty() and claim == _solo_navigator_audio_claim() and is_instance_valid(optional_semantic_audio_composition):
+					optional_semantic_audio_composition.present_cinder_local_navigator_result(outcome, claim, sequence)
+				# Presentation observers may synchronously retire this exact claim.
+				if not _solo_gunner_source_is_current() or _solo_crew_ship != craft \
+						or (not claim.is_empty() and claim != _solo_navigator_audio_claim()):
+					return
 			hud.set_objective("Navigator // %s // FIRE [%s] sends route hint // stand [%s] to walk the cabin or take the helm" % ["ROUTE HINT SENT" if not (_solo_crew_ship.get_navigator_ping_snapshot().get("receipt", {}) as Dictionary).is_empty() else "AWAITING ROUTE HINT", hud.call(&"_action_bindings_text", source.fire_action), hud.get_action_prompt(&"interact")])
 			return
 		if command.fire and not bool((_solo_crew_ship.get_loadmaster_manifest_snapshot().get("receipt", {}) as Dictionary).get("ready", false)):
@@ -10426,6 +10611,15 @@ func _update_station_seat_flow() -> void:
 	if not is_instance_valid(_active_station_seat):
 		_recover_from_station_seat()
 		return
+	# A retained station berth can leave the live world without being freed.
+	# Recover from the last supported wake pose before reading detached anchors.
+	if _active_station_seat is StationBunk and (
+		not _active_station_seat.is_inside_tree()
+		or _active_station_seat.is_queued_for_deletion()
+		or _active_station_seat.get_parent().is_queued_for_deletion()
+	):
+		_recover_from_station_seat()
+		return
 	# A sleeping passenger follows the same live hull as the bunk. Keep recovery
 	# in that frame too, so deleting a berth never recalls them to stale space.
 	_station_seat_recovery_transform = _active_station_seat.get_exit_transform()
@@ -10464,6 +10658,12 @@ func _sit_in_station_seat(seat: StationSeat) -> void:
 	_transition_busy = true
 	_active_station_seat = seat
 	_station_seat_recovery_transform = seat.get_exit_transform()
+	if seat is StationBunk:
+		# A retained owner removal must clear the Player's live anchor before
+		# its next physics step, rather than waiting for the idle seat sweep.
+		var on_bunk_exit: Callable = _on_station_bunk_tree_exiting.bind(seat)
+		if not seat.tree_exiting.is_connected(on_bunk_exit):
+			seat.tree_exiting.connect(on_bunk_exit, CONNECT_ONE_SHOT)
 	var generation := _begin_transition_generation()
 	player.set_control_enabled(false)
 	hud.set_interaction("", false)
@@ -10538,8 +10738,15 @@ func _stand_from_station_seat() -> void:
 	audio.play_ui_confirm()
 
 
+func _on_station_bunk_tree_exiting(bunk: StationSeat) -> void:
+	# Main teardown has its own existing cancellation path. If the Player has
+	# already left the tree, leave that path in charge of its detached body.
+	if _active_station_seat == bunk and is_instance_valid(player) and player.is_inside_tree():
+		_recover_from_station_seat()
+
+
 func _set_seat_rest_context(seat: StationSeat, enabled: bool) -> void:
-	if seat is ShipBunk:
+	if seat is ShipBunk or seat is StationBunk:
 		player.set_sleeping_context(enabled)
 		if enabled:
 			if not is_instance_valid(_ship_rest_overlay):
@@ -10550,9 +10757,9 @@ func _set_seat_rest_context(seat: StationSeat, enabled: bool) -> void:
 				runtime_settings.ui_scale if runtime_settings != null else 1.0,
 				runtime_settings.reduced_motion if runtime_settings != null else false
 			)
-			_ship_rest_overlay.begin_rest(
-				(seat as ShipBunk).get_ship().get_display_name(), hud.get_action_prompt(&"interact")
-			)
+			var rest_label: String = (seat as ShipBunk).get_ship().get_display_name() \
+				if seat is ShipBunk else str(seat.get_meta("seat_label", "HABITAT"))
+			_ship_rest_overlay.begin_rest(rest_label, hud.get_action_prompt(&"interact"))
 		else:
 			_end_ship_rest_presentation()
 	else:
@@ -14381,6 +14588,7 @@ func _present_network_client_cabin_boarding(craft: HeroShip, area: ShipBoardingA
 		player.set_cabin_containment(craft, cabin.get("local_bounds", AABB()) as AABB, player.global_transform)
 		hud.set_mode("cabin", craft.get_display_name())
 		hud.set_objective("Cabin berth confirmed — the host retains flight authority")
+		_sync_client_navigator_audio_lifetime()
 		return
 	var stand := _network_cabin_berth_transform(
 		craft, StringName(_network_client_boarding_claim.get("seat_id", &"")), player
@@ -14408,6 +14616,8 @@ func _present_network_client_cabin_boarding(craft: HeroShip, area: ShipBoardingA
 	)
 	audio.set_on_foot(true)
 	audio.play_ui_confirm()
+	# A crew command can arrive in the same transport poll as this grant.
+	_sync_client_navigator_audio_lifetime()
 
 
 ## Gives a confirmed berth back to the ledger without ever having presented
@@ -15692,7 +15902,8 @@ func bind_cinder_cargo_delivery_persistence(binding: Object) -> Dictionary:
 	return binding.call(
 		&"configure_cinder_cargo_delivery_persistence",
 		_runtime_settings_user_data_store,
-		CINDER_CARGO_DELIVERY_PERSISTENCE_SLOT
+		CINDER_CARGO_DELIVERY_PERSISTENCE_SLOT,
+		int(_game_flow_reward_authority.call(&"get_cinder_cargo_paid_generation_floor")) if _game_flow_reward_authority != null else 0
 	) as Dictionary
 
 
@@ -17567,6 +17778,9 @@ func get_live_combat_source_roster_audit() -> Dictionary:
 		{"entity": get_node_or_null("WingSkirmisherWing") as FlankingSkirmisherOpponent, "source_id": 2104},
 		{"entity": get_node_or_null("CourierRunner") as CourierRunnerOpponent, "source_id": 2105},
 		{"entity": get_node_or_null("TorpedoBoat") as TorpedoBoatOpponent, "source_id": 2106},
+		{"entity": get_node_or_null("PerimeterPicket") as StandoffPicketOpponent, "source_id": 2131},
+		{"entity": get_node_or_null("PerimeterScatter") as FlankingSkirmisherOpponent, "source_id": 2132},
+		{"entity": get_node_or_null("PerimeterPress") as ResolverBackedOpponent, "source_id": 2133},
 	]
 	for authored in authored_reinforcements:
 		var reinforcement := authored["entity"] as RangeOpponent
@@ -20384,6 +20598,8 @@ func _save_cinder_asteroid_session(binding: Object, prospective_record: Dictiona
 				"reward_authority": false, "granted": false})
 			return binding.call("acknowledge_asteroid_field_reward", payload[slot]) as Dictionary
 		if int(next.generation) < int(old.generation) or int(next.generation) > int(old.generation) + 1 \
+				or (int(next.generation) == int(old.generation) and int(old.state) == CheckpointRouteActivity.State.IDLE \
+					and int(next.state) != CheckpointRouteActivity.State.IDLE) \
 				or (old.reward_requested and not old.reward_granted and record != payload[slot]) \
 				or (int(next.generation) == int(old.generation) \
 					and int(next.progress.next_checkpoint_index) < int(old.progress.next_checkpoint_index)):
@@ -20998,9 +21214,7 @@ func _sync_heavy_breach_activity_hud() -> bool:
 		running_scenario = StringName(snapshot.get("offered_scenario", running_scenario))
 	hud.call(
 		&"set_activity_objective",
-		"Torpedo run"
-			if running_scenario == EncounterScenarioDirector.SCENARIO_TORPEDO_RUN
-			else "Heavy breach",
+		_board_sortie_title(running_scenario),
 		snapshot
 	)
 	return true
@@ -21214,6 +21428,7 @@ func _sync_nearby_activity_hud() -> void:
 			_detach_nearby_activity_audio()
 			_set_unloaded_nearby_activity_hud()
 			return
+	bind_cinder_cargo_delivery_persistence(binding)
 	if _game_flow_reward_authority != null:
 		_configure_cinder_cargo_reward_handoff(binding)
 		_configure_cinder_structure_scan_reward_handoff(binding)
@@ -21221,7 +21436,6 @@ func _sync_nearby_activity_hud() -> void:
 		_configure_cinder_asteroid_field_reward_handoff(binding)
 	bind_cinder_race_best_persistence(binding)
 	bind_cinder_scan_discovery_persistence(binding)
-	bind_cinder_cargo_delivery_persistence(binding)
 	bind_cinder_mining_capacity_persistence(binding)
 	bind_cinder_convoy_arrival_persistence(binding)
 	_sync_hulk_power_restoration_binding()
@@ -21304,6 +21518,17 @@ func _initialize_optional_semantic_audio() -> void:
 	else:
 		optional_semantic_audio_composition.set_sources(cinder, planetary_cruise_binding)
 		optional_semantic_audio_composition.set_navigator_generation(navigator_generation)
+	_sync_solo_navigator_audio_lifetime()
+	_sync_client_navigator_audio_lifetime()
+	var local_claim := _solo_navigator_audio_claim()
+	if not local_claim.is_empty():
+		var bound: Dictionary = optional_semantic_audio_composition.set_local_navigator_claim(local_claim)
+		if bool(bound.get("accepted", false)) and _network_session_is_live():
+			_solo_navigator_audio_network_context = {
+				"session": network_session, "binding": _network_engineer_binding,
+				"craft": _solo_crew_ship, "authority": _solo_crew_authority,
+				"migration": int(network_session.get_migration_snapshot().get("migration_generation", 0)),
+			}
 	_sync_cinder_navigator_hud_composition(navigator_generation)
 
 
@@ -21317,17 +21542,231 @@ func _sync_optional_semantic_audio() -> void:
 		optional_semantic_audio_composition.set_navigator_generation(
 			_get_cinder_navigator_presentation_generation()
 		)
+	_sync_solo_navigator_audio_lifetime()
+	_sync_client_navigator_audio_lifetime()
 	_sync_cinder_navigator_hud_composition(
 		_get_cinder_navigator_presentation_generation()
 	)
 
 
+## Client navigator playback consumes only the exact current adapter's applied
+## crew stream. Physical passenger readiness is deliberately not a receipt.
+func _sync_client_navigator_audio_lifetime() -> void:
+	if not is_inside_tree() or _network_session_mode != &"client" \
+			or not _network_session_is_live() or network_session.is_server():
+		_disconnect_client_navigator_audio()
+		return
+	if _client_navigator_audio_adapter != network_session:
+		_disconnect_client_navigator_audio()
+		_client_navigator_audio_adapter = network_session
+	var migration := int(network_session.get_migration_snapshot().get("migration_generation", 0))
+	var rebind := not _client_navigator_audio_callback.is_valid()
+	if migration != _client_navigator_audio_migration:
+		_client_navigator_audio_migration = migration
+		_clear_client_navigator_audio_context()
+		rebind = true
+	var context := _current_client_navigator_audio_context()
+	if context != _client_navigator_audio_context:
+		_clear_client_navigator_audio_context()
+		_client_navigator_audio_context = context
+		rebind = true
+	if rebind:
+		if _client_navigator_audio_callback.is_valid() and network_session.crew_snapshot_applied.is_connected(_client_navigator_audio_callback):
+			network_session.crew_snapshot_applied.disconnect(_client_navigator_audio_callback)
+		_client_navigator_audio_epoch += 1
+		_client_navigator_audio_callback = _on_client_navigator_crew_applied.bind(network_session, _client_navigator_audio_epoch, migration)
+		network_session.crew_snapshot_applied.connect(_client_navigator_audio_callback)
+	if is_instance_valid(optional_semantic_audio_composition):
+		optional_semantic_audio_composition.set_client_navigator_context(_client_navigator_audio_context)
+
+
+func _current_client_navigator_audio_context() -> Dictionary:
+	var peer := _network_client_peer_id()
+	if peer <= 1 or _client_navigator_audio_migration <= 0:
+		return {}
+	var offer: Dictionary = network_session.get_server_offer()
+	var admission: Dictionary = offer.get("admission", {})
+	var admitted_peer: Dictionary = admission.get("peer", {})
+	var transport: Dictionary = offer.get("transport", {})
+	var offered_epoch: Dictionary = (offer.get("migration", {}) as Dictionary).get("epoch", {})
+	var current_epoch: Dictionary = network_session.get_migration_snapshot()
+	if admission.get("accepted") != true or int(admitted_peer.get("peer_id", 0)) != peer \
+			or int(admitted_peer.get("peer_generation", 0)) <= 0 \
+			or int(transport.get("peer_id", 0)) != peer \
+			or int(transport.get("peer_generation", 0)) != int(admitted_peer.peer_generation):
+		return {}
+	for key: String in ["package_generation", "session_generation", "migration_generation"]:
+		if int(offered_epoch.get(key, 0)) <= 0 or offered_epoch.get(key) != current_epoch.get(key):
+			return {}
+	var craft: HeroShip = _network_client_remote_helm_ship()
+	if craft == null and phase == Phase.IN_FLIGHT_CABIN and _network_client_boarding_holds(_cabin_ship):
+		craft = _cabin_ship
+	if not craft is CinderCargoHauler or not craft.is_inside_tree() \
+			or craft.is_queued_for_deletion() or craft.is_destroyed():
+		return {}
+	return {"adapter": network_session,
+		"peer": peer, "peer_generation": int(admitted_peer.peer_generation),
+		"session_generation": int(current_epoch.session_generation),
+		"package_generation": int(current_epoch.package_generation),
+		"migration": _client_navigator_audio_migration, "craft": craft,
+		"boarding": _network_client_boarding_claim.duplicate(true)}
+
+
+func _clear_client_navigator_audio_context() -> void:
+	_client_navigator_audio_context.clear()
+	if is_instance_valid(optional_semantic_audio_composition):
+		optional_semantic_audio_composition.clear_client_navigator()
+
+
+func _disconnect_client_navigator_audio() -> void:
+	if is_instance_valid(_client_navigator_audio_adapter) and _client_navigator_audio_callback.is_valid() \
+			and _client_navigator_audio_adapter.crew_snapshot_applied.is_connected(_client_navigator_audio_callback):
+		_client_navigator_audio_adapter.crew_snapshot_applied.disconnect(_client_navigator_audio_callback)
+	_client_navigator_audio_adapter = null
+	_client_navigator_audio_callback = Callable()
+	_client_navigator_audio_epoch += 1
+	_client_navigator_audio_migration = 0
+	_client_navigator_audio_seen.clear()
+	_clear_client_navigator_audio_context()
+
+
+func _on_client_navigator_crew_applied(result: Dictionary, adapter: NetworkSessionAdapterType, epoch: int, migration: int) -> void:
+	# A queued callback from a retired adapter, migration or Main cannot acquire
+	# a new source. Never bootstrap this listener from the adapter's cache.
+	if not is_inside_tree() or adapter != network_session or adapter != _client_navigator_audio_adapter \
+			or epoch != _client_navigator_audio_epoch or migration != _client_navigator_audio_migration \
+			or _network_session_mode != &"client" or not _network_session_is_live() \
+			or adapter.is_server() or result.get("accepted") != true \
+			or StringName(result.get("status", &"")) != &"crew_snapshot_applied" \
+			or not result.get("snapshot") is Dictionary:
+		return
+	if migration != int(adapter.get_migration_snapshot().get("migration_generation", 0)):
+		return
+	var snapshot: Dictionary = result.snapshot
+	if int(snapshot.get("migration_generation", 0)) != migration or not snapshot.get("commands") is Array:
+		return
+	if _current_client_navigator_audio_context() != _client_navigator_audio_context:
+		_sync_client_navigator_audio_lifetime()
+		return
+	for value: Variant in snapshot.commands:
+		if adapter != network_session or adapter != _client_navigator_audio_adapter \
+				or epoch != _client_navigator_audio_epoch or migration != _client_navigator_audio_migration \
+				or migration != int(adapter.get_migration_snapshot().get("migration_generation", 0)):
+			return
+		if not value is Dictionary:
+			continue
+		var command: Dictionary = value
+		if StringName(command.get("action", &"")) not in [&"passenger_ping", &"passenger_ping_clear"]:
+			continue
+		var identity: Array = []
+		for field: String in ["action", "migration_generation", "peer_id", "avatar_id", "peer_generation", "seat_id", "seat_generation", "ship_id", "ship_generation", "request_sequence", "server_tick"]:
+			identity.append(command.get(field))
+		var receipt_key := JSON.stringify(identity).sha256_text()
+		if _client_navigator_audio_seen.has(receipt_key):
+			continue
+		_client_navigator_audio_seen[receipt_key] = true
+		if _client_navigator_audio_context.is_empty() or not is_instance_valid(optional_semantic_audio_composition):
+			continue
+		if not _client_navigator_command_is_recipient(command, snapshot):
+			continue
+		var previous_transition := _client_navigator_audio_presenting_transition
+		_client_navigator_audio_presenting_transition = ("%d:%d:%s" % [adapter.get_instance_id(), epoch, receipt_key]).sha256_text()
+		optional_semantic_audio_composition.present_cinder_client_navigator_command(command, _client_navigator_audio_context)
+		_client_navigator_audio_presenting_transition = previous_transition
+
+
+func _client_navigator_command_is_recipient(command: Dictionary, snapshot: Dictionary) -> bool:
+	var context := _client_navigator_audio_context
+	var craft: HeroShip = context.craft
+	if StringName(command.get("action", &"")) not in [&"passenger_ping", &"passenger_ping_clear"] \
+			or StringName(command.get("ship_id", &"")) != craft.get_ship_id() \
+			or StringName(command.get("seat_id", &"")) != CinderCargoHauler.NAVIGATOR_STATION_SEAT_ID \
+			or StringName(command.get("role", &"")) != &"passenger" \
+			or int(command.get("migration_generation", 0)) != int(context.migration):
+		return false
+	if StringName(command.get("action", &"")) == &"passenger_ping_clear":
+		# Only the existing binding's exact known active receipt can accept this;
+		# its physical assignment/role may already be empty in this publication.
+		return true
+	if int(command.get("peer_id", 0)) == int(context.peer):
+		return int(command.get("peer_generation", 0)) == int(context.peer_generation)
+	# Server-filtered same-ship recipients may sit in another authored role;
+	# cabin bodies alone do not establish that role. Use this applied snapshot.
+	var roles: Variant = snapshot.get("roles", [])
+	if roles is Array:
+		for value: Variant in roles:
+			if not value is Dictionary:
+				continue
+			var role: Dictionary = value
+			if int(role.get("peer_id", 0)) == int(context.peer) \
+					and int(role.get("peer_generation", 0)) == int(context.peer_generation) \
+					and StringName(role.get("ship_id", &"")) == craft.get_ship_id() \
+					and int(role.get("ship_generation", 0)) == int(command.get("ship_generation", 0)) \
+					and int(role.get("migration_generation", 0)) == int(context.migration):
+				return true
+	return false
+
+
+func _solo_navigator_audio_claim() -> Dictionary:
+	if not _solo_crew_ship is CinderCargoHauler \
+			or _solo_crew_seat_id != CinderCargoHauler.NAVIGATOR_STATION_SEAT_ID \
+			or not _solo_crew_claim_is_current():
+		return {}
+	if (_network_session_is_live() or not _solo_navigator_audio_network_context.is_empty() \
+			or (_network_engineer_binding != null and _network_engineer_binding.owns_role_authority(_solo_crew_authority))) \
+			and not _host_owns_local_navigator_audio(_solo_crew_ship, _solo_crew_authority):
+		return {}
+	return {"craft": _solo_crew_ship, "authority": _solo_crew_authority,
+		"avatar_id": SOLO_CREW_AVATAR_ID, "seat_generation": _solo_crew_seat_generation,
+		"claim_sequence": int(_solo_crew_authority.get_assignment(1, SOLO_CREW_AVATAR_ID).get("claim_sequence", 0))}
+
+
+func _host_owns_local_navigator_audio(craft: HeroShip, owner: CrewSeatRoleAuthority) -> bool:
+	return _network_session_is_live() and _network_session_mode == &"server" \
+		and network_session.is_server() and _network_engineer_binding != null \
+		and _network_engineer_binding._session == network_session \
+		and _network_engineer_binding.loadmaster != null \
+		and _network_engineer_binding.loadmaster._session == network_session \
+		and _network_engineer_binding.loadmaster._migration == int(network_session.get_migration_snapshot().get("migration_generation", 0)) \
+		and _network_engineer_binding.owns_role_authority(owner) \
+		and _network_engineer_binding.role_authority_for(craft) == owner
+
+
+func _sync_solo_navigator_audio_lifetime() -> void:
+	if not is_instance_valid(optional_semantic_audio_composition):
+		return
+	var scope := _solo_navigator_audio_network_context
+	var lost_scope := _network_session_is_live() if scope.is_empty() else false
+	if not scope.is_empty():
+		lost_scope = not is_instance_valid(scope.get("craft")) \
+			or not is_instance_valid(scope.get("session")) \
+			or scope.get("session") != network_session \
+			or scope.get("binding") != _network_engineer_binding \
+			or not _host_owns_local_navigator_audio(scope.craft, scope.authority)
+		if not lost_scope:
+			lost_scope = int(scope.migration) != int(network_session.get_migration_snapshot().get("migration_generation", 0))
+	if lost_scope:
+		optional_semantic_audio_composition.clear_local_navigator()
+		_solo_navigator_audio_network_context.clear()
+	else:
+		optional_semantic_audio_composition.retire_local_navigator_if_lost()
+
+
+func _bind_solo_navigator_audio_claim() -> void:
+	if not _solo_navigator_audio_claim().is_empty():
+		_initialize_optional_semantic_audio()
+
+
 func _detach_optional_semantic_audio() -> void:
+	_disconnect_client_navigator_audio()
+	_solo_navigator_audio_network_context.clear()
 	if is_instance_valid(optional_semantic_audio_composition):
 		optional_semantic_audio_composition.detach()
 
 
 func _get_cinder_navigator_presentation_generation() -> int:
+	if _network_session_mode == &"client":
+		return 0
 	if _network_ship_authority_composition != null and is_instance_valid(_network_composition_ship) and _network_composition_ship is CinderCargoHaulerType:
 		return _network_ship_generation
 	if _network_engineer_binding != null and _network_engineer_binding.loadmaster != null:
@@ -21548,32 +21987,54 @@ func _get_cinder_navigator_crew_snapshot(
 func _sync_halyard_crew_semantic_audio() -> void:
 	if not is_instance_valid(halyard_crew_semantic_audio_binding):
 		return
-	if not is_instance_valid(active_ship) or active_ship.get_ship_id() != HALYARD_SHIP_ID \
+	if not is_instance_valid(active_ship) or not active_ship.is_inside_tree() \
+			or active_ship.get_ship_id() != HALYARD_SHIP_ID \
 			or not active_ship.has_method(&"get_crew_role_gameplay_snapshot"):
-		if bool(halyard_crew_semantic_audio_binding.get_snapshot().get("attached", false)):
-			halyard_crew_semantic_audio_binding.detach()
-		_last_halyard_crew_event_sequence = -2
+		_retire_halyard_crew_semantic_audio_source()
 		return
-	if not bool(halyard_crew_semantic_audio_binding.get_snapshot().get("attached", false)):
-		halyard_crew_semantic_audio_binding.attach(
-			int(halyard_crew_semantic_audio_binding.get_snapshot().get("generation", 0))
-		)
+	var source_instance_id := active_ship.get_instance_id()
+	if source_instance_id != _halyard_crew_audio_source_instance_id:
+		_retire_halyard_crew_semantic_audio_source()
+		_halyard_crew_audio_source_instance_id = source_instance_id
+	_initialize_halyard_crew_semantic_audio()
 	var snapshot := active_ship.call(&"get_crew_role_gameplay_snapshot") as Dictionary
 	var event_sequence := int(snapshot.get("authority_event_sequence", -1))
-	if event_sequence == _last_halyard_crew_event_sequence:
+	var repair := snapshot.get("engineer_repair", {}) as Dictionary
+	# Only repair observations participate in this second fence. Cooldown and
+	# stock readouts do not create sound events; role ordering keeps its meaning.
+	var repair_observation := {
+		"status": repair.get("status", &""),
+		"token": repair.get("token", (repair.get("receipt", {}) as Dictionary).get("token", -1)),
+		"component_id": repair.get("component_id", &""),
+		"component_generation": repair.get("component_generation", -1),
+		"progress": repair.get("progress", -1.0),
+	}
+	if event_sequence == _last_halyard_crew_event_sequence \
+			and repair_observation == _last_halyard_crew_repair_observation:
 		return
-	_last_halyard_crew_event_sequence = event_sequence
-	halyard_crew_semantic_audio_binding.present_crew_snapshot(snapshot)
+	var result := halyard_crew_semantic_audio_binding.present_crew_snapshot(snapshot) as Dictionary
+	if bool(result.get("accepted", false)):
+		_last_halyard_crew_event_sequence = event_sequence
+		_last_halyard_crew_repair_observation = repair_observation
+
+
+func _retire_halyard_crew_semantic_audio_source() -> void:
+	if is_instance_valid(halyard_crew_semantic_audio_binding):
+		if _halyard_crew_semantic_bound and is_instance_valid(audio) \
+				and audio.has_method(&"unbind_semantic_audio_source"):
+			audio.call(&"unbind_semantic_audio_source", halyard_crew_semantic_audio_binding, &"crew")
+		if bool(halyard_crew_semantic_audio_binding.get_snapshot().get("attached", false)):
+			halyard_crew_semantic_audio_binding.detach()
+	_halyard_crew_semantic_bound = false
+	_halyard_crew_audio_source_instance_id = 0
+	_last_halyard_crew_event_sequence = -2
+	_last_halyard_crew_repair_observation.clear()
 
 
 func _detach_halyard_crew_semantic_audio() -> void:
-	if is_instance_valid(halyard_crew_semantic_audio_binding):
-		halyard_crew_semantic_audio_binding.detach()
-	if _halyard_crew_semantic_bound and is_instance_valid(audio) \
-			and audio.has_method(&"detach_semantic_audio_sources"):
+	_retire_halyard_crew_semantic_audio_source()
+	if is_instance_valid(audio) and audio.has_method(&"detach_semantic_audio_sources"):
 		audio.call(&"detach_semantic_audio_sources")
-	_halyard_crew_semantic_bound = false
-	_last_halyard_crew_event_sequence = -2
 
 
 func _initialize_nearby_activity_audio() -> void:
@@ -23385,6 +23846,10 @@ func _present_runtime_settings_repair_result(result: Dictionary) -> void:
 		return
 	if hud.has_method(&"present_runtime_settings_repair_report"):
 		hud.present_runtime_settings_repair_report(get_runtime_settings_repair_report())
+	if result.get("reason", &"") == &"primary_quarantine_failed":
+		if hud.has_method(&"set_settings_status"):
+			hud.set_settings_status("BACKUP REPAIR BLOCKED  //  SAVE FILES PRESERVED", false)
+		return
 	if hud.has_method(&"set_settings_status"):
 		hud.set_settings_status(
 			"BACKUP REPAIR FAILED  //  %s"
@@ -24664,6 +25129,7 @@ func _apply_all_runtime_settings() -> void:
 	# the on-foot look preference rather than the flight one.
 	if is_instance_valid(tow_tractor):
 		tow_tractor.mouse_sensitivity = runtime_settings.on_foot_mouse_sensitivity
+		tow_tractor.invert_mouse_y = runtime_settings.invert_on_foot_y
 		tow_tractor.set_camera_fov(runtime_settings.camera_fov, runtime_settings.limit_ultrawide_fov)
 	runtime_settings.apply_audio_settings()
 	_apply_reduced_dynamic_range_setting()
@@ -24841,6 +25307,7 @@ func _apply_opponent_weapon_heat_presentation_profile() -> void:
 	# opponent's heat vent and destruction flash; the picket's lance bolts too.
 	for reinforcement_path: NodePath in [
 		^"StandoffPicket", ^"WingSkirmisherLead", ^"WingSkirmisherWing", ^"CourierRunner",
+		^"PerimeterPicket", ^"PerimeterScatter", ^"PerimeterPress",
 	]:
 		var reinforcement := get_node_or_null(reinforcement_path) as RangeOpponent
 		if is_instance_valid(reinforcement):
@@ -24876,7 +25343,14 @@ func _on_semantic_audio_cue_emitted(
 	world_position: Vector3
 ) -> void:
 	if is_instance_valid(hud) and hud.has_method(&"present_semantic_audio_cue"):
-		hud.call(&"present_semantic_audio_cue", cue_id, source_id, intensity, world_position)
+		if source_id == &"navigator" and cue_id in [&"cinder_navigator_ping_accepted", &"cinder_navigator_ping_cleared"] \
+				and not _client_navigator_audio_presenting_transition.is_empty():
+			# Consecutive real accepted commands share one cue, but are distinct
+			# caption transitions. Preserve that identity only during dispatch.
+			hud.call(&"present_semantic_audio_cue", cue_id, source_id, intensity, world_position,
+				{"transition_id": _client_navigator_audio_presenting_transition})
+		else:
+			hud.call(&"present_semantic_audio_cue", cue_id, source_id, intensity, world_position)
 
 
 func _on_setting_change_requested(setting: StringName, value: Variant) -> void:
@@ -25005,6 +25479,8 @@ func _on_runtime_setting_changed(setting: StringName, _value: Variant) -> void:
 			fleet_ship.invert_mouse_y = runtime_settings.invert_ship_y
 	elif setting == &"invert_on_foot_y":
 		player.invert_mouse_y = runtime_settings.invert_on_foot_y
+		if is_instance_valid(tow_tractor):
+			tow_tractor.invert_mouse_y = runtime_settings.invert_on_foot_y
 	elif setting == &"camera_fov" or setting == &"limit_ultrawide_fov":
 		# One seam for both keys: the authored angle and the ultrawide opt-out
 		# are two halves of the same resolved FOV, so either edit re-derives it.
@@ -25681,6 +26157,9 @@ func _request_network_engineer_stand() -> void:
 
 
 func _advance_network_engineer(delta: float) -> void:
+	# Establish/retire the exact client recipient before seated input can
+	# publish its once-only navigator command in this physics step.
+	_sync_client_navigator_audio_lifetime()
 	if _network_engineer_binding != null:
 		_network_engineer_binding.advance(delta)
 	if _network_session_mode != &"client" or not is_instance_valid(network_session):

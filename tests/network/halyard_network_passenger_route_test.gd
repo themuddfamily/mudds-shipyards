@@ -5,6 +5,24 @@ extends SceneTree
 ## cabin walking, hatch opening, physical passenger chair and standing use Input.
 ## Claims remain on the authoritative host body and existing sealed role owner.
 const Main := preload("res://scenes/main.tscn")
+const Director := preload("res://scripts/audio/audio_director.gd")
+
+# Install on Main's existing node before tree entry. Every request still enters
+# the real resident bank/backend path, including its mandatory Dummy guard.
+class NavigatorRequestSpy extends Director:
+	var navigator_requests: Array[Dictionary] = []
+	var _navigator_request_cue: StringName = &""
+	func _on_semantic_cue(source: StringName, cue: StringName, intensity: float, position: Vector3) -> void:
+		var previous := _navigator_request_cue
+		_navigator_request_cue = cue if source == &"navigator" else &""
+		super._on_semantic_cue(source, cue, intensity, position)
+		_navigator_request_cue = previous
+	func _play_resident(stream_id: StringName, bus: StringName, volume_db: float) -> bool:
+		if not _navigator_request_cue.is_empty():
+			navigator_requests.append({"cue_id": _navigator_request_cue, "stream_id": stream_id, "bus": bus,
+				"volume_db": volume_db, "effective_volume_db": volume_db + _effect_attenuation_db()})
+		return super._play_resident(stream_id, bus, volume_db)
+
 var _checks := 0
 var _failures: Array[String] = []
 var _directory := ""
@@ -16,6 +34,11 @@ var _navigator := false
 var _gunner := false
 var _gunner_shots := 0
 var _navigator_cues: Array[StringName] = []
+var _navigator_captions: Array[Dictionary] = []
+var _navigator_applied: Array[Dictionary] = []
+var _navigator_records: Array[Dictionary] = []
+var _navigator_first_claim_sequence := 0
+var _navigator_observed_events := 0
 # Real outbound cruise, landing + authored survey use the existing shared success
 # route's overall budget. All default waits and stage caps stay intact.
 const EMBER_SURFACE_TOTAL_SECONDS := 2400.0
@@ -92,6 +115,8 @@ func _run() -> void:
 	_port = int(args[2])
 	_write(_role + ".script_ready", {})
 	_game = Main.instantiate() as GameFlow
+	if _navigator:
+		_game.get_node("AudioDirector").set_script(NavigatorRequestSpy)
 	_store_path = "user://passenger-peer-%d.json" % OS.get_process_id()
 	var store := UserDataStore.new(_store_path)
 	store.load()
@@ -105,7 +130,9 @@ func _run() -> void:
 	if _navigator or _gunner:
 		await _remap_navigator_fire()
 	if _navigator:
-		_game.audio.semantic_cue_emitted.connect(func(_source: StringName, cue: StringName, _intensity: float, _position: Vector3) -> void: _navigator_cues.append(cue))
+		_game._on_setting_change_requested(&"captions_enabled", true)
+		_check(_game.runtime_settings.captions_enabled and _game.hud.are_captions_enabled(), "navigator route enables captions through actual production settings before capture")
+		_game.audio.semantic_cue_emitted.connect(_capture_navigator_cue)
 	if _gunner:
 		_craft.projectile_fired.connect(func(_origin: Vector3, _direction: Vector3): _gunner_shots += 1)
 	_write(_role + ".main_ready", {})
@@ -381,7 +408,7 @@ func _host() -> void:
 	_check(await _until(func(): return not _player.is_seated() and _player.is_on_floor() and not bool(_game.get("_transition_busy")), 8.0), "ordinary host stand restores supported controllable body")
 	_check(owner.get_assignment(1, GameFlow.SOLO_CREW_AVATAR_ID).is_empty() and _craft.get_crew_role_authority() == owner, "host stand releases own claim and preserves shared network ledger")
 	# Clear the shared exit through ordinary walking before another body arrives.
-	await _walk(Vector3(-1.85, -0.86, -1.7) if _cinder else Vector3(0.0, 0.52, HalyardCrewTransport.AIRSTAIR_Z))
+	await _walk(Vector3(-1.85, -0.86, -1.7) if _cinder else Vector3(0.0, 0.52, HalyardCrewTransport.AIRSTAIR_Z), 0.10 if _navigator else 0.30)
 	_check(_player.global_position.distance_to(_station_contract().exit_transform.origin) > 2.0, "host walks clear of the shared chair exit")
 	_player.set_control_enabled(false)
 	var observed_craft: HeroShip
@@ -575,6 +602,8 @@ func _admitted_session_ready() -> bool:
 
 func _client() -> void:
 	_check(_game.join_network_session("127.0.0.1", _port).accepted, "production client joins")
+	if _navigator:
+		_game.network_session.crew_snapshot_applied.connect(_capture_navigator_applied)
 	var ready := await _until(_admitted_session_ready, 60.0)
 	_check(ready, "client receives matching admitted current-epoch server offer")
 	if not ready:
@@ -621,6 +650,11 @@ func _client() -> void:
 		_check(int(_cargo_before.finite_source) == GameFlow.CARGO_DELIVERY_SOURCE_INITIAL_QUANTITY and int(_cargo_before.capacity) == 8, "production cargo owner starts with exact finite quantity and retained eight-slot Cinder hold")
 		await _press(&"fire")
 		_check(await _until(func(): return _role_effect_ready(_game.network_session.get_passenger_replica_snapshot().get("navigator" if _navigator else "manifest", {})), 5.0), "remote ordinary seated FIRE reaches host manifest consumer and confirms receipt")
+		if _navigator:
+			_check(await _until(func(): return _navigator_request_count(&"cinder_navigator_ping_accepted") == 1 and _navigator_records.size() >= 1, 5.0), "client first real chair FIRE receives exactly one confirmation request from applied crew command")
+			_check_navigator_feedback(1, 0, "first ordinary chair FIRE")
+			_navigator_first_claim_sequence = int((_game.network_session.get_passenger_replica_snapshot().get("assignment", {}) as Dictionary).get("claim_sequence", 0))
+			_check(_navigator_first_claim_sequence > 0, "first accepted client receipt belongs to actual confirmed passenger claim")
 		_check(_cargo_state() == _cargo_before, "client readiness leaves finite cargo unchanged")
 	if _gunner:
 		await _press(&"fire")
@@ -633,6 +667,10 @@ func _client() -> void:
 	await _ticks(20)
 	print("PASSENGER_STAND_DEBUG: local=", _craft.to_local(_player.global_position), " floor=", _player.is_on_floor(), " control=", _player.is_control_enabled(), " station=", _player.is_station_seated(), " containment=", _player.get_cabin_containment_report(), " view=", _game.network_session.get_passenger_replica_snapshot())
 	_check(await _until(func(): return _player.is_on_floor() and _player.is_control_enabled() and not _player.is_station_seated(), 3.0), "standing restores supported ordinary controls")
+	if _navigator:
+		_check(await _until(func(): return _navigator_request_count(&"cinder_navigator_ping_cleared") == 1, 5.0), "client ordinary stand receives one real matching clear")
+		_check((_game.network_session.get_passenger_replica_snapshot().get("assignment", {}) as Dictionary).is_empty(), "client clear survives already empty passenger assignment")
+		_check_navigator_feedback(1, 1, "ordinary stand")
 	_write("client.stood", {})
 	if not await _wait_file("host.stand_checked", 10.0):
 		return
@@ -649,10 +687,28 @@ func _client() -> void:
 	if _navigator:
 		_check(await _until(func(): return _objective_text().contains("AWAITING ROUTE HINT"), 3.0), "ordinary reseat clears the previous visible navigator acknowledgement")
 		await _press(&"fire")
+		_check(await _until(func(): return _navigator_request_count(&"cinder_navigator_ping_accepted") == 2, 5.0), "client actual reseat FIRE receives distinct accepted receipt")
+		_check_navigator_feedback(2, 1, "ordinary reseat FIRE")
+		var accepted_records := _navigator_commands(&"passenger_ping")
+		var reseated_claim := int((_game.network_session.get_passenger_replica_snapshot().get("assignment", {}) as Dictionary).get("claim_sequence", 0))
+		_check(reseated_claim > 0 and reseated_claim != _navigator_first_claim_sequence, "real reseat replaces the first confirmed passenger claim sequence")
+		_check(accepted_records.size() == 2 and accepted_records[0] != accepted_records[1]
+			and (accepted_records[0].request_sequence != accepted_records[1].request_sequence or accepted_records[0].ship_generation != accepted_records[1].ship_generation or accepted_records[0].server_tick != accepted_records[1].server_tick), "two pre-migration accepted commands retain distinct actual request/publication identities")
 	print("PASSENGER_RESEAT_DEBUG: local=", _craft.to_local(_player.global_position), " floor=", _player.is_on_floor(), " control=", _player.is_control_enabled(), " candidate=", _game.station_interaction_candidate, " view=", _game.network_session.get_passenger_replica_snapshot(), " body_source=", _game.get_network_remote_body_intent_source().get_audit())
 	_write("client.reseated", {})
 	if not await _wait_file("host.reseat_checked", 10.0):
 		return
+	if _navigator:
+		_check(await _until(func(): return _navigator_request_count(&"cinder_navigator_ping_cleared") == 2, 5.0), "client retained publication delivers exactly one clear after real host row revocation")
+		_check_navigator_feedback(2, 2, "host retained-publication retirement")
+		var replay_requests := (_game.audio as NavigatorRequestSpy).navigator_requests.size()
+		var replay_captions := _navigator_captions.size()
+		var replay_callback: Callable = _game._client_navigator_audio_callback
+		for applied: Dictionary in _navigator_applied:
+			var original := applied.duplicate(true)
+			replay_callback.call(applied)
+			_check(applied == original, "actual applied accepted/clear replay preserves unchanged transported records")
+		_check((_game.audio as NavigatorRequestSpy).navigator_requests.size() == replay_requests and _navigator_captions.size() == replay_captions, "old actual accepted and clear command replay produces no sound or caption")
 	_write("client.migrate", {})
 	if not await _wait_file("host.migrated", 12.0):
 		return
@@ -674,12 +730,203 @@ func _client() -> void:
 	if _cinder:
 		await _press(&"fire")
 		_check(await _until(func(): return _role_effect_ready(_game.network_session.get_passenger_replica_snapshot().get("navigator" if _navigator else "manifest", {})), 5.0), "post-migration ordinary FIRE uses fresh binding and request cursor")
+	if _navigator:
+		_check(await _until(func(): return _navigator_request_count(&"cinder_navigator_ping_accepted") == 3, 5.0), "actual migration stream-2 rebind/reseat/FIRE produces new client acceptance")
+		_check_navigator_feedback(3, 2, "post-migration rebind and reseat FIRE")
+		var accepted_records := _navigator_commands(&"passenger_ping")
+		_check(accepted_records.size() == 3 and int(accepted_records[2].migration_generation) > int(accepted_records[1].migration_generation), "post-migration accepted command carries actual newer transported epoch")
 	_write("client.disconnect_seated", {})
 	if not await _wait_file("host.disconnect_ready", 10.0):
 		return
+	var retiring_adapter: NetworkEnetSessionAdapter = _game.network_session
+	var retiring_callback: Callable = _game._client_navigator_audio_callback
+	var retiring_source: Node = _game.optional_semantic_audio_composition._client_navigator_composition._binding if _navigator else null
+	var retired_request_count := (_game.audio as NavigatorRequestSpy).navigator_requests.size() if _navigator else 0
+	if _navigator:
+		_check(is_instance_valid(retiring_source), "real disconnect has the exact current navigator source to retire")
 	_game.shutdown_network_session(&"passenger_client_disconnect")
+	if _navigator:
+		_check(not retiring_adapter.crew_snapshot_applied.is_connected(retiring_callback) and not bool(_game.optional_semantic_audio_composition.get_snapshot().client_navigator.attached), "real disconnect retires exact current client callback and source flags")
+		if is_instance_valid(retiring_source):
+			retiring_source.semantic_navigator_ping_cue_emitted.emit(&"cinder_navigator_ping_accepted", 0.7)
+		for applied: Dictionary in _navigator_applied:
+			retiring_callback.call(applied)
+		_check((_game.audio as NavigatorRequestSpy).navigator_requests.size() == retired_request_count, "real disconnect leaves old adapter callbacks and exact unbound source silent")
+		_check(bool(_game.audio.get_audit_report().get("valid", false)), "client route request spy preserves real Dummy playback/backend lifecycle")
 	_check(not _player.is_seated() and _player.is_control_enabled(), "disconnect leaves local passenger awake with controls")
 	_write("client.disconnected", {})
+
+
+func _capture_navigator_cue(source: StringName, cue: StringName, _intensity: float, _position: Vector3) -> void:
+	_navigator_cues.append(cue)
+	if source != &"navigator":
+		return
+	# Main's existing semantic callback ran first; inspect its actual presenter.
+	var presenter: RefCounted = _game.hud.get("_semantic_audio_cue_presenter") as RefCounted
+	var caption: Dictionary = presenter.call(&"get_snapshot")
+	_check(caption.get("cue_id") == cue and caption.get("source") == &"navigator", "real Main semantic presenter consumes navigator event")
+	_navigator_captions.append(caption.duplicate(true))
+
+
+func _capture_navigator_applied(result: Dictionary) -> void:
+	if result.get("accepted") != true or result.get("status") != &"crew_snapshot_applied":
+		return
+	var commands: Array = (result.get("snapshot", {}) as Dictionary).get("commands", [])
+	for command: Dictionary in commands:
+		if command.get("action") not in [&"passenger_ping", &"passenger_ping_clear"]:
+			continue
+		if not _navigator_records.has(command):
+			_navigator_records.append(command.duplicate(true))
+		# Fixture observations only: never dispatch, rewrite, or replace a command.
+		# The immediate signal listener survives Main's context-driven rebinds;
+		# retain its actual connection order rather than assuming it runs first.
+		_navigator_observed_events += 1
+		var observation := {
+			"kind": "fixture_navigator_presentation_diagnostic",
+			"event": _navigator_observed_events,
+			"revision": result.get("revision"),
+			"snapshot_epoch": _navigator_diagnostic_fields(result.snapshot, ["migration_generation", "server_tick", "ship_generation"]),
+			"snapshot_roles": _navigator_diagnostic_json(result.snapshot.get("roles", [])),
+			"command": command.duplicate(true),
+			"command_json_at_signal": JSON.stringify(command),
+			"before_dispatch_observation": _navigator_presentation_observation(),
+		}
+		var name := "%s.navigator-event-%04d.json" % [_role, _navigator_observed_events]
+		_write(name, observation)
+		_capture_navigator_after_dispatch.call_deferred(name, observation, command)
+	if not commands.is_empty():
+		_navigator_applied.append(result.duplicate(true))
+
+
+func _capture_navigator_after_dispatch(name: String, observation: Dictionary, command: Dictionary) -> void:
+	# Deferred from this exact applied event, after every synchronous production
+	# listener. Keep the original command copy and compare the live record bytes.
+	observation["command_json_after_dispatch"] = JSON.stringify(command)
+	observation["command_unchanged"] = observation.command_json_at_signal == JSON.stringify(command)
+	observation["after_dispatch_observation"] = _navigator_presentation_observation()
+	_write(name, observation)
+
+
+func _navigator_presentation_observation() -> Dictionary:
+	var adapter := _game.network_session
+	var offer: Dictionary = adapter.get_server_offer()
+	var admission: Dictionary = offer.get("admission", {})
+	var composition: Node = _game.optional_semantic_audio_composition
+	var source: Node = composition._client_navigator_composition if is_instance_valid(composition) else null
+	var binding: Node = source._binding if is_instance_valid(source) else null
+	var callback: Callable = _game._client_navigator_audio_callback
+	var listeners: Array = []
+	for connection: Dictionary in adapter.crew_snapshot_applied.get_connections():
+		var listener: Callable = connection.callable
+		listeners.append({"object_id": listener.get_object_id(), "method": str(listener.get_method()),
+			"bound_arguments": _navigator_diagnostic_json(listener.get_bound_arguments()), "flags": connection.flags})
+	return {
+		"physics_frame": Engine.get_physics_frames(), "ticks_msec": Time.get_ticks_msec(),
+		"adapter_id": adapter.get_instance_id(), "adapter_inside_tree": adapter.is_inside_tree(),
+		"session_mode": _game._network_session_mode, "session_live": _game._network_session_is_live(),
+		"is_server": adapter.is_server(), "client_peer": _game._network_client_peer_id(),
+		"latest_requested_peer_generation": int(adapter.get("_next_peer_generation")) - 1,
+		"current_transport_peer": _navigator_diagnostic_fields(adapter._transport.get_peer(_game._network_client_peer_id()), ["peer_id", "peer_generation", "active"]),
+		"admission": _navigator_diagnostic_fields(admission, ["accepted", "status"]),
+		"offered_admission_peer": _navigator_diagnostic_fields(admission.get("peer", {}), ["peer_id", "peer_generation"]),
+		"offered_transport": _navigator_diagnostic_fields(offer.get("transport", {}), ["peer_id", "peer_generation", "session_generation"]),
+		"offered_epoch": _navigator_diagnostic_fields((offer.get("migration", {}) as Dictionary).get("epoch", {}), ["protocol_version", "package_generation", "session_generation", "migration_generation"]),
+		"current_epoch": _navigator_diagnostic_fields(adapter.get_migration_snapshot(), ["protocol_version", "package_generation", "session_generation", "migration_generation"]),
+		"main_inside_tree": _game.is_inside_tree(), "phase": _game.phase,
+		"route_craft": _navigator_diagnostic_object(_craft),
+		"cabin_craft": _navigator_diagnostic_object(_game._cabin_ship),
+		"remote_helm_craft": _navigator_diagnostic_object(_game._network_client_remote_helm_ship()),
+		"boarding_claim": _navigator_diagnostic_json(_game._network_client_boarding_claim),
+		"boarding_holds_route_craft": _game._network_client_boarding_holds(_craft),
+		"callback_adapter": _navigator_diagnostic_object(_game._client_navigator_audio_adapter),
+		"callback_epoch": _game._client_navigator_audio_epoch,
+		"callback_migration": _game._client_navigator_audio_migration,
+		"callback_valid": callback.is_valid(), "callback_bound_arguments": _navigator_diagnostic_json(callback.get_bound_arguments()),
+		"callback_connected": adapter.crew_snapshot_applied.is_connected(callback), "signal_listener_order": listeners,
+		"captured_context": _navigator_diagnostic_json(_game._client_navigator_audio_context),
+		"current_context": _navigator_diagnostic_json(_game._current_client_navigator_audio_context()),
+		"seen_receipts": _navigator_diagnostic_json(_game._client_navigator_audio_seen),
+		"composition": _navigator_diagnostic_object(composition),
+		"composition_attached": bool(composition._attached) if is_instance_valid(composition) else false,
+		"composition_context": _navigator_diagnostic_json(composition._client_navigator_context) if is_instance_valid(composition) else {},
+		"composition_generation": int(composition._client_navigator_generation) if is_instance_valid(composition) else 0,
+		"source": _navigator_diagnostic_object(source),
+		"source_attached": bool(source._attached) if is_instance_valid(source) else false,
+		"binding": _navigator_diagnostic_object(binding),
+		"binding_snapshot": _navigator_diagnostic_json(binding.get_snapshot()) if is_instance_valid(binding) else {},
+		"real_director_requests": _navigator_diagnostic_json((_game.audio as NavigatorRequestSpy).navigator_requests),
+		"real_captions": _navigator_diagnostic_json(_navigator_captions),
+	}
+
+
+func _navigator_diagnostic_fields(value: Dictionary, fields: Array) -> Dictionary:
+	var selected: Dictionary = {}
+	for field in fields:
+		if value.has(field):
+			selected[field] = _navigator_diagnostic_json(value[field])
+	return selected
+
+
+func _navigator_diagnostic_object(value: Variant) -> Dictionary:
+	if not is_instance_valid(value):
+		return {"exists": false}
+	var observed := {"exists": true, "instance_id": value.get_instance_id(), "class": value.get_class()}
+	if value is Node:
+		observed["inside_tree"] = value.is_inside_tree()
+		observed["queued_for_deletion"] = value.is_queued_for_deletion()
+	if value is HeroShip:
+		observed["ship_id"] = str(value.get_ship_id())
+		observed["destroyed"] = value.is_destroyed()
+	return observed
+
+
+func _navigator_diagnostic_json(value: Variant) -> Variant:
+	# Only called on the selected observation fields above. Nodes in recipient
+	# contexts become IDs, never Godot object strings or serialized instances.
+	if value is Object:
+		return _navigator_diagnostic_object(value)
+	if value is Dictionary:
+		var result: Dictionary = {}
+		for key in value:
+			result[str(key)] = _navigator_diagnostic_json(value[key])
+		return result
+	if value is Array:
+		var result: Array = []
+		for item in value:
+			result.append(_navigator_diagnostic_json(item))
+		return result
+	if value is StringName:
+		return str(value)
+	if value == null or value is bool or value is int or value is float or value is String:
+		return value
+	return {"unsupported_variant_type": type_string(typeof(value))}
+
+
+func _navigator_request_count(cue: StringName) -> int:
+	var count := 0
+	for request: Dictionary in (_game.audio as NavigatorRequestSpy).navigator_requests:
+		if request.cue_id == cue:
+			count += 1
+	return count
+
+
+func _navigator_commands(action: StringName) -> Array[Dictionary]:
+	var records: Array[Dictionary] = []
+	for command: Dictionary in _navigator_records:
+		if command.action == action:
+			records.append(command)
+	return records
+
+
+func _check_navigator_feedback(accepted: int, cleared: int, stage: String) -> void:
+	var requests: Array[Dictionary] = (_game.audio as NavigatorRequestSpy).navigator_requests
+	_check(requests.size() == accepted + cleared and _navigator_captions.size() == requests.size(), stage + " has exactly one navigator request and real caption per outcome")
+	_check(_navigator_commands(&"passenger_ping").size() == accepted and _navigator_commands(&"passenger_ping_clear").size() == cleared, stage + " correlates with successfully applied actual crew commands")
+	for index in requests.size():
+		var request: Dictionary = requests[index]
+		var is_accept: bool = request.cue_id == &"cinder_navigator_ping_accepted"
+		_check(request.stream_id == (Director.STREAM_UI_CONFIRM if is_accept else Director.STREAM_CANOPY_CLOSE) and request.bus == &"UI", stage + " selects existing navigator confirmation/clear UI resident stream")
+		_check(_navigator_captions[index].get("caption", "") == ("Navigator ping accepted" if is_accept else "Navigator ping cleared"), stage + " preserves real accepted/clear caption text")
 
 
 func _station_anchor() -> Marker3D:
@@ -972,7 +1219,7 @@ func _cargo_state() -> Dictionary:
 		"capacity": _craft.get_cargo_capacity() if _cinder else 0,
 	}
 
-func _walk(target_local: Vector3) -> void:
+func _walk(target_local: Vector3, arrival_tolerance: float = 0.30) -> void:
 	var start := _player.global_position
 	var furthest := 0.0
 	var source := _game.get_network_remote_body_intent_source()
@@ -1010,7 +1257,7 @@ func _walk(target_local: Vector3) -> void:
 		var authoritative_sample: Dictionary = sample_authoritative_waypoint.call() if settle_authoritative else {}
 		var current: bool = bool(authoritative_sample.get("current", false))
 		var authoritative_delta: Vector3 = authoritative_sample.get("delta", Vector3.ZERO)
-		if delta.length() < 0.30 and (not settle_authoritative or not current or authoritative_delta.length() < 0.30):
+		if delta.length() < arrival_tolerance and (not settle_authoritative or not current or authoritative_delta.length() < arrival_tolerance):
 			if not settle_authoritative:
 				break
 			# A predicted arrival is provisional: late reconciliation can move the
@@ -1024,8 +1271,8 @@ func _walk(target_local: Vector3) -> void:
 			authoritative_sample = sample_authoritative_waypoint.call()
 			current = bool(authoritative_sample.get("current", false))
 			authoritative_delta = authoritative_sample.get("delta", Vector3.ZERO)
-			var settled: bool = delta.length() < 0.30 and current \
-				and authoritative_delta.length() < 0.30 \
+			var settled: bool = delta.length() < arrival_tolerance and current \
+				and authoritative_delta.length() < arrival_tolerance \
 				and _player.is_on_floor() and _player.velocity.slide(_craft.global_basis.y.normalized()).length() < 0.1
 			settled_ticks = settled_ticks + 1 if settled else 0
 			if settled_ticks >= 15:

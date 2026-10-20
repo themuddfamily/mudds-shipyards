@@ -14,6 +14,7 @@ const DESTINATION_SCENE := preload("res://scenes/world/modules/cargo_destination
 const JOVIAN_SCENE := preload("res://scenes/ships/jovian_light_freighter.tscn")
 const JOVIAN_DEFINITION := preload("res://assets/ships/jovian_provisional.tres")
 const JOVIAN_SCRIPT := preload("res://scripts/ships/jovian_light_freighter.gd")
+const FLEET_BINDING := preload("res://scripts/world/fleet_expansion_production_binding.gd")
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
 const GAME_FLOW_SCRIPT := preload("res://scripts/game/game_flow.gd")
 const USER_DATA_STORE_SCRIPT := preload("res://scripts/persistence/user_data_store.gd")
@@ -136,7 +137,184 @@ func _run() -> void:
 	stage.queue_free()
 	await process_frame
 	await process_frame
+	await _test_hauler_physical_access()
 	_finish()
+
+
+func _test_hauler_physical_access() -> void:
+	# Compose the exact production hull and its production-bound physical markers.
+	# This fresh stage follows the unchanged original Jovian route and cleanup.
+	var stage := Node3D.new()
+	root.add_child(stage)
+	var cluster := CLUSTER_SCENE.instantiate() as NearbySectorCluster
+	stage.add_child(cluster)
+	var fleet := FLEET_BINDING.new() as FleetExpansionProductionBinding
+	fleet.position = Vector3(1000.0, 0.0, 0.0)
+	stage.add_child(fleet)
+	for _settle in 4:
+		await process_frame
+		await physics_frame
+	var ship := fleet.get_node_or_null(^"cinder_cargo_hauler") as HeroShip
+	var access := cluster.get_cinder_cargo_access()
+	var terminal := cluster.get_cinder_cargo_destination_terminal()
+	if not _check(
+		fleet.is_composition_ready() and ship != null and access != null and terminal != null,
+		"Hauler access fixture uses the actual production-composed hull, physical markers, cluster and terminal"
+	):
+		stage.queue_free()
+		await process_frame
+		return
+	var berth := access.get_berth()
+	# Frozen old-runtime failure: do not attempt unavailable access after refusal.
+	if not _check(
+		berth.is_compatible_with(ship.get_ship_definition()),
+		"Cinder supply berth accepts the actual production-composed Hauler definition"
+	):
+		stage.queue_free()
+		await process_frame
+		return
+	var exit_node := ship.get_node(^"ExitPoint") as Marker3D
+	var exit_node_id := exit_node.get_instance_id()
+	var authored_exit := ship.global_transform.affine_inverse() * ship.get_exit_transform()
+	var detached := fleet.detach_craft(&"cinder_cargo_hauler")
+	var lease := berth.try_reserve(ship, ship.get_ship_definition())
+	var dock := berth.get_dock_transform()
+	var bounds := ship.get_landing_collision_report().local_bounds as AABB
+	_check(
+		detached.accepted and not lease.is_empty()
+		and berth.get_reservation_owner() == ship
+		and berth.evaluate_landing_candidate(dock, bounds, Vector3.ZERO, ship.landing_maximum_speed).valid
+		and not berth.release(ship, &"stale-hauler-lease")
+		and berth.get_reservation_token(ship) == lease,
+		"actual Hauler reserves one opaque lease with strict unchanged final fit and refuses a stale release"
+	)
+	ship.global_transform = berth.get_assist_capture_transform()
+	ship.velocity = Vector3.ZERO
+	var requested := ship.request_berth_landing(berth)
+	var frames := await _await_public_landing(ship, 1200)
+	var telemetry := ship.get_telemetry()
+	var contract := ship.get_landing_contract_report()
+	var completed: bool = requested and frames > 0 and frames < 1200 and telemetry.landed \
+		and StringName(telemetry.landing_abort_reason).is_empty() \
+		and contract.contract_accepted and contract.strict_dock_acceptance \
+		and berth.get_occupant() == ship and berth.get_reservation_token(ship) == lease \
+		and (contract.dock_transform_snapshot as Transform3D).is_equal_approx(dock) \
+		and ship.global_transform.is_equal_approx(dock)
+	if not completed:
+		var owner := berth.get_reservation_owner()
+		var occupant := berth.get_occupant()
+		print("CINDER_HAULER_LANDING_FAILURE: ", {
+			"requested": requested, "frames": frames,
+			"phase": telemetry.landing_phase, "abort": telemetry.landing_abort_reason,
+			"pose": ship.global_transform, "dock": dock,
+			"contract": contract,
+			"owner_instance_id": owner.get_instance_id() if is_instance_valid(owner) else 0,
+			"occupant_instance_id": occupant.get_instance_id() if is_instance_valid(occupant) else 0,
+			"ship_instance_id": ship.get_instance_id(),
+			"same_reservation_token": berth.get_reservation_token(ship) == lease,
+		})
+	if not _check(
+		completed,
+		"actual Hauler normal Hero landing completes with exact stable dock snapshot and occupied lease"
+	):
+		stage.queue_free()
+		await process_frame
+		return
+	var deck := access.get_node(^"Structure/LandingDeck") as StaticBody3D
+	_check(
+		ship.test_move(ship.global_transform, Vector3.DOWN * 0.05)
+		and absf(access.to_local(ship.global_transform * Vector3(0.0, bounds.position.y, 0.0)).y - CinderCargoAccess.LANDING_DECK_TOP) <= 0.01
+		and deck != null
+		and ship.get_node(^"ExitPoint").get_instance_id() == exit_node_id
+		and (access.get_node(^"VisualRouteCues/CargoAccessLabel") as Label3D).text.begins_with("< CINDER CARGO TERMINAL | HAULER BERTH >\n")
+		and access.get_route_identity_visual_audit().valid
+		and exit_node.basis.is_equal_approx(authored_exit.basis)
+		and is_equal_approx(exit_node.position.x, authored_exit.origin.x)
+		and is_equal_approx(exit_node.position.z, authored_exit.origin.z)
+		and absf(access.to_local(ship.get_exit_transform().origin).y - CinderCargoAccess.LANDING_DECK_TOP) <= 0.01,
+		"Hauler rests its actual collision hull on the existing landing deck and supports its same production physical exit marker"
+	)
+	var player := PLAYER_SCENE.instantiate() as PlayerController
+	stage.add_child(player)
+	await process_frame
+	player.set_camera_active(false)
+	player.set_control_enabled(true)
+	_release_actions()
+	# The sole Player staging operation is the actual disembark handoff.
+	player.teleport_to(Transform3D(
+		Basis.looking_at((access.global_basis * Vector3.BACK).normalized(), Vector3.UP),
+		ship.get_exit_transform().origin
+	))
+	for _settle in 10:
+		await physics_frame
+	var generation := access.get_attachment_generation()
+	var binding := cluster.get_node(^"ActivityBinding") as NearbySectorActivityBinding
+	var wrong_ship := Node3D.new()
+	var wrong_actor := Node3D.new()
+	stage.add_child(wrong_ship)
+	stage.add_child(wrong_actor)
+	_check(
+		player.is_on_floor()
+		and access.authorize_disembarked_terminal_actor(player, ship, &"stale-hauler-lease", generation).reason == &"stale_berth_lease"
+		and access.authorize_disembarked_terminal_actor(player, wrong_ship, lease, generation).reason == &"stale_berth_lease"
+		and access.authorize_disembarked_terminal_actor(player, ship, lease, generation - 1).reason == &"stale_attachment_generation"
+		and not binding.authorize_cargo_terminal_actor(player, wrong_ship).accepted
+		and binding.authorize_cargo_terminal_actor(player, ship).accepted
+		and access.validate_terminal_actor(wrong_actor, ship, generation).reason == &"wrong_terminal_actor"
+		and access.validate_terminal_actor(player, wrong_ship, generation).reason == &"wrong_terminal_craft",
+		"supported Hauler disembark authorizes only the exact actor, occupied craft, current lease and attachment"
+	)
+	var route := PackedVector3Array([
+		# Move outboard on the existing landing deck before heading to its stairs.
+		Vector3(-21.0, 2.9, 0.0),
+		Vector3(-21.0, 2.9, 10.0),
+		Vector3(CinderCargoAccess.BERTH_ROUTE_X, 2.9, 13.75),
+		Vector3(CinderCargoAccess.BERTH_ROUTE_X, 3.8, 17.8),
+		Vector3(-14.15, 3.8, 18.0),
+		Vector3(-4.0, 3.8, 18.0),
+		Vector3(-2.4, 3.8, 16.7),
+		Vector3(-1.6, 4.05, 16.166667),
+		Vector3(-0.8, 4.30, 15.633333),
+		CinderCargoAccess.DESTINATION_TERMINAL_PLAYER_APPROACH_LOCAL,
+	])
+	var walked := await _walk_route(access, player, route)
+	print("CINDER_HAULER_PUBLIC_OUTBOUND: ", walked)
+	_check(
+		walked.reached and int(walked.maximum_consecutive_airborne_frames) <= MAX_CONSECUTIVE_AIRBORNE_FRAMES
+		and float(walked.minimum_local_y) >= 2.82 and player.is_on_floor()
+		and absf(access.to_local(player.global_position).y - 4.65) <= 0.01
+		and not Input.is_action_pressed("jump")
+		and access.validate_terminal_actor(player, ship, generation).accepted
+		and terminal.can_interact(player) and terminal.interact(player),
+		"authorized production Hauler Player walks continuously to the existing terminal and uses its public Interact boundary without jumping"
+	)
+	var physical_snapshot := binding.get_snapshot()
+	var request := binding.get_last_cargo_terminal_request()
+	var authority := binding.get_cargo_transfer_authority()
+	var destination := authority.get_manifest_snapshot(binding.get_cargo_destination_handle())
+	_check(
+		binding.get_cargo_source_handle().is_empty()
+		and int(physical_snapshot.cargo_binding.source_entity_instance_id) == 0
+		and (physical_snapshot.cargo as Dictionary).is_empty()
+		and not bool(request.get("accepted", true))
+		and request.get("reason", &"") == &"cargo_source_unavailable"
+		and int(destination.used_capacity) == 0
+		and (authority.to_dictionary().committed_transfers as Array).is_empty(),
+		"actual binding forwards only Hauler physical access; terminal still refuses cargo with no source, activity, stock or transfer grant"
+	)
+	_check(
+		berth.release(ship, lease)
+		and not binding.authorize_cargo_terminal_actor(player, ship).accepted
+		and access.validate_terminal_actor(player, ship, generation).reason == &"wrong_terminal_craft"
+		and berth.get_dock_transform().is_equal_approx(access.global_transform * CinderCargoAccess.BERTH_DOCK_LOCAL)
+		and exit_node.transform.is_equal_approx(authored_exit)
+		and (access.get_node(^"VisualRouteCues/CargoAccessLabel") as Label3D).text.begins_with(CinderCargoAccess.ROUTE_IDENTITY_HEADER + "\n"),
+		"Hauler release revokes physical terminal authorization and restores its original physical exit, Jovian dock and route header"
+	)
+	_release_actions()
+	stage.queue_free()
+	await process_frame
+	await process_frame
 
 
 func _test_walkable_deck_bevel(access: CinderCargoAccess) -> void:
@@ -630,7 +808,7 @@ func _test_jovian_fit_capture_and_sweep(
 	_check(
 		berth != null
 		and berth.get_berth_id() == CinderCargoAccess.BERTH_ID
-		and berth.get_compatibility_tags() == PackedStringArray(["light_freighter"])
+		and berth.get_compatibility_tags() == PackedStringArray(["light_freighter", "cargo_hauler"])
 		and berth.is_compatible_with(JOVIAN_DEFINITION),
 		"one real ShipBerth accepts the live Jovian light-freighter definition"
 	)

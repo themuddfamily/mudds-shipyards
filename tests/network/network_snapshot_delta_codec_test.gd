@@ -34,6 +34,7 @@ func _init() -> void:
 	assert(not dropped.has("section_changes") and dropped.section_removals == ["ownership"])
 	assert(decoder.decode(dropped).packet == fifth)
 	_test_large_full(_large_packet())
+	_test_oversized_delta_fallback()
 	# Reuse the same contract with a captured production packet without making
 	# this suite depend on a local capture or checking a binary into the repo.
 	for argument in OS.get_cmdline_user_args():
@@ -162,6 +163,73 @@ func _test_large_full(packet: Dictionary) -> void:
 	assert(decoder.decode(_transport(encoder.encode(next, true))).packet == next)
 	print("FULL_BUDGET plain=%d packed=%d headroom=%d exact_roundtrip=true" % [
 		plain_bytes, packed_bytes, Fragmenter.MAX_PACKET_BYTES - packed_bytes])
+
+
+func _test_oversized_delta_fallback() -> void:
+	var encoder := Codec.new()
+	var decoder := Codec.new()
+	var first := {"revision": 1, "server_tick": 1, "sections": {"movement": [{"id": "a"}]}}
+	var initial := encoder.encode(first)
+	assert(decoder.decode(_transport(initial)).packet == first)
+	# Advance the cadence before the oversized transition so its reset matters.
+	for revision in range(2, 4):
+		var small := first.duplicate(true)
+		small.revision = revision
+		small.server_tick = revision
+		assert(decoder.decode(_transport(encoder.encode(small))).packet == small)
+	var packet := _large_packet()
+	var raw_delta := {"kind": &"delta", "base_revision": 3, "revision": packet.revision,
+		"changes": {"server_tick": packet.server_tick}, "section_changes": packet.sections}
+	var delta_bytes := Marshalls.variant_to_base64(raw_delta).length()
+	assert(delta_bytes > Fragmenter.MAX_PACKET_BYTES)
+	assert(Fragmenter.new().fragment(raw_delta, 1, packet.revision).is_empty())
+	var fallback := encoder.encode(packet)
+	assert(fallback.kind == &"full" and fallback.base_revision == 0 and fallback.revision == packet.revision)
+	assert(fallback.packet is PackedByteArray)
+	var full_bytes := Marshalls.variant_to_base64(fallback).length()
+	assert(full_bytes <= Fragmenter.MAX_PACKET_BYTES)
+	assert(encoder.get_snapshot().packets_since_full == 1)
+	var transported := _transport(fallback)
+	var decoded := decoder.decode(transported)
+	assert(decoded.accepted and decoded.status == &"full_snapshot" and decoded.packet == packet)
+	# A full fallback also recovers a receiver that missed the earlier baseline.
+	var recovered := Codec.new()
+	assert(recovered.decode(transported).packet == packet)
+	var stale := Codec.new()
+	assert(stale.decode(initial).accepted)
+	var next := packet.duplicate(true)
+	next.revision += 1
+	next.server_tick += 1
+	var delta := encoder.encode(next)
+	assert(delta.kind == &"delta" and delta.base_revision == packet.revision)
+	assert(delta.changes == {"server_tick": next.server_tick})
+	assert(not delta.has("section_changes") and not delta.has("section_removals"))
+	assert(Marshalls.variant_to_base64(delta).length() <= Fragmenter.MAX_PACKET_BYTES)
+	assert(Codec.new().decode(delta).status == &"missing_delta_baseline")
+	assert(stale.decode(delta).status == &"stale_delta_baseline")
+	assert(decoder.decode(_transport(delta)).packet == next)
+	assert(recovered.decode(_transport(delta)).packet == next)
+	assert(decoder.decode(delta).status == &"stale_delta_baseline")
+	for index in range(2, Codec.FULL_INTERVAL):
+		next.revision += 1
+		var following := encoder.encode(next)
+		assert(following.kind == &"delta")
+		assert(decoder.decode(_transport(following)).packet == next)
+	next.revision += 1
+	var periodic := encoder.encode(next)
+	assert(periodic.kind == &"full")
+	assert(decoder.decode(_transport(periodic)).packet == next)
+	# If neither representation fits, leave transport refusal and cadence intact.
+	var unbounded := next.duplicate(true)
+	unbounded.revision += 1
+	unbounded.extra = "x".repeat(Codec.MAX_INFLATED_PACKET_BYTES)
+	var refused := encoder.encode(unbounded)
+	assert(refused.kind == &"delta" and refused.base_revision == next.revision)
+	assert(Marshalls.variant_to_base64(refused).length() > Fragmenter.MAX_PACKET_BYTES)
+	assert(Fragmenter.new().fragment(refused, 1, unbounded.revision).is_empty())
+	assert(encoder.get_snapshot().packets_since_full == 2)
+	print("DELTA_FALLBACK_BUDGET delta=%d full=%d headroom=%d exact_roundtrip=true baseline=true cadence_reset=true refusal_preserved=true" % [
+		delta_bytes, full_bytes, Fragmenter.MAX_PACKET_BYTES - full_bytes])
 
 
 func _transport(envelope: Dictionary) -> Dictionary:

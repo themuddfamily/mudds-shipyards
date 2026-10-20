@@ -341,9 +341,15 @@ var _next_join_intent_sequence := 1
 var _last_join_intent_sequence := 0
 var _handshake_protocol_version := NETWORK_PROTOCOL_VERSION
 var _handshake_package_generation := NETWORK_BUILD_VERSION
+## The live join has no authoritative generations until a validated offer.
+## Pin its clock to the native peer instead of using the detached handshake API.
+var _pending_join_peer: ENetMultiplayerPeer
+var _pending_join_deadline_milliseconds := 0
 
 
 func _init() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
+	set_process(false)
 	_lifecycle = LifecycleAdapter.new(AUTHORITY_PEER_ID)
 	_transport = TransportSecurity.new(AUTHORITY_PEER_ID)
 	_movement = MovementAuthority.new(AUTHORITY_PEER_ID)
@@ -382,9 +388,38 @@ func _init() -> void:
 	_last_result = {"accepted": false, "status": &"uninitialized"}
 
 
+func _process(_delta: float) -> void:
+	_expire_pending_join_if_due()
+
+
+func _exit_tree() -> void:
+	_retire_pending_join()
+
+
+func _retire_pending_join() -> void:
+	_pending_join_peer = null
+	_pending_join_deadline_milliseconds = 0
+	set_process(false)
+
+
+func _expire_pending_join_if_due() -> bool:
+	if _pending_join_peer == null:
+		return false
+	if not _configured or _is_server or _peer != _pending_join_peer:
+		_retire_pending_join()
+		return false
+	if Time.get_ticks_msec() < _pending_join_deadline_milliseconds:
+		return false
+	# Retire before shutdown can notify callers and synchronously start a retry.
+	_retire_pending_join()
+	shutdown(&"connection_timeout")
+	return true
+
+
 func host(port: int = DEFAULT_PORT, max_clients: int = DEFAULT_MAX_CLIENTS) -> Dictionary:
 	if _configured:
 		return _remember(_result(false, &"already_started"))
+	_retire_pending_join()
 	_peer = ENetMultiplayerPeer.new()
 	var status := _peer.create_server(maxi(1, port), maxi(1, max_clients))
 	if status != OK:
@@ -405,6 +440,7 @@ func host(port: int = DEFAULT_PORT, max_clients: int = DEFAULT_MAX_CLIENTS) -> D
 func join(address: String = "127.0.0.1", port: int = DEFAULT_PORT) -> Dictionary:
 	if _configured:
 		return _remember(_result(false, &"already_started"))
+	_retire_pending_join()
 	var endpoint := EndpointValidator.normalize_direct_connect_endpoint(address, port)
 	if not bool(endpoint.get("accepted", false)):
 		return _remember(_result(
@@ -419,6 +455,7 @@ func join(address: String = "127.0.0.1", port: int = DEFAULT_PORT) -> Dictionary
 	if status != OK:
 		_peer = null
 		return _remember(_result(false, &"connect_failed", {"error": status}))
+	var started_at := Time.get_ticks_msec()
 	_is_server = false
 	_session_max_clients = 0
 	_configure_multiplayer()
@@ -426,6 +463,9 @@ func join(address: String = "127.0.0.1", port: int = DEFAULT_PORT) -> Dictionary
 	_reset_handshake_deadline()
 	_next_join_intent_sequence = 1
 	_last_join_intent_sequence = 0
+	_pending_join_peer = _peer
+	_pending_join_deadline_milliseconds = started_at + HANDSHAKE_DEFAULT_TIMEOUT_MILLISECONDS
+	set_process(true)
 	session_started.emit(&"client")
 	_bound_port = normalized_port
 	return _remember(_result(true, &"client_started", {"address": normalized_address, "port": _bound_port}))
@@ -461,6 +501,7 @@ func cancel_direct_connect() -> Dictionary:
 
 
 func shutdown(reason: StringName = &"requested") -> Dictionary:
+	_retire_pending_join()
 	_boarding_departure_guard = Callable()
 	_boarding_result_finalizer = Callable()
 	if not _configured:
@@ -2919,6 +2960,9 @@ func rotate_session_migration(next_package_generation: int = -1) -> Dictionary:
 	migration_preparing.emit()
 	var result: Dictionary = _migration.rotate_server(AUTHORITY_PEER_ID, next_package_generation)
 	if bool(result.get("accepted", false)):
+		var migration_generation: int = int(result.migration_generation)
+		_crew_roles.reset_migration(AUTHORITY_PEER_ID, migration_generation)
+		_crew_commands.reset_migration(AUTHORITY_PEER_ID, migration_generation)
 		_moving_snapshot_revision = 0
 		_moving_recipient_budgets.clear()
 		_moving_recipient_entities.clear()
@@ -3147,6 +3191,7 @@ func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
 	_remote_pilot_replica.clear()
 	if is_server():
 		return _remember(_result(false, &"client_required"))
+	_retire_pending_join()
 	mark_reconnect_succeeded()
 	if migration_generation > 1:
 		_crew_roles.reset_migration(AUTHORITY_PEER_ID, migration_generation)
@@ -5001,6 +5046,11 @@ func _send_server_offer(offer: Dictionary) -> void:
 	var current_identity: Dictionary = (_server_offer.get("admission", {}) as Dictionary).get("peer", {})
 	if int(current_identity.get("peer_generation", 0)) >= int(identity.peer_generation):
 		return
+	# Multiplayer polling can deliver this offer before our first process frame
+	# after a stall. Check wall time before adopting any host-supplied authority.
+	if _expire_pending_join_if_due():
+		return
+	_retire_pending_join()
 	# A new peer can join after several host rotations without receiving their
 	# earlier notices. Adopt that authenticated epoch before publishing admission.
 	if epoch.session_generation != current_epoch.session_generation or epoch.migration_generation != current_epoch.migration_generation:
@@ -5360,8 +5410,12 @@ func _broadcast_crew_snapshot_fragment(fragment: Dictionary) -> void:
 	if not bool(decoded.get("accepted", false)):
 		crew_snapshot_applied.emit(decoded.duplicate(true))
 		return
+	var snapshot: Dictionary = decoded.get("snapshot", {}) as Dictionary
+	if int(snapshot.get("migration_generation", 0)) != generation:
+		crew_snapshot_applied.emit(_result(false, &"stale_crew_snapshot"))
+		return
 	_crew_snapshot_revision = revision
-	_crew_replica_snapshot = decoded.get("snapshot", {}).duplicate(true)
+	_crew_replica_snapshot = snapshot.duplicate(true)
 	var applied := _result(true, &"crew_snapshot_applied", {"revision": revision, "snapshot": _crew_replica_snapshot})
 	crew_snapshot_applied.emit(applied.duplicate(true))
 	_last_result = applied.duplicate(true)

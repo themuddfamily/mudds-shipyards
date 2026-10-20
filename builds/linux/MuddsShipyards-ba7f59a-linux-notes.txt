@@ -1,0 +1,12 @@
+Mudds Shipyards development checkpoint ba7f59a — 2026-10-19
+Source: ba7f59a4b79297abc5e438054c25d6d24bc55cf0
+
+Delivered release capability
+The packaged-game ordinary-input driver now supports --route beacon-entry. It verifies Begin Shift, a real walk to Torrent, boarding and departure, physical approach to the first Debris Beacon, keyboard navigation through PAUSE > ACTIVITY BOARD > CINDER SECTOR ACTIVITIES > Beacon SELECT/START, then normal resume and the first beacon's production progress. The observer remains private, silent and read-only, including paused UI.
+
+Actual validation
+The exact embedded Linux game completed this route in43.407s on isolated Xvfb with explicit x11 and Dummy audio:17.691m walked,219.486m maximum excursion,11.364m first-beacon approach. Actual SELECT and one START produced generation1/cursor0 and positive STARTED feedback while paused; three Escape transitions resumed gameplay and real physics advanced cursor1. Same process/Main/Player/Torrent/binding/activity identities, default sampler and authored tuning remained; no reward was requested. Driver exit0, NATIVE_BEACON_ENTRY_OK result marker, zero diagnostics, input release and owned game/display/helper cleanup passed.
+All12 guarded stages PASS (213.955s stage time): Python driver parse, isolated import, observer and privacy-script compilation, existing startup CLI privacy suite, clean Windows/Linux exports, strict Linux direct/archive and Windows-payload menu-ready startup checks, actual1521-entry package parity/stock-PE/exact-Linux-archive audit, and ordinary entry. Each startup requires exit0 and exactly one STARTUP_MENU_READY_OK. Independent source and actual result reviews GO for entry-only acceptance and checkpoint publication. Raw results: /srv/mudds-work/beacon-entry-20261019/results/
+
+Scope and remaining work
+This is Beacon entry qualification plus an executable release-driver capability. Full PLAY-BEACON still requires the remaining three physical beacons, durable once-only reward and actual home dock/usable exit. Entry was from the normal Guided launch at TARGET_PRACTICE; range/interceptor completion and a full landing-unlocked return are not established by this route. Other activities, full matrix, native Windows execution, native GPU/performance, listening/devices, installed recovery, endurance and human/final-release gates remain NOT_RUN where recorded. Headless/package/Xvfb results do not replace those gates. Parked routes retain their limits. All36 original parents and ten phase gates remain open; GitHub Actions remains disabled.

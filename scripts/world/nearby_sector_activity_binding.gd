@@ -91,6 +91,9 @@ var _restored_scan_discovery: Dictionary = {}
 var _last_scan_discovery_persistence_result: Dictionary = {}
 var _cargo_delivery_persistence: RefCounted
 var _restored_cargo_delivery: Dictionary = {}
+var _cargo_generation_floor := 0
+var _cargo_payment_active := false
+var _cargo_persistence_ready := false
 var _last_cargo_delivery_persistence_result: Dictionary = {}
 var _mining_capacity_persistence: RefCounted
 var _restored_mining_capacity: Dictionary = {}
@@ -119,6 +122,8 @@ var _last_beacon_distance := -1.0
 var _last_beacon_distance_generation := -1
 var _beacon_traversal_reward_sink := Callable()
 var _last_beacon_reward_result: Dictionary = {}
+var _asteroid_reset_publication_active := false
+var _asteroid_session_retired := false
 var _asteroid_run_director: ActivityDirector
 var _asteroid_field: Node3D
 var _asteroid_run_presentation_consumers: Array[Callable] = []
@@ -195,6 +200,9 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	if _cargo_reward_handoff != null:
+		_cargo_reward_handoff.detach()
+		_cargo_reward_handoff = null
 	_beacon_reset_publication_active = false
 	_clear_structure_scan_feedback()
 	if _patrol != null and bool(
@@ -352,6 +360,11 @@ func get_cargo_destination_handle() -> Dictionary:
 
 
 func _on_cargo_berth_occupancy_changed(occupant: Node) -> void:
+	# The exact earned owner is also the retry authority when debt publication
+	# failed. Ordinary departure must not retire it or seed another run.
+	if _cargo_unpaid_live_completion():
+		_publish_cargo_presentation()
+		return
 	if not is_instance_valid(occupant):
 		# An active supply sortie must carry its exact manifest away from the
 		# berth. The source is retired after a non-active release, explicit
@@ -385,6 +398,7 @@ func _on_cargo_berth_occupancy_changed(occupant: Node) -> void:
 	_cargo_activity = CARGO_ACTIVITY.new(
 		_cargo_authority, cargo_contract
 	) as CargoDeliveryActivity
+	_apply_cargo_generation_floor()
 	_bind_cargo_reward_handoff()
 	_publish_cargo_presentation()
 
@@ -402,6 +416,11 @@ func _release_cargo_source_binding() -> void:
 
 
 func _clear_cargo_source_binding() -> void:
+	# Retirement cannot erase an earned-but-unsaved completion. Even if its
+	# source disappears, keep the terminal owner and refuse replacement.
+	if _cargo_unpaid_live_completion():
+		_publish_cargo_presentation()
+		return
 	_cargo_source_handle.clear()
 	_cargo_source_entity = null
 	_last_cargo_terminal_request.clear()
@@ -747,7 +766,25 @@ func _publish_patrol_presentation(authority_record: Dictionary = {}) -> void:
 	_publish_presentation_observers(_patrol_presentation_consumers, detached)
 
 
+func _cargo_debt_pending() -> bool:
+	return _cargo_payment_active or (_cargo_delivery_persistence != null and not _cargo_persistence_ready) or (not _restored_cargo_delivery.is_empty() and int(_restored_cargo_delivery.get("generation", 0)) > 0 and not bool((_restored_cargo_delivery.get("reward_receipt", {}) as Dictionary).get("granted", false)))
+
+
+func _apply_cargo_generation_floor() -> void:
+	if is_instance_valid(_cargo_activity) and _cargo_activity.get_generation() == 0:
+		_cargo_activity.adopt_terminal_generation_floor(_cargo_generation_floor)
+
+
+func _cargo_unpaid_live_completion() -> bool:
+	if not is_instance_valid(_cargo_activity) or _cargo_activity.get_state() != CARGO_ACTIVITY.State.COMPLETED:
+		return false
+	return _restored_cargo_delivery.is_empty() or int(_restored_cargo_delivery.get("generation", -1)) != _cargo_activity.get_generation() or not bool((_restored_cargo_delivery.get("reward_receipt", {}) as Dictionary).get("granted", false))
+
+
 func start_cargo_run() -> Dictionary:
+	if _cargo_debt_pending() or _cargo_unpaid_live_completion():
+		return _result(false, &"cargo_reward_pending")
+	_apply_cargo_generation_floor()
 	if not is_inside_tree() or _cargo_activity == null:
 		return _result(false, &"not_ready")
 	var result := _cargo_activity.start(_cargo_activity.get_generation())
@@ -833,6 +870,8 @@ func submit_cargo_phase(phase_id: StringName) -> Dictionary:
 
 
 func reset_cargo_run() -> Dictionary:
+	if _cargo_debt_pending() or _cargo_unpaid_live_completion():
+		return _result(false, &"cargo_reward_pending")
 	if not is_inside_tree() or _cargo_activity == null:
 		return _result(false, &"not_ready")
 	var result := _cargo_activity.reset(_cargo_activity.get_generation())
@@ -851,9 +890,17 @@ func reset_cargo_run() -> Dictionary:
 ## and current physical berth lease. The access component remains the sole
 ## proximity, attachment-generation, occupant, and token validator.
 func authorize_cargo_terminal_actor(actor: Node3D, ship: Node) -> Dictionary:
-	if not is_instance_valid(_cargo_access) or not is_instance_valid(_cargo_source_entity):
+	if not is_instance_valid(_cargo_access):
 		return _result(false, &"cargo_physical_endpoint_required")
-	if not is_instance_valid(actor) or ship != _cargo_source_entity:
+	# Physical Hauler access is independent of the Jovian cargo source. Forward
+	# only this live craft; the access component still validates its exact
+	# occupied lease, attachment and disembark marker. No source is registered.
+	var hauler_physical_only := ship is CinderCargoHauler \
+		and (ship as CinderCargoHauler).get_ship_id() == &"cinder_cargo_hauler"
+	if not hauler_physical_only and not is_instance_valid(_cargo_source_entity):
+		return _result(false, &"cargo_physical_endpoint_required")
+	if not is_instance_valid(actor) or not is_instance_valid(ship) \
+		or (not hauler_physical_only and ship != _cargo_source_entity):
 		return _result(false, &"wrong_terminal_craft")
 	var berth := _cargo_access.get_berth()
 	if not is_instance_valid(berth) or berth.get_occupant() != ship:
@@ -963,6 +1010,8 @@ func configure_station_defense_reward(
 			&"return_fabrication_kits_to_shipyard"
 		)
 		_bind_cargo_reward_handoff()
+		if _cargo_debt_pending() and _cargo_persistence_ready:
+			request_cargo_reward(int(_restored_cargo_delivery.get("generation", 0)))
 		_station_reward_adapter.call(
 			"register_activity", &"cinder_relay_patrol",
 			&"return_patrol_log_to_shipyard"
@@ -1082,12 +1131,31 @@ func _persist_convoy_safe_arrival(
 
 
 func request_cargo_reward(expected_generation: int) -> Dictionary:
-	if _cargo_activity == null or _station_reward_adapter == null:
+	if not is_inside_tree() or is_queued_for_deletion():
+		return _result(false, &"cargo_reward_owner_unavailable")
+	if _cargo_payment_active or _station_reward_adapter == null:
 		return _result(false, &"cargo_reward_unavailable")
+	if not _restored_cargo_delivery.is_empty() and int(_restored_cargo_delivery.get("generation", 0)) > 0 and (not is_instance_valid(_cargo_activity) or _cargo_activity.get_state() == CARGO_ACTIVITY.State.IDLE):
+		var loaded: Dictionary = _refresh_cargo_delivery()
+		if not is_inside_tree() or is_queued_for_deletion() or not bool(loaded.get("accepted", false)) or expected_generation != int(_restored_cargo_delivery.get("generation", -1)):
+			return _result(false, &"stale_activity_generation")
+		if bool(_restored_cargo_delivery.reward_receipt.granted):
+			return _result(false, &"reward_generation_already_committed")
+		var adapter: RefCounted = _station_reward_adapter
+		_cargo_payment_active = true
+		var paid: Dictionary = adapter.call("consume", {"activity_id": CARGO_REWARD_HANDOFF.ACTIVITY_ID, "state_id": &"completed", "outcome": &"cleared", "generation": expected_generation}, expected_generation)
+		_cargo_payment_active = false
+		if not is_inside_tree() or is_queued_for_deletion() or adapter != _station_reward_adapter:
+			return _result(false, &"cargo_reward_owner_changed")
+		_refresh_cargo_delivery()
+		_publish_cargo_presentation()
+		return paid
 	_bind_cargo_reward_handoff()
 	if _cargo_reward_handoff == null:
 		return _result(false, &"cargo_reward_unavailable")
-	return _cargo_reward_handoff.request(expected_generation)
+	var result: Dictionary = _cargo_reward_handoff.request(expected_generation)
+	_refresh_cargo_delivery()
+	return result
 
 
 func get_cargo_reward_handoff_snapshot() -> Dictionary:
@@ -1103,64 +1171,68 @@ func _bind_cargo_reward_handoff() -> void:
 		return
 	var handoff := CARGO_REWARD_HANDOFF.new() as RefCounted
 	var attached: Dictionary = handoff.call(
-		&"attach", _cargo_activity, _station_reward_adapter
+		&"attach", _cargo_activity, _station_reward_adapter, Callable(self, &"_checkpoint_cargo_completion")
 	)
 	if bool(attached.get("accepted", false)):
+		if not is_inside_tree() or is_queued_for_deletion():
+			handoff.call(&"detach")
+			return
 		_cargo_reward_handoff = handoff
+		_refresh_cargo_delivery()
 		if handoff.has_signal(&"completion_committed"):
 			handoff.connect(
 				&"completion_committed", Callable(self, &"_on_cargo_reward_committed")
 			)
 
 
-func _on_cargo_reward_committed(cargo: Dictionary, reward_result: Dictionary) -> void:
-	if _cargo_delivery_persistence == null or not is_instance_valid(_cargo_activity) \
-			or _cargo_reward_handoff == null:
-		return
-	var current := _cargo_activity.get_snapshot() as Dictionary
-	var handoff := _cargo_reward_handoff.get_snapshot() as Dictionary
-	if current != cargo \
-			or (handoff.get("last_result", {}) as Dictionary) != reward_result \
-			or int(handoff.get("completion_generation", -1)) \
-				!= int(cargo.get("generation", 0)):
-		return
-	var commit_id := "cinder-cargo-delivery-%010d" % (
-		int(_cargo_delivery_persistence.call(&"get_store_generation")) + 1
-	)
-	_last_cargo_delivery_persistence_result = _cargo_delivery_persistence.call(
-		&"save", cargo, reward_result, commit_id
-	) as Dictionary
-	if bool(_last_cargo_delivery_persistence_result.get("accepted", false)):
-		var loaded := _cargo_delivery_persistence.call(&"load") as Dictionary
-		if bool(loaded.get("accepted", false)):
-			_restored_cargo_delivery = (
-				loaded.get("delivery", {}) as Dictionary
-			).duplicate(true)
+func _checkpoint_cargo_completion(cargo: Dictionary) -> Dictionary:
+	if not is_inside_tree() or is_queued_for_deletion() or _cargo_payment_active or _cargo_delivery_persistence == null or not _cargo_persistence_ready or not is_instance_valid(_cargo_activity) or cargo != _cargo_activity.get_snapshot():
+		return _result(false, &"cargo_terminal_owner_unavailable")
+	var owner: CargoDeliveryActivity = _cargo_activity
+	var authority: CargoTransferAuthority = _cargo_authority
+	_cargo_payment_active = true
+	var commit_id: String = "cinder-cargo-delivery-%010d" % (int(_cargo_delivery_persistence.call(&"get_store_generation")) + 1)
+	_last_cargo_delivery_persistence_result = _cargo_delivery_persistence.call(&"save", owner, authority, commit_id)
+	_cargo_payment_active = false
+	if not is_inside_tree() or is_queued_for_deletion() or owner != _cargo_activity or authority != _cargo_authority or owner.get_snapshot() != cargo:
+		return _result(false, &"cargo_terminal_owner_changed")
+	if not bool(_last_cargo_delivery_persistence_result.get("accepted", false)):
+		return _last_cargo_delivery_persistence_result.duplicate(true)
+	return _refresh_cargo_delivery()
+
+
+func _on_cargo_reward_committed(_cargo: Dictionary, _reward_result: Dictionary) -> void:
+	_refresh_cargo_delivery()
 	_publish_cargo_presentation()
 
 
-## Restores a delivered presentation and terminal receipt only. No manifest,
-## inventory handle, active deadline, or cargo activity generation is restored.
-func configure_cinder_cargo_delivery_persistence(
-		store: RefCounted, slot_id: StringName = &"cinder_cargo_delivery"
-	) -> Dictionary:
+func _refresh_cargo_delivery() -> Dictionary:
+	if _cargo_delivery_persistence == null:
+		return _result(false, &"cargo_delivery_persistence_unavailable")
+	var loaded: Dictionary = _cargo_delivery_persistence.call(&"load")
+	if bool(loaded.get("accepted", false)):
+		_restored_cargo_delivery = (loaded.get("delivery", {}) as Dictionary).duplicate(true)
+		_cargo_generation_floor = maxi(_cargo_generation_floor, int(_restored_cargo_delivery.get("generation", 0)))
+	return loaded
+
+
+## Adopts terminal proof only. Inventory and active progress remain session-owned.
+func configure_cinder_cargo_delivery_persistence(store: RefCounted, slot_id: StringName = &"cinder_cargo_delivery", legacy_paid_floor: int = 0) -> Dictionary:
 	if _cargo_delivery_persistence != null:
-		return _result(true, &"cargo_delivery_persistence_already_configured")
-	var persistence := CARGO_DELIVERY_PERSISTENCE.new() as RefCounted
-	var configured := persistence.call(&"configure", store, slot_id) as Dictionary
+		return _result(_cargo_persistence_ready, &"cargo_delivery_persistence_already_configured")
+	var persistence: RefCounted = CARGO_DELIVERY_PERSISTENCE.new()
+	var configured: Dictionary = persistence.call(&"configure", store, slot_id)
 	if not bool(configured.get("accepted", false)):
 		return configured
 	_cargo_delivery_persistence = persistence
-	var restored := persistence.call(&"load") as Dictionary
-	if bool(restored.get("accepted", false)):
-		_restored_cargo_delivery = (
-			restored.get("delivery", {}) as Dictionary
-		).duplicate(true)
-		_last_cargo_delivery_persistence_result = restored.duplicate(true)
-		_publish_cargo_presentation()
-	elif StringName(restored.get("reason", &"")) != &"cargo_delivery_not_found":
-		_last_cargo_delivery_persistence_result = restored.duplicate(true)
+	_cargo_generation_floor = maxi(0, legacy_paid_floor)
+	var restored: Dictionary = _refresh_cargo_delivery()
+	_last_cargo_delivery_persistence_result = restored.duplicate(true)
+	if not bool(restored.get("accepted", false)) and restored.get("reason") != &"cargo_delivery_not_found":
 		return restored
+	_cargo_persistence_ready = true
+	_apply_cargo_generation_floor()
+	_publish_cargo_presentation()
 	return configured
 
 
@@ -2347,7 +2419,63 @@ func capture_asteroid_field_session() -> Dictionary:
 	return NearbySectorActivitySessionAdapter.capture_asteroid_session(state, _asteroid_run_reward_requested) if not state.is_empty() else {}
 
 
+## Freeze this exact owner across UserDataStore callbacks. A fresh, not-yet-
+## hydrated binding may also adopt the committed title-time tombstone.
+func begin_asteroid_reset_publication(expected: Dictionary, intended: Dictionary) -> Dictionary:
+	if _asteroid_reset_publication_active or _asteroid_session_retired \
+			or not is_inside_tree() or is_queued_for_deletion() \
+			or capture_asteroid_field_session() != expected:
+		return _result(false, &"asteroid_reset_owner_changed")
+	var checked := NearbySectorActivitySessionAdapter.validate_asteroid_session(intended)
+	if not bool(checked.get("accepted", false)) \
+			or int(intended.activities[0].state) != CheckpointRouteActivity.State.IDLE:
+		return _result(false, &"asteroid_reset_owner_changed")
+	if not expected.is_empty():
+		var planned := NearbySectorActivitySessionAdapter.plan_asteroid_decline(expected)
+		var entry: Dictionary = expected.activities[0]
+		if not bool(planned.get("accepted", false)) \
+				or (planned.session_record != intended \
+					and not (int(entry.state) == CheckpointRouteActivity.State.IDLE and int(entry.generation) == 0)):
+			return _result(false, &"asteroid_reset_owner_changed")
+	_asteroid_reset_publication_active = true
+	return {"accepted": true, "reason": &"asteroid_reset_publication_started"}
+
+
+func finish_asteroid_reset_publication(expected: Dictionary, intended: Dictionary, published: bool) -> Dictionary:
+	var result := {"accepted": false, "reason": &"asteroid_reset_owner_changed"}
+	if _asteroid_reset_publication_active:
+		if not published:
+			result = {"accepted": true, "reason": &"asteroid_reset_publication_released"}
+		elif is_inside_tree() and not is_queued_for_deletion() and capture_asteroid_field_session() == expected:
+			# The ordinary route restore is startup-only. Stage its replacement
+			# authority before retiring the old director, without replaying events.
+			var candidate := ActivityDirector.new()
+			candidate.name = "CinderAsteroidFieldRunDirector"
+			add_child(candidate)
+			candidate.register_definition(ASTEROID_RUN_ROUTE)
+			result = candidate.restore_activity_persistence_state(ASTEROID_RUN_ACTIVITY_ID, intended.activities[0].progress)
+			if bool(result.get("accepted", false)):
+				var previous := _asteroid_run_director
+				_asteroid_run_director = candidate
+				remove_child(previous)
+				previous.queue_free()
+				_asteroid_run_reward_requested = false
+				_asteroid_run_rewarded_generation = -1
+				_last_asteroid_run_feedback_reason = &""
+				_last_asteroid_run_reward_result.clear()
+				_publish_asteroid_run_presentation()
+			else:
+				candidate.queue_free()
+		# An owner removed during publication must never return as a writer.
+		if published and not bool(result.get("accepted", false)):
+			_asteroid_session_retired = true
+	_asteroid_reset_publication_active = false
+	return result
+
+
 func restore_asteroid_field_session(record: Dictionary) -> Dictionary:
+	if _asteroid_reset_publication_active or _asteroid_session_retired:
+		return _result(false, &"asteroid_reset_publication_in_progress")
 	var checked := NearbySectorActivitySessionAdapter.validate_asteroid_session(record)
 	if not checked.accepted or _asteroid_run_director == null:
 		return checked if not checked.accepted else _result(false, &"not_ready")
@@ -2363,6 +2491,8 @@ func restore_asteroid_field_session(record: Dictionary) -> Dictionary:
 
 
 func restore_asteroid_generation_floor(generation: int) -> Dictionary:
+	if _asteroid_reset_publication_active or _asteroid_session_retired:
+		return _result(false, &"asteroid_reset_publication_in_progress")
 	if _asteroid_run_director == null or generation < 1 or generation > CheckpointRouteActivity.MAX_PERSISTED_GENERATION:
 		return _result(false, &"asteroid_generation_floor_invalid")
 	var state := CheckpointRouteActivity.new(ASTEROID_RUN_ROUTE).capture_persistence_state()
@@ -2371,6 +2501,8 @@ func restore_asteroid_generation_floor(generation: int) -> Dictionary:
 
 
 func acknowledge_asteroid_field_reward(record: Dictionary) -> Dictionary:
+	if _asteroid_reset_publication_active or _asteroid_session_retired:
+		return _result(false, &"asteroid_reset_publication_in_progress")
 	var checked := NearbySectorActivitySessionAdapter.validate_asteroid_session(record)
 	if not checked.accepted:
 		return checked
@@ -2385,6 +2517,8 @@ func acknowledge_asteroid_field_reward(record: Dictionary) -> Dictionary:
 
 
 func prepare_asteroid_field_reset() -> Dictionary:
+	if _asteroid_reset_publication_active or _asteroid_session_retired:
+		return _result(false, &"asteroid_reset_publication_in_progress")
 	if _asteroid_run_director == null:
 		return _result(false, &"not_ready")
 	if _has_pending_asteroid_field_reward():
@@ -2407,6 +2541,8 @@ func _has_pending_asteroid_field_reward() -> bool:
 ## safe lane, so a pilot who has not actually flown into the rock cannot open a
 ## run from the comfort of the beacon chain.
 func start_asteroid_field_run(caller_position: Vector3) -> Dictionary:
+	if _asteroid_reset_publication_active or _asteroid_session_retired:
+		return _result(false, &"asteroid_reset_publication_in_progress")
 	if _asteroid_run_director == null:
 		return _result(false, &"not_ready")
 	if _has_pending_asteroid_field_reward():
@@ -2435,6 +2571,8 @@ func start_asteroid_field_run(caller_position: Vector3) -> Dictionary:
 
 
 func submit_asteroid_field_run_position(caller_position: Vector3) -> Dictionary:
+	if _asteroid_reset_publication_active or _asteroid_session_retired:
+		return _result(false, &"asteroid_reset_publication_in_progress")
 	if _asteroid_run_director == null:
 		return _result(false, &"not_ready")
 	var route := _asteroid_run_director.get_activity_snapshot(ASTEROID_RUN_ACTIVITY_ID)
@@ -2459,6 +2597,8 @@ func submit_asteroid_field_run_position(caller_position: Vector3) -> Dictionary:
 ## decides three things in order: did the hull reach the rock, did it reach the
 ## next gate, or neither.
 func advance_asteroid_field_run_from_caller_sample(caller_position: Vector3) -> Dictionary:
+	if _asteroid_reset_publication_active or _asteroid_session_retired:
+		return _result(false, &"asteroid_reset_publication_in_progress")
 	if _asteroid_run_director == null:
 		return _result(false, &"not_ready")
 	var before := _asteroid_run_presentation_snapshot()
@@ -2508,6 +2648,8 @@ func advance_asteroid_field_run_from_caller_sample(caller_position: Vector3) -> 
 ## local one-shot flag stops a second request inside this generation; the sink's
 ## own ledger stops a second grant across a save and a whole-Main re-entry.
 func request_asteroid_field_run_reward() -> Dictionary:
+	if _asteroid_reset_publication_active or _asteroid_session_retired:
+		return _result(false, &"asteroid_reset_publication_in_progress")
 	if _asteroid_run_director == null:
 		return _result(false, &"not_ready")
 	var before := _asteroid_run_presentation_snapshot()
@@ -2570,6 +2712,8 @@ func get_last_asteroid_field_run_reward_result() -> Dictionary:
 ## Abandon. The route's own generation advances, so a sample still in flight
 ## from the abandoned run cannot complete or fail the next one.
 func reset_asteroid_field_run() -> Dictionary:
+	if _asteroid_reset_publication_active or _asteroid_session_retired:
+		return _result(false, &"asteroid_reset_publication_in_progress")
 	if _asteroid_run_director == null:
 		return _result(false, &"not_ready")
 	if _has_pending_asteroid_field_reward():
@@ -3033,7 +3177,7 @@ func _cargo_presentation_snapshot() -> Dictionary:
 	if not _restored_cargo_delivery.is_empty():
 		var state := int(snapshot.get("state", CARGO_ACTIVITY.State.IDLE))
 		var generation := int(snapshot.get("generation", 0))
-		if snapshot.is_empty() or (state == CARGO_ACTIVITY.State.IDLE and generation == 0):
+		if snapshot.is_empty() or state == CARGO_ACTIVITY.State.IDLE:
 			var phase_count := int(_restored_cargo_delivery.get("phase_count", 0))
 			snapshot = {
 				"contract": {
@@ -3043,7 +3187,7 @@ func _cargo_presentation_snapshot() -> Dictionary:
 				},
 				"contract_id": String(_restored_cargo_delivery.get("contract_id", "")),
 				"state": CARGO_ACTIVITY.State.COMPLETED,
-				"generation": 0,
+				"generation": int(_restored_cargo_delivery.get("generation", 0)),
 				"next_phase_index": phase_count,
 				"phase_count": phase_count,
 				"phases_complete": true,
@@ -3080,8 +3224,8 @@ func _cargo_presentation_snapshot() -> Dictionary:
 	snapshot["reward_handoff_reason"] = StringName(result.get("reason", &""))
 	if bool(snapshot.get("delivery_persisted", false)):
 		snapshot["reward_pending"] = false
-		snapshot["reward_retry_available"] = false
-		snapshot["reward_handoff_reason"] = &"delivery_receipt_restored"
+		snapshot["reward_retry_available"] = _cargo_debt_pending()
+		snapshot["reward_handoff_reason"] = &"cargo_reward_pending" if _cargo_debt_pending() else &"delivery_receipt_restored"
 	var state := int(snapshot.get("state", CARGO_ACTIVITY.State.IDLE))
 	snapshot["activity_id"] = &"cinder_platform_supply_run"
 	snapshot["state_id"] = [

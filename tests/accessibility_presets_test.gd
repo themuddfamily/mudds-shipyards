@@ -24,6 +24,10 @@ func _run() -> void:
 	_test_high_contrast_variants()
 	await _test_hud_palette_application()
 	await _test_hud_high_contrast_application()
+	await _test_gameplay_status_palette_transitions()
+	await _test_intro_begin_shift_text_contrast()
+	await _test_help_close_text_contrast()
+	await _test_menu_button_text_contrast()
 	await _test_hud_reticle_styles()
 	await _test_hud_scale_and_motion()
 	await _test_hud_captions()
@@ -383,6 +387,252 @@ func _test_hud_high_contrast_application() -> void:
 	await process_frame
 
 
+## Measure the actual title button theme paints, including the focus paint used
+## immediately on startup. At its authored 16px size this text adopts the suite's
+## 4.5:1 regular and 7:1 high-contrast floors, using the existing contrast helper.
+func _test_intro_begin_shift_text_contrast() -> void:
+	var hud := GameHUD.new()
+	hud.name = "AccessibilityTitleButtonHUD"
+	root.add_child(hud)
+	await process_frame
+	hud.show_intro()
+	var start := hud.get("_intro_start_button") as Button
+	_check(start != null, "the real title HUD exposes its Begin Shift button")
+	if start == null:
+		hud.queue_free()
+		await process_frame
+		return
+	_check(start.has_focus(), "Begin Shift receives initial title keyboard/controller focus")
+	_check(
+		start.get_theme_font_size("font_size") == 16
+		and not start.toggle_mode and start.shortcut == null,
+		"Begin Shift keeps its 16px ordinary button contract"
+	)
+	var focus_outline := start.get_theme_stylebox("focus")
+	var authored_minimum := start.custom_minimum_size
+	var authored_neighbors := [start.focus_neighbor_top, start.focus_neighbor_bottom]
+	# Focus overlays the normal fill; it does not replace it. An ordinary button
+	# uses hover and pressed fills for those paints (no toggle/shortcut paint).
+	var paints := {
+		"normal": ["font_color", "normal"],
+		"focus": ["font_focus_color", "normal"],
+		"hover": ["font_hover_color", "hover"],
+		"pressed": ["font_pressed_color", "pressed"],
+	}
+	var authored_fills: Dictionary = {}
+	for state: String in paints:
+		var keys: Array = paints[state]
+		authored_fills[state] = (start.get_theme_stylebox(keys[1]) as StyleBoxFlat).bg_color
+	for high_contrast: bool in [false, true]:
+		hud.set_high_contrast_hud(high_contrast)
+		var floor_ratio := Palette.MINIMUM_HIGH_CONTRAST_PANEL_CONTRAST if high_contrast else Palette.MINIMUM_PANEL_CONTRAST
+		for mode_id: StringName in Palette.get_mode_ids():
+			hud.set_hud_palette(mode_id)
+			for state: String in paints:
+				var keys: Array = paints[state]
+				var text := start.get_theme_color(keys[0])
+				var fill := (start.get_theme_stylebox(keys[1]) as StyleBoxFlat).bg_color
+				var ratio := Palette.contrast_ratio(text, fill)
+				_check(
+					ratio >= floor_ratio,
+					"Begin Shift %s/%s high-contrast=%s text %s on %s clears %.1f:1 (measured %.3f:1)"
+					% [mode_id, state, high_contrast, text.to_html(), fill.to_html(), floor_ratio, ratio]
+				)
+	hud.set_high_contrast_hud(false)
+	hud.set_hud_palette(Palette.MODE_NONE)
+	for state: String in paints:
+		var keys: Array = paints[state]
+		_check(
+			(start.get_theme_stylebox(keys[1]) as StyleBoxFlat).bg_color == authored_fills[state],
+			"Begin Shift %s restores its authored fill after palette/contrast changes" % state
+		)
+	_check(
+		start.has_focus() and start.focus_mode == Control.FOCUS_ALL
+		and start.get_theme_stylebox("focus") == focus_outline
+		and start.custom_minimum_size == authored_minimum
+		and [start.focus_neighbor_top, start.focus_neighbor_bottom] == authored_neighbors,
+		"Begin Shift retains focus, its inherited focus outline, geometry and navigation"
+	)
+	hud.queue_free()
+	await process_frame
+	await process_frame
+
+
+## Exercise the production help action rather than a separately styled button.
+## Its small text retains the same 4.5:1 / 7:1 floors as the title action.
+func _test_help_close_text_contrast() -> void:
+	var hud := GameHUD.new()
+	hud.name = "AccessibilityHelpCloseHUD"
+	root.add_child(hud)
+	await process_frame
+	var previous_mouse_mode := Input.mouse_mode
+	hud.set_reduced_motion(true)
+	hud.call("_begin")
+	await process_frame
+	await process_frame
+	hud.set_mode("piloting")
+	var panel := hud.get("_help_panel") as Control
+	var close := hud.get("_help_close_button") as Button
+	var next := hud.get("_help_next_button") as Button
+	var page := hud.get("_help_page_label") as Label
+	var resume := hud.find_child("ResumeButton", true, false) as Button
+	_check(close != null and resume != null, "actual help Close and ordinary Resume buttons exist")
+	if close == null or resume == null:
+		hud.queue_free()
+		await process_frame
+		Input.mouse_mode = previous_mouse_mode
+		return
+	panel.show()
+	close.grab_focus()
+	var focus_outline := close.get_theme_stylebox("focus")
+	var authored_minimum := close.custom_minimum_size
+	var authored_neighbors := [close.focus_neighbor_left, close.focus_neighbor_right]
+	var authored_page := page.text
+	var paints := {
+		"normal": ["font_color", "normal"],
+		"focus": ["font_focus_color", "normal"],
+		"hover": ["font_hover_color", "hover"],
+		"pressed": ["font_pressed_color", "pressed"],
+	}
+	var authored_fills: Dictionary = {}
+	var authored_text: Dictionary = {}
+	for state: String in paints:
+		var keys: Array = paints[state]
+		authored_fills[state] = (close.get_theme_stylebox(keys[1]) as StyleBoxFlat).bg_color
+		authored_text[state] = close.get_theme_color(keys[0])
+	for high_contrast: bool in [false, true]:
+		hud.set_high_contrast_hud(high_contrast)
+		var floor_ratio := Palette.MINIMUM_HIGH_CONTRAST_PANEL_CONTRAST if high_contrast else Palette.MINIMUM_PANEL_CONTRAST
+		for mode_id: StringName in Palette.get_mode_ids():
+			hud.set_hud_palette(mode_id)
+			for state: String in paints:
+				var keys: Array = paints[state]
+				var text := close.get_theme_color(keys[0])
+				var fill := (close.get_theme_stylebox(keys[1]) as StyleBoxFlat).bg_color
+				var ratio := Palette.contrast_ratio(text, fill)
+				_check(
+					ratio >= floor_ratio,
+					"Help Close %s/%s high-contrast=%s clears %.1f:1 (measured %.3f:1)"
+					% [mode_id, state, high_contrast, floor_ratio, ratio]
+				)
+			var nominal := Palette.get_role_color(mode_id, Palette.ROLE_NOMINAL, high_contrast)
+			_check(
+				(resume.get_theme_stylebox("hover") as StyleBoxFlat).bg_color == nominal.darkened(0.75)
+				and (resume.get_theme_stylebox("pressed") as StyleBoxFlat).bg_color == nominal.darkened(0.70),
+				"ordinary menu buttons use the readable shared hover/pressed fills in %s high-contrast=%s"
+				% [mode_id, high_contrast]
+			)
+	hud.set_high_contrast_hud(false)
+	hud.set_hud_palette(Palette.MODE_NONE)
+	for state: String in paints:
+		var keys: Array = paints[state]
+		_check(
+			(close.get_theme_stylebox(keys[1]) as StyleBoxFlat).bg_color == authored_fills[state]
+			and close.get_theme_color(keys[0]) == authored_text[state],
+			"Help Close %s restores its authored paint after palette/contrast changes" % state
+		)
+	_check(
+		close.has_focus() and close.focus_mode == Control.FOCUS_ALL
+		and close.get_theme_stylebox("focus") == focus_outline
+		and close.custom_minimum_size == authored_minimum
+		and [close.focus_neighbor_left, close.focus_neighbor_right] == authored_neighbors
+		and page.text == authored_page,
+		"Help Close retains focus, outline, geometry, navigation and current page"
+	)
+	next.pressed.emit()
+	_check(page.text != authored_page, "help paging remains usable after repainting Close")
+	close.pressed.emit()
+	_check(not panel.visible, "the repainted production Close action still dismisses help")
+	hud.queue_free()
+	await process_frame
+	Input.mouse_mode = previous_mouse_mode
+
+
+## Measure every shared menu colour role on an existing production action.
+## These are the real pause and activity controls, with their normal wiring.
+func _test_menu_button_text_contrast() -> void:
+	var hud := GameHUD.new()
+	hud.name = "AccessibilityMenuButtonsHUD"
+	root.add_child(hud)
+	await process_frame
+	var previous_mouse_mode := Input.mouse_mode
+	var paints := {
+		"normal": ["font_color", "normal"],
+		"focus": ["font_focus_color", "normal"],
+		"hover": ["font_hover_color", "hover"],
+		"pressed": ["font_pressed_color", "pressed"],
+	}
+	var button_names := [
+		"ResumeButton", "SettingsOpenButton", "RestartButton", "ExitButton",
+		"ActivitySelectionBackButton",
+	]
+	for button_name: String in button_names:
+		hud.set_paused(true)
+		if button_name == "ActivitySelectionBackButton":
+			_check(hud.open_activity_board(), "shared contrast check opens the actual activity board")
+		await process_frame
+		var button := hud.find_child(button_name, true, false) as Button
+		_check(button != null, "shared contrast check finds production %s" % button_name)
+		if button == null:
+			continue
+		button.grab_focus()
+		var focus_outline := button.get_theme_stylebox("focus")
+		var authored_minimum := button.custom_minimum_size
+		var authored_rect := button.get_global_rect()
+		var authored_neighbors := [
+			button.focus_neighbor_top, button.focus_neighbor_bottom,
+			button.focus_neighbor_left, button.focus_neighbor_right,
+			button.focus_next, button.focus_previous,
+		]
+		var authored_connections := button.pressed.get_connections()
+		var authored_fills: Dictionary = {}
+		var authored_text: Dictionary = {}
+		for state: String in paints:
+			var keys: Array = paints[state]
+			authored_fills[state] = (button.get_theme_stylebox(keys[1]) as StyleBoxFlat).bg_color
+			authored_text[state] = button.get_theme_color(keys[0])
+		for high_contrast: bool in [false, true]:
+			hud.set_high_contrast_hud(high_contrast)
+			var floor_ratio := Palette.MINIMUM_HIGH_CONTRAST_PANEL_CONTRAST if high_contrast else Palette.MINIMUM_PANEL_CONTRAST
+			for mode_id: StringName in Palette.get_mode_ids():
+				hud.set_hud_palette(mode_id)
+				for state: String in paints:
+					var keys: Array = paints[state]
+					var text := button.get_theme_color(keys[0])
+					var fill := (button.get_theme_stylebox(keys[1]) as StyleBoxFlat).bg_color
+					var ratio := Palette.contrast_ratio(text, fill)
+					_check(
+						ratio >= floor_ratio,
+						"Menu button %s %s/%s high-contrast=%s clears %.1f:1 (measured %.3f:1)"
+						% [button_name, mode_id, state, high_contrast, floor_ratio, ratio]
+					)
+		hud.set_high_contrast_hud(false)
+		hud.set_hud_palette(Palette.MODE_NONE)
+		await process_frame
+		for state: String in paints:
+			var keys: Array = paints[state]
+			_check(
+				(button.get_theme_stylebox(keys[1]) as StyleBoxFlat).bg_color == authored_fills[state]
+				and button.get_theme_color(keys[0]) == authored_text[state],
+				"shared %s %s restores its authored paint after palette/contrast changes" % [button_name, state]
+			)
+		_check(
+			button.has_focus() and button.focus_mode == Control.FOCUS_ALL
+			and button.get_theme_stylebox("focus") == focus_outline
+			and button.custom_minimum_size == authored_minimum
+			and button.get_global_rect() == authored_rect
+			and [button.focus_neighbor_top, button.focus_neighbor_bottom,
+				button.focus_neighbor_left, button.focus_neighbor_right,
+				button.focus_next, button.focus_previous] == authored_neighbors
+			and button.pressed.get_connections() == authored_connections,
+			"shared %s retains focus, outline, geometry, navigation and action wiring" % button_name
+		)
+	hud.set_paused(false)
+	hud.queue_free()
+	await process_frame
+	Input.mouse_mode = previous_mouse_mode
+
+
 ## The reticle styles change only the authored geometry. Every style keeps the
 ## four-bar silhouette, keeps the damage staging, reports itself in the
 ## component snapshot, and keeps the state label clear of the marks.
@@ -529,6 +779,149 @@ func _test_hud_palette_application() -> void:
 	hud.queue_free()
 	await process_frame
 	await process_frame
+
+
+## Retained gameplay readouts change their registered font role. Applying a
+## palette before or after a state transition must paint that role exactly once.
+func _test_gameplay_status_palette_transitions() -> void:
+	var hud: GameHUD = GameHUD.new()
+	root.add_child(hud)
+	await process_frame
+	var families: Dictionary = {
+		&"_mode_label": [
+			["piloting", GameHUD.CAUTION, "PILOTING  //  "],
+			["driving", GameHUD.NOMINAL, "DRIVING  //  "],
+			["aboard", GameHUD.NOMINAL, "ON FOOT  //  ABOARD "],
+			["on_foot", GameHUD.NOMINAL, "ON FOOT  //  "],
+		],
+		&"_engine_label": [
+			["ONLINE", GameHUD.NOMINAL, "ENGINE  //  ONLINE"],
+			["STARTING", GameHUD.CAUTION, "ENGINE  //  STARTING"],
+			["OFFLINE", GameHUD.DANGER, "ENGINE  //  OFFLINE"],
+			["UNKNOWN", GameHUD.DANGER, "ENGINE  //  UNKNOWN"],
+		],
+		&"_throttle_label": [
+			[-0.5, GameHUD.CAUTION, "THROTTLE  //  REVERSE"],
+			[0.5, GameHUD.MUTED, "THROTTLE  //  FORWARD"],
+			[0.0, GameHUD.MUTED, "THROTTLE  //  NEUTRAL"],
+			[-0.04, GameHUD.MUTED, "THROTTLE  //  NEUTRAL"],
+			[0.04, GameHUD.MUTED, "THROTTLE  //  NEUTRAL"],
+		],
+		&"_damage_status_label": [
+			["healthy", GameHUD.MUTED, "HULL  //  OK"],
+			["damaged", GameHUD.CAUTION, "HULL  //  ! DAMAGED !"],
+			["critical", GameHUD.DANGER, "HULL  //  !! CRITICAL !!"],
+			["destroyed", GameHUD.DANGER, "HULL  //  !! DESTROYED !!"],
+			["unknown", GameHUD.MUTED, "HULL  //  OK"],
+		],
+		&"_component_status_label": [
+			["nominal", GameHUD.MUTED, "NOMINAL"],
+			["degraded", GameHUD.CAUTION, "DEGRADED"],
+			["critical", GameHUD.DANGER, "CRITICAL"],
+			["failed", GameHUD.DANGER, "FAILED"],
+			["repairing", GameHUD.MUTED, "REPAIRING"],
+			["destroyed", GameHUD.MUTED, "[X] DESTROYED  //  HULL LOST"],
+			["respawn_ready", GameHUD.MUTED, "[+] RESPAWN READY  //  RECOVERY VERIFIED"],
+			["recovery_pending", GameHUD.MUTED, "[!] RECOVERY PENDING  //  AUDIT NOT READY"],
+			["unconfigured", GameHUD.MUTED, ""],
+		],
+		&"_reticle_state_label": [
+			[&"acquired", GameHUD.NOMINAL, "[+]  LOCKED  RANGE DRONE"],
+			[&"friendly_blocked", GameHUD.CAUTION, "[=]  FRIENDLY  HOLD FIRE"],
+			[&"invalid", GameHUD.MUTED, "[?]  INVALID TARGET"],
+			[&"searching", GameHUD.NOMINAL_SOFT, "[...]  SEARCHING"],
+			[&"unknown", GameHUD.NOMINAL_SOFT, "[...]  SEARCHING"],
+		],
+	}
+	var retained_labels: Dictionary = {}
+	for family: StringName in families:
+		retained_labels[family] = hud.get(family) as Label
+	for mode_id: StringName in Palette.get_mode_ids():
+		for high_contrast: bool in [false, true]:
+			for family: StringName in families:
+				var label: Label = retained_labels[family] as Label
+				for state: Array in families[family]:
+					hud.set_hud_palette(Palette.MODE_NONE)
+					hud.set_high_contrast_hud(false)
+					_apply_gameplay_status_state(hud, family, state[0])
+					var retained_text: String = label.text
+					var retained_visible: bool = label.visible
+					_check(
+						retained_text == "" if str(state[2]).is_empty() else retained_text.contains(str(state[2])),
+						"%s/%s keeps its authored status wording" % [family, state[0]]
+					)
+					_assert_gameplay_status_paint(hud, family, label, StringName(state[1]), Palette.MODE_NONE, false)
+					hud.set_hud_palette(mode_id)
+					hud.set_high_contrast_hud(high_contrast)
+					_assert_gameplay_status_paint(hud, family, label, StringName(state[1]), mode_id, high_contrast)
+					_check(label.text == retained_text and label.visible == retained_visible,
+						"palette changes preserve %s/%s text and visibility" % [family, state[0]])
+					# Exercise an actual different state under the active palette,
+					# then return through the production setter to the tested state.
+					var alternate: Array = families[family][0] if state != families[family][0] else families[family][1]
+					_apply_gameplay_status_state(hud, family, alternate[0])
+					_apply_gameplay_status_state(hud, family, state[0])
+					_assert_gameplay_status_paint(hud, family, label, StringName(state[1]), mode_id, high_contrast)
+					_check(label.text == retained_text and label.visible == retained_visible,
+						"state changes preserve %s/%s copy and visibility across palettes" % [family, state[0]])
+	hud.queue_free()
+	await process_frame
+
+
+func _apply_gameplay_status_state(hud: GameHUD, family: StringName, state: Variant) -> void:
+	match family:
+		&"_mode_label": hud.set_mode(str(state))
+		&"_engine_label": hud.set_engine_state(str(state))
+		&"_throttle_label": hud.update_ship_telemetry({"throttle": float(state)})
+		&"_damage_status_label": hud.update_ship_telemetry({"damage_status": str(state)})
+		&"_reticle_state_label": hud.set_target_lock_state(StringName(state), " range drone ")
+		&"_component_status_label":
+			hud.set_mode("piloting")
+			var wording: String = str(state)
+			var component_state: StringName = &"nominal"
+			var integrity: float = 1.0
+			match wording:
+				"degraded", "repairing":
+					component_state = &"impaired"
+					integrity = 0.6
+				"critical":
+					component_state = &"impaired"
+					integrity = 0.35
+				"failed":
+					component_state = &"failed"
+					integrity = 0.0
+			var lifecycle: Dictionary = {}
+			if wording == "destroyed": lifecycle["destroyed"] = true
+			if wording == "respawn_ready": lifecycle["recovery_ready"] = true
+			if wording == "recovery_pending": lifecycle["recovery_pending"] = true
+			hud.call("_present_bound_hero_component_report", {
+				"configured": wording != "unconfigured",
+				"components": [{"id": &"core_systems", "state_id": component_state, "integrity": integrity}],
+				"repairing_component_id": &"core_systems" if wording == "repairing" else &"",
+				"lifecycle": lifecycle,
+			})
+
+
+func _assert_gameplay_status_paint(
+	hud: GameHUD, family: StringName, retained: Label, role: StringName,
+	mode_id: StringName, high_contrast: bool
+) -> void:
+	var label: Label = hud.get(family) as Label
+	var expected: Color = Palette.get_role_color(mode_id, role, high_contrast)
+	var entries: Array = hud.get("_palette_targets") as Array
+	var registration_count: int = 0
+	var registered_role: StringName = &""
+	for entry: Dictionary in entries:
+		if entry.get("node") == label and entry.get("kind") == &"theme_color" and entry.get("property") == &"font_color":
+			registration_count += 1
+			registered_role = StringName(entry.get("role", &""))
+	_check(
+		label == retained and label.modulate == Color.WHITE
+		and label.get_theme_color("font_color") == expected
+		and registration_count == 1 and registered_role == role,
+		"%s paints current %s exactly once in %s high-contrast=%s with one retained registration"
+			% [family, role, mode_id, high_contrast]
+	)
 
 
 func _test_hud_scale_and_motion() -> void:

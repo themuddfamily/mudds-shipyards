@@ -34,6 +34,7 @@ const STATION_SOLAR_READABILITY_SCRIPT := preload(
 const STATION_DEFENSE_CONTENT_SCENE_PATH := \
 	"res://scenes/activities/station_defense_encounter.tscn"
 const STATION_DEFENSE_ACTIVITY_BOARD_SCRIPT := preload("res://scripts/activities/station_defense_activity_board.gd")
+const PERIMETER_HOLD_ASSET := preload("res://scenes/activities/station_defense_perimeter_asset.tscn")
 const HEAVY_BREACH_ACTIVITY_BOARD_SCRIPT := preload("res://scripts/activities/heavy_breach_activity_board.gd")
 const STATION_DEFENSE_ACTIVITY_BOARD_TRANSFORM := Transform3D(
 	Basis.IDENTITY, Vector3(12.0, 1.0, -26.0)
@@ -1221,6 +1222,7 @@ var _fleet_expansion_production_binding: Node3D
 var _station_defense_content: StationDefenseEncounterContent
 var _station_defense_activity_board: Area3D
 var _heavy_breach_activity_board: Area3D
+var _perimeter_hold_asset: StationDefensePerimeterAsset
 var _heavy_breach_protected_objective: Node3D
 var _station_solar_readability_presentation: RefCounted
 var _last_station_solar_readability_result: Dictionary = {}
@@ -1770,6 +1772,18 @@ func _build_heavy_breach_production_activity() -> void:
 	objective_label.outline_size = 5
 	objective_label.position = Vector3(0.0, 2.25, 0.0)
 	_heavy_breach_protected_objective.add_child(objective_label)
+	_perimeter_hold_asset = PERIMETER_HOLD_ASSET.instantiate() as StationDefensePerimeterAsset
+	_perimeter_hold_asset.name = "PerimeterHoldProtectedAsset"
+	# Separate from both the collisionless Breach marker and Station Defense's
+	# own core. This renewable instance keeps exactly its existing health owner.
+	_perimeter_hold_asset.position = Vector3(-90.0, 36.0, -230.0)
+	add_child(_perimeter_hold_asset)
+	var hold_label := Label3D.new()
+	hold_label.name = "PerimeterHoldLabel"
+	hold_label.text = "PERIMETER HOLD\nPROTECTED CORE"
+	hold_label.position = Vector3(0.0, 6.0, 0.0)
+	hold_label.font_size = 36
+	_perimeter_hold_asset.add_child(hold_label)
 	_heavy_breach_activity_board = HEAVY_BREACH_ACTIVITY_BOARD_SCRIPT.new() as Area3D
 	_heavy_breach_activity_board.name = "HeavyBreachActivityBoard"
 	_heavy_breach_activity_board.transform = HEAVY_BREACH_ACTIVITY_BOARD_TRANSFORM
@@ -1815,7 +1829,7 @@ func _bind_heavy_breach_external_owners() -> void:
 		return
 	_heavy_breach_activity_board.call(
 		"configure_external_owners",
-		_heavy_breach_protected_objective, scenario_director, combat_authority
+		_heavy_breach_protected_objective, scenario_director, combat_authority, _perimeter_hold_asset
 	)
 
 
@@ -3017,6 +3031,10 @@ func get_heavy_breach_activity_board() -> Area3D:
 		_heavy_breach_activity_board
 		if is_instance_valid(_heavy_breach_activity_board) else null
 	)
+
+
+func get_perimeter_hold_asset() -> StationDefensePerimeterAsset:
+	return _perimeter_hold_asset if is_instance_valid(_perimeter_hold_asset) else null
 
 
 func get_heavy_breach_protected_objective() -> Node3D:

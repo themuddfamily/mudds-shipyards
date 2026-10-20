@@ -1,0 +1,45 @@
+Mudds Shipyards development checkpoint — preserve damaged save bytes
+Source: 9326614e3baaa12bbb1173fbadb8fcd8d2ae44c8
+Integrated on main: 2b16e29b1
+
+Player-visible behavior:
+Repairing from a verified backup preserves the current damaged primary save in
+.recovery before replacing it. A matching existing recovery copy can be reused;
+a different occupied copy, directory collision or failed preservation blocks
+replacement and keeps the damaged primary and verified backup. The same guard
+covers interrupted-save promotion and explicit backup restoration. Zero-byte
+primary files still support ordinary backup repair. Existing browser recovery
+and other accepted gameplay behavior remain included.
+
+Actual validation:
+Store124, settings repair binding11 and real-file crash129 assertions PASS.
+One actual fresh child proves conflicting recovery data survives refusal with
+original names/bytes/modes, and matching recovery data permits repair followed
+by a parent-process reload of repaired progress with backup/archive retained.
+Existing future-schema fresh-process preservation cases remain passing.
+
+Scope limits:
+Existing single-writer portable flush/verification contract; no new operating-
+system durability or concurrent-writer guarantee. All broad recovery/roadmap
+parents remain OPEN. Native Windows execution, native GPU, physical devices,
+audible listening and human review: NOT_RUN. Full final integrated regression,
+activity-run policy decisions and parked browser native callback route remain
+open. This checkpoint does not qualify those gates.
+
+Attempt history:
+Original candidate1092a00eb imported, then its store suite failed parsing one new
+test byte declaration before runtime assertions. The separately selected exact
+PackedByteArray declaration correction changed no production logic/assertions.
+Original failure/time retained. No unexpected failures in corrected source checks.
+
+Package validation:
+Clean paired Windows/Linux stock-template exports PASS. Linux binary, Linux
+archive and Windows embedded payload on the Linux engine each exit0 with exactly
+one STARTUP_MENU_READY_OK. Actual1,521 PCK entries match across exports; Windows
+PE code matches the stock template; Linux archive binary/icon/installer bytes,
+modes and source epoch match. Windows payload checking is not native Windows
+execution. Raw root-user notices remain; no matched error diagnostics in accepted
+stages.
+
+Cumulative checks: 12 stages including original parse failure; 11 accepted,
+1 unexpected failure; 179.062s total guarded stage time. No budget reset.
