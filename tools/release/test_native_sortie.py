@@ -2390,6 +2390,26 @@ class ArrowReturnReuseTests(unittest.TestCase):
                 p, s = self.start()
                 with self.assertRaises(AssertionError): self.tick(p, s, update=False, **changed)
 
+    def test_approach_candidates_do_not_bypass_actual_boarding_gate(self):
+        p, s = self.start()
+        for _name, target in p.OUTBOUND: self.move_to(p, s, target)
+        self.move_to(p, s, [-38.540359, .0491382, 21.9952])
+        self.assertEqual(p.stage, 'approach')
+        keys, _dx, _dy, _fire = self.tick(p, s, candidate=True,
+                                         station_candidate=True, boarding_distance=9.56)
+        self.assertEqual(p.stage, 'approach')
+        self.assertNotIn('e', keys)
+        self.assertNotIn('board_1', p.receipts)
+        keys, _dx, _dy, _fire = self.tick(p, s, boarding_distance=6.9)
+        self.assertEqual(p.stage, 'approach')
+        self.assertNotIn('e', keys)
+        self.assertNotIn('board_1', p.receipts)
+        keys, _dx, _dy, _fire = self.tick(p, s, station_candidate=False)
+        self.assertEqual(p.stage, 'board')
+        self.assertIn('e', keys)
+        self.assertFalse(p.receipts['board_1']['station_candidate'])
+        self.assertLessEqual(p.receipts['board_1']['boarding_distance'], 7)
+
     def test_boarding_rejects_no_edge_wrong_candidate_range_reservation_and_rejection(self):
         mutations = [lambda p,s: p.receipts.pop('board_1'),
                      lambda p,s: p.receipts['board_1'].update(candidate=False),

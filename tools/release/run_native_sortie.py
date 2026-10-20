@@ -2964,9 +2964,6 @@ class ArrowReturnReusePilot(Pilot):
                 goals = [[s['boarding'][0], 0, 22], s['boarding']]
                 dx, reached = self.walk_to(s, goals[self.walk_index], keys)
                 if reached and self.walk_index == 0: self.walk_index = 1
-                if s['station_candidate'] and s['candidate']:
-                    # The fixed clear lane should not select a workstation.
-                    require(False, 'Arrow approach unexpectedly selects a station interaction')
         elif self.stage == 'board' and s['phase'] == 'START_ENGINES' and not s['transition_busy']:
             require(self.boarding_seen and any(e['stage'] == 'board' and e['flight'] == self.flight+1 for e in self.native_edges)
                     and s['boarding_confirmation'].get('adapter', {}).get('view', {}).get('state') == 'seated',
