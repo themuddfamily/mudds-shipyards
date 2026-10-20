@@ -115,7 +115,7 @@ Finish means the named existing route passes on its frozen candidate, or the nam
 | SCOPE-ROSTER | Reconcile original twelve plus modern five craft, stations, opponents/weapons, activities, worlds, roles and targets | 4 | DONE as [finite named roster](COMPLETION_SCOPE.md#finite-release-roster--scope-roster): original12+modern5/eventual17, current9/missing8; other named inventories and unresolved boundaries preserved. No gameplay/qualification completion implied |
 | SCOPE-LIMIT | Release guest count and playing-host decision | 4,26 | WAITING; already-asked owner decision |
 | SCOPE-DESKTOP | Required desktop target list | 4,32 | WAITING final owner list: Windows Desktop/Linux x86_64 presets exist; Phase9 conditionally requires other non-Windows targets without naming one. Source investigation DONE; no third-target promise or deferral inferred |
-| PLAN-NEXT | Assign the next bounded queue | 5 | Current selection: one passive release callback capture, diagnostic-only; source-reviewed observer candidate, package/capture NOT_RUN. [Current checkpoints, waiting decisions and card fields](../ROADMAP.md#execution-now). Navigator rejection/Hauler cargo retain policy waits. This scheduling work is not a whole-project estimate or gameplay delivery |
+| PLAN-NEXT | Assign the next bounded queue | 5 | Passive release callback capture complete on783c8c872, diagnostic-only: private package/readiness checks pass and known failed route captured; no gameplay acceptance. Next bounded action is production-correction definition from the actual retained native callback. [Current checkpoints, waiting decisions and card fields](../ROADMAP.md#execution-now). Navigator rejection/Hauler cargo retain policy waits. This scheduling work is not a whole-project estimate or gameplay delivery |
 | GUIDED-FINAL | Final-package Guided ordinary-input sortie, original 3/3 | 7 | GATED; final package, earlier f676c50 acceptance retained |
 | SANDBOX-RECOVERY | Original all-nine/54-waypoint recovery walk and reuse | 7 | PARKED; supported changed input/runtime cause required |
 | SETTINGS-INPUT | Recover original runner, profile and logs | 7,8,29 | WAITING; original artifacts, no substitute Gate C |
@@ -1300,9 +1300,8 @@ and release-template context remain untested by this component caller.
 [Exact observations, original source map and frozen contract](history/ROADMAP_DELIVERIES.md#timeout-rpc-cache-ownership--source-observation-not-reproduced).
 Two owners terminal/all6 observed identities absent; owned scratch cleaned and raw
 results retained. Investigation cumulative14 stages267.105s retains two original
-failures. No second probe/repair/cap increase/full-route retry selected. Next
-single action: define release-level callback capture in the failed context and
-freeze ownership/commands/budget before code or engines. Do not repeat unchanged
+failures. No second probe/repair/cap increase/full-route retry selected. The subsequent release capture is complete below; it identifies the retained native
+callback without establishing the internal mismatch or repair. Do not repeat unchanged
 default/custom source comparison. Original browser candidate stays parked;
 all broad/native/human/final gates and accepted checkpoint20e90c9 unchanged.
 
@@ -1367,6 +1366,23 @@ process identities and unique diagnostic package, then clean only owned scratch.
 Estimate15–25min implementation/review,5–10min build/capture/cleanup; split before
 45min. Pass ends this acquisition; next runtime choice needs actual captured cause.
 All original browser, native/human/final parent gates remain OPEN/NOT_RUN.
+
+**Result2026-10-20: CAPTURED_KNOWN_FAILURE, acquisition only.** Candidate
+783c8c87206a52928641dd887f9a34e02caaf246 adds only25 observer lines and is
+pushed/unmerged/withheld. All five readiness/package stages pass; one actual
+release route exits1/success:false at the exact original diagnostic. Raw brackets
+show the same valid SceneCacheInterface callback bound to the actual adapter ID,
+flags4/unbound0, still present after5006ms timeout. Release method metadata is
+empty, unlike the source observation; exact internal mismatch/repair remains
+unproved. Same Main/player/adapter/API/root and paused phase/position/clock.
+Separate fixture rejection unchanged. [Full result, hashes, limits and cleanup](history/ROADMAP_DELIVERIES.md#release-timeout-callback-capture--known-failure-captured).
+Six owners finished/33 observed identities absent; five unique private Linux
+artifacts retained and owned checkout/helpers/profiles cleaned from active paths.
+Six stages131.191s; cumulative20 stages398.296s preserves original failures and
+this actual failed route. No retry/repair/cap increase or second capture selected.
+Next action is one bounded production-correction definition using this finding,
+including matching templates/build-toolchain prerequisites and unchanged full-route
+proof. Diagnostic acquisition is not a production fix or ordinary acceptance.
 
 ### Supported remote helm action roster
 

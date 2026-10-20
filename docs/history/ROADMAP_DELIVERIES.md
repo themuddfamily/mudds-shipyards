@@ -14366,3 +14366,63 @@ change. Zero target errors is NOT_REPRODUCED, not runtime acceptance. Preserve
 raw logs then remove owned worktree/helpers/profiles after terminal process checks.
 Estimate10–15min; no package/checkpoint because production is unchanged. Original
 browser235.879s/two failures and whole-route gates remain binding/open.
+
+
+## Release timeout callback capture — known failure captured
+
+**2026-10-20; parent25; diagnostic acquisition complete, runtime unfixed.**
+Candidate `783c8c87206a52928641dd887f9a34e02caaf246` is a clean derivative of
+original `e944f52a8` with only25 passive observer lines. Pushed branch
+`diag/browser-release-cache-20261020` remains unmerged/withheld. Existing driver,
+fixture, game logic, cadence and limits unchanged; no public/Windows checkpoint.
+Original frozen contract remains in the backlog. Independent high source,
+helper/config and actual-result review plus root review GO for acquisition only.
+Review corrected collector API-ID validation before execution: actual RefCounted
+IDs may be negative. No engine failure or retry resulted from that helper error.
+
+Five readiness stages pass: fresh import20.759s, privacy1.173s, Linux export41.925s,
+strict actual-binary startup22.170s (exit0/one menu-ready marker), actual embedded
+observer/source pin/1,521-entry package and exact archive audit4.255s. One original
+private Xvfb/XTest separate-process release route takes40.910s and **fails** at the
+known native diagnostic. Underlying result retains exit1, success:false and stage
+browser_timeout. Known fixture cleanup command rejection remains separately;
+Retry/admission/Disconnect/fresh Cancel/Resume/walk/normal quit remain NOT_RUN.
+The acquisition wrapper records CAPTURED_KNOWN_FAILURE, never ordinary acceptance.
+
+Raw game.log line1131/sequence975 at37549ms shows actual adapter1099259971091,
+API-9223372011756059250 rooted /root, and valid SceneCacheInterface callback owner
+-9223372011722504816, bound_arguments[1099259971091], flags4/unbound_count0/method
+empty. Line1132 reports the original nonexistent tree_exited/empty-callable
+disconnect error on that same adapter. Line1134/sequence976 at37571ms retains the
+**identical valid bound callback** after configured:false/offline:true/deadline0/
+reason:timeout,5006ms from production join start. Main/player/adapter/API identities,
+paused browser, phase/position/gameplay clock remain unchanged. Real separate host
+observes one hello/two packets, no offer/admission. Original driver SHA256 remains
+`2d7d4da626d018ddc4bc68e74bac67c8ad6632bf6f703d00089b16d6982d1015`.
+
+This establishes actual release callback ownership and retention, unlike the
+clean source teardown observation. The release method is unavailable; exact
+internal mismatch/repair remains unproved. No fabricated signal, manual callback
+disconnection, suppression, ownership workaround, engine upgrade or runtime fix.
+No second capture, repair, route retry, cap increase or changed acceptance selected.
+Next single action: define a production correction from this actual callback and
+the retained engine-source lead, including exact source/build ownership, matching
+Windows/Linux templates, toolchain prerequisites and unchanged acceptance. Stop
+at an implementable repair card or a precise missing prerequisite.
+
+Six stages total131.1909172392916s; investigation cumulative20 stages398.2957141982916s
+retains the original two failed stages and this actual failed route acquisition.
+Contract commit→cleanup684.324s/11.4min includes the intervening roadmap edit,
+against the selected20–35min estimate; not purely implementation time.
+All six owners FINISHED and all33 observed process identities absent; inputs
+released and actual game/fixture/input/display reaped. Source/index/cache/engine
+and frozen helper hashes guarded. Branch push verified before cleanup.
+
+Only `/srv/mudds-work/browser-release-cache-20261020/results/` remains: raw logs,
+source/cache/process guards, capture, frozen helpers/profiles, closure and five
+hash-verified unique private Linux build files. ELF148,901,520 bytes SHA256
+`6a5c888aa26490f71f429ff61b4257f2b6ec3a120cc68326dfc88428b84c97b1`;
+archive95,316,186 bytes SHA256
+`857b731e224480914bed0341cddbd1a93c4086ea3d76367c9137792dfbe86628`.
+Owned checkout removed; unrelated scratch untouched. Latest public checkpoint
+remains20e90c9. All broad parent/phase/native/human/final gates remain OPEN/NOT_RUN.

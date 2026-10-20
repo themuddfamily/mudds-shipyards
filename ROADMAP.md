@@ -36,20 +36,29 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 ## Execution now
 
-**One selected task: release timeout callback capture (parent 25).** This is
-investigation, not a gameplay delivery. The original browser journey remains
-PARKED/unaccepted. [Frozen files, commands, limits and stopping conditions](docs/ROADMAP_BACKLOG.md#release-timeout-callback-capture--bounded-definition-and-selection).
+**Last task closed: release timeout callback capture (parent 25).** Diagnostic
+candidate **783c8c872** is pushed, unmerged and withheld. The original browser
+journey remains **FAIL/PARKED/unaccepted**.
+[Original frozen contract](docs/ROADMAP_BACKLOG.md#release-timeout-callback-capture--bounded-definition-and-selection)
+and [actual result](docs/history/ROADMAP_DELIVERIES.md#release-timeout-callback-capture--known-failure-captured).
 
-| Checkpoint within this task | Exact completion check | Current state |
+| Checkpoint within this task | Exact completion check | Result |
 | --- | --- | --- |
-| Passive observer implementation | Only the existing observer adds API identity and safe callback metadata; driver, fixture and runtime behavior unchanged. | 25-line candidate written and independently source-reviewed; not compiled, committed or accepted yet. |
-| Private Linux diagnostic package | Fresh import/privacy checks, clean export, strict actual-binary startup and embedded package/source checks pass under the frozen limits. | NOT_RUN. No public or Windows checkpoint for diagnostic-only code. |
-| One release capture and closure | Retain raw snapshots bracketing the original timeout and actual callback identities, or record NOT_REPRODUCED/INCONCLUSIVE/FAIL. Preserve actual route failure, logs and unique package; clean owned scratch. | NOT_RUN. One attempt only; no automatic repair, extra capture or larger cap. |
+| Passive observer implementation | Only the existing observer adds API identity and safe callback metadata; driver, fixture and runtime behavior unchanged. | Source review and fresh import PASS; sole 25-line change committed/pushed. |
+| Private Linux diagnostic package | Fresh import/privacy checks, clean export, strict actual-binary startup and embedded package/source checks pass under frozen limits. | PASS; actual 1,521-entry package checked. Five unique files retained privately; no public/Windows checkpoint for diagnostic-only code. |
+| One release capture and closure | Retain raw snapshots bracketing the original timeout, preserving actual failed route and cleanup evidence. | CAPTURED_KNOWN_FAILURE: same valid native SceneCacheInterface callback remains bound after 5,006ms timeout. Driver still exits 1/success:false; separate known fixture error retained. Six owners finished/33 observed identities absent; owned scratch cleaned. |
 
-Estimate from the frozen card: 15–25min implementation/review and 5–10min
-build/capture/cleanup; split before 45min. A successful capture ends this task.
-Any next repair needs an actual causal finding and a separately bounded card;
-it does not inherit authorization for another ordinary-route attempt.
+Actual six-stage time:131.191s. Contract commit to cleanup:11.4min, including the
+roadmap edit, against the selected20–35min estimate. This closes acquisition only.
+The exact internal mismatch and repair are still unproved; source/release callback
+teardown differs. No second capture, workaround or ordinary-route retry selected.
+
+**Next single action:** define one production correction for release RPC-cache
+teardown using the captured bound callback and retained engine-source lead. Name
+the exact source/build change, matching Windows/Linux template requirements,
+available toolchain, unchanged acceptance and estimate. Stop at an implementable
+repair card or the exact missing prerequisite. No further engine execution is
+selected by this definition, and no app-ownership workaround is justified.
 
 **No independent product implementation is currently established as ready in the
 reviewed queue.** This is a scheduling gap, not proof that the remaining product
@@ -95,7 +104,7 @@ a fixed task count per ship. Retain complete CRAFT-ACCEPT journeys.
 Keep at most three executable cards. Before starting another qualification chain,
 identify an independent production alternative or record its concrete missing
 definition. Do not expand an investigation into a succession of adjacent probes.
-The release-capture definition is already frozen; it is not a missing planning task.
+The release capture is complete; do not schedule another definition or capture of the same observation.
 
 ## Latest delivered result
 
@@ -120,7 +129,7 @@ contracts and cumulative attempt records remain in the retained history.
 
 | Outcome | Last actual result | Condition before more work |
 | --- | --- | --- |
-| BROWSER-ORDINARY /25 | Candidatee944f52:89Python/privacy/35join/package checks pass, actual routeFAIL40.554s at NetworkSession tree_exited disconnect error; cleanup fixture command rejected. | PARKED/unmerged/withheld. Full continuation NOT_RUN; no further exception/repair/probe/retry. Raw data/eight builds preserved; scratch cleaned. |
+| BROWSER-ORDINARY /25 | Candidatee944f52:89Python/privacy/35join/package checks pass, actual routeFAIL40.554s at NetworkSession tree_exited disconnect error; cleanup fixture command rejected. | PARKED/unmerged/withheld. Subsequent passive capture identifies retained native RPC-cache callback; it does not qualify the route. Full continuation NOT_RUN. Original raw data/eight builds preserved; scratch cleaned. |
 | AFT-CONSOLE-VIEW /9,12 | Standalone actual-module Xvfb/Forward+/llvmpipe capture FAIL120.485s after camera setup; no image or visual finding. | PARKED; source/root cause unproven. No cap increase, alternate backend/view or retry selected. Owned scratch cleaned; raw results retained. |
 | PERIMETER-LIVE /11 | Candidateaa88b5a73 unmerged; staged Hold52/director149/asset12/board58/HUD9 pass. GameFlow FAIL90.178s before Hold entry; exports NOT_RUN. | PARKED after cumulative363.897s/three failures and independent review. Concrete change addressing retained full GameFlow route boundary plus separate selection required; no additional correction/retry/cap increase/narrowed acceptance. |
 | PLAY-BEACON-HOME /13 | Candidatea612ea686 FAIL37.713s guarded/37.419s driver at ActivityBoardButton Return/frame1233; same two root Window signal-disconnection diagnostics. Eleven prechecks pass; no settlement/home/L/E reached, no file captures. Unmerged/withheld. | PARKED on UI-BOARD-FOCUS. Recurrence supplies no popup/connection-removal cause; no retry/repair/cap change. Preserve original UI two-component9.627s and Mining budgets. |
