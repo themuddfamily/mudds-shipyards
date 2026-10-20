@@ -1607,12 +1607,14 @@ func _client_pilot_reclaim_consumed() -> bool:
 	var ownership_matches: bool = int(current.get("owner_peer_id", 0)) == int(_flight_start.pilot_peer) \
 		and int(current.get("ship_generation", 0)) == int(expected.get("ship_generation", -1)) \
 		and int(current.get("ownership_generation", 0)) == int(expected.get("ownership_generation", -1))
-	if not ownership_matches or not _pilot_reclaim_relationship_matches(_pilot_reclaim_seated, true) \
+	if not ownership_matches \
 		or int(sample.get("pose_tick", 0)) < int(_pilot_reclaim_seated.home.pose_tick) \
 		or int(sample.get("pilot_peer_id", 0)) != int(_flight_start.pilot_peer):
 		return false
 	if _role == "client_b":
-		return _local_reboard_seated_current(_reboard_seated)
+		return _pilot_reclaim_relationship_matches(_pilot_reclaim_seated, true) and _local_reboard_seated_current(_reboard_seated)
+	# GameFlow excludes the owner from non-server-simulated pilot-seat echoes.
+	# Its owner consumes the swap, local anchor and fresh craft pose below.
 	var producer := _pilot_reclaim_local_producer()
 	var source := _craft.get("_default_local_command_source") as ShipCommandSource
 	var helm := _game.get("_network_remote_helm") as Dictionary
