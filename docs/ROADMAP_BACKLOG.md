@@ -66,7 +66,7 @@ parents 11/21 share damage ownership. Do not count these twice.
 | 17 | Complete remote engine and landing/dock presentation | NET-POSE, NET-BUDGET | **Definition — NET-POSE-DEFINE[one uncovered view].** Name one still-unqualified craft/operation/view, current/late-peer expectation, production consumer and existing test seam. Delivered operation HUD/throttle fixes are excluded from new work. Broader ordinary motion/landing views remain; NET-FULL-SNAPSHOT aggregate envelope checks are accepted on330a39ce3, with final-candidate/native/endurance qualification separate. |
 | 18 | Complete supported remote helm actions and their real local-input prerequisite | NET-HELM, INPUT-DEVICE | **Pitch turn/release DONEf9682a38c; continuous roll-rate turn/release DONE73f4a4f67.** Actual host/source/stream and both replicas meet retained limits through synthetic Godot actions. Full original handback remains required/PARKED. Boost/hover stay UNSCHEDULED; reverse/yaw handback and physical devices remain open. No successor selected by these results. |
 | 19 | Qualify honest remote-command recovery after host simulation stalls | NET-STALL | **Current source qualification DONE — NET-STALL on3d6b1b513.** Full independent suite passes both original600-step stalls/2s fresh actions, ownership/landing/reuse/cleanup,160 terminal host assertions and actual client/wrapper exit0; zero diagnostics. No unchanged rerun. Exact final-package/native/endurance and distinct ordinary-control gates remain; this does not accept a full matrix. |
-| 20 | Complete remote landing, post-dock disembarkation and craft reuse | NET-LAND-DIAG, NET-DOCK | **Parked prerequisite — NET-JOVIAN-PASSENGER-EXIT.** Latest bf7fb636e retains dock hold and322 pose checks. Chair-clearance plus original route[0] pass; full147.311s route fails at route[1] before hatch Interact. Pushed/unmerged/withheld;619.927s combined current stages plus original parser failures retained. Door/collision state unrecorded; no retry selected. Eventual proof: original passenger reaches supported ground/walks while pilot retains helm. Reboard, pilot exit/reclaim, redeparture, other craft and second-land distinctness remain. |
+| 20 | Complete remote landing, post-dock disembarkation and craft reuse | NET-LAND-DIAG, NET-DOCK | **Parked prerequisite — NET-JOVIAN-PASSENGER-EXIT.** Latest de57a6e15 retains dock hold and adds physical confirmed Jovian passenger presentation; compile/pose322/focused exit11 pass. Full143.680s journey fails8s ordinary interaction discovery after supported inboard walk; E not pressed, production exit not exercised by journey. Pushed/unmerged/withheld;951.245s combined stages plus original parser failures. Candidate/range/competing-station state missing; no retry selected. Full ground exit/retirement/pilot retention, reboard, pilot exit/reclaim, redeparture, other craft and second-land distinctness remain. |
 | 21 | Qualify fleet hull/component damage, repair, destruction and regeneration presentation across supported craft and roles | NET-DAMAGE | **Qualification preparation — NET-DAMAGE[one craft/role].** Freeze supported ordinary scenario, candidate and expected peer damage/repair/destruction/regeneration and usable recovery. DAMAGE-DEFINE plus identified component row/power repairs are DONE. Other supported scenarios and missing-original prerequisites remain; share parent 11 ownership. |
 | 22 | Qualify the implemented convoy actor lifecycle in native gameplay | NET-ACTOR[Convoy] | **Definition — CONVOY-ACTOR-DEFINE[one lifecycle case].** Compare native gameplay coverage with authority tests; name participants/action and observable tender retirement/restoration, with ordinary Convoy prerequisite. Finish is one bounded executable case. Other live/dead/reset/late/disconnect cases remain; no parked save probe reopened. |
 | 23 | Qualify Torpedo Run authority and solo recovery | NET-ACTOR[Torpedo Run] | **Gated qualification — TORPEDO-PEER-FLIGHT.** Requires actual Torpedo baseline/participant route and matching package. Prove current/late adoption of real airborne seeker without launch replay, then terminal retirement without duplicate damage/resurrection. COMBAT-TORPEDO and other nine authority/recovery cases remain. |
@@ -704,7 +704,7 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | NET-STALL | Original 600-step host simulation stall and honest command recovery | 19 | DONE on3d6b1b513 current-source isolated Linux full original suite:160 terminal host assertions, both600-step stalls/original2s action checks, actual client/wrapper exit0 and zero diagnostics. [Result](history/ROADMAP_DELIVERIES.md#original-host-stall-route--current-source-accepted). No unchanged repeat; final-package/native/endurance and distinct ordinary Halyard/handback gates remain |
 | NET-SECOND-LAND | Historical intermittent second-landing boundary | 20 | GATED; establish distinctness from current return failure before any probe |
 | NET-DOCK-DEFINE | Supported craft dock/exit/reboard/redeparture acceptance cases | 20 | DONE definition only; next five Jovian instances below, all other craft/roles remain unscheduled |
-| NET-JOVIAN-PASSENGER-EXIT | Original passenger reaches supported ground while pilot retains helm | 16,20,26 | PARKED: bf7fb636e source-supported chair detour passes its new point and original route[0]; full147.311s route fails at route[1] before hatch Interact. Import/pose322/compile pass; combined619.927s current stages plus original parser failures retained. Withheld/unmerged; exports NOT_RUN. Missing actual canopy/hinge/blocker/contact state at doorway, no second repair/retry. [Latest result](history/ROADMAP_DELIVERIES.md#docked-pilot-closeout--chair-cleared-hatch-route-still-fails--2026-10-20) |
+| NET-JOVIAN-PASSENGER-EXIT | Original passenger reaches supported ground while pilot retains helm | 16,20,26 | PARKED: de57a6e15 compile/pose322/focused exit11 PASS; original143.680s route fails8s interaction discovery after host-confirmed inboard walk, before E. Production physical exit remains unexercised by journey. Candidate/range/station state absent; no further repair/retry. Withheld/unmerged; exports NOT_RUN. Combined951.245s plus original parser failures retained. [Latest result](history/ROADMAP_DELIVERIES.md#physical-jovian-passenger-exit--focused-pass-ordinary-interaction-not-found--2026-10-20) |
 | NET-JOVIAN-DOCKED-PILOT-HOLD | A still-owned remote pilot retains the committed authoritative dock pose/velocity | 16,20,26 | WITHHELD CANDIDATE0d225bee8: measured0.494335→0.500294m drift addressed; existing full pose322 PASS and corrected route snapshot error0.0m. Full selected passenger-exit proof fails later cabin walking, so no integration/checkpoint. Same chain/budget as EXIT, not a separate accepted delivery. |
 | NET-JOVIAN-PASSENGER-REBOARD | Original passenger reclaims original co-pilot chair | 16,20,26 | GATED on passenger exit; retained parked card above |
 | NET-JOVIAN-PILOT-EXIT | Original pilot releases helm and walks onto supported berth ground | 16,20,26 | GATED on passenger reboard; passenger stays seated |
@@ -3180,3 +3180,45 @@ All25 observed identities absent;188 profile entries archived/verified, owned
 worktree/profile/helpers removed6.01min within45min. Raw and helper sources:
 `/srv/mudds-work/docked-pilot-closeout-20261020/results/`.
 Full exit/reuse and all original parent gates remain open.
+
+
+### Physical Jovian passenger exit — focused path passes, ordinary interaction unresolved
+
+Selected15:47–16:32UTC/45min on2026-10-20, existing docked-pilot branch only.
+Source found two separate mismatches: caller walks post-confirmation exterior
+animation points before E; confirmed nonpilot production presentation teleports
+to generic yard spawn. Jovian has no independent ShipCabinHatch toggle. Generic
+cabin Interact outside2.2m pilot-swap radius requests passenger DISEMBARK.
+
+Candidate de57a6e15 adds a confirmed landed/offline Jovian physical exit selected
+from accepted host operation facts, using an explicit supported live ON_FOOT
+transition. It retains the other pilot's state/camera/authority and skips pilot
+cargo/tutorial effects; existing pilot/Halyard paths retain their behavior.
+Caller walks to supported inboard(-1.75,.52,-6.30), then ordinary Interact; the
+exit observer requires the aft chair clearance plus all six original exterior
+poses, motion, and every original ground/retirement/current-pilot/actual-exit
+condition. No fake seat, test body placement or weakened endpoint.
+
+Two separately retained compiler failures preceded runtime:87b313468 importPASS
+then GameFlow type inference FAIL38.440s total;1502fb9c8 importPASS/observer compile
+FAIL37.184s total. Exact corrections only declare Transform3D/bool/current:bool;
+all operands, original caps and original15:47 window remain. Their roots contain
+only preserved results; six observed identities absent and39 profile entries
+verified for each. No journey or export ran in those failures.
+
+Final attempt import20.677s/compile16.943s/pose42.615s322/focused exit31.779s11 PASS.
+Original full journey FAIL143.680s after real return/stand/supported inboard walk
+and host confirmation:8s ordinary boarding/no-competing-station predicate fails
+before E. Requests1/confirmations1 still name initial boarding; passenger berth
+claim remains. No actual boarding/station candidate path, range or area gate was
+recorded, so cause is unproved. New production departure was not exercised by
+this journey; focused Player pass is not full exit acceptance.
+
+Latest255.694s+prior695.551s=951.245s current stages; original8054/e147 parser
+failures stay separate. No further fix/retry selected. All28 observed identities
+absent,211 profile entries archived/verified; owned scratch removed19.06min
+inside original45min. Exports/startups/audit NOT_RUN; c78e0ac unchanged. Candidate
+pushed/unmerged/withheld; all exit/reuse and original parent gates remain open.
+Raw: `/srv/mudds-work/jovian-passenger-physical-exit-caller-20261020/results/`;
+earlier compiler roots `jovian-passenger-physical-exit-20261020/results/` and
+`jovian-passenger-physical-exit-typed-20261020/results/` under `/srv/mudds-work/`.

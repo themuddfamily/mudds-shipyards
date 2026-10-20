@@ -17514,3 +17514,97 @@ remote;170 local/93 remote refs deleted cumulatively. Public c78e0ac unchanged;
 no new playable checkpoint. Full postdock exit/reboard/pilot exit/reclaim/reuse,
 other craft, native/GPU/device/audio/human and final gates remain open. All36
 parents/ten phase gates stay open; GitHub Actions remains disabled.
+
+
+## Physical Jovian passenger exit — focused pass, ordinary interaction not found — 2026-10-20
+
+Continues the existing unmerged docked-pilot branch. Previous turn closed the
+chair-detour attempt on bf7fb636e at the doorway. This turn's15:47–16:32UTC/45min
+selection targeted the complete original passenger exit, not another feature.
+No new branch or CI run. Full acceptance remains FAILED/unmerged.
+
+**Actual source gaps found:** Jovian has no separate ShipCabinHatch toggle.
+Generic cabin Interact outside the2.2m pilot-swap radius asks the boarding ledger
+to disembark the passenger. Exterior route[0..2] are post-confirmation animation
+poses; caller walked them before asking E. More importantly, confirmed nonpilot
+presentation at GameFlow._release_network_client_boarding_presentation teleports
+to world.get_player_spawn(), so it cannot meet the authored berth-ground exit.
+
+One implementer changed GameFlow, PlayerController and the existing disembark
+support test; root changed the original caller. Accepted host operation facts
+(landed+docked,!landing,offline,!destroyed) select the Jovian-only physical path.
+Other pilot state/camera/helm remain untouched, including cancellation. Current
+craft/generation/Player identity protect the visual canopy owner while active_ship
+may remain Torrent. Pilot-only cargo/tutorial effects are skipped. Existing
+pilot and Halyard paths retain their source behavior. New Player entry accepts
+only a live supported ON_FOOT actor and reuses the authored transition; no fake
+seat state or test staging. It traverses an aft chair-clearance prefix plus every
+original exterior pose and restores collision before completion.
+
+Caller keeps original ordinary boarding/departure/strict return/stand, walks to
+supported inboard(-1.75,.52,-6.30) outside pilot promotion reach, then asks ordinary
+Interact. Original host locomotion/current body witness, pilot identity/ownership/
+source/stream/delivery, cabin retirement, authored exit location, supported ground
+walk and actual peer exits remain. Read-only observer also requires full seven-
+pose production route/frame, actual motion and original final ground conditions.
+Original suite300s/outer360s/walk15s/boundaries8s/peer-exit10s remain; no cap or
+endpoint relaxation. All engines Dummy, coordinator headless, peers private Xvfb
+with explicit x11. Independent high implementation/caller review GO before engines.
+
+**Compiler failures retained:**
+
+| Source | Actual stages | Correction selected only after stop |
+| --- | --- | --- |
+| 87b313468 | Import20.653601258 PASS; pose17.786288705 FAIL loading GameFlow;38.439889963s total | Declare dynamic `exit_pose` as Transform3D and `motion_started` as bool; no operands changed. |
+| 1502fb9c8 | Import20.656352904 PASS; compile16.527740419 FAIL on new observer's inferred `current`;37.184093323s total | Declare `current: bool` with identical operands; finite added-declaration review finds no other dynamic inference seam. |
+
+Neither failed attempt ran the journey or exports. Each retains its own STOP,
+source pin, logs and verified39-entry profile archive; six observed identities
+absent and owned checkout/profile/helpers removed. Original15:47→16:32 window
+was not reset. Sources survive in final candidate ancestry. Explicit-type fixes
+were separately source-reviewed; they are not gameplay acceptance.
+
+**Final actual attempt:** clean pushed de57a6e15f7d85d6bba277d4c66f06f4ac3cfebb.
+
+| Stage | Actual result |
+| --- | --- |
+| Import | PASS20.677359972s |
+| Compile | PASS16.942766936s |
+| Dock pose | PASS42.615149978s,322 assertions |
+| Disembark support | PASS31.779396427s,11 assertions: original Zenith pilot exit plus missing-frame refusal, unseated continuous entry, live-frame endpoint, once-only collision-ready completion and supported control restoration |
+| Original full three-peer passenger exit | FAIL143.679516953s, all actual peer OS exits1, marker0 |
+| Paired exports/strict startups/package audit | NOT_RUN after first runtime failure |
+
+Real original return, passenger stand, cabin stand, clearance and new supported
+inboard goal complete. host.postdock_hatch_checked exists. Client_b stays at
+ship-local(-1.536388,0.481719,-6.412449), controlled/supported in IN_FLIGHT_CABIN,
+with original berth claim, requests1/confirmations1/last-status boarded. The8s
+predicate requiring boarding_candidate==craft and no station candidate times out
+before E. No exterior boundary or exit samples; route/motion observers stay false.
+Thus the new GameFlow physical departure was **not exercised by this journey**.
+Focused Player coverage cannot substitute for original full exit qualification.
+
+Failure records do not contain actual boarding/station candidate paths, range or
+area availability. Do not infer which conjunct failed or claim a closed door,
+competing seat or missing range as runtime cause. Inherited off-tree get_path
+errors remain failure-capture diagnostics. Independent runtime review STOP;
+no further repair/retry, adjacent probe, export or acceptance selected.
+
+Latest255.694190266s+prior695.550791281s=951.244981547s current stages, retaining
+both compiler failures and earlier route costs. Original8054/e147 parser failures
+and unrecorded early setup remain separate. All five owners terminal;23 recorded
+child/process identities plus five owner identities absent,28 total. All211
+profile entries verified by streamed hashes/modes/directories/symlinks; peer raw
+files and helper sources retained. Owned worktree/profile/helpers removed19.06min
+from original selection, inside45min. Final attempt root contains only results:
+`/srv/mudds-work/jovian-passenger-physical-exit-caller-20261020/results/`.
+Earlier compiler roots also contain only preserved results at
+`/srv/mudds-work/jovian-passenger-physical-exit-20261020/results/` and
+`/srv/mudds-work/jovian-passenger-physical-exit-typed-20261020/results/`.
+
+Counts unchanged:15 local/18 live remote heads including main,17 non-main remote;
+170 local/93 live remote refs deleted cumulatively. No unaccepted candidate was
+merged or branch deleted to improve counts. Public c78e0ac unchanged; no new
+checkpoint. Full passenger exit/reboard/pilot exit/reclaim/redeparture, other
+craft and all36 parent outcomes/ten phase gates stay open. Native/GPU/device/
+audio/human/final gates remain NOT_RUN; GitHub Actions remains disabled.
