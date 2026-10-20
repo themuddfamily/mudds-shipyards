@@ -17845,3 +17845,90 @@ SHA256`b7661b2ecdf628a5e451f3144ca9979abfc754b05dff64a946be777628ec1bf0`.
 Inherited cleanup metadata's generic parser label is not a claim of a parser
 failure in this handback attempt; all actual stages/costs above are retained.
 Current playable remains861c4d3. Candidate unmerged and full handback open.
+
+
+## Passenger HUD and yaw handback accepted; both branches closed — 2026-10-20
+
+Finished existing fix/cabin-passenger-role-20261018 on exact source
+`007024839971a38f68df0626e48b3111dc93d96c`, merged and pushed in main
+`2f75e834b23fbac0779faacf0a7c53684c015ffd`. No new branch or hosted CI run.
+
+**Product result:** after normal Jovian helm-to-cabin handback, the confirmed
+standing passenger HUD uses the current live same-craft passenger claim and
+cabin craft instead of stale admission/retained selection. This10-line projection
+retains active pilot/seated crew precedence and stale-context guards; it changes
+no ownership, requests or control authority. Existing focused HUD36 passes
+16.821697133s oncdc4cb209; those runtime/test bytes are identical on final007.
+
+**Complete ordinary route:** final source import20.632857765s and
+compile16.721485013s PASS. Full non-playing host/two independent clients route
+136.675476037s PASS with one marker, zero diagnostics, all3actual OS exits0.
+It retains normal boarding/departure, both sampled yaw turns and releases,
+natural OFFLINE, original pilot Interact, samePlayer support/berth handback,
+owner0/generation+1, retired capture/source, original ship fallback and exact
+co-pilot. Handoff~1.86s inside8s; full walk confirmation1.61705s inside15s.
+
+Source geometry explains the earlier straight-walk failure at a solid chair.
+The corrected caller uses ordinary lateral clearance before the ORIGINAL
+move_back. The failed local-only clearance controller is preserved separately;
+final controller waits for both local and authoritative clearance, with a local
+jamb guard. Every original overall>=.6m local/host requirement remains, plus
+separate>=.6m backward projections from clearance baselines/fresh ticks.
+Actual overall local1.462327m/host1.413142m; backward local1.091568m/host1.000878m,
+with host published wire projection.904213m and ticks4998>4976>4926. A lateral
+sidestep cannot satisfy those backward gates by itself. No physics/authority
+teleport, cap increase or original acceptance reduction. High source/journey
+reviews GO. This qualifies recorded yaw/handback, not every helm action or device.
+
+**Checkpoint0070248:** clean-commit Windows26.645098370s/Linux25.671172038s exports
+PASS. Linux executable23.096920797s, extracted archive24.179021389s and Windows
+embedded payload through Linux runtime26.176433954s each exit0 and exactly one
+STARTUP_MENU_READY_OK, no diagnostics. Audit5.669105909s verifies1525 matching
+actual PCK entries excluding tests/tools, stock PE code, x86-64 Linux, exact
+five-member archive bytes/modes/epoch and metadata. Independent artifact review GO.
+Eleven new public artifacts hash-verified; previous861 checkpoint's11 files
+unchanged. Windows EXE/ZIP/notes in builds/windows/; Linux binary/archive/notes/
+startup records in builds/linux/. Only two notes files tracked; binaries local.
+[Windows ZIP](../../builds/windows/MuddsShipyards-0070248-checkpoint.zip),
+[Windows notes](../../builds/windows/MuddsShipyards-0070248-notes.txt),
+[Linux notes](../../builds/linux/MuddsShipyards-0070248-linux-notes.txt).
+
+Native Windows/GPU/performance, devices, audible/human review, hosted CI and final
+matrix/endurance/release remain NOT_RUN/open. Other action-specific handback,
+postdock reboard/pilot exit/reclaim/redeparture, other craft and all36 original
+parents/ten phase gates remain open. Prior physical passenger exit remains included.
+
+**Cost and owned cleanup:** final305.467571272s+prior627.757562174s=
+933.225133445s known stages. Prior includes original nine stages423.259810042s
+(which INCLUDE original two routes302.594422897s) plus failed controller204.497752132s;
+unknown earlier setup remains unrecorded. No cost reset or retroactive pass.
+All65 final union PID/start identities absent; owners terminal;280 profile
+entries and helper sources verified before normal worktree/profile/helpers removal
+20.68min from16:48 within original45min. Archive SHA256
+`9ccb097c836102600ac827669a30d4bec81cdb53c8e4fcd1b493bd63d1d1928c`.
+Nested owned correction root now only results:
+`/srv/mudds-work/cabin-role-closeout-20261020/authoritative-clearance/results/`.
+Initial failure root retains results; all25 earlier identities absent and its
+199-entry archive unchanged. Both attempts remain grouped under the same task root.
+
+**Two branch closeouts:** current fix tip007 is contained in pushed main and its
+owned worktree removed before exact-tip remote/local/tracking deletion.
+Original work/jovian-helm-handback-20261018 tip
+`535c4b01dcf04e6c2cb1b58be04829faaf6beffe` has one unique commit and exact range-diff
+patch equality to accepted ancestor
+`9d2173e8557c077d0703bfed281ce88e5a8de058`; both changed-file blobs are identical.
+Minimal verified bundle preserves original commit/history, prerequisite parents
+remain in main, and binary patch/exact two-file archive preserve source bytes.
+Archive at nested results/precursor-archive; bundle SHA256
+`ac9f1fb9c286a64c0316ea965dae156b95bc6d528520c5aca52400e763f5a4a8`.
+Root reverified every archive hash, bundle, patch equality, source blobs and
+accepted-ancestor containment; original raw failure root unchanged. Both live
+remote tips and registered worktree ownership checked; deletions used exact-OID
+leases/CAS, and both refs absent afterward. Source equivalence is explicit; original
+535 commit itself is not claimed as an ancestor of main.
+
+Totals173 local/96 live remote branches deleted;12 local/15 live remote heads including
+main (14 non-main remote) remain. One ordinary gameplay candidate (tooltip
+retirement) and13 automation/diagnostic/release candidates remain. These are ref
+counts; the named production result is honest confirmed-passenger HUD with a
+complete recorded yaw/handback journey, not another whole parent or phase.

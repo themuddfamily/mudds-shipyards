@@ -1,0 +1,33 @@
+Mudds Shipyards development checkpoint — 2026-10-20
+Source: 007024839971a38f68df0626e48b3111dc93d96c
+
+Player-visible change
+After ordinarily giving up the Jovian helm for a standing cabin berth, the HUD
+shows PASSENGER and the craft you are aboard, rather than a stale admission role
+or retained craft selection. Confirmed seated crew and active pilot priority stay
+intact. This presentation grants no ownership or control authority.
+
+Actual validation
+- Final source import/compile and complete ordinary non-playing host plus two
+  independent clients boarding/departure/both-yaw/helm-handback/walking journey:
+  PASS136.675476037s, three actual OS exits0, one marker, no diagnostics.
+- Same former pilot, owner0/generation+1, retired helm capture/source, current
+  supported walking body, honest PASSENGER HUD and original co-pilot retained.
+- Test route first sidesteps the solid pilot chair, then performs the original
+  move_back. Both original >=0.6m overall local/host gates remain, with additional
+  >=0.6m backward movement after clearance. Observed backward distance exceeds1m
+  locally and on host; full walking confirmation1.61705s within original15s.
+- Focused HUD36 PASS on cdc4cb209; runtime and HUD-test bytes are identical in this
+  source. Final changes only correct the test's dual-body clearance controller.
+- Clean-commit Windows/Linux exports, actual matching payload and Linux archive
+  audit PASS. Linux binary/extracted archive and Windows embedded payload via
+  Linux Godot each exit0 with exactly one STARTUP_MENU_READY_OK; no diagnostics.
+- Silent Dummy audio; all automation headless or isolated Xvfb with explicit x11.
+
+NOT_RUN / remaining qualification
+Native Windows execution, native GPU/performance, physical devices, audible and
+human review, hosted CI, final full matrix/endurance/release. Windows payload
+startup through the Linux runtime does not establish native Windows execution.
+This qualifies the recorded yaw/handback route. Other action-specific handback,
+postdock reboard/pilot exit/reclaim/redeparture, other craft and wider multiplayer
+requirements remain open. Prior checkpoint861c4d3 capabilities are retained.
