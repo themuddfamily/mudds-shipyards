@@ -50,6 +50,41 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 ## Execution now
 
+### Selected — Arrow ordinary return and reuse command
+
+**CRAFT-ACCEPT-ARROW, parents7/10/11; executable release capability.** Deliver
+`run_native_sortie.py --route arrow-return-reuse` for one fresh ordinary package
+session: Begin Shift, same supported Player walks the clear Freight-side lane to
+Arrow, physical E boarding, normal flight demand/lease release and excursion,
+strict occupied home dock, neutral automatic OFFLINE and physical exit; walk
+more than7m clear to release reboard suppression, then a second real boarding,
+flight/home/offline/exit and normal UI quit. No teleport, gameplay calls, tuning,
+time-scale override, staged damage or synthetic in-engine input.
+
+Implementation owns only startup loader selector, read-only native-sortie
+observer, existing Python OS driver and its existing Python/startup-privacy
+checks. Retain all physics observations for identity/default controls/tuning,
+supported walking, actual departure and strict berth/lease/exit transitions;
+OS input acts on the latest observation. Root reviews source before execution.
+
+**Freeze:**2026-10-20 09:58–10:58UTC,60min including cleanup; estimate25–35min
+implementation/review,10–15min checks/export, one originalCAP300 ordinary route.
+After clean candidate: full existing native-driver Python suite; headless/Dummy
+import and startup privacy; paired clean exports, direct/archive/payload strict
+startup and actual PCK/PE/archive audit; exactly one isolated X11/Dummy Arrow
+route from its exported ELF, exit0 plus `NATIVE_ARROW_RETURN_REUSE_OK`.
+Root freezes exact pin/commands/owners before engine execution. First unexpected
+failure stops all later stages; no automatic correction, rerun or cap increase.
+Withhold candidate/publication on failure and retain all elapsed work/results.
+
+Success qualifies only this ordinary return/reuse capability on its named bytes.
+Weapon hits, damage/repair/destruction recovery, cross-craft/Main re-entry,
+rendered/native/device/full craft gates remain open. Original all-nine/54-waypoint
+Sandbox and parked Defense board→Arrow route stay unchanged; neither is
+accepted by this independent craft route. Independent production alternative:
+Freight terminal integration is concrete but awaits its already-asked workflow
+choice; no alternative gameplay behavior is invented while it is pending.
+
 Latest delivered: settings and activity feedback colour repair, recorded below.
 Six gameplay status palette repairs remain accepted on941ef73.
 Destination Board status palette repair remains accepted onc47ca33.
