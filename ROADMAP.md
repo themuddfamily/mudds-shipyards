@@ -39,7 +39,7 @@ feature. Do not invent a project percentage from rows, tests or commits.
 ## Execution now
 
 **Next capability: ACCESS-TITLE-FOCUS — readable Begin Shift focus**, parents12/29.
-Not started; baseline paint measurements are still required. This is the only
+Selected2026-10-20 05:25UTC; deadline06:25UTC. Baseline measurements are still required. This is the only
 selected implementation card. Waiting decisions and parked failures below are
 not an executable queue.
 
@@ -52,6 +52,15 @@ not an executable queue.
 | Visible / package proof | Compare the actual default1024x768 focused title view with the retained before image, on private Xvfb with Dummy audio. After focused checks, use the existing clean-commit paired export workflow, strict startup checks and package audit; publish checkpoint/notes in repository builds. This does not qualify full Main, native devices or final release. |
 | Estimate / limits | Baseline and implementation25–40min; checks/export/cleanup15–20min; whole card60min. Before engine execution freeze exact invocations and per-stage caps within this total. First unexpected failure stops the card; no automatic retry or broader theme audit. |
 | Done | Measured defect corrected, focused tests and same-view review pass, playable checkpoint committed/pushed with actual limits, owned scratch cleaned. If baseline already meets the contract, close as NO CHANGE with actual measurements and no redundant build. Otherwise retain the failed stage and one concrete reopening requirement. |
+
+Frozen stage limits: fresh headless import180s, private actual-HUD paint probe60s;
+then, only for a measured defect, each of the three named focused suites90s,
+same-view Forward+ capture90s, Windows export180s, Linux export180s, direct Linux
+startup120s, archive startup120s, Windows payload through Linux engine startup120s,
+and artifact audit90s. Every Godot call uses `--audio-driver Dummy`; headless
+checks use `--headless`, the private rendered view explicitly uses x11. Exact
+argument arrays/source pin are retained in the owned task results before launch.
+No native Windows execution or audible/desktop run is selected.
 
 Do not select another diagnostic chain merely because this card ends. Review its
 result against the parent, then select one independent player/build outcome.
