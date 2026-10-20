@@ -50,24 +50,32 @@ push accepted work and delete the branch, or preserve its unique source/results
 and record the exact unmet requirement and blocker. A failed check does not
 automatically authorize an adjacent task or retry.
 
-**149 local and 92 live remote branches deleted; 36 local and 19 live remote
-branches remain, including main (18 non-main remote).** Counts describe refs,
+**165 local and 93 live remote branches deleted; 20 local and 18 live remote
+branches remain, including main (17 non-main remote).** Counts describe refs,
 not completed features. [Branch accounting and closeouts](docs/history/ROADMAP_DELIVERIES.md#branch-accountability-and-race-timeout-diagnosis--2026-10-20)
 preserve the underlying roadmap requirements.
 
-Latest closeouts: the redundant older Breach interruption attempt and Jovian
-exit syntax repair are archived under pushed tags and their branches deleted.
-Their complete changed-file contents survive byte-for-byte in retained successors;
-exact original histories, patches, source archives and failed results are preserved.
-No failed journey was accepted and no diagnostic code was merged.
+Latest cleanup removed 15 local branches whose work is already integrated in
+pushed main: one by ancestry, 14 through 20 exact patch matches. Their 15 clean,
+unowned worktrees are removed; original cherry-picked histories are retained in a
+verified bundle. The superseded original Jovian exit caller is archived under a
+pushed tag and its local/remote branch deleted. Full exit still fails cabin walking
+in the retained docked-pilot candidate; no failed journey is accepted.
 
-Of the 18 remaining remote candidates, **three contain ordinary gameplay fixes**
+Five local-only branches still contain unmatched changes and remain protected:
+`agent/cargo-capture-fix`, `fix/durable-suite-launch`,
+`hold/sandbox-settle-facing-20261017`, `native-sortie`, and
+`sandbox-route-runner`. These require individual source accounting before closure.
+[Cleanup and retained exceptions](docs/history/ROADMAP_DELIVERIES.md#integrated-local-branches-and-superseded-jovian-caller-closed--2026-10-20).
+
+Of the 17 remaining remote candidates, **three contain ordinary gameplay fixes**
 (passenger role display, docked-pilot pose holding, tooltip retirement on close).
-Each still lacks its required acceptance. The other 15 contain qualification
+Each still lacks its required acceptance. The other 14 contain qualification
 or diagnostic automation, including opt-in startup/release wiring. They are not
-15 new gameplay implementations. The
+14 new gameplay implementations. The
 [current branch-by-branch status](docs/history/ROADMAP_DELIVERIES.md#remaining-branch-status-after-duplicate-closeouts--2026-10-20)
-records the earlier 20 candidates; accepted Breach and Halyard closeouts remove two.
+records the earlier 20 candidates; accepted Breach and Halyard closeouts and the
+archived superseded Jovian caller remove three.
 This cleanup changes branch ownership, not the number of completed roadmap outcomes.
 
 **Existing Halyard boarding branch finished and merged on 4bc0e3b38.**

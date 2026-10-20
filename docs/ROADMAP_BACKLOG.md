@@ -317,7 +317,11 @@ their branches are removed. The retained Breach successor is now merged on c78e0
 after full earned-debt interruption acceptance, leaving 19 remote candidates
 (three gameplay fixes/16 automation at that point). Halyard BOARD is now
 accepted and its branch removed too, leaving 18 non-main candidates (three gameplay
-fixes/15 automation). Full Jovian exit remains OPEN.
+fixes/15 automation at that point). The superseded original Jovian exit caller
+is now archived under a pushed tag and removed, leaving 17 non-main remote
+candidates (three gameplay fixes/14 automation). Full Jovian exit remains OPEN.
+Fifteen already-integrated local branches and their clean worktrees are also
+removed; five local-only branches with unmatched changes remain protected.
 No new gameplay or release qualification follows from deleting those duplicate refs.
 
 ### Perimeter Hold — missing production integration

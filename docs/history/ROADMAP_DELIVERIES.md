@@ -17314,3 +17314,80 @@ ownership/ancestry/current tips with exact expectedOID protection. Counts 149 lo
 92 remote deleted;36 local/19 live remote includingmain,18non-main (three withheld
 runtime fixes/15 automation). All 36 parents/ten phase gates remain open; no
 project percentage inferred from refs/check counts. GitHub CI hold retained.
+
+
+## Integrated local branches and superseded Jovian caller closed — 2026-10-20
+
+Continues the owner's branch-completion/cleanup priority, following accepted
+Halyard BOARD on 4bc0e3b38. No new feature branch, engine run, gameplay acceptance,
+checkpoint or hosted CI run. Main selection was pushed 7042bc84a.
+
+**Fifteen already-integrated local branches closed.** `perf/game-flow-cost`
+(df86280b5b3985770be527af71c6c247f311aae7) is an ancestor of pushed main.
+The following 14 contain only exact stable patch-ID matches to commits in pushed
+main, 20 patches in total. Original commit ancestry is not claimed for these
+cherry-picked changes. Their complete unique histories survive in a verified Git
+bundle, with exact original tips and main commit mappings in the cleanup manifest.
+
+| Removed local branch | Original tip | Removed clean worktree |
+| --- | --- | --- |
+| `agent/bomber-detour` | `240e8acc2dd7` | `/tmp/mudds-bomber-detour` |
+| `agent/fitout-fix` | `7126cc50fd9b` | `/tmp/mudds-fitout-fix` |
+| `agent/freight-presentation` | `b0eecc5fcbad` | `/tmp/mudds-freight-presentation` |
+| `agent/runtime-delivery` | `f5f572be7645` | `/tmp/mudds-runtime-delivery` |
+| `agent/sandbox-fleet` | `b5e232c958de` | `/tmp/mudds-sandbox-fleet` |
+| `agent/sandbox-flow` | `8d471d3e883b` | `/tmp/mudds-sandbox-flow` |
+| `agent/shared-cruise-fix` | `79f0964aec98` | `/tmp/mudds-shared-cruise-fix` |
+| `agent/startup-fix` | `5f2aa862c874` | `/tmp/mudds-startup-fix` |
+| `fix/ember-landing-20261016` | `bc6dca07401e` | `/tmp/mudds-ember-landing` |
+| `fix/gunner-input-driver` | `328c27b4dd08` | `/tmp/mudds-gunner-input` |
+| `fix/jovian-roof-shading` | `4dfc145e208b` | `/tmp/mudds-jovian-roof-shading` |
+| `fix/rime-walk-cost` | `ead62724ecc6` | `/tmp/mudds-rime-walk-cost` |
+| `perf/cushion-arrays` | `5dae8446ae22` | `/tmp/mudds-cushion-arrays` |
+| `station-build-cost` | `b948de4d44be` | `/tmp/mudds-station-build` |
+
+The 15 worktrees were clean including untracked files; no accessible live process
+had a cwd or path argument within them. Removal used Git's ordinary worktree
+checks, without forced deletion. Remote absence, current exact tips and pushed
+integration were checked; local ref deletion compared expected OIDs. Eight other
+registered detached worktrees and two worktrees owning unmatched source remain
+protected. No user source or unique unfinished branch was discarded.
+
+**Original Jovian passenger-exit caller archived.**
+`work/jovian-passenger-exit-20261018`, exact tip
+`e147b6d49edeaf7ab70238b69c30207a20adabdf`, contains the two original failed
+caller commits. Its only changed file is
+`tests/network/jovian_network_two_client_return_test.gd`. Later correction
+`4d5cdab74633cf587226039ed0247ea54e3e648b` repairs the retained lambda predicates
+and is an ancestor of protected `fix/docked-pilot-hold-20261020` at
+`0d225bee8777ba4f1d792aa9f9a41a38371f2101`. Old and corrected files are not
+claimed byte-identical. Exact original history, binary patch, one-file source tar
+and correction diff are preserved; tar contents and Git bundle verify. All 30
+pre-existing result files retain their hashes. Pushed annotated tag
+`archive/diagnostics/jovian-passenger-exit-20261018` resolves to the exact old tip.
+
+No registered worktree owned that branch. Local, live remote and tracking refs
+were removed after current ownership/tip/tag checks, using an expected-OID lease
+for the remote deletion. The retained successor's full passenger exit still
+fails its original 15-second cabin walk; reboard/pilot exit/reclaim/redeparture
+remain unaccepted. No test rerun, larger deadline or production merge follows.
+
+Archive and cleanup manifests:
+`/srv/mudds-work/jovian-passenger-exit-20261018/results/branch-archive/`.
+This existing scratch root still contains only preserved `results/`.
+
+**Retained local-only exceptions:** `agent/cargo-capture-fix` (optional cargo
+capture separation), `fix/durable-suite-launch` (detached supervision),
+`hold/sandbox-settle-facing-20261017` (braking waypoint orientation),
+`native-sortie` (seven original input/observer commits), and
+`sandbox-route-runner` (one unmatched pedestrian-aisle commit plus three integrated
+patches). These five have unmatched commits; their branches and two clean
+worktrees are preserved pending individual source accounting. Patch mismatch is
+not proof that the current product lacks their behavior.
+
+Totals: 165 local and 93 live remote branches deleted; 20 local and 18 live remote
+heads remain including main, 17 non-main remote. The remaining remote candidates
+contain three withheld gameplay fixes and 14 automation/diagnostic candidates.
+Counts describe refs, not product progress. All 36 original parent outcomes and
+ten phase gates remain open; native/human gates remain NOT_RUN and CI disabled.
+Playable checkpoint c78e0ac is unchanged.
