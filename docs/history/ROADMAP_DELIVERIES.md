@@ -18917,3 +18917,70 @@ current, so no identical checkpoint rebuild. This closes only named helm reclaim
 repeat departure, full baseline/endurance, all36 parent outcomes/ten phase gates,
 native Windows/GPU/devices/audio/human/final qualification remain OPEN/NOT_RUN.
 No adjacent case selected. Accepted source and closeout integrated/pushed main.
+
+## Jovian departure after physical crew reuse — accepted — 2026-10-20
+
+**NET-JOVIAN-REDEPART acceptedbc7f9f9c432650d196f36028ce3454aaef79aa6f.**
+Existing caller tests/network/jovian_network_two_client_return_test.gd extends
+the complete accepted original boarding/flight/home landing, physical passenger
+exit/groundwalk/reboard/co-pilot chair, physical pilot exit/groundwalk/reclaim and
+actual stale_stream refusal. Same original pilot363407599/Player265449114224,
+passenger and hull throughout. Only after full reclaim and ready/go/both-armed/
+input-go barrier does ordinary move_forward start a second departure. No staged
+prefix, forced seat, authority/pose writes, second landing, endurance or new craft.
+
+Host consumes fresh throttle from exact reclaimed source4415226397697, reaches
+5.207687m along captured departure nose within original10s, and proves actual
+physical berth occupant/reservation gone, old token lease invalid, bookkeeping
+token/berth absent, landing handoff empty and published flying landinggen2.
+Landing generation advances independently of ship/frame/seatgen1 and unchanged
+ownershipgen3/pilot claim5. Ordinary brake from that same source holds speed0
+for1019ms at host stopped receipt, final forward travel11.654972m, within original
+10s/<=0.5m/s held1s contract.
+
+Both clients consume actual same-hull/pilot pose6939>host stop6936 within5s.
+Pilot error0.493232727m and passenger0m meet original0.5m; both anchor errors0.
+Operation presentation is notlanded/notdocked/notlanding and both actual landing
+records match flyinggen2. New local producer10/delivery10 and wire1 remain current;
+host source identity/output epoch/delivery, claim5 and ownershipgen3 unchanged.
+Passenger retains exact current co-pilot claim3/body/frame, role and no helm
+producer. Owner's cached WALKING pilot relationship remains diagnostic only;
+passenger is the actual SEATED recipient. Retired wire0 was actually refused by
+the labeled reconstructed probe in the full accepted prefix, and wire1/source/
+claims remain exact throughout departure and final retained/leaving handshake.
+
+One HIGH implementer owns existing caller only; independent HIGH source/final
+review; root freeze/commands/integration/cleanup. Initial685131efc compile
+PASS16.828s. Before any full run, root and reviewer found client final-stop flag
+was set on receipt of host stopped file before its local replica consumed that
+stop. One-line movebc7f9f9c4 sets it after strict stopped-pose predicate succeeds;
+moving invariants cover original5s convergence window, strict5cm remains required
+before confirmation. Host actual-stop flag unchanged. Final compile PASS16.784s.
+No runtime edit, relaxed tolerance/cap or discarded failed full run.
+
+One full route PASS168.850327s/6987checks/zero failures, exactly one coordinator
+JOVIAN_NETWORK_TWO_CLIENT_REDEPART_OK. Actual host1990437/client1990602/
+client_b1990621 each OS0/empty failures, clean logs and complete retained/leaving
+handshake. All128 raw peer files copied/hash-verified; independent final GO.
+Source/cache unchanged during full qualification. Original full300/outer360,
+forward10/brake10/convergence5/barrier8/exit10 and all prefix caps retained.
+Selected20:28–21:18UTC/50min; cleanup20:39:01UTC. Three stage intervals total
+202.462790s, measured as owner-file mtime intervals. All engines Dummy audio;
+actual peers private Xvfb/explicitx11. GitHub Actions remains disabled.
+
+Retained /srv/mudds-work/jovian-redepart-20261020/results/ contains commands/
+freezes, reviews,128 exact raw files and reopened verified profiles archive.
+All3 owners terminal and18 observed PID/start identities absent;226 recursive
+entries verified for exact paths/bytes/hashes/modes/links before owned scratch
+removal. Archive42979bytes,
+SHA2563b1db59adca6256eeef79be923d3f5b5eb952e33435e7a3d1942814e7e4151f4.
+Case root now contains results only. No new branch/worktree or attempt ref;
+eight protected detached worktrees untouched. Accepted source and closeout pushed
+to clean main, the sole local/live remote working branch.
+
+Runtime/assets/tools exactly match49bc7b736; latest paired playable49bc7b7 stays
+current, so no identical checkpoint rebuild. This accepts the existing Jovian
+pilot/co-pilot ordinary physical reuse instance; other supported craft/roles,
+distinct second landing, full multiplayer baseline/endurance, all36 parent
+outcomes/ten phase gates and native Windows/GPU/device/audio/human/final
+qualification remain OPEN/NOT_RUN. No adjacent case selected.

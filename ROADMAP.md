@@ -77,23 +77,27 @@ This clears the branch queue; it does not close their unfinished gameplay,
 qualification or release requirements. No unaccepted source was merged to reduce
 a branch count. Eight previously protected detached worktrees remain unchanged.
 
-**Selected: NET-JOVIAN-REDEPART /16,20,26.** One existing case,
-20:28–21:18UTC/50min. Full accepted physical passenger/pilot exit/reboard/reclaim
-journey first, including actual old-stream refusal. Same original pilot then
-uses ordinary thrust to move the same hull>=5m along its departure nose, releasing
-the occupied home berth; ordinary brake holds speed<=0.5m/s for1s. Both actual
-client hulls converge<=0.5m with fresh consumed stopped pose and current roles.
-New pilot claim/source/owner/epochs and exact passenger chair/body/frame persist;
-old identities stay retired. No second landing, staging or fabricated authority.
-Existing return caller only; one HIGH implementer and independent HIGH review;
-root engines/integration/cleanup. No new branch/worktree/CI. Selector
---postdock-redepart; coordinator marker JOVIAN_NETWORK_TWO_CLIENT_REDEPART_OK.
-Compile300/full300/outer360, forward10/brake10/convergence5/barrier8/exit10 and
-all prefix caps unchanged. Prior165.990s full prefix plus bounded continuation
-fits original300s; no cap enlargement or shortened prefix. First failure stops
-qualification for concrete review; no automatic repair/retry. Merge/push accepted
-work and clean owned scratch before another case. Caller-only no identical rebuild;
-a real runtime repair requires focused checks and a fresh checkpoint.
+**NET-JOVIAN-REDEPART DONE — source `bc7f9f9c4`.**
+The complete ordinary Jovian journey now covers initial boarding/flight/home
+landing, passenger physical exit/reboard, pilot physical exit/groundwalk/reclaim,
+then departure again with the same crew and hull. Actual forward travel reaches
+5.208m before braking; final host travel is11.655m and speed0. The old home lease,
+occupant/reservation and bookkeeping release, and both clients consume flying
+landing generation2 with fresh stopped poses. Pilot/passenger authority stays
+current; the retired stream was refused during the full prerequisite journey.
+
+Full route PASS168.850s, three actual OS0 and clean logs; independent final GO.
+Pilot and passenger stop errors0.493m/0m are within the original0.5m tolerance;
+both actual seat-anchor errors0. No larger cap, staging, second landing or
+production edit. A pre-launch review moved the client strict-stop flag after
+actual local convergence, preserving its original5s allowance. All three owners
+terminal/18 observed identities absent;226 profile entries archived/verified
+before exact owned scratch removal. Accepted source integrated/pushed; main sole
+local/live remote branch, no new worktree or attempt ref.
+Runtime/assets/tools match49bc7b736; latest playable49bc7b7 remains current.
+[Proof and limits](docs/history/ROADMAP_DELIVERIES.md#jovian-departure-after-physical-crew-reuse--accepted--2026-10-20).
+Other supported craft/roles, distinct second landing, full baseline/endurance and
+all parent/phase/native/human gates remain open. No adjacent case selected.
 
 **NET-JOVIAN-PILOT-RECLAIM DONE — source `07ec703c7`.**
 After the complete passenger exit/reboard and pilot exit/groundwalk journey,
@@ -114,7 +118,7 @@ change or cap increase. All five owners terminal/32 observed identities absent;
 source integrated/pushed; main remains the sole branch, no new worktree.
 Runtime/assets/tools match49bc7b736; latest playable49bc7b7 remains current.
 [Proof and limits](docs/history/ROADMAP_DELIVERIES.md#jovian-original-pilot-helm-reclaim--accepted--2026-10-20).
-Repeat departure is selected above; full parent/phase gates remain open.
+Repeat departure is now accepted above; full parent/phase gates remain open.
 
 **NET-JOVIAN-PILOT-EXIT DONE — source `63186dc80`.**
 The full original passenger boarding/departure/home landing/exit/reboard/chair
@@ -135,8 +139,8 @@ Owned scratch removed after348 profile entries verified;30 observed identities
 absent. Accepted source pushed; no new branch/worktree. Redundant attempt tag
 removed after its failed source became reachable through accepted pushed main.
 Runtime/assets match49bc7b736 exactly, so latest playable remains49bc7b7 without
-an identical rebuild. Pilot reclaim/redeparture, full baseline/endurance/native
-and all parent/phase gates remain open. No adjacent case selected.
+an identical rebuild. Pilot reclaim/redeparture are now accepted above; full
+baseline/endurance/native and all parent/phase gates remain open.
 [Original requirement, failed check and full acceptance](docs/history/ROADMAP_DELIVERIES.md#jovian-original-pilot-exit--accepted--2026-10-20).
 
 **NET-JOVIAN-PASSENGER-REBOARD DONE — source `49bc7b736`.**
@@ -159,8 +163,8 @@ audit pass; Windows EXE/ZIP/notes are in builds/windows. Independent review GO.
 All12 owners terminal,45 observed identities absent;445 profile entries verified
 before owned scratch removal. No new branch/worktree; main remains sole branch.
 Prior failed candidates and caps remain recorded. Native Windows/GPU/devices/
-human, full multiplayer baseline/endurance, all36 parents/ten phase gates and
-later pilot exit/reclaim/redeparture remain open. No adjacent task selected.
+human, full multiplayer baseline/endurance and all36 parents/ten phase gates
+remain open. Pilot exit/reclaim/redeparture are now accepted above.
 [Actual cause, full acceptance, checkpoint and cleanup](docs/history/ROADMAP_DELIVERIES.md#jovian-passenger-reboard--accepted--2026-10-20).
 
 **HALYARD-AUTHORITY-STOP DONE — current source `082da79c9`.**
@@ -388,7 +392,7 @@ supported existing failures. No completed probe schedules an adjacent probe.
 NET-JOVIAN-PASSENGER-REBOARD is accepted on49bc7b736 with its fresh checkpoint
 and full original journey, as recorded above. Original pilot exit and
 [NET-JOVIAN-PILOT-RECLAIM](docs/ROADMAP_BACKLOG.md#net-jovian-pilot-reclaim--reacquire-the-same-helm)
-are also accepted above. Repeat departure is selected above.
+and repeat departure are also accepted above. Other craft/roles and full parent gates remain open.
 
 ### Next three production deliveries
 

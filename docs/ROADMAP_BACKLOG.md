@@ -66,7 +66,7 @@ parents 11/21 share damage ownership. Do not count these twice.
 | 17 | Complete remote engine and landing/dock presentation | NET-POSE, NET-BUDGET | **Definition — NET-POSE-DEFINE[one uncovered view].** Name one still-unqualified craft/operation/view, current/late-peer expectation, production consumer and existing test seam. Delivered operation HUD/throttle fixes are excluded from new work. Broader ordinary motion/landing views remain; NET-FULL-SNAPSHOT aggregate envelope checks are accepted on330a39ce3, with final-candidate/native/endurance qualification separate. |
 | 18 | Complete supported remote helm actions and their real local-input prerequisite | NET-HELM, INPUT-DEVICE | **Recorded yaw+handback DONE007024839.** Full ordinary boarding/departure/both-yaw/normal helm release/current PASSENGER HUD/real backward walk passes136.675s with retired source/owner0gen+1, retained co-pilot, actual3OS exits0 and no diagnostics. Fresh paired0070248 checkpoint. Reverse/pitch/roll turn-release scopes remain accepted; other action-specific handback, boost/hover and physical-device prerequisites remain open. |
 | 19 | Qualify honest remote-command recovery after host simulation stalls | NET-STALL | **Current source qualification DONE — NET-STALL on3d6b1b513.** Full independent suite passes both original600-step stalls/2s fresh actions, ownership/landing/reuse/cleanup,160 terminal host assertions and actual client/wrapper exit0; zero diagnostics. No unchanged rerun. Exact final-package/native/endurance and distinct ordinary-control gates remain; this does not accept a full matrix. |
-| 20 | Complete remote landing, post-dock disembarkation and craft reuse | NET-LAND-DIAG, NET-DOCK | **Runtime repair — reboard Interact replay.** Passenger exit861c4d39b remains accepted. Supported clearance and new boarding pass; host prematurely claims co-pilot while client remains standing. Source input highwater outlives new body consumer0; repair/regression/full original route/checkpoint required. Pilot exit/reclaim/redeparture, other craft/second landing and parent remain open. |
+| 20 | Complete remote landing, post-dock disembarkation and craft reuse | NET-LAND-DIAG, NET-DOCK | **Jovian pilot/co-pilot ordinary reuse DONEbc7f9f9c4.** Full boarding/flight/home landing, passenger exit/reboard, pilot exit/groundwalk/reclaim and repeat departure/braked stop pass with both actual clients. Reboard Interact repair49bc7b736 and paired49bc7b7 checkpoint remain current. Other supported craft/role instances, distinct second landing and full parent remain open. |
 | 21 | Qualify fleet hull/component damage, repair, destruction and regeneration presentation across supported craft and roles | NET-DAMAGE | **Qualification preparation — NET-DAMAGE[one craft/role].** Freeze supported ordinary scenario, candidate and expected peer damage/repair/destruction/regeneration and usable recovery. DAMAGE-DEFINE plus identified component row/power repairs are DONE. Other supported scenarios and missing-original prerequisites remain; share parent 11 ownership. |
 | 22 | Qualify the implemented convoy actor lifecycle in native gameplay | NET-ACTOR[Convoy] | **Definition — CONVOY-ACTOR-DEFINE[one lifecycle case].** Compare native gameplay coverage with authority tests; name participants/action and observable tender retirement/restoration, with ordinary Convoy prerequisite. Finish is one bounded executable case. Other live/dead/reset/late/disconnect cases remain; no parked save probe reopened. |
 | 23 | Qualify Torpedo Run authority and solo recovery | NET-ACTOR[Torpedo Run] | **Gated qualification — TORPEDO-PEER-FLIGHT.** Requires actual Torpedo baseline/participant route and matching package. Prove current/late adoption of real airborne seeker without launch replay, then terminal retirement without duplicate damage/resurrection. COMBAT-TORPEDO and other nine authority/recovery cases remain. |
@@ -711,7 +711,7 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | NET-JOVIAN-PASSENGER-REBOARD | Original passenger reclaims original co-pilot chair | 16,20,26 | DONE scoped ordinary three-peer Linux journey49bc7b736. Full original departure/home landing/physical exit/groundwalk/reboard/fresh chair PASS149.242s; both clients consume exact chair, original pilot and strict home lease retained;3actualOS0/clean logs. Actual unconsumed pre-bind hatch ID identified; producer retires old edges while preserving fresh/retry behavior. Source98/body42 PASS; fresh paired checkpoint/strict menus/package audit and independent review GO; owned scratch removed. Full parent/baseline/endurance/native gates remain open. [Delivery](history/ROADMAP_DELIVERIES.md#jovian-passenger-reboard--accepted--2026-10-20). |
 | NET-JOVIAN-PILOT-EXIT | Original pilot releases helm and walks onto supported berth ground | 16,20,26 | DONE scoped ordinary three-peer Linux journey63186dc80. Complete accepted passenger prefix, original pilot authored exit and1.255m supported walk; exact old authority/source/queue/seat/body/publication retired, both clients consume release, passenger chair and strict occupied home lease retained. PASS153.310s/3actualOS0/cleanlogs. Initial impossible pose-header check corrected with fresh same-hull retirement-boundary comparison; original failure retained. Runtime unchanged49bc7b7; owned scratch removed, main sole branch. [Delivery](history/ROADMAP_DELIVERIES.md#jovian-original-pilot-exit--accepted--2026-10-20). |
 | NET-JOVIAN-PILOT-RECLAIM | Original pilot returns to same hull and acquires current helm authority | 16,20,26 | DONE07ec703c7; full physical reuse and actual retired-stream refusal |
-| NET-JOVIAN-REDEPART | Same crew/hull departs at least5m and brakes after physical reuse | 16,20,26 | GATED on pilot reclaim; no second landing/endurance expansion |
+| NET-JOVIAN-REDEPART | Same crew/hull departs at least5m and brakes after physical reuse | 16,20,26 | DONEbc7f9f9c4; full ordinary pilot/co-pilot reuse journey, actual berth release and stopped peer convergence |
 | CONVOY-ACTOR-DEFINE | Uncovered Convoy tender live/dead/reset/late/disconnect cases | 22 | DEFINE; actual native-gameplay coverage versus authority tests |
 | TORPEDO-AUTH-DEFINE | Actual projectile authority, retained solo restoration and pilot/target loss | 23 | DONE definition only; ten finite qualification cases below, no new missing production consumer or runtime defect established. Ordinary/independent packaged routes remain OPEN |
 | PICKET-ACTOR-DEFINE | Uncovered Picket travelling actor/late/dead/reset/disconnect cases | 24 | DEFINE; actual moving-crew integration |
@@ -2016,7 +2016,7 @@ acceptance. Pilot release/reclaim is its separate instance above.
 | Bulwark gunner at `gunner_station` | `bulwark_network_gunner_route_test.gd`; supported authored pilot-to-gunner cabin corridor has focused capsule/skin coverage; ordinary full moving-cabin/dock-exit/reuse and a physical engineer instance remain unaccepted. Unanchored engineer policy is not a chair. |
 | Cinder Cargo Hauler loadmaster; navigator (two instances) | `halyard_network_passenger_route_test.gd --cinder-loadmaster` / `--cinder-navigator`; `cinder_loadmaster_station` / `cinder_navigator_station` are physical passenger assignments. Navigation ping API actors do not establish physical navigator route acceptance. No extension to other Cinder hulls is implied. |
 
-**NEXT: Jovian passenger post-dock stand and exterior exit only.** The visible
+**Original passenger-exit selection — now DONE; full Jovian reuse accepted below.** The visible
 result is that the original second client can leave the co-pilot chair after
 home arrival, walk out onto the freight-berth deck and continue walking, while
 the original first client retains the helm. Reboarding that passenger, pilot
@@ -2254,26 +2254,38 @@ Owned scratch archived/409 entries verified/removed;32 observed identities absen
 Integrated/pushed main remains sole branch. Runtime/assets/tools unchanged from
 49bc7b736; no identical rebuild. Latest playable49bc7b7 remains current.
 [Proof and limits](history/ROADMAP_DELIVERIES.md#jovian-original-pilot-helm-reclaim--accepted--2026-10-20).
-Repeat departure, full baseline/endurance and parent/hardware/human gates remain open.
+Repeat departure is now accepted below; full baseline/endurance and parent/hardware/human gates remain open.
 
 ### NET-JOVIAN-REDEPART — depart once after actual reuse
 
-- **Parents/result:**16/20/26. After accepted 4's physical exit/reboard/reclaim,
-  same pilot launches same hull at least 5m from home berth and brakes to the
-  existing departure test's zero-speed tolerance, with original passenger seated.
-- **Boundary/owner:** root; existing return/flight callers. Reuse their ordinary
-  engine/thrust/brake actions; no second landing, endurance or additional craft.
-- **Proof:** berth release comes from actual departure; current pilot authority,
-  passenger chair/body/frame and consumed peer poses remain valid. Retired
-  pre-exit commands/claims do not regain authority. No direct ship/phase mutation.
-- **Next/budget/stop:** GATED on 4. Freeze selected continuation/marker/source;
- 30–60 min, split before 90. Compile 300s, one route 300s/outer 360s and original
- stage limits. If the cumulative route cannot fit, stop and record the blocked
- acceptance/design decision before any engine run; do not enlarge deadlines,
- shorten the prerequisite route or replace physical reuse with staging. First
- failure ends qualification.
-- **Close:** actual result/pin/limits, commit/push and cleanup. Runtime repairs
-  need their separate focused proof/checkpoint. Parent20/endurance stay open.
+**DONEbc7f9f9c4, parents16/20/26.** Same original pilot and co-pilot complete
+the entire ordinary boarding/flight/home docking, passenger physical exit/reboard,
+pilot physical exit/groundwalk/reclaim and actual old-stream-refusal journey.
+Only then ordinary pilot thrust travels5.208m along the new departure nose and
+releases the physical occupied berth, old lease/token, reservation and bookkeeping.
+Current landing state becomes flying/gen2; ship/seat/framegen1 and ownershipgen3
+remain separate and current. Ordinary brake holds host speed0 for1019ms at the
+stop receipt,11.655m from departure start.
+
+Both actual clients consume post-stop pose6939>host stop6936 within5s, with
+pilot/passenger hull errors0.493233m/0m<=original0.5m and seat-anchor errors0.
+Reclaimed pilot claim5/new source/local producer10/newwire1 and original co-pilot
+claim3/body/frame survive inherited retained/leaving handshake; old source is gone.
+No staging, direct authority mutation, second landing or additional craft.
+Full route PASS168.850s/6987checks/zero failures, three actual OS0/clean logs;
+independent final GO. Original full300/outer360, forward10/brake10/convergence5/
+barrier8/exit10 and complete prefix caps unchanged.
+
+Pre-launch review corrected client strict-stop timing: keep moving invariants
+while waiting for its own strict stopped-pose consumer, then set the final flag.
+Both source versions compiled; one full run only. No runtime/assets/tools changes
+from49bc7b736, so latest playable49bc7b7 remains current without identical rebuild.
+All3 owners terminal/18 observed identities absent;226 archived entries verified
+before exact owned scratch removal. Integrated/pushed main sole branch.
+[Proof and limits](history/ROADMAP_DELIVERIES.md#jovian-departure-after-physical-crew-reuse--accepted--2026-10-20).
+This closes the named Jovian pilot/co-pilot ordinary reuse instance. Other
+supported craft/roles, distinct second landing, full baseline/endurance and parent/
+native/hardware/human/final qualification remain open; no adjacent case selected.
 
 ## Performance, controls, accessibility and audio
 
