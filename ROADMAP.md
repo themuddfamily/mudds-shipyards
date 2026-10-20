@@ -91,6 +91,38 @@ unique profile/helper/log data archived and verified (10profile entries), owned
 worktree/profile/helpers removed at3.46min. No additional run or automatic
 successor. [Accepted scope](docs/history/ROADMAP_DELIVERIES.md#on-foot-help--one-minimum-scale-1610-cell-accepted).
 
+### Selected production fix — tractor vertical-look inversion
+
+CONTROL-FINDINGS / parents8,29: existing Invert on-foot vertical look must also
+apply to the yard tractor's shared on-foot camera preference. Current GameFlow
+copies sensitivity only; tractor mouse/pad pitch always subtracts Y. Fix initial
+and live propagation plus both input routes. Do not change yaw/rate/clamps,
+boarding, driving, remap policy or add an option.
+
+**06:30–07:15UTC /45min** including implementation, review, tests, checkpoint and
+cleanup. One medium implementation agent owns scripts/vehicles/tow_tractor.gd,
+scripts/game/game_flow.gd, tests/tow_tractor_test.gd and one focused initial/live
+settings regression if the existing seam cannot cover it; root integrates,
+exports and publishes. Review the final patch before engines.
+
+From a clean committed candidate under the existing private profile/process guard:
+import180s; full tow_tractor_test.gd120s; focused initial/live settings test120s;
+existing runtime_settings_test.gd120s. Every invocation headless/Dummy. Then
+existing Windows/Linux safe exports180s each, Linux direct/archive strict
+startup120s each and Windows payload via Linux engine120s; require exit0 and
+one STARTUP_MENU_READY_OK. Existing package audit90s must verify exact source/
+PCK/PE/archive identity. No hosted CI or native Windows execution. First failed
+invocation stops; no automatic repair/retry/cap increase. Checkpoint in repo
+builds/windows and builds/linux only; notes retain hardware/device/listening/
+human/final gates NOT_RUN. Archive/hash-verify unique results/profile/helpers,
+verify owned PIDs absent and remove only the owned clean checkout/caches.
+
+Focused proof must show uninverted and inverted mouse/right-stick pitch,
+unchanged yaw/clamps and accepted initial+live existing setting on the actual
+tractor. Physical device/full ordinary route remain separate. Missing stock
+choice still blocks independent HAULER-CARGO-MANIFEST; do not substitute a parked
+route or broaden this fix into settings redesign.
+
 ### Waiting decisions — not executable tasks
 
 These questions have already been asked. Keep them pending without asking again
