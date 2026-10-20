@@ -2254,5 +2254,99 @@ class NativeSortieSafetyTests(unittest.TestCase):
             self.assertEqual(result['cap_seconds'], 300)
 
 
+class ObservationWalkSafetyTests(unittest.TestCase):
+    """The selected route must retain intervening support and earn normal exit."""
+    def sample(self):
+        s = NativeSortieSafetyTests().life_observation()
+        s.update(mode='observation-walk', sequence=1, pid=123, paused=False,
+                 spur_id=20, annex_id=21, pad_id=22, lens_id=23, camera_id=24,
+                 capsule_geometry=[.38, 1.94], recovery_pending=False,
+                 camera_current=True, camera=[-8.5, 1.7, 11], camera_forward=[1, 0, 0],
+                 camera_right=[0, 0, 1], camera_up=[0, 1, 0],
+                 pad_supported=False, pad_path='/Main/World/ObservationLogisticsSpur/Structure/Walkable/ObservationPad',
+                 spur_local=[-30, -.2, -101], lens=[123.9, 1.14, 47.05],
+                 annex_goals=[[76.8, .53, 38], [81.5, .53, 38], [90.5, .53, 38]],
+                 spur_goals=[[92.5, .38, 38], [103.5, .38, 38], [116.5, .38, 38],
+                             [116.5, .38, 44.75], [124.5, .38, 44.75], [123.9, .38, 46]])
+        return s
+
+    def tick(self, p, s, update=True):
+        s['sequence'] += 1
+        s['frame'] += 1
+        p.validate_observation(copy.deepcopy(s))
+        if update: return p.update(copy.deepcopy(s), s['frame']/60)
+
+    def started(self):
+        p, s = native.ObservationWalkPilot(), self.sample()
+        s['menu_ready'] = True
+        p.validate_observation(copy.deepcopy(s))
+        p.update(copy.deepcopy(s), s['frame']/60)
+        s.update(phase='APPROACH_SHIP', native_interact=True)
+        self.tick(p, s)
+        s['native_interact'] = False
+        return p, s
+
+    def move(self, s, target):
+        delta = native.sub(target, s['player'])
+        distance = native.norm(delta)
+        if distance:
+            s['player'] = [a+b*min(.09/distance, 1) for a, b in zip(s['player'], delta)]
+        s['position'] = s['player'][:]
+        x, y, z = s['player']
+        s['camera'] = [x, y+1.5, z]
+        s['spur_local'] = [38-z, y-.38, x-92.5]
+        local = s['spur_local']
+        s['pad_supported'] = -10.5 <= local[0] <= -3 and 26 <= local[2] <= 38
+        s['support_collider'] = s['pad_path'] if s['pad_supported'] else '/Main/World/Deck'
+
+    def test_intervening_sample_lost_support_or_changed_body_cannot_hide_in_batch(self):
+        for change in ({'supported': False}, {'player_id': 999}, {'default_controls': False},
+                       {'walk_tuning': {**native.LifeTowPilot.DEFAULT_WALK, 'sprint': 20}}):
+            p, s = self.started()
+            s.update(change)
+            with self.assertRaises(AssertionError): self.tick(p, s, update=False)
+
+    def test_exit_cannot_succeed_before_complete_route_or_after_nonzero_exit(self):
+        p, s = self.started()
+        with self.assertRaises(AssertionError): p.accept_exit(0, s['frame']/60)
+        p.stage, p.quit_requested, p.exit_started = 'restart_exit_wait', True, 0
+        p.receipts.update(hub_return={}, view={}, exit_ui={})
+        with self.assertRaises(AssertionError): p.accept_exit(1, 1)
+        with self.assertRaises(AssertionError): p.accept_exit(0, 13)
+
+    def test_full_route_view_home_and_actual_focused_ui_exit_are_required(self):
+        p, s = self.started()
+        for _ in range(12000):
+            if p.stage == 'walk_outbound':
+                self.move(s, p.route[p.index][1])
+            elif p.stage == 'observe_view':
+                s['camera_forward'] = native.unit(native.sub(s['lens'], s['camera']))
+            elif p.stage == 'walk_return':
+                self.move(s, p.route[p.index][1])
+            else: break
+            self.tick(p, s)
+        self.assertEqual(p.stage, 'restart_pause')
+        self.assertIsNone(p.result)
+        self.assertTrue(p.look_changed)
+        self.assertGreaterEqual(p.view_frames, 60)
+        self.assertEqual(len(p.visited), len(p.outbound)*2)
+        self.assertEqual(p.visited[-1]['waypoint'], 'original_hub_spawn')
+        # Actual pause focus/release observations precede the driver's Return.
+        command = self.tick(p, s)
+        self.assertIn('Escape', command[0])
+        s.update(paused=True, native_keys={'escape': False, 'tab': False, 'return': False},
+                 ui={'main_visible': True, 'exit_visible': True, 'exit_enabled': True,
+                     'exit_text': 'EXIT TO DESKTOP', 'exit_path': '/Pause/Exit',
+                     'focus_path': '/Pause/Exit', 'focus_is_exit': True})
+        for _ in range(40):
+            self.tick(p, s)
+            if p.quit_requested: break
+        self.assertTrue(p.quit_requested)
+        self.assertIsNone(p.result)
+        p.accept_exit(0, s['frame']/60)
+        self.assertEqual(p.result['completion_marker'], 'NATIVE_OBSERVATION_WALK_OK')
+        self.assertTrue(any(edge['key'] == 'Return' and edge['pressed'] for edge in p.ui_edges))
+
+
 if __name__ == '__main__':
     unittest.main()

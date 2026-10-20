@@ -25,6 +25,8 @@ var _beacon_mode := "beacon-entry"
 var _beacon_sequence := 0
 var _life_mode := ""
 var _life_config: Dictionary = {}
+var _observation_walk := false
+var _observation_sequence := 0
 var _habitat_loop := false
 var _habitat_restart := false
 var _restart_sequence: int = 0
@@ -62,6 +64,10 @@ func on_startup_completed(main: Node) -> void:
 	_beacon_entry = "--native-sortie-observer=" + _beacon_mode in OS.get_cmdline_args()
 	if _beacon_entry:
 		process_mode = Node.PROCESS_MODE_ALWAYS
+	_observation_walk = "--native-sortie-observer=observation-walk" in OS.get_cmdline_args()
+	if _observation_walk:
+		process_mode = Node.PROCESS_MODE_ALWAYS
+		return
 	_habitat_restart = "--native-sortie-observer=habitat-restart" in OS.get_cmdline_args()
 	_habitat_loop = "--native-sortie-observer=habitat-loop" in OS.get_cmdline_args()
 	if _habitat_restart:
@@ -267,6 +273,10 @@ func _physics_process(delta: float) -> void:
 		print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(_ember_observation()))
 		return
 	if _game == null:
+		return
+	if _observation_walk:
+		_observation_sequence += 1
+		print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(_observation_walk_observation()))
 		return
 	if _beacon_entry:
 		_beacon_sequence += 1
@@ -764,21 +774,12 @@ func _habitat_loop_observation() -> Dictionary:
 
 ## The paused branch deliberately avoids physics/support/fleet queries. UI focus
 ## and held native keys remain observable without advancing any gameplay owner.
-func _habitat_restart_pause_observation() -> Dictionary:
+func _station_pause_ui_observation() -> Dictionary:
 	var focus: Control = get_viewport().gui_get_focus_owner()
 	var hud: GameHUD = _game.hud if is_instance_valid(_game) else null
 	var page: Control = hud.get("_pause_main_page") as Control if is_instance_valid(hud) else null
 	var exit_button: Button = page.find_child("ExitButton", true, false) as Button if is_instance_valid(page) else null
-	var bunk: StationBunk = _game.get("_active_station_seat") as StationBunk if is_instance_valid(_game) else null
-	return {"mode": "habitat-restart", "paused": true,
-		"frame": Engine.get_physics_frames(),
-		"main_id": _game.get_instance_id() if is_instance_valid(_game) else 0,
-		"rest_retained": _ember_node_current(_player) and _player.is_sleeping()
-			and _player.is_station_seated() and _ember_node_current(bunk)
-			and bunk == _game.world.get_node_or_null(^"HabitatSpine/Structure/PressurizedHabitatCorridor/BunkAlcove01/StationBunkInteraction")
-			and bunk.is_reserved_for(_player) and bunk.get("_occupant") == _player
-			and _player.is_seated_at(bunk.get_seat_anchor()),
-		"native_keys": {"escape": Input.is_physical_key_pressed(KEY_ESCAPE),
+	return {"native_keys": {"escape": Input.is_physical_key_pressed(KEY_ESCAPE),
 			"tab": Input.is_physical_key_pressed(KEY_TAB), "return": Input.is_physical_key_pressed(KEY_ENTER)},
 		"ui": {"main_visible": is_instance_valid(page) and page.is_visible_in_tree(),
 			"focus_path": str(focus.get_path()) if is_instance_valid(focus) else "",
@@ -789,6 +790,19 @@ func _habitat_restart_pause_observation() -> Dictionary:
 			"exit_enabled": is_instance_valid(exit_button) and not exit_button.disabled,
 			"exit_text": exit_button.text if is_instance_valid(exit_button) else ""}}
 
+
+func _habitat_restart_pause_observation() -> Dictionary:
+	var bunk: StationBunk = _game.get("_active_station_seat") as StationBunk if is_instance_valid(_game) else null
+	var result := {"mode": "habitat-restart", "paused": true,
+		"frame": Engine.get_physics_frames(),
+		"main_id": _game.get_instance_id() if is_instance_valid(_game) else 0,
+		"rest_retained": _ember_node_current(_player) and _player.is_sleeping()
+			and _player.is_station_seated() and _ember_node_current(bunk)
+			and bunk == _game.world.get_node_or_null(^"HabitatSpine/Structure/PressurizedHabitatCorridor/BunkAlcove01/StationBunkInteraction")
+			and bunk.is_reserved_for(_player) and bunk.get("_occupant") == _player
+			and _player.is_seated_at(bunk.get_seat_anchor())}
+	result.merge(_station_pause_ui_observation())
+	return result
 
 func _habitat_restart_observation() -> Dictionary:
 	var result: Dictionary = _habitat_loop_observation()
@@ -826,6 +840,82 @@ func _habitat_restart_observation() -> Dictionary:
 			"driven": bool(tractor.get("_driven")) if _ember_node_current(tractor) else false,
 			"seated_at_driver": _ember_node_current(tractor) and _player.is_seated_at(tractor.get_driver_seat_anchor())},
 	}, true)
+	return result
+
+
+## Selected qualification of existing geometry. Reads only; no staged actors or actions.
+func _observation_walk_observation() -> Dictionary:
+	var current: bool = _ember_node_current(_game) and get_parent().call("get_main") == _game \
+		and _ember_node_current(_player) and _game.player == _player and _ember_node_current(_game.world)
+	var result := {"mode": "observation-walk", "sequence": _observation_sequence,
+		"pid": OS.get_process_id(), "frame": Engine.get_physics_frames(),
+		"actors_current": current, "paused": get_tree().paused}
+	if not current:
+		return result
+	result["main_id"] = _game.get_instance_id()
+	var spur := _game.world.get_node_or_null(^"ObservationLogisticsSpur") as ObservationLogisticsSpur
+	var annex := _game.world.get_node_or_null(^"FabricationAnnex") as FabricationAnnex
+	var pad := spur.get_node_or_null(^"Structure/Walkable/ObservationPad") as StaticBody3D if _ember_node_current(spur) else null
+	var lens := spur.get_node_or_null(^"Structure/Dressing/ObservationLens02") as Node3D if _ember_node_current(spur) else null
+	var capsule := _player.get_node_or_null(^"PlayerCollision") as CollisionShape3D
+	var shape := capsule.shape as CapsuleShape3D if _ember_node_current(capsule) else null
+	var yaw := _player.get_node_or_null(^"%CameraYaw") as Node3D
+	var camera := _player.get_camera()
+	result.actors_current = _ember_node_current(spur) and _ember_node_current(annex) \
+		and _ember_node_current(pad) and _ember_node_current(lens) and _ember_node_current(yaw) and _ember_node_current(camera) and shape != null
+	if not bool(result.actors_current):
+		return result
+	var support: Dictionary = {}
+	if not get_tree().paused:
+		var ray := PhysicsRayQueryParameters3D.create(_player.global_position + Vector3.UP * 0.2,
+			_player.global_position - Vector3.UP * 0.3, PhysicsLayers.WORLD, [_player.get_rid()])
+		support = _player.get_world_3d().direct_space_state.intersect_ray(ray)
+	var collider := support.get("collider") as Node
+	var supported := _ember_node_current(collider) and _game.world.is_ancestor_of(collider)
+	var default_controls := not _player.is_remote_driven()
+	for action: StringName in [&"move_left", &"move_right", &"move_forward", &"move_back", &"sprint_boost", &"interact"]:
+		var authored: Dictionary = ProjectSettings.get_setting("input/" + str(action), {})
+		var expected: Array = []
+		for event: InputEvent in authored.get("events", []):
+			expected.append(event.as_text())
+		var actual: Array = []
+		for event: InputEvent in InputMap.action_get_events(action):
+			actual.append(event.as_text())
+		default_controls = default_controls and expected == actual \
+			and is_equal_approx(InputMap.action_get_deadzone(action), float(authored.get("deadzone", -1.0)))
+	result.merge({"world_id": _game.world.get_instance_id(), "player_id": _player.get_instance_id(),
+		"phase": GameFlow.Phase.keys()[_game.phase],
+		"menu_ready": StartupLoader.is_title_menu_ready(_game) and not is_instance_valid(get_parent().call("get_loading_screen")),
+		"player": _v(_player.global_position), "position": _v(_player.global_position), "spawn": _v(_spawn),
+		"walk_forward": _v(-yaw.global_basis.z), "walk_right": _v(yaw.global_basis.x),
+		"velocity": _v(_player.velocity), "control_enabled": _player.is_control_enabled(),
+		"seated": _player.is_seated(), "station_seated": _player.is_station_seated(),
+		"game_station_seated": bool(_game.get("_station_seated")), "sleeping": _player.is_sleeping(),
+		"transition_busy": bool(_game.get("_transition_busy")), "recovery_pending": bool(_game.get("_solo_safe_recovery_pending")),
+		"native_interact": Input.is_action_pressed("interact"), "mouse_captured": Input.mouse_mode == Input.MOUSE_MODE_CAPTURED,
+		"grounded": _player.is_on_floor(), "supported": supported,
+		"support_collider": str(collider.get_path()) if supported else "",
+		"capsule_id": capsule.get_instance_id(), "shape_id": shape.get_instance_id(), "capsule_enabled": not capsule.disabled,
+		"capsule_geometry": [shape.radius, shape.height], "default_controls": default_controls,
+		"physics_ticks": Engine.physics_ticks_per_second, "time_scale": Engine.time_scale,
+		"walk_tuning": {"walk": _player.walk_speed, "sprint": _player.sprint_speed,
+			"acceleration": _player.ground_acceleration, "deceleration": _player.ground_deceleration,
+			"air_acceleration": _player.air_acceleration, "jump": _player.jump_velocity,
+			"gravity": _player.gravity_multiplier, "terminal": _player.terminal_velocity,
+			"facing": _player.facing_speed, "mouse": _player.mouse_sensitivity, "invert_y": _player.invert_mouse_y},
+		"spur_id": spur.get_instance_id(), "annex_id": annex.get_instance_id(), "pad_id": pad.get_instance_id(),
+		"lens_id": lens.get_instance_id(), "camera_id": camera.get_instance_id(),
+		"camera_current": camera.current and _player.get_viewport().get_camera_3d() == camera,
+		"camera": _v(camera.global_position), "camera_forward": _v(-camera.global_basis.z),
+		"camera_right": _v(camera.global_basis.x), "camera_up": _v(camera.global_basis.y), "pad_path": str(pad.get_path()), "pad_supported": collider == pad,
+		"spur_local": _v(spur.to_local(_player.global_position)), "lens": _v(lens.global_position),
+		"annex_goals": [_v(annex.to_global(Vector3(0, 0.15, 4.8))), _v(annex.to_global(Vector3(0, 0.15, 9.5))),
+			_v(annex.to_global(Vector3(0, 0.15, 18.5)))],
+		"spur_goals": [_v(spur.to_global(Vector3.ZERO)), _v(spur.to_global(Vector3(0, 0, 11))),
+			_v(spur.to_global(Vector3(0, 0, 24))), _v(spur.to_global(Vector3(-6.75, 0, 24))),
+			_v(spur.to_global(Vector3(-6.75, 0, 32))), _v(spur.to_global(Vector3(-8, 0, 31.4)))]}, true)
+	if get_tree().paused:
+		result.merge(_station_pause_ui_observation())
 	return result
 
 

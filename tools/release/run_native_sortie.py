@@ -15,6 +15,7 @@ Use --route life-arm for Aft service-arm coexistence and original Zenith boardin
 Use --route life-tow for Central service coexistence during real walking/boarding.
 Use --route habitat-loop for fresh hub/door/bunk sleep-wake/common-room/hub walking.
 Use --route habitat-restart for real bunk sleep, normal UI quit, and cold awake controls.
+Use --route observation-walk for the existing Observation gallery and full supported hub return.
 The default is Guided.
 No source/pack overrides. 300 seconds is the fixed whole-process sortie cap.
 This establishes Linux/Xvfb OS-input behavior, not native GPU or human acceptance.
@@ -2742,6 +2743,177 @@ class HabitatRestartPilot(HabitatLoopPilot):
                 'interaction_complete': self.interaction_complete}
 
 
+class ObservationWalkPilot(HabitatRestartPilot):
+    """Existing station out-and-back, ordinary OS walking and orderly UI exit."""
+    MARKER = 'NATIVE_OBSERVATION_WALK_OK'
+    PREFIX = tuple((name, [x, 0, z]) for name, x, z in (
+        ('central', 0, 15.5), ('tractor_west', 0, 12.5), ('tractor_forward', 6, 12.5),
+        ('tractor_east', 6, 13.5), ('starboard_mid', 20, 13.5), ('starboard_cargo', 34.8, 13.5),
+        ('starboard_cabinet', 34.8, 15.5), ('starboard_arm', 43, 15.5), ('dock_ops_approach', 43, 21),
+        ('dock_ops_turn', 43, 24.8), ('dock_ops_east', 48.1, 24.8), ('dock_ops_north', 48.1, 29.1),
+        ('dock_ops_return', 48.1, 28), ('fabrication_west', 50, 28), ('fabrication_turn', 68.5, 28),
+        ('fabrication_approach', 68.5, 38), ('annex_origin', 72, 38)))
+    IDENTITIES = ('main_id', 'world_id', 'player_id', 'capsule_id', 'shape_id',
+                  'spur_id', 'annex_id', 'pad_id', 'lens_id', 'camera_id')
+
+    def __init__(self):
+        # Reuse the existing awake UI exit driver, without restart/file behavior.
+        super().__init__(cold=True)
+        self.observed_previous = None
+        self.goal_started = None
+        self.destination_frame = None
+        self.destination_forward = None
+        self.look_changed = False
+        self.quit_started = self.exit_started = None
+        self.outbound = []
+
+    def receipt(self, s):
+        return {k: s[k] for k in ('frame', 'player', 'grounded', 'supported', 'support_collider',
+                                  'player_id', 'pad_supported', 'spur_local', 'walk_forward', 'camera', 'camera_forward')}
+
+    def require_walking(self, s):
+        require(s['phase'] == 'APPROACH_SHIP' and not any(s[k] for k in (
+            'sleeping', 'seated', 'station_seated', 'game_station_seated', 'transition_busy', 'recovery_pending'))
+            and all(s[k] for k in ('control_enabled', 'mouse_captured', 'capsule_enabled', 'grounded', 'supported', 'camera_current'))
+            and s['support_collider'], 'same awake controlled Player on actual station floor')
+
+    def validate_observation(self, s):
+        """Validate every sample; only update() may issue the latest OS command."""
+        self.last_state = s
+        require(s.get('mode') == 'observation-walk' and s.get('actors_current'), 'current Observation route actors')
+        require(s['sequence'] > self.sequence, 'fresh Observation sample including paused UI')
+        self.sequence = s['sequence']
+        if self.pid is None: self.pid = s['pid']
+        require(s['pid'] == self.pid, 'same observed exported process')
+        self.frame = s['frame']
+        if self.initial is None:
+            require(s['phase'] == 'INTRO' and norm(sub(s['player'], s['spawn'])) < .75
+                    and math.hypot(s['spawn'][0]+8.5, s['spawn'][2]-11) < .1
+                    and abs(s['spawn'][1]-.18) <= .65, 'fresh authored title and hub spawn without placement')
+            self.initial = s
+        initial = self.initial
+        require(all(s[k] and s[k] == initial[k] for k in self.IDENTITIES), 'same Main world Player body and authored destination owners')
+        require(s['walk_tuning'] == LifeTowPilot.DEFAULT_WALK and s['physics_ticks'] == 60
+                and s['time_scale'] == 1 and s['default_controls'] and s['capsule_geometry'] == [.38, 1.94],
+                'default local walking sampler, capsule, input bindings and authored tuning')
+        require(s['annex_goals'] == initial['annex_goals'] and s['spur_goals'] == initial['spur_goals']
+                and s['lens'] == initial['lens'] and s['pad_path'] == initial['pad_path'], 'unchanged authored branch targets')
+        require(s['phase'] in ('INTRO', 'APPROACH_SHIP'), 'no recovery, craft admission or scenario phase')
+        if s['paused']:
+            require(self.stage in ('restart_pause', 'restart_exit_wait') and 'hub_return' in self.receipts,
+                    'pause only after full supported home return')
+            return
+        if self.observed_previous:
+            previous = self.observed_previous
+            frames = s['frame']-previous['frame']
+            require(frames == 1, 'every consecutive walking physics sample retained')
+            if self.stage in ('walk_outbound', 'observe_view', 'walk_return', 'restart_pause', 'restart_exit_wait'):
+                self.require_walking(s)
+                step = norm(sub(s['player'], previous['player']))
+                require(step <= (initial['walk_tuning']['sprint']/60*1.25+.02)*frames,
+                        'continuous supported walking without placement or rescue')
+                self.walked += step
+                self.support_colliders.add(s['support_collider'])
+        if self.stage == 'observe_view': self.require_destination(s)
+        if bool(s['native_interact']) != self.native_previous:
+            self.native_edges.append({'frame': self.frame, 'pressed': bool(s['native_interact']), 'stage': self.stage})
+        self.native_previous = bool(s['native_interact'])
+        self.observed_previous = s
+
+    def require_destination(self, s):
+        local = s['spur_local']
+        require(s['pad_supported'] and s['support_collider'] == s['pad_path']
+                and -10.5 <= local[0] <= -3 and 26 <= local[2] <= 38 and abs(local[1]) <= .3,
+                'actual ObservationPad support and semantic gallery occupancy')
+        self.require_walking(s)
+
+    def accept_exit(self, code, now):
+        require(self.stage == 'restart_exit_wait' and self.quit_requested and self.exit_started is not None
+                and now-self.exit_started <= 12 and code == 0 and 'hub_return' in self.receipts
+                and 'view' in self.receipts and 'exit_ui' in self.receipts,
+                'actual zero exit after full journey and ordinary focused EXIT TO DESKTOP press')
+        self.stage = 'complete'
+        self.result = {'completion_marker': self.MARKER, 'pid': self.pid,
+                       'same_player_id': self.initial['player_id'], 'same_main_id': self.initial['main_id'],
+                       'same_world_id': self.initial['world_id'], 'visited': self.visited, 'receipts': self.receipts,
+                       'walked_m': self.walked, 'support_colliders': sorted(self.support_colliders),
+                       'native_interact_edges': self.native_edges, 'ui_key_edges': self.ui_edges,
+                       'look_changed': self.look_changed, 'view_frames': self.view_frames,
+                       'authored_walk_tuning': self.initial['walk_tuning']}
+
+    def update(self, s, now):
+        self.last_state = s
+        self.frame = s['frame']
+        if self.stage in ('restart_pause', 'restart_exit_wait'):
+            require(now-self.quit_started <= 15, '15-second ordinary pause/exit deadline')
+            if self.stage == 'restart_exit_wait':
+                require(now-self.exit_started <= 12, '12-second orderly process exit deadline')
+            command = self.ui_update(s, now)
+            if self.quit_requested and self.exit_started is None: self.exit_started = now
+            return command
+        keys, dx, dy = set(), 0, 0
+        if self.stage == 'boot' and s['menu_ready']:
+            self.enter('begin_shift', s)
+            self.tap('e', now)
+        elif self.stage == 'begin_shift' and s['phase'] == 'APPROACH_SHIP' and self.floor_ready(s):
+            self.require_walking(s)
+            self.receipts['hub_start'] = self.receipt(s)
+            self.outbound = list(self.PREFIX) + [('annex_'+str(i), point) for i, point in enumerate(s['annex_goals'])]
+            self.outbound += [('rear_gate', [91, .38, 38])]
+            self.outbound += [('spur_'+str(i), point) for i, point in enumerate(s['spur_goals'])]
+            self.begin_walk('walk_outbound', self.outbound, s)
+            self.goal_started = now
+        elif self.stage in ('walk_outbound', 'walk_return'):
+            require(now-self.goal_started <= 15, '15-second ordinary walking goal deadline')
+            name, target = self.route[self.index]
+            dx, reached = self.walk_to(s, target, keys, self.frame-self.previous['frame'] if self.previous else 1)
+            if reached:
+                self.visited.append({'waypoint': name, **self.receipt(s)})
+                self.index += 1
+                self.goal_started = now
+                if self.index == len(self.route):
+                    if self.stage == 'walk_outbound':
+                        self.require_destination(s)
+                        self.destination_frame = self.frame
+                        self.destination_forward = s['camera_forward'][:]
+                        self.enter('observe_view', s)
+                    else:
+                        require(norm(sub(s['player'], self.initial['spawn'])) <= .4, 'actual retained original hub return')
+                        self.receipts['hub_return'] = self.receipt(s)
+                        self.begin_quit(s)
+                        self.quit_started = now
+        elif self.stage == 'observe_view':
+            require(now-self.goal_started <= 15, '15-second ordinary observation look deadline')
+            self.require_destination(s)
+            desired = unit(sub(s['lens'], s['camera']))
+            local = [dot(desired, s[k]) for k in ('camera_right', 'camera_up', 'camera_forward')]
+            yaw = math.atan2(local[0], local[2])
+            pitch = math.atan2(local[1], math.hypot(local[0], local[2]))
+            clamp = lambda value: round(max(-120, min(120, value)))
+            dx = clamp(yaw/s['walk_tuning']['mouse'])
+            dy = clamp(-pitch/s['walk_tuning']['mouse'])
+            self.look_changed = self.look_changed or norm(sub(s['camera_forward'], self.destination_forward)) > .1
+            if self.frame-self.destination_frame >= 60 and self.look_changed and dot(desired, s['camera_forward']) > .997:
+                self.view_frames = self.frame-self.destination_frame
+                self.receipts['view'] = self.receipt(s)
+                reverse = [('return_'+name, target) for name, target in reversed(self.outbound[:-1])]
+                reverse += [('original_hub_spawn', self.initial['spawn'])]
+                self.begin_walk('walk_return', reverse, s)
+                self.goal_started = now
+        if self.tap_key is not None:
+            if now < self.tap_until or self.frame < self.tap_frame+6: keys.add(self.tap_key)
+            else:
+                self.tap_key = None
+                self.tap_cooldown = now+.3
+                self.tap_release_frame = self.frame
+        if self.mouse_pending is not None:
+            if norm(sub(s['camera_forward'], self.mouse_pending)) < .00001: dx = dy = 0
+            else: self.mouse_pending = None
+        if dx or dy: self.mouse_pending = s['camera_forward'][:]
+        self.previous = s
+        return keys, dx, dy, False
+
+
 class SandboxWalkPilot(Pilot):
     """Five station branches through ordinary controls; fleet/crash gate stays open.
 
@@ -3389,7 +3561,7 @@ def stop(process):
 
 
 def run(binary, output, route="guided"):
-    require(route in ("guided", "beacon-entry", "beacon-settlement", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
+    require(route in ("guided", "beacon-entry", "beacon-settlement", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "life-tow", "life-gantry", "life-arm", "life-patrol", "observation-walk"), "known ordinary-input route")
     output.mkdir(parents=True, exist_ok=False)
     game = xvfb = desktop = pilot = None
     temporary_profile = None
@@ -3480,7 +3652,7 @@ def run(binary, output, route="guided"):
                     leg_result['window'] = hex(window)
                     desktop.focus(window)
                     pilot = HabitatRestartPilot(cold=bool(leg)) if restart_files else {
-                        "guided": Pilot, "beacon-entry": BeaconEntryPilot, "beacon-settlement": BeaconSettlementPilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
+                        "observation-walk": ObservationWalkPilot, "guided": Pilot, "beacon-entry": BeaconEntryPilot, "beacon-settlement": BeaconSettlementPilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
                         "hulk-arrival": HulkArrivalPilot, "hulk-breaker": HulkBreakerPilot,
                         "hulk-home": HulkHomePilot, "habitat-loop": HabitatLoopPilot, "life-tow": LifeTowPilot, "life-gantry": lambda: LifeTowPilot("life-gantry"), "life-arm": lambda: LifeTowPilot("life-arm"), "life-patrol": lambda: LifeTowPilot("life-patrol")}[route]()
                     with selectors.DefaultSelector() as selector:
@@ -3489,12 +3661,38 @@ def run(binary, output, route="guided"):
                         with (output/'game.log').open('ab') as log:
                             while pilot.result is None:
                                 if game.poll() is not None:
+                                    if isinstance(pilot, ObservationWalkPilot):
+                                        code = game.wait()
+                                        # Consume terminal observations too; an exit must not hide a bad final sample.
+                                        os.set_blocking(game.stdout.fileno(), False)
+                                        drain_deadline = time.monotonic()+2
+                                        while True:
+                                            require(time.monotonic() < drain_deadline, 'bounded terminal output drain')
+                                            try: chunk = os.read(game.stdout.fileno(), 262144)
+                                            except BlockingIOError: break
+                                            if not chunk: break
+                                            log.write(chunk); log.flush()
+                                            pending += chunk
+                                            lines = pending.split(b'\n'); pending = lines.pop()
+                                            for observation in observations_from_lines(lines):
+                                                require(observation['pid'] == game.pid, 'terminal observation belongs to exact game PID')
+                                                pilot.validate_observation(observation)
+                                        if pending:
+                                            for observation in observations_from_lines([pending]):
+                                                require(observation['pid'] == game.pid, 'final observation belongs to exact game PID')
+                                                pilot.validate_observation(observation)
+                                            pending = b''
+                                        pilot.accept_exit(code, time.monotonic())
+                                        leg_result.update(exit_code=0, reaped=True, normal_ui_exit=True, exit_ui=pilot.receipts['exit_ui'])
+                                        break
                                     if not restart_files: raise RuntimeError(f'game exited during {pilot.stage}: {game.returncode}')
                                     require(pilot.quit_requested and pilot.stage == 'restart_exit_wait',
                                             'game exits only after actual EXIT TO DESKTOP activation')
                                     require(game.wait() == 0, 'normal UI shutdown exits zero and reaps game')
                                     leg_result.update(exit_code=0, reaped=True, normal_ui_exit=True)
                                     break
+                                if isinstance(pilot, ObservationWalkPilot) and pilot.exit_started is not None:
+                                    require(time.monotonic()-pilot.exit_started <= 12, '12-second orderly process exit deadline')
                                 if xvfb.poll() is not None: raise RuntimeError('owned Xvfb exited during sortie')
                                 if time.monotonic()-start >= CAP: raise TimeoutError('300-second sortie cap')
                                 for key,_ in selector.select(.1):
@@ -3505,8 +3703,10 @@ def run(binary, output, route="guided"):
                                     lines = pending.split(b'\n'); pending=lines.pop()
                                     observations = observations_from_lines(lines)
                                     if observations:
-                                        if isinstance(pilot, LifeTowPilot):
+                                        if isinstance(pilot, (LifeTowPilot, ObservationWalkPilot)):
                                             for observation in observations:
+                                                if isinstance(pilot, ObservationWalkPilot):
+                                                    require(observation['pid'] == game.pid, 'observation belongs to exact running game PID')
                                                 pilot.validate_observation(observation)
                                         state = observations[-1]
                                         if restart_files:
@@ -3641,8 +3841,8 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('binary')
     parser.add_argument('--output',required=True,type=Path)
-    parser.add_argument('--route', choices=('guided', 'beacon-entry', 'beacon-settlement', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
-                        help='beacon-settlement continues the accepted entry through four physical beacons and durable reward; beacon-entry departs normally and physically reaches/starts the first Beacon through actual pause controls; life-patrol walks Habitat through the real door beside patrol drones and boards Torrent; life-arm walks Aft stairs past the live service arm and boards Zenith; life-gantry walks Freight past the live gantry and boards Jovian; life-tow walks Central beside live tow service and boards Torrent; hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
+    parser.add_argument('--route', choices=('guided', 'beacon-entry', 'beacon-settlement', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol', 'observation-walk'), default='guided',
+                        help='observation-walk walks the actual hub/Annex/Observation gallery and returns before ordinary UI exit; beacon-settlement continues the accepted entry through four physical beacons and durable reward; beacon-entry departs normally and physically reaches/starts the first Beacon through actual pause controls; life-patrol walks Habitat through the real door beside patrol drones and boards Torrent; life-arm walks Aft stairs past the live service arm and boards Zenith; life-gantry walks Freight past the live gantry and boards Jovian; life-tow walks Central beside live tow service and boards Torrent; hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
     args=parser.parse_args()
     try: binary=validate_binary(args.binary)
     except ValueError as error: parser.error(str(error))
