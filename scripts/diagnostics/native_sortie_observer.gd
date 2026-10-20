@@ -845,7 +845,8 @@ func _habitat_restart_observation() -> Dictionary:
 
 ## Selected qualification of existing geometry. Reads only; no staged actors or actions.
 func _observation_walk_observation() -> Dictionary:
-	var current: bool = _ember_node_current(_game) and get_parent().call("get_main") == _game \
+	var current: bool = is_instance_valid(_game) and _game.is_inside_tree() and not _game.is_queued_for_deletion() \
+		and get_parent().call("get_main") == _game \
 		and _ember_node_current(_player) and _game.player == _player and _ember_node_current(_game.world)
 	var result := {"mode": "observation-walk", "sequence": _observation_sequence,
 		"pid": OS.get_process_id(), "frame": Engine.get_physics_frames(),
