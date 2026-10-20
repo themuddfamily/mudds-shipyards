@@ -50,18 +50,19 @@ review supports this candidate; it is not a verified fix.
 | BROWSER-FIXTURE-JSON | DONE; source fixture integrated | Actual JSON numbers normalize safely;62 assertions and real raw0→admitting1→raw2→stop3 handoff pass with original3s limits. No packaged-client acceptance. |
 | NET-TIMEOUT-RELEASE-ACCEPT | GATED on matching templates | Relevant focused checks, clean paired exports/strict startups/package checks, then original full ordinary route with unchanged criteria/limits. The fixture handoff prerequisite now passes; native runtime effectiveness remains unverified. No execution selected yet. |
 
-**Current action:** record the stopped template attempt and preserve reusable
-inputs. No compiler retry, collection, game export or runtime route is selected.
-A bounded review will assess whether retained incremental objects permit one
-separately frozen finish within the original cumulative90min stop; no budget reset
-or automatic cap increase. [Original commands and result](docs/ROADMAP_BACKLOG.md#release-rpc-cache-correction--implementation-cards).
+**Current action:** one separately selected incremental Windows finish after
+priority review:2,105 retained compiled objects/SCons signatures address the cold
+compile timeout. Compile480s/command540s/owner600s, jobs2 unchanged; collection60s
+plus60s owner grace. Hard cumulative deadline02:09:31UTC from original70af freeze;
+no budget reset, no further retry or runtime route. Original failure retained. [Original commands and result](docs/ROADMAP_BACKLOG.md#release-rpc-cache-correction--implementation-cards).
 Preparation took6.8min versus15–30min estimate; required SDK files/source pins
 verified and preparation actors gone. No game capture or public checkpoint selected.
 BROWSER-FIXTURE-JSON is complete: actual JSON sequence numbers normalize safely,
 62 assertions pass and the unchanged driver completed raw→admitting→raw→stop.
 Three stages took51.654s; all ten observed process identities are absent. Only the
 tested fixture file is integrated; no ordinary-route retry or gameplay checkpoint.
-Both compiler owners are terminal; no executable card is currently selected.
+Original compiler owners are terminal; only the separately frozen incremental
+Windows finish and dependent collection are selected.
 The later acceptance candidatee5b9dd25f is prepared and branch-pushed: original
 browser-support files plus accepted fixture, with passive capture excluded. It is
 unmerged/unqualified; no check/export/route was run during assembly. Its clean

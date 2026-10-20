@@ -2649,3 +2649,20 @@ before further repair; a new task name does not reset that boundary.
 ## Working constraints
 
 Follow [AGENTS.md](../AGENTS.md). Every automated Godot invocation uses `--audio-driver Dummy`; use headless or isolated displays, explicit `--display-driver x11` under Xvfb and an independent abort/cleanup path. Do not use the owner's desktop or audible output without explicit authorization. Keep scratch, helpers and worktrees under `/srv/mudds-work/`; remove completed temporary worktrees after verifying integration and preserve unique uncommitted work/raw failures. Never enable/dispatch hosted CI. Do not use native Windows/Wine under the execution hold. Checkpoint artifacts belong in repository `builds/`, not Downloads.
+
+
+### Explicit incremental Windows finish selection — original failure retained
+
+2026-10-20, same RPC-CACHE-TEMPLATES outcome. Independent priority review found
+2,105 nonempty cached objects and valid SCons signatures after the cold compile
+timeout, immutable source/patch/wheel and idempotent builder reuse. One separately
+frozen finish may reuse that completed work: exact original Windows command/pin70af,
+jobs2/flags/cache unchanged, only `--timeout 480`; guarded command540s/owner600s.
+Dependent collection60s/owner120s. Launch must leave130s reserved beyond finish
+owner before absolute1792462171 /02:09:31UTC /04:09:31Paris, original70af+90min.
+No later freeze resets that deadline. Guard retains STOP and requires exact prior
+STOP SHA plus named finish/collection authorization/deadline; original3600s failure
+is not removed or promoted. No further repair/retry/cap increase after this one
+incremental selection. Root restored only clean70af worktree/helpers for this
+bounded attempt; cache remains unchanged. No game export/runtime route selected.
+Exact frozen commands/hashes: template results/incremental-frozen.json.
