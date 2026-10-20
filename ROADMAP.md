@@ -36,149 +36,82 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 ## Execution now
 
-AUDIO-NAVIGATOR-CLIENT-RECEIPTS and the demonstrated CREW-EPOCH correction are
-accepted on **4bbb341**, merged/pushed and packaged. Original two-peer navigator
-route passes204 checks: client first/stand/reseat/revocation/replay, migrated fresh
-acceptance and exact disconnect retirement. Actual document/command/client epoch2
-agree. Client rejection remains separate unfinished behavior. [Full result and
-prior failures](docs/history/ROADMAP_DELIVERIES.md#audio-navigator-client-feedback-and-crew-epoch--delivered).
-Owned worktree/profiles/helpers cleaned; all raw results preserved.
+**One selected task: release timeout callback capture (parent 25).** This is
+investigation, not a gameplay delivery. The original browser journey remains
+PARKED/unaccepted. [Frozen files, commands, limits and stopping conditions](docs/ROADMAP_BACKLOG.md#release-timeout-callback-capture--bounded-definition-and-selection).
 
-The activity first-play breakdown now names actual entry, physical activity,
-settlement and home-continuation checkpoints for all twelve activities, with
-production owners, existing test seams and retained blockers in the
-[bounded handoffs](docs/ROADMAP_BACKLOG.md#activity-first-play--bounded-handoffs).
-The six combat rows also distinguish ordinary clear/return from separate
-failure/recovery cases and the now-defined missing Perimeter Hold integration.
-The breakdown itself is planning progress. Beacon traversal/settlement is qualified below;
-no complete additional activity or combat journey is accepted.
-
-| Remaining work | Readiness | Next bounded action / estimate |
+| Checkpoint within this task | Exact completion check | Current state |
 | --- | --- | --- |
-| AUDIO-NAVIGATOR-CLIENT-REJECTION | Definition DONE; implementation WAITING on one behavior choice | Finite refusal map and exact requester correlation/owners/proof defined. Asked once: all fresh current refusals including unavailable consumer, or consumer/bridge only. No answer inferred; no runtime/protocol selected. [Definition and conditional proof](docs/COMPLETION_SCOPE.md#client-navigator-rejection-response--bounded-definition-next). After choice45–60min implementation/review,15–25min checks,10–15min checkpoint. |
-| HAULER-CARGO-MANIFEST | Production gap; GATED on HAULER-CARGO-STOCK | Binding still rejects Hauler; generation-floor API already exists. [Stock prerequisite and conserved-source proof](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries).60–90min implementation/focused checks after decision, checkpoint additional; split before90min. |
+| Passive observer implementation | Only the existing observer adds API identity and safe callback metadata; driver, fixture and runtime behavior unchanged. | 25-line candidate written and independently source-reviewed; not compiled, committed or accepted yet. |
+| Private Linux diagnostic package | Fresh import/privacy checks, clean export, strict actual-binary startup and embedded package/source checks pass under the frozen limits. | NOT_RUN. No public or Windows checkpoint for diagnostic-only code. |
+| One release capture and closure | Retain raw snapshots bracketing the original timeout and actual callback identities, or record NOT_REPRODUCED/INCONCLUSIVE/FAIL. Preserve actual route failure, logs and unique package; clean owned scratch. | NOT_RUN. One attempt only; no automatic repair, extra capture or larger cap. |
 
-BROWSER-JOIN-DEADLINE is delivered on**1c679a4**, merged/pushed and packaged:
-automatic paused5s expiry, synchronous cleanup, cancellation/replacement safety,
-actual retry admission and admitted-session survival pass the focused checks.
-The full ordinary Main/browser requirement remains open.
+Estimate from the frozen card: 15–25min implementation/review and 5–10min
+build/capture/cleanup; split before 45min. A successful capture ends this task.
+Any next repair needs an actual causal finding and a separately bounded card;
+it does not inherit authorization for another ordinary-route attempt.
 
-PERF-DORMANT-MEASURE concludes **do not prioritize this optimization**: actual
-six-actor direct-function cost89.824us combined is below the frozen100us threshold.
-No runtime change, performance fix, native FPS claim or new checkpoint.
-[Fixture/result/limits](docs/history/ROADMAP_DELIVERIES.md#dormant-opponent-presentation--cost-decision).
-Owned scratch cleaned; only raw results remain. STATION-AFT-CONSOLE-VIEW is
-**PARKED**: import passes, isolated120s Forward+ capture times out after camera
-setup with no PNG/finding. Source mapping first corrected the upstairs nomination:
-consoles are on the lower floor. No graphics repair, alternate capture or retry.
-[Original contract/result](docs/history/ROADMAP_DELIVERIES.md#aft-console-arrival--component-review-failed).
-Threading driver readiness is now defined, **execution GATED on UI-BOARD-FOCUS**:
-it would cross the retained failed Activity Board transition. Full five-gate,
-durable reward and landing-unlocked home/usable exit requirements remain intact.
-[Owners/full contract/readiness](docs/ROADMAP_BACKLOG.md#threading-complete-first-play--driver-readiness).
-No engine or renamed Threading retry selected. The independent ordinary browser
-non-admission attempt is now parked below; no full route acceptance was gained.
+**No independent product implementation is currently established as ready in the
+reviewed queue.** This is a scheduling gap, not proof that the remaining product
+is finished or that every backlog item is blocked. Do not start speculative
+runtime changes merely to fill the queue.
 
-BROWSER-INLINE-RECOVERY is delivered on **20e90c9**, merged/pushed and packaged:
-accepted progress/timeout feedback and permitted Retry are reachable inline,
-with Cancel/Disconnect priority and validation fencing preserved.
-[Actual checks and original corrections](docs/history/ROADMAP_DELIVERIES.md#browser-inline-session-recovery--delivered).
-The full OS-input browser route remains separate; no Activity Board/Aft retry.
-BROWSER-DRIVER/BROWSER-ORDINARY candidate **e944f52a8** is now **PARKED/unaccepted**:
-source pushed, unmerged/withheld. Readiness checks and packaging pass; ONE actual
-ordinary route fails40.554s at automatic timeout with a NetworkSession tree_exited
-nonexistent-disconnect/empty-callable diagnostic. Underlying cause unknown;
-fixture cleanup separately rejects its command. Retry/admission/Disconnect/fresh
-Cancel/Resume/normal quit NOT_RUN. No further exception/repair/probe/retry selected.
-[Full frozen cards, failures and retained builds](docs/history/ROADMAP_DELIVERIES.md#browser-ordinary-timeout-and-retry--failed-and-parked).
-Owned scratch cleaned after preserving raw results/eight unique withheld builds.
-The single source API-ownership observation is **NOT_REPRODUCED**: default and
-custom APIs both cleanly remove the actual bound SceneCacheInterface callback at
-5004/5002ms automatic timeout. No app-ownership change or release cause/fix is
-supported. [Exact result and retained source lead](docs/ROADMAP_BACKLOG.md#timeout-rpc-cache-ownership--net-timeout-teardown-owner).
-Owned scratch cleaned. One passive release callback capture is now explicitly
-selected after independent contract review; only the existing observer changes.
-[Exact scope, original failure budget and stopping conditions](docs/ROADMAP_BACKLOG.md#release-timeout-callback-capture--bounded-definition-and-selection).
-Underlying ordinary-route acceptance stays parked; no runtime fix, extra capture,
-repair, cap increase or no-answer case is selected.
+### Waiting decisions — not executable tasks
 
-Perimeter Hold's implementation candidate **aa88b5a73** is **PARKED/unmerged**.
-Its staged live runtime passes52 assertions; existing director/asset/board/HUD
-checks pass. The unchanged90s GameFlow route times out during existing
-Breach/Torpedo recovery before Hold entry. No export/checkpoint was produced.
-Cumulative363.897s across15 engine stages; source pushed, all processes gone.
-[Original acceptance, failures and retained source](docs/history/ROADMAP_DELIVERIES.md#perimeter-hold-live-integration--implemented-but-parked).
-No further correction, retry, cap increase or automatic successor selected.
+These questions have already been asked. Keep them pending without asking again
+or treating elapsed time as a choice.
 
-Latest home attempt **a612ea686** is unmerged/withheld: the full-Main route
-hit the known Activity Board focus-disconnection pair before Beacon SELECT/START
-(37.713s guarded). The page actually opened; popup identity/connection-removal
-cause remains unknown. No repair/retry selected. [Failure and preserved contract](docs/history/ROADMAP_DELIVERIES.md#beacon-complete-home--failed-and-parked).
-Beacon traversal/settlement qualification remains on **e06550e**; latest checkpoint
-**20e90c9** adds inline browser recovery after deadline1c679a4 and discovery042c701. Owned worktree/profiles/helpers
-cleaned after preserving raw evidence and all8 unique withheld build files.
+| Child | Required input | Result after the dependency resolves |
+| --- | --- | --- |
+| [AUDIO-NAVIGATOR-CLIENT-REJECTION](docs/COMPLETION_SCOPE.md#client-navigator-rejection-response--bounded-definition-next) | All fresh current refusals including unavailable consumer, or consumer/bridge refusals only. | Correct requester-correlated refusal feedback. Freeze implementation/proof after the choice; prior estimate 45–60min implementation/review, 15–25min checks, 10–15min checkpoint. |
+| [HAULER-CARGO-MANIFEST](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries) | Shared existing stock, separate Hauler stock, or loading-terminal custody. | Actual Hauler cargo admission and conserved source ownership; ordinary delivery remains separately gated. Generation-floor API already exists; freeze files/proof after the choice. Prior estimate 60–90min implementation/checks, checkpoint additional; split before 90min. |
 
-All28 actual listening cases remain NOT_RUN. Hauler's already-asked stock/custody
-choice is unchanged. This queue is not a project estimate; the completed rejection definition
-is not a delivered feature.
+Other scope, evidence, hardware and authorization dependencies remain in the
+[backlog](docs/ROADMAP_BACKLOG.md#external-dependencies-outside-the-ready-queue).
+[Parked failures](#parked-failures-and-dependent-work) require their recorded
+reopening conditions; they are not the next executable queue.
 
 ## Turning the remaining scope into executable work
 
-A broad parent stays open until all its original requirements are accepted; this
-can coexist with many completed children. Use the backlog as the scope inventory,
-then promote a child only when its result, prerequisites, file owner, proof,
-estimate and stop condition are explicit, as above. **READY, WAITING and PARKED
-must never appear as interchangeable “tasks left.”**
+Use the existing [named child inventory](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes)
+and [family contracts](docs/ROADMAP_BACKLOG.md#family-contracts), rather than
+creating another tracker. Each selected card must answer these questions before
+implementation or engine execution:
 
-For each missing craft, SPEC must first settle the evidence/interpretation and
-required capabilities. BUILD-SPLIT then names the actual hull/access, handling,
-role/weapon and recovery deliveries with individual owners and proofs before
-implementation. These are a checklist for decomposition, not an invented fixed
-number of tasks per ship. CRAFT-ACCEPT retains the original complete craft journey.
-An unresolved SPEC remains WAITING; a template or a source audit does not deliver
-that ship. The already-asked Titan decision remains pending.
+| Required field | A usable answer |
+| --- | --- |
+| Result | One thing the player can do, content they can encounter, or executable build/release capability; name its original parent and existing child ID. Label planning and qualification separately. |
+| Prerequisites | Specific accepted dependencies or missing input. WAITING, GATED and PARKED are not READY. |
+| Ownership | Exact production files/component and implementer; disjoint ownership for parallel work. |
+| Proof | Exact focused command or ordinary action, expected result and fixed duration. Keep broader parent journey requirements visible and unchanged. |
+| Budget and stop | Implementation estimate, check duration and stopping condition. Prefer 30–60min implementation; split before 90min into useful capabilities. A new failure ends the attempt. |
+| Closure | Actual outcome/time, source versus packaged status, remaining requirement, commit/push, owned cleanup and one next action. |
 
-The2026-10-20 bounded readiness pass found no additional implementation-ready
-card among navigator rejection, Hauler cargo integration and Station Defense
-active-run recovery: the first two retain their already-asked policy waits;
-the third still lacks its intended active-wave continuation contract. Do not
-count these as executable jobs or begin another terminal-debt implementation.
-The browser driver and full packaged route were then frozen as separate cards;
-both remain unaccepted after the actual timeout diagnostic above. Preserve their
-whole timeout→retry/admission→disconnect→fresh cancel→resume/quit contract.
-The one API-ownership observation did not reproduce the release error. A release-
-level capture contract is the next missing definition. No unchanged source probe,
-route retry or release estimate follows from the component/readiness passes.
+A broad parent closes only when all its original requirements are accepted.
+For missing craft, settle SPEC first, then replace BUILD-SPLIT placeholders with
+actual hull/access, handling, role/weapon and recovery capabilities. Do not invent
+a fixed task count per ship. Retain complete CRAFT-ACCEPT journeys.
 
-
-At each delivery, update that child’s result and remaining dependency, give actual
-elapsed time against the estimate, and nominate one next action. Keep at most
-three executable cards. Broader estimation becomes possible as unknown build
-scope and policy choices are resolved; this planning update does not establish
-a total job count or release date.
+Keep at most three executable cards. Before starting another qualification chain,
+identify an independent production alternative or record its concrete missing
+definition. Do not expand an investigation into a succession of adjacent probes.
+The release-capture definition is already frozen; it is not a missing planning task.
 
 ## Latest delivered result
 
-**Inline browser recovery delivered on20e90c9.** The title/pause browser now shows
-current connection progress and timeout guidance and offers permitted Retry.
-Cancel/Disconnect retain priority; rejected receipts preserve newer validation.
+**Inline browser recovery delivered and packaged on 20e90c9.** The title/pause
+browser shows current connection progress and timeout guidance and offers
+permitted Retry. Cancel/Disconnect priority and newer validation are preserved.
+Five focused suites/182 assertions, paired exports, three strict silent startups
+and actual package parity pass. The full ordinary browser journey is unfinished.
 
-Five focused suites pass182 assertions; clean Windows/Linux exports, three strict
-silent startups and actual1521-entry package parity pass. Independent high review
-and root final review: GO. All12 final stages pass. Cumulative17 stages/193.759s
-retain the original Cancel-priority failure and explicit corrections. All17 owners
-FINISHED/all78 observed process identities absent.
 [Windows ZIP](builds/windows/MuddsShipyards-20e90c9-checkpoint.zip),
 [build notes](builds/windows/MuddsShipyards-20e90c9-notes.txt),
-[original contract/results](docs/history/ROADMAP_DELIVERIES.md#browser-inline-session-recovery--delivered).
-Owned scratch cleaned; only raw results remain. All11 public hashes/exact ZIP
-and8 unique build files verified. Engine-stage timing excludes implementation
-and publication; total elapsed against the original estimate was not captured.
-
-This closes one UI defect under parent25. Full ordinary Main/browser OS-input
-retry/admission, rendered readability, capacity/endurance/native/human/final
-remain OPEN/NOT_RUN. The5s deadline1c679a4, paused LAN042c701 and Beacon reward
-e06550e retain their recorded scopes. Beacon home/Perimeter Hold remain parked.
+[full checks, original failures and cleanup](docs/history/ROADMAP_DELIVERIES.md#browser-inline-session-recovery--delivered).
+Earlier accepted results, including navigator feedback/crew epochs, paused LAN,
+join deadlines, Beacon traversal/reward and station service motion, retain only
+their recorded scopes in the [delivery history](docs/history/ROADMAP_DELIVERIES.md).
+None closes a complete additional activity, craft or original phase by itself.
 
 ## Parked failures and dependent work
 
@@ -212,7 +145,7 @@ Dedicated server/two-client baseline remains authorized independently of capacit
 
 1. Select one named player/build outcome from the inventory. State parent, exact
    files/owner, prerequisites, proof command/action, unchanged criteria, implementation
-   estimate and check duration before starting. Prefer30–60min implementation;
+   estimate and check duration before starting. Prefer 30–60min implementation;
    split before 90min into capabilities, not arbitrary test/evidence stages.
    Before starting a further qualification chain, identify one independently
    executable production alternative or record the concrete missing definition.
