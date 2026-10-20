@@ -2899,7 +2899,9 @@ class StationDefensePilot(CompletedMotionProof, Pilot):
                 require(s['phase'] == 'COMPLETE' and s['exit_error'] < .25, 'ordinary physical Arrow exit at its real anchor')
                 if s['grounded'] and s['supported']:
                     self.home_exit = self.receipt(s)
-                    self.begin_walk('walk_reset', [[-35, .18, 20], [-35, .18, 13.5], [9, .18, 12.5],
+                    # Reverse the accepted z=22 wing-clearance lane before Reset.
+                    self.begin_walk('walk_reset', [[s['player'][0], .18, 22], [-35, .18, 22],
+                                                   [-35, .18, 20], [-35, .18, 13.5], [9, .18, 12.5],
                                                    [9, .18, -24], [12, .18, -24.5]], s)
             require(self.frame <= self.request_frame + 600, 'ordinary home exit rejected or unsupported; no retry')
         elif self.stage == 'reset_wait':
