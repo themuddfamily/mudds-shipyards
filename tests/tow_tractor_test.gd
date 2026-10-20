@@ -1,5 +1,7 @@
 extends SceneTree
 
+## test-matrix-display: input-only
+
 ## Focused suite for the drivable yard tow tractor.
 ##
 ## The station's own geometry is being actively corrected by a parallel pass, so
@@ -1199,6 +1201,51 @@ func _check_gamepad_camera_look() -> void:
 	tractor._physics_process(2.0)
 	_check(is_equal_approx(pitch.rotation.x, deg_to_rad(38.0)),
 		"GAMEPAD_LOOK_TRACTOR: upper stick pitch respects the existing clamp")
+	_check(not tractor.invert_mouse_y, "TRACTOR_LOOK_INVERSION: default preserves the authored pitch direction")
+	var previous_mouse_mode := Input.mouse_mode
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	_check(Input.mouse_mode == Input.MOUSE_MODE_CAPTURED,
+		"TRACTOR_LOOK_INVERSION: isolated display establishes mouse capture before mouse checks")
+	for inverted: bool in [false, true]:
+		tractor.invert_mouse_y = inverted
+		var direction := 1.0 if inverted else -1.0
+		tractor.set("_camera_pitch", 0.0)
+		pitch.rotation.x = 0.0
+		tractor.set("_camera_yaw_offset", 0.0)
+		_gamepad_look_axes(Vector2.ONE)
+		tractor._physics_process(0.1)
+		var diagonal_step := 0.25 / sqrt(2.0)
+		_check(is_equal_approx(pitch.rotation.x, diagonal_step * direction)
+			and is_equal_approx(yaw.rotation.y, -diagonal_step),
+			"TRACTOR_LOOK_INVERSION: pad inversion=%s changes only pitch, preserving normalized rate and yaw" % inverted)
+		_gamepad_look_axes(Vector2.DOWN)
+		tractor._physics_process(2.0)
+		_check(is_equal_approx(pitch.rotation.x, deg_to_rad(38.0 if inverted else -46.0)),
+			"TRACTOR_LOOK_INVERSION: pad down inversion=%s retains pitch clamp" % inverted)
+		_gamepad_look_axes(Vector2.UP)
+		tractor._physics_process(2.0)
+		_check(is_equal_approx(pitch.rotation.x, deg_to_rad(-46.0 if inverted else 38.0)),
+			"TRACTOR_LOOK_INVERSION: pad up inversion=%s retains opposite clamp" % inverted)
+		_gamepad_look_axes(Vector2.ZERO)
+		tractor.set("_camera_pitch", 0.0)
+		pitch.rotation.x = 0.0
+		tractor.set("_camera_yaw_offset", 0.0)
+		var motion := InputEventMouseMotion.new()
+		motion.relative = Vector2(20.0, 20.0)
+		tractor._unhandled_input(motion)
+		_check(is_equal_approx(pitch.rotation.x, 20.0 * tractor.mouse_sensitivity * direction)
+			and is_equal_approx(float(tractor.get("_camera_yaw_offset")), -20.0 * tractor.mouse_sensitivity),
+			"TRACTOR_LOOK_INVERSION: mouse inversion=%s changes only pitch and preserves sensitivity/yaw" % inverted)
+		motion.relative = Vector2(0.0, 10000.0)
+		tractor._unhandled_input(motion)
+		_check(is_equal_approx(pitch.rotation.x, deg_to_rad(38.0 if inverted else -46.0)),
+			"TRACTOR_LOOK_INVERSION: mouse down inversion=%s retains pitch clamp" % inverted)
+		motion.relative.y = -10000.0
+		tractor._unhandled_input(motion)
+		_check(is_equal_approx(pitch.rotation.x, deg_to_rad(-46.0 if inverted else 38.0)),
+			"TRACTOR_LOOK_INVERSION: mouse up inversion=%s retains opposite clamp" % inverted)
+	tractor.invert_mouse_y = false
+	Input.mouse_mode = previous_mouse_mode
 	_gamepad_look_axes(Vector2.RIGHT)
 	tractor.set_driven(false)
 	tractor.set_driven(true)
