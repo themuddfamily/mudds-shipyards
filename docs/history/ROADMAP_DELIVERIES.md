@@ -15112,3 +15112,72 @@ review remain NOT_RUN. Focused staged save/rebind checks are not full ordinary
 Convoy play, installed crash recovery, endurance, whole-matrix or release proof.
 All36 broad parents and ten phase gates remain open. The existing tooltip
 cleanup-order candidate is unmerged/unproved and not part of this checkpoint.
+
+## Guided checkpoint3d92b91 — original ordinary route accepted3of3
+
+GUIDED[current checkpoint], parent7, is DONE in actual Linux OS-input scope on
+unchanged published checkpoint3d92b91813d9e407e14ee4689c771e45af2c2042. It is
+not GUIDED-FINAL or an acceptance of the wider core/Sandbox/Settings/phase gates.
+The earlier f676c5016 passes remain source-specific. Later flow/player/HUD changes
+are substantial; this selected qualification verifies the current package, not
+an unchanged repeat of an already accepted current candidate.
+
+Low bounded preflight confirms the existing GUIDED family is eligible and not
+parked. Source selection4810bd7bb freezes existing run_native_sortie.py,
+actual ELF, original CAP300/outer330, sequential3/3 fresh processes/profiles and
+unchanged full route. Stop at3/3 or first failure, no repair/retry/cap increase;
+30min split. No source/driver/input/physics/motion/timing edits or re-export.
+Independent production alternative's missing definition remains COMBAT-COURIER's
+exact ordinary encounter launch/weapon/home driver contract, not an automatic
+successor or new presumed runtime gap.
+
+Exact ELF SHA256
+`b067e22c7187447da2dd86c4fe3e079a1f254c8185aa416e1b11daa0722040b9`
+matched the existing publication before every run and after completion. Existing
+Linux archive hash also matches its retained publication. Three commands use the
+same actual ELF and `--route guided`, with distinct owned run1/run2/run3 outputs.
+Each invocation creates a new private XDG profile and authenticated owned Xvfb,
+uses exact-PID XTest focus and explicit Dummy audio/x11/dummy renderer. Independent
+timer/signals and bounded input/game/helper/display cleanup remain unchanged.
+
+### Actual complete runs — no shortened route
+
+| Run | Game PID | Driver seconds | Guarded seconds | Neutral shutdown frames | Physical exit error |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 1 | 1677979 | 49.212 | 49.518 | 91 | 0.170m |
+| 2 | 1678352 | 47.913 | 48.243 | 91 | 0.170m |
+| 3 | 1678643 | 50.147 | 50.416 | 91 | 0.170m |
+
+All three driver/stage exits0, success:true, diagnostic_count0. Each keeps one
+player/ship/default sampler and identical authored tuning,17.691m ordinary walk
+displacement,63.610m excursion, four live range drones destroyed, accepted actual
+weapon fire and interceptor clearance, registered nose-first landing, exact
+occupied home lease/berth, engine OFFLINE, physical E disembark and enabled
+on-foot controls. Every genuine phase is observed in order through COMPLETE;
+raw stage frames preserve91 neutral shutdown frames and0.17m exit error.
+
+This same complete route supplies COMBAT-INTERCEPTOR's named initial Guided
+encounter/actual player weapon clear/home/usable-controls proof in the starter
+Torrent scope. All three raw traces show defender health85→51→17→0 alongside
+actual commanded fire and accepted/resolved shots from the player ship.
+GameFlow17019's destroyed callback begins the return, while
+RangeOpponent's terminal damage invokes _destroy_interceptor; inactive defender
+plus RETURN_TO_YARD with positive player hull does not stand in for a synthetic
+kill. No separate combat delivery/test is counted. Other encounters, craft,
+damage/recovery and the broad combat parent remain open.
+
+**Contract boundary:** the original Guided route proves craft exit. It then
+stops/reaps its game via bounded cleanup; it does not establish normal desktop
+UI exit or repair the native Tooltip problem. There is no completion_marker or
+normal_ui_exit requirement in this original route. No such proof is claimed.
+
+Three guarded stages148.177s; actual driver total147.272s. All18 observed process
+identities absent; all input/helper/game/Xvfb cleanup flags true. Outer profiles
+archived with file hashes/symlink targets verified, duplicate profiles/helpers
+removed; only
+`/srv/mudds-work/guided-checkpoint-3d92b91-20261020/results/` remains, including
+exact source/driver/binary freeze, commands, unchanged raw observations/results
+and process/source/artifact guards. Selection→owned cleanup5.43min versus5–10min
+estimate/30min split. Public checkpoint bytes/notes are unchanged; qualification
+alone requires no identical rebuild. Native Windows/GPU/device/audio/human,
+GUIDED-FINAL, Sandbox/Settings, full matrix and all broad phase gates remain open.

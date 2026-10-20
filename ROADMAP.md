@@ -48,6 +48,7 @@ one bounded backlog edit, no engine run and no gameplay completion claim.
 | LIFE-PACKAGE-DEFINE /7 | DONE as definition only | Five existing outcome groups now have explicit uncovered behavior and runnable/dependency boundaries. Four/twelve-cycle source passes remain accepted; no package journey was rerun or newly accepted. |
 | WALK-OBSERVATION exit diagnosis /7,8,9,29,32 | STOPPED after one capture; Tooltip identified, cause unresolved | PlanetaryDestinationOpenButton Tooltip retains both native root connections across the errors. Attempted native comparator identity remains unknown; full walk FAIL. [Result and stopping boundary](#selected-diagnosis--popup-lifetime-during-normal-exit); no repeat or repair selected. |
 | Process-exit tooltip cleanup /7,8,9,29,32 | WITHHELD; private route PASS, repair INCONCLUSIVE | Sourcebae551d58 preserves marker/restart input semantics;39 focused assertions and full route pass. Active-tooltip regression precondition absent, so no integration, checkpoint or second attempt. |
+| GUIDED[current checkpoint3d92b91] /7; initial Guided interceptor /11 | DONE in recorded Linux ordinary-input scope | Original3/3 complete, default controls,91 neutral frames and actual craft exit. Final-package/other craft/encounter/native gates remain separate; no unchanged repeat scheduled. |
 | Matching RPC-cache templates /25,32 | PARKED; Linux built, Windows cold and incremental attempts timed out | No accepted matching pair; no further compilation or dependent browser route selected. [Retained result](docs/history/ROADMAP_DELIVERIES.md#matching-rpc-cache-templates--stopped-at-windows-compilation-budget). |
 
 The RPC build recipe and browser JSON fixture are delivered in their recorded
@@ -67,26 +68,16 @@ selection against45min cap. [Player changes, actual checks and limits](docs/hist
 RIGHTS-DEFINE is complete as a [finite source-backed family map](docs/ROADMAP_BACKLOG.md#rights-families-and-missing-documents--rights-define),
 not legal clearance or a release gate. Missing project release terms and separate
 historical-media redistribution records remain explicit; the settled creator-
-permission account is preserved. **Selected qualification: GUIDED[current checkpoint3d92b91], parent7.**
-Run the existing ordinary-input Guided route sequentially3/3 on the exact
-published Linux ELF (SHA b067e22c7187447da2dd86c4fe3e079a1f254c8185aa416e1b11daa0722040b9),
-with three fresh profiles/processes and original CAP300 per run/outer330. Prior
-f676c5016 passes remain accepted; substantial later flow/player/HUD changes make
-current-package core acceptance unproved. One low preflight agent verified the
-original contract; root owns execution/analysis/cleanup. No code edits or export.
-
-Proof is unchanged walk/board/launch/four actual drone kills/interceptor clear/
-physical home landing, original neutral engine shutdown, physical E exit and
-usable on-foot controls; driver success/exit0, no diagnostics and owned cleanup.
-This proves craft exit, not normal desktop UI exit; do not add a different route
-or claim process-exit repair. Freeze exact source/driver/binary hashes and three
-commands before execution. Estimate5–10min runs/review, stop at3/3 or first failure,
-no repair/retry/cap increase; split at30min from selection. GUIDED-FINAL, Sandbox,
-Settings, native GPU/device/audio/human and final release gates stay open.
-Before any successor, COMBAT-COURIER still needs its exact ordinary encounter
-launch/weapon/home driver contract defined; no production gap or automatic combat
-qualification is inferred. This is the independent missing definition, not a
-reason to repeat an accepted playthrough.
+permission account is preserved. **GUIDED[current checkpoint3d92b91] accepted3/3.** Three fresh ordinary-input
+runs complete the full training/combat/home/neutral-shutdown/physical-disembark
+route in49.212/47.913/50.147s, zero diagnostics; each retains91 neutral frames
+and0.17m physical exit error. This also supplies the named initial Guided
+interceptor encounter proof in the same Torrent scope, without a second delivery.
+[Exact scope, unchanged contract and actual results](docs/history/ROADMAP_DELIVERIES.md#guided-checkpoint3d92b91--original-ordinary-route-accepted3of3).
+All18 process identities absent; owned cleanup5.43min, no new build/source change.
+GUIDED-FINAL, other encounters, Sandbox/Settings and broader gates remain open.
+No executable card or automatic successor is selected; COMBAT-COURIER still needs
+its exact ordinary launch/weapon/home driver contract defined.
 Tooltip cleanup-order candidate remains unmerged/unproved; no retry is scheduled.
 
 ### Waiting decisions — not executable tasks
