@@ -18502,11 +18502,15 @@ func _get_landing_assist_report_for_ship(candidate: HeroShip) -> Dictionary:
 		) as Dictionary
 		if not StringName(resident_report.get("selected_berth_id", &"")).is_empty():
 			return resident_report
-		# The station has nothing for this pose. Out at the hulk that is the
-		# expected answer, so ask the one streamed berth before reporting that
-		# there is nowhere to land.
+		# Keep resident and HULK priority, then consult the current physical
+		# cargo berth. Streaming owns its lifetime; no berth is cached here.
 		var hulk_report := _get_station_hulk_landing_assist_report(candidate)
-		return hulk_report if not hulk_report.is_empty() else resident_report
+		if not hulk_report.is_empty():
+			return hulk_report
+		var cargo_report := _get_streamed_berth_landing_assist_report(
+			candidate, _get_current_cinder_cargo_berth()
+		)
+		return cargo_report if not cargo_report.is_empty() else resident_report
 	# Compatibility for marker-only custom worlds. Production always uses the
 	# complete non-mutating ShipBerth capture report above.
 	var berth_id := &""
@@ -23431,12 +23435,9 @@ func _release_ship_berth(candidate: HeroShip) -> void:
 # --- Abandoned station hulk (Phase 8: the sector's one enterable destination) -
 
 
-## Resolves a berth id against the resident station registry first and then the
-## streamed sector. `ShipyardWorld` owns nine physical berths; the abandoned
-## hulk's docking face is a tenth that only exists while its Cinder generation
-## is loaded. Both are ordinary `ShipBerth` nodes and both go through this one
-## resolver, so reservation, occupancy, landing and release stay on exactly one
-## code path instead of growing a parallel docking system for the hulk.
+## Resolves resident berths first, then the current streamed HULK and cargo
+## berths. Every destination uses the same reservation, occupancy and release
+## path; the streamed nodes remain owned by their current Cinder generation.
 func _resolve_berth_node(berth_id: StringName) -> ShipBerth:
 	if berth_id.is_empty():
 		return null
@@ -23445,13 +23446,35 @@ func _resolve_berth_node(berth_id: StringName) -> ShipBerth:
 		if is_instance_valid(resident):
 			return resident
 	var hulk := _get_station_hulk()
-	if not is_instance_valid(hulk):
+	if is_instance_valid(hulk):
+		var streamed := hulk.get_dock_berth()
+		if is_instance_valid(streamed) and streamed.get_berth_id() == berth_id \
+				and streamed.is_inside_tree():
+			return streamed
+	var cargo := _get_current_cinder_cargo_berth()
+	return cargo if cargo != null and cargo.get_berth_id() == berth_id else null
+
+
+## The cargo access is a child of the coordinator's current streamed cluster,
+## outside World's resident berth registry. Refuse retired or moved endpoints
+## rather than retaining a node or installing a second berth registry.
+func _get_current_cinder_cargo_berth() -> ShipBerth:
+	if not is_instance_valid(world) or not world.is_inside_tree() \
+			or world.is_queued_for_deletion():
 		return null
-	var streamed := hulk.get_dock_berth()
-	if is_instance_valid(streamed) and streamed.get_berth_id() == berth_id \
-			and streamed.is_inside_tree():
-		return streamed
-	return null
+	var cluster := world.get_nearby_sector_cluster()
+	if not is_instance_valid(cluster) or not cluster.is_inside_tree() \
+			or cluster.is_queued_for_deletion():
+		return null
+	var access := cluster.get_cinder_cargo_access()
+	if not is_instance_valid(access) or not access.is_inside_tree() \
+			or access.is_queued_for_deletion() or not cluster.is_ancestor_of(access):
+		return null
+	var berth := access.get_berth()
+	if not is_instance_valid(berth) or not berth.is_inside_tree() \
+			or berth.is_queued_for_deletion() or berth.get_parent() != access:
+		return null
+	return berth
 
 
 ## The live hulk, or null. The sector streams, so this is null at the station,
@@ -23470,13 +23493,22 @@ func _get_station_hulk() -> AbandonedStationHulk:
 ## `ShipyardWorld.get_landing_assist_report()` publishes, so the existing
 ## landing path reads one contract whichever berth answered.
 func _get_station_hulk_landing_assist_report(candidate: HeroShip) -> Dictionary:
+	var hulk := _get_station_hulk()
+	return _get_streamed_berth_landing_assist_report(
+		candidate, hulk.get_dock_berth() if is_instance_valid(hulk) else null
+	)
+
+
+## Both streamed destinations use the existing physical full-hull evaluator;
+## selection alone never reserves a lease or grants cargo access.
+func _get_streamed_berth_landing_assist_report(
+	candidate: HeroShip,
+	berth: ShipBerth,
+	) -> Dictionary:
 	if not is_instance_valid(candidate) or candidate.is_destroyed():
 		return {}
-	var hulk := _get_station_hulk()
-	if not is_instance_valid(hulk):
-		return {}
-	var berth := hulk.get_dock_berth()
-	if not is_instance_valid(berth) or not berth.is_inside_tree():
+	if not is_instance_valid(berth) or not berth.is_inside_tree() \
+			or berth.is_queued_for_deletion():
 		return {}
 	var definition := candidate.get_ship_definition()
 	if definition == null or not definition.is_definition_valid() \
