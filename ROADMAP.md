@@ -38,143 +38,25 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 ## Execution now
 
-**Latest planning task: PLAN-NEXT parent 5 — 36 concrete next steps.**
-The [existing parent crosswalk](docs/ROADMAP_BACKLOG.md#coverage-of-the-original-remaining-outcomes)
-now gives every parent one unfinished named child, the result that proves it,
-and its exact dependency. This replaces the vague next-step cells; it does not
-add another tracker or accept gameplay. Original parent wording, all child
-outcomes/ten phase gates, accepted source scopes and parked budgets remain.
-Three disjoint source reviews covered parents 1–12, 13–24 and 25–36; root integrated
-the result. Completed weapon/damage definitions and delivered component fixes
-are no longer described as missing work. Shared world/matrix/damage outcomes
-are explicitly shared rather than counted twice.
+**Next capability: ACCESS-TITLE-FOCUS — readable Begin Shift focus**, parents12/29.
+Not started; baseline paint measurements are still required. This is the only
+selected implementation card. Waiting decisions and parked failures below are
+not an executable queue.
 
-This is still a development alpha. Missing specifications, policy decisions,
-actual presentation findings and external hardware prevent a defensible total
-job count or finish date. Existing independent production alternatives remain
-blocked on the already-asked Hauler stock and navigator-refusal choices; Bomber
-rearming still needs its named policy definition. These are concrete dependencies,
-not reasons to rerun a parked qualification. No successor is automatically READY.
-Checks PASS: all 36 original promise/family columns and every existing table
-identifier retained, original phase-gate block unchanged, added local link valid,
-and diff whitespace clean. Completed within the original 30min cap. No temporary
-files were created; no engine run or playable checkpoint was needed.
+| Field | Bounded assignment |
+| --- | --- |
+| Player result | The initially focused Begin Shift label stays readable on its bright button fill, including hover/press and existing accessibility palettes. |
+| Prerequisite | Use the actual GameHUD title button and existing palette contrast helper to record resolved font/fill colors before editing. The recorded screenshot is a finding, not a measured ratio. If the paint already satisfies the applicable contract, stop without a speculative correction. |
+| Files / owner | Root integrates; one implementer owns only `scripts/ui/hud.gd` and the existing `tests/accessibility_presets_test.gd`. Preserve geometry, labels, navigation, focus outline and palette switching. No global theme change. |
+| Focused proof | Extend the existing actual-HUD test across the four existing palettes and both contrast modes. Resolve normal/focus/hover/pressed paint against its actual fill using the existing contrast helper; establish the applicable existing threshold before the correction. Run `accessibility_presets_test.gd`, `controller_pause_navigation_prompt_test.gd` and `hud_panel_layout_test.gd` via the existing Godot test entry points. |
+| Visible / package proof | Compare the actual default1024x768 focused title view with the retained before image, on private Xvfb with Dummy audio. After focused checks, use the existing clean-commit paired export workflow, strict startup checks and package audit; publish checkpoint/notes in repository builds. This does not qualify full Main, native devices or final release. |
+| Estimate / limits | Baseline and implementation25–40min; checks/export/cleanup15–20min; whole card60min. Before engine execution freeze exact invocations and per-stage caps within this total. First unexpected failure stops the card; no automatic retry or broader theme audit. |
+| Done | Measured defect corrected, focused tests and same-view review pass, playable checkpoint committed/pushed with actual limits, owned scratch cleaned. If baseline already meets the contract, close as NO CHANGE with actual measurements and no redundant build. Otherwise retain the failed stage and one concrete reopening requirement. |
 
-**NET-STALL current-source qualification DONE on3d6b1b513.** The original full
-independent host/client suite passes:160 terminal host assertions, zero diagnostics,
-actual client1688706 and wrapper1688692 exit0. Both600-client-step stalls retain
-original2s fresh roll/landing checks, exact source/claim/stream, no ahead-tick
-refusals, and the full surrounding handback/reboard/landing/reuse/disconnect
-contract. No narrow immediate-stall probe or deadline change.
-
-Catalog1.692s, fresh import20.693s, full matrix stage161.137s (suite155.468s);
-all three frozen stages PASS, cumulative183.522s. This is one filtered original
-source suite, not final full-matrix, native/hardware/device/audio/endurance or
-ordinary Halyard/yaw-handback qualification. Their separate gates remain.
-All 35 observed process identities are absent; unique profiles archived/verified
-and owned worktree/cache/helpers removed. Closure 5.72min within 30min.
-Game source unchanged; no duplicate checkpoint. [Full result and cleanup](docs/history/ROADMAP_DELIVERIES.md#original-host-stall-route--current-source-accepted).
-Do not repeat this accepted source unchanged. Independent production alternatives
-still need the named Hauler stock, navigator refusal and Bomber rearm definitions.
-
-**Habitat common-room arrival review PARKED: no image.** On clean source
-`8a6339b91`, fresh import passes20.652s, but the one full-Main player-height
-Forward+ readback times out180.842s before a PNG or view metadata; actual X11/
-llvmpipe device startup is logged. Cumulative201.494s, no game-source edit,
-visual finding/no-finding, native qualification or new checkpoint. Supervisor
-reaped its owned processes; no repair, second capture or cap increase.
-
-The private helper was configured to use the actual Habitat common-entry marker,
-measured avatar eye/capsule and player FOV, existing Main/lighting and no actor/
-geometry fixtures. It did not emit metadata proving that stage was reached.
-The old integrated camera's y2.55 is not a standing-eye substitute. No isolated
-room capture or different branch may be used to claim this failed world view.
-A concrete supported capture-boundary change is required before separately
-selecting another full-Main attempt. [Result and retained scope](docs/history/ROADMAP_DELIVERIES.md#habitat-arrival-view--readback-timed-out-before-image).
-Accepted Habitat walking/rest/service outcomes and other unreviewed views remain.
-All 6 observed process identities are absent; 298 unique profile files archived/
-verified, owned worktree/cache/profiles/helper duplicates removed. Closure 5.8min
-within the original 30min cap.
-
-**Delivered on checkpoint19e7990: title-menu actions remain on-screen.** Actual
-1024x768 default-profile HUD capture showed Multiplayer entirely below the window
-at y771–811. The existing bottom-anchored menu now grows upward to fit content;
-same-view capture shows it at y666–706, with Begin Shift focus and authored text/
-scale retained. One production property plus existing HUD regression coverage;
-no controls removed or fonts shrunk.
-
-Source19e799036 is integrated/pushed. Full HUD panel suite including eight actual
-title viewport cases, controller navigation96 and Credits25 pass. Same frozen
-software Forward+ before/after views, paired exports, three strict menu-ready
-startups and actual1521-entry package/archive audit all pass first attempt:
-11 post-fix stages157.555s;185.901s including baseline review. EXE/checkpoint ZIP/
-notes are in builds/windows, matching Linux package in builds/linux. All56 observed
-process identities absent;366 unique profile files archived/hash-verified and
-owned worktree/cache/profiles/helpers removed. Closure9.84min within original30min.
-[Actual source/result/limits](docs/history/ROADMAP_DELIVERIES.md#title-menu-overflow--startup-actions-kept-on-screen).
-
-This fixes overflow. Focused Begin Shift light text on cyan remains the named
-ACCESS-TITLE-FOCUS finding, pending exact color/contrast proof and its own bounded
-correction. Other title states/scales/saved recovery, ordinary browser/credits
-return, full-Main/world, actual devices and native/final gates remain open.
-Earlier Guided3/3 stays scoped to checkpoint3d92b91; it is not transferred to this
-new package. Bomber rearm policy is asked and unanswered; no default inferred.
-
-| Work | Actual state | Completion / next boundary |
-| --- | --- | --- |
-| ACCESS-TITLE overflow /29 | DONE checkpoint19e7990 | Actual before/after review and retained-control regression pass; packaged. Focus contrast remains separate, no full accessibility/native claim. |
-| LIFE-PACKAGE-DEFINE /7 | DONE as definition only | Five existing outcome groups now have explicit uncovered behavior and runnable/dependency boundaries. Four/twelve-cycle source passes remain accepted; no package journey was rerun or newly accepted. |
-| WALK-OBSERVATION exit diagnosis /7,8,9,29,32 | STOPPED after one capture; Tooltip identified, cause unresolved | PlanetaryDestinationOpenButton Tooltip retains both native root connections across the errors. Attempted native comparator identity remains unknown; full walk FAIL. [Result and stopping boundary](#selected-diagnosis--popup-lifetime-during-normal-exit); no repeat or repair selected. |
-| Process-exit tooltip cleanup /7,8,9,29,32 | WITHHELD; private route PASS, repair INCONCLUSIVE | Sourcebae551d58 preserves marker/restart input semantics;39 focused assertions and full route pass. Active-tooltip regression precondition absent, so no integration, checkpoint or second attempt. |
-| GUIDED[checkpoint3d92b91] /7; initial Guided interceptor /11 | DONE in recorded Linux ordinary-input scope | Original3/3 complete, default controls,91 neutral frames and actual craft exit. Final-package/other craft/encounter/native gates remain separate; no unchanged repeat scheduled. |
-| Matching RPC-cache templates /25,32 | PARKED; Linux built, Windows cold and incremental attempts timed out | No accepted matching pair; no further compilation or dependent browser route selected. [Retained result](docs/history/ROADMAP_DELIVERIES.md#matching-rpc-cache-templates--stopped-at-windows-compilation-budget). |
-
-The RPC build recipe and browser JSON fixture are delivered in their recorded
-source scopes; they are no longer current tasks. The cache callback repair is
-still an unverified candidate. Empty release callable metadata does not prove a
-cause, and no shared cause with the Window failure is established.
-
-**Delivered on checkpoint3d92b91: saved Convoy objective and planetary ambience credits.**
-Cold-restored/wrong-craft Convoy objectives now explain the paused save and name
-the craft to board; accepted rebind restores live progress. Credits now include
-the three actual procedural surface ambience loops. Source3d92b9181 is integrated
-and pushed. Existing Convoy20/Credits25 assertions, actual Windows-payload credits,
-paired exports, three strict startups and artifact audit all PASS first attempt:
-10 stages203.594s, all45 process identities absent, owned cleanup at9.0min from
-selection against45min cap. [Player changes, actual checks and limits](docs/history/ROADMAP_DELIVERIES.md#saved-convoy-objective-and-planetary-credits--shipped-on-3d92b91).
-
-RIGHTS-DEFINE is complete as a [finite source-backed family map](docs/ROADMAP_BACKLOG.md#rights-families-and-missing-documents--rights-define),
-not legal clearance or a release gate. Missing project release terms and separate
-historical-media redistribution records remain explicit; the settled creator-
-permission account is preserved. **GUIDED[checkpoint3d92b91] accepted3/3.** Three fresh ordinary-input
-runs complete the full training/combat/home/neutral-shutdown/physical-disembark
-route in49.212/47.913/50.147s, zero diagnostics; each retains91 neutral frames
-and0.17m physical exit error. This also supplies the named initial Guided
-interceptor encounter proof in the same Torrent scope, without a second delivery.
-[Exact scope, unchanged contract and actual results](docs/history/ROADMAP_DELIVERIES.md#guided-checkpoint3d92b91--original-ordinary-route-accepted3of3).
-All18 process identities absent; owned cleanup5.43min, no new build/source change.
-GUIDED-FINAL, other encounters, Sandbox/Settings and broader gates remain open.
-**COMBAT-COURIER clear attempt STOPPED; candidate withheld.** Source
-`cb9d76fa5` is pushed on `feat/courier-ordinary-route-20261020`, unmerged.
-Python82, fresh import, privacy, private Linux export and strict menu startup
-pass. One full ordinary attempt fails after70.377s: real dispatch after270
-physics frames, then courier `ESCAPED` at27.933 scenario seconds/1400m with78/78
-hull and no player hit/kill receipt. Commanded fire alone did not pass. Zero
-engine diagnostics; inputs/helper/game/Xvfb cleaned up. No home completion,
-repair/retry, Windows export or public checkpoint. Original full-route cap and
-first-failure stop remain;165.917s cumulative checks.
-
-The [Courier breakdown](docs/ROADMAP_BACKLOG.md#courier-intercept--bounded-outcomes)
-now separates clear, escape, phase withdrawal, distance withdrawal and recovery.
-These are separate outcomes, not five READY jobs or a project completion count.
-The failed clear requires a concrete supported change before a separately frozen
-attempt; the other routes must be selected independently. Source-only diagnosis
-found that generic `shot_accepted` may be a stale range receipt. Fresh Courier-
-window emission sequence/ray/resolver status is missing; no camera, weapon or
-aim defect was established, so no repair or runtime retry is selected. Existing Guided3/3
-and public checkpoint3d92b91 remain accepted in their recorded scopes.
-[Source, actual result and retained artifacts](docs/history/ROADMAP_DELIVERIES.md#courier-ordinary-clear--escaped-without-player-damage).
-Tooltip cleanup-order candidate remains unmerged/unproved; no retry is scheduled.
+Do not select another diagnostic chain merely because this card ends. Review its
+result against the parent, then select one independent player/build outcome.
+The already-asked Hauler stock and navigator-refusal choices are production
+alternatives once answered; no answer or automatic successor is inferred.
 
 ### Waiting decisions — not executable tasks
 
@@ -191,6 +73,22 @@ Other scope, evidence, hardware and authorization dependencies remain in the
 [backlog](docs/ROADMAP_BACKLOG.md#external-dependencies-outside-the-ready-queue).
 [Parked failures](#parked-failures-and-dependent-work) require their recorded
 reopening conditions; they are not the next executable queue.
+
+## Accepted work — source limits retained
+
+Detailed timings, assertions, process inventories and cleanup records belong in
+the existing history. These are accepted slices, not closed broad parents.
+
+| Outcome | Accepted scope / remaining boundary |
+| --- | --- |
+| Title overflow | [Checkpoint19e7990](docs/history/ROADMAP_DELIVERIES.md#title-menu-overflow--startup-actions-kept-on-screen): all title actions fit the measured viewports. Focus contrast is the separate next card above; other title states and full accessibility remain open. |
+| Guided / initial interceptor | [Checkpoint3d92b91 ordinary3/3](docs/history/ROADMAP_DELIVERIES.md#guided-checkpoint3d92b91--original-ordinary-route-accepted3of3), including home/shutdown/physical exit. Acceptance stays on those bytes; new19e7990 and final candidate are not covered. |
+| Saved Convoy / credits | [Checkpoint3d92b91](docs/history/ROADMAP_DELIVERIES.md#saved-convoy-objective-and-planetary-credits--shipped-on-3d92b91): paused-save guidance and planetary ambience attribution. Full Convoy play/endurance remains open. |
+| Host-stall recovery | [Source3d6b1b513](docs/history/ROADMAP_DELIVERIES.md#original-host-stall-route--current-source-accepted): original full independent suite, both600-step stalls and original2s actions. No unchanged rerun; ordinary handback, full matrix, final package/native/endurance remain separate. |
+| Future save envelope | [Source4b66b3548](docs/history/ROADMAP_DELIVERIES.md#future-save-outer-envelopes--sourcelinux-real-file-case-accepted): real-file Linux refusal/preservation. Other formats, installed/native/UI recovery remain open. |
+| Corrupt-primary preservation | [Checkpoint9326614](docs/history/ROADMAP_DELIVERIES.md#corrupt-save-preservation--shipped-on-9326614): retain damaged bytes before replacement and block conflicting retained copies. Broader recovery remains open. |
+| Blocked repair feedback | [Checkpoint49047eb](docs/history/ROADMAP_DELIVERIES.md#blocked-save-repair-feedback--shipped-on-49047eb): known preservation refusal is explained without changing persistence policy. |
+| Planning definitions | [36-parent crosswalk](docs/ROADMAP_BACKLOG.md#coverage-of-the-original-remaining-outcomes) names each next child and dependency; [packaged lifecycle definition](docs/ROADMAP_BACKLOG.md#packaged-ordinary-lifecycle--life-package-define) names uncovered cases. Neither is gameplay acceptance or a whole-project estimate. |
 
 ## Turning the remaining scope into executable work
 
@@ -219,112 +117,33 @@ definition. Do not expand an investigation into a succession of adjacent probes.
 The earlier RPC-cache capture is complete. Matching patched templates remain
 unavailable and Windows compilation is parked; neither is an automatic next task.
 
-## Unsupported-save protection — completed scoped check
-
-**SAVE-UNSUPPORTED[future outer envelope / real files]**, parents31/32, is DONE
-in source/Linux real-file scope on4b66b3548. A legitimately loaded store and two
-fresh child processes refuse destructive operations after a future envelope is
-published at primary/tmp/backup; exact names, bytes, Unix modes and unrelated
-files remain. The corrected suite passes118 parent assertions and23 per child,
-with no diagnostics or opaque-marker leak. All15 observed process identities
-are absent. No production change or new gameplay checkpoint was needed.
-
-[Original failed caller, corrected check and retained scope](docs/history/ROADMAP_DELIVERIES.md#future-save-outer-envelopes--sourcelinux-real-file-case-accepted)
-remain authoritative. Cumulative checks26.874s include the original failure;
-other formats, installed/native/UI recovery and broad parents stay open. This
-accepted check is history, not an executable task.
-
-## Save-preservation repair delivered
-
-**RECOVERY-FIX[corrupt primary preservation] / SAVE-CORRUPT**, parents31/32:
-accepted on source/checkpoint **9326614**. Repair now verifies a retained copy of
-the current damaged primary before replacement across commit, interrupted-save
-promotion and explicit backup restoration. A different occupied recovery copy
-blocks replacement; identical recovery bytes permit repair.
-
-Store124, binding11 and real-file crash129 assertions pass, including a fresh
-process preserving the conflicting fixture and repairing the matching fixture.
-Paired exports, three strict menu-ready startup checks and package parity pass.
-[Changes, original failed test declaration, actual checks and limits](docs/history/ROADMAP_DELIVERIES.md#corrupt-save-preservation--shipped-on-9326614).
-Other corrupt/unsupported formats, installed recovery cuts, active-run policy
-choices and all broad parent/phase gates remain open.
-
-## Blocked recovery feedback delivered
-
-**RECOVERY-FIX[corrupt primary preservation] / SAVE-CORRUPT**, parents31/32:
-checkpoint **49047eb** explains the known preservation refusal as blocked, with
-the damaged save and verified backup retained. It retires confirmation and keeps
-the internal reason code out of the banner; real publication ambiguity retains
-its existing message. Persistence/retry policy is unchanged.
-
-HUD29, confirmation integration12 and GameFlow18 assertions pass; all10 frozen
-source/package stages pass without retries. [Actual outcome and limits](docs/history/ROADMAP_DELIVERIES.md#blocked-save-repair-feedback--shipped-on-49047eb).
-This finishes the named feedback follow-up, not a broad recovery parent.
-
 ## Observation walk — normal exit remains blocked
 
-**WALK-OBSERVATION**, parents7/9, remains OPEN. Caller e390b97ba with unchanged
-private game4c58efa27 exercised all54 waypoints/346.068m: actual ObservationPad,
-60 viewing frames with lens-directed camera, then supported return to original
-hub with the same Player. Actual focused Exit activation then emits two root
-Window nonexistent-connection errors (`focus_entered` / `tree_exited`); normal
-exit0 is not established. Full task is FAIL, not a shortened travel acceptance.
-
-Root self-descendant and native-float caller failures are retained; reviewed
-numeric correction uses existing finite1e-6 nominal bounds PLUS exact initial
-raw-geometry stability. Only two Python files changed,82 tests pass; actual game
-ELF hash/startup/artifact results reused without another export. Caller branch
-`qual/observation-walk-20261020` pushed/unmerged; no gameplay repair yet.
-[Actual result and retained failures](docs/history/ROADMAP_DELIVERIES.md#observation-numeric-contract--runtime-exit-failure).
-
-Next requires a separately selected cause/owner for the Window lifetime/signal
-failure during normal UI exit. Similar prior diagnostics do not establish a
-shared cause. The passive diagnosis below has now stopped; no gameplay repair,
-acceptance retry or cap increase is selected. Original full
-hub→Observation/look→hub/UI-exit criteria remain. Cumulative333.882s checks and
-24.8min original freeze→cleanup stay inside90min split; no budget reset.
-Latest public49047eb unchanged; unique raw/private archives retained, duplicate
-checkouts/ELFs/helpers/profiles cleaned. The later diagnostic capture below
-retains its own package/result and stops without a gameplay repair.
+WALK-OBSERVATION remains unaccepted: completing all54 waypoints/view/home does
+not pass the required normal UI exit. See its parked row below and the existing
+[numeric caller result](docs/history/ROADMAP_DELIVERIES.md#observation-numeric-contract--runtime-exit-failure).
 
 ### Selected diagnosis — popup lifetime during normal Exit
 
-**STOPPED after one capture; Popup identified, native cause unresolved.** Source
-9743b650f is committed/pushed on its diagnostic branch and remains unmerged.
-Five import/privacy/export/strict-startup/artifact checks pass. The full ordinary
-route still FAILS90.724s on the two original root signal errors after all54
-waypoints, actual60-frame view and supported home return. No normal exit0 or
-WALK acceptance; that diagnosis published no checkpoint.
-
-The receiver is a visible embedded **TooltipPanel beneath
-PlanetaryDestinationOpenButton**. Both root outgoing and Popup incoming
-connections retain the same stored hashes immediately before and after the
-errors. No connection-removal event was observed. The exact missing fact is the
-attempted native Callable comparator/hash/data versus the stored Callable;
-neither its cause nor a production repair is established. Similar Board/RPC
-errors do not establish shared ownership.
-
-[Original frozen selection, actual event bracket, validation and limits](docs/history/ROADMAP_DELIVERIES.md#observation-popup-lifetime-capture--failure-boundary-identified)
-retain the full contract and failed result. Six stages181.145s; cumulative
-checks515.027s with all original failures retained. All31 new process identities
-absent, inputs/helper/game/Xvfb released; unique package/raw logs/profile archive
-retained. Owned checkout/cache/helpers/profiles cleaned at47.37min from original
-freeze, inside the unchanged90min budget. The one later cleanup-order candidate is recorded above; it does not establish
-a repair. No further probe/repair/retry selected.
+The diagnosis is stopped. The [retained capture](docs/history/ROADMAP_DELIVERIES.md#observation-popup-lifetime-capture--failure-boundary-identified)
+identifies the TooltipPanel below PlanetaryDestinationOpenButton; both stored
+connection pairs remain across the error. Attempted native Callable identity and
+cause are unresolved; no shared cause with Board/RPC is established. The later
+cleanup-order candidate remains unmerged/inconclusive. Preserve the complete
+route, original90min budget and cumulative733.226s across the four retained
+failures; no automatic probe, repair, retry or cap increase is selected.
 
 ## Latest playable result
 
-**Checkpoint3d92b91** fixes misleading live progress on a paused saved Convoy
-escort and adds the missing planetary ambience attribution. It retains earlier
-save-preservation/blocked-feedback, browser and accepted gameplay improvements.
+**Checkpoint19e7990** keeps the startup Multiplayer action on-screen when the
+bottom-anchored title menu grows. It retains the earlier Convoy, credits and save
+improvements. Focus contrast remains separate unfinished work.
 
-[Windows checkpoint ZIP](builds/windows/MuddsShipyards-3d92b91-checkpoint.zip),
-[build notes](builds/windows/MuddsShipyards-3d92b91-notes.txt),
-[actual validation and scope](docs/history/ROADMAP_DELIVERIES.md#saved-convoy-objective-and-planetary-credits--shipped-on-3d92b91).
-Full Convoy play/endurance, native Windows/GPU/device/audio/human review and final
-release remain open. Native-tooltip shutdown failure and its unproved cleanup
-candidate are not resolved by this independent delivery. No broad parent or
-phase closes from these two content/UI changes.
+[Windows checkpoint ZIP](builds/windows/MuddsShipyards-19e7990-checkpoint.zip),
+[build notes](builds/windows/MuddsShipyards-19e7990-notes.txt),
+[actual validation and limits](docs/history/ROADMAP_DELIVERIES.md#title-menu-overflow--startup-actions-kept-on-screen).
+Native Windows/GPU/device/audio/human review and final release remain open.
+Guided3/3 on3d92b91 is not transferred to this package.
 
 ## Parked failures and dependent work
 
@@ -333,6 +152,9 @@ contracts and cumulative attempt records remain in the retained history.
 
 | Outcome | Last actual result | Condition before more work |
 | --- | --- | --- |
+| Habitat common-entry view /9,12 | [Source8a6339b91](docs/history/ROADMAP_DELIVERIES.md#habitat-arrival-view--readback-timed-out-before-image): import passes; full-Main player-height readback times out180.842s before PNG or view metadata. Cumulative201.494s; no observed defect/no-finding. | PARKED. Concrete supported capture-boundary change before selection; no renderer/room substitute, cap increase or unchanged retry. Actual eye stage was not proved reached; accepted Habitat runtime scopes remain. |
+| Courier clear /11 | [Candidatecb9d76fa5](docs/history/ROADMAP_DELIVERIES.md#courier-ordinary-clear--escaped-without-player-damage), pushed/unmerged: prechecks pass; ordinary attempt fails70.377s, ESCAPED at1400m, hull78/78, no player hit/kill or home completion. Cumulative165.917s. | PARKED/withheld. Fresh Courier-window emission/ray/resolver facts are missing; generic shot receipt can be stale. No weapon/aim cause established, repair/retry or public checkpoint selected. Preserve original route/caps; other Courier outcomes need separate selection. |
+| Matching RPC-cache templates /25,32 | [Linux built; Windows cold/incremental compilation timed out](docs/history/ROADMAP_DELIVERIES.md#matching-rpc-cache-templates--stopped-at-windows-compilation-budget). No accepted matching pair; callback repair is unverified. | PARKED; no further compilation or dependent browser attempt selected. Existing recipe/JSON fixture remain delivered; empty callable metadata and similar Window errors establish no cause. |
 | BROWSER-ORDINARY /25 | Candidatee944f52:89Python/privacy/35join/package checks pass, actual routeFAIL40.554s at NetworkSession tree_exited disconnect error; cleanup fixture command rejected. | PARKED/unmerged/withheld. Subsequent passive capture identifies retained native RPC-cache callback; it does not qualify the route. Full continuation NOT_RUN. Original raw data/eight builds preserved; scratch cleaned. |
 | AFT-CONSOLE-VIEW /9,12 | Standalone actual-module Xvfb/Forward+/llvmpipe capture FAIL120.485s after camera setup; no image or visual finding. | PARKED; source/root cause unproven. No cap increase, alternate backend/view or retry selected. Owned scratch cleaned; raw results retained. |
 | WALK-OBSERVATION /7,9 | Two caller failures retained; numeric e390/unchanged game4c58 completes54-goal travel/view/home prefix then FAIL89.064s on rootWindow signal disconnections after focused Exit. | PARKED; full task remains unaccepted, no clean exit0. Capture identifies the Tooltip with stored pairs still present across errors. Laterbae551d58 private route PASS, but no visible tooltip/retirement, so repair acceptance INCONCLUSIVE and candidate withheld. No second attempt selected. |
