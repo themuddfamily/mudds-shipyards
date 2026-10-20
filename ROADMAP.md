@@ -76,22 +76,26 @@ destroyed4855, both opponents38health. Two kills/clear, third strict home/OFFLIN
 physical exit and normal UIexit remain missing. Model success does not qualify
 native control. No damage/health/AI/timer/cap/acceptance change was made.
 
-Actual emitted rays pass5.535m/4.792m from Lead's first post-result observed center.
-These are not exact collision-query transforms; dispatch/trigger latency is not
-recorded, so its causal contribution remains unproved. Next same-task boundary:
-correlate actual trigger dispatch/receipt timing and reticle/ray with moving target;
-do not repeat another full route or infer a production weapon defect from misses.
+Retained shot geometry: camera ray/Lead-center separation1.829/2.117m;
+emitted muzzle ray5.535/4.792m, consistent with1000m fallback convergence.
+Actor centers are inside real collision boxes and masks agree. Qualifying aim
+observations precede first shot results6–8frames; exact dispatch/query times remain
+unrecorded. Post-tick geometry is not exact query-time proof. No production weapon
+or collision defect is established.
 
-Original12:24–13:24UTC/60min selection retained; separately bounded13:22–13:42
-tracking phase stopped on its first failed full route. Costs1163.527+111.042
-=1274.569s supervised stages, without nested-driver double counting. Exact audited
-aa26baf game reused for caller-only revision; no duplicate export. All input and
-process cleanup confirmed,200 owned identities absent. Source and failed packages/
-raw logs/profile/helper records preserved; reopened owned worktree, temporary
-profiles, helpers and extracted ELF removed. Only
-`/srv/mudds-work/wing-route-correction-20261020/results/` remains. NativeWindows,
-nativeGPU, actual audio and human review stayNOT_RUN. Branch remains protected
-until accepted changes are integrated or its unique unfinished work is accounted.
+**Selected same-task correction: normal held-fire tracking,13:34–13:49UTC/15min.**
+Retain prior original60min and tracking20min selections/cumulative1274.569s costs.
+The static F pulse forces zero steering throughout delayed shot execution; replace
+onlyWing's firing pause with real native held F while tracking actual live targets,
+release on actual clear/transition. Keep acknowledged mouse control and relative
+angular-rate tracking. OriginalArrow timedFpulse remains unchanged. Actual two
+fresh player-weapon kills, all three sorties/strict home/OFFLINE physical exits and
+normalUIexit remain decisive; no internal precision gate substitutes for hits.
+One implementer owns onlyWingdriver/existingPython tests; independent review.
+Source estimate3min; focused checks120s; one full isolatedX11/Dummy routeCAP300/
+outer360s if source andfocused checks pass. Exact auditedaa26baf game retained,
+no re-export forcaller-only change. First failure stops; no automatic next repair.
+OriginalWindows/nativeGPU/audio/human gates remainNOT_RUN. No unrelatedbranch.
 
 **Ready production cards: 0. Prepared production cards waiting on decisions: 3.**
 The decisions below remain pending; they do not prevent finishing independently
