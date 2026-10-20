@@ -57,50 +57,41 @@ in19th retirement. No production fix or full-suite pass; source archived under
 profiles/helpers removed. No engine run remains active.
 
 **Current existing task: COMBAT-WING, parent11 — FAILED, unmerged.**
-The original12:24–13:24UTC/60min selection stopped at its first new full-route
-failure; no unrelated roadmap work was started. Sourceaa26baf58 is clean and
-pushed on the existing `feat/wing-ordinary-route-20261020` branch. No Wing
-checkpoint was published and the full deliverable remains open.
+Clean source `0c5788dd0` is pushed on the existing
+`feat/wing-ordinary-route-20261020` branch. No unrelated task/branch selected;
+no Wing checkpoint published and no whole combat deliverable claimed.
 
-Actual progress: ordinary board approach and normalL callers corrected; board
-encounters now withdraw through existing standdown when accepted automatic landing
-starts. Both prerequisite Heavy/Torpedo sorties complete real withdrawals, strict
-home docks, OFFLINE waits and physical exits. Admission40/director151 assertions,
-driver99/observer22 assertions, fresh Windows/Linux exports, all three strict
-startup checks and actual1521-entry package identity audit pass.
+Working route portions: ordinary board E and normalL corrected; board encounter
+landing authorization withdraws through existing standdown. Both Heavy/Torpedo
+sorties repeatedly pass real withdrawals, strict home docks, OFFLINE waits and
+physical exits. Landing admission40/director151, observer22, fresh paired exports,
+three strict startups and actual1521matching package entries remain retained.
 
-Full route still FAIL97.220s: Wing starts with67.333 hull; no player shot is
-submitted under the precision camera firing gate, no hits/kills occur, player
-destroyed4763, both Wing opponents retain38health. The earlier loose-hull aim
-attempt submitted two misses. Camera steering is therefore NOT qualified. Two
-actual Wing kills/clear, third strict home/OFFLINE physical exit and normal UIexit
-remain missing. No health/damage/AI/timer/cap or acceptance relaxation was made.
-This is a concrete caller-control failure; a production weapon defect is unproved.
+Latest caller correction tracks actual relative angular rate and measures mouse
+response/acknowledgment delay. Existing100driver tests PASS, including combined
+pitch/yaw .4rad/s,1/4/7frame delays and reduced authority, actual precision and
+repeated F admission inside200frames. Full route still FAIL99.709s: two distinct
+accepted/resolved player shots both MISS, no hits/kills; entered Wing67.333hull,
+destroyed4855, both opponents38health. Two kills/clear, third strict home/OFFLINE
+physical exit and normal UIexit remain missing. Model success does not qualify
+native control. No damage/health/AI/timer/cap/acceptance change was made.
 
-Actual supervised stage cost retained:344.298+224.230+57.463+292.740+244.796
-=1163.527s. No repeated unchanged run. NativeGPU/nativeWindows/human review remain
-NOT_RUN. All inputs released;190 observed owned process identities absent. Failed
-candidate packages, raw logs, exact source and helper/profile records preserved;
-owned worktree, temporary profiles and live helpers removed at13:17UTC. Only
-`/srv/mudds-work/wing-route-correction-20261020/results/` remains for this attempt.
-**Selected same-task correction: moving-target control,13:22–13:42UTC/20min.**
-Original12:24–13:24 card and1163.527s cumulative stage cost remain recorded above;
-this is additional bounded work on the same branch, not a reset or another task.
-Actual199fightframes show maxcameraalignment.999572297 (never>.99998), nozero
-mouse correction,173/198unchanged consecutive attitudes and only25changes.
-Camera/hullaxes differ≤3e-7; static Arrow proportional aiming cannot keep up with
-this target. Raw input send/pending timings are unavailable; don't invent them.
+Actual emitted rays pass5.535m/4.792m from Lead's first post-result observed center.
+These are not exact collision-query transforms; dispatch/trigger latency is not
+recorded, so its causal contribution remains unproved. Next same-task boundary:
+correlate actual trigger dispatch/receipt timing and reticle/ray with moving target;
+do not repeat another full route or infer a production weapon defect from misses.
 
-Owner: one implementer on existing Wing controller and Python tests; independent
-review of moving-target math/input ordering. Establish angular-rate tracking from
-fresh actual relative position/velocity and observed frame intervals. No weapon
-projectile lead or gameplay tuning. A moving-target convergence check must exercise
-real pixel→attitude mapping and delayed observed acknowledgement before another
-expensive full route. Preserve original actual two-kill/three-sortie/home/OFFLINE/
-physicalexit/UIquit acceptance. Source estimate5min; focused checks120s; one full
-isolatedX11/Dummy routeCAP300/outer360s if reviewed control contract passes. Reuse
-exactaa26baf audited game packages/startup checks for caller-only source change;
-no identical re-export. First failure stops, no automatic further repair.
+Original12:24–13:24UTC/60min selection retained; separately bounded13:22–13:42
+tracking phase stopped on its first failed full route. Costs1163.527+111.042
+=1274.569s supervised stages, without nested-driver double counting. Exact audited
+aa26baf game reused for caller-only revision; no duplicate export. All input and
+process cleanup confirmed,200 owned identities absent. Source and failed packages/
+raw logs/profile/helper records preserved; reopened owned worktree, temporary
+profiles, helpers and extracted ELF removed. Only
+`/srv/mudds-work/wing-route-correction-20261020/results/` remains. NativeWindows,
+nativeGPU, actual audio and human review stayNOT_RUN. Branch remains protected
+until accepted changes are integrated or its unique unfinished work is accounted.
 
 **Ready production cards: 0. Prepared production cards waiting on decisions: 3.**
 The decisions below remain pending; they do not prevent finishing independently
