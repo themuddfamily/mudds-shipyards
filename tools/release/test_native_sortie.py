@@ -2489,7 +2489,7 @@ class ArrowReturnReuseTests(unittest.TestCase):
         keys, *_ = self.tick(p, s, right=[0, .2, -.98], up=[0, .98, .2])
         self.assertNotIn('l', keys)
         self.assertEqual(p.stage, 'weapon_restore')
-        self.tick(p, s, right=[0, 0, -1], up=[0, 1, 0])
+        self.tick(p, s, right=[0, 0, -1], up=[0, 1, 0], capture=True)
         self.assertEqual(p.stage, 'land')
         self.assertGreater(p.weapon['hit']['frame'], p.weapon['pre_fire']['frame'])
         self.assertGreater(p.weapon['restored']['frame'], p.weapon['hit']['frame'])
