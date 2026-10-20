@@ -79,6 +79,19 @@ retains original status: six references closed through accepted/superseded work,
 and four unqualified tooltip/UI/Mining/Beacon candidates archived, leave10.
 These ref counts do not measure completed roadmap outcomes.
 
+**Selected remaining-branch accounting:17:28–17:48 UTC,20min.**
+Account the remaining ten existing remote branches: browser-cache diagnostic and
+network-timeout acceptance preparation, Courier, Defense, Halyard damage,
+Salvage access, Jovian reload, Fire restart, HULK revisit and Rime crew arrival.
+Three disjoint archive owners prepare exact source/history and retained failure
+accounts; root verifies preservation/current refs/registered ownership, pushes
+WITHHELD tags and retires working refs where safe. No engines, compile, route
+retry, new branch, gameplay acceptance or checkpoint. Original failed contracts,
+budgets and concrete reopening facts remain OPEN; accepted partial scopes in
+main remain distinct. Existing protected detached worktrees are excluded.
+Close with committed/pushed source identities and a current finite list of unmet
+requirements; branch retirement does not complete those product outcomes.
+
 **UI, Mining and Beacon-home working branches accounted for and deleted.**
 Seven unique commits across the three branches survive in independently verified
 Git bundles, binary patches, exact source archives and pushed WITHHELD tags:
