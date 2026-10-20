@@ -1449,6 +1449,11 @@ func _is_phase_authorized() -> bool:
 		if _scenario == SCENARIO_PAIRED_WING and not is_paired_wing_solo_available():
 			return false
 		if _state == STATE_RUNNING and _board_sortie and BOARD_SCENARIO_IDS.has(_scenario):
+			# Accepted automatic landing keeps GameFlow in FREE_FLIGHT until
+			# touchdown. Recheck the exact live sortie target at dispatch, so
+			# its existing withdrawal/stand-down path also contains this return.
+			if _is_target_alive() and _target is HeroShip and (_target as HeroShip).is_landing_active():
+				return false
 			return (host as GameFlow).phase == GameFlow.Phase.FREE_FLIGHT
 		return (host as GameFlow).phase == GameFlow.Phase.INTERCEPTOR_ENGAGEMENT
 	# A non-coordinator host (isolated fixtures, evidence harnesses, tools) has

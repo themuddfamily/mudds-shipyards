@@ -2,8 +2,11 @@ extends SceneTree
 
 ## Focused actual-Main admission check. Staged setup restores the third board
 ## offer from the existing terminal record, places the avatar at the real board
-## and Arrow, and later changes phase to exercise withdrawal. Ordinary E/input
-## and actual berth movement own admission/boarding/departure. This does not
+## and Arrow, and later changes phase to exercise withdrawal. It then stages
+## Heavy admission and the same piloted Arrow above its real home berth; the
+## actual GameFlow landing request owns assist acceptance, never a fabricated
+## landing flag. Ordinary E/input and actual berth movement own the first
+## admission/boarding/departure. This does not
 ## prove player-weapon kills, safe home return, or native hardware behavior.
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
@@ -160,6 +163,69 @@ func _run() -> void:
 	_check(int(game.get_activity_reward_report().authority.record.total_receipts) == 0
 		and board.get_offered_scenario() == EncounterScenarioDirector.SCENARIO_HEAVY_BREACH,
 		"stale terminal replay cannot award credit or rotate again")
+	# Reuse this actual Main after the original explicit-phase withdrawal. Only
+	# the second admission/return poses are staged; landing itself must pass the
+	# production berth capture, lease and HeroShip assist contract synchronously.
+	game.phase = GameFlow.Phase.FREE_FLIGHT
+	var seated_pose := player.global_transform
+	player.teleport_to(Transform3D(Basis.IDENTITY, board.global_position + Vector3(0.0, 0.0, 2.0)))
+	var heavy_arm := board.arm_sortie(player)
+	player.teleport_to(seated_pose)
+	_check(bool(heavy_arm.get("accepted", false)) and bool(board.launch_armed_sortie(
+		arrow, int(heavy_arm.get("sortie_generation", -1))).get("accepted", false)),
+		"staged Heavy board admission reuses the same actually departed piloted Arrow")
+	var heavy_generation := director.get_scenario_generation()
+	var heavy_roster := director.get_roster()
+	var completed_before := int(director.get_audit_report().completed_runs)
+	var landing_outcomes: Array[StringName] = []
+	director.scenario_concluded.connect(func(_scenario: StringName, outcome: StringName) -> void:
+		landing_outcomes.append(outcome))
+	var fire_was_authorized := false
+	for member in heavy_roster:
+		fire_was_authorized = fire_was_authorized or director.is_fire_authorized(member)
+	_check(director.is_board_sortie_running() and heavy_roster.size() > 0
+		and director.get_active_scenario() == EncounterScenarioDirector.SCENARIO_HEAVY_BREACH
+		and game.get_active_ship() == arrow and arrow.is_piloted() and fire_was_authorized,
+		"Heavy genuinely authorizes fire at the same current piloted Arrow before automatic landing")
+	var arrow_home := (game.world as ShipyardWorld).get_berth_transform(arrow.get_home_berth_id())
+	arrow.global_transform = arrow_home.translated_local(Vector3(0.0, 3.0, 0.0))
+	arrow.velocity = Vector3.ZERO
+	game.call(&"_try_request_landing")
+	_check(game.phase == GameFlow.Phase.FREE_FLIGHT and arrow.is_landing_active()
+		and bool(game.get("_landing_request_active")) and director.is_running(),
+		"normal GameFlow landing accepts the real berth while host phase and director remain in flight")
+	for member in heavy_roster:
+		_check(not director.is_fire_authorized(member),
+			"accepted target landing revokes dispatched fire synchronously before the next tick")
+	_check(await _wait_until(func() -> bool: return director.is_concluded()),
+		"the ordinary director observer withdraws Heavy during automatic landing")
+	_check(game.phase == GameFlow.Phase.FREE_FLIGHT and arrow.is_landing_active()
+		and director.get_outcome() == EncounterScenarioDirector.OUTCOME_WITHDRAWN
+		and director.get_scenario_generation() == heavy_generation
+		and int(director.get_audit_report().completed_runs) == completed_before + 1
+		and landing_outcomes == [EncounterScenarioDirector.OUTCOME_WITHDRAWN]
+		and director.get_roster().is_empty(),
+		"landing concludes the same generation exactly once as WITHDRAWN with no retained roster")
+	for member in heavy_roster:
+		_check(not bool(member.call(&"is_active")) and game.combat_authority.get_source_id(member) == 0,
+			"automatic-landing withdrawal deactivates and unregisters each actual Heavy participant")
+	_check(board.get_offered_scenario() == EncounterScenarioDirector.SCENARIO_TORPEDO_RUN
+		and not board.is_sortie_armed()
+		and int(game.get_activity_reward_report().authority.record.total_receipts) == 0
+		and int(board.get_reward_handoff_snapshot().pending_reward_generation) == 0,
+		"Heavy withdrawal rotates once to Torpedo with no automatic arm, credit or reward debt")
+	arrow.call(&"_abort_landing", &"landing-authorization-test")
+	_check(not arrow.is_landing_active() and game.phase == GameFlow.Phase.FREE_FLIGHT,
+		"the real assist cancellation restores flight without changing the encounter result")
+	for _frame in 8:
+		await physics_frame
+		await process_frame
+	_check(director.is_concluded() and director.get_scenario_generation() == heavy_generation
+		and int(director.get_audit_report().completed_runs) == completed_before + 1
+		and landing_outcomes == [EncounterScenarioDirector.OUTCOME_WITHDRAWN]
+		and not board.is_sortie_armed() and not game.call(&"_try_launch_armed_heavy_breach")
+		and board.get_offered_scenario() == EncounterScenarioDirector.SCENARIO_TORPEDO_RUN,
+		"cancelling accepted assist cannot restart the withdrawn sortie or rotate its posting again")
 	Input.action_release(&"interact")
 	Input.action_release(&"move_forward")
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
