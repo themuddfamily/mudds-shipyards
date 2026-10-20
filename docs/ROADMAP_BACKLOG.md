@@ -1288,6 +1288,59 @@ No further repair/exception/probe/retry/cap change selected. Next action is boun
 read-only disconnection-owner mapping before any concrete production correction.
 Original no-answer/unreachable case and all broad/native/human/final gates stay open.
 
+### Timeout RPC-cache ownership — NET-TIMEOUT-TEARDOWN-OWNER
+
+**Read-only definition DONE2026-10-20; runtime repair NOT selected.** Root and
+one independent high source mapper inspected the retained failure, production
+shutdown and engine source at the reported build commita13da4feb. No engines,
+route retries, tests, worktrees, validators or build changes were made.
+
+Raw seq982/ticks37453 has a connected/nonadmitted peer and deadline37454;
+then the native tree_exited disconnect error; seq983/ticks37471 retains the SAME
+adapter instance/path, now offline with deadline0/reason timeout. GameFlow does
+not destroy/unparent the adapter here. Production seam is adapter.shutdown():
+peer close at570, OfflineMultiplayerPeer replacement at580, session_stopped at644;
+GameFlow cleanup follows. No explicit tree_exited reference exists under scripts.
+
+Engine source explanation: SceneMultiplayer.set_multiplayer_peer calls clear on
+replacement, which clears its RPC node cache. SceneCacheInterface._track connects
+a node-ID-bound one-shot removal callback; its clear disconnect omits the bound
+ID. This is a concrete callable mismatch fitting the exact native diagnostic,
+not proof of premature Main/adapter destruction. The binary's callback owner was
+not captured, and source-engine35-assertion tests passed, so editor/release
+behavior parity is still unresolved. Do not claim a verified runtime fix.
+[Tracking/cleanup source](https://github.com/godotengine/godot/blob/a13da4feb/modules/multiplayer/scene_cache_interface.cpp#L37),
+[cache clear](https://github.com/godotengine/godot/blob/a13da4feb/modules/multiplayer/scene_cache_interface.cpp#L273),
+[peer replacement](https://github.com/godotengine/godot/blob/a13da4feb/modules/multiplayer/scene_multiplayer.cpp#L175).
+These facts concern the RPC cache; no causal relationship to the parked Window/
+Activity Board failure is established. Do not reopen that route.
+
+Do not work around native cache cleanup by fabricating lifecycle signals,
+disconnecting unknown callbacks, suppressing diagnostics, making an unchecked
+engine upgrade, or altering adapter ownership before its contract is defined.
+A direct engine patch would need matching pinned Windows/Linux templates and
+local package/runtime checks. This environment currently has g++ but no scons,
+clang++ or MinGW cross-compiler on PATH; no dependencies installed. Existing safe
+export rejects custom preset-template overrides; stock package pins remain intact.
+Source also conditionally clears external script/main-loop overrides in release
+builds; a source-script pass cannot establish release-template behavior.
+[Startup implementation](https://github.com/godotengine/godot/blob/a13da4feb/main/main.cpp#L4013).
+
+**Next bounded proof to define before execution:** compare the existing paused
+real raw-host5s timeout under default Main-style and custom-branch MultiplayerAPI
+ownership, inspecting exact current tree_exited callable/object/bound-argument
+identity before peer reset. One external scratch caller may use production
+Adapter and existing raw-host behavior; no Main/gameplay mutation, fake admission,
+public artifact, persistent validator or renamed full browser route. First freeze
+its exact script/commands/output and expected diagnostic handling; at most one
+combined headless/Dummy observation with a35s process cap (two cases, each hello
+within3s/deadline observation within7s), guarded import180s only if cache needs it.
+Estimate10–15min including inspection/cleanup. Stop at owner/parity finding or
+NOT_REPRODUCED; no second probe, cap increase or runtime patch in that assignment.
+The concrete source mismatch is the new causal lead justifying this bounded
+observation; original235.879s/two-failure browser chain remains parked/cumulative.
+Its complete acceptance and every unperformed native/human/parent gate remain open.
+
 ### Supported remote helm action roster
 
 HELM-ACTIONS-DEFINE is DONE as a source definition, not new gameplay or current

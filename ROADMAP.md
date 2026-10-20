@@ -92,9 +92,12 @@ fixture cleanup separately rejects its command. Retry/admission/Disconnect/fresh
 Cancel/Resume/normal quit NOT_RUN. No further exception/repair/probe/retry selected.
 [Full frozen cards, failures and retained builds](docs/history/ROADMAP_DELIVERIES.md#browser-ordinary-timeout-and-retry--failed-and-parked).
 Owned scratch cleaned after preserving raw results/eight unique withheld builds.
-Next single action: bounded read-only disconnection-owner mapping; a concrete
-cause/change must precede any production correction or reopening. The separate
-no-answer/unreachable endpoint case remains open.
+Read-only owner mapping is complete: engine RPC-cache source connects a bound
+removal callback but disconnects it without the bound ID. This fits the diagnostic;
+actual binary callback ownership/editor-versus-release parity remain unproven.
+[Source facts and bounded next proof](docs/ROADMAP_BACKLOG.md#timeout-rpc-cache-ownership--net-timeout-teardown-owner).
+Next action: freeze one default/custom-API ownership observation before engines.
+No runtime patch or full-route reopening selected; no-answer case remains open.
 
 Perimeter Hold's implementation candidate **aa88b5a73** is **PARKED/unmerged**.
 Its staged live runtime passes52 assertions; existing director/asset/board/HUD
@@ -140,8 +143,9 @@ count these as executable jobs or begin another terminal-debt implementation.
 The browser driver and full packaged route were then frozen as separate cards;
 both remain unaccepted after the actual timeout diagnostic above. Preserve their
 whole timeout→retry/admission→disconnect→fresh cancel→resume/quit contract.
-A bounded failure-owner definition is the next action; no unchanged route retry
-or broader release estimate follows from the component/readiness passes.
+Failure-owner source mapping is now defined; one bounded API-ownership observation
+must be frozen before execution. No unchanged route retry or broader release
+estimate follows from the component/readiness passes.
 
 
 At each delivery, update that child’s result and remaining dependency, give actual
