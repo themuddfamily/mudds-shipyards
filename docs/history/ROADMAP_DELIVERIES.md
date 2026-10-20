@@ -19140,3 +19140,74 @@ entries reopened/verified before owned scratch removal21:04:46UTC. Archive
 Case root contains results only; eight protected detached worktrees untouched.
 Main sole local/live remote branch. Accounting closeout committed/pushed main;
 Defense full result and all parent/phase/native/hardware/human gates remain open.
+
+## Defense completed motion — boarding and one kill; full journey aborted — 2026-10-20
+
+PLAY-DEFENSE remains OPEN/PARKED. User-requested finish/account existing work;
+no new branch/worktree or adjacent case. Selected21:08–22:08UTC/60min; closed
+21:20UTC. Candidate0b11486e0c136041336157c8d6b2015d01289995 is WITHHELD/unmerged.
+One HIGH implementer and independent HIGH source/result reviewer; root commands,
+packages, preservation, integration/accounting and cleanup.
+
+Existing LIFE completed-motion serializer/checks reused for Defense ordinary
+walking. Actual current Player/capsule/shape identity, consecutive completed tick,
+start/end, once-only step event and source bounds are required. Normal movement
+cap unchanged; unexplained relocation still fails. No Player/controller/input,
+geometry, health, weapons, reward, actor, clock or scenario changes. Original
+waypoints,3.1m admission and whole34s/CAP300/outer360 retained. Before the first
+full route, source review caught the same parked wing on the Reset return:
+caller-only child adds reverse z22 clearance before every original Reset target.
+That return was not reached and is not qualified by this failed run.
+
+Fresh runtime exports pin3cf6535c25fcc23097646edcc46ce71f9cb6bdee. Final caller-only
+child0b11486e0 has no runtime/export-input delta; all eight actual artifacts
+rechecked under separate pins. Import,105 focused checks,privacy,Windows/Linux
+exports,ELF/archive/Windows-payload strict menu readiness and actual1525-entry
+paired-PCK/stock-PE/exact-tar audit PASS. Caller-only recheck105 PASS. Honest
+ordering: full route launched while that recheck supervisor remained RUNNING;
+it subsequently exited0 without source changes. No claim it finished first.
+Windows payload startup ran through Linux, not native Windows qualification.
+
+ONE original full route FAIL88.261216s supervisor interval/88.000s driver.
+Actual Deploy1144; all mast/wing targets reached; actual completed step observed
+2154/completed2153. Ordinary board press2322, START_ENGINES2471, actual departure
+and FREE_FLIGHT/combat follow. Player Arrow source1102/actual hull296017201836
+kills alpha through normal command_fire/resolver at2944; wave2 begins2945 at
+30.0333s. This is one of four required kills, not a completed defense.
+
+Final3184 records state_id=aborted/failure_reason=aborted, three hostiles remain,
+core64/240, elapsed33.9999999999994s unchanged from3183. Do not label this an
+observed timeout. Gamma worldz moves−105.91275→−106.06285 across authored origin
+leash minimum−106. Source checks actor origins and can abort before clock advance;
+this is a concrete source/raw leash-exit inference. Actual last-leash-exit result
+is not serialized, so the exact trigger is not directly captured. No clock,
+leash or combat defect/fix is thereby accepted. No repair/retry/adjacent case
+selected; establish exact abort trigger/production contract before another change.
+
+27 resolver events, one actual player kill, durable receipt count0; completion,
+payment,home,physical Reset,next Deploy and normal UI Exit NOT_REACHED. Final
+cleanup flags input-release/helper/game/Xvfb alltrue; diagnostics0. Earlier
+`game_legs` exit fields are pre-cleanup metadata, not normal exit evidence.
+Independent final NO-GO. Silent isolated Xvfb/explicitx11/Dummy with independent
+abort path throughout; GitHub Actions remains disabled.
+
+Ten stage intervals230.603177s plus actual package audit5.319682s add235.922859s
+to retained710.453413s =946.376273s. All prior failures retained, no budget reset.
+Raw commands/source/cache freezes,four raw outputs and hashes,reviews,separate
+runtime/caller pins,verified source and eight unqualified artifacts retained in
+`/srv/mudds-work/defense-completed-motion-20261020/results/`. Runtime EXE SHA256
+acdba152b412db48dd4ce10e5d55ebea4f9d21dfe1ea142e34be4f98686b5273;
+ELF01c82f9a2f91dc7850408574ffa6988e8c0af661df887348f12c77050001704d.
+Unqualified exact files removed from builds; latest playable49bc7b7 unchanged.
+
+Pushed annotated `archive/withheld/defense-completed-motion-20261020` object
+d8b6970cc1ab10ffb1bc05182649c5c66e3c84df preserves exact final source and ancestor.
+Incremental bundle48196bytes verified against main prerequisite, binary patch,
+five-file Git-blob/mode-verified tar retained; live tag identity checked. No
+unaccepted source merged merely to clear a ref. All10 owners terminal/23 observed
+PID/start identities absent;134 profile entries reopened/verified before owned
+scratch removal21:20:52UTC. Archive6534724bytes SHA256
+24670318645c4622bb1a8826e4913bab27fdbe0297a0fd6437873a840f597117.
+Eight protected detached worktrees untouched. Main sole local/live remote branch;
+accounting closeout committed/pushed. All36 parents/ten phase gates and native,
+hardware,human,final release gates remain open.

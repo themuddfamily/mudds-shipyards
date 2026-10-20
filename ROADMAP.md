@@ -77,47 +77,29 @@ This clears the branch queue; it does not close their unfinished gameplay,
 qualification or release requirements. No unaccepted source was merged to reduce
 a branch count. Eight previously protected detached worktrees remain unchanged.
 
-**Selected: PLAY-DEFENSE — consume actual completed walking motion /13.**
-One existing case,21:08–22:08UTC/60min, prior710.453s retained. Existing fixed-speed
-caller guard rejects bounded step-up motion at the registry threshold. Reuse the
-Player's existing completed-motion/step record, existing LIFE serialization and
-strict actor/epoch/start/end/source-bounds checks; preserve normal-move limits and
-reject unexplained relocation. Consolidate existing checks; no new validator
-family, blanket tolerance, Player behavior/geometry/input mutation or staging.
-Keep all original/mast/wing waypoints,3.1m admission, complete ordinary four-kill/
-once-payment/home/physical Reset/next Deploy/UIexit and whole34s/CAP300/outer360.
-One HIGH implementer existing observer/caller/tests; independent HIGH review;
-root packages/commands/integration/cleanup. A changed observer requires fresh safe
-paired exports, actual menu readiness and package checks, then ONE full route.
-Original stage caps retained. First failure stops for review; no automatic retry,
-new branch/worktree/hostedCI. Preserve failed work or merge/push accepted result,
-then clean owned scratch before another case.
+**PLAY-DEFENSE remains OPEN/PARKED — candidate `0b11486e0` withheld.**
+The completed-motion correction now passes the original walking route, real
+Arrow boarding and departure. One actual player kill is recorded. The full
+encounter then aborts at frame3184 with three hostiles remaining and elapsed
+33.9999999999994s. This is recorded as **aborted**, not an explicit timeout.
+Source/raw positions indicate gamma crossing the authored origin leash; the
+actual leash-exit receipt was not captured, so that trigger remains an inference.
+No completion, payment, home, physical Reset, next Deploy or normal UI exit.
 
-**PLAY-DEFENSE remains OPEN/PARKED — caller `42694c198` withheld.**
-The supported Arrow clearance correction reaches the registry threshold, then
-fails the existing continuous-walk guard before boarding. Adjacent samples move
-0.400m horizontally and0.150m up (0.427m total); that guard allows only0.253m.
-The controller intentionally permits bounded0.40m step-up advances, consistent
-with the sample; the specific step event was not captured. No runtime defect or
-relocation is established. The encounter is still active at16.85s, not timed out.
+105 focused checks, privacy, fresh paired exports, three strict startup checks
+and actual1525-entry package comparison pass. The ONE full journey fails88.261s;
+whole34s/CAP300/outer360 and every required outcome remain unchanged. Cumulative
+measured stages/audit946.376s retain all prior failures. Independent NO-GO;
+no repair, retry or adjacent task selected. Establish the exact abort trigger and
+its production contract before choosing any further change.
 
-Next bounded correction: reuse the controller's existing completed-motion/step
-record and existing strict locomotion checks in the Defense observer/caller.
-Require exact current actor/tick/start/end and source bounds for a genuine step;
-keep unexplained relocation rejected. No blanket tolerance increase, path shortcut,
-new validator family or unchanged retry. Full real board/depart/four kills/once
-payment/home/physical Reset/next Deploy/UIexit and whole34s/CAP300/outer360 remain.
-
-One full route FAIL60.825s;102 driver checks pass after one reviewed fixture-field
-correction (initial missing-boarding fixture failure retained). Runtime/export
-inputs match immutable b81 package; exact8 artifact hashes verified. Prior package/
-startup checks were reused, not repeated or newly claimed. Independent NO-GO.
-All costs/failures retained:710.453s measured cumulative. Unique failed source is
-in pushed archive/withheld/defense-arrow-clearance-20261020 and verified bundle/
-patch/tar; unaccepted code stays out of main. All3 owners terminal/8 observed
-identities absent;28 profile entries verified/removed. No new branch/worktree;
-latest playable49bc7b7 unchanged. No further run or adjacent case selected.
-[Exact failure, source fact and cleanup](docs/history/ROADMAP_DELIVERIES.md#defense-arrow-clearance--walking-guard-rejects-threshold-motion--2026-10-20).
+Unique source survives in pushed `archive/withheld/defense-completed-motion-20261020`
+and verified incremental bundle/patch/five-file tar. Eight unqualified artifacts
+moved out of public builds into private results; latest playable49bc7b7 unchanged.
+All10 owners terminal/23 observed identities absent;134 profile entries verified
+before owned scratch removal21:20:52UTC. Eight protected worktrees untouched.
+Main is the sole local/live remote branch; unaccepted code remains unmerged.
+[Exact outcome and retained source](docs/history/ROADMAP_DELIVERIES.md#defense-completed-motion--boarding-and-one-kill-full-journey-aborted--2026-10-20).
 
 **NET-JOVIAN-REDEPART DONE — source `bc7f9f9c4`.**
 The complete ordinary Jovian journey now covers initial boarding/flight/home
@@ -525,7 +507,7 @@ contracts and cumulative attempt records remain in the retained history.
 
 | Outcome | Last actual result | Condition before more work |
 | --- | --- | --- |
-| PLAY-DEFENSE ordinary route /13 | Withheld42694c198 reaches registry threshold, then existing0.253m walk guard rejects0.427m movement matching controller bounded step semantics. Specific step event absent; no runtime defect proved. Full route FAIL60.825s before boarding, encounter active16.85s, zero kills/reward. | PARK; cumulative710.453s retained. Reuse existing completed-motion/step record and strict actor/tick/endpoints/bounds check before any further qualification; no blanket tolerance increase/shorter journey/wider34s. Source archived, owned scratch removed; latest playable unchanged. |
+| PLAY-DEFENSE ordinary route /13 | Withheld0b11486e0 passes completed-step checks, ordinary boarding/departure and one actual player kill. Full route FAIL88.261s: recorded aborted near34s, three hostiles remain. Gamma crosses authored leash by source/raw inference; trigger receipt absent. No payment/home/reset/UIexit. | PARKED; cumulative946.376s retained. Exact abort trigger/production contract required before any further selection; no repair/retry selected or cap change. Source archived, eight unqualified packages privately retained, owned scratch removed. Latest playable unchanged. |
 | Jovian postdock reuse /16,20,26 | DONEbc7f9f9c4: complete ordinary passenger exit/reboard, pilot exit/reclaim and repeat departure/braked stop, full original journey and three actual OS0. Reboard runtime repair49bc7b736; latest paired playable49bc7b7. | Source integrated/pushed and owned scratch removed. Existing working refs already deleted; other supported craft/roles, distinct second landing and full parent gates remain open. |
 | Habitat common-entry view /9,12 | [Source8a6339b91](docs/history/ROADMAP_DELIVERIES.md#habitat-arrival-view--readback-timed-out-before-image): import passes; full-Main player-height readback times out180.842s before PNG or view metadata. Cumulative201.494s; no observed defect/no-finding. | PARKED. Concrete supported capture-boundary change before selection; no renderer/room substitute, cap increase or unchanged retry. Actual eye stage was not proved reached; accepted Habitat runtime scopes remain. |
 | Courier clear /11 | [Candidatecb9d76fa5](docs/history/ROADMAP_DELIVERIES.md#courier-ordinary-clear--escaped-without-player-damage), archived WITHHELD, working refs deleted/source unmerged: prechecks pass; ordinary attempt fails70.377s, ESCAPED at1400m, hull78/78, no player hit/kill or home completion. Cumulative165.917s. | PARKED/withheld. Fresh Courier-window emission/ray/resolver facts are missing; generic shot receipt can be stale. No weapon/aim cause established, repair/retry or public checkpoint selected. Preserve original route/caps; other Courier outcomes need separate selection. |
