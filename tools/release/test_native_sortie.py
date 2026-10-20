@@ -2293,11 +2293,11 @@ class ArrowReturnReuseTests(unittest.TestCase):
                      'focus_path': '/Main/HUD/Exit', 'focus_is_exit': True})
         return s
 
-    def tick(self, pilot, s, update=True, **changes):
+    def tick(self, pilot, s, update=True, now=None, **changes):
         s.update(changes); s['frame'] += 1; s['sequence'] += 1
         snapshot = copy.deepcopy(s)
         pilot.validate_observation(snapshot)
-        if update: return pilot.update(snapshot, s['frame']/60)
+        if update: return pilot.update(snapshot, s['frame']/60 if now is None else now)
 
     def start(self):
         p, s = native.ArrowReturnReusePilot(), self.observation()
@@ -2349,8 +2349,11 @@ class ArrowReturnReuseTests(unittest.TestCase):
         target = copy.deepcopy(s['target']); target['position'][0] += .1
         keys, *_ = self.tick(p, s, camera_back=[-v for v in direction],
                              camera_right=right, camera_up=up, target=target)
-        if p.stage == 'weapon_aim':
-            # Consume the pending physical mouse delivery before firing.
+        # Consume the pending physical mouse delivery and any prior E tap's
+        # release/cooldown before the shared tap owner accepts the first F.
+        for _ in range(40):
+            if p.stage != 'weapon_aim': break
+            self.assertNotIn('pre_fire', p.weapon)
             keys, *_ = self.tick(p, s)
         self.assertEqual(p.stage, 'weapon_fire')
         self.assertIn('f', keys)
@@ -2359,12 +2362,22 @@ class ArrowReturnReuseTests(unittest.TestCase):
     def weapon_hit_and_restore(self, p, s):
         self.weapon_request(p, s)
         keys, *_ = self.tick(p, s, **self.hit(s))
-        self.assertNotIn('f', keys)
+        self.assertIn('f', keys)
         self.assertIn('hit', p.weapon)
-        self.tick(p, s, native_fire=False)
+        self.release_fire(p, s)
         self.assertEqual(p.stage, 'weapon_restore')
         for _ in range(35): self.tick(p, s)
         self.assertIn('restored', p.weapon)
+
+    def release_fire(self, p, s):
+        for _ in range(12):
+            keys, *_ = self.tick(p, s, native_fire=True)
+            self.assertEqual(p.stage, 'weapon_fire')
+            if 'f' not in keys: break
+        else: self.fail('shared F tap did not release after its normal lifetime')
+        self.assertIsNone(p.tap_key)
+        keys, *_ = self.tick(p, s, native_fire=False)
+        self.assertNotIn('f', keys)
 
     def fly_and_exit(self, p, s):
         self.tick(p, s, phase='BOARDING', native_interact=True, candidate=False,
@@ -2450,6 +2463,43 @@ class ArrowReturnReuseTests(unittest.TestCase):
         self.weapon_request(p, s)
         return p, s
 
+    def test_fire_uses_one_shared_tap_until_both_time_and_physics_minima(self):
+        for pending in ('frames', 'wall_time'):
+            with self.subTest(pending=pending):
+                p, s = self.ready_to_fire()
+                press_frame, press_time = p.tap_frame, p.tap_until-.15
+                baseline = p.weapon['pre_fire']
+                count = 5 if pending == 'frames' else 6
+                for index in range(count):
+                    elapsed = .20 if pending == 'frames' else .14*(index+1)/count
+                    keys, *_ = self.tick(p, s, native_fire=True, now=press_time+elapsed)
+                    self.assertIn('f', keys)
+                self.assertEqual(s['frame'], press_frame+count)
+                release_time = press_time+(.201 if pending == 'frames' else .151)
+                keys, *_ = self.tick(p, s, native_fire=True, now=release_time)
+                self.assertNotIn('f', keys)
+                self.assertIsNone(p.tap_key)
+                for index in range(25):
+                    keys, *_ = self.tick(p, s, native_fire=False, now=release_time+(index+1)/60)
+                    self.assertNotIn('f', keys)
+                    self.assertEqual(p.stage, 'weapon_fire')
+                    self.assertIs(p.weapon['pre_fire'], baseline)
+                self.assertEqual(sum(e['stage'] == 'weapon_fire' for e in p.stages), 1)
+
+    def test_aligned_aim_does_not_store_baseline_or_advance_while_tap_unavailable(self):
+        for busy in ('key', 'time', 'frames'):
+            with self.subTest(busy=busy):
+                p, s = self.ready_to_fire()
+                p.stage = 'weapon_aim'; p.weapon.pop('pre_fire')
+                p.tap_key = 'e' if busy == 'key' else None
+                p.tap_until = s['frame']/60+1
+                p.tap_cooldown = s['frame']/60+1 if busy == 'time' else 0
+                p.tap_release_frame = s['frame'] if busy == 'frames' else -100
+                keys, *_ = self.tick(p, s)
+                self.assertEqual(p.stage, 'weapon_aim')
+                self.assertNotIn('pre_fire', p.weapon)
+                self.assertNotIn('f', keys)
+
     def test_weapon_rejects_stale_wrong_target_source_sequence_and_hit_receipts(self):
         mutations = [lambda p,s,h: h['shot'].update(accepted=False),
                      lambda p,s,h: h['shot'].update(hit=False),
@@ -2481,15 +2531,18 @@ class ArrowReturnReuseTests(unittest.TestCase):
     def test_weapon_cannot_land_before_hit_and_full_attitude_restoration(self):
         p, s = self.ready_to_fire()
         keys, *_ = self.tick(p, s)
-        self.assertNotIn('f', keys)
+        self.assertIn('f', keys)
         self.assertNotIn('l', keys)
         self.assertEqual(p.stage, 'weapon_fire')
-        self.tick(p, s, **self.hit(s)); self.tick(p, s, native_fire=False)
+        self.tick(p, s, **self.hit(s)); self.release_fire(p, s)
         # A matching nose alone does not establish restored attitude.
         keys, *_ = self.tick(p, s, right=[0, .2, -.98], up=[0, .98, .2])
         self.assertNotIn('l', keys)
         self.assertEqual(p.stage, 'weapon_restore')
         self.tick(p, s, right=[0, 0, -1], up=[0, 1, 0], capture=True)
+        for _ in range(25):
+            if p.stage == 'land': break
+            self.tick(p, s)
         self.assertEqual(p.stage, 'land')
         self.assertGreater(p.weapon['hit']['frame'], p.weapon['pre_fire']['frame'])
         self.assertGreater(p.weapon['restored']['frame'], p.weapon['hit']['frame'])

@@ -3109,15 +3109,16 @@ class ArrowReturnReusePilot(Pilot):
             if alignment > .99998 and norm(s['ship_velocity']) <= .35 and self.mouse_pending is None:
                 require(not s['native_fire'] and not s['shot']['present'] and s['target']['health'] == 100,
                         'unfired native weapon and full target health at fire baseline')
-                self.weapon['pre_fire'] = self.weapon_receipt(s)
-                self.enter('weapon_fire', s)
-                keys.add('f')
-                dx = dy = 0
+                self.tap('f', now)
+                if self.tap_key == 'f':
+                    self.weapon['pre_fire'] = self.weapon_receipt(s)
+                    self.enter('weapon_fire', s)
+                    dx = dy = 0
         elif self.stage == 'weapon_fire':
             keys.add('Prior')
-            # The initial F update is the only press. Await its synchronous
-            # result with all fire input released; never retry a missed shot.
-            if 'hit' in self.weapon and not s['native_fire']:
+            # Shared tap timing retains this one continuous F press for at
+            # least .15 seconds and six observed physics frames. Never rearm it.
+            if 'hit' in self.weapon and self.tap_key != 'f' and not s['native_fire']:
                 self.mouse_pending = None
                 self.enter('weapon_restore', s)
         elif self.stage == 'weapon_restore':
