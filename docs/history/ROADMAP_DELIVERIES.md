@@ -15622,3 +15622,41 @@ profile archive retained; worktree/cache/helpers/extracted duplicate removed at
 remains, including exact arguments/source/input identities and coordinate diff.
 A separately selected coordinate/representation-contract review must precede
 another attempt. No automatic successor; all broad parents/phase gates stay open.
+
+
+## Ember coordinate contract — package caller corrected
+
+2026-10-20; WORLD-SAVE-EMBER-FIRST-RELAY, parents14/31. This is a production
+release-checker correction, not a passing recovery qualification or new gameplay.
+Original archive923d7b3 attempt stays FAIL312.812s. No engine/export/retry run.
+
+Read-only review of retained arm/resume data proves the arm runtime boundary
+already has180.34764099121097, exactly equal to resume. The first saved wire
+contains180.34764099121094; a later unrelated commit re-encodes the parsed Godot
+number as.97. Both affected coordinates explain the prior mismatch; physical
+progress did not change. USER_DATA_STORE.md promises JSON-number semantics;
+in_world_interruption_probe.gd:_ember_document_text explicitly binds parsed
+actual document, runtime boundary, generation and commit inside Godot.
+
+Changed only tools/release/run_package_probes.sh's Ember cross-process predicate
+to compare emitted runtime boundaries exactly. Recovered wire parsing/type checks
+remain, as do independently read ready/paid documents, actual kill/reap and exact
+prekill bytes, route/generation, safe-yard/boarding, crash and once-only payment
+checks. No tolerance, datastore format change or route reduction. Independent
+read-only review GO.
+
+Validation: bash -n tools/release/run_package_probes.sh PASS. Compiled the exact
+production predicate with Python ast and replayed retained arm/resume tokens:
+actual runtime pair accepted, original raw wire mismatch reproduced. Independently
+mutating each of74 boundary scalar leaves is rejected; every float mutation is
+one binary64 ULP. This verifies the changed equality, not a fresh full run.
+
+Original20min boundary06:05–06:25UTC retained. Review/correction completed within
+it; no further312s package run fits, so corrected full qualification NOT_RUN.
+A later separately selected corrective attempt must freeze source/package hashes,
+original route/300s per-process/660s outer caps, total budget and cleanup, retain
+prior312.812s cost, and stop on first failure. No automatic successor selected.
+No new worktree/process/profile/package scratch created; unique old raw results
+remain under /srv/mudds-work/ember-first-relay-20261020/results/. Roadmap now names
+contract review, caller correction and complete package qualification as separate
+finite deliverables with explicit completion checks, without closing the parent.
