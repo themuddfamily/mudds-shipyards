@@ -1034,7 +1034,7 @@ func _wing_observation() -> Dictionary:
 		result.merge({"main_id": pause_sample.main_id, "ui": pause_sample.ui,
 			"native_keys": pause_sample.native_keys}, true)
 		return result
-	var current := _ember_node_current(_player) and _ember_node_current(_ship) \
+	var current: bool = _ember_node_current(_player) and _ember_node_current(_ship) \
 		and _ember_node_current(_game.world) and get_parent().call("get_main") == _game \
 		and _game.get_node_or_null(^"TorrentInterceptor") == _ship and _game.player == _player
 	result["actors_current"] = current
