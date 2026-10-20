@@ -1,11 +1,11 @@
 # Development roadmap
 
 **Status: playable development alpha; project completion is unproven.** Latest
-accepted checkpoint: **19e7990**, keeping the startup Multiplayer action on-screen
-when the title menu grows. Saved Convoy guidance, planetary credits and earlier
-save protection remain.
-[Windows notes](builds/windows/MuddsShipyards-19e7990-notes.txt) and
-[Linux notes](builds/linux/MuddsShipyards-19e7990-linux-notes.txt) state checks and
+accepted checkpoint: **923d7b3**, making the initially focused and pressed
+Begin Shift text readable. It retains title overflow, saved Convoy guidance,
+planetary credits and earlier save protection.
+[Windows notes](builds/windows/MuddsShipyards-923d7b3-notes.txt) and
+[Linux notes](builds/linux/MuddsShipyards-923d7b3-linux-notes.txt) state checks and
 limits. Inline browser progress/timeout/retry remains accepted on20e90c9;
 paused LAN discovery on042c701. Beacon departure/traversal/once-only saved reward
 qualification on e06550e is retained in its recorded scope. Beacon home/dock/exit, Perimeter Hold,
@@ -38,34 +38,22 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 ## Execution now
 
-**Next capability: ACCESS-TITLE-FOCUS — readable Begin Shift focus**, parents12/29.
-Selected2026-10-20 05:25UTC; deadline06:25UTC. Baseline measurements are still required. This is the only
-selected implementation card. Waiting decisions and parked failures below are
-not an executable queue.
+**ACCESS-TITLE-FOCUS DONE on checkpoint923d7b3**, parents12/29. Initial focus
+and pressed text now use the existing dark paint. The actual default focus
+contrast improves1.335→12.724:1; all32 palette/contrast/state pairs pass their
+4.5/7 floors. Focus outline, title geometry and navigation remain.
 
-| Field | Bounded assignment |
-| --- | --- |
-| Player result | The initially focused Begin Shift label stays readable on its bright button fill, including hover/press and existing accessibility palettes. |
-| Prerequisite | Use the actual GameHUD title button and existing palette contrast helper to record resolved font/fill colors before editing. The recorded screenshot is a finding, not a measured ratio. If the paint already satisfies the applicable contract, stop without a speculative correction. |
-| Files / owner | Root integrates; one implementer owns only `scripts/ui/hud.gd` and the existing `tests/accessibility_presets_test.gd`. Preserve geometry, labels, navigation, focus outline and palette switching. No global theme change. |
-| Focused proof | Extend the existing actual-HUD test across the four existing palettes and both contrast modes. Resolve normal/focus/hover/pressed paint against its actual fill using the existing contrast helper; establish the applicable existing threshold before the correction. Run `accessibility_presets_test.gd`, `controller_pause_navigation_prompt_test.gd` and `hud_panel_layout_test.gd` via the existing Godot test entry points. |
-| Visible / package proof | Compare the actual default1024x768 focused title view with the retained before image, on private Xvfb with Dummy audio. After focused checks, use the existing clean-commit paired export workflow, strict startup checks and package audit; publish checkpoint/notes in repository builds. This does not qualify full Main, native devices or final release. |
-| Estimate / limits | Baseline and implementation25–40min; checks/export/cleanup15–20min; whole card60min. Before engine execution freeze exact invocations and per-stage caps within this total. First unexpected failure stops the card; no automatic retry or broader theme audit. |
-| Done | Measured defect corrected, focused tests and same-view review pass, playable checkpoint committed/pushed with actual limits, owned scratch cleaned. If baseline already meets the contract, close as NO CHANGE with actual measurements and no redundant build. Otherwise retain the failed stage and one concrete reopening requirement. |
+All11 frozen post-fix checks pass first attempt, including focused accessibility,
+navigation/layout, same-view review and paired package/startup/audit checks.
+Source923d7b326 is integrated/pushed; checkpoint is in repository builds.
+Owned scratch is cleaned at6.54min against the60min card; all66 observed process
+identities are absent. [Actual result and remaining limits](docs/history/ROADMAP_DELIVERIES.md#begin-shift-focus-contrast--shipped-on-923d7b3).
 
-Frozen stage limits: fresh headless import180s, private actual-HUD paint probe60s;
-then, only for a measured defect, each of the three named focused suites90s,
-same-view Forward+ capture90s, Windows export180s, Linux export180s, direct Linux
-startup120s, archive startup120s, Windows payload through Linux engine startup120s,
-and artifact audit90s. Every Godot call uses `--audio-driver Dummy`; headless
-checks use `--headless`, the private rendered view explicitly uses x11. Exact
-argument arrays/source pin are retained in the owned task results before launch.
-No native Windows execution or audible/desktop run is selected.
-
-Do not select another diagnostic chain merely because this card ends. Review its
-result against the parent, then select one independent player/build outcome.
-The already-asked Hauler stock and navigator-refusal choices are production
-alternatives once answered; no answer or automatic successor is inferred.
+No title successor is selected. At the next selection, take one independent
+unfinished player/build outcome from the existing inventory and freeze its
+files, proof and stop before running it. Do not rerun accepted title checks or
+reopen a parked route unchanged. The already-asked Hauler stock and navigator
+refusal choices remain production dependencies, not inferred answers.
 
 ### Waiting decisions — not executable tasks
 
@@ -90,8 +78,9 @@ the existing history. These are accepted slices, not closed broad parents.
 
 | Outcome | Accepted scope / remaining boundary |
 | --- | --- |
-| Title overflow | [Checkpoint19e7990](docs/history/ROADMAP_DELIVERIES.md#title-menu-overflow--startup-actions-kept-on-screen): all title actions fit the measured viewports. Focus contrast is the separate next card above; other title states and full accessibility remain open. |
-| Guided / initial interceptor | [Checkpoint3d92b91 ordinary3/3](docs/history/ROADMAP_DELIVERIES.md#guided-checkpoint3d92b91--original-ordinary-route-accepted3of3), including home/shutdown/physical exit. Acceptance stays on those bytes; new19e7990 and final candidate are not covered. |
+| Begin Shift focus / press | [Checkpoint923d7b3](docs/history/ROADMAP_DELIVERIES.md#begin-shift-focus-contrast--shipped-on-923d7b3): dark text clears measured4.5/7 contrast floors across existing palettes. Other readability, saved profiles, devices and final accessibility remain open. |
+| Title overflow | [Checkpoint19e7990](docs/history/ROADMAP_DELIVERIES.md#title-menu-overflow--startup-actions-kept-on-screen): all title actions fit the measured viewports. Focus contrast is separately delivered on923d7b3; other title states and full accessibility remain open. |
+| Guided / initial interceptor | [Checkpoint3d92b91 ordinary3/3](docs/history/ROADMAP_DELIVERIES.md#guided-checkpoint3d92b91--original-ordinary-route-accepted3of3), including home/shutdown/physical exit. Acceptance stays on those bytes; later checkpoints and final candidate are not covered. |
 | Saved Convoy / credits | [Checkpoint3d92b91](docs/history/ROADMAP_DELIVERIES.md#saved-convoy-objective-and-planetary-credits--shipped-on-3d92b91): paused-save guidance and planetary ambience attribution. Full Convoy play/endurance remains open. |
 | Host-stall recovery | [Source3d6b1b513](docs/history/ROADMAP_DELIVERIES.md#original-host-stall-route--current-source-accepted): original full independent suite, both600-step stalls and original2s actions. No unchanged rerun; ordinary handback, full matrix, final package/native/endurance remain separate. |
 | Future save envelope | [Source4b66b3548](docs/history/ROADMAP_DELIVERIES.md#future-save-outer-envelopes--sourcelinux-real-file-case-accepted): real-file Linux refusal/preservation. Other formats, installed/native/UI recovery remain open. |
@@ -144,13 +133,12 @@ failures; no automatic probe, repair, retry or cap increase is selected.
 
 ## Latest playable result
 
-**Checkpoint19e7990** keeps the startup Multiplayer action on-screen when the
-bottom-anchored title menu grows. It retains the earlier Convoy, credits and save
-improvements. Focus contrast remains separate unfinished work.
+**Checkpoint923d7b3** makes Begin Shift text readable on focus and press. It
+retains the title overflow correction, earlier Convoy, credits and save fixes.
 
-[Windows checkpoint ZIP](builds/windows/MuddsShipyards-19e7990-checkpoint.zip),
-[build notes](builds/windows/MuddsShipyards-19e7990-notes.txt),
-[actual validation and limits](docs/history/ROADMAP_DELIVERIES.md#title-menu-overflow--startup-actions-kept-on-screen).
+[Windows checkpoint ZIP](builds/windows/MuddsShipyards-923d7b3-checkpoint.zip),
+[build notes](builds/windows/MuddsShipyards-923d7b3-notes.txt),
+[actual validation and limits](docs/history/ROADMAP_DELIVERIES.md#begin-shift-focus-contrast--shipped-on-923d7b3).
 Native Windows/GPU/device/audio/human review and final release remain open.
 Guided3/3 on3d92b91 is not transferred to this package.
 

@@ -15374,3 +15374,57 @@ physical devices, native Windows/GPU/audio/human and final candidate gates retai
 original scope. Guided3/3 remains tied to older checkpoint3d92b91, not transferred.
 Bomber rearm policy was asked asynchronously and remains unanswered; no choice
 or seat-session entitlement was inferred.
+
+
+## Begin Shift focus contrast — shipped on 923d7b3
+
+ACCESS-TITLE-FOCUS / parents12,29; source
+`923d7b3261175a14991813cf6e479c7c95be283d`, integrated/pushed. Root owned
+baseline measurement, review, validation, publication and cleanup; one medium
+implementer owned only hud.gd and the existing accessibility suite. Frozen
+selectionff473545a at2026-10-20 05:25UTC,60min total/06:25 deadline. Original
+per-stage caps retained; no failed stage, retry or cap increase.
+
+Actual clean baseline GameHUD starts focused on Begin Shift, draw mode NORMAL,
+font16px, non-toggle/no shortcut. Normal and hover already use INK; inherited
+focusf2f2f2 on62e6ef measures1.334812:1, pressedffffff onffb85c measures1.712505:1.
+The recorded screenshot alone was not treated as a measured ratio. Existing
+ordinary-text4.5 and high-contrast7 floors are adopted for this button. Engine
+normal+focus uses focus text over normal fill; hover/press use their own paints.
+Unreachable toggle/shortcut hover_pressed is not added to the ordinary contract.
+
+Production adds only local font_focus_color/font_pressed_color INK overrides.
+The existing actual-HUD suite measures32 normal/focus/hover/pressed paint pairs
+across four palettes and both contrast modes; minimum6.324 regular/7.357 high
+contrast. It checks initial focus, inherited focus outline, geometry/navigation
+and palette restoration. Default focus now measures12.724:1.
+
+Root inspected the retained19e7990 before PNG and the new actual1024x768 default
+production-HUD Forward+ PNG on private X11/llvmpipe. UI/runtime source is unchanged
+between that before source andff473545a except documentation/build notes. Exact
+control/scale/focus/renderer metadata is identical; focused text changes to dark,
+with the white focus outline preserved. No full Main/world or native claim.
+
+All11 post-fix stages PASS first attempt/zero diagnostics: import6.650s,
+accessibility5.613s, navigation3.133s, layout6.545s, capture7.733s,
+Windows export26.847s, Linux25.559s, direct startup22.336s, archive23.778s,
+Windows payload through Linux25.905s, artifact audit5.647s. Combined159.744s;
+baseline import20.809s plus live paint2.961s, cumulative183.514s. Strict startups
+all exit0/exactly1 STARTUP_MENU_READY_OK. Actual Windows/Linux1521-entry PCK
+inventories agree; stock Windows PE.text and exact Linux archive five-file
+bytes/modes/source epoch/export metadata pass. Every Godot invocation used Dummy
+audio; headless or private explicitx11. No GitHub Actions or native Windows run.
+
+EXE/checkpoint ZIP/notes published under builds/windows; paired Linux artifacts
+under builds/linux. Source branchfix/title-focus-paint-20261020 pushed/integrated.
+All66 observed process identities absent, owners terminal; all11 published files
+hash-verified.198 unique profile entries archived/verified; unique metadata and
+helpers retained; owned worktree/cache/profile/duplicate exports removed.
+Closure6.54min within60min; only
+`/srv/mudds-work/title-focus-paint-20261020/results/` remains for this card.
+
+This closes the named paint finding only. Other title states/saved recovery,
+ordinary browser/credits return, full readability/device review and all broad
+parents/ten gates remain open. Native Windows/GPU/devices/audible/human/final
+qualification stays NOT_RUN/open. Full matrix/final Guided NOT_RUN; earlier
+Guided3/3 stays scoped to3d92b91 bytes. No successor or parked retry selected.
