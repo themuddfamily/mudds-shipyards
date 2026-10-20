@@ -88,6 +88,21 @@ original sequence on the clean corrected pin, adding a direct observer
 Retain every original result/source/export; another failure stops for cumulative
 priority review, with no automatic second correction or rerun.
 
+**Cumulative priority review / explicit driver reopening:** correctedf39183902
+passes ten prerequisite stages149.884s, then the full route stops33.808s during
+supported approach, before boarding: Arrow and a station interaction are both
+candidates at9.561m, with no E press. The driver aborts before its unchanged7m
+boarding gate. Raw tail remains supported/default-controlled; no game diagnostics.
+Original+corrective total350.281s retained; both candidates remain unpublished.
+Independent source/raw review supports removing only this premature walking
+assertion plus a focused no-E regression. The real boarding gate still requires
+Arrow candidate, no station candidate, distance≤7m, unblocked reboard and settled
+movement. This changes no interaction priority or gameplay authority.
+Root explicitly selects that two-file driver/test correction under the SAME
+original09:58–10:58UTC budget, two flights/reuse/UIquit and CAP300. Re-run original
+full checks plus direct observer check-only on its clean pin. Any further failure
+PARKS the chain: no further correction, retry, cap increase or narrower acceptance.
+
 Success qualifies only this ordinary return/reuse capability on its named bytes.
 Weapon hits, damage/repair/destruction recovery, cross-craft/Main re-entry,
 rendered/native/device/full craft gates remain open. Original all-nine/54-waypoint
