@@ -77,6 +77,21 @@ This clears the branch queue; it does not close their unfinished gameplay,
 qualification or release requirements. No unaccepted source was merged to reduce
 a branch count. Eight previously protected detached worktrees remain unchanged.
 
+**Selected: NET-JOVIAN-PILOT-EXIT /16,20,26.** One case,19:45–20:35UTC/50min.
+Extend the full accepted passenger-reboard journey with original pilot stand,
+authored physical hatch exit, supported berth ground and at least1m walk while
+the same passenger stays seated. Preserve original actors, pilot authority/source
+retirement, old-command refusal, stationary hull, occupied home lease and landed
+generation. No reclaim/redeparture, staged poses or authority writes. One HIGH
+implementer owns only the existing return caller; independent HIGH review;
+root owns integration/engines/docs/cleanup. No new branch/worktree/CI. Freeze
+selector --postdock-pilot-exit and marker JOVIAN_NETWORK_TWO_CLIENT_PILOT_EXIT_OK;
+compile300s and original route300s/outer360s, waypoint15/transition8/landing120/
+convergence5/exit10. First failure ends qualification for concrete review; no
+automatic repair/retry. Caller-only work needs no identical rebuild; a discovered
+runtime defect requires separate focused proof and fresh checkpoint. Close with
+actual outcome, preserved failures, pushed accepted source and owned cleanup.
+
 **NET-JOVIAN-PASSENGER-REBOARD DONE — source `49bc7b736`.**
 The full original ordinary boarding/departure/home landing/physical exit/ground
 walk/reboard/requested co-pilot chair journey passes149.242s, all three actual
@@ -326,7 +341,7 @@ supported existing failures. No completed probe schedules an adjacent probe.
 NET-JOVIAN-PASSENGER-REBOARD is accepted on49bc7b736 with its fresh checkpoint
 and full original journey, as recorded above. Its next existing dependent case
 is [NET-JOVIAN-PILOT-EXIT](docs/ROADMAP_BACKLOG.md#net-jovian-pilot-exit--release-helm-and-reach-ground),
-not selected here. No unchanged reboard rerun or new evidence-only task is needed.
+selected above. The full prerequisite journey is retained in that continuation.
 
 ### Next three production deliveries
 
