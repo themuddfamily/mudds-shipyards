@@ -80,6 +80,18 @@ records the earlier 20 candidates; accepted Breach and Halyard closeouts and the
 archived superseded Jovian caller remove three.
 This cleanup changes branch ownership, not the number of completed roadmap outcomes.
 
+**Selected missing interaction observation: 16:12–16:27 UTC, 15min.**
+Use the existing docked-pilot branch and original full caller once to record the
+actual boarding/station candidates, nearby controls, range, area availability/
+reservation and reboard suppression at the failing pre-E boundary. Add only
+these read-only fields to its existing receipt; no route, aim, input, predicate,
+production behavior or original deadline changes. This is a targeted diagnostic
+reproduction of the named missing fact, not exit acceptance or a gameplay fix.
+Import/compile then one original300s-suite/360s-outer case; preserve terminal
+failure and all raw data. No export, unchanged second run or adjacent probe.
+Finish by pushing the accounted source/result and cleaning owned scratch.
+Prior951.245s and original parser failures remain; no cost reset.
+
 **Physical passenger-exit repair remains withheld at interaction discovery.**
 Existing `fix/docked-pilot-hold-20261020` is pushed on de57a6e15 and unmerged.
 Source exposed generic-spawn teleport on confirmed Jovian passenger departure.
