@@ -38,14 +38,28 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 ## Execution now
 
-**No implementation or engine run is active.** The aboard Help cell is
-accepted in source-only headless scope on e5dfe1117: all20 rows/four pages at
-1920×1200 and minimum0.75 scale pass124 assertions, including geometry,
-wrapping, focus and Close. No runtime repair or new playable build was needed.
-[Actual result and limits](docs/history/ROADMAP_DELIVERIES.md#aboard-help--one-minimum-scale-1610-cell-accepted).
-Owned worktree/profiles/helpers removed2.91min within original15min;6 process
-identities absent. Arrow hit qualification remains parked; latest accepted
-playable checkpoint remainsed1167b.
+**Active: WEAPON-ARROW narrowly reopened11:11UTC2026-10-20.** Independent
+source review identified a delivery inconsistency: the driver releases F on the
+next supervisor update without awaiting a post-keydown physics sample; other
+actions use existing timed `tap` (at least0.15s and6observed frames). This is a
+supported correction seam, not proof of the failed attempt's exact scheduling.
+
+One implementer changes only the driver and its focused tests: use the existing
+timed tap for one continuous fire press, never retrigger, then release before
+attitude restoration. Existing observer/runtime/defaults and exact fresh shot/
+24damage100→76/receipt/target checks remain unchanged. Retain two ordinary
+flights/home/OFFLINE exits/clear/reboard/UIquit, weapon25s within CAP300.
+
+Original selection10:47UTC, cumulative80min deadline12:07UTC and prior255.594s
+stage cost remain binding; no clock reset under the new scratch folder.
+Estimate≤10min implementation plus review, then existing focused/package checks.
+Before engines freeze clean pin/exact11stage commands/caps; first unexpected
+failure PARK, with no automatic correction or retry. Original source/results
+remain preserved; no additional general diagnosis/probe selected. Owned scratch
+is `/srv/mudds-work/arrow-fire-hold-20261020/`; root integrates and cleans it.
+
+Aboard Help cell remains accepted on sourcee5dfe1117 in headless layout/focus
+scope only. Latest accepted playable checkpoint remainsed1167b.
 
 ### Next production alternative: Freight physical terminal interface
 
