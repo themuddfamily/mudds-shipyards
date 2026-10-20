@@ -78,6 +78,24 @@ This clears the branch queue; it does not close their unfinished gameplay,
 qualification or release requirements. No unaccepted source was merged to reduce
 a branch count. Eight previously protected detached worktrees remain unchanged.
 
+**Selected reboard corridor after concrete geometry/path facts.**
+ServiceCabinet02 world box x[-40.05,-38.85],z[64.6,66.6] plus player radius.38
+predicts the recorded stop atx-40.430; actual collider ID was not recorded, so this
+remains source inference. Existing x=-42 ingress already passes in the same raw
+run and lies on ApronDeck03 collision support x[-68.8,-37.2],z[56.9,66.9],top.38.
+Restore exact withheld834d874cc and change only exterior clearance/return goals:
+(-42,.38,boarding.z)→(-42,.38,boarding.z-8.5), then reverse to original hatch.
+Retain actual >7m guard-clear/retired-context proof and the whole original
+board/departure/home landing/physical exit/groundwalk/reboard/chair contract.
+No production geometry, guard, input, pose, claim or acceptance changes.
+Root makes this small sequential route change; independent HIGH review before
+engines and actual final result. Same compile300s/full300s/outer360s/waypoint15s/
+transition8s/landing120s/convergence5s; original18:23–19:23 assignment and333.373s
+prior stages retained. One exact clean compile/full route; first failure stops,
+no automatic variant. Same script/selector/marker and private Xvfb/x11/Dummy audio.
+No new branch/worktree. Preserve results in existing reboard/corridor and remove
+owned reboard-corridor-scratch; integrate/push only accepted original case.
+
 **Jovian passenger reboard remains OPEN after original and sole correction.**
 Both candidates complete the full original ordinary boarding/departure/home
 landing/physical hatch exit and supported groundwalk. Originaladd3c854b returns
