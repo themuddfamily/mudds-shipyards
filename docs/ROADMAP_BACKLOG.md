@@ -1341,6 +1341,29 @@ The concrete source mismatch is the new causal lead justifying this bounded
 observation; original235.879s/two-failure browser chain remains parked/cumulative.
 Its complete acceptance and every unperformed native/human/parent gate remain open.
 
+**NET-TIMEOUT-TEARDOWN-OWNER observation frozen2026-10-20.** Root selects the
+single caller reviewed GO by an independent high reviewer; no runtime fix or
+full browser retry. Clean detached source20cab9bba, owned worktree
+`/srv/mudds-work/rpc-cache-owner-20261020/worktree`, fresh cache requires one
+import. External caller `helpers/probe.gd` SHA256
+`1ee5eb50f83f685be963a54975b195a043c950e9ab1ff2b5b5639d010b3e7895`.
+Commands use `/tmp/mudds-tools/godot-4.7.1/godot --headless --audio-driver Dummy
+--path /srv/mudds-work/rpc-cache-owner-20261020/worktree`, first `--editor --import`
+(cap180s), then `--script /srv/mudds-work/rpc-cache-owner-20261020/helpers/probe.gd`
+(cap35s). Existing source/index/cache/engine/PID guards and private XDG profiles.
+
+Require exit0, exactly one RPC_CACHE_OWNER_OBSERVATION_OK and exactly two checked
+case receipts (default/custom, actual adapter IDs), actual hello within3s and
+automatic paused timeout by7s from retained production start. Preserve callable
+object/method/bound arguments and flags before/after shutdown. Classify only the
+exact original native tree_exited/empty-callable message referencing those IDs,
+at most once per case in raw stdout (private-log duplicates retained). Any other
+diagnostic/assertion/nonzero/cache/source/process issue STOP; no repair/retry/cap
+change. Zero target errors is NOT_REPRODUCED, not runtime acceptance. Preserve
+raw logs then remove owned worktree/helpers/profiles after terminal process checks.
+Estimate10–15min; no package/checkpoint because production is unchanged. Original
+browser235.879s/two failures and whole-route gates remain binding/open.
+
 ### Supported remote helm action roster
 
 HELM-ACTIONS-DEFINE is DONE as a source definition, not new gameplay or current

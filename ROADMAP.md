@@ -96,7 +96,8 @@ Read-only owner mapping is complete: engine RPC-cache source connects a bound
 removal callback but disconnects it without the bound ID. This fits the diagnostic;
 actual binary callback ownership/editor-versus-release parity remain unproven.
 [Source facts and bounded next proof](docs/ROADMAP_BACKLOG.md#timeout-rpc-cache-ownership--net-timeout-teardown-owner).
-Next action: freeze one default/custom-API ownership observation before engines.
+Next selected action: one frozen default/custom-API ownership observation
+(guarded import180s, combined headless/Dummy caller35s).
 No runtime patch or full-route reopening selected; no-answer case remains open.
 
 Perimeter Hold's implementation candidate **aa88b5a73** is **PARKED/unmerged**.
