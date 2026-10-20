@@ -56,36 +56,34 @@ in19th retirement. No production fix or full-suite pass; source archived under
 `archive/diagnostics/race-baseline-boundary-20261020`, diagnostic branch/worktree/
 profiles/helpers removed. No engine run remains active.
 
-**Selected existing task: COMBAT-WING landing authorization, parent11.**
-Same existing branch, original12:24–13:24UTC/60min budget; no unrelated task.
-Both caller corrections remain: actual board E accepted2.21849m, normalL delivered
-and actual assist starts. Full second route still FAIL46.695s: assist=true while
-GameFlow remains FREE_FLIGHT/director RUNNING; craft destroyed during autopilot.
-All prior stages retained:344.298+269.527+57.463=671.288s.
+**Selected existing task: COMBAT-WING camera firing correction, parent11.**
+Same existing branch, original12:24–13:24UTC/60min budget. Landing authorization
+repair06630f5d passes40 admission and151 director assertions; fresh paired exports,
+strict startups and actual artifact audit pass. Full ordinary route now completes
+both Heavy/Torpedo withdrawals, strict home docks, shutdowns and physical exits.
+Wing remains FAILED: two actual shots miss, hull39.33 entering combat, destruction.
+All actual supervised costs retained:344.298+224.230+57.463+292.740=918.731s;
+the earlier269.527 first-correction sum double-counted nested native elapsed.
 
-High lifecycle review supports one production correction: running board sorties
-must revoke authorization when their exact live target enters accepted automatic
-landing. This follows existing landing-containment/dispatch-recheck contracts;
-it is an inference about scenario withdrawal, not hull immunity. Director's
-current phase-only FREE_FLIGHT guard misses this state. Leave GameFlow phase,
-damage, AI tuning, pilot and landing timers unchanged; existing WITHDRAWN/standdown
-owns retirement. Terminal CLEARED, scenario generation, source cleanup, solo/
-network-suspension and admission boundaries remain protected.
+Concrete caller defect: Wing uses hull axes and loose alignment>=.997 (4.44deg),
+with unresolved mouse sweep possible; the actual weapon uses camera reticle rays.
+The second emitted shot already falls below its caller threshold. Exact historical
+muzzle-ray cause cannot be reconstructed from current telemetry. Select actual
+camera precision steering and suppress firing during unresolved/nonzero mouse
+movement, following the proven Arrow seam. Hitscan needs no invented projectile
+lead. Add detached actual camera axes and retained real shot request origin/direction
+for review. No damage/health/AI/timer, craft, posting, cap or acceptance change.
 
-One high implementer owns `scripts/combat/encounter_scenario_director.gd` and the
-existing `tests/paired_wing_game_flow_admission_test.gd`; high independent review.
-Add actual production landing admission held FREE_FLIGHT, synchronous fire refusal,
-once-only withdrawal/unregistration/no reward/rotation and no automatic rearm after
-cancellation; retain old explicit phase-withdrawal regression. Estimate5–10min
-implementation/review. Frozen checks: import180s; changed admission120s; original
-director300s; fresh Windows/Linux exports180s each; strict direct/archive/Windows
-payload startups120s each; actual artifact audit90s; one full isolatedX11/Dummy
-paired-wing routeCAP300/outer360s. Unchanged caller/privacy/observer scopes retain
-prior passes explicitly; new runtime requires fresh paired checkpoint if accepted.
-Before engines freeze new source and exact retained STOP hash. First new failure
-stops; no automatic further correction or cap/acceptance reduction. Full honest
-Heavy/Torpedo withdrawals→two actual Wing kills→strict home/offline physical exits→
-UIexit0 remains decisive, followed by main merge/push and branch/worktree cleanup.
+One high implementer owns Wing driver, existing Python/observer tests and readonly
+observer fields; independent high review. Estimate3–5min source/review. Freeze exact
+source and retained STOP hash before engines: import180s; driver120s; Wing observer
+120s; paired exports180s each; direct/archive/Windows-payload strict startups120s
+each; actual artifact audit90s; one full isolatedX11/Dummy routeCAP300/outer360s.
+Retain unchanged privacy/admission/director passes. First failure stops. Deadline
+remains13:24UTC. Full Heavy/Torpedo withdrawals→two actual Wing kills→all strict
+home/offline physical exits→UIexit0 is decisive. No full route pass, main integration
+or published Wing checkpoint is claimed. Successful completion includes branch and
+owned worktree cleanup; unrelated roadmap work remains unselected.
 
 **Ready production cards: 0. Prepared production cards waiting on decisions: 3.**
 The decisions below remain pending; they do not prevent finishing independently
