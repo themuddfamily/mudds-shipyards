@@ -115,7 +115,7 @@ Finish means the named existing route passes on its frozen candidate, or the nam
 | SCOPE-ROSTER | Reconcile original twelve plus modern five craft, stations, opponents/weapons, activities, worlds, roles and targets | 4 | DONE as [finite named roster](COMPLETION_SCOPE.md#finite-release-roster--scope-roster): original12+modern5/eventual17, current9/missing8; other named inventories and unresolved boundaries preserved. No gameplay/qualification completion implied |
 | SCOPE-LIMIT | Release guest count and playing-host decision | 4,26 | WAITING; already-asked owner decision |
 | SCOPE-DESKTOP | Required desktop target list | 4,32 | WAITING final owner list: Windows Desktop/Linux x86_64 presets exist; Phase9 conditionally requires other non-Windows targets without naming one. Source investigation DONE; no third-target promise or deferral inferred |
-| PLAN-NEXT | Assign the next bounded queue | 5 | Passive release callback capture complete on783c8c872, diagnostic-only: private package/readiness checks pass and known failed route captured; no gameplay acceptance. Correction definition complete; RPC-CACHE-BUILD-RECIPE selected as the next concrete pipeline implementation, with matching-template/runtime acceptance children gated below. [Current checkpoints, waiting decisions and card fields](../ROADMAP.md#execution-now). Navigator rejection/Hauler cargo retain policy waits. This scheduling work is not a whole-project estimate or gameplay delivery |
+| PLAN-NEXT | Assign the next bounded queue | 5 | Passive release callback capture complete on783c8c872, diagnostic-only: private package/readiness checks pass and known failed route captured; no gameplay acceptance. Correction definition complete; RPC-CACHE-BUILD-RECIPE implemented/integrated onf45c9094f with24 inert tests passing; actual template builds await dependencies and runtime acceptance remains gated below. [Current checkpoints, waiting decisions and card fields](../ROADMAP.md#execution-now). Navigator rejection/Hauler cargo retain policy waits. This scheduling work is not a whole-project estimate or gameplay delivery |
 | GUIDED-FINAL | Final-package Guided ordinary-input sortie, original 3/3 | 7 | GATED; final package, earlier f676c50 acceptance retained |
 | SANDBOX-RECOVERY | Original all-nine/54-waypoint recovery walk and reuse | 7 | PARKED; supported changed input/runtime cause required |
 | SETTINGS-INPUT | Recover original runner, profile and logs | 7,8,29 | WAITING; original artifacts, no substitute Gate C |
@@ -1442,7 +1442,22 @@ Unexpected check failure STOP for this card; no automatic repair/retry expansion
 Commit/push the capability, retain exact patch/source facts and clean owned scratch.
 No playable checkpoint is implied by an uncompiled build recipe.
 
-**RPC-CACHE-TEMPLATES — dependent actual build.** GATED on accepted recipe,
+**RPC-CACHE-BUILD-RECIPE result: DONE onf45c9094f8a3b0724abc3896d97b265b81ee8030.**
+Only the three owned files changed, with explicit callable header and stored-value
+connection/disconnection in the patch. Independent high actual-source/build-tool
+review and root review GO; all24 tests pass once,0.514s guarded stage under60s cap.
+Source/index/cache/engine guards intact; one owner finished/two observed child
+identities and owner absent. Feature branch pushed, source fast-forward integrated.
+Only results remain in owned scratch, including the two official source files and
+reviewed after-images. Actual source archive preparation, dependency installation,
+compilation and runtime effectiveness NOT_RUN. Default installed engines/templates
+and presets not changed. [Exact hashes, usage and limits](history/ROADMAP_DELIVERIES.md#rpc-cache-release-template-recipe--implemented).
+Freeze commit→cleanup290.078s/4.8min versus45–60min implementation/review estimate;
+excludes initial definition/final publication. No new playable checkpoint.
+Next single action: dependency provisioning and exact build-command freeze for
+matching templates, with original full-route/fixture gates preserved.
+
+**RPC-CACHE-TEMPLATES — dependent actual build.** Recipe accepted; GATED on
 SCons and required native/cross build dependencies. Current environment has
 Python3.13.5/GCC14.2/ar/patch/pkg-config,12 CPUs and~13GiB available RAM, but no
 SCons, clang++ or MinGW on PATH, and no prior builder cache. Debian's cached

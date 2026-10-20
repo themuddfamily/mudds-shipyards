@@ -36,18 +36,24 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 ## Execution now
 
-**Selected implementation: RPC-CACHE-BUILD-RECIPE (parents 25/32).** Extend the
-existing isolated engine builder to produce a narrowly patched Windows or Linux
-release template. The candidate reuses the exact callback originally connected,
+**Build capability delivered: RPC-CACHE-BUILD-RECIPE (parents 25/32), source
+f45c9094f.** The existing isolated builder now supports the narrow RPC-cache
+patch on Windows or Linux release templates. The candidate reuses the exact callback originally connected,
 instead of reconstructing it during cache cleanup. Independent source/lifecycle
 review supports this candidate; it is not a verified fix.
 [Exact ownership, checks and stop boundary](docs/ROADMAP_BACKLOG.md#release-rpc-cache-correction--implementation-cards).
 
 | Child | State | Deliverable and completion check |
 | --- | --- | --- |
-| RPC-CACHE-BUILD-RECIPE | Selected; implementation next | Existing builder gains isolated RPC mode, two-target planning/staging and one pinned native patch; relevant existing inert build-tool tests pass. 45–60min implementation/review, checks60s. No engine/compiler/install/capture in this card. |
-| RPC-CACHE-TEMPLATES | GATED on recipe and provisioned build dependencies | Matching patched Windows/Linux release templates from the same pinned source/patch; actual builds and template hashes. Freeze commands and limits before execution. SCons/Windows cross-compiler currently absent; existing recipe is Linux-only. |
+| RPC-CACHE-BUILD-RECIPE | DONE; integrated, feature branch pushed | Isolated RPC mode, two-platform planning/staging and pinned two-file native patch. All24 existing/extended inert tool tests pass under60s cap. Actual engine compilation/runtime NOT_RUN; no new playable checkpoint. |
+| RPC-CACHE-TEMPLATES | Next; GATED on provisioned build dependencies | Matching patched Windows/Linux release templates from the same pinned source/patch; actual builds and template hashes. Freeze commands and limits before execution. SCons/Windows cross-compiler currently absent; both platform recipes now exist. |
 | NET-TIMEOUT-RELEASE-ACCEPT | GATED on matching templates and separately corrected fixture command | Relevant focused checks, clean paired exports/strict startups/package checks, then original full ordinary route with unchanged criteria/limits. Fixture cleanup rejection still blocks clean acceptance. No execution selected yet. |
+
+**Next single action:** provision the declared build dependencies and freeze
+actual matching-template build commands/limits, preserving default required
+features. No actual build/install is selected by the completed recipe card.
+Recipe commit→owned cleanup:4.8min against45–60min implementation/review estimate;
+unit stage0.514s. [Result and usage](docs/history/ROADMAP_DELIVERIES.md#rpc-cache-release-template-recipe--implemented).
 
 The passive capture is complete: same valid native SceneCacheInterface callback
 remains attached after5,006ms release timeout. Original route still exits1/
@@ -98,9 +104,9 @@ a fixed task count per ship. Retain complete CRAFT-ACCEPT journeys.
 Keep at most three executable cards. Before starting another qualification chain,
 identify an independent production alternative or record its concrete missing
 definition. Do not expand an investigation into a succession of adjacent probes.
-The release capture is complete; no repeated observation is selected. The build recipe is the next concrete pipeline capability.
+The release capture is complete; no repeated observation is selected. The build recipe is delivered; actual patched templates are the next dependency.
 
-## Latest delivered result
+## Latest playable result
 
 **Inline browser recovery delivered and packaged on 20e90c9.** The title/pause
 browser shows current connection progress and timeout guidance and offers

@@ -14308,8 +14308,11 @@ GameFlow cleanup follows. No explicit tree_exited reference exists under scripts
 Engine source explanation: SceneMultiplayer.set_multiplayer_peer calls clear on
 replacement, which clears its RPC node cache. SceneCacheInterface._track connects
 a node-ID-bound one-shot removal callback; its clear disconnect omits the bound
-ID. This is a concrete callable mismatch fitting the exact native diagnostic,
-not proof of premature Main/adapter destruction. The binary's callback owner was
+ID. This was the initial callable-mismatch hypothesis fitting the native diagnostic,
+not proof of premature Main/adapter destruction. **Later identity-source review
+withdraws the bind-omission hypothesis:** signal matching deliberately strips bind
+wrappers, so the missing-looking bound ID is not a repair. See the
+[correction implementation cards](../ROADMAP_BACKLOG.md#release-rpc-cache-correction--implementation-cards). The binary's callback owner was
 not captured, and source-engine35-assertion tests passed, so editor/release
 behavior parity is still unresolved. Do not claim a verified runtime fix.
 [Tracking/cleanup source](https://github.com/godotengine/godot/blob/a13da4feb/modules/multiplayer/scene_cache_interface.cpp#L37),
@@ -14426,3 +14429,73 @@ archive95,316,186 bytes SHA256
 `857b731e224480914bed0341cddbd1a93c4086ea3d76367c9137792dfbe86628`.
 Owned checkout removed; unrelated scratch untouched. Latest public checkpoint
 remains20e90c9. All broad parent/phase/native/human/final gates remain OPEN/NOT_RUN.
+
+
+## RPC-cache release-template recipe — implemented
+
+**2026-10-20; parents25/32; executable build-tool capability delivered.** Source
+`f45c9094f8a3b0724abc3896d97b265b81ee8030` on pushed feature branch
+`feat/rpc-cache-build-recipe-20261020` is fast-forward integrated. Only the existing
+builder, its existing test suite and one new native patch changed. No parallel
+builder/validator or gameplay/evidence-schema layer added. Definition/selection
+was committed on260ec2919 before implementation/checks.
+
+The source correction is a candidate, not a proved native fix: NodeCache retains
+the exact one-shot bound Callable it connects and disconnects that stored value
+at cache clear. Independent high source/lifecycle review found no new reference
+cycle and safe one-shot/cache-entry lifetime. It preserves custom callable
+identity rather than reconstructing it; actual differing release identity bytes
+remain unknown. The earlier bind-omission hypothesis is withdrawn because signal
+matching strips bind wrappers; empty method metadata is expected in release.
+[Correction source and original primary links](../ROADMAP_BACKLOG.md#release-rpc-cache-correction--implementation-cards).
+
+`build_godot_reflection_fix.py` gains explicit RPC-only template_release mode for
+linuxbsd/windows x86_64, absolute owned cache roots and separate platform caches,
+logs/results/staged templates. Other rendering patches are mutually exclusive;
+legacy defaults/paths remain. Exact archive/wheel/patch/target before-and-after
+pins protect source selection; post-compile target reversion/mixing is rejected
+before staging. Windows PE is inspected and never executed on Linux. Existing
+private XDG, inherited HOME, bounded compile/session abort/reap behavior retained.
+Required tool binaries are checked; no automatic installation or feature removal.
+
+Example **side-effect-free plan**, not compilation (substitute windows for the
+other platform):
+
+```sh
+python3 -B tools/release/build_godot_reflection_fix.py \
+  --rpc-cache-teardown --target template_release --platform linuxbsd \
+  --cache-root /srv/mudds-work/rpc-cache-templates-20261020/cache
+```
+
+Actual build requires a separately selected/provisioned frozen card. SCons and
+MinGW are absent here; renderer/SDK requirements must not be bypassed by disable
+flags. Matched private templates must be consumed by safe exports; selecting only
+GODOT_BIN does not replace a packaged runtime. The fixture rejection still gates
+unchanged full ordinary browser acceptance. No repeat capture/probe/route executed.
+
+Independent high implementation review plus root GO; one focused existing suite
+passes **24 tests**,0.145s unittest time/0.513645s guarded process stage under60s
+cap. Checks cover inert two-platform staging, exact source/patch rejection,
+legacy/mode isolation, stale outputs, post-compile source mutation and no Windows
+execution. Literal source-spelling assertions were removed before the first run;
+artifact identity/scope checks remain. No check failure/repair/retry occurred.
+One owner FINISHED; both observed child identities and owner absent. Frozen
+source/index/cache/engine/helper guards hold. No compiler build, source archive,
+SCons install, engine invocation, native/hardware/audio or runtime test occurred.
+Source-file preparation fetched only the two pinned official source files.
+
+Patch SHA256 `9872b34e98dcdd4ecec56f540e7f7af149380192a07dd6b10b19d150c035c8c4`.
+Header before/after: `4ab5891eced7bf190a67d94fafe901f238dae2649eb62426381846cc9d7e6b0e` /
+`b4e35aee6e4f91be622500ba462b1f003fc673f69306d99388a4155025783abf`.
+CPP before/after: `a1bcead63f35e7d86cef4dd4e461760aa69affcc4393fdc5554eadc6019b0190` /
+`ee26b6579677b3a42bf30c8c1e498e9301aeb9e3ad06370780f2f6a0cc130360`.
+Official base remainsa13da4feb8d8aefc283c3763d33a2f170a18d541.
+
+Only `/srv/mudds-work/rpc-cache-build-recipe-20261020/results/` remains, retaining
+original/after source inputs, frozen helpers/profiles and check/closure records.
+Owned worktree removed after source integration/push; unrelated scratch untouched.
+Freeze commit→cleanup290.078s/4.8min against45–60min estimate, excluding initial
+definition/final publication. Next action: provision the declared dependencies
+and freeze matching-template builds. Actual compilation/runtime effectiveness
+NOT_RUN; no new playable checkpoint. Original browser/native/human/final gates
+remain open, latest public gameplay checkpoint20e90c9.
