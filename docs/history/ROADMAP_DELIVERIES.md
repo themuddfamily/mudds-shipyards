@@ -15229,3 +15229,14 @@ withdrawal and one explicitly defined recovery case. None is silently READY or
 accepted from this failure. Clear is PARKED until a concrete supported change
 and separately frozen selection; other cases require their own full contract.
 Native Windows/GPU/device/audio/human and broader combat/release gates stay open.
+
+Source-only follow-up on af88f5f59, root retained-input review plus one bounded
+high reader: generic accepted-shot flag is persistent and may reflect the last
+range shot. Active courier samples keep defender85 and player hull89→1;
+command intent/hull alone does not establish emitted shots or component health.
+HeroShip uses camera center ray/first-collision convergence then the alternating
+muzzle; chase optical forward is ship-aligned. No camera/muzzle mismatch or
+weapon defect is established. Exact missing fact: fresh courier-window emission
+sequence, origin/direction, resolver status and hit target. No engine, test, new
+private capture, correction or retry; original cumulative165.917s and parked
+clear boundary remain. Do not infer a fix from generic accepted fire.

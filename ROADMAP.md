@@ -59,6 +59,30 @@ identifier retained, original phase-gate block unchanged, added local link valid
 and diff whitespace clean. Completed within the original 30min cap. No temporary
 files were created; no engine run or playable checkpoint was needed.
 
+**Selected qualification: NET-STALL, parent19 — original full host-stall route.**
+Existing `network_remote_pilot_helm_test.gd` is a separate original source harness,
+previously accepted on d448e3f; it is not the parked ordinary Halyard two-seat or
+held-yaw handback caller. Retain its entire own handback/reboard/roll/landing/
+cleanup contract. No narrower immediate-stall probe. One low source mapper and
+root verified the command/caps; root owns execution and result reconciliation.
+
+Freeze clean source plus approved4.7.1 engine; use an owned fresh worktree/profile
+and authenticated isolated Xvfb, explicit x11/Dummy/dummy-renderer, independent
+process timeout and input/peer teardown. Exact matrix command uses
+`--mode all --jobs 1 --timeout 300 --scope tests/network_remote_pilot_helm_test.gd`
+`--audio-driver Dummy --display-driver x11 --import-gate never`, after one fresh
+headless Dummy import. Both original600-client-step stalls and2s fresh physical
+roll/landing action deadlines remain. All surrounding original assertions remain.
+Three frozen stages: catalog selection30s (exactly this one input-only suite),
+fresh import180s, full matrix outer390s/per-suite300s. Expected actual exit0,
+one NETWORK_REMOTE_PILOT_HELM_TEST_OK, matrix PASS and actual child/wrapper exit0.
+Fixed30min from2026-10-20 04:47UTC; first unexpected failure STOP, no correction,
+retry, narrower substitute, cap increase or diagnostic exclusion. Record actual
+scope, commit/push and clean owned scratch. Game source unchanged: no duplicate
+checkpoint; native/hardware/device/audio/endurance and broader gates remain open.
+Independent production alternatives remain blocked on named Hauler stock,
+navigator refusal and Bomber rearm definitions; this does not reopen them.
+
 | Work | Actual state | Completion / next boundary |
 | --- | --- | --- |
 | LIFE-PACKAGE-DEFINE /7 | DONE as definition only | Five existing outcome groups now have explicit uncovered behavior and runnable/dependency boundaries. Four/twelve-cycle source passes remain accepted; no package journey was rerun or newly accepted. |
@@ -106,7 +130,10 @@ The [Courier breakdown](docs/ROADMAP_BACKLOG.md#courier-intercept--bounded-outco
 now separates clear, escape, phase withdrawal, distance withdrawal and recovery.
 These are separate outcomes, not five READY jobs or a project completion count.
 The failed clear requires a concrete supported change before a separately frozen
-attempt; the other routes must be selected independently. Existing Guided3/3
+attempt; the other routes must be selected independently. Source-only diagnosis
+found that generic `shot_accepted` may be a stale range receipt. Fresh Courier-
+window emission sequence/ray/resolver status is missing; no camera, weapon or
+aim defect was established, so no repair or runtime retry is selected. Existing Guided3/3
 and public checkpoint3d92b91 remain accepted in their recorded scopes.
 [Source, actual result and retained artifacts](docs/history/ROADMAP_DELIVERIES.md#courier-ordinary-clear--escaped-without-player-damage).
 Tooltip cleanup-order candidate remains unmerged/unproved; no retry is scheduled.
