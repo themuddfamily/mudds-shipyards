@@ -41,22 +41,28 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
-**Planning deliverable completed: three bounded production cards prepared.**
-This roadmap revision prepares the three existing production cards below and
-separates their implementation from later journey qualification. It adds no
-runtime capability and closes no broad parent or phase.
+**Selected: BASE-DIAG[Race save/restore timeout], parents6/31.**
+Root owns one private, print-only copy of
+`tests/cinder_race_session_save_restore_test.gd`; no production change selected.
+The original log ends after unpaid fallback attempt1; it does not distinguish
+retirement, next startup or subsequent unprinted checks. Time `_make_game`
+(instantiation/attach/frame waits), `_retire_game` and existing assertions with
+monotonic lifetime/check indices. Preserve every original operation/assertion.
+
+Selection12:07UTC;40min total budget through12:47UTC. Source preparation estimate
+10min; checks: clean headless import180s, direct check-only120s, exactly one
+original headless/Dummy suite300s under the existing process supervisor. Private
+XDG/TMPDIR; no desktop/audio. Command after import/compile:
+`godot --headless --audio-driver Dummy --path <owned-worktree> --script res://tests/cinder_race_session_save_restore_test.gd`.
+A timeout is the expected possible diagnostic result, never acceptance. Stop on
+first unexpected failure or terminal suite result; no repair/retry/cap increase.
+Finish with the actual first incomplete boundary, costs and source scope; commit/
+push finding and clean owned scratch. Diagnostic source stays private/unmerged.
+No playable rebuild is required without an accepted production change.
 
 **Ready production cards: 0. Prepared production cards waiting on decisions: 3.**
-This describes this queue, not the entire project's remaining-job count. Each
-waiting input has already been asked; elapsed time is not an answer. Other
-independent qualifications remain possible, but need an explicit selection and
-must help close a named player journey rather than start an adjacent proof chain.
-
-Latest accepted source work: roll-rate turn/release on 73f4a4f67, with affected
-pitch/yaw regressions passing. Full handback remains required/PARKED.
-[Actual result and limits](docs/history/ROADMAP_DELIVERIES.md#sampled-continuous-roll-rate--turn-and-release-accepted).
-No successor engine run is selected. The boost source handoff found an existing
-runtime consumer; it does not establish a missing boost feature or schedule a test.
+This describes this queue, not the entire project's remaining-job count.
+The existing decisions below remain pending; no helm successor is selected.
 
 ### Next three production deliveries
 
