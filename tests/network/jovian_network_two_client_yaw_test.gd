@@ -2,9 +2,10 @@
 extends "res://tests/network/jovian_network_two_client_flight_test.gd"
 
 ## HELM-YAW-TURN: retain the entire ordinary two-client departure, then turn
-## through normal pilot action events. Commands, attitude and replicas are read
+## through synthetic Godot InputEventAction events sampled by LocalShipInputSource.
+## This is not OS/hardware input or provider injection. Attitude and replicas are read
 ## from production objects; files coordinate peers and carry comparison targets.
-## This does not add a disembark/reboard qualification to inherited handback.
+## Shared handback remains PARKED and is not qualified by this turn/release route.
 const YAW_ACTIONS := [&"move_left", &"move_right"]
 var _yaw_stage := "departure"
 var _yaw_direction := ""
@@ -13,6 +14,40 @@ var _yaw_local_start: Dictionary = {}
 var _yaw_turn: Dictionary = {}
 var _yaw_stop: Dictionary = {}
 var _yaw_max_drift_degrees := 0.0
+
+
+# These hooks specialize only the steering axis; departure, clocks, identities,
+# neutral release and actual-client attitude checks stay in this shared caller.
+func _steering_profile() -> Dictionary:
+	return {"axis": &"yaw", "actions": YAW_ACTIONS, "directions": ["left", "right"],
+		"command_signs": [-1.0, 1.0], "rotation_axis": "up", "rotation_sign": -1.0}
+
+
+func _steering_description(description: String) -> String:
+	return description if _steering_profile().axis == &"yaw" else description.replace("yaw", "pitch").replace("heading", "pitch attitude")
+
+
+func _steering_metric_key(key: String) -> String:
+	return key if _steering_profile().axis == &"yaw" else key.replace("heading", "pitch")
+
+
+func _steering_actions_released() -> bool:
+	for action: StringName in _steering_profile().actions:
+		if Input.is_action_pressed(action):
+			return false
+	return true
+
+
+func _steering_command_matches(command: ShipCommand, command_sign: float) -> bool:
+	if command == null or not command.is_valid():
+		return false
+	for axis: StringName in [&"throttle", &"yaw", &"pitch", &"roll"]:
+		var expected := command_sign if axis == _steering_profile().axis else 0.0
+		if not is_equal_approx(float(command.get(axis)), expected):
+			return false
+	return is_zero_approx(command.look_yaw_delta) and is_zero_approx(command.look_pitch_delta) \
+		and not command.brake and not command.boost and not command.hover \
+		and (not is_zero_approx(command_sign) or command.is_neutral())
 
 
 func _peer_profile() -> Dictionary:
@@ -43,7 +78,7 @@ func _client_scenario() -> bool:
 
 
 func _release_yaw_actions() -> void:
-	for action: StringName in YAW_ACTIONS:
+	for action: StringName in _steering_profile().actions:
 		_action(action, false)
 		Input.action_release(action)
 
@@ -52,11 +87,11 @@ func _host_yaw() -> bool:
 	_yaw_start = {"source_stream": _flight_source.get_stream_id(),
 		"wire_stream": int((_flight_source as NetworkRemotePilotCommandSource).get_roll_receipt().get("stream", -1))}
 	if not _require(_yaw_start.wire_stream >= 0 and _host_flight_current(),
-		"yaw begins with unchanged original host producer, wire stream, owner and both original seated identities"):
+		_steering_description("yaw begins with unchanged original host producer, wire stream, owner and both original seated identities")):
 		return false
-	for index in YAW_ACTIONS.size():
-		_yaw_direction = "left" if index == 0 else "right"
-		if not await _host_yaw_direction(-1.0 if index == 0 else 1.0):
+	for index in _steering_profile().actions.size():
+		_yaw_direction = _steering_profile().directions[index]
+		if not await _host_yaw_direction(float(_steering_profile().command_signs[index])):
 			return false
 	_yaw_stage = "retained"
 	return true
@@ -82,11 +117,11 @@ func _host_yaw_direction(command_sign: float) -> bool:
 	_write(_yaw_file("host", "go"), {})
 	if not await _yaw_wait(func():
 		return _yaw_host_command(command_sign, int(_yaw_turn.command_sequence), int(_yaw_turn.delivered)) \
-			and -command_sign * _yaw_heading_change(_yaw_turn) >= 3.0,
+			and float(_steering_profile().rotation_sign) * command_sign * _yaw_heading_change(_yaw_turn) >= 3.0,
 		maxf(0.0, float(authorized_msec + 2000 - Time.get_ticks_msec()) / 1000.0),
 		"host consumes same-stream valid " + _yaw_direction + " command and changes heading>=3deg with correct sign inside2s of input authorization"):
 		return false
-	_yaw_turn = _yaw_host_receipt().merged({"heading_change_degrees": _yaw_heading_change(_yaw_turn),
+	_yaw_turn = _yaw_host_receipt().merged({_steering_metric_key("heading_change_degrees"): _yaw_heading_change(_yaw_turn),
 		"authorization_to_turn_msec": Time.get_ticks_msec() - authorized_msec})
 	_yaw_stage = "host." + _yaw_direction + ".release"
 	# Start before authorizing release, so the 1s budget includes file scheduling
@@ -106,12 +141,12 @@ func _host_yaw_direction(command_sign: float) -> bool:
 		_yaw_max_drift_degrees = maxf(_yaw_max_drift_degrees, absf(_yaw_heading_change(_yaw_stop)))
 		if not _require(_yaw_host_command(0.0, int(_yaw_stop.command_sequence) - 1, int(_yaw_turn.delivered))
 			and _yaw_max_drift_degrees <= 0.5 and _host_passenger_follows_anchor(true),
-			"neutral host command, actual passenger anchor and heading drift<=0.5deg hold throughout1s"):
+			_steering_description("neutral host command, actual passenger anchor and heading drift<=0.5deg hold throughout1s")):
 			return false
 		return Time.get_ticks_msec() - stable_since >= 1000,
 		2.0, "authoritative " + _yaw_direction + " heading holds<=0.5deg drift for1s once neutral"):
 		return false
-	_yaw_stop = _yaw_host_receipt().merged({"maximum_neutral_heading_drift_degrees": _yaw_max_drift_degrees})
+	_yaw_stop = _yaw_host_receipt().merged({_steering_metric_key("maximum_neutral_heading_drift_degrees"): _yaw_max_drift_degrees})
 	_yaw_stage = "host." + _yaw_direction + ".replica_convergence"
 	var convergence_started_msec := Time.get_ticks_msec()
 	_write(_yaw_file("host", "stable"), _yaw_stop)
@@ -130,9 +165,9 @@ func _host_yaw_direction(command_sign: float) -> bool:
 func _client_yaw() -> bool:
 	if _role == "client":
 		_yaw_local_start = _yaw_capture_identity()
-	for index in YAW_ACTIONS.size():
-		_yaw_direction = "left" if index == 0 else "right"
-		if not await _client_yaw_direction(YAW_ACTIONS[index], -1.0 if index == 0 else 1.0):
+	for index in _steering_profile().actions.size():
+		_yaw_direction = _steering_profile().directions[index]
+		if not await _client_yaw_direction(_steering_profile().actions[index], float(_steering_profile().command_signs[index])):
 			return false
 	_yaw_stage = "retained"
 	return true
@@ -146,8 +181,7 @@ func _client_yaw_direction(action: StringName, command_sign: float) -> bool:
 		return false
 	_yaw_turn = _read(_yaw_file("host", "prepare"))
 	if not await _yaw_wait(func():
-		return _yaw_consumed_after(_yaw_turn) and not Input.is_action_pressed(&"move_left") \
-			and not Input.is_action_pressed(&"move_right"), 8.0,
+		return _yaw_consumed_after(_yaw_turn) and _steering_actions_released(), 8.0,
 		"original client consumes advanced current-owner pose and holds neither yaw action before authorization"):
 		return false
 	var ready := _yaw_client_receipt()
@@ -173,7 +207,7 @@ func _client_yaw_direction(action: StringName, command_sign: float) -> bool:
 		_action(action, false)
 		_write(_yaw_file("client", "released"), {"capture_observed": capture_observed[0]})
 	if not _require(bool(capture_observed[0]),
-		"normal local provider command reaches current production helm capture and advances ENet send cursor while yaw is held"):
+		_steering_description("synthetic Godot action sampled by production LocalShipInputSource advances current helm capture and ENet send cursor while yaw is held")):
 		return false
 	_yaw_turn = _read(_yaw_file("host", "turned"))
 	_yaw_stage = _role + "." + _yaw_direction + ".neutral_stability"
@@ -197,7 +231,7 @@ func _yaw_wait(predicate: Callable, seconds: float, description: String) -> bool
 	return await _flight_wait(func():
 		if not _require(_yaw_stream_current(), "original producer and wire streams remain current throughout " + _yaw_stage):
 			return false
-		return bool(predicate.call()), seconds, description)
+		return bool(predicate.call()), seconds, _steering_description(description))
 
 
 func _yaw_stream_current() -> bool:
@@ -215,21 +249,17 @@ func _yaw_host_command(command_sign: float, newer_than: int, delivered_after: in
 	var command := _craft.get_last_ship_command()
 	var audit := (_flight_source as NetworkRemotePilotCommandSource).get_audit()
 	var controls := audit.get("controls", {}) as Dictionary
-	return command != null and command.is_valid() and command.stream_id == int(_yaw_start.source_stream) \
+	return _steering_command_matches(command, command_sign) and command.stream_id == int(_yaw_start.source_stream) \
 		and command.sequence > newer_than and bool(audit.get("holding", false)) \
 		and int(audit.get("delivered", 0)) > delivered_after \
-		and is_equal_approx(command.yaw, command_sign) and is_equal_approx(float(controls.get("yaw", INF)), command_sign) \
-		and is_zero_approx(command.throttle) and is_zero_approx(command.pitch) and is_zero_approx(command.roll) \
-		and is_zero_approx(command.look_yaw_delta) and is_zero_approx(command.look_pitch_delta) \
-		and not command.brake and not command.boost and not command.hover \
-		and (not is_zero_approx(command_sign) or command.is_neutral())
+		and is_equal_approx(float(controls.get(str(_steering_profile().axis), INF)), command_sign)
 
 
 func _yaw_pilot_capture_matches(command_sign: float, ready: Dictionary) -> bool:
 	var command := _craft.get_last_ship_command()
 	var capture := _game.get("_network_remote_helm") as Dictionary
-	return command != null and command.is_valid() and _flight_source is LocalShipInputSource \
-		and command.stream_id == _flight_source.get_stream_id() and is_equal_approx(command.yaw, command_sign) \
+	return _steering_command_matches(command, command_sign) and _flight_source is LocalShipInputSource \
+		and command.stream_id == _flight_source.get_stream_id() \
 		and int(capture.get("sample_sequence", -1)) >= command.sequence \
 		and int(capture.get("sequence", 0)) > int(ready.get("wire_sequence", 0)) \
 		and int(_game.get("_network_remote_helm_sent")) > int(ready.get("sent", 0))
@@ -257,9 +287,9 @@ func _yaw_client_converged(host: Dictionary) -> bool:
 
 func _yaw_heading_change(reference: Dictionary) -> float:
 	var initial_nose := _vector_from(reference.nose)
-	var up := _vector_from(reference.up)
-	var current_nose := (-_craft.global_basis.z).normalized().slide(up).normalized()
-	return rad_to_deg(initial_nose.slide(up).normalized().signed_angle_to(current_nose, up))
+	var axis := _vector_from(reference[_steering_profile().rotation_axis])
+	var current_nose := (-_craft.global_basis.z).normalized().slide(axis).normalized()
+	return rad_to_deg(initial_nose.slide(axis).normalized().signed_angle_to(current_nose, axis))
 
 
 func _yaw_attitude_error(reference: Dictionary) -> float:
@@ -269,7 +299,7 @@ func _yaw_attitude_error(reference: Dictionary) -> float:
 
 
 func _yaw_file(role: String, boundary: String) -> String:
-	return role + ".yaw_" + _yaw_direction + "." + boundary
+	return role + "." + str(_steering_profile().axis) + "_" + _yaw_direction + "." + boundary
 
 
 func _yaw_clients_ready(boundary: String) -> bool:
@@ -287,6 +317,8 @@ func _yaw_host_receipt() -> Dictionary:
 		"producer": _producer_state(_flight_source), "source_stream": _flight_source.get_stream_id(),
 		"delivered": int((_flight_source as NetworkRemotePilotCommandSource).get_audit().get("delivered", 0)),
 		"wire_receipt": (_flight_source as NetworkRemotePilotCommandSource).get_roll_receipt()})
+	if _steering_profile().rotation_axis == "right":
+		result["right"] = _vector_values(_craft.global_basis.x.normalized())
 	return result
 
 
@@ -312,8 +344,9 @@ func _failure_snapshot(description: String) -> Dictionary:
 	var snapshot := super._failure_snapshot(description)
 	var yaw := {"stage": _yaw_stage, "direction": _yaw_direction, "start": _yaw_start,
 		"local_start": _yaw_local_start, "turn": _yaw_turn, "stop": _yaw_stop,
-		"maximum_neutral_heading_drift_degrees": _yaw_max_drift_degrees,
-		"move_left": Input.is_action_pressed(&"move_left"), "move_right": Input.is_action_pressed(&"move_right")}
+		_steering_metric_key("maximum_neutral_heading_drift_degrees"): _yaw_max_drift_degrees}
+	for action: StringName in _steering_profile().actions:
+		yaw[str(action)] = Input.is_action_pressed(action)
 	if is_instance_valid(_game) and is_instance_valid(_craft) and is_instance_valid(_player) \
 		and is_instance_valid(_flight_source):
 		yaw["actual"] = _yaw_host_receipt() if _role == "host" else _yaw_client_receipt()
@@ -325,5 +358,5 @@ func _failure_snapshot(description: String) -> Dictionary:
 			var body := _game.get_network_remote_body_simulation().get_body(GameFlow.network_client_boarding_avatar_id(peer)) as PlayerController
 			var anchor := (_craft as JovianLightFreighter).get_copilot_seat_anchor()
 			yaw["host_passenger_anchor_error_m"] = body.global_position.distance_to(anchor.global_position) if is_instance_valid(body) else -1.0
-	snapshot["yaw"] = yaw
+	snapshot[str(_steering_profile().axis)] = yaw
 	return snapshot
