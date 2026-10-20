@@ -46,10 +46,22 @@ var _pilot_reclaim_seated: Dictionary = {}
 var _pilot_reclaim_producer: Dictionary = {}
 var _pilot_reclaim_probe_results: Array[Dictionary] = []
 var _pilot_reclaim_consumed_ready := false
+var _redepart_selected := false
+var _redepart_active := false
+var _redepart_complete := false
+var _redepart_departed := false
+var _redepart_stopped := false
+var _redepart_saw_throttle := false
+var _redepart_saw_brake := false
+var _redepart_generation := 0
+var _redepart_start: Dictionary = {}
+var _redepart_stop: Dictionary = {}
+var _redepart_stopped_since := -1
 
 
 func _run() -> void:
-	_pilot_reclaim_selected = "--postdock-pilot-reclaim" in OS.get_cmdline_user_args()
+	_redepart_selected = "--postdock-redepart" in OS.get_cmdline_user_args()
+	_pilot_reclaim_selected = _redepart_selected or "--postdock-pilot-reclaim" in OS.get_cmdline_user_args()
 	_pilot_exit_selected = _pilot_reclaim_selected or "--postdock-pilot-exit" in OS.get_cmdline_user_args()
 	_reboard_selected = _pilot_exit_selected or "--postdock-passenger-reboard" in OS.get_cmdline_user_args()
 	_postdock_selected = _reboard_selected or "--postdock-passenger-exit" in OS.get_cmdline_user_args()
@@ -66,6 +78,8 @@ func _peer_arguments(role: String, display: PackedStringArray) -> PackedStringAr
 		args.append("--postdock-pilot-exit")
 	if _pilot_reclaim_selected:
 		args.append("--postdock-pilot-reclaim")
+	if _redepart_selected:
+		args.append("--postdock-redepart")
 	return args
 
 
@@ -77,7 +91,9 @@ func _peer_profile() -> Dictionary:
 
 func _print_peer_success() -> void:
 	# Inherited coordinator alone prints this after all actual peer OS exits0.
-	if _pilot_reclaim_selected:
+	if _redepart_selected:
+		print("JOVIAN_NETWORK_TWO_CLIENT_REDEPART_OK checks=%d" % _checks)
+	elif _pilot_reclaim_selected:
 		print("JOVIAN_NETWORK_TWO_CLIENT_PILOT_RECLAIM_OK checks=%d" % _checks)
 	elif _pilot_exit_selected:
 		print("JOVIAN_NETWORK_TWO_CLIENT_PILOT_EXIT_OK checks=%d" % _checks)
@@ -157,6 +173,12 @@ func _client_scenario() -> bool:
 			result = await _client_postdock_pilot_exit()
 		if result and _pilot_reclaim_selected:
 			result = await _client_postdock_pilot_reclaim()
+		if result and _redepart_selected:
+			result = await _client_redepart()
+		if _redepart_selected and _role == "client":
+			for action in [&"move_forward", &"brake"]:
+				_action(action, false)
+				Input.action_release(action)
 		if not _pilot_exit_selected and physics_frame.is_connected(_postdock_observe):
 			physics_frame.disconnect(_postdock_observe)
 		_release_walk()
@@ -369,6 +391,8 @@ func _failure_snapshot(description: String) -> Dictionary:
 		snapshot["pilot_exit"] = _pilot_exit_receipt()
 	if _pilot_reclaim_active:
 		snapshot["pilot_reclaim"] = _pilot_reclaim_receipt()
+	if _redepart_active:
+		snapshot["redepart"] = _redepart_receipt()
 	return snapshot
 
 
@@ -557,6 +581,8 @@ func _postdock_wait(predicate: Callable, seconds: float, description: String) ->
 
 
 func _postdock_invariants() -> bool:
+	if _redepart_active:
+		return _redepart_invariants()
 	if _pilot_reclaim_active:
 		return _pilot_reclaim_invariants()
 	if _pilot_exit_active:
@@ -704,6 +730,8 @@ func _passenger_is_current(peer: int) -> bool:
 
 
 func _pilot_is_current(peer: int) -> bool:
+	if _redepart_selected and _redepart_complete and _role == "host":
+		return peer == int(_flight_start.pilot_peer) and _redepart_invariants() and _host_pilot_reclaim_seated_current(true)
 	if _pilot_reclaim_selected and _pilot_reclaim_complete and _role == "host":
 		return peer == int(_flight_start.pilot_peer) and _pilot_reclaim_invariants() and _host_pilot_reclaim_seated_current()
 	if _pilot_exit_selected and _pilot_exit_complete and _role == "host":
@@ -955,7 +983,7 @@ func _host_reboard_body_current(seated: bool) -> bool:
 		and int(movement.get("stream_id", -1)) > int(retired_source.get("stream_id", -1))
 
 
-func _host_reboard_seated_current() -> bool:
+func _host_reboard_seated_current(stopped: bool = true) -> bool:
 	if not _host_reboard_body_current(true):
 		return false
 	var peer := int(_flight_start.passenger_peer)
@@ -973,7 +1001,7 @@ func _host_reboard_seated_current() -> bool:
 			or row.get("seat_id") == JovianLightFreighter.COPILOT_SEAT_ID:
 			count += 1
 	return count == 1 and body.is_seated_at((_craft as JovianLightFreighter).get_copilot_seat_anchor()) \
-		and _body_follows_anchor(body, (_craft as JovianLightFreighter).get_copilot_seat_anchor(), true) \
+		and _body_follows_anchor(body, (_craft as JovianLightFreighter).get_copilot_seat_anchor(), stopped) \
 		and seat.get_ship() == _craft and seat.get_seat_id() == JovianLightFreighter.COPILOT_SEAT_ID \
 		and assignment.get("role") == &"passenger" and assignment.get("avatar_id") == avatar \
 		and assignment.get("seat_id") == JovianLightFreighter.COPILOT_SEAT_ID \
@@ -1050,7 +1078,7 @@ func _reboard_relationship_matches(expected: Dictionary, seated: bool) -> bool:
 			(_craft as JovianLightFreighter).get_copilot_seat_anchor().global_position) <= 0.05)
 
 
-func _local_reboard_seated_current(expected: Dictionary) -> bool:
+func _local_reboard_seated_current(expected: Dictionary, stopped: bool = true) -> bool:
 	if expected.is_empty():
 		return false
 	var source := _game.get_network_remote_body_intent_source()
@@ -1060,7 +1088,7 @@ func _local_reboard_seated_current(expected: Dictionary) -> bool:
 	var held := (expected.get("occupancies", []) as Array)[0] as Dictionary
 	var claim := _game.get("_network_client_boarding_claim") as Dictionary
 	return _same_identity() and _player.get_instance_id() == _initial_player_id and _local_passenger_is_current() \
-		and _body_follows_anchor(_player, (_craft as JovianLightFreighter).get_copilot_seat_anchor(), true) \
+		and _body_follows_anchor(_player, (_craft as JovianLightFreighter).get_copilot_seat_anchor(), stopped) \
 		and _reboard_relationship_matches(expected, true) and source != null and source.is_bound() \
 		and source.get_entity_generation() == int(expected.body_record.entity_generation) \
 		and int(source.get_audit().get("stream_id", -1)) == int(expected.movement.stream_id) \
@@ -1305,8 +1333,12 @@ func _host_postdock_pilot_reclaim() -> bool:
 	_write("host.pilot_reclaim_probe_checked", _pilot_reclaim_receipt())
 	_pilot_reclaim_complete = true
 	_write("host.pilot_reclaim_complete", _pilot_reclaim_receipt())
-	return _require(_pilot_reclaim_invariants() and _host_pilot_reclaim_seated_current(),
-		"same pilot reclaims current helm without departing the occupied home berth or changing the passenger")
+	if not _require(_pilot_reclaim_invariants() and _host_pilot_reclaim_seated_current(),
+		"same pilot reclaims current helm without departing the occupied home berth or changing the passenger"):
+		return false
+	if _redepart_selected:
+		return await _host_redepart()
+	return true
 
 
 func _client_postdock_pilot_reclaim() -> bool:
@@ -1520,7 +1552,7 @@ func _pilot_reclaim_registry() -> Dictionary:
 	return pilots[0] as Dictionary if pilots.size() == 1 else {}
 
 
-func _host_pilot_reclaim_seated_current() -> bool:
+func _host_pilot_reclaim_seated_current(allow_flight: bool = false) -> bool:
 	if _pilot_reclaim_cabin.is_empty():
 		return false
 	var peer := int(_flight_start.pilot_peer)
@@ -1569,7 +1601,7 @@ func _host_pilot_reclaim_seated_current() -> bool:
 		and int(source.get_audit().get("delivered", 0)) > 0 \
 		and simulation.get_body(avatar) == null and simulation.get_body_record(avatar).is_empty() \
 		and _game.network_session.get_movement_avatar_snapshot(avatar).is_empty() \
-		and command != null and is_zero_approx(command.throttle) and not command.boost and not command.landing \
+		and command != null and (allow_flight or is_zero_approx(command.throttle)) and not command.boost and not command.landing \
 		and (_pilot_reclaim_seated.is_empty() or (identity == _pilot_reclaim_seated.remote_source
 			and held == _pilot_reclaim_seated.pilot_occupancies and ownership == _pilot_reclaim_seated.ownership
 			and int(wire.entity_generation) == int(_pilot_reclaim_seated.pilot_wire.entity_generation)
@@ -1598,7 +1630,7 @@ func _pilot_reclaim_local_producer() -> Dictionary:
 		"delivery_generation": source.get_delivery_generation(), "authority_peer_id": source.get_authority_peer_id()}
 
 
-func _client_pilot_reclaim_consumed() -> bool:
+func _client_pilot_reclaim_consumed(moving: bool = false) -> bool:
 	if _pilot_reclaim_seated.is_empty():
 		return false
 	var expected := _pilot_reclaim_seated.get("ownership", {}) as Dictionary
@@ -1612,7 +1644,7 @@ func _client_pilot_reclaim_consumed() -> bool:
 		or int(sample.get("pilot_peer_id", 0)) != int(_flight_start.pilot_peer):
 		return false
 	if _role == "client_b":
-		return _pilot_reclaim_relationship_matches(_pilot_reclaim_seated, true) and _local_reboard_seated_current(_reboard_seated)
+		return _pilot_reclaim_relationship_matches(_pilot_reclaim_seated, true) and _local_reboard_seated_current(_reboard_seated, not moving)
 	# GameFlow excludes the owner from non-server-simulated pilot-seat echoes.
 	# Its owner consumes the swap, local anchor and fresh craft pose below.
 	var producer := _pilot_reclaim_local_producer()
@@ -1622,7 +1654,7 @@ func _client_pilot_reclaim_consumed() -> bool:
 	var held: Dictionary = _pilot_reclaim_seated.pilot_occupancies[0]
 	var claim := _game.get("_network_client_boarding_claim") as Dictionary
 	var body_source := _game.get_network_remote_body_intent_source()
-	return _local_pilot_is_current() and _body_follows_anchor(_player, _craft.get_pilot_seat_anchor(), true) \
+	return _local_pilot_is_current() and _body_follows_anchor(_player, _craft.get_pilot_seat_anchor(), not moving) \
 		and source == _flight_source and _craft.get("_command_source") == source and source.is_enabled_owner() \
 		and int(producer.authority_peer_id) == _initial_peer_id \
 		and int(producer.stream_id) > int(_pilot_reclaim_retired.producer_stream) \
@@ -1665,6 +1697,205 @@ func _pilot_reclaim_invariants() -> bool:
 			and (source == null or not source.is_enabled_owner()) and (active == null or not active.is_enabled_owner())
 			and _return_controls_neutral())) \
 		and (not _pilot_reclaim_consumed_ready or _client_pilot_reclaim_consumed())
+
+
+## Only this selected phase releases the reclaimed hull's landed/stationary
+## expectations. Authority and actor identities remain the accepted new ones.
+func _host_redepart() -> bool:
+	_return_stage = "host.redepart_ready"
+	if not await _postdock_wait(func(): return _flight_files_ready(".redepart_ready"), 8.0,
+		"both original clients finish full pilot reclaim and actual retired-stream refusal before redeparture"):
+		return false
+	_redepart_start = {"position": _vector_values(_station_position()),
+		"nose": _vector_values(-_craft.global_basis.z.normalized()),
+		"pose_tick": int(_game.get("_network_boarding_server_tick")), "landing_generation": _return_generation,
+		"physical_token": str((_game.get("_berth_tokens") as Dictionary).get(_craft.get_instance_id(), &""))}
+	_redepart_active = true
+	_write("host.redepart_go", _redepart_receipt())
+	if not await _postdock_wait(func(): return _flight_files_ready(".redepart_armed"), 8.0,
+		"both actual client observers arm moving-role invariants before new forward input"):
+		return false
+	_write("host.redepart_input_go", {})
+	_return_stage = "host.redepart_forward_5m"
+	if not await _postdock_wait(_host_redepart_forward_current, 10.0,
+		"new current pilot source consumes ordinary throttle, travels5m along departure nose and physically releases home berth within10s"):
+		return false
+	_redepart_generation = int(_game.network_session.get_landing_entity(_craft.ship_id).get("entity_generation", 0))
+	_redepart_departed = true
+	_write("host.redepart_departed", _redepart_receipt())
+	_return_stage = "host.redepart_brake_stop"
+	if not await _postdock_wait(_host_redepart_stop_current, 10.0,
+		"same new source consumes ordinary brake and holds authoritative speed<=0.5m/s for1s within10s"):
+		return false
+	_redepart_stopped = true
+	_redepart_stop = {"position": _vector_values(_station_position()),
+		"pose_tick": int(_game.get("_network_boarding_server_tick")), "landing_generation": _redepart_generation}
+	_write("host.redepart_stopped", _redepart_receipt())
+	_return_stage = "host.redepart_convergence"
+	if not await _postdock_wait(func(): return _flight_files_ready(".redepart_converged"), 5.0,
+		"both original clients consume fresh same-pilot stopped hull poses within0.5m of host within5s"):
+		return false
+	_redepart_complete = true
+	_write("host.redepart_complete", _redepart_receipt())
+	return _require(_redepart_invariants(), "new pilot source/claim/ownership and exact passenger survive second actual departure and bounded stop")
+
+
+func _client_redepart() -> bool:
+	_return_stage = _role + ".redepart_ready"
+	if not _require(_pilot_reclaim_complete and _flight_file_exists("host.pilot_reclaim_probe_checked")
+		and _client_pilot_reclaim_consumed(),
+		"full accepted pilot reclaim and actual stale-stream refusal precede any second flight input"):
+		return false
+	_write(_role + ".redepart_ready", {})
+	if not await _postdock_wait(func(): return _flight_file_exists("host.redepart_go"), 8.0,
+		"host preserves landed reclaimed roles until both actual clients finish their accepted prefix"):
+		return false
+	_redepart_start = _read("host.redepart_go").get("start", {}) as Dictionary
+	_redepart_active = true
+	_write(_role + ".redepart_armed", {})
+	if not await _postdock_wait(func(): return _flight_file_exists("host.redepart_input_go"), 8.0,
+		"host confirms both client observers switched to moving roles before pilot input"):
+		return false
+	_return_stage = _role + ".redepart_forward_5m"
+	if _role == "client":
+		_action(&"move_forward", true)
+	if not await _postdock_wait(func(): return _flight_file_exists("host.redepart_departed"), 10.0,
+		"host consumes new pilot throttle and observes5m physical home departure within10s"):
+		return false
+	_redepart_generation = int(_read("host.redepart_departed").get("landing_generation", 0))
+	_redepart_departed = true
+	if _role == "client":
+		_action(&"move_forward", false)
+		_action(&"brake", true)
+	_return_stage = _role + ".redepart_brake_stop"
+	if not await _postdock_wait(func(): return _flight_file_exists("host.redepart_stopped"), 10.0,
+		"host consumes ordinary brake from the same current pilot and holds its bounded authoritative stop"):
+		return false
+	if _role == "client":
+		_action(&"brake", false)
+	_redepart_stop = _read("host.redepart_stopped").get("stop", {}) as Dictionary
+	_redepart_stopped = true
+	_return_stage = _role + ".redepart_convergence"
+	if not await _postdock_wait(_client_redepart_stop_consumed, 5.0,
+		"same actual hull consumes a post-stop pose, advances flying landing generation and converges<=0.5m with exact seated actors within5s"):
+		return false
+	_write(_role + ".redepart_converged", _redepart_receipt())
+	if not await _postdock_wait(func(): return _flight_file_exists("host.redepart_complete"), 8.0,
+		"host confirms both actual client stopped-pose and unchanged new-authority outcomes"):
+		return false
+	_redepart_complete = true
+	return _require(_redepart_invariants(), "same original actors retain current new pilot/passenger roles through inherited final handshake")
+
+
+func _observe_redepart_command() -> void:
+	var remote := (_game.get("_network_remote_pilots") as Dictionary).get(_craft.ship_id, {}) as Dictionary
+	var source := remote.get("source") as NetworkRemotePilotCommandSource
+	var command := _craft.get_last_ship_command()
+	if source != null and command != null and command.is_valid() and command.stream_id == source.get_stream_id() \
+		and str(source.get_instance_id()) == str(_pilot_reclaim_seated.remote_source.instance_id):
+		_redepart_saw_throttle = _redepart_saw_throttle or command.throttle > HeroShip.AUTOMATIC_ENGINE_INTENT_EPSILON
+		_redepart_saw_brake = _redepart_saw_brake or command.brake
+
+
+func _host_redepart_release_current() -> bool:
+	var landing := _game.network_session.get_landing_entity(_craft.ship_id)
+	var token := StringName(_redepart_start.get("physical_token", &""))
+	# Takeoff advances the landing ledger and publishes flying before physical
+	# berth release. Ship, pilot-seat and ownership generations stay separate.
+	return _host_departure_is_physical() and _flight_berth.get_occupant() == null \
+		and _flight_berth.get_reservation_owner() == null and not token.is_empty() \
+		and not _flight_berth.has_valid_lease(_craft, token, _craft.ship_id) \
+		and _return_handoff().is_empty() and not _craft.is_landing_active() \
+		and landing.get("entity_id") == _craft.ship_id and landing.get("state") == &"flying" \
+		and int(landing.get("entity_generation", 0)) > _return_generation \
+		and (_redepart_generation == 0 or int(landing.get("entity_generation", 0)) == _redepart_generation)
+
+
+func _host_redepart_forward_current() -> bool:
+	_observe_redepart_command()
+	return _redepart_saw_throttle and (_station_position() - _vector_from(_redepart_start.position)).dot(
+		_vector_from(_redepart_start.nose)) >= 5.0 and _host_redepart_release_current()
+
+
+func _host_redepart_stop_current() -> bool:
+	_observe_redepart_command()
+	if _redepart_saw_brake and _craft.velocity.length() <= 0.5:
+		if _redepart_stopped_since < 0:
+			_redepart_stopped_since = Time.get_ticks_msec()
+	else:
+		_redepart_stopped_since = -1
+	return _redepart_stopped_since >= 0 and Time.get_ticks_msec() - _redepart_stopped_since >= 1000 \
+		and _host_redepart_release_current()
+
+
+func _client_redepart_stop_consumed() -> bool:
+	if _redepart_stop.is_empty():
+		return false
+	var sample := _flight_pose_sample()
+	var operation := sample.get("operation_presentation", {}) as Dictionary
+	var landing := _client_landing_record()
+	return _client_pilot_reclaim_consumed() \
+		and _station_position().distance_to(_vector_from(_redepart_stop.position)) <= 0.5 \
+		and sample.get("ship_id") == _craft.ship_id and int(sample.get("pose_tick", 0)) > int(_redepart_stop.pose_tick) \
+		and int(sample.get("pilot_peer_id", 0)) == int(_flight_start.pilot_peer) \
+		and not bool(operation.get("landed", true)) and not bool(operation.get("docked", true)) \
+		and not bool(operation.get("landing", true)) and landing.get("state") == &"flying" \
+		and _redepart_generation > _return_generation and int(landing.get("entity_generation", 0)) == _redepart_generation
+
+
+func _redepart_invariants() -> bool:
+	if not _pilot_reclaim_complete or not _craft.is_inside_tree() or _player.get_instance_id() != _initial_player_id:
+		return false
+	if _role == "host":
+		return _host_pilot_reclaim_seated_current(true) and _host_reboard_seated_current(_redepart_stopped) \
+			and _reboard_cabin_identity_current() and _game.phase == GameFlow.Phase.INTRO \
+			and not _player.is_seated() and not _player.is_control_enabled() \
+			and _peer_generation(int(_flight_start.pilot_peer)) == int(_flight_manifest.client.peer_generation) \
+			and _peer_generation(int(_flight_start.passenger_peer)) == int(_flight_manifest.client_b.peer_generation) \
+			and (not _redepart_departed or _host_redepart_release_current()) \
+			and (not _redepart_stopped or _craft.velocity.length() <= 0.5)
+	var operation := _flight_pose_sample().get("operation_presentation", {}) as Dictionary
+	var source := _craft.get("_default_local_command_source") as ShipCommandSource
+	var active := _craft.get("_command_source") as ShipCommandSource
+	return _same_identity() and _walking_identity_is_preserved() \
+		and _client_pilot_reclaim_consumed(not _redepart_stopped) and not bool(operation.get("landing", true)) \
+		and (_role != "client_b" or (_reboard_cabin_identity_current()
+			and (source == null or not source.is_enabled_owner()) and (active == null or not active.is_enabled_owner())
+			and _return_controls_neutral())) \
+		and (not _redepart_complete or _client_redepart_stop_consumed())
+
+
+func _redepart_receipt() -> Dictionary:
+	var receipt := {"selected": _redepart_selected, "stage": _return_stage, "role": _role,
+		"start": _redepart_start.duplicate(true), "stop": _redepart_stop.duplicate(true),
+		"departed": _redepart_departed, "stopped": _redepart_stopped, "complete": _redepart_complete,
+		"landing_generation": _redepart_generation, "position": _vector_values(_station_position()),
+		"speed": _craft.velocity.length(), "authority": _pilot_reclaim_receipt(),
+		"player": _node_identity(_player)}
+	receipt["forward_distance_m"] = (_station_position() - _vector_from(_redepart_start.position)).dot(
+		_vector_from(_redepart_start.nose)) if not _redepart_start.is_empty() else 0.0
+	if _role == "host":
+		var token := StringName(_redepart_start.get("physical_token", &""))
+		receipt["consumed_throttle"] = _redepart_saw_throttle
+		receipt["consumed_brake"] = _redepart_saw_brake
+		receipt["stop_elapsed_msec"] = Time.get_ticks_msec() - _redepart_stopped_since if _redepart_stopped_since >= 0 else 0
+		receipt["pose_tick"] = int(_game.get("_network_boarding_server_tick"))
+		receipt["release_leaves"] = {"physical_departure": _host_departure_is_physical(),
+			"occupant": _node_identity(_flight_berth.get_occupant()),
+			"reservation_owner": _node_identity(_flight_berth.get_reservation_owner()),
+			"retired_physical_lease_valid": not token.is_empty() and _flight_berth.has_valid_lease(_craft, token, _craft.ship_id),
+			"bookkeeping_berth": str((_game.get("_reserved_berth_ids") as Dictionary).get(_craft.get_instance_id(), &"")),
+			"bookkeeping_token": str((_game.get("_berth_tokens") as Dictionary).get(_craft.get_instance_id(), &"")),
+			"landing_active": _craft.is_landing_active(), "landed": bool(_craft.get_telemetry().get("landed", true)),
+			"handoff": _return_handoff().duplicate(true), "landing": _game.network_session.get_landing_entity(_craft.ship_id)}
+	else:
+		receipt["consumed_pose"] = _primitive_fields(_flight_pose_sample(), ["ship_id", "pose_tick", "pilot_peer_id"])
+		receipt["landing"] = _client_landing_record()
+		receipt["operation"] = _flight_pose_sample().get("operation_presentation", {})
+		receipt["stop_error_m"] = _station_position().distance_to(_vector_from(_redepart_stop.position)) if not _redepart_stop.is_empty() else -1.0
+		receipt["anchor_error_m"] = _player.global_position.distance_to(_flight_anchor.global_position)
+		receipt["input"] = {"forward": Input.is_action_pressed(&"move_forward"), "brake": Input.is_action_pressed(&"brake")}
+	return receipt
 
 
 func _on_pilot_reclaim_probe_result(result: Dictionary) -> void:
