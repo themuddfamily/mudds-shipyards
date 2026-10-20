@@ -77,6 +77,22 @@ This clears the branch queue; it does not close their unfinished gameplay,
 qualification or release requirements. No unaccepted source was merged to reduce
 a branch count. Eight previously protected detached worktrees remain unchanged.
 
+**Selected: PLAY-DEFENSE — consume actual completed walking motion /13.**
+One existing case,21:08–22:08UTC/60min, prior710.453s retained. Existing fixed-speed
+caller guard rejects bounded step-up motion at the registry threshold. Reuse the
+Player's existing completed-motion/step record, existing LIFE serialization and
+strict actor/epoch/start/end/source-bounds checks; preserve normal-move limits and
+reject unexplained relocation. Consolidate existing checks; no new validator
+family, blanket tolerance, Player behavior/geometry/input mutation or staging.
+Keep all original/mast/wing waypoints,3.1m admission, complete ordinary four-kill/
+once-payment/home/physical Reset/next Deploy/UIexit and whole34s/CAP300/outer360.
+One HIGH implementer existing observer/caller/tests; independent HIGH review;
+root packages/commands/integration/cleanup. A changed observer requires fresh safe
+paired exports, actual menu readiness and package checks, then ONE full route.
+Original stage caps retained. First failure stops for review; no automatic retry,
+new branch/worktree/hostedCI. Preserve failed work or merge/push accepted result,
+then clean owned scratch before another case.
+
 **PLAY-DEFENSE remains OPEN/PARKED — caller `42694c198` withheld.**
 The supported Arrow clearance correction reaches the registry threshold, then
 fails the existing continuous-walk guard before boarding. Adjacent samples move
