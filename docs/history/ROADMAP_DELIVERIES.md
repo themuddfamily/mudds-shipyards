@@ -16856,3 +16856,45 @@ Clean source matches remote exactOID; owned worktree, profiles and helpers remov
 Only `/srv/mudds-work/wing-route-correction-20261020/results/` remains, including
 `cleanup.json`, `aim-review.json`, exact raw route results and retained candidate
 packages. This branch remains explicitly unfinished; unrelated work is unselected.
+
+
+## Wing motion-tracking correction remains unaccepted — 2026-10-20 13:29UTC
+
+Same existing branch reused; clean pushed source0c5788dd0 (controller1d33ada96).
+Actual199prior fight frames proved the static controller never reached precision:
+maxalignment.999572297, nozero correction, only25attitude changes; camera/hull
+axes matched≤3e-7. No historical optical-offset cause is claimed. Separately
+selected13:22–13:42UTC/20min correction retained original60min selection and all
+prior1163.527277073597s costs. No unrelated roadmap work was started.
+
+Wing-local controller now measures actual mouse authority/ack delay, applies exact
+relative LOS angular-rate feed-forward for that actuation delay, and retains real
+observed>.99998 trigger precision, no outstanding sweep, timed F pulse and zero
+concurrent steering. Independent source review GO. One existing test fixture
+simulates actual HeroShip local rotation-vector impulses with combined yaw/pitch,
+pitch±.4rad/s,1/4/7frame delays and reduced authority, requiring repeated precision
+F admissions inside200frames. All100existing driver tests PASS. This is bounded
+controller evidence, not actual kill acceptance. Game/observer unchanged; exact
+hash-verifiedaa26baf ELF reused from its audited package and prior strict startups.
+
+The one native route FAIL99.709s: Heavy strict home/OFFLINEphysicalexit2223,
+Torpedo exit3868, both naturalWITHDRAWN and next posting; Wing starts4619,
+fight4657 at67.333hull. Distinct player sequences0/frame4716/receipt14 and
+1/frame4748/receipt18 both accepted+resolved MISS,0damage/nohit/nokill; both
+opponents remain38health; player destroyed4855. Required2Wingkills/clear, final
+strict home/OFFLINEphysicalexit and normalUIexit remain absent. Emitted rays pass
+5.53499m/4.79162m from Lead's first post-result observed center; those observations
+are not exact query-time collision transforms. Trigger dispatch/receipt timing is
+missing, so latency remains a hypothesis to correlate, not an established cause.
+No relaxed acceptance, runtime tuning or blind retry; no production weapon defect
+claimed. Independent raw review confirms all inputs released/game/helper/Xvfb reaped,
+0diagnostics. Current source remains failed/unmerged; no checkpoint publication.
+
+New supervised stages11.0387686570175+100.00322267203592=111.04199132905342s;
+cumulative1274.5692684026503s. Source exact remoteOID verified and clean;200 owned
+process identities absent. Reopened worktree/profiles/helpers/extracted ELF removed;
+profiles sequentially byte/mode/link verified and fresh original snapshot compared.
+Only existing results directory remains, with tracking-review.json,
+tracking-source.json, tracking-STOP.json, tracking-cleanup.json and archived helpers/
+profiles. Existing retained failed packages remain untouched. All26non-main remote
+branches still accounted; no branch added/deleted by this failed correction.

@@ -57,50 +57,45 @@ in19th retirement. No production fix or full-suite pass; source archived under
 profiles/helpers removed. No engine run remains active.
 
 **Current existing task: COMBAT-WING, parent11 — FAILED, unmerged.**
-The original12:24–13:24UTC/60min selection stopped at its first new full-route
-failure; no unrelated roadmap work was started. Sourceaa26baf58 is clean and
-pushed on the existing `feat/wing-ordinary-route-20261020` branch. No Wing
-checkpoint was published and the full deliverable remains open.
+Clean source `0c5788dd0` is pushed on the existing
+`feat/wing-ordinary-route-20261020` branch. No unrelated task/branch selected;
+no Wing checkpoint published and no whole combat deliverable claimed.
 
-Actual progress: ordinary board approach and normalL callers corrected; board
-encounters now withdraw through existing standdown when accepted automatic landing
-starts. Both prerequisite Heavy/Torpedo sorties complete real withdrawals, strict
-home docks, OFFLINE waits and physical exits. Admission40/director151 assertions,
-driver99/observer22 assertions, fresh Windows/Linux exports, all three strict
-startup checks and actual1521-entry package identity audit pass.
+Working route portions: ordinary board E and normalL corrected; board encounter
+landing authorization withdraws through existing standdown. Both Heavy/Torpedo
+sorties repeatedly pass real withdrawals, strict home docks, OFFLINE waits and
+physical exits. Landing admission40/director151, observer22, fresh paired exports,
+three strict startups and actual1521matching package entries remain retained.
 
-Full route still FAIL97.220s: Wing starts with67.333 hull; no player shot is
-submitted under the precision camera firing gate, no hits/kills occur, player
-destroyed4763, both Wing opponents retain38health. The earlier loose-hull aim
-attempt submitted two misses. Camera steering is therefore NOT qualified. Two
-actual Wing kills/clear, third strict home/OFFLINE physical exit and normal UIexit
-remain missing. No health/damage/AI/timer/cap or acceptance relaxation was made.
-This is a concrete caller-control failure; a production weapon defect is unproved.
+Latest caller correction tracks actual relative angular rate and measures mouse
+response/acknowledgment delay. Existing100driver tests PASS, including combined
+pitch/yaw .4rad/s,1/4/7frame delays and reduced authority, actual precision and
+repeated F admission inside200frames. Full route still FAIL99.709s: two distinct
+accepted/resolved player shots both MISS, no hits/kills; entered Wing67.333hull,
+destroyed4855, both opponents38health. Two kills/clear, third strict home/OFFLINE
+physical exit and normal UIexit remain missing. Model success does not qualify
+native control. No damage/health/AI/timer/cap/acceptance change was made.
 
-Actual supervised stage cost retained:344.298+224.230+57.463+292.740+244.796
-=1163.527s. No repeated unchanged run. NativeGPU/nativeWindows/human review remain
-NOT_RUN. All inputs released;190 observed owned process identities absent. Failed
-candidate packages, raw logs, exact source and helper/profile records preserved;
-owned worktree, temporary profiles and live helpers removed at13:17UTC. Only
-`/srv/mudds-work/wing-route-correction-20261020/results/` remains for this attempt.
-**Selected same-task correction: moving-target control,13:22–13:42UTC/20min.**
-Original12:24–13:24 card and1163.527s cumulative stage cost remain recorded above;
-this is additional bounded work on the same branch, not a reset or another task.
-Actual199fightframes show maxcameraalignment.999572297 (never>.99998), nozero
-mouse correction,173/198unchanged consecutive attitudes and only25changes.
-Camera/hullaxes differ≤3e-7; static Arrow proportional aiming cannot keep up with
-this target. Raw input send/pending timings are unavailable; don't invent them.
+Retained shot geometry: camera ray/Lead-center separation1.829/2.117m;
+emitted muzzle ray5.535/4.792m, consistent with1000m fallback convergence.
+Actor centers are inside real collision boxes and masks agree. Qualifying aim
+observations precede first shot results6–8frames; exact dispatch/query times remain
+unrecorded. Post-tick geometry is not exact query-time proof. No production weapon
+or collision defect is established.
 
-Owner: one implementer on existing Wing controller and Python tests; independent
-review of moving-target math/input ordering. Establish angular-rate tracking from
-fresh actual relative position/velocity and observed frame intervals. No weapon
-projectile lead or gameplay tuning. A moving-target convergence check must exercise
-real pixel→attitude mapping and delayed observed acknowledgement before another
-expensive full route. Preserve original actual two-kill/three-sortie/home/OFFLINE/
-physicalexit/UIquit acceptance. Source estimate5min; focused checks120s; one full
-isolatedX11/Dummy routeCAP300/outer360s if reviewed control contract passes. Reuse
-exactaa26baf audited game packages/startup checks for caller-only source change;
-no identical re-export. First failure stops, no automatic further repair.
+**Selected same-task correction: normal held-fire tracking,13:34–13:49UTC/15min.**
+Retain prior original60min and tracking20min selections/cumulative1274.569s costs.
+The static F pulse forces zero steering throughout delayed shot execution; replace
+onlyWing's firing pause with real native held F while tracking actual live targets,
+release on actual clear/transition. Keep acknowledged mouse control and relative
+angular-rate tracking. OriginalArrow timedFpulse remains unchanged. Actual two
+fresh player-weapon kills, all three sorties/strict home/OFFLINE physical exits and
+normalUIexit remain decisive; no internal precision gate substitutes for hits.
+One implementer owns onlyWingdriver/existingPython tests; independent review.
+Source estimate3min; focused checks120s; one full isolatedX11/Dummy routeCAP300/
+outer360s if source andfocused checks pass. Exact auditedaa26baf game retained,
+no re-export forcaller-only change. First failure stops; no automatic next repair.
+OriginalWindows/nativeGPU/audio/human gates remainNOT_RUN. No unrelatedbranch.
 
 **Ready production cards: 0. Prepared production cards waiting on decisions: 3.**
 The decisions below remain pending; they do not prevent finishing independently
