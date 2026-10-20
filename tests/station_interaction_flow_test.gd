@@ -81,7 +81,6 @@ func _run() -> void:
 	)
 
 	await _test_production_station_seat(game, player)
-	await _test_cabin_engineer_aim(game, player)
 	await _test_activity_board_console(game, player)
 
 	# A remote door must not disturb the established physical ship interaction.
@@ -93,6 +92,9 @@ func _run() -> void:
 	await process_frame
 	_check(game.station_interaction_candidate == null, "remote station controls leave ship prompts clear")
 	_check(game.boarding_candidate == arrow, "ship boarding still wins at its own physical interaction point")
+
+	# Keep ship-approach fixture changes after every original station-flow check.
+	await _test_cabin_engineer_aim(game, player)
 
 	game.queue_free()
 	await process_frame
