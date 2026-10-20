@@ -78,6 +78,32 @@ This clears the branch queue; it does not close their unfinished gameplay,
 qualification or release requirements. No unaccepted source was merged to reduce
 a branch count. Eight previously protected detached worktrees remain unchanged.
 
+**Selected HALYARD-MOVING-CABIN /16,24,26 — one complete ordinary case.**
+BOARD prerequisite is accepted on4bc0e3b38 and its caller remains unchanged.
+Implement the missing moving selector in existing
+`tests/network/halyard_network_passenger_route_test.gd`: original non-playing
+Main authority, independent client pilot and client_b passenger at crew_port_00.
+After existing ordinary approach/boarding and exact consumed seat confirmations,
+same pilot departs >5m; same supported passenger walks >0.6m, sits, stands and
+reseats while the hull genuinely moves. Preserve actual host/peer current body,
+frame, role and legitimate generation transitions. No staged flight/transform,
+body/authority injection, walk-only substitute or altered BOARD result.
+One implementer owns that caller; root owns review/integration, existing isolated
+process supervision, result and cleanup. No new branch or adjacent assignment.
+Original45–60min assignment; compile300s, one full internal300s/outer360s route,
+walk15s, role/consumed transitions8s and exit grace10s. Exact selected flag:
+`--ordinary-two-client-moving`; marker `HALYARD_ORDINARY_TWO_CLIENT_MOVING_OK`.
+Compile command: Godot --headless --audio-driver Dummy --path this clean source
+--check-only --script res://tests/network/halyard_network_passenger_route_test.gd.
+Full command: same headless/Dummy source script, without --check-only, followed
+by -- --ordinary-two-client-moving; peers retain private Xvfb/explicit x11/Dummy.
+Freeze implemented source and exact command/PIDs/cache before launch; all three
+actual peer OS exits0, explicit complete, zero diagnostics and owned cleanup
+required. First failure stops; no automatic repair/cap increase. Commit/push,
+record actual full outcome and remove owned profiles/helpers before closure.
+This is current-source qualification capability, not new gameplay, endurance,
+authority-stop, late join, planetary travel or full server-baseline acceptance.
+
 **Ember first-relay cold recovery DONE on package `923d7b3`.**
 The full named check passes: save the unpaid first relay, kill and reap the game,
 restart through Boot into the safe yard with exact progress retained, board
