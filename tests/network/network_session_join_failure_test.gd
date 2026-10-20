@@ -13,6 +13,7 @@ extends SceneTree
 ## Real loopback ENet, each adapter on its own `SceneMultiplayer` branch.
 
 const Adapter := preload("res://scripts/network/network_enet_session_adapter.gd")
+const FIXTURE_MAX_SEQUENCE := 9007199254740991
 
 class OrdinaryHeartbeat extends Node:
 	var ticks := 0
@@ -34,8 +35,12 @@ func _init() -> void:
 
 
 func _run() -> void:
+	if "--native-browser-fixture" in OS.get_cmdline_user_args():
+		await _run_external_fixture()
+		return
 	var was_paused := paused
 	var mouse_mode := Input.mouse_mode
+	_fixture_sequence_json_numbers_are_normalized()
 	await _unanswered_join_stops_the_session()
 	await _refused_hello_stops_the_client_and_frees_the_slot()
 	if _failures.is_empty() and await _paused_non_admitting_host_reaches_deadline():
@@ -62,6 +67,43 @@ func _run() -> void:
 	for failure in _failures:
 		push_error(failure)
 	quit(1)
+
+
+func _fixture_sequence_json_numbers_are_normalized() -> void:
+	# Exercise the same JSON decoder as command.json: even whole JSON numbers
+	# become floats, while the fixture's ordering state remains an exact int.
+	var accepted_json := [
+		["0", 0], ["1", 1], ["2", 2], ["3", 3], ["1.0", 1],
+		["1e3", 1000], ["9007199254740991", FIXTURE_MAX_SEQUENCE],
+	]
+	for sample in accepted_json:
+		var command: Variant = JSON.parse_string('{"sequence":%s,"mode":"raw"}' % sample[0])
+		var sequence: Variant = _normalize_fixture_sequence(command.get("sequence"))
+		_check(command.sequence is float and sequence is int and sequence == sample[1],
+			"JSON fixture sequence %s normalizes to the exact integer" % sample[0])
+	for sequence in [0, 1, FIXTURE_MAX_SEQUENCE]:
+		var normalized: Variant = _normalize_fixture_sequence(sequence)
+		_check(normalized is int and normalized == sequence,
+			"integer fixture sequence %s stays exact" % sequence)
+	for literal in ['"1"', "true", "false", "null", "[]", "{}", "-1", "0.5",
+			"9007199254740992", "1e100"]:
+		var command: Variant = JSON.parse_string('{"sequence":%s,"mode":"raw"}' % literal)
+		_check(_normalize_fixture_sequence(command.get("sequence")) == null,
+			"JSON fixture sequence %s is rejected without coercion" % literal)
+	for sequence in [-1, 9007199254740992, 9223372036854775807, 0.5, NAN, INF, -INF]:
+		_check(_normalize_fixture_sequence(sequence) == null,
+			"invalid numeric fixture sequence %s is rejected" % sequence)
+
+
+func _normalize_fixture_sequence(value: Variant) -> Variant:
+	if value is int:
+		if value >= 0 and value <= FIXTURE_MAX_SEQUENCE:
+			return value
+	elif value is float:
+		if is_finite(value) and value >= 0.0 and value <= FIXTURE_MAX_SEQUENCE \
+				and floor(value) == value:
+			return int(value)
+	return null
 
 
 func _unanswered_join_stops_the_session() -> void:
@@ -316,3 +358,118 @@ func _check(condition: bool, description: String) -> void:
 		print("PASS: %s" % description)
 	else:
 		_failures.append("FAIL: " + description)
+
+
+# Private external mode shares the real raw-host helpers above. The packaged
+# client remains an ordinary game process, with no resource or script override.
+func _run_external_fixture() -> void:
+	var command_dir := ""
+	var port := 0
+	for argument in OS.get_cmdline_user_args():
+		if argument.begins_with("--fixture-dir="):
+			command_dir = argument.trim_prefix("--fixture-dir=")
+		elif argument.begins_with("--fixture-port="):
+			port = argument.trim_prefix("--fixture-port=").to_int()
+	if OS.get_environment("MUDDS_PRIVATE_BROWSER_FIXTURE") != "owned-loopback" \
+			or not command_dir.is_absolute_path() or not DirAccess.dir_exists_absolute(command_dir) \
+			or port < 1 or port > 65535 \
+			or DisplayServer.get_name() != "headless" or AudioServer.get_driver_name() != "Dummy":
+		push_error("private browser fixture requires owned directory, headless/Dummy and valid port")
+		quit(1)
+		return
+	# Default MultiplayerAPI root paths must match the real boot scene exactly:
+	# /root/Boot/Main/NetworkSession, so RPC path checks exercise production.
+	var boot := Node.new()
+	boot.name = "Boot"
+	root.add_child(boot)
+	var main := Node.new()
+	main.name = "Main"
+	boot.add_child(main)
+	var host: Adapter
+	var mode := "raw"
+	var command_sequence := 0
+	var offers := [0]
+	_make_raw_host(port)
+	if not _failures.is_empty():
+		quit(1)
+		return
+	var expires := Time.get_ticks_msec() + 300000
+	var next_state := 0
+	while Time.get_ticks_msec() < expires:
+		_poll_raw_hosts()
+		var command_path := command_dir.path_join("command.json")
+		if FileAccess.file_exists(command_path):
+			var command: Variant = JSON.parse_string(FileAccess.get_file_as_string(command_path))
+			var sequence: Variant = null
+			if command is Dictionary:
+				sequence = _normalize_fixture_sequence(command.get("sequence"))
+			if not command is Dictionary or not sequence is int \
+					or not command.get("mode") in ["raw", "admitting", "stop"]:
+				push_error("invalid private browser fixture command")
+				quit(1)
+				return
+			if sequence > command_sequence:
+				if sequence != command_sequence + 1:
+					push_error("out-of-order private browser fixture command")
+					quit(1)
+					return
+				for peer in _raw_hosts:
+					peer.close()
+				_raw_hosts.clear()
+				if is_instance_valid(host):
+					host.shutdown(&"test_complete")
+					main.remove_child(host)
+					host.queue_free()
+					host = null
+				await process_frame
+				mode = str(command.mode)
+				command_sequence = sequence
+				if mode == "raw":
+					_make_raw_host(port)
+				elif mode == "admitting":
+					host = Adapter.new()
+					host.name = "NetworkSession"
+					main.add_child(host)
+					host.peer_admitted.connect(func(_peer_id: int, _offer: Dictionary) -> void: offers[0] += 1)
+					if not bool(host.host(port, 4).get("accepted", false)):
+						push_error("private browser fixture cannot start admission host")
+						quit(1)
+						return
+				if not _failures.is_empty():
+					quit(1)
+					return
+				next_state = 0
+		if Time.get_ticks_msec() >= next_state:
+			var peers := 0
+			for peer in _raw_hosts:
+				for link in peer.host.get_peers():
+					if link.get_state() == ENetPacketPeer.STATE_CONNECTED:
+						peers += 1
+			var admitted := 0
+			if is_instance_valid(host):
+				peers = host.multiplayer.get_peers().size()
+				admitted = host._peer_generations.size()
+			var state := {"pid": OS.get_process_id(), "port": port, "mode": mode,
+				"sequence": command_sequence, "ready": true, "peers": peers,
+				"dropped_packets": _dropped_packets, "dropped_hellos": _dropped_hellos,
+				"offers": offers[0], "admitted": admitted}
+			var state_path := command_dir.path_join("state.json")
+			var stream := FileAccess.open(state_path + ".tmp", FileAccess.WRITE)
+			if stream == null:
+				push_error("private browser fixture state is unwritable")
+				quit(1)
+				return
+			stream.store_string(JSON.stringify(state))
+			stream.close()
+			if DirAccess.rename_absolute(state_path + ".tmp", state_path) != OK:
+				push_error("private browser fixture state replacement failed")
+				quit(1)
+				return
+			next_state = Time.get_ticks_msec() + 50
+			if mode == "stop":
+				print("NATIVE_BROWSER_FIXTURE_STOPPED_OK")
+				quit(0)
+				return
+		await process_frame
+	push_error("private browser fixture reached its independent 300-second cap")
+	quit(1)

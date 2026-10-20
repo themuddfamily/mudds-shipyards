@@ -14499,3 +14499,28 @@ definition/final publication. Next action: provision the declared dependencies
 and freeze matching-template builds. Actual compilation/runtime effectiveness
 NOT_RUN; no new playable checkpoint. Original browser/native/human/final gates
 remain open, latest public gameplay checkpoint20e90c9.
+
+
+## Browser fixture JSON command handoff — accepted source capability
+
+2026-10-20; candidate7b8cc74797818004cd37ea7952b8c922bfd21338, full-file/caller
+independent review GO. The opt-in private fixture now accepts actual decoded JSON
+integer-valued numbers, while rejecting coercion, fractions, nonfinite and unsafe
+values. It preserves exact successor ordering and existing private execution gates.
+Main receives only the exact tested `network_session_join_failure_test.gd`; the
+larger diagnostic branch, app, observer and Python driver remain unmerged.
+
+Fresh guarded headless/Dummy import24.947s; join suite24.664s/62 assertions
+(original35 retained plus27 codec checks); actual unchanged-driver handoff2.043s.
+All exit0/no diagnostics; required markers exactly once. Real fixturePID1608723,
+loopbackport37730, raw0→admitting1→raw2→stop3 acknowledgements with original3s
+limits, stop state peers0/admitted0 and normal exit0/one child-stop marker.
+All ten observed process identities absent; total stage time51.653784977s.
+Frozen inputs, actual command/state JSON and raw logs retained in
+`/srv/mudds-work/browser-fixture-json-20261020/results/`.
+
+This closes the fixture handoff prerequisite only. No full packaged browser route,
+actual client admission, native callback fix, new playable build, hardware/audio or
+human gate was run. Original route remains FAIL/PARKED/unaccepted, investigation
+20 stages398.295714198s. Next dependency: finish the already-running matching Linux
+and Windows template builds under their original limits.

@@ -1562,7 +1562,7 @@ particular offending bytes are unproved. A bounded fix must normalize finite,
 nonnegative integral safe-range numbers, preserve exact successor/private-directory/environment/mode/PID
 contracts and prove real Godot parsing. No fixture edit/run is selected here.
 
-**BROWSER-FIXTURE-JSON — selected independent implementation2026-10-20.**
+**BROWSER-FIXTURE-JSON — DONE2026-10-20; source fixture accepted.**
 Parent25's executable release-test handoff prerequisite; Linux/Windows compiler
 jobs remain separate and keep their existing caps. Use a clean derivative of
 783c8c87206a52928641dd887f9a34e02caaf246 in
@@ -1605,9 +1605,23 @@ source, retain outcome and clean owned scratch. Candidate begins unmerged; merge
 only after the whole stated fixture contract passes. Original route failure and
 20-stage398.296s history remain binding; source historical input still unproved.
 
+Result: candidate7b8cc74797818004cd37ea7952b8c922bfd21338 passed independent
+whole-file/caller review, fresh import24.947s, existing suite24.664s/62 assertions
+(original35 plus27 codec assertions), and actual driver handoff2.043s. Each stage
+exited0 without diagnostics; suite/caller markers exactly once. Actual fixture
+PID1608723/port37730 acknowledged raw0→admitting1→raw2→stop3, normal exit0 and
+one NATIVE_BROWSER_FIXTURE_STOPPED_OK, within unchanged3s acknowledgement limits.
+Three stages51.654s; all ten observed owner/child identities absent. Only the exact
+tested fixture file is integrated into main, including its opt-in external mode;
+other diagnostic/driver/observer branch changes remain unmerged/withheld.
+Raw commands/state, logs, frozen helpers and guards are retained under
+`/srv/mudds-work/browser-fixture-json-20261020/results/`. No client admission,
+packaged full route, native repair or new gameplay checkpoint is established.
+Original20-stage398.296s history and external/human gates remain unchanged.
+
 **NET-TIMEOUT-RELEASE-ACCEPT — dependent runtime acceptance.** GATED on those
-matching templates plus a separate bounded correction for the known fixture
-command rejection; its cause is not diagnosed by this card. Existing safe export
+matching templates. BROWSER-FIXTURE-JSON now supplies the separately accepted
+fixture command handoff; native runtime effectiveness is still unverified. Existing safe export
 uses a private versioned template directory, Linux template SHA pin and empty
 preset overrides. GODOT_BIN alone does not select the packaged runtime. Windows
 must consume the matching patched PE, not the stock template; package audits must

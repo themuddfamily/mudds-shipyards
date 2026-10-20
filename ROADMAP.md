@@ -47,16 +47,18 @@ review supports this candidate; it is not a verified fix.
 | --- | --- | --- |
 | RPC-CACHE-BUILD-RECIPE | DONE; integrated, feature branch pushed | Isolated RPC mode, two-platform planning/staging and pinned two-file native patch. All24 existing/extended inert tool tests pass under60s cap. Actual engine compilation/runtime NOT_RUN; no new playable checkpoint. |
 | RPC-CACHE-TEMPLATES | Preparation DONE; parallel compilation selected | Both pinned source/SCons/SDK inputs ready, POSIX cross-compiler/scanner installed;8 stages pass. Actual matching Linux/Windows builds now frozen:2 jobs each/3600s compile caps, no feature removal. Compiled artifacts and runtime effectiveness still NOT_RUN. |
-| NET-TIMEOUT-RELEASE-ACCEPT | GATED on matching templates and separately corrected fixture command | Relevant focused checks, clean paired exports/strict startups/package checks, then original full ordinary route with unchanged criteria/limits. Fixture cleanup rejection still blocks clean acceptance. No execution selected yet. |
+| BROWSER-FIXTURE-JSON | DONE; source fixture integrated | Actual JSON numbers normalize safely;62 assertions and real raw0→admitting1→raw2→stop3 handoff pass with original3s limits. No packaged-client acceptance. |
+| NET-TIMEOUT-RELEASE-ACCEPT | GATED on matching templates | Relevant focused checks, clean paired exports/strict startups/package checks, then original full ordinary route with unchanged criteria/limits. The fixture handoff prerequisite now passes; native runtime effectiveness remains unverified. No execution selected yet. |
 
 **Current action:** compile the matching templates under the
 [exact frozen commands, sidecar handoff and stop conditions](docs/ROADMAP_BACKLOG.md#release-rpc-cache-correction--implementation-cards).
 Preparation took6.8min versus15–30min estimate; required SDK files/source pins
 verified and preparation actors gone. No game capture or public checkpoint selected.
-Independent BROWSER-FIXTURE-JSON is also selected: normalize actual JSON sequence
-numbers and prove raw→admitting→raw→stop with the existing source fixture/driver.
-Only its test fixture file changes; no ordinary-route retry. Together with the two
-compiler jobs this is the maximum three executable tasks.
+BROWSER-FIXTURE-JSON is complete: actual JSON sequence numbers normalize safely,
+62 assertions pass and the unchanged driver completed raw→admitting→raw→stop.
+Three stages took51.654s; all ten observed process identities are absent. Only the
+tested fixture file is integrated; no ordinary-route retry or gameplay checkpoint.
+The two compiler jobs remain the executable queue.
 Recipe commit→owned cleanup:4.8min against45–60min implementation/review estimate;
 unit stage0.514s. [Result and usage](docs/history/ROADMAP_DELIVERIES.md#rpc-cache-release-template-recipe--implemented).
 
