@@ -15997,3 +15997,72 @@ still requires its supported driver and originalCAP300/34s; no new execution
 selected here. Parked Wing/Perimeter/Breach/Tooltip unchanged. Native GPU/devices/
 listening/human/final-release/full-matrix NOT_RUN/open, Guided3/3 stays scoped to
 3d92b91. All36 broad parents and ten phase gates remain open.
+
+
+## Ordinary Station Defense — Deploy accepted, post-Deploy walk times out
+
+2026-10-20. PLAY-DEFENSE / parent13, original08:23–09:23UTC/60min. Candidate
+c8dcd038deb5d3e5c3fd78cdf1d4f04e51aa689d plus exact corrective candidate
+**a480c0fbb800e00fbe72838e5368d84add9eaa40**, both pushed on
+feat/defense-ordinary-route-20261020, unmerged/unpublished. Latest accepted
+playable remainsa59127c. One high implementer and one independent high source/
+result reviewer; no nested agents. Runtime owners,34s clock, actors, health,
+weapons, pose/velocity and existing driver defaults/CAP300 unchanged.
+
+Five original owned files implement private station-defense selector, detached
+physics/actual resolver observations and full empty-profile Arrow ordinary
+walk/Deploy/board/depart/four-kill/once-payment/strict-home/physical Reset/next
+Deploy/UIexit0 driver. Actual game-owned save is independently read; every
+physics sample including exit tail validated, new OS input final sample only.
+Source review corrected Main currentness, legitimate terminal registration
+retirement/frozen kill generation, guarded getter passivity and exit-tail checks
+before first engines. Source GO is not runtime acceptance.
+
+Original import20.697800s,87Python safety9.043732s, startup privacy1.032190s,
+Windows export27.681766s/Linux26.304939s, direct startup22.427727s/archive23.729486s/
+Windows embedded payload through Linux25.936816s, actual package audit5.796054s
+PASS. Strict startups exit0/exactly1STARTUP_MENU_READY_OK; actual1521PCK entries
+match, stockPE.text/ELF/exact5file archive/bytes/modes/source epoch/metadata checked.
+No native Windows claim. Ordinary route FAIL35.963291s (driver35.687): after
+requestframe1123, pre-consumptionframe1124 still nativeEfalse/empty result/idle0,
+board candidate true/distance1.822546/facing.989. Driver incorrectly classified
+missing acknowledgement as rejection; no actual Deploy edge or combat occurred.
+
+Root separately selected ONE correction in main1a06746ca within the original
+window, retaining all costs. Only twoPythonfiles66+/1−: empty/pre-E pending
+samples wait within original90frame deadline; explicit rejection evaluated after
+observedE, no retap. Three focused regressions cover pending→E/active acceptance,
+pre/postE explicit rejection and original90/91frame boundary. Clean candidate and
+independent source GO; original import/privacy scopes retained because GDScript/
+scenes/resources unchanged.90Python safety8.877092s, refreshed Windows10.695418s/
+Linux25.779762s, direct22.215329s/archive23.981871s/WinPCKLinux25.912202s and actual
+audit6.085884s PASS. All runs silent/headless or authenticated privateXvfb explicit
+x11/Dummy; no active desktop, physical audio, hosted CI or native GPU test.
+
+Corrective ordinary route FAIL84.239347s (driver83.978), exact assertion
+`unchanged whole 34-second encounter; first failure stops`. Actual E rise1136,
+release1144; active1137 generation1 with valid actual board candidate/range/facing.
+walk_arrow entered1137, but visited contains only five pre-Deploy board waypoints.
+Final player coordinate(11.8886785507202,-.0198632758110762,-23.6401290893555)
+persists rawframes1189–3178 inclusive,1990samples/33.15s; grounded/supported/control
+remain true, support path endsExposedDockLattice/HeroBerthNode. Encounter timed_out
+frame3177 elapsed34.016666666666. Arrow remains parked, core75/alive;15 resolver
+events all hostile2121, playerkill0, ledger0. No boarding/departure/payment/home/
+Reset/nextDeploy/normalUIexit. Collision/steering cause not established.
+
+Independent cumulative result verdict **PARK**. Sixteen passing stages286.198068s
+plus35.963291s original and84.239347s corrective failures =406.400707s total.
+Both attempt diagnostics0, input release/helper/game/Xvfb reaping true. No second
+repair/probe, retry, cap increase or acceptance narrowing. Future work needs a
+concrete post-Deploy walking cause/change and separate selection with full route,
+whole34s andCAP300 preserved. Earlier physical-entry acceptance remains unchanged;
+this driver does not close PLAY-DEFENSE or make a new public checkpoint.
+
+Cleanup28.24min within original60min: all113 observed PID/starttick identities
+absent, owners terminal, both unique candidates' seven EXE/archive/metadata files
+each retained privately/hash-verified and each ELF verified in its tarball.
+37 profile entries archived/hash/mode/symlink verified, helper sources preserved.
+Owned clean pushed/unmerged checkout/import cache/profiles/helpers/duplicate
+exports removed. Only /srv/mudds-work/defense-ordinary-route-20261020/results/
+remains. Native Windows/GPU/devices/audio/human/final/full-matrix remain open;
+Guided3/3 remains scoped to3d92b91. All36 parents and ten phase gates remain open.

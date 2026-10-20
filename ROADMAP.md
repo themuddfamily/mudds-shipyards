@@ -153,62 +153,38 @@ published files hash-verified,39 profile entries archived/verified, helpers
 preserved. Owned checkout/cache/profiles/helpers/duplicate exports removed.
 [Actual delivery](docs/history/ROADMAP_DELIVERIES.md#station-defense-physical-interaction--shipped-on-a59127c).
 
-### Selected Station Defense ordinary full-route capability
+### Station Defense ordinary route — parked after post-Deploy walk timeout
 
-PLAY-DEFENSE / parent13; physical E dependency now accepted ona59127c. New
-**08:23–09:23UTC/60min** for this driver capability, review/checks, paired candidate,
-one native route and cleanup. Earlier source-blocked preflight ran no driver;
-its production interaction fix closed separately within its original window,
-with334.765s/correction history retained. This is the missing complete-play
-capability, not another entry-only proof or reopened Wing/Perimeter/Breach route.
+Candidate **a480c0fbb** is pushed on `feat/defense-ordinary-route-20261020`,
+unmerged and unpublished. Full PLAY-DEFENSE remains unaccepted; latest playable
+checkpoint **a59127c** is unchanged. [Actual results and retained costs](docs/history/ROADMAP_DELIVERIES.md#ordinary-station-defense--deploy-accepted-post-deploy-walk-times-out).
 
-One high implementer owns existing run_native_sortie.py/test_native_sortie.py,
-native_sortie_observer.gd/startup_loader.gd/startup_cli_privacy_test.gd and one
-focused native_sortie_defense_observation_test.gd/UID if needed. One high source/
-result reviewer; root owns integration/packaging/cleanup. Estimate25–35min
-implementation/review. All new GDScript call/member-chain locals require explicit
-types. No gameplay/AI/tuning/clock/health/phase/pose/reward-owner changes; preserve
-all current driver selectors, defaults, globalCAP300 and private silent gate.
+The driver reached the actual board inside its2.6m3D gate. Original attempt
+c8dcd03 failed35.963s by treating an empty pre-E receipt as rejection. One
+separately selected two-Python-file correction waited for the same observed E
+inside the existing90frame bound, without retapping or changing gameplay.
+Corrective attempt accepted nativeE1136/active1137, generation1, but remained in
+walk_arrow at(11.88867855,-.01986328,-23.64012909) for rawframes1189–3178,
+1990samples/33.15s. The unchanged encounter timed_out at34.016667s. No boarding,
+departure, player kills, payment, home, Reset or normal UI exit occurred; no
+collision or steering cause is established.
 
-Empty private profile→normal Begin Shift→supported ordinary walk to real board
-(12,1,-26), actual2.6m3D range/facing/candidate E Deploy→walk to existing Arrow,
-normal E board/thrust departure→real player-weapon destruction of four registered
-1/2/1 actors before unchanged whole34s inclwalking/boarding/2.5s+8s lulls, core
-survives→one genuine durable receipt→normal strict Arrow home landing/lease/
-shutdown/physical exit→supported walk to same board E Reset, usable next Deploy→
-normal UI exit0. Default sprint is ordinary input if used; no seeded Guided win,
-spawned substitute craft, stage relocation, debug action or direct damage/phase/
-pose/velocity/timer writes. Observe fresh resolver shot events with exact source/
-target/weapon/sequence/receipt/positive damage and each terminal kill; cached fire
-acceptance is insufficient. Independently read actual saved entitlement. Validate
-all physics receipts, send new OS input only from final sample of each batch.
+Sixteen passing stages286.198s include87/90 driver safety tests, privacy, paired
+exports, three strict startups per candidate and actual1521-entry PCK/PE/archive
+audits. Corrective route failed84.239s; both failures plus passing stages total
+406.401s. Independent cumulative verdict **PARK**: no second repair, automatic
+retry, cap increase, substituted craft/profile or narrowed entry-only acceptance.
+A future selection must identify a concrete change at the retained post-Deploy
+walk boundary and preserve the full four-kill/once-payment/home/reset/UIexit
+contract, unchanged whole34s andCAP300. No new execution selected here.
 
-Before engines freeze clean source/exact commands: import180s; existing Python
-driver safety90s; startup privacy120s; focused observer120s if added, all Godot
-headless/Dummy. Safe paired exports180s each; three strict startups120s each;
-existing actual PCK/PE/archive audit90s. One `run_native_sortie.py ARCHIVE_ELF
---route station-defense --output OWNED/results/ordinary-defense`, existingCAP300,
-outer360s plus60s owner finalization. Owned authenticated Xvfb/XTest, explicitx11/
-dummy renderer/Dummy audio, independent abort/input release/reap. First failure
-stops; no automatic repair/retry/cap increase, fake prelude or narrowed accepted
-prefix. Publish only reviewed passing candidate; preserve unique failed artifacts
-if withheld. Hash-verify archive/public files and remove only owned clean pushed
-checkout/cache/profiles/helpers/duplicate exports. Full parent/repetition/native/
-human/final gates remain open; actual route timing/survival still unproved.
-
-Current candidatec8dcd03 passed import, driver safety, privacy, paired exports,
-three strict startups and artifact audit. First ordinary route failed35.963s
-at pre-consumption Deploy assertion: requestframe1123, nextframe1124 still
-nativeEfalse/empty result/idle generation0; board candidate true, distance1.823m.
-No actual rejection or combat occurred; all inputs/processes released/reaped,
-zero diagnostics. Nine passing stages198.338s; cumulative234.301s retained.
-One exact corrective attempt selected within the SAME08:23–09:23UTC/60min:
-wait for pending empty/pre-E samples within EXISTING90frame deadline, classify
-fresh explicit rejection after observed E, no retap. Only driver/Python regression
-files may change; original full route/34s/CAP300/commands retained. Clean commit,
-independent review, focused checks and refreshed paired artifacts required before
-one corrective native run. Another failure triggers cumulative priority review
-and parking; no second repair or acceptance narrowing.
+Cleanup completed28.24min within original08:23–09:23UTC/60min. All113 observed
+process identities absent; inputs released, helper/game/Xvfb reaped. Both
+candidates' unique EXE/archive/metadata retained privately/hash-verified, each ELF
+verified inside its tarball;37 profile entries archived/verified and helpers
+preserved. Owned clean pushed checkout/cache/profiles/helpers removed; only
+`/srv/mudds-work/defense-ordinary-route-20261020/results/` remains. Full parent,
+repetition, native Windows/GPU/devices/audio/human/final gates stay open.
 
 ### Waiting decisions — not executable tasks
 
@@ -314,6 +290,7 @@ contracts and cumulative attempt records remain in the retained history.
 
 | Outcome | Last actual result | Condition before more work |
 | --- | --- | --- |
+| PLAY-DEFENSE ordinary route /13 | Candidatea480c0fbb pushed/unmerged: actual E Deploy accepted, but corrective walk_arrow stationary33.15s and whole34s timeout before boarding. | PARK after original35.963s and one corrective84.239s failure; cumulative406.401s including16 passing stages. No player kill/payment/home/reset/UIexit; no second repair/retry selected. Unique candidates/results preserved; owned scratch cleaned28.24min. |
 | Ember first-relay cold cut /14,31 | [Archive923d7b3](docs/history/ROADMAP_DELIVERIES.md#ember-first-relay-cold-cut--runtime-completes-parent-comparison-fails) FAIL312.812s at parent exact durable-state comparison; arm-9/resume0, engine diagnostics0, runtime continuation and receipts0→1. Only two compared coordinate scalars differ by one binary64 ULP. | STOPPED; no repair/retry/cap increase or retroactive comparison relaxation. Contract review and exact-runtime caller correction complete; corrected full package run NOT_RUN and requires a separately frozen selection. No full-cut/location/canonical/installed acceptance; all owned scratch cleaned9.50min within20min. |
 | Jovian postdock exit /16,20,26 | [Corrective candidate0d225bee8](docs/history/ROADMAP_DELIVERIES.md#docked-pilot-hold--focused-pass-full-exit-stops-at-cabin-walk): pose322/import/compile PASS; full route145.995s FAIL at15s cabin walk after actual standing, retained pilot at exact dock. Unmerged/withheld; exports NOT_RUN. | PARKED after failed runtime plus one corrective attempt: combined392.470s current stages plus retained8054/e147 parser failures. No second repair, retry, tolerance/cap increase or renamed adjacent probe. Walking cause unproved; later node-path errors are inherited failure capture. All owned scratch cleaned17.09min inside original45min. |
 | Habitat common-entry view /9,12 | [Source8a6339b91](docs/history/ROADMAP_DELIVERIES.md#habitat-arrival-view--readback-timed-out-before-image): import passes; full-Main player-height readback times out180.842s before PNG or view metadata. Cumulative201.494s; no observed defect/no-finding. | PARKED. Concrete supported capture-boundary change before selection; no renderer/room substitute, cap increase or unchanged retry. Actual eye stage was not proved reached; accepted Habitat runtime scopes remain. |
