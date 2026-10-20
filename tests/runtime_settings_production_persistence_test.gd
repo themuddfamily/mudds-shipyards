@@ -1,8 +1,20 @@
 extends SceneTree
 
 ## Focused production composition test for the atomic RuntimeSettings store.
-## Every Main instance receives an in-memory UserDataStore before entering the
-## tree; this suite never reads or writes the developer's real user:// data.
+## Default mode injects an in-memory UserDataStore into every Main instance.
+## Opt-in --fire-restart-writer / --fire-restart-reader modes use the production
+## disk store only inside --fire-restart-private-root=<absolute private root>.
+## Run each mode in a separate headless/Dummy process with the SAME private
+## XDG_DATA_HOME, XDG_CONFIG_HOME and XDG_CACHE_HOME beneath that root. Example:
+## env XDG_DATA_HOME="$CASE/data" XDG_CONFIG_HOME="$CASE/config" \
+##   XDG_CACHE_HOME="$CASE/cache" timeout 300s godot --headless \
+##   --audio-driver Dummy --path "$WORKTREE" --script \
+##   res://tests/runtime_settings_production_persistence_test.gd -- \
+##   --fire-restart-writer --fire-restart-private-root="$CASE"
+## Reap writer (exit 0 + FIRE_RESTART_WRITER_OK), then repeat with reader flag;
+## require exit 0 + FIRE_RESTART_READER_OK. Never run these modes in parallel.
+## Raw key/mouse events and the reader's focus-in lifecycle notification are
+## synthetic. Physical devices, native focus, flight/combat: NOT_RUN.
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const Settings := preload("res://scripts/settings/runtime_settings.gd")
@@ -83,6 +95,10 @@ class MutableInputProvider:
 
 
 func _initialize() -> void:
+	var args := OS.get_cmdline_user_args()
+	if args.has("--fire-restart-writer") or args.has("--fire-restart-reader"):
+		_run_fire_restart(args)
+		return
 	_run()
 
 
@@ -93,6 +109,236 @@ func _run() -> void:
 	_test_process_lifetime_recreation_identity()
 	_restore_project_input_defaults()
 	_finish()
+
+
+# These opt-in modes deliberately avoid every fake used by the default suite.
+# The sentinel contains unrelated fixture data only, never a settings profile.
+const FIRE_RESTART_SENTINEL := "fire_restart_fixture"
+var _fire_restart_game: GameFlow
+
+
+func _run_fire_restart(args: PackedStringArray) -> void:
+	var writer := args.has("--fire-restart-writer")
+	var reader := args.has("--fire-restart-reader")
+	print("FIRE_RESTART_BEGIN pid=%d argv=%s user_argv=%s" % [
+		OS.get_process_id(), JSON.stringify(OS.get_cmdline_args()), JSON.stringify(args),
+	])
+	var private_root := ""
+	for arg: String in args:
+		if arg.begins_with("--fire-restart-private-root="):
+			private_root = arg.trim_prefix("--fire-restart-private-root=").simplify_path()
+	var isolated := private_root.is_absolute_path() and private_root != "/"
+	for variable: String in ["XDG_DATA_HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME"]:
+		isolated = isolated and OS.get_environment(variable).simplify_path().begins_with(private_root + "/")
+	isolated = isolated and OS.get_user_data_dir().simplify_path().begins_with(private_root + "/")
+	_check(writer != reader and isolated, "exactly one restart mode and all user data are inside the explicit private root")
+	if _failures.is_empty():
+		print("FIRE_RESTART_STORE path=%s physical_hardware=NOT_RUN synthetic_focus=true" %
+			ProjectSettings.globalize_path(Adapter.DEFAULT_STORE_PATH))
+		await _fire_restart_stage(writer)
+	# Release every synthetic event even on an assertion failure; never leave
+	# cursor capture or paused state behind while tearing Main down.
+	_fire_restart_key(KEY_F13, false)
+	_fire_restart_key(KEY_F, false)
+	_fire_restart_mouse(false)
+	paused = false
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	if is_instance_valid(_fire_restart_game):
+		_fire_restart_game.queue_free()
+		await process_frame
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	if _failures.is_empty():
+		var disk := Store.new(Adapter.DEFAULT_STORE_PATH)
+		_check(bool(disk.load().accepted), "production file remains readable after Main exits")
+		if _failures.is_empty():
+			print("FIRE_RESTART_%s_OK pid=%d generation=%d sha256=%s assertions=%d" % [
+				"WRITER" if writer else "READER", OS.get_process_id(), disk.get_generation(),
+				FileAccess.get_sha256(Adapter.DEFAULT_STORE_PATH), _assertions,
+			])
+	_finish()
+
+
+func _fire_restart_stage(writer: bool) -> void:
+	# Match the existing Settings UI fixture's declared headless layout before
+	# Main constructs its HUD; visibility still requires the original row check.
+	root.content_scale_size = Vector2i(1280, 720)
+	_check(root.content_scale_size == Vector2i(1280, 720),
+		"restart fixture declares the existing 1280 by 720 Settings UI viewport precondition")
+	if not _failures.is_empty():
+		return
+	var disk := Store.new(Adapter.DEFAULT_STORE_PATH)
+	var opened := disk.load()
+	_check(bool(opened.accepted), "private production disk store opens")
+	if not _failures.is_empty():
+		return
+	if writer:
+		_check(disk.get_generation() == 0 and disk.get_snapshot().is_empty()
+			and not FileAccess.file_exists(Settings.DEFAULT_CONFIG_PATH),
+			"writer requires a fresh private store; no existing settings are overwritten")
+		if not _failures.is_empty():
+			return
+		var seeded := disk.commit({FIRE_RESTART_SENTINEL: {
+			"writer_pid": OS.get_process_id(), "unrelated_data": {"keep_me": "fire-restart", "progress": 42},
+		}}, 0, "fire-restart-unrelated-seed")
+		_check(bool(seeded.accepted), "writer seeds unrelated disk data without a settings/profile payload")
+	else:
+		var sentinel := disk.get_snapshot().get(FIRE_RESTART_SENTINEL, {}) as Dictionary
+		_check(int(sentinel.get("writer_pid", 0)) > 0
+			and int(sentinel.get("writer_pid", 0)) != OS.get_process_id(),
+			"reader is a distinct real process from the writer")
+	if not _failures.is_empty():
+		return
+	var sentinel_before := disk.get_snapshot().get(FIRE_RESTART_SENTINEL, {}) as Dictionary
+	var game := MAIN_SCENE.instantiate() as GameFlow
+	_fire_restart_game = game
+	# No configure_runtime_settings_persistence: ordinary Main owns its ordinary
+	# UserDataFilesystem, store, adapter and user:// path in this fresh process.
+	root.add_child(game)
+	await process_frame
+	await physics_frame
+	await process_frame
+	var report := game.get_runtime_settings_persistence_report()
+	_check(not bool(report.injected_authority) and report.identity_scope == &"process_lifetime"
+		and int(report.load_attempt_count) == 1 and bool(report.load_status.accepted)
+		and bool(report.load_before_first_apply)
+		and (writer or report.load_status.reason == &"loaded"),
+		"normal Main loads one real production authority before applying settings")
+	if not _failures.is_empty():
+		return
+	var hud := game.get_node_or_null(^"HUD") as GameHUD
+	_check(hud != null and not game.get_flyable_ships().is_empty(), "real Main provides HUD and production fleet")
+	if not _failures.is_empty():
+		return
+	hud.set_paused(true)
+	hud._show_settings_page()
+	await process_frame
+	await process_frame
+	var buttons := hud.get("_binding_buttons") as Dictionary
+	var fire_button := buttons.get(&"fire") as Button
+	_check(fire_button != null and fire_button.is_visible_in_tree(), "Fire binding row is on the visible Settings page")
+	if not _failures.is_empty():
+		return
+	fire_button.grab_focus()
+	await process_frame
+	await process_frame
+	var scroll := (hud.get("_settings_page") as Control).find_child("SettingsScroll", true, false) as ScrollContainer
+	var focus_owner := root.gui_get_focus_owner()
+	print("FIRE_RESTART_LAYOUT viewport=%s window_size=%s content_scale_size=%s focus_owner=%s fire_rect=%s scroll_rect=%s" % [
+		str(root.get_visible_rect()), str(root.size), str(root.content_scale_size),
+		str(focus_owner.get_path()) if focus_owner != null else "NONE",
+		str(fire_button.get_global_rect()), str(scroll.get_global_rect()) if scroll != null else "MISSING",
+	])
+	_check(scroll != null and scroll.get_global_rect().intersects(fire_button.get_global_rect()),
+		"focused Fire row is scrolled into the visible Settings viewport")
+	var expected_pads := _fire_restart_gamepads(game.get_runtime_settings().get_project_input_binding_defaults())
+	_check(expected_pads != "[]", "authored Fire gamepad bindings provide a nonempty preservation witness")
+	if not _failures.is_empty():
+		return
+	if writer:
+		_check(_input_map_has_key(&"fire", KEY_F) and not _input_map_has_key(&"fire", KEY_F13),
+			"writer begins with the authored former keyboard binding")
+		if not _failures.is_empty():
+			return
+		_check(hud.begin_input_binding_capture(&"fire"), "visible Fire row enters ordinary raw-event capture")
+		if not _failures.is_empty():
+			return
+		_fire_restart_key(KEY_F13, true)
+		await process_frame
+		_fire_restart_key(KEY_F13, false)
+		await process_frame
+	_check(fire_button.text.contains("F13") and _input_map_has_key(&"fire", KEY_F13)
+		and not _input_map_has_key(&"fire", KEY_F)
+		and _fire_restart_gamepads(game.get_runtime_settings().get_input_binding_profile()) == expected_pads,
+		"visible Fire row, InputMap and retained gamepad bindings agree on F13")
+	if not _failures.is_empty():
+		return
+	if writer:
+		var save := hud.find_child("SettingsSaveButton", true, false) as Button
+		_check(save != null and save.is_visible_in_tree(), "ordinary Apply + Save button is available")
+		if not _failures.is_empty():
+			return
+		var saves_before := int(game.get_runtime_settings_persistence_report().save_success_count)
+		save.pressed.emit()
+		var saved := game.get_runtime_settings_persistence_report()
+		_check(int(saved.save_success_count) == saves_before + 1
+			and bool(saved.last_save_status.accepted) and not bool(saved.unsaved_changes),
+			"ordinary production Apply + Save commits the captured binding")
+	else:
+		hud.set_paused(false)
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		var source := game.get_flyable_ships()[0].get_local_input_source()
+		# Headless has no native focused Window. Deliver the existing lifecycle
+		# notification; do not mutate a focus field or replace its Input provider.
+		source.notification(MainLoop.NOTIFICATION_APPLICATION_FOCUS_IN)
+		var audit := source.get_input_integration_audit()
+		_check(bool(audit.production_input_profile_active)
+			and audit.production_input_strength_domain == &"input_map_resolved"
+			and source.get_input_binding_profile().to_dictionary()
+				== game.get_runtime_settings().get_input_binding_profile().to_dictionary(),
+			"retained production local source samples the normally loaded profile through InputMap")
+		if not _failures.is_empty():
+			return
+		# Observe the production sampler directly: no boarding, authority override,
+		# source enabling, command-provider injection or combat claim is needed.
+		if not _fire_restart_sample(source, false, "released baseline"):
+			return
+		_fire_restart_key(KEY_F13, true)
+		if not _fire_restart_sample(source, true, "raw F13 press"):
+			return
+		_fire_restart_key(KEY_F13, false)
+		if not _fire_restart_sample(source, false, "raw F13 release"):
+			return
+		_fire_restart_key(KEY_F, true)
+		if not _fire_restart_sample(source, false, "former F press"):
+			return
+		_fire_restart_key(KEY_F, false)
+		_fire_restart_mouse(true)
+		if not _fire_restart_sample(source, false, "former left-mouse press"):
+			return
+		_fire_restart_mouse(false)
+		if not _fire_restart_sample(source, false, "all former controls released"):
+			return
+	if not _failures.is_empty():
+		return
+	var verified := Store.new(Adapter.DEFAULT_STORE_PATH)
+	_check(bool(verified.load().accepted)
+		and verified.get_snapshot().get(FIRE_RESTART_SENTINEL, {}) == sentinel_before,
+		"normal startup and settings save preserve exact unrelated seeded disk data")
+
+
+func _fire_restart_gamepads(profile: InputBindingProfile) -> String:
+	var bindings: Array[Dictionary] = []
+	for binding: Dictionary in profile.get_bindings(&"fire"):
+		if binding.device == Profile.DEVICE_GAMEPAD:
+			bindings.append(binding)
+	return JSON.stringify(bindings)
+
+
+func _fire_restart_key(code: Key, pressed: bool) -> void:
+	var event := InputEventKey.new()
+	event.physical_keycode = code
+	event.pressed = pressed
+	Input.parse_input_event(event)
+
+
+func _fire_restart_mouse(pressed: bool) -> void:
+	var event := InputEventMouseButton.new()
+	event.button_index = MOUSE_BUTTON_LEFT
+	event.pressed = pressed
+	Input.parse_input_event(event)
+
+
+func _fire_restart_sample(source: LocalShipInputSource, expected: bool, stage: String) -> bool:
+	# Godot queues raw events until its native flush; deliver them before sampling.
+	Input.flush_buffered_events()
+	var values := source._sample_controls()
+	var agrees := not values.is_empty() and values.has("fire") \
+		and bool(values.fire) == expected and Input.is_action_pressed(&"fire") == expected
+	_check(agrees, "production sampler agrees with InputMap after %s" % stage)
+	print("FIRE_RESTART_SAMPLE stage=%s fire=%s input_map=%s" % [
+		stage, str(values.get("fire", "MISSING")), str(Input.is_action_pressed(&"fire")),
+	])
+	return agrees
 
 
 func _test_production_startup_transactions_and_reentry() -> void:
