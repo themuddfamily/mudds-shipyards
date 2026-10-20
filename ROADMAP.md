@@ -78,42 +78,27 @@ This clears the branch queue; it does not close their unfinished gameplay,
 qualification or release requirements. No unaccepted source was merged to reduce
 a branch count. Eight previously protected detached worktrees remain unchanged.
 
-**Selected one bounded Jovian reboard caller correction.**
-The first attempt established the existing7m suppression, not a gameplay defect.
-Restore exact withheld calleradd3c854b and change only its ordinary exterior
-reboard approach: walk away beyond BOARDING_FALLBACK_REACH, observe the production
-guard clear with old grants still retired, then return to the authored hatch.
-Retain complete original board/departure/home landing/physical exit/groundwalk,
-fresh admission/body/chair identities, both actual consumed views and same pilot/
-strict home berth. Root makes this small sequential correction; one HIGH reviewer
-checks exact scope and actual result. No new branch/worktree or game-code change.
-One compile300s and one full route300s/outer360s; each ordinary waypoint15s,
-transition8s/landing120s/convergence5s and inherited exit grace unchanged. Exact
-source/commands/environment/cache frozen before engines; all automated engines
-use Dummy audio and private Xvfb/explicitx11. Preserve previous163.990s stages
-and original18:23–19:23 assignment; no budget reset. First correction failure
-stops, no further variant or automatic repair. Integrate/push only accepted full
-original case; otherwise preserve source and exact gap. Reuse existing results/
-reboard/clearance-correction and remove only new owned scratch after preservation.
-
-**Jovian passenger reboard stopped at hatch discovery; source withheld.**
-Candidateadd3c854b completes the full original ordinary boarding/departure/home
-landing/physical hatch exit and1.247m supported groundwalk, then walks back to the
-hatch. Discovery fails within original8s: area free, ship boardable/OFFLINE,
-no candidate and the same hull still reboard-blocked. Production clears that
-guard only after actual interaction origin moves>7m from the boarding point;
-this caller never proves that excursion (failure distance1.393m). Fresh cabin
-admission, new body/chair claim and client convergence were NOT_RUN.
-Compile PASS16.960s; one full route FAIL147.030s, all three actual OS exits1,
-source/cache unchanged; no marker. Independent review NO-GO. First failure ends
-this card: no repair/retry, cap increase or production defect claim. Reopening
-requires a separately selected ordinary exterior route that physically clears
-the existing7m suppression, then preserves the entire original reboard contract.
-Unique candidate retained in verified bundle/patch/source archive and pushed tag
-archive/withheld/jovian-passenger-reboard-20261020; source not merged. Owned
-profiles archived/verified and removed, all15 observed identities absent. No new
-branch/worktree; main remains sole working branch, latest checkpoint0070248.
-[Exact result and blocker](docs/history/ROADMAP_DELIVERIES.md#jovian-passenger-reboard--hatch-discovery-stops-original-case--2026-10-20).
+**Jovian passenger reboard remains OPEN after original and sole correction.**
+Both candidates complete the full original ordinary boarding/departure/home
+landing/physical hatch exit and supported groundwalk. Originaladd3c854b returns
+without clearing the existing7m reboard suppression and fails hatch discovery
+in147.030s. One explicit clearance correction834d874cc then fails in152.626s:
+ordinary walk stalls supported/control-enabled at(-40.430,.380,65.820), target
+(-37.3,.61,65.82), velocity0 and interaction distance5.237m<7. No clearance receipt,
+fresh cabin/body/chair claim or client convergence. Specific obstruction/collider
+is not captured; no production defect established. Both compiles PASS; unchanged
+source/cache and original caps, actual three OS exits1 on each route; no markers.
+Independent reviews NO-GO. Total original+correction stages333.373s retained,
+original18:23–19:23 assignment unchanged. No further variant/retry selected.
+Reopening requires a concrete supported clearance path/cause, preserving the
+whole original physical reboard/chair and retired-context contract. Do not remove
+the production guard, inject pose/claims, increase caps or rerun unchanged.
+Both unique sources retained in verified bundles/patches/source archives and
+pushed WITHHELD tags; neither merged. Both owned scratch roots removed after
+verified preservation; all30 observed identities absent. No new branch/worktree;
+main remains sole working branch, latest playable0070248 unchanged.
+[Original failure](docs/history/ROADMAP_DELIVERIES.md#jovian-passenger-reboard--hatch-discovery-stops-original-case--2026-10-20),
+[sole correction and remaining gap](docs/history/ROADMAP_DELIVERIES.md#jovian-reboard-clearance-correction--stopped-at-supported-walk--2026-10-20).
 
 **HALYARD-AUTHORITY-STOP DONE — current source `082da79c9`.**
 The complete ordinary boarding/departure/moving walk/chair sequence passes, then
@@ -414,10 +399,11 @@ cross-craft/Main, hardware/native and final release gates remain open.
 
 ## Parked failures and dependent work
 
-Jovian passenger reboard's first route is withheld: actual prior exit/groundwalk
-passes, but returning without clearing the existing>7m reboard suppression leaves
-no hatch candidate. No fresh admission/chair proof. See the retained result above;
-a route correction needs separate selection, with full original caps/contract.
+Jovian passenger reboard's original and sole clearance correction are withheld.
+Actual prior exit/groundwalk passes; original hatch suppression remains, and the
+corrective ordinary clearance walk stalls before7m. A concrete supported path or
+cause is missing. No fresh admission/chair proof or further retry selected; full
+original caps/contract remain binding.
 
 These are unfinished outcomes, not candidates for an unchanged retry. Exact
 contracts and cumulative attempt records remain in the retained history.

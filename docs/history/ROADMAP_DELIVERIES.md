@@ -18483,3 +18483,58 @@ all15 observed PID/start-tick identities absent, no live cwd/exe under scratch.
 No protected original worktree/result root touched. Main sole working branch,
 CI hold intact, latest playable0070248 unchanged. Reboard, later pilot exit/
 reclaim/redeparture, full server/endurance/native/hardware/final gates remain open.
+
+
+## Jovian reboard clearance correction — stopped at supported walk — 2026-10-20
+
+**NET-JOVIAN-PASSENGER-REBOARD remains OPEN/PARKED.** One concrete caller
+correction selectedf262e2c4b against measured original hatch guard failure. Exact
+withheldadd3c854b source restored; clean detached834d874ccdc23937c228f79493d060cc07cd29fa
+adds32 lines only: ordinary exterior waypoint beyond existing7m suppression,
+same supported Player/empty old claim/unbound source/actual guard-clear proof,
+host old-grant retirement confirmation and pilot barrier. Complete original
+prefix, fresh admission/body/chair/consumed identity checks unchanged. No pose,
+claim or guard writes, game code change, new branch/worktree or budget reset.
+Independent HIGH source GO confirms exact delta and actual production semantics.
+
+Compile PASS16.756231s with source unchanged. One full original route FAIL
+152.626103s under unchanged full300s/outer360s/waypoint15s/transition8s/landing120s/
+convergence5s/inherited exit limits. Same frozen Godot4.7.1 engine/hash and commands
+as original; every engine Dummy audio, private Xvfb and explicitx11 for peers,
+private XDG/TMP/cleared inherited overrides. Full original ordinary board/
+departure/home landing/physical hatch exit/groundwalk completes again. Then
+clearance target(-37.3,.61,65.82) stalls actual(-40.4303627,.3799726,65.8199921),
+floor=true, control=true, velocity0, actual interaction distance5.237447739m<7.
+Same production reboard guard remains active; no client_b.reboard_clear receipt.
+Specific blocking collider/cause is unrecorded. No production defect inferred.
+No return/fresh cabin admission/body/chair result was reached.
+
+Actual host1957653/client1957980/client_b1957999 each matches .pid/.done, .exit1,
+actual failure and absent OS PID. Supervisor FINISHED1;3931 aggregate checks/
+9 failures, zero success markers. Source/cache before/after exact and Git clean
+at executed pin. Independent HIGH final NO-GO verifies all80 retained file hashes,
+full prefix, supported failed walk and unperformed later gates. This is the sole
+correction; stop with no further variant, retry, cap increase or automatic repair.
+Reopening needs a concrete supported clearance path/cause, then separate selection
+of the same whole original physical reboard/chair/retired-context contract.
+
+Stage file-timestamp intervals169.382334s plus original163.990259s give
+333.372593s cumulative, without resetting original18:23–19:23 assignment. These
+are owner.json mtime minus command.json mtime, not exact monotonic measurements.
+Raw/candidate/cleanup root is existing
+/srv/mudds-work/jovian-passenger-physical-exit-20261020/results/reboard/clearance-correction/.
+Source preserved in verified bundle/binary patch/exact source tar and pushed tag
+archive/withheld/jovian-passenger-reboard-clearance-20261020, annotated object
+a793155b8bb2d6df97665595dd8ca7e29b2a0d22→834d874cc. Source blob
+139719475ea6f702faf56b9d4b4df3b6f5f29064; preservation.json has all hashes.
+Original failure/tag/raw remain. Both sources UNMERGED; main receives docs only.
+
+Owned reboard-clearance-scratch preserved as profiles.tar.gz29691bytes,
+SHA256179900013f4c2aa5f1aa125d5eac7ad885314d42cac83cb5cfc9729ac5b10e66;
+all150 entries reopened and exact names/file hashes/bytes/modes/link targets
+verified before removal. Cleanup18:42:24UTC,19.42min into original assignment;
+both owners terminal0/1, all15 new observed PID/start-tick identities absent,
+no live cwd/exe under owned scratch. Across both attempts30 observed identities
+absent, both scratch roots removed. Main sole working branch, CI hold unchanged,
+latest playable0070248 unchanged. No whole parent/phase/native/hardware/final gate
+closed; later pilot exit/reclaim/redeparture remain dependent and unselected.
