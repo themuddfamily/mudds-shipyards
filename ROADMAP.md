@@ -467,16 +467,16 @@ The backlog preserves accepted child scopes and remaining gates. The existing
 [delivery history](docs/history/ROADMAP_DELIVERIES.md) preserves sources, actual
 results, timings and cleanup. Recent palette, controls, station service, recovery,
 Arrow and helm work remains accepted only within those recorded boundaries.
-Caller-only qualification needs no identical playable rebuild. Checkpoint0070248
+Caller-only qualification needs no identical playable rebuild. Checkpoint49bc7b7
 is the latest accepted playable result; full craft combat/damage/recovery,
 cross-craft/Main, hardware/native and final release gates remain open.
 
 ## Parked failures and dependent work
 
-Jovian reboard's earlier route failures are preserved. The supported corridor now
-clears the actual guard and reboards; current blocker is premature host chair
-claim while the client stands. Use the ready runtime repair above before more
-qualification. Full original contract/caps remain binding; no caller-only retry.
+Jovian reboard's earlier failures remain preserved; the Interact replay repair
+49bc7b736 and full pilot/co-pilot physical reuse through repeat departure
+bc7f9f9c4 are accepted above. They are completed work, not a parked repair queue.
+Other craft/roles and distinct second landing remain separate open requirements.
 
 These are unfinished outcomes, not candidates for an unchanged retry. Exact
 contracts and cumulative attempt records remain in the retained history.
@@ -484,7 +484,7 @@ contracts and cumulative attempt records remain in the retained history.
 | Outcome | Last actual result | Condition before more work |
 | --- | --- | --- |
 | PLAY-DEFENSE ordinary route /13 | Candidatea480c0fbb archived WITHHELD; working refs deleted, source unmerged: actual E Deploy accepted, but corrective walk_arrow stationary33.15s and whole34s timeout before boarding. | PARK after original35.963s and one corrective84.239s failure; cumulative406.401s including16 passing stages. No player kill/payment/home/reset/UIexit; no second repair/retry selected. Unique candidates/results preserved; owned scratch cleaned28.24min. |
-| Jovian postdock reuse /16,20,26 | DONE on861c4d39b, merged2352d18c3; original138.470s clean three-peer journey, all seven physical exit poses, same-player supported ground walk, retired passenger claim/body and retained pilot; all3 actual OS exits0. Fresh paired checkpoint861c4d3. | Branch local/remote/tracking deleted, owned scratch cleaned23.65min/45min. Reboard/pilot exit/reclaim/redeparture/other craft/second landing remain open; no automatic next case. |
+| Jovian postdock reuse /16,20,26 | DONEbc7f9f9c4: complete ordinary passenger exit/reboard, pilot exit/reclaim and repeat departure/braked stop, full original journey and three actual OS0. Reboard runtime repair49bc7b736; latest paired playable49bc7b7. | Source integrated/pushed and owned scratch removed. Existing working refs already deleted; other supported craft/roles, distinct second landing and full parent gates remain open. |
 | Habitat common-entry view /9,12 | [Source8a6339b91](docs/history/ROADMAP_DELIVERIES.md#habitat-arrival-view--readback-timed-out-before-image): import passes; full-Main player-height readback times out180.842s before PNG or view metadata. Cumulative201.494s; no observed defect/no-finding. | PARKED. Concrete supported capture-boundary change before selection; no renderer/room substitute, cap increase or unchanged retry. Actual eye stage was not proved reached; accepted Habitat runtime scopes remain. |
 | Courier clear /11 | [Candidatecb9d76fa5](docs/history/ROADMAP_DELIVERIES.md#courier-ordinary-clear--escaped-without-player-damage), archived WITHHELD, working refs deleted/source unmerged: prechecks pass; ordinary attempt fails70.377s, ESCAPED at1400m, hull78/78, no player hit/kill or home completion. Cumulative165.917s. | PARKED/withheld. Fresh Courier-window emission/ray/resolver facts are missing; generic shot receipt can be stale. No weapon/aim cause established, repair/retry or public checkpoint selected. Preserve original route/caps; other Courier outcomes need separate selection. |
 | Matching RPC-cache templates /25,32 | [Linux built; Windows cold/incremental compilation timed out](docs/history/ROADMAP_DELIVERIES.md#matching-rpc-cache-templates--stopped-at-windows-compilation-budget). No accepted matching pair; callback repair is unverified. Browser diagnostic/prepared acceptance source archived WITHHELD; working refs deleted. | PARKED; no further compilation or dependent browser attempt selected. Existing recipe/JSON fixture remain delivered; empty callable metadata and similar Window errors establish no cause. |
