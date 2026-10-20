@@ -115,7 +115,7 @@ Finish means the named existing route passes on its frozen candidate, or the nam
 | SCOPE-ROSTER | Reconcile original twelve plus modern five craft, stations, opponents/weapons, activities, worlds, roles and targets | 4 | DONE as [finite named roster](COMPLETION_SCOPE.md#finite-release-roster--scope-roster): original12+modern5/eventual17, current9/missing8; other named inventories and unresolved boundaries preserved. No gameplay/qualification completion implied |
 | SCOPE-LIMIT | Release guest count and playing-host decision | 4,26 | WAITING; already-asked owner decision |
 | SCOPE-DESKTOP | Required desktop target list | 4,32 | WAITING final owner list: Windows Desktop/Linux x86_64 presets exist; Phase9 conditionally requires other non-Windows targets without naming one. Source investigation DONE; no third-target promise or deferral inferred |
-| PLAN-NEXT | Assign the next bounded queue | 5 | Passive release callback capture complete on783c8c872, diagnostic-only: private package/readiness checks pass and known failed route captured; no gameplay acceptance. Next bounded action is production-correction definition from the actual retained native callback. [Current checkpoints, waiting decisions and card fields](../ROADMAP.md#execution-now). Navigator rejection/Hauler cargo retain policy waits. This scheduling work is not a whole-project estimate or gameplay delivery |
+| PLAN-NEXT | Assign the next bounded queue | 5 | Passive release callback capture complete on783c8c872, diagnostic-only: private package/readiness checks pass and known failed route captured; no gameplay acceptance. Correction definition complete; RPC-CACHE-BUILD-RECIPE selected as the next concrete pipeline implementation, with matching-template/runtime acceptance children gated below. [Current checkpoints, waiting decisions and card fields](../ROADMAP.md#execution-now). Navigator rejection/Hauler cargo retain policy waits. This scheduling work is not a whole-project estimate or gameplay delivery |
 | GUIDED-FINAL | Final-package Guided ordinary-input sortie, original 3/3 | 7 | GATED; final package, earlier f676c50 acceptance retained |
 | SANDBOX-RECOVERY | Original all-nine/54-waypoint recovery walk and reuse | 7 | PARKED; supported changed input/runtime cause required |
 | SETTINGS-INPUT | Recover original runner, profile and logs | 7,8,29 | WAITING; original artifacts, no substitute Gate C |
@@ -1380,9 +1380,98 @@ Six owners finished/33 observed identities absent; five unique private Linux
 artifacts retained and owned checkout/helpers/profiles cleaned from active paths.
 Six stages131.191s; cumulative20 stages398.296s preserves original failures and
 this actual failed route. No retry/repair/cap increase or second capture selected.
-Next action is one bounded production-correction definition using this finding,
-including matching templates/build-toolchain prerequisites and unchanged full-route
-proof. Diagnostic acquisition is not a production fix or ordinary acceptance.
+Correction definition is complete in the following section; the first build-recipe
+implementation is selected, while actual templates and full-route acceptance remain gated. Diagnostic acquisition is not a production fix or ordinary acceptance.
+
+### Release RPC-cache correction — implementation cards
+
+**Definition complete2026-10-20; first implementation selected before edits.**
+Parents25/32. Pinned engine source is
+`a13da4feb8d8aefc283c3763d33a2f170a18d541`, the existing builder's exact revision.
+The captured retained callback establishes a production teardown gap; it does not
+identify the differing native identity bytes or prove a compiler/ABI fault.
+
+**Correction to the earlier source lead:** adding `.bind(E.key)` is not a repair.
+[Signal connect/disconnect](https://github.com/godotengine/godot/blob/a13da4feb8d8aefc283c3763d33a2f170a18d541/core/object/object.cpp#L1556)
+use the [base comparator through bind wrappers](https://github.com/godotengine/godot/blob/a13da4feb8d8aefc283c3763d33a2f170a18d541/core/variant/callable_bind.cpp#L85).
+[Release method metadata](https://github.com/godotengine/godot/blob/a13da4feb8d8aefc283c3763d33a2f170a18d541/core/object/callable_mp.h#L53)
+is intentionally empty without DEBUG_ENABLED. Neither fact proves the failure.
+
+Independent high source/lifecycle review GO supports this **unproved candidate**:
+in `modules/multiplayer/scene_cache_interface.h`, add a Callable member to
+NodeCache; in `_track`, construct/store the bound removal callback once and
+connect that value one-shot; in `clear`, disconnect that exact stored value.
+[Callable copies retain custom identity](https://github.com/godotengine/godot/blob/a13da4feb8d8aefc283c3763d33a2f170a18d541/core/variant/callable.cpp#L265),
+so lookup reuses the same pointer/hash rather than reconstructing it. Native data
+holds a raw owner pointer/ObjectID, with scalar bound node ID, adding no ownership
+cycle. One-shot emission holds Callable copies while removing the connection
+before invocation; NodeCache removal can release its copy safely. Repeated
+clear/retrack remains supported. Do not change general Callable equality, skip a
+disconnect via is_connected, suppress diagnostics, fake tree exit or change app
+ownership. Effectiveness remains gated on actual patched release validation.
+
+**RPC-CACHE-BUILD-RECIPE — selected executable build capability.** One medium
+implementer owns ONLY `tools/release/build_godot_reflection_fix.py`, its existing
+`test_build_godot_reflection_fix.py`, and new
+`tools/release/patches/godot-4.7.1-rpc-cache-teardown.patch`. Root owns docs,
+integration/checks; one independent high reviewer. No recursive agents.
+
+Extend the existing builder, not a parallel copy. Add explicit mutually exclusive
+`--rpc-cache-teardown` mode, `--platform linuxbsd|windows`, and an absolute owned
+`--cache-root` for this mode. Preserve all legacy defaults/paths/tests. RPC mode
+must apply ONLY the two-file callback patch (explicit header include if needed),
+never reflection/mesh/probe patches. Pin official source archive, SCons wheel,
+patch and exact before/after target bytes. Use template_release x86_64 and private
+platform-specific logs/results, build names and staged template filenames.
+Windows output is inspected as PE and never executed on Linux; Linux version
+probes, when later run, must be headless/Dummy. Preserve inherited HOME, isolated
+XDG, bounded jobs/timeouts and existing abort/reap behavior. No installed engine,
+stock templates or export-preset mutation; no silent renderer/feature removal.
+Windows dependencies must be explicit, not bypassed by ad hoc disable flags.
+
+Acceptance in this card is the existing build-tool suite extended for real
+new behavior: side-effect-free two-platform plans, conflicting-mode rejection,
+exact patch/source rejection, unrelated-mode isolation, correct target staging,
+stale template refusal and no Windows execution. Command:
+`python3 -B -m unittest discover -s tools/release -p test_build_godot_reflection_fix.py`,
+cap60s, no compiler/downloader/Godot. Actual compile and runtime effectiveness
+remain NOT_RUN. Source-file downloads for reviewed patch preparation are allowed
+only into owned scratch; no source archive/tool installation or engine build.
+Estimate45–60min implementation/review plus focused checks; split before90min.
+Unexpected check failure STOP for this card; no automatic repair/retry expansion.
+Commit/push the capability, retain exact patch/source facts and clean owned scratch.
+No playable checkpoint is implied by an uncompiled build recipe.
+
+**RPC-CACHE-TEMPLATES — dependent actual build.** GATED on accepted recipe,
+SCons and required native/cross build dependencies. Current environment has
+Python3.13.5/GCC14.2/ar/patch/pkg-config,12 CPUs and~13GiB available RAM, but no
+SCons, clang++ or MinGW on PATH, and no prior builder cache. Debian's cached
+package index offers POSIX MinGW14.2; no installation performed. Existing builder
+pins SCons4.10.1. Extend/provision within a separate frozen card; matching
+Windows/Linux release templates must share source+patch and preserve needed
+renderer/accessibility features. Existing official
+[Linux requirements](https://docs.godotengine.org/en/4.7/engine_details/development/compiling/compiling_for_linuxbsd.html)
+and [Windows cross compilation](https://docs.godotengine.org/en/4.7/engine_details/development/compiling/compiling_for_windows.html#cross-compiling-for-windows-from-other-operating-systems)
+name dependencies. Use max2 jobs/no LTO for the initial bounded candidate, explicit
+per-platform cap no greater than the existing3600s recipe ceiling, and independent
+abort/reap guards. Freeze actual commands/output paths/dependencies before build;
+stop on first unexpected failure. This definition does not execute/provision it.
+
+**NET-TIMEOUT-RELEASE-ACCEPT — dependent runtime acceptance.** GATED on those
+matching templates plus a separate bounded correction for the known fixture
+command rejection; its cause is not diagnosed by this card. Existing safe export
+uses a private versioned template directory, Linux template SHA pin and empty
+preset overrides. GODOT_BIN alone does not select the packaged runtime. Windows
+must consume the matching patched PE, not the stock template; package audits must
+compare against the actual built templates. Keep strict source/package identity,
+paired clean exports, actual Linux binary/archive and Windows-payload silent
+startup exit0/one menu-ready marker. Native Windows remains NOT_RUN under its hold.
+Freeze that candidate/check selection before execution. Preserve original whole
+browser timeout→Retry/admission→Disconnect→fresh Cancel→Resume/walk/quit acceptance,
+300s cap and all existing UI/fixture limits. No passing prefix or diagnostic
+acquisition closes it. Only a working accepted runtime correction earns the next
+normal paired playable checkpoint. Original20-stage398.296s investigation history
+and all broad/native/human/final gates remain binding/open.
 
 ### Supported remote helm action roster
 

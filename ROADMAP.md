@@ -36,34 +36,28 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 ## Execution now
 
-**Last task closed: release timeout callback capture (parent 25).** Diagnostic
-candidate **783c8c872** is pushed, unmerged and withheld. The original browser
-journey remains **FAIL/PARKED/unaccepted**.
-[Original frozen contract](docs/ROADMAP_BACKLOG.md#release-timeout-callback-capture--bounded-definition-and-selection)
-and [actual result](docs/history/ROADMAP_DELIVERIES.md#release-timeout-callback-capture--known-failure-captured).
+**Selected implementation: RPC-CACHE-BUILD-RECIPE (parents 25/32).** Extend the
+existing isolated engine builder to produce a narrowly patched Windows or Linux
+release template. The candidate reuses the exact callback originally connected,
+instead of reconstructing it during cache cleanup. Independent source/lifecycle
+review supports this candidate; it is not a verified fix.
+[Exact ownership, checks and stop boundary](docs/ROADMAP_BACKLOG.md#release-rpc-cache-correction--implementation-cards).
 
-| Checkpoint within this task | Exact completion check | Result |
+| Child | State | Deliverable and completion check |
 | --- | --- | --- |
-| Passive observer implementation | Only the existing observer adds API identity and safe callback metadata; driver, fixture and runtime behavior unchanged. | Source review and fresh import PASS; sole 25-line change committed/pushed. |
-| Private Linux diagnostic package | Fresh import/privacy checks, clean export, strict actual-binary startup and embedded package/source checks pass under frozen limits. | PASS; actual 1,521-entry package checked. Five unique files retained privately; no public/Windows checkpoint for diagnostic-only code. |
-| One release capture and closure | Retain raw snapshots bracketing the original timeout, preserving actual failed route and cleanup evidence. | CAPTURED_KNOWN_FAILURE: same valid native SceneCacheInterface callback remains bound after 5,006ms timeout. Driver still exits 1/success:false; separate known fixture error retained. Six owners finished/33 observed identities absent; owned scratch cleaned. |
+| RPC-CACHE-BUILD-RECIPE | Selected; implementation next | Existing builder gains isolated RPC mode, two-target planning/staging and one pinned native patch; relevant existing inert build-tool tests pass. 45–60min implementation/review, checks60s. No engine/compiler/install/capture in this card. |
+| RPC-CACHE-TEMPLATES | GATED on recipe and provisioned build dependencies | Matching patched Windows/Linux release templates from the same pinned source/patch; actual builds and template hashes. Freeze commands and limits before execution. SCons/Windows cross-compiler currently absent; existing recipe is Linux-only. |
+| NET-TIMEOUT-RELEASE-ACCEPT | GATED on matching templates and separately corrected fixture command | Relevant focused checks, clean paired exports/strict startups/package checks, then original full ordinary route with unchanged criteria/limits. Fixture cleanup rejection still blocks clean acceptance. No execution selected yet. |
 
-Actual six-stage time:131.191s. Contract commit to cleanup:11.4min, including the
-roadmap edit, against the selected20–35min estimate. This closes acquisition only.
-The exact internal mismatch and repair are still unproved; source/release callback
-teardown differs. No second capture, workaround or ordinary-route retry selected.
+The passive capture is complete: same valid native SceneCacheInterface callback
+remains attached after5,006ms release timeout. Original route still exits1/
+success:false. Diagnostic branch783c8c872 remains unmerged/withheld; package/logs
+preserved and owned scratch cleaned. [Actual result](docs/history/ROADMAP_DELIVERIES.md#release-timeout-callback-capture--known-failure-captured).
 
-**Next single action:** define one production correction for release RPC-cache
-teardown using the captured bound callback and retained engine-source lead. Name
-the exact source/build change, matching Windows/Linux template requirements,
-available toolchain, unchanged acceptance and estimate. Stop at an implementable
-repair card or the exact missing prerequisite. No further engine execution is
-selected by this definition, and no app-ownership workaround is justified.
-
-**No independent product implementation is currently established as ready in the
-reviewed queue.** This is a scheduling gap, not proof that the remaining product
-is finished or that every backlog item is blocked. Do not start speculative
-runtime changes merely to fill the queue.
+Source review rules out the earlier bind-omission hypothesis: signal comparison
+intentionally ignores bind wrappers. Empty release method metadata is expected.
+The exact reconstructed native-identity mismatch remains unknown; do not call the
+candidate a confirmed fix or alter general callable comparison.
 
 ### Waiting decisions — not executable tasks
 
@@ -104,7 +98,7 @@ a fixed task count per ship. Retain complete CRAFT-ACCEPT journeys.
 Keep at most three executable cards. Before starting another qualification chain,
 identify an independent production alternative or record its concrete missing
 definition. Do not expand an investigation into a succession of adjacent probes.
-The release capture is complete; do not schedule another definition or capture of the same observation.
+The release capture is complete; no repeated observation is selected. The build recipe is the next concrete pipeline capability.
 
 ## Latest delivered result
 
