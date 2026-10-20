@@ -1263,8 +1263,8 @@ func _host_postdock_pilot_reclaim() -> bool:
 		"ordinary look discovers the actual hatch before pilot re-entry"):
 		return false
 	_return_stage = "host.pilot_reclaim_cabin"
-	if not await _postdock_wait(func(): return _flight_file_exists("client.pilot_reclaim_cabin")
-		and _host_pilot_reclaim_cabin_current(), 8.0,
+	if not await _postdock_wait(func(): return (_flight_file_exists("client.pilot_reclaim_cabin")
+		and _host_pilot_reclaim_cabin_current()), 8.0,
 		"ordinary hatch input admits one current supported pilot-owned cabin body and a fresh claim"):
 		return false
 	_pilot_reclaim_cabin = _pilot_reclaim_receipt()
@@ -1291,8 +1291,8 @@ func _host_postdock_pilot_reclaim() -> bool:
 	_game.network_session.movement_intent_result.connect(_on_pilot_reclaim_probe_result)
 	_write("host.pilot_reclaim_probe_go", {})
 	_return_stage = "host.pilot_reclaim_retired_stream_probe"
-	var refused := await _postdock_wait(func(): return _flight_file_exists("client.pilot_reclaim_probe_sent")
-		and not _pilot_reclaim_probe_results.is_empty(), 8.0,
+	var refused: bool = await _postdock_wait(func(): return (_flight_file_exists("client.pilot_reclaim_probe_sent")
+		and not _pilot_reclaim_probe_results.is_empty()), 8.0,
 		"actual authenticated admission answers the single reconstructed retired-stream negative probe")
 	_game.network_session.movement_intent_result.disconnect(_on_pilot_reclaim_probe_result)
 	if not refused:
@@ -1409,8 +1409,8 @@ func _client_pilot_reclaim_route() -> bool:
 		return false
 	_write("client.pilot_reclaim_hatch_approached", _pilot_reclaim_receipt())
 	await _look(_craft.get_boarding_position() + Vector3.UP * 1.2)
-	if not await _postdock_wait(func(): return _game.boarding_candidate == _craft
-		and not is_instance_valid(_game.station_interaction_candidate), 8.0,
+	if not await _postdock_wait(func(): return (_game.boarding_candidate == _craft
+		and not is_instance_valid(_game.station_interaction_candidate)), 8.0,
 		"ordinary exterior aim discovers the same authored hatch"):
 		return false
 	_write("client.pilot_reclaim_hatch", _pilot_reclaim_receipt())
@@ -1423,8 +1423,8 @@ func _client_pilot_reclaim_route() -> bool:
 		"host independently observes actual pilot-owned walking body and current generation"):
 		return false
 	_pilot_reclaim_cabin = _read("host.pilot_reclaim_cabin_checked")
-	if not await _postdock_wait(func(): return _local_pilot_reclaim_cabin_current()
-		and _pilot_reclaim_relationship_matches(_pilot_reclaim_cabin, false), 5.0,
+	if not await _postdock_wait(func(): return (_local_pilot_reclaim_cabin_current()
+		and _pilot_reclaim_relationship_matches(_pilot_reclaim_cabin, false)), 5.0,
 		"pilot consumes exact host-confirmed walking frame before advancing expected walking identity"):
 		return false
 	var source := _game.get_network_remote_body_intent_source()
@@ -1436,9 +1436,9 @@ func _client_pilot_reclaim_route() -> bool:
 		return false
 	_write("client.pilot_reclaim_chair_approached", _pilot_reclaim_receipt())
 	await _look(_craft.get_pilot_seat_anchor().global_position + _craft.global_basis.y.normalized() * 1.2)
-	if not await _postdock_wait(func(): return _game.boarding_candidate == _craft
+	if not await _postdock_wait(func(): return (_game.boarding_candidate == _craft
 		and not is_instance_valid(_game.station_interaction_candidate)
-		and _game._network_client_near_pilot_seat(_craft), 8.0,
+		and _game._network_client_near_pilot_seat(_craft)), 8.0,
 		"ordinary supported cockpit aim discovers the actual pilot-seat swap interaction"):
 		return false
 	_write("client.pilot_reclaim_chair", _pilot_reclaim_receipt())
