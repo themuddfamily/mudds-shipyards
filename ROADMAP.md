@@ -38,12 +38,14 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 ## Execution now
 
-**No implementation or engine run is active.** This revision replaces the
-history feed with one prepared next assignment and explicit prerequisites.
-It is a planning change only; it delivers no gameplay or qualification result.
+**Active assignment: WEAPON-ARROW, selected10:47UTC on2026-10-20.**
+One implementer owns the three source files below in an isolated worktree;
+root owns integration and checks. Implementation/review45–60min, then checks,
+package and cleanup10–20min; cumulative deadline12:07UTC (80min). No engine run
+has started. Source handoff is reused; no further general mapping is selected.
 
-Only one assignment per implementer is active. The next card below is prepared,
-not running. A successful card closes its named result and stops; selecting a
+Only one assignment per implementer is active. The card below is selected;
+its actual candidate and exact check commands are frozen after source review. A successful card closes its named result and stops; selecting a
 successor is a separate decision against the remaining product scope. Do not
 turn a completed source handoff into another general research assignment.
 
