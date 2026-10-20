@@ -2666,3 +2666,18 @@ is not removed or promoted. No further repair/retry/cap increase after this one
 incremental selection. Root restored only clean70af worktree/helpers for this
 bounded attempt; cache remains unchanged. No game export/runtime route selected.
 Exact frozen commands/hashes: template results/incremental-frozen.json.
+
+
+Incremental result: STOP at the selected480s compiler limit; stage exit1 after
+492.110911s, no diagnostics, unfinished Variant compilation and no accepted PE.
+No further retry/collection/export/runtime route. Original failed3600s attempt
+and this single finish are both retained; no source/compiler defect established.
+All15,090 observed identities across three owners/children absent; no live cwd
+under owned template root. Re-removed clean70af duplicate worktree and disposable
+helpers/profiles after copying/hash-checking only changed helper files into
+results/incremental-helpers (unchanged files reference prior archived originals).
+Cache and raw results retained. Closure5187.663s/86.5min from original70af freeze,
+before its5400s deadline. Candidatee5b9dd25f and package drafts remain pushed/
+archived, unmerged/unqualified; no acceptance requirement narrowed or closed.
+Further Windows compilation is parked; no third attempt selected. Next selection
+must review an independent eligible runtime outcome rather than extend this card.

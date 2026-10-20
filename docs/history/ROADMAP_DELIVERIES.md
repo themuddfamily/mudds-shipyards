@@ -14581,3 +14581,29 @@ stop. No execution selected and no failed-stage/budget reset. Independent HUD-RA
 source check found no concrete discrepancy; no edits/tests or closure claimed.
 Original full browser remains FAIL/PARKED/unaccepted with its20-stage398.296s
 history, all broad/native/human/final gates open. Goal remains active.
+
+
+### Single incremental Windows finish — stopped; no further retry
+
+After the cold timeout was recorded/pushed35655b7dc, independent source review
+verified2,105 cached objects/SCons signatures and idempotent source/patch checks.
+Separate freeze235736898 retained the original failure/cumulative deadline,
+selected480s compiler/540s command/600s owner, jobs2 unchanged, and60s collection
+with120s owner. Exact prior-STOP hash and original1792462171 deadline restricted
+launch to the finish/collection only; another failure blocked collection.
+
+The finish resumed at unfinished rendering storage, then progressed to Variant
+compilation, but hit480s: guarded stage exit1/492.110911s, diagnostics empty,
+no accepted PE. No third attempt, collection, game export, startup, full browser
+route or playable checkpoint. This remains an incomplete build with unproved
+native runtime effectiveness; actual source/compiler defect is not established.
+
+All15,090 observed owner/child identities across original Linux/Windows and the
+finish absent; no live cwd under owned template root. Re-removed clean70af
+worktree and disposable helpers/profiles after archiving/hash-verifying changed
+helper bytes under results/incremental-helpers; unchanged originals remain in
+results/helpers. Cache/results retained, including exact accepted private Linux
+template and both Windows failure logs. Closure5187.663s/86.5min from original
+70af dependency freeze, before its90min deadline; neither failed attempt nor
+budget was reset. Build card parked; no further retry selected. Original route
+FAIL/PARKED and all broader/native/human/final gates remain unchanged.
