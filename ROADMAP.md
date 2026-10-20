@@ -76,8 +76,38 @@ interceptor encounter proof in the same Torrent scope, without a second delivery
 [Exact scope, unchanged contract and actual results](docs/history/ROADMAP_DELIVERIES.md#guided-checkpoint3d92b91--original-ordinary-route-accepted3of3).
 All18 process identities absent; owned cleanup5.43min, no new build/source change.
 GUIDED-FINAL, other encounters, Sandbox/Settings and broader gates remain open.
-No executable card or automatic successor is selected; COMBAT-COURIER still needs
-its exact ordinary launch/weapon/home driver contract defined.
+**Selected implementation: COMBAT-COURIER ordinary packaged route, parent11.**
+Normal entry already exists: Guided range clear → keep initial defender alive
+for4.5 physics seconds → automatic first courier dispatch. No encounter selector
+or production combat integration is missing. Root owns existing
+`run_native_sortie.py`/`test_native_sortie.py`; one medium implementer owns only
+`native_sortie_observer.gd`, `startup_loader.gd` and existing startup privacy test.
+One high reviewer checks read-only observation, scalar retained hit/kill receipts
+and full-route acceptance before engines. No recursive agents.
+
+Add explicit silent-private `courier-intercept` route/mode. Reuse unchanged
+Guided prefix/defender/home/neutral-shutdown/physical exit; wait without firing
+at defender, pursue actual runner using authored controls/weapons. Read-only
+Courier/director snapshot includes actor identity/pose/velocity/health, scenario/
+generation/outcome/escape progress and retained scalar accepted/resolved player
+hit+kill receipts tied to source ship/target/sequence/positive damage. Require
+actual courier destruction before1400m escape AND CLEARED; generic fire, escape,
+withdrawal, disappearance or roster deactivation cannot pass. Then clear initial
+defender and finish home. Preserve4.5s dispatch,82% distress,2.4s escort,700m/7s
+disengagement and150s backstop; no fixture placement, direct damage, tuning,
+authority, event-order or timing changes. Escape/withdrawal/recovery remain
+separate cases; prior Guided3/3 is reused, not repeated as a separate assignment.
+
+Estimate25–35min implementation/review,10min focused/export/one full ordinary
+route,10min checkpoint if accepted; stop/split at60min from selection. Freeze
+clean source/commands before engines: existing Python driver tests60s, fresh
+Dummy import180s, privacy60s, private Linux export180s/strict startup120s, original
+full normal route CAP300/outer330 once, then Windows export180s, archive/payload
+strict startups120s each and actual package audit90s. First unexpected failure
+STOP; no automatic repair/retry, cap increase, shortened journey or expected-error
+suppression. Only complete route/zero diagnostics permits integration and paired
+checkpoint; otherwise retain withheld source/raw artifacts and clean owned
+scratch. Native Windows/GPU/device/audio/human and broader combat/release stay open.
 Tooltip cleanup-order candidate remains unmerged/unproved; no retry is scheduled.
 
 ### Waiting decisions — not executable tasks
