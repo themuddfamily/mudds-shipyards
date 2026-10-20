@@ -230,6 +230,35 @@ ordinary attempts; this is not gameplay progress. Latest public49047eb unchanged
 Only original/corrected raw results and unique withheld package archives remain;
 duplicate checkouts/ELFs/helpers/profiles cleaned. No executable card selected.
 
+### Selected numeric-contract correction after priority review
+
+The retained native sample differs from nominal capsule dimensions by ~4.8e-9/
+~5.7e-8m. Existing LifeTow geometry checks already use finite nonboolean two-number
+comparison within1e-6. One medium implementer changes only the selected Python
+capsule check to that existing nominal rule PLUS exact equality to the initial
+raw geometry on all subsequent samples; same body/shape IDs and every control,
+tuning, waypoint, support, look, exit and deadline requirement remain. Existing
+Python tests accept the actual retained pair and reject nonfinite/bool/wrong-
+shape/out-of-bound values and later drift even inside the nominal tolerance.
+Independent high pre-edit and final diff review required; no new validator.
+
+Priority: this deterministic caller interface mismatch is bounded; the independent
+BASE-DIAG race alternative needs an unestablished cause/probe. Original two
+failures and90min total budget retained. Ownership only
+`tools/release/run_native_sortie.py` / `tools/release/test_native_sortie.py` in
+owned `numeric-contract/worktree`, existing qualification branch. Estimate10–15min
+edit/review +5–10min checks. First new failure STOP; no further repair selected.
+
+No game/source/export change: verify only those two excluded Python files differ
+from4c58efa27, then extract and hash-check its retained exact ELF (SHA9443810d…)
+from archive SHA3f05cb75…. Prior actual startup/PCK/archive checks remain applicable
+to those unchanged bytes; record game source4c58 separately from new caller pin.
+Freeze exact commands: existing Python suite60s then one original full ordinary
+route CAP300/outer330, fresh isolated X11/Dummy/private profile, unchanged input/
+process/source guards. No repeated import/export/startup or new public checkpoint.
+No native/rendered/human or broad parent acceptance inferred. Commit/push actual
+result, preserve both failures and unique package, clean duplicate scratch.
+
 ## Latest playable result
 
 **Blocked save-repair feedback delivered and packaged on49047eb.** When a
