@@ -63,6 +63,50 @@ open. Ember corrective preflight remains parked; prior failure317.447s retained.
 No automatic successor selected. The known HAULER-CARGO-MANIFEST production seam
 still waits on the already-asked stock decision; no ready implementation inferred.
 
+### Selected production capability — Paired Wing board admission
+
+COMBAT-WING-ADMISSION / parent11. Source review finds no normal access to
+paired_wing: automatic director cycling needs a second INTERCEPTOR_ENGAGEMENT,
+but guided engagement is one-shot and restart resets the sequence. No native
+sortie driver can currently prove the full Wing route. Deliver the missing
+production admission before writing another diagnostic selector.
+
+**06:49–07:49UTC /60min** including implementation/review/checkpoint/cleanup;
+implementation estimate20–30min. One high implementation agent owns existing
+heavy_breach_activity_board.gd, encounter_scenario_director.gd, game_flow.gd,
+existing board audio binding if needed, plus focused tests/UIDs. Add existing
+Paired Wing encounter as third combat-board contract after Heavy Breach/Torpedo,
+with accurate on-foot arm/cancel, departure-gated launch, existing two-member
+suppression/flank roster, HUD objective/terminal feedback and abort cleanup.
+No new board geometry, actor/weapon AI, automatic sandbox spawns or guided reset.
+
+This is a **solo combat encounter**, not another paid nearby activity: no new
+reward amount, receipt or save schema. Clearly disclose no credit reward for
+this contract, preserve all Breach/Torpedo rewards/debts/rotation and refuse this
+new contract in network sessions until its own support is delivered. Catalog
+specifies Wing combat, not a payout. Do not adopt/reopen parked Perimeter or
+Courier candidates; future integration must retain both named outcomes.
+
+Focused checks protect new admission/lifecycle, not full parent completion:
+clean import180s; existing encounter_scenario_director_test.gd120s and
+heavy_breach_activity_board_test.gd120s; one focused actual-Main Wing admission
+integration120s; relevant existing board HUD/audio tests120s each. All headless/
+Dummy unless the existing suite declares display input, then isolated Xvfb/
+x11/dummy renderer/Dummy audio at the same cap. Freeze exact test names before
+engines. Require real registered roster, ordinary phase/authority gating,
+correct labels/no fabricated payout, cancellation/terminal cleanup, stale/replay
+and previous two-contract regressions. Test placements are disclosed staged
+setup, not ordinary full-route acceptance. First failed invocation stops; no
+automatic correction/retry or cap increase.
+
+If accepted, clean paired exports180s each, three strict startups120s each and
+existing PCK/PE/archive audit90s; repo EXE/ZIP/notes only, native Windows/device/
+GPU/listening/human/final gates NOT_RUN. Archive/hash-verify unique data and
+remove owned checkout/profile/helpers after process absence/publication checks.
+Full COMBAT-WING still requires both real player-weapon kills and safe physical
+home return through a supported ordinary driver; no narrower proof closes it.
+Independent Hauler implementation remains blocked on its pending stock decision.
+
 ### Waiting decisions — not executable tasks
 
 These questions have already been asked. Keep them pending without asking again
