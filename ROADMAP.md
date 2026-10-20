@@ -153,13 +153,48 @@ published files hash-verified,39 profile entries archived/verified, helpers
 preserved. Owned checkout/cache/profiles/helpers/duplicate exports removed.
 [Actual delivery](docs/history/ROADMAP_DELIVERIES.md#station-defense-physical-interaction--shipped-on-a59127c).
 
-**Next single action:** freeze the missing ordinary Station Defense driver on the
-now-usable physical interface: empty profile, normal walk/Deploy, existing Arrow
-board/depart, real four-actor player-weapon clear before unchanged34s/core alive,
-one durable payment, strict home/dock/physical exit, board Reset/next Deploy and
-normal UI exit0. ExistingCAP300; no fixture damage, pose/phase/timer writes or
-seeded prelude. No new run selected yet. Preserve parked Wing/Perimeter/Breach/
-Tooltip budgets and all36 broad parents/ten gates.
+### Selected Station Defense ordinary full-route capability
+
+PLAY-DEFENSE / parent13; physical E dependency now accepted ona59127c. New
+**08:23–09:23UTC/60min** for this driver capability, review/checks, paired candidate,
+one native route and cleanup. Earlier source-blocked preflight ran no driver;
+its production interaction fix closed separately within its original window,
+with334.765s/correction history retained. This is the missing complete-play
+capability, not another entry-only proof or reopened Wing/Perimeter/Breach route.
+
+One high implementer owns existing run_native_sortie.py/test_native_sortie.py,
+native_sortie_observer.gd/startup_loader.gd/startup_cli_privacy_test.gd and one
+focused native_sortie_defense_observation_test.gd/UID if needed. One high source/
+result reviewer; root owns integration/packaging/cleanup. Estimate25–35min
+implementation/review. All new GDScript call/member-chain locals require explicit
+types. No gameplay/AI/tuning/clock/health/phase/pose/reward-owner changes; preserve
+all current driver selectors, defaults, globalCAP300 and private silent gate.
+
+Empty private profile→normal Begin Shift→supported ordinary walk to real board
+(12,1,-26), actual2.6m3D range/facing/candidate E Deploy→walk to existing Arrow,
+normal E board/thrust departure→real player-weapon destruction of four registered
+1/2/1 actors before unchanged whole34s inclwalking/boarding/2.5s+8s lulls, core
+survives→one genuine durable receipt→normal strict Arrow home landing/lease/
+shutdown/physical exit→supported walk to same board E Reset, usable next Deploy→
+normal UI exit0. Default sprint is ordinary input if used; no seeded Guided win,
+spawned substitute craft, stage relocation, debug action or direct damage/phase/
+pose/velocity/timer writes. Observe fresh resolver shot events with exact source/
+target/weapon/sequence/receipt/positive damage and each terminal kill; cached fire
+acceptance is insufficient. Independently read actual saved entitlement. Validate
+all physics receipts, send new OS input only from final sample of each batch.
+
+Before engines freeze clean source/exact commands: import180s; existing Python
+driver safety90s; startup privacy120s; focused observer120s if added, all Godot
+headless/Dummy. Safe paired exports180s each; three strict startups120s each;
+existing actual PCK/PE/archive audit90s. One `run_native_sortie.py ARCHIVE_ELF
+--route station-defense --output OWNED/results/ordinary-defense`, existingCAP300,
+outer360s plus60s owner finalization. Owned authenticated Xvfb/XTest, explicitx11/
+dummy renderer/Dummy audio, independent abort/input release/reap. First failure
+stops; no automatic repair/retry/cap increase, fake prelude or narrowed accepted
+prefix. Publish only reviewed passing candidate; preserve unique failed artifacts
+if withheld. Hash-verify archive/public files and remove only owned clean pushed
+checkout/cache/profiles/helpers/duplicate exports. Full parent/repetition/native/
+human/final gates remain open; actual route timing/survival still unproved.
 
 ### Waiting decisions — not executable tasks
 
