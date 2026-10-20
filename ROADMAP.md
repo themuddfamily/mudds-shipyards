@@ -109,8 +109,12 @@ HUD layout552, paired exports/three strict startups/1521-entry package audit.
 
 Owned checkout/profiles removed9.57min within original45min. Six closed task
 record folders compacted from739 to97 loose files; originals preserved in checked
-archives. Summaries and reusable helpers remain accessible. No broader UI,
-recovery/activity journey, native/human or final-release acceptance claimed.
+archives. Two more closed accepted records (Paired Wing admission and tractor
+inversion) are now compacted from281 to29 loose files, saving about115MiB.
+Original archive entries and published build hashes were verified; all recorded
+owned processes are absent. Summaries and reusable helpers remain accessible.
+No broader UI, recovery/activity journey, native/human or final-release
+acceptance claimed.
 
 ### Freight terminal integration — bounded handoff, workflow pending
 
