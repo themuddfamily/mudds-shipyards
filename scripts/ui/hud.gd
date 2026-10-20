@@ -6407,7 +6407,7 @@ func _update_planetary_destination_row(card: Control, row: Dictionary) -> void:
 	) as Label
 	if is_instance_valid(status):
 		status.text = "STATUS  //  %s" % str(row.get("status_text", "UNAVAILABLE"))
-		status.modulate = _c(border_role)
+		_set_planetary_destination_status_role(status, border_role)
 	var action := card.find_child(
 		"PlanetaryDestinationAction_%s" % destination_id, true, false
 	) as Button
@@ -6416,6 +6416,21 @@ func _update_planetary_destination_row(card: Control, row: Dictionary) -> void:
 		action.disabled = not bool(row.get("action_enabled", false))
 		action.focus_mode = Control.FOCUS_NONE if action.disabled else Control.FOCUS_ALL
 		_planetary_destination_buttons[destination_id] = action
+
+
+## Retained status labels must change their registered role so later palette
+## changes repaint the current state. Modulation would multiply two colours.
+func _set_planetary_destination_status_role(status: Label, role: StringName) -> void:
+	status.modulate = Color.WHITE
+	for entry: Dictionary in _palette_targets:
+		if (
+			entry.get("kind") == &"theme_color"
+			and entry.get("node") == status
+			and entry.get("property") == &"font_color"
+		):
+			entry["role"] = role
+			_apply_palette_target(entry)
+			return
 
 
 ## A sector-site row asks GameFlow for that place's briefing card. The HUD owns
