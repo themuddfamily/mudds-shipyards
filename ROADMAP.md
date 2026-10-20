@@ -68,6 +68,25 @@ or diagnostic automation, including opt-in startup/release wiring. They are not
 names the actual failures and retained source for all 20. This cleanup changes
 branch ownership, not the number of completed roadmap outcomes.
 
+**Selected existing delivery: Breach interruption release capability, 14:37–15:22 UTC.**
+Reuse `feat/breach-interruption-fixed-boot-20261018`; retain original two failures
+and reopened atomic-check failure, cumulative 140.961s. Concrete source/raw fact:
+the physical debt retry also arms Torpedo, then GameFlow saves its newly seen
+tutorial. The old probe reads latest shared-store metadata after that later commit.
+Capture the actual paid document at the existing board interaction signal before
+tutorial publication, and verify receipt plus paid terminal in that same document.
+Keep all original earned-debt/actual kill/distinct normal Resume/real pilot/exit/
+physical retry/further paid cold replay, unrelated data and package checks.
+No direct reward calls, weakened atomicity, cap increase or replacement happy path.
+One medium integrator owns the existing four release/startup/probe files; one high
+reviewer checks callback ordering, atomic document and full transaction fidelity.
+No engines before exact clean candidate review and frozen commands. Estimate
+10–15min integration/review, 10–15min focused/transaction/package checks. First
+unexpected failure stops; no automatic correction or unchanged retry. Accepted
+release capability requires full source and exported archive transactions, strict
+menu starts, paired clean exports, notes, main merge/push and branch/scratch closure.
+Ordinary combat and native/human release qualification remain separate/open.
+
 **Current UI task stopped: active-tooltip baseline not reproduced.**
 Existing candidate `fix/exit-tooltip-order-20261020` remains unmerged/withheld.
 Its historical full Observation route passed, but did not create the original
