@@ -56,26 +56,30 @@ in19th retirement. No production fix or full-suite pass; source archived under
 `archive/diagnostics/race-baseline-boundary-20261020`, diagnostic branch/worktree/
 profiles/helpers removed. No engine run remains active.
 
-**Selected existing task: COMBAT-WING ordinary route correction, parent11.**
-Owner priority explicitly reopens this chain on the measured cause: board press
-2.905m outside unchanged2.8m range. Reuse the existing
-`feat/wing-ordinary-route-20261020` branch; merge current main into it, preserving
-all later changes. One high-effort implementer owns its original seven driver/
-observer/startup/privacy/test files; root owns integration/checks/packages/docs.
-Correct actual3D approach with margin and handle explicit board rejection. Do not
-change gameplay radius, posting order, opponents, damage, timers or acceptance.
+**Selected existing task: COMBAT-WING return-capture correction, parent11.**
+Same branch and original12:24–13:24UTC/60min budget; no unrelated task selected.
+Source6640b5528 fixes board admission (actual2.21849m E accepted). All ten focused/
+package stages pass, but full route FAIL45.659s during first Heavy return: craft
+is destroyed before home. Current269.527s plus original344.298s stages retained.
 
-Selection12:24–13:24UTC/60min; prior344.298s stage cost remains retained. Estimate
-15–20min integration/correction/review,10–15min checks,10–15min packaging/cleanup.
-Before engines, review exact source and freeze helper commands. Original checks:
-import180s; Python driver90s; privacy120s; Wing observer120s; Windows/Linux exports
-180s each; strict direct/archive/Windows-payload startups120s each; artifact audit
-90s; exactly one native isolated-X11/Dummy full paired-wing route at original
-300s (outer360s). Existing first-failure stop/independent abort/input cleanup apply.
-Finish requires honest Heavy/Torpedo posting prerequisites, two actual Wing player
-weapon kills, physical home/offline exit and normal UI quit, then accepted main
-integration/push, checkpoint notes and branch/worktree cleanup. No narrower proof,
-automatic second correction, unrelated next task or cap increase selected.
+Independent cumulative review identifies the next supported caller seam: capture
+is accepted continuously from frame1450; by1514 actual speed0/upright/return heading
+meet landing conditions. Driver nevertheless transits toward arbitrary[0,2,-18],
+overshoots and stops1.0668m away, never reaching its1m transition before destruction.
+No runtime/damage-source defect is established. Root explicitly selects one
+correction: use ordinary L when actual home capture and existing departure/attitude/
+speed guards permit. Preserve strict physical docking/offline exits, natural Heavy/
+Torpedo withdrawals, two actual Wing kills and UIexit0; originalCAP300 unchanged.
+
+One high implementer owns only existing Python driver and its test; one high
+reviewer checks original-guard preservation. Estimate5–10min implementation/review,
+up to90s driver tests plus one nativeCAP300/outer360s route. Reuse unchanged audited
+6640b55 game EXE/ELF/archive and ten passed gates: only caller/test files change,
+not embedded sources. Retain both source identities explicitly. Before execution,
+freeze new caller pin and exact prior STOP hash; first new failure stops again.
+No automatic further correction, rebuild, cap increase or acceptance reduction.
+Success requires original full route, accepted main integration/push/publication
+and existing branch/worktree cleanup.
 
 **Ready production cards: 0. Prepared production cards waiting on decisions: 3.**
 The decisions below remain pending; they do not prevent finishing independently
