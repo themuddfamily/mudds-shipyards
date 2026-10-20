@@ -18,6 +18,48 @@ spec.loader.exec_module(native)
 
 
 class NativeSortieSafetyTests(unittest.TestCase):
+    def supply_paid_observation(self):
+        reward = native.CinderSupplyPilot.REWARD
+        return {'paid_slot': {'delivery': {'contract_id': 'cinder_platform_supply_run', 'quantity': 1,
+                'generation': 1, 'ordered_phases': ['load_crate', 'clear_gate', 'dock_platform'],
+                'deadline_seconds': 120, 'elapsed_seconds': 24,
+                'transfer_proof': {'source_quantity_after': 1, 'destination_quantity_after': 1},
+                'reward_receipt': {'activity_id': 'cinder_kit_cargo_run', 'reward_id': reward,
+                                   'granted': True, 'replay_allowed': False}}},
+                'reward_record': {'total_receipts': 1, 'receipt_serial': 1, 'reward_counts': {reward: 1},
+                    'last_receipt': {'activity_id': 'cinder_kit_cargo_run', 'activity_generation': 1,
+                                     'granted': True, 'replay_allowed': False}}}
+
+    def test_supply_payment_requires_actual_transfer_and_one_credit(self):
+        pilot = native.CinderSupplyPilot()
+        s = self.supply_paid_observation()
+        pilot.require_paid(s)
+        for section, key, value in [('transfer_proof', 'source_quantity_after', 2),
+                                    ('transfer_proof', 'destination_quantity_after', 0),
+                                    ('reward_receipt', 'granted', False)]:
+            bad = copy.deepcopy(s)
+            bad['paid_slot']['delivery'][section][key] = value
+            with self.assertRaises(AssertionError): pilot.require_paid(bad)
+        bad = copy.deepcopy(s); bad['reward_record']['total_receipts'] = 2
+        with self.assertRaises(AssertionError): pilot.require_paid(bad)
+        bad = copy.deepcopy(s); bad['paid_slot']['delivery']['elapsed_seconds'] = 120
+        with self.assertRaises(AssertionError): pilot.require_paid(bad)
+
+    def test_supply_paid_receipt_survives_retired_live_binding_but_cannot_change(self):
+        pilot = native.CinderSupplyPilot()
+        s = self.supply_paid_observation()
+        pilot.paid_slot, pilot.paid_record = copy.deepcopy(s['paid_slot']), copy.deepcopy(s['reward_record'])
+        s['cargo'] = {'available': False}
+        pilot.require_paid(s)
+        s['paid_slot']['delivery']['elapsed_seconds'] += 1
+        with self.assertRaises(AssertionError): pilot.require_paid(s)
+
+    def test_supply_cannot_finish_before_real_normal_ui_exit(self):
+        pilot = native.CinderSupplyPilot()
+        with self.assertRaises(AssertionError): pilot.finish(0)
+        pilot.quit_requested = True; pilot.stage = 'quit_wait'; pilot.file_home = True
+        with self.assertRaises(AssertionError): pilot.finish(1)
+
     def life_observation(self):
         return {'mode': 'life-tow', 'actors_current': True, 'frame': 100, 'phase': 'INTRO',
                 'main_id': 1, 'world_id': 2, 'player_id': 3, 'capsule_id': 4, 'shape_id': 5, 'ship_id': 6,
