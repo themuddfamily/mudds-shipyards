@@ -38,53 +38,18 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 ## Execution now
 
-**ACCESS-TITLE-FOCUS DONE on checkpoint923d7b3**, parents12/29. Initial focus
-and pressed text now use the existing dark paint. The actual default focus
-contrast improves1.335→12.724:1; all32 palette/contrast/state pairs pass their
-4.5/7 floors. Focus outline, title geometry and navigation remain.
+**TRAVEL-LIMIT[Beacon outbound] proposal recorded; decision WAITING**, parent13.
+[The finite criterion and source basis](docs/ROADMAP_BACKLOG.md#beacon-outbound-travel-envelope--proposal-awaiting-decision)
+propose30s unpaused elapsed time from engine-start input at the occupied Torrent
+home berth to a controlled first-Beacon approach. The owner has been asked30s
+or60s; no answer/default inferred. Existing frame records imply9.62 simulation
+seconds for a related interval, not measured wall time or accepted travel proof.
 
-All11 frozen post-fix checks pass first attempt, including focused accessibility,
-navigation/layout, same-view review and paired package/startup/audit checks.
-Source923d7b326 is integrated/pushed; checkpoint is in repository builds.
-Owned scratch is cleaned at6.54min against the60min card; all66 observed process
-identities are absent. [Actual result and remaining limits](docs/history/ROADMAP_DELIVERIES.md#begin-shift-focus-contrast--shipped-on-923d7b3).
-
-**NET-JOVIAN-EXIT-CALLER-SYNTAX STOPPED; passenger exit unaccepted.**
-Candidate2aed310cd is pushed/unmerged. Full syntax review plus import/check-only
-pass; the one original host/two-client route fails129.786s after actual
-boarding/departure/strict home docking and both clients' arrival convergence.
-First host diagnostic is the test receipt's off-tree command-source path lookup;
-later pilot-retention/passenger-standing assertions fail. No passenger exterior
-exit/ground walk or success marker; no networking cause established.
-
-All three current stages total166.940s; prior8054/e147 parse failures remain.
-No automatic retry or cap increase. The later corrective candidate below addresses
-that receipt fault; the full route remains unaccepted. Candidate withheld/no new checkpoint.
-All22 observed identities absent,76 unique profile entries archived/verified,
-owned scratch removed at5.36min within45min. [Actual result and original limits](docs/history/ROADMAP_DELIVERIES.md#jovian-passenger-exit--syntax-passes-postdock-route-stops).
-**NET-JOVIAN-DOCKED-PILOT-HOLD WITHHELD after the one corrective attempt.**
-Saved data identified the first pilot failure as actual dock drift across the
-unchanged0.5m limit. Candidate0d225bee8 holds the authoritative docked pose/
-velocity, preserves flight prediction and fixes the off-tree source receipt.
-Independent high review GO; full pose322/import/check-only PASS. In the one
-original three-peer route, the pilot stays at exact host dock and passenger
-standing passes, but host15s cabin-walk/hatch-approach fails. No hatch exit or
-ground-walk acceptance; candidate pushed/unmerged, exports/checkpoint NOT_RUN.
-
-Corrected attempt225.530s; combined with prior166.940s=392.470s, plus the separately
-retained two original parser failures. This is a failed runtime attempt plus one
-corrective attempt: cumulative priority review parks the chain. No second repair,
-retry, tolerance/deadline increase or adjacent renamed probe is selected. The
-supported passenger's walking failure has no established runtime cause. Later
-node-path diagnostics come from inherited failure capture, not the corrected
-postdock receipt. [Actual source/result and limits](docs/history/ROADMAP_DELIVERIES.md#docked-pilot-hold--focused-pass-full-exit-stops-at-cabin-walk).
-
-All25 new observed identities absent;85 unique profile entries archived/verified;
-owned worktree/cache/profiles/helpers removed at17.09min from the original05:35
-selection, inside its45min/06:20 deadline. Public checkpoint remains923d7b3.
-Next selection must review independent player/build work; this chain is not an
-automatic successor. Threading remains gated on UI-BOARD-FOCUS; already-asked
-Hauler/navigator/Bomber choices remain unanswered.
+This is planning only: no runtime/engine/build change. Return and other-route
+limits, full Beacon home/UI failures and all original scope remain. After the
+choice, freeze one existing-driver timing task; no unchanged parked run selected.
+The latest playable checkpoint remains923d7b3. Jovian exit is parked below after
+its failed corrective attempt; it is not an automatic next task.
 
 ### Waiting decisions — not executable tasks
 
@@ -95,6 +60,7 @@ or treating elapsed time as a choice.
 | --- | --- | --- |
 | [AUDIO-NAVIGATOR-CLIENT-REJECTION](docs/COMPLETION_SCOPE.md#client-navigator-rejection-response--bounded-definition-next) | All fresh current refusals including unavailable consumer, or consumer/bridge refusals only. | Correct requester-correlated refusal feedback. Freeze implementation/proof after the choice; prior estimate 45–60min implementation/review, 15–25min checks, 10–15min checkpoint. |
 | [HAULER-CARGO-MANIFEST](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries) | Shared existing stock, separate Hauler stock, or loading-terminal custody. | Actual Hauler cargo admission and conserved source ownership; ordinary delivery remains separately gated. Generation-floor API already exists; freeze files/proof after the choice. Prior estimate 60–90min implementation/checks, checkpoint additional; split before 90min. |
+| [TRAVEL-LIMIT Beacon outbound](docs/ROADMAP_BACKLOG.md#beacon-outbound-travel-envelope--proposal-awaiting-decision) | Newly asked:30s or60s unpaused elapsed from engine-start input at the occupied Torrent berth to controlled first Beacon. No answer recorded. | Agree one numeric leg target before adding/qualifying its existing-driver timing; no simulation-only proof, return/roster reduction or parked retry. |
 | BOMBER-REARM-POLICY | Newly asked: keep spent rounds across seat changes until explicit rearm/recovery, or refill all four whenever pilot retakes the seat. No answer recorded. | Define the permitted entitlement before any same-hull payload correction; current seat-session reset is not an accepted design choice. |
 
 Other scope, evidence, hardware and authorization dependencies remain in the
@@ -180,6 +146,7 @@ contracts and cumulative attempt records remain in the retained history.
 
 | Outcome | Last actual result | Condition before more work |
 | --- | --- | --- |
+| Jovian postdock exit /16,20,26 | [Corrective candidate0d225bee8](docs/history/ROADMAP_DELIVERIES.md#docked-pilot-hold--focused-pass-full-exit-stops-at-cabin-walk): pose322/import/compile PASS; full route145.995s FAIL at15s cabin walk after actual standing, retained pilot at exact dock. Unmerged/withheld; exports NOT_RUN. | PARKED after failed runtime plus one corrective attempt: combined392.470s current stages plus retained8054/e147 parser failures. No second repair, retry, tolerance/cap increase or renamed adjacent probe. Walking cause unproved; later node-path errors are inherited failure capture. All owned scratch cleaned17.09min inside original45min. |
 | Habitat common-entry view /9,12 | [Source8a6339b91](docs/history/ROADMAP_DELIVERIES.md#habitat-arrival-view--readback-timed-out-before-image): import passes; full-Main player-height readback times out180.842s before PNG or view metadata. Cumulative201.494s; no observed defect/no-finding. | PARKED. Concrete supported capture-boundary change before selection; no renderer/room substitute, cap increase or unchanged retry. Actual eye stage was not proved reached; accepted Habitat runtime scopes remain. |
 | Courier clear /11 | [Candidatecb9d76fa5](docs/history/ROADMAP_DELIVERIES.md#courier-ordinary-clear--escaped-without-player-damage), pushed/unmerged: prechecks pass; ordinary attempt fails70.377s, ESCAPED at1400m, hull78/78, no player hit/kill or home completion. Cumulative165.917s. | PARKED/withheld. Fresh Courier-window emission/ray/resolver facts are missing; generic shot receipt can be stale. No weapon/aim cause established, repair/retry or public checkpoint selected. Preserve original route/caps; other Courier outcomes need separate selection. |
 | Matching RPC-cache templates /25,32 | [Linux built; Windows cold/incremental compilation timed out](docs/history/ROADMAP_DELIVERIES.md#matching-rpc-cache-templates--stopped-at-windows-compilation-budget). No accepted matching pair; callback repair is unverified. | PARKED; no further compilation or dependent browser attempt selected. Existing recipe/JSON fixture remain delivered; empty callable metadata and similar Window errors establish no cause. |

@@ -15537,3 +15537,31 @@ Only `/srv/mudds-work/docked-pilot-hold-20261020/results/` remains for this atte
 including exact pin/arguments/reviews/first failures/peer receipts/profile archive.
 Parent20's full exit/reboard/reclaim/redeparture, other crew/world/endurance,
 native hardware and all broad/final-release gates remain open.
+
+
+## Beacon outbound travel envelope — proposal recorded
+
+TRAVEL-LIMIT[Beacon outbound] / parent13,2026-10-20: source-only bounded definition,
+root integration plus one medium read-only mapper. Existing installer family was
+already delivered; remaining final-candidate/graphical gates did not justify
+reimplementation or unchanged qualification. No engine, runtime edit, package,
+temporary file or parked route run. The backlog now defines one proposed30s
+unpaused monotonic elapsed leg, engine-start input at occupied Torrent berth to
+controlled first Beacon32m/speed≤0.45 approach.30s/60s question newly asked;
+no answer/default inferred, family remains WAITING agreement, not DONE.
+
+Existing e06550e accepted record supplies only simulation-frame observations:
+launch stage776→approach1353 gives9.6167s at60Hz; departed924→1353 gives7.1500s.
+No segment monotonic launch timestamp is retained. Full63.879s driver duration
+is not travel. Distances/tuning, frame transform, exact proposed clock and
+exclusions live in the [finite backlog contract](../ROADMAP_BACKLOG.md#beacon-outbound-travel-envelope--proposal-awaiting-decision).
+No timing, native/human or full journey acceptance implied; all12 activities,
+return travel, original phase gates and parked Beacon/UI budgets preserved.
+Execution-now history was consolidated into its existing accepted/parked tables;
+Jovian392.470s/failure-plus-corrective-attempt limit remains explicit. No successor
+or new progress percentage inferred from the planning result.
+
+Source review confirms clock boundaries/numbers; thrust-alignment wording corrected.
+All33 working-roadmap links/new proposal links,36 original promise/family columns,
+ten phase gates, existing pending/parked rows and finish/release rules pass local
+checks; whitespace clean. Working roadmap257→224lines. No scratch was created.

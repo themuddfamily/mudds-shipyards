@@ -59,7 +59,7 @@ parents 11/21 share damage ownership. Do not count these twice.
 | 10 | Finish fleet art, character animation and role acceptance | CRAFT-ART, CRAFT-ROLE, CRAFT-ACCEPT | **Dependency — BOMBER-ROLE-DECISION.** WAITING on exact additional role/count, action and physical access. Finish is the contract needed to split a justified capability; invent no role. Fleet art/animation/full craft journeys and eight SPEC→BUILD-SPLIT→CRAFT-ACCEPT chains remain. |
 | 11 | Complete the combat-and-recovery slice across supported craft | COMBAT-SLICE, CRAFT-ACCEPT, NET-DAMAGE | **Definition — BOMBER-REARM-POLICY.** Settle which same-hull events may replenish spent payload: seat re-entry, dock service or destruction/reuse. Finish supplies entitlement before correction/qualification. Weapon/damage definitions are DONE; encounters, craft/recovery and shared damage remain. Courier/Perimeter stays PARKED. |
 | 12 | Complete the whole-game art-direction pass | ART-FINDING, STATION-ART, CRAFT-ART, CAPTURE | **Definition — ART-FINDINGS[one view].** Name an actual UI/animation/effect/lighting/terrain/weather defect, current view, intended before→after, runtime owner and protected route before repair. Other station/fleet art, accessibility and required capture sets remain. |
-| 13 | Close the complete nearby-activity roster | ACT-HUD/WRITE/PLAY/REPEAT, TRAVEL-LIMIT, HULK | **Definition — TRAVEL-LIMIT[one nearby route].** Propose a numeric ordinary-travel envelope and conditions from design/runtime facts; finish with its basis and required scope decision. Twelve first-play journeys, durable HUD/write/repetition cases and parked HULK revisit remain. |
+| 13 | Close the complete nearby-activity roster | ACT-HUD/WRITE/PLAY/REPEAT, TRAVEL-LIMIT, HULK | **Decision — TRAVEL-LIMIT[Beacon outbound].** Source/recorded basis and a30s unpaused elapsed-time proposal are now finite below; owner30s/60s choice asked/unanswered. No agreed limit or timing qualification yet. Twelve first-play journeys, durable HUD/write/repetition cases and parked HULK revisit remain. |
 | 14 | Qualify each implemented world's full physical round trip | WORLD-SOLO/ABANDON/SAVE/EDGE | **Definition — WORLD-SAVE-DEFINE[one world/boundary].** Specify initial state, survey/reward/reboard disk cut, once-only durable result and usable resume/safe recovery, with existing route/command prerequisite. SOLO returns, abandonment, other save cuts and EDGE cases remain. |
 | 15 | Resolve remaining planetary content and presentation gaps | WORLD-CONTENT, ART-FINDING | **Definition — ART-FINDINGS[one planetary view].** Finish with an actual observed presentation defect, affected route and comparable before/after acceptance. CONTENT-EMBER/AURORA/RIME found no missing implementation; do not redo them. Original journeys, qualitative presentation and hardware gates remain. |
 | 16 | Close remaining fleet/crew replication gaps | NET-CREW, NET-CAPACITY | **Qualification preparation — ROLE-JOVIAN-ENGINEER.** GATED on supported candidate/ordinary route. Freeze independent authenticated walk/sit/use/stand/exit and applicable ownership/disconnect recovery. Other seven role routes, NET-SEATS-FINAL, capacity and Bomber interpretation remain. |
@@ -463,7 +463,7 @@ test is an owner/regression anchor, not a runnable ordinary route.
 | REPEAT-DEFENSE | Ten fresh physical-board deployments, full three-wave clears, payment and reset | 13 | GATED on PLAY-DEFENSE and measurement/deadline freeze; wave recovery is not another fresh completion |
 | REPEAT-BREACH | Ten cleared Heavy Breach postings through ordinary board rotation | 13 | GATED on PLAY-BREACH and measurement/deadline freeze; alternate Torpedo postings cannot be skipped; BREACH-INTERRUPTION remains PARKED |
 | REPEAT-TORPEDO | Ten cleared Torpedo postings through ordinary board rotation | 13 | GATED on PLAY-TORPEDO and measurement/deadline freeze; ten mixed sorties do not satisfy ten of either scenario |
-| TRAVEL-LIMIT | Numeric ordinary nearby-travel envelope | 13 | DEFINE; design/runtime basis and scope decision |
+| TRAVEL-LIMIT | Numeric ordinary nearby-travel envelope | 13 | Beacon outbound proposal recorded:30s unpaused monotonic elapsed from engine-start input at occupied home berth to controlled first-Beacon approach. Owner30s/60s choice asked/unanswered; WAITING agreement, no timing acceptance. [Clock/basis/limits](#beacon-outbound-travel-envelope--proposal-awaiting-decision). Return and other routes remain undefined; full journey/parked UI gates preserved. |
 | HULK-REVISIT | Home-return/reload/revisit retains restored bus and single claimed cell | 13 | PARKED; failed route plus repair, original 300s |
 | EMBER-SOURCE-ABANDON | Integrated physical Ember abandonment/home return | 1,14 | DONE; e85157b4d, MemoryFilesystem, original exact31 |
 | EMBER-OBSERVER | Native package observer production capability | 1 | DONE; 4270d71 source capability and startup-qualified checkpoint |
@@ -1015,7 +1015,7 @@ Scope: original §3, retained abandonment milestone and Phase 8/10.4 specificati
 | ACT-WRITE[one activity/boundary] | GATED on uncovered failure boundary | Exercise one real write failure at ACTIVE, earned-unpaid, paid/reset or refused/reset; fresh process observes once-only durable rewards and usable recovery. Reuse existing lifecycle tests; stop at named boundary. |
 | ACT-PLAY[one nearby activity] | ELIGIBLE for implemented content | Ordinary outbound travel, actual activity, reward and home return work at canonical distances. Stop after first full play or first reproduced defect; repetition/endurance is ACT-REPEAT. |
 | ACT-REPEAT[one activity] | GATED on ACT-PLAY | Complete its existing repeated-use/endurance scenario with once-only rewards and clean actors/state. Stop at that scenario's original duration, not a new arbitrary loop target. |
-| TRAVEL-LIMIT[one nearby route] | DEFINE; release scope decision | Establish proposed numeric ordinary-travel envelope and route conditions from design/runtime facts; obtain required decision. Stop at finite criterion, not an invented “agreed maximum.” |
+| TRAVEL-LIMIT[one nearby route] | Beacon outbound proposal recorded; owner choice WAITING | Use the finite clock/basis proposal below.30s is proposed,60s offered as alternative; neither is agreed or proved. Obtain the required decision before timing implementation/qualification; other routes retain their original scope. Stop at finite criterion, not an invented “agreed maximum.” |
 | HULK[physical salvage/power/revisit] | Arrival, breaker and home ordinary-input qualification DONE; revisit/disk gates open | Existing interior83 scoped checks retain their limits. Full ordinary Guided/HULK/breaker/reverse walk/reboard/home route driver7e251f8af/gameef67f3e95 passes191.886s at original300s cap, actual unload and once-only receipt retained; checkpointef67f3e Linux is exact tested binary. Windows payload startup/privacy passes separately; strict payload parity fails65 generated scenes. REVISIT-CONTRACT DONE; REVISIT-INPUT candidate5010ef932 FAILED optional-lift driver condition; REVISIT-DEPARTURE candidate2298e4889 FAILED original300s deadline during new interior walk after actual reload/dock/exit; no fresh breaker event. Candidate withheld; REVISIT-CHECKPOINT GATED; independent Ember ABANDON source qualification subsequently DONE; no HULK repair selected in ROADMAP.md; no unchanged interior rerun or full-parent closure. |
 | WORLD-CONTENT[one world/gap] | DEFINE if missing content not named | For Ember, Aurora or Rime, name one finite missing environmental/content behavior from the original specification and roster. Implement that behavior in a separate bounded child with ordinary surface interaction and checkpoint. Stop at specification or named behavior, not a new planet catalogue. |
 | WORLD-SOLO[one world] | ELIGIBLE for implemented world; existing physical route | Complete canonical outbound, atmospheric descent, physical landing/exit/activity/reboard, ascent and home dock through ordinary controls. Preserve original route/physics limits; staged arrival is not acceptance. Stop at one world's full route or first defect. |
@@ -1024,6 +1024,53 @@ Scope: original §3, retained abandonment milestone and Phase 8/10.4 specificati
 | WORLD-EDGE[one world/case] | GATED on baseline route and scenario definition | One solo cancellation, refusal, failure, repeat visit or interruption case preserves physics, rewards and return to use. Stop at one case; shared late join/disconnect belongs to WORLD-SHARED. |
 
 Route anchors include `tests/ember_transit_movement_soak.gd`, `tests/aurora_physical_return_soak.gd --aurora-full-roundtrip`, `tests/ember_abandon_return_manual_override_test.gd` and the existing Rime landing/survey routes. Resolve the exact existing command in the task card before running; never substitute a staged route for a canonical one.
+
+### Beacon outbound travel envelope — proposal awaiting decision
+
+TRAVEL-LIMIT[Beacon outbound] / parent13, source-only definition on2026-10-20.
+**Proposed, not agreed:30.0s unpaused monotonic elapsed time.** The owner has been
+asked to choose30s or60s for this one leg; no answer/default is inferred. Original
+Phase8 requires a maximum station travel-time envelope, and the retained parent
+requires an agreed normal-flight maximum. This proposal supplies one bounded
+instance; it neither closes that family nor removes return/other-route promises.
+
+| Contract field | Proposed single-leg criterion |
+| --- | --- |
+| Start | First ordinary engine-start/launch input after the same pilot is seated in the default Torrent at its occupied home berth. Include engine startup and physical departure; do not start only after a distant departed receipt. |
+| Stop | First live, unpaused, same-craft physical approach within the production first-Beacon32m radius at speed≤0.45m/s, with valid pilot controls. The retained driver approaches more tightly,≤12m; that driver detail is not a new production activity-start requirement. |
+| Clock | Unpaused monotonic elapsed seconds. Subtract only explicitly recorded paused intervals. Engine loading before Start, station walking/boarding and activity UI/objective time after Stop are outside this leg. In-leg CPU/GPU stalls still count; simulation ticks are reported separately and cannot substitute for elapsed-time proof. |
+| Route / controls | Actual fresh occupied Torrent home berth → live transformed first Beacon; default authored tuning/input sampler, normal thrust/steering/brake, no boost, teleport, recovery, debug navigation or staged movement. Reject a failed/destroyed/recovered run rather than restart its clock. |
+| Scope | One outbound leg only. Ordinary Beacon traversal/payment/home and every other required activity/return limit remain open in their existing children. No new engine attempt, parked UI route, environment qualification or300s whole-sortie cap change is selected. |
+| Next after decision | Freeze exact package/ordinary driver, add start/stop/pause monotonic observations to the existing route if missing, and select its timing proof with original safety caps. No new validator, alternate route or accepted full PLAY-BEACON claim. |
+
+**Source and retained-record basis, not a new flight:**
+
+- `scripts/world/cinder_beacon_traversal_activity.gd` authors the four Beacon
+  centres(16,-9,-240),(32,-26,-372),(46,-44,-498),(30,-46,-600), each radius32m.
+  First Beacon is230.779m from the accepted Torrent parked position
+  (0,1.15,-10); the four-centre path including that first leg is596.141m.
+  These are Euclidean distances, not measured flown paths. GameFlow's
+  `_cinder_authored_frame_to_world` resolves the live/bootstrap/rebased frame;
+  do not use raw authored positions after a common-origin shift.
+- Default Torrent in `scripts/ships/hero_ship.gd`: speed cap82m/s,
+  thrust34m/s², brake48m/s², passive drag2.8m/s². The Beacon driver uses ordinary
+  thrust/brake without boost. A speed cap is not guaranteed cruise or a timing
+  proof. Its approach brakes at v²/(2×brake)+0.18v+10m;
+  forward thrust requires aim alignment>0.72.
+- Accepted checkpointe06550e record
+  `/srv/mudds-work/beacon-settlement-20261019/results/ordinary-settlement/result.json`
+  retains launch stage frame776, departed924, stopped approach1353. Authored
+  physics60Hz implies577/60=9.6167 simulation seconds from launch-stage record
+  to approach,429/60=7.1500 from departed receipt. Launch-stage is not a retained
+  monotonic timestamp of the first launch input; neither interval proves the
+  proposed wall clock. Actual approach distance10.535m is inside both radii.
+- The complete driver63.879s includes startup, walking, boarding, paused UI,
+  traversal/payment and observation. It is not this leg's travel duration.
+  The30s proposal is an engineering pacing target informed by short distance and
+  that single simulation-time observation, not measured wall/native/human proof.
+  Native hardware, manual usability and original full journey gates remain open.
+
+No runtime edit, engine, package or temporary file was needed for this proposal.
 
 ### Activity first play — bounded handoffs
 
