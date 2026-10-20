@@ -303,7 +303,7 @@ func _test_corrupt_primary_retention_failures() -> void:
 	for failure in ["primary_read", "archive_write", "archive_verify", "archive_reuse_read"]:
 		var filesystem := FakeFilesystem.new()
 		_two_commit_store(filesystem)
-		var damaged := ("corrupt-for-" + failure).to_utf8_buffer()
+		var damaged: PackedByteArray = ("corrupt-for-" + failure).to_utf8_buffer()
 		filesystem.files[PATH] = damaged.duplicate()
 		var store := Store.new(PATH, filesystem)
 		store.load()
