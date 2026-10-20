@@ -265,6 +265,16 @@ Aurora original arrival bundle, final capacity, hardware/devices and signing ret
 specific external waits. Do not repeat already-asked questions or infer approval.
 Dedicated server/two-client baseline remains authorized independently of capacity.
 
+### Performance workload definition — implementation boundary clarified
+
+Seven benchmark selectors already cover station walking, Torrent flight,
+Halyard cabin repetition, Torrent combat reuse and three surface loops.
+Whole orbit-to-surface expedition repetition is uncovered; its representative
+craft/world/cycle and relationship to existing world endurance remain undefined.
+[Coverage and next definition](docs/ROADMAP_BACKLOG.md#benchmark-workload-definition--retained-coverage-and-missing-decision).
+PERF-ROUTES-DEFINE stays open. This source handoff adds no gameplay or native
+performance result and selects no new route or parked startup retry.
+
 ## Finish rules for every next task
 
 1. Select one named player/build outcome from the inventory. State parent, exact

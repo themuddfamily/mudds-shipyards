@@ -74,7 +74,7 @@ parents 11/21 share damage ownership. Do not count these twice.
 | 25 | Qualify the production server-browser and connection flow | NET-BROWSER | **Parked qualification — BROWSER-UNREACHABLE.** Accepted matching RPC-cache templates missing after stopped Windows compilation; no retry selected. Eventual proof is honest non-admission/no-answer feedback and usable retry/menu recovery at frozen limits. Other six ordinary browser cases and broader connection gates remain. |
 | 26 | Pass multiplayer and endurance acceptance | NET-ENDURANCE, NET-CAPACITY, NET-BUDGET | **Definition — NET-ENDURANCE-DEFINE.** Freeze independent-server/two-client moving-interior command, participants, observations and stop while preserving original 30-minute/adverse-network requirements. Execution needs stable baseline. Parked Halyard, SERVER-BASELINE, profiles, snapshot budget and capacity remain separate. |
 | 27 | Resolve planetary travel during multiplayer explicitly | WORLD-SHARED (each world/case) | **Dependency — SHARED-AURORA-BASELINE.** Recover original `47ffce740` runner/arguments, source/build/profile, participant state and raw orchestrator/peer receipts. Finish is that exact handoff; separately select reproduction. All 21 shared cells remain, including parked Rime arrival; same outcomes as 3. |
-| 28 | Benchmark and optimize on representative native hardware | PERF-MACHINE/ROUTE/RUN/FIX | **Definition — PERF-ROUTES-DEFINE.** Finish the finite missing fleet/cabin/combat/surface/repeat scenario list and existing-runner seams after seven delivered selections. Actual minimum/target hardware, measurement cells, original-length native runs and demonstrated hotspot fixes remain. |
+| 28 | Benchmark and optimize on representative native hardware | PERF-MACHINE/ROUTE/RUN/FIX | **Definition — PERF-ROUTES-DEFINE.** Define any required representative workloads beyond the seven delivered selectors, including how whole orbit-to-surface repetition maps to existing world endurance. Additional craft/world/cycle choices are unspecified; repeating cabin/surface paths and combat reuse already exist. Actual minimum/target hardware, measurement cells, original-length native runs and demonstrated hotspot fixes remain. |
 | 29 | Complete real-device controls and accessibility review | INPUT-DEVICE/REMAP, ACCESS-VIEW/COMFORT | **Overflow capability DONE — ACCESS-TITLE on checkpoint19e7990.** Multiplayer is now inside the1024x768 title viewport; actual same-view comparison and eight-viewport retained-control/focus regression pass. ACCESS-TITLE-FOCUS is DONE checkpoint923d7b3: measured focus/press correction,32 paint pairs, same-view and paired package checks pass. Other view/remap/comfort/state/device gates remain. |
 | 30 | Finish authored audio and the real-device mix pass | AUDIO-CONTENT/MIX | **Implementation prerequisite — AUDIO-NAVIGATOR-CLIENT-REJECTION.** Already-asked refusal-scope choice WAITING. After resolution, freeze correct requester-correlated refusal feedback without stale/replayed responses. Accepted/clear playback stays delivered; other audio and real mix require their routes/devices/backend and explicit audible authorization. |
 | 31 | Finish production crash and save recovery | RECOVERY-CONTRACT/FIX/KILL, ACT-WRITE, WORLD-SAVE | **Stopped qualification — WORLD-SAVE-EMBER-FIRST-RELAY.** Existing permitted safe-yard contract defined without an extra approval gate. Archive923d7b3 runtime completes, but parent exact-state comparison FAIL312.812s on two coordinate scalars differing by one binary64 ULP. Contract review identifies JSON parse/re-encode representation; exact-runtime caller correction is focused-checked. Corrective preflight fails4.636s on missing package sidecar before any game process; cumulative review PARKS chain. Corrected full cut NOT_RUN; no passing cut/cold surface-restoration claim. Other contexts/activity writes, installed cuts and migration/corrupt/unsupported cases retain accepted scopes/gates. |
@@ -778,7 +778,7 @@ Native performance proof retains ≥60s/3,600-frame warmup and ≥600s/18,000-fr
 | --- | --- | --- | --- |
 | PERF-MINIMUM | Bind actual minimum-spec machine/profile | 28 | WAITING; representative isolated hardware |
 | PERF-TARGET | Bind actual target-spec machine/profile | 28 | WAITING; representative isolated hardware |
-| PERF-ROUTES-DEFINE | Finite uncovered required fleet/cabin/combat/surface/repeat benchmark routes | 28 | DEFINE; seven delivered route selections retained |
+| PERF-ROUTES-DEFINE | Required representative workloads beyond the seven existing selectors, with whole-expedition repetition mapped to world endurance | 28 | DEFINE; additional craft/world/cycle roster unspecified; existing repeat paths retained |
 | PERF-CELLS-DEFINE | Applicable machine/route measurements | 28 | GATED; required routes and actual two machine profiles |
 | INPUT-KBM | Physical keyboard/mouse ordinary full route | 8,18,29 | WAITING; actual device/isolated session, exact required route |
 | INPUT-CONTROLLER | Physical controller ordinary full route | 8,18,29 | WAITING; actual device/isolated session, exact required route |
@@ -2169,7 +2169,7 @@ Scope: original §5, Phases 9 and 10.2–10.3. Software rendering, VM and remote
 | ID / one instance | Status / prerequisite | Result and acceptance; stop boundary |
 | --- | --- | --- |
 | PERF-MACHINE[one minimum/target profile] | WAITING on representative hardware if unavailable | Bind declared CPU/GPU/RAM/display/driver profile to an actual isolated test machine. Stop at available machine identity or exact missing resource; never infer native performance from llvmpipe. |
-| PERF-ROUTE[one missing benchmark route] | DEFINE; named required scenario | Specify and implement one missing fleet/cabin/combat/surface/repeat route through existing benchmark runner. It supports default `station_embodied_route` plus `nearby_sector_ship_flight_route`, and select-only `halyard_cabin_walk_route` from D5 plus `torrent_range_combat_reuse_route` from E1 and `ember_surface_walk_route` from E2, plus delivered select-only `aurora_surface_walk_route` on c47b5cd55. Rime icefall survey/return route DONE on a8f563e39 (521.227m sampled,13ordered points/one sampled loop,source33/default152/Ember24/Aurora27); paired development checkpoint a8f563e DONE in ROADMAP.md, using the existing authored trails; other repeat instances stay open. Default combined acceptance retains its original narrow scope. Stop at executable route/selection and focused check, not a new benchmark system. |
+| PERF-ROUTE[one missing benchmark route] | GATED on PERF-ROUTES-DEFINE naming a concrete uncovered workload | Implement the selected actor/action/measurement through the existing runner, with its focused selection check. Seven selectors already exist; see coverage below. Cabin/surface repetition and combat reuse are implemented. Do not infer another missing route from those family labels. Preserve default combined scope and original measurement floors; stop at the selected executable route, not a new benchmark system. |
 | PERF-RUN[one machine/scenario] | GATED on machine and executable route | Original warmup at least 3,600 frames/60s; measurement at least 18,000 frames/600s. At 1080p High, p95 ≤16.7ms, p99 ≤33.3ms, no post-warm frame >100ms, peak working set ≤4GiB, plus required actual GPU/VRAM and streaming/transient budgets. Stop at that measured scenario; retain failure. |
 | PERF-FIX[one measured hotspot] | GATED on demonstrated production cost | Fix the identified runtime/rendering owner; repeat the affected measurement and behavior check. Stop at measured effect and checkpoint; no census-only progress. |
 | INPUT-DEVICE[one device/route] | WAITING on physical device if absent | Ordinary full selected route with actual keyboard/mouse or controller, including lifecycle/planetary control as applicable. Existing physical-sortie, lifecycle and controller-only expedition tests guide scenario. Stop at selected route; synthetic events cannot qualify physical hardware. |
@@ -2178,6 +2178,43 @@ Scope: original §5, Phases 9 and 10.2–10.3. Software rendering, VM and remote
 | ACCESS-COMFORT[one route/option] | ELIGIBLE; existing runtime options | Verify one reduced-motion, flash, color-safe or caption behavior in actual route and after restart as required. Stop at named option/scenario and any focused correction. |
 | AUDIO-CONTENT[one cue/transition gap] | GATED on identified missing behavior | Author/fix one production ambience/music/effect transition and run existing music state/activity/orbit/surface integration checks with Dummy audio. Delivered Aurora coast is not a new gap. Stop at cue/transition and checkpoint. |
 | AUDIO-MIX[one real-output scenario] | WAITING on explicit audible-test authorization and output device | Check actual mix/levels/transitions for selected scenario, fix concrete issue and repeat it. Stop at scenario result; automated Dummy output does not qualify real audio. Owner-excluded human review does not become a mandatory approval gate. |
+
+### Benchmark workload definition — retained coverage and missing decision
+
+PERF-ROUTES-DEFINE remains **DEFINE**, not a missing implementation roster.
+Source review of `tools/performance/benchmark_runner.gd` establishes these seven
+selectors; it is not a new benchmark run or native performance qualification.
+
+| Existing selector | Implemented workload |
+| --- | --- |
+| `station_embodied_route` | Station player walk; part of the default pair. |
+| `nearby_sector_ship_flight_route` | Torrent flight along the streamed Cinder approach lane; part of the default pair. |
+| `halyard_cabin_walk_route` | Stationary Halyard aisle, repeated out-and-back. |
+| `torrent_range_combat_reuse_route` | Torrent fire, authoritative DRONE-01 destruction, reset and reuse. |
+| `ember_surface_walk_route` | Repeated authored Ember surface trail. |
+| `aurora_surface_walk_route` | Repeated authored Aurora coastal trail. |
+| `rime_surface_walk_route` | Repeated authored Rime icefall survey/return trail; delivered on a8f563e39. |
+
+Retained deliveries: Halyard D5, Torrent combat E1, Ember E2, Aurora
+c47b5cd55 and Rime a8f563e39. Rime's recorded check sampled521.227m across13
+ordered points/one loop, with source33/default152/Ember24/Aurora27 assertions
+and paired development checkpoint a8f563e. These are historical results, not
+new execution or full-expedition acceptance.
+
+The five select-only routes do not expand `DEFAULT_SCENARIO_ORDER`. Surface
+selectors stage production actors; they do not perform admitted Host expeditions,
+outbound travel, landing or return. Aurora's benchmark supplies its binding
+cadence explicitly without inventing an admitted visit.
+
+**Uncovered workload:** whole orbit-to-surface expedition repetition from the
+original Phase10.4 long-session requirement. The retained contract does not name
+its representative benchmark craft, world or cycle. Define those and map the
+measurement to the existing world-endurance outcome before selecting a route;
+do not duplicate that journey as a second completion requirement. Additional
+fleet/cabin/combat representatives also need an explicit workload justification,
+not a selector per craft or another copy of an existing walker. No new selector,
+profiling run or retry of parked Q4 startup work is selected here. Minimum/target
+hardware and all PERF-RUN timing, frame-count and memory/GPU budgets remain open.
 
 ### Dormant opponent presentation — bounded cost decision
 
