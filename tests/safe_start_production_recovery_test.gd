@@ -140,7 +140,11 @@ func _run_tooltip_close_child(mode: String) -> void:
 	if not page.is_visible_in_tree() or root.gui_get_focus_owner() != exit_button or destination.tooltip_text.is_empty():
 		_tooltip_child_fail("original_visible_pause_focus_or_tooltip_unavailable")
 		return
-	var screen_transform := destination.get_screen_transform()
+	# Embedded-popup screen transforms omit stretch; native pointer coordinates need it.
+	var screen_transform := (
+		Transform2D(0.0, Vector2(DisplayServer.window_get_position(root.get_window_id())))
+		* root.get_screen_transform() * destination.get_global_transform_with_canvas()
+	)
 	var screen_origin := screen_transform * Vector2.ZERO
 	var screen_end := screen_transform * destination.size
 	_tooltip_child_emit("READY", {"window_id": root.get_window_id(),
