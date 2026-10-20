@@ -19057,3 +19057,86 @@ Next action is concrete supported automatic Arrow-approach path/collision/input
 cause from retained records and authored hull before a separately selected repair.
 Full original Defense result remains OPEN/PARKED; no other activity or parent/
 phase/native/hardware/human gate closed. Accounting closeout committed/pushed main.
+
+## Defense Arrow clearance — walking guard rejects threshold motion — 2026-10-20
+
+PLAY-DEFENSE remains OPEN/PARKED. Caller42694c1985738577afb536fa22e1010b9022f3e5
+is WITHHELD/unmerged. Selected20:58–21:58UTC/60min, prior627.820275s retained after
+cumulative priority review. No new branch/worktree; one HIGH implementer and
+independent HIGH source/result reviewer, root execution/source/ref/cleanup.
+
+Concrete opening fact: retained b81 approach from(-34.9978,20.045) directly toward
+boarding(-47.5,18.9) intersects ArrowWingCollision world x[-44.2,-39.3],z[9.95,21.05],
+y[1.79,2.27]. Retained upper capsule sphere contact matches0.38m radius within
+millimetres. This is source/raw collision inference, not a captured collider ID.
+Existing accepted ArrowReturnReusePilot already uses z22 clearance then boarding-x
+projection. Selected correction retains every original Defense waypoint including
+mast detour and appends[-35,.18,22],[actualboarding.x,.18,22], then original automatic
+approach and3.1m admission. Whole34s/CAP300/outer360/full positive contract unchanged.
+Timing review found no hard contradiction but only~3.87s optimistic departure/
+combat/overhead budget after walked path/normal boarding/mandatory10.5s lulls;
+no broader timer or shorter route was authorized.
+
+Root restored exact five-file b81 capability; f6e300b63 changes only Python steering
+by+4/-1 versus b81. Initial102 existing checks FAIL10.912150s: pending-Deploy shared
+fixture lacked boarding, which the real observer already publishes unconditionally.
+After independent source review, one separately selected fixture correction42694c198
+adds only recorded boarding[-47.5,.06,18.9]. No production fallback, dropped assertion
+or new mirrored test. Recheck102 PASS10.896150s. Original failed pin/result retained;
+no full engine route preceded this correction.
+
+Runtime/export inputs exactly match b81be8a414e7f150300c11e6356ba84c93f6c224:
+scripts/scenes/assets/art_source/addons/project/export/bus diff empty. All8 retained
+Windows/Linux artifact hashes independently rechecked before and after run. Actual
+ELF SHA25638ebd0e6a23f62ea84284b0f70b11553456ad47fb7494734a4be57722291bc1c reused
+from prior private safe export. Prior import/privacy/exports/three strict startups/
+actual1525-entry PCK audit remain prior evidence, not newly executed. Separate
+caller/runtime pins in runtime-reuse.json; no identical rebuild/public promotion.
+
+ONE full route FAIL60.824838s (driver60.536). Actual Deploy frame1222. Same mast
+turn passes1293, original(9,12.5)1659/(-35,13.5)2043/(-35,20)2141, then new(-35,22)
+2181. Before boarding-x projection completes, unchanged continuous ordinary walk
+without relocation guard fails sample2232. Sample2231 Player
+(-36.5925064,-.018812574,22.2480068) to2232(-36.9924049,.131187424,22.2389755):
+0.400000497m horizontal/0.150m rise/0.427200652m total against9.2/60+.10=0.253333m.
+Grounded/supported remain true. Frozen failure sample2232 activity ACTIVE16.85s;
+actual tail2233 ACTIVE16.866667s, Player(-37.1457062,.1303495,22.2355137), support
+ModernFleetRegistry/RegistryPodThreshold. This is not the34s timeout.
+
+Source fact: PlayerController._probe_step_up_landing uses forward distance
+max(intended.length(),capsule.radius+.02)=.40, then commits accepted landing in
+_resolve_step_up. Rise is bounded to.30 and destination must pass real capsule/
+wall/floor/clearance checks. Observed.40/.15 movement matches that intentional
+solver mechanism. The current Defense observer lacks the completed step event,
+so per-event attribution is not established and no production locomotion bug or
+arbitrary relocation is claimed. Controller already exposes completed-motion/
+step audit; current LIFE observer/driver consumes it with strict actor/frame/
+start/end/bounds checks. Reuse that existing seam before further Defense proof;
+do not add blanket tolerance, hide the sample or route around a legitimate step
+only to satisfy an unsupported fixed-speed assumption.
+
+No boarding/departure/kill/completion/payment/home/Reset/next Deploy/UIexit proof.
+Seven resolver events all hostile requestsource2121, player kills[] and ledger0.
+Cleanup inputs/helper/game/Xvfb flags alltrue, diagnostics0; game_legs exit/reaped
+fields are stale pre-cleanup metadata and do not establish normal UIexit0.
+Source/cache unchanged; independent final NO-GO. No retry or adjacent case selected.
+
+Three stage intervals82.633139s plus retained627.820275s
+= 710.453413s measured cumulative. Failed unit and all prior
+route failures retained; no clock/budget reset. Fresh run silent owned Xvfb,
+explicitx11/Dummy with independent abort. GitHub Actions remains held.
+
+/srv/mudds-work/defense-arrow-clearance-20261020/results/ retains exact command/
+source/cache freezes, four raw files/hashes, separate-pin reuse record, reviews,
+and verified incremental bundle/binary patch/five-file source tar. Pushed tag
+archive/withheld/defense-arrow-clearance-20261020 object73b0473f53b85c4ddd1e3b2fe1e61b7fab897c8d
+retains exact42694c198 and failed-f6 ancestor. All reused package bytes remain
+untouched in previous private results; latest playable49bc7b7 stays current.
+Unaccepted code stays out of main; no new public checkpoint or attempt branch.
+
+All3 owners terminal/8 observed PID/start identities absent;28 exact archive
+entries reopened/verified before owned scratch removal21:04:46UTC. Archive
+815bytes SHA256cdf049e1e783f38472cbd383ed9c9d1c5ba40820bbf77ed5fd2346fcfee5baf4.
+Case root contains results only; eight protected detached worktrees untouched.
+Main sole local/live remote branch. Accounting closeout committed/pushed main;
+Defense full result and all parent/phase/native/hardware/human gates remain open.

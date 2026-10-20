@@ -77,43 +77,31 @@ This clears the branch queue; it does not close their unfinished gameplay,
 qualification or release requirements. No unaccepted source was merged to reduce
 a branch count. Eight previously protected detached worktrees remain unchanged.
 
-**Selected: PLAY-DEFENSE — Arrow wing-clearance correction /13.**
-One existing unfinished case,20:58–21:58UTC/60min, prior627.820s retained.
-Source/raw capsule contact matches the parked wing boundary; direct boarding
-approach crosses that box. Append the accepted Arrow z22 clearance lane and
-actual boarding-x projection after every original waypoint. Retain3.1m admission,
-full real four-kill/payment/home/physicalReset/nextDeploy/UIexit contract and
-whole34s/CAP300/outer360. Geometry is strong inference, not a captured collider ID.
-Timing is tight, no hard impossibility proved; no wider clock or shorter journey.
-One HIGH implementer/independent HIGH review; root integration/checks/cleanup.
-Restore exact existing withheldb81 caller/observer capability; only Python steering
-changes from that candidate. Verify unchanged runtime/export inputs and exact
-retained b81 package hashes, then run affected driver checks and ONE full route.
-Earlier package/startup evidence stays prior evidence; no identical rebuild.
-First failure stops; no automatic retry/new branch/worktree/hostedCI. Close with
-accepted merge/push or precise preserved failure, then owned cleanup.
+**PLAY-DEFENSE remains OPEN/PARKED — caller `42694c198` withheld.**
+The supported Arrow clearance correction reaches the registry threshold, then
+fails the existing continuous-walk guard before boarding. Adjacent samples move
+0.400m horizontally and0.150m up (0.427m total); that guard allows only0.253m.
+The controller intentionally permits bounded0.40m step-up advances, consistent
+with the sample; the specific step event was not captured. No runtime defect or
+relocation is established. The encounter is still active at16.85s, not timed out.
 
-**PLAY-DEFENSE remains OPEN/PARKED — candidate `b81be8a41` withheld.**
-The source-supported interior detour clears the original mast-lamp stall and all
-four explicit Arrow waypoints. The full unchanged route then times out during
-the automatic boarding approach, before the player boards: frozen terminal Player
-(-39.0125,-0.0185,19.3577), zero player kills/reward. Later movement/collision cause
-is unproved. Full34s encounter/CAP300/outer360 retained; no retry selected.
+Next bounded correction: reuse the controller's existing completed-motion/step
+record and existing strict locomotion checks in the Defense observer/caller.
+Require exact current actor/tick/start/end and source bounds for a genuine step;
+keep unexplained relocation rejected. No blanket tolerance increase, path shortcut,
+new validator family or unchanged retry. Full real board/depart/four kills/once
+payment/home/physical Reset/next Deploy/UIexit and whole34s/CAP300/outer360 remain.
 
-Import,102 existing driver tests, privacy, paired exports, three strict menu
-startups and actual matching1525-entry package audit pass. Complete route fails
-83.645s/driver83.396s with clean game logs; input/helper/game/Xvfb cleanup all true.
-Independent NO-GO. Prior406.401s remain failed; new nine stages215.979s plus audit
-5.441s yield627.820s measured cumulative cost. These checks do not finish Defense.
-Failed five-file source survives in pushed archive/withheld/defense-mast-detour-
-20261020 plus verified bundle/patch/tar. Eight exact unqualified build artifacts
-are retained privately and removed from builds; latest playable49bc7b7 unchanged.
-All9 owners terminal/22 observed identities absent;125 archived entries verified
-before owned scratch removal. Main sole branch; no new branch/worktree.
-Next fact needed: actual supported path/collision or input cause on the automatic
-Arrow boarding approach, using retained target/Player records and authored hull.
-No normal board/departure/combat/payment/home/reset/nextDeploy/UIexit accepted.
-[Actual failure and preserved work](docs/history/ROADMAP_DELIVERIES.md#defense-mast-detour-clears-original-stall-full-route-still-unaccepted--2026-10-20).
+One full route FAIL60.825s;102 driver checks pass after one reviewed fixture-field
+correction (initial missing-boarding fixture failure retained). Runtime/export
+inputs match immutable b81 package; exact8 artifact hashes verified. Prior package/
+startup checks were reused, not repeated or newly claimed. Independent NO-GO.
+All costs/failures retained:710.453s measured cumulative. Unique failed source is
+in pushed archive/withheld/defense-arrow-clearance-20261020 and verified bundle/
+patch/tar; unaccepted code stays out of main. All3 owners terminal/8 observed
+identities absent;28 profile entries verified/removed. No new branch/worktree;
+latest playable49bc7b7 unchanged. No further run or adjacent case selected.
+[Exact failure, source fact and cleanup](docs/history/ROADMAP_DELIVERIES.md#defense-arrow-clearance--walking-guard-rejects-threshold-motion--2026-10-20).
 
 **NET-JOVIAN-REDEPART DONE — source `bc7f9f9c4`.**
 The complete ordinary Jovian journey now covers initial boarding/flight/home
@@ -521,7 +509,7 @@ contracts and cumulative attempt records remain in the retained history.
 
 | Outcome | Last actual result | Condition before more work |
 | --- | --- | --- |
-| PLAY-DEFENSE ordinary route /13 | Candidateb81be8a41 clears original mast and all explicit Arrow waypoints, then unchanged34s times out during automatic boarding approach before boarding; zero player kills/reward. Source/builds archived WITHHELD, unmerged. | PARK after83.645s; cumulative627.820s includes all retained failures/checks. Concrete supported automatic-approach cause/change required before selection; no retry/cap widening/staging. Owned scratch removed, latest playable unchanged; [exact result](docs/history/ROADMAP_DELIVERIES.md#defense-mast-detour-clears-original-stall-full-route-still-unaccepted--2026-10-20). |
+| PLAY-DEFENSE ordinary route /13 | Withheld42694c198 reaches registry threshold, then existing0.253m walk guard rejects0.427m movement matching controller bounded step semantics. Specific step event absent; no runtime defect proved. Full route FAIL60.825s before boarding, encounter active16.85s, zero kills/reward. | PARK; cumulative710.453s retained. Reuse existing completed-motion/step record and strict actor/tick/endpoints/bounds check before any further qualification; no blanket tolerance increase/shorter journey/wider34s. Source archived, owned scratch removed; latest playable unchanged. |
 | Jovian postdock reuse /16,20,26 | DONEbc7f9f9c4: complete ordinary passenger exit/reboard, pilot exit/reclaim and repeat departure/braked stop, full original journey and three actual OS0. Reboard runtime repair49bc7b736; latest paired playable49bc7b7. | Source integrated/pushed and owned scratch removed. Existing working refs already deleted; other supported craft/roles, distinct second landing and full parent gates remain open. |
 | Habitat common-entry view /9,12 | [Source8a6339b91](docs/history/ROADMAP_DELIVERIES.md#habitat-arrival-view--readback-timed-out-before-image): import passes; full-Main player-height readback times out180.842s before PNG or view metadata. Cumulative201.494s; no observed defect/no-finding. | PARKED. Concrete supported capture-boundary change before selection; no renderer/room substitute, cap increase or unchanged retry. Actual eye stage was not proved reached; accepted Habitat runtime scopes remain. |
 | Courier clear /11 | [Candidatecb9d76fa5](docs/history/ROADMAP_DELIVERIES.md#courier-ordinary-clear--escaped-without-player-damage), archived WITHHELD, working refs deleted/source unmerged: prechecks pass; ordinary attempt fails70.377s, ESCAPED at1400m, hull78/78, no player hit/kill or home completion. Cumulative165.917s. | PARKED/withheld. Fresh Courier-window emission/ray/resolver facts are missing; generic shot receipt can be stale. No weapon/aim cause established, repair/retry or public checkpoint selected. Preserve original route/caps; other Courier outcomes need separate selection. |
