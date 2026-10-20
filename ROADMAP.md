@@ -37,11 +37,18 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 ## Execution now
 
-**Latest completed planning task: LIFE-PACKAGE-DEFINE (parent 7).** The
-[finite lifecycle breakdown](docs/ROADMAP_BACKLOG.md#packaged-ordinary-lifecycle--life-package-define)
-now separates five existing outcome groups, their actual dependencies and the
-missing packaged ordinary-route seam. This was a source/contract review with
-one bounded backlog edit, no engine run and no gameplay completion claim.
+**Selected planning task: PLAN-NEXT, parent5 — make the36 parents actionable.**
+Replace the existing crosswalk's vague next-step cells with one named unfinished
+child, its decisive proof and its dependency. Preserve original parent wording,
+all named children/phase gates, accepted scopes and parked failure budgets.
+Root owns only ROADMAP.md and docs/ROADMAP_BACKLOG.md; three read-only agents
+cover disjoint parent ranges1–12,13–24 and25–36. No new tracker or validator,
+engine run, gameplay completion or checkpoint. Fixed30min from2026-10-20
+04:39UTC; stop once all36 rows have a concrete result/proof or exact blocker.
+Checks: diff whitespace, unchanged original first-three crosswalk columns,
+all36 parents, changed local links/anchors and reconciliation against existing
+child states; then commit/push. Do not schedule parked work or invent READY
+status from the rewritten prose.
 
 | Work | Actual state | Completion / next boundary |
 | --- | --- | --- |
