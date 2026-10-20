@@ -123,6 +123,30 @@ tractor. Physical device/full ordinary route remain separate. Missing stock
 choice still blocks independent HAULER-CARGO-MANIFEST; do not substitute a parked
 route or broaden this fix into settings redesign.
 
+#### One corrective selection — actual captured mouse display
+
+Candidatea80349ca6 remains unaccepted. Original import PASS20.608s; full tractor
+FAIL31.933s on six new mouse assertions; settings/exports NOT_RUN. Godot4.7.1
+headless mouse_set_mode is a no-op and mouse_get_mode reports VISIBLE, so the
+existing capture guard rejects those events. Pad new assertions pass; no runtime
+regression inferred. Source reviewer independently confirms this boundary.
+
+Select one correction within the **same06:30–07:15/45min** budget; retain failed
+combined52.541s. Runtime patch unchanged. Test declares existing
+`test-matrix-display: input-only` and asserts real capture before mouse checks,
+so future full matrix routes it to a display. Run full unchanged scenario once
+under private Xvfb with `--display-driver x11 --rendering-driver dummy
+--audio-driver Dummy` (no --headless), original120s. Require same full suite
+success plus all six original mouse checks; no skipping or capture-guard bypass.
+This environment supports display input, not GPU/performance/readback claims.
+
+Then original focused settings/runtime-settings checks and paired package gates
+at unchanged caps. Original import scope retained; only test display metadata/
+capture assertion changed, no new asset/class/import needed. Root owns private
+guard's one exact STOP-bound authorization; original failure remains immutable.
+First further failure stops and cumulative review parks chain, with no second
+repair or cap increase. Cleanup includes both attempts inside original45min.
+
 ### Waiting decisions — not executable tasks
 
 These questions have already been asked. Keep them pending without asking again
