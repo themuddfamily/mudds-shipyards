@@ -2254,5 +2254,201 @@ class NativeSortieSafetyTests(unittest.TestCase):
             self.assertEqual(result['cap_seconds'], 300)
 
 
+class StationDefenseSafetyTests(unittest.TestCase):
+    """Synthetic receipt seams only; these do not establish an ordinary sortie."""
+    def baseline(self):
+        actors = [{'hostile_id': 'hostile'+str(i), 'instance_id': 200+i, 'generation': i,
+                   'source_id': 2120+i, 'live_source_id': 2120+i, 'current': True, 'exact_registration': True,
+                   'health': 48.0, 'active': False, 'position': [90, 8, -70]} for i in range(1, 5)]
+        return {'mode': 'station-defense', 'sequence': 1, 'frame': 100, 'pid': 1234,
+                'main_id': 1, 'world_id': 2, 'player_id': 3, 'ship_id': 6,
+                'paused': False, 'actors_current': True, 'shot_events': [],
+                'phase': 'INTRO', 'player': [-8.5, .18, 11], 'position': [-43, 1.15, 15.5],
+                'native_interact': False, 'seated': False, 'transition_busy': False,
+                'grounded': True, 'supported': True, 'control_enabled': True,
+                'default_sampler': True, 'tuning_unchanged': True, 'tuning': {'mouse': .0022},
+                'walk_tuning': {'walk': 5.8, 'sprint': 9.2, 'deceleration': 42.0, 'mouse': .0025},
+                'physics_ticks': 60, 'time_scale': 1, 'guided_complete': False,
+                'destroyed': False, 'telemetry': {'hull': 82},
+                'player_source_id': 1102, 'player_weapon': {'range': 480, 'damage': 24},
+                'home': {'id': 8, 'lease': True, 'parked_exact': True},
+                'board': {'id': 9, 'distance': 2, 'candidate': True, 'facing': 1,
+                          'last_result': {'accepted': True}, 'reward': {}, 'session': {}},
+                'defense': {'content_id': 10, 'host_id': 11, 'core_id': 12,
+                            'core_position': [90, 8, -70], 'core': {'health': 500, 'destroyed': False},
+                            'activity': {'state_id': 'idle', 'generation': 0, 'timeout_seconds': 34,
+                                         'wave_count': 3, 'elapsed_seconds': 0, 'remaining_hostile_count': 4},
+                            'actors': actors, 'roster': [{'state_id': 'dormant'} for _ in range(4)],
+                            'registration': {'valid': True, 'registered_source_key_count': 3}},
+                'settlement': {'configured': True, 'record': {'receipt_serial': 0, 'total_receipts': 0,
+                                                             'reward_counts': {}, 'last_receipt': {}}}}
+
+    def pilot_active(self):
+        pilot = native.StationDefensePilot()
+        s = self.baseline()
+        pilot.validate_observation(s)
+        pilot.receipts['deploy_press'] = pilot.receipt(s)
+        s = copy.deepcopy(s)
+        s.update(sequence=2, frame=101, phase='APPROACH_SHIP', native_interact=True)
+        s['defense']['activity'].update(state_id='active', generation=1, elapsed_seconds=.016)
+        pilot.validate_observation(s)
+        return pilot, s
+
+    def event(self, index=1):
+        return {'event': index, 'frame': 102, 'generation': 1,
+                'request_source_id': 1102, 'request_source_entity_id': 6,
+                'source_id': 1102, 'source_entity_id': 6, 'target_entity_id': 200+index,
+                'target_handle': {'hostile_id': 'hostile'+str(index), 'generation': index, 'source_id': 2120+index},
+                'weapon_id': native.StationDefensePilot.WEAPON, 'sequence': index,
+                'presentation_receipt_id': 1000+index, 'accepted': True, 'resolved': True,
+                'command_fire': True, 'applied_damage': 24, 'damaged': True,
+                'damage_accepted': True, 'destroyed': True, 'remaining_health': 0,
+                'damage_health': 0, 'damage_destroyed': True}
+
+    def paid(self, s):
+        s['defense']['activity'].update(state_id='completed', elapsed_seconds=33.9, remaining_hostile_count=0)
+        for actor in s['defense']['actors']: actor.update(health=0, active=False, live_source_id=0)
+        s['defense']['registration'].update(valid=False, registered_source_key_count=0)
+        for actor in s['defense']['roster']: actor['state_id'] = 'destroyed'
+        s['settlement']['record'] = {'receipt_serial': 1, 'total_receipts': 1,
+            'reward_counts': {native.StationDefensePilot.REWARD: 1},
+            'last_receipt': {'receipt_id': 1, 'activity_id': native.StationDefensePilot.ACTIVITY,
+                             'activity_generation': 1, 'reward_id': native.StationDefensePilot.REWARD,
+                             'granted': True, 'replay_allowed': False}}
+        s['board']['reward'] = {'reward_pending': False, 'highest_reward_generation': 1}
+        s['board']['session'] = {'completion': {'generation': 1, 'reward_granted': True}}
+
+    def test_four_actual_terminal_receipts_freeze_before_legitimate_reset(self):
+        pilot, s = self.pilot_active()
+        s = copy.deepcopy(s)
+        s.update(sequence=3, frame=102, shot_events=[self.event(i) for i in range(1, 5)])
+        self.paid(s)
+        pilot.validate_observation(s)
+        completed = copy.deepcopy(pilot.completed)
+        s = copy.deepcopy(s)
+        s.update(sequence=4, frame=103, shot_events=[])
+        s['defense']['activity'].update(state_id='idle', generation=2, elapsed_seconds=0)
+        for actor in s['defense']['actors']: actor.update(health=48, live_source_id=actor['source_id'])
+        s['defense']['registration'].update(valid=True, registered_source_key_count=3)
+        for actor in s['defense']['roster']: actor['state_id'] = 'dormant'
+        pilot.validate_observation(s)
+        self.assertEqual(len(pilot.kills), 4)
+        self.assertEqual(pilot.completed, completed)
+        self.assertEqual(pilot.completed['defense']['activity']['generation'], 1)
+        self.assertIsNone(pilot.result)
+        with self.assertRaisesRegex(AssertionError, 'full original route'):
+            pilot.finish_normal_exit()
+
+    def test_cached_accepted_or_miss_is_not_a_kill(self):
+        pilot, s = self.pilot_active()
+        event = self.event()
+        event.update(applied_damage=0, damaged=False, damage_accepted=False, destroyed=False,
+                     remaining_health=-1, damage_health=-1, damage_destroyed=False,
+                     target_entity_id=0, target_handle={})
+        pilot.observe_event(event)
+        self.assertEqual(pilot.kills, {})
+        s = copy.deepcopy(s)
+        s.update(sequence=3, frame=102, shot_events=[])
+        self.paid(s)
+        with self.assertRaisesRegex(AssertionError, 'four real resolver'):
+            pilot.validate_observation(s)
+
+    def test_exact_source_target_weapon_generation_receipt_and_terminal_fences(self):
+        changes = [{'source_id': 1101}, {'source_entity_id': 7}, {'weapon_id': 'range'},
+                   {'generation': 2}, {'presentation_receipt_id': -1}, {'target_entity_id': 999},
+                   {'accepted': False}, {'command_fire': False}, {'damage_accepted': False},
+                   {'remaining_health': 1}, {'damage_health': 1}, {'damage_destroyed': False}]
+        for change in changes:
+            with self.subTest(change=change):
+                pilot, _ = self.pilot_active()
+                event = self.event()
+                event.update(change)
+                with self.assertRaises(AssertionError): pilot.observe_event(event)
+
+    def test_replayed_and_skipped_signal_receipts_are_rejected(self):
+        pilot, _ = self.pilot_active()
+        pilot.observe_event(self.event())
+        with self.assertRaisesRegex(AssertionError, 'skipped or replayed'): pilot.observe_event(self.event())
+        pilot, _ = self.pilot_active()
+        with self.assertRaisesRegex(AssertionError, 'skipped or replayed'): pilot.observe_event(self.event(2))
+
+    def test_interior_sample_failure_cannot_hide_behind_final_valid_sample(self):
+        pilot, s = self.pilot_active()
+        invalid = copy.deepcopy(s)
+        invalid.update(sequence=3, frame=102)
+        invalid['defense']['core'].update(health=0, destroyed=True)
+        final = copy.deepcopy(s)
+        final.update(sequence=4, frame=103)
+        with self.assertRaisesRegex(AssertionError, 'protected core'):
+            for sample in [invalid, final]: pilot.validate_observation(sample)
+
+    def test_whole_clock_and_consecutive_physics_are_unchanged(self):
+        for change in ('timeout', 'failure', 'skip'):
+            pilot, s = self.pilot_active()
+            s = copy.deepcopy(s)
+            s.update(sequence=3, frame=102)
+            if change == 'timeout': s['defense']['activity']['timeout_seconds'] = 35
+            if change == 'failure': s['defense']['activity']['state_id'] = 'timed_out'
+            if change == 'skip': s['frame'] += 1
+            with self.assertRaises(AssertionError): pilot.validate_observation(s)
+        self.assertEqual(native.CAP, 300)
+
+    def test_native_deploy_requires_actual_candidate_facing_and_3d_radius(self):
+        for change in [{'distance': 2.61}, {'candidate': False}, {'facing': .049}]:
+            pilot = native.StationDefensePilot()
+            s = self.baseline()
+            pilot.validate_observation(s)
+            pilot.receipts['deploy_press'] = pilot.receipt(s)
+            s = copy.deepcopy(s)
+            s.update(sequence=2, frame=101, native_interact=True)
+            s['defense']['activity'].update(state_id='active', generation=1, elapsed_seconds=.016)
+            s['board'].update(change)
+            with self.assertRaisesRegex(AssertionError, 'actual E Deploy'): pilot.validate_observation(s)
+
+    def test_final_input_requires_prior_validation_and_ui_exit_is_not_prefix_success(self):
+        pilot, s = self.pilot_active()
+        with self.assertRaisesRegex(AssertionError, 'final validated'): pilot.update(copy.deepcopy(s), 1)
+        pilot.stage = 'ui_exit_wait'
+        pilot.quit_requested = True
+        with self.assertRaisesRegex(AssertionError, 'full original route'): pilot.finish_normal_exit()
+
+    def test_actual_file_entitlement_is_independent_and_generation_bound(self):
+        with tempfile.TemporaryDirectory() as root:
+            profile = Path(root)/'profile'
+            path = profile/'data'/'mudds_user_data.json'
+            path.parent.mkdir(parents=True)
+            output = Path(root)/'result'
+            output.mkdir()
+            pilot, s = self.pilot_active()
+            s = copy.deepcopy(s)
+            self.paid(s)
+            pilot.paid = pilot.receipt(s)
+            s['settlement']['store'] = {'path': str(path), 'source': 'primary', 'generation': 3}
+            files = native.StationDefenseFiles(profile, output)
+            files.snapshots['baseline'] = {'document': {'payload': {}}}
+            envelope = {'schema_version': 1, 'generation': 3, 'commit': {'id': 'real-test-write'},
+                        'payload': {'game_flow_reward_store': copy.deepcopy(s['settlement']['record']),
+                                    'station_defense_session': {'session': {'completion': {'generation': 1, 'reward_granted': True}}},
+                                    'solo_safe_recovery': {'position': [1.234567890123, .18, -2.34567890123]}}}
+            path.write_text(json.dumps(envelope))
+            files.observe(s, pilot)
+            self.assertEqual(files.snapshots['paid']['document']['payload']['game_flow_reward_store'], s['settlement']['record'])
+            del files.snapshots['paid']
+            envelope['payload']['game_flow_reward_store']['total_receipts'] = 2
+            path.write_text(json.dumps(envelope))
+            with self.assertRaisesRegex(AssertionError, 'exact once-only entitlement'): files.observe(s, pilot)
+
+    def test_orderly_exit_tail_receipts_are_validated_without_new_input(self):
+        with tempfile.TemporaryDirectory() as root:
+            read_fd, write_fd = os.pipe()
+            os.write(write_fd, b'VATION: {"sequence": 8}\nNATIVE_SORTIE_OBSERVATION: {"sequence": 9}\n')
+            os.close(write_fd)
+            observed = []
+            with os.fdopen(read_fd, 'rb', buffering=0) as stdout:
+                game = type('ExitedGame', (), {'stdout': stdout})()
+                native.drain_game_output(game, Path(root)/'game.log', b'NATIVE_SORTIE_OBSER', observed.append)
+            self.assertEqual(observed, [{'sequence': 8}, {'sequence': 9}])
+
+
 if __name__ == '__main__':
     unittest.main()

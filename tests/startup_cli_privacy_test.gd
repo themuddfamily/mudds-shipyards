@@ -10,21 +10,28 @@ func _init() -> void:
 
 
 func _run() -> void:
-	for route: String in ["life-tow", "life-gantry", "life-arm", "life-patrol", "beacon-entry", "beacon-settlement"]:
-		var life_args := PackedStringArray(["--native-sortie-observer=" + route])
+	for route: String in ["life-tow", "life-gantry", "life-arm", "life-patrol", "beacon-entry", "beacon-settlement", "station-defense"]:
+		var life_args: PackedStringArray = PackedStringArray(["--native-sortie-observer=" + route])
 		_check(StartupLoaderType.native_sortie_request(life_args, "X11", "Dummy", true).accepted,
 			"%s explicitly admits only the silent private X11 observer" % route)
 		for row: Array in [["headless", "Dummy", true], ["wayland", "Dummy", true], ["X11", "PulseAudio", true], ["X11", "Dummy", false]]:
 			_check(not StartupLoaderType.native_sortie_request(life_args, row[0], row[1], row[2]).accepted,
 				"%s requires private X11 and Dummy audio" % route)
+		var station_conflict: PackedStringArray = life_args.duplicate()
+		station_conflict.append("--native-sortie-observer=station-defense")
+		_check(not StartupLoaderType.native_sortie_request(station_conflict, "X11", "Dummy", true).accepted,
+			"%s rejects a duplicate or competing Station Defense selector" % route)
 		for conflict: String in ["--native-sortie-observer=beacon-settlement", "--native-sortie-observer=beacon-entry", "--native-sortie-observer", "--native-sortie-observer=life-tow", "--native-sortie-observer=life-gantry", "--native-sortie-observer=life-arm", "--native-sortie-observer=life-patrol", "--native-sortie-observer=habitat-restart", "--native-sortie-observer=habitat-loop", "--native-sortie-observer=sandbox-walk", "--native-sortie-observer=sandbox", "--native-sortie-observer=ember", "--native-sortie-observer=hulk-arrival", "--native-sortie-observer=hulk-breaker", "--native-sortie-observer=hulk-home", "--startup-check", "--frame-capture", "--version", "--help", "--support-info", "--support-export", "--reflection-reentry-check", "--in-world-interruption-stage=arm"]:
-			var conflicting := life_args.duplicate()
+			var conflicting: PackedStringArray = life_args.duplicate()
 			conflicting.append(conflict)
 			_check(not StartupLoaderType.native_sortie_request(conflicting, "X11", "Dummy", true).accepted,
 				"%s rejects duplicate or competing mode: %s" % [route, conflict])
 		for malformed: String in ["--native-sortie-observer=Beacon-settlement", "--native-sortie-observer=beacon-settlement-extra", "--native-sortie-observer=beacon-settlement=", "--native-sortie-observer beacon-settlement", "--native-sortie-observer=Beacon-entry", "--native-sortie-observer=beacon-entry-extra", "--native-sortie-observer=beacon-entry=", "--native-sortie-observer beacon-entry", "--native-sortie-observer=Life-patrol", "--native-sortie-observer=life-patrol-extra", "--native-sortie-observer=life-patrol=", "--native-sortie-observer life-patrol","--native-sortie-observer=Life-arm", "--native-sortie-observer=life-arm-extra", "--native-sortie-observer=life-arm=", "--native-sortie-observer life-arm", "--native-sortie-observer=Life-tow", "--native-sortie-observer=Life-gantry", "--native-sortie-observer=life-gantry-extra", "--native-sortie-observer=life-gantry=", "--native-sortie-observer life-gantry", "--native-sortie-observer=life-tow-extra", "--native-sortie-observer=life-tow=", "--native-sortie-observer life-tow"]:
 			_check(not StartupLoaderType.native_sortie_request(PackedStringArray([malformed]), "X11", "Dummy", true).accepted,
 				"%s rejects malformed observer selector: %s" % [route, malformed])
+	for malformed_station: String in ["--native-sortie-observer=Station-defense", "--native-sortie-observer=station-defense-extra", "--native-sortie-observer=station-defense=", "--native-sortie-observer station-defense"]:
+		_check(not StartupLoaderType.native_sortie_request(PackedStringArray([malformed_station]), "X11", "Dummy", true).accepted,
+			"Station Defense rejects malformed selector: " + malformed_station)
 	var native_args := PackedStringArray(["--native-sortie-observer"])
 	_check(not StartupLoaderType.native_sortie_request(PackedStringArray(), "X11", "Dummy", true).requested,
 		"ordinary Boot leaves the native sortie observer unloaded")
