@@ -157,7 +157,7 @@ Estimate15–25min implementation/review; no driver/observer/CLI changes now.
 
 Freeze clean source/exact commands before engines: import180s; existing full
 station_defense_production_placement_test.gd300s; new actual-Main physical
-interaction test120s. Disclose staged avatar/terminal setup: actual nearby-area
+tests/game_flow_station_defense_interaction_test.gd120s. Disclose staged avatar/terminal setup: actual nearby-area
 candidate/facing/ordinary Player E intent must select board, Deploy begins real
 encounter, active repress preserves it, terminal Reset exposes next Deploy;
 range/facing/competing-board/refusal and debt fences retain existing owners.
