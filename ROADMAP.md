@@ -75,31 +75,21 @@ No automatic successor. The independent HAULER-CARGO-MANIFEST production seam
 remains blocked on the already-asked stock decision; no ready implementation
 inferred. Other world cuts/full journeys and Beacon30/60 choice remain open.
 
-### Selected independent qualification — on-foot help, one cell
+### Independent help cell — accepted, no runtime repair needed
 
-ACCESS-HELP / parents12,29; root owns temporary harness and cleanup, source
-reviewer checks the production seam. **06:27–06:42UTC /15min** whole budget;
-no production edits or new validator/test family. Existing GameHUD on_foot uses
-20 published rows/four pages; the old test covers only piloting base rows.
+ACCESS-HELP / parents12,29: actual Main on-foot help at1920×1200 and requested/
+effective0.75 passes all four pages on source5ac9d3ef0. Twenty published rows,
+viewport/safe containment, existing font floor/nonoverlap/centering, wrapping,
+page-boundary focus, return navigation and Close pass. Smallest glyph7.5px
+(existing floor6.75px). One check30.860s/exit0/one marker/zero diagnostics;
+import20.825s, combined51.685s. No new feature or build; rendered/human/device,
+other modes/cells and final-candidate acceptance remain open.
 
-Freeze this selection's clean commit; use a temporary subclass of existing
-ultrawide_layout_test.gd, boot actual Main, retain its _measure and
-_check_layout_report criteria. One cell only:1920×1200, requested/effective0.75,
-normal palette, default keyboard prompts, normal on_foot context rows. Check all
-pages, visible labels/wrapping, enabled Previous/Next/Close focus and dismissal.
-No other mode/scale/resolution, no movement or full gameplay acceptance.
-
-Commands under the existing isolated profile/process guard, Dummy audio:
-`godot --headless --audio-driver Dummy --path OWNED/worktree --editor --import`
-(cap180s), then the same prefix with `--script OWNED/helpers/help.gd` (cap90s).
-No imported cache allowed to change during the actual check. First unexpected
-failure stops; no repair/retry/cap increase. Pass is exit0/one
-ULTRAWIDE_LAYOUT_TEST_OK, four measured pages, original layout/font checks,
-wrapping/focus assertions, no diagnostics and no owned survivors. Archive and
-hash-verify unique helpers/profile/logs before removing the clean worktree.
-No new package unless a separately selected runtime repair is delivered.
-Independent production alternative HAULER-CARGO-MANIFEST remains stock-decision
-blocked; parked routes are not substituted for this cell.
+The provisional06:27 start was conservatively brought forward to actual06:25
+preparation, with deadline06:40 (still15min). All6 observed identities absent;
+unique profile/helper/log data archived and verified (10profile entries), owned
+worktree/profile/helpers removed at3.46min. No additional run or automatic
+successor. [Accepted scope](docs/history/ROADMAP_DELIVERIES.md#on-foot-help--one-minimum-scale-1610-cell-accepted).
 
 ### Waiting decisions — not executable tasks
 
@@ -125,6 +115,7 @@ the existing history. These are accepted slices, not closed broad parents.
 
 | Outcome | Accepted scope / remaining boundary |
 | --- | --- |
+| On-foot help, one cell | [Source5ac9d3ef0](docs/history/ROADMAP_DELIVERIES.md#on-foot-help--one-minimum-scale-1610-cell-accepted): all four pages at1920×1200/.75 pass geometry/wrapping/focus. Other help modes/cells, rendered/human/device and final candidate remain open. |
 | Begin Shift focus / press | [Checkpoint923d7b3](docs/history/ROADMAP_DELIVERIES.md#begin-shift-focus-contrast--shipped-on-923d7b3): dark text clears measured4.5/7 contrast floors across existing palettes. Other readability, saved profiles, devices and final accessibility remain open. |
 | Title overflow | [Checkpoint19e7990](docs/history/ROADMAP_DELIVERIES.md#title-menu-overflow--startup-actions-kept-on-screen): all title actions fit the measured viewports. Focus contrast is separately delivered on923d7b3; other title states and full accessibility remain open. |
 | Guided / initial interceptor | [Checkpoint3d92b91 ordinary3/3](docs/history/ROADMAP_DELIVERIES.md#guided-checkpoint3d92b91--original-ordinary-route-accepted3of3), including home/shutdown/physical exit. Acceptance stays on those bytes; later checkpoints and final candidate are not covered. |

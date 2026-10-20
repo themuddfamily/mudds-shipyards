@@ -15691,3 +15691,33 @@ duplicate extracted ELF removed at1.77min within15min. Only unique raw results
 remain at /srv/mudds-work/ember-first-relay-corrective-20261020/results/,
 including preparation-failure.json, source/package-input.json, driver logs,
 owner/result/observed-process records, archived helpers/profile and cleanup.json.
+
+
+## On-foot help — one minimum-scale 16:10 cell accepted
+
+2026-10-20; ACCESS-HELP / parents12,29, source5ac9d3ef04c7da958b08a5cd0163c4fde2437965.
+Actual Main starts normally; actual GameHUD publishes its ordinary on_foot
+context rows. Temporary subclass reuses existing ultrawide _measure and
+_check_layout_report without changing their criteria. Live window1920×1200,
+requested/effective scale0.75, logical2560×1600, default keyboard prompts,
+normal palette. All20 rows/four pages measured. No runtime change or new build.
+
+One headless/Dummy import PASS20.825265s; selected check PASS30.859662s,
+exit0/one ULTRAWIDE_LAYOUT_TEST_OK/124 assertions/diagnostics0, combined51.684928s.
+All four reports: viewport/safe overflow[],overlap[],asymmetry[], smallest
+font7.5px≥existing6.75px floor. Visible binding/action labels are nonempty,
+unclipped, smart-wrapped and panel-contained. Five rows per page, enabled
+Previous/Next boundaries, focus after advancing/returning, Close focus/dismissal
+all pass. Independent source/harness and actual-result review GO; no further run.
+This is source geometry/programmatic-focus qualification, not a new feature,
+rendered/human readability, physical device/native GPU, other help cells or final
+candidate acceptance. Generic root-user warning remains in raw log.
+
+Original selection provisionally said06:27–06:42; actual preparation began
+06:25, so deadline was brought forward to06:40, retaining15min rather than
+expanding it. Cleanup completed3.46min from actual start: both owners terminal,
+all6 observed process identities absent, source/import cache unchanged during
+check,10profile archive entries verified, helper copies hash-verified; owned
+clean integrated/pushed worktree/profile/helpers removed. Only unique results
+remain at /srv/mudds-work/help-onfoot-cell-20261020/results/. No production
+repair was justified; no new validator/test family or automatic successor.
