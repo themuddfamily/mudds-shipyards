@@ -47,6 +47,7 @@ one bounded backlog edit, no engine run and no gameplay completion claim.
 | --- | --- | --- |
 | LIFE-PACKAGE-DEFINE /7 | DONE as definition only | Five existing outcome groups now have explicit uncovered behavior and runnable/dependency boundaries. Four/twelve-cycle source passes remain accepted; no package journey was rerun or newly accepted. |
 | WALK-OBSERVATION exit diagnosis /7,8,9,29,32 | STOPPED after one capture; Tooltip identified, cause unresolved | PlanetaryDestinationOpenButton Tooltip retains both native root connections across the errors. Attempted native comparator identity remains unknown; full walk FAIL. [Result and stopping boundary](#selected-diagnosis--popup-lifetime-during-normal-exit); no repeat or repair selected. |
+| Process-exit tooltip cleanup /7,8,9,29,32 | WITHHELD; private route PASS, repair INCONCLUSIVE | Sourcebae551d58 preserves marker/restart input semantics;39 focused assertions and full route pass. Active-tooltip regression precondition absent, so no integration, checkpoint or second attempt. |
 | Matching RPC-cache templates /25,32 | PARKED; Linux built, Windows cold and incremental attempts timed out | No accepted matching pair; no further compilation or dependent browser route selected. [Retained result](docs/history/ROADMAP_DELIVERIES.md#matching-rpc-cache-templates--stopped-at-windows-compilation-budget). |
 
 The RPC build recipe and browser JSON fixture are delivered in their recorded
@@ -54,28 +55,14 @@ source scopes; they are no longer current tasks. The cache callback repair is
 still an unverified candidate. Empty release callable metadata does not prove a
 cause, and no shared cause with the Window failure is established.
 
-**Selected next: one process-exit tooltip cleanup-order repair attempt.**
-The completed capture supplies actual Tooltip ownership; source review identifies
-an existing bound Viewport API that retires it before root teardown. This is a
-candidate mechanism, not a proven comparator fix. One medium implementer owns
-`game_flow.gd` and one existing shutdown integration test; one high reviewer.
-Only actual HUD Exit/OS close may disable GUI input, after best-effort shutdown
-marking. `mark_orderly_shutdown`, Restart Shift/reload and ordinary tooltip use
-must remain unchanged. No new waits, native signal manipulation or diagnostics
-suppression; original OS/HUD quit semantics remain.
-
-Estimate5–10min implementation/review,5–10min checks; a successful production
-checkpoint adds10–15min. Before engines freeze clean source and exact commands:
-fresh Dummy import180s, selected existing focused integration180s, privacy60s,
-private Linux export180s, strict startup120s, artifact audit90s and the unchanged
-full Observation route CAP300/outer330 with the existing passive trace. Require
-normal Exit0, zero diagnostics, actual tooltip retirement before root teardown
-and original travel/view/home criteria; do not suppress known errors. First
-unexpected failure STOP, no second repair/run or cap increase. Preserve all
-four earlier failures/515.027s checks and original02:54:57→04:24:57UTC90min budget.
-A pass permits integration of only production/test changes and a fresh clean
-paired checkpoint; otherwise source/package remain withheld and owned scratch
-is cleaned. Other waiting and parked outcomes remain outside this selection.
+**Latest attempt stopped: process-exit tooltip cleanup order.** Seven checks,
+including the full private Observation route, PASS. Additional repair acceptance
+is INCONCLUSIVE because the previously failing TooltipPanel never appeared in
+that run. Candidatebae551d58 is pushed/unmerged; no gameplay repair or new public
+checkpoint is claimed. [Exact acceptance, results and stopping boundary](docs/history/ROADMAP_DELIVERIES.md#process-exit-tooltip-cleanup-order--route-passed-regression-unproved).
+No engine/check job or executable card is active; no second attempt is selected.
+Original failures and733.226s cumulative checks remain; owned cleanup finished
+at60.76min within the same90min family budget. Waiting/parked work is not READY.
 
 ### Waiting decisions — not executable tasks
 
@@ -209,7 +196,8 @@ retain the full contract and failed result. Six stages181.145s; cumulative
 checks515.027s with all original failures retained. All31 new process identities
 absent, inputs/helper/game/Xvfb released; unique package/raw logs/profile archive
 retained. Owned checkout/cache/helpers/profiles cleaned at47.37min from original
-freeze, inside the unchanged90min budget. No further probe/repair/retry selected.
+freeze, inside the unchanged90min budget. The one later cleanup-order candidate is recorded above; it does not establish
+a repair. No further probe/repair/retry selected.
 
 ## Latest playable result
 
@@ -236,7 +224,7 @@ contracts and cumulative attempt records remain in the retained history.
 | --- | --- | --- |
 | BROWSER-ORDINARY /25 | Candidatee944f52:89Python/privacy/35join/package checks pass, actual routeFAIL40.554s at NetworkSession tree_exited disconnect error; cleanup fixture command rejected. | PARKED/unmerged/withheld. Subsequent passive capture identifies retained native RPC-cache callback; it does not qualify the route. Full continuation NOT_RUN. Original raw data/eight builds preserved; scratch cleaned. |
 | AFT-CONSOLE-VIEW /9,12 | Standalone actual-module Xvfb/Forward+/llvmpipe capture FAIL120.485s after camera setup; no image or visual finding. | PARKED; source/root cause unproven. No cap increase, alternate backend/view or retry selected. Owned scratch cleaned; raw results retained. |
-| WALK-OBSERVATION /7,9 | Two caller failures retained; numeric e390/unchanged game4c58 completes54-goal travel/view/home prefix then FAIL89.064s on rootWindow signal disconnections after focused Exit. | PARKED; full task remains unaccepted, no clean exit0. Passive capture identifies the PlanetaryDestinationOpenButton Tooltip with stored root pairs still present across errors; attempted native comparator remains unknown. No repair, repeat or acceptance retry selected. |
+| WALK-OBSERVATION /7,9 | Two caller failures retained; numeric e390/unchanged game4c58 completes54-goal travel/view/home prefix then FAIL89.064s on rootWindow signal disconnections after focused Exit. | PARKED; full task remains unaccepted, no clean exit0. Capture identifies the Tooltip with stored pairs still present across errors. Laterbae551d58 private route PASS, but no visible tooltip/retirement, so repair acceptance INCONCLUSIVE and candidate withheld. No second attempt selected. |
 | PERIMETER-LIVE /11 | Candidateaa88b5a73 unmerged; staged Hold52/director149/asset12/board58/HUD9 pass. GameFlow FAIL90.178s before Hold entry; exports NOT_RUN. | PARKED after cumulative363.897s/three failures and independent review. Concrete change addressing retained full GameFlow route boundary plus separate selection required; no additional correction/retry/cap increase/narrowed acceptance. |
 | PLAY-BEACON-HOME /13 | Candidatea612ea686 FAIL37.713s guarded/37.419s driver at ActivityBoardButton Return/frame1233; same two root Window signal-disconnection diagnostics. Eleven prechecks pass; no settlement/home/L/E reached, no file captures. Unmerged/withheld. | PARKED on UI-BOARD-FOCUS. Recurrence supplies no popup/connection-removal cause; no retry/repair/cap change. Preserve original UI two-component9.627s and Mining budgets. |
 | BREACH-INTERRUPTION /13,31,32 | Originale9/repair3c fail board arming35.365/35.638s. After accepted owner fix e3, unchanged probe c159 fails69.957s at atomic-payment commit assertion after cold Resume/one matching receipt; third cold replay NOT_RUN. | Cumulative140.961s STOP/PARK; candidates unmerged/withheld, no recovery checkpoint. No further diagnosis/repair/run, fourth automatic attempt or renamed retry selected; concrete causal fact/change required. |

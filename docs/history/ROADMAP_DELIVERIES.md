@@ -14958,3 +14958,87 @@ removed; only results remain. Six stages181.145s; original retained333.882s give
 515.027s cumulative checks including all four ordinary failures. Original freeze
 to owned cleanup47.37min, within the unchanged90min budget. All native/device/
 audible/human and wider parent/phase gates remain open.
+
+## Process-exit tooltip cleanup order — route passed; regression unproved
+
+### Frozen single-repair selection
+
+The following selection preceded edits/checks. It is retained as history, not an
+authorization for a second attempt.
+
+**Selected next: one process-exit tooltip cleanup-order repair attempt.**
+The completed capture supplies actual Tooltip ownership; source review identifies
+an existing bound Viewport API that retires it before root teardown. This is a
+candidate mechanism, not a proven comparator fix. One medium implementer owns
+`game_flow.gd` and one existing shutdown integration test; one high reviewer.
+Only actual HUD Exit/OS close may disable GUI input, after best-effort shutdown
+marking. `mark_orderly_shutdown`, Restart Shift/reload and ordinary tooltip use
+must remain unchanged. No new waits, native signal manipulation or diagnostics
+suppression; original OS/HUD quit semantics remain.
+
+Estimate5–10min implementation/review,5–10min checks; a successful production
+checkpoint adds10–15min. Before engines freeze clean source and exact commands:
+fresh Dummy import180s, selected existing focused integration180s, privacy60s,
+private Linux export180s, strict startup120s, artifact audit90s and the unchanged
+full Observation route CAP300/outer330 with the existing passive trace. Require
+normal Exit0, zero diagnostics, actual tooltip retirement before root teardown
+and original travel/view/home criteria; do not suppress known errors. First
+unexpected failure STOP, no second repair/run or cap increase. Preserve all
+four earlier failures/515.027s checks and original02:54:57→04:24:57UTC90min budget.
+A pass permits integration of only production/test changes and a fresh clean
+paired checkpoint; otherwise source/package remain withheld and owned scratch
+is cleaned. Other waiting and parked outcomes remain outside this selection.
+
+### Actual result and stopping decision
+
+Candidatebae551d5836ed5d17bb0752e109313b3a5fa4fd9 on
+`fix/exit-tooltip-order-20261020` is committed/pushed and remains unmerged.
+Only GameFlow10 lines and existing safe-start integration19 lines changed.
+Both actual HUD Exit/OS-close handlers call the new private preparation seam
+AFTER best-effort shutdown marking. It disables root GUI input, invoking native
+Viewport tooltip cancellation. Marker-only and Restart Shift paths are unchanged;
+HUD retains SceneTree.quit and OS close retains existing auto-accept authority.
+No waits, native pair manipulation, error suppression or general input-policy
+change. Independent high source/fixture review GO before commit/checks.
+
+All seven frozen stages PASS: import19.625s; existing safe-start integration
+38.868s/39 assertions; privacy1.163s; private Linux export41.813s; strict startup
+22.352s/exit0/one menu-ready marker; existing artifact audit4.126s; original full
+Observation route90.252s guarded/89.944s driver. Focused suite retains its known
+root warning and intentional invalid/newer/unreadable-store fallback warnings;
+no matrix-classified error diagnostics or assertion failures. No warning filter
+or error suppression was introduced.
+
+Actual gamePID1670992/samePlayer280498276946/Main277310605741 completes all54
+waypoints/345.753m, actual60-frame pad view, supported original-hub return,
+focused actual Exit and normal process exit0. NATIVE_OBSERVATION_WALK_OK,
+success:true/diagnostic_count0 and all input/helper/game/Xvfb cleanup flags true.
+This is a complete ordinary-route PASS on the private candidate, retained as
+such; it is not relabelled a failed route.
+
+**Additional frozen repair acceptance is INCONCLUSIVE.** Lifetime trace has55
+popup_observed entries, all initially invisible PopupMenu controls; no
+TooltipPanel or visible tooltip appears. Main/root exit lists are empty, but
+that does not prove the identified failing tooltip existed and retired before
+root teardown. Independent high outcome review therefore gives NO GO for the
+claimed active-tooltip regression repair. No production integration, public
+checkpoint, Board/RPC fix, or final-candidate/WALK promotion follows this pass.
+Original failed runs remain retained; this result cannot erase them or narrow
+the repair's stated acceptance. STOP here: no second attempt, caller alteration,
+hover/timing change, renamed probe, repair or cap increase is selected.
+
+Exact source/configs/commands, actual route and passive trace, reviews and
+process guards remain under
+`/srv/mudds-work/observation-walk-20261020/exit-repair/results/`. The unique
+private package is in `withheld-package/`: ELF148,904,352bytes,
+SHA5cbd1cd47135d9bd904b85e71fc3fcc78bed93e38e9fe155307647fa130e9986;
+tar95,318,507bytes,
+SHAe59de0af4e4a7ba95bc4d5608622336623500e427ed00054cfad1b8b754500c0.
+PCK1521/no tests/tools and exact tar member bytes/modes/epoch/source metadata
+pass. All33 newly observed process identities absent; profiles archived and
+file hashes/symlink targets verified. Clean pushed checkout/import cache and
+duplicate profiles/helpers removed; only results remain. New stages218.199s,
+original retained515.027s gives733.226s cumulative checks; all four original
+failed ordinary attempts retained. Original02:54:57UTC freeze→cleanup60.76min
+inside unchanged90min, not a new clock. Latest public49047eb unchanged; broad
+parents/phase/native/device/audible/human gates stay open.
