@@ -19591,3 +19591,25 @@ Qualification uses actual default files/separate Godot Main processes, synthetic
 raw input and original explicit focus notification. Physical-device, OS-XTest,
 native Windows/GPU, full originalSettings/combat/Boot/final-package and broader
 INPUT-REMAP requirements remain separate; all36parents/tenphasegates remain open.
+
+
+## Existing HULK, reload and UI blockers — bounded source review — 2026-10-20
+
+No engine invocation, code change, repair, qualification or checkpoint. Three
+existing parked candidates were reviewed sequentially; each source pass stopped
+at its exact unsupported boundary. No new tasks, branches or worktrees created.
+This is blocker clarification, not product completion; original20 inventory
+stays nine accepted/superseded and eleven unqualified.
+
+| Existing outcome | Actual evidence and bounded source result | Missing fact before a justified change |
+| --- | --- | --- |
+| HULK-REVISIT | Original2298e4889 raw frames8343–8800 give458 consecutive samples: same supportedPlayer moves47.393m across DockShelf/HullDeck with authored5.8walk/9.2sprint; originalroute1/2/3 reached near8512/8590/8790. Original300s global deadline expires during normal progress; remaining roughly26m plus breaker approach still unperformed. Current home_walk_to preserves .30arrival/speed<=.35 and ordinary yaw/W/Shift. No interior stall or current production correction demonstrated. | Stage monotonicwall times to locate budget consumption. Raw has physicsframe stages/whole304.438s includingcleanup, not per-stagewall timing. No increased cap, skipped route, unchanged retry or new probe selected. |
+| KIT-RELOAD | Originalf432bd630 Mainready27.762s/initializedtrue/pausedfalse/acceptedCOMPLETEDg1 restore. Caller awaits standard SceneTree.physics_frame thenprocess_frame, matching current helper. No caller pause/signal-owner error or concrete shipped startup repair found. External30s includes preload15.929s; internal selector clock beginslater and cannot justify moving the original OS deadline. Cargo/paid state remains conserved. | Trace only surrounds the combined pair, lacking afterphysics/beforeprocess, so the first unresolved frame boundary is not isolated. No new startup probe, timeout extension, preload outsideclock or persistence repair selected. |
+| UI-BOARD-FOCUS / Observation tooltip | Archived realMain child maps localcorners through destination.get_screen_transform; host uses intendedscreenrect[595,444.5,410,48] center[800,468], nativeXID4194306 and absoluteXTest. No omitted/double viewport conversion is established. Existing READY records intendedrect/XID/focusedExit but not actual hover. Theme-type TooltipPanel requirement matches the engine's real popup creation. Currenttracked nativeaspecthost comparison was not established; no invented helper or coordinatefix. | Actual OS pointer/windowgeometry/foreground together with Godot GUIhoverowner at Destination, then original visiblepopup/rootbindings and retirement before ordinary close. Existing nonreproduction and full-route budgets stay retained; no syntheticpopup/connection mutation/error filter/repair/retry selected. |
+
+Source ownership remains the existing observer/driver for HULK, existing cargo
+integration caller for reload, and existing actualMain tooltip caller/host for UI.
+No dormant-actor optimization or unrelated startup edit was substituted for
+these missing facts. Prior protected source tags, raw traces and failure budgets
+remain authoritative. ROADMAP/backlog rows now distinguish these blockers;
+no original full journey, native/hardware/human or final gate was weakened.
