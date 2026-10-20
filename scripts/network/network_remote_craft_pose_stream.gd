@@ -32,7 +32,8 @@ extends RefCounted
 ##   is extrapolated forward by the round trip (that is how far the local copy
 ##   leads the host's) and the local copy is pulled toward it -- nothing inside
 ##   `CORRECTION_DEADBAND_METERS`, an exponential blend beyond it, and a hard
-##   snap past `SNAP_DISTANCE_METERS` / `SNAP_ANGLE_RADIANS`;
+##   snap past `SNAP_DISTANCE_METERS` / `SNAP_ANGLE_RADIANS`. A committed dock
+##   holds the authoritative pose and velocity without prediction or deadband;
 ## * every **other** craft is interpolated between the two samples that bracket
 ##   a render clock running `INTERPOLATION_DELAY_TICKS` behind the newest
 ##   arrival, and briefly extrapolated when the stream stalls.
@@ -447,7 +448,7 @@ func advance_replica(
 ## The host's sample is extrapolated by how far the local copy leads it: the
 ## time since the sample was taken plus one round trip (the local copy already
 ## contains the helm input the host has not simulated yet) plus the helm's own
-## send quantisation.
+## send quantisation. A committed dock instead holds the current host sample.
 func reconcile_pilot(craft: Node3D, ship_id: StringName, round_trip_ms: float, delta: float) -> Dictionary:
 	var latest := latest_sample(ship_id)
 	if latest.is_empty() or not is_instance_valid(craft):
@@ -456,14 +457,19 @@ func reconcile_pilot(craft: Node3D, ship_id: StringName, round_trip_ms: float, d
 		return {"status": &"destroyed"}
 	if craft.has_method(&"is_landing_active") and bool(craft.call(&"is_landing_active")):
 		return {"status": &"landing"}
-	var lead_ticks := clampf(
-		maxf(0.0, _clock - float(latest.pose_tick))
-			+ maxf(0.0, round_trip_ms) / 1000.0 / TICK_SECONDS
-			+ HELM_QUANTIZATION_TICKS,
-		0.0, MAX_LEAD_TICKS
-	)
+	var operation: Dictionary = latest.operation_presentation
+	var hold_docked := bool(operation.get("landed", false)) and bool(operation.get("docked", false)) \
+		and not bool(operation.get("landing", false))
 	var host_velocity: Vector3 = latest.velocity_world
-	var target_position: Vector3 = (latest.position as Vector3) + host_velocity * lead_ticks * TICK_SECONDS
+	var target_position: Vector3 = latest.position
+	if not hold_docked:
+		var lead_ticks := clampf(
+			maxf(0.0, _clock - float(latest.pose_tick))
+				+ maxf(0.0, round_trip_ms) / 1000.0 / TICK_SECONDS
+				+ HELM_QUANTIZATION_TICKS,
+			0.0, MAX_LEAD_TICKS
+		)
+		target_position += host_velocity * lead_ticks * TICK_SECONDS
 	var target_rotation: Quaternion = latest.rotation
 	var current := craft.global_transform
 	var current_rotation := current.basis.orthonormalized().get_rotation_quaternion()
@@ -477,6 +483,20 @@ func reconcile_pilot(craft: Node3D, ship_id: StringName, round_trip_ms: float, d
 			craft.reset_physics_interpolation()
 		_snaps += 1
 		return {"status": &"snapped", "error": position_error.length(), "angle": angle_error}
+	if hold_docked:
+		# A committed dock has no predicted flight to preserve. Even a small
+		# offset or residual local velocity can drift beyond berth tolerance.
+		var target_transform := Transform3D(Basis(target_rotation), target_position)
+		var pose_changed := current != target_transform
+		var velocity_changed := craft is CharacterBody3D and (craft as CharacterBody3D).velocity != host_velocity
+		if pose_changed or velocity_changed:
+			if pose_changed:
+				craft.global_transform = target_transform
+			if craft is CharacterBody3D:
+				(craft as CharacterBody3D).velocity = host_velocity
+			_corrections += 1
+			return {"status": &"corrected", "error": position_error.length(), "angle": angle_error}
+		return {"status": &"within_deadband", "error": position_error.length(), "angle": angle_error}
 	var corrected := false
 	var step := maxf(0.0, delta)
 	if position_error.length() > CORRECTION_DEADBAND_METERS:

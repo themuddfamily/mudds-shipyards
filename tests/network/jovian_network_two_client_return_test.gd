@@ -605,10 +605,15 @@ func _postdock_receipt() -> Dictionary:
 	var peer := int(_flight_start.passenger_peer)
 	var avatar := GameFlow.network_client_boarding_avatar_id(peer)
 	var source := _flight_source
+	# Remote command sources need not be children of the scene tree. Their
+	# object identity and stream remain valid without a scene-tree path.
+	var source_identity := {"valid": is_instance_valid(source)}
+	if is_instance_valid(source):
+		source_identity["instance_id"] = str(source.get_instance_id())
 	var receipt := {"selected": _postdock_selected, "stage": _return_stage, "role": _role,
 		"peer_id": peer if _role == "host" else _initial_peer_id,
 		"peer_generation": _peer_generation(peer) if _role == "host" else _initial_peer_generation,
-		"avatar_id": str(avatar), "source": {"identity": _node_identity(source),
+		"avatar_id": str(avatar), "source": {"identity": source_identity,
 			"stream_id": source.get_stream_id() if source != null else -1,
 			"delivery_generation": source.get_delivery_generation() if source != null else -1}}
 	if _role == "host":
