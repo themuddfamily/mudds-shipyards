@@ -224,7 +224,7 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | COMBAT-WING | Paired Wing Break | 11 | FAILED/open ordinary two actual player-weapon kills plus complete home/OFFLINE physical exit/UIquit. Latest9a68aa01f trial102.037s:8shots,0Wingdamagehits/kills, both opponents38health; prerequisite Heavy/Torpedo home journeys pass. Unique diagnostic source archived under pushed tag `archive/diagnostics/wing-ordinary-route-20261020`; branch/worktree removed, observer/selector/driver excluded from main. Independently accepted board-landing withdrawal fix shipped9e9d1be; it does not complete Wing combat. [Closeout](history/ROADMAP_DELIVERIES.md#wing-branch-accounted-landing-fix-shipped--2026-10-20) |
 | COMBAT-WING-ADMISSION | Existing Wing becomes a genuine third solo board contract | 11 | DONE checkpointf671da9: on-foot arm/cancel, physical departure/registered source gate, real suppression/flank pair, solo/network refusal, both-destroyed objective with healthy-retirement abort, correct HUD/audio/no-credit lifecycle. Actual Main28/director151/board59/HUD8/audio11 checks, paired exports/startups/audit PASS. Component simulated clear disclosed; no full ordinary kills/home. [Result](history/ROADMAP_DELIVERIES.md#paired-wing-board-admission--shipped-on-f671da9) |
 | COMBAT-PERIMETER | Perimeter Hold | 11 | PERIMETER-LIVE runtime/admission DONE fdae1cb: physical fourth-board contract, protected core/three live attackers,90s/>35%, HUD and lifecycle. Actual-Main admission, retained Breach recovery, staged objective and paired packages PASS; branch merged/deleted. Full ordinary weapon/home, failure/recovery, repeats/network/native remain OPEN. [Delivery](history/ROADMAP_DELIVERIES.md#perimeter-live-branch-finished--2026-10-20) |
-| COMBAT-BREACH | Heavy Breach | 11 | Same ordinary sortie as PLAY-BREACH below; one successful route may satisfy both parents, without counting two deliveries. Additional supported damage/recovery/craft cases remain explicit; BREACH-INTERRUPTION stays PARKED |
+| COMBAT-BREACH | Heavy Breach | 11 | Same ordinary sortie as PLAY-BREACH below; one successful route may satisfy both parents, without counting two deliveries. Additional supported damage/recovery/craft cases remain explicit; BREACH-INTERRUPTION earned-debt case DONE c78e0ac |
 | COMBAT-TORPEDO | Torpedo Run evade/intercept/destroy/fail/abort | 11,23 | PLAY-TORPEDO supplies the first actual boat-clear/home sortie. Freeze evade/intercept, failure, abort and solo restoration separately afterward; one happy-path clear cannot close all cases or TORPEDO authority/restoration |
 
 ### Courier Intercept — bounded outcomes
@@ -309,11 +309,13 @@ before adding ordinary-route telemetry. No new validator/evidence family.
 
 ### Remaining unmerged work
 
-The [current 20-branch inventory](history/ROADMAP_DELIVERIES.md#remaining-branch-status-after-duplicate-closeouts--2026-10-20)
+The [earlier 20-branch inventory](history/ROADMAP_DELIVERIES.md#remaining-branch-status-after-duplicate-closeouts--2026-10-20)
 distinguishes three withheld gameplay fixes from 17 automation/diagnostic-only
-candidates and records each acceptance blocker. The older Breach probe and Jovian
+candidates at that point and records each acceptance blocker. The older Breach probe and Jovian
 syntax branch have verified exact-source successors and archived original histories;
-their branches are removed. Breach interruption and full Jovian exit remain OPEN.
+their branches are removed. The retained Breach successor is now merged on c78e0ac
+after full earned-debt interruption acceptance, leaving 19 remote candidates
+(three gameplay fixes/16 automation). Full Jovian exit remains OPEN.
 No new gameplay or release qualification follows from deleting those duplicate refs.
 
 ### Perimeter Hold — missing production integration
@@ -516,15 +518,15 @@ test is an owner/regression anchor, not a runnable ordinary route.
 | PLAY-CONVOY | Convoy Escort first full ordinary play | 13 | UNSCHEDULED; departed piloted craft enters4m rendezvous → escort actual retained-Main tender through route/threats to safe arrival → payment/home dock/exit. Preserve90s timeout and42m/3s separation rules; parked Convoy failures are not reopened |
 | PLAY-DEFENSE | Station Defense first full ordinary play | 13 | Physical E DONEa59127c; ordinary candidatea480c0fbb pushed/unmerged/PARKED after original35.963s driver failure and one corrective84.239s whole34s timeout. Actual E Deploy accepted, then stationary walk_arrow33.15s before boarding; no kills/payment/home/reset/UIexit. Full existing Arrow/real four-kill/once-payment/strict home/physical Reset/next Deploy/UIexit contract unaccepted; unchanged34s/CAP300 retained. Concrete post-Deploy walk cause/change and separate selection required; no second repair/retry or seeded/fixture substitute |
 | DEFENSE-PHYSICAL-INTERACTION | Physical board E Deploy/status/reward-retry/terminal Reset | 13 | DONE checkpointa59127c: actual Main15/full placement62, paired exports/three strict startups/actual PCK audit PASS. Existing owners, debt/refusal/separatepress/range/facing/armed gates and whole34s preserved. Original test parse16.381s + one explicit-int correction retained, cumulative334.765s. Staged pose/terminal/refusal fixtures disclosed; full ordinary combat/home separate. [Result](history/ROADMAP_DELIVERIES.md#station-defense-physical-interaction--shipped-on-a59127c) |
-| PLAY-BREACH | Heavy Breach first full ordinary play | 13 | UNSCHEDULED; on-foot arm posted Heavy → board/depart combat-capable craft → destroy charged picket while protecting objective → one payment → home/dock/on-foot next posting. Existing staged production route is not actual combat; interruption route stays PARKED |
+| PLAY-BREACH | Heavy Breach first full ordinary play | 13 | UNSCHEDULED; on-foot arm posted Heavy → board/depart combat-capable craft → destroy charged picket while protecting objective → one payment → home/dock/on-foot next posting. Existing staged production route is not actual combat; earned-debt interruption case DONE c78e0ac |
 | PLAY-TORPEDO | Torpedo Run first full ordinary play | 13 | UNSCHEDULED; reach Torpedo posting through normal board rotation → arm/board/depart → evade/intercept live seekers and destroy actual boat → distinct payment → home/dock/on-foot next posting. No direct scenario selection or skipped Heavy prerequisite |
 | HUD-RACE | Race durable reset/select/start/fresh-Main UI | 13 | Source review already found no concrete discrepancy; no edits/runs or ordinary acceptance. Do not repeat unchanged source triage; full qualification remains unscheduled |
 | HUD-PATROL | Patrol durable reset/select/start/fresh-Main UI | 13 | Source review already found no concrete discrepancy; no edits/runs or ordinary acceptance. Do not repeat unchanged source triage; full qualification remains unscheduled |
 | HUD-CARGO | Cargo durable reset/select/start/fresh-Main UI | 13 | Supply-status child DONE0c2dc2e: depleted hold reports insufficient kits after reset/reselection; cargo127/nearby HUD13 and paired checkpoint pass. Broader durable UI/restart remains open; KIT-RELOAD stays parked |
 | HUD-CONVOY | Convoy durable reset/select/start/fresh-Main UI | 13 | Restored-objective discrepancy DONE on checkpoint3d92b91: cold/wrong-craft saved escort shows paused guidance, accepted craft rebind restores live progress; existing retained-feedback20 assertions pass. Wider durable reset/select/start/full ordinary Convoy scope remains open; parked save suite not reopened |
 | ACT-WRITES-DEFINE | Uncovered activity/write-boundary cells | 13,31 | DONE definition only; finite durable owner/boundary map below, with terminal-only owners distinguished; exact-package/real-file/ordinary recovery acceptance remains open |
-| BOOT-BREACH-OWNERS | Physical Heavy Breach board has exact production owners before gameplay | 9,11,13 | DONE packagede3d1ada; two exact old owner failures, final full startup/48-check production route and strict paired checkpoint pass; original interruption transaction remains parked |
-| BREACH-INTERRUPTION | Exported Heavy Breach real-file earned debt/kill/recovery/paid replay | 13,31,32 | FAILED/PARKED 853e5ee19: late shared-store metadata boundary diagnosed; synchronous same-document capture correction compiles/privacy PASS but sourceFAIL 71.057s at eight-predicate capture assertion. Actual Resume/real pilot/exit/paid receipt PASS; exact failed predicate/capture UNKNOWN; third cold replay/exports/archive case NOT_RUN. New 108.444s plus retained 140.961s give 249.405s. Unmerged/withheld, no further engine/correction selected. [Closeout](history/ROADMAP_DELIVERIES.md#breach-atomic-capture-attempt-stopped--2026-10-20) |
+| BOOT-BREACH-OWNERS | Physical Heavy Breach board has exact production owners before gameplay | 9,11,13 | DONE packagede3d1ada; two exact old owner failures, final full startup/48-check production route and strict paired checkpoint pass; earned-debt interruption transaction DONE c78e0ac |
+| BREACH-INTERRUPTION | Exported Heavy Breach real-file earned debt/kill/recovery/paid replay | 13,31,32 | DONE c78e0ac: source and exact archived Linux executable each complete genuine earned unpaid terminal, actual owned kill/reap, distinct normal Resume/real pilot/production exit/physical payment, exact same-document atomic receipt+ack and third cold paid replay. Privacy/compile/paired exports/strict startups/audit PASS; branch merged/deleted. All original 249.405s failures retained; ordinary combat/active-combat restore/native scope separate. [Delivery](history/ROADMAP_DELIVERIES.md#breach-interruption-branch-finished--2026-10-20) |
 | ACT-REPEAT-DEFINE | Exact applicable ten-run activity scenarios | 13 | DONE definition: all twelve activities classified below; two cargo routes retain explicit stock-policy gates, Heavy/Torpedo preserve alternating physical board. Measurement/deadline freeze and first-play gates remain; no execution accepted |
 | REPEAT-RACE | Ten same-world Checkpoint Race completions through actual ordered checkpoints, payment and accepted reset; next run starts usable | 13 | GATED on PLAY-RACE and a frozen resource-baseline/deadline contract; existing source passes retained |
 | REPEAT-BEACON | Ten same-world traversals of all four authored beacons in order, accepted payment/reset and usable next run | 13 | GATED on PLAY-BEACON and frozen resource-baseline/deadline contract; no synthetic beacon submission as ordinary-route proof |
@@ -536,7 +538,7 @@ test is an owner/regression anchor, not a runnable ordinary route.
 | REPEAT-MINING | Ten real six-second extractions, each acknowledged once and reset durably | 13 | GATED on PLAY-MINING and measurement/deadline freeze; capacity receipt is not ore/currency inventory |
 | REPEAT-CONVOY | Ten real safe-arrival escorts with once-only payment and production reset | 13 | GATED on PLAY-CONVOY and measurement/deadline freeze; retained-host/actor lifecycle and original failures remain |
 | REPEAT-DEFENSE | Ten fresh physical-board deployments, full three-wave clears, payment and reset | 13 | GATED on PLAY-DEFENSE and measurement/deadline freeze; wave recovery is not another fresh completion |
-| REPEAT-BREACH | Ten cleared Heavy Breach postings through ordinary board rotation | 13 | GATED on PLAY-BREACH and measurement/deadline freeze; alternate Torpedo postings cannot be skipped; BREACH-INTERRUPTION remains PARKED |
+| REPEAT-BREACH | Ten cleared Heavy Breach postings through ordinary board rotation | 13 | GATED on PLAY-BREACH and measurement/deadline freeze; alternate Torpedo postings cannot be skipped; BREACH-INTERRUPTION earned-debt case DONE c78e0ac |
 | REPEAT-TORPEDO | Ten cleared Torpedo postings through ordinary board rotation | 13 | GATED on PLAY-TORPEDO and measurement/deadline freeze; ten mixed sorties do not satisfy ten of either scenario |
 | TRAVEL-LIMIT | Numeric ordinary nearby-travel envelope | 13 | Beacon outbound proposal recorded:30s unpaused monotonic elapsed from engine-start input at occupied home berth to controlled first-Beacon approach. Owner30s/60s choice asked/unanswered; WAITING agreement, no timing acceptance. [Clock/basis/limits](#beacon-outbound-travel-envelope--proposal-awaiting-decision). Return and other routes remain undefined; full journey/parked UI gates preserved. |
 | HULK-REVISIT | Home-return/reload/revisit retains restored bus and single claimed cell | 13 | PARKED; failed route plus repair, original 300s |
@@ -1226,7 +1228,7 @@ route selector is executable release capability, not a new evidence validator.
 | Jovian kits / GameFlow, CargoDeliveryActivity, JovianCargoSessionPersistence; `tests/cargo_delivery_production_integration_test.gd` | KIT-BOARD/DEPART/DELIVER already accepted; do not reschedule them. KIT-RELOAD remains parked under its original30s cap |
 | Convoy / GameFlow, CinderConvoyEscortHost; `tests/cinder_convoy_production_integration_test.gd` | Use retained Main host and real tender/threats, not a standalone streamed fixture. Preserve existing Convoy failure/reopening conditions |
 | Defense / StationDefenseActivityBoard, authored perimeter scenario; `tests/station_defense_production_placement_test.gd` | Physical deployment and real three-wave combat. Do not conflate this activity with unresolved COMBAT-PERIMETER catalog/launch mapping |
-| Breach / HeavyBreachActivityBoard, EncounterScenarioDirector; `tests/heavy_breach_game_flow_production_route_test.gd` | Existing production owner/admission fix is accepted. Actual combat/return is still uncovered; staged kills do not fill it. BREACH-INTERRUPTION stays parked |
+| Breach / HeavyBreachActivityBoard, EncounterScenarioDirector; `tests/heavy_breach_game_flow_production_route_test.gd` | Existing production owner/admission fix is accepted. Actual combat/return is still uncovered; staged kills do not fill it. BREACH-INTERRUPTION earned-debt case DONE c78e0ac |
 | Torpedo / same board/director, TorpedoBoatOpponent; same production route fixture | Reach posted Torpedo through ordinary alternating sorties; no direct director selection. A successful clear/home does not prove fail/abort/authority/restoration |
 
 **Estimate and stop rule:** allow15–25min source mapping to freeze one actual
@@ -1352,7 +1354,7 @@ Existing tests named here are coverage anchors only; none ran for this definitio
 | REPEAT-MINING / [mining activity](../scripts/world/cinder_mining_platform_activity.gd), binding persistence/reset | Approach within30m, hold actual6s extraction at authored anchor, request and persist capacity receipt once, accepted durable reset, then repeat ten times/next start | PLAY-MINING first. Leaving radius interrupts progress; pending capacity save blocks reset/start. No ore/currency grant is invented. cinder_mining_durable_recovery_test.gd protects durable boundaries but does not prove ordinary repetition |
 | REPEAT-CONVOY / [production host](../scripts/activities/cinder_convoy_escort_host.gd), GameFlow._start_cinder_convoy/reset_active_activity | Healthy piloted departed craft enters actual4m rendezvous sphere, escorts real tender through complete authored route/threats to safe arrival, settles debt, accepted production persisted reset; ten successes/next start | PLAY-CONVOY first. Use retained GameFlow host, not streamed binding's standalone fixture. Preserve90s timeout,42m escort proximity/3s separation and authored movement. Tender/threat reuse and terminal cleanup count toward resource acceptance; retained Convoy failures are not authorized retries |
 | REPEAT-DEFENSE / [physical board](../scripts/activities/station_defense_activity_board.gd), [scenario](../assets/activities/shipyard_perimeter_defense.tres) | On-foot board Deploy→ordinary boarding/departure/combat→all three authored waves clear→one payment→home/dock/on-foot board Reset; ten fresh completed deployments and usable next Deploy | PLAY-DEFENSE first. Current fixed hostile counts1/2/1, delays0/2.5/8s, timeout34s; retain original semantics. Failed-wave recovery is continuation, not a counted fresh success. Pending payment must settle; protect/reset the actual objective and reuse bounded host roster |
-| REPEAT-BREACH / [physical alternating board](../scripts/activities/heavy_breach_activity_board.gd), [scenario director](../scripts/combat/encounter_scenario_director.gd) | On-foot arm posted Heavy, board/depart a real combat-capable ship, destroy actual charged picket while protecting objective, clear/pay, ordinary return/dock/on-foot rearm; count ten Heavy clears | PLAY-BREACH first. Conclusion rotates posting to Torpedo; no normal post-clear Reset required. Pending debt blocks arm. Respect normal craft service/ammunition constraints; unresolved Bomber rearm is not bypassed. Existing BREACH-INTERRUPTION stays PARKED |
+| REPEAT-BREACH / [physical alternating board](../scripts/activities/heavy_breach_activity_board.gd), [scenario director](../scripts/combat/encounter_scenario_director.gd) | On-foot arm posted Heavy, board/depart a real combat-capable ship, destroy actual charged picket while protecting objective, clear/pay, ordinary return/dock/on-foot rearm; count ten Heavy clears | PLAY-BREACH first. Conclusion rotates posting to Torpedo; no normal post-clear Reset required. Pending debt blocks arm. Respect normal craft service/ammunition constraints; unresolved Bomber rearm is not bypassed. Existing BREACH-INTERRUPTION earned-debt case DONE c78e0ac |
 | REPEAT-TORPEDO / same physical board/director, [boat](../scripts/ships/torpedo_boat_opponent.gd) | At posted Torpedo arm/board/depart, evade/intercept live seekers, destroy actual boat for clear and distinct Torpedo payment, ordinary home/board rearm; ten Torpedo clears | PLAY-TORPEDO first. Conclusion rotates to Heavy; no direct selection to skip alternating posting. Existing two-seeker pool and abandonment/stand-down remain bounded; heavy_breach_game_flow_production_route_test.gd staged kills are not ordinary combat repetition |
 
 Heavy/Torpedo share travel/board ownership but retain **two separate ten-clear
@@ -1430,30 +1432,29 @@ real owned kill/reap, distinct restart, exact document and once-only receipt che
 No engine or package checks were run for this definition; all original failures,
 external decisions and final gates retain status.
 
-BREACH-INTERRUPTION remains FAILED/PARKED on pushed 853e5ee19. Original e9/3c
-board-admission failures and c159's late-metadata failure remain at 140.961s.
-Source ordering and actual tutorial seen sets establish the old observation error:
-physical debt retry pays then arms Torpedo, whose tutorial creates a later shared
-store commit before the old read. Its exact sampled ID was not logged.
+BREACH-INTERRUPTION earned-debt release capability is DONE on c78e0ac.
+Original e9/3c admission failures, c159's late-metadata failure and853's JSON
+comparison failure remain recorded at 249.405s. Source and raw tutorial seen sets establish the original concrete
+cause: physical debt retry pays and arms Torpedo; its next tutorial save replaces
+latest shared-store metadata before the old probe reads it. The existing board
+signal now captures the actual primary JSON/commit before that tutorial; both
+runtime and package consumer require the exact ledger and paid terminal in that
+same document. Godot source proves JSON FLOAT versus live INT dictionary
+equality was invalid in853; only the expected ledger is canonicalized through
+the existing JSON helper, preserving every field/value and all eight checks.
+Failure diagnostics now name predicates/types without printing foreign payload.
+Later no-op interaction, foreign settings/cargo, normal Resume/
+real pilot/exit and third distinct cold paid replay remain unchanged.
 
-The selected correction captures the primary JSON/metadata synchronously at the
-existing board interaction signal and asserts same-document receipt/paid terminal/
-foreign data. Import/compile/privacy pass; one full source transaction fails 71.057s
-at the new combined eight-predicate capture assertion. Real cold Resume/pilot/exit/
-board discovery and exact one paid receipt pass. Capture values/predicate outcomes
-were not emitted on failure; later final documents cannot reconstruct them. Exact
-failed predicate is UNKNOWN. Integer-vs-JSON-float ledger comparison is a source
-risk, not an established cause. Missing fact is the actual signal-time document,
-metadata/generation and individual comparisons. No new correction/engine/retry or
-cap increase selected. Third cold paid replay/exports/strict startups/archive
-transaction NOT_RUN. Full original finish criteria remain unchanged/open.
-
-New 108.444s plus retained 140.961s give 249.405s, four failures retained.
-Candidate remains unmerged/withheld; source branch pushed, raw results preserved,
-all owned processes absent and owned worktree/profile/helpers cleaned after verified
-archives. Current playable remains fdae1cb.
+Both full source and archive-extracted executable transactions pass, with
+child300s/transaction1000s unchanged. New stages 352.043s, cumulative 601.447s;
+paired clean packages/three strict startups/actual audit pass. Existing branch
+merged/pushed/deleted and owned scratch cleaned after preservation. This closes
+only earned terminal debt recovery. Initial board/flight/target damage are staged
+fixtures; ordinary combat, Torpedo recovery, active encounter/timer/pose restore,
+network/native/human and final-release scope remain separate/open.
 [Original failed reopening](history/ROADMAP_DELIVERIES.md#breach-interruption-after-fixed-startup--failed-and-parked)
-and [current failed closeout](history/ROADMAP_DELIVERIES.md#breach-atomic-capture-attempt-stopped--2026-10-20).
+and [accepted closeout](history/ROADMAP_DELIVERIES.md#breach-interruption-branch-finished--2026-10-20).
 
 ## Multiplayer
 
@@ -2470,7 +2471,7 @@ Four owners cannot currently reconstruct an active cold run:
 | --- | --- | --- |
 | [Cinder supply persistence](../scripts/persistence/cinder_cargo_delivery_persistence.gd) / [reward handoff](../scripts/cargo/cinder_cargo_reward_handoff.gd) | Strict v2 terminal transfer proof checkpoints before payment; atomic paid acknowledgement and cold current-owner settlement. Legacy v1 generation0 remains presentation-only; no manifests/handles restored. | **CINDER-SUPPLY-DEBT DONE** onf8b5f86: actual-file earned/refused→cold one-payment→paid no-replay, next generation, immutable proof and unrelated payload retained. Active manifest/inventory/deadline restoration separately needs an explicit resume-or-safe-home policy; Hauler stock choices remain untouched. |
 | [StationDefenseActivityBoard](../scripts/activities/station_defense_activity_board.gd) | Durable terminal generation/history and genuine unpaid debt; fresh IDLE encounter, no saved enemies/health/leases. | Active wave/health continuation policy unresolved; terminal debt/reset/atomic paid acknowledgement already have owners, so do not invent a replacement. |
-| [HeavyBreachActivityBoard](../scripts/activities/heavy_breach_activity_board.gd), Heavy Breach | Scenario/generation floor and earned unpaid/paid completion, no active combat/timer/actors. | Active encounter recovery policy unresolved. Original real-file interruption remains PARKED140.961s; this map does not reopen it. |
+| [HeavyBreachActivityBoard](../scripts/activities/heavy_breach_activity_board.gd), Heavy Breach | Scenario/generation floor and earned unpaid/paid completion, no active combat/timer/actors. | Active encounter recovery policy unresolved. Earned terminal-debt real-file interruption is DONE c78e0ac; original 249.405s failures retained. Active encounter restoration remains unresolved. |
 | Same board, Torpedo Run scenario | Separate reward/scenario terminal debt. Retained network suspension preserves live timer/distance; it is not a cold-process codec. | Cold active-run policy and distinct Torpedo terminal qualification remain open. Do not widen the retained-network promise into arbitrary disk pose restoration or count Breach as Torpedo acceptance. |
 
 **Start Fresh must abandon active progress without discarding earnings.** The

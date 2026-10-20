@@ -6,14 +6,14 @@ Nine of the eventual 17 craft exist; eight still need supported specifications
 and implementation. Partial acceptance is retained in the backlog; it is not
 whole-feature completion.
 
-Latest playable checkpoint: **fdae1cb**. Perimeter Hold now follows Heavy Breach,
-Torpedo Run and Paired Wing on the physical Activity Board. Defend the live core
-against three distinct attackers for 90 seconds, keeping integrity strictly above 35%;
-the HUD shows both. Staged objective/lifecycle and actual physical-admission
-checks pass; full ordinary weapons/home/recovery/repeat qualification remains open.
-[Windows ZIP](builds/windows/MuddsShipyards-fdae1cb-checkpoint.zip),
-[Windows notes](builds/windows/MuddsShipyards-fdae1cb-notes.txt),
-[Linux notes](builds/linux/MuddsShipyards-fdae1cb-linux-notes.txt).
+Latest playable checkpoint: **c78e0ac**. The release workflow now verifies Heavy
+Breach earned debt across an actual killed game, cold Resume/payment and a further
+cold paid replay. Source and archive-extracted Linux transactions pass; staged
+combat setup is disclosed. Perimeter Hold remains the fourth physical board
+contract, with three live attackers and its 90-second core objective, requiring integrity strictly above35%.
+[Windows ZIP](builds/windows/MuddsShipyards-c78e0ac-checkpoint.zip),
+[Windows notes](builds/windows/MuddsShipyards-c78e0ac-notes.txt),
+[Linux notes](builds/linux/MuddsShipyards-c78e0ac-linux-notes.txt).
 
 This page is the working queue. The
 [36-parent crosswalk and named children](docs/ROADMAP_BACKLOG.md#coverage-of-the-original-remaining-outcomes)
@@ -44,12 +44,14 @@ been defined. Do not turn test counts, commits or row counts into project progre
 ## Execution now
 
 **Current focus: finish or explicitly account for existing unmerged work.**
+
 Resolve one existing branch at a time. Before selecting another, either merge and
 push accepted work and delete the branch, or preserve its unique source/results
 and record the exact unmet requirement and blocker. A failed check does not
 automatically authorize an adjacent task or retry.
-**147 local and 90 live remote branches deleted; 38 local and 21 live remote
-branches remain, including main (20 non-main remote).** Counts describe refs,
+
+**148 local and 91 live remote branches deleted; 37 local and 20 live remote
+branches remain, including main (19 non-main remote).** Counts describe refs,
 not completed features. [Branch accounting and closeouts](docs/history/ROADMAP_DELIVERIES.md#branch-accountability-and-race-timeout-diagnosis--2026-10-20)
 preserve the underlying roadmap requirements.
 
@@ -59,57 +61,38 @@ Their complete changed-file contents survive byte-for-byte in retained successor
 exact original histories, patches, source archives and failed results are preserved.
 No failed journey was accepted and no diagnostic code was merged.
 
-Of the 20 remaining remote candidates, **three contain ordinary gameplay fixes**
+Of the 19 remaining remote candidates, **three contain ordinary gameplay fixes**
 (passenger role display, docked-pilot pose holding, tooltip retirement on close).
-Each still lacks its required acceptance. The other 17 contain qualification
+Each still lacks its required acceptance. The other 16 contain qualification
 or diagnostic automation, including opt-in startup/release wiring. They are not
-17 new gameplay implementations. The
+16 new gameplay implementations. The
 [current branch-by-branch status](docs/history/ROADMAP_DELIVERIES.md#remaining-branch-status-after-duplicate-closeouts--2026-10-20)
-names all 20 candidates; the Breach row is superseded by the failed closeout below.
-This cleanup changes
-branch ownership, not the number of completed roadmap outcomes.
+records the earlier 20 candidates; the accepted Breach closeout below removes one.
+This cleanup changes branch ownership, not the number of completed roadmap outcomes.
 
-**Selected correction within the same Breach delivery: JSON ledger equality.**
-Original14:37–15:22UTC/45min window and cumulative249.405s/four failures retained.
-No budget reset. Retained Godot4.7.1 source proves Dictionary equality compares
-numeric Variant types strictly; JSON decodes numbers as FLOAT while reward authority
-retains newly built INT counters. Therefore853's whole-ledger equality is invalid
-for the successful paid result. This establishes a bad sixth predicate, not success
-of any earlier capture predicate. Normalize ONLY the expected live reward ledger
-using the existing `_canonical()` JSON helper. Retain all eight semantic checks,
-raw primary JSON and exact atomic receipt+terminal requirement. Emit named predicate
-results and safe capture metadata on failure so another composite failure is usable.
-Reuse the same branch; one medium integrator, high review before any engines.
-Original source1000s/child300s, privacy/compile, paired exports/three strict startups,
-actual archive-extracted transaction and package audit remain required. First new
-failure stops; no further correction, cap increase or acceptance narrowing selected.
-Earlier STOP/raw/source remain immutable in the original results; repair runs in
-`/srv/mudds-work/breach-atomic-handoff-20261020/repair-1/` and carries all prior costs.
+**Existing Breach interruption branch finished and merged.** Full original
+BREACH-INTERRUPTION earned-debt release case passes on c78e0ac: genuine unpaid
+completion, live owned kill/reap, distinct normal cold Resume/real pilot/exit/
+physical board retry, one atomic receipt+acknowledgement, and third cold paid
+replay. Both source and exact archive-extracted executable complete all three
+processes. Setup/target-damage fixtures remain disclosed; ordinary combat and
+active-combat restoration are not qualified by this case.
 
-**Breach interruption attempt stopped; existing candidate withheld.**
-Existing `feat/breach-interruption-fixed-boot-20261018` now retains clean pushed
-853e5ee19, unmerged. Import/probe compile/privacy pass. Full source transaction
-FAIL 71.057s at the new combined atomic-document capture assertion after successful
-cold Resume, real pilot/exit, physical board discovery and exact one paid receipt.
-Third cold replay, all exports/startups and archive transaction are NOT_RUN.
+The old failure sampled shared-store metadata after payment's next tutorial save.
+The existing probe captures the actual primary at the board signal, before
+tutorial publication, and requires receipt and paid terminal in that same document.
+A second proven caller correction serializes only the expected live integer ledger
+for comparison with the JSON-decoded ledger; all eight checks remain exact.
+All previous assertions and original 1000s/child300s limits remain.
+Fresh privacy/compile, paired exports, three strict menu startups and actual
+package audit pass. Independent source and final-result review: GO.
 
-The original late-metadata boundary is established: physical debt retry pays and
-arms Torpedo, then the next tutorial saves to the same store. The correction
-captures the primary at the board signal, but its eight-predicate assertion fails
-without emitting capture values. Exact failed predicate remains UNKNOWN. Missing
-fact: captured document/metadata/generation and each comparison result at that
-boundary. A possible integer-vs-JSON-float ledger comparison issue is unproven.
-No cause is inferred from later saved documents and no gameplay defect is claimed.
-
-No further correction, engine run, cap increase or acceptance change is selected.
-Prior 140.961s/three failures retained; new 108.444s gives 249.405s total
-stages. Independent review: STOP/withhold. All 19
-owned identities absent; profiles/helpers verified and archived, owned worktree
-removed in 9.26min inside original 45min. Only
-`/srv/mudds-work/breach-atomic-handoff-20261020/results/` remains. Existing branch
-is protected; original source/results and full earned-debt/kill/Resume/atomic
-payment/third cold replay/package requirement remain open. Checkpoint stays fdae1cb.
-[Actual failed closeout](docs/history/ROADMAP_DELIVERIES.md#breach-atomic-capture-attempt-stopped--2026-10-20).
+Existing `feat/breach-interruption-fixed-boot-20261018` is merged/pushed/deleted;
+owned worktree/profile/helpers removed after verified preservation. New stages
+352.043s plus retained 249.405s/four failures give 601.447s. Only this
+attempt's `results/` remains. Native Windows/GPU/devices/audio/human/final gates
+remain NOT_RUN/open and CI disabled.
+[Delivery and limits](docs/history/ROADMAP_DELIVERIES.md#breach-interruption-branch-finished--2026-10-20).
 
 **Current UI task stopped: active-tooltip baseline not reproduced.**
 Existing candidate `fix/exit-tooltip-order-20261020` remains unmerged/withheld.
@@ -246,7 +229,6 @@ contracts and cumulative attempt records remain in the retained history.
 | WALK-OBSERVATION /7,9 | Two caller failures retained; numeric e390/unchanged game4c58 completes54-goal travel/view/home prefix then FAIL89.064s on rootWindow signal disconnections after focused Exit. | PARKED; full task remains unaccepted, no clean exit0. Capture identifies the Tooltip with stored pairs still present across errors. Laterbae551d58 private route PASS, but no visible tooltip/retirement, so repair acceptance INCONCLUSIVE and candidate withheld. No second attempt selected. |
 | PERIMETER-LIVE /11 | Runtime/admission shipped fdae1cb: all selected focused/production checks, paired exports, three strict startups and package audit PASS. Existing branch merged/pushed/deleted and owned scratch cleaned. | Scoped integration DONE; full ordinary weapons/home/recovery/repeats/network/native remains OPEN. Prior 363.897s/three failures retained; total stages 742.767s. |
 | PLAY-BEACON-HOME /13 | Candidatea612ea686 FAIL37.713s guarded/37.419s driver at ActivityBoardButton Return/frame1233; same two root Window signal-disconnection diagnostics. Eleven prechecks pass; no settlement/home/L/E reached, no file captures. Unmerged/withheld. | PARKED on UI-BOARD-FOCUS. Recurrence supplies no popup/connection-removal cause; no retry/repair/cap change. Preserve original UI two-component9.627s and Mining budgets. |
-| BREACH-INTERRUPTION /13,31,32 | Candidate 853e5ee19 unmerged/withheld. Fresh import/compile/privacy PASS; sourceFAIL 71.057s at combined capture assertion after actual cold Resume/real pilot/exit/one exact paid receipt. Third cold replay/exports/archive case NOT_RUN. | Old latest-metadata boundary established, new exact failed predicate UNKNOWN because capture values were not emitted. Need actual captured document/metadata/generation/comparison results. No retry/repair/cap change selected; cumulative 249.405s retains all four failures. |
 | HALYARD-GUNNER-DAMAGE /11,16 | Original 51.847s and one caller repair 52.025s both fail co-pilot admission; actual new damage proof NOT_RUN. | Parked after cumulative 103.872s review. No further diagnosis/fix/run without concrete reopening fact/change; candidates unmerged, no weapon defect established. |
 | HELM-YAW-HANDBACK / 18,20 | Original146.578s failure; one repair reaches cabin walking then FAIL156.016s at >=0.6m/15s. | Recorded cumulative priority review parked it. Explicit selection required before further diagnosis/fix/run; no movement cause established. |
 | CABIN-PASSENGER-ROLE / 18,20 | Candidate38c079086 HUD36 and actual handback PASSENGER pass, full required route fails walking. Unmerged/withheld; no package. | Preserve full route; no acceptance narrowing or automatic second repair. |

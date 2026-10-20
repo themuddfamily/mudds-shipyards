@@ -17185,3 +17185,71 @@ inside original 45min; only
 old 3c archive/tag intact. Source candidate protected on its existing pushed branch.
 All engines headless/Dummy; native Windows/GPU/devices/audio/human/final NOT_RUN;
 CI owner hold remains. No successor task selected.
+
+
+## Breach interruption branch finished — 2026-10-20
+
+Existing `feat/breach-interruption-fixed-boot-20261018` is integrated in clean
+c78e0ac5e23043d688ac1b791d573807f1b101d8, merged and pushed to main. This delivers the original
+BREACH-INTERRUPTION executable release capability / parents 13,31,32. It adds the
+opt-in selector/probe/package consumer, preserves current main's docking/other
+recovery paths, and changes no production gameplay/reward authority/AI/timers.
+Original c159 source is retained as an ancestor. The older equivalent 3c branch
+was separately archived, never replayed or accepted by that cleanup.
+
+Concrete diagnosed correction: the physical board debt retry pays then arms the
+next Torpedo sortie; GameFlow subsequently saves tutorial-prompt-seen. Original
+interrupted/final tutorial seen sets and callback order establish that intervening
+commit. Old failed payment metadata itself was not emitted and its precise ID
+is not claimed. Capture at existing interaction_resolved for original actor,
+current board generation and accepted sortie_armed reads actual primary wire JSON
+and metadata after payment/before tutorial. Runtime and package consumer verify
+exact full reward ledger, acknowledged terminal and foreign settings/cargo in
+that SAME persisted document. Observer disconnects after interaction and teardown.
+All original later assertions, no-op file-byte equality and third cold replay
+remain; child300s/transaction1000s remain. High source review and independent
+actual-result/package review: GO.
+
+Import, probe compile, startup CLI/privacy and full source transaction pass.
+Full source and exact archived Linux native executable each own three distinct
+game processes: actual earned unpaid debt/live readiness→owned SIGKILL/reap with
+unchanged document; normal cold Resume/real saved Arrow pilot/production exit/
+physical board atomic payment; further cold paid replay retaining exactly one
+receipt and both clean recovery markers. The original staged placements,
+shortened boarding and direct real-picket damage remain disclosed. This is not
+ordinary flight/combat, original active-combat/timer/pose restoration or Torpedo
+recovery acceptance. The transaction audit records
+`game-flow-reward-0000000026` (source) and
+`game-flow-reward-0000000026` (archive).
+
+Paired clean exports, direct/archive Linux and Windows embedded payload strict
+menu checks all passed with exit0/exactly one STARTUP_MENU_READY_OK. Artifact audit matches
+1525 actual PCK entries/stock PE.text/exact Linux
+archive binary/icon/installers/modes/epoch/metadata. Archived transaction extraction
+verifies exact five members, ELF and external export metadata before native-export
+execution with no external script/PCK override. Eleven published checkpoint files
+hash-verified; Windows ZIP exactly tested EXE+notes. All Godot headless/Dummy.
+Native Windows/GPU/performance/devices/listening/human/final gates remain NOT_RUN;
+GitHub Actions disabled. Current checkpoint c78e0ac; ordinary Hold/Wing remain open. The853 failed
+capture assertion is resolved by source-proven JSON FLOAT/live INT dictionary
+semantics. Only expected live ledger uses existing canonical JSON conversion;
+actual primary and all eight exact comparisons remain, with named safe failure
+diagnostics. Retained source-comparison-proof records hashes of Godot JSON/
+Dictionary/Variant code. Earlier STOP hash is unchanged before publication/cleanup.
+
+New supervised stages 352.042694s plus retained 249.404597s/four failures give
+601.447291s, no nested process double counting. Raw authorizations/source review/
+source and archive transactions/package inventory/publication/cleanup live at
+`/srv/mudds-work/breach-atomic-handoff-20261020/repair-1/results/`. Original results at
+`/srv/mudds-work/breach-interruption-fixed-boot-20261018/results/` untouched.
+All owners terminal, 76 observed PID/start
+identities absent. Exact profile archive streamed for file hashes, directory modes,
+links and fresh full source snapshot; helper source and unique export metadata
+preserved. Owned worktree/profile/helpers removed in
+24.78min from14:37 within45min. Original failed attempt results/STOP remain unchanged
+at the parent results directory; only repair-owned worktree/profile/helpers removed.
+Branch local/remote/tracking refs deleted with expectedOID protection after
+containment in pushed main. Totals148local/91remote deleted;37local/20live remote
+heads remain including main,19non-main remote (three withheld gameplay fixes,
+16 automation/diagnostics). Ref cleanup does not imply all36 parents/ten phase
+gates are complete; all remain open.
