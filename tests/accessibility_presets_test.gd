@@ -25,6 +25,7 @@ func _run() -> void:
 	await _test_hud_palette_application()
 	await _test_hud_high_contrast_application()
 	await _test_intro_begin_shift_text_contrast()
+	await _test_help_close_text_contrast()
 	await _test_hud_reticle_styles()
 	await _test_hud_scale_and_motion()
 	await _test_hud_captions()
@@ -453,6 +454,96 @@ func _test_intro_begin_shift_text_contrast() -> void:
 	hud.queue_free()
 	await process_frame
 	await process_frame
+
+
+## Exercise the production help action rather than a separately styled button.
+## Its small text retains the same 4.5:1 / 7:1 floors as the title action.
+func _test_help_close_text_contrast() -> void:
+	var hud := GameHUD.new()
+	hud.name = "AccessibilityHelpCloseHUD"
+	root.add_child(hud)
+	await process_frame
+	var previous_mouse_mode := Input.mouse_mode
+	hud.set_reduced_motion(true)
+	hud.call("_begin")
+	await process_frame
+	await process_frame
+	hud.set_mode("piloting")
+	var panel := hud.get("_help_panel") as Control
+	var close := hud.get("_help_close_button") as Button
+	var next := hud.get("_help_next_button") as Button
+	var page := hud.get("_help_page_label") as Label
+	var resume := hud.find_child("ResumeButton", true, false) as Button
+	_check(close != null and resume != null, "actual help Close and ordinary Resume buttons exist")
+	if close == null or resume == null:
+		hud.queue_free()
+		await process_frame
+		Input.mouse_mode = previous_mouse_mode
+		return
+	panel.show()
+	close.grab_focus()
+	var focus_outline := close.get_theme_stylebox("focus")
+	var authored_minimum := close.custom_minimum_size
+	var authored_neighbors := [close.focus_neighbor_left, close.focus_neighbor_right]
+	var authored_page := page.text
+	var paints := {
+		"normal": ["font_color", "normal"],
+		"focus": ["font_focus_color", "normal"],
+		"hover": ["font_hover_color", "hover"],
+		"pressed": ["font_pressed_color", "pressed"],
+	}
+	var authored_fills: Dictionary = {}
+	var authored_text: Dictionary = {}
+	for state: String in paints:
+		var keys: Array = paints[state]
+		authored_fills[state] = (close.get_theme_stylebox(keys[1]) as StyleBoxFlat).bg_color
+		authored_text[state] = close.get_theme_color(keys[0])
+	for high_contrast: bool in [false, true]:
+		hud.set_high_contrast_hud(high_contrast)
+		var floor_ratio := Palette.MINIMUM_HIGH_CONTRAST_PANEL_CONTRAST if high_contrast else Palette.MINIMUM_PANEL_CONTRAST
+		for mode_id: StringName in Palette.get_mode_ids():
+			hud.set_hud_palette(mode_id)
+			for state: String in paints:
+				var keys: Array = paints[state]
+				var text := close.get_theme_color(keys[0])
+				var fill := (close.get_theme_stylebox(keys[1]) as StyleBoxFlat).bg_color
+				var ratio := Palette.contrast_ratio(text, fill)
+				_check(
+					ratio >= floor_ratio,
+					"Help Close %s/%s high-contrast=%s clears %.1f:1 (measured %.3f:1)"
+					% [mode_id, state, high_contrast, floor_ratio, ratio]
+				)
+			var nominal := Palette.get_role_color(mode_id, Palette.ROLE_NOMINAL, high_contrast)
+			_check(
+				(resume.get_theme_stylebox("hover") as StyleBoxFlat).bg_color == nominal.darkened(0.55)
+				and (resume.get_theme_stylebox("pressed") as StyleBoxFlat).bg_color == nominal.darkened(0.35),
+				"ordinary menu buttons retain their authored hover/pressed fills in %s high-contrast=%s"
+				% [mode_id, high_contrast]
+			)
+	hud.set_high_contrast_hud(false)
+	hud.set_hud_palette(Palette.MODE_NONE)
+	for state: String in paints:
+		var keys: Array = paints[state]
+		_check(
+			(close.get_theme_stylebox(keys[1]) as StyleBoxFlat).bg_color == authored_fills[state]
+			and close.get_theme_color(keys[0]) == authored_text[state],
+			"Help Close %s restores its authored paint after palette/contrast changes" % state
+		)
+	_check(
+		close.has_focus() and close.focus_mode == Control.FOCUS_ALL
+		and close.get_theme_stylebox("focus") == focus_outline
+		and close.custom_minimum_size == authored_minimum
+		and [close.focus_neighbor_left, close.focus_neighbor_right] == authored_neighbors
+		and page.text == authored_page,
+		"Help Close retains focus, outline, geometry, navigation and current page"
+	)
+	next.pressed.emit()
+	_check(page.text != authored_page, "help paging remains usable after repainting Close")
+	close.pressed.emit()
+	_check(not panel.visible, "the repainted production Close action still dismisses help")
+	hud.queue_free()
+	await process_frame
+	Input.mouse_mode = previous_mouse_mode
 
 
 ## The reticle styles change only the authored geometry. Every style keeps the
