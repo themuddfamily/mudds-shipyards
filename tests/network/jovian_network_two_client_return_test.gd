@@ -16,6 +16,9 @@ var _postdock_exited := false
 var _postdock_start: Dictionary = {}
 var _postdock_body_id := 0
 var _postdock_ground_start := Vector3.ZERO
+var _postdock_exit_route_observed := false
+var _postdock_exit_motion_observed := false
+var _postdock_exit_samples: Array[Dictionary] = []
 
 
 func _run() -> void:
@@ -400,9 +403,11 @@ func _client_postdock_exit() -> bool:
 	var route := _craft.get_exterior_exit_waypoints()
 	if not _require(route.size() >= 3, "same Jovian retains authored cockpit-to-hatch exit waypoints"):
 		return false
-	for waypoint: Transform3D in [route[0], route[1], route[2]]:
-		if not await _walk_to(waypoint.origin, true):
-			return false
+	# These exterior poses belong to the confirmed exit animation. Interact
+	# from the supported cabin, outside the pilot-seat promotion radius, before
+	# the production exit opens the door and follows every exterior waypoint.
+	if not await _walk_to(_postdock_hatch_approach(), true):
+		return false
 	if not _require(_local_postdock_cabin_current(), "same supported cabin body reaches authored hatch approach"):
 		return false
 	_write("client_b.postdock_hatch", _postdock_receipt())
@@ -410,6 +415,9 @@ func _client_postdock_exit() -> bool:
 		"host consumes original body walking to actual hatch before exit input"):
 		return false
 	_return_stage = "client_b.postdock_hatch_interact"
+	if not _require(not _game._network_client_near_pilot_seat(_craft),
+		"ordinary cabin exit prompt is outside the pilot-seat promotion radius"):
+		return false
 	await _look(_craft.get_boarding_position() + Vector3.UP * 1.2)
 	if not await _postdock_wait(func():
 		return (_game.boarding_candidate == _craft
@@ -422,6 +430,9 @@ func _client_postdock_exit() -> bool:
 	_return_stage = "client_b.postdock_exterior"
 	if not await _postdock_wait(_local_postdock_ground_current, 8.0,
 		"hatch Interact leaves original Player supported beside authored berth exit with released cabin/hatch/body claims within8s"):
+		return false
+	if not _require(_postdock_exit_route_observed and _postdock_exit_motion_observed,
+		"confirmed exit physically traverses the complete original authored exterior route instead of relocating to station spawn"):
 		return false
 	_postdock_exited = true
 	_postdock_ground_start = _player.global_position - _game.world.global_position
@@ -444,6 +455,23 @@ func _client_postdock_exit() -> bool:
 func _postdock_observe() -> void:
 	if _postdock_active and not _aborted():
 		_require(_postdock_invariants(), "original peer/Player, current landed owner and uninvolved pilot remain valid throughout " + _return_stage)
+		if _role == "client_b" and _return_stage == "client_b.postdock_exterior" \
+				and int(_player.get("_embodiment_state")) == PlayerController.EmbodimentState.DISEMBARKING:
+			var expected := _craft.get_exterior_exit_waypoints()
+			var actual := _player.get("_transition_waypoints") as Array
+			var current := _player.get("_transition_frame") == _craft and actual.size() == expected.size() + 1
+			if not actual.is_empty():
+				current = current and (actual[0] as Transform3D).origin.is_equal_approx(
+					_craft.to_global(Vector3(-1.10, 0.52, -6.70)))
+			for index in mini(maxi(actual.size() - 1, 0), expected.size()):
+				current = current and (actual[index + 1] as Transform3D).is_equal_approx(expected[index])
+			_require(current, "live production passenger exit retains every original authored exterior waypoint and frame")
+			_postdock_exit_route_observed = _postdock_exit_route_observed or current
+			var position := _craft.to_local(_player.global_position)
+			if not _postdock_exit_samples.is_empty():
+				_postdock_exit_motion_observed = _postdock_exit_motion_observed \
+					or position.distance_to(_vector_from(_postdock_exit_samples[0].position)) >= 1.0
+			_postdock_exit_samples.append({"tick": Engine.get_physics_frames(), "position": _vector_values(position)})
 
 
 func _postdock_wait(predicate: Callable, seconds: float, description: String) -> bool:
@@ -593,8 +621,7 @@ func _passenger_is_current(peer: int) -> bool:
 
 
 func _postdock_hatch_approach() -> Vector3:
-	var route := _craft.get_exterior_exit_waypoints()
-	return (route[2] as Transform3D).origin if route.size() >= 3 else Vector3.INF
+	return _craft.to_global(Vector3(-1.75, 0.52, -6.30))
 
 
 func _postdock_ground_exit() -> Vector3:
@@ -660,5 +687,8 @@ func _postdock_receipt() -> Dictionary:
 		receipt["seated"] = _player.is_seated()
 		receipt["ground_supported"] = _local_postdock_ground_current() if _role == "client_b" else false
 		receipt["ground_distance_m"] = _postdock_ground_distance() if _postdock_exited else 0.0
+		receipt["exit_route_observed"] = _postdock_exit_route_observed
+		receipt["exit_motion_observed"] = _postdock_exit_motion_observed
+		receipt["exit_samples"] = _postdock_exit_samples.duplicate(true)
 		receipt["arrival"] = _client_return_receipt()
 	return receipt
