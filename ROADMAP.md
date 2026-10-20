@@ -85,9 +85,11 @@ JOVIAN_NETWORK_TWO_CLIENT_PASSENGER_REBOARD_OK. Retain full ordinary boarding,
 departure, actual home landing, physical hatch exit and supported exterior walk;
 then original client_b ordinarily walks back, enters through the authored hatch
 and sits in its original co_pilot_station. Original pilot/helm/source/ownership
-and strict occupied home lease remain current. Host and both consumed clients
+and strict occupied home lease remain current. Host and the actual passenger consumer
 must agree on new current boarding/body/frame/seat generations, exactly one chair
-claim and retirement of old released exterior claims. No pose/claim writes,
+claim and retirement of old released exterior claims. The pilot consumes the new
+passenger relationship/anchor pose and retains its original helm/ownership; the
+passenger-only chair assignment is not published to the pilot. No pose/claim writes,
 engineer/craft swap, pilot release or departure. Existing original identity
 assertions must distinguish legitimate new boarding generations from stale old
 ones; they cannot be bypassed for the new phase.
