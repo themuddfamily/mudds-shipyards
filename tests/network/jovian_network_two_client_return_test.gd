@@ -1774,11 +1774,11 @@ func _client_redepart() -> bool:
 	if _role == "client":
 		_action(&"brake", false)
 	_redepart_stop = _read("host.redepart_stopped").get("stop", {}) as Dictionary
-	_redepart_stopped = true
 	_return_stage = _role + ".redepart_convergence"
 	if not await _postdock_wait(_client_redepart_stop_consumed, 5.0,
 		"same actual hull consumes a post-stop pose, advances flying landing generation and converges<=0.5m with exact seated actors within5s"):
 		return false
+	_redepart_stopped = true
 	_write(_role + ".redepart_converged", _redepart_receipt())
 	if not await _postdock_wait(func(): return _flight_file_exists("host.redepart_complete"), 8.0,
 		"host confirms both actual client stopped-pose and unchanged new-authority outcomes"):
