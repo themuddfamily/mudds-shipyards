@@ -6,13 +6,14 @@ Nine of the eventual 17 craft exist; eight still need supported specifications
 and implementation. Partial acceptance is retained in the backlog; it is not
 whole-feature completion.
 
-Latest playable checkpoint: **9e9d1be**. Active board encounters now stand down
-when normal automatic home landing begins. Fresh focused checks and package
-startups pass; full Wing two-kill/home qualification remains open. Earlier51257b3
-Arrow hit/two-flight qualification is retained without claiming a new full-sortie
-run on this package. [Windows ZIP](builds/windows/MuddsShipyards-9e9d1be-checkpoint.zip),
-[Windows notes](builds/windows/MuddsShipyards-9e9d1be-notes.txt),
-[Linux notes](builds/linux/MuddsShipyards-9e9d1be-linux-notes.txt).
+Latest playable checkpoint: **fdae1cb**. Perimeter Hold now follows Heavy Breach,
+Torpedo Run and Paired Wing on the physical Activity Board. Defend the live core
+against three distinct attackers for 90 seconds, keeping integrity strictly above 35%;
+the HUD shows both. Staged objective/lifecycle and actual physical-admission
+checks pass; full ordinary weapons/home/recovery/repeat qualification remains open.
+[Windows ZIP](builds/windows/MuddsShipyards-fdae1cb-checkpoint.zip),
+[Windows notes](builds/windows/MuddsShipyards-fdae1cb-notes.txt),
+[Linux notes](builds/linux/MuddsShipyards-fdae1cb-linux-notes.txt).
 
 This page is the working queue. The
 [36-parent crosswalk and named children](docs/ROADMAP_BACKLOG.md#coverage-of-the-original-remaining-outcomes)
@@ -43,8 +44,12 @@ been defined. Do not turn test counts, commits or row counts into project progre
 ## Execution now
 
 **Current focus: finish or explicitly account for existing unmerged work.**
-**144 local and 87 live remote branches deleted; 41 local and 24 live remote
-branches remain, including main (23 non-main remote).** Counts describe refs,
+Resolve one existing branch at a time. Before selecting another, either merge and
+push accepted work and delete the branch, or preserve its unique source/results
+and record the exact unmet requirement and blocker. A failed check does not
+automatically authorize an adjacent task or retry.
+**145 local and 88 live remote branches deleted; 40 local and 23 live remote
+branches remain, including main (22 non-main remote).** Counts describe refs,
 not completed features. [Branch accounting and closeouts](docs/history/ROADMAP_DELIVERIES.md#branch-accountability-and-race-timeout-diagnosis--2026-10-20)
 preserve the underlying roadmap requirements.
 
@@ -76,34 +81,20 @@ new80.920s gives814.146s total stages. Independent review confirms no fix
 qualification; all inputs/processes cleaned, ten owned identities absent. Only
 `/srv/mudds-work/tooltip-close-20261020/results/` remains for this attempt.
 
-Latest playable checkpoint remains9e9d1be above. Its landing-withdrawal fix is
-integrated; the archived Wing driver's two-kill/full-return requirement remains
-FAILED/open. Native Windows/GPU/devices/audio/human/final gates stayNOT_RUN/open.
+**Existing Perimeter branch finished and merged.** Runtime/admission integration
+is shipped in fdae1cb above. The original Breach test remains byte-identical;
+its 48 assertions pass in 76.650s and the separate actual-Main Hold case passes 19
+assertions under their unchanged 90s limits. Director/asset/board/HUD/staged Hold/
+Wing checks, paired exports, three strict menu startups and actual package audit
+all pass. Independent source/result review accepted the scoped delivery.
 
-**Selected existing delivery: PERIMETER-LIVE integration,14:12–14:57UTC/45min.**
-Reuse existing `feat/perimeter-live-20261020` / aa88b5a73; retain its363.897s/three
-failed attempts. Deliver the defined90s protected-core defense with three distinct
-live attackers, real integrity/countdown HUD, solo admission and complete source
-withdrawal. Preserve Heavy→Torpedo→Wing; append Hold fourth because Wing is now
-shipped. Existing credit/debt remains exclusive to Heavy/Torpedo; saved0–2 offers
-remain valid, newHold index3 supported without a new save format. Preserve current
-Wing solo behavior and accepted automatic-landing standdown. Broader ordinary
-weapons/home/recovery/repeats/network/native qualification remains open as before.
-
-Concrete test-boundary change: move ALL Hold physical-admission assertions from
-the end of the long recovery suite into an opt-in case in the existing Hold test.
-Restore original Breach test exactly to main; run it and the separate Hold case
-under unchanged90s caps. No assertion/fixture-operation drop, cap increase or
-startup-speed claim. Retain default52 staged Hold checks. One high implementer
-owns candidate15files plus current Wing admission test; one independent high
-semantic/lifecycle reviewer. Five merge-conflict files require explicit review.
-Estimate10–15min integration/review. Before engines freeze exactclean source:
-import180s; director/asset/board/HUD/Hold-staged/Wing/Breach/Hold-production90s each;
-pairedexports180s each; three strictmenu startups120s each; actualartifactaudit90s.
-AllGodotDummy/headless, strictpackageexit0+menu marker; no hostedCI. First failure
-stops. Accepted runtime delivery requires allselectedchecks, matching playable
-packages/notes, mainmerge/push, branch/worktree cleanup. Full ordinary Hold and
-parent11 remain open; no diagnostic-only patch is substituted for this feature.
+Existing `feat/perimeter-live-20261020` is contained in pushed main; its local,
+remote and tracking refs and owned worktree/profile/helpers are removed after
+verified preservation. Only this attempt's `results/` remains. New supervised
+stages 378.870s plus retained 363.897s give 742.767s; original failed attempts
+remain recorded. Full ordinary Hold and parent 11 remain OPEN. Native Windows,
+GPU/devices/audio/human/final gates stay NOT_RUN/open; CI stays disabled.
+[Delivery and actual limits](docs/history/ROADMAP_DELIVERIES.md#perimeter-live-branch-finished--2026-10-20).
 
 **Ready production cards: 0. Prepared production cards waiting on decisions: 3.**
 The decisions below remain pending; they do not prevent finishing independently
@@ -202,7 +193,7 @@ contracts and cumulative attempt records remain in the retained history.
 | BROWSER-ORDINARY /25 | Candidatee944f52:89Python/privacy/35join/package checks pass, actual routeFAIL40.554s at NetworkSession tree_exited disconnect error; cleanup fixture command rejected. | PARKED/unmerged/withheld. Subsequent passive capture identifies retained native RPC-cache callback; it does not qualify the route. Full continuation NOT_RUN. Original raw data/eight builds preserved; scratch cleaned. |
 | AFT-CONSOLE-VIEW /9,12 | Standalone actual-module Xvfb/Forward+/llvmpipe capture FAIL120.485s after camera setup; no image or visual finding. | PARKED; source/root cause unproven. No cap increase, alternate backend/view or retry selected. Owned scratch cleaned; raw results retained. |
 | WALK-OBSERVATION /7,9 | Two caller failures retained; numeric e390/unchanged game4c58 completes54-goal travel/view/home prefix then FAIL89.064s on rootWindow signal disconnections after focused Exit. | PARKED; full task remains unaccepted, no clean exit0. Capture identifies the Tooltip with stored pairs still present across errors. Laterbae551d58 private route PASS, but no visible tooltip/retirement, so repair acceptance INCONCLUSIVE and candidate withheld. No second attempt selected. |
-| PERIMETER-LIVE /11 | Candidateaa88b5a73 unmerged; staged Hold52/director149/asset12/board58/HUD9 pass. GameFlow FAIL90.178s before Hold entry; exports NOT_RUN. | PARKED after cumulative363.897s/three failures and independent review. Concrete change addressing retained full GameFlow route boundary plus separate selection required; no additional correction/retry/cap increase/narrowed acceptance. |
+| PERIMETER-LIVE /11 | Runtime/admission shipped fdae1cb: all selected focused/production checks, paired exports, three strict startups and package audit PASS. Existing branch merged/pushed/deleted and owned scratch cleaned. | Scoped integration DONE; full ordinary weapons/home/recovery/repeats/network/native remains OPEN. Prior 363.897s/three failures retained; total stages 742.767s. |
 | PLAY-BEACON-HOME /13 | Candidatea612ea686 FAIL37.713s guarded/37.419s driver at ActivityBoardButton Return/frame1233; same two root Window signal-disconnection diagnostics. Eleven prechecks pass; no settlement/home/L/E reached, no file captures. Unmerged/withheld. | PARKED on UI-BOARD-FOCUS. Recurrence supplies no popup/connection-removal cause; no retry/repair/cap change. Preserve original UI two-component9.627s and Mining budgets. |
 | BREACH-INTERRUPTION /13,31,32 | Originale9/repair3c fail board arming35.365/35.638s. After accepted owner fix e3, unchanged probe c159 fails69.957s at atomic-payment commit assertion after cold Resume/one matching receipt; third cold replay NOT_RUN. | Cumulative140.961s STOP/PARK; candidates unmerged/withheld, no recovery checkpoint. No further diagnosis/repair/run, fourth automatic attempt or renamed retry selected; concrete causal fact/change required. |
 | HALYARD-GUNNER-DAMAGE /11,16 | Original 51.847s and one caller repair 52.025s both fail co-pilot admission; actual new damage proof NOT_RUN. | Parked after cumulative 103.872s review. No further diagnosis/fix/run without concrete reopening fact/change; candidates unmerged, no weapon defect established. |

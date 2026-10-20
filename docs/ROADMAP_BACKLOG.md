@@ -223,7 +223,7 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | COMBAT-COURIER | Courier Intercept | 11 | Clear candidatecb9d76fa5 WITHHELD/unmerged after one ordinary route70.377s FAIL: actual courier escapes1400m at78/78 hull, no player hit/kill. Five prechecks PASS; no home/checkpoint/retry. [Separate bounded outcomes](#courier-intercept--bounded-outcomes) preserve clear/escape/two withdrawals/recovery and original full journey |
 | COMBAT-WING | Paired Wing Break | 11 | FAILED/open ordinary two actual player-weapon kills plus complete home/OFFLINE physical exit/UIquit. Latest9a68aa01f trial102.037s:8shots,0Wingdamagehits/kills, both opponents38health; prerequisite Heavy/Torpedo home journeys pass. Unique diagnostic source archived under pushed tag `archive/diagnostics/wing-ordinary-route-20261020`; branch/worktree removed, observer/selector/driver excluded from main. Independently accepted board-landing withdrawal fix shipped9e9d1be; it does not complete Wing combat. [Closeout](history/ROADMAP_DELIVERIES.md#wing-branch-accounted-landing-fix-shipped--2026-10-20) |
 | COMBAT-WING-ADMISSION | Existing Wing becomes a genuine third solo board contract | 11 | DONE checkpointf671da9: on-foot arm/cancel, physical departure/registered source gate, real suppression/flank pair, solo/network refusal, both-destroyed objective with healthy-retirement abort, correct HUD/audio/no-credit lifecycle. Actual Main28/director151/board59/HUD8/audio11 checks, paired exports/startups/audit PASS. Component simulated clear disclosed; no full ordinary kills/home. [Result](history/ROADMAP_DELIVERIES.md#paired-wing-board-admission--shipped-on-f671da9) |
-| COMBAT-PERIMETER | Perimeter Hold | 11 | PERIMETER-LIVE candidateaa88b5a73 PARKED/unmerged: staged runtime52 assertions pass; full GameFlow route90s timeout before Hold entry. No exports/accepted delivery. Retain original ordinary weapon/home, failure/recovery and repeat requirements; see bounded handoff below |
+| COMBAT-PERIMETER | Perimeter Hold | 11 | PERIMETER-LIVE runtime/admission DONE fdae1cb: physical fourth-board contract, protected core/three live attackers,90s/>35%, HUD and lifecycle. Actual-Main admission, retained Breach recovery, staged objective and paired packages PASS; branch merged/deleted. Full ordinary weapon/home, failure/recovery, repeats/network/native remain OPEN. [Delivery](history/ROADMAP_DELIVERIES.md#perimeter-live-branch-finished--2026-10-20) |
 | COMBAT-BREACH | Heavy Breach | 11 | Same ordinary sortie as PLAY-BREACH below; one successful route may satisfy both parents, without counting two deliveries. Additional supported damage/recovery/craft cases remain explicit; BREACH-INTERRUPTION stays PARKED |
 | COMBAT-TORPEDO | Torpedo Run evade/intercept/destroy/fail/abort | 11,23 | PLAY-TORPEDO supplies the first actual boat-clear/home sortie. Freeze evade/intercept, failure, abort and solo restoration separately afterward; one happy-path clear cannot close all cases or TORPEDO authority/restoration |
 
@@ -254,7 +254,7 @@ are the implementation seam; add the smallest behavior-specific checks.
 Estimate one driver/observer route at30–60min implementation/review plus10–20min
 checks/package/cleanup; split before90min. These are planning estimates, not
 permission to restart a failed card's clock. First successful packaged clear
-still leaves other craft, encounter, damage, recovery and parent11 gates open.
+still leaves other craft, encounter, damage, recovery and parent 11 gates open.
 
 ### Freight terminals — physical interface and existing transfer owner
 
@@ -315,19 +315,25 @@ and the separate34s/1–2–1 Station Defense activity. Existing Breach marker h
 health; its two scatter craft and guided RangeOpponent do not implement the
 catalog's three distinct actors.
 
-**PERIMETER-LIVE is PARKED, not delivered.** Candidateaa88b5a73 on pushed branch
-`feat/perimeter-live-20261020` implements the solo third-board contract, dedicated
-asset/three actors, catalog objective, HUD and lifecycle fences. Staged Hold
-runtime52 assertions and existing director/asset/board/HUD suites pass. The full
-GameFlow suite reaches its90s cap during retained Breach/Torpedo recovery before
-any Hold physical-entry assertion. Candidate unmerged; exports/checkpoints NOT_RUN.
-No Perimeter checkpoint is accepted. Cumulative363.897s across15 engine stages
-and all three failures remain in the
-[original contract and results](history/ROADMAP_DELIVERIES.md#perimeter-hold-live-integration--implemented-but-parked).
-No additional correction/retry/cap increase or narrower replacement proof is
-selected. Reopening requires a concrete change addressing the retained GameFlow
-route boundary and a separately selected contract. Ordinary weapon engagement/
-home, recovery, repeats, network and native/human requirements remain OPEN.
+**PERIMETER-LIVE runtime/admission is DONE on fdae1cb.** Existing candidate aa88b5a73
+was integrated after main's shipped Wing, so Hold is fourth rather than third.
+Actual-Main board/seat/thrust departure, dedicated health asset/three distinct
+resolver actors, catalog 90s/>35% boundaries, HUD and synchronous cleanup pass.
+Heavy/Torpedo alone retain credit/debt; saved offers 0–2 and new 3 are supported.
+The shipped automatic-landing withdrawal guard is preserved.
+
+All original Breach test bytes/assertions remain; the Hold admission case moved
+intact into the existing Hold test's opt-in mode. Both keep 90s caps; original
+Breach 48 assertions complete in 76.650s, Hold 19 pass. Default staged Hold 52 and the
+existing director 153/asset 12/board 69/HUD 11/Wing 40 checks pass. Matching clean
+Windows/Linux exports, three strict menu startups and actual package audit pass.
+This is staged objective/lifecycle plus physical admission, not ordinary weapon
+combat or a complete 90s home/reuse sortie. Ordinary weapons/home, recovery,
+repeats, network and native/human requirements remain OPEN. Candidate merged and
+pushed; branch deleted and owned scratch cleaned after preservation. Prior
+363.897s/three failures remain recorded; new stages 378.870s, cumulative 742.767s.
+[Original failures](history/ROADMAP_DELIVERIES.md#perimeter-hold-live-integration--implemented-but-parked)
+and [accepted closeout](history/ROADMAP_DELIVERIES.md#perimeter-live-branch-finished--2026-10-20).
 
 **Fleet handoff:** a SPEC closes with supported identity/capability facts,
 explicit unknowns and any required owner interpretation. BUILD-SPLIT replaces
@@ -1111,7 +1117,7 @@ Scope: original §3, retained abandonment milestone and Phase 8/10.4 specificati
 | ACT-PLAY[one nearby activity] | ELIGIBLE for implemented content | Ordinary outbound travel, actual activity, reward and home return work at canonical distances. Stop after first full play or first reproduced defect; repetition/endurance is ACT-REPEAT. |
 | ACT-REPEAT[one activity] | GATED on ACT-PLAY | Complete its existing repeated-use/endurance scenario with once-only rewards and clean actors/state. Stop at that scenario's original duration, not a new arbitrary loop target. |
 | TRAVEL-LIMIT[one nearby route] | Beacon outbound proposal recorded; owner choice WAITING | Use the finite clock/basis proposal below.30s is proposed,60s offered as alternative; neither is agreed or proved. Obtain the required decision before timing implementation/qualification; other routes retain their original scope. Stop at finite criterion, not an invented “agreed maximum.” |
-| HULK[physical salvage/power/revisit] | Arrival, breaker and home ordinary-input qualification DONE; revisit/disk gates open | Existing interior83 scoped checks retain their limits. Full ordinary Guided/HULK/breaker/reverse walk/reboard/home route driver7e251f8af/gameef67f3e95 passes191.886s at original300s cap, actual unload and once-only receipt retained; checkpointef67f3e Linux is exact tested binary. Windows payload startup/privacy passes separately; strict payload parity fails65 generated scenes. REVISIT-CONTRACT DONE; REVISIT-INPUT candidate5010ef932 FAILED optional-lift driver condition; REVISIT-DEPARTURE candidate2298e4889 FAILED original300s deadline during new interior walk after actual reload/dock/exit; no fresh breaker event. Candidate withheld; REVISIT-CHECKPOINT GATED; independent Ember ABANDON source qualification subsequently DONE; no HULK repair selected in ROADMAP.md; no unchanged interior rerun or full-parent closure. |
+| HULK[physical salvage/power/revisit] | Arrival, breaker and home ordinary-input qualification DONE; revisit/disk gates open | Existing interior83 scoped checks retain their limits. Full ordinary Guided/HULK/breaker/reverse walk/reboard/home route driver7e251f8af/gameef67f3e95 passes 191.886s at original300s cap, actual unload and once-only receipt retained; checkpointef67f3e Linux is exact tested binary. Windows payload startup/privacy passes separately; strict payload parity fails65 generated scenes. REVISIT-CONTRACT DONE; REVISIT-INPUT candidate5010ef932 FAILED optional-lift driver condition; REVISIT-DEPARTURE candidate2298e4889 FAILED original300s deadline during new interior walk after actual reload/dock/exit; no fresh breaker event. Candidate withheld; REVISIT-CHECKPOINT GATED; independent Ember ABANDON source qualification subsequently DONE; no HULK repair selected in ROADMAP.md; no unchanged interior rerun or full-parent closure. |
 | WORLD-CONTENT[one world/gap] | DEFINE if missing content not named | For Ember, Aurora or Rime, name one finite missing environmental/content behavior from the original specification and roster. Implement that behavior in a separate bounded child with ordinary surface interaction and checkpoint. Stop at specification or named behavior, not a new planet catalogue. |
 | WORLD-SOLO[one world] | ELIGIBLE for implemented world; existing physical route | Complete canonical outbound, atmospheric descent, physical landing/exit/activity/reboard, ascent and home dock through ordinary controls. Preserve original route/physics limits; staged arrival is not acceptance. Stop at one world's full route or first defect. |
 | WORLD-ABANDON[one world] | GATED on WORLD-SOLO route | Qualify delivered abandonment/home-return fixes in full integrated-source and packaged journey, including physical walking/docking/reuse. Ember integrated-source ABANDON DONE on e85157b4d: exact31, exit0, physical outbound/abandon/reboard/ascent/home occupied dock/walking, MemoryFilesystem, original7200s cap. Packaged journey/reuse/disk gates remain open; earlier ec457/6e1 scoped passes are not this full parent gate. Stop at named scenario; no unchanged source rerun. |
@@ -2490,7 +2496,7 @@ Production seams: [GameFlow](../scripts/game/game_flow.gd) functions named above
 [existing reward authority](../scripts/game/game_flow_reward_authority.gd).
 No code/tests/engines/packages changed or ran for this definition. Four active
 terminal-owner policies, installed/final candidate and ordinary-controls recovery
-remain open. Native/device/human gates and all36 parents/ten phase gates remain open.
+remain open. Native/device/human gates and all 36 parents/ten phase gates remain open.
 
 ### Settled exterior on-foot recovery contract
 

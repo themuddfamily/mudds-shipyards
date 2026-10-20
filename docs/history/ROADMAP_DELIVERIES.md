@@ -17013,3 +17013,45 @@ helpers archived; clean detached checkout/cache and live profiles/helpers remove
 Only /srv/mudds-work/tooltip-close-20261020/results/ remains. New stages80.91978290607221s,
 retainedtotal814.1457829060722s; no budgetreset/retry. Native/device/audio/human/final
 qualification remainsNOT_RUN/open. Latest playable checkpoint stays9e9d1be.
+
+
+## Perimeter live branch finished — 2026-10-20
+
+Existing `feat/perimeter-live-20261020` candidate aa88b5a73 is integrated in clean
+fdae1cb35ae1556ea1aef70146ca5d7b62b5a691, merged and pushed to main. Fourth board
+contract preserves Heavy→Torpedo→Wing; dedicated core, lance picket/scatter
+flanker/repeating press,90s strict>35% objective, integrity/countdown HUD and
+source/phase/network/teardown fences are now executable production behavior.
+Heavy/Torpedo payment allowlists, old saved indices and shipped landing guard
+remain intact. Independent high source and actual-result review: GO.
+
+Concrete correction to original parked attempt: original Breach test restored
+byte-for-byte main; all Hold physical-admission assertions moved intact to the
+existing Hold test opt-in. No cap increase, dropped assertion or startup-speed
+claim. Actual checks: director153/asset12/board69/HUD11/stagedHold 52/Wing40,
+Hold physical board/seat/departure19, retained Breach/recovery48. Breach76.650s
+inside unchanged 90s; Hold32.203s inside its separate unchanged 90s. Staged tests
+exercise objective boundaries; this does not establish ordinary weapon kills,
+full90s combat/home, recovery/repeats or multiplayer acceptance.
+
+Windows/Linux clean exports, direct ELF/archive and Windows embedded payload
+strict startup checks exit0/exactlyoneSTARTUP_MENU_READY_OK; actual package audit
+finds1525 matching entries, stock PE.text and
+exact Linux archive members/bytes/modes/epoch. Eleven public checkpoint files
+hash-verified, Windows ZIP exactEXE+notes. Native Windows/GPU/performance/devices/
+listening/human/final gates remainNOT_RUN; owner CI hold retained.
+
+New supervised stage time378.870363s, retained363.896517s/three failures,
+cumulative742.766880s. Raw results/source authorization/reviews/package audit/
+publication and cleanup live at
+`/srv/mudds-work/perimeter-live-integration-20261020/results/`; original
+`/srv/mudds-work/perimeter-live-20261020/results/` remains untouched.
+All owners terminal; 70 observed PID/start
+identities absent. Profiles archived and streaming-verified including directory
+modes/file hashes/symlink targets plus fresh full snapshot; helper sources and
+unique export metadata preserved. Owned worktree/profile/helpers removed in
+16.08min from14:12UTC inside45min window.
+Local/remote branch removal uses exactOID leases after ancestry/pushed-main
+checks; tracking ref removed. Counts145local/88remote deleted;40local/23remote
+heads remain including main,22non-main remote. Counts describe refs, not product
+completion. All 36 parent outcomes and ten phase gates remain open.
