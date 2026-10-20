@@ -19,10 +19,17 @@ var _postdock_ground_start := Vector3.ZERO
 var _postdock_exit_route_observed := false
 var _postdock_exit_motion_observed := false
 var _postdock_exit_samples: Array[Dictionary] = []
+var _reboard_selected := false
+var _reboard_active := false
+var _reboard_complete := false
+var _reboard_released: Dictionary = {}
+var _reboard_cabin: Dictionary = {}
+var _reboard_seated: Dictionary = {}
 
 
 func _run() -> void:
-	_postdock_selected = "--postdock-passenger-exit" in OS.get_cmdline_user_args()
+	_reboard_selected = "--postdock-passenger-reboard" in OS.get_cmdline_user_args()
+	_postdock_selected = _reboard_selected or "--postdock-passenger-exit" in OS.get_cmdline_user_args()
 	await super._run()
 
 
@@ -30,6 +37,8 @@ func _peer_arguments(role: String, display: PackedStringArray) -> PackedStringAr
 	var args := super._peer_arguments(role, display)
 	if _postdock_selected:
 		args.append("--postdock-passenger-exit")
+	if _reboard_selected:
+		args.append("--postdock-passenger-reboard")
 	return args
 
 
@@ -41,7 +50,9 @@ func _peer_profile() -> Dictionary:
 
 func _print_peer_success() -> void:
 	# Inherited coordinator alone prints this after all actual peer OS exits0.
-	if _postdock_selected:
+	if _reboard_selected:
+		print("JOVIAN_NETWORK_TWO_CLIENT_PASSENGER_REBOARD_OK checks=%d" % _checks)
+	elif _postdock_selected:
 		print("JOVIAN_NETWORK_TWO_CLIENT_PASSENGER_EXIT_OK checks=%d" % _checks)
 	else:
 		print("JOVIAN_NETWORK_TWO_CLIENT_RETURN_OK checks=%d" % _checks)
@@ -109,6 +120,8 @@ func _client_scenario() -> bool:
 	_return_landing_held = false
 	if result and _postdock_selected:
 		result = await _client_postdock_exit()
+		if result and _reboard_selected:
+			result = await _client_postdock_reboard()
 		if physics_frame.is_connected(_postdock_observe):
 			physics_frame.disconnect(_postdock_observe)
 		_release_walk()
@@ -306,6 +319,9 @@ func _failure_snapshot(description: String) -> Dictionary:
 	if _postdock_active:
 		snapshot["postdock"] = _postdock_receipt()
 		snapshot["postdock_start"] = _postdock_start
+	if _reboard_active:
+		snapshot["reboard"] = {"released": _reboard_released, "cabin": _reboard_cabin,
+			"seated": _reboard_seated, "complete": _reboard_complete, "current": _reboard_receipt()}
 	return snapshot
 
 
@@ -358,6 +374,8 @@ func _host_postdock_exit() -> bool:
 		"both original clients explicitly consumed the selected continuation and real ground-walk result"):
 		return false
 	_write("host.postdock_complete", _postdock_receipt())
+	if _reboard_selected:
+		return await _host_postdock_reboard()
 	_return_stage = "postdock.retained"
 	return true
 
@@ -499,16 +517,22 @@ func _postdock_invariants() -> bool:
 			and source.get_delivery_generation() == int(_postdock_start.source.delivery_generation) \
 			and manifest.client == _flight_manifest.client and manifest.ownership == _flight_manifest.ownership \
 			and _peer_generation(int(_flight_start.passenger_peer)) == int(_flight_manifest.client_b.peer_generation) \
-			and _game.phase == GameFlow.Phase.INTRO and not _player.is_seated() and not _player.is_control_enabled()
+			and _game.phase == GameFlow.Phase.INTRO and not _player.is_seated() and not _player.is_control_enabled() \
+			and (_reboard_cabin.is_empty() or _reboard_cabin_identity_current()) \
+			and (not _reboard_complete or _host_reboard_seated_current())
 	var source := _craft.get("_default_local_command_source") as ShipCommandSource
 	var active := _craft.get("_command_source") as ShipCommandSource
 	return _same_identity() and _walking_identity_is_preserved() \
 		and _postdock_arrival_current() \
 		and (source == null or (source.get_stream_id() == int(_postdock_start.source.stream_id)
 			and source.get_delivery_generation() == int(_postdock_start.source.delivery_generation))) \
-		and (_local_flight_current() and _return_controls_neutral() if _role == "client" else
+		and (_local_flight_current() and _return_controls_neutral()
+			and (not _reboard_complete or _reboard_relationship_matches(_reboard_seated, true)) if _role == "client" else
 			((source == null or not source.is_enabled_owner()) and (active == null or not active.is_enabled_owner())
-			and not bool(_game.get("_piloting")) and (not _postdock_exited or _local_postdock_ground_current())))
+			and not bool(_game.get("_piloting"))
+			and (not _postdock_exited or _reboard_active or _local_postdock_ground_current())
+			and (_reboard_cabin.is_empty() or _reboard_cabin_identity_current())
+			and (not _reboard_complete or _local_reboard_seated_current(_reboard_seated))))
 
 
 func _postdock_arrival_current() -> bool:
@@ -617,8 +641,389 @@ func _local_postdock_ground_current() -> bool:
 ## All original board, departure and complete-return calls still use super.
 func _passenger_is_current(peer: int) -> bool:
 	if _postdock_selected and _postdock_exited and _role == "host":
+		if _reboard_complete:
+			return peer == int(_flight_start.passenger_peer) and _postdock_invariants() and _host_reboard_seated_current()
 		return peer == int(_flight_start.passenger_peer) and _postdock_invariants() and _host_postdock_released()
 	return super._passenger_is_current(peer)
+
+
+## A fresh boarding is allowed only after the complete accepted exterior walk.
+## Keep the released context immutable; a new claim is not the old flight seat.
+func _host_postdock_reboard() -> bool:
+	_return_stage = "host.reboard_start"
+	if not _require(_host_postdock_released() and _flight_file_exists("host.postdock_complete"),
+		"reboard begins after accepted actual exit with every original passenger claim retired"):
+		return false
+	_reboard_released = {"body_id": str(_postdock_body_id),
+		"identity": _flight_manifest.client_b.duplicate(true),
+		"occupancies": _postdock_start.occupancies.duplicate(true),
+		"assignment": _postdock_start.assignment.duplicate(true), "released": _postdock_receipt()}
+	_reboard_active = true
+	_write("host.reboard_go", _reboard_released)
+	_return_stage = "host.reboard_clearance"
+	if not await _postdock_wait(func(): return _flight_file_exists("client_b.reboard_clear"), 15.0,
+		"same supported exterior passenger ordinarily clears existing reboard suppression with old grants retired"):
+		return false
+	if not _require(_host_postdock_released(), "ordinary clearance cannot restore any released passenger grant"):
+		return false
+	_write("host.reboard_clear_checked", _postdock_receipt())
+	_return_stage = "host.reboard_approach"
+	if not await _postdock_wait(func(): return _flight_file_exists("client_b.reboard_hatch_approached"), 15.0,
+		"original exterior passenger walks back to authored hatch inside existing waypoint bound"):
+		return false
+	if not await _postdock_wait(func(): return _flight_file_exists("client_b.reboard_hatch"), 8.0,
+		"ordinary exterior look discovers original hatch inside existing interaction bound"):
+		return false
+	_return_stage = "host.reboard_cabin"
+	if not await _postdock_wait(func():
+		return (_flight_file_exists("client_b.reboard_cabin") and _host_reboard_body_current(false)),
+		8.0, "same authenticated passenger ordinarily reboards with one fresh cabin claim and a new supported body on an advanced input stream within8s"):
+		return false
+	_reboard_cabin = _reboard_receipt()
+	_write("host.reboard_cabin_checked", _reboard_cabin)
+	if not await _postdock_wait(func(): return _flight_file_exists("client_b.reboard_cabin_consumed"), 5.0,
+		"passenger consumes host-confirmed fresh body/frame and exact boarding grant within5s"):
+		return false
+	_return_stage = "host.reboard_chair"
+	# The unchanged waypoint helper owns its15s locomotion bound; allow that
+	# walk before starting the existing8s physical chair transition bound.
+	if not await _postdock_wait(func(): return _flight_file_exists("client_b.reboard_chair_approached"),
+		15.0, "original passenger walks from fresh supported cabin berth to its authored co-pilot chair"):
+		return false
+	if not await _postdock_wait(func(): return _flight_file_exists("client_b.reboard_chair"), 8.0,
+		"ordinary passenger look discovers exact original chair inside existing transition bound"):
+		return false
+	if not await _postdock_wait(_host_reboard_seated_current, 8.0,
+		"ordinary passenger Interact claims exactly one original co_pilot_station with current fresh body/frame/seat generations within8s"):
+		return false
+	_reboard_seated = _reboard_receipt()
+	_write("host.reboard_seated", _reboard_seated)
+	_return_stage = "host.reboard_convergence"
+	if not await _postdock_wait(func(): return _flight_files_ready(".reboard_converged"), 5.0,
+		"both actual clients consume the current fresh passenger body/frame and seated chair result within5s"):
+		return false
+	if not _require(_host_reboard_seated_current(), "same original pilot and strict occupied home lease survive both actual client confirmations"):
+		return false
+	_reboard_complete = true
+	_write("host.reboard_complete", _reboard_receipt())
+	_return_stage = "reboard.retained"
+	return true
+
+
+func _client_postdock_reboard() -> bool:
+	_return_stage = _role + ".reboard_start"
+	if not _require(_flight_file_exists("host.postdock_complete") and (_role != "client_b" or _postdock_exited),
+		"complete original passenger exit precedes selected reboard phase"):
+		return false
+	# Only this accepted phase boundary releases the exterior-only invariant.
+	_reboard_active = true
+	if not await _postdock_wait(func(): return _flight_file_exists("host.reboard_go"), 8.0,
+		"host independently confirms retired passenger context before any reboard input"):
+		return false
+	_reboard_released = _read("host.reboard_go")
+	if _role == "client":
+		if not await _postdock_wait(func(): return _flight_file_exists("client_b.reboard_clear"), 15.0,
+			"original pilot retains helm while passenger ordinarily clears existing reboard suppression"):
+			return false
+		if not await _postdock_wait(func(): return _flight_file_exists("host.reboard_clear_checked"), 8.0,
+			"host confirms old passenger grants remain retired at clearance"):
+			return false
+		if not await _postdock_wait(func(): return _flight_file_exists("client_b.reboard_hatch_approached"), 15.0,
+			"original pilot retains helm while passenger walks to same hatch"):
+			return false
+		if not await _postdock_wait(func(): return _flight_file_exists("client_b.reboard_hatch"), 8.0,
+			"original pilot retains helm while passenger discovers hatch interaction"):
+			return false
+		if not await _postdock_wait(func(): return _flight_file_exists("host.reboard_cabin_checked"), 8.0,
+			"original pilot retains helm through fresh passenger cabin admission"):
+			return false
+		if not await _postdock_wait(func(): return _flight_file_exists("client_b.reboard_cabin_consumed"), 5.0,
+			"original pilot retains helm through passenger fresh grant convergence"):
+			return false
+		if not await _postdock_wait(func(): return _flight_file_exists("client_b.reboard_chair_approached"), 15.0,
+			"original pilot retains helm through passenger walk to original chair"):
+			return false
+		if not await _postdock_wait(func(): return _flight_file_exists("client_b.reboard_chair"), 8.0,
+			"original pilot retains helm through passenger aim at original chair"):
+			return false
+		return await _client_reboard_convergence()
+	if not _require(_local_postdock_ground_current(), "same supported exterior Player retains fully released claims before walking back"):
+		return false
+	_return_stage = "client_b.reboard_clearance"
+	# Reuse the accepted ingress corridor; the direct lateral path crosses
+	# ServiceCabinet02. Both goals remain on the authored freight apron.
+	var corridor := Vector3(-42.0, 0.38, _craft.get_boarding_position().z)
+	var clear := corridor - Vector3(0.0, 0.0, GameFlow.BOARDING_FALLBACK_REACH + 1.5)
+	if not await _walk_to(corridor, false):
+		return false
+	if not await _walk_to(clear, false):
+		return false
+	var retired_source := _game.get_network_remote_body_intent_source()
+	if not _require(_same_identity() and _player.get_instance_id() == _initial_player_id
+		and _player.is_on_floor() and _player.is_control_enabled() and not _player.is_seated()
+		and not _player.is_station_seated() and not _game.get("_transition_busy")
+		and not bool(_player.get_cabin_containment_report().get("active", true))
+		and (_game.get("_network_client_boarding_claim") as Dictionary).is_empty()
+		and (retired_source == null or not retired_source.is_bound())
+		and _game.get("_reboard_blocked_ship") != _craft
+		and _player.get_interaction_origin().distance_to(_craft.get_boarding_position()) > GameFlow.BOARDING_FALLBACK_REACH,
+		"same supported original passenger physically clears production7m suppression without reviving old claims"):
+		return false
+	_write("client_b.reboard_clear", _reboard_receipt())
+	if not await _postdock_wait(func(): return _flight_file_exists("host.reboard_clear_checked"), 8.0,
+		"host confirms old passenger grant retirement before ordinary return to hatch"):
+		return false
+	_return_stage = "client_b.reboard_approach"
+	if not await _walk_to(corridor, false):
+		return false
+	if not await _walk_to(_craft.get_boarding_position(), false):
+		return false
+	_write("client_b.reboard_hatch_approached", _reboard_receipt())
+	await _look(_craft.get_boarding_position() + Vector3.UP * 1.2)
+	if not await _postdock_wait(func():
+		return (_game.boarding_candidate == _craft and not is_instance_valid(_game.station_interaction_candidate)),
+		8.0, "ordinary walk and aim rediscover same authored hatch from actual berth ground"):
+		return false
+	_write("client_b.reboard_hatch", _reboard_receipt())
+	_return_stage = "client_b.reboard_hatch_interact"
+	await _press(&"interact")
+	if not await _postdock_wait(_local_reboard_cabin_current, 8.0,
+		"ordinary hatch Interact consumes new boarding answer and supported original Player with current body generation and advanced input stream within8s"):
+		return false
+	_write("client_b.reboard_cabin", _reboard_receipt())
+	if not await _postdock_wait(func(): return _flight_file_exists("host.reboard_cabin_checked"), 8.0,
+		"host independently observes new body and cabin claim after old exterior context was retired"):
+		return false
+	_reboard_cabin = _read("host.reboard_cabin_checked")
+	if not await _postdock_wait(func():
+		return (_local_reboard_cabin_current() and _reboard_relationship_matches(_reboard_cabin, false)), 5.0,
+		"actual consumed fresh body/frame agrees with host before accepting new walking-helper identity"):
+		return false
+	var source := _game.get_network_remote_body_intent_source()
+	# This is a phase-specific expected identity captured from accepted runtime
+	# facts, after proving both local consumption and independent host identity.
+	_walking_identity = {"peer_id": _initial_peer_id, "entity_id": str(source.get_entity_id()),
+		"entity_generation": source.get_entity_generation(), "player_id": str(_initial_player_id)}
+	_write("client_b.reboard_cabin_consumed", _reboard_receipt())
+	_return_stage = "client_b.reboard_chair_approach"
+	var contract := (_craft as JovianLightFreighter).get_passenger_station_role_contract()
+	if not await _walk_to((contract.entry_transform as Transform3D).origin, true):
+		return false
+	_write("client_b.reboard_chair_approached", _reboard_receipt())
+	await _look((_craft as JovianLightFreighter).get_copilot_seat_anchor().global_position + _craft.global_basis.y.normalized() * 1.2)
+	if not await _postdock_wait(func():
+		return (_game.station_interaction_candidate is ShipCrewSeat
+			and (_game.station_interaction_candidate as ShipCrewSeat).get_seat_anchor()
+				== (_craft as JovianLightFreighter).get_copilot_seat_anchor()),
+		8.0, "ordinary cabin walk and look discover original co_pilot_station"):
+		return false
+	_write("client_b.reboard_chair", _reboard_receipt())
+	_return_stage = "client_b.reboard_chair_interact"
+	await _press(&"interact")
+	if not await _postdock_wait(func(): return _flight_file_exists("host.reboard_seated"), 8.0,
+		"host confirms fresh exact chair claim after ordinary passenger Interact within8s"):
+		return false
+	return await _client_reboard_convergence()
+
+
+func _client_reboard_convergence() -> bool:
+	if not await _postdock_wait(func(): return _flight_file_exists("host.reboard_seated"),
+		8.0, "original pilot retains helm during bounded passenger chair transition"):
+		return false
+	_reboard_seated = _read("host.reboard_seated")
+	_return_stage = _role + ".reboard_convergence"
+	if not await _postdock_wait(func():
+		return (_reboard_relationship_matches(_reboard_seated, true)
+			and (_role == "client" or _local_reboard_seated_current(_reboard_seated))),
+		5.0, "actual consumed fresh passenger body/frame and co-pilot anchor agree with host's unique current chair claim within5s"):
+		return false
+	_write(_role + ".reboard_converged", _reboard_receipt())
+	if not await _postdock_wait(func(): return _flight_file_exists("host.reboard_complete"), 8.0,
+		"host confirms both actual clients and retained pilot/home lease at complete passenger reboard"):
+		return false
+	_reboard_complete = true
+	_return_stage = "reboard.retained"
+	return _require(_reboard_relationship_matches(_reboard_seated, true)
+		and (_role == "client" or _local_reboard_seated_current(_reboard_seated)),
+		"fresh passenger identity remains consumed at original chair through final inherited retention handshake")
+
+
+func _host_reboard_body_current(seated: bool) -> bool:
+	var peer := int(_flight_start.passenger_peer)
+	var avatar := GameFlow.network_client_boarding_avatar_id(peer)
+	var simulation := _game.get_network_remote_body_simulation()
+	var body := simulation.get_body(avatar) as PlayerController
+	var record := simulation.get_body_record(avatar)
+	var publication := _publication(avatar)
+	var wire := publication.get("wire", {}) as Dictionary
+	var held := _postdock_occupancies()
+	var movement := _game.network_session.get_movement_avatar_snapshot(avatar)
+	if body == null or held.size() != 1 or _reboard_released.is_empty():
+		return false
+	var claim := held[0] as Dictionary
+	var previous := (_reboard_released.occupancies as Array)[0] as Dictionary
+	# Same-generation rebinding is supported; this admission has a new body,
+	# boarding claim and input stream, all checked against their real owners.
+	var current_entity := int(record.get("entity_generation", 0))
+	var admitted_source := _read("client_b.reboard_cabin").get("body_source", {}) as Dictionary
+	var retired_source := _read("client_b.postdock_stood").get("body_source", {}) as Dictionary
+	return body.get_instance_id() != _postdock_body_id \
+		and _peer_generation(peer) == int(_flight_manifest.client_b.peer_generation) \
+		and current_entity > 0 \
+		and int(record.get("owner_peer_id", 0)) == peer and record.get("entity_id") == avatar \
+		and body.get_cabin_containment_report().get("frame") == _craft \
+		and (body.is_seated() if seated else body.is_on_floor() and not body.is_seated()) \
+		and claim.get("avatar_id") == str(avatar) and int(claim.get("peer_id", 0)) == peer \
+		and claim.get("ship_id") == str(_craft.ship_id) and claim.get("role") == str(GameFlow.NETWORK_CABIN_BERTH_ROLE) \
+		and int(claim.get("claim_sequence", 0)) > int(previous.get("claim_sequence", 0)) \
+		and int(claim.get("ship_generation", 0)) == int(previous.get("ship_generation", 0)) \
+		and int(claim.get("frame_generation", 0)) == int(previous.get("frame_generation", 0)) \
+		and int(claim.get("seat_generation", 0)) > 0 \
+		and publication.get("occupant") == body and int(publication.get("owner_peer_id", 0)) == peer \
+		and int(wire.get("entity_generation", 0)) == current_entity and wire.get("entity_id") == avatar \
+		and wire.get("parent_frame_id") == StringName("frame_%s" % _craft.ship_id) \
+		and int(wire.get("parent_frame_generation", 0)) == int(claim.get("frame_generation", -1)) \
+		and int(wire.get("occupancy_state", -1)) == (NetworkMovingInteriorRelationship.STATE_SEATED if seated else NetworkMovingInteriorRelationship.STATE_WALKING) \
+		and int(movement.get("entity_generation", 0)) == current_entity and int(movement.get("owner_peer_id", 0)) == peer \
+		and int(movement.get("stream_id", -1)) == int(admitted_source.get("stream_id", -2)) \
+		and int(movement.get("stream_id", -1)) > int(retired_source.get("stream_id", -1))
+
+
+func _host_reboard_seated_current() -> bool:
+	if not _host_reboard_body_current(true):
+		return false
+	var peer := int(_flight_start.passenger_peer)
+	var avatar := GameFlow.network_client_boarding_avatar_id(peer)
+	var simulation := _game.get_network_remote_body_simulation()
+	var body := simulation.get_body(avatar) as PlayerController
+	var seat := simulation.get_body_crew_seat(avatar)
+	var owner: CrewSeatRoleAuthority = _craft.get_crew_role_authority()
+	if owner == null or seat == null:
+		return false
+	var assignment := owner.get_assignment(peer, avatar)
+	var count := 0
+	for row: Dictionary in owner.get_snapshot().get("assignments", []):
+		if int(row.get("occupant_peer_id", 0)) == peer or row.get("avatar_id") == avatar \
+			or row.get("seat_id") == JovianLightFreighter.COPILOT_SEAT_ID:
+			count += 1
+	return count == 1 and body.is_seated_at((_craft as JovianLightFreighter).get_copilot_seat_anchor()) \
+		and _body_follows_anchor(body, (_craft as JovianLightFreighter).get_copilot_seat_anchor(), true) \
+		and seat.get_ship() == _craft and seat.get_seat_id() == JovianLightFreighter.COPILOT_SEAT_ID \
+		and assignment.get("role") == &"passenger" and assignment.get("avatar_id") == avatar \
+		and assignment.get("seat_id") == JovianLightFreighter.COPILOT_SEAT_ID \
+		and int(assignment.get("seat_generation", 0)) > 0 \
+		and int(assignment.get("claim_sequence", 0)) > int(_reboard_released.assignment.get("claim_sequence", 0)) \
+		and (_reboard_seated.is_empty() or (int(assignment.get("seat_generation", 0)) == int(_reboard_seated.assignment.seat_generation)
+			and int(assignment.get("claim_sequence", 0)) == int(_reboard_seated.assignment.claim_sequence)))
+
+
+func _reboard_cabin_identity_current() -> bool:
+	if _reboard_cabin.is_empty():
+		return false
+	var expected: int = int(_reboard_cabin.body_record.entity_generation)
+	if _role == "host":
+		var avatar := GameFlow.network_client_boarding_avatar_id(int(_flight_start.passenger_peer))
+		var simulation := _game.get_network_remote_body_simulation()
+		var body := simulation.get_body(avatar) as PlayerController
+		return body != null and str(body.get_instance_id()) == str(_reboard_cabin.body.instance_id) \
+			and int(simulation.get_body_record(avatar).get("entity_generation", 0)) == expected \
+			and _postdock_occupancies() == _reboard_cabin.occupancies \
+			and int(_game.network_session.get_movement_avatar_snapshot(avatar).get("stream_id", -1)) == int(_reboard_cabin.movement.stream_id)
+	var source := _game.get_network_remote_body_intent_source()
+	var claim := _game.get("_network_client_boarding_claim") as Dictionary
+	var held := (_reboard_cabin.occupancies as Array)[0] as Dictionary
+	var result: Dictionary = _game.network_session.get_boarding_intent_result_replica()
+	return _player.get_instance_id() == _initial_player_id and source != null and source.is_bound() \
+		and source.get_entity_id() == GameFlow.network_client_boarding_avatar_id(_initial_peer_id) \
+		and source.get_entity_generation() == expected and int(source.get_audit().get("stream_id", -1)) == int(_reboard_cabin.movement.stream_id) \
+		and claim.get("ship_id") == _craft.ship_id and claim.get("seat_id") == StringName(held.get("seat_id", "")) \
+		and claim.get("role") == StringName(held.get("role", "")) \
+		and bool(result.get("accepted", false)) and result.get("role") == claim.get("role") \
+		and result.get("action") == &"board_any" and result.get("status") == &"boarded" \
+		and result.get("seat_id") == claim.get("seat_id") \
+		and int(result.get("sequence", -1)) == int(held.get("claim_sequence", 0))
+
+
+func _local_reboard_cabin_current() -> bool:
+	var source := _game.get_network_remote_body_intent_source()
+	var claim := _game.get("_network_client_boarding_claim") as Dictionary
+	var result: Dictionary = _game.network_session.get_boarding_intent_result_replica()
+	var relationship := _game.network_session.get_moving_interior_latest_relationship(
+		GameFlow.network_client_boarding_avatar_id(_initial_peer_id))
+	return _same_identity() and _player.get_instance_id() == _initial_player_id and _supported_cabin() \
+		and not _player.is_seated() and _player.get_cabin_containment_report().get("frame") == _craft \
+		and claim.get("ship_id") == _craft.ship_id and claim.get("role") == GameFlow.NETWORK_CABIN_BERTH_ROLE \
+		and bool(result.get("accepted", false)) and result.get("seat_id") == claim.get("seat_id") \
+		and result.get("action") == &"board_any" and result.get("status") == &"boarded" \
+		and result.get("role") == GameFlow.NETWORK_CABIN_BERTH_ROLE \
+		and result.get("ship_id") == _craft.ship_id and result.get("avatar_id") == GameFlow.network_client_boarding_avatar_id(_initial_peer_id) \
+		and int(result.get("sequence", 0)) > int(_postdock_start.boarding.get("sequence", 0)) \
+		and source != null and source.get_entity_id() == GameFlow.network_client_boarding_avatar_id(_initial_peer_id) \
+		and source.get_entity_generation() > 0 \
+		and int(source.get_audit().get("stream_id", -1)) > int(_postdock_start.body_source.get("stream_id", -1)) \
+		and int(relationship.get("entity_generation", 0)) == source.get_entity_generation() \
+		and relationship.get("parent_frame_id") == StringName("frame_%s" % _craft.ship_id) \
+		and int(relationship.get("parent_frame_generation", 0)) == int(_postdock_start.relationship.parent_frame_generation) \
+		and int(relationship.get("occupancy_state", -1)) == NetworkMovingInteriorRelationship.STATE_WALKING
+
+
+func _reboard_relationship_matches(expected: Dictionary, seated: bool) -> bool:
+	if expected.is_empty():
+		return false
+	var avatar := GameFlow.network_client_boarding_avatar_id(int(_flight_start.passenger_peer))
+	var relationship := _game.network_session.get_moving_interior_latest_relationship(avatar)
+	var wire := expected.get("wire", {}) as Dictionary
+	var pose := relationship.get("frame_local_transform", Transform3D.IDENTITY) as Transform3D
+	return relationship.get("entity_id") == avatar \
+		and int(relationship.get("entity_generation", 0)) == int(wire.get("entity_generation", -1)) \
+		and relationship.get("parent_frame_id") == StringName(wire.get("parent_frame_id", "")) \
+		and int(relationship.get("parent_frame_generation", 0)) == int(wire.get("parent_frame_generation", -1)) \
+		and int(relationship.get("server_tick", 0)) >= int(wire.get("server_tick", 0)) \
+		and int(relationship.get("occupancy_state", -1)) == (NetworkMovingInteriorRelationship.STATE_SEATED if seated else NetworkMovingInteriorRelationship.STATE_WALKING) \
+		and (not seated or _craft.to_global(pose.origin).distance_to(
+			(_craft as JovianLightFreighter).get_copilot_seat_anchor().global_position) <= 0.05)
+
+
+func _local_reboard_seated_current(expected: Dictionary) -> bool:
+	if expected.is_empty():
+		return false
+	var source := _game.get_network_remote_body_intent_source()
+	var view := _game.network_session.get_passenger_replica_snapshot()
+	var assignment := view.get("assignment", {}) as Dictionary
+	var wanted := expected.get("assignment", {}) as Dictionary
+	var held := (expected.get("occupancies", []) as Array)[0] as Dictionary
+	var claim := _game.get("_network_client_boarding_claim") as Dictionary
+	return _same_identity() and _player.get_instance_id() == _initial_player_id and _local_passenger_is_current() \
+		and _body_follows_anchor(_player, (_craft as JovianLightFreighter).get_copilot_seat_anchor(), true) \
+		and _reboard_relationship_matches(expected, true) and source != null and source.is_bound() \
+		and source.get_entity_generation() == int(expected.body_record.entity_generation) \
+		and int(source.get_audit().get("stream_id", -1)) == int(expected.movement.stream_id) \
+		and int(view.get("entity_generation", 0)) == source.get_entity_generation() \
+		and claim.get("seat_id") == StringName(held.get("seat_id", "")) and claim.get("role") == StringName(held.get("role", "")) \
+		and assignment.get("avatar_id") == GameFlow.network_client_boarding_avatar_id(_initial_peer_id) \
+		and int(assignment.get("occupant_peer_id", 0)) == _initial_peer_id \
+		and assignment.get("vessel_id") == _craft.ship_id \
+		and int(assignment.get("seat_generation", 0)) == int(wanted.get("seat_generation", -1)) \
+		and int(assignment.get("claim_sequence", 0)) == int(wanted.get("claim_sequence", -1))
+
+
+func _reboard_receipt() -> Dictionary:
+	var receipt := _postdock_receipt()
+	receipt["reboard_selected"] = _reboard_selected
+	var avatar := GameFlow.network_client_boarding_avatar_id(int(_flight_start.passenger_peer))
+	if _role == "host":
+		receipt["movement"] = _primitive_fields(_game.network_session.get_movement_avatar_snapshot(avatar),
+			["entity_generation", "owner_peer_id", "mode", "stream_id", "last_sequence"])
+		receipt["assignment"] = _primitive_fields(_craft.get_crew_role_authority().get_assignment(
+			int(_flight_start.passenger_peer), avatar),
+			["occupant_peer_id", "avatar_id", "vessel_id", "role", "seat_id", "seat_generation", "claim_sequence", "frame_id"])
+	else:
+		receipt["passenger_relationship"] = _primitive_fields(_game.network_session.get_moving_interior_latest_relationship(avatar),
+			["entity_id", "entity_generation", "parent_frame_id", "parent_frame_generation", "occupancy_state", "server_tick"])
+		receipt["boarding_answer"] = _game.network_session.get_boarding_intent_result_replica()
+		receipt["assignment"] = _primitive_fields((_game.network_session.get_passenger_replica_snapshot().get("assignment", {}) as Dictionary),
+			["occupant_peer_id", "avatar_id", "vessel_id", "role", "seat_id", "seat_generation", "claim_sequence", "frame_id"])
+	return receipt
 
 
 func _postdock_hatch_approach() -> Vector3:

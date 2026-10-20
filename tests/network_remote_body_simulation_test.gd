@@ -183,6 +183,10 @@ func _run() -> void:
 		return
 	await _assert_a_remote_body_is_stood_up_for_the_walker()
 	await _assert_crew_support_is_resolved_once_per_edge()
+	if "--interaction-reentry-only" in OS.get_cmdline_user_args():
+		await _assert_interaction_highwater_survives_body_reentry()
+		await _finish_remote_bodies()
+		return
 	if "--crew-support-only" in OS.get_cmdline_user_args():
 		await _assert_forged_and_stale_intents_are_rejected()
 		await _finish_remote_bodies()
@@ -1228,6 +1232,133 @@ func _run_crowd_profile(size: int, profile: Dictionary) -> void:
 
 
 # --- lifecycle --------------------------------------------------------------
+
+
+## The production source retains its Interact high-water mark across an
+## unbind/rebind. Retiring the physical body must not turn that level into a
+## fresh edge on the replacement body, even though its input stream is new.
+func _assert_interaction_highwater_survives_body_reentry() -> void:
+	var entity := StringName(WALKER_ENTITIES[0])
+	var simulation := _game.get_network_remote_body_simulation()
+	var source := _walkers[0].get("source") as IntentSource
+	var retained_id := source.get_interaction_request_id()
+	_check(retained_id > 0, "re-entry starts with a real previously consumed Interact high-water mark")
+	var interactions_before := int(simulation.get_audit().get("interactions", 0))
+	var previous_body := _body(entity)
+	_set_plan(0, Vector2.ZERO, false)
+	source.unbind()
+	_check(bool(_game.release_network_remote_body(entity, &"interaction_reentry").get("accepted", false)),
+		"the ordinary body release retires the first physical body")
+	await _drive(4)
+	_check(bool(_game.admit_network_remote_body(_client_peer_ids[0], entity, _craft).get("accepted", false)),
+		"the same authenticated owner receives a replacement body")
+	var body := _body(entity)
+	if body == null:
+		return
+	_check(not is_instance_valid(previous_body) or body != previous_body,
+		"re-entry uses a new physical body with the same movement identity")
+	source.bind(entity, 1)
+	_set_plan(0, Vector2.ZERO, true)
+	await _drive(30)
+	var record := simulation.get_body_record(entity)
+	var crew_owner := _craft.get_crew_role_authority()
+	var replay_suppressed: bool = int(simulation.get_audit().get("interactions", 0)) == interactions_before \
+		and record.get("seat_state") == &"standing" and not body.is_seated() \
+		and crew_owner != null and crew_owner.get_assignment(_client_peer_ids[0], entity).is_empty()
+	_check(source.get_interaction_request_id() == retained_id and replay_suppressed,
+		"neutral rebind packets do not execute retained source history or claim a crew chair")
+	if not replay_suppressed:
+		return
+	# Exercise the real admission signal's consumer with the receipt shape
+	# emitted by the adapter after a migration rebind. This bounded callback
+	# regression does not qualify transport migration itself. Production's
+	# owning GameFlow rebinds this same source on receipt.migration.status.
+	_server.peer_admitted.emit(_client_peer_ids[0], {
+		"admission": {"accepted": true, "status": &"admitted"},
+		"migration": {"accepted": true, "status": &"peer_rebound"},
+	})
+	source.bind(entity, 1)
+	await _drive(20)
+	crew_owner = _craft.get_crew_role_authority()
+	var rebound_suppressed: bool = _body(entity) == body \
+		and source.get_interaction_request_id() == retained_id \
+		and int(simulation.get_audit().get("interactions", 0)) == interactions_before \
+		and simulation.get_body_record(entity).get("seat_state") == &"standing" \
+		and not body.is_seated() \
+		and crew_owner != null and crew_owner.get_assignment(_client_peer_ids[0], entity).is_empty()
+	_check(rebound_suppressed,
+		"peer_rebound admission preserves the retained body and source high-water mark without replaying Interact")
+	if not rebound_suppressed:
+		return
+	await _assert_one_fresh_crew_interaction(0, interactions_before, "same-owner body re-entry and peer_rebound")
+	# Reassign this entity to another authenticated owner whose fresh source
+	# starts at one. Entity-local or global high-water marks must not eat it.
+	_walkers[0]["active"] = false
+	_game.release_network_remote_body(entity, &"interaction_owner_changed")
+	await _drive(4)
+	_check(bool(_game.admit_network_remote_body(_client_peer_ids[1], entity, _craft).get("accepted", false)),
+		"a different admitted owner can receive the retired entity")
+	_bind_walker(1, entity, 1)
+	interactions_before = int(simulation.get_audit().get("interactions", 0))
+	await _assert_one_fresh_crew_interaction(1, interactions_before, "different authenticated owner")
+	# Shutdown and host again through the same adapter: attach(session) sees
+	# the same object, so adapter identity alone cannot fence this lifetime.
+	_walkers[1]["active"] = false
+	_game.shutdown_network_session(&"interaction_rehost")
+	for client in _clients:
+		if client._configured:
+			client.shutdown(&"interaction_rehost")
+	await _drive(4)
+	var port := _reserve_port()
+	if port <= 0:
+		return
+	_check(bool(_game.host_network_session(port, 8).get("accepted", false)),
+		"the same Main hosts again after interaction cleanup")
+	_check(_game.get_network_session() == _server,
+		"the rehost regression exercises reuse of the actual session adapter")
+	if not await _join_all(port):
+		return
+	_check(bool(_game.admit_network_remote_body(_client_peer_ids[0], entity, _craft).get("accepted", false)),
+		"the new session admits a fresh source and body")
+	_bind_walker(0, entity, 1)
+	interactions_before = int(simulation.get_audit().get("interactions", 0))
+	await _assert_one_fresh_crew_interaction(0, interactions_before, "same-adapter rehost")
+
+
+func _assert_one_fresh_crew_interaction(index: int, interactions_before: int, label: String) -> void:
+	var entity := StringName(WALKER_ENTITIES[0])
+	var simulation := _game.get_network_remote_body_simulation()
+	var source := _walkers[index].get("source") as IntentSource
+	var claims_before := int(simulation.get_audit().get("seat_claims", 0))
+	source.request_interaction()
+	var seated: bool = await _wait_until(func() -> bool:
+		return simulation.get_body_record(entity).get("seat_state") == &"seated"
+	, 3.0)
+	await _drive(20)
+	var body := _body(entity)
+	var crew_owner := _craft.get_crew_role_authority()
+	var assignment: Dictionary = crew_owner.get_assignment(_client_peer_ids[index], entity) if crew_owner != null else {}
+	var audit := simulation.get_audit()
+	var record := simulation.get_body_record(entity)
+	var source_audit := source.get_audit()
+	print("REMOTE_BODY_FRESH_INTERACTION %s" % JSON.stringify({
+		"case": label,
+		"settled_seated": seated,
+		"body_seated": body != null and body.is_seated(),
+		"seat_state": record.get("seat_state", &"missing_body"),
+		"interaction_delta": int(audit.get("interactions", 0)) - interactions_before,
+		"seat_claim_delta": int(audit.get("seat_claims", 0)) - claims_before,
+		"crew_owner_present": crew_owner != null,
+		"assignment": assignment,
+		"source_interaction_id": source.get_interaction_request_id(),
+		"source_stream_id": source_audit.get("stream_id", -1),
+		"body_last_interaction_id": record.get("last_interaction_id", -1),
+	}))
+	_check(seated and body != null and body.is_seated()
+		and int(audit.get("interactions", 0)) == interactions_before + 1
+		and int(audit.get("seat_claims", 0)) == claims_before + 1
+		and not assignment.is_empty(),
+		"%s: the next genuinely fresh press claims a production crew chair exactly once" % label)
 
 
 func _assert_a_disconnect_releases_the_body() -> void:

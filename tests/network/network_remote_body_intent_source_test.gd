@@ -22,6 +22,7 @@ func _run() -> void:
 	_test_cadence_and_framing()
 	await _test_edges_survive_between_sends()
 	await _test_same_physics_frame_interaction_is_one_edge()
+	_test_rebind_retires_unconsumed_interaction()
 	_test_stamp_tracks_the_observed_server_tick()
 	_test_reconciliation_is_bounded()
 	_test_delayed_correction_preserves_newer_movement()
@@ -213,6 +214,71 @@ func _test_same_physics_frame_interaction_is_one_edge() -> void:
 	var rebound := source.advance(2, _sample(), 53)
 	_check(rebound.entity_generation == 2 and rebound.interaction_request_id == 3,
 		"same-frame stream rebind retires the old edge fence and preserves interaction highwater")
+
+
+func _test_rebind_retires_unconsumed_interaction() -> void:
+	var authority := Authority.new(1)
+	authority.register_avatar(1, 2, &"crew_reentry", 1)
+	authority.set_server_tick(1, 200)
+	var source := IntentSource.new(1)
+	source.bind(&"crew_reentry", 1)
+	source.request_interaction()
+	var old_wire := source.advance(2, _sample(), 200)
+	var old_result := authority.accept_intent(2, old_wire)
+	_check(old_result.accepted and old_wire.interaction_request_id == 1
+		and authority.get_avatar_snapshot(&"crew_reentry").pending_count == 1,
+		"the real authority queues the old body's interaction without consuming it")
+	# A confirmed hatch departure can retire this accepted queue before the
+	# simulation's next tick. Preserve the production source across re-entry.
+	var retired := authority.retire_avatar(1, &"crew_reentry", 1)
+	var registered := authority.register_avatar(1, 2, &"crew_reentry", 1)
+	_check(retired.accepted and registered.accepted,
+		"body retirement drops the unconsumed queue before the same identity is admitted again")
+	source.unbind()
+	source.bind(&"crew_reentry", 1)
+	var neutral := source.advance(2, _sample(), 200)
+	var old_edge_retired: bool = neutral.interaction_request_id == 0 \
+		and source.get_interaction_request_id() == 1
+	_check(old_edge_retired,
+		"neutral rebound opening retires a generated but unconsumed old interaction while preserving lifetime highwater")
+	if not old_edge_retired:
+		return
+	var neutral_result := authority.accept_intent(2, neutral)
+	var neutral_delivery := authority.consume_for_tick(&"crew_reentry", 1, 200)
+	_check(neutral_result.accepted and neutral_delivery.accepted
+		and neutral_delivery.intent.interaction_request_id == 0,
+		"the replacement body receives neutral input without the retired body's queued interaction")
+	authority.set_server_tick(1, 201)
+	var later_neutral := source.advance(2, _sample(), 201)
+	_check(later_neutral.interaction_request_id == 0 and source.get_interaction_request_id() == 1,
+		"later neutral packets in the rebound stream keep the old interaction retired")
+	# A genuinely fresh press can also be this stream's first packet. Its
+	# absolute lifetime id must survive the existing opening-clock retry.
+	source.bind(&"crew_reentry", 1)
+	source.request_interaction()
+	authority.set_server_tick(1, 400)
+	var opening := source.advance(2, _sample(), 0)
+	var refused := authority.accept_intent(2, opening)
+	_check(opening.interaction_request_id == 2 and source.get_interaction_request_id() == 2
+		and not refused.accepted and refused.status == &"client_tick_too_old",
+		"a fresh post-bind opening uses the next absolute interaction id before an honest clock refusal")
+	var reply := _opening_reply(opening, refused, 400)
+	_check(source.accept_opening_result(2, reply).status == &"opening_retry_queued",
+		"the fresh rebound interaction can use the unchanged opening recovery path")
+	var retry := source.advance(2, _sample(), 400)
+	var accepted := authority.accept_intent(2, retry)
+	_check(retry.stream_id == opening.stream_id and retry.sequence == 0
+		and retry.interaction_request_id == 2 and accepted.accepted,
+		"restamping the rebound opening preserves its fresh interaction and stream identity")
+	source.accept_opening_result(2, _opening_reply(retry, accepted, 400))
+	var delivered := authority.consume_for_tick(&"crew_reentry", 1, 400)
+	_check(delivered.accepted and delivered.intent.interaction_request_id == 2
+		and not authority.consume_for_tick(&"crew_reentry", 1, 401).accepted
+		and not authority.accept_intent(2, retry).accepted,
+		"the recovered fresh interaction reaches authority delivery once and a duplicate retry cannot deliver it again")
+	var after := source.advance(2, _sample(), 401)
+	_check(after.interaction_request_id == 2 and source.get_interaction_request_id() == 2,
+		"neutral packets after the fresh rebound press retain its id without inventing another edge")
 
 
 func _test_stamp_tracks_the_observed_server_tick() -> void:
