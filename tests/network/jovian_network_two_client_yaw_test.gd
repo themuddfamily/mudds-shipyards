@@ -24,11 +24,13 @@ func _steering_profile() -> Dictionary:
 
 
 func _steering_description(description: String) -> String:
-	return description if _steering_profile().axis == &"yaw" else description.replace("yaw", "pitch").replace("heading", "pitch attitude")
+	var axis := str(_steering_profile().axis)
+	return description if axis == "yaw" else description.replace("yaw", axis).replace("heading", axis + " attitude")
 
 
 func _steering_metric_key(key: String) -> String:
-	return key if _steering_profile().axis == &"yaw" else key.replace("heading", "pitch")
+	var axis := str(_steering_profile().axis)
+	return key if axis == "yaw" else key.replace("heading", axis)
 
 
 func _steering_actions_released() -> bool:
@@ -45,6 +47,10 @@ func _steering_command_matches(command: ShipCommand, command_sign: float) -> boo
 		var expected := command_sign if axis == _steering_profile().axis else 0.0
 		if not is_equal_approx(float(command.get(axis)), expected):
 			return false
+	if _steering_profile().axis == &"roll" and (command.barrel_roll or command.fire or command.fire_pressed \
+		or command.landing or command.engine_start or command.engine_stop or command.interact \
+		or command.camera_toggle or not is_zero_approx(command.camera_distance_delta)):
+		return false
 	return is_zero_approx(command.look_yaw_delta) and is_zero_approx(command.look_pitch_delta) \
 		and not command.brake and not command.boost and not command.hover \
 		and (not is_zero_approx(command_sign) or command.is_neutral())
@@ -235,6 +241,15 @@ func _yaw_wait(predicate: Callable, seconds: float, description: String) -> bool
 
 
 func _yaw_stream_current() -> bool:
+	# Roll rate must never be confused with the separate G barrel-roll edge.
+	# The unchanged departure has sent no such request; retain zero throughout.
+	if _steering_profile().axis == &"roll":
+		if _craft.is_barrel_roll_active():
+			return false
+		if _role == "host" and int((_flight_source as NetworkRemotePilotCommandSource).get_roll_receipt().get("request", -1)) != 0:
+			return false
+		if _role == "client" and int((_game.get("_network_remote_helm") as Dictionary).get("roll_request_id", -1)) != 0:
+			return false
 	if _role == "host":
 		return _flight_source.get_stream_id() == int(_yaw_start.source_stream) \
 			and int((_flight_source as NetworkRemotePilotCommandSource).get_roll_receipt().get("stream", -1)) == int(_yaw_start.wire_stream)
@@ -286,10 +301,13 @@ func _yaw_client_converged(host: Dictionary) -> bool:
 
 
 func _yaw_heading_change(reference: Dictionary) -> float:
-	var initial_nose := _vector_from(reference.nose)
+	# Yaw and pitch retain the original nose measurement. Roll instead measures
+	# actual up around the recorded nose: the nose itself cannot show axial roll.
+	var measured_vector := str(_steering_profile().get("measured_vector", "nose"))
+	var initial := _vector_from(reference[measured_vector])
 	var axis := _vector_from(reference[_steering_profile().rotation_axis])
-	var current_nose := (-_craft.global_basis.z).normalized().slide(axis).normalized()
-	return rad_to_deg(initial_nose.slide(axis).normalized().signed_angle_to(current_nose, axis))
+	var current := (_craft.global_basis.y if measured_vector == "up" else -_craft.global_basis.z).normalized()
+	return rad_to_deg(initial.slide(axis).normalized().signed_angle_to(current.slide(axis).normalized(), axis))
 
 
 func _yaw_attitude_error(reference: Dictionary) -> float:
@@ -317,6 +335,8 @@ func _yaw_host_receipt() -> Dictionary:
 		"producer": _producer_state(_flight_source), "source_stream": _flight_source.get_stream_id(),
 		"delivered": int((_flight_source as NetworkRemotePilotCommandSource).get_audit().get("delivered", 0)),
 		"wire_receipt": (_flight_source as NetworkRemotePilotCommandSource).get_roll_receipt()})
+	if _steering_profile().axis == &"roll":
+		result["barrel_roll_active"] = _craft.is_barrel_roll_active()
 	if _steering_profile().rotation_axis == "right":
 		result["right"] = _vector_values(_craft.global_basis.x.normalized())
 	return result
@@ -329,6 +349,9 @@ func _yaw_client_receipt() -> Dictionary:
 	result.merge({"rotation": [rotation.x, rotation.y, rotation.z, rotation.w],
 		"wire_sequence": int(capture.get("sequence", 0)), "sent": int(_game.get("_network_remote_helm_sent")),
 		"attitude_error_degrees": _yaw_attitude_error(_yaw_stop) if not _yaw_stop.is_empty() else -1.0})
+	if _steering_profile().axis == &"roll":
+		result["barrel_roll_active"] = _craft.is_barrel_roll_active()
+		result["roll_request_id"] = int(capture.get("roll_request_id", -1))
 	return result
 
 
