@@ -68,6 +68,7 @@ const ORDINARY_HALYARD_APPROACH := [
 	Vector3(37, 4.2, 68.3), Vector3(32.4, 4.2, 68.2), Vector3(32, 4.2, 62.2),
 	Vector3(32, 4.2, 54.2),
 ]
+var _ordinary_two_client_pilot_loss := false
 var _ordinary_two_client_authority_stop := false
 var _ordinary_two_client_moving := false
 # Shared ordinary prefix/orchestration is also enabled for its moving continuation.
@@ -83,6 +84,8 @@ var _ordinary_initial_peer_generation := 0
 var _ordinary_walking_identity: Dictionary = {}
 var _ordinary_authority_adapter: NetworkEnetSessionAdapter
 var _ordinary_authority_events: Dictionary = {}
+var _ordinary_pilot_loss_events: Dictionary = {}
+var _ordinary_pilot_loss_retained: Dictionary = {}
 
 ## Optional ordinary-controls callers share this harness and its owned exits.
 ## Empty defaults retain every existing Halyard/Cinder profile and deadline.
@@ -97,13 +100,15 @@ func _init() -> void:
 
 func _run() -> void:
 	var args := OS.get_cmdline_user_args()
+	_ordinary_two_client_pilot_loss = "--ordinary-two-client-pilot-loss" in args
 	_ordinary_two_client_authority_stop = "--ordinary-two-client-authority-stop" in args
-	_ordinary_two_client_moving = "--ordinary-two-client-moving" in args or _ordinary_two_client_authority_stop
+	_ordinary_two_client_moving = "--ordinary-two-client-moving" in args or _ordinary_two_client_authority_stop or _ordinary_two_client_pilot_loss
 	_ordinary_two_client_board = "--ordinary-two-client-board" in args or _ordinary_two_client_moving
 	if _ordinary_two_client_board:
 		args.erase("--ordinary-two-client-board")
 		args.erase("--ordinary-two-client-moving")
 		args.erase("--ordinary-two-client-authority-stop")
+		args.erase("--ordinary-two-client-pilot-loss")
 		await _ordinary_run(args)
 		return
 	if "--exit-receipt-only" in args:
@@ -304,7 +309,9 @@ func _orchestrate() -> void:
 	quit(0 if _failures.is_empty() else 1)
 
 func _print_peer_success() -> void:
-	if _ordinary_two_client_authority_stop:
+	if _ordinary_two_client_pilot_loss:
+		print("HALYARD_ORDINARY_TWO_CLIENT_PILOT_LOSS_OK checks=%d" % _checks)
+	elif _ordinary_two_client_authority_stop:
 		print("HALYARD_ORDINARY_TWO_CLIENT_AUTHORITY_STOP_OK checks=%d" % _checks)
 	elif _ordinary_two_client_moving:
 		print("HALYARD_ORDINARY_TWO_CLIENT_MOVING_OK checks=%d" % _checks)
@@ -355,7 +362,9 @@ func _peer_arguments(role: String, display: PackedStringArray) -> PackedStringAr
 	if not _package_under_test.is_empty():
 		args.append_array(["--main-pack", _package_under_test])
 	args.append_array(["--script", script, "--", role, _directory, str(_port)])
-	if _ordinary_two_client_authority_stop:
+	if _ordinary_two_client_pilot_loss:
+		args.append("--ordinary-two-client-pilot-loss")
+	elif _ordinary_two_client_authority_stop:
 		args.append("--ordinary-two-client-authority-stop")
 	elif _ordinary_two_client_moving:
 		args.append("--ordinary-two-client-moving")
@@ -2559,7 +2568,7 @@ func _ordinary_run(args: PackedStringArray) -> void:
 	for action in ORDINARY_WALK_ACTIONS + [&"interact", &"sprint_boost", &"brake", &"ui_accept", &"fire"]:
 		_ordinary_action(action, false)
 		Input.action_release(action)
-	if _ordinary_two_client_authority_stop:
+	if _ordinary_two_client_authority_stop or _ordinary_two_client_pilot_loss:
 		_ordinary_action(&"pause", false)
 		Input.action_release(&"pause")
 		# A failed new UI boundary must not leave this owned actor paused.
@@ -2571,7 +2580,7 @@ func _ordinary_run(args: PackedStringArray) -> void:
 	# In authority-stop the host already stopped once and each client already
 	# received its actual transport event. Teardown cannot become another stop
 	# or a client-initiated leave. Failed pre-stop routes still close normally.
-	if not _ordinary_two_client_authority_stop or (is_instance_valid(_game.network_session) \
+	if not (_ordinary_two_client_authority_stop or _ordinary_two_client_pilot_loss) or (is_instance_valid(_game.network_session) \
 		and _game.network_session.is_session_active()):
 		_game.shutdown_network_session(&"halyard_ordinary_boarding_done")
 	_game.release_mouse_capture()
@@ -2640,6 +2649,8 @@ func _ordinary_host() -> void:
 	if _ordinary_two_client_moving and not await _ordinary_moving_host(manifest):
 		return
 	if _ordinary_two_client_authority_stop and not await _ordinary_authority_stop_host(manifest):
+		return
+	if _ordinary_two_client_pilot_loss and not await _ordinary_pilot_loss_host(manifest):
 		return
 	_write("host.release", {})
 	for role in ["client", "client_b"]:
@@ -2729,6 +2740,8 @@ func _ordinary_client() -> void:
 	if _ordinary_two_client_moving and not await _ordinary_moving_client(manifest):
 		return
 	if _ordinary_two_client_authority_stop and not await _ordinary_authority_stop_client():
+		return
+	if _ordinary_two_client_pilot_loss and not await _ordinary_pilot_loss_client():
 		return
 	if not await _wait_file("host.release", 12.0):
 		return
@@ -2983,6 +2996,281 @@ func _ordinary_moving_client(baseline: Dictionary) -> bool:
 	return true
 
 
+# Pilot loss starts after the full moving/reseat handshake. Only the original
+# pilot closes its real transport; the authority and passenger keep their session.
+func _ordinary_pilot_loss_arm(pilot: int) -> void:
+	_ordinary_authority_adapter = _game.network_session
+	_ordinary_pilot_loss_events = {"transport_peer_disconnected": 0, "adapter_peer_disconnected": 0,
+		"server_disconnected": 0, "session_stopped": 0, "reason": ""}
+	_ordinary_authority_adapter.multiplayer.peer_disconnected.connect(func(peer: int):
+		if peer == pilot:
+			_ordinary_pilot_loss_events.transport_peer_disconnected += 1)
+	_ordinary_authority_adapter.peer_disconnected.connect(func(peer: int, receipt: Dictionary):
+		if peer == pilot:
+			_ordinary_pilot_loss_events.adapter_peer_disconnected += 1
+			_ordinary_pilot_loss_events.receipt = receipt.duplicate(true))
+	_ordinary_authority_adapter.multiplayer.server_disconnected.connect(func():
+		_ordinary_pilot_loss_events.server_disconnected += 1)
+	_ordinary_authority_adapter.session_stopped.connect(func(reason: StringName):
+		_ordinary_pilot_loss_events.session_stopped += 1
+		_ordinary_pilot_loss_events.reason = str(reason))
+
+
+func _ordinary_pilot_loss_host_current(baseline: Dictionary, seated: bool) -> bool:
+	var pilot := int(baseline.pilot_peer)
+	var passenger := int(baseline.passenger_peer)
+	var avatar := GameFlow.network_client_boarding_avatar_id(pilot)
+	var passenger_avatar := GameFlow.network_client_boarding_avatar_id(passenger)
+	var simulation := _game.get_network_remote_body_simulation()
+	var body := _ordinary_pilot_loss_retained.body as PlayerController
+	var owner := _ordinary_pilot_loss_retained.owner as CrewSeatRoleAuthority
+	var old_helm: WeakRef = _ordinary_pilot_loss_retained.helm as WeakRef
+	if not is_instance_valid(body) or owner == null or old_helm == null:
+		return false
+	var admitted := _ordinary_authority_adapter.get_admitted_peer_ids()
+	var current := _ordinary_manifest(pilot, passenger)
+	var commands := _ordinary_authority_adapter.get_remote_ship_command_snapshot()
+	var ownership := _ordinary_authority_adapter.get_owned_ship(_craft.get_ship_id())
+	return (_game.network_session == _ordinary_authority_adapter and _ordinary_authority_adapter.is_server()
+		and _ordinary_authority_adapter.is_session_active() and admitted.size() == 1 and admitted.has(passenger)
+		and _ordinary_peer_generation(passenger) == int(baseline.passenger_peer_generation)
+		and int(_ordinary_pilot_loss_events.transport_peer_disconnected) == 1
+		and int(_ordinary_pilot_loss_events.adapter_peer_disconnected) == 1
+		and int(_ordinary_pilot_loss_events.session_stopped) == 0
+		and old_helm.get_ref() == null and not _craft.is_remote_piloted() and not _craft.is_piloted()
+		and _craft.get_command_source() == _ordinary_pilot_loss_retained.source
+		and not (_game.get("_network_remote_pilots") as Dictionary).has(_craft.get_ship_id())
+		and int(commands.get("pilot_count", -1)) == 0 and (commands.get("pilots", []) as Array).is_empty()
+		and int(ownership.get("owner_peer_id", -1)) == 0
+		and ownership.get("ship_generation") == (baseline.ownership as Dictionary).get("ship_generation")
+		and int(ownership.get("ownership_generation", 0)) > int((baseline.ownership as Dictionary).ownership_generation)
+		and simulation.get_body(avatar) == null and simulation.get_body_record(avatar).is_empty()
+		and _ordinary_publication(avatar).is_empty() and (current.pilot_seat as Dictionary).is_empty()
+		and owner.get_assignment(pilot, avatar).is_empty()
+		and simulation.get_body(passenger_avatar) == body and _craft.get_crew_role_authority() == owner
+		and body.get_cabin_containment_report().get("frame") == _craft
+		and current.passenger_boarding == baseline.passenger_boarding
+		and _ordinary_fields(current.passenger_body, ["entity_id", "entity_generation", "parent_frame_id", "parent_frame_generation"])
+			== _ordinary_fields(baseline.passenger_body, ["entity_id", "entity_generation", "parent_frame_id", "parent_frame_generation"])
+		and (_ordinary_passenger_is_current(passenger) if seated else _ordinary_moving_walker_current(passenger))
+		and _player.get_instance_id() == _ordinary_player_id and _game.phase == GameFlow.Phase.INTRO
+		and not _player.is_seated() and not _player.is_control_enabled())
+
+
+func _ordinary_pilot_loss_host(baseline: Dictionary) -> bool:
+	var final_manifest := _read("host.moving_reseat_checked")
+	var pilot := int(baseline.pilot_peer)
+	var passenger := int(baseline.passenger_peer)
+	var simulation := _game.get_network_remote_body_simulation()
+	var body := simulation.get_body(GameFlow.network_client_boarding_avatar_id(passenger)) as PlayerController
+	var helm := _craft.get_command_source() as NetworkRemotePilotCommandSource
+	var owner: CrewSeatRoleAuthority = _craft.get_crew_role_authority()
+	if not _ordinary_require(body != null and helm != null and owner != null,
+		"pilot-loss retains the original authoritative passenger body, crew owner and current remote helm"):
+		return false
+	var old_helm: WeakRef = weakref(helm)
+	_ordinary_pilot_loss_retained = {"body": body, "owner": owner, "helm": old_helm,
+		"source": _craft.get_local_input_source()}
+	_ordinary_pilot_loss_arm(pilot)
+	_write("host.pilot_loss_ready", {})
+	for role in ["client", "client_b"]:
+		if not await _wait_file(role + ".pilot_loss_ready", 8.0):
+			return false
+	if not _ordinary_require(_ordinary_pilot_is_current(pilot) and _ordinary_passenger_is_current(passenger)
+		and simulation.get_body(GameFlow.network_client_boarding_avatar_id(passenger)) == body
+		and _craft.get_command_source() == helm and _craft.get_crew_role_authority() == owner
+		and _ordinary_manifest(pilot, passenger).passenger_seat == final_manifest.passenger_seat,
+		"all three actors arm real transport signals after full moving completion while both original occupants remain aboard"):
+		return false
+	_write("host.pilot_loss_go", {})
+	if not await _ordinary_boundary(func(): return _ordinary_pilot_loss_host_current(final_manifest, true), 8.0,
+		"actual pilot transport loss retires only its helm, claims, publication and command queue while preserving server and original passenger"):
+		return false
+	var released := _ordinary_manifest(pilot, passenger)
+	if not _ordinary_require(released.passenger_seat == final_manifest.passenger_seat,
+		"pilot departure preserves the passenger's exact original chair claim before further input"):
+		return false
+	released["pose_tick"] = int(_game.get("_network_boarding_server_tick"))
+	_write("host.pilot_loss_released", released)
+	if not await _wait_file("client_b.pilot_loss_consumed", 8.0):
+		return false
+	var old_claim := int((released.passenger_seat as Dictionary).claim_sequence)
+	for stage: String in ["stand", "reseat"]:
+		var seated := stage == "reseat"
+		_write("host.pilot_loss_" + stage + "_go", {})
+		if not await _wait_file("client_b.pilot_loss_" + stage + "_done", 8.0):
+			return false
+		if not await _ordinary_boundary(func(): return _ordinary_pilot_loss_host_current(final_manifest, seated), 8.0,
+			"surviving server retains the same supported passenger body and retired pilot after ordinary " + stage):
+			return false
+		var current := _ordinary_manifest(pilot, passenger)
+		if seated and not _ordinary_require(int((current.passenger_seat as Dictionary).claim_sequence) > old_claim
+			and (current.passenger_seat as Dictionary).seat_generation == (released.passenger_seat as Dictionary).seat_generation,
+			"surviving passenger's ordinary reseat earns a fresh claim on the same authored chair generation"):
+			return false
+		current["pose_tick"] = int(_game.get("_network_boarding_server_tick"))
+		_write("host.pilot_loss_" + stage + "_checked", current)
+		if not await _wait_file("client_b.pilot_loss_" + stage + "_retained", 8.0):
+			return false
+	if not await _wait_file("client.pilot_loss_recovered", 30.0):
+		return false
+	if not _ordinary_require(_ordinary_pilot_loss_host_current(final_manifest, true),
+		"departing pilot's usable local controls cannot revive the retired host helm or disconnect the surviving passenger"):
+		return false
+	_write("host.pilot_loss_complete", {"events": _ordinary_pilot_loss_events.duplicate(true)})
+	return await _wait_file("client.pilot_loss_complete", 8.0) and await _wait_file("client_b.pilot_loss_complete", 8.0)
+
+
+func _ordinary_pilot_loss_passenger_current(manifest: Dictionary, seated: bool) -> bool:
+	var session := _game.network_session
+	var pilot_avatar := GameFlow.network_client_boarding_avatar_id(int(manifest.pilot_peer))
+	var source := _game.get_network_remote_body_intent_source()
+	var presenter := _game.get_network_moving_interior_presenter()
+	if not is_instance_valid(source) or not is_instance_valid(presenter):
+		return false
+	var default_source := _craft.get("_default_local_command_source") as ShipCommandSource
+	var active_source := _craft.get("_command_source") as ShipCommandSource
+	var pose: Dictionary = _game._network_craft_pose_stream.latest_sample(_craft.get_ship_id())
+	var ownership: Dictionary = {}
+	for row: Dictionary in (session.get_authoritative_snapshot().get("sections", {}) as Dictionary).get("ownership", []):
+		if row.get("ship_id") == _craft.get_ship_id():
+			ownership = row
+	var latest := session.get_moving_interior_latest_relationship(StringName(_ordinary_walking_identity.entity_id))
+	var view := session.get_passenger_replica_snapshot()
+	var assignment := view.get("assignment", {}) as Dictionary
+	# Coasting pose headers retain handoff attribution. Current ownership and a
+	# fresh same-hull pose establish the surviving consumer's actual state.
+	return (session == _ordinary_authority_adapter and _ordinary_same_identity() and _ordinary_walking_identity_is_preserved()
+		and int(_ordinary_pilot_loss_events.session_stopped) == 0 and int(_ordinary_pilot_loss_events.server_disconnected) == 0
+		and source == _ordinary_pilot_loss_retained.body_source and source.is_bound()
+		and source.get_entity_id() == StringName(_ordinary_walking_identity.entity_id)
+		and source.get_entity_generation() == int(_ordinary_walking_identity.entity_generation)
+		and (default_source == null or not default_source.is_enabled_owner())
+		and (active_source == null or not active_source.is_enabled_owner()) and not _game.get("_piloting")
+		and (_craft.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame) == _ordinary_pilot_loss_retained.frame
+		and _ordinary_fields(ownership, ["ship_id", "ship_generation", "owner_peer_id", "ownership_generation"]) == manifest.ownership
+		and int(ownership.get("owner_peer_id", -1)) == 0
+		and str(pose.get("ship_id", "")) == str(_craft.get_ship_id())
+		and int(manifest.get("pose_tick", 0)) > 0 and int(pose.get("pose_tick", 0)) >= int(manifest.pose_tick)
+		and session.get_moving_interior_latest_relationship(pilot_avatar).is_empty()
+		and presenter != null and pilot_avatar not in presenter.get_drawn_entity_ids()
+		and _ordinary_fields(_game.get("_network_client_boarding_claim") as Dictionary, ["ship_id", "seat_id", "role"])
+			== _ordinary_fields(manifest.passenger_boarding, ["ship_id", "seat_id", "role"])
+		and _ordinary_fields(latest, ["entity_id", "entity_generation", "parent_frame_id", "parent_frame_generation", "occupancy_state"])
+			== manifest.passenger_body
+		and (_ordinary_local_passenger_is_current() if seated else (_ordinary_supported_cabin() and not _player.is_seated() and assignment.is_empty()))
+		and (not seated or _ordinary_fields(assignment,
+			["occupant_peer_id", "avatar_id", "vessel_id", "role", "seat_id", "seat_generation", "claim_sequence"]) == manifest.passenger_seat))
+
+
+func _ordinary_pilot_loss_client() -> bool:
+	var final_manifest := _read("host.moving_reseat_checked")
+	var body_source := _game.get_network_remote_body_intent_source()
+	var frame := _craft.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
+	var source := _craft.get_local_input_source()
+	var saved_helm := (_game.get("_network_client_helm_input_sources") as Dictionary).get(_craft.get_instance_id(), {}) as Dictionary
+	if not _ordinary_require(_ordinary_consumed_manifest_current(final_manifest) and body_source != null and frame != null and source != null,
+		"original client arms pilot loss only after consuming every moving stage and final seated manifest"):
+		return false
+	_ordinary_pilot_loss_retained = {"body_source": body_source, "frame": frame}
+	var prediction_grant := ((frame.get("_occupants") as Dictionary).get(_player.get_instance_id(), {}) as Dictionary).duplicate()
+	var old_prediction: Callable = prediction_grant.get("prediction_admission", Callable())
+	_ordinary_pilot_loss_arm(int(final_manifest.pilot_peer))
+	_write(_role + ".pilot_loss_ready", {"peer_id": _ordinary_peer_id, "player_id": str(_ordinary_player_id)})
+	if not await _wait_file("host.pilot_loss_ready", 8.0) or not await _wait_file("host.pilot_loss_go", 8.0):
+		return false
+	if _role == "client":
+		if not _ordinary_require(saved_helm.get("source") == source and saved_helm.get("capture", Callable()).is_valid()
+			and source.command_produced.is_connected(saved_helm.capture), "departing pilot retains its exact original network helm callback before closing transport"):
+			return false
+		var stopped := _game.shutdown_network_session(&"halyard_ordinary_pilot_loss")
+		if not _ordinary_require(bool(stopped.get("accepted", false)) and int(_ordinary_pilot_loss_events.session_stopped) == 1
+			and _ordinary_pilot_loss_events.reason == "halyard_ordinary_pilot_loss",
+			"original pilot closes its real session once through production shutdown"):
+			return false
+		if not await _wait_file("host.pilot_loss_released", 8.0):
+			return false
+		var presenter := _game.get_network_moving_interior_presenter()
+		if not await _ordinary_boundary(func():
+			return (_player.get_instance_id() == _ordinary_player_id and not _game.get("_transition_busy")
+				and not _ordinary_authority_adapter.is_session_active() and _ordinary_authority_adapter.multiplayer.get_unique_id() == 1
+				and str(_game.get("_network_session_mode")).is_empty() and _ordinary_authority_adapter.get_server_offer().is_empty()
+				and (_game.get("_network_client_boarding_claim") as Dictionary).is_empty()
+				and (_game.get("_network_remote_helm") as Dictionary).is_empty()
+				and (_game.get("_network_client_helm_input_sources") as Dictionary).is_empty()
+				and _game.get("_network_engineer_client_seat") == null and _game.get("_network_engineer_source") == null
+				and not body_source.is_bound() and (not old_prediction.is_valid() or not bool(old_prediction.call()))
+				and not frame._local_prediction_is_current(_player)
+				and presenter != null and not bool(presenter.get_presentation_audit().get("attached", true))
+				and presenter.get_drawn_entity_ids().is_empty()
+				and _ordinary_authority_adapter.get_passenger_replica_snapshot().is_empty()
+				and _ordinary_authority_adapter.get_moving_interior_latest_relationship(StringName(_ordinary_walking_identity.entity_id)).is_empty()),
+			8.0, "departing pilot retires actual old boarding, body, prediction, presenter and network helm grants"):
+			return false
+		if not _ordinary_require(source == _craft.get_command_source() and source.is_enabled_owner()
+			and source.get_authority_peer_id() == int(saved_helm.authority) and source.get_local_peer_id() == 1
+			and not source.command_produced.is_connected(saved_helm.capture)
+			and _game.get("_piloting") and _player.is_seated_at(_craft.get_pilot_seat_anchor()),
+			"departing original pilot keeps the actual local cockpit with restored ordinary input authority"):
+			return false
+		var sampled := {"local_throttle": false}
+		var observe := func(command: ShipCommand, peer: int):
+			if peer == 1 and command.throttle > 0.15:
+				sampled.local_throttle = true
+		source.command_produced.connect(observe)
+		_ordinary_action(&"move_forward", true, 0.25)
+		var usable: bool = await _ordinary_boundary(func(): return (bool(sampled.local_throttle)
+			and _craft.get_last_ship_command().throttle > 0.15 and source.is_enabled_owner()),
+			8.0, "departing pilot's ordinary throttle reaches its real recovered solo source and ship consumer")
+		_ordinary_action(&"move_forward", false)
+		source.command_produced.disconnect(observe)
+		if not usable or not await _ordinary_authority_solo_ui("Session closed: halyard_ordinary_pilot_loss"):
+			return false
+		if not _ordinary_require(int(_ordinary_pilot_loss_events.session_stopped) == 1
+			and int(_ordinary_pilot_loss_events.server_disconnected) == 0 and not body_source.is_bound(),
+			"local input and UI preserve the one intentional stop and cannot revive its retired body source"):
+			return false
+		_write("client.pilot_loss_recovered", {"events": _ordinary_pilot_loss_events.duplicate(true)})
+	else:
+		if not await _wait_file("host.pilot_loss_released", 8.0):
+			return false
+		var released := _read("host.pilot_loss_released")
+		if not await _ordinary_boundary(func(): return _ordinary_pilot_loss_passenger_current(released, true), 8.0,
+			"surviving original passenger consumes pilot retirement and current owner zero without losing its seat or session"):
+			return false
+		_write("client_b.pilot_loss_consumed", {})
+		for stage: String in ["stand", "reseat"]:
+			if not await _wait_file("host.pilot_loss_" + stage + "_go", 8.0):
+				return false
+			if stage == "reseat":
+				await _ordinary_look(_station_anchor().global_position + Vector3.UP * 1.2)
+				if not await _ordinary_boundary(func(): return (_game.station_interaction_candidate is ShipCrewSeat
+					and (_game.station_interaction_candidate as ShipCrewSeat).get_seat_anchor() == _station_anchor()),
+					8.0, "surviving passenger's ordinary aim rediscovers its same authored chair"):
+					return false
+			await _ordinary_press(&"interact")
+			if not await _ordinary_boundary(func(): return (_ordinary_local_passenger_is_current() if stage == "reseat"
+				else (_ordinary_supported_cabin() and not _player.is_seated())), 8.0,
+				"surviving passenger's ordinary Interact completes " + stage):
+				return false
+			_write("client_b.pilot_loss_" + stage + "_done", {})
+			if not await _wait_file("host.pilot_loss_" + stage + "_checked", 8.0):
+				return false
+			var checked := _read("host.pilot_loss_" + stage + "_checked")
+			if not await _ordinary_boundary(func(): return _ordinary_pilot_loss_passenger_current(checked, stage == "reseat"),
+				8.0, "same connected passenger consumes the authoritative fresh " + stage + " result"):
+				return false
+			_write("client_b.pilot_loss_" + stage + "_retained", {})
+	if not await _wait_file("host.pilot_loss_complete", 30.0):
+		return false
+	if _role == "client_b":
+		if not _ordinary_require(_ordinary_pilot_loss_passenger_current(_read("host.pilot_loss_reseat_checked"), true),
+			"surviving passenger retains its consumed fresh chair claim and live session through the departing pilot's solo checks"):
+			return false
+	_write(_role + ".pilot_loss_complete", {"events": _ordinary_pilot_loss_events.duplicate(true)})
+	return true
+
+
 # HALYARD-AUTHORITY-STOP starts after the entire accepted moving sequence.
 # These are observations of the existing transport/cleanup owners: no client
 # disconnect, handler call, migration, authority change or recovery pose is sent.
@@ -3183,13 +3471,13 @@ func _ordinary_authority_solo_walk(frame: MovingInteriorFrame) -> bool:
 	return _ordinary_require(false, "same supported former passenger walks over point six metres through ordinary solo inputs within fifteen seconds")
 
 
-func _ordinary_authority_solo_ui() -> bool:
+func _ordinary_authority_solo_ui(expected_message: String = "Connection to the session host was lost.") -> bool:
 	var presenter := _game.hud.get("_network_status_presenter") as NetworkSessionStatusPresenter
 	var view := presenter.get_snapshot()
 	var expected_role := &"pilot" if _role == "client" else &"observer"
 	if not _ordinary_require(view.get("state") == &"disconnected" and view.get("local_role") == expected_role
 		and view.get("ownership_text") == str(expected_role).to_upper()
-		and str(view.get("message", "")).contains("Connection to the session host was lost.")
+		and str(view.get("message", "")).contains(expected_message)
 		and bool(view.get("craft_control_available", false)),
 		"actual consumed HUD honestly reports host loss and current solo control role"):
 		return false
@@ -3385,6 +3673,27 @@ func _ordinary_failure_snapshot(description: String) -> Dictionary:
 	if not is_instance_valid(_game) or not is_instance_valid(_craft) or not is_instance_valid(_player):
 		snapshot["missing"] = "Main, craft or Player unavailable"
 		return snapshot
+	if _ordinary_two_client_pilot_loss:
+		var old_helm: WeakRef = _ordinary_pilot_loss_retained.get("helm") as WeakRef
+		var pilot_manifest := _read("host.moving_reseat_checked")
+		var pilot_peer := int(pilot_manifest.get("pilot_peer", 0))
+		var passenger_peer := int(pilot_manifest.get("passenger_peer", 0))
+		snapshot["pilot_loss"] = {"events": _ordinary_pilot_loss_events.duplicate(true),
+			"session_active": _game.network_session.is_session_active(),
+			"admitted_peers": _game.network_session.get_admitted_peer_ids(),
+			"original_adapter_current": _game.network_session == _ordinary_authority_adapter,
+			"ownership": _game.network_session.get_owned_ship(_craft.get_ship_id()),
+			"remote_commands": _game.network_session.get_remote_ship_command_snapshot(),
+			"remote_piloted": _craft.is_remote_piloted(), "piloted": _craft.is_piloted(),
+			"old_helm_alive": old_helm != null and old_helm.get_ref() != null,
+			"retained_local_source_current": _craft.get_command_source() == _ordinary_pilot_loss_retained.get("source"),
+			"pilot_publication": str(_ordinary_publication(GameFlow.network_client_boarding_avatar_id(pilot_peer))),
+			"passenger_publication": str(_ordinary_publication(GameFlow.network_client_boarding_avatar_id(passenger_peer))),
+			"boarding": _game.network_session.get_boarding_snapshot(),
+			"passenger_replica": _game.network_session.get_passenger_replica_snapshot(),
+			"consumed_pose": _game._network_craft_pose_stream.latest_sample(_craft.get_ship_id()),
+			"released": _read("host.pilot_loss_released"),
+			"stand": _read("host.pilot_loss_stand_checked"), "reseat": _read("host.pilot_loss_reseat_checked")}
 	var source := _game.get_network_remote_body_intent_source()
 	snapshot["player"] = {"identity": _ordinary_node_identity(_player), "position": str(_player.global_position),
 		"craft_local": str(_craft.to_local(_player.global_position)), "floor": _player.is_on_floor(),
