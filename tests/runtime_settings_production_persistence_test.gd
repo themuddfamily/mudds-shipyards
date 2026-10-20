@@ -211,6 +211,8 @@ func _fire_restart_stage(writer: bool) -> void:
 		return
 	hud.set_paused(true)
 	hud._show_settings_page()
+	await process_frame
+	await process_frame
 	var buttons := hud.get("_binding_buttons") as Dictionary
 	var fire_button := buttons.get(&"fire") as Button
 	_check(fire_button != null and fire_button.is_visible_in_tree(), "Fire binding row is on the visible Settings page")

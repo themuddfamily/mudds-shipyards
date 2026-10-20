@@ -86,7 +86,11 @@ visible-row intersection, former-control refusal, gamepad/unrelated-data checks
 and300s per process. Reader starts only after writer passes and exits. One caller
 implementer/independent reviewer; no runtime repair selected. Estimated10–20min
 setup/review,1–3min compile and each process,5–10min closeout if no defect.
-First unexpected failure stops; original failed attempts remain recorded.
+Current writer failed the same row intersection before capture. One source-
+supported setup correction adds the existing Settings fixture’s two layout
+frames before Fire focus; every original gate remains. One corrected writer
+is selected, then reader only after success; another failure stops without
+further retries. Prior failures and300s/process remain recorded.
 
 **Existing Salvage ordinary journey DONE in current Linux source scope.**
 The normal hub approach, all three inspections and authored grades, published
