@@ -677,7 +677,7 @@ func _host_postdock_reboard() -> bool:
 	_return_stage = "host.reboard_cabin"
 	if not await _postdock_wait(func():
 		return (_flight_file_exists("client_b.reboard_cabin") and _host_reboard_body_current(false)),
-		8.0, "same authenticated passenger ordinarily reboards with one fresh cabin claim and a new supported body generation within8s"):
+		8.0, "same authenticated passenger ordinarily reboards with one fresh cabin claim and a new supported body on an advanced input stream within8s"):
 		return false
 	_reboard_cabin = _reboard_receipt()
 	_write("host.reboard_cabin_checked", _reboard_cabin)
@@ -788,7 +788,7 @@ func _client_postdock_reboard() -> bool:
 	_return_stage = "client_b.reboard_hatch_interact"
 	await _press(&"interact")
 	if not await _postdock_wait(_local_reboard_cabin_current, 8.0,
-		"ordinary hatch Interact consumes new boarding answer and supported original Player with fresh body generation within8s"):
+		"ordinary hatch Interact consumes new boarding answer and supported original Player with current body generation and advanced input stream within8s"):
 		return false
 	_write("client_b.reboard_cabin", _reboard_receipt())
 	if not await _postdock_wait(func(): return _flight_file_exists("host.reboard_cabin_checked"), 8.0,
@@ -862,10 +862,14 @@ func _host_reboard_body_current(seated: bool) -> bool:
 		return false
 	var claim := held[0] as Dictionary
 	var previous := (_reboard_released.occupancies as Array)[0] as Dictionary
+	# Same-generation rebinding is supported; this admission has a new body,
+	# boarding claim and input stream, all checked against their real owners.
 	var current_entity := int(record.get("entity_generation", 0))
+	var admitted_source := _read("client_b.reboard_cabin").get("body_source", {}) as Dictionary
+	var retired_source := _read("client_b.postdock_stood").get("body_source", {}) as Dictionary
 	return body.get_instance_id() != _postdock_body_id \
 		and _peer_generation(peer) == int(_flight_manifest.client_b.peer_generation) \
-		and current_entity > int(_reboard_released.identity.wire.entity_generation) \
+		and current_entity > 0 \
 		and int(record.get("owner_peer_id", 0)) == peer and record.get("entity_id") == avatar \
 		and body.get_cabin_containment_report().get("frame") == _craft \
 		and (body.is_seated() if seated else body.is_on_floor() and not body.is_seated()) \
@@ -880,7 +884,9 @@ func _host_reboard_body_current(seated: bool) -> bool:
 		and wire.get("parent_frame_id") == StringName("frame_%s" % _craft.ship_id) \
 		and int(wire.get("parent_frame_generation", 0)) == int(claim.get("frame_generation", -1)) \
 		and int(wire.get("occupancy_state", -1)) == (NetworkMovingInteriorRelationship.STATE_SEATED if seated else NetworkMovingInteriorRelationship.STATE_WALKING) \
-		and int(movement.get("entity_generation", 0)) == current_entity and int(movement.get("owner_peer_id", 0)) == peer
+		and int(movement.get("entity_generation", 0)) == current_entity and int(movement.get("owner_peer_id", 0)) == peer \
+		and int(movement.get("stream_id", -1)) == int(admitted_source.get("stream_id", -2)) \
+		and int(movement.get("stream_id", -1)) > int(retired_source.get("stream_id", -1))
 
 
 func _host_reboard_seated_current() -> bool:
@@ -921,14 +927,15 @@ func _reboard_cabin_identity_current() -> bool:
 		var body := simulation.get_body(avatar) as PlayerController
 		return body != null and str(body.get_instance_id()) == str(_reboard_cabin.body.instance_id) \
 			and int(simulation.get_body_record(avatar).get("entity_generation", 0)) == expected \
-			and _postdock_occupancies() == _reboard_cabin.occupancies
+			and _postdock_occupancies() == _reboard_cabin.occupancies \
+			and int(_game.network_session.get_movement_avatar_snapshot(avatar).get("stream_id", -1)) == int(_reboard_cabin.movement.stream_id)
 	var source := _game.get_network_remote_body_intent_source()
 	var claim := _game.get("_network_client_boarding_claim") as Dictionary
 	var held := (_reboard_cabin.occupancies as Array)[0] as Dictionary
 	var result: Dictionary = _game.network_session.get_boarding_intent_result_replica()
 	return _player.get_instance_id() == _initial_player_id and source != null and source.is_bound() \
 		and source.get_entity_id() == GameFlow.network_client_boarding_avatar_id(_initial_peer_id) \
-		and source.get_entity_generation() == expected \
+		and source.get_entity_generation() == expected and int(source.get_audit().get("stream_id", -1)) == int(_reboard_cabin.movement.stream_id) \
 		and claim.get("ship_id") == _craft.ship_id and claim.get("seat_id") == StringName(held.get("seat_id", "")) \
 		and claim.get("role") == StringName(held.get("role", "")) \
 		and bool(result.get("accepted", false)) and result.get("role") == claim.get("role") \
@@ -952,7 +959,8 @@ func _local_reboard_cabin_current() -> bool:
 		and result.get("ship_id") == _craft.ship_id and result.get("avatar_id") == GameFlow.network_client_boarding_avatar_id(_initial_peer_id) \
 		and int(result.get("sequence", 0)) > int(_postdock_start.boarding.get("sequence", 0)) \
 		and source != null and source.get_entity_id() == GameFlow.network_client_boarding_avatar_id(_initial_peer_id) \
-		and source.get_entity_generation() > int(_reboard_released.identity.wire.entity_generation) \
+		and source.get_entity_generation() > 0 \
+		and int(source.get_audit().get("stream_id", -1)) > int(_postdock_start.body_source.get("stream_id", -1)) \
 		and int(relationship.get("entity_generation", 0)) == source.get_entity_generation() \
 		and relationship.get("parent_frame_id") == StringName("frame_%s" % _craft.ship_id) \
 		and int(relationship.get("parent_frame_generation", 0)) == int(_postdock_start.relationship.parent_frame_generation) \
@@ -989,6 +997,7 @@ func _local_reboard_seated_current(expected: Dictionary) -> bool:
 		and _body_follows_anchor(_player, (_craft as JovianLightFreighter).get_copilot_seat_anchor(), true) \
 		and _reboard_relationship_matches(expected, true) and source != null and source.is_bound() \
 		and source.get_entity_generation() == int(expected.body_record.entity_generation) \
+		and int(source.get_audit().get("stream_id", -1)) == int(expected.movement.stream_id) \
 		and int(view.get("entity_generation", 0)) == source.get_entity_generation() \
 		and claim.get("seat_id") == StringName(held.get("seat_id", "")) and claim.get("role") == StringName(held.get("role", "")) \
 		and assignment.get("avatar_id") == GameFlow.network_client_boarding_avatar_id(_initial_peer_id) \
@@ -1003,6 +1012,8 @@ func _reboard_receipt() -> Dictionary:
 	receipt["reboard_selected"] = _reboard_selected
 	var avatar := GameFlow.network_client_boarding_avatar_id(int(_flight_start.passenger_peer))
 	if _role == "host":
+		receipt["movement"] = _primitive_fields(_game.network_session.get_movement_avatar_snapshot(avatar),
+			["entity_generation", "owner_peer_id", "mode", "stream_id", "last_sequence"])
 		receipt["assignment"] = _primitive_fields(_craft.get_crew_role_authority().get_assignment(
 			int(_flight_start.passenger_peer), avatar),
 			["occupant_peer_id", "avatar_id", "vessel_id", "role", "seat_id", "seat_generation", "claim_sequence", "frame_id"])
