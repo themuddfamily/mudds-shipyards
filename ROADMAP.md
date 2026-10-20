@@ -38,20 +38,23 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 ## Execution now
 
-**WEAPON-ARROW's named pilot-hit route is accepted on51257b3.** One continuous
-observed F press yields a fresh1102/precision-emitter/sequence0/receipt1 hit,
-DRONE-01 health100→76. Brake/aim/fire/attitude restoration10.626s within25s;
-full actual archive route120.991s withinCAP300, two strict home/OFFLINE exits,
-clear/reboard and normal UI quit. All5179 raw physics receipts reviewed;89 driver
-tests and all11 frozen stages pass, including paired packages/strict startups/
-audit. Both earlier failures and cumulative558.746s remain retained.
-[Exact checks and reopening fact](docs/history/ROADMAP_DELIVERIES.md#arrow-precision-hit-and-return--shipped-on-51257b3).
-Owned worktree/profiles/helpers removed;66 process identities absent and11
-public files hash-verified. Records compacted136→18 loose files after all151
-entries were verified. Cleanup/compaction36.64min from original10:47 selection,
-within original80min. Only the task results folder remains. No further engine
-run or successor is selected. Broader craft/damage/recovery/crosscraft/Main/art/
-native/final gates stay open; Aboard Help keeps its source-only scope.
+**Active: HELM-PITCH turn/release caller, selected11:27UTC2026-10-20.**
+Qualify existing remote pitch through the actual production sampler and three
+independent processes; no missing runtime pitch feature was found. One
+implementer extends the existing yaw caller with narrow steering hooks and a
+small pitch specialization, avoiding a second copy of the shared route.
+
+| Field | Fixed result and limit |
+| --- | --- |
+| Result | Original crew boarding/≥5m departure/brake, then both sampled pitch directions reach fresh same-stream host input and signed nose rotation≥3° within host-owned2s; fresh neutral≤1s, ≤0.5° drift for1s, both actual client attitudes≤2° within2s. |
+| Ownership | Existing `jovian_network_two_client_yaw_test.gd`, new small pitch caller and UID only; production runtime and inherited boarding/flight/coordinator unchanged. One implementer and one independent reviewer. |
+| Input scope | Synthetic Godot InputEventAction through actual default LocalShipInputSource, not an injected provider, OS input or physical hardware proof. Preserve authenticated actors/source/streams/seat/entity/ownership and released berth. |
+| Checks | Freeze clean pin and exact commands before engines: Dummy-audio headless import180s, direct pitch check-only120s, then ONE pitch and ONE changed-yaw regression, original coordinator300s/10s exit grace and outer360s each. Child peers stay on private Xvfb/x11 with Dummy audio. Require all3 actual OS exits0, one coordinator marker/zero raw diagnostics, source/cache unchanged after import. |
+| Budget/stop | ≤25min implementation, then review/checks/cleanup within original11:27–12:27UTC/60min. First unexpected failure STOP; no automatic correction/retry. Release actions and reap owned processes on every path. |
+| Closure | Commit/push actual source-only result and clean owned scratch. Full HELM-PITCH handback remains required/PARKED separately; no handback retry, native/device/endurance/parent closure or identical gameplay rebuild. |
+
+Latest accepted playable remains51257b3. Its named Arrow hit/return/reuse
+qualification and all broader open craft gates retain their recorded scope.
 
 ### Next production alternative: Freight physical terminal interface
 
