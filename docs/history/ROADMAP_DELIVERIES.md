@@ -16123,3 +16123,70 @@ Full UI matrix/rendered/human/devices, planetary journeys, native Windows/GPU,
 real audio/listening and final-release/unfiltered matrix gates remain open.
 Guided3/3 remains scoped to3d92b91; Defense/Wing/Perimeter/Breach/Tooltip parked
 chains remain unaccepted. All36 broad parents and ten phase gates remain open.
+
+
+## Gameplay status palettes — shipped on 941ef73
+
+2026-10-20. ACCESS-GAMEPLAY status / parents12,29. Source/checkpoint
+**941ef73242b44dcb28d22ee3a1cec5ec459d800b**, main integration92d0aae6e,
+notese4f78e5e7, committed/pushed. Original09:11–09:56UTC/45min retained. One
+medium implementer and root independent source/result review; no additional
+reviewer for bounded presentation-only change. Exactly scripts/ui/hud.gd and
+existing tests/accessibility_presets_test.gd,166+/27−, no new test/evidence family.
+
+Concrete defect: six _label-created gameplay readouts retained creation-time
+font_color roles and multiplied new roles through modulate. Mode, engine,
+throttle, hull damage, component status and target lock now update existing
+registration roles and apply them once with neutral white modulation. Accepted
+Destination helper generalized and its call migrated. Four duplicate modulation
+refresh paths removed; registered entries repaint palette/high contrast directly.
+Enemy health bar/planetary refresh retained. Engine/hull accessibility report
+fields return font_color×modulate, preserving expected current role values and
+schema. No authority, wording, visibility, threshold, target marker/name, geometry
+or component lifecycle role changes.
+
+Root source review caught repeated linear palette-registry scans in the new
+high-frequency telemetry path before engines. Label-local last-successful-role
+metadata now short-circuits unchanged roles; only actual role transitions scan,
+metadata written only after an existing entry is updated/applied. No global cache
+or appended registrations. Palette repaint remains authoritative. Explicit types
+used for all new call/member-chain GDScript locals.
+
+Existing accessibility suite extends32 finite states: four modes, four engine
+states including fallback, five throttle states including±.04 boundaries, five
+hull states, nine component/lifecycle/fallback presentations, five target-lock
+states including fallback. Four palettes×contrast off/on yields256 cases with
+768 actual Control font-paint comparisons: immediate/default, palette-after-state,
+state-after-palette. Same retained label/neutral modulation/one current-role
+registration, copy/visibility and prior assertions protected. Component inputs
+are detached presentation fixtures, not ordinary damage or recovery acceptance.
+
+All11 frozen stages PASS first attempt, zero diagnostics:
+- Import20.651257s.
+- Full accessibility1979checks80.707939s, original120s cap.
+- Existing target-lock6assertions1.976198s,60s cap.
+- Existing production sensor-reticle/component90assertions36.063229s,180s cap.
+- Full HUD panel layout552checks11.784322s,120s cap; includes all32 accepted
+  Destination current-role/palette/contrast comparisons.
+- Windows export26.667550s and Linux export25.746011s.
+- Linux executable startup22.341074s, archive23.948510s and Windows embedded
+  payload through Linux25.727725s: each exit0/exactly1STARTUP_MENU_READY_OK.
+- Actual audit5.945206s: matching1521PCK entries, stockPE.text/ELFmachine, exact
+  five-file Linux archive/binary/icon/installer bytes/modes/source epoch/metadata.
+Combined281.559022s; no correction/retry/cap increase. Every automated Godot
+headless/Dummy, no active desktop, physical audio, native Windows/GPU or hosted CI.
+
+Reviewed WindowsEXE/notes/two-member checkpointZIP and Linux ELF/archive/metadata/
+strict startup logs/notes published under repository builds;11 files hash-verified,
+notes contain actual source and limits. No Downloads publication.
+Cleanup9.92min within original45min: all59 observed PID/starttick identities
+absent, owners terminal;30 profile entries archived/hash/mode/symlink verified,
+helpers preserved. Owned clean pushed/integrated checkout/import cache/profiles/
+helpers/duplicate exports removed; only
+/srv/mudds-work/gameplay-status-palette-20261020/results/ remains.
+
+Headless Control/theme acceptance does not qualify rendered/human readability,
+physical devices, full combat/ordinary journeys, native Windows/GPU, real audio/
+listening, final unfiltered regression or release. Guided3/3 remains3d92b91 scope;
+parked Defense/Wing/Perimeter/Breach/Tooltip and KIT-RELOAD remain unaccepted.
+Freight terminal workflow remains pending. All36 parents and ten phase gates open.
