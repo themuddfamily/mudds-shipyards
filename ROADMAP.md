@@ -53,6 +53,10 @@ review supports this candidate; it is not a verified fix.
 [exact frozen commands, sidecar handoff and stop conditions](docs/ROADMAP_BACKLOG.md#release-rpc-cache-correction--implementation-cards).
 Preparation took6.8min versus15–30min estimate; required SDK files/source pins
 verified and preparation actors gone. No game capture or public checkpoint selected.
+Independent BROWSER-FIXTURE-JSON is also selected: normalize actual JSON sequence
+numbers and prove raw→admitting→raw→stop with the existing source fixture/driver.
+Only its test fixture file changes; no ordinary-route retry. Together with the two
+compiler jobs this is the maximum three executable tasks.
 Recipe commit→owned cleanup:4.8min against45–60min implementation/review estimate;
 unit stage0.514s. [Result and usage](docs/history/ROADMAP_DELIVERIES.md#rpc-cache-release-template-recipe--implemented).
 

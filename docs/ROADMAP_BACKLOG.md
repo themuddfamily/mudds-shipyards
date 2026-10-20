@@ -1559,8 +1559,51 @@ Separate source-only fixture readiness review establishes a protocol defect:
 Godot JSON numbers parse as doubles, but e944 fixture requires `sequence is int`.
 Driver emits JSON numbers. The exact historical command file was deleted, so its
 particular offending bytes are unproved. A bounded fix must normalize finite,
-nonnegative integral safe-range numbers, preserve exact successor/nonce/mode/PID
+nonnegative integral safe-range numbers, preserve exact successor/private-directory/environment/mode/PID
 contracts and prove real Godot parsing. No fixture edit/run is selected here.
+
+**BROWSER-FIXTURE-JSON — selected independent implementation2026-10-20.**
+Parent25's executable release-test handoff prerequisite; Linux/Windows compiler
+jobs remain separate and keep their existing caps. Use a clean derivative of
+783c8c87206a52928641dd887f9a34e02caaf246 in
+`/srv/mudds-work/browser-fixture-json-20261020/worktree`. One medium implementer
+owns ONLY `tests/network/network_session_join_failure_test.gd`; root owns private
+caller/guards/integration, one independent high reviewer. No recursive agents.
+
+Normalize the fixture sequence only after checking an actual int/float value,
+finite/nonnegative/integral and <=9007199254740991 (exact JSON integer range).
+Never coerce strings/bools/null/fractional/nonfinite/out-of-range values. Preserve
+existing dictionary/mode validation, private env/directory/headless/Dummy/port
+preconditions, exact sequence+1 successor check, PID/port acknowledgements,
+raw/admitting/stop behavior and independent300s fixture cap. No new nonce protocol,
+driver edit, game logic, observer or networking authority change. Driver stays
+SHA2562d7d4da626d018ddc4bc68e74bac67c8ad6632bf6f703d00089b16d6982d1015.
+Add real JSON-number decoding and rejected-type/boundary cases to the same normal
+GDScript suite; preserve its existing35 assertions/real join cases.
+
+Proof once after review from clean candidate: guarded fresh headless/Dummy import
+cap180s; existing `res://tests/network/network_session_join_failure_test.gd`
+cap60s requiring exit0/one NETWORK_SESSION_JOIN_FAILURE_TEST_OK, including new
+codec checks; one private Python caller cap30s imports the unchanged driver's
+BrowserFixture and starts the actual source-engine fixture. Exact driver engine
+arguments remain `--headless --audio-driver Dummy --path WORKTREE --script
+res://tests/network/network_session_join_failure_test.gd -- --native-browser-fixture
+--fixture-dir=OWNED_DIR --fixture-port=OWNED_LOOPBACK_PORT`. Require real raw
+sequence0→admitting1→raw2→stop3, each original3s acknowledgement bound, distinct
+actual fixture PID/port matching every state, normal stop exit0/one
+NATIVE_BROWSER_FIXTURE_STOPPED_OK, no diagnostics and all owned actors absent.
+Retain actual command/state JSON and raw logs this time. Caller-only handoff does
+not qualify the full packaged browser route or native callback repair.
+
+Use resolved stock source engine SHA32f8d7596c4b41185512b1c49d69f2da3be018fd784a53e349fa92a98a97bcde,
+private XDG/TMPDIR with inherited HOME, frozen source/index/cache/engine/PID guards.
+Fresh import alone may create cache. No unchanged Python89-suite rerun, full
+browser retry, export, template replacement or public checkpoint in this card.
+Estimate15–30min implementation/review plus2–5min checks/cleanup; split before45min.
+Any unexpected failure STOP; no automatic repair/retry/cap increase. Commit/push
+source, retain outcome and clean owned scratch. Candidate begins unmerged; merge
+only after the whole stated fixture contract passes. Original route failure and
+20-stage398.296s history remain binding; source historical input still unproved.
 
 **NET-TIMEOUT-RELEASE-ACCEPT — dependent runtime acceptance.** GATED on those
 matching templates plus a separate bounded correction for the known fixture
