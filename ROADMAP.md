@@ -1,7 +1,9 @@
 # Development roadmap
 
 **Status: playable development alpha; project completion is unproven.** Latest
-accepted checkpoint: **a59127c**. The physical Station Defense board now supports
+accepted checkpoint: **c47ca33**. Destination Board status refreshes now apply
+the current palette role once and follow palette/high-contrast changes.
+The physical Station Defense board supports
 ordinary E Deploy/status/terminal Reset and settlement retry through existing
 owners. Shared menu contrast and the local Help CLOSE paints are retained.
 The existing combat board offers solo
@@ -9,8 +11,8 @@ Paired Wing after Heavy Breach/Torpedo, with on-foot arm/cancel and launch only
 after boarding and physical departure. Wing explicitly offers no credit reward.
 It retains tractor inversion, title readability/overflow, Convoy guidance,
 planetary credits and earlier save protection.
-[Windows notes](builds/windows/MuddsShipyards-a59127c-notes.txt) and
-[Linux notes](builds/linux/MuddsShipyards-a59127c-linux-notes.txt) state checks and
+[Windows notes](builds/windows/MuddsShipyards-c47ca33-notes.txt) and
+[Linux notes](builds/linux/MuddsShipyards-c47ca33-linux-notes.txt) state checks and
 limits. Inline browser progress/timeout/retry remains accepted on20e90c9;
 paused LAN discovery on042c701. Beacon departure/traversal/once-only saved reward
 qualification on e06550e is retained in its recorded scope. Beacon home/dock/exit, Perimeter Hold,
@@ -43,7 +45,8 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 ## Execution now
 
-Latest delivered: Station Defense physical E interaction, recorded below. Accepted Wing
+Latest delivered: Destination Board status palette repair, recorded below.
+Station Defense physical E interaction remains accepted ona59127c. Accepted Wing
 board admission remains onf671da9; its full ordinary route is still parked.
 [Admission scope and checks](docs/history/ROADMAP_DELIVERIES.md#paired-wing-board-admission--shipped-on-f671da9)
 remain in the existing history and accepted-outcome table.
@@ -186,34 +189,26 @@ preserved. Owned clean pushed checkout/cache/profiles/helpers removed; only
 `/srv/mudds-work/defense-ordinary-route-20261020/results/` remains. Full parent,
 repetition, native Windows/GPU/devices/audio/human/final gates stay open.
 
-### Selected Destination Board status palette repair
+### Destination Board status palette — shipped on c47ca33
 
-ACCESS-DESTINATIONS / parents12,29. **08:54–09:39UTC/45min**, including
-implementation, focused checks, checkpoint and cleanup. Source finding: creation
-registers PlanetaryDestinationStatus font_color with its initial role, but retained
-row updates set modulate to the new role colour. That multiplies both colours and
-leaves the registered role stale across palette/high-contrast changes.
+ACCESS-DESTINATIONS status defect fixed in checkpoint **c47ca33**. Retained
+ready/travelling/unavailable labels update their existing font-colour role,
+apply it once and keep white modulation; later palette/high-contrast switches
+follow the current state. Text, node identity, action/focus and journey owners
+remain intact. [Validation and limits](docs/history/ROADMAP_DELIVERIES.md#destination-board-status-palette--shipped-on-c47ca33).
 
-One medium implementer owns only scripts/ui/hud.gd and the existing
-tests/hud_panel_layout_test.gd; root reviews/integrates/packages. Result: current
-ready/travelling/unavailable status role applied exactly once, neutral modulation,
-same retained label follows current palette/high contrast. Update its existing
-palette registration without appending one per snapshot. Preserve text, node
-identity, enabled action/focus and destination/travel/save/network owners. No other
-UI fixes or parked gameplay retry. Estimate15–25min implementation/source review.
+Full HUD layout552/accessibility443/actual Main Destination Console16 checks
+PASS, including32 retained-label palette/contrast combinations and immediate
+paint/identity/focus/one-registration cases. Paired exports, three strict startups
+and actual1521-entry PCK/PE/archive audit PASS; all10 stages first attempt,
+207.276s combined, zero diagnostics. Headless theme properties only; rendered,
+human, device, full planetary journey and final-release gates remain open.
 
-Freeze clean source before engines. Headless/Dummy import180s; full existing
-hud_panel_layout_test.gd120s (HUD_PANEL_LAYOUT_TEST_OK), accessibility_presets_test.gd
-120s and planetary_destination_console_production_test.gd120s with their existing
-success markers. Regression extends existing destination case: ready→cruising→
-unavailable→ready on retained label, palette/high-contrast changes and stable
-per-label registration count. All call/member-chain locals explicitly typed.
-Paired exports180s each, three startup checks120s each (exit0/exactly1
-STARTUP_MENU_READY_OK), existing actual PCK/PE/archive audit90s. First unexpected
-failure stops; no automatic repair/retry/cap increase. Publish only reviewed
-passing checkpoint in repository builds, retain actual scope/native/human gates.
-Archive/hash-verify unique results and remove owned clean pushed idle scratch
-within original45min. Full UI/device/rendered/travel/final acceptance remains open.
+Cleanup7.77min inside original08:54–09:39UTC/45min: all55 observed process
+identities absent,11 published files hash-verified,28 profile entries archived/
+verified and helpers preserved. Owned clean pushed/integrated checkout/import
+cache/profiles/helpers removed; only results remain. No successor or parked-route
+retry is selected here.
 
 ### Waiting decisions — not executable tasks
 
@@ -239,6 +234,7 @@ the existing history. These are accepted slices, not closed broad parents.
 
 | Outcome | Accepted scope / remaining boundary |
 | --- | --- |
+| Destination Board status palette | [Checkpointc47ca33](docs/history/ROADMAP_DELIVERIES.md#destination-board-status-palette--shipped-on-c47ca33): retained status role updates once and follows current accessibility palette/high contrast;32 actual palette/contrast pairs, full HUD layout/accessibility/Main console and paired package checks PASS. Headless theme scope; rendered/device/human/full journeys/final remain open. |
 | Station Defense physical interaction | [Checkpointa59127c](docs/history/ROADMAP_DELIVERIES.md#station-defense-physical-interaction--shipped-on-a59127c): ordinary E discovery/Deploy/status/Reset/retry through existing owners; actual Main15/full placement62 and paired package checks PASS. Full ordinary combat/payment/home remains unqualified. |
 | Shared menu contrast | [Checkpointd00ae72](docs/history/ROADMAP_DELIVERIES.md#shared-menu-contrast--shipped-on-d00ae72): role-tinted hover/pressed fills and palette-aware text corrected in shared helper;160 actual menu paints plus existing Help/title/navigation pass. Paired exports/startups/audit accepted; broad UI/rendered/device/human/final gates open. |
 | Help CLOSE contrast | [Checkpoint820cc38](docs/history/ROADMAP_DELIVERIES.md#help-close-contrast--shipped-on-820cc38): readable hover/pressed paints,32 actual paint pairs and existing Help navigation PASS; paired exports/startups/audit. Other UI/rendered/device/human/final gates remain open. |
@@ -300,14 +296,14 @@ failures; no automatic probe, repair, retry or cap increase is selected.
 
 ## Latest playable result
 
-**Checkpointa59127c** makes the physical Station Defense board usable through
-ordinary E, with safe active status, terminal Reset and report settlement retry.
-It retains shared menu/Help contrast, Paired Wing admission, tractor inversion,
-title readability/overflow, Convoy, credits and saves.
+**Checkpointc47ca33** fixes stale/double-tinted Destination Board status text
+through live status and accessibility palette/high-contrast changes. It retains
+the physical Station Defense E interaction, shared menu/Help contrast, Paired Wing
+admission, tractor inversion, title readability, Convoy, credits and save fixes.
 
-[Windows checkpoint ZIP](builds/windows/MuddsShipyards-a59127c-checkpoint.zip),
-[build notes](builds/windows/MuddsShipyards-a59127c-notes.txt),
-[actual validation and limits](docs/history/ROADMAP_DELIVERIES.md#station-defense-physical-interaction--shipped-on-a59127c).
+[Windows checkpoint ZIP](builds/windows/MuddsShipyards-c47ca33-checkpoint.zip),
+[build notes](builds/windows/MuddsShipyards-c47ca33-notes.txt),
+[actual validation and limits](docs/history/ROADMAP_DELIVERIES.md#destination-board-status-palette--shipped-on-c47ca33).
 Full ordinary Defense combat/payment/home, Wing kills/home, native Windows/GPU/
 device/audio/human and final release remain open. Guided3/3 on3d92b91 is not
 transferred to this package.

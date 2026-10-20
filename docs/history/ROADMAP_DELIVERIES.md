@@ -16066,3 +16066,60 @@ Owned clean pushed/unmerged checkout/import cache/profiles/helpers/duplicate
 exports removed. Only /srv/mudds-work/defense-ordinary-route-20261020/results/
 remains. Native Windows/GPU/devices/audio/human/final/full-matrix remain open;
 Guided3/3 remains scoped to3d92b91. All36 parents and ten phase gates remain open.
+
+
+## Destination Board status palette — shipped on c47ca33
+
+2026-10-20. ACCESS-DESTINATIONS / parents12,29. Source/checkpoint
+**c47ca3366fc6f74951447ab51073a67abb5347e2**, main integration9fc79b370,
+notes86d0a9731, committed/pushed. Original08:54–09:39UTC/45min retained. One
+medium implementer, root independent source/result review; no extra reviewer
+needed for this bounded presentation change. Only scripts/ui/hud.gd and existing
+tests/hud_panel_layout_test.gd changed,92+/1−; no new validator/test family.
+
+Actual source defect: _label registers initial font_color role, while retained
+_update_planetary_destination_row assigned modulate to the new status role.
+Creation-role colour multiplied by new-role modulation, and later palette changes
+repainted the stale initial registration. Local status helper now changes that
+existing matching theme_color/font_color entry's role, applies it immediately
+through the existing palette/outline owner and sets modulation white. No appended
+registration on each refresh, global palette helper change, destination catalog,
+travel/save/network authority, node replacement, text/action/focus change or parked
+route adoption.
+
+The extended existing catalog-backed destination case retains the same Ember
+status Label through ready→cruising→unavailable→ready. It verifies immediate
+current-role paint before any palette repaint, neutral modulation, all4palettes×
+2contrast modes for each state (32 combinations), exact status/action copy,
+disabled/focus gates, retained Back focus and one font-colour registration after
+every refresh. Existing full suite assertions stay intact.
+
+All10 frozen stages PASS first attempt, zero diagnostics:
+- Clean import19.642085s.
+- Full HUD panel layout552checks11.756838s, including the new retained-status cases.
+- Full accessibility443checks11.871981s.
+- Actual Main Destination Console production16assertions32.935486s, including
+  physical catalog/route display and detach/re-entry ownership.
+- Windows export26.690490s and Linux export26.061357s.
+- Linux executable startup22.340615s, archive startup23.990065s and Windows
+  embedded payload through Linux26.221458s: each exit0/exactly1STARTUP_MENU_READY_OK.
+- Actual package audit5.765371s: matching1521PCK entries, stockPE.text/ELFmachine,
+  exact5file Linux archive/binary/icon/installer bytes, modes/source epoch and
+  metadata. Windows native execution NOT_RUN; no native GPU claim.
+Combined207.275748s. All automated Godot headless/Dummy; no active desktop,
+physical audio or hosted CI run. Source/checks protect actual Control/theme
+properties; no rendered/human readability or physical-device acceptance inferred.
+
+Reviewed WindowsEXE/notes/two-member checkpointZIP and Linux ELF/archive/metadata/
+strict startup logs/notes published in repository builds,11 files hash-verified.
+Notes contain exact source and actual limits. No Downloads publication.
+Cleanup7.77min within original45min: all55 observed PID/starttick identities
+absent, owners terminal;28 profile entries archived/hash/mode/symlink verified,
+helper sources preserved. Owned clean pushed/integrated checkout/import cache/
+profiles/helpers/duplicate exports removed; only
+/srv/mudds-work/destination-status-palette-20261020/results/ remains.
+
+Full UI matrix/rendered/human/devices, planetary journeys, native Windows/GPU,
+real audio/listening and final-release/unfiltered matrix gates remain open.
+Guided3/3 remains scoped to3d92b91; Defense/Wing/Perimeter/Breach/Tooltip parked
+chains remain unaccepted. All36 broad parents and ten phase gates remain open.
