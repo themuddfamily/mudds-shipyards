@@ -231,6 +231,42 @@ hub→Observation/look→hub/UI-exit criteria remain. Cumulative333.882s checks 
 Latest public49047eb unchanged; unique raw/private archives retained, duplicate
 checkouts/ELFs/helpers/profiles cleaned. No executable card selected.
 
+### Selected diagnosis — popup lifetime during normal Exit
+
+WALK-OBSERVATION/CONTROL-FIX, parents7/8/9/29/32, diagnosis only. New source fact:
+pinned Popup.cpp52–75 owns the exact root focus_entered/tree_exited pair;
+Object.cpp1644 means source signal_map entry missing, not a callable-comparator
+slot mismatch. Normal Exit script only marks orderly state then SceneTree.quit;
+no script Popup/root-signal lifetime mutation found. Missing actual Popup identity
+and event ordering prevent a production repair; do not infer shared Board cause.
+
+One high implementer owns only `scripts/diagnostics/native_sortie_observer.gd`
+on private `diag/observation-exit-popup-20261020`, basecaller e390/game4c58; high
+independent lifecycle reviewer, root validation/cleanup. No recursive agents.
+Selected-only passive capture starts before Main: existing Popup census plus
+node_added watches, ID/string-only popup visibility/tree-exiting/tree-exited
+callbacks, root connection-list snapshots for the two native signals and only
+changed fingerprints. Record actual receiver ID/class/path/theme/visibility/
+embedded/in-tree/queued state and scalar Callable metadata; no retained Node or
+Callable registry. Existing observer payload, physics cadence, route and controls
+unchanged. Never connect root focus_entered/tree_exited: a new listener could mask
+the missing-map error. No hide/free/reparent/disconnect/state/input mutation,
+deferred wait, diagnostics suppression or invented native event ordering.
+
+Capture goal: identify the actual Popup registered on root and its observed
+lifetime/slot disappearance at the retained failure, or name the precise missing
+fact. Trace prefix OBSERVATION_POPUP_LIFETIME, no new validator/schema family.
+Estimate15–20min implementation/review plus5–10min checks/one full route. Original
+three attempts/90min cumulative budget retained (24.8min before this mapping).
+Before engines finalsourceGO+cleanpin+exactcommands: import180s, privacy60s,
+private Linux export180s, strict binary startup120s, existing artifact audit90s,
+original fullrouteCAP300/outer330 on isolated authenticatedX11/Dummy/dummy-renderer.
+Python82 unchanged/retained. Ordinary result stays FAIL on the known two errors;
+diagnosis capture cannot turn it green or close WALK. Any unexpected failure
+stops, no repair/retry/cap increase. No public checkpoint for passive diagnosis.
+Retain source/rawtrace/unique package, commit/push actual finding, clean owned
+scratch; native/device/rendered/human and broad gates stay open.
+
 ## Latest playable result
 
 **Blocked save-repair feedback delivered and packaged on49047eb.** When a
