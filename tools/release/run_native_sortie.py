@@ -15,6 +15,8 @@ Use --route life-arm for Aft service-arm coexistence and original Zenith boardin
 Use --route life-tow for Central service coexistence during real walking/boarding.
 Use --route habitat-loop for fresh hub/door/bunk sleep-wake/common-room/hub walking.
 Use --route habitat-restart for real bunk sleep, normal UI quit, and cold awake controls.
+Use --route browser-unreachable --fixture-engine SOURCE_GODOT_ELF
+--fixture-project SOURCE_PROJECT for real paused timeout/retry/disconnect/cancel.
 The default is Guided.
 No source/pack overrides. 300 seconds is the fixed whole-process sortie cap.
 This establishes Linux/Xvfb OS-input behavior, not native GPU or human acceptance.
@@ -3377,6 +3379,434 @@ class SandboxPilot(SandboxWalkPilot):
         return keys, dx, dy, False
 
 
+class BrowserFixture:
+    """One owned source-engine authority, with atomic private command/state files."""
+    def __init__(self, engine, project, profile, output):
+        self.engine, self.project = validate_fixture(engine, project)
+        self.directory = profile/'browser-fixture'
+        self.directory.mkdir(mode=0o700)
+        self.process = None
+        self.sequence = 0
+        self.state = None
+        self.history = []
+        self.pending = None
+        self.log_path = output/'fixture.log'
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
+            probe.bind(('127.0.0.1', 0))
+            self.port = probe.getsockname()[1]
+        self.env = {'PATH': '/usr/local/bin:/usr/bin:/bin', 'HOME': os.environ.get('HOME', '/tmp'),
+                    'GODOT_SILENCE_ROOT_WARNING': '1', 'MUDDS_PRIVATE_BROWSER_FIXTURE': 'owned-loopback'}
+        for key in ('XDG_DATA_HOME', 'XDG_CONFIG_HOME', 'XDG_CACHE_HOME', 'XDG_STATE_HOME',
+                    'XDG_RUNTIME_DIR', 'XDG_DATA_DIRS', 'XDG_CONFIG_DIRS', 'TMPDIR'):
+            target = self.directory/key.lower()
+            target.mkdir(mode=0o700)
+            self.env[key] = str(target)
+        self.arguments = [str(self.engine), '--headless', '--audio-driver', 'Dummy',
+                          '--path', str(self.project), '--script',
+                          'res://tests/network/network_session_join_failure_test.gd', '--',
+                          '--native-browser-fixture', '--fixture-dir='+str(self.directory),
+                          '--fixture-port='+str(self.port)]
+
+    def start(self):
+        with self.log_path.open('wb') as log:
+            self.process = subprocess.Popen(self.arguments, cwd=self.project, env=self.env,
+                                            stdout=log, stderr=subprocess.STDOUT)
+        self.pending = {'sequence': 0, 'mode': 'raw', 'until': time.monotonic()+3}
+        while not self.ready('raw', time.monotonic()): time.sleep(.02)
+
+    def refresh(self):
+        require(self.process is not None and self.process.poll() is None, 'owned browser fixture remains alive')
+        diagnostics = diagnostic_lines(self.log_path.read_bytes().splitlines())
+        require(not diagnostics, 'browser fixture diagnostic: '+(diagnostics[0].decode(errors='replace') if diagnostics else ''))
+        path = self.directory/'state.json'
+        if path.exists():
+            state = json.loads(path.read_text())
+            require(state['pid'] == self.process.pid and state['port'] == self.port,
+                    'fixture state belongs to exact owned process and port')
+            require(state['sequence'] <= self.sequence and state['mode'] in ('raw', 'admitting', 'stop'),
+                    'fixture state acknowledges only commands actually sent')
+            if state != self.state: self.history.append(state)
+            self.state = state
+        return self.state
+
+    def command(self, mode, now):
+        require(mode in ('raw', 'admitting', 'stop') and self.pending is None,
+                'one outstanding explicit fixture command')
+        self.sequence += 1
+        self.pending = {'sequence': self.sequence, 'mode': mode, 'until': now+3}
+        temporary = self.directory/'command.tmp'
+        temporary.write_text(json.dumps({'sequence': self.sequence, 'mode': mode})+'\n')
+        temporary.replace(self.directory/'command.json')
+
+    def ready(self, mode, now):
+        state = self.refresh()
+        if state and state['ready'] and state['sequence'] == self.sequence and state['mode'] == mode:
+            self.pending = None
+            return True
+        require(self.pending is not None and now < self.pending['until'],
+                'fixture acknowledgement exceeded original 3 seconds; no retry')
+        return False
+
+    def close(self):
+        # Try the explicit owned stop first. Reap independently even if its state,
+        # diagnostics or command acknowledgement failed earlier.
+        error = None
+        try:
+            if self.process is not None and self.process.poll() is None:
+                self.pending = None
+                self.command('stop', time.monotonic())
+                self.process.wait(timeout=3)
+                require(self.process.returncode == 0, 'fixture orderly stop exits zero')
+                state = json.loads((self.directory/'state.json').read_text())
+                require(state['pid'] == self.process.pid and state['sequence'] == self.sequence
+                        and state['mode'] == 'stop' and state['peers'] == 0 and state['admitted'] == 0,
+                        'fixture acknowledges exact stop and closes its actual peers')
+                require(b'NATIVE_BROWSER_FIXTURE_STOPPED_OK' in self.log_path.read_bytes(),
+                        'fixture normal-stop marker')
+            elif self.process is not None:
+                raise RuntimeError('fixture exited before explicit owned shutdown')
+        except Exception as failure:
+            error = failure
+        finally:
+            stop(self.process)
+        diagnostics = diagnostic_lines(self.log_path.read_bytes().splitlines()) if self.log_path.exists() else []
+        require(not diagnostics, 'fixture emitted diagnostics during owned lifetime')
+        if error: raise error
+
+
+def validate_fixture(engine, project):
+    if engine is None or project is None:
+        raise ValueError('browser-unreachable requires --fixture-engine and --fixture-project')
+    engine = validate_binary(engine)
+    project = Path(project).absolute()
+    if project.is_symlink() or not project.is_dir():
+        raise ValueError('fixture project must be a regular source project directory')
+    for relative in ('project.godot', 'tests/network/network_session_join_failure_test.gd',
+                     'scripts/network/network_enet_session_adapter.gd', 'scenes/boot.tscn'):
+        path = project/relative
+        if path.is_symlink() or not path.is_file():
+            raise ValueError('fixture source project is missing regular '+relative)
+    return engine, project
+
+
+class BrowserUnreachablePilot(BeaconEntryPilot):
+    """Real ordinary browser timeout, retry/admission, disconnect and cancel."""
+    MODE = 'browser-unreachable'
+    MARKER = 'NATIVE_BROWSER_UNREACHABLE_OK'
+    FIELDS = (('ServerBrowserAddress', 'address', '127.0.0.1'),
+              ('ServerBrowserPort', 'port', None),
+              ('ServerBrowserPlayerName', 'player_name', 'browser'))
+
+    def __init__(self, fixture):
+        super().__init__()
+        self.fixture = fixture
+        self.field_index = 0
+        self.typing = None
+        self.quit_requested = False
+        self.exit_until = None
+        self.pause_state = None
+        self.first_hello_count = None
+        self.cancel_hello_count = None
+        self.retry_started = None
+        self.cancel_started = None
+        self.walk_origin = None
+        self.walk_previous = None
+        self.walked_m = 0
+
+    def stage_to(self, stage, s):
+        self.beacon_stage(stage, s)
+
+    def offline(self, n):
+        return (not n['configured'] and n['native_peer_id'] == 0 and n['pending_peer_id'] == 0
+                and n['deadline_msec'] == 0 and not n['offer'] and n['offline'])
+
+    def pending_join(self, n):
+        return (n['configured'] and not n['is_server'] and n['native_peer_id'] != 0
+                and n['pending_peer_id'] == n['native_peer_id'] and n['native_status'] == 2
+                and n['deadline_msec'] > 0 and not n['offer'])
+
+    def healthy(self, n):
+        return (n['configured'] and not n['is_server'] and n['native_peer_id'] != 0
+                and n['native_status'] == 2 and bool(n['offer'])
+                and n['pending_peer_id'] == 0 and n['deadline_msec'] == 0
+                and n['hud_snapshot']['state'] == 'connected')
+
+    def target_control(self, s, now, name, kind, expected=None):
+        ui = s['ui']
+        require(ui['focus_path'], 'actual current keyboard focus')
+        if ui['focus_name'] == name:
+            control = ui['controls'][name]
+            require(control['visible'] and control['enabled'] and control['path'] == ui['focus_path'],
+                    'actual visible enabled focused browser control '+name)
+            return self.ui_press('Return', s, now, kind, expected)
+        require(ui['focus_path'] not in self.focus_seen and len(self.focus_seen) < 64,
+                'browser control reachable without focus cycle: '+name)
+        self.focus_seen.add(ui['focus_path'])
+        return self.ui_press('Tab', s, now, 'tab')
+
+    def press_acknowledged(self, p, s):
+        ui, n = s['ui'], s['network']
+        kind = p['kind']
+        if kind == 'tab': return bool(ui['focus_path']) and ui['focus_path'] != p['focus']
+        if kind == 'begin': return ui['started'] and not ui['intro_visible']
+        if kind == 'select_all': return ui['selection_text'] == p['expected']
+        if kind == 'type': return ui['fields'][self.typing['field']] == p['expected']
+        if kind == 'join': return n['configured'] and n['pending_peer_id'] != 0 and n['deadline_msec'] > 0
+        if kind == 'retry': return n['configured'] and (n['pending_peer_id'] != 0 or bool(n['offer']))
+        if kind in ('disconnect', 'cancel'): return self.offline(n)
+        if kind == 'resume': return not s['paused']
+        if kind == 'exit': return False
+        return s['paused'] and ui[p['expected']]
+
+    def input_update(self, s, now):
+        if self.ui_pending:
+            require(now < self.ui_pending['until'],
+                    'ordinary UI press was not acknowledged: '+self.ui_pending['kind']+'; no retry')
+        if self.ui_key is not None:
+            if now < self.ui_until:
+                return set(self.ui_key) if isinstance(self.ui_key, tuple) else {self.ui_key}, 0, 0, False
+            self.ui_edges.append({'sequence': s['sequence'], 'key': self.ui_key, 'pressed': False})
+            self.ui_key = None
+            self.ui_release_until = now+.10
+            return set(), 0, 0, False
+        if now < self.ui_release_until or any(s['native_keys'].values()): return set(), 0, 0, False
+        p = self.ui_pending
+        if p:
+            if not self.press_acknowledged(p, s):
+                require(now < p['until'], 'ordinary UI press was not acknowledged: '+p['kind']+'; no retry')
+                return set(), 0, 0, False
+            self.ui_pending = None
+            kind = p['kind']
+            if kind == 'begin': self.stage_to('browser_wait_awake', s)
+            elif kind == 'pause': self.stage_to('browser_open', s)
+            elif kind == 'open': self.stage_to('browser_fields', s)
+            elif kind == 'select_all': self.typing['selected'] = True
+            elif kind == 'type': self.typing['index'] += 1
+            elif kind == 'join':
+                self.receipts['cancel_pending' if self.cancel_started else 'first_pending'] = s
+                self.stage_to('browser_cancel_pending' if self.cancel_started else 'browser_timeout', s)
+            elif kind == 'retry':
+                self.receipts['retry_pending'] = s
+                self.stage_to('browser_admission', s)
+            elif kind == 'disconnect':
+                self.receipts['disconnected'] = s
+                self.fixture.command('raw', now)
+                self.stage_to('browser_raw_again', s)
+            elif kind == 'cancel':
+                require(s['ticks_msec'] < self.cancel_started+5000, 'actual Cancel acknowledged before its deadline')
+                self.receipts['cancelled'] = s
+                self.stage_to('browser_cancel_stable', s)
+            elif kind == 'back': self.stage_to('browser_resume', s)
+            elif kind == 'resume':
+                self.walk_origin = s['player'][:]
+                self.walk_previous = s
+                self.stage_to('browser_walk', s)
+                return set(), 0, 0, False
+            elif kind == 'final_pause': self.stage_to('browser_exit', s)
+        return None
+
+    def type_field(self, s, now):
+        if self.field_index == len(self.FIELDS):
+            self.stage_to('browser_join', s)
+            return set(), 0, 0, False
+        name, field, value = self.FIELDS[self.field_index]
+        value = str(self.fixture.port) if value is None else value
+        ui = s['ui']
+        if ui['focus_name'] != name: return self.target_control(s, now, name, 'unused')
+        require(ui['controls'][name]['visible'] and ui['controls'][name]['enabled'], 'editable actual field')
+        if self.typing is None:
+            self.typing = {'field': field, 'value': value, 'index': 0, 'selected': False}
+            result = self.ui_press('a', s, now, 'select_all', ui['fields'][field])
+            self.ui_key = ('Control_L', 'a')
+            self.ui_edges[-1]['key'] = list(self.ui_key)
+            return set(self.ui_key), 0, 0, False
+        t = self.typing
+        if t['index'] == len(value):
+            require(ui['fields'][field] == value, 'complete exact OS-typed browser field')
+            self.receipts[field+'_typed'] = s
+            self.field_index += 1
+            self.typing = None
+            self.focus_seen.clear()
+            return set(), 0, 0, False
+        require(t['selected'], 'actual Ctrl+A selection before replacing field')
+        index = t['index']
+        if index: require(ui['fields'][field] == value[:index], 'each prior OS character acknowledged exactly')
+        character = value[index]
+        return self.ui_press('period' if character == '.' else character, s, now, 'type', value[:index+1])
+
+    def update(self, s, now):
+        self.last_state = s
+        require(s['mode'] == self.MODE and s['sequence'] > self.sequence, 'fresh ordinary browser observation')
+        self.sequence = s['sequence']
+        if not s.get('main_id') or not s.get('player_id'):
+            require(self.stage == 'boot' and self.process_identity is None, 'current Main and Player cannot disappear')
+            return set(), 0, 0, False
+        identity = (s['pid'], s['main_id'], s['player_id'])
+        require(all(identity), 'current process Main and Player')
+        if self.process_identity is None: self.process_identity = identity
+        require(identity == self.process_identity, 'same process Main and Player for whole browser route')
+        if s['network']['adapter_id']:
+            require(s['network']['adapter_path'] == '/root/Boot/Main/NetworkSession', 'actual packaged RPC node path')
+            # Adapter lifetime follows the production session; process/Main/Player
+            # identity is fixed, and each pending/admitted native peer is checked below.
+        require(s['phase'] in ('INTRO', 'APPROACH_SHIP'), 'fresh ordinary shift without activity or recovery')
+        self.fixture.refresh()
+        if self.stage not in ('boot', 'browser_wait_awake', 'browser_pause', 'browser_walk', 'browser_final_pause', 'browser_exit_wait'):
+            # Only outstanding ordinary pause/resume presses may straddle an edge.
+            pausing = self.ui_pending and self.ui_pending['kind'] in ('pause', 'final_pause')
+            resuming = (self.stage == 'browser_resume' and self.ui_pending is not None
+                        and self.ui_pending['kind'] == 'resume')
+            require(s['paused'] or pausing or resuming or self.stage == 'begin_shift',
+                    'browser journey remains paused')
+        if s['paused']:
+            frozen = (s['player'], s['phase'], s['gameplay_seconds'])
+            if self.pause_state is None: self.pause_state = frozen
+            require(frozen == self.pause_state, 'paused browser does not advance gameplay position phase or clock')
+        elif self.stage in ('browser_walk', 'browser_final_pause'):
+            self.pause_state = None
+        response = self.input_update(s, now)
+        if response is not None: return response
+        ui, n = s['ui'], s['network']
+        if self.stage == 'boot':
+            if not s['menu_ready']: return set(), 0, 0, False
+            require(s['phase'] == 'INTRO' and ui['intro_visible'] and self.offline(n), 'fresh offline normal title')
+            self.stage_to('begin_shift', s)
+            return self.ui_press('e', s, now, 'begin')
+        if self.stage == 'browser_wait_awake':
+            if not (s['phase'] == 'APPROACH_SHIP' and s['grounded'] and s['supported']
+                    and s['control_enabled'] and s['mouse_captured']): return set(), 0, 0, False
+            self.receipts['ordinary_shift'] = s
+            self.stage_to('browser_pause', s)
+        if self.stage == 'browser_pause': return self.ui_press('Escape', s, now, 'pause', 'main_visible')
+        if self.stage == 'browser_open': return self.target_control(s, now, 'ServerBrowserButton', 'open', 'browser_visible')
+        if self.stage == 'browser_fields': return self.type_field(s, now)
+        if self.stage in ('browser_join', 'browser_join_cancel'):
+            require(ui['fields'] == {'address': '127.0.0.1', 'port': str(self.fixture.port), 'player_name': 'browser'},
+                    'actual browser contains exact typed owned loopback endpoint')
+            require(self.offline(n), 'fresh Manual Join starts offline')
+            if ui['focus_name'] == 'ServerBrowserManualJoinButton':
+                count = self.fixture.state['dropped_hellos']
+                if self.stage == 'browser_join_cancel':
+                    self.cancel_started = s['ticks_msec']  # replaced by actual production deadline on acknowledgement
+                    self.cancel_hello_count = count
+                else: self.first_hello_count = count
+            return self.target_control(s, now, 'ServerBrowserManualJoinButton', 'join')
+        if self.stage == 'browser_timeout':
+            require(n['address'] == '127.0.0.1' and n['port'] == self.fixture.port and n['retry_mode'] == 'client',
+                    'production retained normalized retry endpoint')
+            first = self.receipts['first_pending']['network']
+            started = first['deadline_msec']-5000
+            if not self.offline(n):
+                require(n['pending_peer_id'] == first['pending_peer_id'] and not n['offer'], 'same real first pending attempt without offer')
+                if self.pending_join(n) and self.fixture.state['dropped_hellos'] > self.first_hello_count:
+                    require(self.fixture.state['peers'] > 0, 'raw authority observes actual connected peer')
+                    self.receipts.setdefault('raw_connected', s)
+                require(s['ticks_msec']-started < 7000, 'paused first timeout within 7 seconds')
+                return set(), 0, 0, False
+            require('raw_connected' in self.receipts and 5000 <= s['ticks_msec']-started <= 7000,
+                    'genuine connected nonadmitted paused timeout uses production 5000–7000ms')
+            require(n['end_reason']['reason'] == 'timeout', 'actual adapter records normalized timeout')
+            require('did not admit the connection in time' in n['hud_snapshot']['message'].lower()
+                    and ui['feedback'] == n['hud_snapshot']['message'],
+                    'readable inline actual timeout explanation')
+            retry = ui['controls']['ServerBrowserDisconnectButton']
+            require(retry['visible'] and retry['enabled'] and retry['text'] == 'RETRY CONNECTION',
+                    'actual readable focusable inline Retry action')
+            self.receipts['timed_out'] = s
+            self.fixture.command('admitting', now)
+            self.stage_to('browser_fixture_admitting', s)
+        if self.stage == 'browser_fixture_admitting':
+            require(self.offline(n), 'offline until actual Retry')
+            if not self.fixture.ready('admitting', now): return set(), 0, 0, False
+            self.stage_to('browser_retry', s)
+        if self.stage == 'browser_retry':
+            require(n['address'] == '127.0.0.1' and n['port'] == self.fixture.port, 'Retry retains same normalized endpoint')
+            if ui['focus_name'] == 'ServerBrowserDisconnectButton':
+                require(ui['controls']['ServerBrowserDisconnectButton']['text'] == 'RETRY CONNECTION', 'actual Retry not disconnect')
+                self.retry_started = s['ticks_msec']
+                self.receipts['retry_press'] = s
+            return self.target_control(s, now, 'ServerBrowserDisconnectButton', 'retry')
+        if self.stage in ('browser_admission', 'browser_healthy'):
+            elapsed = s['ticks_msec']-self.retry_started
+            if self.stage == 'browser_admission':
+                require(elapsed <= 7000, 'actual Retry admission within original 7 seconds')
+                if not self.healthy(n):
+                    require(n['configured'], 'retry cannot fail or silently go offline')
+                    return set(), 0, 0, False
+                if not (self.fixture.state['offers'] > 0 and self.fixture.state['admitted'] > 0):
+                    return set(), 0, 0, False
+                self.receipts['admitted'] = s
+                self.stage_to('browser_healthy', s)
+            require(self.healthy(n) and n['native_peer_id'] == self.receipts['admitted']['network']['native_peer_id'],
+                    'same healthy admitted retry peer outlives retired deadline')
+            if elapsed < 6000: return set(), 0, 0, False
+            self.receipts['healthy_past_deadline'] = s
+            self.stage_to('browser_disconnect', s)
+        if self.stage == 'browser_disconnect':
+            require(ui['controls']['ServerBrowserDisconnectButton']['text'] == 'DISCONNECT', 'actual UI Disconnect label')
+            return self.target_control(s, now, 'ServerBrowserDisconnectButton', 'disconnect')
+        if self.stage == 'browser_raw_again':
+            require(self.offline(n), 'actual Disconnect clears peer offer and deadline')
+            if not self.fixture.ready('raw', now): return set(), 0, 0, False
+            self.stage_to('browser_join_cancel', s)
+        if self.stage == 'browser_cancel_pending':
+            p = self.receipts['cancel_pending']['network']
+            self.cancel_started = p['deadline_msec']-5000
+            require(n['configured'] and not n['offer'] and n['pending_peer_id'] == p['pending_peer_id'],
+                    'fresh Cancel attempt remains genuine pending native peer')
+            require(s['ticks_msec'] < self.cancel_started+5000, 'Cancel before actual production deadline')
+            if not (self.pending_join(n) and self.fixture.state['dropped_hellos'] > self.cancel_hello_count
+                    and self.fixture.state['peers'] > 0): return set(), 0, 0, False
+            require(ui['controls']['ServerBrowserDisconnectButton']['text'] == 'CANCEL CONNECTION', 'actual UI Cancel label')
+            self.receipts['cancel_connected'] = s
+            return self.target_control(s, now, 'ServerBrowserDisconnectButton', 'cancel')
+        if self.stage == 'browser_cancel_stable':
+            require(self.offline(n), 'cancel stays offline without offer or retained deadline')
+            if s['ticks_msec'] < self.cancel_started+6000: return set(), 0, 0, False
+            require(self.fixture.state['admitted'] == 0 and self.fixture.state['peers'] == 0,
+                    'raw replacement has no admitted or lingering cancelled peer')
+            self.receipts['cancel_stable'] = s
+            self.stage_to('browser_back', s)
+        if self.stage == 'browser_back': return self.target_control(s, now, 'ServerBrowserBackButton', 'back', 'main_visible')
+        if self.stage == 'browser_resume': return self.ui_press('Escape', s, now, 'resume')
+        if self.stage == 'browser_walk':
+            require(not s['paused'] and self.offline(n) and s['grounded'] and s['supported']
+                    and s['control_enabled'] and s['mouse_captured'], 'fresh supported offline movement after Resume')
+            previous = self.walk_previous
+            frames = s['frame']-previous['frame']
+            require(frames > 0, 'fresh movement physics after resume')
+            require(norm(sub(s['player'], previous['player'])) <= 9.2*frames/60+.10, 'continuous supported movement without placement')
+            self.walk_previous = s
+            self.walked_m = norm(sub(s['player'], self.walk_origin))
+            if self.walked_m < .5: return {'w'}, 0, 0, False
+            self.receipts['fresh_walk'] = s
+            self.stage_to('browser_final_pause', s)
+            return set(), 0, 0, False
+        if self.stage == 'browser_final_pause': return self.ui_press('Escape', s, now, 'final_pause', 'main_visible')
+        if self.stage == 'browser_exit':
+            if ui['focus_name'] == 'ExitButton':
+                require(ui['controls']['ExitButton']['text'] == 'EXIT TO DESKTOP', 'exact actual EXIT TO DESKTOP intent')
+                self.receipts['exit_ui'] = s
+                self.quit_requested = True
+                self.exit_until = now+3
+                self.stage_to('browser_exit_wait', s)
+                return self.ui_press('Return', s, now, 'exit')
+            return self.target_control(s, now, 'ExitButton', 'exit')
+        if self.stage == 'browser_exit_wait':
+            require(now < self.ui_pending['until'], 'ordinary EXIT TO DESKTOP process acknowledgement within 3 seconds')
+        return set(), 0, 0, False
+
+    def accept_exit(self, exit_code, now=None):
+        require(self.quit_requested and self.stage == 'browser_exit_wait', 'game exits only after exact actual EXIT TO DESKTOP')
+        require(self.exit_until is not None and (time.monotonic() if now is None else now) < self.exit_until,
+                'actual ordinary EXIT TO DESKTOP process acknowledgement within 3 seconds')
+        require(exit_code == 0, 'actual ordinary browser process exits zero')
+        self.result = {'completion_marker': self.MARKER, 'receipts': self.receipts, 'ui_edges': self.ui_edges,
+                       'stages': self.stages, 'walked_m': self.walked_m, 'identity': self.process_identity,
+                       'fixture_pid': self.fixture.process.pid, 'fixture_port': self.fixture.port,
+                       'native_gpu': 'NOT_RUN', 'human_review': 'NOT_RUN'}
+
+
 def stop(process):
     if process and process.poll() is None:
         process.terminate()
@@ -3388,10 +3818,12 @@ def stop(process):
         process.wait()
 
 
-def run(binary, output, route="guided"):
-    require(route in ("guided", "beacon-entry", "beacon-settlement", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
+def run(binary, output, route="guided", fixture_engine=None, fixture_project=None):
+    require(route in ("guided", "beacon-entry", "beacon-settlement", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "life-tow", "life-gantry", "life-arm", "life-patrol", "browser-unreachable"), "known ordinary-input route")
+    if route == "browser-unreachable": validate_fixture(fixture_engine, fixture_project)
+    else: require(fixture_engine is None and fixture_project is None, "fixture arguments belong only to browser-unreachable")
     output.mkdir(parents=True, exist_ok=False)
-    game = xvfb = desktop = pilot = None
+    game = xvfb = desktop = pilot = fixture = None
     temporary_profile = None
     restart_files = None
     settlement_files = None
@@ -3412,6 +3844,10 @@ def run(binary, output, route="guided"):
             for key, name in [('XDG_DATA_HOME','data'),('XDG_CONFIG_HOME','config'),('XDG_CACHE_HOME','cache'),
                               ('XDG_STATE_HOME','state'),('XDG_RUNTIME_DIR','runtime'),('XDG_DATA_DIRS','data-dirs'),
                               ('XDG_CONFIG_DIRS','config-dirs'),('TMPDIR','tmp')]: env[key] = str(profile/name)
+            if route == 'browser-unreachable':
+                fixture = BrowserFixture(fixture_engine, fixture_project, profile, output)
+                fixture.start()
+                result['fixture'] = {'pid': fixture.process.pid, 'port': fixture.port, 'arguments': fixture.arguments}
             # Pick an unoccupied loopback display, then verify the child owns it.
             for number in range(100+secrets.randbelow(200), 600):
                 if Path(f'/tmp/.X{number}-lock').exists() or Path(f'/tmp/.X11-unix/X{number}').exists(): continue
@@ -3480,7 +3916,7 @@ def run(binary, output, route="guided"):
                     leg_result['window'] = hex(window)
                     desktop.focus(window)
                     pilot = HabitatRestartPilot(cold=bool(leg)) if restart_files else {
-                        "guided": Pilot, "beacon-entry": BeaconEntryPilot, "beacon-settlement": BeaconSettlementPilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
+                        "guided": Pilot, "browser-unreachable": lambda: BrowserUnreachablePilot(fixture), "beacon-entry": BeaconEntryPilot, "beacon-settlement": BeaconSettlementPilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
                         "hulk-arrival": HulkArrivalPilot, "hulk-breaker": HulkBreakerPilot,
                         "hulk-home": HulkHomePilot, "habitat-loop": HabitatLoopPilot, "life-tow": LifeTowPilot, "life-gantry": lambda: LifeTowPilot("life-gantry"), "life-arm": lambda: LifeTowPilot("life-arm"), "life-patrol": lambda: LifeTowPilot("life-patrol")}[route]()
                     with selectors.DefaultSelector() as selector:
@@ -3489,12 +3925,22 @@ def run(binary, output, route="guided"):
                         with (output/'game.log').open('ab') as log:
                             while pilot.result is None:
                                 if game.poll() is not None:
+                                    if isinstance(pilot, BrowserUnreachablePilot):
+                                        pilot.accept_exit(game.wait())
+                                        leg_result.update(exit_code=0, reaped=True, normal_ui_exit=True)
+                                        break
                                     if not restart_files: raise RuntimeError(f'game exited during {pilot.stage}: {game.returncode}')
                                     require(pilot.quit_requested and pilot.stage == 'restart_exit_wait',
                                             'game exits only after actual EXIT TO DESKTOP activation')
                                     require(game.wait() == 0, 'normal UI shutdown exits zero and reaps game')
                                     leg_result.update(exit_code=0, reaped=True, normal_ui_exit=True)
                                     break
+                                if fixture is not None:
+                                    fixture.refresh()
+                                    if fixture.pending: fixture.ready(fixture.pending['mode'], time.monotonic())
+                                    if isinstance(pilot, BrowserUnreachablePilot) and pilot.ui_pending:
+                                        require(time.monotonic() < pilot.ui_pending['until'],
+                                                'ordinary browser UI acknowledgement exceeded 3 seconds; no retry')
                                 if xvfb.poll() is not None: raise RuntimeError('owned Xvfb exited during sortie')
                                 if time.monotonic()-start >= CAP: raise TimeoutError('300-second sortie cap')
                                 for key,_ in selector.select(.1):
@@ -3509,6 +3955,8 @@ def run(binary, output, route="guided"):
                                             for observation in observations:
                                                 pilot.validate_observation(observation)
                                         state = observations[-1]
+                                        if isinstance(pilot, BrowserUnreachablePilot):
+                                            require(state['pid'] == game.pid, 'browser observer belongs to exact game process')
                                         if restart_files:
                                             require(state['pid'] == game.pid, 'observer belongs to exact running game PID')
                                             if leg and 'cold-title' not in restart_files.snapshots and state.get('menu_ready'):
@@ -3608,6 +4056,11 @@ def run(binary, output, route="guided"):
         result['input_helper_reaped'] = desktop is None or not desktop.process.is_alive()
         if not result['input_helper_reaped']:
             cleanup_errors.append('private input helper remains alive after bounded cleanup')
+        if fixture is not None:
+            try: fixture.close()
+            except Exception as error: cleanup_errors.append('fixture: '+str(error))
+            result['fixture_reaped'] = fixture.process is None or fixture.process.poll() is not None
+            result['fixture_states'] = fixture.history
         for name, process in [('game',game),('xvfb',xvfb)]:
             try:
                 stop(process)
@@ -3641,12 +4094,19 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('binary')
     parser.add_argument('--output',required=True,type=Path)
-    parser.add_argument('--route', choices=('guided', 'beacon-entry', 'beacon-settlement', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
+    parser.add_argument('--route', choices=('guided', 'beacon-entry', 'beacon-settlement', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol', 'browser-unreachable'), default='guided',
                         help='beacon-settlement continues the accepted entry through four physical beacons and durable reward; beacon-entry departs normally and physically reaches/starts the first Beacon through actual pause controls; life-patrol walks Habitat through the real door beside patrol drones and boards Torrent; life-arm walks Aft stairs past the live service arm and boards Zenith; life-gantry walks Freight past the live gantry and boards Jovian; life-tow walks Central beside live tow service and boards Torrent; hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
+    parser.add_argument('--fixture-engine', type=Path, help='source Godot ELF, only for browser-unreachable')
+    parser.add_argument('--fixture-project', type=Path, help='source project, only for browser-unreachable')
     args=parser.parse_args()
     try: binary=validate_binary(args.binary)
     except ValueError as error: parser.error(str(error))
-    result=run(binary,args.output.absolute(),args.route)
+    try:
+        if args.route == 'browser-unreachable': validate_fixture(args.fixture_engine, args.fixture_project)
+        elif args.fixture_engine is not None or args.fixture_project is not None:
+            raise ValueError('fixture arguments belong only to browser-unreachable')
+    except ValueError as error: parser.error(str(error))
+    result=run(binary,args.output.absolute(),args.route,args.fixture_engine,args.fixture_project)
     print(json.dumps(result,indent=2))
     return 0 if result['success'] and result.get('inputs_released') and result['game_reaped'] and result['xvfb_reaped'] and result['input_helper_reaped'] else 1
 

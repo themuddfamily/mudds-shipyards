@@ -20,6 +20,8 @@ const LIFE_ROUTES := {
 		"movers": [], "drones": true, "bounded": true,
 		"door": ^"HabitatSpine/MainAccess"},
 }
+var _browser_mode := false
+var _browser_sequence := 0
 var _beacon_entry := false
 var _beacon_mode := "beacon-entry"
 var _beacon_sequence := 0
@@ -58,6 +60,10 @@ func on_startup_completed(main: Node) -> void:
 	_game = main as GameFlow
 	_player = _game.get_node("Player") as PlayerController
 	_spawn = _player.global_position
+	_browser_mode = "--native-sortie-observer=browser-unreachable" in OS.get_cmdline_args()
+	if _browser_mode:
+		process_mode = Node.PROCESS_MODE_ALWAYS
+		return
 	_beacon_mode = "beacon-settlement" if "--native-sortie-observer=beacon-settlement" in OS.get_cmdline_args() else "beacon-entry"
 	_beacon_entry = "--native-sortie-observer=" + _beacon_mode in OS.get_cmdline_args()
 	if _beacon_entry:
@@ -267,6 +273,10 @@ func _physics_process(delta: float) -> void:
 		print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(_ember_observation()))
 		return
 	if _game == null:
+		return
+	if _browser_mode:
+		_browser_sequence += 1
+		print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(_browser_observation()))
 		return
 	if _beacon_entry:
 		_beacon_sequence += 1
@@ -967,4 +977,97 @@ func _life_observation() -> Dictionary:
 			"open": door.is_open(), "blocked": door.is_portal_blocked(),
 			"locked": door.locked, "candidate": _game.station_interaction_candidate == door}
 		result.service["seed"] = activity.variation_seed
+	return result
+
+
+## Passive browser telemetry. No transport polling, lifecycle reconciliation,
+## focus/input changes or physics queries while the production tree is paused.
+func _browser_observation() -> Dictionary:
+	var owner := get_parent()
+	var result := {"mode": "browser-unreachable", "sequence": _browser_sequence,
+		"pid": OS.get_process_id(), "frame": Engine.get_physics_frames(),
+		"ticks_msec": Time.get_ticks_msec(), "main_id": 0, "player_id": 0,
+		"menu_ready": false, "paused": get_tree().paused}
+	if not is_instance_valid(_game) or not _game.is_inside_tree() \
+			or _game.is_queued_for_deletion() or owner.call("get_main") != _game \
+			or not _ember_node_current(_player):
+		return result
+	var hud := _game.hud as GameHUD
+	if not _ember_node_current(hud):
+		return result
+	var focus := get_viewport().gui_get_focus_owner()
+	var main_page := hud.get("_pause_main_page") as Control
+	var browser := hud.get("_server_browser_page") as Control
+	var intro := hud.get("_intro") as Control
+	var feedback := hud.get("_server_browser_feedback") as Label
+	var fields: Dictionary = {}
+	for entry: Array in [["address", "_server_browser_address"], ["port", "_server_browser_port"],
+			["player_name", "_server_browser_player_name"]]:
+		var field := hud.get(entry[1]) as LineEdit
+		fields[entry[0]] = field.text if is_instance_valid(field) else ""
+	var controls: Dictionary = {}
+	for node_name: String in ["IntroBeginShiftButton", "IntroServerBrowserButton", "ServerBrowserButton",
+			"ResumeButton", "ExitButton", "ServerBrowserAddress", "ServerBrowserPort",
+			"ServerBrowserPlayerName", "ServerBrowserRefreshButton", "ServerBrowserHostButton",
+			"ServerBrowserManualJoinButton", "ServerBrowserDisconnectButton", "ServerBrowserBackButton"]:
+		var control := hud.find_child(node_name, true, false) as Control
+		if not is_instance_valid(control):
+			continue
+		var rect := control.get_global_rect()
+		controls[node_name] = {"path": str(control.get_path()), "visible": control.is_visible_in_tree(),
+			"enabled": not control.disabled if control is BaseButton else control.focus_mode != Control.FOCUS_NONE,
+			"focused": focus == control, "rect": [rect.position.x, rect.position.y, rect.size.x, rect.size.y],
+			"text": str(control.get("text")) if control is Button or control is LineEdit else ""}
+	var adapter := _game.network_session
+	var network := {"adapter_id": 0, "adapter_path": "", "configured": false,
+		"is_server": false, "offline": _game.multiplayer.multiplayer_peer is OfflineMultiplayerPeer,
+		"native_peer_id": 0, "native_status": 0,
+		"pending_peer_id": 0, "deadline_msec": 0, "offer": {}, "end_reason": {},
+		"mode": str(_game.get("_network_session_mode")),
+		"retry_mode": str(_game.get("_network_session_retry_mode")),
+		"address": str(_game.get("_network_session_address")),
+		"port": int(_game.get("_network_session_port")), "player_name": fields.player_name,
+		"hud_snapshot": (hud.get("_network_status_presenter") as RefCounted).call("get_snapshot")}
+	if _ember_node_current(adapter):
+		var peer := adapter.get("_peer") as ENetMultiplayerPeer
+		var pending := adapter.get("_pending_join_peer") as ENetMultiplayerPeer
+		network.merge({"adapter_id": adapter.get_instance_id(), "adapter_path": str(adapter.get_path()),
+			"configured": bool(adapter.get("_configured")), "is_server": bool(adapter.get("_is_server")),
+			"native_peer_id": peer.get_instance_id() if is_instance_valid(peer) else 0,
+			"native_status": peer.get_connection_status() if is_instance_valid(peer) else 0,
+			"pending_peer_id": pending.get_instance_id() if is_instance_valid(pending) else 0,
+			"deadline_msec": int(adapter.get("_pending_join_deadline_milliseconds")),
+			"offer": (adapter.get("_server_offer") as Dictionary).duplicate(true),
+			"end_reason": (adapter.get("_session_end_reason") as Dictionary).duplicate(true)}, true)
+	var keys := {"escape": Input.is_physical_key_pressed(KEY_ESCAPE),
+		"tab": Input.is_physical_key_pressed(KEY_TAB), "return": Input.is_physical_key_pressed(KEY_ENTER),
+		"control": Input.is_physical_key_pressed(KEY_CTRL), "period": Input.is_physical_key_pressed(KEY_PERIOD)}
+	for character: String in "0123456789abcdefghijklmnopqrstuvwxyz":
+		keys[character] = Input.is_physical_key_pressed(OS.find_keycode_from_string(character.to_upper()))
+	var support: Dictionary = {}
+	if not get_tree().paused:
+		var ray := PhysicsRayQueryParameters3D.create(_player.global_position + Vector3.UP * 0.2,
+			_player.global_position - Vector3.UP * 0.3, PhysicsLayers.WORLD, [_player.get_rid()])
+		support = _player.get_world_3d().direct_space_state.intersect_ray(ray)
+	var collider := support.get("collider") as Node
+	result.merge({"main_id": _game.get_instance_id(), "player_id": _player.get_instance_id(),
+		"menu_ready": StartupLoader.is_title_menu_ready(_game) and not is_instance_valid(owner.call("get_loading_screen")),
+		"phase": GameFlow.Phase.keys()[_game.phase], "player": _v(_player.global_position),
+		"velocity": _v(_player.velocity), "grounded": _player.is_on_floor(),
+		"supported": _ember_node_current(collider) and _game.world.is_ancestor_of(collider),
+		"control_enabled": _player.is_control_enabled(), "mouse_captured": Input.mouse_mode == Input.MOUSE_MODE_CAPTURED,
+		"gameplay_seconds": float(_game.get("_session_diagnostics_elapsed_physics_seconds")),
+		"native_keys": keys, "network": network,
+		"ui": {"main_visible": is_instance_valid(main_page) and main_page.is_visible_in_tree(),
+			"browser_visible": is_instance_valid(browser) and browser.is_visible_in_tree(),
+			"intro_visible": is_instance_valid(intro) and intro.is_visible_in_tree(),
+			"started": bool(hud.get("_started")), "fields": fields,
+			"feedback": feedback.text if is_instance_valid(feedback) else "",
+			"controls": controls, "focus_path": str(focus.get_path()) if is_instance_valid(focus) else "",
+			"focus_name": str(focus.name) if is_instance_valid(focus) else "",
+			"selection_text": (focus as LineEdit).get_selected_text() if focus is LineEdit else "",
+			"focus_text": str(focus.get("text")) if focus is Button or focus is LineEdit else "",
+			"focus_visible": is_instance_valid(focus) and focus.is_visible_in_tree(),
+			"focus_enabled": is_instance_valid(focus) and focus.focus_mode != Control.FOCUS_NONE
+				and (not focus is BaseButton or not focus.disabled)}}, true)
 	return result
