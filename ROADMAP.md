@@ -67,7 +67,26 @@ selection against45min cap. [Player changes, actual checks and limits](docs/hist
 RIGHTS-DEFINE is complete as a [finite source-backed family map](docs/ROADMAP_BACKLOG.md#rights-families-and-missing-documents--rights-define),
 not legal clearance or a release gate. Missing project release terms and separate
 historical-media redistribution records remain explicit; the settled creator-
-permission account is preserved. No additional executable card is selected.
+permission account is preserved. **Selected qualification: GUIDED[current checkpoint3d92b91], parent7.**
+Run the existing ordinary-input Guided route sequentially3/3 on the exact
+published Linux ELF (SHA b067e22c7187447da2dd86c4fe3e079a1f254c8185aa416e1b11daa0722040b9),
+with three fresh profiles/processes and original CAP300 per run/outer330. Prior
+f676c5016 passes remain accepted; substantial later flow/player/HUD changes make
+current-package core acceptance unproved. One low preflight agent verified the
+original contract; root owns execution/analysis/cleanup. No code edits or export.
+
+Proof is unchanged walk/board/launch/four actual drone kills/interceptor clear/
+physical home landing, original neutral engine shutdown, physical E exit and
+usable on-foot controls; driver success/exit0, no diagnostics and owned cleanup.
+This proves craft exit, not normal desktop UI exit; do not add a different route
+or claim process-exit repair. Freeze exact source/driver/binary hashes and three
+commands before execution. Estimate5–10min runs/review, stop at3/3 or first failure,
+no repair/retry/cap increase; split at30min from selection. GUIDED-FINAL, Sandbox,
+Settings, native GPU/device/audio/human and final release gates stay open.
+Before any successor, COMBAT-COURIER still needs its exact ordinary encounter
+launch/weapon/home driver contract defined; no production gap or automatic combat
+qualification is inferred. This is the independent missing definition, not a
+reason to repeat an accepted playthrough.
 Tooltip cleanup-order candidate remains unmerged/unproved; no retry is scheduled.
 
 ### Waiting decisions — not executable tasks
