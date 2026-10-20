@@ -77,6 +77,17 @@ Root freezes exact pin/commands/owners before engine execution. First unexpected
 failure stops all later stages; no automatic correction, rerun or cap increase.
 Withhold candidate/publication on failure and retain all elapsed work/results.
 
+**First stop / one selected correction:** candidate35d894b77 remains unpublished.
+Nine prerequisite stages pass161.693s; actual route fails4.897s before play with
+observer1026 `capture` inferred from an untyped world method. Cumulative166.590s;
+no flight/reuse accepted, input/helper/game/Xvfb reaped. Select exactly one
+`capture: Dictionary` annotation, preserving the original09:58–10:58/60min budget
+and whole two-flightCAP300 route. Root reviews the one-line diff; rerun the full
+original sequence on the clean corrected pin, adding a direct observer
+`--check-only` after import to exercise this lazy script before packaging.
+Retain every original result/source/export; another failure stops for cumulative
+priority review, with no automatic second correction or rerun.
+
 Success qualifies only this ordinary return/reuse capability on its named bytes.
 Weapon hits, damage/repair/destruction recovery, cross-craft/Main re-entry,
 rendered/native/device/full craft gates remain open. Original all-nine/54-waypoint
