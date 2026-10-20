@@ -38,19 +38,24 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 ## Execution now
 
-**HELM-PITCH turn/release is accepted on sourcef9682a38c.** Both synthetic
-Godot pitch actions reach the production sampler and actual host: +4.8°/−4.2°
-in567/364ms, fresh neutral≤1s, zero measured neutral drift and both actual client
-attitudes within2°. The changed yaw caller also passes its complete original
-route. All6 actual peer exits0, zero diagnostics, source/cache stable; four
-stages PASS298.590s. [Actual checks and scope](docs/history/ROADMAP_DELIVERIES.md#sampled-remote-pitch--turn-and-release-accepted).
+**Active: HELM-ROLL-RATE turn/release caller, selected11:41UTC2026-10-20.**
+Continuous Q/R roll-rate is separate from the G barrel-roll edge. Production
+already maps left−1/right+1 and rotates about local FORWARD; use the actual up
+vector's signed change about the retained nose to measure roll. One implementer
+extends the shared steering caller with an optional measured-vector hook and a
+small roll specialization; no copied route or runtime change.
 
-No runtime change or identical playable rebuild; checkpoint51257b3 retained.
-Full handback remains required/PARKED, and physical-device/native/endurance/
-final gates remain open. Worktree/profiles/helpers removed;36 process identities
-absent,171 profile entries archived/verified. Closed records compacted55→13 files
-with all60 original entries verified; cleanup/compaction11.72min within original
-11:27–12:27UTC/60min. Only results/ remains. No successor or engine run selected.
+| Field | Fixed result and limit |
+| --- | --- |
+| Result | Original three-process crew boarding/≥5m departure/brake, both sampled roll-rate signs cause≥3° host roll within host-owned2s, fresh neutral≤1s, measured roll drift≤0.5° for1s and both actual client quaternion attitudes≤2° within2s. |
+| Ownership/input | Shared yaw caller plus tiny roll-rate caller/UID only. Synthetic Godot actions→production LocalShipInputSource→ENet→actual host, not OS/hardware/provider injection. Preserve source/wire streams, authenticated actors/seat/entity/ownership, released berth and neutral other actions; no fire/landing/barrel-roll command. |
+| Checks | After clean pin/two reviews: headless Dummy import180s, roll direct check-only120s, ONE roll and ONE each affected pitch/yaw regression, original coordinator300s/10s exit grace/outer360s each. Child private Xvfb/x11/Dummy stays inherited; all3 actual OS exits0, one coordinator marker/zero raw diagnostics, source/cache stable. |
+| Budget/stop | ≤20min implementation plus review/checks/cleanup inside original11:41–12:41UTC/60min. First unexpected failure STOP; no automatic repair/retry or relaxed limits. Release actions/reap owned processes on every path. |
+| Closure | Commit/push actual source result, preserve checked logs/profiles and remove owned scratch. Handback remains required/PARKED; no hardware/native/endurance/full-parent claim or identical playable rebuild for caller-only changes. |
+
+Accepted pitch/yaw turn-release scopes remain source-specific; their changed
+shared measurement/neutral guard justifies one affected regression each. Latest
+accepted playable remains51257b3. No other helm action or parked route selected.
 
 ### Next production alternative: Freight physical terminal interface
 
