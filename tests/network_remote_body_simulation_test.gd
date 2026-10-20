@@ -1268,7 +1268,27 @@ func _assert_interaction_highwater_survives_body_reentry() -> void:
 		"neutral rebind packets retaining old Interact do not execute an interaction or claim a crew chair")
 	if not replay_suppressed:
 		return
-	await _assert_one_fresh_crew_interaction(0, interactions_before, "same-owner body re-entry")
+	# Exercise the real admission signal's consumer with the receipt shape
+	# emitted by the adapter after a migration rebind. This bounded callback
+	# regression does not qualify transport migration itself. Production's
+	# owning GameFlow rebinds this same source on receipt.migration.status.
+	_server.peer_admitted.emit(_client_peer_ids[0], {
+		"admission": {"accepted": true, "status": &"admitted"},
+		"migration": {"accepted": true, "status": &"peer_rebound"},
+	})
+	source.bind(entity, 1)
+	await _drive(20)
+	var rebound_suppressed: bool = _body(entity) == body \
+		and source.get_interaction_request_id() == retained_id \
+		and int(simulation.get_audit().get("interactions", 0)) == interactions_before \
+		and simulation.get_body_record(entity).get("seat_state") == &"standing" \
+		and not body.is_seated() \
+		and _server.get_crew_assignment(_client_peer_ids[0], entity).is_empty()
+	_check(rebound_suppressed,
+		"peer_rebound admission preserves the retained body and source high-water mark without replaying Interact")
+	if not rebound_suppressed:
+		return
+	await _assert_one_fresh_crew_interaction(0, interactions_before, "same-owner body re-entry and peer_rebound")
 	# Reassign this entity to another authenticated owner whose fresh source
 	# starts at one. Entity-local or global high-water marks must not eat it.
 	_walkers[0]["active"] = false

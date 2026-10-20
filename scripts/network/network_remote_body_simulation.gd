@@ -32,7 +32,8 @@ extends Node3D
 ##   resolved against the seats and bunks the *server* body's interaction area
 ##   overlaps, inside the same reach the host's own player has, through the
 ##   same `StationSeat` reservation, boarding and disembark transitions. The
-##   request id is monotonic per stream and honoured once.
+##   request id is monotonic for the owner's intent source and honoured once,
+##   including across replacement bodies and input-stream rebinds.
 ## * **A seat changes the ledger's mode, not just the body's posture.** The
 ##   moment a body claims a seat or bunk its movement avatar is put into
 ##   `NetworkMovementAuthority.MODE_SEATED`, and back `on_foot` when it stands.
@@ -71,6 +72,10 @@ var surface_interaction: Callable
 
 var _session: Node = null
 var _bodies: Dictionary = {}
+## The source retains this counter across unbind/rebind, so its consumption
+## lifetime must outlast a physical body too. Only authenticated live owners
+## in this session retain entries; peer/session retirement clears them.
+var _interaction_highwater_by_owner: Dictionary = {}
 var _audit := {
 	"admitted": 0,
 	"released": 0,
@@ -98,6 +103,9 @@ func _exit_tree() -> void:
 		if is_instance_valid(body_variant):
 			(body_variant as Node).queue_free()
 	_bodies.clear()
+	_disconnect_session_lifecycle()
+	_interaction_highwater_by_owner.clear()
+	_session = null
 
 
 ## Binds this simulation to the session adapter whose movement authority feeds
@@ -109,14 +117,54 @@ func attach(session: Node) -> Dictionary:
 		return _result(true, &"already_attached")
 	if not _bodies.is_empty():
 		release_all(&"session_replaced")
+	_disconnect_session_lifecycle()
+	_interaction_highwater_by_owner.clear()
 	_session = session
+	if is_instance_valid(_session):
+		if _session.has_signal(&"session_stopped"):
+			_session.connect(&"session_stopped", _on_session_stopped)
+		if _session.has_signal(&"peer_admitted"):
+			_session.connect(&"peer_admitted", _on_peer_admitted)
 	return _result(session != null, &"attached" if session != null else &"detached")
 
 
 func detach(reason: StringName = &"detached") -> Dictionary:
 	release_all(reason)
+	_disconnect_session_lifecycle()
+	_interaction_highwater_by_owner.clear()
 	_session = null
 	return _result(true, &"detached", {"reason": reason})
+
+
+func _disconnect_session_lifecycle() -> void:
+	if not is_instance_valid(_session):
+		return
+	if _session.has_signal(&"session_stopped") and _session.is_connected(&"session_stopped", _on_session_stopped):
+		_session.disconnect(&"session_stopped", _on_session_stopped)
+	if _session.has_signal(&"peer_admitted") and _session.is_connected(&"peer_admitted", _on_peer_admitted):
+		_session.disconnect(&"peer_admitted", _on_peer_admitted)
+
+
+func _on_session_stopped(reason: StringName) -> void:
+	# A stopped adapter can host again without changing its object identity.
+	# Release first, then forget consumption even if GameFlow's own stop
+	# handler has already released all physical bodies earlier in this signal.
+	release_all(reason)
+	_interaction_highwater_by_owner.clear()
+
+
+func _on_peer_admitted(peer_id: int, receipt: Dictionary) -> void:
+	# Migration reauthenticates a retained owner/body and rebinds its same
+	# intent source. That source retains its counter across this boundary too.
+	var migration: Dictionary = receipt.get("migration", {}) as Dictionary
+	if migration.get("status") == &"peer_rebound":
+		return
+	# A fresh authenticated owner may legitimately begin its counter at 1.
+	_interaction_highwater_by_owner.erase(peer_id)
+	for record_variant in _bodies.values():
+		var record := record_variant as Dictionary
+		if int(record.get("owner_peer_id", 0)) == peer_id:
+			record["last_interaction_id"] = 0
 
 
 ## Stands a server-owned body for `owner_peer_id` in the cabin of `craft`, at
@@ -205,7 +253,7 @@ func admit(
 		"seat": null,
 		"seat_state": &"standing",
 		"avatar_mode": MovementAuthority.MODE_ON_FOOT,
-		"last_interaction_id": 0,
+		"last_interaction_id": int(_interaction_highwater_by_owner.get(owner_peer_id, 0)),
 		"intents_applied": 0,
 	}
 	_audit["admitted"] = int(_audit["admitted"]) + 1
@@ -252,6 +300,7 @@ func release_peer(peer_id: int, reason: StringName = &"peer_released") -> Dictio
 			released.append(entity_variant)
 	for entity_variant in released:
 		release(StringName(entity_variant), reason)
+	_interaction_highwater_by_owner.erase(peer_id)
 	return _result(true, &"peer_bodies_released", {"released": released.size()})
 
 
@@ -295,8 +344,12 @@ func advance(server_tick: int) -> Dictionary:
 			record["frozen"] = false
 			record["intents_applied"] = int(record.get("intents_applied", 0)) + 1
 			applied += 1
-			if intent.get_interaction_request_id() > int(record.get("last_interaction_id", 0)):
-				record["last_interaction_id"] = intent.get_interaction_request_id()
+			var owner_peer_id: int = int(record.get("owner_peer_id", 0))
+			var interaction_floor: int = maxi(int(record.get("last_interaction_id", 0)),
+				int(_interaction_highwater_by_owner.get(owner_peer_id, 0)))
+			record["last_interaction_id"] = maxi(interaction_floor, intent.get_interaction_request_id())
+			if intent.get_interaction_request_id() > interaction_floor:
+				_interaction_highwater_by_owner[owner_peer_id] = intent.get_interaction_request_id()
 				_handle_interaction(record)
 		elif StringName(record.get("seat_state", &"standing")) == &"standing" \
 				and not bool(record.get("frozen", false)) and int(record.get("last_intent_tick", -1)) >= 0 \
