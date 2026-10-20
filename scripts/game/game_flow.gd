@@ -11912,8 +11912,8 @@ func _disembark_ship_to_exterior(transition_ship: HeroShip, passenger_exit: bool
 		# cockpit jamb before joining the unchanged six-point hatch/stair route.
 		exterior_waypoints.push_front(transition_ship.global_transform \
 			* Transform3D(Basis.IDENTITY, Vector3(-1.10, 0.52, -6.70)))
-	var exit_pose := player.settle_exit_onto_support(transition_ship.get_exit_transform())
-	var motion_started := player.begin_on_foot_exterior_exit(
+	var exit_pose: Transform3D = player.settle_exit_onto_support(transition_ship.get_exit_transform())
+	var motion_started: bool = player.begin_on_foot_exterior_exit(
 		exit_pose, disembarking_motion_time, transition_ship, exterior_waypoints
 	) if passenger_exit else player.begin_disembark(
 		exit_pose, disembarking_motion_time,
