@@ -9815,6 +9815,21 @@ func _on_interact_requested() -> void:
 		if station_interaction_candidate is StationSeat:
 			_sit_in_station_seat(station_interaction_candidate as StationSeat)
 			return
+		if is_instance_valid(world) \
+				and station_interaction_candidate == world.get_station_defense_activity_board():
+			var defense_board := station_interaction_candidate as StationDefenseActivityBoard
+			# Resolve once per press. A successful pending-report retry must not
+			# fall through to reset or deploy in this same interaction.
+			var defense_action := defense_board.get_physical_interaction_action()
+			var defense_result: Dictionary = {}
+			if defense_action in [&"deploy", &"retry_reward"]:
+				defense_result = _start_physical_station_defense_board()
+			elif defense_action == &"reset" and not _heavy_breach_sortie_is_armed():
+				defense_result = _reset_physical_station_defense_board()
+			if bool(defense_result.get("accepted", false)):
+				audio.play_ui_confirm()
+				_sync_activity_hud()
+			return
 		if station_interaction_candidate == heavy_breach_activity_board:
 			var heavy_breach_changed := (
 				_cancel_armed_heavy_breach_sortie(heavy_breach_activity_board)

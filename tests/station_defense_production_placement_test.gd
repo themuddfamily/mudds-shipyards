@@ -677,6 +677,9 @@ func _verify_main_unpaid_recovery() -> void:
 		and "PENDING" in board.get_presentation_snapshot().text
 		and "SAVE RECOVERY REQUIRED" not in board.get_presentation_snapshot().text and _main_receipts(second) == 1,
 		"fresh Main visibly retains the exact genuine unpaid terminal without combat replay")
+	_check(board.get_physical_interaction_action() == &"retry_reward"
+		and board.get_interaction_prompt().contains("REPORT PENDING"),
+		"physical E selects only settlement retry for the genuine cold unpaid terminal")
 	var sources := second.combat_authority.get_resolver().get_registered_source_count()
 	var blocked := board.abort_and_reset(second.player, second.world.get_station_defense_content().get_generation())
 	board.interact(second.player)
@@ -741,6 +744,9 @@ func _verify_main_unpaid_recovery() -> void:
 		and FileAccess.get_file_as_bytes(path) == corrupt_primary_bytes
 		and FileAccess.get_file_as_bytes(path + ".bak") == recovery_backup,
 		"cold defense recovery cannot adopt or repay the older unpaid backup")
+	_check(cold_board.get_physical_interaction_action() == &"save_recovery"
+		and cold_board.get_interaction_prompt() == "SAVE RECOVERY REQUIRED",
+		"physical E protects the genuine refused session rather than offering Deploy or Reset")
 	var repaired := FileAccess.open(path, FileAccess.WRITE)
 	repaired.store_buffer(paid_primary)
 	repaired.close()
@@ -752,9 +758,15 @@ func _verify_main_unpaid_recovery() -> void:
 		and not cold_board.get_reward_handoff_snapshot().reward_pending,
 		"repaired valid paid primary clears the cold board recovery status without reward replay")
 	await _dispose_main(cold)
+	var before_retry_generation: int = second.world.get_station_defense_content().get_generation()
+	_check(board.get_physical_interaction_action() == &"retry_reward",
+		"repaired live pending debt continues to select a settlement-only E retry")
 	_check(board.interact(second.player) and _main_receipts(second) == 2 and not board.get_reward_handoff_snapshot().get("reward_pending", true)
 		and "SAVE RECOVERY REQUIRED" not in board.get_presentation_snapshot().text,
 		"ordinary board interaction pays the restored generation exactly once after write recovery")
+	_check(second.world.get_station_defense_content().get_generation() == before_retry_generation
+		and board.get_physical_interaction_action() == &"deploy",
+		"settlement-only action retains cold idle generation and exposes Deploy for a separate press")
 	_check(JSON.parse_string(FileAccess.get_file_as_string(path)).payload.runtime_settings == settings_before
 		and JSON.parse_string(FileAccess.get_file_as_string(path)).payload.jovian_cargo_session == cargo_before
 		and published.game_flow_reward_store.reward_counts[String(GameFlowRewardAuthority.CINDER_ASTEROID_RUN_REWARD_ID)] == 1,

@@ -1,123 +1,103 @@
 # Development roadmap
 
-**Status: playable development alpha; project completion is unproven.** Latest
-accepted checkpoint: **f671da9**. The existing combat board now offers solo
-Paired Wing after Heavy Breach/Torpedo, with on-foot arm/cancel and launch only
-after boarding and physical departure. Wing explicitly offers no credit reward.
-It retains tractor inversion, title readability/overflow, Convoy guidance,
-planetary credits and earlier save protection.
-[Windows notes](builds/windows/MuddsShipyards-f671da9-notes.txt) and
-[Linux notes](builds/linux/MuddsShipyards-f671da9-linux-notes.txt) state checks and
-limits. Inline browser progress/timeout/retry remains accepted on20e90c9;
-paused LAN discovery on042c701. Beacon departure/traversal/once-only saved reward
-qualification on e06550e is retained in its recorded scope. Beacon home/dock/exit, Perimeter Hold,
-client rejection and real listening remain unfinished. All36 original parents
-and ten phase gates remain open.
+**Playable development alpha; a completion date is not yet defensible.**
+All **36 original parent outcomes** and **ten phase gates** remain open.
+Nine of the eventual 17 craft exist; eight still need supported specifications
+and implementation. Partial acceptance is retained in the backlog; it is not
+whole-feature completion.
 
-## What separates this alpha from completion
+Latest playable checkpoint: **51257b3**. Its Arrow route proves one actual
+precision-emitter hit and two flights/home docks/offline exits/reboarding/normal
+UI quit. It qualifies existing gameplay, not a new ship, weapon or completed Arrow.
+[Windows ZIP](builds/windows/MuddsShipyards-51257b3-checkpoint.zip),
+[Windows notes](builds/windows/MuddsShipyards-51257b3-notes.txt),
+[Linux notes](builds/linux/MuddsShipyards-51257b3-linux-notes.txt).
 
-These are scope groups, not equally sized tasks or a percentage. The
-[36-parent crosswalk](docs/ROADMAP_BACKLOG.md#coverage-of-the-original-remaining-outcomes)
-and [original ten phase gates](docs/history/ROADMAP_SCOPE_20261017.md) retain every
-promise. Each named child and its dependencies live in the existing
-[backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes).
+This page is the working queue. The
+[36-parent crosswalk and named children](docs/ROADMAP_BACKLOG.md#coverage-of-the-original-remaining-outcomes)
+retain complete remaining scope; the
+[original ten phases](docs/history/ROADMAP_SCOPE_20261017.md)
+retain the completion promises. Attempt details belong in
+[delivery history](docs/history/ROADMAP_DELIVERIES.md), not this queue.
 
-| Remaining scope | Known boundary | What must be settled or delivered next |
+## What finishing requires
+
+These are delivery groups, not equally sized tasks or a percentage. They may
+proceed independently where their actual dependencies permit. No release of the
+current nine craft silently removes the remaining eight original commitments.
+
+| Delivery group | Completion check | Smallest next boundary |
 | --- | --- | --- |
-| Fleet and historical content | 17 eventual craft: 9 implemented, 8 absent | Eight SPEC→BUILD-SPLIT→CRAFT-ACCEPT chains; missing evidence/interpretation decisions precede builds. Existing nine still require their applicable full craft/art/role journeys. |
-| Station | Nine branches; four service-motion outcomes | Habitat ordinary loop/restart and all four service runtime outcomes accepted on recorded checkpoints. Other branch routes and actual presentation findings remain; parked routes retain their limits. |
-| Activities and combat | Twelve activities, six named combat encounters | Complete uncovered ordinary outbound/activity/reward/home journeys, then each legitimate ten-run contract. Cargo replenishment/turnover policy is unresolved; Hauler source integration is a known stock-policy-gated production gap. |
-| Worlds | Ember, Aurora, Rime; 21 named shared-world cells | Canonical solo/shared returns, saves, abandonment, crew and repeat visits; source/staged passes cover only their recorded cases. Aurora originals remain waiting and Rime arrival remains parked. |
-| Multiplayer | Named browser, helm, role, damage, actor and postdock cases | Dedicated server/two-client baseline, applicable role/reuse cases, original 30-minute endurance and chosen capacity. Release guest count/playing-host decision remains waiting. |
-| Recovery and saves | Seven context definitions; accepted cuts retained | Four terminal-only active-run policies remain unresolved; remaining installed/ordinary cuts and migration/corrupt/unsupported data cases need their exact expected behavior and candidate. |
-| Presentation, controls, audio and performance | Finite view/device/capture families | Actual defects and native measurements, real devices/audio, accessibility and applicable capture gates. Hardware/authorization dependencies cannot be replaced by headless passes. |
-| Release | Existing Windows/Linux checkpoint workflows | Target-list decision, exact final integrated regression/packages/install transactions, licensing/signing and authorized distribution. Native Windows execution/human-review owner exclusions stay in force. |
+| Fleet, station and combat | Applicable ordinary craft/role/weapon/damage/recovery/home/reuse journeys; remaining original craft built; station branches and actual art findings resolved | Select one named capability or complete journey from the existing inventory. Missing craft require SPEC, then actual build cards; no whole-ship assignment. |
+| Activities and worlds | All twelve activities and required repeats; three canonical world returns and 21 shared-world cells, with rewards/save/recovery | One named activity journey or world/case at a time, preserving the complete outbound→result→usable home contract. |
+| Multiplayer | Browser, helm, crew, damage/actor and postdock cases; dedicated-server/two-client baseline, original 30-minute endurance and chosen capacity | A named independently runnable case. Parked handback/boarding failures remain dependencies, not automatic retries. |
+| Saves and recovery | Expected continuation, actual interruption/restart and usable controls for required contexts; conserved progress/rewards and protected invalid data | One context and durable boundary with its expected resume/safe-home behavior settled first. Four active terminal-owner policies remain unresolved. |
+| Presentation, controls, audio and performance | Applicable views/captures, physical devices, authorized listening and representative native measurements; demonstrated defects fixed | One actual defect or one explicitly selected qualification case. Headless/software results retain their limits. |
+| Final release | Frozen integrated candidate; full local matrix, packages, installation, rights/signing and authorized distribution with matching bytes | Final-candidate work follows required integration. Desktop targets, rights/signing inputs and applicable external gates remain open. |
 
-**Remaining job count and finish date: unknown.** BUILD-SPLIT placeholders,
-policy choices and actual visual/performance findings still have unresolved
-multiplicities. Do not call a definition, qualification or checkpoint a finished
-feature. Do not invent a project percentage from rows, tests or commits.
+The remaining task count is still unknown: missing-craft build splits, actual
+presentation findings, unresolved policies and measurement cases have not all
+been defined. Do not turn test counts, commits or row counts into project progress.
 
 ## Execution now
 
-**COMBAT-WING-ADMISSION delivered in checkpointf671da9**, parent11.
-This closes the missing production entry to the existing encounter, not full
-COMBAT-WING acceptance. Third combat-board contract: arm/cancel on foot, board
-a combat-capable craft, depart, fight the two existing suppression/flank actors.
-Solo-only admission/start/fire, correct objectives/terminal/abort and no-credit
-disclosure are integrated; Breach/Torpedo payouts and debts remain.
+**Current focus: account for and finish existing unmerged work.**
+Owner explicitly requested this priority; no new helm or unrelated roadmap task
+is selected. Branch accounting is complete in the
+[existing delivery history](docs/history/ROADMAP_DELIVERIES.md#branch-accountability-and-race-timeout-diagnosis--2026-10-20):
+141 local and84 live remote refs deleted; integrated equivalents and duplicate
+attempt histories accounted for. Remaining26 remote non-main branches are mapped
+to their actual failed/pending outcomes, not counted as26 unfinished features.
+Unique failed sources and older registered worktrees remain protected.
 
-| Small deliverable | Decisive check | Actual result |
-| --- | --- | --- |
-| Correct board/encounter lifecycle | Third rotation, stale/cancel fencing, both destroyed required; healthy retirement/missing contacts abort; no Wing payout | Director151 and board59 assertions PASS. Component clear uses disclosed damage simulation, not ordinary weapon qualification. |
-| Actual Main admission | Staged third-offer/avatar setup, real E/cancel, actual host refusal, Arrow boarding and physical berth departure, registered Wing pair, suppression/flank and withdrawal cleanup | PASS28 assertions;31.895s. Main test never damages/kills or completes home route. HUD8/audio11 checks also PASS. |
-| Playable checkpoint and cleanup | Paired exports, three strict startups, PCK/PE/archive/source identity; clean owned processes/artifacts | PASS1521-entry PCK parity; all64 observed identities absent,11 published files hash-verified,29 profile entries archived/verified; owned checkout/profile/helpers removed. |
+The one already-running Race diagnosis is now terminal:81 assertions pass,
+19 Main lifetimes,212.821s total synchronous attach; the unchanged300s cap expires
+in19th retirement. No production fix or full-suite pass; source archived under
+`archive/diagnostics/race-baseline-boundary-20261020`, diagnostic branch/worktree/
+profiles/helpers removed. No engine run remains active.
 
-Original board test parse failure16.171s remains retained. One explicit-type
-correction changes only three declarations; runtime/assertions unchanged. Import/
-director accepted scopes retained on identical production. All12 accepted stages
-264.737s; cumulative with failure280.908s, closure18.68min inside original
-06:49–07:49UTC/60min. No second correction, cap increase or extra run.
-[Actual scope and cleanup](docs/history/ROADMAP_DELIVERIES.md#paired-wing-board-admission--shipped-on-f671da9).
+**Selected existing task: COMBAT-WING ordinary route correction, parent11.**
+Owner priority explicitly reopens this chain on the measured cause: board press
+2.905m outside unchanged2.8m range. Reuse the existing
+`feat/wing-ordinary-route-20261020` branch; merge current main into it, preserving
+all later changes. One high-effort implementer owns its original seven driver/
+observer/startup/privacy/test files; root owns integration/checks/packages/docs.
+Correct actual3D approach with margin and handle explicit board rejection. Do not
+change gameplay radius, posting order, opponents, damage, timers or acceptance.
 
-**Next single action:** freeze the missing ordinary Wing driver/observation seam:
-real posted-board admission, both named members' player-weapon destruction and
-safe physical home return. Name the third-posting/profile prerequisite honestly;
-do not use fixture damage, actor removal, phase writes or implicit prior wins as
-that proof. No full-route run is selected yet. Other combat outcomes/repeats/
-recovery/network/native/human and all broad parent gates remain open. Parked
-Perimeter/Courier candidates are neither adopted nor qualified. Hauler's
-independent production seam still waits on its already-asked stock choice.
+Selection12:24–13:24UTC/60min; prior344.298s stage cost remains retained. Estimate
+15–20min integration/correction/review,10–15min checks,10–15min packaging/cleanup.
+Before engines, review exact source and freeze helper commands. Original checks:
+import180s; Python driver90s; privacy120s; Wing observer120s; Windows/Linux exports
+180s each; strict direct/archive/Windows-payload startups120s each; artifact audit
+90s; exactly one native isolated-X11/Dummy full paired-wing route at original
+300s (outer360s). Existing first-failure stop/independent abort/input cleanup apply.
+Finish requires honest Heavy/Torpedo posting prerequisites, two actual Wing player
+weapon kills, physical home/offline exit and normal UI quit, then accepted main
+integration/push, checkpoint notes and branch/worktree cleanup. No narrower proof,
+automatic second correction, unrelated next task or cap increase selected.
 
-### Selected ordinary Wing route — no manufactured prelude
+**Ready production cards: 0. Prepared production cards waiting on decisions: 3.**
+The decisions below remain pending; they do not prevent finishing independently
+supported existing failures. No completed probe schedules an adjacent probe.
 
-COMBAT-WING / parent11. **07:14–08:14UTC /60min** including implementation,
-review, checks, paired candidate and one300s full route. One high implementation
-agent owns tools/release/run_native_sortie.py and test_native_sortie.py,
-scripts/diagnostics/native_sortie_observer.gd, scripts/game/startup_loader.gd,
-tests/startup_cli_privacy_test.gd and one focused observer test/UID. Root owns
-integration/publication/cleanup. Implementation estimate25–35min; no gameplay,
-weapon, damage, pose, phase, tuning, grant or reward-owner changes.
+### Next three production deliveries
 
-Add supported paired-wing selector to existing private X11/Dummy native driver.
-From an empty private profile: actual board E-arm Heavy Breach→board Torrent→
-depart→normal strict home landing makes SHUT_DOWN and naturally WITHDRAWN→
-neutral shutdown/physical exit; repeat for Torpedo Run. Observe each exact
-withdrawal/next posting; do not claim wins. Then actual Wing arm/depart, both
-named members destroyed through fresh target-specific player-weapon hits,
-CLEARED, strict home lease/landing/shutdown/physical exit, supported walk and
-normal UI exit0. Preserve default sampler and tuning throughout. No persisted
-third-offer fixture, fake prior wins, direct damage/actor retirement or debug
-command path. Existing300s whole native-driver cap remains fixed; timing and
-survival are unproved until the one attempt.
+These are existing children, not new task families. Root owns selection and
+integration; assign an implementer only when the prerequisite is satisfied.
+Freeze exact files, commands/caps and estimates at that point. The checks below
+are acceptance intent, not permission to run an unfrozen engine command.
 
-Observer is read-only apart from its own detached records: extract actual Wing
-IDs/health/roster/authority/outcomes and shot request sequence, presentation
-receipt ID, source/target identities, weapon, applied damage, remaining health
-and destruction. A cached generic shot_accepted never proves a hit. Require
-fresh monotonic source sequence/request.last_sequence match, new receipt,
-matching actual player source/target, positive applied damage and each actual
-zero-health/destruction. Reject stale/replayed/foreign-target receipts.
+| Existing child / parents | Player result and implementation boundary | Done for this card | Dependency and cost |
+| --- | --- | --- | --- |
+| [FREIGHT-TERMINAL-INTERFACE /7,9,13](docs/ROADMAP_BACKLOG.md#freight-terminals--physical-interface-and-existing-transfer-owner) | Ordinary E at existing Freight fittings reaches the genuine cargo job/manifests/receipt. Owners: JovianFreightBerth fittings, CargoTransferTerminal and GameFlow cargo composition. | Actual Main interaction, range/re-entry/refusal/current-owner checks; existing conserved stock and once-only settlement preserved; fresh playable checkpoint. This does not close full Freight delivery/reload/walk. | WAITING: physical job/receipt interface with automatic landing transfer, or manual transfer after docking. Estimate after choice; split before 90min. Do not alias a terminal as the ship or mint another stocked manifest. |
+| [HAULER-CARGO-MANIFEST /10,13](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries) | Hauler joins the real supply contract with the correct conserved stock owner. Owner: NearbySectorActivityBinding admission/custody; existing generation-floor API and CargoTransferAuthority retained. | Jovian→Hauler→Jovian current ownership, stale-handle refusal, no recreated stock, exact conserved destination/receipt; fresh playable checkpoint. Full ordinary Hauler delivery stays separate. | WAITING: shared stock, separate stock or loading-terminal custody. Existing estimate 60–90min implementation/checks plus checkpoint; split if the choice adds a separate capability. Access is already delivered. |
+| [AUDIO-NAVIGATOR-CLIENT-REJECTION /30](docs/COMPLETION_SCOPE.md#client-navigator-rejection-response--bounded-definition-next) | The actual requesting client gets one accurate refusal cue/caption for its current request. Existing passenger binding, ENet adapter, GameFlow and navigator audio lifetime owners carry the response. | Distinct equal refusals each present once; stale/replayed/foreign responses stay silent; accepted/clear behavior and full existing peer route retained; fresh playable checkpoint. Dummy checks establish dispatch, not listening. | WAITING: all current authenticated refusals including unavailable consumer, or consumer/bridge refusals only. Prior estimate 45–60min implementation/review, 15–25min checks, 10–15min checkpoint. High-risk lifetime/transport review required. |
 
-Before engines freeze clean candidate and exact commands: import180s;
-python3 -B tools/release/test_native_sortie.py90s;
-startup_cli_privacy_test.gd120s; native_sortie_wing_observation_test.gd120s.
-All Godot headless/Dummy; no new validator/version family. Then safe paired
-exports180s each, three strict startups120s each and existing PCK/PE/archive
-audit90s. Run exactly one `python3 -B tools/release/run_native_sortie.py
-OWNED/worktree/builds/linux/MuddsShipyards-PIN.x86_64 --route paired-wing
---output OWNED/results/ordinary-wing` with existing authenticated owned Xvfb,
-explicit x11/dummy rendering/Dummy audio and independent abort/input release.
-Native cap300s, outer360s plus60s owner finalization; whole60min unchanged.
-First failure stops, no automatic repair/retry/cap increase or adjacent renamed
-probe. Publish only accepted candidate; notes retain native/GPU/devices/listening/
-human/full-release limits. Archive/hash-verify unique data and remove only owned
-clean pushed checkout/profile/helpers after PID/publication checks.
-
-This implements the missing executable qualification path and attempts its full
-original combat outcome. A failed route does not qualify the encounter or
-replace it with admission-only proof. Independent Hauler implementation remains
-waiting on its stock decision; parked Perimeter/Courier are not this route.
+A card closes on its stated result, then commit/push, record actual time and clean
+owned scratch. Its downstream delivery, reload, full branch or final-candidate
+qualification becomes a separate selection with the original acceptance retained.
+No card expands silently to cover every adjacent defect.
 
 ### Waiting decisions — not executable tasks
 
@@ -126,6 +106,7 @@ or treating elapsed time as a choice.
 
 | Child | Required input | Result after the dependency resolves |
 | --- | --- | --- |
+| FREIGHT-TERMINAL-WORKFLOW | Newly asked: physical terminals select the existing Jovian job/show manifests and receipt while keeping automatic landing transfer (recommended), or manual terminal transfer after docking. No answer recorded. | Freeze exact physical endpoint/manifest ownership and one production-interface assignment; preserve existing stock/once-only transfer and full walk/reload/same-ship requirement. Separate from Hauler policy. |
 | [AUDIO-NAVIGATOR-CLIENT-REJECTION](docs/COMPLETION_SCOPE.md#client-navigator-rejection-response--bounded-definition-next) | All fresh current refusals including unavailable consumer, or consumer/bridge refusals only. | Correct requester-correlated refusal feedback. Freeze implementation/proof after the choice; prior estimate 45–60min implementation/review, 15–25min checks, 10–15min checkpoint. |
 | [HAULER-CARGO-MANIFEST](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries) | Shared existing stock, separate Hauler stock, or loading-terminal custody. | Actual Hauler cargo admission and conserved source ownership; ordinary delivery remains separately gated. Generation-floor API already exists; freeze files/proof after the choice. Prior estimate 60–90min implementation/checks, checkpoint additional; split before 90min. |
 | [TRAVEL-LIMIT Beacon outbound](docs/ROADMAP_BACKLOG.md#beacon-outbound-travel-envelope--proposal-awaiting-decision) | Newly asked:30s or60s unpaused elapsed from engine-start input at the occupied Torrent berth to controlled first Beacon. No answer recorded. | Agree one numeric leg target before adding/qualifying its existing-driver timing; no simulation-only proof, return/roster reduction or parked retry. |
@@ -136,80 +117,46 @@ Other scope, evidence, hardware and authorization dependencies remain in the
 [Parked failures](#parked-failures-and-dependent-work) require their recorded
 reopening conditions; they are not the next executable queue.
 
+## Turning a broad point into one task
+
+Use the existing [child inventory](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes).
+Do not create another tracker. A task is executable only when it has:
+
+1. One player/content/build result, its existing child and original parent.
+2. Satisfied prerequisites, exact production files and one responsible implementer.
+3. A decisive action/check, expected result, exact command and fixed duration.
+4. Implementation and check estimates; prefer 30–60min implementation and split
+   before 90min into independently useful capabilities.
+5. A stop condition and closure: actual result/time, source or package scope,
+   commit/push, owned cleanup and one next action.
+
+Label capability, qualification and planning separately. A capability task changes
+the game/content/build pipeline; qualification proves an existing result. Do not
+close a full craft, world, multiplayer parent or phase using a narrow source check.
+No more than three executable cards; prepare dependent work without scheduling it.
+
+A new failure ends the attempt. Any correction needs a separate selection;
+failed work plus one attempted repair requires cumulative priority review.
+Parked work additionally needs a concrete fact/change addressing its retained
+failure. Renaming a card, shrinking acceptance, increasing a cap or selecting an
+adjacent probe does not reset that boundary. A pass ends verification unless a
+relevant change or unresolved concern justifies another run.
+
+Completing one helm action never schedules the next action, a new fixture or a
+handback retry. Before more qualification, choose the larger player journey it
+advances and state its remaining blocker. Prefer an independently useful production
+capability when one is ready; if none is ready, name its actual missing dependency.
+Do not fill the implementation queue with tests or invent unapproved behavior.
+
 ## Accepted work — source limits retained
 
-Detailed timings, assertions, process inventories and cleanup records belong in
-the existing history. These are accepted slices, not closed broad parents.
-
-| Outcome | Accepted scope / remaining boundary |
-| --- | --- |
-| Paired Wing board admission | [Checkpointf671da9](docs/history/ROADMAP_DELIVERIES.md#paired-wing-board-admission--shipped-on-f671da9): third solo board contract, departure/authority gates, actual Wing roster/objective/no-credit lifecycle pass. Full ordinary two-kill/home and other encounter gates remain open. |
-| On-foot help, one cell | [Source5ac9d3ef0](docs/history/ROADMAP_DELIVERIES.md#on-foot-help--one-minimum-scale-1610-cell-accepted): all four pages at1920×1200/.75 pass geometry/wrapping/focus. Other help modes/cells, rendered/human/device and final candidate remain open. |
-| Tractor look inversion | [Checkpoint34d4b9e](docs/history/ROADMAP_DELIVERIES.md#tractor-look-inversion--shipped-on-34d4b9e): saved/live existing on-foot inversion reaches tractor mouse/pad pitch; full tractor/settings/package checks pass. Physical devices, ordinary/full controls and final candidate remain open. |
-| Begin Shift focus / press | [Checkpoint923d7b3](docs/history/ROADMAP_DELIVERIES.md#begin-shift-focus-contrast--shipped-on-923d7b3): dark text clears measured4.5/7 contrast floors across existing palettes. Other readability, saved profiles, devices and final accessibility remain open. |
-| Title overflow | [Checkpoint19e7990](docs/history/ROADMAP_DELIVERIES.md#title-menu-overflow--startup-actions-kept-on-screen): all title actions fit the measured viewports. Focus contrast is separately delivered on923d7b3; other title states and full accessibility remain open. |
-| Guided / initial interceptor | [Checkpoint3d92b91 ordinary3/3](docs/history/ROADMAP_DELIVERIES.md#guided-checkpoint3d92b91--original-ordinary-route-accepted3of3), including home/shutdown/physical exit. Acceptance stays on those bytes; later checkpoints and final candidate are not covered. |
-| Saved Convoy / credits | [Checkpoint3d92b91](docs/history/ROADMAP_DELIVERIES.md#saved-convoy-objective-and-planetary-credits--shipped-on-3d92b91): paused-save guidance and planetary ambience attribution. Full Convoy play/endurance remains open. |
-| Host-stall recovery | [Source3d6b1b513](docs/history/ROADMAP_DELIVERIES.md#original-host-stall-route--current-source-accepted): original full independent suite, both600-step stalls and original2s actions. No unchanged rerun; ordinary handback, full matrix, final package/native/endurance remain separate. |
-| Future save envelope | [Source4b66b3548](docs/history/ROADMAP_DELIVERIES.md#future-save-outer-envelopes--sourcelinux-real-file-case-accepted): real-file Linux refusal/preservation. Other formats, installed/native/UI recovery remain open. |
-| Corrupt-primary preservation | [Checkpoint9326614](docs/history/ROADMAP_DELIVERIES.md#corrupt-save-preservation--shipped-on-9326614): retain damaged bytes before replacement and block conflicting retained copies. Broader recovery remains open. |
-| Blocked repair feedback | [Checkpoint49047eb](docs/history/ROADMAP_DELIVERIES.md#blocked-save-repair-feedback--shipped-on-49047eb): known preservation refusal is explained without changing persistence policy. |
-| Planning definitions | [36-parent crosswalk](docs/ROADMAP_BACKLOG.md#coverage-of-the-original-remaining-outcomes) names each next child and dependency; [packaged lifecycle definition](docs/ROADMAP_BACKLOG.md#packaged-ordinary-lifecycle--life-package-define) names uncovered cases. Neither is gameplay acceptance or a whole-project estimate. |
-
-## Turning the remaining scope into executable work
-
-Use the existing [named child inventory](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes)
-and [family contracts](docs/ROADMAP_BACKLOG.md#family-contracts), rather than
-creating another tracker. Each selected card must answer these questions before
-implementation or engine execution:
-
-| Required field | A usable answer |
-| --- | --- |
-| Result | One thing the player can do, content they can encounter, or executable build/release capability; name its original parent and existing child ID. Label planning and qualification separately. |
-| Prerequisites | Specific accepted dependencies or missing input. WAITING, GATED and PARKED are not READY. |
-| Ownership | Exact production files/component and implementer; disjoint ownership for parallel work. |
-| Proof | Exact focused command or ordinary action, expected result and fixed duration. Keep broader parent journey requirements visible and unchanged. |
-| Budget and stop | Implementation estimate, check duration and stopping condition. Prefer 30–60min implementation; split before 90min into useful capabilities. A new failure ends the attempt. |
-| Closure | Actual outcome/time, source versus packaged status, remaining requirement, commit/push, owned cleanup and one next action. |
-
-A broad parent closes only when all its original requirements are accepted.
-For missing craft, settle SPEC first, then replace BUILD-SPLIT placeholders with
-actual hull/access, handling, role/weapon and recovery capabilities. Do not invent
-a fixed task count per ship. Retain complete CRAFT-ACCEPT journeys.
-
-Keep at most three executable cards. Before starting another qualification chain,
-identify an independent production alternative or record its concrete missing
-definition. Do not expand an investigation into a succession of adjacent probes.
-The earlier RPC-cache capture is complete. Matching patched templates remain
-unavailable and Windows compilation is parked; neither is an automatic next task.
-
-## Observation walk — normal exit remains blocked
-
-WALK-OBSERVATION remains unaccepted: completing all54 waypoints/view/home does
-not pass the required normal UI exit. See its parked row below and the existing
-[numeric caller result](docs/history/ROADMAP_DELIVERIES.md#observation-numeric-contract--runtime-exit-failure).
-
-### Selected diagnosis — popup lifetime during normal Exit
-
-The diagnosis is stopped. The [retained capture](docs/history/ROADMAP_DELIVERIES.md#observation-popup-lifetime-capture--failure-boundary-identified)
-identifies the TooltipPanel below PlanetaryDestinationOpenButton; both stored
-connection pairs remain across the error. Attempted native Callable identity and
-cause are unresolved; no shared cause with Board/RPC is established. The later
-cleanup-order candidate remains unmerged/inconclusive. Preserve the complete
-route, original90min budget and cumulative733.226s across the four retained
-failures; no automatic probe, repair, retry or cap increase is selected.
-
-## Latest playable result
-
-**Checkpointf671da9** adds solo Paired Wing to the combat board rotation, with
-accurate admission/objective/terminal feedback and no credit reward. It retains
-tractor inversion, earlier title readability/overflow, Convoy, credits and saves.
-
-[Windows checkpoint ZIP](builds/windows/MuddsShipyards-f671da9-checkpoint.zip),
-[build notes](builds/windows/MuddsShipyards-f671da9-notes.txt),
-[actual validation and limits](docs/history/ROADMAP_DELIVERIES.md#paired-wing-board-admission--shipped-on-f671da9).
-Full ordinary Wing kills/home, native Windows/GPU/device/audio/human and final
-release remain open. Guided3/3 on3d92b91 is not transferred to this package.
+The backlog preserves accepted child scopes and remaining gates. The existing
+[delivery history](docs/history/ROADMAP_DELIVERIES.md) preserves sources, actual
+results, timings and cleanup. Recent palette, controls, station service, recovery,
+Arrow and helm work remains accepted only within those recorded boundaries.
+Caller-only qualification needs no identical playable rebuild. Checkpoint51257b3
+remains the latest accepted playable result; full craft combat/damage/recovery,
+cross-craft/Main, hardware/native and final release gates remain open.
 
 ## Parked failures and dependent work
 
@@ -218,6 +165,7 @@ contracts and cumulative attempt records remain in the retained history.
 
 | Outcome | Last actual result | Condition before more work |
 | --- | --- | --- |
+| PLAY-DEFENSE ordinary route /13 | Candidatea480c0fbb pushed/unmerged: actual E Deploy accepted, but corrective walk_arrow stationary33.15s and whole34s timeout before boarding. | PARK after original35.963s and one corrective84.239s failure; cumulative406.401s including16 passing stages. No player kill/payment/home/reset/UIexit; no second repair/retry selected. Unique candidates/results preserved; owned scratch cleaned28.24min. |
 | Ember first-relay cold cut /14,31 | [Archive923d7b3](docs/history/ROADMAP_DELIVERIES.md#ember-first-relay-cold-cut--runtime-completes-parent-comparison-fails) FAIL312.812s at parent exact durable-state comparison; arm-9/resume0, engine diagnostics0, runtime continuation and receipts0→1. Only two compared coordinate scalars differ by one binary64 ULP. | STOPPED; no repair/retry/cap increase or retroactive comparison relaxation. Contract review and exact-runtime caller correction complete; corrected full package run NOT_RUN and requires a separately frozen selection. No full-cut/location/canonical/installed acceptance; all owned scratch cleaned9.50min within20min. |
 | Jovian postdock exit /16,20,26 | [Corrective candidate0d225bee8](docs/history/ROADMAP_DELIVERIES.md#docked-pilot-hold--focused-pass-full-exit-stops-at-cabin-walk): pose322/import/compile PASS; full route145.995s FAIL at15s cabin walk after actual standing, retained pilot at exact dock. Unmerged/withheld; exports NOT_RUN. | PARKED after failed runtime plus one corrective attempt: combined392.470s current stages plus retained8054/e147 parser failures. No second repair, retry, tolerance/cap increase or renamed adjacent probe. Walking cause unproved; later node-path errors are inherited failure capture. All owned scratch cleaned17.09min inside original45min. |
 | Habitat common-entry view /9,12 | [Source8a6339b91](docs/history/ROADMAP_DELIVERIES.md#habitat-arrival-view--readback-timed-out-before-image): import passes; full-Main player-height readback times out180.842s before PNG or view metadata. Cumulative201.494s; no observed defect/no-finding. | PARKED. Concrete supported capture-boundary change before selection; no renderer/room substitute, cap increase or unchanged retry. Actual eye stage was not proved reached; accepted Habitat runtime scopes remain. |
@@ -244,37 +192,6 @@ failure budgets and reopen conditions in the backlog/history. Settings originals
 Aurora original arrival bundle, final capacity, hardware/devices and signing retain
 specific external waits. Do not repeat already-asked questions or infer approval.
 Dedicated server/two-client baseline remains authorized independently of capacity.
-
-## Finish rules for every next task
-
-1. Select one named player/build outcome from the inventory. State parent, exact
-   files/owner, prerequisites, proof command/action, unchanged criteria, implementation
-   estimate and check duration before starting. Prefer 30–60min implementation;
-   split before 90min into capabilities, not arbitrary test/evidence stages.
-   Before starting a further qualification chain, identify one independently
-   executable production alternative or record the concrete missing definition.
-   For future cards, distinguish checks protecting the changed behavior from
-   larger parent journey gates before implementation; do not retroactively narrow
-   a failed card's frozen acceptance.
-2. Keep the selected result fixed. A new defect ends that attempt; it does not
-   silently enlarge it. Record the failed outcome and remaining work. Failed task
-   plus one attempted repair requires cumulative priority review before more work;
-   renaming a card does not reset the budget. Reopening parked work also needs
-   a named production change, changed environment, resolved dependency or new fact
-   addressing its retained failure. Priority review alone is not a reason to rerun.
-3. A pass ends verification. Do not repeat accepted checks without a relevant
-   change or concrete unresolved concern. Qualification and planning remain labelled
-   as such; prefer an identified production gap for the next implementation task.
-4. At closure report: what the player can now do, whether it is source-qualified
-   or packaged, what failed/remains, and the next single action. Commit/push and
-   clean owned scratch. No progress percentage from tests, commits or task rows.
-5. Replenish only after reviewing the result against its original parent and
-   available independent product work. Report elapsed work against the selected
-   card before selecting a successor; never let one session become an unbounded
-   sequence of adjacent repairs. Do not append every newly discovered edge case
-   to the current chain.
-   Keep at most three executable cards; dependent and parked scope stays above or
-   in the backlog. Preserve the original parent acceptance until fully proven.
 
 ## Validation and final release
 

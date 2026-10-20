@@ -2342,5 +2342,403 @@ class NativeSortieSafetyTests(unittest.TestCase):
             self.assertEqual(result['cap_seconds'], 300)
 
 
+
+class ArrowReturnReuseTests(unittest.TestCase):
+    def observation(self):
+        s = {key: index+1 for index, key in enumerate(native.ArrowReturnReusePilot.IDS)}
+        s.update(mode='arrow-return-reuse', sequence=1, frame=100, actors_current=True,
+                 phase='INTRO', paused=False, menu_ready=True, guided_complete=False,
+                 definition_id='arrow_provisional', home_id='arrow_recon_berth',
+                 player=[-8.5, .18, 11], spawn=[-8.5, .18, 11], position=[-43, 1.15, 15.5],
+                 parked=[-43, 1.15, 15.5], boarding=[-47.5, .06, 18.9], exit=[-47.8, 0, 18.9],
+                 capture_position=[-58, 9.15, 15.5], back=[1, 0, 0],
+                 right=[0, 0, -1], up=[0, 1, 0], camera=[-38, 3, 15.5],
+                 camera_right=[0, 0, -1], camera_up=[0, 1, 0], camera_back=[1, 0, 0],
+                 ship_invert_y=False, shot={'present': False, 'request': {}},
+                 target={'name': 'TargetDrone01', 'target_id': 'DRONE-01',
+                         'base_position': [-13, 7, -95], 'position': [-12, 7, -95],
+                         'health': 100, 'maximum_health': 100, 'destroyed': False,
+                         'components': {'components': {}},
+                         'hit_source': {'source_id': 0, 'source_entity_id': 0, 'weapon_id': '',
+                                        'sequence': -1, 'presentation_receipt_id': -1}},
+                 velocity=[0, 0, 0], ship_velocity=[0, 0, 0], walk_forward=[0, 0, -1], walk_right=[1, 0, 0],
+                 capsule_geometry=[.38, 1.8], capsule_enabled=True,
+                 default_sampler=True, default_controls=True, tuning_unchanged=True,
+                 walk_tuning=native.LifeTowPilot.DEFAULT_WALK.copy(), ship_tuning={'mouse': .0022, 'cooldown': .38},
+                 physics_ticks=60, time_scale=1, destroyed=False, hull=82, remote_piloted=False,
+                 control_enabled=True, seated=False, seated_at_pilot=False, piloted=False,
+                 active_ship=False, player_camera=True, ship_camera=False, transition_busy=False,
+                 grounded=True, supported=True, support_collider='/Main/World/Deck', mouse_captured=True,
+                 candidate=False, station_candidate=False, boarding_distance=40, reboard_blocked=False,
+                 boarding_reserved=False, native_interact=False, native_landing=False, native_thrust=False,
+                 native_fire=False, flight_demand=False, engine='OFFLINE', landed=True,
+                 landing_active=False, capture=False, parked_exact=True, lease=True, lease_free=False,
+                 lease_token='initial-token', contract=False,
+                 boarding_confirmation={'adapter': {'view': {'state': 'approach'}}},
+                 native_keys={'escape': False, 'tab': False, 'return': False},
+                 ui={'main_visible': True, 'exit_visible': True, 'exit_enabled': True,
+                     'exit_text': 'EXIT TO DESKTOP', 'exit_path': '/Main/HUD/Exit',
+                     'focus_path': '/Main/HUD/Exit', 'focus_is_exit': True})
+        return s
+
+    def tick(self, pilot, s, update=True, now=None, **changes):
+        s.update(changes); s['frame'] += 1; s['sequence'] += 1
+        snapshot = copy.deepcopy(s)
+        pilot.validate_observation(snapshot)
+        if update: return pilot.update(snapshot, s['frame']/60 if now is None else now)
+
+    def start(self):
+        p, s = native.ArrowReturnReusePilot(), self.observation()
+        snapshot = copy.deepcopy(s)
+        p.validate_observation(snapshot); p.update(snapshot, s['frame']/60)
+        self.tick(p, s, phase='APPROACH_SHIP', native_interact=True)
+        for _ in range(30): self.tick(p, s, native_interact=False)
+        return p, s
+
+    def move_to(self, p, s, target):
+        while native.norm(native.sub(target, s['player'])) > .01:
+            delta = native.sub(target, s['player'])
+            length = native.norm(delta)
+            s['player'] = [a+b*min(.10/length, 1) for a, b in zip(s['player'], delta)]
+            self.tick(p, s)
+
+    def at_board(self):
+        p, s = self.start()
+        for _name, target in p.OUTBOUND: self.move_to(p, s, target)
+        self.tick(p, s, candidate=True, boarding_distance=3)
+        self.assertEqual(p.stage, 'board')
+        return p, s
+
+    def hit(self, s):
+        request = {'source_id': 1102, 'source_entity_id': s['ship_id'],
+                   'weapon_id': 'arrow_precision_recon_emitter', 'sequence': 0,
+                   'presentation_receipt_id': 7, 'range': 480, 'damage': 24,
+                   'origin': [-58, 1.15, 15.5], 'direction': [0, 0, -1]}
+        context = {k: request[k] for k in ('source_id', 'source_entity_id', 'weapon_id',
+                                         'sequence', 'presentation_receipt_id')}
+        target = copy.deepcopy(s['target'])
+        target.update(health=76, hit_source=context)
+        return {'target': target, 'native_fire': True,
+                'shot': {'present': True, 'request': request, 'accepted': True, 'resolved': True,
+                         'hit': True, 'damaged': True, 'status': 'damaged', 'destroyed': False,
+                         'source_id': 1102, 'source_entity_id': s['ship_id'],
+                         'target_entity_id': s['target_instance_id'], 'damageable_id': s['target_adapter_id'],
+                         'applied_damage': 24, 'remaining_health': 76,
+                         'damage_result': {'accepted': True, 'applied_damage': 24, 'health': 76,
+                                           'maximum_health': 100, 'destroyed': False}}}
+
+    def weapon_request(self, p, s):
+        self.assertEqual(p.stage, 'weapon_aim')
+        direction = native.unit(native.sub(s['target']['position'], s['camera']))
+        right = native.unit([-direction[2], 0, direction[0]])
+        up = [right[1]*direction[2]-right[2]*direction[1],
+              right[2]*direction[0]-right[0]*direction[2],
+              right[0]*direction[1]-right[1]*direction[0]]
+        target = copy.deepcopy(s['target']); target['position'][0] += .1
+        keys, *_ = self.tick(p, s, camera_back=[-v for v in direction],
+                             camera_right=right, camera_up=up, target=target)
+        # Consume the pending physical mouse delivery and any prior E tap's
+        # release/cooldown before the shared tap owner accepts the first F.
+        for _ in range(40):
+            if p.stage != 'weapon_aim': break
+            self.assertNotIn('pre_fire', p.weapon)
+            keys, *_ = self.tick(p, s)
+        self.assertEqual(p.stage, 'weapon_fire')
+        self.assertIn('f', keys)
+        self.assertEqual(p.weapon['pre_fire']['target']['health'], 100)
+
+    def weapon_hit_and_restore(self, p, s):
+        self.weapon_request(p, s)
+        keys, *_ = self.tick(p, s, **self.hit(s))
+        self.assertIn('f', keys)
+        self.assertIn('hit', p.weapon)
+        self.release_fire(p, s)
+        self.assertEqual(p.stage, 'weapon_restore')
+        for _ in range(35): self.tick(p, s)
+        self.assertIn('restored', p.weapon)
+
+    def release_fire(self, p, s):
+        for _ in range(12):
+            keys, *_ = self.tick(p, s, native_fire=True)
+            self.assertEqual(p.stage, 'weapon_fire')
+            if 'f' not in keys: break
+        else: self.fail('shared F tap did not release after its normal lifetime')
+        self.assertIsNone(p.tap_key)
+        keys, *_ = self.tick(p, s, native_fire=False)
+        self.assertNotIn('f', keys)
+
+    def fly_and_exit(self, p, s):
+        self.tick(p, s, phase='BOARDING', native_interact=True, candidate=False,
+                  transition_busy=True, control_enabled=False, boarding_reserved=True,
+                  boarding_confirmation={'adapter': {'view': {'state': 'boarding'}}})
+        self.tick(p, s, phase='START_ENGINES', seated=True, seated_at_pilot=True,
+                  piloted=True, active_ship=True, capsule_enabled=False, grounded=False,
+                  supported=False, player_camera=False, ship_camera=True, transition_busy=False,
+                  boarding_confirmation={'adapter': {'view': {'state': 'seated'}}})
+        self.assertEqual(p.stage, 'launch')
+        # A genuine consumed thrust command, released lease and physical excursion.
+        self.tick(p, s, native_interact=False, native_thrust=True, flight_demand=True,
+                  engine='ONLINE', phase='FREE_FLIGHT', landed=False, lease=False,
+                  lease_free=True, lease_token='', parked_exact=False,
+                  position=[-60, 1.15, 15.5], capture=True)
+        if p.flight == 0:
+            self.tick(p, s, native_thrust=False)
+            self.weapon_hit_and_restore(p, s)
+        else:
+            for _ in range(35): self.tick(p, s, native_thrust=False)
+        self.assertEqual(p.stage, 'land')
+        self.tick(p, s, native_landing=True)
+        self.tick(p, s, phase='SHUT_DOWN', landed=True, lease=True, lease_free=False,
+                  lease_token='dock-'+str(p.flight), parked_exact=True, contract=True,
+                  position=s['parked'][:], native_landing=False, flight_demand=False)
+        self.assertEqual(p.stage, 'shutdown')
+        for _ in range(90): self.tick(p, s)
+        self.tick(p, s, engine='OFFLINE')
+        for _ in range(30):
+            if p.stage == 'exit': break
+            self.tick(p, s)
+        self.assertEqual(p.stage, 'exit')
+        self.tick(p, s, phase='DISEMBARKING', native_interact=True, transition_busy=True,
+                  boarding_confirmation={'adapter': {'view': {'state': 'disembarking'}}})
+        self.tick(p, s, phase='APPROACH_SHIP', player=s['exit'][:], seated=False,
+                  seated_at_pilot=False, piloted=False, capsule_enabled=True, grounded=True,
+                  supported=True, player_camera=True, ship_camera=False, transition_busy=False,
+                  control_enabled=True, boarding_reserved=False, reboard_blocked=True,
+                  boarding_distance=1.8, boarding_confirmation={'adapter': {'view': {'state': 'approach'}}})
+        if len(p.trips) == 1:
+            for _ in range(30): self.tick(p, s, native_interact=False)
+        else:
+            s['native_interact'] = False
+
+    def reused(self):
+        p, s = self.at_board()
+        self.fly_and_exit(p, s)
+        self.assertEqual(p.stage, 'clear')
+        self.move_to(p, s, [-35, 0, 22])
+        self.tick(p, s, boarding_distance=13, reboard_blocked=False)
+        self.assertTrue(p.clear_seen)
+        self.assertEqual(p.stage, 'reapproach')
+        self.tick(p, s, candidate=True, boarding_distance=3)
+        self.assertEqual(p.stage, 'board')
+        self.fly_and_exit(p, s)
+        self.assertEqual(p.stage, 'pause')
+        return p, s
+
+    def test_two_departures_returns_clear_walk_reboard_and_normal_quit(self):
+        p, s = self.reused()
+        self.assertIsNone(p.result)
+        self.tick(p, s, paused=True)
+        self.assertTrue(p.quit_requested)
+        # A trailing receipt must still be checked after the ordinary UI request.
+        self.tick(p, s, update=False)
+        result = p.finish(0)
+        self.assertEqual(result['completion_marker'], 'NATIVE_ARROW_RETURN_REUSE_OK')
+        self.assertEqual(len(result['trips']), 2)
+        self.assertTrue(all(t['excursion_m'] > 8 and t['neutral_frames'] >= 90 for t in result['trips']))
+        self.assertGreater(result['receipts']['board_2']['frame'], result['receipts']['walk_clear']['frame'])
+        self.assertEqual([e['flight'] for e in p.native_edges if e['stage'] == 'board'], [1, 2])
+
+    def ready_to_fire(self):
+        p, s = self.start()
+        # The normal route has separate lifecycle coverage below. These tests
+        # isolate the shot boundary with an already admitted airborne pilot.
+        p.stage = 'weapon_aim'
+        p.weapon_started, p.weapon_start_frame = s['frame']/60, s['frame']
+        p.weapon['brake'] = p.weapon_receipt(s)
+        s.update(phase='FREE_FLIGHT', engine='ONLINE', landed=False, lease=False, lease_free=True,
+                 seated=True, seated_at_pilot=True, piloted=True, active_ship=True,
+                 capsule_enabled=False, ship_camera=True)
+        self.weapon_request(p, s)
+        return p, s
+
+    def test_fire_uses_one_shared_tap_until_both_time_and_physics_minima(self):
+        for pending in ('frames', 'wall_time'):
+            with self.subTest(pending=pending):
+                p, s = self.ready_to_fire()
+                press_frame, press_time = p.tap_frame, p.tap_until-.15
+                baseline = p.weapon['pre_fire']
+                count = 5 if pending == 'frames' else 6
+                for index in range(count):
+                    elapsed = .20 if pending == 'frames' else .14*(index+1)/count
+                    keys, *_ = self.tick(p, s, native_fire=True, now=press_time+elapsed)
+                    self.assertIn('f', keys)
+                self.assertEqual(s['frame'], press_frame+count)
+                release_time = press_time+(.201 if pending == 'frames' else .151)
+                keys, *_ = self.tick(p, s, native_fire=True, now=release_time)
+                self.assertNotIn('f', keys)
+                self.assertIsNone(p.tap_key)
+                for index in range(25):
+                    keys, *_ = self.tick(p, s, native_fire=False, now=release_time+(index+1)/60)
+                    self.assertNotIn('f', keys)
+                    self.assertEqual(p.stage, 'weapon_fire')
+                    self.assertIs(p.weapon['pre_fire'], baseline)
+                self.assertEqual(sum(e['stage'] == 'weapon_fire' for e in p.stages), 1)
+
+    def test_aligned_aim_does_not_store_baseline_or_advance_while_tap_unavailable(self):
+        for busy in ('key', 'time', 'frames'):
+            with self.subTest(busy=busy):
+                p, s = self.ready_to_fire()
+                p.stage = 'weapon_aim'; p.weapon.pop('pre_fire')
+                p.tap_key = 'e' if busy == 'key' else None
+                p.tap_until = s['frame']/60+1
+                p.tap_cooldown = s['frame']/60+1 if busy == 'time' else 0
+                p.tap_release_frame = s['frame'] if busy == 'frames' else -100
+                keys, *_ = self.tick(p, s)
+                self.assertEqual(p.stage, 'weapon_aim')
+                self.assertNotIn('pre_fire', p.weapon)
+                self.assertNotIn('f', keys)
+
+    def test_weapon_rejects_stale_wrong_target_source_sequence_and_hit_receipts(self):
+        mutations = [lambda p,s,h: h['shot'].update(accepted=False),
+                     lambda p,s,h: h['shot'].update(hit=False),
+                     lambda p,s,h: h['shot'].update(damaged=False),
+                     lambda p,s,h: h['shot'].update(target_entity_id=999),
+                     lambda p,s,h: h['shot'].update(damageable_id=999),
+                     lambda p,s,h: h['shot'].update(source_id=1001),
+                     lambda p,s,h: h['shot']['request'].update(source_entity_id=999),
+                     lambda p,s,h: h['shot']['request'].update(weapon_id='torrent'),
+                     lambda p,s,h: h['shot']['request'].update(sequence=-1),
+                     lambda p,s,h: h['shot']['request'].update(sequence=1),
+                     lambda p,s,h: h['shot']['request'].update(presentation_receipt_id=-1),
+                     lambda p,s,h: h['target']['hit_source'].update(presentation_receipt_id=8),
+                     lambda p,s,h: h['target']['hit_source'].update(source_id=1001),
+                     lambda p,s,h: h['target']['hit_source'].update(sequence=1),
+                     lambda p,s,h: h['shot']['damage_result'].update(applied_damage=23),
+                     lambda p,s,h: h['target'].update(health=75),
+                     lambda p,s,h: h.update(native_fire=False),
+                     lambda p,s,h: setattr(p, 'stage', 'launch'),
+                     lambda p,s,h: setattr(p, 'flight', 1)]
+        for mutate in mutations:
+            with self.subTest(mutate=mutate):
+                p, s = self.ready_to_fire(); hit = self.hit(s)
+                mutate(p, s, hit)
+                with self.assertRaises(AssertionError): self.tick(p, s, update=False, **hit)
+        p, s = self.start()
+        with self.assertRaises(AssertionError): self.tick(p, s, update=False, **self.hit(s))
+
+    def test_weapon_cannot_land_before_hit_and_full_attitude_restoration(self):
+        p, s = self.ready_to_fire()
+        keys, *_ = self.tick(p, s)
+        self.assertIn('f', keys)
+        self.assertNotIn('l', keys)
+        self.assertEqual(p.stage, 'weapon_fire')
+        self.tick(p, s, **self.hit(s)); self.release_fire(p, s)
+        # A matching nose alone does not establish restored attitude.
+        keys, *_ = self.tick(p, s, right=[0, .2, -.98], up=[0, .98, .2])
+        self.assertNotIn('l', keys)
+        self.assertEqual(p.stage, 'weapon_restore')
+        self.tick(p, s, right=[0, 0, -1], up=[0, 1, 0], capture=True)
+        for _ in range(25):
+            if p.stage == 'land': break
+            self.tick(p, s)
+        self.assertEqual(p.stage, 'land')
+        self.assertGreater(p.weapon['hit']['frame'], p.weapon['pre_fire']['frame'])
+        self.assertGreater(p.weapon['restored']['frame'], p.weapon['hit']['frame'])
+
+    def test_weapon_25_second_deadline_includes_braking_and_stalled_observations(self):
+        p, s = self.ready_to_fire()
+        p.check_weapon_deadline(p.weapon_started+25)
+        with self.assertRaisesRegex(AssertionError, '25 seconds'):
+            p.check_weapon_deadline(p.weapon_started+25.001)
+        p.weapon_start_frame = s['frame']-1500
+        with self.assertRaisesRegex(AssertionError, 'physics budget'):
+            self.tick(p, s, update=False)
+        self.assertEqual(native.CAP, 300)
+
+    def test_second_flight_and_quit_tail_reject_another_shot(self):
+        p, s = self.reused()
+        self.assertEqual(p.flight, 1)
+        self.assertEqual(sum(e['stage'] == 'weapon_aim' for e in p.stages), 1)
+        self.assertEqual(p.weapon['hit']['shot']['applied_damage'], 24)
+        for mutate in (lambda snapshot: snapshot.update(native_fire=True),
+                       lambda snapshot: snapshot['shot']['request'].update(sequence=1),
+                       lambda snapshot: snapshot['target'].update(health=52)):
+            snapshot = copy.deepcopy(s); snapshot['frame'] += 1; snapshot['sequence'] += 1
+            mutate(snapshot)
+            with self.assertRaises(AssertionError): p.validate_observation(snapshot)
+
+    def test_every_intermediate_receipt_rejects_changed_actors_controls_support_and_motion(self):
+        mutations = [dict(player_id=999), dict(capsule_id=999), dict(shape_id=999),
+                     dict(ship_id=999), dict(berth_id=999), dict(default_sampler=False),
+                     dict(default_controls=False), dict(tuning_unchanged=False), dict(time_scale=2),
+                     dict(supported=False), dict(player=[80, 0, 0]), dict(lease=False),
+                     dict(native_fire=True), dict(actors_current=False)]
+        for changed in mutations:
+            with self.subTest(changed=changed):
+                p, s = self.start()
+                with self.assertRaises(AssertionError): self.tick(p, s, update=False, **changed)
+
+    def test_approach_candidates_do_not_bypass_actual_boarding_gate(self):
+        p, s = self.start()
+        for _name, target in p.OUTBOUND: self.move_to(p, s, target)
+        self.move_to(p, s, [-38.540359, .0491382, 21.9952])
+        self.assertEqual(p.stage, 'approach')
+        keys, _dx, _dy, _fire = self.tick(p, s, candidate=True,
+                                         station_candidate=True, boarding_distance=9.56)
+        self.assertEqual(p.stage, 'approach')
+        self.assertNotIn('e', keys)
+        self.assertNotIn('board_1', p.receipts)
+        keys, _dx, _dy, _fire = self.tick(p, s, boarding_distance=6.9)
+        self.assertEqual(p.stage, 'approach')
+        self.assertNotIn('e', keys)
+        self.assertNotIn('board_1', p.receipts)
+        keys, _dx, _dy, _fire = self.tick(p, s, station_candidate=False)
+        self.assertEqual(p.stage, 'board')
+        self.assertIn('e', keys)
+        self.assertFalse(p.receipts['board_1']['station_candidate'])
+        self.assertLessEqual(p.receipts['board_1']['boarding_distance'], 7)
+
+    def test_boarding_rejects_no_edge_wrong_candidate_range_reservation_and_rejection(self):
+        mutations = [lambda p,s: p.receipts.pop('board_1'),
+                     lambda p,s: p.receipts['board_1'].update(candidate=False),
+                     lambda p,s: p.receipts['board_1'].update(player_id=999),
+                     lambda p,s: p.receipts['board_1'].update(boarding_distance=7.01),
+                     lambda p,s: p.receipts['board_1'].update(reboard_blocked=True),
+                     lambda p,s: s.update(native_interact=False),
+                     lambda p,s: s.update(boarding_reserved=False),
+                     lambda p,s: s.update(boarding_confirmation={'adapter': {'view': {'state': 'rejected'}}})]
+        for mutate in mutations:
+            with self.subTest(mutate=mutate):
+                p, s = self.at_board()
+                s.update(phase='BOARDING', native_interact=True, transition_busy=True,
+                         control_enabled=False, boarding_reserved=True,
+                         boarding_confirmation={'adapter': {'view': {'state': 'boarding'}}})
+                mutate(p, s)
+                with self.assertRaises(AssertionError): self.tick(p, s, update=False)
+
+    def test_no_success_without_both_flights_clear_walk_and_actual_ui_exit(self):
+        p, s = self.at_board()
+        with self.assertRaises(AssertionError): p.finish(0)
+        self.fly_and_exit(p, s)
+        with self.assertRaises(AssertionError): p.finish(0)
+        # Approaching the marker again without the physical clear walk cannot board.
+        p.stage = 'reapproach'
+        with self.assertRaisesRegex(AssertionError, 'clear walk'):
+            self.tick(p, s, candidate=True, reboard_blocked=False, boarding_distance=2)
+        p, s = self.reused()
+        for changed in [dict(contract=False), dict(lease=False), dict(parked_exact=False), dict(supported=False)]:
+            with self.subTest(changed=changed):
+                snapshot = copy.deepcopy(s); snapshot.update(changed)
+                snapshot['frame'] += 1; snapshot['sequence'] += 1
+                with self.assertRaises(AssertionError): p.validate_observation(snapshot)
+        with self.assertRaises(AssertionError): p.finish(0)
+        self.tick(p, s, paused=True)
+        with self.assertRaises(AssertionError): p.finish(1)
+
+    def test_neutral_offline_and_original_cap_are_required(self):
+        self.assertEqual(native.CAP, 300)
+        p, s = self.at_board()
+        p.stage = 'shutdown'; p.departed = p.landing_seen = True
+        s.update(phase='SHUT_DOWN', active_ship=True, seated=True, seated_at_pilot=True,
+                 piloted=True, capsule_enabled=False, ship_camera=True, contract=True,
+                 flight_demand=False, engine='OFFLINE')
+        for _ in range(89): self.tick(p, s)
+        self.assertEqual(p.stage, 'shutdown')
+        self.tick(p, s, flight_demand=True)
+        self.assertIsNone(p.neutral_start)
+        self.tick(p, s, flight_demand=False)
+        self.assertEqual(p.stage, 'shutdown')
+
+
 if __name__ == '__main__':
     unittest.main()

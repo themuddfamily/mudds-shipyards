@@ -235,6 +235,41 @@ func get_interaction_snapshot(actor: Node, expected_generation: int) -> Dictiona
 	return result
 
 
+## Read-only selection for the ordinary station E handler. A debt retry is one
+## action even when it settles synchronously; resetting needs a separate press.
+## Direct interact(), Nearby UI and explicit reset/recover retain their APIs.
+func get_physical_interaction_action() -> StringName:
+	if _session_refused:
+		return &"save_recovery"
+	if _has_pending_reward():
+		return &"retry_reward"
+	if not is_instance_valid(_content) or not _content.is_content_ready():
+		return &"unavailable"
+	match _presentation_state_id:
+		&"idle":
+			return &"deploy"
+		&"active":
+			return &"status"
+		&"completed", &"failed", &"aborted", &"timed_out":
+			return &"reset"
+	return &"unavailable"
+
+
+func get_interaction_prompt() -> String:
+	match get_physical_interaction_action():
+		&"deploy":
+			return "[ E ]  DEPLOY STATION DEFENSE"
+		&"retry_reward":
+			return "[ E ]  REPORT PENDING — INTERACT TO RETRY"
+		&"reset":
+			return "[ E ]  RESET STATION DEFENSE"
+		&"status":
+			return "STATION DEFENSE ACTIVE — " + _presentation_text.replace("\n", " / ")
+		&"save_recovery":
+			return "SAVE RECOVERY REQUIRED"
+	return "STATION DEFENSE UNAVAILABLE"
+
+
 func interact(actor: Node = null) -> bool:
 	var generation := _content.get_generation() if is_instance_valid(_content) else 0
 	var gate := get_interaction_snapshot(actor, generation)
