@@ -24,6 +24,7 @@ func _run() -> void:
 	_test_high_contrast_variants()
 	await _test_hud_palette_application()
 	await _test_hud_high_contrast_application()
+	await _test_intro_begin_shift_text_contrast()
 	await _test_hud_reticle_styles()
 	await _test_hud_scale_and_motion()
 	await _test_hud_captions()
@@ -377,6 +378,77 @@ func _test_hud_high_contrast_application() -> void:
 		and Color(hud.get_accessibility_report()["danger_color"])
 			== Palette.get_role_color(Palette.MODE_TRITANOPIA, Palette.ROLE_DANGER, true),
 		"the accessibility descriptor path applies the contrast flag before the palette"
+	)
+	hud.queue_free()
+	await process_frame
+	await process_frame
+
+
+## Measure the actual title button theme paints, including the focus paint used
+## immediately on startup. At its authored 16px size this text adopts the suite's
+## 4.5:1 regular and 7:1 high-contrast floors, using the existing contrast helper.
+func _test_intro_begin_shift_text_contrast() -> void:
+	var hud := GameHUD.new()
+	hud.name = "AccessibilityTitleButtonHUD"
+	root.add_child(hud)
+	await process_frame
+	hud.show_intro()
+	var start := hud.get("_intro_start_button") as Button
+	_check(start != null, "the real title HUD exposes its Begin Shift button")
+	if start == null:
+		hud.queue_free()
+		await process_frame
+		return
+	_check(start.has_focus(), "Begin Shift receives initial title keyboard/controller focus")
+	_check(
+		start.get_theme_font_size("font_size") == 16
+		and not start.toggle_mode and start.shortcut == null,
+		"Begin Shift keeps its 16px ordinary button contract"
+	)
+	var focus_outline := start.get_theme_stylebox("focus")
+	var authored_minimum := start.custom_minimum_size
+	var authored_neighbors := [start.focus_neighbor_top, start.focus_neighbor_bottom]
+	# Focus overlays the normal fill; it does not replace it. An ordinary button
+	# uses hover and pressed fills for those paints (no toggle/shortcut paint).
+	var paints := {
+		"normal": ["font_color", "normal"],
+		"focus": ["font_focus_color", "normal"],
+		"hover": ["font_hover_color", "hover"],
+		"pressed": ["font_pressed_color", "pressed"],
+	}
+	var authored_fills: Dictionary = {}
+	for state: String in paints:
+		var keys: Array = paints[state]
+		authored_fills[state] = (start.get_theme_stylebox(keys[1]) as StyleBoxFlat).bg_color
+	for high_contrast: bool in [false, true]:
+		hud.set_high_contrast_hud(high_contrast)
+		var floor_ratio := Palette.MINIMUM_HIGH_CONTRAST_PANEL_CONTRAST if high_contrast else Palette.MINIMUM_PANEL_CONTRAST
+		for mode_id: StringName in Palette.get_mode_ids():
+			hud.set_hud_palette(mode_id)
+			for state: String in paints:
+				var keys: Array = paints[state]
+				var text := start.get_theme_color(keys[0])
+				var fill := (start.get_theme_stylebox(keys[1]) as StyleBoxFlat).bg_color
+				var ratio := Palette.contrast_ratio(text, fill)
+				_check(
+					ratio >= floor_ratio,
+					"Begin Shift %s/%s high-contrast=%s text %s on %s clears %.1f:1 (measured %.3f:1)"
+					% [mode_id, state, high_contrast, text.to_html(), fill.to_html(), floor_ratio, ratio]
+				)
+	hud.set_high_contrast_hud(false)
+	hud.set_hud_palette(Palette.MODE_NONE)
+	for state: String in paints:
+		var keys: Array = paints[state]
+		_check(
+			(start.get_theme_stylebox(keys[1]) as StyleBoxFlat).bg_color == authored_fills[state],
+			"Begin Shift %s restores its authored fill after palette/contrast changes" % state
+		)
+	_check(
+		start.has_focus() and start.focus_mode == Control.FOCUS_ALL
+		and start.get_theme_stylebox("focus") == focus_outline
+		and start.custom_minimum_size == authored_minimum
+		and [start.focus_neighbor_top, start.focus_neighbor_bottom] == authored_neighbors,
+		"Begin Shift retains focus, its inherited focus outline, geometry and navigation"
 	)
 	hud.queue_free()
 	await process_frame

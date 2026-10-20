@@ -4726,6 +4726,8 @@ func _build_intro() -> void:
 	start.add_theme_font_size_override("font_size", 16)
 	start.add_theme_color_override("font_color", INK)
 	start.add_theme_color_override("font_hover_color", INK)
+	start.add_theme_color_override("font_focus_color", INK)
+	start.add_theme_color_override("font_pressed_color", INK)
 	start.add_theme_stylebox_override("normal", _fill_box(NOMINAL, 4))
 	start.add_theme_stylebox_override("hover", _fill_box(NOMINAL_SOFT, 4))
 	start.add_theme_stylebox_override("pressed", _fill_box(CAUTION, 4))
