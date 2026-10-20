@@ -9853,8 +9853,8 @@ func _set_help_text(rows: Array) -> void:
 		_help_next_button.focus_mode = Control.FOCUS_ALL
 		_help_next_button.pressed.connect(_next_help_page)
 		navigation.add_child(_help_next_button)
-		# Keep the help action readable while held or hovered, including the
-		# high-contrast palettes. Other menu buttons retain their authored fills.
+		# Preserve the help action's local hover/pressed fills, including its
+		# accepted high-contrast presentation.
 		_help_close_button = _menu_button("CLOSE", NOMINAL, 0.70, 0.65)
 		_tint_theme_color(_help_close_button, &"font_hover_color", PRIMARY)
 		_tint_theme_color(_help_close_button, &"font_pressed_color", PRIMARY)
@@ -10197,7 +10197,7 @@ func _bar(role: StringName) -> ProgressBar:
 
 
 func _menu_button(
-	text: String, role: StringName, hover_darken := 0.55, pressed_darken := 0.35
+	text: String, role: StringName, hover_darken := 0.75, pressed_darken := 0.70
 ) -> Button:
 	var button := Button.new()
 	button.text = text
@@ -10205,6 +10205,8 @@ func _menu_button(
 	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	button.add_theme_font_size_override("font_size", 13)
 	_tint_theme_color(button, &"font_color", PRIMARY)
+	_tint_theme_color(button, &"font_hover_color", PRIMARY)
+	_tint_theme_color(button, &"font_pressed_color", PRIMARY)
 	button.add_theme_stylebox_override("normal", _box(Color("142536"), 4, 1, Color("315367")))
 	var hover := _fill_box(role, 4, hover_darken)
 	hover.border_width_left = 1

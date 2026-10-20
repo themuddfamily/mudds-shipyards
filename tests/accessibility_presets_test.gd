@@ -26,6 +26,7 @@ func _run() -> void:
 	await _test_hud_high_contrast_application()
 	await _test_intro_begin_shift_text_contrast()
 	await _test_help_close_text_contrast()
+	await _test_menu_button_text_contrast()
 	await _test_hud_reticle_styles()
 	await _test_hud_scale_and_motion()
 	await _test_hud_captions()
@@ -515,9 +516,9 @@ func _test_help_close_text_contrast() -> void:
 				)
 			var nominal := Palette.get_role_color(mode_id, Palette.ROLE_NOMINAL, high_contrast)
 			_check(
-				(resume.get_theme_stylebox("hover") as StyleBoxFlat).bg_color == nominal.darkened(0.55)
-				and (resume.get_theme_stylebox("pressed") as StyleBoxFlat).bg_color == nominal.darkened(0.35),
-				"ordinary menu buttons retain their authored hover/pressed fills in %s high-contrast=%s"
+				(resume.get_theme_stylebox("hover") as StyleBoxFlat).bg_color == nominal.darkened(0.75)
+				and (resume.get_theme_stylebox("pressed") as StyleBoxFlat).bg_color == nominal.darkened(0.70),
+				"ordinary menu buttons use the readable shared hover/pressed fills in %s high-contrast=%s"
 				% [mode_id, high_contrast]
 			)
 	hud.set_high_contrast_hud(false)
@@ -541,6 +542,91 @@ func _test_help_close_text_contrast() -> void:
 	_check(page.text != authored_page, "help paging remains usable after repainting Close")
 	close.pressed.emit()
 	_check(not panel.visible, "the repainted production Close action still dismisses help")
+	hud.queue_free()
+	await process_frame
+	Input.mouse_mode = previous_mouse_mode
+
+
+## Measure every shared menu colour role on an existing production action.
+## These are the real pause and activity controls, with their normal wiring.
+func _test_menu_button_text_contrast() -> void:
+	var hud := GameHUD.new()
+	hud.name = "AccessibilityMenuButtonsHUD"
+	root.add_child(hud)
+	await process_frame
+	var previous_mouse_mode := Input.mouse_mode
+	var paints := {
+		"normal": ["font_color", "normal"],
+		"focus": ["font_focus_color", "normal"],
+		"hover": ["font_hover_color", "hover"],
+		"pressed": ["font_pressed_color", "pressed"],
+	}
+	var button_names := [
+		"ResumeButton", "SettingsOpenButton", "RestartButton", "ExitButton",
+		"ActivitySelectionBackButton",
+	]
+	for button_name: String in button_names:
+		hud.set_paused(true)
+		if button_name == "ActivitySelectionBackButton":
+			_check(hud.open_activity_board(), "shared contrast check opens the actual activity board")
+		await process_frame
+		var button := hud.find_child(button_name, true, false) as Button
+		_check(button != null, "shared contrast check finds production %s" % button_name)
+		if button == null:
+			continue
+		button.grab_focus()
+		var focus_outline := button.get_theme_stylebox("focus")
+		var authored_minimum := button.custom_minimum_size
+		var authored_rect := button.get_global_rect()
+		var authored_neighbors := [
+			button.focus_neighbor_top, button.focus_neighbor_bottom,
+			button.focus_neighbor_left, button.focus_neighbor_right,
+			button.focus_next, button.focus_previous,
+		]
+		var authored_connections := button.pressed.get_connections()
+		var authored_fills: Dictionary = {}
+		var authored_text: Dictionary = {}
+		for state: String in paints:
+			var keys: Array = paints[state]
+			authored_fills[state] = (button.get_theme_stylebox(keys[1]) as StyleBoxFlat).bg_color
+			authored_text[state] = button.get_theme_color(keys[0])
+		for high_contrast: bool in [false, true]:
+			hud.set_high_contrast_hud(high_contrast)
+			var floor_ratio := Palette.MINIMUM_HIGH_CONTRAST_PANEL_CONTRAST if high_contrast else Palette.MINIMUM_PANEL_CONTRAST
+			for mode_id: StringName in Palette.get_mode_ids():
+				hud.set_hud_palette(mode_id)
+				for state: String in paints:
+					var keys: Array = paints[state]
+					var text := button.get_theme_color(keys[0])
+					var fill := (button.get_theme_stylebox(keys[1]) as StyleBoxFlat).bg_color
+					var ratio := Palette.contrast_ratio(text, fill)
+					_check(
+						ratio >= floor_ratio,
+						"Menu button %s %s/%s high-contrast=%s clears %.1f:1 (measured %.3f:1)"
+						% [button_name, mode_id, state, high_contrast, floor_ratio, ratio]
+					)
+		hud.set_high_contrast_hud(false)
+		hud.set_hud_palette(Palette.MODE_NONE)
+		await process_frame
+		for state: String in paints:
+			var keys: Array = paints[state]
+			_check(
+				(button.get_theme_stylebox(keys[1]) as StyleBoxFlat).bg_color == authored_fills[state]
+				and button.get_theme_color(keys[0]) == authored_text[state],
+				"shared %s %s restores its authored paint after palette/contrast changes" % [button_name, state]
+			)
+		_check(
+			button.has_focus() and button.focus_mode == Control.FOCUS_ALL
+			and button.get_theme_stylebox("focus") == focus_outline
+			and button.custom_minimum_size == authored_minimum
+			and button.get_global_rect() == authored_rect
+			and [button.focus_neighbor_top, button.focus_neighbor_bottom,
+				button.focus_neighbor_left, button.focus_neighbor_right,
+				button.focus_next, button.focus_previous] == authored_neighbors
+			and button.pressed.get_connections() == authored_connections,
+			"shared %s retains focus, outline, geometry, navigation and action wiring" % button_name
+		)
+	hud.set_paused(false)
 	hud.queue_free()
 	await process_frame
 	Input.mouse_mode = previous_mouse_mode
