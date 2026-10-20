@@ -42,60 +42,43 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
-**Current focus: account for and finish existing unmerged work.**
-Owner requested this priority. Branch accounting and closeouts are recorded in
-[delivery history](docs/history/ROADMAP_DELIVERIES.md#branch-accountability-and-race-timeout-diagnosis--2026-10-20).
-**142local/85live remote branches deleted;43local/26live remote remain including
-main (25non-main remote).** These include failed/pending attempts and diagnostics,
-not25independently unfinished features. Unique sources remain protected.
+**Current focus: finish or explicitly account for existing unmerged work.**
+**144 local and 87 live remote branches deleted; 41 local and 24 live remote
+branches remain, including main (23 non-main remote).** Counts describe refs,
+not completed features. [Branch accounting and closeouts](docs/history/ROADMAP_DELIVERIES.md#branch-accountability-and-race-timeout-diagnosis--2026-10-20)
+preserve the underlying roadmap requirements.
 
-**Wing branch accounted and closed; full COMBAT-WING remains FAILED/open.**
-The independent production landing-withdrawal fix is merged/pushed as9e9d1beff and
-published in the checkpoint above. Exact live board target automatic landing now
-revokes combat dispatch through existing WITHDRAWN/standdown; cancelled landing
-does not rearm and withdrawal grants no reward. ActualMain40/director151 assertions,
-paired exports, three strict menu startups and1521-entry package audit PASS.
-Ordinary Heavy/Torpedo withdrawals, strict home docks, shutdown and physical exits
-also repeatedly passed on diagnostic candidates containing this same runtime fix.
-No full-sortie qualification is claimed for the fresh main package.
+Latest closeouts: the old Jovian boarding diagnostic is archived; ordinary boarding
+was already accepted on main. The old walking/support observation test candidate
+is archived with acceptance UNKNOWN/UNVALIDATED. Both test-only branches and their
+tracking refs were deleted after verified bundles, exact source archives, pushed
+tags and expected-OID checks. No diagnostics were merged or replayed. Their full
+qualification requirements were not promoted by this cleanup.
 
-Failed qualification source9a68aa01f is preserved under pushed tag
-`archive/diagnostics/wing-ordinary-route-20261020`, with verified bundle, seven-file
-source archive and patch. Its observer/selector/driver changes are excluded from
-main. Local/remote feature branch deleted with exactOID protection; owned worktree
-removed. Latest trial102.037s:8shots,0Wingdamagehits/kills, both opponents38health;
-third strict home/OFFLINE physical exit and normalUIquit missing. Native trigger
-control remains unqualified; no further trial selected. Full two actual player-
-weapon kills and complete safe return remain the original acceptance requirement.
+**Current UI task stopped: active-tooltip baseline not reproduced.**
+Existing candidate `fix/exit-tooltip-order-20261020` remains unmerged/withheld.
+Its historical full Observation route passed, but did not create the original
+visible TooltipPanel. The new actual-Main fixture opened the real pause controls
+and focused Exit; physical hovering did not create the required original embedded
+tooltip within 30 seconds. Therefore no original disconnect pair was reproduced,
+no production fix was applied, and no second engine attempt is selected.
 
-All failed/successful stage costs retained:1581.356s supervised total; no nested
-elapsed double counting. NativeWindows/GPU/devices/audio/human/final gates remain
-NOT_RUN/open. Raw results, failed packages, source and cleanup records remain only
-under `/srv/mudds-work/wing-route-correction-20261020/results/`; no unrelated task
-was selected. Race timeout diagnosis remains archived, with no baseline-suite pass.
+Missing fact before a further repair attempt: the actual GUI hover owner, native
+pointer/window coordinates and visible foreground at the intended Destination
+button. Do not infer a cause, synthesize a popup, weaken original acceptance or
+replay the full route merely because this setup failed. Require the original
+visible tooltip/root bindings before testing normal HUD/WM process close.
 
-**Selected existing UI closeout: active-tooltip process exit,13:55–14:20UTC/25min.**
-Candidatebae551d58 on existingfix/exit-tooltip-order-20261020 has a complete
-Observation route pass but nevercreated the original failingTooltipPanel. Retain
-its original733.226s stage history/failedcaptures and full Observation scope. New
-bounded repair acceptance is actual native tooltip teardown under normalHUDExit
-and WMclose; historical travel/view/home pass is retained, not re-labelled a fresh
-current-package journey. No broader Board/RPC fix is inferred.
-One high implementer extends onlyexisting safe-start test with actualMain child
-cases; root stages exactcurrentmain baseline on detached owned checkout (no new
-branch). Physical hover mustcreate original visibleembeddedTooltipPanel beneath
-Destinationbutton while Exit remainsfocused. Baseline HUDclose mustreproduce the
-originaltwo rootdisconnecterrors; otherwise STOP. Then apply existing10line
-GameFlow candidate and normaltest extension, require actualHUD/WMexit0, active
-originaltooltip retirement andzero diagnostics; marker/RestartShift input retained.
-No synthetictooltip, nativeconnectionmutation, extra quitwaits or filtering.
-Checks frozenbeforeengine: cleanimport180s; onebaselineX11/DummyHUD90s; aftersource
-review focused180s and patchedHUD/WM90s each; then freshpairedexports180s each,
-three strictmenu startups120s each and actualartifactaudit90s. Independentreview;
-first unexpected failurestops. PublishonlyprovenUIclosebehavior; archiveuniqueold
-diagnostics anddeleteexistingbranch afterintegration. No newcontroller/fullroute
-retry selected. Separately, archivecompleted supersededboardingtest-onlybranch
-withoutreplay afterverifiedsource preservation; no productcompletionclaim.
+Fixture source4b2b301cb is preserved under pushed tag
+`archive/diagnostics/tooltip-close-fixture-20261020`. Import passed; baseline stopped
+at61.270s with no ACTIVE event or original errors. Original733.226s retained;
+new80.920s gives814.146s total stages. Independent review confirms no fix
+qualification; all inputs/processes cleaned, ten owned identities absent. Only
+`/srv/mudds-work/tooltip-close-20261020/results/` remains for this attempt.
+
+Latest playable checkpoint remains9e9d1be above. Its landing-withdrawal fix is
+integrated; the archived Wing driver's two-kill/full-return requirement remains
+FAILED/open. Native Windows/GPU/devices/audio/human/final gates stayNOT_RUN/open.
 
 **Ready production cards: 0. Prepared production cards waiting on decisions: 3.**
 The decisions below remain pending; they do not prevent finishing independently

@@ -16945,3 +16945,71 @@ Current raw and source/artifact/branch/cleanup records remain at
 /srv/mudds-work/wing-route-correction-20261020/results/ . Owned temporary profile,
 helper and extractedpayload cleanup follows publication verification; olderretired
 worktrees remain protected. No unrelatedroadmaptask was selected.
+
+
+## Active-tooltip baseline stopped and two test-only branches accounted — 2026-10-20
+
+Owner priority remains finishing/accounting existing work. Current main unchanged
+at production checkpoint9e9d1be plus documentation; no new gameplay build required.
+
+### Two old source branches closed without feature promotion
+
+`work/jovian-pilot-state-20261018` exact25fe2080dacd5df498f578de8960ecf9568ab469
+contained only3testfiles and3diagnostic/caller commits. Accepted ordinary boarding
+fff5f7221 is already main ancestor; no runtime change was unaccounted. Verified
+bundle, merge-base patch, exact3-file archive and manifest remain under
+/srv/mudds-work/jovian-pilot-state-20261018/results/branch-archive/ . Pushed annotated
+tag archive/diagnostics/jovian-pilot-state-20261018 peels exactsource. Local/live
+remote branch and tracking ref deleted with expectedOID protection; no owning
+worktree/process, original results preserved, no boarding replay or new acceptance.
+
+`fix/ordinary-controls-observation-20261017` exactb6d5d4a7c933bb0100b1daab685d7ab057a91954
+contained only13line observation synchronization in two existing tests. Commit
+explicitly left runtime validation pending; neither main nor retained UI successor
+contains its exactpatch. Preserve acceptance UNKNOWN/UNVALIDATED rather than call
+it passed. Verified bundle/patch/two-file source archive and manifests remain under
+/srv/mudds-work/ordinary-controls-observation-20261017/results/branch-archive/ .
+Pushed annotatedtag archive/diagnostics/ordinary-controls-observation-20261017 peels
+exactsource; local/live remote/tracking refs deleted with exactOID checks. No
+runtime changes, engine tests, replay or diagnostic merge; walking/support
+qualification remains open. Root independently reverified both bundles, source
+file bytes/modes, artifact hashes, remote peeled tags and branch absence.
+
+Totals now144local/87live remote refs deleted;41local/24live remote remain including
+main,23remote non-main. The initial26-branch table above is historical; these two
+rows and Wing are now archival closeouts, not runtime completion claims.
+
+### Actual-tooltip baseline did not reach the regression
+
+Selected13:55–14:20UTC/25min, retaining original733.226s and all priorfailedcaptures/
+private fullroute pass. New fixture4b2b301cb10e1be7a3bcada842cb888495ec4c13 only extends
+existing safe_start_production_recovery_test.gd with opt-in actualMain childcases;
+normal suite unchanged. It configures in-memory store, opens actualpause, focuses
+realExit first, reportsnativeXID/Destination screenrect and requires the original
+visibleembeddedTooltipPanel child with realrootbindings. ExternalOSXTest hover/
+Return orrealWM_DELETE owns input; passive lifecycle callbacks observe retirement.
+No fabricatedpopup/nativeconnectionmutation/quitoverride or extraquitwaits. Host
+requires allinput/helper/game/Xvfb cleanup flags and no cleanup error for success.
+Independent high source/hostreviewGO before engines; exactoldpair-only baseline
+classification does not suppress candidate errors.
+
+CleanDummy import PASS19.649723773123696s. One isolated X11/Dummy baselineHUD
+FAIL61.27005913294852s (host60.99715262884274): actualMain/originalDestinationrect
+andfocusedExit READY at30597ms; FAIL at60598ms because original visibleembedded
+TooltipPanel was not observed within30s. NoACTIVE/rootpopupbindings, no original
+focus_entered/tree_exited disconnectpair and no classifieddiagnostics. Expected
+reproduction false, process exit1. This does not establish tooltip lifetime repair
+or a new production defect. GameFlowcandidatebae551d58 NOT applied; no new engine
+attempt/export/publication. MissingactualGUIhover owner/pointer-window mapping/
+foreground state is recorded without claiming which one caused the setup failure.
+
+Independent outcome review confirms STOP and all4hostcleanupflags true, no outer
+survivors. Exactfixture source is preserved in verified bundle/patch/single-file
+archive under pushedannotatedtag archive/diagnostics/tooltip-close-fixture-20261020.
+Existing unacceptedruntimebranch fix/exit-tooltip-order-20261020 remains protected;
+no publicfix/WALK/Board/RPC promotion. Ten owned process identities absent; private
+profiles sequentially byte/mode/link verified and fresh original snapshot compared,
+helpers archived; clean detached checkout/cache and live profiles/helpers removed.
+Only /srv/mudds-work/tooltip-close-20261020/results/ remains. New stages80.91978290607221s,
+retainedtotal814.1457829060722s; no budgetreset/retry. Native/device/audio/human/final
+qualification remainsNOT_RUN/open. Latest playable checkpoint stays9e9d1be.
