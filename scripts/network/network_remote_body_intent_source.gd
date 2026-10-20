@@ -61,6 +61,10 @@ var _jump_latched := false
 var _interact_latched := false
 var _last_interaction_physics_frame := -1
 var _interaction_request_id := 0
+## A replacement stream retires every pre-bind edge, including an intent
+## accepted but never consumed before its old body was released. Keep the
+## lifetime counter so genuinely fresh presses still use absolute new ids.
+var _interaction_bind_baseline := 0
 var _pose_history: Dictionary = {}
 var _pose_order: Array = []
 var _pose_frame_instance_id := 0
@@ -99,6 +103,7 @@ func bind(entity_id: StringName, entity_generation: int, stream_id: int = -1) ->
 	_entity_generation = entity_generation
 	_stream_id = stream_id if stream_id >= 0 else _stream_id + 1
 	_sequence = -1
+	_interaction_bind_baseline = _interaction_request_id
 	_clear_opening()
 	_ticks_since_send = _cadence_ticks
 	_last_client_tick = -1
@@ -195,6 +200,7 @@ func advance(peer_id: int, sample: Dictionary, observed_server_tick: int) -> Dic
 	var interact := _interact_latched
 	if interact:
 		_interaction_request_id += 1
+	var wire_interaction_id: int = _interaction_request_id if _interaction_request_id > _interaction_bind_baseline else 0
 	var jump := _jump_latched
 	_jump_latched = false
 	_interact_latched = false
@@ -212,7 +218,7 @@ func advance(peer_id: int, sample: Dictionary, observed_server_tick: int) -> Dic
 		move_axis.limit_length(1.0), false, &"", false,
 		float(sample.get("look_yaw", 0.0)), float(sample.get("look_pitch", 0.0)),
 		bool(sample.get("run", false)), bool(sample.get("crouch", false)),
-		jump, _interaction_request_id
+		jump, wire_interaction_id
 	)
 	return intent.to_dictionary()
 
