@@ -15428,3 +15428,53 @@ ordinary browser/credits return, full readability/device review and all broad
 parents/ten gates remain open. Native Windows/GPU/devices/audible/human/final
 qualification stays NOT_RUN/open. Full matrix/final Guided NOT_RUN; earlier
 Guided3/3 stays scoped to3d92b91 bytes. No successor or parked retry selected.
+
+
+## Jovian passenger exit — syntax passes, postdock route stops
+
+NET-JOVIAN-EXIT-CALLER-SYNTAX / parents16,20,26. Selection6c584673a,
+2026-10-20 05:35UTC/45min total/deadline06:20. Candidate
+`2aed310cd802de197f1487fe89b8489a4525146c` pushed on
+`fix/jovian-exit-caller-syntax-20261020`, unmerged/withheld. No game source or
+playable build changed; current checkpoint remains923d7b3.
+
+One high implementer reapplied retained8054a2cc4 to the unchanged current parent
+file and corrected all four multiline inline lambda predicates plus the cabin-
+walk block return. Diff versus e147b6d49 has only five syntax-site repairs;
+logical operands, thresholds, deadlines/default route and selector propagation
+unchanged. Independent high source review GO before engines. Earlier8054/e147
+parse failures/raw remain retained; this separately selected attempt did not
+rerun them or reset their history. Threading was not selected because its
+already-defined route remains UI-BOARD-FOCUS-gated.
+
+Fresh import20.625s and original check-only16.528s PASS. One full original
+host/two-client selected route FAIL129.786s; current cumulative166.940s.
+Actual original Players walk/board, depart, return to strict Jovian home dock,
+zero origin/orientation error, valid occupied lease/token and landed generation1;
+both clients consume arrival and host publishes return_complete. These are a
+passed prefix of a failed task, not a separately accepted full journey.
+
+First host diagnostic: Cannot get path of node as it is not in a scene tree,
+stack inherited jovian_network_two_client_boarding_test.gd _node_identity583 →
+_postdock_receipt608 → _host_postdock_exit318. The new receipt passes its off-tree
+command-source Node to a helper requiring a scene-tree path. This is a concrete
+caller boundary; no production networking cause is established. Host publishes
+postdock_go; later pilot-retention and passenger-standing assertions fail. No
+postdock_stood, exterior/ground-walk completion or selected success marker;
+actual three peer exits1, not0. No acceptance, automatic correction/retry or
+cap increase. Separate caller receipt correction/review must address the first
+diagnostic; other retained invariant failures remain unresolved.
+
+Original300s suite inside360s outer,300peer/15walk/8transition/120return/5arrival
+limits retained. Coordinator headless, three authenticated private Xvfb peers
+explicitx11/dummy renderer; every Godot call Dummy audio. Independent abort,
+input release and owned process cleanup retained; no active-desktop/audio run,
+GitHub Actions or native Windows/hardware qualification.
+
+All22 observed process identities absent, owners terminal;76 unique profile
+entries archived/hash-verified. Clean pushed candidate worktree/cache/profiles/
+helpers removed at5.36min within45min. Only
+`/srv/mudds-work/jovian-exit-caller-syntax-20261020/results/` remains for this card,
+including exact source/commands, raw first failures/peer receipts, profile archive
+and helper sources. Original passenger-exit/reboard/reclaim/redeparture, native,
+world/endurance, broad parents and all ten gates remain open. No successor selected.

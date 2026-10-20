@@ -66,7 +66,7 @@ parents 11/21 share damage ownership. Do not count these twice.
 | 17 | Complete remote engine and landing/dock presentation | NET-POSE, NET-BUDGET | **Definition — NET-POSE-DEFINE[one uncovered view].** Name one still-unqualified craft/operation/view, current/late-peer expectation, production consumer and existing test seam. Delivered operation HUD/throttle fixes are excluded from new work. Broader motion/landing views and NET-FULL-SNAPSHOT remain. |
 | 18 | Complete supported remote helm actions and their real local-input prerequisite | NET-HELM, INPUT-DEVICE | **Qualification — HELM-PITCH.** Both sampled directions must cause actual host attitude change and neutral release under the same confirmed source/lease. Full closure also needs original handback; shared handback failure stays PARKED. Roll-rate/boost/hover, reverse/yaw handback and real devices remain. |
 | 19 | Qualify honest remote-command recovery after host simulation stalls | NET-STALL | **Current source qualification DONE — NET-STALL on3d6b1b513.** Full independent suite passes both original600-step stalls/2s fresh actions, ownership/landing/reuse/cleanup,160 terminal host assertions and actual client/wrapper exit0; zero diagnostics. No unchanged rerun. Exact final-package/native/endurance and distinct ordinary-control gates remain; this does not accept a full matrix. |
-| 20 | Complete remote landing, post-dock disembarkation and craft reuse | NET-LAND-DIAG, NET-DOCK | **Parked prerequisite — NET-JOVIAN-PASSENGER-EXIT.** New bounded syntax correction/review precedes retry; retained compile failure/repair remain. Eventual proof: original passenger reaches supported deck/walks while pilot retains helm. Reboard, pilot exit/reclaim, redeparture, other craft and second-land distinctness remain. |
+| 20 | Complete remote landing, post-dock disembarkation and craft reuse | NET-LAND-DIAG, NET-DOCK | **Parked prerequisite — NET-JOVIAN-PASSENGER-EXIT.** Current2aed310cd syntax/import/check-only pass, but one full route fails129.786s at postdock receipt/standing invariants; candidate pushed/unmerged. Separate caller correction/review required before retry; prior compile failures remain. Eventual proof: original passenger reaches supported deck/walks while pilot retains helm. Reboard, pilot exit/reclaim, redeparture, other craft and second-land distinctness remain. |
 | 21 | Qualify fleet hull/component damage, repair, destruction and regeneration presentation across supported craft and roles | NET-DAMAGE | **Qualification preparation — NET-DAMAGE[one craft/role].** Freeze supported ordinary scenario, candidate and expected peer damage/repair/destruction/regeneration and usable recovery. DAMAGE-DEFINE plus identified component row/power repairs are DONE. Other supported scenarios and missing-original prerequisites remain; share parent 11 ownership. |
 | 22 | Qualify the implemented convoy actor lifecycle in native gameplay | NET-ACTOR[Convoy] | **Definition — CONVOY-ACTOR-DEFINE[one lifecycle case].** Compare native gameplay coverage with authority tests; name participants/action and observable tender retirement/restoration, with ordinary Convoy prerequisite. Finish is one bounded executable case. Other live/dead/reset/late/disconnect cases remain; no parked save probe reopened. |
 | 23 | Qualify Torpedo Run authority and solo recovery | NET-ACTOR[Torpedo Run] | **Gated qualification — TORPEDO-PEER-FLIGHT.** Requires actual Torpedo baseline/participant route and matching package. Prove current/late adoption of real airborne seeker without launch replay, then terminal retirement without duplicate damage/resurrection. COMBAT-TORPEDO and other nine authority/recovery cases remain. |
@@ -616,7 +616,7 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | NET-STALL | Original 600-step host simulation stall and honest command recovery | 19 | DONE on3d6b1b513 current-source isolated Linux full original suite:160 terminal host assertions, both600-step stalls/original2s action checks, actual client/wrapper exit0 and zero diagnostics. [Result](history/ROADMAP_DELIVERIES.md#original-host-stall-route--current-source-accepted). No unchanged repeat; final-package/native/endurance and distinct ordinary Halyard/handback gates remain |
 | NET-SECOND-LAND | Historical intermittent second-landing boundary | 20 | GATED; establish distinctness from current return failure before any probe |
 | NET-DOCK-DEFINE | Supported craft dock/exit/reboard/redeparture acceptance cases | 20 | DONE definition only; next five Jovian instances below, all other craft/roles remain unscheduled |
-| NET-JOVIAN-PASSENGER-EXIT | Original passenger reaches supported ground while pilot retains helm | 16,20,26 | FAILED compile8054a2cc4 and one syntax repair e147b6d49; parked after priority review, gameplay NOT_RUN |
+| NET-JOVIAN-PASSENGER-EXIT | Original passenger reaches supported ground while pilot retains helm | 16,20,26 | PARKED: prior8054/e147 parse failures retained. Current2aed310cd import/compile PASS, actual three-peer route FAIL129.786s after strict return, at postdock off-tree source identity receipt and later standing/retention assertions. No exterior exit accepted; pushed/unmerged/withheld, no automatic repair/retry. [Actual result](history/ROADMAP_DELIVERIES.md#jovian-passenger-exit--syntax-passes-postdock-route-stops) |
 | NET-JOVIAN-PASSENGER-REBOARD | Original passenger reclaims original co-pilot chair | 16,20,26 | GATED on passenger exit; retained parked card above |
 | NET-JOVIAN-PILOT-EXIT | Original pilot releases helm and walks onto supported berth ground | 16,20,26 | GATED on passenger reboard; passenger stays seated |
 | NET-JOVIAN-PILOT-RECLAIM | Original pilot returns to same hull and acquires current helm authority | 16,20,26 | GATED on pilot exit; old command generations stay retired |
@@ -1884,12 +1884,15 @@ requirements. The engineer and other craft instances remain unscheduled.
 
 ### Retained Jovian exit/reuse cards — parked, outside the active queue
 
-The original exit caller and its one repair failed parsing; no gameplay route
-ran. Candidates8054a2cc4/e147b6d49 and raw failures remain retained. These five
+The original exit caller and its one repair failed parsing; those two attempts
+ran no gameplay. Candidates8054a2cc4/e147b6d49 and raw failures remain retained.
+Later selected2aed310cd passes syntax but fails its one full postdock route;
+[actual result](history/ROADMAP_DELIVERIES.md#jovian-passenger-exit--syntax-passes-postdock-route-stops) below supersedes gameplay-NOT_RUN for that candidate only. These five
 ordered cards preserve their acceptance/dependencies; none is currently selected.
 Numeric predecessor references here mean this parked five-card Jovian sequence,
 not the executable queue.
-A new explicitly bounded syntax correction/review must precede any retry.
+The later full syntax correction/review has run; its runtime failure now requires
+a separately selected caller correction/review before any further attempt.
 
 ### NET-JOVIAN-PASSENGER-EXIT — one actual postdock passenger exit
 
@@ -1921,7 +1924,7 @@ A new explicitly bounded syntax correction/review must precede any retry.
   but the single allowed compile retry finds another parse error at line406.
   No route, peer, passenger exit or production runtime was exercised. Both
   failed commits/raw are retained; no test acceptance was relaxed.
-- **Priority review/next:** about45 min implementation/review/setup plus bounded
+- **Original priority review (before2026-10-20 selection):** about45 min implementation/review/setup plus bounded
   correction/check time; one task failure plus one attempted repair is used.
   The unresolved outcome is ordinary postdock exit, not an established game
   defect. Competing READY WALK-ANNEX has a frozen route and separate caller;
@@ -1933,6 +1936,23 @@ A new explicitly bounded syntax correction/review must precede any retry.
   closure. This failed caller is not merged and needs no checkpoint. Original
   return remains accepted only at its earlier source scope. Reboard/reclaim/
   redepart and native/device/world/endurance gates stay open.
+
+- **Later selected syntax review / runtime stop2026-10-20:** source2aed310cd
+  reapplies the retained continuation to current6c584673a and fixes all five
+  multiline predicate sites without changing operands/default behavior/limits.
+  Independent high review GO. Import20.625s/check-only16.528s PASS. One original
+  three-peer route FAIL129.786s after actual strict home return/convergence.
+  First host get_path diagnostic: inherited boarding-test _node_identity583,
+  called _postdock_receipt608 for off-tree command source. Later pilot-retention
+  and passenger-standing assertions fail; no exterior exit or ground walk.
+  Current cumulative166.940s; prior two parse failures retained, not reset.
+  Candidate pushed/unmerged/withheld; no runtime repair, new checkpoint or retry.
+  All22 observed process identities absent;76 profile entries archived/verified,
+  owned worktree/cache/profiles/helpers removed at5.36min within45min card.
+  [Full result/remaining boundary](history/ROADMAP_DELIVERIES.md#jovian-passenger-exit--syntax-passes-postdock-route-stops).
+  A separately selected caller receipt correction/review must address the first
+  diagnostic before another attempt; other assertions remain unresolved. Preserve
+  original300s suite/360s outer/300peer/15walk/8transition/120return/5convergence.
 
 ### NET-JOVIAN-PASSENGER-REBOARD — reclaim one passenger chair
 
