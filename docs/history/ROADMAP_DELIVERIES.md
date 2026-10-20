@@ -18400,3 +18400,86 @@ human and final release qualification remain OPEN/NOT_RUN as applicable. No
 gameplay/graphics bytes changed and no identical checkpoint export needed;
 latest playable checkpoint0070248 unchanged. All36 parent outcomes/ten phases
 remain open; this is one named outcome, not a project percentage.
+
+
+## Jovian passenger reboard — hatch discovery stops original case — 2026-10-20
+
+**NET-JOVIAN-PASSENGER-REBOARD /16,20,26 remains OPEN.**
+Selected87ff634a2, clarified actual client consumers5ee7f1f98; candidate
+add3c854b2a6b0f216eb2502c9e47da03f5b1616 tested detached from that pushed main.
+Only tests/network/jovian_network_two_client_return_test.gd changes. New selector
+--postdock-passenger-reboard implies the entire accepted passenger-exit profile;
+marker JOVIAN_NETWORK_TWO_CLIENT_PASSENGER_REBOARD_OK must follow real chair
+reclaim and all three OS0. No branch/worktree, production change or engine helper.
+
+The original full ordinary boarding/departure/physical home docking/hatch exit
+passes. Same passenger physically traverses the original exit route, walks
+1.247m supported ground and ordinarily walks back to boarding point; original
+pilot/source/ownership and strict occupied home lease remain intact. The next8s
+hatch-discovery boundary fails. Raw client_b captures same Player, empty old
+boarding/body/relationship/chair claims, boardable/OFFLINE hull and available
+unreserved ShipBoardingArea, but boarding_candidate invalid and same hull still
+_reboard_blocked_ship. Interaction origin is1.393287897m from boarding point.
+Host and pilot fail their matching boundary waits, all actual peers exit1.
+No new boarding Interact occurs; fresh cabin/body/chair assignment and client
+convergence are **NOT_RUN**, not accepted by the earlier exit/return.
+
+### Concrete fact and retained contract
+
+GameFlow's existing update at8542 clears _reboard_blocked_ship only when player
+interaction origin is farther than BOARDING_FALLBACK_REACH(7m) from that ship's
+boarding point. Both physical-area and fallback discovery at18286/18308 exclude
+the blocked craft. Existing physical exit sets this guard. The new caller returns
+after the inherited minimum1m groundwalk and never proves the>7m excursion.
+This is a failed caller route; no production defect is established. First failure
+ends this card. No guard removal, pose/claim injection, cap/tolerance increase,
+repair, retry or adjacent journey was run. A separately selected caller correction
+would have to physically clear that existing guard, return and retain the whole
+original reboard/chair/old-context retirement/consumed-generation contract.
+
+Production publication semantics were checked before freeze: passenger consumes
+flattened boarding result and recipient-only chair assignment; pilot consumes
+moving relationship/frame/body and actual seated anchor, retaining own helm.
+No unavailable pilot-side chair registry was invented. New expected walking body
+identity would update only after old release, fresh host body and actual local
+answer/relationship proof; none of that later continuation ran. Reviewer finds no
+source acceptance weakening, but runtime original contract is NO-GO.
+
+### Exact execution and preservation
+
+Same Godot4.7.1 engine SHA256
+32f8d7596c4b41185512b1c49d69f2da3be018fd784a53e349fa92a98a97bcde.
+Compile --headless --audio-driver Dummy --check-only with selected existing
+script PASS16.960234s, source unchanged. One original full route removes
+--check-only, appends -- --postdock-passenger-reboard: FAIL147.030026s,3517 checks/
+9 aggregate failures, zero success markers. Original compile300s/full300s/
+outer360s/waypoint15s/transition8s/landing120s/convergence5s remain unchanged.
+Each peer private Xvfb/explicitx11/Dummy audio; private XDG/TMP and cleared
+inherited display/Wayland/probe/test overrides. Source/cache freezes unchanged,
+Git clean at executed candidate. Stage timings are owner.json mtime minus
+command.json mtime; sum163.990259s, not claimed exact monotonic measurements.
+Actual host1955367/client1955523/client_b1955542 done PIDs match .pid, each .exit1
+with actual failures and absent OS PID. Supervisor terminal FINISHED1.
+Independent HIGH review NO-GO verifies81 retained file hashes, full prefix/ground
+walk, first failure and source guard. No fresh admission/chair acceptance.
+
+Raw and source root:
+/srv/mudds-work/jovian-passenger-physical-exit-20261020/results/reboard/.
+Retains selection, commands/owners/logs, freezes, all81 actual peer artifacts,
+result, review and cleanup. Unique source preserved in verified candidate.bundle,
+binary candidate.patch and exact candidate-source.tar. Pushed annotated tag
+archive/withheld/jovian-passenger-reboard-20261020 object
+50970499346ad165a0fd8322235cd0c4c747823f points to candidateadd3c854b.
+Preservation manifest records full IDs, byte counts/hashes and source blob
+3b2aedad59ddc434430417b1c4b80c66e19d72e6. Source remains UNMERGED; main source
+is unchanged. Only original selection/results docs are committed to main.
+
+Owned reboard-scratch archived profiles.tar.gz29961bytes, SHA256
+0f27c005483df61ff4d6600f642b4433fdbb7f3200479e4dddcc662536b17f66.
+Reopened all151 archive entries and verified exact file hashes/bytes/modes/link
+targets/member set before deleting exact owned scratch. Cleanup18:34:51UTC,
+11.86min into original18:23–19:23 assignment; both owners terminal(expected0/1),
+all15 observed PID/start-tick identities absent, no live cwd/exe under scratch.
+No protected original worktree/result root touched. Main sole working branch,
+CI hold intact, latest playable0070248 unchanged. Reboard, later pilot exit/
+reclaim/redeparture, full server/endurance/native/hardware/final gates remain open.

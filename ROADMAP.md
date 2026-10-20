@@ -78,36 +78,24 @@ This clears the branch queue; it does not close their unfinished gameplay,
 qualification or release requirements. No unaccepted source was merged to reduce
 a branch count. Eight previously protected detached worktrees remain unchanged.
 
-**Selected NET-JOVIAN-PASSENGER-REBOARD /16,20,26 — one original journey.**
-Prerequisite passenger exit861c4d39b is integrated. Extend only the existing
-Jovian return caller with --postdock-passenger-reboard and exact marker
-JOVIAN_NETWORK_TWO_CLIENT_PASSENGER_REBOARD_OK. Retain full ordinary boarding,
-departure, actual home landing, physical hatch exit and supported exterior walk;
-then original client_b ordinarily walks back, enters through the authored hatch
-and sits in its original co_pilot_station. Original pilot/helm/source/ownership
-and strict occupied home lease remain current. Host and the actual passenger consumer
-must agree on new current boarding/body/frame/seat generations, exactly one chair
-claim and retirement of old released exterior claims. The pilot consumes the new
-passenger relationship/anchor pose and retains its original helm/ownership; the
-passenger-only chair assignment is not published to the pilot. No pose/claim writes,
-engineer/craft swap, pilot release or departure. Existing original identity
-assertions must distinguish legitimate new boarding generations from stale old
-ones; they cannot be bypassed for the new phase.
-One HIGH implementer owns tests/network/jovian_network_two_client_return_test.gd
-only; root owns original-contract review, clean detached pin, engines, integration,
-push and cleanup. No new branch/worktree. Original30–60min assignment starts
-18:23UTC; stop by19:23UTC. Preserve compile300s, full route/peer300s/outer360s,
-waypoint15s, transition8s, landing120s, convergence5s and inherited exit grace.
-Before engines freeze exact source, commands, environment and cache. Compile the
-selected script headlessly with --audio-driver Dummy, then run the same script
-without --check-only, appending -- --postdock-passenger-reboard. Each peer keeps
-private Xvfb, explicit x11 and Dummy audio. Require complete original journey,
-three actual OS exits0, one marker and no runtime diagnostics. First failure
-ends this card for concrete review; no automatic repair or adjacent selection.
-Preserve raw results in existing Jovian results root, then remove owned scratch;
-merge/push accepted source only. Caller-only qualification needs no identical
-checkpoint; a runtime repair is separately selected with fresh checkpoint.
-[Original bounded contract](docs/ROADMAP_BACKLOG.md#net-jovian-passenger-reboard--reclaim-one-passenger-chair).
+**Jovian passenger reboard stopped at hatch discovery; source withheld.**
+Candidateadd3c854b completes the full original ordinary boarding/departure/home
+landing/physical hatch exit and1.247m supported groundwalk, then walks back to the
+hatch. Discovery fails within original8s: area free, ship boardable/OFFLINE,
+no candidate and the same hull still reboard-blocked. Production clears that
+guard only after actual interaction origin moves>7m from the boarding point;
+this caller never proves that excursion (failure distance1.393m). Fresh cabin
+admission, new body/chair claim and client convergence were NOT_RUN.
+Compile PASS16.960s; one full route FAIL147.030s, all three actual OS exits1,
+source/cache unchanged; no marker. Independent review NO-GO. First failure ends
+this card: no repair/retry, cap increase or production defect claim. Reopening
+requires a separately selected ordinary exterior route that physically clears
+the existing7m suppression, then preserves the entire original reboard contract.
+Unique candidate retained in verified bundle/patch/source archive and pushed tag
+archive/withheld/jovian-passenger-reboard-20261020; source not merged. Owned
+profiles archived/verified and removed, all15 observed identities absent. No new
+branch/worktree; main remains sole working branch, latest checkpoint0070248.
+[Exact result and blocker](docs/history/ROADMAP_DELIVERIES.md#jovian-passenger-reboard--hatch-discovery-stops-original-case--2026-10-20).
 
 **HALYARD-AUTHORITY-STOP DONE — current source `082da79c9`.**
 The complete ordinary boarding/departure/moving walk/chair sequence passes, then
@@ -407,6 +395,11 @@ is the latest accepted playable result; full craft combat/damage/recovery,
 cross-craft/Main, hardware/native and final release gates remain open.
 
 ## Parked failures and dependent work
+
+Jovian passenger reboard's first route is withheld: actual prior exit/groundwalk
+passes, but returning without clearing the existing>7m reboard suppression leaves
+no hatch candidate. No fresh admission/chair proof. See the retained result above;
+a route correction needs separate selection, with full original caps/contract.
 
 These are unfinished outcomes, not candidates for an unchanged retry. Exact
 contracts and cumulative attempt records remain in the retained history.
