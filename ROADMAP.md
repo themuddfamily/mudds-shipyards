@@ -97,17 +97,20 @@ and normal UI exit. This is not a new execution selection. Other combat/repeat/
 recovery/network/native/human gates remain open; parked Courier/Perimeter are
 not adopted. Hauler still waits on its already-asked stock choice.
 
-### Selected Help CLOSE pressed-text fix
+### Selected Help CLOSE hover/pressed-text fix
 
 ACCESS-HELP / parents12,29; independent of parked Wing. **07:42–08:22UTC/40min**
 including implementation/review, focused checks, paired checkpoint and cleanup.
 Source finding: HelpCloseButton uses NOMINAL pressed fill darkened0.35, about
 #40969b; even pure-white text reaches only3.487:1, below existing4.5 regular/
 7 high-contrast floors. Preserve other menu consumers and Help actions/focus/
-paging. One medium implementer owns scripts/ui/hud.gd and the existing
-accessibility_presets_test.gd only. Add a bounded local pressed-paint override
-(or backward-compatible helper argument) and explicit palette-aware pressed
-text; verify actual Help CLOSE normal/focus/hover/pressed paints across existing
+paging. Before edits, source preflight also found hover contrast6.008/default and
+5.485/tritanopia below7 in high-contrast mode; explicitly include both CLOSE
+hover and pressed paints within the same budget. No engine attempt failed.
+One medium implementer owns scripts/ui/hud.gd and the existing
+accessibility_presets_test.gd only. Add bounded local hover/pressed paint overrides
+(or backward-compatible helper arguments) and explicit palette-aware text;
+verify actual Help CLOSE normal/focus/hover/pressed paints across existing
 palettes/contrast modes. If other states already fail, stop and report rather
 than silently expanding scope. Estimate15–25min implementation/review.
 
