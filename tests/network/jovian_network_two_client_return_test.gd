@@ -25,10 +25,23 @@ var _reboard_complete := false
 var _reboard_released: Dictionary = {}
 var _reboard_cabin: Dictionary = {}
 var _reboard_seated: Dictionary = {}
+var _pilot_exit_selected := false
+var _pilot_exit_active := false
+var _pilot_exit_retired := false
+var _pilot_exit_grounded := false
+var _pilot_exit_complete := false
+var _pilot_exit_start: Dictionary = {}
+var _pilot_exit_ground_start := Vector3.ZERO
+var _pilot_exit_helm_sent := -1
+var _pilot_exit_route_observed := false
+var _pilot_exit_motion_observed := false
+var _pilot_exit_samples: Array[Dictionary] = []
+var _pilot_exit_deadline := 0
 
 
 func _run() -> void:
-	_reboard_selected = "--postdock-passenger-reboard" in OS.get_cmdline_user_args()
+	_pilot_exit_selected = "--postdock-pilot-exit" in OS.get_cmdline_user_args()
+	_reboard_selected = _pilot_exit_selected or "--postdock-passenger-reboard" in OS.get_cmdline_user_args()
 	_postdock_selected = _reboard_selected or "--postdock-passenger-exit" in OS.get_cmdline_user_args()
 	await super._run()
 
@@ -39,6 +52,8 @@ func _peer_arguments(role: String, display: PackedStringArray) -> PackedStringAr
 		args.append("--postdock-passenger-exit")
 	if _reboard_selected:
 		args.append("--postdock-passenger-reboard")
+	if _pilot_exit_selected:
+		args.append("--postdock-pilot-exit")
 	return args
 
 
@@ -50,7 +65,9 @@ func _peer_profile() -> Dictionary:
 
 func _print_peer_success() -> void:
 	# Inherited coordinator alone prints this after all actual peer OS exits0.
-	if _reboard_selected:
+	if _pilot_exit_selected:
+		print("JOVIAN_NETWORK_TWO_CLIENT_PILOT_EXIT_OK checks=%d" % _checks)
+	elif _reboard_selected:
 		print("JOVIAN_NETWORK_TWO_CLIENT_PASSENGER_REBOARD_OK checks=%d" % _checks)
 	elif _postdock_selected:
 		print("JOVIAN_NETWORK_TWO_CLIENT_PASSENGER_EXIT_OK checks=%d" % _checks)
@@ -122,10 +139,20 @@ func _client_scenario() -> bool:
 		result = await _client_postdock_exit()
 		if result and _reboard_selected:
 			result = await _client_postdock_reboard()
-		if physics_frame.is_connected(_postdock_observe):
+		if result and _pilot_exit_selected:
+			result = await _client_postdock_pilot_exit()
+		if not _pilot_exit_selected and physics_frame.is_connected(_postdock_observe):
 			physics_frame.disconnect(_postdock_observe)
 		_release_walk()
 	return result
+
+
+func _client() -> void:
+	await super._client()
+	# The selected final invariants also cover the inherited retained/leaving
+	# handshake. Disconnect before its subsequent session teardown.
+	if _pilot_exit_selected and physics_frame.is_connected(_postdock_observe):
+		physics_frame.disconnect(_postdock_observe)
 
 
 func _client_return() -> bool:
@@ -322,6 +349,8 @@ func _failure_snapshot(description: String) -> Dictionary:
 	if _reboard_active:
 		snapshot["reboard"] = {"released": _reboard_released, "cabin": _reboard_cabin,
 			"seated": _reboard_seated, "complete": _reboard_complete, "current": _reboard_receipt()}
+	if _pilot_exit_active:
+		snapshot["pilot_exit"] = _pilot_exit_receipt()
 	return snapshot
 
 
@@ -474,6 +503,9 @@ func _client_postdock_exit() -> bool:
 func _postdock_observe() -> void:
 	if _postdock_active and not _aborted():
 		_require(_postdock_invariants(), "original peer/Player, current landed owner and uninvolved pilot remain valid throughout " + _return_stage)
+		if _pilot_exit_active:
+			_observe_pilot_exit_motion()
+			return
 		if _role == "client_b" and _return_stage == "client_b.postdock_exterior" \
 				and int(_player.get("_embodiment_state")) == PlayerController.EmbodimentState.DISEMBARKING:
 			var expected := _craft.get_exterior_exit_waypoints()
@@ -505,6 +537,8 @@ func _postdock_wait(predicate: Callable, seconds: float, description: String) ->
 
 
 func _postdock_invariants() -> bool:
+	if _pilot_exit_active:
+		return _pilot_exit_invariants()
 	if _role == "host":
 		var remote := (_game.get("_network_remote_pilots") as Dictionary).get(_craft.ship_id, {}) as Dictionary
 		var source := remote.get("source") as NetworkRemotePilotCommandSource
@@ -647,6 +681,12 @@ func _passenger_is_current(peer: int) -> bool:
 	return super._passenger_is_current(peer)
 
 
+func _pilot_is_current(peer: int) -> bool:
+	if _pilot_exit_selected and _pilot_exit_complete and _role == "host":
+		return peer == int(_flight_start.pilot_peer) and _pilot_exit_invariants() and _host_pilot_exit_retired()
+	return super._pilot_is_current(peer)
+
+
 ## A fresh boarding is allowed only after the complete accepted exterior walk.
 ## Keep the released context immutable; a new claim is not the old flight seat.
 func _host_postdock_reboard() -> bool:
@@ -706,6 +746,8 @@ func _host_postdock_reboard() -> bool:
 		return false
 	_reboard_complete = true
 	_write("host.reboard_complete", _reboard_receipt())
+	if _pilot_exit_selected:
+		return await _host_postdock_pilot_exit()
 	_return_stage = "reboard.retained"
 	return true
 
@@ -1039,10 +1081,328 @@ func _postdock_ground_distance() -> float:
 	return ((_player.global_position - _game.world.global_position) - _postdock_ground_start).slide(Vector3.UP).length()
 
 
+## Selected only after the entire accepted passenger exit/reboard journey.
+## A landed pilot's ordinary E confirms disembark directly, then production
+## stands the original Player along the full authored hatch/airstair route.
+func _host_postdock_pilot_exit() -> bool:
+	_return_stage = "host.pilot_exit_ready"
+	if not await _postdock_wait(func(): return _flight_files_ready(".pilot_exit_ready"), 8.0,
+		"both actual clients finish the full accepted passenger reboard before pilot exit"):
+		return false
+	_pilot_exit_start = {"hull_position": _vector_values(_station_position()),
+		"pilot_seat": _flight_manifest.client.seat.duplicate(true),
+		"passenger": _reboard_seated.duplicate(true)}
+	_pilot_exit_active = true
+	_write("host.pilot_exit_go", _pilot_exit_receipt())
+	if not await _postdock_wait(func(): return _flight_files_ready(".pilot_exit_armed"), 8.0,
+		"both actual client observers arm the selected final invariants before pilot authority can retire"):
+		return false
+	_pilot_exit_deadline = Time.get_ticks_msec() + 10000
+	_write("host.pilot_exit_input_go", {})
+	_return_stage = "host.pilot_exit_retirement"
+	if not await _postdock_wait(func(): return _flight_file_exists("client.pilot_exit_input") and _host_pilot_exit_retired(), 8.0,
+		"ordinary original-pilot Interact retires exact pilot seat, source, ownership, command queue and publication within8s"):
+		return false
+	_pilot_exit_retired = true
+	_write("host.pilot_exit_retired", _pilot_exit_receipt())
+	_return_stage = "host.pilot_exit_ground"
+	if not await _postdock_wait(func(): return _flight_file_exists("client.pilot_exit_ground"),
+		maxf(0.0, float(_pilot_exit_deadline - Time.get_ticks_msec()) / 1000.0),
+		"original pilot physically traverses every authored hatch waypoint and reaches supported berth ground within10s"):
+		return false
+	var ground := _read("client.pilot_exit_ground")
+	if not _require(bool(ground.get("ground_current", false))
+		and bool(ground.get("route_observed", false)) and bool(ground.get("motion_observed", false))
+		and float(ground.get("exit_distance_m", INF)) <= 0.8,
+		"pilot ground receipt proves continuous authored exit rather than a station-spawn relocation"):
+		return false
+	_write("host.pilot_exit_ground_checked", _pilot_exit_receipt())
+	_return_stage = "host.pilot_exit_ground_walk"
+	if not await _postdock_wait(func(): return _flight_file_exists("client.pilot_exit_ground_walk"), 15.0,
+		"released pilot uses ordinary movement on freight-berth ground while retired helm cannot move the hull"):
+		return false
+	var walked := _read("client.pilot_exit_ground_walk")
+	if not _require(bool(walked.get("ground_current", false)) and float(walked.get("ground_distance_m", 0.0)) >= 1.0
+		and bool(walked.get("helm_quiet", false)) and _host_pilot_exit_retired(),
+		"same original pilot walks at least1m with no surviving pilot command producer or authority"):
+		return false
+	_write("host.pilot_exit_walk_checked", _pilot_exit_receipt())
+	_return_stage = "host.pilot_exit_convergence"
+	if not await _postdock_wait(func(): return _flight_files_ready(".pilot_exit_converged"), 5.0,
+		"both original clients consume retired pilot ownership and retain exact passenger chair and landed generation within5s"):
+		return false
+	_pilot_exit_complete = true
+	_write("host.pilot_exit_complete", _pilot_exit_receipt())
+	return _require(_pilot_exit_invariants(), "final original pilot is released, original passenger stays seated and same occupied home lease remains strict")
+
+
+func _client_postdock_pilot_exit() -> bool:
+	_return_stage = _role + ".pilot_exit_ready"
+	if not _require(_reboard_complete and _flight_file_exists("host.reboard_complete"),
+		"pilot exit begins only after the complete original passenger reboard result"):
+		return false
+	_write(_role + ".pilot_exit_ready", {})
+	if not await _postdock_wait(func(): return _flight_file_exists("host.pilot_exit_go"), 8.0,
+		"host retains full accepted prefix until both actual clients finish passenger reboard"):
+		return false
+	_pilot_exit_start = _read("host.pilot_exit_go").get("start", {}) as Dictionary
+	_pilot_exit_active = true
+	_write(_role + ".pilot_exit_armed", {})
+	if not await _postdock_wait(func(): return _flight_file_exists("host.pilot_exit_input_go"), 8.0,
+		"host confirms both client observers switched phase before allowing original pilot Interact"):
+		return false
+	_pilot_exit_deadline = Time.get_ticks_msec() + 10000
+	_return_stage = _role + ".pilot_exit_retirement"
+	if _role == "client":
+		_write("client.pilot_exit_input", _pilot_exit_receipt())
+		await _press(&"interact")
+	if not await _postdock_wait(func(): return _flight_file_exists("host.pilot_exit_retired"), 8.0,
+		"host independently observes actual original-pilot authority retirement after ordinary Interact"):
+		return false
+	if not await _postdock_wait(_client_pilot_exit_retired, 5.0,
+		"actual client consumes unowned same hull and withdrawn original-pilot moving-interior publication within5s"):
+		return false
+	_pilot_exit_retired = true
+	_return_stage = _role + ".pilot_exit_ground"
+	if _role == "client":
+		if not await _postdock_wait(_local_pilot_exit_ground_current,
+			maxf(0.0, float(_pilot_exit_deadline - Time.get_ticks_msec()) / 1000.0),
+			"ordinary landed pilot exit reaches supported authored berth endpoint within10s"):
+			return false
+		if not _require(_pilot_exit_route_observed and _pilot_exit_motion_observed
+			and _player.global_position.distance_to(_postdock_ground_exit()) <= 0.8,
+			"same pilot Player stands and continuously traverses all production hatch/airstair waypoints before ground walking"):
+			return false
+		_pilot_exit_grounded = true
+		_pilot_exit_ground_start = _player.global_position - _game.world.global_position
+		_pilot_exit_helm_sent = int(_game.get("_network_remote_helm_sent"))
+		_write("client.pilot_exit_ground", _pilot_exit_receipt())
+	if not await _postdock_wait(func(): return _flight_file_exists("host.pilot_exit_ground_checked"),
+		maxf(0.0, float(_pilot_exit_deadline - Time.get_ticks_msec()) / 1000.0),
+		"host accepts actual authored pilot exit while passenger retains its exact co-pilot assignment"):
+		return false
+	_return_stage = _role + ".pilot_exit_ground_walk"
+	if _role == "client":
+		var clear := _postdock_ground_exit() - _craft.global_basis.x.normalized() * 1.5
+		if not await _walk_to(clear, false):
+			return false
+		if not _require(_local_pilot_exit_ground_current() and _pilot_exit_ground_distance() >= 1.0
+			and int(_game.get("_network_remote_helm_sent")) == _pilot_exit_helm_sent,
+			"original pilot's ordinary forward/strafe inputs move only its supported ground body at least1m"):
+			return false
+		_write("client.pilot_exit_ground_walk", _pilot_exit_receipt())
+	if not await _postdock_wait(func(): return _flight_file_exists("host.pilot_exit_walk_checked"), 15.0,
+		"host observes stable hull and retained occupied home lease throughout released-pilot ground input"):
+		return false
+	_return_stage = _role + ".pilot_exit_convergence"
+	if not _require(_pilot_exit_invariants() and _client_pilot_exit_retired(),
+		"actual client retains released pilot authority, exact passenger chair and committed home arrival"):
+		return false
+	_write(_role + ".pilot_exit_converged", _pilot_exit_receipt())
+	if not await _postdock_wait(func(): return _flight_file_exists("host.pilot_exit_complete"), 8.0,
+		"host accepts both actual client final pilot-exit confirmations"):
+		return false
+	_pilot_exit_complete = true
+	return _require(_pilot_exit_invariants(), "original actors retain selected final ground/chair roles through inherited release handshake")
+
+
+func _pilot_exit_owner_retired(ownership: Dictionary) -> bool:
+	return ownership.get("ship_id") == _craft.ship_id and int(ownership.get("owner_peer_id", -1)) == 0 \
+		and int(ownership.get("ship_generation", 0)) == int(_flight_start.identities.ownership.ship_generation) \
+		and int(ownership.get("ownership_generation", 0)) > int(_flight_start.identities.ownership.ownership_generation)
+
+
+func _host_pilot_exit_retired() -> bool:
+	var peer := int(_flight_start.pilot_peer)
+	var avatar := GameFlow.network_client_boarding_avatar_id(peer)
+	var simulation := _game.get_network_remote_body_simulation()
+	var owner: CrewSeatRoleAuthority = _craft.get_crew_role_authority()
+	for held: Dictionary in _game.network_session.get_boarding_snapshot().get("occupancies", []):
+		if int(held.get("peer_id", 0)) == peer or held.get("avatar_id") == avatar:
+			return false
+	var active := _craft.get("_command_source") as ShipCommandSource
+	return not (_game.get("_network_remote_pilots") as Dictionary).has(_craft.ship_id) \
+		and not is_instance_valid(_flight_source) and not _craft.is_remote_piloted() and not _craft.is_piloted() \
+		and not active is NetworkRemotePilotCommandSource \
+		and int(_game.network_session.get_remote_ship_command_snapshot().get("pilot_count", -1)) == 0 \
+		and _pilot_exit_owner_retired(_game.network_session.get_owned_ship(_craft.ship_id)) \
+		and owner != null and owner.get_assignment(peer, avatar).is_empty() \
+		and simulation.get_body(avatar) == null and simulation.get_body_record(avatar).is_empty() \
+		and _game.network_session.get_movement_avatar_snapshot(avatar).is_empty() \
+		and _publication(avatar).is_empty() and _game.network_session.get_moving_interior_occupancy(avatar).is_empty()
+
+
+func _client_pilot_exit_retired() -> bool:
+	var pilot_avatar := GameFlow.network_client_boarding_avatar_id(int(_flight_start.pilot_peer))
+	var local_source := _craft.get("_default_local_command_source") as ShipCommandSource
+	var active := _craft.get("_command_source") as ShipCommandSource
+	var answer := _game.network_session.get_boarding_intent_result_replica()
+	return _pilot_exit_owner_retired(_client_ownership_record()) \
+		and int(_flight_pose_sample().get("pilot_peer_id", -1)) == 0 \
+		and _game.network_session.get_moving_interior_latest_relationship(pilot_avatar).is_empty() \
+		and not bool(_game.get("_piloting")) \
+		and (local_source == null or not local_source.is_enabled_owner()) \
+		and (active == null or not active.is_enabled_owner()) \
+		and (_role != "client" or ((_game.get("_network_remote_helm") as Dictionary).is_empty()
+			and (_game.get("_network_client_helm_input_sources") as Dictionary).is_empty()
+			and (_game.get("_network_client_boarding_claim") as Dictionary).is_empty()
+			and bool(answer.get("accepted", false)) and answer.get("status") == &"disembarked"
+			and answer.get("action") == &"disembark" and answer.get("role") == &"pilot"
+			and answer.get("avatar_id") == pilot_avatar and answer.get("ship_id") == _craft.ship_id
+			and int(answer.get("sequence", 0)) > int(_pilot_exit_start.pilot_seat.get("claim_sequence", 0))))
+
+
+func _pilot_exit_invariants() -> bool:
+	if not _reboard_complete or _pilot_exit_start.is_empty():
+		return false
+	if not _craft.is_inside_tree() or _player.get_instance_id() != _initial_player_id \
+			or _station_position().distance_to(_vector_from(_pilot_exit_start.hull_position)) > 0.05 \
+			or _craft.velocity.length() > 0.05:
+		return false
+	if _role == "host":
+		return _host_return_docked() and _host_reboard_seated_current() and _reboard_cabin_identity_current() \
+			and _peer_generation(int(_flight_start.pilot_peer)) == int(_flight_manifest.client.peer_generation) \
+			and _peer_generation(int(_flight_start.passenger_peer)) == int(_flight_manifest.client_b.peer_generation) \
+			and _game.phase == GameFlow.Phase.INTRO and not _player.is_seated() and not _player.is_control_enabled() \
+			and (not _pilot_exit_retired or _host_pilot_exit_retired())
+	var landing := _client_landing_record()
+	var operation := _flight_pose_sample().get("operation_presentation", {}) as Dictionary
+	var ownership := _client_ownership_record()
+	var owner_peer := int(ownership.get("owner_peer_id", -1))
+	return _same_identity() and _walking_identity_is_preserved() \
+		and bool(operation.get("landed", false)) and bool(operation.get("docked", false)) \
+		and not bool(operation.get("landing", true)) and landing.get("state") == &"landed" \
+		and int(landing.get("entity_generation", 0)) == _return_generation \
+		and owner_peer in [0, int(_flight_start.pilot_peer)] \
+		and _reboard_relationship_matches(_reboard_seated, true) \
+		and (_role != "client_b" or (_local_reboard_seated_current(_reboard_seated)
+			and _reboard_cabin_identity_current() and _return_controls_neutral())) \
+		and (not _pilot_exit_retired or _client_pilot_exit_retired()) \
+		and (_role != "client" or not _pilot_exit_grounded or (_local_pilot_exit_ground_current()
+			and int(_game.get("_network_remote_helm_sent")) == _pilot_exit_helm_sent))
+
+
+func _local_pilot_exit_ground_current() -> bool:
+	var source := _game.get_network_remote_body_intent_source()
+	var area := _craft.get_node_or_null(^"ShipBoardingArea") as ShipBoardingArea
+	var avatar := GameFlow.network_client_boarding_avatar_id(_initial_peer_id)
+	return _same_identity() and _walking_identity_is_preserved() and not _player.is_seated() \
+		and not _player.is_station_seated() and _player.is_on_floor() and _player.is_control_enabled() \
+		and not bool(_game.get("_transition_busy")) and not bool(_game.get("_piloting")) \
+		and _game.phase in [GameFlow.Phase.APPROACH_SHIP, GameFlow.Phase.COMPLETE] \
+		and not bool(_player.get_cabin_containment_report().get("active", true)) \
+		and not _craft.get_moving_interior_component().is_occupant_registered(_player) \
+		and _game.get("_cabin_ship") == null and _game.get("_boarding_area") == null \
+		and (_game.get("_network_client_boarding_claim") as Dictionary).is_empty() \
+		and (_game.get("_network_client_boarding_request") as Dictionary).is_empty() \
+		and (source == null or not source.is_bound()) \
+		and _game.network_session.get_moving_interior_latest_relationship(avatar).is_empty() \
+		and area != null and area.get_reservation_token() != _player \
+		and _player.global_position.distance_to(_postdock_ground_exit()) <= 2.5
+
+
+func _observe_pilot_exit_motion() -> void:
+	if _role != "client" or int(_player.get("_embodiment_state")) != PlayerController.EmbodimentState.DISEMBARKING:
+		return
+	var expected := _craft.get_exterior_exit_waypoints()
+	var actual := _player.get("_transition_waypoints") as Array
+	var current: bool = _player.get("_transition_frame") == _craft and actual.size() == expected.size() and expected.size() >= 3
+	for index in mini(actual.size(), expected.size()):
+		current = current and (actual[index] as Transform3D).is_equal_approx(expected[index])
+	_require(current, "live original pilot exit retains every authored hatch/airstair waypoint and reference frame")
+	_pilot_exit_route_observed = _pilot_exit_route_observed or current
+	var position := _craft.to_local(_player.global_position)
+	if not _pilot_exit_samples.is_empty():
+		_pilot_exit_motion_observed = _pilot_exit_motion_observed \
+			or position.distance_to(_vector_from(_pilot_exit_samples[0].position)) >= 1.0
+	_pilot_exit_samples.append({"tick": Engine.get_physics_frames(), "position": _vector_values(position)})
+
+
+func _pilot_exit_ground_distance() -> float:
+	return ((_player.global_position - _game.world.global_position) - _pilot_exit_ground_start).slide(Vector3.UP).length()
+
+
+func _pilot_exit_receipt() -> Dictionary:
+	var receipt := {"selected": _pilot_exit_selected, "stage": _return_stage, "role": _role,
+		"player": _node_identity(_player), "start": _pilot_exit_start.duplicate(true),
+		"hull_position": _vector_values(_station_position()), "hull_speed": _craft.velocity.length(),
+		"hull_error_m": _station_position().distance_to(_vector_from(_pilot_exit_start.hull_position)),
+		"authority_retired": _pilot_exit_retired, "complete": _pilot_exit_complete}
+	if _role == "host":
+		var peer := int(_flight_start.pilot_peer)
+		var avatar := GameFlow.network_client_boarding_avatar_id(peer)
+		var simulation := _game.get_network_remote_body_simulation()
+		var owner: CrewSeatRoleAuthority = _craft.get_crew_role_authority()
+		var active := _craft.get("_command_source") as ShipCommandSource
+		receipt["retired"] = _host_pilot_exit_retired()
+		receipt["retirement_leaves"] = {
+			"remote_binding_absent": not (_game.get("_network_remote_pilots") as Dictionary).has(_craft.ship_id),
+			"original_source_alive": is_instance_valid(_flight_source), "active_source": _node_identity(active),
+			"active_source_is_remote": active is NetworkRemotePilotCommandSource,
+			"piloted": _craft.is_piloted(), "remote_piloted": _craft.is_remote_piloted(),
+			"ownership_retired": _pilot_exit_owner_retired(_game.network_session.get_owned_ship(_craft.ship_id)),
+			"occupancies": _game.network_session.get_boarding_snapshot().get("occupancies", []),
+			"crew_owner_present": owner != null,
+			"role_assignment": owner.get_assignment(peer, avatar) if owner != null else {},
+			"body": _node_identity(simulation.get_body(avatar)), "body_record": simulation.get_body_record(avatar),
+			"movement": _game.network_session.get_movement_avatar_snapshot(avatar),
+			"publication_empty": _publication(avatar).is_empty(),
+			"network_occupancy": _game.network_session.get_moving_interior_occupancy(avatar)}
+		receipt["ownership"] = _game.network_session.get_owned_ship(_craft.ship_id)
+		receipt["remote_commands"] = _game.network_session.get_remote_ship_command_snapshot()
+		receipt["home"] = _host_return_receipt()
+		receipt["home_leaves"] = {"docked_current": _host_return_docked(),
+			"occupant_is_hull": _flight_berth.get_occupant() == _craft,
+			"reservation_owner_is_hull": _flight_berth.get_reservation_owner() == _craft,
+			"passenger_seated_current": _host_reboard_seated_current(),
+			"passenger_body_identity_current": _reboard_cabin_identity_current(),
+			"pilot_peer_generation": _peer_generation(peer),
+			"passenger_peer_generation": _peer_generation(int(_flight_start.passenger_peer)),
+			"host_phase": _game.phase, "host_seated": _player.is_seated(), "host_control": _player.is_control_enabled()}
+		receipt["passenger"] = _reboard_receipt()
+	else:
+		var local_source := _craft.get("_default_local_command_source") as ShipCommandSource
+		var active := _craft.get("_command_source") as ShipCommandSource
+		var area := _craft.get_node_or_null(^"ShipBoardingArea") as ShipBoardingArea
+		var source := _game.get_network_remote_body_intent_source()
+		var pilot_avatar := GameFlow.network_client_boarding_avatar_id(int(_flight_start.pilot_peer))
+		receipt["ownership"] = _client_ownership_record()
+		receipt["arrival"] = _client_return_receipt()
+		receipt["local_leaves"] = {"same_identity": _same_identity(), "walking_identity": _walking_identity_is_preserved(),
+			"player_is_original": _player.get_instance_id() == _initial_player_id,
+			"phase": _game.phase, "transition_busy": bool(_game.get("_transition_busy")),
+			"piloting": bool(_game.get("_piloting")), "floor": _player.is_on_floor(),
+			"control": _player.is_control_enabled(), "seated": _player.is_seated(),
+			"station_seated": _player.is_station_seated(), "cabin_containment": _player.get_cabin_containment_report(),
+			"frame_registered": _craft.get_moving_interior_component().is_occupant_registered(_player),
+			"cabin_ship": _node_identity(_game.get("_cabin_ship") as Node),
+			"boarding_area": _node_identity(_game.get("_boarding_area") as Node),
+			"hatch_reserved_by_player": area != null and area.get_reservation_token() == _player,
+			"boarding_request_pending": not (_game.get("_network_client_boarding_request") as Dictionary).is_empty(),
+			"body_source": source.get_audit() if source != null else {},
+			"local_source_owner": local_source != null and local_source.is_enabled_owner(),
+			"active_source_owner": active != null and active.is_enabled_owner(),
+			"remote_helm": (_game.get("_network_remote_helm") as Dictionary).duplicate(true),
+			"helm_input_bindings": (_game.get("_network_client_helm_input_sources") as Dictionary).size(),
+			"pilot_relationship": _game.network_session.get_moving_interior_latest_relationship(pilot_avatar),
+			"passenger_relationship_current": _reboard_relationship_matches(_reboard_seated, true),
+			"passenger_seated_current": _local_reboard_seated_current(_reboard_seated) if _role == "client_b" else true}
+		receipt["ground_current"] = _local_pilot_exit_ground_current() if _role == "client" else false
+		receipt["ground_distance_m"] = _pilot_exit_ground_distance() if _pilot_exit_grounded else 0.0
+		receipt["exit_distance_m"] = _player.global_position.distance_to(_postdock_ground_exit())
+		receipt["route_observed"] = _pilot_exit_route_observed
+		receipt["motion_observed"] = _pilot_exit_motion_observed
+		receipt["exit_samples"] = _pilot_exit_samples.duplicate(true)
+		receipt["helm_quiet"] = _pilot_exit_helm_sent >= 0 and int(_game.get("_network_remote_helm_sent")) == _pilot_exit_helm_sent
+		receipt["claim"] = (_game.get("_network_client_boarding_claim") as Dictionary).duplicate(true)
+		receipt["boarding_answer"] = _game.network_session.get_boarding_intent_result_replica()
+	return receipt
+
+
 func _postdock_receipt() -> Dictionary:
 	var peer := int(_flight_start.passenger_peer)
 	var avatar := GameFlow.network_client_boarding_avatar_id(peer)
-	var source := _flight_source
+	var source: Variant = _flight_source
 	# Remote command sources need not be children of the scene tree. Their
 	# object identity and stream remain valid without a scene-tree path.
 	var source_identity := {"valid": is_instance_valid(source)}
@@ -1052,8 +1412,8 @@ func _postdock_receipt() -> Dictionary:
 		"peer_id": peer if _role == "host" else _initial_peer_id,
 		"peer_generation": _peer_generation(peer) if _role == "host" else _initial_peer_generation,
 		"avatar_id": str(avatar), "source": {"identity": source_identity,
-			"stream_id": source.get_stream_id() if source != null else -1,
-			"delivery_generation": source.get_delivery_generation() if source != null else -1}}
+			"stream_id": source.get_stream_id() if is_instance_valid(source) else -1,
+			"delivery_generation": source.get_delivery_generation() if is_instance_valid(source) else -1}}
 	if _role == "host":
 		var simulation := _game.get_network_remote_body_simulation()
 		var body := simulation.get_body(avatar) as PlayerController
