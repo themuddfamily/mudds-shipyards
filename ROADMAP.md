@@ -126,10 +126,49 @@ absent,11 public files hash-verified,23 profile entries archived/verified,
 helpers preserved; owned checkout/cache/profiles/helpers removed.
 [Actual delivery](docs/history/ROADMAP_DELIVERIES.md#shared-menu-contrast--shipped-on-d00ae72).
 
-**Next single action:** select the next named production outcome from the existing
-backlog. No further menu patch or qualification run is selected. Retain parked
-routes/cumulative failures and waiting owner decisions; this does not close a
-broad parent. All36 parents and ten phase gates remain open.
+### Selected Station Defense ordinary driver and full first-play attempt
+
+PLAY-DEFENSE / parent13. **07:58–08:58UTC/60min** includes bounded mapping,
+implementation/review/checks, paired candidate, one original300s native route
+and cleanup. Independent of parked Wing/Perimeter/Breach/Activity Board chains;
+none is reopened or adopted. Source map found no required gameplay correction.
+The physical Station Defense board is(12,1,-26), radius2.6m. Deploy immediately
+starts the whole34s encounter including boarding/departure and2.5s/8s lulls;
+retain that exact contract, four live1/2/1 actors and protected core. Existing
+non-Torrent craft can enter FREE_FLIGHT with guided pending and authored combat
+weapon; choose the existing Arrow, no spawned substitute or seeded Guided win.
+
+One high implementer owns tools/release/run_native_sortie.py/test_native_sortie.py,
+scripts/diagnostics/native_sortie_observer.gd, scripts/game/startup_loader.gd,
+tests/startup_cli_privacy_test.gd and one focused observer test/UID if necessary.
+One high reviewer owns read-only review, root integration/packaging/cleanup.
+Add guarded private station-defense selector and read-only detached observations.
+Observe real resolver shot events, exact source/target/weapon/sequence/receipt,
+positive damage and all four terminal kills; cached accepted fire is insufficient.
+Preserve normal tuning, physics/AI/damage/poses/phases/timer/roster/reward owners;
+no debug actions, direct damage/phase/velocity/pose writes or fake save/prelude.
+Estimate25–35min implementation/review. Stop source research after ownership,
+seam and proof known; no new validator/schema/version family.
+
+Route: empty private profile→normal Begin Shift→supported ordinary walk to board,
+actual3D-in-range/facing/candidate E Deploy→physical existing Arrow board/depart→
+real player weapons clear all3waves/four registered actors before unchanged34s,
+core survives→one genuine durable reward→normal strict Arrow home/dock/shutdown/
+physical exit→supported walk to same board, normal Reset and usable next Deploy→
+normal UI exit0. Independently read actual save to confirm one reward entitlement.
+Full original route stays required; failed prefix does not become acceptance.
+
+Freeze clean candidate/exact commands before engines: import180s; existing Python
+driver safety90s; startup privacy120s; focused observer120s if added (headless/Dummy).
+Paired exports180s each; three strict startups120s each; existing actual PCK/PE/
+archive audit90s; one native route with existingCAP300, outer360s plus60s owner
+finalization. Private authenticated X11/XTest, explicitx11/dummy renderer/Dummy
+sound, independent abort/input release/reap. First failure stops, no automatic
+repair/retry/cap increase or renamed adjacent probe. Publish only reviewed accepted
+candidate. Archive/hash-verify unique failed data if withheld, or verify published
+files if accepted, then remove only owned clean pushed checkout/cache/profiles/
+helpers/duplicate exports. Native/hardware/human/final and all36 parents/ten gates
+remain open; actual timing/survival and full first-play are not proven yet.
 
 ### Waiting decisions — not executable tasks
 
