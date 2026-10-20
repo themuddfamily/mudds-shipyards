@@ -1,15 +1,16 @@
 # Development roadmap
 
 **Status: playable development alpha; project completion is unproven.** Latest
-accepted checkpoint: **820cc38**. Controls Help CLOSE now keeps readable text
+accepted checkpoint: **d00ae72**. Shared menu buttons now keep readable text
 while hovered/pressed across the existing palettes and contrast modes.
+The accepted local Help CLOSE paints are retained.
 The existing combat board offers solo
 Paired Wing after Heavy Breach/Torpedo, with on-foot arm/cancel and launch only
 after boarding and physical departure. Wing explicitly offers no credit reward.
 It retains tractor inversion, title readability/overflow, Convoy guidance,
 planetary credits and earlier save protection.
-[Windows notes](builds/windows/MuddsShipyards-820cc38-notes.txt) and
-[Linux notes](builds/linux/MuddsShipyards-820cc38-linux-notes.txt) state checks and
+[Windows notes](builds/windows/MuddsShipyards-d00ae72-notes.txt) and
+[Linux notes](builds/linux/MuddsShipyards-d00ae72-linux-notes.txt) state checks and
 limits. Inline browser progress/timeout/retry remains accepted on20e90c9;
 paused LAN discovery on042c701. Beacon departure/traversal/once-only saved reward
 qualification on e06550e is retained in its recorded scope. Beacon home/dock/exit, Perimeter Hold,
@@ -42,25 +43,10 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 ## Execution now
 
-**COMBAT-WING-ADMISSION delivered in checkpointf671da9**, parent11.
-This closes the missing production entry to the existing encounter, not full
-COMBAT-WING acceptance. Third combat-board contract: arm/cancel on foot, board
-a combat-capable craft, depart, fight the two existing suppression/flank actors.
-Solo-only admission/start/fire, correct objectives/terminal/abort and no-credit
-disclosure are integrated; Breach/Torpedo payouts and debts remain.
-
-| Small deliverable | Decisive check | Actual result |
-| --- | --- | --- |
-| Correct board/encounter lifecycle | Third rotation, stale/cancel fencing, both destroyed required; healthy retirement/missing contacts abort; no Wing payout | Director151 and board59 assertions PASS. Component clear uses disclosed damage simulation, not ordinary weapon qualification. |
-| Actual Main admission | Staged third-offer/avatar setup, real E/cancel, actual host refusal, Arrow boarding and physical berth departure, registered Wing pair, suppression/flank and withdrawal cleanup | PASS28 assertions;31.895s. Main test never damages/kills or completes home route. HUD8/audio11 checks also PASS. |
-| Playable checkpoint and cleanup | Paired exports, three strict startups, PCK/PE/archive/source identity; clean owned processes/artifacts | PASS1521-entry PCK parity; all64 observed identities absent,11 published files hash-verified,29 profile entries archived/verified; owned checkout/profile/helpers removed. |
-
-Original board test parse failure16.171s remains retained. One explicit-type
-correction changes only three declarations; runtime/assertions unchanged. Import/
-director accepted scopes retained on identical production. All12 accepted stages
-264.737s; cumulative with failure280.908s, closure18.68min inside original
-06:49–07:49UTC/60min. No second correction, cap increase or extra run.
-[Actual scope and cleanup](docs/history/ROADMAP_DELIVERIES.md#paired-wing-board-admission--shipped-on-f671da9).
+Latest delivered: shared menu-button contrast, recorded below. Accepted Wing
+board admission remains onf671da9; its full ordinary route is still parked.
+[Admission scope and checks](docs/history/ROADMAP_DELIVERIES.md#paired-wing-board-admission--shipped-on-f671da9)
+remain in the existing history and accepted-outcome table.
 
 ### Ordinary Wing route — parked after admission-driver failure
 
@@ -119,32 +105,31 @@ identities absent,11 public files hash-verified,21 profile entries archived/
 verified, helpers preserved; owned checkout/cache/profiles/helpers removed.
 [Actual delivery](docs/history/ROADMAP_DELIVERIES.md#help-close-contrast--shipped-on-820cc38).
 
-### Selected shared menu-button contrast correction
+### Shared menu-button contrast — delivered in checkpointd00ae72
 
-ACCESS-VIEWS / parents12,29, following the accepted local Help CLOSE fix.
-**07:49–08:29UTC/40min** including implementation/review, checks, paired build
-and cleanup. The shared `_menu_button` still paints other consumers with the
-same brighter0.55/0.35 hover/pressed fills; nominal pressed contrast cannot clear
-4.5 even with white text. Correct this shared production cause across existing
-roles instead of another sequence of individual button repairs. Preserve
-normal/focus paints, geometry/navigation/actions and accepted local CLOSE paints.
-One medium implementer owns scripts/ui/hud.gd and existing
-accessibility_presets_test.gd. Set shared palette-aware hover/pressed text and
-sufficiently dark role-tinted fills; migrate the prior unchanged-default assertion
-to the new readable shared contract. Measure real Resume(NOMINAL), Settings
-(NOMINAL_SOFT), Restart(CAUTION), Exit(DANGER) and Activity Back(MUTED) paints
-across4 palettes×2 contrast modes×4states, with reset and focus/geometry checks.
-Existing Help/title checks remain. Estimate10–20min implementation/review.
+ACCESS-VIEWS / parents12,29: the shared helper now supplies darker role-tinted
+hover/pressed fills and palette-aware light text. Resume, Settings, Restart,
+Exit, Back and other shared consumers receive the correction; normal/focus,
+geometry/actions/navigation and accepted local Help CLOSE paints remain.
+Existing accessibility443 checks PASS, including160 real production menu paint
+pairs across5roles×4states×4palettes×2contrast, minimum8.359:1 against original
+4.5/7 floors. Help/title paints, reset/focus/outline/geometry/navigation/action
+wiring and existing Help20/controller navigation pass.
 
-Before engines freeze clean source/commands: import180s; existing accessibility
-120s, Help120s and controller_pause_navigation_prompt_test.gd90s (headless/Dummy).
-Paired exports180s each; three strict startups120s each; existing actual PCK/PE/
-archive audit90s. First unexpected failure stops; no automatic repair/retry/cap
-increase. No new validator/test family, gameplay or broader rendering/device/
-human qualification. Publish only passing reviewed candidate, then hash-verify
-public files/archive unique data and remove owned checkout/cache/profiles/helpers.
-Parked routes and their cumulative failures stay parked. All36 broad parents
-and ten phase gates remain open.
+All10 frozen stages PASS first attempt, zero diagnostics, 167.942s: import,
+focused checks, paired exports, three strict startups and actual1521-entry
+PCK/PE/archive audit. Headless theme measurements; no rendered/human/device or
+whole-UI qualification. Windows payload startup uses Linux engine; native
+Windows/GPU/listening/human/final gates remain NOT_RUN/open. Cleanup
+8.12min inside original07:49–08:29UTC/40min: all56 observed identities
+absent,11 public files hash-verified,23 profile entries archived/verified,
+helpers preserved; owned checkout/cache/profiles/helpers removed.
+[Actual delivery](docs/history/ROADMAP_DELIVERIES.md#shared-menu-contrast--shipped-on-d00ae72).
+
+**Next single action:** select the next named production outcome from the existing
+backlog. No further menu patch or qualification run is selected. Retain parked
+routes/cumulative failures and waiting owner decisions; this does not close a
+broad parent. All36 parents and ten phase gates remain open.
 
 ### Waiting decisions — not executable tasks
 
@@ -170,6 +155,7 @@ the existing history. These are accepted slices, not closed broad parents.
 
 | Outcome | Accepted scope / remaining boundary |
 | --- | --- |
+| Shared menu contrast | [Checkpointd00ae72](docs/history/ROADMAP_DELIVERIES.md#shared-menu-contrast--shipped-on-d00ae72): role-tinted hover/pressed fills and palette-aware text corrected in shared helper;160 actual menu paints plus existing Help/title/navigation pass. Paired exports/startups/audit accepted; broad UI/rendered/device/human/final gates open. |
 | Help CLOSE contrast | [Checkpoint820cc38](docs/history/ROADMAP_DELIVERIES.md#help-close-contrast--shipped-on-820cc38): readable hover/pressed paints,32 actual paint pairs and existing Help navigation PASS; paired exports/startups/audit. Other UI/rendered/device/human/final gates remain open. |
 | Paired Wing board admission | [Checkpointf671da9](docs/history/ROADMAP_DELIVERIES.md#paired-wing-board-admission--shipped-on-f671da9): third solo board contract, departure/authority gates, actual Wing roster/objective/no-credit lifecycle pass. Full ordinary two-kill/home and other encounter gates remain open. |
 | On-foot help, one cell | [Source5ac9d3ef0](docs/history/ROADMAP_DELIVERIES.md#on-foot-help--one-minimum-scale-1610-cell-accepted): all four pages at1920×1200/.75 pass geometry/wrapping/focus. Other help modes/cells, rendered/human/device and final candidate remain open. |
@@ -229,13 +215,14 @@ failures; no automatic probe, repair, retry or cap increase is selected.
 
 ## Latest playable result
 
-**Checkpoint820cc38** keeps Controls Help CLOSE text readable while hovered or
-pressed in all existing palettes/contrast modes. It retains Paired Wing board
-admission, tractor inversion, title readability/overflow, Convoy, credits and saves.
+**Checkpointd00ae72** keeps shared menu-button text readable while hovered or
+pressed across existing palettes and contrast modes. It retains Help CLOSE,
+Paired Wing board admission, tractor inversion, title readability/overflow,
+Convoy, credits and saves.
 
-[Windows checkpoint ZIP](builds/windows/MuddsShipyards-820cc38-checkpoint.zip),
-[build notes](builds/windows/MuddsShipyards-820cc38-notes.txt),
-[actual validation and limits](docs/history/ROADMAP_DELIVERIES.md#help-close-contrast--shipped-on-820cc38).
+[Windows checkpoint ZIP](builds/windows/MuddsShipyards-d00ae72-checkpoint.zip),
+[build notes](builds/windows/MuddsShipyards-d00ae72-notes.txt),
+[actual validation and limits](docs/history/ROADMAP_DELIVERIES.md#shared-menu-contrast--shipped-on-d00ae72).
 Full ordinary Wing kills/home, native Windows/GPU/device/audio/human and final
 release remain open. Guided3/3 on3d92b91 is not transferred to this package.
 

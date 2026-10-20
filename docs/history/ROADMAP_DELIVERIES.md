@@ -15910,3 +15910,39 @@ builds/linux/. Other Help controls/UI views and all36 broad parents/ten gates
 remain open. Native GPU/devices/listening/human/final-release/full-matrix gates
 NOT_RUN/open; original Guided3/3 remains on3d92b91. Parked ordinary Wing candidate
 remains unmerged/unqualified and is not adopted by this checkpoint.
+
+
+## Shared menu contrast — shipped on d00ae72
+
+2026-10-20. ACCESS-VIEWS/parents12,29. Sourced00ae72254545308978bb33d101ccd935f9b2fd0, integrated/pushed and paired
+checkpoint published. Following local Help CLOSE acceptance, remaining shared
+menu consumers still used the same bright hover0.55/pressed0.35 fills; nominal
+pressed could not reach4.5 even with white. Corrected shared cause once: defaults
+hover0.75/pressed0.70, palette-aware PRIMARY text. Normal/focus, geometry/actions/
+navigation unchanged; local Help CLOSE0.70/0.65 retained. Prior unchanged-default
+test explicitly migrated to the new readable shared contract, no weakened floor.
+Only hud.gd and existing accessibility_presets_test.gd changed; no new test family,
+validator/schema, gameplay or persistence change. Root source/final review GO.
+
+All10 frozen stages PASS first attempt, zero diagnostics,167.942272s: import,
+accessibility443, Help20, controller/pause navigation, paired exports, three
+strict startups and existing actual PCK/PE/archive audit.160 actual Resume/Settings/
+Restart/Exit/Activity Back paints cover all5 shared roles across4states×4palettes×
+2contrast; minimum8.359 regular and8.359 high contrast clears existing4.5/7 floors.
+Reset, focus/outline/global rect/minimum/nav/action connections and Help/title
+paint regressions pass. These are real production controls, not styled test clones.
+Actual1521-entry PCK parity, stockPE.text, exact five-file Linux archive bytes/
+modes/source epoch/metadata and strict exit0/exactly1 STARTUP_MENU_READY_OK pass.
+Windows embedded payload used Linux engine; native Windows NOT_RUN.
+
+Cleanup8.12min within original07:49–08:29UTC/40min: all56 observed identities
+absent, owners terminal,11 public files hash-verified,23 profile entries archived/
+hash/mode/symlink verified, helper copies preserved. Owned clean pushed/integrated
+checkout/import cache/profiles/helpers/duplicate exports removed. Only
+/srv/mudds-work/menu-button-contrast-20261020/results/ remains. Windows EXE/ZIP/
+notes and Linux package/meta/notes are in repository builds/. Theme measurements
+supply no rendered/human readability, physical input or every-menu-journey claim.
+Disabled paints/other UI/art remain separate; all36 parents/ten phase gates open.
+Native GPU/devices/listening/human/final release/full matrix NOT_RUN/open; earlier
+Guided3/3 stays on3d92b91. Parked ordinary Wing remains unmerged/unqualified; no
+new adjacent run, repair or cap increase selected.
