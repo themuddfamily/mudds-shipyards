@@ -186,6 +186,35 @@ preserved. Owned clean pushed checkout/cache/profiles/helpers removed; only
 `/srv/mudds-work/defense-ordinary-route-20261020/results/` remains. Full parent,
 repetition, native Windows/GPU/devices/audio/human/final gates stay open.
 
+### Selected Destination Board status palette repair
+
+ACCESS-DESTINATIONS / parents12,29. **08:54–09:39UTC/45min**, including
+implementation, focused checks, checkpoint and cleanup. Source finding: creation
+registers PlanetaryDestinationStatus font_color with its initial role, but retained
+row updates set modulate to the new role colour. That multiplies both colours and
+leaves the registered role stale across palette/high-contrast changes.
+
+One medium implementer owns only scripts/ui/hud.gd and the existing
+tests/hud_panel_layout_test.gd; root reviews/integrates/packages. Result: current
+ready/travelling/unavailable status role applied exactly once, neutral modulation,
+same retained label follows current palette/high contrast. Update its existing
+palette registration without appending one per snapshot. Preserve text, node
+identity, enabled action/focus and destination/travel/save/network owners. No other
+UI fixes or parked gameplay retry. Estimate15–25min implementation/source review.
+
+Freeze clean source before engines. Headless/Dummy import180s; full existing
+hud_panel_layout_test.gd120s (HUD_PANEL_LAYOUT_TEST_OK), accessibility_presets_test.gd
+120s and planetary_destination_console_production_test.gd120s with their existing
+success markers. Regression extends existing destination case: ready→cruising→
+unavailable→ready on retained label, palette/high-contrast changes and stable
+per-label registration count. All call/member-chain locals explicitly typed.
+Paired exports180s each, three startup checks120s each (exit0/exactly1
+STARTUP_MENU_READY_OK), existing actual PCK/PE/archive audit90s. First unexpected
+failure stops; no automatic repair/retry/cap increase. Publish only reviewed
+passing checkpoint in repository builds, retain actual scope/native/human gates.
+Archive/hash-verify unique results and remove owned clean pushed idle scratch
+within original45min. Full UI/device/rendered/travel/final acceptance remains open.
+
 ### Waiting decisions — not executable tasks
 
 These questions have already been asked. Keep them pending without asking again
