@@ -16190,3 +16190,72 @@ physical devices, full combat/ordinary journeys, native Windows/GPU, real audio/
 listening, final unfiltered regression or release. Guided3/3 remains3d92b91 scope;
 parked Defense/Wing/Perimeter/Breach/Tooltip and KIT-RELOAD remain unaccepted.
 Freight terminal workflow remains pending. All36 parents and ten phase gates open.
+
+
+## Settings and activity feedback palettes — shipped on 2ed93ca
+
+2026-10-20. ACCESS-RECOVERY/NEARBY/ACTIVITY, parents12,29. Source/checkpoint
+**2ed93caafa738ffdde731ce907cb727005bfa308**, integration9732a6b7a,
+notes4fc827d0b, committed/pushed. Original09:25–10:10UTC/45min retained. One medium
+implementer and root independent source/result review. Exactly HUD plus four
+existing caller suites,177+/14−; no new test file, generic matrix, helper, schema
+or validator family.
+
+Four remaining _label-created text families multiplied their initial font role
+by new-state modulation: settings save result, settings recovery title, nearby
+action feedback and activity selection status including rejected Patrol branch.
+All14 callsites now use unchanged _set_label_palette_role. No remaining
+.modulate=_c Label caller in this file; the two actual enemy health-bar paints
+are deliberately outside this repair. Copy/visibility/actions/focus, actual
+settings writes/repair, activity/reward/network/save authority remain unchanged.
+
+Four existing suites add public caller outcomes and actual current-role/effective
+font paint/white modulation, retained identity/one font registration and one
+subsequent deuteranopia/high-contrast repaint each. Outcomes cover save fail/success,
+available/blocked/corrupt recovery, nearby unavailable/start/reset/reward/refusal,
+selection ready/locked/repeat/stock/failure and Patrol refusal. Presentation
+fixtures do not establish real disk repair, reward transfer or ordinary journey.
+The unchanged generic matrix remains accepted on941ef73; it was not rerun here.
+
+All12 frozen stages PASS first attempt, zero diagnostics:
+- Import20.641366s.
+- Full save-feedback11assertions2.422170s; recovery HUD35assertions2.521083s.
+- Full nearby feedback26assertions2.568779s; controller/pause navigation113
+  assertions3.168176s; each original120s cap.
+- Full HUD panel layout552checks11.812366s, includes32 retained Destination
+  palette/contrast comparisons; original120s cap.
+- Windows export26.836906s and Linux export26.763229s.
+- Linux executable startup22.071636s, archive23.473715s and Windows embedded
+  payload through Linux26.148304s: each exit0/exactly1STARTUP_MENU_READY_OK.
+- Actual audit5.819685s: matching1521PCK entries, stockPE.text/ELFmachine and exact
+  five-file Linux archive/binary/icon/installer bytes/modes/source epoch/metadata.
+Combined174.247414s; no correction/retry/cap increase. All automated Godot
+headless/Dummy; no active desktop, physical audio, native Windows/GPU or hosted CI.
+
+Reviewed WindowsEXE/notes/two-member checkpointZIP and Linux ELF/archive/metadata/
+strict startup logs/notes published under repository builds,11 files hash-verified.
+No Downloads publication. Cleanup9.57min within original45min: all62 observed
+PID/starttick identities absent, owners terminal;27 profile entries archived/hash/
+mode/symlink verified, helpers preserved. Owned clean pushed/integrated checkout/
+import cache/profiles/helpers/duplicate exports removed. Only
+/srv/mudds-work/feedback-status-palette-20261020/results/ remains.
+
+User-requested parent-folder housekeeping then compacted six closed owned task
+records: help-close-contrast, menu-button-contrast, defense-first-play,
+destination-status-palette, gameplay-status-palette and feedback-status-palette
+(all20261020).739 loose files became97; approximately300MB saved. Each complete
+original results tree is in its task results/raw-results.tar.gz, checked entry
+by entry for bytes/hash/mode/link before removing loose originals. Archive index
+and README explain original paths; summaries and five reusable helper sources
+remain loose. Every published artifact rehashed and observed process identity
+rechecked before compaction; no live/shared/parked checkout or unique record lost.
+The private combined summary is results/closed-records-summary.json in this task.
+This housekeeping does not count as gameplay or parent completion. Repeated
+completed-delivery detail in active ROADMAP was shortened to existing history
+links; original contracts/cumulative failures remain in backlog/history.
+
+Headless caller/theme checks do not close rendered/human/device, full settings
+recovery/activity/ordinary journey, native Windows/GPU, real audio/listening,
+unfiltered final regression or release gates. Guided3/3 remains3d92b91 scope;
+parked Activity Board/Tooltip/Defense/Wing/Perimeter/Breach/KIT-RELOAD unchanged.
+Freight workflow remains pending. All36 parents and ten phase gates remain open.

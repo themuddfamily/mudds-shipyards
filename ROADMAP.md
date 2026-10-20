@@ -1,7 +1,9 @@
 # Development roadmap
 
 **Status: playable development alpha; project completion is unproven.** Latest
-accepted checkpoint: **941ef73**. Six gameplay readouts now apply their current
+accepted checkpoint: **2ed93ca**. Settings save/recovery and activity feedback
+now use their current role colours once and follow palette/high-contrast changes.
+Six gameplay readouts apply their current
 role colour once and follow palette/high-contrast switches: mode, engine,
 throttle, hull damage, component status and target lock.
 Destination Board status refreshes apply
@@ -14,8 +16,8 @@ Paired Wing after Heavy Breach/Torpedo, with on-foot arm/cancel and launch only
 after boarding and physical departure. Wing explicitly offers no credit reward.
 It retains tractor inversion, title readability/overflow, Convoy guidance,
 planetary credits and earlier save protection.
-[Windows notes](builds/windows/MuddsShipyards-941ef73-notes.txt) and
-[Linux notes](builds/linux/MuddsShipyards-941ef73-linux-notes.txt) state checks and
+[Windows notes](builds/windows/MuddsShipyards-2ed93ca-notes.txt) and
+[Linux notes](builds/linux/MuddsShipyards-2ed93ca-linux-notes.txt) state checks and
 limits. Inline browser progress/timeout/retry remains accepted on20e90c9;
 paused LAN discovery on042c701. Beacon departure/traversal/once-only saved reward
 qualification on e06550e is retained in its recorded scope. Beacon home/dock/exit, Perimeter Hold,
@@ -48,7 +50,8 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 ## Execution now
 
-Latest delivered: six gameplay status palette repairs, recorded below.
+Latest delivered: settings and activity feedback colour repair, recorded below.
+Six gameplay status palette repairs remain accepted on941ef73.
 Destination Board status palette repair remains accepted onc47ca33.
 Station Defense physical E interaction remains accepted ona59127c. Accepted Wing
 board admission remains onf671da9; its full ordinary route is still parked.
@@ -57,219 +60,57 @@ remain in the existing history and accepted-outcome table.
 
 ### Ordinary Wing route — parked after admission-driver failure
 
-Candidate **b40c62eb3** is pushed on `feat/wing-ordinary-route-20261020`,
-unmerged and unpublished. Accepted checkpoint at that attempt’s closure was
-**f671da9**.
-The missing ordinary route was implemented and attempted from an empty private
-profile; its first Heavy Breach board arm failed before any flight or combat.
-At frame923 the player was2.905307m from the board, beyond its production2.8m
-3D radius. The driver used candidate/settled state as its E-arm condition, then
-waited without handling the actual `out_of_range` rejection. The board stayed
-unarmed, generation0, director idle. No prerequisite withdrawals, Wing kills,
-home return or normal UI exit were qualified.
-
-Original observer parse failure100.874s is retained. One selected explicit-bool
-correction passed20 observer assertions15.693s; expression/assertions unchanged.
-Import, driver safety/privacy, paired exports, three strict startups and actual
-1521-entry PCK/PE/archive audit passed in their recorded scopes. Root stopped the
-exact owned route supervisor after observing the rejection; route exit143 after
-67.690s, driver success=false. Ten passing stages175.734s; all12 stages including
-both failures344.298s. Independent cumulative review: **PARK/noGO**. No automatic
-second correction, retry, cap increase or admission-only substitute.
-
-Cleanup23.77min inside original07:14–08:14UTC/60min: all65 observed identities
-absent, inputs released and game/input helper/Xvfb reaped. Seven unique candidate
-payload/metadata files retained privately and hash-verified; ELF verified inside
-the retained tarball,25 profile entries archived/verified, helpers preserved.
-Owned clean pushed checkout/import cache/profiles/helpers removed. Only results
-remain in `/srv/mudds-work/wing-ordinary-route-20261020/results/`.
-[Actual result](docs/history/ROADMAP_DELIVERIES.md#ordinary-wing-route--board-admission-driver-fails).
-
-Future reopening has one concrete implementation seam: approach inside the
-actual3D board radius with margin and fail promptly on an observed rejection.
-Preserve gameplay radius/controls and original full route: real Heavy/Torpedo
-withdrawals, both fresh target-specific Wing weapon kills, physical safe home
-and normal UI exit. This is not a new execution selection. Other combat/repeat/
-recovery/network/native/human gates remain open; parked Courier/Perimeter are
-not adopted. Hauler still waits on its already-asked stock choice.
+Candidateb40c62eb3 remains pushed, unmerged and unpublished. Its board request
+was outside the production3D radius; full Wing combat/home remains unaccepted.
+Cumulative344.298s and original60min budget are retained. No retry or second
+correction selected. [Full result and reopening condition](docs/history/ROADMAP_DELIVERIES.md#ordinary-wing-route--board-admission-driver-fails).
 
 ### Help CLOSE contrast — delivered in checkpoint820cc38
 
-ACCESS-HELP / parents12,29: local hover/pressed fills are darker and their text
-follows the active palette. Other menu button defaults, Help focus/outline/
-geometry/navigation/paging/close remain. Existing accessibility suite252 checks
-PASS, including32 actual CLOSE paint pairs across4 palettes×2 contrast modes×
-4states, minimum7.767:1 in regular/high-contrast modes against original4.5/7
-floors. Existing Help20 assertions PASS. Headless theme-paint scope; rendered,
-human, devices, other Help controls and broad UI acceptance remain open.
-
-All9 frozen stages PASS first attempt, zero diagnostics, 159.893s:
-import, accessibility, Help, paired exports, three strict startups and actual
-1521-entry PCK/PE/archive audit. Windows payload startup uses Linux engine;
-native Windows/GPU/listening/human/final gates remain NOT_RUN/open. Cleanup
-7.47min inside original07:41–08:21UTC/40min: all53 observed
-identities absent,11 public files hash-verified,21 profile entries archived/
-verified, helpers preserved; owned checkout/cache/profiles/helpers removed.
-[Actual delivery](docs/history/ROADMAP_DELIVERIES.md#help-close-contrast--shipped-on-820cc38).
+Accepted local hover/pressed text repair; rendered/device/human/broad UI gates
+remain open. [Actual checks, package and cleanup](docs/history/ROADMAP_DELIVERIES.md#help-close-contrast--shipped-on-820cc38).
 
 ### Shared menu-button contrast — delivered in checkpointd00ae72
 
-ACCESS-VIEWS / parents12,29: the shared helper now supplies darker role-tinted
-hover/pressed fills and palette-aware light text. Resume, Settings, Restart,
-Exit, Back and other shared consumers receive the correction; normal/focus,
-geometry/actions/navigation and accepted local Help CLOSE paints remain.
-Existing accessibility443 checks PASS, including160 real production menu paint
-pairs across5roles×4states×4palettes×2contrast, minimum8.359:1 against original
-4.5/7 floors. Help/title paints, reset/focus/outline/geometry/navigation/action
-wiring and existing Help20/controller navigation pass.
-
-All10 frozen stages PASS first attempt, zero diagnostics, 167.942s: import,
-focused checks, paired exports, three strict startups and actual1521-entry
-PCK/PE/archive audit. Headless theme measurements; no rendered/human/device or
-whole-UI qualification. Windows payload startup uses Linux engine; native
-Windows/GPU/listening/human/final gates remain NOT_RUN/open. Cleanup
-8.12min inside original07:49–08:29UTC/40min: all56 observed identities
-absent,11 public files hash-verified,23 profile entries archived/verified,
-helpers preserved; owned checkout/cache/profiles/helpers removed.
-[Actual delivery](docs/history/ROADMAP_DELIVERIES.md#shared-menu-contrast--shipped-on-d00ae72).
+Accepted shared hover/pressed text repair; layout/actions and local Help paints
+retained. [Actual checks and limits](docs/history/ROADMAP_DELIVERIES.md#shared-menu-contrast--shipped-on-d00ae72).
 
 ### Station Defense physical interaction — delivered in checkpointa59127c
 
-DEFENSE-PHYSICAL-INTERACTION / parent13. Physical E now discovers the board and
-routes idle Deploy, active status-only, terminal Reset and pending-report retry
-through existing GameFlow owners. Settlement/reset/next Deploy use separate
-presses; refused sessions stay protected. Direct board/Nearby APIs,2.6m3D range/
-facing/armed-sortie gates, immediate whole34s and four1/2/1 actors remain.
-
-Initial full-play driver preflight stopped before edits/engines when it found
-missing get_interaction_prompt and terminal E Reset. The production fix replaced
-that blocked assignment within the same original07:58–08:58UTC/60min. No knowingly
-failing route or substitute menu proof was run. Full PLAY-DEFENSE remains open.
-
-Existing full placement62 and actual Main interaction15 assertions PASS. Main
-uses real Area3D/facing/Player E input with disclosed staged avatar/owner-abort/
-refusal fixtures; no victory/reward was fabricated. Genuine real-file debt/retry/
-refusal is covered by full placement. All9 accepted stages PASS, zero diagnostics,
-318.385s; original placement parse failure16.381s retained, one explicit-int test
-declaration correction only, assertions/production unchanged. Cumulative
-334.765s. Paired exports, three strict startups, actual1521-entry PCK/PE/archive
-audit PASS. Native Windows/GPU/devices/listening/human/final remain NOT_RUN/open.
-
-Cleanup23.44min inside original60min: all55 observed identities absent,11
-published files hash-verified,39 profile entries archived/verified, helpers
-preserved. Owned checkout/cache/profiles/helpers/duplicate exports removed.
-[Actual delivery](docs/history/ROADMAP_DELIVERIES.md#station-defense-physical-interaction--shipped-on-a59127c).
+Ordinary E Deploy/status/Reset/retry accepted through existing owners, with
+separate presses, refusal/debt gates and unchanged34s encounter. Full combat/home
+remains open. [Checks, retained correction and cleanup](docs/history/ROADMAP_DELIVERIES.md#station-defense-physical-interaction--shipped-on-a59127c).
 
 ### Station Defense ordinary route — parked after post-Deploy walk timeout
 
-Candidate **a480c0fbb** is pushed on `feat/defense-ordinary-route-20261020`,
-unmerged and unpublished. Full PLAY-DEFENSE remains unaccepted; latest playable
-checkpoint **a59127c** is unchanged. [Actual results and retained costs](docs/history/ROADMAP_DELIVERIES.md#ordinary-station-defense--deploy-accepted-post-deploy-walk-times-out).
-
-The driver reached the actual board inside its2.6m3D gate. Original attempt
-c8dcd03 failed35.963s by treating an empty pre-E receipt as rejection. One
-separately selected two-Python-file correction waited for the same observed E
-inside the existing90frame bound, without retapping or changing gameplay.
-Corrective attempt accepted nativeE1136/active1137, generation1, but remained in
-walk_arrow at(11.88867855,-.01986328,-23.64012909) for rawframes1189–3178,
-1990samples/33.15s. The unchanged encounter timed_out at34.016667s. No boarding,
-departure, player kills, payment, home, Reset or normal UI exit occurred; no
-collision or steering cause is established.
-
-Sixteen passing stages286.198s include87/90 driver safety tests, privacy, paired
-exports, three strict startups per candidate and actual1521-entry PCK/PE/archive
-audits. Corrective route failed84.239s; both failures plus passing stages total
-406.401s. Independent cumulative verdict **PARK**: no second repair, automatic
-retry, cap increase, substituted craft/profile or narrowed entry-only acceptance.
-A future selection must identify a concrete change at the retained post-Deploy
-walk boundary and preserve the full four-kill/once-payment/home/reset/UIexit
-contract, unchanged whole34s andCAP300. No new execution selected here.
-
-Cleanup completed28.24min within original08:23–09:23UTC/60min. All113 observed
-process identities absent; inputs released, helper/game/Xvfb reaped. Both
-candidates' unique EXE/archive/metadata retained privately/hash-verified, each ELF
-verified inside its tarball;37 profile entries archived/verified and helpers
-preserved. Owned clean pushed checkout/cache/profiles/helpers removed; only
-`/srv/mudds-work/defense-ordinary-route-20261020/results/` remains. Full parent,
-repetition, native Windows/GPU/devices/audio/human/final gates stay open.
+Candidatea480c0fbb remains pushed/unmerged/unpublished. Deploy worked; the
+post-Deploy walk stayed stationary33.15s and the whole34s encounter timed out
+before boarding. No player kill/payment/home/reset/UIexit. Cumulative406.401s
+retained; no second repair/retry selected. [Full result and reopening condition](docs/history/ROADMAP_DELIVERIES.md#ordinary-station-defense--deploy-accepted-post-deploy-walk-times-out).
 
 ### Destination Board status palette — shipped on c47ca33
 
-ACCESS-DESTINATIONS status defect fixed in checkpoint **c47ca33**. Retained
-ready/travelling/unavailable labels update their existing font-colour role,
-apply it once and keep white modulation; later palette/high-contrast switches
-follow the current state. Text, node identity, action/focus and journey owners
-remain intact. [Validation and limits](docs/history/ROADMAP_DELIVERIES.md#destination-board-status-palette--shipped-on-c47ca33).
-
-Full HUD layout552/accessibility443/actual Main Destination Console16 checks
-PASS, including32 retained-label palette/contrast combinations and immediate
-paint/identity/focus/one-registration cases. Paired exports, three strict startups
-and actual1521-entry PCK/PE/archive audit PASS; all10 stages first attempt,
-207.276s combined, zero diagnostics. Headless theme properties only; rendered,
-human, device, full planetary journey and final-release gates remain open.
-
-Cleanup7.77min inside original08:54–09:39UTC/45min: all55 observed process
-identities absent,11 published files hash-verified,28 profile entries archived/
-verified and helpers preserved. Owned clean pushed/integrated checkout/import
-cache/profiles/helpers removed; only results remain. No successor or parked-route
-retry is selected here.
+Retained status role/palette/high-contrast update accepted; full planetary
+journeys and rendered/device/human/final gates remain open. [Actual checks and cleanup](docs/history/ROADMAP_DELIVERIES.md#destination-board-status-palette--shipped-on-c47ca33).
 
 ### Gameplay status palettes — shipped on 941ef73
 
-ACCESS-GAMEPLAY status / parents12,29. Checkpoint **941ef73** fixes the common
-colour multiplication in six gameplay readouts: mode, engine, throttle, hull
-damage, component status and target lock. Their existing font-role registration
-now follows the current state and palette/high contrast; modulation stays white.
-A label-local last-successful-role guard avoids registry scans on unchanged
-telemetry. Wording, visibility, thresholds, target names/markers, reticle geometry,
-component lifecycle roles and gameplay authorities remain unchanged. The accepted
-Destination behavior uses the same helper; existing colour reports expose actual
-font colour×modulation without schema change.
+Six gameplay readouts use their current role once; unchanged telemetry skips
+registry scans. Copy/visibility/thresholds/reticle geometry retained. [Actual checks, package and limits](docs/history/ROADMAP_DELIVERIES.md#gameplay-status-palettes--shipped-on-941ef73).
 
-All11 frozen stages PASS first attempt/zero diagnostics,281.559s. Full
-accessibility1979/target-lock6/sensor-reticle90/HUD-layout552 checks, including
-32 finite states×4palettes×2contrast=256 cases/768 paint comparisons and retained
-Destination regression. Paired exports/three strict startups/actual1521-entry
-PCK/PE/archive audit PASS. [Actual validation and limits](docs/history/ROADMAP_DELIVERIES.md#gameplay-status-palettes--shipped-on-941ef73).
+### Settings and activity feedback palettes — shipped on 2ed93ca
 
-Cleanup9.92min inside original09:11–09:56UTC/45min: all59 observed process
-identities absent,11 published files hash-verified,30 profile entries archived/
-verified, helper sources preserved. Owned clean pushed/integrated checkout/cache/
-profiles/helpers removed; only results remain. Headless theme scope; rendered,
-human, devices, full combat/ordinary journeys/native/final gates stay open. No
-successor or parked-route retry selected.
+Four remaining feedback Label families now use the unchanged current-role
+helper: settings save result, recovery title, nearby action feedback and activity
+selection status. Copy/visibility/actions/focus/authority retained. All12 frozen
+stages passed first attempt,174.247s; caller suites11/35/26/113 assertions,
+HUD layout552, paired exports/three strict startups/1521-entry package audit.
+[Checkpoint2ed93ca, actual validation and limits](docs/history/ROADMAP_DELIVERIES.md#settings-and-activity-feedback-palettes--shipped-on-2ed93ca).
 
-### Selected settings and activity feedback palette repair
-
-ACCESS-RECOVERY / ACCESS-NEARBY / ACCESS-ACTIVITY, parents12,29. **09:25–10:10UTC/
-45min** including implementation/review/checkpoint/cleanup. Four remaining
-Label callers still multiply registered initial text colour by new role via
-modulate: settings save result, settings recovery title, nearby action feedback,
-activity selection status (including rejected Patrol branch). Enemy health bar is
-not a Label and remains outside this repair.
-
-One medium implementer owns scripts/ui/hud.gd and four existing caller suites:
-settings_persistence_feedback_ui_test.gd, runtime_settings_repair_hud_test.gd,
-nearby_activity_hud_integration_test.gd, controller_pause_navigation_prompt_test.gd.
-Root reviews/integrates/packages. Replace only those four Label families' role
-modulation with accepted _set_label_palette_role; helper/authority/wording/actions/
-visibility/focus/report schemas unchanged. Existing generic six-family palette
-matrix remains accepted on941ef73; do not repeat or expand it. Add smallest caller
-regressions for current role/effective colour/white modulation through each real
-message outcome and one subsequent palette/high-contrast change. No new harness,
-validator or test file. Explicit types for new GDScript call/member-chain locals.
-Estimate15–25min implementation/source review.
-
-Freeze clean source/exact commands before engines: headless/Dummy import180s;
-four full existing caller suites above120s each with their existing success
-markers; retained hud_panel_layout_test.gd120s. Paired exports180s each, three
-strict startup checks120s each (exit0/exactly1STARTUP_MENU_READY_OK), actual
-PCK/PE/archive audit90s. First unexpected failure stops; no automatic repair/
-retry/cap increase or broad parked Activity Board/Tooltip route execution.
-Publish reviewed passing checkpoint under repository builds. Archive/hash-verify
-unique results and remove owned clean pushed idle scratch within45min. Headless
-caller/theme checks do not close rendered/human/device/recovery/full journeys or
-final release gates. Freight workflow remains pending and independent.
+Owned checkout/profiles removed9.57min within original45min. Six closed task
+record folders compacted from739 to97 loose files; originals preserved in checked
+archives. Summaries and reusable helpers remain accessible. No broader UI,
+recovery/activity journey, native/human or final-release acceptance claimed.
 
 ### Freight terminal integration — bounded handoff, workflow pending
 
@@ -312,6 +153,7 @@ the existing history. These are accepted slices, not closed broad parents.
 
 | Outcome | Accepted scope / remaining boundary |
 | --- | --- |
+| Settings/activity feedback palettes | [Checkpoint2ed93ca](docs/history/ROADMAP_DELIVERIES.md#settings-and-activity-feedback-palettes--shipped-on-2ed93ca): save/recovery/nearby/selection text uses current role once; caller suites and retained layout/package checks PASS. Existing copy/actions/focus/authority and helper retained; headless theme scope, broader journeys/native/human/final open. |
 | Gameplay status palettes | [Checkpoint941ef73](docs/history/ROADMAP_DELIVERIES.md#gameplay-status-palettes--shipped-on-941ef73): six gameplay status label families use their current role once and follow palette/high contrast.256 finite state cases/768 actual paints, full accessibility/target-lock/sensor/layout and paired package checks PASS. Text/visibility/thresholds/geometry/authority retained; headless theme scope, broader rendered/device/human/full journeys/final open. |
 | Destination Board status palette | [Checkpointc47ca33](docs/history/ROADMAP_DELIVERIES.md#destination-board-status-palette--shipped-on-c47ca33): retained status role updates once and follows current accessibility palette/high contrast;32 actual palette/contrast pairs, full HUD layout/accessibility/Main console and paired package checks PASS. Headless theme scope; rendered/device/human/full journeys/final remain open. |
 | Station Defense physical interaction | [Checkpointa59127c](docs/history/ROADMAP_DELIVERIES.md#station-defense-physical-interaction--shipped-on-a59127c): ordinary E discovery/Deploy/status/Reset/retry through existing owners; actual Main15/full placement62 and paired package checks PASS. Full ordinary combat/payment/home remains unqualified. |
@@ -375,15 +217,15 @@ failures; no automatic probe, repair, retry or cap increase is selected.
 
 ## Latest playable result
 
-**Checkpoint941ef73** corrects mode, engine, throttle, hull/component status and
-target-lock colours across state and accessibility palette/high-contrast changes.
-It retains the Destination Board status fix, physical Station Defense E,
+**Checkpoint2ed93ca** corrects settings save/recovery and activity feedback text
+colours across state and accessibility palette/high-contrast changes. It retains
+the six gameplay readout and Destination Board fixes, physical Station Defense E,
 shared menu/Help contrast, Paired Wing admission, tractor inversion, title
 readability, Convoy, credits and saves.
 
-[Windows checkpoint ZIP](builds/windows/MuddsShipyards-941ef73-checkpoint.zip),
-[build notes](builds/windows/MuddsShipyards-941ef73-notes.txt),
-[actual validation and limits](docs/history/ROADMAP_DELIVERIES.md#gameplay-status-palettes--shipped-on-941ef73).
+[Windows checkpoint ZIP](builds/windows/MuddsShipyards-2ed93ca-checkpoint.zip),
+[build notes](builds/windows/MuddsShipyards-2ed93ca-notes.txt),
+[actual validation and limits](docs/history/ROADMAP_DELIVERIES.md#settings-and-activity-feedback-palettes--shipped-on-2ed93ca).
 Full ordinary Defense combat/payment/home, Wing kills/home, native Windows/GPU/
 device/audio/human and final release remain open. Guided3/3 on3d92b91 is not
 transferred to this package.
