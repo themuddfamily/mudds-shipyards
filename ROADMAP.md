@@ -77,6 +77,23 @@ This clears the branch queue; it does not close their unfinished gameplay,
 qualification or release requirements. No unaccepted source was merged to reduce
 a branch count. Eight previously protected detached worktrees remain unchanged.
 
+**Selected: NET-JOVIAN-PILOT-RECLAIM /16,20,26.** One case,20:04–20:54UTC/50min.
+Retain the full accepted passenger journey and original pilot exit/groundwalk,
+then the same pilot clears the existing hatch lockout via the accepted supported
+apron corridor, returns through the authored hatch and takes its actual helm.
+Same peer/Player, fresh exact host/client pilot claim, ownership/source/stream/
+delivery agreement; retired identities remain retired. Passenger chair, strict
+occupied home lease and landed generation persist. No redeparture or staging.
+One HIGH implementer owns only existing return caller; independent HIGH review;
+root owns engines/docs/integration/cleanup. No new branch/worktree/CI. Freeze
+selector --postdock-pilot-reclaim and coordinator-only marker
+JOVIAN_NETWORK_TWO_CLIENT_PILOT_RECLAIM_OK; compile300 and full300/outer360,
+waypoint15/transition8/landing120/convergence5/exit10 unchanged. First failure
+ends qualification for concrete review; no automatic repair/retry. Caller-only
+acceptance needs no identical rebuild; actual runtime changes require focused
+proof and a fresh checkpoint. Finish accepted integration/push and owned cleanup
+before selecting another case.
+
 **NET-JOVIAN-PILOT-EXIT DONE — source `63186dc80`.**
 The full original passenger boarding/departure/home landing/exit/reboard/chair
 journey passes, then the original pilot uses normal Interact to physically leave
@@ -349,7 +366,7 @@ supported existing failures. No completed probe schedules an adjacent probe.
 NET-JOVIAN-PASSENGER-REBOARD is accepted on49bc7b736 with its fresh checkpoint
 and full original journey, as recorded above. Original pilot exit is also accepted above. The next dependent case is
 [NET-JOVIAN-PILOT-RECLAIM](docs/ROADMAP_BACKLOG.md#net-jovian-pilot-reclaim--reacquire-the-same-helm),
-not selected here.
+selected above.
 
 ### Next three production deliveries
 
