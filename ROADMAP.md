@@ -207,6 +207,47 @@ HUD29, confirmation integration12 and GameFlow18 assertions pass; all10 frozen
 source/package stages pass without retries. [Actual outcome and limits](docs/history/ROADMAP_DELIVERIES.md#blocked-save-repair-feedback--shipped-on-49047eb).
 This finishes the named feedback follow-up, not a broad recovery parent.
 
+## Selected station qualification — Observation return
+
+**WALK-OBSERVATION**, parents7/9; qualification of delivered station geometry,
+not new content or historical reconstruction acceptance. Source mapping identifies
+ObservationLogisticsSpur (not Habitat common room), a geometry-only module with
+no interaction. Result: normal Start Shift, original supported Player walks from
+hub through the existing Annex connector to the Observation viewing pad, looks
+at its actual lens/instrument, returns to the original hub and exits by normal UI.
+No craft/kit fixture, teleport, movement override, rescue or invented Interact.
+
+One medium implementer owns only `tools/release/run_native_sortie.py`,
+`scripts/diagnostics/native_sortie_observer.gd`, `scripts/game/startup_loader.gd`,
+`tools/release/test_native_sortie.py`, `tests/startup_cli_privacy_test.gd` in owned
+`qual/observation-walk-20261020`; independent high reviewer checks input isolation,
+passive observer and lifecycle; root integrates/checks/exports/cleans. No recursion.
+Extend existing runner/observer, no parallel harness or validator. Map original
+Annex prefix without its craft/kit fixtures; then Annex local(0,18.5), world
+(91,38),(92.5,38), Spur local(0,11),(0,24),(-6.75,24),(-6.75,32),(-8,31.4), and
+reverse to original spawn. Destination requires actual ObservationPad support,
+Spur local x[-10.5,-3],z[26,38], >=60 actual physics frames and real mouse-look
+toward lens02. Same Main/world/Player/capsule/shape identity, unchanged tuning,
+default sampler, supported movement and fresh observations throughout; no proof
+from helper intent alone. Keep original native runner CAP300, each goal15s,
+arrival0.30m/stopped0.35 and normal UI exit0; first unexpected failure STOP.
+
+Before engines review and commit exact candidate. Private XDG/TMPDIR, HOME
+unchanged, pinned stock Godot4.7.1, Dummy audio always. Source checks: Python
+existing native driver suite60s; headless fresh import180s and existing startup
+CLI privacy60s. Then clean private Linux export180s, strict binary startup120s
+(exit0/one STARTUP_MENU_READY_OK), actual artifact audit90s, one original full
+ordinary driver invocation with its300s cap (outer cleanup330s). Render only on
+owned authenticated Xvfb, explicitx11/Dummy/software renderer, independent abort,
+release inputs/cursor and reap owned processes. Freeze actual pin/configs before
+execution. Estimate30–45min implement/review +10–15min checks/route; split before
+90min total. No automatic repair/retry/cap increase or route narrowing on failure.
+No public paired checkpoint for qualification-only selector/caller additions;
+latest playable49047eb stays current. Any demonstrated game defect needs its own
+production repair selection and required checkpoint. Native Windows/GPU/device/
+human/readability and whole-station/final integrated gates remain OPEN/NOT_RUN.
+Commit/push actual scope and clean owned scratch preserving unique results.
+
 ## Latest playable result
 
 **Blocked save-repair feedback delivered and packaged on49047eb.** When a
