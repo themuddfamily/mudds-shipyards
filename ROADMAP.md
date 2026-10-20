@@ -80,6 +80,31 @@ Latest playable checkpoint remains9e9d1be above. Its landing-withdrawal fix is
 integrated; the archived Wing driver's two-kill/full-return requirement remains
 FAILED/open. Native Windows/GPU/devices/audio/human/final gates stayNOT_RUN/open.
 
+**Selected existing delivery: PERIMETER-LIVE integration,14:12–14:57UTC/45min.**
+Reuse existing `feat/perimeter-live-20261020` / aa88b5a73; retain its363.897s/three
+failed attempts. Deliver the defined90s protected-core defense with three distinct
+live attackers, real integrity/countdown HUD, solo admission and complete source
+withdrawal. Preserve Heavy→Torpedo→Wing; append Hold fourth because Wing is now
+shipped. Existing credit/debt remains exclusive to Heavy/Torpedo; saved0–2 offers
+remain valid, newHold index3 supported without a new save format. Preserve current
+Wing solo behavior and accepted automatic-landing standdown. Broader ordinary
+weapons/home/recovery/repeats/network/native qualification remains open as before.
+
+Concrete test-boundary change: move ALL Hold physical-admission assertions from
+the end of the long recovery suite into an opt-in case in the existing Hold test.
+Restore original Breach test exactly to main; run it and the separate Hold case
+under unchanged90s caps. No assertion/fixture-operation drop, cap increase or
+startup-speed claim. Retain default52 staged Hold checks. One high implementer
+owns candidate15files plus current Wing admission test; one independent high
+semantic/lifecycle reviewer. Five merge-conflict files require explicit review.
+Estimate10–15min integration/review. Before engines freeze exactclean source:
+import180s; director/asset/board/HUD/Hold-staged/Wing/Breach/Hold-production90s each;
+pairedexports180s each; three strictmenu startups120s each; actualartifactaudit90s.
+AllGodotDummy/headless, strictpackageexit0+menu marker; no hostedCI. First failure
+stops. Accepted runtime delivery requires allselectedchecks, matching playable
+packages/notes, mainmerge/push, branch/worktree cleanup. Full ordinary Hold and
+parent11 remain open; no diagnostic-only patch is substituted for this feature.
+
 **Ready production cards: 0. Prepared production cards waiting on decisions: 3.**
 The decisions below remain pending; they do not prevent finishing independently
 supported existing failures. No completed probe schedules an adjacent probe.
