@@ -1020,6 +1020,7 @@ func _browser_observation() -> Dictionary:
 			"text": str(control.get("text")) if control is Button or control is LineEdit else ""}
 	var adapter := _game.network_session
 	var network := {"adapter_id": 0, "adapter_path": "", "configured": false,
+		"api_id": 0, "api_root_path": "", "tree_exited_connections": [],
 		"is_server": false, "offline": _game.multiplayer.multiplayer_peer is OfflineMultiplayerPeer,
 		"native_peer_id": 0, "native_status": 0,
 		"pending_peer_id": 0, "deadline_msec": 0, "offer": {}, "end_reason": {},
@@ -1039,6 +1040,30 @@ func _browser_observation() -> Dictionary:
 			"deadline_msec": int(adapter.get("_pending_join_deadline_milliseconds")),
 			"offer": (adapter.get("_server_offer") as Dictionary).duplicate(true),
 			"end_reason": (adapter.get("_session_end_reason") as Dictionary).duplicate(true)}, true)
+		var api := adapter.multiplayer
+		network.api_id = api.get_instance_id() if is_instance_valid(api) else 0
+		network.api_root_path = str(api.get_root_path()) if api is SceneMultiplayer else ""
+		for connection: Dictionary in adapter.get_signal_connection_list(&"tree_exited"):
+			var callback: Callable = connection["callable"]
+			var callback_object := callback.get_object()
+			var bound_arguments: Array = []
+			for argument: Variant in callback.get_bound_arguments():
+				var argument_type := typeof(argument)
+				if argument_type in [TYPE_BOOL, TYPE_INT, TYPE_FLOAT, TYPE_STRING]:
+					bound_arguments.append(argument)
+				elif argument_type in [TYPE_STRING_NAME, TYPE_NODE_PATH]:
+					bound_arguments.append(str(argument))
+				else:
+					var metadata := {"type": argument_type}
+					if argument_type == TYPE_OBJECT:
+						metadata["object_id"] = argument.get_instance_id() if is_instance_valid(argument) else 0
+						metadata["object_class"] = argument.get_class() if is_instance_valid(argument) else ""
+					bound_arguments.append(metadata)
+			network.tree_exited_connections.append({"valid": callback.is_valid(),
+				"object_id": callback.get_object_id(),
+				"object_class": callback_object.get_class() if is_instance_valid(callback_object) else "",
+				"method": str(callback.get_method()), "bound_arguments": bound_arguments,
+				"unbound_count": callback.get_unbound_arguments_count(), "flags": int(connection["flags"])})
 	var keys := {"escape": Input.is_physical_key_pressed(KEY_ESCAPE),
 		"tab": Input.is_physical_key_pressed(KEY_TAB), "return": Input.is_physical_key_pressed(KEY_ENTER),
 		"control": Input.is_physical_key_pressed(KEY_CTRL), "period": Input.is_physical_key_pressed(KEY_PERIOD)}
