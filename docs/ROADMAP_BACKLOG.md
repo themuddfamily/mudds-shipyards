@@ -77,7 +77,7 @@ parents 11/21 share damage ownership. Do not count these twice.
 | 28 | Benchmark and optimize on representative native hardware | PERF-MACHINE/ROUTE/RUN/FIX | **Definition — PERF-ROUTES-DEFINE.** Finish the finite missing fleet/cabin/combat/surface/repeat scenario list and existing-runner seams after seven delivered selections. Actual minimum/target hardware, measurement cells, original-length native runs and demonstrated hotspot fixes remain. |
 | 29 | Complete real-device controls and accessibility review | INPUT-DEVICE/REMAP, ACCESS-VIEW/COMFORT | **Overflow capability DONE — ACCESS-TITLE on checkpoint19e7990.** Multiplayer is now inside the1024x768 title viewport; actual same-view comparison and eight-viewport retained-control/focus regression pass. ACCESS-TITLE-FOCUS is DONE checkpoint923d7b3: measured focus/press correction,32 paint pairs, same-view and paired package checks pass. Other view/remap/comfort/state/device gates remain. |
 | 30 | Finish authored audio and the real-device mix pass | AUDIO-CONTENT/MIX | **Implementation prerequisite — AUDIO-NAVIGATOR-CLIENT-REJECTION.** Already-asked refusal-scope choice WAITING. After resolution, freeze correct requester-correlated refusal feedback without stale/replayed responses. Accepted/clear playback stays delivered; other audio and real mix require their routes/devices/backend and explicit audible authorization. |
-| 31 | Finish production crash and save recovery | RECOVERY-CONTRACT/FIX/KILL, ACT-WRITE, WORLD-SAVE | **Definition — WORLD-SAVE[Ember/location boundary].** Settle expected original resume/safe-recovery location, distinguishing passive survey continuity from required cold surface-location restoration. Finish is testable contract, no restoration claim. Other contexts/activity writes, installed cuts and migration/corrupt/unsupported cases retain accepted scopes/gates. |
+| 31 | Finish production crash and save recovery | RECOVERY-CONTRACT/FIX/KILL, ACT-WRITE, WORLD-SAVE | **Qualification — WORLD-SAVE-EMBER-FIRST-RELAY.** Cold contract now explicitly uses the existing permitted safe-yard/passive-progress path for this cut; no extra owner approval is required. Select the existing real-file Linux package kill/restart and once-only continuation proof. Canonical flight/cold surface restoration are not supplied by this scenario. Other contexts/activity writes, installed cuts and migration/corrupt/unsupported cases retain accepted scopes/gates. |
 | 32 | Qualify installation, updates and supported desktop platforms | PACKAGE-WIN/LINUX, INSTALL-WIN/LINUX, LINUX-BUNDLE/DESKTOP | **Qualification — LINUX-LAUNCH-DESKTOP.** WAITING on clean isolated graphical session and frozen installed candidate/ordinary route. Prove actual installed desktop entry launches/completes it; headless startup is insufficient. Direct-ELF, final packages/NSIS, six Linux transactions and extra-target definition remain; native Windows exclusions stand. |
 | 33 | Complete all required graphical capture gates | CAPTURE (each required registry ID) | **Qualification — caption-presenter-forward-render.** GATED on frozen candidate/original runnable harness. Produce its one declared PNG, verify source/output identity and inspect at original resolution; stop at set/result. Full 13-set/143-PNG registry stays binding; caption-production/station-operations keep parked reopening conditions. |
 | 34 | Complete release licensing, trusted signing and distribution | RIGHTS, SIGN, DISTRIBUTE | **Dependency — RIGHTS[project release terms].** Record owner-chosen release-terms text and explicit distribution disposition; engine notices do not settle this family. Other asset/media rights, external trusted signing credentials and accepted-candidate/authorized-destination distribution remain separate. |
@@ -470,7 +470,8 @@ test is an owner/regression anchor, not a runnable ordinary route.
 | EMBER-NATIVE-SMOKE | Native observer normal-window-close smoke | 1 | PARKED; failed fixture/repair and priority review retained |
 | EMBER-PACKAGE-ABANDON | Packaged ordinary physical abandonment/home return | 1,14 | GATED; supported OS-input route, old external-driver path UNSUPPORTED |
 | WORLD-ABANDON-DEFINE | Applicable Aurora/Rime abandonment and Ember reuse/durability cases | 1,14 | DEFINE; explicit physical/durable outcomes, source pass retained |
-| WORLD-SAVE-DEFINE | Uncovered world survey/reward/reboard/visit disk boundaries | 14,31 | DEFINE; contract per world, staged/MemoryFilesystem proof retained only as scoped |
+| WORLD-SAVE-DEFINE | Uncovered world survey/reward/reboard/visit disk boundaries | 14,31 | Ember first-relay cold contract defined below: safe-yard with passive original progress. Its package cut selected separately; other Ember/Aurora/Rime boundaries remain DEFINE, no whole-family closure. |
+| WORLD-SAVE-EMBER-FIRST-RELAY | Cold safe-yard recovery retains first-relay progress and later pays the original survey once | 14,31 | Selected exact archive-extracted checkpoint923d7b3, existing native-export Ember driver. Contract below; one owned kill/distinct restart, protected data and usable boarding. Staged flight placements disclosed, canonical outbound NOT_RUN and standing-pose restore NOT_SUPPORTED; no blanket location waiver. |
 | WORLD-EDGE-DEFINE | Applicable solo cancellation/refusal/failure/repeat cases | 14 | DEFINE; exact original cases and route limits |
 | SOLO-EMBER | Ember canonical physical survey round trip | 14 | GATED; freeze uncovered candidate/scenario, prior source passes retained |
 | CONTENT-EMBER | Ember finite remaining authored content/presentation findings | 15 | Definition DONE on 7c0bc2967: no missing implementation identified in the inspected authored-content scope; see boundary below. Full ordinary/repeat/shared/hardware qualification remains open |
@@ -2655,7 +2656,7 @@ Reuse existing finite families rather than add a duplicate planetary queue:
 
 | Existing family instance | Remaining bounded finish |
 | --- | --- |
-| WORLD-SAVE[Ember/location boundary] | Set the expected original resume/safe-recovery boundary explicitly; current later-survey continuity does not close surface-location restoration if required. Preserve that uncovered scope. |
+| WORLD-SAVE[Ember first relay/cold process] | Contract explicitly defined below as existing safe-yard/passive progress. Qualify one exact package/real-file kill/restart and once-only continuation; broader cold-location requirements, if separately promised, remain distinct. No extra owner approval gate is inferred. |
 | WORLD-SAVE[Aurora or Rime/one disk boundary] | Freeze one eligible phase/craft/progress/payment boundary; real-file fresh-process recovery/reboard and once-only reward. |
 | RECOVERY-KILL[planet/one installed package] | Own actual kill/reap and distinct restart for the frozen contract; use existing driver where supported or select one concrete missing executable capability. |
 
@@ -2663,6 +2664,32 @@ Quit/return/repeat remain WORLD-EDGE, canonical journeys WORLD-SOLO and shared
 interruptions the existing SHARED-* rows. Aurora missing-original waits and Rime
 parked arrival remain unchanged. All original promises/phase gates stay open;
 no surface-location waiver, automatic probe or parked-route retry is selected.
+
+### Ember first-relay cold recovery — bounded contract
+
+WORLD-SAVE-EMBER-FIRST-RELAY / parents14,31, defined on2026-10-20.
+The original recovery requirement says to name the expected **resume or safe-
+recovery** state. For this specific cut, use the existing probe's safe-yard
+contract. No instruction was found requiring an additional owner decision;
+that would be an inferred approval gate. The retained whole-Main surface
+remove/re-add promise uses the same actors/session, not a distinct cold process.
+This definition does not waive any separately required cold surface case.
+
+| Boundary | Required result |
+| --- | --- |
+| Initial state | The existing Ember selector's registered craft has genuinely landed at its caldera lease; same awake supported on-foot Player reaches first relay. Route next_checkpoint_index1/next_objective ember_return_beacon/incomplete, positive original activity generation, zero ember_beacon_data receipts. Preserve disclosed orbital_anchor_hold/initial_corridor_entry placements. |
+| Durable cut | Successful save_interrupted_ember_journey publishes ember_relay_survey_active_journey in ember_relay_survey_completion, with detached frame/route and no movement/reward replay. Own the actual live OS process, SIGKILL/reap it; the committed document bytes remain exact. |
+| Cold recovery | A distinct Boot process with the same private real files accepts the current Resume fence, returns on foot/control-enabled in the ordinary yard, leaves the exact Ember checkpoint passive and pays nothing. Old flight/standing pose, lease/seat and transient grant identities are not restored. |
+| Continuation | Real fresh home boarding preserves the passive receipt. The existing disclosed flight setup then admits the original route/generation; actual final objective retires its receipt and pays one reward. Repeated reward retry/save cannot pay again; unrelated durable data is preserved. |
+| Proof / scope | Reuse run_package_probes.sh --in-world-interruption --native-export --activity=ember with pilot context on one exact Linux archive ELF. This is the existing staged planetary interruption scenario, not ordinary menu/canonical flight, native GPU/input/audio or installed/final release acceptance. canonical_outbound=NOT_RUN and standing_pose_restore=NOT_SUPPORTED remain mandatory disclosures. |
+
+Production owners are GameFlow.save_interrupted_ember_journey,
+EmberRelaySurveyPersistenceBinding, UserDataStore and the later physical admission
+through PlanetaryJourneyCoordinator; cold start restores Aurora/Rime visits only.
+Existing in_world_interruption_probe.gd:2402 onward encodes this exact cut;
+ember_active_journey_checkpoint_resume_test.gd supplies its focused MemoryFilesystem
+progress/payment anchor, not real-file cold proof. Existing accepted sources keep
+their recorded scopes; no runtime repair is inferred from naming this contract.
 
 ### Hauler supply integration boundaries
 

@@ -38,18 +38,27 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 ## Execution now
 
-**TRAVEL-LIMIT[Beacon outbound] proposal recorded; decision WAITING**, parent13.
-[The finite criterion and source basis](docs/ROADMAP_BACKLOG.md#beacon-outbound-travel-envelope--proposal-awaiting-decision)
-propose30s unpaused elapsed time from engine-start input at the occupied Torrent
-home berth to a controlled first-Beacon approach. The owner has been asked30s
-or60s; no answer/default inferred. Existing frame records imply9.62 simulation
-seconds for a related interval, not measured wall time or accepted travel proof.
+**Selected WORLD-SAVE-EMBER-FIRST-RELAY**, parents14/31,2026-10-20
+06:05UTC→06:25UTC/20min total. The [cold contract](docs/ROADMAP_BACKLOG.md#ember-first-relay-cold-recovery--bounded-contract)
+uses existing safe-yard recovery with original passive survey progress; original
+scope allows safe recovery and requires no extra approval for this cut.
 
-This is planning only: no runtime/engine/build change. Return and other-route
-limits, full Beacon home/UI failures and all original scope remain. After the
-choice, freeze one existing-driver timing task; no unchanged parked run selected.
-The latest playable checkpoint remains923d7b3. Jovian exit is parked below after
-its failed corrective attempt; it is not an automatic next task.
+Root owns only roadmap/backlog/history records and the existing package-driver
+invocation; no game/test/driver code change. Use actual archive-extracted Linux
+checkpoint923d7b3 with its unchanged export metadata and byte identities.
+Exact existing command: run_package_probes.sh --in-world-interruption
+--native-export --activity=ember, pilot context, Dummy/headless, private data.
+Freeze argument arrays/env/source/artifact hashes in owned results before launch.
+Original300s per arm/resume process,660s outer cap; first failure stops without
+repair/retry/cap increase. Check one real partial-save kill/distinct cold Resume,
+safe supported yard, unchanged passive route, fresh boarding and one payment.
+Expected checks6–11min plus cleanup; whole20min is the overriding limit.
+
+This is a staged archive-package interruption scenario: canonical outbound
+NOT_RUN, standing-pose restore NOT_SUPPORTED; no surface-location/full journey/
+installed/native hardware gate closes. No duplicate playable build is needed.
+Prior parked KIT/Jovian/Ember-window-close routes retain their limits; this cut
+supplies none of their missing proofs. Beacon30/60 choice remains unanswered.
 
 ### Waiting decisions — not executable tasks
 
