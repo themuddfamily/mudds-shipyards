@@ -78,45 +78,30 @@ This clears the branch queue; it does not close their unfinished gameplay,
 qualification or release requirements. No unaccepted source was merged to reduce
 a branch count. Eight previously protected detached worktrees remain unchanged.
 
-**Selected reboard corridor after concrete geometry/path facts.**
-ServiceCabinet02 world box x[-40.05,-38.85],z[64.6,66.6] plus player radius.38
-predicts the recorded stop atx-40.430; actual collider ID was not recorded, so this
-remains source inference. Existing x=-42 ingress already passes in the same raw
-run and lies on ApronDeck03 collision support x[-68.8,-37.2],z[56.9,66.9],top.38.
-Restore exact withheld834d874cc and change only exterior clearance/return goals:
-(-42,.38,boarding.z)→(-42,.38,boarding.z-8.5), then reverse to original hatch.
-Retain actual >7m guard-clear/retired-context proof and the whole original
-board/departure/home landing/physical exit/groundwalk/reboard/chair contract.
-No production geometry, guard, input, pose, claim or acceptance changes.
-Root makes this small sequential route change; independent HIGH review before
-engines and actual final result. Same compile300s/full300s/outer360s/waypoint15s/
-transition8s/landing120s/convergence5s; original18:23–19:23 assignment and333.373s
-prior stages retained. One exact clean compile/full route; first failure stops,
-no automatic variant. Same script/selector/marker and private Xvfb/x11/Dummy audio.
-No new branch/worktree. Preserve results in existing reboard/corridor and remove
-owned reboard-corridor-scratch; integrate/push only accepted original case.
-
-**Jovian passenger reboard remains OPEN after original and sole correction.**
-Both candidates complete the full original ordinary boarding/departure/home
-landing/physical hatch exit and supported groundwalk. Originaladd3c854b returns
-without clearing the existing7m reboard suppression and fails hatch discovery
-in147.030s. One explicit clearance correction834d874cc then fails in152.626s:
-ordinary walk stalls supported/control-enabled at(-40.430,.380,65.820), target
-(-37.3,.61,65.82), velocity0 and interaction distance5.237m<7. No clearance receipt,
-fresh cabin/body/chair claim or client convergence. Specific obstruction/collider
-is not captured; no production defect established. Both compiles PASS; unchanged
-source/cache and original caps, actual three OS exits1 on each route; no markers.
-Independent reviews NO-GO. Total original+correction stages333.373s retained,
-original18:23–19:23 assignment unchanged. No further variant/retry selected.
-Reopening requires a concrete supported clearance path/cause, preserving the
-whole original physical reboard/chair and retired-context contract. Do not remove
-the production guard, inject pose/claims, increase caps or rerun unchanged.
-Both unique sources retained in verified bundles/patches/source archives and
-pushed WITHHELD tags; neither merged. Both owned scratch roots removed after
-verified preservation; all30 observed identities absent. No new branch/worktree;
-main remains sole working branch, latest playable0070248 unchanged.
-[Original failure](docs/history/ROADMAP_DELIVERIES.md#jovian-passenger-reboard--hatch-discovery-stops-original-case--2026-10-20),
-[sole correction and remaining gap](docs/history/ROADMAP_DELIVERIES.md#jovian-reboard-clearance-correction--stopped-at-supported-walk--2026-10-20).
+**Jovian reboard now blocked on an observed runtime interaction mismatch.**
+The supported x=-42 apron corridor clears the existing lockout at9.03m and
+returns to a genuine hatch candidate. Actual boarding succeeds: new host body,
+claim sequence3, current entity generation1 and advanced input stream2. An early
+caller incorrectly demanded generation>old; existing producer defaults1 and
+supports same-generation rebinding. That comparison was corrected to require
+current host/client agreement, a changed body/new claim and advanced matching
+stream, retaining the full original physical journey and every chair condition.
+The final run then observes the host claim co_pilot_station before the caller's
+chair interaction, while the client remains standing. Chair walk/convergence fail.
+Source establishes the mismatch: local intent source preserves Interact highwater
+across rebind, but each new remote body starts last_interaction_id0 and treats
+the carried counter as a fresh chair input. Exact first replay packet was not
+captured. Preserve source highwater/retry behavior; a runtime consumer/lifecycle
+repair and focused regression are required, not another caller workaround.
+Both corridor compiles PASS; routes FAIL152.354s/161.106s, three actual OS1 each,
+zero markers and source/cache unchanged. Independent reviews NO-GO. Cumulative
+all attempts680.117s retained; original18:23–19:23 assignment closed at37.59min.
+Both corridor commits/source/raw preserved under pushed WITHHELD tag; no source
+merged. All60 observed identities across attempts absent; owned scratch removed.
+Main sole working branch, latest checkpoint0070248 unchanged. See the ready
+production repair below; full reboard/pilot exit/reclaim/redeparture stay open.
+[Original failures](docs/history/ROADMAP_DELIVERIES.md#jovian-reboard-clearance-correction--stopped-at-supported-walk--2026-10-20),
+[corridor and actual runtime boundary](docs/history/ROADMAP_DELIVERIES.md#jovian-reboard-corridor--runtime-interaction-lifecycle-gap--2026-10-20).
 
 **HALYARD-AUTHORITY-STOP DONE — current source `082da79c9`.**
 The complete ordinary boarding/departure/moving walk/chair sequence passes, then
@@ -334,9 +319,32 @@ remain recorded. Full ordinary Hold and parent 11 remain OPEN. Native Windows,
 GPU/devices/audio/human/final gates stay NOT_RUN/open; CI stays disabled.
 [Delivery and actual limits](docs/history/ROADMAP_DELIVERIES.md#perimeter-live-branch-finished--2026-10-20).
 
-**Ready production cards: 0. Prepared production cards waiting on decisions: 3.**
+**Ready production cards: 1. Prepared production cards waiting on decisions: 3.**
 The decisions below remain pending; they do not prevent finishing independently
 supported existing failures. No completed probe schedules an adjacent probe.
+
+### Ready production repair — existing Jovian reboard outcome
+
+**NET-JOVIAN-PASSENGER-REBOARD /16,20,26 — prevent old Interact replay.**
+Player result: after genuine exit/clearance/reboard, a new host cabin body remains
+standing until the passenger deliberately takes the co-pilot chair; host and
+client agree on that single fresh action. Owner: NetworkRemoteBodySimulation
+admission/release/interaction lifecycle, existing NetworkRemoteBodyIntentSource
+highwater contract and existing simulation/source tests. Do not reset the source
+counter blindly: existing source tests explicitly retain it across rebind and
+opening clock recovery. Match the consumer lifetime without replaying retired
+actions or suppressing a genuinely new first press. Scope the retained state to
+its actual session/owner and preserve other seats/surfaces/rehost behavior.
+Before implementation separately freeze exact files/commands/budgets. Require a
+focused regression that fails on the observed lifecycle mismatch, current source
+checks, the entire original ordinary reboard route on the accepted supported
+corridor, all three actual OS0/one marker/no runtime diagnostics, independent
+review and fresh paired checkpoint with strict startup/package checks. Preserve
+all earlier failures/caps; no caller pose/claim writes or automatic seat acceptance.
+Existing caller515e31d10 is withheld but source-preserved for this exact proof;
+reclaiming a host-only phantom chair is not success. Estimate45–60min repair and
+focused checks plus20–30min original route/checkpoint; split before90min.
+This is a runtime repair prerequisite, not full reboard or parent acceptance.
 
 ### Next three production deliveries
 
@@ -417,11 +425,10 @@ cross-craft/Main, hardware/native and final release gates remain open.
 
 ## Parked failures and dependent work
 
-Jovian passenger reboard's original and sole clearance correction are withheld.
-Actual prior exit/groundwalk passes; original hatch suppression remains, and the
-corrective ordinary clearance walk stalls before7m. A concrete supported path or
-cause is missing. No fresh admission/chair proof or further retry selected; full
-original caps/contract remain binding.
+Jovian reboard's earlier route failures are preserved. The supported corridor now
+clears the actual guard and reboards; current blocker is premature host chair
+claim while the client stands. Use the ready runtime repair above before more
+qualification. Full original contract/caps remain binding; no caller-only retry.
 
 These are unfinished outcomes, not candidates for an unchanged retry. Exact
 contracts and cumulative attempt records remain in the retained history.

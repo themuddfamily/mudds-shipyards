@@ -18538,3 +18538,94 @@ no live cwd/exe under owned scratch. Across both attempts30 observed identities
 absent, both scratch roots removed. Main sole working branch, CI hold unchanged,
 latest playable0070248 unchanged. No whole parent/phase/native/hardware/final gate
 closed; later pilot exit/reclaim/redeparture remain dependent and unselected.
+
+
+## Jovian reboard corridor — runtime interaction lifecycle gap — 2026-10-20
+
+**NET-JOVIAN-PASSENGER-REBOARD remains OPEN; actual production repair identified.**
+Selectedf31e48045 only after concrete geometry and same-run supported path facts.
+ServiceCabinet02 source box x[-40.05,-38.85],y[.38,2.88],z[64.6,66.6] plus player
+radius.38 predicts earlier stopx-40.43036; no actual collider ID was recorded.
+ApronDeck03 world x[-68.8,-37.2],z[56.9,66.9],top.38 supports existing x=-42 ingress.
+Exact code: jovian_freight_berth.gd2132/2358, shipyard_world.tscn151, player.tscn7.
+Same prior raw client_b walked x=-42,z40→65.82 then boarding. New nine-line delta
+from834d874cc follows corridor(-42,.38,65.82)→(-42,.38,57.32), observes actual7m
+suppression clear with retired contexts, then reverses to original hatch.
+No production/cap/prefix/pose/claim/guard changes; independent HIGH source GO.
+
+### Actual corridor, comparison correction and runtime failure
+
+Clean detachedbda7f2140 compile PASS16.672230s, original full routeFAIL152.354099s.
+Complete prior board/departure/home dock/physical exit/groundwalk passes. Actual
+clearance9.031601m, guard clear, return candidate and real boarding answer accepted
+board_any/boarded/sequence3. New host body3857232971752 differs old3083149003227;
+new source stream2 differs old1; body/relationship entity generation1 stays1.
+Caller fails its invented >old entity-generation comparison. Original contract
+requires current-generation agreement, not monotonic per-reboard generation.
+Production GameFlow13819 uses simulation.admit default1; release retires old exact
+body/frame/role/movement record; local source bind advances stream. Existing
+intent-source test149 binds same entity/gen3 again and expects stream2. That
+failure alone establishes no production defect. Three actual OS1/no marker;
+84 copied files verified and independent final NO-GO, chair unproved.
+
+After concrete original-contract/source review, one comparison correction is
+explicitly selected and frozen as clean child515e31d10e3b3897f2608d97d492ce81bcae9acd.
+It requires different actual host body, new claim, advanced host/client input
+stream and exact current generation agreement throughout cabin/chair. Existing
+source audit getter is used; a nonexistent getter was caught before compile.
+No route, chair, identity, retirement, pilot/home or limit weakening. Exact failed
+comparison source preserved before edit; all old raw records retained.
+
+Final compile PASS16.612229s; original full route FAIL161.106220s. Complete prefix,
+clearance, return and fresh admission/consumed agreement now pass. Host actual
+body3895149487399 is new, stream2/currentgen1/claim3 are confirmed. But
+host.reboard_cabin_checked already records seat_state=sitting, avatar_mode=seated
+and co_pilot assignment claim3. Client client_b.reboard_cabin_consumed remains
+supported/standing. No client_b.reboard_chair_approached/reboard_chair receipt or
+requested chair Interact occurs. Host later seated at local(1.05,.06,-8.17), client
+still standing around(.850,.482,-6.129) while receiving seated relationship. Its
+ordinary goal(.95,.52,-7.15) cannot converge in existing15s; route stops.
+
+Concrete source lifecycle mismatch: NetworkRemoteBodyIntentSource line63 retains
+_interaction_request_id through bind95/unbind121, emits its highwater on every
+intent215. Existing test215 explicitly preserves highwater across rebind; clock
+recovery also preserves it. New simulation body record208 starts last_interaction_id0;
+advance298 handles any larger retained counter, and standing handler439 tries a
+crew chair. This source-established mechanism explains observed premature host
+claim before requested input. Exact first replay wire/counter was not captured;
+no fabricated packet trace. A production consumer/admission lifecycle repair is
+required while preserving genuinely fresh first presses and existing source/
+retry semantics. Do not make the caller accept a host-only phantom seat.
+
+Final actual Godot host1962173/client1962353/client_b1962372 each matches .pid/.done,
+actual failure/.exit1 and absent OS PID. Supervisor FINISHED1, zero markers;
+original full300s/outer360s/waypoint15s/transition8s/landing120s/convergence5s and
+exit limits unchanged. Source/cache exact before/after, Git clean executed pin.
+All engines Dummy audio; peers isolated Xvfb/explicitx11, private XDG/TMP and
+cleared inherited overrides. Independent HIGH final NO-GO verifies87 file hashes,
+actual premature host seat/local stand mismatch and bounded source mechanism.
+Runtime repair is a separate production card with focused regression, full
+original route and fresh paired checkpoint. No caller workaround/rerun selected.
+
+### Preservation and original budget
+
+Existing root /srv/mudds-work/jovian-passenger-physical-exit-20261020/results/reboard/corridor/
+retains selection/geometry facts, four commands/owners/logs/freezes, both raw peer
+sets84/87files, results, reviews, original failed-source archive and cleanup.
+Current346.744777s stages + earlier333.372593s =680.117371s cumulative; intervals
+are owner.json mtime minus command.json mtime, not exact monotonic measurements.
+Original18:23–19:23 assignment is unchanged. Cleanup19:00:35UTC/37.59min.
+Source both commits515e31d10 and parentbda7f2140 preserved in verified bundle,
+binary patch and exact source tar; pushed WITHHELD tag
+archive/withheld/jovian-passenger-reboard-corridor-20261020 object
+e0daf97350947271ef98fda7d22523ef2af55160. Source remains UNMERGED; main docs only.
+Owned reboard-corridor-scratch archived profiles.tar.gz63502bytes, SHA256
+f5cfe3b97d813d753327202f496dec14dc6f43c46c53cb2fe910969e60273b02;
+all310 entries reopened/verified exact member set/bytes/hashes/modes/link targets
+before exact scratch removal. All four owners terminal0/1/0/1, all30 new observed
+PID/start-tick identities absent and no live cwd/exe under scratch. Across earlier
+attempts all60 observed identities absent; three owned scratch roots removed.
+No new branch/worktree, protected roots untouched, main sole working branch.
+CI hold intact, latest playable0070248 unchanged. No reboard/parent/phase/native/
+hardware/endurance/final acceptance follows; later pilot exit/reclaim/departure
+remain dependent. The ready runtime repair is recorded in ROADMAP.
