@@ -25032,6 +25032,7 @@ func _apply_all_runtime_settings() -> void:
 	# the on-foot look preference rather than the flight one.
 	if is_instance_valid(tow_tractor):
 		tow_tractor.mouse_sensitivity = runtime_settings.on_foot_mouse_sensitivity
+		tow_tractor.invert_mouse_y = runtime_settings.invert_on_foot_y
 		tow_tractor.set_camera_fov(runtime_settings.camera_fov, runtime_settings.limit_ultrawide_fov)
 	runtime_settings.apply_audio_settings()
 	_apply_reduced_dynamic_range_setting()
@@ -25380,6 +25381,8 @@ func _on_runtime_setting_changed(setting: StringName, _value: Variant) -> void:
 			fleet_ship.invert_mouse_y = runtime_settings.invert_ship_y
 	elif setting == &"invert_on_foot_y":
 		player.invert_mouse_y = runtime_settings.invert_on_foot_y
+		if is_instance_valid(tow_tractor):
+			tow_tractor.invert_mouse_y = runtime_settings.invert_on_foot_y
 	elif setting == &"camera_fov" or setting == &"limit_ultrawide_fov":
 		# One seam for both keys: the authored angle and the ultrawide opt-out
 		# are two halves of the same resolved FOV, so either edit re-derives it.
