@@ -78,6 +78,34 @@ This clears the branch queue; it does not close their unfinished gameplay,
 qualification or release requirements. No unaccepted source was merged to reduce
 a branch count. Eight previously protected detached worktrees remain unchanged.
 
+**Selected runtime repair: prevent retained Interact replay on reboard.**
+Existing NET-JOVIAN-PASSENGER-REBOARD prerequisite,19:04–20:19UTC/75min; split
+before90min. One HIGH implementer owns NetworkRemoteBodySimulation and its
+existing simulation suite; root owns original return caller, docs/Git/engines,
+independent review, checkpoint and cleanup. No new branch/worktree/CI. Existing
+intent-source highwater and retry behavior stays intact. First deliver focused
+regression in tests/network_remote_body_simulation_test.gd selected by
+--interaction-reentry-only; root freezes clean source and demonstrates failure
+against unchanged runtime before implementation. Then bounded runtime repair,
+current tests and full original ordinary reboard acceptance, not a caller bypass.
+Exact checks: Godot4.7.1 --headless --audio-driver Dummy --path this repository,
+--check-only --script res://tests/network_remote_body_simulation_test.gd (300s);
+focused run removes --check-only and adds -- --interaction-reentry-only (300s).
+Unchanged tests/network/network_remote_body_intent_source_test.gd runs300s.
+Full return caller515e31d10 preserved source with --postdock-passenger-reboard
+runs original300s/outer360s/15s waypoint/8s transition/120s landing/5s convergence;
+private Xvfb/explicitx11/Dummy for peers, three actual OS0 and one exact marker.
+Freeze exact candidate/commands/env/cache per stage. Independent HIGH lifecycle
+review must cover fresh press, same owner reentry and actual session/rehost fences.
+Passing meaningful runtime checkpoint requires existing safe clean-commit paired
+exports (180s each), silent strict ELF/archive/Windows-payload menu checks (120s
+each, exit0 + STARTUP_MENU_READY_OK), matching actual package inventory audit,
+EXE/ZIP/notes in builds/windows and Linux counterparts. Native Windows/GPU/device/
+human gates remain NOT_RUN. Prior qualification680.117s/failures remain retained;
+no reset or reduction of the full original contract. Stop unexpected failure for
+concrete review, no automatic variant. Keep only results/interaction-repair after
+verified owned reboard-interaction-scratch cleanup; integrate/push accepted source.
+
 **Jovian reboard now blocked on an observed runtime interaction mismatch.**
 The supported x=-42 apron corridor clears the existing lockout at9.03m and
 returns to a genuine hatch candidate. Actual boarding succeeds: new host body,
@@ -319,7 +347,7 @@ remain recorded. Full ordinary Hold and parent 11 remain OPEN. Native Windows,
 GPU/devices/audio/human/final gates stay NOT_RUN/open; CI stays disabled.
 [Delivery and actual limits](docs/history/ROADMAP_DELIVERIES.md#perimeter-live-branch-finished--2026-10-20).
 
-**Ready production cards: 1. Prepared production cards waiting on decisions: 3.**
+**Active production repair: 1. Prepared production cards waiting on decisions: 3.**
 The decisions below remain pending; they do not prevent finishing independently
 supported existing failures. No completed probe schedules an adjacent probe.
 
