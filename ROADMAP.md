@@ -102,6 +102,15 @@ all9 identities absent,63 archive entries verified, owned scratch cleaned5.58min
 Source correction92948c95d moves only the new helper after all original checks,
 restoring every original fixture transition and assertion. Continue within the
 same original45min window; runtime/route/aim/caps unchanged, no cost reset.
+Pin92948c95d then passes interaction/pose/support and completes the full original
+journey138.256s with all three actual OS exits0. Clean acceptance still STOP:
+inherited receipt calls get_path on a valid detached retiring body. Preserve
+that error; no export. Guard-only caller correction861c4d39b retains valid/id and
+uses an empty scene path when detached. No invariant or diagnostic filter changes.
+Recompile and run original full journey on that exact correction, retaining
+unchanged runtime-focused passes. Prior current stages1552.810s; same17:04
+original deadline. Previousroot all31 identities absent,242 entries verified,
+owned scratch cleaned13.78min/45min. No branch-count progress claimed yet.
 
 **Interaction diagnostic closed; candidate remains unmerged.**
 One unchanged original journey on `2055f1f52` reproduced the failure and captured

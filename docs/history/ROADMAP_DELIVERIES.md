@@ -17687,3 +17687,38 @@ archived helper source verified before worktree/profile/helpers removal5.58min.
 Profile archive SHA256
 `3c77eff38bd76f3ef6b9f7b201f69ea69f89008340a62321d8641ab0121dd0ad`.
 Latest playable remains c78e0ac; candidate unmerged and full passenger exit open.
+
+
+## Jovian physical exit completes; inherited receipt diagnostic retained — 2026-10-20
+
+Pin92948c95d: import20.715779473s, compile17.018112131s,
+station interaction66.130428294s, pose42.862720346s and disembark32.106853149s
+PASS without diagnostics. Full original ordinary journey138.256438233s completes
+functionally: all three actual peers exit0 and success marker once. Pre-E correct
+boarding candidate available/self-reserved at6.502590m<7, no station candidate.
+E produces second request/disembarked. Same Player traverses all seven live
+production route transforms/frame;54 samples observe6.057302m motion. Original
+authored ground is reached, then1.227512m supported walking. Host cabin/chair/
+body/publication retirement and retained original pilot/home/source pass.
+
+Overall stage remains FAIL because host receipt calls get_path() on a valid
+node removed from the tree during legitimate body retirement. Exact stack is
+in inherited jovian_network_two_client_boarding_test.gd:_node_identity ->
+flight test:_host_flight_manifest -> return test:_postdock_invariants. No error
+filtering, weakened predicates or exports. Independent review STOP confirms
+functional success is distinct from clean qualification.
+
+Guard-only source correction861c4d39b keeps valid:true and instance_id and asks
+for a scene path only while inside_tree, otherwise records empty path. No
+production behavior, route, aim, body-retirement assertion or cap changes.
+Final-pin import/compile/full journey required; unchanged runtime focused passes
+from92948 are retained, not repeatedly rerun. Same16:19–17:04UTC45min selection.
+
+New317.090331626s+prior1235.719601360s=1552.809932986s current stages;
+original parser stages separate. Previousroot now only results:
+`/srv/mudds-work/jovian-exit-selection-20261020/results/`.
+All31 union identities absent, owners terminal;242 profile entries and helper
+sources verified before owned worktree/profile/helpers removal13.78min/45min.
+Profile archive SHA256
+`005214e2367551d6fec565241ab3fdf73ee1801e1cf13bbc936d4700a9ccfde2`.
+Latest playable remains c78e0ac; no merge or new checkpoint yet.
