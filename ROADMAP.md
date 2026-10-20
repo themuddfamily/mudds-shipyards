@@ -38,38 +38,14 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 ## Execution now
 
-**Active: ACCESS-HELP[aboard,1920×1200,0.75], selected11:06UTC2026-10-20.**
-Source qualification only, parents12/29; no new gameplay feature. Reuse the
-existing on-foot cell harness with only its context changed to aboard. One
-read-only handoff agent confirmed the seam; root owns execution/integration.
-
-| Field | Fixed result and limit |
-| --- | --- |
-| Result | All20 published aboard Help rows/four pages fit and retain usable Previous/Next/Close navigation at1920×1200, requested/effective UI scale0.75. |
-| Scope/owners | Existing GameHUD and ultrawide layout checks; archived helper adapted only from on_foot to aboard. No production edits or new validator/test family selected. |
-| Commands | Private clean worktree: Godot `--headless --audio-driver Dummy --path WORKTREE --editor --import` (180s), then same flags with `--script HELP_HELPER` (90s), through existing suite_process/guarded runner. Exact pin/paths/helper hash frozen before execution. Require exit0, zero diagnostics and one ULTRAWIDE_LAYOUT_TEST_OK. |
-| Checks | Actual Main/HUD, every page; viewport/safe-area/font/wrapping/containment/overlap checks, boundary focus, backward paging and focused Close. Preserve original checks and exemptions. |
-| Budget/stop | Original11:06–11:21UTC/15min including preparation/cleanup. First unexpected failure STOP; no automatic repair/retry or other mode/scale substitution. |
-| Closure | Commit/push actual source-only result, preserve logs/owned profiles and clean worktree. No identical checkpoint rebuild for qualification alone; rendered/device/crew-gameplay/other cells/final gates remain open. |
-
-WEAPON-ARROW remains parked, unmerged and unpublished; latest accepted playable
-checkpoint remainsed1167b. No Arrow follow-up is selected.
-
-### WEAPON-ARROW — parked after native fire was not observed
-
-The ordinary pilot reached flight/aim, then the unchanged25s weapon phase
-expired with no observed native fire or shot result; DRONE-01 stayed100/100.
-No hit, attitude restoration, home/reuse or normal UI exit was accepted on this
-candidate. Ten prechecks passed, including paired exports/strict startup/audit;
-zero runtime diagnostics and complete input/process cleanup. Cumulative stage
-cost255.594s includes the first fixture failure and single correction.
-[Exact attempt and reopening boundary](docs/history/ROADMAP_DELIVERIES.md#arrow-precision-hit--parked-without-observed-native-fire).
-No second correction, unchanged retry, cap increase or adjacent probe selected.
-The known fact is missing observed fire, not a demonstrated weapon/aim defect.
-Owned checkout/profiles/helpers removed;67 process identities absent and8 private
-candidate files preserved. Records compacted177→19 loose files after full
-verification; closure including compaction17.19min within original80min. Only
-the task results folder remains.
+**No implementation or engine run is active.** The aboard Help cell is
+accepted in source-only headless scope on e5dfe1117: all20 rows/four pages at
+1920×1200 and minimum0.75 scale pass124 assertions, including geometry,
+wrapping, focus and Close. No runtime repair or new playable build was needed.
+[Actual result and limits](docs/history/ROADMAP_DELIVERIES.md#aboard-help--one-minimum-scale-1610-cell-accepted).
+Owned worktree/profiles/helpers removed2.91min within original15min;6 process
+identities absent. Arrow hit qualification remains parked; latest accepted
+playable checkpoint remainsed1167b.
 
 ### Next production alternative: Freight physical terminal interface
 
@@ -115,6 +91,7 @@ the existing history. These are accepted slices, not closed broad parents.
 
 | Outcome | Accepted scope / remaining boundary |
 | --- | --- |
+| Aboard help, one cell | [Source e5dfe1117](docs/history/ROADMAP_DELIVERIES.md#aboard-help--one-minimum-scale-1610-cell-accepted): all20 ordinary aboard rows/four pages at1920×1200/.75,124 assertions; source headless layout/wrapping/focus/Close only. Other cells, rendered/device/crew gameplay and final candidate remain open. |
 | Arrow ordinary return/reuse | [Checkpoint ed1167b](docs/history/ROADMAP_DELIVERIES.md#arrow-ordinary-return-and-reuse--shipped-on-ed1167b): actual archive OS-input two flights/home/offline exits, >7m clear/reboard and normal UI quit PASS106.765s/CAP300; prior two failures retained. Broad craft/native/final gates open. |
 | Settings/activity feedback palettes | [Checkpoint2ed93ca](docs/history/ROADMAP_DELIVERIES.md#settings-and-activity-feedback-palettes--shipped-on-2ed93ca): save/recovery/nearby/selection text uses current role once; caller suites and retained layout/package checks PASS. Existing copy/actions/focus/authority and helper retained; headless theme scope, broader journeys/native/human/final open. |
 | Gameplay status palettes | [Checkpoint941ef73](docs/history/ROADMAP_DELIVERIES.md#gameplay-status-palettes--shipped-on-941ef73): six gameplay status label families use their current role once and follow palette/high contrast.256 finite state cases/768 actual paints, full accessibility/target-lock/sensor/layout and paired package checks PASS. Text/visibility/thresholds/geometry/authority retained; headless theme scope, broader rendered/device/human/full journeys/final open. |
@@ -185,6 +162,7 @@ contracts and cumulative attempt records remain in the retained history.
 
 | Outcome | Last actual result | Condition before more work |
 | --- | --- | --- |
+| WEAPON-ARROW /7,11 | Candidatea8102592d pushed/unmerged/unpublished:25s weapon-phase deadline, no observed native fire/request, DRONE-01 stays100. Ten prechecks PASS; no hit/restore/home/reuse accepted. | PARKED after fixture correction and one actual archive attempt63.079s; cumulative255.594s, no second correction/retry. Concrete supported missing-fire fact/change needed before selection; original caps/route retained. [Attempt and cleanup](docs/history/ROADMAP_DELIVERIES.md#arrow-precision-hit--parked-without-observed-native-fire). |
 | PLAY-DEFENSE ordinary route /13 | Candidatea480c0fbb pushed/unmerged: actual E Deploy accepted, but corrective walk_arrow stationary33.15s and whole34s timeout before boarding. | PARK after original35.963s and one corrective84.239s failure; cumulative406.401s including16 passing stages. No player kill/payment/home/reset/UIexit; no second repair/retry selected. Unique candidates/results preserved; owned scratch cleaned28.24min. |
 | Ember first-relay cold cut /14,31 | [Archive923d7b3](docs/history/ROADMAP_DELIVERIES.md#ember-first-relay-cold-cut--runtime-completes-parent-comparison-fails) FAIL312.812s at parent exact durable-state comparison; arm-9/resume0, engine diagnostics0, runtime continuation and receipts0→1. Only two compared coordinate scalars differ by one binary64 ULP. | STOPPED; no repair/retry/cap increase or retroactive comparison relaxation. Contract review and exact-runtime caller correction complete; corrected full package run NOT_RUN and requires a separately frozen selection. No full-cut/location/canonical/installed acceptance; all owned scratch cleaned9.50min within20min. |
 | Jovian postdock exit /16,20,26 | [Corrective candidate0d225bee8](docs/history/ROADMAP_DELIVERIES.md#docked-pilot-hold--focused-pass-full-exit-stops-at-cabin-walk): pose322/import/compile PASS; full route145.995s FAIL at15s cabin walk after actual standing, retained pilot at exact dock. Unmerged/withheld; exports NOT_RUN. | PARKED after failed runtime plus one corrective attempt: combined392.470s current stages plus retained8054/e147 parser failures. No second repair, retry, tolerance/cap increase or renamed adjacent probe. Walking cause unproved; later node-path errors are inherited failure capture. All owned scratch cleaned17.09min inside original45min. |

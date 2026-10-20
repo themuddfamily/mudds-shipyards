@@ -16456,3 +16456,48 @@ rechecked before deleting loose originals. Archive `raw-results.tar.gz` SHA256:
 remain accessible; original binaries, logs, stage configs and profiles remain
 inside the archive under `results/`. Closure including compaction17.19min from
 original10:47UTC selection, within original80min. No further run was started.
+
+
+## Aboard help — one minimum-scale 16:10 cell accepted
+
+ACCESS-HELP[aboard,1920×1200,0.75], parents12/29, source
+`e5dfe111722a6c2068462761753829440ad5afc1`. Selected2026-10-20
+11:06UTC, fixed15min cumulative deadline11:21UTC including preparation/cleanup.
+One low-effort read-only handoff agent located the existing on-foot helper and
+confirmed the20 ordinary aboard rows. Root owns execution/result review. This
+is source qualification, not a missing gameplay implementation or crew journey.
+
+Reused `/srv/mudds-work/help-onfoot-cell-20261020/results/helpers/help.gd`,
+extending existing `tests/ultrawide_layout_test.gd`. Only context/diagnostic
+strings change from on_foot/on-foot to aboard; all original checks/thresholds/
+exemptions stay fixed. Helper SHA256
+`eab8cf08e482e44c1cadb91e857d56a57f9c4d4f3b518192c412fbd01e1e0c0c`.
+Actual Main/start_shift/HUD, real root1920×1200 and requested/effective scale0.75;
+all20 rows/four pages, viewport/safe-area/font/overlap/centre checks, unclipped
+wrapping and panel containment, five visible rows/page, Previous/Next boundary
+focus/backward paging and focused Close. No production changes or new test family.
+
+Frozen commands, through reused guarded/suite_process runners with fresh
+private XDG/TMPDIR profiles and HOME unchanged:
+- Godot `--headless --audio-driver Dummy --path WORKTREE --editor --import`,
+  cap180s, cache permitted. PASS20.781475784s, zero diagnostics/exit0.
+- Same engine/headless/Dummy/path with `--script HELP_HELPER`, cap90s,
+  cache/source/index unchanged. PASS31.076083072s,124 assertions, exactly one
+  ULTRAWIDE_LAYOUT_TEST_OK, exit0/zero diagnostics. Four actual measurement
+  records identify aboard_help_page_1–4, each with no viewport/safe overflow,
+  overlap or asymmetric centre; minimum measured font7.5px, clearance1.5px.
+
+Both stages first-attempt PASS, total51.857558856s. Root read the actual four
+page records and terminal result; no repeated verification or runtime fix.
+Headless Control geometry/focus only: no rendered/human/physical-device,
+actual crew walk/seat/authority, other mode/scale/aspect or final-candidate claim.
+Existing authored readability floor retained, not a new subjective legibility
+standard. No identical playable rebuild needed; accepted checkpointed1167b stays
+unchanged. No hosted CI, active desktop/audio or parked route was invoked.
+
+Records `/srv/mudds-work/help-aboard-cell-20261020/results/`: exact source,
+commands/helper hashes, raw stage logs/results and helper source preserved.
+Cleanup2.91min from original11:06 selection, within original15min: both owners
+terminal, all6 recorded process identities absent;10 private profile entries
+archived/hash-verified, helper copies verified, clean owned worktree/profiles/
+helper directory removed. Only results/ remains; no new sibling scratch files.
