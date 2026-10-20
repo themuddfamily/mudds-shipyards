@@ -194,6 +194,38 @@ Paired exports, three strict menu-ready startup checks and package parity pass.
 Other corrupt/unsupported formats, installed recovery cuts, active-run policy
 choices and all broad parent/phase gates remain open.
 
+## Selected production follow-up — blocked recovery feedback
+
+**RECOVERY-FIX[corrupt primary preservation] / SAVE-CORRUPT**, parents31/32.
+Prerequisite9326614 accepted. Actual HUD currently treats the known
+`primary_quarantine_failed` preservation refusal as ambiguous publication and
+GameFlow exposes its internal reason code. Result: the confirmation response
+explains that recovery was blocked and the damaged save plus verified backup
+were kept. No persistence/binding/retry policy changes; real publication failures
+keep their existing ambiguity message. This closes no broad recovery parent.
+
+One medium implementer owns only `scripts/ui/hud.gd`, the result-banner seam in
+`scripts/game/game_flow.gd`, `tests/runtime_settings_repair_hud_test.gd` and
+`tests/runtime_settings_repair_hud_integration_test.gd` on isolated
+`fix/save-repair-feedback-20261020`; root reviews/integrates/builds/cleans. No
+recursive agents or evidence-only artifacts. Acceptance uses actual HUD
+confirmation through GameFlow+binding+store with occupied recovery bytes: blocked
+message, exact protected files retained, no success/stale token/action. Existing
+success, controller focus and true ambiguity cases stay covered.
+
+Before engines review+commit exact clean candidate. Private XDG/TMPDIR, HOME
+unchanged, pinned stock Godot4.7.1 `/tmp/mudds-tools/godot-4.7.1/godot`, headless
+`--audio-driver Dummy`, source/index/engine/cache/process guards. One import180s;
+existing HUD, HUD integration and GameFlow repair suites60s each, exit0/one suite
+marker/no matched error diagnostics. Estimate20–30min implementation/review plus
+10min checks/build; split before60min. First unexpected failure STOP; no automatic
+repair/retry/cap increase. If accepted, freeze exact existing stock paired export
+commands180s each, Linux binary/archive menu-ready startup120s each, Windows
+embedded-payload startup120s on Linux engine, existing actual package audit90s.
+Publish EXE/ZIP/notes in repository builds only after pass/review; native Windows,
+GPU/device/audio/human/final integrated gates remain NOT_RUN. Commit/push actual
+result and remove owned scratch after preserving unique results.
+
 ## Latest playable result
 
 **Damaged-save preservation delivered and packaged on9326614.** Conflicting
