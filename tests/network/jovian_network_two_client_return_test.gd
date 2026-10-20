@@ -392,6 +392,11 @@ func _client_postdock_exit() -> bool:
 	_return_stage = "client_b.postdock_cabin_walk"
 	if not await _walk_to((_craft as JovianLightFreighter).get_cabin_stand_transform().origin, true):
 		return false
+	# Cross aft of the solid pilot-chair back before turning toward the hatch.
+	# A direct diagonal from the cabin stand intersects that chair's collider.
+	# This port clearance also leaves room for the ordinary 0.30 m walk radius.
+	if not await _walk_to(_craft.to_global(Vector3(-1.10, 0.52, -6.70)), true):
+		return false
 	var route := _craft.get_exterior_exit_waypoints()
 	if not _require(route.size() >= 3, "same Jovian retains authored cockpit-to-hatch exit waypoints"):
 		return false
