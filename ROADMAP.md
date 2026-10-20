@@ -96,9 +96,11 @@ The single source API-ownership observation is **NOT_REPRODUCED**: default and
 custom APIs both cleanly remove the actual bound SceneCacheInterface callback at
 5004/5002ms automatic timeout. No app-ownership change or release cause/fix is
 supported. [Exact result and retained source lead](docs/ROADMAP_BACKLOG.md#timeout-rpc-cache-ownership--net-timeout-teardown-owner).
-Owned scratch cleaned. Next action: define release-level callback capture in the
-failed full-game/separate-process context before code or engines. No second probe,
-repair, cap increase or full-route reopening selected; no-answer case remains open.
+Owned scratch cleaned. One passive release callback capture is now explicitly
+selected after independent contract review; only the existing observer changes.
+[Exact scope, original failure budget and stopping conditions](docs/ROADMAP_BACKLOG.md#release-timeout-callback-capture--bounded-definition-and-selection).
+Underlying ordinary-route acceptance stays parked; no runtime fix, extra capture,
+repair, cap increase or no-answer case is selected.
 
 Perimeter Hold's implementation candidate **aa88b5a73** is **PARKED/unmerged**.
 Its staged live runtime passes52 assertions; existing director/asset/board/HUD

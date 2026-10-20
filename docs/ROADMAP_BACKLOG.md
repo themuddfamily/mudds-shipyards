@@ -1306,6 +1306,68 @@ freeze ownership/commands/budget before code or engines. Do not repeat unchanged
 default/custom source comparison. Original browser candidate stays parked;
 all broad/native/human/final gates and accepted checkpoint20e90c9 unchanged.
 
+### Release timeout callback capture — bounded definition and selection
+
+**Parent25; frozen2026-10-20 before implementation/engines.** Independent high
+contract review recommends one passive release capture because the sole source
+observation identifies a native SceneCacheInterface callback but cleans it under
+both API ownership modes. This new actual parity fact addresses the missing
+callback identity in the original release failure. It authorizes no ownership
+workaround, ordinary acceptance retry, source-probe repeat or runtime fix.
+Investigation cumulative14 stages267.104796959s/two original failed stages remains
+binding; original12-stage235.879s browser chain stays parked/unaccepted.
+
+Use a clean derivative of EXACTe944f52a835789971a58e0e4d1dd50c4ac664b34.
+One medium implementer owns ONLY `scripts/diagnostics/native_sortie_observer.gd`,
+inside `_browser_observation`'s existing valid-adapter branch: append actual API
+identity/root and serialized tree_exited connection validity, object ID/class,
+method, primitive bound arguments, unbound count and flags (about20–30 lines).
+Keep Callable/Object references local to the sample. Represent nonprimitive
+arguments by safe type/identity metadata without invoking custom _to_string.
+No connections, disconnections, callback invocation, retained references,
+transport polling, expiry/authority writes, changed cadence or general framework.
+Root owns guards/packages/integration; one independent high reviewer before engines.
+No recursive agents. Driver SHA256 remains
+`2d7d4da626d018ddc4bc68e74bac67c8ad6632bf6f703d00089b16d6982d1015`;
+fixture/test/GameFlow/adapter/startup/privacy sources stay byte-identical to e944.
+
+Focused/package stages: fresh guarded import180s, existing startup privacy60s,
+existing safe clean Linux export180s, actual package startup120s requiring exit0
+and exactly one STARTUP_MENU_READY_OK, embedded observer/source-pin/package
+inventory check90s. No Windows/public checkpoint is justified by diagnostic-only
+code; any working runtime fix later requires the normal paired checkpoints.
+No hosted CI, native desktop/audio or --script override on the exported game.
+
+Then ONE original private Xvfb/XTest separate-process route command structure from
+`browser-ordinary-driver-20261020/results/repair-1/results/ordinary/authorization.json`,
+replacing only owned paths and the new diagnostic binary filename. Same300s
+whole-process cap,3s UI/fixture acknowledgements,10s display/15s window limits,
+explicit x11/Dummy, rendering flags, normal OS-typed endpoint and original steps.
+Driver/fixture remain unchanged, including the known fixture command rejection.
+The original full timeout→Retry/admission→Disconnect→freshCancel→Resume/walk/
+normalquit criteria cannot be replaced by a passing prefix or evidence artifact.
+
+Harvest RAW game.log, not only the pilot's last state (diagnostics reject its
+current chunk). Desired original failure is the exact nonexistent-disconnect
+NetworkSession tree_exited/empty-callable error referencing the actual adapter ID,
+with real connected/nonadmitted hello and5000–7000ms paused automatic timeout.
+Require same Main/player/adapter/API identities and complete connection snapshots
+before and after cleanup. Capture the actual owner/binding/removal outcome; do
+not assume a particular callback or retained list. Missing bracketing data is
+INCONCLUSIVE/STOP, not permission for another capture. The exact already-known
+fixture cleanup rejection is retained separately. Every other new/different
+failure, timeout, guard issue or missing required data STOP; no repair, substitute
+route, extra observation or cap increase. Zero target errors is NOT_REPRODUCED
+and ends this assignment; any later unchanged-driver failure remains recorded.
+
+The underlying route must retain its actual nonzero/success:false result when
+original errors occur. A complete diagnostic harvest is not runtime acceptance,
+a fixed bug, a playable delivery or a project percentage. Preserve logs/source/
+process identities and unique diagnostic package, then clean only owned scratch.
+Estimate15–25min implementation/review,5–10min build/capture/cleanup; split before
+45min. Pass ends this acquisition; next runtime choice needs actual captured cause.
+All original browser, native/human/final parent gates remain OPEN/NOT_RUN.
+
 ### Supported remote helm action roster
 
 HELM-ACTIONS-DEFINE is DONE as a source definition, not new gameplay or current
