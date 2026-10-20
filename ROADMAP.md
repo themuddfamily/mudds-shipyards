@@ -95,6 +95,28 @@ All 6 observed process identities are absent; 298 unique profile files archived/
 verified, owned worktree/cache/profiles/helper duplicates removed. Closure 5.8min
 within the original 30min cap.
 
+**Selected review: ACCESS-TITLE[default intro,1024x768,requested scale1.0], parent29.**
+One medium source mapper confirmed actual production scenes/ui/hud.tscn can
+render this default-profile state independently of Main: same intro Controls,
+nebula/shade, title/copy, three buttons and initial Begin Shift focus. No saved
+palette/binding/recovery offer, browser/credits return, full-Main startup, device
+or world-view acceptance is inferred. This is independent of parked Habitat
+readback; no substitute image or renderer for that failure.
+
+Root owns one private capture helper and roadmap result. Match existing minimum
+4:3 window/content-scale policy, record actual requested/effective HUD scale and
+intro transform (intro is authored1x), essential text/button rectangles and focus.
+Source suggests the fixed348px bottom-left container may overflow its minimum
+content height; capture/measure before asserting a defect. First render is a
+review, not a claim that containment passed. No UI repair until a concrete finding.
+Clean source/commands freeze before engines: fresh Dummy import180s, one actual
+2D Forward+ photo90s on authenticated Xvfb/explicitx11/Dummy/Lavapipe; no Main,
+geometry fixtures, desktop focus or audible output. One1024x768 PNG plus metadata,
+then inspect for clipping/overlap/readability; stop on valid view and finding or
+limited no-finding, or first unexpected failure. No retry/cap increase. Fixed30min
+from this selection commit. Preserve all other aspect/scale/state gates; commit/
+push and clean owned worktree/cache/profile/helper duplicates.
+
 | Work | Actual state | Completion / next boundary |
 | --- | --- | --- |
 | LIFE-PACKAGE-DEFINE /7 | DONE as definition only | Five existing outcome groups now have explicit uncovered behavior and runnable/dependency boundaries. Four/twelve-cycle source passes remain accepted; no package journey was rerun or newly accepted. |
@@ -159,6 +181,7 @@ or treating elapsed time as a choice.
 | --- | --- | --- |
 | [AUDIO-NAVIGATOR-CLIENT-REJECTION](docs/COMPLETION_SCOPE.md#client-navigator-rejection-response--bounded-definition-next) | All fresh current refusals including unavailable consumer, or consumer/bridge refusals only. | Correct requester-correlated refusal feedback. Freeze implementation/proof after the choice; prior estimate 45–60min implementation/review, 15–25min checks, 10–15min checkpoint. |
 | [HAULER-CARGO-MANIFEST](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries) | Shared existing stock, separate Hauler stock, or loading-terminal custody. | Actual Hauler cargo admission and conserved source ownership; ordinary delivery remains separately gated. Generation-floor API already exists; freeze files/proof after the choice. Prior estimate 60–90min implementation/checks, checkpoint additional; split before 90min. |
+| BOMBER-REARM-POLICY | Newly asked: keep spent rounds across seat changes until explicit rearm/recovery, or refill all four whenever pilot retakes the seat. No answer recorded. | Define the permitted entitlement before any same-hull payload correction; current seat-session reset is not an accepted design choice. |
 
 Other scope, evidence, hardware and authorization dependencies remain in the
 [backlog](docs/ROADMAP_BACKLOG.md#external-dependencies-outside-the-ready-queue).
