@@ -18847,3 +18847,73 @@ checkpoint rebuild. Latest playable49bc7b7 remains current. Pilot reclaim and
 redeparture, full baseline/endurance, all36 parent outcomes/ten phase gates and
 native Windows/GPU/device/audio/human/final acceptance remain OPEN/NOT_RUN as
 applicable. No adjacent task selected. Accepted caller and closeout pushed to main.
+
+## Jovian original pilot helm reclaim — accepted — 2026-10-20
+
+**NET-JOVIAN-PILOT-RECLAIM accepted07ec703c72883ac0a03c3e4727153aa4c3739e89.**
+Retains the complete ordinary passenger boarding/departure/home landing/physical
+exit/groundwalk/reboard/chair journey, followed by original pilot physical
+exit/groundwalk. Same pilot clears actual7m hatch lockout via supported x=-42
+apron corridor, returns through the authored hatch, consumes its fresh admitted
+cabin body, walks to cockpit and uses ordinary Interact to claim the real helm.
+Same peer/avatar/Player, original passenger and hull. No staging, authority writes,
+replacement client, forced seat or redeparture. Existing return caller only;
+one HIGH implementer/independent HIGH reviewer, root commands/integration/cleanup.
+
+Initial815b3e7f6 compile FAIL0.624s: multiline lambda expression needs grouping.
+Grouped93ff6a62f compile PASS16.748s, then complete route FAIL169.246332s/three OS1.
+Host and passenger actually confirm fresh pilot; owner has correct swap, local
+seat, producer10/delivery10/newwire1 and fresh pose, but its old WALKING relationship
+remains cached. Source GameFlow deliberately excludes owner for non-server-simulated
+pilot-seat anchor publications; passenger is the actual remote SEATED recipient.
+Earlier source review missed this unsupported test assertion. Negative probe and
+final completion were NOT_RUN on that failure. All110 raw files retained.
+
+One reviewed observation correction07ec703c7 moves exact remote SEATED relation
+matching to client_b only. Owner still requires current authoritative ownership,
+accepted ACTION_SWAP/seat_swapped matching host claim, exact local Player pilot
+anchor/HUD, same original producer with advanced stream/delivery, matching new wire
+epoch and fresh same-hull pose after positive host boundary. No runtime edit,
+cache rewrite, shorter prerequisite or larger cap. Compile PASS16.788s;
+full route PASS165.990287s/6571checks/zero failures/exactly one coordinator
+JOVIAN_NETWORK_TWO_CLIENT_PILOT_RECLAIM_OK. Host1986798/client1986956/client_b1986975
+all actual OS0/empty failures/full retained-leaving handshake/clean logs.
+All117 raw copied file hashes verified; independent final GO.
+
+Actual original pilot891615344 returns to claim5/framegen1/seatgen1; host fresh
+remote source4419487811986 replaces freed old source, enabled/current owner;
+wire registry1 and delivered receipt1 agree. Ownershipgen3 follows releasedgen2;
+local source577471790344 advances captured stream/delivery8 to10, emitted wire1
+replaces old0. Pre-exit actual emitted wire also records0. Pilot accepted swap
+sequence5 releases actual cabin02; local seat-anchor error0 and consumed same-hull
+pose6738>=host seated boundary6733. Passenger1644588685 consumes SEATED6729 matching
+host body/framegen1 and keeps co_pilot claim3/current body. Owner's intentionally
+excluded WALKING cache remains diagnostic only.
+
+After both actual confirmations, exactly one explicitly reconstructed old-stream0
+negative probe uses actual current ordinary helm clock, same original peer/hull/
+generation and real authenticated send_movement_intent. Host reports one actual
+stale_stream refusal, keeps exact new source/claim/ownership, and completes roles.
+This is not described as a captured historical packet. Hull error/speed0, strict
+occupied physical home lease/accepted dock contract and landed generation1 persist.
+
+Original20:04–20:54UTC/50min window retained; cleanup20:26:36UTC. Full300/outer360,
+waypoint15/transition8/landing120/convergence5/exit10 unchanged. Five stage mtime
+intervals total369.397089s, including parse and original full failure. All engines
+Dummy; actual peers private Xvfb/explicitx11. No hosted CI or new branch/worktree.
+
+Results /srv/mudds-work/jovian-pilot-reclaim-20261020/results/ retains exact commands/
+source+cache freezes, original110 and accepted117 raw files, reviews and verified
+first-attempt incremental bundle/binary patch/source tar. Original failed commits
+remain ancestors of accepted main. Temporary redundant local attempt tag removed
+only after pushed main contains exact failed tip. All5 owners terminal and32
+observed PID/start identities absent; exact owned scratch removed after reopening
+and verifying409 archive entries/bytes/hashes/modes/links. Profiles archive89200bytes,
+SHA2565149a6f8817e9ddab5c91bd04ad72563385d5bf2df4f7654ef194f097e2276d0.
+Eight protected detached worktrees untouched. Main sole local/live remote branch.
+
+Runtime/assets/tools exactly match49bc7b736; latest paired playable49bc7b7 remains
+current, so no identical checkpoint rebuild. This closes only named helm reclaim;
+repeat departure, full baseline/endurance, all36 parent outcomes/ten phase gates,
+native Windows/GPU/devices/audio/human/final qualification remain OPEN/NOT_RUN.
+No adjacent case selected. Accepted source and closeout integrated/pushed main.
