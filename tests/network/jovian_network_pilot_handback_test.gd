@@ -188,9 +188,13 @@ func _client_handback() -> bool:
 			var source := _game.get_network_remote_body_intent_source()
 			var relationship := _game.network_session.get_moving_interior_latest_relationship(source.get_entity_id())
 			var pose: Transform3D = relationship.get("frame_local_transform", Transform3D.IDENTITY)
-			_action(clearance_action, _craft.to_local(_player.global_position).x > -1.0, 0.35)
-			return _handback_local_current(true) and _craft.to_local(_player.global_position).x <= -1.0 \
-				and pose.origin.x <= -1.0 \
+			var local_x: float = _craft.to_local(_player.global_position).x
+			var needs_clearance: bool = local_x > -0.80 or pose.origin.x > -0.80
+			# Drive both bodies past the chair; stop locally before the port jamb
+			# even if a delayed authoritative publication has not caught up.
+			_action(clearance_action, needs_clearance and local_x > -1.10, 0.35)
+			return _handback_local_current(true) and local_x <= -0.80 \
+				and pose.origin.x <= -0.80 \
 				and int(relationship.get("server_tick", -1)) > int(_handback_walk_start.published_tick),
 			_handback_remaining(walk_deadline),
 			"ordinary strafe clears solid pilot chair on original local Player and fresh host pose within the same15s walk budget"):
