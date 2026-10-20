@@ -1,11 +1,12 @@
 # Development roadmap
 
 **Status: playable development alpha; project completion is unproven.** Latest
-accepted checkpoint: **923d7b3**, making the initially focused and pressed
-Begin Shift text readable. It retains title overflow, saved Convoy guidance,
+accepted checkpoint: **34d4b9e**. Tractor mouse and right-stick vertical look now
+honor the existing on-foot inversion preference at startup and on live changes.
+It retains the Begin Shift readability/title overflow, saved Convoy guidance,
 planetary credits and earlier save protection.
-[Windows notes](builds/windows/MuddsShipyards-923d7b3-notes.txt) and
-[Linux notes](builds/linux/MuddsShipyards-923d7b3-linux-notes.txt) state checks and
+[Windows notes](builds/windows/MuddsShipyards-34d4b9e-notes.txt) and
+[Linux notes](builds/linux/MuddsShipyards-34d4b9e-linux-notes.txt) state checks and
 limits. Inline browser progress/timeout/retry remains accepted on20e90c9;
 paused LAN discovery on042c701. Beacon departure/traversal/once-only saved reward
 qualification on e06550e is retained in its recorded scope. Beacon home/dock/exit, Perimeter Hold,
@@ -38,114 +39,29 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 ## Execution now
 
-**WORLD-SAVE-EMBER-FIRST-RELAY / parents14,31: caller corrected; package acceptance still open.**
-The existing safe-yard/passive-progress contract remains fixed. The original
-archive923d7b3 attempt remains **FAIL312.812s**; no retroactive pass is claimed.
-Latest playable remains923d7b3.
+**TRACTOR-LOOK-INVERSION delivered in checkpoint34d4b9e**, parents8/29.
+The player can now use the saved/live on-foot inversion setting consistently
+while walking or driving the tractor, with both mouse and right stick. No new
+option, flight-inversion change or broader controls acceptance.
 
-| Small deliverable | Finish condition | Current result / next action |
+| Small deliverable | Decisive check | Actual result |
 | --- | --- | --- |
-| Resolve the saved-coordinate contract | Identify whether runtime progress changed or only JSON representation changed; name the owning component. | DONE: the arm's runtime boundary already contains the same numbers as resume. Only raw wire tokens differ after Godot parse/re-encode. JSON-number semantics apply; no datastore repair justified. |
-| Correct the production package checker | In tools/release/run_package_probes.sh, compare emitted runtime boundaries exactly while retaining actual-document, kill/byte, route/generation and payment guards. | DONE: exact retained pair accepted; all74 independent scalar mutations rejected, floats changed by one ULP; shell syntax passes; independent review GO. Caller capability only, no new gameplay/build. |
-| Qualify the complete package cut | Run the original full native-export Ember pilot scenario once on the exact archive ELF; require the parent and all runtime/payment/cleanup checks to pass. | NOT_RUN with corrected caller. Needs a separately frozen corrective attempt; do not treat data replay as cold recovery acceptance. |
+| Tractor pitch honors existing preference | Mouse/pad normal and inverted pitch, unchanged yaw/rate/clamps, existing full tractor suite | PASS162 assertions on isolated X11/dummy display, actual mouse capture asserted;32.100s. |
+| Initial/live settings reach actual consumers | Saved true at Main startup, live false/true on Player/tractor, independent flight setting and absent optional tractor | PASS11 assertions,30.488s; existing runtime-settings156 checks also PASS. |
+| Playable checkpoint and cleanup | Clean paired exports, three strict startups, actual package audit and published bytes, no owned process/scratch left | PASS1521-entry Windows/Linux PCK parity and archive/PE/source identity; all61 observed identities absent,11 published files hash-verified, unique data archived, owned checkout/profile/helpers removed. |
 
-### Corrective package qualification — parked at preparation
+Original import20.608s passes; first headless tractor attempt FAIL31.933s because
+headless cannot capture mouse. One explicitly selected display correction keeps
+all assertions and runtime code; full suite and all remaining gates pass. Original
+failure remains retained. Accepted stages214.463s, including failed stage246.396s;
+whole closure13.97min inside original06:30–07:15UTC/45min. No extra retry or cap
+increase. [Actual scope and cleanup](docs/history/ROADMAP_DELIVERIES.md#tractor-look-inversion--shipped-on-34d4b9e).
 
-One separately selected15min attempt (06:22–06:37UTC) used clean driver
-cc2b44ffd, corrected caller964794a03 and the same archive923d7b3. Preparation
-incorrectly expected export-result.json inside the archive. That assertion failed;
-the shell nevertheless launched the next checker command. It exited1 after
-4.636s because the required adjacent metadata was missing. **No game process
-started**; corrected full recovery qualification remains NOT_RUN. This was an
-execution/preparation error, not a new game defect.
-
-First failure stopped the attempt; no metadata repair/retry/cap increase.
-Independent cumulative review PARKS this chain: original runtime FAIL312.812s
-plus corrective preflight FAIL4.636s =317.447s measured attempts. The caller fix
-remains focused-checked, not full-package accepted. Original20min and separate
-15min allocations stay recorded; neither is reset by renaming the next task.
-[Actual failure and cleanup](docs/history/ROADMAP_DELIVERIES.md#ember-corrective-package-attempt--preparation-failure).
-
-All6 observed process identities are absent, owner terminal, four actual inputs
-hash-verified. Unique profile/helper/log data archived and verified; owned
-worktree/profile/helpers/extracted duplicate removed at1.77min within15min.
-Only results remain under
-`/srv/mudds-work/ember-first-relay-corrective-20261020/results/`.
-No automatic successor. The independent HAULER-CARGO-MANIFEST production seam
-remains blocked on the already-asked stock decision; no ready implementation
-inferred. Other world cuts/full journeys and Beacon30/60 choice remain open.
-
-### Independent help cell — accepted, no runtime repair needed
-
-ACCESS-HELP / parents12,29: actual Main on-foot help at1920×1200 and requested/
-effective0.75 passes all four pages on source5ac9d3ef0. Twenty published rows,
-viewport/safe containment, existing font floor/nonoverlap/centering, wrapping,
-page-boundary focus, return navigation and Close pass. Smallest glyph7.5px
-(existing floor6.75px). One check30.860s/exit0/one marker/zero diagnostics;
-import20.825s, combined51.685s. No new feature or build; rendered/human/device,
-other modes/cells and final-candidate acceptance remain open.
-
-The provisional06:27 start was conservatively brought forward to actual06:25
-preparation, with deadline06:40 (still15min). All6 observed identities absent;
-unique profile/helper/log data archived and verified (10profile entries), owned
-worktree/profile/helpers removed at3.46min. No additional run or automatic
-successor. [Accepted scope](docs/history/ROADMAP_DELIVERIES.md#on-foot-help--one-minimum-scale-1610-cell-accepted).
-
-### Selected production fix — tractor vertical-look inversion
-
-CONTROL-FINDINGS / parents8,29: existing Invert on-foot vertical look must also
-apply to the yard tractor's shared on-foot camera preference. Current GameFlow
-copies sensitivity only; tractor mouse/pad pitch always subtracts Y. Fix initial
-and live propagation plus both input routes. Do not change yaw/rate/clamps,
-boarding, driving, remap policy or add an option.
-
-**06:30–07:15UTC /45min** including implementation, review, tests, checkpoint and
-cleanup. One medium implementation agent owns scripts/vehicles/tow_tractor.gd,
-scripts/game/game_flow.gd, tests/tow_tractor_test.gd and one focused initial/live
-settings regression if the existing seam cannot cover it; root integrates,
-exports and publishes. Review the final patch before engines.
-
-From a clean committed candidate under the existing private profile/process guard:
-import180s; full tow_tractor_test.gd120s; focused initial/live settings test120s;
-existing runtime_settings_test.gd120s. Every invocation headless/Dummy. Then
-existing Windows/Linux safe exports180s each, Linux direct/archive strict
-startup120s each and Windows payload via Linux engine120s; require exit0 and
-one STARTUP_MENU_READY_OK. Existing package audit90s must verify exact source/
-PCK/PE/archive identity. No hosted CI or native Windows execution. First failed
-invocation stops; no automatic repair/retry/cap increase. Checkpoint in repo
-builds/windows and builds/linux only; notes retain hardware/device/listening/
-human/final gates NOT_RUN. Archive/hash-verify unique results/profile/helpers,
-verify owned PIDs absent and remove only the owned clean checkout/caches.
-
-Focused proof must show uninverted and inverted mouse/right-stick pitch,
-unchanged yaw/clamps and accepted initial+live existing setting on the actual
-tractor. Physical device/full ordinary route remain separate. Missing stock
-choice still blocks independent HAULER-CARGO-MANIFEST; do not substitute a parked
-route or broaden this fix into settings redesign.
-
-#### One corrective selection — actual captured mouse display
-
-Candidatea80349ca6 remains unaccepted. Original import PASS20.608s; full tractor
-FAIL31.933s on six new mouse assertions; settings/exports NOT_RUN. Godot4.7.1
-headless mouse_set_mode is a no-op and mouse_get_mode reports VISIBLE, so the
-existing capture guard rejects those events. Pad new assertions pass; no runtime
-regression inferred. Source reviewer independently confirms this boundary.
-
-Select one correction within the **same06:30–07:15/45min** budget; retain failed
-combined52.541s. Runtime patch unchanged. Test declares existing
-`test-matrix-display: input-only` and asserts real capture before mouse checks,
-so future full matrix routes it to a display. Run full unchanged scenario once
-under private Xvfb with `--display-driver x11 --rendering-driver dummy
---audio-driver Dummy` (no --headless), original120s. Require same full suite
-success plus all six original mouse checks; no skipping or capture-guard bypass.
-This environment supports display input, not GPU/performance/readback claims.
-
-Then original focused settings/runtime-settings checks and paired package gates
-at unchanged caps. Original import scope retained; only test display metadata/
-capture assertion changed, no new asset/class/import needed. Root owns private
-guard's one exact STOP-bound authorization; original failure remains immutable.
-First further failure stops and cumulative review parks chain, with no second
-repair or cap increase. Cleanup includes both attempts inside original45min.
+On-foot help's one1920×1200/.75 cell remains accepted on5ac9d3ef0; other cells,
+rendered/human/device/full ordinary journeys and final-candidate gates remain
+open. Ember corrective preflight remains parked; prior failure317.447s retained.
+No automatic successor selected. The known HAULER-CARGO-MANIFEST production seam
+still waits on the already-asked stock decision; no ready implementation inferred.
 
 ### Waiting decisions — not executable tasks
 
@@ -172,6 +88,7 @@ the existing history. These are accepted slices, not closed broad parents.
 | Outcome | Accepted scope / remaining boundary |
 | --- | --- |
 | On-foot help, one cell | [Source5ac9d3ef0](docs/history/ROADMAP_DELIVERIES.md#on-foot-help--one-minimum-scale-1610-cell-accepted): all four pages at1920×1200/.75 pass geometry/wrapping/focus. Other help modes/cells, rendered/human/device and final candidate remain open. |
+| Tractor look inversion | [Checkpoint34d4b9e](docs/history/ROADMAP_DELIVERIES.md#tractor-look-inversion--shipped-on-34d4b9e): saved/live existing on-foot inversion reaches tractor mouse/pad pitch; full tractor/settings/package checks pass. Physical devices, ordinary/full controls and final candidate remain open. |
 | Begin Shift focus / press | [Checkpoint923d7b3](docs/history/ROADMAP_DELIVERIES.md#begin-shift-focus-contrast--shipped-on-923d7b3): dark text clears measured4.5/7 contrast floors across existing palettes. Other readability, saved profiles, devices and final accessibility remain open. |
 | Title overflow | [Checkpoint19e7990](docs/history/ROADMAP_DELIVERIES.md#title-menu-overflow--startup-actions-kept-on-screen): all title actions fit the measured viewports. Focus contrast is separately delivered on923d7b3; other title states and full accessibility remain open. |
 | Guided / initial interceptor | [Checkpoint3d92b91 ordinary3/3](docs/history/ROADMAP_DELIVERIES.md#guided-checkpoint3d92b91--original-ordinary-route-accepted3of3), including home/shutdown/physical exit. Acceptance stays on those bytes; later checkpoints and final candidate are not covered. |
@@ -227,12 +144,13 @@ failures; no automatic probe, repair, retry or cap increase is selected.
 
 ## Latest playable result
 
-**Checkpoint923d7b3** makes Begin Shift text readable on focus and press. It
-retains the title overflow correction, earlier Convoy, credits and save fixes.
+**Checkpoint34d4b9e** applies on-foot vertical-look inversion to the tractor's
+mouse and right-stick camera, including saved startup and live Settings changes.
+It retains earlier title readability/overflow, Convoy, credits and save fixes.
 
-[Windows checkpoint ZIP](builds/windows/MuddsShipyards-923d7b3-checkpoint.zip),
-[build notes](builds/windows/MuddsShipyards-923d7b3-notes.txt),
-[actual validation and limits](docs/history/ROADMAP_DELIVERIES.md#begin-shift-focus-contrast--shipped-on-923d7b3).
+[Windows checkpoint ZIP](builds/windows/MuddsShipyards-34d4b9e-checkpoint.zip),
+[build notes](builds/windows/MuddsShipyards-34d4b9e-notes.txt),
+[actual validation and limits](docs/history/ROADMAP_DELIVERIES.md#tractor-look-inversion--shipped-on-34d4b9e).
 Native Windows/GPU/device/audio/human review and final release remain open.
 Guided3/3 on3d92b91 is not transferred to this package.
 

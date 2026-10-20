@@ -15721,3 +15721,52 @@ check,10profile archive entries verified, helper copies hash-verified; owned
 clean integrated/pushed worktree/profile/helpers removed. Only unique results
 remain at /srv/mudds-work/help-onfoot-cell-20261020/results/. No production
 repair was justified; no new validator/test family or automatic successor.
+
+
+## Tractor look inversion — shipped on 34d4b9e
+
+2026-10-20; TRACTOR-LOOK-INVERSION, parents8/29. Source
+34d4b9e097684d5f4044f98f0bd18d9f322fade2 integrated/pushed in fcfc1f25e.
+Existing Invert on-foot vertical look now also governs the tractor's mouse and
+right-stick pitch. GameFlow forwards the saved initial and live preference;
+defaultfalse/yaw/rate/clamps/ownership and independent flight inversion retained.
+No new setting or remap/boarding/physics redesign. Independent code review GO.
+
+Original45min06:30–07:15UTC retained. Importa80349ca6 PASS20.607823s; first full
+tractor headless FAIL31.932909s on all six new mouse assertions, pad checks pass.
+Exact local Godot4.7.1 source confirms headless capture is a no-op/VISIBLE, so
+existing mouse guard rejects the test events. No game defect inferred. One
+separate selection adds existing input-only matrix declaration and capture
+assertion; runtime unchanged. Corrective full tractor passes162 checks32.100100s
+on private Xvfb/explicitx11/dummy renderer/Dummy audio. All six original mouse
+checks remain active, both pad directions/rates/yaw/clamps retained; no skip or
+capture-guard bypass. Original STOP hash-verified/archived and retired only after
+that exact corrective pass. Root initially guessed the wrong literal capture
+PASS label in postprocessing; actual log inspected, no suite rerun.
+
+Actual Main persisted/live settings PASS11 assertions30.487749s; existing runtime
+settings PASS156 checks1.027669s. Windows/Linux clean exports PASS26.890369/
+25.766899s; Linux direct/archive strict startups PASS22.205727/23.686922s;
+Windows embedded payload through Linux engine PASS26.183683s. All three require
+exit0 and exactly one STARTUP_MENU_READY_OK. Audit PASS5.505897s: actual1521-entry
+PCK parity, compiled tractor/GameFlow presence, tests/tools absent, stock PE.text,
+exact five-file Linux archive bytes/modes/epoch/desktop metadata and source.
+All10 accepted stages214.462836s, plus original failed31.932909s =246.395745s;
+zero diagnostics in accepted stages. Independent final result review GO.
+
+Published repo builds/windows EXE+ZIP+notes and builds/linux ELF/archive/metadata/
+startup records+notes (11files), copied bytes hash-verified. EXE184656384bytes
+SHA2568e79f06c321eea1cf47e1fca8d514c485914c5f43657a6c4116010b8a644df28;
+ELF148898096bytes SHA256035de3e4bb56d9bd26bdee403eda4c0cf0e5a4075b36dcc4436f02d73567eaea;
+tar95311773bytes SHA25665839b0e628e641c21ff51c6c240d6dcad8a708663266050638fad57724eb5a5.
+Native Windows/GPU/performance/physical devices/listening/human/full release,
+full unfiltered matrix and final Guided NOT_RUN/open;3d92b91 Guided3/3 retained
+only on those bytes. Broad parents/phase gates remain open.
+
+Cleanup original helper assumed every owner exit0; amended only to accept the
+known retained original tractor exit1, still requiring all owners FINISHED.
+All61 observed identities absent;11published files hash-verified,25profile
+archive entries verified, helper copies hash-verified. Clean integrated/pushed
+owned worktree/import cache, profiles/helpers and duplicate exports removed at
+13.97min inside original45min. Only unique results remain at
+/srv/mudds-work/tractor-look-inversion-20261020/results/. No automatic successor.
