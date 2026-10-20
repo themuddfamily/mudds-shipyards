@@ -4,6 +4,49 @@ Moved from ROADMAP.md on 2026-10-17. These are source-specific historical
 results, not the active queue or proof of current full-project acceptance.
 Return to the [working roadmap](../../ROADMAP.md).
 
+## Corrupt-save preservation — shipped on 9326614
+
+Production source `9326614e3baaa12bbb1173fbadb8fcd8d2ae44c8` integrated by
+main merge `2b16e29b1`. RECOVERY-FIX[corrupt primary preservation] / SAVE-CORRUPT,
+parents31/32: commit after backup fallback, interrupted-transaction promotion
+and explicit backup restore now require actual current corrupt-primary bytes
+preserved and byte-verified in `.recovery` before deletion. Identical archives
+are reused; different archives/directories and read/write/verify failures refuse
+replacement, retaining damaged primary and verified backup. Stale load receipts
+cannot license deleting changed bytes. Zero-byte primary ordinary repair works;
+read-only load can be followed by explicit preservation/repair. Existing restore
+`.tmp` behavior remains, alongside durable recovery. Single-writer portable
+flush/verification scope only; no new schema/archive/validator family.
+
+Independent high persistence review; store124, settings repair binding11 and
+real-file crash129 assertions pass. Actual child1645668 proves exact collision
+names/bytes/Unix modes preserved and matching repair succeeds; parent reopens
+repaired generation2/credits999 with archive+backup retained. Existing future-
+schema cases and two fresh children remain passing. Both clean stock-template
+exports pass; Linux binary/archive and Windows embedded payload on Linux engine
+exit0 with exactly one STARTUP_MENU_READY_OK. Actual1,521 PCK entries match,
+Windows PE code matches stock template, archive bytes/modes/source epoch pass.
+Windows payload probing is not native Windows execution.
+
+Original1092 candidate importPASS19.646s then new unit declaration parseFAIL
+0.906s, no runtime assertions. Stopped/cleaned/pushed unmerged candidate. Separate
+selection changed exactly one test declaration to explicit PackedByteArray;
+production/assertions unchanged. Fresh cache required import20.782s; corrected
+10 stages allPASS. Cumulative12 stages/179.062s includes original failure, no
+budget reset. Raw root-user notices retained; no matched production-error
+diagnostics in accepted stages. [Player changes and limits](../../builds/windows/MuddsShipyards-9326614-notes.txt).
+
+Broad recovery, active-run policies, installed/full final integrated checks,
+native Windows/GPU/device/audio/human gates remain OPEN/NOT_RUN. No broad parent
+or phase closes. Raw results and original failure:
+`/srv/mudds-work/corrupt-save-retention-20261020/` (results retained; owned scratch
+cleanup recorded there). Closure at733.644s/12.2min from original contract,
+within original60min split. All56 observed descendant identities across original
+and corrected stages absent; stage owners terminal. Public11 files hash-verified,
+Windows ZIP read back, source pushed/integrated; owned checkouts/helpers/profiles
+removed. Retained profile archive6,542,649 bytes,62 byte/mode-verified files and10
+verified template symlinks; original failure/results unchanged.
+
 ## Linux interrupted-update recovery — shipped on 4141d94dd
 
 Source repair `d3259aa21` ships from clean

@@ -1,12 +1,12 @@
 # Development roadmap
 
 **Status: playable development alpha; project completion is unproven.** Latest
-accepted checkpoint: **20e90c9**, showing connection progress, timeout guidance
-and permitted retry inline in the title/pause server browser.
-[Windows notes](builds/windows/MuddsShipyards-20e90c9-notes.txt) and
-[Linux notes](builds/linux/MuddsShipyards-20e90c9-linux-notes.txt) state checks and
-limits. Paused LAN discovery remains accepted on042c701. Beacon departure/traversal/once-only saved reward qualification on
-e06550e is retained in its recorded scope. Beacon home/dock/exit, Perimeter Hold,
+accepted checkpoint: **9326614**, preserving damaged save bytes during repair.
+[Windows notes](builds/windows/MuddsShipyards-9326614-notes.txt) and
+[Linux notes](builds/linux/MuddsShipyards-9326614-linux-notes.txt) state checks and
+limits. Inline browser progress/timeout/retry remains accepted on20e90c9;
+paused LAN discovery on042c701. Beacon departure/traversal/once-only saved reward
+qualification on e06550e is retained in its recorded scope. Beacon home/dock/exit, Perimeter Hold,
 client rejection and real listening remain unfinished. All36 original parents
 and ten phase gates remain open.
 
@@ -179,92 +179,36 @@ Cumulative check time26.874s includes import and initial failure; exact tested
 file integrated. No production save change or new playable checkpoint; other
 SAVE-UNSUPPORTED formats/native/installed and wider recovery gates remain open.
 
-## Selected production repair — retain damaged save bytes
+## Save-preservation repair delivered
 
-**RECOVERY-FIX[corrupt primary preservation] / SAVE-CORRUPT**, parents31/32.
-Source shows explicit commit after backup load and interrupted-transaction
-promotion can remove an invalid primary even when `.recovery` preservation
-failed. Explicit backup restore retains bytes only in disposable `.tmp`; apply
-the same durable fence there while retaining its existing temporary copy. This is a production data-retention defect, independent of the pending
-active-run policy choices and parked Windows template compilation.
+**RECOVERY-FIX[corrupt primary preservation] / SAVE-CORRUPT**, parents31/32:
+accepted on source/checkpoint **9326614**. Repair now verifies a retained copy of
+the current damaged primary before replacement across commit, interrupted-save
+promotion and explicit backup restoration. A different occupied recovery copy
+blocks replacement; identical recovery bytes permit repair.
 
-Result: refuse destructive repair unless the current damaged primary has an
-actually byte-verified recovery copy. Reuse an identical existing `.recovery`;
-never overwrite a different archive or trust a stale load-time receipt. Preserve
-primary and verified backup on collision/read/write/verification failure, retain
-unsupported-schema guards, and keep ordinary successful repair working. Existing
-single-writer scope remains; no new schema, archive family or validator.
-
-Ownership: one high persistence implementer owns
-`scripts/persistence/user_data_store.gd`, `tests/user_data_store_test.gd` and
-`tests/user_data_store_crash_points_test.gd` in isolated branch
-`fix/corrupt-save-retention-20261020`; independent high reviewer reads only.
-Root owns integration, this card, packaging and cleanup. No recursive agents.
-
-Acceptance: existing unit suite extends collision/identical/stale-current-bytes
-and read/write/verify failures; existing real-file crash suite proves refusal
-with exact protected files retained across a fresh headless process, then a
-matching archive permits explicit repair. Existing settings repair binding and
-crash contracts remain intact. Before engines, review and commit exact candidate.
-Engine `/tmp/mudds-tools/godot-4.7.1/godot`, private XDG/TMPDIR, HOME unchanged,
-source/index/engine/process guards; every invocation headless/Dummy. One fresh
-`--editor --import`180s, then `--script res://tests/user_data_store_test.gd`60s,
-`--script res://tests/runtime_settings_repair_binding_test.gd`60s and
-`--script res://tests/user_data_store_crash_points_test.gd`60s, each exit0,
-its single suite success marker and no diagnostic errors. No hosted CI.
-Estimate30–45min implementation/review plus5–10min checks; split before60min.
-First unexpected failure STOP, no automatic repair/retry or cap increase.
-
-If accepted, integrate/commit/push and use existing clean-commit stock-template
-Windows/Linux safe export workflows for a fresh checkpoint, strict silent
-`--startup-check` package checks exit0 plus one STARTUP_MENU_READY_OK. Freeze
-exact package commands/caps before execution. Native Windows/GPU/device/human
-qualification stays NOT_RUN. This repairs this defect only; broad recovery and
-all parent/phase requirements remain open. Preserve results, clean owned scratch.
-
-Attempt result2026-10-20: candidate1092a00eb pushed on
-`fix/corrupt-save-retention-20261020`, unmerged/withheld. Independent source
-review GO after correcting an empty-primary regression before engines. Fresh
-importPASS19.646s; store suiteFAIL0.906s at a new test declaration,
-`tests/user_data_store_test.gd:306`: cannot infer `damaged` from a Variant loop
-value. No runtime assertions executed. Binding/crash suites and all checkpoint
-exports/startups/audit NOT_RUN. Original failure retained; no repair/retry or cap
-increase selected. Production preservation is not accepted and no new build is
-claimed. Four observed descendant identities and both stage owners absent;
-owned worktree/helpers/profiles removed after pushed source and byte/mode-verified
-profile archive retained in task results. Next action is a separately selected
-exact test typing correction, retaining this failure and original cumulative
-budget; do not treat the source review as runtime proof.
-
-Separately selected correction2026-10-20: the parse diagnostic identifies a
-Variant loop value preventing inference for the new synthetic `damaged` bytes.
-Root changes exactly that declaration to explicit `PackedByteArray`; production
-logic and all assertions stay identical. Independent reviewer verifies the exact
-causal change before engines. Recreate the removed owned worktree/cache; one
-fresh import180s is necessary, then store/binding/crash suites60s each. Keep
-original failed attempt and cumulative60min split budget; estimate5–10min repair/
-review/checks plus5–10min packaging. No further correction selected: first new
-failure STOP. Successful source checks authorize the existing clean-commit stock
-Windows/Linux export commands180s each, Linux binary/archive strict startup120s
-each, Windows embedded-payload headless/Dummy startup120s (not native Windows),
-and existing package parity/PE/archive audit90s. Exact pin/commands frozen in
-owned correction results before execution; no hosted CI or parked RPC retries.
+Store124, binding11 and real-file crash129 assertions pass, including a fresh
+process preserving the conflicting fixture and repairing the matching fixture.
+Paired exports, three strict menu-ready startup checks and package parity pass.
+[Changes, original failed test declaration, actual checks and limits](docs/history/ROADMAP_DELIVERIES.md#corrupt-save-preservation--shipped-on-9326614).
+Other corrupt/unsupported formats, installed recovery cuts, active-run policy
+choices and all broad parent/phase gates remain open.
 
 ## Latest playable result
 
-**Inline browser recovery delivered and packaged on 20e90c9.** The title/pause
-browser shows current connection progress and timeout guidance and offers
-permitted Retry. Cancel/Disconnect priority and newer validation are preserved.
-Five focused suites/182 assertions, paired exports, three strict silent startups
-and actual package parity pass. The full ordinary browser journey is unfinished.
+**Damaged-save preservation delivered and packaged on9326614.** Conflicting
+recovery bytes or failed preservation block destructive replacement; matching
+verified recovery bytes allow repair. Existing browser inline progress, timeout
+guidance and Retry remain included. Focused persistence suites, paired clean
+exports, strict silent startup checks and actual package parity pass.
 
-[Windows ZIP](builds/windows/MuddsShipyards-20e90c9-checkpoint.zip),
-[build notes](builds/windows/MuddsShipyards-20e90c9-notes.txt),
-[full checks, original failures and cleanup](docs/history/ROADMAP_DELIVERIES.md#browser-inline-session-recovery--delivered).
-Earlier accepted results, including navigator feedback/crew epochs, paused LAN,
-join deadlines, Beacon traversal/reward and station service motion, retain only
-their recorded scopes in the [delivery history](docs/history/ROADMAP_DELIVERIES.md).
-None closes a complete additional activity, craft or original phase by itself.
+[Windows ZIP](builds/windows/MuddsShipyards-9326614-checkpoint.zip),
+[build notes](builds/windows/MuddsShipyards-9326614-notes.txt),
+[actual validation and scope](docs/history/ROADMAP_DELIVERIES.md#corrupt-save-preservation--shipped-on-9326614).
+The browser's full ordinary journey and native callback route remain unfinished.
+Earlier accepted gameplay outcomes retain their recorded scopes in the
+[delivery history](docs/history/ROADMAP_DELIVERIES.md). No whole activity, craft,
+roadmap parent or phase closes from this save repair.
 
 ## Parked failures and dependent work
 
