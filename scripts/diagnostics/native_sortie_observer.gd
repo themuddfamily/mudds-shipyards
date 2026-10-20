@@ -47,6 +47,160 @@ var _hulk_home := false
 var _fleet_initial := {}
 var _crash_surface := {}
 var _fleet_details := {}
+var _popup_trace_enabled := false
+var _popup_trace_root_id := 0
+var _popup_trace_sequence := 0
+var _popup_trace_known: Dictionary = {}
+var _popup_trace_last_bindings := ""
+
+
+func _enter_tree() -> void:
+	_popup_trace_enabled = "--native-sortie-observer=observation-walk" in OS.get_cmdline_args()
+	if not _popup_trace_enabled:
+		return
+	var tree := get_tree()
+	_popup_trace_root_id = tree.root.get_instance_id()
+	# Never observe root.focus_entered/tree_exited by connecting to them: the
+	# connection lists being diagnosed must retain their original native owners.
+	tree.node_added.connect(_on_popup_trace_node_added)
+	tree.root.tree_exiting.connect(_on_popup_trace_owner_event.bind(
+		"root_tree_exiting", _popup_trace_root_id, str(tree.root.get_path())))
+	_popup_trace_emit("trace_started", {})
+	_popup_trace_census(tree.root)
+
+
+func _exit_tree() -> void:
+	if _popup_trace_enabled:
+		_popup_trace_emit("observer_tree_exiting", {})
+
+
+func _popup_trace_census(node: Node) -> void:
+	_on_popup_trace_node_added(node)
+	for child: Node in node.get_children(true):
+		_popup_trace_census(child)
+
+
+func _on_popup_trace_node_added(node: Node) -> void:
+	if node is Popup:
+		var popup := node as Popup
+		var popup_id := node.get_instance_id()
+		if _popup_trace_known.has(popup_id):
+			return
+		var path := str(node.get_path())
+		_popup_trace_known[popup_id] = {"id": popup_id, "class": node.get_class(), "path": path}
+		# Bind scalars only. Neither this registry nor these callbacks retain a
+		# Popup, Callable, Theme, or another production Object after the sample.
+		popup.visibility_changed.connect(_on_popup_trace_event.bind("visibility_changed", popup_id, path))
+		popup.tree_exiting.connect(_on_popup_trace_event.bind("popup_tree_exiting", popup_id, path))
+		popup.tree_exited.connect(_on_popup_trace_event.bind("popup_tree_exited", popup_id, path))
+		_on_popup_trace_event("popup_observed", popup_id, path)
+	elif node is GameFlow:
+		node.tree_exiting.connect(_on_popup_trace_owner_event.bind(
+			"main_tree_exiting", node.get_instance_id(), str(node.get_path())))
+		node.tree_exited.connect(_on_popup_trace_owner_event.bind(
+			"main_tree_exited", node.get_instance_id(), str(node.get_path())))
+
+
+func _on_popup_trace_owner_event(event: String, owner_id: int, path: String) -> void:
+	_popup_trace_emit(event, {"owner_id": owner_id, "last_path": path})
+
+
+func _on_popup_trace_event(event: String, popup_id: int, path: String) -> void:
+	_popup_trace_emit(event, {"popup": _popup_trace_popup(popup_id, path)})
+
+
+func _popup_trace_node_identity(object_id: int) -> Dictionary:
+	var object := instance_from_id(object_id) if object_id != 0 else null
+	var result := {"id": object_id, "valid": is_instance_valid(object)}
+	if not is_instance_valid(object):
+		return result
+	result["class"] = object.get_class()
+	if object is Node:
+		var node := object as Node
+		result["name"] = str(node.name)
+		result["inside_tree"] = node.is_inside_tree()
+		result["queued_for_deletion"] = node.is_queued_for_deletion()
+		result["path"] = str(node.get_path()) if node.is_inside_tree() else ""
+	return result
+
+
+func _popup_trace_connection(connection: Dictionary) -> Dictionary:
+	var callback: Callable = connection.get("callable", Callable())
+	var source: Signal = connection.get("signal", Signal())
+	return {"source_id": source.get_object_id(), "signal": str(source.get_name()),
+		"target": _popup_trace_node_identity(callback.get_object_id()),
+		"method": str(callback.get_method()), "hash": callback.hash(),
+		"custom": callback.is_custom(), "valid": callback.is_valid(),
+		"bound_argument_count": callback.get_bound_arguments_count(),
+		"unbound_argument_count": callback.get_unbound_arguments_count(),
+		"flags": int(connection.get("flags", 0))}
+
+
+func _popup_trace_popup(popup_id: int, path: String) -> Dictionary:
+	var result := _popup_trace_node_identity(popup_id)
+	result["last_path"] = path
+	var popup := instance_from_id(popup_id) as Popup
+	if not is_instance_valid(popup):
+		return result
+	var parent := popup.get_parent()
+	result["parent_id"] = parent.get_instance_id() if is_instance_valid(parent) else 0
+	result["visible"] = popup.visible
+	result["embedded"] = popup.is_embedded()
+	result["theme_type_variation"] = str(popup.theme_type_variation)
+	result["theme_id"] = popup.theme.get_instance_id() if popup.theme != null else 0
+	result["theme_path"] = popup.theme.resource_path if popup.theme != null else ""
+	var windows: Array = []
+	var ancestor := parent
+	while is_instance_valid(ancestor):
+		if ancestor is Window:
+			var identity := _popup_trace_node_identity(ancestor.get_instance_id())
+			identity["visible"] = (ancestor as Window).visible
+			windows.append(identity)
+		ancestor = ancestor.get_parent()
+	result["ancestor_windows"] = windows
+	var incoming: Array = []
+	for connection: Dictionary in popup.get_incoming_connections():
+		var source: Signal = connection.get("signal", Signal())
+		if source.get_object_id() == _popup_trace_root_id \
+				and source.get_name() in [&"focus_entered", &"tree_exited"]:
+			incoming.append(_popup_trace_connection(connection))
+	result["root_incoming_connections"] = incoming
+	return result
+
+
+func _popup_trace_root_bindings() -> Dictionary:
+	var root := instance_from_id(_popup_trace_root_id) as Window
+	var result := {"root": _popup_trace_node_identity(_popup_trace_root_id),
+		"focus_entered": [], "tree_exited": [], "target_popups": []}
+	if not is_instance_valid(root):
+		return result
+	var target_ids: Array[int] = []
+	for signal_name: StringName in [&"focus_entered", &"tree_exited"]:
+		for connection: Dictionary in root.get_signal_connection_list(signal_name):
+			(result[String(signal_name)] as Array).append(_popup_trace_connection(connection))
+			var callback: Callable = connection.get("callable", Callable())
+			var target_id := callback.get_object_id()
+			if target_id not in target_ids and instance_from_id(target_id) is Popup:
+				target_ids.append(target_id)
+	for target_id: int in target_ids:
+		var known: Dictionary = _popup_trace_known.get(target_id, {})
+		(result["target_popups"] as Array).append(_popup_trace_popup(target_id, str(known.get("path", ""))))
+	return result
+
+
+func _popup_trace_emit(event: String, details: Dictionary, changed_only: bool = false) -> void:
+	var bindings := _popup_trace_root_bindings()
+	var fingerprint := JSON.stringify(bindings)
+	var changed := fingerprint != _popup_trace_last_bindings
+	if changed_only and not changed:
+		return
+	_popup_trace_last_bindings = fingerprint
+	_popup_trace_sequence += 1
+	var record := {"event": event, "event_sequence": _popup_trace_sequence,
+		"observation_sequence": _observation_sequence, "physics_frame": Engine.get_physics_frames(),
+		"process_frame": Engine.get_process_frames(), "pid": OS.get_process_id(),
+		"root_bindings_changed": changed, "root_bindings": bindings, "details": details}
+	print("OBSERVATION_POPUP_LIFETIME: " + JSON.stringify(record))
 
 
 func on_startup_completed(main: Node) -> void:
@@ -276,6 +430,7 @@ func _physics_process(delta: float) -> void:
 		return
 	if _observation_walk:
 		_observation_sequence += 1
+		_popup_trace_emit("root_bindings_changed", {}, true)
 		print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(_observation_walk_observation()))
 		return
 	if _beacon_entry:
