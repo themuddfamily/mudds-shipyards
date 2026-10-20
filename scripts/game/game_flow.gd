@@ -14780,9 +14780,15 @@ func _release_network_client_boarding_presentation(
 		if _boarding_area == area:
 			_boarding_area = null
 		return
+	# The host's accepted operation sample selects the physical route. An
+	# observer's local flight flags are not authoritative landed/engine state.
+	var sample := _network_craft_pose_stream.latest_sample(craft.get_ship_id())
+	var operation := sample.get("operation_presentation", {}) as Dictionary
 	var physical_passenger_exit := craft is JovianLightFreighter \
-		and bool(craft.get_telemetry().get("landed", false)) \
-		and StringName(craft.get_telemetry().get("engine_state", &"")) == HeroShip.ENGINE_OFFLINE
+		and not sample.is_empty() and not bool(sample.get("destroyed", false)) \
+		and bool(operation.get("landed", false)) and bool(operation.get("docked", false)) \
+		and not bool(operation.get("landing", true)) \
+		and StringName(operation.get("engine", &"")) == HeroShip.ENGINE_OFFLINE
 	_release_cabin_occupancy()
 	if physical_passenger_exit:
 		_disembark_ship_to_exterior(craft, true)
