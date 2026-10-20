@@ -2662,6 +2662,7 @@ class StationDefenseSafetyTests(unittest.TestCase):
                 'main_id': 1, 'world_id': 2, 'player_id': 3, 'ship_id': 6,
                 'paused': False, 'actors_current': True, 'shot_events': [],
                 'phase': 'INTRO', 'player': [-8.5, .18, 11], 'position': [-43, 1.15, 15.5],
+                'boarding': [-47.5, .06, 18.9],
                 'native_interact': False, 'seated': False, 'transition_busy': False,
                 'grounded': True, 'supported': True, 'control_enabled': True,
                 'default_sampler': True, 'tuning_unchanged': True, 'tuning': {'mouse': .0022},
