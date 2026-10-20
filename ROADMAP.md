@@ -46,22 +46,26 @@ review supports this candidate; it is not a verified fix.
 | Child | State | Deliverable and completion check |
 | --- | --- | --- |
 | RPC-CACHE-BUILD-RECIPE | DONE; integrated, feature branch pushed | Isolated RPC mode, two-platform planning/staging and pinned two-file native patch. All24 existing/extended inert tool tests pass under60s cap. Actual engine compilation/runtime NOT_RUN; no new playable checkpoint. |
-| RPC-CACHE-TEMPLATES | Linux compile PASS; Windows compile running | Linux built/staged SHA4fe7e2cf,2934.911s/48.9min, silent version probe and guards pass;8,651 observed identities absent. Windows retains original2 jobs/3600s cap. Matching pair/collection and runtime effectiveness remain unverified. |
+| RPC-CACHE-TEMPLATES | STOP: Linux PASS; Windows compile timed out | Linux SHA4fe7e2cf,2934.911s; Windows hit original3600s compiler cap, stage exit1/3611.847s, no diagnostics or accepted PE. All14,427 observed identities absent. Matching pair/collection and runtime acceptance unavailable; no retry selected. |
 | BROWSER-FIXTURE-JSON | DONE; source fixture integrated | Actual JSON numbers normalize safely;62 assertions and real raw0→admitting1→raw2→stop3 handoff pass with original3s limits. No packaged-client acceptance. |
 | NET-TIMEOUT-RELEASE-ACCEPT | GATED on matching templates | Relevant focused checks, clean paired exports/strict startups/package checks, then original full ordinary route with unchanged criteria/limits. The fixture handoff prerequisite now passes; native runtime effectiveness remains unverified. No execution selected yet. |
 
-**Current action:** compile the matching templates under the
-[exact frozen commands, sidecar handoff and stop conditions](docs/ROADMAP_BACKLOG.md#release-rpc-cache-correction--implementation-cards).
+**Current action:** record the stopped template attempt and preserve reusable
+inputs. No compiler retry, collection, game export or runtime route is selected.
+A bounded review will assess whether retained incremental objects permit one
+separately frozen finish within the original cumulative90min stop; no budget reset
+or automatic cap increase. [Original commands and result](docs/ROADMAP_BACKLOG.md#release-rpc-cache-correction--implementation-cards).
 Preparation took6.8min versus15–30min estimate; required SDK files/source pins
 verified and preparation actors gone. No game capture or public checkpoint selected.
 BROWSER-FIXTURE-JSON is complete: actual JSON sequence numbers normalize safely,
 62 assertions pass and the unchanged driver completed raw→admitting→raw→stop.
 Three stages took51.654s; all ten observed process identities are absent. Only the
 tested fixture file is integrated; no ordinary-route retry or gameplay checkpoint.
-The two compiler jobs remain the executable queue.
+Both compiler owners are terminal; no executable card is currently selected.
 The later acceptance candidatee5b9dd25f is prepared and branch-pushed: original
 browser-support files plus accepted fixture, with passive capture excluded. It is
-unmerged/unqualified; no check/export/route was run during assembly.
+unmerged/unqualified; no check/export/route was run during assembly. Its clean
+worktree is removed; pushed source and reviewed helper drafts remain retained.
 Recipe commit→owned cleanup:4.8min against45–60min implementation/review estimate;
 unit stage0.514s. [Result and usage](docs/history/ROADMAP_DELIVERIES.md#rpc-cache-release-template-recipe--implemented).
 

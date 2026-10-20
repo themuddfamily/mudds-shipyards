@@ -14549,3 +14549,35 @@ Raw build/guard/recipe outputs remain under
 its original2jobs/3600s cap. Matching-template collection, game exports and actual
 runtime effectiveness NOT_RUN. This is a private engine template, not a gameplay
 checkpoint; no native hardware/Windows/human gate closes.
+
+
+## Matching RPC-cache templates — stopped at Windows compilation budget
+
+2026-10-20. Linux result above remains accepted as a private compiled template.
+Windows SCons hit its original3600s cap; guarded stage exit1/3611.846848s,
+no compiler diagnostics, final output still rendering-server compilation, no
+accepted PE/build receipt. Pair monitor exited1/STOP. No collection, package
+export/startup, full browser runtime retry or public checkpoint ran. The native
+candidate remains unverified. This is an incomplete timed build, not evidence of
+a source/compiler defect; original25–60min compilation estimate was insufficient
+for this selected Windows attempt at2jobs. No automatic retry/cap increase.
+
+Both owners terminal and all14,427 observed owner/child identities absent; no
+live cwd under owned template root. After pushed-source verification and clean/
+ignored-file checks, removed both duplicate template and dependent-candidate
+worktrees. Preserved/hash-verified all unique helpers, raw logs, freezes and
+command configs under their results folders. Template root retains only cache/
+and results/; retained exact Linux binary/template stillSHA4fe7e2cfc8092ebfd8339b7ca9d227b6ed5dba177f86b9c7e57913cfe89e5607.
+Pinned sources/SDKs/objects retained for possible reuse; incomplete Windows cache
+is not an accepted template. Acceptance root retains only results/; candidate
+e5b9dd25f branch stays pushed/unmerged. Existing source readiness remains accepted;
+its eight prepared package/route checks have not executed. Review corrected the
+draft wrapper to read actual JSON completion/cleanup/normal-exit fields; no driver
+or cap changes. Fresh execution requires a separately frozen valid template set.
+
+A bounded priority review is pending on whether retained incremental compilation
+can justify one separately selected finish within the original cumulative90min
+stop. No execution selected and no failed-stage/budget reset. Independent HUD-RACE
+source check found no concrete discrepancy; no edits/tests or closure claimed.
+Original full browser remains FAIL/PARKED/unaccepted with its20-stage398.296s
+history, all broad/native/human/final gates open. Goal remains active.

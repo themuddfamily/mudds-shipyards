@@ -1572,6 +1572,25 @@ All8,651 observed owner/child identities are absent. Windows compile remains liv
 under its unchanged2jobs/3600s cap; no collection, game export or runtime route
 has run. Keep this partial result separate from matching-pair acceptance.
 
+Windows result: STOP at original3600s compiler timeout, stage exit1 after
+3611.846848s/60.2min, no compiler diagnostics and no accepted PE. This is an
+incomplete build, not a verified source/patch defect. Both owners terminal;
+all14,427 observed owner/child identities absent, no live process cwd under the
+owned template root. Collection, paired game exports and runtime route NOT_RUN.
+No automatic retry/cap increase. A separate bounded priority review may assess
+retained incremental objects against the original cumulative90min stop; it does
+not select execution or reset the failed attempt/budget.
+
+After source push and clean/ignored-file checks, duplicate template and dependent
+acceptance worktrees were removed. Unique helpers were copied/hash-verified into
+their results folders; profile logs and original freezes retained. Template root
+now has only cache/ and results/: exact Linux template preserved/hash-verified,
+pinned SDK/source/object cache retained, incomplete Windows objects kept separate.
+Dependent acceptance root now has only results/; source candidatee5b9dd25f stays
+pushed/unmerged, reviewed drafts preserved, no engines/tests/exports attempted.
+The bounded HUD-RACE source check found no concrete discrepancy; no edits/tests
+or acceptance claim followed. Other original scope and external gates stay open.
+
 **BROWSER-FIXTURE-JSON — DONE2026-10-20; source fixture accepted.**
 Parent25's executable release-test handoff prerequisite; Linux/Windows compiler
 jobs remain separate and keep their existing caps. Use a clean derivative of
@@ -1640,7 +1659,8 @@ Python driver and driver test; all five blobs verified. Accepted fixture blob
 lines, other source edits, engine/tests/export/runtime or main merge. Independent
 source comparison found no adapter/GameFlow/HUD incompatibility. Source preparation
 freeze/result retained in `/srv/mudds-work/net-timeout-release-accept-20261020/results/`;
-worktree retained for the gated next check selection. This preparation does not
+worktree subsequently removed after the stopped template attempt; source and
+reviewed helpers retained for any later separately selected check. This preparation does not
 close the route. Independent production alternative remains navigator refusal
 feedback, WAITING on the previously asked scope choice; no repeated question.
 
