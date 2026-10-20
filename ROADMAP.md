@@ -77,6 +77,22 @@ This clears the branch queue; it does not close their unfinished gameplay,
 qualification or release requirements. No unaccepted source was merged to reduce
 a branch count. Eight previously protected detached worktrees remain unchanged.
 
+**Selected: PLAY-DEFENSE — Arrow wing-clearance correction /13.**
+One existing unfinished case,20:58–21:58UTC/60min, prior627.820s retained.
+Source/raw capsule contact matches the parked wing boundary; direct boarding
+approach crosses that box. Append the accepted Arrow z22 clearance lane and
+actual boarding-x projection after every original waypoint. Retain3.1m admission,
+full real four-kill/payment/home/physicalReset/nextDeploy/UIexit contract and
+whole34s/CAP300/outer360. Geometry is strong inference, not a captured collider ID.
+Timing is tight, no hard impossibility proved; no wider clock or shorter journey.
+One HIGH implementer/independent HIGH review; root integration/checks/cleanup.
+Restore exact existing withheldb81 caller/observer capability; only Python steering
+changes from that candidate. Verify unchanged runtime/export inputs and exact
+retained b81 package hashes, then run affected driver checks and ONE full route.
+Earlier package/startup evidence stays prior evidence; no identical rebuild.
+First failure stops; no automatic retry/new branch/worktree/hostedCI. Close with
+accepted merge/push or precise preserved failure, then owned cleanup.
+
 **PLAY-DEFENSE remains OPEN/PARKED — candidate `b81be8a41` withheld.**
 The source-supported interior detour clears the original mast-lamp stall and all
 four explicit Arrow waypoints. The full unchanged route then times out during
