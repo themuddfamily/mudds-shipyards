@@ -697,6 +697,23 @@ func get_floor_support_contacts(exclude_bodies: Array[RID] = []) -> Array[Dictio
 				and normal.dot(Vector3.UP) >= cos(floor_max_angle):
 			contacts.append({"collider": collider, "normal": normal,
 				"position": result.get_collision_point(index)})
+	if contacts.is_empty():
+		# A descending capsule can first meet a tread edge with a steep normal.
+		# Its centre still has an independent walkable floor within the same
+		# authored snap reach; neither query moves or snaps the body.
+		var excluded: Array[RID] = exclude_bodies.duplicate()
+		excluded.append(get_rid())
+		var ray := PhysicsRayQueryParameters3D.create(global_position + Vector3.UP * 0.2,
+			global_position + Vector3.DOWN * floor_snap_length,
+			collision_mask & PhysicsLayers.WORLD, excluded)
+		var hit: Dictionary = get_world_3d().direct_space_state.intersect_ray(ray)
+		var collider := hit.get("collider") as Node
+		var normal: Vector3 = hit.get("normal", Vector3.ZERO)
+		if is_instance_valid(collider) and collider.is_inside_tree() \
+				and not collider.is_queued_for_deletion() and normal.is_finite() \
+				and normal.dot(Vector3.UP) >= cos(floor_max_angle):
+			contacts.append({"collider": collider, "normal": normal,
+				"position": hit.get("position", Vector3.INF)})
 	return contacts
 
 
