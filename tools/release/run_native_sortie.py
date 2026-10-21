@@ -4560,6 +4560,8 @@ class BomberRearmPilot(SandboxPilot):
         if pending['kind'] == 'release':
             require(len(a['release_records']) == self.shots+1 and loop['last_result']['accepted'],
                     'single FIRE edge acknowledged by one real release; no retry')
+            require(loop['last_result'].get('presentation', {}).get('accepted') is True,
+                    'every actual Bomber release including reboard must admit its payload presentation')
             self.shots += 1
             label = ('reboard_release' if self.reboard_generation is not None else 'release_'+str(self.shots))
             self.retain(label, s)

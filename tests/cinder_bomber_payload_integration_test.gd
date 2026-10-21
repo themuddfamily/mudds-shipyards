@@ -30,6 +30,7 @@ func _initialize() -> void:
 	var record: Dictionary = accepted.get("record", {}) as Dictionary
 	_check(
 		bool(accepted.get("accepted", false))
+			and bool((accepted.get("presentation", {}) as Dictionary).get("accepted", false))
 			and accepted.get("hardpoint_index", -1) == 0
 			and record.get("generation", -1) == 1
 			and record.get("request_sequence", -1) == 1
@@ -66,9 +67,37 @@ func _initialize() -> void:
 		bomber.request_payload_release(1, &"bomber_gunner", 1, 1, 3, Vector3(0.0, 0.0, -40.0)).reason == &"authority_detached",
 		"detached payload authority rejects old releases"
 	)
-	_check(bomber.reset_payload_for_reuse(1).reason == &"stale_generation", "payload reuse cannot replay a detached generation")
-	_check(bool(bomber.reset_payload_for_reuse(2).get("accepted", false)), "payload reuse requires a newer generation")
-	_check(bool(bomber.request_payload_release(1, &"new_gunner", 2, 1, 3, Vector3(0.0, 0.0, -40.0)).get("accepted", false)), "the re-entered generation starts a fresh sequence and budget")
+	var presentation := bomber.get_payload_presentation() as BomberPayloadPresentation
+	var detached_statistics := presentation.get_statistics()
+	_check(
+		bomber.begin_payload_generation(1).reason == &"stale_generation"
+			and bool(presentation.get("_explicitly_detached"))
+			and presentation.get_statistics() == detached_statistics,
+		"a stale ordinary begin cannot reattach detached presentation or reset counters"
+	)
+	_check(bool(bomber.begin_payload_generation(2).get("accepted", false)), "ordinary seat retake begins a newer generation after detach")
+	var retaken_release := bomber.request_payload_release(1, &"new_gunner", 2, 1, 3, Vector3(0.0, 0.0, -40.0))
+	var retaken_visuals := presentation.get_active_snapshots()
+	_check(
+		bool(retaken_release.get("accepted", false))
+			and bool((retaken_release.get("presentation", {}) as Dictionary).get("accepted", false))
+			and retaken_visuals.size() == 1 and int(retaken_visuals[0].generation) == 2
+			and int(bomber.get_payload_authority_snapshot().ammunition_remaining) == 3,
+		"detach then ordinary newer begin presents the fresh payload while preserving the four-to-three budget"
+	)
+	var live_statistics := presentation.get_statistics()
+	_check(
+		bomber.begin_payload_generation(3).reason == &"authority_active"
+			and bomber.begin_payload_generation(2).reason == &"stale_generation"
+			and presentation.get_active_snapshots() == retaken_visuals
+			and presentation.get_statistics() == live_statistics
+			and not bool(presentation.get("_explicitly_detached")),
+		"refused active and stale begins preserve the live payload effect and its counters"
+	)
+	_check(bool(bomber.detach_payload_authority(&"seat_lost_again").get("accepted", false)), "the retaken seat can detach normally")
+	_check(bomber.reset_payload_for_reuse(2).reason == &"stale_generation", "payload reuse cannot replay a detached generation")
+	_check(bool(bomber.reset_payload_for_reuse(3).get("accepted", false)), "payload reuse requires a newer generation")
+	_check(bool(bomber.request_payload_release(1, &"new_gunner", 3, 1, 3, Vector3(0.0, 0.0, -40.0)).get("accepted", false)), "the re-entered generation starts a fresh sequence and budget")
 
 	bomber.queue_free()
 	await process_frame

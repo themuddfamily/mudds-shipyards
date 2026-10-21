@@ -327,6 +327,8 @@ func get_payload_hardpoints() -> Array[Marker3D]:
 func begin_payload_generation(generation: int) -> Dictionary:
 	var result := _payload_authority.begin_generation(generation)
 	if bool(result.get("accepted", false)):
+		if is_instance_valid(_payload_presentation):
+			_payload_presentation.reset_for_reuse()
 		_sync_payload_audio_generation(generation)
 	return result
 

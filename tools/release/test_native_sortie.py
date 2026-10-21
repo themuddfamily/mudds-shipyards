@@ -1719,7 +1719,7 @@ class NativeSortieSafetyTests(unittest.TestCase):
         p._update_route(s, 2)
         return p, s
 
-    def bomber_fire_receipt(self, p, s, kind='release'):
+    def bomber_fire_receipt(self, p, s, kind='release', presentation=True):
         b, a, loop = s['bomber_rearm'], s['bomber_rearm']['authority'], s['bomber_rearm']['loop']
         self.assertTrue(p.fire(s, s['frame']/60, kind)[3])
         s['frame'] += 3
@@ -1729,7 +1729,8 @@ class NativeSortieSafetyTests(unittest.TestCase):
             a['ammunition_remaining'] = 4-count
             a['release_records'].append(dict(generation=a['generation'], release_sequence=count,
                 request_sequence=count, ammunition_remaining=4-count, actor_id='player_pilot'))
-            loop.update(request_sequence=count, last_result=dict(accepted=True))
+            loop.update(request_sequence=count, last_result=dict(accepted=True,
+                        presentation=dict(accepted=presentation, reason='presented' if presentation else 'invalid_release_record')))
         else: loop['last_result'] = dict(accepted=False, reason='ammunition_exhausted')
         p.validate_observation(s)
         s['frame'] += 6
@@ -1774,6 +1775,8 @@ class NativeSortieSafetyTests(unittest.TestCase):
         p.validate_observation(s)
         p._update_route(s, 3)
         self.assertEqual(p.stage, 'payload_reboard_fire')
+        with self.assertRaisesRegex(AssertionError, 'admit its payload presentation'):
+            self.bomber_fire_receipt(copy.deepcopy(p), copy.deepcopy(s), presentation=False)
         self.bomber_fire_receipt(p, s)
         self.assertEqual(p.receipts['refilled_seated']['bomber_rearm']['authority']['ammunition_remaining'], 4)
         self.assertEqual(p.receipts['reboard_release']['bomber_rearm']['authority']['ammunition_remaining'], 3)
