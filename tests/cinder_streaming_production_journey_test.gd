@@ -142,6 +142,27 @@ func _run_cargo_walking_recall() -> void:
 	var structure := access.get_node(^"Structure")
 	var deck := access.to_global(CinderCargoAccess.BERTH_EXIT_LOCAL)
 	var terminal_floor := access.to_global(CinderCargoAccess.DESTINATION_TERMINAL_PLAYER_APPROACH_LOCAL)
+	# Keep the actual docked hull beside the exit: the native floor-flag
+	# transient occurs during ordinary walking beside this physical Jovian.
+	game.call(&"_release_ship_berth", ship)
+	game.set("_piloting", true)
+	game.set("_sortie_departed_berth", true)
+	game.phase = GameFlow.Phase.FREE_FLIGHT
+	_cargo_landing_stage_capture(ship, access.get_berth())
+	game.call(&"_try_request_landing")
+	var landing_deadline := Time.get_ticks_msec() + 120000
+	while ship.is_landing_active() and Time.get_ticks_msec() < landing_deadline:
+		await physics_frame
+		await process_frame
+	var dock_report := ship.get_landing_contract_report()
+	var docked: bool = (bool(ship.get_telemetry().get("landed", false))
+		and bool(dock_report.get("strict_dock_acceptance", false))
+		and access.get_berth().get_occupant() == ship
+		and game.phase == GameFlow.Phase.SHUT_DOWN)
+	_check(docked, "walking recall fixture docks the real Jovian through normal GameFlow landing and actual physics")
+	if not docked:
+		await _cleanup(game)
+		return
 	ship.set_piloted(false)
 	game.set("_piloting", false)
 	game.phase = GameFlow.Phase.APPROACH_SHIP
@@ -166,6 +187,16 @@ func _run_cargo_walking_recall() -> void:
 		if not retained:
 			await _cleanup(game)
 			return
+
+	await _cargo_recall_stage_player(game, player, deck, true)
+	game.set_process(true)
+	var walking: Dictionary = await _cargo_recall_walk_first_segment(access, player)
+	print("CINDER_CARGO_WALKING_TRANSIENT: ", walking)
+	_check(bool(walking.get("reached", false)) and bool(walking.get("supported_floor_transient", false)),
+		"actual Main preserves real first-segment Cinder walking with transient floor flag and fresh current support")
+	if not bool(walking.get("reached", false)) or not bool(walking.get("supported_floor_transient", false)):
+		await _cleanup(game)
+		return
 
 	# A supported actor outside this Main is not the current local Player.
 	game.set_process(false)
@@ -217,6 +248,67 @@ func _run_cargo_walking_recall() -> void:
 	_check(player.global_position.distance_to(world.get_player_spawn().origin) < 0.20,
 		"original below-yard unsupported station fall still recalls")
 	await _cleanup(game)
+
+
+## Same production movement actions as the access walking fixture, dispatched
+## as real input events. The docked hull, Player and recall guard keep ticking;
+## no pose, velocity, floor flag or authority is written during the segment.
+func _cargo_recall_walk_first_segment(access: CinderCargoAccess, player: PlayerController) -> Dictionary:
+	var target := access.to_global(access.get_route_local_points()[1])
+	var structure := access.get_node(^"Structure")
+	var yaw := player.get_node(^"%CameraYaw") as Node3D
+	var transient := false
+	var reached := false
+	var maximum_step := 0.0
+	var previous := player.global_position
+	var previous_tick := Engine.get_physics_frames()
+	var first_transient: Dictionary = {}
+	for _frame in 210:
+		var desired := (target - player.global_position).slide(Vector3.UP).normalized()
+		var forward := (-yaw.global_basis.z).slide(Vector3.UP).normalized()
+		var right := forward.cross(Vector3.UP).normalized()
+		var sideways := desired.dot(right)
+		var ahead := desired.dot(forward)
+		_cargo_recall_walk_action(&"move_left", maxf(-sideways, 0.0))
+		_cargo_recall_walk_action(&"move_right", maxf(sideways, 0.0))
+		_cargo_recall_walk_action(&"move_back", maxf(-ahead, 0.0))
+		_cargo_recall_walk_action(&"move_forward", maxf(ahead, 0.0))
+		_cargo_recall_walk_action(&"sprint_boost", 1.0)
+		Input.flush_buffered_events()
+		await physics_frame
+		await process_frame
+		var step := player.global_position.distance_to(previous)
+		maximum_step = maxf(maximum_step, step)
+		var elapsed_ticks := maxi(1, Engine.get_physics_frames() - previous_tick)
+		previous_tick = Engine.get_physics_frames()
+		if step > 9.2 * float(elapsed_ticks) / 60.0 * 1.25 + 0.02:
+			break
+		previous = player.global_position
+		var support := _cargo_recall_support(player)
+		if not player.is_on_floor() and is_instance_valid(support) and structure.is_ancestor_of(support):
+			transient = true
+			if first_transient.is_empty():
+				first_transient = {"frame": Engine.get_physics_frames(), "position": player.global_position,
+					"support": str(support.get_path()), "velocity": player.velocity}
+		if (target - player.global_position).slide(Vector3.UP).length() <= 0.30:
+			reached = true
+			break
+	for action: StringName in [&"move_left", &"move_right", &"move_back", &"move_forward", &"sprint_boost"]:
+		_cargo_recall_walk_action(action, 0.0)
+	Input.flush_buffered_events()
+	await physics_frame
+	await process_frame
+	return {"reached": reached, "supported_floor_transient": transient,
+		"first_transient": first_transient, "target": target, "actual": player.global_position,
+		"maximum_step": maximum_step}
+
+
+func _cargo_recall_walk_action(action: StringName, strength: float) -> void:
+	var event := InputEventAction.new()
+	event.action = action
+	event.pressed = strength > 0.02
+	event.strength = strength if event.pressed else 0.0
+	Input.parse_input_event(event)
 
 
 func _cargo_recall_stage_player(game: GameFlow, player: PlayerController,
