@@ -327,6 +327,25 @@ func _cargo_recall_walk_route(access: CinderCargoAccess, player: PlayerControlle
 					failure["reason"] = &"motion_limit_without_completed_step"
 					break
 			if not supported:
+				var excluded: Array[RID] = [player.get_rid()]
+				var berth := access.get_berth()
+				var occupant := berth.get_occupant() as HeroShip
+				if is_instance_valid(occupant) and occupant.is_inside_tree() and not occupant.is_queued_for_deletion() \
+						and player.get_parent().is_ancestor_of(occupant) and berth.get_reservation_owner() == occupant:
+					excluded.append(occupant.get_rid())
+				var ray := PhysicsRayQueryParameters3D.create(player.global_position + Vector3.UP * 0.2,
+					player.global_position - Vector3.UP * player.floor_snap_length,
+					player.collision_mask & PhysicsLayers.WORLD, excluded)
+				var hit: Dictionary = player.get_world_3d().direct_space_state.intersect_ray(ray)
+				var collider := hit.get("collider") as Node
+				var normal: Vector3 = hit.get("normal", Vector3.ZERO)
+				var hit_position: Vector3 = hit.get("position", Vector3.INF)
+				sample["center_floor_ray"] = {"mask": ray.collision_mask, "downward_reach": player.floor_snap_length,
+					"collider": str(collider.get_path()) if is_instance_valid(collider) else "",
+					"under_current_structure": is_instance_valid(collider) and structure.is_ancestor_of(collider),
+					"normal": normal, "position": hit_position,
+					"root_gap": player.global_position.y - hit_position.y,
+					"walkable": normal.dot(Vector3.UP) >= cos(player.floor_max_angle)}
 				failure = sample
 				failure["reason"] = &"current_walkable_support_lost"
 				break
