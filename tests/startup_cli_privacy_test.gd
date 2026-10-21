@@ -2,6 +2,9 @@ extends SceneTree
 
 const StartupLoaderType := preload("res://scripts/game/startup_loader.gd")
 
+class TitleHUD extends Control:
+	var _intro_start_button: Button
+
 var _failures: Array[String] = []
 
 
@@ -373,6 +376,38 @@ func _run() -> void:
 	menu.show()
 	_check(StartupLoaderType.is_title_menu_ready(menu), "visible enabled menu passes the package check")
 	menu.free()
+	var main := Control.new()
+	var hud := TitleHUD.new()
+	hud.name = "HUD"
+	main.add_child(hud)
+	root.add_child(main)
+	var start := Button.new()
+	start.text = "BEGIN SHIFT   [ E ]"
+	hud.add_child(start)
+	hud._intro_start_button = start
+	var decoy := Button.new()
+	decoy.text = "BEGIN SHIFT"
+	main.add_child(decoy)
+	_check(StartupLoaderType.is_title_menu_ready(main), "production HUD uses its actual live Begin Shift button")
+	start.disabled = true
+	_check(not StartupLoaderType.is_title_menu_ready(main), "visible decoy cannot override disabled actual Begin Shift")
+	start.disabled = false
+	hud.hide()
+	_check(not StartupLoaderType.is_title_menu_ready(main), "hidden production HUD cannot pass readiness")
+	hud.show()
+	start.text = "OTHER ACTION"
+	_check(not StartupLoaderType.is_title_menu_ready(main), "retained control must still be the Begin Shift action")
+	start.text = "BEGIN SHIFT   [ R ]"
+	hud.remove_child(start)
+	_check(not StartupLoaderType.is_title_menu_ready(main), "detached retained Begin Shift cannot pass readiness")
+	main.add_child(start)
+	_check(not StartupLoaderType.is_title_menu_ready(main), "reparented retained button cannot impersonate the HUD action")
+	main.remove_child(start)
+	hud.add_child(start)
+	_check(StartupLoaderType.is_title_menu_ready(main), "remapped reattached actual Begin Shift is checked afresh")
+	start.free()
+	_check(not StartupLoaderType.is_title_menu_ready(main), "freed production button cannot fall back to a visible decoy")
+	main.free()
 	_check(
 		StartupLoaderType.cli_mode(PackedStringArray(["--version"])) == &"version",
 		"version flag selects the early version path"

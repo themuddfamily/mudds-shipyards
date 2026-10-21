@@ -589,6 +589,16 @@ func _reflection_probe_finish(accepted: bool, reason: String) -> void:
 static func is_title_menu_ready(main: Node) -> bool:
 	if not is_instance_valid(main) or not main.is_inside_tree():
 		return false
+	# The production HUD retains the actual Begin Shift control. Read its live
+	# state without scanning the entire world on every diagnostic physics tick.
+	var hud := main.get_node_or_null(^"HUD")
+	if is_instance_valid(hud):
+		var start: Variant = hud.get(&"_intro_start_button")
+		if not is_instance_valid(start) or not start is Button:
+			return false
+		return hud.is_ancestor_of(start) \
+			and start.text.begins_with("BEGIN SHIFT") \
+			and start.is_visible_in_tree() and not start.disabled
 	for button: Button in main.find_children("*", "Button", true, false):
 		if button.text.begins_with("BEGIN SHIFT"):
 			return button.is_visible_in_tree() and not button.disabled

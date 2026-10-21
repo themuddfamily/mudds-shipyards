@@ -11,6 +11,22 @@ const Store := preload("res://scripts/persistence/user_data_store.gd")
 const Filesystem := preload("res://scripts/persistence/user_data_filesystem.gd")
 const ROUNDTRIP_ORIGIN_OFFSET := Vector3(-31.0, -4.203125, -48.5)
 
+class CountingStore extends Store:
+	var load_reads := 0
+	var snapshot_reads := 0
+	func load() -> Dictionary:
+		load_reads += 1
+		return super.load()
+	func get_snapshot() -> Dictionary:
+		snapshot_reads += 1
+		return super.get_snapshot()
+
+class CountingHUD extends GameHUD:
+	var nearby_updates := 0
+	func set_nearby_activity_snapshot(snapshot: Dictionary) -> Dictionary:
+		nearby_updates += 1
+		return super.set_nearby_activity_snapshot(snapshot)
+
 class MemoryFilesystem extends Filesystem:
 	var files: Dictionary = {}
 	func file_exists(path: String) -> bool: return files.has(path)
@@ -40,6 +56,7 @@ class MemoryFilesystem extends Filesystem:
 
 var _assertions := 0
 var _failures: Array[String] = []
+var _store: CountingStore
 
 
 func _init() -> void:
@@ -53,9 +70,11 @@ func _run() -> void:
 	if game == null:
 		_finish()
 		return
-	game.configure_runtime_settings_persistence(
-		Store.new("memory://cinder-activity-integration.json", filesystem)
-	)
+	# Keep the authored HUD node/children and production implementation; count
+	# its actual nearby publications before the first ready/build dispatch.
+	game.get_node(^"HUD").set_script(CountingHUD)
+	_store = CountingStore.new("memory://cinder-activity-integration.json", filesystem)
+	game.configure_runtime_settings_persistence(_store)
 	root.add_child(game)
 	await process_frame
 	await physics_frame
@@ -212,7 +231,11 @@ func _test_countdown_pause_progress_reentry_and_completion(
 	# Disable automatic dispatch after the pause witness, then invoke the same
 	# production callback directly with exact finite physics deltas.
 	game.set_physics_process(false)
-	game.call("_physics_process", 1.25)
+	var nearby_before_tick := int(hud.get("nearby_updates"))
+	var loads_before_tick := _store.load_reads
+	var snapshots_before_tick := _store.snapshot_reads
+	# Isolate the selected-race seam from unrelated physics/save consumers.
+	game.call("_advance_selected_activity", 1.25, route_ship.global_position)
 	var countdown_step := game.get_active_activity_snapshot()
 	_check(
 		countdown_step.get("state_id", &"") == &"countdown"
@@ -221,6 +244,13 @@ func _test_countdown_pause_progress_reentry_and_completion(
 		== samples_before_pause,
 		"caller physics delta advances countdown exactly without early route sampling"
 	)
+	var countdown_hud := hud.get_activity_objective_report()
+	_check(int(hud.get("nearby_updates")) == nearby_before_tick
+		and _store.load_reads == loads_before_tick
+		and _store.snapshot_reads == snapshots_before_tick
+		and is_equal_approx(float(countdown_hud.get("countdown_remaining_seconds", -1.0)), 0.75)
+		and "START 0.8s" in str(countdown_hud.get("text", "")),
+		"countdown refreshes the real objective without nearby publications or persistence reads")
 	game.call("_physics_process", 0.75)
 	var active := game.get_active_activity_snapshot()
 	_check(
@@ -230,6 +260,9 @@ func _test_countdown_pause_progress_reentry_and_completion(
 		== samples_before_pause + 1,
 		"the countdown boundary activates and samples the real ship exactly once in that physics tick"
 	)
+	_check(int(hud.get("nearby_updates")) > nearby_before_tick
+		and _store.load_reads > loads_before_tick,
+		"a real race state transition still refreshes the nearby directory and persistence bindings")
 
 	# A planet visit round trip leaves the common origin away from the authored
 	# one (a Rime abandon measured ShipyardWorld at (-31, -4.2, -48.5)). The
@@ -248,6 +281,7 @@ func _test_countdown_pause_progress_reentry_and_completion(
 		== before_out_of_order_samples + 1,
 		"one production tick performs one sample and rejects an out-of-order physical anchor"
 	)
+	nearby_before_tick = int(hud.get("nearby_updates"))
 	route_ship.global_position = cinder_root.to_global(ROUTE.get_checkpoint_position(0))
 	game.call("_physics_process", 0.1)
 	_check(
@@ -256,6 +290,21 @@ func _test_countdown_pause_progress_reentry_and_completion(
 		"occupying the visible gate one after an origin rebase advances the shared director, timed session, and HUD once (next %d)"
 			% int(game.get_active_activity_snapshot().get("next_checkpoint_index", -1))
 	)
+	_check(int(hud.get("nearby_updates")) > nearby_before_tick,
+		"a real checkpoint advancement still refreshes the nearby directory")
+	nearby_before_tick = int(hud.get("nearby_updates"))
+	loads_before_tick = _store.load_reads
+	snapshots_before_tick = _store.snapshot_reads
+	var elapsed_before_tick := float(game.get_active_activity_snapshot().get("current_time_seconds", -1.0))
+	var objective_before_tick := str(hud.get_activity_objective_report().get("text", ""))
+	game.call("_advance_selected_activity", 0.25, route_ship.global_position)
+	var ticking_hud := hud.get_activity_objective_report()
+	_check(int(hud.get("nearby_updates")) == nearby_before_tick
+		and _store.load_reads == loads_before_tick
+		and _store.snapshot_reads == snapshots_before_tick
+		and is_equal_approx(float(ticking_hud.get("current_time_seconds", -1.0)), elapsed_before_tick + 0.25)
+		and str(ticking_hud.get("text", "")) != objective_before_tick,
+		"an ordinary active race tick keeps elapsed HUD text fresh without nearby or persistence refresh")
 	var route_marker := game.call("_get_active_route_minimap_marker", 0) as Dictionary
 	_check(
 		(route_marker.get("position", Vector3.INF) as Vector3).is_equal_approx(

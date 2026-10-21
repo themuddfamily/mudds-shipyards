@@ -20111,11 +20111,15 @@ func _sync_activity_reward_hud() -> void:
 
 func _on_cinder_session_presentation_changed(snapshot: Dictionary) -> void:
 	var fingerprint := _cinder_race_save_fingerprint(snapshot)
-	if not fingerprint.is_empty() \
-			and fingerprint != _cinder_race_session_saved_fingerprint:
+	var state_changed := not fingerprint.is_empty() \
+		and fingerprint != _cinder_race_session_saved_fingerprint
+	if state_changed:
 		save_cinder_race_session()
 	if _selected_activity_kind == ACTIVITY_KIND_TIMED_RACE:
-		_sync_activity_hud()
+		# Countdown/elapsed presentations need a fresh objective, not another
+		# unrelated directory snapshot and persistence rebind. State/gate/result
+		# changes still refresh that directory, including failed-save retries.
+		_sync_activity_hud(state_changed)
 
 
 func _cinder_race_save_fingerprint(snapshot: Dictionary) -> String:
@@ -20140,6 +20144,9 @@ func _on_cinder_session_owner_completed(snapshot: Dictionary, source_instance_id
 	if cinder_race_session != null and cinder_race_session.get_instance_id() == source_instance_id \
 			and bool(cinder_race_session.get_presentation_snapshot().get("attached", false)):
 		_on_cinder_session_completed(snapshot)
+		# Reward handoff saves the terminal fingerprint before the presentation
+		# signal. Its nearby best/result directory still needs this full refresh.
+		_sync_activity_hud()
 
 
 func _on_cinder_session_completed(snapshot: Dictionary) -> void:
@@ -21434,8 +21441,9 @@ func _sync_cinder_asteroid_field_activity_hud() -> bool:
 	return true
 
 
-func _sync_activity_hud() -> void:
-	_sync_nearby_activity_hud()
+func _sync_activity_hud(refresh_nearby: bool = true) -> void:
+	if refresh_nearby:
+		_sync_nearby_activity_hud()
 	if _sync_heavy_breach_activity_hud():
 		return
 	if _sync_cinder_cargo_activity_hud():
