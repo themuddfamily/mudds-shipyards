@@ -44,7 +44,9 @@ using the existing unpaused monotonic clock and unchanged route/start/stop crite
 Bomber ammunition refills when the pilot retakes the seat. These resolve the
 historical unanswered choices below; implementation and qualification remain
 separate. FREIGHT-TERMINAL-INTERFACE is completed on509703300/checkpoint5097033,
-integrated/pushed with owned scratch cleaned. Select one next bounded card;
+integrated/pushed with owned scratch cleaned. HAULER-CARGO-MANIFEST also DONE
+on6bcbea302/checkpoint6bcbea3; full ordinary delivery/cold inventory remain open.
+Select one next bounded card;
 other roster/capacity/role decisions are unchanged.
 
 ## Coverage of the original remaining outcomes
@@ -3023,11 +3025,12 @@ stay unchanged. CargoTransferAuthority alone owns quantities/atomic receipts.
 | Ordered child | Production boundary and proof | State / stopping condition |
 | --- | --- | --- |
 | HAULER-SUPPLY-ACCESS | Actual Hauler reservation/contact/landing/disembarked current pilot walks supported to existing terminal; preserve exact lease/actor/attachment and old Jovian route | DONE; paired checkpointa43ae4b. Full access76/berth83/switching35 checks and three strict startups pass. Actual collider contact root4.25; Hauler-only leased staging above deck. No inventory/reward grant. Initial placement staged; full Main journey remains open. |
-| HAULER-CARGO-STOCK | Conserved shared existing Jovian/Hauler two-crate mission stock | DECIDED2026-10-21: shared existing stock, without duplicated/recreated inventory. Implement custody in HAULER-CARGO-MANIFEST before claiming Hauler delivery. |
-| HAULER-CARGO-MANIFEST | Admit actual Hauler with distinct exact source handle/manifest and conserved chosen stock; source replacement keeps a monotonic activity generation and existing reward/transfer replay fences | SELECTED2026-10-21: shared existing Jovian/Hauler stock; access DONE. One bounded runtime implementer, root integration/builds and independent lifecycle review. Existing binding/access tests plus cargo authority, bridge and debt-roundtrip checks retain original caps; no full ordinary delivery inference. Current668b5b6dc binding accepts only jovian_provisional and seeds two crates on source registration. CargoDeliveryActivity already supplies adopt_terminal_generation_floor, and the binding applies its retained floor. Reuse that API; do not schedule another generation-continuation implementation. Prove Jovian→Hauler→Jovian ownership, stale-handle refusal, no stock recreation, exact destination conservation/one receipt per completion. Do not clear ledgers/fences. Freeze files and proof before implementation. |
-| HAULER-CARGO-DELIVERY | Current pilot loads through real terminal, physically departs/clears gate, lands/exits/walks back and commits exactly one source→destination transfer/reward; repeat preserves quantities/receipts | GATED on access/manifest. Use actual ship/actor/lease/terminal generations and chosen custody; preserve old Jovian route. Define exact unchanged route/caps before running. Bridge/role proposals are not delivery proof. |
+| HAULER-CARGO-STOCK | Conserved shared existing Jovian/Hauler two-crate mission stock | DONE6bcbea302/checkpoint6bcbea3: same authority manifest seeded once, shared by exact Jovian/Hauler custody without duplicated/recreated stock or custody receipts. Session-local; full ordinary delivery/cold inventory remain open. |
+| HAULER-CARGO-MANIFEST | Admit actual Hauler with distinct exact source handle/manifest and conserved chosen stock; source replacement keeps a monotonic activity generation and existing reward/transfer replay fences | DONE6bcbea302/checkpoint6bcbea3. Atomic same-manifest authority reassignment; exact Jovian→Hauler→Jovian identities, two transfers/rewards and exhausted reacquisitions; active/unpaid owner protected. Authority101/binding72/access77/bridge8/reward13/debt27 checks and paired exports/strict startup/audit PASS. [Actual scope and failures](history/ROADMAP_DELIVERIES.md#hauler-shared-cinder-cargo-custody-completed--2026-10-21). |
+| HAULER-CARGO-DELIVERY | Current pilot loads through real terminal, physically departs/clears gate, lands/exits/walks back and commits exactly one source→destination transfer/reward; repeat preserves quantities/receipts | Access/manifest DONE; full ordinary delivery remains OPEN/unselected. Use actual ship/actor/lease/terminal generations and shared custody; preserve old Jovian route. Define exact unchanged route/caps before running. Bridge/role proposals are not delivery proof. |
 
-Current-source correction on668b5b6dc: the smallest manifest seam is
+Pre-implementation source definition on668b5b6dc (superseded by completed
+6bcbea302 custody above): the smallest manifest seam was
 NearbySectorActivityBinding source admission and conserved stock custody.
 CargoDeliveryActivity.adopt_terminal_generation_floor and the binding's
 _apply_cargo_generation_floor already exist; prove their integration rather than

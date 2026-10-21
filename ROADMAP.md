@@ -42,31 +42,24 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
-**FREIGHT-TERMINAL-INTERFACE completed on509703300; checkpoint5097033.**
-Ordinary E at the existing Freight dispatch screen and manifest kiosk selects
-its real cargo job and shows conserved aboard/received stock and saved receipt.
-Automatic two-kit landing transfer is retained. Full default cargo integration
-passes176 assertions; existing terminal/authority/privacy checks and three
-package startup checks pass. Windows EXE/ZIP/notes and paired Linux checkpoint
-are in builds/. The scoped interface is integrated; full WALK-FREIGHT and cold
-KIT-RELOAD remain open/parked. [Actual result and limits](docs/history/ROADMAP_DELIVERIES.md#freight-physical-terminal-interface-completed--2026-10-21).
+**HAULER-CARGO-MANIFEST completed on6bcbea302; checkpoint6bcbea3.**
+The Hauler and Jovian now share the existing finite two-crate Cinder supply stock.
+Custody moves the same inventory without refilling it or adding delivery receipts.
+Actual source handles and activity generations advance; active/unpaid ownership
+and transfer/reward replay fences remain intact. Six focused suites pass, including
+two staged deliveries, exhausted reacquisition, actual Hauler landing/walking and
+separate-process durable debt payment. Fresh paired packages, three strict startup
+checks and actual payload/archive audits pass. Windows EXE/ZIP/notes are in builds/.
+[Actual result, failures and scope](docs/history/ROADMAP_DELIVERIES.md#hauler-shared-cinder-cargo-custody-completed--2026-10-21).
 
-All five owner decisions2026-10-21 remain accepted: automatic Freight landing
-transfer, shared Jovian/Hauler stock, every current authenticated navigator
-rejection receives feedback, Beacon outbound maximum60seconds, Bomber refill
-on pilot seat retake. Hauler custody is selected below; navigator feedback,
-Beacon timing and Bomber reboarding remain queued.
-No new working branch/worktree was created. Freight owned scratch is archived/
-removed; retained unqualified source contexts are preserved.
-
-**One active delivery: HAULER-CARGO-MANIFEST.** Root owns integration/builds;
-one bounded implementer owns NearbySectorActivityBinding and existing binding/
-access tests. Admit the actual Hauler with its exact source manifest, conserving
-the existing shared two-crate Cinder supply stock across Jovian→Hauler→Jovian.
-Keep existing activity generation floors, destination, transfer/reward/debt fences
-and120s contract; no schema/authority expansion without a concrete necessity.
-Finish focused checks, paired playable checkpoint, integration/push and cleanup
-before another card. Full ordinary Hauler delivery stays separately open.
+Freight terminal interface remains completed on509703300/checkpoint5097033.
+All five owner decisions2026-10-21 remain accepted. Navigator rejection feedback,
+Beacon60s qualification and Bomber pilot seat-retake refill qualification remain
+queued; none was started alongside this card. Full ordinary Hauler delivery and
+cold inventory reconstruction remain open, as do full WALK-FREIGHT/KIT-RELOAD.
+Owned scratch is archived/removed. No new working branch/worktree; accepted
+commits are integrated/pushed in main. Retained unqualified contexts are preserved.
+Select one bounded next delivery before further implementation.
 
 **Prior Rime diagnosis closed, journey remains open.**
 The selected original Rime run failed its unchanged peer landing gate after
@@ -75,7 +68,7 @@ total: the peer timeout stopped the host before profiler flush. The controller
 leg field was also unavailable. These samples locate costs but establish no
 production repair or completed journey; there is no automatic retry. Temporary
 source is bundled, all owned processes are absent, and64 scratch entries were
-archived/verified/removed. Latest playable checkpoint is now5097033 (Freight interface).
+archived/verified/removed. Latest playable checkpoint is now6bcbea3 (shared Hauler cargo custody).
 
 The earlier 45 remote heads included `main`, duplicate attempts, diagnostics and
 already-integrated work; they were not 45 independent unfinished features.
@@ -678,7 +671,7 @@ remain recorded. Full ordinary Hold and parent 11 remain OPEN. Native Windows,
 GPU/devices/audio/human/final gates stay NOT_RUN/open; CI stays disabled.
 [Delivery and actual limits](docs/history/ROADMAP_DELIVERIES.md#perimeter-live-branch-finished--2026-10-20).
 
-**Freight terminal interface completed. Hauler shared manifest selected; navigator feedback remains queued.**
+**Freight terminal interface and Hauler shared manifest completed. Navigator feedback remains queued.**
 Courier remains closed. All five choices below are settled; no completed diagnostic schedules an adjacent probe.
 
 ### Completed production repair — Jovian passenger reboard
@@ -698,7 +691,7 @@ are acceptance intent, not permission to run an unfrozen engine command.
 | Existing child / parents | Player result and implementation boundary | Done for this card | Dependency and cost |
 | --- | --- | --- | --- |
 | [FREIGHT-TERMINAL-INTERFACE /7,9,13](docs/ROADMAP_BACKLOG.md#freight-terminals--physical-interface-and-existing-transfer-owner) | Ordinary E at existing Freight fittings reaches the genuine cargo job/manifests/receipt. Owners: JovianFreightBerth fittings, FreightJobTerminal and GameFlow cargo composition. | Actual Main interaction, range/re-entry/refusal/current-owner checks; existing conserved stock and once-only settlement preserved; fresh playable checkpoint. This does not close full Freight delivery/reload/walk. | DONE on509703300/checkpoint5097033: staged actual-Main initial and saved interaction checks, existing conserved/once-only suite, focused companions and package startup pass. Full ordinary walk/cold reload remain open; no new inventory. |
-| [HAULER-CARGO-MANIFEST /10,13](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries) | Hauler joins the real supply contract with the correct conserved stock owner. Owner: NearbySectorActivityBinding admission/custody; existing generation-floor API and CargoTransferAuthority retained. | Jovian→Hauler→Jovian current ownership, stale-handle refusal, no recreated stock, exact conserved destination/receipt; fresh playable checkpoint. Full ordinary Hauler delivery stays separate. | SELECTED: share existing Jovian/Hauler stock, no duplicated inventory. Existing estimate 60–90min implementation/checks plus checkpoint; split if the choice adds a separate capability. Access is already delivered. |
+| [HAULER-CARGO-MANIFEST /10,13](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries) | Hauler joins the real supply contract with the correct conserved stock owner. Owner: NearbySectorActivityBinding admission/custody; existing generation-floor API and CargoTransferAuthority retained. | Jovian→Hauler→Jovian current ownership, stale-handle refusal, no recreated stock, exact conserved destination/receipt; fresh playable checkpoint. Full ordinary Hauler delivery stays separate. | DONE6bcbea302/checkpoint6bcbea3: same-manifest shared custody, two staged conserved deliveries and exhausted reacquisition; focused/access/debt checks, paired checkpoint and package startup pass. Full ordinary Hauler delivery/cold inventory remain separate. |
 | [AUDIO-NAVIGATOR-CLIENT-REJECTION /30](docs/COMPLETION_SCOPE.md#client-navigator-rejection-response--bounded-definition-next) | The actual requesting client gets one accurate refusal cue/caption for its current request. Existing passenger binding, ENet adapter, GameFlow and navigator audio lifetime owners carry the response. | Distinct equal refusals each present once; stale/replayed/foreign responses stay silent; accepted/clear behavior and full existing peer route retained; fresh playable checkpoint. Dummy checks establish dispatch, not listening. | DECIDED: feedback for every fresh current authenticated rejection, including unavailable consumer; stale/replayed/foreign responses remain silent. Not selected yet. Prior estimate 45–60min implementation/review, 15–25min checks, 10–15min checkpoint. High-risk lifetime/transport review required. |
 
 A card closes on its stated result, then commit/push, record actual time and clean
@@ -715,7 +708,7 @@ keep their remaining acceptance requirements and other unrelated decisions open.
 | --- | --- | --- |
 | FREIGHT-TERMINAL-WORKFLOW | DECIDED: physical terminals select existing job/show manifests and receipt; transfer remains automatic on landing. | Interface DONE on509703300/checkpoint5097033; full walk/reload/same-ship requirements retained. |
 | [AUDIO-NAVIGATOR-CLIENT-REJECTION](docs/COMPLETION_SCOPE.md#client-navigator-rejection-response--bounded-definition-next) | DECIDED: feedback on every fresh current authenticated rejection, including unavailable consumer. | Requester-correlated response; stale/replayed/foreign responses silent. Existing45–60min implementation/review estimate; checks/checkpoint additional. |
-| [HAULER-CARGO-MANIFEST](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries) | DECIDED: share the existing stock between Jovian and Hauler. | Preserve conserved ownership/generation floors; no recreated cargo or duplicate receipts. Full Hauler delivery remains required. |
+| [HAULER-CARGO-MANIFEST](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries) | DECIDED: share the existing stock between Jovian and Hauler. | Shared custody DONE6bcbea302/checkpoint6bcbea3; conserved ownership/generation floors and no recreated cargo/duplicate receipts. Full ordinary Hauler delivery and cold physical inventory remain required. |
 | [TRAVEL-LIMIT Beacon outbound](docs/ROADMAP_BACKLOG.md#beacon-outbound-travel-envelope--proposal-awaiting-decision) | DECIDED: maximum60s unpaused elapsed from engine-start input at occupied Torrent berth to controlled first Beacon. | Implement/qualify existing exact clock/route with original whole-sortie limits; return/other routes remain separate. |
 | BOMBER-REARM-POLICY | DECIDED: refill ammunition when the pilot retakes the seat. | Preserve this same-hull seat re-entry entitlement and qualify actual reboarding; broader role/payload/recovery cases remain open. |
 

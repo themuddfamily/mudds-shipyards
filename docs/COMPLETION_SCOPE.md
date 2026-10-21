@@ -405,7 +405,7 @@ into an unbounded research or qualification chain.
 | Family | Finite promised instances / existing acceptance owner | Unresolved boundary |
 | --- | --- | --- |
 | Original fleet | Torrent, Arrow, Jovian, Zenith implemented; Titan, Vortex, Paradox, Katana, Predator, Dynamic, Utopia, Salyut absent. [Fleet table](#fleet-original-twelve-and-modern-additions) | Eight original specifications/builds plus historical identity and full craft acceptance remain open |
-| Modern additions | Halyard, Bulwark, Cinder Light Interceptor, Cinder Cargo Hauler, Cinder Long-Range Bomber implemented: original12+modern5=eventual17; current9 | Modern additions do not satisfy absent originals; Bomber additional-role semantics and Hauler stock remain unresolved |
+| Modern additions | Halyard, Bulwark, Cinder Light Interceptor, Cinder Cargo Hauler, Cinder Long-Range Bomber implemented: original12+modern5=eventual17; current9 | Modern additions do not satisfy absent originals; Bomber additional-role semantics remain unresolved; Hauler shared stock delivered6bcbea302, full ordinary delivery/cold inventory remain open |
 | Station routes | Central, Aft, Habitat, Freight, Fleet, Fabrication Annex, Observation/logistics, Salvage Terrace, VIP. [Route table](#station-routes-and-historical-topology) | Historical relationships and nine presentation-finding branches still need their own source-bounded definitions |
 | Station service life | Central tow, freight gantry, Aft service arm, Habitat patrol. Existing LIFE-TOW/GANTRY/ARM/PATROL | Four service-motion qualifications; fixed rails do not imply an autonomous logistics graph |
 | Nearby activities | Race, Asteroid Threading, Platform Patrol, Jovian kit delivery, Cinder supply, Mining, Structure Scan, Beacon Traversal, Convoy Escort, Station Defense, Heavy Breach, Torpedo Run. Existing twelve PLAY-* cards in [backlog](ROADMAP_BACKLOG.md#activities-and-solo-world-children) | Repetition/recovery applicability remains separately defined; terminal reward acceptance does not accept whole activity play |
@@ -627,8 +627,9 @@ or rerun is selected by this definition.
 ### Cinder Cargo Hauler capability map — CRAFT-GAPS-CINDER-HAULER
 
 Source-only definition onc7d86a0d9 (2026-10-18), parents10/11. Independent bounded
-reader; no engine/test/capture ran. NEW modern craft; cargo-play interpretation
-below remains unresolved rather than being accepted from its bridge.
+reader; no engine/test/capture ran for that definition. NEW modern craft.
+Shared cargo custody below is now delivered6bcbea302/checkpoint6bcbea3; full
+ordinary delivery and cold physical inventory acceptance remain open.
 
 | Authored capability / finite distinction | Production owner | Existing coverage anchor / remaining acceptance |
 | --- | --- | --- |
@@ -638,13 +639,14 @@ below remains unresolved rather than being accepted from its bridge.
 | Travelling defensive mass driver | Hauler runtime WeaponDefinition; GameFlow mass-driver profile, MassDriverBoltPool/TravellingBoltProjectile/shared combat authority | Actual projectile180m/26 damage/150m/s/1.2s/.45m radius, source1109; fail-closed resolver conversion. `cinder_cargo_mass_driver_bolt_test.gd` checks delayed single damage/cleanup/reduced flash at a staged60m target. It does not accept whole ordinary combat/miss/origin-shift/network routes. Missing idle cannon lens is intentional presentation, not absent weapon runtime. |
 | Five shared components, passive landed repair, reuse and shoulder/engine cues | HeroShip/ShipComponentDamage; Hauler shared damage rig/reset/observers | Existing focused feedback/silhouette/resource lifecycle and shared parity cover their scopes. Static cues add no component ledger or physical engineer entitlement. Full contact/crew/remote damage-recovery acceptance stays open. |
 | Eight cargo anchors/declared capacity and forwarding bridge | Hauler cargo hold/anchors; CinderCargoActivityBridge; FleetExpansionProductionBinding `bind_cargo_activity` | Bridge validates craft/anchors/item and forwards start/phase/reset; it owns no manifest, transfer or reward. Anchor count/bridge tests are not playable Hauler delivery acceptance. |
-| Actual existing platform-supply transfer consumer | NearbySectorActivityBinding `_on_cargo_berth_occupancy_changed`; CargoTransferAuthority/CargoDeliveryActivity | Consumer accepts only `jovian_provisional`, registers capacity8/two cinder_supply_crates and transfers one through load_crate/clear_gate/dock_platform. Existing ordinary supply scope explicitly requires that Jovian/manifest. It cannot establish Hauler cargo play. HAULER-CARGO-DEFINE must name the Hauler source/manifest/item/quantity, destination and ordinary terminal route before a production delivery assignment. Existing Jovian activity must retain its identity/conservation/reward contracts. |
+| Actual existing platform-supply transfer consumer | NearbySectorActivityBinding; CargoTransferAuthority.reassign_entity/CargoDeliveryActivity | Shared Jovian/Hauler finite two-crate custody delivered6bcbea302/checkpoint6bcbea3. Exact source manifests retain capacity8; one-crate load_crate/clear_gate/dock_platform/120s contract and destination unchanged. Same manifest moves through stable custody; source retirement, unpaid debt, generations and replay fences covered. Two staged deliveries plus separate physical access and real-file debt checks pass. Full ordinary Hauler delivery/cold inventory remain open. |
 
 Definition DONE as a finite owner map plus exact missing cargo contract. Original
 Hauler cargo-and-weapon play remains required; cargo anchors/readiness/forwarding
 cannot close it. Full CRAFT-ACCEPT-CINDER-HAULER/art/combat/crew acceptance remains
 OPEN. No extra historical role, mission/stock entitlement, repair, or unchanged
-qualification run is inferred; no implementation successor selected here.
+qualification run is inferred. Shared custody is delivered above; full ordinary
+delivery and cold physical inventory remain required.
 
 ### Cinder Bomber capability map — CRAFT-GAPS-CINDER-BOMBER
 
@@ -1423,4 +1425,5 @@ its existing clock/route criterion, and Bomber ammunition refill on pilot seat
 retake. These supersede earlier pending alternatives in source-only definitions;
 no runtime/qualification completion is inferred. Preserve stale/replay/foreign
 response silence and conserved once-only cargo ownership/settlement. Freight
-terminal interface is completed on509703300/checkpoint5097033; other approved deliveries remain queued.
+terminal interface is completed on509703300/checkpoint5097033 and shared Hauler
+cargo custody on6bcbea302/checkpoint6bcbea3; remaining approved deliveries stay queued.

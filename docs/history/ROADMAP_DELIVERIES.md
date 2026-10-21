@@ -20909,3 +20909,99 @@ not been pruned. Main remains sole local/live branch.
 Full ordinary WALK-FREIGHT, same-ship complete journey and distinct-process cold
 KIT-RELOAD retain original open/parked conditions. Native Windows/GPU/devices,
 listening/human/full-release gates remain NOT_RUN. Hosted CI remains disabled.
+
+
+## Hauler shared Cinder cargo custody completed — 2026-10-21
+
+HAULER-CARGO-MANIFEST and its chosen shared-stock boundary DONE on
+6bcbea302666cff9af981abca88e775ff39ef083, fast-forward integrated/pushed to main.
+One high-effort bounded implementer, independent lifecycle/source/result reviewer,
+root integration. User's shared-stock decision retained. One existing authority
+capability was necessary: register seeds quantities, retire deletes inventory and
+transfer adds a receipt, so none could honestly implement same-stock custody.
+
+CargoTransferAuthority.reassign_entity atomically moves the SAME CargoManifest
+object to current live owner/manifest IDs, advances generations and updates
+indexes without callbacks or delivery receipts; transfer/reward ledgers remain.
+NearbySectorActivityBinding seeds the existing two Cinder supply crates once and
+parks that manifest on stable custody between exact Jovian/Hauler owners. Old
+Jovian IDs/capacity8, destination/capacity8, one-crate contract/three phases/120s
+remain. Existing activity generation floor reused; active/unpaid ownership cannot
+be stolen. Exhausted starts refuse. No persistence schema or validator added.
+
+Final production runtime is8ea83288bebcbc2c60533f8fef5312ac95577f9f; later308db927b
+and6bcbea302 change only existing fixture wiring. Exact git diff confirms scripts,
+scenes/assets/project/export/tool/art-source runtime equality to final build.
+All existing checks pass, with original caps and no physics/route shortening:
+
+| Existing check | Assertions | Actual seconds | Source |
+| --- | ---: | ---: | --- |
+| attached-cargo-authority | 101 | 1.052 | 8ea83288b |
+| corrected-sector-binding | 72 | 18.564 | 8ea83288b |
+| durable-cargo-access | 77 | 56.661 | 308db927b |
+| cargo-bridge | 8 | 3.596 | 308db927b |
+| cargo-reward | 13 | 0.828 | 308db927b |
+| wired-cargo-debt-roundtrip | 27 | 71.841 | 6bcbea302 |
+
+Staged actual-craft/public-lease binding sequence exercises aborted generation,
+Jovian→Hauler ownership, active/unpaid takeover refusal, exact first receipt1/1,
+real payment, queued Hauler reclaim, original Jovian second completion0/2 and
+three exhausted reacquisitions; two receipts/payments, no recreated stock.
+Access suite retains original Jovian walking/terminal/retry/re-entry/replacement
+plus actual Hauler landing, supported exit and347 grounded/zero airborne outbound
+frames to authorized public terminal. Initial craft/exit placements remain staged.
+Debt test's distinct earn/pay/paid real-file children exit0/reaped and retain phase
+documents. All final logs have no diagnostics; source/cache guards pass.
+Independent final actual GO supports these scopes, not a whole ordinary sortie.
+
+Retained failures and concrete corrections:
+- sector-binding18.460s: queued live Hauler was pruned before its ordered treeexit
+  could reclaim remaining crate. Authority now retains attached queued in-tree
+  source until exit; queued gameplay transfers still refuse.
+- first prune correction1.100s: original queued-detached re-entry cleanup failed.
+  Retention now requires record.attached; consumed callbacks do not leave stale
+  records. Original assertion unchanged. Initial reviewer GO was withdrawn on
+  this counterexample; final source and actual101-assertion run pass both paths.
+- access48.913s/rootstop143: older fixture never configured current durable cargo
+  persistence, so terminal checkpoint correctly refused before fake payment.
+  Existing fixture now loads injected MemoryFS, delegates actual reward authority
+  and binds via GameFlow. Physical route/payment/replay/reset checks retained;
+  obsolete empty/unavailable expectations now assert live ownership cleared plus
+  actual paid non-replayable summary, with durable generation/granted checks.
+- debt49.365s/rootstop143: five manual authority injections lacked their exact
+  source/destination handles, so new stock gate correctly refused start. Exactly
+  fifteen handle-wiring lines added; fault injection/assertions/caps unchanged.
+No failed result is erased or counted as qualification. Re-runs follow these
+specific demonstrated changes; passing unchanged runtime checks were retained.
+
+Fresh paired checkpoint6bcbea3 exports and all three strict startups PASS:
+export-windows 11.520s; export-linux 25.544s; startup-linux-binary 22.404s; startup-linux-archive 24.264s; startup-windows-pack 25.716s.
+Each startup exits0 and has exactly one STARTUP_MENU_READY_OK. Windows embedded
+game data is checked under Linux Godot, not native Windows. All1527 actual PCK
+path/size/SHA256/PCK-MD5/flags match; stock Windows release code, exact six Linux
+archive members and all payload/launcher/installer/icon bytes/modes/epoch verified.
+Windows checkpoint ZIP reopens with exact EXE/notes bytes. Repo builds/windows/
+and builds/linux/ hold artifacts; no Downloads publication.
+
+| Artifact | Bytes | SHA256 |
+| --- | ---: | --- |
+| MuddsShipyards-6bcbea3.exe | 184709760 | 22b78eca2b02e698658c3eb1a6fd1114b9e0e71fb911b54489c38ad74876b02f |
+| MuddsShipyards-6bcbea3.x86_64 | 148951472 | 3f8cebd1cf250e27afc5a2383d0a0fb97a7285c2eacdf623599a8ef820888edd |
+| MuddsShipyards-6bcbea3-linux-x86_64.tar.gz | 95364572 | 2222f617574604a55861f7d0a1ce4d46f232ab773850b7d621b90a151825852c |
+| Windows checkpoint ZIP | 103241711 | 55cf6856e5eaf9325d46fdb80545827a30a9208f7baca9a2e5ddd02ca6b52702 |
+
+All16 supervisors terminal and all34 observed PID/start identities absent.
+248 scratch entries byte/mode/link verified in archive before removal.
+Archive3289278bytes SHA256e210d185fa28604ef18d0e655ecc5195ff925646b9fe0f73e2a865300a09da6e.
+Raw commands/results/guards, failed attempts, reviews and preserved real-file
+profiles remain in /srv/mudds-work/hauler-shared-stock-20261021/results/.
+Supervised stage time totals380.849s including failures; this is command time,
+not total implementation/session time. No new working branch/worktree; accepted
+candidate history reachable in main. Eight prior detached registrations untouched;
+three /tmp paths previously absent after reset remain unpruned. Nine older
+unqualified candidates remain preserved, not reduced by this new production card.
+
+Full ordinary HAULER-CARGO-DELIVERY/outbound/home and cold inventory reconstruction
+remain OPEN. Shared custody is session-local; cold earned-debt payment does not
+restore physical manifests. Craft/art/crew/combat/native Windows/GPU/devices,
+listening/human/final-release gates remain open or NOT_RUN. Actions stays disabled.
