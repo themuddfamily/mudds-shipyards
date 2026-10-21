@@ -1037,10 +1037,10 @@ func _cargo_progress(state: Dictionary) -> Dictionary:
 	if numeric_state == CargoDeliveryActivity.State.COMPLETED:
 		stage_id = &"delivery_recorded" if delivery_persisted else &"delivered"
 		objective = (
-			"DELIVERY RECEIPT RETAINED"
-			if delivery_persisted else (
-				"REWARD SAVE FAILED — START TO RETRY"
-				if reward_retry_available else (
+			"REWARD SAVE FAILED — START TO RETRY"
+			if reward_retry_available else (
+				"DELIVERY RECEIPT RETAINED"
+				if delivery_persisted else (
 					"AWAIT CARGO REWARD HANDOFF"
 					if bool(state.get("reward_pending", false))
 					else "CARGO TRANSFER CONFIRMED"
@@ -1074,8 +1074,8 @@ func _cargo_progress(state: Dictionary) -> Dictionary:
 		summary += "  //  TIME %s: %.1fs LEFT" % [str(deadline_state).to_upper(), remaining]
 	elif numeric_state == CargoDeliveryActivity.State.COMPLETED:
 		summary += "  //  %s" % (
-			"DELIVERY RECEIPT SAVED" if delivery_persisted else (
-				"SAVE FAILED — START TO RETRY" if reward_retry_available else (
+			"SAVE FAILED — START TO RETRY" if reward_retry_available else (
+				"DELIVERY RECEIPT SAVED" if delivery_persisted else (
 					"REWARD PENDING" if bool(state.get("reward_pending", false)) \
 					else "DELIVERY CONFIRMED"
 				)

@@ -21371,7 +21371,8 @@ func _sync_cinder_cargo_activity_hud() -> bool:
 	var state_id := StringName(cargo.get("state_id", &""))
 	var presentable := state_id == &"active" or (
 		state_id == &"completed"
-		and not bool(cargo.get("delivery_persisted", false))
+		and (not bool(cargo.get("delivery_persisted", false))
+			or bool(cargo.get("reward_retry_available", false)))
 	)
 	if not presentable:
 		return false
@@ -22631,7 +22632,8 @@ func _start_nearby_activity(binding: Node, activity_id: StringName) -> Dictionar
 			)
 			if StringName(cargo.get("state_id", &"")) == &"completed" \
 					and int(cargo.get("generation", 0)) > 0 \
-					and not bool(cargo.get("delivery_persisted", false)):
+					and (not bool(cargo.get("delivery_persisted", false)) \
+						or bool(cargo.get("reward_retry_available", false))):
 				var configured := _configure_cinder_cargo_reward_handoff(binding)
 				if not bool(configured.get("accepted", false)):
 					return configured

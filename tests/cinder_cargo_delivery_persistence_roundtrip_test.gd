@@ -262,6 +262,13 @@ func _test_saved_unpaid_start_retry() -> void:
 		and bool(unpaid.reward_retry_available) and not bool(before_retry.cinder_cargo_delivery.delivery.reward_receipt.granted)
 		and store.get_generation() == 2 and transfers.size() == 1,
 		"refused payment leaves one genuinely transferred saved completion available for ordinary Start retry")
+	var pending_card := _cargo_card(hud.set_nearby_activity_snapshot(binding.get_snapshot()))
+	var pending_progress: Dictionary = pending_card.cargo_progress
+	_check(bool(pending_card.actions_enabled) and bool(pending_card.reward_pending)
+		and pending_progress.stage_id == &"delivery_recorded"
+		and str(pending_progress.objective_text).contains("START TO RETRY")
+		and str(pending_progress.summary).contains("START TO RETRY"),
+		"saved unpaid Activity Board card keeps Start enabled and explains the pending reward retry")
 	hud.clear_activity_objective()
 	var pending_visible := flow._sync_cinder_cargo_activity_hud()
 	var pending_report := hud.get_activity_objective_report()
@@ -296,6 +303,13 @@ func _test_saved_unpaid_start_retry() -> void:
 		and store.get_snapshot().cinder_cargo_delivery.delivery.transfer_proof == proof
 		and store.get_snapshot().foreign == before_retry.foreign,
 		"ordinary payment retries preserve actual manifests, exact transfer ledger/proof and unrelated player data")
+	var paid_card := _cargo_card(hud.set_nearby_activity_snapshot(binding.get_snapshot()))
+	var paid_progress: Dictionary = paid_card.cargo_progress
+	_check(not bool(paid_card.reward_pending) and paid_progress.stage_id == &"delivery_recorded"
+		and paid_progress.objective_text == "DELIVERY RECEIPT RETAINED"
+		and str(paid_progress.summary).contains("DELIVERY RECEIPT SAVED")
+		and not str(paid_progress.summary).contains("START TO RETRY"),
+		"paid Activity Board card retains saved receipt presentation without retry guidance")
 	hud.clear_activity_objective()
 	_check(not flow._sync_cinder_cargo_activity_hud()
 		and not bool(hud.get_activity_objective_report().visible),
@@ -310,6 +324,13 @@ func _run_disk_processes() -> void:
 	var path: String = folder.path_join("delivery.json")
 	for mode: String in ["earn", "pay", "paid"]:
 		var args: PackedStringArray = PackedStringArray(["--headless", "--audio-driver", "Dummy", "--path", ProjectSettings.globalize_path("res://"), "--script", "res://tests/cinder_cargo_delivery_persistence_roundtrip_test.gd", "--", "--cinder-debt-child", mode, path])
+		# Package checks must keep the same embedded game data in every cold
+		# child, rather than silently switching those children to source.
+		var parent_args := OS.get_cmdline_args()
+		var pack_index := parent_args.find("--main-pack")
+		if pack_index >= 0 and pack_index + 1 < parent_args.size():
+			args.insert(0, parent_args[pack_index + 1])
+			args.insert(0, "--main-pack")
 		print("CINDER_DEBT_CHILD_COMMAND ", OS.get_executable_path(), " ", JSON.stringify(args))
 		var child: Dictionary = OS.execute_with_pipe(OS.get_executable_path(), args, false)
 		var pid: int = int(child.get("pid", -1))

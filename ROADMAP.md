@@ -43,6 +43,21 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
+**One active outcome: ACT-WRITE — Cinder saved unpaid payment, ordinary Start.**
+A saved delivery can advertise an owed reward while Start incorrectly tries to
+begin another run and returns cargo_reward_pending. Pending guidance is also
+hidden by the saved-completion presentation. The existing production persistence
+regression reproduces this on current source: four consumer checks fail; its
+three actual-file earn/pay/paid child processes still pass.
+
+Finish: ordinary Start retries the exact earned generation, failed writes retain
+retry guidance, one eventual durable credit changes no manifests/transfer proof
+or unrelated data, and paid/replayed/stale requests cannot pay twice. Extend the
+existing regression and its embedded-package run, ship a fresh checkpoint, then
+merge/push and clean this task. No restocking, entitlement or clock changes;
+first-play Cinder remains DONE. The four legacy access assertions have a separate
+missing-persistence fixture prerequisite and are not counted as four runtime bugs.
+
 **Closed outcome: PLAY-CINDER-SUPPLY — DONE, merged and pushed as9ed9a0709.**
 The complete original ordinary-input packaged journey passes216.291s within its
 unchanged300s limit; the supply activity completes within120s. All13 station,
