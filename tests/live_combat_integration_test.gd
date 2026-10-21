@@ -467,8 +467,13 @@ func _run() -> void:
 	game.phase = GameFlow.Phase.TARGET_PRACTICE
 	await physics_frame
 	var range_origin := hero.global_position + Vector3(0.0, 0.0, -5.5)
-	var queued_range_target := targets[0] as StaticBody3D
-	var queued_adapter := queued_range_target.get_node_or_null("AuthoritativeDamageable") as Damageable
+	# This deletion-window fixture must not retire one of the world's four
+	# retained authored targets before the later whole-Main re-entry checks.
+	var queued_range_target := (targets[0] as StaticBody3D).duplicate() as StaticBody3D
+	queued_range_target.name = "QueuedRangeTargetFixture"
+	world.add_child(queued_range_target)
+	var queued_adapter := queued_range_target.get_node_or_null("AuthoritativeDamageable") as RangeTargetDamageableAdapter
+	queued_adapter.configure(world)
 	queued_range_target.global_position = hero.global_position + Vector3(0.0, 0.0, -28.0)
 	queued_range_target.set_meta(
 		"base_position",
