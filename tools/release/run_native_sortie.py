@@ -3994,10 +3994,11 @@ class CinderSupplyPilot(BeaconEntryPilot):
     @staticmethod
     def station_clearance_targets(s, reverse=False):
         # Freight's full body envelope must clear before turning back toward
-        # Cinder. Use the live home capture frame in both travel directions.
+        # Cinder. Cross east before the intersector leg to clear the authored
+        # HULK envelope; use the live home capture frame in both directions.
         capture = s['home']['capture_position']
         offsets = ([0, 0, 0], [0, 0, 26.7], [0, 66.37, 66.7],
-                   [-172, 66.37, 66.7], [-172, 66.37, -308.3])
+                   [-172, 66.37, 66.7], [-172, 66.37, -308.3], [84, 66.37, -308.3])
         points = [[p+d for p, d in zip(capture, offset)] for offset in offsets]
         return list(reversed(points)) if reverse else points
 
@@ -4021,7 +4022,7 @@ class CinderSupplyPilot(BeaconEntryPilot):
             if roll_error > math.radians(5): keys.add('r')
             elif roll_error < -math.radians(5): keys.add('q')
 
-        stopping = speed*speed/(2*max(s['tuning']['brake'], 48)) + speed*.15 + 2
+        stopping = speed*speed/(2*max(s['tuning']['brake'], 1e-6)) + speed*.15 + 2
         # aim() measures from the chase camera; this waypoint belongs to the
         # ship root, so preserve the root's desired vector at that camera.
         aim_target = [camera+delta for camera, delta in zip(s['camera'], off)]

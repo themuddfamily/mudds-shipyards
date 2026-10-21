@@ -30,6 +30,17 @@ class NativeSortieSafetyTests(unittest.TestCase):
                     'last_receipt': {'activity_id': 'cinder_kit_cargo_run', 'activity_generation': 1,
                                      'granted': True, 'replay_allowed': False}}}
 
+    def test_supply_stopping_distance_uses_authored_jovian_brake(self):
+        pilot = native.CinderSupplyPilot()
+        for brake, expected in [(25, 'Prior'), (48, 'w')]:
+            with self.subTest(brake=brake):
+                s = {'position': [0, 0, 0], 'camera': [0, 0, 10], 'ship_velocity': [0, 0, -40],
+                     'right': [1, 0, 0], 'up': [0, 1, 0], 'back': [0, 0, 1],
+                     'tuning': {'brake': brake, 'mouse': .0022}}
+                keys = set()
+                pilot.flight(s, [0, 0, -25], keys)
+                self.assertEqual(keys, {expected})
+
     def test_supply_ordinary_roll_feedback_reduces_actual_basis_error(self):
         pilot = native.CinderSupplyPilot()
         for degrees in (35, -35, 160, -160):
@@ -110,6 +121,8 @@ class NativeSortieSafetyTests(unittest.TestCase):
         self.assertEqual(pilot.stage, 'outbound_clearance')
         self.assertEqual(pilot.clearance_index, 0)
         outbound = pilot.station_clearance_targets(s)
+        self.assertEqual(len(outbound), 6)
+        self.assertEqual(outbound[-1], [31, 80, -225])
         self.assertEqual(pilot.station_clearance_targets(s, reverse=True), list(reversed(outbound)))
         translated = copy.deepcopy(s)
         translated['home']['capture_position'] = [p+10 for p in s['home']['capture_position']]
