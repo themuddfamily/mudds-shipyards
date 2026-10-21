@@ -42,15 +42,21 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
-**One active delivery: FREIGHT-TERMINAL-INTERFACE.**
-Owner decisions2026-10-21: automatic Freight landing transfer; shared Jovian/
-Hauler stock; feedback for every current authenticated navigator rejection;
-Beacon outbound maximum60seconds; Bomber refill when pilot retakes the seat.
-These choices are accepted requirements, not completed implementation or tests.
-Freight first: ordinary E at existing fittings selects the existing cargo job
-and shows real manifests/receipt, retaining automatic once-only transfer. Finish
-focused actual-Main checks, fresh checkpoint, integration/push and cleanup before
-selecting the next delivery. No new working branches/worktrees.
+**FREIGHT-TERMINAL-INTERFACE completed on509703300; checkpoint5097033.**
+Ordinary E at the existing Freight dispatch screen and manifest kiosk selects
+its real cargo job and shows conserved aboard/received stock and saved receipt.
+Automatic two-kit landing transfer is retained. Full default cargo integration
+passes176 assertions; existing terminal/authority/privacy checks and three
+package startup checks pass. Windows EXE/ZIP/notes and paired Linux checkpoint
+are in builds/. The scoped interface is integrated; full WALK-FREIGHT and cold
+KIT-RELOAD remain open/parked. [Actual result and limits](docs/history/ROADMAP_DELIVERIES.md#freight-physical-terminal-interface-completed--2026-10-21).
+
+All five owner decisions2026-10-21 remain accepted: automatic Freight landing
+transfer, shared Jovian/Hauler stock, every current authenticated navigator
+rejection receives feedback, Beacon outbound maximum60seconds, Bomber refill
+on pilot seat retake. The latter four deliveries are queued, not started.
+No new working branch/worktree was created. Owned scratch is archived/removed;
+retained unqualified source contexts are preserved. Select one bounded next card.
 
 **Prior Rime diagnosis closed, journey remains open.**
 The selected original Rime run failed its unchanged peer landing gate after
@@ -59,7 +65,7 @@ total: the peer timeout stopped the host before profiler flush. The controller
 leg field was also unavailable. These samples locate costs but establish no
 production repair or completed journey; there is no automatic retry. Temporary
 source is bundled, all owned processes are absent, and64 scratch entries were
-archived/verified/removed. Latest playable checkpoint remains4196ad0.
+archived/verified/removed. Latest playable checkpoint is now5097033 (Freight interface).
 
 The earlier 45 remote heads included `main`, duplicate attempts, diagnostics and
 already-integrated work; they were not 45 independent unfinished features.
@@ -662,7 +668,7 @@ remain recorded. Full ordinary Hold and parent 11 remain OPEN. Native Windows,
 GPU/devices/audio/human/final gates stay NOT_RUN/open; CI stays disabled.
 [Delivery and actual limits](docs/history/ROADMAP_DELIVERIES.md#perimeter-live-branch-finished--2026-10-20).
 
-**Active outcome: 1 — Freight terminal interface. Two other prepared production cards now have owner decisions.**
+**Freight terminal interface completed. Two prepared production cards have owner decisions; neither is selected.**
 Courier remains closed. All five choices below are settled; no completed diagnostic schedules an adjacent probe.
 
 ### Completed production repair — Jovian passenger reboard
@@ -681,7 +687,7 @@ are acceptance intent, not permission to run an unfrozen engine command.
 
 | Existing child / parents | Player result and implementation boundary | Done for this card | Dependency and cost |
 | --- | --- | --- | --- |
-| [FREIGHT-TERMINAL-INTERFACE /7,9,13](docs/ROADMAP_BACKLOG.md#freight-terminals--physical-interface-and-existing-transfer-owner) | Ordinary E at existing Freight fittings reaches the genuine cargo job/manifests/receipt. Owners: JovianFreightBerth fittings, CargoTransferTerminal and GameFlow cargo composition. | Actual Main interaction, range/re-entry/refusal/current-owner checks; existing conserved stock and once-only settlement preserved; fresh playable checkpoint. This does not close full Freight delivery/reload/walk. | SELECTED: owner chose physical job/receipt interface with automatic landing transfer. Freeze focused checks and checkpoint; split before90min. Do not alias a terminal as the ship or mint another stocked manifest. |
+| [FREIGHT-TERMINAL-INTERFACE /7,9,13](docs/ROADMAP_BACKLOG.md#freight-terminals--physical-interface-and-existing-transfer-owner) | Ordinary E at existing Freight fittings reaches the genuine cargo job/manifests/receipt. Owners: JovianFreightBerth fittings, FreightJobTerminal and GameFlow cargo composition. | Actual Main interaction, range/re-entry/refusal/current-owner checks; existing conserved stock and once-only settlement preserved; fresh playable checkpoint. This does not close full Freight delivery/reload/walk. | DONE on509703300/checkpoint5097033: staged actual-Main initial and saved interaction checks, existing conserved/once-only suite, focused companions and package startup pass. Full ordinary walk/cold reload remain open; no new inventory. |
 | [HAULER-CARGO-MANIFEST /10,13](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries) | Hauler joins the real supply contract with the correct conserved stock owner. Owner: NearbySectorActivityBinding admission/custody; existing generation-floor API and CargoTransferAuthority retained. | Jovian→Hauler→Jovian current ownership, stale-handle refusal, no recreated stock, exact conserved destination/receipt; fresh playable checkpoint. Full ordinary Hauler delivery stays separate. | DECIDED: share existing Jovian/Hauler stock, no duplicated inventory. Not selected yet. Existing estimate 60–90min implementation/checks plus checkpoint; split if the choice adds a separate capability. Access is already delivered. |
 | [AUDIO-NAVIGATOR-CLIENT-REJECTION /30](docs/COMPLETION_SCOPE.md#client-navigator-rejection-response--bounded-definition-next) | The actual requesting client gets one accurate refusal cue/caption for its current request. Existing passenger binding, ENet adapter, GameFlow and navigator audio lifetime owners carry the response. | Distinct equal refusals each present once; stale/replayed/foreign responses stay silent; accepted/clear behavior and full existing peer route retained; fresh playable checkpoint. Dummy checks establish dispatch, not listening. | DECIDED: feedback for every fresh current authenticated rejection, including unavailable consumer; stale/replayed/foreign responses remain silent. Not selected yet. Prior estimate 45–60min implementation/review, 15–25min checks, 10–15min checkpoint. High-risk lifetime/transport review required. |
 
@@ -697,7 +703,7 @@ keep their remaining acceptance requirements and other unrelated decisions open.
 
 | Child | Required input | Result after the dependency resolves |
 | --- | --- | --- |
-| FREIGHT-TERMINAL-WORKFLOW | DECIDED: physical terminals select existing job/show manifests and receipt; transfer remains automatic on landing. | Implement the selected interface with existing stock/once-only transfer and full walk/reload/same-ship requirements retained. |
+| FREIGHT-TERMINAL-WORKFLOW | DECIDED: physical terminals select existing job/show manifests and receipt; transfer remains automatic on landing. | Interface DONE on509703300/checkpoint5097033; full walk/reload/same-ship requirements retained. |
 | [AUDIO-NAVIGATOR-CLIENT-REJECTION](docs/COMPLETION_SCOPE.md#client-navigator-rejection-response--bounded-definition-next) | DECIDED: feedback on every fresh current authenticated rejection, including unavailable consumer. | Requester-correlated response; stale/replayed/foreign responses silent. Existing45–60min implementation/review estimate; checks/checkpoint additional. |
 | [HAULER-CARGO-MANIFEST](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries) | DECIDED: share the existing stock between Jovian and Hauler. | Preserve conserved ownership/generation floors; no recreated cargo or duplicate receipts. Full Hauler delivery remains required. |
 | [TRAVEL-LIMIT Beacon outbound](docs/ROADMAP_BACKLOG.md#beacon-outbound-travel-envelope--proposal-awaiting-decision) | DECIDED: maximum60s unpaused elapsed from engine-start input at occupied Torrent berth to controlled first Beacon. | Implement/qualify existing exact clock/route with original whole-sortie limits; return/other routes remain separate. |

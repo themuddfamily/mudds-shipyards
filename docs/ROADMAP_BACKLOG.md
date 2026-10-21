@@ -43,8 +43,9 @@ stale/replayed/foreign responses remain silent. Beacon outbound maximum is60s
 using the existing unpaused monotonic clock and unchanged route/start/stop criteria.
 Bomber ammunition refills when the pilot retakes the seat. These resolve the
 historical unanswered choices below; implementation and qualification remain
-separate. FREIGHT-TERMINAL-INTERFACE is selected first, then finish/merge/push/clean
-before selecting another. Other roster/capacity/role decisions are unchanged.
+separate. FREIGHT-TERMINAL-INTERFACE is completed on509703300/checkpoint5097033,
+integrated/pushed with owned scratch cleaned. Select one next bounded card;
+other roster/capacity/role decisions are unchanged.
 
 ## Coverage of the original remaining outcomes
 
@@ -166,8 +167,8 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | WALK-HABITAT-LOOP | Fresh normal Start Shift, hub→door→bunk sleep/wake→common room→same hub | 7,9 | DONE packaged3707bc9: actual archive ELF OS-XTest full route54.259s/163.231m, exact reservation/wake/commons/support/hub return, same Player. No scenario placement; hardware/final-source scope stays separate |
 | WALK-HABITAT-RESTART | Normal quit while resting, distinct process with same data, fresh awake supported controls | 7,9 | DONE packaged29abe94: two normal UI exits/exit0, same actual data/distinct PID, fresh supported look/walk/tractor interaction68.756s under singleCAP300. No station pose or OS-kill claim; exact continuation below |
 | HABITAT-BUNK-REST | Six production Habitat bunks offer actual local SLEEP/WAKE with supported return and lifecycle cleanup | 7,9 | DONE; packaged221f523. Six StationSeat-based bunks, focused134/full spine/Habitat/ship sleep checks and paired startup pass; no saved station pose or ship/recovery/network authority expansion |
-| WALK-FREIGHT | Full Freight terminal/door/room/conserved-transfer/receipt-reload/same-ship return | 7,9 | GATED on missing FREIGHT-TERMINAL-INTERFACE ; automatic workflow approved2026-10-21; decorative screens are not implemented terminal interactions. Existing Jovian automatic cargo delivery remains accepted in its own scope; KIT-RELOAD remains PARKED. [Concrete ordered handoff](#freight-terminals--physical-interface-and-existing-transfer-owner); no route selected |
-| FREIGHT-TERMINAL-INTERFACE | Ordinary Freight terminal interaction bound to actual conserved cargo owners | 7,9,13 | Missing production integration; owner chose automatic landing transfer with physical job/receipt controls2026-10-21; selected for implementation. Preserve existing6-kit source/berth capacity64 and exact two-kit entitlement, no cloned manifests/stock. Source boundary and ordered acceptance below; no implementation/execution selected |
+| WALK-FREIGHT | Full Freight terminal/door/room/conserved-transfer/receipt-reload/same-ship return | 7,9 | Interface delivered509703300/checkpoint5097033; full ordinary route remains GATED on its frozen route and existing cold KIT-RELOAD failure. Automatic workflow approved2026-10-21. Existing Jovian automatic cargo delivery remains accepted in its own scope; KIT-RELOAD remains PARKED. [Concrete ordered handoff](#freight-terminals--physical-interface-and-existing-transfer-owner); no route selected |
+| FREIGHT-TERMINAL-INTERFACE | Ordinary Freight terminal interaction bound to actual conserved cargo owners | 7,9,13 | DONE on509703300/checkpoint5097033: both actual-Main raw-E fittings, initial/saved/depleted/current-owner/re-entry/refusal checks and existing conserved/once-only cargo suite PASS; paired checkpoint/startups PASS. Existing6-kit source/berth capacity64/two-kit entitlement retained; full ordinary walk and cold KIT-RELOAD remain separate |
 | WALK-FLEET | Fleet Dock access and all-shipped berth reuse, shared with CRAFT-ACCEPT | 7,9 | DEFINE runnable boundary; three assigned comb berths are Zenith/Halyard/Bulwark, but original all-shipped reach/reuse covers nine current craft through existing CRAFT-ACCEPT journeys. No threshold-only completion or duplicate Sandbox route; [scope and seam](#fleet-access-and-reuse--shared-acceptance-boundary) |
 | WALK-ANNEX | Fresh normal hub→Annex console→hub with one actual restock | 7,9 | DONE source9af57671d;81.387s, same supported Player, kits5→6/one Annex update/Aft unchanged, disclosed pre-walk craft/repair fixtures; no whole-station closure |
 | WALK-OBSERVATION | Observation supported return | 7,9 | OPEN/unqualified. Privatebae551d58 full route PASS54 goals/345.753m/60-frame view/home/normal Exit0/clean logs, but active-tooltip repair INCONCLUSIVE: original visible TooltipPanel not exercised. Later actual-Main baseline did not produce it. Candidate remains unmerged; all five unique commits/seven files preserved by verified bundle/patch/source archive and pushed archive/withheld/exit-tooltip-order-20261020; local/remote/tracking working refs deleted. Missing actual hover owner/pointer/window/foreground state and original visible tooltip/root bindings before a separately selected repair. Full integrated route acceptance retained. [Accounting](history/ROADMAP_DELIVERIES.md#tooltip-candidate-accounted-and-archived--unqualified--2026-10-20) |
@@ -271,6 +272,18 @@ still leaves other craft, encounter, damage, recovery and parent 11 gates open.
 
 ### Freight terminals — physical interface and existing transfer owner
 
+**Interface completed2026-10-21 on509703300; playable checkpoint5097033.**
+The existing DispatchScreen and ManifestKiosk now own inventory-free
+FreightJobTerminal interaction adapters. Ordinary E selects the existing job and
+shows actual manifests/latest saved receipt, retaining automatic landing transfer.
+Full default cargo suite176 assertions, terminal68, authority94 and startup privacy
+checks PASS; strict three package startups and actual paired payload/archive audit
+PASS. Actual Player input is exercised from staged endpoint positions in initial
+and saved Main; this does not close full WALK-FREIGHT or distinct-process cold
+KIT-RELOAD. Source/result review GO. [Delivery/failed attempts/limits](history/ROADMAP_DELIVERIES.md#freight-physical-terminal-interface-completed--2026-10-21).
+
+The source definition below records the **pre-implementation** state.
+
 Source definition2026-10-20 on801b38e7a, one medium bounded source mapper plus
 root contract review; no edits to production, engines, tests or ordinary run.
 This corrects the roster's former implication that physical Freight terminals
@@ -309,7 +322,7 @@ Ordered deliverables, not executable cards or fixed completion estimates:
 
 | Deliverable | Production result and proof | Dependency / stop |
 | --- | --- | --- |
-| FREIGHT-TERMINAL-INTERFACE | Exact source/destination placement on existing Freight fittings; real prompt/ordinary E; current owner/manifest identity and honest enabled/refused feedback. Existing terminal/authority tests plus one actual Main interaction regression protect identity, range, re-entry and stock conservation. Meaningful accepted runtime checkpoint required. | Automatic workflow decided2026-10-21. Freeze module/scene, GameFlow, terminal adapter ownership and exact focused commands/caps; interface selected for implementation. Do not change geometry/berth clearance or invent inventory. |
+| FREIGHT-TERMINAL-INTERFACE | Exact source/destination placement on existing Freight fittings; real prompt/ordinary E; current owner/manifest identity and honest enabled/refused feedback. Existing terminal/authority tests plus one actual Main interaction regression protect identity, range, re-entry and stock conservation. Meaningful accepted runtime checkpoint required. | DONE509703300/checkpoint5097033 with staged actual-Main raw input and initial/saved owner checks. Geometry/clearance and real inventory retained; full walk/cold reload remain separate. |
 | Existing KIT-DELIVER plus physical terminal continuation | Actual ordinary walk to each endpoint, board the same Jovian, depart/complete the chosen legitimate transfer path; exactly6→4/0→2, one committed receipt/reward and usable home/physical exit. Inspect terminal receipt from actual owner/store, not a seeded complete flag. | Interface first; retain earlier accepted automatic owner unless workflow explicitly changes it. Freeze full same-candidate command/limits before execution; staged checks cannot replace it. |
 | Existing KIT-RELOAD | Distinct process reads actual committed receipt/manifests without duplicate transfer/reward, and usable controls/terminal/ship remain. | Original30s/first-normal-frame timeout stays PARKED; reuse its named child and causal reopening condition. Do not create a parallel Freight reload with a larger cap. |
 | WALK-FREIGHT full branch | Same supported Player hub→approach/apron→each terminal→ServiceAccess door/room/racks→same hub/ship; conserve cargo and verify the committed receipt including required cold reload. No rescue/teleports/shortened routes. | All above plus exact branch driver/observer handoff. Sandbox waypoint geometry is a route reference, not permission to rerun parked all-craft Sandbox. Shared Tooltip exit failures retain their own reopening conditions; no adjacent probe selected. |

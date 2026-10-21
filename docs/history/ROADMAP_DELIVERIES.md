@@ -20831,3 +20831,81 @@ Eight protected worktrees unchanged. Main remains the sole local/live branch.
 No gameplay/export change or duplicate checkpoint; latest playable4196ad0.
 Nine original candidates and full crew/survey/reward/save/home scope remain open;
 native/GPU/device/human/final matrix gates remain NOT_RUN.
+
+
+## Freight physical terminal interface completed — 2026-10-21
+
+FREIGHT-TERMINAL-INTERFACE DONE on5097033004374e794a390ad498c511a81845dbc1,
+fast-forward integrated and pushed to main. All five explicit owner choices are
+recorded in616a44bb4. Only Freight was implemented; shared Hauler stock, every
+current authenticated navigator rejection, Beacon60s and Bomber seat-retake refill
+remain queued. This delivery does not reduce the nine retained unqualified
+original candidates or close any original parent/phase gate.
+
+Existing Freight DispatchScreen and ManifestKiosk now have physical prompts and
+ordinary E interaction. Inventory-free FreightJobTerminal adapts to GameFlow's
+actual Jovian/berth handles, selects the existing cargo job and displays actual
+aboard/received quantities and latest saved transfer receipt. Honest unavailable,
+locked/depleted feedback, disabled query layers and current lifecycle guards
+protect the interaction. No cargo owner alias, second stocked manifest, geometry,
+clearance, authority, automatic landing transfer or exact two-kit entitlement change.
+One bounded implementer and independent high-risk source/result reviewer GO.
+
+Actual complete existing default cargo integration PASS176 assertions/exit0 in
+283.956s under unchanged300s cap. Both fittings exercise actual Player floor,
+overlap/range/current candidate/camera and raw mouse/E. Initial6/0 job selection
+and fresh-Main0/6 depleted refusal show actual saved receipt#3; current-source,
+nonplayer/out-of-range, disabled/detached and re-entry cases conserve ownership,
+generations and inventory. Existing once-only transfer/reward, corrupt/fallback
+refusal and unsaved failed/expired/active-abort reset recovery assertions retained
+and pass. Companion existing cargo terminal68 assertions(2.184s), authority94
+assertions(1.032s) and startup CLI privacy(1.004s) PASS without diagnostics.
+
+This is a staged interface check: Player placed near existing fitting floor and
+normal GameFlow physics disabled during that helper. Full normal travel/walk is
+not established. Earlier fixture failures retained: headless aim/title setup
+58.869s; dynamic-vector parse16.444s; uncaptured headless mouse65.177s; isolated
+uncapped input/HUD wait88.065s; fresh-Main recovery modal104.237s. Corrections use
+interaction-origin mouse aim and genuine isolated Xvfb capture/focus. Default
+staged suite caps presentation60fps to permit existing real-time HUD tweens within
+original600-frame wait; ordinary selector routes/physics/assertions/caps unchanged.
+Fresh Main uses its genuine enabled Resume Last Save button/token/generation
+handler and asserts modal closes; no manual hide or cargo reset. One environment
+reset preflight started no engine; verified official editor/release templates were
+restored to persistent tool cache, with temporary compressed downloads removed.
+No failure is erased or counted as a passing run.
+
+Fresh paired checkpoint5097033 built from clean exact source: Windows export
+10.576s, Linux27.748s. Direct Linux startup23.136s, extracted archive25.740s and
+Windows embedded game data under Linux Godot27.148s all exit0 with exactly one
+STARTUP_MENU_READY_OK and no diagnostics. All1527 embedded path/size/SHA256/
+PCK-MD5/flag tuples match; tests/tools excluded, stock Windows release .text
+retained. Exact six Linux archive members, all payload/launcher/installer/icon
+bytes, modes and source epoch verified. Windows checkpoint ZIP reopens cleanly
+with exact EXE/notes bytes. Artifacts stay under repository builds/windows/ and
+builds/linux/; no Downloads publication.
+
+| Artifact | Bytes | SHA256 |
+| --- | ---: | --- |
+| Windows EXE5097033 | 184706192 | f8a8c4418a21fbfea70f6d138c742827ddec365645dc9f9558101fd20c673577 |
+| Windows checkpoint ZIP | 103238353 | 9b9cd838cb5589463b3dac7d3b455a87f7f74b8b3d352a22fafba04a1e3491b3 |
+| Linux ELF5097033 | 148947904 | e41349f728af0cdfcb2fe28423d882c80b0d31df47b51ff2cf66627343e1ad10 |
+| Linux archive | 95360992 | 24f1e3a27fc2daa96cba05cd7e18ea896f7241122fcb1559677f281a786c2cf3 |
+
+All15 owned stage supervisors terminal; all39 observed PID/start identities absent.
+306 scratch entries archived and verified by exact bytes/mode/link before removal.
+Archive6587188bytes SHA256
+6257ea41e7743d7ca3175585101d17439487e501bf51d9d70fd43c4be36c305a.
+Raw commands/status/source/cache guards, failed attempts, review, artifacts audit
+and preserved profiles remain in
+/srv/mudds-work/freight-terminals-20261021/results/. Supervised stage time totals
+741.870s including retained failures; this is measured command time, not total
+implementation/session time. Source/cache frozen during every live stage; cache
+writes allowed only import/exports. No new working branch/worktree; all candidate
+commits now reachable in main. Eight prior detached registrations untouched;
+three /tmp worktree paths were already absent after environment reset and have
+not been pruned. Main remains sole local/live branch.
+
+Full ordinary WALK-FREIGHT, same-ship complete journey and distinct-process cold
+KIT-RELOAD retain original open/parked conditions. Native Windows/GPU/devices,
+listening/human/full-release gates remain NOT_RUN. Hosted CI remains disabled.
