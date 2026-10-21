@@ -254,6 +254,9 @@ func _run_cargo_walking_recall() -> void:
 ## as real input events. The docked hull, Player and recall guard keep ticking;
 ## no pose, velocity, floor flag or authority is written during the segment.
 func _cargo_recall_walk_route(access: CinderCargoAccess, player: PlayerController) -> Dictionary:
+	# A marker at a tread boundary shares the capsule's arrival footprint with
+	# the next authored step. Admit only one actual solver step plus its margin.
+	var arrival_height := float(player.get_step_up_assist_audit().get("max_step_height", 0.0)) + player.safe_margin
 	var local_points := access.get_route_local_points()
 	var targets: Array[Vector3] = []
 	for point: Vector3 in local_points:
@@ -334,7 +337,7 @@ func _cargo_recall_walk_route(access: CinderCargoAccess, player: PlayerControlle
 					first_transient = {"frame": Engine.get_physics_frames(), "position": player.global_position,
 						"support": str(support.get_path()), "velocity": player.velocity}
 			if (target - player.global_position).slide(Vector3.UP).length() <= 0.30 \
-					and absf(target.y - player.global_position.y) <= 0.20 \
+					and absf(target.y - player.global_position.y) <= arrival_height \
 					and player.velocity.slide(Vector3.UP).length() <= 0.35:
 				reached = true
 				visited.append(sample)
