@@ -21005,3 +21005,113 @@ Full ordinary HAULER-CARGO-DELIVERY/outbound/home and cold inventory reconstruct
 remain OPEN. Shared custody is session-local; cold earned-debt payment does not
 restore physical manifests. Craft/art/crew/combat/native Windows/GPU/devices,
 listening/human/final-release gates remain open or NOT_RUN. Actions stays disabled.
+
+
+## Navigator requester rejection feedback completed — 2026-10-21
+
+AUDIO-NAVIGATOR-CLIENT-REJECTION DONE onc2c72a2238b77c2c9da481da612f7319df0fec28,
+checkpointc2c72a2, integrated/pushed in main. User's every-current-authenticated-
+rejection choice includes actual unavailable consumers; stale/malformed/foreign
+input stays silent. One high-effort implementer, independent lifecycle/source/
+actual reviewer, root integration. No extra branch/worktree or concurrent card.
+
+Six existing runtime owners implement one immediate reliable requester result.
+Passenger captures original consumed request/verified claim before authority
+sequence translation; adapter supplies authenticated recipient peer/generation/
+session/migration and authority-only receive. No snapshot polling/revision loss,
+synthetic ship generation or pre-bridge bridge-policy fabrication. GameFlow pins
+bounded32 pending records before send to exact adapter/player/craft/physical claim,
+consumes once and retires on claim/lifetime loss. Success/internal terminal only
+retires pending. Separate refusal presentation cannot suppress real accepted clear.
+Synchronous proven-remote callback scope suppresses host refusal echo while keeping
+genuine local refusals. Mutation/consumed/internal failures are silent in both
+paths; actual ping remains committed. Existing cue/asset/caption/backend reused.
+No schema/validator family, retry/timer or gameplay mutation duplication added.
+
+Six focused suites PASS with zero diagnostics, original300s caps:
+
+| Existing check | Checks | Actual seconds | Source |
+| --- | ---: | ---: | --- |
+| corrected-navigator-audio | 114 | 3.912 | 0cae450b2 |
+| typed-optional-audio | 104 | 16.784 | 27eed548f |
+| solo-host-audio | 73 | 18.760 | 27eed548f |
+| production-flow | 38 | 16.020 | 27eed548f |
+| enet-adapter | 106 | 2.584 | 27eed548f |
+| navigator-bridge | 37 | 4.156 | 27eed548f |
+
+Only0ca→27 runtime change is explicit bool annotation of unchanged remote-refusal
+predicate;27→c2 changes only the new refusal test helper. Passing unchanged
+checks were retained, not rerun to generate evidence. Focused actual claimed
+Cinder+bridge+refusing publisher establishes committed receipt retained with zero
+denial cue/caption, alongside original genuine host/local refusals.
+
+Actual Main two-peer `--cinder-navigator --navigator-rejection` PASS252 checks,
+root14/host97/client141,119.770s/exit0/zero failures and diagnostics. Both peers
+have empty failures and OS exit0; no surviving observed identities. Original
+300s outer,120s clientdone,60s hostdone and every stage/walk/chair/stand/reseat/
+revocation/migration/disconnect cap/assertion retained. Exterior approach remains
+staged; cabin/player/seat/remapped F13 use real Input on independent Xvfb/x11 peers.
+Two presses with actual callback missing and two with actual bridge detached
+produce four correlated results, four real resident combat_alert_primary/UI
+requests and four actual Main captions before first client accepted receipt.
+Captured missing replyseq2 is navigator_consumer_unavailable; detachedseq4 is real
+bridge detached, same current claim/seat/entity and no ship_generation field.
+All four distinct request identities preserved even for equal status dictionaries.
+
+Actual original input replay/foreign claim and response wire replay/wrong recipient
+remain silent; host receives no new refusal echo. Full original continuation
+actual accepted/clear event counts1/0→1/1→2/1→2/2→3/2 at migration2 retain exactly
+four rejections throughout, with exact full request/caption cardinality. Matching
+clear and disconnect retirement remain real original owners. Independent final
+actual-result GO inspected all five diagnostics, raw episode packets and .done
+receipts. This is two-peer proof; no third-observer/listening claim.
+
+Earlier failures/fidelity corrections retained:
+- Optional class parse2.724s, direct adapter parse0.908s: Callable.rpc_id returns
+  void. Correct Node.rpc_id returns Error and retains immediate queue-failure
+  cleanup; verified local Godot4.7.1 Node docs/source.
+- Later optional parse2.664s and GameFlow parse3.004s: dynamic owner predicate
+  needed explicit bool annotation. No predicate/admission weakening.
+- Source reviewer found initial helper filtered all rejected cues, weakening the
+  original profile. Fixed before actual route: exact zero/four refusal plus full
+  request/caption counts asserted before accepted/clear comparison.
+- First full route FAIL132.882s: exactly four deliberately rejected presses reused
+  old helper demanding successful HUD acknowledgement. New refusal helper uses
+  identical F13 press/release2/3ticks; original accepted helper/assertions/caps are
+  unchanged. New correlated refusal outcomes remain mandatory. Final full rerun
+  passes original continuation and refusal contract; failure is not qualification.
+
+Fresh paired clean-source exports and strict menu-ready startups all PASS:
+export-windows 10.572s; export-linux 26.540s; startup-linux-binary 22.316s; startup-linux-archive 24.440s; startup-windows-pack 25.944s.
+Each startup exits0 with exactly one STARTUP_MENU_READY_OK/no diagnostics.
+Windows embedded data runs under Linux Godot, not native Windows. Actual1527 PCK
+path/size/SHA256/PCK-MD5/flag tuples match; stock Windows release code retained.
+Exact six Linux archive members, all payload/launcher/installer/icon bytes/modes/
+epoch/metadata and ZIP EXE/notes reopened/verified. Artifacts remain in repository
+builds/windows/ and builds/linux/; no Downloads publication.
+
+| Artifact | Bytes | SHA256 |
+| --- | ---: | --- |
+| MuddsShipyards-c2c72a2.exe | 184715936 | 39cda0be538dd899efdc9c091a6824453081f0e903595bcfd3ae7a0b2e96f468 |
+| MuddsShipyards-c2c72a2.x86_64 | 148957648 | 9ee716f59053efff0eed727e5b0f70a324dbc1a375a52cb059399710d775faab |
+| MuddsShipyards-c2c72a2-linux-x86_64.tar.gz | 95369056 | 8d921d09f8dbe9f11b7667a5dace375ecb79b67cf5362bba3695ac16c14e2a78 |
+| Windows checkpoint ZIP | 103246977 | 40213de4e4510bd666f8b695db0e2795fef8710c2d563b6ed486cb601d3adf63 |
+
+All18 supervisors terminal; all44 observed PID/start identities absent.
+358 scratch entries verified by exact bytes/mode/link in archive before removal.
+Archive3301193bytes SHA2565ba26771b5bb046d1c0074f94a2a6d1487bcb3fd2089a737cc658072f8851585.
+Raw commands/results/guards, prior failures, review and actual peer/profile
+artifacts are retained under /srv/mudds-work/navigator-client-rejection-20261021/
+results/ (profiles.tar.gz preserves the original private peer artifacts).
+Supervised stages total437.817s including failures; this is command time, not total
+implementation/session time. Source/cache frozen during each live stage; import/
+export cache writes only where allowed. Accepted candidate history reachable in
+main; no extra working refs to delete. Eight prior detached registrations remain
+untouched; three /tmp paths previously absent remain unpruned. Nine older
+unqualified candidates remain preserved, not reduced by this new runtime delivery.
+
+Full travel/endurance, third observer/mixed-version/final packaged multiplayer,
+actual listening/devices/human/native Windows/GPU/full-release gates remain open
+or NOT_RUN. All36 original parents/ten phase gates remain OPEN. CI stays disabled.
+Beacon60s and Bomber pilot seat-retake refill qualification remain approved/queued;
+no adjacent implementation or parked retry was started alongside this card.
