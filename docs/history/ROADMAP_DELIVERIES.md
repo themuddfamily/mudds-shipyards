@@ -20059,3 +20059,103 @@ Original20 inventory remains nine accepted/superseded and eleven unqualified;
 these counts are housekeeping, not whole-feature completion. Four broader cargo
 activity/lifecycle failures remain unresolved. Native Windows/GPU/devices/audible/
 human/final release NOT_RUN, all36parents/ten gates open, hosted CI stays disabled.
+
+
+## Cinder supply — complete ordinary delivery and home return — 2026-10-21
+
+**PLAY-CINDER-SUPPLY DONE on9ed9a070949b5c0ab0ed9d6c86bc8c9de529770f,
+merged and pushed to main.** No adjacent task, branch or worktree was started.
+The full original packaged ordinary-input journey passes216.291s with the
+unchanged300s whole-route and120s supply limits (activity20.3167s). All13 station,
+6 outbound cargo,6 reverse cargo,5 additional reboard clearance and1 home walking
+arrivals pass, grounded. Same original Player/Jovian/default sampler and unchanged
+tuning; hull260 throughout. No pose/velocity/lease/reward writes by the observer
+or ordinary driver and no waypoint omission, timer increase or API boarding.
+
+Actual terminal E transfers one crate: source2→1, destination0→1. The real primary
+file records one non-replayable payment; repeated E is refused as not_active and
+paid/repeat files are byte-identical. Protected pretransfer→paid→repeat→home data
+matches exactly, including unrelated race generation1. The exact paid supply slot
+and one-credit ledger match the home file. Strict home lease/contract, zero dock
+error/speed, automatic OFFLINE, authored physical exit and controlled supported
+1.2339033978103071m exterior walking precede focused EXIT TO DESKTOP. Actual game
+PID2232857 exits0 normally; input/helper/game/Xvfb cleanup flags all true and raw
+logs contain zero diagnostics. Independent full-scope review GO.
+
+### Actual causes and corrections
+
+The withheld caller's first extra reboard waypoint missed its original15s arrival
+bound because near-goal yaw steering orbited/overshot. The Cinder-only controller
+uses ordinary backing/strafe within3m, retaining its original0.30m/0.65m/0.35m/s
+and grounded arrival checks.104 existing driver safety tests pass. That candidate
+passes all walking/reboarding but hits300s in home_clearance; it is not accepted
+as full PLAY.
+
+Standalone and live timings rule out large input-transport delays. The existing
+local script profiler identifies two costs: title readiness traverses all Main
+buttons every physics sample; timed-race clock presentations refresh the unrelated
+nearby board, repeatedly loading/validating saves and snapshots (about74% of two
+outbound sampled frames). The live actual HUD button now supplies readiness;
+timer-only presentations retain fresh objectives without full nearby refreshes.
+State/gate/result boundaries and other callers still refresh normally. Startup
+privacy and real Main activity integration pass; final integration49 assertions
+also cover explicit starts/reset and retained terminal records.
+
+The faster full attempt reaches strict home dock214.590s, then protected-file
+conservation catches an unrelated race changing generation1→3. Guarding automatic
+terminal-race start alone is insufficient: the next run still fails213.054s,
+because actual boarding first resets the retained result to idle. These failures
+remain unqualified; home exit/quit were not reached.
+
+The accepted repair samples the previous active hull before boarding reassignment.
+Only same-craft reboarding at a current strictly accepted non-home berth with
+matching live instance/parent, bound reservation and exact Main occupied lease
+continues the existing sortie without terminal reset. Home/new-hull/recovery
+policies remain intact. The actual boarding regression on the old5e package passes
+24 checks (including physical dock/OFFLINE/reservation/pilot seating) and fails
+only its two race/protected-data checks. Identical corrected-source regression
+passes26 checks. It permits only the ordinary driver's four existing lifecycle
+slot changes; all other domain data and the exact race remain protected. Earlier
+fixture parse/reservation setup failures are retained and are not causal RED proof.
+The subsequent full ordinary9ed journey passes every original requirement.
+
+One earlier failed run's post-terminal analysis import recompiles an ignored
+Python bytecode cache. Its manifest exception is recorded explicitly; no exact
+all-file manifest claim is made for that run. Final accepted9ed full-route source
+and cache manifests match exactly. Diagnostic profiler runs used the editor engine,
+retained release pack and raw editor warnings; they do not qualify native performance.
+
+### Checkpoint and cleanup
+
+Fresh clean-source paired checkpoint9ed9a07 is in builds/windows and builds/linux.
+Windows payload under Linux Godot, direct Linux ELF and extracted Linux archive
+strict startup each require actual exit0 and exactly one STARTUP_MENU_READY_OK.
+All1525 embedded entry bytes match between Windows/Linux; stock Windows .text,
+Linux archive binary/icon/managed installer bytes, modes/source epoch and launcher
+binary names pass. Windows checkpoint ZIP is reopened and verified as exactly
+EXE plus notes. Notes describe visible changes and actual validation.
+
+| Artifact | Bytes | SHA256 |
+| --- | ---: | --- |
+| Windows EXE | 184695888 | 28eb987442cca4f5f83819e86bff29889cdef72ac1270c3ddff30e27ed79d94e |
+| Windows checkpoint ZIP | 103227945 | 86cce2efdebf14d0735a3a923b418ac57c1e10b8eaea7cb666c56d34a7838aab |
+| Linux ELF | 148937600 | fb8bc7d6c4440682706ab75bba958b292f89c670331a42c1da1e9fbd4e4fa28a |
+| Linux archive | 95351089 | a12104dbbacd2a02d1c5039a06d6e42933d1fcce7ba5c86e48af175ddd8f457b |
+
+Case: `/srv/mudds-work/cinder-supply-reboard-arrival-20261021/results/`.
+All24 owners are terminal;80 recorded PID/start identities are absent. All290
+scratch entries are archived/reopened/byte-mode-link verified before removal at
+03:29:32UTC. profiles.tar.gz3290725bytes SHA256
+a2253348425f5faac85aec7b2ca31d6139e2ce276459bd504be031860194df94.
+Three redundant executables (about447MB) are removed only after matching retained
+archive members; two failed package sets move out of builds/linux into this same
+case. No Downloads publication. Main is the sole working branch; eight protected
+detached worktrees are untouched. Earlier withheld source tags remain historical
+archives, not active tasks; no new working ref requires deletion.
+
+This closes the first funded Cinder supply journey only. Four separate broader
+cargo activity/lifecycle failures, repeat/restock/Hauler policy, all36 original
+parents and ten phase gates remain open. Native Windows execution/GPU, physical
+devices, audible listening, human review and final release NOT_RUN. Silent X11
+ordinary-input qualification is not native hardware qualification. Hosted CI
+remains disabled. No successor task is selected by this closeout.

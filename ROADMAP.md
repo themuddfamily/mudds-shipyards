@@ -6,13 +6,14 @@ Nine of the eventual 17 craft exist; eight still need supported specifications
 and implementation. Partial acceptance is retained in the backlog; it is not
 whole-feature completion.
 
-Latest playable checkpoint: **a47a978**. Cinder's cargo route can be walked from
-the Jovian berth to the terminal and back without a hub recall during stair
-descent. Genuine falls and invalid/unloaded access still recall. Full ordinary
-Cinder supply and Defense remain open.
-[Windows ZIP](builds/windows/MuddsShipyards-a47a978-checkpoint.zip),
-[Windows notes](builds/windows/MuddsShipyards-a47a978-notes.txt),
-[Linux notes](builds/linux/MuddsShipyards-a47a978-linux-notes.txt).
+Latest playable checkpoint: **9ed9a07**. The complete first Cinder supply trip
+now passes: ordinary flight, physical delivery, one saved payment, duplicate
+protection, reboarding, home dock, usable exit and normal quit. Race timer updates
+avoid unrelated directory/save work; same-craft remote reboarding retains its race
+record. Defense and the broader activity/release gates remain open.
+[Windows ZIP](builds/windows/MuddsShipyards-9ed9a07-checkpoint.zip),
+[Windows notes](builds/windows/MuddsShipyards-9ed9a07-notes.txt),
+[Linux notes](builds/linux/MuddsShipyards-9ed9a07-notes.txt).
 
 This page is the working queue. The
 [36-parent crosswalk and named children](docs/ROADMAP_BACKLOG.md#coverage-of-the-original-remaining-outcomes)
@@ -42,41 +43,35 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
-**One active outcome: PLAY-CINDER-SUPPLY — OPEN.**
-The walking prerequisite is now **DONE, merged and pushed as a47a9781a**:
-all six cargo points outbound and all six on return pass with physically grounded
-arrivals; the formerly failing airborne descent is exercised. Actual fall,
-outside-footprint, wrong-actor, reparented-access, unload and station recall cases
-pass. The same17 checks pass against exported game data. Fresh Windows/Linux
-checkpoint and strict startup checks pass. Player physics and tuning are unchanged.
+**Closed outcome: PLAY-CINDER-SUPPLY — DONE, merged and pushed as9ed9a0709.**
+The complete original ordinary-input packaged journey passes216.291s within its
+unchanged300s limit; the supply activity completes within120s. All13 station,
+6 outbound cargo,6 reverse cargo,5 additional reboard-clearance and1 home walking
+arrivals pass. Actual one-crate transfer, one durable payment, duplicate refusal
+and exact protected file conservation through home include the unrelated race
+record. Strict home dock, automatic OFFLINE, authored physical exit, supported
+1.234m walk and normal UI quit reach actual gameOS0. Independent review GO.
 
-The recall now uses a bounded region over the current access module's11 actual
-walking surfaces rather than requiring uninterrupted floor contact below the
-station's height. Earlier failed candidates remain preserved.
+The reboard controller now approaches nearby goals without yaw orbiting. Runtime
+repairs remove per-timer unrelated nearby-directory/persistence refreshes and
+preserve the current sortie when reboarding the same craft at a live occupied
+remote berth. Home/new-hull resets, explicit race starts and original clocks,
+physics, input sampler, waypoints and strict conservation checks remain intact.
+The real boarding regression fails only its two conservation checks against the
+old package and passes all26 checks on corrected source; activity integration49
+and startup privacy checks pass.
 
-The full ordinary attempt now verifies physical one-crate terminal transfer,
-exact saved once-only payment, duplicate conservation and all six cargo points in
-both directions. It stops at the first additional clearance waypoint before
-reboarding: its original15s arrival check fails. No recall or lost payment occurs.
-Reboarding, home dock/usable exit and normal quit remain unqualified.
+Fresh Windows/Linux checkpoint9ed9a07, three strict startup checks and the complete
+1525-entry matching payload audit pass. Owned scratch is archived/verified/removed;
+three duplicate executables removed after archive-byte checks. No working branch
+or worktree was created; main remains the sole local/live remote branch and eight
+protected detached worktrees are untouched. No successor task has been started.
+[Full result, actual causes, checkpoint and cleanup](docs/history/ROADMAP_DELIVERIES.md#cinder-supply--complete-ordinary-delivery-and-home-return--2026-10-21).
 
-Next: establish and correct that actual walking-arrival cause, then pass the whole
-original journey under unchanged300s/120s limits. The five-file unfinished caller
-is preserved under `archive/withheld/cinder-supply-reboard-walk-20261021`;
-owned scratch is removed. No adjacent task or working branch was started.
-[Latest failure and remaining requirement](docs/history/ROADMAP_DELIVERIES.md#cinder-supply--saved-delivery-and-duplicate-conservation-pass-reboard-walk-remains-open--2026-10-21).
-[Walking repair and validation](docs/history/ROADMAP_DELIVERIES.md#cinder-supply--complete-cargo-walk-and-return-repaired--2026-10-21).
-
-**Cinder cargo landing prerequisite DONE — `39d93d26b`.** The original
-production-Main regression fails only GameFlow berth discovery before the fix;
-afterward normal request ingress reaches strict physical docking with the exact
-lease and unchanged home berth. Twenty focused checks pass in source and against
-exported Linux game data; existing streaming and landing-clearance suites pass.
-Fresh paired checkpoint, strict startups and matching package contents pass.
-Owned scratch is removed. No new branch/worktree. Full **PLAY-CINDER-SUPPLY**
-remains OPEN: ordinary outbound flight, three supply phases, physical one-crate
-transfer, durable once-only payment and usable home return must pass together.
-[Delivery and validation limits](docs/history/ROADMAP_DELIVERIES.md#cinder-cargo--normal-landing-assist-integration--2026-10-21).
+This closes the first funded supply journey, not repeat/restock/Hauler policy or
+the four separate broader cargo activity/lifecycle failures. Native Windows,
+native GPU, physical devices, audible listening and human review remain NOT_RUN;
+all36 original parents and ten phase gates remain open. GitHub Actions stays off.
 
 **Existing working-branch backlog cleared; unfinished product outcomes remain open.**
 
@@ -611,7 +606,7 @@ The backlog preserves accepted child scopes and remaining gates. The existing
 [delivery history](docs/history/ROADMAP_DELIVERIES.md) preserves sources, actual
 results, timings and cleanup. Recent palette, controls, station service, recovery,
 Arrow and helm work remains accepted only within those recorded boundaries.
-Caller-only qualification needs no identical playable rebuild. Checkpoint49bc7b7
+Caller-only qualification needs no identical playable rebuild. Checkpoint9ed9a07
 is the latest accepted playable result; full craft combat/damage/recovery,
 cross-craft/Main, hardware/native and final release gates remain open.
 
