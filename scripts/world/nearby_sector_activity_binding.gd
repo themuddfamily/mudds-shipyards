@@ -60,6 +60,9 @@ var _patrol: PatrolActivity
 var _cargo_authority: CargoTransferAuthority
 var _cargo_activity: CargoDeliveryActivity
 var _cargo_reward_handoff: RefCounted
+var _cargo_stock_handle: Dictionary
+var _cargo_custody_transition_active := false
+var _cargo_occupancy_refresh_pending := false
 var _cargo_source_handle: Dictionary
 var _cargo_destination_handle: Dictionary
 var _cargo_access: CinderCargoAccess
@@ -179,6 +182,13 @@ func _ready() -> void:
 	cargo_item.display_name = "Cinder supply crates"
 	cargo_item.unit_capacity = 1
 	_cargo_authority.register_item(cargo_item)
+	# One shared mission stock for this binding lifetime; custody moves this same
+	# authority manifest between the binding and accepted landed craft.
+	var stock := _cargo_authority.register_entity(
+		self, &"cinder_supply_stock_custodian", &"cinder_supply_stock_manifest", 8,
+		{&"cinder_supply_crates": 2}
+	)
+	_cargo_stock_handle = (stock.get("handle", {}) as Dictionary).duplicate(true)
 	# The belt threading run is a second `CheckpointRouteActivity`, not a second
 	# activity type: `ActivityDirector` already keys its routes by activity id,
 	# so a distinct definition is the whole of the new authority.
@@ -360,59 +370,109 @@ func get_cargo_destination_handle() -> Dictionary:
 
 
 func _on_cargo_berth_occupancy_changed(occupant: Node) -> void:
-	# The exact earned owner is also the retry authority when debt publication
-	# failed. Ordinary departure must not retire it or seed another run.
-	if _cargo_unpaid_live_completion():
+	if _cargo_custody_transition_active:
+		_cargo_occupancy_refresh_pending = true
+		return
+	# A claimed sortie or earned completion owns its exact source until reset or
+	# payment. Another occupant cannot take its remaining shared mission stock.
+	if _cargo_unpaid_live_completion() or (
+		is_instance_valid(_cargo_activity)
+		and _cargo_activity.get_state() == CARGO_ACTIVITY.State.ACTIVE
+	):
 		_publish_cargo_presentation()
 		return
 	if not is_instance_valid(occupant):
-		# An active supply sortie must carry its exact manifest away from the
-		# berth. The source is retired after a non-active release, explicit
-		# reset away from the platform, entity retirement, or component teardown.
-		if is_instance_valid(_cargo_activity) \
-				and _cargo_activity.get_state() == CARGO_ACTIVITY.State.ACTIVE:
-			_publish_cargo_presentation()
-			return
 		_release_cargo_source_binding()
 		return
 	if not _cargo_source_handle.is_empty():
 		return
-	if not occupant.has_method("get_ship_id") \
-		or StringName(occupant.call("get_ship_id")) != &"jovian_provisional":
+	if not is_instance_valid(_cargo_access) or _cargo_access.get_berth().get_occupant() != occupant:
 		return
-	var source_registration := _cargo_authority.register_entity(
-		occupant, &"jovian_provisional", &"cinder_jovian_source_manifest", 8,
-		{&"cinder_supply_crates": 2}
+	var ship_id: StringName = &""
+	var manifest_id: StringName = &""
+	if occupant.has_method("get_ship_id") and StringName(occupant.call("get_ship_id")) == &"jovian_provisional":
+		ship_id = &"jovian_provisional"
+		manifest_id = &"cinder_jovian_source_manifest"
+	elif occupant is CinderCargoHauler and (occupant as CinderCargoHauler).get_ship_id() == &"cinder_cargo_hauler":
+		ship_id = &"cinder_cargo_hauler"
+		manifest_id = &"cinder_hauler_source_manifest"
+	else:
+		return
+	_cargo_custody_transition_active = true
+	# Connect before authority ownership so source exit returns the same stock
+	# before the authority's ordinary entity-retirement callback can delete it.
+	var exit_callback := _on_cargo_source_tree_exiting.bind(occupant.get_instance_id())
+	if not occupant.tree_exiting.is_connected(exit_callback):
+		occupant.tree_exiting.connect(exit_callback, CONNECT_ONE_SHOT)
+	var source_registration := _cargo_authority.reassign_entity(
+		_cargo_stock_handle, occupant, ship_id, manifest_id
 	)
 	if not bool(source_registration.get("accepted", false)):
+		if occupant.tree_exiting.is_connected(exit_callback):
+			occupant.tree_exiting.disconnect(exit_callback)
+		_finish_cargo_custody_transition()
 		return
 	_cargo_source_entity = occupant
-	_cargo_source_handle = (
-		source_registration.get("handle", {}) as Dictionary
-	).duplicate(true)
+	_cargo_source_handle = (source_registration.get("handle", {}) as Dictionary).duplicate(true)
+	_cargo_stock_handle = _cargo_source_handle.duplicate(true)
 	var cargo_contract := CARGO_CONTRACT.new(
 		&"cinder_platform_supply_run", _cargo_source_handle,
 		_cargo_destination_handle, &"cinder_supply_crates", 1,
 		[&"load_crate", &"clear_gate", &"dock_platform"], 120.0
 	)
-	_cargo_activity = CARGO_ACTIVITY.new(
-		_cargo_authority, cargo_contract
-	) as CargoDeliveryActivity
+	_cargo_activity = CARGO_ACTIVITY.new(_cargo_authority, cargo_contract) as CargoDeliveryActivity
 	_apply_cargo_generation_floor()
 	_bind_cargo_reward_handoff()
 	_publish_cargo_presentation()
+	_finish_cargo_custody_transition()
 
 
-## Ordinary berth release is a physical source-lifecycle boundary. Retire the
-## authority record through its existing public API, then synchronously clear
-## every binding-owned reference so a new landed Jovian can claim the stable
-## source IDs without waiting for the old craft to leave the tree.
+func _finish_cargo_custody_transition() -> void:
+	_cargo_custody_transition_active = false
+	if _cargo_occupancy_refresh_pending:
+		_cargo_occupancy_refresh_pending = false
+		call_deferred("_refresh_cargo_occupant")
+
+
+func _refresh_cargo_occupant() -> void:
+	if is_inside_tree() and is_instance_valid(_cargo_access):
+		_on_cargo_berth_occupancy_changed(_cargo_access.get_berth().get_occupant())
+
+
+## Park the exact authority-owned manifest, without inventory reconstruction or
+## receipt creation. A failed reassignment retains the old owner and fails shut.
 func _release_cargo_source_binding() -> void:
-	var released_handle := _cargo_source_handle.duplicate(true)
-	if not released_handle.is_empty() and is_instance_valid(_cargo_authority):
-		_cargo_authority.retire_entity(released_handle)
-	if _cargo_source_handle == released_handle:
+	if _cargo_source_handle.is_empty() or _cargo_custody_transition_active:
+		return
+	_cargo_custody_transition_active = true
+	var parked := _cargo_authority.reassign_entity(
+		_cargo_stock_handle, self, &"cinder_supply_stock_custodian", &"cinder_supply_stock_manifest"
+	)
+	if bool(parked.get("accepted", false)):
+		_cargo_stock_handle = (parked.get("handle", {}) as Dictionary).duplicate(true)
+		_disconnect_cargo_source_exit()
 		_clear_cargo_source_binding()
+	_finish_cargo_custody_transition()
+
+
+func _disconnect_cargo_source_exit() -> void:
+	if not is_instance_valid(_cargo_source_entity):
+		return
+	var callback := _on_cargo_source_tree_exiting.bind(_cargo_source_entity.get_instance_id())
+	if _cargo_source_entity.tree_exiting.is_connected(callback):
+		_cargo_source_entity.tree_exiting.disconnect(callback)
+
+
+func _on_cargo_source_tree_exiting(instance_id: int) -> void:
+	if not is_instance_valid(_cargo_source_entity) or _cargo_source_entity.get_instance_id() != instance_id:
+		return
+	# Whole-cluster detach retains its live source and exact handle. A source
+	# leaving while the binding is live instead returns stock before retirement.
+	if not is_inside_tree() or is_queued_for_deletion():
+		return
+	if is_instance_valid(_cargo_activity) and _cargo_activity.get_state() == CARGO_ACTIVITY.State.ACTIVE:
+		_cargo_activity.fail(&"cargo_source_ship_retired", _cargo_activity.get_generation())
+	_release_cargo_source_binding()
 
 
 func _clear_cargo_source_binding() -> void:
@@ -421,6 +481,9 @@ func _clear_cargo_source_binding() -> void:
 	if _cargo_unpaid_live_completion():
 		_publish_cargo_presentation()
 		return
+	if is_instance_valid(_cargo_activity):
+		_cargo_generation_floor = maxi(_cargo_generation_floor, _cargo_activity.get_generation())
+	_disconnect_cargo_source_exit()
 	_cargo_source_handle.clear()
 	_cargo_source_entity = null
 	_last_cargo_terminal_request.clear()
@@ -443,6 +506,8 @@ func _on_cargo_terminal_interaction_requested(actor: Node, snapshot: Dictionary)
 
 
 func _submit_cargo_terminal_request(actor: Node, snapshot: Dictionary) -> Dictionary:
+	if _cargo_custody_transition_active:
+		return _cargo_terminal_result(false, &"cargo_custody_transition_active")
 	if not is_instance_valid(_cargo_terminal) or not is_instance_valid(_cargo_access):
 		return _cargo_terminal_result(false, &"cargo_physical_endpoint_required")
 	if (
@@ -782,17 +847,23 @@ func _cargo_unpaid_live_completion() -> bool:
 
 
 func start_cargo_run() -> Dictionary:
+	if _cargo_custody_transition_active:
+		return _result(false, &"cargo_custody_transition_active")
 	if _cargo_debt_pending() or _cargo_unpaid_live_completion():
 		return _result(false, &"cargo_reward_pending")
 	_apply_cargo_generation_floor()
 	if not is_inside_tree() or _cargo_activity == null:
 		return _result(false, &"not_ready")
+	if _cargo_authority.get_quantity(_cargo_source_handle, &"cinder_supply_crates") <= 0:
+		return _result(false, &"cargo_source_stock_exhausted")
 	var result := _cargo_activity.start(_cargo_activity.get_generation())
 	_publish_cargo_presentation(result)
 	return result
 
 
 func advance_cargo_run(delta: float) -> Dictionary:
+	if _cargo_custody_transition_active:
+		return _result(false, &"cargo_custody_transition_active")
 	if not is_inside_tree() or _cargo_activity == null:
 		return _result(false, &"not_ready")
 	var result := _cargo_activity.advance_physics(delta, _cargo_activity.get_generation())
@@ -862,6 +933,8 @@ func advance_cargo_run_from_caller_sample(
 
 
 func submit_cargo_phase(phase_id: StringName) -> Dictionary:
+	if _cargo_custody_transition_active:
+		return _result(false, &"cargo_custody_transition_active")
 	if not is_inside_tree() or _cargo_activity == null:
 		return _result(false, &"not_ready")
 	var result := _cargo_activity.submit_phase(phase_id, _cargo_activity.get_generation())
@@ -870,6 +943,8 @@ func submit_cargo_phase(phase_id: StringName) -> Dictionary:
 
 
 func reset_cargo_run() -> Dictionary:
+	if _cargo_custody_transition_active:
+		return _result(false, &"cargo_custody_transition_active")
 	if _cargo_debt_pending() or _cargo_unpaid_live_completion():
 		return _result(false, &"cargo_reward_pending")
 	if not is_inside_tree() or _cargo_activity == null:
@@ -892,15 +967,9 @@ func reset_cargo_run() -> Dictionary:
 func authorize_cargo_terminal_actor(actor: Node3D, ship: Node) -> Dictionary:
 	if not is_instance_valid(_cargo_access):
 		return _result(false, &"cargo_physical_endpoint_required")
-	# Physical Hauler access is independent of the Jovian cargo source. Forward
-	# only this live craft; the access component still validates its exact
-	# occupied lease, attachment and disembark marker. No source is registered.
-	var hauler_physical_only := ship is CinderCargoHauler \
-		and (ship as CinderCargoHauler).get_ship_id() == &"cinder_cargo_hauler"
-	if not hauler_physical_only and not is_instance_valid(_cargo_source_entity):
+	if not is_instance_valid(_cargo_source_entity):
 		return _result(false, &"cargo_physical_endpoint_required")
-	if not is_instance_valid(actor) or not is_instance_valid(ship) \
-		or (not hauler_physical_only and ship != _cargo_source_entity):
+	if not is_instance_valid(actor) or not is_instance_valid(ship) or ship != _cargo_source_entity:
 		return _result(false, &"wrong_terminal_craft")
 	var berth := _cargo_access.get_berth()
 	if not is_instance_valid(berth) or berth.get_occupant() != ship:
@@ -915,6 +984,8 @@ func authorize_cargo_terminal_actor(actor: Node3D, ship: Node) -> Dictionary:
 
 
 func abort_cargo_run(expected_generation: int) -> Dictionary:
+	if _cargo_custody_transition_active:
+		return _result(false, &"cargo_custody_transition_active")
 	if not is_instance_valid(_cargo_activity):
 		return _result(false, &"not_ready")
 	var result := _cargo_activity.fail(&"embodied_transfer_aborted", expected_generation)
@@ -1225,7 +1296,7 @@ func configure_cinder_cargo_delivery_persistence(store: RefCounted, slot_id: Str
 	if not bool(configured.get("accepted", false)):
 		return configured
 	_cargo_delivery_persistence = persistence
-	_cargo_generation_floor = maxi(0, legacy_paid_floor)
+	_cargo_generation_floor = maxi(_cargo_generation_floor, maxi(0, legacy_paid_floor))
 	var restored: Dictionary = _refresh_cargo_delivery()
 	_last_cargo_delivery_persistence_result = restored.duplicate(true)
 	if not bool(restored.get("accepted", false)) and restored.get("reason") != &"cargo_delivery_not_found":

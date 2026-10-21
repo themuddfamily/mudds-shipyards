@@ -292,15 +292,18 @@ func _test_hauler_physical_access() -> void:
 	var request := binding.get_last_cargo_terminal_request()
 	var authority := binding.get_cargo_transfer_authority()
 	var destination := authority.get_manifest_snapshot(binding.get_cargo_destination_handle())
+	var source_handle := binding.get_cargo_source_handle()
 	_check(
-		binding.get_cargo_source_handle().is_empty()
-		and int(physical_snapshot.cargo_binding.source_entity_instance_id) == 0
-		and (physical_snapshot.cargo as Dictionary).is_empty()
+		StringName(source_handle.get("entity_id", &"")) == &"cinder_cargo_hauler"
+		and StringName(source_handle.get("manifest_id", &"")) == &"cinder_hauler_source_manifest"
+		and int(physical_snapshot.cargo_binding.source_entity_instance_id) == ship.get_instance_id()
+		and int((physical_snapshot.cargo as Dictionary).get("state", -1)) == CargoDeliveryActivity.State.IDLE
+		and authority.get_quantity(source_handle, &"cinder_supply_crates") == 2
 		and not bool(request.get("accepted", true))
-		and request.get("reason", &"") == &"cargo_source_unavailable"
+		and request.get("reason", &"") == &"not_active"
 		and int(destination.used_capacity) == 0
 		and (authority.to_dictionary().committed_transfers as Array).is_empty(),
-		"actual binding forwards only Hauler physical access; terminal still refuses cargo with no source, activity, stock or transfer grant"
+		"actual landed Hauler owns the exact shared-stock source; walking to its terminal cannot bypass the unchanged delivery phases"
 	)
 	_check(
 		berth.release(ship, lease)

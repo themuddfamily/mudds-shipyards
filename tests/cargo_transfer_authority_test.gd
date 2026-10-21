@@ -18,9 +18,76 @@ func _init() -> void:
 func _run() -> void:
 	await _test_authority_transfer_currentness()
 	await _test_registration_and_atomic_transfer()
+	await _test_conserved_custody_reassignment()
 	await _test_detach_reentry_and_generation_cleanup()
 	await _test_atomic_pair_reattach_signal_adversary()
 	_finish()
+
+
+func _test_conserved_custody_reassignment() -> void:
+	var authority := CargoTransferAuthority.new()
+	root.add_child(authority)
+	authority.register_item(_item(&"custody_crate", "Custody crate", 1))
+	var owners: Array[Node] = [Node.new(), Node.new(), Node.new()]
+	for owner in owners:
+		root.add_child(owner)
+	var handle := authority.register_entity(owners[0], &"jovian", &"jovian_hold", 8, {&"custody_crate": 2}).handle as Dictionary
+	var destination := authority.register_entity(owners[2], &"destination", &"destination_hold", 8).handle as Dictionary
+	var notifications: Array[StringName] = []
+	authority.manifest_registered.connect(func(_handle: Dictionary) -> void: notifications.append(&"registered"))
+	authority.manifest_retired.connect(func(_handle: Dictionary) -> void: notifications.append(&"retired"))
+	authority.manifest_detached.connect(func(_handle: Dictionary) -> void: notifications.append(&"detached"))
+	authority.manifest_reattached.connect(func(_handle: Dictionary) -> void: notifications.append(&"reattached"))
+	var original_manifest := (((authority.get("_records_by_manifest_id") as Dictionary)[&"jovian_hold"] as Dictionary).get("manifest")) as CargoManifest
+	var ledger_before := authority.to_dictionary()
+	var moved := authority.reassign_entity(handle, owners[1], &"hauler", &"hauler_hold")
+	var hauler := moved.get("handle", {}) as Dictionary
+	_check(moved.accepted and authority.get_quantity(hauler, &"custody_crate") == 2
+		and authority.get_manifest_snapshot(handle).is_empty()
+		and authority.audit().active_manifest_count == 2 and notifications.is_empty()
+		and (((authority.get("_records_by_manifest_id") as Dictionary)[&"hauler_hold"] as Dictionary).get("manifest")) == original_manifest
+		and authority.to_dictionary().committed_transfers == ledger_before.committed_transfers
+		and authority.to_dictionary().next_receipt_id == ledger_before.next_receipt_id,
+		"custody moves conserved stock to exact new IDs, invalidates the old handle, and emits no inventory receipt or lifecycle signal")
+	var before_rejection := authority.to_dictionary()
+	_check(not authority.reassign_entity(handle, owners[0], &"jovian", &"jovian_hold").accepted
+		and authority.reassign_entity(hauler, owners[2], &"free_id", &"free_hold").reason == &"duplicate_entity_instance"
+		and authority.reassign_entity(hauler, owners[0], &"destination", &"free_hold").reason == &"duplicate_entity"
+		and authority.reassign_entity(hauler, owners[0], &"free_id", &"destination_hold").reason == &"duplicate_manifest"
+		and authority.reassign_entity(hauler, owners[0], &"Invalid ID", &"free_hold").reason == &"invalid_entity_id"
+		and authority.to_dictionary() == before_rejection,
+		"stale custody, occupied owner/IDs and malformed IDs reject without any authority state change")
+	var reentrant: Array[Dictionary] = []
+	authority.transfer_committed.connect(func(_receipt: Dictionary) -> void:
+		reentrant.append(authority.reassign_entity(hauler, owners[0], &"jovian", &"jovian_hold"))
+	)
+	var commit := authority.transfer(&"custody_delivery", hauler, destination, &"custody_crate", 1)
+	var returned := authority.reassign_entity(hauler, owners[0], &"jovian", &"jovian_hold")
+	var current := returned.get("handle", {}) as Dictionary
+	_check(commit.accepted and returned.accepted
+		and int(current.entity_generation) > int(handle.entity_generation)
+		and int(current.manifest_generation) > int(handle.manifest_generation)
+		and authority.get_quantity(current, &"custody_crate") == 1
+		and authority.get_quantity(destination, &"custody_crate") == 1
+		and authority.transfer(&"custody_delivery", current, destination, &"custody_crate", 1).reason == &"duplicate_transfer"
+		and authority.to_dictionary().next_receipt_id == 2
+		and reentrant.size() == 1 and reentrant[0].reason == &"reentrant_call",
+		"return custody advances generations with reduced stock and preserves the exact delivery replay fence")
+	owners[1].queue_free()
+	await process_frame
+	_check(authority.get_quantity(current, &"custody_crate") == 1,
+		"retiring the old owner cannot detach or retire the reassigned manifest indexes")
+	var queued := Node.new()
+	root.add_child(queued)
+	queued.queue_free()
+	before_rejection = authority.to_dictionary()
+	_check(authority.reassign_entity(current, queued, &"queued", &"queued_hold").reason == &"invalid_entity"
+		and authority.to_dictionary() == before_rejection,
+		"queued target custody refuses without consuming generations or stock")
+	for index in [0, 2]:
+		owners[index].queue_free()
+	authority.queue_free()
+	await process_frame
 
 
 func _test_authority_transfer_currentness() -> void:

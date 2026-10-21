@@ -110,6 +110,66 @@ func register_entity(
 	})
 
 
+## Moves the existing manifest, including its quantities, to another live owner.
+## This is custody, not an inventory transfer: no receipt or lifecycle signal is
+## emitted. The caller publishes its complete composition after this atomic call.
+## No external callback runs between preflight and commit; all old handles become
+## stale, while receipt IDs and committed-transfer fences remain unchanged.
+func reassign_entity(
+		handle: Dictionary, entity: Node, entity_id: StringName, manifest_id: StringName
+	) -> Dictionary:
+	if not is_inside_tree() or is_queued_for_deletion():
+		return _result(false, &"authority_unavailable")
+	if _mutation_is_guarded():
+		return _result(false, &"reentrant_call")
+	if not is_instance_valid(entity) or not entity.is_inside_tree() or entity.is_queued_for_deletion():
+		return _result(false, &"invalid_entity")
+	if not CargoItemDefinition.is_stable_id(entity_id):
+		return _result(false, &"invalid_entity_id")
+	if not CargoItemDefinition.is_stable_id(manifest_id):
+		return _result(false, &"invalid_manifest_id")
+	var validation := _validate_handle(handle, false)
+	if not bool(validation.get("accepted", false)):
+		return validation
+	var manifest := validation.get("manifest") as CargoManifest
+	var record := validation.get("record", {}) as Dictionary
+	var previous_manifest_id := manifest.manifest_id
+	if _manifest_id_by_entity_id.has(entity_id) and _manifest_id_by_entity_id[entity_id] != previous_manifest_id:
+		return _result(false, &"duplicate_entity")
+	if _records_by_manifest_id.has(manifest_id) and manifest_id != previous_manifest_id:
+		return _result(false, &"duplicate_manifest")
+	var instance_id := entity.get_instance_id()
+	if _manifest_id_by_instance_id.has(instance_id) and _manifest_id_by_instance_id[instance_id] != previous_manifest_id:
+		return _result(false, &"duplicate_entity_instance")
+	var entity_generation := _peek_next_generation(_entity_generation_cursors, entity_id)
+	var manifest_generation := _peek_next_generation(_manifest_generation_cursors, manifest_id)
+	if entity_generation < 0 or manifest_generation < 0:
+		return _result(false, &"generation_exhausted")
+	var previous_handle := _handle_for(manifest)
+	var reference := record.get("entity") as WeakRef
+	var previous_entity := reference.get_ref() as Node if reference != null else null
+	_disconnect_entity_exit(previous_entity, int(record.get("instance_id", 0)))
+	_remove_record(previous_manifest_id)
+	_entity_generation_cursors[entity_id] = entity_generation
+	_manifest_generation_cursors[manifest_id] = manifest_generation
+	manifest.owner_entity_id = entity_id
+	manifest.owner_generation = entity_generation
+	manifest.manifest_id = manifest_id
+	manifest.generation = manifest_generation
+	record["entity"] = weakref(entity)
+	record["instance_id"] = instance_id
+	record["attached"] = true
+	_records_by_manifest_id[manifest_id] = record
+	_manifest_id_by_entity_id[entity_id] = manifest_id
+	_manifest_id_by_instance_id[instance_id] = manifest_id
+	_connect_entity_exit(entity, instance_id)
+	return _result(true, &"custody_reassigned", {
+		"previous_handle": previous_handle,
+		"handle": _handle_for(manifest),
+		"manifest": manifest.get_snapshot(_unit_capacities(), true),
+	})
+
+
 func reattach_entity(entity: Node, handle: Dictionary) -> Dictionary:
 	if _mutation_is_guarded():
 		return _result(false, &"reentrant_call")

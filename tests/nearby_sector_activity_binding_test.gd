@@ -1,6 +1,13 @@
 extends SceneTree
 
 const CLUSTER_SCENE := preload("res://scenes/world/components/nearby_sector_cluster.tscn")
+const JOVIAN_SCENE := preload("res://scenes/ships/jovian_light_freighter.tscn")
+const CARGO_ROUNDTRIP_TEST := preload("res://tests/cinder_cargo_delivery_persistence_roundtrip_test.gd")
+
+var _cargo_reward_authority: GameFlowRewardAuthority
+var _cargo_payment_allowed := false
+var _cargo_reward_calls := 0
+var _cargo_reward_payments := 0
 
 var _station_snapshot_calls := 0
 var _assertions := 0
@@ -234,7 +241,135 @@ func _run() -> void:
 		)
 	cluster.queue_free()
 	await process_frame
+	await _test_shared_cargo_custody()
 	_finish()
+
+
+## Staged ownership/manifest integration, deliberately not an ordinary flight or
+## walking journey: real craft enter the public berth lease seam, and the real
+## activity receives its ordered phases directly before its authority transfer.
+func _test_shared_cargo_custody() -> void:
+	var cluster := CLUSTER_SCENE.instantiate() as NearbySectorCluster
+	root.add_child(cluster)
+	var jovian := JOVIAN_SCENE.instantiate() as HeroShip
+	var hauler := CinderCargoHauler.new()
+	root.add_child(jovian)
+	root.add_child(hauler)
+	jovian.set_physics_process(false)
+	hauler.set_physics_process(false)
+	await process_frame
+	var binding := cluster.get_node(^"ActivityBinding") as NearbySectorActivityBinding
+	var berth := cluster.get_cinder_cargo_access().get_berth()
+	var authority := binding.get_cargo_transfer_authority()
+	var destination := binding.get_cargo_destination_handle()
+	var store := UserDataStore.new("memory://shared-cinder-stock.json", CARGO_ROUNDTRIP_TEST.MemoryFilesystem.new())
+	store.load()
+	_cargo_reward_authority = GameFlowRewardAuthority.new()
+	_cargo_reward_authority.configure(store)
+	_check(binding.configure_cinder_cargo_delivery_persistence(store).accepted
+		and binding.configure_cargo_reward_handoff(Callable(self, "_commit_shared_cargo_reward")).accepted,
+		"shared-stock fixture uses the existing terminal debt and reward persistence owners")
+	var unaccepted := Node3D.new()
+	root.add_child(unaccepted)
+	var unaccepted_lease := berth.try_reserve(unaccepted, jovian.get_ship_definition())
+	_check(berth.occupy(unaccepted, unaccepted_lease) and binding.get_cargo_source_handle().is_empty()
+		and authority.to_dictionary().committed_transfers.is_empty(),
+		"a physical lease with another craft's compatible profile cannot give an unaccepted entity mission-stock custody")
+	berth.release(unaccepted, unaccepted_lease)
+	unaccepted.queue_free()
+	var jovian_lease := berth.try_reserve(jovian, jovian.get_ship_definition())
+	_check(berth.occupy(jovian, jovian_lease), "actual Jovian takes the staged production cargo lease")
+	var old_jovian := binding.get_cargo_source_handle()
+	var first := binding.start_cargo_run()
+	var aborted := binding.abort_cargo_run(int(first.generation))
+	var reset := binding.reset_cargo_run()
+	var prior_generation := int(reset.get("generation", 0))
+	_check(first.accepted and aborted.accepted and reset.accepted
+		and authority.get_quantity(old_jovian, &"cinder_supply_crates") == 2
+		and berth.release(jovian, jovian_lease) and binding.get_cargo_source_handle().is_empty(),
+		"aborted Jovian release parks the existing two crates without a delivery or reseed")
+	var hauler_lease := berth.try_reserve(hauler, hauler.get_ship_definition())
+	_check(berth.occupy(hauler, hauler_lease), "actual Hauler takes the same staged production cargo lease")
+	var hauler_handle := binding.get_cargo_source_handle()
+	var hauler_start := binding.start_cargo_run()
+	_check(hauler_handle.get("entity_id") == &"cinder_cargo_hauler"
+		and hauler_handle.get("manifest_id") == &"cinder_hauler_source_manifest"
+		and authority.get_quantity(hauler_handle, &"cinder_supply_crates") == 2
+		and authority.get_manifest_snapshot(old_jovian).is_empty()
+		and hauler_start.accepted and int(hauler_start.generation) > prior_generation,
+		"Jovian to Hauler custody keeps exactly two crates, distinct exact source IDs, stale-handle refusal and the activity generation floor")
+	berth.release(hauler, hauler_lease)
+	binding.call("_on_cargo_berth_occupancy_changed", jovian)
+	_check(binding.get_cargo_source_handle() == hauler_handle,
+		"an active Hauler sortie cannot be stolen by another craft or a synthetic occupancy notification")
+	hauler_lease = berth.try_reserve(hauler, hauler.get_ship_definition())
+	berth.occupy(hauler, hauler_lease)
+	var delivered := _complete_staged_cargo(binding)
+	_check(delivered.accepted and authority.get_quantity(hauler_handle, &"cinder_supply_crates") == 1
+		and authority.get_quantity(destination, &"cinder_supply_crates") == 1
+		and authority.to_dictionary().committed_transfers.size() == 1
+		and _cargo_reward_calls == 1 and _cargo_reward_payments == 0
+		and not binding.reset_cargo_run().accepted,
+		"one Hauler completion conserves source1/destination1 with one receipt and retains its unpaid owner")
+	berth.release(hauler, hauler_lease)
+	binding.call("_on_cargo_berth_occupancy_changed", jovian)
+	_check(binding.get_cargo_source_handle() == hauler_handle
+		and binding.start_cargo_run().reason == &"cargo_reward_pending",
+		"unpaid completion and its exact source survive release and refuse replacement")
+	_cargo_payment_allowed = true
+	_check(binding.request_cargo_reward(int(hauler_start.generation)).accepted,
+		"the existing earned-debt path pays the exact Hauler completion once")
+	# Actual source destruction must reclaim before the authority retires stock.
+	hauler.queue_free()
+	await process_frame
+	_check(binding.get_cargo_source_handle().is_empty(), "retired paid Hauler returns its reduced stock to live custody")
+	jovian_lease = berth.try_reserve(jovian, jovian.get_ship_definition())
+	_check(berth.occupy(jovian, jovian_lease), "the original live Jovian reclaims the shared mission stock")
+	var returned_jovian := binding.get_cargo_source_handle()
+	var returned_start := binding.start_cargo_run()
+	var second := _complete_staged_cargo(binding)
+	_check(returned_jovian.get("manifest_id") == &"cinder_jovian_source_manifest"
+		and int(returned_jovian.get("entity_generation", 0)) > int(old_jovian.get("entity_generation", 0))
+		and int(returned_start.get("generation", 0)) > int(hauler_start.generation)
+		and second.accepted and authority.get_quantity(returned_jovian, &"cinder_supply_crates") == 0
+		and authority.get_quantity(destination, &"cinder_supply_crates") == 2
+		and authority.to_dictionary().committed_transfers.size() == 2
+		and _cargo_reward_calls == 3 and _cargo_reward_payments == 2,
+		"Hauler to Jovian custody finishes the conserved two-crate stock with a fresh generation and exactly two delivery receipts")
+	binding.reset_cargo_run()
+	berth.release(jovian, jovian_lease)
+	for _replacement in 3:
+		jovian_lease = berth.try_reserve(jovian, jovian.get_ship_definition())
+		berth.occupy(jovian, jovian_lease)
+		var empty_handle := binding.get_cargo_source_handle()
+		var empty_start := binding.start_cargo_run()
+		_check(not empty_start.accepted and empty_start.reason == &"cargo_source_stock_exhausted"
+			and authority.get_quantity(empty_handle, &"cinder_supply_crates") == 0
+			and authority.get_quantity(destination, &"cinder_supply_crates") == 2
+			and authority.to_dictionary().committed_transfers.size() == 2,
+			"repeated exhausted owners never recreate shared stock or delivery receipts")
+		berth.release(jovian, jovian_lease)
+	jovian.queue_free()
+	cluster.queue_free()
+	await process_frame
+	_cargo_reward_authority = null
+
+
+func _complete_staged_cargo(binding: NearbySectorActivityBinding) -> Dictionary:
+	for phase: StringName in [&"load_crate", &"clear_gate", &"dock_platform"]:
+		binding.submit_cargo_phase(phase)
+	var owner := binding.get("_cargo_activity") as CargoDeliveryActivity
+	return owner.submit_transfer(owner.get_generation())
+
+
+func _commit_shared_cargo_reward(request: Dictionary) -> Dictionary:
+	_cargo_reward_calls += 1
+	if not _cargo_payment_allowed:
+		return {"accepted": false, "reason": &"staged_payment_rejection"}
+	var result := _cargo_reward_authority.commit(request)
+	if bool(result.get("accepted", false)):
+		_cargo_reward_payments += 1
+	return result
 
 
 func _station_snapshot_probe() -> Dictionary:

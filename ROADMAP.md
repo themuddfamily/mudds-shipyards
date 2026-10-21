@@ -54,7 +54,8 @@ KIT-RELOAD remain open/parked. [Actual result and limits](docs/history/ROADMAP_D
 All five owner decisions2026-10-21 remain accepted: automatic Freight landing
 transfer, shared Jovian/Hauler stock, every current authenticated navigator
 rejection receives feedback, Beacon outbound maximum60seconds, Bomber refill
-on pilot seat retake. The latter four deliveries are queued, not started.
+on pilot seat retake. Hauler custody is selected below; navigator feedback,
+Beacon timing and Bomber reboarding remain queued.
 No new working branch/worktree was created. Freight owned scratch is archived/
 removed; retained unqualified source contexts are preserved.
 
