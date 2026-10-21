@@ -6,13 +6,13 @@ Nine of the eventual 17 craft exist; eight still need supported specifications
 and implementation. Partial acceptance is retained in the backlog; it is not
 whole-feature completion.
 
-Latest playable checkpoint: **4cfa417**. Courier now takes real weapon damage
-after ordinary staged startup, through its existing health owner. The original
-route proves the kill, but later player destruction means full Courier/home
-remains OPEN. Complete Beacon and Cinder outcomes remain included.
-[Windows ZIP](builds/windows/MuddsShipyards-4cfa417-checkpoint.zip),
-[Windows notes](builds/windows/MuddsShipyards-4cfa417-notes.txt),
-[Linux notes](builds/linux/MuddsShipyards-4cfa417-notes.txt).
+Latest playable checkpoint: **4196ad0**. The complete Courier intercept now
+passes: kill the first runner before escape, finish the defender, return home,
+dock, shut down and physically exit. Existing weapon/health/AI/encounter limits
+are retained. Complete Beacon and Cinder outcomes remain included.
+[Windows ZIP](builds/windows/MuddsShipyards-4196ad0-checkpoint.zip),
+[Windows notes](builds/windows/MuddsShipyards-4196ad0-notes.txt),
+[Linux notes](builds/linux/MuddsShipyards-4196ad0-notes.txt).
 
 This page is the working queue. The
 [36-parent crosswalk and named children](docs/ROADMAP_BACKLOG.md#coverage-of-the-original-remaining-outcomes)
@@ -42,60 +42,41 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
-**One active outcome: COURIER-CLEAR — controlled nonlethal defender preparation.**
-Priority review of the original contract permits damaging the initial defender
-while keeping it alive until Courier is cleared. The original stationary and
-reverse plans each leave it51 after one post-clear hit, then lose weapon capability.
-During the existing4.5s arming interval, aim/fire through ordinary controls in two
-separate feedback-bound pulses only when the actual weapon reports ready; observe
-85→51→17 and released fire, then cease fire.
-The original live Courier intercept/positive kill receipt/director CLEARED must
-follow before finishing the defender and the complete home journey.
+**Closed outcome: COURIER-CLEAR — full first intercept and home journey — DONE.**
+The packaged original full contract passes **55.973s within its unchanged300s cap**:
+ordinary Start Shift/walk/board/departure and four range targets; initial defender
+kept alive through first Courier dispatch and an actual accepted/resolved player
+kill before1400m, director CLEARED; then defender defeated and genuine return,
+strict occupied home dock/contract/lease, automatic OFFLINE and physical E exit.
+Same Player/ship, default sampler and tuning; final hull89/exit error0.17m.
 
-No damage, health, AI, encounter timing, physics or input-provider change. Same
-actual defender/Player/ship and positive hull required; no blind held fire against
-stale observations. Preserve original300s/outer330 caps and every kill/home gate.
-One full attempt after focused checks/source review; first failure stops it.
-Original failures and rejected reverse source remain retained, not a reset budget.
+The ordinary caller now prepares the defender with two controlled nonlethal hits
+during the existing dispatch delay. Observed85→51→17 health/input records include
+separate acknowledgments/releases and actual weapon readiness; they are not
+serialized authority shot receipts. The Courier kill has its real source/target/
+generation1/sequence15 lethal receipt,0.817 encounter seconds and0.582% escape.
+No gameplay/balance/AI/physics/encounter change: all1524 other payload entries
+match the shipped damage-fix checkpoint4cfa417; only the passive observer differs.
+Underlying late-provider damage repair431aae remains included.
 
-**Courier full journey remains OPEN; reverse-standoff candidate withheld.**
-Fresh passive capture proves why the stationary fight stops damaging the defender:
-one actual post-clear shot hits station geometry, the next deals34, then incoming
-fire disables the port-wing weapon section at0.12 integrity. No later shots emit.
-A separately frozen ordinary reverse-thrust plan was tried once with all original
-acceptance/caps retained. It moves the craft but still fails55.829s before home;
-defender remains51 while player reaches hull0. That caller change is archived,
-not merged. No automatic retry or further tuning is selected.
+All113 driver tests, observer compile/privacy, paired clean exports, three strict
+menu startups and1525-entry matching Windows/Linux payload audit pass. Independent
+source and actual-route review GO. Accepted source4196ad0 is merged and pushed;
+checkpoint EXE/ZIP/notes are available above. All ten stage owners terminal,
+15 observed PID/start identities absent; both runs' named game/helper/display PIDs
+also absent. All132 owned scratch entries archived/byte-mode-link verified/removed.
+No branch/worktree created; all eight protected worktrees untouched. No next task
+is active. Original20 inventory is now eleven closed/nine unqualified.
 
-The shipped damage-admission fix remains accepted. Full COURIER-CLEAR and the
-20-candidate tally stay unchanged: ten closed/ten unqualified. Diagnostic source
-and rejected plan survive in verified bundles; owned scratch/process cleanup is
-complete. No next task is active. A new combat plan needs a supported way to
-protect weapon capability before another full attempt.
-[Actual findings and retained failed attempt](docs/history/ROADMAP_DELIVERIES.md#courier--ordinary-reverse-standoff-withheld-after-full-route-failure--2026-10-21).
-
-**Closed production repair: Courier damageable-target admission — DONE.**
-The staged-startup regression reproduces the missing adapter, and the one-line
-late-authority attachment passes all91 existing combat integration checks.
-A real registered Torrent ray deals34 damage through Courier's sole health owner;
-exactly one adapter remains across registration/re-entry/reuse. Stock damage,
-faction/replay/inactive fences and encounter settings remain unchanged.
-
-The original full packaged caller is restored without route or acceptance changes.
-Its one run genuinely destroys Courier after1.217 encounter seconds, with a
-positive accepted/resolved source/target/generation/sequence kill receipt and
-director CLEARED. The player later reaches hull0 during interceptor combat;
-**full route FAIL67.554s, no home acceptance**. No unchanged retry, balance change
-or adjacent repair is selected. Full COURIER-CLEAR remains OPEN and the original
-20-candidate tally remains ten closed/ten unqualified.
-
-All110 Python driver checks, observer compile/privacy, paired clean exports,
-three strict menu startups and1525-entry matching payload audit pass. Independent
-source and scoped runtime-result review GO. Checkpoint4cfa417 is merged and pushed.
-Nine stage owners terminal/18 observed process identities absent; all134 owned
-scratch entries archived, byte/mode/link verified and removed. No working branch
-or worktree was created. No next production task is active.
-[Runtime fix, retained full-route failure and cleanup](docs/history/ROADMAP_DELIVERIES.md#courier--late-authority-damage-adapter-fixed-full-home-open--2026-10-21).
+Prior original70.377s/no-damage capture70.465s, post-fix67.554s, weapon capture76.628s
+and rejected reverse55.829s remain recorded. First preparation attempt41.436s
+stopped safely with no confirmed wound: normal cooldown omitted the longer actual
+overheat gate. A separately selected readiness-only correction produced the pass.
+The original full kill/home/deadline contract remains intact, not replaced by
+the kill prefix. Original bounded process cleanup does not establish normal UI
+quit/gameOS0 or a separate supported walk. Other Courier escape/withdrawal/recovery,
+repeats/reload, native hardware/human and all broader parents/gates remain open.
+[Full result, retained failures and cleanup](docs/history/ROADMAP_DELIVERIES.md#courier--full-first-intercept-and-home-journey-accepted--2026-10-21).
 
 **Closed outcome: PLAY-BEACON — complete ordinary home journey — DONE.**
 The original full Home caller is restored on current source, with one narrow
@@ -208,9 +189,9 @@ worktrees are removed. Full Sandbox/recovery/reuse remains FAILED/open.
 [Five-branch closeout](docs/history/ROADMAP_DELIVERIES.md#five-local-only-branches-accounted-and-closed--2026-10-20).
 
 All 20 candidates in the [earlier inventory](docs/history/ROADMAP_DELIVERIES.md#remaining-branch-status-after-duplicate-closeouts--2026-10-20)
-are now accounted for: ten outcomes closed through accepted/superseded work,
-and ten candidates still unqualified. Beacon Home is now accepted on bc48b2a after
-the actual controller repair and complete ordinary route. Fire restart, Halyard
+are now accounted for: eleven outcomes closed through accepted/superseded work,
+and nine candidates still unqualified. Courier clear/home is now accepted on4196ad0;
+Beacon Home remains accepted onbc48b2a after its complete ordinary route. Fire restart, Halyard
 gunner damage and Salvage retain their accepted scopes; archive tags retain failed histories.
 This clears the branch queue; it does not close remaining gameplay,
 qualification or release requirements. No unaccepted source was merged to reduce
@@ -630,7 +611,7 @@ remain recorded. Full ordinary Hold and parent 11 remain OPEN. Native Windows,
 GPU/devices/audio/human/final gates stay NOT_RUN/open; CI stays disabled.
 [Delivery and actual limits](docs/history/ROADMAP_DELIVERIES.md#perimeter-live-branch-finished--2026-10-20).
 
-**Active outcome: 1 (Courier full journey, controlled nonlethal preparation). Courier target admission is shipped. Prepared cards waiting on decisions: 3.**
+**Active outcome: 0. Courier first clear/home is closed and pushed. Prepared cards waiting on decisions: 3.**
 The decisions below remain pending; they do not prevent finishing independently
 supported existing failures. No completed probe schedules an adjacent probe.
 
@@ -714,7 +695,7 @@ The backlog preserves accepted child scopes and remaining gates. The existing
 [delivery history](docs/history/ROADMAP_DELIVERIES.md) preserves sources, actual
 results, timings and cleanup. Recent palette, controls, station service, recovery,
 Arrow and helm work remains accepted only within those recorded boundaries.
-Caller-only qualification needs no identical playable rebuild. Checkpoint4cfa417
+Caller-only qualification needs no identical playable rebuild. Checkpoint4196ad0
 is the latest accepted playable result; full craft combat/damage/recovery,
 cross-craft/Main, hardware/native and final release gates remain open.
 
@@ -733,7 +714,7 @@ contracts and cumulative attempt records remain in the retained history.
 | PLAY-DEFENSE ordinary route /13 | Autonomous enemy escape fixed and checkpointed3767687. Prior full caller0b11486e0 reached ordinary boarding/departure and one actual player kill, then aborted near34s; payment/home/reset/UIexit not reached. | Full journey OPEN. Prior first kill about30s leaves less than remaining10.5s authored delays; establish a feasible ordinary combat plan before rerun. No timer/contract change selected. Failed source/results retained; owned scratch cleaned. |
 | Jovian postdock reuse /16,20,26 | DONEbc7f9f9c4: complete ordinary passenger exit/reboard, pilot exit/reclaim and repeat departure/braked stop, full original journey and three actual OS0. Reboard runtime repair49bc7b736; Jovian-specific paired checkpoint49bc7b7, included in current3767687. | Source integrated/pushed and owned scratch removed. Existing working refs already deleted; other supported craft/roles, distinct second landing and full parent gates remain open. |
 | Habitat common-entry view /9,12 | [Source8a6339b91](docs/history/ROADMAP_DELIVERIES.md#habitat-arrival-view--readback-timed-out-before-image): import passes; full-Main player-height readback times out180.842s before PNG or view metadata. Cumulative201.494s; no observed defect/no-finding. | PARKED. Concrete supported capture-boundary change before selection; no renderer/room substitute, cap increase or unchanged retry. Actual eye stage was not proved reached; accepted Habitat runtime scopes remain. |
-| Courier clear /11 | Original clear70.377s/fresh-ray capture70.465s fail; runtime431aae/4cfa417 fixes missing proxy, actual Courier CLEARED then full FAIL67.554s. Passive12c5184 FAIL76.628s proves postclear two shots(world block,34damage), portwing.12/weapon_component_failed and no later emissions. Reverse-standoff caller4c465 FAIL55.829s despite52.677m actual movement; defender51/player0, no home. All prior costs/failures retained. | Full clear/home OPEN; runtimefix remains shipped. Diagnostic and rejected caller bundled/unmerged; owned scratch cleaned. No automatic retry/retuning. A supported combat plan preserving weapon capability is required before selection; originalCAP300/outer330, encounter and all full kill/home guards retained. |
+| Courier clear /11 | DONE4196ad0: complete original first-clear/home journey PASS55.973s/original300. Controlled actual nonlethal85→51→17 feedback/readiness preparation keeps defender alive; actual Courier player kill/gen1/seq15 and CLEARED before1400m, then defender defeated/strict home dock/OFFLINE/physical exit. Original failures and first41.436s overheat-related preparation failure retained. | Source merged/pushed; fresh checkpoint/three strict startups/1525-entry audit/review GO; owned cleanup done. Original20 candidate closed. Other Courier escape/two withdrawals/recovery/repeats/reload/native remain OPEN. No normal UI quit/gameOS0 or separate supported-walk claim. |
 | Matching RPC-cache templates /25,32 | [Linux built; Windows cold/incremental compilation timed out](docs/history/ROADMAP_DELIVERIES.md#matching-rpc-cache-templates--stopped-at-windows-compilation-budget). No accepted matching pair; callback repair is unverified. Browser diagnostic/prepared acceptance source archived WITHHELD; working refs deleted. | PARKED; no further compilation or dependent browser attempt selected. Existing recipe/JSON fixture remain delivered; empty callable metadata and similar Window errors establish no cause. |
 | BROWSER-ORDINARY /25 | Candidatee944f52:89Python/privacy/35join/package checks pass, actual routeFAIL40.554s at NetworkSession tree_exited disconnect error; cleanup fixture command rejected. | PARKED/unmerged/withheld; diagnostic and prepared acceptance refs deleted after source archival. Subsequent passive capture identifies retained native RPC-cache callback; it does not qualify the route. Full continuation NOT_RUN. Original raw data/eight builds preserved; scratch cleaned. |
 | AFT-CONSOLE-VIEW /9,12 | Standalone actual-module Xvfb/Forward+/llvmpipe capture FAIL120.485s after camera setup; no image or visual finding. | PARKED; source/root cause unproven. No cap increase, alternate backend/view or retry selected. Owned scratch cleaned; raw results retained. |

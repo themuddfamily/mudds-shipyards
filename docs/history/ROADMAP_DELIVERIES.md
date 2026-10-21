@@ -20601,3 +20601,96 @@ All43 scratch entries archived/reopened/byte-mode-link verified then removed;
 archive2700 bytes SHA2560e001ba70a07f33e99b0ca86dc6535b77bdd208577ed9969d7e151d37a931c77.
 Main restored, no branch/worktree created, eight protected worktrees untouched.
 No native-GPU/Windows/human claim; CI remains disabled.
+
+
+## Courier — full first intercept and home journey accepted — 2026-10-21
+
+COURIER-CLEAR parents11, original full first-dispatch kill→defender→home contract
+DONE on4196ad09b2e49600bfe4ac26ace22e4c90a0aa01, independently reviewed GO,
+merged and pushed to main. One bounded caller implementer and high source/actual
+reviewer. No new branch/worktree or further task. The original20-candidate inventory
+now has eleven accepted/superseded and nine unqualified; no whole parent/phase or
+other Courier escape/two withdrawals/recovery/repeat/native requirement closes.
+
+Priority review of actual original contract permits nonlethal initial-defender
+damage: it must remain alive until Courier clear, not pristine85. Previous actual
+post-clear fight reaches only one34damage hit before losing player weapon capability.
+Selected two controlled ordinary preclear pulses85→51→17 during the unchanged4.5s
+dispatch wait. Each request lasts at most six observed physics frames/stops on
+actual command acknowledgment; exact observed34 health loss, later release and
+normal cooldown plus release margins are required before another pulse. Same
+positive initial defender/Player/ship, active INTERCEPTOR_ENGAGEMENT and positive
+hull required. Missing feedback does not trigger blind held fire. Two completed
+health/input receipts and released fire are required at first dispatch, or fail.
+These records are not serialized authority-shot receipts. Real Courier kill still
+requires its original positive accepted/resolved source/target/generation/sequence
+receipt and director CLEARED before1400m, then unchanged defender/home acceptance.
+
+First caller4e4257322 passes112 Python tests10.544s, compile/privacy16.572s and
+clean private Linux export25.536s. ONE full attempt FAIL41.436s (owner41.709) at
+two-wounds-before-dispatch guard: actual command-fire1353/release1355, defender85
+unchanged. It stops before Courier attack; no fake wounds or partial completion.
+Retained prior passive capture12c5184 has the same unchanged range prefix and
+shows weapon_overheated at its wait1343, heat1/recovery1s despite cooldown.22,
+then ready1403. Local HeroShip fire gate confirms cooldown alone omits overheat.
+This is source/cross-run-supported cause, not a same-run gate measurement in the
+failed payload. Separately selected one readiness correction: passive actual
+get_weapon_fire_status.ready bool, required only before STARTING each pulse.
+Ongoing pulse/ack/release/damage, aim, fire, encounter and home guards unchanged.
+113 Python tests10.470s and corrected compile/privacy16.620s PASS; source GO.
+
+Corrected clean Linux export25.572s. ONE full original packaged journey
+PASS55.973s (owner56.241) within originalCAP300/outer330, OS XTest→private X11→
+Godot Input→default sampler, Dummy audio/dummy renderer. Actual observed defender
+85→51 at1392 and51→17 at1412, acknowledgments and releases1394/1414; stays alive17
+through genuine first dispatch1600 and Courier clear1648. Courier kill is an actual
+accepted/resolved player receipt source289859963540→target292779199297/gen1/seq15,
+lethal10/hull0, elapsed0.8166667s, escape_progress0.00581905<1. Defender then reaches0
+and genuine RETURN_TO_YARD1662; physical approach/landing reaches exact occupied
+home contract+lease/parked pose2242, neutral automaticOFFLINE2333, physical E exit
+COMPLETE2466 with controls enabled/unseated/same actors, exit error0.17m/finalhull89.
+All sampled identity/default-sampler/tuning guards pass; diagnostic count0 and
+all four input/helper/game/display cleanup flags true. Independent actual-route GO.
+
+No normal-game code, health, weapon, faction, AI, timing, physics or input-provider
+change. Comparing actual package inventories with runtimecheckpoint4cfa417 shows
+all1524 other entries byte/hash/flags-identical; only native_sortie_observer.gdc
+changes (passive opponent ID/readiness). All other existing driver classes/base
+Pilot remain AST-identical to03cb6db6a, original Courier damage-receipt predicates
+unchanged. No reverse-standoff logic restored. Underlying one-line late-provider
+proxy fix431aae remains included. Original70.377s/no-damage70.465s/post-fix67.554s/
+weapon-capture76.628s/reverse55.829s and all prior precheck costs remain retained.
+
+Fresh Windows export10.556s, three strict startup stages24.196/25.100/27.512s:
+direct Linux ELF, extracted Linux archive and Windows embedded payload under
+Linux editor each exit0/exactly one STARTUP_MENU_READY_OK. All1525 actual payload
+path/size/SHA256/PCK-MD5/flags match across Windows/Linux; stock PE.text verified.
+Exact six archive members/all binary/icon/installer/desktop/bootstrap bytes,
+modes and source epoch verified. ZIP reopened/exact EXE+notes bytes verified.
+
+| Checkpoint artifact | Bytes | SHA256 |
+| --- | --- | --- |
+| Windows EXE4196ad0 | 184698080 | 618678c76ab23b5c4032b915a832a1e4ecb03046b92a5b328671e8f1fd80dc91 |
+| Windows checkpoint ZIP | 103030584 | af5a41ec4369efc0af8b819f040724634a56f46e241c8adfa56d3d124b48defe |
+| Linux ELF4196ad0 | 148939792 | ea9dc04077012ae1c0bcb1c3ab0eadb38bd18a2f06d9c3ad6c271217f2e5be02 |
+| Linux archive | 95352262 | b2f97d64d427fcfd548e3ecbe088f61f30b8b15bf77dd831f6d8ea9beb1fb82c |
+
+EXE/ZIP/notes in builds/windows; Linux companion in builds/linux, no Downloads.
+Original caller finishes by bounded process cleanup after physical exit; game-leg
+exit remains null, so no normal UI quit/gameOS0 or separate supported walking
+claim. Cold reload/repetition, other craft/outcomes, native Windows/GPU/devices,
+audible listening, human and full release gates remain NOT_RUN/open. UI popup
+cause remains unresolved; no unrelated failure waived. GitHub Actions stays off.
+
+Results /srv/mudds-work/courier-preclear-20261021/results/: both actual runs,
+source/tests/reviews/manifests and exact first failed archive retained. Duplicate
+failed ELF148939584 bytes SHA38fc4e5536182f4b1ffe164a76bdfe1667e7acbfbce19600b7cba1ad063e7cfb
+removed after exact retained tar-member comparison; archive/metadata moved into
+first-attempt-build, no failed public checkpoint. Source history is now reachable
+through pushed main. All ten owners terminal/15 observed PID-start identities
+absent; both runs' explicitly named game/helper/display PIDs additionally absent.
+All132 scratch entries archived/reopened/byte-mode-link verified then removed.
+Profile archive3281748 bytes SHA256
+830b4a0075f372a00aa65a67574ade4178dfd7d004743f1f274342dcb4dcb7c0.
+Eight protected detached worktrees untouched; main remains sole local/live remote
+branch. This full first-clear/home outcome is closed before any next selection.
