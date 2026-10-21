@@ -462,6 +462,8 @@ func _physics_process(delta: float) -> void:
 		observation["hulk_home"] = _hulk_home_observation(berth)
 	if _sandbox:
 		observation["sandbox"] = _sandbox_observation()
+		if _full_sandbox:
+			observation["bomber_rearm"] = _bomber_rearm_observation()
 	print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(observation))
 
 
@@ -671,6 +673,59 @@ func _sandbox_observation() -> Dictionary:
 	return {"fleet": fleet, "doors": doors, "station_candidate": station_candidate,
 		"crash_surface": _crash_surface, "grounded": _player.is_on_floor(),
 		"walk_mouse": _player.mouse_sensitivity}
+
+
+## Passive policy receipts stay fresh even while the fleet-detail cache holds
+## an inactive hull. No admission, reset, detach or command is performed here.
+func _bomber_rearm_observation() -> Dictionary:
+	var bomber: CinderLongRangeBomber
+	for candidate: HeroShip in _game.get_flyable_ships():
+		if candidate is CinderLongRangeBomber:
+			bomber = candidate as CinderLongRangeBomber
+			break
+	if not is_instance_valid(bomber):
+		return {}
+	var source := bomber.get("_default_local_command_source") as LocalShipInputSource
+	var authority := bomber.get("_payload_authority") as RefCounted
+	var components := bomber.get("_component_damage") as ShipComponentDamage
+	var seat := bomber.get("_pilot_seat_anchor") as Node3D
+	var berth := _game.world.get_berth_node(bomber.get_home_berth_id()) as ShipBerth
+	var command := bomber.get_last_ship_command()
+	var support: Dictionary = {}
+	if not _player.is_seated():
+		var ray := PhysicsRayQueryParameters3D.create(_player.global_position + Vector3.UP * 0.2,
+			_player.global_position - Vector3.UP * 0.3, PhysicsLayers.WORLD, [_player.get_rid(), bomber.get_rid()])
+		support = _player.get_world_3d().direct_space_state.intersect_ray(ray)
+	var collider := support.get("collider") as Node
+	var initial := _fleet_initial[str(bomber.get_ship_id())] as Dictionary
+	return {"pid": OS.get_process_id(), "main_id": _game.get_instance_id(),
+		"player_id": _player.get_instance_id(), "ship_id": bomber.get_instance_id(),
+		"definition_id": str(bomber.get_ship_id()), "seat_id": seat.get_instance_id() if is_instance_valid(seat) else 0,
+		"seated_at_pilot": is_instance_valid(seat) and _player.is_seated_at(seat),
+		"authority_id": authority.get_instance_id() if is_instance_valid(authority) else 0,
+		"component_id": components.get_instance_id() if is_instance_valid(components) else 0,
+		"component_generation": components.get_ledger_generation() if is_instance_valid(components) else 0,
+		"berth_id": str(berth.get_berth_id()), "berth_instance_id": berth.get_instance_id(),
+		"berth_parent_id": berth.get_parent().get_instance_id(), "paused": get_tree().paused,
+		"piloted": bomber.is_piloted(), "active_ship": _game.get_active_ship() == bomber,
+		"destroyed": bomber.is_destroyed(), "landed": bool(bomber.get("_landed")),
+		"regeneration_pending": (_game.get("_regeneration_pending") as Dictionary).has(bomber.get_instance_id()),
+		"engine": str(bomber.get("_engine_state")), "position": _v(bomber.global_position),
+		"velocity": _v(bomber.velocity), "parked_exact": bomber.global_transform.is_equal_approx(initial.pose),
+		"lease": berth.get_occupant() == bomber and berth.get_reservation_owner() == bomber,
+		"default_sampler": source != null and bomber.get("_command_source") == source and source.get_input_provider() == null,
+		"tuning_unchanged": _craft_tuning(bomber) == initial.tuning,
+		"source_enabled": source.is_enabled_owner() if source != null else false,
+		"application_focused": source.get("_application_focused") if source != null else false,
+		"authority": bomber.get_payload_authority_snapshot(), "loop": _game.get_bomber_payload_loop_snapshot(),
+		"native_fire": Input.is_action_pressed("fire"), "command_fire": command.fire if command != null else false,
+		"fire_pressed": command.fire_pressed if command != null else false,
+		"native_interact": Input.is_action_pressed("interact"),
+		"reboard_blocked": _game.get("_reboard_blocked_ship") == bomber,
+		"boarding_distance": _player.get_interaction_origin().distance_to(bomber.get_boarding_position()),
+		"boarding_reach": GameFlow.BOARDING_FALLBACK_REACH,
+		"grounded": _player.is_on_floor(), "supported": _ember_node_current(collider) and _game.world.is_ancestor_of(collider),
+		"support_collider": str(collider.get_path()) if _ember_node_current(collider) else ""}
 
 
 func _hulk_arrival_observation() -> Dictionary:

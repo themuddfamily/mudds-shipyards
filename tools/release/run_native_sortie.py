@@ -4434,6 +4434,215 @@ def stop(process):
 
 
 
+class BomberRearmPilot(SandboxPilot):
+    """Ordinary parked payload spending and same-hull physical seat re-entry."""
+    MARKER = 'NATIVE_BOMBER_REARM_OK'
+    CRAFT = 'cinder_long_range_bomber'
+    WAYPOINTS = LifeTowPilot.ARM_GOALS[:6]
+    TRIGGERS = {'aft_stair_top': CRAFT}
+
+    def __init__(self):
+        super().__init__()
+        self.expected_pid = None
+        self.policy_identity = None
+        self.policy_frame = -1
+        self.policy_previous = None
+        self.initial_generation = self.reboard_generation = None
+        self.shots = 0
+        self.fire_pending = None
+        self.receipts = {}
+        self.native_edges = []
+        self.native_previous = {'fire': False, 'e': False}
+        self.last_policy_state = None
+
+    def retain(self, name, s):
+        self.receipts[name] = json.loads(json.dumps(s))
+
+    def validate_observation(self, s):
+        b = s['bomber_rearm']
+        self.last_policy_state = s
+        require(s['frame'] > self.policy_frame and b['pid'] == self.expected_pid
+                and not b['paused'], 'fresh unpaused Bomber sample from exact process')
+        self.policy_frame = s['frame']
+        identity = tuple(b[k] for k in ('pid', 'main_id', 'player_id', 'ship_id', 'seat_id',
+                                       'authority_id', 'component_id', 'component_generation',
+                                       'berth_id', 'berth_instance_id', 'berth_parent_id'))
+        require(all(identity) and b['definition_id'] == self.CRAFT
+                and b['player_id'] == s['player_id'], 'actual original Bomber pilot hull seat and owners')
+        if self.policy_identity is None:
+            self.policy_identity = identity
+            require(not b['piloted'] and b['parked_exact'] and b['lease'], 'fresh parked unpiloted Bomber')
+        require(identity == self.policy_identity, 'same Bomber hull authority component life and berth throughout')
+        require(not b['destroyed'] and s['phase'] not in ('FAILED', 'RECOVERING')
+                and b['default_sampler'] and b['tuning_unchanged']
+                and b['parked_exact'] and b['landed'] and b['lease']
+                and norm(b['velocity']) <= .01, 'parked ordinary Bomber without recovery replacement or tuning change')
+        require(not b['regeneration_pending'], 'no Bomber regeneration')
+        for action, pressed in (('fire', b['native_fire']), ('e', b['native_interact'])):
+            if pressed != self.native_previous[action]:
+                if pressed:
+                    require(self.fire_pending is not None if action == 'fire' else self.stage in (
+                        'begin_shift', 'craft_board', 'payload_exit_wait', 'payload_reboard_wait', 'payload_final_exit_wait'),
+                        'only the one outstanding ordinary input edge may arrive')
+                self.native_edges.append({'frame': s['frame'], 'action': action, 'pressed': pressed})
+                self.native_previous[action] = pressed
+        if b['piloted']:
+            require(b['active_ship'] and s['seated'] and b['seated_at_pilot']
+                    and b['source_enabled'] and b['application_focused'], 'actual enabled focused Bomber pilot')
+        a, loop = b['authority'], b['loop']
+        if a['active']:
+            require(b['piloted'] and loop['active'] and loop['ship_id'] == self.CRAFT
+                    and a['generation'] == loop['generation'], 'same live pilot payload generation')
+            if self.initial_generation is None:
+                require(self.stage == 'craft_board' and a['ammunition_remaining'] == 4
+                        and not a['release_records'] and loop['request_sequence'] == 0,
+                        'first actual seat starts with exactly four payloads')
+                self.initial_generation = a['generation']
+                self.retain('initial_seated', s)
+            if a['generation'] != self.initial_generation:
+                if self.reboard_generation is None:
+                    require(self.stage == 'payload_reboard_wait' and 'detached_foot' in self.receipts
+                            and 'walked_clear' in self.receipts and a['generation'] > self.initial_generation
+                            and a['ammunition_remaining'] == 4 and a['cooldown_remaining'] == 0
+                            and not a['release_records'] and loop['request_sequence'] == 0,
+                            'physical same-hull retake alone starts newer generation with exactly four')
+                    self.reboard_generation = a['generation']
+                    self.shots = 0
+                    self.retain('refilled_seated', s)
+                require(a['generation'] == self.reboard_generation, 'no hidden interim payload generation')
+            else:
+                require(self.reboard_generation is None, 'old payload generation cannot return after reboarding')
+            count = len(a['release_records'])
+            require(count == loop['request_sequence'] == 4 - a['ammunition_remaining'],
+                    'every spent round has exactly one real ordered release record')
+            allowed = {self.shots}
+            if self.fire_pending and self.fire_pending['kind'] == 'release': allowed.add(self.shots + 1)
+            require(count in allowed, 'holding or an unsolicited edge never spends another payload')
+            for index, record in enumerate(a['release_records'], 1):
+                require(record['generation'] == a['generation'] and record['release_sequence'] == index
+                        and record['request_sequence'] == index and record['ammunition_remaining'] == 4-index
+                        and record['actor_id'] == 'player_pilot', 'actual ordered same-generation pilot releases')
+        elif self.initial_generation is not None:
+            require(self.stage in ('payload_exit_wait', 'payload_clear', 'payload_return',
+                                   'payload_reboard_wait', 'payload_final_exit_wait', 'complete')
+                    and a['ammunition_remaining'] == 0 and not a['release_records']
+                    and a['detach_reason'] == 'pilot_disembarked'
+                    and not loop['active'] and not loop['projectiles'] and loop['request_sequence'] == 0,
+                    'only ordinary physical disembark detaches and clears the old payload loop')
+        previous = self.policy_previous
+        normal = not s['seated'] and s['control_enabled'] and not s['transition_busy']
+        if normal and previous and previous['normal']:
+            require(norm(sub(s['player'], previous['player'])) <= 9.2*(s['frame']-previous['frame'])/60+1.5,
+                    'continuous ordinary Bomber access walking without teleport')
+        self.policy_previous = {'normal': normal, 'player': s['player'][:], 'frame': s['frame']}
+
+    def press_e(self, stage, s, now):
+        require(self.tap_key is None and not s['bomber_rearm']['native_interact'],
+                'released E before one ordinary lifecycle press')
+        self.tap('e', now)
+        require(self.tap_key == 'e', 'ordinary lifecycle pulse ready without retry')
+        self.enter(stage, s)
+
+    def fire(self, s, now, kind):
+        b = s['bomber_rearm']
+        require(not b['native_fire'] and not b['command_fire'] and b['authority']['cooldown_remaining'] == 0,
+                'distinct released ordinary FIRE edge after actual cooldown')
+        self.fire_pending = {'kind': kind, 'frame': s['frame'], 'until': now+.15}
+        return set(), 0, 0, True
+
+    def finish_fire(self, s, now):
+        pending, b = self.fire_pending, s['bomber_rearm']
+        if now < pending['until'] or s['frame'] < pending['frame']+6:
+            return set(), 0, 0, True
+        if b['native_fire'] or b['command_fire']:
+            return set(), 0, 0, False
+        a, loop = b['authority'], b['loop']
+        if pending['kind'] == 'release':
+            require(len(a['release_records']) == self.shots+1 and loop['last_result']['accepted'],
+                    'single FIRE edge acknowledged by one real release; no retry')
+            self.shots += 1
+            label = ('reboard_release' if self.reboard_generation is not None else 'release_'+str(self.shots))
+            self.retain(label, s)
+        else:
+            require(a['ammunition_remaining'] == 0 and len(a['release_records']) == 4
+                    and not loop['last_result']['accepted']
+                    and loop['last_result']['reason'] == 'ammunition_exhausted',
+                    'fifth post-cooldown FIRE actually refuses exhausted ammunition')
+            self.retain('exhausted', s)
+            self.enter('payload_idle_exit', s)
+        self.fire_pending = None
+        return set(), 0, 0, False
+
+    def _update_route(self, s, now):
+        if self.stage in ('boot', 'begin_shift', 'walk_station', 'craft_approach'):
+            return super()._update_route(s, now)
+        self.frame = s['frame']
+        b, keys, dx = s['bomber_rearm'], set(), 0
+        if self.fire_pending: return self.finish_fire(s, now)
+        if self.stage in ('craft_board', 'payload_reboard_wait'):
+            ready = self.initial_generation if self.stage == 'craft_board' else self.reboard_generation
+            if ready is not None and not s['transition_busy']:
+                self.shots = 0
+                self.enter('payload_spend' if self.stage == 'craft_board' else 'payload_reboard_fire', s)
+        elif self.stage == 'payload_spend':
+            if b['authority']['cooldown_remaining'] == 0:
+                return self.fire(s, now, 'release' if self.shots < 4 else 'exhausted')
+        elif self.stage == 'payload_reboard_fire':
+            if self.shots == 0: return self.fire(s, now, 'release')
+            require(self.shots == 1 and b['authority']['ammunition_remaining'] == 3,
+                    'first fresh reboard release spends exactly one of restored four')
+            self.enter('payload_final_idle', s)
+        elif self.stage in ('payload_idle_exit', 'payload_final_idle'):
+            if b['engine'] == 'OFFLINE' and not b['native_interact'] and self.tap_key is None:
+                self.press_e('payload_exit_wait' if self.stage == 'payload_idle_exit'
+                             else 'payload_final_exit_wait', s, now)
+        elif self.stage in ('payload_exit_wait', 'payload_final_exit_wait'):
+            if not s['seated'] and not b['piloted'] and s['control_enabled'] and not s['transition_busy']:
+                require(b['grounded'] and b['supported'] and b['support_collider'], 'physical supported exterior exit')
+                require(not b['authority']['active'] and not b['loop']['active'], 'ordinary exit detached authority')
+                if self.stage == 'payload_exit_wait':
+                    self.retain('detached_foot', s)
+                    self.pending_walk = list(reversed(self.approach_path[:-1]))
+                    self.walk_origin = s['player'][:]
+                    self.enter('payload_clear', s)
+                else:
+                    self.retain('final_foot', s)
+                    require(len([e for e in self.native_edges if e['action'] == 'fire' and e['pressed']]) == 6,
+                            'four spent one exhausted and one fresh physical FIRE edges')
+                    require(len([e for e in self.native_edges if e['action'] == 'e' and e['pressed']]) == 5
+                            and not b['native_interact'] and not b['native_fire'],
+                            'one Begin Shift board exit reboard and final exit edge, all released')
+                    self.enter('complete', s)
+                    self.result = {'completion_marker': self.MARKER,
+                                   'scope': 'parked same-hull Bomber physical seat re-entry refills four only',
+                                   'same_identity': self.policy_identity,
+                                   'initial_generation': self.initial_generation, 'reboard_generation': self.reboard_generation,
+                                   'receipts': self.receipts, 'native_edges': self.native_edges,
+                                   'stages': self.stages, 'full_flight_combat_recovery': 'NOT_RUN'}
+        elif self.stage in ('payload_clear', 'payload_return'):
+            require(not s['seated'] and s['control_enabled'] and not s['transition_busy'], 'ordinary on-foot reboard walk')
+            craft = s['sandbox']['fleet'][self.CRAFT]
+            if self.stage == 'payload_return' and craft['candidate'] and self.walk_arrival_ready():
+                if s['sandbox']['station_candidate']: dx = self.clear_station_prompt(s)
+                else: self.press_e('payload_reboard_wait', s, now)
+            else:
+                dx, reached = self.walk_pending(s, keys)
+                if reached:
+                    self.pending_walk.pop(0)
+                    if not self.pending_walk:
+                        if self.stage == 'payload_clear':
+                            require(not b['reboard_blocked'] and b['boarding_distance'] > b['boarding_reach'],
+                                    'actual outward walk clears production reboard suppression')
+                            self.retain('walked_clear', s)
+                            self.pending_walk = self.approach_path[:]
+                            self.walk_origin = s['player'][:]
+                            self.enter('payload_return', s)
+                        else:
+                            require(craft['candidate'], 'physical return reaches actual Bomber candidate; no retry')
+        self.pulse(keys, now)
+        return keys, dx, 0, False
+
+
 class CinderSupplyPilot(BeaconEntryPilot):
     """First funded supply journey; every control is an ordinary OS event."""
     MODE = 'cinder-supply'
@@ -4912,7 +5121,7 @@ class CinderSupplyFiles(HabitatRestartFiles):
                 else: pilot.file_home = True
 
 def run(binary, output, route="guided", qualify_beacon_outbound=False):
-    require(route in ("cinder-supply", "arrow-return-reuse", "guided", "courier-intercept", "beacon-entry", "beacon-settlement", "beacon-home", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
+    require(route in ("bomber-rearm", "cinder-supply", "arrow-return-reuse", "guided", "courier-intercept", "beacon-entry", "beacon-settlement", "beacon-home", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
     require(not qualify_beacon_outbound or route == 'beacon-home',
             'outbound timing qualification requires the full beacon-home route')
     output.mkdir(parents=True, exist_ok=False)
@@ -4970,7 +5179,7 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False):
                 result['input_helper_pid'] = desktop.process.pid
                 args = [str(binary),'--audio-driver','Dummy','--display-driver','x11',
                         '--rendering-driver','dummy','--disable-render-loop',
-                        '--native-sortie-observer' if route == 'guided' else '--native-sortie-observer='+route]
+                        '--native-sortie-observer' if route == 'guided' else '--native-sortie-observer='+('sandbox' if route == 'bomber-rearm' else route)]
                 result.update(arguments=args, display=env['DISPLAY'], xvfb_pid=xvfb.pid,
                               binary_sha256=hashlib.file_digest(binary.open('rb'),'sha256').hexdigest())
                 settlement_files = (CinderSupplyFiles(profile, output) if route == 'cinder-supply' else
@@ -5007,11 +5216,12 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False):
                     leg_result['window'] = hex(window)
                     desktop.focus(window)
                     pilot = HabitatRestartPilot(cold=bool(leg)) if restart_files else {
-                        "cinder-supply": CinderSupplyPilot, "arrow-return-reuse": ArrowReturnReusePilot, "guided": Pilot, "courier-intercept": CourierPilot, "beacon-entry": BeaconEntryPilot, "beacon-settlement": BeaconSettlementPilot, "beacon-home": BeaconHomePilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
+                        "bomber-rearm": BomberRearmPilot, "cinder-supply": CinderSupplyPilot, "arrow-return-reuse": ArrowReturnReusePilot, "guided": Pilot, "courier-intercept": CourierPilot, "beacon-entry": BeaconEntryPilot, "beacon-settlement": BeaconSettlementPilot, "beacon-home": BeaconHomePilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
                         "hulk-arrival": HulkArrivalPilot, "hulk-breaker": HulkBreakerPilot,
                         "hulk-home": HulkHomePilot, "habitat-loop": HabitatLoopPilot, "life-tow": LifeTowPilot, "life-gantry": lambda: LifeTowPilot("life-gantry"), "life-arm": lambda: LifeTowPilot("life-arm"), "life-patrol": lambda: LifeTowPilot("life-patrol")}[route]()
                     if isinstance(pilot, BeaconHomePilot): pilot.file_snapshots = settlement_files.snapshots
                     if qualify_beacon_outbound: outbound_timing = BeaconOutboundTiming(game.pid)
+                    if isinstance(pilot, BomberRearmPilot): pilot.expected_pid = game.pid
                     with selectors.DefaultSelector() as selector:
                         selector.register(game.stdout,selectors.EVENT_READ)
                         pending = b''
@@ -5051,7 +5261,7 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False):
                                             received_at = time.monotonic()
                                             for observation in observations:
                                                 outbound_timing.observe(observation, received_at)
-                                        if isinstance(pilot, (LifeTowPilot, ArrowReturnReusePilot, CinderSupplyPilot)):
+                                        if isinstance(pilot, (BomberRearmPilot, LifeTowPilot, ArrowReturnReusePilot, CinderSupplyPilot)):
                                             for observation in observations:
                                                 pilot.validate_observation(observation)
                                         state = observations[-1]
@@ -5155,6 +5365,9 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False):
             if isinstance(pilot, SandboxPilot):
                 result['partial_sortie'].update(visited=pilot.visited, craft_sorties=pilot.completed,
                                                last_state=pilot.last_state, deliberate_crash=pilot.crash_receipt)
+            if isinstance(pilot, BomberRearmPilot):
+                result['partial_sortie'].update(last_policy_state=pilot.last_policy_state,
+                                               receipts=pilot.receipts, native_edges=pilot.native_edges)
         result['error'] = f'{type(error).__name__}: {error}'
     finally:
         if outbound_timing is not None:
@@ -5210,7 +5423,7 @@ def main():
     parser.add_argument('--output',required=True,type=Path)
     parser.add_argument('--qualify-beacon-outbound', action='store_true',
                         help='qualify the fixed 60.0s outbound monotonic maximum within the unchanged full beacon-home route')
-    parser.add_argument('--route', choices=('cinder-supply', 'arrow-return-reuse', 'guided', 'courier-intercept', 'beacon-entry', 'beacon-settlement', 'beacon-home', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
+    parser.add_argument('--route', choices=('bomber-rearm', 'cinder-supply', 'arrow-return-reuse', 'guided', 'courier-intercept', 'beacon-entry', 'beacon-settlement', 'beacon-home', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
                         help='courier-intercept destroys the actual first courier before escape then returns home; beacon-home retains payment through genuine Guided combat, home docking and usable exterior walking; cinder-supply flies the full funded Jovian/Cinder terminal/home journey; beacon-settlement continues the accepted entry through four physical beacons and durable reward; beacon-entry departs normally and physically reaches/starts the first Beacon through actual pause controls; life-patrol walks Habitat through the real door beside patrol drones and boards Torrent; life-arm walks Aft stairs past the live service arm and boards Zenith; life-gantry walks Freight past the live gantry and boards Jovian; life-tow walks Central beside live tow service and boards Torrent; hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
     args=parser.parse_args()
     if args.qualify_beacon_outbound and args.route != 'beacon-home':

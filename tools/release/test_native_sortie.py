@@ -1691,6 +1691,125 @@ class NativeSortieSafetyTests(unittest.TestCase):
                          active_ship=False, candidate=False, regeneration_pending=False)
         return s
 
+    def bomber_policy(self):
+        p, s = native.BomberRearmPilot(), self.full_observation()
+        p.expected_pid = 42
+        s['bomber_rearm'] = dict(pid=42, main_id=2, player_id=1, ship_id=3, seat_id=4,
+            authority_id=5, component_id=6, component_generation=1, berth_id='bomber_home',
+            berth_instance_id=7, berth_parent_id=8, definition_id=p.CRAFT, paused=False,
+            piloted=False, active_ship=False, seated_at_pilot=False, destroyed=False,
+            regeneration_pending=False, landed=True, engine='OFFLINE', position=[0, 0, 0],
+            velocity=[0, 0, 0], parked_exact=True, lease=True, default_sampler=True,
+            tuning_unchanged=True, source_enabled=True, application_focused=True,
+            native_fire=False, command_fire=False, native_interact=False,
+            reboard_blocked=False, boarding_distance=8, boarding_reach=7,
+            grounded=True, supported=True, support_collider='Yard/Deck',
+            authority=dict(active=False, generation=0, ammunition_remaining=0,
+                           cooldown_remaining=0, release_records=[], detach_reason=''),
+            loop=dict(active=False, generation=0, ship_id='', request_sequence=0,
+                      projectiles=[], last_result={}))
+        p.validate_observation(s)
+        p.stage = 'craft_board'
+        b = s['bomber_rearm']
+        s.update(frame=101, seated=True, control_enabled=False)
+        b.update(piloted=True, active_ship=True, seated_at_pilot=True)
+        b['authority'].update(active=True, generation=1, ammunition_remaining=4)
+        b['loop'].update(active=True, generation=1, ship_id=p.CRAFT)
+        p.validate_observation(s)
+        p._update_route(s, 2)
+        return p, s
+
+    def bomber_fire_receipt(self, p, s, kind='release'):
+        b, a, loop = s['bomber_rearm'], s['bomber_rearm']['authority'], s['bomber_rearm']['loop']
+        self.assertTrue(p.fire(s, s['frame']/60, kind)[3])
+        s['frame'] += 3
+        b.update(native_fire=True, command_fire=True)
+        if kind == 'release':
+            count = len(a['release_records'])+1
+            a['ammunition_remaining'] = 4-count
+            a['release_records'].append(dict(generation=a['generation'], release_sequence=count,
+                request_sequence=count, ammunition_remaining=4-count, actor_id='player_pilot'))
+            loop.update(request_sequence=count, last_result=dict(accepted=True))
+        else: loop['last_result'] = dict(accepted=False, reason='ammunition_exhausted')
+        p.validate_observation(s)
+        s['frame'] += 6
+        self.assertFalse(p.finish_fire(s, s['frame']/60)[3])
+        b.update(native_fire=False, command_fire=False)
+        s['frame'] += 3
+        p.validate_observation(s)
+        p.finish_fire(s, s['frame']/60)
+
+    def test_bomber_policy_spends_four_distinct_edges_then_proves_exhaustion(self):
+        p, s = self.bomber_policy()
+        for remaining in (3, 2, 1, 0):
+            self.bomber_fire_receipt(p, s)
+            self.assertEqual(s['bomber_rearm']['authority']['ammunition_remaining'], remaining)
+        s['bomber_rearm']['authority']['cooldown_remaining'] = .01
+        with self.assertRaisesRegex(AssertionError, 'actual cooldown'): p.fire(s, 10, 'exhausted')
+        s['bomber_rearm']['authority']['cooldown_remaining'] = 0
+        self.bomber_fire_receipt(p, s, 'exhausted')
+        self.assertEqual(p.stage, 'payload_idle_exit')
+        self.assertEqual(len(p.receipts['exhausted']['bomber_rearm']['authority']['release_records']), 4)
+        self.assertEqual(len([e for e in p.native_edges if e['action'] == 'fire' and e['pressed']]), 5)
+
+    def test_bomber_policy_requires_detach_physical_clear_and_exact_refill_before_fresh_fire(self):
+        p, s = self.bomber_policy()
+        p.stage = 'payload_exit_wait'
+        b = s['bomber_rearm']
+        s.update(frame=110, seated=False, control_enabled=True)
+        b.update(piloted=False, seated_at_pilot=False)
+        b['authority'].update(active=False, ammunition_remaining=0, release_records=[], detach_reason='pilot_disembarked')
+        b['loop'].update(active=False, request_sequence=0, projectiles=[])
+        p.validate_observation(s)
+        p.retain('detached_foot', s)
+        p.retain('walked_clear', s)
+        p.stage = 'payload_reboard_wait'
+        s.update(frame=120, seated=True, control_enabled=False)
+        b.update(piloted=True, seated_at_pilot=True)
+        b['authority'].update(active=True, generation=2, ammunition_remaining=4, detach_reason='')
+        b['loop'].update(active=True, generation=2)
+        bad = copy.deepcopy(s); bad['bomber_rearm']['authority']['ammunition_remaining'] = 3
+        with self.assertRaisesRegex(AssertionError, 'exactly four'): p.validate_observation(bad)
+        s['frame'] += 1
+        p.validate_observation(s)
+        p._update_route(s, 3)
+        self.assertEqual(p.stage, 'payload_reboard_fire')
+        self.bomber_fire_receipt(p, s)
+        self.assertEqual(p.receipts['refilled_seated']['bomber_rearm']['authority']['ammunition_remaining'], 4)
+        self.assertEqual(p.receipts['reboard_release']['bomber_rearm']['authority']['ammunition_remaining'], 3)
+        s['bomber_rearm']['authority']['ammunition_remaining'] = 99
+        self.assertEqual(p.receipts['reboard_release']['bomber_rearm']['authority']['ammunition_remaining'], 3)
+
+    def test_bomber_policy_rejects_raw_lifecycle_changes_and_unissued_held_releases(self):
+        for field, value in (('pid', 99), ('ship_id', 99), ('authority_id', 99), ('component_generation', 2),
+                             ('berth_instance_id', 99), ('paused', True), ('destroyed', True),
+                             ('regeneration_pending', True), ('default_sampler', False),
+                             ('tuning_unchanged', False), ('parked_exact', False), ('native_fire', True)):
+            p, s = self.bomber_policy(); s['frame'] += 1
+            s['bomber_rearm'][field] = value
+            with self.subTest(field=field):
+                with self.assertRaises(AssertionError): p.validate_observation(s)
+        p, s = self.bomber_policy()
+        self.bomber_fire_receipt(p, s)
+        # A second unsolicited record while held cannot be hidden by a later
+        # coalesced observation restoring the expected count.
+        s['frame'] += 1
+        s['bomber_rearm']['loop']['request_sequence'] = 2
+        with self.assertRaises(AssertionError): p.validate_observation(s)
+
+    def test_bomber_policy_idle_exit_and_outward_clear_are_observed_guards(self):
+        p, s = self.bomber_policy()
+        p.craft_key = p.CRAFT
+        p.stage = 'payload_idle_exit'
+        s['bomber_rearm']['engine'] = 'ONLINE'
+        self.assertNotIn('e', p._update_route(s, 3)[0])
+        p.stage = 'payload_clear'
+        p.pending_walk = [[0, 0, 0]]
+        s.update(seated=False, control_enabled=True)
+        s['bomber_rearm'].update(reboard_blocked=True, boarding_distance=6)
+        with patch.object(p, 'walk_pending', return_value=(0, True)):
+            with self.assertRaisesRegex(AssertionError, 'suppression'): p._update_route(s, 4)
+
     def hulk_observation(self):
         return {'frame': 100, 'phase': 'RETURN_TO_YARD', 'player_id': 1, 'ship_id': 2,
                 'position': [-96, 32.4, -432], 'player': [-88, 22, -450],
