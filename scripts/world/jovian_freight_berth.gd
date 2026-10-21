@@ -1950,6 +1950,8 @@ func _apply_enabled_state() -> void:
 	StationModuleContract.apply_enabled_state(
 		StationModuleContract.collect_static_bodies(self), WORLD_LAYER, _module_enabled, self
 	)
+	for terminal in get_freight_job_terminals():
+		terminal.collision_layer = PhysicsLayers.INTERACTABLE_AREA_LAYER if _module_enabled else 0
 	# The crane simulation is the one process loop in the four modules. Disabling
 	# the module must stop it rather than leave it advancing behind hidden
 	# geometry, which would snap the trolley and hook on re-enable.

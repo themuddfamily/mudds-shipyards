@@ -176,10 +176,12 @@ func _test_freight_terminal_interactions(game: GameFlow, berth: JovianFreightBer
 			"ordinary E selects the existing job or honestly refuses the depleted hold")
 		_check(not terminal.interact(berth), "a non-Player actor cannot operate the Freight fitting")
 		berth.set_module_enabled(false)
-		_check(terminal.get_interaction_prompt().is_empty() and not terminal.interact(actor)
+		_check(terminal.collision_layer == 0 and terminal.get_interaction_prompt().is_empty() and not terminal.interact(actor)
 			and not bool((game.call("_get_freight_terminal_snapshot", terminal) as Dictionary).get("available", true)),
 			"a disabled Freight module withdraws endpoint prompts and requests")
 		berth.set_module_enabled(true)
+		_check(terminal.collision_layer == PhysicsLayers.INTERACTABLE_AREA_LAYER,
+			"re-enabling Freight restores its physical endpoint query layer")
 		var fitting := terminal.get_parent()
 		fitting.remove_child(terminal)
 		_check(terminal.get_interaction_prompt().is_empty() and not terminal.interact(actor), "detached Freight endpoints reject cached interactions")
