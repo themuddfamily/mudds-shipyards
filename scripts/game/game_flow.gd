@@ -19470,6 +19470,13 @@ func _start_default_free_flight_activity() -> void:
 	# not the generic moment a craft first leaves its berth.
 	if _selected_activity_kind == ACTIVITY_KIND_CONVOY_ESCORT:
 		return
+	# A later cargo departure/reboard is not a request to replay a retained
+	# race result. Only the initial/reset idle race starts automatically;
+	# explicit player start requests keep their existing restart semantics.
+	if _selected_activity_kind == ACTIVITY_KIND_TIMED_RACE and cinder_race_session != null:
+		var race_state := StringName(cinder_race_session.get_presentation_snapshot().get("state_id", &"idle"))
+		if race_state in [&"completed", &"failed"]:
+			return
 	if not _active_activity_id.is_empty():
 		var existing := get_active_activity_snapshot()
 		if bool(existing.get("running", false)):

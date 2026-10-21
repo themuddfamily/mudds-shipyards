@@ -474,6 +474,7 @@ func _test_failure_reset_and_generation_recovery(
 	var completed := game.get_active_activity_snapshot()
 	var completed_generation := int(completed.get("session_generation", -1))
 	var recorded_best := float(completed.get("best_time_seconds", -1.0))
+	_test_terminal_automatic_start_is_inert(game, &"completed")
 	_check(game.reset_active_activity(), "a completed production race resets explicitly")
 	var reset := game.get_active_activity_snapshot()
 	var reset_generation := int(reset.get("session_generation", -1))
@@ -484,12 +485,13 @@ func _test_failure_reset_and_generation_recovery(
 		and not bool(hud.get_activity_objective_report().get("visible", true)),
 		"reset clears current progress, advances generation, preserves best, and hides the card"
 	)
-	var restarted := game.request_activity_start(ROUTE.activity_id)
+	game.call("_start_default_free_flight_activity")
+	var restarted := game.get_active_activity_snapshot()
 	var destruction_generation := int(restarted.get("session_generation", -1))
 	_check(
-		bool(restarted.get("accepted", false))
+		restarted.get("state_id", &"") == &"countdown"
 		and destruction_generation == reset_generation + 1,
-		"the same free flight starts a fresh countdown after reset"
+		"an explicitly reset idle race still starts automatically on the next departure"
 	)
 	game.call("_physics_process", 2.0)
 	var integration := game.get_activity_integration_report()
@@ -521,11 +523,30 @@ func _test_failure_reset_and_generation_recovery(
 		and game.get_active_activity_snapshot().get("failure_reason", &"") == &"returned_to_shipyard",
 		"the production return seam fails only its fresh generation"
 	)
+	_test_terminal_automatic_start_is_inert(game, &"failed")
+	var explicit_restart := game.request_activity_start(ROUTE.activity_id)
+	_check(bool(explicit_restart.get("accepted", false))
+		and explicit_restart.get("state_id", &"") == &"countdown"
+		and int(explicit_restart.get("session_generation", -1)) == return_generation + 1,
+		"an explicit player start can still restart a retained terminal race")
 	_check(
 		game.reset_active_activity()
 		and game.get_active_activity_snapshot().get("state_id", &"") == &"idle",
-		"return failure resets cleanly for later free-flight activation"
+		"the explicit restart resets cleanly for later free-flight activation"
 	)
+
+
+func _test_terminal_automatic_start_is_inert(game: GameFlow, state_id: StringName) -> void:
+	var retained := game.get_active_activity_snapshot()
+	var saved := _store.get_snapshot()
+	var store_generation := _store.get_generation()
+	for _departure in 3:
+		game.call("_start_default_free_flight_activity")
+	_check(retained.get("state_id", &"") == state_id
+		and game.get_active_activity_snapshot() == retained,
+		"unrelated departures preserve the exact retained %s race and its generation" % state_id)
+	_check(_store.get_generation() == store_generation and _store.get_snapshot() == saved,
+		"unrelated departures leave the %s race save and all other persisted slots unchanged" % state_id)
 
 
 func _test_reward_summary_restore(filesystem: MemoryFilesystem) -> void:
