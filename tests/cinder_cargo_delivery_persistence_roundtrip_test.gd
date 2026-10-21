@@ -323,11 +323,16 @@ func _run_disk_processes() -> void:
 	DirAccess.make_dir_recursive_absolute(folder)
 	var path: String = folder.path_join("delivery.json")
 	for mode: String in ["earn", "pay", "paid"]:
-		var args: PackedStringArray = PackedStringArray(["--headless", "--audio-driver", "Dummy", "--path", ProjectSettings.globalize_path("res://"), "--script", "res://tests/cinder_cargo_delivery_persistence_roundtrip_test.gd", "--", "--cinder-debt-child", mode, path])
+		var parent_args := OS.get_cmdline_user_args()
+		var project_root := ProjectSettings.globalize_path("res://")
+		var root_index := parent_args.find("--cinder-debt-project-root")
+		if root_index >= 0 and root_index + 1 < parent_args.size():
+			project_root = parent_args[root_index + 1]
+		var args: PackedStringArray = PackedStringArray(["--headless", "--audio-driver", "Dummy", "--path", project_root, "--script", "res://tests/cinder_cargo_delivery_persistence_roundtrip_test.gd", "--", "--cinder-debt-child", mode, path])
 		# Package checks must keep the same embedded game data in every cold
-		# child, rather than silently switching those children to source.
-		var parent_args := OS.get_cmdline_args()
-		var pack_index := parent_args.find("--main-pack")
+		# child. Engine-consumed flags are not available through cmdline_args,
+		# and embedded packs have no filesystem res:// root; pass both explicitly.
+		var pack_index := parent_args.find("--cinder-debt-main-pack")
 		if pack_index >= 0 and pack_index + 1 < parent_args.size():
 			args.insert(0, parent_args[pack_index + 1])
 			args.insert(0, "--main-pack")
