@@ -2126,6 +2126,7 @@ func _initialize_cargo_delivery_composition() -> void:
 	if cargo_delivery_activity != null:
 		_restore_cargo_delivery_bindings()
 		_initialize_jovian_cargo_session_persistence()
+		_bind_freight_job_terminals()
 		return
 	_cargo_delivery_source_ship = _find_flyable_ship_by_id(&"jovian_provisional")
 	_cargo_delivery_destination = (
@@ -2196,6 +2197,98 @@ func _initialize_cargo_delivery_composition() -> void:
 	)
 	cargo_delivery_activity.completed.connect(_on_cargo_delivery_owner_completed.bind(cargo_delivery_activity.get_instance_id()))
 	_initialize_jovian_cargo_session_persistence()
+	_bind_freight_job_terminals()
+
+
+func _bind_freight_job_terminals() -> void:
+	if not is_instance_valid(_cargo_delivery_destination):
+		return
+	for terminal in _cargo_delivery_destination.get_freight_job_terminals():
+		terminal.configure(_get_freight_terminal_snapshot.bind(terminal), _request_freight_terminal_job)
+
+
+func _freight_terminal_is_current(terminal: Node) -> bool:
+	return is_inside_tree() and not is_queued_for_deletion() \
+		and is_instance_valid(terminal) and terminal.is_inside_tree() and not terminal.is_queued_for_deletion() \
+		and is_instance_valid(_cargo_delivery_destination) and _cargo_delivery_destination.is_inside_tree() \
+		and not _cargo_delivery_destination.is_queued_for_deletion() and _cargo_delivery_destination.is_module_enabled() \
+		and terminal.is_visible_in_tree() and _cargo_delivery_destination.get_freight_job_terminals().has(terminal)
+
+
+## Reads the existing authority and committed store snapshot. This endpoint is
+## neither another manifest owner nor a manual transfer/reward entry point.
+func _get_freight_terminal_snapshot(terminal: Node) -> Dictionary:
+	if not _freight_terminal_is_current(terminal) or not is_instance_valid(cargo_transfer_authority) or cargo_delivery_activity == null \
+			or not cargo_transfer_authority.is_inside_tree() or cargo_transfer_authority.is_queued_for_deletion() \
+			or not is_instance_valid(_cargo_delivery_source_ship) or not _cargo_delivery_source_ship.is_inside_tree() \
+			or _cargo_delivery_source_ship.is_queued_for_deletion():
+		return {"available": false, "status_text": "OWNER UNAVAILABLE"}
+	var source := cargo_transfer_authority.get_manifest_snapshot(_cargo_delivery_source_handle)
+	var destination := cargo_transfer_authority.get_manifest_snapshot(_cargo_delivery_destination_handle)
+	var available := bool(source.get("attached", false)) and bool(destination.get("attached", false))
+	var source_quantity := cargo_transfer_authority.get_quantity(_cargo_delivery_source_handle, CARGO_DELIVERY_ITEM_ID)
+	var destination_quantity := cargo_transfer_authority.get_quantity(_cargo_delivery_destination_handle, CARGO_DELIVERY_ITEM_ID)
+	var activity := cargo_delivery_activity.get_snapshot()
+	var saved_receipt: Dictionary = {}
+	if _runtime_settings_user_data_store != null:
+		var saved := _runtime_settings_user_data_store.get_snapshot().get("jovian_cargo_session", {}) as Dictionary
+		var rows := saved.get("activities", []) as Array
+		if not rows.is_empty():
+			var progress := (rows[0] as Dictionary).get("progress", {}) as Dictionary
+			var session := progress.get("cargo_session_state", {}) as Dictionary
+			var saved_authority := session.get("authority_state", {}) as Dictionary
+			for receipt: Dictionary in saved_authority.get("committed_transfers", []):
+				if str(receipt.get("transfer_id", "")).begins_with(str(CARGO_DELIVERY_ACTIVITY_ID) + "_g") \
+						and int(receipt.get("receipt_id", 0)) > int(saved_receipt.get("receipt_id", 0)):
+					saved_receipt = receipt.duplicate(true)
+	var status := "%d ABOARD / %d RECEIVED" % [source_quantity, destination_quantity]
+	if not available:
+		status = "OWNER UNAVAILABLE"
+	elif _selected_activity_kind != ACTIVITY_KIND_CARGO_DELIVERY and _activity_selection_locked:
+		status += " / SELECTION LOCKED"
+	elif cargo_delivery_activity.get_state() == CargoDeliveryActivity.State.ACTIVE:
+		status += " / RUN ACTIVE"
+	elif source_quantity < CARGO_DELIVERY_QUANTITY:
+		status += " / HOLD EMPTY"
+	elif cargo_delivery_activity.get_state() in [CargoDeliveryActivity.State.FAILED, CargoDeliveryActivity.State.EXPIRED]:
+		status += " / RESET AT ACTIVITY BOARD"
+	if not saved_receipt.is_empty():
+		status += " / SAVED #%d" % int(saved_receipt.receipt_id)
+	var source_endpoint: bool = terminal.get("endpoint_role") == &"source"
+	return {
+		"available": available,
+		"status_text": status,
+		"owner_handle": (_cargo_delivery_source_handle if source_endpoint else _cargo_delivery_destination_handle).duplicate(true),
+		"source_manifest": source,
+		"destination_manifest": destination,
+		"source_quantity": source_quantity,
+		"destination_quantity": destination_quantity,
+		"activity": activity,
+		"saved_receipt": saved_receipt,
+		"transfer_mode": &"automatic_on_return_landing",
+	}
+
+
+func _request_freight_terminal_job(terminal: Node, actor: Node) -> Dictionary:
+	if actor != player or not _freight_terminal_is_current(terminal) or not terminal.can_interact(actor) \
+			or _piloting or _transition_busy:
+		return {"accepted": false, "reason": &"invalid_freight_interaction"}
+	var state := _get_freight_terminal_snapshot(terminal)
+	var result: Dictionary
+	if not bool(state.get("available", false)):
+		result = {"accepted": false, "reason": &"cargo_owner_unavailable"}
+	elif cargo_delivery_activity.get_state() == CargoDeliveryActivity.State.IDLE and int(state.source_quantity) < CARGO_DELIVERY_QUANTITY:
+		result = {"accepted": false, "reason": &"insufficient_source_quantity"}
+	else:
+		result = select_activity_kind(ACTIVITY_KIND_CARGO_DELIVERY)
+	if is_instance_valid(hud):
+		var detail := "Jovian hold → Freight berth\n%s\nBoard the same Jovian, depart and land home: 2 kits transfer automatically." % str(state.get("status_text", "OWNER UNAVAILABLE"))
+		if not bool(result.get("accepted", false)):
+			detail += "\nRequest refused: " + str(result.get("reason", &"unavailable")).replace("_", " ")
+		elif cargo_delivery_activity.get_state() in [CargoDeliveryActivity.State.COMPLETED, CargoDeliveryActivity.State.FAILED, CargoDeliveryActivity.State.EXPIRED]:
+			detail += "\nUse Activity Board Reset for another run."
+		hud.toast("Jovian fabrication kits // Dispatch" if terminal.get("endpoint_role") == &"source" else "Jovian fabrication kits // Manifest", detail, 7.0)
+	return result.duplicate(true)
 
 
 func _initialize_jovian_cargo_session_persistence() -> void:

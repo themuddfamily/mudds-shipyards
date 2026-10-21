@@ -10,6 +10,8 @@ extends Node3D
 ## dictionary-compatible evidence metadata and a typed audit snapshot.
 
 const SCHEMA_VERSION := 1
+const FreightJobTerminalType = preload("res://scripts/cargo/freight_job_terminal.gd")
+
 const MODULE_ID: StringName = &"jovian-freight-berth"
 ## Declared station connection slot. `ShipyardWorld` publishes the matching hub
 ## endpoint; the pair is what `StationRouteRegistry` records as one graph edge.
@@ -2258,6 +2260,8 @@ func _build_service_room() -> void:
 	for screen_index in range(dispatch_headings.size()):
 		var z_position: float = [27.6, 29.0, 30.4][screen_index]
 		var screen := _rounded_box(room, "DispatchScreen", Vector3(19.79, 1.55, z_position), Vector3(0.08, 0.72, 1.05), _materials["screen"], false, Vector3(0, 0, -12))
+		if screen_index == 0:
+			_add_freight_job_terminal(screen, &"freight_dispatch", &"source", Vector3(-0.18, 0, 0))
 		screen.set_meta("station_console", true)
 		_service_details.append(screen)
 		# Static wayfinding on the inward screen face; inventory and delivery
@@ -3346,6 +3350,7 @@ func _build_dispatch_annex() -> void:
 		_materials["ceramic"]
 	)
 	_register_handling_fixture(kiosk, &"manifest-kiosk")
+	_add_freight_job_terminal(kiosk, &"freight_manifest", &"destination", Vector3(0, 0.77, -0.40))
 	_rounded_box(
 		annex,
 		"ManifestKioskScreen",
@@ -4358,3 +4363,17 @@ func _label(parent: Node3D, text: String, position_value: Vector3, physical_heig
 	label.double_sided = false
 	parent.add_child(label, true)
 	return label
+
+
+## Query-only adapters on existing fittings: no geometry or stock is added.
+func _add_freight_job_terminal(fitting: Node3D, endpoint_id: StringName, role: StringName, offset: Vector3) -> void:
+	var terminal := FreightJobTerminalType.new()
+	terminal.name = "FreightJobTerminal"
+	terminal.endpoint_id = endpoint_id
+	terminal.endpoint_role = role
+	terminal.position = offset
+	fitting.add_child(terminal)
+
+
+func get_freight_job_terminals() -> Array[Node]:
+	return find_children("FreightJobTerminal", "", true, false)

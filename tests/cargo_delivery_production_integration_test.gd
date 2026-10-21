@@ -93,6 +93,7 @@ func _run() -> void:
 		_finish()
 		return
 
+	await _test_freight_terminal_interactions(game, freight_berth, 6, 0)
 	await _test_player_selection_and_atomic_failure(
 		game, hud, jovian, freight_berth
 	)
@@ -108,6 +109,109 @@ func _run() -> void:
 	await _test_interrupted_cargo_recovery()
 	await _test_unsaved_cargo_reset_recovery()
 	_finish()
+
+
+## Staged actual-Main interaction regression, not an ordinary walking journey.
+## The existing KIT-BOARD/DEPART/DELIVER and parked reload limits are unchanged.
+func _test_freight_terminal_interactions(game: GameFlow, berth: JovianFreightBerth, aboard: int, received: int) -> void:
+	var terminals := berth.get_freight_job_terminals()
+	_check(terminals.size() == 2, "Freight exposes exactly two adapters on the existing dispatch screen and manifest kiosk")
+	if terminals.size() != 2:
+		return
+	var actor := game.player as PlayerController
+	var original_transform := actor.global_transform
+	var original_camera := actor.get_camera().transform
+	var original_phase := game.phase
+	var game_physics := game.is_physics_processing()
+	var player_physics := actor.is_physics_processing()
+	var player_control := actor.is_control_enabled()
+	game.set_physics_process(false)
+	actor.set_physics_process(true)
+	actor.set_control_enabled(true)
+	game.phase = GameFlow.Phase.APPROACH_SHIP
+	var owner := game.cargo_delivery_activity
+	var authority := game.cargo_transfer_authority
+	var generation := owner.get_generation()
+	var source := game.get_activity_integration_report().cargo_source_entity as HeroShip
+	var source_parent := source.get_parent()
+	var source_index := source.get_index()
+	source_parent.remove_child(source)
+	_check(not bool((terminals[0].get_state_snapshot() as Dictionary).get("available", true)),
+		"the physical dispatch refuses an absent real source instead of treating its cached manifest as live")
+	source_parent.add_child(source)
+	source_parent.move_child(source, source_index)
+	_check(bool(game.call("_restore_cargo_delivery_bindings")), "the exact ship returns to its existing conserved cargo pair")
+	for terminal in terminals:
+		var source_endpoint: bool = terminal.endpoint_role == &"source"
+		var position := berth.to_global(Vector3(18.4, 0.05, 27.6) if source_endpoint else Vector3(12.6, 0.05, 24.25))
+		actor.teleport_to(Transform3D(Basis.IDENTITY, position))
+		actor.get_camera().look_at(terminal.global_position, Vector3.UP)
+		for _settle_tick in 12:
+			await physics_frame
+		var state: Dictionary = terminal.get_state_snapshot()
+		var handle := state.get("owner_handle", {}) as Dictionary
+		_check(actor.is_on_floor() and actor.get_nearby_interactables().has(terminal) and terminal.can_interact(actor)
+			and game.call("_find_station_interaction_candidate") == terminal
+			and "[ E ]" in terminal.get_interaction_prompt(),
+			"the real Player discovers and aims at the physical %s endpoint through normal interaction queries" % terminal.endpoint_id)
+		_check(handle.get("entity_id") == (&"jovian_provisional" if source_endpoint else &"jovian_freight_berth")
+			and handle.get("manifest_id") == (&"jovian_provisional_manifest" if source_endpoint else &"jovian_freight_berth_manifest")
+			and state.source_quantity == aboard and state.destination_quantity == received
+			and state.source_manifest.capacity == 6 and state.destination_manifest.capacity == 64
+			and not state.owns_inventory and not state.manual_transfer_authority,
+			"the independent fitting exposes its real cargo owner/manifest and conserved stock without becoming an owner")
+		var key := InputEventKey.new()
+		key.physical_keycode = KEY_E
+		key.pressed = true
+		Input.parse_input_event(key)
+		await physics_frame
+		await process_frame
+		key = InputEventKey.new()
+		key.physical_keycode = KEY_E
+		key.pressed = false
+		Input.parse_input_event(key)
+		await physics_frame
+		var result: Dictionary = terminal.get_state_snapshot().last_result
+		_check(bool(result.get("accepted", false)) if aboard >= 2 else (not bool(result.get("accepted", true)) and result.get("reason") == &"insufficient_source_quantity"),
+			"ordinary E selects the existing job or honestly refuses the depleted hold")
+		_check(not terminal.interact(berth), "a non-Player actor cannot operate the Freight fitting")
+		berth.set_module_enabled(false)
+		_check(terminal.get_interaction_prompt().is_empty() and not terminal.interact(actor)
+			and not bool((game.call("_get_freight_terminal_snapshot", terminal) as Dictionary).get("available", true)),
+			"a disabled Freight module withdraws endpoint prompts and requests")
+		berth.set_module_enabled(true)
+		var fitting := terminal.get_parent()
+		fitting.remove_child(terminal)
+		_check(terminal.get_interaction_prompt().is_empty() and not terminal.interact(actor), "detached Freight endpoints reject cached interactions")
+		fitting.add_child(terminal)
+		await physics_frame
+		await physics_frame
+		_check(terminal.can_interact(actor) and terminal.get_state_snapshot().owner_handle == handle,
+			"endpoint re-entry retains the same owner identity and becomes usable again")
+		actor.teleport_to(Transform3D(Basis.IDENTITY, position + Vector3(0, 8, 0)))
+		_check(not terminal.interact(actor), "cached endpoint calls cannot bypass physical interaction range")
+		if received > 0:
+			var receipt: Dictionary = terminal.get_state_snapshot().saved_receipt
+			_check(int(receipt.get("receipt_id", 0)) == received / 2
+				and str(receipt.get("transfer_id", "")).begins_with(str(GameFlow.CARGO_DELIVERY_ACTIVITY_ID) + "_g")
+				and "SAVED #" in terminal.get_interaction_prompt(),
+				"the reloaded physical endpoint reads the actual committed transfer receipt")
+	_check(game.cargo_delivery_activity == owner and game.cargo_transfer_authority == authority
+		and owner.get_generation() == generation
+		and authority.get_manifest_snapshot(game.get_activity_integration_report().cargo_source_handle).used_capacity == aboard
+		and authority.get_manifest_snapshot(game.get_activity_integration_report().cargo_destination_handle).used_capacity == received,
+		"repeated physical interaction and re-entry preserve the one activity/authority, generation and stock")
+	if aboard >= 2:
+		_check(game.get_activity_integration_report().selected_activity_kind == GameFlow.ACTIVITY_KIND_CARGO_DELIVERY,
+			"Freight dispatch selected the genuine existing Jovian delivery job")
+		game.select_activity_kind(GameFlow.ACTIVITY_KIND_TIMED_RACE)
+	actor.teleport_to(original_transform)
+	actor.get_camera().transform = original_camera
+	game.phase = original_phase
+	actor.set_control_enabled(player_control)
+	actor.set_physics_process(player_physics)
+	game.set_physics_process(game_physics)
+	await physics_frame
 
 
 # Selected ordinary routes share the accepted KIT-BOARD approach. The default
@@ -1337,6 +1441,7 @@ func _test_saved_cargo_reentry(saved_generation: int) -> void:
 		and _manifest_quantity(report.cargo_source_manifest) == 0
 		and _manifest_quantity(report.cargo_destination_manifest) == 6,
 		"fresh Main restores the actual reset generation and depleted conserved freight pair without refilling")
+	await _test_freight_terminal_interactions(fresh, fresh.world.get_jovian_freight_berth(), 0, 6)
 	var before := fresh.cargo_delivery_activity.capture_persistence_state()
 	var malformed := {"schema_version": 1, "activities": [{"activity_id": "jovian_fabrication_kit_delivery",
 		"reward_requested": false, "reward_granted": false, "progress": {}, "wrong_generation": 1, "wrong_state": 0}]}
