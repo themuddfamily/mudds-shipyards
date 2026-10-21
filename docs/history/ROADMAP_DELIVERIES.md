@@ -20565,3 +20565,39 @@ entries archived/reopened/byte-mode-link verified then removed. Profile archive
 No branch/worktree created; protected eight worktrees untouched; no new public
 build/Downloads artifact. Main restored; latest playable4cfa417 and native/human/
 full release gates unchanged. CI stays disabled.
+
+
+## Startup — duplicate Hero box work measured; cache rejected — 2026-10-21
+
+Bounded Q4-FIX/Main-startup hypothesis on main eb1d57582, after inventory review
+found no supported new runtime repair ready in remaining candidates. Only
+HeroShip._rounded_box_mesh timing/call/exact-size+material recipe counters added
+to private diagnostic ad0d6874e, corrected1c43b44cbf0968a971813428342bbaddf7269b66.
+A private caller loads actual staged Main/allnine craft using the existing soak
+MemoryFilesystem, not the player's persistence. No cache/gameplay change shipped.
+
+Initial private caller lacked its nested fixture declaration: FAIL0.928s parse,
+no measurement. Caller-only correction references the existing fixture. Next
+capture31.428s exits0 but null-material instrumentation throws errors and corrupts
+those returns: explicitly FAIL/invalid, never a passing geometry/timing claim.
+Selected null-safe instrumentation correction only; corrected capture31.304s
+exits0/one HERO_BOX_PROFILE_OK/zero diagnostics with exact source/cache manifests.
+Actual Main load/staged construction14996.582ms,246 base rounded-box calls,
+121 unique exact size/material recipes,112.224ms total builder time and56.201ms
+repeated work: only0.37476% of Main time in this Linux headless environment.
+
+Reject the proposed cache. This measured seam is not a supported explanation or
+useful fix for the parked300s recovery-suite limits; no rerun/cap change selected.
+Independent read-only mutation/lifetime review found a plausible instance-owned
+cache seam, but safety alone does not establish a performance benefit. No new
+validator, cache, regression or progress percentage added; original full matrix
+and production hotspot requirements remain OPEN, latest playable4cfa417 unchanged.
+
+Raw logs, corrected private caller and findings at
+/srv/mudds-work/hero-box-startup-20261021/results/. Both diagnostic commits retained
+in verified incremental diagnostic-source.bundle requiring pushedeb1d57582,
+unmerged. All three owners terminal/four observed PID-start identities absent.
+All43 scratch entries archived/reopened/byte-mode-link verified then removed;
+archive2700 bytes SHA2560e001ba70a07f33e99b0ca86dc6535b77bdd208577ed9969d7e151d37a931c77.
+Main restored, no branch/worktree created, eight protected worktrees untouched.
+No native-GPU/Windows/human claim; CI remains disabled.
