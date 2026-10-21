@@ -997,6 +997,9 @@ var _solo_crew_role: StringName = &""
 # Captured host scope outlives seat fields until Cinder commits its real clear.
 var _solo_navigator_audio_network_context: Dictionary = {}
 var _client_navigator_audio_adapter: NetworkSessionAdapterType
+var _client_navigator_result_callback: Callable
+var _client_navigator_pending: Dictionary = {}
+const CLIENT_NAVIGATOR_PENDING_LIMIT := 32
 var _client_navigator_audio_callback: Callable
 var _client_navigator_audio_epoch := 0
 var _client_navigator_audio_migration := 0
@@ -21801,12 +21804,17 @@ func _sync_client_navigator_audio_lifetime() -> void:
 		_clear_client_navigator_audio_context()
 		_client_navigator_audio_context = context
 		rebind = true
+	_retire_client_navigator_requests_if_lost()
 	if rebind:
+		if _client_navigator_result_callback.is_valid() and network_session.navigator_request_result_received.is_connected(_client_navigator_result_callback):
+			network_session.navigator_request_result_received.disconnect(_client_navigator_result_callback)
 		if _client_navigator_audio_callback.is_valid() and network_session.crew_snapshot_applied.is_connected(_client_navigator_audio_callback):
 			network_session.crew_snapshot_applied.disconnect(_client_navigator_audio_callback)
 		_client_navigator_audio_epoch += 1
 		_client_navigator_audio_callback = _on_client_navigator_crew_applied.bind(network_session, _client_navigator_audio_epoch, migration)
 		network_session.crew_snapshot_applied.connect(_client_navigator_audio_callback)
+		_client_navigator_result_callback = _on_client_navigator_request_result.bind(network_session, _client_navigator_audio_epoch, migration)
+		network_session.navigator_request_result_received.connect(_client_navigator_result_callback)
 	if is_instance_valid(optional_semantic_audio_composition):
 		optional_semantic_audio_composition.set_client_navigator_context(_client_navigator_audio_context)
 
@@ -21844,12 +21852,17 @@ func _current_client_navigator_audio_context() -> Dictionary:
 
 
 func _clear_client_navigator_audio_context() -> void:
+	_client_navigator_pending.clear()
 	_client_navigator_audio_context.clear()
 	if is_instance_valid(optional_semantic_audio_composition):
 		optional_semantic_audio_composition.clear_client_navigator()
 
 
 func _disconnect_client_navigator_audio() -> void:
+	if is_instance_valid(_client_navigator_audio_adapter) and _client_navigator_result_callback.is_valid() \
+			and _client_navigator_audio_adapter.navigator_request_result_received.is_connected(_client_navigator_result_callback):
+		_client_navigator_audio_adapter.navigator_request_result_received.disconnect(_client_navigator_result_callback)
+	_client_navigator_result_callback = Callable()
 	if is_instance_valid(_client_navigator_audio_adapter) and _client_navigator_audio_callback.is_valid() \
 			and _client_navigator_audio_adapter.crew_snapshot_applied.is_connected(_client_navigator_audio_callback):
 		_client_navigator_audio_adapter.crew_snapshot_applied.disconnect(_client_navigator_audio_callback)
@@ -21859,6 +21872,75 @@ func _disconnect_client_navigator_audio() -> void:
 	_client_navigator_audio_migration = 0
 	_client_navigator_audio_seen.clear()
 	_clear_client_navigator_audio_context()
+
+
+## Pending refusals pin the physical chair separately from accepted receipt
+## ownership, which must survive stand long enough for its matching real clear.
+func _client_navigator_request_claim() -> Dictionary:
+	var context := _client_navigator_audio_context
+	var seat := _network_engineer_client_seat
+	var source := _network_remote_body_intent_source
+	if context.is_empty() or _current_client_navigator_audio_context() != context \
+			or not is_instance_valid(player) or not is_instance_valid(seat) \
+			or not is_instance_valid(source) or not source.is_bound() \
+			or _network_engineer_stand_requested or not _station_seated or _transition_busy \
+			or seat.get_ship() != context.craft or seat.get_seat_id() != CinderCargoHauler.NAVIGATOR_STATION_SEAT_ID \
+			or seat.get_role_contract().is_empty() or not player.is_seated_at(seat.get_seat_anchor()):
+		return {}
+	var view := _network_physical_crew_view()
+	var row := view.get("assignment", {}) as Dictionary
+	if view.get("seated") != true or view.get("ship_id") != context.craft.get_ship_id() \
+			or row.get("seat_id") != seat.get_seat_id() or row.get("role") != &"passenger" \
+			or row.get("avatar_id") != source.get_entity_id() \
+			or int(view.get("entity_generation", 0)) != source.get_entity_generation() \
+			or int(row.get("claim_sequence", 0)) != _network_engineer_client_claim \
+			or int(view.get("migration_generation", 0)) != int(context.migration):
+		return {}
+	return {"context": context.duplicate(), "player": player, "seat": seat, "source": source,
+		"avatar_id": row.avatar_id, "entity_generation": int(view.entity_generation),
+		"seat_generation": int(row.get("seat_generation", 0)), "claim_sequence": int(row.claim_sequence),
+		"binding_generation": int(view.get("binding_generation", 0))}
+
+
+func _retire_client_navigator_requests_if_lost() -> void:
+	if _client_navigator_pending.is_empty():
+		return
+	var claim := _client_navigator_request_claim()
+	for sequence: int in _client_navigator_pending.keys():
+		if _client_navigator_pending[sequence].claim != claim:
+			_client_navigator_pending.erase(sequence)
+	if _client_navigator_pending.is_empty() and is_instance_valid(optional_semantic_audio_composition):
+		optional_semantic_audio_composition.clear_client_navigator_results()
+
+
+func _on_client_navigator_request_result(packet: Dictionary, adapter: NetworkSessionAdapterType, epoch: int, migration: int) -> void:
+	if not is_inside_tree() or adapter != network_session or adapter != _client_navigator_audio_adapter \
+			or epoch != _client_navigator_audio_epoch or migration != _client_navigator_audio_migration \
+			or _network_session_mode != &"client" or not _network_session_is_live() or adapter.is_server() \
+			or migration != int(adapter.get_migration_snapshot().get("migration_generation", 0)) \
+			or not packet.get("request") is Dictionary or not packet.get("result") is Dictionary:
+		return
+	var request: Dictionary = packet.request
+	var sequence := int(request.get("request_sequence", 0))
+	var pending: Dictionary = _client_navigator_pending.get(sequence, {})
+	if pending.is_empty() or pending.request != request or pending.claim != _client_navigator_request_claim():
+		_retire_client_navigator_requests_if_lost()
+		return
+	var context: Dictionary = pending.claim.context
+	if int(packet.get("recipient_peer_id", 0)) != int(context.peer) \
+			or int(packet.get("peer_generation", 0)) != int(context.peer_generation) \
+			or int(packet.get("session_generation", 0)) != int(context.session_generation) \
+			or int(packet.get("migration_generation", 0)) != int(context.migration):
+		return
+	# Consume every authentic terminal once, including success and internal
+	# post-mutation failures. Only actual crew commands announce acceptance.
+	_client_navigator_pending.erase(sequence)
+	if packet.result.get("accepted") != false or not is_instance_valid(optional_semantic_audio_composition):
+		return
+	var previous_transition := _client_navigator_audio_presenting_transition
+	_client_navigator_audio_presenting_transition = ("result:%d:%d:%d" % [adapter.get_instance_id(), epoch, sequence]).sha256_text()
+	optional_semantic_audio_composition.present_cinder_client_navigator_result(packet.result, request, context)
+	_client_navigator_audio_presenting_transition = previous_transition
 
 
 func _on_client_navigator_crew_applied(result: Dictionary, adapter: NetworkSessionAdapterType, epoch: int, migration: int) -> void:
@@ -22069,7 +22151,10 @@ func _forward_cinder_navigator_presentation(
 			):
 		return
 	_sync_cinder_navigator_presentations()
-	if is_instance_valid(optional_semantic_audio_composition):
+	var remote_refusal := result.get("accepted") == false and _network_engineer_binding != null \
+		and _network_engineer_binding.loadmaster != null \
+		and _network_engineer_binding.loadmaster.is_submitting_remote_navigator_request()
+	if is_instance_valid(optional_semantic_audio_composition) and not remote_refusal:
 		optional_semantic_audio_composition.present_cinder_navigator_bridge_result(result)
 	if _cinder_navigator_ping_hud_composition == null \
 			or _cinder_navigator_presentation_ship_generation != navigator_generation:
@@ -25603,7 +25688,7 @@ func _on_semantic_audio_cue_emitted(
 	world_position: Vector3
 ) -> void:
 	if is_instance_valid(hud) and hud.has_method(&"present_semantic_audio_cue"):
-		if source_id == &"navigator" and cue_id in [&"cinder_navigator_ping_accepted", &"cinder_navigator_ping_cleared"] \
+		if source_id == &"navigator" and cue_id in [&"cinder_navigator_ping_accepted", &"cinder_navigator_ping_cleared", &"cinder_navigator_ping_rejected"] \
 				and not _client_navigator_audio_presenting_transition.is_empty():
 			# Consecutive real accepted commands share one cue, but are distinct
 			# caption transitions. Preserve that identity only during dispatch.
@@ -26410,6 +26495,9 @@ func _request_network_engineer_seat(seat: ShipCrewSeat) -> void:
 
 
 func _request_network_engineer_stand() -> void:
+	_client_navigator_pending.clear()
+	if is_instance_valid(optional_semantic_audio_composition):
+		optional_semantic_audio_composition.clear_client_navigator_results()
 	if _transition_busy or not _station_seated or _network_remote_body_intent_source == null:
 		return
 	_network_engineer_stand_requested = true
@@ -26520,6 +26608,9 @@ func _present_network_engineer_seat(seat: ShipCrewSeat) -> void:
 
 
 func _finish_network_engineer_stand() -> void:
+	_client_navigator_pending.clear()
+	if is_instance_valid(optional_semantic_audio_composition):
+		optional_semantic_audio_composition.clear_client_navigator_results()
 	var seat := _network_engineer_client_seat
 	if not is_instance_valid(seat):
 		_cancel_network_engineer()
@@ -26546,6 +26637,9 @@ func _finish_network_engineer_stand() -> void:
 
 
 func _cancel_network_engineer(publish_role_change := true) -> void:
+	_client_navigator_pending.clear()
+	if is_instance_valid(optional_semantic_audio_composition):
+		optional_semantic_audio_composition.clear_client_navigator_results()
 	_network_engineer_orphan_release.clear()
 	_network_engineer_client_claim = 0
 	_network_engineer_pending_seat = null
@@ -26669,13 +26763,28 @@ func _send_network_engineer_intent(view: Dictionary, repair: float) -> Dictionar
 func _send_network_loadmaster_intent(view: Dictionary, action: StringName = &"cargo_manifest_ready") -> Dictionary:
 	var assignment := view.get("assignment", {}) as Dictionary
 	_network_engineer_request_sequence += 1
-	return network_session.send_engineer_intent({
+	var payload := {
 		"action": action, "avatar_id": StringName(assignment.get("avatar_id", &"")),
 		"entity_generation": int(view.get("entity_generation", 0)),
 		"seat_generation": int(assignment.get("seat_generation", 0)), "claim_sequence": int(assignment.get("claim_sequence", 0)),
 		"request_sequence": _network_engineer_request_sequence, "binding_generation": int(view.get("binding_generation", 0)),
 		"migration_generation": int(view.get("migration_generation", 0)), "server_tick": _network_client_boarding_tick_stamp(),
-	})
+	}
+
+	_sync_client_navigator_audio_lifetime()
+	if action == &"navigator_ping":
+		var claim := _client_navigator_request_claim()
+		if not claim.is_empty():
+			var request := payload.duplicate(true)
+			request["ship_id"] = claim.context.craft.get_ship_id()
+			request["seat_id"] = claim.seat.get_seat_id()
+			if _client_navigator_pending.size() >= CLIENT_NAVIGATOR_PENDING_LIMIT:
+				_client_navigator_pending.erase(_client_navigator_pending.keys()[0])
+			_client_navigator_pending[_network_engineer_request_sequence] = {"request": request, "claim": claim}
+	var queued := network_session.send_engineer_intent(payload)
+	if queued.get("accepted") != true:
+		_client_navigator_pending.erase(int(payload.request_sequence))
+	return queued
 
 
 func _network_physical_crew_seat_is_wired(seat: ShipCrewSeat) -> bool:

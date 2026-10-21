@@ -9,7 +9,31 @@ const CuePresenter := preload("res://scripts/ui/semantic_audio_cue_presenter.gd"
 
 # Wire-shaped applied input isolates coordinator fences; the existing two-peer
 # passenger route remains the production transport and Main acceptance.
+class RequestSpy extends Director:
+	var requests: Array[Dictionary] = []
+	func _play_resident(stream_id: StringName, bus: StringName, volume_db: float) -> bool:
+		requests.append({"stream_id": stream_id, "bus": bus, "volume_db": volume_db})
+		return super._play_resident(stream_id, bus, volume_db)
+
+class RequestSeat extends Node:
+	func get_seat_id() -> StringName:
+		return Cinder.NAVIGATOR_STATION_SEAT_ID
+
 class ClientAdapterFixture extends Session:
+	var sent: Array[Dictionary] = []
+	var queue_success := true
+	var immediate_result := false
+	func send_engineer_intent(payload: Dictionary) -> Dictionary:
+		sent.append(payload.duplicate(true))
+		if immediate_result:
+			navigator_request_result_received.emit(response(payload))
+		return {"accepted": queue_success}
+	func response(payload: Dictionary) -> Dictionary:
+		var request := payload.duplicate(true)
+		request["ship_id"] = Cinder.COMPONENT_ID
+		request["seat_id"] = Cinder.NAVIGATOR_STATION_SEAT_ID
+		return {"request": request, "result": {"accepted": false, "status": &"navigator_consumer_unavailable"},
+			"recipient_peer_id": 7, "peer_generation": 3, "session_generation": 1, "migration_generation": migration}
 	var active := true
 	var migration := 2
 	var cached_reads := 0
@@ -27,6 +51,9 @@ class ClientAdapterFixture extends Session:
 		return {}
 
 class ClientFlowFixture extends Flow:
+	var request_claim: Dictionary = {}
+	func _client_navigator_request_claim() -> Dictionary:
+		return request_claim.duplicate()
 	func _enter_tree() -> void:
 		pass
 	func _ready() -> void:
@@ -68,7 +95,7 @@ func _init() -> void:
 	call_deferred("_run")
 
 func _run() -> void:
-	var director := Director.new()
+	var director := RequestSpy.new()
 	var composition := Composition.new()
 	var cinder := Cinder.new()
 	var cruise := MockCruise.new()
@@ -204,6 +231,7 @@ func _run() -> void:
 	_check(director.get_semantic_audio_binding_count() == 1, "exit-tree cleanup removes only optional-owned router sources")
 	_test_client_generation_replacement(director)
 	await _test_client_applied_commands(director)
+	await _test_client_request_results(director)
 	for failure in _failures:
 		push_error(failure)
 	print("OPTIONAL_SEMANTIC_AUDIO_COMPOSITION_TEST: %d assertions" % _assertions)
@@ -374,6 +402,99 @@ func _test_client_applied_commands(director: Node) -> void:
 	flow.queue_free()
 	await process_frame
 	_check(director.get_semantic_audio_binding_count() == 1, "client fixture teardown preserves exact unrelated source")
+
+
+func _test_client_request_results(director: RequestSpy) -> void:
+	_check(AudioServer.get_driver_name() == "Dummy", "requester fixture retains real silent backend")
+	var flow := ClientFlowFixture.new()
+	var adapter := ClientAdapterFixture.new()
+	var craft := Cinder.new()
+	var optional := Composition.new()
+	var caption := CaptionFixture.new()
+	var seat := RequestSeat.new()
+	for child in [adapter, craft, optional, caption, seat]:
+		flow.add_child(child)
+	flow.network_session = adapter
+	flow._network_session_mode = &"client"
+	flow._cabin_ship = craft
+	flow.phase = Flow.Phase.IN_FLIGHT_CABIN
+	flow._network_client_boarding_claim = {"ship_id": Cinder.COMPONENT_ID, "role": &"cabin_berth"}
+	flow.optional_semantic_audio_composition = optional
+	flow.hud = caption
+	flow.audio = director
+	root.add_child(flow)
+	optional.attach(director)
+	flow._sync_client_navigator_audio_lifetime()
+	flow.request_claim = {"context": flow._client_navigator_audio_context.duplicate(), "seat": seat,
+		"entity_generation": 1, "seat_generation": 1, "claim_sequence": 2, "binding_generation": 4}
+	var view := {"entity_generation": 1, "binding_generation": 4, "migration_generation": 2,
+		"assignment": {"avatar_id": &"navigator", "seat_generation": 1, "claim_sequence": 2}}
+	director.semantic_cue_emitted.connect(flow._on_semantic_audio_cue_emitted)
+	var before := director.requests.size()
+	flow._send_network_loadmaster_intent(view, &"navigator_ping")
+	flow._send_network_loadmaster_intent(view, &"navigator_ping")
+	_check(flow._client_navigator_pending.size() == 2, "multiple exact original requests stay independently pending")
+	var packets: Array[Dictionary] = [adapter.response(adapter.sent[0]), adapter.response(adapter.sent[1])]
+	for field in ["recipient_peer_id", "peer_generation", "session_generation", "migration_generation"]:
+		var foreign := packets[0].duplicate(true)
+		foreign[field] += 1
+		adapter.navigator_request_result_received.emit(foreign)
+	for field in ["action", "avatar_id", "ship_id", "seat_id", "entity_generation", "seat_generation", "claim_sequence", "binding_generation", "migration_generation", "server_tick"]:
+		var foreign := packets[0].duplicate(true)
+		foreign.request[field] = &"foreign" if field in ["action", "avatar_id", "ship_id", "seat_id"] else int(foreign.request[field]) + 1
+		adapter.navigator_request_result_received.emit(foreign)
+	_check(director.requests.size() == before and flow._client_navigator_pending.size() == 2, "foreign recipient and original identity fields cannot retire or present a live pending request")
+	for packet in packets:
+		adapter.navigator_request_result_received.emit(packet)
+		adapter.navigator_request_result_received.emit(packet)
+	_check(director.requests.size() == before + 2 and caption.captions.size() == 2 and flow._client_navigator_pending.is_empty(), "two equal authenticated refusals each select one resident alert and real transition caption; replay stays silent")
+	_check(not optional.get_snapshot().client_navigator.attached and optional._client_navigator_result_composition._binding.get_snapshot().lifecycle_generation == 0, "pre-first-accept refusal uses no invented wire ship generation")
+	for index in range(before, director.requests.size()):
+		_check(director.requests[index].stream_id == Director.STREAM_COMBAT_ALERT_PRIMARY and director.requests[index].bus == &"UI", "requester refusal uses the existing resident UI alert")
+	adapter.immediate_result = true
+	flow._send_network_loadmaster_intent(view, &"navigator_ping")
+	_check(director.requests.size() == before + 3 and flow._client_navigator_pending.is_empty(), "pending registration precedes the actual send even for synchronous terminal delivery")
+	adapter.immediate_result = false
+	adapter.queue_success = false
+	flow._send_network_loadmaster_intent(view, &"navigator_ping")
+	_check(flow._client_navigator_pending.is_empty(), "immediate queue failure retires only its registered request")
+	adapter.queue_success = true
+	for terminal in [{"accepted": true, "status": &"navigator_ping_published"},
+		{"accepted": false, "status": &"invalid_cinder_receipt"},
+		{"accepted": false, "status": &"invalid_cinder_snapshot"},
+		{"accepted": false, "status": &"network_publish_failed", "mutation_committed": true}]:
+		flow._send_network_loadmaster_intent(view, &"navigator_ping")
+		var packet := adapter.response(adapter.sent.back())
+		packet.result = terminal
+		adapter.navigator_request_result_received.emit(packet)
+	_check(director.requests.size() == before + 3 and flow._client_navigator_pending.is_empty(), "success acknowledgement and internal committed terminals retire without acceptance echo or denial")
+	flow._send_network_loadmaster_intent(view, &"navigator_ping")
+	var translated := adapter.response(adapter.sent.back())
+	translated.result = {"accepted": false, "status": &"cinder_rejected", "effect": {"accepted": false, "status": &"stale_request_sequence"}}
+	adapter.navigator_request_result_received.emit(translated)
+	_check(director.requests.size() == before + 4, "fresh original sequence may present a genuine unconsumed translated authority refusal")
+	var active := _navigator_receipt(8, 10, 40)
+	adapter.crew_snapshot_applied.emit(_applied(active))
+	var active_source: Node = optional._client_navigator_composition
+	for _request in 40:
+		flow._send_network_loadmaster_intent(view, &"navigator_ping")
+	_check(flow._client_navigator_pending.size() == Flow.CLIENT_NAVIGATOR_PENDING_LIMIT, "pending storage remains bounded without collapsing distinct outstanding requests")
+	flow.request_claim.claim_sequence += 1
+	flow._sync_client_navigator_audio_lifetime()
+	_check(flow._client_navigator_pending.is_empty() and optional._client_navigator_composition == active_source and optional.get_snapshot().client_navigator.attached, "claim loss retires pending refusals while preserving actual accepted clear owner")
+	adapter.crew_snapshot_applied.emit(_applied(_navigator_clear(active, &"real_clear_after_claim_loss")))
+	_check(caption.captions.back().caption == "Navigator ping cleared", "actual matching clear still presents after pending retirement")
+	flow._send_network_loadmaster_intent(view, &"navigator_ping")
+	var stale := adapter.response(adapter.sent.back())
+	var retired_callback: Callable = flow._client_navigator_result_callback
+	adapter.migration = 3
+	flow._sync_client_navigator_audio_lifetime()
+	var count := director.requests.size()
+	retired_callback.call(stale)
+	_check(director.requests.size() == count and flow._client_navigator_pending.is_empty(), "old migration callback cannot reattach refusal presentation")
+	director.semantic_cue_emitted.disconnect(flow._on_semantic_audio_cue_emitted)
+	flow.queue_free()
+	await process_frame
 
 
 func _applied(command: Dictionary) -> Dictionary:

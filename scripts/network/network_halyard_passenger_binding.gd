@@ -19,6 +19,7 @@ var _migration := 1
 var _lifetime := 0
 var _elapsed := 0.0
 var _retired := false
+var _remote_navigator_submit_depth := 0
 var navigator_submit: Callable
 var navigator_release: Callable
 var _navigator_bridge: NetworkCinderNavigatorPingBridge
@@ -235,9 +236,18 @@ func submit_readiness(peer: int, payload: Dictionary) -> Dictionary:
 	_requests[avatar] = int(payload.request_sequence)
 	var sequence := next_request_sequence(int(authority.get_last_intent(peer, avatar).get("request_sequence", 0)))
 	if payload.action == &"navigator_ping":
-		if not navigator_submit.is_valid():
-			return {"accepted": false, "status": &"navigator_consumer_unavailable"}
-		return navigator_submit.call(peer, avatar, int(assignment.seat_generation), sequence)
+		# Preserve the authenticated client cursor separately from the translated
+		# roster cursor. Only this consumed-current gate owns a terminal reply.
+		var request := payload.duplicate(true)
+		request["ship_id"] = _ship.get_ship_id()
+		request["seat_id"] = seat.get_seat_id()
+		var result := {"accepted": false, "status": &"navigator_consumer_unavailable"}
+		if navigator_submit.is_valid():
+			_remote_navigator_submit_depth += 1
+			result = navigator_submit.call(peer, avatar, int(assignment.seat_generation), sequence)
+			_remote_navigator_submit_depth -= 1
+		_session.publish_navigator_request_result(peer, request, result)
+		return result
 	return _ship.submit_loadmaster_readiness(peer, avatar, sequence)
 
 
@@ -255,6 +265,11 @@ func publish_navigator_ping(peer: int, avatar: StringName, generation: int, sequ
 		_session.get_boarding_server_tick(), _migration)
 	cinder_navigator_ping_result_forwarded.emit(result.duplicate(true))
 	return result
+
+
+## True only during the authenticated remote callback, never host-local calls.
+func is_submitting_remote_navigator_request() -> bool:
+	return _remote_navigator_submit_depth > 0
 
 
 func get_navigator_presentation_ship() -> CinderCargoHauler:

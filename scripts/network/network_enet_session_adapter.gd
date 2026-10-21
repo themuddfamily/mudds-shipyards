@@ -57,6 +57,7 @@ signal damage_respawn_result(result: Dictionary)
 signal moving_interior_result(result: Dictionary)
 signal ship_ownership_result(result: Dictionary)
 signal seat_occupancy_result(result: Dictionary)
+signal navigator_request_result_received(packet: Dictionary)
 signal engineer_intent_requested(peer_id: int, payload: Dictionary)
 signal engineer_snapshot_received(snapshot: Dictionary)
 signal gunner_intent_requested(peer_id: int, payload: Dictionary)
@@ -2535,8 +2536,8 @@ func get_owned_ship(ship_id: StringName) -> Dictionary:
 func send_engineer_intent(payload: Dictionary) -> Dictionary:
 	if is_server() or not _configured:
 		return _result(false, &"client_required")
-	_receive_engineer_intent.rpc_id(AUTHORITY_PEER_ID, _make_secure_rpc_packet(&"engineer", payload))
-	return _result(true, &"queued")
+	var queued := _receive_engineer_intent.rpc_id(AUTHORITY_PEER_ID, _make_secure_rpc_packet(&"engineer", payload))
+	return _result(queued == OK, &"queued" if queued == OK else &"queue_failed")
 
 
 func publish_planetary_journey_state(state: Dictionary, reliable: bool = false, recipient: int = 0) -> Dictionary:
@@ -2730,6 +2731,33 @@ func _broadcast_passenger_snapshot(packet: Dictionary) -> void:
 	_passenger_snapshot_revision = int(packet.revision)
 	_passenger_replica_snapshot = packet.duplicate(true)
 	_note_boarding_server_tick_heard(int(packet.get("server_tick", 0)))
+
+
+## Immediate terminal response for one fully validated original navigator
+## request. This never replaces passenger state or accepted crew publication.
+func publish_navigator_request_result(peer_id: int, request: Dictionary, result: Dictionary) -> Dictionary:
+	if not is_server() or not _peer_generations.has(peer_id):
+		return _result(false, &"peer_not_admitted")
+	var packet := {"request": request.duplicate(true), "result": result.duplicate(true),
+		"recipient_peer_id": peer_id, "peer_generation": int(_peer_generations[peer_id]),
+		"session_generation": int(_transport.get_snapshot().session_generation),
+		"migration_generation": int(_migration.get_snapshot().migration_generation),
+		"server_tick": get_boarding_server_tick()}
+	_receive_navigator_request_result.rpc_id(peer_id, packet)
+	return _result(true, &"published")
+
+
+@rpc("authority", "call_remote", "reliable", 0)
+func _receive_navigator_request_result(packet: Dictionary) -> void:
+	if is_server() or multiplayer.get_remote_sender_id() != AUTHORITY_PEER_ID:
+		return
+	if int(packet.get("recipient_peer_id", 0)) != multiplayer.get_unique_id() \
+			or int(packet.get("peer_generation", 0)) != _next_peer_generation - 1 \
+			or int(packet.get("session_generation", 0)) != int(_transport.get_snapshot().session_generation) \
+			or int(packet.get("migration_generation", 0)) != int(_migration.get_snapshot().migration_generation) \
+			or not packet.get("request") is Dictionary or not packet.get("result") is Dictionary:
+		return
+	navigator_request_result_received.emit(packet.duplicate(true))
 
 
 func register_crew_seat(

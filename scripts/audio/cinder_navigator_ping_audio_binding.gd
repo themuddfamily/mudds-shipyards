@@ -20,6 +20,7 @@ var _lifecycle_generation := 0
 var _migration_generation := 0
 var _seen_receipts: Dictionary = {}
 var _seen_rejections: Array[Dictionary] = []
+var _seen_client_results: Array[String] = []
 var _active: Dictionary = {}
 var _actor_fences: Dictionary = {}
 var _local_claim: Dictionary = {}
@@ -175,6 +176,40 @@ func present_rejected(result: Dictionary) -> Dictionary:
 	return _result(true, &"rejected")
 
 
+## GameFlow has consumed an exact live pending request before this entry.
+## It is deliberately separate from bridge policy and ship receipt generations.
+func present_client_request_result(result: Dictionary, request: Dictionary) -> Dictionary:
+	if not _attached or not _local_claim.is_empty():
+		return _result(false, &"detached")
+	if request.get("action") != &"navigator_ping" or int(request.get("request_sequence", 0)) <= 0 \
+			or request.get("seat_id") != NAVIGATOR_SEAT_ID or request.get("ship_id") != CINDER_SHIP_ID \
+			or not result.get("accepted") is bool:
+		return _result(false, &"invalid_client_result")
+	var raw_status: Variant = result.get("status")
+	if not (raw_status is String or raw_status is StringName):
+		return _result(false, &"invalid_client_result")
+	var status := StringName(raw_status)
+	if status.is_empty() or result.get("accepted") == true:
+		return _result(false, &"terminal_without_rejection")
+	# The consumer may already have changed gameplay. Never turn those
+	# internal failures into a denied ping or a synthetic success.
+	if result.get("mutation_committed", false) == true or result.get("consumed", false) == true \
+			or status in [&"invalid_cinder_receipt", &"invalid_cinder_snapshot", &"network_publish_failed"]:
+		return _result(false, &"mutation_not_denied")
+	if status == &"cinder_rejected":
+		var effect: Variant = result.get("effect")
+		if not effect is Dictionary or effect.get("consumed", false) != false or effect.get("accepted") != false:
+			return _result(false, &"mutation_not_denied")
+	var key := JSON.stringify(request).sha256_text()
+	if key in _seen_client_results:
+		return _result(false, &"duplicate")
+	_seen_client_results.append(key)
+	if _seen_client_results.size() > 64:
+		_seen_client_results.pop_front()
+	_emit(REJECTED, 0.8)
+	return _result(true, &"rejected")
+
+
 ## Accepts either the bridge's complete release/detach result or its tombstone array.
 func present_tombstones(value: Variant) -> Dictionary:
 	if not _attached or not _local_claim.is_empty():
@@ -222,6 +257,7 @@ func present_receipt_clear(receipt: Dictionary) -> Dictionary:
 
 
 func detach() -> Dictionary:
+	_seen_client_results.clear()
 	_local_claim.clear()
 	_local_sequence = 0
 	_local_active.clear()

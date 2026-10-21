@@ -188,6 +188,7 @@ func _run() -> void:
 	bridge.detach()
 	_test_local(director, cinder)
 	_test_raw_client_commands(director)
+	_test_client_results(director)
 	cinder.queue_free()
 	director.queue_free()
 	await process_frame
@@ -198,6 +199,33 @@ func _run() -> void:
 	for failure in _failures:
 		push_error(failure)
 	quit(1)
+
+
+func _test_client_results(director: RequestSpy) -> void:
+	var client := Composition.new()
+	root.add_child(client)
+	client.attach(director)
+	var request := {"action": &"navigator_ping", "request_sequence": 1,
+		"avatar_id": &"navigator", "ship_id": Cinder.COMPONENT_ID,
+		"seat_id": Cinder.NAVIGATOR_STATION_SEAT_ID}
+	var actual_unavailable := {"accepted": false, "status": &"navigator_consumer_unavailable"}
+	var before := director.requests.size()
+	_check(bool(client.present_client_request_result(actual_unavailable, request).accepted), "explicit correlated pre-bridge refusal requires no forged bridge policy")
+	_check(not bool(client.present_client_request_result(actual_unavailable, request).accepted), "same original requester identity refuses duplicate result")
+	request.request_sequence = 2
+	_check(bool(client.present_client_request_result(actual_unavailable, request).accepted) and director.requests.size() == before + 2, "distinct original requests with equal refusal results each select resident playback")
+	_check(director.requests.back().stream_id == Director.STREAM_COMBAT_ALERT_PRIMARY and director.requests.back().bus == &"UI", "correlated rejection retains existing resident alert")
+	for result in [{"accepted": true, "status": &"navigator_ping_published"},
+		{"accepted": false, "status": &"invalid_cinder_receipt"},
+		{"accepted": false, "status": &"invalid_cinder_snapshot"},
+		{"accepted": false, "status": &"network_publish_failed", "mutation_committed": true},
+		{"accepted": false, "status": &"cinder_rejected", "effect": {"accepted": true, "consumed": true}},
+		{"accepted": false, "status": 7}]:
+		request.request_sequence += 1
+		_check(not bool(client.present_client_request_result(result, request).accepted), "success, committed/internal or malformed terminal never fabricates denied gameplay")
+	_check(director.requests.size() == before + 2, "internal results and success acknowledgement produce no navigator echo")
+	client.detach()
+	client.queue_free()
 
 
 ## Focused raw-command forwarding, not two-peer transport acceptance.

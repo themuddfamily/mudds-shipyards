@@ -31,6 +31,8 @@ var _game: GameFlow
 var _craft: HeroShip
 var _cinder := false
 var _navigator := false
+var _navigator_rejection := false
+var _navigator_result_packets: Array[Dictionary] = []
 var _gunner := false
 var _gunner_shots := 0
 var _navigator_cues: Array[StringName] = []
@@ -133,6 +135,8 @@ func _run() -> void:
 	args.erase("--host-gunner-flight")
 	_gunner = "--halyard-gunner" in args or _host_gunner_flight
 	args.erase("--halyard-gunner")
+	_navigator_rejection = "--navigator-rejection" in args
+	args.erase("--navigator-rejection")
 	_navigator = "--cinder-navigator" in args
 	args.erase("--cinder-navigator")
 	_host_loadmaster_flight = "--host-loadmaster-flight" in args
@@ -385,6 +389,8 @@ func _peer_arguments(role: String, display: PackedStringArray) -> PackedStringAr
 		args.append("--halyard-gunner")
 	if _navigator:
 		args.append("--cinder-navigator")
+	if _navigator_rejection:
+		args.append("--navigator-rejection")
 	if _host_gunner_flight:
 		args.append("--host-gunner-flight")
 	if _host_loadmaster_flight:
@@ -484,6 +490,8 @@ func _host() -> void:
 	_write("host.ready", {})
 	if not await _wait_file("client.admitted", 60.0):
 		return
+	if _navigator_rejection:
+		await _host_navigator_refusals()
 	if not await _wait_file("client.seated", 60.0):
 		print("PASSENGER_HOST_TIMEOUT: wall=", Time.get_unix_time_from_system(),
 			" peers=", _game.network_session.get_admitted_peer_ids(),
@@ -665,6 +673,8 @@ func _client() -> void:
 	_check(_game.join_network_session("127.0.0.1", _port).accepted, "production client joins")
 	if _navigator:
 		_game.network_session.crew_snapshot_applied.connect(_capture_navigator_applied)
+		_game.network_session.navigator_request_result_received.connect(func(packet: Dictionary):
+			_navigator_result_packets.append(packet.duplicate(true)))
 	var ready := await _until(_admitted_session_ready, 60.0)
 	_check(ready, "client receives matching admitted current-epoch server offer")
 	if not ready:
@@ -709,6 +719,8 @@ func _client() -> void:
 	if _cinder:
 		_cargo_before = _cargo_state()
 		_check(int(_cargo_before.finite_source) == GameFlow.CARGO_DELIVERY_SOURCE_INITIAL_QUANTITY and int(_cargo_before.capacity) == 8, "production cargo owner starts with exact finite quantity and retained eight-slot Cinder hold")
+		if _navigator_rejection:
+			await _client_navigator_refusals()
 		await _press(&"fire")
 		_check(await _until(func(): return _role_effect_ready(_game.network_session.get_passenger_replica_snapshot().get("navigator" if _navigator else "manifest", {})), 5.0), "remote ordinary seated FIRE reaches host manifest consumer and confirms receipt")
 		if _navigator:
@@ -817,6 +829,87 @@ func _client() -> void:
 	_check(not _player.is_seated() and _player.is_control_enabled(), "disconnect leaves local passenger awake with controls")
 	_write("client.disconnected", {})
 
+
+## Separate opt-in refusal episode; all original walk/chair/accepted/clear/
+## reseat/migration/disconnect stages and their caps remain unchanged.
+func _host_navigator_refusals() -> void:
+	if not await _wait_file("client.refusal_ready", 60.0):
+		return
+	var binding := _game._network_engineer_binding.loadmaster
+	var original: Callable = binding.navigator_submit
+	var before := _navigator_request_count(&"cinder_navigator_ping_rejected")
+	var receipt: Dictionary = _craft.get_navigator_ping_snapshot().get("receipt", {}).duplicate(true)
+	_check(receipt.is_empty(), "refusal episode begins before the client's first accepted receipt")
+	binding.navigator_submit = Callable()
+	_write("host.missing_ready", {})
+	if not await _wait_file("client.missing_done", 10.0):
+		binding.navigator_submit = original
+		return
+	binding.navigator_submit = original
+	var bridge := binding._navigator_bridge
+	bridge.detach(&"test_actual_consumer_unavailable")
+	_write("host.detached_ready", {})
+	if not await _wait_file("client.detached_done", 10.0):
+		bridge.attach(_game.network_session, _craft, int(binding._generation))
+		return
+	_check(_craft.get_navigator_ping_snapshot().get("receipt", {}) == receipt, "actual missing callback and detached bridge refusals do not change navigator gameplay")
+	_check(_navigator_request_count(&"cinder_navigator_ping_rejected") == before, "host has no requester-only refusal sound or caption echo")
+	# Deliver the captured real response over ENet again, including an actual
+	# foreign-recipient envelope. The requester must hear neither delivery.
+	var captured := _read("client.detached_done")
+	var packet: Dictionary = captured.get("packet", {})
+	var peer := int(packet.get("recipient_peer_id", 0))
+	if peer > 1:
+		_game.network_session._receive_navigator_request_result.rpc_id(peer, packet)
+		var foreign := packet.duplicate(true)
+		foreign.recipient_peer_id = peer + 1
+		_game.network_session._receive_navigator_request_result.rpc_id(peer, foreign)
+	bridge.attach(_game.network_session, _craft, int(binding._generation))
+	_write("host.refusal_restored", {})
+	await _wait_file("client.refusal_replay_checked", 10.0)
+
+func _client_navigator_refusals() -> void:
+	_write("client.refusal_ready", {})
+	for episode in ["missing", "detached"]:
+		if not await _wait_file("host." + episode + "_ready", 10.0):
+			return
+		var before := _navigator_result_packets.size()
+		var requests := _navigator_request_count(&"cinder_navigator_ping_rejected")
+		var captions := _navigator_captions.size()
+		for press in 2:
+			await _press(&"fire")
+			_check(await _until(func(): return _navigator_result_packets.size() == before + press + 1, 5.0), "actual " + episode + " FIRE receives one immediate requester response")
+		_check(_navigator_request_count(&"cinder_navigator_ping_rejected") == requests + 2 and _navigator_captions.size() == captions + 2, "two distinct " + episode + " presses create two existing alert requests and actual captions")
+		_check(_navigator_records.is_empty() and not _role_effect_ready(_game.network_session.get_passenger_replica_snapshot().get("navigator", {})), "actual " + episode + " refusals create no accepted navigator command or gameplay receipt")
+		var first: Dictionary = _navigator_result_packets[before]
+		var second: Dictionary = _navigator_result_packets[before + 1]
+		_check(first.result == second.result and first.request.request_sequence != second.request.request_sequence, "equal actual refusal statuses preserve two original client sequences")
+		_check(first.result.status == (&"navigator_consumer_unavailable" if episode == "missing" else &"detached"), "real " + episode + " owner returns its actual refusal status")
+		_check(not first.request.has("ship_generation") and not second.request.has("ship_generation"), "pre-acceptance refusal never fabricates a transported ship generation")
+		for index in range((_game.audio as NavigatorRequestSpy).navigator_requests.size() - 2, (_game.audio as NavigatorRequestSpy).navigator_requests.size()):
+			var item: Dictionary = (_game.audio as NavigatorRequestSpy).navigator_requests[index]
+			_check(item.stream_id == Director.STREAM_COMBAT_ALERT_PRIMARY and item.bus == &"UI" and _navigator_captions[index].caption == "Navigator ping rejected", "actual refusal retains existing UI alert and real caption")
+		var callback: Callable = _game._client_navigator_result_callback
+		callback.call(first)
+		callback.call(second)
+		var old_input: Dictionary = first.request.duplicate(true)
+		old_input.erase("ship_id")
+		old_input.erase("seat_id")
+		_game.network_session.send_engineer_intent(old_input)
+		var foreign_input := old_input.duplicate(true)
+		foreign_input.avatar_id = &"foreign_navigator"
+		foreign_input.request_sequence = int(second.request.request_sequence) + 1
+		_game.network_session.send_engineer_intent(foreign_input)
+		await _ticks(12)
+		_check(_navigator_result_packets.size() == before + 2, "actual replayed and foreign original ENet inputs remain silent")
+		_check(_navigator_request_count(&"cinder_navigator_ping_rejected") == requests + 2, "same original result replay remains silent")
+		_write("client." + episode + "_done", {"packet": second})
+	if not await _wait_file("host.refusal_restored", 10.0):
+		return
+	await _ticks(12)
+	_check(_navigator_request_count(&"cinder_navigator_ping_rejected") == 4 and _navigator_captions.size() == 4, "actual reliable replay and foreign-recipient delivery stay silent")
+	_check(_game._client_navigator_pending.is_empty(), "all four real refusal terminals retire their own pending records")
+	_write("client.refusal_replay_checked", {})
 
 func _capture_navigator_cue(source: StringName, cue: StringName, _intensity: float, _position: Vector3) -> void:
 	_navigator_cues.append(cue)
@@ -980,14 +1073,20 @@ func _navigator_commands(action: StringName) -> Array[Dictionary]:
 
 
 func _check_navigator_feedback(accepted: int, cleared: int, stage: String) -> void:
-	var requests: Array[Dictionary] = (_game.audio as NavigatorRequestSpy).navigator_requests
-	_check(requests.size() == accepted + cleared and _navigator_captions.size() == requests.size(), stage + " has exactly one navigator request and real caption per outcome")
+	var requests: Array[Dictionary] = []
+	var captions: Array[Dictionary] = []
+	for index in (_game.audio as NavigatorRequestSpy).navigator_requests.size():
+		var item: Dictionary = (_game.audio as NavigatorRequestSpy).navigator_requests[index]
+		if item.cue_id != &"cinder_navigator_ping_rejected":
+			requests.append(item)
+			captions.append(_navigator_captions[index])
+	_check(requests.size() == accepted + cleared and captions.size() == requests.size(), stage + " has exactly one navigator request and real caption per outcome")
 	_check(_navigator_commands(&"passenger_ping").size() == accepted and _navigator_commands(&"passenger_ping_clear").size() == cleared, stage + " correlates with successfully applied actual crew commands")
 	for index in requests.size():
 		var request: Dictionary = requests[index]
 		var is_accept: bool = request.cue_id == &"cinder_navigator_ping_accepted"
 		_check(request.stream_id == (Director.STREAM_UI_CONFIRM if is_accept else Director.STREAM_CANOPY_CLOSE) and request.bus == &"UI", stage + " selects existing navigator confirmation/clear UI resident stream")
-		_check(_navigator_captions[index].get("caption", "") == ("Navigator ping accepted" if is_accept else "Navigator ping cleared"), stage + " preserves real accepted/clear caption text")
+		_check(captions[index].get("caption", "") == ("Navigator ping accepted" if is_accept else "Navigator ping cleared"), stage + " preserves real accepted/clear caption text")
 
 
 func _station_anchor() -> Marker3D:
@@ -1551,6 +1650,9 @@ func _check(condition: bool, description: String) -> void:
 	_checks += 1
 	if not condition:
 		_failures.append("FAIL: " + description)
+		if _navigator_rejection and not _role.is_empty() and not FileAccess.file_exists(_directory.path_join(_role + ".first_failure")):
+			_write(_role + ".first_failure", {"description": description})
+			print("NAVIGATOR_FIRST_FAILURE: ", _role, " ", description)
 		if _ordinary_two_client_board and not _role.is_empty() and not _ordinary_first_failure:
 			_ordinary_first_failure = true
 			var first_abort := DirAccess.make_dir_absolute(_directory.path_join("abort-owner")) == OK

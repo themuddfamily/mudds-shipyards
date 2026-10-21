@@ -72,6 +72,9 @@ func present_bridge_result(result: Dictionary) -> Dictionary:
 
 ## Applied client commands retain their transported identity and use the same
 ## binding fences as actual bridge publications; no bridge envelope is invented.
+func present_client_request_result(result: Dictionary, request: Dictionary) -> Dictionary:
+	return _binding.present_client_request_result(result, request) if _attached else {"accepted": false, "reason": &"detached"}
+
 func present_receipt(receipt: Dictionary) -> Dictionary:
 	return _binding.present_receipt(receipt) if _attached else {"accepted": false, "reason": &"detached"}
 

@@ -14,6 +14,7 @@ var _cinder_adapter: Node
 var _final_approach_adapter: Node
 var _local_navigator_composition: Node
 var _local_navigator_claim: Dictionary = {}
+var _client_navigator_result_composition: Node
 var _client_navigator_composition: Node
 var _client_navigator_context: Dictionary = {}
 var _client_navigator_generation := 0
@@ -203,7 +204,27 @@ func present_cinder_client_navigator_command(command: Dictionary, context: Dicti
 		return _client_navigator_composition.present_receipt_clear(command)
 	return _client_navigator_composition.present_receipt(command)
 
+## Refusals can precede the first accepted wire receipt. Keep their lifetime
+## independent so retiring a chair request cannot suppress its real clear.
+func present_cinder_client_navigator_result(result: Dictionary, request: Dictionary, context: Dictionary) -> Dictionary:
+	if not _attached or context.is_empty() or context != _client_navigator_context:
+		return _result(false, &"client_navigator_context_mismatch")
+	if _client_navigator_result_composition == null or not is_instance_valid(_client_navigator_result_composition):
+		_client_navigator_result_composition = NAVIGATOR_COMPOSITION.new()
+		_client_navigator_result_composition.name = "CinderClientNavigatorResultAudioComposition"
+		add_child(_client_navigator_result_composition)
+	if not _client_navigator_result_composition._attached:
+		var attached: Dictionary = _client_navigator_result_composition.attach(_audio_director)
+		if not bool(attached.get("accepted", false)):
+			return attached
+	return _client_navigator_result_composition.present_client_request_result(result, request)
+
+func clear_client_navigator_results() -> void:
+	if is_instance_valid(_client_navigator_result_composition):
+		_client_navigator_result_composition.detach()
+
 func clear_client_navigator() -> void:
+	clear_client_navigator_results()
 	if _client_navigator_composition != null and is_instance_valid(_client_navigator_composition):
 		_client_navigator_composition.detach()
 	_client_navigator_context.clear()
