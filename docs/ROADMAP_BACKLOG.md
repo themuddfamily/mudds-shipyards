@@ -198,7 +198,7 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | CRAFT-GAPS-CINDER-HAULER | Cinder Cargo Hauler remaining authored components/roles | 10,11 | Definition DONE: finite hull/cabin/roles/travelling-weapon map plus explicit Hauler cargo-contract gap; forwarding bridge does not accept Hauler delivery. Full craft/art/combat/crew/cargo play OPEN. |
 | CRAFT-GAPS-CINDER-BOMBER | Cinder Long-Range Bomber remaining authored components/roles | 10,11 | Definition DONE: pilot/payload/component map; additional crew/navigation decision and exact spent-payload policy now permits refill when pilot retakes seat; additional role remains unresolved. Full craft/art/combat/crew/recovery OPEN. |
 | HAULER-CARGO-DEFINE | Name Hauler-specific conserved cargo play | 10,13 | Bounded contract/ordered production boundaries below; existing item/destination/phases retained. Owner chose shared existing Jovian/Hauler stock2026-10-21; physical access delivereda43ae4b, cargo delivery remains unaccepted. |
-| BOMBER-REARM-POLICY | Define permitted spent-payload replenishment boundary | 10,11,31 | DECIDED2026-10-21: refill4 whenever pilot retakes seat. Existing detach/newsession source path is consistent by inspection; actual ordinary reboard qualification remains required. No explicit-service-only change. |
+| BOMBER-REARM-POLICY | Define permitted spent-payload replenishment boundary | 10,11,31 | DECIDED2026-10-21: refill4 whenever pilot retakes seat. SELECTED ordinary physical depletion/exit/reboard qualification below; existing detach/newsession source path consistent by inspection. No explicit-service-only change. |
 | WEAPONS-DEFINE | Actual craft/role to weapon acceptance roster | 11 | Definition DONE on a0d446645; current binding map in WEAPON_DEFINITION_CONTRACT.md, finite distinctions below. No missing runtime weapon type inferred; eight originals UNKNOWN/Bomber role decision retained |
 | DAMAGE-DEFINE | Uncovered craft/role component-damage/recovery cells | 11,21 | Definition DONE on82a7564cb; COMPONENT_DAMAGE_MODEL_CONTRACT.md maps five IDs/all nine craft, real role exceptions, repair/reset owners and concrete remote row gap; no gameplay pass |
 | ART-FINDINGS | Finite actual UI/animation/effect/lighting/terrain/weather defects | 12,15 | DEFINE; named before/after view and affected route |
@@ -3103,6 +3103,41 @@ Owner resolved BOMBER-REARM-POLICY2026-10-21: refill when the pilot retakes
 the seat. Preserve that entitlement in correction/qualification; do not introduce
 an explicit-service-only rule. Existing explicit fresh-generation unit behavior remains
 accepted; it does not settle ordinary player entitlement.
+
+### Bomber seat-retake refill — selected2026-10-21
+
+BOMBER-REARM-POLICY / parents10,11,31. Approved refill4 whenever the pilot
+retakes the seat; this does not resolve additional crew roles or destruction/
+recovery entitlements. No source defect established from the existing clear/
+detach/new-generation path.
+
+Frozen ordinary-input route: normal Begin Shift, existing Central/Aft stair
+walking prefix and six-point port Bomber boarding path, actual E boarding;
+initial active generation ammo4. Four distinct OS mouse FIRE press/release edges,
+waiting production cooldown0 and actual accepted record after each; ammo3/2/1/0
+in the same generation. After cooldown, fifth edge must produce actual
+ammunition_exhausted, still0/four records. Neutral input until actual OFFLINE at
+same exact occupied parked berth, actual E/canopy exit and supported on-foot
+control. Require inactive authority/loop, zero ammunition and cleared projectile/
+request state. Physically walk outward until real reboard suppression clears,
+return to live hatch candidate and E reboard. Before any FIRE, same hull/player/
+Main/berth/component identities, strictly newer generation, exactly4 rounds,
+zero cooldown and no inherited records; fresh first release leaves3. Finish
+neutral OFFLINE and actual supported exterior exit. Parked FIRE is ordinary
+supported control; this is seat-policy acceptance, not flight/combat acceptance.
+
+Existing Python driver gains bomber-rearm route mapped to existing sandbox game
+selector. Only driver, existing Python tests and passive observer are assigned;
+no gameplay owner edit. Observer adds a fresh narrow bomber snapshot outside
+inactive-fleet detail cache: actual identities/authority/loop/controls/support/
+reboard suppression reads only. Validate all raw samples, detached receipts;
+no input provider, fixture, teleport, state reset, recovery or authority calls.
+Existing routes and global300s cap unchanged; outer330s abort/release/reap.
+One implementer, one independent reviewer; root owns clean-source local checks,
+fresh private Linux qualification export, strict menu startup exit0/exact marker,
+and one silent owned-Xvfb actual route. First failure stops; no retries or weakened
+route/caps. No public duplicate checkpoint absent gameplay/graphics change.
+Native hardware/Windows/human/full craft/roles/recovery gates remain open.
 
 CAPTURE instances (13 required sets, **143 PNGs** total):
 

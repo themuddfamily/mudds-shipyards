@@ -42,25 +42,29 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
-**TRAVEL-LIMIT[Beacon outbound] completed on252ed6bfc; game checkpointc2c72a2.**
-The optional existing release-driver qualifier measures10.510574s against the
-owner-approved60.0s maximum: first engine-demand input at seated occupied OFFLINE
-Torrent berth to first controlled live Beacon approach19.083m/speed0.051334m/s.
-One monotonic receipt clock counts startup, departure and stalls; zero pauses or
-subtractions. Complete original beacon-home journey also passes111.908s at its
-unchanged300s cap: four physical Beacons, one durable payment, Guided combat,
-strict home dock, OFFLINE exit and supported walking. Corrected118 driver tests
-and independent raw609-sample review pass. No game/tuning change: existing
-checkpoint reused. [Actual delivery and limits](docs/history/ROADMAP_DELIVERIES.md#beacon-outbound-60-second-qualification--completed-2026-10-21).
+**BOMBER-REARM-POLICY selected: qualify same-hull seat-retake refill.**
+Owner-approved policy is four rounds whenever the pilot retakes the seat. Existing
+runtime detach/new-generation path appears consistent; prove it through ordinary
+OS input. Walk Central→Aft→authored Bomber hatch, board, fire four distinct
+cooldown-separated payloads, confirm empty-ammunition refusal, wait OFFLINE and
+physically exit. Walk clear of reboard suppression, return, retake the same hull's
+seat and observe exactly four/new generation before a fresh shot leaves three;
+finish OFFLINE with supported physical exit. No staged actors/poses, debug actions,
+recovery, tuning change or full-craft acceptance substitution. Preserve300s driver/
+330s supervisor caps and stop at the first failure.
 
-Navigator requester refusalsc2c72a223/checkpointc2c72a2, freight interface509703300/
-checkpoint5097033 and shared Hauler custody6bcbea302/checkpoint6bcbea3 remain
-completed and pushed. Bomber seat-retake refill qualification is the remaining
-queued owner decision; select its bounded ordinary-input acceptance next.
-Full ordinary Hauler delivery/cold inventory and WALK-FREIGHT/KIT-RELOAD remain
-open/parked. Owned scratch archived/removed, no new branch/worktree; protected
-unqualified work retained. Return/other travel limits and native/human gates
-remain open. No broad parent or project completion is claimed.
+One bounded implementer owns existing release driver/tests/passive observer;
+independent reviewer checks lifecycle/route. Python-only bomber-rearm route uses
+the existing private sandbox observer selector; existing routes stay unchanged.
+Root owns fresh clean-source private Linux export and silent isolated run. No
+runtime gameplay/graphics edit or public duplicate checkpoint is selected.
+
+Beacon outbound252ed6bfc DONE10.510574s≤60 with full111.908s return; navigator
+requester feedbackc2c72a223, freight interface509703300 and shared Hauler custody
+6bcbea302 remain completed/pushed. Latest playable checkpointc2c72a2. Other travel
+limits, full ordinary Hauler/cold inventory, WALK-FREIGHT/KIT-RELOAD and broader
+Bomber craft/roles/recovery stay open. Prior owned scratch archived/removed;
+protected unqualified work retained. [Beacon delivery](docs/history/ROADMAP_DELIVERIES.md#beacon-outbound-60-second-qualification--completed-2026-10-21).
 
 **Prior Rime diagnosis closed, journey remains open.**
 The selected original Rime run failed its unchanged peer landing gate after
