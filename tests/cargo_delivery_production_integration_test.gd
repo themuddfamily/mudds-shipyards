@@ -49,6 +49,9 @@ func _initialize() -> void:
 
 
 func _run() -> void:
+	# Input-only display mode has no vsync; retain normal presentation cadence
+	# for the existing frame-bounded assertions over real-time HUD tweens.
+	Engine.max_fps = 60
 	if "--ordinary-jovian-kit-deliver" in OS.get_cmdline_user_args():
 		await _run_ordinary_jovian_kit_board(true, true)
 		return
@@ -173,6 +176,8 @@ func _test_freight_terminal_interactions(game: GameFlow, berth: JovianFreightBer
 		# the offset chase camera at a close screen can face away from that
 		# screen when measured from the player's actual interaction origin.
 		for _aim_tick in 4:
+			root.grab_focus()
+			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 			var desired: Vector3 = actor.global_basis.inverse() * (terminal.global_position - actor.get_interaction_origin()).normalized()
 			var current: Vector3 = actor.global_basis.inverse() * actor.get_interaction_direction().normalized()
 			var yaw := wrapf(atan2(-desired.x, -desired.z) - atan2(-current.x, -current.z), -PI, PI)
@@ -193,6 +198,7 @@ func _test_freight_terminal_interactions(game: GameFlow, berth: JovianFreightBer
 			"local_player_position": berth.to_local(actor.global_position),
 			"facing_dot": actor.get_interaction_direction().dot((terminal.global_position - actor.get_interaction_origin()).normalized()),
 			"control": actor.is_control_enabled(), "camera_active": actor.get("_camera_active"), "paused": paused,
+			"mouse_mode": Input.mouse_mode, "window_focused": root.has_focus(),
 		}))
 		_check(actor.is_on_floor() and actor.get_nearby_interactables().has(terminal) and terminal.can_interact(actor)
 			and game.call("_find_station_interaction_candidate") == terminal
