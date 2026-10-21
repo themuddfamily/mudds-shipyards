@@ -54,10 +54,17 @@ The recall now uses a bounded region over the current access module's11 actual
 walking surfaces rather than requiring uninterrupted floor contact below the
 station's height. Earlier failed candidates remain preserved.
 
-Next: original full ordinary journey, including physical terminal transfer,
-saved once-only payment, duplicate conservation and usable home return under the
-unchanged300s/120s limits. Those outcomes are not accepted by the walking check.
-No adjacent task or working branch was started.
+The full ordinary attempt now verifies physical one-crate terminal transfer,
+exact saved once-only payment, duplicate conservation and all six cargo points in
+both directions. It stops at the first additional clearance waypoint before
+reboarding: its original15s arrival check fails. No recall or lost payment occurs.
+Reboarding, home dock/usable exit and normal quit remain unqualified.
+
+Next: establish and correct that actual walking-arrival cause, then pass the whole
+original journey under unchanged300s/120s limits. The five-file unfinished caller
+is preserved under `archive/withheld/cinder-supply-reboard-walk-20261021`;
+owned scratch is removed. No adjacent task or working branch was started.
+[Latest failure and remaining requirement](docs/history/ROADMAP_DELIVERIES.md#cinder-supply--saved-delivery-and-duplicate-conservation-pass-reboard-walk-remains-open--2026-10-21).
 [Walking repair and validation](docs/history/ROADMAP_DELIVERIES.md#cinder-supply--complete-cargo-walk-and-return-repaired--2026-10-21).
 
 **Cinder cargo landing prerequisite DONE — `39d93d26b`.** The original

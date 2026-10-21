@@ -19984,3 +19984,78 @@ duplicate conservation and usable home dock/exit must pass together under origin
 Four broader cargo activity/lifecycle failures remain unresolved. Native Windows,
 GPU, devices, audible/human/final-release gates NOT_RUN; all36parents/ten gates
 remain open. Main is sole working branch; no adjacent task or hosted CI.
+
+
+## Cinder supply — saved delivery and duplicate conservation pass, reboard walk remains open — 2026-10-21
+
+**Full PLAY-CINDER-SUPPLY remains OPEN.** Walking runtimea47a978 stays merged,
+pushed and packaged. Final caller41c9979 is withheld; no unaccepted caller source
+was integrated merely to close the task. No adjacent task or working branch.
+
+The actual ordinary run reaches13 station walking goals, normal Jovian pilot
+boarding/departure/flight, strict Cinder docking, normal Activity Board supply
+selection/START, all three phases, redocking/OFFLINE/physical exit, all six outbound
+cargo goals, actual aimed terminal E transfer1, duplicate E, and all six reverse
+goals. Every cargo arrival is physically grounded on current Structure geometry;
+normal descending airtime no longer recalls the player. Source2→1/destination0→1.
+Actual primary-file pretransfer/paid/repeat copies independently prove conserved
+unrelated records, the exact earned delivery receipt and one credit. Paid/repeat
+receipt and ledger equal the full-precision live store. Duplicate is refused as
+not_active, with quantities/payment unchanged. Jovian kit job remains idle/g0.
+
+The first additional reboard_walk clearance target(35.7,-67.1,-686.25) fails its
+original15s arrival check. Lastposition(35.88394,-67.09833,-686.64691), velocity
+(.44157,0,-.98925), grounded/currentLandingDeck/inside-region, no recall. No extra
+clearance goal is credited. Actual driver280.098s, guard280.336s, OS exit1,
+diagnostics0, all four input/helper/game/display cleanup flags true. This is
+neither the300s whole-route cap nor a reverse-walk failure. No collider/control
+cause is established. Actual reboarding/home docking/usable exit/normal quit are
+not qualified; a partial supply journey cannot close the original contract.
+
+Two preceding failures are retained. Def1920's full run stops248.808s because
+initial-title versus paid-file equality also rejects legitimate new tutorial/race
+records; existing settings are unchanged. The corrected caller captures the real
+primary before terminal input, preserves every preexisting protected key/value,
+then requires exact protected pretransfer→paid→repeat→home equality. Its flag gates
+terminal E and paid acceptance; no new mutable exclusions.103 safety checks pass,
+including baseline change/deletion, new-record corruption at payment/repeat/home,
+missing-cut rejection, and authentic successful copies.
+
+6216cb826's corrected run stops251.317s only on live/disk elapsed_seconds:
+disk20.35000000000013 versus observer20.3500000000001. The supply-only emitter now
+uses the production writer's full-precision JSON mode; strict comparisons remain.
+Final run passes those exact comparisons. No fuzzy tolerance, fabricated file,
+longer cap, actor/lease/reward write, physical waypoint omission or API boarding.
+
+Final private package freshly exported from41c9979: ELF148938320bytes SHA256
+f87297eef5a318ee9e3a99d65cc05207877fc12d090fc19e0b75b5d725179ca5;
+archive95351631bytes SHA256
+b3b4d40a54d94af32e95ef786ffaca83f3bc00dfae095a8da90cf6ab2b810fe2.
+Direct/archive strict startup exit0+one sentinel;1525-entry audit passes. All
+embedded gameplay entries match publica47a978 except the two opt-in observer/
+startup entries. Olderdef1920 package was reused only for Python-only6216cb826;
+separate source/hash pins and exact runtime input equality retained. No fresh
+package provenance was claimed for that reuse. Package archives/startup records
+are retained; redundant loose executables removed after exact archive-byte checks.
+
+Publica47a978 Windows ZIP103223301bytes SHA256
+4b9f050a276f6e441e800e7cab882e7c5315aba76364b9f000d5bb7ce2b45972,
+verified exact EXE+notes. No replacement build for unaccepted caller changes.
+
+Exact five-file caller and all three unique commits preserved by pushed annotated
+`archive/withheld/cinder-supply-reboard-walk-20261021`, tip
+41c9979cacd6983b26490e3e03d30e13e3b99ada, tagobject
+cb5da7626c32069da77fad56e9477b0afc682c3b. Incremental bundle verifies; reopened
+source archive matches Git blobs and modes. Independent final review verifies the
+financial/out-and-back facts and confirms full-PLAY NO-GO. No further retry/probe.
+
+Case: `/srv/mudds-work/cinder-supply-local-recall-20261021/results/`.
+Cleanup verifies20 terminal owners and70 absent recorded PID/start identities.
+All236 scratch entries are archived/reopened/byte-mode-link verified before
+removal02:28:44UTC; profiles.tar.gz3278637bytes SHA256
+ed474f8bc7f5776e1b103d5e09021687eaecbc3b8fca95edda90f04c6f2a236f.
+Main remains sole working branch; eight protected detached worktrees untouched.
+Original20 inventory remains nine accepted/superseded and eleven unqualified;
+these counts are housekeeping, not whole-feature completion. Four broader cargo
+activity/lifecycle failures remain unresolved. Native Windows/GPU/devices/audible/
+human/final release NOT_RUN, all36parents/ten gates open, hosted CI stays disabled.
