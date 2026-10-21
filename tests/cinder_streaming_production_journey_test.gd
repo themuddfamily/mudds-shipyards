@@ -52,6 +52,80 @@ class MemoryFilesystem extends UserDataFilesystem:
 		return OK
 
 
+## One passive sample immediately before Main's existing recall decision.
+## Enabled only for this fixture's real first walking segment; no prevention,
+## extra waits, state repair or altered recall criterion belongs here.
+class CargoRecallProbe extends Node:
+	var game: GameFlow
+	var player: PlayerController
+	var ship: HeroShip
+	var expected_cluster: NearbySectorCluster
+	var expected_access: CinderCargoAccess
+	var active := true
+	var captured := false
+
+	func _process(_delta: float) -> void:
+		if not active or captured or game.world.to_local(player.global_position).y >= -24.0:
+			return
+		if bool(game.call(&"_is_player_supported_by_current_cinder_access")):
+			return
+		captured = true
+		var bootstrap := game.get_node(^"CinderStreamingBootstrap") as CinderStreamingBootstrap
+		var coordinator := bootstrap.get("_coordinator") as WorldStreamingCoordinator
+		var record: Dictionary = (coordinator.get("_loaded") as Dictionary).get(CinderStreamingBootstrap.LOCATION_ID, {})
+		var current_cluster := record.get("instance") as NearbySectorCluster
+		var current_access := current_cluster.get("_cargo_access") as CinderCargoAccess if is_instance_valid(current_cluster) else null
+		var current_berth := current_access.get("_berth") as ShipBerth if is_instance_valid(current_access) else null
+		var current_structure := current_access.get_node_or_null(^"Structure") if is_instance_valid(current_access) else null
+		var generations: Dictionary = coordinator.get("_generation_by_id")
+		print("CINDER_CARGO_RECALL_FIRST_BAD: ", JSON.stringify({
+			"physics_frame": Engine.get_physics_frames(), "process_frame": Engine.get_process_frames(),
+			"probe_priority": process_priority, "main_priority": game.process_priority,
+			"player": _node_state(player), "position": _vector(player.global_position),
+			"floor": player.is_on_floor(), "velocity": _vector(player.velocity),
+			"floor_max_angle": player.floor_max_angle, "runtime_support": false,
+			"exact_runtime_ray": _ray(player.collision_mask, false, 0.3, current_structure),
+			"observer_ray": _ray(PhysicsLayers.WORLD, true, 0.4, current_structure),
+			"cluster": _node_state(current_cluster), "access": _node_state(current_access),
+			"berth": _node_state(current_berth), "structure": _node_state(current_structure),
+			"coordinator": _node_state(coordinator), "record_generation": record.get("generation", -1),
+			"current_generation": generations.get(CinderStreamingBootstrap.LOCATION_ID, -2),
+			"expected_cluster_current": current_cluster == expected_cluster,
+			"expected_access_current": current_access == expected_access,
+			"cluster_under_coordinator": is_instance_valid(current_cluster) and current_cluster.get_parent() == coordinator,
+			"access_under_cluster": is_instance_valid(current_cluster) and is_instance_valid(current_access) and current_cluster.is_ancestor_of(current_access),
+			"berth_under_access": is_instance_valid(current_berth) and current_berth.get_parent() == current_access,
+			"current_player_child": game.get_node_or_null(^"Player") == player,
+		}))
+
+	func _ray(mask: int, exclude_ship: bool, depth: float, structure: Node) -> Dictionary:
+		var excluded: Array[RID] = [player.get_rid()]
+		if exclude_ship:
+			excluded.append(ship.get_rid())
+		var ray := PhysicsRayQueryParameters3D.create(player.global_position + Vector3.UP * 0.2,
+			player.global_position - Vector3.UP * depth, mask, excluded)
+		var hit: Dictionary = player.get_world_3d().direct_space_state.intersect_ray(ray)
+		var collider := hit.get("collider") as Node
+		var normal: Vector3 = hit.get("normal", Vector3.ZERO)
+		var position: Vector3 = hit.get("position", Vector3.INF)
+		return {"mask": mask, "exclude_ship": exclude_ship, "downward_reach": depth,
+			"collider": _node_state(collider), "normal": _vector(normal),
+			"position": _vector(position) if not hit.is_empty() else [],
+			"distance": player.global_position.distance_to(position) if not hit.is_empty() else -1.0,
+			"walkable": normal.dot(Vector3.UP) >= cos(player.floor_max_angle),
+			"under_current_structure": is_instance_valid(structure) and is_instance_valid(collider) and structure.is_ancestor_of(collider)}
+
+	func _node_state(node: Node) -> Dictionary:
+		if not is_instance_valid(node):
+			return {"id": 0, "live": false}
+		return {"id": node.get_instance_id(), "path": str(node.get_path()) if node.is_inside_tree() else "",
+			"live": node.is_inside_tree(), "queued": node.is_queued_for_deletion(),
+			"parent_id": node.get_parent().get_instance_id() if node.get_parent() != null else 0}
+
+	func _vector(value: Vector3) -> Array:
+		return [value.x, value.y, value.z]
+
+
 func _init() -> void:
 	call_deferred(&"_run")
 
@@ -190,7 +264,17 @@ func _run_cargo_walking_recall() -> void:
 
 	await _cargo_recall_stage_player(game, player, deck, true)
 	game.set_process(true)
+	var probe := CargoRecallProbe.new()
+	probe.game = game
+	probe.player = player
+	probe.ship = ship
+	probe.expected_cluster = cluster
+	probe.expected_access = access
+	probe.process_priority = game.process_priority - 1
+	game.add_child(probe)
 	var walking: Dictionary = await _cargo_recall_walk_first_segment(access, player)
+	probe.active = false
+	probe.queue_free()
 	print("CINDER_CARGO_WALKING_TRANSIENT: ", walking)
 	_check(bool(walking.get("reached", false)) and bool(walking.get("supported_floor_transient", false)),
 		"actual Main preserves real first-segment Cinder walking with transient floor flag and fresh current support")
