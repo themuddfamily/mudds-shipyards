@@ -49,9 +49,6 @@ func _initialize() -> void:
 
 
 func _run() -> void:
-	# Input-only display mode has no vsync; retain normal presentation cadence
-	# for the existing frame-bounded assertions over real-time HUD tweens.
-	Engine.max_fps = 60
 	if "--ordinary-jovian-kit-deliver" in OS.get_cmdline_user_args():
 		await _run_ordinary_jovian_kit_board(true, true)
 		return
@@ -61,6 +58,9 @@ func _run() -> void:
 	if "--ordinary-jovian-kit-board" in OS.get_cmdline_user_args():
 		await _run_ordinary_jovian_kit_board()
 		return
+	# Input-only display mode has no vsync; retain normal presentation cadence
+	# for the existing frame-bounded assertions over real-time HUD tweens.
+	Engine.max_fps = 60
 	var game := MAIN_SCENE.instantiate() as GameFlow
 	_filesystem = MemoryFilesystem.new()
 	var store := Store.new(STORE_PATH, _filesystem) as UserDataStore
