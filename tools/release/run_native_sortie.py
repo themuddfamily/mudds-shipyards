@@ -3965,7 +3965,14 @@ class CinderSupplyPilot(BeaconEntryPilot):
         self.previous = self.last_state = s
 
     def foot(self, s):
-        require(s['grounded'] and s['supported'] and s['support_collider'] and s['control_enabled']
+        # A docked-hull seam can briefly clear is_on_floor while the capsule
+        # remains immediately above the current Cinder walkable structure.
+        c = s.get('cargo', {})
+        nearby_cinder_floor = (self.stage in ('terminal_walk', 'reverse_walk', 'reboard_walk')
+                               and c.get('available') and c.get('actor_authorized')
+                               and c.get('lease') and c.get('contract') and c.get('walk_supported'))
+        require(((s['grounded'] and s['supported'] and s['support_collider']) or nearby_cinder_floor)
+                and s['control_enabled']
                 and not s['seated'] and not s['transition_busy'], 'same original controlled supported walking Player')
 
     def walk_to(self, s, target, keys, now):

@@ -1216,6 +1216,24 @@ func _cinder_supply_observation() -> Dictionary:
 					"capture": _cinder_supply_capture(berth), "lease": _cinder_supply_lease(berth),
 					"lease_free": berth.get_reservation_owner() == null and berth.get_occupant() == null,
 					"contract": _cinder_supply_contract(berth)}
+				# Match the production recall query without calling its world
+				# accessor: only current walkable Structure support qualifies.
+				var walking_floor: Dictionary = {}
+				if not _player.is_seated() and not bool(_game.get("_transition_busy")):
+					var walking_ray := PhysicsRayQueryParameters3D.create(
+						_player.global_position + Vector3.UP * 0.2,
+						_player.global_position - Vector3.UP * 0.3,
+						_player.collision_mask, [_player.get_rid()])
+					walking_floor = _player.get_world_3d().direct_space_state.intersect_ray(walking_ray)
+				var structure := access.get_node_or_null(^"Structure")
+				var walking_collider := walking_floor.get("collider") as Node
+				var walking_normal: Vector3 = walking_floor.get("normal", Vector3.ZERO)
+				cargo["walk_supported"] = (_game.get_node_or_null(^"Player") == _player
+					and cluster.is_ancestor_of(access) and _ember_node_current(structure)
+					and _ember_node_current(walking_collider) and structure.is_ancestor_of(walking_collider)
+					and walking_normal.dot(Vector3.UP) >= cos(_player.floor_max_angle))
+				cargo["walk_support_collider"] = str(walking_collider.get_path()) if _ember_node_current(walking_collider) else ""
+				cargo["walk_support_normal"] = _v(walking_normal)
 	var hud := _game.hud as GameHUD
 	var focus := get_viewport().gui_get_focus_owner()
 	var row := focus.get_parent() if is_instance_valid(focus) else null

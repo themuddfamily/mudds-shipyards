@@ -30,6 +30,32 @@ class NativeSortieSafetyTests(unittest.TestCase):
                     'last_receipt': {'activity_id': 'cinder_kit_cargo_run', 'activity_generation': 1,
                                      'granted': True, 'replay_allowed': False}}}
 
+    def test_supply_transient_floor_flag_requires_current_physical_cinder_support(self):
+        pilot = native.CinderSupplyPilot()
+        s = {'grounded': False, 'supported': True, 'support_collider': 'Cinder/Structure/LandingDeck',
+             'control_enabled': True, 'seated': False, 'transition_busy': False,
+             'cargo': {'available': True, 'actor_authorized': True, 'lease': True,
+                       'contract': True, 'walk_supported': True}}
+        for stage in ('terminal_walk', 'reverse_walk', 'reboard_walk'):
+            pilot.stage = stage
+            pilot.foot(s)
+            for key in s['cargo']:
+                bad = copy.deepcopy(s); bad['cargo'][key] = False
+                with self.subTest(stage=stage, missing=key):
+                    with self.assertRaises(AssertionError): pilot.foot(bad)
+        for stage in ('walk', 'cargo_exit', 'home_exit', 'home_walk'):
+            pilot.stage = stage
+            with self.subTest(stage=stage):
+                with self.assertRaises(AssertionError): pilot.foot(s)
+        pilot.stage = 'terminal_walk'
+        for key, value in [('control_enabled', False), ('seated', True), ('transition_busy', True)]:
+            bad = copy.deepcopy(s); bad[key] = value
+            with self.subTest(invalid=key):
+                with self.assertRaises(AssertionError): pilot.foot(bad)
+        pilot.stage = 'home_walk'
+        s['grounded'] = True
+        pilot.foot(s)
+
     def test_supply_first_dock_waits_neutral_for_actual_engine_shutdown(self):
         pilot = native.CinderSupplyPilot()
         pilot.stage, pilot.stage_since = 'cargo_land', 0
