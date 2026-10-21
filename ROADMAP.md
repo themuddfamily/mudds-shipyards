@@ -42,6 +42,39 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
+**Existing-work closeout takes priority. No task is currently running.**
+The earlier 45 remote heads included `main`, duplicate attempts, diagnostics and
+already-integrated work; they were not 45 independent unfinished features.
+There is now only `main` locally and remotely. Of the retained 20-candidate
+inventory, eleven are accepted/superseded and nine remain unqualified across
+these six problems. Archival and branch deletion do not complete these outcomes.
+
+| Existing problem (candidate count) | What remains before completion |
+| --- | --- |
+| Browser/network timeout (2) | Obtain matching Windows/Linux templates and pass the original complete timeout/retry journey. Windows compilation exhausted its previous budgets; callback cause/repair remains unverified. |
+| UI transition, Mining and Observation (3) | Identify the original popup/connection-removal failure, prove a repair against that event, and finish the full Mining and Observation journeys. Later clean Beacon/tooltip runs did not establish a UI fix. |
+| Defense (1) | Finish all four kills, payment, home, Reset and next Deploy. The last first kill took about30s of the34s encounter, with10.5s mandatory wave delays remaining; a feasible ordinary plan or an explicit clock-owner decision is needed. |
+| Hulk revisit (1) | Complete physical revisit and once-only breaker/cell/reward within the original300s. Last capture showed continuing supported movement; stage costs remain unlocalized. |
+| Rime crew arrival (1) | Diagnose the failed original120s physical landing gate, then complete the two-crew survey/reward/save/home route. |
+| Jovian reload (1) | Restore usable normal continuation within the original30s. State restoration succeeded at27.762s, but the first normal frame pair did not complete; no startup repair is established. |
+
+Finish one supported correction with its full original acceptance, integration,
+push and owned cleanup before selecting another. If no supported correction is
+available, report that blocker explicitly; do not substitute more unrelated work.
+The [original candidate names](docs/history/ROADMAP_DELIVERIES.md#every-remaining-remote-candidate)
+and [45-head accounting](docs/history/ROADMAP_DELIVERIES.md#branch-accountability-and-race-timeout-diagnosis--2026-10-20)
+remain preserved. Eight older detached worktrees are retained exceptions, not
+active branches; their contents remain protected.
+
+**Closed diagnosis: full Ember surface integration still times out.**
+The already-running unchanged full suite stopped at its original300s cap:
+90 checks passed, no assertion failed; `retired` and `local_loss` completed,
+then `session` reached host-session start at299.975s. The remaining scenarios
+were not completed. This identifies the boundary, not a production repair or
+full-suite acceptance. Diagnostic source was bundled rather than merged; owned
+processes are absent and all45 scratch entries archived/verified/removed.
+No follow-up run or new implementation task is selected.
+
 **Closed outcome: COURIER-CLEAR — full first intercept and home journey — DONE.**
 The packaged original full contract passes **55.973s within its unchanged300s cap**:
 ordinary Start Shift/walk/board/departure and four range targets; initial defender

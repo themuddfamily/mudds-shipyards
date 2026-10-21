@@ -20694,3 +20694,63 @@ Profile archive3281748 bytes SHA256
 830b4a0075f372a00aa65a67574ade4178dfd7d004743f1f274342dcb4dcb7c0.
 Eight protected detached worktrees untouched; main remains sole local/live remote
 branch. This full first-clear/home outcome is closed before any next selection.
+
+
+## Defense — retained critical path reviewed; no retry selected — 2026-10-21
+
+Read-only priority selection after accepted Courier4196ad0. Current main6accdb6d8;
+exact archived Defense caller0b11486e0/raw route reviewed by one bounded mapper
+and root. Deploy1144→Arrow boardpress2322=19.633s; seated2471 adds2.483s; first
+player hit2783 adds5.200s; alpha kill2944 adds2.683s. First kill therefore occurs
+about30 encounter seconds, before10.5s of still-required authored wave delays and
+remaining combat. Supported recorded post-Deploy footpath108.57m has impossible-
+perfect9.2m/s lower bound11.80s;5.2s of samples below0.35m/s includes turning and
+settling, not all removable delay. Caller also waits for physical departure AND
+16m before aiming. Eight initial-target shots include four damage hits, one miss
+and three world blocks. These facts do not demonstrate a single feasible full
+correction or safe firing pose; no claim that all possible plans are impossible.
+
+No runtime/caller edit, engine, new run, weakened waypoint/clock or task branch.
+Original34s/three waves/four player kills/payment/home/physical Reset/nextDeploy/
+UIquit/CAP300 and every prior failed cost remain. Defense stays PARKED pending a
+supported combined ordinary plan. Do not rerun merely because a minor delay is
+identified. Root instead selects the existing unresolved BASE-DIAG Ember surface
+integration row, full original test/cap, with passive boundary output only.
+
+
+## Existing unfinished work reconciled; Ember full-suite boundary retained — 2026-10-21
+
+Owner challenged the earlier45 unfinished branches. Reconciled the original
+45-head accounting and20-candidate inventory against current accepted outcomes:
+45 heads included main/duplicates/diagnostics/integrated work, not45 independent
+unfinished features. Current sole local/live remote branch is main; eleven
+original candidates accepted/superseded, nine unqualified across six problems.
+ROADMAP now places those six problems, their actual missing outcomes and blockers
+at the top of its execution queue. Branch archival is explicitly not completion.
+One bounded read-only agent confirmed exact original names and accounting links;
+no new branch/worktree or implementation task was created.
+
+The already-selected BASE-DIAG full Ember presentation integration ran once on
+frozen diagnostic24647a17968db69b0422916e2c28ad656de2d151, parent6accdb6d8.
+Only49 passive print lines were added to the existing test; removing them
+recovers the exact original bytes. All original assertions, loops, five scenarios,
+physical-control budgets and300s including preload were preserved; no selectors.
+Headless Godot used Dummy audio and private profiles. Exit124 at original cap,
+owner wall300.228101s including supervisor cleanup:90 printedPASS, zeroFAIL,
+no engine diagnostics before supervisor timeout. Retired ends221.732s, local_loss
+268.846s; third session reaches server_host_session_begin299.975s after pilot
+seating. Newer/replacement unentered. This identifies the first incomplete case;
+it does not establish an assertion defect, runtime fix or full-suite acceptance.
+No automatic retry, smaller selector, clock change or additional probe selected.
+
+Source/cache unchanged across stage. Sole owner terminal, both observed PID/start
+identities absent. All45 owned scratch entries archived and byte/mode/link
+verified before removal; profiles archive14867bytes SHA256
+9bcd8ca5d9accc253f1a9b904be3c5e23e36779bf83ea5d04ef22217bb93d523.
+Verified diagnostic-source.bundle and binary patch preserve the diagnostic
+commit with prerequisite pushed6accdb6d8; print instrumentation is not merged.
+Raw command/status/log/result, findings, source checks and cleanup retained at
+`/srv/mudds-work/ember-surface-baseline-20261021/results/`.
+Eight protected detached worktrees unchanged. No gameplay/export input changed;
+latest playable checkpoint remains4196ad0. No original inventory item, parent,
+phase, native/hardware/human or final-matrix gate is closed by this diagnosis.
