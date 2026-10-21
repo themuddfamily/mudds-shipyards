@@ -610,6 +610,13 @@ func _test_same_craft_cargo_reboarding(game: GameFlow, craft: HeroShip,
 	# The fixture above acquired this exact remote lease through actual landing
 	# physics. Stage only the exterior approach, then use the real local boarding
 	# transition, including its synchronous next-sortie reset dispatch.
+	var idle_deadline := Time.get_ticks_msec() + 10000
+	while craft.get_telemetry().get("engine_state", "") != "OFFLINE" \
+			and Time.get_ticks_msec() < idle_deadline:
+		await physics_frame
+		await process_frame
+	_check(craft.get_telemetry().get("engine_state", "") == "OFFLINE",
+		"remote reboarding waits for the real neutral engine shutdown")
 	game.set_process(false)
 	game.set_physics_process(false)
 	craft.set_piloted(false)
