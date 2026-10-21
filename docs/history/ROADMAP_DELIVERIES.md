@@ -20479,3 +20479,89 @@ removal. Profile archive3284809 bytes SHA256
 ac3964d6c277db27cbeeea15336773ebf5026e1b0df311da8414f45078392fd8.
 Results retained at /srv/mudds-work/courier-damageable-activation-20261021/results/;
 all eight protected detached worktrees untouched. Main remains the sole live branch.
+
+
+## Courier — post-clear weapon availability identified — 2026-10-21
+
+Bounded follow-up to the retained67.554s full-route failure, not a speculative
+controller/weapon repair. Main4d763245a; only previously reviewed115-line passive
+observer restored from73da7f340 onto diagnostic12c5184293c69cf9563e0dd80d01edc406f73273.
+Original full driver byte-identical SHA256
+03f8272019b9c23d890e88e37572a847316160bfcc86e6255b368f915cfc1776.
+Independent source GO: callbacks copy actual emissions/resolutions/refusals after
+CLEARED; raw registration/sequence reads avoid mutating resolver getters; existing
+weapon/component snapshots are read-only. No controller/gameplay change.
+
+CompilePASS15.820s, private Linux exportPASS25.496s. One original full route
+FAIL76.628s (owner76.889), originalCAP300/outer330 unchanged. Courier genuinely
+CLEARED frame1685. Post-clear sequence14/frame1730 is world_blocked against actual
+ShipyardWorld/UpperOperations/ObservationLanding; sequence15/frame1752 hits the
+actual RangeOpponent for34, leaving51. Frame1753 incoming22 lowers playerhull56
+and port-wing integrity0.12; weapon_component_failed. All1904 remaining samples
+retain exactly six total emissions, zero new shots;1900 weapon_component_failed
+and four ship_destroyed samples. Continued fire intent/persistent shot_accepted
+are not proof of new shots. Player remains stationary during defender combat.
+This identifies actual capability loss, not a proven aim or handoff bug.
+
+Raw facts/log/result at /srv/mudds-work/courier-postclear-weapon-20261021/results/.
+Independent controller inspection found the normal handoff and a real34damage
+hit, no supported stale target/input defect. No aim/health/weapon/AI repair was
+made. Select one ordinary-input post-kill reverse-thrust standoff plan, retaining
+all original encounter/actual-kill/director/return/home requirements and deadline;
+its future full result must stand on its own. Full Courier/home remains OPEN.
+
+Diagnostic source retained in verified incremental diagnostic-source.bundle,
+requires pushed4d763245a; patch retained, not merged. Exact private ELF148943120
+bytes SHA68fdbe2786840e621ff93192b55453d71415fcc7db7a5cb2a27b58df0046fb9d
+verified byte-for-byte against retained private tar member before duplicate ELF
+removal. Archive/export metadata moved out of public builds into caseprivate-builds.
+No public diagnostic checkpoint. All three owners terminal/nine PID/start identities
+absent,36 owned scratch entries archived/reopened/byte-mode-link verified/removed.
+Profile archive1123 bytes SHAf2b37a1b2c0f855381c67b3ee6455a0325c65db1cce7c314e9d4fe8466abbf73.
+Zero diagnostics/all four abort-cleanup flags true. Main restored; no branch or
+worktree created; eight protected worktrees untouched. Latest playable4cfa417 and
+all broad/native/human gates unchanged; CI stays disabled.
+
+
+## Courier — ordinary reverse standoff withheld after full-route failure — 2026-10-21
+
+Follow-up frozen caller4c4653564916d145c788152db006f6260303dbff, never merged.
+Selected only after actual post-clear capability-loss facts above. Eight added
+CourierPilot lines replace stationary brake with ordinary S after retained Courier
+kill, only during interceptor stage with live defender/facingalign>.9/distance<130m.
+Exact base .2aim/.997fire tuple and every actual Courier receipt/director/defender/
+return/home/identity/tuning condition remain. No runtime/AI/weapon/encounter change.
+One bounded implementer; independent source GO. One existing Python driver suite
+PASS111 tests/10.601s, including recorded1752 observation and exact near/far/boundary/
+behind/uncleared/return scope checks. Test stdout is retained in implementer tool
+transcript, not a manufactured full logfile; no duplicate run.
+
+Game runtime/export-input source bytes match accepted4cfa417; existing ELF SHA256
+8e6a06a9b6ee64da6becc39efa03fb58ec2f94bb674745e15fd60b8a66e1259f verified.
+Driver pin4c465 and package pin4cfa417 kept distinct; no identical export/checkpoint.
+ONE full original route under originalCAP300/outer330 FAIL55.829s (owner56.081),
+"live sortie". Actual Courier killed/cleared frame1663, source281119034004,
+target284038269761/gen1/seq12, accepted/resolved lethal10, escape_progress.0131857082,
+elapsed1.2166667s; initial defender85/player78. Reverse motion occurs: maximum
+post-clear38.997m/s and52.677m displacement. Defender takes34, remains51; player
+later hull0/OFFLINE/unseated, phaseAPPROACH_SHIP; no return/home acceptance.
+Normal observer has no fresh weapon/collision payload: do not infer a new precise
+lethal/collision cause from this run. No retuning, cap change or unchanged retry.
+
+Independent actual-result review confirms NO-GO for full acceptance and supports
+withholding the caller; raw movement, failure and cleanup records agree.
+Full COURIER-CLEAR remains OPEN; the130m reverse plan is unaccepted and excluded
+from main. The separately proven runtime damage repair remains shipped4cfa417.
+Next selection requires a supported ordinary combat plan which protects weapon
+capability under incoming fire, with a causal check before another frozen run;
+no next task is active. The20-candidate tally remains ten closed/ten unqualified.
+
+Raw results /srv/mudds-work/courier-standoff-20261021/results/; verified incremental
+withheld-source.bundle retains candidate history, requires pushed4d763245a.
+Zero game diagnostics; all four input/helper/game/display abort cleanup flags true.
+One owned supervisor terminal/six PID-start identities absent; all ten scratch
+entries archived/reopened/byte-mode-link verified then removed. Profile archive
+405 bytes SHA256 ddd5ae8d09fe5b7bd0ce18e413b1f552d7dfe61ce0ff1a07f2060067e8dd76d2.
+No branch/worktree created; protected eight worktrees untouched; no new public
+build/Downloads artifact. Main restored; latest playable4cfa417 and native/human/
+full release gates unchanged. CI stays disabled.

@@ -42,6 +42,22 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
+**Courier full journey remains OPEN; reverse-standoff candidate withheld.**
+Fresh passive capture proves why the stationary fight stops damaging the defender:
+one actual post-clear shot hits station geometry, the next deals34, then incoming
+fire disables the port-wing weapon section at0.12 integrity. No later shots emit.
+A separately frozen ordinary reverse-thrust plan was tried once with all original
+acceptance/caps retained. It moves the craft but still fails55.829s before home;
+defender remains51 while player reaches hull0. That caller change is archived,
+not merged. No automatic retry or further tuning is selected.
+
+The shipped damage-admission fix remains accepted. Full COURIER-CLEAR and the
+20-candidate tally stay unchanged: ten closed/ten unqualified. Diagnostic source
+and rejected plan survive in verified bundles; owned scratch/process cleanup is
+complete. No next task is active. A new combat plan needs a supported way to
+protect weapon capability before another full attempt.
+[Actual findings and retained failed attempt](docs/history/ROADMAP_DELIVERIES.md#courier--ordinary-reverse-standoff-withheld-after-full-route-failure--2026-10-21).
+
 **Closed production repair: Courier damageable-target admission — DONE.**
 The staged-startup regression reproduces the missing adapter, and the one-line
 late-authority attachment passes all91 existing combat integration checks.
@@ -598,7 +614,7 @@ remain recorded. Full ordinary Hold and parent 11 remain OPEN. Native Windows,
 GPU/devices/audio/human/final gates stay NOT_RUN/open; CI stays disabled.
 [Delivery and actual limits](docs/history/ROADMAP_DELIVERIES.md#perimeter-live-branch-finished--2026-10-20).
 
-**Active production repair: 0. Courier target admission is shipped; full clear/home remains open. Prepared cards waiting on decisions: 3.**
+**Active outcome: 0. Courier target admission is shipped; full clear/home remains open after the withheld reverse plan. Prepared cards waiting on decisions: 3.**
 The decisions below remain pending; they do not prevent finishing independently
 supported existing failures. No completed probe schedules an adjacent probe.
 
@@ -701,7 +717,7 @@ contracts and cumulative attempt records remain in the retained history.
 | PLAY-DEFENSE ordinary route /13 | Autonomous enemy escape fixed and checkpointed3767687. Prior full caller0b11486e0 reached ordinary boarding/departure and one actual player kill, then aborted near34s; payment/home/reset/UIexit not reached. | Full journey OPEN. Prior first kill about30s leaves less than remaining10.5s authored delays; establish a feasible ordinary combat plan before rerun. No timer/contract change selected. Failed source/results retained; owned scratch cleaned. |
 | Jovian postdock reuse /16,20,26 | DONEbc7f9f9c4: complete ordinary passenger exit/reboard, pilot exit/reclaim and repeat departure/braked stop, full original journey and three actual OS0. Reboard runtime repair49bc7b736; Jovian-specific paired checkpoint49bc7b7, included in current3767687. | Source integrated/pushed and owned scratch removed. Existing working refs already deleted; other supported craft/roles, distinct second landing and full parent gates remain open. |
 | Habitat common-entry view /9,12 | [Source8a6339b91](docs/history/ROADMAP_DELIVERIES.md#habitat-arrival-view--readback-timed-out-before-image): import passes; full-Main player-height readback times out180.842s before PNG or view metadata. Cumulative201.494s; no observed defect/no-finding. | PARKED. Concrete supported capture-boundary change before selection; no renderer/room substitute, cap increase or unchanged retry. Actual eye stage was not proved reached; accepted Habitat runtime scopes remain. |
-| Courier clear /11 | Original cb9d76fa5 FAIL70.377s escaped78/78; fresh capture73da7f340 FAIL70.465s proves nine real body hits non_damageable_blocked. Runtime431aae fixes late-provider proxy; checkpoint4cfa417 actual runner CLEARED with positive kill at1.217s/1.319% escape, then player hull0 during interceptor: full FAIL67.554s, no home. Original165.917s and later capture/run costs retained. | Full clear/home OPEN; scoped damage-admission fix merged/pushed/packaged, not full acceptance. No unchanged retry or adjacent repair selected. Preserve originalCAP300/outer330, encounter/tuning and kill/home guards. Failure and cleanup retained. |
+| Courier clear /11 | Original clear70.377s/fresh-ray capture70.465s fail; runtime431aae/4cfa417 fixes missing proxy, actual Courier CLEARED then full FAIL67.554s. Passive12c5184 FAIL76.628s proves postclear two shots(world block,34damage), portwing.12/weapon_component_failed and no later emissions. Reverse-standoff caller4c465 FAIL55.829s despite52.677m actual movement; defender51/player0, no home. All prior costs/failures retained. | Full clear/home OPEN; runtimefix remains shipped. Diagnostic and rejected caller bundled/unmerged; owned scratch cleaned. No automatic retry/retuning. A supported combat plan preserving weapon capability is required before selection; originalCAP300/outer330, encounter and all full kill/home guards retained. |
 | Matching RPC-cache templates /25,32 | [Linux built; Windows cold/incremental compilation timed out](docs/history/ROADMAP_DELIVERIES.md#matching-rpc-cache-templates--stopped-at-windows-compilation-budget). No accepted matching pair; callback repair is unverified. Browser diagnostic/prepared acceptance source archived WITHHELD; working refs deleted. | PARKED; no further compilation or dependent browser attempt selected. Existing recipe/JSON fixture remain delivered; empty callable metadata and similar Window errors establish no cause. |
 | BROWSER-ORDINARY /25 | Candidatee944f52:89Python/privacy/35join/package checks pass, actual routeFAIL40.554s at NetworkSession tree_exited disconnect error; cleanup fixture command rejected. | PARKED/unmerged/withheld; diagnostic and prepared acceptance refs deleted after source archival. Subsequent passive capture identifies retained native RPC-cache callback; it does not qualify the route. Full continuation NOT_RUN. Original raw data/eight builds preserved; scratch cleaned. |
 | AFT-CONSOLE-VIEW /9,12 | Standalone actual-module Xvfb/Forward+/llvmpipe capture FAIL120.485s after camera setup; no image or visual finding. | PARKED; source/root cause unproven. No cap increase, alternate backend/view or retry selected. Owned scratch cleaned; raw results retained. |
