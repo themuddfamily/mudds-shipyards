@@ -198,7 +198,7 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | CRAFT-GAPS-CINDER-HAULER | Cinder Cargo Hauler remaining authored components/roles | 10,11 | Definition DONE: finite hull/cabin/roles/travelling-weapon map plus explicit Hauler cargo-contract gap; forwarding bridge does not accept Hauler delivery. Full craft/art/combat/crew/cargo play OPEN. |
 | CRAFT-GAPS-CINDER-BOMBER | Cinder Long-Range Bomber remaining authored components/roles | 10,11 | Definition DONE: pilot/payload/component map; additional crew/navigation decision and exact spent-payload policy now permits refill when pilot retakes seat; additional role remains unresolved. Full craft/art/combat/crew/recovery OPEN. |
 | HAULER-CARGO-DEFINE | Name Hauler-specific conserved cargo play | 10,13 | Bounded contract/ordered production boundaries below; existing item/destination/phases retained. Owner chose shared existing Jovian/Hauler stock2026-10-21; physical access delivereda43ae4b, cargo delivery remains unaccepted. |
-| BOMBER-REARM-POLICY | Define permitted spent-payload replenishment boundary | 10,11,31 | DECIDED2026-10-21: refill4 whenever pilot retakes seat. SELECTED ordinary physical depletion/exit/reboard qualification below; existing detach/newsession source path consistent by inspection. No explicit-service-only change. |
+| BOMBER-REARM-POLICY | Define permitted spent-payload replenishment boundary | 10,11,31 | DECIDED2026-10-21: refill4 whenever pilot retakes seat. Entitlement DONE4a0d82bff actual ordinary depletion/refusal/physical reboard newer generation4/fresh projectile3. Observed post-retake presentation refusal selected separately below; no explicit-service-only change. |
 | WEAPONS-DEFINE | Actual craft/role to weapon acceptance roster | 11 | Definition DONE on a0d446645; current binding map in WEAPON_DEFINITION_CONTRACT.md, finite distinctions below. No missing runtime weapon type inferred; eight originals UNKNOWN/Bomber role decision retained |
 | DAMAGE-DEFINE | Uncovered craft/role component-damage/recovery cells | 11,21 | Definition DONE on82a7564cb; COMPONENT_DAMAGE_MODEL_CONTRACT.md maps five IDs/all nine craft, real role exceptions, repair/reset owners and concrete remote row gap; no gameplay pass |
 | ART-FINDINGS | Finite actual UI/animation/effect/lighting/terrain/weather defects | 12,15 | DEFINE; named before/after view and affected route |
@@ -3138,6 +3138,37 @@ fresh private Linux qualification export, strict menu startup exit0/exact marker
 and one silent owned-Xvfb actual route. First failure stops; no retries or weakened
 route/caps. No public duplicate checkpoint absent gameplay/graphics change.
 Native hardware/Windows/human/full craft/roles/recovery gates remain open.
+
+**Entitlement completed4a0d82bff:** original ordinary route66.232s PASS; four
+records4→0, postcooldown exhausted refusal, supported exit/inactive empty loop,
+24.67m outward suppression-clear walk, same physical seat generation2 exactly4,
+fresh accepted release/projectile leaves3 and final supported OFFLINE exit.
+Six FIRE and five E presses/releases,122 focused tests, observer parse/privacy,
+private export/strict startup and independent855-raw-sample review pass. All
+six owners terminal,19 sampled identities absent;70 scratch entries verified
+archived/removed. Private package archived outside builds, loose ELF removed.
+**Concrete limitation:** fresh generation2 release presentation returns
+invalid_release_record despite successful authority/projectile. Do not call
+presentation/fullcraft complete; next precise repair below. Publicc2c72a2 unchanged.
+
+### Bomber reboard payload presentation — selected2026-10-21
+
+BOMBER-REBOARD-PRESENTATION, parents10/11. Actual qualified refill run4a0d82bff
+retains accepted gen2 payload release/projectile but nested presentation refusal
+invalid_release_record; all gen1 release presentations accepted. Production
+`detach_payload_authority` detaches pooled presentation; successful
+`begin_payload_generation` syncs audio without reactivating presentation, whereas
+explicit reuse resets it. Repair only successful new-generation presentation
+reactivation; stale/refused begin must preserve active visuals/records. Keep
+finite ammo/generation/cooldown/admission and owner seat entitlement unchanged.
+
+One implementer owns Bomber runtime, smallest existing integration regression,
+and native driver/tests adding nested accepted-presentation release checks.
+Independent reviewer; root owns clean candidate checks, fresh Windows/Linux
+checkpoint exports with strict menu startups, same full ordinary bomber-rearm
+route at original300/330s caps, integration and cleanup. No injected gameplay
+fixtures in actual acceptance, no render/native/human/fullcraft claim; first
+failure stops for causal review. No new validator family or broad effects audit.
 
 CAPTURE instances (13 required sets, **143 PNGs** total):
 

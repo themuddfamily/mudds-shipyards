@@ -42,29 +42,26 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
-**BOMBER-REARM-POLICY selected: qualify same-hull seat-retake refill.**
-Owner-approved policy is four rounds whenever the pilot retakes the seat. Existing
-runtime detach/new-generation path appears consistent; prove it through ordinary
-OS input. Walk Central→Aft→authored Bomber hatch, board, fire four distinct
-cooldown-separated payloads, confirm empty-ammunition refusal, wait OFFLINE and
-physically exit. Walk clear of reboard suppression, return, retake the same hull's
-seat and observe exactly four/new generation before a fresh shot leaves three;
-finish OFFLINE with supported physical exit. No staged actors/poses, debug actions,
-recovery, tuning change or full-craft acceptance substitution. Preserve300s driver/
-330s supervisor caps and stop at the first failure.
+**BOMBER-REBOARD-PRESENTATION selected: repair the observed fresh-release visual refusal.**
+BOMBER-REARM-POLICY entitlement DONE4a0d82bff: actual ordinary walk/board, four
+payloads4→0, fifth exhausted refusal, supported physical exit/walk clear/reboard,
+new generation exactly4, fresh projectile/fire leaves3, final OFFLINE exit;
+66.232s at original300s cap. However that fresh release reports presentation
+invalid_release_record. Disembark detaches the presentation; successful ordinary
+begin_generation restores authority/audio but leaves presentation detached.
+Repair only accepted-generation presentation reactivation, preserve refused/stale
+begin state, add the smallest existing integration regression, and require actual
+release presentation acceptance in the existing ordinary route. No ammo or role
+policy change. Root will run focused checks, fresh paired clean-source checkpoint
+exports/strict startups and the same isolated original-cap route. One implementer
+and independent reviewer; stop at first failure, no broader effects/combat work.
 
-One bounded implementer owns existing release driver/tests/passive observer;
-independent reviewer checks lifecycle/route. Python-only bomber-rearm route uses
-the existing private sandbox observer selector; existing routes stay unchanged.
-Root owns fresh clean-source private Linux export and silent isolated run. No
-runtime gameplay/graphics edit or public duplicate checkpoint is selected.
-
-Beacon outbound252ed6bfc DONE10.510574s≤60 with full111.908s return; navigator
-requester feedbackc2c72a223, freight interface509703300 and shared Hauler custody
-6bcbea302 remain completed/pushed. Latest playable checkpointc2c72a2. Other travel
-limits, full ordinary Hauler/cold inventory, WALK-FREIGHT/KIT-RELOAD and broader
-Bomber craft/roles/recovery stay open. Prior owned scratch archived/removed;
-protected unqualified work retained. [Beacon delivery](docs/history/ROADMAP_DELIVERIES.md#beacon-outbound-60-second-qualification--completed-2026-10-21).
+All five owner decisions are now resolved and their bounded entitlements checked;
+this directly observed Bomber presentation defect remains selected. Latest public
+playable checkpointc2c72a2. Full Bomber flight/combat/roles/recovery, other travel
+limits, full ordinary Hauler/cold inventory and parked WALK-FREIGHT/KIT-RELOAD
+remain open. Prior owned scratch archived/removed; protected unqualified work
+retained. [Bomber refill result and limitation](docs/history/ROADMAP_DELIVERIES.md#bomber-seat-retake-refill--entitlement-qualified-2026-10-21).
 
 **Prior Rime diagnosis closed, journey remains open.**
 The selected original Rime run failed its unchanged peer landing gate after
@@ -715,7 +712,7 @@ keep their remaining acceptance requirements and other unrelated decisions open.
 | [AUDIO-NAVIGATOR-CLIENT-REJECTION](docs/COMPLETION_SCOPE.md#client-navigator-rejection-response--bounded-definition-next) | DECIDED: feedback on every fresh current authenticated rejection, including unavailable consumer. | DONEc2c72a223/checkpointc2c72a2: actual requester-correlated response/cue/caption, silent stale/replayed/foreign inputs/results; actual two-peer continuation accepted. Listening/native/full travel stay open. |
 | [HAULER-CARGO-MANIFEST](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries) | DECIDED: share the existing stock between Jovian and Hauler. | Shared custody DONE6bcbea302/checkpoint6bcbea3; conserved ownership/generation floors and no recreated cargo/duplicate receipts. Full ordinary Hauler delivery and cold physical inventory remain required. |
 | [TRAVEL-LIMIT Beacon outbound](docs/ROADMAP_BACKLOG.md#beacon-outbound-travel-envelope--approved60second-maximum) | DECIDED: maximum60s unpaused elapsed from engine-start input at occupied Torrent berth to controlled first Beacon. | DONE252ed6bfc:10.510574s outbound and full original111.908s journey; checkpointc2c72a2 reused. Return/other routes remain separate. |
-| BOMBER-REARM-POLICY | DECIDED: refill ammunition when the pilot retakes the seat. | Preserve this same-hull seat re-entry entitlement and qualify actual reboarding; broader role/payload/recovery cases remain open. |
+| BOMBER-REARM-POLICY | DECIDED: refill ammunition when the pilot retakes the seat. | Entitlement DONE4a0d82bff actual4→0/refusal/physicalretake4/freshshot3; post-retake presentation defect selected separately. Broader craft/roles/recovery remain open. |
 
 Other scope, evidence, hardware and authorization dependencies remain in the
 [backlog](docs/ROADMAP_BACKLOG.md#external-dependencies-outside-the-ready-queue).

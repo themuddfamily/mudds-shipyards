@@ -21166,3 +21166,48 @@ verified then removed. Archive771bytes SHA256
 No new working branch/worktree; accepted history integrated/pushed in main.
 Eight protected detached registrations (three already-missing/tmp) and nine
 older unqualified candidate outcomes remain preserved, unclaimed.
+
+## Bomber seat-retake refill — entitlement qualified2026-10-21
+
+BOMBER-REARM-POLICY on4a0d82bff7c5fa4ffea6e4b7dd90dbbca3280f3b. No gameplay
+edit: existing disembark detach/new-generation behavior matches owner policy.
+New bounded Python bomber-rearm route uses existing private sandbox selector;
+passive fresh Bomber snapshot bypasses inactive fleet cache. All raw samples
+check stable PID/Main/Player/hull/seat/authority/components/berth, default inputs/
+tuning, parked landed occupied berth and no recovery/regeneration/pause.
+
+Actual ordinary route66.232s PASS, supervisor66.505s at unchanged300/330caps.
+Central/Aft authored stairs/port hatch walk and actual E board, generation1 four
+cooldown-separated native FIRE releases yield3/2/1/0, fifth postcooldown native
+FIRE actually refuses ammunition_exhausted with four records. Neutral OFFLINE,
+actual supported exterior exit/inactive empty loop,24.67m outward walk clears
+production reboard suppression, return to live hatch and physical same-seat
+retake gives generation2 exactly4/emptyrecords/cooldown0 before fire. Fresh
+accepted release creates projectile1 and leaves3. Final supported OFFLINE exit;
+six FIRE/five E presses and releases, actual cleanup release/helper/game/Xvfb
+reap, zero diagnostics. Independent review parsed855 raw samples.
+
+**Observed defect retained:** the generation2 fresh release's nested
+presentation returns accepted=false/reason=invalid_release_record, while gen1
+presentation accepts. Actual ammo and projectile qualify the seat entitlement;
+post-retake visual presentation does not pass. Exact next repair is
+BOMBER-REBOARD-PRESENTATION, not a claim of full craft/flight/combat/roles/recovery
+or rendered/native GPU/Windows/human qualification.
+
+Existing Python122PASS10.563s; observer parse15.552s, startup privacy0.972s,
+clean-source Linux export26.580s, strict menu startup22.288s (exit0/exactly one
+STARTUP_MENU_READY_OK), ordinary stage66.505s. Source/cache unchanged except
+explicit export cache update. Private Xvfb/x11/Dummy audio/dummy renderer only.
+No public gameplay/graphics checkpoint warranted; latestc2c72a2 unchanged.
+
+Raw results retained `/srv/mudds-work/bomber-seat-rearm-20261021/results/`.
+Private archive95,369,709bytes SHA256
+`aff5d656811e93a8964886e5057c2e0b1b312448481eedb2cbcceab31fe30618`
+contains exact tested148,959,232byte ELF SHA256
+`00ec4c20ef4cd2393aa083e84854940a52aff2280282999268064a7b4c922b95`;
+verified archive/binary equality before removing loose package from builds.
+Six stage owners terminal,19 sampled identities absent;70 scratch entries
+byte/mode/archive verified and removed. Profiles7,661bytes SHA256
+`36ff49507cdf792228f016df1841e79ea2591dfcd31e3ea04c25e083ccc8963e`.
+Accepted history integrated/pushed in main; no new working branch/worktree;
+eight protected detached registrations/nine older unqualified outcomes retained.
