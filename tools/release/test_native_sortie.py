@@ -30,6 +30,27 @@ class NativeSortieSafetyTests(unittest.TestCase):
                     'last_receipt': {'activity_id': 'cinder_kit_cargo_run', 'activity_generation': 1,
                                      'granted': True, 'replay_allowed': False}}}
 
+    def test_supply_first_dock_waits_neutral_for_actual_engine_shutdown(self):
+        pilot = native.CinderSupplyPilot()
+        pilot.stage, pilot.stage_since = 'cargo_land', 0
+        cargo = {'lease': True, 'contract': True, 'dock': [31, -65.85, -700], 'source_entity_id': 7,
+                 'cluster_id': 10, 'generation': 1, 'access_id': 11, 'attachment': 1,
+                 'berth_id': 12, 'terminal_id': 13, 'binding_id': 14, 'activity_id': 15,
+                 'inventory': {'manifests': [
+                     {'owner_entity_id': 'jovian_provisional', 'entries': [{'item_id': 'cinder_supply_crates', 'quantity': 2}]},
+                     {'owner_entity_id': 'cinder_destination', 'entries': [{'item_id': 'cinder_supply_crates', 'quantity': 0}]}]}}
+        s = {'frame': 6000, 'phase': 'SHUT_DOWN', 'position': cargo['dock'], 'player': [31, -64, -700],
+             'ship_velocity': [0, 0, 0], 'ship_id': 7, 'landed': True, 'engine': 'ONLINE', 'cargo': cargo}
+        pilot.last_state = s
+        self.assertEqual(pilot.update(s, 1)[0], set())
+        self.assertEqual(pilot.stage, 'cargo_arrival_shutdown')
+        self.assertEqual(pilot.update(s, 2)[0], set())
+        self.assertEqual(pilot.stage, 'cargo_arrival_shutdown')
+        s['engine'] = 'OFFLINE'
+        self.assertEqual(pilot.update(s, 3)[0], set())
+        self.assertEqual(pilot.stage, 'supply_pause')
+        self.assertIn('occupied_source', pilot.receipts)
+
     def test_supply_stopping_distance_uses_authored_jovian_brake(self):
         pilot = native.CinderSupplyPilot()
         for brake, expected in [(25, 'Prior'), (48, 'w')]:

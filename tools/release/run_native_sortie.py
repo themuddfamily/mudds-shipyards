@@ -4125,8 +4125,14 @@ class CinderSupplyPilot(BeaconEntryPilot):
                 if self.stage == 'cargo_land':
                     self.cargo_identity = tuple(c[k] for k in ('cluster_id', 'generation', 'access_id', 'attachment', 'berth_id', 'terminal_id', 'binding_id', 'activity_id'))
                     self.receipts['occupied_source'] = s
-                    self.enter('supply_pause', s)
+                    self.enter('cargo_arrival_shutdown', s)
                 else: self.enter('cargo_shutdown', s)
+        elif self.stage == 'cargo_arrival_shutdown':
+            # Pausing before the authored neutral idle interval freezes auto
+            # shutdown; starting thrust while still ONLINE retains the dock latch.
+            require(s['landed'] and c['lease'] and c['contract'] and speed <= .05,
+                    'first Cinder dock remains secured during neutral auto shutdown')
+            if s['engine'] == 'OFFLINE': self.enter('supply_pause', s)
         elif self.stage == 'load_phase':
             if c['activity']['next_phase_index'] == 1:
                 require(c['lease'], 'load_crate consumed from real occupied berth')
