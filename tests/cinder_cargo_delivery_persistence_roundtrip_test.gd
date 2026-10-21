@@ -8,6 +8,7 @@ const FilesystemScript := preload("res://scripts/persistence/user_data_filesyste
 
 class MemoryFilesystem extends FilesystemScript:
 	var files: Dictionary = {}
+	var refuse_payment := false
 	func file_exists(path: String) -> bool: return files.has(path)
 	func directory_exists(_path: String) -> bool: return false
 	func ensure_parent_directory(_path: String) -> Error: return OK
@@ -18,6 +19,9 @@ class MemoryFilesystem extends FilesystemScript:
 		return {"error": OK if bytes.size() <= maximum_bytes else ERR_FILE_CORRUPT,
 			"bytes": bytes if bytes.size() <= maximum_bytes else PackedByteArray()}
 	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
+		var document: Variant = JSON.parse_string(bytes.get_string_from_utf8())
+		if refuse_payment and document is Dictionary and str((document.get("commit", {}) as Dictionary).get("id", "")).begins_with("game-flow-reward-"):
+			return ERR_CANT_CREATE
 		files[path] = bytes.duplicate(); return OK
 	func remove_path(path: String) -> Error:
 		if not files.has(path): return ERR_FILE_NOT_FOUND
@@ -26,6 +30,11 @@ class MemoryFilesystem extends FilesystemScript:
 		if not files.has(from_path): return ERR_FILE_NOT_FOUND
 		files[to_path] = (files[from_path] as PackedByteArray).duplicate()
 		files.erase(from_path); return OK
+
+class CargoWorld extends Node3D:
+	var cluster: NearbySectorCluster
+	func get_nearby_sector_cluster() -> Node:
+		return cluster
 
 class RefusingDiskFilesystem extends FilesystemScript:
 	var refuse_payment := false
@@ -148,6 +157,7 @@ func _run() -> void:
 	await _retire(third, {})
 
 	await _test_legacy_summary(filesystem, store.get_snapshot().cinder_cargo_delivery)
+	await _test_saved_unpaid_start_retry()
 	await _run_disk_processes()
 
 	for failure in _failures: push_error(failure)
@@ -216,6 +226,82 @@ func _test_legacy_summary(filesystem: MemoryFilesystem, terminal: Dictionary) ->
 	var presentation: Dictionary = binding.get_snapshot().cargo
 	_check(int(presentation.generation) == 0 and bool(presentation.delivery_persisted) and not binding.request_cargo_reward(1).accepted, "legacy v1 remains generation0 presentation without reward entitlement")
 	await _retire(runtime, {})
+
+
+func _test_saved_unpaid_start_retry() -> void:
+	var filesystem := MemoryFilesystem.new()
+	var store: UserDataStore = StoreScript.new("memory://cinder-start-retry.json", filesystem)
+	store.load()
+	var protected_data := {"pilot": "retained", "inventory": [7, 11]}
+	store.commit({"foreign": protected_data}, 0, "seed-start-retry")
+	var runtime := await _make_runtime(store)
+	var flow: GameFlow = runtime.flow
+	var binding: NearbySectorActivityBinding = runtime.binding
+	var hud: GameHUD = runtime.hud
+	var world := CargoWorld.new()
+	world.cluster = runtime.cluster
+	root.add_child(world)
+	flow.world = world
+	flow.hud = hud
+	var fixture := _build_fixture()
+	var activity: CargoDeliveryActivity = fixture.activity
+	var authority: CargoTransferAuthority = fixture.authority
+	binding.set("_cargo_activity", activity)
+	binding.set("_cargo_authority", authority)
+	binding.set("_cargo_source_entity", fixture.source)
+	flow.bind_cinder_cargo_delivery_persistence(binding)
+	flow._configure_cinder_cargo_reward_handoff(binding)
+	filesystem.refuse_payment = true
+	var delivered := _complete(binding)
+	var generation := activity.get_generation()
+	var unpaid: Dictionary = binding.get_snapshot().cargo
+	var before_retry := store.get_snapshot()
+	var proof: Dictionary = before_retry.cinder_cargo_delivery.delivery.transfer_proof.duplicate(true)
+	var transfers: Array = authority.to_dictionary().committed_transfers.duplicate(true)
+	_check(delivered.accepted and bool(unpaid.delivery_persisted)
+		and bool(unpaid.reward_retry_available) and not bool(before_retry.cinder_cargo_delivery.delivery.reward_receipt.granted)
+		and store.get_generation() == 2 and transfers.size() == 1,
+		"refused payment leaves one genuinely transferred saved completion available for ordinary Start retry")
+	hud.clear_activity_objective()
+	var pending_visible := flow._sync_cinder_cargo_activity_hud()
+	var pending_report := hud.get_activity_objective_report()
+	_check(pending_visible and bool(pending_report.visible)
+		and StringName(pending_report.activity_id) == &"cinder_platform_supply_run"
+		and str(pending_report.text).contains("START TO RETRY REWARD"),
+		"saved unpaid completion keeps ordinary flight HUD Start-to-retry guidance visible")
+	var refused := flow._start_nearby_activity(binding, &"cinder_platform_supply_run")
+	_check(not bool(refused.accepted) and refused.reason == &"reward_callback_rejected"
+		and store.get_snapshot() == before_retry and activity.get_generation() == generation,
+		"ordinary Start reaches the refused payment callback without restarting or changing the saved completion")
+	var stale := binding.request_cargo_reward(generation + 1)
+	_check(not bool(stale.accepted) and store.get_snapshot() == before_retry,
+		"stale saved-completion retry cannot publish payment")
+	filesystem.refuse_payment = false
+	var paid := flow._start_nearby_activity(binding, &"cinder_platform_supply_run")
+	var after_payment := store.get_snapshot()
+	_check(bool(paid.accepted) and paid.reason == &"reward_request_committed"
+		and int((after_payment.get("game_flow_reward_store", {}) as Dictionary).get("total_receipts", 0)) == 1
+		and bool(after_payment.cinder_cargo_delivery.delivery.reward_receipt.granted)
+		and int(after_payment.cinder_cargo_delivery.delivery.generation) == generation
+		and activity.get_generation() == generation and activity.get_state() == CargoDeliveryActivity.State.COMPLETED,
+		"ordinary Start pays the exact saved unpaid generation once without starting another sortie")
+	var repeated := flow._start_nearby_activity(binding, &"cinder_platform_supply_run")
+	var replay := binding.request_cargo_reward(generation)
+	_check(not bool(repeated.accepted) and not bool(replay.accepted)
+		and store.get_snapshot() == after_payment and store.get_generation() == 3,
+		"repeated ordinary Start and explicit replay cannot pay or persist a second receipt")
+	_check(authority.get_quantity(fixture.source_handle, &"cinder_supply_crates") == 3
+		and authority.get_quantity(fixture.destination_handle, &"cinder_supply_crates") == 1
+		and authority.to_dictionary().committed_transfers == transfers
+		and store.get_snapshot().cinder_cargo_delivery.delivery.transfer_proof == proof
+		and store.get_snapshot().foreign == before_retry.foreign,
+		"ordinary payment retries preserve actual manifests, exact transfer ledger/proof and unrelated player data")
+	hud.clear_activity_objective()
+	_check(not flow._sync_cinder_cargo_activity_hud()
+		and not bool(hud.get_activity_objective_report().visible),
+		"paid saved completion stops contributing the flight HUD retry objective")
+	world.queue_free()
+	await _retire(runtime, fixture)
 
 
 func _run_disk_processes() -> void:
