@@ -6,14 +6,14 @@ Nine of the eventual 17 craft exist; eight still need supported specifications
 and implementation. Partial acceptance is retained in the backlog; it is not
 whole-feature completion.
 
-Latest playable checkpoint: **7ecdfec**. Ordinary Start now retries a saved,
-unpaid Cinder delivery reward; pending guidance stays visible until one payment
-succeeds. Transfer and replay protections remain intact. The complete first
-Cinder supply journey remains accepted on 9ed9a07; broader activity/release gates
-remain open.
-[Windows ZIP](builds/windows/MuddsShipyards-7ecdfec-checkpoint.zip),
-[Windows notes](builds/windows/MuddsShipyards-7ecdfec-notes.txt),
-[Linux notes](builds/linux/MuddsShipyards-7ecdfec-notes.txt).
+Latest playable checkpoint: **bc48b2a**. The complete ordinary Beacon journey
+now passes: all four beacons, one saved reward, Guided combat, strict home dock,
+shutdown and supported exterior walking. The archived Home controller now issues
+fine mouse corrections while retaining its original alignment and safety guards.
+Cinder delivery and unpaid-reward retry changes remain included; wider gates stay open.
+[Windows ZIP](builds/windows/MuddsShipyards-bc48b2a-checkpoint.zip),
+[Windows notes](builds/windows/MuddsShipyards-bc48b2a-notes.txt),
+[Linux notes](builds/linux/MuddsShipyards-bc48b2a-notes.txt).
 
 This page is the working queue. The
 [36-parent crosswalk and named children](docs/ROADMAP_BACKLOG.md#coverage-of-the-original-remaining-outcomes)
@@ -43,23 +43,32 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
-**One active outcome: PLAY-BEACON — repair the archived Home controller's alignment stall.**
-The exact original full Home caller now reaches four-beacon settlement, but stops
-before the RangeHeader crossing: its mouse corrections round to zero while the
-observed global pitch remains 0.537° outside the existing 0.5° readiness guard.
-Keep that guard, the header clearance, actual combat/home/exit requirements and
-original 300s deadline. Restore the full caller on current main, add fine mouse
-correction only at that stalled alignment, then prove the complete original route.
-No Popup instrumentation is part of the integrated repair. First new failure stops
-its attempt; no adjacent gameplay change or automatic retry is authorized by a pass.
+**Closed outcome: PLAY-BEACON — complete ordinary home journey — DONE.**
+The original full Home caller is restored on current source, with one narrow
+mouse correction for its demonstrated alignment stall. All original 0.5°/0.9999,
+header-clearance, combat, paid-file, landing and supported-walking checks remain.
+The complete packaged journey passes **112.031s within the original 300s cap**:
+all four beacons, one durable reward and 60 stable ticks; safe RangeHeader crossing
+at hull100; four range targets/interceptor defeated; actual strict occupied home
+dock, automatic OFFLINE, one acknowledged/released L and E, and 0.969m supported
+walking with the same Player/capsule. Zero game diagnostics; all cleanup flags true.
+Independent source and actual-route review GO.
 
-The preceding UI-BOARD-FOCUS capture is closed as **NOT_REPRODUCED**, not fixed.
-It used the original full Home driver/observer, not the shared entry substitute.
-Eight transition snapshots and all 55 actual Popup lifetimes show hidden menus,
-no TooltipPanel, and only the unchanged SceneTree root focus connection. The run
-fails at its original deadline on the now-identified controller stall. Source,
-logs and private package are retained; scratch and duplicate ELF are removed.
-[Exact result and remaining UI gap](docs/history/ROADMAP_DELIVERIES.md#original-beacon-home-caller--ui-nonreproduction-and-alignment-stall--2026-10-21).
+The recorded rolled-sample regression fails the archived zero-input method and
+passes the fine correction while withholding thrust until observed alignment.
+All 105 existing driver tests and startup privacy pass. Fresh paired checkpoint
+bc48b2a, three strict startup checks and all 1525 matching Windows/Linux payload
+entries pass; source is merged and pushed. All eight stage owners are terminal,
+14 observed process identities absent; owned scratch archived/verified/removed.
+No working branch/worktree was created. **No successor task is active.**
+[Complete result, original failures and cleanup](docs/history/ROADMAP_DELIVERIES.md#beacon--complete-original-home-journey-accepted--2026-10-21).
+
+The preceding UI capture used the actual original Home payload and did not
+reproduce the old popup error. Its cause remains unresolved; this passing journey
+does not declare UI-BOARD-FOCUS fixed or waive Mining/Observation failures. Original
+37.713s UI failure and 307.042s alignment timeout remain recorded. The Home caller
+uses its original bounded process cleanup after walking, not normal UI quit/gameOS0
+acceptance. Cold restart, ten-run repetition and native hardware/human review remain open.
 
 **Closed outcome: ACT-WRITE — Cinder saved unpaid payment retry — DONE.**
 Ordinary Start now retries the exact saved earned generation. The flight objective
@@ -145,9 +154,10 @@ worktrees are removed. Full Sandbox/recovery/reuse remains FAILED/open.
 [Five-branch closeout](docs/history/ROADMAP_DELIVERIES.md#five-local-only-branches-accounted-and-closed--2026-10-20).
 
 All 20 candidates in the [earlier inventory](docs/history/ROADMAP_DELIVERIES.md#remaining-branch-status-after-duplicate-closeouts--2026-10-20)
-are now accounted for: nine references closed through accepted/superseded work,
-and eleven candidates still unqualified. Fire restart, Halyard gunner damage and
-the Salvage ordinary source journey are the latest accepted existing candidates; archive tags retain failed histories.
+are now accounted for: ten outcomes closed through accepted/superseded work,
+and ten candidates still unqualified. Beacon Home is now accepted on bc48b2a after
+the actual controller repair and complete ordinary route. Fire restart, Halyard
+gunner damage and Salvage retain their accepted scopes; archive tags retain failed histories.
 This clears the branch queue; it does not close remaining gameplay,
 qualification or release requirements. No unaccepted source was merged to reduce
 a branch count. Eight previously protected detached worktrees remain unchanged.
@@ -675,7 +685,7 @@ contracts and cumulative attempt records remain in the retained history.
 | AFT-CONSOLE-VIEW /9,12 | Standalone actual-module Xvfb/Forward+/llvmpipe capture FAIL120.485s after camera setup; no image or visual finding. | PARKED; source/root cause unproven. No cap increase, alternate backend/view or retry selected. Owned scratch cleaned; raw results retained. |
 | WALK-OBSERVATION /7,9 | Original full route fails rootWindow disconnect after Exit. Privatebae551d58 later passes54-goal travel/view/home/Exit, but lacks original visible TooltipPanel; repair INCONCLUSIVE. All five unique commits/seven files archived under pushed archive/withheld/exit-tooltip-order-20261020; working refs deleted, runtime unmerged. | OPEN. Actual-Main real tooltip/root bindings/hover/native pointer now observed after caller stretch correction; ordinary HUD close exits0 with no original errors. Runtime repair remains unqualified: identify the actual popup/connection-removal event in the original failing journey before selecting a repair or retry. Full integrated travel/view/home acceptance retained. |
 | PERIMETER-LIVE /11 | Runtime/admission shipped fdae1cb: all selected focused/production checks, paired exports, three strict startups and package audit PASS. Existing branch merged/pushed/deleted and owned scratch cleaned. | Scoped integration DONE; full ordinary weapons/home/recovery/repeats/network/native remains OPEN. Prior 363.897s/three failures retained; total stages 742.767s. |
-| PLAY-BEACON-HOME /13 | Candidatea612ea686 FAIL37.713s guarded/37.419s driver at ActivityBoardButton Return/frame1233; same two root Window signal-disconnection diagnostics. Eleven prechecks pass; no settlement/home/L/E reached, no file captures. Unmerged/withheld source archived under `archive/withheld/beacon-home-20261020`; working branch deleted. | PARKED on UI-BOARD-FOCUS. Later shared BeaconEntry prefix is clean with no visible popup/native popup bindings at either synchronous transition; original Home caller and its extra observer payload were not restored. No error-emitting lifecycle/cause established; no retry/repair/cap change. Preserve original UI two-component9.627s and Mining budgets. |
+| PLAY-BEACON-HOME /13 | DONE bc48b2a: complete original ordinary trip passes112.031s under300s with all four beacons/one saved reward, actual safe header crossing/combat/strict home dock/OFFLINE/E/supported0.969m walk. Restored original caller plus narrow mouse precision correction; prior UI37.713s failure and actual307.042s alignment timeout retained. | Accepted source merged/pushed, fresh checkpoint and strict startups/package audit PASS; cleanup complete. Original UI cause remains unresolved, no diagnostics waived. Original generic process cleanup does not establish normal UI quit/gameOS0; cold restart, repeats and native/human gates stay open. |
 | HALYARD-GUNNER-DAMAGE /11,16 | DONEc28f7ffa3: original49assertions pass52.341s/exit0. Admitted gunner remapped FIRE produces exactly one52damage commit through actual GameFlow/authority/resolver/adapter, then original lifecycle checks. | Accepted source merged/pushed; earlier headless failures preserved and explained by missing mousecapture. Declared input-only mode now exercised on isolatedXvfb. Fixtures disclosed; broader OS-input/network/native/full-combat gates remain. Owned scratch removed; current3767687 runtime unchanged. |
 | WALK-SALVAGE-ACCESS / 7,9 | DONE9749f742c: full29outbound/29reverse goals plus retained hub spawn,64assertions/103.697s/OS0/cleanlogs, same supported on-foot Player and unchanged inspection state. | Accepted source merged/pushed; original240-loop/.20arrival/4-settle/300s limits retained. Added two existing-floor clearance points around roof columns, no destination removed. INSPECT5189436f1 and fresh-process REVISITf7abac379 are now accepted separately above; original access-only result stays scoped. Owned scratch removed; no runtime change or duplicate rebuild. |
 | KIT-RELOAD /13,31 | Mainready/restoreaccepted27.762s/pausedfalse; firstnormalphysics/process pair incomplete by30s. Source audit finds standardSceneTree awaits, no callerpause defect or concrete currentstartuprepair. | PARKED/open; trace lacksafterphysics/beforeprocess boundary. Original30s/includespreload/full60ticks preserved; no retry/probe/clockmove/capchange selected. No corrupt/duplicatecargo observed. |

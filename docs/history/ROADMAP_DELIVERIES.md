@@ -20276,3 +20276,75 @@ header safety, combat/home/exit/payment checks and300s deadline. Add one focused
 regression from the actual rolled sample; run the complete original journey.
 No original UI diagnostic is filtered or waived, and no unchanged generic UI
 probe is selected.
+
+
+## Beacon — complete original home journey accepted — 2026-10-21
+
+PLAY-BEACON closes its complete first ordinary journey on clean source/package
+`bc48b2a54bccdc196ce959aad2e5ae36748f3131`, merged and pushed. This accepts one
+previously unqualified outcome from the original20-candidate inventory: current
+accounting is ten accepted/superseded, ten still unqualified, not20 completed
+features. Original archiveda612ea686 failure and source remain preserved.
+
+The preceding exact original Home capture did not reproduce the UI error, but its
+original300s deadline exposed11995 stationary samples at RangeHeader staging.
+The controller rounded both ordinary mouse axes to zero while global pitch error
+0.5369725° exceeded its unchanged0.5° guard. This recorded causal fact justifies
+the separately selected repair, not an unchanged generic UI retry. Restore the
+archived full Home observer/caller/CLI on current main, retaining all later routes.
+Only Home's flight function changes: while readiness is false and both ordinary
+mouse corrections round to zero, recalculate that same aim at gain1. The observed
+attitude must still qualify before thrust; no game tuning, physics, tolerances,
+clock, actor, checkpoint, damage, dock or payment injection.
+
+One existing regression uses the actual rolled sample: original method gives
+(0,0) and fails; corrected method issues(-3,3), retains brake/noW across unchanged
+observations, then admitsW only on a later actually qualifying basis. Causal
+RED/GREEN root stage0.452s; all105 existing driver tests PASS10.470s by implementer.
+Observer compile/startup CLI privacy PASS16.420s. Independent high source review
+confirms archived Home differs only at this correction and current Cinder/Arrow
+and other route classes are preserved; no Popup instrumentation is integrated.
+
+ONE complete native-input exported Home attempt PASS112.031s driver/112.310s
+owner interval within original300s/outer330s. Normal title/Start Shift/walk/board/
+depart/UI select/start; all four authored physical beacons in order, one actual-file
+navigation receipt,60 stable physics frames. Paid/stable documents are byte-identical;
+exact Beacon/reward slots remain at home while expected lifecycle/domain fields
+update. Actual safe RangeHeader crossing at frames3131–3170 keeps hull100 and
+originY2.7986..2.8772 inside original1.4..3.8. Four actual range targets then
+interceptor defeated; phases reach RETURN_TO_YARD, genuine active landing, strict
+token/lease-bound exact central dock, automatic OFFLINE. One acknowledged/released
+nativeL and oneE, same Player/capsule/shape, actual floor support and0.969433m walk.
+No game diagnostics, no recovery, all input/helper/game/private-display cleanup
+flags true. Independent actual raw-result/file/hash review GO.
+
+Original generic process cleanup follows supported walking; its interim game leg
+has no terminal exit code. HostOS0 and game reaping do not imply ordinary UI quit
+or gameOS0. This is isolated LinuxX11/XTest/default sampler/Dummy audio/dummy renderer,
+not native GPU or native Windows qualification. UI-BOARD-FOCUS is not declared fixed;
+original37.713s UI failure,307.042s alignment timeout and earlier investigation costs
+remain recorded. Cold restart, ten-run repetition, physical devices, audible
+listening, human review and broad roadmap/release gates remain open or NOT_RUN.
+
+Clean Linux/Windows exports PASS42.541/10.564s. Direct Linux, extracted archive and
+Windows-game-data-under-Linux strict startup each OS0/readinesssentinel1, guarded
+24.360/25.748/28.364s. All1525 embedded paths/sizes/SHA256/PCK-MD5/flags match; stock
+Windows release .text matches. Linux archive six members, exact binary/icon/managed
+installer bytes, modes and source epoch verified. ZIP reopened with exactly EXE+
+notes and exact member bytes.
+
+- Windows EXE184695472 bytes SHA256 `30006cfd967948f0ba9d18424dcafc25ea796bad3ec089a360da96abb021448c`.
+- Windows ZIP103228071 bytes SHA256 `4c04b9fdaa85367e71e9dce0f74d3a5795999ef0153e9847147fffcb2356ccab`.
+- Linux ELF148937184 bytes SHA256 `ccdbda4c1381dd47fb73d524d6b5f7f6c85df176a3a3d5f08b8830664acc06a0`.
+- Linux archive95350011 bytes SHA256 `ff62890c1b63beb5dac6201a89346a409891cadfca809667c28260300c8f0be1`.
+
+All8 owners terminal/all14 observed process identities absent; source/cache guards
+pass, Linux export's initial cache update explicitly allowed. Owned105 scratch
+entries archived/reopened/byte-mode-link verified then removed04:12:08UTC;
+profiles.tar.gz3275349 bytes SHA256
+`1fe34d7a664dd43d9ae095f924a2d2fbabb5d0d09db7f652c5c55c2859155737`.
+Raw result/logs/real-file snapshots/causal sample and audits remain under
+`/srv/mudds-work/beacon-home-precision-20261021/results/`. Public checkpoint files
+and notes stay in repository builds/windows and builds/linux. No branch/worktree
+created; main sole working branch, eight protected detached worktrees untouched.
+No successor task started. GitHub Actions stays disabled; no Downloads publication.
