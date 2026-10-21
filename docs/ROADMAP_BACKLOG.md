@@ -585,7 +585,7 @@ test is an owner/regression anchor, not a runnable ordinary route.
 | REPEAT-DEFENSE | Ten fresh physical-board deployments, full three-wave clears, payment and reset | 13 | GATED on PLAY-DEFENSE and measurement/deadline freeze; wave recovery is not another fresh completion |
 | REPEAT-BREACH | Ten cleared Heavy Breach postings through ordinary board rotation | 13 | GATED on PLAY-BREACH and measurement/deadline freeze; alternate Torpedo postings cannot be skipped; BREACH-INTERRUPTION earned-debt case DONE c78e0ac |
 | REPEAT-TORPEDO | Ten cleared Torpedo postings through ordinary board rotation | 13 | GATED on PLAY-TORPEDO and measurement/deadline freeze; ten mixed sorties do not satisfy ten of either scenario |
-| TRAVEL-LIMIT | Numeric ordinary nearby-travel envelope | 13 | DECIDED2026-10-21: Beacon outbound maximum60s unpaused monotonic elapsed, existing exact start/stop/route unchanged. Timing implementation/qualification pending; return and other routes remain open. |
+| TRAVEL-LIMIT | Numeric ordinary nearby-travel envelope | 13 | DECIDED2026-10-21: Beacon outbound maximum60s unpaused monotonic elapsed, existing exact start/stop/route unchanged. DONE252ed6bfc: measured10.510574s within60s during full original111.908s beacon-home journey using checkpointc2c72a2. Return and other routes remain open. |
 | HULK-REVISIT | Home-return/reload/revisit retains restored bus and single claimed cell | 13 | PARKED/open; original300s unchanged, failed source archive/withheld/hulk-revisit-departure-20261017. Bounded raw/source audit2026-10-20 confirms458consecutive revisit samples/47.393m ordinary supported movement, samePlayer, authored5.8walk/9.2sprint; no interior stall established. Global deadline expires midroute beforefreshbreaker. No relevant changedproductionseam/supportable correction found; missing per-stage monotonicwalltimestamps tolocalize cost. No rerun/probe/capchange selected. |
 | EMBER-SOURCE-ABANDON | Integrated physical Ember abandonment/home return | 1,14 | DONE; e85157b4d, MemoryFilesystem, original exact31 |
 | EMBER-OBSERVER | Native package observer production capability | 1 | DONE; 4270d71 source capability and startup-qualified checkpoint |
@@ -1175,7 +1175,7 @@ Scope: original §3, retained abandonment milestone and Phase 8/10.4 specificati
 | ACT-WRITE[one activity/boundary] | GATED on uncovered failure boundary | Exercise one real write failure at ACTIVE, earned-unpaid, paid/reset or refused/reset; fresh process observes once-only durable rewards and usable recovery. Reuse existing lifecycle tests; stop at named boundary. |
 | ACT-PLAY[one nearby activity] | ELIGIBLE for implemented content | Ordinary outbound travel, actual activity, reward and home return work at canonical distances. Stop after first full play or first reproduced defect; repetition/endurance is ACT-REPEAT. |
 | ACT-REPEAT[one activity] | GATED on ACT-PLAY | Complete its existing repeated-use/endurance scenario with once-only rewards and clean actors/state. Stop at that scenario's original duration, not a new arbitrary loop target. |
-| TRAVEL-LIMIT[one nearby route] | Beacon outbound60s agreed2026-10-21; execution selected | Preserve existing clock/start/stop/route below; implement observations and qualify actual elapsed time without changing whole-sortie cap. Other routes retain scope. |
+| TRAVEL-LIMIT[one nearby route] | Beacon outbound60s DONE252ed6bfc/10.510574s | Existing exact clock/start/stop/route qualified with full111.908s beacon-home at original300s cap; checkpointc2c72a2 reused. Other routes retain scope. |
 | HULK[physical salvage/power/revisit] | Arrival, breaker and home ordinary-input qualification DONE; revisit/disk gates open | Existing interior83 scoped checks retain their limits. Full ordinary Guided/HULK/breaker/reverse walk/reboard/home route driver7e251f8af/gameef67f3e95 passes 191.886s at original300s cap, actual unload and once-only receipt retained; checkpointef67f3e Linux is exact tested binary. Windows payload startup/privacy passes separately; strict payload parity fails65 generated scenes. REVISIT-CONTRACT DONE; REVISIT-INPUT candidate5010ef932 FAILED optional-lift driver condition; REVISIT-DEPARTURE candidate2298e4889 FAILED original300s deadline during new interior walk after actual reload/dock/exit; no fresh breaker event. Candidate withheld; REVISIT-CHECKPOINT GATED; independent Ember ABANDON source qualification subsequently DONE; no HULK repair selected in ROADMAP.md; no unchanged interior rerun or full-parent closure. |
 | WORLD-CONTENT[one world/gap] | DEFINE if missing content not named | For Ember, Aurora or Rime, name one finite missing environmental/content behavior from the original specification and roster. Implement that behavior in a separate bounded child with ordinary surface interaction and checkpoint. Stop at specification or named behavior, not a new planet catalogue. |
 | WORLD-SOLO[one world] | ELIGIBLE for implemented world; existing physical route | Complete canonical outbound, atmospheric descent, physical landing/exit/activity/reboard, ascent and home dock through ordinary controls. Preserve original route/physics limits; staged arrival is not acceptance. Stop at one world's full route or first defect. |
@@ -1202,6 +1202,18 @@ instance; it neither closes that family nor removes return/other-route promises.
 | Route / controls | Actual fresh occupied Torrent home berth → live transformed first Beacon; default authored tuning/input sampler, normal thrust/steering/brake, no boost, teleport, recovery, debug navigation or staged movement. Reject a failed/destroyed/recovered run rather than restart its clock. |
 | Scope | One outbound leg only. Ordinary Beacon traversal/payment/home and every other required activity/return limit remain open in their existing children. No new engine attempt, parked UI route, environment qualification or300s whole-sortie cap change is selected. |
 | Next after decision | Freeze exact package/ordinary driver, add start/stop/pause monotonic observations to the existing route if missing, and select its timing proof with original safety caps. No new validator, alternate route or accepted full PLAY-BEACON claim. |
+
+**Completed2026-10-21 —252ed6bfc:** outbound conservative monotonic upper bound
+10.510573555s≤60.0s, first demandframe788/sequence314 to qualifyingframe1396/
+sequence922 at19.082720m and0.051334m/s. Zero pauses/subtractions; all609 raw leg
+samples retain actors/default controls. Original full beacon-home111.908s PASS,
+four physical Beacons, one durable reward, Guided combat, strict home dock,
+OFFLINE exit and supported0.96943m walk; cap300s unchanged. Corrected118 driver
+tests and independent source/result review pass. No game change; accepted
+c2c72a2 ELF reused, no duplicate checkpoint. Private Linux Xvfb/x11/Dummy/dummy
+renderer only; boost check covers this sole driver's issued keys. Native GPU,
+Windows/human, cold restart/endurance and return/other numeric limits remain
+open. [Delivery record](history/ROADMAP_DELIVERIES.md#beacon-outbound-60-second-qualification--completed-2026-10-21).
 
 **Execution selected2026-10-21:** existing `run_native_sortie.py` gains optional
 `--qualify-beacon-outbound`, valid only with `--route beacon-home`. Fixed60.0s;

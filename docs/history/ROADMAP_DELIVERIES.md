@@ -21115,3 +21115,54 @@ actual listening/devices/human/native Windows/GPU/full-release gates remain open
 or NOT_RUN. All36 original parents/ten phase gates remain OPEN. CI stays disabled.
 Beacon60s and Bomber pilot seat-retake refill qualification remain approved/queued;
 no adjacent implementation or parked retry was started alongside this card.
+
+## Beacon outbound 60-second qualification — completed2026-10-21
+
+TRAVEL-LIMIT[Beacon outbound], parent13; accepted driver252ed6bfc618df90c3c7bf00976b7650f9340c55.
+Existing `tools/release/run_native_sortie.py --route beacon-home
+--qualify-beacon-outbound` adds a fixed60.0s acceptance check to the complete
+ordinary route. First engine-demand output includes mouse/steering/brake as
+well as thrust, matching automatic propulsion. Every decoded raw sample is
+examined before unchanged latest-sample steering. One Python monotonic clock
+measures a conservative receipt upper bound including IPC and stalls. In-leg
+pause/recovery/replacement/invalid controls or driver-issued boost rejects;
+there is no restart, subtraction, cap increase or tuning change. Start/stop
+samples and reports are detached from mutable callers. Original full-route
+success is still required independently of a passing leg.
+
+Source review found and corrected mutable retained samples before the actual
+flight; original and corrected focused suite results are retained. Corrected
+118 tests PASS10.715s; source/cache guarded supervisor11.112s. Existing accepted
+Linux gamec2c72a2 ELF SHA256
+`9ee716f59053efff0eed727e5b0f70a324dbc1a375a52cb059399710d775faab`
+was reused: no game edit or duplicate checkpoint export. All stages used clean
+frozen source, private profiles and owned Xvfb, explicitx11/Dummy audio/dummy
+renderer, independent abort and original300s driver/330s supervisor caps.
+
+Actual full route PASS111.908s (supervisor112.185s), exit0, zero diagnostics and
+unchanged source/cache. Start PID30579/frame788/sequence314 at monotonic
+5507.322489917: same seated occupied parked OFFLINE Torrent at home, firstW+
+mouse[0,-7]. Earliest qualified stopframe1396/sequence922 at5517.833063472:
+live first Beacon distance19.082719803m, speed0.051334165m/s. Conservative
+elapsed10.510573555s≤60.0s; zero pause intervals/subtractions. Independent review
+parsed all609 raw leg samples and confirmed earliest qualified stop, unchanged
+identities and controls. Boost assertion covers this isolated sole driver's
+issued inputs; passive observer does not expose consumed boost state.
+
+Original NATIVE_BEACON_HOME_OK route completes all four physical Beacons,
+generation1/one reward receipt stable through actual primary-file baseline/
+paid/stable/home snapshots, Guided target/interceptor combat, strict occupied
+token-bound home docking, OFFLINE shutdown, physical exit and supported0.96943m
+walk. Input release and helper/game/Xvfb reap pass. Cleanup after supported walk
+is not normal UI quit qualification. Native GPU/Windows/human review, cold
+restart/endurance, return and other numeric travel limits remain open. This
+closes one numeric outbound child, not a parent outcome or full project.
+
+Raw logs/results/snapshots and acceptance notes retained at
+`/srv/mudds-work/beacon-outbound-limit-20261021/results/`. Three supervisors
+terminal,11 sampled owned identities absent;27 scratch entries byte/mode/archive
+verified then removed. Archive771bytes SHA256
+`fde5d1de5924705c4f4ae5f075ef467ede9ad4224393caed6e7e49aa4e9bc75d`.
+No new working branch/worktree; accepted history integrated/pushed in main.
+Eight protected detached registrations (three already-missing/tmp) and nine
+older unqualified candidate outcomes remain preserved, unclaimed.
