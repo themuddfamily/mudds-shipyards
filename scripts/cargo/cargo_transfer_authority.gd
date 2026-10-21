@@ -958,11 +958,14 @@ func _prune_disposed_entities() -> void:
 		var record := _records_by_manifest_id.get(manifest_id, {}) as Dictionary
 		var reference := record.get("entity") as WeakRef
 		var entity := reference.get_ref() as Node if reference != null else null
-		# A queued live owner still owes its ordered tree_exiting callbacks.
+		# A queued attached owner still owes its ordered tree_exiting callbacks.
 		# Custody reclamation runs there before ordinary retirement. Pruning it
 		# during process would discard its quantities before that handoff; gameplay
-		# already rejects queued owners through attached-handle validation.
-		if entity != null and (not entity.is_queued_for_deletion() or entity.is_inside_tree()):
+		# already rejects queued owners through attached-handle validation. A
+		# detached record has already consumed that callback and must still prune.
+		if entity != null and (not entity.is_queued_for_deletion() or (
+			entity.is_inside_tree() and bool(record.get("attached", false))
+		)):
 			continue
 		var manifest := record.get("manifest") as CargoManifest
 		var handle := _handle_for(manifest)
