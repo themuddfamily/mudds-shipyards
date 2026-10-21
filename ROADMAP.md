@@ -43,6 +43,24 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
+**One active outcome: PLAY-BEACON — repair the archived Home controller's alignment stall.**
+The exact original full Home caller now reaches four-beacon settlement, but stops
+before the RangeHeader crossing: its mouse corrections round to zero while the
+observed global pitch remains 0.537° outside the existing 0.5° readiness guard.
+Keep that guard, the header clearance, actual combat/home/exit requirements and
+original 300s deadline. Restore the full caller on current main, add fine mouse
+correction only at that stalled alignment, then prove the complete original route.
+No Popup instrumentation is part of the integrated repair. First new failure stops
+its attempt; no adjacent gameplay change or automatic retry is authorized by a pass.
+
+The preceding UI-BOARD-FOCUS capture is closed as **NOT_REPRODUCED**, not fixed.
+It used the original full Home driver/observer, not the shared entry substitute.
+Eight transition snapshots and all 55 actual Popup lifetimes show hidden menus,
+no TooltipPanel, and only the unchanged SceneTree root focus connection. The run
+fails at its original deadline on the now-identified controller stall. Source,
+logs and private package are retained; scratch and duplicate ELF are removed.
+[Exact result and remaining UI gap](docs/history/ROADMAP_DELIVERIES.md#original-beacon-home-caller--ui-nonreproduction-and-alignment-stall--2026-10-21).
+
 **Closed outcome: ACT-WRITE — Cinder saved unpaid payment retry — DONE.**
 Ordinary Start now retries the exact saved earned generation. The flight objective
 and activity board retain retry guidance during refused payment. After one
@@ -61,7 +79,7 @@ correction changes no exported runtime input and did not require identical build
 
 All 9 stage owners are terminal and 30 observed process identities absent. Owned
 scratch was archived, all 168 entries verified, then removed. No working branch
-or worktree was created. **No active successor task.**
+or worktree was created. This payment-retry outcome is closed.
 [Result and limits](docs/history/ROADMAP_DELIVERIES.md#cinder-saved-unpaid-payment--ordinary-start-retry--2026-10-21).
 The new Start/refused-write checks use a focused production fixture; no complete
 ordinary-input payment-outage journey or native Windows claim is made. Active

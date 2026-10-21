@@ -20222,3 +20222,57 @@ cargo access assertions have a separate missing-persistence fixture prerequisite
 they are not repaired or waived here. Active manifests, restock/repeats/Hauler,
 full activity recovery and all36 parent/ten phase gates remain open. CI stays off.
 No successor task started.
+
+
+## Original Beacon Home caller — UI nonreproduction and alignment stall — 2026-10-21
+
+UI-BOARD-FOCUS capture closed as NOT_REPRODUCED; no runtime repair or full journey
+acceptance. Detached diagnostic5f2cafb94 starts from exact archiveda612ea686,
+retaining its complete Home observer payload and byte-exact original driver
+SHA256 `de7e21fc5721e890a6f15c335d48bd7f4298e8464d358628b921e49a3466299c`.
+Only107 passive lines in the existing observer/HUD capture actual Popup creation,
+removal/exit and four synchronous activity page brackets, gated to beacon-home.
+No native connection mutation, synthetic popup, forced hover, gameplay change,
+clock, predicate, tolerance or input change. Independent source review GO.
+
+Check-only compile17.424s and clean pinned Linux export42.797s pass. Exactly one
+original full Home replay uses private Xvfb, explicit x11, Dummy audio/default
+sampler/dummy renderer, original300s independent deadline and330s outer cap.
+Eight transition records show55 actual hidden PopupMenus, no TooltipPanel and only
+unchanged valid SceneTree root focus binding. Both UI transitions pass; all four
+physical beacons settle and retain the paid file. Original UI errors do not recur.
+This supplies the missing original caller/payload context, not an inferred UI fix.
+
+Full route FAILS307.042s driver /307.304s owner interval (including cleanup) at the
+original independent deadline. First home clearance settles at frame2904; the
+RangeHeader crossing is never attempted because readiness remains false. Actual
+last frame14897/sequence14454 and11995 same-position samples prove a controller
+stall: global nose/target pitch difference0.5369725076° exceeds the required0.5°,
+while alignment0.9999554734>=0.9999 and speed0 pass. Rolled local yaw/pitch produce
+raw mouse corrections[-0.492121,+0.414621], both rounded to zero by gain0.15 at
+normal sensitivity0.0022. Ordinary brake stays held; thrust never becomes eligible.
+This is an external archived-controller defect, separately independently verified;
+it establishes no production UI cause. No header/combat/home/exit acceptance.
+
+All three owners terminal; all13 observed process identities absent. Source/cache
+unchanged in compile/route, export cache update explicitly allowed. All route
+input/helper/game/Xvfb cleanup flags true, diagnostic count0. Own37 scratch entries
+archived/reopened/verified before removal04:02:57UTC: profiles.tar.gz1203 bytes,
+SHA256 `a2941e216403e7c43b61fe6de7fb6fdd1be0633add6432afe7aaed5f8c098c3b`.
+Duplicate148902192-byte ELF removed after exact retained archive binary comparison;
+ELF SHA256 `26fb9444cd20689366b8a2f9ac1a04f55da89edc68fec9ea4c57a35e46e6a4a4`.
+Unique diagnostic commit survives in a verified incremental Git bundle and binary
+patch; failed full route, original sample/math and private diagnostic package remain
+under `/srv/mudds-work/board-focus-original-home-20261021/results/`.
+No working branch/worktree created; eight protected detached worktrees unchanged.
+Diagnostic source is unmerged. Public checkpoint7ecdfec and all broad/native/human
+limits remain unchanged. This is evidence changing the next action, not a product
+completion percentage.
+
+Next separately selected bounded capability: restore the original full Beacon Home
+caller on current main with a finer ordinary mouse correction when readiness is
+false and rounded corrections are zero. Preserve the original0.5°/0.9999 guards,
+header safety, combat/home/exit/payment checks and300s deadline. Add one focused
+regression from the actual rolled sample; run the complete original journey.
+No original UI diagnostic is filtered or waived, and no unchanged generic UI
+probe is selected.
