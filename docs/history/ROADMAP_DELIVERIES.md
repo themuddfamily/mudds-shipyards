@@ -20405,3 +20405,77 @@ lifecycle on current main with an existing real-ray combat test, then ensure the
 actual authority/adapter reaches its sole live health owner on activation/reuse.
 Preserve registration ownership, faction/occlusion, stale/inactive and all original
 encounter/weapon values. No passive observer instrumentation belongs in that repair.
+
+
+## Courier — late-authority damage adapter fixed; full home open — 2026-10-21
+
+Scoped production repair parent11, source431aae3fc, integrated caller/checkpoint
+4cfa417e158f168301089b02b416ac563a634dc3, merged and pushed to main. No new working
+branch or worktree. One bounded implementation and one independent high reviewer;
+no overlapping investigations or successor task. This closes damage admission,
+not the complete COURIER-CLEAR journey or original candidate inventory entry.
+
+Actual prior capture73da7f340 proves nine accepted/resolved real Courier body
+collisions return non_damageable_blocked, among14 actual emissions/resolutions;
+later weapon/engine component failures prevent firing/moving. Original archived
+cb9d76fa5 FAIL70.377s, its165.917s precheck cost and fresh capture FAIL70.465s remain
+retained. Staged Main adds Courier before CombatAuthority: its one-time ready
+proxy attempt sees no provider; later source registration did not attach a proxy.
+One line in ResolverBackedOpponent._register_combat_source now invokes the existing
+idempotent attachment after finding authority, before the already-registered return.
+Existing sole health ownership, factions, AI, damage, physics, timings, escape,
+source/target generation and replay fences are unchanged.
+
+RED8b7bf306a uses actual staged startup and a registered Torrent ray: exactly two
+expected missing-proxy/no-damage failures,84 other checks pass,34.384s. GREEN431aae
+passes all91 checks,34.488s: actual ray34 damage; one adapter through repeated
+registration/deactivate/Main re-entry/reactivate; no duplicate health reset,
+actual lethal damage and inactive protection; original combat fences pass.
+RED also exposed an existing destructive queued-target fixture freeing an authored
+range target, causing3-of4 warning on re-entry. That fixture now clones/configures
+one independent target and frees the clone; all four original targets survive.
+GREEN diagnostics0. This is test isolation, not a production count/tolerance change.
+
+Restored caller4cfa retains exact archived CourierPilot AST and receipt helpers;
+all prior route classes retain431aae AST. Current Beacon/Cinder/Arrow selectors
+and private X11/Dummy/single-selector privacy guards remain. No109-line passive
+fresh-shot diagnostic observer extension is merged. All110 Python tests pass
+10.532s; combined observer compile/privacy stage27.564s. Independent source GO.
+
+ONE unchanged original packaged full Courier run FAIL67.554s within original
+CAP300/outer330. Runner was genuinely CLEARED frame1674 after1.2166667 encounter
+seconds, escape_progress0.0131857286 (18.460m of1400m). Accepted/resolved lethal
+receipt source282763201172, target285682436929, generation1, sequence13, applied10,
+hull0. Defender remains active85 and player hull78 at that point. Player later
+first appears destroyed frame3139, hull0/OFFLINE/unseated; defender51. Assertion
+"live sortie" fails during interceptor stage, before home. Zero game diagnostics;
+inputs/helper/game/Xvfb cleanup true. No inferred lethal cause, aim/balance fix,
+normal UI quit/gameOS0, full-clear/home completion or unchanged retry. Independent
+actual-result GO only for the scoped runtime repair; full journey NO-GO/OPEN.
+The original20-candidate tally remains ten closed/ten unqualified.
+
+Fresh clean Linux export42.653s, Windows export10.460s. Direct Linux executable,
+extracted archive and Windows embedded data under pinned Linux editor each exit0
+with exactly one STARTUP_MENU_READY_OK (stage23.936/25.416/27.416s). All1525 actual
+PCK path/size/SHA256/PCK-MD5/flags match; Windows PE.text matches stock release
+code. Exact six Linux archive members, executable/icon/manager/desktop/bootstrap
+bytes, modes and source commit epoch verified. No unrelated validators added.
+
+| Checkpoint artifact | Bytes | SHA256 |
+| --- | --- | --- |
+| Windows EXE4cfa417 | 184697968 | bb257f94c6d0c5eaa89f38fa55650c088619f5335a14426e34c338571d520b1e |
+| Windows checkpoint ZIP | 103030168 | 2ff4f4f3d1170fcbaba4dd87c2acbebe7ac9396ae3155938115c33597c7fbc7a |
+| Linux ELF4cfa417 | 148939680 | 8e6a06a9b6ee64da6becc39efa03fb58ec2f94bb674745e15fd60b8a66e1259f |
+| Linux archive | 95352557 | 8e303f8b50a7473eb898fbc7eac5659ebe6072a3f016bfedfca1543d808cbc74 |
+
+EXE/ZIP/notes live in builds/windows; Linux companion in builds/linux. ZIP reopened
+and exactly EXE+notes byte-verified. Player notes distinguish the proven damage
+fix from failed full journey. Native Windows/GPU, devices, audible listening,
+human review and broader release gates remain NOT_RUN/open; CI stays disabled.
+
+All nine owned supervisors terminal and18 observed PID/start identities absent.
+All134 scratch entries archived then reopened/byte-mode-link verified before
+removal. Profile archive3284809 bytes SHA256
+ac3964d6c277db27cbeeea15336773ebf5026e1b0df311da8414f45078392fd8.
+Results retained at /srv/mudds-work/courier-damageable-activation-20261021/results/;
+all eight protected detached worktrees untouched. Main remains the sole live branch.
