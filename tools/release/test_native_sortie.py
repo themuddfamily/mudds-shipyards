@@ -30,6 +30,26 @@ class NativeSortieSafetyTests(unittest.TestCase):
                     'last_receipt': {'activity_id': 'cinder_kit_cargo_run', 'activity_generation': 1,
                                      'granted': True, 'replay_allowed': False}}}
 
+    def test_supply_authored_capture_admits_normal_landing_without_extra_stop(self):
+        for stage, expected in [('outbound', 'cargo_land'), ('gate_brake', 'cargo_redock'),
+                                ('gate_return', 'cargo_redock'), ('home_flight', 'home_land')]:
+            for accepted in (True, False):
+                with self.subTest(stage=stage, accepted=accepted):
+                    pilot = native.CinderSupplyPilot()
+                    pilot.stage = stage
+                    # Actual first accepted Cinder approach: speed34.9306 is
+                    # inside authored35, with1.618m root error and upright.638.
+                    s = {'frame': 5345, 'phase': 'FREE_FLIGHT', 'position': [31, -62.85, -740.382],
+                         'player': [31, -62, -740], 'ship_velocity': [0, 0, -34.9306],
+                         'camera': [31, -60, -730], 'right': [1, 0, 0], 'up': [0, .638, .77],
+                         'back': [0, -.77, .638], 'tuning': {'brake': 48, 'mouse': .0022},
+                         'cargo': {'available': True, 'capture': accepted, 'capture_position': [31, -62.85, -742]},
+                         'home': {'capture': accepted, 'capture_position': [31, -62.85, -742]}}
+                    pilot.last_state = s
+                    keys, _, _, _ = pilot.update(s, 1)
+                    self.assertEqual('l' in keys, accepted)
+                    self.assertEqual(pilot.stage, expected if accepted else stage)
+
     def test_supply_root_waypoint_aim_ignores_displaced_chase_camera(self):
         pilot = native.CinderSupplyPilot()
         # Actual failed observation's root/camera displacement. Align the hull

@@ -4105,7 +4105,7 @@ class CinderSupplyPilot(BeaconEntryPilot):
             # as soon as the production distance policy commits Cinder.
             target = c['capture_position'] if c['available'] else s['outbound_target']
             dx, dy, _ = self.flight(s, target, keys)
-            if c['available'] and c['capture'] and speed <= .5:
+            if c['available'] and c['capture']:
                 self.request('l', 'cargo_land', s, now)
         elif self.stage in ('cargo_land', 'cargo_redock'):
             require(now-self.stage_since <= 120, 'physical Cinder landing120 seconds')
@@ -4134,13 +4134,13 @@ class CinderSupplyPilot(BeaconEntryPilot):
                 self.enter('gate_brake', s)
         elif self.stage == 'gate_brake':
             keys.add('Prior')
-            if c['capture'] and speed <= .5:
+            if c['capture']:
                 self.request('l', 'cargo_redock', s, now)
             elif speed <= .5:
                 self.enter('gate_return', s)
         elif self.stage == 'gate_return':
             dx, dy, _ = self.flight(s, c['capture_position'], keys)
-            if c['capture'] and speed <= .5: self.request('l', 'cargo_redock', s, now)
+            if c['capture']: self.request('l', 'cargo_redock', s, now)
         elif self.stage == 'cargo_shutdown':
             require(c['activity']['next_phase_index'] == 3 and c['lease'] and c['contract'], 'dock_platform consumes exact real re-occupancy')
             if s['engine'] == 'OFFLINE': self.request('e', 'cargo_exit', s, now)
@@ -4201,7 +4201,7 @@ class CinderSupplyPilot(BeaconEntryPilot):
             dx, dy = self.clearance_flight(s, keys, reverse=True)
         elif self.stage == 'home_flight':
             dx, dy, _ = self.flight(s, s['home']['capture_position'], keys)
-            if s['home']['capture'] and speed <= .5: self.request('l', 'home_land', s, now)
+            if s['home']['capture']: self.request('l', 'home_land', s, now)
         elif self.stage == 'home_land':
             require(now-self.stage_since <= 120, 'normal home landing120 seconds')
             if (s['landed'] and s['phase'] == 'SHUT_DOWN' and s['home']['lease'] and s['home']['contract']
