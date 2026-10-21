@@ -21265,3 +21265,43 @@ byte/mode/archive verified and removed. Profiles3,270,071bytes SHA256
 Accepted history integrated/pushed in main; no new working branch/worktree.
 Eight protected detached registrations/nine older unqualified outcomes remain
 preserved, including the three already-missing/tmp registrations.
+
+## Remaining browser and Defense reopening review — 2026-10-21
+
+After the five owner decisions and Bomber presentation repair were delivered,
+read-only selection returned to the nine retained unqualified outcomes. This is
+not another completed gameplay feature, engine retry or project-progress count.
+One bounded mapper checked browser templates/archive/command; one independent
+reviewer checked Defense's original timing/full contract. No edits/engines by
+agents, new branch/worktree/scratch or duplicated qualification artifacts.
+
+Browser's current official stock4.7.1 templates do not meet its required custom
+RPC-cache-patched Windows/Linux pair. Root verified stock Linux SHA256
+2cb27aee3f7fdf763d0ae16972f6975606959a071f4cd33f6ef1429eb8385049 and Windows
+76269a403bb832599edeee4432a5b7a7e88c018eb5c9c798dfd8289359b0ec07.
+Diagnostic archive783c8c87206a52928641dd887f9a34e02caaf246 and prepared acceptance
+e5b9dd25f82c9a34bf3982ea1a57f82a87b2a4be remain exact. Patched Windows build
+missing after retained3600/480s attempts; no third compile or unchanged retry.
+Original300s timeout→Retry/admission→Disconnect→fresh Cancel→Resume/walk→normal
+quit remains required; accepted JSON fixture is not native callback repair.
+
+Defense archived caller0b11486e0 full contract remains physical Deploy→Arrow
+boarding/departure→four actual kills/three waves→one durable payment→strict home/
+OFFLINE supported exit→physical Reset/next Deploy→normal UI exit0, CAP300/outer360.
+Deploy1144→boardpress2322 is19.633s, seated2471 adds2.483s, firsthit2783 adds5.2s,
+firstkill2944 adds2.683s (~30s total); remaining authored lulls2.5+8s exceed the
+34s board-start clock. This trajectory cannot finish; it does not prove every
+possible plan impossible. Current Courier/readiness changes do not establish a
+feasible complete Defense plan or justify an unchanged attempt.
+
+Owner asked whether Deploy arms and actual launch starts enemies/34s, or current
+immediate Deploy start remains. Answer pending; no inferred approval/default.
+If launch-start chosen, exact seam is one current-generation/content/player arm
+consumed at real live-pilot not-landed authoritative berth release, not engine
+wake or a historical departure flag. Preserve existing host/activity start,
+34s/wave lulls, full journey and caps. Focused gates must cover inactive armed
+dwell/boarding/enginewake, actual once-only launch, stale/foreign/failed release,
+physical cancellation/Main exit and coldload unarmed without a new save schema;
+pending rewards retain admission protection. No implementation selected before
+owner answer. UI original popup/removal evidence and other retained blockers
+remain unchanged. Main/source/checkpoint255f8df and broader gates unchanged.

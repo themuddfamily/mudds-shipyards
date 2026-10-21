@@ -41,6 +41,19 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
+**Next: Defense clock decision pending; no engine retry selected.**
+Read-only review on2026-10-21 confirms current stock4.7.1 templates do not
+satisfy Browser's required RPC-cache-patched Windows/Linux pair. The patched
+Windows build is still missing; no third compilation or unchanged route retry.
+Defense's retained original route reaches the first kill at about30s of34s,
+with10.5s mandatory lulls remaining. Courier readiness/damage improvements do
+not establish a complete feasible Defense plan. Owner has been asked whether
+Deploy arms the encounter for actual launch, or preserves immediate board-start.
+Current board-start rule remains until answered. If launch-start is chosen,
+consume one fenced arm only at actual live-pilot departure/accepted berth release;
+preserve34s, four kills, payment, home, physical Reset/next Deploy/UI exit and
+original300/360s caps. No gameplay change/engine/new scratch for this review.
+
 **BOMBER-REBOARD-PRESENTATION completed255f8df2b; checkpoint255f8df.**
 Actual refill qualification exposed a detached visual pool after seat retake.
 Successful payload-session starts now reactivate it; rejected starts preserve
@@ -80,7 +93,7 @@ these six problems. Archival and branch deletion do not complete these outcomes.
 
 | Existing problem (candidate count) | What remains before completion |
 | --- | --- |
-| Browser/network timeout (2) | Obtain matching Windows/Linux templates and pass the original complete timeout/retry journey. Windows compilation exhausted its previous budgets; callback cause/repair remains unverified. |
+| Browser/network timeout (2) | Obtain matching RPC-cache-patched Windows/Linux templates and pass the original complete timeout/retry journey. Current stock4.7.1 pair does not satisfy this dependency; patched Windows compilation exhausted its previous budgets. Callback cause/repair remains unverified. |
 | UI transition, Mining and Observation (3) | Identify the original popup/connection-removal failure, prove a repair against that event, and finish the full Mining and Observation journeys. Later clean Beacon/tooltip runs did not establish a UI fix. |
 | Defense (1) | Finish all four kills, payment, home, Reset and next Deploy. The last first kill took about30s of the34s encounter, with10.5s mandatory wave delays remaining; a feasible ordinary plan or an explicit clock-owner decision is needed. |
 | Hulk revisit (1) | Complete physical revisit and once-only breaker/cell/reward within the original300s. Last capture showed continuing supported movement; stage costs remain unlocalized. |
