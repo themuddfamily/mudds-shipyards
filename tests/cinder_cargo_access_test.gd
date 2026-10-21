@@ -18,6 +18,7 @@ const FLEET_BINDING := preload("res://scripts/world/fleet_expansion_production_b
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
 const GAME_FLOW_SCRIPT := preload("res://scripts/game/game_flow.gd")
 const USER_DATA_STORE_SCRIPT := preload("res://scripts/persistence/user_data_store.gd")
+const CARGO_ROUNDTRIP_TEST := preload("res://tests/cinder_cargo_delivery_persistence_roundtrip_test.gd")
 
 const EXPECTED_APPROACH_WORLD := Vector3(60.0, -65.35, -684.9)
 const PLAYER_ROUTE_TOLERANCE := 0.62
@@ -40,27 +41,24 @@ class CargoWorldProbe extends Node3D:
 class CargoRewardAuthorityProbe extends RefCounted:
 	var accept := false
 	var requests: Array[Dictionary] = []
-	var _committed_receipts: Array[Dictionary] = []
+	var authority := GameFlowRewardAuthority.new()
+
+	func configure(store: UserDataStore) -> Dictionary:
+		return authority.configure(store)
 
 	func commit(request: Dictionary) -> Dictionary:
 		requests.append(request.duplicate(true))
 		if not accept:
 			return {"accepted": false, "reason": &"simulated_store_rejection"}
-		var receipt := {"receipt_id": requests.size()}
-		_committed_receipts.append(receipt)
-		return {
-			"accepted": true,
-			"reason": &"reward_receipt_committed",
-			"receipt": receipt,
-		}.duplicate(true)
+		# Exercise the existing durable payment consumer, including its earned
+		# cargo debt acknowledgement; the wrapper only rejects the first attempt.
+		return authority.commit(request)
+
+	func get_cinder_cargo_paid_generation_floor() -> int:
+		return authority.get_cinder_cargo_paid_generation_floor()
 
 	func get_snapshot() -> Dictionary:
-		return {
-			"record": {
-				"total_receipts": _committed_receipts.size(),
-				"last_receipt": _committed_receipts[-1] if not _committed_receipts.is_empty() else {},
-			},
-		}.duplicate(true)
+		return authority.get_snapshot()
 
 
 func _init() -> void:
@@ -952,12 +950,18 @@ func _test_embodied_bidirectional_route(
 	flow.world = route_world
 	flow.player = player
 	flow.active_ship = ship
+	var store := USER_DATA_STORE_SCRIPT.new(
+		"memory://cinder-cargo-game-flow-reward.json", CARGO_ROUNDTRIP_TEST.MemoryFilesystem.new()
+	) as UserDataStore
+	var loaded_store := store.load()
 	var reward_authority := CargoRewardAuthorityProbe.new()
+	var reward_owner_configured := reward_authority.configure(store)
 	flow.set("_game_flow_reward_authority", reward_authority)
-	flow.set(
-		"_runtime_settings_user_data_store",
-		USER_DATA_STORE_SCRIPT.new("memory://cinder-cargo-game-flow-reward.json"),
-	)
+	flow.set("_runtime_settings_user_data_store", store)
+	flow.set("_runtime_settings_persistence_injected", true)
+	_check(loaded_store.accepted and reward_owner_configured.accepted
+		and flow.bind_cinder_cargo_delivery_persistence(binding).accepted,
+		"physical cargo fixture binds the loaded existing store and real earned-debt payment consumer")
 	var attachment_generation := access.get_attachment_generation()
 	var wrong_craft := Node3D.new()
 	root.add_child(wrong_craft)
@@ -1134,6 +1138,8 @@ func _test_embodied_bidirectional_route(
 		and not bool(reward_replay.accepted) and reward_replay.reason == &"reward_already_consumed"
 		and reward_authority.requests.size() == 2
 		and int(reward_authority.get_snapshot().record.total_receipts) == 1
+		and bool(store.get_snapshot().cinder_cargo_delivery.delivery.reward_receipt.granted)
+		and int(store.get_snapshot().cinder_cargo_delivery.delivery.generation) == cargo_generation
 		and StringName(reward_authority.requests[-1].activity_id) == &"cinder_kit_cargo_run"
 		and reset_completed.accepted
 		and authority.get_quantity(source_handle, &"cinder_supply_crates") == source_before - 1
@@ -1274,14 +1280,19 @@ func _test_detach_reentry(
 	var released_presentation := access.get_cargo_presentation_state()
 	_check(
 		binding.get_cargo_source_handle().is_empty()
-		and (released_binding.cargo as Dictionary).is_empty()
+		and binding.get("_cargo_activity") == null
+		and bool((released_binding.cargo as Dictionary).get("delivery_persisted", false))
+		and bool(released_binding.cargo.delivery_receipt.reward_receipt.granted)
+		and not bool((released_binding.cargo as Dictionary).get("receipt_replay_allowed", true))
+		and ((released_binding.cargo as Dictionary).get("accepted_receipt", {}) as Dictionary).is_empty()
 		and int(released_binding.cargo_binding.source_entity_instance_id) == 0
 		and (released_binding.cargo_binding.source_handle as Dictionary).is_empty()
-		and StringName(released_presentation.state_id) == &"unavailable"
+		and access.validate_terminal_actor(null, ship, access.get_attachment_generation()).reason == &"wrong_terminal_craft"
+		and StringName(released_presentation.state_id) == &"committed"
 		and String(released_presentation.label_text).contains(
-			"CINDER CARGO — BERTH REQUIRED"
+			"CINDER CARGO — TRANSFER COMMITTED"
 		),
-		"ordinary null berth release synchronously clears source handle, activity, actor, and cargo status"
+		"ordinary null berth release clears live source, activity and actor while retaining only the paid non-replayable terminal summary"
 	)
 	# Keep the released craft alive to prove replacement admission does not rely
 	# on queue_free or an external manifest-retirement request.
@@ -1327,8 +1338,11 @@ func _test_detach_reentry(
 		access.get_berth().release(replacement, token)
 		and binding.get_cargo_source_handle().is_empty()
 		and int(binding.get_snapshot().cargo_binding.source_entity_instance_id) == 0
-		and StringName(access.get_cargo_presentation_state().state_id) == &"unavailable",
-		"replacement release repeats the synchronous source and status clear"
+		and binding.get("_cargo_activity") == null
+		and StringName(access.get_cargo_presentation_state().state_id) == &"committed"
+		and bool((binding.get_snapshot().cargo as Dictionary).get("delivery_persisted", false))
+		and not bool((binding.get_snapshot().cargo as Dictionary).get("receipt_replay_allowed", true)),
+		"replacement release repeats live-source clearing while preserving the paid non-replayable terminal summary"
 	)
 	ship.queue_free()
 	replacement.queue_free()
