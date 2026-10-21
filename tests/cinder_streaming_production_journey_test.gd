@@ -142,13 +142,34 @@ func _run_cargo_walking_recall() -> void:
 	var structure := access.get_node(^"Structure")
 	var deck := access.to_global(CinderCargoAccess.BERTH_EXIT_LOCAL)
 	var terminal_floor := access.to_global(CinderCargoAccess.DESTINATION_TERMINAL_PLAYER_APPROACH_LOCAL)
+	# Keep the actual docked hull beside the exit: the native floor-flag
+	# transient occurs during ordinary walking beside this physical Jovian.
+	game.call(&"_release_ship_berth", ship)
+	game.set("_piloting", true)
+	game.set("_sortie_departed_berth", true)
+	game.phase = GameFlow.Phase.FREE_FLIGHT
+	_cargo_landing_stage_capture(ship, access.get_berth())
+	game.call(&"_try_request_landing")
+	var landing_deadline := Time.get_ticks_msec() + 120000
+	while ship.is_landing_active() and Time.get_ticks_msec() < landing_deadline:
+		await physics_frame
+		await process_frame
+	var dock_report := ship.get_landing_contract_report()
+	var docked: bool = (bool(ship.get_telemetry().get("landed", false))
+		and bool(dock_report.get("strict_dock_acceptance", false))
+		and access.get_berth().get_occupant() == ship
+		and game.phase == GameFlow.Phase.SHUT_DOWN)
+	_check(docked, "walking recall fixture docks the real Jovian through normal GameFlow landing and actual physics")
+	if not docked:
+		await _cleanup(game)
+		return
 	ship.set_piloted(false)
 	game.set("_piloting", false)
 	game.phase = GameFlow.Phase.APPROACH_SHIP
 	var player_id := player.get_instance_id()
 	for point: Vector3 in [deck, terminal_floor]:
 		var settled: bool = await _cargo_recall_stage_player(game, player, point, true)
-		var support := _cargo_recall_support(player)
+		var support := _cargo_recall_support(player, access)
 		_check(settled and player.is_on_floor() and is_instance_valid(support)
 			and structure.is_ancestor_of(support) and world.to_local(player.global_position).y < -24.0,
 			"actual original Player physics establishes current Cinder Structure floor below yard recall boundary")
@@ -167,11 +188,33 @@ func _run_cargo_walking_recall() -> void:
 			await _cleanup(game)
 			return
 
+	await _cargo_recall_stage_player(game, player, deck, true)
+	game.set_process(true)
+	var walking: Dictionary = await _cargo_recall_walk_route(access, player)
+	print("CINDER_CARGO_WALKING_TRANSIENT: ", walking)
+	_check(bool(walking.get("reached", false)) and bool(walking.get("supported_floor_transient", false)) and bool(walking.get("airborne_without_support", false)),
+		"actual Main preserves complete Cinder out-and-back walking, including physical airborne descent and supported arrivals")
+	if not bool(walking.get("reached", false)) or not bool(walking.get("supported_floor_transient", false)) or not bool(walking.get("airborne_without_support", false)):
+		await _cleanup(game)
+		return
+
+	# A loaded sector does not exempt an actor outside the actual walkable
+	# footprint, even at the same height as its deck.
+	await _cargo_recall_stage_player(game, player, deck + Vector3(50.0, 0.0, 0.0), false)
+	_check(not bool(game.call(&"_is_player_within_current_cinder_recall_region")),
+		"a loaded Cinder sector grants no protection outside its walking footprint")
+	game.set_process(true)
+	await process_frame
+	await process_frame
+	_check(player.global_position.distance_to(world.get_player_spawn().origin) < 0.20,
+		"falling outside the current cargo footprint still recalls to the yard")
+	await _cargo_recall_stage_player(game, player, deck, true)
+
 	# A supported actor outside this Main is not the current local Player.
 	game.set_process(false)
 	var player_owner := player.owner
 	player.reparent(root)
-	_check(not bool(game.call(&"_is_player_supported_by_current_cinder_access")),
+	_check(not bool(game.call(&"_is_player_within_current_cinder_recall_region")),
 		"a detached Player cannot inherit the current Cinder support exemption")
 	player.reparent(game)
 	player.owner = player_owner
@@ -219,6 +262,127 @@ func _run_cargo_walking_recall() -> void:
 	await _cleanup(game)
 
 
+## Same production movement actions as the access walking fixture, dispatched
+## as real input events. The docked hull, Player and recall guard keep ticking;
+## no pose, velocity, floor flag or authority is written during the segment.
+func _cargo_recall_walk_route(access: CinderCargoAccess, player: PlayerController) -> Dictionary:
+	# A marker at a tread boundary shares the capsule's arrival footprint with
+	# the next authored step. Admit only one actual solver step plus its margin.
+	var arrival_height := float(player.get_step_up_assist_audit().get("max_step_height", 0.0)) + player.safe_margin
+	var local_points := access.get_route_local_points()
+	var targets: Array[Vector3] = []
+	for point: Vector3 in local_points:
+		targets.append(access.to_global(point))
+	for index in range(local_points.size() - 1, -1, -1):
+		targets.append(access.to_global(local_points[index]))
+	var structure := access.get_node(^"Structure")
+	var yaw := player.get_node(^"%CameraYaw") as Node3D
+	var transient := false
+	var airborne_without_support := false
+	var maximum_step := 0.0
+	var previous := player.global_position
+	var previous_tick := Engine.get_physics_frames()
+	var first_transient: Dictionary = {}
+	var visited: Array[Dictionary] = []
+	var failure: Dictionary = {}
+	for index in targets.size():
+		var target := targets[index]
+		var reached := false
+		for _frame in 210:
+			var remaining_offset := (target - player.global_position).slide(Vector3.UP)
+			var distance := remaining_offset.length()
+			var speed := player.velocity.slide(Vector3.UP).length()
+			var commanded := player.sprint_speed if distance > 3.0 else player.walk_speed
+			var stopping := speed * speed / (2.0 * player.ground_deceleration) \
+				+ maxf(speed, commanded) / 60.0 + 0.10
+			var moving: bool = distance > 0.30 and (speed <= 0.35 or distance > stopping)
+			var desired := remaining_offset.normalized() if moving else Vector3.ZERO
+			var forward := (-yaw.global_basis.z).slide(Vector3.UP).normalized()
+			var right := forward.cross(Vector3.UP).normalized()
+			var sideways := desired.dot(right)
+			var ahead := desired.dot(forward)
+			_cargo_recall_walk_action(&"move_left", maxf(-sideways, 0.0))
+			_cargo_recall_walk_action(&"move_right", maxf(sideways, 0.0))
+			_cargo_recall_walk_action(&"move_back", maxf(-ahead, 0.0))
+			_cargo_recall_walk_action(&"move_forward", maxf(ahead, 0.0))
+			_cargo_recall_walk_action(&"sprint_boost", 1.0 if moving and distance > 3.0 else 0.0)
+			Input.flush_buffered_events()
+			await physics_frame
+			await process_frame
+			var step := player.global_position.distance_to(previous)
+			maximum_step = maxf(maximum_step, step)
+			var elapsed_ticks := maxi(1, Engine.get_physics_frames() - previous_tick)
+			previous_tick = Engine.get_physics_frames()
+			var motion: Dictionary = player.get_step_up_assist_audit().get("completed_motion", {})
+			var support := _cargo_recall_support(player, access)
+			var supported: bool = is_instance_valid(support) and structure.is_ancestor_of(support)
+			var sample := {"direction": "outbound" if index < local_points.size() else "reverse",
+				"index": index if index < local_points.size() else targets.size() - 1 - index,
+				"target": target, "actual": player.global_position, "step": step,
+				"floor": player.is_on_floor(), "support": str(support.get_path()) if is_instance_valid(support) else "",
+				"completed_motion": motion}
+			if step > 9.2 * float(elapsed_ticks) / 60.0 * 1.25 + 0.02:
+				var event: Dictionary = motion.get("step_up", {})
+				var bounds: Dictionary = event.get("bounds", {})
+				var offset := player.global_position - previous
+				var intended: Vector3 = event.get("intended", Vector3.ZERO)
+				var completed_step: bool = (not event.is_empty()
+					and int(event.get("frame", -1)) == int(motion.get("frame", -2))
+					and Engine.get_physics_frames() - int(event.get("frame", -3)) in [0, 1]
+					and int(event.get("player_id", 0)) == player.get_instance_id()
+					and event.get("start") == motion.get("start") and motion.get("start") == previous
+					and event.get("landing") == motion.get("end") and motion.get("end") == player.global_position
+					and offset.y > 0.0 and offset.y <= 0.301
+					and offset.slide(Vector3.UP).length() <= float(bounds.get("probe_reach", 0.0)) + float(bounds.get("min_advance", 0.0))
+					and offset.slide(Vector3.UP).dot(intended) > 0.0)
+				if not completed_step:
+					failure = sample
+					failure["reason"] = &"motion_limit_without_completed_step"
+					break
+			# Descending a real tread can be briefly airborne. Main must allow
+			# that motion; each arrival still requires fresh physical support.
+			if not player.is_on_floor() and not supported:
+				airborne_without_support = true
+			previous = player.global_position
+			if not player.is_on_floor():
+				transient = true
+				if first_transient.is_empty():
+					first_transient = {"frame": Engine.get_physics_frames(), "position": player.global_position,
+						"support": str(support.get_path()) if is_instance_valid(support) else "", "velocity": player.velocity}
+			if (target - player.global_position).slide(Vector3.UP).length() <= 0.30 \
+					and absf(target.y - player.global_position.y) <= arrival_height \
+					and player.velocity.slide(Vector3.UP).length() <= 0.35 and player.is_on_floor() and supported:
+				reached = true
+				visited.append(sample)
+				break
+			if _frame == 209:
+				failure = sample
+				failure["reason"] = &"waypoint_deadline"
+		for action: StringName in [&"move_left", &"move_right", &"move_back", &"move_forward", &"sprint_boost"]:
+			_cargo_recall_walk_action(action, 0.0)
+		Input.flush_buffered_events()
+		await physics_frame
+		await process_frame
+		if not reached:
+			break
+		# The neutral release above is another real completed physics tick;
+		# keep the next step event adjacent to its actual starting body pose.
+		previous = player.global_position
+		previous_tick = Engine.get_physics_frames()
+	return {"reached": visited.size() == targets.size(), "supported_floor_transient": transient,
+		"airborne_without_support": airborne_without_support,
+		"first_transient": first_transient, "visited": visited, "failure": failure,
+		"actual": player.global_position, "maximum_step": maximum_step}
+
+
+func _cargo_recall_walk_action(action: StringName, strength: float) -> void:
+	var event := InputEventAction.new()
+	event.action = action
+	event.pressed = strength > 0.02
+	event.strength = strength if event.pressed else 0.0
+	Input.parse_input_event(event)
+
+
 func _cargo_recall_stage_player(game: GameFlow, player: PlayerController,
 	point: Vector3, require_floor: bool) -> bool:
 	game.set_process(false)
@@ -232,11 +396,31 @@ func _cargo_recall_stage_player(game: GameFlow, player: PlayerController,
 	return not require_floor
 
 
-func _cargo_recall_support(player: PlayerController) -> Node:
-	var ray := PhysicsRayQueryParameters3D.create(player.global_position + Vector3.UP * 0.2,
-		player.global_position - Vector3.UP * 0.3, player.collision_mask, [player.get_rid()])
-	var hit := player.get_world_3d().direct_space_state.intersect_ray(ray)
-	return hit.get("collider") as Node
+func _cargo_recall_support(player: PlayerController, access: CinderCargoAccess) -> Node:
+	var excluded: Array[RID] = []
+	var berth := access.get_berth()
+	var occupant := berth.get_occupant() as HeroShip
+	if is_instance_valid(occupant) and occupant.is_inside_tree() \
+			and not occupant.is_queued_for_deletion() and player.get_parent().is_ancestor_of(occupant) \
+			and berth.get_reservation_owner() == occupant:
+		excluded.append(occupant.get_rid())
+	var structure := access.get_node(^"Structure")
+	var parameters := PhysicsTestMotionParameters3D.new()
+	parameters.from = player.global_transform
+	parameters.motion = Vector3.DOWN * player.floor_snap_length
+	parameters.margin = player.safe_margin
+	parameters.recovery_as_collision = true
+	parameters.max_collisions = 32
+	parameters.exclude_bodies = excluded
+	var result := PhysicsTestMotionResult3D.new()
+	PhysicsServer3D.body_test_motion(player.get_rid(), parameters, result)
+	for index in result.get_collision_count():
+		var collider := result.get_collider(index) as Node
+		if is_instance_valid(collider) and collider.is_inside_tree() \
+				and not collider.is_queued_for_deletion() and structure.is_ancestor_of(collider) \
+				and result.get_collision_normal(index).dot(Vector3.UP) >= cos(player.floor_max_angle):
+			return collider
+	return null
 
 
 ## Focused Main regression, not an ordinary outbound journey: only the initial

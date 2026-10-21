@@ -4561,19 +4561,17 @@ func _process(delta: float) -> void:
 			and not _transition_busy
 			and phase != Phase.IN_FLIGHT_CABIN
 			and not player.is_cabin_containment_active()
-			and not _is_player_supported_by_current_cinder_access()
+			and not _is_player_within_current_cinder_recall_region()
 		):
 			player.teleport_to(world.get_player_spawn())
 			hud.toast("Regeneration safety recall", "Returned to the central junction", 2.0)
 
 
-## Cinder's authored access floors lie below the yard's fall boundary. Only a
-## current physical floor can suppress recall; a loaded sector or retained
-## terminal authorization alone must never protect an unsupported fall.
-func _is_player_supported_by_current_cinder_access() -> bool:
+## Cinder lies below the yard's recall plane. Its live authored walking region
+## has its own bounded fall backstop, including short airborne stair motion.
+func _is_player_within_current_cinder_recall_region() -> bool:
 	if not is_instance_valid(player) or not player.is_inside_tree() \
-			or player.is_queued_for_deletion() or get_node_or_null(^"Player") != player \
-			or not player.is_on_floor():
+			or player.is_queued_for_deletion() or get_node_or_null(^"Player") != player:
 		return false
 	var berth: ShipBerth = _get_current_cinder_cargo_berth()
 	if berth == null:
@@ -4581,20 +4579,15 @@ func _is_player_supported_by_current_cinder_access() -> bool:
 	var access: CinderCargoAccess = berth.get_parent() as CinderCargoAccess
 	var structure: Node = access.get_node_or_null(^"Structure")
 	if not is_instance_valid(structure) or not structure.is_inside_tree() \
-			or structure.is_queued_for_deletion():
+			or structure.is_queued_for_deletion() or structure.get_parent() != access:
 		return false
-	var ray := PhysicsRayQueryParameters3D.create(
-		player.global_position + Vector3.UP * 0.2,
-		player.global_position - Vector3.UP * 0.3,
-		player.collision_mask,
-		[player.get_rid()],
-	)
-	var hit: Dictionary = player.get_world_3d().direct_space_state.intersect_ray(ray)
-	var collider: Node = hit.get("collider") as Node
-	var normal: Vector3 = hit.get("normal", Vector3.ZERO)
-	return is_instance_valid(collider) and collider.is_inside_tree() \
-		and not collider.is_queued_for_deletion() and structure.is_ancestor_of(collider) \
-		and normal.dot(Vector3.UP) >= cos(player.floor_max_angle)
+	var collision: CollisionShape3D = player.get_node_or_null(^"PlayerCollision") as CollisionShape3D
+	if not is_instance_valid(collision) or not collision.is_inside_tree() \
+			or collision.is_queued_for_deletion() or collision.disabled:
+		return false
+	var capsule: CapsuleShape3D = collision.shape as CapsuleShape3D
+	return capsule != null and access.contains_walking_recall_position(
+		player.global_position, capsule.radius, capsule.height, player.floor_snap_length)
 
 
 func _update_debug_overlay() -> void:

@@ -110,6 +110,12 @@ const ROUTE_LOCAL_POINTS: Array[Vector3] = [
 	Vector3(-2.4, CATWALK_TOP, 16.7),
 	DESTINATION_TERMINAL_PLAYER_APPROACH_LOCAL,
 ]
+const WALKING_FLOOR_NAMES: Array[StringName] = [
+	&"LandingDeck", &"ConnectorStep1", &"ConnectorStep2", &"ConnectorStep3",
+	&"RiseCatwalk", &"CrossCatwalk", &"TerminalHandoff",
+	&"TerminalApproachStep1", &"TerminalApproachStep2", &"TerminalApproachStep3",
+	&"TerminalApproachPlatform",
+]
 
 const LOCAL_BUDGET := {
 	"ship_berths": 1,
@@ -473,6 +479,49 @@ func validate_terminal_actor(
 
 func get_route_local_points() -> PackedVector3Array:
 	return PackedVector3Array(ROUTE_LOCAL_POINTS)
+
+
+## Location-relative fall backstop, not a claim that the avatar is grounded.
+## Keep short airborne stair motion over the actual authored floor footprints;
+## a fall beyond one body height plus its snap reach still leaves this region.
+func contains_walking_recall_position(
+		world_position: Vector3, capsule_radius: float, capsule_height: float,
+		snap_length: float
+	) -> bool:
+	if not is_inside_tree() or is_queued_for_deletion() or not world_position.is_finite() \
+			or not is_finite(capsule_radius) or capsule_radius <= 0.0 \
+			or not is_finite(capsule_height) or capsule_height < capsule_radius * 2.0 \
+			or not is_finite(snap_length) or snap_length < 0.0:
+		return false
+	var structure: Node3D = get_node_or_null(^"Structure") as Node3D
+	if not is_instance_valid(structure) or not structure.is_inside_tree() \
+			or structure.is_queued_for_deletion() or structure.get_parent() != self:
+		return false
+	var local_position := to_local(world_position)
+	var vertical_reach := capsule_height + snap_length
+	if not local_position.is_finite() \
+			or local_position.y < LANDING_DECK_TOP - vertical_reach \
+			or local_position.y > DESTINATION_TERMINAL_PLAYER_APPROACH_LOCAL.y + vertical_reach:
+		return false
+	for floor_name: StringName in WALKING_FLOOR_NAMES:
+		var floor_body: StaticBody3D = structure.get_node_or_null(NodePath(floor_name)) as StaticBody3D
+		if not is_instance_valid(floor_body) or not floor_body.is_inside_tree() \
+				or floor_body.is_queued_for_deletion() or floor_body.get_parent() != structure:
+			continue
+		var collision: CollisionShape3D = floor_body.get_node_or_null(^"Collision") as CollisionShape3D
+		if not is_instance_valid(collision) or not collision.is_inside_tree() \
+				or collision.is_queued_for_deletion() or collision.disabled:
+			continue
+		var box: BoxShape3D = collision.shape as BoxShape3D
+		if box == null:
+			continue
+		var floor_position := collision.to_local(world_position)
+		var half_size := box.size * 0.5
+		if floor_position.is_finite() and half_size.is_finite() \
+				and absf(floor_position.x) <= half_size.x + capsule_radius \
+				and absf(floor_position.z) <= half_size.z + capsule_radius:
+			return true
+	return false
 
 
 func get_route_marker(route_id: StringName) -> Marker3D:
