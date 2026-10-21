@@ -20159,3 +20159,66 @@ parents and ten phase gates remain open. Native Windows execution/GPU, physical
 devices, audible listening, human review and final release NOT_RUN. Silent X11
 ordinary-input qualification is not native hardware qualification. Hosted CI
 remains disabled. No successor task is selected by this closeout.
+
+
+## Cinder saved unpaid payment — ordinary Start retry — 2026-10-21
+
+ACT-WRITE, parents13/31: one bounded runtime/UI defect closes. A durable completed
+delivery already exposed reward_retry_available, but GameFlow treated every
+persisted completion as paid. Ordinary Start tried another run and returned
+cargo_reward_pending; the flight objective hid pending guidance, and presenter
+copy preferred the saved receipt. Runtime7ecdfec5c accepts completed saved debt
+through the existing exact-generation reward handoff and prioritizes pending
+retry guidance. It changes no inventory, entitlement, clock, ledger, persistence
+schema or authority owner.
+
+The existing persistence roundtrip was extended, not copied. Causal old-runtime
+RED71.613s has four new consumer failures while all three original actual-file
+children pass. Source GREEN71.933s passes27 assertions plus all three children.
+The focused production GameFlow/binding/persistence/authority fixture refuses only
+reward writes after saving the genuine completion. Start reaches that refusal,
+then pays once when healthy; pending flight/actual board guidance, paid receipt,
+stock3/1, one transfer, exact debt generation, proof, foreign data, stale and
+replay refusals remain checked. This fixture is not a complete ordinary-input
+fault journey.
+
+Initial packaged run fails16.812s before its first child script: embedded res root
+is empty and consumed engine arguments cannot recover main-pack. Failure retained.
+External test-only2461d5eee explicitly passes project/package context; exported
+runtime inputs are identical to7ecdfec (the external test is excluded from PCK).
+Corrected exact-Windows-game-data run PASS49.849s:27 assertions, distinct earn/pay/
+paid children all load that same Windows main-pack, Dummy audio, OS0/reaped.
+Retained actual files independently reviewed: unpaid documentgeneration2/debt1,
+paid document3/same debt1/one credit, paid cold reload exactly unchanged; transfer
+proof and foreign payload equal throughout. Independent final scoped review GO.
+
+Fresh clean-source7ecdfec Linux/Windows exports PASS26.636/10.504s. Strict direct
+Linux, Windows-payload-under-Linux and extracted-archive startups each OS0 and
+exactly one STARTUP_MENU_READY_OK (24.240/28.256/25.984s). All1525 embedded entries
+match across platforms; stock Windows executable code and Linux archive binary,
+icon, managed installer bytes, modes and source epoch checked. Guards retain
+source/cache and engine pins. Source7ecdfec is the binary provenance;2461d5eee is
+only the corrected external test launcher, not a claim of a different binary.
+
+Checkpoint files in builds/windows and builds/linux:
+
+- Windows EXE184694192 bytes SHA256 `0fd820b812eae6d468da89077866aaea1c9d91368c0a127c9fcd263a425c532b`.
+- Windows ZIP103226796 bytes SHA256 `3124d6c9a48e435c6b39182efe6e3e35ac3930de6a580a1c16d06db092e79a20`; reopened exactly EXE+notes and both member bytes checked.
+- Linux ELF148935904 bytes SHA256 `25c35fbf300010c240d64ec525569d785784573344d20d024aa93210fd114258`.
+- Linux archive95347074 bytes SHA256 `d69565bcaeea7afde8ca9053bfd9f98912c95cd1d17948c552ccd1061db660b5`.
+
+Accepted source fast-forwarded to main and pushed. No new working branch/worktree.
+All9 stage owners terminal,30 observed process identities absent. Owned scratch
+archived to `/srv/mudds-work/cinder-supply-payment-retry-20261021/results/profiles.tar.gz`,
+3277299 bytes SHA256 `acf624ec341fe5d1ef6bee2c46a3b1a36cef6d471219f415a5a30fcb30ef7f7b`;
+all168 entries reopened/byte-mode-link verified before scratch removal03:49:38UTC.
+Raw failures, successful stage logs, source/package provenance and review remain
+in that results directory. Eight protected detached worktrees untouched.
+
+The complete ordinary Cinder flight/delivery/home journey is retained specifically
+on9ed9a07/216.291s; it was not rerun for this payment retry. Native Windows/GPU,
+physical devices, audible listening and human review remain NOT_RUN. Four legacy
+cargo access assertions have a separate missing-persistence fixture prerequisite;
+they are not repaired or waived here. Active manifests, restock/repeats/Hauler,
+full activity recovery and all36 parent/ten phase gates remain open. CI stays off.
+No successor task started.

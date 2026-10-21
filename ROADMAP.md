@@ -6,14 +6,14 @@ Nine of the eventual 17 craft exist; eight still need supported specifications
 and implementation. Partial acceptance is retained in the backlog; it is not
 whole-feature completion.
 
-Latest playable checkpoint: **9ed9a07**. The complete first Cinder supply trip
-now passes: ordinary flight, physical delivery, one saved payment, duplicate
-protection, reboarding, home dock, usable exit and normal quit. Race timer updates
-avoid unrelated directory/save work; same-craft remote reboarding retains its race
-record. Defense and the broader activity/release gates remain open.
-[Windows ZIP](builds/windows/MuddsShipyards-9ed9a07-checkpoint.zip),
-[Windows notes](builds/windows/MuddsShipyards-9ed9a07-notes.txt),
-[Linux notes](builds/linux/MuddsShipyards-9ed9a07-notes.txt).
+Latest playable checkpoint: **7ecdfec**. Ordinary Start now retries a saved,
+unpaid Cinder delivery reward; pending guidance stays visible until one payment
+succeeds. Transfer and replay protections remain intact. The complete first
+Cinder supply journey remains accepted on 9ed9a07; broader activity/release gates
+remain open.
+[Windows ZIP](builds/windows/MuddsShipyards-7ecdfec-checkpoint.zip),
+[Windows notes](builds/windows/MuddsShipyards-7ecdfec-notes.txt),
+[Linux notes](builds/linux/MuddsShipyards-7ecdfec-notes.txt).
 
 This page is the working queue. The
 [36-parent crosswalk and named children](docs/ROADMAP_BACKLOG.md#coverage-of-the-original-remaining-outcomes)
@@ -43,20 +43,31 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
-**One active outcome: ACT-WRITE — Cinder saved unpaid payment, ordinary Start.**
-A saved delivery can advertise an owed reward while Start incorrectly tries to
-begin another run and returns cargo_reward_pending. Pending guidance is also
-hidden by the saved-completion presentation. The existing production persistence
-regression reproduces this on current source: four consumer checks fail; its
-three actual-file earn/pay/paid child processes still pass.
+**Closed outcome: ACT-WRITE — Cinder saved unpaid payment retry — DONE.**
+Ordinary Start now retries the exact saved earned generation. The flight objective
+and activity board retain retry guidance during refused payment. After one
+durable credit, flight retry guidance clears and the board shows the paid receipt. Manifests, transfer proof, unrelated data,
+stale-generation and replay fences are preserved. Runtime 7ecdfec and external
+cold-process launcher correction 2461d5eee are merged and pushed.
 
-Finish: ordinary Start retries the exact earned generation, failed writes retain
-retry guidance, one eventual durable credit changes no manifests/transfer proof
-or unrelated data, and paid/replayed/stale requests cannot pay twice. Extend the
-existing regression and its embedded-package run, ship a fresh checkpoint, then
-merge/push and clean this task. No restocking, entitlement or clock changes;
-first-play Cinder remains DONE. The four legacy access assertions have a separate
-missing-persistence fixture prerequisite and are not counted as four runtime bugs.
+Existing persistence regression passes 27 assertions on source and against the
+exact Windows embedded game data under Linux Godot; all three separate actual-file
+earn/pay/paid children load that same package, exit0 and are reaped. Real files
+advance unpaid generation 2→paid 3 with one credit, then remain unchanged on paid
+reload. Three strict startup checks and 1525-entry Windows/Linux payload audit pass;
+fresh Windows/Linux checkpoint 7ecdfec is available above. Independent review GO.
+The initial packaged child-launch context failure remains recorded; the test-only
+correction changes no exported runtime input and did not require identical builds.
+
+All 9 stage owners are terminal and 30 observed process identities absent. Owned
+scratch was archived, all 168 entries verified, then removed. No working branch
+or worktree was created. **No active successor task.**
+[Result and limits](docs/history/ROADMAP_DELIVERIES.md#cinder-saved-unpaid-payment--ordinary-start-retry--2026-10-21).
+The new Start/refused-write checks use a focused production fixture; no complete
+ordinary-input payment-outage journey or native Windows claim is made. Active
+manifest restore, restock/entitlement policy and four legacy cargo access
+assertions remain separate; their missing-persistence fixture prerequisite is
+not counted as four demonstrated runtime bugs.
 
 **Closed outcome: PLAY-CINDER-SUPPLY — DONE, merged and pushed as9ed9a0709.**
 The complete original ordinary-input packaged journey passes216.291s within its
