@@ -234,6 +234,59 @@ class NativeSortieSafetyTests(unittest.TestCase):
         s['paid_slot']['delivery']['elapsed_seconds'] += 1
         with self.assertRaises(AssertionError): pilot.require_paid(s)
 
+    def test_supply_pretransfer_cut_protects_existing_and_new_ordinary_records(self):
+        for corruption in ('none', 'change_initial', 'delete_initial', 'change_new', 'change_new_repeat', 'change_new_home', 'missing_cut'):
+            with self.subTest(corruption=corruption), tempfile.TemporaryDirectory() as root:
+                profile, output = Path(root)/'profile', Path(root)/'result'
+                (profile/'data').mkdir(parents=True); output.mkdir()
+                path = profile/'data'/'mudds_user_data.json'
+                document = self.restart_document()
+                path.write_text(json.dumps(document))
+                files, pilot = native.CinderSupplyFiles(profile, output), native.CinderSupplyPilot()
+                sample = {'path': str(path), 'generation': document['generation'], 'source': 'primary'}
+                s = dict(self.supply_paid_observation(), save=sample)
+                files.observe(s, pilot)
+                document['generation'] += 1
+                document['payload']['tutorial_prompts_seen'] = {'schema_version': 1, 'seen_ids': ['cinder_platform_supply_run']}
+                if corruption == 'change_initial': document['payload']['unrelated']['progress'].append(3)
+                if corruption == 'delete_initial': del document['payload']['unrelated']
+                path.write_text(json.dumps(document)); sample['generation'] = document['generation']
+                if corruption != 'missing_cut':
+                    pilot.stage = 'terminal_aim'
+                    if corruption in ('change_initial', 'delete_initial'):
+                        with self.assertRaisesRegex(AssertionError, 'unrelated actual-file'):
+                            files.observe(s, pilot)
+                        self.assertFalse(pilot.file_pretransfer)
+                        continue
+                    files.observe(s, pilot)
+                    self.assertTrue(pilot.file_pretransfer)
+                    self.assertEqual((output/'pretransfer.json').read_bytes(), path.read_bytes())
+                document['generation'] += 1
+                document['payload']['cinder_cargo_delivery'] = s['paid_slot']
+                document['payload']['game_flow_reward_store'] = s['reward_record']
+                if corruption == 'change_new': document['payload']['tutorial_prompts_seen']['seen_ids'] = []
+                path.write_text(json.dumps(document)); sample['generation'] = document['generation']
+                pilot.paid_state = s
+                if corruption in ('change_new', 'missing_cut'):
+                    with self.assertRaisesRegex(AssertionError, 'unrelated actual-file|pre-transfer'):
+                        files.observe(s, pilot)
+                    self.assertFalse(pilot.file_paid)
+                else:
+                    files.observe(s, pilot)
+                    self.assertTrue(pilot.file_paid)
+                    for label, cut in (('repeat_terminal', 'repeat'), ('home_docked', 'home')):
+                        pilot.receipts[label] = s
+                        if corruption == 'change_new_'+cut:
+                            document['generation'] += 1
+                            document['payload']['tutorial_prompts_seen']['seen_ids'] = []
+                            path.write_text(json.dumps(document)); sample['generation'] = document['generation']
+                            with self.assertRaisesRegex(AssertionError, 'unrelated actual-file'):
+                                files.observe(s, pilot)
+                            self.assertFalse(pilot.file_repeat if cut == 'repeat' else pilot.file_home)
+                            break
+                        files.observe(s, pilot)
+                    if corruption == 'none': self.assertTrue(pilot.file_repeat and pilot.file_home)
+
     def test_supply_real_file_payment_rejects_unrelated_payload_corruption(self):
         with tempfile.TemporaryDirectory() as root:
             profile, output = Path(root)/'profile', Path(root)/'result'
@@ -246,6 +299,9 @@ class NativeSortieSafetyTests(unittest.TestCase):
             sample = {'path': str(path), 'generation': document['generation'], 'source': 'primary'}
             s = dict(self.supply_paid_observation(), save=sample)
             files.observe(s, pilot)
+            pilot.stage = 'terminal_aim'
+            files.observe(s, pilot)
+            self.assertTrue(pilot.file_pretransfer)
             document['generation'] += 1
             document['payload']['cinder_cargo_delivery'] = s['paid_slot']
             document['payload']['game_flow_reward_store'] = s['reward_record']

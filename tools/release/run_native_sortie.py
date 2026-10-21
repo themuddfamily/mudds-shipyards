@@ -3871,7 +3871,7 @@ class CinderSupplyPilot(BeaconEntryPilot):
         self.goal_since = self.stage_since = None
         self.route = []
         self.paid_state = self.paid_slot = self.paid_record = None
-        self.file_paid = self.file_repeat = self.file_home = False
+        self.file_pretransfer = self.file_paid = self.file_repeat = self.file_home = False
         self.quit_requested = False
         self.clearance_index = 0
         self.flight_target = None
@@ -4189,7 +4189,7 @@ class CinderSupplyPilot(BeaconEntryPilot):
                 if self.walk_index == len(self.route): self.enter('terminal_aim', s)
         elif self.stage == 'terminal_aim':
             dx = self.look(s, c['terminal'])
-            if c['terminal_candidate']: self.request('e', 'terminal_transfer', s, now)
+            if self.file_pretransfer and c['terminal_candidate']: self.request('e', 'terminal_transfer', s, now)
         elif self.stage == 'terminal_transfer':
             require(now-self.stage_since <= 8, 'physical terminal transfer and durable payment8 seconds')
             if c['activity']['state'] == 2 and s['paid_slot'].get('delivery', {}).get('reward_receipt', {}).get('granted'):
@@ -4277,18 +4277,30 @@ class CinderSupplyFiles(HabitatRestartFiles):
         if s['save']['source'] != 'primary': return
         label = None
         if 'baseline' not in self.snapshots: label = 'baseline'
+        elif pilot.stage == 'terminal_aim' and pilot.paid_state is None and 'pretransfer' not in self.snapshots: label = 'pretransfer'
         elif pilot.paid_state is not None and 'paid' not in self.snapshots: label = 'paid'
         elif 'repeat_terminal' in pilot.receipts and 'repeat' not in self.snapshots: label = 'repeat'
         elif 'home_docked' in pilot.receipts and 'home' not in self.snapshots: label = 'home'
         if label is None: return
         document = self.capture(label, s['save'])
         payload = document['payload']
-        if label == 'baseline':
+        if label in ('baseline', 'pretransfer'):
             require('cinder_cargo_delivery' not in payload and payload.get('game_flow_reward_store', {}).get('total_receipts', 0) == 0,
                     'actual default primary starts without a prior supply completion or payment')
+            if label == 'pretransfer':
+                # Ordinary selection/tutorials can create records after the
+                # initial title snapshot. Preserve every preexisting value,
+                # then protect the complete actual document across payment.
+                before = self.snapshots['baseline']['document']
+                require(all(k in payload and payload[k] == v for k, v in self.protected(before).items()),
+                        'unrelated actual-file payload retained before transfer')
+                require(document['generation'] >= before['generation'], 'actual-file generations never regress')
+                pilot.file_pretransfer = True
         else:
+            require(pilot.file_pretransfer and 'pretransfer' in self.snapshots,
+                    'actual pre-transfer primary captured before terminal input')
             pilot.require_paid(s)
-            self.require_preserved(self.snapshots['baseline']['document'], document)
+            self.require_preserved(self.snapshots['pretransfer']['document'], document)
             require(payload['cinder_cargo_delivery'] == s['paid_slot'] and payload['game_flow_reward_store'] == s['reward_record'],
                     'independent actual primary file matches paid supply terminal and one reward')
             if label == 'paid': pilot.file_paid = True
