@@ -877,7 +877,7 @@ func _client_navigator_refusals() -> void:
 		var requests := _navigator_request_count(&"cinder_navigator_ping_rejected")
 		var captions := _navigator_captions.size()
 		for press in 2:
-			await _press(&"fire")
+			await _press_navigator_refusal_fire()
 			_check(await _until(func(): return _navigator_result_packets.size() == before + press + 1, 5.0), "actual " + episode + " FIRE receives one immediate requester response")
 		_check(_navigator_request_count(&"cinder_navigator_ping_rejected") == requests + 2 and _navigator_captions.size() == captions + 2, "two distinct " + episode + " presses create two existing alert requests and actual captions")
 		_check(_navigator_records.is_empty() and not _role_effect_ready(_game.network_session.get_passenger_replica_snapshot().get("navigator", {})), "actual " + episode + " refusals create no accepted navigator command or gameplay receipt")
@@ -1531,6 +1531,14 @@ func _look(target: Vector3) -> void:
 			await physics_frame
 		else:
 			await _ticks(1)
+
+## Identical remapped key edges and ticks to ordinary FIRE. This episode's
+## actual correlated refusal and caption checks own its expected outcome.
+func _press_navigator_refusal_fire() -> void:
+	_fire_key(true)
+	await _ticks(2)
+	_fire_key(false)
+	await _ticks(3)
 
 func _press(action: StringName) -> void:
 	if (_navigator or _gunner) and action == &"fire":
