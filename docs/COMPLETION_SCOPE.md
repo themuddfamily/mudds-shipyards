@@ -431,7 +431,7 @@ The [production scene](../scenes/world/shipyard_world.tscn), [world owner](../sc
 | Central berth, Arrow berth, launch gate and return apron | 2, 3, 10.3 | `shipyard_world.tscn`, `shipyard_world.gd` | I | On the final package walk from spawn, board, launch under the marked gate, return by ordinary assist, dock and exit; review collision, camera and readable minimum graphics. |
 | Aft junction, two elevations and operations room | 3, 10.3 | `aft_junction_stack.tscn` | I | Walk the stairs, operate the door and board console, then return without jumping or rescue; verify signage and no fleet landing-envelope overlap. |
 | Habitat connector, bunks and common room | 3, 10.3 | `habitat_spine.tscn` | I | Rest/wake at all six bunks delivered in221f523; ordinary hub/rest/common-room/reverse loop qualified on actual archive 3707bc9. Normal same-profile distinct-process restart/awake controls/tractor interaction and both UI quits accepted on29abe94; final packaged dressing/native review remains open. |
-| Freight berth and source/destination terminals | 3, 8 | Berth/door exist; Freight dispatch screens and manifest kiosk are decorative. Source terminal scene has no production instance; destination terminal is on Cinder. Existing Jovian transfer binds ship/berth directly and commits automatically on landing. | M | Physical Freight-terminal integration is missing. [Bounded handoff](ROADMAP_BACKLOG.md#freight-terminals--physical-interface-and-existing-transfer-owner) preserves walk to each terminal, real conserved transfer, committed-receipt reload and same-ship return; rejected writes must not duplicate inventory. Terminal workflow choice pending; inspect-only cannot close the transfer requirement. |
+| Freight berth and source/destination terminals | 3, 8 | Berth/door exist; Freight dispatch screens and manifest kiosk are decorative. Source terminal scene has no production instance; destination terminal is on Cinder. Existing Jovian transfer binds ship/berth directly and commits automatically on landing. | M | Physical Freight-terminal integration is missing. [Bounded handoff](ROADMAP_BACKLOG.md#freight-terminals--physical-interface-and-existing-transfer-owner) preserves walk to each terminal, real conserved transfer, committed-receipt reload and same-ship return; rejected writes must not duplicate inventory. Owner chose automatic landing transfer2026-10-21; physical job/manifest/receipt interface remains to implement; inspect-only cannot close the transfer requirement. |
 | Fleet comb and all shipped craft berths | 3–5, 10.3 | `fleet_dock_comb.tscn`, world-owned berth instances | I | Physically reach and reuse every shipped craft, retain separated voids and neighbour clearance, then review fleet overview and player-height routes. All three comb berths are assigned: Zenith, Halyard and Bulwark. Dock 03 retains its historical landmark identifier, but Bulwark has a real world-owned berth. All-shipped reuse covers the current nine-craft roster through the existing CRAFT-ACCEPT journeys; a three-berth threshold walk alone does not satisfy it. |
 | Fabrication Annex repair-kit service | 3, 8 | `fabrication_annex.tscn` | I | Walk up and Interact to restock within the cap; repeat with unavailable/departed ownership and review normal/minimum readability. |
 | Observation/logistics spur | 3, 10.3 | `observation_logistics_spur.tscn` | I | Traverse its connector and viewing route, return supported, and inspect camera/head clearance and guidance. |
@@ -660,7 +660,7 @@ waive the recorded additional crew/navigation requirement or settle rearm policy
 | Actual travelling ballistic payload and impact authority | GameFlow payload profile/source1106, BomberPayloadProjectile, BomberPayloadCombatAdapter/shared CombatResolver | Profile900m/80 damage; release uses ship velocity plus forward220m/s, gravity and30s projectile lifetime. Detached projectile test owns motion but no raycast/damage; combat adapter tests and existing network integration cover controlled authority/replica/terminal seams. These do not establish ordinary packaged hit/miss/friendly/occluded combat and recovery. |
 | Hull/five common components, failed-fire release gate and cues | Shared HeroShip/ShipComponentDamage, Bomber `_get_payload_component_hold_reason`, shared damage presentation and starboard-wing observer | `cinder_bomber_failed_wing_payload_gate_test.gd`, damage/cue/silhouette tests cover focused state and no-ammo debit on refusal. Failed fire prevents release; this does not define impaired payload cadence. Full craft damage/destruction/recovery remains original acceptance. |
 | Cockpit/HUD payload feedback, release/terminal presentation and perspective audio | Bomber payload presentation/audio, GameFlow HUD/settings/terminal consumers | Existing cockpit readout, HUD/overlay/settings, presentation and audio tests cover their own consumers. Dummy state tests do not establish output quality, physical controller use or whole ordinary Settings/flight. |
-| Disembark/detach/reboard versus actual rearm boundary | GameFlow `_disembark_ship_to_exterior` → `_clear_bomber_payload_loop` detaches; subsequent `_ensure_bomber_payload_session` starts a newer generation; BomberPayloadAuthority `_start_generation` restores initial ammo | Source path restores four rounds on a new post-disembark session; explicit ship reuse also detaches. This is source inference, not an executed ordinary reboard observation. Unit fresh-generation reset is intentional but does not decide whether seat-only re-entry, dock service, destruction/recovery or another event is allowed to replenish the same hull. BOMBER-REARM-POLICY must settle that exact rule before a correction/qualification is assigned. |
+| Disembark/detach/reboard versus actual rearm boundary | GameFlow `_disembark_ship_to_exterior` → `_clear_bomber_payload_loop` detaches; subsequent `_ensure_bomber_payload_session` starts a newer generation; BomberPayloadAuthority `_start_generation` restores initial ammo | Source path restores four rounds on a new post-disembark session; explicit ship reuse also detaches. This is source inference, not an executed ordinary reboard observation. Unit fresh-generation reset is intentional but does not decide whether seat-only re-entry, dock service, destruction/recovery or another event is allowed to replenish the same hull. Owner resolved BOMBER-REARM-POLICY2026-10-21: refill when pilot retakes the seat; actual reboard qualification remains required. |
 
 Definition DONE as finite authored map plus the preserved crew/navigation and
 rearm-policy gaps. Original spent-payload recovery and additional crew/navigation
@@ -1217,9 +1217,7 @@ Attaching bridge policy to a pre-bridge validation failure would fabricate
 provenance. Exact missing behavior definition: whether client feedback covers
 only actual navigator consumer/bridge refusals, or also current authenticated
 pre-consumer availability/admission failures. Malformed/stale/foreign data is
-never evidence of a fresh current user request. Resolve that boundary before
-freezing the rejection-response card; do not silently omit rejection from final
-MIX-NAVIGATOR acceptance. No user decision or authorization is inferred here.
+never evidence of a fresh current user request. Owner resolved that boundary2026-10-21: every fresh authenticated current rejection, including pre-consumer unavailability. Preserve current-request validation and freeze the card; do not omit rejection from final MIX-NAVIGATOR acceptance.
 
 ### Client navigator accepted receipts — frozen implementation contract
 
@@ -1251,15 +1249,11 @@ Root traced client send/response/presentation; one bounded medium read-only agen
 traced server exits and cursors. Exact cases/owners/proof are below; no further
 broad mapping is selected. This is not delivered rejection feedback.
 
-**Implementation WAITING on one behavior choice, asked once asynchronously:**
-should actual requester feedback cover (A) every fresh fully authenticated current
-request refusal, including consumer-unavailable before the bridge, or (B) only
-refusals returned from the actual navigator consumer/bridge? A is recommended for
-consistent feedback when a valid FIRE cannot be handled. The choice is pending;
-no answer, default approval or user decision is inferred. Both options keep
-malformed, foreign and stale original client requests silent. Early missing
-owner/claim cannot become “current” just because a status says unavailable.
-This does not repeat pending stock/content/hardware questions.
+**Owner decided2026-10-21: every fresh fully authenticated current request rejection gets feedback**, including consumer-unavailable before the bridge.
+Malformed, foreign and stale requests remain silent; missing owner/claim cannot
+become current merely because a status says unavailable. This resolves the
+previous A/B choice. Freeze the bounded implementation and existing acceptance
+before running; actual requester correlation is required in every allowed case.
 
 #### Finite refusal cases and the exact current-request boundary
 
@@ -1418,3 +1412,15 @@ The roster tables name content; the following shared commitments still apply to 
 | Final candidate installation, data recovery and distribution | 9 | Release tooling/presets and atomic persistence; I + E | Accept final integrated packages, migration/corrupt-data fallback and all required installed recovery contexts, inspect licences, sign with real credentials and publish matching immutable artifacts/checksums with no open P0/P1. |
 
 The immediate gameplay acceptance gap is the **complete physical survey round trip with remote crews** on the integrated runtime. Inspect and fix observed runtime failures while retaining ordinary controls, actual reward/save/reboarding/home-return behavior and the original acceptance limits. Integration is complete; it must not be assigned again as missing work. In parallel, each of the eight absent originals remains a content task constrained by its evidence boundary. Owners, implementation estimates and review availability still need assignment under task 0 before a credible finish date.
+
+
+### Owner decisions — 2026-10-21
+
+The user approved automatic Freight landing transfer, shared existing Jovian/
+Hauler cargo stock, feedback for every fresh current authenticated navigator
+rejection (including unavailable consumer), Beacon outbound maximum60s under
+its existing clock/route criterion, and Bomber ammunition refill on pilot seat
+retake. These supersede earlier pending alternatives in source-only definitions;
+no runtime/qualification completion is inferred. Preserve stale/replay/foreign
+response silence and conserved once-only cargo ownership/settlement. Freight
+terminal interface is selected first; other approved deliveries remain queued.
