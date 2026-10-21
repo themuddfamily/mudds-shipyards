@@ -328,6 +328,9 @@ func _cargo_recall_support(player: PlayerController) -> Node:
 	var ray := PhysicsRayQueryParameters3D.create(player.global_position + Vector3.UP * 0.2,
 		player.global_position - Vector3.UP * 0.3, player.collision_mask, [player.get_rid()])
 	var hit := player.get_world_3d().direct_space_state.intersect_ray(ray)
+	var normal: Vector3 = hit.get("normal", Vector3.ZERO)
+	if normal.dot(Vector3.UP) < cos(player.floor_max_angle):
+		return null
 	return hit.get("collider") as Node
 
 

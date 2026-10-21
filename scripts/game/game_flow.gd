@@ -4572,8 +4572,7 @@ func _process(delta: float) -> void:
 ## terminal authorization alone must never protect an unsupported fall.
 func _is_player_supported_by_current_cinder_access() -> bool:
 	if not is_instance_valid(player) or not player.is_inside_tree() \
-			or player.is_queued_for_deletion() or get_node_or_null(^"Player") != player \
-			or not player.is_on_floor():
+			or player.is_queued_for_deletion() or get_node_or_null(^"Player") != player:
 		return false
 	var berth: ShipBerth = _get_current_cinder_cargo_berth()
 	if berth == null:
