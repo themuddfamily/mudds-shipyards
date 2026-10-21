@@ -42,24 +42,23 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
-**AUDIO-NAVIGATOR-CLIENT-REJECTION completed onc2c72a223; checkpointc2c72a2.**
-Fresh authenticated current navigator refusals now reach only their requester,
-including unavailable consumer. Distinct equal refusals each produce one existing
-UI alert request/caption; stale/replayed/foreign responses stay silent. Actual
-accepted/clear and genuine host-local feedback remain independent. Six focused
-suites and the complete two-peer profile PASS252 checks/119.770s with zero failures,
-including two missing-callback and two detached-bridge real FIRE presses, replay/
-foreign delivery, original reseat/migration/disconnect. Paired packages, three
-strict startups and actual payload/archive audit pass. Windows EXE/ZIP/notes are
-in builds/. [Actual delivery and scope](docs/history/ROADMAP_DELIVERIES.md#navigator-requester-rejection-feedback-completed--2026-10-21).
+**TRAVEL-LIMIT[Beacon outbound] selected: qualify the approved60.0s maximum.**
+Use the accepted c2c72a2 Linux package and existing complete beacon-home route.
+Time from the first actual engine-demand launch input at the occupied Torrent
+home berth to the first controlled live Beacon approach within32m at≤0.45m/s.
+One monotonic receipt clock counts startup, departure and stalls; reject any
+in-leg pause, recovery or boost. Preserve original steering, full activity/payment/
+combat/home/exit/walking acceptance and original300s whole-sortie cap. Add the
+optional qualifier to the existing release driver and its focused tests only;
+no game/tuning change or duplicate export is selected. A passing outbound leg
+alone cannot close the complete journey. Native hardware/human gates stay open.
 
-Freight interface509703300/checkpoint5097033 and shared Hauler custody6bcbea302/
-checkpoint6bcbea3 remain completed. All five owner decisions remain accepted;
-Beacon60s and Bomber seat-retake refill qualification remain queued. Full ordinary
-Hauler delivery/cold inventory and WALK-FREIGHT/KIT-RELOAD remain open/parked.
-Owned scratch is archived/removed. No new working branch/worktree; accepted
-history integrated/pushed in main, retained unqualified contexts preserved.
-Select one bounded next delivery before further implementation.
+Navigator requester refusalsc2c72a223/checkpointc2c72a2, freight interface509703300/
+checkpoint5097033 and shared Hauler custody6bcbea302/checkpoint6bcbea3 are completed
+and pushed. Bomber seat-retake refill qualification follows this bounded task.
+Full ordinary Hauler delivery/cold inventory and WALK-FREIGHT/KIT-RELOAD remain
+open/parked. Owned prior scratch is archived/removed; protected unqualified work
+is retained. [Latest delivery](docs/history/ROADMAP_DELIVERIES.md#navigator-requester-rejection-feedback-completed--2026-10-21).
 
 **Prior Rime diagnosis closed, journey remains open.**
 The selected original Rime run failed its unchanged peer landing gate after
@@ -709,7 +708,7 @@ keep their remaining acceptance requirements and other unrelated decisions open.
 | FREIGHT-TERMINAL-WORKFLOW | DECIDED: physical terminals select existing job/show manifests and receipt; transfer remains automatic on landing. | Interface DONE on509703300/checkpoint5097033; full walk/reload/same-ship requirements retained. |
 | [AUDIO-NAVIGATOR-CLIENT-REJECTION](docs/COMPLETION_SCOPE.md#client-navigator-rejection-response--bounded-definition-next) | DECIDED: feedback on every fresh current authenticated rejection, including unavailable consumer. | DONEc2c72a223/checkpointc2c72a2: actual requester-correlated response/cue/caption, silent stale/replayed/foreign inputs/results; actual two-peer continuation accepted. Listening/native/full travel stay open. |
 | [HAULER-CARGO-MANIFEST](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries) | DECIDED: share the existing stock between Jovian and Hauler. | Shared custody DONE6bcbea302/checkpoint6bcbea3; conserved ownership/generation floors and no recreated cargo/duplicate receipts. Full ordinary Hauler delivery and cold physical inventory remain required. |
-| [TRAVEL-LIMIT Beacon outbound](docs/ROADMAP_BACKLOG.md#beacon-outbound-travel-envelope--proposal-awaiting-decision) | DECIDED: maximum60s unpaused elapsed from engine-start input at occupied Torrent berth to controlled first Beacon. | Implement/qualify existing exact clock/route with original whole-sortie limits; return/other routes remain separate. |
+| [TRAVEL-LIMIT Beacon outbound](docs/ROADMAP_BACKLOG.md#beacon-outbound-travel-envelope--approved60second-maximum) | DECIDED: maximum60s unpaused elapsed from engine-start input at occupied Torrent berth to controlled first Beacon. | Implement/qualify existing exact clock/route with original whole-sortie limits; return/other routes remain separate. |
 | BOMBER-REARM-POLICY | DECIDED: refill ammunition when the pilot retakes the seat. | Preserve this same-hull seat re-entry entitlement and qualify actual reboarding; broader role/payload/recovery cases remain open. |
 
 Other scope, evidence, hardware and authorization dependencies remain in the
