@@ -754,7 +754,7 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | SHARED-AURORA-CANCEL | Aurora shared cancellation | 3,27 | GATED; AURORA genuine baseline and exact original case command |
 | SHARED-AURORA-INTERRUPT | Aurora shared actual OS interruption | 3,27 | GATED; AURORA genuine baseline and exact original case command |
 | SHARED-AURORA-REVISIT | Aurora shared repeat visit | 3,27 | GATED; AURORA genuine baseline and exact original case command |
-| SHARED-RIME-BASELINE | Rime shared canonical outbound/physical survey/reward/save/home return | 3,27 | PARKED; original arrival failure plus repair, 120s physical gate; source preserved under `archive/withheld/rime-crew-arrival-typing-20261018`, working refs deleted; requirement OPEN |
+| SHARED-RIME-BASELINE | Rime shared canonical outbound/physical survey/reward/save/home return | 3,27 | PARKED/open. Read-only retained failure review: final-approach handoff incomplete before berth assist, leg1/2089m/734m/s, accepted braking/clearance, full190hull/samepilot.3485ticks=58.083simulation seconds inside120s wall gate;90degree vertical-leg attitude is not a defect. Missing paired trajectory/execution-cost progression; no supported repair/rerun. Original120s/2400s and full crew/survey/reward/save/home preserved; archived source retained, working refs deleted. |
 | SHARED-RIME-LATE-JOIN | Rime shared late join | 3,27 | GATED; RIME genuine baseline and exact original case command |
 | SHARED-RIME-RECONNECT | Rime shared disconnect/reconnect | 3,27 | GATED; RIME genuine baseline and exact original case command |
 | SHARED-RIME-PILOT-LOSS | Rime shared pilot loss | 3,27 | GATED; RIME genuine baseline and exact original case command |

@@ -55,7 +55,7 @@ these six problems. Archival and branch deletion do not complete these outcomes.
 | UI transition, Mining and Observation (3) | Identify the original popup/connection-removal failure, prove a repair against that event, and finish the full Mining and Observation journeys. Later clean Beacon/tooltip runs did not establish a UI fix. |
 | Defense (1) | Finish all four kills, payment, home, Reset and next Deploy. The last first kill took about30s of the34s encounter, with10.5s mandatory wave delays remaining; a feasible ordinary plan or an explicit clock-owner decision is needed. |
 | Hulk revisit (1) | Complete physical revisit and once-only breaker/cell/reward within the original300s. Last capture showed continuing supported movement; stage costs remain unlocalized. |
-| Rime crew arrival (1) | Diagnose the failed original120s physical landing gate, then complete the two-crew survey/reward/save/home route. |
+| Rime crew arrival (1) | Final-approach handoff is incomplete before berth assist starts: last capture has2089m remaining,734m/s, full hull and intact pilot. Only58.083 simulation seconds advanced during the120s wall gate; identify execution cost/trajectory progression before a supported repair. Full two-crew survey/reward/save/home remains required. |
 | Jovian reload (1) | Restore usable normal continuation within the original30s. State restoration succeeded at27.762s, but the first normal frame pair did not complete; no startup repair is established. |
 
 Finish one supported correction with its full original acceptance, integration,

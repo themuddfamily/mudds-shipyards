@@ -20754,3 +20754,29 @@ Raw command/status/log/result, findings, source checks and cleanup retained at
 Eight protected detached worktrees unchanged. No gameplay/export input changed;
 latest playable checkpoint remains4196ad0. No original inventory item, parent,
 phase, native/hardware/human or final-matrix gate is closed by this diagnosis.
+
+
+## Existing Rime crew arrival — first incomplete handoff identified — 2026-10-21
+
+Bounded read-only priority review of retained68cc7d989 and its original failure,
+not a new run, repair or completed product outcome. Root and one independent
+reader examined existing raw/source only. First incomplete condition is final
+approach handoff before berth assist: corridor leg1, entry offset
+(1.669,2089.212,299.989)m, speed734.285m/s, accepted braking envelope and verified
+clearance/no obstacle; completion0 and landing phase none. Hull190/190 and pilot
+source unchanged. The3485 corridor ticks represent58.083 simulation seconds in
+the original120-second wall gate. The90-degree attitude is during the vertical
+lead-in; neither it nor the final moving snapshot establishes a controller defect.
+
+Existing raw: `/srv/mudds-work/rime-crew-arrival-results-20261018/typing-repair/arrival.log`
+lines37–38. Archived caller `_observe_surface_approach` uses monotonic wall time;
+`planetary_surface_visit_expedition.gd::_advance_corridor` waits for handoff before
+starting touchdown. Physical controller/policy have no subsequent causal repair;
+expedition changes since candidate concern activity music. Missing fact is where
+execution cost accumulated, paired with approach-leg/distance/speed progression.
+A single final snapshot cannot distinguish legitimate slow convergence from a
+specific runtime bottleneck. No supported correction or automatic retry selected.
+Original120s landing/2400s outer, all crew/physical-authority checks and complete
+survey/reward/save/home scope retained. No engine, scratch, branch, worktree or
+runtime edit created. Nine candidates remain unqualified; this review narrows the
+Rime blocker and does not count as gameplay completion.
