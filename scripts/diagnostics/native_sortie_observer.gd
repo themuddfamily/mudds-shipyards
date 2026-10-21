@@ -20,6 +20,8 @@ const LIFE_ROUTES := {
 		"movers": [], "drones": true, "bounded": true,
 		"door": ^"HabitatSpine/MainAccess"},
 }
+var _cinder_supply := false
+var _supply_sequence := 0
 var _arrow := false
 var _arrow_sequence := 0
 var _beacon_entry := false
@@ -60,6 +62,13 @@ func on_startup_completed(main: Node) -> void:
 	_game = main as GameFlow
 	_player = _game.get_node("Player") as PlayerController
 	_spawn = _player.global_position
+	_cinder_supply = "--native-sortie-observer=cinder-supply" in OS.get_cmdline_args()
+	if _cinder_supply:
+		_ship = _game.get_node(^"JovianLightFreighter") as HeroShip
+		_parked = _ship.global_transform
+		_tuning = _sortie_tuning()
+		process_mode = Node.PROCESS_MODE_ALWAYS
+		return
 	_arrow = "--native-sortie-observer=arrow-return-reuse" in OS.get_cmdline_args()
 	if _arrow:
 		_ship = _game.get_node(^"ArrowReconShip") as HeroShip
@@ -276,6 +285,10 @@ func _physics_process(delta: float) -> void:
 		print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(_ember_observation()))
 		return
 	if _game == null:
+		return
+	if _cinder_supply:
+		_supply_sequence += 1
+		print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(_cinder_supply_observation()))
 		return
 	if _arrow:
 		print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(_arrow_observation()))
@@ -1143,3 +1156,166 @@ func _arrow_observation() -> Dictionary:
 			"exit_enabled": is_instance_valid(exit_button) and not exit_button.disabled,
 			"exit_text": exit_button.text if is_instance_valid(exit_button) else ""}}, true)
 	return result
+
+
+## Current records only: streaming accessors/audits can reconcile ownership, so
+## this observer reads the coordinator's retained record and pure cargo copies.
+func _cinder_supply_observation() -> Dictionary:
+	var source := _ship.get("_default_local_command_source") as LocalShipInputSource
+	var home := _game.world.get_berth_node(_ship.get_home_berth_id()) as ShipBerth
+	var yaw := _player.get_node(^"%CameraYaw") as Node3D
+	var capsule := _player.get_node(^"PlayerCollision") as CollisionShape3D
+	var support: Dictionary = {}
+	if not _player.is_seated() and not bool(_game.get("_transition_busy")):
+		var ray := PhysicsRayQueryParameters3D.create(_player.global_position + Vector3.UP * 0.2,
+			_player.global_position - Vector3.UP * 0.4, PhysicsLayers.WORLD, [_player.get_rid(), _ship.get_rid()])
+		support = _player.get_world_3d().direct_space_state.intersect_ray(ray)
+	var collider := support.get("collider") as Node
+	var bootstrap := _game.cinder_streaming_bootstrap
+	var cluster: NearbySectorCluster
+	var generation := -1
+	if _ember_node_current(bootstrap) and bool(bootstrap.get("_configured")):
+		var coordinator := bootstrap.get("_coordinator") as WorldStreamingCoordinator
+		if _ember_node_current(coordinator):
+			var record: Dictionary = (coordinator.get("_loaded") as Dictionary).get(CinderStreamingBootstrap.LOCATION_ID, {})
+			var candidate := record.get("instance") as NearbySectorCluster
+			var current_generation := int((coordinator.get("_generation_by_id") as Dictionary).get(CinderStreamingBootstrap.LOCATION_ID, -2))
+			if _ember_node_current(candidate) and candidate.get_parent() == coordinator and int(record.get("generation", -1)) == current_generation:
+				cluster = candidate
+				generation = current_generation
+	var authored_capture := CinderCargoAccess.RECOMMENDED_CLUSTER_TRANSFORM * (
+		CinderCargoAccess.BERTH_DOCK_LOCAL * CinderCargoAccess.ASSIST_CAPTURE_CENTER)
+	var outbound_target: Vector3 = _game._cinder_authored_frame_to_world(authored_capture)
+	var cargo := {"available": false}
+	if cluster != null:
+		var access := cluster.get("_cargo_access") as CinderCargoAccess
+		var terminal := cluster.get("_cargo_destination_terminal") as CargoTransferTerminal
+		var binding := cluster.get_node_or_null(^"ActivityBinding")
+		if _ember_node_current(access) and _ember_node_current(terminal) and _ember_node_current(binding):
+			var berth := access.get("_berth") as ShipBerth
+			var activity := binding.get("_cargo_activity") as CargoDeliveryActivity
+			var authority := binding.get("_cargo_authority") as CargoTransferAuthority
+			if _ember_node_current(berth) and berth.get_parent() == access:
+				var route: Array = []
+				for point: Vector3 in access.get_route_local_points():
+					route.append(_v(access.to_global(point)))
+				cargo = {"available": true, "cluster_id": cluster.get_instance_id(), "generation": generation,
+					"access_id": access.get_instance_id(), "attachment": access.get_attachment_generation(),
+					"berth_id": berth.get_instance_id(), "terminal_id": terminal.get_instance_id(),
+					"binding_id": binding.get_instance_id(), "activity_id": activity.get_instance_id() if activity != null else 0,
+					"source_entity_id": (binding.get("_cargo_source_entity") as Node).get_instance_id() if is_instance_valid(binding.get("_cargo_source_entity")) else 0,
+					"activity": activity.get_snapshot() if activity != null else {},
+					"inventory": authority.to_dictionary() if authority != null else {},
+					"last_request": (binding.get("_last_cargo_terminal_request") as Dictionary).duplicate(true),
+					"route": route, "terminal": _v(terminal.global_position + Vector3(0.0, 0.85, 0.25)),
+					"terminal_candidate": _game.station_interaction_candidate == terminal,
+					"actor_authorized": (access.get("_terminal_actor") as WeakRef) != null and (access.get("_terminal_actor") as WeakRef).get_ref() == _player,
+					"dock": _v(berth.get_dock_transform().origin), "capture_position": _v(berth.get_assist_capture_transform().origin),
+					"clear_target": _v(access.get_supply_phase_target_position(&"clear_gate")),
+					"inside_capture": berth.contains_assist_capture(_ship.global_position),
+					"capture": _cinder_supply_capture(berth), "lease": _cinder_supply_lease(berth),
+					"lease_free": berth.get_reservation_owner() == null and berth.get_occupant() == null,
+					"contract": _cinder_supply_contract(berth)}
+				# Read the current attachment's bounded region without reconciling
+				# streaming or claiming that airborne stair motion is grounded.
+				var walking_collision := _player.get_node_or_null(^"PlayerCollision") as CollisionShape3D
+				var walking_shape := walking_collision.shape as CapsuleShape3D if _ember_node_current(walking_collision) else null
+				var structure := access.get_node_or_null(^"Structure")
+				cargo["walk_within_region"] = false
+				if _game.get_node_or_null(^"Player") == _player and cluster.is_ancestor_of(access) \
+						and _ember_node_current(structure) and structure.get_parent() == access \
+						and walking_shape != null and not walking_collision.disabled:
+					cargo["walk_within_region"] = access.contains_walking_recall_position(
+						_player.global_position, walking_shape.radius, walking_shape.height, _player.floor_snap_length)
+
+	var hud := _game.hud as GameHUD
+	var focus := get_viewport().gui_get_focus_owner()
+	var row := focus.get_parent() if is_instance_valid(focus) else null
+	var main_page := hud.get("_pause_main_page") as Control
+	var activity_page := hud.get("_activity_selection_page") as Control
+	var nearby_page := hud.get("_nearby_activity_page") as Control
+	var presenter := hud.get("_nearby_activity_presenter") as RefCounted
+	var selected: Dictionary = presenter.call(&"get_snapshot") as Dictionary if presenter != null else {}
+	var exit_button := main_page.find_child("ExitButton", true, false) as Button if main_page != null else null
+	var store := _game.get("_runtime_settings_user_data_store") as UserDataStore
+	var reward := _game.get("_game_flow_reward_authority") as RefCounted
+	var payload: Dictionary = store.get_snapshot() if store != null else {}
+	var area := _ship.get_node(^"ShipBoardingArea") as ShipBoardingArea
+	var default_controls := not _player.is_remote_driven()
+	for action: StringName in [&"move_left", &"move_right", &"move_forward", &"move_back", &"sprint_boost", &"interact"]:
+		var authored: Dictionary = ProjectSettings.get_setting("input/" + str(action), {})
+		var expected: Array = []
+		var actual: Array = []
+		for event: InputEvent in authored.get("events", []):
+			expected.append(event.as_text())
+		for event: InputEvent in InputMap.action_get_events(action):
+			actual.append(event.as_text())
+		default_controls = default_controls and expected == actual
+	var command := _ship.get_last_ship_command()
+	return {"mode": "cinder-supply", "sequence": _supply_sequence, "pid": OS.get_process_id(),
+		"frame": Engine.get_physics_frames(), "main_id": _game.get_instance_id(), "player_id": _player.get_instance_id(), "ship_id": _ship.get_instance_id(),
+		"source_id": source.get_instance_id() if source != null else 0, "phase": GameFlow.Phase.keys()[_game.phase], "paused": get_tree().paused,
+		"menu_ready": StartupLoader.is_title_menu_ready(_game) and not is_instance_valid(get_parent().call("get_loading_screen")),
+		"player": _v(_player.global_position), "spawn": _v(_spawn), "velocity": _v(_player.velocity),
+		"walk_forward": _v(-yaw.global_basis.z), "walk_right": _v(yaw.global_basis.x),
+		"walk_tuning": {"walk": _player.walk_speed, "sprint": _player.sprint_speed, "deceleration": _player.ground_deceleration, "mouse": _player.mouse_sensitivity},
+		"grounded": _player.is_on_floor(), "supported": _ember_node_current(collider), "support_collider": str(collider.get_path()) if _ember_node_current(collider) else "",
+		"capsule_id": capsule.get_instance_id(), "shape_id": capsule.shape.get_instance_id(), "completed_motion": _life_completed_motion(),
+		"capsule_geometry": [(capsule.shape as CapsuleShape3D).radius, (capsule.shape as CapsuleShape3D).height], "capsule_enabled": not capsule.disabled,
+		"default_controls": default_controls, "mouse_captured": Input.mouse_mode == Input.MOUSE_MODE_CAPTURED,
+		"station_seated": _player.is_station_seated(), "game_station_seated": bool(_game.get("_station_seated")), "sleeping": _player.is_sleeping(),
+		"control_enabled": _player.is_control_enabled(), "seated": _player.is_seated(), "seated_at_pilot": _player.is_seated_at(_ship.get_pilot_seat_anchor()),
+		"piloted": _ship.is_piloted(), "active_ship": _game.active_ship == _ship, "ship_camera": _ship.get_camera().current,
+		"transition_busy": bool(_game.get("_transition_busy")), "boarding_reserved": bool(area.get("_has_reservation")) and area.get("_reservation_token") == _player,
+		"candidate": _game.boarding_candidate == _ship, "station_candidate": is_instance_valid(_game.station_interaction_candidate),
+		"reboard_blocked": _game.get("_reboard_blocked_ship") == _ship, "boarding_distance": _player.get_interaction_origin().distance_to(_ship.get_boarding_position()),
+		"boarding": _v(_ship.get_boarding_position()), "exit": _v(_ship.get_exit_transform().origin), "interaction_origin": _v(_player.get_interaction_origin()),
+		"position": _v(_ship.global_position), "parked": _v(_parked.origin), "ship_velocity": _v(_ship.velocity),
+		"right": _v(_ship.global_basis.x), "up": _v(_ship.global_basis.y), "back": _v(_ship.global_basis.z), "camera": _v(_ship.get_camera().global_position),
+		"tuning": _tuning, "tuning_unchanged": _sortie_tuning() == _tuning,
+		"default_sampler": source != null and _ship.get("_command_source") == source and source.get_input_provider() == null,
+		"source_enabled": source != null and source.is_enabled_owner(), "native_interact": Input.is_action_pressed("interact"),
+		"native_landing": Input.is_action_pressed("landing_assist"), "native_thrust": Input.is_action_pressed("move_forward") or Input.is_action_pressed("move_back"),
+		"command_throttle": command.throttle if command != null else 0.0,
+		"engine": str(_ship.get("_engine_state")), "landed": bool(_ship.get("_landed")), "landing_active": _ship.is_landing_active(),
+		"destroyed": _ship.is_destroyed(), "hull": float(_ship.get("_hull")),
+		"home": {"id": str(_ship.get_home_berth_id()), "node_id": home.get_instance_id(), "lease": _cinder_supply_lease(home),
+			"lease_free": home.get_reservation_owner() == null and home.get_occupant() == null,
+			"capture": _cinder_supply_capture(home), "capture_position": _v(home.get_assist_capture_transform().origin),
+			"dock": _v(home.get_dock_transform().origin), "contract": _cinder_supply_contract(home)},
+		"cargo": cargo, "outbound_target": _v(outbound_target), "selected_activity": str(selected.get("selected_activity", &"")),
+		"kit_state": _game.cargo_delivery_activity.get_snapshot(),
+		"save": {"path": ProjectSettings.globalize_path(str(store.get("_path"))) if store != null else "", "source": str(store.get_loaded_source()) if store != null else "", "generation": store.get_generation() if store != null else -1},
+		"paid_slot": (payload.get("cinder_cargo_delivery", {}) as Dictionary).duplicate(true),
+		"reward_record": (reward.call(&"get_snapshot").get("record", {}) as Dictionary).duplicate(true) if reward != null else {},
+		"native_keys": {"escape": Input.is_physical_key_pressed(KEY_ESCAPE), "tab": Input.is_physical_key_pressed(KEY_TAB), "return": Input.is_physical_key_pressed(KEY_ENTER)},
+		"ui": {"main_visible": main_page != null and main_page.is_visible_in_tree(), "activity_visible": activity_page != null and activity_page.is_visible_in_tree(), "nearby_visible": nearby_page != null and nearby_page.is_visible_in_tree(),
+			"focus_path": str(focus.get_path()) if is_instance_valid(focus) else "", "focus_name": str(focus.name) if is_instance_valid(focus) else "", "focus_text": focus.text if focus is Button else "",
+			"focus_activity": str(row.get_meta(&"activity_id", &"")) if is_instance_valid(row) else "", "focus_enabled": focus is BaseButton and not focus.disabled, "focus_visible": is_instance_valid(focus) and focus.is_visible_in_tree(),
+			"focus_is_exit": focus == exit_button and exit_button != null, "exit_path": str(exit_button.get_path()) if exit_button != null else "", "exit_visible": exit_button != null and exit_button.is_visible_in_tree(), "exit_enabled": exit_button != null and not exit_button.disabled, "exit_text": exit_button.text if exit_button != null else ""}}
+
+
+func _cinder_supply_lease(berth: ShipBerth) -> bool:
+	var tokens: Dictionary = _game.get("_berth_tokens")
+	var ids: Dictionary = _game.get("_reserved_berth_ids")
+	var token := StringName(berth.get("_reservation_token"))
+	return not token.is_empty() and tokens.get(_ship.get_instance_id(), &"") == token \
+		and ids.get(_ship.get_instance_id(), &"") == berth.get_berth_id() \
+		and berth.get_reservation_owner() == _ship and berth.get_occupant() == _ship
+
+
+func _cinder_supply_contract(berth: ShipBerth) -> bool:
+	var contract: Dictionary = _ship.get("_landing_contract")
+	return bool(contract.get("contract_accepted", false)) and bool(contract.get("strict_dock_acceptance", false)) \
+		and contract.get("berth_id", &"") == berth.get_berth_id() and _ship.get("_landing_berth_instance_id") == berth.get_instance_id()
+
+
+func _cinder_supply_capture(berth: ShipBerth) -> bool:
+	# Geometry evaluation is pure. Availability is observed from raw lease refs;
+	# can_accept/get_reservation_token would clean stale claims and are avoided.
+	var owner := berth.get_reservation_owner()
+	if owner != null and owner != _ship or not berth.is_compatible_with(_ship.get_ship_definition()):
+		return false
+	var bounds: AABB = _ship.get_landing_collision_report().get("local_bounds", AABB())
+	return bool(berth.evaluate_assist_capture_candidate(_ship.global_transform, bounds,
+		_ship.velocity, _ship.landing_maximum_speed).get("assist_capture_accepted", false))
