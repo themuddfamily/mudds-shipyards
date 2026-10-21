@@ -273,7 +273,14 @@ func _cargo_recall_walk_route(access: CinderCargoAccess, player: PlayerControlle
 		var target := targets[index]
 		var reached := false
 		for _frame in 210:
-			var desired := (target - player.global_position).slide(Vector3.UP).normalized()
+			var remaining_offset := (target - player.global_position).slide(Vector3.UP)
+			var distance := remaining_offset.length()
+			var speed := player.velocity.slide(Vector3.UP).length()
+			var commanded := player.sprint_speed if distance > 3.0 else player.walk_speed
+			var stopping := speed * speed / (2.0 * player.ground_deceleration) \
+				+ maxf(speed, commanded) / 60.0 + 0.10
+			var moving: bool = distance > 0.30 and (speed <= 0.35 or distance > stopping)
+			var desired := remaining_offset.normalized() if moving else Vector3.ZERO
 			var forward := (-yaw.global_basis.z).slide(Vector3.UP).normalized()
 			var right := forward.cross(Vector3.UP).normalized()
 			var sideways := desired.dot(right)
@@ -282,7 +289,7 @@ func _cargo_recall_walk_route(access: CinderCargoAccess, player: PlayerControlle
 			_cargo_recall_walk_action(&"move_right", maxf(sideways, 0.0))
 			_cargo_recall_walk_action(&"move_back", maxf(-ahead, 0.0))
 			_cargo_recall_walk_action(&"move_forward", maxf(ahead, 0.0))
-			_cargo_recall_walk_action(&"sprint_boost", 1.0)
+			_cargo_recall_walk_action(&"sprint_boost", 1.0 if moving and distance > 3.0 else 0.0)
 			Input.flush_buffered_events()
 			await physics_frame
 			await process_frame
@@ -327,7 +334,8 @@ func _cargo_recall_walk_route(access: CinderCargoAccess, player: PlayerControlle
 					first_transient = {"frame": Engine.get_physics_frames(), "position": player.global_position,
 						"support": str(support.get_path()), "velocity": player.velocity}
 			if (target - player.global_position).slide(Vector3.UP).length() <= 0.30 \
-					and absf(target.y - player.global_position.y) <= 0.20:
+					and absf(target.y - player.global_position.y) <= 0.20 \
+					and player.velocity.slide(Vector3.UP).length() <= 0.35:
 				reached = true
 				visited.append(sample)
 				break
