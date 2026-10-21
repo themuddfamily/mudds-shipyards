@@ -172,8 +172,8 @@ func _test_freight_terminal_interactions(game: GameFlow, berth: JovianFreightBer
 		# the offset chase camera at a close screen can face away from that
 		# screen when measured from the player's actual interaction origin.
 		for _aim_tick in 4:
-			var desired := actor.global_basis.inverse() * (terminal.global_position - actor.get_interaction_origin()).normalized()
-			var current := actor.global_basis.inverse() * actor.get_interaction_direction().normalized()
+			var desired: Vector3 = actor.global_basis.inverse() * (terminal.global_position - actor.get_interaction_origin()).normalized()
+			var current: Vector3 = actor.global_basis.inverse() * actor.get_interaction_direction().normalized()
 			var yaw := wrapf(atan2(-desired.x, -desired.z) - atan2(-current.x, -current.z), -PI, PI)
 			var pitch := asin(clampf(desired.y, -1.0, 1.0)) - asin(clampf(current.y, -1.0, 1.0))
 			var motion := InputEventMouseMotion.new()
