@@ -190,10 +190,10 @@ func _run_cargo_walking_recall() -> void:
 
 	await _cargo_recall_stage_player(game, player, deck, true)
 	game.set_process(true)
-	var walking: Dictionary = await _cargo_recall_walk_first_segment(access, player)
+	var walking: Dictionary = await _cargo_recall_walk_route(access, player)
 	print("CINDER_CARGO_WALKING_TRANSIENT: ", walking)
 	_check(bool(walking.get("reached", false)) and bool(walking.get("supported_floor_transient", false)),
-		"actual Main preserves real first-segment Cinder walking with transient floor flag and fresh current support")
+		"actual Main preserves the complete Cinder out-and-back walk with transient floor flag and fresh current support")
 	if not bool(walking.get("reached", false)) or not bool(walking.get("supported_floor_transient", false)):
 		await _cleanup(game)
 		return
@@ -253,54 +253,96 @@ func _run_cargo_walking_recall() -> void:
 ## Same production movement actions as the access walking fixture, dispatched
 ## as real input events. The docked hull, Player and recall guard keep ticking;
 ## no pose, velocity, floor flag or authority is written during the segment.
-func _cargo_recall_walk_first_segment(access: CinderCargoAccess, player: PlayerController) -> Dictionary:
-	var target := access.to_global(access.get_route_local_points()[1])
+func _cargo_recall_walk_route(access: CinderCargoAccess, player: PlayerController) -> Dictionary:
+	var local_points := access.get_route_local_points()
+	var targets: Array[Vector3] = []
+	for point: Vector3 in local_points:
+		targets.append(access.to_global(point))
+	for index in range(local_points.size() - 1, -1, -1):
+		targets.append(access.to_global(local_points[index]))
 	var structure := access.get_node(^"Structure")
 	var yaw := player.get_node(^"%CameraYaw") as Node3D
 	var transient := false
-	var reached := false
 	var maximum_step := 0.0
 	var previous := player.global_position
 	var previous_tick := Engine.get_physics_frames()
 	var first_transient: Dictionary = {}
-	for _frame in 210:
-		var desired := (target - player.global_position).slide(Vector3.UP).normalized()
-		var forward := (-yaw.global_basis.z).slide(Vector3.UP).normalized()
-		var right := forward.cross(Vector3.UP).normalized()
-		var sideways := desired.dot(right)
-		var ahead := desired.dot(forward)
-		_cargo_recall_walk_action(&"move_left", maxf(-sideways, 0.0))
-		_cargo_recall_walk_action(&"move_right", maxf(sideways, 0.0))
-		_cargo_recall_walk_action(&"move_back", maxf(-ahead, 0.0))
-		_cargo_recall_walk_action(&"move_forward", maxf(ahead, 0.0))
-		_cargo_recall_walk_action(&"sprint_boost", 1.0)
+	var visited: Array[Dictionary] = []
+	var failure: Dictionary = {}
+	for index in targets.size():
+		var target := targets[index]
+		var reached := false
+		for _frame in 210:
+			var desired := (target - player.global_position).slide(Vector3.UP).normalized()
+			var forward := (-yaw.global_basis.z).slide(Vector3.UP).normalized()
+			var right := forward.cross(Vector3.UP).normalized()
+			var sideways := desired.dot(right)
+			var ahead := desired.dot(forward)
+			_cargo_recall_walk_action(&"move_left", maxf(-sideways, 0.0))
+			_cargo_recall_walk_action(&"move_right", maxf(sideways, 0.0))
+			_cargo_recall_walk_action(&"move_back", maxf(-ahead, 0.0))
+			_cargo_recall_walk_action(&"move_forward", maxf(ahead, 0.0))
+			_cargo_recall_walk_action(&"sprint_boost", 1.0)
+			Input.flush_buffered_events()
+			await physics_frame
+			await process_frame
+			var step := player.global_position.distance_to(previous)
+			maximum_step = maxf(maximum_step, step)
+			var elapsed_ticks := maxi(1, Engine.get_physics_frames() - previous_tick)
+			previous_tick = Engine.get_physics_frames()
+			var motion: Dictionary = player.get_step_up_assist_audit().get("completed_motion", {})
+			var support := _cargo_recall_support(player)
+			var supported: bool = is_instance_valid(support) and structure.is_ancestor_of(support)
+			var sample := {"direction": "outbound" if index < local_points.size() else "reverse",
+				"index": index if index < local_points.size() else targets.size() - 1 - index,
+				"target": target, "actual": player.global_position, "step": step,
+				"floor": player.is_on_floor(), "support": str(support.get_path()) if is_instance_valid(support) else "",
+				"completed_motion": motion}
+			if step > 9.2 * float(elapsed_ticks) / 60.0 * 1.25 + 0.02:
+				var event: Dictionary = motion.get("step_up", {})
+				var bounds: Dictionary = event.get("bounds", {})
+				var offset := player.global_position - previous
+				var intended: Vector3 = event.get("intended", Vector3.ZERO)
+				var completed_step: bool = (not event.is_empty()
+					and int(event.get("frame", -1)) == int(motion.get("frame", -2))
+					and Engine.get_physics_frames() - int(event.get("frame", -3)) in [0, 1]
+					and int(event.get("player_id", 0)) == player.get_instance_id()
+					and event.get("start") == motion.get("start") and motion.get("start") == previous
+					and event.get("landing") == motion.get("end") and motion.get("end") == player.global_position
+					and offset.y > 0.0 and offset.y <= 0.301
+					and offset.slide(Vector3.UP).length() <= float(bounds.get("probe_reach", 0.0)) + float(bounds.get("min_advance", 0.0))
+					and offset.slide(Vector3.UP).dot(intended) > 0.0)
+				if not completed_step:
+					failure = sample
+					failure["reason"] = &"motion_limit_without_completed_step"
+					break
+			if not supported:
+				failure = sample
+				failure["reason"] = &"current_walkable_support_lost"
+				break
+			previous = player.global_position
+			if not player.is_on_floor():
+				transient = true
+				if first_transient.is_empty():
+					first_transient = {"frame": Engine.get_physics_frames(), "position": player.global_position,
+						"support": str(support.get_path()), "velocity": player.velocity}
+			if (target - player.global_position).slide(Vector3.UP).length() <= 0.30:
+				reached = true
+				visited.append(sample)
+				break
+			if _frame == 209:
+				failure = sample
+				failure["reason"] = &"waypoint_deadline"
+		for action: StringName in [&"move_left", &"move_right", &"move_back", &"move_forward", &"sprint_boost"]:
+			_cargo_recall_walk_action(action, 0.0)
 		Input.flush_buffered_events()
 		await physics_frame
 		await process_frame
-		var step := player.global_position.distance_to(previous)
-		maximum_step = maxf(maximum_step, step)
-		var elapsed_ticks := maxi(1, Engine.get_physics_frames() - previous_tick)
-		previous_tick = Engine.get_physics_frames()
-		if step > 9.2 * float(elapsed_ticks) / 60.0 * 1.25 + 0.02:
+		if not reached:
 			break
-		previous = player.global_position
-		var support := _cargo_recall_support(player)
-		if not player.is_on_floor() and is_instance_valid(support) and structure.is_ancestor_of(support):
-			transient = true
-			if first_transient.is_empty():
-				first_transient = {"frame": Engine.get_physics_frames(), "position": player.global_position,
-					"support": str(support.get_path()), "velocity": player.velocity}
-		if (target - player.global_position).slide(Vector3.UP).length() <= 0.30:
-			reached = true
-			break
-	for action: StringName in [&"move_left", &"move_right", &"move_back", &"move_forward", &"sprint_boost"]:
-		_cargo_recall_walk_action(action, 0.0)
-	Input.flush_buffered_events()
-	await physics_frame
-	await process_frame
-	return {"reached": reached, "supported_floor_transient": transient,
-		"first_transient": first_transient, "target": target, "actual": player.global_position,
-		"maximum_step": maximum_step}
+	return {"reached": visited.size() == targets.size(), "supported_floor_transient": transient,
+		"first_transient": first_transient, "visited": visited, "failure": failure,
+		"actual": player.global_position, "maximum_step": maximum_step}
 
 
 func _cargo_recall_walk_action(action: StringName, strength: float) -> void:
