@@ -1,3 +1,4 @@
+## test-matrix-display: input-only
 extends SceneTree
 
 ## Production proof for the modern Jovian fabrication-kit delivery. Activity
