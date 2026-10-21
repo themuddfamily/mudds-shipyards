@@ -18,6 +18,56 @@ spec.loader.exec_module(native)
 
 
 class NativeSortieSafetyTests(unittest.TestCase):
+    def test_beacon_home_rolled_clearance_deadband_corrects_before_thrust(self):
+        # Actual stalled observation from the original full-home replay: the
+        # craft is rolled, so a small global pitch error needs both mouse axes.
+        s = {'position': [-.0558251887559891, 2.65951657295227, -150.610794067383],
+             'camera': [5.92166090011597, 6.4426064491272, -167.663055419922],
+             'back': [-.00221747788600624, -.0101716602221131, -.999945819377899],
+             'right': [-.54952347278595, .83544659614563, -.00727971736341715],
+             'up': [.835475385189056, .549477577209473, -.0074421507306397],
+             'velocity': [0, 0, 0], 'tuning': {'mouse': .0022, 'brake': 48},
+             'phase': 'TARGET_PRACTICE', 'piloted': True, 'seated': True,
+             'landed': False, 'lease_free': True,
+             'home': {'range_clearance': [0, 2.70000004768372, -150],
+                      'range_clearance_exit': [0, 2.70000004768372, -100]}}
+        pilot = native.BeaconHomePilot()
+        pilot.stage = 'beacon_home_clearance_exit'
+        pilot.home_previous = copy.deepcopy(s)
+        target = s['home']['range_clearance_exit']
+        off = native.sub(target, s['position'])
+        aim = [s['camera'][i]+off[i] for i in range(3)]
+        dx, dy, align = pilot.aim(s, aim)
+        self.assertEqual((dx, dy), (0, 0))
+        self.assertGreaterEqual(align, .9999)
+        direction = native.unit(off)
+        pitch_error = abs(math.degrees(math.asin(-s['back'][1]))
+                          - math.degrees(math.asin(direction[1])))
+        self.assertAlmostEqual(pitch_error, .5369725075938734)
+        self.assertGreater(pitch_error, .5)
+        # Sending a corrective pixel does not itself count as observed alignment.
+        for now in (0, 1):
+            keys, dx, dy, fire = pilot.update_home(s, now, 1)
+            self.assertFalse(pilot.home_clearance_ready)
+            self.assertEqual(keys, {'Prior'})
+            self.assertEqual((dx, dy), (-3, 3))
+            self.assertFalse(fire)
+            self.assertNotIn('home_clearance_ready', pilot.receipts)
+        # Only a subsequent observed attitude inside the unchanged guard opens W.
+        corrected = copy.deepcopy(s)
+        corrected['back'] = [-v for v in direction]
+        right = s['right']
+        projection = native.dot(right, direction)
+        corrected['right'] = native.unit([right[i]-projection*direction[i] for i in range(3)])
+        back, right = corrected['back'], corrected['right']
+        corrected['up'] = [back[1]*right[2]-back[2]*right[1],
+                           back[2]*right[0]-back[0]*right[2],
+                           back[0]*right[1]-back[1]*right[0]]
+        keys, _, _, _ = pilot.update_home(corrected, 2, 1)
+        self.assertTrue(pilot.home_clearance_ready)
+        self.assertEqual(keys, {'w'})
+        self.assertIs(pilot.receipts['home_clearance_ready'], corrected)
+
     def supply_paid_observation(self):
         reward = native.CinderSupplyPilot.REWARD
         return {'paid_slot': {'delivery': {'contract_id': 'cinder_platform_supply_run', 'quantity': 1,
