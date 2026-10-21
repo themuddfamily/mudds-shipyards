@@ -864,6 +864,11 @@ func _validate_handle(handle: Dictionary, require_attached: bool) -> Dictionary:
 		return _result(false, &"stale_entity")
 	if require_attached and not bool(record.get("attached", false)):
 		return _result(false, &"entity_detached")
+	if require_attached:
+		var reference := record.get("entity") as WeakRef
+		var entity := reference.get_ref() as Node if reference != null else null
+		if entity == null or not entity.is_inside_tree() or entity.is_queued_for_deletion():
+			return _result(false, &"entity_detached")
 	return _result(true, &"current", {"manifest": manifest, "record": record})
 
 
@@ -953,7 +958,11 @@ func _prune_disposed_entities() -> void:
 		var record := _records_by_manifest_id.get(manifest_id, {}) as Dictionary
 		var reference := record.get("entity") as WeakRef
 		var entity := reference.get_ref() as Node if reference != null else null
-		if entity != null and not entity.is_queued_for_deletion():
+		# A queued live owner still owes its ordered tree_exiting callbacks.
+		# Custody reclamation runs there before ordinary retirement. Pruning it
+		# during process would discard its quantities before that handoff; gameplay
+		# already rejects queued owners through attached-handle validation.
+		if entity != null and (not entity.is_queued_for_deletion() or entity.is_inside_tree()):
 			continue
 		var manifest := record.get("manifest") as CargoManifest
 		var handle := _handle_for(manifest)

@@ -322,11 +322,16 @@ func _test_shared_cargo_custody() -> void:
 	# Actual source destruction must reclaim before the authority retires stock.
 	hauler.queue_free()
 	await process_frame
-	_check(binding.get_cargo_source_handle().is_empty(), "retired paid Hauler returns its reduced stock to live custody")
+	_check(binding.get_cargo_source_handle().is_empty()
+		and authority.get_quantity(binding.get("_cargo_stock_handle") as Dictionary, &"cinder_supply_crates") == 1
+		and authority.get_quantity(destination, &"cinder_supply_crates") == 1
+		and authority.to_dictionary().committed_transfers.size() == 1,
+		"retired paid Hauler returns its reduced stock to live custody")
 	jovian_lease = berth.try_reserve(jovian, jovian.get_ship_definition())
 	_check(berth.occupy(jovian, jovian_lease), "the original live Jovian reclaims the shared mission stock")
 	var returned_jovian := binding.get_cargo_source_handle()
 	var returned_start := binding.start_cargo_run()
+	_check(returned_start.get("accepted", false), "the returned Jovian starts its current shared-stock activity: %s" % str(returned_start.get("reason", &"")))
 	var second := _complete_staged_cargo(binding)
 	_check(returned_jovian.get("manifest_id") == &"cinder_jovian_source_manifest"
 		and int(returned_jovian.get("entity_generation", 0)) > int(old_jovian.get("entity_generation", 0))
@@ -357,8 +362,14 @@ func _test_shared_cargo_custody() -> void:
 
 func _complete_staged_cargo(binding: NearbySectorActivityBinding) -> Dictionary:
 	for phase: StringName in [&"load_crate", &"clear_gate", &"dock_platform"]:
-		binding.submit_cargo_phase(phase)
+		var result := binding.submit_cargo_phase(phase)
+		if not bool(result.get("accepted", false)):
+			_check(false, "staged cargo phase %s refused: %s" % [phase, str(result.get("reason", &""))])
+			return result
 	var owner := binding.get("_cargo_activity") as CargoDeliveryActivity
+	if not is_instance_valid(owner):
+		_check(false, "staged cargo completion retains its actual activity owner")
+		return {"accepted": false, "reason": &"staged_owner_unavailable"}
 	return owner.submit_transfer(owner.get_generation())
 
 

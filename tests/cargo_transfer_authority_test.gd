@@ -77,6 +77,29 @@ func _test_conserved_custody_reassignment() -> void:
 	await process_frame
 	_check(authority.get_quantity(current, &"custody_crate") == 1,
 		"retiring the old owner cannot detach or retire the reassigned manifest indexes")
+	var exiting_source := Node.new()
+	root.add_child(exiting_source)
+	var reclaim_probe := {"handle": {}, "result": {}}
+	# Match production's reclaim-before-authority callback registration order.
+	exiting_source.tree_exiting.connect(func() -> void:
+		reclaim_probe["result"] = authority.reassign_entity(
+			reclaim_probe.handle, owners[0], &"jovian", &"jovian_hold"
+		)
+	)
+	var retiring := authority.reassign_entity(current, exiting_source, &"exiting_source", &"exiting_hold")
+	reclaim_probe["handle"] = retiring.handle
+	exiting_source.queue_free()
+	authority.call("_prune_disposed_entities")
+	_check(authority.get_quantity(retiring.handle, &"custody_crate") == 1
+		and authority.transfer(&"queued_source_delivery", retiring.handle, destination, &"custody_crate", 1).reason == &"entity_detached",
+		"process pruning preserves queued in-tree stock for ordered exit reclamation while refusing queued-owner deliveries")
+	await process_frame
+	var reclaimed := reclaim_probe.result as Dictionary
+	current = reclaimed.get("handle", {}) as Dictionary
+	_check(reclaimed.get("accepted", false) and authority.get_quantity(current, &"custody_crate") == 1
+		and authority.get_quantity(destination, &"custody_crate") == 1
+		and authority.to_dictionary().next_receipt_id == 2,
+		"queued source tree exit reclaims the same reduced manifest before authority retirement without another receipt")
 	var queued := Node.new()
 	root.add_child(queued)
 	queued.queue_free()
