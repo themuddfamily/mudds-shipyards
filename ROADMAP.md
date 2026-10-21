@@ -6,13 +6,12 @@ Nine of the eventual 17 craft exist; eight still need supported specifications
 and implementation. Partial acceptance is retained in the backlog; it is not
 whole-feature completion.
 
-Latest playable checkpoint: **4196ad0**. The complete Courier intercept now
-passes: kill the first runner before escape, finish the defender, return home,
-dock, shut down and physically exit. Existing weapon/health/AI/encounter limits
-are retained. Complete Beacon and Cinder outcomes remain included.
-[Windows ZIP](builds/windows/MuddsShipyards-4196ad0-checkpoint.zip),
-[Windows notes](builds/windows/MuddsShipyards-4196ad0-notes.txt),
-[Linux notes](builds/linux/MuddsShipyards-4196ad0-notes.txt).
+Latest playable checkpoint: **255f8df**. Bomber payload visuals now work after
+physically exiting and retaking the pilot seat; the approved refill to four and
+fresh release to three pass through ordinary controls. Freight terminals,
+shared Jovian/Hauler stock and requester navigator refusal feedback are included.
+[Windows ZIP](builds/windows/MuddsShipyards-255f8df-checkpoint.zip),
+[build notes](builds/windows/MuddsShipyards-255f8df-notes.txt).
 
 This page is the working queue. The
 [36-parent crosswalk and named children](docs/ROADMAP_BACKLOG.md#coverage-of-the-original-remaining-outcomes)
@@ -42,26 +41,27 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
-**BOMBER-REBOARD-PRESENTATION selected: repair the observed fresh-release visual refusal.**
-BOMBER-REARM-POLICY entitlement DONE4a0d82bff: actual ordinary walk/board, four
-payloads4→0, fifth exhausted refusal, supported physical exit/walk clear/reboard,
-new generation exactly4, fresh projectile/fire leaves3, final OFFLINE exit;
-66.232s at original300s cap. However that fresh release reports presentation
-invalid_release_record. Disembark detaches the presentation; successful ordinary
-begin_generation restores authority/audio but leaves presentation detached.
-Repair only accepted-generation presentation reactivation, preserve refused/stale
-begin state, add the smallest existing integration regression, and require actual
-release presentation acceptance in the existing ordinary route. No ammo or role
-policy change. Root will run focused checks, fresh paired clean-source checkpoint
-exports/strict startups and the same isolated original-cap route. One implementer
-and independent reviewer; stop at first failure, no broader effects/combat work.
+**BOMBER-REBOARD-PRESENTATION completed255f8df2b; checkpoint255f8df.**
+Actual refill qualification exposed a detached visual pool after seat retake.
+Successful payload-session starts now reactivate it; rejected starts preserve
+live effects. Existing integration25 assertions and driver122 tests pass.
+The complete original-cap ordinary Bomber rearm route passes66.146s: physical
+walk/board, four releases4→0, fifth exhausted refusal, OFFLINE exit/walk clear,
+same-seat new-generation4, fresh release3 and final supported OFFLINE exit.
+All five releases now report release_presented, including after reboard.
+Paired exports, three strict menu startups and actual1527-entry payload/archive
+checks pass. Independent source/result/notes reviews GO. EXE/ZIP/notes in builds/.
+[Delivery and limits](docs/history/ROADMAP_DELIVERIES.md#bomber-reboard-payload-presentation--completed2026-10-21).
 
-All five owner decisions are now resolved and their bounded entitlements checked;
-this directly observed Bomber presentation defect remains selected. Latest public
-playable checkpointc2c72a2. Full Bomber flight/combat/roles/recovery, other travel
-limits, full ordinary Hauler/cold inventory and parked WALK-FREIGHT/KIT-RELOAD
-remain open. Prior owned scratch archived/removed; protected unqualified work
-retained. [Bomber refill result and limitation](docs/history/ROADMAP_DELIVERIES.md#bomber-seat-retake-refill--entitlement-qualified-2026-10-21).
+All five owner decisions are now resolved and their bounded outcomes delivered:
+Freight interface509703300, shared Hauler custody6bcbea302, navigator requester
+feedbackc2c72a223, Beacon outbound252ed6bfc/10.510574s≤60, Bomber seat-retake
+refill4a0d82bff plus presentation repair255f8df2b. These do not close parent
+outcomes. Select one bounded next production card from the retained inventory;
+no automatic parked retry. Full Bomber flight/combat/roles/recovery, other travel
+limits, full ordinary Hauler/cold inventory and WALK-FREIGHT/KIT-RELOAD remain
+open. All owned scratch verified archived/removed; main only local/live branch,
+accepted work pushed; protected older unqualified work retained.
 
 **Prior Rime diagnosis closed, journey remains open.**
 The selected original Rime run failed its unchanged peer landing gate after
@@ -70,7 +70,7 @@ total: the peer timeout stopped the host before profiler flush. The controller
 leg field was also unavailable. These samples locate costs but establish no
 production repair or completed journey; there is no automatic retry. Temporary
 source is bundled, all owned processes are absent, and64 scratch entries were
-archived/verified/removed. Latest playable checkpoint is nowc2c72a2 (navigator requester refusals).
+archived/verified/removed. Latest playable checkpoint is now255f8df (Bomber seat-retake payload presentation).
 
 The earlier 45 remote heads included `main`, duplicate attempts, diagnostics and
 already-integrated work; they were not 45 independent unfinished features.
@@ -712,7 +712,7 @@ keep their remaining acceptance requirements and other unrelated decisions open.
 | [AUDIO-NAVIGATOR-CLIENT-REJECTION](docs/COMPLETION_SCOPE.md#client-navigator-rejection-response--bounded-definition-next) | DECIDED: feedback on every fresh current authenticated rejection, including unavailable consumer. | DONEc2c72a223/checkpointc2c72a2: actual requester-correlated response/cue/caption, silent stale/replayed/foreign inputs/results; actual two-peer continuation accepted. Listening/native/full travel stay open. |
 | [HAULER-CARGO-MANIFEST](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries) | DECIDED: share the existing stock between Jovian and Hauler. | Shared custody DONE6bcbea302/checkpoint6bcbea3; conserved ownership/generation floors and no recreated cargo/duplicate receipts. Full ordinary Hauler delivery and cold physical inventory remain required. |
 | [TRAVEL-LIMIT Beacon outbound](docs/ROADMAP_BACKLOG.md#beacon-outbound-travel-envelope--approved60second-maximum) | DECIDED: maximum60s unpaused elapsed from engine-start input at occupied Torrent berth to controlled first Beacon. | DONE252ed6bfc:10.510574s outbound and full original111.908s journey; checkpointc2c72a2 reused. Return/other routes remain separate. |
-| BOMBER-REARM-POLICY | DECIDED: refill ammunition when the pilot retakes the seat. | Entitlement DONE4a0d82bff actual4→0/refusal/physicalretake4/freshshot3; post-retake presentation defect selected separately. Broader craft/roles/recovery remain open. |
+| BOMBER-REARM-POLICY | DECIDED: refill ammunition when the pilot retakes the seat. | Entitlement DONE4a0d82bff actual4→0/refusal/physicalretake4/freshshot3; post-retake presentation repaired255f8df2b/checkpoint255f8df. Broader craft/roles/recovery remain open. |
 
 Other scope, evidence, hardware and authorization dependencies remain in the
 [backlog](docs/ROADMAP_BACKLOG.md#external-dependencies-outside-the-ready-queue).

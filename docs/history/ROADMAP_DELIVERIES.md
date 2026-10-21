@@ -21211,3 +21211,57 @@ byte/mode/archive verified and removed. Profiles7,661bytes SHA256
 `36ff49507cdf792228f016df1841e79ea2591dfcd31e3ea04c25e083ccc8963e`.
 Accepted history integrated/pushed in main; no new working branch/worktree;
 eight protected detached registrations/nine older unqualified outcomes retained.
+
+## Bomber reboard payload presentation — completed2026-10-21
+
+BOMBER-REBOARD-PRESENTATION accepted255f8df2b6f6de89931ccab66c8a50728fff2694,
+checkpoint255f8df. Prior actual rearm qualification4a0d82bff established owner
+entitlement but exposed gen2 accepted projectile with presentation
+invalid_release_record. Disembark explicitly detached presentation; ordinary
+begin_generation restored authority/audio without resetting that visual pool.
+Two production lines reset/reactivate existing presentation only after an
+accepted generation start. Stale/refused starts preserve live effects/counters;
+ammo, cooldown, authority and owner seat policy unchanged.
+
+Existing Bomber payload integration25 assertions PASS3.740s, driver122 tests
+PASS10.721s; compact regressions cover detach→newbegin→accepted gen2visual/ammo3,
+refused starts preserving effects and the actual presentation-refusal case.
+Fresh clean-source Windows/Linux exports and all three strict startups pass:
+direct ELF22.316s, extracted archive23.704s, Windows embedded game data under
+Linux Godot25.952s; actual exit0/exactly one STARTUP_MENU_READY_OK each. Actual
+1527 PCK entries match, stock Windows executable code and exact Linux archive
+members/bytes/modes/source epoch verified. Audit5.528s; exports11.632/25.508s.
+
+Stricter original ordinary bomber-rearm route PASS66.146s, supervisor66.437s at
+unchanged300/330caps. Same physical access/seat, all four initial releases4→0,
+actual fifth exhausted refusal, neutral OFFLINE supported exit, outward walk
+clearing suppression, return/reboard same hull generation2 exactly4/emptyrecords,
+fresh first release3 and final supported OFFLINE exit. All five release
+presentations now accepted/release_presented: gen1slots0–3 and gen2slot0 at
+frame2793, one new projectile/ammo3. Independent review parses854 raw samples,
+stable11part identity/default controls/tuning, no pause/regeneration, six FIRE/
+five E presses/releases. No diagnostics, source/cache unchanged outside explicit
+export cache updates, input/helper/game/Xvfb cleanup passes. Source/result/notes
+review GO; post-retake presentation admission defect resolved in this contract.
+
+Windows EXE184,717,664bytes SHA256
+`c1a0ce907b6957376a63e37ce522c169311e138914eac1aeb5fcac45482c0762`;
+checkpoint ZIP103,247,943bytes SHA256
+`56ca18ad65625b6cf049dbb43ba463fc84048868c5709d5585aee6a300664f5d`.
+Exact ZIP EXE/notes bytes verified. Linux ELF148,959,376bytes SHA256
+`9e7c042176bf00c060b3ebce61ef4f662891d487d7208110b4f7a47bc6c19c2a`;
+archive95,370,695bytes SHA256
+`ee161c0e75dac12f9a90cfbf61c5a3c794024961a59d4081f1e8664533e73b9e`.
+EXE/ZIP/notes are under builds/windows; Linux package under builds/linux.
+Private Xvfb/x11/Dummy audio/dummy renderer establish runtime presentation
+admission, not rendered quality/native Windows/GPU/listening/human/fullflight/
+combat/recovery/crew/final-release acceptance. Those gates stay open. Hosted CI
+remains disabled; no Downloads publication.
+
+Raw results retained `/srv/mudds-work/bomber-reboard-presentation-20261021/results/`.
+Nine stage owners terminal,28 sampled owned identities absent;120 scratch entries
+byte/mode/archive verified and removed. Profiles3,270,071bytes SHA256
+`f35363f3c00f98f2c6cea012e4d78d4f9274725221199d3718944a0fa32ae641`.
+Accepted history integrated/pushed in main; no new working branch/worktree.
+Eight protected detached registrations/nine older unqualified outcomes remain
+preserved, including the three already-missing/tmp registrations.
