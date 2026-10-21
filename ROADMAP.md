@@ -42,7 +42,17 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
-**Existing-work closeout takes priority. No task is currently running.**
+**Existing-work closeout takes priority. One existing Rime diagnosis selected.**
+Restore the exact archived two-crew caller alongside current fixture changes.
+Attach the existing per-function script profiler only to the host's original
+final-approach wait, with passive wall/frame/leg/distance/speed observations.
+Keep all original assertions, physical outbound/crew checks,120s landing and2400s
+outer deadlines; no shorter selector, early success or runtime change. Previous
+run reached this boundary after about27minutes. Stop on the first original
+failure or complete result; archive temporary source and clean owned processes/
+profiles before any further selection. This is diagnosis, not a gameplay repair
+or full-journey acceptance. Latest playable checkpoint remains4196ad0.
+
 The earlier 45 remote heads included `main`, duplicate attempts, diagnostics and
 already-integrated work; they were not 45 independent unfinished features.
 There is now only `main` locally and remotely. Of the retained 20-candidate
