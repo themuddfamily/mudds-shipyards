@@ -288,7 +288,7 @@ func _physics_process(delta: float) -> void:
 		return
 	if _cinder_supply:
 		_supply_sequence += 1
-		print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(_cinder_supply_observation()))
+		print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(_cinder_supply_observation(), "", true, true))
 		return
 	if _arrow:
 		print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(_arrow_observation()))
