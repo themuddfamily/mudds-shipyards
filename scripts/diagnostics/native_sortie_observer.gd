@@ -1223,7 +1223,7 @@ func _cinder_supply_observation() -> Dictionary:
 					var walking_ray := PhysicsRayQueryParameters3D.create(
 						_player.global_position + Vector3.UP * 0.2,
 						_player.global_position - Vector3.UP * 0.3,
-						_player.collision_mask, [_player.get_rid()])
+						_player.collision_mask & PhysicsLayers.WORLD, [_player.get_rid()])
 					walking_floor = _player.get_world_3d().direct_space_state.intersect_ray(walking_ray)
 				var structure := access.get_node_or_null(^"Structure")
 				var walking_collider := walking_floor.get("collider") as Node
