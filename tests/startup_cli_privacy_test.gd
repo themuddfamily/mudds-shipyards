@@ -108,6 +108,17 @@ func _run() -> void:
 	for malformed: String in ["--native-sortie-observer=Habitat-restart", "--native-sortie-observer=habitat-restart-extra", "--native-sortie-observer=habitat-restart=", "--native-sortie-observer habitat-restart"]:
 		_check(not StartupLoaderType.native_sortie_request(PackedStringArray([malformed]), "X11", "Dummy", true).accepted,
 			"Habitat restart rejects malformed selector: %s" % malformed)
+	var supply_args := PackedStringArray(["--native-sortie-observer=cinder-supply"])
+	_check(StartupLoaderType.native_sortie_request(supply_args, "X11", "Dummy", true).accepted,
+		"Cinder supply observation admits the owned silent ordinary OS-input route")
+	for row: Array in [["headless", "Dummy", true], ["wayland", "Dummy", true], ["X11", "PulseAudio", true], ["X11", "Dummy", false]]:
+		_check(not StartupLoaderType.native_sortie_request(supply_args, row[0], row[1], row[2]).accepted,
+			"Cinder supply preserves display, audio and private input admission")
+	for conflict: String in ["--native-sortie-observer=cinder-supply", "--native-sortie-observer", "--startup-check", "--support-info"]:
+		var supply_conflicting: PackedStringArray = supply_args.duplicate()
+		supply_conflicting.append(conflict)
+		_check(not StartupLoaderType.native_sortie_request(supply_conflicting, "X11", "Dummy", true).accepted,
+			"Cinder supply rejects duplicate or competing startup selectors")
 	var fleet_args := PackedStringArray(["--native-sortie-observer=sandbox"])
 	_check(StartupLoaderType.native_sortie_request(fleet_args, "X11", "Dummy", true).accepted,
 		"full Sandbox observation admits only the same silent private input route")
