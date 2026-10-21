@@ -18,6 +18,307 @@ spec.loader.exec_module(native)
 
 
 class NativeSortieSafetyTests(unittest.TestCase):
+    def supply_paid_observation(self):
+        reward = native.CinderSupplyPilot.REWARD
+        return {'paid_slot': {'delivery': {'contract_id': 'cinder_platform_supply_run', 'quantity': 1,
+                'generation': 1, 'ordered_phases': ['load_crate', 'clear_gate', 'dock_platform'],
+                'deadline_seconds': 120, 'elapsed_seconds': 24,
+                'transfer_proof': {'source_quantity_after': 1, 'destination_quantity_after': 1},
+                'reward_receipt': {'activity_id': 'cinder_kit_cargo_run', 'reward_id': reward,
+                                   'granted': True, 'replay_allowed': False}}},
+                'reward_record': {'total_receipts': 1, 'receipt_serial': 1, 'reward_counts': {reward: 1},
+                    'last_receipt': {'activity_id': 'cinder_kit_cargo_run', 'activity_generation': 1,
+                                     'granted': True, 'replay_allowed': False}}}
+
+    def test_supply_stair_airtime_requires_current_bounded_cinder_region(self):
+        pilot = native.CinderSupplyPilot()
+        s = {'grounded': False, 'supported': False, 'support_collider': '',
+             'control_enabled': True, 'seated': False, 'transition_busy': False,
+             'cargo': {'available': True, 'actor_authorized': True, 'lease': True,
+                       'contract': True, 'walk_within_region': True}}
+        for stage in ('terminal_walk', 'reverse_walk', 'reboard_walk'):
+            pilot.stage = stage
+            pilot.foot(s)
+            for key in s['cargo']:
+                bad = copy.deepcopy(s); bad['cargo'][key] = False
+                with self.subTest(stage=stage, missing=key):
+                    with self.assertRaises(AssertionError): pilot.foot(bad)
+        for stage in ('walk', 'cargo_exit', 'home_exit', 'home_walk'):
+            pilot.stage = stage
+            with self.subTest(stage=stage):
+                with self.assertRaises(AssertionError): pilot.foot(s)
+        pilot.stage = 'terminal_walk'
+        for key, value in [('control_enabled', False), ('seated', True), ('transition_busy', True)]:
+            bad = copy.deepcopy(s); bad[key] = value
+            with self.subTest(invalid=key):
+                with self.assertRaises(AssertionError): pilot.foot(bad)
+        pilot.stage = 'home_walk'
+        s.update(grounded=True, supported=True, support_collider='Yard/Deck')
+        pilot.foot(s)
+
+    def test_supply_step_control_check_requires_current_cinder_region(self):
+        pilot = native.CinderSupplyPilot()
+        pilot.stage = 'terminal_walk'
+        s = {'grounded': True, 'supported': False, 'support_collider': '',
+             'control_enabled': True, 'seated': False, 'transition_busy': False,
+             'station_seated': False, 'game_station_seated': False, 'sleeping': False,
+             'mouse_captured': True, 'capsule_enabled': True, 'piloted': False,
+             'cargo': {'available': True, 'actor_authorized': True, 'lease': True,
+                       'contract': True, 'walk_within_region': True}}
+        pilot.require_walking(s)
+        for key, value in [('station_seated', True), ('game_station_seated', True),
+                           ('sleeping', True), ('mouse_captured', False),
+                           ('capsule_enabled', False), ('piloted', True)]:
+            bad = copy.deepcopy(s); bad[key] = value
+            with self.subTest(invalid=key):
+                with self.assertRaises(AssertionError): pilot.require_walking(bad)
+        bad = copy.deepcopy(s); bad['cargo']['walk_within_region'] = False
+        with self.assertRaises(AssertionError): pilot.require_walking(bad)
+        pilot.stage = 'home_walk'
+        with self.assertRaises(AssertionError): pilot.require_walking(s)
+
+    def test_supply_waypoint_waits_for_actual_physical_landing(self):
+        pilot = native.CinderSupplyPilot()
+        pilot.stage = 'terminal_walk'
+        s = {'grounded': False, 'supported': False, 'support_collider': '',
+             'control_enabled': True, 'seated': False, 'transition_busy': False,
+             'cargo': {'available': True, 'actor_authorized': True, 'lease': True,
+                       'contract': True, 'walk_within_region': True},
+             'player': [0, 0, 0], 'velocity': [0, 0, 0], 'frame': 12}
+        self.assertFalse(pilot.walk_to(s, [0, 0, 0], set(), 0)[1])
+        self.assertEqual(pilot.visited, [])
+        s['grounded'] = True
+        self.assertTrue(pilot.walk_to(s, [0, 0, 0], set(), 0)[1])
+        self.assertTrue(pilot.visited[-1]['grounded'])
+
+    def test_supply_first_dock_waits_neutral_for_actual_engine_shutdown(self):
+        pilot = native.CinderSupplyPilot()
+        pilot.stage, pilot.stage_since = 'cargo_land', 0
+        cargo = {'lease': True, 'contract': True, 'dock': [31, -65.85, -700], 'source_entity_id': 7,
+                 'cluster_id': 10, 'generation': 1, 'access_id': 11, 'attachment': 1,
+                 'berth_id': 12, 'terminal_id': 13, 'binding_id': 14, 'activity_id': 15,
+                 'inventory': {'manifests': [
+                     {'owner_entity_id': 'jovian_provisional', 'entries': [{'item_id': 'cinder_supply_crates', 'quantity': 2}]},
+                     {'owner_entity_id': 'cinder_destination', 'entries': [{'item_id': 'cinder_supply_crates', 'quantity': 0}]}]}}
+        s = {'frame': 6000, 'phase': 'SHUT_DOWN', 'position': cargo['dock'], 'player': [31, -64, -700],
+             'ship_velocity': [0, 0, 0], 'ship_id': 7, 'landed': True, 'engine': 'ONLINE', 'cargo': cargo}
+        pilot.last_state = s
+        self.assertEqual(pilot.update(s, 1)[0], set())
+        self.assertEqual(pilot.stage, 'cargo_arrival_shutdown')
+        self.assertEqual(pilot.update(s, 2)[0], set())
+        self.assertEqual(pilot.stage, 'cargo_arrival_shutdown')
+        s['engine'] = 'OFFLINE'
+        self.assertEqual(pilot.update(s, 3)[0], set())
+        self.assertEqual(pilot.stage, 'supply_pause')
+        self.assertIn('occupied_source', pilot.receipts)
+
+    def test_supply_stopping_distance_uses_authored_jovian_brake(self):
+        pilot = native.CinderSupplyPilot()
+        for brake, expected in [(25, 'Prior'), (48, 'w')]:
+            with self.subTest(brake=brake):
+                s = {'position': [0, 0, 0], 'camera': [0, 0, 10], 'ship_velocity': [0, 0, -40],
+                     'right': [1, 0, 0], 'up': [0, 1, 0], 'back': [0, 0, 1],
+                     'tuning': {'brake': brake, 'mouse': .0022}}
+                keys = set()
+                pilot.flight(s, [0, 0, -25], keys)
+                self.assertEqual(keys, {expected})
+
+    def test_supply_ordinary_roll_feedback_reduces_actual_basis_error(self):
+        pilot = native.CinderSupplyPilot()
+        for degrees in (35, -35, 160, -160):
+            with self.subTest(degrees=degrees):
+                angle = math.radians(degrees)
+                right, up = [math.cos(angle), math.sin(angle), 0], [-math.sin(angle), math.cos(angle), 0]
+                s = {'position': [0, 0, 0], 'camera': [0, 0, 10], 'ship_velocity': [0, 0, 0],
+                     'right': right, 'up': up, 'back': [0, 0, 1], 'tuning': {'brake': 48, 'mouse': .0022}}
+                keys = set()
+                pilot.flight(s, [0, 0, -100], keys)
+                self.assertIn('r' if degrees > 0 else 'q', keys)
+                self.assertNotIn('q' if degrees > 0 else 'r', keys)
+                # HeroShip rotates about local FORWARD (-Z): positive R makes
+                # new right=cos(a)*right-sin(a)*up, new up=sin(a)*right+cos(a)*up.
+                delta = math.radians(2 if 'r' in keys else -2)
+                next_right_y = math.cos(delta)*right[1]-math.sin(delta)*up[1]
+                next_up_y = math.sin(delta)*right[1]+math.cos(delta)*up[1]
+                self.assertLess(abs(math.atan2(next_right_y, next_up_y)), abs(angle))
+        for right, up in [([1, 0, 0], [0, 1, 0]), ([1, 0, 0], [0, .01, -math.sqrt(1-.01**2)])]:
+            back = [right[1]*up[2]-right[2]*up[1], right[2]*up[0]-right[0]*up[2], right[0]*up[1]-right[1]*up[0]]
+            s = {'position': [0, 0, 0], 'camera': [0, 0, 10], 'ship_velocity': [0, 0, 0],
+                 'right': right, 'up': up, 'back': back, 'tuning': {'brake': 48, 'mouse': .0022}}
+            keys = set()
+            pilot.flight(s, [-v*100 for v in back], keys)
+            self.assertTrue(keys.isdisjoint({'q', 'r'}))
+
+    def test_supply_authored_capture_admits_normal_landing_without_extra_stop(self):
+        for stage, expected in [('outbound', 'cargo_land'), ('gate_brake', 'cargo_redock'),
+                                ('gate_return', 'cargo_redock'), ('home_flight', 'home_land')]:
+            for accepted in (True, False):
+                with self.subTest(stage=stage, accepted=accepted):
+                    pilot = native.CinderSupplyPilot()
+                    pilot.stage = stage
+                    # Actual first accepted Cinder approach: speed34.9306 is
+                    # inside authored35, with1.618m root error and upright.638.
+                    s = {'frame': 5345, 'phase': 'FREE_FLIGHT', 'position': [31, -62.85, -740.382],
+                         'player': [31, -62, -740], 'ship_velocity': [0, 0, -34.9306],
+                         'camera': [31, -60, -730], 'right': [1, 0, 0], 'up': [0, .638, .77],
+                         'back': [0, -.77, .638], 'tuning': {'brake': 48, 'mouse': .0022},
+                         'cargo': {'available': True, 'capture': accepted, 'capture_position': [31, -62.85, -742]},
+                         'home': {'capture': accepted, 'capture_position': [31, -62.85, -742]}}
+                    pilot.last_state = s
+                    keys, _, _, _ = pilot.update(s, 1)
+                    self.assertEqual('l' in keys, accepted)
+                    self.assertEqual(pilot.stage, expected if accepted else stage)
+
+    def test_supply_root_waypoint_aim_ignores_displaced_chase_camera(self):
+        pilot = native.CinderSupplyPilot()
+        # Actual failed observation's root/camera displacement. Align the hull
+        # with the root-to-capture vector: navigation should request no turn.
+        position, camera, target = [-53, -11.69, 108.13], [-53, -40.16, 116.10], [-53, 13.63, 83.3]
+        forward = native.unit(native.sub(target, position))
+        s = {'position': position, 'camera': camera, 'ship_velocity': [0, 0, 0],
+             'right': [1, 0, 0], 'up': [0, -forward[2], forward[1]],
+             'back': [-v for v in forward], 'tuning': {'brake': 48, 'mouse': .0022}}
+        self.assertNotEqual(pilot.aim(s, target, .3)[1], 0)
+        keys = set()
+        dx, dy, settled = pilot.flight(s, target, keys)
+        self.assertEqual((dx, dy), (0, 0))
+        self.assertEqual(keys, {'w'})
+        self.assertFalse(settled)
+        self.assertEqual(s['camera'], camera)
+
+    def test_supply_eight_metre_launch_cannot_turn_directly_toward_cinder(self):
+        pilot = native.CinderSupplyPilot()
+        pilot.stage = 'launch'
+        pilot.initial = {'parked': [-53, 1.63, 57.3]}
+        s = {'frame': 2261, 'phase': 'FREE_FLIGHT', 'position': [-53, 1.63, 65.53],
+             'player': [-53, 2, 65.53], 'ship_velocity': [0, 0, 15.38],
+             'landed': False, 'home': {'lease_free': True, 'capture_position': [-53, 13.63, 83.3]},
+             'cargo': {'available': False}}
+        pilot.last_state = s
+        pilot.update(s, 1)
+        self.assertEqual(pilot.stage, 'outbound_clearance')
+        with patch.object(pilot, 'flight', return_value=(0, 0, False)) as flight:
+            pilot.update(s, 2)
+        self.assertEqual(flight.call_args.args[1], s['home']['capture_position'])
+        self.assertEqual(pilot.stage, 'outbound_clearance')
+        self.assertEqual(pilot.clearance_index, 0)
+        outbound = pilot.station_clearance_targets(s)
+        self.assertEqual(outbound, [[-53, 13.63, 83.3], [-53, 13.63, 110],
+                                    [-53, 80, 150], [31, 80, -225]])
+        self.assertEqual(pilot.station_clearance_targets(s, reverse=True), list(reversed(outbound)))
+        translated = copy.deepcopy(s)
+        translated['home']['capture_position'] = [p+10 for p in s['home']['capture_position']]
+        self.assertEqual(pilot.station_clearance_targets(translated), [[p+10 for p in point] for point in outbound])
+
+    def test_supply_payment_requires_actual_transfer_and_one_credit(self):
+        pilot = native.CinderSupplyPilot()
+        s = self.supply_paid_observation()
+        pilot.require_paid(s)
+        for section, key, value in [('transfer_proof', 'source_quantity_after', 2),
+                                    ('transfer_proof', 'destination_quantity_after', 0),
+                                    ('reward_receipt', 'granted', False)]:
+            bad = copy.deepcopy(s)
+            bad['paid_slot']['delivery'][section][key] = value
+            with self.assertRaises(AssertionError): pilot.require_paid(bad)
+        bad = copy.deepcopy(s); bad['reward_record']['total_receipts'] = 2
+        with self.assertRaises(AssertionError): pilot.require_paid(bad)
+        bad = copy.deepcopy(s); bad['paid_slot']['delivery']['elapsed_seconds'] = 120
+        with self.assertRaises(AssertionError): pilot.require_paid(bad)
+
+    def test_supply_paid_receipt_survives_retired_live_binding_but_cannot_change(self):
+        pilot = native.CinderSupplyPilot()
+        s = self.supply_paid_observation()
+        pilot.paid_slot, pilot.paid_record = copy.deepcopy(s['paid_slot']), copy.deepcopy(s['reward_record'])
+        s['cargo'] = {'available': False}
+        pilot.require_paid(s)
+        s['paid_slot']['delivery']['elapsed_seconds'] += 1
+        with self.assertRaises(AssertionError): pilot.require_paid(s)
+
+    def test_supply_pretransfer_cut_protects_existing_and_new_ordinary_records(self):
+        for corruption in ('none', 'change_initial', 'delete_initial', 'change_new', 'change_new_repeat', 'change_new_home', 'missing_cut'):
+            with self.subTest(corruption=corruption), tempfile.TemporaryDirectory() as root:
+                profile, output = Path(root)/'profile', Path(root)/'result'
+                (profile/'data').mkdir(parents=True); output.mkdir()
+                path = profile/'data'/'mudds_user_data.json'
+                document = self.restart_document()
+                path.write_text(json.dumps(document))
+                files, pilot = native.CinderSupplyFiles(profile, output), native.CinderSupplyPilot()
+                sample = {'path': str(path), 'generation': document['generation'], 'source': 'primary'}
+                s = dict(self.supply_paid_observation(), save=sample)
+                files.observe(s, pilot)
+                document['generation'] += 1
+                document['payload']['tutorial_prompts_seen'] = {'schema_version': 1, 'seen_ids': ['cinder_platform_supply_run']}
+                if corruption == 'change_initial': document['payload']['unrelated']['progress'].append(3)
+                if corruption == 'delete_initial': del document['payload']['unrelated']
+                path.write_text(json.dumps(document)); sample['generation'] = document['generation']
+                if corruption != 'missing_cut':
+                    pilot.stage = 'terminal_aim'
+                    if corruption in ('change_initial', 'delete_initial'):
+                        with self.assertRaisesRegex(AssertionError, 'unrelated actual-file'):
+                            files.observe(s, pilot)
+                        self.assertFalse(pilot.file_pretransfer)
+                        continue
+                    files.observe(s, pilot)
+                    self.assertTrue(pilot.file_pretransfer)
+                    self.assertEqual((output/'pretransfer.json').read_bytes(), path.read_bytes())
+                document['generation'] += 1
+                document['payload']['cinder_cargo_delivery'] = s['paid_slot']
+                document['payload']['game_flow_reward_store'] = s['reward_record']
+                if corruption == 'change_new': document['payload']['tutorial_prompts_seen']['seen_ids'] = []
+                path.write_text(json.dumps(document)); sample['generation'] = document['generation']
+                pilot.paid_state = s
+                if corruption in ('change_new', 'missing_cut'):
+                    with self.assertRaisesRegex(AssertionError, 'unrelated actual-file|pre-transfer'):
+                        files.observe(s, pilot)
+                    self.assertFalse(pilot.file_paid)
+                else:
+                    files.observe(s, pilot)
+                    self.assertTrue(pilot.file_paid)
+                    for label, cut in (('repeat_terminal', 'repeat'), ('home_docked', 'home')):
+                        pilot.receipts[label] = s
+                        if corruption == 'change_new_'+cut:
+                            document['generation'] += 1
+                            document['payload']['tutorial_prompts_seen']['seen_ids'] = []
+                            path.write_text(json.dumps(document)); sample['generation'] = document['generation']
+                            with self.assertRaisesRegex(AssertionError, 'unrelated actual-file'):
+                                files.observe(s, pilot)
+                            self.assertFalse(pilot.file_repeat if cut == 'repeat' else pilot.file_home)
+                            break
+                        files.observe(s, pilot)
+                    if corruption == 'none': self.assertTrue(pilot.file_repeat and pilot.file_home)
+
+    def test_supply_real_file_payment_rejects_unrelated_payload_corruption(self):
+        with tempfile.TemporaryDirectory() as root:
+            profile, output = Path(root)/'profile', Path(root)/'result'
+            (profile/'data').mkdir(parents=True)
+            output.mkdir()
+            path = profile/'data'/'mudds_user_data.json'
+            document = self.restart_document()
+            path.write_text(json.dumps(document))
+            files, pilot = native.CinderSupplyFiles(profile, output), native.CinderSupplyPilot()
+            sample = {'path': str(path), 'generation': document['generation'], 'source': 'primary'}
+            s = dict(self.supply_paid_observation(), save=sample)
+            files.observe(s, pilot)
+            pilot.stage = 'terminal_aim'
+            files.observe(s, pilot)
+            self.assertTrue(pilot.file_pretransfer)
+            document['generation'] += 1
+            document['payload']['cinder_cargo_delivery'] = s['paid_slot']
+            document['payload']['game_flow_reward_store'] = s['reward_record']
+            document['payload']['unrelated']['progress'].append(99)
+            path.write_text(json.dumps(document))
+            sample['generation'] = document['generation']
+            pilot.paid_state = s
+            with self.assertRaisesRegex(AssertionError, 'unrelated actual-file'):
+                files.observe(s, pilot)
+            self.assertFalse(pilot.file_paid)
+
+    def test_supply_cannot_finish_before_real_normal_ui_exit(self):
+        pilot = native.CinderSupplyPilot()
+        with self.assertRaises(AssertionError): pilot.finish(0)
+        pilot.quit_requested = True; pilot.stage = 'quit_wait'; pilot.file_home = True
+        with self.assertRaises(AssertionError): pilot.finish(1)
+
     def life_observation(self):
         return {'mode': 'life-tow', 'actors_current': True, 'frame': 100, 'phase': 'INTRO',
                 'main_id': 1, 'world_id': 2, 'player_id': 3, 'capsule_id': 4, 'shape_id': 5, 'ship_id': 6,

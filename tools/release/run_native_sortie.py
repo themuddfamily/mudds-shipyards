@@ -2,6 +2,7 @@
 """Fly the embedded Linux game with OS XTest keys/mouse on an owned Xvfb.
 
 Usage: run_native_sortie.py GAME.x86_64 --output NEW_RESULT_DIRECTORY
+Use --route cinder-supply for the full first funded Jovian/Cinder terminal/home journey.
 Use --route beacon-entry for normal Torrent departure and actual first Beacon HUD start.
 Use --route beacon-settlement to continue through all four beacons and durable settlement.
 Use --route arrow-return-reuse for one Arrow precision hit, two home exits and normal UI quit.
@@ -3849,8 +3850,470 @@ def stop(process):
         process.wait()
 
 
+
+class CinderSupplyPilot(BeaconEntryPilot):
+    """First funded supply journey; every control is an ordinary OS event."""
+    MODE = 'cinder-supply'
+    MARKER = 'NATIVE_CINDER_SUPPLY_OK'
+    ACTIVITY = 'cinder_platform_supply_run'
+    REWARD = 'return_fabrication_kits_to_shipyard'
+    DEFAULT_WALK = LifeTowPilot.DEFAULT_WALK
+    finite_vector = staticmethod(LifeTowPilot.finite_vector)
+    require_motion_epoch = LifeTowPilot.require_motion_epoch
+    require_step_event = LifeTowPilot.require_step_event
+
+    def __init__(self):
+        super().__init__()
+        self.initial = self.previous = self.last_state = None
+        self.visited, self.native_edges = [], []
+        self.walk_index = 0
+        self.walked = self.home_walked = 0
+        self.goal_since = self.stage_since = None
+        self.route = []
+        self.paid_state = self.paid_slot = self.paid_record = None
+        self.file_pretransfer = self.file_paid = self.file_repeat = self.file_home = False
+        self.quit_requested = False
+        self.clearance_index = 0
+        self.flight_target = None
+        self.stop_since = None
+        self.cargo_identity = None
+        self.phase_seen = []
+        self.motion_lag = None
+        self.observed_previous = None
+        self.consumed_step_frames = set()
+
+    def enter(self, stage, s):
+        super().enter(stage, s)
+        self.stage_since = time.monotonic()
+        self.stages[-1].update(wall_time=self.stage_since, player=s['player'])
+        self.goal_since = None
+        self.stop_since = None
+        self.mouse_pending = None
+
+    def require_stock(self, s, source, destination):
+        manifests = s['cargo']['inventory']['manifests']
+        quantities = {m['owner_entity_id']: sum(e['quantity'] for e in m['entries']
+                      if e['item_id'] == 'cinder_supply_crates') for m in manifests}
+        require(quantities.get('jovian_provisional') == source
+                and sum(v for k, v in quantities.items() if k != 'jovian_provisional') == destination,
+                'actual supply manifest source/destination quantities '+str((source, destination)))
+
+    def require_paid(self, s):
+        slot, record = s['paid_slot'], s['reward_record']
+        delivery = slot['delivery']
+        require(delivery['contract_id'] == self.ACTIVITY and delivery['quantity'] == 1
+                and delivery['generation'] == 1 and delivery['ordered_phases'] == ['load_crate', 'clear_gate', 'dock_platform']
+                and delivery['deadline_seconds'] == 120 and 0 <= delivery['elapsed_seconds'] < 120
+                and delivery['transfer_proof']['source_quantity_after'] == 1
+                and delivery['transfer_proof']['destination_quantity_after'] == 1
+                and delivery['reward_receipt'] == {'activity_id': 'cinder_kit_cargo_run', 'reward_id': self.REWARD,
+                                                  'granted': True, 'replay_allowed': False},
+                'actual durable one-crate terminal receipt is paid within the original120 seconds')
+        require(record['total_receipts'] == 1 and record['receipt_serial'] == 1
+                and record['reward_counts'] == {self.REWARD: 1}
+                and record['last_receipt']['activity_id'] == 'cinder_kit_cargo_run'
+                and record['last_receipt']['activity_generation'] == 1
+                and record['last_receipt']['granted'] and not record['last_receipt']['replay_allowed'],
+                'one actual supply payment and no Jovian kit-job credit')
+        if self.paid_slot is not None:
+            require(slot == self.paid_slot and record == self.paid_record, 'same paid receipt and one credit retained')
+
+    def validate_observation(self, s):
+        require(s['mode'] == self.MODE and s['sequence'] > self.sequence, 'fresh supply observer sequence')
+        self.sequence = s['sequence']
+        ids = tuple(s[k] for k in ('pid', 'main_id', 'player_id', 'ship_id', 'source_id', 'capsule_id', 'shape_id'))
+        require(all(ids), 'actual original Main Player capsule Jovian and source')
+        if self.initial is None:
+            self.initial = s
+            self.process_identity = ids
+        require(ids == self.process_identity and s['tuning_unchanged'] and s['default_sampler']
+                and s['home']['id'] == self.initial['home']['id'],
+                'same original actors and unchanged production default input source/tuning')
+        require(not s['destroyed'] and s['hull'] == self.initial['hull'] and s['phase'] != 'FAILED', 'live undamaged supply sortie')
+        require(s['kit_state']['state'] == 0 and s['kit_state']['generation'] == 0,
+                'Jovian fabrication-kit activity remains unselected and idle')
+        if s['seated'] and not s['transition_busy']:
+            require(s['seated_at_pilot'] and s['piloted'] and s['active_ship'] and s['ship_camera'] and s['source_enabled'],
+                    'actual original local Jovian pilot owns current camera and default controls')
+        if self.previous is not None and not s['paused'] and not self.previous['paused']:
+            dt = (s['frame']-self.previous['frame'])/60
+            normal = lambda a: a['control_enabled'] and not a['seated'] and not a['transition_busy']
+            if dt > 0 and normal(s) and normal(self.previous):
+                step = norm(sub(s['player'], self.previous['player']))
+                self.observed_previous = self.previous
+                motion = self.require_motion_epoch(s)
+                if step > 9.2*dt*1.25+.02:
+                    self.require_step_event(s, motion)
+                self.walked += step
+                if self.stage == 'home_walk': self.home_walked += step
+        if s['native_interact'] and not (self.previous and self.previous['native_interact']):
+            self.native_edges.append({'frame': s['frame'], 'stage': self.stage})
+        c = s['cargo']
+        if c['available'] and c['activity']:
+            a = c['activity']
+            require(a['state'] not in (3, 4), 'supply activity never fails or expires')
+            if a['state'] == 1:
+                require(a['generation'] == 1 and a['deadline_seconds'] == 120 and a['elapsed_seconds'] < 120,
+                        'same first funded active supply clock remains within120 seconds')
+                if not self.phase_seen or self.phase_seen[-1] != a['next_phase_index']:
+                    self.phase_seen.append(a['next_phase_index'])
+            if self.cargo_identity is not None and self.paid_state is None:
+                require(tuple(c[k] for k in ('cluster_id', 'generation', 'access_id', 'attachment', 'berth_id', 'terminal_id', 'binding_id', 'activity_id')) == self.cargo_identity,
+                        'exact current Cinder attachment, berth, terminal and supply owner through payment')
+        if self.paid_state is not None: self.require_paid(s)
+        self.previous = self.last_state = s
+
+    def require_walking(self, s):
+        # Preserve the step validator's control/identity prerequisites while
+        # allowing bounded Cinder stair airtime through this route's rule.
+        require(not s['seated'] and not s['station_seated'] and not s['game_station_seated']
+                and not s['sleeping'] and not s['transition_busy'] and s['control_enabled']
+                and s['mouse_captured'] and s['capsule_enabled'] and not s['piloted'],
+                'ordinary awake walking controls without ship ownership')
+        self.foot(s)
+
+    def foot(self, s):
+        # Cinder permits ordinary brief stair airtime inside its finite live
+        # walking region. Station/home retain their actual floor requirement.
+        c = s.get('cargo', {})
+        cinder_walk = (self.stage in ('terminal_walk', 'reverse_walk', 'reboard_walk')
+                       and c.get('available') and c.get('actor_authorized')
+                       and c.get('lease') and c.get('contract') and c.get('walk_within_region'))
+        require(((s['grounded'] and s['supported'] and s['support_collider']) or cinder_walk)
+                and s['control_enabled']
+                and not s['seated'] and not s['transition_busy'], 'same original controlled walking Player in current physical route')
+
+    def walk_to(self, s, target, keys, now):
+        self.foot(s)
+        if self.goal_since is None: self.goal_since = now
+        require(now-self.goal_since <= 15, 'ordinary supply walking waypoint15 seconds')
+        dx, reached = ArrowReturnReusePilot.walk_to(self, s, target, keys)
+        reached = reached and s['grounded']
+        if reached:
+            self.visited.append({'stage': self.stage, 'index': self.walk_index, 'target': target, 'frame': s['frame'], 'player': s['player'], 'support': s['support_collider'], 'grounded': s['grounded'], 'cinder_region': s.get('cargo', {}).get('walk_within_region', False)})
+            self.goal_since = None
+        return dx, reached
+
+    def look(self, s, target):
+        off = sub(target, s['interaction_origin']); off[1] = 0
+        d = unit(off)
+        yaw = math.atan2(dot(d, s['walk_right']), dot(d, s['walk_forward']))
+        return round(max(-360, min(360, yaw/s['walk_tuning']['mouse'])))
+
+    def request(self, key, stage, s, now):
+        if self.tap_key is None and now >= self.tap_cooldown and self.frame >= self.tap_release_frame+6:
+            self.tap(key, now)
+            if self.tap_key == key:
+                self.receipts[stage] = s
+                self.enter(stage, s)
+
+    @staticmethod
+    def station_clearance_targets(s, reverse=False):
+        # Freight's full body envelope must clear before turning back toward
+        # Cinder. The measured high diagonal clears the current station with
+        # an all-attitude hull envelope; use the live capture in both directions.
+        capture = s['home']['capture_position']
+        offsets = ([0, 0, 0], [0, 0, 26.7], [0, 66.37, 66.7],
+                   [84, 66.37, -308.3])
+        points = [[p+d for p, d in zip(capture, offset)] for offset in offsets]
+        return list(reversed(points)) if reverse else points
+
+    def clearance_flight(self, s, keys, reverse=False):
+        targets = self.station_clearance_targets(s, reverse)
+        dx, dy, settled = self.flight(s, targets[self.clearance_index], keys)
+        if settled:
+            self.receipts[('home' if reverse else 'outbound')+'_clearance_'+str(self.clearance_index)] = s
+            self.clearance_index += 1
+            if self.clearance_index == len(targets):
+                self.enter('home_flight' if reverse else 'outbound', s)
+        return dx, dy
+
+    def flight(self, s, target, keys):
+        off = sub(target, s['position']); distance = norm(off); speed = norm(s['ship_velocity'])
+        # World-up projected into the local roll plane. Near vertical forward,
+        # that projection vanishes and roll has no stable level reference.
+        roll_sin, roll_cos = s['right'][1], s['up'][1]
+        if math.hypot(roll_sin, roll_cos) > .15:
+            roll_error = math.atan2(roll_sin, roll_cos)
+            if roll_error > math.radians(5): keys.add('r')
+            elif roll_error < -math.radians(5): keys.add('q')
+
+        stopping = speed*speed/(2*max(s['tuning']['brake'], 1e-6)) + speed*.15 + 2
+        # aim() measures from the chase camera; this waypoint belongs to the
+        # ship root, so preserve the root's desired vector at that camera.
+        aim_target = [camera+delta for camera, delta in zip(s['camera'], off)]
+        dx, dy, alignment = self.aim(s, aim_target, .3)
+        if distance <= max(2, stopping):
+            keys.add('Prior')
+        elif alignment > .97:
+            keys.add('w')
+        else:
+            keys.add('Prior')
+        return dx, dy, distance <= 2 and speed <= .5
+
+    def supply_ui(self, s, now):
+        if self.ui_key is not None:
+            if now < self.ui_until: return {self.ui_key}, 0, 0, False
+            self.ui_key = None; self.ui_release_until = now+.10
+            return set(), 0, 0, False
+        if now < self.ui_release_until or any(s['native_keys'].values()): return set(), 0, 0, False
+        pending = self.ui_pending
+        if pending is not None:
+            kind = pending['kind']; ui = s['ui']; a = s['cargo']['activity']
+            if kind == 'tab': accepted = bool(ui['focus_path']) and ui['focus_path'] != pending['focus']
+            elif kind == 'select': accepted = s['selected_activity'] == self.ACTIVITY
+            elif kind == 'start': accepted = a['state'] == 1 and a['generation'] == 1 and a['next_phase_index'] == 0
+            elif kind == 'resume': accepted = not s['paused']
+            else: accepted = s['paused'] and ui[pending['expected']]
+            require(accepted or now < pending['until'], 'single ordinary supply UI press acknowledged: '+kind)
+            if not accepted: return set(), 0, 0, False
+            self.ui_pending = None
+            if kind != 'tab':
+                next_stage = {'pause': 'supply_board', 'board': 'supply_nearby', 'nearby': 'supply_select', 'select': 'supply_start',
+                              'start': 'supply_back_activity', 'back_activity': 'supply_back_main', 'back_main': 'supply_resume', 'resume': 'load_phase'}[kind]
+                self.enter(next_stage, s); self.focus_seen.clear()
+                if kind == 'start': self.receipts['supply_started'] = s
+                if kind == 'resume': return set(), 0, 0, False
+        if self.stage == 'supply_pause': return self.ui_press('Escape', s, now, 'pause', 'main_visible')
+        require(s['paused'], 'supply menu remains actually paused until Resume')
+        if self.stage in ('supply_back_activity', 'supply_back_main', 'supply_resume'):
+            kind, expected = {'supply_back_activity': ('back_activity', 'activity_visible'), 'supply_back_main': ('back_main', 'main_visible'), 'supply_resume': ('resume', None)}[self.stage]
+            return self.ui_press('Escape', s, now, kind, expected)
+        page, name, kind = {'supply_board': ('main_visible', 'ActivityBoardButton', 'board'), 'supply_nearby': ('activity_visible', 'NearbyActivityOpenButton', 'nearby'),
+                            'supply_select': ('nearby_visible', None, 'select'), 'supply_start': ('nearby_visible', None, 'start')}[self.stage]
+        ui = s['ui']; require(ui[page] and ui['focus_path'], 'actual supply page keyboard focus')
+        target = ui['focus_name'] == name if name else ui['focus_activity'] == self.ACTIVITY and ui['focus_text'] == kind.upper()
+        if target:
+            require(ui['focus_visible'] and ui['focus_enabled'], 'visible enabled actual supply action')
+            return self.ui_press('Return', s, now, kind, {'board': 'activity_visible', 'nearby': 'nearby_visible'}.get(kind))
+        require(ui['focus_path'] not in self.focus_seen and len(self.focus_seen) < 64, 'supply focus reaches target without cycle')
+        self.focus_seen.add(ui['focus_path'])
+        return self.ui_press('Tab', s, now, 'tab')
+
+    def update(self, s, now):
+        require(self.last_state is s, 'every actual supply observation validated before controls')
+        self.frame = s['frame']
+        if not self.phases or self.phases[-1] != s['phase']: self.phases.append(s['phase'])
+        if self.stage.startswith('supply_'): return self.supply_ui(s, now)
+        if self.stage in ('pause', 'quit_wait'): return ArrowReturnReusePilot.ui_update(self, s, now)
+        keys, dx, dy = set(), 0, 0
+        c = s['cargo']; speed = norm(s['ship_velocity'])
+        if self.stage == 'boot' and s['menu_ready']:
+            self.request('e', 'begin_shift', s, now)
+        elif self.stage == 'begin_shift' and s['phase'] == 'APPROACH_SHIP' and s['grounded'] and s['supported']:
+            self.route = [target[:] if target is not None else ([-42, .38, s['boarding'][2]] if name == 'freight_boarding_z' else s['boarding'][:]) for name, target in LifeTowPilot.GANTRY_GOALS]
+            self.enter('walk', s)
+        elif self.stage == 'walk':
+            dx, reached = self.walk_to(s, self.route[self.walk_index], keys, now)
+            if reached:
+                self.walk_index += 1
+                if self.walk_index == len(self.route): self.enter('board_aim', s)
+        elif self.stage in ('board_aim', 'reboard_aim'):
+            self.foot(s)
+            dx = self.look(s, s['boarding'])
+            if s['candidate'] and not s['station_candidate'] and not s['reboard_blocked'] and s['boarding_distance'] <= 7:
+                self.request('e', 'board' if self.stage == 'board_aim' else 'reboard', s, now)
+        elif self.stage in ('board', 'reboard'):
+            require(now-self.stage_since <= 12, 'ordinary animated Jovian boarding12 seconds')
+            if s['seated_at_pilot'] and s['active_ship'] and not s['transition_busy']:
+                self.enter('launch' if self.stage == 'board' else 'home_depart', s)
+        elif self.stage == 'launch':
+            keys.add('w')
+            if not s['landed'] and s['home']['lease_free'] and norm(sub(s['position'], self.initial['parked'])) >= 8:
+                self.receipts['departed_home'] = s
+                self.clearance_index = 0
+                self.enter('outbound_clearance', s)
+        elif self.stage == 'outbound_clearance':
+            dx, dy = self.clearance_flight(s, keys)
+        elif self.stage == 'outbound':
+            # Current common-world capture guidance replaces the authored anchor
+            # as soon as the production distance policy commits Cinder.
+            target = c['capture_position'] if c['available'] else s['outbound_target']
+            dx, dy, _ = self.flight(s, target, keys)
+            if c['available'] and c['capture']:
+                self.request('l', 'cargo_land', s, now)
+        elif self.stage in ('cargo_land', 'cargo_redock'):
+            require(now-self.stage_since <= 120, 'physical Cinder landing120 seconds')
+            if (s['landed'] and s['phase'] == 'SHUT_DOWN' and c['lease'] and c['contract']
+                    and norm(sub(s['position'], c['dock'])) <= .05 and speed <= .05):
+                self.require_stock(s, 2, 0)
+                require(c['source_entity_id'] == s['ship_id'], 'actual occupied Jovian registers source')
+                if self.stage == 'cargo_land':
+                    self.cargo_identity = tuple(c[k] for k in ('cluster_id', 'generation', 'access_id', 'attachment', 'berth_id', 'terminal_id', 'binding_id', 'activity_id'))
+                    self.receipts['occupied_source'] = s
+                    self.enter('cargo_arrival_shutdown', s)
+                else: self.enter('cargo_shutdown', s)
+        elif self.stage == 'cargo_arrival_shutdown':
+            # Pausing before the authored neutral idle interval freezes auto
+            # shutdown; starting thrust while still ONLINE retains the dock latch.
+            require(s['landed'] and c['lease'] and c['contract'] and speed <= .05,
+                    'first Cinder dock remains secured during neutral auto shutdown')
+            if s['engine'] == 'OFFLINE': self.enter('supply_pause', s)
+        elif self.stage == 'load_phase':
+            if c['activity']['next_phase_index'] == 1:
+                require(c['lease'], 'load_crate consumed from real occupied berth')
+                self.receipts['load_crate'] = s
+                self.enter('clear_gate', s)
+        elif self.stage == 'clear_gate':
+            # The dock yaw points the nose toward the guidance target beyond
+            # the existing capture edge; use actual forward/reverse throttle.
+            signed = dot(sub(c['clear_target'], s['position']), [-v for v in s['back']])
+            keys.add('w' if signed >= 0 else 's')
+            if c['activity']['next_phase_index'] == 2:
+                require(c['lease_free'] and not c['inside_capture'], 'clear_gate consumes physical lease release and outside-capture root')
+                self.receipts['clear_gate'] = s
+                self.enter('gate_brake', s)
+        elif self.stage == 'gate_brake':
+            keys.add('Prior')
+            if c['capture']:
+                self.request('l', 'cargo_redock', s, now)
+            elif speed <= .5:
+                self.enter('gate_return', s)
+        elif self.stage == 'gate_return':
+            dx, dy, _ = self.flight(s, c['capture_position'], keys)
+            if c['capture']: self.request('l', 'cargo_redock', s, now)
+        elif self.stage == 'cargo_shutdown':
+            require(c['activity']['next_phase_index'] == 3 and c['lease'] and c['contract'], 'dock_platform consumes exact real re-occupancy')
+            if s['engine'] == 'OFFLINE': self.request('e', 'cargo_exit', s, now)
+        elif self.stage == 'cargo_exit':
+            require(now-self.stage_since <= 10, 'physical Cinder authored exit10 seconds')
+            if not s['seated'] and s['control_enabled'] and not s['transition_busy']:
+                self.foot(s); require(c['actor_authorized'], 'real GameFlow disembark authorized exact Player')
+                self.route = c['route']; self.walk_index = 0
+                self.receipts['cargo_exterior'] = s
+                self.enter('terminal_walk', s)
+        elif self.stage == 'terminal_walk':
+            dx, reached = self.walk_to(s, self.route[self.walk_index], keys, now)
+            if reached:
+                self.walk_index += 1
+                if self.walk_index == len(self.route): self.enter('terminal_aim', s)
+        elif self.stage == 'terminal_aim':
+            dx = self.look(s, c['terminal'])
+            if self.file_pretransfer and c['terminal_candidate']: self.request('e', 'terminal_transfer', s, now)
+        elif self.stage == 'terminal_transfer':
+            require(now-self.stage_since <= 8, 'physical terminal transfer and durable payment8 seconds')
+            if c['activity']['state'] == 2 and s['paid_slot'].get('delivery', {}).get('reward_receipt', {}).get('granted'):
+                self.require_stock(s, 1, 1); self.require_paid(s)
+                require(c['last_request']['accepted'] and c['last_request']['reason'] == 'cargo_terminal_delivery_committed', 'real terminal E commits exact delivery')
+                self.paid_state = s; self.paid_slot = s['paid_slot']; self.paid_record = s['reward_record']
+                self.enter('repeat_aim', s)
+        elif self.stage == 'repeat_aim':
+            if self.file_paid and c['terminal_candidate'] and not s['native_interact']:
+                self.request('e', 'terminal_repeat', s, now)
+        elif self.stage == 'terminal_repeat':
+            require(now-self.stage_since <= 8, 'ordinary duplicate terminal request8 seconds')
+            if not s['native_interact'] and not c['last_request']['accepted']:
+                self.require_stock(s, 1, 1)
+                self.receipts['repeat_terminal'] = s
+                self.enter('reverse_walk', s); self.route = list(reversed(c['route'])); self.walk_index = 0
+        elif self.stage == 'reverse_walk':
+            dx, reached = self.walk_to(s, self.route[self.walk_index], keys, now)
+            if reached:
+                self.walk_index += 1
+                if self.walk_index == len(self.route):
+                    # Retrace the physical connector far enough to clear the
+                    # production seven-metre reboard guard, then return to hatch.
+                    exit_point, clear = c['route'][0], c['route'][2]
+                    self.route = [c['route'][1], clear, c['route'][1], exit_point, s['boarding'][:]]; self.walk_index = 0
+                    self.enter('reboard_walk', s)
+        elif self.stage == 'reboard_walk':
+            dx, reached = self.walk_to(s, self.route[self.walk_index], keys, now)
+            if reached:
+                self.walk_index += 1
+                if self.walk_index == len(self.route): self.enter('reboard_aim', s)
+        elif self.stage == 'home_depart':
+            require(self.file_repeat, 'duplicate actual-file receipt conservation proved before departure')
+            keys.add('w')
+            if not s['landed'] and c['lease_free']:
+                self.receipts['departed_cinder'] = s
+                self.clearance_index = 0
+                self.enter('home_clearance', s)
+        elif self.stage == 'home_clearance':
+            dx, dy = self.clearance_flight(s, keys, reverse=True)
+        elif self.stage == 'home_flight':
+            dx, dy, _ = self.flight(s, s['home']['capture_position'], keys)
+            if s['home']['capture']: self.request('l', 'home_land', s, now)
+        elif self.stage == 'home_land':
+            require(now-self.stage_since <= 120, 'normal home landing120 seconds')
+            if (s['landed'] and s['phase'] == 'SHUT_DOWN' and s['home']['lease'] and s['home']['contract']
+                    and norm(sub(s['position'], s['home']['dock'])) <= .05 and speed <= .05):
+                self.receipts['home_docked'] = s; self.enter('home_shutdown', s)
+        elif self.stage == 'home_shutdown':
+            if s['engine'] == 'OFFLINE': self.request('e', 'home_exit', s, now)
+        elif self.stage == 'home_exit':
+            require(now-self.stage_since <= 10, 'home authored physical exit10 seconds')
+            if not s['seated'] and s['control_enabled'] and not s['transition_busy']:
+                self.foot(s); self.receipts['home_exterior'] = s
+                self.route = [[p+1.5*f for p, f in zip(s['player'], s['walk_forward'])]]
+                self.enter('home_walk', s)
+        elif self.stage == 'home_walk':
+            dx, reached = self.walk_to(s, self.route[0], keys, now)
+            require(s['home']['lease'] and s['home']['contract'], 'physical home berth remains occupied during usable exit')
+            if reached and self.home_walked >= 1 and self.file_home:
+                self.receipts['home_usable'] = s; self.enter('pause', s)
+        if self.tap_key is not None:
+            if now < self.tap_until or self.frame < self.tap_frame+6: keys.add(self.tap_key)
+            else:
+                self.tap_key = None; self.tap_cooldown = now+.3; self.tap_release_frame = self.frame
+        if dx and not s['seated']:
+            if self.mouse_pending is not None and norm(sub(s['walk_forward'], self.mouse_pending)) < .00001: dx = 0
+            else: self.mouse_pending = s['walk_forward'][:]
+        return keys, dx, dy, False
+
+    def finish(self, code):
+        require(code == 0 and self.quit_requested and self.stage == 'quit_wait' and self.file_home,
+                'full supply journey finishes only after real normal UI exit and actual OS0')
+        self.result = {'completion_marker': self.MARKER, 'stages': self.stages, 'visited': self.visited,
+                       'receipts': self.receipts, 'native_interact_edges': self.native_edges,
+                       'walked_m': self.walked, 'home_walked_m': self.home_walked,
+                       'phase_indices': self.phase_seen, 'paid_slot': self.paid_slot, 'reward_record': self.paid_record}
+        require(self.phase_seen == [0, 1, 2, 3], 'all three real supply phases observed in order')
+
+
+class CinderSupplyFiles(HabitatRestartFiles):
+    MUTABLE = HabitatRestartFiles.MUTABLE | {'cinder_cargo_delivery', 'game_flow_reward_store'}
+
+    def observe(self, s, pilot):
+        if s['save']['source'] != 'primary': return
+        label = None
+        if 'baseline' not in self.snapshots: label = 'baseline'
+        elif pilot.stage == 'terminal_aim' and pilot.paid_state is None and 'pretransfer' not in self.snapshots: label = 'pretransfer'
+        elif pilot.paid_state is not None and 'paid' not in self.snapshots: label = 'paid'
+        elif 'repeat_terminal' in pilot.receipts and 'repeat' not in self.snapshots: label = 'repeat'
+        elif 'home_docked' in pilot.receipts and 'home' not in self.snapshots: label = 'home'
+        if label is None: return
+        document = self.capture(label, s['save'])
+        payload = document['payload']
+        if label in ('baseline', 'pretransfer'):
+            require('cinder_cargo_delivery' not in payload and payload.get('game_flow_reward_store', {}).get('total_receipts', 0) == 0,
+                    'actual default primary starts without a prior supply completion or payment')
+            if label == 'pretransfer':
+                # Ordinary selection/tutorials can create records after the
+                # initial title snapshot. Preserve every preexisting value,
+                # then protect the complete actual document across payment.
+                before = self.snapshots['baseline']['document']
+                require(all(k in payload and payload[k] == v for k, v in self.protected(before).items()),
+                        'unrelated actual-file payload retained before transfer')
+                require(document['generation'] >= before['generation'], 'actual-file generations never regress')
+                pilot.file_pretransfer = True
+        else:
+            require(pilot.file_pretransfer and 'pretransfer' in self.snapshots,
+                    'actual pre-transfer primary captured before terminal input')
+            pilot.require_paid(s)
+            self.require_preserved(self.snapshots['pretransfer']['document'], document)
+            require(payload['cinder_cargo_delivery'] == s['paid_slot'] and payload['game_flow_reward_store'] == s['reward_record'],
+                    'independent actual primary file matches paid supply terminal and one reward')
+            if label == 'paid': pilot.file_paid = True
+            if label in ('repeat', 'home'):
+                paid = self.snapshots['paid']['document']['payload']
+                require(payload['cinder_cargo_delivery'] == paid['cinder_cargo_delivery']
+                        and payload['game_flow_reward_store'] == paid['game_flow_reward_store'],
+                        'actual default disk conserves paid supply slot and exact once-only ledger')
+                if label == 'repeat': pilot.file_repeat = True
+                else: pilot.file_home = True
+
 def run(binary, output, route="guided"):
-    require(route in ("arrow-return-reuse", "guided", "beacon-entry", "beacon-settlement", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
+    require(route in ("cinder-supply", "arrow-return-reuse", "guided", "beacon-entry", "beacon-settlement", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
     output.mkdir(parents=True, exist_ok=False)
     game = xvfb = desktop = pilot = None
     temporary_profile = None
@@ -3908,7 +4371,8 @@ def run(binary, output, route="guided"):
                         '--native-sortie-observer' if route == 'guided' else '--native-sortie-observer='+route]
                 result.update(arguments=args, display=env['DISPLAY'], xvfb_pid=xvfb.pid,
                               binary_sha256=hashlib.file_digest(binary.open('rb'),'sha256').hexdigest())
-                settlement_files = BeaconSettlementFiles(profile, output) if route == 'beacon-settlement' else None
+                settlement_files = (CinderSupplyFiles(profile, output) if route == 'cinder-supply' else
+                                    BeaconSettlementFiles(profile, output) if route == 'beacon-settlement' else None)
                 restart_files = HabitatRestartFiles(profile, output) if route == 'habitat-restart' else None
                 result['game_legs'] = []
                 for leg in range(2 if restart_files else 1):
@@ -3941,7 +4405,7 @@ def run(binary, output, route="guided"):
                     leg_result['window'] = hex(window)
                     desktop.focus(window)
                     pilot = HabitatRestartPilot(cold=bool(leg)) if restart_files else {
-                        "arrow-return-reuse": ArrowReturnReusePilot, "guided": Pilot, "beacon-entry": BeaconEntryPilot, "beacon-settlement": BeaconSettlementPilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
+                        "cinder-supply": CinderSupplyPilot, "arrow-return-reuse": ArrowReturnReusePilot, "guided": Pilot, "beacon-entry": BeaconEntryPilot, "beacon-settlement": BeaconSettlementPilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
                         "hulk-arrival": HulkArrivalPilot, "hulk-breaker": HulkBreakerPilot,
                         "hulk-home": HulkHomePilot, "habitat-loop": HabitatLoopPilot, "life-tow": LifeTowPilot, "life-gantry": lambda: LifeTowPilot("life-gantry"), "life-arm": lambda: LifeTowPilot("life-arm"), "life-patrol": lambda: LifeTowPilot("life-patrol")}[route]()
                     with selectors.DefaultSelector() as selector:
@@ -3950,8 +4414,8 @@ def run(binary, output, route="guided"):
                         with (output/'game.log').open('ab') as log:
                             while pilot.result is None:
                                 if game.poll() is not None:
-                                    if isinstance(pilot, ArrowReturnReusePilot):
-                                        require(pilot.quit_requested, 'Arrow process exits only after normal UI request')
+                                    if isinstance(pilot, (ArrowReturnReusePilot, CinderSupplyPilot)):
+                                        require(pilot.quit_requested, 'native process exits only after normal UI request')
                                         drain_game_output(game, output/'game.log')
                                         tail = (output/'game.log').read_bytes().splitlines()
                                         for observation in observations_from_lines(tail):
@@ -3978,7 +4442,7 @@ def run(binary, output, route="guided"):
                                     lines = pending.split(b'\n'); pending=lines.pop()
                                     observations = observations_from_lines(lines)
                                     if observations:
-                                        if isinstance(pilot, (LifeTowPilot, ArrowReturnReusePilot)):
+                                        if isinstance(pilot, (LifeTowPilot, ArrowReturnReusePilot, CinderSupplyPilot)):
                                             for observation in observations:
                                                 pilot.validate_observation(observation)
                                         state = observations[-1]
@@ -4057,6 +4521,8 @@ def run(binary, output, route="guided"):
                 result['partial_sortie'].update(last_state=pilot.last_state, visited=pilot.visited,
                                                receipts=pilot.receipts, native_interact_edges=pilot.native_edges,
                                                walked_m=pilot.walked)
+            if isinstance(pilot, CinderSupplyPilot):
+                result['partial_sortie'].update(last_state=pilot.last_state, visited=pilot.visited, receipts=pilot.receipts, native_edges=pilot.native_edges)
             if isinstance(pilot, BeaconEntryPilot):
                 result['partial_sortie'].update(last_state=pilot.last_state, receipts=pilot.receipts,
                                                ui_edges=pilot.ui_edges, sequence=pilot.sequence)
@@ -4116,8 +4582,8 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('binary')
     parser.add_argument('--output',required=True,type=Path)
-    parser.add_argument('--route', choices=('arrow-return-reuse', 'guided', 'beacon-entry', 'beacon-settlement', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
-                        help='beacon-settlement continues the accepted entry through four physical beacons and durable reward; beacon-entry departs normally and physically reaches/starts the first Beacon through actual pause controls; life-patrol walks Habitat through the real door beside patrol drones and boards Torrent; life-arm walks Aft stairs past the live service arm and boards Zenith; life-gantry walks Freight past the live gantry and boards Jovian; life-tow walks Central beside live tow service and boards Torrent; hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
+    parser.add_argument('--route', choices=('cinder-supply', 'arrow-return-reuse', 'guided', 'beacon-entry', 'beacon-settlement', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
+                        help='cinder-supply flies the full funded Jovian/Cinder terminal/home journey; beacon-settlement continues the accepted entry through four physical beacons and durable reward; beacon-entry departs normally and physically reaches/starts the first Beacon through actual pause controls; life-patrol walks Habitat through the real door beside patrol drones and boards Torrent; life-arm walks Aft stairs past the live service arm and boards Zenith; life-gantry walks Freight past the live gantry and boards Jovian; life-tow walks Central beside live tow service and boards Torrent; hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
     args=parser.parse_args()
     try: binary=validate_binary(args.binary)
     except ValueError as error: parser.error(str(error))
