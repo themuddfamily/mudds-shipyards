@@ -22151,7 +22151,7 @@ func _forward_cinder_navigator_presentation(
 			):
 		return
 	_sync_cinder_navigator_presentations()
-	var remote_refusal := result.get("accepted") == false and _network_engineer_binding != null \
+	var remote_refusal: bool = result.get("accepted") == false and _network_engineer_binding != null \
 		and _network_engineer_binding.loadmaster != null \
 		and _network_engineer_binding.loadmaster.is_submitting_remote_navigator_request()
 	if is_instance_valid(optional_semantic_audio_composition) and not remote_refusal:
