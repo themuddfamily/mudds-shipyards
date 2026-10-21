@@ -241,7 +241,7 @@ class BeaconOutboundTiming:
 
     def report(self):
         elapsed = None if self.stop is None else self.stop['monotonic_seconds'] - self.start['monotonic_seconds']
-        return {'maximum_seconds': self.LIMIT_SECONDS,
+        report = {'maximum_seconds': self.LIMIT_SECONDS,
                 'clock': 'Python time.monotonic; outgoing input to raw observation receipt',
                 'measurement': 'conservative observed upper bound; IPC, receipt latency and CPU/GPU stalls count',
                 'paused_intervals': [], 'paused_seconds_subtracted': 0.0,
@@ -250,6 +250,7 @@ class BeaconOutboundTiming:
                 'input_acknowledged': self.input_acknowledged,
                 'observed_upper_bound_seconds': elapsed,
                 'qualified': bool(self.input_acknowledged and elapsed is not None and elapsed <= self.LIMIT_SECONDS)}
+        return json.loads(json.dumps(report))
 
     def check_deadline(self, now):
         if self.start is not None and self.stop is None:
@@ -302,7 +303,8 @@ class BeaconOutboundTiming:
                 and math.isfinite(distance) and 0 <= distance <= 32
                 and math.isfinite(physical_distance) and physical_distance <= 32
                 and math.isfinite(speed) and speed <= .45):
-            self.stop = {'monotonic_seconds': received_at, 'observation': s}
+            self.stop = {'monotonic_seconds': received_at,
+                         'observation': json.loads(json.dumps(s))}
             require(self.report()['qualified'], 'Beacon outbound exceeds approved 60.0-second monotonic maximum')
         self.check_deadline(received_at)
 
@@ -321,7 +323,8 @@ class BeaconOutboundTiming:
         if (starting or self.start is not None) and self.stop is None:
             require(not set(keys) & {'Shift_L', 'Shift_R'}, 'no driver-issued outbound boost')
         if starting:
-            self.start = {'observation': s, 'keys': sorted(keys), 'mouse': [dx, dy], 'fire': fire,
+            self.start = {'observation': json.loads(json.dumps(s)),
+                          'keys': sorted(keys), 'mouse': [dx, dy], 'fire': fire,
                           'monotonic_seconds': time.monotonic()}
         desktop.keys(keys)
         desktop.mouse(dx, dy, fire)

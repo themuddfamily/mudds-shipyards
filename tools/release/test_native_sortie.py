@@ -82,9 +82,25 @@ class NativeSortieSafetyTests(unittest.TestCase):
         report = timing.report()
         self.assertTrue(report['qualified'])
         self.assertEqual(report['observed_upper_bound_seconds'], 60)
-        self.assertIs(report['stop']['observation'], first)
+        self.assertEqual(report['stop']['observation'], first)
         self.assertEqual(report['paused_intervals'], [])
         self.assertEqual(report['paused_seconds_subtracted'], 0)
+        # Caller-owned observations and consumer-owned reports cannot rewrite
+        # the retained launch/approach receipt after qualification.
+        s['position'][0] = 999
+        s['beacon']['first_world'][0] = 999
+        first['position'][0] = 999
+        first['beacon']['distance_m'] = 999
+        report['start']['observation']['position'][0] = 888
+        report['start']['observation']['beacon']['first_world'][0] = 888
+        report['stop']['observation']['position'][0] = 888
+        report['stop']['observation']['beacon']['distance_m'] = 888
+        retained = timing.report()
+        self.assertEqual(retained['start']['observation']['position'], [0, 0, 0])
+        self.assertEqual(retained['start']['observation']['beacon']['first_world'], [0, 0, -230])
+        self.assertEqual(retained['stop']['observation']['position'], [0, 0, -198])
+        self.assertEqual(retained['stop']['observation']['beacon']['distance_m'], 32)
+        self.assertTrue(retained['qualified'])
 
     def test_beacon_outbound_wall_stalls_count_and_clock_never_restarts(self):
         for approach in (False, True):
