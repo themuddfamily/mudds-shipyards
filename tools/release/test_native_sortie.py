@@ -30,6 +30,23 @@ class NativeSortieSafetyTests(unittest.TestCase):
                     'last_receipt': {'activity_id': 'cinder_kit_cargo_run', 'activity_generation': 1,
                                      'granted': True, 'replay_allowed': False}}}
 
+    def test_supply_root_waypoint_aim_ignores_displaced_chase_camera(self):
+        pilot = native.CinderSupplyPilot()
+        # Actual failed observation's root/camera displacement. Align the hull
+        # with the root-to-capture vector: navigation should request no turn.
+        position, camera, target = [-53, -11.69, 108.13], [-53, -40.16, 116.10], [-53, 13.63, 83.3]
+        forward = native.unit(native.sub(target, position))
+        s = {'position': position, 'camera': camera, 'ship_velocity': [0, 0, 0],
+             'right': [1, 0, 0], 'up': [0, -forward[2], forward[1]],
+             'back': [-v for v in forward], 'tuning': {'brake': 48, 'mouse': .0022}}
+        self.assertNotEqual(pilot.aim(s, target, .3)[1], 0)
+        keys = set()
+        dx, dy, settled = pilot.flight(s, target, keys)
+        self.assertEqual((dx, dy), (0, 0))
+        self.assertEqual(keys, {'w'})
+        self.assertFalse(settled)
+        self.assertEqual(s['camera'], camera)
+
     def test_supply_eight_metre_launch_cannot_turn_directly_toward_cinder(self):
         pilot = native.CinderSupplyPilot()
         pilot.stage = 'launch'

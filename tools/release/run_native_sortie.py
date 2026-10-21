@@ -4014,7 +4014,10 @@ class CinderSupplyPilot(BeaconEntryPilot):
     def flight(self, s, target, keys):
         off = sub(target, s['position']); distance = norm(off); speed = norm(s['ship_velocity'])
         stopping = speed*speed/(2*max(s['tuning']['brake'], 48)) + speed*.15 + 2
-        dx, dy, alignment = self.aim(s, target, .3)
+        # aim() measures from the chase camera; this waypoint belongs to the
+        # ship root, so preserve the root's desired vector at that camera.
+        aim_target = [camera+delta for camera, delta in zip(s['camera'], off)]
+        dx, dy, alignment = self.aim(s, aim_target, .3)
         if distance <= max(2, stopping):
             keys.add('Prior')
         elif alignment > .97:
