@@ -19810,3 +19810,83 @@ load_crate→clear_gate→dock_platform under120s, physical terminal E transfer1
 whole journey300s. Ten-run replenishment and Hauler stock policy remain separate.
 Native Windows/GPU/devices/listening/human/final release gates remain NOT_RUN;
 all36 original parents and ten phase gates remain open.
+
+
+## Cinder cargo — supported walking recall repaired — 2026-10-21
+
+Runtime source **c8378235bab2392c395fabe38764012f05d5ce77** is merged and pushed
+on main. Only GameFlow and the existing production journey test were integrated;
+the unfinished five-file supply caller remains withheld. Fresh Windows EXE,
+checkpoint ZIP/notes and matching Linux executable/archive/notes are in repository
+builds directories. No new working branch or worktree was created.
+
+The ordinary supply run on869627815 uses real OS XTest/private authenticated
+Xvfb/explicit x11/Dummy audio and the exact pinned exported Linux game. It completes
+normal station boarding, outbound flight, Cinder docking, neutral shutdown,
+normal Activity Board START, all load_crate/clear_gate/dock_platform phases,
+redocking and physical exit. Atframe6563 the real player jumps from supported
+Cinder LandingDeck(38.2,-67.098,-691.48) to the hub(-8.5,.18,11). The unchanged
+completed-motion guard correctly fails; runtime233.491s, diagnostics0, all inputs
+released and helper/game/display reaped. This is a full journey FAIL, not acceptance
+of terminal transfer/payment/home. Earlier six failed attempts remain retained.
+
+GameFlow's yard-local below-24m recall applied to legitimate Cinder floors.
+The repair retains that threshold, transition/cabin protections and recall action.
+It exempts only the current original grounded Player with a fresh walkable ray hit
+on live Structure geometry under the current guarded streamed Cinder cargo access.
+Loaded sector or retained actor authorization alone grants no exemption.
+
+The existing focused command gains --cargo-walking-recall. Its explicit fixture
+stages initial actors and waits for actual physics support before enabling Main's
+real process. Before the repair, the sole fourth assertion reproduces the hub
+recall, exit1/31.800s. Afterward13 assertions pass32.416s: landing deck and terminal
+platform retain the player; detached Player, reparented access, unsupported fall,
+production unload and station-fall cases retain rejection/recall. This is focused
+staged integration, not ordinary-flight acceptance. Existing default streaming
+journey passes39 assertions93.845s. Independent source/result review GO.
+
+The broader cinder_cargo_access_test remains FAIL. The exact same four activity
+retry/replay/reset, null-release and replacement/release assertions fail on both
+pre-fixc4c93d72b(56.417s) and candidated3b7cd9e7(57.141s), with72 other PASS lines.
+Its GameFlow is an unparented method probe and does not run the recall process.
+No cause or repair for those separate failures is claimed; no waiver was added.
+Raw logs, exact failure comparison and original deadlines are retained.
+
+The same13 focused assertions pass against the actual Windows embedded game data
+under Linux Godot26.208s, external script, exit0 and zero diagnostics. Fresh clean
+Windows/Linux exports share1525 actual PCK entries. Trusted stock Windows code,
+archive executable/icon/installer bytes, modes/epoch and metadata verify. Windows
+payload, direct ELF and extracted Linux archive each pass strict startup with
+exit0 and exactly one STARTUP_MENU_READY_OK. Native Windows was NOT_RUN. Source
+and cache freezes pass; the first export refreshes only editor filesystem-cache
+metadata, explicitly compared. Windows EXE184689584bytes SHA256
+995ba6d32df0c454afe56547cc153360c9045ca38032be0cefee9437d823ea3a;
+checkpoint ZIP103221871bytes SHA256
+3bef299e491ad141e6ee585a15546524907165f085c813f341976a1d12ee1fe3.
+ZIP integrity and exact EXE/notes membership verify. No Downloads publication.
+
+Unfinished source is preserved under pushed annotated tag
+archive/withheld/cinder-supply-first-play-20261021, exact tipd3b7cd9e7,
+tag object96f766eb3e1cea01025172f340534d3c4fa80621. Verified incremental bundle,
+binary diff and seven-file Git-blob-exact archive retain the full candidate;
+its separately accepted runtime/test patches are integrated without the caller.
+Private package/sourcef8719b426 and startup records are retained in results;
+its redundant loose148935280-byte executable was removed only after exact archive
+member hash verification. Branch deletion/archive preservation is not product
+completion. Main remains the sole local/live remote working branch.
+
+Case results: /srv/mudds-work/cinder-supply-first-play-20261021/results/.
+Cleanup at2026-10-21T01:00:05.415226UTC verifies35 terminal owners and91 absent
+recorded PID/start identities. All402 scratch entries are archived, reopened and
+byte/mode/link verified before removal. profiles.tar.gz3297857bytes SHA256
+25372abf829a760c3e4f058343cd3ba8f79cad10cae54ce0af3111493a45fcc4.
+Eight protected detached worktrees remain untouched; hosted CI stays disabled.
+
+**Full PLAY-CINDER-SUPPLY remains OPEN; full route after this repair NOT_RUN.**
+Physical terminal E transfer1/source2to1/destination0to1, once-only actual-file
+payment, duplicate-request conservation and usable home dock/exit must still pass
+together with the ordinary outbound and phases under original300s/120s limits.
+No further unchanged attempt or adjacent task was started. Ten-run replenishment
+and Hauler stock decisions remain distinct. Native Windows/GPU/devices/listening/
+human/final release gates remain NOT_RUN; all36 parents and ten phase gates stay
+open. The next selection must retain this complete supply contract.

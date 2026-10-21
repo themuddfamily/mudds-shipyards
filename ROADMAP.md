@@ -6,13 +6,14 @@ Nine of the eventual 17 craft exist; eight still need supported specifications
 and implementation. Partial acceptance is retained in the backlog; it is not
 whole-feature completion.
 
-Latest playable checkpoint: **39d93d2**. Normal landing assist now discovers
-the current streamed Cinder cargo berth and docks Jovian through the existing
-physical reservation/occupancy path. Includes the prior Defense boundary and
-Jovian reboarding fixes. Full ordinary Cinder supply and Defense remain open.
-[Windows ZIP](builds/windows/MuddsShipyards-39d93d2-checkpoint.zip),
-[Windows notes](builds/windows/MuddsShipyards-39d93d2-notes.txt),
-[Linux notes](builds/linux/MuddsShipyards-39d93d2-linux-notes.txt).
+Latest playable checkpoint: **c837823**. Walking on Cinder's current cargo deck
+and terminal platform no longer triggers the station's fall recall and sends
+the player back to the hub. Actual unsupported falls still recall. Includes the
+Cinder landing, Defense boundary and Jovian reboarding fixes. Full ordinary
+Cinder supply and Defense remain open.
+[Windows ZIP](builds/windows/MuddsShipyards-c837823-checkpoint.zip),
+[Windows notes](builds/windows/MuddsShipyards-c837823-notes.txt),
+[Linux notes](builds/linux/MuddsShipyards-c837823-linux-notes.txt).
 
 This page is the working queue. The
 [36-parent crosswalk and named children](docs/ROADMAP_BACKLOG.md#coverage-of-the-original-remaining-outcomes)
@@ -41,6 +42,22 @@ presentation findings, unresolved policies and measurement cases have not all
 been defined. Do not turn test counts, commits or row counts into project progress.
 
 ## Execution now
+
+**Cinder supported walking repair DONE — `c8378235b`, merged and pushed.**
+The full ordinary supply attempt completed outbound flight, docking, normal UI
+start and all three supply phases, then failed when the yard recall teleported
+the supported player from Cinder to the hub. A narrow current-floor check fixes
+that runtime defect. The focused regression fails before the fix and passes
+13 checks afterward and against exported game data; the existing streaming suite
+passes. Four broader cargo activity/lifecycle failures reproduce identically
+before and after the repair and remain unresolved. Fresh checkpoint and owned
+scratch cleanup are complete. Full **PLAY-CINDER-SUPPLY remains OPEN**: transfer,
+saved payment, duplicate conservation and usable home return must pass together
+with the original outbound and phases under the unchanged limits. The full route
+after this repair is NOT_RUN. Unfinished driver source/results are preserved under
+`archive/withheld/cinder-supply-first-play-20261021`; no new working branch or
+adjacent roadmap task was started.
+[Result and remaining requirement](docs/history/ROADMAP_DELIVERIES.md#cinder-cargo--supported-walking-recall-repaired--2026-10-21).
 
 **Cinder cargo landing prerequisite DONE — `39d93d26b`.** The original
 production-Main regression fails only GameFlow berth discovery before the fix;
