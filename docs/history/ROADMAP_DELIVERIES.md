@@ -20780,3 +20780,54 @@ Original120s landing/2400s outer, all crew/physical-authority checks and complet
 survey/reward/save/home scope retained. No engine, scratch, branch, worktree or
 runtime edit created. Nine candidates remain unqualified; this review narrows the
 Rime blocker and does not count as gameplay completion.
+
+
+## Rime original full-route cost capture — partial; journey still failed — 2026-10-21
+
+Existing SHARED-RIME-BASELINE only. Selection070ab19d2 pushed before run.
+Detached diagnosticd9a073c98ebf682182a045cf1506b145b3e03dab restores exact archived
+68cc two-crew caller alongside current parent profile/ordinary/observer fixtures.
+One implementer and independent source reviewer GO: child differs from archive
+only by host --debug and profiler/passive markers inside original landing wait.
+No runtime, actor/input, physics, route, cap, selector or assertion change.
+Original pre-route hatch fixture remains disclosed. Independent reviewer GO
+is source fidelity only, not runtime qualification.
+
+Original60s parse PASS16.680228s/exit0/no diagnostics. ONE original full route
+FAIL1624.422189s/exit1: first actual failure `peer boundary arrives: host.landed`
+under original120s landing/2400s outer. First-failure relay terminated root;
+existing subreaper closed/reaped descendants. Headless orchestrator and separate
+Xvfb peers retain explicitx11/Dummy; network/display lanes held. Host alone uses
+--debug; compiler warnings are retained in result.json, not filtered into a clean
+qualification claim. Source and cache unchanged during both stages.
+
+Actual host reaches authored approach with same original pilot/two crew. Profiler
+availability true, START present. Passive observations: initial214506.375m at
+14962.760m/s;100.189wall seconds later50.8866m/22.4299m/s;110.215seconds later
+9939.903m/speed0, still corridor. `lead_in_leg` is-1 throughout: the diagnostic
+lookup did not capture that field, so no exact-leg, placement or transition cause
+is inferred. Peer timeout fires before host profiler shutdown; no END or
+ACCUMULATED total exists. Do not call this a completed120s accumulated capture.
+
+Raw has106 emittedFRAME groups; exclude final potentially truncated group and
+all test coroutine bookkeeping.105 sampled groups rank Halyard._physics_process
+first (sample-summed self2.856580s/833calls), then Player animation-contract checks
+(1.193185s/44982calls). These are sums of emitted frame samples, NOT whole-window
+CPU shares. Inclusive times overlap; derived/super/native attribution remains
+unresolved. Local Godot source confirms localdebugger prints per-frame data at
+one-second intervals, separately from accumulated data on disable. Independent
+actual review NO-GO for qualification or a production fix. Missing complete
+cost attribution and actual controller transition prevent a supported repair;
+no automatic retry, cap change or unrelated optimization selected.
+
+Verified diagnostic-source.bundle/patch retain exactd9a source with prerequisite
+pushed070ab19d2. Diagnostic fixture changes are not merged. Raw23.56MB log,
+commands/status/source guards, partial-profile-analysis.json, reviews and cleanup
+remain under `/srv/mudds-work/rime-existing-profile-20261021/results/`.
+Both owners terminal; all19 observed PID/start identities absent.64 scratch
+entries byte/mode/link verified from archive before removal. Archive3825802bytes,
+SHA256ba6c5a9d126072bcdb4ef34231bbfdf798e52d35be7a293bd9693ea514eb1cfa.
+Eight protected worktrees unchanged. Main remains the sole local/live branch.
+No gameplay/export change or duplicate checkpoint; latest playable4196ad0.
+Nine original candidates and full crew/survey/reward/save/home scope remain open;
+native/GPU/device/human/final matrix gates remain NOT_RUN.

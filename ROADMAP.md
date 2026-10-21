@@ -42,16 +42,14 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
-**Existing-work closeout takes priority. One existing Rime diagnosis selected.**
-Restore the exact archived two-crew caller alongside current fixture changes.
-Attach the existing per-function script profiler only to the host's original
-final-approach wait, with passive wall/frame/leg/distance/speed observations.
-Keep all original assertions, physical outbound/crew checks,120s landing and2400s
-outer deadlines; no shorter selector, early success or runtime change. Previous
-run reached this boundary after about27minutes. Stop on the first original
-failure or complete result; archive temporary source and clean owned processes/
-profiles before any further selection. This is diagnosis, not a gameplay repair
-or full-journey acceptance. Latest playable checkpoint remains4196ad0.
+**Existing-work closeout takes priority. No task is currently running.**
+The selected original Rime run failed its unchanged peer landing gate after
+1624.422s. It yielded105 usable sampled script frames, but no final accumulated
+total: the peer timeout stopped the host before profiler flush. The controller
+leg field was also unavailable. These samples locate costs but establish no
+production repair or completed journey; there is no automatic retry. Temporary
+source is bundled, all owned processes are absent, and64 scratch entries were
+archived/verified/removed. Latest playable checkpoint remains4196ad0.
 
 The earlier 45 remote heads included `main`, duplicate attempts, diagnostics and
 already-integrated work; they were not 45 independent unfinished features.
@@ -65,7 +63,7 @@ these six problems. Archival and branch deletion do not complete these outcomes.
 | UI transition, Mining and Observation (3) | Identify the original popup/connection-removal failure, prove a repair against that event, and finish the full Mining and Observation journeys. Later clean Beacon/tooltip runs did not establish a UI fix. |
 | Defense (1) | Finish all four kills, payment, home, Reset and next Deploy. The last first kill took about30s of the34s encounter, with10.5s mandatory wave delays remaining; a feasible ordinary plan or an explicit clock-owner decision is needed. |
 | Hulk revisit (1) | Complete physical revisit and once-only breaker/cell/reward within the original300s. Last capture showed continuing supported movement; stage costs remain unlocalized. |
-| Rime crew arrival (1) | Final-approach handoff is incomplete before berth assist starts: last capture has2089m remaining,734m/s, full hull and intact pilot. Only58.083 simulation seconds advanced during the120s wall gate; identify execution cost/trajectory progression before a supported repair. Full two-crew survey/reward/save/home remains required. |
+| Rime crew arrival (1) | Original full cost capture still fails peer landing gate1624.422s.105 sampled function frames identify costs, but missing accumulated/native attribution and actual controller leg prevent a supported repair. No retry selected; full two-crew survey/reward/save/home remains required. |
 | Jovian reload (1) | Restore usable normal continuation within the original30s. State restoration succeeded at27.762s, but the first normal frame pair did not complete; no startup repair is established. |
 
 Finish one supported correction with its full original acceptance, integration,
