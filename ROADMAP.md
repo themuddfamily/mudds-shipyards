@@ -55,8 +55,17 @@ All five owner decisions2026-10-21 remain accepted: automatic Freight landing
 transfer, shared Jovian/Hauler stock, every current authenticated navigator
 rejection receives feedback, Beacon outbound maximum60seconds, Bomber refill
 on pilot seat retake. The latter four deliveries are queued, not started.
-No new working branch/worktree was created. Owned scratch is archived/removed;
-retained unqualified source contexts are preserved. Select one bounded next card.
+No new working branch/worktree was created. Freight owned scratch is archived/
+removed; retained unqualified source contexts are preserved.
+
+**One active delivery: HAULER-CARGO-MANIFEST.** Root owns integration/builds;
+one bounded implementer owns NearbySectorActivityBinding and existing binding/
+access tests. Admit the actual Hauler with its exact source manifest, conserving
+the existing shared two-crate Cinder supply stock across Jovian→Hauler→Jovian.
+Keep existing activity generation floors, destination, transfer/reward/debt fences
+and120s contract; no schema/authority expansion without a concrete necessity.
+Finish focused checks, paired playable checkpoint, integration/push and cleanup
+before another card. Full ordinary Hauler delivery stays separately open.
 
 **Prior Rime diagnosis closed, journey remains open.**
 The selected original Rime run failed its unchanged peer landing gate after
@@ -668,7 +677,7 @@ remain recorded. Full ordinary Hold and parent 11 remain OPEN. Native Windows,
 GPU/devices/audio/human/final gates stay NOT_RUN/open; CI stays disabled.
 [Delivery and actual limits](docs/history/ROADMAP_DELIVERIES.md#perimeter-live-branch-finished--2026-10-20).
 
-**Freight terminal interface completed. Two prepared production cards have owner decisions; neither is selected.**
+**Freight terminal interface completed. Hauler shared manifest selected; navigator feedback remains queued.**
 Courier remains closed. All five choices below are settled; no completed diagnostic schedules an adjacent probe.
 
 ### Completed production repair — Jovian passenger reboard
@@ -688,7 +697,7 @@ are acceptance intent, not permission to run an unfrozen engine command.
 | Existing child / parents | Player result and implementation boundary | Done for this card | Dependency and cost |
 | --- | --- | --- | --- |
 | [FREIGHT-TERMINAL-INTERFACE /7,9,13](docs/ROADMAP_BACKLOG.md#freight-terminals--physical-interface-and-existing-transfer-owner) | Ordinary E at existing Freight fittings reaches the genuine cargo job/manifests/receipt. Owners: JovianFreightBerth fittings, FreightJobTerminal and GameFlow cargo composition. | Actual Main interaction, range/re-entry/refusal/current-owner checks; existing conserved stock and once-only settlement preserved; fresh playable checkpoint. This does not close full Freight delivery/reload/walk. | DONE on509703300/checkpoint5097033: staged actual-Main initial and saved interaction checks, existing conserved/once-only suite, focused companions and package startup pass. Full ordinary walk/cold reload remain open; no new inventory. |
-| [HAULER-CARGO-MANIFEST /10,13](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries) | Hauler joins the real supply contract with the correct conserved stock owner. Owner: NearbySectorActivityBinding admission/custody; existing generation-floor API and CargoTransferAuthority retained. | Jovian→Hauler→Jovian current ownership, stale-handle refusal, no recreated stock, exact conserved destination/receipt; fresh playable checkpoint. Full ordinary Hauler delivery stays separate. | DECIDED: share existing Jovian/Hauler stock, no duplicated inventory. Not selected yet. Existing estimate 60–90min implementation/checks plus checkpoint; split if the choice adds a separate capability. Access is already delivered. |
+| [HAULER-CARGO-MANIFEST /10,13](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries) | Hauler joins the real supply contract with the correct conserved stock owner. Owner: NearbySectorActivityBinding admission/custody; existing generation-floor API and CargoTransferAuthority retained. | Jovian→Hauler→Jovian current ownership, stale-handle refusal, no recreated stock, exact conserved destination/receipt; fresh playable checkpoint. Full ordinary Hauler delivery stays separate. | SELECTED: share existing Jovian/Hauler stock, no duplicated inventory. Existing estimate 60–90min implementation/checks plus checkpoint; split if the choice adds a separate capability. Access is already delivered. |
 | [AUDIO-NAVIGATOR-CLIENT-REJECTION /30](docs/COMPLETION_SCOPE.md#client-navigator-rejection-response--bounded-definition-next) | The actual requesting client gets one accurate refusal cue/caption for its current request. Existing passenger binding, ENet adapter, GameFlow and navigator audio lifetime owners carry the response. | Distinct equal refusals each present once; stale/replayed/foreign responses stay silent; accepted/clear behavior and full existing peer route retained; fresh playable checkpoint. Dummy checks establish dispatch, not listening. | DECIDED: feedback for every fresh current authenticated rejection, including unavailable consumer; stale/replayed/foreign responses remain silent. Not selected yet. Prior estimate 45–60min implementation/review, 15–25min checks, 10–15min checkpoint. High-risk lifetime/transport review required. |
 
 A card closes on its stated result, then commit/push, record actual time and clean
