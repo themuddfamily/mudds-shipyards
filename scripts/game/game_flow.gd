@@ -4585,7 +4585,7 @@ func _is_player_supported_by_current_cinder_access() -> bool:
 	var ray := PhysicsRayQueryParameters3D.create(
 		player.global_position + Vector3.UP * 0.2,
 		player.global_position - Vector3.UP * 0.3,
-		player.collision_mask,
+		player.collision_mask & PhysicsLayers.WORLD,
 		[player.get_rid()],
 	)
 	var hit: Dictionary = player.get_world_3d().direct_space_state.intersect_ray(ray)
