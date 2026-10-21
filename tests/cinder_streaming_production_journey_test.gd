@@ -634,7 +634,7 @@ func _test_same_craft_cargo_reboarding(game: GameFlow, craft: HeroShip,
 	while game.phase == GameFlow.Phase.BOARDING and Time.get_ticks_msec() < deadline:
 		await physics_frame
 		await process_frame
-	var seated := game.phase == GameFlow.Phase.START_ENGINES \
+	var seated: bool = game.phase == GameFlow.Phase.START_ENGINES \
 		and game.player.is_seated_at(craft.get_pilot_seat_anchor()) \
 		and bool(game.get("_piloting")) and game.active_ship == craft
 	_check(seated, "actual remote same-craft boarding completes on the production pilot seat")
