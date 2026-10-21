@@ -20348,3 +20348,60 @@ Raw result/logs/real-file snapshots/causal sample and audits remain under
 and notes stay in repository builds/windows and builds/linux. No branch/worktree
 created; main sole working branch, eight protected detached worktrees untouched.
 No successor task started. GitHub Actions stays disabled; no Downloads publication.
+
+
+## Courier — fresh shot capture identifies undamageable runner — 2026-10-21
+
+Existing COURIER-CLEAR / parent11 remains OPEN. One newly selected passive
+capture addresses the exact missing original fact: 1660 command-fire samples and
+a retained accepted-shot flag did not establish current emissions or hit results.
+Diagnostic73da7f340 starts from exact archivedcb9d76fa5; original complete Courier
+caller SHA256 `28bd2e06f9c18e09d8c49b9951b112dfed26883bbced936f76422eda7c6a377a`
+remains byte-identical. Only the existing observer changes, preserving original
+receipt acceptance and all route/actor/input/gameplay settings. Own source-ship
+emission and actual authority request/result callbacks retain fresh counters,
+ray origins/directions/range/sequence, collider/target/status and damage fields.
+Per-frame weapon gate, modifiers and component health distinguish stopped fire.
+
+Independent source review required two corrections before execution: early
+unregistered-source/unauthorized-weapon refusals return before the authority signal,
+so the later emission callback also reads the synchronously returned production
+result; and the resolver getter prunes history/uses the wrong default key, so the
+dispatch baseline instead reads raw registration and actual source-key dictionaries.
+No authority history mutation, sequence filtering of rejected events, actor-active
+filter losing terminal results, input change or accepted fake receipt.
+Original compile15.664s passes but is not replayed; corrected compile15.788s and
+private clean Linux export42.569s pass. Initial export cache update explicitly
+allowed; source/cache guards pass otherwise. Final source review GO.
+
+Exactly ONE original full ordinary Courier attempt underCAP300/outer330 FAILS
+70.465s driver/70.721s owner interval: four actual range kills, normal first Courier
+dispatch after270 physics frames, then live runner escapes1400m at78/78 hull.
+Fresh dispatch baseline source1101/keysource_id:1101/sequence10, followed by14
+actual emissions and14 matching resolutions with request sequences11–24.
+**Nine accepted/resolved rays physically hit `/root/Boot/Main/CourierRunner` but
+return non_damageable_blocked, target0, applied_damage0.** Five later shots miss.
+This establishes the target-adapter gap instead of an inferred aiming defect.
+Later actual starboard-wing and engine-bay failure sets fire_disabled/mobility_disabled;
+1313 active samples report weapon_component_failed. No synthetic damage or tuning
+change. Full clear/defender/home completion remains unaccepted; failure is retained.
+Raw diagnostics0 and all input/helper/game/Xvfb cleanup flags true.
+
+All4 owners terminal/all13 observed process identities absent. Own50 scratch
+entries archived/reopened/verified then removed04:27:40UTC; profiles.tar.gz1574 bytes
+SHA256 `1792ce67f4b11386efbfa3bd6552faf4a9776f8b6b12a0f31c9f1adcf5637691`.
+Two unique observer diagnostic commits survive in a verified incremental Git bundle
+and binary patch, unmerged; no working branch/worktree created. The148903904-byte
+loose ELF was removed after exact retained archive-binary comparison, SHA256
+`0863805219aa057700185aad3dd014e684442dbca615bc48a8f6f8194ad544d7`.
+Case `/srv/mudds-work/courier-fresh-shot-20261021/results/` retains actual raw shots,
+original full route/result, findings, source/review and private diagnostic package.
+Public checkpointbc48b2a, ten accepted/superseded plus ten unqualified original
+candidates and eight protected detached worktrees remain unchanged. No CI/native
+Windows/GPU/device/listening/human qualification or gameplay completion claimed.
+
+Next separately selected production card: reproduce the Courier damageable-target
+lifecycle on current main with an existing real-ray combat test, then ensure the
+actual authority/adapter reaches its sole live health owner on activation/reuse.
+Preserve registration ownership, faction/occlusion, stale/inactive and all original
+encounter/weapon values. No passive observer instrumentation belongs in that repair.
