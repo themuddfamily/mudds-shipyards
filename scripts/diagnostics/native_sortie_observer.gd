@@ -163,6 +163,7 @@ func _courier_observation() -> Dictionary:
 	if not is_instance_valid(_courier_director) or not is_instance_valid(_courier):
 		return {}
 	return {
+		"weapon_ready": bool(_ship.get_weapon_fire_status().get("ready", false)),
 		"director_id": _courier_director.get_instance_id(),
 		"scenario": str(_courier_director.get_active_scenario()),
 		"generation": _courier_director.get_scenario_generation(),

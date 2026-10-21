@@ -461,6 +461,7 @@ class CourierPilot(Pilot):
                 return {'Prior'}, dx, dy, fire
         expected = 85. - 34. * len(self.defender_wounds)
         if (allow_fire and len(self.defender_wounds) < 2 and health > 34
+                and s['courier']['weapon_ready'] is True
                 and math.isclose(health, expected, abs_tol=1e-6)
                 and frame >= self.defender_ready_frame and not s['command_fire'] and align >= .997):
             self.defender_pulse = {'frame': frame, 'before_health': health, 'after_health': None,

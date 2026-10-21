@@ -1590,6 +1590,7 @@ class NativeSortieSafetyTests(unittest.TestCase):
                  opponent_id=12, opponent_health=85., position=[0, 8, -73], camera=[0, 8, -91])
         s['tuning']['cooldown'] = .22
         s['courier'] = dict(native.CourierPilot.CONFIG, director_id=10, actor_id=11,
+                            weapon_ready=True,
                             scenario='none', generation=0, state='arming', outcome='pending',
                             elapsed_seconds=0., escape_progress=0., active=False,
                             position=[0, 8, -200], velocity=[0, 0, -52], health=78.,
@@ -1642,6 +1643,33 @@ class NativeSortieSafetyTests(unittest.TestCase):
         for health in (17., 34.):
             s.update(frame=s['frame']+30, opponent_health=health)
             self.assertFalse(pilot.update(copy.deepcopy(s), s['frame']/60)[3])
+
+    def test_courier_wait_requires_observed_weapon_readiness_for_each_new_pulse(self):
+        pilot, s = self.courier_pilot()
+        # Failed run: wait1331, command ack1353/release1355, no health loss.
+        # Earlier passive capture of the same range prefix observes overheat
+        # at1343 despite .22s cooldown; actual weapon readiness returns1403.
+        s['courier']['weapon_ready'] = False
+        for frame in (1343, 1353, 1402):
+            s['frame'] = frame
+            self.assertFalse(pilot.update(copy.deepcopy(s), frame/60)[3])
+            self.assertIsNone(pilot.defender_pulse)
+        s.update(frame=1403)
+        s['courier']['weapon_ready'] = True
+        self.assertTrue(pilot.update(copy.deepcopy(s), s['frame']/60)[3])
+        s.update(frame=1404, command_fire=True, opponent_health=51.)
+        self.assertFalse(pilot.update(copy.deepcopy(s), s['frame']/60)[3])
+        s.update(frame=1405, command_fire=False)
+        self.assertFalse(pilot.update(copy.deepcopy(s), s['frame']/60)[3])
+        self.assertEqual(len(pilot.defender_wounds), 1)
+        s['courier']['weapon_ready'] = False
+        for frame in (pilot.defender_ready_frame, 1450):
+            s['frame'] = frame
+            self.assertFalse(pilot.update(copy.deepcopy(s), frame/60)[3])
+            self.assertIsNone(pilot.defender_pulse)
+        s.update(frame=1451)
+        s['courier']['weapon_ready'] = True
+        self.assertTrue(pilot.update(copy.deepcopy(s), s['frame']/60)[3])
 
     def test_courier_wait_never_blindly_repeats_a_missed_or_unacknowledged_pulse(self):
         for acknowledge in (False, True):

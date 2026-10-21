@@ -47,7 +47,8 @@ Priority review of the original contract permits damaging the initial defender
 while keeping it alive until Courier is cleared. The original stationary and
 reverse plans each leave it51 after one post-clear hit, then lose weapon capability.
 During the existing4.5s arming interval, aim/fire through ordinary controls in two
-separate feedback-bound pulses, observe85→51→17 and released fire, then cease fire.
+separate feedback-bound pulses only when the actual weapon reports ready; observe
+85→51→17 and released fire, then cease fire.
 The original live Courier intercept/positive kill receipt/director CLEARED must
 follow before finishing the defender and the complete home journey.
 
