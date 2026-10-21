@@ -57,6 +57,10 @@ func _init() -> void:
 
 
 func _run() -> void:
+	if OS.get_cmdline_user_args().has("--cargo-walking-recall"):
+		await _run_cargo_walking_recall()
+		_finish()
+		return
 	if OS.get_cmdline_user_args().has("--cargo-landing"):
 		await _run_cargo_landing()
 		_finish()
@@ -102,6 +106,137 @@ func _run() -> void:
 	await _test_deferred_quality_sync_currentness()
 	await _test_queued_binding_boundaries()
 	_finish()
+
+
+## Focused staged floor/recall integration, not an ordinary flight proof. The
+## real streaming tick builds Cinder, Player physics establishes real support,
+## then Main's actual presentation process decides whether to recall it.
+func _run_cargo_walking_recall() -> void:
+	var game := MAIN_SCENE.instantiate() as GameFlow
+	var store := Store.new(STORE_PATH, MemoryFilesystem.new()) as UserDataStore
+	_check(game.configure_runtime_settings_persistence(store,
+		"memory://cinder-walking-recall-legacy.cfg"), "walking recall isolates Main persistence")
+	root.add_child(game)
+	await process_frame
+	await physics_frame
+	await process_frame
+	var player := game.get_node(^"Player") as PlayerController
+	var world := game.get_node(^"ShipyardWorld") as ShipyardWorld
+	var binding := game.get_node(^"CinderStreamingProductionBinding") as CinderStreamingProductionBinding
+	var bootstrap := game.get_node(^"CinderStreamingBootstrap") as CinderStreamingBootstrap
+	var ship := _cargo_landing_ship(game, &"jovian_provisional")
+	game.runtime_settings.graphics_profile = RuntimeSettings.GraphicsProfile.LOW
+	world.apply_visual_quality(NearbySectorCluster.DetailQuality.LOW)
+	game.active_ship = ship
+	ship.set_piloted(true)
+	ship.global_position = LOCATION.get_anchor_position() + Vector3(0.0, 0.0, 499.9)
+	var previous_tick := int(binding.get_snapshot().get("physics_tick_count", -1))
+	await _wait_for_binding_tick(binding, previous_tick)
+	await _wait_for_cluster(bootstrap)
+	var cluster := bootstrap.get_loaded_instance() as NearbySectorCluster
+	_check(cluster != null, "walking recall loads real Cinder through actual actor tracking")
+	if cluster == null:
+		await _cleanup(game)
+		return
+	var access := cluster.get_cinder_cargo_access()
+	var structure := access.get_node(^"Structure")
+	var deck := access.to_global(CinderCargoAccess.BERTH_EXIT_LOCAL)
+	var terminal_floor := access.to_global(CinderCargoAccess.DESTINATION_TERMINAL_PLAYER_APPROACH_LOCAL)
+	ship.set_piloted(false)
+	game.set("_piloting", false)
+	game.phase = GameFlow.Phase.APPROACH_SHIP
+	var player_id := player.get_instance_id()
+	for point: Vector3 in [deck, terminal_floor]:
+		var settled: bool = await _cargo_recall_stage_player(game, player, point, true)
+		var support := _cargo_recall_support(player)
+		_check(settled and player.is_on_floor() and is_instance_valid(support)
+			and structure.is_ancestor_of(support) and world.to_local(player.global_position).y < -24.0,
+			"actual original Player physics establishes current Cinder Structure floor below yard recall boundary")
+		if not settled or not is_instance_valid(support) or not structure.is_ancestor_of(support):
+			await _cleanup(game)
+			return
+		game.set_process(true)
+		await process_frame
+		await process_frame
+		var retained: bool = (player.get_instance_id() == player_id
+			and player.global_position.distance_to(point) < 0.20 and player.is_on_floor())
+		print("CINDER_CARGO_WALKING_RECALL: ", {"expected_floor": point,
+			"actual": player.global_position, "support": str(support.get_path()), "retained": retained})
+		_check(retained, "actual Main process preserves supported walking on the current Cinder cargo floor")
+		if not retained:
+			await _cleanup(game)
+			return
+
+	# A supported actor outside this Main is not the current local Player.
+	game.set_process(false)
+	var player_owner := player.owner
+	player.reparent(root)
+	_check(not bool(game.call(&"_is_player_supported_by_current_cinder_access")),
+		"a detached Player cannot inherit the current Cinder support exemption")
+	player.reparent(game)
+	player.owner = player_owner
+
+	# Real current geometry still exists while reparented, but it belongs to no
+	# current streamed access and must not suppress the existing fall backstop.
+	await _cargo_recall_stage_player(game, player, deck, true)
+	var access_parent := access.get_parent()
+	access.reparent(game)
+	game.set_process(true)
+	await process_frame
+	await process_frame
+	_check(player.global_position.distance_to(world.get_player_spawn().origin) < 0.20,
+		"physically supported reparented access cannot suppress yard safety recall")
+	access.reparent(access_parent)
+
+	await _cargo_recall_stage_player(game, player, deck + Vector3(0.0, -8.0, 0.0), false)
+	_check(not player.is_on_floor(), "unsupported Cinder fall fixture has no actual floor")
+	game.set_process(true)
+	await process_frame
+	await process_frame
+	_check(player.global_position.distance_to(world.get_player_spawn().origin) < 0.20,
+		"a real unsupported fall below current Cinder still recalls to the yard")
+
+	await _cargo_recall_stage_player(game, player, deck, true)
+	game.set_physics_process(false)
+	ship.global_position = LOCATION.get_anchor_position() + Vector3(0.0, 0.0, 650.1)
+	for _tick in 31:
+		binding.physics_tick_from_caller_sample(1.0 / 60.0, _ship_sample(ship))
+	_check(bootstrap.get_loaded_instance() == null,
+		"production fade and unload retire the supported floor's current attachment")
+	game.set_process(true)
+	await process_frame
+	await process_frame
+	_check(player.global_position.distance_to(world.get_player_spawn().origin) < 0.20,
+		"queued or unloaded Cinder floor cannot retain the support exemption")
+	game.set_physics_process(true)
+
+	await _cargo_recall_stage_player(game, player, world.to_global(Vector3(0.0, -25.0, 0.0)), false)
+	game.set_process(true)
+	await process_frame
+	await process_frame
+	_check(player.global_position.distance_to(world.get_player_spawn().origin) < 0.20,
+		"original below-yard unsupported station fall still recalls")
+	await _cleanup(game)
+
+
+func _cargo_recall_stage_player(game: GameFlow, player: PlayerController,
+	point: Vector3, require_floor: bool) -> bool:
+	game.set_process(false)
+	player.teleport_to(Transform3D(Basis.IDENTITY, point + Vector3.UP * 0.03))
+	player.set_control_enabled(true)
+	for _tick in (30 if require_floor else 3):
+		await physics_frame
+		await process_frame
+		if require_floor and player.is_on_floor():
+			return true
+	return not require_floor
+
+
+func _cargo_recall_support(player: PlayerController) -> Node:
+	var ray := PhysicsRayQueryParameters3D.create(player.global_position + Vector3.UP * 0.2,
+		player.global_position - Vector3.UP * 0.3, player.collision_mask, [player.get_rid()])
+	var hit := player.get_world_3d().direct_space_state.intersect_ray(ray)
+	return hit.get("collider") as Node
 
 
 ## Focused Main regression, not an ordinary outbound journey: only the initial
