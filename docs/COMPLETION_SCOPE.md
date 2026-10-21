@@ -1257,6 +1257,19 @@ become current merely because a status says unavailable. This resolves the
 previous A/B choice. Freeze the bounded implementation and existing acceptance
 before running; actual requester correlation is required in every allowed case.
 
+**Implementation selected2026-10-21 after shared Hauler custody closure.**
+One bounded high-effort implementer, independent lifecycle reviewer and root
+integration. Six runtime owners and existing tests named below; no working
+branch/worktree. Contract GO: dedicated authority reliable channel0 requester
+result preserves original nine-field request, verified ship/seat and authenticated
+recipient peer/generation/session/migration. Actual callback result stays separate.
+Client registers bounded32 pending before send and checks exact live physical
+claim/adapter/craft context. Success/internal terminal only retires pending;
+actual accepted/clear path retained. Requester-only remote callback suppression
+preserves local host feedback. No schema, assets or validator family changes.
+Freeze actual commands/caps/source before running; original complete peer route
+plus real missing-consumer and bridge-refusal episodes remain required.
+
 #### Finite refusal cases and the exact current-request boundary
 
 Authenticated navigator FIRE uses `send_engineer_intent` / `_receive_engineer_intent`
