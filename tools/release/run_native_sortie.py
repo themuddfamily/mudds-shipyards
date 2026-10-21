@@ -3874,6 +3874,7 @@ class CinderSupplyPilot(BeaconEntryPilot):
         self.paid_state = self.paid_slot = self.paid_record = None
         self.file_paid = self.file_repeat = self.file_home = False
         self.quit_requested = False
+        self.clearance_index = 0
         self.flight_target = None
         self.stop_since = None
         self.cargo_identity = None
@@ -3990,6 +3991,26 @@ class CinderSupplyPilot(BeaconEntryPilot):
                 self.receipts[stage] = s
                 self.enter(stage, s)
 
+    @staticmethod
+    def station_clearance_targets(s, reverse=False):
+        # Freight's full body envelope must clear before turning back toward
+        # Cinder. Use the live home capture frame in both travel directions.
+        capture = s['home']['capture_position']
+        offsets = ([0, 0, 0], [0, 0, 26.7], [0, 66.37, 66.7],
+                   [-172, 66.37, 66.7], [-172, 66.37, -308.3])
+        points = [[p+d for p, d in zip(capture, offset)] for offset in offsets]
+        return list(reversed(points)) if reverse else points
+
+    def clearance_flight(self, s, keys, reverse=False):
+        targets = self.station_clearance_targets(s, reverse)
+        dx, dy, settled = self.flight(s, targets[self.clearance_index], keys)
+        if settled:
+            self.receipts[('home' if reverse else 'outbound')+'_clearance_'+str(self.clearance_index)] = s
+            self.clearance_index += 1
+            if self.clearance_index == len(targets):
+                self.enter('home_flight' if reverse else 'outbound', s)
+        return dx, dy
+
     def flight(self, s, target, keys):
         off = sub(target, s['position']); distance = norm(off); speed = norm(s['ship_velocity'])
         stopping = speed*speed/(2*max(s['tuning']['brake'], 48)) + speed*.15 + 2
@@ -4072,7 +4093,10 @@ class CinderSupplyPilot(BeaconEntryPilot):
             keys.add('w')
             if not s['landed'] and s['home']['lease_free'] and norm(sub(s['position'], self.initial['parked'])) >= 8:
                 self.receipts['departed_home'] = s
-                self.enter('outbound', s)
+                self.clearance_index = 0
+                self.enter('outbound_clearance', s)
+        elif self.stage == 'outbound_clearance':
+            dx, dy = self.clearance_flight(s, keys)
         elif self.stage == 'outbound':
             # Current common-world capture guidance replaces the authored anchor
             # as soon as the production distance policy commits Cinder.
@@ -4168,7 +4192,10 @@ class CinderSupplyPilot(BeaconEntryPilot):
             keys.add('w')
             if not s['landed'] and c['lease_free']:
                 self.receipts['departed_cinder'] = s
-                self.enter('home_flight', s)
+                self.clearance_index = 0
+                self.enter('home_clearance', s)
+        elif self.stage == 'home_clearance':
+            dx, dy = self.clearance_flight(s, keys, reverse=True)
         elif self.stage == 'home_flight':
             dx, dy, _ = self.flight(s, s['home']['capture_position'], keys)
             if s['home']['capture'] and speed <= .5: self.request('l', 'home_land', s, now)

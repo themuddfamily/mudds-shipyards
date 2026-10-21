@@ -30,6 +30,28 @@ class NativeSortieSafetyTests(unittest.TestCase):
                     'last_receipt': {'activity_id': 'cinder_kit_cargo_run', 'activity_generation': 1,
                                      'granted': True, 'replay_allowed': False}}}
 
+    def test_supply_eight_metre_launch_cannot_turn_directly_toward_cinder(self):
+        pilot = native.CinderSupplyPilot()
+        pilot.stage = 'launch'
+        pilot.initial = {'parked': [-53, 1.63, 57.3]}
+        s = {'frame': 2261, 'phase': 'FREE_FLIGHT', 'position': [-53, 1.63, 65.53],
+             'player': [-53, 2, 65.53], 'ship_velocity': [0, 0, 15.38],
+             'landed': False, 'home': {'lease_free': True, 'capture_position': [-53, 13.63, 83.3]},
+             'cargo': {'available': False}}
+        pilot.last_state = s
+        pilot.update(s, 1)
+        self.assertEqual(pilot.stage, 'outbound_clearance')
+        with patch.object(pilot, 'flight', return_value=(0, 0, False)) as flight:
+            pilot.update(s, 2)
+        self.assertEqual(flight.call_args.args[1], s['home']['capture_position'])
+        self.assertEqual(pilot.stage, 'outbound_clearance')
+        self.assertEqual(pilot.clearance_index, 0)
+        outbound = pilot.station_clearance_targets(s)
+        self.assertEqual(pilot.station_clearance_targets(s, reverse=True), list(reversed(outbound)))
+        translated = copy.deepcopy(s)
+        translated['home']['capture_position'] = [p+10 for p in s['home']['capture_position']]
+        self.assertEqual(pilot.station_clearance_targets(translated), [[p+10 for p in point] for point in outbound])
+
     def test_supply_payment_requires_actual_transfer_and_one_credit(self):
         pilot = native.CinderSupplyPilot()
         s = self.supply_paid_observation()
