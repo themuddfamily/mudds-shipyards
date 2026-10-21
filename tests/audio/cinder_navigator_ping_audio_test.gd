@@ -25,11 +25,12 @@ class RequestSpy extends Director:
 
 
 class BridgeAdapter:
+	var publication_accepted := true
 	var migration_generation := 2
 	func get_migration_snapshot() -> Dictionary:
 		return {"migration_generation": migration_generation}
 	func publish_crew_snapshot(_snapshot: Array) -> Dictionary:
-		return {"accepted": true}
+		return {"accepted": publication_accepted}
 
 
 func _init() -> void:
@@ -189,6 +190,7 @@ func _run() -> void:
 	_test_local(director, cinder)
 	_test_raw_client_commands(director)
 	_test_client_results(director)
+	_test_committed_bridge_failure(director)
 	cinder.queue_free()
 	director.queue_free()
 	await process_frame
@@ -199,6 +201,38 @@ func _run() -> void:
 	for failure in _failures:
 		push_error(failure)
 	quit(1)
+
+
+func _test_committed_bridge_failure(director: RequestSpy) -> void:
+	var craft := Cinder.new()
+	var composition := Composition.new()
+	root.add_child(craft)
+	root.add_child(composition)
+	var authority := CrewSeatRoleAuthority.new(1)
+	_check(authority.register_cinder_roster().accepted and craft.attach_crew_role_authority(authority).accepted, "publication failure fixture retains actual Cinder authority")
+	_check(authority.claim(1, 7, &"navigator", Cinder.NAVIGATOR_STATION_SEAT_ID, &"passenger", 1).accepted, "publication failure fixture claims the actual navigator seat")
+	var adapter := BridgeAdapter.new()
+	adapter.publication_accepted = false
+	var bridge := Bridge.new()
+	_check(bridge.attach(adapter, craft, 1).accepted and composition.attach(director, 1).accepted, "real bridge and audio consumer attach before publication refusal")
+	var outcome := bridge.submit_ping(7, 3, &"navigator", 1, 2,
+		{"channel": &"sensor", "marker_id": Cinder.NAVIGATOR_ROUTE_ID}, 12, 2)
+	_check(outcome.status == &"network_publish_failed" and outcome.mutation_committed == true and not craft.get_navigator_ping_snapshot().receipt.is_empty() and bridge.get_snapshot().last_receipt_count == 1, "real Cinder mutation and bridge receipt survive actual publisher refusal")
+	var before := director.requests.size()
+	var cues_before := _events.size()
+	var captions_before := _captions.size()
+	_check(not composition.present_bridge_result(outcome).accepted, "committed actual publication failure is never presented as a denied ping")
+	for terminal in [{"accepted": false, "status": &"invalid_cinder_receipt"},
+		{"accepted": false, "status": &"invalid_cinder_snapshot"},
+		{"accepted": false, "status": &"other_internal", "consumed": true},
+		{"accepted": false, "status": &"other_internal", "mutation_committed": true}]:
+		terminal["policy_version"] = Bridge.POLICY_VERSION
+		_check(not composition.present_bridge_result(terminal).accepted, "internal or committed bridge terminal remains silent")
+	_check(director.requests.size() == before and _events.size() == cues_before and _captions.size() == captions_before, "actual committed publication failure and internal terminals create no sound or caption")
+	composition.detach()
+	bridge.detach()
+	composition.queue_free()
+	craft.queue_free()
 
 
 func _test_client_results(director: RequestSpy) -> void:

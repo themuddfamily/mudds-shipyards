@@ -2536,7 +2536,7 @@ func get_owned_ship(ship_id: StringName) -> Dictionary:
 func send_engineer_intent(payload: Dictionary) -> Dictionary:
 	if is_server() or not _configured:
 		return _result(false, &"client_required")
-	var queued := _receive_engineer_intent.rpc_id(AUTHORITY_PEER_ID, _make_secure_rpc_packet(&"engineer", payload))
+	var queued: Error = rpc_id(AUTHORITY_PEER_ID, &"_receive_engineer_intent", _make_secure_rpc_packet(&"engineer", payload))
 	return _result(queued == OK, &"queued" if queued == OK else &"queue_failed")
 
 

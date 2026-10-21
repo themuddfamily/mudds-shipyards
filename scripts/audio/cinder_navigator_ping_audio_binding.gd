@@ -168,6 +168,8 @@ func present_rejected(result: Dictionary) -> Dictionary:
 			or not (policy is String or policy is StringName) \
 			or StringName(policy) != BRIDGE_POLICY_VERSION:
 		return _result(false, &"invalid_bridge_result")
+	if _mutation_may_have_committed(result):
+		return _result(false, &"mutation_not_denied")
 	for previous in _seen_rejections:
 		if previous == result:
 			return _result(false, &"duplicate")
@@ -193,8 +195,7 @@ func present_client_request_result(result: Dictionary, request: Dictionary) -> D
 		return _result(false, &"terminal_without_rejection")
 	# The consumer may already have changed gameplay. Never turn those
 	# internal failures into a denied ping or a synthetic success.
-	if result.get("mutation_committed", false) == true or result.get("consumed", false) == true \
-			or status in [&"invalid_cinder_receipt", &"invalid_cinder_snapshot", &"network_publish_failed"]:
+	if _mutation_may_have_committed(result):
 		return _result(false, &"mutation_not_denied")
 	if status == &"cinder_rejected":
 		var effect: Variant = result.get("effect")
@@ -208,6 +209,11 @@ func present_client_request_result(result: Dictionary, request: Dictionary) -> D
 		_seen_client_results.pop_front()
 	_emit(REJECTED, 0.8)
 	return _result(true, &"rejected")
+
+
+func _mutation_may_have_committed(result: Dictionary) -> bool:
+	return result.get("mutation_committed", false) == true or result.get("consumed", false) == true \
+		or result.get("status") in [&"invalid_cinder_receipt", &"invalid_cinder_snapshot", &"network_publish_failed"]
 
 
 ## Accepts either the bridge's complete release/detach result or its tombstone array.

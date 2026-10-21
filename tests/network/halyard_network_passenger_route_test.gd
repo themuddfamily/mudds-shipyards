@@ -1073,6 +1073,12 @@ func _navigator_commands(action: StringName) -> Array[Dictionary]:
 
 
 func _check_navigator_feedback(accepted: int, cleared: int, stage: String) -> void:
+	var all_requests: Array[Dictionary] = (_game.audio as NavigatorRequestSpy).navigator_requests
+	var expected_refusals := 4 if _navigator_rejection else 0
+	_check(_navigator_request_count(&"cinder_navigator_ping_rejected") == expected_refusals, stage + " retains the exact selected zero/four refusal count")
+	_check(all_requests.size() == accepted + cleared + expected_refusals and _navigator_captions.size() == all_requests.size(), stage + " retains the full exact request and real caption cardinality")
+	if _navigator_captions.size() != all_requests.size():
+		return
 	var requests: Array[Dictionary] = []
 	var captions: Array[Dictionary] = []
 	for index in (_game.audio as NavigatorRequestSpy).navigator_requests.size():
