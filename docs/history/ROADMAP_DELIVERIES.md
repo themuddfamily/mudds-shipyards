@@ -19814,6 +19814,9 @@ all36 original parents and ten phase gates remain open.
 
 ## Cinder cargo — supported walking recall repaired — 2026-10-21
 
+**Scope correction:** this checkpoint proves static supported poses. The subsequent
+ordinary movement and reverse-walk failures below leave general walking open.
+
 Runtime source **c8378235bab2392c395fabe38764012f05d5ce77** is merged and pushed
 on main. Only GameFlow and the existing production journey test were integrated;
 the unfinished five-file supply caller remains withheld. Fresh Windows EXE,
@@ -19890,3 +19893,48 @@ No further unchanged attempt or adjacent task was started. Ten-run replenishment
 and Hauler stock decisions remain distinct. Native Windows/GPU/devices/listening/
 human/final release gates remain NOT_RUN; all36 parents and ten phase gates stay
 open. The next selection must retain this complete supply contract.
+
+
+## Cinder supply — return walk still blocked — 2026-10-21
+
+**PLAY-CINDER-SUPPLY remains OPEN. No candidate gameplay or caller integrated.**
+Checkpointc837823's static regression was insufficient: a fresh ordinary exported
+Linux run after it reaches outbound flight, docking, normal supply UI/all three
+phases, redocking and exit, then fails during terminal_walk at234.298s. Normal
+cleanup completes with zero game diagnostics. Terminal transfer/payment/home are
+not accepted. The original300s whole-route and120s activity limits remain.
+
+The existing production journey test now exercises actual Player input through
+all six authored cargo points and their exact reverse, with a physically docked
+Jovian. Focused failures distinguish hull-occluded centre rays, actual capsule
+step support, and a descending tread inside the authored.35m snap reach. The final
+candidate398c8a8ac reaches all six outbound points and reverse index5 (the terminal
+start), then fails reverse index4: position(58.04118,-65.55056,-683.6087), floorfalse,
+no fresh support, bounded.099846m motion, no step-up event, followed by hub recall.
+Exit1/40.041s; source/cache guards unchanged. Later negative cases are not reached.
+An independent reviewer confirms NO-GO. No further full run/export/retry selected.
+No movement-support repair or full journey completion is claimed.
+
+Next implementation must safely handle the ordinary return descent, pass the
+complete out-and-back and genuine-fall/wrong-actor/stale-world cases, then pass the
+original full transfer, actual-file once-only payment, duplicate conservation and
+usable home journey. A partial route cannot close this contract. Four existing
+broader cargo activity/lifecycle failures remain unresolved.
+
+Exact eight-file source/history retained by pushed annotated tag
+`archive/withheld/cinder-supply-return-walk-20261021`, tip
+398c8a8ac6d6d82df2cb6a1709731a9d7eeca7bb, tag object
+ea1497e96b050c39d128087fa666dee1306fb8dd. Incremental bundle verifies against main;
+binary diff and reopened archive match all eight Git blobs. Main contains none of
+these candidate changes. No new working branch or worktree was created.
+
+Case: `/srv/mudds-work/cinder-supply-post-recall-20261021/results/`.
+Original private30ed package/startup records and all failed logs are retained;
+no new public checkpoint was warranted for unaccepted changes. Cleanup verifies
+20 terminal owners and49 absent PID/start identities, archives/reopens/verifies
+all256 scratch entries, then removes owned scratch. profiles.tar.gz21273bytes,
+SHA2566cb03579214e310271df23d434a41923cd421bae1933a4471c5bb341cabded0a.
+Eight protected detached worktrees remain untouched. Main remains sole working
+branch; original20 inventory stays nine accepted/superseded and eleven unqualified.
+Those are candidate accounting counts, not feature completion. No adjacent task,
+hosted CI or hardware/human qualification. All36 parents/ten gates remain open.
