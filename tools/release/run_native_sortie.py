@@ -3861,7 +3861,6 @@ class CinderSupplyPilot(BeaconEntryPilot):
     finite_vector = staticmethod(LifeTowPilot.finite_vector)
     require_motion_epoch = LifeTowPilot.require_motion_epoch
     require_step_event = LifeTowPilot.require_step_event
-    require_walking = LifeTowPilot.require_walking
 
     def __init__(self):
         super().__init__()
@@ -3963,6 +3962,15 @@ class CinderSupplyPilot(BeaconEntryPilot):
                         'exact current Cinder attachment, berth, terminal and supply owner through payment')
         if self.paid_state is not None: self.require_paid(s)
         self.previous = self.last_state = s
+
+    def require_walking(self, s):
+        # Preserve the step validator's control/identity prerequisites while
+        # checking physical Cinder capsule support through this route's rule.
+        require(not s['seated'] and not s['station_seated'] and not s['game_station_seated']
+                and not s['sleeping'] and not s['transition_busy'] and s['control_enabled']
+                and s['mouse_captured'] and s['capsule_enabled'] and not s['piloted'],
+                'ordinary awake walking controls without ship ownership')
+        self.foot(s)
 
     def foot(self, s):
         # A docked-hull seam can briefly clear is_on_floor while the capsule

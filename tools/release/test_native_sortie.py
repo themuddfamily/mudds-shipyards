@@ -56,6 +56,27 @@ class NativeSortieSafetyTests(unittest.TestCase):
         s['grounded'] = True
         pilot.foot(s)
 
+    def test_supply_step_control_check_uses_real_cinder_capsule_support(self):
+        pilot = native.CinderSupplyPilot()
+        pilot.stage = 'terminal_walk'
+        s = {'grounded': True, 'supported': False, 'support_collider': '',
+             'control_enabled': True, 'seated': False, 'transition_busy': False,
+             'station_seated': False, 'game_station_seated': False, 'sleeping': False,
+             'mouse_captured': True, 'capsule_enabled': True, 'piloted': False,
+             'cargo': {'available': True, 'actor_authorized': True, 'lease': True,
+                       'contract': True, 'walk_supported': True}}
+        pilot.require_walking(s)
+        for key, value in [('station_seated', True), ('game_station_seated', True),
+                           ('sleeping', True), ('mouse_captured', False),
+                           ('capsule_enabled', False), ('piloted', True)]:
+            bad = copy.deepcopy(s); bad[key] = value
+            with self.subTest(invalid=key):
+                with self.assertRaises(AssertionError): pilot.require_walking(bad)
+        bad = copy.deepcopy(s); bad['cargo']['walk_supported'] = False
+        with self.assertRaises(AssertionError): pilot.require_walking(bad)
+        pilot.stage = 'home_walk'
+        with self.assertRaises(AssertionError): pilot.require_walking(s)
+
     def test_supply_first_dock_waits_neutral_for_actual_engine_shutdown(self):
         pilot = native.CinderSupplyPilot()
         pilot.stage, pilot.stage_since = 'cargo_land', 0
