@@ -121,13 +121,34 @@ func _test_freight_terminal_interactions(game: GameFlow, berth: JovianFreightBer
 	var actor := game.player as PlayerController
 	var original_transform := actor.global_transform
 	var original_camera := actor.get_camera().transform
+	var original_yaw := (actor.get("_camera_yaw") as Node3D).transform
+	var original_pitch_transform := (actor.get("_camera_pitch") as Node3D).transform
+	var original_pitch: float = actor.get("_pitch")
+	var original_camera_active: bool = actor.get("_camera_active")
+	var original_mouse_mode := Input.mouse_mode
+	var hud := game.get_node("HUD") as GameHUD
+	var intro := hud.get("_intro") as Control
+	var hud_layer := hud.get("_hud") as Control
+	var original_started: bool = hud.get("_started")
+	var original_intro_visible := intro.visible
+	var original_hud_visible := hud_layer.visible
+	var original_focus := hud.get_viewport().gui_get_focus_owner()
+	# Use the same title bypass as the existing staged integration fixture.
+	# Physics, interaction discovery and key delivery still run in Player.
+	hud.set("_started", true)
+	intro.visible = false
+	hud_layer.visible = true
+	if is_instance_valid(original_focus):
+		original_focus.release_focus()
 	var original_phase := game.phase
 	var game_physics := game.is_physics_processing()
 	var player_physics := actor.is_physics_processing()
 	var player_control := actor.is_control_enabled()
 	game.set_physics_process(false)
 	actor.set_physics_process(true)
+	actor.set_camera_active(true)
 	actor.set_control_enabled(true)
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	game.phase = GameFlow.Phase.APPROACH_SHIP
 	var owner := game.cargo_delivery_activity
 	var authority := game.cargo_transfer_authority
@@ -145,11 +166,33 @@ func _test_freight_terminal_interactions(game: GameFlow, berth: JovianFreightBer
 		var source_endpoint: bool = terminal.endpoint_role == &"source"
 		var position := berth.to_global(Vector3(18.4, 0.05, 27.6) if source_endpoint else Vector3(12.6, 0.05, 24.25))
 		actor.teleport_to(Transform3D(Basis.IDENTITY, position))
-		actor.get_camera().look_at(terminal.global_position, Vector3.UP)
 		for _settle_tick in 12:
 			await physics_frame
+		# Aim from the interaction origin, as ordinary mouse look does. Pointing
+		# the offset chase camera at a close screen can face away from that
+		# screen when measured from the player's actual interaction origin.
+		for _aim_tick in 4:
+			var desired := actor.global_basis.inverse() * (terminal.global_position - actor.get_interaction_origin()).normalized()
+			var current := actor.global_basis.inverse() * actor.get_interaction_direction().normalized()
+			var yaw := wrapf(atan2(-desired.x, -desired.z) - atan2(-current.x, -current.z), -PI, PI)
+			var pitch := asin(clampf(desired.y, -1.0, 1.0)) - asin(clampf(current.y, -1.0, 1.0))
+			var motion := InputEventMouseMotion.new()
+			motion.relative = Vector2(-yaw, pitch * (1.0 if actor.invert_mouse_y else -1.0)) / actor.mouse_sensitivity
+			Input.parse_input_event(motion)
+			await physics_frame
+			await process_frame
 		var state: Dictionary = terminal.get_state_snapshot()
 		var handle := state.get("owner_handle", {}) as Dictionary
+		var candidate := game.call("_find_station_interaction_candidate") as Node3D
+		print("FREIGHT_TERMINAL_INTERACTION ", JSON.stringify({
+			"endpoint": terminal.endpoint_id, "floor": actor.is_on_floor(),
+			"overlap": actor.get_nearby_interactables().has(terminal), "can_interact": terminal.can_interact(actor),
+			"candidate": str(candidate.get_path()) if is_instance_valid(candidate) else "",
+			"candidate_matches": candidate == terminal, "prompt": terminal.get_interaction_prompt(),
+			"local_player_position": berth.to_local(actor.global_position),
+			"facing_dot": actor.get_interaction_direction().dot((terminal.global_position - actor.get_interaction_origin()).normalized()),
+			"control": actor.is_control_enabled(), "camera_active": actor.get("_camera_active"), "paused": paused,
+		}))
 		_check(actor.is_on_floor() and actor.get_nearby_interactables().has(terminal) and terminal.can_interact(actor)
 			and game.call("_find_station_interaction_candidate") == terminal
 			and "[ E ]" in terminal.get_interaction_prompt(),
@@ -209,8 +252,18 @@ func _test_freight_terminal_interactions(game: GameFlow, berth: JovianFreightBer
 		game.select_activity_kind(GameFlow.ACTIVITY_KIND_TIMED_RACE)
 	actor.teleport_to(original_transform)
 	actor.get_camera().transform = original_camera
+	(actor.get("_camera_yaw") as Node3D).transform = original_yaw
+	(actor.get("_camera_pitch") as Node3D).transform = original_pitch_transform
+	actor.set("_pitch", original_pitch)
 	game.phase = original_phase
 	actor.set_control_enabled(player_control)
+	actor.set_camera_active(original_camera_active)
+	Input.mouse_mode = original_mouse_mode
+	hud.set("_started", original_started)
+	intro.visible = original_intro_visible
+	hud_layer.visible = original_hud_visible
+	if is_instance_valid(original_focus) and original_focus.is_visible_in_tree():
+		original_focus.grab_focus()
 	actor.set_physics_process(player_physics)
 	game.set_physics_process(game_physics)
 	await physics_frame
