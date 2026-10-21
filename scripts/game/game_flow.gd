@@ -4582,18 +4582,18 @@ func _is_player_supported_by_current_cinder_access() -> bool:
 	if not is_instance_valid(structure) or not structure.is_inside_tree() \
 			or structure.is_queued_for_deletion():
 		return false
-	var ray := PhysicsRayQueryParameters3D.create(
-		player.global_position + Vector3.UP * 0.2,
-		player.global_position - Vector3.UP * 0.3,
-		player.collision_mask & PhysicsLayers.WORLD,
-		[player.get_rid()],
-	)
-	var hit: Dictionary = player.get_world_3d().direct_space_state.intersect_ray(ray)
-	var collider: Node = hit.get("collider") as Node
-	var normal: Vector3 = hit.get("normal", Vector3.ZERO)
-	return is_instance_valid(collider) and collider.is_inside_tree() \
-		and not collider.is_queued_for_deletion() and structure.is_ancestor_of(collider) \
-		and normal.dot(Vector3.UP) >= cos(player.floor_max_angle)
+	var excluded: Array[RID] = []
+	var occupant: HeroShip = berth.get_occupant() as HeroShip
+	if is_instance_valid(occupant) and occupant.is_inside_tree() \
+			and not occupant.is_queued_for_deletion() and is_ancestor_of(occupant) \
+			and berth.get_reservation_owner() == occupant:
+		excluded.append(occupant.get_rid())
+	for contact: Dictionary in player.get_floor_support_contacts(excluded):
+		var collider: Node = contact.get("collider") as Node
+		if is_instance_valid(collider) and collider.is_inside_tree() \
+				and not collider.is_queued_for_deletion() and structure.is_ancestor_of(collider):
+			return true
+	return false
 
 
 func _update_debug_overlay() -> void:

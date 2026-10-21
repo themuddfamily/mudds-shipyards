@@ -670,6 +670,36 @@ func get_remote_drive_audit() -> Dictionary:
 	}
 
 
+## Fresh walkable contacts across this body's actual capsule footprint. Testing
+## the authored snap motion reports contacts without moving/snapping the body,
+## changing floor flags, or using remembered slide collisions.
+func get_floor_support_contacts(exclude_bodies: Array[RID] = []) -> Array[Dictionary]:
+	var contacts: Array[Dictionary] = []
+	if not is_inside_tree() or is_queued_for_deletion() \
+			or not is_instance_valid(_player_collision) or _player_collision.disabled \
+			or _player_collision.shape == null or not is_finite(floor_snap_length) \
+			or floor_snap_length <= 0.0:
+		return contacts
+	var parameters := PhysicsTestMotionParameters3D.new()
+	parameters.from = global_transform
+	parameters.motion = Vector3.DOWN * floor_snap_length
+	parameters.margin = safe_margin
+	parameters.recovery_as_collision = true
+	parameters.max_collisions = 32
+	parameters.exclude_bodies = exclude_bodies
+	var result := PhysicsTestMotionResult3D.new()
+	PhysicsServer3D.body_test_motion(get_rid(), parameters, result)
+	for index in result.get_collision_count():
+		var collider := result.get_collider(index) as Node
+		var normal := result.get_collision_normal(index)
+		if is_instance_valid(collider) and collider.is_inside_tree() \
+				and not collider.is_queued_for_deletion() and normal.is_finite() \
+				and normal.dot(Vector3.UP) >= cos(floor_max_angle):
+			contacts.append({"collider": collider, "normal": normal,
+				"position": result.get_collision_point(index)})
+	return contacts
+
+
 ## A moving deck can briefly lose the last slide's floor flag while the
 ## capsule re-seats. Resolve support against the same published hull pose as
 ## normal walking before the server consumes a physical crew-seat edge.
