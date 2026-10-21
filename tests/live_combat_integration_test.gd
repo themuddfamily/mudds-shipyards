@@ -19,7 +19,11 @@ func _run() -> void:
 		_finish()
 		return
 	var game := packed.instantiate() as GameFlow
+	# Ordinary Boot attaches authored children in stages. A direct Main add
+	# leaves every sibling present before _ready and hides late-provider gaps.
+	_check(game.prepare_staged_startup(), "live combat follows ordinary Boot's staged Main preparation")
 	root.add_child(game)
+	_check(await game.run_staged_startup(), "ordinary staged Main construction completes for live combat")
 	await process_frame
 	await physics_frame
 	var roster_audit := await _await_settled_roster(game)
@@ -51,6 +55,7 @@ func _run() -> void:
 		_finish()
 		return
 	resolver.shot_resolved.connect(_on_shot_resolved)
+	await _test_staged_courier_damageability(game, hero, authority)
 	_check(
 		bool(roster_audit.get("valid", false))
 		and int(roster_audit.get("expected_player_source_count", 0)) == 9
@@ -748,6 +753,74 @@ func _get_live_range_targets(world: Node) -> Array[StaticBody3D]:
 		if candidate.get_meta("is_shipyard_target", false):
 			result.append(candidate as StaticBody3D)
 	return result
+
+
+func _test_staged_courier_damageability(game: GameFlow, hero: HeroShip, authority: LiveCombatAuthority) -> void:
+	var courier := game.get_node("CourierRunner") as CourierRunnerOpponent
+	var original_hero_transform := hero.global_transform
+	var arena := Vector3(180.0, 54.0, -230.0)
+	hero.global_transform = Transform3D(Basis.IDENTITY, arena)
+	courier.set_physics_process(false)
+	var spawn := Transform3D(Basis.IDENTITY, arena + Vector3(0.0, 0.0, -32.0))
+	var activation := courier.activate(spawn)
+	await physics_frame
+	_check(bool(activation.get("accepted", false)) and courier.is_combat_source_registered(),
+		"staged Courier activation registers against the later-attached combat authority")
+	var proxy := courier.get_node_or_null("AuthoritativeDamageable") as LifecycleDamageableAdapter
+	var proxy_id := proxy.get_instance_id() if proxy != null else 0
+	_check(proxy != null and proxy.get_target_entity() == courier,
+		"staged Courier activation attaches its lifecycle damage proxy after authority becomes available")
+	var origin := hero.global_position + Vector3(0.0, 0.8, -5.5)
+	var direction := (courier.global_position - origin).normalized()
+	var before := courier.get_health()
+	var hit := authority.submit_hitscan(hero, GameFlow.TORRENT_COMBAT_WEAPON_ID, origin, direction)
+	_check(bool(hit.get("accepted", false)) and bool(hit.get("resolved", false))
+		and bool(hit.get("damaged", false)) and hit.get("target_entity") == courier
+		and hit.get("collider") == courier and is_equal_approx(courier.get_health(), before - 34.0),
+		"registered Torrent's real ray damages staged Courier through its sole lifecycle health owner")
+	if proxy == null or not bool(hit.get("damaged", false)):
+		# Keep the missing-proxy RED local; re-entry would attach it and obscure
+		# the startup failure instead of establishing the required first hit.
+		courier.deactivate()
+		courier.set_physics_process(true)
+		hero.global_transform = original_hero_transform
+		return
+	var damaged_health := courier.get_health()
+	courier.call("_register_combat_source")
+	courier.call("_register_combat_source")
+	_check(courier.find_children("AuthoritativeDamageable", "", false, false).size() == 1
+		and courier.get_node_or_null("AuthoritativeDamageable") == proxy
+		and is_equal_approx(courier.get_health(), damaged_health),
+		"repeated live registration keeps one Courier proxy without resetting damaged health")
+	game.remove_child(courier)
+	game.add_child(courier)
+	await process_frame
+	await physics_frame
+	proxy = courier.get_node_or_null("AuthoritativeDamageable") as LifecycleDamageableAdapter
+	_check(proxy != null and proxy.get_instance_id() == proxy_id
+		and courier.find_children("AuthoritativeDamageable", "", false, false).size() == 1
+		and courier.is_combat_source_registered() and is_equal_approx(courier.get_health(), damaged_health),
+		"Courier detach and re-entry retain the same proxy, source identity, and damaged health")
+	var lethal: Dictionary = {}
+	for _shot in 2:
+		lethal = authority.submit_hitscan(hero, GameFlow.TORRENT_COMBAT_WEAPON_ID, origin, direction)
+	_check(bool(lethal.get("destroyed", false)) and lethal.get("target_entity") == courier
+		and is_zero_approx(courier.get_health()) and not courier.is_active(),
+		"successive actual Torrent rays destroy Courier through the existing opponent lifecycle")
+	courier.activate(spawn)
+	proxy = courier.get_node_or_null("AuthoritativeDamageable") as LifecycleDamageableAdapter
+	_check(proxy != null and proxy.get_instance_id() == proxy_id
+		and courier.find_children("AuthoritativeDamageable", "", false, false).size() == 1
+		and is_equal_approx(courier.get_health(), courier.maximum_health),
+		"Courier reactivation reuses one proxy while its existing activation owns health reset")
+	courier.deactivate()
+	await physics_frame
+	var inactive_health := courier.get_health()
+	var inactive := authority.submit_hitscan(hero, GameFlow.TORRENT_COMBAT_WEAPON_ID, origin, direction)
+	_check(not bool(inactive.get("damaged", false)) and is_equal_approx(courier.get_health(), inactive_health),
+		"inactive staged Courier receives no damage from a real resolver ray")
+	courier.set_physics_process(true)
+	hero.global_transform = original_hero_transform
 
 
 func _await_settled_roster(game: GameFlow) -> Dictionary:
