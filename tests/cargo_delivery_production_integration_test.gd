@@ -131,6 +131,18 @@ func _test_freight_terminal_interactions(game: GameFlow, berth: JovianFreightBer
 	var original_camera_active: bool = actor.get("_camera_active")
 	var original_mouse_mode := Input.mouse_mode
 	var hud := game.get_node("HUD") as GameHUD
+	# A fresh Main observes the preceding staged teardown as an interrupted
+	# process. Resolve its genuine blocking notice through the current button,
+	# retaining the saved cargo rather than hiding or bypassing that modal.
+	var recovery_panel := hud.get("_recovery_prompt_panel") as Control
+	if recovery_panel != null and recovery_panel.visible:
+		var resume := (hud.get("_session_recovery_action_buttons") as Dictionary).get(&"continue") as Button
+		_check(resume != null and not resume.disabled, "fresh Main offers its genuine Resume Last Save action")
+		if resume != null and not resume.disabled:
+			resume.pressed.emit()
+			await process_frame
+			await process_frame
+		_check(not recovery_panel.visible, "accepted recovery choice releases the blocking input owner before Freight interaction")
 	var intro := hud.get("_intro") as Control
 	var hud_layer := hud.get("_hud") as Control
 	var original_started: bool = hud.get("_started")
@@ -199,6 +211,7 @@ func _test_freight_terminal_interactions(game: GameFlow, berth: JovianFreightBer
 			"facing_dot": actor.get_interaction_direction().dot((terminal.global_position - actor.get_interaction_origin()).normalized()),
 			"control": actor.is_control_enabled(), "camera_active": actor.get("_camera_active"), "paused": paused,
 			"mouse_mode": Input.mouse_mode, "window_focused": root.has_focus(),
+			"recovery_visible": recovery_panel != null and recovery_panel.visible,
 		}))
 		_check(actor.is_on_floor() and actor.get_nearby_interactables().has(terminal) and terminal.can_interact(actor)
 			and game.call("_find_station_interaction_candidate") == terminal
