@@ -19938,3 +19938,49 @@ Eight protected detached worktrees remain untouched. Main remains sole working
 branch; original20 inventory stays nine accepted/superseded and eleven unqualified.
 Those are candidate accounting counts, not feature completion. No adjacent task,
 hosted CI or hardware/human qualification. All36 parents/ten gates remain open.
+
+
+## Cinder supply — complete cargo walk and return repaired — 2026-10-21
+
+**Walking prerequisite DONE: a47a9781aba90b3f3caba348009e903e17ee9a83 merged/pushed.**
+Only GameFlow, CinderCargoAccess and the existing production journey test changed.
+Player physics/tuning, inventory, lease and reward behavior are unchanged.
+
+The yard-relative recall plane rejected ordinary airborne stair descent at the
+lower Cinder location. Cinder now supplies a bounded location-relative backstop:
+the union of11 live enabled authored walkable box footprints, expanded only by
+the actual capsule radius. Vertical band is lowest floor minus actual capsule
+height+snap to highest route floor plus the same: access-local.61 through6.94 at
+current defaults. Exact local Player/current streamed berth/access/Structure
+identity guards remain; a loaded sector or actor authorization alone is insufficient.
+No timer grace, support-query chain, movement correction or new physics helper.
+
+Focused actual-Main test17PASS/exit0/45.593s. All six outbound and six reverse
+arrivals are physically grounded with fresh current Structure contact; actual
+airborne descent without fresh contact occurs. Original motion/step, arrival,
+settle and210tick-per-point limits remain. Outside-footprint at deck height,
+detached Player, reparented access, deck-8 fall, actual streaming unload and
+station fall all reject/recall. Independent source and result review GO.
+Same17PASS/exit0/39.341s against actual Windows embedded game data under Linux
+Godot with an external focused script. This is staged InputEventAction integration,
+not native Windows or the full ordinary supply journey.
+
+Fresh clean Windows/Linux exports:1525 actual PCK entries match; stock Windows
+code and Linux archive executable/icon/installer bytes/modes/epoch verify. Strict
+Windows payload/direct ELF/extracted archive startup each exits0 with exactly one
+STARTUP_MENU_READY_OK. Source/cache guards pass; first export changes only
+editor filesystem_cache10. EXE184690880bytes SHA256
+31f3f395edeb62777ce4ebcc04f697229e2200ccf2e0c3b8ce4e205a6f6f7552;
+Linux ELF148932592bytes SHA256
+fd4708bfbe3adbd74974d0579f050f65adfac76a6c2fe710ac66faf6aa501510.
+Windows checkpoint ZIP/notes and Linux archive/notes are in repository builds;
+no Downloads publication. Case results:
+`/srv/mudds-work/cinder-supply-local-recall-20261021/results/`.
+
+**Full PLAY-CINDER-SUPPLY remains OPEN.** Its original ordinary outbound, normal
+UI/all three phases, physical terminal transfer1, durable once-only payment,
+duplicate conservation and usable home dock/exit must pass together under original
+300s/120s. The next original full run is separate from this accepted walking check.
+Four broader cargo activity/lifecycle failures remain unresolved. Native Windows,
+GPU, devices, audible/human/final-release gates NOT_RUN; all36parents/ten gates
+remain open. Main is sole working branch; no adjacent task or hosted CI.

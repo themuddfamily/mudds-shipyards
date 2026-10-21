@@ -6,14 +6,13 @@ Nine of the eventual 17 craft exist; eight still need supported specifications
 and implementation. Partial acceptance is retained in the backlog; it is not
 whole-feature completion.
 
-Latest playable checkpoint: **c837823**. It fixes recall while standing on
-Cinder's cargo deck and terminal platform. **Walking the full route still fails:**
-the player can be recalled during movement, so the general walking repair and
-full ordinary supply journey remain open. Includes the Cinder landing, Defense
-boundary and Jovian reboarding fixes. Full Defense remains open.
-[Windows ZIP](builds/windows/MuddsShipyards-c837823-checkpoint.zip),
-[Windows notes](builds/windows/MuddsShipyards-c837823-notes.txt),
-[Linux notes](builds/linux/MuddsShipyards-c837823-linux-notes.txt).
+Latest playable checkpoint: **a47a978**. Cinder's cargo route can be walked from
+the Jovian berth to the terminal and back without a hub recall during stair
+descent. Genuine falls and invalid/unloaded access still recall. Full ordinary
+Cinder supply and Defense remain open.
+[Windows ZIP](builds/windows/MuddsShipyards-a47a978-checkpoint.zip),
+[Windows notes](builds/windows/MuddsShipyards-a47a978-notes.txt),
+[Linux notes](builds/linux/MuddsShipyards-a47a978-linux-notes.txt).
 
 This page is the working queue. The
 [36-parent crosswalk and named children](docs/ROADMAP_BACKLOG.md#coverage-of-the-original-remaining-outcomes)
@@ -43,23 +42,23 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
-**One active outcome: PLAY-CINDER-SUPPLY — OPEN, return walk blocked.**
-A full ordinary attempt after checkpointc837823 reached outbound flight, docking,
-normal UI start, all three supply phases and exit, then failed during walking.
-The checkpoint's earlier static-floor regression did not prove moving support.
+**One active outcome: PLAY-CINDER-SUPPLY — OPEN.**
+The walking prerequisite is now **DONE, merged and pushed as a47a9781a**:
+all six cargo points outbound and all six on return pass with physically grounded
+arrivals; the formerly failing airborne descent is exercised. Actual fall,
+outside-footprint, wrong-actor, reparented-access, unload and station recall cases
+pass. The same17 checks pass against exported game data. Fresh Windows/Linux
+checkpoint and strict startup checks pass. Player physics and tuning are unchanged.
 
-The latest candidate reaches all six outbound cargo points but recalls the player
-on the return stairs. Its runtime and caller changes are **not integrated**.
-Exact source and failures are preserved under
-`archive/withheld/cinder-supply-return-walk-20261021`; owned scratch is removed.
-Main remains the sole working branch; no adjacent task was started.
+The recall now uses a bounded region over the current access module's11 actual
+walking surfaces rather than requiring uninterrupted floor contact below the
+station's height. Earlier failed candidates remain preserved.
 
-Next bounded deliverable: complete the six-point out-and-back walk without hub
-recall, retaining real-fall, wrong-actor and stale-world rejection. Then the
-original full journey must prove terminal transfer, saved once-only payment,
-duplicate conservation and usable home return under the unchanged300s/120s
-limits. No full completion estimate is justified yet.
-[Failure and retained requirement](docs/history/ROADMAP_DELIVERIES.md#cinder-supply--return-walk-still-blocked--2026-10-21).
+Next: original full ordinary journey, including physical terminal transfer,
+saved once-only payment, duplicate conservation and usable home return under the
+unchanged300s/120s limits. Those outcomes are not accepted by the walking check.
+No adjacent task or working branch was started.
+[Walking repair and validation](docs/history/ROADMAP_DELIVERIES.md#cinder-supply--complete-cargo-walk-and-return-repaired--2026-10-21).
 
 **Cinder cargo landing prerequisite DONE — `39d93d26b`.** The original
 production-Main regression fails only GameFlow berth discovery before the fix;
