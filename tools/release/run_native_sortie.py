@@ -4013,6 +4013,14 @@ class CinderSupplyPilot(BeaconEntryPilot):
 
     def flight(self, s, target, keys):
         off = sub(target, s['position']); distance = norm(off); speed = norm(s['ship_velocity'])
+        # World-up projected into the local roll plane. Near vertical forward,
+        # that projection vanishes and roll has no stable level reference.
+        roll_sin, roll_cos = s['right'][1], s['up'][1]
+        if math.hypot(roll_sin, roll_cos) > .15:
+            roll_error = math.atan2(roll_sin, roll_cos)
+            if roll_error > math.radians(5): keys.add('r')
+            elif roll_error < -math.radians(5): keys.add('q')
+
         stopping = speed*speed/(2*max(s['tuning']['brake'], 48)) + speed*.15 + 2
         # aim() measures from the chase camera; this waypoint belongs to the
         # ship root, so preserve the root's desired vector at that camera.

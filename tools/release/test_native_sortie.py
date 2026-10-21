@@ -30,6 +30,32 @@ class NativeSortieSafetyTests(unittest.TestCase):
                     'last_receipt': {'activity_id': 'cinder_kit_cargo_run', 'activity_generation': 1,
                                      'granted': True, 'replay_allowed': False}}}
 
+    def test_supply_ordinary_roll_feedback_reduces_actual_basis_error(self):
+        pilot = native.CinderSupplyPilot()
+        for degrees in (35, -35, 160, -160):
+            with self.subTest(degrees=degrees):
+                angle = math.radians(degrees)
+                right, up = [math.cos(angle), math.sin(angle), 0], [-math.sin(angle), math.cos(angle), 0]
+                s = {'position': [0, 0, 0], 'camera': [0, 0, 10], 'ship_velocity': [0, 0, 0],
+                     'right': right, 'up': up, 'back': [0, 0, 1], 'tuning': {'brake': 48, 'mouse': .0022}}
+                keys = set()
+                pilot.flight(s, [0, 0, -100], keys)
+                self.assertIn('r' if degrees > 0 else 'q', keys)
+                self.assertNotIn('q' if degrees > 0 else 'r', keys)
+                # HeroShip rotates about local FORWARD (-Z): positive R makes
+                # new right=cos(a)*right-sin(a)*up, new up=sin(a)*right+cos(a)*up.
+                delta = math.radians(2 if 'r' in keys else -2)
+                next_right_y = math.cos(delta)*right[1]-math.sin(delta)*up[1]
+                next_up_y = math.sin(delta)*right[1]+math.cos(delta)*up[1]
+                self.assertLess(abs(math.atan2(next_right_y, next_up_y)), abs(angle))
+        for right, up in [([1, 0, 0], [0, 1, 0]), ([1, 0, 0], [0, .01, -math.sqrt(1-.01**2)])]:
+            back = [right[1]*up[2]-right[2]*up[1], right[2]*up[0]-right[0]*up[2], right[0]*up[1]-right[1]*up[0]]
+            s = {'position': [0, 0, 0], 'camera': [0, 0, 10], 'ship_velocity': [0, 0, 0],
+                 'right': right, 'up': up, 'back': back, 'tuning': {'brake': 48, 'mouse': .0022}}
+            keys = set()
+            pilot.flight(s, [-v*100 for v in back], keys)
+            self.assertTrue(keys.isdisjoint({'q', 'r'}))
+
     def test_supply_authored_capture_admits_normal_landing_without_extra_stop(self):
         for stage, expected in [('outbound', 'cargo_land'), ('gate_brake', 'cargo_redock'),
                                 ('gate_return', 'cargo_redock'), ('home_flight', 'home_land')]:
