@@ -227,6 +227,107 @@ class Desktop:
         finally: self._reap()
 
 
+class BeaconOutboundTiming:
+    """Conservative receipt-clock qualification on the unchanged full home route."""
+    LIMIT_SECONDS = 60.0
+
+    def __init__(self, pid):
+        self.pid = pid
+        self.identity = self.home_identity = self.tuning = None
+        self.beacon_identity = None
+        self.sequence = -1
+        self.start = self.stop = None
+        self.input_acknowledged = False
+
+    def report(self):
+        elapsed = None if self.stop is None else self.stop['monotonic_seconds'] - self.start['monotonic_seconds']
+        return {'maximum_seconds': self.LIMIT_SECONDS,
+                'clock': 'Python time.monotonic; outgoing input to raw observation receipt',
+                'measurement': 'conservative observed upper bound; IPC, receipt latency and CPU/GPU stalls count',
+                'paused_intervals': [], 'paused_seconds_subtracted': 0.0,
+                'boost_check': 'driver-issued inputs only; no boost key issued during the leg',
+                'start': self.start, 'stop': self.stop,
+                'input_acknowledged': self.input_acknowledged,
+                'observed_upper_bound_seconds': elapsed,
+                'qualified': bool(self.input_acknowledged and elapsed is not None and elapsed <= self.LIMIT_SECONDS)}
+
+    def check_deadline(self, now):
+        if self.start is not None and self.stop is None:
+            require(now - self.start['monotonic_seconds'] <= self.LIMIT_SECONDS,
+                    'Beacon outbound exceeds approved 60.0-second monotonic maximum')
+
+    @staticmethod
+    def controls(s):
+        require(s['piloted'] and s['seated'] and s['active_ship']
+                and s['source_enabled'] and s['application_focused'] and not s['transition_busy'],
+                'Beacon outbound has valid same-craft pilot controls')
+
+    def observe(self, s, received_at):
+        if self.stop is not None: return
+        require(s['pid'] == self.pid and s['mode'] == 'beacon-home'
+                and s['sequence'] > self.sequence, 'fresh Beacon timing sample from exact running PID')
+        self.sequence = s['sequence']
+        # Paused observations are intentionally sparse. Never infer an interval
+        # from physics frames or subtract a pause that was not measured.
+        require(not s['paused'], 'zero pauses before outbound approach')
+        identity = (s['pid'], s['main_id'], s['player_id'], s['ship_id'])
+        home = (s['home']['berth_id'], s['home']['berth_instance_id'], s['home']['berth_parent_id'])
+        require(all(identity) and all(home) and home[0] == 'central_berth',
+                'actual Torrent actors and central home berth')
+        if self.identity is None:
+            require(s['lease'] and s['parked_exact'], 'fresh occupied parked home berth')
+            self.identity, self.home_identity = identity, home
+            self.tuning = json.loads(json.dumps(s['tuning']))
+        require(identity == self.identity and home == self.home_identity,
+                'same PID Main Player Torrent and original home berth')
+        require(s['default_sampler'] and s['tuning_unchanged'] and s['tuning'] == self.tuning,
+                'unchanged default outbound sampler and authored tuning')
+        require(s['phase'] not in ('FAILED', 'RECOVERING') and not s['destroyed'],
+                'outbound never fails recovers or replaces destroyed craft')
+        beacon = s['beacon']
+        if beacon['available']:
+            owner = (beacon['binding_id'], beacon['owner_id'])
+            require(all(owner) and beacon['activity_id'] == BeaconEntryPilot.ACTIVITY
+                    and beacon['beacon_count'] == 4, 'live production first-Beacon owner')
+            if self.beacon_identity is None: self.beacon_identity = owner
+            require(owner == self.beacon_identity, 'same outbound Beacon binding and owner')
+        else:
+            require(self.beacon_identity is None, 'outbound Beacon owner never disappears')
+        if self.start is None: return
+        self.controls(s)
+        speed = norm(s['velocity'])
+        distance = beacon['distance_m']
+        physical_distance = norm(sub(s['position'], beacon['first_world']))
+        if (beacon['available'] and s['lease_free'] and not s['landed']
+                and math.isfinite(distance) and 0 <= distance <= 32
+                and math.isfinite(physical_distance) and physical_distance <= 32
+                and math.isfinite(speed) and speed <= .45):
+            self.stop = {'monotonic_seconds': received_at, 'observation': s}
+            require(self.report()['qualified'], 'Beacon outbound exceeds approved 60.0-second monotonic maximum')
+        self.check_deadline(received_at)
+
+    def send_input(self, desktop, stage, s, keys, dx, dy, fire):
+        # The ordinary launch only emits W/brake/mouse. Count any other
+        # non-interact output conservatively too: steering/brake can wake the
+        # automatic engine before the first thrust (HeroShip predicate).
+        demand = bool(set(keys) - {'e'}) or bool(dx or dy or fire)
+        starting = self.start is None and s['seated'] and demand
+        if starting:
+            require(stage == 'launch' and s['phase'] == 'START_ENGINES'
+                    and s['telemetry']['engine'] == 'OFFLINE'
+                    and s['lease'] and s['parked_exact'] and not s['lease_free'] and s['landed'],
+                    'first engine-demand edge at seated occupied OFFLINE home berth')
+            self.controls(s)
+        if (starting or self.start is not None) and self.stop is None:
+            require(not set(keys) & {'Shift_L', 'Shift_R'}, 'no driver-issued outbound boost')
+        if starting:
+            self.start = {'observation': s, 'keys': sorted(keys), 'mouse': [dx, dy], 'fire': fire,
+                          'monotonic_seconds': time.monotonic()}
+        desktop.keys(keys)
+        desktop.mouse(dx, dy, fire)
+        if starting: self.input_acknowledged = True
+
+
 class Pilot:
     def __init__(self):
         self.stage = 'boot'
@@ -4807,13 +4908,16 @@ class CinderSupplyFiles(HabitatRestartFiles):
                 if label == 'repeat': pilot.file_repeat = True
                 else: pilot.file_home = True
 
-def run(binary, output, route="guided"):
+def run(binary, output, route="guided", qualify_beacon_outbound=False):
     require(route in ("cinder-supply", "arrow-return-reuse", "guided", "courier-intercept", "beacon-entry", "beacon-settlement", "beacon-home", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
+    require(not qualify_beacon_outbound or route == 'beacon-home',
+            'outbound timing qualification requires the full beacon-home route')
     output.mkdir(parents=True, exist_ok=False)
     game = xvfb = desktop = pilot = None
     temporary_profile = None
     restart_files = None
     settlement_files = None
+    outbound_timing = None
     result = {'driver_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(), 'success': False, 'cap_seconds': CAP, 'binary': str(binary), 'native_gpu': 'NOT_RUN',
               'human_review': 'NOT_RUN', 'route': route, 'input_route': 'OS XTest → X11 → Godot Input → default sampler'}
     start = time.monotonic()
@@ -4904,6 +5008,7 @@ def run(binary, output, route="guided"):
                         "hulk-arrival": HulkArrivalPilot, "hulk-breaker": HulkBreakerPilot,
                         "hulk-home": HulkHomePilot, "habitat-loop": HabitatLoopPilot, "life-tow": LifeTowPilot, "life-gantry": lambda: LifeTowPilot("life-gantry"), "life-arm": lambda: LifeTowPilot("life-arm"), "life-patrol": lambda: LifeTowPilot("life-patrol")}[route]()
                     if isinstance(pilot, BeaconHomePilot): pilot.file_snapshots = settlement_files.snapshots
+                    if qualify_beacon_outbound: outbound_timing = BeaconOutboundTiming(game.pid)
                     with selectors.DefaultSelector() as selector:
                         selector.register(game.stdout,selectors.EVENT_READ)
                         pending = b''
@@ -4928,6 +5033,7 @@ def run(binary, output, route="guided"):
                                     break
                                 if xvfb.poll() is not None: raise RuntimeError('owned Xvfb exited during sortie')
                                 if time.monotonic()-start >= CAP: raise TimeoutError('300-second sortie cap')
+                                if outbound_timing: outbound_timing.check_deadline(time.monotonic())
                                 if isinstance(pilot, ArrowReturnReusePilot):
                                     pilot.check_weapon_deadline(time.monotonic())
                                 for key,_ in selector.select(.1):
@@ -4938,6 +5044,10 @@ def run(binary, output, route="guided"):
                                     lines = pending.split(b'\n'); pending=lines.pop()
                                     observations = observations_from_lines(lines)
                                     if observations:
+                                        if outbound_timing:
+                                            received_at = time.monotonic()
+                                            for observation in observations:
+                                                outbound_timing.observe(observation, received_at)
                                         if isinstance(pilot, (LifeTowPilot, ArrowReturnReusePilot, CinderSupplyPilot)):
                                             for observation in observations:
                                                 pilot.validate_observation(observation)
@@ -4973,7 +5083,10 @@ def run(binary, output, route="guided"):
                                                 awake = restart_files.capture('cold-awake', state['save'])
                                                 restart_files.require_preserved(restart_files.snapshots['resting']['document'], awake)
                                             if pilot.quit_requested: leg_result['exit_ui'] = pilot.receipts['exit_ui']
-                                        desktop.keys(keys); desktop.mouse(dx,dy,fire)
+                                        if outbound_timing:
+                                            outbound_timing.send_input(desktop, pilot.stage, state, keys, dx, dy, fire)
+                                        else:
+                                            desktop.keys(keys); desktop.mouse(dx,dy,fire)
                     if restart_files:
                         desktop.keys([]); desktop.mouse(0, 0, False)
                         drain_game_output(game, output/'game.log')
@@ -4993,6 +5106,9 @@ def run(binary, output, route="guided"):
                         leg_result['sortie'] = pilot.report()
                         game = None
                     else:
+                        if outbound_timing:
+                            require(outbound_timing.report()['qualified'],
+                                    'full Beacon home completion also requires qualified outbound timing')
                         result.update(success=True,sortie=pilot.result)
                 if restart_files:
                     result['actual_file_snapshots'] = restart_files.snapshots
@@ -5038,6 +5154,8 @@ def run(binary, output, route="guided"):
                                                last_state=pilot.last_state, deliberate_crash=pilot.crash_receipt)
         result['error'] = f'{type(error).__name__}: {error}'
     finally:
+        if outbound_timing is not None:
+            result['beacon_outbound_timing'] = outbound_timing.report()
         if settlement_files is not None:
             result['actual_file_snapshots'] = settlement_files.snapshots
         signal.setitimer(signal.ITIMER_REAL,0)
@@ -5087,12 +5205,16 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('binary')
     parser.add_argument('--output',required=True,type=Path)
+    parser.add_argument('--qualify-beacon-outbound', action='store_true',
+                        help='qualify the fixed 60.0s outbound monotonic maximum within the unchanged full beacon-home route')
     parser.add_argument('--route', choices=('cinder-supply', 'arrow-return-reuse', 'guided', 'courier-intercept', 'beacon-entry', 'beacon-settlement', 'beacon-home', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
                         help='courier-intercept destroys the actual first courier before escape then returns home; beacon-home retains payment through genuine Guided combat, home docking and usable exterior walking; cinder-supply flies the full funded Jovian/Cinder terminal/home journey; beacon-settlement continues the accepted entry through four physical beacons and durable reward; beacon-entry departs normally and physically reaches/starts the first Beacon through actual pause controls; life-patrol walks Habitat through the real door beside patrol drones and boards Torrent; life-arm walks Aft stairs past the live service arm and boards Zenith; life-gantry walks Freight past the live gantry and boards Jovian; life-tow walks Central beside live tow service and boards Torrent; hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
     args=parser.parse_args()
+    if args.qualify_beacon_outbound and args.route != 'beacon-home':
+        parser.error('--qualify-beacon-outbound requires --route beacon-home')
     try: binary=validate_binary(args.binary)
     except ValueError as error: parser.error(str(error))
-    result=run(binary,args.output.absolute(),args.route)
+    result=run(binary,args.output.absolute(),args.route,qualify_beacon_outbound=args.qualify_beacon_outbound)
     print(json.dumps(result,indent=2))
     return 0 if result['success'] and result.get('inputs_released') and result['game_reaped'] and result['xvfb_reaped'] and result['input_helper_reaped'] else 1
 

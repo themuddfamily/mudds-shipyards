@@ -18,6 +18,133 @@ spec.loader.exec_module(native)
 
 
 class NativeSortieSafetyTests(unittest.TestCase):
+    def outbound_observation(self, sequence=1, **changes):
+        s = dict(pid=42, mode='beacon-home', sequence=sequence, frame=sequence,
+                 paused=False, main_id=2, player_id=3, ship_id=4,
+                 home=dict(berth_id='central_berth', berth_instance_id=5, berth_parent_id=6),
+                 lease=True, lease_free=False, parked_exact=True, landed=True,
+                 default_sampler=True, tuning_unchanged=True, tuning=dict(brake=48),
+                 phase='START_ENGINES', destroyed=False, piloted=True, seated=True,
+                 active_ship=True, source_enabled=True, application_focused=True,
+                 transition_busy=False, telemetry=dict(engine='OFFLINE'),
+                 position=[0, 0, 0], velocity=[0, 0, 0],
+                 beacon=dict(available=True, binding_id=7, owner_id=8,
+                             activity_id=native.BeaconEntryPilot.ACTIVITY, beacon_count=4,
+                             first_world=[0, 0, -230], distance_m=230))
+        s.update(changes)
+        return s
+
+    def start_outbound(self, clock=100):
+        from unittest.mock import Mock
+        timing = native.BeaconOutboundTiming(42)
+        s = self.outbound_observation()
+        timing.observe(s, clock - 1)
+        desktop = Mock()
+        with patch.object(native.time, 'monotonic', return_value=clock):
+            # Mouse steering wakes automatic propulsion before the first W.
+            timing.send_input(desktop, 'launch', s, set(), 3, -2, False)
+        return timing, s, desktop
+
+    def test_beacon_outbound_clock_starts_before_actual_mouse_engine_input(self):
+        from unittest.mock import Mock
+        timing = native.BeaconOutboundTiming(42)
+        s = self.outbound_observation()
+        timing.observe(s, 90)
+        desktop = Mock()
+        events = []
+        def keys(keys):
+            events.append(('keys', set(keys)))
+            self.assertEqual(timing.start['monotonic_seconds'], 100)
+            self.assertFalse(timing.input_acknowledged)
+        # Seated boarding/release with no propulsion cannot start the clock.
+        timing.send_input(desktop, 'launch', s, {'e'}, 0, 0, False)
+        self.assertIsNone(timing.start)
+        desktop.keys.side_effect = keys
+        desktop.mouse.side_effect = lambda *args: events.append(('mouse', args))
+        with patch.object(native.time, 'monotonic', return_value=100):
+            timing.send_input(desktop, 'launch', s, set(), 3, -2, False)
+        self.assertEqual(events, [('keys', set()), ('mouse', (3, -2, False))])
+        self.assertTrue(timing.input_acknowledged)
+        self.assertEqual(timing.start['keys'], [])
+        self.assertEqual(timing.start['mouse'], [3, -2])
+
+    def test_beacon_outbound_first_raw_32m_sample_stops_without_changing_tighter_route(self):
+        timing, s, _ = self.start_outbound()
+        # A coalesced batch's middle sample qualifies even though its last
+        # sample has moved outside32m. Production steering still uses the last.
+        before = self.outbound_observation(2, lease=False, lease_free=True, landed=False,
+                                          position=[0, 0, -198], velocity=[0, 0, -.451])
+        before['beacon']['distance_m'] = 32
+        first = copy.deepcopy(before); first.update(sequence=3, frame=3, velocity=[0, 0, -.45])
+        after = copy.deepcopy(first); after.update(sequence=4, position=[0, 0, -190])
+        after['beacon']['distance_m'] = 40
+        for observation in (before, first, after): timing.observe(observation, 160)
+        report = timing.report()
+        self.assertTrue(report['qualified'])
+        self.assertEqual(report['observed_upper_bound_seconds'], 60)
+        self.assertIs(report['stop']['observation'], first)
+        self.assertEqual(report['paused_intervals'], [])
+        self.assertEqual(report['paused_seconds_subtracted'], 0)
+
+    def test_beacon_outbound_wall_stalls_count_and_clock_never_restarts(self):
+        for approach in (False, True):
+            timing, s, _ = self.start_outbound()
+            late = self.outbound_observation(2, frame=2)
+            if approach:
+                late.update(lease=False, lease_free=True, landed=False, position=[0, 0, -210])
+                late['beacon']['distance_m'] = 20
+            with self.subTest(approach=approach):
+                with self.assertRaisesRegex(AssertionError, '60.0-second'):
+                    timing.observe(late, 160.001)
+                self.assertFalse(timing.report()['qualified'])
+                self.assertEqual(timing.start['monotonic_seconds'], 100)
+        timing, _, _ = self.start_outbound()
+        with self.assertRaisesRegex(AssertionError, '60.0-second'):
+            timing.check_deadline(161)  # No new samples during an engine stall.
+
+    def test_beacon_outbound_rejects_pause_recovery_replacement_and_control_changes(self):
+        mutations = [lambda s: s.update(paused=True), lambda s: s.update(pid=99),
+                     lambda s: s.update(main_id=99), lambda s: s.update(player_id=99),
+                     lambda s: s.update(ship_id=99), lambda s: s['home'].update(berth_instance_id=99),
+                     lambda s: s.update(destroyed=True), lambda s: s.update(phase='RECOVERING'),
+                     lambda s: s.update(phase='FAILED'), lambda s: s.update(default_sampler=False),
+                     lambda s: s.update(tuning_unchanged=False), lambda s: s['tuning'].update(brake=99),
+                     lambda s: s.update(source_enabled=False), lambda s: s.update(application_focused=False),
+                     lambda s: s.update(seated=False), lambda s: s.update(piloted=False),
+                     lambda s: s.update(active_ship=False), lambda s: s.update(transition_busy=True),
+                     lambda s: s['beacon'].update(owner_id=99),
+                     lambda s: s['beacon'].update(available=False)]
+        for index, mutate in enumerate(mutations):
+            timing, _, _ = self.start_outbound()
+            bad = self.outbound_observation(2)
+            mutate(bad)
+            with self.subTest(mutation=index):
+                with self.assertRaises(AssertionError): timing.observe(bad, 110)
+        timing, _, _ = self.start_outbound()
+        with self.assertRaisesRegex(AssertionError, 'zero pauses'):
+            timing.observe(dict(pid=42, mode='beacon-home', sequence=2, paused=True), 110)
+
+    def test_beacon_outbound_requires_occupied_offline_start_and_no_issued_boost(self):
+        from unittest.mock import Mock
+        for change in (dict(lease=False), dict(parked_exact=False), dict(lease_free=True),
+                       dict(landed=False), dict(telemetry=dict(engine='ONLINE'))):
+            timing = native.BeaconOutboundTiming(42)
+            s = self.outbound_observation()
+            timing.observe(s, 90)
+            s.update(change)
+            with self.subTest(change=change):
+                with self.assertRaises(AssertionError):
+                    timing.send_input(Mock(), 'launch', s, {'w'}, 0, 0, False)
+        timing, s, desktop = self.start_outbound()
+        for boost in ('Shift_L', 'Shift_R'):
+            with self.assertRaisesRegex(AssertionError, 'boost'):
+                timing.send_input(desktop, 'launch', s, {'w', boost}, 0, 0, False)
+        with tempfile.TemporaryDirectory() as temp:
+            output = Path(temp)/'not-created'
+            with self.assertRaisesRegex(AssertionError, 'full beacon-home'):
+                native.run(Path('/bin/true'), output, 'beacon-entry', qualify_beacon_outbound=True)
+            self.assertFalse(output.exists())
+
     def test_beacon_home_rolled_clearance_deadband_corrects_before_thrust(self):
         # Actual stalled observation from the original full-home replay: the
         # craft is rolled, so a small global pitch error needs both mouse axes.
