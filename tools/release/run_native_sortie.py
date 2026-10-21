@@ -3994,11 +3994,11 @@ class CinderSupplyPilot(BeaconEntryPilot):
     @staticmethod
     def station_clearance_targets(s, reverse=False):
         # Freight's full body envelope must clear before turning back toward
-        # Cinder. Cross east before the intersector leg to clear the authored
-        # HULK envelope; use the live home capture frame in both directions.
+        # Cinder. The measured high diagonal clears the current station with
+        # an all-attitude hull envelope; use the live capture in both directions.
         capture = s['home']['capture_position']
         offsets = ([0, 0, 0], [0, 0, 26.7], [0, 66.37, 66.7],
-                   [-172, 66.37, 66.7], [-172, 66.37, -308.3], [84, 66.37, -308.3])
+                   [84, 66.37, -308.3])
         points = [[p+d for p, d in zip(capture, offset)] for offset in offsets]
         return list(reversed(points)) if reverse else points
 

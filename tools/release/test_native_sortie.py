@@ -142,8 +142,8 @@ class NativeSortieSafetyTests(unittest.TestCase):
         self.assertEqual(pilot.stage, 'outbound_clearance')
         self.assertEqual(pilot.clearance_index, 0)
         outbound = pilot.station_clearance_targets(s)
-        self.assertEqual(len(outbound), 6)
-        self.assertEqual(outbound[-1], [31, 80, -225])
+        self.assertEqual(outbound, [[-53, 13.63, 83.3], [-53, 13.63, 110],
+                                    [-53, 80, 150], [31, 80, -225]])
         self.assertEqual(pilot.station_clearance_targets(s, reverse=True), list(reversed(outbound)))
         translated = copy.deepcopy(s)
         translated['home']['capture_position'] = [p+10 for p in s['home']['capture_position']]
