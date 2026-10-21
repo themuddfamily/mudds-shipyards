@@ -3987,7 +3987,23 @@ class CinderSupplyPilot(BeaconEntryPilot):
         self.foot(s)
         if self.goal_since is None: self.goal_since = now
         require(now-self.goal_since <= 15, 'ordinary supply walking waypoint15 seconds')
-        dx, reached = ArrowReturnReusePilot.walk_to(self, s, target, keys)
+        off = sub(target, s['player']); off[1] = 0
+        distance, speed = norm(off), math.hypot(s['velocity'][0], s['velocity'][2])
+        if self.stage == 'reboard_walk' and distance <= 3:
+            # Near the hatch connector, steer with ordinary backing/strafe
+            # instead of repeatedly turning past a nearby waypoint.
+            dx = 0
+            reached = distance <= .30 and abs(target[1]-s['player'][1]) <= .65 and speed <= .35
+            tuning = s['walk_tuning']
+            stopping = speed*speed/(2*tuning['deceleration']) + max(speed, tuning['walk'])/20 + .10
+            if not reached and distance > .30 and (speed <= .35 or distance > stopping):
+                direction = unit(off)
+                for axis, positive, negative in ((s['walk_forward'], 'w', 's'), (s['walk_right'], 'd', 'a')):
+                    projection = dot(direction, axis)
+                    if abs(projection) >= math.sin(math.pi/8):
+                        keys.add(positive if projection > 0 else negative)
+        else:
+            dx, reached = ArrowReturnReusePilot.walk_to(self, s, target, keys)
         reached = reached and s['grounded']
         if reached:
             self.visited.append({'stage': self.stage, 'index': self.walk_index, 'target': target, 'frame': s['frame'], 'player': s['player'], 'support': s['support_collider'], 'grounded': s['grounded'], 'cinder_region': s.get('cargo', {}).get('walk_within_region', False)})

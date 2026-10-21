@@ -91,6 +91,33 @@ class NativeSortieSafetyTests(unittest.TestCase):
         self.assertTrue(pilot.walk_to(s, [0, 0, 0], set(), 0)[1])
         self.assertTrue(pilot.visited[-1]['grounded'])
 
+    def test_supply_reboard_near_goal_backs_toward_retained_failed_sample(self):
+        pilot = native.CinderSupplyPilot()
+        pilot.stage = 'reboard_walk'
+        target = [35.7, -67.1, -686.25]
+        s = {'player': [35.88654327392578, -67.09832763671875, -686.6527709960938],
+             'velocity': [0, 0, 0], 'walk_forward': [.358537882566452, 0, -.9335076212882996],
+             'walk_right': [.9335076212882996, 0, .358537882566452],
+             'walk_tuning': {'walk': 5.8, 'sprint': 9.2, 'deceleration': 42, 'mouse': .0025},
+             'grounded': True, 'supported': True, 'support_collider': 'Cinder/Structure/LandingDeck',
+             'control_enabled': True, 'seated': False, 'transition_busy': False, 'frame': 8682}
+        old_keys = set()
+        old_dx, old_reached = native.ArrowReturnReusePilot.walk_to(pilot, s, target, old_keys)
+        self.assertEqual((old_dx, old_keys, old_reached), (-360, set(), False))
+        keys = set()
+        self.assertEqual(pilot.walk_to(s, target, keys, 0), (0, False))
+        self.assertEqual(keys, {'s'})
+        self.assertGreater(native.dot(native.sub(target, s['player']),
+                                     [-v for v in s['walk_forward']]), 0)
+        # Crossing the radius while still moving is braking, never arrival.
+        s.update(player=[35.725, -66.9289, -686.2908], velocity=[1.4, 0, -3.2])
+        keys = set()
+        self.assertEqual(pilot.walk_to(s, target, keys, 1), (0, False))
+        self.assertEqual(keys, set())
+        self.assertEqual(pilot.visited, [])
+        s.update(velocity=[0, 0, 0])
+        self.assertTrue(pilot.walk_to(s, target, set(), 2)[1])
+
     def test_supply_first_dock_waits_neutral_for_actual_engine_shutdown(self):
         pilot = native.CinderSupplyPilot()
         pilot.stage, pilot.stage_since = 'cargo_land', 0
