@@ -572,6 +572,10 @@ func _run_cargo_landing() -> void:
 		return
 
 	print("CINDER_CARGO_LANDING_REQUEST: staged flight/capture only; no pose, velocity or lease writes follow")
+	var race_started := game.request_activity_start(GameFlow.DEFAULT_FREE_FLIGHT_ACTIVITY_ID)
+	_check(bool(race_started.get("accepted", false))
+		and game.call(&"_fail_active_activity", &"returned_to_shipyard"),
+		"cargo journey retains a real failed race before its unrelated remote landing")
 	game.call(&"_try_request_landing")
 	_check(jovian.is_landing_active() and bool(game.get("_landing_request_active"))
 		and game.get("_active_landing_berth_id") == berth_id
@@ -596,7 +600,66 @@ func _run_cargo_landing() -> void:
 		and jovian.get_home_berth_id() == home_id,
 		"actual physics commits strict cargo dock, exact GameFlow token and occupied lease without changing home")
 	print("CINDER_CARGO_LANDING_FINAL: ", landed)
+	if _failures.is_empty():
+		await _test_same_craft_cargo_reboarding(game, jovian, berth, store)
 	await _cleanup(game)
+
+
+func _test_same_craft_cargo_reboarding(game: GameFlow, craft: HeroShip,
+	berth: ShipBerth, store: UserDataStore) -> void:
+	# The fixture above acquired this exact remote lease through actual landing
+	# physics. Stage only the exterior approach, then use the real local boarding
+	# transition, including its synchronous next-sortie reset dispatch.
+	game.set_process(false)
+	game.set_physics_process(false)
+	craft.set_piloted(false)
+	game.set("_piloting", false)
+	game.phase = GameFlow.Phase.APPROACH_SHIP
+	game.player.teleport_to(craft.get_boarding_entry_transform())
+	game.player.set_control_enabled(true)
+	var area := craft.get_node(^"ShipBoardingArea") as ShipBoardingArea
+	var reserved := area.try_reserve(game.player)
+	_check(reserved and berth.get_occupant() == craft,
+		"remote reboarding reserves the actual same-craft hatch with its occupied cargo lease intact")
+	if not reserved:
+		return
+	var retained := game.cinder_race_session.get_presentation_snapshot()
+	var saved := _cargo_reboarding_protected_payload(store)
+	var saved_generation := store.get_generation()
+	game.call(&"_board_ship_locally", craft, area)
+	_check(game.cinder_race_session.get_presentation_snapshot() == retained
+		and store.get_generation() >= saved_generation and _cargo_reboarding_protected_payload(store) == saved,
+		"actual remote same-craft boarding preserves the retained failed race and protected persisted payload")
+	var deadline := Time.get_ticks_msec() + 20000
+	while game.phase == GameFlow.Phase.BOARDING and Time.get_ticks_msec() < deadline:
+		await physics_frame
+		await process_frame
+	var seated := game.phase == GameFlow.Phase.START_ENGINES \
+		and game.player.is_seated_at(craft.get_pilot_seat_anchor()) \
+		and bool(game.get("_piloting")) and game.active_ship == craft
+	_check(seated, "actual remote same-craft boarding completes on the production pilot seat")
+	if not seated:
+		return
+	# Invoke the normal departure callback after the actual boarding path; testing
+	# this callback alone would miss a terminal reset during the earlier handoff.
+	game.phase = GameFlow.Phase.FREE_FLIGHT
+	game.call(&"_start_default_free_flight_activity")
+	_check(retained.get("state_id", &"") == &"failed"
+		and retained.get("failure_reason", &"") == &"returned_to_shipyard"
+		and int(retained.get("session_generation", -1)) == 1
+		and game.cinder_race_session.get_presentation_snapshot() == retained
+		and store.get_generation() >= saved_generation and _cargo_reboarding_protected_payload(store) == saved,
+		"remote reboarding then departure retains failed race generation one and every protected saved slot")
+
+
+func _cargo_reboarding_protected_payload(store: UserDataStore) -> Dictionary:
+	var payload := store.get_snapshot()
+	# Match the ordinary route's existing lifecycle exclusions: real boarding
+	# legitimately changes recovery/diagnostic context. Race, settings, cargo,
+	# rewards and every other domain slot remain protected exactly.
+	for slot: String in ["solo_safe_recovery", "crash_recovery", "session_diagnostics", "safe_start_recovery"]:
+		payload.erase(slot)
+	return payload
 
 
 func _cargo_landing_ship(game: GameFlow, ship_id: StringName) -> HeroShip:

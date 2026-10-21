@@ -10984,6 +10984,9 @@ func _board_ship(candidate: HeroShip = null) -> void:
 ## client reaches it only through the ledger's confirmation.
 func _board_ship_locally(candidate: HeroShip, candidate_area: ShipBoardingArea) -> void:
 	var preserving_recovery_activity := candidate == _solo_safe_recovery_boarding_ship
+	# Capture the previous active hull before the boarding handoff replaces it.
+	# Taking this same craft home from a current away berth continues its sortie.
+	var continuing_remote_sortie := _is_same_craft_remote_berth_reboarding(candidate)
 	_bind_network_client_helm_input_source(candidate)
 	# Retaking the seat of the craft whose cabin the player is already walking is
 	# an interior movement, not an approach across an apron: there is no hull to
@@ -11040,7 +11043,7 @@ func _board_ship_locally(candidate: HeroShip, candidate_area: ShipBoardingArea) 
 	_sortie_departed_berth = false
 	_landing_request_active = false
 	_active_landing_berth_id = &""
-	if not preserving_recovery_activity:
+	if not preserving_recovery_activity and not continuing_remote_sortie:
 		_reset_terminal_activity_for_next_sortie()
 	opponent.set_target(active_ship)
 	if hud.has_method("set_ship_identity"):
@@ -11156,6 +11159,30 @@ func _board_ship_locally(candidate: HeroShip, candidate_area: ShipBoardingArea) 
 	_transition_busy = false
 	_publish_network_crew_role_status()
 	_capture_solo_safe_recovery_context()
+
+
+func _is_same_craft_remote_berth_reboarding(candidate: HeroShip) -> bool:
+	if not is_instance_valid(candidate) or candidate != active_ship \
+			or not candidate.is_inside_tree() or candidate.is_queued_for_deletion() \
+			or not is_ancestor_of(candidate) or candidate.is_destroyed():
+		return false
+	var landing := candidate.get_landing_contract_report()
+	var berth_id := StringName(landing.get("berth_id", &""))
+	if berth_id.is_empty() or berth_id == candidate.get_home_berth_id() \
+			or bool(landing.get("active", false)) \
+			or not bool(candidate.get_telemetry().get("landed", false)) \
+			or not bool(landing.get("contract_accepted", false)) \
+			or not bool(landing.get("strict_dock_acceptance", false)) \
+			or not bool(landing.get("reservation_token_bound", false)):
+		return false
+	# Resolution checks current streamed ownership; the ship's captured identity
+	# and Main's exact occupied lease must both still name that same live berth.
+	var berth := _resolve_berth_node(berth_id)
+	return is_instance_valid(berth) and berth.is_inside_tree() \
+		and not berth.is_queued_for_deletion() \
+		and int(landing.get("berth_instance_id", 0)) == berth.get_instance_id() \
+		and int(landing.get("berth_parent_instance_id", 0)) == berth.get_parent().get_instance_id() \
+		and _ship_owns_exact_occupied_berth(candidate, berth_id)
 
 
 func _reset_lifecycle_command_cursor() -> void:
