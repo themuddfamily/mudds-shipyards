@@ -430,6 +430,44 @@ class CourierPilot(Pilot):
         self.courier_clear = None
         self.last_courier = None
         self.wait_frame = None
+        self.defender_id = None
+        self.defender_wounds = []
+        self.defender_pulse = None
+        self.defender_ready_frame = None
+
+    def defender_wait_controls(self, s, allow_fire):
+        frame, health = s['frame'], s['opponent_health']
+        cooldown = math.ceil(s['tuning']['cooldown'] * 60)
+        dx, dy, align = self.aim(s, s['opponent'], .2)
+        pulse = self.defender_pulse
+        if pulse is not None:
+            if s['command_fire'] and frame > pulse['frame'] and pulse['ack_frame'] is None:
+                pulse['ack_frame'] = frame
+            if pulse['ack_frame'] is not None and not s['command_fire'] and frame > pulse['ack_frame']:
+                if pulse['release_frame'] is None:
+                    pulse['release_frame'] = frame
+            if frame > pulse['frame'] and math.isclose(pulse['before_health'] - health, 34., abs_tol=1e-6):
+                if pulse['damage_frame'] is None:
+                    pulse.update(after_health=health, damage_frame=frame)
+            if all(pulse[key] is not None for key in ('ack_frame', 'release_frame', 'damage_frame')):
+                self.defender_wounds.append(dict(pulse))
+                self.defender_ready_frame = max(pulse['frame'] + cooldown + 6, pulse['release_frame'] + 6)
+                self.defender_pulse = None
+            else:
+                # Stop on acknowledgement or after six physics frames. A miss
+                # remains unresolved; unchanged/stale health never rearms fire.
+                fire = (allow_fire and health > 34 and pulse['ack_frame'] is None
+                        and frame < pulse['frame'] + 6)
+                return {'Prior'}, dx, dy, fire
+        expected = 85. - 34. * len(self.defender_wounds)
+        if (allow_fire and len(self.defender_wounds) < 2 and health > 34
+                and math.isclose(health, expected, abs_tol=1e-6)
+                and frame >= self.defender_ready_frame and not s['command_fire'] and align >= .997):
+            self.defender_pulse = {'frame': frame, 'before_health': health, 'after_health': None,
+                                   'source_entity_id': s['ship_id'], 'target_id': s['opponent_id'],
+                                   'ack_frame': None, 'release_frame': None, 'damage_frame': None}
+            return {'Prior'}, dx, dy, True
+        return {'Prior'}, dx, dy, False
 
     def damage_receipt(self, receipt, s, killed=False):
         c = s['courier']
@@ -457,19 +495,30 @@ class CourierPilot(Pilot):
         controls = super().update(s, now)
         if previous_stage == 'range' and self.stage == 'interceptor':
             self.wait_frame = s['frame']
+            require(s['opponent_id'] > 0 and math.isclose(s['opponent_health'], 85., abs_tol=1e-6),
+                    'actual initial defender identity and authored hull before nonlethal pulses')
+            self.defender_id = s['opponent_id']
+            self.defender_ready_frame = s['frame'] + math.ceil(s['tuning']['cooldown'] * 60) + 6
             self.enter('courier_wait', s)
             return {'Prior'}, 0, 0, False
         if self.stage in ('courier_wait', 'courier_attack'):
             c = s['courier']
             require(s['phase'] == 'INTERCEPTOR_ENGAGEMENT' and s['opponent_active'],
                     'initial defender remains alive until courier clear')
+            require(s['opponent_id'] == self.defender_id and self.defender_id > 0
+                    and math.isfinite(s['opponent_health']) and s['opponent_health'] > 0
+                    and s['telemetry']['hull'] > 0, 'same live defender and positive player hull')
             require(all(math.isfinite(c[k]) and math.isclose(c[k], v, rel_tol=1e-6, abs_tol=1e-6)
                         for k, v in self.CONFIG.items()), 'original encounter configuration')
             if self.stage == 'courier_wait':
                 require(c['outcome'] == 'pending', 'no terminal outcome before ordinary courier dispatch')
+                wait_controls = self.defender_wait_controls(s, c['state'] != 'running')
                 if c['state'] != 'running':
                     require(c['state'] in ('idle', 'arming'), 'ordinary courier arming state')
-                    return {'Prior'}, 0, 0, False
+                    return wait_controls
+                require(len(self.defender_wounds) == 2 and self.defender_pulse is None
+                        and math.isclose(s['opponent_health'], 17., abs_tol=1e-6) and not s['command_fire'],
+                        'two observed nonlethal defender wounds and released fire before courier dispatch')
                 require(c['scenario'] == 'courier_intercept' and c['active']
                         and c['seen_alive'] and c['health'] > 0
                         and c['actor_id'] > 0 and c['director_id'] > 0,
@@ -507,7 +556,8 @@ class CourierPilot(Pilot):
             return keys, dx, dy, align >= .997
         if self.result is not None:
             require(self.courier_clear is not None, 'courier clear precedes complete home journey')
-            self.result.update(completion_marker=self.MARKER, courier=self.courier_clear)
+            self.result.update(completion_marker=self.MARKER, courier=self.courier_clear,
+                               defender_wounds=[dict(wound) for wound in self.defender_wounds])
         return controls
 
 

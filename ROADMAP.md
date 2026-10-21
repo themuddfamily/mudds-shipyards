@@ -42,6 +42,21 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
+**One active outcome: COURIER-CLEAR — controlled nonlethal defender preparation.**
+Priority review of the original contract permits damaging the initial defender
+while keeping it alive until Courier is cleared. The original stationary and
+reverse plans each leave it51 after one post-clear hit, then lose weapon capability.
+During the existing4.5s arming interval, aim/fire through ordinary controls in two
+separate feedback-bound pulses, observe85→51→17 and released fire, then cease fire.
+The original live Courier intercept/positive kill receipt/director CLEARED must
+follow before finishing the defender and the complete home journey.
+
+No damage, health, AI, encounter timing, physics or input-provider change. Same
+actual defender/Player/ship and positive hull required; no blind held fire against
+stale observations. Preserve original300s/outer330 caps and every kill/home gate.
+One full attempt after focused checks/source review; first failure stops it.
+Original failures and rejected reverse source remain retained, not a reset budget.
+
 **Courier full journey remains OPEN; reverse-standoff candidate withheld.**
 Fresh passive capture proves why the stationary fight stops damaging the defender:
 one actual post-clear shot hits station geometry, the next deals34, then incoming
@@ -614,7 +629,7 @@ remain recorded. Full ordinary Hold and parent 11 remain OPEN. Native Windows,
 GPU/devices/audio/human/final gates stay NOT_RUN/open; CI stays disabled.
 [Delivery and actual limits](docs/history/ROADMAP_DELIVERIES.md#perimeter-live-branch-finished--2026-10-20).
 
-**Active outcome: 0. Courier target admission is shipped; full clear/home remains open after the withheld reverse plan. Prepared cards waiting on decisions: 3.**
+**Active outcome: 1 (Courier full journey, controlled nonlethal preparation). Courier target admission is shipped. Prepared cards waiting on decisions: 3.**
 The decisions below remain pending; they do not prevent finishing independently
 supported existing failures. No completed probe schedules an adjacent probe.
 

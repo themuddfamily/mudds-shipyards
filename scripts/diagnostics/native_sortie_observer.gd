@@ -426,7 +426,7 @@ func _physics_process(delta: float) -> void:
 		"right": _v(_ship.global_basis.x), "up": _v(_ship.global_basis.y), "back": _v(_ship.global_basis.z),
 		"camera": _v(_ship.get_camera().global_position), "targets": targets,
 		"opponent_active": _opponent.is_active(), "opponent": _v(_opponent.global_position),
-		"opponent_health": _opponent.get_health(), "opponent_velocity": _v(_opponent.velocity),
+		"opponent_id": _opponent.get_instance_id(), "opponent_health": _opponent.get_health(), "opponent_velocity": _v(_opponent.velocity),
 		"destroyed_targets": _game.world.get_destroyed_target_count(), "destroyed": _ship.is_destroyed(),
 		"telemetry": {"engine": telemetry.get("engine_state"), "hull": telemetry.get("hull")},
 		"default_sampler": source != null and _ship.get("_command_source") == source and source.get_input_provider() == null,

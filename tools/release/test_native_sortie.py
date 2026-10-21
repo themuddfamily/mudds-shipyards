@@ -1586,7 +1586,9 @@ class NativeSortieSafetyTests(unittest.TestCase):
         pilot.parked_forward = [0, 0, -1]
         s = self.hulk_observation()
         s.update(phase='INTERCEPTOR_ENGAGEMENT', opponent_active=True, targets=[],
-                 shot_accepted=False, command_fire=False, opponent=[0, 8, -160])
+                 shot_accepted=False, command_fire=False, opponent=[0, 8, -20],
+                 opponent_id=12, opponent_health=85., position=[0, 8, -73], camera=[0, 8, -91])
+        s['tuning']['cooldown'] = .22
         s['courier'] = dict(native.CourierPilot.CONFIG, director_id=10, actor_id=11,
                             scenario='none', generation=0, state='arming', outcome='pending',
                             elapsed_seconds=0., escape_progress=0., active=False,
@@ -1597,11 +1599,22 @@ class NativeSortieSafetyTests(unittest.TestCase):
         return pilot, s
 
     def courier_dispatch(self, pilot, s):
+        self.courier_wound_defender(pilot, s)
         s['frame'] += 280
         s['courier'].update(scenario='courier_intercept', generation=1, state='running',
                             active=True, seen_alive=True)
         pilot.update(copy.deepcopy(s), 5)
         self.assertEqual(pilot.stage, 'courier_attack')
+
+    def courier_wound_defender(self, pilot, s):
+        for before in (85., 51.):
+            s['frame'] = pilot.defender_ready_frame
+            self.assertEqual(s['opponent_health'], before)
+            self.assertTrue(pilot.update(copy.deepcopy(s), s['frame']/60)[3])
+            s.update(frame=s['frame']+1, command_fire=True, opponent_health=before-34.)
+            self.assertFalse(pilot.update(copy.deepcopy(s), s['frame']/60)[3])
+            s.update(frame=s['frame']+1, command_fire=False)
+            self.assertFalse(pilot.update(copy.deepcopy(s), s['frame']/60)[3])
 
     def courier_kill(self, s):
         s['frame'] += 60
@@ -1611,14 +1624,60 @@ class NativeSortieSafetyTests(unittest.TestCase):
         s['courier'].update(state='concluded', outcome='cleared', active=False,
                             health=0., escape_progress=.15, hit=receipt.copy(), kill=receipt.copy())
 
-    def test_courier_wait_does_not_fire_at_initial_defender(self):
+    def test_courier_wait_requires_cooldown_ack_damage_and_release_between_pulses(self):
         pilot, s = self.courier_pilot()
-        for frame in (101, 150, 250):
-            s['frame'] = frame
-            keys, _dx, _dy, fire = pilot.update(copy.deepcopy(s), frame/60)
-            self.assertEqual(keys, {'Prior'})
-            self.assertFalse(fire)
-            self.assertEqual(pilot.stage, 'courier_wait')
+        for frame in range(s['frame']+1, pilot.defender_ready_frame):
+            s.update(frame=frame, command_fire=False)
+            self.assertFalse(pilot.update(copy.deepcopy(s), frame/60)[3])
+        self.courier_wound_defender(pilot, s)
+        self.assertEqual(s['opponent_health'], 17.)
+        self.assertEqual([(w['before_health'], w['after_health']) for w in pilot.defender_wounds],
+                         [(85., 51.), (51., 17.)])
+        for wound in pilot.defender_wounds:
+            self.assertEqual((wound['source_entity_id'], wound['target_id']), (2, 12))
+            self.assertGreater(wound['ack_frame'], wound['frame'])
+            self.assertGreater(wound['release_frame'], wound['ack_frame'])
+        self.assertGreaterEqual(pilot.defender_wounds[1]['frame'],
+                                pilot.defender_wounds[0]['frame'] + math.ceil(.22*60) + 6)
+        for health in (17., 34.):
+            s.update(frame=s['frame']+30, opponent_health=health)
+            self.assertFalse(pilot.update(copy.deepcopy(s), s['frame']/60)[3])
+
+    def test_courier_wait_never_blindly_repeats_a_missed_or_unacknowledged_pulse(self):
+        for acknowledge in (False, True):
+            with self.subTest(acknowledge=acknowledge):
+                pilot, s = self.courier_pilot()
+                start = pilot.defender_ready_frame
+                s['frame'] = start
+                self.assertTrue(pilot.update(copy.deepcopy(s), start/60)[3])
+                for offset in (1, 5, 6, 20, 100):
+                    s.update(frame=start+offset, command_fire=acknowledge and offset == 1)
+                    fire = pilot.update(copy.deepcopy(s), s['frame']/60)[3]
+                    self.assertEqual(fire, not acknowledge and offset < 6)
+                self.assertEqual(pilot.defender_wounds, [])
+                s['courier'].update(scenario='courier_intercept', generation=1, state='running',
+                                    active=True, seen_alive=True)
+                with self.assertRaisesRegex(AssertionError, 'two observed nonlethal'):
+                    pilot.update(copy.deepcopy(s), 5)
+
+    def test_courier_wait_observes_release_and_damage_before_rearming(self):
+        pilot, s = self.courier_pilot()
+        start = pilot.defender_ready_frame
+        s['frame'] = start
+        self.assertTrue(pilot.update(copy.deepcopy(s), start/60)[3])
+        s.update(frame=start+1, command_fire=True)
+        self.assertFalse(pilot.update(copy.deepcopy(s), s['frame']/60)[3])
+        s.update(frame=start+30, command_fire=True, opponent_health=51.)
+        self.assertFalse(pilot.update(copy.deepcopy(s), s['frame']/60)[3])
+        self.assertEqual(pilot.defender_wounds, [])
+        s.update(frame=start+31, command_fire=False)
+        self.assertFalse(pilot.update(copy.deepcopy(s), s['frame']/60)[3])
+        self.assertEqual(len(pilot.defender_wounds), 1)
+        for offset in (32, 36):
+            s['frame'] = start+offset
+            self.assertFalse(pilot.update(copy.deepcopy(s), s['frame']/60)[3])
+        s['frame'] = start+37
+        self.assertTrue(pilot.update(copy.deepcopy(s), s['frame']/60)[3])
 
     def test_courier_actual_kill_precedes_original_defender_and_home(self):
         pilot, s = self.courier_pilot()
@@ -1644,6 +1703,7 @@ class NativeSortieSafetyTests(unittest.TestCase):
         pilot.update(copy.deepcopy(s), 8)
         self.assertEqual(pilot.result['completion_marker'], native.CourierPilot.MARKER)
         self.assertEqual(pilot.result['courier']['kill']['target_id'], 11)
+        self.assertEqual(pilot.result['defender_wounds'], pilot.defender_wounds)
         self.assertEqual(pilot.stage, 'complete')
 
     def test_courier_terminal_outcomes_cannot_substitute_for_kill(self):
@@ -1677,7 +1737,8 @@ class NativeSortieSafetyTests(unittest.TestCase):
         for change, outer in [({'escape_distance': 999}, {}), ({'actor_id': 12}, {}),
                               ({'generation': 2}, {}), ({'escape_progress': 1}, {}),
                               ({'active': False}, {}), ({}, {'opponent_active': False}),
-                              ({}, {'phase': 'RETURN_TO_YARD'})]:
+                              ({}, {'phase': 'RETURN_TO_YARD'}), ({}, {'opponent_id': 13}),
+                              ({}, {'opponent_health': 0})]:
             with self.subTest(change=change, outer=outer):
                 pilot, s = self.courier_pilot()
                 self.courier_dispatch(pilot, s)
