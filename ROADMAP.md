@@ -42,22 +42,42 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
-**SERVER-BASELINE contested bunk authority selected — reproduce, then repair.**
-Normal moving sleep/wake is accepted, but source shows client-local bunk entry
-without an authoritative selected-bunk/refusal consumer. A focused two-Main/real
-ENet fixture will disclose staged admission/poses and actual host reservations:
-Port occupied→host alternative, both occupied→refusal, then freed→retry/wake.
-Ordinary client input must follow actual host body/reservation and preserve usable
-awake controls on refusal. No new role or host-selection policy is authorized.
+**SERVER-BASELINE contested bunk authority DONE — `f6803cf26`.**
+The real host/client reproduction confirmed that the host selected Starboard while
+the client received that sleep pose but still reserved and slept in Port. GameFlow
+now waits for the current host posture and uniquely matched authored bunk before
+presenting local rest. Host refusal leaves the player awake without a lease or
+overlay; an unconfirmed request gives feedback after four seconds and permits retry.
+Wake follows the host outcome. The existing host selection policy and protocol
+are retained. Session/body/frame/claim fences retire this consumer's rest state;
+recovery uses the current owned bunk exit, including same-frame hull movement.
 
-One implementer owns the existing passenger-route test first; runtime ownership
-is GameFlow's client rest consumer only after reproduction. Root owns compile≤300s,
-one focused180s scenario/300s outer and causal review before runtime edits.
-Estimate30min repro implementation. First failure stops for causal review; no
-synthetic successful packet/state or changed default route/cap. A production fix
-must pass focused checks and the complete original moving sleep/wake journey,
-then receive a fresh playable checkpoint. Staged fixture is not ordinary baseline,
-endurance, native or parent qualification.
+The focused independent Main/ENet case passes all three occupancy phases, ordinary
+E sleep/wake, refusal feedback, freed-bunk retry, actual sleeping-client shutdown,
+current-exit recovery and subsequent solo sleep/wake: 116 checks, zero failures,
+both actual process exits zero, 97.541s. Physical approach, host reservations and
+the final hull-pose fixture are disclosed setup; this is component qualification.
+The complete original three-Main moving sleep journey also passes: 428 checks,
+zero failures, all three process exits zero, 162.130s, original route/caps intact.
+Existing solo gameplay (31 assertions), rest lifecycle (9), berth content and
+startup privacy checks pass. Review covered the authority and lifecycle changes.
+
+Fresh checkpoint EXE, ZIP and notes are in `builds/windows/MuddsShipyards-f6803cf*`,
+with the matching Linux package in `builds/linux/`. Strict startup passes for the
+Linux binary/archive and Windows embedded game data under Linux Godot; all 1,527
+packaged entries match and package payload checks pass. Native Windows/GPU,
+rendered/device/listening/human, custom RPC-template, full baseline/endurance and
+release gates remain open. No parent or cross-project percentage is advanced.
+
+All six candidate commits are integrated into pushed `main`; no task branch or
+worktree was created. Owned scratch is removed and 104 observed process identities
+are absent. All 475 result members were verified into
+`/srv/mudds-work/network-bunk-authority-20261024/results/case-records.tar.gz`
+(SHA256 `2a41e7c51728ff71bce3692ec41794ddc765d815245c38804f752655f30e6448`),
+leaving only that archive and `closeout.json`. The 21 stages include four retained
+failures: intended RED, a compile type annotation, an early wake-completion fixture
+and a hull-fixture settling boundary. Existing parked detached worktrees remain
+untouched; GitHub Actions remains disabled.
 
 **PLAY-DEFENSE first-point journey stopped — combat remains unqualified.**
 Actual ordinary flight reached[-70.914,10.140,-90.916] with live whole-hull
