@@ -29,6 +29,20 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Selected: finite SPEC-PARADOX/KATANA/PREDATOR owner-decision proposals.**
+Three independent authors each own one new design proposal under docs/design/;
+root reviews source boundaries/seams and integrates shared references.20–30min
+maximum each, concurrently; no engines/runtime/validators/new framework. Each
+freezes one labelled modern candidate's hull/access/berth/tuning/roles/systems/
+recovery, bounded production cards and full acceptance. Role facts come from
+registered sources; shapes/mechanics remain explicitly UNAPPROVED. Predator's
+specialist role must name actual cell/control authority, not a passenger reskin.
+
+Preparation does not complete SPEC/build/craft or waive historical/model/full17
+scope. Owner interpretation choices for Titan/Vortex remain pending; no approval
+is inferred from this continuing goal. Stop at concrete decision artifacts and
+record the owner choice; do not repeat definitions or implement unapproved craft.
+
 **Prepared: SPEC-VORTEX decision proposal — owner choice pending.**
 [Vortex's unapproved modern proposal](docs/design/VORTEX_IMPLEMENTATION_PROPOSAL.md)
 fixes one pilot/four physical passenger chairs,10×20×5m original hull, continuous
