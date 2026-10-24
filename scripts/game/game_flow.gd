@@ -26949,7 +26949,7 @@ func _request_network_client_bunk_rest(seat: ShipBunk) -> void:
 	var owned_seat: ShipBunk
 	if is_instance_valid(retained_seat) and retained_seat is ShipBunk:
 		owned_seat = retained_seat
-	var waking := owned_seat != null and _active_station_seat == owned_seat and player.is_sleeping()
+	var waking: bool = owned_seat != null and _active_station_seat == owned_seat and player.is_sleeping()
 	if not waking and (player.is_seated() or not seat.is_available() \
 		or player.get_interaction_origin().distance_to(seat.get_entry_transform().origin) > STATION_SEAT_MAX_REACH):
 		return
