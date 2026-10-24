@@ -338,7 +338,7 @@ func get_launch_arm_snapshot() -> Dictionary:
 	var activity: Dictionary = {}
 	if is_instance_valid(_content):
 		activity = (_content.get_snapshot().get("host", {}) as Dictionary).get("activity", {}) as Dictionary
-	var armed := _armed_generation >= 0 and is_inside_tree() and not is_queued_for_deletion() \
+	var armed: bool = _armed_generation >= 0 and is_inside_tree() and not is_queued_for_deletion() \
 		and is_instance_valid(actor) and actor.is_inside_tree() and not actor.is_queued_for_deletion() \
 		and is_instance_valid(_content) and _content.is_inside_tree() and not _content.is_queued_for_deletion() \
 		and _content.get_parent() == get_parent() and _content.is_content_ready() \
