@@ -22203,3 +22203,68 @@ Escorted instances, recovery/repeats, separate post-exit walking, UI quit/game
 exit0, native GPU/Windows/human and parent11 remain open. Automated Dummy audio/
 headless or isolatedXvfb/x11 only; GitHub Actions remains disabled. All36 original
 parents and ten phase gates remain open.
+
+
+## Halyard network cabin roster — accepted — 2026-10-24
+
+Source `a0764f281e068c33c0ce05c7a9de6ddb5b7019c5`, selected on pushedf92be43e7.
+The physical client panel previously fed crew rows from an empty local role
+authority while its repair row correctly consumed host data. Existing Halyard
+engineer gameplay publication now carries a compact detached subset of actual
+host occupancy/readiness/routing/handoff facts. Existing GameFlow admission,
+body, boarding-tick, session/migration and cabin predicates admit both views;
+the Halyard override feeds only its physical display. Local gameplay getters,
+seat/role authority, loadmaster, repair stock and component ledgers stay local.
+Missing/stale context replaces the roster with detached facts; local refresh
+preserves current host data; leave/stop/tree retirement clears the cache.
+
+Focused original REDdae5a1370 reproduced exactly two roster failures, then the
+fixed suite passes40 assertions. Actual separate-host pilot/engineer claims and
+engineer release drive panel parity, positive readiness and count; missing crew
+independently of repair, three admission/epoch/tick boundaries, local refresh,
+unchanged local gameplay, cabin leave/session stop and tree re-entry are covered.
+Existing panel13, crew gameplay70, repair projection10, damage interruption54
+and startup privacy pass. Independent source/focused/result review GO.
+
+The original independent Main/ENet engineer route passes82 checks, zero failures,
+101.641s; host30/client41, both actual peer exit files0 and wrapper exit0. Seated
+engineer ACTIVE/ordinary stand OPEN matches actual host facts and survives local
+refresh. Ordinary component selection changes routing; actual FIRE completes
+repair and spends one kit, preserving KITS5/6 after standing. Existing reseat,
+forged/stale/malformed refusals, migration during sitting and disconnect paths
+and deadlines remain unchanged. The real host pilot is OPEN/readyfalse; positive
+pilot readiness is covered by the staged focused consumer. Existing exterior
+hatch approach and host damage remain fixtures. Active nonempty emergency handoff,
+full NET-CREW/NET-DAMAGE and ordinary moving/pilot cases are not qualified here.
+
+The real run is **PASS_WITH_ENVIRONMENT_WARNING**: exactly one Xvfb/llvmpipe
+V-Sync capability warning, zero game errors. Its strict diagnostics remain
+NOT_CLEAN; no unchanged rerun was used to remove the environment warning.
+
+Fresh clean paired exports and three strict exit0/menu-ready startups pass:
+Linux executable, extracted archive, Windows embedded game data under Linux
+Godot. All1527 payload entries match across platforms; stock PE code and exact
+Linux archive bytes/modes/source timestamp are verified. Windows EXE184751856
+bytes/SHA256 `2c5df7beea249e6d2bd507e4e5e67b57dc764f7f101a061cf537f87ad53062c4`;
+checkpoint ZIP103082486bytes/SHA256
+`68bf8d6b07de648ef559b86f1cbf4a14d93cefc75fdf9812ca9e87678fa08291`.
+EXE/ZIP/notes are `builds/windows/MuddsShipyards-a0764f2*`; matching Linux package
+and notes are in builds/linux. Independent package/notes review corrected routing
+attribution from FIRE to component selection; ZIP was repacked and exact EXE+
+corrected notes reverified, with refreshed publication hashes. No runtime change
+or redundant engine rerun. Native Windows/GPU/readability/device/listening/human,
+exported multiplayer/custom RPC-template/baseline/endurance/release gates stay open.
+
+Both accepted candidate commits integrated into pushed main; sole local/remote
+branch main, no task branch/worktree or new retained exception. All14 stage owners
+terminal:12 cleanPASS, one expectedRED and one functional environment-warning
+pass, cumulative284.000s. All56 sampled process identities absent; all424 owned
+scratch entries byte/mode/link verified before removal. All158 result members
+verified into
+`/srv/mudds-work/halyard-roster-panel-20261024/results/case-records.tar.gz`
+(20605003bytes, SHA256
+`b06fc90b8e578e38b48d89176d2262339b5ce6bf13e247faf55ef687b381b879`),
+then loose copies removed; only archive and closeout.json remain. Measured12.238min
+since recorded18:49:52UTC; earlier bounded source mapping is excluded from that
+interval. Protected parked worktrees untouched. All36 original parents/ten phase
+gates remain open; GitHub Actions stays disabled.

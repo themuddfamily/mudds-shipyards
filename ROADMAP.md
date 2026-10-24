@@ -6,13 +6,14 @@ Nine of the eventual 17 craft exist; eight still need supported specifications
 and implementation. Partial acceptance is retained in the backlog; it is not
 whole-feature completion.
 
-Latest playable checkpoint: **ce2329a**. The Halyard's physical cabin repair panel
-now follows current host repair progress and kit stock for network occupants,
-including after standing. Includes multiplayer destruction recovery/reboarding,
-host-authoritative bunks, Bomber seat refill and Deploy-arms-Defense. Full Defense
-combat, full component repair, multiplayer baseline and native gates remain open.
-[Windows ZIP](builds/windows/MuddsShipyards-ce2329a-checkpoint.zip),
-[build notes](builds/windows/MuddsShipyards-ce2329a-notes.txt).
+Latest playable checkpoint: **a0764f2**. The Halyard's physical cabin roster now
+shows current host crew occupancy, departure readiness and engineer routing for
+network cabin clients, including after standing. Includes host repair readouts,
+multiplayer destruction recovery/reboarding, host-authoritative bunks, Bomber
+seat refill and Deploy-arms-Defense. Full Defense combat, full component repair,
+multiplayer baseline and native gates remain open.
+[Windows ZIP](builds/windows/MuddsShipyards-a0764f2-checkpoint.zip),
+[build notes](builds/windows/MuddsShipyards-a0764f2-notes.txt).
 
 This page is the working queue. The
 [36-parent crosswalk and named children](docs/ROADMAP_BACKLOG.md#coverage-of-the-original-remaining-outcomes)
@@ -42,27 +43,29 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
-**Selected: HALYARD-NETWORK-ROSTER-PANEL — host facts on the cabin display.**
-Current client crew rows use an empty local authority despite the existing host
-engineer publication reaching every admitted cabin occupant. Feed the existing
-physical roster/readiness/routing/handoff display from a detached host subset,
-through the same current admission and cabin lifetime fences as repair. Ordinary
-standing must show the engineer station open; local refresh must retain host
-facts, and leaving/stopping must restore local presentation. Claims, components,
-stock and role authority remain unchanged; no protocol/schema version needed.
+**HALYARD network cabin roster DONE — `a0764f281`; checkpoint `a0764f2`.**
+The physical panel now presents compact host crew occupancy, readiness, engineer
+routing and handoff facts through the existing engineer snapshot. Ordinary
+standing opens the engineer row; local refresh preserves host facts. Missing
+current data shows a detached roster; leave/stop/detach retires it. Client local
+crew gameplay, repair stock and component authority remain unchanged.
 
-One implementation agent owns Halyard transport, GameFlow, the existing engineer
-publisher only if needed, and existing panel/real-ENet tests. Root owns clean
-source freezes, local checks, fresh paired checkpoint builds, integration/push
-and owned cleanup; one independent reviewer checks authority/lifetime behavior.
-First reproduce the panel failure with a focused test, then fix it and retain
-the complete original real-ENet engineer route/deadlines. All automated Godot
-runs use Dummy audio and headless/private Xvfb with explicit x11 for graphics.
-Stop at the first failure for causal review; no unchanged retry or broad roster
-qualification. Estimate 30–60 minutes implementation/review plus 15–25 minutes
-checks/packages/cleanup; split before 90 minutes. Full NET-CREW/NET-DAMAGE,
-baseline/endurance and native/human gates remain open. Actions stays disabled.
+Focused integration passes40 assertions after reproducing two real roster
+failures. The original independent Main/ENet engineer route passes82 checks in
+101.641s, both actual peer exits0, retaining selection/FIRE/repair/standing/
+reseat/refusal/migration/disconnect and original deadlines. It is a functional
+**PASS_WITH_ENVIRONMENT_WARNING**: one Xvfb/llvmpipe V-Sync capability warning,
+zero game errors; strict logs remain NOT_CLEAN. Companion regressions pass.
 
+Both accepted commits are integrated into pushed main. Fresh Windows EXE/ZIP/
+notes are in `builds/windows/MuddsShipyards-a0764f2*`; matching Linux packages,
+three strict menu startups and actual1527-entry cross-platform/package audit
+pass. Independent source/result/package review GO. Owned scratch is removed and
+results consolidated; no task branch/worktree was created. Positive pilot
+readiness is covered in the staged focused consumer; real route pilot is open.
+Active emergency handoff, full crew/damage/baseline/endurance, native/human and
+all broader gates remain open. Actions stays disabled.
+[Acceptance and limits](docs/history/ROADMAP_DELIVERIES.md#halyard-network-cabin-roster--accepted--2026-10-24).
 
 **COURIER-WITHDRAW-DISTANCE full ordinary outcome DONE — `719fe364a`.**
 The first packaged attempt passes in 92.585s under the original 300s/outer330
@@ -76,7 +79,7 @@ All 144 driver tests, observer/privacy checks, private export, menu startup,
 payload audit and independent raw review pass. The accepted source is integrated
 into pushed main. Owned scratch and loose qualification packages are removed;
 results occupy one verified archive plus closeout.json. No branch/worktree was
-created. Player checkpoint ce2329a remains current with unchanged gameplay.
+created. That qualification kept gameplay checkpoint ce2329a; the current checkpoint is above.
 [Full acceptance and limits](docs/history/ROADMAP_DELIVERIES.md#courier-distance-withdrawal--accepted-ordinary-flight-and-home--2026-10-24).
 This closes the selected first unhurt instance; escorted instances, recovery,
 repeats, native/human and parent11 remain open. GitHub Actions stays disabled.
@@ -100,8 +103,8 @@ run is retained. No gameplay, encounter, tuning, placement or cap change.
 
 Both candidate commits are integrated into pushed main. Owned scratch is removed
 and116 result members are consolidated into one verified archive plus
-closeout.json. No branch/worktree was created; public checkpointce2329a remains
-current. [Full ordering proof, source pair and retained limits](docs/history/ROADMAP_DELIVERIES.md#courier-phase-withdrawal--accepted-live-dispatch-and-home--2026-10-24).
+closeout.json. No branch/worktree was created. The public checkpoint at
+acceptance was ce2329a. [Full ordering proof, source pair and retained limits](docs/history/ROADMAP_DELIVERIES.md#courier-phase-withdrawal--accepted-live-dispatch-and-home--2026-10-24).
 This unhurt first-courier phase instance is accepted. Distance withdrawal is
 qualified separately above; escorted instances, recovery, repeats, separate
 walk/UI quit, native/human and parent11 remain open. GitHub Actions stays disabled.
@@ -126,7 +129,7 @@ fresh private package/startup/payload audits pass; independent acceptance GO.
 
 All four candidate commits are integrated into pushed main. Source-specific
 Linux qualification packages/raw are privately archived; public playable
-checkpointce2329a remains current with the same gameplay. Owned scratch and
+checkpointce2329a retained the same gameplay at acceptance. Owned scratch and
 reconstructable test caches are cleaned. No branch/worktree was created; the
 original exact failedf7 source remains under its historical withheld archive tag.
 [Full result, corrections, retained failures and limits](docs/history/ROADMAP_DELIVERIES.md#courier-escape--accepted-ordinary-flight-and-home--2026-10-24).
@@ -156,7 +159,7 @@ strict startup and package audit pass; playable Windows EXE/ZIP/notes are in
 process identities are absent, and results are consolidated into one verified
 archive plus closeout.json. No branch/worktree was created or retained.
 [Acceptance and retained limits](docs/history/ROADMAP_DELIVERIES.md#halyard-network-cabin-repair-readout--accepted--2026-10-24).
-Full crew roster, full NET-DAMAGE, broader baseline/endurance and native/human
+Full crew gameplay qualification, full NET-DAMAGE, broader baseline/endurance and native/human
 qualification remain open. No parent or phase gate is closed.
 
 **HALYARD passenger destruction recovery and ordinary reuse DONE — `f5b71e06e`.**
