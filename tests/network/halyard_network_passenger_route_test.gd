@@ -948,7 +948,7 @@ func _halyard_seat_rejection_host(owner: CrewSeatRoleAuthority) -> bool:
 		var record := simulation.get_body_record(avatar)
 		var result := record.get("crew_interaction_result", {}) as Dictionary
 		var body := simulation.get_body(avatar) as PlayerController
-		var valid := not bool(result.get("accepted", true)) and result.get("status") == &"seat_occupied" \
+		var valid: bool = not bool(result.get("accepted", true)) and result.get("status") == &"seat_occupied" \
 			and result.get("seat_id") == HalyardCrewTransport.LOADMASTER_STATION_SEAT_ID \
 			and int(result.get("interaction_request_id", 0)) == int(receipt.get("request_id", -1)) \
 			and int(result.get("interaction_request_id", 0)) > previous \
@@ -980,7 +980,7 @@ func _halyard_seat_rejection_client() -> bool:
 			return false
 		var view := _game.network_session.get_passenger_replica_snapshot()
 		var result := view.get("crew_interaction_result", {}) as Dictionary
-		var usable := result.get("status") == &"seat_occupied" \
+		var usable: bool = result.get("status") == &"seat_occupied" \
 			and int(result.get("interaction_request_id", 0)) == source.get_interaction_request_id() \
 			and (view.get("assignment", {}) as Dictionary).is_empty() and not bool(view.get("seated", true)) \
 			and not _player.is_seated() and _player.is_on_floor() and _player.is_control_enabled() \

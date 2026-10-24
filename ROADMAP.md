@@ -75,6 +75,11 @@ closed, retaining every negative case and the exact pending/receipt contract.
 Reuse passed unchanged source/body checks; rerun corrected consumer and remaining
 checks before the first real ENet attempt. No cap or acceptance change; original
 failure and cumulative task time retained.
+The selected peer fixture then stopped at parsing before any peer launched:
+two logical expressions need explicit bool annotations. Cumulative priority
+review selects only that test-parser correction, strict compile first, then the
+unchanged full route. Passed production checks remain valid; no gameplay,
+placement, deadline or acceptance change, and the task clock is not reset.
 
 
 **HALYARD network cabin roster DONE — `a0764f281`; checkpoint `a0764f2`.**
