@@ -70,6 +70,10 @@ const ORDINARY_HALYARD_APPROACH := [
 	Vector3(37, 4.2, 68.3), Vector3(32.4, 4.2, 68.2), Vector3(32, 4.2, 62.2),
 	Vector3(32, 4.2, 54.2),
 ]
+var _network_passenger_destruction_only := false
+var _network_passenger_destruction_complete := false
+var _network_passenger_destruction_avatar: StringName = &""
+var _network_passenger_destruction_retained: Dictionary = {}
 var _network_bunk_refusal_only := false
 var _network_bunk_complete := false
 var _network_bunk_stage := ""
@@ -102,7 +106,7 @@ var _ordinary_pilot_loss_retained: Dictionary = {}
 ## Optional ordinary-controls callers share this harness and its owned exits.
 ## Empty defaults retain every existing Halyard/Cinder profile and deadline.
 func _peer_profile() -> Dictionary:
-	if _network_bunk_refusal_only:
+	if _network_bunk_refusal_only or _network_passenger_destruction_only:
 		return {"client_roles": ["client"], "private_environment": true,
 			"total_seconds": 180.0, "abort_exit_grace_seconds": 10.0}
 	if _ordinary_two_client_board:
@@ -115,6 +119,8 @@ func _init() -> void:
 
 func _run() -> void:
 	var args := OS.get_cmdline_user_args()
+	_network_passenger_destruction_only = "--network-passenger-destruction-only" in args
+	args.erase("--network-passenger-destruction-only")
 	_network_bunk_refusal_only = "--network-bunk-refusal-only" in args
 	args.erase("--network-bunk-refusal-only")
 	_ordinary_two_client_sleep = "--ordinary-two-client-sleep" in args
@@ -179,7 +185,7 @@ func _run() -> void:
 	_role = args[0]
 	_directory = args[1]
 	_port = int(args[2])
-	if _network_bunk_refusal_only:
+	if _network_bunk_refusal_only or _network_passenger_destruction_only:
 		_profile_deadline = Time.get_ticks_msec() + 180000
 	_write(_role + ".script_ready", {})
 	_game = Main.instantiate() as GameFlow
@@ -204,7 +210,13 @@ func _run() -> void:
 	if _gunner:
 		_craft.projectile_fired.connect(func(_origin: Vector3, _direction: Vector3): _gunner_shots += 1)
 	_write(_role + ".main_ready", {})
-	if _network_bunk_refusal_only:
+	if _network_passenger_destruction_only:
+		if _role == "host":
+			await _network_passenger_destruction_host()
+		else:
+			await _network_passenger_destruction_client()
+		_check(_network_passenger_destruction_complete, "focused destruction scenario reaches explicit terminal handshake")
+	elif _network_bunk_refusal_only:
 		if _role == "host":
 			await _network_bunk_host()
 		else:
@@ -232,7 +244,9 @@ func _run() -> void:
 	await _ticks(3)
 	DirAccess.remove_absolute(_store_path)
 	var done := {"checks": _checks, "failures": _failures}
-	if _network_bunk_refusal_only:
+	if _network_passenger_destruction_only:
+		done["complete"] = _network_passenger_destruction_complete
+	elif _network_bunk_refusal_only:
 		done["complete"] = _network_bunk_complete
 	_write(_role + ".done", done)
 	for failure in _failures:
@@ -315,7 +329,7 @@ func _orchestrate() -> void:
 	for role in peers:
 		var result := _read(role + ".done")
 		_check(not result.is_empty() and (result.get("failures", []) as Array).is_empty(), "%s ordinary production route passes" % role)
-		if _ordinary_two_client_board or _network_bunk_refusal_only:
+		if _ordinary_two_client_board or _network_bunk_refusal_only or _network_passenger_destruction_only:
 			_check(bool(result.get("complete", false)), "%s selected ordinary scenario completed" % role)
 		if not result.is_empty():
 			_checks += int(result.get("checks", 0))
@@ -343,7 +357,9 @@ func _orchestrate() -> void:
 	quit(0 if _failures.is_empty() else 1)
 
 func _print_peer_success() -> void:
-	if _network_bunk_refusal_only:
+	if _network_passenger_destruction_only:
+		print("NETWORK_PASSENGER_DESTRUCTION_ONLY_OK checks=%d" % _checks)
+	elif _network_bunk_refusal_only:
 		print("NETWORK_BUNK_REFUSAL_ONLY_OK checks=%d" % _checks)
 	elif _ordinary_two_client_sleep:
 		print("HALYARD_ORDINARY_TWO_CLIENT_SLEEP_OK checks=%d" % _checks)
@@ -402,7 +418,9 @@ func _peer_arguments(role: String, display: PackedStringArray) -> PackedStringAr
 	if not _package_under_test.is_empty():
 		args.append_array(["--main-pack", _package_under_test])
 	args.append_array(["--script", script, "--", role, _directory, str(_port)])
-	if _network_bunk_refusal_only:
+	if _network_passenger_destruction_only:
+		args.append("--network-passenger-destruction-only")
+	elif _network_bunk_refusal_only:
 		args.append("--network-bunk-refusal-only")
 	elif _ordinary_two_client_sleep:
 		args.append("--ordinary-two-client-sleep")
@@ -1621,7 +1639,7 @@ func _until(predicate: Callable, seconds: float) -> bool:
 			return true
 		if _profile_deadline > 0 and Time.get_ticks_msec() >= _profile_deadline:
 			return false
-		if (_ordinary_two_client_board or _network_bunk_refusal_only) and _ordinary_aborted():
+		if (_ordinary_two_client_board or _network_bunk_refusal_only or _network_passenger_destruction_only) and _ordinary_aborted():
 			return false
 		await _ticks(1)
 	return false
@@ -1639,7 +1657,7 @@ func _ticks(count: int) -> void:
 			_ordinary_motion_samples += 1
 
 func _wait_file(name: String, seconds: float) -> bool:
-	if _ordinary_two_client_board or _network_bunk_refusal_only:
+	if _ordinary_two_client_board or _network_bunk_refusal_only or _network_passenger_destruction_only:
 		# Actual wrapper exits retain the full independent 10s cleanup grace.
 		if name.ends_with(".exit"):
 			var exit_deadline := Time.get_ticks_msec() + int(seconds * 1000.0)
@@ -1709,10 +1727,12 @@ func _check(condition: bool, description: String) -> void:
 		if _navigator_rejection and not _role.is_empty() and not FileAccess.file_exists(_directory.path_join(_role + ".first_failure")):
 			_write(_role + ".first_failure", {"description": description})
 			print("NAVIGATOR_FIRST_FAILURE: ", _role, " ", description)
-		if (_ordinary_two_client_board or _network_bunk_refusal_only) and not _role.is_empty() and not _ordinary_first_failure:
+		if (_ordinary_two_client_board or _network_bunk_refusal_only or _network_passenger_destruction_only) and not _role.is_empty() and not _ordinary_first_failure:
 			_ordinary_first_failure = true
 			var first_abort := DirAccess.make_dir_absolute(_directory.path_join("abort-owner")) == OK
-			_write(_role + ".first_failure", _network_bunk_snapshot(description) if _network_bunk_refusal_only else _ordinary_failure_snapshot(description))
+			var snapshot := _network_passenger_destruction_snapshot(description) if _network_passenger_destruction_only else (
+				_network_bunk_snapshot(description) if _network_bunk_refusal_only else _ordinary_failure_snapshot(description))
+			_write(_role + ".first_failure", snapshot)
 			if first_abort:
 				_write("abort", {"role": _role, "description": description, "snapshot": _role + ".first_failure"})
 
@@ -4799,3 +4819,236 @@ func _network_bunk_client() -> void:
 	if not await _wait_file("host.bunk_release", 8.0):
 		return
 	_network_bunk_complete = true
+
+
+# Focused destruction/recovery capability, not the full NET-DAMAGE scenario.
+# Only approach poses/hatch opening are staged; cabin/chair admission uses E and
+# real ENet, and the host destroys its real hull through the existing damage API.
+func _network_passenger_destruction_snapshot(description: String = "") -> Dictionary:
+	var report := {"description": description, "role": _role, "pid": OS.get_process_id(),
+		"frame": Engine.get_physics_frames(), "avatar": str(_network_passenger_destruction_avatar)}
+	if not is_instance_valid(_game) or not is_instance_valid(_craft) or not is_instance_valid(_player):
+		report["setup_incomplete"] = true
+		return report
+	var simulation := _game.get_network_remote_body_simulation()
+	var body: Variant = simulation.get_body(_network_passenger_destruction_avatar) if simulation != null else null
+	var frame := _craft.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
+	var source := _game.get_network_remote_body_intent_source()
+	var presenter := _game.get_network_moving_interior_presenter()
+	var overlay := _game.get("_ship_rest_overlay") as CanvasLayer
+	var owner: CrewSeatRoleAuthority = _craft.get_crew_role_authority()
+	var seat: Variant = _game.get("_network_engineer_client_seat")
+	report.merge({"main": _ordinary_node_identity(_game), "craft": _ordinary_node_identity(_craft),
+		"host_actual_destroyed": _craft.is_destroyed(), "telemetry": _craft.get_telemetry(),
+		"component_generation": _craft.get_component_damage().get_ledger_generation(),
+		"components": _craft.get_component_damage().get_component_report(),
+		"current_pose": _game._network_craft_pose_stream.latest_sample(_craft.get_ship_id()),
+		"damage_presentation": _craft.get_network_damage_presentation_audit(),
+		"player": _ordinary_node_identity(_player), "phase": _game.phase,
+		"player_position": str(_player.global_position), "player_controls": _player.is_control_enabled(),
+		"player_floor": _player.is_on_floor(), "player_seated": _player.is_seated(), "player_sleeping": _player.is_sleeping(),
+		"player_station_seated": _player.is_station_seated(), "transition_busy": bool(_game.get("_transition_busy")),
+		"cabin": _ordinary_node_identity(_game.get("_cabin_ship") as Node), "containment": str(_player.get_cabin_containment_report()),
+		"boarding_claim": _game.get("_network_client_boarding_claim"), "host_boarding": _game.network_session.get_boarding_snapshot(),
+		"client_chair": _ordinary_node_identity(seat if is_instance_valid(seat) else null),
+		"local_active_station_seat": _ordinary_node_identity(_game.get("_active_station_seat") as Node),
+		"local_rest_context_empty": (_game.get("_network_client_bunk_rest") as Dictionary).is_empty(),
+		"local_regeneration_pending": (_game.get("_regeneration_pending") as Dictionary).has(_craft.get_instance_id()),
+		"rest_overlay": overlay != null and overlay.visible,
+		"source": source.get_audit() if source != null else {},
+		"frame_identity": _ordinary_node_identity(frame),
+		"local_frame_registered": frame.is_occupant_registered(_player) if frame != null else false,
+		"local_prediction_current": frame._local_prediction_is_current(_player) if frame != null else false,
+		"remote_body": _ordinary_node_identity(body if is_instance_valid(body) else null),
+		"remote_body_record": simulation.get_body_record(_network_passenger_destruction_avatar) if simulation != null else {},
+		"remote_body_audit": simulation.get_audit() if simulation != null else {},
+		"host_assignment": owner.get_assignment(int(_network_passenger_destruction_retained.get("peer_id", 0)), _network_passenger_destruction_avatar) if owner != null else {},
+		"retirement_events": _network_passenger_destruction_retained.get("retirement_events", {}),
+		"received_relationship": _game.network_session.get_moving_interior_latest_relationship(_network_passenger_destruction_avatar),
+		"drawn_entities": presenter.get_drawn_entity_ids() if presenter != null else [],
+		"admitted_peers": _game.network_session.get_admitted_peer_ids()})
+	if _role == "client":
+		report["host_loss_boundary"] = _read("host.passenger_destruction_loss")
+		report["host_retired_boundary"] = _read("host.passenger_destruction_retired")
+		report["client_received_loss_boundary"] = _read("client.passenger_destruction_received")
+	return report
+
+
+func _network_passenger_destruction_host() -> void:
+	if not _ordinary_require(_game.host_network_session(_port).accepted, "focused Halyard loss uses an actual Main ENet authority"):
+		return
+	_craft.set_canopy_open(true, 0.0) # Disclosed hatch setup, not a boarding answer.
+	_write("host.ready", {})
+	if not await _wait_file("client.passenger_destruction_admitted", 60.0):
+		return
+	var admission := _read("client.passenger_destruction_admitted")
+	var peer := int(admission.peer_id)
+	_network_passenger_destruction_avatar = GameFlow.network_client_boarding_avatar_id(peer)
+	var simulation := _game.get_network_remote_body_simulation()
+	if not await _ordinary_boundary(func(): return simulation.get_body(_network_passenger_destruction_avatar) != null, 8.0,
+		"actual admitted Halyard passenger owns a real authoritative body"):
+		return
+	var body := simulation.get_body(_network_passenger_destruction_avatar) as PlayerController
+	var frame := _craft.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
+	var owner: CrewSeatRoleAuthority = _craft.get_crew_role_authority()
+	if not _ordinary_require(frame != null and owner != null and frame.is_occupant_registered(body)
+		and int(simulation.get_body_record(_network_passenger_destruction_avatar).get("owner_peer_id", 0)) == peer
+		and int(simulation.get_body_record(_network_passenger_destruction_avatar).get("entity_generation", 0)) == int(admission.entity_generation),
+		"focused loss retains the authenticated owner, body generation and actual physical Halyard frame"):
+		return
+	_network_passenger_destruction_retained = {"peer_id": peer, "body": weakref(body), "frame": frame,
+		"owner": owner, "body_releases": int(simulation.get_audit().get("released", 0))}
+	body.teleport_to(_station_contract().entry_transform as Transform3D)
+	_write("host.passenger_destruction_approach", {})
+	if not await _wait_file("client.passenger_destruction_seated", 15.0):
+		return
+	if not await _ordinary_boundary(func(): return (body.is_seated_at(_station_anchor())
+		and owner.get_assignment(peer, _network_passenger_destruction_avatar).get("seat_id") == HalyardCrewTransport.LOADMASTER_STATION_SEAT_ID), 8.0,
+		"ordinary client E acquires the exact real authoritative Halyard passenger chair"):
+		return
+	if not _ordinary_require(frame.is_occupant_registered(body) and body.get_cabin_containment_report().get("frame") == _craft
+		and _game.network_session.get_admitted_peer_ids().has(peer) and not _craft.is_destroyed(),
+		"current admitted passenger body/frame and living real host craft precede destruction"):
+		return
+	var retirement := {"body_exited": 0, "frame_removed": 0}
+	_network_passenger_destruction_retained.retirement_events = retirement
+	var body_id := body.get_instance_id()
+	body.tree_exited.connect(func(): retirement.body_exited += 1)
+	frame.occupant_unregistered.connect(func(occupant: Node3D, _velocity: Vector3, _reason: StringName):
+		if occupant.get_instance_id() == body_id:
+			retirement.frame_removed += 1)
+	_write("host.passenger_destruction_before", _network_passenger_destruction_snapshot())
+	_write("host.passenger_destruction_armed", {})
+	if not await _wait_file("client.passenger_destruction_retained", 8.0):
+		return
+	var loss_generation := _craft.get_component_damage().get_ledger_generation()
+	var loss_tick := int(_game.get("_network_boarding_server_tick"))
+	_craft.apply_damage(_craft.maximum_hull + 1.0)
+	if not _ordinary_require(_craft.is_destroyed() and float(_craft.get_telemetry().get("hull", -1.0)) == 0.0,
+		"existing host damage API actually destroys the real Halyard hull"):
+		return
+	var loss := _network_passenger_destruction_snapshot("actual host hull loss before normal regeneration")
+	loss["loss_generation"] = loss_generation
+	loss["loss_tick"] = loss_tick
+	_write("host.passenger_destruction_loss", loss)
+	var weak_body := _network_passenger_destruction_retained.body as WeakRef
+	if not await _ordinary_boundary(func(): return (simulation.get_body(_network_passenger_destruction_avatar) == null
+		and simulation.get_body_record(_network_passenger_destruction_avatar).is_empty() and weak_body.get_ref() == null), 8.0,
+		"real craft loss retires and frees the actual authoritative passenger body"):
+		return
+	if not _ordinary_require(int(simulation.get_audit().get("released", -1)) == int(_network_passenger_destruction_retained.body_releases) + 1
+		and int(retirement.body_exited) == 1 and int(retirement.frame_removed) == 1
+		and owner.get_assignment(peer, _network_passenger_destruction_avatar).is_empty(),
+		"authoritative loss releases the exact passenger frame/body/chair once"):
+		return
+	_write("host.passenger_destruction_retired", _network_passenger_destruction_snapshot("actual old passenger body retired"))
+	if not await _wait_file("client.passenger_destruction_received", 8.0) \
+		or not await _wait_file("client.passenger_destruction_recovered", 20.0):
+		return
+	if not await _ordinary_boundary(func():
+		for held: Dictionary in _game.network_session.get_boarding_snapshot().get("occupancies", []):
+			if int(held.get("peer_id", 0)) == peer and held.get("avatar_id") == _network_passenger_destruction_avatar:
+				return false
+		return owner.get_assignment(peer, _network_passenger_destruction_avatar).is_empty(),
+		8.0, "recovered passenger releases the old actual host boarding claim and physical crew grant"):
+		return
+	_write("host.passenger_destruction_complete", {})
+	if not await _wait_file("client.passenger_destruction_complete", 8.0):
+		return
+	_write("host.passenger_destruction_release", {})
+	_network_passenger_destruction_complete = true
+
+
+func _network_passenger_destruction_client() -> void:
+	if not _ordinary_require(_game.join_network_session("127.0.0.1", _port).accepted, "independent Main joins the real Halyard-loss authority"):
+		return
+	if not await _ordinary_boundary(_ordinary_authenticated, 12.0, "focused destruction client authenticates before real admission"):
+		return
+	_player.teleport_to(Transform3D(_craft.global_basis.orthonormalized(), _craft.get_boarding_position() + Vector3.UP * 0.05))
+	await _ticks(10)
+	await _ordinary_press(&"interact")
+	if not await _ordinary_boundary(func(): return (_game.phase == GameFlow.Phase.IN_FLIGHT_CABIN
+		and _game.get_network_remote_body_intent_source() != null and not _game.get("_transition_busy")), 12.0,
+		"ordinary hatch E confirms actual Halyard cabin admission after disclosed exterior setup"):
+		return
+	var source := _game.get_network_remote_body_intent_source()
+	var player_id := _player.get_instance_id()
+	var frame := _craft.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
+	_network_passenger_destruction_avatar = GameFlow.network_client_boarding_avatar_id(_game._network_client_peer_id())
+	_network_passenger_destruction_retained = {"peer_id": _game._network_client_peer_id(), "player_id": str(player_id),
+		"frame": frame, "source": source, "entity_generation": source.get_entity_generation(), "stream_id": int(source.get_audit().get("stream_id", -1)),
+		"component_generation": _craft.get_component_damage().get_ledger_generation()}
+	_write("client.passenger_destruction_admitted", {"peer_id": _game._network_client_peer_id(), "entity_generation": source.get_entity_generation()})
+	if not await _wait_file("host.passenger_destruction_approach", 8.0):
+		return
+	_player.teleport_to(_station_contract().entry_transform as Transform3D)
+	await _ticks(12)
+	await _ordinary_look(_station_anchor().global_position + Vector3.UP * 1.2)
+	if not await _ordinary_boundary(func(): return (_player.is_on_floor() and _game.station_interaction_candidate is ShipCrewSeat
+		and (_game.station_interaction_candidate as ShipCrewSeat).get_seat_anchor() == _station_anchor()), 8.0,
+		"disclosed supported approach physically discovers the actual Halyard passenger chair"):
+		return
+	await _ordinary_press(&"interact")
+	if not await _ordinary_boundary(func(): return (_player.is_seated_at(_station_anchor()) and _player.is_station_seated()
+		and _player.is_control_enabled() and not _game.get("_transition_busy")
+		and bool(_game.network_session.get_passenger_replica_snapshot().get("seated", false))), 8.0,
+		"ordinary chair E confirms the original local Player in the actual network passenger seat"):
+		return
+	_write("client.passenger_destruction_seated", _network_passenger_destruction_snapshot())
+	if not await _wait_file("host.passenger_destruction_armed", 8.0):
+		return
+	if not _ordinary_require(_player.get_instance_id() == player_id and source.is_bound()
+		and source.get_entity_id() == _network_passenger_destruction_avatar and frame.is_occupant_registered(_player)
+		and frame._local_prediction_is_current(_player) and _game._network_client_boarding_holds(_craft),
+		"original Player, authenticated source, physical prediction frame and cabin grant are current immediately before loss"):
+		return
+	_write("client.passenger_destruction_retained", _network_passenger_destruction_snapshot())
+	if not await _wait_file("host.passenger_destruction_loss", 8.0) or not await _wait_file("host.passenger_destruction_retired", 8.0):
+		return
+	var loss := _read("host.passenger_destruction_loss")
+	if not await _ordinary_boundary(func():
+		var pose: Dictionary = _game._network_craft_pose_stream.latest_sample(_craft.get_ship_id())
+		var state := _craft.get_network_damage_presentation_audit().get("state", {}) as Dictionary
+		return (bool(pose.get("destroyed", false)) and bool(state.get("destroyed", false))
+			and int(pose.get("entity_generation", 0)) == int(loss.loss_generation)
+			and int(state.get("generation", 0)) == int(loss.loss_generation)
+			and int(pose.get("pose_tick", -1)) >= int(loss.loss_tick) and float(state.get("health", -1.0)) == 0.0),
+		8.0, "current owning client receives the actual destroyed Halyard generation and zero-hull presentation before recovery assertions"):
+		return
+	_write("client.passenger_destruction_received", _network_passenger_destruction_snapshot("actual current received destruction before normal regeneration"))
+	if not await _ordinary_boundary(func(): return (_player.get_instance_id() == player_id and not _player.is_seated()
+		and not _player.is_sleeping() and _player.is_control_enabled() and _player.is_on_floor()
+		and not _game.get("_transition_busy") and _game.get("_cabin_ship") == null
+		and not bool(_player.get_cabin_containment_report().get("active", true))), 8.0,
+		"actual host loss returns the same passenger Player to supported usable recovery without the destroyed cabin"):
+		return
+	var presenter := _game.get_network_moving_interior_presenter()
+	var overlay := _game.get("_ship_rest_overlay") as CanvasLayer
+	if not _ordinary_require(not source.is_bound() and not frame.is_occupant_registered(_player) and not frame._local_prediction_is_current(_player)
+		and (_game.get("_network_client_boarding_claim") as Dictionary).is_empty()
+		and _game.get("_network_engineer_client_seat") == null and _game.get("_network_engineer_pending_seat") == null
+		and _game.get("_network_engineer_source") == null and _game.get("_active_station_seat") == null
+		and (_game.get("_network_client_bunk_rest") as Dictionary).is_empty() and (overlay == null or not overlay.visible)
+		and _game.network_session.get_moving_interior_latest_relationship(_network_passenger_destruction_avatar).is_empty()
+		and (presenter == null or _network_passenger_destruction_avatar not in presenter.get_drawn_entity_ids()),
+		"recovered passenger retains no old chair, body source, prediction/frame, cabin claim, rest lease or drawn body grants"):
+		return
+	if not _ordinary_require(not _craft.is_destroyed()
+		and _craft.get_component_damage().get_ledger_generation() == int(_network_passenger_destruction_retained.component_generation)
+		and not (_game.get("_regeneration_pending") as Dictionary).has(_craft.get_instance_id()),
+		"received loss and passenger recovery never mutate the client hull life or schedule local regeneration"):
+		return
+	var start := _player.global_position
+	_ordinary_action(&"move_forward", true)
+	var walked: bool = await _until(func(): return (_player.get_instance_id() == player_id and _player.is_on_floor()
+		and _player.is_control_enabled() and _player.global_position.distance_to(start) > 0.6), 8.0)
+	_ordinary_action(&"move_forward", false)
+	if not _ordinary_require(walked, "same supported recovered passenger walks over point six metres using ordinary input"):
+		return
+	_write("client.passenger_destruction_recovered", _network_passenger_destruction_snapshot())
+	if not await _wait_file("host.passenger_destruction_complete", 8.0):
+		return
+	_write("client.passenger_destruction_complete", {})
+	if not await _wait_file("host.passenger_destruction_release", 8.0):
+		return
+	_network_passenger_destruction_complete = true
