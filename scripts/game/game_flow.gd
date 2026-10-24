@@ -6350,10 +6350,19 @@ func get_station_defense_encounter_status() -> Dictionary:
 		"reward_configuration": _station_defense_reward_configuration.duplicate(true),
 		"session_persistence_owned_here": false,
 		"encounter_active": is_instance_valid(content) and content.is_encounter_active(),
+		"launch_arm": _get_station_defense_launch_arm(),
 		"generation": content.get_generation() if is_instance_valid(content) else 0,
 		"reward_authority": false,
 		"activity_authority": false,
 	}.duplicate(true)
+
+
+func _get_station_defense_launch_arm() -> Dictionary:
+	if is_instance_valid(world) and world.has_method(&"get_station_defense_activity_board"):
+		var board := world.get_station_defense_activity_board() as StationDefenseActivityBoard
+		if is_instance_valid(board):
+			return board.get_launch_arm_snapshot()
+	return {"armed": false}
 
 
 func _get_station_defense_content() -> StationDefenseEncounterContent:
@@ -9781,6 +9790,7 @@ func _arm_heavy_breach_sortie(board: Area3D) -> bool:
 		or not board.has_method(&"get_generation")
 		or _selected_activity_is_running()
 		or _other_activity_is_running()
+		or bool(_get_station_defense_launch_arm().get("armed", false))
 		or StringName(
 			_station_defense_nearby_activity_snapshot().get("state_id", &"idle")
 		) == &"active"
@@ -9987,7 +9997,7 @@ func _on_interact_requested() -> void:
 			var defense_result: Dictionary = {}
 			if defense_action in [&"deploy", &"retry_reward"]:
 				defense_result = _start_physical_station_defense_board()
-			elif defense_action == &"reset" and not _heavy_breach_sortie_is_armed():
+			elif defense_action in [&"reset", &"cancel"] and not _heavy_breach_sortie_is_armed():
 				defense_result = _reset_physical_station_defense_board()
 			if bool(defense_result.get("accepted", false)):
 				audio.play_ui_confirm()
@@ -21710,6 +21720,7 @@ func _station_defense_nearby_activity_snapshot() -> Dictionary:
 	var activity := (host.get("activity", {}) as Dictionary).duplicate(true)
 	if activity.is_empty():
 		return {}
+	activity["sortie_armed"] = bool(_get_station_defense_launch_arm().get("armed", false))
 	activity["presentation_source"] = &"station_defense_encounter_content"
 	activity["activity_authority"] = false
 	activity["combat_authority"] = false
@@ -23605,7 +23616,20 @@ func _mark_sortie_departed() -> Dictionary:
 		if not berth_id.is_empty() and is_instance_valid(world)
 		else null
 	)
-	var network_release := _release_network_landing_handoff(active_ship, berth)
+	# Capture the live launch witnesses before either network or berth signals
+	# can re-enter the coordinator. A historical sortie flag proves no launch.
+	var departing_ship := active_ship
+	var departing_player := player
+	var departure_token := StringName(_berth_tokens.get(departing_ship.get_instance_id(), &""))
+	var defense_board: StationDefenseActivityBoard = null
+	var defense_content := _get_station_defense_content()
+	if is_instance_valid(world) and world.has_method(&"get_station_defense_activity_board"):
+		defense_board = world.get_station_defense_activity_board() as StationDefenseActivityBoard
+	var defense_generation := defense_content.get_generation() if is_instance_valid(defense_content) else -1
+	var defense_arm_id := int(defense_board.get_launch_arm_snapshot().get("arm_id", 0)) if is_instance_valid(defense_board) else 0
+	var physical_launch := _station_defense_departure_pilot_is_current(departing_ship, departing_player) \
+		and is_instance_valid(berth) and _ship_owns_exact_occupied_berth(departing_ship, berth_id)
+	var network_release := _release_network_landing_handoff(departing_ship, berth)
 	_last_network_landing_handoff_result = network_release.duplicate(true)
 	if not bool(network_release.get("accepted", false)):
 		if is_instance_valid(hud):
@@ -23618,13 +23642,42 @@ func _mark_sortie_departed() -> Dictionary:
 				3.5,
 			)
 		return network_release
-	_release_ship_berth(active_ship)
+	# A synchronous release callback must not redirect this departure to a
+	# replacement craft or consume a newly armed content generation.
+	if not is_instance_valid(departing_ship) or active_ship != departing_ship:
+		return {"accepted": false, "status": &"sortie_departure_unavailable"}
+	physical_launch = physical_launch \
+		and _station_defense_departure_pilot_is_current(departing_ship, departing_player) \
+		and _ship_owns_exact_occupied_berth(departing_ship, berth_id) \
+		and StringName(_berth_tokens.get(departing_ship.get_instance_id(), &"")) == departure_token
+	_release_ship_berth(departing_ship)
 	_sortie_departed_berth = true
+	if physical_launch and _station_defense_departure_pilot_is_current(departing_ship, departing_player) \
+			and is_instance_valid(berth) and berth.is_inside_tree() \
+			and berth.get_occupant() == null and berth.get_reservation_owner() == null \
+			and not berth.has_valid_lease(departing_ship, departure_token, departing_ship.get_ship_id()) \
+			and not _berth_tokens.has(departing_ship.get_instance_id()) \
+			and not _reserved_berth_ids.has(departing_ship.get_instance_id()) \
+			and is_instance_valid(defense_board) and defense_board.is_inside_tree() \
+			and world.get_station_defense_activity_board() == defense_board \
+			and _get_station_defense_content() == defense_content \
+			and is_instance_valid(defense_content) and defense_content.get_generation() == defense_generation:
+		defense_board.launch_armed(departing_player, defense_content, defense_arm_id)
 	return {
 		"accepted": true,
 		"status": &"sortie_departed",
 		"network_release": network_release.duplicate(true),
 	}
+
+
+func _station_defense_departure_pilot_is_current(craft: HeroShip, actor: PlayerController) -> bool:
+	return is_inside_tree() and not is_queued_for_deletion() and _network_session_mode != &"client" \
+		and is_instance_valid(craft) and craft == active_ship and craft.is_inside_tree() \
+		and not craft.is_queued_for_deletion() and not craft.is_destroyed() and craft.is_piloted() and not craft.is_remote_piloted() \
+		and not craft.is_landing_active() and not bool(craft.get_telemetry().get("landed", true)) \
+		and _piloting and not _driving and not _transition_busy \
+		and is_instance_valid(actor) and actor == player and actor.is_inside_tree() \
+		and not actor.is_queued_for_deletion() and actor.is_seated_at(craft.get_pilot_seat_anchor())
 
 
 func _reserve_berth_for_ship(candidate: HeroShip, berth_id: StringName, occupy_now: bool) -> bool:

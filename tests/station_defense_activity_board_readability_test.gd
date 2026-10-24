@@ -95,14 +95,18 @@ func _run() -> void:
 		{TEST_WEAPON: {"range": 200.0, "damage": 100.0, "origin_tolerance": 8.0}}
 	)
 	var actor_started: bool = board.interact(actor)
-	var started: Dictionary = board.get_last_result()
+	_check_status(board, status_label, &"idle", content.get_generation(),
+		"[>] ARMED // BOARD A CRAFT\nDEPART TO START DEFENSE",
+		"Deploy visibly arms the inactive encounter and names the physical launch")
+	# Disclosed public owner fixture for resolver-driven wave/terminal readability.
+	var started: Dictionary = content.start(content.get_generation())
 	var generation := content.get_generation()
 	await process_frame
 	_check(
 		registered and actor_started and bool(started.get("accepted", false))
 		and _status_text(board) == ">> WAVE 1 / 3\nROSTER 0 / 1"
 		and status_label.text == _status_text(board),
-		"public board interaction presents wave 1 with its single authored hostile"
+		"public content-owner fixture presents wave 1 with its single authored hostile"
 	)
 
 	var roster := content.get_node(^"OpponentRoster") as Node3D
@@ -161,6 +165,8 @@ func _run() -> void:
 	_check_status(board, status_label, &"idle", idle_generation, "[ ] READY\nDEPLOY AVAILABLE", "completion reset clears terminal copy for redeployment")
 
 	var failed_started: bool = board.interact(actor)
+	var failed_owner_start := content.start(content.get_generation())
+	failed_started = failed_started and bool(failed_owner_start.get("accepted", false))
 	var failed_generation := content.get_generation()
 	var failed := content.fail(&"readability_test_failure", failed_generation)
 	await process_frame

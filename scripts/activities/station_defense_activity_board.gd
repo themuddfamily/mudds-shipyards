@@ -50,6 +50,9 @@ var _automatic_persistence := false
 var _session_refused := false
 var _reward_request_active := false
 var _loading_session := false
+var _launch_arm_serial := 0
+var _armed_generation := -1
+var _armed_actor: WeakRef
 var _presentation_generation := -1
 var _presentation_state_id: StringName = &"unavailable"
 var _presentation_text := "AWAITING LINK"
@@ -65,6 +68,10 @@ func _ready() -> void:
 	if not _built:
 		_built = true
 		_build_physical_board()
+
+
+func _exit_tree() -> void:
+	_retire_launch_arm()
 
 
 func configure_external_owners(
@@ -94,6 +101,7 @@ func configure_external_owners(
 	if not bool(configured.get("accepted", false)):
 		return _result(false, StringName(configured.get("reason", &"content_configuration_failed")))
 	_content = content
+	_content.tree_exiting.connect(_retire_launch_arm)
 	_combat_authority = combat_authority
 	_activity_director = activity_director
 	if not _content.snapshot_changed.is_connected(_on_content_snapshot_changed):
@@ -218,7 +226,8 @@ func get_interaction_snapshot(actor: Node, expected_generation: int) -> Dictiona
 	if expected_generation != generation:
 		result["reason"] = &"stale_generation"
 		return result
-	if not actor is Node3D or not is_instance_valid(_content) or not _content.is_content_ready():
+	if not is_instance_valid(actor) or not actor is Node3D or not actor.is_inside_tree() \
+			or actor.is_queued_for_deletion() or not is_instance_valid(_content) or not _content.is_content_ready():
 		result["reason"] = &"invalid_actor_or_content"
 		return result
 	var distance := (actor as Node3D).global_position.distance_to(global_position)
@@ -245,6 +254,8 @@ func get_physical_interaction_action() -> StringName:
 		return &"retry_reward"
 	if not is_instance_valid(_content) or not _content.is_content_ready():
 		return &"unavailable"
+	if bool(get_launch_arm_snapshot().armed):
+		return &"cancel"
 	match _presentation_state_id:
 		&"idle":
 			return &"deploy"
@@ -261,6 +272,8 @@ func get_interaction_prompt() -> String:
 			return "[ E ]  DEPLOY STATION DEFENSE"
 		&"retry_reward":
 			return "[ E ]  REPORT PENDING — INTERACT TO RETRY"
+		&"cancel":
+			return "[ E ]  CANCEL ARMED DEFENSE — BOARD A CRAFT AND DEPART"
 		&"reset":
 			return "[ E ]  RESET STATION DEFENSE"
 		&"status":
@@ -277,15 +290,78 @@ func interact(actor: Node = null) -> bool:
 		_last_result = gate.duplicate(true)
 		interaction_resolved.emit(actor, _last_result.duplicate(true))
 		return false
+	if not bool(get_launch_arm_snapshot().armed):
+		_retire_launch_arm()
 	if _session_refused:
 		_last_result = _result(false, &"session_restore_refused")
 	elif _has_pending_reward():
 		_request_completed_reward({})
 		_last_result = _result(not _has_pending_reward(), &"reward_pending" if _has_pending_reward() else &"reward_settled")
+	elif bool(get_launch_arm_snapshot().armed):
+		_retire_launch_arm()
+		_refresh_presentation(_content.get_snapshot())
+		_last_result = _result(true, &"launch_arm_cancelled")
 	else:
-		_last_result = _content.start(generation)
+		var activity := (_content.get_snapshot().get("host", {}) as Dictionary).get("activity", {}) as Dictionary
+		if activity.get("state_id") != &"idle":
+			_last_result = _result(false, &"idle_required")
+		else:
+			_launch_arm_serial += 1
+			_armed_generation = generation
+			_armed_actor = weakref(actor)
+			actor.tree_exiting.connect(_retire_launch_arm, CONNECT_ONE_SHOT)
+			_refresh_presentation(_content.get_snapshot())
+			_last_result = _result(true, &"launch_armed")
 	interaction_resolved.emit(actor, _last_result.duplicate(true))
 	return bool(_last_result.get("accepted", false))
+
+
+## Runtime request only: GameFlow calls this after its authoritative physical
+## departure has retired the exact occupied berth. The host remains the sole
+## encounter/timer owner and direct content starts retain their existing API.
+func launch_armed(actor: Node, current_content: StationDefenseEncounterContent, expected_arm_id: int) -> Dictionary:
+	var arm := get_launch_arm_snapshot()
+	if not bool(arm.armed) or actor != _armed_actor.get_ref() \
+			or current_content != _content or expected_arm_id != _launch_arm_serial:
+		return _result(false, &"current_launch_arm_required")
+	if _session_refused or _has_pending_reward():
+		return _result(false, &"reward_or_session_blocked")
+	var generation := _armed_generation
+	_retire_launch_arm()
+	_last_result = _content.start(generation)
+	_refresh_presentation(_content.get_snapshot())
+	return _last_result.duplicate(true)
+
+
+func get_launch_arm_snapshot() -> Dictionary:
+	var actor := _armed_actor.get_ref() as Node if _armed_actor != null else null
+	var activity: Dictionary = {}
+	if is_instance_valid(_content):
+		activity = (_content.get_snapshot().get("host", {}) as Dictionary).get("activity", {}) as Dictionary
+	var armed: bool = _armed_generation >= 0 and is_inside_tree() and not is_queued_for_deletion() \
+		and is_instance_valid(actor) and actor.is_inside_tree() and not actor.is_queued_for_deletion() \
+		and is_instance_valid(_content) and _content.is_inside_tree() and not _content.is_queued_for_deletion() \
+		and _content.get_parent() == get_parent() and _content.is_content_ready() \
+		and _content.get_generation() == _armed_generation and activity.get("state_id") == &"idle"
+	return {
+		"armed": armed,
+		"arm_id": _launch_arm_serial if armed else 0,
+		"generation": _armed_generation if armed else -1,
+		"actor_instance_id": actor.get_instance_id() if armed else 0,
+		"content_instance_id": _content.get_instance_id() if armed else 0,
+	}.duplicate(true)
+
+
+func _retire_launch_arm() -> void:
+	var was_armed := _armed_generation >= 0
+	if _armed_actor != null:
+		var actor := _armed_actor.get_ref() as Node
+		if is_instance_valid(actor) and actor.tree_exiting.is_connected(_retire_launch_arm):
+			actor.tree_exiting.disconnect(_retire_launch_arm)
+	_armed_actor = null
+	_armed_generation = -1
+	if was_armed and is_instance_valid(_content) and is_inside_tree() and not is_queued_for_deletion():
+		_refresh_presentation(_content.get_snapshot())
 
 
 ## Physical recovery seam. Active encounters abort before reset; terminal
@@ -307,6 +383,11 @@ func abort_and_reset(actor: Node, expected_generation: int) -> Dictionary:
 			return _result(false, &"reward_pending")
 		if state_id == &"idle":
 			return _result(true, &"reward_settled")
+	if bool(get_launch_arm_snapshot().armed):
+		_retire_launch_arm()
+		_refresh_presentation(_content.get_snapshot())
+		_last_result = _result(true, &"launch_arm_cancelled")
+		return _last_result.duplicate(true)
 	# Resetting discards the completed run, so settle an owed reward first.
 	if state_id == &"completed":
 		_request_completed_reward(activity)
@@ -371,6 +452,7 @@ func get_snapshot() -> Dictionary:
 			_activity_director.get_instance_id() if is_instance_valid(_activity_director) else 0
 		),
 		"last_result": _last_result.duplicate(true),
+		"launch_arm": get_launch_arm_snapshot(),
 		"reward_handoff": get_reward_handoff_snapshot(),
 		"session_persistence": get_session_persistence_snapshot(),
 		"combat_authority": false,
@@ -398,6 +480,8 @@ func get_presentation_snapshot() -> Dictionary:
 
 
 func _on_content_snapshot_changed(snapshot: Dictionary) -> void:
+	if not bool(get_launch_arm_snapshot().armed):
+		_retire_launch_arm()
 	if _loading_session:
 		_refresh_presentation(snapshot)
 		return
@@ -566,6 +650,9 @@ func _refresh_presentation(snapshot: Dictionary) -> void:
 		_:
 			status_text = "[?] STATUS UNAVAILABLE"
 			status_color = STATUS_COLOR_RECOVERY
+	if state_id == &"idle" and bool(get_launch_arm_snapshot().armed):
+		status_text = "[>] ARMED // BOARD A CRAFT\nDEPART TO START DEFENSE"
+		status_color = STATUS_COLOR_ACTIVE
 	if _has_pending_reward():
 		status_text = "[!] REPORT PENDING // INTERACT TO RETRY"
 		status_color = STATUS_COLOR_ACTIVE
