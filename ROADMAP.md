@@ -42,6 +42,24 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
+**COURIER-ESCAPE selected — one complete existing encounter outcome.**
+Fresh Guided Torrent, actual four range kills and the original defender alive
+through automatic first courier dispatch. Let that same positive-hull runner
+cross the original1,400m boundary; require director ESCAPED and every dispatched
+actor stood down with no further fire. Then defeat the original defender through
+real input and finish the original strict home landing/occupied lease, OFFLINE
+shutdown and physical exit. No placement, direct damage or encounter-rule change.
+
+One driver/passive-observer implementer, one independent reviewer; root owns
+engines/Git/private package and cleanup. Preserve4.5s dispatch,82% distress,
+2.4s escort,700m/7s disengagement,150s backstop and ordinary300s/outer330s limits.
+One clean packaged private-Xvfb/XTest/x11/Dummy attempt; first failure stops for
+causal review. No unchanged retry, cap increase, new branch/worktree or hosted CI.
+Estimate30–60min implementation/review plus10–20min checks/package/cleanup;
+split before90min. This does not schedule withdrawal/recovery/other craft or
+close parent11. Card/results: `/srv/mudds-work/courier-escape-20261024/results/`.
+
+
 **HALYARD network cabin repair readout DONE — `ce2329a82`.**
 The physical cabin repair row now shows accepted current host progress,
 completion/interruption, cooldown and stock, including for a walking occupant.
