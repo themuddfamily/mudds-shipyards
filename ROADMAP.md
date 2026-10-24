@@ -43,6 +43,31 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
+**Selected: HALYARD-NETWORK-SEAT-REJECTION — occupied-chair feedback.**
+The actual host rejects an occupied physical crew chair but the client pending
+request currently expires silently after four seconds. Retain the real delegated
+claim result with its actual interaction/body/seat identity and publish it only
+to that requester through the existing Halyard passenger snapshot. The current
+matching pending request should show one accurate occupied-chair toast, remain
+supported and usable, then successfully retry after the host occupant stands.
+Stale, foreign, replayed and retired-lifetime results must stay silent.
+
+One implementation agent owns the existing remote-body source/simulation,
+Halyard passenger binding, GameFlow and four existing focused/peer test files.
+Root owns clean-source tests, packages, integration/push and cleanup; one
+independent reviewer checks request correlation and lifetimes. No new RPC,
+schema/version, validator, seat authority or arbitration rule. First reproduce
+the missing actual delegated-result receipt; then validate request-ID dedupe,
+current/invalid consumer lifetimes and one selected real ENet host/client route.
+The latter retains existing exterior setup and complete default passenger
+role/lifecycle path, adding occupied-seat rejection, release and fresh retry;
+original 300s/outer360, individual waits and four-second expiry remain unchanged.
+All automation uses Dummy and headless/private Xvfb/x11. First failure stops for
+causal review. Estimate 30–60min implementation plus 15–25min validation/package/
+cleanup; split before90min. Full original two-client moving seat race/transfer,
+other rejection reasons, broader baseline/endurance and native/human remain open.
+
+
 **HALYARD network cabin roster DONE — `a0764f281`; checkpoint `a0764f2`.**
 The physical panel now presents compact host crew occupancy, readiness, engineer
 routing and handoff facts through the existing engineer snapshot. Ordinary
