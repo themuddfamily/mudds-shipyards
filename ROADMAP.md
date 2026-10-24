@@ -42,6 +42,23 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
+**COURIER-ESCAPE preparation receipt correction selected.**
+The resolver already exposes exact accepted/resolved misses, and the existing
+Arrow observer projects actual request/source facts. Extend that same seam for
+Courier preparation. A fresh harmless miss may retire its pulse only after real
+input acknowledgement/release and normal cooldown/readiness; stale, unresolved,
+rejected, blocked, damaging or foreign outcomes cannot rearm. The original two
+actual85→51→17 wounds and complete first-courier escape/standdown/home remain
+mandatory. This does not assert that the earlier unobserved shot was a miss.
+
+One implementer/independent reviewer; root owns checks, fresh private package and
+one changed full attempt. Preserve300s/outer330 and every encounter constant;
+continue the original90min planning budget rather than resetting it. No gameplay,
+tuning or protocol change, new branch/worktree or hosted CI. Earlier failed source
+and raw remain archived below. Working card/results:
+`/srv/mudds-work/courier-preparation-receipt-20261024/results/`.
+
+
 **COURIER-ESCAPE stopped — preparation hit was not confirmed.**
 The one original packaged attempt stopped41.413s at first courier dispatch.
 Ordinary four-target clearance passed; the defender remained alive at85 hull.
