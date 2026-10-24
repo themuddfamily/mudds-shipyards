@@ -43,6 +43,48 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
+**Selected: SERVER-BASELINE-PASSENGER-RECONNECT — physical Halyard crew readmission.**
+A real consumer gap blocks this original parent16/26 outcome: transport loss clears
+the passenger's berth/body but retains a usable solo cabin. Normal pause-menu
+Manual Join reuses the Player/adapter, yet crew interactions require the lost
+berth and unclaimed cabin boarding asks for the occupied pilot seat.
+
+Add a narrow physical Halyard crew interaction: an eligible unclaimed rejoined
+passenger sees JOIN CABIN; the first ordinary Interact requests only a STANDING
+passenger berth through existing host BOARD_ANY authority. Usual confirmation
+binds a fresh current body; ordinary walking and a later press claim the chair.
+One helper must agree across candidate/prompt/action, checking actual current
+admission/Player/cabin/frame/floor/bounds/reach, no old claim/source/request and
+accepted host non-destroyed landed/docked/OFFLINE/committed state. Existing pending
+request lifetime/abandonment must reject retired contexts. No automatic restoration
+or same-edge seat claim. Preserve generic pilot prompts/selection, held-berth swap/
+exit, exterior and other-craft paths and host boarding/role/canopy authority.
+
+Full case retains original server/two-independent-client BOARD +seven MOVING,
+then a host ENet disconnect of ONLY passenger B while flight is real. Require
+actual transport/server-disconnected/session-stop events and exact old peer/body/
+claim/stream/prediction retirement; A/server/helm/ownership continue. B recovers
+supported solo controls, then same-process/Player/adapter pause→Server Browser→
+Manual Join→Back→Resume obtains actual fresh admission (IDs need not increase).
+A uses ordinary inputs to return to actual home capture, sole landing input and
+strict physical/committed docking. Rejoined B physically requests a berth, walks/
+claims the same crew chair and both prove renewed real host flight/consumed roles
+before complete terminal handshake/three actual OS exits0.
+
+One high-effort implementer owns GameFlow and the existing client-boarding and
+Halyard passenger-route tests; root owns docs/Git/guarded checks/checkpoint/cleanup,
+with one independent lifecycle reviewer. Existing focused seam first reproduces
+RED, then minimal runtime repair/negatives; source review/strict compile precede
+ONE full trial with first-failure causal review. Selector
+`--ordinary-two-client-passenger-reconnect`. Original300s/global,360s/outer,
+20s join,8s transitions,15s walks,10s abort/exit stay; selected20s input-only return
+to capture,24s near-home dock and8s consumer stay inside the same global budget.
+No placement/direct claims/landing calls, ID forcing, tuning or new validator.
+Estimate45–60min implementation +10–20min checks/build/cleanup, split before90min
+on one case clock. A working runtime checkpoint requires fresh safe Windows EXE/
+ZIP/notes and silent isolated startup/package checks; native qualification remains
+open. Dummy/headless/private-Xvfb/x11 only; Actions stays disabled.
+
 **SERVER-BASELINE-LATE-JOIN DONE — `437fe903d`.**
 The original pilot boards normally and flies5.019m before the late client's
 process starts. The new station Player receives current airborne craft/pilot/
@@ -67,11 +109,8 @@ Source Linux/private-Xvfb input qualification only; full baseline, endurance,
 exported/native/device/human and all36 parent/ten phase gates remain open.
 [Result and retained failures](docs/history/ROADMAP_DELIVERIES.md#server-baseline-late-join--accepted--2026-10-24).
 
-Next action: define the original SERVER-BASELINE passenger reconnect case using
-actual transport loss and normal Manual Join, retaining the server/pilot and
-requiring a usable physical return to crew. Its complete route and bounds must
-be settled before selecting implementation or an engine trial. No parked case
-is automatically retried; Actions remains disabled.
+The passenger reconnect capability/case is separately selected above; no parked
+case is automatically retried.
 
 **SERVER-BASELINE-SEAT-RACE DONE — `99c9fc1af`.**
 The complete original non-playing authority/two-client BOARD and seven MOVING
