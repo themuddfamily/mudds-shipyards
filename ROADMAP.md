@@ -29,26 +29,31 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Selected: PLAY-BREACH — complete the first ordinary Heavy Breach sortie.**
-Done means normal on-foot Heavy posting/physical E arm, ordinary Arrow boarding/
-takeoff, actual charged picket destroyed by real player weapons, CLEARED, one
-independently read durable Heavy reward, strict home/OFFLINE physical exit,
-physical board return confirming the normal Torpedo posting, normal UI OS exit0.
-Retain originalCAP300/outer360, all production timers/tuning and authored protected
-objective's live identity/presence; Perimeter health thresholds do not apply.
-Earlier Heavy/Torpedo withdrawal/home passes and staged kill fixtures do not
-prove this result. No missing gameplay capability is assumed.
+**Selected: PLAY-BREACH — repair actual Picket damage admission, then the whole sortie.**
+Two retained ordinary trials failed. The corrected caller issued ten real player
+shots: five hit the actual Picket but resolved non_damageable_blocked, five missed;
+Picket health stayed46 and Arrow was destroyed. No kill/payment/home/posting/UI
+completion. Failed qualification is archived/unmerged; accepted main restored.
+[Exact failures](docs/history/ROADMAP_DELIVERIES.md#heavy-breach-first-play--not-accepted--2026-10-25).
 
-One implementation owner extends the existing driver/tests and smallest read-only
-observer/startup/privacy bridge; root owns Git/guarded execution/package/cleanup,
-one independent reviewer. Reuse existing Arrow/board/home/input helpers and only
-needed archived path code. No blanket diagnostic restore, direct damage/reward/
-landing, synthetic checkpoint, alternate-point search, tuning or cap changes.
-Estimate35–50min implementation+10–20min focused checks/private package/ONE full
-trial/cleanup, splitbefore90min on one cumulative clock. First unexpected failure
-stops for causal/cumulative review. Caller-only qualification keeps checkpoint
-bcd268c with explicit package/source limits; a gameplay repair requires fresh
-Windows checkpoint. No engine trial before concrete implementation/source review.
+Independent source/raw review proves the production seam: Picket starts before
+CombatAuthority, initial adapter attachment fails, and later activation registers
+its firing source without attaching its damage adapter. Select the existing
+idempotent attachment before registration's early return, preserving presentation-
+only refusal. One implementer owns StandoffPicket and existing staged live-combat
+test; root carries the reviewed five-file caller on detached candidate and owns
+checks/Git/package/cleanup; one independent reviewer. No preattached test proxy,
+new validator, aim/point/physics/damage/timer change or unchanged rerun.
+
+Full finish remains physical Heavy arm/Arrow takeoff, observed charged picket
+killed by real player weapons/CLEARED, same-generation once-only actual-file
+payment, strict home/OFFLINE physical exit, physical normal Torpedo posting and
+UI actual exit0. Original150s encounter/CAP300/outer360 and authored live objective
+remain. Prior failed work/caller repair remain on the SAME Heavy clock; split
+before90min. Estimate15–25min runtime/regression+15–25min focused checks/full
+journey/fresh paired Windows checkpoint. First unexpected failure stops for
+causal/cumulative review. Source repair requires a fresh playable checkpoint;
+focused adapter success alone cannot close PLAY-BREACH.
 
 **PLAY-DEFENSE remains OPEN; consumed-fire qualification stopped.**
 The one full ordinary trial destroyed Alpha and Beta, then reached the original

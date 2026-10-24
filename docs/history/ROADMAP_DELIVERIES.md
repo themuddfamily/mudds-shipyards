@@ -22617,3 +22617,62 @@ no attempt budget reset. Records consolidated after byte/mode/link verification:
 case-records.tar.gz (111members,106811561bytes,
 SHA256`cff1a2319c4db69b3701c8ffd1f9e629d97c737712947fe9f09c9ce5ef36d989`)
 and closeout.json. No gameplay parent or final/native/hardware gate closes.
+
+## Heavy Breach first play — NOT ACCEPTED — 2026-10-25
+
+PLAY-BREACH/COMBAT-BREACH. Selectionf252b2ce1, first candidate8200aff90,
+corrected caller8023adf71. Existing Arrow/LifeTow path/observer/input/home/UI
+helpers reused; five qualification files only, no gameplay change. Full physical
+Heavy arm/Arrow takeoff/charged picket kill/CLEARED/durable once-only payment/
+strict home/OFFLINE physical exit/physical Torpedo posting/UI actual exit0 remains
+required under original150s encounter/CAP300/outer360.
+
+Python152tests10.920s, observer parse15.780s, privacy1.020s, private Linux
+export25.692s, strict menu startup22.429s and actual package audit2.628s PASS.
+Actual1527 PCK entries match publicbcd268c except observer/startup admission;
+1525 other entries exact,484class records/665UID mappings unchanged. Private
+ELF149003680bytes SHA256`2354d853c3530554f94229d54d446bebde7ee377fc52dd3bf851f260197557e5`.
+First full trial FAIL81.970s/guard82.249s: genuine charged picket/live authored
+objective, zero player shots; Arrow hull0/destroyedframe3702. Picket46/46.
+
+Causal/cumulative review approved ONE caller-only correction: added static-target
+centre-angle threshold>.99998 passed zero of1693 live fight samples, despite642
+actual dual camera/next-muzzle Picket contacts in98windows. Maximum angle
+alignment.9999783400887489. Remove only that extra admission conjunct; retain
+actual ray/charge/readiness/source/consumed-input proof, unchanged aim/trajectory/
+physics. Existing pending-aim fixture uses observed.9999770180378582, assertions
+retained. Corrected152Python tests10.873s PASS. All packaged source exact8200aff;
+explicit driver8023/game8200 binding reuses unchanged audited ELF/Godot checks.
+
+ONE corrected trial FAIL61.721s/guard62.033s:10actual source1102 shots,
+5non_damageable_blocked contacts on actual/root StandoffPicket288383568703 with
+target_entity_id0/adapter0, plus5miss, zero damage/Picket46.10requested/10consumed/
+11released confirms old input gate corrected. Arrow hull0/destroyedframe2628;
+no kill/payment/home/posting/UI completion. Both trials zero diagnostics and
+all input/helper/game/Xvfb cleanup flags true; final truncated raw observations
+after complete terminal samples preserved. No speculative firing correction or
+unchanged third trial selected. Independent source/raw/cumulative reviews GO to
+archive NOT_ACCEPTED and restore accepted main.
+
+Unique source pushed under `archive/withheld/heavy-breach-first-play-20261024`;
+verified incremental bundle, patch and exact five Git blobs preserved/unmerged.
+Nine guarded stages234.455816746s,7PASS/2FAIL, one cumulative clock.21sampled owned
+process identities absent,97scratch entries verified/removed, exact private
+archive verified against ELF before five duplicate build files removed. No task
+branch/worktree created; eight pre-existing detached registrations retained.
+Case consolidated after byte/mode/link verification to129-member
+`/srv/mudds-work/heavy-breach-first-play-20261024/results/case-records.tar.gz`,
+108296483bytes SHA256`cbae77a13904459332290c517cf3a9eacd87b8a75d700e064effedc3526a393d`,
+plus closeout.json. Public checkpointbcd268c remains unchanged.
+
+Subsequent bounded read-only source/raw review identifies an actual production
+defect: authored Picket precedes CombatAuthority; _ready attachment fails, later
+_register_combat_source registers firing without retrying damage attachment.
+Resolver's actual root contacts therefore lack a damageable, before faction/
+damage checks. Existing Courier/ResolverBackedOpponent uses the correct late-
+authority attachment seam. Independent causal/cumulative GO selects one existing
+idempotent attachment before registered early-return, preserving presentation-
+only refusal, plus existing staged real-ray regression without preattachment.
+This is the next runtime repair, retaining the SAME Heavy clock/full goal/90min
+split, with fresh paired Windows checkpoint required. No production success or
+parent closure is claimed by the diagnosis.
