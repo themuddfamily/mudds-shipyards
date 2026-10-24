@@ -42,23 +42,24 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
-**COURIER-ESCAPE selected — one complete existing encounter outcome.**
-Fresh Guided Torrent, actual four range kills and the original defender alive
-through automatic first courier dispatch. Let that same positive-hull runner
-cross the original1,400m boundary; require director ESCAPED and every dispatched
-actor stood down with no further fire. Then defeat the original defender through
-real input and finish the original strict home landing/occupied lease, OFFLINE
-shutdown and physical exit. No placement, direct damage or encounter-rule change.
+**COURIER-ESCAPE stopped — preparation hit was not confirmed.**
+The one original packaged attempt stopped41.413s at first courier dispatch.
+Ordinary four-target clearance passed; the defender remained alive at85 hull.
+Preparation FIRE reached the real sampler at frames1393–1394 and released1395,
+but no defender damage appeared before live courier dispatch1601. The existing
+feedback-bound helper correctly withheld the second pulse and rejected the
+required85→51→17 preparation. Escape/standdown/home were not reached.
 
-One driver/passive-observer implementer, one independent reviewer; root owns
-engines/Git/private package and cleanup. Preserve4.5s dispatch,82% distress,
-2.4s escort,700m/7s disengagement,150s backstop and ordinary300s/outer330s limits.
-One clean packaged private-Xvfb/XTest/x11/Dummy attempt; first failure stops for
-causal review. No unchanged retry, cap increase, new branch/worktree or hosted CI.
-Estimate30–60min implementation/review plus10–20min checks/package/cleanup;
-split before90min. This does not schedule withdrawal/recovery/other craft or
-close parent11. Card/results: `/srv/mudds-work/courier-escape-20261024/results/`.
-
+Raw data lacks the defender-specific resolved shot/target receipt, so the exact
+miss/obstruction cause and a production fix are unproved. No unchanged retry,
+guard weakening, tuning or cap change is selected. Candidatef7d95c1d3 is excluded
+from main and preserved by pushed `archive/withheld/courier-escape-20261024`, with
+verified source bundle/patch/tar and exact failed-run package. All7 guarded stages
+terminal,6pass/1fail; input/helper/game/display cleanup complete. Owned scratch
+is removed and96 result members consolidated into one verified archive plus
+closeout.json. No branch/worktree was created. Public checkpointce2329a remains
+current; parent11 and Courier Escape stay open.
+[Failure, source accounting and reopen boundary](docs/history/ROADMAP_DELIVERIES.md#courier-escape--stopped-at-preparation--2026-10-24).
 
 **HALYARD network cabin repair readout DONE — `ce2329a82`.**
 The physical cabin repair row now shows accepted current host progress,

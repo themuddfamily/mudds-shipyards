@@ -21885,3 +21885,71 @@ verified into
 `87920835d3ae852ad81f058aa78ea586b854eb06137b1b4a4f6d9158656bc8b3`),
 then loose copies removed. Only that archive and closeout.json remain. GitHub
 Actions stays disabled.
+
+
+## Courier Escape — stopped at preparation — 2026-10-24
+
+COURIER-ESCAPE parent11 remains unqualified. One separately selected existing
+card preserved fresh Guided Torrent, four actual range kills, original defender
+alive through automatic4.5s courier dispatch, actual same positive-hull runner
+at1,400m/ESCAPED, every actually dispatched actor inactive/unauthorized/no further
+fire for60 physics frames and throughout the original defender kill/home/OFFLINE/
+physical exit. Distress82%, escort2.4s,700m/7s disengagement,150s backstop and
+original300s driver/330s outer retained. No escort was forced; no gameplay/AI/
+tuning/damage/mask/actor placement changed. One implementer/independent reviewer;
+source GO is not route acceptance.
+
+Candidate `f7d95c1d36730f58b20242739151f898c1415149` changes only the existing
+native driver/tests, passive observer, exact startup selector and privacy tests.
+Root final126 Python tests pass10.754s (guard11.112s); observer parse15.780s,
+privacy1.060s, clean private Linux export25.528s and strict binary menu startup
+22.692s pass. Startup exits0 with one STARTUP_MENU_READY_OK. Actual package audit
+passes4.016s: all1,527 paths match publicce2329a,1,525 entries byte-identical;
+only observer/startup-loader bytecode differs. Exact Linux archive contents,
+modes/source timestamp and metadata agree. This private qualification package
+adds no new player-facing gameplay checkpoint; publicce2329a stays current.
+
+ONE full attempt FAIL41.413s (guard41.693s), zero game diagnostics, all input
+release/helper/game/display reaping true. Actual ordinary walk/board/launch/four
+range kills reaches INTERCEPTOR_ENGAGEMENT frame1331. Range FIRE releases1333;
+weapon readiness returns1391; new preparation FIRE is visible1393–1394 and
+released1395. The original defender301872450366 remains85 hull in EVERY observed
+interceptor sample1331–1601; no34-point damage feedback ever arrives. The helper
+therefore correctly leaves that pulse unresolved and does not rearm a second
+shot. First actual courier dispatch1601 is generation1, running/pending,
+positive hull78, player hull89; the two-wound preparation guard stops the run.
+No escape, standdown, home, UI quit or normal gameOS0 is accepted.
+
+Independent bounded raw reviews agree: ordinary preparation input occurred,
+but the required result did not. The available observer does not retain a
+defender-specific resolved shot/target receipt, so exact miss/occluder cause and
+a production defect are unproved. No supported corrective source change, weaker
+guard, different firing point, tuning, cap increase or unchanged retry selected.
+Reopening requires a concrete supported correction/causal shot result while
+preserving the full selected route and original limits; the earlier successful
+Courier Clear does not transfer acceptance to this distinct outcome.
+
+All five unaccepted files are excluded from main and preserved by pushed
+annotated `archive/withheld/courier-escape-20261024`
+(object5faea1b31bd4184b99f0d94abcea010f8bcd084e)→
+`f7d95c1d36730f58b20242739151f898c1415149`, verified incremental bundle against
+`efb40814a68d6faded0ad2b6f67d7227ce4e358f`, binary patch and exact Git-blob/mode
+source tar. Private ELF148988896bytes SHA256
+`455c0d45229a85af8bf911015ea908963035554864c340d2d711ac2bf06f72ad`
+verified inside95399067byte package archive SHA256
+`f9c7717b2c993453f4c6d55028a1775889625405da5406bc9b8e984c2245ad89`.
+Archive/metadata/startup records moved out of builds; duplicate ELF removed.
+No branch/worktree was created. Main remains sole local/remote branch; previous
+parked detached worktrees and retained archives remain protected.
+
+All7 guarded stages terminal,6pass/1fail, cumulative actual stage121.882s.
+All8 sampled process identities are absent; actual driver-owned input helper,
+game and Xvfb also report reaped. All79 owned scratch entries byte/mode/link
+verified before removal. All96 result members—including source archive/bundle,
+failed raw game log and exact private package—verified into
+`/srv/mudds-work/courier-escape-20261024/results/case-records.tar.gz`
+(104313881bytes, SHA256
+`49004dce5d4719bc605299193e9b0b9faf60fa93ae9df4d857063c5255b559d9`),
+then loose copies removed. Only that archive and closeout.json remain. All36
+parents/ten phase gates and broader native/human/release requirements remain
+open. GitHub Actions remains disabled.
