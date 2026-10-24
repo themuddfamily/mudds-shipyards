@@ -671,7 +671,7 @@ func _assert_recovered_cabin_requests_a_standing_berth() -> void:
 	_check(body != null, "the departing passenger has its actual original host body before the transport cut")
 	if body == null:
 		return
-	var old_body := weakref(body)
+	var old_body: WeakRef = weakref(body)
 	var old_source := game.get_network_remote_body_intent_source()
 	var events := {"transport": 0, "stopped": 0, "reason": &""}
 	session.multiplayer.server_disconnected.connect(func(): events.transport += 1)
