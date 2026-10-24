@@ -90,6 +90,14 @@ approach deadline; capture actual starting/reached local and accepted host poses
 Strict compile and independent review precede one complete trial. No role/goal
 swap, runtime fix, cap extension or clock reset; another failure stops for review.
 
+Detour runc1ad015c5 is retained FAIL160.958s after actual contention, both client
+outcomes and ordinary chair transfer. Host claim sequence7→10/currentgeneration1
+and all nine client/host assignment values agree; the new raw Dictionary comparison
+skipped the existing network/JSON primitive normalization. Independent cumulative
+review selects only that existing helper for BOTH complete nine-field records,
+with required key coverage. No field, physical check or deadline is dropped.
+Strict compile then one full trial; original contract/clock and stopping rule stay.
+
 
 **HALYARD occupied-chair feedback DONE — `bcd268c75`; checkpoint `bcd268c`.**
 An actual host occupied-chair verdict now answers the exact current remote

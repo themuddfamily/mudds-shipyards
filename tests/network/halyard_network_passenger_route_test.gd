@@ -3767,7 +3767,13 @@ func _ordinary_seat_race_client() -> bool:
 				return false
 		elif stage == "transfer" and _role == loser:
 			var view := _game.network_session.get_passenger_replica_snapshot()
-			if not _ordinary_require((view.get("assignment", {}) as Dictionary) == (checked.get("transfer_seat", {}) as Dictionary),
+			var actual := view.get("assignment", {}) as Dictionary
+			var expected := checked.get("transfer_seat", {}) as Dictionary
+			var keys := ["occupant_peer_id", "avatar_id", "vessel_id", "role", "seat_id",
+				"frame_id", "anchor_id", "seat_generation", "claim_sequence"]
+			if not _ordinary_require(actual.size() == keys.size() and expected.size() == keys.size() \
+				and keys.all(func(key: String) -> bool: return actual.has(key) and expected.has(key)) \
+				and _ordinary_fields(actual, keys) == _ordinary_fields(expected, keys),
 				"original loser consumes the host's fresh same-generation newer chair claim"):
 				return false
 		elif stage in ["restore_passenger", "renewed"]:
