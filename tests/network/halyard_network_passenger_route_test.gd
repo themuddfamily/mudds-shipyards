@@ -5313,7 +5313,8 @@ func _ordinary_destruction_client_recovered() -> bool:
 	var overlay := _game.get("_ship_rest_overlay") as CanvasLayer
 	var presenter := _game.get_network_moving_interior_presenter()
 	var avatar := GameFlow.network_client_boarding_avatar_id(_ordinary_peer_id)
-	var view := _game.network_session.get_passenger_replica_snapshot()
+	var status := _game.hud.get("_network_status_presenter") as NetworkSessionStatusPresenter
+	var view := status.get_snapshot() if status != null else {}
 	return _ordinary_same_identity() and _game.network_session == _ordinary_destruction_retained.session \
 		and _player.get_instance_id() == _ordinary_player_id and _player.is_control_enabled() and _player.is_on_floor() \
 		and not _player.is_seated() and not _player.is_sleeping() and not _game.get("_transition_busy") \
@@ -5328,7 +5329,10 @@ func _ordinary_destruction_client_recovered() -> bool:
 		and _game.get("_active_station_seat") == null and _game.get("_network_engineer_client_seat") == null \
 		and _game.get("_network_engineer_pending_seat") == null and _game.get("_network_engineer_source") == null \
 		and (_game.get("_network_client_bunk_rest") as Dictionary).is_empty() and (overlay == null or not overlay.visible) \
-		and (view.get("assignment", {}) as Dictionary).is_empty() and not bool(view.get("seated", false)) \
+		and int(_game.get("_network_engineer_client_claim")) == 0 \
+		and (_game.get("_network_engineer_orphan_release") as Dictionary).is_empty() \
+		and not bool(_game.get("_station_seated")) \
+		and view.get("local_role") == &"observer" and str(view.get("ownership_text", "")) == "OBSERVER" \
 		and _game.network_session.get_moving_interior_latest_relationship(avatar).is_empty() \
 		and (presenter == null or avatar not in presenter.get_drawn_entity_ids()) \
 		and not _craft.is_destroyed() \
