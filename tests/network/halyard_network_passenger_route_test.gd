@@ -3465,8 +3465,12 @@ func _ordinary_passenger_loss_host(baseline: Dictionary) -> bool:
 	for role in ["client", "client_b"]:
 		if not await _wait_file(role + ".passenger_loss_ready", 8.0):
 			return false
+	# JSON receipts decode top-level integer IDs as floats too. Preserve every
+	# manifest field while comparing the same representation as _ordinary_fields.
+	var armed_manifest := JSON.parse_string(JSON.stringify(
+		_ordinary_manifest(int(baseline.pilot_peer), passenger), "", true, true)) as Dictionary
 	if not _ordinary_require(_ordinary_pilot_is_current(int(baseline.pilot_peer)) and _ordinary_passenger_is_current(passenger)
-		and _ordinary_manifest(int(baseline.pilot_peer), passenger) == final_manifest,
+		and armed_manifest == final_manifest,
 		"all original actors arm transport observation after the complete moving prefix with both exact seated claims intact"):
 		return false
 	_write("host.passenger_loss_go", {})
