@@ -88,6 +88,7 @@ func _host_handback() -> bool:
 	_handback_start["release_publication_tick"] = int(_handback_publication().get("published_tick", -1))
 	_handback_start["nose"] = _vector_values(-_craft.global_basis.z.normalized())
 	_handback_start["up"] = _vector_values(_craft.global_basis.y.normalized())
+	_handback_start["right"] = _vector_values(_craft.global_basis.x.normalized())
 	_handback_start["position"] = _vector_values(_station_position())
 	_handback_authorized = true
 	var transition_deadline := Time.get_ticks_msec() + 8000
