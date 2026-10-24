@@ -420,10 +420,15 @@ func _assert_crew_support_is_resolved_once_per_edge() -> void:
 		and int(refused.get("interaction_request_id", 0)) == int(refused_body.get("last_interaction_id", -1))
 		and refused.get("entity_id") == WALKER_ENTITIES[0]
 		and int(refused.get("entity_generation", 0)) == source.get_entity_generation()
+		and int(refused.get("stream_id", -1)) == int(source.get_audit().stream_id)
 		and int(refused.get("owner_peer_id", 0)) == int(refused_body.get("owner_peer_id", -1))
 		and is_instance_valid(refused_seat) and refused.get("seat_id") == refused_seat.get_seat_id()
 		and refused.get("role") == refused_seat.get_role(),
 		"actual consumed body edge retains its delegated occupied-chair result and exact body/seat identity")
+	var detached_result := simulation.get_body_record(WALKER_ENTITIES[0]).get("crew_interaction_result", {}) as Dictionary
+	detached_result["status"] = &"foreign_copy"
+	_check((simulation.get_body_record(WALKER_ENTITIES[0]).get("crew_interaction_result", {}) as Dictionary) == refused,
+		"the projected interaction result is detached from the authoritative body record")
 	await _drive(12)
 	_check(claims.size() == 1,
 		"later neutral packets carrying the consumed interaction id never retry the declined claim")

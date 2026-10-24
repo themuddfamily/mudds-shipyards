@@ -158,15 +158,16 @@ func request_jump() -> void:
 	_jump_latched = true
 
 
-func request_interaction() -> void:
+func request_interaction() -> int:
 	# GameFlow samples the edge before the Player emits its interaction signal.
 	# A cadence send between those consumers must not turn one press into two
 	# host toggles. Requests in a later physics frame remain independent edges.
 	var physics_frame := Engine.get_physics_frames()
 	if physics_frame == _last_interaction_physics_frame:
-		return
+		return _interaction_request_id + (1 if _interact_latched else 0)
 	_last_interaction_physics_frame = physics_frame
 	_interact_latched = true
+	return _interaction_request_id + 1
 
 
 ## One local physics tick. Returns the wire dictionary to send when a send is

@@ -161,17 +161,22 @@ func _test_edges_survive_between_sends() -> void:
 	var source := IntentSource.new(4)
 	source.bind(&"crew_a", 1)
 	var wires: Array = []
+	var requested_id := 0
 	for tick in 12:
 		if tick == 1:
 			source.request_jump()
 		if tick == 2:
-			source.request_interaction()
+			requested_id = source.request_interaction()
+			_check(requested_id == 1 and source.get_interaction_request_id() == 0,
+				"a latched interaction returns its exact future wire id before cadence emits it")
 		var wire: Dictionary = source.advance(2, _sample(), 50)
 		if not wire.is_empty():
 			wires.append(wire)
 	_check(wires.size() == 3, "twelve ticks send three intents")
 	var carrying = Intent.from_dictionary(wires[1] as Dictionary)
 	var after = Intent.from_dictionary(wires[2] as Dictionary)
+	_check(carrying.get_interaction_request_id() == requested_id,
+		"the cadence carries the exact id returned to the pending chair consumer")
 	_check(
 		carrying.has_jump_request() and carrying.get_interaction_request_id() == 1,
 		"a jump and an interaction pressed between sends ride the next send"
@@ -197,16 +202,18 @@ func _test_same_physics_frame_interaction_is_one_edge() -> void:
 	var source := IntentSource.new(1)
 	source.bind(&"crew_a", 1)
 	# Production's sampler sends before the same-frame Player interaction signal.
-	source.request_interaction()
+	var first_id := source.request_interaction()
 	var sampled := source.advance(2, _sample(), 50)
-	source.request_interaction()
+	var same_frame_id := source.request_interaction()
 	var signalled := source.advance(2, _sample(), 51)
+	_check(first_id == 1 and same_frame_id == first_id and same_frame_id == int(sampled.interaction_request_id),
+		"a same-frame request after cadence emission returns the already emitted edge id")
 	_check(sampled.interaction_request_id == 1 and signalled.interaction_request_id == 1,
 		"same-frame sampler and Player signal deliver one host interaction across a cadence send")
 	await physics_frame
-	source.request_interaction()
+	var next_id := source.request_interaction()
 	var next_press := source.advance(2, _sample(), 52)
-	_check(next_press.interaction_request_id == 2,
+	_check(next_id == 2 and next_press.interaction_request_id == next_id,
 		"a distinct press in the next physics frame retains its host interaction")
 	source.unbind()
 	source.bind(&"crew_b", 2)

@@ -286,6 +286,9 @@ func advance(server_tick: int) -> Dictionary:
 		)
 		if bool(delivered.get("accepted", false)):
 			var intent = Intent.from_dictionary(delivered.get("intent", {}) as Dictionary)
+			if int(record.get("interaction_stream_id", -1)) != intent.get_stream_id():
+				record.erase("crew_interaction_result")
+				record["interaction_stream_id"] = intent.get_stream_id()
 			if StringName(record.get("seat_state", &"standing")) == &"standing":
 				body.apply_remote_intent(
 					intent.get_move_axis(), intent.get_look_yaw(),
@@ -297,6 +300,7 @@ func advance(server_tick: int) -> Dictionary:
 			applied += 1
 			if intent.get_interaction_request_id() > int(record.get("last_interaction_id", 0)):
 				record["last_interaction_id"] = intent.get_interaction_request_id()
+				record.erase("crew_interaction_result")
 				_handle_interaction(record)
 		elif StringName(record.get("seat_state", &"standing")) == &"standing" \
 				and not bool(record.get("frozen", false)) and int(record.get("last_intent_tick", -1)) >= 0 \
@@ -392,10 +396,22 @@ func get_occupancy_state(entity_id: StringName) -> int:
 
 
 ## Read-only view of one body's record: identity, hold state and seat state.
+func _crew_interaction_epoch() -> Dictionary:
+	if not is_instance_valid(_session) or not _session.has_method(&"get_migration_snapshot"):
+		return {}
+	var epoch: Dictionary = _session.get_migration_snapshot()
+	return {"package_generation": int(epoch.get("package_generation", 0)),
+		"session_generation": int(epoch.get("session_generation", 0)),
+		"migration_generation": int(epoch.get("migration_generation", 0))}
+
+
 func get_body_record(entity_id: StringName) -> Dictionary:
 	var record := _bodies.get(entity_id, {}) as Dictionary
 	if record.is_empty():
 		return {}
+	var interaction := record.get("crew_interaction_result", {}) as Dictionary
+	if not interaction.is_empty() and interaction.get("epoch", {}) != _crew_interaction_epoch():
+		interaction = {}
 	return {
 		"owner_peer_id": int(record.get("owner_peer_id", 0)),
 		"entity_id": entity_id,
@@ -407,6 +423,7 @@ func get_body_record(entity_id: StringName) -> Dictionary:
 		"avatar_mode": StringName(record.get("avatar_mode", MovementAuthority.MODE_ON_FOOT)),
 		"seated": is_instance_valid(record.get("seat")),
 		"last_interaction_id": int(record.get("last_interaction_id", 0)),
+		"crew_interaction_result": interaction.duplicate(true),
 		"intents_applied": int(record.get("intents_applied", 0)),
 		"occupancy_state": get_occupancy_state(entity_id),
 	}
@@ -517,6 +534,18 @@ func _try_crew_sit(record: Dictionary) -> bool:
 		_audit.interactions_refused += 1
 		return true
 	var claimed: Dictionary = crew_seat_claim.call(record, best)
+	record["crew_interaction_result"] = {
+		"interaction_request_id": int(record.get("last_interaction_id", 0)),
+		"stream_id": int(record.get("interaction_stream_id", -1)),
+		"owner_peer_id": int(record.get("owner_peer_id", 0)),
+		"entity_id": StringName(record.get("entity_id", &"")),
+		"entity_generation": int(record.get("entity_generation", 0)),
+		"seat_id": best.get_seat_id(), "role": best.get_role(),
+		"accepted": bool(claimed.get("accepted", false)), "status": StringName(claimed.get("status", &"")),
+		"binding_generation": int(claimed.get("binding_generation", 0)),
+		"binding_id": int(claimed.get("binding_id", 0)),
+		"epoch": _crew_interaction_epoch(),
+	}
 	if not bool(claimed.get("accepted", false)):
 		_audit.interactions_refused += 1
 		return true

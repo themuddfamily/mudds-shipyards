@@ -87,6 +87,8 @@ func claim(record: Dictionary, seat: ShipCrewSeat) -> Dictionary:
 			or seat not in body.get_nearby_interactables():
 		return {"accepted": false, "status": &"passenger_body_mismatch"}
 	var result := authority.claim(1, peer, avatar, seat.get_seat_id(), seat.get_role(), next_request_sequence(0))
+	result["binding_generation"] = _generation
+	result["binding_id"] = get_instance_id()
 	if _ship is CinderCargoHauler and result.accepted:
 		_ship.refresh_loadmaster_status_display()
 	return result
@@ -157,11 +159,13 @@ func advance(delta: float) -> void:
 	_elapsed = 0.0
 	for peer in _session.get_admitted_peer_ids():
 		var boarded := false
+		var recipient_record: Dictionary = {}
 		for entity in _simulation.get_body_entity_ids():
 			var active := _simulation.get_body_record(entity)
 			var active_body := _simulation.get_body(entity)
 			if active_body != null and int(active.get("owner_peer_id", 0)) == int(peer) and active_body.get_cabin_containment_report().get("frame") == _ship:
 				boarded = true
+				recipient_record = active
 		if not boarded:
 			continue
 		if _ship is HalyardCrewTransport:
@@ -188,11 +192,19 @@ func advance(delta: float) -> void:
 		var avatar := StringName(assignment.get("avatar_id", &""))
 		var body := _simulation.get_body(avatar)
 		var record := _simulation.get_body_record(avatar)
+		var interaction := recipient_record.get("crew_interaction_result", {}) as Dictionary
+		if not _ship is HalyardCrewTransport or not _live() \
+			or int(interaction.get("binding_generation", 0)) != _generation \
+			or int(interaction.get("binding_id", 0)) != get_instance_id():
+			interaction = {}
+		interaction = interaction.duplicate(true)
+		interaction.erase("binding_id")
 		_session.publish_passenger_snapshot(int(peer), {
 			"ship_id": _ship.get_ship_id(), "binding_generation": _generation,
 			"assignment": assignment, "entity_generation": int(record.get("entity_generation", 0)),
 			"manifest": _ship.get_loadmaster_manifest_snapshot(),
 			"navigator": _ship.get_navigator_ping_snapshot() if _ship is CinderCargoHauler else {},
+			"crew_interaction_result": interaction,
 			"seated": _live() and body != null and not record.is_empty() and record.get("seat_state") == &"seated"
 				and is_instance_valid(_simulation.get_body_crew_seat(avatar))
 				and _physical_passenger_seat_matches(_simulation.get_body_crew_seat(avatar))

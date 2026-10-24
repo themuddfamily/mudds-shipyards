@@ -1019,6 +1019,7 @@ var _network_engineer_generation := 0
 var _network_engineer_pending_seat: ShipCrewSeat
 var _network_engineer_client_seat: ShipCrewSeat
 var _network_engineer_pending_elapsed := 0.0
+var _network_halyard_seat_request: Dictionary = {}
 var _network_engineer_request_sequence := 0
 var _network_engineer_selected: StringName = &""
 var _network_engineer_source: LocalShipInputSource
@@ -14315,6 +14316,7 @@ func _on_network_movement_intent_result(result: Dictionary) -> void:
 
 
 func unbind_network_remote_body() -> Dictionary:
+	_network_halyard_seat_request.clear()
 	_clear_network_halyard_repair_panel()
 	_retire_network_client_bunk_rest()
 	if not _network_client_ember_passenger_surface.is_empty():
@@ -15389,6 +15391,7 @@ func _network_local_cabin_prediction_is_current(body: Variant, craft: Variant, s
 ## or being recovered to the deck, and in neither case should the hull's motion
 ## be imparted to the avatar.
 func _release_cabin_occupancy() -> void:
+	_network_halyard_seat_request.clear()
 	_clear_network_halyard_repair_panel()
 	player.clear_cabin_containment()
 	if is_instance_valid(_cabin_ship) and _cabin_ship.is_inside_tree():
@@ -26609,7 +26612,91 @@ func _request_network_engineer_seat(seat: ShipCrewSeat) -> void:
 		return
 	_network_engineer_pending_seat = seat
 	_network_engineer_pending_elapsed = 0.0
-	_network_remote_body_intent_source.request_interaction()
+	_network_halyard_seat_request.clear()
+	var interaction_id := _network_remote_body_intent_source.request_interaction()
+	if seat.get_ship() is HalyardCrewTransport and seat.get_role() == &"passenger":
+		var scope := _network_halyard_seat_request_scope()
+		if not scope.is_empty():
+			var view := network_session.get_passenger_replica_snapshot()
+			_network_halyard_seat_request = {"scope": scope, "interaction_request_id": interaction_id,
+				"binding_generation": int(view.get("binding_generation", 0)) if _network_halyard_seat_view_is_current(view, scope) else 0}
+
+
+func _network_halyard_seat_request_scope() -> Dictionary:
+	var seat := _network_engineer_pending_seat
+	var craft := _cabin_ship as HalyardCrewTransport
+	var source := _network_remote_body_intent_source
+	if not is_instance_valid(seat) or not is_instance_valid(craft) or seat.get_ship() != craft \
+		or seat.get_role() != &"passenger" or source == null or not source.is_bound() \
+		or source.get_entity_id() != network_client_boarding_avatar_id(_network_client_peer_id()) \
+		or source.get_entity_generation() <= 0 \
+		or int(source.get_audit().get("stream_id", -1)) < 0 or _network_client_boarding_claim_server_tick < 0 \
+		or not _network_local_cabin_prediction_is_current(player, craft, network_session):
+		return {}
+	var offer := network_session.get_server_offer()
+	var admission := offer.get("admission", {}) as Dictionary
+	var peer := admission.get("peer", {}) as Dictionary
+	var epoch := network_session.get_migration_snapshot()
+	if admission.get("accepted") != true or int(peer.get("peer_id", 0)) != _network_client_peer_id() \
+		or int(peer.get("peer_generation", 0)) <= 0:
+		return {}
+	return {"source_id": source.get_instance_id(), "stream_id": int(source.get_audit().get("stream_id", -1)),
+		"entity_id": source.get_entity_id(), "entity_generation": source.get_entity_generation(),
+		"player_id": player.get_instance_id(), "craft_id": craft.get_instance_id(), "ship_id": craft.get_ship_id(),
+		"session_id": network_session.get_instance_id(), "peer_id": _network_client_peer_id(),
+		"peer_generation": int(peer.peer_generation), "boarding": _network_client_boarding_claim.duplicate(true),
+		"boarding_tick": _network_client_boarding_claim_server_tick,
+		"seat_id": seat.get_seat_id(), "role": seat.get_role(),
+		"epoch": {"package_generation": int(epoch.get("package_generation", 0)),
+			"session_generation": int(epoch.get("session_generation", 0)),
+			"migration_generation": int(epoch.get("migration_generation", 0))}}
+
+
+func _network_halyard_seat_view_is_current(view: Dictionary, scope: Dictionary) -> bool:
+	if view.get("ship_id") != scope.ship_id or int(view.get("recipient_peer_id", 0)) != int(scope.peer_id) \
+		or int(view.get("peer_generation", 0)) != int(scope.peer_generation) \
+		or int(view.get("binding_generation", 0)) <= 0 \
+		or int(view.get("server_tick", -1)) < int(scope.boarding_tick):
+		return false
+	for field in ["session_generation", "migration_generation"]:
+		if int(view.get(field, 0)) != int((scope.epoch as Dictionary).get(field, -1)):
+			return false
+	return true
+
+
+func _consume_network_halyard_seat_rejection(view: Dictionary) -> void:
+	if _network_halyard_seat_request.is_empty():
+		return
+	var scope := _network_halyard_seat_request_scope()
+	if scope.is_empty() or scope != _network_halyard_seat_request.get("scope", {}):
+		_network_halyard_seat_request.clear()
+		return
+	if _network_remote_body_intent_source == null \
+		or _network_remote_body_intent_source.get_interaction_request_id() != int(_network_halyard_seat_request.interaction_request_id) \
+		or not _network_halyard_seat_view_is_current(view, scope):
+		return
+	var result := view.get("crew_interaction_result", {}) as Dictionary
+	if result.is_empty() or bool(result.get("accepted", true)) or result.get("status") != &"seat_occupied" \
+		or bool(view.get("seated", false)) or not (view.get("assignment", {}) as Dictionary).is_empty():
+		return
+	for field in ["stream_id", "entity_id", "entity_generation", "seat_id", "role", "epoch"]:
+		if result.get(field) != scope.get(field):
+			return
+	if int(result.get("interaction_request_id", 0)) != int(_network_halyard_seat_request.interaction_request_id) \
+		or int(result.get("owner_peer_id", 0)) != int(scope.peer_id) \
+		or int(result.get("binding_generation", 0)) <= 0 \
+		or int(view.get("binding_generation", 0)) != int(result.get("binding_generation", 0)):
+		return
+	var pinned_binding := int(_network_halyard_seat_request.get("binding_generation", 0))
+	if pinned_binding > 0 and int(result.binding_generation) != pinned_binding:
+		return
+	_network_halyard_seat_request.clear()
+	_network_engineer_pending_seat = null
+	_present_network_halyard_seat_rejection()
+
+
+func _present_network_halyard_seat_rejection() -> void:
+	hud.toast("Crew seat unavailable", "Another crew member occupies this chair")
 
 
 func _request_network_engineer_stand() -> void:
@@ -26665,10 +26752,13 @@ func _advance_network_engineer(delta: float) -> void:
 	# Consume the authenticated view already received for this live request
 	# before advancing its clock. Otherwise the expiry tick discards a current
 	# confirmation and asks the host to release the chair it just granted.
+	if not _network_halyard_seat_request.is_empty():
+		_consume_network_halyard_seat_rejection(network_session.get_passenger_replica_snapshot())
 	if is_instance_valid(_network_engineer_pending_seat):
 		_network_engineer_pending_elapsed += delta
 		if _network_engineer_pending_elapsed > 4.0:
 			_network_engineer_pending_seat = null
+			_network_halyard_seat_request.clear()
 
 
 ## All admitted cabin occupants receive this repair/crew display view, including
@@ -26738,6 +26828,7 @@ func _request_network_orphan_crew_release(view: Dictionary, assignment: Dictiona
 
 
 func _present_network_engineer_seat(seat: ShipCrewSeat) -> void:
+	_network_halyard_seat_request.clear()
 	var craft := seat.get_ship()
 	if craft != _cabin_ship or not _network_client_boarding_holds(craft):
 		return
@@ -26809,6 +26900,7 @@ func _finish_network_engineer_stand() -> void:
 
 
 func _cancel_network_engineer(publish_role_change := true) -> void:
+	_network_halyard_seat_request.clear()
 	_client_navigator_pending.clear()
 	if is_instance_valid(optional_semantic_audio_composition):
 		optional_semantic_audio_composition.clear_client_navigator_results()

@@ -32,6 +32,8 @@ var _craft: HeroShip
 var _cinder := false
 var _navigator := false
 var _navigator_rejection := false
+var _halyard_seat_rejection := false
+var _halyard_seat_rejection_complete := false
 var _navigator_result_packets: Array[Dictionary] = []
 var _gunner := false
 var _gunner_shots := 0
@@ -109,6 +111,9 @@ var _ordinary_pilot_loss_retained: Dictionary = {}
 ## Optional ordinary-controls callers share this harness and its owned exits.
 ## Empty defaults retain every existing Halyard/Cinder profile and deadline.
 func _peer_profile() -> Dictionary:
+	if _halyard_seat_rejection:
+		return {"client_roles": ["client"], "private_environment": true,
+			"total_seconds": 300.0, "abort_exit_grace_seconds": 10.0}
 	if _network_bunk_refusal_only or _network_passenger_destruction_only:
 		return {"client_roles": ["client"], "private_environment": true,
 			"total_seconds": 180.0, "abort_exit_grace_seconds": 10.0}
@@ -122,6 +127,8 @@ func _init() -> void:
 
 func _run() -> void:
 	var args := OS.get_cmdline_user_args()
+	_halyard_seat_rejection = "--halyard-seat-rejection" in args
+	args.erase("--halyard-seat-rejection")
 	_network_passenger_destruction_only = "--network-passenger-destruction-only" in args
 	args.erase("--network-passenger-destruction-only")
 	_network_bunk_refusal_only = "--network-bunk-refusal-only" in args
@@ -192,6 +199,8 @@ func _run() -> void:
 	_port = int(args[2])
 	if _network_bunk_refusal_only or _network_passenger_destruction_only:
 		_profile_deadline = Time.get_ticks_msec() + 180000
+	elif _halyard_seat_rejection:
+		_profile_deadline = Time.get_ticks_msec() + 300000
 	_write(_role + ".script_ready", {})
 	_game = Main.instantiate() as GameFlow
 	if _navigator:
@@ -241,6 +250,8 @@ func _run() -> void:
 		await _host()
 	else:
 		await _client()
+	if _halyard_seat_rejection:
+		_check(_halyard_seat_rejection_complete, "selected occupied-chair refusal completes the entire original passenger route")
 	for action in [&"interact", &"move_forward", &"move_back", &"move_left", &"move_right", &"fire", &"camera_distance_out"]:
 		Input.action_release(action)
 	_game.shutdown_network_session(&"passenger_test_done")
@@ -249,7 +260,9 @@ func _run() -> void:
 	await _ticks(3)
 	DirAccess.remove_absolute(_store_path)
 	var done := {"checks": _checks, "failures": _failures}
-	if _network_passenger_destruction_only:
+	if _halyard_seat_rejection:
+		done["complete"] = _halyard_seat_rejection_complete
+	elif _network_passenger_destruction_only:
 		done["complete"] = _network_passenger_destruction_complete
 	elif _network_bunk_refusal_only:
 		done["complete"] = _network_bunk_complete
@@ -334,7 +347,7 @@ func _orchestrate() -> void:
 	for role in peers:
 		var result := _read(role + ".done")
 		_check(not result.is_empty() and (result.get("failures", []) as Array).is_empty(), "%s ordinary production route passes" % role)
-		if _ordinary_two_client_board or _network_bunk_refusal_only or _network_passenger_destruction_only:
+		if _ordinary_two_client_board or _network_bunk_refusal_only or _network_passenger_destruction_only or _halyard_seat_rejection:
 			_check(bool(result.get("complete", false)), "%s selected ordinary scenario completed" % role)
 		if not result.is_empty():
 			_checks += int(result.get("checks", 0))
@@ -362,7 +375,9 @@ func _orchestrate() -> void:
 	quit(0 if _failures.is_empty() else 1)
 
 func _print_peer_success() -> void:
-	if _network_passenger_destruction_only:
+	if _halyard_seat_rejection:
+		print("HALYARD_NETWORK_SEAT_REJECTION_OK checks=%d" % _checks)
+	elif _network_passenger_destruction_only:
 		print("NETWORK_PASSENGER_DESTRUCTION_ONLY_OK checks=%d" % _checks)
 	elif _network_bunk_refusal_only:
 		print("NETWORK_BUNK_REFUSAL_ONLY_OK checks=%d" % _checks)
@@ -425,6 +440,8 @@ func _peer_arguments(role: String, display: PackedStringArray) -> PackedStringAr
 	if not _package_under_test.is_empty():
 		args.append_array(["--main-pack", _package_under_test])
 	args.append_array(["--script", script, "--", role, _directory, str(_port)])
+	if _halyard_seat_rejection:
+		args.append("--halyard-seat-rejection")
 	if _network_passenger_destruction_only:
 		args.append("--network-passenger-destruction-only")
 	elif _network_bunk_refusal_only:
@@ -523,6 +540,12 @@ func _host() -> void:
 		return
 	_check(owner.get_assignment(1, GameFlow.SOLO_CREW_AVATAR_ID).get("role") == (&"gunner" if _gunner else &"passenger") and _game._solo_crew_claim_is_current(), "host-local claim uses exact network-owned chair and body")
 	_check(_game._network_local_role_presentation().local_role == (&"gunner" if _gunner else &"passenger"), "host HUD names confirmed passenger role")
+	if _halyard_seat_rejection:
+		# Reuse this route's existing staged exterior approach and actual ordinary
+		# host chair claim. Keep it occupied until the remote physical refusals.
+		_write("host.ready", {})
+		if not await _halyard_seat_rejection_host(owner):
+			return
 	if _host_gunner_flight:
 		await _host_moving_gunner(owner)
 		return
@@ -546,6 +569,8 @@ func _host() -> void:
 	# Clear the shared exit through ordinary walking before another body arrives.
 	await _walk(Vector3(-1.85, -0.86, -1.7) if _cinder else Vector3(0.0, 0.52, HalyardCrewTransport.AIRSTAIR_Z), 0.10 if _navigator else 0.30)
 	_check(_player.global_position.distance_to(_station_contract().exit_transform.origin) > 2.0, "host walks clear of the shared chair exit")
+	if _halyard_seat_rejection:
+		_write("host.chair_released", {})
 	_player.set_control_enabled(false)
 	var observed_craft: HeroShip
 	var observed_source: ShipCommandSource
@@ -717,6 +742,8 @@ func _host() -> void:
 			_craft.queue_free()
 			_check(await _until(func(): return not is_instance_valid(_craft) and not _player.is_seated() and _player.is_on_floor() and _player.is_control_enabled(), 8.0), "retiring actual seated Cinder restores supported usable local controls")
 			_check(local_owner.get_snapshot().assignments.is_empty() and not _player.has_meta(HeroShip.SOLO_CREW_ROLE_OCCUPANT_META), "retired Cinder releases only its exact claim and physical body tag")
+	if _halyard_seat_rejection:
+		_halyard_seat_rejection_complete = true
 
 func _admitted_session_ready() -> bool:
 	var session := _game.network_session
@@ -774,6 +801,8 @@ func _client() -> void:
 	_check(_player.is_on_floor(), "ordinary cabin walk reaches actual passenger chair supported")
 	await _look(_station_anchor().global_position + Vector3.UP * 1.2)
 	print("PASSENGER_APPROACH: local=", _craft.to_local(_player.global_position), " candidate=", _game.station_interaction_candidate, " nearby=", _player.get_nearby_interactables())
+	if _halyard_seat_rejection and not await _halyard_seat_rejection_client():
+		return
 	await _press(&"interact")
 	var seated := await _until(func(): return _player.is_seated_at(_station_anchor()) and not bool(_game.get("_transition_busy")), 8.0)
 	_check(seated, "ordinary chair Interact seats client only after host confirms")
@@ -897,6 +926,83 @@ func _client() -> void:
 		_check(bool(_game.audio.get_audit_report().get("valid", false)), "client route request spy preserves real Dummy playback/backend lifecycle")
 	_check(not _player.is_seated() and _player.is_control_enabled(), "disconnect leaves local passenger awake with controls")
 	_write("client.disconnected", {})
+	if _halyard_seat_rejection:
+		_halyard_seat_rejection_complete = true
+
+
+func _halyard_seat_rejection_host(owner: CrewSeatRoleAuthority) -> bool:
+	if not await _wait_file("client.admitted", 60.0):
+		return false
+	var peers := _game.network_session.get_admitted_peer_ids()
+	if peers.size() != 1:
+		_check(false, "occupied-chair episode retains one actual admitted remote client")
+		return false
+	var peer := int(peers[0])
+	var avatar := GameFlow.network_client_boarding_avatar_id(peer)
+	var simulation := _game.get_network_remote_body_simulation()
+	var previous := 0
+	for index in [1, 2]:
+		if not await _wait_file("client.seat_refused_%d" % index, 60.0 if index == 1 else 20.0):
+			return false
+		var receipt := _read("client.seat_refused_%d" % index)
+		var record := simulation.get_body_record(avatar)
+		var result := record.get("crew_interaction_result", {}) as Dictionary
+		var body := simulation.get_body(avatar) as PlayerController
+		var valid := not bool(result.get("accepted", true)) and result.get("status") == &"seat_occupied" \
+			and result.get("seat_id") == HalyardCrewTransport.LOADMASTER_STATION_SEAT_ID \
+			and int(result.get("interaction_request_id", 0)) == int(receipt.get("request_id", -1)) \
+			and int(result.get("interaction_request_id", 0)) > previous \
+			and int(result.get("owner_peer_id", 0)) == peer and result.get("entity_id") == avatar \
+			and int(result.get("entity_generation", 0)) == int(record.get("entity_generation", -1)) \
+			and owner.get_assignment(peer, avatar).is_empty() and _game._solo_crew_claim_is_current() \
+			and _player.is_seated_at(_station_anchor()) and body != null and not body.is_seated() and body.is_on_floor()
+		_check(valid, "real authority occupied-chair verdict preserves host occupancy and supported unassigned remote body: %d" % index)
+		if not valid:
+			return false
+		previous = int(result.interaction_request_id)
+		_write("host.seat_refused_%d_checked" % index, {})
+	return true
+
+
+func _halyard_seat_rejection_client() -> bool:
+	var source := _game.get_network_remote_body_intent_source()
+	for index in [1, 2]:
+		var before := int(_game.hud.get("_toast_serial"))
+		await _press(&"interact")
+		var feedback := await _until(func():
+			return int(_game.hud.get("_toast_serial")) == before + 1 \
+				and (_game.hud.get("_toast_title") as Label).text == "CREW SEAT UNAVAILABLE" \
+				and (_game.hud.get("_toast_detail") as Label).text == "Another crew member occupies this chair" \
+				and _game.get("_network_engineer_pending_seat") == null
+		, 8.0)
+		_check(feedback, "fresh real occupied-chair press gets exactly one matching requester toast before expiry: %d" % index)
+		if not feedback:
+			return false
+		var view := _game.network_session.get_passenger_replica_snapshot()
+		var result := view.get("crew_interaction_result", {}) as Dictionary
+		var usable := result.get("status") == &"seat_occupied" \
+			and int(result.get("interaction_request_id", 0)) == source.get_interaction_request_id() \
+			and (view.get("assignment", {}) as Dictionary).is_empty() and not bool(view.get("seated", true)) \
+			and not _player.is_seated() and _player.is_on_floor() and _player.is_control_enabled() \
+			and _game._network_local_role_presentation().local_role == &"passenger"
+		_check(usable,
+			"refused client consumes authentic empty assignment and truthful supported passenger controls: %d" % index)
+		if not usable:
+			return false
+		await _ticks(30)
+		var once := int(_game.hud.get("_toast_serial")) == before + 1
+		_check(once,
+			"periodic retained rejection publication does not replay the requester toast: %d" % index)
+		if not once:
+			return false
+		_write("client.seat_refused_%d" % index, {"request_id": source.get_interaction_request_id()})
+		if not await _wait_file("host.seat_refused_%d_checked" % index, 8.0):
+			return false
+	if not await _wait_file("host.chair_released", 20.0):
+		return false
+	await _look(_station_anchor().global_position + Vector3.UP * 1.2)
+	# Return to the original first-chair press and all original lifecycle checks.
+	return _failures.is_empty()
 
 
 ## Separate opt-in refusal episode; all original walk/chair/accepted/clear/

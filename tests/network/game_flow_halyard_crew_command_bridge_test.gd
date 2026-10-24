@@ -17,6 +17,19 @@ class CrewConfirmationFlow extends GameFlowType:
 		_network_engineer_pending_seat = null
 
 
+class CrewRejectionFlow extends CrewConfirmationFlow:
+	var current_scope: Dictionary = {}
+	var refusals := 0
+
+	# Fixtures isolate the current-scope boundary and toast sink. The physical
+	# passenger route exercises production scope construction and actual HUD.
+	func _network_halyard_seat_request_scope() -> Dictionary:
+		return current_scope.duplicate(true)
+
+	func _present_network_halyard_seat_rejection() -> void:
+		refusals += 1
+
+
 var _assertions := 0
 var _failures := PackedStringArray()
 
@@ -28,6 +41,7 @@ func _init() -> void:
 func _run() -> void:
 	await _test_current_confirmation_precedes_pending_expiry()
 	await _test_orphan_crew_confirmation_is_one_release()
+	await _test_current_occupied_chair_rejection()
 	var flow := GameFlowType.new()
 	var session := AdapterType.new()
 	var halyard := HalyardType.new()
@@ -161,6 +175,87 @@ func _test_orphan_crew_confirmation_is_one_release() -> void:
 	flow.free()
 	session.free()
 	halyard.free()
+
+
+func _test_current_occupied_chair_rejection() -> void:
+	var flow := CrewRejectionFlow.new()
+	var seat := ShipCrewSeat.new()
+	var source := NetworkRemoteBodyIntentSource.new(1)
+	source.bind(&"avatar_7", 3)
+	flow._network_remote_body_intent_source = source
+	var epoch := {"package_generation": 1, "session_generation": 2, "migration_generation": 4}
+	var scope := {"source_id": source.get_instance_id(), "stream_id": int(source.get_audit().stream_id),
+		"entity_id": &"avatar_7", "entity_generation": 3, "player_id": 10, "craft_id": 11,
+		"ship_id": &"halyard_new_design", "session_id": 12, "peer_id": 7, "peer_generation": 2,
+		"boarding": {"ship_id": &"halyard_new_design", "seat_id": &"cabin_1", "role": &"passenger"},
+		"boarding_tick": 100, "seat_id": &"crew_port_00", "role": &"passenger",
+		"epoch": epoch}
+	flow.current_scope = scope.duplicate(true)
+	flow._network_engineer_pending_seat = seat
+	var request_id := source.request_interaction()
+	source.advance(7, {}, 100)
+	_check(not bool(source.get_audit().get("opening_confirmed", false)),
+		"staged current chair request has emitted its exact edge before observing an opening ACK")
+	flow._network_halyard_seat_request = {"scope": scope.duplicate(true), "interaction_request_id": request_id, "binding_generation": 8}
+	var result := {"accepted": false, "status": &"seat_occupied", "interaction_request_id": request_id,
+		"stream_id": scope.stream_id, "owner_peer_id": 7, "entity_id": &"avatar_7", "entity_generation": 3,
+		"seat_id": &"crew_port_00", "role": &"passenger", "binding_generation": 8, "epoch": epoch}
+	var packet := {"ship_id": &"halyard_new_design", "recipient_peer_id": 7, "peer_generation": 2,
+		"session_generation": 2, "migration_generation": 4, "binding_generation": 8, "server_tick": 100,
+		"seated": false, "assignment": {}, "crew_interaction_result": result}
+	for field in ["interaction_request_id", "stream_id", "owner_peer_id", "entity_id", "entity_generation", "seat_id", "role", "binding_generation", "epoch", "accepted", "status"]:
+		var wrong := packet.duplicate(true)
+		wrong.crew_interaction_result[field] = true if field == "accepted" else null
+		flow._consume_network_halyard_seat_rejection(wrong)
+		_check(flow.refusals == 0 and flow._network_engineer_pending_seat == seat,
+			"foreign or positive occupied-chair result stays silent: " + field)
+	for field in ["ship_id", "recipient_peer_id", "peer_generation", "session_generation", "migration_generation", "binding_generation", "server_tick"]:
+		var wrong := packet.duplicate(true)
+		wrong[field] = null
+		_check(not flow._network_halyard_seat_view_is_current(wrong, scope),
+			"a foreign initial passenger slot cannot pin a current chair request: " + field)
+		flow._consume_network_halyard_seat_rejection(wrong)
+		_check(flow.refusals == 0, "foreign passenger envelope stays silent: " + field)
+	var wrong_binding := packet.duplicate(true)
+	wrong_binding.binding_generation = 9
+	wrong_binding.crew_interaction_result.binding_generation = 9
+	flow._consume_network_halyard_seat_rejection(wrong_binding)
+	_check(flow.refusals == 0, "a known original binding cannot be replaced by another matching envelope/result pair")
+	for field in scope.keys():
+		flow.current_scope = scope.duplicate(true)
+		flow.current_scope[field] = null
+		flow._network_halyard_seat_request = {"scope": scope.duplicate(true), "interaction_request_id": request_id, "binding_generation": 8}
+		flow._consume_network_halyard_seat_rejection(packet)
+		_check(flow.refusals == 0 and flow._network_halyard_seat_request.is_empty(),
+			"retired current request scope cannot present an old refusal: " + str(field))
+	flow.current_scope = scope.duplicate(true)
+	flow._network_halyard_seat_request = {"scope": scope.duplicate(true), "interaction_request_id": request_id, "binding_generation": 8}
+	flow._consume_network_halyard_seat_rejection(packet)
+	_check(flow.refusals == 1 and flow._network_engineer_pending_seat == null and flow._network_halyard_seat_request.is_empty(),
+		"one exact current occupied-chair refusal clears its pending request before feedback even before opening ACK")
+	flow._consume_network_halyard_seat_rejection(packet)
+	_check(flow.refusals == 1, "repeated current passenger publications cannot replay feedback")
+	source.advance(7, {}, 100)
+	await physics_frame
+	request_id = source.request_interaction()
+	source.advance(7, {}, 101)
+	flow._network_engineer_pending_seat = seat
+	flow._network_halyard_seat_request = {"scope": scope.duplicate(true), "interaction_request_id": request_id, "binding_generation": 0}
+	flow._consume_network_halyard_seat_rejection(packet)
+	_check(flow.refusals == 1, "a previous refusal cannot answer a fresh press at the same physical chair")
+	packet.crew_interaction_result.interaction_request_id = request_id
+	flow._consume_network_halyard_seat_rejection(packet)
+	_check(flow.refusals == 2 and flow._network_engineer_pending_seat == null,
+		"a fresh press made before any binding view earns its own later authenticated refusal")
+	await physics_frame
+	source.request_interaction()
+	source.advance(7, {}, 102)
+	flow._network_engineer_pending_seat = seat
+	flow._network_halyard_seat_request = {"scope": scope.duplicate(true), "interaction_request_id": request_id, "binding_generation": 8}
+	flow._consume_network_halyard_seat_rejection(packet)
+	_check(flow.refusals == 2, "a newer emitted non-chair edge makes the old pending chair refusal silent")
+	flow.free()
+	seat.free()
 
 
 func _check(condition: bool, description: String) -> void:
