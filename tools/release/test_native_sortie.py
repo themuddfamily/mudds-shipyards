@@ -4160,5 +4160,170 @@ class ArrowReturnReuseTests(unittest.TestCase):
         self.assertEqual(p.stage, 'shutdown')
 
 
+class HeavyBreachCallerTests(unittest.TestCase):
+    """Focused caller/decoder fixtures; the full game must prove the sortie."""
+    @staticmethod
+    def sample(n=10, fire=False):
+        return dict(mode='heavy-breach', sequence=n, frame=n, pid=1, main_id=2, player_id=3,
+            ship_id=4, source_id=5, input_stream=6, command_stream=6, command_sequence=n,
+            paused=False, destroyed=False, transition_busy=False, phase='FREE_FLIGHT',
+            actors_current=True, piloted=True, seated=True, seated_at_pilot=True, active_ship=True,
+            default_sampler=True, source_enabled=True, application_focused=True, mouse_captured=True,
+            weapon_source=1102, native_fire=fire, command_fire=fire, native_interact=False,
+            player=[0, 0, 0], position=[-60, 1, 15], ship_velocity=[0, 0, 0],
+            camera=[-65, 3, 15], camera_back=[math.sin(n*.01), 0, math.cos(n*.01)],
+            target=dict(id=20, generation=7, source_id=2102, active=True, health=60,
+                        destroyed=False, aim=[-90, 30, 40]),
+            breach=dict(board_id=30, director_id=31, objective_id=32,
+                board=dict(director=dict(scenario='heavy_breach', state='running', outcome='pending',
+                    elapsed=10, scenario_generation=8, bounds=dict(scenario_time_limit=150)),
+                    reward_handoff=dict(highest_reward_generation=8, pending_reward_generation=0))),
+            fire_gate=dict(frame=n, ship_id=4, target_id=20, clear=True, weapon=dict(ready=True)))
+
+    def pressing(self):
+        control = native.BreachFireControl()
+        self.assertFalse(control.step(self.sample(10), True))
+        self.assertFalse(control.step(self.sample(11), True))
+        self.assertTrue(control.step(self.sample(12), True))
+        return control
+
+    def test_short_forecast_window_waits_for_consumed_press_and_release(self):
+        control = self.pressing()
+        self.assertTrue(control.step(self.sample(13), False))
+        stale = self.sample(14, True); stale['command_sequence'] = 12
+        self.assertTrue(control.step(stale, False))
+        self.assertFalse(control.step(self.sample(15, True), False))
+        self.assertFalse(control.step(self.sample(16, True), True))
+        self.assertFalse(control.step(self.sample(17), True))
+        self.assertTrue(control.step(self.sample(18), True))
+        self.assertEqual([r['action'] for r in control.receipts],
+                         ['released', 'requested', 'consumed', 'released', 'requested'])
+
+    def test_focus_owner_stream_target_generation_and_deadline_release(self):
+        mutations = [lambda s: s.update(application_focused=False),
+                     lambda s: s.update(source_enabled=False), lambda s: s.update(piloted=False),
+                     lambda s: s.update(paused=True), lambda s: s.update(ship_id=40),
+                     lambda s: s.update(source_id=50), lambda s: s.update(input_stream=7),
+                     lambda s: s['target'].update(generation=9),
+                     lambda s: s['target'].update(active=False),
+                     lambda s: s['target'].update(health=0),
+                     lambda s: s['breach']['board']['director'].update(scenario_generation=9),
+                     lambda s: s['breach']['board']['director'].update(elapsed=150)]
+        for change in mutations:
+            with self.subTest(change=change):
+                control = self.pressing(); sample = self.sample(13); change(sample)
+                self.assertFalse(control.step(sample, True))
+                self.assertFalse(any(r['action'] == 'consumed' for r in control.receipts))
+
+    def test_pending_fire_keeps_current_aim_without_turning_forecast_into_a_hit(self):
+        pilot = native.HeavyBreachPilot(); pilot.stage = 'fight'
+        pilot.launched = pilot.charge = dict(frame=1)
+        with patch.object(pilot, 'weapon_aim', return_value=(7, -4, 1.0)):
+            for n in (10, 11, 12, 13, 14):
+                sample = self.sample(n, fire=(n == 14))
+                sample['fire_gate']['clear'] = n <= 12
+                pilot.last_state = sample
+                keys, dx, dy, fire = pilot.update(sample, 100+n/60)
+                self.assertEqual((dx, dy), (7, -4))
+                self.assertEqual(fire, n in (12, 13))
+        self.assertIsNone(pilot.kill)
+        self.assertIsNone(pilot.paid)
+
+    @staticmethod
+    def shot(terminal=False):
+        return dict(present=True, source_id=1102, source_entity_id=4, accepted=True, resolved=True,
+            request=dict(source_id=1102, source_entity_id=4, weapon_id='arrow_precision_recon_emitter',
+                         range=480, damage=24, sequence=0, presentation_receipt_id=50,
+                         origin=[0, 0, 0], direction=[0, 0, -1]),
+            status='damaged' if terminal else 'miss', impact=[0, 0, -10] if terminal else [math.inf]*3,
+            collider=dict(id=21, path='/picket') if terminal else dict(id=0, path=''),
+            target_entity_id=20 if terminal else 0, damageable_id=22 if terminal else 0,
+            applied_damage=24 if terminal else 0, damaged=terminal, destroyed=terminal,
+            remaining_health=0 if terminal else -1,
+            damage_result=dict(accepted=terminal, health=0 if terminal else -1, destroyed=terminal))
+
+    def test_only_real_terminal_picket_damage_is_a_kill_not_a_miss_or_consumed_input(self):
+        pilot = native.HeavyBreachPilot(); pilot.departure = dict(frame=1)
+        sample = self.sample(); sample['shot'] = self.shot()
+        pilot.observe_shot(sample); self.assertIsNone(pilot.kill)
+        pilot = native.HeavyBreachPilot(); pilot.departure = pilot.launched = pilot.charge = dict(frame=1)
+        sample['shot'] = self.shot(True); sample['target'].update(health=0, destroyed=True)
+        pilot.observe_shot(sample)
+        self.assertEqual(pilot.kill['shot']['remaining_health'], 0)
+        self.assertIsNone(pilot.paid)
+        for changes in (dict(source_id=1103), dict(target_entity_id=99), dict(damaged=False)):
+            with self.subTest(changes=changes):
+                p = native.HeavyBreachPilot(); p.departure = p.launched = p.charge = dict(frame=1)
+                sample['shot'] = self.shot(True); sample['shot'].update(changes)
+                if 'source_id' in changes:
+                    with self.assertRaises(AssertionError): p.observe_shot(sample)
+                else: p.observe_shot(sample)
+                self.assertIsNone(p.kill)
+
+    def test_malformed_miss_and_contact_without_actual_collider_are_refused(self):
+        for change in (dict(impact=[0, 0, 0]), dict(damaged=True), dict(applied_damage=24),
+                       dict(status='world_blocked', impact=[0, 0, -10])):
+            with self.subTest(change=change):
+                pilot = native.HeavyBreachPilot(); pilot.departure = dict(frame=1)
+                sample = self.sample(); sample['shot'] = self.shot(); sample['shot'].update(change)
+                with self.assertRaises(AssertionError): pilot.observe_shot(sample)
+                self.assertIsNone(pilot.kill)
+
+    @staticmethod
+    def paid_sample():
+        s = HeavyBreachCallerTests.sample()
+        s['settlement'] = dict(record=dict(receipt_serial=1, total_receipts=1,
+            reward_counts={'return_heavy_breach_credit': 1}, last_receipt=dict(receipt_id=1,
+            activity_id='shipyard_heavy_breach', reward_id='return_heavy_breach_credit',
+            activity_generation=8, granted=True, replay_allowed=False)))
+        return s
+
+    def test_payment_requires_exact_heavy_identity_single_receipt_and_board_acknowledgement(self):
+        sample = self.paid_sample(); native.HeavyBreachPilot.require_paid(sample)
+        for mutate in (lambda s: s['settlement']['record'].update(total_receipts=2),
+                       lambda s: s['settlement']['record']['last_receipt'].update(activity_id='shipyard_torpedo_run'),
+                       lambda s: s['settlement']['record']['last_receipt'].update(replay_allowed=True),
+                       lambda s: s['breach']['board']['reward_handoff'].update(pending_reward_generation=8),
+                       lambda s: s['breach']['board']['director'].update(scenario_generation=9)):
+            with self.subTest(mutate=mutate):
+                bad = self.paid_sample(); mutate(bad)
+                with self.assertRaises(AssertionError): native.HeavyBreachPilot.require_paid(bad)
+
+    def test_physical_arm_uses_actual_candidate_and_three_dimensional_margin(self):
+        for distance, candidate, expected in ((2.5, True, True), (2.9, True, False), (2.5, False, False)):
+            pilot = native.HeavyBreachPilot(); pilot.stage = 'walk_board'
+            sample = self.sample(); sample.update(phase='APPROACH_SHIP', seated=False, seated_at_pilot=False, active_ship=False, piloted=False,
+                velocity=[0, 0, 0], walk_forward=[0, 0, -1], station_seated=False,
+                game_station_seated=False, sleeping=False, control_enabled=True, capsule_enabled=True,
+                grounded=True, supported=True, support_collider='/floor')
+            sample['breach'].update(candidate=candidate, distance=distance, facing=1,
+                position=[8, 1, -26], available=dict(available=True))
+            sample['breach']['board']['offered_scenario'] = 'heavy_breach'
+            pilot.last_state = sample
+            with patch.object(pilot, 'yaw_to', return_value=(0, 0, 1)):
+                keys, _, _, fire = pilot.update(sample, 100)
+            self.assertEqual('e' in keys, expected)
+            self.assertFalse(fire)
+            self.assertIsNone(pilot.armed)
+
+    def test_actual_file_consumer_rejects_mismatched_committed_terminal(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            profile = Path(tmp)/'profile'; data = profile/'data'; data.mkdir(parents=True)
+            output = Path(tmp)/'out'; output.mkdir()
+            path = data/'mudds_user_data.json'; sample = self.paid_sample()
+            sample['settlement']['store'] = dict(path=str(path), source='primary', generation=2)
+            completion = dict(activity_id='shipyard_heavy_breach', scenario='heavy_breach',
+                              outcome='cleared', reward_granted=True, generation=8)
+            document = dict(schema_version=1, generation=2, commit=dict(id='fixture'),
+                payload=dict(game_flow_reward_store=sample['settlement']['record'],
+                             heavy_breach_session=dict(session=dict(completion=completion))))
+            path.write_text(json.dumps(document)); pilot = native.HeavyBreachPilot(); pilot.paid = dict(frame=1)
+            files = native.HeavyBreachFiles(profile, output); files.observe(sample, pilot)
+            self.assertEqual(files.snapshots['paid']['document']['payload'], document['payload'])
+            document['payload']['heavy_breach_session']['session']['completion']['generation'] = 9
+            path.write_text(json.dumps(document)); files = native.HeavyBreachFiles(profile, output)
+            with self.assertRaises(AssertionError): files.observe(sample, pilot)
+
+
 if __name__ == '__main__':
     unittest.main()
