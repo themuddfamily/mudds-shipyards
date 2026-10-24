@@ -1,8 +1,8 @@
 # Development roadmap
 
 **Playable alpha; full original scope remains unfinished.** Latest playable build:
-[bcd268c Windows checkpoint](builds/windows/MuddsShipyards-bcd268c-checkpoint.zip)
-([changes and validation](builds/windows/MuddsShipyards-bcd268c-notes.txt)).
+[fb396ab Windows checkpoint](builds/windows/MuddsShipyards-fb396ab-checkpoint.zip)
+([changes and validation](builds/windows/MuddsShipyards-fb396ab-notes.txt)).
 Nine of the promised 17 craft exist. All 36 original parent outcomes and ten phase
 exit gates remain open; completed child results are retained, not counted as whole
 features. There is no evidence-backed project percentage or completion date.
@@ -29,31 +29,26 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Selected: PLAY-BREACH — repair actual Picket damage admission, then the whole sortie.**
-Two retained ordinary trials failed. The corrected caller issued ten real player
-shots: five hit the actual Picket but resolved non_damageable_blocked, five missed;
-Picket health stayed46 and Arrow was destroyed. No kill/payment/home/posting/UI
-completion. Failed qualification is archived/unmerged; accepted main restored.
-[Exact failures](docs/history/ROADMAP_DELIVERIES.md#heavy-breach-first-play--not-accepted--2026-10-25).
+**Delivered: PLAY-BREACH first complete ordinary sortie, checkpointfb396ab.**
+Fixed the real late-CombatAuthority Picket damage-adapter gap. The unchanged full
+ordinary journey passes90.112s: physical Heavy arm/Arrow takeoff, actual lance
+charge, real player hits24+22 destroy the46-health picket/CLEARED, exactly one
+same-generation Heavy credit in actual primary data through orderly close,
+strict home/OFFLINE physical exit, physical usable Torpedo posting and UI OS0.
+Independent source/raw review GO; focused lifecycle/encounter/Heavy checks, fresh
+paired exports/three strict startups/actual1527-entry package audit pass.
+[Exact result, prior failures and limits](docs/history/ROADMAP_DELIVERIES.md#picket-damage-admission-and-full-heavy-breach--accepted--2026-10-25).
 
-Independent source/raw review proves the production seam: Picket starts before
-CombatAuthority, initial adapter attachment fails, and later activation registers
-its firing source without attaching its damage adapter. Select the existing
-idempotent attachment before registration's early return, preserving presentation-
-only refusal. One implementer owns StandoffPicket and existing staged live-combat
-test; root carries the reviewed five-file caller on detached candidate and owns
-checks/Git/package/cleanup; one independent reviewer. No preattached test proxy,
-new validator, aim/point/physics/damage/timer change or unchanged rerun.
+Accepted source merged/pushed; EXE/ZIP/notes in builds/windows. Owned processes/
+profiles cleaned and records consolidated; no task branch/worktree was created.
+Both earlier failures and the caller-only angle correction remain recorded on
+the same Heavy clock. Repeat/Torpedo/recovery/broader combat/native/device/final
+requirements stay open; no original parent or phase closes.
 
-Full finish remains physical Heavy arm/Arrow takeoff, observed charged picket
-killed by real player weapons/CLEARED, same-generation once-only actual-file
-payment, strict home/OFFLINE physical exit, physical normal Torpedo posting and
-UI actual exit0. Original150s encounter/CAP300/outer360 and authored live objective
-remain. Prior failed work/caller repair remain on the SAME Heavy clock; split
-before90min. Estimate15–25min runtime/regression+15–25min focused checks/full
-journey/fresh paired Windows checkpoint. First unexpected failure stops for
-causal/cumulative review. Source repair requires a fresh playable checkpoint;
-focused adapter success alone cannot close PLAY-BREACH.
+The dependent next ready activity is PLAY-TORPEDO: reach its posting through the
+ordinary Heavy journey/rotation, then real seekers/boat destruction/distinct
+payment/home/next posting. Freeze its complete card/caps before implementation;
+no direct scenario selection or skipped Heavy prerequisite.
 
 **PLAY-DEFENSE remains OPEN; consumed-fire qualification stopped.**
 The one full ordinary trial destroyed Alpha and Beta, then reached the original

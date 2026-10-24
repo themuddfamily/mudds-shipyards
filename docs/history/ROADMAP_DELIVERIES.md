@@ -22676,3 +22676,75 @@ only refusal, plus existing staged real-ray regression without preattachment.
 This is the next runtime repair, retaining the SAME Heavy clock/full goal/90min
 split, with fresh paired Windows checkpoint required. No production success or
 parent closure is claimed by the diagnosis.
+
+## Picket damage admission and full Heavy Breach — ACCEPTED — 2026-10-25
+
+PLAY-BREACH/COMBAT-BREACH shared first full ordinary sortie; one delivery, not two.
+Accepted clean source `fb396ab13b2e432d22f88b6d730df42ace9b9c1f`, checkpointfb396ab.
+Selection886677da3 follows both retained ordinary failures, one source/raw-proved
+caller-angle correction and independent cumulative priority review. Runtime adds
+one existing idempotent damage-adapter attachment after valid CombatAuthority
+lookup/before registered early-return in StandoffPicket. The initial presentation-
+only guard remains. This repairs actual root-Picket non-damageable contacts caused
+by authored startup order; no weapon/damage/health/physics/aim/mask/timer tuning.
+
+Existing staged live-combat helper now explicitly exercises Courier and Picket.
+No fixture preattachment: registered actual Torrent ray damages Picket, repeated
+registration and detach/re-entry retain one adapter and damaged health, real lethal
+rays destroy it, existing activation resets health with the same adapter, inactive
+targets remain protected. Live integration35.160s, Picket199/48.885s, encounter41/
+41.429s and composed Heavy48/76.137s PASS, clean logs. Earlier152Python/observer/
+privacy passes reused only after exact five-file Git-blob comparison. Reviewed
+ordinary caller carried onto accepted base; failed original candidate/result
+remains archived, accepted equivalent source verified integrated.
+
+Fresh paired Windows/Linux exports10.580s/25.520s; strict Linux executable22.476s,
+Linux archive23.976s and Windows embedded-game-data under Linux Godot26.108s
+startups all exit0/exactone STARTUP_MENU_READY_OK. Actual artifact audit5.468s:
+1527matching PCK entries, stock Windows PE code, correct x86_64 machines, exact
+six Linux tar members/all bytes/modes/source timestamps/launchers. Checkpoint
+ZIP exact EXE+notes verified; no native Windows/GPU claim.
+
+ONE full ordinary trial PASS90.112s/guard90.437s, original150s encounter/CAP300/
+outer360. Same supported Player physically arms actual Heavy posting, walks/
+boards Arrow and takes off. Real lance chargeframe2001/elapsed1.6167 targets the
+same authored live objective/dispatchgen1. Two source1102 Arrow resolver hits
+at2061/2087 through one positive actual adapter apply24 then22 damage, health
+46→22→0. Actual kill/CLEARED/payment2087, director elapsed3.05/gen1. Independently
+read actual primary baseline/paid/orderly-close bytes match recorded SHA/document;
+exactly one nonreplayable Heavy/gen1 receipt and CLEARED terminal remain through
+actual normal shutdown. No injected damage/kill/reward/landing/placement/boost.
+
+Strict same leased/parked home+contract2489; neutral OFFLINE/no demand2673;
+supported physical exit/usable ordinary on-foot controls2806. Physical return
+boardcandidate3691 offers enabled/unarmed ARM TORPEDO RUN SORTIE. All16walking
+waypoints/256.877m retained. Focused actual EXIT TO DESKTOP ends game OS0/reaped;
+all inputs/helper/game/Xvfb cleanup true.3336complete raw observations/no partial
+line/no diagnostics; independent source/full raw/file acceptance GO. This closes
+the first full Heavy play only; Torpedo clear/ten-run normal alternation, other
+recovery/damage/craft/multiplayer/device/native GPU/final qualification remain.
+All36original parent outcomes/ten phase exits stay open.
+
+Accepted implementation commits f794edec3/aede8b531/fb396ab13 fast-forwarded into
+main and pushed after exact remote/main/worktree checks. Main is sole branch;
+no new task branch/worktree. Eight pre-existing detached registrations remain
+untouched, including three missing /tmp registrations. Earlier failed archive
+refs/source/bundles retained explicitly. Eleven stage owners terminal,
+45sampled owned process identities absent,166scratch entries byte/mode/link
+verified/removed. Current guarded406.177707195s plus prior234.455816746s =
+640.633523941s; same Heavy clock, no reset, original90min split preserved.
+
+Windows artifacts remain in builds/windows:
+EXE184761808bytes SHA256`47cdbd676d9916ae7ef226c78c64f64b400443629a8477ff8cc6691e7ac898f6`;
+ZIP103292384bytes SHA256`17d6620a99aa31109333aee1e924b0087cbc863c993770399eefcea08c3eb507`;
+notes2931bytes SHA256`0e32218090a654890001365ec6185c39f07c909be1dc7106d211408c54adb054`.
+Linux ELF149003520bytes SHA256`606a8f468a6035dfc4f730b055a9cd8f32e76eaf4d637f6c6e52ca4de890ad00`;
+tar95412853bytes SHA256`02427c40dbb69971c214f1d350deeea5d9f1e3a001df2544b966eced9e1421ef`.
+
+Owned records consolidated after exact byte/mode/link verification:
+`/srv/mudds-work/heavy-picket-damage-admission-20261025/results/` contains only
+case-records.tar.gz (140members,17795639bytes,
+SHA256`5408b0153042c6c4a87a7f3113098e52d46778c9a8136eda4eaf647e353c66af`)
+and closeout.json. Public artifacts retained; no Downloads or hosted Actions run.
+Native Windows execution, native hardware/performance, physical devices/listening
+and human review remain NOT_RUN with existing owner exclusions unchanged.
