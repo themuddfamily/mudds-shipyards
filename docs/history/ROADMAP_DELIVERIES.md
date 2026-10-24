@@ -22564,3 +22564,56 @@ nonempty proof for every337 named records,36parent/10phase/17craft/8spec/12PLAY/
 12REPEAT/21SHARED coverage, local new-link targets and clean whitespace. No runtime,
 tests, export settings or builds changed; no engine run or duplicate checkpoint.
 This closes the documentation assignment, not a gameplay parent or final release.
+
+## Defense consumed-fire qualification — NOT ACCEPTED — 2026-10-24
+
+PLAY-DEFENSE/parent13. Selected460978151, unaccepted candidate
+`787daded0e34b7e99c51d0c0821af30bea8a8077` (initial20f885ad4 plus fixture-only
+correction). One implementer/one independent source/raw reviewer. Five existing
+qualification files only; ordinary OS held-fire waits for fresh matching native/
+consumed physics input, then consumed release. Current aiming continues. No
+runtime tuning, actors, damage, masks, alternate staging point, boost, direct
+kill/payment/landing or original34s/CAP300/outer360 changes.
+
+First Python stage FAIL:152tests/10.906s; mocked aiming sample omitted the
+observer's fire_gate receipt. One reviewed fixture-only correction retained every
+assertion and production path. Corrected152tests/10.857s, observer parse15.896s,
+startup privacy1.192s, private export26.620s, menu startup22.348s and actual PCK
+comparison2.604s PASS. Package startup exit0/exactone STARTUP_MENU_READY_OK.
+All1527 PCK paths matched current publicbcd268c; only diagnostic observer/startup
+admission changed, other1525 entries exact.484class records/665UID mappings
+semantically identical. Private ELF149027328bytes,
+SHA256`2928382254618c0caf3514ed0163cd84143c104f1b2b3db0a5c0aa51ae552508`.
+
+ONE complete ordinary trial FAIL: driver104.968s/guard105.313s. Physical board
+Deploy armed and real occupied Arrow takeoff started activity; original staging
+point reached. Player source1102 produced12 real resolver outcomes:7damaged,
+2destroyed,2miss,1world_blocked. Alpha diedframe3279/activity20.150s; Beta
+frame3751/28.0167s. Actual activity timed_out34.0166667s with two remaining;
+Gamma health61, Heavy not activated. Input records12requested/10consumed/
+13released/2invalidated establish actuation, not four kills. Payment, home,
+physical exit/Reset/next Deploy and normal UI exit were NOT_REACHED. No matched
+engine diagnostics; final raw truncated observation after complete terminal
+samples is retained. No engine-defect or full-route success claim.
+
+First full-trial failure stopped work. Independent cumulative/raw review GO to
+archive and restore acceptedmain460978151. Reopen only after a source/raw-supported
+cause and one explicit bounded caller/product correction capable of preserving
+all four kills/waves1–2–1/34s and settlement/home/reset/UI endpoints. No unchanged
+retry or speculative aim/staging/timer change selected.
+
+Unique source pushed as annotated archive tag
+`archive/withheld/defense-consumed-fire-20261024`; exact incremental bundle, patch
+and five Git source blobs verified. No failed qualification source merged and no
+task branch/worktree created. Eight stage owners terminal,19sampled PID identities
+absent,88scratch entries byte/mode/link verified/removed. Private export archive
+verified against the exact ELF before five duplicate build files were removed.
+Existing eight detached worktree registrations preserved, including three missing
+/tmp entries; not pruned. Current public Windows checkpoint remainsbcd268c.
+
+Eight guarded stages196.586675406s (sixPASS/twoFAIL), one cumulative case clock;
+no attempt budget reset. Records consolidated after byte/mode/link verification:
+`/srv/mudds-work/defense-consumed-fire-20261024/results/` contains only
+case-records.tar.gz (111members,106811561bytes,
+SHA256`cff1a2319c4db69b3701c8ffd1f9e629d97c737712947fe9f09c9ce5ef36d989`)
+and closeout.json. No gameplay parent or final/native/hardware gate closes.

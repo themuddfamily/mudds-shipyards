@@ -29,33 +29,20 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Selected: PLAY-DEFENSE — complete the original ordinary Defense sortie.**
-Done means physical Deploy/real Arrow takeoff, all four real player-weapon kills
-in waves1–2–1 within the unchanged34s activity, once-only actual-file payment,
-strict home/OFFLINE physical exit, physical board Reset/usable next Deploy and
-normal UI game exit0, originalCAP300/outer360. No first-kill substitute.
+**PLAY-DEFENSE remains OPEN; consumed-fire qualification stopped.**
+The one full ordinary trial destroyed Alpha and Beta, then reached the original
+34s timeout with two hostiles remaining. Payment/home/Reset/UI exit were not
+reached. Input consumption worked; it did not prove encounter completion or an
+engine defect. Failed source/results are archived, accepted main restored, owned
+processes/profiles/private package duplicates cleaned. No retry is selected.
+[Exact result and reopening condition](docs/history/ROADMAP_DELIVERIES.md#defense-consumed-fire-qualification--not-accepted--2026-10-24).
 
-Retained raw/source review found requested fire not consumed in short windows;
-IPC versus engine polling latency remains unproven and actual occlusion remains.
-Independent review selects only a Defense-specific ordinary held-fire actuator:
-retain a valid press until a FRESH matching source/stream advanced physics command
-reports consumption; release/re-evaluate, and release immediately on target/source/
-focus/ownership/lifecycle invalidation or original deadline. Cached true cannot
-acknowledge a new request; consumption cannot fabricate a shot/hit. Keep actual
-misses/blocked contacts, real resolver/kill/payment guards and all gameplay tuning.
-
-One high-effort implementer owns the existing native driver/Python tests plus the
-smallest required existing observer/startup/privacy bridge; root owns guarded
-execution/Git/package/cleanup, one independent reviewer. Port only required old
-capability; do not merge the archived five-file diagnostic candidate wholesale.
-Estimate45–60min implementation +10–20min checks/one full trial/cleanup; split
-before90min on one case clock. Focused actuator tests and strict source review/
-compile/privacy precede a clean private export/menu check and ONE complete trial.
-First unexpected failure stops for causal/cumulative priority review. No cap,
-physics, damage, masks, actors, aim gain, boost or alternate firing-point search.
-No engine trial is authorized until the consumed-input correction is concrete.
-A gameplay repair needs a fresh public checkpoint; a caller-only qualification
-retains the current checkpoint and explicit source/package limits.
+The finish line remains physical Deploy/real Arrow takeoff, all four genuine
+player-weapon kills in waves1–2–1 within unchanged34s, once-only actual-file
+payment, strict home/OFFLINE physical exit, physical board Reset/usable next
+Deploy and normal UI game exit0, originalCAP300/outer360. Reopen only for a
+source/raw-supported cause and bounded correction that preserves that whole
+journey. No speculative firing-point/aim/timer changes or unchanged rerun.
 
 **Roadmap contract rewrite completed2026-10-24.**
 Every existing named goal has an explicit **Done means** column in the
