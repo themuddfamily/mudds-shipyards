@@ -26671,8 +26671,8 @@ func _advance_network_engineer(delta: float) -> void:
 			_network_engineer_pending_seat = null
 
 
-## All admitted cabin occupants receive this repair view, including a walking
-## peer with no engineer assignment. Keep it separate from chair input/claims.
+## All admitted cabin occupants receive this repair/crew display view, including
+## a walking peer with no engineer assignment. Keep it separate from chair claims.
 func _sync_network_halyard_repair_panel() -> void:
 	var craft := _cabin_ship as HalyardCrewTransport
 	if not is_instance_valid(craft) or not craft.is_inside_tree() or craft.is_queued_for_deletion() \
@@ -26687,6 +26687,7 @@ func _sync_network_halyard_repair_panel() -> void:
 	var peer := admission.get("peer", {}) as Dictionary
 	var epoch := network_session.get_migration_snapshot()
 	var repair: Dictionary = {}
+	var crew_status: Dictionary = {}
 	if _network_remote_body_intent_source != null and _network_remote_body_intent_source.is_bound() \
 			and _network_remote_body_intent_source.get_entity_id() == network_client_boarding_avatar_id(_network_client_peer_id()) \
 			and _network_remote_body_intent_source.get_entity_generation() > 0 \
@@ -26706,8 +26707,10 @@ func _sync_network_halyard_repair_panel() -> void:
 				and int(assignment.get("occupant_peer_id", 0)) == _network_client_peer_id() \
 				and int(view.get("entity_generation", 0)) == _network_remote_body_intent_source.get_entity_generation() \
 				and assignment.get("role") == &"engineer" and assignment.get("seat_id") == HalyardCrewTransport.ENGINEER_SEAT_ID):
-			repair = ((view.get("gameplay", {}) as Dictionary).get("repair", {}) as Dictionary)
-	craft.set_network_engineer_repair_presentation(true, repair)
+			var gameplay := view.get("gameplay", {}) as Dictionary
+			repair = gameplay.get("repair", {}) as Dictionary
+			crew_status = gameplay.get("crew_status", {}) as Dictionary
+	craft.set_network_engineer_repair_presentation(true, repair, crew_status)
 
 
 func _clear_network_halyard_repair_panel() -> void:

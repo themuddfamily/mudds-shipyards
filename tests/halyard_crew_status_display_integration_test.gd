@@ -194,17 +194,18 @@ func _check_host_repair_panel(craft: Node, display: Node) -> void:
 	var local_repair: Dictionary = craft.get_engineer_repair_state()
 	var local_components: Dictionary = craft.get_component_damage().get_component_report()
 	var local_crew: Dictionary = craft.get_crew_role_gameplay_snapshot()
-	var host_crew: Dictionary = host.get_crew_role_gameplay_snapshot()
 	var host_display: Dictionary = host.refresh_crew_status_display()
-	# Stage the same detached host facts at the existing admitted gameplay
-	# boundary. This does not grant the client a local seat/role authority.
-	progress["crew_status"] = {
-		"authority_attached": host_crew.get("authority_attached", false),
-		"role_occupancy": host_crew.get("role_occupancy", {}).duplicate(true),
-		"departure_readiness": host_crew.get("departure_readiness", {}).duplicate(true),
-		"power_routing": host_crew.get("power_routing", {}).duplicate(true),
-		"emergency_pilot_handoff": host_crew.get("emergency_pilot_handoff", {}).duplicate(true),
-	}
+	# The same actual producer used by the host binding supplies these compact
+	# display facts at the staged admitted boundary, without local role authority.
+	var produced_crew := host.get_engineer_gameplay_state().get("crew_status", {}) as Dictionary
+	_check(
+		produced_crew.get("authority_attached", false)
+			and (produced_crew.get("role_occupancy", {}) as Dictionary).get(&"engineer", []) == [{}]
+			and (produced_crew.get("role_occupancy", {}) as Dictionary).get(&"pilot", []) == [{}]
+			and not str(produced_crew).contains("host_engineer")
+			and not str(produced_crew).contains("host_pilot"),
+		"the existing host engineer view carries compact actual occupancy without actor identities"
+	)
 	var session := Adapter.new()
 	root.add_child(session)
 	session._configured = true
@@ -228,7 +229,8 @@ func _check_host_repair_panel(craft: Node, display: Node) -> void:
 	craft.refresh_crew_status_display()
 	_check(
 		display.get_readout_text().contains("AWAITING HOST")
-			and not display.get_readout_text().contains("KITS"),
+			and not display.get_readout_text().contains("KITS")
+			and not bool(display.get_display_snapshot().get("roster_linked", true)),
 		"a current client cabin awaits its host instead of showing local kit authority"
 	)
 	# Deliberately stage the already-admitted replica boundary, not transport
@@ -248,7 +250,8 @@ func _check_host_repair_panel(craft: Node, display: Node) -> void:
 	flow._advance_network_engineer(0.0)
 	_check(
 		display.get_readout_text().contains("AWAITING HOST")
-			and not display.get_readout_text().contains("REPAIRING"),
+			and not display.get_readout_text().contains("REPAIRING")
+			and not bool(display.get_display_snapshot().get("roster_linked", true)),
 		"a cached repair view from before the current boarding grant cannot populate the panel"
 	)
 	session._engineer_replica_snapshot = packet.duplicate(true)
@@ -257,6 +260,8 @@ func _check_host_repair_panel(craft: Node, display: Node) -> void:
 		display.get_display_snapshot().get("role_states", {}) == host_display.get("role_states", {})
 			and display.get_display_snapshot().get("pilot_ready", false) == host_display.get("pilot_ready", false)
 			and display.get_display_snapshot().get("optional_crew_count", 0) == host_display.get("optional_crew_count", 0)
+			and display.get_display_snapshot().get("engineer_route") == host_display.get("engineer_route")
+			and display.get_display_snapshot().get("emergency_handoff", {}) == host_display.get("emergency_handoff", {})
 			and display.get_readout_text().contains("P [ACTIVE] G [OPEN]")
 			and display.get_readout_text().contains("E [ACTIVE] X [OPEN]"),
 		"a walking client's physical roster and departure readiness match the actual host pilot and engineer claims"
@@ -273,6 +278,32 @@ func _check_host_repair_panel(craft: Node, display: Node) -> void:
 			and craft.get_crew_role_gameplay_snapshot() == local_crew,
 		"a local refresh retains host roster presentation without changing local crew gameplay"
 	)
+	# Losing the current admission/epoch must retire an already-painted roster,
+	# rather than keeping the accepted old host facts or showing local claims.
+	for field in ["peer_generation", "migration_generation", "server_tick"]:
+		var invalid := packet.duplicate(true)
+		invalid[field] = -1
+		session._engineer_replica_snapshot = invalid
+		flow._advance_network_engineer(0.0)
+		craft.refresh_crew_status_display()
+		_check(
+			not bool(display.get_display_snapshot().get("roster_linked", true))
+				and display.get_readout_text().contains("ROSTER [DETACHED]"),
+			"an invalid %s retires the previous host roster even across local refresh" % field
+		)
+		session._engineer_replica_snapshot = packet.duplicate(true)
+		flow._advance_network_engineer(0.0)
+	var missing_crew := packet.duplicate(true)
+	(missing_crew["gameplay"] as Dictionary).erase("crew_status")
+	session._engineer_replica_snapshot = missing_crew
+	flow._advance_network_engineer(0.0)
+	_check(
+		not bool(display.get_display_snapshot().get("roster_linked", true))
+			and display.get_readout_text().contains("REPAIRING"),
+		"a current repair view without crew facts clears the roster independently"
+	)
+	session._engineer_replica_snapshot = packet.duplicate(true)
+	flow._advance_network_engineer(0.0)
 	_check(
 		display.get_readout_text().contains("REPAIRING")
 			and display.get_readout_text().contains(percent),
@@ -303,12 +334,34 @@ func _check_host_repair_panel(craft: Node, display: Node) -> void:
 			and craft.get_component_damage().get_component_report() == local_components,
 		"host presentation never changes the client's local repair authority or component ledger"
 	)
+	_check(
+		bool(host.release_crew_role(1, 77, &"host_engineer", &"crew_port_01", 3, 1).get("accepted", false)),
+		"the actual host releases its engineer while the receiving client remains walking"
+	)
+	packet["revision"] = 3
+	packet["server_tick"] = 13
+	packet["gameplay"] = host.get_engineer_gameplay_state()
+	session._engineer_replica_snapshot = packet.duplicate(true)
+	flow._advance_network_engineer(0.0)
+	craft.refresh_crew_status_display()
+	_check(
+		display.get_readout_text().contains("E [OPEN] X [OPEN]")
+			and bool(display.get_display_snapshot().get("pilot_ready", false))
+			and int(display.get_display_snapshot().get("optional_crew_count", -1)) == 0
+			and craft.get_crew_role_gameplay_snapshot() == local_crew,
+		"the walking physical panel reflects actual host engineer release and count without local authority changes"
+	)
 	flow._cabin_ship = null
 	flow._advance_network_engineer(0.0)
 	_check(
 		display.get_readout_text().contains("IDLE // REPAIR READY")
 			and display.get_readout_text().contains("KITS %d/%d" % [capacity, capacity]),
 		"leaving the live cabin restores its local repair presentation"
+	)
+	_check(
+		display.get_readout_text().contains("P [OPEN] G [OPEN]")
+			and not bool(display.get_display_snapshot().get("pilot_ready", true)),
+		"leaving the cabin retires host pilot readiness and restores actual local roster facts"
 	)
 	flow._cabin_ship = craft
 	flow._advance_network_engineer(0.0)
@@ -318,6 +371,26 @@ func _check_host_repair_panel(craft: Node, display: Node) -> void:
 		display.get_readout_text().contains("IDLE // REPAIR READY")
 			and display.get_readout_text().contains("KITS %d/%d" % [capacity, capacity]),
 		"a stopped session restores the local repair presentation"
+	)
+	_check(
+		display.get_display_snapshot().get("role_states", {}) != host_display.get("role_states", {})
+			and not bool(display.get_display_snapshot().get("pilot_ready", true)),
+		"session stop retires accepted host roster and pilot readiness"
+	)
+	# A streamed craft owns the presentation lifetime independently of GameFlow.
+	# Its old admitted view must not repaint a local refresh on tree re-entry.
+	craft.set_network_engineer_repair_presentation(true, repair, produced_crew)
+	root.remove_child(craft)
+	await process_frame
+	root.add_child(craft)
+	await process_frame
+	await process_frame
+	craft.refresh_crew_status_display()
+	_check(
+		display.get_readout_text().contains("P [OPEN] G [OPEN]")
+			and display.get_readout_text().contains("E [OPEN] X [OPEN]")
+			and not bool(display.get_display_snapshot().get("pilot_ready", true)),
+		"craft tree re-entry retires the host crew presentation cache before local refresh"
 	)
 	flow._cabin_ship = null
 	flow.free()

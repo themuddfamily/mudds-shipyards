@@ -444,6 +444,7 @@ var _crew_status_repair_sequence := -1
 var _skip_next_crew_status_repair_snapshot := false
 var _network_engineer_repair_presentation_enabled := false
 var _network_engineer_repair_presentation: Dictionary = {}
+var _network_crew_status_presentation: Dictionary = {}
 var _loadmaster_station_sign: Label3D
 var _loadmaster_wayfinding_panel: MeshInstance3D
 var _loadmaster_wayfinding_role_key: MeshInstance3D
@@ -773,19 +774,25 @@ func refresh_crew_status_display() -> Dictionary:
 		})
 		if _network_engineer_repair_presentation_enabled and not bool(result.get("accepted", false)):
 			_crew_status_display.present_engineer_repair_waiting()
-	var display_snapshot: Dictionary = _crew_status_display.present_crew_snapshot(snapshot)
+	var crew_presentation := _network_crew_status_presentation if _network_engineer_repair_presentation_enabled else snapshot
+	var display_snapshot: Dictionary = _crew_status_display.present_crew_snapshot(crew_presentation)
 	_present_loadmaster_station_snapshot(snapshot.get("loadmaster_manifest", {}))
 	return display_snapshot
 
 
-## Display facts only: the host repair view never enters this craft's repair
-## authority, stock, component ledger or gameplay snapshot.
-func set_network_engineer_repair_presentation(enabled: bool, repair: Dictionary = {}) -> void:
+## Display facts only: host repair and crew views never enter this craft's
+## authority, stock, component ledger or gameplay snapshot. A current network
+## cabin with no crew view stays detached instead of showing local claims.
+func set_network_engineer_repair_presentation(
+		enabled: bool, repair: Dictionary = {}, crew_status: Dictionary = {}
+	) -> void:
 	if enabled == _network_engineer_repair_presentation_enabled \
-			and (not enabled or repair == _network_engineer_repair_presentation):
+			and (not enabled or (repair == _network_engineer_repair_presentation \
+				and crew_status == _network_crew_status_presentation)):
 		return
 	_network_engineer_repair_presentation_enabled = enabled
 	_network_engineer_repair_presentation = repair.duplicate(true) if enabled else {}
+	_network_crew_status_presentation = crew_status.duplicate(true) if enabled else {}
 	_skip_next_crew_status_repair_snapshot = false
 	refresh_crew_status_display()
 
@@ -1557,6 +1564,7 @@ func get_engineer_gameplay_state() -> Dictionary:
 	var repair := get_engineer_repair_state()
 	return {
 		"schema_version": 1, "authority_attached": _crew_role_authority != null,
+		"crew_status": _get_network_crew_status_presentation(),
 		"component_generation": _engineer_component_generation,
 		"selection": _engineer_component_selection.duplicate(true), "repair": repair,
 		"repair_ready": not is_destroyed() and _landed and not _landing_active
@@ -1564,6 +1572,36 @@ func get_engineer_gameplay_state() -> Dictionary:
 			and bool(repair.get("cooldown_ready", false)) and bool(repair.get("resource_ready", false))
 			and not bool(repair.get("active", false)),
 	}
+
+
+## Only the facts consumed by the physical panel cross the existing engineer
+## view. Actor identities, capabilities, target selection and role authority
+## remain with the host's gameplay snapshot and never enter this presentation.
+func _get_network_crew_status_presentation() -> Dictionary:
+	var crew := get_crew_role_gameplay_snapshot()
+	var occupancy := crew.get("role_occupancy", {}) as Dictionary
+	var role_occupancy := {}
+	for role in HalyardCrewStatusDisplayType.ROLE_ORDER:
+		role_occupancy[role] = [] if (occupancy.get(role, []) as Array).is_empty() else [{}]
+	var departure := crew.get("departure_readiness", {}) as Dictionary
+	var routing := crew.get("power_routing", {}) as Dictionary
+	var engineer := routing.get("engineer", {}) as Dictionary
+	var handoff := crew.get("emergency_pilot_handoff", {}) as Dictionary
+	var handoff_view := {}
+	if not handoff.is_empty():
+		for field in ["previous_role", "new_role", "ready", "neutral_command_confirmed"]:
+			handoff_view[field] = handoff.get(field)
+	return {
+		"authority_attached": bool(crew.get("authority_attached", false)),
+		"role_occupancy": role_occupancy,
+		"departure_readiness": {
+			"pilot_present": bool(departure.get("pilot_present", false)),
+			"ready": bool(departure.get("ready", false)),
+			"optional_crew_count": int(departure.get("optional_crew_count", 0)),
+		},
+		"power_routing": {"engineer": {"channel": engineer.get("channel", &"none")}},
+		"emergency_pilot_handoff": handoff_view,
+	}.duplicate(true)
 
 
 ## The existing co-pilot chair is the roster's defensive gunner station.
@@ -4708,6 +4746,7 @@ func _clear_engineer_component_selection(
 func _clear_engineer_status_display_lifecycle() -> void:
 	_network_engineer_repair_presentation_enabled = false
 	_network_engineer_repair_presentation.clear()
+	_network_crew_status_presentation.clear()
 	_crew_status_repair_sequence = -1
 	_skip_next_crew_status_repair_snapshot = true
 	if _crew_status_display != null and is_instance_valid(_crew_status_display):

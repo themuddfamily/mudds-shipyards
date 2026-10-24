@@ -180,7 +180,7 @@ func _host() -> void:
 	var model: ShipComponentDamage = _craft.get_component_damage()
 	for index in [1, 4]:
 		_craft.apply_damage(_craft.maximum_hull * 0.15, _craft.to_global((model.get_component_states()[index] as Dictionary).local_position))
-	_write("host.damage", {})
+	_write("host.damage", {"crew_panel": _craft.refresh_crew_status_display() if _halyard else {}})
 	if not await _wait_file("client.repair_selected", 10.0):
 		return
 	# Component selection and its replica handoff may outlast light damage's
@@ -288,8 +288,17 @@ func _client() -> void:
 	_write("client.seated", {})
 	if not await _wait_file("host.damage", 10.0):
 		return
-	_check(await _until(func(): return not (_game.network_session.get_engineer_replica_snapshot().get("gameplay", {}) as Dictionary).get("selection", {}).is_empty(), 8.0), "actual damaged host components reach automatic ordinary selection")
+	_check(await _until(func(): return not (_game.network_session.get_engineer_replica_snapshot().get("gameplay", {}) as Dictionary).get("selection", {}).is_empty() and (not _halyard or _halyard_roster_matches_host_view()), 8.0), "actual damaged host components reach automatic ordinary selection")
 	var initial := _game.network_session.get_engineer_replica_snapshot()
+	if _halyard:
+		var host_panel := _read("host.damage").get("crew_panel", {}) as Dictionary
+		var panel: Dictionary = _craft.get_crew_status_display().get_display_snapshot()
+		_check(not host_panel.is_empty()
+			and panel.get("role_states", {}) == host_panel.get("role_states", {})
+			and panel.get("pilot_ready") == host_panel.get("pilot_ready")
+			and panel.get("optional_crew_count") == host_panel.get("optional_crew_count")
+			and _craft.get_crew_status_display().get_readout_text().contains("E [ACTIVE]"),
+			"actual host pilot/engineer occupancy and departure facts reach the seated client's physical roster")
 	print("ENGINEER_SELECTION_VIEW: ", initial, " source=", source.get_authority_peer_id(), " enabled=", source.is_enabled_owner(), " sampling=", source.call(&"_is_input_sampling_active"), " transition=", _game.get("_transition_busy"))
 	var old_claim := int((initial.assignment as Dictionary).claim_sequence)
 	await _press(source.camera_distance_out_action)
@@ -350,6 +359,9 @@ func _client() -> void:
 			"actual host standing replica retains spent repair stock without an engineer assignment")
 		_craft.refresh_crew_status_display()
 		_check(_craft.get_crew_status_display().get_readout_text().contains("KITS 5/6"), "standing and local cabin refresh retain host kit stock on the physical panel")
+		_check(_halyard_roster_matches_host_view()
+			and _craft.get_crew_status_display().get_readout_text().contains("E [OPEN]"),
+			"actual host engineer release reaches the walking physical roster and survives local refresh")
 		_check(_craft.get_engineer_repair_state() == local_repair
 			and _craft.get_component_damage().get_component_report() == local_components,
 			"received host repair and standing presentation leave client repair authority and component ledger unchanged")
@@ -431,6 +443,9 @@ func _client() -> void:
 		var stopped_panel: String = _craft.get_crew_status_display().get_readout_text()
 		_check(stopped_panel.contains("IDLE // REPAIR READY") and stopped_panel.contains("KITS 6/6"),
 			"actual client session stop restores local Halyard repair presentation and unspent local stock")
+		_check(stopped_panel.contains("ROSTER [DETACHED]")
+			and not bool(_craft.get_crew_status_display().get_display_snapshot().get("pilot_ready", true)),
+			"actual session stop retires host crew readiness and restores the client's detached local roster")
 	_write("client.disconnected", {})
 
 func _observe_halyard_repair_panel_progress() -> void:
@@ -449,7 +464,30 @@ func _halyard_panel_completed() -> bool:
 	var text: String = _craft.get_crew_status_display().get_readout_text()
 	return view.get("ship_id") == _craft.get_ship_id() and repair.get("status") == &"completed" \
 		and int(repair.get("resource_units", 0)) == 5 \
-		and text.contains("COMPLETED") and text.contains("KITS 5/6")
+		and text.contains("COMPLETED") and text.contains("KITS 5/6") \
+		and _halyard_roster_matches_host_view()
+
+
+func _halyard_roster_matches_host_view() -> bool:
+	var view := _game.network_session.get_engineer_replica_snapshot()
+	var crew := (view.get("gameplay", {}) as Dictionary).get("crew_status", {}) as Dictionary
+	var panel: Dictionary = _craft.get_crew_status_display().get_display_snapshot()
+	if view.get("ship_id") != _craft.get_ship_id() or not bool(crew.get("authority_attached", false)) \
+			or not bool(panel.get("roster_linked", false)):
+		return false
+	var occupancy := crew.get("role_occupancy", {}) as Dictionary
+	var roles := panel.get("role_states", {}) as Dictionary
+	for role in [&"pilot", &"gunner", &"engineer", &"passenger"]:
+		var host_occupied := not (occupancy.get(role, []) as Array).is_empty()
+		if bool((roles.get(role, {}) as Dictionary).get("occupied", false)) != host_occupied:
+			return false
+	var departure := crew.get("departure_readiness", {}) as Dictionary
+	var routing := crew.get("power_routing", {}) as Dictionary
+	var channel := StringName((routing.get("engineer", {}) as Dictionary).get("channel", &"none"))
+	var route_tokens := {&"mobility_multiplier": "[MOBILITY]", &"fire_multiplier": "[FIRE]", &"targeting_multiplier": "[TARGET]"}
+	return bool(panel.get("pilot_ready", false)) == (bool(departure.get("ready", false)) and bool(departure.get("pilot_present", false))) \
+		and int(panel.get("optional_crew_count", -1)) == int(departure.get("optional_crew_count", 0)) \
+		and panel.get("engineer_route") == route_tokens.get(channel, "[NONE]")
 
 func _repair_target_replica_ready(ready: Dictionary) -> bool:
 	var view := _game.network_session.get_engineer_replica_snapshot()
