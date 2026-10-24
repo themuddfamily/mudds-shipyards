@@ -4496,6 +4496,68 @@ class TorpedoJourneyCallerTests(unittest.TestCase):
         self.assertEqual(leg.initial['player_id'], leg.heavy.initial['player_id'])
         self.assertEqual(leg.initial['ship_id'], leg.heavy.initial['ship_id'])
 
+    @classmethod
+    def boarding_sample(cls, n=10):
+        sample = cls.sample(n)
+        sample.update(phase='APPROACH_SHIP', world_id=10, capsule_id=11, shape_id=12, berth_id=13, seat_id=14,
+            player=[-47.5, .05, 22], boarding=[-47.5, .05, 18.9], velocity=[0, 0, 0],
+            walk_forward=[0, 0, -1], walk_right=[1, 0, 0], candidate=True, station_candidate=False,
+            reboard_blocked=False, boarding_distance=3.12, native_interact=False,
+            control_enabled=True, capsule_enabled=True, grounded=True, supported=True, support_collider='/floor',
+            seated=False, piloted=False, station_seated=False, game_station_seated=False, sleeping=False)
+        return sample
+
+    def test_second_boarding_initially_aligned_still_waits_two_fresh_quiet_samples(self):
+        leg = native.TorpedoLegPilot(self.heavy()); leg.stage = 'walk_ship'
+        for n in (10, 11, 12, 13):
+            sample = self.boarding_sample(n); leg.last_state = sample
+            keys, dx, dy, fire = leg.update(sample, 100+n/60)
+            self.assertEqual((dx, dy, fire), (0, 0, False))
+            self.assertEqual(keys, {'e'} if n >= 12 else set())
+        receipt = leg.receipts['board_press']
+        self.assertEqual(receipt['frame'], 12)
+        proof = receipt['sampled_view_readiness']
+        self.assertEqual(proof['epoch']['frame'], 10)
+        self.assertEqual([v['frame'] for v in proof['samples']], [11, 12])
+        self.assertTrue(all(v['candidate'] and not v['station_candidate'] and v['pending_after'] is None
+                            and abs(v['yaw']) < .08 for v in proof['samples']))
+
+    def test_second_boarding_acknowledges_pending_view_before_steering_or_press(self):
+        leg = native.TorpedoLegPilot(self.heavy()); leg.stage = 'walk_ship'
+        leg.mouse_pending = [0, 0, -1]
+        for n in (20, 21, 22, 23, 24, 25):
+            sample = self.boarding_sample(n)
+            if n in (21, 22): sample.update(walk_forward=[0, 0, 1], walk_right=[-1, 0, 0])
+            leg.last_state = sample
+            keys, dx, dy, fire = leg.update(sample, 100+n/60)
+            self.assertEqual(keys, {'e'} if n == 25 else set())
+            self.assertEqual((dy, fire), (0, False))
+            self.assertEqual(dx != 0, n == 21)
+        self.assertEqual(leg.receipts['board_press']['sampled_view_readiness']['epoch']['frame'], 23)
+
+    def test_second_boarding_quiet_samples_reset_on_view_body_or_candidate_changes_and_replays(self):
+        changes = [lambda s: s.update(station_candidate=True),
+                   lambda s: s.update(candidate=False),
+                   lambda s: s.update(grounded=False),
+                   lambda s: s.update(input_stream=8),
+                   lambda s: s.update(walk_forward=[0, 0, 1], walk_right=[-1, 0, 0])]
+        for change in changes:
+            with self.subTest(change=change):
+                leg = native.TorpedoLegPilot(self.heavy()); leg.stage = 'walk_ship'
+                for n in (10, 11, 12, 13, 14, 15):
+                    sample = self.boarding_sample(n)
+                    if n == 12: change(sample)
+                    leg.last_state = sample
+                    keys, _, _, fire = leg.update(sample, 100+n/60)
+                    self.assertEqual('e' in keys, n == 15)
+                    self.assertFalse(fire)
+        leg = native.TorpedoLegPilot(self.heavy()); leg.stage = 'walk_ship'
+        for index, n in enumerate((10, 11, 11, 12, 13)):
+            sample = self.boarding_sample(n); leg.last_state = sample
+            keys, dx, dy, fire = leg.update(sample, 100+index/60)
+            self.assertEqual(keys, {'e'} if index == 4 else set())
+            self.assertEqual((dx, dy, fire), (0, 0, False))
+
     def test_torpedo_continuation_requires_the_real_full_heavy_prefix(self):
         for missing in ('kill', 'paid', 'next_posting', 'home_exit'):
             with self.subTest(missing=missing):

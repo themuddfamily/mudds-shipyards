@@ -4921,6 +4921,7 @@ class TorpedoLegPilot(HeavyBreachPilot):
         self.events_serial = 0; self.flights = {}; self.evasion = None; self.evaded = False
         self.intercept_choice = self.intercepted = None
         self.return_ready = False
+        self.board_quiet = None
 
     @staticmethod
     def flight_key(record):
@@ -5099,7 +5100,69 @@ class TorpedoLegPilot(HeavyBreachPilot):
         require(gate['frame'] == s['frame'] and gate['target_id'] == s['target']['id'], 'actual boat first-hit forecast')
         return dx, dy, self.fire_control.step(s, gate['clear'] and gate['weapon'].get('ready'))
 
+    def second_board_input(self, s, now):
+        require(self.last_state is s, 'latest validated sample for second Arrow boarding view')
+        self.frame = s['frame']; self.last_input_frame = self.frame
+        self.fire_control.release()
+        pending_before = copy.deepcopy(self.mouse_pending)
+        forward, right = s['walk_forward'], s['walk_right']
+        if self.mouse_pending is not None:
+            if norm(sub(forward, self.mouse_pending)) < .00001:
+                self.board_quiet = None
+                return set(), 0, 0, False
+            # Acknowledge actual observed basis motion before any E decision.
+            self.mouse_pending = None; self.board_quiet = None
+        body = (s['phase'] == 'APPROACH_SHIP' and all(s[k] for k in
+                ('control_enabled', 'mouse_captured', 'capsule_enabled', 'grounded', 'supported'))
+                and bool(s['support_collider']) and not any(s[k] for k in
+                ('seated', 'piloted', 'transition_busy', 'station_seated', 'game_station_seated', 'sleeping')))
+        if not body:
+            self.board_quiet = None
+            return set(), 0, 0, False
+        dx, yaw, _ = self.yaw_to(s, s['boarding'])
+        if abs(yaw) >= .08:
+            self.board_quiet = None; self.mouse_pending = forward[:]
+            return set(), dx, 0, False
+        ready = (s['candidate'] and not s['station_candidate'] and not s['reboard_blocked']
+                 and s['boarding_distance'] <= 7 and not s['native_interact']
+                 and math.hypot(s['velocity'][0], s['velocity'][2]) <= .35)
+        if not ready:
+            self.board_quiet = None
+            return set(), 0, 0, False
+        view = dict(frame=s['frame'], sequence=s['sequence'], yaw=yaw, facing_dot=math.cos(yaw),
+            forward=forward[:], right=right[:], player=s['player'][:], velocity=s['velocity'][:],
+            candidate=s['candidate'], station_candidate=s['station_candidate'], reboard_blocked=s['reboard_blocked'],
+            boarding_distance=s['boarding_distance'], support=s['support_collider'],
+            identity=tuple(s[k] for k in self.IDS)+(s['input_stream'],),
+            pending_before=pending_before, pending_after=None)
+        quiet = self.board_quiet
+        previous = quiet['samples'][-1] if quiet is not None and quiet['samples'] else (quiet['epoch'] if quiet is not None else None)
+        stable = (previous is not None and view['frame'] == previous['frame']+1
+                  and view['sequence'] == previous['sequence']+1 and view['identity'] == previous['identity']
+                  and view['support'] == previous['support']
+                  and norm(sub(forward, previous['forward'])) < .00001
+                  and norm(sub(right, previous['right'])) < .00001
+                  and norm(sub(s['player'], previous['player'])) < .00001)
+        if not stable:
+            self.board_quiet = dict(epoch=view, samples=[])
+            return set(), 0, 0, False
+        quiet['samples'].append(view)
+        quiet['samples'] = quiet['samples'][-2:]
+        if len(quiet['samples']) == 2:
+            self.press('e', 'board_wait', 'board_press', s, now)
+            if self.stage == 'board_wait':
+                self.receipts['board_press']['sampled_view_readiness'] = copy.deepcopy(dict(
+                    scope='sampled on-foot horizontal view and candidates; no native selection-computation timestamp',
+                    epoch=quiet['epoch'], samples=quiet['samples'], press=view))
+                return {'e'}, 0, 0, False
+        return set(), 0, 0, False
+
     def update(self, s, now):
+        if self.stage == 'walk_ship' and not self.route:
+            self.board_quiet = None
+            self.enter('torpedo_board_aim', s)
+        if self.stage == 'torpedo_board_aim':
+            return self.second_board_input(s, now)
         if self.stage == 'restore' and not self.return_ready:
             self.fire_control.release(); self.frame = s['frame']; keys = set()
             dx, dy, arrived = CinderSupplyPilot.flight(self, dict(s, tuning=s['ship_tuning']), s['capture_position'], keys)
