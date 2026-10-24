@@ -10933,6 +10933,7 @@ func _end_ship_rest_presentation() -> void:
 
 
 func _cancel_station_seat_for_detach() -> void:
+	_refresh_network_client_bunk_recovery_exit(_active_station_seat)
 	_network_client_bunk_rest.clear()
 	_cancel_network_engineer()
 	_cancel_solo_crew_seat()
@@ -10952,6 +10953,7 @@ func _cancel_station_seat_for_detach() -> void:
 
 
 func _recover_from_station_seat() -> void:
+	_refresh_network_client_bunk_recovery_exit(_active_station_seat)
 	_end_ship_rest_presentation()
 	_invalidate_transition_generation()
 	if is_instance_valid(_active_station_seat) and is_instance_valid(player):
@@ -27083,8 +27085,28 @@ func _advance_network_client_bunk_rest(delta: float) -> void:
 			_stand_from_station_seat()
 
 
+## A moving bunk may retire during its admission animation, before the ordinary
+## seated update has refreshed the cached world-space wake pose.
+func _refresh_network_client_bunk_recovery_exit(seat: Variant) -> void:
+	if not is_instance_valid(seat) or not seat is ShipBunk \
+		or _network_client_bunk_rest.get("seat") != seat or _active_station_seat != seat \
+		or not seat.is_inside_tree():
+		return
+	var craft: HeroShip = seat.get_ship()
+	var anchor: Variant = seat.get("_exit_anchor")
+	if not is_instance_valid(craft) or not craft.is_inside_tree() or craft.is_queued_for_deletion() or craft.is_destroyed() \
+		or craft.get_instance_id() != int(_network_client_bunk_rest.get("craft_id", 0)) \
+		or not is_instance_valid(anchor) or not anchor is Node3D or not anchor.is_inside_tree() \
+		or not seat.is_ancestor_of(anchor):
+		return
+	var current_exit: Transform3D = seat.get_exit_transform()
+	if current_exit.origin.is_finite() and current_exit.basis.is_finite():
+		_station_seat_recovery_transform = current_exit
+
+
 func _retire_network_client_bunk_rest() -> void:
 	var seat: Variant = _network_client_bunk_rest.get("seat")
+	_refresh_network_client_bunk_recovery_exit(seat)
 	_network_client_bunk_rest.clear()
 	if is_instance_valid(seat) and seat is ShipBunk and _active_station_seat == seat:
 		_recover_from_station_seat()

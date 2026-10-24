@@ -4760,12 +4760,17 @@ func _network_bunk_client() -> void:
 		and not _game.get("_transition_busy")), 4.0,
 		"ordinary fresh request confirms a real network sleeper before public session shutdown"):
 		return
+	# Disclosed same-frame hull-pose fixture: no idle refresh before retirement.
+	# This verifies current moving-frame recovery, not a physical flight journey.
+	_craft.global_position += Vector3.UP * 25.0
+	var current_wake := port.get_exit_transform()
 	var stopped := _game.shutdown_network_session(&"focused_bunk_solo_fallback")
 	if not _ordinary_require(bool(stopped.get("accepted", false)) and not source.is_bound()
 		and (_game.get("_network_client_bunk_rest") as Dictionary).is_empty()
 		and not _player.is_sleeping() and not _player.is_seated() and port.is_available()
-		and not _game._ship_rest_overlay.visible,
-		"public session shutdown retires the actual sleeper, bunk lease, overlay and body grant"):
+		and not _game._ship_rest_overlay.visible
+		and _player.global_position.distance_to(current_wake.origin) < 0.02,
+		"public session shutdown retires the actual sleeper and restores the current hull's wake pose"):
 		return
 	_player.teleport_to(Transform3D(_craft.global_basis.orthonormalized(), port.get_entry_transform().origin))
 	await _ticks(12)
