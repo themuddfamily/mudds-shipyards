@@ -6,13 +6,13 @@ Nine of the eventual 17 craft exist; eight still need supported specifications
 and implementation. Partial acceptance is retained in the backlog; it is not
 whole-feature completion.
 
-Latest playable checkpoint: **f5b71e0**. After host-authoritative Halyard
-destruction, both occupants recover usable station controls, walk back, board the
-regenerated ship and fly again. Includes host-authoritative bunk sleep/wake,
-Bomber seat refill and Deploy-arms-Defense. Full Defense combat, component repair,
-multiplayer baseline and native qualification remain open.
-[Windows ZIP](builds/windows/MuddsShipyards-f5b71e0-checkpoint.zip),
-[build notes](builds/windows/MuddsShipyards-f5b71e0-notes.txt).
+Latest playable checkpoint: **ce2329a**. The Halyard's physical cabin repair panel
+now follows current host repair progress and kit stock for network occupants,
+including after standing. Includes multiplayer destruction recovery/reboarding,
+host-authoritative bunks, Bomber seat refill and Deploy-arms-Defense. Full Defense
+combat, full component repair, multiplayer baseline and native gates remain open.
+[Windows ZIP](builds/windows/MuddsShipyards-ce2329a-checkpoint.zip),
+[build notes](builds/windows/MuddsShipyards-ce2329a-notes.txt).
 
 This page is the working queue. The
 [36-parent crosswalk and named children](docs/ROADMAP_BACKLOG.md#coverage-of-the-original-remaining-outcomes)
@@ -42,24 +42,30 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
-**HALYARD network cabin repair readout selected — reproduce before repair.**
-The physical cabin panel currently feeds itself local repair state even for an
-admitted network client. Existing accepted host engineer packets already contain
-repair progress, completion/interruption, cooldown and kit stock for walking
-occupants. The next player-visible result is that panel showing the host's actual
-repair and spent stock while the client's raw repair/component authority remains
-unchanged. Full crew roster and full NET-DAMAGE acceptance are separate.
+**HALYARD network cabin repair readout DONE — `ce2329a82`.**
+The physical cabin repair row now shows accepted current host progress,
+completion/interruption, cooldown and stock, including for a walking occupant.
+Local refresh cannot replace it with unused local stock. Missing current data
+shows AWAITING HOST; cabin/session lifecycle retirement restores local display.
+Client repair inventory, component health and authority remain unchanged.
 
-Use the existing authored-panel integration test for a focused RED, then the
-existing real host/client Halyard engineer route: ordinary chair selection/FIRE,
-actual host repair/one kit spent, physical panel progress and KITS5/6, standing
-and local refresh without a misleading local overwrite, and current lifecycle
-retirement. Keep original route, caps and authority owners. One runtime owner,
-one test owner and independent lifecycle review; root owns engines/Git/packages.
-Stop at the first mismatch for causal review. No new schema, protocol, evidence
-family, branch/worktree or hosted CI. Working card/results:
-`/srv/mudds-work/halyard-repair-panel-20261024/results/`.
+Focused authored-panel coverage passes28 assertions after reproducing three real
+presentation failures. The complete existing independent Main/ENet engineer route
+passes79 checks in103.961s, both actual peer exits0: ordinary selector/FIRE, host
+repair/one kit spent, physical progress/completion/KITS5/6, standing/local refresh,
+reseating, refusals, migration and disconnect. Original route/caps are retained.
+That run is **PASS_WITH_ENVIRONMENT_WARNING**: one Xvfb/llvmpipe V-Sync capability
+warning, zero game errors; its strict diagnostic gate is NOT_CLEAN. Existing
+local regressions and the unchanged382-check destruction/reuse journey pass.
 
+Both candidate commits are integrated into pushed main. Fresh paired exports,
+strict startup and package audit pass; playable Windows EXE/ZIP/notes are in
+`builds/windows/MuddsShipyards-ce2329a*`. Owned scratch is removed,71 observed
+process identities are absent, and results are consolidated into one verified
+archive plus closeout.json. No branch/worktree was created or retained.
+[Acceptance and retained limits](docs/history/ROADMAP_DELIVERIES.md#halyard-network-cabin-repair-readout--accepted--2026-10-24).
+Full crew roster, full NET-DAMAGE, broader baseline/endurance and native/human
+qualification remain open. No parent or phase gate is closed.
 
 **HALYARD passenger destruction recovery and ordinary reuse DONE — `f5b71e06e`.**
 Actual host craft loss now retires the passenger's current cabin/chair/body state

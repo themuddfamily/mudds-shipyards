@@ -21812,3 +21812,76 @@ checks—were verified into
 `2471bea0b01acba388775fe9475a6d93e3bbf0328932528b209de681cd1e1ff6`),
 then loose copies removed. Only that archive and `closeout.json` remain.
 GitHub Actions stays disabled.
+
+
+## Halyard network cabin repair readout — accepted — 2026-10-24
+
+Parent21, accepted source `ce2329a820ef0910838da59dcc39db6560bdfd21`.
+The authored cabin panel previously consumed local repair state even on an
+admitted network client. Focused real separate-host repair reproduced three
+failures: host progress absent, local refresh retaining the wrong state, and host
+completion/spent stock absent. No successful repair receipt was fabricated.
+The focused client packet is staged at the existing accepted-adapter boundary;
+it establishes consumer behavior, not transport/admission.
+
+GameFlow now feeds the existing accepted engineer packet's repair facts into
+the physical panel for the current live admitted Halyard cabin. Recipient/peer,
+session/migration and boarding-grant tick fences reject foreign/old contexts;
+empty engineer assignment remains eligible for a walking occupant. No protocol
+or schema changes. Halyard local refresh preserves the detached display override;
+missing current facts show AWAITING HOST. Leave/unbind/stop/migration/Main exit
+and craft shutdown/reuse/detach clear it. Only repair presentation changes:
+client inventory, component ledger, crew authority and host repair policy remain
+untouched; full roster presentation is separate. Independent review GO.
+
+Focused final test passes28 assertions17.636s with clean logs. Complete existing
+independent Main/ENet Halyard engineer route passes79 checks103.961s, both actual
+peer exits0. Original hatch-approach/fresh-damage fixtures, ordinary cabin walk,
+remappable selection/FIRE and all route/deadline values remain intact. Actual
+host repair improves the component and spends one finite kit; client physical
+panel shows received progress and completion/KITS5/6. Standing empty-assignment
+host view retains stock and local refresh cannot replace it. Raw client repair/
+components remain unchanged. Original sibling destruction, stand/reseat, forged/
+stale refusal, migration during sitting and disconnect also pass; actual stop
+restores local idle/full stock.
+
+This real engineer run is functional **PASS_WITH_ENVIRONMENT_WARNING**. Exactly
+one startup diagnostic from private Xvfb/OpenGL compatibility Mesa llvmpipe:
+“Could not set V-Sync mode, as changing V-Sync mode is not supported by the
+graphics driver.” Zero game errors; strict diagnostic gate remains NOT_CLEAN.
+The warning is retained in raw/result/build notes. Independent review accepts
+that limited functional scope; no unchanged retry or gameplay change solely to
+remove it, and no native GPU/V-Sync qualification is claimed.
+
+Existing panel13, crew gameplay70, network repair projection10,
+damage-interruption54 and startup privacy regressions pass. The unchanged full
+original two-client destruction/recovery/ordinary reboarding/renewed-flight
+journey also passes382 checks199.031s, all three actual processes complete/exit0,
+clean logs. Its original route and strict recovery bounds remain intact.
+
+Fresh Windows/Linux clean exports pass three strict startup checks: Linux binary,
+extracted archive and Windows embedded game data under Linux Godot each exit0
+with exactly one STARTUP_MENU_READY_OK and clean startup logs. All1,527 actual
+packaged entries match; stock Windows executable code and exact Linux archive
+payload/modes/source epoch pass. Windows EXE184745264bytes SHA256
+`6e65e897ac6235c1d2b565038cb6a9142a9ebdad99486746cc941b050881212a`;
+ZIP103277379bytes SHA256
+`54449728488b3a13272d6fb4cf8b336478bb1b7ef52186a7c01963fce5f487f1`.
+EXE/ZIP/notes: `builds/windows/MuddsShipyards-ce2329a*`; matching Linux package
+in `builds/linux/`. All automation uses Dummy audio/headless or private Xvfb.
+Native Windows/GPU/rendered readability/device/listening/human, full NET-DAMAGE,
+wider craft/role/exported multiplayer/baseline/migration/endurance, custom RPC
+export-template and final release gates remain open. No parent/phase closes.
+
+Both candidate commits integrated into pushed main; main remains the sole
+local/remote branch. No new branch/worktree/archive exception; pre-existing
+parked detached worktrees remain protected. All17 stages terminal:15 clean PASS,
+one expected RED and one functional PASS_WITH_ENVIRONMENT_WARNING, cumulative
+actual stage517.587s. All71 observed process identities absent; all623 owned
+scratch entries byte/mode/link verified before removal. All317 result members
+verified into
+`/srv/mudds-work/halyard-repair-panel-20261024/results/case-records.tar.gz`
+(24236643bytes, SHA256
+`87920835d3ae852ad81f058aa78ea586b854eb06137b1b4a4f6d9158656bc8b3`),
+then loose copies removed. Only that archive and closeout.json remain. GitHub
+Actions stays disabled.
