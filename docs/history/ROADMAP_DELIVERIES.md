@@ -22339,3 +22339,70 @@ verified before removal. All192 result members verified into
 then loose copies removed; only archive/closeout.json remain. Elapsed25.869min
 since selection commit, including retained failures/corrections, no reset;
 earlier bounded mapping excluded. Protected old parked worktrees untouched.
+
+## Server baseline seat race — accepted — 2026-10-24
+
+SERVER-BASELINE-SEAT-RACE, parents16/26, accepted source
+`99c9fc1afe6cd68a172f6f6448db968ba653a4bb`. Four candidate commits
+174c6545b/0c89d5937/c1ad015c5/99c9fc1af integrated into pushed main; no task
+branch/worktree created. One bounded implementer and independent lifecycle reviewer;
+root owns engine execution, integration and cleanup. Existing passenger-route test
+only; runtime/content/export inputs unchanged from checkpointbcd268c.
+
+Full original non-playing Main authority/two independent clients, authored walking/
+BOARD and all seven MOVING stages remain. Ordinary brake/neutral accepted OFFLINE,
+one helm-release Interact and passenger stand preserve the original supported
+Players/admissions. Collision-safe lateral walking reaches the SAME role-fixed
+chair points; all legs/looks/barriers share the original15s approach. Shared ready/go
+releases actual sampled Interact on both. Both results first observed hosttick6002/
+physicsframe6024: original passenger request7/stream1 claimscrew_port_00; original
+pilot request2/stream2 receives seat_occupied. Exact body/peer/epoch/request/seat
+fences hold; loser toastserial7→8→8, winner2→2→2, accurate HUD text and supported
+controls. Actual host arbiters choose the winner; the test does not.
+
+Winner ordinary stands/clears; original loser physically approaches/claims the SAME
+chair, sequence7→10/currentseatgeneration1. All nine current client/host assignment
+fields agree. Normal release, original pilot restoration ownership1→3/pilotclaim2→5,
+original passenger physical return/claim12 and current body/frame generation1 retain
+honest roles. Fresh real helm/ownership and host movement>5m with delivered throttle/
+engineONLINE precede both consumed renewed manifests and full terminal handshake.
+
+Full trial451checks/0failures, guard170.190316200s, wrapper0. Host158/client111/
+client_b130 all complete/failures[], three actual peer OS exits0, all peer and
+wrapper logs clean. Walkers3.77742s, approach4.59970s, race0.81933s, transfer1.43052s,
+pilot restoration3.10049s, passenger restoration2.45238s, renewed2.44430s. Original
+300s/global,360s/outer,8s transitions,15s walking and10s abort/exit remain.
+
+Retained failures: first full174c6545b FAIL152.890s at helm release. Source supports E arriving
+before accepted OFFLINE after held brake; exact prepress state was absent, so cause
+remained an inference. Selected current accepted OFFLINE wait and
+one E share the original8s; actual prepress sample now retained. Second0c89d5937
+FAIL163.301s at centreline approach: host capsule separation0.744m versus0.76m
+combined diameter and opposing corrections support contact blockage; settled start
+poses were not captured. Cumulative review selected ordinary collision-supported
+lateral lanes, original endpoints/cap unchanged, actual start/reached positions
+recorded. Thirdc1ad015c5 FAIL160.958s after successful race/ordinary transfer: all nine
+assignment values identical; raw network Variant/JSON Dictionary comparison skipped
+the existing normalization helper. Selected helper on BOTH complete nine-key records;
+no field or physical predicate dropped. Each correction had independent review and
+strict compile before its separately selected full trial; no unchanged retry.
+
+Four strict compiles pass16.848/16.900/16.976/16.856s. Eight guarded stages fivePASS/
+threeFAIL total714.920296907s; one continuous selection→verified cleanup clock
+35.313min, no resets. Independent final raw/source GO. All66 sampled owned process
+identities absent;811 scratch entries byte/mode/link verified before removal.
+Results consolidated under `/srv/mudds-work/halyard-seat-race-20261024/results/`:
+95-member case-records.tar.gz,9,718,432bytes,
+SHA256`97c4e6f586d3b080468cdee9becf8ff343de48dc99b83eecace8f8862ed9f4fe`;
+closeout.json remains alongside it. Protected pre-existing detached registrations,
+including three missing /tmp worktrees, were untouched/not pruned.
+
+Command: `godot --headless --audio-driver Dummy --path /srv/mudds-shipyards --script
+res://tests/network/halyard_network_passenger_route_test.gd -- --ordinary-two-client-seat-race`
+through the retained independent360s supervisor. Child peers use private Xvfb,
+explicitx11/Dummy/dummy renderer. Scope is sourceLinux/input behavior only: no
+exported/nativeWindows/GPU/device/human or full-baseline/endurance qualification.
+No duplicate public checkpoint is needed; playablebcd268c remains current.
+All36 original parents/ten phase gates remain open. GitHub Actions remains disabled.
+Next action is bounding the original SERVER-BASELINE late-join case before selecting
+an implementation/trial; no parked failure is reopened by this acceptance.

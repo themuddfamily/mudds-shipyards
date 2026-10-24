@@ -43,60 +43,33 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
-**Selected: SERVER-BASELINE-SEAT-RACE — ordinary moving crew contention/transfer.**
-Retain the complete original non-playing authority/two-client BOARD and all seven
-MOVING stages. Then ordinary pilot brake/helm release and passenger stand leave
-both original players supported in the cabin. Both physically approach the same
-crew_port_00 chair; one ready/go barrier releases their sampled Interact presses,
-without choosing a winner. Actual host claim receipts must show exactly one
-winner and one seat_occupied loser, with one current loser toast and usable
-controls. The winner stands, original loser claims the identical physical chair
-with a newer claim sequence/current seat generation, then both release/reclaim
-their original pilot/passenger roles and prove renewed authoritative movement.
-Only the complete three-process terminal handshake/actual OS exits0 can pass.
+**SERVER-BASELINE-SEAT-RACE DONE — `99c9fc1af`.**
+The complete original non-playing authority/two-client BOARD and seven MOVING
+stages now continue through ordinary helm release, two supported contenders and
+one shared chair race. The host records one claim and one occupied-seat refusal;
+the original loser receives one accurate toast, then physically takes the same
+chair after its winner stands. Both regain their original roles and prove renewed
+authoritative flight before the complete terminal handshake.
 
-One high-effort implementer owns only the existing Halyard passenger route test;
-root owns selection, guarded compile/full execution, integration/push and cleanup,
-with one independent lifecycle reviewer. No direct claims, actor placement,
-forced winner, body/generation writes, runtime tuning or new validator/schema.
-Use actual fresh body/stream/ownership identities after legitimate helm release;
-normal transfers advance claim sequences, not necessarily seat generations.
-Original300s overall/outer360, eight-second transition and15s walking bounds
-remain. One selected full attempt, first failure stops for causal review; no
-unchanged retry or alternate chair. Strict compile precedes the engine journey.
-Estimate45–75min implementation and10–20min checks/review/cleanup; split before90min.
-A caller-only pass needs no duplicate checkpoint; a demonstrated runtime repair
-requires focused proof and a fresh checkpoint. Full baseline/endurance and
-native/human gates remain open. Dummy/headless/private Xvfb/x11; Actions disabled.
+Full case passes451 checks in170.190s, all three actual peer exits0 and clean logs.
+Same-chair claim sequence7→10/currentgeneration1; original pilot ownership1→3,
+pilot claim2→5 and original passenger claim12. All approach legs share the
+original15s; walkers complete3.777s, approach4.600s. Three earlier caller failures
+and their bounded readiness, collision-safe path and JSON comparison corrections
+remain recorded. No deadline, role-fixed destination or acceptance was relaxed.
 
-First selected run174c6545b is retained FAIL152.890s after full BOARD+seven MOVING
-and actual brake. The pilot's sole exit press precedes accepted host OFFLINE;
-no helm-release RPC occurs, while the passenger stands correctly. Source and
-independent review support a caller readiness omission (the exact prepress engine
-sample was not captured), not a demonstrated runtime swap defect. Select only a
-wait for the current accepted host OFFLINE after normal brake release, then ONE
-Interact; readiness and supported transition share the original eight-second
-walkers budget. Capture the actual prepress sample; strict compile then the
-unchanged full contract, no tuning/extra press/clock reset or cap extension.
+All four candidate commits are integrated into pushed main. Independent source/
+raw-result review passes;66 observed process identities are absent,811 owned
+scratch entries verified/removed, and results consolidated. No task branch or
+worktree was created. Runtime/content/export inputs are unchanged; playable
+checkpoint stays **bcd268c**. Source Linux/private-Xvfb input qualification only;
+full baseline, endurance, exported/native/device/human and all36 parent/ten phase
+gates remain open. Actions stays disabled.
+[Result and retained failures](docs/history/ROADMAP_DELIVERIES.md#server-baseline-seat-race--accepted--2026-10-24).
 
-Corrected run0c89d5937 is retained FAIL163.301s. Helm release and both supported
-walkers now pass inside the original eight seconds; no race presses occur.
-Opposing centreline goals block the two real capsules: host separation0.744m
-against0.76m diameter and opposite prediction corrections support a caller route
-conflict. Exact settled starting positions were not recorded. Cumulative priority
-review selects one ordinary lateral detour through the collision-supported cabin
-to the SAME role-fixed goals. All legs, looks and barriers share the original15s
-approach deadline; capture actual starting/reached local and accepted host poses.
-Strict compile and independent review precede one complete trial. No role/goal
-swap, runtime fix, cap extension or clock reset; another failure stops for review.
-
-Detour runc1ad015c5 is retained FAIL160.958s after actual contention, both client
-outcomes and ordinary chair transfer. Host claim sequence7→10/currentgeneration1
-and all nine client/host assignment values agree; the new raw Dictionary comparison
-skipped the existing network/JSON primitive normalization. Independent cumulative
-review selects only that existing helper for BOTH complete nine-field records,
-with required key coverage. No field, physical check or deadline is dropped.
-Strict compile then one full trial; original contract/clock and stopping rule stay.
+Next action: bound the original SERVER-BASELINE late-join case against the existing
+Main/ENet admission lifecycle, with a complete usable-crew/flight endpoint before
+selecting its implementation or engine trial. No parked case is automatically retried.
 
 
 **HALYARD occupied-chair feedback DONE — `bcd268c75`; checkpoint `bcd268c`.**
