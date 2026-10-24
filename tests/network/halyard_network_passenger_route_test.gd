@@ -4644,10 +4644,13 @@ func _network_bunk_host() -> void:
 		if phase != "both_busy":
 			if not await _wait_file("client.bunk_" + phase + "_wake", 8.0):
 				return
-			if not await _ordinary_boundary(func(): return not body.is_sleeping() and not body.is_seated() and body.is_on_floor(), 8.0,
-				"ordinary client wake restores the same supported authoritative body: " + phase):
-				return
 			var selected := starboard if phase == "port_busy" else port
+			if not await _ordinary_boundary(func(): return (not body.is_sleeping() and not body.is_seated() and body.is_on_floor()
+				and simulation.get_body_record(_network_bunk_avatar).get("seat_state") == &"standing"
+				and simulation.get_body_record(_network_bunk_avatar).get("avatar_mode") == &"on_foot"
+				and selected.is_available() and not selected.is_reserved_for(body)), 8.0,
+				"ordinary client wake completes and restores the same supported authoritative body: " + phase):
+				return
 			if not _ordinary_require(selected.is_available() and not selected.is_reserved_for(body), "actual waking releases exactly the selected host bunk"):
 				return
 			_write("host.bunk_" + phase + "_awake", _network_bunk_snapshot())
