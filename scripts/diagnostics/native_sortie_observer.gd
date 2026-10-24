@@ -252,6 +252,22 @@ func _defense_registrations_current() -> bool:
 	return true
 
 
+## Side-effect-free authored local bindings shared by the station walk observers.
+func _station_default_controls() -> bool:
+	var default_controls := not _player.is_remote_driven()
+	for action: StringName in [&"move_left", &"move_right", &"move_forward", &"move_back", &"sprint_boost", &"interact"]:
+		var authored: Dictionary = ProjectSettings.get_setting("input/" + str(action), {})
+		var expected: Array = []
+		for event: InputEvent in authored.get("events", []):
+			expected.append(event.as_text())
+		var actual: Array = []
+		for event: InputEvent in InputMap.action_get_events(action):
+			actual.append(event.as_text())
+		default_controls = default_controls and expected == actual \
+			and is_equal_approx(InputMap.action_get_deadzone(action), float(authored.get("deadzone", -1.0)))
+	return default_controls
+
+
 func _defense_observation() -> Dictionary:
 	var result: Dictionary = {"mode": "station-defense", "sequence": _defense_sequence,
 		"pid": OS.get_process_id(), "frame": Engine.get_physics_frames(),
