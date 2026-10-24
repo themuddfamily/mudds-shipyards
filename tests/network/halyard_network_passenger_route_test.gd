@@ -2711,10 +2711,10 @@ func _ordinary_peer_generation(peer_id: int) -> int:
 			return int(peer.get("peer_generation", 0))
 	return 0
 
-func _ordinary_walk_to(target: Vector3, cabin: bool) -> bool:
+func _ordinary_walk_to(target: Vector3, cabin: bool, absolute_deadline: int = 0) -> bool:
 	var moving_target := _craft.to_local(target) if _ordinary_two_client_moving and cabin else Vector3.ZERO
 	await _ordinary_look(target + Vector3.UP * 1.4)
-	var deadline := Time.get_ticks_msec() + 15000
+	var deadline := absolute_deadline if absolute_deadline > 0 else Time.get_ticks_msec() + 15000
 	var settled := 0
 	while Time.get_ticks_msec() < deadline and not _ordinary_aborted():
 		if _ordinary_two_client_moving and cabin:
@@ -3334,6 +3334,26 @@ func _ordinary_seat_race_local_receipt() -> Dictionary:
 		"request_id": source.get_interaction_request_id(), "physics_frame": Engine.get_physics_frames(),
 		"wall": Time.get_unix_time_from_system(), "toast_serial": int(_game.hud.get("_toast_serial"))}
 
+func _ordinary_seat_race_walk_position() -> Dictionary:
+	var local := _craft.to_local(_player.global_position)
+	var source := _game.get_network_remote_body_intent_source()
+	var latest := _game.network_session.get_moving_interior_latest_relationship(source.get_entity_id())
+	var accepted := (latest.get("frame_local_transform", Transform3D.IDENTITY) as Transform3D).origin
+	return {"local_position": [local.x, local.y, local.z],
+		"accepted_host_position": [accepted.x, accepted.y, accepted.z],
+		"accepted_server_tick": int(latest.get("server_tick", -1)),
+		"entity_generation": int(latest.get("entity_generation", 0)),
+		"physics_frame": Engine.get_physics_frames(), "wall": Time.get_unix_time_from_system()}
+
+func _ordinary_seat_race_host_walk_positions() -> Dictionary:
+	var positions: Dictionary = {}
+	for role: String in ["client", "client_b"]:
+		var body := (_ordinary_seat_race_retained.bodies as Dictionary).get(role) as PlayerController
+		var local := _craft.to_local(body.global_position)
+		positions[role] = {"position": [local.x, local.y, local.z],
+			"body": _ordinary_node_identity(body), "floor": body.is_on_floor()}
+	return positions
+
 func _ordinary_seat_race_local_walking() -> bool:
 	var view := _game.network_session.get_passenger_replica_snapshot()
 	return _ordinary_same_identity() and _ordinary_walking_identity_is_preserved() \
@@ -3471,17 +3491,42 @@ func _ordinary_seat_race_host(baseline: Dictionary) -> bool:
 	old_helm = null # Keep no strong test reference across its legitimate retirement.
 	for stage: String in ORDINARY_SEAT_RACE_STAGES:
 		_ordinary_seat_race_stage = stage
+		var approach_deadline := Time.get_ticks_msec() + 15000 if stage == "approach" else 0
 		var before := _craft.global_position
 		var helm_before := _craft.get_command_source() as NetworkRemotePilotCommandSource
 		var delivered_before := int(helm_before.get_audit().get("delivered", 0)) if helm_before != null else 0
-		_write("host.seat_race_" + stage + "_go", {"physics_frame": Engine.get_physics_frames(), "wall": Time.get_unix_time_from_system()})
+		var go := {"physics_frame": Engine.get_physics_frames(), "wall": Time.get_unix_time_from_system()}
+		if stage == "approach":
+			go["approach_deadline_unix"] = Time.get_unix_time_from_system() + 15.0
+			go["host_positions"] = _ordinary_seat_race_host_walk_positions()
+		_write("host.seat_race_" + stage + "_go", go)
 		helm_before = null
 		if stage == "race" and not await _ordinary_boundary(_ordinary_seat_race_observe_claims, 8.0,
 			"one shared eight-second contention boundary observes both exact real edges, one physical winner and one occupied-seat loser"):
 			return false
+		if stage == "approach":
+			for leg: String in ["lane", "longitudinal"]:
+				for role: String in ["client", "client_b"]:
+					if not await _wait_file(role + ".seat_race_approach_" + leg + "_done",
+						maxf(0.0, float(approach_deadline - Time.get_ticks_msec()) / 1000.0)):
+						return false
+				var reached := _ordinary_seat_race_host_walk_positions()
+				for role: String in ["client", "client_b"]:
+					var position: Array = (reached[role] as Dictionary).position
+					var side := -1.0 if role == "client" else 1.0
+					var fixed_goal := _craft.to_local(_ordinary_seat_race_waypoint(role))
+					if not _ordinary_require(float(position[0]) * side >= 0.8 \
+						and absf(float(position[0]) - side * 1.2) <= 0.30 \
+						and bool((reached[role] as Dictionary).floor) \
+						and (leg != "longitudinal" or absf(float(position[2]) - fixed_goal.z) <= 0.30),
+						"actual host capsule reaches the separated ordinary approach lane within the shared original deadline: " + role + "/" + leg):
+						return false
+				_write("host.seat_race_approach_" + leg + "_checked", {"host_positions": reached,
+					"physics_frame": Engine.get_physics_frames(), "wall": Time.get_unix_time_from_system()})
 		for role: String in ["client", "client_b"]:
 			if not await _wait_file(role + ".seat_race_" + stage + "_done",
-				15.0 if stage in ["approach", "loser_clear", "winner_clear", "transfer_approach", "restore_pilot", "restore_passenger"] else 8.0):
+				maxf(0.0, float(approach_deadline - Time.get_ticks_msec()) / 1000.0) if stage == "approach" \
+				else (15.0 if stage in ["loser_clear", "winner_clear", "transfer_approach", "restore_pilot", "restore_passenger"] else 8.0)):
 				return false
 		if not _ordinary_require(_ordinary_seat_race_host_base(), "seat contention preserves both original processes' admission, host, craft and role owner: " + stage):
 			return false
@@ -3538,7 +3583,9 @@ func _ordinary_seat_race_host(baseline: Dictionary) -> bool:
 					and _craft.get_last_ship_command().throttle > 0.0 and _craft.velocity.length() > 0.1 \
 					and _craft.get_telemetry().get("engine_state") == HeroShip.ENGINE_ONLINE
 			return false
-		if not await _ordinary_boundary(check, 8.0, "authoritative original actors complete actual seat contention stage: " + stage):
+		if not await _ordinary_boundary(check,
+			minf(8.0, maxf(0.0, float(approach_deadline - Time.get_ticks_msec()) / 1000.0)) if stage == "approach" else 8.0,
+			"authoritative original actors complete actual seat contention stage: " + stage):
 			return false
 		if stage == "approach":
 			var bodies := _ordinary_seat_race_retained.bodies as Dictionary
@@ -3558,7 +3605,8 @@ func _ordinary_seat_race_host(baseline: Dictionary) -> bool:
 			checked["manifest"] = _ordinary_manifest(int(baseline.pilot_peer), int(baseline.passenger_peer))
 		_write("host.seat_race_" + stage + "_checked", checked)
 		for role: String in ["client", "client_b"]:
-			if not await _wait_file(role + ".seat_race_" + stage + "_retained", 8.0):
+			if not await _wait_file(role + ".seat_race_" + stage + "_retained",
+				minf(8.0, maxf(0.0, float(approach_deadline - Time.get_ticks_msec()) / 1000.0)) if stage == "approach" else 8.0):
 				return false
 	return true
 
@@ -3572,6 +3620,7 @@ func _ordinary_seat_race_client() -> bool:
 		_ordinary_seat_race_stage = stage
 		if not await _wait_file("host.seat_race_" + stage + "_go", 8.0):
 			return false
+		var approach_deadline := 0
 		var winner := str(outcome.get("winner", ""))
 		var loser := str(outcome.get("loser", ""))
 		if stage == "brake":
@@ -3606,12 +3655,40 @@ func _ordinary_seat_race_client() -> bool:
 			var source := _game.get_network_remote_body_intent_source()
 			_ordinary_walking_identity = {"peer_id": _ordinary_peer_id, "entity_id": str(source.get_entity_id()),
 				"entity_generation": source.get_entity_generation(), "player_id": str(_ordinary_player_id)}
-		elif stage in ["approach", "loser_clear", "winner_clear", "transfer_approach"]:
-			if stage == "approach" or (stage in ["loser_clear", "transfer_approach"] and _role == loser) \
+		elif stage == "approach":
+			var go := _read("host.seat_race_approach_go")
+			approach_deadline = Time.get_ticks_msec() + maxi(0, int((float(go.get("approach_deadline_unix", 0.0)) - Time.get_unix_time_from_system()) * 1000.0))
+			var prepath := _ordinary_seat_race_local_receipt()
+			prepath["positions"] = _ordinary_seat_race_walk_position()
+			_write(_role + ".seat_race_approach_before", prepath)
+			var start := _craft.to_local(_player.global_position)
+			var fixed_goal := _ordinary_seat_race_waypoint(_role)
+			var goal_local := _craft.to_local(fixed_goal)
+			var lane_x := -1.2 if _role == "client" else 1.2
+			for leg: String in ["lane", "longitudinal"]:
+				var target := _craft.to_global(Vector3(lane_x, 0.52, start.z if leg == "lane" else goal_local.z))
+				if not await _ordinary_walk_to(target, true, approach_deadline):
+					return false
+				var reached := _ordinary_seat_race_local_receipt()
+				reached["positions"] = _ordinary_seat_race_walk_position()
+				_write(_role + ".seat_race_approach_" + leg + "_done", reached)
+				if not await _wait_file("host.seat_race_approach_" + leg + "_checked",
+					maxf(0.0, float(approach_deadline - Time.get_ticks_msec()) / 1000.0)):
+					return false
+			if not await _ordinary_walk_to(fixed_goal, true, approach_deadline):
+				return false
+			await _ordinary_look(_station_anchor().global_position + Vector3.UP * 1.2)
+			if not await _ordinary_boundary(func(): return _game.station_interaction_candidate is ShipCrewSeat \
+				and (_game.station_interaction_candidate as ShipCrewSeat).get_seat_anchor() == _station_anchor(),
+				minf(8.0, maxf(0.0, float(approach_deadline - Time.get_ticks_msec()) / 1000.0)),
+				"ordinary lateral detour reaches the unchanged role-fixed chair approach within its original shared deadline"):
+				return false
+		elif stage in ["loser_clear", "winner_clear", "transfer_approach"]:
+			if (stage in ["loser_clear", "transfer_approach"] and _role == loser) \
 				or (stage == "winner_clear" and _role == winner):
 				if not await _ordinary_walk_to(_ordinary_seat_race_waypoint(_role, stage in ["loser_clear", "winner_clear"]), true):
 					return false
-				if stage in ["approach", "transfer_approach"]:
+				if stage == "transfer_approach":
 					await _ordinary_look(_station_anchor().global_position + Vector3.UP * 1.2)
 					if not await _ordinary_boundary(func(): return _game.station_interaction_candidate is ShipCrewSeat \
 						and (_game.station_interaction_candidate as ShipCrewSeat).get_seat_anchor() == _station_anchor(),
@@ -3652,9 +3729,11 @@ func _ordinary_seat_race_client() -> bool:
 			if _role == "client":
 				receipt["helm_prepress"] = helm_prepress
 		if stage == "approach":
+			receipt["positions"] = _ordinary_seat_race_walk_position()
 			race_ready = receipt.duplicate(true)
 		_write(_role + ".seat_race_" + stage + "_done", receipt)
-		if not await _wait_file("host.seat_race_" + stage + "_checked", 8.0):
+		if not await _wait_file("host.seat_race_" + stage + "_checked",
+			minf(8.0, maxf(0.0, float(approach_deadline - Time.get_ticks_msec()) / 1000.0)) if stage == "approach" else 8.0):
 			return false
 		var checked := _read("host.seat_race_" + stage + "_checked")
 		if stage == "race":

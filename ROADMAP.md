@@ -79,6 +79,17 @@ Interact; readiness and supported transition share the original eight-second
 walkers budget. Capture the actual prepress sample; strict compile then the
 unchanged full contract, no tuning/extra press/clock reset or cap extension.
 
+Corrected run0c89d5937 is retained FAIL163.301s. Helm release and both supported
+walkers now pass inside the original eight seconds; no race presses occur.
+Opposing centreline goals block the two real capsules: host separation0.744m
+against0.76m diameter and opposite prediction corrections support a caller route
+conflict. Exact settled starting positions were not recorded. Cumulative priority
+review selects one ordinary lateral detour through the collision-supported cabin
+to the SAME role-fixed goals. All legs, looks and barriers share the original15s
+approach deadline; capture actual starting/reached local and accepted host poses.
+Strict compile and independent review precede one complete trial. No role/goal
+swap, runtime fix, cap extension or clock reset; another failure stops for review.
+
 
 **HALYARD occupied-chair feedback DONE — `bcd268c75`; checkpoint `bcd268c`.**
 An actual host occupied-chair verdict now answers the exact current remote
