@@ -3609,6 +3609,30 @@ class StationDefensePilot(CompletedMotionProof, Pilot):
     def walk_to(self, s, target, keys, frames):
         require(s['grounded'] and s['supported'] and s['control_enabled'] and not s['seated'],
                 'actual supported ordinary on-foot route')
+        if self.stage == 'walk_board' and target == self.TO_BOARD[2]:
+            # Empirical western approach: the prior ordinary run crossed near
+            # x=8.93 then slid west; x=9.22 blocked. This does not identify or
+            # alter the solid object. Keep the original nominal admission below.
+            self.require_walking(s)
+            require(s is self.last_state and s['default_controls'] and s['default_sampler'] and s['tuning_unchanged'],
+                    'western settling uses only current validated default walking')
+            subgoal = [8.8, .18, 12.5]
+            speed = norm([s['walk_velocity'][0], 0, s['walk_velocity'][2]])
+            dx, yaw, distance = self.yaw_to(s, subgoal)
+            vertical = abs(target[1]-s['player'][1])
+            if distance <= .03 and vertical <= .65 and speed <= .35:
+                nominal = sub(target, s['player'])
+                require(norm([nominal[0], 0, nominal[2]]) <= .30 and vertical <= .65 and speed <= .35,
+                        'western settling retains original nominal arrival bounds')
+                self.receipts.setdefault('western_approach_settled', self.receipt(s))
+                return 0, True
+            tuning = s['walk_tuning']
+            commanded = tuning['sprint'] if distance > 3 else tuning['walk']
+            stopping = speed*speed/(2*tuning['deceleration']) + max(speed, commanded)*frames/60 + .10
+            if abs(yaw) < .08 and distance > .03 and (speed <= .35 or distance > stopping):
+                keys.add('w')
+                if distance > 3: keys.add('Shift_L')
+            return dx, False
         walking = dict(s, velocity=s['walk_velocity'])
         return HabitatLoopPilot.walk_to(self, walking, target, keys, frames)
 

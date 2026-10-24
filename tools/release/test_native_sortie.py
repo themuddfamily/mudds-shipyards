@@ -3751,6 +3751,67 @@ class StationDefenseSafetyTests(unittest.TestCase):
         with self.assertRaisesRegex(AssertionError, 'exact running game PID'):
             pilot.validate_observation(self.baseline())
 
+    def western_walking_sample(self, position, velocity=None):
+        pilot = native.StationDefensePilot()
+        s = self.baseline()
+        s.update(phase='APPROACH_SHIP', player=position[:], velocity=[0,0,0],
+                 walk_velocity=velocity or [0,0,0], walk_forward=[-1,0,0], walk_right=[0,0,-1])
+        NativeSortieSafetyTests.arm_motion(s)
+        pilot.validate_observation(s)
+        pilot.stage = 'walk_board'
+        pilot.route = [pilot.TO_BOARD[2][:], pilot.TO_BOARD[3][:]]
+        return pilot, s
+
+    def test_initial_eastern_arrival_settles_west_without_accepting_the_nominal_early(self):
+        pilot, s = self.western_walking_sample([9.234713554382324,-.019863275811076164,12.49981689453125])
+        s.update(walk_forward=[.9999882578849792,0,-.004575461149215698],
+                 walk_right=[.004575461149215698,0,.9999882578849792])
+        before = copy.deepcopy(s)
+        keys = set()
+        dx, arrived = pilot.walk_to(s, pilot.TO_BOARD[2], keys, 1)
+        self.assertFalse(arrived)
+        self.assertNotEqual(dx, 0)  # Ordinary mouse turns away from the east.
+        self.assertEqual(keys, set())
+        self.assertEqual(s, before)  # No actor, capsule, pose or command writes.
+        self.assertNotIn('western_approach_settled', pilot.receipts)
+        # Inside the old .30 stop radius, W must still close the fixed .03 goal.
+        pilot, s = self.western_walking_sample([8.9,-.019863275811076164,12.5])
+        keys = set()
+        self.assertEqual(pilot.walk_to(s, pilot.TO_BOARD[2], keys, 1), (0,False))
+        self.assertEqual(keys, {'w'})
+        self.assertEqual(pilot.route[0], [9,.18,12.5])
+
+    def test_western_settling_still_admits_only_original_nominal_with_original_support_and_speed(self):
+        pilot, s = self.western_walking_sample([8.81,-.019863275811076164,12.5], [.2,0,0])
+        before = copy.deepcopy(s)
+        controls = pilot.update(s, 1)
+        self.assertFalse(controls[3])
+        self.assertEqual(pilot.visited, [dict(stage='walk_board', target=[9,.18,12.5], frame=s['frame'])])
+        self.assertEqual(pilot.route, [[9,.18,-24]])
+        self.assertEqual(s, before)
+        self.assertEqual(pilot.receipts['western_approach_settled']['player'], before['player'])
+        s['player'][0] = 99
+        self.assertEqual(pilot.receipts['western_approach_settled']['player'][0], 8.81)
+        for changes in (dict(walk_velocity=[.36,0,0]), dict(player=[8.81,1,12.5])):
+            pilot, s = self.western_walking_sample([8.81,-.019863275811076164,12.5])
+            s.update(changes)
+            self.assertFalse(pilot.walk_to(s, pilot.TO_BOARD[2], set(), 1)[1])
+            self.assertNotIn('western_approach_settled', pilot.receipts)
+        for changes in (dict(supported=False), dict(default_controls=False), dict(capsule_enabled=False)):
+            pilot, s = self.western_walking_sample([8.81,-.019863275811076164,12.5])
+            s.update(changes)
+            with self.assertRaises(AssertionError): pilot.walk_to(s, pilot.TO_BOARD[2], set(), 1)
+
+    def test_other_nominal_goals_and_later_walk_stages_keep_original_walking_helper(self):
+        pilot, s = self.western_walking_sample([9,-.019863275811076164,-23.8])
+        self.assertEqual(pilot.walk_to(s, pilot.TO_BOARD[3], set(), 1), (0,True))
+        pilot, s = self.western_walking_sample([9.23,-.019863275811076164,12.5])
+        for stage in ('walk_arrow', 'walk_reset'):
+            pilot.stage = stage
+            self.assertEqual(pilot.walk_to(s, pilot.TO_BOARD[2], set(), 1), (0,True))
+        self.assertNotIn('western_approach_settled', pilot.receipts)
+        self.assertEqual(pilot.TO_BOARD, [[-8.5,.18,12.5],[6,.18,12.5],[9,.18,12.5],[9,.18,-24],[12,.18,-24.5]])
+
     def clearance(self, s):
         # One offset, scaled root box whose farthest corner is (6,1,1).
         radius = math.sqrt(38) + .10
