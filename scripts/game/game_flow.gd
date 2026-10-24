@@ -13000,6 +13000,7 @@ func _present_network_remote_craft_lost(craft: HeroShip, play_cue: bool = true) 
 	if not _recovering:
 		_invalidate_transition_generation()
 		_recover_from_destroyed_ship(craft)
+		_publish_network_crew_role_status()
 
 
 func get_network_craft_pose_audit() -> Dictionary:
