@@ -42,6 +42,18 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
+**SERVER-BASELINE passenger-loss diagnosis selected — exact failed clause.**
+Cumulative review retains both failed full trials325.316s and the unqualified
+cleanup boundary below. Existing snapshots omit several predicate inputs.
+Restore the archived caller and extend only its existing failure snapshot with
+independent results for every original host predicate and retained/current
+identities. Original acceptance predicate, BOARD/seven MOVING and300/360/8/15/10s
+limits remain byte-identical. One silent isolated full diagnostic run after clean
+compile; stop on its result, no automatic qualification retry or speculative fix.
+Estimate20min implementation/review plus≤11min checks. Root integrates; one agent
+owns the test snapshot, independent reviewer checks observational-only scope.
+This diagnosis earns no gameplay or parent-completion credit.
+
 **SERVER-BASELINE passenger-disconnect stopped — cleanup barrier unqualified.**
 The full BOARD and seven MOVING stages completed. Corrected caller then observed
 one real passenger disconnect, one body/frame removal, and retained pilot
