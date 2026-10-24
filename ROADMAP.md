@@ -29,6 +29,27 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Selected: PLAY-BREACH — complete the first ordinary Heavy Breach sortie.**
+Done means normal on-foot Heavy posting/physical E arm, ordinary Arrow boarding/
+takeoff, actual charged picket destroyed by real player weapons, CLEARED, one
+independently read durable Heavy reward, strict home/OFFLINE physical exit,
+physical board return confirming the normal Torpedo posting, normal UI OS exit0.
+Retain originalCAP300/outer360, all production timers/tuning and authored protected
+objective's live identity/presence; Perimeter health thresholds do not apply.
+Earlier Heavy/Torpedo withdrawal/home passes and staged kill fixtures do not
+prove this result. No missing gameplay capability is assumed.
+
+One implementation owner extends the existing driver/tests and smallest read-only
+observer/startup/privacy bridge; root owns Git/guarded execution/package/cleanup,
+one independent reviewer. Reuse existing Arrow/board/home/input helpers and only
+needed archived path code. No blanket diagnostic restore, direct damage/reward/
+landing, synthetic checkpoint, alternate-point search, tuning or cap changes.
+Estimate35–50min implementation+10–20min focused checks/private package/ONE full
+trial/cleanup, splitbefore90min on one cumulative clock. First unexpected failure
+stops for causal/cumulative review. Caller-only qualification keeps checkpoint
+bcd268c with explicit package/source limits; a gameplay repair requires fresh
+Windows checkpoint. No engine trial before concrete implementation/source review.
+
 **PLAY-DEFENSE remains OPEN; consumed-fire qualification stopped.**
 The one full ordinary trial destroyed Alpha and Beta, then reached the original
 34s timeout with two hostiles remaining. Payment/home/Reset/UI exit were not
