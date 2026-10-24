@@ -43,6 +43,33 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
+**Selected: SERVER-BASELINE-SEAT-RACE — ordinary moving crew contention/transfer.**
+Retain the complete original non-playing authority/two-client BOARD and all seven
+MOVING stages. Then ordinary pilot brake/helm release and passenger stand leave
+both original players supported in the cabin. Both physically approach the same
+crew_port_00 chair; one ready/go barrier releases their sampled Interact presses,
+without choosing a winner. Actual host claim receipts must show exactly one
+winner and one seat_occupied loser, with one current loser toast and usable
+controls. The winner stands, original loser claims the identical physical chair
+with a newer claim sequence/current seat generation, then both release/reclaim
+their original pilot/passenger roles and prove renewed authoritative movement.
+Only the complete three-process terminal handshake/actual OS exits0 can pass.
+
+One high-effort implementer owns only the existing Halyard passenger route test;
+root owns selection, guarded compile/full execution, integration/push and cleanup,
+with one independent lifecycle reviewer. No direct claims, actor placement,
+forced winner, body/generation writes, runtime tuning or new validator/schema.
+Use actual fresh body/stream/ownership identities after legitimate helm release;
+normal transfers advance claim sequences, not necessarily seat generations.
+Original300s overall/outer360, eight-second transition and15s walking bounds
+remain. One selected full attempt, first failure stops for causal review; no
+unchanged retry or alternate chair. Strict compile precedes the engine journey.
+Estimate45–75min implementation and10–20min checks/review/cleanup; split before90min.
+A caller-only pass needs no duplicate checkpoint; a demonstrated runtime repair
+requires focused proof and a fresh checkpoint. Full baseline/endurance and
+native/human gates remain open. Dummy/headless/private Xvfb/x11; Actions disabled.
+
+
 **HALYARD occupied-chair feedback DONE — `bcd268c75`; checkpoint `bcd268c`.**
 An actual host occupied-chair verdict now answers the exact current remote
 passenger request once, through the existing snapshot. The client shows accurate
