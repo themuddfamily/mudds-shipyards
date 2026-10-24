@@ -29,6 +29,26 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Selected: HELM-HOVER — real correction, fresh release and full handback.**
+Starting clean source597d4319a. One implementer owns only the new hover test/UID;
+root owns integration/records/checks, one independent reviewer covers source/raw.
+Reuse the accepted three-process ordinary Jovian route and existing controls;
+produce tilt and vertical motion through actual sampled pitch/forward inputs.
+Prove authored host hover correction, same source/wire/seat/session continuity,
+fresh delivered release, both actual client replicas, then complete ordinary
+Interact handback/supported walking/source retirement. No pose/velocity/command/
+authority staging or provider override; no planetary/hardware claim.
+
+Estimate30min source plus15min review/checks; hard stop60min including failed
+attempts/cleanup. Original profile300s/outer360s and existing route gates remain.
+After source review, run import/check-only and ONE silent isolated full route;
+stop at first unexpected failure. A correction requires demonstrated cause and
+bounded cumulative review. Success needs actual3peer exits0, one suite marker,
+zero runtime diagnostics and reviewed actual host/client/handback receipts.
+No runtime change is assumed; a demonstrated production defect needs its own
+bounded repair/checkpoint. No identical rebuild for test-only qualification.
+
+
 **Delivered: HELM-BOOST — actual host acceleration, release and full handback.**
 Clean source70c8a65e5 passes the complete ordinary three-process Jovian route in
 147.183s: physical boarding/departure/brake, both yaw turns, equal30tick/.5s
@@ -43,7 +63,7 @@ diagnostics. [Exact scope and cleanup](docs/history/ROADMAP_DELIVERIES.md#sample
 This qualifies existing gameplay on isolated synthetic-action/loopback input;
 no runtime tuning/feature change, physical device or native-hardware pass.
 No identical playable rebuild is needed; checkpointfb396ab remains current.
-HELM-HOVER is still unscheduled; full network/endurance/capacity/final gates stay
+HELM-HOVER is selected above; full network/endurance/capacity/final gates stay
 open. No task branch/worktree was created.
 
 **Prepared: three concrete craft proposals — owner choices pending.**
