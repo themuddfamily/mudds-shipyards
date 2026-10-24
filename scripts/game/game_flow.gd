@@ -23470,7 +23470,7 @@ func _recall_pilot_to_deck() -> void:
 
 
 func _replenish_destroyed_ship(destroyed_ship: HeroShip) -> void:
-	if not is_instance_valid(destroyed_ship):
+	if not is_instance_valid(destroyed_ship) or not destroyed_ship.is_destroyed():
 		return
 	var instance_id := destroyed_ship.get_instance_id()
 	if _regeneration_pending.has(instance_id):
