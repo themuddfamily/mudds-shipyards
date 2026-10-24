@@ -381,6 +381,8 @@ func _assert_a_remote_body_is_stood_up_for_the_walker() -> void:
 
 ## Keep the ordinary source/ENet/authority path, but decline at the existing
 ## delegated claim seam so this probe acquires no role or chair reservation.
+## The occupied result below is a delegated fixture, not an actual authority
+## occupancy verdict; the separate physical passenger peer route proves that.
 func _assert_crew_support_is_resolved_once_per_edge() -> void:
 	var body := _body(WALKER_ENTITIES[0])
 	if body == null:
@@ -391,7 +393,7 @@ func _assert_crew_support_is_resolved_once_per_edge() -> void:
 	simulation.crew_seat_claim = func(record: Dictionary, seat: ShipCrewSeat) -> Dictionary:
 		claims.append({"id": record.get("last_interaction_id"), "floor": body.is_on_floor(),
 			"normal": body.get_floor_normal(), "seat": seat})
-		return {"accepted": false, "status": &"test_declined"}
+		return {"accepted": false, "status": &"seat_occupied"}
 	body.set_physics_process(false)
 	var start := body.global_transform
 	# First perform a real unsupported slide outside snap reach, clearing the
@@ -409,9 +411,24 @@ func _assert_crew_support_is_resolved_once_per_edge() -> void:
 	_check(claims.size() == 1 and bool(claims[0].floor)
 		and (claims[0].normal as Vector3).dot(_frame.get_frame_up_direction()) >= cos(body.floor_max_angle),
 		"ordinary ENet interaction resolves real walkable support before exactly one delegated crew claim")
+	var refused_body := simulation.get_body_record(WALKER_ENTITIES[0])
+	var refused := refused_body.get("crew_interaction_result", {}) as Dictionary
+	var refused_seat: ShipCrewSeat = claims[0].seat if claims.size() == 1 else null
+	_check(not refused.is_empty() and not bool(refused.get("accepted", true))
+		and refused.get("status") == &"seat_occupied"
+		and int(refused.get("interaction_request_id", 0)) == source.get_interaction_request_id()
+		and int(refused.get("interaction_request_id", 0)) == int(refused_body.get("last_interaction_id", -1))
+		and refused.get("entity_id") == WALKER_ENTITIES[0]
+		and int(refused.get("entity_generation", 0)) == source.get_entity_generation()
+		and int(refused.get("owner_peer_id", 0)) == int(refused_body.get("owner_peer_id", -1))
+		and is_instance_valid(refused_seat) and refused.get("seat_id") == refused_seat.get_seat_id()
+		and refused.get("role") == refused_seat.get_role(),
+		"actual consumed body edge retains its delegated occupied-chair result and exact body/seat identity")
 	await _drive(12)
 	_check(claims.size() == 1,
 		"later neutral packets carrying the consumed interaction id never retry the declined claim")
+	_check((simulation.get_body_record(WALKER_ENTITIES[0]).get("crew_interaction_result", {}) as Dictionary) == refused,
+		"neutral retransmissions retain the same result without inventing another interaction")
 	# A fresh ordinary edge from the opposite cabin end has no actual nearby
 	# crew chair. It cannot invoke the delegated claim or snap toward a chair.
 	body.global_position = _craft.global_transform * Vector3(0, 0.60, 1.0)
@@ -422,6 +439,8 @@ func _assert_crew_support_is_resolved_once_per_edge() -> void:
 	source.request_interaction()
 	await _drive(12)
 	var after_edge := simulation.get_body_record(WALKER_ENTITIES[0])
+	_check((after_edge.get("crew_interaction_result", {}) as Dictionary).is_empty(),
+		"a newer edge without a nearby crew chair retires the previous occupied-chair result")
 	# The moving deck still carries this paused capsule in world space. Compare
 	# cabin coordinates, allowing 1 mm for floating-point carried-pose rounding
 	# (the captured unchanged pose differed by 0.043 mm after 8.68 m of carry).
