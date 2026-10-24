@@ -42,6 +42,23 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
+**SERVER-BASELINE contested bunk authority selected — reproduce, then repair.**
+Normal moving sleep/wake is accepted, but source shows client-local bunk entry
+without an authoritative selected-bunk/refusal consumer. A focused two-Main/real
+ENet fixture will disclose staged admission/poses and actual host reservations:
+Port occupied→host alternative, both occupied→refusal, then freed→retry/wake.
+Ordinary client input must follow actual host body/reservation and preserve usable
+awake controls on refusal. No new role or host-selection policy is authorized.
+
+One implementer owns the existing passenger-route test first; runtime ownership
+is GameFlow's client rest consumer only after reproduction. Root owns compile≤300s,
+one focused180s scenario/300s outer and causal review before runtime edits.
+Estimate30min repro implementation. First failure stops for causal review; no
+synthetic successful packet/state or changed default route/cap. A production fix
+must pass focused checks and the complete original moving sleep/wake journey,
+then receive a fresh playable checkpoint. Staged fixture is not ordinary baseline,
+endurance, native or parent qualification.
+
 **PLAY-DEFENSE first-point journey stopped — combat remains unqualified.**
 Actual ordinary flight reached[-70.914,10.140,-90.916] with live whole-hull
 clearance. In combat, two actual Arrow hits reduced Alpha85→37; no hostile was
