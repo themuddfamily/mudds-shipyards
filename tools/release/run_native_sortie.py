@@ -994,7 +994,7 @@ class CourierWithdrawPhasePilot(CourierEscapePilot):
                 'same live unhurt first runner before escape at normal defender-kill return transition')
         self.require_wait_radius(receipt['ship_position'], self.scenario_origin)
         require(not s['opponent_active'] and s['opponent_health'] <= 0
-                and s['phase'] in ('RETURN_TO_YARD', 'SHUT_DOWN', 'COMPLETE'),
+                and s['phase'] in ('RETURN_TO_YARD', 'SHUT_DOWN', 'DISEMBARKING', 'COMPLETE'),
                 'actual original defender death retains the normal Guided return and home phases')
         if self.defender_kill is not None:
             require(receipt == self.defender_kill, 'original authoritative defender kill witness never changes')

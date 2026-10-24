@@ -2437,10 +2437,18 @@ class NativeSortieSafetyTests(unittest.TestCase):
         pilot.stage = 'exit'
         pilot.phases = ['APPROACH_SHIP', 'START_ENGINES', 'LAUNCH', 'TARGET_PRACTICE',
                         'INTERCEPTOR_ENGAGEMENT', 'RETURN_TO_YARD', 'SHUT_DOWN']
+        # Real GameFlow awaits canopy and avatar motion in DISEMBARKING.
+        # The actor remains seated initially; this interval is not completion.
+        s.update(frame=s['frame']+1, phase='DISEMBARKING', piloted=True, seated=True,
+                 control_enabled=False, guided_complete=False,
+                 lease=True, parked_exact=True, contract=True)
+        s['telemetry']['engine'] = 'OFFLINE'
+        self.assertFalse(pilot.update(copy.deepcopy(s), 7.2)[3])
+        self.assertEqual(pilot.stage, 'exit')
+        self.assertIsNone(pilot.result)
         s.update(frame=s['frame']+1, phase='COMPLETE', piloted=False, seated=False,
                  control_enabled=True, guided_complete=True, exit_error=.17,
                  lease=True, parked_exact=True, contract=True, spawn=[0, 0, 0])
-        s['telemetry']['engine'] = 'OFFLINE'
         pilot.update(copy.deepcopy(s), 8)
         self.assertEqual(pilot.result['completion_marker'], native.CourierWithdrawPhasePilot.MARKER)
         self.assertEqual(pilot.result['defender_kill']['target_entity_id'], 12)
