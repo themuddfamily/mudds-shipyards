@@ -23,6 +23,7 @@ const LIFE_ROUTES := {
 var _cinder_supply := false
 var _supply_sequence := 0
 var _arrow := false
+var _heavy_breach := false
 var _arrow_sequence := 0
 var _beacon_entry := false
 var _beacon_mode := "beacon-entry"
@@ -85,6 +86,13 @@ func on_startup_completed(main: Node) -> void:
 	_cinder_supply = "--native-sortie-observer=cinder-supply" in OS.get_cmdline_args()
 	if _cinder_supply:
 		_ship = _game.get_node(^"JovianLightFreighter") as HeroShip
+		_parked = _ship.global_transform
+		_tuning = _sortie_tuning()
+		process_mode = Node.PROCESS_MODE_ALWAYS
+		return
+	_heavy_breach = "--native-sortie-observer=heavy-breach" in OS.get_cmdline_args()
+	if _heavy_breach:
+		_ship = _game.get_node(^"ArrowReconShip") as HeroShip
 		_parked = _ship.global_transform
 		_tuning = _sortie_tuning()
 		process_mode = Node.PROCESS_MODE_ALWAYS
@@ -553,6 +561,9 @@ func _craft_tuning(craft: HeroShip) -> Dictionary:
 
 
 func _physics_process(delta: float) -> void:
+	if _heavy_breach and _game != null:
+		print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(_heavy_breach_observation(), "", true, true))
+		return
 	if _ember:
 		if not _ember_started:
 			return
@@ -1380,6 +1391,105 @@ func _life_observation() -> Dictionary:
 
 ## Independent ordinary Arrow lifecycle; every physics receipt is observational.
 ## In particular, never reconcile leases or ask a getter to create input/seat owners.
+## Reuse the ordinary Arrow body/home/UI observation; add only this live contract.
+func _heavy_breach_observation() -> Dictionary:
+	if get_tree().paused:
+		_arrow_sequence += 1
+		var pause: Dictionary = _habitat_restart_pause_observation()
+		pause.merge({"mode": "heavy-breach", "sequence": _arrow_sequence, "pid": OS.get_process_id()}, true)
+		return pause
+	var result: Dictionary = _arrow_observation()
+	result["mode"] = "heavy-breach"
+	if not bool(result.get("actors_current", false)):
+		return result
+	var board: HeavyBreachActivityBoard = _game.world.get_heavy_breach_activity_board() as HeavyBreachActivityBoard
+	var objective: Node3D = _game.world.get_heavy_breach_protected_objective()
+	var director: EncounterScenarioDirector = _game.get_node_or_null(^"EncounterScenarios") as EncounterScenarioDirector
+	var picket: StandoffPicketOpponent = _game.get_node_or_null(^"StandoffPicket") as StandoffPicketOpponent
+	var shape: CollisionShape3D = picket.get_node_or_null(^"SpineCollision") as CollisionShape3D if _ember_node_current(picket) else null
+	if not _ember_node_current(board) or not _ember_node_current(objective) or not _ember_node_current(director) 			or not _ember_node_current(picket) or not _ember_node_current(shape):
+		result.actors_current = false
+		return result
+	var source: LocalShipInputSource = _ship.get("_default_local_command_source") as LocalShipInputSource
+	var command: ShipCommand = _ship.get_last_ship_command()
+	var store: UserDataStore = _game.get("_runtime_settings_user_data_store") as UserDataStore
+	var rewards: Dictionary = _game.get_activity_reward_report()
+	var authority: Dictionary = rewards.get("authority", {}) as Dictionary
+	var actual_shot: Dictionary = _game.get_last_player_shot_result()
+	var collider: Object = actual_shot.get("collider")
+	var position: Vector3 = actual_shot.get("position", Vector3.INF)
+	(result.shot as Dictionary).merge({"impact": _v(position), "collider": {
+		"id": collider.get_instance_id() if is_instance_valid(collider) else 0,
+		"path": str((collider as Node).get_path()) if collider is Node else ""}}, true)
+	var offset: Vector3 = board.global_position - _player.get_interaction_origin()
+	result.merge({"completed_motion": _life_completed_motion(),
+		"station_seated": _player.is_station_seated(), "game_station_seated": bool(_game.get("_station_seated")),
+		"sleeping": _player.is_sleeping(), "command_fire": command.fire if command != null else false,
+		"command_thrust": command.throttle if command != null else 0.0,
+		"command_stream": command.stream_id if command != null else -1,
+		"command_sequence": command.sequence if command != null else -1,
+		"input_stream": source.get_stream_id(), "source_enabled": source.is_enabled_owner(),
+		"application_focused": bool(source.get("_application_focused")),
+		"weapon": _game.combat_authority.get_weapon_profile(_ship, &"arrow_precision_recon_emitter"),
+		"weapon_source": _game.combat_authority.get_source_id(_ship),
+		"target": {"id": picket.get_instance_id(), "source_id": _game.combat_authority.get_source_id(picket),
+			"position": _v(picket.global_position), "aim": _v(shape.global_position),
+			"shape_id": shape.get_instance_id(), "health": picket.get_health(),
+			"maximum_health": picket.get_maximum_health(), "active": picket.is_active(),
+			"destroyed": picket.get_health() <= 0.0, "generation": int(picket.get("_activation_generation")),
+			"charge_target_id": int(picket.get("_lance_charge_target_instance_id")),
+			"charge_dispatch_generation": int(picket.get("_lance_charge_dispatch_generation")),
+			"charge": float(picket.get("_telegraph_remaining")) > 0.0 and bool(picket.get("_lance_charge_armed"))},
+		"breach": {"board_id": board.get_instance_id(), "director_id": director.get_instance_id(),
+			"objective_id": objective.get_instance_id(), "objective_position": _v(objective.global_position),
+			"receipt": director.get_heavy_breach_receipt(), "board": board.get_snapshot(),
+			"candidate": _game.station_interaction_candidate == board,
+			"position": _v(board.global_position), "distance": offset.length(),
+			"facing": _player.get_interaction_direction().dot(offset.normalized()),
+			"prompt": board.get_interaction_prompt(), "available": board.get_interaction_snapshot(_player),
+			"last_result": board.get_last_result()},
+		"settlement": {"record": (authority.get("record", {}) as Dictionary).duplicate(true),
+			"store": {"path": ProjectSettings.globalize_path(str(store.get("_path"))),
+				"source": str(store.get_loaded_source()), "generation": store.get_generation()}}}, true)
+	result["fire_gate"] = _heavy_breach_fire_gate(picket)
+	return result
+
+
+## Actual current camera/next-muzzle first contacts, never a submitted shot.
+func _heavy_breach_fire_gate(picket: StandoffPicketOpponent) -> Dictionary:
+	var camera: Camera3D = _ship.get_camera()
+	var muzzle: Marker3D = _ship.get("_muzzle_left") as Marker3D if bool(_ship.get("_fire_from_left")) else _ship.get("_muzzle_right") as Marker3D
+	var gate: Dictionary = {"frame": Engine.get_physics_frames(), "ship_id": _ship.get_instance_id(),
+		"target_id": picket.get_instance_id(), "clear": false, "weapon": _ship.get_weapon_fire_status()}
+	if not _ember_node_current(camera) or not _ember_node_current(muzzle):
+		return gate
+	var origin: Vector3 = camera.global_position
+	var direction: Vector3 = camera.project_ray_normal(camera.get_viewport().get_visible_rect().size * 0.5).normalized()
+	var endpoint: Vector3 = origin + direction * float(_ship.call("_get_weapon_targeting_distance"))
+	var space: PhysicsDirectSpaceState3D = _ship.get_world_3d().direct_space_state
+	var camera_ray := PhysicsRayQueryParameters3D.create(origin, endpoint, HeroShip.WEAPON_AIM_MASK, [_ship.get_rid()])
+	camera_ray.collide_with_areas = true
+	camera_ray.hit_from_inside = false
+	var camera_hit: Dictionary = space.intersect_ray(camera_ray)
+	var convergence: Vector3 = camera_hit.get("position", endpoint)
+	var resolver: CombatResolver = _game.combat_authority.get_resolver()
+	var exclusions: Array[RID] = resolver.call("_collect_source_exclusions", _ship)
+	var profile: Dictionary = _game.combat_authority.get_weapon_profile(_ship, &"arrow_precision_recon_emitter")
+	var muzzle_ray := PhysicsRayQueryParameters3D.create(muzzle.global_position,
+		muzzle.global_position + (convergence - muzzle.global_position).normalized() * float(profile.get("range", 0.0)),
+		PhysicsLayers.HITSCAN_QUERY_MASK, exclusions)
+	muzzle_ray.collide_with_areas = true
+	muzzle_ray.hit_from_inside = true
+	var muzzle_hit: Dictionary = space.intersect_ray(muzzle_ray)
+	var camera_body: Node = camera_hit.get("collider") as Node
+	var muzzle_body: Node = muzzle_hit.get("collider") as Node
+	gate.merge({"clear": (camera_body == picket or (_ember_node_current(camera_body) and picket.is_ancestor_of(camera_body)))
+		and (muzzle_body == picket or (_ember_node_current(muzzle_body) and picket.is_ancestor_of(muzzle_body))),
+		"camera_collider": str(camera_body.get_path()) if _ember_node_current(camera_body) else "",
+		"muzzle_collider": str(muzzle_body.get_path()) if _ember_node_current(muzzle_body) else ""}, true)
+	return gate
+
+
 func _arrow_observation() -> Dictionary:
 	_arrow_sequence += 1
 	var owner := get_parent()
