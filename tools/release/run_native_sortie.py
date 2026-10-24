@@ -2,6 +2,7 @@
 """Fly the embedded Linux game with OS XTest keys/mouse on an owned Xvfb.
 
 Usage: run_native_sortie.py GAME.x86_64 --output NEW_RESULT_DIRECTORY
+Use --route torpedo-run for full Heavy prerequisite then real seeker evade/intercept/boat/home journey.
 Use --route heavy-breach for physical Heavy arm, real picket kill/payment and home/next posting.
 Use --route cinder-supply for the full first funded Jovian/Cinder terminal/home journey.
 Use --route beacon-entry for normal Torrent departure and actual first Beacon HUD start.
@@ -4517,6 +4518,8 @@ class ArrowReturnReusePilot(Pilot):
 
 class BreachFireControl:
     """A consumed ordinary press/release is input evidence, never a hit."""
+    SCENARIO, TARGET_SOURCE = 'heavy_breach', 2102
+
     def __init__(self):
         self.phase, self.scope, self.cursor = 'release', None, None
         self.receipts = []
@@ -4532,9 +4535,9 @@ class BreachFireControl:
                  and s['phase'] == 'FREE_FLIGHT' and all(s[k] for k in
                     ('actors_current', 'piloted', 'seated', 'seated_at_pilot', 'active_ship',
                      'default_sampler', 'source_enabled', 'application_focused', 'mouse_captured'))
-                 and director['scenario'] == 'heavy_breach' and director['state'] == 'running'
+                 and director['scenario'] == self.SCENARIO and director['state'] == 'running'
                  and director['outcome'] == 'pending' and director['elapsed'] < director['bounds']['scenario_time_limit']
-                 and target['active'] and target['health'] > 0 and target['source_id'] == 2102
+                 and target['active'] and target['health'] > 0 and target['source_id'] == self.TARGET_SOURCE
                  and s['weapon_source'] == 1102 and s['command_stream'] == s['input_stream'])
         if not valid: return self.release()
         scope = tuple(s[k] for k in ('pid', 'main_id', 'player_id', 'ship_id', 'source_id', 'input_stream'))
@@ -4568,6 +4571,8 @@ class HeavyBreachPilot(Pilot):
     """The actual posted Heavy contract, one real clear/payment and physical return."""
     MARKER = 'NATIVE_HEAVY_BREACH_OK'
     ACTIVITY, REWARD = 'shipyard_heavy_breach', 'return_heavy_breach_credit'
+    MODE, SCENARIO, NEXT_SCENARIO, NEXT_TITLE = 'heavy-breach', 'heavy_breach', 'torpedo_run', 'TORPEDO RUN'
+    FIRE_CONTROL, REQUIRES_CHARGE = BreachFireControl, True
     WEAPON = 'arrow_precision_recon_emitter'
     IDS = ('pid', 'main_id', 'world_id', 'player_id', 'capsule_id', 'shape_id',
            'ship_id', 'berth_id', 'seat_id', 'source_id')
@@ -4594,7 +4599,7 @@ class HeavyBreachPilot(Pilot):
         self.shot_receipts = set()
         self.armed = self.departure = self.launched = self.charge = self.kill = self.paid = None
         self.next_posting = None; self.landing_seen = False; self.neutral_start = None
-        self.fire_control = BreachFireControl()
+        self.fire_control = self.FIRE_CONTROL()
         self.ui_key = None; self.ui_until = self.ui_release_until = 0
         self.quit_requested = False
 
@@ -4649,13 +4654,14 @@ class HeavyBreachPilot(Pilot):
                 and damage.get('health') == shot['remaining_health'] == s['target']['health'],
                 'actual sole damage ledger confirms real player-weapon picket damage')
         if shot['destroyed']:
-            require(self.charge is not None and self.launched is not None and self.kill is None
+            self.require_terminal(s)
+            require(self.launched is not None and self.kill is None
                     and damage.get('destroyed') and shot['remaining_health'] == 0
                     and s['target']['destroyed'], 'real charged picket terminal zero-health kill')
             self.kill = self.receipt(s)
 
     def validate_observation(self, s):
-        require(s.get('mode') == 'heavy-breach'
+        require(s.get('mode') == self.MODE
                 and (self.last_sequence < 0 or s['sequence'] == self.last_sequence+1),
                 'every Heavy observation retained in sequence')
         self.last_sequence = s['sequence']; self.last_state = s
@@ -4667,7 +4673,7 @@ class HeavyBreachPilot(Pilot):
         b, d, t = s['breach'], s['breach']['board']['director'], s['target']
         if self.initial is None:
             require(s['phase'] == 'INTRO' and not s['guided_complete'] and not b['board']['sortie_armed']
-                    and b['board']['offered_scenario'] == 'heavy_breach', 'fresh normal title and original Heavy posting')
+                    and b['board']['offered_scenario'] == self.SCENARIO, 'fresh normal title and original Heavy posting')
             self.require_home(s, False)
             require(s['settlement']['record'].get('total_receipts', 0) == 0, 'fresh actual unpaid ledger')
             self.initial = copy.deepcopy(s)
@@ -4705,20 +4711,17 @@ class HeavyBreachPilot(Pilot):
         if self.departure is None and b['board']['active_director_generation'] > 0:
             require(self.armed is not None and not s['landed'] and s['lease_free']
                     and s['active_ship'] and s['piloted'] and s['seated_at_pilot'] and s['command_thrust'] > 0
-                    and d['scenario'] == 'heavy_breach' and not b['board']['sortie_armed'],
+                    and d['scenario'] == self.SCENARIO and not b['board']['sortie_armed'],
                     'real occupied Arrow takeoff consumes the physical Heavy arm')
             self.departure = self.receipt(s)
         if self.departure is not None:
-            require(d['scenario'] == 'heavy_breach'
+            require(d['scenario'] == self.SCENARIO
                     and d['scenario_generation'] == self.departure['breach']['board']['director']['scenario_generation']
                     and d['outcome'] in ('pending', 'cleared'), 'one real Heavy generation; first failed/withdrawn/expired outcome stops')
             if d['launched'] and self.launched is None:
-                require(t['active'] and t['source_id'] == 2102 and t['health'] > 0
-                        and b['receipt']['accepted'] and b['receipt']['picket_instance_id'] == t['id']
-                        and b['receipt']['protected_objective_instance_id'] == b['objective_id'],
-                        'director launches actual charged-picket/protected-objective relationship')
+                self.require_launch(s)
                 self.launched = self.receipt(s)
-            if t['charge'] and self.charge is None:
+            if self.REQUIRES_CHARGE and t['charge'] and self.charge is None:
                 require(self.launched is not None and t['active']
                         and t['charge_target_id'] == b['objective_id']
                         and t['charge_dispatch_generation'] == d['scenario_generation'],
@@ -4726,7 +4729,7 @@ class HeavyBreachPilot(Pilot):
                 self.charge = self.receipt(s)
         self.observe_shot(s)
         if d['outcome'] == 'cleared' and self.departure is not None:
-            require(self.kill is not None and t['health'] == 0 and b['board']['offered_scenario'] == 'torpedo_run',
+            require(self.kill is not None and t['health'] == 0 and b['board']['offered_scenario'] == self.NEXT_SCENARIO,
                     'real player-weapon picket kill alone clears Heavy and rotates normal posting')
             self.require_paid(s)
             if self.paid is None: self.paid = self.receipt(s); self.paid['settlement'] = copy.deepcopy(s['settlement'])
@@ -4739,6 +4742,24 @@ class HeavyBreachPilot(Pilot):
                 if self.neutral_start is None: self.neutral_start = s['frame']
             else: self.neutral_start = None
         self.observed_previous = copy.deepcopy(s)
+
+    def require_launch(self, s):
+        b, t = s['breach'], s['target']
+        require(t['active'] and t['source_id'] == 2102 and t['health'] > 0
+                and b['receipt']['accepted'] and b['receipt']['picket_instance_id'] == t['id']
+                and b['receipt']['protected_objective_instance_id'] == b['objective_id'],
+                'director launches actual charged-picket/protected-objective relationship')
+
+    def require_terminal(self, s):
+        require(self.charge is not None, 'real charged picket before terminal player kill')
+
+    def fight_input(self, s, now, keys):
+        dx, dy, align = self.weapon_aim(s, sub(s['target']['aim'], s['camera']))
+        gate = s['fire_gate']
+        require(gate['frame'] == s['frame'] and gate['ship_id'] == s['ship_id']
+                and gate['target_id'] == s['target']['id'], 'current actual camera/next-muzzle fire forecast')
+        ready = self.charge is not None and gate['clear'] and gate['weapon'].get('ready')
+        return dx, dy, self.fire_control.step(s, ready)
 
     def begin_walk(self, stage, points, s):
         self.route = [p[:] for p in points]; self.enter(stage, s)
@@ -4770,12 +4791,12 @@ class HeavyBreachPilot(Pilot):
                 dx, yaw, _ = self.yaw_to(s, b['position'])
                 ready = b['candidate'] and b['distance'] <= 2.55 and b['facing'] >= .05 and abs(yaw) < .08
                 if ready and self.stage == 'walk_board':
-                    require(b['board']['offered_scenario'] == 'heavy_breach' and b['available'].get('available'), 'ordinary initial Heavy available')
+                    require(b['board']['offered_scenario'] == self.SCENARIO and b['available'].get('available'), 'ordinary initial Heavy available')
                     self.press('e', 'arm_wait', 'arm_press', s, now)
                 elif ready:
-                    require(self.paid is not None and b['board']['offered_scenario'] == 'torpedo_run'
+                    require(self.paid is not None and b['board']['offered_scenario'] == self.NEXT_SCENARIO
                             and not b['board']['sortie_armed'] and b['available'].get('available')
-                            and 'TORPEDO RUN' in b['prompt'], 'physical board offers usable normal next Torpedo posting')
+                            and self.NEXT_TITLE in b['prompt'], 'physical board offers usable normal next Torpedo posting')
                     self.next_posting = self.receipt(s); self.receipts['next_posting'] = self.next_posting
                     self.tap_key = None; self.enter('pause', s)
             elif s['candidate'] and not s['station_candidate'] and s['boarding_distance'] <= 7 and not s['reboard_blocked']:
@@ -4800,12 +4821,7 @@ class HeavyBreachPilot(Pilot):
             if self.paid is not None:
                 self.fire_control.release(); self.mouse_pending = None; self.enter('restore', s)
             elif self.launched is not None and s['target']['active']:
-                dx, dy, align = self.weapon_aim(s, sub(s['target']['aim'], s['camera']))
-                gate = s['fire_gate']
-                require(gate['frame'] == s['frame'] and gate['ship_id'] == s['ship_id']
-                        and gate['target_id'] == s['target']['id'], 'current actual camera/next-muzzle fire forecast')
-                ready = self.charge is not None and gate['clear'] and gate['weapon'].get('ready')
-                fire = self.fire_control.step(s, ready)
+                dx, dy, fire = self.fight_input(s, now, keys)
         elif self.stage == 'restore':
             keys.add('Prior'); dx, dy, restored = self.restore_attitude(s, keys)
             if restored and speed <= .35 and self.mouse_pending is None:
@@ -4879,6 +4895,284 @@ class HeavyBreachFiles(HabitatRestartFiles):
         self.require_orderly(final, paid)
         require(all(final['payload'][k] == paid['payload'][k] for k in ('game_flow_reward_store', 'heavy_breach_session')),
                 'actual clean UI shutdown preserves same once-only receipt/terminal after next posting')
+
+
+class TorpedoFireControl(BreachFireControl):
+    SCENARIO, TARGET_SOURCE = 'torpedo_run', 2106
+
+
+class TorpedoLegPilot(HeavyBreachPilot):
+    MODE, SCENARIO, NEXT_SCENARIO, NEXT_TITLE = 'torpedo-run', 'torpedo_run', 'paired_wing', 'PAIRED WING'
+    ACTIVITY, REWARD = 'shipyard_torpedo_run', 'return_torpedo_run_credit'
+    FIRE_CONTROL, REQUIRES_CHARGE = TorpedoFireControl, False
+
+    def __init__(self, heavy):
+        super().__init__()
+        require(heavy.kill is not None and heavy.paid is not None and heavy.next_posting is not None
+                and 'home_exit' in heavy.receipts, 'whole actual Heavy journey before Torpedo continuation')
+        self.heavy = heavy
+        self.initial = copy.deepcopy(heavy.initial)
+        self.initial['target'] = copy.deepcopy(heavy.initial['torpedo']['boat'])
+        self.observed_previous = copy.deepcopy(heavy.observed_previous)
+        self.last_sequence, self.shot_sequence = heavy.last_sequence, heavy.shot_sequence
+        self.shot_receipts = set(heavy.shot_receipts)
+        self.motion_lag, self.consumed_step_frames = heavy.motion_lag, set(heavy.consumed_step_frames)
+        self.stage = 'walk_board'
+        self.events_serial = 0; self.flights = {}; self.evasion = None; self.evaded = False
+        self.intercept_choice = self.intercepted = None
+        self.return_ready = False
+
+    @staticmethod
+    def flight_key(record):
+        return (record['boat_id'], record['boat_generation'], record['flight_id'], record['generation'])
+
+    @staticmethod
+    def maneuver_receipt(s, flight):
+        return copy.deepcopy(dict(frame=s['frame'], sequence=s['sequence'], command_sequence=s['command_sequence'],
+            input_stream=s['input_stream'], command_stream=s['command_stream'], position=s['position'],
+            back=s['back'], velocity=s['ship_velocity'], native_pitch=s['native_pitch'], native_boost=s['native_boost'],
+            pitch=s['command_pitch'], boost=s['command_boost'], flight=flight))
+
+    def require_launch(self, s):
+        target, receipt = s['target'], s['breach']['receipt']
+        require(target['active'] and target['source_id'] == 2106 and target['health'] > 0
+                and receipt['accepted'] and receipt['board_sortie'] and receipt['torpedo_boat_instance_id'] == target['id']
+                and receipt['generation'] == s['breach']['board']['director']['scenario_generation'],
+                'actual board-launched current Torpedo boat and encounter generation')
+        require(s['input_stream'] != self.heavy.departure['input_stream'],
+                'ordinary physical pilot retake has fresh current command stream')
+
+    def require_terminal(self, s):
+        require(self.evaded and self.intercepted is not None and self.evasion['terminal'] is not None
+                and self.intercepted['frame'] < s['frame'] and self.evasion['terminal']['frame'] < s['frame'],
+                'actual pitch/boost evade and distinct player-weapon seeker intercept BEFORE boat kill')
+
+    def require_paid(self, s):
+        record = s['settlement']['record']; receipt = record.get('last_receipt', {})
+        heavy_receipt = self.heavy.paid['settlement']['record']['last_receipt']
+        require(record.get('receipt_serial') == record.get('total_receipts') == 2
+                and record.get('reward_counts') == {HeavyBreachPilot.REWARD: 1, self.REWARD: 1}
+                and receipt.get('receipt_id') == 2 and receipt.get('activity_id') == self.ACTIVITY
+                and receipt.get('reward_id') == self.REWARD and receipt.get('granted') is True
+                and receipt.get('replay_allowed') is False
+                and receipt.get('activity_generation') != heavy_receipt['activity_generation'],
+                'two distinct actual receipts: exactly one Heavy and one Torpedo payment')
+        handoff = s['breach']['board']['reward_handoff']
+        require(handoff['highest_reward_generation'] == receipt['activity_generation']
+                == s['breach']['board']['director']['scenario_generation']
+                and handoff['pending_reward_generation'] == 0,
+                'Torpedo payment acknowledges its own exact current director generation')
+        return receipt
+
+    def observe_flights(self, s):
+        torpedo = s['torpedo']
+        require(torpedo['speed'] == 34 and torpedo['turn_rate'] == 42 and torpedo['lifetime'] == 7.5
+                and torpedo['range'] == 250 and torpedo['fuse'] == 3.2, 'unchanged authored seeker flight/turn/fuse envelope')
+        active_keys = set()
+        for event in torpedo['events']:
+            require(event['serial'] == self.events_serial+1, 'every actual seeker callback retained exactly once')
+            self.events_serial = event['serial']
+            launch, record = event['launch'], event['record']
+            require(launch and launch['source_id'] == 2106 and launch['boat_id'] == s['target']['id']
+                    and launch['boat_generation'] == s['target']['generation'] and launch['target_id'] == s['ship_id']
+                    and launch['authority_id'] > 0 and launch['pool_id'] > 0 and launch['hurtbox_id'] > 0
+                    and launch['damageable_id'] > 0 and launch['damage_target_id'] > 0
+                    and launch['flight_id'] == record['flight_id'] and launch['generation'] == record['generation']
+                    and launch['flight_id'] > 0 and launch['generation'] > 0
+                    and launch['speed'] == 34 and launch['lifetime'] == 7.5 and launch['range'] == 250,
+                    'actual current boat/Arrow/authority/slot-generation seeker identity')
+            key = self.flight_key(launch)
+            if event['kind'] == 'launched':
+                require(key not in self.flights and self.launched is not None, 'new actual flight after real boat launch')
+                self.flights[key] = dict(launch=copy.deepcopy(event), terminal=None)
+                if self.evasion is None:
+                    self.evasion = dict(key=key, launch=copy.deepcopy(event), requested=None, applied=None,
+                        lock_break=None, terminal=None, closest=None, minimum_distance=math.inf,
+                        previous_distance=None, closing=False,
+                        closest_scope='minimum of consecutive observed active physics samples; actual terminal retained separately')
+            else:
+                require(key in self.flights and self.flights[key]['terminal'] is None, 'one actual terminal per launched seeker')
+                self.flights[key]['terminal'] = copy.deepcopy(event)
+                if self.intercepted is not None and key == self.intercepted['key']:
+                    require(event['kind'] != 'resolved', 'intercepted flight never arrives or damages later')
+                if self.evasion is not None and key == self.evasion['key']:
+                    require(event['kind'] == 'resolved' and event['result']['accepted'] and event['result']['resolved']
+                            and not event['result']['damaged'] and event['result']['damage'] == 0
+                            and self.evasion['requested'] is not None and self.evasion['applied'] is not None
+                            and self.evasion['lock_break'] is not None and self.evasion['closing'],
+                            'same actually closing seeker loses lock after real pitch/boost and resolves without damage')
+                    self.evasion['terminal'] = copy.deepcopy(event); self.evaded = True
+        for flight in torpedo['flights']:
+            key = self.flight_key(flight); active_keys.add(key)
+            require(key in self.flights and self.flights[key]['terminal'] is None,
+                    'active seeker belongs to exact observed launch, no retired flight resurrection')
+            if self.evasion is not None and key == self.evasion['key']:
+                evade = self.evasion; distance = norm(sub(flight['position'], s['position']))
+                if evade['previous_distance'] is not None and distance < evade['previous_distance']: evade['closing'] = True
+                evade['previous_distance'] = distance
+                if distance < evade['minimum_distance']:
+                    evade['minimum_distance'] = distance; evade['closest'] = self.maneuver_receipt(s, flight)
+                if evade['requested'] is not None and evade['applied'] is None:
+                    if (s['native_pitch'] != 0 and s['native_boost'] and s['command_pitch'] != 0 and s['command_boost']
+                            and s['command_stream'] == s['input_stream']
+                            and s['command_sequence'] > evade['requested']['command_sequence']
+                            and norm(sub(s['position'], evade['requested']['position'])) > .01
+                            and norm(sub(s['back'], evade['requested']['back'])) > .00001):
+                        evade['applied'] = self.maneuver_receipt(s, flight)
+                if flight['lock_broken'] and evade['lock_break'] is None:
+                    require(evade['applied'] is not None, 'actual seeker lock break follows consumed pitch/boost and real motion')
+                    evade['lock_break'] = self.maneuver_receipt(s, flight)
+        if self.intercepted is not None:
+            require(self.intercepted['key'] not in active_keys, 'actual intercepted flight stays retired through boat kill/home')
+
+    def validate_observation(self, s):
+        if not s['paused']:
+            self.observe_flights(s)
+            if self.paid is None and not (s['breach']['board']['director']['scenario'] == self.SCENARIO
+                                         and s['breach']['board']['director']['outcome'] == 'cleared'):
+                require(s['settlement']['record'] == self.heavy.paid['settlement']['record'],
+                        'first actual Heavy receipt conserved until distinct Torpedo clear')
+        super().validate_observation(s)
+
+    def observe_shot(self, s):
+        previous_sequence = self.shot_sequence
+        super().observe_shot(s)
+        shot = s['shot']
+        if self.shot_sequence == previous_sequence or self.intercept_choice is None: return
+        key, flight = self.intercept_choice['key'], self.intercept_choice['flight']
+        if shot['damageable_id'] != flight['damageable_id'] or not shot['damaged']: return
+        terminal = self.flights[key]['terminal']
+        require(self.evaded and key != self.evasion['key'] and terminal is not None
+                and terminal['kind'] == 'intercepted' and terminal['record']['terminal_reason'] == 'intercepted'
+                and shot['target_entity_id'] == flight['damage_target_id']
+                and shot['collider']['id'] == flight['hurtbox_id'] and shot['destroyed']
+                and shot['remaining_health'] == 0 and shot['damage_result'].get('destroyed')
+                and shot['damage_result'].get('accepted') and shot['applied_damage'] > 0,
+                'distinct actual player resolver hit destroys the identified live seeker hurtbox and retires its flight')
+        require(self.intercepted is None, 'one required authentic seeker intercept')
+        self.intercepted = dict(key=key, frame=s['frame'], terminal=copy.deepcopy(terminal), shot=self.receipt(s))
+
+    def fight_input(self, s, now, keys):
+        flights = s['torpedo']['flights']
+        if not self.evaded:
+            self.fire_control.release()
+            if self.evasion is None: return 0, 0, False
+            flight = next((f for f in flights if self.flight_key(f) == self.evasion['key']), None)
+            if flight is not None and self.evasion['lock_break'] is None:
+                turn_radius = flight['speed']/math.radians(s['torpedo']['turn_rate'])
+                distance = norm(sub(flight['position'], s['position']))
+                if self.evasion['requested'] is None and distance <= turn_radius:
+                    self.evasion['requested'] = self.maneuver_receipt(s, flight)
+                if self.evasion['requested'] is not None:
+                    keys.discard('Prior'); keys.update(('w', 'Shift_L'))
+                    if -s['back'][1] < .95: keys.add('Up')
+            return 0, 0, False
+        if self.intercepted is None:
+            candidates = [f for f in flights if self.flight_key(f) != self.evasion['key'] and f['health'] > 0]
+            if not candidates: self.fire_control.release(); return 0, 0, False
+            chosen = next((f for f in candidates if self.intercept_choice is not None
+                           and self.flight_key(f) == self.intercept_choice['key']), candidates[0])
+            self.intercept_choice = dict(key=self.flight_key(chosen), flight=copy.deepcopy(chosen))
+            dx, dy, _ = self.weapon_aim(s, sub(chosen['position'], s['camera']))
+            gate = chosen['fire_gate']
+            require(gate['frame'] == s['frame'] and gate['ship_id'] == s['ship_id']
+                    and gate['target_id'] == chosen['hurtbox_id'], 'actual current seeker camera/next-muzzle first hits')
+            firing = dict(s, target=dict(id=chosen['hurtbox_id'], generation=chosen['generation'],
+                source_id=2106, active=True, health=chosen['health']))
+            return dx, dy, self.fire_control.step(firing, gate['clear'] and gate['weapon'].get('ready'))
+        dx, dy, _ = self.weapon_aim(s, sub(s['target']['aim'], s['camera']))
+        gate = s['fire_gate']
+        require(gate['frame'] == s['frame'] and gate['target_id'] == s['target']['id'], 'actual boat first-hit forecast')
+        return dx, dy, self.fire_control.step(s, gate['clear'] and gate['weapon'].get('ready'))
+
+    def update(self, s, now):
+        if self.stage == 'restore' and not self.return_ready:
+            self.fire_control.release(); self.frame = s['frame']; keys = set()
+            dx, dy, arrived = CinderSupplyPilot.flight(self, dict(s, tuning=s['ship_tuning']), s['capture_position'], keys)
+            if arrived and s['capture']:
+                self.return_ready = True; self.mouse_pending = None
+            else:
+                if self.mouse_pending is not None:
+                    if norm(sub(s['camera_back'], self.mouse_pending)) < .00001: dx = dy = 0
+                    else: self.mouse_pending = None
+                if dx or dy: self.mouse_pending = s['camera_back'][:]
+                return keys, dx, dy, False
+        return super().update(s, now)
+
+    def finish(self, exit_code):
+        require(self.evaded and self.intercepted is not None
+                and not self.observed_previous['torpedo']['flights']
+                and all(f['terminal'] is not None for f in self.flights.values()),
+                'both real seeker outcomes and every actual flight retired before normal UI exit')
+        super().finish(exit_code)
+
+    def report(self):
+        return dict(super().report(), evasion=self.evasion, evaded=self.evaded,
+                    intercepted=self.intercepted, flights=list(self.flights.values()))
+
+
+class TorpedoJourneyPilot:
+    MARKER = 'NATIVE_TORPEDO_RUN_OK'
+
+    def __init__(self):
+        self.leg = HeavyBreachPilot(); self.heavy_report = None
+        self.stage, self.stages, self.phases = 'boot', [], []
+        self.result = self.last_state = None; self.quit_requested = False
+
+    def validate_observation(self, s):
+        require(s.get('mode') == 'torpedo-run', 'exact full Heavy/Torpedo ordinary observer')
+        self.last_state = s
+        if not isinstance(self.leg, TorpedoLegPilot) and self.leg.next_posting is not None:
+            self.heavy_report = copy.deepcopy(self.leg.report())
+            self.leg = TorpedoLegPilot(self.leg)
+        if isinstance(self.leg, TorpedoLegPilot):
+            current = dict(s)
+            if not s['paused']:
+                current['target'] = s['torpedo']['boat']; current['fire_gate'] = s['torpedo']['fire_gate']
+                current['breach'] = dict(s['breach'], receipt=s['torpedo']['receipt'])
+        else: current = dict(s, mode='heavy-breach')
+        self.leg.validate_observation(current)
+        self.stage = self.leg.stage
+
+    def update(self, s, now):
+        require(s is self.last_state, 'same latest validated full-journey sample')
+        result = self.leg.update(self.leg.last_state, now)
+        self.stage, self.stages, self.phases = self.leg.stage, self.leg.stages, self.leg.phases
+        self.quit_requested = self.leg.quit_requested
+        return result
+
+    def report(self):
+        return dict(stage=self.stage, heavy=self.heavy_report or self.leg.report(),
+                    torpedo=self.leg.report() if isinstance(self.leg, TorpedoLegPilot) else None,
+                    last_state=self.last_state)
+
+    def finish(self, exit_code):
+        require(isinstance(self.leg, TorpedoLegPilot) and self.heavy_report is not None,
+                'whole Heavy prerequisite and actual second leg before UI exit')
+        self.leg.finish(exit_code)
+        require(self.leg.evaded and self.leg.intercepted is not None, 'real evade and distinct intercept, not boat clear alone')
+        self.result = dict(self.report(), completion_marker=self.MARKER, normal_ui_exit=True)
+
+
+class TorpedoJourneyFiles(HeavyBreachFiles):
+    def observe(self, s, pilot):
+        leg = pilot.leg
+        if not isinstance(leg, TorpedoLegPilot): return super().observe(leg.last_state, leg)
+        if s['paused'] or leg.paid is None or 'torpedo-paid' in self.snapshots: return
+        document = self.capture('torpedo-paid', s['settlement']['store']); receipt = leg.require_paid(leg.last_state)
+        completion = document['payload']['heavy_breach_session']['session']['completion']
+        require('paid' in self.snapshots and document['payload']['game_flow_reward_store'] == s['settlement']['record']
+                and completion['activity_id'] == leg.ACTIVITY and completion['scenario'] == 'torpedo_run'
+                and completion['outcome'] == 'cleared' and completion['reward_granted'] is True
+                and completion['generation'] == receipt['activity_generation'],
+                'independent actual second payment and current acknowledged Torpedo terminal')
+
+    def finish(self):
+        require('paid' in self.snapshots and 'torpedo-paid' in self.snapshots, 'both actual payments independently read')
+        final = self.capture('orderly-close'); paid = self.snapshots['torpedo-paid']['document']
+        self.require_orderly(final, paid)
+        require(all(final['payload'][k] == paid['payload'][k] for k in ('game_flow_reward_store', 'heavy_breach_session')),
+                'final actual document retains exactly Heavy1+Torpedo1 after physical Wing posting/UI exit')
 
 
 class SandboxWalkPilot(Pilot):
@@ -6217,7 +6511,7 @@ class CinderSupplyFiles(HabitatRestartFiles):
                 else: pilot.file_home = True
 
 def run(binary, output, route="guided", qualify_beacon_outbound=False):
-    require(route in ("heavy-breach", "bomber-rearm", "cinder-supply", "arrow-return-reuse", "guided", "courier-intercept", "courier-escape", "courier-withdraw-phase", "courier-withdraw-distance", "beacon-entry", "beacon-settlement", "beacon-home", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
+    require(route in ("torpedo-run", "heavy-breach", "bomber-rearm", "cinder-supply", "arrow-return-reuse", "guided", "courier-intercept", "courier-escape", "courier-withdraw-phase", "courier-withdraw-distance", "beacon-entry", "beacon-settlement", "beacon-home", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
     require(not qualify_beacon_outbound or route == 'beacon-home',
             'outbound timing qualification requires the full beacon-home route')
     output.mkdir(parents=True, exist_ok=False)
@@ -6279,7 +6573,8 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False):
                         '--native-sortie-observer' if route == 'guided' else '--native-sortie-observer='+('sandbox' if route == 'bomber-rearm' else route)]
                 result.update(arguments=args, display=env['DISPLAY'], xvfb_pid=xvfb.pid,
                               binary_sha256=hashlib.file_digest(binary.open('rb'),'sha256').hexdigest())
-                breach_files = HeavyBreachFiles(profile, output) if route == 'heavy-breach' else None
+                breach_files = (HeavyBreachFiles(profile, output) if route == 'heavy-breach' else
+                                TorpedoJourneyFiles(profile, output) if route == 'torpedo-run' else None)
                 settlement_files = (CinderSupplyFiles(profile, output) if route == 'cinder-supply' else
                                     BeaconSettlementFiles(profile, output) if route in ('beacon-settlement', 'beacon-home') else None)
                 restart_files = HabitatRestartFiles(profile, output) if route == 'habitat-restart' else None
@@ -6314,7 +6609,7 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False):
                     leg_result['window'] = hex(window)
                     desktop.focus(window)
                     pilot = HabitatRestartPilot(cold=bool(leg)) if restart_files else {
-                        "heavy-breach": HeavyBreachPilot, "bomber-rearm": BomberRearmPilot, "cinder-supply": CinderSupplyPilot, "arrow-return-reuse": ArrowReturnReusePilot, "guided": Pilot, "courier-intercept": CourierPilot, "courier-escape": CourierEscapePilot, "courier-withdraw-phase": CourierWithdrawPhasePilot, "courier-withdraw-distance": CourierWithdrawDistancePilot, "beacon-entry": BeaconEntryPilot, "beacon-settlement": BeaconSettlementPilot, "beacon-home": BeaconHomePilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
+                        "torpedo-run": TorpedoJourneyPilot, "heavy-breach": HeavyBreachPilot, "bomber-rearm": BomberRearmPilot, "cinder-supply": CinderSupplyPilot, "arrow-return-reuse": ArrowReturnReusePilot, "guided": Pilot, "courier-intercept": CourierPilot, "courier-escape": CourierEscapePilot, "courier-withdraw-phase": CourierWithdrawPhasePilot, "courier-withdraw-distance": CourierWithdrawDistancePilot, "beacon-entry": BeaconEntryPilot, "beacon-settlement": BeaconSettlementPilot, "beacon-home": BeaconHomePilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
                         "hulk-arrival": HulkArrivalPilot, "hulk-breaker": HulkBreakerPilot,
                         "hulk-home": HulkHomePilot, "habitat-loop": HabitatLoopPilot, "life-tow": LifeTowPilot, "life-gantry": lambda: LifeTowPilot("life-gantry"), "life-arm": lambda: LifeTowPilot("life-arm"), "life-patrol": lambda: LifeTowPilot("life-patrol")}[route]()
                     if isinstance(pilot, BeaconHomePilot): pilot.file_snapshots = settlement_files.snapshots
@@ -6326,7 +6621,7 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False):
                         with (output/'game.log').open('ab') as log:
                             while pilot.result is None:
                                 if game.poll() is not None:
-                                    if isinstance(pilot, (ArrowReturnReusePilot, CinderSupplyPilot, HeavyBreachPilot)):
+                                    if isinstance(pilot, (ArrowReturnReusePilot, CinderSupplyPilot, HeavyBreachPilot, TorpedoJourneyPilot)):
                                         require(pilot.quit_requested, 'native process exits only after normal UI request')
                                         drain_game_output(game, output/'game.log')
                                         tail = (output/'game.log').read_bytes().splitlines()
@@ -6361,7 +6656,7 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False):
                                             received_at = time.monotonic()
                                             for observation in observations:
                                                 outbound_timing.observe(observation, received_at)
-                                        if isinstance(pilot, (BomberRearmPilot, LifeTowPilot, ArrowReturnReusePilot, CinderSupplyPilot, HeavyBreachPilot)):
+                                        if isinstance(pilot, (BomberRearmPilot, LifeTowPilot, ArrowReturnReusePilot, CinderSupplyPilot, HeavyBreachPilot, TorpedoJourneyPilot)):
                                             for observation in observations:
                                                 pilot.validate_observation(observation)
                                                 if breach_files: breach_files.observe(observation, pilot)
@@ -6456,7 +6751,7 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False):
             if isinstance(pilot, CourierWithdrawDistancePilot):
                 result['partial_sortie'].update(courier_dispatch=pilot.dispatch, courier_withdrawal=pilot.courier_withdrawal,
                     withdraw_waypoint=pilot.withdraw_waypoint, escape_heading=pilot.escape_heading, defender_kill=pilot.defender_kill)
-            if isinstance(pilot, HeavyBreachPilot): result['partial_sortie'] = pilot.report()
+            if isinstance(pilot, (HeavyBreachPilot, TorpedoJourneyPilot)): result['partial_sortie'] = pilot.report()
             if isinstance(pilot, HabitatRestartPilot):
                 result['partial_restart'] = pilot.report()
             if isinstance(pilot, (HabitatLoopPilot, LifeTowPilot)):
@@ -6538,8 +6833,8 @@ def main():
     parser.add_argument('--output',required=True,type=Path)
     parser.add_argument('--qualify-beacon-outbound', action='store_true',
                         help='qualify the fixed 60.0s outbound monotonic maximum within the unchanged full beacon-home route')
-    parser.add_argument('--route', choices=('heavy-breach', 'bomber-rearm', 'cinder-supply', 'arrow-return-reuse', 'guided', 'courier-intercept', 'courier-escape', 'courier-withdraw-phase', 'courier-withdraw-distance', 'beacon-entry', 'beacon-settlement', 'beacon-home', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
-                        help='heavy-breach completes real posted Heavy/picket kill/payment/home/next posting/UI exit; courier-withdraw-distance flies beyond all actual contacts for real seven-second grace withdrawal before original defender and home; courier-withdraw-phase kills the original defender after actual first courier dispatch and verifies phase withdrawal/standdown through home; courier-escape lets the actual first live runner escape and verifies standdown through home; courier-intercept destroys the actual first courier before escape then returns home; beacon-home retains payment through genuine Guided combat, home docking and usable exterior walking; cinder-supply flies the full funded Jovian/Cinder terminal/home journey; beacon-settlement continues the accepted entry through four physical beacons and durable reward; beacon-entry departs normally and physically reaches/starts the first Beacon through actual pause controls; life-patrol walks Habitat through the real door beside patrol drones and boards Torrent; life-arm walks Aft stairs past the live service arm and boards Zenith; life-gantry walks Freight past the live gantry and boards Jovian; life-tow walks Central beside live tow service and boards Torrent; hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
+    parser.add_argument('--route', choices=('torpedo-run', 'heavy-breach', 'bomber-rearm', 'cinder-supply', 'arrow-return-reuse', 'guided', 'courier-intercept', 'courier-escape', 'courier-withdraw-phase', 'courier-withdraw-distance', 'beacon-entry', 'beacon-settlement', 'beacon-home', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
+                        help='torpedo-run retains full Heavy then real pitch/boost evade, seeker interception, boat kill/payment/home/Wing/UI exit; heavy-breach completes real posted Heavy/picket kill/payment/home/next posting/UI exit; courier-withdraw-distance flies beyond all actual contacts for real seven-second grace withdrawal before original defender and home; courier-withdraw-phase kills the original defender after actual first courier dispatch and verifies phase withdrawal/standdown through home; courier-escape lets the actual first live runner escape and verifies standdown through home; courier-intercept destroys the actual first courier before escape then returns home; beacon-home retains payment through genuine Guided combat, home docking and usable exterior walking; cinder-supply flies the full funded Jovian/Cinder terminal/home journey; beacon-settlement continues the accepted entry through four physical beacons and durable reward; beacon-entry departs normally and physically reaches/starts the first Beacon through actual pause controls; life-patrol walks Habitat through the real door beside patrol drones and boards Torrent; life-arm walks Aft stairs past the live service arm and boards Zenith; life-gantry walks Freight past the live gantry and boards Jovian; life-tow walks Central beside live tow service and boards Torrent; hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
     args=parser.parse_args()
     if args.qualify_beacon_outbound and args.route != 'beacon-home':
         parser.error('--qualify-beacon-outbound requires --route beacon-home')

@@ -24,6 +24,11 @@ var _cinder_supply := false
 var _supply_sequence := 0
 var _arrow := false
 var _heavy_breach := false
+var _torpedo_run := false
+var _torpedo_boat: TorpedoBoatOpponent
+var _torpedo_events: Array[Dictionary] = []
+var _torpedo_flights: Dictionary = {}
+var _torpedo_event_serial := 0
 var _arrow_sequence := 0
 var _beacon_entry := false
 var _beacon_mode := "beacon-entry"
@@ -90,12 +95,18 @@ func on_startup_completed(main: Node) -> void:
 		_tuning = _sortie_tuning()
 		process_mode = Node.PROCESS_MODE_ALWAYS
 		return
-	_heavy_breach = "--native-sortie-observer=heavy-breach" in OS.get_cmdline_args()
+	_torpedo_run = "--native-sortie-observer=torpedo-run" in OS.get_cmdline_args()
+	_heavy_breach = "--native-sortie-observer=heavy-breach" in OS.get_cmdline_args() or _torpedo_run
 	if _heavy_breach:
 		_ship = _game.get_node(^"ArrowReconShip") as HeroShip
 		_parked = _ship.global_transform
 		_tuning = _sortie_tuning()
 		process_mode = Node.PROCESS_MODE_ALWAYS
+		if _torpedo_run:
+			_torpedo_boat = _game.get_node(^"TorpedoBoat") as TorpedoBoatOpponent
+			_torpedo_boat.torpedo_away.connect(_on_sortie_torpedo_launched)
+			_torpedo_boat.torpedo_intercepted.connect(_on_sortie_torpedo_intercepted)
+			_torpedo_boat.torpedo_detonated.connect(_on_sortie_torpedo_resolved)
 		return
 	_arrow = "--native-sortie-observer=arrow-return-reuse" in OS.get_cmdline_args()
 	if _arrow:
@@ -562,7 +573,8 @@ func _craft_tuning(craft: HeroShip) -> Dictionary:
 
 func _physics_process(delta: float) -> void:
 	if _heavy_breach and _game != null:
-		print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(_heavy_breach_observation(), "", true, true))
+		print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(_torpedo_run_observation() if _torpedo_run else _heavy_breach_observation(), "", true, true))
+		_torpedo_events.clear()
 		return
 	if _ember:
 		if not _ember_started:
@@ -1392,6 +1404,121 @@ func _life_observation() -> Dictionary:
 ## Independent ordinary Arrow lifecycle; every physics receipt is observational.
 ## In particular, never reconcile leases or ask a getter to create input/seat owners.
 ## Reuse the ordinary Arrow body/home/UI observation; add only this live contract.
+func _sortie_torpedo_key(record: Dictionary) -> String:
+	return "%d:%d" % [int(record.get("flight_id", 0)), int(record.get("generation", 0))]
+
+
+func _sortie_torpedo_record(record: Dictionary) -> Dictionary:
+	var result: Dictionary = record.duplicate(true)
+	for key: Variant in result:
+		if result[key] is Vector3:
+			result[key] = _v(result[key] as Vector3)
+	return result
+
+
+func _sortie_torpedo_slots(pool: SeekerTorpedoProjectile) -> Array[Dictionary]:
+	var records: Array[Dictionary] = []
+	var slots: Array = pool.get("_slots") as Array
+	for index: int in slots.size():
+		var slot: Dictionary = slots[index] as Dictionary
+		if not bool(slot.get("active", false)):
+			continue
+		var record: Dictionary = pool.call("_slot_record", slot) as Dictionary
+		var hurtbox: Area3D = pool.get_torpedo_hurtbox(index)
+		var damageable: Damageable = pool.get_torpedo_damageable(index)
+		var source_ref: WeakRef = slot.get("source") as WeakRef
+		var target_ref: WeakRef = slot.get("target") as WeakRef
+		var source: Node = source_ref.get_ref() as Node if source_ref != null else null
+		var target: Node = target_ref.get_ref() as Node if target_ref != null else null
+		var damage_target: Node = damageable.get_target_entity() if is_instance_valid(damageable) else null
+		record.merge({"slot": index, "pool_id": pool.get_instance_id(),
+			"boat_id": source.get_instance_id() if _ember_node_current(source) else 0,
+			"boat_generation": int(_torpedo_boat.get("_activation_generation")),
+			"source_id": _game.combat_authority.get_source_id(_torpedo_boat),
+			"target_id": target.get_instance_id() if _ember_node_current(target) else 0,
+			"hurtbox_id": hurtbox.get_instance_id() if _ember_node_current(hurtbox) else 0,
+			"damageable_id": damageable.get_instance_id() if _ember_node_current(damageable) else 0,
+			"damage_target_id": damage_target.get_instance_id() if _ember_node_current(damage_target) else 0,
+			"health": damageable.get_health() if is_instance_valid(damageable) else -1.0,
+			"authority_id": pool.get_bound_authority().get_instance_id() if pool.get_bound_authority() != null else 0}, true)
+		records.append(record)
+	return records
+
+
+func _sortie_torpedo_event(kind: String, record: Dictionary, result: Dictionary = {}) -> void:
+	_torpedo_event_serial += 1
+	var target: Node = result.get("target_entity") as Node
+	var key: String = _sortie_torpedo_key(record)
+	_torpedo_events.append({"serial": _torpedo_event_serial, "kind": kind,
+		"frame": Engine.get_physics_frames(), "record": _sortie_torpedo_record(record),
+		"launch": (_torpedo_flights.get(key, {}) as Dictionary).duplicate(true),
+		"result": {"accepted": bool(result.get("accepted", false)), "resolved": bool(result.get("resolved", false)),
+			"damaged": bool(result.get("damaged", false)), "status": str(result.get("status", &"")),
+			"target_id": target.get_instance_id() if is_instance_valid(target) else 0,
+			"damage": float(result.get("applied_damage", 0.0))}})
+
+
+func _on_sortie_torpedo_launched(record: Dictionary) -> void:
+	var pool: SeekerTorpedoProjectile = _torpedo_boat.get_torpedo_pool()
+	if pool != null:
+		if not pool.torpedo_abandoned.is_connected(_on_sortie_torpedo_abandoned):
+			pool.torpedo_abandoned.connect(_on_sortie_torpedo_abandoned)
+		for active: Dictionary in _sortie_torpedo_slots(pool):
+			if _sortie_torpedo_key(active) == _sortie_torpedo_key(record):
+				_torpedo_flights[_sortie_torpedo_key(record)] = _sortie_torpedo_record(active)
+	_sortie_torpedo_event("launched", record)
+
+
+func _on_sortie_torpedo_intercepted(record: Dictionary) -> void:
+	_sortie_torpedo_event("intercepted", record)
+
+
+func _on_sortie_torpedo_resolved(record: Dictionary, result: Dictionary) -> void:
+	_sortie_torpedo_event("resolved", record, result)
+
+
+func _on_sortie_torpedo_abandoned(record: Dictionary, reason: StringName) -> void:
+	var terminal: Dictionary = record.duplicate(true)
+	terminal["terminal_reason"] = str(reason)
+	_sortie_torpedo_event("abandoned", terminal)
+
+
+func _torpedo_run_observation() -> Dictionary:
+	var sample: Dictionary = _heavy_breach_observation()
+	sample["mode"] = "torpedo-run"
+	if bool(sample.get("paused", false)) or not bool(sample.get("actors_current", false)):
+		return sample
+	var boat: TorpedoBoatOpponent = _torpedo_boat
+	var shape: CollisionShape3D = boat.get_node_or_null(^"KeelCollision") as CollisionShape3D if _ember_node_current(boat) else null
+	if not _ember_node_current(boat) or not _ember_node_current(shape):
+		sample.actors_current = false
+		return sample
+	var command: ShipCommand = _ship.get_last_ship_command()
+	var pool: SeekerTorpedoProjectile = boat.get_torpedo_pool()
+	var flights: Array[Dictionary] = []
+	if pool != null:
+		for record: Dictionary in _sortie_torpedo_slots(pool):
+			var hurtbox: Node3D = instance_from_id(int(record.hurtbox_id)) as Node3D
+			var wire: Dictionary = _sortie_torpedo_record(record)
+			wire["fire_gate"] = _heavy_breach_fire_gate(hurtbox) if _ember_node_current(hurtbox) else {}
+			flights.append(wire)
+	sample["command_pitch"] = command.pitch if command != null else 0.0
+	sample["command_boost"] = command.boost if command != null else false
+	sample["native_pitch"] = Input.get_axis("pitch_down", "pitch_up")
+	sample["native_boost"] = Input.is_action_pressed("sprint_boost")
+	sample["torpedo"] = {"boat": {"id": boat.get_instance_id(), "shape_id": shape.get_instance_id(),
+		"generation": int(boat.get("_activation_generation")), "position": _v(boat.global_position),
+		"aim": _v(shape.global_position), "health": boat.get_health(), "maximum_health": boat.get_maximum_health(),
+		"active": boat.is_active(), "destroyed": boat.get_health() <= 0.0,
+		"source_id": _game.combat_authority.get_source_id(boat), "charge": false},
+		"receipt": (_game.get_node(^"EncounterScenarios") as EncounterScenarioDirector).get_torpedo_run_receipt(),
+		"fire_gate": _heavy_breach_fire_gate(boat), "flights": flights,
+		"events": _torpedo_events.duplicate(true), "turn_rate": pool.turn_rate_degrees if pool != null else SeekerTorpedoProjectile.DEFAULT_TURN_RATE_DEGREES,
+		"speed": TorpedoBoatOpponent.TORPEDO_SPEED, "lifetime": TorpedoBoatOpponent.TORPEDO_LIFETIME,
+		"range": TorpedoBoatOpponent.TORPEDO_RANGE, "fuse": SeekerTorpedoProjectile.PROXIMITY_FUSE_METERS}
+	return sample
+
+
 func _heavy_breach_observation() -> Dictionary:
 	if get_tree().paused:
 		_arrow_sequence += 1
@@ -1456,11 +1583,11 @@ func _heavy_breach_observation() -> Dictionary:
 
 
 ## Actual current camera/next-muzzle first contacts, never a submitted shot.
-func _heavy_breach_fire_gate(picket: StandoffPicketOpponent) -> Dictionary:
+func _heavy_breach_fire_gate(target: Node3D) -> Dictionary:
 	var camera: Camera3D = _ship.get_camera()
 	var muzzle: Marker3D = _ship.get("_muzzle_left") as Marker3D if bool(_ship.get("_fire_from_left")) else _ship.get("_muzzle_right") as Marker3D
 	var gate: Dictionary = {"frame": Engine.get_physics_frames(), "ship_id": _ship.get_instance_id(),
-		"target_id": picket.get_instance_id(), "clear": false, "weapon": _ship.get_weapon_fire_status()}
+		"target_id": target.get_instance_id(), "clear": false, "weapon": _ship.get_weapon_fire_status()}
 	if not _ember_node_current(camera) or not _ember_node_current(muzzle):
 		return gate
 	var origin: Vector3 = camera.global_position
@@ -1483,8 +1610,8 @@ func _heavy_breach_fire_gate(picket: StandoffPicketOpponent) -> Dictionary:
 	var muzzle_hit: Dictionary = space.intersect_ray(muzzle_ray)
 	var camera_body: Node = camera_hit.get("collider") as Node
 	var muzzle_body: Node = muzzle_hit.get("collider") as Node
-	gate.merge({"clear": (camera_body == picket or (_ember_node_current(camera_body) and picket.is_ancestor_of(camera_body)))
-		and (muzzle_body == picket or (_ember_node_current(muzzle_body) and picket.is_ancestor_of(muzzle_body))),
+	gate.merge({"clear": (camera_body == target or (_ember_node_current(camera_body) and target.is_ancestor_of(camera_body)))
+		and (muzzle_body == target or (_ember_node_current(muzzle_body) and target.is_ancestor_of(muzzle_body))),
 		"camera_collider": str(camera_body.get_path()) if _ember_node_current(camera_body) else "",
 		"muzzle_collider": str(muzzle_body.get_path()) if _ember_node_current(muzzle_body) else ""}, true)
 	return gate
