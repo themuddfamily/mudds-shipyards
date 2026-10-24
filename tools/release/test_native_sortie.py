@@ -4435,13 +4435,40 @@ class TorpedoJourneyCallerTests(unittest.TestCase):
         self.assertNotEqual(leg.intercepted['key'], leg.evasion['key'])
         self.assertIsNone(leg.kill)
         self.assertIsNone(leg.paid)
+        first = copy.deepcopy(leg.intercepted)
+        reused = self.flight(103, 1); reused['generation'] = 2
+        leg.observe_flights(self.sample(16, flights=[reused], events=[self.event(5, 'launched', reused, 16)]))
+        terminal = self.event(6, 'intercepted', reused, 17)
+        sample = self.sample(18, events=[terminal])
+        leg.observe_flights(sample)
+        shot = HeavyBreachCallerTests.shot(True)
+        shot['request'].update(sequence=1, presentation_receipt_id=51)
+        shot.update(target_entity_id=reused['damage_target_id'], damageable_id=reused['damageable_id'],
+                    applied_damage=14, collider=dict(id=reused['hurtbox_id'], path='/boat/pool/Hurtbox'))
+        sample['shot'] = shot; leg.observe_shot(sample)
+        self.assertEqual(leg.intercepted, first)
+        self.assertIsNone(leg.intercept_choice)
+        self.assertEqual(leg.flights[leg.flight_key(reused)]['player_intercept_sequence'], 1)
+        self.assertEqual(len(leg.shots), 2)
         with self.assertRaises(AssertionError):
-            leg.observe_flights(self.sample(16, flights=[flight]))
+            leg.observe_flights(self.sample(19, flights=[flight]))
 
     def test_intercepted_flight_cannot_later_arrive_even_without_damage(self):
         leg, flight = self.intercepted()
         with self.assertRaises(AssertionError):
             leg.observe_flights(self.sample(16, events=[self.event(5, 'resolved', flight, 16)]))
+        # A new sequence hitting reused node IDs cannot borrow the old terminal,
+        # even when that callback is still within the adjacent-frame interval.
+        for old_event in (False, True):
+            leg, flight = self.intercepted(); first = copy.deepcopy(leg.intercepted)
+            sample = self.sample(16, events=[first['terminal']] if old_event else [])
+            shot = HeavyBreachCallerTests.shot(True)
+            shot['request'].update(sequence=1, presentation_receipt_id=51)
+            shot.update(target_entity_id=flight['damage_target_id'], damageable_id=flight['damageable_id'],
+                        applied_damage=14, collider=dict(id=flight['hurtbox_id'], path='/boat/pool/Hurtbox'))
+            sample['shot'] = shot
+            with self.assertRaises(AssertionError): leg.observe_shot(sample)
+            self.assertEqual(leg.intercepted, first)
 
     def test_actual_two_credit_ledger_and_each_own_encounter_generation(self):
         leg = native.TorpedoLegPilot(self.heavy()); sample = self.sample()
