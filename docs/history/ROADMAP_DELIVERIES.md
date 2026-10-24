@@ -21588,3 +21588,65 @@ Main is the sole working/live branch; no new branch/worktree, protected eight
 detached registrations untouched. Original nine unqualified outcomes remain open.
 This closes the passenger-disconnect case only; no successor auto-scheduled,
 all broad parents/phase gates remain open and hosted CI stays disabled.
+
+
+## SERVER-BASELINE moving sleep/wake — accepted — 2026-10-24
+
+Accepted caller8b0845486, exact tested026344ced file bytes and runtime/export
+inputs verified identical. One existing parent26 sleep case, current Linux source
+on private per-peer Xvfb, is qualified. Original full BOARD and seven MOVING stages
+remain byte-identical. The same passenger physically stands and walks14.357m from
+the original chair to the authored Port bunk; ordinary Interact sleeps and wakes.
+Host body and local Player reserve their exact Port bunk/rest anchor, authority
+ledger switches to seated and publishes STATE_SLEEPING, both clients consume that
+same entity/frame/posture, and local rest overlay has visible wake text/current
+input glyph. Waking clears reservations/overlay and restores supported WALKING.
+The same local body walks1.211700439m (authority also>.6m), then physically returns
+13.658m and reseats at crew_port_00 with fresh claim5→7 on unchanged generation1.
+No synthetic sleep/request/authority/pose injection or new crew role.
+
+Original pilot source/helm grant, session/peer/body/frame generations, occupied
+boarding claims and ownership remain throughout. Host and consumed hull samples
+prove movement during every stage, with fresh sampled ordinary helm commands.
+Original300s whole scenario/360s outer,8s role/15s walking/10s exit caps retained.
+Full corrected route PASS159.806s/428checks/zero failures; host143/client94/
+passenger139 checks, all three complete receipts and actual OS exits0/clean logs.
+Independent source and final-result review GO. This is source/private-Xvfb
+qualification, not full baseline/endurance/cross-craft/native/parent completion.
+
+The new caller's first two compiles stopped on multiline lambda syntax
+(.744/.776s); parentheses corrected expressions without changing predicates.
+Clean compile PASS16.604s. First full route FAIL143.178s after all BOARD/seven
+MOVING plus successful passenger stand-up, before any bunk approach. Its new
+shared guard wrongly required both clients' walking-body sources to stay bound.
+Actual pilot source was unbound with current cockpit/helm grant, matching
+production GameFlow's explicit unbind on pilot-seat claim. Separately selected
+minimal role-aware correction requires pilot UNBOUND/passenger BOUND while
+retaining exact source pointer/session/frame/prediction and helm grant checks.
+Independent causal review GO; compile PASS16.824s, then full route accepted.
+No lost sleep/wake input edge or production bug was established.
+
+The case changes only the existing passenger-route test. Shared helpers,
+ordinary BOARD/MOVING, original default cases and deadlines remain unchanged.
+Runtime and export inputs stay byte-identical to playable9af4851; no duplicate
+checkpoint. Every engine uses Dummy audio, headless coordinator/private Xvfb with
+explicitx11/dummy renderer for actors. UI visible-state/text checks do not qualify
+rendered appearance. Native Windows/GPU/physical devices/listening/human/full
+release gates remain NOT_RUN; hosted CI remains disabled.
+
+Command: `/tmp/mudds-tools/godot-4.7.1/godot --headless --audio-driver Dummy --path /srv/mudds-shipyards --script res://tests/network/halyard_network_passenger_route_test.gd -- --ordinary-two-client-sleep`.
+
+Accepted test SHA25666dd9d5985753b0c8e5bcbd237abd3ee763bb140c50d190cdd3825329dd0cbab.
+Raw commands/manifests/logs,202 byte/mode-verified peer files and integration
+checks remain under `/srv/mudds-work/halyard-moving-sleep-20261024/results/`.
+Verified incremental source-history.bundle retains all four candidate commits
+against2991d6b2c, including failed parser/caller sources. Accepted final bytes are
+integrated under8b0845486; no diagnostic history was merged merely for cleanup.
+
+Six guarded stages337.933s,3pass/3fail, all source/cache guards pass. All6 owners
+terminal and32 sampled process identities absent.397 scratch entries verified
+byte/mode/link against archive before removal; profiles52707bytes SHA256
+225580e2a718c4e582f5673e381ab6d5a48de526ff55ae3925420799ee628d89.
+No working branch/worktree created; main remains sole local/live branch,
+eight protected detached registrations untouched and original nine unqualified
+outcomes retained. This sleep/wake case is closed; no successor auto-scheduled.

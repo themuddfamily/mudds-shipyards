@@ -42,19 +42,23 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
-**SERVER-BASELINE moving sleep/wake selected — one complete ordinary case.**
-After unchanged BOARD and seven MOVING stages, the original passenger stands,
-walks the authored aisle to the Port bunk, sleeps/wakes through ordinary input,
-walks supported and physically returns/reseats with a fresh original-chair claim.
-Require both host body/local Player reservations and sleep/wake state, consumed
-sleeping/walking relationships and visible wake UI; original pilot/helm/ownership,
-peer/body/frame generations and moving hull remain. All three actual OS exits0
-and clean logs. Original300s scenario/360s outer,8s role/15s walk/10s exits remain.
-One agent owns the existing passenger-route test; root owns review/compile≤300s
-and one full private-Xvfb/x11/Dummy run. Estimate30–45min caller/review plus≤11min
-checks. First failure stops for causal review; no automatic repair, shorter route,
-new role, pose/sleep injection or changed cap. Runtime fix needs actual evidence
-and a fresh playable checkpoint. Full baseline/endurance/native gates remain open.
+**SERVER-BASELINE moving sleep/wake case DONE —8b0845486.**
+Full ordinary BOARD/seven MOVING, physical Port-bunk approach, sleep/wake,
+supported1.212m walk and physical original-chair return/reseat pass159.806s
+under the original300s cap. Host/local reservations and posture agree, both
+clients consume sleeping/walking states, wake UI is present, and the original
+chair earns claim7 on the same generation1. Pilot ownership/helm and genuine
+hull motion remain throughout.428 checks/zero failures; all three actual OS0
+and clean logs. Independent source/result review GO; exact tested file integrated.
+
+The initial full run stopped before bunk approach because the new caller required
+the pilot's walking-body stream to stay bound. Production intentionally unbinds
+that stream on helm claim; the corrected guard requires pilot unbound/passenger
+bound and retains identities/grants. Two parser failures and the initial full
+failure remain preserved. Six owners terminal/32 sampled identities absent;
+397 scratch entries archived/verified/removed. Runtime/export inputs and playable
+9af4851 remain unchanged. Full baseline/endurance/native gates stay open.
+[Complete result and limits](docs/history/ROADMAP_DELIVERIES.md#server-baseline-moving-sleepwake--accepted--2026-10-24).
 
 **SERVER-BASELINE passenger-disconnect case DONE —503350e32.**
 Full ordinary BOARD and all seven MOVING stages, one real passenger shutdown,
