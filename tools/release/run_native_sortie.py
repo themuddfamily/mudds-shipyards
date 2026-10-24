@@ -3575,9 +3575,22 @@ class StationDefensePilot(CompletedMotionProof, Pilot):
         self.events.append(event)
         if event['request_source_entity_id'] != self.initial['ship_id']:
             return
-        require(all(self.finite_vector(event.get(k)) for k in ('origin', 'direction', 'impact'))
+        require(all(self.finite_vector(event.get(k)) for k in ('origin', 'direction'))
                 and abs(norm(event['direction'])-1) < .000001 and isinstance(event.get('collider'), dict),
-                'actual player resolver retains finite request ray and impact collider receipt')
+                'actual player resolver retains finite request origin and unit direction')
+        if event.get('status') == 'miss':
+            require(event.get('impact') == [math.inf, math.inf, math.inf]
+                    and event['collider'] == {'id': 0, 'path': ''}
+                    and event['target_entity_id'] == 0 and event['target_handle'] == {}
+                    and event['applied_damage'] == 0 and not event['damaged'] and not event['destroyed']
+                    and not event['damage_accepted'] and not event['damage_destroyed']
+                    and event['remaining_health'] == event['damage_health'] == -1,
+                    'actual authored miss retains only no-contact sentinels and no damage')
+        else:
+            require(self.finite_vector(event.get('impact')) and type(event['collider'].get('id')) is int
+                    and event['collider']['id'] > 0
+                    and event['collider'].get('path'),
+                    'actual player contact retains finite impact and positive collider identity')
         require(source == event['source_id'] == 1102 and event['source_entity_id'] == self.initial['ship_id']
                 and event['weapon_id'] == self.WEAPON and event['presentation_receipt_id'] > 0
                 and event['presentation_receipt_id'] not in self.presentation_receipts

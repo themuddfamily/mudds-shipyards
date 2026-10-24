@@ -4047,6 +4047,49 @@ class StationDefenseSafetyTests(unittest.TestCase):
                 'damage_accepted': True, 'destroyed': True, 'remaining_health': 0,
                 'damage_health': 0, 'damage_destroyed': True}
 
+    def miss_event(self):
+        # Actual first-point event15 ray and no-contact payload. Only event/source
+        # ordinals and the fixture ship identity use this test's existing owner.
+        event = self.event()
+        event.update(frame=3793, sequence=2, presentation_receipt_id=3, status='miss',
+                     origin=[-65.35171508789062,11.125833511352539,-89.43472290039062],
+                     direction=[.971716582775116,-.0457228422164917,.23168136179447174],
+                     impact=[math.inf,math.inf,math.inf], collider={'id':0,'path':''},
+                     target_entity_id=0, target_handle={}, applied_damage=0., damaged=False,
+                     damage_accepted=False, destroyed=False, remaining_health=-1.,
+                     damage_health=-1., damage_destroyed=False)
+        return event
+
+    def test_actual_miss_sentinel_keeps_finite_ray_and_cannot_be_damage_or_a_kill(self):
+        pilot, _ = self.pilot_active()
+        pilot.observe_event(self.miss_event())
+        self.assertEqual(pilot.kills, {})
+        self.assertEqual(pilot.presentation_receipts, {3})
+        self.assertEqual(pilot.events[-1]['status'], 'miss')
+        mutations = [lambda e: e.update(origin=[math.inf,0,0]),
+                     lambda e: e.update(direction=[0,math.nan,0]),
+                     lambda e: e.update(direction=[0,0,-2]),
+                     lambda e: e.update(impact=[-math.inf]*3),
+                     lambda e: e.update(impact=[0,0,0]),
+                     lambda e: e.update(collider={'id':1,'path':'/Main/Collider'}),
+                     lambda e: e.update(collider={'id':0,'path':'/Main/Collider'}),
+                     lambda e: e.update(target_entity_id=201),
+                     lambda e: e.update(target_handle={'hostile_id':'hostile1'}),
+                     lambda e: e.update(applied_damage=24),
+                     lambda e: e.update(damaged=True),
+                     lambda e: e.update(damage_accepted=True),
+                     lambda e: e.update(destroyed=True),
+                     lambda e: e.update(damage_destroyed=True),
+                     lambda e: e.update(remaining_health=0),
+                     lambda e: e.update(damage_health=0)]
+        for index, mutate in enumerate(mutations):
+            with self.subTest(mutation=index):
+                pilot, _ = self.pilot_active()
+                event = self.miss_event()
+                mutate(event)
+                with self.assertRaises(AssertionError): pilot.observe_event(event)
+                self.assertEqual(pilot.kills, {})
+
     def paid(self, s):
         s['defense']['activity'].update(state_id='completed', elapsed_seconds=33.9, remaining_hostile_count=0)
         for actor in s['defense']['actors']: actor.update(health=0, active=False, live_source_id=0)
