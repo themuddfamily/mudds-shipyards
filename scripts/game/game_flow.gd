@@ -984,6 +984,9 @@ var _driving := false
 ## acquires no driving, piloting, berth, or network authority.
 var _station_seated := false
 var _active_station_seat: StationSeat
+## Client rest is presented only from this body's current authoritative posture.
+var _network_client_bunk_rest: Dictionary = {}
+const NETWORK_BUNK_CONFIRMATION_SECONDS := 4.0
 const SOLO_CREW_AVATAR_ID: StringName = &"solo_halyard_passenger"
 var _solo_crew_seat: ShipCrewSeat
 var _solo_crew_ship: HeroShip
@@ -5699,6 +5702,7 @@ func _physics_process(delta: float) -> void:
 	# Client-side: this peer's own on-foot intent for the body the server is
 	# simulating for it, and the bounded correction of its local prediction.
 	_advance_network_remote_body_intent_stream()
+	_advance_network_client_bunk_rest(delta)
 	# Client-side: the helm this peer flies from a ledger pilot seat.
 	_advance_network_remote_helm_stream()
 	# Client-side: the host's authoritative craft poses -- reconcile the craft
@@ -7581,6 +7585,7 @@ func _on_network_session_started(mode: StringName) -> void:
 
 
 func _on_network_session_stopped(reason: StringName) -> void:
+	_retire_network_client_bunk_rest()
 	_disconnect_client_navigator_audio()
 	# Stopped-session teardown must not announce the old host claim as a fresh
 	# physical stand when binding detach synchronously clears its ship receipt.
@@ -7801,6 +7806,7 @@ func _on_network_migration_result(result: Dictionary) -> void:
 	if _network_session_mode != &"client" or not bool(result.get("accepted", false)) \
 			or not is_instance_valid(network_session):
 		return
+	_retire_network_client_bunk_rest()
 	var generation := int(
 		network_session.get_migration_snapshot().get("migration_generation", 0)
 	)
@@ -9966,6 +9972,9 @@ func _on_interact_requested() -> void:
 	if is_instance_valid(_network_engineer_client_seat):
 		_request_network_engineer_stand()
 		return
+	if _network_client_boarding_is_live() and _active_station_seat is ShipBunk:
+		_request_network_client_bunk_rest(_active_station_seat as ShipBunk)
+		return
 	if _station_seated:
 		_stand_from_station_seat()
 		return
@@ -9986,6 +9995,9 @@ func _on_interact_requested() -> void:
 			_sit_in_solo_crew_seat(station_interaction_candidate as ShipCrewSeat)
 			return
 		if station_interaction_candidate is StationSeat:
+			if _network_client_boarding_is_live() and station_interaction_candidate is ShipBunk:
+				_request_network_client_bunk_rest(station_interaction_candidate as ShipBunk)
+				return
 			_sit_in_station_seat(station_interaction_candidate as StationSeat)
 			return
 		if is_instance_valid(world) \
@@ -10781,6 +10793,9 @@ func _update_station_seat_flow() -> void:
 
 func _sit_in_station_seat(seat: StationSeat) -> void:
 	var rest_ship: HeroShip = (seat as ShipBunk).get_ship() if seat is ShipBunk else null
+	var confirmed_network_rest := _network_client_boarding_is_live() and seat is ShipBunk
+	if confirmed_network_rest and not _network_client_bunk_seat_is_current(seat as ShipBunk):
+		return
 	var cabin_rest := seat is ShipBunk and phase == Phase.IN_FLIGHT_CABIN \
 		and is_instance_valid(rest_ship) and rest_ship == _cabin_ship
 	if (
@@ -10792,15 +10807,15 @@ func _sit_in_station_seat(seat: StationSeat) -> void:
 			not is_instance_valid(rest_ship) or rest_ship.is_destroyed()
 			or (not cabin_rest and not bool(rest_ship.get_telemetry().get("landed", false)))
 		))
-		or player.get_interaction_origin().distance_to(seat.get_entry_transform().origin) \
-			> STATION_SEAT_MAX_REACH
+		or (not confirmed_network_rest and player.get_interaction_origin().distance_to(seat.get_entry_transform().origin) \
+			> STATION_SEAT_MAX_REACH)
 		or not seat.try_reserve(player)
 	):
 		return
 	_transition_busy = true
 	_active_station_seat = seat
 	_station_seat_recovery_transform = seat.get_exit_transform()
-	if seat is StationBunk:
+	if seat is StationBunk or confirmed_network_rest:
 		# A retained owner removal must clear the Player's live anchor before
 		# its next physics step, rather than waiting for the idle seat sweep.
 		var on_bunk_exit: Callable = _on_station_bunk_tree_exiting.bind(seat)
@@ -10827,6 +10842,7 @@ func _sit_in_station_seat(seat: StationSeat) -> void:
 		or not is_instance_valid(seat)
 		or not seat.is_reserved_for(player)
 		or not player.is_seated()
+		or (confirmed_network_rest and not _network_client_bunk_seat_is_current(seat as ShipBunk))
 	):
 		_recover_from_station_seat()
 		return
@@ -10843,6 +10859,9 @@ func _stand_from_station_seat() -> void:
 		_stand_from_solo_crew_seat()
 		return
 	var seat := _active_station_seat
+	if _network_client_boarding_is_live() and seat is ShipBunk \
+			and not _network_client_bunk_wake_is_current(seat as ShipBunk):
+		return
 	if (
 		_transition_busy
 		or not _station_seated
@@ -10914,6 +10933,7 @@ func _end_ship_rest_presentation() -> void:
 
 
 func _cancel_station_seat_for_detach() -> void:
+	_network_client_bunk_rest.clear()
 	_cancel_network_engineer()
 	_cancel_solo_crew_seat()
 	_release_solo_crew_authority()
@@ -14280,6 +14300,7 @@ func _on_network_movement_intent_result(result: Dictionary) -> void:
 
 
 func unbind_network_remote_body() -> Dictionary:
+	_retire_network_client_bunk_rest()
 	if not _network_client_ember_passenger_surface.is_empty():
 		_retire_network_client_ember_passenger_surface()
 	if _network_remote_body_intent_source == null:
@@ -26898,3 +26919,172 @@ func _send_network_gunner_intent(view: Dictionary, trigger: bool) -> Dictionary:
 		"request_sequence": _network_engineer_request_sequence, "binding_generation": int(view.get("binding_generation", 0)),
 		"migration_generation": int(view.get("migration_generation", 0)), "server_tick": _network_client_boarding_tick_stamp(),
 	})
+
+
+## Ship-bunk requests use the existing body interaction stream. Unlike solo
+## furniture, the local reservation and rest UI wait for the host's actual pose.
+func _request_network_client_bunk_rest(seat: ShipBunk) -> void:
+	if not _network_client_bunk_rest.is_empty() and not _network_client_bunk_scope_is_current():
+		_retire_network_client_bunk_rest()
+	var craft := _cabin_ship
+	var source := _network_remote_body_intent_source
+	if not _network_client_boarding_is_live() or not is_instance_valid(seat) \
+		or not is_instance_valid(craft) or craft.is_destroyed() or seat.get_ship() != craft \
+		or not _network_client_boarding_holds(craft) or phase != Phase.IN_FLIGHT_CABIN \
+		or _transition_busy or _piloting or source == null or not source.is_bound() \
+		or source.get_entity_id() != network_client_boarding_avatar_id(_network_client_peer_id()):
+		return
+	var frame := craft.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
+	var audit := source.get_audit()
+	var latest := network_session.get_moving_interior_latest_relationship(source.get_entity_id())
+	if not is_instance_valid(frame) or frame.get_moving_frame() != craft \
+		or not frame.is_occupant_registered(player) or not frame._local_prediction_is_current(player) \
+		or not bool(audit.get("opening_confirmed", false)) \
+		or latest.get("entity_id") != source.get_entity_id() \
+		or int(latest.get("entity_generation", 0)) != source.get_entity_generation() \
+		or latest.get("parent_frame_id") != StringName("frame_%s" % craft.get_ship_id()) \
+		or int(latest.get("parent_frame_generation", 0)) <= 0 or int(latest.get("server_tick", -1)) <= 0:
+		return
+	var retained_seat: Variant = _network_client_bunk_rest.get("seat")
+	var owned_seat: ShipBunk
+	if is_instance_valid(retained_seat) and retained_seat is ShipBunk:
+		owned_seat = retained_seat
+	var waking := owned_seat != null and _active_station_seat == owned_seat and player.is_sleeping()
+	if not waking and (player.is_seated() or not seat.is_available() \
+		or player.get_interaction_origin().distance_to(seat.get_entry_transform().origin) > STATION_SEAT_MAX_REACH):
+		return
+	var cursor := maxi(int(latest.server_tick), int(_network_client_bunk_rest.get("last_tick", -1)))
+	var sleep_tick := int(_network_client_bunk_rest.get("sleep_tick", -1))
+	_network_client_bunk_rest = {
+		"session_id": network_session.get_instance_id(), "source_id": source.get_instance_id(),
+		"player_id": player.get_instance_id(), "craft_id": craft.get_instance_id(), "frame_id": frame.get_instance_id(),
+		"peer_id": _network_client_peer_id(), "entity_id": source.get_entity_id(), "entity_generation": source.get_entity_generation(),
+		"stream_id": int(audit.get("stream_id", -1)), "parent_frame_id": latest.parent_frame_id,
+		"frame_generation": int(latest.parent_frame_generation),
+		"migration_generation": int(network_session.get_migration_snapshot().get("migration_generation", 0)),
+		"claim": _network_client_boarding_claim.duplicate(true), "seat": owned_seat,
+		"pending": true, "pending_elapsed": 0.0,
+		"request_state": MovingInteriorRelationshipType.STATE_WALKING if waking else MovingInteriorRelationshipType.STATE_SLEEPING,
+		"request_tick": maxi(cursor, maxi(source.get_last_client_tick(), int(audit.get("observed_server_tick", -1)))),
+		"last_tick": cursor, "sleep_tick": sleep_tick,
+	}
+	source.request_interaction() # Same-frame latching deduplicates the ordinary input sampler.
+
+
+func _network_client_bunk_scope_is_current() -> bool:
+	if _network_client_bunk_rest.is_empty() or not is_inside_tree() or is_queued_for_deletion() \
+		or not _network_client_boarding_is_live() or not _network_session_is_live() \
+		or not is_instance_valid(network_session) or network_session.is_server() \
+		or network_session.get_instance_id() != int(_network_client_bunk_rest.session_id) \
+		or _network_client_peer_id() != int(_network_client_bunk_rest.peer_id) \
+		or not is_instance_valid(player) or player.get_instance_id() != int(_network_client_bunk_rest.player_id) \
+		or not is_instance_valid(_cabin_ship) or _cabin_ship.is_destroyed() \
+		or _cabin_ship.get_instance_id() != int(_network_client_bunk_rest.craft_id) \
+		or phase != Phase.IN_FLIGHT_CABIN or not _network_client_boarding_holds(_cabin_ship) \
+		or _network_client_boarding_claim != _network_client_bunk_rest.claim \
+		or _network_remote_body_intent_source == null or not _network_remote_body_intent_source.is_bound() \
+		or _network_remote_body_intent_source.get_instance_id() != int(_network_client_bunk_rest.source_id) \
+		or _network_remote_body_intent_source.get_entity_id() != _network_client_bunk_rest.entity_id \
+		or _network_remote_body_intent_source.get_entity_generation() != int(_network_client_bunk_rest.entity_generation) \
+		or int(_network_remote_body_intent_source.get_audit().get("stream_id", -1)) != int(_network_client_bunk_rest.stream_id) \
+		or int(network_session.get_migration_snapshot().get("migration_generation", 0)) != int(_network_client_bunk_rest.migration_generation):
+		return false
+	var frame := _cabin_ship.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
+	var seat: Variant = _network_client_bunk_rest.get("seat")
+	if seat != null and (not is_instance_valid(seat) or not seat.is_inside_tree() or seat.is_queued_for_deletion()):
+		return false
+	return is_instance_valid(frame) and frame.is_inside_tree() and not frame.is_queued_for_deletion() \
+		and frame.get_instance_id() == int(_network_client_bunk_rest.frame_id) and frame.get_moving_frame() == _cabin_ship \
+		and frame.is_occupant_registered(player) and frame._local_prediction_is_current(player)
+
+
+func _network_client_bunk_relationship() -> Dictionary:
+	if not _network_client_bunk_scope_is_current():
+		return {}
+	var latest := network_session.get_moving_interior_latest_relationship(_network_client_bunk_rest.entity_id)
+	var pose: Variant = latest.get("frame_local_transform")
+	if latest.get("entity_id") != _network_client_bunk_rest.entity_id \
+		or int(latest.get("entity_generation", 0)) != int(_network_client_bunk_rest.entity_generation) \
+		or latest.get("parent_frame_id") != _network_client_bunk_rest.parent_frame_id \
+		or int(latest.get("parent_frame_generation", 0)) != int(_network_client_bunk_rest.frame_generation) \
+		or int(latest.get("server_tick", -1)) <= 0 or not pose is Transform3D \
+		or not pose.origin.is_finite() or not pose.basis.is_finite():
+		return {}
+	return latest
+
+
+func _network_client_bunk_for_pose(pose: Transform3D) -> ShipBunk:
+	var selected: ShipBunk
+	for node in _cabin_ship.find_children("*", "Area3D", true, false):
+		var seat := node as ShipBunk
+		if seat == null or seat.get_ship() != _cabin_ship or not seat.is_inside_tree() or seat.is_queued_for_deletion():
+			continue
+		var rest := _cabin_ship.global_transform.affine_inverse() * seat.get_seat_anchor().global_transform
+		if rest.origin.distance_to(pose.origin) <= 0.05 and rest.basis.is_equal_approx(pose.basis):
+			if selected != null:
+				return null # Ambiguous authored geometry cannot grant a local reservation.
+			selected = seat
+	return selected
+
+
+func _network_client_bunk_seat_is_current(seat: ShipBunk) -> bool:
+	var latest := _network_client_bunk_relationship()
+	return not latest.is_empty() and _network_client_bunk_rest.get("seat") == seat \
+		and int(latest.server_tick) == int(_network_client_bunk_rest.last_tick) \
+		and int(latest.server_tick) > int(_network_client_bunk_rest.request_tick) \
+		and int(latest.get("occupancy_state", -1)) == MovingInteriorRelationshipType.STATE_SLEEPING \
+		and _network_client_bunk_for_pose(latest.frame_local_transform as Transform3D) == seat
+
+
+func _network_client_bunk_wake_is_current(seat: ShipBunk) -> bool:
+	var latest := _network_client_bunk_relationship()
+	return not latest.is_empty() and _network_client_bunk_rest.get("seat") == seat \
+		and _active_station_seat == seat and int(latest.server_tick) == int(_network_client_bunk_rest.last_tick) \
+		and int(latest.server_tick) > int(_network_client_bunk_rest.sleep_tick) \
+		and int(latest.get("occupancy_state", -1)) == MovingInteriorRelationshipType.STATE_WALKING
+
+
+func _advance_network_client_bunk_rest(delta: float) -> void:
+	if _network_client_bunk_rest.is_empty():
+		return
+	if not _network_client_bunk_scope_is_current():
+		_retire_network_client_bunk_rest()
+		return
+	if bool(_network_client_bunk_rest.pending):
+		_network_client_bunk_rest.pending_elapsed = float(_network_client_bunk_rest.pending_elapsed) + delta
+		if float(_network_client_bunk_rest.pending_elapsed) >= NETWORK_BUNK_CONFIRMATION_SECONDS:
+			_network_client_bunk_rest.pending = false
+			if is_instance_valid(hud):
+				hud.toast("Rest request not confirmed", "The session host has not confirmed a rest change. You can try again.", 3.0)
+	var latest := _network_client_bunk_relationship()
+	if latest.is_empty() or int(latest.server_tick) <= int(_network_client_bunk_rest.last_tick):
+		return
+	_network_client_bunk_rest.last_tick = int(latest.server_tick)
+	if _transition_busy or int(latest.server_tick) <= int(_network_client_bunk_rest.request_tick):
+		return
+	var state := int(latest.get("occupancy_state", -1))
+	if state == MovingInteriorRelationshipType.STATE_SLEEPING:
+		var seat := _network_client_bunk_for_pose(latest.frame_local_transform as Transform3D)
+		if seat == null:
+			return
+		if int(_network_client_bunk_rest.request_state) == state:
+			_network_client_bunk_rest.pending = false
+		_network_client_bunk_rest.sleep_tick = int(latest.server_tick)
+		if _active_station_seat == seat and player.is_sleeping():
+			return
+		if _active_station_seat == _network_client_bunk_rest.get("seat") and _active_station_seat != null:
+			_recover_from_station_seat()
+		_network_client_bunk_rest.seat = seat
+		_sit_in_station_seat(seat)
+	elif state == MovingInteriorRelationshipType.STATE_WALKING:
+		var seat := _network_client_bunk_rest.get("seat") as ShipBunk
+		if seat != null and _active_station_seat == seat and _station_seated:
+			_network_client_bunk_rest.pending = false
+			_stand_from_station_seat()
+
+
+func _retire_network_client_bunk_rest() -> void:
+	var seat: Variant = _network_client_bunk_rest.get("seat")
+	_network_client_bunk_rest.clear()
+	if is_instance_valid(seat) and seat is ShipBunk and _active_station_seat == seat:
+		_recover_from_station_seat()

@@ -4721,6 +4721,12 @@ func _network_bunk_client() -> void:
 			if not _ordinary_require(port.is_available() and starboard.is_available() and (overlay == null or not overlay.visible),
 				"actual host refusal leaves no local bunk lease or sleep overlay"):
 				return
+			if not await _ordinary_boundary(func(): return (_game.hud._toast_panel.visible
+				and _game.hud._toast_title.text == "REST REQUEST NOT CONFIRMED"
+				and not _player.is_sleeping() and not _player.is_seated()
+				and _player.is_control_enabled() and port.is_available() and starboard.is_available()), 8.0,
+				"unconfirmed rest gives visible feedback while retaining awake controls before fresh retry"):
+				return
 		else:
 			var selected := starboard if phase == "port_busy" else port
 			if not await _ordinary_boundary(func(): return (_player.is_sleeping() and _player.is_seated_at(selected.get_seat_anchor())
@@ -4746,6 +4752,37 @@ func _network_bunk_client() -> void:
 				return
 			_write("client.bunk_" + phase + "_awake", _network_bunk_snapshot())
 	if not await _wait_file("host.bunk_complete", 8.0):
+		return
+	# Exercise retirement with an actual authority-confirmed sleeper, then solo use.
+	await _ordinary_look(port.global_position)
+	await _ordinary_press(&"interact")
+	if not await _ordinary_boundary(func(): return (_player.is_sleeping() and port.is_reserved_for(_player)
+		and not _game.get("_transition_busy")), 4.0,
+		"ordinary fresh request confirms a real network sleeper before public session shutdown"):
+		return
+	var stopped := _game.shutdown_network_session(&"focused_bunk_solo_fallback")
+	if not _ordinary_require(bool(stopped.get("accepted", false)) and not source.is_bound()
+		and (_game.get("_network_client_bunk_rest") as Dictionary).is_empty()
+		and not _player.is_sleeping() and not _player.is_seated() and port.is_available()
+		and not _game._ship_rest_overlay.visible,
+		"public session shutdown retires the actual sleeper, bunk lease, overlay and body grant"):
+		return
+	_player.teleport_to(Transform3D(_craft.global_basis.orthonormalized(), port.get_entry_transform().origin))
+	await _ticks(12)
+	await _ordinary_look(port.global_position)
+	if not await _ordinary_boundary(func(): return (_player.is_on_floor() and _player.is_control_enabled()
+		and _game.station_interaction_candidate == port), 4.0,
+		"same stopped client's disclosed approach discovers the ordinary local bunk"):
+		return
+	await _ordinary_press(&"interact")
+	if not await _ordinary_boundary(func(): return (_player.is_sleeping() and port.is_reserved_for(_player)
+		and _player.get_instance_id() == player_id and not _game.get("_transition_busy")), 4.0,
+		"ordinary sleep works on the same Player after a real client session ends"):
+		return
+	await _ordinary_press(&"interact")
+	if not await _ordinary_boundary(func(): return (not _player.is_sleeping() and not _player.is_seated()
+		and _player.is_control_enabled() and _player.is_on_floor() and port.is_available()), 4.0,
+		"ordinary local wake remains usable after the network bunk consumer retires"):
 		return
 	_write("client.bunk_complete", {})
 	if not await _wait_file("host.bunk_release", 8.0):
