@@ -42,24 +42,30 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
-**COURIER-WITHDRAW-PHASE selected — live courier withdrawal and full home.**
-Fresh ordinary Guided Torrent/four range kills, original defender alive until
-actual first courier dispatch. Then real player fire must kill that defender
-while the same courier is live, unhurt and short of escape; normal
-RETURN_TO_YARD must produce WITHDRAWN and stop every actually dispatched actor.
-Hold/check standdown for60 physics frames and retain it through original strict
-occupied-home landing, OFFLINE shutdown and physical exit.
+**COURIER-WITHDRAW-PHASE full ordinary outcome DONE — `ccfaa63b8`.**
+The complete packaged journey passes56.522s under original300s/outer330:
+four range kills and real85→51→17 preparation, observed first live unhurt
+courier, then an authoritative player kill of the original defender. The kill
+callback records normal RETURN_TO_YARD while the courier is still running;
+the next physics step produces WITHDRAWN. Every actually dispatched actor stays
+inactive/unauthorized with no further fire through the60-frame hold and original
+strict home landing, OFFLINE shutdown, disembark animation and physical exit.
+Actual maximum encounter-origin radius63.412m excludes distance withdrawal.
 
-One driver/passive-observer implementer and independent reviewer; root owns
-checks, exact private package, one ordinary300s/outer330s attempt and cleanup.
-The post-resolver shot signal supplies read-only kill-time ordering; actual
-origin distance<=450m rules out700m/7s distance withdrawal. Preserve every
-encounter constant and actor/control identity; no gameplay/tuning/placement,
-new branch/worktree or hosted CI. First failure stops for causal review.
-Estimate30–60min implementation/review plus10–20min checks/package/cleanup;
-split before90min, no failed-clock reset. Card/results:
-`/srv/mudds-work/courier-phase-withdraw-20261024/results/`.
+Game package source08118186f and corrected external driverccfaa63b8 are pinned
+separately: only the driver/tests changed after the clean export/startup/audit,
+and all packaged runtime blobs are identical. Final141 Python tests pass. The
+first full attempt caught a caller guard missing normal DISEMBARKING; the fix
+admits only that phase and still requires final physical completion. Its failed
+run is retained. No gameplay, encounter, tuning, placement or cap change.
 
+Both candidate commits are integrated into pushed main. Owned scratch is removed
+and116 result members are consolidated into one verified archive plus
+closeout.json. No branch/worktree was created; public checkpointce2329a remains
+current. [Full ordering proof, source pair and retained limits](docs/history/ROADMAP_DELIVERIES.md#courier-phase-withdrawal--accepted-live-dispatch-and-home--2026-10-24).
+This unhurt first-courier instance is accepted; escorted instances, distance
+withdrawal, recovery, repeats, separate walk/UI quit, native/human and parent11
+remain open. GitHub Actions stays disabled.
 
 **COURIER-ESCAPE full ordinary outcome DONE — `393733212`.**
 The complete packaged journey passes103.179s under original300s/outer330:

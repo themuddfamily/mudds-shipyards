@@ -22053,3 +22053,94 @@ diagnostic and raw success—verified into
 (315105192bytes, SHA256
 `ad144c559de03c8048449ddd4824c90b148c8a2fc1e0ae887fdebbea2930291a`),
 then loose copies removed. Only that archive and closeout.json remain.
+
+
+## Courier phase withdrawal — accepted live dispatch and home — 2026-10-24
+
+COURIER-WITHDRAW-PHASE parent11 is accepted for the selected first unhurt Courier
+instance: **56.522s** (guard56.817), original300s driver/330s outer and all
+encounter constants/default controls retained. The full ordinary packaged
+journey observes the live courier before the player kills the original defender;
+normal RETURN_TO_YARD then causes WITHDRAWN and total standdown, followed by the
+original strict home/OFFLINE/physical exit. This differs from the earlier Guided
+case that killed the defender before any courier dispatch. No gameplay, AI,
+damage, tuning, boost, placement, mask or protocol change.
+
+Accepted source pair: clean exported game
+`08118186f6df549328748694064b15d0b1d8981b`, corrected external driver
+`ccfaa63b8c31142658702cf2e9793fd98a65c4a3`. Git comparison proves only
+`run_native_sortie.py` and its Python tests differ between those commits; every
+packaged runtime/observer/startup blob remains unchanged. Exact binary/hash and
+driver/hash are retained together. The first attempt on081 stops54.461s
+(guard54.769) during normal DISEMBARKING at2354: original defender dead/inactive,
+secured lease/exact/contract true, OFFLINE and exit animation still underway.
+GameFlow sets that legitimate phase before canopy/player awaits. The new caller
+had omitted it from retained-death phases; adding only DISEMBARKING fixes the
+caller. The existing success test now proves that animation is not completion,
+then keeps all original strict COMPLETE/OFFLINE/awake/lease/exit checks. No
+runtime defect or physical-exit success was claimed for that failed attempt.
+
+A read-only listener on the existing post-resolver authoritative shot signal
+captures the exact request/result/current Main/authority/ship/defender identity.
+The original defender's destroyed signal has already entered normal RETURN,
+while the director still has its active running Courier until the next physics
+step. This records the ordering in the actual call stack. Exact listener disconnection on Main/observer exit is retained. The
+caller requires a newer-than-observed-dispatch source1101/authored combat weapon
+lethal receipt, real FIRE and current original target; stale/foreign/nonlethal/
+predispatch/escape/distance substitutes fail closed. The passive every-physics
+radius latch must remain<=450m, inside the original700m/7s withdrawal boundary.
+
+Successful result and2011 raw observations retain Player291218917991,
+ship291990669973 and original defender294842796862 with default sampler/tuning
+and actual four range kills. Real preparation85→51→17 completes before observed
+first dispatch1595: runner294909905730/director294993791815/gen1 active/pending,
+unhurt78 and defenderstill17. At1597, new authoritative request12/source1101/
+current Torrent applies lethal17 to that exact defender, destroyedtrue/FIREtrue;
+normalRETURN is already set while the same courier remains active/running/
+pending78, progress.000015476. Terminal1598 is WITHDRAWN/RETURN. One actor was
+actually dispatched; no escort was forced. Every retained postterminal actor
+observation through tail2467 stays inactive/unauthorized/pending0/shots0 with no
+transient violation. Maximum actual-origin radius63.412m excludes distance
+withdrawal; progress<1/unhurt courier excludes escape or a courier kill.
+
+The60-frame hold ends1658, then inherited ordinary return continues. Secured
+occupied home/lease/exact/contract2240, OFFLINE2331, actual DISEMBARKING2333
+without early success, physical COMPLETE2463 with awake unpiloted/unseated
+Player/controls/guided completion, exit error.170m and hull89. Standdown remains
+observed865 physics frames through completion. Zero game diagnostics; inputs,
+input helper, game and owned Xvfb all released/reaped. Independent full source/
+raw/pair acceptance GO. No normal UI quit/gameOS0, separate walking/restart,
+escorted instance, distance withdrawal, recovery/repeats/native/human/fullparent
+credit is transferred.
+
+Final141 Python tests PASS10.839s/guard11.228. Initial frozen141 suite, observer
+compile15.620s, CLI privacy.996s, clean private export25.996s, strict menu startup
+22.512s and artifact audit3.956s pass. Binary exits0 with exactly one
+STARTUP_MENU_READY_OK. All1,527 packaged paths match publicce2329a;1,525 entries
+byte-identical, only passive observer/startup selector bytecode differs. Exact
+archive payload/modes/source epoch pass. Since the correction changed only the
+external caller/tests, the exact already-validated game package was reused with its original081 build
+source and recorded runtime comparison.
+Private ELF148990848bytes SHA256
+`37cc826f28d29d257a0ae5f097c4f55140253adee0fe3a34fb23ddbf3dcd33fd`
+inside95400787byte package SHA256
+`644cf3c9597169c173ffd307e8167e1967495da25c1e8f2e696ab90f940f790f`.
+Exact package/metadata preserved privately, duplicate ELF removed; public playable
+Windows/Linuxce2329a remains current with the same gameplay. All automation uses
+Dummy audio/headless or privateXvfb/x11. Native Windows/GPU/rendered/device/
+listening/human, full matrix/custom RPC/exported multiplayer/release and all36
+parents/ten phase gates remain open. GitHub Actions stays disabled.
+
+Both candidate commits integrated into pushed main; main remains sole local/
+remote branch. No task branch/worktree or new retained archive ref created;
+pre-existing parked detached worktrees remain untouched. All9 guarded stages
+terminal,8pass/one retained caller failure, cumulative actual stage203.135s.
+Planning clock17.840min at consolidation, not reset. All32 sampled process
+identities absent; driver-owned input helper/game/display also report reaped.
+All97 owned scratch entries byte/mode/link verified before removal. All116
+result members—including failed raw, actual success, exact source pair and
+shared package—verified into
+`/srv/mudds-work/courier-phase-withdraw-20261024/results/case-records.tar.gz`
+(106885595bytes, SHA256
+`3db44a06a0b43aa39061498e935c44946eb888cd9d711066d617b25f21e5ff26`),
+then loose copies removed. Only that archive and closeout.json remain.
