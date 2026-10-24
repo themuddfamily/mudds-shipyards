@@ -4218,7 +4218,7 @@ func _ordinary_passenger_loss_host_diagnostic() -> Dictionary:
 		"published_seated_state": int(publication.get("published_state", -1)) == NetworkMovingInteriorRelationship.STATE_SEATED,
 		"published_positive_tick": int(publication.get("published_tick", -1)) > 0,
 	}
-	var current_owner := _craft.get_crew_role_authority()
+	var current_owner: CrewSeatRoleAuthority = _craft.get_crew_role_authority()
 	return {"available": true, "checks": checks, "pilot_checks": pilot_checks,
 		"baseline": baseline, "current": current, "events": _ordinary_pilot_loss_events.duplicate(true),
 		"admitted_peers": admitted, "pilot_peer_generation": _ordinary_peer_generation(pilot),
