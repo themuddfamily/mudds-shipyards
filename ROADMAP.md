@@ -6,13 +6,13 @@ Nine of the eventual 17 craft exist; eight still need supported specifications
 and implementation. Partial acceptance is retained in the backlog; it is not
 whole-feature completion.
 
-Latest playable checkpoint: **9af4851**. Deploy now arms Station Defense;
-enemies and the34-second timer start on actual pilot departure. Cancel, reset,
-cold-load inactivity and pending rewards remain protected. Full Defense combat
-qualification remains open: an earlier caller cleared two of four; the latest
-first-point attempt stopped without a kill. Bomber seat refill/presentation and
-prior deliveries remain included. [Windows ZIP](builds/windows/MuddsShipyards-9af4851-checkpoint.zip),
-[build notes](builds/windows/MuddsShipyards-9af4851-notes.txt).
+Latest playable checkpoint: **f6803cf**. Multiplayer bunk sleep and wake now follow
+the host's actual selected berth and posture; refused requests preserve awake
+controls and give feedback, and session shutdown clears rest state. Includes the
+earlier Bomber seat refill and Deploy-arms-Defense behavior. Full Defense combat,
+multiplayer baseline and native qualification remain open.
+[Windows ZIP](builds/windows/MuddsShipyards-f6803cf-checkpoint.zip),
+[build notes](builds/windows/MuddsShipyards-f6803cf-notes.txt).
 
 This page is the working queue. The
 [36-parent crosswalk and named children](docs/ROADMAP_BACKLOG.md#coverage-of-the-original-remaining-outcomes)
