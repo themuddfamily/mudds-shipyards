@@ -681,6 +681,55 @@ class CourierEscapePilot(CourierPilot):
         self.standdown_until_frame = None
         self.defender_misses = []
         self.defender_miss_sequence = -1
+        self.saved_attack_position = None
+        self.initial_wait_waypoint = None
+        self.scenario_origin = None
+        self.wait_waypoints = []
+        self.wait_waypoint_index = 0
+        self.wait_visited = []
+        self.attack_return_waypoints = []
+        self.attack_return_index = 0
+        self.attack_return_visited = []
+        self.wait_braking = False
+        self.maximum_wait_radius = 0.
+        self.courier_launch_health = None
+
+    def waiting_flight_report(self):
+        return dict(saved_attack_position=self.saved_attack_position,
+                    initial_waypoint=self.initial_wait_waypoint, scenario_origin=self.scenario_origin,
+                    wait_waypoints=self.wait_waypoints, wait_waypoint_index=self.wait_waypoint_index,
+                    wait_visited=self.wait_visited, return_waypoints=self.attack_return_waypoints,
+                    return_visited=self.attack_return_visited, maximum_radius_m=self.maximum_wait_radius)
+
+    def require_wait_radius(self, position, origin):
+        distance = norm(sub(position, origin))
+        require(math.isfinite(distance) and distance <= 450.,
+                'ordinary Courier Escape waiting flight stays within 450m of its frozen origin')
+        return distance
+
+    def wait_flight_controls(self, s, waypoint):
+        # The existing ordinary waypoint controller: mouse steering, normal W
+        # and braking. Waypoints are never moved to rescue an unsuccessful leg.
+        require(not s['command_fire'], 'released ordinary fire throughout Courier Escape waiting flight')
+        off = sub(waypoint, s['position'])
+        distance, speed = norm(off), norm(s['velocity'])
+        dx, dy, align = self.aim(s, [s['camera'][i]+off[i] for i in range(3)])
+        stopping = speed*speed/(2*s['tuning']['brake']) + speed*.18
+        if distance < stopping+1.75: self.wait_braking = True
+        if speed <= .45 and distance > 1: self.wait_braking = False
+        keys = set()
+        if distance <= 1 or self.wait_braking: keys.add('Prior')
+        elif align > .72: keys.add('w')
+        return (keys, dx, dy, False), distance <= 1 and speed <= .45
+
+    def advance_wait_flight(self, s):
+        index = min(self.wait_waypoint_index, len(self.wait_waypoints)-1)
+        controls, reached = self.wait_flight_controls(s, self.wait_waypoints[index])
+        if reached and self.wait_waypoint_index < len(self.wait_waypoints):
+            self.wait_visited.append(dict(index=index, frame=s['frame'], position=s['position'][:]))
+            self.wait_waypoint_index += 1
+            self.wait_braking = False
+        return controls
 
     def defender_wait_controls(self, s, allow_fire):
         pulse = self.defender_pulse
@@ -745,7 +794,7 @@ class CourierEscapePilot(CourierPilot):
         distance = norm(sub(terminal['position'], terminal['escape_origin']))
         require(math.isfinite(distance) and distance >= self.CONFIG['escape_distance']
                 and terminal['escape_progress'] == 1
-                and math.isfinite(terminal['health']) and terminal['health'] > 0,
+                and math.isfinite(terminal['health']) and terminal['health'] == self.courier_launch_health,
                 'same live runner physically reached original boundary with positive hull')
         require(c['state'] == 'concluded' and c['outcome'] == 'escaped' and not c['active']
                 and math.isfinite(c['health']) and c['health'] > 0
@@ -784,18 +833,36 @@ class CourierEscapePilot(CourierPilot):
         require(all(math.isfinite(c[k]) and math.isclose(c[k], v, rel_tol=1e-6, abs_tol=1e-6)
                     for k, v in self.CONFIG.items()), 'original encounter configuration')
         require(s['opponent_id'] == self.defender_id, 'same original defender throughout escape and home')
-        if (self.stage in ('courier_wait', 'courier_escape_wait', 'courier_standdown', 'interceptor')
+        if (self.stage in ('courier_wait', 'courier_escape_wait', 'courier_standdown',
+                           'courier_return_attack', 'interceptor')
                 and s['opponent_health'] > 0):
             require(c.get('weapon_status', {}).get('reason') != 'weapon_component_failed',
                     'authoritative weapon_component_failed with original defender alive; '
                     'Courier Escape caller has no weapon recovery route')
-        if self.stage in ('courier_wait', 'courier_escape_wait', 'courier_standdown'):
+        if self.scenario_origin is not None:
+            self.maximum_wait_radius = max(self.maximum_wait_radius,
+                                          self.require_wait_radius(s['position'], self.scenario_origin))
+        if self.saved_attack_position is not None and self.stage in (
+                'courier_wait', 'courier_escape_wait', 'courier_standdown', 'courier_return_attack'):
+            if self.scenario_origin is None:
+                self.maximum_wait_radius = max(self.maximum_wait_radius,
+                                              self.require_wait_radius(s['position'], self.saved_attack_position))
+            require(math.isclose(s['opponent_health'], 17., abs_tol=1e-6),
+                    'the original twice-wounded defender stays at 17 hull during ordinary waiting and return flight')
+        if self.stage in ('courier_wait', 'courier_escape_wait', 'courier_standdown', 'courier_return_attack'):
             require(s['phase'] == 'INTERCEPTOR_ENGAGEMENT' and s['opponent_active']
                     and math.isfinite(s['opponent_health']) and s['opponent_health'] > 0
                     and s['telemetry']['hull'] > 0, 'original defender and player remain alive through escape standdown')
         if self.stage == 'courier_wait':
             require(c['outcome'] == 'pending', 'no premature terminal before first live courier dispatch')
             wait_controls = self.defender_wait_controls(s, c['state'] != 'running')
+            if len(self.defender_wounds) == 2 and self.defender_pulse is None and not s['command_fire']:
+                if self.saved_attack_position is None:
+                    self.saved_attack_position = s['position'][:]
+                    self.initial_wait_waypoint = [self.saved_attack_position[i]+v
+                                                  for i, v in enumerate((-220., 180., -220.))]
+                    self.require_wait_radius(self.initial_wait_waypoint, self.saved_attack_position)
+                wait_controls, _ = self.wait_flight_controls(s, self.initial_wait_waypoint)
             if c['state'] != 'running':
                 require(c['state'] in ('idle', 'arming'), 'ordinary courier arming state')
                 return wait_controls
@@ -808,13 +875,26 @@ class CourierEscapePilot(CourierPilot):
                     and not c['terminal'], 'actual live first courier dispatch before any terminal')
             self.courier_identity = (c['director_id'], c['actor_id'], c['generation'])
             self.escape_origin = list(c['escape_origin'])
+            self.scenario_origin = list(c['scenario_origin'])
+            self.courier_launch_health = c['health']
+            self.wait_waypoints = [[self.scenario_origin[i]+offset[i] for i in range(3)]
+                                   for offset in ((-220., 180., -220.), (220., 180., -220.),
+                                                  (220., 180., 220.), (-220., 180., 220.))]
+            self.attack_return_waypoints = [[self.saved_attack_position[i]+v
+                                             for i, v in enumerate((0., 180., 0.))],
+                                            self.saved_attack_position[:]]
+            for point in [s['position'], self.initial_wait_waypoint] + self.wait_waypoints + self.attack_return_waypoints:
+                self.require_wait_radius(point, self.scenario_origin)
+            self.wait_braking = False
             self.running_frame = s['frame']
             self.enter('courier_escape_wait', s)
         if self.courier_identity is not None:
             require(self.courier_identity == (c['director_id'], c['actor_id'], c['generation'])
                     and c['scenario'] == 'courier_intercept' and c['seen_alive']
-                    and c['escape_origin'] == self.escape_origin,
+                    and c['escape_origin'] == self.escape_origin and c['scenario_origin'] == self.scenario_origin,
                     'same original courier director generation and launch origin throughout home')
+            require(math.isfinite(c['health']) and c['health'] == self.courier_launch_health == c['maximum_health']
+                    and not c['hit'] and not c['kill'], 'the first escaping courier remains entirely unhurt')
             actor_ids = [a['id'] for a in c['actors']]
             require(len(set(actor_ids)) == len(actor_ids) and self.dispatched_ids <= set(actor_ids)
                     and c['actor_id'] in actor_ids and set(c['roster_ids']) <= set(actor_ids),
@@ -827,7 +907,7 @@ class CourierEscapePilot(CourierPilot):
                 require(c['state'] == 'running' and c['active'] and not c['terminal']
                         and math.isfinite(c['escape_progress']) and 0 <= c['escape_progress'] <= 1,
                         'same live courier remains in ordinary running scenario until escape')
-                return {'Prior'}, 0, 0, False
+                return self.advance_wait_flight(s)
             require(c['outcome'] == 'escaped' and s['frame'] > self.running_frame,
                     'only subsequent actual escape can conclude this route')
             self.check_standdown(c, s)
@@ -838,14 +918,27 @@ class CourierEscapePilot(CourierPilot):
             self.check_standdown(c, s)
         if self.stage == 'courier_standdown':
             if s['frame'] >= self.standdown_until_frame:
-                self.enter('interceptor', s)
-            return {'Prior'}, 0, 0, False
+                self.wait_braking = False
+                self.enter('courier_return_attack', s)
+            else:
+                return self.advance_wait_flight(s)
+        if self.stage == 'courier_return_attack':
+            controls, reached = self.wait_flight_controls(s, self.attack_return_waypoints[self.attack_return_index])
+            if reached:
+                self.attack_return_visited.append(dict(index=self.attack_return_index, frame=s['frame'],
+                                                      position=s['position'][:], speed_m_s=norm(s['velocity'])))
+                self.attack_return_index += 1
+                self.wait_braking = False
+                if self.attack_return_index == len(self.attack_return_waypoints):
+                    self.enter('interceptor', s)
+            return controls
         if self.result is not None:
             require(self.courier_escape is not None and s['frame'] >= self.standdown_until_frame,
                     'actual escape and sustained standdown precede complete home journey')
             self.result.update(completion_marker=self.MARKER, courier=self.courier_escape,
                                courier_home=c, defender_wounds=self.defender_wounds,
                                defender_misses=self.defender_misses,
+                               waiting_flight=self.waiting_flight_report(),
                                standdown_observed_frames=s['frame'] - c['terminal']['frame'])
         return controls
 
@@ -5529,7 +5622,9 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False):
             if isinstance(pilot, CourierPilot):
                 result['partial_sortie'].update(courier=pilot.last_courier, courier_clear=pilot.courier_clear)
             if isinstance(pilot, CourierEscapePilot):
-                result['partial_sortie'].update(courier_escape=pilot.courier_escape, dispatched_ids=sorted(pilot.dispatched_ids))
+                result['partial_sortie'].update(courier_escape=pilot.courier_escape, dispatched_ids=sorted(pilot.dispatched_ids),
+                                               waiting_flight=pilot.waiting_flight_report(),
+                                               defender_wounds=pilot.defender_wounds, defender_misses=pilot.defender_misses)
             if isinstance(pilot, HabitatRestartPilot):
                 result['partial_restart'] = pilot.report()
             if isinstance(pilot, (HabitatLoopPilot, LifeTowPilot)):

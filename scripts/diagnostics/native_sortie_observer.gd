@@ -195,6 +195,7 @@ func _courier_observation() -> Dictionary:
 		for member: Node3D in _courier_director.get_roster():
 			roster_ids.append(member.get_instance_id())
 		result.merge({"escape_origin": _v(_courier.get_escape_origin()),
+			"scenario_origin": _v(_courier_director.get("_scenario_origin")),
 			"weapon_status": weapon_status.duplicate(true),
 			"prep_shot": _courier_prep_shot_observation(),
 			"actors": _courier_dispatched_observation(), "roster_ids": roster_ids,

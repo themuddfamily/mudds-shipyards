@@ -1856,6 +1856,7 @@ class NativeSortieSafetyTests(unittest.TestCase):
         s['tuning']['cooldown'] = .22
         s['courier'] = dict(native.CourierPilot.CONFIG, director_id=10, actor_id=11,
                             weapon_ready=True,
+                            scenario_origin=s['position'][:],
                             scenario='none', generation=0, state='arming', outcome='pending',
                             elapsed_seconds=0., escape_progress=0., active=False,
                             position=[0, 8, -200], velocity=[0, 0, -52], health=78.,
@@ -2201,14 +2202,24 @@ class NativeSortieSafetyTests(unittest.TestCase):
             pilot.update(copy.deepcopy(s), 6)
         self.assertIsNone(pilot.result)
 
-    def test_escape_wait_never_fires_or_chases_and_requires_sustained_standdown_before_defender(self):
+    def test_escape_fixed_wait_flight_requires_standdown_and_physical_return_before_defender(self):
         pilot, s = self.escaping_courier()
+        saved_attack = s['position'][:]
+        self.assertEqual(pilot.saved_attack_position, saved_attack)
+        self.assertEqual(len(pilot.wait_waypoints), 4)
+        for waypoint in pilot.wait_waypoints:
+            self.assertAlmostEqual(native.norm(native.sub(waypoint, pilot.scenario_origin)),
+                                   math.sqrt(220**2+180**2+220**2))
         for progress in (.1, .5, .99):
             s['frame'] += 60
             s['courier']['escape_progress'] = progress
-            self.assertEqual(pilot.update(copy.deepcopy(s), 6), ({'Prior'}, 0, 0, False))
+            keys, dx, dy, fire = pilot.update(copy.deepcopy(s), 6)
+            self.assertFalse(fire)
+            self.assertTrue(keys <= {'w', 'Prior'})
+            self.assertNotEqual((dx, dy), (0, 0))
+            self.assertEqual(pilot.wait_waypoint_index, 0)
         self.runner_reaches_boundary(s)
-        self.assertEqual(pilot.update(copy.deepcopy(s), 30), ({'Prior'}, 0, 0, False))
+        self.assertFalse(pilot.update(copy.deepcopy(s), 30)[3])
         self.assertEqual(pilot.stage, 'courier_standdown')
         self.assertIsNone(pilot.result)
         s['frame'] += 59
@@ -2216,7 +2227,17 @@ class NativeSortieSafetyTests(unittest.TestCase):
         self.assertEqual(pilot.stage, 'courier_standdown')
         s['frame'] += 1
         self.assertFalse(pilot.update(copy.deepcopy(s), 32)[3])
+        self.assertEqual(pilot.stage, 'courier_return_attack')
+        self.assertEqual(pilot.attack_return_visited, [])
+        for waypoint in pilot.attack_return_waypoints:
+            s.update(frame=s['frame']+1, position=waypoint[:], velocity=[2., 0, 0])
+            self.assertFalse(pilot.update(copy.deepcopy(s), 32)[3])
+            self.assertEqual(pilot.stage, 'courier_return_attack')
+            s.update(frame=s['frame']+1, velocity=[0., 0, 0])
+            self.assertFalse(pilot.update(copy.deepcopy(s), 32)[3])
         self.assertEqual(pilot.stage, 'interceptor')
+        self.assertEqual(pilot.attack_return_visited[-1]['position'], saved_attack)
+        self.assertEqual(len(pilot.attack_return_visited), 2)
         s.update(frame=s['frame']+1, phase='RETURN_TO_YARD', opponent_active=False,
                  opponent_health=0., shot_accepted=True, command_fire=True)
         pilot.update(copy.deepcopy(s), 33)
@@ -2231,6 +2252,53 @@ class NativeSortieSafetyTests(unittest.TestCase):
         pilot.update(copy.deepcopy(s), 34)
         self.assertEqual(pilot.result['completion_marker'], native.CourierEscapePilot.MARKER)
         self.assertEqual(pilot.result['courier']['terminal']['actor_id'], 11)
+
+    def test_escape_flight_uses_only_normal_thrust_and_brake_and_never_cycles_waypoints(self):
+        pilot, s = self.escaping_courier()
+        first = pilot.wait_waypoints[0]
+        direction = native.unit(native.sub(first, s['position']))
+        s['camera'] = s['position'][:]
+        s['back'] = [-v for v in direction]
+        s['right'] = native.unit([-direction[2], 0, direction[0]])
+        right = s['right']
+        s['up'] = [right[1]*direction[2]-right[2]*direction[1],
+                   right[2]*direction[0]-right[0]*direction[2],
+                   right[0]*direction[1]-right[1]*direction[0]]
+        s['frame'] += 1
+        self.assertEqual(pilot.update(copy.deepcopy(s), 6)[0], {'w'})
+        for index, waypoint in enumerate(pilot.wait_waypoints):
+            s.update(frame=s['frame']+1, position=waypoint[:], velocity=[0., 0, 0])
+            keys, _, _, fire = pilot.update(copy.deepcopy(s), 6)
+            self.assertEqual(keys, {'Prior'})
+            self.assertFalse(fire)
+            self.assertEqual(pilot.wait_waypoint_index, index+1)
+        s['frame'] += 1
+        self.assertEqual(pilot.update(copy.deepcopy(s), 6), ({'Prior'}, 0, 0, False))
+        self.assertEqual(pilot.wait_waypoint_index, 4)
+        self.assertEqual(len(pilot.wait_visited), 4)
+
+    def test_escape_flight_rejects_origin_drift_outside_bounds_fire_and_hurt_runner(self):
+        for violation in ('origin_drift', 'outside', 'fire', 'hurt_runner'):
+            with self.subTest(violation=violation):
+                pilot, s = self.escaping_courier()
+                if violation == 'origin_drift': s['courier']['scenario_origin'][0] += 1
+                if violation == 'outside': s['position'][0] += 450.01
+                if violation == 'fire': s['command_fire'] = True
+                if violation == 'hurt_runner': s['courier']['health'] = 77.
+                s['frame'] += 1
+                with self.assertRaises(AssertionError): pilot.update(copy.deepcopy(s), 6)
+                self.assertIsNone(pilot.result)
+
+    def test_escape_flight_begins_after_released_second_wound_and_bounds_predispatch(self):
+        pilot, s = self.courier_pilot(native.CourierEscapePilot)
+        self.assertIsNone(pilot.saved_attack_position)
+        self.courier_wound_defender(pilot, s)
+        self.assertEqual(len(pilot.defender_wounds), 2)
+        self.assertIsNone(pilot.defender_pulse)
+        self.assertEqual(pilot.saved_attack_position, s['position'])
+        s.update(frame=s['frame']+1, position=[s['position'][0]+450.01, *s['position'][1:]])
+        with self.assertRaisesRegex(AssertionError, '450m'):
+            pilot.update(copy.deepcopy(s), 6)
 
     def test_escape_rejects_director_label_without_actual_live_same_runner_at_boundary(self):
         # A forged progress/ESCAPED label must not hide a 1399m position,
