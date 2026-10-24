@@ -70,6 +70,9 @@ const ORDINARY_HALYARD_APPROACH := [
 	Vector3(37, 4.2, 68.3), Vector3(32.4, 4.2, 68.2), Vector3(32, 4.2, 62.2),
 	Vector3(32, 4.2, 54.2),
 ]
+var _ordinary_two_client_sleep := false
+var _ordinary_sleep_stage := ""
+var _ordinary_sleep_retained: Dictionary = {}
 var _ordinary_two_client_passenger_loss := false
 var _ordinary_passenger_loss_retained: Dictionary = {}
 var _ordinary_two_client_pilot_loss := false
@@ -104,10 +107,11 @@ func _init() -> void:
 
 func _run() -> void:
 	var args := OS.get_cmdline_user_args()
+	_ordinary_two_client_sleep = "--ordinary-two-client-sleep" in args
 	_ordinary_two_client_passenger_loss = "--ordinary-two-client-passenger-loss" in args
 	_ordinary_two_client_pilot_loss = "--ordinary-two-client-pilot-loss" in args
 	_ordinary_two_client_authority_stop = "--ordinary-two-client-authority-stop" in args
-	_ordinary_two_client_moving = "--ordinary-two-client-moving" in args or _ordinary_two_client_authority_stop or _ordinary_two_client_pilot_loss or _ordinary_two_client_passenger_loss
+	_ordinary_two_client_moving = "--ordinary-two-client-moving" in args or _ordinary_two_client_authority_stop or _ordinary_two_client_pilot_loss or _ordinary_two_client_passenger_loss or _ordinary_two_client_sleep
 	_ordinary_two_client_board = "--ordinary-two-client-board" in args or _ordinary_two_client_moving
 	if _ordinary_two_client_board:
 		args.erase("--ordinary-two-client-board")
@@ -115,6 +119,7 @@ func _run() -> void:
 		args.erase("--ordinary-two-client-authority-stop")
 		args.erase("--ordinary-two-client-pilot-loss")
 		args.erase("--ordinary-two-client-passenger-loss")
+		args.erase("--ordinary-two-client-sleep")
 		await _ordinary_run(args)
 		return
 	if "--exit-receipt-only" in args:
@@ -317,7 +322,9 @@ func _orchestrate() -> void:
 	quit(0 if _failures.is_empty() else 1)
 
 func _print_peer_success() -> void:
-	if _ordinary_two_client_passenger_loss:
+	if _ordinary_two_client_sleep:
+		print("HALYARD_ORDINARY_TWO_CLIENT_SLEEP_OK checks=%d" % _checks)
+	elif _ordinary_two_client_passenger_loss:
 		print("HALYARD_ORDINARY_TWO_CLIENT_PASSENGER_LOSS_OK checks=%d" % _checks)
 	elif _ordinary_two_client_pilot_loss:
 		print("HALYARD_ORDINARY_TWO_CLIENT_PILOT_LOSS_OK checks=%d" % _checks)
@@ -372,7 +379,9 @@ func _peer_arguments(role: String, display: PackedStringArray) -> PackedStringAr
 	if not _package_under_test.is_empty():
 		args.append_array(["--main-pack", _package_under_test])
 	args.append_array(["--script", script, "--", role, _directory, str(_port)])
-	if _ordinary_two_client_passenger_loss:
+	if _ordinary_two_client_sleep:
+		args.append("--ordinary-two-client-sleep")
+	elif _ordinary_two_client_passenger_loss:
 		args.append("--ordinary-two-client-passenger-loss")
 	elif _ordinary_two_client_pilot_loss:
 		args.append("--ordinary-two-client-pilot-loss")
@@ -2778,6 +2787,8 @@ func _ordinary_host() -> void:
 		return
 	if _ordinary_two_client_passenger_loss and not await _ordinary_passenger_loss_host(manifest):
 		return
+	if _ordinary_two_client_sleep and not await _ordinary_sleep_host(manifest):
+		return
 	_write("host.release", {})
 	for role in ["client", "client_b"]:
 		if not await _wait_file(role + ".leaving", 12.0):
@@ -2870,6 +2881,8 @@ func _ordinary_client() -> void:
 	if _ordinary_two_client_pilot_loss and not await _ordinary_pilot_loss_client():
 		return
 	if _ordinary_two_client_passenger_loss and not await _ordinary_passenger_loss_client():
+		return
+	if _ordinary_two_client_sleep and not await _ordinary_sleep_client(manifest):
 		return
 	if not await _wait_file("host.release", 12.0):
 		return
@@ -4049,6 +4062,37 @@ func _ordinary_failure_snapshot(description: String) -> Dictionary:
 	if not is_instance_valid(_game) or not is_instance_valid(_craft) or not is_instance_valid(_player):
 		snapshot["missing"] = "Main, craft or Player unavailable"
 		return snapshot
+	if _ordinary_two_client_sleep:
+		var bunk := _ordinary_sleep_bunk()
+		var simulation := _game.get_network_remote_body_simulation()
+		var sleep_manifest := _read("host.moving_reseat_checked")
+		var avatar := GameFlow.network_client_boarding_avatar_id(int(sleep_manifest.get("passenger_peer", 0)))
+		var body := simulation.get_body(avatar) as PlayerController if simulation != null else null
+		var intent_source := _game.get_network_remote_body_intent_source()
+		var overlay := _game.get("_ship_rest_overlay") as CanvasLayer
+		var caption := overlay.get("_caption") as Label if overlay != null else null
+		var prompt := _game.hud.get("_interaction_label") as Label
+		snapshot["sleep"] = {"stage": _ordinary_sleep_stage,
+			"expected_posture": "sleeping" if _ordinary_sleep_stage == "sleep" else ("passenger_chair" if _ordinary_sleep_stage == "reseat" else "awake_walking"),
+			"bunk": _ordinary_node_identity(bunk), "rest_anchor": _ordinary_node_identity(bunk.get_seat_anchor()) if bunk != null else {},
+			"wake_anchor": str(bunk.get_entry_transform()) if bunk != null else "absent",
+			"bunk_available": bunk.is_available() if bunk != null else false,
+			"local_player": _ordinary_node_identity(_player), "local_sleeping": _player.is_sleeping(),
+			"local_seated": _player.is_seated(), "local_controls": _player.is_control_enabled(), "local_floor": _player.is_on_floor(),
+			"local_bunk_reserved": bunk.is_reserved_for(_player) if bunk != null else false,
+			"active_local_seat": _ordinary_node_identity(_game.get("_active_station_seat") as Node),
+			"rest_overlay_visible": overlay != null and overlay.visible,
+			"wake_caption": caption.text if caption != null else "", "prompt": prompt.text if prompt != null else "",
+			"intent_source": intent_source.get_audit() if intent_source != null else {},
+			"authoritative_body": _ordinary_node_identity(body), "authoritative_sleeping": body.is_sleeping() if body != null else false,
+			"authoritative_floor": body.is_on_floor() if body != null else false,
+			"authoritative_bunk_reserved": bunk.is_reserved_for(body) if bunk != null and body != null else false,
+			"body_record": simulation.get_body_record(avatar) if simulation != null else {},
+			"body_audit": simulation.get_audit() if simulation != null else {},
+			"movement_avatar": _game.network_session.get_movement_avatar_snapshot(avatar),
+			"consumed_relationship": _game.network_session.get_moving_interior_latest_relationship(avatar),
+			"host_relationship": str(_ordinary_publication(avatar).get("wire", {})),
+			"local_boarding_claim": _game.get("_network_client_boarding_claim")}
 	if _ordinary_two_client_passenger_loss:
 		var retired_body := _ordinary_passenger_loss_retained.get("body") as WeakRef
 		snapshot["passenger_loss"] = {"events": _ordinary_pilot_loss_events.duplicate(true),
@@ -4165,3 +4209,276 @@ func _ordinary_producer_state(source: ShipCommandSource) -> Dictionary:
 	return {"present": true, "identity": _ordinary_node_identity(source), "enabled": source.enabled,
 		"enabled_owner": source.is_enabled_owner(), "authority_peer_id": source.get_authority_peer_id(),
 		"local_peer_id": source.get_local_peer_id()}
+
+
+# This optional continuation starts after the unchanged BOARD and seven MOVING
+# stages. Bunks use their authored furniture contract, without a new crew role.
+const ORDINARY_SLEEP_STAGES := ["stand", "bunk", "sleep", "wake", "walk", "return", "reseat"]
+
+func _ordinary_sleep_bunk() -> ShipBunk:
+	return _craft.get_node_or_null(^"WalkableInterior/AftSystemsBay/PortSleepingBerth/ShipBunkInteraction") as ShipBunk
+
+
+func _ordinary_sleep_host_identity(baseline: Dictionary, body: PlayerController, helm: NetworkRemotePilotCommandSource) -> bool:
+	var pilot := int(baseline.pilot_peer)
+	var passenger := int(baseline.passenger_peer)
+	var current := _ordinary_manifest(pilot, passenger)
+	var frame := _craft.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
+	if _game.network_session != _ordinary_sleep_retained.session or not _game.network_session.is_server() \
+		or not _game.network_session.is_session_active() or _game.network_session.get_admitted_peer_ids().size() != 2 \
+		or _game.get_network_remote_body_simulation().get_body(GameFlow.network_client_boarding_avatar_id(passenger)) != body \
+		or _craft.get_crew_role_authority() != _ordinary_sleep_retained.owner \
+		or frame != _ordinary_sleep_retained.frame or not frame.is_occupant_registered(body) \
+		or body.get_cabin_containment_report().get("frame") != _craft \
+		or _craft.get_command_source() != helm or not helm.is_holding_command() \
+		or int(helm.get_audit().get("pilot_peer_id", 0)) != pilot \
+		or float((helm.get_audit().get("controls", {}) as Dictionary).get("throttle", 0.0)) <= 0.0 \
+		or _craft.get_last_ship_command().throttle <= 0.0 or _craft.velocity.length() <= 0.1 \
+		or _craft.get_telemetry().get("engine_state") != HeroShip.ENGINE_ONLINE:
+		return false
+	for key in ["pilot_peer", "passenger_peer", "pilot_peer_generation", "passenger_peer_generation", "ship_id", "ownership", "pilot_seat", "passenger_boarding"]:
+		if current.get(key) != baseline.get(key):
+			return false
+	var identity_keys := ["entity_id", "entity_generation", "parent_frame_id", "parent_frame_generation"]
+	for key in ["pilot_body", "passenger_body"]:
+		if _ordinary_fields(current.get(key, {}) as Dictionary, identity_keys) != _ordinary_fields(baseline.get(key, {}) as Dictionary, identity_keys):
+			return false
+	var occupancy_count := 0
+	for held: Dictionary in _game.network_session.get_boarding_snapshot().get("occupancies", []):
+		if held.get("ship_id") == _craft.get_ship_id():
+			occupancy_count += 1
+	return occupancy_count == 2 and _ordinary_pilot_is_current(pilot) \
+		and _player.get_instance_id() == _ordinary_player_id and _game.phase == GameFlow.Phase.INTRO \
+		and not _player.is_seated() and not _player.is_control_enabled()
+
+
+func _ordinary_sleep_host(baseline: Dictionary) -> bool:
+	var final_manifest := _read("host.moving_reseat_checked")
+	var passenger := int(baseline.passenger_peer)
+	var avatar := GameFlow.network_client_boarding_avatar_id(passenger)
+	var simulation := _game.get_network_remote_body_simulation()
+	var body := simulation.get_body(avatar) as PlayerController
+	var helm := _craft.get_command_source() as NetworkRemotePilotCommandSource
+	var owner: CrewSeatRoleAuthority = _craft.get_crew_role_authority()
+	var frame := _craft.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
+	var bunk := _ordinary_sleep_bunk()
+	if not _ordinary_require(body != null and helm != null and owner != null and frame != null and bunk != null,
+		"sleep continuation retains original host body, helm, physical frame, crew owner and authored Port bunk"):
+		return false
+	_ordinary_sleep_retained = {"body": body, "helm": helm, "owner": owner, "frame": frame, "session": _game.network_session}
+	_write("host.sleep_ready", {})
+	for role in ["client", "client_b"]:
+		if not await _wait_file(role + ".sleep_ready", 8.0):
+			return false
+	var previous_claim := int((final_manifest.passenger_seat as Dictionary).claim_sequence)
+	for stage: String in ORDINARY_SLEEP_STAGES:
+		_ordinary_sleep_stage = stage
+		var before := _ordinary_motion_begin()
+		var body_before := _craft.to_local(body.global_position)
+		var delivered := int(helm.get_audit().get("delivered", 0))
+		_write("host.sleep_" + stage + "_go", {})
+		if not await _wait_file("client_b.sleep_" + stage + "_done", 15.0 if stage in ["bunk", "walk", "return"] else 8.0):
+			return false
+		if stage == "sleep":
+			if not await _ordinary_boundary(func(): return body.is_sleeping() and simulation.get_body_record(avatar).get("seat_state") == &"seated",
+				8.0, "ordinary sleep press makes the actual original authoritative body sleep"):
+				return false
+			if not _ordinary_require(body.is_seated_at(bunk.get_seat_anchor()) and bunk.is_reserved_for(body) and not bunk.is_available(),
+				"authoritative sleeper reserves exactly the authored Port bunk and occupies its rest anchor"):
+				return false
+		elif stage == "reseat":
+			if not await _ordinary_boundary(func(): return _ordinary_passenger_is_current(passenger), 8.0,
+				"ordinary return and Interact reseat the same authoritative body at crew_port_00"):
+				return false
+		else:
+			if not await _ordinary_boundary(func(): return _ordinary_moving_walker_current(passenger) and not body.is_sleeping(), 8.0,
+				"same authoritative body is awake and supported on the moving cabin floor after " + stage):
+				return false
+		if not _ordinary_require(_ordinary_sleep_host_identity(baseline, body, helm),
+			"sleep stage preserves original peers, body and frame generations, pilot claim, helm, ownership and genuinely moving hull: " + stage):
+			return false
+		var expected_mode: StringName = &"seated" if stage in ["sleep", "reseat"] else &"on_foot"
+		if not _ordinary_require(_game.network_session.get_movement_avatar_snapshot(avatar).get("mode") == expected_mode
+			and simulation.get_body_record(avatar).get("avatar_mode") == expected_mode,
+			"authoritative movement ledger and actual body agree on the physical mode after " + stage):
+			return false
+		if stage != "sleep" and not _ordinary_require(bunk.is_available() and not bunk.is_reserved_for(body),
+			"authored Port bunk has no stale authoritative reservation after " + stage):
+			return false
+		var manifest := _ordinary_manifest(int(baseline.pilot_peer), passenger)
+		var expected_state := NetworkMovingInteriorRelationship.STATE_SLEEPING if stage == "sleep" else (
+			NetworkMovingInteriorRelationship.STATE_SEATED if stage == "reseat" else NetworkMovingInteriorRelationship.STATE_WALKING)
+		if not _ordinary_require(int((manifest.passenger_body as Dictionary).get("occupancy_state", -1)) == expected_state,
+			"actual authority relationship reports the completed physical posture after " + stage):
+			return false
+		if stage != "reseat" and not _ordinary_require(owner.get_assignment(passenger, avatar).is_empty(),
+			"bunk and walking stages acquire no passenger chair role: " + stage):
+			return false
+		if stage == "reseat" and not _ordinary_require(int((manifest.passenger_seat as Dictionary).claim_sequence) > previous_claim
+			and (manifest.passenger_seat as Dictionary).seat_generation == (final_manifest.passenger_seat as Dictionary).seat_generation,
+			"physical return earns a fresh claim on the same original passenger chair generation"):
+			return false
+		var after := _ordinary_motion_end()
+		var receipt := _read("client_b.sleep_" + stage + "_done")
+		if not _ordinary_require(_ordinary_hull_moved(before, after)
+			and _ordinary_hull_moved(receipt.get("before", {}) as Dictionary, receipt.get("after", {}) as Dictionary)
+			and int(helm.get_audit().get("delivered", 0)) > delivered,
+			"host and consumed passenger samples retain real hull motion and fresh ordinary pilot commands during " + stage):
+			return false
+		if stage == "walk" and not _ordinary_require(_craft.to_local(body.global_position).distance_to(body_before) > 0.6
+			and float(receipt.get("walk_distance", 0.0)) > 0.6, "same authoritative and local awake bodies walk over point six metres after rest"):
+			return false
+		_write("host.sleep_" + stage + "_checked", manifest)
+		for role in ["client", "client_b"]:
+			if not await _wait_file(role + ".sleep_" + stage + "_retained", 8.0):
+				return false
+	_write("host.sleep_complete", {})
+	return await _wait_file("client.sleep_complete", 8.0) and await _wait_file("client_b.sleep_complete", 8.0)
+
+
+func _ordinary_sleep_consumed_current(manifest: Dictionary, stage: String) -> bool:
+	if stage != "sleep" or _role == "client":
+		return _ordinary_moving_consumed_current(manifest, stage == "reseat")
+	var bunk := _ordinary_sleep_bunk()
+	var source := _game.get_network_remote_body_intent_source()
+	var frame := _craft.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
+	if not _ordinary_same_identity() or not _ordinary_walking_identity_is_preserved() \
+		or bunk == null or source == null or frame == null or not source.is_bound() \
+		or source != _ordinary_sleep_retained.body_source or frame != _ordinary_sleep_retained.frame \
+		or source.get_entity_id() != StringName(_ordinary_walking_identity.entity_id) \
+		or source.get_entity_generation() != int(_ordinary_walking_identity.entity_generation) \
+		or not frame._local_prediction_is_current(_player) or not _player.is_sleeping() \
+		or not _player.is_seated_at(bunk.get_seat_anchor()) or not bunk.is_reserved_for(_player) \
+		or not _player.is_control_enabled() or _game.get("_transition_busy") \
+		or _craft.velocity.length() <= 0.1 or not _ordinary_moving_engine_online():
+		return false
+	for producer in [_craft.get("_default_local_command_source"), _craft.get("_command_source")]:
+		if producer is ShipCommandSource and producer.is_enabled_owner():
+			return false
+	var ownership: Dictionary = {}
+	for row: Dictionary in (_game.network_session.get_authoritative_snapshot().get("sections", {}) as Dictionary).get("ownership", []):
+		if row.get("ship_id") == _craft.get_ship_id():
+			ownership = row
+	if _ordinary_fields(ownership, ["ship_id", "ship_generation", "owner_peer_id", "ownership_generation"]) != manifest.ownership \
+		or int(ownership.get("owner_peer_generation", 0)) != int(manifest.pilot_peer_generation) \
+		or _ordinary_fields(_game.get("_network_client_boarding_claim") as Dictionary, ["ship_id", "seat_id", "role"]) != \
+			_ordinary_fields(manifest.passenger_boarding, ["ship_id", "seat_id", "role"]):
+		return false
+	for kind in ["pilot_body", "passenger_body"]:
+		var expected: Dictionary = manifest.get(kind, {})
+		var latest := _game.network_session.get_moving_interior_latest_relationship(StringName(expected.entity_id))
+		if _ordinary_fields(latest, ["entity_id", "entity_generation", "parent_frame_id", "parent_frame_generation", "occupancy_state"]) != expected:
+			return false
+	return (_game.network_session.get_passenger_replica_snapshot().get("assignment", {}) as Dictionary).is_empty()
+
+
+func _ordinary_sleep_client(baseline: Dictionary) -> bool:
+	var bunk := _ordinary_sleep_bunk()
+	var body_source := _game.get_network_remote_body_intent_source()
+	var frame := _craft.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
+	if not _ordinary_require(bunk != null and body_source != null and frame != null
+		and _ordinary_consumed_manifest_current(_read("host.moving_reseat_checked")),
+		"original clients begin sleep continuation only after consuming every BOARD and seven MOVING stage"):
+		return false
+	_ordinary_sleep_retained = {"body_source": body_source, "frame": frame, "session": _game.network_session,
+		"local_source": _craft.get_local_input_source(),
+		"helm_grant": ((_game.get("_network_client_helm_input_sources") as Dictionary).get(_craft.get_instance_id(), {}) as Dictionary).duplicate()}
+	if not await _wait_file("host.sleep_ready", 8.0):
+		return false
+	if _role == "client":
+		_ordinary_action(&"move_forward", true, 0.35)
+	_write(_role + ".sleep_ready", {})
+	for stage: String in ORDINARY_SLEEP_STAGES:
+		_ordinary_sleep_stage = stage
+		if _role == "client_b":
+			if not await _wait_file("host.sleep_" + stage + "_go", 8.0):
+				return false
+			var before := _ordinary_motion_begin()
+			var local_before := _craft.to_local(_player.global_position)
+			if stage == "stand":
+				await _ordinary_press(&"interact")
+				if not await _ordinary_boundary(func(): return _ordinary_supported_cabin() and not _player.is_seated(), 8.0,
+					"ordinary Interact stands the original passenger before walking to the bunk"):
+					return false
+			elif stage == "bunk":
+				# The actual Port wake anchor supplies a left-of-centre approach;
+				# neither the actor nor the authority is placed by this fixture.
+				if not await _ordinary_walk_to(bunk.get_entry_transform().origin, true):
+					return false
+				await _ordinary_look(bunk.global_position)
+				if not await _ordinary_boundary(func(): return _game.station_interaction_candidate == bunk, 8.0,
+					"ordinary aisle walk and aim discover the authored Port bunk"):
+					return false
+				var prompt := _game.hud.get("_interaction_label") as Label
+				if not _ordinary_require(prompt != null and prompt.is_visible_in_tree() and prompt.text.contains("SLEEP"),
+					"actual authored Port bunk offers its ordinary sleep prompt"):
+					return false
+			elif stage == "sleep":
+				await _ordinary_press(&"interact")
+				if not await _ordinary_boundary(func(): return _player.is_sleeping() and not _game.get("_transition_busy"), 8.0,
+					"ordinary sleep press makes the original local Player sleep"):
+					return false
+				if not _ordinary_require(_player.is_seated_at(bunk.get_seat_anchor()) and bunk.is_reserved_for(_player),
+					"same local Player reserves exactly the authored Port bunk and rests at its anchor"):
+					return false
+				var overlay := _game.get("_ship_rest_overlay") as CanvasLayer
+				var caption := overlay.get("_caption") as Label if overlay != null else null
+				if not _ordinary_require(overlay != null and overlay.visible and caption != null
+					and caption.text.contains("WAKE UP") and caption.text.contains(_game.hud.get_action_prompt(&"interact")),
+					"sleeping original Player sees the actual visible rest overlay and current ordinary wake control"):
+					return false
+			elif stage == "wake":
+				await _ordinary_press(&"interact")
+				if not await _ordinary_boundary(func(): return (not _player.is_sleeping() and not _player.is_seated()
+					and _ordinary_supported_cabin()), 8.0, "ordinary wake press restores the same supported local Player and controls"):
+					return false
+				var overlay := _game.get("_ship_rest_overlay") as CanvasLayer
+				if not _ordinary_require(bunk.is_available() and not bunk.is_reserved_for(_player)
+					and (overlay == null or not overlay.visible), "ordinary waking clears the exact local bunk reservation and sleep overlay"):
+					return false
+			elif stage == "walk":
+				var wake_local := _craft.to_local(bunk.get_entry_transform().origin)
+				if not await _ordinary_walk_to(_craft.to_global(wake_local + Vector3(0.0, 0.0, -1.5)), true):
+					return false
+			elif stage == "return":
+				if not await _ordinary_walk_to((_station_contract().entry_transform as Transform3D).origin, true):
+					return false
+			else:
+				await _ordinary_look(_station_anchor().global_position + Vector3.UP * 1.2)
+				if not await _ordinary_boundary(func(): return (_game.station_interaction_candidate is ShipCrewSeat
+					and (_game.station_interaction_candidate as ShipCrewSeat).get_seat_anchor() == _station_anchor()), 8.0,
+					"ordinary return rediscovers the original passenger chair"):
+					return false
+				await _ordinary_press(&"interact")
+				if not await _ordinary_boundary(_ordinary_local_passenger_is_current, 8.0,
+					"ordinary Interact reseats the same Player at the original passenger chair"):
+					return false
+			var after := _ordinary_motion_end()
+			if not _ordinary_require(_ordinary_hull_moved(before, after), "consumed hull remains genuinely moving during " + stage):
+				return false
+			_write("client_b.sleep_" + stage + "_done", {"before": before, "after": after,
+				"walk_distance": _craft.to_local(_player.global_position).distance_to(local_before)})
+		if not await _wait_file("host.sleep_" + stage + "_checked", 30.0):
+			return false
+		var manifest := _read("host.sleep_" + stage + "_checked")
+		if not await _ordinary_boundary(func(): return _ordinary_sleep_consumed_current(manifest, stage), 8.0,
+			"original peer consumes exact host identity, ownership, body/frame and physical posture after " + stage):
+			return false
+		if not _ordinary_require(_game.network_session == _ordinary_sleep_retained.session
+			and _game.get_network_remote_body_intent_source() == body_source
+			and (not body_source.is_bound() if _role == "client" else body_source.is_bound())
+			and (_craft.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame) == frame
+			and (_role == "client" or frame._local_prediction_is_current(_player)),
+			"original client session, role-correct body source binding and cabin prediction frame survive " + stage):
+			return false
+		if _role == "client" and not _ordinary_require(_craft.get_local_input_source() == _ordinary_sleep_retained.local_source
+			and (_game.get("_network_client_helm_input_sources") as Dictionary).get(_craft.get_instance_id(), {}) == _ordinary_sleep_retained.helm_grant,
+			"original pilot retains its exact local producer and network helm grant through " + stage):
+			return false
+		_write(_role + ".sleep_" + stage + "_retained", {})
+	if not await _wait_file("host.sleep_complete", 8.0):
+		return false
+	if _role == "client":
+		_ordinary_action(&"move_forward", false)
+	_write(_role + ".sleep_complete", {})
+	return true
