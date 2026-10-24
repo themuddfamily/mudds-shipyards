@@ -22268,3 +22268,74 @@ then loose copies removed; only archive and closeout.json remain. Measured12.238
 since recorded18:49:52UTC; earlier bounded source mapping is excluded from that
 interval. Protected parked worktrees untouched. All36 original parents/ten phase
 gates remain open; GitHub Actions stays disabled.
+
+
+## Halyard occupied-chair feedback — accepted — 2026-10-24
+
+Source `bcd268c7594629f7b68e7cf9d95e87c41acc1678`, selected on pushed88dca0bce.
+The real host crew-seat claim previously discarded its refusal into a simulation
+audit counter; the requesting client waited silently for its four-second pending
+chair expiry. The existing source now returns the exact latched/already-emitted
+interaction ID without another edge. The host retains its actual delegated claim
+result with request, body, stream, seat/role and epoch; existing requester-only
+Halyard passenger publication fences originating binding identity/generation.
+The client consumes only its exact current occupied-chair request once, clearing
+pending state before the accurate toast. Current cabin/admission/body/stream/
+boarding/session/migration facts fence it, including when no prior passenger
+view or opening ACK has arrived. Foreign, repeated, superseded and retired
+results stay silent. Existing arbitration, accepted seating/standing, movement,
+stock/repair/helm authority and deadlines are unchanged; no new RPC/schema/version.
+
+Full selected real ENet host/client route passes107 checks/zero failures in
+107.305s under original300/outer360. Actual host38/client34 done records both
+complete=true/failures[]; both actual OS exits0, wrapper exit0, raw peer logs have
+zero warnings/errors. Existing exterior placements are disclosed setup; host
+ordinarily walks/sits in the physical chair. Remote ordinary Interact requests1
+and2 each get exactly one visible matching toast, empty assignment and supported
+usable controls, while the host claim remains. Repeated publication does not
+replay feedback. Host ordinarily stands and walks clear; the client retries and
+finishes every original passenger stand/walk/reseat/migration/rebind/new-chair/
+disconnect check. Independent raw/source review GO. Full original dedicated-server/
+two-client moving race/transfer is separate and remains open.
+
+Focused input101 and host support/receipt36 pass; corrected current-consumer66,
+role bridge6, physical panel40 and startup privacy pass cleanly. Initial RED
+ab4e5df44 reproduces exactly1/189 missing-receipt failure; root accidentally used
+the broader default body suite, whose188 other assertions pass. The focused
+corrected check uses its existing --crew-support-only selector. That broader
+run completed naturally before an attempted stop; no signal was sent and no
+full-suite PASS is claimed. Consumer8799dfa56 then exits0/prints66 while null
+negative fixtures trigger15 int(null) script errors; strict diagnostics reject
+it. Selected6c3d195a4 integer type guards preserve all negative cases and pass.
+The first peer invocation stops at parsing before any host/client launches;
+explicit bool annotations for two existing logical assertions fix the fixture.
+Cumulative priority review selects only that correction and strict compile,
+then the unchanged full route. No scope/cap/predicate relaxation or clock reset.
+Exact Git blobs verify source/body files and tests8799→final, corrected GameFlow/
+consumer6c→final; their accepted checks are reused rather than repeated unchanged.
+
+Fresh clean paired exports and three strict exit0/exactly-one-menu-ready startups
+pass: Linux executable, extracted archive and Windows embedded game data under
+Linux Godot. Actual1527 PCK entries match; stock PE code and exact Linux archive
+payload/modes/source timestamp verified. Windows EXE184757472bytes/SHA256
+`d8be3672cd7712655ac6ec8ac144d7344778322699d0a9e6b44c541d0178f05d`;
+checkpoint ZIP103086738bytes/SHA256
+`1e82d223b684e713c07f74830aa1e2cfd6ae43dd465d8e66e1b53c3c1dc7935d`.
+EXE/ZIP/notes are `builds/windows/MuddsShipyards-bcd268c*`, matching Linux files in
+builds/linux. Independent package/notes review recomputes every artifact hash and
+verifies exact ZIP EXE+notes; GO. All automation Dummy/headless or privateXvfb/x11/
+dummy rendering. Native Windows/GPU/rendered readability/device/listening/human,
+other roles/refusal reasons, full crew/baseline/endurance/custom RPC-template and
+release gates remain open. All36 parents/ten phase gates remain open; Actions disabled.
+
+All four candidate commits integrated into pushed main; sole local/remote branch
+main, no task branch/worktree or new retained exception. All17 stage owners terminal:
+14 cleanPASS, one expectedRED, two retained failures, cumulative596.896s. All61
+sampled process identities absent; all319 owned scratch entries byte/mode/link
+verified before removal. All192 result members verified into
+`/srv/mudds-work/halyard-seat-rejection-20261024/results/case-records.tar.gz`
+(23961328bytes, SHA256
+`a788a114bc2a4295204563fd40f62de63fb5a5fbe021b4657510ba0551683045`),
+then loose copies removed; only archive/closeout.json remain. Elapsed25.869min
+since selection commit, including retained failures/corrections, no reset;
+earlier bounded mapping excluded. Protected old parked worktrees untouched.

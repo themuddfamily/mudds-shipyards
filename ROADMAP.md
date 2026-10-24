@@ -6,14 +6,14 @@ Nine of the eventual 17 craft exist; eight still need supported specifications
 and implementation. Partial acceptance is retained in the backlog; it is not
 whole-feature completion.
 
-Latest playable checkpoint: **a0764f2**. The Halyard's physical cabin roster now
-shows current host crew occupancy, departure readiness and engineer routing for
-network cabin clients, including after standing. Includes host repair readouts,
-multiplayer destruction recovery/reboarding, host-authoritative bunks, Bomber
-seat refill and Deploy-arms-Defense. Full Defense combat, full component repair,
-multiplayer baseline and native gates remain open.
-[Windows ZIP](builds/windows/MuddsShipyards-a0764f2-checkpoint.zip),
-[build notes](builds/windows/MuddsShipyards-a0764f2-notes.txt).
+Latest playable checkpoint: **bcd268c**. Network Halyard passengers now receive
+accurate feedback for an occupied chair and can retry normally after it is freed.
+Includes host-driven cabin roster/repair displays, multiplayer destruction
+recovery/reboarding, host-authoritative bunks, Bomber seat refill and Defense
+Deploy arming. Full Defense combat, full component repair, multiplayer baseline and
+native gates remain open.
+[Windows ZIP](builds/windows/MuddsShipyards-bcd268c-checkpoint.zip),
+[build notes](builds/windows/MuddsShipyards-bcd268c-notes.txt).
 
 This page is the working queue. The
 [36-parent crosswalk and named children](docs/ROADMAP_BACKLOG.md#coverage-of-the-original-remaining-outcomes)
@@ -43,44 +43,30 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
-**Selected: HALYARD-NETWORK-SEAT-REJECTION — occupied-chair feedback.**
-The actual host rejects an occupied physical crew chair but the client pending
-request currently expires silently after four seconds. Retain the real delegated
-claim result with its actual interaction/body/seat identity and publish it only
-to that requester through the existing Halyard passenger snapshot. The current
-matching pending request should show one accurate occupied-chair toast, remain
-supported and usable, then successfully retry after the host occupant stands.
-Stale, foreign, replayed and retired-lifetime results must stay silent.
+**HALYARD occupied-chair feedback DONE — `bcd268c75`; checkpoint `bcd268c`.**
+An actual host occupied-chair verdict now answers the exact current remote
+passenger request once, through the existing snapshot. The client shows accurate
+feedback, stays supported/usable and retries normally when the host stands.
+Retained snapshots, foreign data and retired/superseded requests cannot replay
+it. Seat arbitration, accepted/stand paths and the four-second expiry stay intact.
 
-One implementation agent owns the existing remote-body source/simulation,
-Halyard passenger binding, GameFlow and four existing focused/peer test files.
-Root owns clean-source tests, packages, integration/push and cleanup; one
-independent reviewer checks request correlation and lifetimes. No new RPC,
-schema/version, validator, seat authority or arbitration rule. First reproduce
-the missing actual delegated-result receipt; then validate request-ID dedupe,
-current/invalid consumer lifetimes and one selected real ENet host/client route.
-The latter retains existing exterior setup and complete default passenger
-role/lifecycle path, adding occupied-seat rejection, release and fresh retry;
-original 300s/outer360, individual waits and four-second expiry remain unchanged.
-All automation uses Dummy and headless/private Xvfb/x11. First failure stops for
-causal review. Estimate 30–60min implementation plus 15–25min validation/package/
-cleanup; split before90min. Full original two-client moving seat race/transfer,
-other rejection reasons, broader baseline/endurance and native/human remain open.
+The complete original host/client passenger route plus two fresh refusals passes
+107 checks in107.305s, both actual peer exits0 and clean logs. It retains host
+ordinary stand/walk-clear, client retry/stand/walk/reseat, migration/rebind and
+disconnect. Focused input101/body36/current consumer66/role6/panel40/privacy pass;
+unchanged checks were reused by exact source comparison. Expected missing-receipt
+RED, null numeric handling caught by strict logs and a test-parser correction
+remain preserved. No deadline or acceptance was relaxed.
 
-Focused validation stopped on8799dfa56: input101 and host receipt36 assertions
-pass, but current-consumer null-valued negative cases trigger int(null) script
-errors despite process exit0. Strict diagnostics reject that result. Select the
-small correction in the new consumer's numeric guards so invalid fields fail
-closed, retaining every negative case and the exact pending/receipt contract.
-Reuse passed unchanged source/body checks; rerun corrected consumer and remaining
-checks before the first real ENet attempt. No cap or acceptance change; original
-failure and cumulative task time retained.
-The selected peer fixture then stopped at parsing before any peer launched:
-two logical expressions need explicit bool annotations. Cumulative priority
-review selects only that test-parser correction, strict compile first, then the
-unchanged full route. Passed production checks remain valid; no gameplay,
-placement, deadline or acceptance change, and the task clock is not reset.
-
+All four candidate commits are integrated into pushed main. Fresh Windows EXE/
+ZIP/notes are `builds/windows/MuddsShipyards-bcd268c*`, with matching Linux packages.
+Three strict startups, actual1527-entry payload/archive audit and independent
+source/result/checkpoint review pass. Owned scratch and processes are cleaned;
+results are consolidated. No task branch/worktree was created. This covers one
+host/client and the Halyard passenger occupied-chair result. Full two-client
+moving seat race/transfer, other reasons/roles, baseline/endurance, native/human
+and all broader gates remain open. Actions stays disabled.
+[Acceptance and retained failures](docs/history/ROADMAP_DELIVERIES.md#halyard-occupied-chair-feedback--accepted--2026-10-24).
 
 **HALYARD network cabin roster DONE — `a0764f281`; checkpoint `a0764f2`.**
 The physical panel now presents compact host crew occupancy, readiness, engineer
