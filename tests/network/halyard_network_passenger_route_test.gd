@@ -5207,6 +5207,10 @@ func _ordinary_destruction_host() -> bool:
 				and body.get_instance_id() not in _ordinary_destruction_retained.body_ids \
 				and body.get_cabin_containment_report().get("frame") == _craft \
 				and int(record.get("owner_peer_id", 0)) == peer \
+				and record.get("seat_state") == &"standing" \
+				and record.get("avatar_mode") == NetworkMovementAuthority.MODE_ON_FOOT \
+				and movement.get("mode") == NetworkMovementAuthority.MODE_ON_FOOT \
+				and int(record.get("last_interaction_id", -1)) == 0 \
 				and int(record.get("entity_generation", 0)) > 0 \
 				and int(record.get("entity_generation", 0)) == int(receipt.get("entity_generation", -1)) \
 				and int(record.get("entity_generation", 0)) == int((baseline.pilot_body if role == "client" else baseline.passenger_body).get("entity_generation", 0)) \

@@ -78,10 +78,11 @@ func _test_current_confirmation_precedes_pending_expiry() -> void:
 		flow._cabin_ship = halyard
 		flow._network_session_mode = &"client"
 		flow._network_remote_body_intent_source = source
+		flow._network_client_boarding_claim_server_tick = 100
 		flow._network_engineer_pending_seat = seat
 		flow._network_engineer_pending_elapsed = 4.0
 		flow.crew_view = {
-			"ship_id": halyard.get_ship_id(), "binding_generation": 1,
+			"ship_id": halyard.get_ship_id(), "binding_generation": 1, "server_tick": 100,
 			"entity_generation": 2 if confirmation == "foreign" else 1,
 			"seated": true,
 			"assignment": {"avatar_id": &"avatar_7", "role": &"passenger",
@@ -113,8 +114,9 @@ func _test_orphan_crew_confirmation_is_one_release() -> void:
 	flow._cabin_ship = halyard
 	flow._network_session_mode = &"client"
 	flow._network_remote_body_intent_source = source
+	flow._network_client_boarding_claim_server_tick = 100
 	flow.crew_view = {
-		"ship_id": halyard.get_ship_id(), "binding_generation": 1,
+		"ship_id": halyard.get_ship_id(), "binding_generation": 1, "server_tick": 100,
 		"entity_generation": 1, "seated": true,
 		"assignment": {"avatar_id": &"avatar_7", "role": &"passenger",
 			"seat_id": HalyardType.LOADMASTER_STATION_SEAT_ID, "seat_generation": 1,
@@ -144,9 +146,16 @@ func _test_orphan_crew_confirmation_is_one_release() -> void:
 	flow._cancel_network_engineer()
 	source.unbind()
 	source.bind(&"avatar_7", 1)
+	flow._network_client_boarding_claim_server_tick = 200
 	await physics_frame
 	flow._advance_network_engineer(1.0 / 60.0)
 	source.advance(7, {}, 118)
+	_check(source.get_interaction_request_id() == 2 and flow.presented == 0,
+		"a previous admission chair view cannot interact with the replacement stream")
+	flow.crew_view.server_tick = 200
+	await physics_frame
+	flow._advance_network_engineer(1.0 / 60.0)
+	source.advance(7, {}, 119)
 	_check(source.get_interaction_request_id() == 3,
 		"a retired crew lifecycle permits one release from its replacement stream")
 	flow.free()

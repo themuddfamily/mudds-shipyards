@@ -26626,7 +26626,11 @@ func _advance_network_engineer(delta: float) -> void:
 		return
 	var view := _network_physical_crew_view()
 	var assignment := view.get("assignment", {}) as Dictionary
+	# Crew views and accepted hatch grants share the host's boarding clock.
+	# A previous admission's cached chair must not interact with a new body.
 	var belongs: bool = not assignment.is_empty() and is_instance_valid(_cabin_ship) and view.get("ship_id") == _cabin_ship.get_ship_id() \
+		and _network_client_boarding_claim_server_tick >= 0 \
+		and int(view.get("server_tick", -1)) >= _network_client_boarding_claim_server_tick \
 		and StringName(assignment.get("avatar_id", &"")) == _network_remote_body_intent_source.get_entity_id() \
 		and int(view.get("entity_generation", 0)) == _network_remote_body_intent_source.get_entity_generation() \
 		and ((assignment.get("role") == &"engineer" and ((assignment.get("seat_id") == JovianLightFreighter.ENGINEER_SEAT_ID and _cabin_ship is JovianLightFreighter) or (assignment.get("seat_id") == HalyardCrewTransport.ENGINEER_SEAT_ID and _cabin_ship is HalyardCrewTransport))) or (assignment.get("role") == &"gunner" and ((assignment.get("seat_id") == BulwarkHeavyGunship.GUNNER_SEAT_ID and _cabin_ship is BulwarkHeavyGunship) or (assignment.get("seat_id") == &"co_pilot_station" and _cabin_ship is HalyardCrewTransport))) or (assignment.get("role") == &"passenger" and assignment.get("seat_id") == HalyardCrewTransport.LOADMASTER_STATION_SEAT_ID and _cabin_ship is HalyardCrewTransport) or (assignment.get("role") == &"passenger" and assignment.get("seat_id") == JovianLightFreighter.COPILOT_SEAT_ID and _cabin_ship is JovianLightFreighter) or (assignment.get("role") == &"passenger" and assignment.get("seat_id") in [CinderCargoHauler.LOADMASTER_STATION_SEAT_ID, CinderCargoHauler.NAVIGATOR_STATION_SEAT_ID] and _cabin_ship is CinderCargoHauler)) \
