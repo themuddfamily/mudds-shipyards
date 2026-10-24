@@ -42,6 +42,25 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
+**HALYARD network cabin repair readout selected — reproduce before repair.**
+The physical cabin panel currently feeds itself local repair state even for an
+admitted network client. Existing accepted host engineer packets already contain
+repair progress, completion/interruption, cooldown and kit stock for walking
+occupants. The next player-visible result is that panel showing the host's actual
+repair and spent stock while the client's raw repair/component authority remains
+unchanged. Full crew roster and full NET-DAMAGE acceptance are separate.
+
+Use the existing authored-panel integration test for a focused RED, then the
+existing real host/client Halyard engineer route: ordinary chair selection/FIRE,
+actual host repair/one kit spent, physical panel progress and KITS5/6, standing
+and local refresh without a misleading local overwrite, and current lifecycle
+retirement. Keep original route, caps and authority owners. One runtime owner,
+one test owner and independent lifecycle review; root owns engines/Git/packages.
+Stop at the first mismatch for causal review. No new schema, protocol, evidence
+family, branch/worktree or hosted CI. Working card/results:
+`/srv/mudds-work/halyard-repair-panel-20261024/results/`.
+
+
 **HALYARD passenger destruction recovery and ordinary reuse DONE — `f5b71e06e`.**
 Actual host craft loss now retires the passenger's current cabin/chair/body state
 and returns the same Player to supported station controls. Exact host boarding
