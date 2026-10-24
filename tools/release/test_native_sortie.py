@@ -3883,6 +3883,53 @@ class StationDefenseSafetyTests(unittest.TestCase):
                 self.assertIsNone(pilot.staging_geometry)
                 self.assertNotIn('staging_forecast', pilot.receipts)
 
+    def test_nine_observed_signed_shape_resources_reach_recorded_blocked_segment(self):
+        # Actual root Node/Shape3D identities from the stopped margin trial;
+        # compact known-enclosed geometry keeps this an ID/forecast regression.
+        identities = [(790039110230,-9223371246798888355), (790072664670,-9223371246765333917),
+                      (790106219108,-9223371246731779479), (790139773546,-9223371246698225041),
+                      (790173327984,-9223371246664670388), (790206882638,-9223371246631115940),
+                      (790240436773,-9223371246597561853), (790273991160,-9223371246564007433),
+                      (790307545490,-9223371246530453103)]
+        pilot, s = self.flight_sample()
+        clearance = s['defense']['staging_clearance']
+        shape = clearance['geometry'][0]
+        clearance['geometry'] = [dict(copy.deepcopy(shape), id=node_id, shape_id=resource_id,
+                                     path=shape['path']+str(index))
+                                for index, (node_id, resource_id) in enumerate(identities)]
+        pilot.require_staging_clearance(s, initial=True)
+        self.assertEqual(len(pilot.staging_geometry['geometry']), 9)
+        # The observed forecast, independently of IDs, must still reject travel.
+        clearance['first_to_second'].update(clear=False, end_clear=False,
+            safe_fraction=.197265625, unsafe_fraction=.203125,
+            end_blocker=dict(id=576884586763,
+                path='/root/Boot/Main/ShipyardWorld/StationDefenseEncounter/OpponentRoster/PerimeterRaiderAlpha'))
+        with self.assertRaisesRegex(AssertionError, 'full swept conservative Arrow hull staging segment clear'):
+            pilot.require_staging_clearance(s, initial=True)
+        for field, bad in (('shape_id',0), ('shape_id',True), ('id',-790039110230)):
+            pilot, s = self.flight_sample()
+            s['defense']['staging_clearance']['geometry'][0][field] = bad
+            with self.assertRaisesRegex(AssertionError, 'every enabled root shape'):
+                pilot.require_staging_clearance(s, initial=True)
+
+    def test_target_shape_resource_accepts_signed_nonzero_but_preserves_node_and_identity_guards(self):
+        pilot, s = self.pilot_active()
+        target, gate = self.fire_gate(s)
+        target['aim_shape']['shape_id'] = -9223371456295978645
+        gate['aim_shape'] = copy.deepcopy(target['aim_shape'])
+        self.assertTrue(pilot.defense_fire_ready(s, target))
+        for field, value in (('shape_id',0), ('shape_id',True), ('id',-610)):
+            original = target['aim_shape'][field]
+            target['aim_shape'][field] = value
+            gate['aim_shape'] = copy.deepcopy(target['aim_shape'])
+            with self.assertRaisesRegex(AssertionError, 'current exact target-owned'):
+                pilot.defense_fire_ready(s, target)
+            target['aim_shape'][field] = original
+        gate['aim_shape'] = copy.deepcopy(target['aim_shape'])
+        gate['aim_shape']['shape_id'] -= 1
+        with self.assertRaisesRegex(AssertionError, 'current exact target-owned'):
+            pilot.defense_fire_ready(s, target)
+
     def test_staging_keeps_departure_then_flies_only_two_forecast_native_waypoints(self):
         pilot, s = self.flight_sample()
         pilot.stage = 'depart'

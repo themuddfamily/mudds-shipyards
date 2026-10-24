@@ -3494,7 +3494,7 @@ class StationDefensePilot(CompletedMotionProof, Pilot):
         require(math.isfinite(clearance['radius']) and abs(clearance['radius']-expected_radius) <= .000001,
                 'staging sphere encloses every combined hull corner plus margin')
         for row in geometry:
-            require(row['id'] > 0 and row['shape_id'] > 0 and row['path']
+            require(row['id'] > 0 and type(row['shape_id']) is int and row['shape_id'] != 0 and row['path']
                     and row['kind'] in ('BoxShape3D', 'SphereShape3D', 'CapsuleShape3D', 'CylinderShape3D',
                                         'ConvexPolygonShape3D', 'ConcavePolygonShape3D')
                     and len(row['transform']) == 4 and all(self.finite_vector(v) for v in row['transform'])
@@ -3533,7 +3533,7 @@ class StationDefensePilot(CompletedMotionProof, Pilot):
                 and target['live_source_id'] == target['source_id'],
                 'fresh exact selected active registered target fire forecast')
         shape = target['aim_shape']
-        require(shape['current'] and shape['id'] > 0 and shape['shape_id'] > 0 and shape['path']
+        require(shape['current'] and shape['id'] > 0 and type(shape['shape_id']) is int and shape['shape_id'] != 0 and shape['path']
                 and self.finite_vector(shape['point']) and gate.get('aim_shape') == shape,
                 'current exact target-owned collision centre for ordinary aiming')
         # A blocked ray or ordinary cooldown simply withholds native fire. It
