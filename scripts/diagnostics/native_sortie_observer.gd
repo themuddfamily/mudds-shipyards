@@ -38,6 +38,11 @@ var _player: PlayerController
 var _ship: HeroShip
 var _opponent: RangeOpponent
 var _courier_mode := false
+var _courier_escape_mode := false
+var _courier_dispatched: Dictionary = {}
+var _courier_dispatched_generation := -1
+var _courier_terminal: Dictionary = {}
+var _courier_standdown_violation := ""
 var _courier: CourierRunnerOpponent
 var _courier_director: EncounterScenarioDirector
 var _courier_generation := -1
@@ -106,7 +111,8 @@ func on_startup_completed(main: Node) -> void:
 		_tuning = _sortie_tuning()
 		return
 	_opponent = _game.get_node("RangeOpponent") as RangeOpponent
-	_courier_mode = "--native-sortie-observer=courier-intercept" in OS.get_cmdline_args()
+	_courier_escape_mode = "--native-sortie-observer=courier-escape" in OS.get_cmdline_args()
+	_courier_mode = "--native-sortie-observer=courier-intercept" in OS.get_cmdline_args() or _courier_escape_mode
 	if _courier_mode:
 		_courier = _game.get_node("CourierRunner") as CourierRunnerOpponent
 		_courier_director = _game.get_node("EncounterScenarios") as EncounterScenarioDirector
@@ -162,7 +168,7 @@ func _capture_courier_receipt() -> void:
 func _courier_observation() -> Dictionary:
 	if not is_instance_valid(_courier_director) or not is_instance_valid(_courier):
 		return {}
-	return {
+	var result := {
 		"weapon_ready": bool(_ship.get_weapon_fire_status().get("ready", false)),
 		"director_id": _courier_director.get_instance_id(),
 		"scenario": str(_courier_director.get_active_scenario()),
@@ -183,6 +189,88 @@ func _courier_observation() -> Dictionary:
 		"seen_alive": _courier_seen_alive,
 		"hit": _courier_hit.duplicate(true), "kill": _courier_kill.duplicate(true),
 	}
+	if _courier_escape_mode:
+		var roster_ids: Array = []
+		for member: Node3D in _courier_director.get_roster():
+			roster_ids.append(member.get_instance_id())
+		result.merge({"escape_origin": _v(_courier.get_escape_origin()),
+			"prep_shot": _courier_prep_shot_observation(),
+			"actors": _courier_dispatched_observation(), "roster_ids": roster_ids,
+			"terminal": _courier_terminal.duplicate(true),
+			"standdown_violation": _courier_standdown_violation})
+	return result
+
+
+## Detached facts from the retained authoritative result, including misses.
+## Reading this does not submit a shot or advance the resolver sequence.
+func _courier_prep_shot_observation() -> Dictionary:
+	var shot := _game.get_last_player_shot_result()
+	var request := shot.get("request") as ShotRequest
+	var source := shot.get("source_entity") as Node
+	var target := shot.get("target_entity") as Node
+	var damageable := shot.get("damageable") as Node
+	var collider := shot.get("collider") as Node
+	var result := {"present": request != null,
+		"accepted": bool(shot.get("accepted", false)), "resolved": bool(shot.get("resolved", false)),
+		"hit": bool(shot.get("hit", false)), "damaged": bool(shot.get("damaged", false)),
+		"destroyed": bool(shot.get("destroyed", false)), "status": str(shot.get("status", &"")),
+		"source_id": int(shot.get("source_id", 0)),
+		"source_entity_id": source.get_instance_id() if is_instance_valid(source) else 0,
+		"target_entity_id": target.get_instance_id() if is_instance_valid(target) else 0,
+		"damageable_id": damageable.get_instance_id() if is_instance_valid(damageable) else 0,
+		"collider_id": collider.get_instance_id() if is_instance_valid(collider) else 0,
+		"collider_path": str(collider.get_path()) if is_instance_valid(collider) and collider.is_inside_tree() else "",
+		"applied_damage": float(shot.get("applied_damage", 0.0)), "request": {}}
+	if request != null:
+		result.request = {"source_id": request.source_id,
+			"source_entity_id": request.source_entity.get_instance_id() if is_instance_valid(request.source_entity) else 0,
+			"weapon_id": str(request.weapon_id), "sequence": request.sequence,
+			"origin": _v(request.origin), "direction": _v(request.direction), "range": request.range}
+	return result
+
+
+## Retain the actual dispatched objects before production clears its roster.
+## Read every physics frame, including between printed observations, so a brief
+## post-terminal reactivation or shot cannot disappear in a sampling gap.
+func _capture_courier_escape() -> void:
+	var generation := _courier_director.get_scenario_generation()
+	if generation != _courier_dispatched_generation:
+		_courier_dispatched_generation = generation
+		_courier_dispatched.clear()
+		_courier_terminal.clear()
+		_courier_standdown_violation = ""
+	for member: Node3D in _courier_director.get_roster():
+		_courier_dispatched[member.get_instance_id()] = member
+	var actors := _courier_dispatched_observation()
+	if _courier_director.get_state() == EncounterScenarioDirector.STATE_CONCLUDED and _courier_terminal.is_empty():
+		_courier_terminal = {"frame": Engine.get_physics_frames(),
+			"actor_id": _courier.get_instance_id(), "generation": generation,
+			"director_id": _courier_director.get_instance_id(),
+			"position": _v(_courier.global_position), "escape_origin": _v(_courier.get_escape_origin()),
+			"health": _courier.get_health(), "escape_progress": _courier_director.get_escape_progress(),
+			"actors": actors.duplicate(true)}
+	if _courier_terminal.is_empty():
+		return
+	for actor: Dictionary in actors:
+		if not bool(actor.present) or bool(actor.active) or bool(actor.fire_authorized) or int(actor.pending_receipts) != 0:
+			_courier_standdown_violation = "dispatched actor absent, active, authorized or retaining shots after terminal"
+		for baseline: Dictionary in _courier_terminal.actors:
+			if actor.id == baseline.id and actor.shots_fired != baseline.shots_fired:
+				_courier_standdown_violation = "dispatched actor fired after terminal"
+
+
+func _courier_dispatched_observation() -> Array:
+	var actors: Array = []
+	for id: int in _courier_dispatched:
+		var member := _courier_dispatched[id] as Node3D
+		var present := is_instance_valid(member) and member.is_inside_tree() and not member.is_queued_for_deletion()
+		actors.append({"id": id, "present": present,
+			"active": bool(member.call(&"is_active")) if present else false,
+			"health": float(member.call(&"get_health")) if present else -1.0,
+			"fire_authorized": _courier_director.is_fire_authorized(member) if present else false,
+			"shots_fired": int(member.call(&"get_shots_fired")) if present else -1,
+			"pending_receipts": int(member.call(&"get_pending_shot_receipt_count")) if present else -1})
+	return actors
 
 
 func _v(value: Vector3) -> Array:
@@ -394,6 +482,8 @@ func _physics_process(delta: float) -> void:
 		return
 	if _courier_mode:
 		_capture_courier_receipt()
+		if _courier_escape_mode:
+			_capture_courier_escape()
 	_elapsed += delta
 	if _elapsed < 1.0 / (20.0 if _full_sandbox else 60.0):
 		return

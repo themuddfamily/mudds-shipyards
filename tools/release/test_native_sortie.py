@@ -1844,8 +1844,8 @@ class NativeSortieSafetyTests(unittest.TestCase):
                         'INTERCEPTOR_ENGAGEMENT', 'RETURN_TO_YARD']
         return pilot
 
-    def courier_pilot(self):
-        pilot = native.CourierPilot()
+    def courier_pilot(self, pilot_type=native.CourierPilot):
+        pilot = pilot_type()
         pilot.identities = (1, 2)
         pilot.stage = 'range'
         pilot.parked_forward = [0, 0, -1]
@@ -2038,6 +2038,242 @@ class NativeSortieSafetyTests(unittest.TestCase):
                 s['courier'].update(change)
                 s.update(outer)
                 with self.assertRaises(AssertionError): pilot.update(s, 6)
+
+    def courier_escape_prep(self):
+        pilot, s = self.courier_pilot(native.CourierEscapePilot)
+        s['courier']['prep_shot'] = dict(present=True, accepted=True, resolved=True,
+            hit=True, damaged=True, destroyed=True, status='destroyed',
+            source_id=1101, source_entity_id=2, target_entity_id=15, damageable_id=16,
+            collider_id=17, collider_path='Main/Range/Target', applied_damage=50.,
+            request=dict(source_id=1101, source_entity_id=2,
+                         weapon_id='range_pulse_cannon', sequence=8))
+        s['frame'] = pilot.defender_ready_frame
+        self.assertTrue(pilot.update(copy.deepcopy(s), s['frame']/60)[3])
+        return pilot, s
+
+    def courier_prep_miss(self):
+        return dict(present=True, accepted=True, resolved=True, hit=False, damaged=False,
+                    destroyed=False, status='miss', source_id=1101, source_entity_id=2,
+                    target_entity_id=0, damageable_id=0, collider_id=0, collider_path='',
+                    applied_damage=0., request=dict(source_id=1101, source_entity_id=2,
+                    weapon_id='torrent_compact_pulse_cannon', sequence=9))
+
+    def test_escape_actual_miss_rearms_only_after_ack_release_cooldown_and_readiness(self):
+        pilot, s = self.courier_escape_prep()
+        start = s['frame']
+        s['courier']['prep_shot'] = self.courier_prep_miss()
+        s.update(frame=start+1, command_fire=True)
+        self.assertFalse(pilot.update(copy.deepcopy(s), s['frame']/60)[3])
+        self.assertEqual(pilot.defender_misses, [])
+        s.update(frame=start+2, command_fire=False)
+        self.assertFalse(pilot.update(copy.deepcopy(s), s['frame']/60)[3])
+        self.assertIsNone(pilot.defender_pulse)
+        self.assertEqual(len(pilot.defender_misses), 1)
+        self.assertEqual(pilot.defender_wounds, [])
+        miss = pilot.defender_misses[0]
+        self.assertEqual(miss['prepress_shot']['request']['sequence'], 8)
+        self.assertEqual(miss['resolved_shot']['request']['sequence'], 9)
+        self.assertEqual((miss['ack_frame'], miss['release_frame']), (start+1, start+2))
+        for frame in range(start+3, pilot.defender_ready_frame):
+            s['frame'] = frame
+            self.assertFalse(pilot.update(copy.deepcopy(s), frame/60)[3])
+        s['frame'] = pilot.defender_ready_frame
+        s['courier']['weapon_ready'] = False
+        self.assertFalse(pilot.update(copy.deepcopy(s), s['frame']/60)[3])
+        s['courier']['weapon_ready'] = True
+        self.courier_wound_defender(pilot, s)
+        self.assertEqual([(w['before_health'], w['after_health']) for w in pilot.defender_wounds],
+                         [(85., 51.), (51., 17.)])
+        s['frame'] += 280
+        s['courier'].update(scenario='courier_intercept', generation=1, state='running',
+                            active=True, seen_alive=True, escape_origin=[0, 8, -200],
+                            terminal={}, standdown_violation='', roster_ids=[11],
+                            actors=[dict(id=11, present=True, active=True, health=78.,
+                                         fire_authorized=True, shots_fired=0, pending_receipts=0)])
+        pilot.update(copy.deepcopy(s), s['frame']/60)
+        self.assertEqual(pilot.stage, 'courier_escape_wait')
+
+    def test_escape_miss_recovery_rejects_stale_foreign_blocked_damaging_and_malformed_results(self):
+        mutations = [dict(present=False), dict(accepted=False), dict(resolved=False),
+            dict(status='unresolved'), dict(status='duplicate_sequence'),
+            dict(status='world_blocked'), dict(status='non_damageable_blocked'),
+            dict(hit=True), dict(damaged=True), dict(destroyed=True),
+            dict(source_id=1102), dict(source_entity_id=99), dict(target_entity_id=12),
+            dict(target_entity_id=99), dict(damageable_id=13), dict(collider_id=14),
+            dict(applied_damage=34.), dict(applied_damage=float('nan')),
+            dict(applied_damage=float('inf'))]
+        for key, value in [('sequence', 8), ('sequence', -1), ('sequence', True),
+                           ('source_id', 1102), ('source_entity_id', 99),
+                           ('weapon_id', 'range_pulse_cannon')]:
+            request = self.courier_prep_miss()['request']
+            request[key] = value
+            mutations.append(dict(request=request))
+        for mutation in mutations:
+            with self.subTest(mutation=mutation):
+                pilot, s = self.courier_escape_prep()
+                shot = self.courier_prep_miss()
+                shot.update(mutation)
+                s['courier']['prep_shot'] = shot
+                s.update(frame=s['frame']+1, command_fire=True)
+                pilot.update(copy.deepcopy(s), s['frame']/60)
+                for offset in (1, 30, 100):
+                    s.update(frame=s['frame']+offset, command_fire=False)
+                    self.assertFalse(pilot.update(copy.deepcopy(s), s['frame']/60)[3])
+                self.assertIsNotNone(pilot.defender_pulse)
+                self.assertEqual(pilot.defender_misses, [])
+                self.assertEqual(pilot.defender_wounds, [])
+
+    def test_escape_miss_needs_actual_ack_release_unchanged_health_and_same_source_baseline(self):
+        for failure in ('missing_baseline', 'foreign_baseline', 'no_ack', 'no_release', 'health_changed'):
+            with self.subTest(failure=failure):
+                pilot, s = self.courier_escape_prep()
+                if failure == 'missing_baseline': pilot.defender_pulse['prepress_shot'] = {}
+                if failure == 'foreign_baseline':
+                    pilot.defender_pulse['prepress_shot']['source_entity_id'] = 99
+                s['courier']['prep_shot'] = self.courier_prep_miss()
+                s.update(frame=s['frame']+1, command_fire=failure != 'no_ack')
+                pilot.update(copy.deepcopy(s), s['frame']/60)
+                s.update(frame=s['frame']+30, command_fire=failure == 'no_release')
+                if failure == 'health_changed': s['opponent_health'] = 84.
+                self.assertFalse(pilot.update(copy.deepcopy(s), s['frame']/60)[3])
+                self.assertIsNotNone(pilot.defender_pulse)
+                self.assertEqual(pilot.defender_misses, [])
+
+    def test_escape_consumed_miss_never_rearms_another_pulse_or_replaces_two_wounds(self):
+        pilot, s = self.courier_escape_prep()
+        s['courier']['prep_shot'] = self.courier_prep_miss()
+        for command_fire in (True, False):
+            s.update(frame=s['frame']+1, command_fire=command_fire)
+            pilot.update(copy.deepcopy(s), s['frame']/60)
+        s['frame'] = pilot.defender_ready_frame
+        self.assertTrue(pilot.update(copy.deepcopy(s), s['frame']/60)[3])
+        for command_fire in (True, False, False):
+            s.update(frame=s['frame']+30, command_fire=command_fire)
+            self.assertFalse(pilot.update(copy.deepcopy(s), s['frame']/60)[3])
+        self.assertEqual(len(pilot.defender_misses), 1)
+        self.assertEqual(pilot.defender_wounds, [])
+        self.assertIsNotNone(pilot.defender_pulse)
+        s['courier'].update(scenario='courier_intercept', generation=1, state='running',
+                            active=True, seen_alive=True)
+        with self.assertRaisesRegex(AssertionError, 'two observed nonlethal'):
+            pilot.update(copy.deepcopy(s), s['frame']/60)
+
+    def escaping_courier(self):
+        pilot, s = self.courier_pilot(native.CourierEscapePilot)
+        self.courier_wound_defender(pilot, s)
+        s['frame'] += 280
+        actor = dict(id=11, present=True, active=True, health=78.,
+                     fire_authorized=True, shots_fired=3, pending_receipts=0)
+        s['courier'].update(scenario='courier_intercept', generation=1, state='running',
+                            active=True, seen_alive=True, actors=[actor], roster_ids=[11],
+                            escape_origin=[0, 8, -200], terminal={}, standdown_violation='')
+        self.assertFalse(pilot.update(copy.deepcopy(s), 5)[3])
+        self.assertEqual(pilot.stage, 'courier_escape_wait')
+        return pilot, s
+
+    def runner_reaches_boundary(self, s):
+        s['frame'] += 1700
+        actor = s['courier']['actors'][0]
+        actor.update(active=False, fire_authorized=False)
+        c = s['courier']
+        c.update(position=[0, 8, -1600], escape_progress=1., state='concluded',
+                 outcome='escaped', active=False, roster_ids=[], elapsed_seconds=28.3)
+        c['terminal'] = dict(frame=s['frame'], actor_id=11, director_id=10, generation=1,
+                             position=list(c['position']), escape_origin=list(c['escape_origin']),
+                             health=78., escape_progress=1., actors=copy.deepcopy(c['actors']))
+
+    def test_escape_wait_never_fires_or_chases_and_requires_sustained_standdown_before_defender(self):
+        pilot, s = self.escaping_courier()
+        for progress in (.1, .5, .99):
+            s['frame'] += 60
+            s['courier']['escape_progress'] = progress
+            self.assertEqual(pilot.update(copy.deepcopy(s), 6), ({'Prior'}, 0, 0, False))
+        self.runner_reaches_boundary(s)
+        self.assertEqual(pilot.update(copy.deepcopy(s), 30), ({'Prior'}, 0, 0, False))
+        self.assertEqual(pilot.stage, 'courier_standdown')
+        self.assertIsNone(pilot.result)
+        s['frame'] += 59
+        self.assertFalse(pilot.update(copy.deepcopy(s), 31)[3])
+        self.assertEqual(pilot.stage, 'courier_standdown')
+        s['frame'] += 1
+        self.assertFalse(pilot.update(copy.deepcopy(s), 32)[3])
+        self.assertEqual(pilot.stage, 'interceptor')
+        s.update(frame=s['frame']+1, phase='RETURN_TO_YARD', opponent_active=False,
+                 opponent_health=0., shot_accepted=True, command_fire=True)
+        pilot.update(copy.deepcopy(s), 33)
+        self.assertEqual(pilot.stage, 'return_align')
+        self.assertIsNone(pilot.result)
+        pilot.stage = 'exit'
+        pilot.phases = ['APPROACH_SHIP', 'START_ENGINES', 'LAUNCH', 'TARGET_PRACTICE',
+                        'INTERCEPTOR_ENGAGEMENT', 'RETURN_TO_YARD', 'SHUT_DOWN']
+        s.update(frame=s['frame']+1, phase='COMPLETE', piloted=False, seated=False,
+                 control_enabled=True, guided_complete=True, exit_error=.17,
+                 lease=True, parked_exact=True, contract=True, spawn=[0, 0, 0])
+        pilot.update(copy.deepcopy(s), 34)
+        self.assertEqual(pilot.result['completion_marker'], native.CourierEscapePilot.MARKER)
+        self.assertEqual(pilot.result['courier']['terminal']['actor_id'], 11)
+
+    def test_escape_rejects_director_label_without_actual_live_same_runner_at_boundary(self):
+        # A forged progress/ESCAPED label must not hide a 1399m position,
+        # substituted actor, killed runner, or a different generation.
+        for change in ({'position': [0, 8, -1599]}, {'actor_id': 99}, {'generation': 2},
+                       {'health': 0.}, {'health': -1.}, {'health': float('nan')},
+                       {'escape_origin': [0, 8, -201]}, {'frame': 1}):
+            with self.subTest(change=change):
+                pilot, s = self.escaping_courier()
+                self.runner_reaches_boundary(s)
+                s['courier']['terminal'].update(change)
+                with self.assertRaises(AssertionError): pilot.update(s, 30)
+                self.assertIsNone(pilot.result)
+
+    def test_escape_rejects_premature_outcome_and_defender_loss(self):
+        for outcome in ('escaped', 'cleared', 'withdrawn', 'expired', 'aborted'):
+            with self.subTest(outcome=outcome):
+                pilot, s = self.escaping_courier()
+                s['frame'] += 1
+                s['courier'].update(outcome=outcome, state='concluded', active=False)
+                with self.assertRaises(AssertionError): pilot.update(s, 6)
+        for change in ({'opponent_health': 0}, {'opponent_active': False},
+                       {'opponent_id': 99}, {'phase': 'RETURN_TO_YARD'}):
+            with self.subTest(defender=change):
+                pilot, s = self.escaping_courier()
+                self.runner_reaches_boundary(s)
+                s.update(change)
+                with self.assertRaises(AssertionError): pilot.update(s, 30)
+
+    def test_escape_standdown_covers_all_dispatched_actors_and_latches_new_fire_through_home(self):
+        for change in ({'active': True}, {'fire_authorized': True}, {'pending_receipts': 1},
+                       {'shots_fired': 4}, {'present': False}):
+            for stage in ('courier_standdown', 'return'):
+                with self.subTest(change=change, stage=stage):
+                    pilot, s = self.escaping_courier()
+                    # Include a genuine second dispatched actor in the observed
+                    # traffic: checking only the runner would miss its violation.
+                    escort = dict(s['courier']['actors'][0], id=13)
+                    s['courier']['actors'].append(escort)
+                    s['courier']['roster_ids'].append(13)
+                    s['frame'] += 1
+                    pilot.update(copy.deepcopy(s), 6)
+                    self.runner_reaches_boundary(s)
+                    escort.update(active=False, fire_authorized=False)
+                    s['courier']['terminal']['actors'] = copy.deepcopy(s['courier']['actors'])
+                    pilot.update(copy.deepcopy(s), 30)
+                    pilot.stage = stage
+                    s['frame'] += 61
+                    s['courier']['actors'][1].update(change)
+                    with self.assertRaises(AssertionError): pilot.update(s, 32)
+                    self.assertIsNone(pilot.result)
+        for mutation in ('lost_actor', 'live_roster', 'latched_fire', 'new_terminal'):
+            with self.subTest(mutation=mutation):
+                pilot, s = self.escaping_courier()
+                self.runner_reaches_boundary(s)
+                pilot.update(copy.deepcopy(s), 30)
+                s['frame'] += 61
+                if mutation == 'lost_actor': s['courier']['actors'] = []
+                if mutation == 'live_roster': s['courier']['roster_ids'] = [11]
+                if mutation == 'latched_fire': s['courier']['standdown_violation'] = 'fired then ceased'
+                if mutation == 'new_terminal': s['courier']['terminal']['frame'] += 1
+                with self.assertRaises(AssertionError): pilot.update(s, 32)
 
     def test_hulk_route_requires_normal_guided_prelude_before_diverging(self):
         pilot = self.hulk_pilot()
