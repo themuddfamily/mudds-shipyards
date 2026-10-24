@@ -4804,7 +4804,7 @@ class HeavyBreachPilot(Pilot):
                 gate = s['fire_gate']
                 require(gate['frame'] == s['frame'] and gate['ship_id'] == s['ship_id']
                         and gate['target_id'] == s['target']['id'], 'current actual camera/next-muzzle fire forecast')
-                ready = self.charge is not None and gate['clear'] and gate['weapon'].get('ready') and align > .99998
+                ready = self.charge is not None and gate['clear'] and gate['weapon'].get('ready')
                 fire = self.fire_control.step(s, ready)
         elif self.stage == 'restore':
             keys.add('Prior'); dx, dy, restored = self.restore_attitude(s, keys)
