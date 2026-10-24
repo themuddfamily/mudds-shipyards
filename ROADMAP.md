@@ -42,41 +42,32 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
-**COURIER-ESCAPE preparation receipt correction selected.**
-The resolver already exposes exact accepted/resolved misses, and the existing
-Arrow observer projects actual request/source facts. Extend that same seam for
-Courier preparation. A fresh harmless miss may retire its pulse only after real
-input acknowledgement/release and normal cooldown/readiness; stale, unresolved,
-rejected, blocked, damaging or foreign outcomes cannot rearm. The original two
-actual85→51→17 wounds and complete first-courier escape/standdown/home remain
-mandatory. This does not assert that the earlier unobserved shot was a miss.
+**COURIER-ESCAPE full ordinary outcome DONE — `393733212`.**
+The complete packaged journey passes103.179s under original300s/outer330:
+four range kills, two real defender wounds85→51→17, first unhurt courier
+crossing1,400m/ESCAPED, all actually dispatched actors stood down, physical return
+to the saved attack position, actual defender kill, strict occupied home landing,
+OFFLINE shutdown and physical exit. Same Player/ship/default controls throughout;
+zero game diagnostics and owned input/helper/game/display cleanup complete.
 
-One implementer/independent reviewer; root owns checks, fresh private package and
-one changed full attempt. Preserve300s/outer330 and every encounter constant;
-continue the original90min planning budget rather than resetting it. No gameplay,
-tuning or protocol change, new branch/worktree or hosted CI. Earlier failed source
-and raw remain archived below. Working card/results:
-`/srv/mudds-work/courier-preparation-receipt-20261024/results/`.
+The caller now recovers only from a fresh authoritative harmless-miss receipt;
+the successful run exercises that path once. A later diagnostic proved stationary
+waiting had disabled the player's weapon component. The accepted waiting leg
+uses fixed ordinary-flight waypoints inside the actual encounter-origin bound,
+then physically returns before the inherited fight/home route. No gameplay,
+damage, AI, tuning, boost, encounter constants or deadline changed. Earlier
+failed attempts, the component diagnostic and a caught arrival-steering test
+failure remain preserved. Final134 Python tests, observer/privacy checks and
+fresh private package/startup/payload audits pass; independent acceptance GO.
 
-
-**COURIER-ESCAPE stopped — preparation hit was not confirmed.**
-The one original packaged attempt stopped41.413s at first courier dispatch.
-Ordinary four-target clearance passed; the defender remained alive at85 hull.
-Preparation FIRE reached the real sampler at frames1393–1394 and released1395,
-but no defender damage appeared before live courier dispatch1601. The existing
-feedback-bound helper correctly withheld the second pulse and rejected the
-required85→51→17 preparation. Escape/standdown/home were not reached.
-
-Raw data lacks the defender-specific resolved shot/target receipt, so the exact
-miss/obstruction cause and a production fix are unproved. No unchanged retry,
-guard weakening, tuning or cap change is selected. Candidatef7d95c1d3 is excluded
-from main and preserved by pushed `archive/withheld/courier-escape-20261024`, with
-verified source bundle/patch/tar and exact failed-run package. All7 guarded stages
-terminal,6pass/1fail; input/helper/game/display cleanup complete. Owned scratch
-is removed and96 result members consolidated into one verified archive plus
-closeout.json. No branch/worktree was created. Public checkpointce2329a remains
-current; parent11 and Courier Escape stay open.
-[Failure, source accounting and reopen boundary](docs/history/ROADMAP_DELIVERIES.md#courier-escape--stopped-at-preparation--2026-10-24).
+All four candidate commits are integrated into pushed main. Source-specific
+Linux qualification packages/raw are privately archived; public playable
+checkpointce2329a remains current with the same gameplay. Owned scratch and
+reconstructable test caches are cleaned. No branch/worktree was created; the
+original exact failedf7 source remains under its historical withheld archive tag.
+[Full result, corrections, retained failures and limits](docs/history/ROADMAP_DELIVERIES.md#courier-escape--accepted-ordinary-flight-and-home--2026-10-24).
+Withdrawals, recovery, repeats, escort-specific cases, separate walk/UI quit,
+native/human qualification and parent11 remain open.
 
 **HALYARD network cabin repair readout DONE — `ce2329a82`.**
 The physical cabin repair row now shows accepted current host progress,

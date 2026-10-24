@@ -21953,3 +21953,103 @@ failed raw game log and exact private package—verified into
 then loose copies removed. Only that archive and closeout.json remain. All36
 parents/ten phase gates and broader native/human/release requirements remain
 open. GitHub Actions remains disabled.
+
+
+## Courier Escape — accepted ordinary flight and home — 2026-10-24
+
+COURIER-ESCAPE parent11 is accepted on
+`393733212cfae40a460db6eb66e94277b51d622e`: full actual packaged OS-input journey
+**103.179s** (guard103.461s), original300s/outer330, no gameplay/AI/damage/tuning/
+boost/placement or encounter-constant changes. Ordinary fresh Guided Torrent,
+four range kills, automatic first courier dispatch and original strict home
+remain. Courier Clear's existing controller is unchanged. The original failed
+preparation attempt/source/package remains in its separate historical archive;
+that unobserved shot's exact result is still unknown.
+
+The accepted escape-only helper snapshots actual request/source/sequence before
+a pulse, then may retire a missed pulse only after a newer accepted/resolved
+harmless miss from the exact same ship/source1101/authored combat weapon, no
+hit/collider/target/damageable/damage/destruction, unchanged defender health and
+actual later input acknowledgement/release. Normal cooldown/readiness remains.
+Stale, missing, blocked, rejected, unresolved, foreign or damaging results cannot
+rearm. Real two34-damage wounds remain mandatory; no outcome is fabricated.
+
+An intermediate full attempt on6792d7c passes both wounds, unhurt1400m escape and
+sustained standdown, but times out at original300s while defender17 remains.
+Readiness flips false at2019 with FIRE released/player hull89→67 and no new
+request after11. The added existing weapon-status readout and one explicit
+component-failure cut on1c5f18eac confirm actual weapon_component_failed with
+heat/cooldown/recovery all0 (43.913s), not an aiming or heat-timer assertion.
+These records remain; no gameplay fix is claimed. The corrected ordinary-input
+strategy uses ordinary flight to preserve the weapon, with existing damage
+authority.
+
+After both actual wounds and release, normalW/mouse/Prior starts one finite
+waiting-flight leg. The first dispatched director's actual scenario origin is
+frozen; four fixed offsets(±220,+180,±220), initial/return points and every
+observed postdispatch position are bounded450m inside the original700m
+withdrawal boundary. No list cycling, alternate search, boost or waiting FIRE.
+The unhurt first courier must still escape on its own terms. After60 actual
+standdown frames, ordinary flight returns through savedattack+[0,180,0] and
+savedattack; actual<=1m/speed<=.45 is required before inherited defender attack
+and the unchanged full home route. A final focused test caught arbitrary
+zero-displacement steering after settling; a two-line brake/zero-angular arrival
+fix preserves the test and real thresholds. No route rescue was used.
+
+Successful raw4741 observations retain Player283316849255/ship284088601237,
+authored tuning/default sampler and original defender286940728126. Genuine
+harmless combat miss10 (baseline range request9) is acknowledged1405 and
+released1407; the receipt is accepted/resolved, zero hit/target/collider/damage.
+New requests11/12 then apply34 each at1425/1445,85→51→17. First automatic
+courier dispatch1613 is runner287007836994/director287091723079/gen1, full78.
+It physically reaches1400.066338m at3205, director ESCAPED. Exactly one actor
+was actually dispatched; it fired one shot before terminal, then all retained
+postterminal observations through tail5213 show inactive/unauthorized/pending0
+and unchanged shots1, with no transient latch violation. No distress escort was
+forced; escort-specific scenarios remain separate.
+
+Standdown60 frames precedes return3265. Two actual return arrivals include
+final4286 within1m of saved attack position/speed.05444. Real player request15
+then applies lethal17 to the original defender, destroyedtrue; RETURN_TO_YARD
+4358. Strict occupied home lease/contract/exact pose4985, OFFLINE5076, physical
+E exit COMPLETE5209, same awake/unpiloted Player with controls/guided completion,
+exit error.170m and hull59. All actor/encounter/default-input checks hold;
+maximum actual encounter-origin radius358.837m, standdown observed2004frames
+through completion. Zero game diagnostics; inputs/helper/game/Xvfb cleanup true.
+This is physical in-game exit, not normal UI quit/gameOS0 or a separate walking,
+reload/repeat/recovery/native/human qualification. Independent full raw/source
+acceptance GO; both withdrawals and other encounter/craft/parent11 gates remain.
+
+Final134 Python tests PASS10.899s/guard11.252; observer compile15.752s,
+CLI privacy and three exact clean private Linux package/startup/audits pass.
+Each binary exits0 with one STARTUP_MENU_READY_OK. All1,527 packaged paths
+match publicce2329a;1,525 entries byte-identical, only passive observer/startup
+selector bytecode differs. Exact archive payload/modes/source epoch verified.
+Accepted ELF148989376bytes SHA256
+`f94b4fccb26cc02e1e88bc4b070ae22260c9eebcf0abf9ea5de4b7f0fa214ddf`
+inside95399734byte package SHA256
+`382fa2c7506ae364630d3ef606a9a2c0f55b9a21ba54cc875f6c2fcb10c2a721`.
+All three tested packages and metadata are preserved privately, duplicate ELFs
+removed; public Windows/Linux playablece2329a remains current with unchanged
+gameplay. No duplicate public checkpoint for qualification-only changes. Native
+Windows/GPU, rendered/device/listening/human, exported multiplayer/custom RPC,
+full matrix/release and all36 parents/ten phase gates remain open. Actions stays off.
+
+All four accepted commits integrated into pushed main; main is sole local/remote
+branch, no task branch/worktree created. Exact earlier failedf7 source remains
+under `archive/withheld/courier-escape-20261024`; its unique history/source/raw is
+preserved separately, with accepted changes integrated under the successor
+commits. Existing parked detached worktrees remain protected.
+
+All20 guarded stages terminal:17pass, two retained failures (full deadline and
+arrival test), one expected component-failure diagnostic; actual cumulative
+stage703.746s. The original90min planning budget was not reset (51.015min at
+verified consolidation). All45 sampled process identities absent; driver-owned
+input helper/game/display also report reaped. All218 scratch entries byte/mode/
+link verified before removal; two owned reconstructable Python caches removed.
+All243 result members—including all three packages, the deadline run, component
+diagnostic and raw success—verified into
+`/srv/mudds-work/courier-preparation-receipt-20261024/results/case-records.tar.gz`
+(315105192bytes, SHA256
+`ad144c559de03c8048449ddd4824c90b148c8a2fc1e0ae887fdebbea2930291a`),
+then loose copies removed. Only that archive and closeout.json remain.
