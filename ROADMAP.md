@@ -42,6 +42,28 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
+**Selected: HALYARD-NETWORK-ROSTER-PANEL — host facts on the cabin display.**
+Current client crew rows use an empty local authority despite the existing host
+engineer publication reaching every admitted cabin occupant. Feed the existing
+physical roster/readiness/routing/handoff display from a detached host subset,
+through the same current admission and cabin lifetime fences as repair. Ordinary
+standing must show the engineer station open; local refresh must retain host
+facts, and leaving/stopping must restore local presentation. Claims, components,
+stock and role authority remain unchanged; no protocol/schema version needed.
+
+One implementation agent owns Halyard transport, GameFlow, the existing engineer
+publisher only if needed, and existing panel/real-ENet tests. Root owns clean
+source freezes, local checks, fresh paired checkpoint builds, integration/push
+and owned cleanup; one independent reviewer checks authority/lifetime behavior.
+First reproduce the panel failure with a focused test, then fix it and retain
+the complete original real-ENet engineer route/deadlines. All automated Godot
+runs use Dummy audio and headless/private Xvfb with explicit x11 for graphics.
+Stop at the first failure for causal review; no unchanged retry or broad roster
+qualification. Estimate 30–60 minutes implementation/review plus 15–25 minutes
+checks/packages/cleanup; split before 90 minutes. Full NET-CREW/NET-DAMAGE,
+baseline/endurance and native/human gates remain open. Actions stays disabled.
+
+
 **COURIER-WITHDRAW-DISTANCE full ordinary outcome DONE — `719fe364a`.**
 The first packaged attempt passes in 92.585s under the original 300s/outer330
 limits. After four range kills and real defender preparation, ordinary flight
