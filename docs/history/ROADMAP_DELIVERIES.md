@@ -22875,3 +22875,42 @@ plus closeout.json at `/srv/mudds-work/torpedo-boarding-readiness-20261025/resul
 All failures, source/package binding, meaningful fixtures and actual partial
 outcomes remain inspectable. No gameplay parent/native/hardware/repeat/final
 release closure; no duplicate public checkpoint or hosted Actions run.
+
+## Vortex proposal — preparation completed, design unapproved — 2026-10-25
+
+SPEC-VORTEX/BUILD-SPLIT-VORTEX parents10/36 remain gated. One bounded author plus
+root source/seam review delivered docs/design/VORTEX_IMPLEMENTATION_PROPOSAL.md,
+frozen SHA256`c18a04aaa14c548b43138361f98f290a9f8cb48a2c328ed042f4debaab6b8ccd`.
+One proposed modern interpretation, expressly UNAPPROVED: pilot/four physical
+passenger chairs,10×20×5m original cabin hull/stern route, exact trial definition/
+entry-copy fields, one reused Jovian defensive cannon, no cargo/specialists/new
+NPC troop mechanics, existing component/service/reset owners and safe on-foot
+restart policy.14bounded runtime/package cards specify ownership, actual outcomes,
+proof and stop conditions; first meaningful live milestone packages promptly.
+
+Registered A3 dated creator page/RESEARCH supports Vortex name and troop role;
+evidence matrix has no model source and unknown name/model. B4 label-only claim
+has no Vortex frame tie; its registered ship anchors concern Torrent. No fresh
+external source inspection, authenticated model, historical passenger capacity or
+redistribution right is claimed. Original-source dependency remains.
+
+Root verified actual weapon fields and Halyard/tuning comparisons, four generic
+cabin-berth constant and existing registration/role/access/berth seams. Proposal
+names actual missing singular-passenger-contract/multiple-chair composition and
+ship-specific integration instead of claiming drop-in support. Docking-marker
+centre/volume numerically encloses proposed hull/ramp; actual free world berth
+position and physical clearance remain mandatory runtime work. Playing host with
+two remotes is explicitly a bounded route, not a substitute for original nonplaying
+server/two-client, full network/adversity/endurance or chosen capacity. Native
+Windows execution/mandatory-human owner exclusions explicitly preserved; other
+applicable gates stay open. No sibling retuning or scope reduction authorized.
+
+Local review resolves proposal links, registered source anchors, all14named cards,
+finite owner choice and explicit unapproved/full-scope limits. No game/tests/
+export settings/build changes, no Godot run, no new validator/schema, no task
+branch/worktree or scratchfiles. Main remains sole branch; current checkpointfb396ab
+unchanged. Preparation artifact is complete; SPEC itself, accepted build split,
+craft implementation/full-craft acceptance remain OPEN. Owner must choose the
+labelled modern candidate, request exact design revisions, or retain historical
+reconstruction freeze pending tied views. Titan's older choice is still pending;
+no answer or authorization inferred from elapsed time.

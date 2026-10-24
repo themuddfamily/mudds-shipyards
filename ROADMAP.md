@@ -29,19 +29,20 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Selected: prepare SPEC-VORTEX's finite owner decision.**
-One bounded proposal for the missing Vortex-class Troop Transport: exact modern
-candidate hull/access/berth/collision, handling, pilot/passenger actions, systems
-or explicit absence, damage/recovery/save/reuse, build cards and full acceptance.
-Only A3's registered name/role is supported; B4 labels do not authenticate a model.
-All modern geometry/mechanics stay labelled UNAPPROVED. Preparing this proposal
-does not complete SPEC-VORTEX or build a craft; owner interpretation choice is
-required before runtime work. Titan's existing choice remains pending.
+**Prepared: SPEC-VORTEX decision proposal — owner choice pending.**
+[Vortex's unapproved modern proposal](docs/design/VORTEX_IMPLEMENTATION_PROPOSAL.md)
+fixes one pilot/four physical passenger chairs,10×20×5m original hull, continuous
+stern access, trial handling, one existing pilot cannon, no cargo/specialist roles,
+safe on-foot restart and14 bounded implementation/package cards. Source confidence
+supports only the registered name/role; geometry/mechanics are proposed, not
+historical. Root source/seam/contract review complete; no engines or runtime edits.
 
-One author owns docs/design/VORTEX_IMPLEMENTATION_PROPOSAL.md; root verifies
-source/seams, records the finite choice and integrates. Timebox20–30min, no
-engines or new validators/frameworks. Stop at one decision-ready artifact; do not
-repeat completed definition work. Existing17-craft/full-scope gates remain.
+This completes proposal preparation, NOT SPEC-VORTEX/BUILD-SPLIT approval, a craft,
+phase or historical gate. Owner chooses this labelled modern interpretation,
+revises exact fields, or keeps reconstruction frozen pending tied model evidence.
+Do not repeat this definition or begin runtime work without that choice. Titan's
+existing proposal/interpretation choice also remains pending. Full17craft scope,
+capacity/desktop/native/device/rights and full-craft acceptance remain unchanged.
 
 **PLAY-TORPEDO remains OPEN; three full trials stopped/unaccepted.**
 The latest run genuinely reboarded after sampled view/selection settling, then
