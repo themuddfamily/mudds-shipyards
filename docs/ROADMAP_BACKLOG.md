@@ -561,7 +561,7 @@ test is an owner/regression anchor, not a runnable ordinary route.
 | PLAY-SCAN | Structure Scan first full ordinary play | 13 | UNSCHEDULED; ordinary approach within24m → actual4s physics scan → one discovery/payment entitlement → home dock/usable exit. Existing full Scan failure stays PARKED; no unchanged retry selected |
 | PLAY-BEACON | Beacon Traversal first full ordinary play | 13 | DONE bc48b2a: complete original ordinary journey112.031s within300s. Four physical beacons/one durable reward/60 stable ticks, actual safe RangeHeader crossing at hull100, four range targets/interceptor defeated, strict occupied home dock/OFFLINE/one native L and E/same-Player supported0.969m walk. Original Home caller restored with fine mouse correction at demonstrated quantization stall; all original guards retained. Independent review, paired checkpoint/three strict startups/1525-entry audit PASS; merged/pushed/owned cleanup done. Earlier settlement e06550e retained; archived37.713s UI failure and307.042s stalled route retained. UI cause remains unresolved; no normal-UI-quit/cold-restart/repeat/native/human acceptance. [Full result](history/ROADMAP_DELIVERIES.md#beacon--complete-original-home-journey-accepted--2026-10-21) |
 | PLAY-CONVOY | Convoy Escort first full ordinary play | 13 | UNSCHEDULED; departed piloted craft enters4m rendezvous → escort actual retained-Main tender through route/threats to safe arrival → payment/home dock/exit. Preserve90s timeout and42m/3s separation rules; parked Convoy failures are not reopened |
-| PLAY-DEFENSE | Station Defense first full ordinary play | 13 | OPEN. Runtime autonomous-flight escape defect fixed/shipped3767687: five focused suites, three strict packaged startups, actual payload audit and independent scoped review PASS. Full ordinary caller0b11486e0 remains withheld: boarding/departure/one actual kill, aborted near34s; no payment/home/reset/nextDeploy/UIexit. First kill about30s leaves less than remaining10.5s authored delays; a feasible ordinary combat plan is required before full rerun. Clock-start owner choice is pending; current board-start34s remains until answered. Read-only2026-10-21 review confirms Courier changes do not demonstrate a feasible full Defense plan; explicit arm-at-Deploy/start-on-actual-launch versus current board-start question sent to owner. No engine retry or clock change selected. Original four kills/once payment/home/Reset/nextDeploy/UIexit and34s/CAP300/outer360 retained. Prior failed source/results preserved; owned scratch cleaned. [Runtime fix and limits](history/ROADMAP_DELIVERIES.md#defense-autonomous-flight-boundary-fixed-and-checkpointed--2026-10-20) |
+| PLAY-DEFENSE | Station Defense first full ordinary play | 13 | OPEN. Runtime autonomous-flight escape defect fixed/shipped3767687: five focused suites, three strict packaged startups, actual payload audit and independent scoped review PASS. Full ordinary caller0b11486e0 remains withheld: boarding/departure/one actual kill, aborted near34s; no payment/home/reset/nextDeploy/UIexit. First kill about30s leaves less than remaining10.5s authored delays; a feasible ordinary combat plan is required before full rerun. Owner approved2026-10-24 Deploy arms/start enemies and34s on actual launch. DEFENSE-LAUNCH-ARM selected; read-only2026-10-21 feasibility limits and original failed trajectory retained. Original four kills/once payment/home/Reset/nextDeploy/UIexit and34s/CAP300/outer360 retained. Prior failed source/results preserved; owned scratch cleaned. [Runtime fix and limits](history/ROADMAP_DELIVERIES.md#defense-autonomous-flight-boundary-fixed-and-checkpointed--2026-10-20) |
 | DEFENSE-PHYSICAL-INTERACTION | Physical board E Deploy/status/reward-retry/terminal Reset | 13 | DONE checkpointa59127c: actual Main15/full placement62, paired exports/three strict startups/actual PCK audit PASS. Existing owners, debt/refusal/separatepress/range/facing/armed gates and whole34s preserved. Original test parse16.381s + one explicit-int correction retained, cumulative334.765s. Staged pose/terminal/refusal fixtures disclosed; full ordinary combat/home separate. [Result](history/ROADMAP_DELIVERIES.md#station-defense-physical-interaction--shipped-on-a59127c) |
 | PLAY-BREACH | Heavy Breach first full ordinary play | 13 | UNSCHEDULED; on-foot arm posted Heavy → board/depart combat-capable craft → destroy charged picket while protecting objective → one payment → home/dock/on-foot next posting. Existing staged production route is not actual combat; earned-debt interruption case DONE c78e0ac |
 | PLAY-TORPEDO | Torpedo Run first full ordinary play | 13 | UNSCHEDULED; reach Torpedo posting through normal board rotation → arm/board/depart → evade/intercept live seekers and destroy actual boat → distinct payment → home/dock/on-foot next posting. No direct scenario selection or skipped Heavy prerequisite |
@@ -3465,3 +3465,34 @@ stages1131.794s, original parser failures separate. No unchanged retry/export.
 Next bounded repair must resolve ordinary exit aim competing with peripheral
 engineer-seat discovery without removing deliberate engineer interaction or
 weakening the original full journey. Same branch; no new task branch.
+
+### Defense launch arm — approved and selected2026-10-24
+
+DEFENSE-LAUNCH-ARM / PLAY-DEFENSE / parent13. User chose Deploy arms it in reply
+to the explicit arm-at-Deploy/start-enemies-and34s-on-launch choice. Board holds
+a runtime-only current-generation/content/weak-actor arm; host/activity remain
+idle/no enemies or elapsed time while walking/boarding/engine waking. Physical
+armed E cancels, Reset/board/Main retirement clear arm, coldload is unarmed with
+no save schema change. Pending completion payment protects admission unchanged.
+Actual live current seated pilot + not-landed craft + exact occupied berth before
+release and actual authoritative lease retirement after release consume once;
+failed/stale/foreign/replaced actor/content and historical departure cannot start.
+Board/nearby activity presentation says ARMED and directs boarding/departure.
+
+Host/content.start preserves original34s, waves1/2/1 and delays0/2.5/8, all four
+real player kills and once-only durable reward. Restore archived0b11486e0 full
+ordinary route into current driver/observer without replacing accepted routes.
+Add arm/prelaunch inactive observations and exact launch start; keep authored
+walk/Arrow boarding/departure, four kills/payment, strict home/dock/OFFLINE/
+supported physical exit, physical Reset/next Deploy and normal UI OS exit0.
+Original global300s/outer360s and all input/identity/physics gates remain.
+
+Runtime implementer owns board/GameFlow/narrow nearby presenter/existing tests;
+separate release implementer owns existing native driver/tests/passive observer/
+startup selector/privacy test. Independent high lifecycle reviewer. Root owns
+local checks/frozen source/cache/process supervision, fresh paired clean-source
+Windows/Linux exports and strict startups (exit0/exactly one menu-ready marker),
+original full route, checkpoint notes/ZIP, commit/push and owned cleanup. First
+unexpected failure stops for bounded causal review; no automatic cap/route/
+criteria relaxation. No new validator family, CI dispatch, active-desktop/audio
+or native Windows/GPU/human/full-release qualification implied.

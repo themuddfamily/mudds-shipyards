@@ -41,18 +41,29 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
-**Next: Defense clock decision pending; no engine retry selected.**
-Read-only review on2026-10-21 confirms current stock4.7.1 templates do not
-satisfy Browser's required RPC-cache-patched Windows/Linux pair. The patched
-Windows build is still missing; no third compilation or unchanged route retry.
-Defense's retained original route reaches the first kill at about30s of34s,
-with10.5s mandatory lulls remaining. Courier readiness/damage improvements do
-not establish a complete feasible Defense plan. Owner has been asked whether
-Deploy arms the encounter for actual launch, or preserves immediate board-start.
-Current board-start rule remains until answered. If launch-start is chosen,
-consume one fenced arm only at actual live-pilot departure/accepted berth release;
-preserve34s, four kills, payment, home, physical Reset/next Deploy/UI exit and
-original300/360s caps. No gameplay change/engine/new scratch for this review.
+**DEFENSE-LAUNCH-ARM selected — owner approved2026-10-24.**
+Deploy arms Station Defense. Enemies and the existing34s encounter start only
+on actual pilot launch; walking, boarding and engine wake use no combat time.
+One runtime-only arm binds current actor/content generation, physical E can
+cancel, Reset/Main exit retire it and coldload is unarmed. Consume once only
+after actual current seated pilot/not-landed departure and accepted authoritative
+occupied-berth release; stale actors, failed release and historical flags cannot
+start it. Preserve existing1/2/1 waves,2.5/8s lulls, four player kills, once-only
+payment, strict home/OFFLINE supported exit, physical Reset/next Deploy/normal
+UI exit and original300s driver/360s supervisor caps.
+
+One implementer owns board/narrow GameFlow launch integration/armed presentation
+and focused existing tests. A separate nonoverlapping implementer restores the
+archived full ordinary Defense driver/passive observer into current release
+files with armed/prelaunch assertions; no accepted route is replaced. One
+independent reviewer checks lifecycle/integration. Root owns focused local
+checks, clean paired exports/strict startups, full original ordinary journey,
+checkpoint, regular pushes and cleanup. No hosted CI/native/human claim, no
+clock extension, staged combat, scope shortcut or unrelated parked retry.
+
+Browser custom patched Windows template remains missing; stock4.7.1 builds do
+not satisfy its dependency. Other retained gates remain unchanged. Previous
+read-only review and original failed Defense history remain recorded.
 
 **BOMBER-REBOARD-PRESENTATION completed255f8df2b; checkpoint255f8df.**
 Actual refill qualification exposed a detached visual pool after seat retake.
@@ -380,9 +391,8 @@ NO-GO despite the separately accepted runtime fix above. Its first kill at about
 left less than the remaining10.5s authored delays, even with instantaneous other
 kills. Establish a feasible ordinary boarding/combat plan before another full
 qualification; no full retry, shorter contract or timer change is selected.
-Owner clock-start choice is now pending: preserve board-start timing, or arm at
-the board and begin the34s encounter on launch. Current board-start rule stays
-in force until answered. Read-only timing review found no proven clear-fire plan;
+Owner approved2026-10-24: arm at Deploy, start the34s encounter on actual launch.
+DEFENSE-LAUNCH-ARM is selected above; original failed trajectory remains retained. Read-only timing review found no proven clear-fire plan;
 no new engine attempt was made.
 
 Unique source survives in pushed `archive/withheld/defense-completed-motion-20261020`
