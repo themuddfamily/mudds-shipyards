@@ -74,6 +74,16 @@ Qualification only unless a real runtime defect is demonstrated. Runtime repair
 needs focused proof and a fresh checkpoint. Dummy/headless/private-Xvfb/x11; Actions
 disabled; broader baseline/endurance/exported/native/human gates remain open.
 
+First run955237c61 is retained FAIL135.882s before departure; B never starts.
+A has the actual pilot claim/ownership and current seated authority wire, but the
+new first-pilot check requires a broadcast. Production deliberately suppresses a
+sole pilot's own echo. Source/independent causal review select only the existing
+accepted sole-pilot live-authority predicate while A is the only admitted peer;
+restore the original published-state predicate immediately when B joins and keep
+B's actual received-state check. Capture prepared/published state/ticks. No runtime
+change, forced echo, early B, deadline extension or clock reset. Strict compile
+then one complete trial; first failure again stops for review.
+
 **SERVER-BASELINE-SEAT-RACE DONE — `99c9fc1af`.**
 The complete original non-playing authority/two-client BOARD and seven MOVING
 stages now continue through ordinary helm release, two supported contenders and

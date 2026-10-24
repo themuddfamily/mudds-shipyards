@@ -3358,9 +3358,12 @@ func _ordinary_late_pilot_fields(peer: int) -> Dictionary:
 
 func _ordinary_late_host_pilot_current() -> bool:
 	var peer := int(_ordinary_late_join_retained.peer)
+	var admitted := _game.network_session.get_admitted_peer_ids()
+	var pilot_current: bool = _ordinary_passenger_loss_authoritative_pilot_current(peer) \
+		if admitted.size() == 1 and admitted.has(peer) else _ordinary_pilot_is_current(peer)
 	return _game.network_session == _ordinary_late_join_retained.session and _game.network_session.is_session_active() \
 		and _ordinary_peer_generation(peer) == int(_ordinary_late_join_retained.peer_generation) \
-		and _ordinary_pilot_is_current(peer) and _craft.get_command_source() == _ordinary_late_join_retained.helm \
+		and pilot_current and _craft.get_command_source() == _ordinary_late_join_retained.helm \
 		and _ordinary_late_pilot_fields(peer) == (_ordinary_late_join_retained.fields as Dictionary) \
 		and _game.phase == GameFlow.Phase.INTRO and _player.get_instance_id() == _ordinary_player_id \
 		and not _player.is_seated() and not _player.is_control_enabled()
@@ -3403,7 +3406,7 @@ func _ordinary_late_join_host() -> bool:
 	if not await _wait_file("client.cabin", 120.0) or not _ordinary_observe_supported_cabin("client", peer):
 		return false
 	_write("host.client_body", {})
-	if not await _wait_file("client.seated", 30.0) or not await _ordinary_boundary(func(): return _ordinary_pilot_is_current(peer),
+	if not await _wait_file("client.seated", 30.0) or not await _ordinary_boundary(func(): return _ordinary_passenger_loss_authoritative_pilot_current(peer),
 		8.0, "original ordinary pilot alone holds the actual helm before late admission"):
 		return false
 	_write("host.pilot_seated", {})
@@ -3419,7 +3422,12 @@ func _ordinary_late_join_host() -> bool:
 	var delivered := int(helm.get_audit().get("delivered", 0))
 	_ordinary_late_join_stage = "initial_departure"
 	_write("host.late_flight_go", {"fields": _ordinary_late_join_retained.fields,
-		"pose_tick": int(_game.get("_network_boarding_server_tick")), "wall": Time.get_unix_time_from_system()})
+		"pose_tick": int(_game.get("_network_boarding_server_tick")), "wall": Time.get_unix_time_from_system(),
+		"pilot_publication": _ordinary_fields(_ordinary_publication(GameFlow.network_client_boarding_avatar_id(peer)),
+			["published_state", "published_tick", "seen_tick", "registered"]),
+		"pilot_prepared_wire": _ordinary_fields(_ordinary_publication(GameFlow.network_client_boarding_avatar_id(peer)).get("wire", {}) as Dictionary,
+			["server_tick", "occupancy_state", "entity_generation", "parent_frame_generation"]),
+		"pilot_recipients": (_game.get("_network_moving_interior_recipient_cache") as Dictionary).get(peer, [])})
 	if not await _ordinary_boundary(func(): return _ordinary_late_host_pilot_current() \
 		and _craft.global_position.distance_to(start) > 5.0 and _craft.velocity.length() > 0.1 \
 		and not bool(_craft.get_telemetry().get("landed", true)) and _craft.get_telemetry().get("engine_state") == HeroShip.ENGINE_ONLINE \
@@ -5002,6 +5010,14 @@ func _ordinary_failure_snapshot(description: String) -> Dictionary:
 			"departure": _read("host.late_departed"), "spawn": _read("coordinator.late_spawn"),
 			"landing_go": _read("host.late_landing_go"), "landing_sent": _read("client.late_landing_sent"),
 			"landing_accepted": _read("host.late_landing_accepted"), "docked": _read("host.late_docked")}
+		if is_instance_valid(_game) and is_instance_valid(_craft):
+			var first_peer := int(_read("client.admitted").get("peer_id", 0))
+			var publication := _ordinary_publication(GameFlow.network_client_boarding_avatar_id(first_peer))
+			(snapshot.late_join as Dictionary)["pilot_publication"] = _ordinary_fields(publication,
+				["published_state", "published_tick", "seen_tick", "registered"])
+			(snapshot.late_join as Dictionary)["pilot_prepared_wire"] = _ordinary_fields(publication.get("wire", {}) as Dictionary,
+				["server_tick", "occupancy_state", "entity_generation", "parent_frame_generation"])
+			(snapshot.late_join as Dictionary)["pilot_recipients"] = (_game.get("_network_moving_interior_recipient_cache") as Dictionary).get(first_peer, [])
 	if _ordinary_two_client_seat_race:
 		snapshot["seat_race"] = {"stage": _ordinary_seat_race_stage,
 			"first_seen": _ordinary_seat_race_first_seen.duplicate(true),
