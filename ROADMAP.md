@@ -42,6 +42,30 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
+**HALYARD passenger destruction recovery selected — reproduce before repair.**
+The current client craft-loss consumer recalls the remote pilot, but an admitted
+cabin passenger receives only the destroyed hull presentation. That presentation
+does not set the replica's local destruction flag. The host retires its real
+passenger body; the corresponding local cabin/seat/control retirement is uncovered.
+
+One implementer owns a focused independent-Main/real-ENet reproduction in the
+existing passenger harness: disclosed physical admission/chair approach, ordinary
+hatch/chair E, and damage applied only through the actual host hull's damage API.
+Require the real host destruction/body retirement and received destruction before
+testing the same client's usable supported recovery and old-grant retirement.
+Root owns compile300s, focused180s/outer300s, causal review and all engines/Git/builds;
+one independent reviewer checks authority and lifecycle. Estimate20min repro, then
+roughly30min bounded repair/acceptance/checkpoint if reproduced. First failure stops
+for review; no runtime edit before RED, fabricated successful packet, policy/role/
+protocol change, cap increase or new branch/worktree.
+
+Full downstream acceptance retains coherent hull/component damage and repair,
+destruction, host regeneration, usable recovery and ordinary return to the renewed
+Halyard with fresh grants. Preserve the original BOARD+seven MOVING prefix and
+300s scenario/360s outer. A focused staged fixture cannot close full NET-DAMAGE,
+combat, baseline, endurance or native gates. Task card/results belong in
+`/srv/mudds-work/halyard-passenger-destruction-20261024/results/`.
+
 **SERVER-BASELINE contested bunk authority DONE — `f6803cf26`.**
 The real host/client reproduction confirmed that the host selected Starboard while
 the client received that sleep pose but still reserved and slept in Port. GameFlow
