@@ -29,6 +29,20 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Selected: prepare SPEC-VORTEX's finite owner decision.**
+One bounded proposal for the missing Vortex-class Troop Transport: exact modern
+candidate hull/access/berth/collision, handling, pilot/passenger actions, systems
+or explicit absence, damage/recovery/save/reuse, build cards and full acceptance.
+Only A3's registered name/role is supported; B4 labels do not authenticate a model.
+All modern geometry/mechanics stay labelled UNAPPROVED. Preparing this proposal
+does not complete SPEC-VORTEX or build a craft; owner interpretation choice is
+required before runtime work. Titan's existing choice remains pending.
+
+One author owns docs/design/VORTEX_IMPLEMENTATION_PROPOSAL.md; root verifies
+source/seams, records the finite choice and integrates. Timebox20–30min, no
+engines or new validators/frameworks. Stop at one decision-ready artifact; do not
+repeat completed definition work. Existing17-craft/full-scope gates remain.
+
 **PLAY-TORPEDO remains OPEN; three full trials stopped/unaccepted.**
 The latest run genuinely reboarded after sampled view/selection settling, then
 proved real pitch/boost evasion and a distinct seeker shoot-down. Three later
