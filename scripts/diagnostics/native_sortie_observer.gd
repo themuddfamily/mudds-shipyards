@@ -34,6 +34,15 @@ var _habitat_restart := false
 var _restart_sequence: int = 0
 var _ember := false
 var _ember_started := false
+var _defense := false
+var _defense_sequence: int = 0
+var _defense_event_sequence: int = 0
+var _defense_events: Array[Dictionary] = []
+var _defense_handles: Dictionary = {}
+var _defense_content: StationDefenseEncounterContent
+var _defense_board: StationDefenseActivityBoard
+
+
 var _player: PlayerController
 var _ship: HeroShip
 var _opponent: RangeOpponent
@@ -83,6 +92,24 @@ func on_startup_completed(main: Node) -> void:
 		_parked = _ship.global_transform
 		_tuning = _sortie_tuning()
 		process_mode = Node.PROCESS_MODE_ALWAYS
+		return
+	_defense = "--native-sortie-observer=station-defense" in OS.get_cmdline_args()
+	if _defense:
+		process_mode = Node.PROCESS_MODE_ALWAYS
+		_ship = _game.get_node(^"ArrowReconShip") as HeroShip
+		_parked = _ship.global_transform
+		_tuning = _sortie_tuning()
+		_defense_content = _game.world.get_station_defense_content() as StationDefenseEncounterContent
+		_defense_board = _game.world.get_station_defense_activity_board() as StationDefenseActivityBoard
+		var entities: Dictionary = _defense_content.get("_entity_by_key") as Dictionary
+		for handle: Dictionary in _defense_content.contract_definition.get_ordered_hostile_handles():
+			var key: String = StationDefenseContract.handle_key(handle, "hostile_id")
+			var entity: RangeOpponent = entities.get(key) as RangeOpponent
+			_defense_handles[entity.get_instance_id()] = {
+				"hostile_id": str(handle.hostile_id), "generation": int(handle.generation),
+				"source_id": int(StationDefenseEncounterContent.HOSTILE_SOURCE_ID_BY_ID.get(handle.hostile_id, 0))}
+		var resolver: CombatResolver = _game.combat_authority.get_resolver()
+		resolver.shot_resolved.connect(_on_defense_shot_resolved)
 		return
 	_beacon_mode = "beacon-home" if "--native-sortie-observer=beacon-home" in OS.get_cmdline_args() else ("beacon-settlement" if "--native-sortie-observer=beacon-settlement" in OS.get_cmdline_args() else "beacon-entry")
 	_beacon_entry = "--native-sortie-observer=" + _beacon_mode in OS.get_cmdline_args()
@@ -183,6 +210,357 @@ func _courier_observation() -> Dictionary:
 		"seen_alive": _courier_seen_alive,
 		"hit": _courier_hit.duplicate(true), "kill": _courier_kill.duplicate(true),
 	}
+
+
+func _on_defense_shot_resolved(request: ShotRequest, result: Dictionary) -> void:
+	_defense_event_sequence += 1
+	var target: Node = result.get("target_entity") as Node
+	var source: Node = result.get("source_entity") as Node
+	var target_id: int = target.get_instance_id() if is_instance_valid(target) else 0
+	var damage: Dictionary = result.get("damage_result", {}) as Dictionary
+	var collider: Object = result.get("collider")
+	_defense_events.append({"event": _defense_event_sequence,
+		"frame": Engine.get_physics_frames(), "generation": _defense_content.get_generation(),
+		"request_source_id": request.source_id,
+		"origin": _v(request.origin), "direction": _v(request.direction),
+		"impact": _v(result.get("position", Vector3.ZERO)), "collider": _defense_collider_receipt(collider),
+		"request_source_entity_id": request.source_entity.get_instance_id() if is_instance_valid(request.source_entity) else 0,
+		"source_id": int(result.get("source_id", 0)),
+		"source_entity_id": source.get_instance_id() if is_instance_valid(source) else 0,
+		"target_entity_id": target_id,
+		"target_handle": (_defense_handles.get(target_id, {}) as Dictionary).duplicate(true),
+		"weapon_id": str(request.weapon_id), "sequence": request.sequence,
+		"presentation_receipt_id": request.presentation_receipt_id,
+		"accepted": bool(result.get("accepted", false)), "resolved": bool(result.get("resolved", false)),
+		"status": str(result.get("status", &"")), "damaged": bool(result.get("damaged", false)),
+		"applied_damage": float(result.get("applied_damage", 0.0)),
+		"remaining_health": float(result.get("remaining_health", -1.0)),
+		"destroyed": bool(result.get("destroyed", false)),
+		"damage_accepted": bool(damage.get("accepted", false)),
+		"damage_health": float(damage.get("health", -1.0)),
+		"damage_destroyed": bool(damage.get("destroyed", false)),
+		"command_fire": _ship.get_last_ship_command().fire if _ship.get_last_ship_command() != null else false})
+
+
+## The existing authority's public registration getters reconcile stale WeakRefs.
+## Inspect retained owners first so observation never enters that mutation path.
+func _defense_registrations_current() -> bool:
+	var registrations: Dictionary = _game.combat_authority.get("_registrations_by_instance") as Dictionary
+	for instance_id: Variant in registrations:
+		var row: Dictionary = registrations[instance_id] as Dictionary
+		var reference: WeakRef = row.get("source") as WeakRef
+		var entity: Node = reference.get_ref() as Node if reference != null else null
+		if not _ember_node_current(entity) or entity.get_instance_id() != int(instance_id):
+			return false
+	return true
+
+
+## Side-effect-free authored local bindings shared by the station walk observers.
+func _station_default_controls() -> bool:
+	var default_controls := not _player.is_remote_driven()
+	for action: StringName in [&"move_left", &"move_right", &"move_forward", &"move_back", &"sprint_boost", &"interact"]:
+		var authored: Dictionary = ProjectSettings.get_setting("input/" + str(action), {})
+		var expected: Array = []
+		for event: InputEvent in authored.get("events", []):
+			expected.append(event.as_text())
+		var actual: Array = []
+		for event: InputEvent in InputMap.action_get_events(action):
+			actual.append(event.as_text())
+		default_controls = default_controls and expected == actual \
+			and is_equal_approx(InputMap.action_get_deadzone(action), float(authored.get("deadzone", -1.0)))
+	return default_controls
+
+
+## Two fixed travel legs only. These queries allocate query resources and never
+## move an actor, submit a shot, advance a timer, or search another route.
+const DEFENSE_STAGING_POINTS := [Vector3(-71.0, 10.0, -90.0), Vector3(80.0, 10.0, -90.0)]
+const DEFENSE_HULL_MARGIN := 0.10
+
+
+func _defense_collider_receipt(collider: Object) -> Dictionary:
+	var node := collider as Node
+	return {"id": collider.get_instance_id() if is_instance_valid(collider) else 0,
+		"path": str(node.get_path()) if is_instance_valid(node) and node.is_inside_tree() else ""}
+
+
+func _defense_sphere_segment(space: PhysicsDirectSpaceState3D, sphere: SphereShape3D, start: Vector3, finish: Vector3) -> Dictionary:
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = sphere
+	query.transform = Transform3D(Basis.IDENTITY, start)
+	query.collision_mask = _ship.collision_mask
+	query.exclude = [_ship.get_rid()]
+	query.collide_with_bodies = true
+	query.collide_with_areas = false
+	var start_hits := space.intersect_shape(query, 1)
+	query.motion = finish - start
+	var fractions := space.cast_motion(query)
+	query.motion = Vector3.ZERO
+	query.transform.origin = finish
+	var end_hits := space.intersect_shape(query, 1)
+	var safe: float = float(fractions[0]) if fractions.size() == 2 else -1.0
+	var unsafe: float = float(fractions[1]) if fractions.size() == 2 else -1.0
+	return {"from": _v(start), "to": _v(finish), "start_clear": start_hits.is_empty(),
+		"end_clear": end_hits.is_empty(), "safe_fraction": safe, "unsafe_fraction": unsafe,
+		"start_blocker": _defense_collider_receipt(start_hits[0].get("collider")) if not start_hits.is_empty() else {},
+		"end_blocker": _defense_collider_receipt(end_hits[0].get("collider")) if not end_hits.is_empty() else {},
+		"clear": start_hits.is_empty() and end_hits.is_empty() and safe == 1.0 and unsafe == 1.0}
+
+
+func _defense_staging_clearance() -> Dictionary:
+	var result := {"available": false, "frame": Engine.get_physics_frames(), "ship_id": _ship.get_instance_id()}
+	if not _ship.is_piloted() or bool(_ship.get("_landed")) or _ship.global_position.distance_to(_parked.origin) < 16.0:
+		return result
+	var report := _ship.get_landing_collision_report()
+	var bounds: AABB = report.get("local_bounds", AABB())
+	var geometry: Array[Dictionary] = []
+	for child: Node in _ship.get_children():
+		if not child is CollisionShape3D:
+			continue
+		var collision := child as CollisionShape3D
+		if collision.disabled or collision.shape == null:
+			continue
+		var local_bounds := HeroShip._shape_local_bounds(collision.shape)
+		geometry.append({"id": collision.get_instance_id(), "shape_id": collision.shape.get_instance_id(),
+			"path": str(collision.get_path()), "kind": collision.shape.get_class(),
+			"local_bounds": [_v(local_bounds.position), _v(local_bounds.size)],
+			"transform": [_v(collision.position), _v(collision.basis.x), _v(collision.basis.y), _v(collision.basis.z)]})
+	# The production report encloses every enabled root shape after each shape's
+	# offset, rotation and scale. All eight corners enclose their union, and its
+	# farthest corner encloses it under every subsequent ordinary hull rotation.
+	var rigid: bool = _ship.global_basis.is_finite() and _ship.global_basis.is_equal_approx(_ship.global_basis.orthonormalized())
+	var radius := 0.0
+	for x: float in [bounds.position.x, bounds.end.x]:
+		for y: float in [bounds.position.y, bounds.end.y]:
+			for z: float in [bounds.position.z, bounds.end.z]:
+				radius = maxf(radius, Vector3(x, y, z).length())
+	radius += DEFENSE_HULL_MARGIN
+	result.merge({"available": true, "valid": bool(report.get("valid", false)) and rigid
+		and bounds.position.is_finite() and bounds.size.is_finite() and bounds.has_volume()
+		and geometry.size() == int(report.get("shape_count", 0)) and is_finite(radius) and radius > DEFENSE_HULL_MARGIN,
+		"root_rigid": rigid, "geometry": geometry, "local_bounds": [_v(bounds.position), _v(bounds.size)],
+		"radius": radius, "margin": DEFENSE_HULL_MARGIN, "collision_mask": _ship.collision_mask,
+		"excluded_rids": [_ship.get_rid().get_id()], "ship_rid": _ship.get_rid().get_id(),
+		"collide_with_bodies": true, "collide_with_areas": false,
+		"points": [_v(DEFENSE_STAGING_POINTS[0]), _v(DEFENSE_STAGING_POINTS[1])]}, true)
+	if not bool(result.valid):
+		return result
+	var sphere := SphereShape3D.new()
+	sphere.radius = radius
+	var space := _ship.get_world_3d().direct_space_state
+	result["to_first"] = _defense_sphere_segment(space, sphere, _ship.global_position, DEFENSE_STAGING_POINTS[0])
+	result["first_to_second"] = _defense_sphere_segment(space, sphere, DEFENSE_STAGING_POINTS[0], DEFENSE_STAGING_POINTS[1])
+	result["to_second"] = _defense_sphere_segment(space, sphere, _ship.global_position, DEFENSE_STAGING_POINTS[1])
+	return result
+
+
+func _defense_aim_shape(entity: RangeOpponent) -> Dictionary:
+	var path: NodePath = ^"SpineCollision" if entity is StandoffPicketOpponent else ^"KeelCollision"
+	var shape := entity.get_node_or_null(path) as CollisionShape3D
+	var current: bool = _ember_node_current(entity) and _defense_content.is_ancestor_of(entity) \
+		and _ember_node_current(shape) and shape.get_parent() == entity and not shape.disabled and shape.shape != null
+	return {"current": current, "id": shape.get_instance_id() if is_instance_valid(shape) else 0,
+		"shape_id": shape.shape.get_instance_id() if current else 0,
+		"path": str(shape.get_path()) if current else "", "point": _v(shape.global_position) if current else []}
+
+
+func _defense_ray_contact(hit: Dictionary, resolver: CombatResolver) -> Dictionary:
+	var collider: Object = hit.get("collider")
+	# This is the resolver's read-only component lookup, including parent and
+	# explicit component bindings; a matching collider name is never authority.
+	var damageable := resolver.call("_find_damageable", collider) as Damageable if is_instance_valid(collider) else null
+	var target: Node = damageable.get_target_entity() if is_instance_valid(damageable) else null
+	var target_id: int = target.get_instance_id() if _ember_node_current(target) else 0
+	return {"hit": not hit.is_empty(), "collider": _defense_collider_receipt(collider),
+		"position": _v(hit.get("position", Vector3.ZERO)), "target_id": target_id,
+		"target_handle": (_defense_handles.get(target_id, {}) as Dictionary).duplicate(true)}
+
+
+func _defense_fire_gate(actors: Array[Dictionary]) -> Dictionary:
+	var gate := {"frame": Engine.get_physics_frames(), "ship_id": _ship.get_instance_id(),
+		"generation": _defense_content.get_generation(), "target_id": 0, "clear": false,
+		"weapon_status": _ship.get_weapon_fire_status(),
+		"targeting_enabled": not bool(_ship.get_operational_modifiers().get("targeting_disabled", false))}
+	var chosen: Dictionary = {}
+	for actor: Dictionary in actors:
+		if bool(actor.active) and float(actor.health) > 0.0 and (chosen.is_empty() or int(actor.source_id) < int(chosen.source_id)):
+			chosen = actor
+	if chosen.is_empty() or not bool(chosen.aim_shape.current) or not bool(gate.targeting_enabled):
+		return gate
+	gate["target_id"] = int(chosen.instance_id)
+	gate["aim_shape"] = (chosen.aim_shape as Dictionary).duplicate(true)
+	var camera := _ship.get_camera()
+	var muzzle: Marker3D = _ship.get("_muzzle_left") as Marker3D if bool(_ship.get("_fire_from_left")) else _ship.get("_muzzle_right") as Marker3D
+	if not _ember_node_current(camera) or not _ember_node_current(muzzle):
+		return gate
+	var resolver: CombatResolver = _game.combat_authority.get_resolver()
+	var centre := camera.get_viewport().get_visible_rect().size * 0.5
+	var origin := camera.global_position
+	var direction := camera.project_ray_normal(centre).normalized()
+	var distance: float = float(_ship.call("_get_weapon_targeting_distance"))
+	var endpoint := origin + direction * distance
+	var ray := PhysicsRayQueryParameters3D.create(origin, endpoint, HeroShip.WEAPON_AIM_MASK, [_ship.get_rid()])
+	ray.collide_with_areas = true
+	ray.collide_with_bodies = true
+	ray.hit_from_inside = false
+	var space := _ship.get_world_3d().direct_space_state
+	var hit := space.intersect_ray(ray)
+	var convergence: Vector3 = hit.get("position", endpoint)
+	var camera_contact := _defense_ray_contact(hit, resolver)
+	var aimed := (convergence - muzzle.global_position).normalized()
+	var exclusions: Array[RID] = resolver.call("_collect_source_exclusions", _ship)
+	var profile := _game.combat_authority.get_weapon_profile(_ship, &"arrow_precision_recon_emitter")
+	var muzzle_ray := PhysicsRayQueryParameters3D.create(muzzle.global_position,
+		muzzle.global_position + aimed * float(profile.get("range", 0.0)), PhysicsLayers.HITSCAN_QUERY_MASK, exclusions)
+	muzzle_ray.collide_with_areas = true
+	muzzle_ray.collide_with_bodies = true
+	muzzle_ray.hit_from_inside = true
+	var muzzle_contact := _defense_ray_contact(space.intersect_ray(muzzle_ray), resolver)
+	var exclusion_ids: Array[int] = []
+	for rid: RID in exclusions:
+		exclusion_ids.append(rid.get_id())
+	gate.merge({"camera_id": camera.get_instance_id(), "camera_origin": _v(origin), "camera_direction": _v(direction),
+		"camera_distance": distance, "camera_mask": ray.collision_mask, "camera_excluded_rids": [_ship.get_rid().get_id()],
+		"camera_hit_from_inside": false, "ray_collide_with_bodies": true, "ray_collide_with_areas": true, "camera": camera_contact, "convergence": _v(convergence),
+		"muzzle_id": muzzle.get_instance_id(), "muzzle_origin": _v(muzzle.global_position), "muzzle_direction": _v(aimed),
+		"muzzle_range": float(profile.get("range", 0.0)), "muzzle_mask": muzzle_ray.collision_mask,
+		"muzzle_excluded_rids": exclusion_ids, "ship_rid": _ship.get_rid().get_id(), "muzzle_hit_from_inside": true,
+		"clear": int(camera_contact.target_id) == int(chosen.instance_id) and int(muzzle_contact.target_id) == int(chosen.instance_id),
+		"muzzle": muzzle_contact}, true)
+	return gate
+
+
+func _defense_observation() -> Dictionary:
+	var result: Dictionary = {"mode": "station-defense", "sequence": _defense_sequence,
+		"pid": OS.get_process_id(), "frame": Engine.get_physics_frames(),
+		"main_id": _game.get_instance_id(), "paused": get_tree().paused,
+		"actors_current": is_instance_valid(_game) and _game.is_inside_tree() and not _game.is_queued_for_deletion()
+			and get_parent().call("get_main") == _game
+			and _ember_node_current(_player) and _game.player == _player
+			and _ember_node_current(_ship) and _game.get_node_or_null(^"ArrowReconShip") == _ship
+			and _ember_node_current(_defense_content) and _ember_node_current(_defense_board),
+		"shot_events": _defense_events.duplicate(true)}
+	# This branch avoids physics and owner queries while the real menu is paused.
+	var pause: Dictionary = _habitat_restart_pause_observation()
+	result["ui"] = pause.ui
+	result["native_keys"] = pause.native_keys
+	if get_tree().paused or not bool(result.actors_current):
+		return result
+	if not _defense_registrations_current():
+		result["actors_current"] = false
+		return result
+	var content: Dictionary = _defense_content.get_snapshot()
+	var host: Dictionary = content.get("host", {}) as Dictionary
+	var registration: Dictionary = _defense_content.get_live_source_registration_contract()
+	var actors: Array[Dictionary] = []
+	for row: Dictionary in registration.get("sources", []):
+		var entity: RangeOpponent = instance_from_id(int(row.entity_instance_id)) as RangeOpponent
+		actors.append({"instance_id": int(row.entity_instance_id),
+			"hostile_id": str(row.hostile_id), "generation": int(row.handle_generation),
+			"source_id": int(row.source_id), "exact_registration": bool(row.exact),
+			"live_source_id": _game.combat_authority.get_source_id(entity),
+			"current": _ember_node_current(entity) and _defense_content.is_ancestor_of(entity),
+			"position": _v(entity.global_position) if _ember_node_current(entity) else [],
+			"velocity": _v(entity.velocity) if _ember_node_current(entity) else [],
+			"health": entity.get_health() if _ember_node_current(entity) else -1.0,
+			"active": entity.is_active() if _ember_node_current(entity) else false,
+			"aim_shape": _defense_aim_shape(entity)})
+	var camera: Camera3D = _ship.get_camera()
+	var yaw: Node3D = _player.get_node(^"%CameraYaw") as Node3D
+	var capsule := _player.get_node(^"PlayerCollision") as CollisionShape3D
+	var shape := capsule.shape as CapsuleShape3D
+	if shape == null or not _ember_node_current(capsule):
+		result.actors_current = false
+		return result
+	var input_source: LocalShipInputSource = _ship.get("_default_local_command_source") as LocalShipInputSource
+	var berth: ShipBerth = _game.world.get_berth_node(_ship.get_home_berth_id()) as ShipBerth
+	var capture: Dictionary = _game.world.get_landing_assist_report(_ship, _ship.get_home_berth_id())
+	var contract: Dictionary = _ship.get("_landing_contract") as Dictionary
+	var token: StringName = StringName(berth.get("_reservation_token"))
+	var reserved_id: StringName = StringName(berth.get("_reserved_ship_id"))
+	var token_bound: bool = not token.is_empty() and token == StringName(_ship.get("_landing_reservation_token")) \
+		and reserved_id == StringName(_ship.get("_landing_reserved_ship_id")) and berth.get_reservation_owner() == _ship
+	var support: Dictionary = {}
+	if not _player.is_seated() and not bool(_game.get("_transition_busy")):
+		var ray: PhysicsRayQueryParameters3D = PhysicsRayQueryParameters3D.create(
+			_player.global_position + Vector3.UP * 0.2, _player.global_position - Vector3.UP * 0.3,
+			PhysicsLayers.WORLD, [_player.get_rid(), _ship.get_rid()])
+		support = _player.get_world_3d().direct_space_state.intersect_ray(ray)
+	var collider: Node = support.get("collider") as Node
+	var command: ShipCommand = _ship.get_last_ship_command()
+	var store: UserDataStore = _game.get("_runtime_settings_user_data_store") as UserDataStore
+	var reward_report: Dictionary = _game.get_activity_reward_report()
+	var reward_authority: Dictionary = reward_report.get("authority", {}) as Dictionary
+	var board_offset: Vector3 = _defense_board.global_position - _player.get_interaction_origin()
+	var core: StationDefensePerimeterAsset = _defense_content.get_protected_asset()
+	result.merge({"phase": GameFlow.Phase.keys()[_game.phase], "world_id": _game.world.get_instance_id(),
+		"menu_ready": StartupLoader.is_title_menu_ready(_game) and not is_instance_valid(get_parent().call("get_loading_screen")),
+		"player_id": _player.get_instance_id(), "ship_id": _ship.get_instance_id(),
+		"capsule_id": capsule.get_instance_id(), "shape_id": capsule.shape.get_instance_id(),
+		"capsule_enabled": not capsule.disabled, "capsule_geometry": [shape.radius, shape.height],
+		"completed_motion": _life_completed_motion(), "default_controls": _station_default_controls(),
+		"mouse_captured": Input.mouse_mode == Input.MOUSE_MODE_CAPTURED,
+		"sleeping": _player.is_sleeping(), "station_seated": _player.is_station_seated(),
+		"game_station_seated": bool(_game.get("_station_seated")),
+		"player": _v(_player.global_position), "spawn": _v(_spawn),
+		"interaction_origin": _v(_player.get_interaction_origin()),
+		"walk_forward": _v(-yaw.global_basis.z), "walk_right": _v(yaw.global_basis.x),
+		"walk_velocity": _v(_player.velocity), "walk_tuning": {"walk": _player.walk_speed,
+			"sprint": _player.sprint_speed, "deceleration": _player.ground_deceleration, "mouse": _player.mouse_sensitivity},
+		"native_interact": Input.is_action_pressed("interact"), "control_enabled": _player.is_control_enabled(),
+		"grounded": _player.is_on_floor(), "supported": _ember_node_current(collider) and _game.world.is_ancestor_of(collider),
+		"support_collider": str(collider.get_path()) if _ember_node_current(collider) else "",
+		"seated": _player.is_seated(), "transition_busy": bool(_game.get("_transition_busy")),
+		"piloted": _ship.is_piloted(), "active_ship": _game.get_active_ship() == _ship,
+		"candidate": _game.boarding_candidate == _ship, "boarding": _v(_ship.get_boarding_position()),
+		"walk_offset": _v(_ship.get_boarding_position() - _player.get_interaction_origin()),
+		"seated_at_pilot": _player.is_seated_at(_ship.get("_pilot_seat_anchor") as Node3D),
+		"position": _v(_ship.global_position), "parked": _v(_parked.origin), "velocity": _v(_ship.velocity),
+		"right": _v(_ship.global_basis.x), "up": _v(_ship.global_basis.y), "back": _v(_ship.global_basis.z),
+		"camera": _v(camera.global_position), "upright": _ship.global_basis.y.dot(Vector3.UP),
+		"destroyed": _ship.is_destroyed(), "landed": bool(_ship.get("_landed")),
+		"telemetry": {"engine": str(_ship.get("_engine_state")), "hull": float(_ship.get("_hull"))},
+		"landing_active": _ship.is_landing_active(), "exit_error": _player.global_position.distance_to(_ship.get_exit_transform().origin),
+		"default_sampler": is_instance_valid(input_source) and _ship.get("_command_source") == input_source and input_source.get_input_provider() == null,
+		"tuning_unchanged": _sortie_tuning() == _tuning, "tuning": _tuning,
+		"physics_ticks": Engine.physics_ticks_per_second, "time_scale": Engine.time_scale,
+		"command_fire": command.fire if command != null else false,
+		"command_thrust": command.throttle if command != null else 0.0,
+		"guided_complete": _game.is_guided_activity_complete(),
+		"player_source_id": _game.combat_authority.get_source_id(_ship),
+		"player_weapon": _game.combat_authority.get_weapon_profile(_ship, &"arrow_precision_recon_emitter"),
+		"home": {"berth_id": str(berth.get_berth_id()), "id": berth.get_instance_id(),
+			"dock": _v(berth.get_dock_transform().origin), "dock_forward": _v(-berth.get_dock_transform().basis.z),
+			"approach": _v(berth.get_assist_staging_transform().origin),
+			"capture": bool(capture.get("assist_capture_accepted", false)),
+			"selected_berth_id": str(capture.get("selected_berth_id", &"")),
+			"contract": bool(contract.get("contract_accepted", false)) and bool(contract.get("strict_dock_acceptance", false))
+				and token_bound and StringName(_ship.get("_landing_berth_id")) == berth.get_berth_id()
+				and int(_ship.get("_landing_berth_instance_id")) == berth.get_instance_id(),
+			"lease": berth.get_occupant() == _ship and berth.get_reservation_owner() == _ship and not token.is_empty() and reserved_id == _ship.get_ship_id(),
+			"lease_free": berth.get_occupant() == null and berth.get_reservation_owner() == null and token.is_empty(),
+			"parked_exact": _ship.global_transform.is_equal_approx(_parked),
+			"landing_abort_reason": str(_ship.get("_landing_last_abort_reason"))},
+		"defense": {"content_id": _defense_content.get_instance_id(), "host_id": _defense_content.get_host().get_instance_id(),
+			"activity": (host.get("activity", {}) as Dictionary).duplicate(true),
+			"roster": (host.get("spawn_roster", []) as Array).duplicate(true),
+			"last_observation_result": (host.get("last_observation_result", {}) as Dictionary).duplicate(true),
+			"actors": actors, "registration": registration, "core_id": core.get_instance_id(),
+			"staging_clearance": _defense_staging_clearance(), "fire_gate": _defense_fire_gate(actors),
+			"core_position": _v(core.global_position), "core": core.get_snapshot()},
+		"board": {"id": _defense_board.get_instance_id(), "position": _v(_defense_board.global_position),
+			"candidate": _game.station_interaction_candidate == _defense_board,
+			"distance": _player.global_position.distance_to(_defense_board.global_position),
+			"facing": _player.get_interaction_direction().dot(board_offset.normalized()),
+			"launch_arm": _defense_board.get_launch_arm_snapshot(),
+			"action": str(_defense_board.get_physical_interaction_action()),
+			"prompt": _defense_board.get_interaction_prompt(), "last_result": _defense_board.get_last_result(),
+			"reward": _defense_board.get_reward_handoff_snapshot(),
+			"session": _defense_board.get_session_persistence_snapshot()},
+		"settlement": {"configured": bool(reward_report.get("configured", false)),
+			"record": (reward_authority.get("record", {}) as Dictionary).duplicate(true),
+			"store": {"path": ProjectSettings.globalize_path(str(store.get("_path"))),
+				"source": str(store.get_loaded_source()), "generation": store.get_generation()}}}, true)
+	return result
 
 
 func _v(value: Vector3) -> Array:
@@ -352,6 +730,11 @@ func _craft_tuning(craft: HeroShip) -> Dictionary:
 
 
 func _physics_process(delta: float) -> void:
+	if _defense and _game != null:
+		_defense_sequence += 1
+		print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(_defense_observation(), "", true, true))
+		_defense_events.clear()
+		return
 	if _ember:
 		if not _ember_started:
 			return

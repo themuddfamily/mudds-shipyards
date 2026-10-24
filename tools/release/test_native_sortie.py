@@ -3490,5 +3490,754 @@ class ArrowReturnReuseTests(unittest.TestCase):
         self.assertEqual(p.stage, 'shutdown')
 
 
+class StationDefenseSafetyTests(unittest.TestCase):
+    """Synthetic receipt seams only; these do not establish an ordinary sortie."""
+    def baseline(self):
+        actors = [{'hostile_id': 'hostile'+str(i), 'instance_id': 200+i, 'generation': i,
+                   'source_id': 2120+i, 'live_source_id': 2120+i, 'current': True, 'exact_registration': True,
+                   'health': 48.0, 'active': False, 'position': [90, 8, -70]} for i in range(1, 5)]
+        return {'mode': 'station-defense', 'sequence': 1, 'frame': 100, 'pid': 1234,
+                'main_id': 1, 'world_id': 2, 'player_id': 3, 'capsule_id': 4, 'shape_id': 5, 'ship_id': 6,
+                'paused': False, 'actors_current': True, 'shot_events': [],
+                'phase': 'INTRO', 'player': [-8.5, .18, 11], 'position': [-43, 1.15, 15.5],
+                'boarding': [-47.5, .06, 18.9],
+                'native_interact': False, 'seated': False, 'seated_at_pilot': False,
+                'landed': True, 'command_thrust': 0.0, 'active_ship': False, 'transition_busy': False,
+                'station_seated': False, 'game_station_seated': False, 'sleeping': False,
+                'piloted': False, 'mouse_captured': True, 'capsule_enabled': True,
+                'capsule_geometry': [.38, 1.94], 'default_controls': True,
+                'completed_motion': {'frame': 99, 'start': [-8.5, .18, 11],
+                                     'end': [-8.5, .18, 11], 'step_up': {}},
+                'grounded': True, 'supported': True, 'control_enabled': True,
+                'support_collider': '/Main/World/Deck',
+                'default_sampler': True, 'tuning_unchanged': True, 'tuning': {'mouse': .0022, 'brake': 42.0},
+                'walk_tuning': {'walk': 5.8, 'sprint': 9.2, 'deceleration': 42.0, 'mouse': .0025},
+                'physics_ticks': 60, 'time_scale': 1, 'guided_complete': False,
+                'destroyed': False, 'telemetry': {'hull': 82, 'engine': 'OFFLINE'},
+                'player_source_id': 1102, 'player_weapon': {'range': 480, 'damage': 24},
+                'home': {'id': 8, 'lease': True, 'lease_free': False, 'parked_exact': True},
+                'board': {'launch_arm': {'armed': False, 'generation': -1, 'actor_instance_id': 0,
+                                         'content_instance_id': 0, 'arm_id': 0}, 'id': 9, 'distance': 2, 'candidate': True, 'facing': 1,
+                          'last_result': {'accepted': True}, 'reward': {}, 'session': {}},
+                'defense': {'content_id': 10, 'host_id': 11, 'core_id': 12,
+                            'core_position': [90, 8, -70], 'core': {'health': 500, 'destroyed': False},
+                            'activity': {'state_id': 'idle', 'generation': 0, 'timeout_seconds': 34,
+                                         'wave_count': 3, 'elapsed_seconds': 0, 'remaining_hostile_count': 4},
+                            'actors': actors, 'roster': [{'state_id': 'dormant'} for _ in range(4)],
+                            'registration': {'valid': True, 'registered_source_key_count': 3}},
+                'settlement': {'configured': True, 'record': {'receipt_serial': 0, 'total_receipts': 0,
+                                                             'reward_counts': {}, 'last_receipt': {}}}}
+
+    def pilot_armed(self, lag=1):
+        pilot = native.StationDefensePilot()
+        s = self.baseline()
+        NativeSortieSafetyTests.arm_motion(s, lag=lag)
+        pilot.validate_observation(s)
+        pilot.receipts['deploy_press'] = pilot.receipt(s)
+        s = copy.deepcopy(s)
+        s.update(sequence=2, frame=101, phase='APPROACH_SHIP', native_interact=True)
+        self.arm(s)
+        NativeSortieSafetyTests.arm_motion(s, pilot.observed_previous, lag=lag)
+        pilot.validate_observation(s)
+        return pilot, s
+
+    @staticmethod
+    def arm(s):
+        s['board']['launch_arm'] = dict(armed=True, generation=0, actor_instance_id=3,
+                                        content_instance_id=10, arm_id=1)
+
+    def boarded(self, pilot, s):
+        sample = copy.deepcopy(s)
+        sample.update(sequence=s['sequence']+1, frame=s['frame']+1, phase='START_ENGINES',
+                      seated=True, seated_at_pilot=True, piloted=True, active_ship=True,
+                      native_interact=False, control_enabled=False, capsule_enabled=False,
+                      grounded=False, supported=False, support_collider='')
+        NativeSortieSafetyTests.arm_motion(sample, pilot.observed_previous)
+        pilot.validate_observation(sample)
+        pilot.receipts['boarded'] = pilot.receipt(sample)
+        return sample
+
+    def launched(self, pilot, s):
+        sample = copy.deepcopy(s)
+        sample.update(sequence=s['sequence']+1, frame=s['frame']+1, phase='CLEAR_BERTH',
+                      landed=False, command_thrust=1.0)
+        sample['home'].update(lease=False, lease_free=True, parked_exact=False)
+        sample['board']['launch_arm'] = dict(armed=False, generation=-1, actor_instance_id=0,
+                                             content_instance_id=0, arm_id=0)
+        sample['defense']['activity'].update(state_id='active', generation=1, elapsed_seconds=.016)
+        sample['defense']['actors'][0]['active'] = True
+        NativeSortieSafetyTests.arm_motion(sample, pilot.observed_previous)
+        return sample
+
+    def pilot_active(self):
+        pilot, armed = self.pilot_armed()
+        boarded = self.boarded(pilot, armed)
+        launched = self.launched(pilot, boarded)
+        pilot.validate_observation(launched)
+        return pilot, launched
+
+    def step_fixture(self, lag=1):
+        pilot, previous = self.pilot_armed(lag)
+        pilot.stage = 'walk_arrow'
+        # Reuse the exact live-bounds event fixture already exercising LIFE.
+        _, walking = NativeSortieSafetyTests().arm_step_fixture(lag)
+        sample = copy.deepcopy(previous)
+        sample.update(sequence=previous['sequence']+1, frame=walking['frame'],
+                      player=walking['player'][:],
+                      completed_motion=copy.deepcopy(walking['completed_motion']))
+        return pilot, sample
+
+    def test_defense_accepts_same_exact_solver_step_in_both_observer_orders(self):
+        for lag in (0, 1):
+            with self.subTest(lag=lag):
+                pilot, sample = self.step_fixture(lag)
+                pilot.validate_observation(sample)
+                self.assertEqual(pilot.consumed_step_frames, {sample['frame']-lag})
+                self.assertGreater(pilot.walked, .4)
+
+    def test_defense_rejects_unproven_stale_foreign_or_mismatched_steps(self):
+        mutations = {
+            'missing event': lambda s, p, e: s['completed_motion'].update(step_up={}),
+            'missing epoch': lambda s, p, e: s.pop('completed_motion'),
+            'stale event': lambda s, p, e: e.update(frame=e['frame']-1),
+            'replayed event': lambda s, p, e: p.consumed_step_frames.add(e['frame']),
+            'foreign Player': lambda s, p, e: e.update(player_id=99),
+            'foreign capsule': lambda s, p, e: e.update(capsule_id=99),
+            'foreign shape': lambda s, p, e: e.update(shape_id=99),
+            'wrong landing': lambda s, p, e: e['landing'].__setitem__(0, 4),
+            'wrong tick start': lambda s, p, e: e['tick_start'].__setitem__(0, 4),
+            'wrong epoch end': lambda s, p, e: s['completed_motion']['end'].__setitem__(0, 4),
+            'changed lag': lambda s, p, e: s['completed_motion'].update(frame=s['frame']),
+            'epoch gap': lambda s, p, e: s['completed_motion'].update(frame=s['frame']-2),
+            'nonfinite vector': lambda s, p, e: e['intended'].__setitem__(0, math.nan),
+            'broadened bounds': lambda s, p, e: e['bounds'].update(max_step_height=1),
+            'reverse intended': lambda s, p, e: e.update(intended=[0, 0, -.1]),
+            'unsupported endpoint': lambda s, p, e: s.update(supported=False),
+            'outside walking': lambda s, p, e: setattr(p, 'stage', 'deploy_wait'),
+        }
+        for name, mutate in mutations.items():
+            with self.subTest(name=name):
+                pilot, sample = self.step_fixture()
+                mutate(sample, pilot, sample['completed_motion']['step_up'])
+                with self.assertRaises(AssertionError): pilot.validate_observation(sample)
+        for rise, advance in ((.302, .4), (.146, .411)):
+            with self.subTest(rise=rise, advance=advance):
+                pilot, sample = self.step_fixture()
+                event = sample['completed_motion']['step_up']
+                start = event['start']
+                end = [start[0], start[1]+rise, start[2]+advance]
+                sample['player'] = sample['completed_motion']['end'] = end[:]
+                event['landing'] = event['tick_end'] = end[:]
+                with self.assertRaisesRegex(AssertionError, 'original probe tolerances'):
+                    pilot.validate_observation(sample)
+
+    def test_defense_retains_original_ordinary_motion_cap_and_ignores_ship_carry_epoch(self):
+        for displacement, accepted in ((.20, True), (.26, False)):
+            with self.subTest(displacement=displacement):
+                pilot, previous = self.pilot_armed()
+                pilot.stage = 'walk_arrow'
+                sample = copy.deepcopy(previous)
+                sample.update(sequence=3, frame=102)
+                sample['player'][2] += displacement
+                NativeSortieSafetyTests.arm_motion(sample, previous)
+                if accepted:
+                    pilot.validate_observation(sample)
+                    self.assertEqual(pilot.consumed_step_frames, set())
+                else:
+                    with self.assertRaisesRegex(AssertionError, 'without relocation'):
+                        pilot.validate_observation(sample)
+        pilot, previous = self.pilot_armed()
+        # GameFlow/ship carry may follow Player physics while seated. Existing
+        # flight checks remain authoritative; walking proof cannot govern carry.
+        pilot.stage = 'board_wait'
+        sample = copy.deepcopy(previous)
+        sample.update(sequence=3, frame=102, phase='START_ENGINES', seated=True,
+                      seated_at_pilot=True, piloted=True, active_ship=True,
+                      control_enabled=False, capsule_enabled=False, grounded=False,
+                      supported=False, support_collider='')
+        sample['player'][0] += 1
+        NativeSortieSafetyTests.arm_motion(sample, previous)
+        sample['completed_motion']['end'] = previous['player'][:]
+        pilot.validate_observation(sample)
+
+    def test_armed_walking_boarding_and_engine_wake_stay_idle_until_one_real_launch(self):
+        pilot, walking = self.pilot_armed()
+        walking = copy.deepcopy(walking)
+        walking.update(sequence=walking['sequence']+1, frame=walking['frame']+1,
+                       native_interact=False)
+        NativeSortieSafetyTests.arm_motion(walking, pilot.observed_previous)
+        pilot.validate_observation(walking)
+        boarded = self.boarded(pilot, walking)
+        wake = copy.deepcopy(boarded)
+        wake.update(sequence=boarded['sequence']+1, frame=boarded['frame']+1, command_thrust=1.0)
+        wake['telemetry']['engine'] = 'STARTING'
+        NativeSortieSafetyTests.arm_motion(wake, pilot.observed_previous)
+        pilot.validate_observation(wake)
+        self.assertIsNone(pilot.deployed)
+        self.assertIsNone(pilot.departure)
+        self.assertEqual(pilot.prelaunch_samples, 4)
+        self.assertEqual(pilot.receipts['armed_boarded']['defense']['activity']['elapsed_seconds'], 0)
+        self.assertEqual(pilot.receipts['armed_engine_wake']['defense']['activity']['state_id'], 'idle')
+        launched = self.launched(pilot, wake)
+        pilot.validate_observation(launched)
+        departure = copy.deepcopy(pilot.departure)
+        active = copy.deepcopy(launched)
+        active.update(sequence=launched['sequence']+1, frame=launched['frame']+1)
+        active['defense']['activity']['elapsed_seconds'] += 1/60
+        NativeSortieSafetyTests.arm_motion(active, pilot.observed_previous)
+        pilot.validate_observation(active)
+        self.assertEqual(pilot.departure, departure)
+        self.assertEqual(pilot.deployed['defense']['activity']['generation'], 1)
+        self.assertEqual(pilot.prelaunch_samples, 4)
+        self.assertIsNone(pilot.result)
+
+    def test_prelaunch_rejects_early_timer_enemy_or_stale_replaced_arm_in_every_raw_sample(self):
+        changes = [lambda s: s['defense']['activity'].update(state_id='active', generation=1),
+                   lambda s: s['defense']['activity'].update(elapsed_seconds=.001),
+                   lambda s: s['defense']['actors'][0].update(active=True),
+                   lambda s: s['board']['launch_arm'].update(armed=False),
+                   lambda s: s['board']['launch_arm'].update(generation=99),
+                   lambda s: s['board']['launch_arm'].update(actor_instance_id=99),
+                   lambda s: s['board']['launch_arm'].update(content_instance_id=99),
+                   lambda s: s['board']['launch_arm'].update(arm_id=2)]
+        for index, change in enumerate(changes):
+            with self.subTest(change=index):
+                pilot, previous = self.pilot_armed()
+                bad = copy.deepcopy(previous)
+                bad.update(sequence=previous['sequence']+1, frame=previous['frame']+1)
+                NativeSortieSafetyTests.arm_motion(bad, pilot.observed_previous)
+                final = copy.deepcopy(bad)
+                final.update(sequence=bad['sequence']+1, frame=bad['frame']+1)
+                change(bad)
+                with self.assertRaises(AssertionError):
+                    for raw in (bad, final): pilot.validate_observation(raw)
+
+    def test_start_requires_actual_occupied_release_current_seated_actor_and_consumed_arm(self):
+        changes = [lambda s: s.update(command_thrust=0), lambda s: s.update(active_ship=False),
+                   lambda s: s.update(piloted=False), lambda s: s.update(seated=False),
+                   lambda s: s.update(seated_at_pilot=False), lambda s: s.update(transition_busy=True),
+                   lambda s: s.update(landed=True), lambda s: s['home'].update(lease_free=False),
+                   lambda s: self.arm(s),
+                   lambda s: s['defense']['activity'].update(generation=2),
+                   lambda s: s['defense']['activity'].update(state_id='idle')]
+        for index, change in enumerate(changes):
+            with self.subTest(change=index):
+                pilot, armed = self.pilot_armed()
+                boarded = self.boarded(pilot, armed)
+                sample = self.launched(pilot, boarded)
+                change(sample)
+                with self.assertRaises(AssertionError): pilot.validate_observation(sample)
+        pilot, armed = self.pilot_armed()
+        boarded = self.boarded(pilot, armed)
+        pilot.observed_previous['home']['lease'] = False
+        with self.assertRaisesRegex(AssertionError, 'occupied-lease'):
+            pilot.validate_observation(self.launched(pilot, boarded))
+
+    def test_defense_receipts_and_reports_are_detached_and_exact_process_is_required(self):
+        pilot, armed = self.pilot_armed()
+        report = pilot.report()
+        armed['board']['launch_arm']['arm_id'] = 99
+        report['armed']['board']['launch_arm']['arm_id'] = 88
+        self.assertEqual(pilot.armed['board']['launch_arm']['arm_id'], 1)
+        self.assertEqual(pilot.observed_previous['board']['launch_arm']['arm_id'], 1)
+        pilot, _ = self.pilot_active()
+        event = self.event()
+        pilot.observe_event(event)
+        event['target_handle']['hostile_id'] = 'foreign'
+        pilot.report()['kills'][0]['target_handle']['hostile_id'] = 'foreign-report'
+        self.assertEqual(pilot.kills[201]['target_handle']['hostile_id'], 'hostile1')
+        pilot = native.StationDefensePilot()
+        pilot.expected_pid = 999
+        with self.assertRaisesRegex(AssertionError, 'exact running game PID'):
+            pilot.validate_observation(self.baseline())
+
+    def clearance(self, s):
+        # One offset, scaled root box whose farthest corner is (6,1,1).
+        radius = math.sqrt(38) + .10
+        point0, point1 = copy.deepcopy(native.StationDefensePilot.STAGING_POINTS)
+        def segment(start, end):
+            return dict(from_=start, to=end, start_clear=True, end_clear=True,
+                        safe_fraction=1.0, unsafe_fraction=1.0, clear=True, start_blocker={}, end_blocker={})
+        paths = dict(to_first=segment(s['position'][:], point0), first_to_second=segment(point0, point1),
+                     to_second=segment(s['position'][:], point1))
+        for row in paths.values(): row['from'] = row.pop('from_')
+        result = dict(available=True, valid=True, root_rigid=True, frame=s['frame'], ship_id=s['ship_id'],
+                      points=[point0, point1], margin=.10, radius=radius, collision_mask=7,
+                      excluded_rids=[600], ship_rid=600, collide_with_bodies=True, collide_with_areas=False,
+                      local_bounds=[[2, -1, -1], [4, 2, 2]], geometry=[dict(id=601, shape_id=602,
+                      path='/Main/Arrow/Collision', kind='BoxShape3D', local_bounds=[[-1,-1,-1],[2,2,2]],
+                      transform=[[4,0,0],[2,0,0],[0,1,0],[0,0,1]])], **paths)
+        s['defense']['staging_clearance'] = result
+        return result
+
+    def flight_sample(self):
+        pilot, s = self.pilot_active()
+        s.update(position=[-71, 1.16, 14.72], parked=[-43,1.15,15.5], velocity=[0,0,0],
+                 camera=[-71,8.36,31.72], right=[1,0,0], up=[0,1,0], back=[0,0,1])
+        s['tuning']['brake'] = 42
+        self.clearance(s)
+        return pilot, s
+
+    def fire_gate(self, s):
+        target = s['defense']['actors'][0]
+        target['aim_shape'] = dict(current=True, id=610, shape_id=611, path='/Main/Alpha/KeelCollision', point=[0,0,-200])
+        target['position'] = [0,0,-200]
+        s['camera'] = [0,0,0]
+        handle = dict(hostile_id=target['hostile_id'], generation=target['generation'], source_id=target['source_id'])
+        def contact():
+            return dict(hit=True, target_id=target['instance_id'], target_handle=handle.copy(),
+                        collider=dict(id=target['instance_id'], path='/Main/Alpha'), position=[0,0,-200])
+        gate = dict(frame=s['frame'], ship_id=s['ship_id'], generation=1, target_id=target['instance_id'],
+                    clear=True, targeting_enabled=True, aim_shape=copy.deepcopy(target['aim_shape']), camera_id=620, muzzle_id=621,
+                    camera_mask=39, muzzle_mask=39, camera_hit_from_inside=False, muzzle_hit_from_inside=True,
+                    ray_collide_with_bodies=True, ray_collide_with_areas=True,
+                    camera_excluded_rids=[600], muzzle_excluded_rids=[600,601], ship_rid=600,
+                    camera_origin=[0,0,0], camera_direction=[0,0,-1], camera_distance=1000,
+                    convergence=[0,0,-200], muzzle_origin=[1,0,0], muzzle_direction=native.unit([-1,0,-200]), muzzle_range=480,
+                    camera=contact(), muzzle=contact(), weapon_status=dict(ready=True, status='ready', heat=.2,
+                    cooldown_remaining=0, recovery_remaining=0))
+        s['defense']['fire_gate'] = gate
+        return target, gate
+
+    def test_staging_sphere_encloses_offset_scaled_shapes_and_rejects_any_failed_sweep(self):
+        pilot, s = self.flight_sample()
+        pilot.require_staging_clearance(s, initial=True)
+        self.assertAlmostEqual(pilot.staging_geometry['radius'], math.sqrt(38)+.1)
+        mutations = [lambda c: c.update(valid=False), lambda c: c.update(root_rigid=False),
+                     lambda c: c.update(frame=c['frame']-1), lambda c: c.update(ship_id=99),
+                     lambda c: c.update(excluded_rids=[600,999]), lambda c: c.update(collision_mask=1),
+                     lambda c: c.update(radius=c['radius']-.01),
+                     lambda c: c['geometry'][0].update(kind='UnknownShape3D'),
+                     lambda c: c['geometry'][0]['transform'][0].__setitem__(0,5),
+                     lambda c: c['to_first'].update(start_clear=False),
+                     lambda c: c['first_to_second'].update(end_clear=False),
+                     lambda c: c['first_to_second'].update(safe_fraction=.99),
+                     lambda c: c['first_to_second'].update(unsafe_fraction=.99),
+                     lambda c: c['first_to_second'].update(clear=False)]
+        for index, mutate in enumerate(mutations):
+            with self.subTest(mutation=index):
+                pilot, s = self.flight_sample()
+                mutate(s['defense']['staging_clearance'])
+                with self.assertRaises(AssertionError): pilot.require_staging_clearance(s, initial=True)
+                self.assertIsNone(pilot.staging_geometry)
+                self.assertNotIn('staging_forecast', pilot.receipts)
+
+    def test_staging_keeps_departure_then_flies_only_two_forecast_native_waypoints(self):
+        pilot, s = self.flight_sample()
+        pilot.stage = 'depart'
+        s['position'] = [-50,1.15,15.5]
+        controls = pilot.update(s, 1)
+        self.assertEqual(controls[0], {'w'})
+        self.assertEqual(pilot.stage, 'depart')
+        s['position'] = [-71,1.16,14.72]
+        self.clearance(s)
+        controls = pilot.update(s, 2)
+        self.assertEqual(controls[0], {'Prior'})
+        self.assertEqual(pilot.stage, 'staging_brake')
+        pilot.update(s, 3)
+        self.assertEqual(pilot.stage, 'staging_flight')
+        controls = pilot.update(s, 4)
+        self.assertEqual(controls[0], {'w'})
+        self.assertFalse(controls[3])
+        for index, point in enumerate(native.StationDefensePilot.STAGING_POINTS):
+            s['position'] = point[:]
+            s['camera'] = [point[0],point[1]+7.2,point[2]+17]
+            self.clearance(s)
+            controls = pilot.update(s, 5+index)
+            self.assertEqual(controls[0], {'Prior'})
+            self.assertFalse(controls[3])
+        self.assertEqual(pilot.stage, 'combat')
+        self.assertIsNotNone(pilot.staging_done)
+        self.assertEqual(pilot.kills, {})
+        self.assertIsNone(pilot.result)
+        changed = copy.deepcopy(s)
+        self.clearance(changed)['geometry'][0]['shape_id'] = 999
+        with self.assertRaisesRegex(AssertionError, 'same exact physical'):
+            pilot.require_staging_clearance(changed)
+        blocked = copy.deepcopy(s)
+        self.clearance(blocked)['to_second']['safe_fraction'] = .9
+        with self.assertRaisesRegex(AssertionError, 'no alternate route'):
+            pilot.require_staging_clearance(blocked)
+
+    def test_fire_requires_exact_current_reticle_next_muzzle_component_and_production_readiness(self):
+        pilot, s = self.pilot_active()
+        target, gate = self.fire_gate(s)
+        self.assertTrue(pilot.defense_fire_ready(s, target))
+        self.assertEqual(pilot.kills, {})  # A prospective ray is never damage.
+        for change in (dict(clear=False), dict(targeting_enabled=False)):
+            gate.update(change)
+            self.assertFalse(pilot.defense_fire_ready(s, target))
+            gate.update(clear=True, targeting_enabled=True)
+        for status in ('cooldown', 'overheated', 'offline', 'unavailable'):
+            gate['weapon_status'].update(ready=False, status=status)
+            self.assertFalse(pilot.defense_fire_ready(s, target))
+        mutations = [lambda g: g.update(frame=g['frame']-1), lambda g: g.update(generation=2),
+                     lambda g: g.update(target_id=999), lambda g: g.update(camera_mask=1),
+                     lambda g: g.update(muzzle_mask=1), lambda g: g.update(camera_hit_from_inside=True),
+                     lambda g: g.update(muzzle_hit_from_inside=False),
+                     lambda g: g.update(camera_excluded_rids=[600,999]),
+                     lambda g: g.update(muzzle_excluded_rids=[]),
+                     lambda g: g.update(muzzle_direction=[0,0,-1]),
+                     lambda g: g['camera'].update(target_id=999), lambda g: g['muzzle'].update(target_id=999),
+                     lambda g: g['muzzle']['target_handle'].update(generation=99),
+                     lambda g: g['weapon_status'].update(cooldown_remaining=.1)]
+        for index, mutate in enumerate(mutations):
+            with self.subTest(mutation=index):
+                pilot, s = self.pilot_active()
+                target, gate = self.fire_gate(s)
+                mutate(gate)
+                with self.assertRaises(AssertionError): pilot.defense_fire_ready(s, target)
+                self.assertEqual(pilot.kills, {})
+
+    def test_combat_only_sends_os_fire_for_clear_ready_gate_and_freezes_sampled_reticle(self):
+        pilot, s = self.flight_sample()
+        pilot.stage, pilot.staging_index = 'combat', 1
+        pilot.staging_done = pilot.receipt(s)
+        target, gate = self.fire_gate(s)
+        controls = pilot.update(s, 1)
+        self.assertTrue(controls[3])
+        self.assertEqual(controls[1:3], (0,0))
+        self.assertEqual(controls[0], {'Prior'})
+        self.assertEqual(pilot.kills, {})
+        gate['clear'] = False
+        self.assertTrue(pilot.fire_inputs[0]['gate']['clear'])
+        self.assertFalse(pilot.update(s, 2)[3])
+        self.assertEqual(len(pilot.fire_inputs), 1)
+        # The original encounter deadline still stops on a failed raw sample.
+        failed = copy.deepcopy(s)
+        failed.update(sequence=s['sequence']+1, frame=s['frame']+1)
+        failed['defense']['activity'].update(state_id='timed_out', elapsed_seconds=34.0166666667)
+        with self.assertRaisesRegex(AssertionError, 'unchanged whole 34-second'):
+            pilot.validate_observation(failed)
+        self.assertEqual(native.CAP, 300)
+
+    def event(self, index=1):
+        return {'event': index, 'frame': 102, 'generation': 1,
+                'request_source_id': 1102, 'request_source_entity_id': 6,
+                'origin': [0, 0, 0], 'direction': [0, 0, -1], 'impact': [0, 0, -200],
+                'collider': {'id': 200+index, 'path': '/Main/Hostile'},
+                'source_id': 1102, 'source_entity_id': 6, 'target_entity_id': 200+index,
+                'target_handle': {'hostile_id': 'hostile'+str(index), 'generation': index, 'source_id': 2120+index},
+                'weapon_id': native.StationDefensePilot.WEAPON, 'sequence': index,
+                'presentation_receipt_id': 1000+index, 'accepted': True, 'resolved': True,
+                'command_fire': True, 'applied_damage': 24, 'damaged': True,
+                'damage_accepted': True, 'destroyed': True, 'remaining_health': 0,
+                'damage_health': 0, 'damage_destroyed': True}
+
+    def paid(self, s):
+        s['defense']['activity'].update(state_id='completed', elapsed_seconds=33.9, remaining_hostile_count=0)
+        for actor in s['defense']['actors']: actor.update(health=0, active=False, live_source_id=0)
+        s['defense']['registration'].update(valid=False, registered_source_key_count=0)
+        for actor in s['defense']['roster']: actor['state_id'] = 'destroyed'
+        s['settlement']['record'] = {'receipt_serial': 1, 'total_receipts': 1,
+            'reward_counts': {native.StationDefensePilot.REWARD: 1},
+            'last_receipt': {'receipt_id': 1, 'activity_id': native.StationDefensePilot.ACTIVITY,
+                             'activity_generation': 1, 'reward_id': native.StationDefensePilot.REWARD,
+                             'granted': True, 'replay_allowed': False}}
+        s['board']['reward'] = {'reward_pending': False, 'highest_reward_generation': 1}
+        s['board']['session'] = {'completion': {'generation': 1, 'reward_granted': True}}
+
+    def test_four_actual_terminal_receipts_freeze_before_legitimate_reset(self):
+        pilot, s = self.pilot_active()
+        s = copy.deepcopy(s)
+        s.update(sequence=s['sequence']+1, frame=s['frame']+1, shot_events=[self.event(i) for i in range(1, 5)])
+        self.paid(s)
+        NativeSortieSafetyTests.arm_motion(s, pilot.observed_previous)
+        pilot.validate_observation(s)
+        completed = copy.deepcopy(pilot.completed)
+        s = copy.deepcopy(s)
+        s.update(sequence=s['sequence']+1, frame=s['frame']+1, shot_events=[])
+        s['defense']['activity'].update(state_id='idle', generation=2, elapsed_seconds=0)
+        for actor in s['defense']['actors']: actor.update(health=48, live_source_id=actor['source_id'])
+        s['defense']['registration'].update(valid=True, registered_source_key_count=3)
+        for actor in s['defense']['roster']: actor['state_id'] = 'dormant'
+        NativeSortieSafetyTests.arm_motion(s, pilot.observed_previous)
+        pilot.validate_observation(s)
+        self.assertEqual(len(pilot.kills), 4)
+        self.assertEqual(pilot.completed, completed)
+        self.assertEqual(pilot.completed['defense']['activity']['generation'], 1)
+        self.assertIsNone(pilot.result)
+        with self.assertRaisesRegex(AssertionError, 'full original route'):
+            pilot.finish_normal_exit()
+
+    def test_cached_accepted_or_miss_is_not_a_kill(self):
+        pilot, s = self.pilot_active()
+        event = self.event()
+        event.update(applied_damage=0, damaged=False, damage_accepted=False, destroyed=False,
+                     remaining_health=-1, damage_health=-1, damage_destroyed=False,
+                     target_entity_id=0, target_handle={})
+        pilot.observe_event(event)
+        self.assertEqual(pilot.kills, {})
+        s = copy.deepcopy(s)
+        s.update(sequence=s['sequence']+1, frame=s['frame']+1, shot_events=[])
+        self.paid(s)
+        with self.assertRaisesRegex(AssertionError, 'four real resolver'):
+            NativeSortieSafetyTests.arm_motion(s, pilot.observed_previous)
+            pilot.validate_observation(s)
+
+    def test_exact_source_target_weapon_generation_receipt_and_terminal_fences(self):
+        changes = [{'source_id': 1101}, {'source_entity_id': 7}, {'weapon_id': 'range'},
+                   {'generation': 2}, {'presentation_receipt_id': -1}, {'target_entity_id': 999},
+                   {'accepted': False}, {'command_fire': False}, {'damage_accepted': False},
+                   {'remaining_health': 1}, {'damage_health': 1}, {'damage_destroyed': False}]
+        for change in changes:
+            with self.subTest(change=change):
+                pilot, _ = self.pilot_active()
+                event = self.event()
+                event.update(change)
+                with self.assertRaises(AssertionError): pilot.observe_event(event)
+
+    def test_replayed_and_skipped_signal_receipts_are_rejected(self):
+        pilot, _ = self.pilot_active()
+        pilot.observe_event(self.event())
+        with self.assertRaisesRegex(AssertionError, 'skipped or replayed'): pilot.observe_event(self.event())
+        pilot, _ = self.pilot_active()
+        with self.assertRaisesRegex(AssertionError, 'skipped or replayed'): pilot.observe_event(self.event(2))
+
+    def test_interior_sample_failure_cannot_hide_behind_final_valid_sample(self):
+        pilot, s = self.pilot_active()
+        invalid = copy.deepcopy(s)
+        invalid.update(sequence=s['sequence']+1, frame=s['frame']+1)
+        NativeSortieSafetyTests.arm_motion(invalid, pilot.observed_previous)
+        invalid['defense']['core'].update(health=0, destroyed=True)
+        final = copy.deepcopy(s)
+        final.update(sequence=invalid['sequence']+1, frame=invalid['frame']+1)
+        NativeSortieSafetyTests.arm_motion(final, invalid)
+        with self.assertRaisesRegex(AssertionError, 'protected core'):
+            for sample in [invalid, final]: pilot.validate_observation(sample)
+
+    def test_whole_clock_and_consecutive_physics_are_unchanged(self):
+        for change in ('timeout', 'failure', 'skip'):
+            pilot, s = self.pilot_active()
+            s = copy.deepcopy(s)
+            s.update(sequence=s['sequence']+1, frame=s['frame']+1)
+            if change == 'timeout': s['defense']['activity']['timeout_seconds'] = 35
+            if change == 'failure': s['defense']['activity']['state_id'] = 'timed_out'
+            if change == 'skip': s['frame'] += 1
+            NativeSortieSafetyTests.arm_motion(s, pilot.observed_previous)
+            with self.assertRaises(AssertionError): pilot.validate_observation(s)
+        self.assertEqual(native.CAP, 300)
+
+    def test_native_deploy_requires_actual_candidate_facing_and_3d_radius(self):
+        for change in [{'distance': 2.61}, {'candidate': False}, {'facing': .049}]:
+            pilot = native.StationDefensePilot()
+            s = self.baseline()
+            NativeSortieSafetyTests.arm_motion(s, pilot.observed_previous)
+            pilot.validate_observation(s)
+            pilot.receipts['deploy_press'] = pilot.receipt(s)
+            s = copy.deepcopy(s)
+            s.update(sequence=2, frame=101, native_interact=True)
+            self.arm(s)
+            s['board'].update(change)
+            NativeSortieSafetyTests.arm_motion(s, pilot.observed_previous)
+            with self.assertRaisesRegex(AssertionError, 'actual E Deploy'): pilot.validate_observation(s)
+
+    def pending_deploy(self, frame=100):
+        pilot = native.StationDefensePilot()
+        s = self.baseline()
+        s.update(frame=frame, velocity=[0, 0, 0], walk_forward=[0, 0, -1])
+        s['board']['last_result'] = {}
+        NativeSortieSafetyTests.arm_motion(s, pilot.observed_previous)
+        pilot.validate_observation(s)
+        pilot.frame = s['frame']
+        pilot.tap('e', 0)
+        pilot.stage = 'deploy_wait'
+        pilot.request_frame = s['frame']
+        pilot.receipts['deploy_press'] = pilot.receipt(s)
+        return pilot, s
+
+    def deploy_tick(self, pilot, s, **changes):
+        s = copy.deepcopy(s)
+        s.update(sequence=s['sequence']+1, frame=s['frame']+1, **changes)
+        NativeSortieSafetyTests.arm_motion(s, pilot.observed_previous)
+        pilot.validate_observation(s)
+        controls = pilot.update(s, (s['frame']-100)/60)
+        return s, controls
+
+    def test_deploy_empty_pending_waits_for_actual_e_and_accepted_generation(self):
+        pilot, s = self.pending_deploy()
+        s, controls = self.deploy_tick(pilot, s)
+        self.assertEqual(pilot.stage, 'deploy_wait')
+        self.assertEqual(controls[0], {'e'})
+        self.assertEqual(pilot.tap_frame, 100)
+        self.assertIsNone(pilot.armed)
+        s = copy.deepcopy(s)
+        s['board']['last_result'] = {'accepted': True}
+        self.arm(s)
+        s, _ = self.deploy_tick(pilot, s, native_interact=True)
+        self.assertEqual(pilot.stage, 'walk_arrow')
+        self.assertEqual(pilot.armed['defense']['activity']['generation'], 0)
+        self.assertIsNone(pilot.deployed)
+        self.assertEqual(pilot.tap_frame, 100)
+        self.assertIsNone(pilot.result)
+
+    def test_deploy_actual_press_1035_and_held_e_arm_ack_1036_correlate_once(self):
+        pilot, s = self.pending_deploy(frame=1034)
+        s, _ = self.deploy_tick(pilot, s, native_interact=True)
+        self.assertEqual(s['frame'], 1035)
+        self.assertFalse(s['board']['launch_arm']['armed'])
+        self.assertIsNone(pilot.armed)
+        press = copy.deepcopy(pilot.receipts['deploy_native_press'])
+        raw_press = s
+        s = copy.deepcopy(s)
+        s['board']['last_result'] = {'accepted': True, 'reason': 'launch_armed'}
+        self.arm(s)
+        s, _ = self.deploy_tick(pilot, s)
+        self.assertEqual(s['frame'], 1036)
+        self.assertTrue(s['native_interact'])
+        self.assertEqual(pilot.armed['board']['launch_arm']['arm_id'], 1)
+        self.assertEqual(pilot.stage, 'walk_arrow')
+        self.assertEqual(pilot.receipts['deploy_native_press'], press)
+        self.assertEqual(pilot.tap_frame, 1034)
+        self.assertIsNone(pilot.deployed)
+        s['board']['launch_arm']['arm_id'] = 99
+        raw_press['board']['candidate'] = False
+        self.assertEqual(pilot.receipts['deploy_native_press'], press)
+        self.assertEqual(pilot.armed['board']['launch_arm']['arm_id'], 1)
+
+    def test_pending_deploy_ack_rejects_missing_stale_foreign_or_intervening_edge(self):
+        # A plausible cached acceptance without the actual post-request press
+        # cannot acknowledge Deploy, even with a current-looking arm.
+        pilot, s = self.pending_deploy()
+        self.arm(s)
+        s['board']['last_result'] = {'accepted': True, 'reason': 'launch_armed'}
+        with self.assertRaisesRegex(AssertionError, 'actual E Deploy arm'):
+            self.deploy_tick(pilot, s)
+        for change in (dict(native_interact=False),):
+            pilot, s = self.pending_deploy()
+            s, _ = self.deploy_tick(pilot, s, native_interact=True)
+            with self.assertRaisesRegex(AssertionError, 'no release or retry'):
+                self.deploy_tick(pilot, s, **change)
+        for change in ({'arm_id': 0}, {'generation': 99}, {'actor_instance_id': 99},
+                       {'content_instance_id': 99}):
+            with self.subTest(change=change):
+                pilot, s = self.pending_deploy()
+                s, _ = self.deploy_tick(pilot, s, native_interact=True)
+                self.arm(s)
+                s['board']['launch_arm'].update(change)
+                s['board']['last_result'] = {'accepted': True}
+                with self.assertRaisesRegex(AssertionError, 'exact current'):
+                    self.deploy_tick(pilot, s)
+        # An already-held E at request time cannot stand in for a fresh edge.
+        pilot, s = self.pending_deploy()
+        pilot.receipts['deploy_press']['native_interact'] = True
+        with self.assertRaisesRegex(AssertionError, 'no release or retry'):
+            self.deploy_tick(pilot, s, native_interact=True)
+        # Nor can a prior observed press be relabelled as this request's edge.
+        pilot, s = self.pending_deploy()
+        pilot.receipts['deploy_press']['frame'] = s['frame']+1
+        with self.assertRaisesRegex(AssertionError, 'no release or retry'):
+            self.deploy_tick(pilot, s, native_interact=True)
+
+    def test_pending_deploy_release_and_repress_cannot_supply_another_ack_edge(self):
+        pilot, s = self.pending_deploy()
+        s, _ = self.deploy_tick(pilot, s, native_interact=True)
+        release = copy.deepcopy(s)
+        release.update(sequence=s['sequence']+1, frame=s['frame']+1, native_interact=False)
+        repress = copy.deepcopy(release)
+        repress.update(sequence=release['sequence']+1, frame=release['frame']+1, native_interact=True)
+        self.arm(repress)
+        repress['board']['last_result'] = {'accepted': True}
+        with self.assertRaisesRegex(AssertionError, 'no release or retry'):
+            for raw in (release, repress):
+                NativeSortieSafetyTests.arm_motion(raw, pilot.observed_previous)
+                pilot.validate_observation(raw)
+        self.assertIsNone(pilot.armed)
+        self.assertEqual(pilot.receipts['deploy_native_press']['frame'], 101)
+
+    def test_delayed_held_e_arm_ack_cannot_escape_original_90_frame_bound(self):
+        pilot, s = self.pending_deploy()
+        s, _ = self.deploy_tick(pilot, s, native_interact=True)
+        for _ in range(89):
+            s, _ = self.deploy_tick(pilot, s)
+        self.assertEqual(s['frame'], 190)
+        self.arm(s)
+        s['board']['last_result'] = {'accepted': True}
+        with self.assertRaisesRegex(AssertionError, 'physical E did not deploy; no retry'):
+            self.deploy_tick(pilot, s)
+        self.assertIsNone(pilot.armed)
+        self.assertEqual(pilot.tap_frame, 100)
+
+    def test_pending_deploy_candidate_fences_apply_at_press_and_delayed_ack(self):
+        for at_ack in (False, True):
+            for change in ({'distance': 2.61}, {'candidate': False}, {'facing': .049}):
+                with self.subTest(at_ack=at_ack, change=change):
+                    pilot, s = self.pending_deploy()
+                    if at_ack:
+                        s, _ = self.deploy_tick(pilot, s, native_interact=True)
+                        self.arm(s)
+                        s['board']['last_result'] = {'accepted': True}
+                    s['board'].update(change)
+                    with self.assertRaises(AssertionError):
+                        self.deploy_tick(pilot, s, native_interact=True)
+
+    def test_deploy_nonempty_rejection_stops_only_after_actual_e(self):
+        pilot, s = self.pending_deploy()
+        s = copy.deepcopy(s)
+        s['board']['last_result'] = {'accepted': False, 'reason': 'out_of_range'}
+        s, _ = self.deploy_tick(pilot, s)
+        self.assertEqual(pilot.stage, 'deploy_wait')
+        with self.assertRaisesRegex(AssertionError, 'physical Deploy rejected; no retry'):
+            self.deploy_tick(pilot, s, native_interact=True)
+        self.assertEqual(pilot.tap_frame, 100)
+        self.assertIsNone(pilot.result)
+
+    def test_deploy_empty_pending_retains_original_90_frame_bound_without_retap(self):
+        pilot, s = self.pending_deploy()
+        for _frame in range(90):
+            s, _ = self.deploy_tick(pilot, s)
+        self.assertEqual(s['frame'], pilot.request_frame+90)
+        self.assertEqual(pilot.stage, 'deploy_wait')
+        self.assertEqual(pilot.tap_frame, 100)
+        self.assertIsNone(pilot.tap_key)
+        with self.assertRaisesRegex(AssertionError, 'physical E did not deploy; no retry'):
+            self.deploy_tick(pilot, s)
+        self.assertEqual(native.CAP, 300)
+
+    def test_final_input_requires_prior_validation_and_ui_exit_is_not_prefix_success(self):
+        pilot, s = self.pilot_active()
+        with self.assertRaisesRegex(AssertionError, 'final validated'): pilot.update(copy.deepcopy(s), 1)
+        pilot.stage = 'ui_exit_wait'
+        pilot.quit_requested = True
+        with self.assertRaisesRegex(AssertionError, 'full original route'): pilot.finish_normal_exit()
+
+    def test_actual_file_entitlement_is_independent_and_generation_bound(self):
+        with tempfile.TemporaryDirectory() as root:
+            profile = Path(root)/'profile'
+            path = profile/'data'/'mudds_user_data.json'
+            path.parent.mkdir(parents=True)
+            output = Path(root)/'result'
+            output.mkdir()
+            pilot, s = self.pilot_active()
+            s = copy.deepcopy(s)
+            self.paid(s)
+            pilot.paid = pilot.receipt(s)
+            s['settlement']['store'] = {'path': str(path), 'source': 'primary', 'generation': 3}
+            files = native.StationDefenseFiles(profile, output)
+            files.snapshots['baseline'] = {'document': {'payload': {}}}
+            envelope = {'schema_version': 1, 'generation': 3, 'commit': {'id': 'real-test-write'},
+                        'payload': {'game_flow_reward_store': copy.deepcopy(s['settlement']['record']),
+                                    'station_defense_session': {'session': {'completion': {'generation': 1, 'reward_granted': True}}},
+                                    'solo_safe_recovery': {'position': [1.234567890123, .18, -2.34567890123]}}}
+            path.write_text(json.dumps(envelope))
+            files.observe(s, pilot)
+            self.assertEqual(files.snapshots['paid']['document']['payload']['game_flow_reward_store'], s['settlement']['record'])
+            del files.snapshots['paid']
+            envelope['payload']['game_flow_reward_store']['total_receipts'] = 2
+            path.write_text(json.dumps(envelope))
+            with self.assertRaisesRegex(AssertionError, 'exact once-only entitlement'): files.observe(s, pilot)
+
+    def test_orderly_exit_tail_receipts_are_validated_without_new_input(self):
+        with tempfile.TemporaryDirectory() as root:
+            read_fd, write_fd = os.pipe()
+            os.write(write_fd, b'VATION: {"sequence": 8}\nNATIVE_SORTIE_OBSERVATION: {"sequence": 9}\n')
+            os.close(write_fd)
+            observed = []
+            with os.fdopen(read_fd, 'rb', buffering=0) as stdout:
+                game = type('ExitedGame', (), {'stdout': stdout})()
+                native.drain_game_output(game, Path(root)/'game.log', b'NATIVE_SORTIE_OBSER', observed.append)
+            self.assertEqual(observed, [{'sequence': 8}, {'sequence': 9}])
+
+
 if __name__ == '__main__':
     unittest.main()
