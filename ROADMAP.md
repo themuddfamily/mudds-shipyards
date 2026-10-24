@@ -42,6 +42,27 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
+**Selected: COURIER-WITHDRAW-DISTANCE — one complete ordinary journey.**
+From clean `29e8cb641`, retain the first live unhurt Courier, fly beyond both
+its actual encounter origin and every active participant by more than 700m,
+and remain clear for the production seven physics seconds while authorized.
+The actual director grace and terminal must prove WITHDRAWN before escape;
+then retain every dispatched actor's standdown, physically return, defeat the
+original defender and finish strict home landing, OFFLINE and physical exit.
+Escape, phase withdrawal and expiry cannot substitute.
+
+One implementation agent owns the existing native driver/tests, passive observer,
+startup selector and privacy test; root owns integration, local qualification,
+package and cleanup, with independent source/result review. No gameplay tuning,
+placement, AI, caps, boost or new validator family. Freeze a clean source before
+focused Python, observer/privacy, private export, startup and payload checks;
+then one original CAP300/outer330 isolated silent OS-input attempt. Stop on the
+first failure for causal review; no unchanged retry or deadline extension.
+Estimate 30–60 minutes implementation/review plus 10–20 minutes validation and
+cleanup; split before 90 minutes. This closes only the selected first-instance
+case if its entire journey passes. Native/human, repeats and parent11 stay open.
+
+
 **COURIER-WITHDRAW-PHASE full ordinary outcome DONE — `ccfaa63b8`.**
 The complete packaged journey passes56.522s under original300s/outer330:
 four range kills and real85→51→17 preparation, observed first live unhurt
