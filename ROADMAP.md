@@ -29,26 +29,21 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Selected: finish HELM-PITCH and HELM-ROLL-RATE ordinary handback.**
-Starting clean source2e89b37bc. Each goal gets its own small profile subclass and
-one complete existing three-process Jovian route, not another turn-only proof:
-physical boarding/departure/brake, both signed sampled axis turns, fresh release,
-both actual replicas, ordinary Interact handback, owner0/generation+1, retired
-source/capture and supported former-pilot walk. Roll retains no-barrel-roll or
-weapon/landing request fences. Root adds the actual right-axis snapshot needed
-by pitch's existing handback drift calculation; no production behavior changes.
+**Delivered: HELM-PITCH and HELM-ROLL-RATE complete ordinary handback.**
+Source d8c160f12 passes one full ordinary three-process route per goal:
+pitch138.248s, roll137.012s. Both preserve physical boarding/departure/brake,
+both signed sampled turns, fresh neutral/zero drift, both actual replicas and
+ordinary Interact handback/supported walking/source-capture retirement. Pitch
++4.800/−4.200°, roll−5.867/+5.133°; each reaches owner0/generation+1 with current
+PASSENGER HUD and supported controls. Roll's separate barrel/fire/landing fences
+remain. Root and independent source/raw GO, import/both parsers PASS, all6actual
+peer exits0/no runtime diagnostics. [Exact proof and cleanup](docs/history/ROADMAP_DELIVERIES.md#pitch-and-roll-rate--full-ordinary-handback-accepted--2026-10-25).
 
-Two implementers own disjoint new pitch/roll test+UID pairs; root owns the shared
-snapshot/records/integration; one independent reviewer checks source/raw results.
-Each card estimates15min implementation plus15min check/review, shared hard stop
-60min including both goals/attempts/cleanup. Original300s profile/360s outer and
-all existing deadlines remain. Import/check-only, then ONE full route per goal,
-run sequentially to avoid resource interference; stop at first unexpected failure.
-No source/pose/provider/authority staging or reduced handback. Success per goal:
-all3actual exits0/one marker/no runtime diagnostics plus reviewed host/client/
-handback receipts. No physical-device/native/endurance/full-parent claim, and
-no identical playable rebuild for test-only qualification.
-
+Two22line profiles reuse the shared route; one captured actual right vector
+supports pitch handback drift measurement. No production code/tuning, no new
+framework or identical playable rebuild. Checkpointfb396ab remains current.
+Reverse-specific handback, device/native/endurance/capacity/final-parent scope
+remain open. No task branch/worktree created; owned scratch archived/cleaned.
 
 **Delivered: HELM-HOVER — actual correction, release and full handback.**
 Clean source524606903 passes the full ordinary three-process route157.438s,

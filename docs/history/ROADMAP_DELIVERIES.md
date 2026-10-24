@@ -23075,3 +23075,63 @@ terminal, all21 sampled process identities absent. Verified269 archive members,
 868a40ea07c1389d0f2e9c2f12025d32f9d6010b2de951e2ea743416a224009b.
 Owned profiles/helpers removed; only case-records.tar.gz and closeout.json remain.
 Main remains sole local branch; no owned task worktree/process is retained.
+
+
+## Pitch and roll-rate — full ordinary handback accepted — 2026-10-25
+
+HELM-PITCH and HELM-ROLL-RATE isolated source qualification, candidate d8c160f12.
+Selection0174c189a froze each complete outcome and one shared60min cumulative
+budget. Two medium implementers owned disjoint thin22line profile/UID pairs;
+root owned the shared one-field right-vector snapshot and integration/checks.
+One independent high reviewer read source and each actual raw result: GO/GO.
+
+Each profile inherits the accepted full ordinary three-process nonplaying Main
+server/two actual Main clients: supported physical station walk/boarding/chairs,
+authoritative departure≥5m/brake, both sampled signed turns, fresh delivered
+neutral and1s zero-drift hold, both actual current-owner replicas, then ordinary
+Interact handback/current PASSENGER HUD/supported cabin walking. All original
+300s profile/360s outer and per-stage deadlines remain. No provider override,
+direct commands, pose/velocity/engine/claim/source/authority staging or reduced
+handback. Existing source-specific turn-only results remain accepted in scope.
+
+Pitch full route138.248s: actual +4.800000817/−4.200001141deg in703/359ms,
+fresh host sequences496→560 and600→680 with advancing deliveries, zero pitch
+drift. Actual pilot replica attitude errors0.38765/0.14804deg, co-pilot0deg,
+anchors0m and newer current-owner pose ticks. Captured actual right axis supplies
+the existing pitch handback drift calculation. Handback owner960549058/gen1→
+owner0/gen2, retired source/capture/saved binding, supported host body and actual
+host/client walks1.826/1.517m, neutral pitch0. This is full handback proof rather
+than relabelling the earlier f9682a38c turn-only pass.
+
+Roll full route137.012s: actual up measured about retained nose −5.866666764/
++5.133333258deg in580/367ms; fresh host sequences467→523 and571→643 with newer
+wire/delivery, zero roll drift. Actual pilot replica errors0.53522/0.09691deg,
+co-pilot0deg, anchors0m/newer owner ticks. Actual host/pilot barrel request0,
+barrel animation inactive, fire/landing/barrel command flags false; nonproducer
+co-pilot has absent-capture sentinel−1, not claimed pilot request0. Handback owner
+1904642107/gen1→owner0/gen2, source/capture retired, supported host body and real
+host/client walks1.826/1.815m, neutral roll0. Earlier73f4a4f67 turn result retained.
+
+All6 distinct actual peer processes exit0, raw done failure[]; coordinator marker
+exactly once per route and zero runtime diagnostics. Independent reviewer read
+actual host turn/stable/complete, both replica, handback/walk and done/exit facts.
+Frozen checks all first-attempt PASS: import6.587s, pitch check-only17.865s,
+roll check-only17.884s; full routes138.248/137.012s. Parser checks ran independently
+in parallel; ordinary routes sequential to avoid resource interference. Total
+stage durations317.596s. No broad/repeated matrix, CI, export, validator/framework
+or gameplay/tuning changes. Current playable checkpoint remainsfb396ab; no
+identical rebuild for test-only qualification. Physical inputs/native hardware,
+endurance/capacity/exact-final-source and full parent18 remain open. Accepted
+source integrated on main, no task branch/worktree created.
+
+Records: /srv/mudds-work/jovian-pitch-roll-handback-20261025/results/. Actual results,
+helpers and owned profiles archived with byte/mode/link verification before
+removal; exact archive/process/terminal-owner accounting in closeout.json.
+
+Cleanup completed9.76min from original selection within60min: all5 stage owners
+terminal, all39 sampled process identities absent. Verified420 archive members,
+15,393,999bytes, SHA256
+ace1885bc408e50052c897a199615e7d63ac37a53e4d7960e24f3509bdabf62c.
+Owned profiles/helpers removed; case retains only case-records.tar.gz and
+closeout.json. Main remains sole local branch; pre-existing detached worktrees
+were left untouched. No owned task branch, worktree or process remains.
