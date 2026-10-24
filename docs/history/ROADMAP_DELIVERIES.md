@@ -21724,3 +21724,91 @@ native result member ordinary-sortie/result.json, raw log ordinary-sortie/game.l
 No working branch/worktree created; main remains sole branch, eight protected
 detached registrations untouched. Original nine unqualified outcomes/all parents
 and phase gates remain open. Branch archival is not feature-completion credit.
+
+
+## Halyard passenger destruction recovery and reuse — accepted — 2026-10-24
+
+Parents21/26, accepted source `f5b71e06e6badedc1da1cc48ee50787a20a98e43`.
+The real host/client reproduction received the current zero-hull destroyed
+presentation and retired the host body, while the same client remained seated
+with cabin claim/prediction after normal host regeneration. The production
+consumer now retires only the currently admitted passenger's matching local
+chair/rest/body/frame/claim, recalls that same Player to supported station
+controls and preserves the session and unrelated actors. Accepted-grant clock
+and exact current presentation/source fences reject foreign/stale losses.
+
+Actual host destruction releases only unchanged complete boarding rows for that
+craft through the existing compare-and-release authority. Existing host body,
+helm, frame and ownership lifecycle owners remain responsible for their state.
+Pilot recovery refreshes the honest observer HUD and stops prior-life local
+propulsion. Healthy replicas never queue regeneration; actual host/solo destroyed
+hulls keep the existing regeneration path. The Player's first existing recovery
+movement suppresses native cached platform carry, then immediately restores its
+current platform settings. No extra movement or physics tuning is introduced.
+Crew snapshots older than the current accepted hatch grant cannot present a seat
+or synthesize orphan-release input; valid equal-tick updates remain accepted.
+
+Final complete independent Main/ENet journey: **382 checks, zero failures,
+197.131s**, original300s scenario/360s outer and10s peer exits unchanged. Full
+ordinary BOARD plus all seven MOVING stages precede actual host damage and hull
+loss. Both original Players recover at the strict supported station spawn with
+old grants retired and real pause/Resume usable. Actual normal host regeneration
+precedes both full ordinary station return/hatch routes, fresh physical host
+bodies/confirmed source streams, fresh seat and ownership grants, and renewed
+flight exceeding5m. All three actual processes report complete and exit0; logs
+are clean. Host damage is the disclosed fixture; no post-start pose injection or
+relaxed route/deadline. Final focused passenger fixture:69 checks, zero failures,
+86.917s, both actual peers complete/exit0. Independent production review GO.
+
+Existing crew bridge regression passes19 assertions, including previous-admission
+view tick100 versus new grant200 producing no interaction, followed by equal-tick
+current200 producing one legitimate release. All eleven selected existing suites
+pass: independent craft pose/station-frame/late-peer recovery, canonical damage
+snapshot, damage consumer, destruction/recovery lifecycle, sleep lifecycle,
+startup privacy, moving frame, pilot visuals, sleep gameplay, regeneration
+reentry and body-intent-source rebind. Logical avatar generation remains1 on
+re-admission by the existing contract; new physical bodies and strictly newer
+confirmed movement streams prove fresh control. Body consumption checks use the
+moving-interior clock, separate from the boarding/craft-pose clock.
+
+All seven failed stages remain archived: intended RED; local recovery before host
+ledger cleanup; the first full run exposing native platform carry; passive motion
+diagnosis confirming first-step carry despite zero input/assigned velocity; full
+recovery exposing prior-life pilot engine state; an incorrect caller assumption
+that logical avatar generation must increase; and the historical chair view
+synthesizing an unwanted interaction on a fresh source stream. Each stopped for
+causal review; no unchanged retry or limit increase. The final neutral-admission
+barrier additionally requires real standing/on-foot body and movement ledger
+with no interaction consumed before the next ordinary chair press.
+
+Fresh clean paired exports and strict startup pass for the Linux executable,
+extracted Linux archive and Windows embedded game data under Linux Godot (exit0
+and exactly one STARTUP_MENU_READY_OK). All1,527 actual packaged entries match;
+stock Windows executable code and exact Linux archive payload/modes/source epoch
+pass. Windows EXE184743024bytes SHA256
+`3f4b7082d114d0b728cb45c818e22ca7c90986b2ae22fbcbf12c0e4f502bd6ea`;
+checkpoint ZIP103274076bytes SHA256
+`20c24be527a4e9a1dece40e81b256eb16593a0143a03243c0ec68677cf428e3f`.
+Playable files and notes: `builds/windows/MuddsShipyards-f5b71e0*`;
+matching Linux files in `builds/linux/`. Native Windows/GPU/device/listening/human,
+full component-damage/repair NET-DAMAGE, wider craft/role coverage, exported
+multiplayer/baseline, migration/endurance, custom RPC-template and final release
+gates remain open. No parent/phase completion or project percentage is claimed.
+
+All ten candidate commits integrated into pushed main; no branch or worktree was
+created. Main remains the sole local/remote branch. Diagnostic-only source is
+excluded from main and retained by pushed annotated
+`archive/diagnostics/halyard-recall-motion-20261024` →
+`bc176198d2214c4fbca53d217e7a15542631774e`, with verified bundle/source tar/patch
+and raw records. Existing parked detached worktrees remain untouched.
+
+All37 stages terminal (30pass/7retainedfail), cumulative actual stage2099.665s.
+All187 observed process identities are absent. All1,764 owned scratch entries
+were byte/mode/link verified into an archive before removal. All1,054 result
+members—including failed raw peers, diagnostics/source, guards and package
+checks—were verified into
+`/srv/mudds-work/halyard-passenger-destruction-20261024/results/case-records.tar.gz`
+(48443574bytes, SHA256
+`2471bea0b01acba388775fe9475a6d93e3bbf0328932528b209de681cd1e1ff6`),
+then loose copies removed. Only that archive and `closeout.json` remain.
+GitHub Actions stays disabled.

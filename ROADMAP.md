@@ -6,13 +6,13 @@ Nine of the eventual 17 craft exist; eight still need supported specifications
 and implementation. Partial acceptance is retained in the backlog; it is not
 whole-feature completion.
 
-Latest playable checkpoint: **f6803cf**. Multiplayer bunk sleep and wake now follow
-the host's actual selected berth and posture; refused requests preserve awake
-controls and give feedback, and session shutdown clears rest state. Includes the
-earlier Bomber seat refill and Deploy-arms-Defense behavior. Full Defense combat,
+Latest playable checkpoint: **f5b71e0**. After host-authoritative Halyard
+destruction, both occupants recover usable station controls, walk back, board the
+regenerated ship and fly again. Includes host-authoritative bunk sleep/wake,
+Bomber seat refill and Deploy-arms-Defense. Full Defense combat, component repair,
 multiplayer baseline and native qualification remain open.
-[Windows ZIP](builds/windows/MuddsShipyards-f6803cf-checkpoint.zip),
-[build notes](builds/windows/MuddsShipyards-f6803cf-notes.txt).
+[Windows ZIP](builds/windows/MuddsShipyards-f5b71e0-checkpoint.zip),
+[build notes](builds/windows/MuddsShipyards-f5b71e0-notes.txt).
 
 This page is the working queue. The
 [36-parent crosswalk and named children](docs/ROADMAP_BACKLOG.md#coverage-of-the-original-remaining-outcomes)
@@ -42,29 +42,34 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
-**HALYARD passenger destruction recovery selected — reproduce before repair.**
-The current client craft-loss consumer recalls the remote pilot, but an admitted
-cabin passenger receives only the destroyed hull presentation. That presentation
-does not set the replica's local destruction flag. The host retires its real
-passenger body; the corresponding local cabin/seat/control retirement is uncovered.
+**HALYARD passenger destruction recovery and ordinary reuse DONE — `f5b71e06e`.**
+Actual host craft loss now retires the passenger's current cabin/chair/body state
+and returns the same Player to supported station controls. Exact host boarding
+claims retire with the destroyed hull. Recovery clears stale platform carry, the
+former pilot stops old propulsion, and historical chair updates cannot interact
+with a newly admitted body. Damage and regeneration remain host-owned.
 
-One implementer owns a focused independent-Main/real-ENet reproduction in the
-existing passenger harness: disclosed physical admission/chair approach, ordinary
-hatch/chair E, and damage applied only through the actual host hull's damage API.
-Require the real host destruction/body retirement and received destruction before
-testing the same client's usable supported recovery and old-grant retirement.
-Root owns compile300s, focused180s/outer300s, causal review and all engines/Git/builds;
-one independent reviewer checks authority and lifecycle. Estimate20min repro, then
-roughly30min bounded repair/acceptance/checkpoint if reproduced. First failure stops
-for review; no runtime edit before RED, fabricated successful packet, policy/role/
-protocol change, cap increase or new branch/worktree.
+The complete independent host/two-client journey passes **382 checks, zero
+failures**, all three actual process exits zero, 197.131s. It retains original
+boarding and seven moving-flight stages, then actual host destruction, both
+same-Player recoveries, pause/Resume, normal regeneration, full ordinary station
+return/hatch entry, new physical bodies and movement streams, fresh seat/ownership
+grants and renewed flight. The final focused passenger case passes 69 checks;
+the crew-cache regression and eleven existing local suites also pass. Routes,
+strict supported-spawn checks and original deadlines remain unchanged.
 
-Full downstream acceptance retains coherent hull/component damage and repair,
-destruction, host regeneration, usable recovery and ordinary return to the renewed
-Halyard with fresh grants. Preserve the original BOARD+seven MOVING prefix and
-300s scenario/360s outer. A focused staged fixture cannot close full NET-DAMAGE,
-combat, baseline, endurance or native gates. Task card/results belong in
-`/srv/mudds-work/halyard-passenger-destruction-20261024/results/`.
+All ten candidate commits are integrated into pushed `main`. Fresh Windows EXE,
+checkpoint ZIP and notes are in `builds/windows/MuddsShipyards-f5b71e0*`, with a
+matching Linux package. Strict startup and actual package audits pass. Owned
+scratch is removed; all 187 observed process identities are absent. Results are
+consolidated into one verified archive plus `closeout.json`; diagnostic-only
+source is preserved under an archive tag and excluded from production.
+[Acceptance, failed attempts and retained gates](docs/history/ROADMAP_DELIVERIES.md#halyard-passenger-destruction-recovery-and-reuse--accepted--2026-10-24).
+
+This closes the selected recovery/reuse boundary under parents 21/26. Full
+hull/component damage and repair NET-DAMAGE, wider craft/role cases, exported
+multiplayer/baseline, migration/endurance, native Windows/GPU and human gates
+remain open. No parent or phase gate is advanced; GitHub Actions stays disabled.
 
 **SERVER-BASELINE contested bunk authority DONE — `f6803cf26`.**
 The real host/client reproduction confirmed that the host selected Starboard while
