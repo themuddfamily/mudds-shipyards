@@ -42,26 +42,22 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
-**Selected: COURIER-WITHDRAW-DISTANCE — one complete ordinary journey.**
-From clean `29e8cb641`, retain the first live unhurt Courier, fly beyond both
-its actual encounter origin and every active participant by more than 700m,
-and remain clear for the production seven physics seconds while authorized.
-The actual director grace and terminal must prove WITHDRAWN before escape;
-then retain every dispatched actor's standdown, physically return, defeat the
-original defender and finish strict home landing, OFFLINE and physical exit.
-Escape, phase withdrawal and expiry cannot substitute.
+**COURIER-WITHDRAW-DISTANCE full ordinary outcome DONE — `719fe364a`.**
+The first packaged attempt passes in 92.585s under the original 300s/outer330
+limits. After four range kills and real defender preparation, ordinary flight
+clears the actual encounter origin and every active craft for seven physics
+seconds. WITHDRAWN occurs with the first Courier unhurt and only 59.83% through
+its escape. All dispatched actors remain stood down through physical return,
+actual defender defeat, strict home landing, OFFLINE and physical exit.
 
-One implementation agent owns the existing native driver/tests, passive observer,
-startup selector and privacy test; root owns integration, local qualification,
-package and cleanup, with independent source/result review. No gameplay tuning,
-placement, AI, caps, boost or new validator family. Freeze a clean source before
-focused Python, observer/privacy, private export, startup and payload checks;
-then one original CAP300/outer330 isolated silent OS-input attempt. Stop on the
-first failure for causal review; no unchanged retry or deadline extension.
-Estimate 30–60 minutes implementation/review plus 10–20 minutes validation and
-cleanup; split before 90 minutes. This closes only the selected first-instance
-case if its entire journey passes. Native/human, repeats and parent11 stay open.
-
+All 144 driver tests, observer/privacy checks, private export, menu startup,
+payload audit and independent raw review pass. The accepted source is integrated
+into pushed main. Owned scratch and loose qualification packages are removed;
+results occupy one verified archive plus closeout.json. No branch/worktree was
+created. Player checkpoint ce2329a remains current with unchanged gameplay.
+[Full acceptance and limits](docs/history/ROADMAP_DELIVERIES.md#courier-distance-withdrawal--accepted-ordinary-flight-and-home--2026-10-24).
+This closes the selected first unhurt instance; escorted instances, recovery,
+repeats, native/human and parent11 remain open. GitHub Actions stays disabled.
 
 **COURIER-WITHDRAW-PHASE full ordinary outcome DONE — `ccfaa63b8`.**
 The complete packaged journey passes56.522s under original300s/outer330:
@@ -84,9 +80,9 @@ Both candidate commits are integrated into pushed main. Owned scratch is removed
 and116 result members are consolidated into one verified archive plus
 closeout.json. No branch/worktree was created; public checkpointce2329a remains
 current. [Full ordering proof, source pair and retained limits](docs/history/ROADMAP_DELIVERIES.md#courier-phase-withdrawal--accepted-live-dispatch-and-home--2026-10-24).
-This unhurt first-courier instance is accepted; escorted instances, distance
-withdrawal, recovery, repeats, separate walk/UI quit, native/human and parent11
-remain open. GitHub Actions stays disabled.
+This unhurt first-courier phase instance is accepted. Distance withdrawal is
+qualified separately above; escorted instances, recovery, repeats, separate
+walk/UI quit, native/human and parent11 remain open. GitHub Actions stays disabled.
 
 **COURIER-ESCAPE full ordinary outcome DONE — `393733212`.**
 The complete packaged journey passes103.179s under original300s/outer330:
@@ -112,8 +108,9 @@ checkpointce2329a remains current with the same gameplay. Owned scratch and
 reconstructable test caches are cleaned. No branch/worktree was created; the
 original exact failedf7 source remains under its historical withheld archive tag.
 [Full result, corrections, retained failures and limits](docs/history/ROADMAP_DELIVERIES.md#courier-escape--accepted-ordinary-flight-and-home--2026-10-24).
-Withdrawals, recovery, repeats, escort-specific cases, separate walk/UI quit,
-native/human qualification and parent11 remain open.
+The first phase/distance withdrawals are qualified separately above. Recovery,
+repeats, escort-specific cases, separate walk/UI quit, native/human qualification
+and parent11 remain open.
 
 **HALYARD network cabin repair readout DONE — `ce2329a82`.**
 The physical cabin repair row now shows accepted current host progress,

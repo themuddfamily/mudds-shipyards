@@ -22144,3 +22144,62 @@ shared package—verified into
 (106885595bytes, SHA256
 `3db44a06a0b43aa39061498e935c44946eb888cd9d711066d617b25f21e5ff26`),
 then loose copies removed. Only that archive and closeout.json remain.
+
+
+## Courier distance withdrawal — accepted ordinary flight and home — 2026-10-24
+
+Source `719fe364afd0dc25864ac7ba00e58337cf4a30c2`, selected on pushed44359a726.
+One implementation agent and independent source/raw reviewer; no branch or
+worktree created. The first complete packaged OS-input attempt passes92.585s,
+outer guard92.889s, under original CAP300/330. No gameplay, AI, tuning, placement,
+boost, encounter constants or deadline change.
+
+The same Player290749155943/ship291520907925 completes four real range kills,
+then actual85→51→17 defender wounds at frames1412/1432. One fresh authoritative
+harmless miss is handled by the existing receipt-bound preparation path. First
+live unhurt Courier294440143682/generation1 is observed1600. Ordinary W/mouse/
+brake flies toward a frozen900m waypoint perpendicular to its actual heading.
+All420 consecutive positive-grace pending observations2206–2625 retain the
+original authorized engagement, live defender17 and runner78; actual minimum
+origin distance700.891m and active-craft distance918.284m. Pending2625 records
+6.99999999999998s; terminal2626 records7.01666666666665s/WITHDRAWN, elapsed17.1167s,
+runner progress0.598305969 and original defender still alive. Actual terminal
+origin clearance898.939m and retained runner clearance1314.393m exclude chasing;
+live health/progress/phase/grace distinguish escape, death, phase withdrawal
+and expiry. Production clears its roster at conclusion, so the passive observer
+retains the immediately preceding live snapshot and actual terminal positions.
+
+Every actually dispatched actor (one unhurt runner, no forced escort) remains
+present/inactive/unauthorized/pending0/shots0 in every raw observation through
+4563. After60 frames, ordinary physical return reaches the saved attack position
+within1m/speed0.433667 at3721. Fresh authoritative player request15 deals lethal17
+to original defender294373034814 at3791. Normal return, strict occupied home/
+lease/exact/contract4336, OFFLINE4427, DISEMBARKING4429 and physical COMPLETE4559
+follow; exit error0.17m, hull78, usable controls. Standdown persists1933 frames
+through completion. All4103 raw observations were independently reviewed: GO.
+
+Final144 Python tests pass10.809s; observer compile, startup privacy, clean
+private export, strict exit0/menu sentinel and actual payload/archive audit pass.
+All1527 package paths match playablece2329a;1525 payload entries are byte-identical,
+with only passive observer and startup-selector bytecode changed. Exact Linux ELF
+148992096bytes/SHA256 `2437c5432521831f1e9b8f453fdb1d1656874f68c86cb3905c2a277ce4376d42`
+is verified inside its archive95401555bytes/SHA256
+`55d3cb5279b56eaf9b934ffdec8b1440899ab92df1b48aabc934c0905c71ddd4`.
+The source-specific private package/metadata/raw are preserved; loose build copies
+and duplicate ELF removed. Public Windows/Linux checkpointce2329a stays current.
+
+All seven guarded stages PASS, cumulative172.866s; planning12.456min at archive
+consolidation. Zero diagnostics; input released/helper/game/display reaped;
+all28 sampled process identities absent. All79 scratch entries verified before
+removal. All93 result members verified into
+`/srv/mudds-work/courier-distance-withdraw-20261024/results/case-records.tar.gz`
+(104597939bytes, SHA256
+`abb805b8cbc326bc32424b358b0bd6fb5c9e1d9141b74a5da51170b7d3acb727`).
+Only archive and closeout.json remain. Accepted source integrated into pushed main;
+no new retained branch exception; pre-existing parked worktrees untouched.
+
+Scope is the selected first unhurt instance and every actor actually dispatched.
+Escorted instances, recovery/repeats, separate post-exit walking, UI quit/game
+exit0, native GPU/Windows/human and parent11 remain open. Automated Dummy audio/
+headless or isolatedXvfb/x11 only; GitHub Actions remains disabled. All36 original
+parents and ten phase gates remain open.
