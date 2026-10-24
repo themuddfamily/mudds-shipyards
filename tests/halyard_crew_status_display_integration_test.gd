@@ -2,6 +2,28 @@ extends SceneTree
 
 const HALYARD_SCENE := preload("res://scenes/ships/halyard_crew_transport.tscn")
 const Authority := preload("res://scripts/ships/crew_seat_role_authority.gd")
+const Adapter := preload("res://scripts/network/network_enet_session_adapter.gd")
+const GameFlowType := preload("res://scripts/game/game_flow.gd")
+const BodySource := preload("res://scripts/network/network_remote_body_intent_source.gd")
+const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
+
+
+# Keep world startup outside this focused consumer test. All replica handling
+# and cabin-lifetime predicates remain the production GameFlow implementation.
+class PanelFlow extends GameFlowType:
+
+	func _enter_tree() -> void:
+		pass
+
+	func _ready() -> void:
+		set_process(false)
+		set_physics_process(false)
+
+	func _exit_tree() -> void:
+		pass
+
+	func _network_client_peer_id() -> int:
+		return 7
 
 var _assertions := 0
 var _failures: PackedStringArray = []
@@ -119,6 +141,7 @@ func _run() -> void:
 		display.get_readout_text().contains(kit_token),
 		"a craft streamed out of the tree and back keeps its repair-kit inventory"
 	)
+	await _check_host_repair_panel(craft, display)
 	craft.queue_free()
 	await process_frame
 	if _failures.is_empty():
@@ -129,6 +152,137 @@ func _run() -> void:
 		quit(1)
 		return
 	quit(0)
+
+
+func _check_host_repair_panel(craft: Node, display: Node) -> void:
+	var host: Node = HALYARD_SCENE.instantiate()
+	root.add_child(host)
+	await process_frame
+	# Freeze both local simulations while advancing the host's real authority
+	# explicitly. There are no fabricated successful repair receipts here.
+	host.set_physics_process(false)
+	craft.set_physics_process(false)
+	var authority := Authority.new(1)
+	_check(
+		bool(authority.register_halyard_roster().get("accepted", false))
+			and bool(authority.claim(1, 77, &"host_engineer", &"crew_port_01", Authority.ROLE_ENGINEER, 1).get("accepted", false))
+			and bool(host.attach_crew_role_authority(authority).get("accepted", false)),
+		"the independent host admits its actual engineer authority"
+	)
+	var model: ShipComponentDamage = host.get_component_damage()
+	var damage := model.record_damage(70.0, Vector3.INF)
+	var component_id: StringName = &""
+	for candidate in model.COMPONENT_ORDER:
+		if model.get_component_integrity(candidate) < 1.0:
+			component_id = candidate
+			break
+	host.set("_landed", true)
+	var started: Dictionary = host.submit_crew_intent(
+		1, 77, &"host_engineer", Authority.ACTION_ENGINEER_REPAIR,
+		{"system_id": component_id, "repair": 0.2, "system_generation": 1}, 2
+	)
+	host.call("_advance_engineer_repair", 0.2)
+	var progress: Dictionary = host.get_engineer_gameplay_state()
+	var repair := progress.get("repair", {}) as Dictionary
+	_check(
+		bool(damage.get("accepted", false)) and bool(started.get("consumed", false))
+			and repair.get("status") == &"repairing"
+			and float(repair.get("progress", 0.0)) > 0.0,
+		"the real host repair authority produces active nonzero progress"
+	)
+	var local_repair: Dictionary = craft.get_engineer_repair_state()
+	var local_components: Dictionary = craft.get_component_damage().get_component_report()
+	var session := Adapter.new()
+	root.add_child(session)
+	session._configured = true
+	session._server_offer = {"admission": {"accepted": true, "peer": {"peer_id": 7, "peer_generation": 1}}}
+	var epoch := session.get_migration_snapshot()
+	var flow := PanelFlow.new()
+	root.add_child(flow)
+	var player := PLAYER_SCENE.instantiate() as CharacterBody3D
+	root.add_child(player)
+	player.set_physics_process(false)
+	flow.player = player
+	flow.network_session = session
+	flow._network_session_mode = &"client"
+	flow.phase = GameFlowType.Phase.IN_FLIGHT_CABIN
+	flow._cabin_ship = craft
+	flow._network_client_boarding_claim = {"ship_id": craft.get_ship_id(), "seat_id": &"berth_01", "role": &"passenger"}
+	flow._network_client_boarding_claim_server_tick = 10
+	flow._network_remote_body_intent_source = BodySource.new()
+	flow._network_remote_body_intent_source.bind(GameFlowType.network_client_boarding_avatar_id(7), 1, 1)
+	# Deliberately stage the already-admitted replica boundary, not transport
+	# admission. The separate real ENet route proves publication and receipt.
+	# Empty assignment is the host's normal view for a walking cabin occupant.
+	var packet := {
+		"ship_id": craft.get_ship_id(), "recipient_peer_id": 7, "peer_generation": 1,
+		"session_generation": int(epoch.get("session_generation", 0)),
+		"migration_generation": int(epoch.get("migration_generation", 0)),
+		"revision": 1, "binding_generation": 1, "server_tick": 11,
+		"assignment": {}, "seated": false, "entity_generation": 0,
+		"gameplay": progress.duplicate(true), "components": {},
+	}
+	session._engineer_replica_snapshot = packet.duplicate(true)
+	flow._advance_network_engineer(0.0)
+	var percent := "%d%%" % roundi(float(repair.get("progress", 0.0)) * 100.0)
+	_check(
+		display.get_readout_text().contains("REPAIRING")
+			and display.get_readout_text().contains(percent),
+		"a walking client's physical Halyard panel displays accepted host repair progress"
+	)
+	craft.refresh_crew_status_display()
+	_check(
+		display.get_readout_text().contains("REPAIRING")
+			and display.get_readout_text().contains(percent),
+		"a local cabin refresh cannot overwrite accepted host repair progress"
+	)
+	host.call("_advance_engineer_repair", 0.5)
+	var completed: Dictionary = host.get_engineer_gameplay_state()
+	var completed_repair := completed.get("repair", {}) as Dictionary
+	var capacity := int(completed_repair.get("resource_capacity", 0))
+	_check(
+		completed_repair.get("status") == &"completed"
+			and int(completed_repair.get("resource_units", -1)) == capacity - 1,
+		"the host actually commits its repair and spends one finite kit"
+	)
+	packet["revision"] = 2
+	packet["server_tick"] = 12
+	packet["gameplay"] = completed.duplicate(true)
+	session._engineer_replica_snapshot = packet.duplicate(true)
+	flow._advance_network_engineer(0.0)
+	craft.refresh_crew_status_display()
+	_check(
+		display.get_readout_text().contains("COMPLETED")
+			and display.get_readout_text().contains("KITS %d/%d" % [capacity - 1, capacity]),
+		"the walking client's physical panel retains host completion and spent stock across refresh"
+	)
+	_check(
+		craft.get_engineer_repair_state() == local_repair
+			and craft.get_component_damage().get_component_report() == local_components,
+		"host presentation never changes the client's local repair authority or component ledger"
+	)
+	flow._cabin_ship = null
+	flow._advance_network_engineer(0.0)
+	_check(
+		display.get_readout_text().contains("IDLE // REPAIR READY")
+			and display.get_readout_text().contains("KITS %d/%d" % [capacity, capacity]),
+		"leaving the live cabin restores its local repair presentation"
+	)
+	flow._cabin_ship = craft
+	flow._advance_network_engineer(0.0)
+	session._configured = false
+	flow._advance_network_engineer(0.0)
+	_check(
+		display.get_readout_text().contains("IDLE // REPAIR READY")
+			and display.get_readout_text().contains("KITS %d/%d" % [capacity, capacity]),
+		"a stopped session restores the local repair presentation"
+	)
+	flow._cabin_ship = null
+	flow.free()
+	session.queue_free()
+	player.queue_free()
+	host.queue_free()
+	await process_frame
 
 
 func _check(condition: bool, message: String) -> void:
