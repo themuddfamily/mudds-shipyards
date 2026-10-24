@@ -29,6 +29,26 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Selected: HELM-BOOST — actual host boost, release and ordinary handback.**
+One test implementer owns only a new boost specialization of the existing
+three-process Jovian handback route; root owns integration/records and checks.
+Starting source9ecb3a39e, clean main. Preserve ordinary two-client physical
+boarding, real departure/brake, both yaw turns, actual Interact handback and
+supported walking/source retirement. Add synthetic sampled boost/forward through
+production input→wire→host, measured authored host flight effect, actual replica
+convergence and fresh sampled release. No pose/command/authority staging.
+
+Estimate30min implementation plus15min review/checks; hard stop60min from this
+selection including failed attempts and cleanup. Original profile300s/outer360s,
+all inherited route deadlines and full parent scope stay fixed. Run one focused
+silent isolated route after import/check-only; stop at first unexpected failure.
+A production repair needs demonstrated cause and a separately bounded correction.
+Success requires all3 actual peer exits0, suite marker, zero diagnostics, actual
+host/replica/release/handback receipts and cleaned owned processes/profiles.
+This qualifies existing gameplay; no new runtime feature or hardware pass is
+claimed. No identical checkpoint rebuild for test-only acceptance.
+
+
 **Prepared: three concrete craft proposals — owner choices pending.**
 [Paradox](docs/design/PARADOX_IMPLEMENTATION_PROPOSAL.md): pilot cannon, separate
 physical gunner and one passenger; 16 bounded cards.
