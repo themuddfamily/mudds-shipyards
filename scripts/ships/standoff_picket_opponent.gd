@@ -1708,6 +1708,7 @@ func _register_combat_source() -> void:
 	var authority := _get_combat_authority()
 	if not is_instance_valid(authority):
 		return
+	_attach_damage_proxy()
 	if _registered and authority.get_source_id(self) == source_id:
 		return
 	_registered = authority.register_source(self, source_id, faction_id, get_weapon_profiles())
