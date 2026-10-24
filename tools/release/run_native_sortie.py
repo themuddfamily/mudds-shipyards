@@ -713,6 +713,8 @@ class CourierEscapePilot(CourierPilot):
         require(not s['command_fire'], 'released ordinary fire throughout Courier Escape waiting flight')
         off = sub(waypoint, s['position'])
         distance, speed = norm(off), norm(s['velocity'])
+        if distance <= 1 and speed <= .45:
+            return ({'Prior'}, 0, 0, False), True
         dx, dy, align = self.aim(s, [s['camera'][i]+off[i] for i in range(3)])
         stopping = speed*speed/(2*s['tuning']['brake']) + speed*.18
         if distance < stopping+1.75: self.wait_braking = True
