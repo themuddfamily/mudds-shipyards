@@ -3870,10 +3870,10 @@ class StationDefenseSafetyTests(unittest.TestCase):
             NativeSortieSafetyTests.arm_motion(s, pilot.observed_previous)
             with self.assertRaisesRegex(AssertionError, 'actual E Deploy'): pilot.validate_observation(s)
 
-    def pending_deploy(self):
+    def pending_deploy(self, frame=100):
         pilot = native.StationDefensePilot()
         s = self.baseline()
-        s.update(velocity=[0, 0, 0], walk_forward=[0, 0, -1])
+        s.update(frame=frame, velocity=[0, 0, 0], walk_forward=[0, 0, -1])
         s['board']['last_result'] = {}
         NativeSortieSafetyTests.arm_motion(s, pilot.observed_previous)
         pilot.validate_observation(s)
@@ -3908,6 +3908,106 @@ class StationDefenseSafetyTests(unittest.TestCase):
         self.assertIsNone(pilot.deployed)
         self.assertEqual(pilot.tap_frame, 100)
         self.assertIsNone(pilot.result)
+
+    def test_deploy_actual_press_1035_and_held_e_arm_ack_1036_correlate_once(self):
+        pilot, s = self.pending_deploy(frame=1034)
+        s, _ = self.deploy_tick(pilot, s, native_interact=True)
+        self.assertEqual(s['frame'], 1035)
+        self.assertFalse(s['board']['launch_arm']['armed'])
+        self.assertIsNone(pilot.armed)
+        press = copy.deepcopy(pilot.receipts['deploy_native_press'])
+        raw_press = s
+        s = copy.deepcopy(s)
+        s['board']['last_result'] = {'accepted': True, 'reason': 'launch_armed'}
+        self.arm(s)
+        s, _ = self.deploy_tick(pilot, s)
+        self.assertEqual(s['frame'], 1036)
+        self.assertTrue(s['native_interact'])
+        self.assertEqual(pilot.armed['board']['launch_arm']['arm_id'], 1)
+        self.assertEqual(pilot.stage, 'walk_arrow')
+        self.assertEqual(pilot.receipts['deploy_native_press'], press)
+        self.assertEqual(pilot.tap_frame, 1034)
+        self.assertIsNone(pilot.deployed)
+        s['board']['launch_arm']['arm_id'] = 99
+        raw_press['board']['candidate'] = False
+        self.assertEqual(pilot.receipts['deploy_native_press'], press)
+        self.assertEqual(pilot.armed['board']['launch_arm']['arm_id'], 1)
+
+    def test_pending_deploy_ack_rejects_missing_stale_foreign_or_intervening_edge(self):
+        # A plausible cached acceptance without the actual post-request press
+        # cannot acknowledge Deploy, even with a current-looking arm.
+        pilot, s = self.pending_deploy()
+        self.arm(s)
+        s['board']['last_result'] = {'accepted': True, 'reason': 'launch_armed'}
+        with self.assertRaisesRegex(AssertionError, 'actual E Deploy arm'):
+            self.deploy_tick(pilot, s)
+        for change in (dict(native_interact=False),):
+            pilot, s = self.pending_deploy()
+            s, _ = self.deploy_tick(pilot, s, native_interact=True)
+            with self.assertRaisesRegex(AssertionError, 'no release or retry'):
+                self.deploy_tick(pilot, s, **change)
+        for change in ({'arm_id': 0}, {'generation': 99}, {'actor_instance_id': 99},
+                       {'content_instance_id': 99}):
+            with self.subTest(change=change):
+                pilot, s = self.pending_deploy()
+                s, _ = self.deploy_tick(pilot, s, native_interact=True)
+                self.arm(s)
+                s['board']['launch_arm'].update(change)
+                s['board']['last_result'] = {'accepted': True}
+                with self.assertRaisesRegex(AssertionError, 'exact current'):
+                    self.deploy_tick(pilot, s)
+        # An already-held E at request time cannot stand in for a fresh edge.
+        pilot, s = self.pending_deploy()
+        pilot.receipts['deploy_press']['native_interact'] = True
+        with self.assertRaisesRegex(AssertionError, 'no release or retry'):
+            self.deploy_tick(pilot, s, native_interact=True)
+        # Nor can a prior observed press be relabelled as this request's edge.
+        pilot, s = self.pending_deploy()
+        pilot.receipts['deploy_press']['frame'] = s['frame']+1
+        with self.assertRaisesRegex(AssertionError, 'no release or retry'):
+            self.deploy_tick(pilot, s, native_interact=True)
+
+    def test_pending_deploy_release_and_repress_cannot_supply_another_ack_edge(self):
+        pilot, s = self.pending_deploy()
+        s, _ = self.deploy_tick(pilot, s, native_interact=True)
+        release = copy.deepcopy(s)
+        release.update(sequence=s['sequence']+1, frame=s['frame']+1, native_interact=False)
+        repress = copy.deepcopy(release)
+        repress.update(sequence=release['sequence']+1, frame=release['frame']+1, native_interact=True)
+        self.arm(repress)
+        repress['board']['last_result'] = {'accepted': True}
+        with self.assertRaisesRegex(AssertionError, 'no release or retry'):
+            for raw in (release, repress):
+                NativeSortieSafetyTests.arm_motion(raw, pilot.observed_previous)
+                pilot.validate_observation(raw)
+        self.assertIsNone(pilot.armed)
+        self.assertEqual(pilot.receipts['deploy_native_press']['frame'], 101)
+
+    def test_delayed_held_e_arm_ack_cannot_escape_original_90_frame_bound(self):
+        pilot, s = self.pending_deploy()
+        s, _ = self.deploy_tick(pilot, s, native_interact=True)
+        for _ in range(89):
+            s, _ = self.deploy_tick(pilot, s)
+        self.assertEqual(s['frame'], 190)
+        self.arm(s)
+        s['board']['last_result'] = {'accepted': True}
+        with self.assertRaisesRegex(AssertionError, 'physical E did not deploy; no retry'):
+            self.deploy_tick(pilot, s)
+        self.assertIsNone(pilot.armed)
+        self.assertEqual(pilot.tap_frame, 100)
+
+    def test_pending_deploy_candidate_fences_apply_at_press_and_delayed_ack(self):
+        for at_ack in (False, True):
+            for change in ({'distance': 2.61}, {'candidate': False}, {'facing': .049}):
+                with self.subTest(at_ack=at_ack, change=change):
+                    pilot, s = self.pending_deploy()
+                    if at_ack:
+                        s, _ = self.deploy_tick(pilot, s, native_interact=True)
+                        self.arm(s)
+                        s['board']['last_result'] = {'accepted': True}
+                    s['board'].update(change)
+                    with self.assertRaises(AssertionError):
+                        self.deploy_tick(pilot, s, native_interact=True)
 
     def test_deploy_nonempty_rejection_stops_only_after_actual_e(self):
         pilot, s = self.pending_deploy()

@@ -3408,6 +3408,21 @@ class StationDefensePilot(CompletedMotionProof, Pilot):
         if self.deployed is not None:
             require(not arm['armed'], 'consumed defense arm never reappears during this sortie')
             return
+        if self.armed is None:
+            request = self.receipts.get('deploy_press')
+            press = self.receipts.get('deploy_native_press')
+            if request is not None:
+                require(s['frame'] <= request['frame'] + 90, 'physical E did not deploy; no retry')
+                if previous is not None and s['native_interact'] != previous['native_interact']:
+                    require(s['native_interact'] and press is None
+                            and not request['native_interact']
+                            and request['frame'] < s['frame']
+                            and request['sequence'] <= previous['sequence']
+                            and s['board']['distance'] <= 2.6 and s['board']['candidate']
+                            and s['board']['facing'] >= .05,
+                            'one genuine pending actual E Deploy press with valid candidate, range and facing; no release or retry')
+                    press = self.receipt(s)
+                    self.receipts['deploy_native_press'] = press
         if arm['armed']:
             require(type(arm.get('arm_id')) is int and arm['arm_id'] > 0
                     and arm['actor_instance_id'] == s['player_id']
@@ -3415,8 +3430,8 @@ class StationDefensePilot(CompletedMotionProof, Pilot):
                     and arm['generation'] == activity['generation'],
                     'exact current actor/content/generation launch arm')
             if self.armed is None:
-                require(self.receipts.get('deploy_press') is not None and previous is not None
-                        and not previous['native_interact'] and s['native_interact']
+                require(press is not None and previous is not None and s['native_interact']
+                        and press['frame'] <= s['frame'] <= request['frame'] + 90
                         and s['board']['last_result'].get('accepted')
                         and s['board']['distance'] <= 2.6 and s['board']['candidate'] and s['board']['facing'] >= .05,
                         'accepted actual E Deploy arm with current candidate, 3D range and facing')
