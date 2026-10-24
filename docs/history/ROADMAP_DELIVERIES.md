@@ -21305,3 +21305,91 @@ physical cancellation/Main exit and coldload unarmed without a new save schema;
 pending rewards retain admission protection. No implementation selected before
 owner answer. UI original popup/removal evidence and other retained blockers
 remain unchanged. Main/source/checkpoint255f8df and broader gates unchanged.
+
+## Defense Deploy arm — accepted runtime; full combat still open — 2026-10-24
+
+User approved Deploy arms, actual launch starts enemies and existing34s timer.
+Accepted clean source9af48515a6d007d45da015fb0cedf0a652226eaf contains only eight
+production/test files: board, narrow GameFlow departure/mutual-exclusion wiring,
+Nearby presenter and existing focused tests. Content/host/activity clock/waves/
+combat unchanged. Runtime-only weak actor/content-generation/nonce arm, physical
+cancel/reset/Main exit retirement, unarmed coldload, debt/session protection and
+Heavy Breach exclusion. Actual current seated piloted craft/not-landed plus exact
+occupied lease/token before authoritative release and verified empty berth after
+release consume once; engine wake/history/failed release/stale owner do not.
+
+Seven focused runtime suites PASS on byte-identical accepted files: interaction28
+(35.080s), presenter40(.932s), production placement/persistence66(138.134s),
+readability17(16.104s), content88(66.069s), host46(2.340s), activity54(.720s).
+Accepted public CLI privacy PASS.980s. Staged setup and direct content starts in
+focused reward/terminal fixtures remain disclosed; real Arrow boarding/thrust is
+covered separately. Rendered board capture NOT_RUN. Failed initial parser inference
+was corrected by explicit bool; missing archived observer helper restored exactly.
+Root mistakenly used60s on two long suites: both cap stops retained, then existing
+placement300/content120 limits restored (prior passes136.782/67.549s, matrix300).
+No assertion filter or gameplay/ordinary-route cap increase. Earlier Python142 and
+corrected archived-driver147(10.682s) passes do not imply complete gameplay.
+
+Full candidate749b869a78e09087aa94eaf16ba20ad75d5cb854 plus driverb03a88b9c81dab78108e2a6ce0f1cd3b35a9a4ac
+retained all original authored walking/Arrow/combat/disk-payment/home/reset/UIquit
+requirements and34/300/360 limits. First runFAIL32.609s: actual E edge1035 then
+accepted current arm1036, rejected by caller's erroneous same-frame requirement.
+Observed-edge/delayed acknowledgement correlation fixed only the caller, retaining
+one held E, range/facing/current owner and original90frame deadline; regressions
+cover stale/intervening edges. No extra game export for that excluded caller fix.
+
+Second complete attemptFAIL100.537s, supervisor100.837s. Actual frames1041–2068
+provide1,028 consecutive identical nonce1/gen0 arm samples, idle elapsed0/four
+inactive enemies through walking/boarding2057/OFFLINE and enginewake2064/ONLINE.
+2068 remains occupied/not-landed/thrust1/idle0;2069 authoritative free berth/current
+pilot consumes arm, starts generation1/one enemy/elapsed.016667. Independent review
+GO for owner-approved runtime rule. Full combatFAIL: alpha3440 at22.85s after
+launch, beta4003; timeout4109/elapsed34.0167, two hostiles remain, core20/240,
+zero reward. Payment/home/reset/next Deploy/UIquit NOT_REACHED. Of57 actual Arrow
+shots,23 miss,13 friendly-fire blocks on the same other friendly entity,12 world
+blocks,7 damaging and2 lethal. Stationary alignment-only firing lacks clear LOS;
+no camera/muzzle defect proved (production converges muzzles correctly). Exact
+blocked collider paths/origins absent. No speculative aim/timer/damage/occlusion
+bypass or further full attempt selected. Full PLAY-DEFENSE and original nine
+unqualified outcomes remain OPEN. All actual failure cleanup flags true, zero
+game diagnostics; failed termination leaves one truncated raw JSON tail, no pass.
+
+Do not merge failed qualification merely for cleanup. All four candidate commits
+survive remote annotated archive/withheld/defense-launch-route-20261024 object
+e7f8d6bece4d00338d699182a5cbf3305a0c9fd9 peeling tob03a88b9c. Verified incremental
+bundle69,486bytes SHA25694dd5c2c5754b17d048378cbd0610ce641fa5b994f1a29b96c83df2671cef237,
+exact13-Git-blob/mode source tar2,232,320bytes SHA256
+39a77d3bb61a8f0860ae67dec3900c764cf34104b6fc7b6886a068524e9efd03,
+binary patch152,719bytes SHA2561ea5d8d668d98b18b8265e658cd1c128008ad7030a1b4df724d3d5b9f1a994c8.
+Only eight accepted files integrated/pushed; five failed driver/observer/selector/
+privacy files excluded. CandidateWindows/ELF packages verified archived privately,
+loose duplicate ELF and candidate artifacts removed from builds. Source tag, raw
+commands/logs/results/manifests and artifact identities retained under
+`/srv/mudds-work/defense-launch-arm-20261024/results/`.
+
+Fresh paired exports from accepted9af4851 pass (10.464/25.492s). Direct ELF22.656s,
+extracted Linux archive24.016s and Windows embedded data under Linux Godot26.484s
+strict startup all exit0/exactone STARTUP_MENU_READY_OK/no diagnostics. Actual
+1527-entry Windows/Linux PCK equality, stock PE and exact archive bytes/modes/
+source epoch PASS5.636s. Accepted runtime/source exactly matches tested8files;
+1,525 PCK entries unchanged versus candidate, changes only withheld observer.gdc
+and startup_loader.gdc. Scope-correct source/actual/package/notes review GO.
+Windows EXE184,723,344bytes SHA256
+62443f67a583b2581de4de26b5968c46f5d564e1d1a75357ea688bc17fb630d6;
+Linux ELF148,965,056bytes SHA256
+e722eb349b299d497f70c01434ccd5ee456e8af3722322d16a2350cf6085d78a;
+archive95,377,266bytes SHA256
+9213730541e390946b38b4f9cb0ac606246a8b5a91564985df2e997cf7130c32.
+Checkpoint ZIP103,256,405bytes SHA256a261330017548e354103ae8e64cced33e92a9b47cdfb6e42207e0b8a8a30e6d6;
+ZIP/notes in builds/windows; exact EXE/notes ZIP bytes verified.
+Native Windows/GPU/rendered quality/listening/human/full-release/parent gates
+remain NOT_RUN/open. Isolated Xvfb/x11/Dummy/dummy-render only; CI stays disabled.
+
+31 guarded stages830.339s:25pass/6failed stages retained (two parser failures,
+two incorrectshortcap stops, two ordinary failures). All31 owners terminal and108
+sampled identities absent.454 scratch entries byte/mode/archive verified/removed;
+profiles6,581,436bytes SHA256
+1dfa539967b655678dadf708ef1aef01f9508429af10269fa65ba812b3b94dbb.
+No working branch/worktree created. Main pushed; eight protected detached
+registrations (three already missing/tmp) and original nine unqualified outcomes
+retained. Owner-approved arm rule is delivered; no full Defense or parent closure.

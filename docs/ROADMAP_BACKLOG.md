@@ -561,7 +561,7 @@ test is an owner/regression anchor, not a runnable ordinary route.
 | PLAY-SCAN | Structure Scan first full ordinary play | 13 | UNSCHEDULED; ordinary approach within24m → actual4s physics scan → one discovery/payment entitlement → home dock/usable exit. Existing full Scan failure stays PARKED; no unchanged retry selected |
 | PLAY-BEACON | Beacon Traversal first full ordinary play | 13 | DONE bc48b2a: complete original ordinary journey112.031s within300s. Four physical beacons/one durable reward/60 stable ticks, actual safe RangeHeader crossing at hull100, four range targets/interceptor defeated, strict occupied home dock/OFFLINE/one native L and E/same-Player supported0.969m walk. Original Home caller restored with fine mouse correction at demonstrated quantization stall; all original guards retained. Independent review, paired checkpoint/three strict startups/1525-entry audit PASS; merged/pushed/owned cleanup done. Earlier settlement e06550e retained; archived37.713s UI failure and307.042s stalled route retained. UI cause remains unresolved; no normal-UI-quit/cold-restart/repeat/native/human acceptance. [Full result](history/ROADMAP_DELIVERIES.md#beacon--complete-original-home-journey-accepted--2026-10-21) |
 | PLAY-CONVOY | Convoy Escort first full ordinary play | 13 | UNSCHEDULED; departed piloted craft enters4m rendezvous → escort actual retained-Main tender through route/threats to safe arrival → payment/home dock/exit. Preserve90s timeout and42m/3s separation rules; parked Convoy failures are not reopened |
-| PLAY-DEFENSE | Station Defense first full ordinary play | 13 | OPEN. Runtime autonomous-flight escape defect fixed/shipped3767687: five focused suites, three strict packaged startups, actual payload audit and independent scoped review PASS. Full ordinary caller0b11486e0 remains withheld: boarding/departure/one actual kill, aborted near34s; no payment/home/reset/nextDeploy/UIexit. First kill about30s leaves less than remaining10.5s authored delays; a feasible ordinary combat plan is required before full rerun. Owner approved2026-10-24 Deploy arms/start enemies and34s on actual launch. DEFENSE-LAUNCH-ARM selected; read-only2026-10-21 feasibility limits and original failed trajectory retained. Original four kills/once payment/home/Reset/nextDeploy/UIexit and34s/CAP300/outer360 retained. Prior failed source/results preserved; owned scratch cleaned. [Runtime fix and limits](history/ROADMAP_DELIVERIES.md#defense-autonomous-flight-boundary-fixed-and-checkpointed--2026-10-20) |
+| PLAY-DEFENSE | Station Defense first full ordinary play | 13 | OPEN. Autonomous-flight fix3767687 and owner-approved Deploy-arm/actual-launch start9af48515a/checkpoint9af4851 delivered. Actual full callerb03a88b9c/game749b869 still times out34.0167s after2/4 kills, zero reward, no home/reset/nextDeploy/UIquit.57 shots:23 misses,13 friendly blocks,12 world blocks,7 damage,2 kills. Current stationary alignment-only plan lacks clear fire; no new retry selected. Full original acceptance and34s/CAP300/outer360 preserved. All original failures retained; failed new five-file qualification work archived/unmerged. |
 | DEFENSE-PHYSICAL-INTERACTION | Physical board E Deploy/status/reward-retry/terminal Reset | 13 | DONE checkpointa59127c: actual Main15/full placement62, paired exports/three strict startups/actual PCK audit PASS. Existing owners, debt/refusal/separatepress/range/facing/armed gates and whole34s preserved. Original test parse16.381s + one explicit-int correction retained, cumulative334.765s. Staged pose/terminal/refusal fixtures disclosed; full ordinary combat/home separate. [Result](history/ROADMAP_DELIVERIES.md#station-defense-physical-interaction--shipped-on-a59127c) |
 | PLAY-BREACH | Heavy Breach first full ordinary play | 13 | UNSCHEDULED; on-foot arm posted Heavy → board/depart combat-capable craft → destroy charged picket while protecting objective → one payment → home/dock/on-foot next posting. Existing staged production route is not actual combat; earned-debt interruption case DONE c78e0ac |
 | PLAY-TORPEDO | Torpedo Run first full ordinary play | 13 | UNSCHEDULED; reach Torpedo posting through normal board rotation → arm/board/depart → evade/intercept live seekers and destroy actual boat → distinct payment → home/dock/on-foot next posting. No direct scenario selection or skipped Heavy prerequisite |
@@ -3466,7 +3466,27 @@ Next bounded repair must resolve ordinary exit aim competing with peripheral
 engineer-seat discovery without removing deliberate engineer interaction or
 weakening the original full journey. Same branch; no new task branch.
 
-### Defense launch arm — approved and selected2026-10-24
+### Defense launch arm — delivered2026-10-24
+
+**Delivered9af48515a/checkpoint9af4851 — runtime rule only.** Eight accepted
+production/test files match tested candidate bytes. Actual1,028 prelaunch samples
+retain same arm/idle0/inactive enemies; occupied→free berth release2069 consumes
+once and starts34s. Seven runtime suites/public CLI privacy, fresh paired exports,
+three strict startups, actual1527-entry parity/archive audit pass. Public payload
+matches1,525 candidate entries; only withheld observer/selector differ. Full route
+stillFAIL100.537s/2kills/34.0167stimeout/zero reward; remaining journey not reached.
+Driver147 regressions do not establish full combat. Five qualification files and
+all four candidate commits preserved under archive/withheld/defense-launch-route-20261024;
+not merged. New31 stages/830.339s retain6 failures;108 identities absent/454 scratch
+entries archived and removed. Nine original outcomes remain unqualified.
+
+Next independent boundary: prove an ordinary clear-fire/aim plan from actual
+blocked-shot/targeting geometry before selecting another full Defense run.
+Current57 shots have23 misses/13 friendly blocks/12 world blocks; the exact
+blocking collider paths/shot origins were not captured. Camera/muzzle defect is
+not demonstrated: production already converges muzzles onto camera-ray contacts.
+No timer, damage, world collision bypass or unsupported unchanged retry. Earlier
+selection below is historical; owner arming rule delivered, full PLAY-DEFENSE open.
 
 DEFENSE-LAUNCH-ARM / PLAY-DEFENSE / parent13. User chose Deploy arms it in reply
 to the explicit arm-at-Deploy/start-enemies-and34s-on-launch choice. Board holds
