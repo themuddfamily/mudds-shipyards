@@ -21514,3 +21514,77 @@ byte/mode/link-verified against archive then removed; profiles45069bytes SHA256
 No new working branch/worktree; main remains sole branch and eight protected
 detached registrations remain untouched. Original nine unqualified candidates
 remain open; this additional unqualified case is not completion credit.
+
+
+## SERVER-BASELINE passenger disconnect — accepted — 2026-10-24
+
+Accepted caller503350e32, exact tested source00752bfc2 file bytes and runtime/export
+inputs verified identical. One original parent26 case is qualified on current
+Linux source/private Xvfb. After full ordinary BOARD and all seven MOVING stages,
+passenger1770670291 intentionally shuts its public session once. Host native and
+adapter disconnect each1, frame unregister1/body tree exit1, physical release
+sequence increments once, original body/boarding/role/publication/commands retire.
+Original pilot ownership, cockpit claim/body generations and remote helm remain;
+fresh ordinary throttle reaches the held authoritative helm and moving hull.
+The departed same Player retires old grants, walks0.616111755m supported in its
+solo cabin, then uses real pause/Resume.310 checks/zero failures, all three actual
+OS exits0 and clean logs. Original300s scenario/360s outer,8s role/15s walk/10s
+exit limits unchanged. No pose/authority/health injection or scope reduction.
+
+The previous closeout's missing clause is now identified. One specifically
+selected full diagnostic retained every original predicate and independently
+reported all38 host conjuncts plus11 expanded pilot checks.37 host checks passed;
+only pilot_current failed, solely because published_state/published_tick were−1.
+The same original seated wire remained current at tick5926. GameFlow rebuilds
+its audience on peer departure and invalidates the last-sent cache; after the
+passenger leaves, the surviving pilot is the sole admitted peer. Its own body
+must not echo back, so publication intentionally skips the empty audience after
+updating the authoritative wire. No runtime defect was established.
+
+A separately selected case-specific correction preserves all nine other pilot
+identity predicates and verifies live registered authority/adapter occupancy,
+exact entity/frame generations, seated wire/current positive host tick and
+seen_tick. It additionally requires the actual cached recipient Array to exist
+and be empty at the current admission epoch, sole admitted original remote owner
+and server_simulated=false. It reads the cache rather than invoking the builder,
+which would mutate it. The old common helper/full BOARD/seven MOVING/defaults/
+inputs/caps remain byte-identical. Diagnosis-only helper is removed before the
+accepted full run;112 existing functions match archived56636f356 except the one
+new post-loss host predicate call. Independent source and actual-result GO.
+
+Validation under guarded silent isolated environments:
+
+- Diagnostic compile FAIL16.792s: inferred current_owner lacked explicit type.
+- Root mistakenly launched route before observing that compile failure; it also
+  stopped at the same parse error16.492s, before any actors started. Both results
+  retained; subsequent compile and run launches were dependent and separate.
+- Explicit CrewSeatRoleAuthority type: compile PASS16.644s.
+- ONE selected full diagnostic FAIL149.526s; exact false clauses/operands retained.
+- Causal caller correction: compile PASS16.600s; full original case PASS142.626s.
+
+Six stages358.681s,3pass/3fail; together with prior four stages325.316s,
+10 stages683.997s retain5pass/5fail. No reset of cumulative failure costs.
+All source/cache guards pass. Current run uses headless coordinator and private
+per-peer Xvfb/explicitx11/dummy renderer/Dummy audio, synthetic input through
+production controls and real ENet. No user-desktop/native GPU/native Windows/
+physical-device/full baseline/endurance/final-package qualification. Runtime and
+export inputs stay byte-identical to playable9af4851; no duplicate rebuild.
+
+Command: `/tmp/mudds-tools/godot-4.7.1/godot --headless --audio-driver Dummy --path /srv/mudds-shipyards --script res://tests/network/halyard_network_passenger_route_test.gd -- --ordinary-two-client-passenger-loss`.
+
+Accepted test SHA256497e1656432273808484b2b61951857748bb3ec4e8d6a7163f226a4cb078054d.
+Raw guarded commands/manifests/logs,171 byte/mode-verified peer files and integration
+checks retained in `/srv/mudds-work/halyard-passenger-loss-diagnosis-20261024/results/`.
+Exact diagnostic source046be5ec13e3ff41c8a22b52d8c835e400d17908 preserved by pushed
+annotated `archive/diagnostics/halyard-passenger-cleanup-20261024`
+(object1e4dc509dd585b475961d7be62876be1e14ae1b6), verified bundle and exact-source
+archive. Prior failed caller/archive results remain preserved; corrected accepted
+changes integrated under503350e32 rather than merging diagnostic history.
+
+All6 owners terminal and34 sampled process identities absent.366 scratch entries
+byte/mode/link verified against archive before removal; profiles43017bytes SHA256
+5bad82192d7838d70f28f49a2cf08df13865116433fd7ee427721e8e91710b88.
+Main is the sole working/live branch; no new branch/worktree, protected eight
+detached registrations untouched. Original nine unqualified outcomes remain open.
+This closes the passenger-disconnect case only; no successor auto-scheduled,
+all broad parents/phase gates remain open and hosted CI stays disabled.

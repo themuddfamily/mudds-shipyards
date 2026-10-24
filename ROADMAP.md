@@ -42,31 +42,23 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
-**SERVER-BASELINE passenger-loss diagnosis selected — exact failed clause.**
-Cumulative review retains both failed full trials325.316s and the unqualified
-cleanup boundary below. Existing snapshots omit several predicate inputs.
-Restore the archived caller and extend only its existing failure snapshot with
-independent results for every original host predicate and retained/current
-identities. Original acceptance predicate, BOARD/seven MOVING and300/360/8/15/10s
-limits remain byte-identical. One silent isolated full diagnostic run after clean
-compile; stop on its result, no automatic qualification retry or speculative fix.
-Estimate20min implementation/review plus≤11min checks. Root integrates; one agent
-owns the test snapshot, independent reviewer checks observational-only scope.
-This diagnosis earns no gameplay or parent-completion credit.
+**SERVER-BASELINE passenger-disconnect case DONE —503350e32.**
+Full ordinary BOARD and all seven MOVING stages, one real passenger shutdown,
+once-only body/frame/seat retirement and retained original pilot ownership/helm
+pass142.626s under the original300s cap. Fresh ordinary pilot throttle reaches
+the authority; departing same Player walks0.616m supported in solo mode and uses
+real pause/Resume.310 checks/zero failures, all three actual OS exits0/clean logs.
 
-**SERVER-BASELINE passenger-disconnect stopped — cleanup barrier unqualified.**
-The full BOARD and seven MOVING stages completed. Corrected caller then observed
-one real passenger disconnect, one body/frame removal, and retained pilot
-ownership/command grant. The combined host cleanup predicate still failed before
-its release receipt. Fresh pilot throttle, departed solo walking/pause/Resume and
-full successful exits were not reached. Saved diagnostics do not identify the
-false clause; no production defect or third trial is established.
-Two failed trials remain preserved with their original300/360s caps. Caller-only
-candidate56636f356 is excluded from main and retained under pushed
-`archive/withheld/halyard-passenger-loss-20261024`. All4 owners terminal,31 sampled
-process identities absent;329 scratch entries archived/verified/removed.
-Public checkpoint9af4851 and prior accepted server cases remain unchanged.
-[Failure boundary and missing facts](docs/history/ROADMAP_DELIVERIES.md#server-baseline-passenger-disconnect--unqualified--2026-10-24).
+The earlier barrier failures were caller assumptions: JSON number representation,
+then a last-sent cache that correctly stays unset when the pilot is the sole peer
+and receives no own-body echo. The corrected case verifies live registered seated
+authority/current wire and actual empty audience. Shared helper/full prefix/caps
+remain unchanged. Independent source/result review GO; exact tested file integrated.
+Six new stages terminal/34 sampled process identities absent;366 scratch entries
+archived/verified/removed. Original failures and exact diagnosis remain preserved.
+Runtime/export inputs and playable9af4851 are unchanged; no duplicate checkpoint.
+Full baseline/endurance/native gates remain open; no next case auto-selected.
+[Complete case, cause and limits](docs/history/ROADMAP_DELIVERIES.md#server-baseline-passenger-disconnect--accepted--2026-10-24).
 
 **DEFENSE-CLEAR-FIRE stopped — the fixed approach fails live clearance.**
 The western settling adjustment reached boarding and actual departure. At the
