@@ -23023,3 +23023,55 @@ members/10,539,059bytes, SHA256
 Owned profiles/helpers removed; case directory retains only that archive and
 closeout.json. Main is the sole local branch; pre-existing detached worktrees
 were not touched.
+
+
+## Sampled remote hover — full handback accepted — 2026-10-25
+
+HELM-HOVER/parent18 isolated source qualification, clean candidate524606903.
+Selection721f50bff fixed one60min cumulative task; one high implementer, root
+integration/checks and independent high source/direct-raw reviewer. New295line
+hover test/UID inherits the existing boost route; no copied boarding/yaw/boost/
+handback suite, framework, validator or production change. Full physical ordinary
+three-process Main route and original300s profile/360s outer remain unchanged.
+
+After both real clients walk/board, actual departure/brake, both signed yaw turns
+and baseline/boost trials, pilot sampled pitch-up/forward creates genuine tilt
+and upward motion; releasing pitch continues a real climb18.7318m/s. Hover alone
+then reaches the host through original LocalShipInputSource/capture/ENet/source
+with zero actual throttle. No provider/direct-command/pose/velocity/engine/
+authority staging. Source/stream/session/seat/entity/owner continuity remains.
+
+Actual30tick/.5s hover window: tilt16.74025578→6.15840165deg, upward speed
+13.53895950→1.04819632m/s. Separately accounting for normal drag/nose assistance,
+authored hover removes12.5m/s; maximum per-tick vertical error3.18e-7m/s and tilt
+error2.88e-6deg. Actual held hover finishes upright≤0.75deg/vertical≤0.05m/s.
+Exact final held release-reference retained: sequence1433/delivery361/wire360
+→fresh neutral1449/365/364 in313ms, same source/localstream2/wire0; pilot capture
+newly sends neutral. This is delivered release, not timeout fallthrough.
+
+Ordinary braking/neutral then both actual client hulls consume newer original-
+owner poses; position errors0.47636/0m, attitude0.5234/0.5410deg, anchors0m.
+Full ordinary Interact handback: owner1622603636/gen1→owner0/gen2, remote source
+retired, pilot capture disconnected/empty/saved absent, current PASSENGER HUD,
+OFFLINE/no stale hover/pitch and actual supported host/client walk2.350/1.841m.
+Independent reviewer inspected actual receipts/logs, not only guard summaries.
+All3 distinct raw peer done failure[] and actual OS exits0; coordinator marker1.
+
+Frozen checks all first attempt PASS: silent headless import6.720s, check-only
+17.205s, ONE full ordinary route157.438s; total181.364s. No runtime diagnostics,
+no extra runs, CI, export or identical package rebuild. Native/physical input,
+planetary-hover, capacity/endurance/final-source and original parent gates remain
+open; accepted existing behavior is not a new feature or whole-project finish.
+Latest playable checkpoint remainsfb396ab. Accepted candidate integrated on main;
+no task branch/worktree created, existing detached worktrees left untouched.
+
+Records: /srv/mudds-work/jovian-remote-hover-20261025/results/. Owned helper/profile
+files archived with byte/mode/link verification before removal; exact archive
+identity, terminal owners and process cleanup are recorded in closeout.json.
+
+Cleanup completed8.25min from original selection within60min: all3 stage owners
+terminal, all21 sampled process identities absent. Verified269 archive members,
+10,545,020bytes, SHA256
+868a40ea07c1389d0f2e9c2f12025d32f9d6010b2de951e2ea743416a224009b.
+Owned profiles/helpers removed; only case-records.tar.gz and closeout.json remain.
+Main remains sole local branch; no owned task worktree/process is retained.
