@@ -4160,5 +4160,155 @@ class ArrowReturnReuseTests(unittest.TestCase):
         self.assertEqual(p.stage, 'shutdown')
 
 
+class DefenseConsumedFireTests(unittest.TestCase):
+    """Caller-only fixtures: actual combat/settlement is the full ENet-free route."""
+    @staticmethod
+    def sample(n=10, fire=False, **changes):
+        s = dict(mode='station-defense', pid=1, main_id=2, player_id=3, ship_id=4,
+                 player_source_id=1102, input_source_id=5, input_stream=6,
+                 sequence=n, frame=n, phase='FREE_FLIGHT', actors_current=True,
+                 active_ship=True, piloted=True, seated=True, seated_at_pilot=True,
+                 default_sampler=True, source_enabled=True, application_focused=True,
+                 mouse_captured=True, paused=False, destroyed=False, transition_busy=False,
+                 command_fire=fire, native_fire=fire,
+                 consumed_command=dict(stream_id=6, sequence=n, fire=fire),
+                 defense=dict(activity=dict(generation=7, state_id='active',
+                     elapsed_seconds=14., timeout_seconds=34)))
+        s.update(changes)
+        return s
+
+    @staticmethod
+    def target():
+        return dict(instance_id=8, generation=1, source_id=2121, current=True,
+                    active=True, health=85, live_source_id=2121)
+
+    def armed(self):
+        control = native.DefenseFireControl()
+        self.assertFalse(control.step(self.sample(10), self.target(), True))
+        self.assertFalse(control.step(self.sample(11), self.target(), True))
+        self.assertTrue(control.step(self.sample(12), self.target(), True))
+        return control
+
+    def test_short_clear_window_stays_held_until_fresh_consumed_press_and_release(self):
+        control = self.armed()
+        # LOS/cooldown no longer clear: no premature true->false pulse.
+        self.assertTrue(control.step(self.sample(13), self.target(), False))
+        cached = self.sample(14, True)
+        cached['consumed_command']['sequence'] = 12
+        self.assertTrue(control.step(cached, self.target(), False))
+        self.assertFalse(control.step(self.sample(15, True), self.target(), False))
+        self.assertEqual(control.phase, 'WAIT_FALSE')
+        self.assertFalse(control.step(self.sample(16, True), self.target(), True))
+        self.assertFalse(control.step(self.sample(17), self.target(), True))
+        self.assertTrue(control.step(self.sample(18), self.target(), True))
+        self.assertEqual([r['action'] for r in control.receipts],
+                         ['released', 'requested', 'consumed', 'released', 'requested'])
+
+    def test_native_press_alone_and_replayed_frame_cannot_acknowledge(self):
+        control = self.armed()
+        self.assertTrue(control.step(self.sample(13, native_fire=True), self.target(), False))
+        stale = self.sample(12, True)
+        stale['sequence'] = 14
+        stale['consumed_command']['sequence'] = 14
+        self.assertTrue(control.step(stale, self.target(), False))
+        self.assertEqual(control.phase, 'WAIT_TRUE')
+
+    def test_initial_cached_true_cannot_ack_a_new_request(self):
+        control = native.DefenseFireControl()
+        for n in (10, 11):
+            self.assertFalse(control.step(self.sample(n, True), self.target(), True))
+        self.assertFalse(control.step(self.sample(12), self.target(), True))
+        self.assertTrue(control.step(self.sample(13), self.target(), True))
+        self.assertFalse(any(r['action'] == 'consumed' for r in control.receipts))
+
+    def test_current_owner_focus_source_epoch_phase_or_deadline_invalidation_releases(self):
+        mutations = [lambda s: s.update(application_focused=False),
+                     lambda s: s.update(source_enabled=False),
+                     lambda s: s.update(default_sampler=False),
+                     lambda s: s.update(input_source_id=50),
+                     lambda s: s.update(input_stream=7),
+                     lambda s: s.update(ship_id=40),
+                     lambda s: s.update(player_id=30),
+                     lambda s: s.update(main_id=20),
+                     lambda s: s.update(player_source_id=1103),
+                     lambda s: s.update(paused=True),
+                     lambda s: s.update(destroyed=True),
+                     lambda s: s.update(transition_busy=True),
+                     lambda s: s.update(piloted=False),
+                     lambda s: s.update(actors_current=False),
+                     lambda s: s.update(mouse_captured=False),
+                     lambda s: s.update(phase='SHUT_DOWN'),
+                     lambda s: s['defense']['activity'].update(generation=8),
+                     lambda s: s['defense']['activity'].update(elapsed_seconds=34),
+                     lambda s: s['defense']['activity'].update(state_id='completed')]
+        for mutate in mutations:
+            with self.subTest(mutation=mutate):
+                control = self.armed(); sample = self.sample(13); mutate(sample)
+                self.assertFalse(control.step(sample, self.target(), True))
+                self.assertEqual(control.phase, 'WAIT_FALSE')
+                self.assertFalse(any(r['action'] == 'consumed' for r in control.receipts))
+
+    def test_target_retirement_or_replacement_releases_without_inventing_consumption(self):
+        for field, value in [('health', 0), ('active', False), ('current', False),
+                             ('instance_id', 80), ('generation', 2), ('live_source_id', 0)]:
+            with self.subTest(field=field):
+                control = self.armed(); target = self.target(); target[field] = value
+                self.assertFalse(control.step(self.sample(13), target, True))
+                self.assertFalse(any(r['action'] == 'consumed' for r in control.receipts))
+
+    def test_real_combat_update_keeps_aiming_while_waiting_for_consumption(self):
+        pilot = native.StationDefensePilot()
+        pilot.stage = 'combat'; pilot.staging_done = {'frame': 1}
+        target = self.target()
+        target['aim_shape'] = dict(point=[10, 0, -20])
+        with patch.object(pilot, 'aim', return_value=(7, -4, 1.0)), \
+                patch.object(pilot, 'defense_fire_ready', return_value=True) as gate:
+            for n in (10, 11, 12, 13, 14):
+                sample = self.sample(n, fire=(n == 14), velocity=[0, 0, 0],
+                                     back=[math.sin(n*.01), 0, math.cos(n*.01)], walk_forward=[0, 0, -1])
+                sample['defense']['actors'] = [target]
+                pilot.last_state = sample
+                gate.return_value = n <= 12
+                keys, dx, dy, fire = pilot.update(sample, 100+n/60)
+                self.assertEqual((dx, dy), (7, -4))
+                self.assertEqual(fire, n in (12, 13))
+        self.assertEqual(pilot.kills, {})
+
+    @staticmethod
+    def miss():
+        return dict(event=1, frame=3793, request_source_id=1102, sequence=0,
+            request_source_entity_id=4, source_id=1102, source_entity_id=4,
+            origin=[-65.35171508789062, 11.125833511352539, -89.43472290039062],
+            direction=[.971716582775116, -.0457228422164917, .23168136179447174],
+            impact=[math.inf]*3, collider=dict(id=0, path=''), target_entity_id=0,
+            target_handle={}, weapon_id=native.StationDefensePilot.WEAPON,
+            presentation_receipt_id=3, status='miss', accepted=True, resolved=True,
+            command_fire=True, applied_damage=0., damaged=False, damage_accepted=False,
+            destroyed=False, remaining_health=-1., damage_health=-1., damage_destroyed=False)
+
+    def test_authentic_miss_is_not_a_hit_and_malformed_miss_is_rejected(self):
+        pilot = native.StationDefensePilot(); pilot.initial = dict(ship_id=4)
+        pilot.observe_event(self.miss())
+        self.assertEqual(pilot.kills, {})
+        self.assertEqual(pilot.events[-1]['status'], 'miss')
+        for changes in (dict(origin=[math.inf, 0, 0]), dict(direction=[0, 0, -2]),
+                        dict(impact=[0, 0, 0]), dict(collider=dict(id=1, path='/solid')),
+                        dict(target_entity_id=8), dict(applied_damage=24),
+                        dict(damaged=True), dict(destroyed=True), dict(remaining_health=0)):
+            with self.subTest(changes=changes):
+                pilot = native.StationDefensePilot(); pilot.initial = dict(ship_id=4)
+                event = self.miss(); event.update(changes)
+                with self.assertRaises(AssertionError): pilot.observe_event(event)
+                self.assertEqual(pilot.kills, {})
+
+    def test_actual_blocked_contact_is_retained_without_damage_or_kill(self):
+        pilot = native.StationDefensePilot(); pilot.initial = dict(ship_id=4)
+        event = self.miss()
+        event.update(status='world_blocked', impact=[0, 0, -20], collider=dict(id=9, path='/solid'))
+        pilot.observe_event(event)
+        self.assertEqual(pilot.kills, {})
+        self.assertEqual(pilot.events[-1]['collider']['id'], 9)
+
+
 if __name__ == '__main__':
     unittest.main()
