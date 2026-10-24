@@ -39,6 +39,10 @@ var _ship: HeroShip
 var _opponent: RangeOpponent
 var _courier_mode := false
 var _courier_escape_mode := false
+var _courier_withdraw_phase_mode := false
+var _courier_withdraw_authority: Node
+var _courier_defender_kill: Dictionary = {}
+var _courier_withdraw_maximum_radius := 0.0
 var _courier_dispatched: Dictionary = {}
 var _courier_dispatched_generation := -1
 var _courier_terminal: Dictionary = {}
@@ -112,10 +116,15 @@ func on_startup_completed(main: Node) -> void:
 		return
 	_opponent = _game.get_node("RangeOpponent") as RangeOpponent
 	_courier_escape_mode = "--native-sortie-observer=courier-escape" in OS.get_cmdline_args()
-	_courier_mode = "--native-sortie-observer=courier-intercept" in OS.get_cmdline_args() or _courier_escape_mode
+	_courier_withdraw_phase_mode = "--native-sortie-observer=courier-withdraw-phase" in OS.get_cmdline_args()
+	_courier_mode = "--native-sortie-observer=courier-intercept" in OS.get_cmdline_args() or _courier_escape_mode or _courier_withdraw_phase_mode
 	if _courier_mode:
 		_courier = _game.get_node("CourierRunner") as CourierRunnerOpponent
 		_courier_director = _game.get_node("EncounterScenarios") as EncounterScenarioDirector
+		if _courier_withdraw_phase_mode:
+			_courier_withdraw_authority = _game.combat_authority
+			_courier_withdraw_authority.connect(&"authoritative_shot_submitted", _capture_courier_defender_kill)
+			_game.tree_exiting.connect(_disconnect_courier_withdraw)
 	_spawn = _player.global_position
 	_parked = _ship.global_transform
 	_tuning = _sortie_tuning()
@@ -128,6 +137,51 @@ func on_startup_completed(main: Node) -> void:
 		for craft: HeroShip in _game.get_flyable_ships():
 			_fleet_initial[str(craft.get_ship_id())] = {
 				"pose": craft.global_transform, "tuning": _craft_tuning(craft)}
+
+
+## Observe the existing authority's completed resolver call. The defender's
+## destroyed signal has already taken GameFlow to RETURN_TO_YARD, while the
+## director has not yet processed that phase change. No gameplay writes occur.
+func _capture_courier_defender_kill(request: ShotRequest, result: Dictionary) -> void:
+	if not _courier_defender_kill.is_empty() or not is_instance_valid(_game) \
+			or not _game.is_inside_tree() or get_parent().call("get_main") != _game \
+			or not is_instance_valid(_courier_withdraw_authority) \
+			or _game.combat_authority != _courier_withdraw_authority \
+			or _game.get_active_ship() != _ship or request.source_entity != _ship \
+			or result.get("request") != request \
+			or result.get("source_entity") != _ship or result.get("target_entity") != _opponent \
+			or not bool(result.get("accepted", false)) or not bool(result.get("resolved", false)) \
+			or not bool(result.get("destroyed", false)):
+		return
+	var command := _ship.get_last_ship_command()
+	_courier_defender_kill = _courier_shot_observation(result)
+	_courier_defender_kill.merge({"frame": Engine.get_physics_frames(),
+		"main_id": _game.get_instance_id(), "authority_id": _courier_withdraw_authority.get_instance_id(),
+		"director_id": _courier_director.get_instance_id(), "actor_id": _courier.get_instance_id(),
+		"generation": _courier_director.get_scenario_generation(),
+		"last_sequence": int(result.get("last_sequence", -1)),
+		"remaining_health": float(result.get("remaining_health", -1.0)),
+		"command_fire": command.fire if command != null else false,
+		"phase": GameFlow.Phase.keys()[_game.phase],
+		"state": str(_courier_director.get_state()), "outcome": str(_courier_director.get_outcome()),
+		"courier_active": _courier.is_active(), "courier_health": _courier.get_health(),
+		"courier_maximum_health": _courier.maximum_health,
+		"escape_progress": _courier_director.get_escape_progress(),
+		"scenario_origin": _v(_courier_director.get("_scenario_origin")),
+		"ship_position": _v(_ship.global_position)})
+
+
+func _disconnect_courier_withdraw() -> void:
+	if is_instance_valid(_courier_withdraw_authority) \
+			and _courier_withdraw_authority.is_connected(&"authoritative_shot_submitted", _capture_courier_defender_kill):
+		_courier_withdraw_authority.disconnect(&"authoritative_shot_submitted", _capture_courier_defender_kill)
+	if is_instance_valid(_game) and _game.tree_exiting.is_connected(_disconnect_courier_withdraw):
+		_game.tree_exiting.disconnect(_disconnect_courier_withdraw)
+	_courier_withdraw_authority = null
+
+
+func _exit_tree() -> void:
+	_disconnect_courier_withdraw()
 
 
 ## Retain only scalar production receipts, before the output cadence gate.
@@ -190,7 +244,7 @@ func _courier_observation() -> Dictionary:
 		"seen_alive": _courier_seen_alive,
 		"hit": _courier_hit.duplicate(true), "kill": _courier_kill.duplicate(true),
 	}
-	if _courier_escape_mode:
+	if _courier_escape_mode or _courier_withdraw_phase_mode:
 		var roster_ids: Array = []
 		for member: Node3D in _courier_director.get_roster():
 			roster_ids.append(member.get_instance_id())
@@ -201,13 +255,21 @@ func _courier_observation() -> Dictionary:
 			"actors": _courier_dispatched_observation(), "roster_ids": roster_ids,
 			"terminal": _courier_terminal.duplicate(true),
 			"standdown_violation": _courier_standdown_violation})
+	if _courier_withdraw_phase_mode:
+		result.merge({"main_id": _game.get_instance_id(),
+			"authority_id": _courier_withdraw_authority.get_instance_id() if is_instance_valid(_courier_withdraw_authority) else 0,
+			"defender_kill": _courier_defender_kill.duplicate(true),
+			"maximum_withdraw_radius": _courier_withdraw_maximum_radius})
 	return result
 
 
 ## Detached facts from the retained authoritative result, including misses.
 ## Reading this does not submit a shot or advance the resolver sequence.
 func _courier_prep_shot_observation() -> Dictionary:
-	var shot := _game.get_last_player_shot_result()
+	return _courier_shot_observation(_game.get_last_player_shot_result())
+
+
+func _courier_shot_observation(shot: Dictionary) -> Dictionary:
 	var request := shot.get("request") as ShotRequest
 	var source := shot.get("source_entity") as Node
 	var target := shot.get("target_entity") as Node
@@ -242,6 +304,10 @@ func _capture_courier_escape() -> void:
 		_courier_dispatched.clear()
 		_courier_terminal.clear()
 		_courier_standdown_violation = ""
+		_courier_withdraw_maximum_radius = 0.0
+	if _courier_withdraw_phase_mode and generation > 0:
+		_courier_withdraw_maximum_radius = maxf(_courier_withdraw_maximum_radius,
+			_ship.global_position.distance_to(_courier_director.get("_scenario_origin") as Vector3))
 	for member: Node3D in _courier_director.get_roster():
 		_courier_dispatched[member.get_instance_id()] = member
 	var actors := _courier_dispatched_observation()
@@ -252,6 +318,11 @@ func _capture_courier_escape() -> void:
 			"position": _v(_courier.global_position), "escape_origin": _v(_courier.get_escape_origin()),
 			"health": _courier.get_health(), "escape_progress": _courier_director.get_escape_progress(),
 			"actors": actors.duplicate(true)}
+		if _courier_withdraw_phase_mode:
+			_courier_terminal.merge({"phase": GameFlow.Phase.keys()[_game.phase],
+				"outcome": str(_courier_director.get_outcome()),
+				"scenario_origin": _v(_courier_director.get("_scenario_origin")),
+				"ship_position": _v(_ship.global_position)})
 	if _courier_terminal.is_empty():
 		return
 	for actor: Dictionary in actors:
@@ -485,7 +556,7 @@ func _physics_process(delta: float) -> void:
 		return
 	if _courier_mode:
 		_capture_courier_receipt()
-		if _courier_escape_mode:
+		if _courier_escape_mode or _courier_withdraw_phase_mode:
 			_capture_courier_escape()
 	_elapsed += delta
 	if _elapsed < 1.0 / (20.0 if _full_sandbox else 60.0):

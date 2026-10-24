@@ -7,6 +7,7 @@ Use --route beacon-entry for normal Torrent departure and actual first Beacon HU
 Use --route beacon-settlement to continue through all four beacons and durable settlement.
 Use --route beacon-home to retain payment through genuine Guided combat, home dock and usable exit.
 Use --route arrow-return-reuse for one Arrow precision hit, two home exits and normal UI quit.
+Use --route courier-withdraw-phase for a post-dispatch defender kill and real phase withdrawal through home.
 Use --route courier-escape for the live first runner boundary, standdown and original Guided home.
 Use --route sandbox for the full five-branch/eight-craft/crash/reuse scenario.
 Use --route sandbox-walk for the on-foot prerequisite only.
@@ -941,6 +942,219 @@ class CourierEscapePilot(CourierPilot):
                                courier_home=c, defender_wounds=self.defender_wounds,
                                defender_misses=self.defender_misses,
                                waiting_flight=self.waiting_flight_report(),
+                               standdown_observed_frames=s['frame'] - c['terminal']['frame'])
+        return controls
+
+
+class CourierWithdrawPhasePilot(CourierEscapePilot):
+    """Kill the original defender after first dispatch, then observe phase withdrawal."""
+    MARKER = 'NATIVE_COURIER_WITHDRAW_PHASE_OK'
+
+    def __init__(self):
+        super().__init__()
+        self.dispatch = None
+        self.defender_kill = None
+        self.courier_withdrawal = None
+        self.dispatch_sequence = None
+        self.final_fire_frame = None
+        self.withdraw_context = None
+
+    def check_defender_kill(self, receipt, s):
+        request = receipt.get('request', {})
+        require(self.final_fire_frame is not None
+                and self.running_frame < self.final_fire_frame < receipt.get('frame', -1) <= s['frame']
+                and type(request.get('sequence')) is int
+                and request['sequence'] > self.dispatch_sequence
+                and receipt.get('last_sequence') == request['sequence'],
+                'fresh authoritative defender kill follows observed first dispatch and ordinary fire')
+        require(receipt.get('present') is True and receipt.get('accepted') is True
+                and receipt.get('resolved') is True and receipt.get('hit') is True
+                and receipt.get('damaged') is True and receipt.get('destroyed') is True
+                and receipt.get('status') == 'destroyed'
+                and receipt.get('source_id') == request.get('source_id') == 1101
+                and receipt.get('source_entity_id') == request.get('source_entity_id') == s['ship_id']
+                and request.get('weapon_id') == 'torrent_compact_pulse_cannon'
+                and receipt.get('target_entity_id') == self.defender_id
+                and receipt.get('damageable_id', 0) > 0 and receipt.get('collider_id', 0) > 0
+                and receipt.get('command_fire') is True
+                and math.isfinite(receipt.get('applied_damage', float('nan')))
+                and receipt['applied_damage'] > 0
+                and math.isfinite(receipt.get('remaining_health', float('nan')))
+                and receipt['remaining_health'] <= 0,
+                'actual original defender destroyed by authoritative ordinary Torrent FIRE receipt')
+        require((receipt.get('main_id'), receipt.get('authority_id')) == self.withdraw_context
+                and (receipt.get('director_id'), receipt.get('actor_id'), receipt.get('generation')) == self.courier_identity
+                and receipt.get('phase') == 'RETURN_TO_YARD'
+                and receipt.get('state') == 'running' and receipt.get('outcome') == 'pending'
+                and receipt.get('courier_active') is True
+                and receipt.get('courier_health') == receipt.get('courier_maximum_health') == self.courier_launch_health
+                and math.isfinite(receipt.get('escape_progress', float('nan')))
+                and 0 <= receipt['escape_progress'] < 1
+                and receipt.get('scenario_origin') == self.scenario_origin,
+                'same live unhurt first runner before escape at normal defender-kill return transition')
+        self.require_wait_radius(receipt['ship_position'], self.scenario_origin)
+        require(not s['opponent_active'] and s['opponent_health'] <= 0
+                and s['phase'] in ('RETURN_TO_YARD', 'SHUT_DOWN', 'COMPLETE'),
+                'actual original defender death retains the normal Guided return and home phases')
+        if self.defender_kill is not None:
+            require(receipt == self.defender_kill, 'original authoritative defender kill witness never changes')
+
+    def check_standdown(self, c, s):
+        terminal = c['terminal']
+        require(self.defender_kill is not None and terminal
+                and self.defender_kill['frame'] <= terminal['frame'] <= s['frame']
+                and terminal['frame'] > self.running_frame,
+                'actual withdrawal terminal follows the fresh post-dispatch defender kill')
+        require((terminal['director_id'], terminal['actor_id'], terminal['generation']) == self.courier_identity
+                and terminal['escape_origin'] == self.escape_origin
+                and terminal['scenario_origin'] == self.scenario_origin
+                and terminal['phase'] == 'RETURN_TO_YARD' and terminal['outcome'] == 'withdrawn'
+                and terminal['health'] == self.courier_launch_health
+                and math.isfinite(terminal['escape_progress']) and 0 <= terminal['escape_progress'] < 1,
+                'same unhurt first runner withdrawn by normal RETURN_TO_YARD before escape')
+        self.require_wait_radius(terminal['ship_position'], self.scenario_origin)
+        require(c['state'] == 'concluded' and c['outcome'] == 'withdrawn' and not c['active']
+                and not c['roster_ids'] and not c['standdown_violation'],
+                'phase-withdrawn director retains total standdown without transient violations')
+        baseline = {a['id']: a for a in terminal['actors']}
+        actors = {a['id']: a for a in c['actors']}
+        require(len(baseline) == len(terminal['actors']) and set(baseline) == set(actors) == self.dispatched_ids,
+                'every actually dispatched actor retained through phase withdrawal and home')
+        for actor_id, actor in actors.items():
+            original = baseline[actor_id]
+            require(original['present'] is True and original['active'] is False
+                    and original['fire_authorized'] is False and original['pending_receipts'] == 0,
+                    'all dispatched actors stood down at the actual withdrawal frame')
+            require(actor['present'] is True and actor['active'] is False
+                    and actor['fire_authorized'] is False and actor['pending_receipts'] == 0
+                    and actor['shots_fired'] == original['shots_fired'],
+                    'all dispatched actors remain inactive unauthorized and fire no further shots')
+        if self.courier_withdrawal is not None:
+            require(terminal == self.courier_withdrawal['terminal'], 'original withdrawal terminal witness never changes')
+
+    def update(self, s, now):
+        c = self.last_courier = s['courier']
+        if s['phase'] == 'COMPLETE':
+            require(self.courier_withdrawal is not None and s['frame'] >= self.standdown_until_frame
+                    and s['telemetry']['engine'] == 'OFFLINE',
+                    'actual phase withdrawal sustained standdown and OFFLINE precede complete strict home journey')
+        previous_stage = self.stage
+        controls = Pilot.update(self, s, now)
+        if previous_stage == 'range' and self.stage == 'interceptor':
+            require(s['destroyed_targets'] == 4 and s['opponent_id'] > 0
+                    and math.isclose(s['opponent_health'], 85., abs_tol=1e-6),
+                    'four actual range kills and original live defender before ordinary preparation')
+            self.wait_frame = s['frame']
+            self.defender_id = s['opponent_id']
+            self.defender_ready_frame = s['frame'] + math.ceil(s['tuning']['cooldown'] * 60) + 6
+            self.enter('courier_wait', s)
+            return {'Prior'}, 0, 0, False
+        if self.wait_frame is None:
+            return controls
+        require(all(math.isfinite(c[k]) and math.isclose(c[k], v, rel_tol=1e-6, abs_tol=1e-6)
+                    for k, v in self.CONFIG.items()), 'original encounter configuration')
+        require(s['opponent_id'] == self.defender_id and s['telemetry']['hull'] > 0,
+                'same original defender and positive player hull throughout withdrawal and home')
+        if self.stage == 'courier_wait':
+            require(s['phase'] == 'INTERCEPTOR_ENGAGEMENT' and s['opponent_active']
+                    and s['opponent_health'] > 0 and c['outcome'] == 'pending'
+                    and not c.get('defender_kill'),
+                    'original defender stays alive before first ordinary live dispatch')
+            require(c.get('weapon_status', {}).get('reason') != 'weapon_component_failed',
+                    'authoritative weapon_component_failed; phase withdrawal has no weapon recovery route')
+            wait_controls = self.defender_wait_controls(s, c['state'] != 'running')
+            if c['state'] != 'running':
+                require(c['state'] in ('idle', 'arming') and c['generation'] == 0,
+                        'ordinary first-generation courier arming')
+                return wait_controls
+            require(len(self.defender_wounds) == 2 and self.defender_pulse is None
+                    and math.isclose(s['opponent_health'], 17., abs_tol=1e-6) and not s['command_fire'],
+                    'two ordinary nonlethal defender wounds and released fire before first dispatch')
+            require(c['scenario'] == 'courier_intercept' and c['generation'] == 1
+                    and c['active'] and c['seen_alive'] and c['health'] == c['maximum_health'] > 0
+                    and c['director_id'] > 0 and c['actor_id'] > 0 and not c['terminal']
+                    and math.isfinite(c['escape_progress']) and 0 <= c['escape_progress'] < 1,
+                    'actual live unhurt first courier dispatch before any terminal')
+            baseline = c.get('prep_shot', {})
+            request = baseline.get('request', {})
+            require(baseline.get('present') is True and baseline.get('accepted') is True
+                    and baseline.get('resolved') is True
+                    and baseline.get('source_id') == request.get('source_id') == 1101
+                    and baseline.get('source_entity_id') == request.get('source_entity_id') == s['ship_id']
+                    and type(request.get('sequence')) is int and request['sequence'] > 0,
+                    'actual authoritative pre-attack player shot sequence at first dispatch')
+            self.dispatch_sequence = request['sequence']
+            self.courier_identity = (c['director_id'], c['actor_id'], c['generation'])
+            self.withdraw_context = (c['main_id'], c['authority_id'])
+            require(all(value > 0 for value in self.withdraw_context), 'actual current Main and combat authority identities')
+            self.escape_origin, self.scenario_origin = list(c['escape_origin']), list(c['scenario_origin'])
+            self.courier_launch_health = c['health']
+            self.running_frame = s['frame']
+            self.dispatch = json.loads(json.dumps(s))
+            self.enter('courier_withdraw_attack', s)
+            controls = ({'Prior'}, 0, 0, False)
+        require(self.courier_identity == (c['director_id'], c['actor_id'], c['generation'])
+                and self.withdraw_context == (c['main_id'], c['authority_id'])
+                and c['scenario'] == 'courier_intercept' and c['seen_alive']
+                and c['escape_origin'] == self.escape_origin and c['scenario_origin'] == self.scenario_origin,
+                'same original courier current Main authority generation and origins through home')
+        require(math.isfinite(c['health']) and c['health'] == c['maximum_health'] == self.courier_launch_health
+                and not c['hit'] and not c['kill']
+                and math.isfinite(c['escape_progress']) and 0 <= c['escape_progress'] < 1,
+                'original phase-withdrawn runner remains entirely unhurt and never escapes')
+        self.maximum_wait_radius = max(self.maximum_wait_radius,
+                                      self.require_wait_radius(s['position'], self.scenario_origin))
+        require(math.isfinite(c['maximum_withdraw_radius']) and 0 <= c['maximum_withdraw_radius'] <= 450.,
+                'every physics frame stays within 450m of actual scenario origin; no distance withdrawal')
+        self.maximum_wait_radius = max(self.maximum_wait_radius, c['maximum_withdraw_radius'])
+        actor_ids = [a['id'] for a in c['actors']]
+        require(len(set(actor_ids)) == len(actor_ids) and self.dispatched_ids <= set(actor_ids)
+                and c['actor_id'] in actor_ids and set(c['roster_ids']) <= set(actor_ids),
+                'actual dispatched roster includes original courier without loss or duplicates')
+        if self.courier_withdrawal is None:
+            self.dispatched_ids.update(actor_ids)
+        if c['defender_kill']:
+            self.check_defender_kill(c['defender_kill'], s)
+            if self.defender_kill is None:
+                self.defender_kill = json.loads(json.dumps(c['defender_kill']))
+        if self.stage == 'courier_withdraw_attack':
+            if self.defender_kill is None:
+                require(s['phase'] == 'INTERCEPTOR_ENGAGEMENT' and s['opponent_active']
+                        and math.isclose(s['opponent_health'], 17., abs_tol=1e-6)
+                        and c['state'] == 'running' and c['outcome'] == 'pending' and c['active']
+                        and not c['terminal'], 'original defender alive until fresh authoritative kill before withdrawal')
+                require(c.get('weapon_status', {}).get('reason') != 'weapon_component_failed',
+                        'authoritative weapon_component_failed; phase withdrawal has no weapon recovery route')
+                if s['frame'] == self.running_frame:
+                    return controls
+                dx, dy, align = self.aim(s, s['opponent'], .2)
+                fire = align >= .997 and c['weapon_ready'] is True
+                if fire and self.final_fire_frame is None:
+                    self.final_fire_frame = s['frame']
+                return {'Prior'}, dx, dy, fire
+            if c['outcome'] == 'pending':
+                require(c['state'] == 'running' and c['active'] and not c['terminal']
+                        and s['phase'] == 'RETURN_TO_YARD', 'await ordinary director phase withdrawal after actual kill')
+                return {'Prior'}, 0, 0, False
+            self.check_standdown(c, s)
+            self.courier_withdrawal = json.loads(json.dumps(c))
+            self.standdown_until_frame = c['terminal']['frame'] + self.STANDDOWN_FRAMES
+            self.enter('courier_withdraw_standdown', s)
+        if self.courier_withdrawal is not None:
+            require(c['defender_kill'] == self.defender_kill, 'retained actual defender kill through home')
+            self.check_standdown(c, s)
+        if self.stage == 'courier_withdraw_standdown':
+            if s['frame'] >= self.standdown_until_frame:
+                self.enter('return_align', s)
+            return {'Prior'}, 0, 0, False
+        if self.result is not None:
+            require(self.courier_withdrawal is not None and s['frame'] >= self.standdown_until_frame
+                    and s['telemetry']['engine'] == 'OFFLINE',
+                    'actual phase withdrawal sustained standdown and OFFLINE precede complete strict home journey')
+            self.result.update(completion_marker=self.MARKER, courier_dispatch=self.dispatch,
+                               defender_kill=self.defender_kill, courier=self.courier_withdrawal,
+                               courier_home=c, defender_wounds=self.defender_wounds,
+                               defender_misses=self.defender_misses, maximum_withdraw_radius_m=self.maximum_wait_radius,
                                standdown_observed_frames=s['frame'] - c['terminal']['frame'])
         return controls
 
@@ -5402,7 +5616,7 @@ class CinderSupplyFiles(HabitatRestartFiles):
                 else: pilot.file_home = True
 
 def run(binary, output, route="guided", qualify_beacon_outbound=False):
-    require(route in ("bomber-rearm", "cinder-supply", "arrow-return-reuse", "guided", "courier-intercept", "courier-escape", "beacon-entry", "beacon-settlement", "beacon-home", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
+    require(route in ("bomber-rearm", "cinder-supply", "arrow-return-reuse", "guided", "courier-intercept", "courier-escape", "courier-withdraw-phase", "beacon-entry", "beacon-settlement", "beacon-home", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
     require(not qualify_beacon_outbound or route == 'beacon-home',
             'outbound timing qualification requires the full beacon-home route')
     output.mkdir(parents=True, exist_ok=False)
@@ -5497,7 +5711,7 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False):
                     leg_result['window'] = hex(window)
                     desktop.focus(window)
                     pilot = HabitatRestartPilot(cold=bool(leg)) if restart_files else {
-                        "bomber-rearm": BomberRearmPilot, "cinder-supply": CinderSupplyPilot, "arrow-return-reuse": ArrowReturnReusePilot, "guided": Pilot, "courier-intercept": CourierPilot, "courier-escape": CourierEscapePilot, "beacon-entry": BeaconEntryPilot, "beacon-settlement": BeaconSettlementPilot, "beacon-home": BeaconHomePilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
+                        "bomber-rearm": BomberRearmPilot, "cinder-supply": CinderSupplyPilot, "arrow-return-reuse": ArrowReturnReusePilot, "guided": Pilot, "courier-intercept": CourierPilot, "courier-escape": CourierEscapePilot, "courier-withdraw-phase": CourierWithdrawPhasePilot, "beacon-entry": BeaconEntryPilot, "beacon-settlement": BeaconSettlementPilot, "beacon-home": BeaconHomePilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
                         "hulk-arrival": HulkArrivalPilot, "hulk-breaker": HulkBreakerPilot,
                         "hulk-home": HulkHomePilot, "habitat-loop": HabitatLoopPilot, "life-tow": LifeTowPilot, "life-gantry": lambda: LifeTowPilot("life-gantry"), "life-arm": lambda: LifeTowPilot("life-arm"), "life-patrol": lambda: LifeTowPilot("life-patrol")}[route]()
                     if isinstance(pilot, BeaconHomePilot): pilot.file_snapshots = settlement_files.snapshots
@@ -5627,6 +5841,10 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False):
                 result['partial_sortie'].update(courier_escape=pilot.courier_escape, dispatched_ids=sorted(pilot.dispatched_ids),
                                                waiting_flight=pilot.waiting_flight_report(),
                                                defender_wounds=pilot.defender_wounds, defender_misses=pilot.defender_misses)
+            if isinstance(pilot, CourierWithdrawPhasePilot):
+                result['partial_sortie'].update(courier_dispatch=pilot.dispatch, defender_kill=pilot.defender_kill,
+                                               courier_withdrawal=pilot.courier_withdrawal,
+                                               maximum_withdraw_radius_m=pilot.maximum_wait_radius)
             if isinstance(pilot, HabitatRestartPilot):
                 result['partial_restart'] = pilot.report()
             if isinstance(pilot, (HabitatLoopPilot, LifeTowPilot)):
@@ -5708,8 +5926,8 @@ def main():
     parser.add_argument('--output',required=True,type=Path)
     parser.add_argument('--qualify-beacon-outbound', action='store_true',
                         help='qualify the fixed 60.0s outbound monotonic maximum within the unchanged full beacon-home route')
-    parser.add_argument('--route', choices=('bomber-rearm', 'cinder-supply', 'arrow-return-reuse', 'guided', 'courier-intercept', 'courier-escape', 'beacon-entry', 'beacon-settlement', 'beacon-home', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
-                        help='courier-escape lets the actual first live runner escape and verifies standdown through home; courier-intercept destroys the actual first courier before escape then returns home; beacon-home retains payment through genuine Guided combat, home docking and usable exterior walking; cinder-supply flies the full funded Jovian/Cinder terminal/home journey; beacon-settlement continues the accepted entry through four physical beacons and durable reward; beacon-entry departs normally and physically reaches/starts the first Beacon through actual pause controls; life-patrol walks Habitat through the real door beside patrol drones and boards Torrent; life-arm walks Aft stairs past the live service arm and boards Zenith; life-gantry walks Freight past the live gantry and boards Jovian; life-tow walks Central beside live tow service and boards Torrent; hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
+    parser.add_argument('--route', choices=('bomber-rearm', 'cinder-supply', 'arrow-return-reuse', 'guided', 'courier-intercept', 'courier-escape', 'courier-withdraw-phase', 'beacon-entry', 'beacon-settlement', 'beacon-home', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
+                        help='courier-withdraw-phase kills the original defender after actual first courier dispatch and verifies phase withdrawal/standdown through home; courier-escape lets the actual first live runner escape and verifies standdown through home; courier-intercept destroys the actual first courier before escape then returns home; beacon-home retains payment through genuine Guided combat, home docking and usable exterior walking; cinder-supply flies the full funded Jovian/Cinder terminal/home journey; beacon-settlement continues the accepted entry through four physical beacons and durable reward; beacon-entry departs normally and physically reaches/starts the first Beacon through actual pause controls; life-patrol walks Habitat through the real door beside patrol drones and boards Torrent; life-arm walks Aft stairs past the live service arm and boards Zenith; life-gantry walks Freight past the live gantry and boards Jovian; life-tow walks Central beside live tow service and boards Torrent; hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
     args=parser.parse_args()
     if args.qualify_beacon_outbound and args.route != 'beacon-home':
         parser.error('--qualify-beacon-outbound requires --route beacon-home')

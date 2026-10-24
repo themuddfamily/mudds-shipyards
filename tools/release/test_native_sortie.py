@@ -2362,6 +2362,224 @@ class NativeSortieSafetyTests(unittest.TestCase):
                 if mutation == 'new_terminal': s['courier']['terminal']['frame'] += 1
                 with self.assertRaises(AssertionError): pilot.update(s, 32)
 
+    def phase_withdraw_prepared(self):
+        pilot, s = self.courier_pilot(native.CourierWithdrawPhasePilot)
+        s['courier']['prep_shot'] = dict(present=True, accepted=True, resolved=True,
+            source_id=1101, source_entity_id=2,
+            request=dict(source_id=1101, source_entity_id=2,
+                         weapon_id='torrent_compact_pulse_cannon', sequence=10))
+        self.courier_wound_defender(pilot, s)
+        s['frame'] += 280
+        actor = dict(id=11, present=True, active=True, health=78.,
+                     fire_authorized=True, shots_fired=0, pending_receipts=0)
+        s['courier'].update(scenario='courier_intercept', generation=1, state='running',
+            active=True, seen_alive=True, actors=[actor], roster_ids=[11],
+            escape_origin=[0, 8, -200], terminal={}, standdown_violation='',
+            main_id=20, authority_id=21, defender_kill={}, maximum_withdraw_radius=0.)
+        return pilot, s
+
+    def phase_withdraw_running(self):
+        pilot, s = self.phase_withdraw_prepared()
+        self.assertEqual(pilot.update(copy.deepcopy(s), 5), ({'Prior'}, 0, 0, False))
+        self.assertEqual(pilot.stage, 'courier_withdraw_attack')
+        self.assertIsNone(pilot.final_fire_frame)
+        s['frame'] += 1
+        self.assertTrue(pilot.update(copy.deepcopy(s), 5.1)[3])
+        self.assertEqual(pilot.final_fire_frame, s['frame'])
+        return pilot, s
+
+    def phase_withdraw_kill(self, s):
+        s.update(frame=s['frame']+1, phase='RETURN_TO_YARD', opponent_active=False,
+                 opponent_health=0., command_fire=True, shot_accepted=True)
+        c = s['courier']
+        c['defender_kill'] = dict(present=True, accepted=True, resolved=True,
+            hit=True, damaged=True, destroyed=True, status='destroyed',
+            source_id=1101, source_entity_id=2, target_entity_id=12,
+            damageable_id=30, collider_id=31, applied_damage=34., remaining_health=0.,
+            request=dict(source_id=1101, source_entity_id=2,
+                         weapon_id='torrent_compact_pulse_cannon', sequence=11),
+            frame=s['frame'], main_id=20, authority_id=21, director_id=10,
+            actor_id=11, generation=1, last_sequence=11, command_fire=True,
+            phase='RETURN_TO_YARD', state='running', outcome='pending',
+            courier_active=True, courier_health=78., courier_maximum_health=78.,
+            escape_progress=.01, scenario_origin=c['scenario_origin'][:],
+            ship_position=s['position'][:])
+        c['escape_progress'] = .01
+
+    def phase_withdraw_terminal(self, s):
+        s.update(frame=s['frame']+1, command_fire=False)
+        c = s['courier']
+        for actor in c['actors']:
+            actor.update(active=False, fire_authorized=False, pending_receipts=0)
+        c.update(state='concluded', outcome='withdrawn', active=False, roster_ids=[])
+        c['terminal'] = dict(frame=s['frame'], actor_id=11, director_id=10, generation=1,
+            position=c['position'][:], escape_origin=c['escape_origin'][:], health=78.,
+            escape_progress=.01, actors=copy.deepcopy(c['actors']), phase='RETURN_TO_YARD',
+            outcome='withdrawn', scenario_origin=c['scenario_origin'][:], ship_position=s['position'][:])
+
+    def test_phase_withdraw_requires_fresh_kill_then_withdrawal_standdown_and_strict_home(self):
+        pilot, s = self.phase_withdraw_running()
+        self.phase_withdraw_kill(s)
+        self.assertFalse(pilot.update(copy.deepcopy(s), 6)[3])
+        self.assertIsNone(pilot.courier_withdrawal)
+        self.phase_withdraw_terminal(s)
+        self.assertEqual(pilot.update(copy.deepcopy(s), 6.1), ({'Prior'}, 0, 0, False))
+        self.assertEqual(pilot.stage, 'courier_withdraw_standdown')
+        self.assertIsNone(pilot.result)
+        s['frame'] += 59
+        pilot.update(copy.deepcopy(s), 7)
+        self.assertEqual(pilot.stage, 'courier_withdraw_standdown')
+        s['frame'] += 1
+        pilot.update(copy.deepcopy(s), 7.1)
+        self.assertEqual(pilot.stage, 'return_align')
+        self.assertIsNone(pilot.result)
+        # The original strict-home controller remains the only success seam.
+        pilot.stage = 'exit'
+        pilot.phases = ['APPROACH_SHIP', 'START_ENGINES', 'LAUNCH', 'TARGET_PRACTICE',
+                        'INTERCEPTOR_ENGAGEMENT', 'RETURN_TO_YARD', 'SHUT_DOWN']
+        s.update(frame=s['frame']+1, phase='COMPLETE', piloted=False, seated=False,
+                 control_enabled=True, guided_complete=True, exit_error=.17,
+                 lease=True, parked_exact=True, contract=True, spawn=[0, 0, 0])
+        s['telemetry']['engine'] = 'OFFLINE'
+        pilot.update(copy.deepcopy(s), 8)
+        self.assertEqual(pilot.result['completion_marker'], native.CourierWithdrawPhasePilot.MARKER)
+        self.assertEqual(pilot.result['defender_kill']['target_entity_id'], 12)
+        self.assertEqual(pilot.result['courier']['terminal']['outcome'], 'withdrawn')
+        self.assertEqual(pilot.result['courier_dispatch']['opponent_health'], 17.)
+        self.assertGreaterEqual(pilot.result['standdown_observed_frames'], 60)
+
+    def test_phase_withdraw_rejects_predispatch_kill_and_nonfirst_dispatch(self):
+        for change in ({'opponent_active': False}, {'opponent_health': 0.},
+                       {'phase': 'RETURN_TO_YARD'}):
+            with self.subTest(change=change):
+                pilot, s = self.phase_withdraw_prepared()
+                s.update(change)
+                with self.assertRaises(AssertionError): pilot.update(s, 5)
+        for change in ({'generation': 2}, {'defender_kill': {'frame': 1}},
+                       {'health': 77.}, {'active': False}, {'outcome': 'withdrawn'}):
+            with self.subTest(dispatch=change):
+                pilot, s = self.phase_withdraw_prepared()
+                s['courier'].update(change)
+                with self.assertRaises(AssertionError): pilot.update(s, 5)
+
+    def test_phase_withdraw_rejects_missing_wrong_stale_or_nonlethal_authority_receipt(self):
+        mutations = [dict(source_id=99), dict(source_entity_id=99), dict(target_entity_id=11),
+            dict(generation=2), dict(main_id=99), dict(authority_id=99), dict(director_id=99),
+            dict(actor_id=99), dict(frame=1), dict(last_sequence=10), dict(command_fire=False),
+            dict(accepted=False), dict(resolved=False), dict(damaged=False), dict(destroyed=False),
+            dict(remaining_health=1.), dict(applied_damage=0.), dict(courier_active=False),
+            dict(courier_health=77.), dict(escape_progress=1.), dict(outcome='withdrawn'),
+            dict(state='concluded'), dict(phase='INTERCEPTOR_ENGAGEMENT')]
+        for change in mutations:
+            with self.subTest(change=change):
+                pilot, s = self.phase_withdraw_running()
+                self.phase_withdraw_kill(s)
+                s['courier']['defender_kill'].update(change)
+                with self.assertRaises(AssertionError): pilot.update(s, 6)
+                self.assertIsNone(pilot.result)
+        for change in ({'sequence': 10}, {'weapon_id': 'range_pulse_cannon'},
+                       {'source_id': 99}, {'source_entity_id': 99}):
+            with self.subTest(request=change):
+                pilot, s = self.phase_withdraw_running()
+                self.phase_withdraw_kill(s)
+                s['courier']['defender_kill']['request'].update(change)
+                with self.assertRaises(AssertionError): pilot.update(s, 6)
+        pilot, s = self.phase_withdraw_running()
+        self.phase_withdraw_kill(s)
+        s['courier']['defender_kill'] = {}
+        with self.assertRaises(AssertionError): pilot.update(s, 6)
+
+    def test_phase_withdraw_rejects_escape_distance_and_other_terminal_substitutes(self):
+        for outcome in ('escaped', 'cleared', 'expired', 'aborted', 'lost'):
+            with self.subTest(outcome=outcome):
+                pilot, s = self.phase_withdraw_running()
+                self.phase_withdraw_kill(s)
+                self.phase_withdraw_terminal(s)
+                s['courier']['outcome'] = outcome
+                with self.assertRaises(AssertionError): pilot.update(s, 6)
+        for mutation in ('position', 'all_frames_radius', 'origin', 'hurt', 'progress', 'terminal_phase'):
+            with self.subTest(mutation=mutation):
+                pilot, s = self.phase_withdraw_running()
+                self.phase_withdraw_kill(s)
+                self.phase_withdraw_terminal(s)
+                c = s['courier']
+                if mutation == 'position': s['position'][0] += 450.01
+                if mutation == 'all_frames_radius': c['maximum_withdraw_radius'] = 450.01
+                if mutation == 'origin': c['scenario_origin'][0] += 1
+                if mutation == 'hurt': c['health'] = 77.
+                if mutation == 'progress': c['escape_progress'] = 1.
+                if mutation == 'terminal_phase': c['terminal']['phase'] = 'INTERCEPTOR_ENGAGEMENT'
+                with self.assertRaises(AssertionError): pilot.update(s, 6)
+
+    def test_phase_withdraw_standdown_covers_all_actual_actors_through_home(self):
+        for change in ({'active': True}, {'fire_authorized': True}, {'pending_receipts': 1},
+                       {'shots_fired': 1}, {'present': False}):
+            for stage in ('courier_withdraw_standdown', 'return'):
+                with self.subTest(change=change, stage=stage):
+                    pilot, s = self.phase_withdraw_running()
+                    s['courier']['actors'].append(dict(s['courier']['actors'][0], id=13))
+                    s['courier']['roster_ids'].append(13)
+                    s['frame'] += 1
+                    pilot.update(copy.deepcopy(s), 5.2)
+                    self.phase_withdraw_kill(s)
+                    self.phase_withdraw_terminal(s)
+                    pilot.update(copy.deepcopy(s), 6)
+                    self.assertEqual(pilot.dispatched_ids, {11, 13})
+                    pilot.stage = stage
+                    s['frame'] += 1
+                    s['courier']['actors'][1].update(change)
+                    with self.assertRaises(AssertionError): pilot.update(s, 6.1)
+        for mutation in ('lost_actor', 'live_roster', 'latched_fire', 'new_terminal', 'new_kill'):
+            with self.subTest(mutation=mutation):
+                pilot, s = self.phase_withdraw_running()
+                self.phase_withdraw_kill(s)
+                self.phase_withdraw_terminal(s)
+                pilot.update(copy.deepcopy(s), 6)
+                s['frame'] += 1
+                if mutation == 'lost_actor': s['courier']['actors'] = []
+                if mutation == 'live_roster': s['courier']['roster_ids'] = [11]
+                if mutation == 'latched_fire': s['courier']['standdown_violation'] = 'fired then ceased'
+                if mutation == 'new_terminal': s['courier']['terminal']['frame'] += 1
+                if mutation == 'new_kill': s['courier']['defender_kill']['frame'] += 1
+                with self.assertRaises(AssertionError): pilot.update(s, 6.1)
+
+    def test_phase_withdraw_keeps_original_strict_occupied_offline_physical_exit_gate(self):
+        for change in ({'lease': False}, {'parked_exact': False}, {'contract': False},
+                       {'exit_error': .3}, {'piloted': True}, {'seated': True},
+                       {'control_enabled': False}, {'guided_complete': False}, {'engine': 'ONLINE'}):
+            with self.subTest(change=change):
+                pilot, s = self.phase_withdraw_running()
+                self.phase_withdraw_kill(s)
+                self.phase_withdraw_terminal(s)
+                pilot.update(copy.deepcopy(s), 6)
+                pilot.stage = 'exit'
+                pilot.phases = ['APPROACH_SHIP', 'START_ENGINES', 'LAUNCH', 'TARGET_PRACTICE',
+                                'INTERCEPTOR_ENGAGEMENT', 'RETURN_TO_YARD', 'SHUT_DOWN']
+                s.update(frame=s['frame']+61, phase='COMPLETE', piloted=False, seated=False,
+                         control_enabled=True, guided_complete=True, exit_error=.17,
+                         lease=True, parked_exact=True, contract=True, spawn=[0, 0, 0])
+                s['telemetry']['engine'] = 'OFFLINE'
+                if 'engine' in change: s['telemetry'].update(change)
+                else: s.update(change)
+                with self.assertRaises(AssertionError): pilot.update(s, 8)
+                self.assertIsNone(pilot.result)
+
+    def test_phase_withdraw_has_no_boost_chase_or_final_fire_before_observed_dispatch(self):
+        pilot, s = self.phase_withdraw_prepared()
+        self.assertFalse(pilot.update(copy.deepcopy(s), 5)[3])
+        s['frame'] += 1
+        s['courier']['weapon_ready'] = False
+        keys, _, _, fire = pilot.update(copy.deepcopy(s), 5.1)
+        self.assertEqual(keys, {'Prior'})
+        self.assertFalse(fire)
+        self.assertIsNone(pilot.final_fire_frame)
+        s['frame'] += 1
+        s['courier']['weapon_ready'] = True
+        keys, _, _, fire = pilot.update(copy.deepcopy(s), 5.2)
+        self.assertEqual(keys, {'Prior'})
+        self.assertTrue(fire)
+        self.assertGreater(pilot.final_fire_frame, pilot.running_frame)
+
     def test_hulk_route_requires_normal_guided_prelude_before_diverging(self):
         pilot = self.hulk_pilot()
         s = self.hulk_observation()
