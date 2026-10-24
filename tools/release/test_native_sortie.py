@@ -4325,5 +4325,158 @@ class HeavyBreachCallerTests(unittest.TestCase):
             with self.assertRaises(AssertionError): files.observe(sample, pilot)
 
 
+class TorpedoJourneyCallerTests(unittest.TestCase):
+    """Finite caller fixtures; full ordinary flight remains the package acceptance."""
+    @staticmethod
+    def heavy():
+        heavy = native.HeavyBreachPilot()
+        heavy.initial = HeavyBreachCallerTests.sample()
+        heavy.initial['torpedo'] = dict(boat=dict(id=50, shape_id=51, generation=0))
+        heavy.kill = heavy.next_posting = dict(frame=1)
+        heavy.paid = HeavyBreachCallerTests.paid_sample()
+        heavy.departure = dict(frame=1, input_stream=6)
+        heavy.receipts['home_exit'] = dict(frame=1)
+        return heavy
+
+    @staticmethod
+    def flight(flight_id=101, slot=0):
+        return dict(boat_id=50, boat_generation=1, source_id=2106, target_id=4,
+            flight_id=flight_id, generation=1, pool_id=60, authority_id=31, slot=slot,
+            hurtbox_id=71+10*slot, damageable_id=70+10*slot, damage_target_id=72+10*slot,
+            speed=34., lifetime=7.5, range=250., radius=.35, elapsed=1., travelled=34.,
+            origin=[80, 0, 0], direction=[-1, 0, 0], position=[46, 0, 0], lock_broken=False, health=14.)
+
+    @classmethod
+    def sample(cls, n=10, flights=None, events=None):
+        sample = HeavyBreachCallerTests.sample(n)
+        sample.update(mode='torpedo-run', position=[0, 0, 0], back=[0, 0, 1], input_stream=7,
+            command_stream=7, native_pitch=0., native_boost=False, command_pitch=0., command_boost=False)
+        sample['target'].update(id=50, shape_id=51, generation=1, source_id=2106, health=60, charge=False)
+        sample['breach']['board']['director'].update(scenario='torpedo_run', scenario_generation=9)
+        sample['torpedo'] = dict(speed=34, turn_rate=42, lifetime=7.5, range=250, fuse=3.2,
+                                 events=events or [], flights=flights or [])
+        return sample
+
+    @staticmethod
+    def event(serial, kind, flight, frame, damaged=False):
+        record = copy.deepcopy(flight)
+        if kind != 'launched': record['terminal_reason'] = 'intercepted' if kind == 'intercepted' else 'range'
+        return dict(serial=serial, kind=kind, frame=frame, launch=copy.deepcopy(flight), record=record,
+                    result=dict(accepted=True, resolved=True, damaged=damaged, damage=14 if damaged else 0, target_id=4 if damaged else 0))
+
+    def evaded(self):
+        leg = native.TorpedoLegPilot(self.heavy()); leg.launched = leg.departure = dict(frame=1)
+        flight = self.flight()
+        sample = self.sample(events=[self.event(1, 'launched', flight, 10)], flights=[flight])
+        leg.observe_flights(sample)
+        keys = {'Prior'}; self.assertEqual(leg.fight_input(sample, 100, keys), (0, 0, False))
+        self.assertEqual(keys, {'w', 'Shift_L', 'Up'})
+        flight = self.flight(); flight['position'] = [42, 0, 0]
+        sample = self.sample(11, flights=[flight]); sample.update(position=[1, 1, 0], back=[0, -.1, .995],
+            native_pitch=1., native_boost=True, command_pitch=1., command_boost=True)
+        leg.observe_flights(sample)
+        self.assertIsNotNone(leg.evasion['applied'])
+        flight['position'] = [40, 0, 0]; flight['lock_broken'] = True
+        sample = self.sample(12, flights=[flight]); sample.update(position=[2, 2, 0])
+        leg.observe_flights(sample)
+        self.assertFalse(leg.evaded)
+        leg.observe_flights(self.sample(13, events=[self.event(2, 'resolved', flight, 13)]))
+        self.assertTrue(leg.evaded)
+        return leg
+
+    def test_real_pitch_boost_motion_lockbreak_and_same_flight_nondamaging_terminal_are_all_required(self):
+        leg = self.evaded()
+        self.assertTrue(leg.evasion['closing'])
+        self.assertLess(leg.evasion['minimum_distance'], 46.)
+        self.assertIsNone(leg.intercepted)
+        with self.assertRaises(AssertionError): leg.require_terminal(self.sample(14))
+
+    def test_lockbreak_without_actual_consumed_maneuver_and_stood_down_flight_do_not_count(self):
+        for kind in ('lock_without_input', 'abandoned', 'intercepted', 'damaged'):
+            with self.subTest(kind=kind):
+                leg = native.TorpedoLegPilot(self.heavy()); leg.launched = dict(frame=1)
+                f = self.flight(); leg.observe_flights(self.sample(events=[self.event(1, 'launched', f, 10)], flights=[f]))
+                if kind == 'lock_without_input':
+                    f['lock_broken'] = True; sample = self.sample(11, flights=[f])
+                else: sample = self.sample(11, events=[self.event(2, 'resolved' if kind == 'damaged' else kind, f, 11, kind == 'damaged')])
+                with self.assertRaises(AssertionError): leg.observe_flights(sample)
+                self.assertFalse(leg.evaded)
+
+    def test_foreign_source_target_or_replayed_flight_terminal_is_rejected(self):
+        for field, value in (('source_id', 2102), ('target_id', 99), ('boat_id', 99), ('boat_generation', 2)):
+            with self.subTest(field=field):
+                leg = native.TorpedoLegPilot(self.heavy()); leg.launched = dict(frame=1)
+                event = self.event(1, 'launched', self.flight(), 10); event['launch'][field] = value
+                with self.assertRaises(AssertionError): leg.observe_flights(self.sample(events=[event]))
+        leg = self.evaded()
+        with self.assertRaises(AssertionError):
+            leg.observe_flights(self.sample(14, events=[self.event(3, 'resolved', self.flight(), 14)]))
+
+    def intercepted(self):
+        leg = self.evaded(); f = self.flight(102, 1)
+        sample = self.sample(14, events=[self.event(3, 'launched', f, 14)], flights=[f])
+        f['fire_gate'] = dict(frame=14, ship_id=4, target_id=f['hurtbox_id'], clear=True, weapon=dict(ready=True))
+        leg.observe_flights(sample)
+        with patch.object(leg, 'weapon_aim', return_value=(7, -4, .9999)):
+            dx, dy, _ = leg.fight_input(sample, 101, {'Prior'})
+        self.assertEqual((dx, dy), (7, -4))
+        sample = self.sample(15, events=[self.event(4, 'intercepted', f, 15)])
+        leg.observe_flights(sample)
+        shot = HeavyBreachCallerTests.shot(True)
+        shot.update(target_entity_id=f['damage_target_id'], damageable_id=f['damageable_id'], applied_damage=14,
+                    collider=dict(id=f['hurtbox_id'], path='/boat/pool/Hurtbox'))
+        sample['shot'] = shot; leg.observe_shot(sample)
+        self.assertIsNotNone(leg.intercepted)
+        return leg, f
+
+    def test_distinct_actual_resolver_hurtbox_interception_not_event_alone_permits_later_boat_kill(self):
+        leg, flight = self.intercepted()
+        leg.require_terminal(self.sample(16))
+        self.assertNotEqual(leg.intercepted['key'], leg.evasion['key'])
+        self.assertIsNone(leg.kill)
+        self.assertIsNone(leg.paid)
+        with self.assertRaises(AssertionError):
+            leg.observe_flights(self.sample(16, flights=[flight]))
+
+    def test_intercepted_flight_cannot_later_arrive_even_without_damage(self):
+        leg, flight = self.intercepted()
+        with self.assertRaises(AssertionError):
+            leg.observe_flights(self.sample(16, events=[self.event(5, 'resolved', flight, 16)]))
+
+    def test_actual_two_credit_ledger_and_each_own_encounter_generation(self):
+        leg = native.TorpedoLegPilot(self.heavy()); sample = self.sample()
+        sample['settlement'] = copy.deepcopy(leg.heavy.paid['settlement'])
+        record = sample['settlement']['record']
+        record.update(receipt_serial=2, total_receipts=2,
+                      reward_counts={native.HeavyBreachPilot.REWARD: 1, leg.REWARD: 1})
+        record['last_receipt'].update(receipt_id=2, activity_id=leg.ACTIVITY, reward_id=leg.REWARD, activity_generation=9)
+        sample['breach']['board']['reward_handoff'].update(highest_reward_generation=9)
+        leg.require_paid(sample)
+        for mutate in (lambda s: s['settlement']['record'].update(total_receipts=1),
+                       lambda s: s['settlement']['record']['reward_counts'].update(return_heavy_breach_credit=0),
+                       lambda s: s['settlement']['record']['last_receipt'].update(activity_generation=8),
+                       lambda s: s['breach']['board']['director'].update(scenario_generation=10)):
+            with self.subTest(mutate=mutate):
+                bad = copy.deepcopy(sample); mutate(bad)
+                with self.assertRaises(AssertionError): leg.require_paid(bad)
+
+    def test_legitimate_new_retake_epoch_is_pinned_without_replacing_original_actors(self):
+        leg = native.TorpedoLegPilot(self.heavy()); sample = self.sample()
+        sample['breach']['receipt'] = dict(accepted=True, board_sortie=True, torpedo_boat_instance_id=50, generation=9)
+        leg.require_launch(sample)
+        sample['input_stream'] = 6
+        with self.assertRaises(AssertionError): leg.require_launch(sample)
+        self.assertEqual(leg.initial['player_id'], leg.heavy.initial['player_id'])
+        self.assertEqual(leg.initial['ship_id'], leg.heavy.initial['ship_id'])
+
+    def test_torpedo_continuation_requires_the_real_full_heavy_prefix(self):
+        for missing in ('kill', 'paid', 'next_posting', 'home_exit'):
+            with self.subTest(missing=missing):
+                heavy = self.heavy()
+                if missing == 'home_exit': del heavy.receipts['home_exit']
+                else: setattr(heavy, missing, None)
+                with self.assertRaises(AssertionError): native.TorpedoLegPilot(heavy)
+
+
 if __name__ == '__main__':
     unittest.main()
