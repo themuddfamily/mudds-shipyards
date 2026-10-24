@@ -16,3 +16,6 @@ docs/research/tmp/
 # Claude Code transient agent worktrees and local settings
 .claude/worktrees/
 .claude/settings.local.json
+
+# Generated local validation reports belong outside versioned source.
+/roadmap-validation/

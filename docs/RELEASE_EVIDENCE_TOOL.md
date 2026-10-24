@@ -198,15 +198,18 @@ powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass `
   -TestDirectory <fresh-explicit-test-directory>
 ```
 
-Current validation on 2026-10-14: the pinned `c8d8b59` Windows checkpoint passed
+Historical validation on 2026-10-14: the pinned `c8d8b59` Windows checkpoint passed
 all four actual native headless interruption/recovery contexts, with Job
 termination code 1, distinct restart exit zero, one crash event, receipts 1 to 2,
 clean final markers, zero diagnostics/owned actors, removed private profiles and
 unchanged protected real game data. Seven managed protocol/abort/path failure
-cases passed. The existing native Windows workflow runs these managed checks in
-a separate bounded step when the interruption command or test changes, and
-retains available results/logs on failure. Its startup checks remain in place.
-Managed CI checks do not execute the exported game. [Raw results and closure](../roadmap-validation/native-windows-recovery-command/summary.json)
-retain the exact package and command hashes. The four contexts ran concurrently;
+cases passed. The native Windows workflow defines a separate bounded step for these managed
+checks when the interruption command or test changes, retaining results/logs on
+failure. GitHub Actions is currently disabled by the owner; these historical
+results do not authorize enabling it. Managed checks do not execute the exported
+game. [Historical raw results and closure](https://github.com/themuddfamily/mudds-shipyards/blob/e8ea9d2ba6e5790ed6e1c3dca20c311f4f78a6ce/roadmap-validation/native-windows-recovery-command/summary.json)
+remain preserved in Git history with the exact package and command hashes.
+Generated reports are not needed in the current source tree; use a fresh explicit
+result directory outside the repository for new runs. The four contexts ran concurrently;
 these timings do not qualify hardware performance. The current game's full CI
 and main runtime integration remain unqualified alongside the gates above.
