@@ -12987,6 +12987,8 @@ func _advance_network_craft_pose_replica(delta: float) -> void:
 ## same recall to the deck a host pilot gets.
 func _present_network_remote_craft_lost(craft: HeroShip, play_cue: bool = true) -> void:
 	_restore_network_client_helm_input_sources(craft)
+	# Retire prior-life propulsion prediction, as actual hull destruction does.
+	craft.request_engine_stop(false)
 	var ship_id := craft.get_ship_id()
 	var seat_id := StringName(_network_client_boarding_claim.get("seat_id", &""))
 	_network_client_boarding_claim = {}
