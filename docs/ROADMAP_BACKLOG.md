@@ -3516,3 +3516,37 @@ original full route, checkpoint notes/ZIP, commit/push and owned cleanup. First
 unexpected failure stops for bounded causal review; no automatic cap/route/
 criteria relaxation. No new validator family, CI dispatch, active-desktop/audio
 or native Windows/GPU/human/full-release qualification implied.
+
+### Defense clear fire — selected2026-10-24
+
+DEFENSE-CLEAR-FIRE / PLAY-DEFENSE / parent13. Original failed full journey remains
+open. Source advisory PLAYER_SHIP_ORIGIN_ENVELOPE spans worldx70..110/y4..16/
+z-100..-60; one candidate[80,10,-90] is inside that audited volume, not assumed
+safe. Retain original16m port departure then fixed ordinary dogleg via[-71,10,-90].
+Conservative rotation-invariant sphere must enclose every enabled current Arrow
+root collision shape/local transform/scale plus margin; unsupported input rejects.
+Initial/end overlap and both entire segments must clear exact ship collision_mask,
+excluding only own hull. Recheck current segment before command; contact/stale
+geometry ends attempt. No alternate route search, staged movement or boost.
+
+Read-only observer mirrors HeroShip camera-center reticle query and actual next
+muzzle convergence, production masks/exclusions/inside flags, resolves first-hit
+Damageable to exact current chosen hostile/handle/source, reports actual ready
+cooldown/heat/recovery. OS fire only when both first hits match and weapon ready;
+retain real shot origin/direction/impact/collider identity. Resolver receipts
+alone establish damage/kills; queries do not. Restore only the five withheld
+release/observer/startup/privacy files fromb03a88b9c, preserving accepted routes.
+No runtime actor/physics/health/weapons/content/timer changes.
+
+One full same original journey: on-foot Deploy/Arrow board/depart, all four actual
+kills/three waves, once-only real-file reward, strict home/dock/OFFLINE physical
+exit, physical Reset/next Deploy availability and normal UI exit0. Original34s/
+300s/360s and geometry/identity/default controls preserved.14 ideal hits at24damage,
+11within-wave intervals*.38≈4.18s and10.5s lulls; estimated12–14s ordinary staging
+leaves≈5–7s for target turns/delay. This supports one conditional trial only.
+One high implementer owns existing driver/tests/passive observer/selector/privacy;
+independent high review; root owns frozen checks, clean private Linux export,
+strict startup, actual full attempt and integration/cleanup. First unexpected
+failure stops, full scope remains required; no cap/criteria weakening. No hosted
+CI/audio/desktop/nativeGPU/human claim. No duplicate public gameplay checkpoint
+for excluded qualification-only edits; retain latest9af4851 until actual delivery.
