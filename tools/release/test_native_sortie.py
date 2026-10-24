@@ -4218,7 +4218,7 @@ class HeavyBreachCallerTests(unittest.TestCase):
     def test_pending_fire_keeps_current_aim_without_turning_forecast_into_a_hit(self):
         pilot = native.HeavyBreachPilot(); pilot.stage = 'fight'
         pilot.launched = pilot.charge = dict(frame=1)
-        with patch.object(pilot, 'weapon_aim', return_value=(7, -4, 1.0)):
+        with patch.object(pilot, 'weapon_aim', return_value=(7, -4, .9999770180378582)):
             for n in (10, 11, 12, 13, 14):
                 sample = self.sample(n, fire=(n == 14))
                 sample['fire_gate']['clear'] = n <= 12
