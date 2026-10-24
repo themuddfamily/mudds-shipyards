@@ -18926,6 +18926,30 @@ func _landing_report_has_error(report: Dictionary, error_id: String) -> bool:
 	return errors.has(error_id)
 
 
+## A lost hull cannot satisfy ordinary disembark's supported-berth guard. Its
+## authority retires only the exact remote claims still held on that hull.
+func _release_network_destroyed_ship_boarding(craft: HeroShip) -> void:
+	var session := network_session
+	if _network_session_mode != &"server" or not is_instance_valid(session) \
+			or not session.is_server() or not session.is_session_active() \
+			or not is_instance_valid(craft) or not craft.is_destroyed() \
+			or not ships.has(craft):
+		return
+	var ship_id := craft.get_ship_id()
+	if _find_flyable_ship_by_id(ship_id) != craft:
+		return
+	for occupancy: Dictionary in session.get_boarding_snapshot().get("occupancies", []):
+		if StringName(occupancy.get("ship_id", &"")) != ship_id \
+				or int(occupancy.get("peer_id", 0)) <= 1:
+			continue
+		if session != network_session or not is_instance_valid(session) \
+				or not session.is_server() or not session.is_session_active() \
+				or not is_instance_valid(craft) or not craft.is_destroyed() \
+				or _find_flyable_ship_by_id(ship_id) != craft:
+			return
+		session.release_exact_server_boarding_occupancy(occupancy)
+
+
 func _on_ship_destroyed(
 		world_position: Vector3,
 		_inherited_velocity: Vector3,
@@ -18933,6 +18957,7 @@ func _on_ship_destroyed(
 	) -> void:
 	if not is_instance_valid(source_ship) or not ships.has(source_ship):
 		return
+	_release_network_destroyed_ship_boarding(source_ship)
 	if source_ship == _network_exterior_canopy_ship:
 		_cancel_network_exterior_transition()
 	_publish_network_damage_state(source_ship, 0.0, true)
