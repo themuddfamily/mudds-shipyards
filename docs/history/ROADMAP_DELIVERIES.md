@@ -22748,3 +22748,68 @@ SHA256`5408b0153042c6c4a87a7f3113098e52d46778c9a8136eda4eaf647e353c66af`)
 and closeout.json. Public artifacts retained; no Downloads or hosted Actions run.
 Native Windows execution, native hardware/performance, physical devices/listening
 and human review remain NOT_RUN with existing owner exclusions unchanged.
+
+## Torpedo first play — NOT ACCEPTED — 2026-10-25
+
+PLAY-TORPEDO selectiona2651183a; firstcandidate/game2de2a15e8, corrected external
+callerba1588c99. Full unchanged same-process Heavy prerequisite→physical Torpedo
+arm/reboard/takeoff→real pitch/boost evade AND distinct player seeker shoot-down→
+boat kill/distinct actual-file payment→strict home/OFFLINE exit/Paired Wing/UI0
+remains unproven under original150s encounters/sharedCAP300/outer360.
+
+Python160/10.893s, observer parse15.660s, privacy1.012s, private export25.504s,
+strict menu22.692s and actual package comparison2.708s PASS.1527paths match public
+fb396ab; only observer/startup admission changed,1525 production entries exact,
+484class records/665UID mappings equivalent. ELF149020816bytes
+SHA256`596e99749661b4c8507054a4f99dae2777f59f59718d78b50c25283c2b1cf979`.
+
+First ordinary trial FAIL121.849s/guard122.198s. Full Heavy real kill/payment/
+home/physical Torpedo arm retained. Real flight2/gen1 pitch+boost consumed5101,
+actual motion/lockbreak5160/non-damaging range terminal5358. Actual player
+intercepts flight3/gen2 callback5490/hit5491 and later flight4/gen3 callback5726/
+hit5727 reuse the same pooled hurtbox/adapter. A real boat hit5699 applies24,
+leaving46/70; Arrow alive72.667. Caller wrongly matches the later shot to retained
+old flight3 terminal and rejects an additional genuine interception. No boat
+kill/second payment/home/posting/UI accepted.
+
+Source/raw/cumulative GO for one external-only correction: each real seeker hit
+binds fresh matching callback/physics interval/actual flight-generation ledger;
+first required receipt immutable, later actual interceptions remain recorded,
+old/replayed terminal pairs rejected by existing compact fixtures. Corrected160
+Python10.992s PASS. Exact source diff only driver/tests; game2de unchanged and
+explicit driver/game binding reuses prior Godot/package results.
+
+ONE corrected full trial FAIL104.452s/guard104.741s before Torpedo launch. Full
+Heavy real24+22 kill/payment2091/home/physical Torpedo arm retained. Second Arrow
+boarding requested4572, original300frame wait expires4873. NativeE4574–4581 is
+observed; Arrow alive68/OFFLINE/on-foot, no transition/no second credit.4415
+complete raw samples/one final truncated28672-byte observation retained. Both
+trials zero diagnostics/all input/helper/game/Xvfb cleanup true. Pooled correction
+is not fully qualified: this run never reaches its seam. First run's genuine
+partial seeker/boat outcomes do not replace full acceptance.
+
+Independent closeout GO: sourceba158 archived/unmerged under pushed tag
+`archive/withheld/torpedo-first-play-20261025`; verified incremental bundle/patch/
+exact five Git blobs and private ELF archive retained before five loose build
+files removed. Accepted main restored; no task branch/worktree created. Nine
+owners terminal,34sampled PID identities absent,97scratch entries verified/
+removed; eight pre-existing detached registrations preserved/not pruned.
+Nine guarded stages317.252456903s,7PASS/2FAIL, one original clock. Consolidated
+132-member case-records.tar.gz,118342788bytes,
+SHA256`ace2c3226b7033c6f101c0ad69f27fdebd5b200acf0019f4e600267e208494c4`,
+plus closeout.json at `/srv/mudds-work/torpedo-first-play-20261025/results/`.
+Public checkpointfb396ab remains unchanged; no native/hardware/full-parent pass.
+
+Bounded read-only follow-up proves readiness race: failedpress4572's actual
+facing dot toward Arrow−.979102 despite cached Arrow=true/station=false; station
+selection wins4573 before actualE4574. Prior successfulpress4612 faces+.905214,
+station stays false, E4614/BOARDING4615. GameFlow refreshes candidates on Interact
+and station action precedes boarding. Exact station owner/action and origin of
+late look remain unknown; no missed-OS or production-facing eligibility claim.
+Source warns idle selection can precede current physics. Existing accepted
+ordinary yaw_to/.08 and pending-view acknowledgement can compose a bounded
+second-boarding aim/quiet stage with stopped/supported body and two fresh stable
+view/current Arrow/nonstation samples before oneE/no simultaneous look/walk.
+No native selection-computation stamp is exposed; receipt records sampled facts.
+Independent causal/cumulative/contract GO selects that continuation with the SAME
+original Torpedo clock/90min split/full goal/caps, no unchanged third trial.

@@ -29,7 +29,27 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Selected: PLAY-TORPEDO — complete the full ordinary two-sortie journey.**
+**Selected continuation: PLAY-TORPEDO second-boarding readiness.**
+Two full trials are retained/unaccepted. The first proved actual evasion,
+interceptions and boat damage but stopped on pooled-flight receipt bookkeeping;
+its supported correction's full retry instead stopped at second boarding. Native
+E was observed while facing away from Arrow and station selection took priority.
+No full Torpedo clear/payment/home result is accepted. [Failures/cause](docs/history/ROADMAP_DELIVERIES.md#torpedo-first-play--not-accepted--2026-10-25).
+
+Independent causal/cumulative review selects a Torpedo-second-boarding-only
+caller aim/quiet stage: existing yaw_to/.08 tolerance and pending-view actual
+acknowledgement, stopped/supported body, then two fresh unchanged-view/current
+Arrow/nonstation samples before ONE E with no movement/look. Reset readiness on
+view/body/candidate invalidation. This is sampled caller readiness, not a native
+selection-computation stamp or new production boarding-angle rule; exact station
+owner/action remain unknown. No retry, waypoint, reach, cap or runtime change.
+One implementer owns driver/existing Python tests; one reviewer; root owns checks/
+Git/package/cleanup. Estimate10–15min+focused check/ONE full trial. SAME original
+Torpedo clock/90min split includes both failures and prior pooled-flight fix.
+Unchanged audited game2de package is restored with verified byte identity;
+explicit driver/game binding required. No engine before frozen correction/review.
+
+**Full PLAY-TORPEDO finish line remains unchanged.**
 Same process/Player/Arrow/profile completes accepted Heavy clear/payment/home/
 physical Torpedo posting, then physically arms/reboards/takes off. Observe an
 actual boat-launched seeker evade through ordinary pitch/boost, real lock break
