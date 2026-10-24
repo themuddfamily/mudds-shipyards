@@ -384,10 +384,12 @@ func _defense_fire_gate(actors: Array[Dictionary]) -> Dictionary:
 	for actor: Dictionary in actors:
 		if bool(actor.active) and float(actor.health) > 0.0 and (chosen.is_empty() or int(actor.source_id) < int(chosen.source_id)):
 			chosen = actor
-	if chosen.is_empty() or not bool(chosen.aim_shape.current) or not bool(gate.targeting_enabled):
+	if chosen.is_empty() or not bool(chosen.aim_shape.current):
 		return gate
 	gate["target_id"] = int(chosen.instance_id)
 	gate["aim_shape"] = (chosen.aim_shape as Dictionary).duplicate(true)
+	if not bool(gate.targeting_enabled):
+		return gate
 	var camera := _ship.get_camera()
 	var muzzle: Marker3D = _ship.get("_muzzle_left") as Marker3D if bool(_ship.get("_fire_from_left")) else _ship.get("_muzzle_right") as Marker3D
 	if not _ember_node_current(camera) or not _ember_node_current(muzzle):

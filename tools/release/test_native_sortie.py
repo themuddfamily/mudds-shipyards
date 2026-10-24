@@ -3864,6 +3864,16 @@ class StationDefenseSafetyTests(unittest.TestCase):
         target, gate = self.fire_gate(s)
         self.assertTrue(pilot.defense_fire_ready(s, target))
         self.assertEqual(pilot.kills, {})  # A prospective ray is never damage.
+        # Disabled targeting keeps the selected identity/shape, then returns
+        # before any reticle or muzzle query. That partial observation must
+        # withhold ordinary fire without requiring nonexistent ray fields.
+        disabled = {key: copy.deepcopy(gate[key]) for key in
+                    ('frame', 'ship_id', 'generation', 'target_id', 'aim_shape', 'weapon_status')}
+        disabled.update(clear=False, targeting_enabled=False)
+        s['defense']['fire_gate'] = disabled
+        self.assertFalse(pilot.defense_fire_ready(s, target))
+        self.assertEqual(pilot.kills, {})
+        s['defense']['fire_gate'] = gate
         for change in (dict(clear=False), dict(targeting_enabled=False)):
             gate.update(change)
             self.assertFalse(pilot.defense_fire_ready(s, target))
