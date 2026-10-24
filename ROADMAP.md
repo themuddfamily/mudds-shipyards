@@ -42,6 +42,20 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
+**SERVER-BASELINE moving sleep/wake selected — one complete ordinary case.**
+After unchanged BOARD and seven MOVING stages, the original passenger stands,
+walks the authored aisle to the Port bunk, sleeps/wakes through ordinary input,
+walks supported and physically returns/reseats with a fresh original-chair claim.
+Require both host body/local Player reservations and sleep/wake state, consumed
+sleeping/walking relationships and visible wake UI; original pilot/helm/ownership,
+peer/body/frame generations and moving hull remain. All three actual OS exits0
+and clean logs. Original300s scenario/360s outer,8s role/15s walk/10s exits remain.
+One agent owns the existing passenger-route test; root owns review/compile≤300s
+and one full private-Xvfb/x11/Dummy run. Estimate30–45min caller/review plus≤11min
+checks. First failure stops for causal review; no automatic repair, shorter route,
+new role, pose/sleep injection or changed cap. Runtime fix needs actual evidence
+and a fresh playable checkpoint. Full baseline/endurance/native gates remain open.
+
 **SERVER-BASELINE passenger-disconnect case DONE —503350e32.**
 Full ordinary BOARD and all seven MOVING stages, one real passenger shutdown,
 once-only body/frame/seat retirement and retained original pilot ownership/helm
