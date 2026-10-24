@@ -21450,3 +21450,67 @@ byte/mode/link against archive then removed. Profiles9425bytes SHA256
 Owned Python bytecode removed. No new working branch/worktree; eight protected
 detached registrations and original nine unqualified outcomes remain retained.
 Full Defense and all parent/phase gates remain open.
+
+
+## SERVER-BASELINE passenger disconnect — unqualified — 2026-10-24
+
+Selected one remaining parent26 case: after the exact ordinary BOARD and all
+seven MOVING stages, client_b intentionally closes its real session once.
+Require passenger-only retirement, original connected pilot/hull/helm ownership,
+fresh ordinary throttle delivered at the authority, departed same-Player supported
+solo walk and real pause/Resume, plus all three actual OS exits0. Original300s
+scenario/360s outer,8s role,15s walk and10s exit caps remain. This qualification
+changes no runtime, export input or playable build. Public9af4851 stays current.
+
+One caller implementer and independent source/result reviewer; root owns engines,
+Git and cleanup. One existing test file adds an opt-in selector.100 existing
+function bodies, full BOARD/seven MOVING, default caps and solo helpers remain
+byte-identical; dispatch and new continuation only. Both clean compiles pass
+16.892s/17.348s, source/cache unchanged. Every engine uses Dummy; coordinator is
+headless and each actor has private Xvfb/explicitx11/dummy renderer/private profile.
+No user desktop or hosted CI. No native Windows/GPU or package claim.
+
+First full trial9fc31e7aa FAIL141.694s after the complete moving prefix, before
+any shutdown. New whole-manifest equality compared four native integer peer/
+generation fields against JSON-decoded floats. Saved six nested ownership,
+boarding, chair and body/frame projections match field-for-field. Local pinned
+Godot source establishes JSON numbers become double and Dictionary hash comparison
+rejects differing Variant types. The bounded correction56636f356 JSON-normalizes
+the entire current manifest, retaining every field and predicate. Independent
+causal review GO; first failure remains retained, no scope/clock relaxation.
+
+Corrected full trial FAIL149.382s. Real passenger471241125 disconnects once:
+host native and adapter events1, frame unregister1/body tree exit1, original body
+freed, release audit1→2. Sole admitted pilot2133098428 retains ownership generation1,
+original cockpit claim/body projections, command pilot_count1 and resets0.
+Passenger boarding/publication/physical assignments are absent. However the
+combined host cleanup predicate fails and no host.passenger_loss_released receipt
+is published. Raw diagnostics lack retained/current physical-role event_sequence
+and intents, direct crew-assignment/relationship getters, exact retained helm/
+owner identities and individual predicate results. They do not identify the
+false clause or prove a production defect. Fresh pilot throttle, departing solo
+walk/UI, complete scenario and three successful exits remain NOT_RUN/unqualified.
+Test assertion failures are retained; no unrelated engine-error cause is claimed.
+
+Independent implementer and reviewer agree: stop after original plus one repair;
+no third engine run, speculative runtime fix or weaker acceptance selected.
+Prior accepted BOARD/MOVING/authority-stop/pilot-loss cases retain their scopes.
+Full baseline/endurance/all parent gates remain open. KIT-RELOAD source review
+also found no supported startup correction; its original30s failure stays parked.
+
+Unaccepted two-commit caller history is excluded from main and preserved by
+pushed annotated tag `archive/withheld/halyard-passenger-loss-20261024`
+(objecte82cb55b855b6e64a055f6584d93849bd21073c2) pointing to
+56636f35652897a3278fcebdf769be8a2ebcc67d. Incremental bundle verifies against
+0ad334c6b; binary patch and exact Git-blob/mode source archive verify. Source
+SHA25625f1ad45cf505baf922ce2867bd3e8afcb27acb9c8d964e5d0f9b253ae673d03.
+Raw commands/manifests/logs/causal source references and161 byte/mode-verified
+peer files retained in `/srv/mudds-work/halyard-passenger-loss-20261024/results/`.
+
+Four guarded stages325.316s, two compile passes/two failed full trials. All4
+owners terminal;31 sampled process identities absent.329 scratch entries
+byte/mode/link-verified against archive then removed; profiles45069bytes SHA256
+70de134064f1181a62b31f145ed10d75d75a0daad9a48712f53ea26b1925e48e.
+No new working branch/worktree; main remains sole branch and eight protected
+detached registrations remain untouched. Original nine unqualified candidates
+remain open; this additional unqualified case is not completion credit.
