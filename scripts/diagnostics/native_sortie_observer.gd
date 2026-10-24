@@ -168,8 +168,9 @@ func _capture_courier_receipt() -> void:
 func _courier_observation() -> Dictionary:
 	if not is_instance_valid(_courier_director) or not is_instance_valid(_courier):
 		return {}
+	var weapon_status := _ship.get_weapon_fire_status()
 	var result := {
-		"weapon_ready": bool(_ship.get_weapon_fire_status().get("ready", false)),
+		"weapon_ready": bool(weapon_status.get("ready", false)),
 		"director_id": _courier_director.get_instance_id(),
 		"scenario": str(_courier_director.get_active_scenario()),
 		"generation": _courier_director.get_scenario_generation(),
@@ -194,6 +195,7 @@ func _courier_observation() -> Dictionary:
 		for member: Node3D in _courier_director.get_roster():
 			roster_ids.append(member.get_instance_id())
 		result.merge({"escape_origin": _v(_courier.get_escape_origin()),
+			"weapon_status": weapon_status.duplicate(true),
 			"prep_shot": _courier_prep_shot_observation(),
 			"actors": _courier_dispatched_observation(), "roster_ids": roster_ids,
 			"terminal": _courier_terminal.duplicate(true),

@@ -2182,6 +2182,25 @@ class NativeSortieSafetyTests(unittest.TestCase):
                              position=list(c['position']), escape_origin=list(c['escape_origin']),
                              health=78., escape_progress=1., actors=copy.deepcopy(c['actors']))
 
+    def test_escape_stops_on_explicit_weapon_component_failure_while_waiting_with_live_defender(self):
+        pilot, s = self.escaping_courier()
+        # The observed failure started at frame2019, hull89->67, long before
+        # firing resumed. Positive hull and ONLINE do not imply usable weapons.
+        s.update(command_fire=False, opponent_health=17.)
+        s['telemetry'].update(hull=67., engine='ONLINE')
+        s['courier']['weapon_ready'] = False
+        s['courier']['weapon_status'] = dict(ready=False, reason='weapon_cooldown')
+        s['frame'] += 1
+        self.assertFalse(pilot.update(copy.deepcopy(s), 6)[3])
+        s['courier']['weapon_status']['reason'] = 'weapon_overheated'
+        s['frame'] += 1
+        self.assertFalse(pilot.update(copy.deepcopy(s), 6)[3])
+        s['courier']['weapon_status']['reason'] = 'weapon_component_failed'
+        s['frame'] += 1
+        with self.assertRaisesRegex(AssertionError, 'authoritative weapon_component_failed'):
+            pilot.update(copy.deepcopy(s), 6)
+        self.assertIsNone(pilot.result)
+
     def test_escape_wait_never_fires_or_chases_and_requires_sustained_standdown_before_defender(self):
         pilot, s = self.escaping_courier()
         for progress in (.1, .5, .99):

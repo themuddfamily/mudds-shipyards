@@ -784,6 +784,11 @@ class CourierEscapePilot(CourierPilot):
         require(all(math.isfinite(c[k]) and math.isclose(c[k], v, rel_tol=1e-6, abs_tol=1e-6)
                     for k, v in self.CONFIG.items()), 'original encounter configuration')
         require(s['opponent_id'] == self.defender_id, 'same original defender throughout escape and home')
+        if (self.stage in ('courier_wait', 'courier_escape_wait', 'courier_standdown', 'interceptor')
+                and s['opponent_health'] > 0):
+            require(c.get('weapon_status', {}).get('reason') != 'weapon_component_failed',
+                    'authoritative weapon_component_failed with original defender alive; '
+                    'Courier Escape caller has no weapon recovery route')
         if self.stage in ('courier_wait', 'courier_escape_wait', 'courier_standdown'):
             require(s['phase'] == 'INTERCEPTOR_ENGAGEMENT' and s['opponent_active']
                     and math.isfinite(s['opponent_health']) and s['opponent_health'] > 0
