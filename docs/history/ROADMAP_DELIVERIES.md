@@ -22406,3 +22406,88 @@ No duplicate public checkpoint is needed; playablebcd268c remains current.
 All36 original parents/ten phase gates remain open. GitHub Actions remains disabled.
 Next action is bounding the original SERVER-BASELINE late-join case before selecting
 an implementation/trial; no parked failure is reopened by this acceptance.
+
+## Server baseline late join — accepted — 2026-10-24
+
+SERVER-BASELINE-LATE-JOIN, parent26, accepted source
+`437fe903d80d232dbfd86ae2acf5fec9cae6b2ed`. Three candidate commits
+955237c61/d53f2c4c6/437fe903d integrated into pushed main after independent lifecycle
+source/raw review. One bounded implementer owns the existing passenger-route test;
+root owns selection/Git/engines/cleanup. No task branch/worktree created. Runtime,
+content and export inputs remain identical to playablecheckpointbcd268c.
+
+One non-playing Main authority, ONLY two independent private clients. A uses normal
+HUD join/Begin Shift/authored station walk/physical hatch/pilot boarding. Its actual
+sampledthrust departure5.019190m occurs wall1792874355.16751; coordinator spawn is
+4355.17467. Actual B processstartticks30455231/HZ100 implies startwall4355.32528,
+0.158s AFTER departure; scriptready4374.83578/mainready4391.85386 precede normal
+HUD admission4392.12492. A brakes/holds airborne near home. B's ordinary station
+Player remains unclaimed/observer and consumes fresh airborne pose7035 versus
+departure4734, current owner/original pilot seated relationship, before any landing
+request. This qualifies joining after real departure while airborne; no claim of
+continuous motion throughout admission or automatic aboard spawning.
+
+One ordinary sampled landing_assist edge, actual remote landing_request1, satisfies
+the unchanged home capture. Production physical assist reaches strict actual
+halyard_fleet_dock_berth occupancy/token/lease and commits its landed entity at
+4395.50064,1.876s aftergo; exact A pilotclaim2/seatgen1/body+framegen1/ownership1 and
+actual helm are unchanged. Both consume real canonical entityhalyard_new_design/
+gen1/state landed/revision2/tick3/globalVector3[37,5.2800002,53.2999992], matching the
+host and actual authored home berth. Freshpose7152 and current ownership agree;
+A remains pilot and B observer/emptyboarding. Actual accepted operation is landed/
+docked with engineONLINE at this boundary; OFFLINE was neither required nor claimed.
+Client station-frame hull/berth and host global landing-record coordinates are
+checked separately; no invented target-ID field or protocol change.
+
+B then completes the original full17-waypoint authored walk/hatch/cabin/chair.
+All ordinary BOARD assertions run: A's supported walking-body observation runs
+once before its initial seat, rather than being wrongly repeated after A is
+already piloting. Shared current-pilot/two-seat/peer/body/claim/ownership checks and
+all seven MOVING stages remain, with both consumed/retained confirmations and
+fresh sampled helm movement. Original terminal release/leaving/done handshake
+completes before actual three OS exits0. Wrapper303checks/0, guard225.667071342s,
+exit0; host85/client71/client_b93 all complete/failures[], all peer/wrapper logs
+strictly clean. Source/cache manifests before/after match.
+
+Retained firstfull955237c61 FAIL135.881849527s before departure/Bspawn: A actual
+claim2/ownership1/seatedwiretick5014 intact, but the new first-pilot check demanded
+broadcast metadata with no other recipient. Production deliberately suppresses a
+sole pilot's own echo; its exact−1 published fields were source-derived, not
+captured raw. Independent causal review selected the EXISTING accepted sole-owner
+live-authority predicate only for exactlyoneadmittedA; original strict published
+predicate resumes once B joins, and B's actual received relationship stays required.
+Compact prepared/published/recipient receipts now retain that distinction.
+
+Secondfulld53f2c4c6 FAIL176.702404737s after genuine delayedjoin/airborne consume/
+actual strictcommitteddock. New client arrival demanded target_id, absent from the
+canonical landing record. Received landingrecord was not captured in that failure,
+so other conjuncts were not declared proven. Independent cumulative priority review
+selected the actual entity/generation/landed/revision/tick/finite published global
+position contract plus authoredhomeberth, retaining all host stricttarget/lease/
+occupancy, client hull/freshoperation/owner/localrole predicates. Actual consumer
+inputs now captured in consumed/failure receipts. No runtime defect demonstrated;
+no cap/endpoint/role change, forced echo, earlyB, placement, directclaims/landing or
+unchanged retry. Each correction had strictcompile and independent review before
+its separately selected full trial on the same case clock.
+
+Three strict compiles pass16.912230253/17.100232601/16.996231318s. Six guarded stages
+fourPASS/twoFAIL total589.260019779s; continuous selection→verifiedcleanup25.838min.
+All47 sampled owned process identities absent;380 scratch entries byte/mode/link
+verified before removal. Results consolidated under
+`/srv/mudds-work/halyard-late-join-20261024/results/`:77-member case-records.tar.gz,
+7,251,119bytes,SHA256`ed5f6aaf4a53d6c481ea20c40d088364950a7b01913c2d0287f59461919530c8`,
+with closeout.json alongside. Pre-existing detached registrations, including three
+missing /tmp worktrees, remain protected/untouched/not pruned.
+
+Command: `godot --headless --audio-driver Dummy --path /srv/mudds-shipyards --script
+res://tests/network/halyard_network_passenger_route_test.gd -- --ordinary-two-client-late-join`
+through the retained independent360s supervisor. Original300s/global,60s coldMain,
+20s admission,8s transitions,15s walks and10s abort/exit remain. Selected nearhome
+docking24s plus8s consumer stay inside global;24s is this case budget, not a
+universal production limit. Child peers privateXvfb/explicitx11/Dummy/dummy renderer.
+SourceLinux/input scope only; fullbaseline/endurance/othercraft/worldcontexts,
+exported/nativeWindows/GPU/device/human remain open. No duplicate publicbuild;
+checkpointbcd268c stays current, all36 originalparents/ten phasegates remain open,
+Actions disabled. Next action is bounding ordinary passenger reconnect after actual
+transportloss/normalManualJoin and usable physical crewreturn before selecting its
+implementation/trial; no parked failure is reopened by this acceptance.

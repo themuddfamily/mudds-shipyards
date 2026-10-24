@@ -43,59 +43,35 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
-**Selected: SERVER-BASELINE-LATE-JOIN — join an airborne session, dock and join its crew.**
-One non-playing Main authority and TWO independent clients. A uses normal HUD join,
-authored walking/hatch/pilot entry and sampled thrust to move the host craft>5m.
-Only that actual departure permits B's process to start. A holds normal brake near
-home; B's normal HUD join must consume fresh current airborne craft/ownership/A
-seated-body state while B remains an unclaimed station Player. This is joining
-after actual departure while airborne, not continuous motion during admission.
+**SERVER-BASELINE-LATE-JOIN DONE — `437fe903d`.**
+The original pilot boards normally and flies5.019m before the late client's
+process starts. The new station Player receives current airborne craft/pilot/
+ownership state without a crew grant. One sampled landing input produces actual
+strict home docking and a committed landing received by both clients. The late
+player walks the complete authored route, boards normally and completes the
+original two-seat BOARD and all seven MOVING cabin stages with the same pilot.
 
-A's sole ordinary landing input must produce actual strict physical home docking,
-real berth occupancy and committed host landing state consumed by both clients.
-Preserve A's exact pilot/helm/claim/body/frame/ownership identities; landing-entity
-generation is separate. B then completes the full authored station walk/hatch/chair
-route. Reorder the old both-admitted barrier to serve A first without dropping any
-ordinary boarding assertions. Both complete the original two-seat BOARD contract,
-all seven MOVING cabin stages and full terminal handshake/three actual OS exits0.
+Full case passes303 checks in225.667s; all three peers complete/exit0 with clean
+logs. Actual B process starts0.158s after departure; exact original pilotclaim2/
+seatgen1/bodyframe1/ownership1 survive docking. Both clients consume the committed
+landing record at the actual authored dock. Two earlier caller failures remain
+recorded: sole-pilot no-echo semantics and an absent wire-field assumption. The
+existing authority predicate and actual landing contract resolve those checks;
+no runtime, role, endpoint or deadline was changed.
 
-One high-effort implementer owns only the existing Halyard passenger route test;
-root owns docs/Git/engines/cleanup, one independent lifecycle reviewer. Selector
-`--ordinary-two-client-late-join`; original300s/global,360s/outer,60s cold Main,
-20s admission,8s transitions,15s walks and10s abort/exit remain. Selected near-home
-docking route has24s plus8s consumer bounds inside the same global cap;24s is a
-case budget, not a claim about the production assist's derived maximum. Check
-actual capture before the sole landing input; stop if unsupported. No direct
-claims/landing calls, placement, tuning, generation writes or new evidence family.
-Strict compile then ONE complete trial; first failure stops for causal/cumulative
-priority review, no unchanged retry or cap extension. Estimate45–60min implementation
-and10–20min checks/review/cleanup; split before90min on the same case clock.
-Qualification only unless a real runtime defect is demonstrated. Runtime repair
-needs focused proof and a fresh checkpoint. Dummy/headless/private-Xvfb/x11; Actions
-disabled; broader baseline/endurance/exported/native/human gates remain open.
+Three candidate commits are integrated into pushed main; independent source/raw
+review passes. All47 observed process identities are absent,380 scratch entries
+verified/removed and results consolidated. No task branch/worktree was created.
+Runtime/content/export inputs are unchanged; playable checkpoint stays **bcd268c**.
+Source Linux/private-Xvfb input qualification only; full baseline, endurance,
+exported/native/device/human and all36 parent/ten phase gates remain open.
+[Result and retained failures](docs/history/ROADMAP_DELIVERIES.md#server-baseline-late-join--accepted--2026-10-24).
 
-First run955237c61 is retained FAIL135.882s before departure; B never starts.
-A has the actual pilot claim/ownership and current seated authority wire, but the
-new first-pilot check requires a broadcast. Production deliberately suppresses a
-sole pilot's own echo. Source/independent causal review select only the existing
-accepted sole-pilot live-authority predicate while A is the only admitted peer;
-restore the original published-state predicate immediately when B joins and keep
-B's actual received-state check. Capture prepared/published state/ticks. No runtime
-change, forced echo, early B, deadline extension or clock reset. Strict compile
-then one complete trial; first failure again stops for review.
-
-Corrected rund53f2c4c6 is retained FAIL176.702s. Actual departure, delayed B process,
-airborne state consumption, one landing edge and strict physical/committed docking
-pass; both client arrival predicates fail. The new consumer requires target_id,
-which the canonical landing record does not transmit. Actual received landing
-record was not captured, so other conjuncts remain unproven. Independent cumulative
-priority review selects the real contract: ship/currentgeneration/committedlanded,
-positive revision/tick and finite published GLOBAL landing position matching the
-recorded host dock; resolve the same authored home berth and retain actual client
-hull position, fresh operation/ownership/local-role and ALL host target/lease/strict
-dock checks. Capture the actual consumer record/pose, no invented wire field or
-protocol/runtime change. Original scope/caps/clock remain; strict compile and source
-review before one full trial, first failure stops again.
+Next action: define the original SERVER-BASELINE passenger reconnect case using
+actual transport loss and normal Manual Join, retaining the server/pilot and
+requiring a usable physical return to crew. Its complete route and bounds must
+be settled before selecting implementation or an engine trial. No parked case
+is automatically retried; Actions remains disabled.
 
 **SERVER-BASELINE-SEAT-RACE DONE — `99c9fc1af`.**
 The complete original non-playing authority/two-client BOARD and seven MOVING
