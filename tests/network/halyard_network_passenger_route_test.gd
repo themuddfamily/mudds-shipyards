@@ -3565,6 +3565,7 @@ func _ordinary_seat_race_host(baseline: Dictionary) -> bool:
 func _ordinary_seat_race_client() -> bool:
 	var outcome: Dictionary = {}
 	var race_ready: Dictionary = {}
+	var helm_prepress: Dictionary = {}
 	var prior_source := _game.get_network_remote_body_intent_source()
 	var prior_stream := int(prior_source.get_audit().get("stream_id", -1))
 	for stage: String in ORDINARY_SEAT_RACE_STAGES:
@@ -3580,11 +3581,26 @@ func _ordinary_seat_race_client() -> bool:
 				"ordinary pilot brake stops the actual consumed Halyard before relinquishing helm"):
 				return false
 		elif stage == "walkers":
+			var walkers_deadline := Time.get_ticks_msec() + 8000
 			if _role == "client":
 				_ordinary_action(&"brake", false)
+				if not await _ordinary_boundary(func():
+					var sample: Dictionary = _game.get("_network_craft_pose_stream").latest_sample(_craft.get_ship_id())
+					var operation := sample.get("operation_presentation", {}) as Dictionary
+					return not sample.is_empty() and sample.get("ship_id") == _craft.get_ship_id() \
+						and not bool(sample.get("destroyed", false)) and not operation.is_empty() \
+						and StringName(operation.get("engine", &"")) == HeroShip.ENGINE_OFFLINE
+				, maxf(0.0, float(walkers_deadline - Time.get_ticks_msec()) / 1000.0),
+					"released ordinary brake reaches the accepted current host OFFLINE exit prerequisite before the sole Interact"):
+					return false
+				helm_prepress = {"sample": _game.get("_network_craft_pose_stream").latest_sample(_craft.get_ship_id()).duplicate(true),
+					"phase": _game.phase, "physics_frame": Engine.get_physics_frames(),
+					"wall": Time.get_unix_time_from_system(), "deadline_msec": walkers_deadline,
+					"boarding_audit": _game.get_network_client_boarding_audit()}
 			await _ordinary_press(&"interact")
 			if not await _ordinary_boundary(func(): return _ordinary_supported_cabin() and not _player.is_seated() \
-				and not bool(_game.get("_piloting")) and _ordinary_hud_role_is_current(&"passenger"), 8.0,
+				and not bool(_game.get("_piloting")) and _ordinary_hud_role_is_current(&"passenger"),
+				maxf(0.0, float(walkers_deadline - Time.get_ticks_msec()) / 1000.0),
 				"ordinary Interact releases the original helm/chair into a confirmed supported walking berth"):
 				return false
 			var source := _game.get_network_remote_body_intent_source()
@@ -3633,6 +3649,8 @@ func _ordinary_seat_race_client() -> bool:
 		var receipt := _ordinary_seat_race_local_receipt()
 		if stage == "walkers":
 			receipt["prior_stream_id"] = prior_stream
+			if _role == "client":
+				receipt["helm_prepress"] = helm_prepress
 		if stage == "approach":
 			race_ready = receipt.duplicate(true)
 		_write(_role + ".seat_race_" + stage + "_done", receipt)

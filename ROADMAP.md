@@ -69,6 +69,16 @@ A caller-only pass needs no duplicate checkpoint; a demonstrated runtime repair
 requires focused proof and a fresh checkpoint. Full baseline/endurance and
 native/human gates remain open. Dummy/headless/private Xvfb/x11; Actions disabled.
 
+First selected run174c6545b is retained FAIL152.890s after full BOARD+seven MOVING
+and actual brake. The pilot's sole exit press precedes accepted host OFFLINE;
+no helm-release RPC occurs, while the passenger stands correctly. Source and
+independent review support a caller readiness omission (the exact prepress engine
+sample was not captured), not a demonstrated runtime swap defect. Select only a
+wait for the current accepted host OFFLINE after normal brake release, then ONE
+Interact; readiness and supported transition share the original eight-second
+walkers budget. Capture the actual prepress sample; strict compile then the
+unchanged full contract, no tuning/extra press/clock reset or cap extension.
+
 
 **HALYARD occupied-chair feedback DONE — `bcd268c75`; checkpoint `bcd268c`.**
 An actual host occupied-chair verdict now answers the exact current remote
