@@ -4267,6 +4267,9 @@ class DefenseConsumedFireTests(unittest.TestCase):
                 sample = self.sample(n, fire=(n == 14), velocity=[0, 0, 0],
                                      back=[math.sin(n*.01), 0, math.cos(n*.01)], walk_forward=[0, 0, -1])
                 sample['defense']['actors'] = [target]
+                sample['defense']['fire_gate'] = dict(frame=n, ship_id=sample['ship_id'],
+                    generation=sample['defense']['activity']['generation'],
+                    target_id=target['instance_id'], clear=(n <= 12))
                 pilot.last_state = sample
                 gate.return_value = n <= 12
                 keys, dx, dy, fire = pilot.update(sample, 100+n/60)
