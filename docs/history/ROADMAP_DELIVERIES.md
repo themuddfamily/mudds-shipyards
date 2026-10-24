@@ -22966,3 +22966,60 @@ Documentation only: no engine/test/export/CI invocation, gameplay change, new
 validator, scratch file, task branch or worktree. Current playable checkpoint
 remains fb396ab and implemented fleet9/17. Preparation and execution-contract
 clarification are complete; game completion is not claimed.
+
+
+## Sampled remote boost — full handback accepted — 2026-10-25
+
+HELM-BOOST/parent18, isolated source qualification on clean candidate
+70c8a65e5, accepted after independent high source and actual-raw GO. Selection
+ba418e4db fixed60min cumulative budget; no previous failed boost attempt.
+One high implementer owns only new boost test/UID, inheriting the existing
+full Jovian handback route rather than copying boarding or changing production.
+Root integrates, runs checks and closes owned scratch. No runtime defect was
+invented; this completes the named proof of existing remote gameplay.
+
+One actual nonplaying Main server/two independent Main clients: unchanged
+physical station walk/chairs/real departure≥5m/brake, both yaw turns, then
+baseline and boosted forward actions through actual LocalShipInputSource,
+capture/ENet/host flight. No provider override, direct command, pose/velocity,
+engine or authority staging. Original300s profile/360s outer and all existing
+route deadlines remain; first unexpected failure would stop the attempt.
+
+Actual host30physics-tick/.5s windows at full throttle/power1 and below normal
+speed cap: baseline gain7.325000286m/s/acceleration14.650000572m/s²; boost gain
+9.724995375/19.449990749, matching authored14.65/19.45 and32.76percent greater.
+Original session/craft/seat/entity/source+wire identities remain fixed. Fresh
+same-stream neutral is delivered in under0.36s after each measured boundary;
+new sample/wire sequences and holding/delivery facts exclude timeout neutral.
+Ordinary braking stops the actual host; real pilot/co-pilot replica position
+errors baseline0.47972/0m, boost0.43916/0m, attitude errors0°, anchor errors0m,
+with newer consumed original-owner poses. Original yaw turns±4.8°/zero drift.
+
+Full ordinary Interact handback follows: owner2008316726/gen1→owner0/gen2,
+retired remote source, disconnected/removed pilot capture, actual PASSENGER HUD,
+OFFLINE/no stale boost demand and supported actual host/client walks2.113/1.844m.
+All3 distinct peer PIDs return actual OS0, raw done failures empty and coordinator
+marker exactly once; sampled descendants absent. Independent reviewer read raw
+host/client convergence/release/handback facts, not just a summary.
+
+Frozen checks: importPASS6.615s, check-onlyPASS17.080s, one full ordinary
+routePASS147.183s; total engine stages170.878s. Import/compile retain Godot's
+root-startup notice (not a script/runtime failure); ordinary launch explicitly
+silences only that known notice. Full ordinary logs have zero runtime diagnostics.
+No additional test runs, CI, package export, new validator/schema or production
+behavior/tuning changes. Existing playable checkpointfb396ab remains current;
+no identical rebuild for test-only qualification. Physical keyboard/controller,
+native GPU/device/audio, endurance/capacity and final-candidate/full-parent scope
+remain unperformed/open. Source is integrated on main; no branch/worktree created.
+
+Records retained in /srv/mudds-work/jovian-remote-boost-20261025/results/.
+Owned profiles/helper files are archived and verified before removal; exact
+archive identity, terminal owners and process-absence checks are in closeout.json.
+
+Cleanup completed8.01min from the original selection, within60min: all3 stage
+owners terminal; all21 sampled process identities absent. Verified255 archive
+members/10,539,059bytes, SHA256
+8474781dcd428c4f1a336fe90600e9e57842a533049b572babad9a1b6c09d1ad.
+Owned profiles/helpers removed; case directory retains only that archive and
+closeout.json. Main is the sole local branch; pre-existing detached worktrees
+were not touched.

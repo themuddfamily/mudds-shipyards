@@ -29,25 +29,22 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Selected: HELM-BOOST — actual host boost, release and ordinary handback.**
-One test implementer owns only a new boost specialization of the existing
-three-process Jovian handback route; root owns integration/records and checks.
-Starting source9ecb3a39e, clean main. Preserve ordinary two-client physical
-boarding, real departure/brake, both yaw turns, actual Interact handback and
-supported walking/source retirement. Add synthetic sampled boost/forward through
-production input→wire→host, measured authored host flight effect, actual replica
-convergence and fresh sampled release. No pose/command/authority staging.
+**Delivered: HELM-BOOST — actual host acceleration, release and full handback.**
+Clean source70c8a65e5 passes the complete ordinary three-process Jovian route in
+147.183s: physical boarding/departure/brake, both yaw turns, equal30tick/.5s
+baseline/boost windows, fresh release, both real client replicas and ordinary
+Interact handback/supported walk/source retirement. Actual host acceleration
+14.6500→19.4500m/s² matches authored thrust/boost/drag; release reaches host in
+under0.36s and both client hull errors stay≤0.5m. Owner changes to0/generation+1,
+old source/capture retire and no boosted demand remains. Root and independent
+source/raw review GO; import/check-only PASS, all3 peer OS exits0/no runtime
+diagnostics. [Exact scope and cleanup](docs/history/ROADMAP_DELIVERIES.md#sampled-remote-boost--full-handback-accepted--2026-10-25).
 
-Estimate30min implementation plus15min review/checks; hard stop60min from this
-selection including failed attempts and cleanup. Original profile300s/outer360s,
-all inherited route deadlines and full parent scope stay fixed. Run one focused
-silent isolated route after import/check-only; stop at first unexpected failure.
-A production repair needs demonstrated cause and a separately bounded correction.
-Success requires all3 actual peer exits0, suite marker, zero diagnostics, actual
-host/replica/release/handback receipts and cleaned owned processes/profiles.
-This qualifies existing gameplay; no new runtime feature or hardware pass is
-claimed. No identical checkpoint rebuild for test-only acceptance.
-
+This qualifies existing gameplay on isolated synthetic-action/loopback input;
+no runtime tuning/feature change, physical device or native-hardware pass.
+No identical playable rebuild is needed; checkpointfb396ab remains current.
+HELM-HOVER is still unscheduled; full network/endurance/capacity/final gates stay
+open. No task branch/worktree was created.
 
 **Prepared: three concrete craft proposals — owner choices pending.**
 [Paradox](docs/design/PARADOX_IMPLEMENTATION_PROPOSAL.md): pilot cannon, separate
