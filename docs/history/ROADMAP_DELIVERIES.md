@@ -22813,3 +22813,65 @@ view/current Arrow/nonstation samples before oneE/no simultaneous look/walk.
 No native selection-computation stamp is exposed; receipt records sampled facts.
 Independent causal/cumulative/contract GO selects that continuation with the SAME
 original Torpedo clock/90min split/full goal/caps, no unchanged third trial.
+
+## Torpedo second-boarding readiness — whole journey NOT ACCEPTED — 2026-10-25
+
+Continuation929bc3cc4 after the first two retained trials; SAME original
+PLAY-TORPEDO clock/90min split, original full two-sortie goal/150s encounters/
+sharedCAP300/outer360. Accepted base remains main929; candidate d8eece4ae combines
+reviewed five-file Torpedo caller/pooled-flight correction with external-only
+second-boarding readiness. Audited game2de source/ELF restored from verified
+retained archive, identical SHA596e99749661b4c8507054a4f99dae2777f59f59718d78b50c25283c2b1cf979;
+no gameplay or Godot bridge changed, prior parse/privacy/export/menu/PCK results
+reused after exact source/package proof. Public checkpointfb396ab unchanged.
+
+Torpedo-only board-aim stage reuses existing yaw_to/.08 caller tolerance and
+actual pending-view acknowledgement. Stop walking; require quiet epoch plus two
+fresh unchanged-view/body/identity/current Arrow/nonstation samples before sole
+E/no concurrent movement/look. Reset readiness on invalidation/replay; initially
+aligned samples still wait. Receipt explicitly records sampled facts, not native
+selection-computation timestamp or production-facing eligibility. Independent
+causal/cumulative/contract/frozen source reviews GO. First Heavy/default route,
+waypoints/reach/controls and pooled-flight fix preserved.
+
+First focused Python FAIL163tests/10.814s: all8errors share one fixture omission,
+walk_tuning required by existing yaw_to. One reviewed fixture-only addition of
+copied authored DEFAULT_WALK preserves driver/all assertions. Corrected163tests/
+10.865s PASS. Failed stage retained, no engine before this correction passed.
+
+ONE full ordinary trial FAIL133.075s/guard133.394s. Actual readiness now succeeds:
+aim4596, quiet epoch4602, fresh4603–4604/facing.999631/supported/currentnonstation,
+soleE4604, observednativeE4606 and realBOARDING4607/depart4749/fight4874. Full
+Heavy24+22 kill/payment2107/home/physical Torpedo arm preserved. Torpedo real
+pitch+boost consumed5089, lockbreak5149, flight2/gen1 non-damaging range terminal
+5351. Distinct real player source1102 seeker hurtbox kill14 at5486/callback5485.
+Subsequent seq3/4/5 are genuine misses; boat70/70, no kill/payment/home/Wing/UI0.
+Actual other seekers4/gen2 and5/gen3 resolve34 and remaining34damage at5935/6286;
+Arrow68→34→0/destroyed6287/APPROACH_SHIP. This is genuine combat failure, not
+proof of an engine defect or authority to change aim/point/physics/timers.
+
+5816complete raw samples through6288/one final16384-byte partial observation
+retained; zero diagnostics/all input/helper/game/Xvfb cleanup true. Independently
+read baseline/Heavy-paid files match recorded SHA/document; only one Heavy/gen1
+receipt, no Torpedo credit/orderly-close snapshot. Independent raw closeout GO:
+readiness is demonstrated only within a failed journey; full PLAY-TORPEDO remains
+NOT_ACCEPTED. No further repair/trial selected. Reopen only demonstrated source/
+raw-supported gameplay/control cause plus bounded correction preserving actual
+boat kill/distinct payment/home/next posting/UI and all original seeker outcomes.
+
+Unique source pushed under `archive/withheld/torpedo-boarding-readiness-20261025`;
+verified incremental bundle/patch/exact five Git blobs retained/unmerged. Restored
+private ELF replica removed only after unchanged SHA and retained original archive
+identity verified. Three owner stages terminal,9sampled PID identities absent,
+27scratch entries byte/mode/link verified/removed; no task branch/worktree. Main
+sole branch; eight pre-existing detached registrations/failed archival refs remain
+explicitly retained/not pruned. No source merged merely to remove an attempt.
+
+This continuation's guarded155.926190853s plus prior317.252456903s =
+473.178647757s; SAME cumulative original clock, not a new budget. Consolidated
+53-member case-records.tar.gz,13485649bytes,
+SHA256`b9190743fda9afb652b53dc3d4f6076acac4f04f2e4e81b28dbe40d5fecb6980`,
+plus closeout.json at `/srv/mudds-work/torpedo-boarding-readiness-20261025/results/`.
+All failures, source/package binding, meaningful fixtures and actual partial
+outcomes remain inspectable. No gameplay parent/native/hardware/repeat/final
+release closure; no duplicate public checkpoint or hosted Actions run.

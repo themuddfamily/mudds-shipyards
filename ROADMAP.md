@@ -29,52 +29,25 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Selected continuation: PLAY-TORPEDO second-boarding readiness.**
-Two full trials are retained/unaccepted. The first proved actual evasion,
-interceptions and boat damage but stopped on pooled-flight receipt bookkeeping;
-its supported correction's full retry instead stopped at second boarding. Native
-E was observed while facing away from Arrow and station selection took priority.
-No full Torpedo clear/payment/home result is accepted. [Failures/cause](docs/history/ROADMAP_DELIVERIES.md#torpedo-first-play--not-accepted--2026-10-25).
+**PLAY-TORPEDO remains OPEN; three full trials stopped/unaccepted.**
+The latest run genuinely reboarded after sampled view/selection settling, then
+proved real pitch/boost evasion and a distinct seeker shoot-down. Three later
+boat shots missed; two real incoming seekers destroyed Arrow. No Torpedo boat
+kill, distinct payment, home return, next posting or normal UI exit. The two
+earlier failures and supported caller corrections remain recorded on one clock.
+[Exact outcomes, cause limits and cleanup](docs/history/ROADMAP_DELIVERIES.md#torpedo-second-boarding-readiness--whole-journey-not-accepted--2026-10-25).
 
-Independent causal/cumulative review selects a Torpedo-second-boarding-only
-caller aim/quiet stage: existing yaw_to/.08 tolerance and pending-view actual
-acknowledgement, stopped/supported body, then two fresh unchanged-view/current
-Arrow/nonstation samples before ONE E with no movement/look. Reset readiness on
-view/body/candidate invalidation. This is sampled caller readiness, not a native
-selection-computation stamp or new production boarding-angle rule; exact station
-owner/action remain unknown. No retry, waypoint, reach, cap or runtime change.
-One implementer owns driver/existing Python tests; one reviewer; root owns checks/
-Git/package/cleanup. Estimate10–15min+focused check/ONE full trial. SAME original
-Torpedo clock/90min split includes both failures and prior pooled-flight fix.
-Unchanged audited game2de package is restored with verified byte identity;
-explicit driver/game binding required. No engine before frozen correction/review.
-
-**Full PLAY-TORPEDO finish line remains unchanged.**
-Same process/Player/Arrow/profile completes accepted Heavy clear/payment/home/
-physical Torpedo posting, then physically arms/reboards/takes off. Observe an
-actual boat-launched seeker evade through ordinary pitch/boost, real lock break
-and non-damaging terminal; actually shoot down a distinct captured flight through
-player resolver/hurtbox/retirement, without later arrival damage. Then genuinely
-destroy boat/CLEARED, read distinct same-generation Torpedo payment from actual
-primary file, strict home/OFFLINE physical exit, physical usable Paired Wing
-posting, normal UI game exit0. Both seeker outcomes precede boat destruction.
-
-Preserve Heavy credit; final ledger serial/count2 with exactly one Heavy and one
-Torpedo credit. Shared terminal slot legitimately advances to Torpedo. Original
-150s encounters/sharedCAP300/outer360, all physics/controls/projectile/weapon
-values remain. No direct scenario selection, skipped Heavy, injected flights/
-damage, boat retirement counted as interception/evasion, arbitrary point/aim/
-timeout changes. Normal pitch/boost is part of this original Torpedo requirement.
-
-One implementer owns the existing five driver/test/observer/startup/privacy files;
-root owns checks/Git/package/cleanup, one independent reviewer. Preserve existing
-Heavy route; reuse its path/home/control helpers and two explicit leg states, no
-new framework/validator. Runtime change is not assumed: Boat delegates to the
-already-correct ResolverBackedOpponent attachment seam. Estimate45–60min
-implementation+10–20min focused/private-package/ONEfulltrial/cleanup, splitbefore
-90min on one case clock. First unexpected failure stops for causal/cumulative
-review. Caller-only qualification retains checkpointfb396ab with exact source/
-package limits; actual runtime repair requires fresh Windows checkpoint.
+Full finish remains same-process genuine Heavy clear/payment/home/physical
+Torpedo posting, real evasion AND distinct seeker interception before actual
+boat kill/CLEARED, distinct same-generation durable credit (ledger2/one each),
+strict home/OFFLINE physical exit, physical usable Paired Wing posting and UI
+OS0. Original150s encounters/sharedCAP300/outer360 unchanged. Reopen only after
+a source/raw-supported gameplay/control cause for the failed boat engagement
+and a bounded correction preserving that entire journey. No unchanged retry,
+arbitrary point/aim/physics/timer change or extra qualifier layer is selected.
+Failed source/bundles/results archived, accepted main restored, owned processes/
+profiles/package replicas cleaned. Current playable checkpoint remainsfb396ab;
+no full Torpedo/parent/native/hardware completion is claimed.
 
 **Delivered: PLAY-BREACH first complete ordinary sortie, checkpointfb396ab.**
 Fixed the real late-CombatAuthority Picket damage-adapter gap. The unchanged full
