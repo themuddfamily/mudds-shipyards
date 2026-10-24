@@ -4500,6 +4500,7 @@ class TorpedoJourneyCallerTests(unittest.TestCase):
     def boarding_sample(cls, n=10):
         sample = cls.sample(n)
         sample.update(phase='APPROACH_SHIP', world_id=10, capsule_id=11, shape_id=12, berth_id=13, seat_id=14,
+            walk_tuning=copy.deepcopy(native.LifeTowPilot.DEFAULT_WALK),
             player=[-47.5, .05, 22], boarding=[-47.5, .05, 18.9], velocity=[0, 0, 0],
             walk_forward=[0, 0, -1], walk_right=[1, 0, 0], candidate=True, station_candidate=False,
             reboard_blocked=False, boarding_distance=3.12, native_interact=False,
