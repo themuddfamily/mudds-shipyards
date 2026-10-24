@@ -23,6 +23,18 @@ class NavigatorRequestSpy extends Director:
 				"volume_db": volume_db, "effective_volume_db": volume_db + _effect_attenuation_db()})
 		return super._play_resident(stream_id, bus, volume_db)
 
+# Diagnostic-only passive physics taps. These nodes never own actor state.
+class DestructionMotionObserver extends Node:
+	var sample: Callable
+	func _physics_process(_delta: float) -> void:
+		if sample.is_valid():
+			sample.call()
+
+var _ordinary_destruction_motion_rows: Array[Dictionary] = []
+var _ordinary_destruction_motion_before: Dictionary = {}
+var _ordinary_destruction_motion_start := -1
+var _ordinary_destruction_motion_written := false
+
 var _checks := 0
 var _failures: Array[String] = []
 var _directory := ""
@@ -2733,6 +2745,8 @@ func _ordinary_run(args: PackedStringArray) -> void:
 	_craft = _game.get_node("HalyardCrewTransport") as HalyardCrewTransport
 	_player = _game.get_node("Player") as PlayerController
 	_ordinary_player_id = _player.get_instance_id()
+	if _ordinary_two_client_destruction_recovery and _role != "host":
+		_ordinary_install_destruction_motion_observers()
 	_write(_role + ".main_ready", {"pid": OS.get_process_id(), "player_id": str(_ordinary_player_id)})
 	if _ordinary_require(_game.hud is GameHUD and _game.phase == GameFlow.Phase.INTRO,
 		"fresh Main starts with real HUD and original Player at Intro"):
@@ -5464,3 +5478,81 @@ func _ordinary_destruction_client() -> bool:
 		return false
 	_ordinary_destruction_stage = "complete"
 	return true
+
+
+# DIAGNOSTIC ONLY: read-only before Main / after Main / after actor physics.
+# Main remains -100; Player and every existing sibling retain their priorities
+# and relative child order. These passive children disappear with actual Main.
+func _ordinary_install_destruction_motion_observers() -> void:
+	for slot in ["before_main", "after_main_before_player", "after_all_physics"]:
+		var observer := DestructionMotionObserver.new()
+		observer.name = "DestructionMotion_" + slot
+		observer.process_physics_priority = _game.process_physics_priority - 1 if slot == "before_main" else (
+			_game.process_physics_priority + 1 if slot == "after_main_before_player" else 2147483647)
+		observer.sample = Callable(self, "_ordinary_capture_destruction_motion").bind(slot, observer.process_physics_priority)
+		_game.add_child(observer)
+
+
+func _ordinary_destruction_motion_vector(value: Vector3) -> Array:
+	return [value.x, value.y, value.z]
+
+
+func _ordinary_capture_destruction_motion(slot: String, observer_priority: int) -> void:
+	if _ordinary_destruction_motion_written or _ordinary_destruction_retained.is_empty() \
+		or not is_instance_valid(_player) or not is_instance_valid(_craft):
+		return
+	var tick := Engine.get_physics_frames()
+	var pose: Dictionary = _game._network_craft_pose_stream.latest_sample(_craft.get_ship_id())
+	var actual_loss := bool(pose.get("destroyed", false)) and str(pose.get("ship_id", "")) == str(_craft.get_ship_id()) \
+		and int(pose.get("entity_generation", 0)) > 0 and int(pose.get("pose_tick", -1)) > 0
+	# Preserve only a provisional before-Main row. It becomes evidence only if
+	# this same frame actually consumes the host's destroyed stream sample.
+	if _ordinary_destruction_motion_start < 0 and slot != "before_main" and not actual_loss:
+		return
+	var spawn := (_game.world.get_player_spawn() as Transform3D).origin
+	var input_axis := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	var actions: Dictionary = {}
+	for action in ORDINARY_WALK_ACTIONS:
+		actions[str(action)] = {"strength": Input.get_action_strength(action), "pressed": Input.is_action_pressed(action)}
+	var source := _game.get_network_remote_body_intent_source()
+	var frame := _craft.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
+	var row := {"physics_frame": tick, "process_frame": Engine.get_process_frames(),
+		"slot": slot, "observer_physics_priority": observer_priority,
+		"main_physics_priority": _game.process_physics_priority, "main_process_priority": _game.process_priority,
+		"player_physics_priority": _player.process_physics_priority, "player_process_priority": _player.process_priority,
+		"original_player_id": str(_ordinary_player_id), "actual_player_id": str(_player.get_instance_id()),
+		"position": _ordinary_destruction_motion_vector(_player.global_position),
+		"spawn": _ordinary_destruction_motion_vector(spawn),
+		"spawn_delta": _ordinary_destruction_motion_vector(_player.global_position - spawn),
+		"velocity": _ordinary_destruction_motion_vector(_player.velocity),
+		"real_velocity": _ordinary_destruction_motion_vector(_player.get_real_velocity()),
+		"platform_velocity": _ordinary_destruction_motion_vector(_player.get_platform_velocity()),
+		"platform_floor_layers": _player.platform_floor_layers, "platform_wall_layers": _player.platform_wall_layers,
+		"platform_on_leave": _player.platform_on_leave,
+		"floor": _player.is_on_floor(), "control_enabled": _player.is_control_enabled(),
+		"seated": _player.is_seated(), "station_seated": _player.is_station_seated(),
+		"sleeping": _player.is_sleeping(), "phase": _game.phase,
+		"transition_busy": bool(_game.get("_transition_busy")), "piloting": bool(_game.get("_piloting")),
+		"cabin_ship": _ordinary_node_identity(_game.get("_cabin_ship") as Node),
+		"containment": str(_player.get_cabin_containment_report()),
+		"frame_registered": frame != null and frame.is_occupant_registered(_player),
+		"frame_prediction": frame != null and frame._local_prediction_is_current(_player),
+		"body_source": source.get_audit() if source != null else {},
+		"input_vector": [input_axis.x, input_axis.y], "input_actions": actions,
+		"actual_destroyed_sample": actual_loss, "pose_tick": int(pose.get("pose_tick", -1)),
+		"pose_generation": int(pose.get("entity_generation", 0)), "journey_stage": _ordinary_destruction_stage}
+	if _ordinary_destruction_motion_start < 0:
+		if slot == "before_main":
+			_ordinary_destruction_motion_before = row
+		if not actual_loss:
+			return
+		_ordinary_destruction_motion_start = tick
+		if slot != "before_main" and int(_ordinary_destruction_motion_before.get("physics_frame", -1)) == tick:
+			_ordinary_destruction_motion_rows.append(_ordinary_destruction_motion_before)
+	if tick - _ordinary_destruction_motion_start < 32 and _ordinary_destruction_motion_rows.size() < 96:
+		_ordinary_destruction_motion_rows.append(row)
+	if slot == "after_all_physics" and tick - _ordinary_destruction_motion_start >= 31:
+		_ordinary_destruction_motion_written = true
+		_write(_role + ".destruction_motion", {"diagnostic_only": true, "physics_frames": 32,
+			"first_physics_frame": _ordinary_destruction_motion_start, "last_physics_frame": tick,
+			"read_only_observers": true, "rows": _ordinary_destruction_motion_rows})
