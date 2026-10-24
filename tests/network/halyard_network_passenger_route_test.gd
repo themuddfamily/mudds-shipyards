@@ -4775,6 +4775,9 @@ func _network_bunk_client() -> void:
 		and _player.global_position.distance_to(current_wake.origin) < 0.02,
 		"public session shutdown retires the actual sleeper and restores the current hull's wake pose"):
 		return
+	# Let the disclosed hull-pose fixture reach the frame's next motion sample
+	# before independently staging the following ordinary solo approach.
+	await _ticks(12)
 	_player.teleport_to(Transform3D(_craft.global_basis.orthonormalized(), port.get_entry_transform().origin))
 	await _ticks(12)
 	await _ordinary_look(port.global_position)
