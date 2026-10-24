@@ -5038,19 +5038,33 @@ class TorpedoLegPilot(HeavyBreachPilot):
         previous_sequence = self.shot_sequence
         super().observe_shot(s)
         shot = s['shot']
-        if self.shot_sequence == previous_sequence or self.intercept_choice is None: return
-        key, flight = self.intercept_choice['key'], self.intercept_choice['flight']
-        if shot['damageable_id'] != flight['damageable_id'] or not shot['damaged']: return
-        terminal = self.flights[key]['terminal']
-        require(self.evaded and key != self.evasion['key'] and terminal is not None
-                and terminal['kind'] == 'intercepted' and terminal['record']['terminal_reason'] == 'intercepted'
-                and shot['target_entity_id'] == flight['damage_target_id']
-                and shot['collider']['id'] == flight['hurtbox_id'] and shot['destroyed']
-                and shot['remaining_health'] == 0 and shot['damage_result'].get('destroyed')
-                and shot['damage_result'].get('accepted') and shot['applied_damage'] > 0,
-                'distinct actual player resolver hit destroys the identified live seeker hurtbox and retires its flight')
-        require(self.intercepted is None, 'one required authentic seeker intercept')
-        self.intercepted = dict(key=key, frame=s['frame'], terminal=copy.deepcopy(terminal), shot=self.receipt(s))
+        if self.shot_sequence == previous_sequence or not shot['damaged']: return
+        pooled_adapters = {f['launch']['launch']['damageable_id'] for f in self.flights.values()}
+        if shot['damageable_id'] not in pooled_adapters: return
+        # The observer may print before this frame's gameplay callback. Bind the
+        # fresh shot to its current callback batch/physics interval, not a reused
+        # pool node's earlier generation and retained terminal.
+        matches = [event for event in s['torpedo']['events']
+                   if event['kind'] == 'intercepted' and s['frame']-1 <= event['frame'] <= s['frame']
+                   and event['launch']['damageable_id'] == shot['damageable_id']
+                   and event['launch']['hurtbox_id'] == shot['collider']['id']
+                   and event['launch']['damage_target_id'] == shot['target_entity_id']]
+        require(len(matches) == 1, 'fresh seeker hit binds one current matching flight terminal callback')
+        terminal = matches[0]; flight = terminal['launch']; key = self.flight_key(flight)
+        require(self.evaded and key != self.evasion['key'] and key in self.flights
+                and self.flights[key]['terminal'] == terminal
+                and 'player_intercept_sequence' not in self.flights[key]
+                and terminal['record']['terminal_reason'] == 'intercepted'
+                and shot['destroyed'] and shot['remaining_health'] == 0
+                and shot['damage_result'].get('destroyed') and shot['damage_result'].get('accepted')
+                and shot['applied_damage'] > 0,
+                'actual player resolver hit destroys this flight generation once and retires its seeker')
+        if self.intercepted is None:
+            require(self.intercept_choice is not None and key == self.intercept_choice['key'],
+                    'first required intercept matches the selected distinct current flight')
+            self.intercepted = dict(key=key, frame=s['frame'], terminal=copy.deepcopy(terminal), shot=self.receipt(s))
+            self.intercept_choice = None
+        self.flights[key]['player_intercept_sequence'] = shot['request']['sequence']
 
     def fight_input(self, s, now, keys):
         flights = s['torpedo']['flights']
