@@ -166,6 +166,7 @@ func _check_host_repair_panel(craft: Node, display: Node) -> void:
 	_check(
 		bool(authority.register_halyard_roster().get("accepted", false))
 			and bool(authority.claim(1, 77, &"host_engineer", &"crew_port_01", Authority.ROLE_ENGINEER, 1).get("accepted", false))
+			and bool(authority.claim(1, 71, &"host_pilot", &"pilot_station", Authority.ROLE_PILOT, 1).get("accepted", false))
 			and bool(host.attach_crew_role_authority(authority).get("accepted", false)),
 		"the independent host admits its actual engineer authority"
 	)
@@ -192,6 +193,18 @@ func _check_host_repair_panel(craft: Node, display: Node) -> void:
 	)
 	var local_repair: Dictionary = craft.get_engineer_repair_state()
 	var local_components: Dictionary = craft.get_component_damage().get_component_report()
+	var local_crew: Dictionary = craft.get_crew_role_gameplay_snapshot()
+	var host_crew: Dictionary = host.get_crew_role_gameplay_snapshot()
+	var host_display: Dictionary = host.refresh_crew_status_display()
+	# Stage the same detached host facts at the existing admitted gameplay
+	# boundary. This does not grant the client a local seat/role authority.
+	progress["crew_status"] = {
+		"authority_attached": host_crew.get("authority_attached", false),
+		"role_occupancy": host_crew.get("role_occupancy", {}).duplicate(true),
+		"departure_readiness": host_crew.get("departure_readiness", {}).duplicate(true),
+		"power_routing": host_crew.get("power_routing", {}).duplicate(true),
+		"emergency_pilot_handoff": host_crew.get("emergency_pilot_handoff", {}).duplicate(true),
+	}
 	var session := Adapter.new()
 	root.add_child(session)
 	session._configured = true
@@ -240,6 +253,14 @@ func _check_host_repair_panel(craft: Node, display: Node) -> void:
 	)
 	session._engineer_replica_snapshot = packet.duplicate(true)
 	flow._advance_network_engineer(0.0)
+	_check(
+		display.get_display_snapshot().get("role_states", {}) == host_display.get("role_states", {})
+			and display.get_display_snapshot().get("pilot_ready", false) == host_display.get("pilot_ready", false)
+			and display.get_display_snapshot().get("optional_crew_count", 0) == host_display.get("optional_crew_count", 0)
+			and display.get_readout_text().contains("P [ACTIVE] G [OPEN]")
+			and display.get_readout_text().contains("E [ACTIVE] X [OPEN]"),
+		"a walking client's physical roster and departure readiness match the actual host pilot and engineer claims"
+	)
 	var percent := "%d%%" % roundi(float(repair.get("progress", 0.0)) * 100.0)
 	_check(
 		display.get_readout_text().contains("REPAIRING")
@@ -247,6 +268,11 @@ func _check_host_repair_panel(craft: Node, display: Node) -> void:
 		"a walking client's physical Halyard panel displays accepted host repair progress"
 	)
 	craft.refresh_crew_status_display()
+	_check(
+		display.get_display_snapshot().get("role_states", {}) == host_display.get("role_states", {})
+			and craft.get_crew_role_gameplay_snapshot() == local_crew,
+		"a local refresh retains host roster presentation without changing local crew gameplay"
+	)
 	_check(
 		display.get_readout_text().contains("REPAIRING")
 			and display.get_readout_text().contains(percent),
