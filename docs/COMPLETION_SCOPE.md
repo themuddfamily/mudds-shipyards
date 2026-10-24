@@ -652,7 +652,7 @@ delivery and cold physical inventory remain required.
 
 Source-only definition onc7d86a0d9 (2026-10-18), parents10/11. Root mapping; no
 engine/test/capture ran. NEW modern craft; pilot/payload implementation does not
-waive the recorded additional crew/navigation requirement or settle rearm policy.
+waive the recorded additional crew/navigation requirement. The rearm decision and ordinary entitlement are settled below.
 
 | Authored capability / finite distinction | Production owner | Existing coverage anchor / remaining acceptance |
 | --- | --- | --- |
@@ -662,13 +662,13 @@ waive the recorded additional crew/navigation requirement or settle rearm policy
 | Actual travelling ballistic payload and impact authority | GameFlow payload profile/source1106, BomberPayloadProjectile, BomberPayloadCombatAdapter/shared CombatResolver | Profile900m/80 damage; release uses ship velocity plus forward220m/s, gravity and30s projectile lifetime. Detached projectile test owns motion but no raycast/damage; combat adapter tests and existing network integration cover controlled authority/replica/terminal seams. These do not establish ordinary packaged hit/miss/friendly/occluded combat and recovery. |
 | Hull/five common components, failed-fire release gate and cues | Shared HeroShip/ShipComponentDamage, Bomber `_get_payload_component_hold_reason`, shared damage presentation and starboard-wing observer | `cinder_bomber_failed_wing_payload_gate_test.gd`, damage/cue/silhouette tests cover focused state and no-ammo debit on refusal. Failed fire prevents release; this does not define impaired payload cadence. Full craft damage/destruction/recovery remains original acceptance. |
 | Cockpit/HUD payload feedback, release/terminal presentation and perspective audio | Bomber payload presentation/audio, GameFlow HUD/settings/terminal consumers | Existing cockpit readout, HUD/overlay/settings, presentation and audio tests cover their own consumers. Dummy state tests do not establish output quality, physical controller use or whole ordinary Settings/flight. |
-| Disembark/detach/reboard versus actual rearm boundary | GameFlow `_disembark_ship_to_exterior` → `_clear_bomber_payload_loop` detaches; subsequent `_ensure_bomber_payload_session` starts a newer generation; BomberPayloadAuthority `_start_generation` restores initial ammo | Source path restores four rounds on a new post-disembark session; explicit ship reuse also detaches. This is source inference, not an executed ordinary reboard observation. Unit fresh-generation reset is intentional but does not decide whether seat-only re-entry, dock service, destruction/recovery or another event is allowed to replenish the same hull. Owner resolved BOMBER-REARM-POLICY2026-10-21: refill when pilot retakes the seat; ordinary reboard entitlement qualified4a0d82bff (4→0/refusal/physicalretake4/freshprojectile3); post-retake presentation repaired255f8df2b/checkpoint255f8df; full craft/roles/recovery still open. |
+| Disembark/detach/reboard versus actual rearm boundary | GameFlow `_disembark_ship_to_exterior` → `_clear_bomber_payload_loop` detaches; subsequent `_ensure_bomber_payload_session` starts a newer generation; BomberPayloadAuthority `_start_generation` restores initial ammo | The earlier source inference is superseded by the accepted ordinary retake result. Owner resolved BOMBER-REARM-POLICY2026-10-21: refill when pilot retakes the seat; ordinary reboard entitlement qualified4a0d82bff (4→0/refusal/physicalretake4/freshprojectile3); post-retake presentation repaired255f8df2b/checkpoint255f8df; full craft/roles/recovery still open. |
 
-Definition DONE as finite authored map plus the preserved crew/navigation and
-rearm-policy gaps. Original spent-payload recovery and additional crew/navigation
-acceptance remain OPEN; pilot-only scope reduction is not approved. No runtime
-defect, new rearm mechanic or qualification pass is claimed from this source
-comparison. No repair, repeated question or successor automatically selected.
+Definition DONE as the finite authored map. Rearm policy and its ordinary
+entitlement are DONE4a0d82bff; post-retake presentation is DONE255f8df2b. Broader
+craft damage/recovery and additional crew/navigation acceptance remain OPEN;
+pilot-only scope reduction is not approved. The source comparison itself is not
+a qualification pass. Do not reask the settled refill choice or reimplement it.
 
 ## Combat opponents, weapons and damage
 
@@ -676,8 +676,9 @@ DAMAGE-DEFINE source inventory on82a7564cb is complete in
 [the existing damage contract](COMPONENT_DAMAGE_MODEL_CONTRACT.md#actual-consequences-and-remaining-qualification).
 It corrects repair entry-point ownership and bounds existing parity coverage.
 The concrete remote component-row/local-ledger mismatch is repaired in39a2ad7;
-dynamic HUD power projection remains undefined. The inventory itself added no runtime validation or
-build; no craft/parent/phase gate closes.
+dynamic HUD power projection is delivered on330a39ce3, as recorded in
+[the damage contract](COMPONENT_DAMAGE_MODEL_CONTRACT.md#actual-consequences-and-remaining-qualification).
+The inventory itself is not runtime validation; full craft/parent/phase acceptance remains open.
 
 
 Opponent paths are under `scripts/ships/` with matching `scenes/ships/` scenes. The [scenario catalog](../scripts/combat/combat_scenario_catalog.gd) is detached; [encounter director](../scripts/combat/encounter_scenario_director.gd), [station defence host](../scripts/activities/station_defense_encounter_host.gd) and live actors own production effects.

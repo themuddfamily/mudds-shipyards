@@ -22491,3 +22491,76 @@ checkpointbcd268c stays current, all36 originalparents/ten phasegates remain ope
 Actions disabled. Next action is bounding ordinary passenger reconnect after actual
 transportloss/normalManualJoin and usable physical crewreturn before selecting its
 implementation/trial; no parked failure is reopened by this acceptance.
+
+## Passenger readmission investigation — not accepted — 2026-10-24
+
+SERVER-BASELINE-PASSENGER-RECONNECT was selected on17a83a3a6 after finding that
+rejoined unclaimed Halyard cabin crew cannot request a passenger berth through
+existing physical crew interaction. No runtime repair was implemented. User
+requested a full concrete/provable roadmap rewrite before further execution.
+
+Unique focused-test candidates3f9c83e1f/d2b697dfc are NOT integrated. First compile
+FAIL16.336222410s was a missing WeakRef annotation, then strictcompile
+PASS16.368222952s. Actual focusedrun FAIL95.141294718s:29/30 setup assertions pass,
+but the combined current-dock/OFFLINE/support/retained-helm prerequisite fails
+BEFORE the intended JOIN CABIN assertion. Nine real ENet channel0 send errors
+also occur during forced transport loss. This is NOT expected semantic RED,
+not a proved single failing conjunct, not a fixed capability or full reconnect
+qualification. No unchanged retry/extra repair is selected. The new roadmap
+requires a localized cause and a concrete reviewed assignment before reopening.
+
+Source preserved under pushed tag
+`archive/withheld/halyard-readmission-red-20261024` at
+`d2b697dfca97a087520220a793009fb853d2d092`; verified incremental Git bundle/patch/
+exact focused-test blob retained with prerequisite accepted-main17a83a3a6. Main
+restored without unaccepted instrumentation. No task branch/worktree created;
+pre-existing detached registrations remain untouched/not pruned.
+
+All three owners terminal;9 sampled owned process identities absent,50 scratch
+entries byte/mode/link verified and removed. Case records consolidated to
+`/srv/mudds-work/halyard-passenger-reconnect-20261024/results/`:
+49-member case-records.tar.gz,3,624,694bytes,
+SHA256`89435c02d09b7bcc00c65a8e8e76974fa280f734a6e9800a52e1602557904001`,
+with closeout.json alongside. Total guarded time127.845740080s. Runtime/content/
+export inputs unchanged, so checkpointbcd268c remains current. Goal of completing
+the original roadmap remains active; priorities are being rewritten, not silently
+reduced. No gameplay/native/hardware/listening/human qualification claimed.
+
+## Concrete roadmap contracts — documentation completed — 2026-10-24
+
+Owner explicitly requested that every goal be concrete and provable after months
+of open-ended work. ROADMAP.md is reduced from the historical execution narrative
+to the full-scope finish lines, current state, product-first work order and exact
+execution-card/closure rules. Existing history remains here and in Git.
+
+All327 existing named goal IDs/names/parent bindings are preserved. Every named
+row now has Done means. Ten previously unnamed real blockers are explicit goals:
+four active-run recovery policies, two legitimate cargo-cycle policies, three
+rights dispositions and final chosen-capacity qualification. These are existing
+promises/dependencies, not ten added gameplay features. All36 original parent
+wordings/family bindings and all ten phase exits remain; shared world/matrix/
+damage/Breach-Torpedo work is not duplicated.17craft/8missingSPEC/12PLAY/12REPEAT/
+21SHARED instance counts preserved. Detailed proof contracts cover normal core/
+station/craft/combat/activity/world/network/recovery/quality/release outcomes.
+
+Missing specification/product/resource inputs have concrete answer fields;
+completed definitions and settled stock/refill/travel/rejection/Deploy choices
+must not be repeated. Codex owns implementation/check/integration; the user owns
+explicit product choices/external access. Execution adds exact files/action/
+command/estimate/budget/abort/cleanup before work. No invented whole-project date,
+percentage, unknown-design estimate, shorter qualifying route or silent scope cut.
+No serial evidence/version/validator work is scheduled as product progress.
+
+Corrected stale present-tense Freight/Hauler/navigator next tasks, resolved shared
+Hauler custody/Bomber rearm/repair-audio/HUD-power references and the unaccepted
+reconnect investigation status. Review corrected Ember atmospheric applicability,
+Mining capacity acknowledgement and rejected-reset versus failed-progress-save
+semantics. Existing native Windows/mandatory-human owner exclusions remain
+excluded/NOT_RUN; applicable Linux/native GPU/device/audio requirements remain.
+
+Independent read-only fleet/station/combat, activities/worlds and cross-cutting
+reviews GO. Local document audit confirms originalID/name/parent preservation,
+nonempty proof for every337 named records,36parent/10phase/17craft/8spec/12PLAY/
+12REPEAT/21SHARED coverage, local new-link targets and clean whitespace. No runtime,
+tests, export settings or builds changed; no engine run or duplicate checkpoint.
+This closes the documentation assignment, not a gameplay parent or final release.
