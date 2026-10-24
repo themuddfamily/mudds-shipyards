@@ -5144,7 +5144,7 @@ func _ordinary_destruction_host() -> bool:
 		if occupant.get_instance_id() in body_ids:
 			events.frame_removed += 1)
 	_ordinary_destruction_retained = {"session": _game.network_session, "helm": weakref(helm),
-		"bodies": body_refs, "events": events, "releases": int(simulation.get_audit().get("released", 0))}
+		"bodies": body_refs, "body_ids": body_ids, "events": events, "releases": int(simulation.get_audit().get("released", 0))}
 	_write("host.destruction_arm", baseline)
 	for role in ["client", "client_b"]:
 		if not await _wait_file(role + ".destruction_armed", 8.0):
@@ -5184,25 +5184,48 @@ func _ordinary_destruction_host() -> bool:
 		"normal regeneration owns exact home berth and cannot revive any old grant or retire either peer"):
 		return false
 	_write("host.destruction_regenerated", {"generation": _craft.get_component_damage().get_ledger_generation(),
-		"tick": int(_game.get("_network_boarding_server_tick")), "elapsed_msec": Time.get_ticks_msec() - loss_msec})
+		"tick": int(_game.get("_network_boarding_server_tick")),
+		"moving_interior_tick": int(_game.get("_network_moving_interior_server_tick")),
+		"elapsed_msec": Time.get_ticks_msec() - loss_msec})
 	_ordinary_destruction_stage = "reboard"
 	for role in ["client", "client_b"]:
 		if not await _wait_file(role + ".destruction_cabin", 120.0):
 			return false
 		var receipt := _read(role + ".destruction_cabin")
+		var armed := _read(role + ".destruction_armed")
+		var regenerated := _read("host.destruction_regenerated")
 		var peer := int(baseline.pilot_peer if role == "client" else baseline.passenger_peer)
 		var avatar := GameFlow.network_client_boarding_avatar_id(peer)
 		if not await _ordinary_boundary(func():
 			var body := simulation.get_body(avatar) as PlayerController
 			var record := simulation.get_body_record(avatar)
+			var movement := _game.network_session.get_movement_avatar_snapshot(avatar)
+			for old_body: WeakRef in _ordinary_destruction_retained.bodies:
+				if old_body.get_ref() != null:
+					return false
 			return body != null and body.is_on_floor() and not body.is_seated() and frame.is_occupant_registered(body) \
+				and body.get_instance_id() not in _ordinary_destruction_retained.body_ids \
 				and body.get_cabin_containment_report().get("frame") == _craft \
 				and int(record.get("owner_peer_id", 0)) == peer \
+				and int(record.get("entity_generation", 0)) > 0 \
 				and int(record.get("entity_generation", 0)) == int(receipt.get("entity_generation", -1)) \
-				and int(record.get("entity_generation", 0)) > int((baseline.pilot_body if role == "client" else baseline.passenger_body).get("entity_generation", 0)),
-			8.0, "ordinary regenerated hatch earns fresh supported host body generation for same peer: " + role):
+				and int(record.get("entity_generation", 0)) == int((baseline.pilot_body if role == "client" else baseline.passenger_body).get("entity_generation", 0)) \
+				and bool(receipt.get("opening_confirmed", false)) \
+				and int(receipt.get("old_stream_id", -1)) == int(armed.get("stream_id", -2)) \
+				and int(receipt.get("stream_id", -1)) > int(armed.get("stream_id", -1)) \
+				and int(movement.get("owner_peer_id", 0)) == peer \
+				and int(movement.get("entity_generation", 0)) == int(record.get("entity_generation", -1)) \
+				and int(movement.get("stream_id", -1)) == int(receipt.get("stream_id", -2)) \
+				and int(movement.get("last_consumed_server_tick", -1)) >= int(regenerated.get("moving_interior_tick", 0)) \
+				and int(record.get("intents_applied", 0)) > 0,
+			8.0, "ordinary regenerated hatch opens a fresh consumed movement stream on a new supported host body for the same logical avatar: " + role):
 			return false
-		_write("host." + role + "_destruction_body", {})
+		var admitted_body := simulation.get_body(avatar) as PlayerController
+		if role == "client_b":
+			_ordinary_destruction_retained.passenger_body = weakref(admitted_body)
+		_write("host." + role + "_destruction_body", {"body_id": str(admitted_body.get_instance_id()),
+			"record": simulation.get_body_record(avatar),
+			"movement_avatar": _game.network_session.get_movement_avatar_snapshot(avatar)})
 		if not await _wait_file(role + ".destruction_seated", 20.0):
 			return false
 		if role == "client":
@@ -5274,18 +5297,23 @@ func _ordinary_destruction_fresh_host_current(old: Dictionary) -> bool:
 		if not _game.network_session.get_admitted_peer_ids().has(peer) \
 			or str(wire.get("entity_id", "")) != str(avatar) \
 			or int(wire.get("entity_generation", 0)) != int(receipt.get("entity_generation", -1)) \
-			or int(wire.get("entity_generation", 0)) <= int((old.get(body_key, {}) as Dictionary).get("entity_generation", 0)) \
+			or int(wire.get("entity_generation", 0)) <= 0 \
+			or int(wire.get("entity_generation", 0)) != int((old.get(body_key, {}) as Dictionary).get("entity_generation", 0)) \
+			or int(receipt.get("stream_id", -1)) <= int(receipt.get("old_stream_id", -1)) \
+			or not bool(receipt.get("opening_confirmed", false)) \
 			or str(wire.get("parent_frame_id", "")) != "frame_%s" % _craft.get_ship_id() \
 			or int(wire.get("parent_frame_generation", 0)) <= 0 \
 			or int(wire.get("occupancy_state", -1)) != NetworkMovingInteriorRelationship.STATE_SEATED \
-			or int(publication.get("owner_peer_id", 0)) != peer or int(publication.get("published_tick", 0)) <= 0 \
+			or int(publication.get("owner_peer_id", 0)) != peer \
+			or int(publication.get("published_tick", -1)) < int(_read("host.destruction_regenerated").get("moving_interior_tick", 0)) \
 			or int(boarding.get("peer_id", 0)) != peer or str(boarding.get("avatar_id", "")) != str(avatar) \
 			or int(boarding.get("ship_generation", 0)) != int(current.ownership.get("ship_generation", -1)) \
 			or not _ordinary_destruction_claim_fresh(boarding, old_boarding):
 			return false
 	var body := simulation.get_body(GameFlow.network_client_boarding_avatar_id(passenger)) as PlayerController
 	var seat := simulation.get_body_crew_seat(GameFlow.network_client_boarding_avatar_id(passenger))
-	return body != null and body.is_seated_at(_station_anchor()) \
+	return body != null and (_ordinary_destruction_retained.get("passenger_body") as WeakRef).get_ref() == body \
+		and body.is_seated_at(_station_anchor()) \
 		and body.get_cabin_containment_report().get("frame") == _craft \
 		and seat != null and seat.get_seat_anchor() == _station_anchor() \
 		and current.passenger_seat.get("role") == "passenger" \
@@ -5354,8 +5382,10 @@ func _ordinary_destruction_client() -> bool:
 		return false
 	_ordinary_destruction_retained = {"session": _game.network_session, "source": source, "frame": frame,
 		"component_generation": _craft.get_component_damage().get_ledger_generation(),
-		"old_identity": _ordinary_walking_identity.duplicate(true)}
-	_write(_role + ".destruction_armed", {})
+		"old_identity": _ordinary_walking_identity.duplicate(true),
+		"old_stream_id": int(source.get_audit().get("stream_id", -1))}
+	_write(_role + ".destruction_armed", {"stream_id": int(_ordinary_destruction_retained.old_stream_id),
+		"entity_generation": int(_ordinary_walking_identity.entity_generation)})
 	_ordinary_destruction_stage = "received_loss"
 	if not await _wait_file("host.destruction_loss", 8.0):
 		return false
@@ -5413,14 +5443,22 @@ func _ordinary_destruction_client() -> bool:
 	if not await _ordinary_boundary(_ordinary_supported_cabin, 12.0, "ordinary regenerated hatch E earns fresh supported admission: " + _role):
 		return false
 	var fresh_source := _game.get_network_remote_body_intent_source()
-	if not _ordinary_require(fresh_source.get_entity_id() == StringName(_ordinary_walking_identity.entity_id) \
-		and fresh_source.get_entity_generation() > int(_ordinary_walking_identity.entity_generation) \
+	if not _ordinary_require(fresh_source == _ordinary_destruction_retained.source and fresh_source.is_bound() \
+		and fresh_source.get_entity_id() == StringName(_ordinary_walking_identity.entity_id) \
+		and fresh_source.get_entity_generation() > 0 \
+		and fresh_source.get_entity_generation() == int(_ordinary_walking_identity.entity_generation) \
+		and bool(fresh_source.get_audit().get("opening_confirmed", false)) \
+		and int(fresh_source.get_audit().get("stream_id", -1)) > int(_ordinary_destruction_retained.old_stream_id) \
 		and _ordinary_same_identity() and _player.get_instance_id() == _ordinary_player_id,
-		"new admission retains original Player/peer/avatar with strictly fresh body generation: " + _role):
+		"new admission retains original Player/peer/logical avatar with a strictly newer confirmed movement stream: " + _role):
 		return false
 	_ordinary_walking_identity = {"peer_id": _ordinary_peer_id, "entity_id": str(fresh_source.get_entity_id()),
 		"entity_generation": fresh_source.get_entity_generation(), "player_id": str(_ordinary_player_id)}
-	_write(_role + ".destruction_cabin", _ordinary_walking_identity)
+	var admission := _ordinary_walking_identity.duplicate(true)
+	admission["old_stream_id"] = int(_ordinary_destruction_retained.old_stream_id)
+	admission["stream_id"] = int(fresh_source.get_audit().get("stream_id", -1))
+	admission["opening_confirmed"] = bool(fresh_source.get_audit().get("opening_confirmed", false))
+	_write(_role + ".destruction_cabin", admission)
 	if not await _wait_file("host." + _role + "_destruction_body", 8.0):
 		return false
 	if _role == "client":
