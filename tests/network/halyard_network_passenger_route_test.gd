@@ -92,6 +92,9 @@ var _ordinary_passenger_loss_retained: Dictionary = {}
 var _ordinary_two_client_pilot_loss := false
 var _ordinary_two_client_authority_stop := false
 var _ordinary_two_client_seat_race := false
+var _ordinary_two_client_late_join := false
+var _ordinary_late_join_stage := ""
+var _ordinary_late_join_retained: Dictionary = {}
 var _ordinary_seat_race_stage := ""
 var _ordinary_seat_race_retained: Dictionary = {}
 var _ordinary_seat_race_first_seen: Dictionary = {}
@@ -143,7 +146,8 @@ func _run() -> void:
 	_ordinary_two_client_pilot_loss = "--ordinary-two-client-pilot-loss" in args
 	_ordinary_two_client_authority_stop = "--ordinary-two-client-authority-stop" in args
 	_ordinary_two_client_seat_race = "--ordinary-two-client-seat-race" in args
-	_ordinary_two_client_moving = "--ordinary-two-client-moving" in args or _ordinary_two_client_authority_stop or _ordinary_two_client_pilot_loss or _ordinary_two_client_passenger_loss or _ordinary_two_client_sleep or _ordinary_two_client_destruction_recovery or _ordinary_two_client_seat_race
+	_ordinary_two_client_late_join = "--ordinary-two-client-late-join" in args
+	_ordinary_two_client_moving = "--ordinary-two-client-moving" in args or _ordinary_two_client_authority_stop or _ordinary_two_client_pilot_loss or _ordinary_two_client_passenger_loss or _ordinary_two_client_sleep or _ordinary_two_client_destruction_recovery or _ordinary_two_client_seat_race or _ordinary_two_client_late_join
 	_ordinary_two_client_board = "--ordinary-two-client-board" in args or _ordinary_two_client_moving
 	if _ordinary_two_client_board:
 		args.erase("--ordinary-two-client-board")
@@ -154,6 +158,7 @@ func _run() -> void:
 		args.erase("--ordinary-two-client-sleep")
 		args.erase("--ordinary-two-client-destruction-recovery")
 		args.erase("--ordinary-two-client-seat-race")
+		args.erase("--ordinary-two-client-late-join")
 		await _ordinary_run(args)
 		return
 	if "--exit-receipt-only" in args:
@@ -304,6 +309,13 @@ func _orchestrate() -> void:
 	if host_ready:
 		var client_roles: Array = profile.get("client_roles", ["client", "client_b"] if _shared_cruise else ["client"])
 		for role in client_roles:
+			if _ordinary_two_client_late_join and role == "client_b":
+				if not await _wait_file("client.main_ready", 60.0) \
+					or not await _wait_file("host.late_departed", 120.0):
+					break
+				# This process does not exist until A's actual authoritative departure.
+				_write("coordinator.late_spawn", {"wall": Time.get_unix_time_from_system(),
+					"departure": _read("host.late_departed")})
 			var client_args := _peer_arguments(role, PackedStringArray(["--display-driver", "x11", "--disable-render-loop", "--rendering-driver", "dummy"]))
 			var client := _spawn_peer(role, client_args)
 			peers[role] = client
@@ -387,6 +399,8 @@ func _print_peer_success() -> void:
 		print("NETWORK_PASSENGER_DESTRUCTION_ONLY_OK checks=%d" % _checks)
 	elif _network_bunk_refusal_only:
 		print("NETWORK_BUNK_REFUSAL_ONLY_OK checks=%d" % _checks)
+	elif _ordinary_two_client_late_join:
+		print("HALYARD_ORDINARY_TWO_CLIENT_LATE_JOIN_OK checks=%d" % _checks)
 	elif _ordinary_two_client_seat_race:
 		print("HALYARD_ORDINARY_TWO_CLIENT_SEAT_RACE_OK checks=%d" % _checks)
 	elif _ordinary_two_client_destruction_recovery:
@@ -454,6 +468,8 @@ func _peer_arguments(role: String, display: PackedStringArray) -> PackedStringAr
 		args.append("--network-passenger-destruction-only")
 	elif _network_bunk_refusal_only:
 		args.append("--network-bunk-refusal-only")
+	elif _ordinary_two_client_late_join:
+		args.append("--ordinary-two-client-late-join")
 	elif _ordinary_two_client_seat_race:
 		args.append("--ordinary-two-client-seat-race")
 	elif _ordinary_two_client_destruction_recovery:
@@ -2868,7 +2884,7 @@ func _ordinary_run(args: PackedStringArray) -> void:
 				and FileAccess.file_exists(_directory.path_join("client_b.first_failure")):
 				break
 			await _ticks(1)
-	for action in ORDINARY_WALK_ACTIONS + [&"interact", &"sprint_boost", &"brake", &"ui_accept", &"fire"]:
+	for action in ORDINARY_WALK_ACTIONS + [&"interact", &"sprint_boost", &"brake", &"ui_accept", &"fire", &"landing_assist"]:
 		_ordinary_action(action, false)
 		Input.action_release(action)
 	if _ordinary_two_client_authority_stop or _ordinary_two_client_pilot_loss or _ordinary_two_client_passenger_loss or _ordinary_two_client_destruction_recovery:
@@ -2905,6 +2921,8 @@ func _ordinary_host() -> void:
 		and not _player.is_control_enabled(), "authority remains non-playing at Intro"):
 		return
 	_write("host.ready", {"pid": OS.get_process_id(), "ship_id": str(_craft.get_ship_id())})
+	if _ordinary_two_client_late_join and not await _ordinary_late_join_host():
+		return
 	for role in ["client", "client_b"]:
 		if not await _wait_file(role + ".main_ready", 60.0) or not await _wait_file(role + ".admitted", 20.0):
 			return
@@ -2922,11 +2940,14 @@ func _ordinary_host() -> void:
 		return
 	for role in ["client", "client_b"]:
 		var peer := pilot_peer if role == "client" else passenger_peer
-		if not await _wait_file(role + ".cabin", 120.0):
-			return
-		if not _ordinary_observe_supported_cabin(role, peer):
-			return
-		_write("host." + role + "_body", {})
+		# The late-join prefix already observed A's supported walking body and
+		# completed this exact handshake before its original pilot-seat claim.
+		if not (_ordinary_two_client_late_join and role == "client"):
+			if not await _wait_file(role + ".cabin", 120.0):
+				return
+			if not _ordinary_observe_supported_cabin(role, peer):
+				return
+			_write("host." + role + "_body", {})
 		if not await _wait_file(role + ".seated", 30.0):
 			return
 		if role == "client":
@@ -2999,6 +3020,8 @@ func _ordinary_client() -> void:
 	if not _ordinary_require(_player.global_position.distance_to(spawn.origin) < 0.8
 		and _player.get_instance_id() == _ordinary_player_id, "same actual Player begins at normal authored spawn"):
 		return
+	if _ordinary_two_client_late_join and _role == "client_b" and not await _ordinary_late_join_observer():
+		return
 	for target: Vector3 in ORDINARY_HALYARD_APPROACH:
 		if not await _ordinary_walk_to(target, false):
 			return
@@ -3041,6 +3064,8 @@ func _ordinary_client() -> void:
 			"ordinary chair Interact physically seats same Player with consumed passenger role and controls"):
 			return
 	_write(_role + ".seated", _ordinary_walking_identity)
+	if _ordinary_two_client_late_join and _role == "client" and not await _ordinary_late_join_pilot():
+		return
 	if not await _wait_file("host.seats_confirmed", 60.0):
 		return
 	var manifest := _read("host.seats_confirmed")
@@ -3313,6 +3338,271 @@ func _ordinary_moving_client(baseline: Dictionary) -> bool:
 		_ordinary_action(&"move_forward", false)
 	_write(_role + ".moving_complete", {})
 	return true
+
+
+# A late guest stays at the normal station spawn until the original pilot
+# physically docks. Joining never grants an aboard spawn or a crew claim.
+func _ordinary_late_pilot_fields(peer: int) -> Dictionary:
+	var seat: Dictionary = {}
+	for held: Dictionary in _game.network_session.get_boarding_snapshot().get("occupancies", []):
+		if int(held.get("peer_id", 0)) == peer and held.get("ship_id") == _craft.get_ship_id():
+			seat = _ordinary_fields(held, ["peer_id", "avatar_id", "ship_id", "ship_generation", "role", "seat_id", "seat_generation", "claim_sequence"])
+	var avatar := GameFlow.network_client_boarding_avatar_id(peer)
+	var ownership := _game.network_session.get_owned_ship(_craft.get_ship_id())
+	# The canonical snapshot adds this admission generation to the raw ledger.
+	ownership["owner_peer_generation"] = _ordinary_peer_generation(int(ownership.get("owner_peer_id", 0)))
+	return {"ownership": _ordinary_fields(ownership,
+		["ship_id", "ship_generation", "owner_peer_id", "owner_peer_generation", "ownership_generation"]),
+		"seat": seat, "body": _ordinary_fields(_ordinary_publication(avatar).get("wire", {}) as Dictionary,
+		["entity_id", "entity_generation", "parent_frame_id", "parent_frame_generation", "occupancy_state"])}
+
+func _ordinary_late_host_pilot_current() -> bool:
+	var peer := int(_ordinary_late_join_retained.peer)
+	return _game.network_session == _ordinary_late_join_retained.session and _game.network_session.is_session_active() \
+		and _ordinary_peer_generation(peer) == int(_ordinary_late_join_retained.peer_generation) \
+		and _ordinary_pilot_is_current(peer) and _craft.get_command_source() == _ordinary_late_join_retained.helm \
+		and _ordinary_late_pilot_fields(peer) == (_ordinary_late_join_retained.fields as Dictionary) \
+		and _game.phase == GameFlow.Phase.INTRO and _player.get_instance_id() == _ordinary_player_id \
+		and not _player.is_seated() and not _player.is_control_enabled()
+
+func _ordinary_late_host_docked() -> bool:
+	var berth := _ordinary_late_join_retained.berth as ShipBerth
+	var contract := _craft.get_landing_contract_report()
+	var handoff := (_game.get("_network_landing_handoffs") as Dictionary).get(_craft.get_ship_id(), {}) as Dictionary
+	var entity := _game.network_session.get_landing_entity(_craft.get_ship_id())
+	var token := StringName((_game.get("_berth_tokens") as Dictionary).get(_craft.get_instance_id(), &""))
+	var dock := berth.get_dock_transform()
+	return _ordinary_late_host_pilot_current() and bool(_craft.get_telemetry().get("landed", false)) \
+		and not _craft.is_landing_active() and _craft.velocity.length() <= 0.05 \
+		and _craft.global_position.distance_to(dock.origin) <= 0.05 \
+		and rad_to_deg(_craft.global_basis.orthonormalized().get_rotation_quaternion().angle_to(dock.basis.orthonormalized().get_rotation_quaternion())) <= 0.5 \
+		and bool(contract.get("contract_accepted", false)) and bool(contract.get("strict_dock_acceptance", false)) \
+		and contract.get("phase") == HeroShip.LANDING_PHASE_DOCKED and contract.get("berth_id") == berth.berth_id \
+		and bool(contract.get("reservation_token_bound", false)) and berth.get_occupant() == _craft \
+		and berth.get_reservation_owner() == _craft and not token.is_empty() \
+		and berth.has_valid_lease(_craft, token, _craft.get_ship_id()) \
+		and (_game.get("_reserved_berth_ids") as Dictionary).get(_craft.get_instance_id()) == berth.berth_id \
+		and handoff.get("physical_token") == token and handoff.get("target_id") == berth.berth_id \
+		and handoff.get("state") == &"landed" and int(handoff.get("entity_generation", 0)) == int(_ordinary_late_join_retained.landing_generation) \
+		and handoff.has("completion_retry") and not bool(handoff.get("completion_retry", true)) \
+		and entity.get("state") == &"landed" and entity.get("target_id") == berth.berth_id \
+		and int(entity.get("entity_generation", 0)) == int(_ordinary_late_join_retained.landing_generation)
+
+func _ordinary_late_join_host() -> bool:
+	_ordinary_late_join_stage = "first_pilot"
+	if not await _wait_file("client.main_ready", 60.0) or not await _wait_file("client.admitted", 20.0):
+		return false
+	var admitted := _read("client.admitted")
+	var peer := int(admitted.get("peer_id", 0))
+	if not _ordinary_require(peer > 1 and _game.network_session.get_admitted_peer_ids().size() == 1 \
+		and _game.network_session.get_admitted_peer_ids().has(peer) \
+		and _ordinary_peer_generation(peer) == int(admitted.get("peer_generation", 0)) \
+		and not FileAccess.file_exists(_directory.path_join("client_b.pid")),
+		"only the ordinary original pilot is admitted before any late-client process exists"):
+		return false
+	if not await _wait_file("client.cabin", 120.0) or not _ordinary_observe_supported_cabin("client", peer):
+		return false
+	_write("host.client_body", {})
+	if not await _wait_file("client.seated", 30.0) or not await _ordinary_boundary(func(): return _ordinary_pilot_is_current(peer),
+		8.0, "original ordinary pilot alone holds the actual helm before late admission"):
+		return false
+	_write("host.pilot_seated", {})
+	var helm := _craft.get_command_source() as NetworkRemotePilotCommandSource
+	var berth := _game.call(&"_resolve_berth_node", _craft.get_home_berth_id()) as ShipBerth
+	if not _ordinary_require(helm != null and berth != null and berth.get_occupant() == _craft,
+		"first late-join departure begins at the actual occupied Halyard home berth"):
+		return false
+	_ordinary_late_join_retained = {"peer": peer, "peer_generation": int(admitted.peer_generation),
+		"session": _game.network_session, "helm": helm, "berth": berth, "fields": _ordinary_late_pilot_fields(peer),
+		"landing_request_before": int(helm.get_roll_receipt().get("landing_request", 0)), "landing_generation": 0}
+	var start := _craft.global_position
+	var delivered := int(helm.get_audit().get("delivered", 0))
+	_ordinary_late_join_stage = "initial_departure"
+	_write("host.late_flight_go", {"fields": _ordinary_late_join_retained.fields,
+		"pose_tick": int(_game.get("_network_boarding_server_tick")), "wall": Time.get_unix_time_from_system()})
+	if not await _ordinary_boundary(func(): return _ordinary_late_host_pilot_current() \
+		and _craft.global_position.distance_to(start) > 5.0 and _craft.velocity.length() > 0.1 \
+		and not bool(_craft.get_telemetry().get("landed", true)) and _craft.get_telemetry().get("engine_state") == HeroShip.ENGINE_ONLINE \
+		and berth.get_occupant() == null and int(helm.get_audit().get("delivered", 0)) > delivered \
+		and _craft.get_last_ship_command().throttle > 0.0,
+		8.0, "actual sampled pilot thrust departs over five metres and releases the physical berth before B can start"):
+		return false
+	_write("host.late_departed", {"fields": _ordinary_late_pilot_fields(peer), "distance": _craft.global_position.distance_to(start),
+		"pose_tick": int(_game.get("_network_boarding_server_tick")), "wall": Time.get_unix_time_from_system()})
+	_ordinary_late_join_stage = "brake_and_late_admission"
+	if not await _ordinary_boundary(func(): return _ordinary_late_host_pilot_current() \
+		and _craft.velocity.length() <= 0.1 and _craft.get_last_ship_command().brake \
+		and not bool(_craft.get_telemetry().get("landed", true)), 8.0,
+		"ordinary brake holds the departed craft airborne near home while the late process starts"):
+		return false
+	_write("host.late_braked", {})
+	if not await _wait_file("client_b.main_ready", 60.0) or not await _wait_file("client_b.admitted", 20.0) \
+		or not await _wait_file("client_b.late_airborne_current", 8.0):
+		return false
+	var late := _read("client_b.admitted")
+	var late_peer := int(late.get("peer_id", 0))
+	var late_avatar := GameFlow.network_client_boarding_avatar_id(late_peer)
+	var occupancies: Array = _game.network_session.get_boarding_snapshot().get("occupancies", [])
+	var unclaimed := true
+	for held: Dictionary in occupancies:
+		if int(held.get("peer_id", 0)) == late_peer:
+			unclaimed = false
+	if not _ordinary_require(_ordinary_late_host_pilot_current() and late_peer > 1 and late_peer != peer \
+		and int(late.get("pid", 0)) != int(admitted.pid) and int(late.get("pid", 0)) != OS.get_process_id() \
+		and _game.network_session.get_admitted_peer_ids().size() == 2 \
+		and _ordinary_peer_generation(late_peer) == int(late.get("peer_generation", 0)) \
+		and unclaimed and _game.get_network_remote_body_simulation().get_body(late_avatar) == null \
+		and not bool(_craft.get_telemetry().get("landed", true)) and not _craft.is_landing_active() \
+		and berth.get_occupant() == null,
+		"the genuinely late admitted station peer consumes the still-airborne craft without a body, seat or helm grant"):
+		return false
+	var report: Dictionary = _game.call(&"_get_landing_assist_report_for_ship", _craft)
+	if not _ordinary_require(bool(report.get("valid", false)) and bool(report.get("assist_capture_accepted", false)) \
+		and report.get("selected_berth_id") == berth.berth_id and berth.get_reservation_owner() == null,
+		"the actual braked Halyard satisfies its unchanged resident home capture before any landing edge"):
+		return false
+	var dock_deadline := Time.get_ticks_msec() + 24000
+	_ordinary_late_join_stage = "landing_request"
+	_write("host.late_landing_go", {"capture": _ordinary_fields(report,
+		["valid", "selected_berth_id", "assist_capture_accepted", "docked_hull_fits", "berth_available", "compatibility_accepted"]),
+		"remote_receipt_before": helm.get_roll_receipt(), "fields": _ordinary_late_pilot_fields(peer),
+		"dock_deadline_unix": Time.get_unix_time_from_system() + 24.0,
+		"pose_tick": int(_game.get("_network_boarding_server_tick")), "wall": Time.get_unix_time_from_system()})
+	if not await _ordinary_boundary(func():
+		var remote := (_game.get("_network_remote_pilots") as Dictionary).get(_craft.get_ship_id(), {}) as Dictionary
+		var handoff := (_game.get("_network_landing_handoffs") as Dictionary).get(_craft.get_ship_id(), {}) as Dictionary
+		return _ordinary_late_host_pilot_current() and _craft.is_landing_active() \
+			and bool((remote.get("landing_result", {}) as Dictionary).get("accepted", false)) \
+			and int(helm.get_roll_receipt().get("landing_request", 0)) == int(_ordinary_late_join_retained.landing_request_before) + 1 \
+			and handoff.get("state") == &"landing_pending" and int(handoff.get("entity_generation", 0)) > 0
+	, 8.0, "the original pilot's sole real landing edge starts the current authoritative physical handoff"):
+		return false
+	var handoff := (_game.get("_network_landing_handoffs") as Dictionary).get(_craft.get_ship_id(), {}) as Dictionary
+	_ordinary_late_join_retained["landing_generation"] = int(handoff.entity_generation)
+	_write("host.late_landing_accepted", {"landing_generation": int(handoff.entity_generation),
+		"remote_receipt": helm.get_roll_receipt(), "target_id": handoff.get("target_id")})
+	_ordinary_late_join_stage = "strict_dock"
+	if not await _ordinary_boundary(_ordinary_late_host_docked,
+		maxf(0.0, float(dock_deadline - Time.get_ticks_msec()) / 1000.0),
+		"within the selected twenty-four seconds the real home berth holds a strict physical dock and committed landed entity"):
+		return false
+	var position := _craft.global_position - _game.world.global_position
+	_write("host.late_docked", {"fields": _ordinary_late_pilot_fields(peer),
+		"landing_generation": int(handoff.entity_generation), "target_id": berth.berth_id,
+		"station_position": [position.x, position.y, position.z],
+		"pose_tick": int(_game.get("_network_boarding_server_tick")), "remote_receipt": helm.get_roll_receipt(),
+		"wall": Time.get_unix_time_from_system()})
+	for role: String in ["client", "client_b"]:
+		if not await _wait_file(role + ".late_dock_consumed", 8.0):
+			return false
+	if not _ordinary_require(_ordinary_late_host_docked(), "both consumed arrivals preserve the original pilot and actual committed home berth"):
+		return false
+	_write("host.late_prefix_complete", {})
+	return true
+
+func _ordinary_late_unclaimed_station() -> bool:
+	var source := _game.get_network_remote_body_intent_source()
+	return _ordinary_same_identity() and _player.get_instance_id() == _ordinary_player_id \
+		and _game.phase == GameFlow.Phase.APPROACH_SHIP and _player.is_on_floor() and _player.is_control_enabled() \
+		and not _player.is_seated() and not bool(_game.get("_piloting")) \
+		and (_game.get("_network_client_boarding_claim") as Dictionary).is_empty() \
+		and (source == null or not source.is_bound()) and _craft.get_crew_role_authority() == null \
+		and _game._network_local_role_presentation().get("local_role") == &"observer"
+
+func _ordinary_late_consumed_dock(docked: Dictionary) -> bool:
+	if not (_ordinary_local_pilot_is_current() if _role == "client" else _ordinary_late_unclaimed_station()):
+		return false
+	var sample := _game._network_craft_pose_stream.latest_sample(_craft.get_ship_id())
+	var operation := sample.get("operation_presentation", {}) as Dictionary
+	var fields := docked.get("fields", {}) as Dictionary
+	var sections := _game.network_session.get_authoritative_snapshot().get("sections", {}) as Dictionary
+	var owner: Dictionary = {}
+	var landing: Dictionary = {}
+	for row: Dictionary in sections.get("ownership", []):
+		if row.get("ship_id") == _craft.get_ship_id():
+			owner = row
+	for row: Dictionary in sections.get("landing", []):
+		if row.get("entity_id") == _craft.get_ship_id():
+			landing = row
+	var position := _craft.global_position - _game.world.global_position
+	var expected: Array = docked.get("station_position", [])
+	return expected.size() == 3 and position.distance_to(Vector3(float(expected[0]), float(expected[1]), float(expected[2]))) <= 0.5 \
+		and sample.get("ship_id") == _craft.get_ship_id() and int(sample.get("pose_tick", 0)) >= int(docked.get("pose_tick", 1)) \
+		and not bool(sample.get("destroyed", true)) and bool(operation.get("landed", false)) and bool(operation.get("docked", false)) \
+		and _ordinary_fields(owner, ["ship_id", "ship_generation", "owner_peer_id", "owner_peer_generation", "ownership_generation"]) == (fields.get("ownership", {}) as Dictionary) \
+		and landing.get("state") == &"landed" and landing.get("target_id") == docked.get("target_id") \
+		and int(landing.get("entity_generation", 0)) == int(docked.get("landing_generation", -1))
+
+func _ordinary_late_join_pilot() -> bool:
+	_ordinary_late_join_stage = "initial_departure"
+	if not await _wait_file("host.late_flight_go", 8.0):
+		return false
+	_ordinary_action(&"move_forward", true, 0.35)
+	if not await _wait_file("host.late_departed", 8.0):
+		return false
+	_ordinary_action(&"move_forward", false)
+	_ordinary_action(&"brake", true)
+	if not await _wait_file("host.late_braked", 8.0):
+		return false
+	_ordinary_late_join_stage = "wait_late_admission"
+	if not await _wait_file("host.late_landing_go", 120.0):
+		return false
+	var go := _read("host.late_landing_go")
+	var before := (_game.get("_network_remote_helm") as Dictionary).duplicate(true)
+	await _ordinary_press(&"landing_assist")
+	_write("client.late_landing_sent", {"remote_helm_before": _ordinary_fields(before,
+		["stream_id", "sequence", "landing_request_id", "producer_stream"]),
+		"remote_helm_after": _ordinary_fields(_game.get("_network_remote_helm") as Dictionary,
+		["stream_id", "sequence", "landing_request_id", "producer_stream"]),
+		"phase": _game.phase, "wall": Time.get_unix_time_from_system()})
+	if not await _wait_file("host.late_landing_accepted", 8.0):
+		return false
+	_ordinary_action(&"brake", false)
+	_ordinary_late_join_stage = "strict_dock"
+	if not await _wait_file("host.late_docked", maxf(0.0, float(go.get("dock_deadline_unix", 0.0)) - Time.get_unix_time_from_system())):
+		return false
+	var docked := _read("host.late_docked")
+	if not await _ordinary_boundary(func(): return _ordinary_late_consumed_dock(docked), 8.0,
+		"original pilot consumes actual strict home arrival with unchanged physical seat, source and ownership"):
+		return false
+	_write("client.late_dock_consumed", {"phase": _game.phase, "boarding": _game.get("_network_client_boarding_claim")})
+	return await _wait_file("host.late_prefix_complete", 8.0)
+
+func _ordinary_late_join_observer() -> bool:
+	_ordinary_late_join_stage = "airborne_observer"
+	var departed := _read("host.late_departed")
+	var fields := departed.get("fields", {}) as Dictionary
+	if not await _ordinary_boundary(func():
+		var sample := _game._network_craft_pose_stream.latest_sample(_craft.get_ship_id())
+		var operation := sample.get("operation_presentation", {}) as Dictionary
+		var owner: Dictionary = {}
+		for row: Dictionary in (_game.network_session.get_authoritative_snapshot().get("sections", {}) as Dictionary).get("ownership", []):
+			if row.get("ship_id") == _craft.get_ship_id():
+				owner = row
+		var body := fields.get("body", {}) as Dictionary
+		var relationship := _game.network_session.get_moving_interior_latest_relationship(StringName(body.get("entity_id", "")))
+		return _ordinary_late_unclaimed_station() and sample.get("ship_id") == _craft.get_ship_id() \
+			and int(sample.get("pose_tick", 0)) >= int(departed.get("pose_tick", 1)) and not bool(sample.get("destroyed", true)) \
+			and not operation.is_empty() and not bool(operation.get("landed", true)) and not bool(operation.get("docked", true)) \
+			and _ordinary_fields(owner, ["ship_id", "ship_generation", "owner_peer_id", "owner_peer_generation", "ownership_generation"]) == (fields.get("ownership", {}) as Dictionary) \
+			and _ordinary_fields(relationship, ["entity_id", "entity_generation", "parent_frame_id", "parent_frame_generation", "occupancy_state"]) == body
+	, 8.0, "genuinely late station Player consumes fresh postdeparture airborne craft, pilot relationship and ownership without any aboard grant"):
+		return false
+	_write("client_b.late_airborne_current", {"sample": _ordinary_fields(_game._network_craft_pose_stream.latest_sample(_craft.get_ship_id()),
+		["ship_id", "pose_tick", "entity_generation", "destroyed"]), "phase": _game.phase,
+		"player_id": str(_player.get_instance_id()), "wall": Time.get_unix_time_from_system()})
+	if not await _wait_file("host.late_landing_go", 8.0):
+		return false
+	var go := _read("host.late_landing_go")
+	_ordinary_late_join_stage = "strict_dock"
+	if not await _wait_file("host.late_docked", maxf(0.0, float(go.get("dock_deadline_unix", 0.0)) - Time.get_unix_time_from_system())):
+		return false
+	var docked := _read("host.late_docked")
+	if not await _ordinary_boundary(func(): return _ordinary_late_consumed_dock(docked), 8.0,
+		"late unclaimed station Player consumes the real committed home arrival before starting the authored boarding walk"):
+		return false
+	_write("client_b.late_dock_consumed", {"phase": _game.phase, "player_id": str(_player.get_instance_id())})
+	return await _wait_file("host.late_prefix_complete", 8.0)
 
 
 # Contention is a successor to the unchanged full BOARD/MOVING journey. These
@@ -4707,6 +4997,11 @@ func _ordinary_failure_snapshot(description: String) -> Dictionary:
 		"original_player_id": str(_ordinary_player_id), "walking_identity": _ordinary_walking_identity,
 		"moving_selected": _ordinary_two_client_moving,
 		"shared_abort": _ordinary_fields(_read("abort"), ["role", "description", "snapshot"])}
+	if _ordinary_two_client_late_join:
+		snapshot["late_join"] = {"stage": _ordinary_late_join_stage,
+			"departure": _read("host.late_departed"), "spawn": _read("coordinator.late_spawn"),
+			"landing_go": _read("host.late_landing_go"), "landing_sent": _read("client.late_landing_sent"),
+			"landing_accepted": _read("host.late_landing_accepted"), "docked": _read("host.late_docked")}
 	if _ordinary_two_client_seat_race:
 		snapshot["seat_race"] = {"stage": _ordinary_seat_race_stage,
 			"first_seen": _ordinary_seat_race_first_seen.duplicate(true),
