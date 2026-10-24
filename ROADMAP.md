@@ -29,6 +29,33 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Selected: PLAY-TORPEDO — complete the full ordinary two-sortie journey.**
+Same process/Player/Arrow/profile completes accepted Heavy clear/payment/home/
+physical Torpedo posting, then physically arms/reboards/takes off. Observe an
+actual boat-launched seeker evade through ordinary pitch/boost, real lock break
+and non-damaging terminal; actually shoot down a distinct captured flight through
+player resolver/hurtbox/retirement, without later arrival damage. Then genuinely
+destroy boat/CLEARED, read distinct same-generation Torpedo payment from actual
+primary file, strict home/OFFLINE physical exit, physical usable Paired Wing
+posting, normal UI game exit0. Both seeker outcomes precede boat destruction.
+
+Preserve Heavy credit; final ledger serial/count2 with exactly one Heavy and one
+Torpedo credit. Shared terminal slot legitimately advances to Torpedo. Original
+150s encounters/sharedCAP300/outer360, all physics/controls/projectile/weapon
+values remain. No direct scenario selection, skipped Heavy, injected flights/
+damage, boat retirement counted as interception/evasion, arbitrary point/aim/
+timeout changes. Normal pitch/boost is part of this original Torpedo requirement.
+
+One implementer owns the existing five driver/test/observer/startup/privacy files;
+root owns checks/Git/package/cleanup, one independent reviewer. Preserve existing
+Heavy route; reuse its path/home/control helpers and two explicit leg states, no
+new framework/validator. Runtime change is not assumed: Boat delegates to the
+already-correct ResolverBackedOpponent attachment seam. Estimate45–60min
+implementation+10–20min focused/private-package/ONEfulltrial/cleanup, splitbefore
+90min on one case clock. First unexpected failure stops for causal/cumulative
+review. Caller-only qualification retains checkpointfb396ab with exact source/
+package limits; actual runtime repair requires fresh Windows checkpoint.
+
 **Delivered: PLAY-BREACH first complete ordinary sortie, checkpointfb396ab.**
 Fixed the real late-CombatAuthority Picket damage-adapter gap. The unchanged full
 ordinary journey passes90.112s: physical Heavy arm/Arrow takeoff, actual lance
