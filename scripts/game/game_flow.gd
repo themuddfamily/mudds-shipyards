@@ -853,6 +853,9 @@ var _network_remote_projectile_replicator: NetworkRemoteProjectileReplicatorType
 ## authority: both are erased the moment the session that granted them ends.
 var _network_client_boarding_request: Dictionary = {}
 var _network_client_boarding_claim: Dictionary = {}
+## Host boarding-clock boundary of the actual answer that granted this claim.
+## Craft poses use that same clock; an older hull life cannot revoke a new grant.
+var _network_client_boarding_claim_server_tick := -1
 ## Confirmed Ember passengers retain one movement body while the landed Host
 ## owns the caldera lease. These are embodiment contexts, never seat/reward grants.
 const AURORA_COASTAL_WALK_PATH := [Vector3(14, 0, 2), Vector3(33, 0, 2), Vector3(43, 0, -8), Vector3(57, 0, -20), Vector3(68, 0, -17)]
@@ -12967,6 +12970,9 @@ func _advance_network_craft_pose_replica(delta: float) -> void:
 		if is_instance_valid(lost) and lost == piloted:
 			_present_network_remote_craft_lost(lost, bool(displayed.get("destruction_started", false)))
 			piloted = null
+		elif is_instance_valid(lost) and _present_network_remote_passenger_craft_lost(
+				lost, latest, bool(displayed.get("destruction_started", false))):
+			pass
 		elif bool(displayed.get("destruction_started", false)) and is_instance_valid(combat_audio) and latest.get("position") is Vector3:
 			combat_audio.play_explosion(latest.get("position") as Vector3, 0)
 	_network_craft_pose_stream.advance_replica(
@@ -14609,6 +14615,7 @@ func _network_client_boarding_matches_abandoned(
 				"seat_id": granted_seat,
 				"role": adopted_role,
 			}
+			_network_client_boarding_claim_server_tick = int(result.get("server_tick", -1))
 			_network_client_boarding_audit["claimed_seat_id"] = granted_seat
 			if adopted_role == NETWORK_CABIN_BERTH_ROLE:
 				_restore_network_client_helm_input_sources(_find_flyable_ship_by_id(StringName(abandoned.get("ship_id", &""))))
@@ -14685,6 +14692,7 @@ func _confirm_network_client_boarding(answer: Dictionary = {}) -> void:
 		"seat_id": seat_id,
 		"role": role,
 	}
+	_network_client_boarding_claim_server_tick = int(answer.get("server_tick", -1))
 	_network_client_boarding_audit["claimed_seat_id"] = seat_id
 	if role == NetworkBoardingIntentType.ROLE_PILOT:
 		_bind_network_client_helm_input_source(craft)
@@ -27110,3 +27118,77 @@ func _retire_network_client_bunk_rest() -> void:
 	_network_client_bunk_rest.clear()
 	if is_instance_valid(seat) and seat is ShipBunk and _active_station_seat == seat:
 		_recover_from_station_seat()
+
+
+## A passenger's replica hull never owns damage or regeneration. Only a current
+## authoritative loss of the craft holding this Player's actual cabin grant may
+## retire that presentation and reuse the ordinary on-foot embodiment reset.
+func _present_network_remote_passenger_craft_lost(craft: HeroShip, sample: Dictionary, play_cue: bool = true) -> bool:
+	if not _network_client_boarding_is_live() or not _network_session_is_live() \
+		or not is_inside_tree() or not is_instance_valid(player) or not player.is_inside_tree() \
+		or not is_instance_valid(craft) or craft != _cabin_ship or phase != Phase.IN_FLIGHT_CABIN \
+		or _piloting or _driving or not _network_client_boarding_holds(craft) \
+		or StringName(_network_client_boarding_claim.get("role", &"")) != NETWORK_CABIN_BERTH_ROLE \
+		or String(_network_client_boarding_claim.get("seat_id", &"")).is_empty():
+		return false
+	var source := _network_remote_body_intent_source
+	var frame := craft.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
+	if source == null or not source.is_bound() \
+		or source.get_entity_id() != network_client_boarding_avatar_id(_network_client_peer_id()) \
+		or source.get_entity_generation() <= 0 or int(source.get_audit().get("stream_id", -1)) < 0 \
+		or not is_instance_valid(frame) or not frame.is_inside_tree() or frame.is_queued_for_deletion() \
+		or frame.get_moving_frame() != craft or not frame.is_occupant_registered(player) \
+		or not frame._local_prediction_is_current(player) or player.get_cabin_containment_report().get("frame") != craft:
+		return false
+	var current := _network_craft_pose_stream.latest_sample(craft.get_ship_id())
+	var presentation := craft.get_network_damage_presentation_audit().get("state", {}) as Dictionary
+	var clock := _network_craft_pose_stream.get_clock()
+	if current.is_empty() or sample != current or StringName(sample.get("ship_id", &"")) != craft.get_ship_id() \
+		or not bool(sample.get("destroyed", false)) or not bool(sample.get("pose_active", true)) \
+		or int(sample.get("entity_generation", 0)) <= 0 or int(sample.get("pose_tick", -1)) <= 0 \
+		or _network_client_boarding_claim_server_tick < 0 \
+		or int(sample.pose_tick) < _network_client_boarding_claim_server_tick \
+		or (clock >= 0.0 and clock - float(sample.pose_tick) > NetworkRemoteCraftPoseStreamType.STALE_SAMPLE_TICKS) \
+		or not bool(presentation.get("destroyed", false)) \
+		or int(presentation.get("generation", 0)) != int(sample.entity_generation) \
+		or int(presentation.get("tick", -1)) != int(sample.pose_tick):
+		return false
+	# Retire only chair/rest state owned by this exact cabin. A foreign local
+	# transition cannot be cleared merely because some other hull was lost.
+	if is_instance_valid(_network_engineer_client_seat) and _network_engineer_client_seat.get_ship() != craft:
+		return false
+	if is_instance_valid(_network_engineer_pending_seat) and _network_engineer_pending_seat.get_ship() != craft:
+		return false
+	if is_instance_valid(_active_station_seat) \
+		and (not _active_station_seat is ShipBunk or (_active_station_seat as ShipBunk).get_ship() != craft):
+		return false
+	var ship_id := craft.get_ship_id()
+	var seat_id := StringName(_network_client_boarding_claim.seat_id)
+	var held_role := StringName(_network_client_boarding_claim.role)
+	_invalidate_transition_generation()
+	if _network_client_boarding_request.get("craft") == craft:
+		_abandon_network_client_boarding_request()
+		_refuse_network_client_boarding(&"craft_lost")
+	_network_client_boarding_claim = {}
+	_network_client_boarding_claim_server_tick = -1
+	_network_client_boarding_audit["claimed_seat_id"] = &""
+	_network_client_boarding_audit["remote_craft_losses"] = int(_network_client_boarding_audit.get("remote_craft_losses", 0)) + 1
+	_cancel_network_engineer(false)
+	if int(_network_client_bunk_rest.get("craft_id", 0)) == craft.get_instance_id():
+		_retire_network_client_bunk_rest()
+	if is_instance_valid(_active_station_seat) and _active_station_seat is ShipBunk \
+		and (_active_station_seat as ShipBunk).get_ship() == craft:
+		_recover_from_station_seat()
+	unbind_network_remote_body()
+	_release_cabin_occupancy()
+	_send_network_client_boarding_release(ship_id, seat_id, held_role)
+	_recall_pilot_to_deck()
+	phase = Phase.COMPLETE if _guided_activity_complete else Phase.APPROACH_SHIP
+	_transition_busy = false
+	if play_cue and is_instance_valid(combat_audio):
+		combat_audio.play_explosion(craft.global_position, craft.get_instance_id())
+	if is_instance_valid(hud):
+		hud.set_objective("Return to the shipyard fleet when ready", "CREW SAFE RECOVERY")
+		hud.toast("Crew safe recovery", "%s was lost. Returned to the shipyard deck." % craft.get_display_name(), 3.0)
+	_publish_network_crew_role_status()
+	return true
