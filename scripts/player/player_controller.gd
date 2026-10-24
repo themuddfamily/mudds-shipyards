@@ -313,6 +313,9 @@ var _standing_collision_layer := 0
 var _standing_collision_mask := 0
 var _standing_interaction_mask := 0
 var _standing_physics_priority := 0
+## World-space recovery also invalidates CharacterBody3D's previous platform
+## contact, which survives assigning a new transform and zero velocity.
+var _discard_recovery_platform_motion := false
 var _pilot_materials: Dictionary = {}
 var _pilot_fallback_presentation_builder := PilotFallbackPresentationBuilder.new()
 var _motion_animation_player: AnimationPlayer
@@ -744,7 +747,22 @@ func _move_in_interior_collision_frame(delta: float) -> void:
 	var pre_move_transform := global_transform
 	var pre_move_velocity := velocity
 	var was_on_floor := is_on_floor()
-	move_and_slide()
+	if _discard_recovery_platform_motion:
+		_discard_recovery_platform_motion = false
+		var saved_floor_layers := platform_floor_layers
+		var saved_wall_layers := platform_wall_layers
+		var saved_on_leave := platform_on_leave
+		# Suppress both the old platform's initial carry and its exit velocity.
+		# Restore immediately: no temporary policy survives a detach or new seat.
+		platform_floor_layers = 0
+		platform_wall_layers = 0
+		platform_on_leave = CharacterBody3D.PLATFORM_ON_LEAVE_DO_NOTHING
+		move_and_slide()
+		platform_floor_layers = saved_floor_layers
+		platform_wall_layers = saved_wall_layers
+		platform_on_leave = saved_on_leave
+	else:
+		move_and_slide()
 	_remote_floor_support_rejected = false
 	_recover_floor_snap_penetration(pre_move_transform, pre_move_velocity, was_on_floor)
 	if _resolve_step_up(pre_move_transform, pre_move_velocity, delta):
@@ -1197,6 +1215,7 @@ func force_recovery_to_on_foot(target: Transform3D) -> void:
 	_transition_duration = 0.0
 	global_transform = _transition_start
 	velocity = Vector3.ZERO
+	_discard_recovery_platform_motion = true
 	_clear_landing_recovery()
 	_seat_anchor = null
 	process_physics_priority = _standing_physics_priority
