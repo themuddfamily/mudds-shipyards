@@ -212,6 +212,18 @@ func _run() -> void:
 	)
 	actor.global_position = board.global_position + Vector3(1.5, 0.0, 0.0)
 	var started: bool = board.interact(actor)
+	var armed_snapshot := content.get_snapshot()
+	var armed_save := world.save_station_defense_session(session_store.generation, "station-defense-armed-history")
+	_check(started and bool(board.get_launch_arm_snapshot().armed)
+		and armed_snapshot.host.activity.state_id == &"idle" and armed_snapshot.host.active_entity_count == 0
+		and bool(armed_save.get("accepted", false))
+		and not (session_store.payload.get("session", {}) as Dictionary).has("launch_arm")
+		and not (session_store.payload.get("session", {}) as Dictionary).has("sortie_armed"),
+		"Deploy arms runtime-only intent while saving only the existing idle session format")
+	# This contract fixture exercises the existing owner/combat/reward pipeline;
+	# ordinary physical launch is covered by game_flow_station_defense_interaction_test.
+	var owner_start := content.start(content.get_generation())
+	started = started and bool(owner_start.get("accepted", false))
 	var started_snapshot := content.get_snapshot()
 	_check(
 		started
@@ -219,7 +231,7 @@ func _run() -> void:
 		and started_snapshot.host.activity.state_id == &"active"
 		and int(started_snapshot.host.active_entity_count) == 1
 		and authority.get_resolver().get_registered_source_count() == 4,
-		"embodied board interaction starts the externally combat-owned encounter and its first authored wave"
+		"the disclosed content-owner fixture starts the externally combat-owned encounter and its first authored wave"
 	)
 	generation = content.get_generation()
 	var active_save := world.save_station_defense_session(
@@ -470,7 +482,8 @@ func _verify_terminal_history_reload(
 		and authority.get_resolver().get_registered_source_count() == before_sources
 		and int(content_snapshot.host.active_entity_count) == 0
 		and _reward_requests.size() == reward_before
-		and not bool(board.get_session_persistence_snapshot().reward_replayable),
+		and not bool(board.get_session_persistence_snapshot().reward_replayable)
+		and not bool(board.get_launch_arm_snapshot().armed),
 		"reload restores terminal history as pristine idle without enemies, damage, new sources, leases, or reward replay"
 	)
 	content.snapshot_changed.emit({"host": {"activity": persisted_history.duplicate(true)}})
@@ -487,12 +500,14 @@ func _verify_terminal_history_reload(
 	reload_root.add_child(actor)
 	actor.global_position = board.global_position + Vector3(1.5, 0.0, 0.0)
 	var started: bool = board.interact(actor)
+	# Retain the existing rebased owner/combat fixture after the physical arm.
+	var rebased_start := content.start(content.get_generation())
 	_check(
-		started
+		started and bool(rebased_start.get("accepted", false))
 		and content.get_generation() > int(persisted_history.generation)
 		and authority.get_resolver().get_registered_source_count() == before_sources
 		and _reward_requests.size() == reward_before,
-		"the restored board starts a fresh higher generation after an origin rebase without replaying the prior reward or duplicating sources (%s)"
+		"the restored board arms the rebased owner fixture without replaying the prior reward or duplicating sources (%s)"
 			% str(board.get_last_result().get("reason", &""))
 	)
 	var rebased_tick := content.advance_physics(0.0, content.get_generation())
@@ -550,7 +565,10 @@ func _complete_main_defense(game: GameFlow) -> int:
 	var content := game.world.get_station_defense_content() as StationDefenseEncounterContent
 	var board := game.world.get_station_defense_activity_board() as StationDefenseActivityBoard
 	game.player.global_position = board.global_position
-	_check(board.interact(game.player), "ordinary physical board starts the real Main defense")
+	_check(board.interact(game.player) and bool(board.get_launch_arm_snapshot().armed),
+		"the physical board arms the Main completion fixture")
+	# Disclosed existing-owner combat/reward fixture; this is not an ordinary sortie.
+	_check(content.start(content.get_generation()).accepted, "the content owner starts the Main completion fixture")
 	var torrent := TORRENT_SCENE.instantiate() as HeroShip
 	torrent.ship_definition = TORRENT_DEFINITION
 	game.add_child(torrent)

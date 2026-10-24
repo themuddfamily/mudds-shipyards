@@ -419,6 +419,11 @@ func _station_defense_feedback(state: Dictionary) -> Dictionary:
 	var summary := "DEFENSE READY  //  %s" % asset_status
 	var objective := "REPORT TO THE STATION DEFENSE BOARD"
 	var recovery_text := ""
+	if state_id == &"idle" and bool(state.get("sortie_armed", false)):
+		stage_id = &"armed"
+		summary = "DEFENSE ARMED  //  %s" % asset_status
+		objective = "BOARD A CRAFT AND DEPART TO START DEFENSE"
+		recovery_text = "CANCEL OR RESET AT THE DEFENSE BOARD"
 	match state_id:
 		&"active":
 			stage_id = &"active"

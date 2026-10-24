@@ -6,6 +6,7 @@ const PHYSICS_LAYERS := preload("res://scripts/core/physics_layers.gd")
 const OUTPUT_PATH := "/tmp/station-defense-activity-board-readability.png"
 const STATE_CAPTURE_PATHS := {
 	&"ready": "/tmp/station-defense-activity-board-ready.png",
+	&"armed": "/tmp/station-defense-activity-board-armed.png",
 	&"active": "/tmp/station-defense-activity-board-active.png",
 	&"inter_wave": "/tmp/station-defense-activity-board-inter-wave.png",
 	&"completed": "/tmp/station-defense-activity-board-completed.png",
@@ -170,6 +171,10 @@ func _run() -> void:
 	await _capture(viewport, status, &"ready", "[ ] READY\nDEPLOY AVAILABLE")
 
 	var started: bool = board.interact(actor)
+	await _capture(viewport, status, &"armed", "[>] ARMED // BOARD A CRAFT\nDEPART TO START DEFENSE")
+	# Disclosed public owner fixture for resolver-driven active/terminal captures.
+	var owner_start := content.start(content.get_generation())
+	started = started and bool(owner_start.get("accepted", false))
 	await process_frame
 	var generation := content.get_generation()
 	var activity := content.get_snapshot().host.activity as Dictionary
@@ -177,7 +182,7 @@ func _run() -> void:
 		started
 		and int(activity.get("wave_number", 0)) == 1
 		and int(activity.get("current_wave_hostile_count", 0)) == 1,
-		"public board interaction reaches the exact one-hostile first wave"
+		"public content-owner fixture reaches the exact one-hostile first wave"
 	)
 	await _capture(viewport, status, &"active", ">> WAVE 1 / 3\nROSTER 0 / 1")
 
@@ -228,6 +233,8 @@ func _run() -> void:
 	var reset := content.reset(generation)
 	await process_frame
 	var failed_started: bool = board.interact(actor)
+	var failed_owner_start := content.start(content.get_generation())
+	failed_started = failed_started and bool(failed_owner_start.get("accepted", false))
 	var failed_generation := content.get_generation()
 	var failed := content.fail(&"visual_test_failure", failed_generation)
 	await process_frame

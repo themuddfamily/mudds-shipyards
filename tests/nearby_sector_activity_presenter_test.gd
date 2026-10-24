@@ -201,6 +201,14 @@ func _initialize() -> void:
 		_check(not "RETRY REWARD SAVE" in str(fresh_beacon.text)
 			and not "RETRY REWARD SAVE" in str(fresh_beacon.objective_text),
 			"a new, active or reset route cannot retain a previous completion's save retry")
+	var armed_defense := _card(presenter.present({"station_defense": {
+		"state_id": &"idle", "generation": 3, "sortie_armed": true,
+	}}), &"station_defense")
+	_check(armed_defense.state_id == &"idle" and "DEFENSE ARMED" in str(armed_defense.text)
+		and armed_defense.objective_text == "BOARD A CRAFT AND DEPART TO START DEFENSE"
+		and armed_defense.station_defense_feedback.stage_id == &"armed"
+		and "CANCEL" in str(armed_defense.recovery_text),
+		"an armed defense names the physical launch while preserving the idle encounter state")
 	var timeout_view := presenter.present({
 		"host": {"activity": {"state_id": &"active"}},
 		"beacon_traversal": {"state": 2, "reward_pending": true},
