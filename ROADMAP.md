@@ -42,6 +42,18 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
+**SERVER-BASELINE passenger-disconnect selected — existing runtime qualification.**
+After the exact ordinary BOARD and seven MOVING stages, client_b leaves once
+through public session shutdown. Require real host transport/adapter events,
+retirement of only the departing passenger's body/seat/frame/commands, unchanged
+live pilot ownership and usable throttle, and departed same-Player solo controls
+plus pause/Resume. All three processes must exit0 with clean logs. Existing300s
+scenario/360s outer,8s role,15s walk and10s exit limits stay unchanged.
+One agent owns the existing passenger-route test only; root reviews and runs
+clean compile≤300s then one full isolated Xvfb/x11/Dummy case. Estimate30–45min
+implementation/review and≤11min checks; first failure stops, no automatic retry.
+This does not close full baseline/endurance/native gates or deliver new gameplay.
+
 **DEFENSE-CLEAR-FIRE stopped — the fixed approach fails live clearance.**
 The western settling adjustment reached boarding and actual departure. At the
 staging stop, the first segment cleared; the full second conservative hull sweep
