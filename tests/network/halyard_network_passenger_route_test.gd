@@ -70,6 +70,11 @@ const ORDINARY_HALYARD_APPROACH := [
 	Vector3(37, 4.2, 68.3), Vector3(32.4, 4.2, 68.2), Vector3(32, 4.2, 62.2),
 	Vector3(32, 4.2, 54.2),
 ]
+var _network_bunk_refusal_only := false
+var _network_bunk_complete := false
+var _network_bunk_stage := ""
+var _network_bunk_avatar: StringName = &""
+var _network_bunk_occupants: Array[Node3D] = []
 var _ordinary_two_client_sleep := false
 var _ordinary_sleep_stage := ""
 var _ordinary_sleep_retained: Dictionary = {}
@@ -97,6 +102,9 @@ var _ordinary_pilot_loss_retained: Dictionary = {}
 ## Optional ordinary-controls callers share this harness and its owned exits.
 ## Empty defaults retain every existing Halyard/Cinder profile and deadline.
 func _peer_profile() -> Dictionary:
+	if _network_bunk_refusal_only:
+		return {"client_roles": ["client"], "private_environment": true,
+			"total_seconds": 180.0, "abort_exit_grace_seconds": 10.0}
 	if _ordinary_two_client_board:
 		return {"client_roles": ["client", "client_b"], "private_environment": true,
 			"total_seconds": 300.0, "abort_exit_grace_seconds": 10.0}
@@ -107,6 +115,8 @@ func _init() -> void:
 
 func _run() -> void:
 	var args := OS.get_cmdline_user_args()
+	_network_bunk_refusal_only = "--network-bunk-refusal-only" in args
+	args.erase("--network-bunk-refusal-only")
 	_ordinary_two_client_sleep = "--ordinary-two-client-sleep" in args
 	_ordinary_two_client_passenger_loss = "--ordinary-two-client-passenger-loss" in args
 	_ordinary_two_client_pilot_loss = "--ordinary-two-client-pilot-loss" in args
@@ -169,6 +179,8 @@ func _run() -> void:
 	_role = args[0]
 	_directory = args[1]
 	_port = int(args[2])
+	if _network_bunk_refusal_only:
+		_profile_deadline = Time.get_ticks_msec() + 180000
 	_write(_role + ".script_ready", {})
 	_game = Main.instantiate() as GameFlow
 	if _navigator:
@@ -192,7 +204,13 @@ func _run() -> void:
 	if _gunner:
 		_craft.projectile_fired.connect(func(_origin: Vector3, _direction: Vector3): _gunner_shots += 1)
 	_write(_role + ".main_ready", {})
-	if _ember_surface:
+	if _network_bunk_refusal_only:
+		if _role == "host":
+			await _network_bunk_host()
+		else:
+			await _network_bunk_client()
+		_check(_network_bunk_complete, "focused bunk scenario reaches explicit terminal handshake")
+	elif _ember_surface:
 		if _role == "host":
 			await _ember_surface_host()
 		else:
@@ -213,7 +231,10 @@ func _run() -> void:
 	_game.queue_free()
 	await _ticks(3)
 	DirAccess.remove_absolute(_store_path)
-	_write(_role + ".done", {"checks": _checks, "failures": _failures})
+	var done := {"checks": _checks, "failures": _failures}
+	if _network_bunk_refusal_only:
+		done["complete"] = _network_bunk_complete
+	_write(_role + ".done", done)
 	for failure in _failures:
 		push_error(failure)
 	print("HALYARD_NETWORK_PASSENGER_%s: %d checks, %d failures" % [_role.to_upper(), _checks, _failures.size()])
@@ -294,7 +315,7 @@ func _orchestrate() -> void:
 	for role in peers:
 		var result := _read(role + ".done")
 		_check(not result.is_empty() and (result.get("failures", []) as Array).is_empty(), "%s ordinary production route passes" % role)
-		if _ordinary_two_client_board:
+		if _ordinary_two_client_board or _network_bunk_refusal_only:
 			_check(bool(result.get("complete", false)), "%s selected ordinary scenario completed" % role)
 		if not result.is_empty():
 			_checks += int(result.get("checks", 0))
@@ -322,7 +343,9 @@ func _orchestrate() -> void:
 	quit(0 if _failures.is_empty() else 1)
 
 func _print_peer_success() -> void:
-	if _ordinary_two_client_sleep:
+	if _network_bunk_refusal_only:
+		print("NETWORK_BUNK_REFUSAL_ONLY_OK checks=%d" % _checks)
+	elif _ordinary_two_client_sleep:
 		print("HALYARD_ORDINARY_TWO_CLIENT_SLEEP_OK checks=%d" % _checks)
 	elif _ordinary_two_client_passenger_loss:
 		print("HALYARD_ORDINARY_TWO_CLIENT_PASSENGER_LOSS_OK checks=%d" % _checks)
@@ -379,7 +402,9 @@ func _peer_arguments(role: String, display: PackedStringArray) -> PackedStringAr
 	if not _package_under_test.is_empty():
 		args.append_array(["--main-pack", _package_under_test])
 	args.append_array(["--script", script, "--", role, _directory, str(_port)])
-	if _ordinary_two_client_sleep:
+	if _network_bunk_refusal_only:
+		args.append("--network-bunk-refusal-only")
+	elif _ordinary_two_client_sleep:
 		args.append("--ordinary-two-client-sleep")
 	elif _ordinary_two_client_passenger_loss:
 		args.append("--ordinary-two-client-passenger-loss")
@@ -1596,7 +1621,7 @@ func _until(predicate: Callable, seconds: float) -> bool:
 			return true
 		if _profile_deadline > 0 and Time.get_ticks_msec() >= _profile_deadline:
 			return false
-		if _ordinary_two_client_board and _ordinary_aborted():
+		if (_ordinary_two_client_board or _network_bunk_refusal_only) and _ordinary_aborted():
 			return false
 		await _ticks(1)
 	return false
@@ -1614,7 +1639,7 @@ func _ticks(count: int) -> void:
 			_ordinary_motion_samples += 1
 
 func _wait_file(name: String, seconds: float) -> bool:
-	if _ordinary_two_client_board:
+	if _ordinary_two_client_board or _network_bunk_refusal_only:
 		# Actual wrapper exits retain the full independent 10s cleanup grace.
 		if name.ends_with(".exit"):
 			var exit_deadline := Time.get_ticks_msec() + int(seconds * 1000.0)
@@ -1684,10 +1709,10 @@ func _check(condition: bool, description: String) -> void:
 		if _navigator_rejection and not _role.is_empty() and not FileAccess.file_exists(_directory.path_join(_role + ".first_failure")):
 			_write(_role + ".first_failure", {"description": description})
 			print("NAVIGATOR_FIRST_FAILURE: ", _role, " ", description)
-		if _ordinary_two_client_board and not _role.is_empty() and not _ordinary_first_failure:
+		if (_ordinary_two_client_board or _network_bunk_refusal_only) and not _role.is_empty() and not _ordinary_first_failure:
 			_ordinary_first_failure = true
 			var first_abort := DirAccess.make_dir_absolute(_directory.path_join("abort-owner")) == OK
-			_write(_role + ".first_failure", _ordinary_failure_snapshot(description))
+			_write(_role + ".first_failure", _network_bunk_snapshot(description) if _network_bunk_refusal_only else _ordinary_failure_snapshot(description))
 			if first_abort:
 				_write("abort", {"role": _role, "description": description, "snapshot": _role + ".first_failure"})
 
@@ -4482,3 +4507,247 @@ func _ordinary_sleep_client(baseline: Dictionary) -> bool:
 		_ordinary_action(&"move_forward", false)
 	_write(_role + ".sleep_complete", {})
 	return true
+
+
+# Focused authority regression, not an ordinary boarding/journey qualification.
+# Physical poses and host-only furniture reservations are explicit setup fixtures;
+# admission, the client's E edges and every host body transition remain real ENet.
+func _network_bunk(side: String) -> ShipBunk:
+	return _craft.get_node_or_null(NodePath("WalkableInterior/AftSystemsBay/%sSleepingBerth/ShipBunkInteraction" % side)) as ShipBunk
+
+
+func _network_bunk_snapshot(description: String = "") -> Dictionary:
+	var report := {"description": description, "role": _role, "stage": _network_bunk_stage,
+		"pid": OS.get_process_id(), "physics_frame": Engine.get_physics_frames(), "avatar": str(_network_bunk_avatar)}
+	if not is_instance_valid(_game) or not is_instance_valid(_craft) or not is_instance_valid(_player):
+		report["setup_incomplete"] = true
+		return report
+	var simulation := _game.get_network_remote_body_simulation()
+	var body := simulation.get_body(_network_bunk_avatar) as PlayerController if simulation != null else null
+	var source := _game.get_network_remote_body_intent_source()
+	var overlay := _game.get("_ship_rest_overlay") as CanvasLayer
+	var frame := _craft.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
+	report.merge({"main": _ordinary_node_identity(_game), "craft": _ordinary_node_identity(_craft),
+		"local_player": _ordinary_node_identity(_player), "local_sleeping": _player.is_sleeping(),
+		"local_seated": _player.is_seated(), "local_floor": _player.is_on_floor(), "local_controls": _player.is_control_enabled(),
+		"local_position": str(_craft.to_local(_player.global_position)), "transition_busy": bool(_game.get("_transition_busy")),
+		"local_active_seat": _ordinary_node_identity(_game.get("_active_station_seat") as Node),
+		"local_overlay": overlay != null and overlay.visible,
+		"local_source": source.get_audit() if source != null else {}, "frame": _ordinary_node_identity(frame),
+		"host_body": _ordinary_node_identity(body), "host_sleeping": body.is_sleeping() if body != null else false,
+		"host_body_record": simulation.get_body_record(_network_bunk_avatar) if simulation != null else {},
+		"host_body_audit": simulation.get_audit() if simulation != null else {},
+		"host_wire": _ordinary_publication(_network_bunk_avatar).get("wire", {}),
+		"received_wire": _game.network_session.get_moving_interior_latest_relationship(_network_bunk_avatar),
+		"admitted_peers": _game.network_session.get_admitted_peer_ids(),
+		"boarding_claim": _game.get("_network_client_boarding_claim"), "bunks": {}})
+	for side in ["Port", "Starboard"]:
+		var bunk := _network_bunk(side)
+		(report.bunks as Dictionary)[side] = {"identity": _ordinary_node_identity(bunk),
+			"anchor": _ordinary_node_identity(bunk.get_seat_anchor()) if bunk != null else {},
+			"occupant": _ordinary_node_identity(bunk.get("_occupant") as Node) if bunk != null else {},
+			"available": bunk.is_available() if bunk != null else false,
+			"local_reserved": bunk.is_reserved_for(_player) if bunk != null else false,
+			"body_reserved": bunk.is_reserved_for(body) if bunk != null and body != null else false}
+	if _role == "client":
+		report["actual_host_observation"] = _read("host.bunk_" + _network_bunk_stage + "_observed")
+	return report
+
+
+func _network_bunk_host() -> void:
+	if not _ordinary_require(_game.host_network_session(_port).accepted, "focused actual Main hosts real ENet"):
+		return
+	_craft.set_canopy_open(true, 0.0) # Disclosed hatch setup, no boarding verdict injected.
+	_write("host.ready", {})
+	if not await _wait_file("client.bunk_admitted", 60.0):
+		return
+	var admission := _read("client.bunk_admitted")
+	var peer := int(admission.peer_id)
+	_network_bunk_avatar = GameFlow.network_client_boarding_avatar_id(peer)
+	var simulation := _game.get_network_remote_body_simulation()
+	if not await _ordinary_boundary(func(): return simulation.get_body(_network_bunk_avatar) != null, 8.0,
+		"actual authenticated cabin admission creates the client's authoritative body"):
+		return
+	var body := simulation.get_body(_network_bunk_avatar) as PlayerController
+	var frame := _craft.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
+	var port := _network_bunk("Port")
+	var starboard := _network_bunk("Starboard")
+	if not _ordinary_require(port != null and starboard != null and frame != null
+		and frame.is_occupant_registered(body), "focused fixture retains actual body/frame and both authored bunks"):
+		return
+	for side in ["Port", "Starboard"]:
+		var occupant := Node3D.new()
+		occupant.name = "BunkReservationFixture" + side
+		_game.add_child(occupant)
+		occupant.global_transform = _network_bunk(side).get_seat_anchor().global_transform
+		_network_bunk_occupants.append(occupant)
+	for phase: String in ["port_busy", "both_busy", "free"]:
+		_network_bunk_stage = phase
+		if phase == "port_busy":
+			if not _ordinary_require(port.try_reserve(_network_bunk_occupants[0]), "host-only fixture reserves Port through the real StationSeat API"):
+				return
+		elif phase == "both_busy":
+			if not _ordinary_require(starboard.try_reserve(_network_bunk_occupants[1]), "second host-only fixture reserves Starboard through the real StationSeat API"):
+				return
+		else:
+			port.cancel_reservation(_network_bunk_occupants[0])
+			starboard.cancel_reservation(_network_bunk_occupants[1])
+			if not _ordinary_require(port.is_available() and starboard.is_available(), "real furniture release frees both bunks before fresh retry"):
+				return
+		# Stage only supported initial approach poses, before this phase's E edge.
+		body.teleport_to(Transform3D(_craft.global_basis.orthonormalized(), port.get_entry_transform().origin))
+		_write("host.bunk_" + phase + "_prepare", {})
+		if not await _wait_file("client.bunk_" + phase + "_ready", 15.0):
+			return
+		if not await _ordinary_boundary(func(): return body.is_on_floor() and not body.is_seated(), 8.0,
+			"staged authoritative approach settles awake on the physical cabin floor: " + phase):
+			return
+		if not _ordinary_require(simulation.get_body(_network_bunk_avatar) == body and frame.is_occupant_registered(body)
+			and body.get_cabin_containment_report().get("frame") == _craft
+			and int(simulation.get_body_record(_network_bunk_avatar).get("owner_peer_id", 0)) == peer
+			and _game.network_session.get_admitted_peer_ids().has(peer),
+			"staged host approach retains the actual admitted owner, original body and current physical cabin frame"):
+			return
+		if phase == "port_busy" and not _ordinary_require(body.get_nearby_interactables().has(starboard)
+			and starboard.is_available(), "host body physically overlaps the available Starboard alternate before the contested press"):
+			return
+		for candidate in body.get_nearby_interactables():
+			if candidate is ShipCrewSeat and candidate.get_ship() == _craft:
+				if not _ordinary_require(false, "focused approach overlaps no unrelated crew chair before bunk selection"):
+					return
+			if candidate is StationSeat and candidate.is_available() and candidate not in [port, starboard]:
+				if not _ordinary_require(false, "focused approach overlaps no unrelated available furniture"):
+					return
+		if phase == "free" and not _ordinary_require(body.get_nearby_interactables().has(port)
+			and body.get_interaction_origin().distance_to(port.get_entry_transform().origin)
+				< body.get_interaction_origin().distance_to(starboard.get_entry_transform().origin),
+			"freed Port is actually overlapped and nearer to the host body before fresh retry"):
+			return
+		var before_id := int(simulation.get_body_record(_network_bunk_avatar).get("last_interaction_id", -1))
+		var before_refused := int(simulation.get_audit().get("interactions_refused", 0))
+		_write("host.bunk_" + phase + "_go", {"before_interaction_id": before_id, "before_refused": before_refused})
+		if phase == "both_busy":
+			if not await _ordinary_boundary(func(): return (int(simulation.get_body_record(_network_bunk_avatar).get("last_interaction_id", -1)) > before_id
+				and int(simulation.get_audit().get("interactions_refused", 0)) == before_refused + 1), 8.0,
+				"actual host consumes one fresh ordinary interaction and refuses both reserved bunks"):
+				return
+			if not _ordinary_require(not body.is_sleeping() and not body.is_seated(), "refused authoritative body remains awake without a bunk lease"):
+				return
+		else:
+			var selected := starboard if phase == "port_busy" else port
+			if not await _ordinary_boundary(func(): return (body.is_sleeping() and body.is_seated_at(selected.get_seat_anchor())
+				and selected.is_reserved_for(body)), 8.0, "host ordinary selection sleeps the actual body in the available authored bunk: " + phase):
+				return
+		_write("host.bunk_" + phase + "_observed", _network_bunk_snapshot("actual host outcome after ordinary client E"))
+		if not await _wait_file("client.bunk_" + phase + "_matched", 20.0):
+			return
+		if phase != "both_busy":
+			if not await _wait_file("client.bunk_" + phase + "_wake", 8.0):
+				return
+			if not await _ordinary_boundary(func(): return not body.is_sleeping() and not body.is_seated() and body.is_on_floor(), 8.0,
+				"ordinary client wake restores the same supported authoritative body: " + phase):
+				return
+			var selected := starboard if phase == "port_busy" else port
+			if not _ordinary_require(selected.is_available() and not selected.is_reserved_for(body), "actual waking releases exactly the selected host bunk"):
+				return
+			_write("host.bunk_" + phase + "_awake", _network_bunk_snapshot())
+			if not await _wait_file("client.bunk_" + phase + "_awake", 8.0):
+				return
+	_write("host.bunk_complete", {})
+	if not await _wait_file("client.bunk_complete", 8.0):
+		return
+	_write("host.bunk_release", {})
+	_network_bunk_complete = true
+
+
+func _network_bunk_client() -> void:
+	if not _ordinary_require(_game.join_network_session("127.0.0.1", _port).accepted, "focused independent Main joins actual host ENet"):
+		return
+	if not await _ordinary_boundary(_ordinary_authenticated, 12.0,
+		"focused real client is authenticated before physical admission"):
+		return
+	_player.teleport_to(Transform3D(_craft.global_basis.orthonormalized(), _craft.get_boarding_position() + Vector3.UP * 0.05))
+	await _ticks(10)
+	await _ordinary_press(&"interact")
+	if not await _ordinary_boundary(func(): return (_game.phase == GameFlow.Phase.IN_FLIGHT_CABIN
+		and _game.get_network_remote_body_intent_source() != null and not _game.get("_transition_busy")), 12.0,
+		"ordinary hatch interaction confirms real cabin/body admission after disclosed exterior setup"):
+		return
+	_network_bunk_avatar = GameFlow.network_client_boarding_avatar_id(_game._network_client_peer_id())
+	_write("client.bunk_admitted", {"peer_id": _game._network_client_peer_id(), "player_id": str(_player.get_instance_id())})
+	var player_id := _player.get_instance_id()
+	var source := _game.get_network_remote_body_intent_source()
+	var entity_generation := source.get_entity_generation()
+	var frame := _craft.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
+	var port := _network_bunk("Port")
+	var starboard := _network_bunk("Starboard")
+	for phase: String in ["port_busy", "both_busy", "free"]:
+		_network_bunk_stage = phase
+		if not await _wait_file("host.bunk_" + phase + "_prepare", 20.0):
+			return
+		_player.teleport_to(Transform3D(_craft.global_basis.orthonormalized(), port.get_entry_transform().origin))
+		await _ticks(12)
+		await _ordinary_look(port.global_position)
+		if not await _ordinary_boundary(func(): return (_player.is_on_floor() and not _player.is_seated()
+			and _game.station_interaction_candidate == port), 8.0, "staged client approach physically discovers its locally available Port bunk: " + phase):
+			return
+		if not _ordinary_require(port.is_available(), "Port is independently free in the client furniture graph before the contested press"):
+			return
+		if not _ordinary_require(_player.get_instance_id() == player_id and _game.get_network_remote_body_intent_source() == source
+			and source.is_bound() and source.get_entity_id() == _network_bunk_avatar and source.get_entity_generation() == entity_generation
+			and (_craft.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame) == frame
+			and frame.is_occupant_registered(_player) and frame._local_prediction_is_current(_player)
+			and _game._network_client_boarding_holds(_craft),
+			"staged client approach retains its real authenticated body source, admission and current prediction frame"):
+			return
+		_write("client.bunk_" + phase + "_ready", {})
+		if not await _wait_file("host.bunk_" + phase + "_go", 8.0):
+			return
+		await _ordinary_press(&"interact")
+		if not await _wait_file("host.bunk_" + phase + "_observed", 12.0):
+			return
+		var observed := _read("host.bunk_" + phase + "_observed")
+		var expected_state := NetworkMovingInteriorRelationship.STATE_WALKING if phase == "both_busy" else NetworkMovingInteriorRelationship.STATE_SLEEPING
+		if not await _ordinary_boundary(func(): return (int(_game.network_session.get_moving_interior_latest_relationship(_network_bunk_avatar).get("occupancy_state", -1)) == expected_state
+			and int(_game.network_session.get_moving_interior_latest_relationship(_network_bunk_avatar).get("server_tick", -1)) >= int((observed.host_wire as Dictionary).get("server_tick", -1))), 8.0,
+			"actual current host posture reaches the owning client after the interaction outcome: " + phase):
+			return
+		if phase == "both_busy":
+			if not await _ordinary_boundary(func(): return (not _player.is_sleeping() and not _player.is_seated()
+				and _player.is_control_enabled() and not _game.get("_transition_busy")), 8.0,
+				"host-refused sleep leaves the same local Player awake with usable controls"):
+				return
+			var overlay := _game.get("_ship_rest_overlay") as CanvasLayer
+			if not _ordinary_require(port.is_available() and starboard.is_available() and (overlay == null or not overlay.visible),
+				"actual host refusal leaves no local bunk lease or sleep overlay"):
+				return
+		else:
+			var selected := starboard if phase == "port_busy" else port
+			if not await _ordinary_boundary(func(): return (_player.is_sleeping() and _player.is_seated_at(selected.get_seat_anchor())
+				and selected.is_reserved_for(_player) and _player.is_control_enabled() and not _game.get("_transition_busy")), 8.0,
+				"local sleeper and exact reserved bunk match the actual host-selected bunk: " + phase):
+				return
+			if not _ordinary_require((port.is_available() if phase == "port_busy" else starboard.is_available()),
+				"host-selected local rest owns no unrelated bunk reservation"):
+				return
+		if not _ordinary_require(_player.get_instance_id() == player_id and _game.get_network_remote_body_intent_source() == source
+			and source.is_bound() and source.get_entity_id() == _network_bunk_avatar and source.get_entity_generation() == entity_generation,
+			"focused outcomes retain the same authenticated local Player and original bound body generation"):
+			return
+		_write("client.bunk_" + phase + "_matched", _network_bunk_snapshot())
+		if phase != "both_busy":
+			await _ordinary_press(&"interact")
+			_write("client.bunk_" + phase + "_wake", {})
+			if not await _wait_file("host.bunk_" + phase + "_awake", 12.0):
+				return
+			if not await _ordinary_boundary(func(): return (not _player.is_sleeping() and not _player.is_seated()
+				and _player.is_on_floor() and _player.is_control_enabled() and not _game.get("_transition_busy")), 8.0,
+				"ordinary wake restores the same supported client after matching authoritative rest"):
+				return
+			_write("client.bunk_" + phase + "_awake", _network_bunk_snapshot())
+	if not await _wait_file("host.bunk_complete", 8.0):
+		return
+	_write("client.bunk_complete", {})
+	if not await _wait_file("host.bunk_release", 8.0):
+		return
+	_network_bunk_complete = true
