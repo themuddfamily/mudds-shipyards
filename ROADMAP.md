@@ -42,25 +42,23 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
-**DEFENSE-CLEAR-FIRE selected — one full ordinary attempt after freeze.**
-The retained failure has25 blocked shots and23 misses from low stationary fire.
-Restore the archived caller/observer only, retaining all accepted routes. Keep
-original port departure, then physically fly one fixed dogleg to the authored
-combat volume: [-71,10,-90]→[80,10,-90]. Before travel, live conservative whole-hull
-sphere checks must clear initial/end overlap and both full segments; unsupported
-shape/stale geometry/contact stops without alternate route search. This forecast
-is conditional safety data, not a completed movement or combat receipt.
+**DEFENSE-CLEAR-FIRE stopped — the fixed approach fails live clearance.**
+The western settling adjustment reached boarding and actual departure. At the
+staging stop, the first segment cleared; the full second conservative hull sweep
+failed and its endpoint overlapped active PerimeterRaiderAlpha. A signed Godot
+resource-ID guard was corrected; replay of the retained state then rejected the
+blocked full sweep as intended. This does not prove the oriented hull cannot
+travel there. No staging flight, firing, four kills, reward, home, Reset/next
+Deploy or normal UI exit was qualified. No further trial or alternate route is
+selected; the original full contract and time limits remain unchanged.
 
-Fire only when production-equivalent actual camera and next-muzzle rays both
-first-hit the exact current hostile and real weapon readiness is true. Actual
-resolver events alone count all four kills. No boost, actor/physics/tuning/damage/
-collision/time changes; preserve once-only disk payment, strict home/OFFLINE
-physical exit, Reset/next Deploy and normal UI OS exit0. Encounter34s, driver300s,
-outer360s unchanged. Staging estimate12–14s plus10.5s mandatory lulls and4.18s
-minimum cooldown leaves limited aim/delay margin; actual success is unproven.
-One five-file implementer, independent reviewer, root owns focused checks, clean
-private export/strict startup and one full trial. First failure stops for review;
-no renamed retry, partial-route acceptance or new validator family.
+The five-file candidate637bc513f is unmerged and preserved under
+`archive/withheld/defense-clear-fire-20261024`, with verified bundle/source/patch
+and private package. Public checkpoint9af4851 remains current. All12 stage owners
+are terminal,35 sampled process identities absent, and124 scratch entries
+archived/verified/removed. The private package is outside builds; its duplicate
+executable was removed. Final156 Python tests pass; full Defense remains open.
+[Attempt details](docs/history/ROADMAP_DELIVERIES.md#defense-clear-fire--blocked-approach--2026-10-24).
 
 **DEFENSE-LAUNCH-ARM delivered9af48515a; checkpoint9af4851.**
 Owner-approved Deploy arms the encounter; actual live seated pilot departure and

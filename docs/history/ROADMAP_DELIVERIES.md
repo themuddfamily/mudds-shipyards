@@ -21393,3 +21393,60 @@ profiles6,581,436bytes SHA256
 No working branch/worktree created. Main pushed; eight protected detached
 registrations (three already missing/tmp) and original nine unqualified outcomes
 retained. Owner-approved arm rule is delivered; no full Defense or parent closure.
+
+
+## Defense clear fire — blocked approach — 2026-10-24
+
+DEFENSE-CLEAR-FIRE did not qualify the fixed ordinary dogleg
+[-71,10,-90]→[80,10,-90]. No gameplay changes were accepted. Public9af4851,
+Deploy arming, all four kills/payment/home/Reset/next Deploy/UI exit requirements,
+and original34s encounter/300s driver/360s outer limits remain unchanged.
+
+The first trial stopped on foot at222.004s before Deploy. A bounded western
+settling subgoal fixed the observed board approach: the next run reached
+[8.801083,-.019863,12.500040], arm1046, departure2084 and staging frame2194.
+It stopped after54.180s at [-73.34404,1.15094,15.5] on an incorrect positive
+Shape3D resource-ID guard. All nine actual resource IDs were valid negative
+integers. The minimal correction accepts strict nonzero signed resource IDs,
+retains positive NodeID/exact identity checks, and passes156 Python tests10.989s.
+Independent review GO; complete saved-state replay rejects the required full
+swept segment, without creating a movement receipt.
+
+The recorded conservative sphere radius9.135099 clears the first segment.
+The second fails at safe/unsafe fractions .197265625/.203125; its endpoint
+overlaps active PerimeterRaiderAlpha576884586763. Direct-to-destination also
+fails (.080078125/.0859375). This conservative forecast does not establish an
+actual oriented-hull collision or impossible route. No staging flight, fire,
+kills, payment, home/reset/reuse or normal UI exit was exercised. No additional
+engine trial, alternative route or relaxed acceptance is selected.
+
+Clean private Linux export and strict startup pass (exit0 and exactly one
+STARTUP_MENU_READY_OK). Actual1527-entry comparison retains1523 identical entries;
+two observer/startup scripts differ and two generated caches differ only in
+ordering (484 identical class records,665 identical UID→path mappings). The
+initial package comparison failure is retained; the corrected consumer verifies
+exact cache equivalence. No Windows or public checkpoint was generated for this
+qualification-only candidate. Native Windows/GPU/human/full-release gates remain
+NOT_RUN; hosted CI remains disabled.
+
+Unmerged source637bc513f66d5678b392d8f1d5b6c3b2c92edab9 is preserved by pushed
+annotated tag `archive/withheld/defense-clear-fire-20261024`
+(tag objectbb7277c12e38e22474397ddbc0e631574e77bf1d), verified incremental
+bundle, binary patch and exact five-file Git-blob/mode archive. Raw commands,
+logs, source/cache guards and preservation records remain in
+`/srv/mudds-work/defense-clear-fire-20261024/results/`.
+Private ELF148991760bytes SHA256
+14405a9d9e54bcb8019b3d974ba69af25ea5465aa34357312abb1d2371169514
+is verified inside the retained95403139byte Linux archive SHA256
+3cebf58d4a1c83a880cd0f2cefb7cbf6a5d6295a58c16ad98238b256ffd6dae9.
+Archive and export/startup records moved out of builds into withheld-package;
+the duplicate loose ELF was removed.
+
+All12 owners terminal;9pass/3fail stage results retained. Source/cache guards
+pass; no game diagnostics in either trial and all input/game/display cleanup
+flags true.35 observed process identities absent;124 scratch entries verified
+byte/mode/link against archive then removed. Profiles9425bytes SHA256
+4e85e5324f949af310af000f0c69c97a579ef25041d5a5bade6b78bfdce49120.
+Owned Python bytecode removed. No new working branch/worktree; eight protected
+detached registrations and original nine unqualified outcomes remain retained.
+Full Defense and all parent/phase gates remain open.
