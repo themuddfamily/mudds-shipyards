@@ -42,6 +42,25 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
+**COURIER-WITHDRAW-PHASE selected — live courier withdrawal and full home.**
+Fresh ordinary Guided Torrent/four range kills, original defender alive until
+actual first courier dispatch. Then real player fire must kill that defender
+while the same courier is live, unhurt and short of escape; normal
+RETURN_TO_YARD must produce WITHDRAWN and stop every actually dispatched actor.
+Hold/check standdown for60 physics frames and retain it through original strict
+occupied-home landing, OFFLINE shutdown and physical exit.
+
+One driver/passive-observer implementer and independent reviewer; root owns
+checks, exact private package, one ordinary300s/outer330s attempt and cleanup.
+The post-resolver shot signal supplies read-only kill-time ordering; actual
+origin distance<=450m rules out700m/7s distance withdrawal. Preserve every
+encounter constant and actor/control identity; no gameplay/tuning/placement,
+new branch/worktree or hosted CI. First failure stops for causal review.
+Estimate30–60min implementation/review plus10–20min checks/package/cleanup;
+split before90min, no failed-clock reset. Card/results:
+`/srv/mudds-work/courier-phase-withdraw-20261024/results/`.
+
+
 **COURIER-ESCAPE full ordinary outcome DONE — `393733212`.**
 The complete packaged journey passes103.179s under original300s/outer330:
 four range kills, two real defender wounds85→51→17, first unhurt courier
