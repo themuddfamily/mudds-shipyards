@@ -26653,6 +26653,9 @@ func _network_halyard_seat_request_scope() -> Dictionary:
 
 
 func _network_halyard_seat_view_is_current(view: Dictionary, scope: Dictionary) -> bool:
+	for field in ["recipient_peer_id", "peer_generation", "binding_generation", "server_tick", "session_generation", "migration_generation"]:
+		if not view.get(field) is int:
+			return false
 	if view.get("ship_id") != scope.ship_id or int(view.get("recipient_peer_id", 0)) != int(scope.peer_id) \
 		or int(view.get("peer_generation", 0)) != int(scope.peer_generation) \
 		or int(view.get("binding_generation", 0)) <= 0 \
@@ -26679,6 +26682,9 @@ func _consume_network_halyard_seat_rejection(view: Dictionary) -> void:
 	if result.is_empty() or bool(result.get("accepted", true)) or result.get("status") != &"seat_occupied" \
 		or bool(view.get("seated", false)) or not (view.get("assignment", {}) as Dictionary).is_empty():
 		return
+	for field in ["interaction_request_id", "owner_peer_id", "binding_generation"]:
+		if not result.get(field) is int:
+			return
 	for field in ["stream_id", "entity_id", "entity_generation", "seat_id", "role", "epoch"]:
 		if result.get(field) != scope.get(field):
 			return

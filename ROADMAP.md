@@ -67,6 +67,15 @@ causal review. Estimate 30–60min implementation plus 15–25min validation/pac
 cleanup; split before90min. Full original two-client moving seat race/transfer,
 other rejection reasons, broader baseline/endurance and native/human remain open.
 
+Focused validation stopped on8799dfa56: input101 and host receipt36 assertions
+pass, but current-consumer null-valued negative cases trigger int(null) script
+errors despite process exit0. Strict diagnostics reject that result. Select the
+small correction in the new consumer's numeric guards so invalid fields fail
+closed, retaining every negative case and the exact pending/receipt contract.
+Reuse passed unchanged source/body checks; rerun corrected consumer and remaining
+checks before the first real ENet attempt. No cap or acceptance change; original
+failure and cumulative task time retained.
+
 
 **HALYARD network cabin roster DONE — `a0764f281`; checkpoint `a0764f2`.**
 The physical panel now presents compact host crew occupancy, readiness, engineer
