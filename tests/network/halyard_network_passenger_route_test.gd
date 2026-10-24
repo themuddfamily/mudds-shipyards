@@ -91,6 +91,10 @@ var _ordinary_two_client_passenger_loss := false
 var _ordinary_passenger_loss_retained: Dictionary = {}
 var _ordinary_two_client_pilot_loss := false
 var _ordinary_two_client_authority_stop := false
+var _ordinary_two_client_seat_race := false
+var _ordinary_seat_race_stage := ""
+var _ordinary_seat_race_retained: Dictionary = {}
+var _ordinary_seat_race_first_seen: Dictionary = {}
 var _ordinary_two_client_moving := false
 # Shared ordinary prefix/orchestration is also enabled for its moving continuation.
 var _ordinary_two_client_board := false
@@ -138,7 +142,8 @@ func _run() -> void:
 	_ordinary_two_client_passenger_loss = "--ordinary-two-client-passenger-loss" in args
 	_ordinary_two_client_pilot_loss = "--ordinary-two-client-pilot-loss" in args
 	_ordinary_two_client_authority_stop = "--ordinary-two-client-authority-stop" in args
-	_ordinary_two_client_moving = "--ordinary-two-client-moving" in args or _ordinary_two_client_authority_stop or _ordinary_two_client_pilot_loss or _ordinary_two_client_passenger_loss or _ordinary_two_client_sleep or _ordinary_two_client_destruction_recovery
+	_ordinary_two_client_seat_race = "--ordinary-two-client-seat-race" in args
+	_ordinary_two_client_moving = "--ordinary-two-client-moving" in args or _ordinary_two_client_authority_stop or _ordinary_two_client_pilot_loss or _ordinary_two_client_passenger_loss or _ordinary_two_client_sleep or _ordinary_two_client_destruction_recovery or _ordinary_two_client_seat_race
 	_ordinary_two_client_board = "--ordinary-two-client-board" in args or _ordinary_two_client_moving
 	if _ordinary_two_client_board:
 		args.erase("--ordinary-two-client-board")
@@ -148,6 +153,7 @@ func _run() -> void:
 		args.erase("--ordinary-two-client-passenger-loss")
 		args.erase("--ordinary-two-client-sleep")
 		args.erase("--ordinary-two-client-destruction-recovery")
+		args.erase("--ordinary-two-client-seat-race")
 		await _ordinary_run(args)
 		return
 	if "--exit-receipt-only" in args:
@@ -381,6 +387,8 @@ func _print_peer_success() -> void:
 		print("NETWORK_PASSENGER_DESTRUCTION_ONLY_OK checks=%d" % _checks)
 	elif _network_bunk_refusal_only:
 		print("NETWORK_BUNK_REFUSAL_ONLY_OK checks=%d" % _checks)
+	elif _ordinary_two_client_seat_race:
+		print("HALYARD_ORDINARY_TWO_CLIENT_SEAT_RACE_OK checks=%d" % _checks)
 	elif _ordinary_two_client_destruction_recovery:
 		print("HALYARD_ORDINARY_TWO_CLIENT_DESTRUCTION_RECOVERY_OK checks=%d" % _checks)
 	elif _ordinary_two_client_sleep:
@@ -446,6 +454,8 @@ func _peer_arguments(role: String, display: PackedStringArray) -> PackedStringAr
 		args.append("--network-passenger-destruction-only")
 	elif _network_bunk_refusal_only:
 		args.append("--network-bunk-refusal-only")
+	elif _ordinary_two_client_seat_race:
+		args.append("--ordinary-two-client-seat-race")
 	elif _ordinary_two_client_destruction_recovery:
 		args.append("--ordinary-two-client-destruction-recovery")
 	elif _ordinary_two_client_sleep:
@@ -2941,6 +2951,8 @@ func _ordinary_host() -> void:
 		return
 	if _ordinary_two_client_moving and not await _ordinary_moving_host(manifest):
 		return
+	if _ordinary_two_client_seat_race and not await _ordinary_seat_race_host(manifest):
+		return
 	if _ordinary_two_client_destruction_recovery and not await _ordinary_destruction_host():
 		return
 	if _ordinary_two_client_authority_stop and not await _ordinary_authority_stop_host(manifest):
@@ -3037,6 +3049,8 @@ func _ordinary_client() -> void:
 		return
 	_write(_role + ".retained", {})
 	if _ordinary_two_client_moving and not await _ordinary_moving_client(manifest):
+		return
+	if _ordinary_two_client_seat_race and not await _ordinary_seat_race_client():
 		return
 	if _ordinary_two_client_destruction_recovery and not await _ordinary_destruction_client():
 		return
@@ -3298,6 +3312,379 @@ func _ordinary_moving_client(baseline: Dictionary) -> bool:
 	if _role == "client":
 		_ordinary_action(&"move_forward", false)
 	_write(_role + ".moving_complete", {})
+	return true
+
+
+# Contention is a successor to the unchanged full BOARD/MOVING journey. These
+# helpers only read production owners; all transitions still come from Input.
+const ORDINARY_SEAT_RACE_STAGES := [
+	"brake", "walkers", "approach", "race", "loser_clear", "winner_stand", "winner_clear",
+	"transfer_approach", "transfer", "release", "restore_pilot", "restore_passenger", "renewed",
+]
+
+func _ordinary_seat_race_waypoint(role: String, clearance: bool = false) -> Vector3:
+	var entry := (_station_contract().entry_transform as Transform3D).origin
+	return entry + _craft.global_basis.z * ((-1.0 if role == "client" else 1.0) * (1.45 if clearance else 0.65))
+
+func _ordinary_seat_race_local_receipt() -> Dictionary:
+	var source := _game.get_network_remote_body_intent_source()
+	return {"identity": _ordinary_walking_identity.duplicate(true), "peer_id": _ordinary_peer_id,
+		"pid": OS.get_process_id(), "player_id": str(_player.get_instance_id()),
+		"stream_id": int(source.get_audit().get("stream_id", -1)),
+		"request_id": source.get_interaction_request_id(), "physics_frame": Engine.get_physics_frames(),
+		"wall": Time.get_unix_time_from_system(), "toast_serial": int(_game.hud.get("_toast_serial"))}
+
+func _ordinary_seat_race_local_walking() -> bool:
+	var view := _game.network_session.get_passenger_replica_snapshot()
+	return _ordinary_same_identity() and _ordinary_walking_identity_is_preserved() \
+		and _ordinary_supported_cabin() and not _player.is_seated() and not bool(_game.get("_piloting")) \
+		and (view.get("assignment", {}) as Dictionary).is_empty() and not bool(view.get("seated", false)) \
+		and _ordinary_hud_role_is_current(&"passenger") and _craft.get_crew_role_authority() == null
+
+func _ordinary_seat_race_host_base() -> bool:
+	var baseline := _ordinary_seat_race_retained.baseline as Dictionary
+	var admitted := _game.network_session.get_admitted_peer_ids()
+	var owner := _ordinary_seat_race_retained.owner as CrewSeatRoleAuthority
+	return _game.network_session == _ordinary_seat_race_retained.session and _game.network_session.is_server() \
+		and _game.network_session.is_session_active() and admitted.size() == 2 \
+		and admitted.has(int(baseline.pilot_peer)) and admitted.has(int(baseline.passenger_peer)) \
+		and _ordinary_peer_generation(int(baseline.pilot_peer)) == int(baseline.pilot_peer_generation) \
+		and _ordinary_peer_generation(int(baseline.passenger_peer)) == int(baseline.passenger_peer_generation) \
+		and _craft.get_crew_role_authority() == owner \
+		and int(_game.network_session.get_owned_ship(_craft.get_ship_id()).get("ship_generation", 0)) == int((baseline.ownership as Dictionary).ship_generation) \
+		and _game.phase == GameFlow.Phase.INTRO and _player.get_instance_id() == _ordinary_player_id \
+		and not _player.is_seated() and not _player.is_control_enabled()
+
+func _ordinary_seat_race_host_body(role: String, seated: bool) -> bool:
+	var identity := (_read(role + ".seat_race_walkers_done").get("identity", {}) as Dictionary)
+	var peer := int(identity.get("peer_id", 0))
+	var avatar := GameFlow.network_client_boarding_avatar_id(peer)
+	var simulation := _game.get_network_remote_body_simulation()
+	var body := simulation.get_body(avatar) as PlayerController
+	var record := simulation.get_body_record(avatar)
+	var publication := _ordinary_publication(avatar)
+	var movement := _game.network_session.get_movement_avatar_snapshot(avatar)
+	var walking := _read(role + ".seat_race_walkers_done")
+	if body == null or body != (_ordinary_seat_race_retained.get("bodies", {}) as Dictionary).get(role) \
+		or int(identity.get("entity_generation", 0)) <= 0 \
+		or int(record.get("owner_peer_id", 0)) != peer \
+		or int(record.get("entity_generation", 0)) != int(identity.get("entity_generation", -1)) \
+		or int(movement.get("stream_id", -1)) != int(walking.get("stream_id", -2)) \
+		or body.get_cabin_containment_report().get("frame") != _craft \
+		or publication.get("occupant") != body or int(publication.get("owner_peer_id", 0)) != peer:
+		return false
+	var owner: CrewSeatRoleAuthority = _craft.get_crew_role_authority()
+	var assignment := owner.get_assignment(peer, avatar)
+	if seated:
+		var seat := simulation.get_body_crew_seat(avatar)
+		return body.is_seated_at(_station_anchor()) and seat != null and seat.get_seat_anchor() == _station_anchor() \
+			and record.get("seat_state") == &"seated" and assignment.get("seat_id") == HalyardCrewTransport.LOADMASTER_STATION_SEAT_ID \
+			and assignment.get("role") == &"passenger" \
+			and int(publication.get("published_state", -1)) == NetworkMovingInteriorRelationship.STATE_SEATED
+	return not body.is_seated() and body.is_on_floor() and assignment.is_empty() \
+		and int(publication.get("published_state", -1)) == NetworkMovingInteriorRelationship.STATE_WALKING
+
+func _ordinary_seat_race_observe_claims() -> bool:
+	if not _ordinary_seat_race_host_base():
+		return false
+	var simulation := _game.get_network_remote_body_simulation()
+	var winner := ""
+	var loser := ""
+	var both_observed := true
+	for role: String in ["client", "client_b"]:
+		var ready := _read(role + ".seat_race_approach_done")
+		var identity := ready.get("identity", {}) as Dictionary
+		var avatar := StringName(identity.get("entity_id", ""))
+		var result := simulation.get_body_record(avatar).get("crew_interaction_result", {}) as Dictionary
+		if int(result.get("interaction_request_id", 0)) != int(ready.get("request_id", 0)) + 1 \
+			or result.get("seat_id") != HalyardCrewTransport.LOADMASTER_STATION_SEAT_ID \
+			or result.get("role") != &"passenger" or result.get("entity_id") != avatar \
+			or int(result.get("entity_generation", 0)) != int(identity.get("entity_generation", -1)) \
+			or int(result.get("owner_peer_id", 0)) != int(identity.get("peer_id", -1)) \
+			or int(result.get("stream_id", -1)) != int(ready.get("stream_id", -2)):
+			both_observed = false
+			continue
+		if not _ordinary_seat_race_first_seen.has(role):
+			_ordinary_seat_race_first_seen[role] = {"physics_frame": Engine.get_physics_frames(),
+				"server_tick": int(_game.get("_network_boarding_server_tick")),
+				"ready": ready.duplicate(true), "result": result.duplicate(true)}
+		if bool(result.get("accepted", false)) and result.get("status") == &"claimed":
+			if not winner.is_empty():
+				return false
+			winner = role
+		elif not bool(result.get("accepted", true)) and result.get("status") == &"seat_occupied":
+			loser = role
+		else:
+			return false
+	if not both_observed or winner.is_empty() or loser.is_empty() or not _ordinary_seat_race_host_body(winner, true) \
+		or not _ordinary_seat_race_host_body(loser, false):
+		return false
+	var owner: CrewSeatRoleAuthority = _craft.get_crew_role_authority()
+	var assignments: Array = owner.get_snapshot().get("assignments", [])
+	if assignments.size() != 1:
+		return false
+	_ordinary_seat_race_retained["winner"] = winner
+	_ordinary_seat_race_retained["loser"] = loser
+	_ordinary_seat_race_retained["winning_seat"] = (assignments[0] as Dictionary).duplicate(true)
+	return true
+
+func _ordinary_seat_race_restored() -> bool:
+	if not _ordinary_seat_race_host_base():
+		return false
+	var baseline := _ordinary_seat_race_retained.baseline as Dictionary
+	var pilot := int(baseline.pilot_peer)
+	var avatar := GameFlow.network_client_boarding_avatar_id(pilot)
+	var publication := _ordinary_publication(avatar)
+	var wire := publication.get("wire", {}) as Dictionary
+	var walking := _read("client.seat_race_walkers_done").get("identity", {}) as Dictionary
+	var remote := (_game.get("_network_remote_pilots") as Dictionary).get(_craft.get_ship_id(), {}) as Dictionary
+	var helm := _craft.get_command_source() as NetworkRemotePilotCommandSource
+	var current := _ordinary_manifest(pilot, int(baseline.passenger_peer))
+	var old_helm := _ordinary_seat_race_retained.old_helm as WeakRef
+	var assignments: Array = _craft.get_crew_role_authority().get_snapshot().get("assignments", [])
+	var occupancies: Array = _game.network_session.get_boarding_snapshot().get("occupancies", [])
+	var count := 0
+	for held: Dictionary in occupancies:
+		if held.get("ship_id") == _craft.get_ship_id():
+			count += 1
+	return helm != null and old_helm.get_ref() == null and _craft.is_remote_piloted() \
+		and int(remote.get("peer_id", 0)) == pilot and int(helm.get_audit().get("pilot_peer_id", 0)) == pilot \
+		and int((current.ownership as Dictionary).get("owner_peer_id", 0)) == pilot \
+		and int((current.ownership as Dictionary).get("ownership_generation", 0)) > int((baseline.ownership as Dictionary).ownership_generation) \
+		and (current.pilot_seat as Dictionary).get("role") == &"pilot" \
+		and int((current.pilot_seat as Dictionary).get("claim_sequence", 0)) > int((baseline.pilot_seat as Dictionary).claim_sequence) \
+		and current.passenger_boarding == baseline.passenger_boarding and count == 2 and assignments.size() == 1 \
+		and publication.get("occupant") == _craft.get_pilot_seat_anchor() and bool(publication.get("seated", false)) \
+		and int(publication.get("owner_peer_id", 0)) == pilot \
+		and wire.get("entity_id") == avatar and int(wire.get("entity_generation", 0)) == int(walking.get("entity_generation", -1)) \
+		and int(wire.get("occupancy_state", -1)) == NetworkMovingInteriorRelationship.STATE_SEATED \
+		and _game.get_network_remote_body_simulation().get_body(avatar) == null \
+		and _ordinary_seat_race_host_body("client_b", true)
+
+func _ordinary_seat_race_host(baseline: Dictionary) -> bool:
+	var old_helm := _craft.get_command_source() as NetworkRemotePilotCommandSource
+	if not _ordinary_require(old_helm != null, "seat contention starts after full moving completion with the original real helm"):
+		return false
+	_ordinary_seat_race_retained = {"baseline": baseline.duplicate(true), "session": _game.network_session,
+		"owner": _craft.get_crew_role_authority(), "old_helm": weakref(old_helm), "bodies": {},
+		"original_passenger_body": _game.get_network_remote_body_simulation().get_body(GameFlow.network_client_boarding_avatar_id(int(baseline.passenger_peer)))}
+	old_helm = null # Keep no strong test reference across its legitimate retirement.
+	for stage: String in ORDINARY_SEAT_RACE_STAGES:
+		_ordinary_seat_race_stage = stage
+		var before := _craft.global_position
+		var helm_before := _craft.get_command_source() as NetworkRemotePilotCommandSource
+		var delivered_before := int(helm_before.get_audit().get("delivered", 0)) if helm_before != null else 0
+		_write("host.seat_race_" + stage + "_go", {"physics_frame": Engine.get_physics_frames(), "wall": Time.get_unix_time_from_system()})
+		helm_before = null
+		if stage == "race" and not await _ordinary_boundary(_ordinary_seat_race_observe_claims, 8.0,
+			"one shared eight-second contention boundary observes both exact real edges, one physical winner and one occupied-seat loser"):
+			return false
+		for role: String in ["client", "client_b"]:
+			if not await _wait_file(role + ".seat_race_" + stage + "_done",
+				15.0 if stage in ["approach", "loser_clear", "winner_clear", "transfer_approach", "restore_pilot", "restore_passenger"] else 8.0):
+				return false
+		if not _ordinary_require(_ordinary_seat_race_host_base(), "seat contention preserves both original processes' admission, host, craft and role owner: " + stage):
+			return false
+		var owner: CrewSeatRoleAuthority = _craft.get_crew_role_authority()
+		if stage == "walkers":
+			for role: String in ["client", "client_b"]:
+				var receipt := _read(role + ".seat_race_walkers_done")
+				var identity := receipt.get("identity", {}) as Dictionary
+				var admitted := _read(role + ".admitted")
+				var peer := int(identity.get("peer_id", 0))
+				var body := _game.get_network_remote_body_simulation().get_body(GameFlow.network_client_boarding_avatar_id(peer))
+				(_ordinary_seat_race_retained.bodies as Dictionary)[role] = body
+				if not _ordinary_require(int(receipt.get("pid", 0)) == int(admitted.get("pid", -1)) \
+					and str(receipt.get("player_id", "")) == str(admitted.get("player_id", "")) \
+					and peer == int(admitted.get("peer_id", -1)) \
+					and (role != "client_b" or (body == _ordinary_seat_race_retained.original_passenger_body \
+						and int(identity.get("entity_generation", 0)) == int((baseline.passenger_body as Dictionary).entity_generation))) \
+					and (role != "client" or int(receipt.get("stream_id", -1)) > int(receipt.get("prior_stream_id", -1))),
+					"helm release retains the same actual Player/process/admitted peer and appropriate fresh/retained body stream: " + role):
+					return false
+		var check := func() -> bool:
+			if stage == "brake":
+				return _craft.velocity.length() <= 0.1 and _ordinary_pilot_is_current(int(baseline.pilot_peer)) \
+					and _craft.get_last_ship_command().brake
+			if stage == "walkers":
+				var ownership := _game.network_session.get_owned_ship(_craft.get_ship_id())
+				return _ordinary_seat_race_host_body("client", false) and _ordinary_seat_race_host_body("client_b", false) \
+					and not _craft.is_remote_piloted() and not (_game.get("_network_remote_pilots") as Dictionary).has(_craft.get_ship_id()) \
+					and int(ownership.get("owner_peer_id", -1)) == 0 \
+					and int(ownership.get("ownership_generation", 0)) > int((baseline.ownership as Dictionary).ownership_generation)
+			if stage in ["approach", "winner_stand", "winner_clear", "transfer_approach", "release"]:
+				return _ordinary_seat_race_host_body("client", false) and _ordinary_seat_race_host_body("client_b", false) \
+					and (owner.get_snapshot().get("assignments", []) as Array).is_empty()
+			if stage in ["race", "loser_clear"]:
+				return _ordinary_seat_race_host_body(str(_ordinary_seat_race_retained.winner), true) \
+					and _ordinary_seat_race_host_body(str(_ordinary_seat_race_retained.loser), false) \
+					and (owner.get_snapshot().get("assignments", []) as Array).size() == 1
+			if stage == "transfer":
+				var assignments: Array = owner.get_snapshot().get("assignments", [])
+				return assignments.size() == 1 and _ordinary_seat_race_host_body(str(_ordinary_seat_race_retained.loser), true) \
+					and _ordinary_seat_race_host_body(str(_ordinary_seat_race_retained.winner), false) \
+					and int((assignments[0] as Dictionary).get("claim_sequence", 0)) > int((_ordinary_seat_race_retained.winning_seat as Dictionary).claim_sequence) \
+					and int((assignments[0] as Dictionary).get("seat_generation", 0)) == int((_ordinary_seat_race_retained.winning_seat as Dictionary).seat_generation)
+			if stage == "restore_pilot":
+				var helm := _craft.get_command_source() as NetworkRemotePilotCommandSource
+				return helm != null and int(helm.get_audit().get("pilot_peer_id", 0)) == int(baseline.pilot_peer) \
+					and _ordinary_seat_race_host_body("client_b", false)
+			if stage == "restore_passenger":
+				return _ordinary_seat_race_restored()
+			if stage == "renewed":
+				var helm := _craft.get_command_source() as NetworkRemotePilotCommandSource
+				return _ordinary_seat_race_restored() and helm != null and _craft.global_position.distance_to(before) > 5.0 \
+					and int(helm.get_audit().get("delivered", 0)) > delivered_before and helm.is_holding_command() \
+					and _craft.get_last_ship_command().throttle > 0.0 and _craft.velocity.length() > 0.1 \
+					and _craft.get_telemetry().get("engine_state") == HeroShip.ENGINE_ONLINE
+			return false
+		if not await _ordinary_boundary(check, 8.0, "authoritative original actors complete actual seat contention stage: " + stage):
+			return false
+		if stage == "approach":
+			var bodies := _ordinary_seat_race_retained.bodies as Dictionary
+			var first := bodies.client as PlayerController
+			var second := bodies.client_b as PlayerController
+			if not _ordinary_require(first.global_position.distance_to(second.global_position) > 0.8,
+				"both ordinary approaches leave distinct physical contenders at separated points beside the same chair"):
+				return false
+		var checked := {"stage": stage, "first_seen": _ordinary_seat_race_first_seen.duplicate(true)}
+		if _ordinary_seat_race_retained.has("winner"):
+			checked["winner"] = _ordinary_seat_race_retained.winner
+			checked["loser"] = _ordinary_seat_race_retained.loser
+			checked["winning_seat"] = _ordinary_seat_race_retained.winning_seat
+		if stage == "transfer":
+			checked["transfer_seat"] = (owner.get_snapshot().get("assignments", []) as Array)[0]
+		if stage in ["restore_passenger", "renewed"]:
+			checked["manifest"] = _ordinary_manifest(int(baseline.pilot_peer), int(baseline.passenger_peer))
+		_write("host.seat_race_" + stage + "_checked", checked)
+		for role: String in ["client", "client_b"]:
+			if not await _wait_file(role + ".seat_race_" + stage + "_retained", 8.0):
+				return false
+	return true
+
+func _ordinary_seat_race_client() -> bool:
+	var outcome: Dictionary = {}
+	var race_ready: Dictionary = {}
+	var prior_source := _game.get_network_remote_body_intent_source()
+	var prior_stream := int(prior_source.get_audit().get("stream_id", -1))
+	for stage: String in ORDINARY_SEAT_RACE_STAGES:
+		_ordinary_seat_race_stage = stage
+		if not await _wait_file("host.seat_race_" + stage + "_go", 8.0):
+			return false
+		var winner := str(outcome.get("winner", ""))
+		var loser := str(outcome.get("loser", ""))
+		if stage == "brake":
+			if _role == "client":
+				_ordinary_action(&"brake", true)
+			if not await _ordinary_boundary(func(): return _craft.velocity.length() <= 0.1, 8.0,
+				"ordinary pilot brake stops the actual consumed Halyard before relinquishing helm"):
+				return false
+		elif stage == "walkers":
+			if _role == "client":
+				_ordinary_action(&"brake", false)
+			await _ordinary_press(&"interact")
+			if not await _ordinary_boundary(func(): return _ordinary_supported_cabin() and not _player.is_seated() \
+				and not bool(_game.get("_piloting")) and _ordinary_hud_role_is_current(&"passenger"), 8.0,
+				"ordinary Interact releases the original helm/chair into a confirmed supported walking berth"):
+				return false
+			var source := _game.get_network_remote_body_intent_source()
+			_ordinary_walking_identity = {"peer_id": _ordinary_peer_id, "entity_id": str(source.get_entity_id()),
+				"entity_generation": source.get_entity_generation(), "player_id": str(_ordinary_player_id)}
+		elif stage in ["approach", "loser_clear", "winner_clear", "transfer_approach"]:
+			if stage == "approach" or (stage in ["loser_clear", "transfer_approach"] and _role == loser) \
+				or (stage == "winner_clear" and _role == winner):
+				if not await _ordinary_walk_to(_ordinary_seat_race_waypoint(_role, stage in ["loser_clear", "winner_clear"]), true):
+					return false
+				if stage in ["approach", "transfer_approach"]:
+					await _ordinary_look(_station_anchor().global_position + Vector3.UP * 1.2)
+					if not await _ordinary_boundary(func(): return _game.station_interaction_candidate is ShipCrewSeat \
+						and (_game.station_interaction_candidate as ShipCrewSeat).get_seat_anchor() == _station_anchor(),
+						8.0, "ordinary separated approach discovers the same physical crew_port_00 target"):
+						return false
+		elif stage == "race":
+			# Both peers execute this immediately after the same ready/go barrier.
+			await _ordinary_press(&"interact")
+		elif stage in ["winner_stand", "release"]:
+			if _role == (winner if stage == "winner_stand" else loser):
+				await _ordinary_press(&"interact")
+				if not await _ordinary_boundary(_ordinary_seat_race_local_walking, 8.0,
+					"ordinary current occupant stands from the same contested physical chair: " + stage):
+					return false
+		elif stage == "transfer":
+			if _role == loser:
+				await _ordinary_press(&"interact")
+				if not await _ordinary_boundary(_ordinary_local_passenger_is_current, 8.0,
+					"the original rejected contender freshly claims that same physical chair after normal release"):
+					return false
+		elif stage == "restore_pilot" and _role == "client":
+			await _client_loadmaster_pilot()
+			if not _failures.is_empty() or not _ordinary_local_pilot_is_current():
+				return false
+		elif stage == "restore_passenger" and _role == "client_b":
+			if not await _ordinary_walk_to((_station_contract().entry_transform as Transform3D).origin, true):
+				return false
+			await _ordinary_look(_station_anchor().global_position + Vector3.UP * 1.2)
+			await _ordinary_press(&"interact")
+			if not await _ordinary_boundary(_ordinary_local_passenger_is_current, 8.0,
+				"original passenger physically retakes the same chair after original pilot restoration"):
+				return false
+		elif stage == "renewed" and _role == "client":
+			_ordinary_action(&"move_forward", true, 0.35)
+		var receipt := _ordinary_seat_race_local_receipt()
+		if stage == "walkers":
+			receipt["prior_stream_id"] = prior_stream
+		if stage == "approach":
+			race_ready = receipt.duplicate(true)
+		_write(_role + ".seat_race_" + stage + "_done", receipt)
+		if not await _wait_file("host.seat_race_" + stage + "_checked", 8.0):
+			return false
+		var checked := _read("host.seat_race_" + stage + "_checked")
+		if stage == "race":
+			outcome = checked
+			winner = str(outcome.get("winner", ""))
+			loser = str(outcome.get("loser", ""))
+			if not await _ordinary_boundary(func():
+				var view := _game.network_session.get_passenger_replica_snapshot()
+				var result := view.get("crew_interaction_result", {}) as Dictionary
+				var source := _game.get_network_remote_body_intent_source()
+				var exact: bool = int(result.get("interaction_request_id", 0)) == int(race_ready.get("request_id", 0)) + 1 \
+					and int(result.get("interaction_request_id", 0)) == source.get_interaction_request_id() \
+					and int(result.get("stream_id", -1)) == int(race_ready.get("stream_id", -2)) \
+					and result.get("entity_id") == source.get_entity_id() \
+					and int(result.get("entity_generation", 0)) == source.get_entity_generation() \
+					and int(result.get("owner_peer_id", 0)) == _ordinary_peer_id \
+					and result.get("seat_id") == HalyardCrewTransport.LOADMASTER_STATION_SEAT_ID
+				if _role == winner:
+					return exact and bool(result.get("accepted", false)) and _ordinary_local_passenger_is_current() \
+						and int(_game.hud.get("_toast_serial")) == int(race_ready.toast_serial)
+				return _role == loser and exact and result.get("status") == &"seat_occupied" \
+					and _ordinary_seat_race_local_walking() and _game.get("_network_engineer_pending_seat") == null \
+					and int(_game.hud.get("_toast_serial")) == int(race_ready.toast_serial) + 1 \
+					and (_game.hud.get("_toast_title") as Label).text == "CREW SEAT UNAVAILABLE" \
+					and (_game.hud.get("_toast_detail") as Label).text == "Another crew member occupies this chair"
+			, 8.0, "both original contenders consume one real winner/refusal, truthful controls and exact once-only requester feedback"):
+				return false
+		elif stage == "loser_clear" and _role == loser:
+			if not _ordinary_require(int(_game.hud.get("_toast_serial")) == int(race_ready.toast_serial) + 1,
+				"retained periodic refusal cannot replay while the original loser walks clear"):
+				return false
+		elif stage == "transfer" and _role == loser:
+			var view := _game.network_session.get_passenger_replica_snapshot()
+			if not _ordinary_require((view.get("assignment", {}) as Dictionary) == (checked.get("transfer_seat", {}) as Dictionary),
+				"original loser consumes the host's fresh same-generation newer chair claim"):
+				return false
+		elif stage in ["restore_passenger", "renewed"]:
+			var manifest := checked.get("manifest", {}) as Dictionary
+			if not await _ordinary_boundary(func(): return _ordinary_consumed_manifest_current(manifest), 8.0,
+				"both original players consume fresh current restored body/frame/seat/ownership and honest roles: " + stage):
+				return false
+			if stage == "renewed":
+				if not _ordinary_require(_craft.velocity.length() > 0.1 and _ordinary_moving_engine_online(),
+					"both original peers consume renewed actual authoritative flight after physical role restoration"):
+					return false
+				if _role == "client":
+					_ordinary_action(&"move_forward", false)
+		_write(_role + ".seat_race_" + stage + "_retained", _ordinary_seat_race_local_receipt())
 	return true
 
 
@@ -4217,6 +4604,14 @@ func _ordinary_failure_snapshot(description: String) -> Dictionary:
 		"original_player_id": str(_ordinary_player_id), "walking_identity": _ordinary_walking_identity,
 		"moving_selected": _ordinary_two_client_moving,
 		"shared_abort": _ordinary_fields(_read("abort"), ["role", "description", "snapshot"])}
+	if _ordinary_two_client_seat_race:
+		snapshot["seat_race"] = {"stage": _ordinary_seat_race_stage,
+			"first_seen": _ordinary_seat_race_first_seen.duplicate(true),
+			"first_ready": _read("client.seat_race_approach_done"),
+			"second_ready": _read("client_b.seat_race_approach_done"),
+			"resolved": _read("host.seat_race_race_checked"),
+			"transfer": _read("host.seat_race_transfer_checked"),
+			"restored": _read("host.seat_race_restore_passenger_checked")}
 	if _ordinary_two_client_authority_stop:
 		snapshot["authority_stop"] = {"events": _ordinary_authority_events.duplicate(true),
 			"original_adapter_valid": is_instance_valid(_ordinary_authority_adapter)}
