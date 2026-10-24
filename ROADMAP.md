@@ -43,6 +43,37 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
+**Selected: SERVER-BASELINE-LATE-JOIN — join an airborne session, dock and join its crew.**
+One non-playing Main authority and TWO independent clients. A uses normal HUD join,
+authored walking/hatch/pilot entry and sampled thrust to move the host craft>5m.
+Only that actual departure permits B's process to start. A holds normal brake near
+home; B's normal HUD join must consume fresh current airborne craft/ownership/A
+seated-body state while B remains an unclaimed station Player. This is joining
+after actual departure while airborne, not continuous motion during admission.
+
+A's sole ordinary landing input must produce actual strict physical home docking,
+real berth occupancy and committed host landing state consumed by both clients.
+Preserve A's exact pilot/helm/claim/body/frame/ownership identities; landing-entity
+generation is separate. B then completes the full authored station walk/hatch/chair
+route. Reorder the old both-admitted barrier to serve A first without dropping any
+ordinary boarding assertions. Both complete the original two-seat BOARD contract,
+all seven MOVING cabin stages and full terminal handshake/three actual OS exits0.
+
+One high-effort implementer owns only the existing Halyard passenger route test;
+root owns docs/Git/engines/cleanup, one independent lifecycle reviewer. Selector
+`--ordinary-two-client-late-join`; original300s/global,360s/outer,60s cold Main,
+20s admission,8s transitions,15s walks and10s abort/exit remain. Selected near-home
+docking route has24s plus8s consumer bounds inside the same global cap;24s is a
+case budget, not a claim about the production assist's derived maximum. Check
+actual capture before the sole landing input; stop if unsupported. No direct
+claims/landing calls, placement, tuning, generation writes or new evidence family.
+Strict compile then ONE complete trial; first failure stops for causal/cumulative
+priority review, no unchanged retry or cap extension. Estimate45–60min implementation
+and10–20min checks/review/cleanup; split before90min on the same case clock.
+Qualification only unless a real runtime defect is demonstrated. Runtime repair
+needs focused proof and a fresh checkpoint. Dummy/headless/private-Xvfb/x11; Actions
+disabled; broader baseline/endurance/exported/native/human gates remain open.
+
 **SERVER-BASELINE-SEAT-RACE DONE — `99c9fc1af`.**
 The complete original non-playing authority/two-client BOARD and seven MOVING
 stages now continue through ordinary helm release, two supported contenders and
@@ -67,9 +98,7 @@ full baseline, endurance, exported/native/device/human and all36 parent/ten phas
 gates remain open. Actions stays disabled.
 [Result and retained failures](docs/history/ROADMAP_DELIVERIES.md#server-baseline-seat-race--accepted--2026-10-24).
 
-Next action: bound the original SERVER-BASELINE late-join case against the existing
-Main/ENet admission lifecycle, with a complete usable-crew/flight endpoint before
-selecting its implementation or engine trial. No parked case is automatically retried.
+The next late-join case is separately bounded above. No parked case is automatically retried.
 
 
 **HALYARD occupied-chair feedback DONE — `bcd268c75`; checkpoint `bcd268c`.**
