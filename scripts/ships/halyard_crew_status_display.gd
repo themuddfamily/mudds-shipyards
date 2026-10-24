@@ -120,6 +120,15 @@ func present_engineer_repair_snapshot(envelope: Dictionary) -> Dictionary:
 	return _repair_result(true, &"snapshot_presented")
 
 
+## A network cabin cannot substitute this machine's unused repair inventory
+## while it waits for the current host view. Other panel rows stay visible.
+func present_engineer_repair_waiting() -> void:
+	_repair_view = {"state": &"awaiting_host"}
+	_display_snapshot["engineer_repair"] = _repair_view.duplicate(true)
+	if is_instance_valid(_readout):
+		_readout.text = _format_readout(_display_snapshot)
+
+
 func begin_repair_generation(generation: int) -> Dictionary:
 	if generation <= _repair_generation or generation > MAX_SAFE_GENERATION:
 		return _repair_result(false, &"stale_generation")
@@ -229,6 +238,8 @@ func _route_token(channel: StringName) -> String:
 
 func _repair_token(repair: Dictionary) -> String:
 	var status := StringName(repair.get("state", repair.get("status", &"idle")))
+	if status == &"awaiting_host":
+		return "[AWAITING HOST]"
 	var component := _readable_id(StringName(repair.get("component_id", &"")))
 	var percent := int(round(clampf(float(repair.get("progress", 0.0)), 0.0, 1.0) * 100.0))
 	var resource_units := int(repair.get("resource_units", 0))

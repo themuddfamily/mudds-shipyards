@@ -15,6 +15,7 @@ var _player: PlayerController
 var _port := 0
 var _store_path := ""
 var _package_under_test := ""
+var _halyard_panel_progress_seen := false
 
 func _init() -> void:
 	call_deferred("_run")
@@ -310,8 +311,20 @@ func _client() -> void:
 	var repair_view := _game.network_session.get_engineer_replica_snapshot()
 	print("ENGINEER_REPAIR_TARGET_READY: marker=", ready, " replica_tick=", repair_view.server_tick,
 		" revision=", repair_view.revision, " integrity=", (repair_view.components as Dictionary).get(&"engine_bay"))
+	var local_repair: Dictionary = {}
+	var local_components: Dictionary = {}
+	if _halyard:
+		local_repair = _craft.get_engineer_repair_state()
+		local_components = _craft.get_component_damage().get_component_report()
 	await _press(source.fire_action)
-	_check(await _until(func(): return int(((_game.network_session.get_engineer_replica_snapshot().get("gameplay", {}) as Dictionary).get("repair", {}) as Dictionary).get("resource_units", 6)) == 5, 8.0), "ordinary transformed FIRE completes finite repair with replicated stock")
+	_check(await _until(func():
+		if _halyard:
+			_observe_halyard_repair_panel_progress()
+		var spent := int(((_game.network_session.get_engineer_replica_snapshot().get("gameplay", {}) as Dictionary).get("repair", {}) as Dictionary).get("resource_units", 6)) == 5
+		return spent and (not _halyard or _halyard_panel_completed()), 8.0), "ordinary transformed FIRE completes finite repair with replicated stock")
+	if _halyard:
+		_check(_halyard_panel_progress_seen, "actual received host repair progress reaches the physical Halyard cabin panel during ordinary FIRE")
+		_check(_halyard_panel_completed(), "actual host completion and five remaining kits reach the physical Halyard cabin panel")
 	print("ENGINEER_CLIENT_REPAIR: wall=", Time.get_unix_time_from_system(), " view=", _game.network_session.get_engineer_replica_snapshot(), " body_source=", _game.get_network_remote_body_intent_source().get_audit())
 	_check(_craft.get_crew_role_authority() == null, "client has no component-repair or role authority")
 	_write("client.repaired", {})
@@ -328,6 +341,18 @@ func _client() -> void:
 	await _ticks(20)
 	_check(_player.is_on_floor() and _player.is_control_enabled(), "stood client is supported and controls remain enabled")
 	_check(source.get_authority_peer_id() == 1, "standing restores borrowed transformed input owner")
+	if _halyard:
+		var walking_view := _game.network_session.get_engineer_replica_snapshot()
+		_check(walking_view.get("ship_id") == _craft.get_ship_id()
+			and not bool(walking_view.get("seated", true))
+			and (walking_view.get("assignment", {}) as Dictionary).is_empty()
+			and int(((walking_view.get("gameplay", {}) as Dictionary).get("repair", {}) as Dictionary).get("resource_units", 0)) == 5,
+			"actual host standing replica retains spent repair stock without an engineer assignment")
+		_craft.refresh_crew_status_display()
+		_check(_craft.get_crew_status_display().get_readout_text().contains("KITS 5/6"), "standing and local cabin refresh retain host kit stock on the physical panel")
+		_check(_craft.get_engineer_repair_state() == local_repair
+			and _craft.get_component_damage().get_component_report() == local_components,
+			"received host repair and standing presentation leave client repair authority and component ledger unchanged")
 	_write("client.stood", {})
 	if not await _wait_file("host.stand_checked", 10.0):
 		return
@@ -402,7 +427,29 @@ func _client() -> void:
 		return
 	_game.shutdown_network_session(&"engineer_client_disconnect")
 	_check(not _player.is_seated() and _player.is_control_enabled(), "disconnect leaves local player awake with controls")
+	if _halyard:
+		var stopped_panel: String = _craft.get_crew_status_display().get_readout_text()
+		_check(stopped_panel.contains("IDLE // REPAIR READY") and stopped_panel.contains("KITS 6/6"),
+			"actual client session stop restores local Halyard repair presentation and unspent local stock")
 	_write("client.disconnected", {})
+
+func _observe_halyard_repair_panel_progress() -> void:
+	var view := _game.network_session.get_engineer_replica_snapshot()
+	var repair := (view.get("gameplay", {}) as Dictionary).get("repair", {}) as Dictionary
+	var progress := float(repair.get("progress", 0.0))
+	if view.get("ship_id") != _craft.get_ship_id() or repair.get("status") != &"repairing" or progress <= 0.0:
+		return
+	var text: String = _craft.get_crew_status_display().get_readout_text()
+	if text.contains("REPAIRING") and text.contains("%d%%" % roundi(progress * 100.0)):
+		_halyard_panel_progress_seen = true
+
+func _halyard_panel_completed() -> bool:
+	var view := _game.network_session.get_engineer_replica_snapshot()
+	var repair := (view.get("gameplay", {}) as Dictionary).get("repair", {}) as Dictionary
+	var text: String = _craft.get_crew_status_display().get_readout_text()
+	return view.get("ship_id") == _craft.get_ship_id() and repair.get("status") == &"completed" \
+		and int(repair.get("resource_units", 0)) == 5 \
+		and text.contains("COMPLETED") and text.contains("KITS 5/6")
 
 func _repair_target_replica_ready(ready: Dictionary) -> bool:
 	var view := _game.network_session.get_engineer_replica_snapshot()

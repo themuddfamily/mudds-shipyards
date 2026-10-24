@@ -1028,6 +1028,7 @@ var _network_engineer_fire_elapsed := 0.0
 var _network_engineer_stand_requested := false
 var _network_engineer_client_claim := 0
 var _network_engineer_orphan_release: Dictionary = {}
+var _network_halyard_repair_panel_ship: HalyardCrewTransport
 var _network_gunner_fire := false
 var _network_engineer_recovery_local := Transform3D.IDENTITY
 var _solo_gunner_input_elapsed := 0.0
@@ -1517,6 +1518,7 @@ func _on_game_flow_tree_exiting() -> void:
 
 
 func _exit_tree() -> void:
+	_clear_network_halyard_repair_panel()
 	_disconnect_ship_service_consoles()
 	_activity_board_proximity_prompt_rendered = false
 	_capture_pilot_reservation_for_reentry()
@@ -7588,6 +7590,7 @@ func _on_network_session_started(mode: StringName) -> void:
 
 
 func _on_network_session_stopped(reason: StringName) -> void:
+	_clear_network_halyard_repair_panel()
 	_retire_network_client_bunk_rest()
 	_disconnect_client_navigator_audio()
 	# Stopped-session teardown must not announce the old host claim as a fresh
@@ -7809,6 +7812,7 @@ func _on_network_migration_result(result: Dictionary) -> void:
 	if _network_session_mode != &"client" or not bool(result.get("accepted", false)) \
 			or not is_instance_valid(network_session):
 		return
+	_clear_network_halyard_repair_panel()
 	_retire_network_client_bunk_rest()
 	var generation := int(
 		network_session.get_migration_snapshot().get("migration_generation", 0)
@@ -14311,6 +14315,7 @@ func _on_network_movement_intent_result(result: Dictionary) -> void:
 
 
 func unbind_network_remote_body() -> Dictionary:
+	_clear_network_halyard_repair_panel()
 	_retire_network_client_bunk_rest()
 	if not _network_client_ember_passenger_surface.is_empty():
 		_retire_network_client_ember_passenger_surface()
@@ -15384,6 +15389,7 @@ func _network_local_cabin_prediction_is_current(body: Variant, craft: Variant, s
 ## or being recovered to the deck, and in neither case should the hull's motion
 ## be imparted to the avatar.
 func _release_cabin_occupancy() -> void:
+	_clear_network_halyard_repair_panel()
 	player.clear_cabin_containment()
 	if is_instance_valid(_cabin_ship) and _cabin_ship.is_inside_tree():
 		var frame := _cabin_ship.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
@@ -26617,6 +26623,7 @@ func _request_network_engineer_stand() -> void:
 
 
 func _advance_network_engineer(delta: float) -> void:
+	_sync_network_halyard_repair_panel()
 	# Establish/retire the exact client recipient before seated input can
 	# publish its once-only navigator command in this physics step.
 	_sync_client_navigator_audio_lifetime()
@@ -26662,6 +26669,52 @@ func _advance_network_engineer(delta: float) -> void:
 		_network_engineer_pending_elapsed += delta
 		if _network_engineer_pending_elapsed > 4.0:
 			_network_engineer_pending_seat = null
+
+
+## All admitted cabin occupants receive this repair view, including a walking
+## peer with no engineer assignment. Keep it separate from chair input/claims.
+func _sync_network_halyard_repair_panel() -> void:
+	var craft := _cabin_ship as HalyardCrewTransport
+	if not is_instance_valid(craft) or not craft.is_inside_tree() or craft.is_queued_for_deletion() \
+			or craft.is_destroyed() or not _network_local_cabin_prediction_is_current(player, craft, network_session):
+		_clear_network_halyard_repair_panel()
+		return
+	if _network_halyard_repair_panel_ship != craft:
+		_clear_network_halyard_repair_panel()
+		_network_halyard_repair_panel_ship = craft
+	var view := network_session.get_engineer_replica_snapshot()
+	var admission := network_session.get_server_offer().get("admission", {}) as Dictionary
+	var peer := admission.get("peer", {}) as Dictionary
+	var epoch := network_session.get_migration_snapshot()
+	var repair: Dictionary = {}
+	if _network_remote_body_intent_source != null and _network_remote_body_intent_source.is_bound() \
+			and _network_remote_body_intent_source.get_entity_id() == network_client_boarding_avatar_id(_network_client_peer_id()) \
+			and _network_remote_body_intent_source.get_entity_generation() > 0 \
+			and int(_network_remote_body_intent_source.get_audit().get("stream_id", -1)) >= 0 \
+			and _network_client_boarding_claim_server_tick >= 0 and admission.get("accepted") == true \
+			and view.get("ship_id") == craft.get_ship_id() \
+			and int(view.get("recipient_peer_id", 0)) == _network_client_peer_id() \
+			and int(peer.get("peer_id", 0)) == _network_client_peer_id() \
+			and int(peer.get("peer_generation", 0)) > 0 \
+			and int(view.get("peer_generation", 0)) == int(peer.peer_generation) \
+			and int(view.get("session_generation", 0)) == int(epoch.get("session_generation", 0)) \
+			and int(view.get("migration_generation", 0)) == int(epoch.get("migration_generation", 0)) \
+			and int(view.get("server_tick", -1)) >= _network_client_boarding_claim_server_tick \
+			and int(view.get("binding_generation", 0)) > 0 and int(view.get("revision", 0)) > 0:
+		var assignment := view.get("assignment", {}) as Dictionary
+		if assignment.is_empty() or (assignment.get("avatar_id") == _network_remote_body_intent_source.get_entity_id() \
+				and int(assignment.get("occupant_peer_id", 0)) == _network_client_peer_id() \
+				and int(view.get("entity_generation", 0)) == _network_remote_body_intent_source.get_entity_generation() \
+				and assignment.get("role") == &"engineer" and assignment.get("seat_id") == HalyardCrewTransport.ENGINEER_SEAT_ID):
+			repair = ((view.get("gameplay", {}) as Dictionary).get("repair", {}) as Dictionary)
+	craft.set_network_engineer_repair_presentation(true, repair)
+
+
+func _clear_network_halyard_repair_panel() -> void:
+	if is_instance_valid(_network_halyard_repair_panel_ship):
+		_network_halyard_repair_panel_ship.set_network_engineer_repair_presentation(false)
+	_network_halyard_repair_panel_ship = null
+
 
 func _request_network_orphan_crew_release(view: Dictionary, assignment: Dictionary) -> void:
 	# The caller has authenticated this exact current role against the bound

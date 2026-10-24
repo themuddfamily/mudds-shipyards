@@ -211,6 +211,13 @@ func _check_host_repair_panel(craft: Node, display: Node) -> void:
 	flow._network_client_boarding_claim_server_tick = 10
 	flow._network_remote_body_intent_source = BodySource.new()
 	flow._network_remote_body_intent_source.bind(GameFlowType.network_client_boarding_avatar_id(7), 1, 1)
+	flow._advance_network_engineer(0.0)
+	craft.refresh_crew_status_display()
+	_check(
+		display.get_readout_text().contains("AWAITING HOST")
+			and not display.get_readout_text().contains("KITS"),
+		"a current client cabin awaits its host instead of showing local kit authority"
+	)
 	# Deliberately stage the already-admitted replica boundary, not transport
 	# admission. The separate real ENet route proves publication and receipt.
 	# Empty assignment is the host's normal view for a walking cabin occupant.
@@ -222,6 +229,15 @@ func _check_host_repair_panel(craft: Node, display: Node) -> void:
 		"assignment": {}, "seated": false, "entity_generation": 0,
 		"gameplay": progress.duplicate(true), "components": {},
 	}
+	var previous_grant := packet.duplicate(true)
+	previous_grant["server_tick"] = 9
+	session._engineer_replica_snapshot = previous_grant
+	flow._advance_network_engineer(0.0)
+	_check(
+		display.get_readout_text().contains("AWAITING HOST")
+			and not display.get_readout_text().contains("REPAIRING"),
+		"a cached repair view from before the current boarding grant cannot populate the panel"
+	)
 	session._engineer_replica_snapshot = packet.duplicate(true)
 	flow._advance_network_engineer(0.0)
 	var percent := "%d%%" % roundi(float(repair.get("progress", 0.0)) * 100.0)

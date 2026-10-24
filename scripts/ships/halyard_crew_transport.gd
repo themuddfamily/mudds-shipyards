@@ -442,6 +442,8 @@ var _crew_role_authority: CrewSeatRoleAuthority
 var _crew_status_display: Node3D
 var _crew_status_repair_sequence := -1
 var _skip_next_crew_status_repair_snapshot := false
+var _network_engineer_repair_presentation_enabled := false
+var _network_engineer_repair_presentation: Dictionary = {}
 var _loadmaster_station_sign: Label3D
 var _loadmaster_wayfinding_panel: MeshInstance3D
 var _loadmaster_wayfinding_role_key: MeshInstance3D
@@ -751,7 +753,9 @@ func refresh_crew_status_display() -> Dictionary:
 	if not is_inside_tree() or _crew_status_display == null or not is_instance_valid(_crew_status_display):
 		return {}
 	var snapshot := get_crew_role_gameplay_snapshot()
-	if _skip_next_crew_status_repair_snapshot:
+	if _network_engineer_repair_presentation_enabled and _network_engineer_repair_presentation.is_empty():
+		_crew_status_display.present_engineer_repair_waiting()
+	elif _skip_next_crew_status_repair_snapshot:
 		_skip_next_crew_status_repair_snapshot = false
 	else:
 		_crew_status_repair_sequence = mini(
@@ -759,14 +763,31 @@ func refresh_crew_status_display() -> Dictionary:
 			HalyardCrewStatusDisplayType.MAX_SAFE_SEQUENCE
 		)
 		var repair_presentation: Dictionary = _crew_status_display.get_repair_presentation_snapshot()
-		_crew_status_display.present_engineer_repair_snapshot({
+		var result: Dictionary = _crew_status_display.present_engineer_repair_snapshot({
 			"generation": int(repair_presentation.get("generation", 0)),
 			"sequence": _crew_status_repair_sequence,
-			"repair_snapshot": get_engineer_repair_network_snapshot(),
+			"repair_snapshot": {
+				"repair": _network_engineer_repair_presentation.duplicate(true),
+				"owner": {}, "presentation_only": true,
+			} if _network_engineer_repair_presentation_enabled else get_engineer_repair_network_snapshot(),
 		})
+		if _network_engineer_repair_presentation_enabled and not bool(result.get("accepted", false)):
+			_crew_status_display.present_engineer_repair_waiting()
 	var display_snapshot: Dictionary = _crew_status_display.present_crew_snapshot(snapshot)
 	_present_loadmaster_station_snapshot(snapshot.get("loadmaster_manifest", {}))
 	return display_snapshot
+
+
+## Display facts only: the host repair view never enters this craft's repair
+## authority, stock, component ledger or gameplay snapshot.
+func set_network_engineer_repair_presentation(enabled: bool, repair: Dictionary = {}) -> void:
+	if enabled == _network_engineer_repair_presentation_enabled \
+			and (not enabled or repair == _network_engineer_repair_presentation):
+		return
+	_network_engineer_repair_presentation_enabled = enabled
+	_network_engineer_repair_presentation = repair.duplicate(true) if enabled else {}
+	_skip_next_crew_status_repair_snapshot = false
+	refresh_crew_status_display()
 
 
 func get_crew_status_display() -> Node3D:
@@ -4685,6 +4706,8 @@ func _clear_engineer_component_selection(
 
 
 func _clear_engineer_status_display_lifecycle() -> void:
+	_network_engineer_repair_presentation_enabled = false
+	_network_engineer_repair_presentation.clear()
 	_crew_status_repair_sequence = -1
 	_skip_next_crew_status_repair_snapshot = true
 	if _crew_status_display != null and is_instance_valid(_crew_status_display):
