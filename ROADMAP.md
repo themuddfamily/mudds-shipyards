@@ -42,6 +42,23 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
+**PLAY-DEFENSE first-point full journey selected — one conditional attempt.**
+Retained forecast cleared the full first segment/endpoints to[-71,10,-90] with
+9.135099m whole-hull radius. The blocked151m second leg stays rejected. Source
+makes the player-origin envelope advisory; stop at the first point and retain
+fresh live whole-hull/current-leg clearance plus actual camera/next-muzzle exact
+first-hit/readiness gates. Arrival, all-wave visibility and timing are unproven.
+No alternate point/search, boost, actor/tuning/mask/damage/clock change.
+
+Keep original walk/Deploy/Arrow boarding/16m departure and all four real kills,
+once-only actual-file payment, strict home/OFFLINE physical exit, physical
+Reset/next Deploy availability and normal UI gameOS0. Encounter34s/driver300s/
+outer360s unchanged. One implementer owns the five archived qualification files,
+independent reviewer; root owns checks/private Linux export/strict startup,
+package comparison and one full input run. Estimate20–30min implementation/review,
+~2min prechecks and≤6min run. First failure stops for causal review. Public9af4851
+stays current until actual product changes justify another checkpoint.
+
 **SERVER-BASELINE moving sleep/wake case DONE —8b0845486.**
 Full ordinary BOARD/seven MOVING, physical Port-bunk approach, sleep/wake,
 supported1.212m walk and physical original-chair return/reseat pass159.806s
