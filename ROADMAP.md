@@ -9,9 +9,9 @@ whole-feature completion.
 Latest playable checkpoint: **9af4851**. Deploy now arms Station Defense;
 enemies and the34-second timer start on actual pilot departure. Cancel, reset,
 cold-load inactivity and pending rewards remain protected. Full Defense combat
-qualification remains open: the current automated caller clears two of four
-hostiles before timeout. Bomber seat refill/presentation and prior deliveries
-remain included. [Windows ZIP](builds/windows/MuddsShipyards-9af4851-checkpoint.zip),
+qualification remains open: an earlier caller cleared two of four; the latest
+first-point attempt stopped without a kill. Bomber seat refill/presentation and
+prior deliveries remain included. [Windows ZIP](builds/windows/MuddsShipyards-9af4851-checkpoint.zip),
 [build notes](builds/windows/MuddsShipyards-9af4851-notes.txt).
 
 This page is the working queue. The
@@ -42,22 +42,23 @@ been defined. Do not turn test counts, commits or row counts into project progre
 
 ## Execution now
 
-**PLAY-DEFENSE first-point full journey selected — one conditional attempt.**
-Retained forecast cleared the full first segment/endpoints to[-71,10,-90] with
-9.135099m whole-hull radius. The blocked151m second leg stays rejected. Source
-makes the player-origin envelope advisory; stop at the first point and retain
-fresh live whole-hull/current-leg clearance plus actual camera/next-muzzle exact
-first-hit/readiness gates. Arrival, all-wave visibility and timing are unproven.
-No alternate point/search, boost, actor/tuning/mask/damage/clock change.
+**PLAY-DEFENSE first-point journey stopped — combat remains unqualified.**
+Actual ordinary flight reached[-70.914,10.140,-90.916] with live whole-hull
+clearance. In combat, two actual Arrow hits reduced Alpha85→37; no hostile was
+killed. The run stopped94.626s/encounter elapsed28.15s when the caller wrongly
+rejected an authored miss sentinel. That representation is corrected and157
+Python tests pass, but no new full trial followed. Four kills/payment/home/Reset/
+next Deploy/UIexit remain unqualified under unchanged34/300/360s limits.
 
-Keep original walk/Deploy/Arrow boarding/16m departure and all four real kills,
-once-only actual-file payment, strict home/OFFLINE physical exit, physical
-Reset/next Deploy availability and normal UI gameOS0. Encounter34s/driver300s/
-outer360s unchanged. One implementer owns the five archived qualification files,
-independent reviewer; root owns checks/private Linux export/strict startup,
-package comparison and one full input run. Estimate20–30min implementation/review,
-~2min prechecks and≤6min run. First failure stops for causal review. Public9af4851
-stays current until actual product changes justify another checkpoint.
+Recorded first-hit windows were brief and world/core obstructions intermittent.
+Camera and hull directions agree; no camera-basis repair is supported. The miss
+fix alone cannot establish the full remaining wave sequence inside5.85s. No
+unchanged retry, alternate point, boost, gameplay/tuning/mask or cap change selected.
+Five-file candidateaae77205a is archived/unmerged; public9af4851 stays current.
+All8 stages terminal/32 sampled identities absent,88 scratch entries verified/
+removed. Private package moved out of builds and duplicate ELF removed.107 result
+members are preserved in one verified case-records.tar.gz plus closeout.json.
+[Outcome, scope and preserved archive](docs/history/ROADMAP_DELIVERIES.md#defense-first-point-journey--stopped--2026-10-24).
 
 **SERVER-BASELINE moving sleep/wake case DONE —8b0845486.**
 Full ordinary BOARD/seven MOVING, physical Port-bunk approach, sleep/wake,
@@ -125,7 +126,7 @@ byte-identical to those tested production files; fresh paired packages/three
 strict startups/actual1,527-entry payload and archive checks pass. Full source
 and scoped actual-result/notes reviews GO; EXE/ZIP/notes in builds/.
 
-**PLAY-DEFENSE remains FAILED/open.** The full archived caller clears only two
+**Earlier full PLAY-DEFENSE failure remains retained.** The archived caller clears only two
 of four hostiles before true timeout34.0167s; zero reward, home/reset/next Deploy/
 normal UI exit not reached. Of57 Arrow shots,23 miss,13 hit friendly blocks and
 12 hit world blocks. Alignment-only stationary firing does not establish clear
@@ -183,7 +184,7 @@ these six problems. Archival and branch deletion do not complete these outcomes.
 | --- | --- |
 | Browser/network timeout (2) | Obtain matching RPC-cache-patched Windows/Linux templates and pass the original complete timeout/retry journey. Current stock4.7.1 pair does not satisfy this dependency; patched Windows compilation exhausted its previous budgets. Callback cause/repair remains unverified. |
 | UI transition, Mining and Observation (3) | Identify the original popup/connection-removal failure, prove a repair against that event, and finish the full Mining and Observation journeys. Later clean Beacon/tooltip runs did not establish a UI fix. |
-| Defense (1) | Launch-start rule delivered9af48515a. Latest full caller still times out34.0167s with2/4 kills and zero reward;57 shots include25 world/friendly blocks. Establish an ordinary clear-fire plan, then retain all four kills/payment/home/Reset/next Deploy/UIexit. No new retry selected. |
+| Defense (1) | Launch-start rule delivered9af48515a. Earlier full caller2/4 kills/timeout34.0167s retained. Latest first-point flight succeeds, but combat stops at28.15s with Alpha37/no kills on valid-miss caller bug. Sentinel corrected/Python-only; tracking, occlusion and brief input-window timing remain unqualified. Full four kills/payment/home/Reset/next Deploy/UIexit retained; no retry selected. |
 | Hulk revisit (1) | Complete physical revisit and once-only breaker/cell/reward within the original300s. Last capture showed continuing supported movement; stage costs remain unlocalized. |
 | Rime crew arrival (1) | Original full cost capture still fails peer landing gate1624.422s.105 sampled function frames identify costs, but missing accumulated/native attribution and actual controller leg prevent a supported repair. No retry selected; full two-crew survey/reward/save/home remains required. |
 | Jovian reload (1) | Restore usable normal continuation within the original30s. State restoration succeeded at27.762s, but the first normal frame pair did not complete; no startup repair is established. |
@@ -451,7 +452,8 @@ startup owners terminal,18 observed identities absent,201 profile entries verifi
 before owned scratch removal. No new branch/worktree; protected worktrees intact.
 [Fix, validation and limits](docs/history/ROADMAP_DELIVERIES.md#defense-autonomous-flight-boundary-fixed-and-checkpointed--2026-10-20).
 
-**PLAY-DEFENSE remains OPEN/PARKED — candidate `0b11486e0` withheld.**
+**Historical PLAY-DEFENSE candidate `0b11486e0` remains unqualified.**
+Current first-point failure and next-action limits are recorded at Execution now.
 The completed-motion correction now passes the original walking route, real
 Arrow boarding and departure. One actual player kill is recorded. The full
 encounter then aborts at frame3184 with three hostiles remaining and elapsed
@@ -872,7 +874,7 @@ contracts and cumulative attempt records remain in the retained history.
 
 | Outcome | Last actual result | Condition before more work |
 | --- | --- | --- |
-| PLAY-DEFENSE ordinary route /13 | Autonomous enemy escape fixed3767687; owner-approved Deploy-arm/launch-start delivered9af48515a/checkpoint9af4851. New actual full callerb03a88b9c clears2/4 then times out34.0167s, no payment/home/reset/UIquit; source and failed packages archived. | Full journey OPEN. Stationary alignment-only firing has23 misses/13 friendly blocks/12 world blocks in57 shots. Define supported ordinary line-of-sight/aim staging before another full route; preserve34s/four kills/payment/home/reset/nextDeploy/UIexit and300/360s limits. No rerun selected. |
+| PLAY-DEFENSE ordinary route /13 | Deploy-arm/launch-start9af48515a delivered. Earlier2/4 timeout retained. Latest first-point arrival succeeds; two Alpha hits/no kills, stops on valid-miss representation at elapsed28.15. World/core blockers and short clear windows remain; no basis defect. | OPEN. Miss sentinel corrected/Python-only, candidate archived; no new trial justified by that fix alone. Need a supported tracking/visibility/input-timing correction before selection; preserve full34s/four kills/payment/home/reset/nextDeploy/UIexit and300/360s. |
 | Jovian postdock reuse /16,20,26 | DONEbc7f9f9c4: complete ordinary passenger exit/reboard, pilot exit/reclaim and repeat departure/braked stop, full original journey and three actual OS0. Reboard runtime repair49bc7b736; Jovian-specific paired checkpoint49bc7b7, included in current3767687. | Source integrated/pushed and owned scratch removed. Existing working refs already deleted; other supported craft/roles, distinct second landing and full parent gates remain open. |
 | Habitat common-entry view /9,12 | [Source8a6339b91](docs/history/ROADMAP_DELIVERIES.md#habitat-arrival-view--readback-timed-out-before-image): import passes; full-Main player-height readback times out180.842s before PNG or view metadata. Cumulative201.494s; no observed defect/no-finding. | PARKED. Concrete supported capture-boundary change before selection; no renderer/room substitute, cap increase or unchanged retry. Actual eye stage was not proved reached; accepted Habitat runtime scopes remain. |
 | Courier clear /11 | DONE4196ad0: complete original first-clear/home journey PASS55.973s/original300. Controlled actual nonlethal85→51→17 feedback/readiness preparation keeps defender alive; actual Courier player kill/gen1/seq15 and CLEARED before1400m, then defender defeated/strict home dock/OFFLINE/physical exit. Original failures and first41.436s overheat-related preparation failure retained. | Source merged/pushed; fresh checkpoint/three strict startups/1525-entry audit/review GO; owned cleanup done. Original20 candidate closed. Other Courier escape/two withdrawals/recovery/repeats/reload/native remain OPEN. No normal UI quit/gameOS0 or separate supported-walk claim. |

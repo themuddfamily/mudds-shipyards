@@ -21650,3 +21650,77 @@ byte/mode/link against archive before removal; profiles52707bytes SHA256
 No working branch/worktree created; main remains sole local/live branch,
 eight protected detached registrations untouched and original nine unqualified
 outcomes retained. This sleep/wake case is closed; no successor auto-scheduled.
+
+
+## Defense first-point journey — stopped — 2026-10-24
+
+PLAY-DEFENSE remains unqualified. One separately selected conditional plan used
+only[-71,10,-90], whose conservative whole-hull forecast had cleared in the prior
+run. The former151m second leg remained rejected; player-origin envelope is
+explicitly advisory. Original ordinary walk/west settling/Deploy/Arrow boarding/
+16m departure, real4kills/once-only actual-file payment/strict home/OFFLINE exit/
+physical Reset-next Deploy availability/normal UI gameOS0 and34/300/360s limits
+stayed unchanged. No actors, physics, tuning, damage, masks or boosts changed.
+
+Candidate5473cec68 passes156Python10.873s, observer parse15.660s and CLI privacy
+1.028s. Clean private Linux export25.784s and strict startup22.284s pass with
+exit0/exactone STARTUP_MENU_READY_OK. Full1527-entry PCK comparison PASS2.120s:
+1523 unchanged, two observer/startup scripts changed and two generated caches
+order-only equivalent (484 unique class records/665 UID→path mappings identical).
+Native Windows/GPU/human/full-release gates remain NOT_RUN; hosted CI stays off.
+
+ONE ordinary attempt FAIL94.626s (guard94.909s), game diagnostics0, all input/helper/
+game/display cleanup true. It actually reaches[-70.914322,10.139588,-90.916473],
+frame2814, about12s after actual departure. Whole-hull geometry/current-segment
+clearance remains valid. Actual Arrow resolver hits3217/3385 apply24 each, Alpha
+85→37. At frame3793/encounter elapsed28.15s, a legitimate third shot misses:
+statusmiss, finite/unit request ray, Vector3.INF impact, empty collider/target and
+zero damage. The caller incorrectly requires finite impact for every shot and
+stops. Zero kills; no later waves/payment/home/reset/reuse/UIexit acceptance.
+
+Minimal driver/test-only correctionaae77205a requires finite origin/unit direction
+always; exact authored positive-infinity no-impact/empty-target/zero-damage
+sentinels for misses, finite impact/positive collider for contacts. All real source,
+sequence, weapon, presentation, readiness and kill guards remain. Actual event15
+fixture plus16 malformed variants pass; complete157Python suite10.908s/guard11.328s.
+No new engine trial or export follows this representation correction. With5.85s
+remaining, the unchanged later lulls alone exceed the available time.
+
+Bounded raw/source analysis disproves a camera-basis aim defect: forward vectors
+agree within0.000016degrees.19 of980 processed combat samples round both mouse
+corrections to zero, not a sustained deadzone. Both prospective first hits name
+Alpha in79/980 samples, across26 mainly1–3-frame windows; readiness true934/980.
+Actual next-muzzle blockers include RangeTruss185, OpenLaunchSpine83 and protected
+core63 samples. Only the two eight-frame windows align with the two actual hits;
+short native input windows/timing remain relevant but exact cause unproven.
+No speculative aim/input change, alternate firing point, relaxed gate or full
+retry selected. Failed raw tail includes one truncated record after owned abort;
+analysis uses complete processed observations through3793, not the incomplete tail.
+
+All five unaccepted qualification files are excluded from main and preserved by
+pushed annotated `archive/withheld/defense-first-point-20261024`
+(objectdfd1a781383c4183ccedd4f982fe04e2b5d3fad9)→
+aae77205a7a2515baa7aadb4aaad3e76cb8a4b96, verified incremental bundle against
+93fed448d, binary patch and exact Git-blob/mode source archive. Tested private
+game source remains5473cec6839794fc36bc22e4084e6696a42c74f6; final driver change
+is Python-qualified only. Private ELF148991648bytes SHA256
+1e0c06ec700f945ebd7aac248687aa1d30a4337f8a9da5224d87e1c011144221
+verified inside95401451byte archive SHA256
+eb9a21a31f952c78c8d8fc674507d804f2a6a0bad54b5deca77c3d0bb0ab4f0a.
+Private archive and export/startup records moved out of builds; duplicate ELF
+removed. Public playable9af4851 unchanged; no duplicate public checkpoint.
+
+Eight guarded stages184.367s,7pass/1fail, all source/cache guards pass. All8 owners
+terminal/32 sampled process identities absent;88 scratch entries byte/mode/link
+verified against profiles archive8553bytes SHA256
+5f3228fc0212fd8aea64664274f61c089b1b05fcdc0124e336af455fda6e014a
+then removed. To reduce owned file clutter, all107 result members—including raw
+commands/manifests/logs, source bundle/patch/tar, private package and profiles—were
+archived with every member's bytes/mode/link verified, then loose originals removed.
+Only closeout.json and case-records.tar.gz remain in
+`/srv/mudds-work/defense-first-point-20261024/results/`. Complete archive106629559
+bytes SHA25635b99b87727cb5e81064f391818947f585fefcbb4870fba35d42c98997381663;
+native result member ordinary-sortie/result.json, raw log ordinary-sortie/game.log.
+No working branch/worktree created; main remains sole branch, eight protected
+detached registrations untouched. Original nine unqualified outcomes/all parents
+and phase gates remain open. Branch archival is not feature-completion credit.
