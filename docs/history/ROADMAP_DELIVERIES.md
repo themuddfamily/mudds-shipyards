@@ -22914,3 +22914,55 @@ craft implementation/full-craft acceptance remain OPEN. Owner must choose the
 labelled modern candidate, request exact design revisions, or retain historical
 reconstruction freeze pending tied views. Titan's older choice is still pending;
 no answer or authorization inferred from elapsed time.
+
+
+## Concrete task closure and three craft proposals — 2026-10-25
+
+User requested concrete, achievable, provable roadmap goals to prevent giant
+loops. The existing337 named records remain intact: same IDs, names and parent
+assignments. ROADMAP now includes a compact required execution card: one bounded
+capability, exact starting state, player-visible result, action→observable pass
+condition, production file owner, estimate/hard stop and closure. Prior attempt
+cost carries across branches, renamed/split cards and repairs. Every cumulative
+review chooses park/switch or one bounded continuation with new causal evidence
+and its next stop. Close or explicitly park the current card before switching;
+reuse completed definitions. Removed stale prose calling parked PLAY-TORPEDO a
+ready assignment. No encounter deadline or full journey was weakened.
+
+One independent read-only review identified the retry-disposition gap and cargo
+policy/repeat overlap. CARGO-REPLENISH-JOVIAN/CINDER now finish at a recorded
+accepted policy; actual capability work remains under existing PLAY goals and
+all ten genuine conserved cycles under existing REPEAT goals, counted once.
+Their gameplay obligations remain unchanged. No new goal IDs were added.
+
+Three previously selected independent proposal authors delivered frozen,
+UNAPPROVED modern candidates under docs/design: Paradox pilot/gunner/passenger
+cruiser (16 cards), Katana single-pilot braking fighter (13 cards), Predator
+unarmed pilot/guard/voluntary-detainee controlled-cell transport (15 cards).
+Each fixes geometry, physical access, own berth, all16 tuning fields, actual
+functions and authority seams, damage/recovery/save/reuse and ordinary full-craft
+acceptance. Root integrated backlog/scope references; none completes SPEC, an
+accepted build split, a runtime craft or a parent/phase gate. Owner interpretation
+choices remain pending, as do Titan/Vortex choices. No approval is inferred.
+
+Root reviewed registered name/role evidence and absent authenticated models,
+existing weapon/definition/seat/berth seams and docking envelopes. Static
+source-table comparison of the three new candidates against nine current craft,
+each other and pending Vortex meets minimum14 differing axes; Predator proposed
+drag changed2.1→2.2 to resolve a13-axis Paradox overlap. This is arithmetic, not a
+runtime or handling pass. The older Vortex proposal itself has13 differing axes
+against Bomber: explicit tuning revision plus actual combined-roster checks are
+still needed before implementation. Original hardware/history/capacity/rights
+and applicable final gates remain; owner-excluded gates stay NOT_RUN.
+
+Local checks: all337 goal identities/parents preserved; acceptance cells unchanged
+except the two clarified cargo policy/repeat assignments; three new proposal
+local links resolve and card counts match. Frozen proposal SHA256:
+- Paradox: e48354d5fe8c4a65de753abfb87676fa1997cd9e08a285da0162dca2b0a467ac
+- Katana: b60f6b2266ce5f188b17e013d4e53e860d88a0ffa7bae9b0c7417998efe39e0a
+- Predator: fbdf97df1fc5fe97652f41ffd5a92ab4a7addb8f0747af18b9ad98c3bef41338
+
+Documentation only: no engine/test/export/CI invocation, gameplay change, new
+validator, scratch file, task branch or worktree. Current playable checkpoint
+remains fb396ab and implemented fleet9/17. Preparation and execution-contract
+clarification are complete; game completion is not claimed.

@@ -29,19 +29,22 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Selected: finite SPEC-PARADOX/KATANA/PREDATOR owner-decision proposals.**
-Three independent authors each own one new design proposal under docs/design/;
-root reviews source boundaries/seams and integrates shared references.20–30min
-maximum each, concurrently; no engines/runtime/validators/new framework. Each
-freezes one labelled modern candidate's hull/access/berth/tuning/roles/systems/
-recovery, bounded production cards and full acceptance. Role facts come from
-registered sources; shapes/mechanics remain explicitly UNAPPROVED. Predator's
-specialist role must name actual cell/control authority, not a passenger reskin.
+**Prepared: three concrete craft proposals — owner choices pending.**
+[Paradox](docs/design/PARADOX_IMPLEMENTATION_PROPOSAL.md): pilot cannon, separate
+physical gunner and one passenger; 16 bounded cards.
+[Katana](docs/design/KATANA_IMPLEMENTATION_PROPOSAL.md): single-pilot braking
+fighter; 13 bounded cards.
+[Predator](docs/design/PREDATOR_IMPLEMENTATION_PROPOSAL.md): unarmed pilot/guard/
+voluntary-detainee transport with one real controlled cell; 15 bounded cards.
+Each fixes a labelled modern candidate's hull/access/berth/tuning/roles/systems/
+recovery and exact acceptance routes. Root source/seam review is complete;
+no engine, runtime or package work was performed. Shapes and mechanics remain
+UNAPPROVED; registered sources support names/roles, not authenticated models.
 
-Preparation does not complete SPEC/build/craft or waive historical/model/full17
-scope. Owner interpretation choices for Titan/Vortex remain pending; no approval
-is inferred from this continuing goal. Stop at concrete decision artifacts and
-record the owner choice; do not repeat definitions or implement unapproved craft.
+Preparation is complete; SPEC/build/craft acceptance remains open. Record each
+owner interpretation choice against its proposal before runtime work. Titan and
+Vortex choices also remain pending. Do not repeat proposal preparation or infer
+approval from continuation. Full17craft scope and historical requirements remain.
 
 **Prepared: SPEC-VORTEX decision proposal — owner choice pending.**
 [Vortex's unapproved modern proposal](docs/design/VORTEX_IMPLEMENTATION_PROPOSAL.md)
@@ -50,6 +53,10 @@ stern access, trial handling, one existing pilot cannon, no cargo/specialist rol
 safe on-foot restart and14 bounded implementation/package cards. Source confidence
 supports only the registered name/role; geometry/mechanics are proposed, not
 historical. Root source/seam/contract review complete; no engines or runtime edits.
+Source-table review also found Vortex differs from the existing Bomber on only
+13 handling axes against the registry minimum14. Its proposed tuning needs one
+explicit revision and actual combined-roster validation before implementation;
+proposal preparation is not a passed fleet check.
 
 This completes proposal preparation, NOT SPEC-VORTEX/BUILD-SPLIT approval, a craft,
 phase or historical gate. Owner chooses this labelled modern interpretation,
@@ -94,10 +101,9 @@ Both earlier failures and the caller-only angle correction remain recorded on
 the same Heavy clock. Repeat/Torpedo/recovery/broader combat/native/device/final
 requirements stay open; no original parent or phase closes.
 
-The dependent next ready activity is PLAY-TORPEDO: reach its posting through the
-ordinary Heavy journey/rotation, then real seekers/boat destruction/distinct
-payment/home/next posting. Freeze its complete card/caps before implementation;
-no direct scenario selection or skipped Heavy prerequisite.
+PLAY-TORPEDO is a dependent activity, **not a ready assignment** while its
+reopening condition above is unmet. Use the next ready product outcome in the
+work order; do not reopen it merely because its harness exists.
 
 **PLAY-DEFENSE remains OPEN; consumed-fire qualification stopped.**
 The one full ordinary trial destroyed Alpha and Beta, then reached the original
@@ -159,6 +165,27 @@ Before work starts, copy its existing ID, **Done means**, dependencies and prote
 scope into a short execution card. Add exact production files/owner, action or
 command, expected visible result, implementation/check estimate and time budget.
 No card may say only “finish”, “polish”, “improve” or “support” a family.
+
+Use this compact card for every selected task; fill each field before editing:
+
+| Field | Required content |
+| --- | --- |
+| Goal and boundary | One existing goal ID plus this bounded capability; list what remains in its parent. |
+| Starting state | Exact source/package, normal player/session state and satisfied dependencies. |
+| Visible result | What the player can do after this change, or the exact finite answer for a decision task. |
+| Pass condition | Actual action → observable result, numeric limits where applicable, and relevant existing check/ordinary route. |
+| Ownership and budget | Exact production files, implementer, estimate and hard stop; include prior attempts in the same cumulative clock. |
+| Closure | Actual PASS/FAIL/BLOCKED result, remaining work, integrated source/build where required, and process/worktree/branch cleanup. |
+
+Do not silently expand a failed card into a new project. At the hard stop,
+record the failed predicate or missing input and leave the parent open. A further
+attempt needs a concrete cause, bounded correction and cumulative priority review;
+renaming a task or creating a new branch never resets its budget. Before selecting
+a different task, close or explicitly park the current card with its unique work
+accounted for. Definitions already finished are reused, not recreated.
+Each cumulative review must record total elapsed cost and choose either
+**park/switch** or **one bounded continuation** with new causal evidence and an
+explicit next stop. A review alone never authorizes an indefinite retry loop.
 
 - Codex owns implementation/checks/integration; the user owns product decisions,
   external credentials and access. Each selected risky lifecycle change gets one
