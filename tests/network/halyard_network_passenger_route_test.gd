@@ -3498,6 +3498,7 @@ func _ordinary_late_join_host() -> bool:
 	_write("host.late_docked", {"fields": _ordinary_late_pilot_fields(peer),
 		"landing_generation": int(handoff.entity_generation), "target_id": berth.berth_id,
 		"station_position": [position.x, position.y, position.z],
+		"world_position": [_craft.global_position.x, _craft.global_position.y, _craft.global_position.z],
 		"pose_tick": int(_game.get("_network_boarding_server_tick")), "remote_receipt": helm.get_roll_receipt(),
 		"wall": Time.get_unix_time_from_system()})
 	for role: String in ["client", "client_b"]:
@@ -3517,6 +3518,39 @@ func _ordinary_late_unclaimed_station() -> bool:
 		and (source == null or not source.is_bound()) and _craft.get_crew_role_authority() == null \
 		and _game._network_local_role_presentation().get("local_role") == &"observer"
 
+func _ordinary_late_received_dock() -> Dictionary:
+	if not is_instance_valid(_game.network_session):
+		return {"available": false}
+	var sections := _game.network_session.get_authoritative_snapshot().get("sections", {}) as Dictionary
+	var landing: Dictionary = {}
+	var owner: Dictionary = {}
+	for row: Dictionary in sections.get("landing", []):
+		if row.get("entity_id") == _craft.get_ship_id():
+			landing = row
+	for row: Dictionary in sections.get("ownership", []):
+		if row.get("ship_id") == _craft.get_ship_id():
+			owner = row
+	var sample := _game._network_craft_pose_stream.latest_sample(_craft.get_ship_id())
+	var docked := _read("host.late_docked")
+	var berth: ShipBerth = null
+	if not str(docked.get("target_id", "")).is_empty():
+		berth = _game.call(&"_resolve_berth_node", StringName(docked.target_id)) as ShipBerth
+	var position := _craft.global_position - _game.world.global_position
+	var berth_position := berth.get_dock_transform().origin - _game.world.global_position if berth != null else Vector3.INF
+	var landing_position: Variant = landing.get("position")
+	return {"landing": _ordinary_fields(landing, ["entity_id", "entity_generation", "state", "landing_revision", "landing_server_tick"]),
+		"landing_world_position": [landing_position.x, landing_position.y, landing_position.z] if landing_position is Vector3 else [],
+		"landing_position_finite": landing_position is Vector3 and (landing_position as Vector3).is_finite(),
+		"sample": _ordinary_fields(sample, ["ship_id", "pose_tick", "entity_generation", "destroyed"]),
+		"operation": _ordinary_fields(sample.get("operation_presentation", {}) as Dictionary, ["engine", "landed", "docked", "landing"]),
+		"ownership": _ordinary_fields(owner, ["ship_id", "ship_generation", "owner_peer_id", "owner_peer_generation", "ownership_generation"]),
+		"authored_home_id": _craft.get_home_berth_id(), "authored_target_id": berth.berth_id if berth != null else &"",
+		"authored_berth_station_position": [berth_position.x, berth_position.y, berth_position.z] if berth != null else [],
+		"craft_station_position": [position.x, position.y, position.z],
+		"expected_host_station_position": docked.get("station_position", []), "expected_host_world_position": docked.get("world_position", []),
+		"phase": _game.phase, "player_id": str(_player.get_instance_id()), "role": _game._network_local_role_presentation().get("local_role"),
+		"boarding": _ordinary_fields(_game.get("_network_client_boarding_claim") as Dictionary, ["ship_id", "seat_id", "role"])}
+
 func _ordinary_late_consumed_dock(docked: Dictionary) -> bool:
 	if not (_ordinary_local_pilot_is_current() if _role == "client" else _ordinary_late_unclaimed_station()):
 		return false
@@ -3534,11 +3568,25 @@ func _ordinary_late_consumed_dock(docked: Dictionary) -> bool:
 			landing = row
 	var position := _craft.global_position - _game.world.global_position
 	var expected: Array = docked.get("station_position", [])
-	return expected.size() == 3 and position.distance_to(Vector3(float(expected[0]), float(expected[1]), float(expected[2]))) <= 0.5 \
+	var expected_world: Array = docked.get("world_position", [])
+	var berth := _game.call(&"_resolve_berth_node", StringName(docked.get("target_id", &""))) as ShipBerth
+	var landing_position: Variant = landing.get("position")
+	if berth == null or berth.berth_id != _craft.get_home_berth_id() \
+		or not landing_position is Vector3 or not (landing_position as Vector3).is_finite():
+		return false
+	var berth_position := berth.get_dock_transform().origin - _game.world.global_position
+	# Canonical landing.position is the host's GLOBAL publication position.
+	# Hull and authored-berth comparisons use each peer's station frame.
+	return expected.size() == 3 and expected_world.size() == 3 \
+		and position.distance_to(Vector3(float(expected[0]), float(expected[1]), float(expected[2]))) <= 0.5 \
+		and berth_position.distance_to(Vector3(float(expected[0]), float(expected[1]), float(expected[2]))) <= 0.05 \
+		and position.distance_to(berth_position) <= 0.5 \
+		and (landing_position as Vector3).distance_to(Vector3(float(expected_world[0]), float(expected_world[1]), float(expected_world[2]))) <= 0.05 \
 		and sample.get("ship_id") == _craft.get_ship_id() and int(sample.get("pose_tick", 0)) >= int(docked.get("pose_tick", 1)) \
 		and not bool(sample.get("destroyed", true)) and bool(operation.get("landed", false)) and bool(operation.get("docked", false)) \
 		and _ordinary_fields(owner, ["ship_id", "ship_generation", "owner_peer_id", "owner_peer_generation", "ownership_generation"]) == (fields.get("ownership", {}) as Dictionary) \
-		and landing.get("state") == &"landed" and landing.get("target_id") == docked.get("target_id") \
+		and landing.get("entity_id") == _craft.get_ship_id() and landing.get("state") == &"landed" \
+		and int(landing.get("landing_revision", 0)) > 0 and int(landing.get("landing_server_tick", 0)) > 0 \
 		and int(landing.get("entity_generation", 0)) == int(docked.get("landing_generation", -1))
 
 func _ordinary_late_join_pilot() -> bool:
@@ -3573,7 +3621,7 @@ func _ordinary_late_join_pilot() -> bool:
 	if not await _ordinary_boundary(func(): return _ordinary_late_consumed_dock(docked), 8.0,
 		"original pilot consumes actual strict home arrival with unchanged physical seat, source and ownership"):
 		return false
-	_write("client.late_dock_consumed", {"phase": _game.phase, "boarding": _game.get("_network_client_boarding_claim")})
+	_write("client.late_dock_consumed", _ordinary_late_received_dock())
 	return await _wait_file("host.late_prefix_complete", 8.0)
 
 func _ordinary_late_join_observer() -> bool:
@@ -3609,7 +3657,7 @@ func _ordinary_late_join_observer() -> bool:
 	if not await _ordinary_boundary(func(): return _ordinary_late_consumed_dock(docked), 8.0,
 		"late unclaimed station Player consumes the real committed home arrival before starting the authored boarding walk"):
 		return false
-	_write("client_b.late_dock_consumed", {"phase": _game.phase, "player_id": str(_player.get_instance_id())})
+	_write("client_b.late_dock_consumed", _ordinary_late_received_dock())
 	return await _wait_file("host.late_prefix_complete", 8.0)
 
 
@@ -5011,6 +5059,7 @@ func _ordinary_failure_snapshot(description: String) -> Dictionary:
 			"landing_go": _read("host.late_landing_go"), "landing_sent": _read("client.late_landing_sent"),
 			"landing_accepted": _read("host.late_landing_accepted"), "docked": _read("host.late_docked")}
 		if is_instance_valid(_game) and is_instance_valid(_craft):
+			(snapshot.late_join as Dictionary)["received_dock"] = _ordinary_late_received_dock()
 			var first_peer := int(_read("client.admitted").get("peer_id", 0))
 			var publication := _ordinary_publication(GameFlow.network_client_boarding_avatar_id(first_peer))
 			(snapshot.late_join as Dictionary)["pilot_publication"] = _ordinary_fields(publication,

@@ -84,6 +84,19 @@ B's actual received-state check. Capture prepared/published state/ticks. No runt
 change, forced echo, early B, deadline extension or clock reset. Strict compile
 then one complete trial; first failure again stops for review.
 
+Corrected rund53f2c4c6 is retained FAIL176.702s. Actual departure, delayed B process,
+airborne state consumption, one landing edge and strict physical/committed docking
+pass; both client arrival predicates fail. The new consumer requires target_id,
+which the canonical landing record does not transmit. Actual received landing
+record was not captured, so other conjuncts remain unproven. Independent cumulative
+priority review selects the real contract: ship/currentgeneration/committedlanded,
+positive revision/tick and finite published GLOBAL landing position matching the
+recorded host dock; resolve the same authored home berth and retain actual client
+hull position, fresh operation/ownership/local-role and ALL host target/lease/strict
+dock checks. Capture the actual consumer record/pose, no invented wire field or
+protocol/runtime change. Original scope/caps/clock remain; strict compile and source
+review before one full trial, first failure stops again.
+
 **SERVER-BASELINE-SEAT-RACE DONE — `99c9fc1af`.**
 The complete original non-playing authority/two-client BOARD and seven MOVING
 stages now continue through ordinary helm release, two supported contenders and
