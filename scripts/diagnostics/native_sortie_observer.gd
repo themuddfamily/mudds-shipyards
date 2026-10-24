@@ -40,6 +40,9 @@ var _opponent: RangeOpponent
 var _courier_mode := false
 var _courier_escape_mode := false
 var _courier_withdraw_phase_mode := false
+var _courier_withdraw_distance_mode := false
+var _courier_distance_pending: Dictionary = {}
+var _courier_distance_violation := ""
 var _courier_withdraw_authority: Node
 var _courier_defender_kill: Dictionary = {}
 var _courier_withdraw_maximum_radius := 0.0
@@ -117,11 +120,12 @@ func on_startup_completed(main: Node) -> void:
 	_opponent = _game.get_node("RangeOpponent") as RangeOpponent
 	_courier_escape_mode = "--native-sortie-observer=courier-escape" in OS.get_cmdline_args()
 	_courier_withdraw_phase_mode = "--native-sortie-observer=courier-withdraw-phase" in OS.get_cmdline_args()
-	_courier_mode = "--native-sortie-observer=courier-intercept" in OS.get_cmdline_args() or _courier_escape_mode or _courier_withdraw_phase_mode
+	_courier_withdraw_distance_mode = "--native-sortie-observer=courier-withdraw-distance" in OS.get_cmdline_args()
+	_courier_mode = "--native-sortie-observer=courier-intercept" in OS.get_cmdline_args() or _courier_escape_mode or _courier_withdraw_phase_mode or _courier_withdraw_distance_mode
 	if _courier_mode:
 		_courier = _game.get_node("CourierRunner") as CourierRunnerOpponent
 		_courier_director = _game.get_node("EncounterScenarios") as EncounterScenarioDirector
-		if _courier_withdraw_phase_mode:
+		if _courier_withdraw_phase_mode or _courier_withdraw_distance_mode:
 			_courier_withdraw_authority = _game.combat_authority
 			_courier_withdraw_authority.connect(&"authoritative_shot_submitted", _capture_courier_defender_kill)
 			_game.tree_exiting.connect(_disconnect_courier_withdraw)
@@ -244,7 +248,7 @@ func _courier_observation() -> Dictionary:
 		"seen_alive": _courier_seen_alive,
 		"hit": _courier_hit.duplicate(true), "kill": _courier_kill.duplicate(true),
 	}
-	if _courier_escape_mode or _courier_withdraw_phase_mode:
+	if _courier_escape_mode or _courier_withdraw_phase_mode or _courier_withdraw_distance_mode:
 		var roster_ids: Array = []
 		for member: Node3D in _courier_director.get_roster():
 			roster_ids.append(member.get_instance_id())
@@ -255,11 +259,16 @@ func _courier_observation() -> Dictionary:
 			"actors": _courier_dispatched_observation(), "roster_ids": roster_ids,
 			"terminal": _courier_terminal.duplicate(true),
 			"standdown_violation": _courier_standdown_violation})
-	if _courier_withdraw_phase_mode:
+	if _courier_withdraw_phase_mode or _courier_withdraw_distance_mode:
 		result.merge({"main_id": _game.get_instance_id(),
 			"authority_id": _courier_withdraw_authority.get_instance_id() if is_instance_valid(_courier_withdraw_authority) else 0,
 			"defender_kill": _courier_defender_kill.duplicate(true),
 			"maximum_withdraw_radius": _courier_withdraw_maximum_radius})
+	if _courier_withdraw_distance_mode:
+		result.merge({"escape_heading": _v(_courier.get_escape_heading()),
+			"disengaged_elapsed": float(_courier_director.get("_disengaged_elapsed")),
+			"distance_pending": _courier_distance_pending.duplicate(true),
+			"distance_violation": _courier_distance_violation})
 	return result
 
 
@@ -303,6 +312,8 @@ func _capture_courier_escape() -> void:
 		_courier_dispatched_generation = generation
 		_courier_dispatched.clear()
 		_courier_terminal.clear()
+		_courier_distance_pending.clear()
+		_courier_distance_violation = ""
 		_courier_standdown_violation = ""
 		_courier_withdraw_maximum_radius = 0.0
 	if _courier_withdraw_phase_mode and generation > 0:
@@ -311,6 +322,29 @@ func _capture_courier_escape() -> void:
 	for member: Node3D in _courier_director.get_roster():
 		_courier_dispatched[member.get_instance_id()] = member
 	var actors := _courier_dispatched_observation()
+	if _courier_withdraw_distance_mode and _courier_director.get_state() == EncounterScenarioDirector.STATE_RUNNING:
+		var roster_ids: Array = []
+		for member: Node3D in _courier_director.get_roster():
+			roster_ids.append(member.get_instance_id())
+		_courier_distance_pending = {"frame": Engine.get_physics_frames(),
+			"phase": GameFlow.Phase.keys()[_game.phase],
+			"state": str(_courier_director.get_state()), "outcome": str(_courier_director.get_outcome()),
+			"ship_position": _v(_ship.global_position),
+			"scenario_origin": _v(_courier_director.get("_scenario_origin")),
+			"disengaged_elapsed": float(_courier_director.get("_disengaged_elapsed")),
+			"courier_active": _courier.is_active(), "courier_health": _courier.get_health(),
+			"defender_active": _opponent.is_active(), "defender_health": _opponent.get_health(),
+			"escape_progress": _courier_director.get_escape_progress(),
+			"roster_ids": roster_ids, "actors": actors.duplicate(true)}
+		if float(_courier_distance_pending.disengaged_elapsed) > 0.0:
+			if _game.phase != GameFlow.Phase.INTERCEPTOR_ENGAGEMENT or not _opponent.is_active() \
+					or not is_equal_approx(_opponent.get_health(), 17.0) \
+					or _ship.global_position.distance_to(_courier_director.get("_scenario_origin") as Vector3) <= _courier_director.disengage_radius:
+				_courier_distance_violation = "grace observed without authorized live defender and origin clearance"
+			for actor: Dictionary in actors:
+				if actor.id in roster_ids and (not bool(actor.present) or (bool(actor.active) \
+						and _ship.global_position.distance_to(Vector3(actor.position[0], actor.position[1], actor.position[2])) <= _courier_director.disengage_radius)):
+					_courier_distance_violation = "grace observed without clearance from every active roster craft"
 	if _courier_director.get_state() == EncounterScenarioDirector.STATE_CONCLUDED and _courier_terminal.is_empty():
 		_courier_terminal = {"frame": Engine.get_physics_frames(),
 			"actor_id": _courier.get_instance_id(), "generation": generation,
@@ -318,11 +352,15 @@ func _capture_courier_escape() -> void:
 			"position": _v(_courier.global_position), "escape_origin": _v(_courier.get_escape_origin()),
 			"health": _courier.get_health(), "escape_progress": _courier_director.get_escape_progress(),
 			"actors": actors.duplicate(true)}
-		if _courier_withdraw_phase_mode:
+		if _courier_withdraw_phase_mode or _courier_withdraw_distance_mode:
 			_courier_terminal.merge({"phase": GameFlow.Phase.keys()[_game.phase],
 				"outcome": str(_courier_director.get_outcome()),
 				"scenario_origin": _v(_courier_director.get("_scenario_origin")),
 				"ship_position": _v(_ship.global_position)})
+		if _courier_withdraw_distance_mode:
+			_courier_terminal.merge({"disengaged_elapsed": float(_courier_director.get("_disengaged_elapsed")),
+				"pending": _courier_distance_pending.duplicate(true),
+				"defender_active": _opponent.is_active(), "defender_health": _opponent.get_health()})
 	if _courier_terminal.is_empty():
 		return
 	for actor: Dictionary in actors:
@@ -339,6 +377,7 @@ func _courier_dispatched_observation() -> Array:
 		var member := _courier_dispatched[id] as Node3D
 		var present := is_instance_valid(member) and member.is_inside_tree() and not member.is_queued_for_deletion()
 		actors.append({"id": id, "present": present,
+			"position": _v(member.global_position) if present else [],
 			"active": bool(member.call(&"is_active")) if present else false,
 			"health": float(member.call(&"get_health")) if present else -1.0,
 			"fire_authorized": _courier_director.is_fire_authorized(member) if present else false,
@@ -556,7 +595,7 @@ func _physics_process(delta: float) -> void:
 		return
 	if _courier_mode:
 		_capture_courier_receipt()
-		if _courier_escape_mode or _courier_withdraw_phase_mode:
+		if _courier_escape_mode or _courier_withdraw_phase_mode or _courier_withdraw_distance_mode:
 			_capture_courier_escape()
 	_elapsed += delta
 	if _elapsed < 1.0 / (20.0 if _full_sandbox else 60.0):
