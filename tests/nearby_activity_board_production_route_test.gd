@@ -135,12 +135,12 @@ func _run() -> void:
 		Basis.IDENTITY,
 		defense_board.global_position + Vector3(0.0, 0.0, 1.0),
 	))
-	var content := game.world.get_station_defense_content()
-	var before_arm_generation := content.get_generation()
+	var content: StationDefenseEncounterContent = game.world.get_station_defense_content() as StationDefenseEncounterContent
+	var before_arm_generation: int = content.get_generation()
 	(defense_row.get_child(2) as Button).emit_signal("pressed")
 	var arm := defense_board.call(&"get_launch_arm_snapshot") as Dictionary
 	var arm_result := defense_board.call(&"get_last_result") as Dictionary
-	var armed_snapshot := content.get_snapshot()
+	var armed_snapshot: Dictionary = content.get_snapshot()
 	_check(
 		bool(arm_result.get("accepted", false)) and StringName(arm_result.get("reason", &"")) == &"launch_armed"
 		and bool(arm.get("armed", false)) and int(arm.get("arm_id", 0)) > 0
@@ -157,8 +157,8 @@ func _run() -> void:
 	)
 	# Disclosed content-owner fixture for the existing active/reset UI checks.
 	# This does not exercise or qualify ordinary physical boarding and launch.
-	var owner_start := content.start(content.get_generation())
-	var active_snapshot := content.get_snapshot()
+	var owner_start: Dictionary = content.start(content.get_generation())
+	var active_snapshot: Dictionary = content.get_snapshot()
 	_check(bool(owner_start.get("accepted", false))
 		and StringName(active_snapshot.host.activity.get("state_id", &"")) == &"active"
 		and int(active_snapshot.host.active_entity_count) == 1
