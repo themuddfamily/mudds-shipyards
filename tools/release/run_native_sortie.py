@@ -5961,7 +5961,7 @@ class TorrentArrowHandoffPilot(TorrentDamagedReturnPilot):
                                 'actual outward walk clears Torrent reboard block')
                         self.handoff_clear_target = s['player'][:]
                         self.handoff_receipts['torrent_clear'] = self.handoff_receipt(s)
-                        self.begin_handoff_walk('handoff_to_arrow', [[s['player'][0], 0, 13.5],
+                        self.begin_handoff_walk('handoff_to_arrow', [[-8.5, 0, s['player'][2]], [-8.5, 0, 13.5],
                             [-35, 0, 13.5], [-35, 0, 22], [fleet[self.ARROW]['boarding'][0], 0, 22],
                             fleet[self.ARROW]['boarding']], s)
                     elif self.stage == 'handoff_to_arrow': self.enter('handoff_arrow_ready', s)
@@ -6000,8 +6000,8 @@ class TorrentArrowHandoffPilot(TorrentDamagedReturnPilot):
             self.remember_retired(key, s, self.handoff_receipts[label+'_seated']['handoff']['fleet'][key]['stream'])
             if key == self.ARROW:
                 self.begin_handoff_walk('handoff_to_torrent', [[fleet[self.ARROW]['boarding'][0], 0, 22],
-                    [-35, 0, 22], [-35, 0, 13.5], [self.handoff_clear_target[0], 0, 13.5],
-                    self.handoff_clear_target, fleet[self.TORRENT]['boarding']], s)
+                    [-35, 0, 22], [-35, 0, 13.5], [-8.5, 0, 13.5],
+                    [-8.5, 0, self.handoff_clear_target[2]], self.handoff_clear_target, fleet[self.TORRENT]['boarding']], s)
             else:
                 off = sub(s['player'], fleet[self.TORRENT]['boarding']); off[1] = 0
                 self.handoff_final_target = [p+d for p,d in zip(s['player'], unit(off))]
