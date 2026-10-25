@@ -640,6 +640,8 @@ var _toast_serial := 0
 var _toast_important_serial := 0
 var _toast_deferred: Dictionary = {}
 var _toast_tween: Tween
+var _toast_timeline_duration := 0.0
+var _toast_motion_holding := false
 ## A focused suite supplies a tiny CPU image here so it can prove the complete
 ## F2-to-file path without depending on a GPU-backed test viewport. Production
 ## always reads the actual viewport texture below.
@@ -2755,6 +2757,9 @@ func toast(title: String, detail: String = "", duration: float = 3.2, important:
 		return
 	if is_instance_valid(_toast_tween):
 		_toast_tween.kill()
+	_toast_tween = null
+	_toast_timeline_duration = 0.0
+	_toast_motion_holding = false
 	_toast_serial += 1
 	var serial := _toast_serial
 	_toast_important_serial = serial if important else 0
@@ -2773,11 +2778,35 @@ func toast(title: String, detail: String = "", duration: float = 3.2, important:
 				_finish_toast()
 		)
 		return
+	var fade_in := get_toast_fade_seconds()
+	var fade_out := get_toast_fade_seconds()
+	_toast_timeline_duration = fade_in + duration + fade_out
 	_toast_tween = create_tween()
 	_toast_tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
-	_toast_tween.tween_property(_toast_panel, "modulate", Color.WHITE, get_toast_fade_seconds())
+	_toast_tween.tween_property(_toast_panel, "modulate", Color.WHITE, fade_in)
 	_toast_tween.tween_interval(duration)
-	_toast_tween.tween_property(_toast_panel, "modulate", Color.TRANSPARENT, get_toast_fade_seconds())
+	_toast_tween.tween_property(_toast_panel, "modulate", Color.TRANSPARENT, fade_out)
+	_toast_tween.tween_callback(func() -> void:
+		if serial == _toast_serial:
+			_toast_tween = null
+			_finish_toast()
+	)
+
+
+func _hold_active_toast() -> void:
+	if _toast_motion_holding or not is_instance_valid(_toast_tween) \
+			or not _toast_tween.is_valid() or not _toast_panel.visible:
+		return
+	# Read the normal tween's actual elapsed time before replacing it. The hold
+	# uses the same scaled clock and pause policy, without restarting its lifetime.
+	var remaining := maxf(0.0, _toast_timeline_duration - _toast_tween.get_total_elapsed_time())
+	var serial := _toast_serial
+	_toast_tween.kill()
+	_toast_panel.modulate = Color.WHITE
+	_toast_motion_holding = true
+	_toast_tween = create_tween()
+	_toast_tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	_toast_tween.tween_interval(remaining)
 	_toast_tween.tween_callback(func() -> void:
 		if serial == _toast_serial:
 			_toast_tween = null
@@ -2786,6 +2815,8 @@ func toast(title: String, detail: String = "", duration: float = 3.2, important:
 
 
 func _finish_toast() -> void:
+	_toast_timeline_duration = 0.0
+	_toast_motion_holding = false
 	_toast_panel.visible = false
 	_toast_important_serial = 0
 	if _toast_deferred.is_empty():
@@ -3794,7 +3825,14 @@ func get_effective_ui_scale() -> float:
 
 func set_reduced_motion(enabled: bool) -> void:
 	_reduced_motion = enabled
-	if not enabled or _damage_cue_holding or not is_instance_valid(_damage_tween) \
+	if not enabled:
+		return
+	_hold_active_damage_cue()
+	_hold_active_toast()
+
+
+func _hold_active_damage_cue() -> void:
+	if _damage_cue_holding or not is_instance_valid(_damage_tween) \
 			or not _damage_tween.is_valid() or not _damage_direction.visible:
 		return
 	var remaining := maxf(0.0, _damage_cue_duration - _damage_tween.get_total_elapsed_time())
