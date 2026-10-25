@@ -71,6 +71,14 @@ extends SceneTree
 ## handoff20s/guest100s/host30s/cleanup10s and walk/settle5s/12neutral remain.
 
 
+## BROWSER-CANCEL complete reuse: --live-menu-cancel-rejoin retains the two
+## ordinary pending attempts against a separate coordinator-owned nonanswer UDP
+## endpoint. The same guest Main/Player then discovers and joins the independent
+## live Main host, followed by both connected/solo walks and normal leave/stop.
+## Native CONNECTING/pending identity and complete Cancel retirement are observed;
+## an always-physics guard retains closed old native peers and the original Player.
+## Original D3 caps remain; success: GAME_FLOW_LIVE_MENU_CANCEL_REJOIN_TEST_OK.
+##
 ## BROWSER-STALE: --live-menu-stale uses actual Begin Shift/Pause/Browser and
 ## real last-reply time (30 seconds) with the original D3 caps unchanged. The
 ## focused LAN row retires naturally while paused, leaving expired feedback and
@@ -113,7 +121,7 @@ func _init() -> void:
 
 
 func _run() -> void:
-	if "--live-menu-one-guest" in OS.get_cmdline_user_args() or "--live-menu-one-guest-gameplay" in OS.get_cmdline_user_args() or "--live-menu-two-guests" in OS.get_cmdline_user_args() or "--live-menu-cancel" in OS.get_cmdline_user_args() or "--live-menu-full" in OS.get_cmdline_user_args() or "--live-menu-disconnect-rejoin" in OS.get_cmdline_user_args() or "--live-menu-stale" in OS.get_cmdline_user_args():
+	if "--live-menu-one-guest" in OS.get_cmdline_user_args() or "--live-menu-one-guest-gameplay" in OS.get_cmdline_user_args() or "--live-menu-two-guests" in OS.get_cmdline_user_args() or "--live-menu-cancel" in OS.get_cmdline_user_args() or "--live-menu-full" in OS.get_cmdline_user_args() or "--live-menu-disconnect-rejoin" in OS.get_cmdline_user_args() or "--live-menu-stale" in OS.get_cmdline_user_args() or "--live-menu-cancel-rejoin" in OS.get_cmdline_user_args():
 		await _live_run()
 		return
 	var flow := GameFlowType.new()
@@ -191,6 +199,10 @@ var _live_peers: Dictionary = {}
 var _live_deadline := 0
 var _live_two_guests := false
 var _live_cancel := false
+var _live_cancel_rejoin := false
+var _live_cancelled_native_peers: Array[ENetMultiplayerPeer] = []
+var _live_cancel_observation: Dictionary = {}
+var _live_cancel_fresh_requested := false
 var _live_full := false
 var _live_full_guard: Dictionary = {}
 var _live_full_sampler: LiveWalkSampler
@@ -209,10 +221,11 @@ func _live_run() -> void:
 	var args := OS.get_cmdline_user_args()
 	_live_two_guests = "--live-menu-two-guests" in args
 	_live_cancel = "--live-menu-cancel" in args
+	_live_cancel_rejoin = "--live-menu-cancel-rejoin" in args
 	_live_full = "--live-menu-full" in args
 	_live_stale = "--live-menu-stale" in args
 	_live_rejoin = "--live-menu-disconnect-rejoin" in args
-	_live_gameplay = "--live-menu-one-guest-gameplay" in args or _live_rejoin or _live_stale
+	_live_gameplay = "--live-menu-one-guest-gameplay" in args or _live_rejoin or _live_stale or _live_cancel_rejoin
 	var peer_index := args.find("--live-peer")
 	if peer_index >= 0 and peer_index + 3 < args.size():
 		_live_role = args[peer_index + 1]
@@ -233,6 +246,14 @@ func _live_run() -> void:
 	if _live_cancel:
 		reached = await _live_cancel_coordinator()
 	else:
+		if _live_cancel_rejoin:
+			_live_pending_endpoint = PacketPeerUDP.new()
+			var pending_error := _live_pending_endpoint.bind(0, "127.0.0.1")
+			_check(pending_error == OK, "coordinator owns separate non-admitting cancellation endpoint")
+			if pending_error != OK:
+				_live_finish()
+				return
+			_live_write("cancel_endpoint.ready", {"port": _live_pending_endpoint.get_local_port()})
 		_live_port = 26000 + OS.get_process_id() % 15000
 		_live_peers.host = _live_spawn("host")
 		_check(int(_live_peers.host) > 0, "independent Main host wrapper starts")
@@ -301,6 +322,12 @@ func _live_run() -> void:
 				_live_check_full_receipts(host, guest)
 			if _live_stale:
 				_live_check_stale_receipts(host, guest)
+	if _live_cancel_rejoin and _live_pending_endpoint != null:
+		_check(_live_pending_endpoint.get_available_packet_count() > 0, "owned cancellation endpoint received actual ENet handshake datagrams")
+		var cancelled := _live_read("guest.done").get("cancel_rejoin", {}) as Dictionary
+		_check(cancelled.get("player", {}) == _live_read("guest.admitted").get("player", {}), "successful join and walks retain the original cancellation Player")
+		_check((cancelled.get("retired", []) as Array).size() == 2 and bool(cancelled.get("guard", {}).get("valid", false)) and int(cancelled.get("guard", {}).get("samples", 0)) > 0 and int(cancelled.get("fresh_admissions", 0)) == 1, "both cancelled peers stay closed through one fresh successful admission and ordinary leave")
+		_check(not str(cancelled.get("fresh_native_id", "")).is_empty() and str(cancelled.get("fresh_native_id", "")) not in cancelled.get("old_native_ids", []), "fresh successful join uses a different native peer from both cancelled requests")
 	if _live_pending_endpoint != null:
 		_live_pending_endpoint.close()
 	_live_finish()
@@ -504,7 +531,7 @@ func _live_cancel_coordinator() -> bool:
 	return received
 
 
-func _live_cancel_guest() -> void:
+func _live_cancel_guest(endpoint_port: int = 0) -> void:
 	if not await _live_button("IntroServerBrowserButton"):
 		return
 	var hud := _live_game.hud as GameHUD
@@ -512,7 +539,8 @@ func _live_cancel_guest() -> void:
 	var port := hud.get("_server_browser_port") as LineEdit
 	var player_name := hud.get("_server_browser_player_name") as LineEdit
 	address.text = "127.0.0.1"
-	port.text = str(_live_port)
+	var pending_port := endpoint_port if endpoint_port > 0 else _live_port
+	port.text = str(pending_port)
 	player_name.text = "Cancel Probe"
 	var offline := hud.find_child("ServerBrowserDisconnectButton", true, false) as Button
 	_check(offline != null and offline.is_visible_in_tree() and offline.disabled,
@@ -524,7 +552,16 @@ func _live_cancel_guest() -> void:
 			return
 		if not await _live_boundary(_live_pending_join, 5.0, "visible Manual Join starts pending attempt %d" % attempt):
 			return
-		_live_write("cancel.pending%d" % attempt, {"port": _live_port, "active": true, "state": "connecting"})
+		var native: ENetMultiplayerPeer
+		if _live_cancel_rejoin:
+			native = _live_game.network_session.get("_peer") as ENetMultiplayerPeer
+			_check(native != null and native == _live_game.network_session.get("_pending_join_peer") and native.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTING and _live_game.network_session.get_admitted_peer_ids().is_empty(), "pending Cancel attempt owns an actual unadmitted native CONNECTING peer")
+			if not _failures.is_empty():
+				return
+		var pending := {"port": pending_port, "active": true, "state": "connecting"}
+		if _live_cancel_rejoin:
+			pending["native_peer_id"] = str(native.get_instance_id())
+		_live_write("cancel.pending%d" % attempt, pending)
 		var cancel := hud.find_child("ServerBrowserDisconnectButton", true, false) as Button
 		var manual := hud.find_child("ServerBrowserManualJoinButton", true, false) as Button
 		var back := hud.find_child("ServerBrowserBackButton", true, false) as Button
@@ -548,14 +585,67 @@ func _live_cancel_guest() -> void:
 			"cancel completion restores browser focus to Back")
 		if not _failures.is_empty():
 			return
+		if _live_cancel_rejoin:
+			_live_cancelled_native_peers.append(native)
+			var retired := _live_cancel_retirement(native)
+			_check(bool(retired.valid), "ordinary Cancel retires native peer, pending deadline and all unadmitted authority")
+			(_live_cancel_observation.retired as Array).append(retired)
+			(_live_cancel_observation.old_native_ids as Array).append(str(native.get_instance_id()))
+			if not _failures.is_empty():
+				return
 		_live_write("cancel.cancelled%d" % attempt, {"active": false, "state": "disconnected"})
 		if not await _live_button("ServerBrowserRefreshButton") or not await _live_button("ServerBrowserBackButton") or not await _live_button("IntroServerBrowserButton"):
 			return
-		_check(address.text == "127.0.0.1" and port.text == str(_live_port),
+		_check(address.text == "127.0.0.1" and port.text == str(pending_port),
 			"browser remains usable and retains Manual Join endpoint after cancellation")
 		if not _failures.is_empty():
 			return
 	_live_write("cancel.reusable", {"attempts": 2, "cancelled": 2})
+
+
+func _live_cancel_retirement(native: ENetMultiplayerPeer) -> Dictionary:
+	var session: NetworkEnetSessionAdapter = _live_game.network_session
+	var snapshot: Dictionary = session.get_snapshot()
+	var empty_authority := ((snapshot.get("lifecycle", {}) as Dictionary).get("peers", []) as Array).is_empty()
+	empty_authority = empty_authority and ((session.get("_ship_ownership").get_snapshot().get("ships", [])) as Array).all(func(ship: Dictionary): return int(ship.get("owner_peer_id", 0)) == 0)
+	empty_authority = empty_authority and (session.get("_seat_authority").get_snapshot().get("assignments", []) as Array).is_empty()
+	empty_authority = empty_authority and int(session.get_crew_role_snapshot().get("admitted_peer_count", -1)) == 0
+	for role: Dictionary in (session.get_crew_role_snapshot().get("roles", {}) as Dictionary).values():
+		empty_authority = empty_authority and int(role.get("peer_id", 0)) == 0
+	empty_authority = empty_authority and (session.get_boarding_snapshot().get("occupancies", []) as Array).is_empty()
+	var simulator := _live_game._network_remote_body_simulation
+	empty_authority = empty_authority and (simulator == null or simulator.get_body_count() == 0)
+	var retired := {"native_id": str(native.get_instance_id()), "native_closed": native.get_connection_status() == MultiplayerPeer.CONNECTION_DISCONNECTED, "peer_null": session.get("_peer") == null, "api_offline": session.multiplayer.multiplayer_peer is OfflineMultiplayerPeer, "inactive": not session.is_session_active(), "pending_null": session.get("_pending_join_peer") == null, "deadline_zero": int(session.get("_pending_join_deadline_milliseconds")) == 0, "offer_empty": session.get_server_offer().is_empty(), "admissions_empty": session.get_admitted_peer_ids().is_empty(), "authority_empty": empty_authority, "body_source_null": _live_game.get_network_remote_body_intent_source() == null, "on_foot": not (_live_game.get_node("Player") as PlayerController).is_seated()}
+	var valid := true
+	for key: String in retired:
+		if key != "native_id":
+			valid = valid and bool(retired[key])
+	retired["valid"] = valid
+	return retired
+
+
+func _live_cancel_then_join() -> void:
+	_live_cancel_observation = {"player": _live_player_identity(), "retired": [], "old_native_ids": [], "fresh_admissions": 0}
+	_live_game.network_session.peer_admitted.connect(func(_peer_id: int, _receipt: Dictionary):
+		_live_cancel_observation.fresh_admissions = int(_live_cancel_observation.fresh_admissions) + 1
+		_check(_live_cancel_fresh_requested, "no cancelled request admits before fresh live-row activation"))
+	_live_start_full_guard(func():
+		if _live_player_identity() != _live_cancel_observation.player:
+			return false
+		for old: ENetMultiplayerPeer in _live_cancelled_native_peers:
+			if old.get_connection_status() != MultiplayerPeer.CONNECTION_DISCONNECTED or _live_game.network_session.get("_peer") == old:
+				return false
+		var session := _live_game.network_session
+		return _live_cancel_fresh_requested or (session.get_admitted_peer_ids().is_empty() and session.get_server_offer().is_empty()),
+		"cancelled native peers stay closed and original Player survives fresh join and leave")
+	var endpoint_port := int(_live_read("cancel_endpoint.ready").get("port", 0))
+	_check(endpoint_port > 0 and endpoint_port != _live_port, "pending fixture is separate from the actual live Main host port")
+	if not _failures.is_empty():
+		return
+	await _live_cancel_guest(endpoint_port)
+	if not _failures.is_empty() or not await _live_button("ServerBrowserBackButton"):
+		return
+	await _live_guest()
 
 
 func _live_pending_join() -> bool:
@@ -589,7 +679,9 @@ func _live_spawn(role: String) -> int:
 		_check(OS.execute("/bin/chmod", PackedStringArray(["700", profile.path_join(folder)])) == 0, "private profile directory permissions: " + folder)
 	_check(OS.execute("/bin/chmod", PackedStringArray(["700", profile])) == 0, "private peer profile root permissions")
 	var args := PackedStringArray(["--display-driver", "x11", "--disable-render-loop", "--rendering-driver", "dummy", "--audio-driver", "Dummy", "--path", ProjectSettings.globalize_path("res://"), "--script", "res://tests/network/game_flow_server_browser_integration_test.gd", "--", "--live-menu-cancel" if _live_cancel else ("--live-menu-two-guests" if _live_two_guests else "--live-menu-one-guest"), "--live-peer", role, _live_directory, str(_live_port)])
-	if _live_full:
+	if _live_cancel_rejoin:
+		args[args.find("--live-menu-one-guest")] = "--live-menu-cancel-rejoin"
+	elif _live_full:
 		args[args.find("--live-menu-one-guest")] = "--live-menu-full"
 	elif _live_stale:
 		args[args.find("--live-menu-one-guest")] = "--live-menu-stale"
@@ -628,13 +720,16 @@ func _live_actor() -> void:
 		elif _live_role == "host":
 			await _live_host()
 		else:
-			await _live_guest()
+			if _live_cancel_rejoin:
+				await _live_cancel_then_join()
+			else:
+				await _live_guest()
 	if (_live_two_guests or _live_cancel or _live_gameplay or _live_full) and not _failures.is_empty():
 		_live_write("abort", {"reason": "first_failed_boundary", "role": _live_role})
 	# Cleanup is independent of menu success, focus, pause state or input capture.
 	if _live_gameplay or _live_full:
 		_live_release_movement()
-	if _live_full or _live_rejoin or _live_stale:
+	if _live_full or _live_rejoin or _live_stale or _live_cancel_rejoin:
 		_live_stop_full_guard()
 	if _live_full:
 		var pointer_release := InputEventMouseButton.new()
@@ -651,6 +746,8 @@ func _live_actor() -> void:
 	_live_game.queue_free()
 	await process_frame
 	await process_frame
+	if _live_cancel_rejoin and _live_role == "guest":
+		_live_cancel_observation["guard"] = _live_full_guard.duplicate(true)
 	var done := {"assertions": _assertions, "failures": Array(_failures), "pid": OS.get_process_id()}
 	if _live_gameplay:
 		done["gameplay"] = _live_walks
@@ -659,6 +756,8 @@ func _live_actor() -> void:
 		done["gameplay"] = _live_walks
 	if _live_stale:
 		done["stale"] = _live_stale_observation
+	if _live_cancel_rejoin and _live_role == "guest":
+		done["cancel_rejoin"] = _live_cancel_observation
 	if _live_role == "host":
 		done["guest_counts"] = _live_counts
 	_live_write(_live_role + ".done", done)
@@ -808,11 +907,19 @@ func _live_guest() -> void:
 	_live_write(_live_role + ".discovered", {"session_id": str(session_id), "endpoint": endpoint})
 	if _live_stale and not await _live_stale_expiry(session_id):
 		return
+	if _live_cancel_rejoin:
+		_check(_live_cancel_retirement(_live_cancelled_native_peers.back()).valid, "no cancelled callback admitted before fresh live-row activation")
+		_live_row(session_id).pressed.connect(func(): _live_cancel_fresh_requested = true, CONNECT_ONE_SHOT)
 	if not _failures.is_empty() or not await _live_activate(_live_row(session_id)):
 		return
 	if not await _live_boundary(_live_authenticated, 20.0, "selected real HUD row joins and authenticates guest"):
 		return
 	var session := _live_game.network_session
+	if _live_cancel_rejoin:
+		var fresh_native := session.get("_peer") as ENetMultiplayerPeer
+		var fresh_id := str(fresh_native.get_instance_id()) if fresh_native != null else ""
+		_check(not fresh_id.is_empty() and fresh_id not in _live_cancel_observation.old_native_ids, "actual fresh authenticated join owns a new native peer")
+		_live_cancel_observation["fresh_native_id"] = fresh_id
 	if _live_rejoin:
 		_live_original_native_peer = session.get("_peer") as ENetMultiplayerPeer
 	var peer := (session.get_server_offer().get("admission", {}) as Dictionary).get("peer", {}) as Dictionary
@@ -1637,6 +1744,8 @@ func _live_finish() -> void:
 		label = "GAME_FLOW_LIVE_MENU_DISCONNECT_REJOIN"
 	if _live_stale:
 		label = "GAME_FLOW_LIVE_MENU_STALE"
+	if _live_cancel_rejoin:
+		label = "GAME_FLOW_LIVE_MENU_CANCEL_REJOIN"
 	print(label + ": %d assertions, %d failures" % [_assertions, _failures.size()])
 	if _failures.is_empty() and _live_role == "coordinator":
 		print(label + "_TEST_OK")
