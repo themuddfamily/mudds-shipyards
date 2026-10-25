@@ -80,6 +80,11 @@ The table below contains actual missing decisions.
 No implementation card is active. The actual HUD maximum-caption case exposed
 a650px/411px space conflict and now waits for an overflow-presentation choice.
 Six Settings extreme-scale/scroll views remain accepted; REPEAT-RACE stays parked.
+Torrent's bounded source-binding pass is complete: the [existing checks and
+literal missing route fields](docs/ROADMAP_BACKLOG.md#torrent-finite-acceptance-coverage-and-missing-ordinary-route)
+are now listed. The full solo loop remains open on Codex-owned ordinary driver
+work, not a missing craft design decision. No new run or gameplay repair was
+selected by that definition; do not repeat the source inventory.
 
 **Not every inventory row is ready to execute.** Craft full-journey routes,
 comfort episodes, remaining recovery cuts and final installed-package cases still
