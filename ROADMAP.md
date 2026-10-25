@@ -1,8 +1,8 @@
 # Development roadmap
 
 **Playable alpha; full original scope remains unfinished.** Latest playable build:
-[9477a89 Windows checkpoint](builds/windows/MuddsShipyards-9477a89-checkpoint.zip)
-([changes and validation](builds/windows/MuddsShipyards-9477a89-notes.txt)).
+[0d77125 Windows checkpoint](builds/windows/MuddsShipyards-0d77125-checkpoint.zip)
+([changes and validation](builds/windows/MuddsShipyards-0d77125-notes.txt)).
 Nine of the promised 17 craft exist. All 36 original parent outcomes and ten phase
 exit gates remain open; completed child results are retained, not counted as whole
 features. There is no evidence-backed project percentage or completion date.
@@ -29,42 +29,28 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Selected: ACCESS-NEARBY — bounded ten-row activity list and fixed footer.**
-Source348a0cabb; actual Nearby page1024x768/requestedMAX1.6/effective pause
-clamp unchanged. Source directly stacks ten rows, each at least48px, with wrapped
-progress/refusal copy and feedback/Save/Load/Back inside a fixed780x660 page.
-First reproduce geometry on the production presenter's ten-row view; if no defect,
-stop without speculative edits. Preserve all actual row/actions/priority/reset/
-refusal/save/load/Back authority and existing child-button order.
+**Delivered: ACCESS-NEARBY — ten scrolling rows, fixed footer and honest arm feedback.**
+Source0d77125b3/checkpoint0d77125: Cinder Activity Status now bounds its ten rows
+inside the authored page while keeping heading/feedback/Save/Load/Back fixed.
+Focus reveals the whole row and follows retained priority/progress updates;
+queued updates respect a newer Back transition. Accepted defense arm receipts
+now say ARMED/board-and-depart, matching the settled Deploy-arms behavior.
 
-One implementer owns `scripts/ui/hud.gd` and the existing nearby HUD integration
-regression; root owns records/checks/export/integration/cleanup in this shared
-checkout. Expected visible result: all ten rows readable through bounded scrolling,
-feedback/Save/Load/Back remain in bounds, focused enabled actions are revealed,
-and retained focus/row identity survive priority/progress/terminal refresh. Back
-returns to its actual opener. Scrolling/focus sends no activity/save/load intent.
+Selected1024x768/requested1.6 view passes124 HUD assertions/3.080s; actual-Main
+streaming/physical gate/arm/current-contract active-reset/Back route16/32.795s
+passes. Existing persistence4/reset-focus8/priority-focus8/layout552 checks retained
+for their unchanged consumers. Independent source/raw/two-view Forward+ component
+review GO. Fresh clean paired exports, three strict menu-ready startups and
+matching1527 actual PCK entries/stock Windows code/exact Linux archive pass.
 
-Proof: existing HUD integration regression with actual presenter/content/cargo
-states, existing persistence/reset/priority focus tests, actual-Main board route,
-same-view isolated Forward+ captures, fresh clean Windows/Linux checkpoint,
-strict startup exit0+menu-ready marker and exact package audit. Preserve scale,
-original caps and parked UI-BOARD-FOCUS/ordinary activity failures. Dummy/headless
-or ownedXvfb x11 only; other cells/full journeys/native/device gates remain open.
-Estimate20min source+25checks/capture/export+10review/cleanup; hard stop60min
-including failed attempts. First unexpected failure stops; a causal correction
-requires bounded cumulative review. No new matrix, validator or UI framework.
-
-
-**Bounded continuation within the same ACCESS-NEARBY clock.** The existing Main
-route still demands instant-active Deploy, contrary to the accepted Deploy-arms
-choice. Retain its streaming/physical gate/Back and active-reset assertions: first
-assert real armed/idle/zero-enemy state, then use the already-established disclosed
-content-owner fixture for active-reset UI coverage. Real launch remains separate.
-Also correct the actual nearby footer's `launch_armed` receipt from STARTED to
-ARMED/board-and-depart guidance. Add `tests/nearby_activity_board_production_route_test.gd`
-to the same implementer's ownership; no GameFlow/board/presenter changes or new
-framework. Estimate5–10min source, preserve both failures and original60min cap;
-first new unexpected failure stops for cumulative review/park.
+All four failed stages remain recorded, including the old safe-margin failure,
+a focus-stimulus correction, obsolete immediate-combat test and parse-only type
+correction. Nineteen owners terminal/87 process identities absent;604 archive
+members verified before owned loose records/helpers/profiles removal. Source
+integrated; no task branch/worktree created. The Main active-reset encounter is
+an explicit owner fixture, not physical launch. Other cells/full activities/
+parked UI-BOARD-FOCUS/native/device/phase gates stay open.
+[Exact results and cleanup](docs/history/ROADMAP_DELIVERIES.md#nearby-activities-bounded-list-and-armed-feedback--shipped-on-0d77125--2026-10-25).
 
 **Delivered: ACCESS-DESTINATIONS — bounded five-card Destination Board.**
 Source9477a89ee/checkpoint9477a89: all three worlds/two sector sites scroll inside

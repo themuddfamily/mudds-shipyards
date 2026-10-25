@@ -23411,3 +23411,85 @@ All automation silent Dummy/headless or ownedXvfb x11. Native Windows/GPU,
 physical devices/listening and wider viewport/state/ordinary journey/final gates
 remain NOT_RUN/open. GitHub Actions remains disabled. This delivers the named
 view/capability; no original parent/phase or full project completion is claimed.
+
+
+## Nearby Activities bounded list and armed feedback — shipped on 0d77125 — 2026-10-25
+
+ACCESS-NEARBY, parents12/29; selected8535caf79 from348a0cabb. Accepted source
+0d77125b3db4d3d9a50c0aea7543de10fcd7c43b, checkpoint0d77125. The ten actual presenter rows now scroll
+inside the unchanged780x660 page. Header, feedback, Save/Load and Back stay fixed;
+enabled focus reveals the complete row and survives retained progress/priority
+movement. A coalesced one-shot callback reads current focus after layout, rejects
+hidden/freed/queued targets, and never grabs focus or dispatches authority.
+An accepted station_defense/launch_armed receipt now says ARMED // BOARD A CRAFT
+AND DEPART with its existing success palette, rather than incorrectly STARTED.
+Generic accepted starts, row order/identity, confirmation, lifecycle authority,
+scale clamp and actual34s defense clock are unchanged.
+
+Original92297c3f2 baseline2.803s fails exactly four new assertions: page safe
+bounds, no bounded scrolling, Back safe bounds and Back focused bounds. All row
+copy/actions and old retained-focus checks pass. Before image shows752.842px
+page height/top7.579; Back is on-screen but outside authored readable margins,
+not clipped off-screen. After fix it is666.947px/top50.526 at the same1024x768/
+requested1.6/effective1.010526. Every row and action can be read through scrolling.
+
+First corrected-runtime d15d0d2c7 check3.438s stops on only first cargo SELECT
+focus reveal. Caller had manually scrolled to the last row while leaving the
+same first SELECT focused; repeating grab_focus emits no new event. Independent
+source review confirms this. One caller-only setup correctionf1ebf3aac moves
+focus to fixed Back before the unchanged full focus loop;122 assertions pass
+3.097s. No SELECT skipped, extra frames/tolerance/deadline or production change.
+
+Existing Main directory test then fails33.503s on three obsolete instant-active
+Deploy assumptions. Current accepted owner behavior arms at idle/zero enemies;
+first Reset cancels that arm and second reports already_idle. Bounded continuation
+0482af72b records the precise dependency and visible misleading STARTED receipt;
+7925841a3 fixes only that receipt and updates the existing test to the approved
+arm contract. Real arm nonce/actor/content/generation/idle0entities are asserted,
+then the established explicitly disclosed content.start owner fixture exercises
+original active1entity/reset-confirmation/reset checks after normal HUD sync.
+This does not qualify physical boarding/departure. Initial test declaration
+inference fails before Main execution16.897s; five explicit types fixed without
+predicate, fixture, frame or cap changes. All failures and cumulative review stay
+on the original60min clock; no arbitrary unchanged retry or new framework.
+
+Final HUD integration124/3.080s and actual Main16/32.795s pass with OS0, one proper
+completion marker, zero diagnostics and no surviving processes. Tests cover all
+ten rows/copy/actions, enabled top/middle/hulk briefing focus, cargo completed/
+transit/delivery/lost priority updates, fixed feedback/footer, exact opener on
+same-frame refresh→Back, unchanged hidden scroll and no activity/persistence/site
+briefing dispatch. Actual Main retains real Cinder load/unload, disabled field
+rows, physical defense admission/refusal, real arm, staged active/reset and Back.
+Persistence4/2.332s, reset-focus8/2.565s, priority-focus8/2.507s and layout552/12.387s
+retained: final added receipt branch applies only to accepted defense launch_armed;
+those consumers and the scroll/focus/layout methods are unchanged. Final124
+production bytes are also identical across792→0d (only Main test types differ).
+
+Isolated Forward+llvmpipe component before7.802s/after7.970s captures pass and
+originals inspected independently. Actual distinct offsets0/85 cover all ten
+rows; nominal middle sample clamps to85 and is not a third distinct view. Header,
+refusal guidance, Save/Load and Back are fixed/readable with no list overlap.
+Source/raw/finite-image review GO. Actual Main is checked separately; component
+captures are not actual Main render, native hardware or physical input proof.
+
+Clean exports Windows10.553s/Linux25.611s pass. Linux binary
+25.024s/archive26.716s and Windows embedded game data under Linux
+28.801s each exit0 plus exactly one STARTUP_MENU_READY_OK. Actual package audit
+5.605s verifies matching1527 PCK entries/compiled HUD/tests-tools exclusion,
+stock Windows code and all six Linux archive members/bytes/modes/source times/
+launchers. EXE/ZIP/notes are in builds/windows; exact two-member ZIP verified.
+EXE SHA256 `4162d1f084c7e359d912115f30e88b6844df346e4471e67f934ed165e845738c`;
+ZIP SHA256 `de40621bda66bfe240a7e37ca8988f3b5608977b612297d6b42f5e522c0db56a`.
+
+Owned cleanup:19 owners terminal/87 recorded owner-child process identities
+absent;604 members byte/mode/link verified before loose records/helpers/private
+profiles removed. Only case results/closeout.json and results/case-records.tar.gz
+remain under /srv/mudds-work/nearby-board-layout-20261025. Archive SHA256
+`c4fdcab8964e8f19e08e03ff7c80fcba6038e7a0f9e0977f3e666ad12fd26715`. Cleanup clock1413.504s/3600s;
+source integrated, no task branch/worktree created, pre-existing worktrees untouched.
+All four failed stages intentionally retained; no failed source merged just for cleanup.
+
+All automation Dummy/headless or ownedXvfb x11. Native Windows/GPU, physical
+input/listening and human qualification remain NOT_RUN. Other viewport/state,
+full ordinary activity/launch, parked UI-BOARD-FOCUS, original parent/phase/final
+release requirements remain open. GitHub Actions remains disabled.
