@@ -29,34 +29,35 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Selected: final three missing-craft proposals — SPEC-DYNAMIC/UTOPIA/SALYUT.**
-Preflight found Titan's older draft still lacks numeric hull/access/berth and
-seven tuning fields. Its author now owns a separate15min completion of those
-holes in the existing Titan proposal; original pilot/two-passenger/four-unit
-cargo/weapon choices stay. This is an explicit scope correction, not a duplicate
-proposal or restarted clock. Root reviews all four artifacts on the same60min
-budget; no owner decision or runtime authorization is inferred.
+**Prepared: concrete modern proposals for all eight missing craft — owner choices pending.**
 
-Starting clean source5aba30cd0. Three independent authors own one new proposal
-file each under docs/design/; root owns source/seam review and shared references.
-One fixed explicitly modern UNAPPROVED design per craft: Dynamic small powerful
-gunship, Utopia actual conserved frontline supply dropship, Salyut transport.
-Registered written names/roles remain distinct from unknown historical models.
+| Craft | Fixed proposed function | Bounded draft cards |
+| --- | --- | --- |
+| [Titan](docs/design/TITAN_IMPLEMENTATION_PROPOSAL.md) | Pilot, two physical passengers, four conserved inert parcels, defensive cannon | 13 |
+| [Vortex](docs/design/VORTEX_IMPLEMENTATION_PROPOSAL.md) | Pilot, four physical passengers, defensive cannon | 14 |
+| [Paradox](docs/design/PARADOX_IMPLEMENTATION_PROPOSAL.md) | Pilot cannon, independent physical gunner, one passenger | 16 |
+| [Katana](docs/design/KATANA_IMPLEMENTATION_PROPOSAL.md) | Single-pilot braking fighter | 13 |
+| [Predator](docs/design/PREDATOR_IMPLEMENTATION_PROPOSAL.md) | Unarmed pilot/guard/voluntary-detainee transport with a real cell | 15 |
+| [Dynamic](docs/design/DYNAMIC_IMPLEMENTATION_PROPOSAL.md) | Compact single-pilot short-range gunship | 13 |
+| [Utopia](docs/design/UTOPIA_IMPLEMENTATION_PROPOSAL.md) | Conserved supply dropship with finite live hostile approach and two chairs | 18 |
+| [Salyut](docs/design/SALYUT_IMPLEMENTATION_PROPOSAL.md) | Unarmed pilot/two-passenger transport | 15 |
 
-Each artifact fixes hull/scale/access/collision/own deployed-envelope berth,
-all16 handling/system fields, physical roles and actual functions, weapons or
-absence, cargo/navigation, component/service/reset/save/reuse, and finite
-production cards with exact files/visible results/focused checks/stops. Preserve
-full two-sortie/cross-craft/Main/network/recovery and early checkpoint requirements.
-No cargo framework/automatic refill/hidden authority/capacity or historical waiver.
+Each fixes numeric hull/access/berth, all16 tuning fields, actual functions and
+ownership, component/service/reset/save/reuse, production files/visible results/
+proof/stops, early checkpoint and full craft acceptance. Titan's older missing
+geometry/tuning and unsupported existing-cargo assumption are corrected in place;
+Vortex's proposed drag1.8→1.85 resolves its13-axis Bomber overlap. Root source
+comparison now finds all17 numeric profiles/136 pairs meet≥14 differences and
+existing extrema/non-dominance; this is arithmetic, **not runtime qualification**.
 
-Estimate25–30min per author concurrently plus15min root review/integration;
-shared hard stop60min from selection. No engine/export/GitHub CI or runtime edit.
-Finish at reviewed concrete artifacts and named pending owner choices, not craft
-construction or approved SPEC/build split. Earlier five prepared proposals are
-reused; do not repeat their definitions or infer approval from continuation.
-All17 craft and original historical/device/rights/final gates stay in scope.
-
+All eight are explicitly UNAPPROVED modern interpretations, not authenticated
+historical models. The [decision register](docs/ROADMAP_BACKLOG.md#blocking-decisions-and-resources)
+assigns interpretation/design choices to the owner. Approve a named baseline,
+revise exact fields, or retain historical freeze; do not infer an answer from
+continuation or repeat completed proposal preparation. This delivers no craft,
+approved SPEC/build split, capacity or phase. Actual fleet remains9/17; all
+original historical/rights/device/final gates remain. No engine/runtime/export/
+CI work was performed. [Preparation and limits](docs/history/ROADMAP_DELIVERIES.md#remaining-craft-proposals-and-titan-completion--2026-10-25).
 
 **Delivered: HELM-THROTTLE-REVERSE — full ordinary handback.**
 Corrected source102704512 passes142.607s: physical3process boarding/departure,
@@ -122,42 +123,6 @@ no runtime tuning/feature change, physical device or native-hardware pass.
 No identical playable rebuild is needed; checkpointfb396ab remains current.
 Full network/endurance/capacity/final gates stay
 open. No task branch/worktree was created.
-
-**Prepared: three concrete craft proposals — owner choices pending.**
-[Paradox](docs/design/PARADOX_IMPLEMENTATION_PROPOSAL.md): pilot cannon, separate
-physical gunner and one passenger; 16 bounded cards.
-[Katana](docs/design/KATANA_IMPLEMENTATION_PROPOSAL.md): single-pilot braking
-fighter; 13 bounded cards.
-[Predator](docs/design/PREDATOR_IMPLEMENTATION_PROPOSAL.md): unarmed pilot/guard/
-voluntary-detainee transport with one real controlled cell; 15 bounded cards.
-Each fixes a labelled modern candidate's hull/access/berth/tuning/roles/systems/
-recovery and exact acceptance routes. Root source/seam review is complete;
-no engine, runtime or package work was performed. Shapes and mechanics remain
-UNAPPROVED; registered sources support names/roles, not authenticated models.
-
-Preparation is complete; SPEC/build/craft acceptance remains open. Record each
-owner interpretation choice against its proposal before runtime work. Titan and
-Vortex choices also remain pending. Do not repeat proposal preparation or infer
-approval from continuation. Full17craft scope and historical requirements remain.
-
-**Prepared: SPEC-VORTEX decision proposal — owner choice pending.**
-[Vortex's unapproved modern proposal](docs/design/VORTEX_IMPLEMENTATION_PROPOSAL.md)
-fixes one pilot/four physical passenger chairs,10×20×5m original hull, continuous
-stern access, trial handling, one existing pilot cannon, no cargo/specialist roles,
-safe on-foot restart and14 bounded implementation/package cards. Source confidence
-supports only the registered name/role; geometry/mechanics are proposed, not
-historical. Root source/seam/contract review complete; no engines or runtime edits.
-Source-table review also found Vortex differs from the existing Bomber on only
-13 handling axes against the registry minimum14. Its proposed tuning needs one
-explicit revision and actual combined-roster validation before implementation;
-proposal preparation is not a passed fleet check.
-
-This completes proposal preparation, NOT SPEC-VORTEX/BUILD-SPLIT approval, a craft,
-phase or historical gate. Owner chooses this labelled modern interpretation,
-revises exact fields, or keeps reconstruction frozen pending tied model evidence.
-Do not repeat this definition or begin runtime work without that choice. Titan's
-existing proposal/interpretation choice also remains pending. Full17craft scope,
-capacity/desktop/native/device/rights and full-craft acceptance remain unchanged.
 
 **PLAY-TORPEDO remains OPEN; three full trials stopped/unaccepted.**
 The latest run genuinely reboarded after sampled view/selection settling, then

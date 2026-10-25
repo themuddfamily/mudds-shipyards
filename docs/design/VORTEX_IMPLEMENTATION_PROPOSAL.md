@@ -2,6 +2,8 @@
 
 Status: decision-ready planning proposal, 2026-10-25. **SPEC-VORTEX remains pending owner decision; Vortex remains unimplemented/frozen.** No runtime work is authorized by this document, no craft is accepted, and no parent outcome, phase gate or historical dependency is closed. This is one proposed modern interpretation, not a reconstruction specification. The proposal was prepared from repository sources without running Godot or tests.
 
+Root revision 2026-10-25: the earlier trial drag1.8 shared three axes with Cinder Bomber, leaving only13 differences against the existing minimum14. Proposed drag1.85 resolves that exact source-table conflict without changing an implemented craft. This remains an UNAPPROVED design revision, not runtime tuning or a passed controller check.
+
 ## Supported facts and evidence boundary
 
 The registered A3 creator-authored page, captured **2009-11-12T09:12:26Z**, supports **Vortex-class Troop Transport** and its troop-transport role. [RESEARCH.md's A3 roster](../../RESEARCH.md#best-creator-authored-original-roster-2009-11-12) assigns that name/role high confidence. This confidence applies to the dated written roster, not to a model, passenger count, weapon or mechanic.
@@ -40,7 +42,7 @@ The proposed definition freezes all existing flight/system fields, in their curr
 | --- | ---: | --- | ---: |
 | `maximum_speed` | 68 | `boost_speed` | 88 |
 | `thrust_acceleration` | 20 | `brake_acceleration` | 29 |
-| `passive_drag` | 1.8 | `throttle_response` | 5.5 |
+| `passive_drag` | 1.85 | `throttle_response` | 5.5 |
 | `boost_multiplier` | 1.2 | `yaw_speed_degrees` | 39 |
 | `roll_speed_degrees` | 47 | `flight_assist_strength` | 3.6 |
 | `visual_bank_degrees` | 3 | `maximum_mouse_turn_degrees` | 9 |

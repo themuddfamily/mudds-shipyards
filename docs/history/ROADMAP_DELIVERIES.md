@@ -23199,3 +23199,86 @@ terminal, all39 sampled process identities absent. Verified442 archive members,
 Both failed/corrected profiles and helper sources archived before removal; case
 retains only case-records.tar.gz/closeout.json. Main is sole local branch; no
 owned task worktree/process remains, pre-existing detached worktrees untouched.
+
+
+## Remaining craft proposals and Titan completion — 2026-10-25
+
+Prepared SPEC-DYNAMIC/UTOPIA/SALYUT decision artifacts after selection91f80d9e5;
+three independent medium authors owned one new file each. Root source review
+found older Titan lacked dimensions and seven tuning fields; selection60943163b
+explicitly included a15min in-place Titan completion under the same60min clock.
+One author finished that separate file after Dynamic. No repeated proposal copy,
+new goal ID, runtime authorization or historical/model authentication.
+
+Dynamic: fixed original9×10×3.6m single-pilot short-range gunship, unchanged
+Bulwark pilot pulse360m/50/.30s, no charged crew lance, own physical access/berth,
+all16 tuning fields and13 bounded cards. Salyut: fixed8×14×4.5m unarmed one-pilot/
+two-physical-passenger transport, actual chair mapping/handoff and15 cards. A3
+supports Dynamic/Utopia names and written gunship/supply-during-battle roles;
+Salyut belongs to A4's2010-01-09 arrival claim, not A3's2009 original ten. None has
+a registered tied model. Source reading used the repository ledger/matrix;
+no archive/video was fetched or freshly viewed, no rights clearance inferred.
+
+Utopia: fixed9×17×4.8m pilot/two-companion supply dropship, eight-unit physical
+racks using the existing finite shared Cinder stock of2, existing120s physical
+one-crate supply route, one reused defensive cannon, one finite real RangeOpponent
+approach with exact45physics-sec/distance/generation/landing stand-down rules,
+18 bounded cards. Adding a third custodian/pressure encounter is explicitly
+UNAPPROVED. Existing stock/custody owners remain single writers. No fabricated
+refill/turnover or general Cinder active-recovery choice: proposed Utopia cold
+settlement is confined to its captured custody interval, preserving terminal
+debt/unrelated data and refusing stale adoption over newer independent progress.
+Any actual codec coupling needs a bounded production compatibility/migration
+slice, not an invented owner permission gate for internal format work. Changes
+to gameplay recovery policy remain actual owner decisions.
+
+Titan: retained old pilot/two-chair/four-unit cargo/cannon role and nine original
+trial tuning values; fixed twelve-by-eighteen-by-five metre hull, exact connected
+access/berth/deployed bounds, seven missing values and13 cards. Root extended the
+proposed cockpit floor bounds to include its pilot chair. Unsupported 'existing
+repair-kit cargo' corrected to a proposed new inert parcel item, distinct from
+RepairAuthority tool charges. Four initial parcels stay conserved between own
+locker and ship; cold restart safely returns the committed four to locker,
+never appends stock or changes Jovian/Cinder eligibility/recovery policies.
+Actual item/store/chair/network adapters remain unimplemented.
+
+Root source arithmetic exposed Utopia thrust21 dominating pending Vortex;
+author changed the proposed Utopia value to19 while retaining Vortex20. The older
+Vortex proposal still shared three axes with Cinder Bomber; root explicitly
+revised UNAPPROVED drag1.8→1.85, resolving that13-axis conflict. No implemented
+sibling changed. All17 numeric profiles are now complete: all136 source-table
+pairs differ on≥14axes, neither dominates the other on registry-scored fields,
+and all16 existing signature extrema remain. Nine actual definition resources
+include inherited Torrent defaults; six FleetRoleRegistry policy maps are not
+runtime consumers or proof of all-nine integration. These calculations are not
+engine tests, controller feel, fleet audit or accepted gameplay. Combined-source
+checks and all original full-craft gates remain mandatory after implementation.
+
+Every draft fixes functions/ownership, actual physical access, damage/service/
+reset/save/reuse, ordinary two-sortie/cross-craft/Main/network proof and exact
+production-file/visible-outcome/focused-check/stop cards≤75min, including early
+clean-commit Windows checkpoint. Playing host plus two remotes is separate from
+original nonplaying-server/two-client baseline; chair counts approve no capacity.
+Native Windows execution/mandatory human review remain owner-excluded/NOT_RUN;
+other applicable Linux/hardware/device/audio/rights/historical/full17/final gates
+stay open. No new validator/schema/framework or evidence-only build assignment.
+
+Root verified local links, complete16field tables, card counts and numeric
+comparisons; all337 canonical goal IDs/names/parents/Done means remain intact.
+Backlog/scope references now name these artifacts and pending choices; duplicate
+prepared front-page prose consolidated into one eight-craft decision table.
+No SPEC/build/craft/phase marked complete: fleet remains9/17, checkpointfb396ab
+unchanged. Preparation is complete; record actual owner choices before runtime,
+reuse the drafts rather than another definition/research loop.
+
+No engines/tests/exports/CI or production edits; no scratch, task branch/worktree
+or owned test processes created. Main remains sole local branch; pre-existing
+detached worktrees untouched. Final reviewed artifact SHA256 values:
+
+- DYNAMIC: 98eea7cb8c7224b2b8e8ab368fd061feb7cf2e8a9e8f418f680c56416f3ca2e4
+- UTOPIA: d45427a8c62c388d6f8ad1f49799857c8222a1c6f579460c21cc87671794bffb
+- SALYUT: 2e334fc92c94aa23c81f48dfa5fa38a59a89bed08f3aeb826e3701b4facb85bc
+- TITAN: f7543438b24f59a72e941db4252d23490fc41243325dd808768590a32422fcca
+- VORTEX: feb4f593929b1b1d38803eb5d231a241a48c8dba800e97b77ce3cc2e2c698c78
+
+Preparation/integration reached final review in9.44min from original selection, within60min; scope correction did not reset the clock.
