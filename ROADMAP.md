@@ -77,18 +77,15 @@ Only one implementation card may be active. Completed results are linked under
 [accepted work](#accepted-work--source-limits-retained), and failed attempts under
 [parked work](#parked-failures-and-dependent-work). They are not next tasks.
 The table below contains actual missing decisions.
-Active card: physical Torrent→Arrow→Torrent handoff,15:11Z→16:11Z/60min,
-including planning, checks and closure. Preserve the accepted damage/two-home
-prerequisite, then actual supported deck walking, fresh native Arrow boarding,
-90neutral/OFFLINE ticks, Arrow's own E exit and supported walk, physical return,
-fresh Torrent stream/boarding/90neutral ticks/E exit/walk and normal UI OS0.
-Both hulls stay exactly parked/landed/OFFLINE without flight demand during this
-handoff; old craft remains unpiloted with neutral, non-producing input. Same
-Main/Player/two ships/default sources; original CAP300/goal15s/clear12s remain.
-Mode-fenced read-only observation, independent review, existing focused checks,
-clean private Linux export/strict startup and one isolated x11/Dummy trial.
-First unexpected failure stops. This is physical switching, not Arrow flight or
-full craft/destruction/Main acceptance; no direct gameplay calls or rescue.
+No implementation card is active. Physical Torrent→Arrow→Torrent handoff is
+accepted: driveraf38de143/package6fe51dca4,131.708s under unchanged CAP300.
+The real damage/two-home prerequisite is followed by supported deck walking,
+Arrow boarding/90neutral-OFFLINE ticks/current-stream E exit, return walking,
+fresh Torrent stream/reclaim/90neutral ticks/E exit/walk and normal UI OS0.
+Both hulls remain parked/OFFLINE during handoff; old sources remain neutral and
+non-producing. [Exact result, two failed approaches and cleanup](docs/history/ROADMAP_DELIVERIES.md#torrent-arrow-physical-handoff-accepted-20261025).
+Arrow flight/weapons, broader damage/destruction, Main re-entry and final craft
+qualification remain open; do not replay this accepted case unchanged.
 
 Torrent's real incoming core-damage/passive
 repair route is accepted ona1de3363f: hull100→89, core integrity.56 and targeting
@@ -219,6 +216,7 @@ charged; a new card/branch/folder cannot restart that budget. No Torpedo continu
 ## Accepted work — source limits retained
 
 Recent accepted child outcomes include
+[physical Torrent–Arrow handoff/reclaim](docs/history/ROADMAP_DELIVERIES.md#torrent-arrow-physical-handoff-accepted-20261025),
 [Torrent incoming core damage/passive repair](docs/history/ROADMAP_DELIVERIES.md#torrent-core-damage-passive-repair-accepted-20261025),
 [Torrent packaged return/reuse](docs/history/ROADMAP_DELIVERIES.md#torrent-return-reuse-capability-accepted-20261025),
 [six Settings extreme-scale/scroll component views](docs/history/ROADMAP_DELIVERIES.md#settings-4x3-extreme-views-inspected-20261025),

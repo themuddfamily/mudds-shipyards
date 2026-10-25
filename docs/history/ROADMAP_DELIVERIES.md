@@ -25691,3 +25691,88 @@ restoration; a private reconstruction matched original hash/mode before deletion
 All7supervisors and observed identities are absent; all5private build files and
 owned scratch removed. Case keeps only archive and closeout JSON. Git closure
 records pushed main, exact contained-branch deletion and final elapsed time.
+
+
+<a id="torrent-arrow-physical-handoff-accepted-20261025"></a>
+## Physical Torrent–Arrow handoff and Torrent reclaim — accepted
+
+CRAFT-ACCEPT-TORRENT gains `--route torrent-arrow-handoff`: external driver
+`af38de1436f52ee8a001e217280d313ddbebd5f4`, exact private package source
+`6fe51dca419ba1b21702aa90d88b8daf605e9709`. Subsequent changes are Python driver/
+tests only; every Godot runtime/observer/resource byte is unchanged from6fe.
+Mode-fenced observation samples the two physical actors/default source objects
+fresh, capturing produced native Interact and actual GameFlow consumed actor/
+stream/sequence. It never creates input sources or lazy-builds seat anchors.
+One high implementer/high independent reviewer; no gameplay/tuning/geometry fix.
+
+Final native trial passes131.708s (guarded132.178460464s), original CAP300.
+Genuine defender2101/11damage causes core impairment;613uninterrupted airborne
+observations precede43strict passive repair commits/all nominal/zero effects,
+with hull89 retained. The original two strict home returns,90neutral/OFFLINE
+ticks per home, physical exits and reusable Torrent remain required and pass.
+Then supported walking uses the authored x−8.5 corridor in both directions.
+5,669consecutive physics observations retain Main/world/Player/capsule/both
+ships/default sources;167.015495m of supported walking is tracked.
+
+Arrow282947750585/source765225603098 seats at4689 on stream5, then90neutral
+OFFLINE ticks. Native E4780/sequence92 is produced by current Arrow stream5
+and consumed by GameFlow for that same actor/stream/sequence before actual
+DISEMBARKING4781. Exit4913 restores supported on-foot control and retires Arrow
+stream7/cursor0/pending0/neutral. Its source stays enabled by design; no old
+commands are produced. Arrow hull82, exact parked pose and original occupied
+lease persist. Arrow's historical landing-assist contract remains empty: this
+stationary handoff proves live strict physical berth acceptance, current occupied
+owner/token and Main berth maps, without fabricating a landing record or flight.
+
+Torrent282477988509/source747240432979 remains retired on stream11/cursor0,
+then reclaims a fresh stream13 at5768. Another90neutral OFFLINE ticks precede
+native E5859/sequence92, actual Torrent consumer13/92 and DISEMBARKING5860.
+Physical exit5991 retires stream15; supported walk6025 precedes focused normal
+Exit to Desktop→actual gameOS0. Both hulls remain parked/landed/OFFLINE without
+flight demand throughout handoff; prior Torrent landing contract, hull89 and
+repaired component state persist. Zero diagnostics; inputs released and
+helper/game/Xvfb reaped, independent survivor lists empty.
+
+Two failed approaches remain recorded, not counted as acceptance. Trial1
+98.738s/wrapper99.116012702s stops at the original15s connector goal. The player
+halts at[-12.15275,-.018684,6.564982] while W/focus/support remain valid.
+UpperOperations/JunctionAccessRamp geometry predicts capsule underside contact
+(.380103m versus radius.38); exact slide-collider ID was not logged, so ramp
+attribution is a strong geometric inference. One reviewed Python waypoint fix
+moves east to the authored x−8.5 corridor before northward crossing, mirrored
+on return. Trial2 reaches/exits Arrow but fails129.620s/wrapper130.079634170s at
+the return's final generic walking goal: current Torrent candidate is valid at
+.859115m, but the boarding marker's .780m planar/1.2195m vertical error cannot
+satisfy generic .3m/.65m walking arrival. A second independently justified final
+continuation uses the original genuine boarding predicate≤7m/no station/block,
+releases movement, waits speed≤.35, then retains fresh native E/seat/stream guards.
+Intermediate walking goals,15s/12s/CAP300 and the15:11Z→16:11Z/60min clock remain
+unchanged. No fourth trial or deadline reset. Pre-execution review also replaced
+a lazy seat getter and corrected Arrow's absent historical landing record.
+
+Final203Python tests pass13.092512794s (unittest12.578s), including floor/marker
+regression; earlier202tests12.935417008s and corrected202tests12.704051689s are
+retained. Import6.575582329/privacy1.156696907/observer parse15.701872703/private
+export25.858758461/strict startup22.961269726s pass. Strict startup requires
+OS0 plus exactly one STARTUP_MENU_READY_OK.1,527payload paths match the accepted
+parent; only compiled startup guard and observer differ. No tests/tools/artifacts
+ship. Exact tested ELF SHA256:
+`4eebf758c4b1e967b7947dea1d9ecf02a729ae1942c5baedb2b9642eff59eb8f`.
+The same binary is reused for both external-Python corrections after byte checks;
+stock editor/release-template pins and source/index/cache guards hold. Isolated
+Linux x11/Dummy/dummy-renderer behavior only. Arrow flight/weapons, full component
+stages/destruction/Main, native Windows/GPU/devices/human/final qualification stay
+NOT_RUN/open. Gameplay and graphics are unchanged; current Windows checkpoint
+is retained. Earlier accepted Torrent capabilities cost45.233min separately.
+
+Verified `/srv/mudds-work/torrent-arrow-handoff-20261025/records.tar.gz`:
+145,229,001bytes, SHA256
+`4bb4fd397439d094fc8e0e77ab2834c4a6e12c76a7751b8ef86169014c9dd7f0`,
+176regular files/11symlinks verified. Source bundles/patches, all three native
+trials, causal/source reviews, exact package and profiles are retained. Direct
+ELF0755 was reconstructed/hash/mode-verified from retained tar-member0700 plus
+explicit restore-mode metadata before deletion. All owned supervisors/observed
+identities are absent; all5private build files and scratch removed. Case retains
+only archive and closeout JSON. Git closure records pushed main, exact contained
+branch deletion and elapsed time within the original60min; unrelated worktrees
+are preserved.
