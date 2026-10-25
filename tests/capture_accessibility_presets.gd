@@ -8,11 +8,14 @@ const Palette := preload("res://scripts/ui/hud_palette.gd")
 const DEFAULT_OUTPUT_DIR := "res://artifacts/accessibility"
 ## `ACCESSIBILITY_CAPTURE_DIR` redirects the PNGs (an absolute path is fine);
 ## `ACCESSIBILITY_CAPTURE_SET=presentation` renders only the piloting-state
-## contrast/reticle pair; `ACCESSIBILITY_CAPTURE_SIZE=WxH` sizes the viewport.
+## contrast/reticle pair; `settings-extremes` renders Settings top/middle/bottom
+## at requested scales 0.75/1.6 at 1024x768. `ACCESSIBILITY_CAPTURE_SIZE=WxH`
+## sizes the viewport (required as 1024x768 for settings-extremes).
 var _output_dir := DEFAULT_OUTPUT_DIR
 ## Every capture is checked for a blank frame: the count of distinct colours on
 ## a sampling grid is printed, and a uniform frame is reported as such.
 var _blank_frames := 0
+var _capture_failure := ""
 
 
 func _init() -> void:
@@ -36,6 +39,10 @@ func _run() -> void:
 		print("CAPTURE_VIEWPORT ", root.get_visible_rect().size)
 	if OS.get_environment("ACCESSIBILITY_CAPTURE_SET") == "presentation":
 		await _capture_presentation_pair()
+		_finish()
+		return
+	if OS.get_environment("ACCESSIBILITY_CAPTURE_SET") == "settings-extremes":
+		await _capture_settings_extremes()
 		_finish()
 		return
 	var hud := GameHUD.new()
@@ -114,12 +121,137 @@ func _run() -> void:
 
 
 func _finish() -> void:
+	if not _capture_failure.is_empty():
+		print("CAPTURE_ACCESSIBILITY_PRESETS_FAILED: %s" % _capture_failure)
+		quit(1)
+		return
 	if _blank_frames > 0:
 		print("CAPTURE_ACCESSIBILITY_PRESETS_FAILED: %d blank frame(s)" % _blank_frames)
 		quit(1)
 		return
 	print("CAPTURE_ACCESSIBILITY_PRESETS_OK")
 	quit(0)
+
+
+## Source-component coverage: open the actual paused Settings page through its
+## button, retaining production scale clamping and the actual scroll content.
+func _capture_settings_extremes() -> void:
+	if root.get_visible_rect().size != Vector2(1024.0, 768.0):
+		_capture_failure = "settings-extremes requires actual viewport 1024x768"
+		return
+	var hud := GameHUD.new()
+	hud.name = "AccessibilitySettingsExtremesCaptureHUD"
+	root.add_child(hud)
+	await process_frame
+	hud.set("_started", true)
+	(hud.get("_intro") as Control).visible = false
+	(hud.get("_hud") as Control).visible = true
+	hud.set_paused(true)
+	var main_page := hud.get("_pause_main_page") as Control
+	if main_page == null:
+		_capture_failure = "missing actual pause main page"
+		return
+	var open_button := main_page.find_child("SettingsOpenButton", true, false) as Button
+	if open_button == null or not open_button.is_visible_in_tree():
+		_capture_failure = "missing visible SettingsOpenButton"
+		return
+	open_button.pressed.emit()
+	# Opening Settings focuses its first control. Let that deferred scroll settle
+	# before releasing focus and selecting the three explicit content positions.
+	await process_frame
+	await process_frame
+	root.gui_release_focus()
+	var page := hud.get("_settings_page") as Control
+	var scroll := hud.get("_settings_scroll") as ScrollContainer
+	if page == null or scroll == null:
+		_capture_failure = "missing actual Settings page or scroll surface"
+		return
+	for requested: float in [0.75, 1.6]:
+		hud.set_ui_scale(requested)
+		await process_frame
+		await process_frame
+		var effective := float(hud.get("_pause_effective_ui_scale"))
+		var expected := minf(requested, minf(1024.0 / 880.0, 768.0 / 760.0))
+		if not is_equal_approx(effective, expected):
+			_capture_failure = "pause scale requested=%s actual=%s expected=%s" % [requested, effective, expected]
+			return
+		var bar := scroll.get_v_scroll_bar()
+		for position_name: String in ["top", "middle", "bottom"]:
+			var end := bar.max_value - bar.page
+			if end <= 0.0:
+				_capture_failure = "Settings content has no scroll range"
+				return
+			var target := 0.0
+			if position_name == "middle":
+				target = floorf(end / 2.0)
+			elif position_name == "bottom":
+				target = end
+			bar.value = target
+			await process_frame
+			await process_frame
+			if not is_equal_approx(bar.value, target) or not is_equal_approx(bar.max_value - bar.page, end):
+				_capture_failure = "Settings scroll failed to settle at %s" % position_name
+				return
+			if not _settings_capture_controls_visible(page, scroll):
+				return
+			var label := "settings_panel_scale_%03d_%s" % [roundi(requested * 100.0), position_name]
+			print(
+				"CAPTURE_STATE %s requested=%.6f effective=%.6f viewport=%s scroll_vertical=%d value=%.6f max=%.6f page=%.6f"
+				% [label, requested, effective, root.get_visible_rect().size,
+					scroll.scroll_vertical, bar.value, bar.max_value, bar.page]
+			)
+			if not await _capture(label):
+				_capture_failure = "Settings capture artifact failed: %s" % label
+				return
+	hud.set_paused(false)
+	hud.queue_free()
+	await process_frame
+
+
+func _settings_capture_controls_visible(page: Control, scroll: ScrollContainer) -> bool:
+	var viewport := root.get_visible_rect().grow(0.5)
+	if not _capture_control_inside(page, viewport) or not _capture_control_inside(scroll, viewport):
+		_capture_failure = "Settings page or scroll surface is hidden or outside viewport"
+		return false
+	var heading: Label
+	for candidate: Node in page.find_children("*", "Label", true, false):
+		if (candidate as Label).text == "SHIP SYSTEM SETTINGS":
+			heading = candidate as Label
+			break
+	if not _capture_control_inside(heading, viewport) or scroll.is_ancestor_of(heading):
+		_capture_failure = "missing visible fixed Settings heading"
+		return false
+	for button_name: String in ["SettingsSaveButton", "SettingsResetButton", "SettingsBackButton"]:
+		var button := page.find_child(button_name, true, false) as Button
+		if not _capture_control_inside(button, viewport) or scroll.is_ancestor_of(button):
+			_capture_failure = "missing visible fixed Settings footer: %s" % button_name
+			return false
+	if scroll.get_child_count() < 1:
+		_capture_failure = "missing Settings content columns"
+		return false
+	var columns := scroll.get_child(0) as HBoxContainer
+	if columns == null or columns.get_child_count() != 2:
+		_capture_failure = "missing both actual Settings columns"
+		return false
+	var surface := scroll.get_global_rect()
+	for child: Node in columns.get_children():
+		var column := child as VBoxContainer
+		if column == null or not column.is_visible_in_tree() or not surface.intersects(column.get_global_rect()):
+			_capture_failure = "Settings column is missing or outside scroll surface"
+			return false
+		var rect := column.get_global_rect()
+		if rect.position.x < surface.position.x - 0.5 or rect.end.x > surface.end.x + 0.5:
+			_capture_failure = "Settings column is horizontally clipped"
+			return false
+	return true
+
+
+func _capture_control_inside(control: Control, rect: Rect2) -> bool:
+	return (
+		control != null and control.is_visible_in_tree()
+		and control.size.x > 0.0 and control.size.y > 0.0
+		and rect.encloses(control.get_global_rect())
+	)
 
 
 ## The piloting HUD as authored (palette `none`, contrast off, standard reticle)
@@ -227,7 +359,7 @@ func _capture_swatches(mode_id: StringName) -> void:
 	await process_frame
 
 
-func _capture(label: String) -> void:
+func _capture(label: String) -> bool:
 	await process_frame
 	await process_frame
 	await RenderingServer.frame_post_draw
@@ -241,6 +373,7 @@ func _capture(label: String) -> void:
 		"CAPTURED: %s (%dx%d, save=%d, distinct_sampled_colours=%d%s)"
 		% [path, image.get_width(), image.get_height(), saved, distinct, "" if distinct > 1 else ", BLANK"]
 	)
+	return saved == OK and distinct > 1
 
 
 ## Number of distinct colours on a 64x36 sampling grid. One means a uniform,
