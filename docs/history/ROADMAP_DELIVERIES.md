@@ -26182,3 +26182,16 @@ consolidated in /srv/mudds-work/combat-posting-integration-20261025/records.tar.
 the preceding stopped-source archive remains separately retained. Adjacent
 closeout records actual owned identities absent, publication hashes, source/ref
 cleanup and cumulative time. Actual cleanup details follow below.
+
+Cleanup verified: archive 43,879,587 bytes, SHA256
+`71d0b92b105755762820a05425a3de61e6906f5b488b1d5ec9102045df7b940f`;
+213 regular files and fourteen symlinks verified before scratch deletion. All
+fourteen stage/diagnostic supervisors and 91 observed PID/start identities are
+absent. The private diagnostic folder is consolidated and removed; this case
+retains only archive and closeout. The preceding failed-source archive remains.
+All eleven published artifacts retain their verified hashes. Accepted task tip
+0229b5f9883595aa665c385a397a572a88cdc7b5 is in verified pushed main. No remote
+task ref existed; registered worktree ownership/current tips were checked before
+exact-tip local branch deletion. Archive/cleanup took 58.544 cumulative minutes
+from the original17:58Z start; final closure push time is in closeout. This final
+documentation-only commit changes no production code from checkpoint4968cf1.
