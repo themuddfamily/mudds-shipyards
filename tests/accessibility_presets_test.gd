@@ -31,6 +31,7 @@ func _run() -> void:
 	await _test_hud_reticle_styles()
 	await _test_hud_scale_and_motion()
 	await _test_active_damage_reduced_motion_transition()
+	await _test_active_damage_reduced_flash_transition()
 	await _test_active_toast_reduced_motion_transition()
 	await _test_hud_captions()
 	_finish()
@@ -1066,6 +1067,126 @@ func _test_active_damage_reduced_motion_transition() -> void:
 	hud.flash_damage(1.0, Vector2.UP)
 	_check(is_equal_approx(flash.color.a, GameHUD.DAMAGE_FLASH_ALPHA) and direction.visible,
 		"the next new hit follows the newly selected authored motion mode")
+	hud.queue_free()
+	await process_frame
+	await process_frame
+
+
+## Reduced flash changes only colour: the same real tween must keep its clock,
+## fades, pause state and original expiry throughout preference changes.
+func _test_active_damage_reduced_flash_transition() -> void:
+	var hud := GameHUD.new()
+	hud.name = "AccessibilityActiveFlashHUD"
+	hud.set_reduced_flash(true)
+	_check(is_equal_approx(hud.get_damage_flash_alpha(), GameHUD.REDUCED_DAMAGE_FLASH_ALPHA),
+		"reduced flash can be enabled safely before HUD readiness")
+	hud.set_reduced_flash(false)
+	root.add_child(hud)
+	await process_frame
+	var flash := hud.get("_damage_flash") as ColorRect
+	var direction := hud.get("_damage_direction") as Label
+	hud.flash_damage(1.0, Vector2.RIGHT)
+	var original := hud.get("_damage_tween") as Tween
+	original.pause()
+	original.custom_step(0.10)
+	var before_alpha := flash.color.a * flash.modulate.a
+	var before_modulate := flash.modulate
+	var before_direction := direction.modulate
+	var before_position := direction.position
+	var before_rotation := direction.rotation
+	var before_time := original.get_total_elapsed_time()
+	_check(before_alpha > GameHUD.REDUCED_DAMAGE_FLASH_ALPHA,
+		"the reduced-flash transition fixture starts above the reduced ceiling")
+	hud.set_reduced_flash(true)
+	_check(flash.color.a * flash.modulate.a <= GameHUD.REDUCED_DAMAGE_FLASH_ALPHA + 0.00001
+		and flash.color.a * flash.modulate.a <= before_alpha,
+		"enabling reduced flash immediately caps the current effective damage flash without brightening")
+	_check(hud.get("_damage_tween") == original and original.is_valid() and not original.is_running()
+		and is_equal_approx(original.get_total_elapsed_time(), before_time)
+		and flash.modulate == before_modulate,
+		"reduced flash preserves the actual paused tween, elapsed clock and current fade modulation")
+	_check(direction.visible and direction.modulate == before_direction
+		and direction.position == before_position and is_equal_approx(direction.rotation, before_rotation),
+		"reduced flash preserves active direction opacity and geometry")
+	var capped_alpha := flash.color.a * flash.modulate.a
+	original.custom_step(0.10)
+	_check(flash.color.a * flash.modulate.a < capped_alpha and direction.modulate.a < before_direction.a,
+		"both actual damage fades continue after reduced flash is enabled")
+	var capped_colour := flash.color
+	var repeated_time := original.get_total_elapsed_time()
+	hud.set_reduced_flash(true)
+	hud.set_reduced_flash(false)
+	hud.set_reduced_flash(true)
+	_check(hud.get("_damage_tween") == original and flash.color == capped_colour
+		and is_equal_approx(original.get_total_elapsed_time(), repeated_time) and not original.is_running(),
+		"repeated reduced flash ON and OFF then ON preserve colour, tween identity, pause state and deadline")
+	original.custom_step(0.41)
+	_check(direction.visible and is_zero_approx(flash.modulate.a),
+		"the original damage direction remains visible just before its authored expiry")
+	original.custom_step(0.02)
+	_check(not direction.visible and is_zero_approx(flash.modulate.a) and hud.get("_damage_tween") == null,
+		"reduced flash clears the cue at its original authored deadline")
+	hud.set_reduced_flash(false)
+	_check(not direction.visible and is_zero_approx(flash.modulate.a),
+		"turning reduced flash OFF cannot revive a cleared cue")
+	# A late flash is already dimmer than the cap and must not be raised.
+	hud.flash_damage(1.0, Vector2.LEFT)
+	var late := hud.get("_damage_tween") as Tween
+	late.pause()
+	late.custom_step(0.35)
+	var late_colour := flash.color
+	var late_alpha := flash.color.a * flash.modulate.a
+	_check(late_alpha > 0.0 and late_alpha < GameHUD.REDUCED_DAMAGE_FLASH_ALPHA,
+		"the late reduced-flash fixture is already dimmer than the ceiling")
+	hud.set_reduced_flash(true)
+	_check(flash.color == late_colour and is_equal_approx(flash.color.a * flash.modulate.a, late_alpha)
+		and hud.get("_damage_tween") == late,
+		"enabling reduced flash leaves an already-dimmer active flash unchanged")
+	late.custom_step(0.15)
+	var late_direction := direction.modulate
+	hud.set_reduced_flash(false)
+	hud.set_reduced_flash(true)
+	_check(is_zero_approx(flash.modulate.a) and direction.visible and direction.modulate == late_direction
+		and hud.get("_damage_tween") == late,
+		"late reduced flash cannot revive a faded flash or alter its still-visible direction")
+	late.custom_step(0.13)
+	_check(not direction.visible and hud.get("_damage_tween") == null,
+		"late reduced-flash toggles retain the original direction expiry")
+	# The running state must survive too, rather than silently pausing the cue.
+	hud.set_reduced_flash(false)
+	hud.flash_damage(1.0, Vector2.UP)
+	var running := hud.get("_damage_tween") as Tween
+	var running_time := running.get_total_elapsed_time()
+	_check(is_equal_approx(flash.color.a, GameHUD.DAMAGE_FLASH_ALPHA),
+		"the next new hit uses authored intensity when reduced flash is OFF")
+	hud.set_reduced_flash(true)
+	_check(flash.color.a * flash.modulate.a <= GameHUD.REDUCED_DAMAGE_FLASH_ALPHA + 0.00001,
+		"enabling reduced flash also caps a currently running damage tween")
+	_check(hud.get("_damage_tween") == running and running.is_running()
+		and is_equal_approx(running.get_total_elapsed_time(), running_time),
+		"reduced flash preserves the actual running tween and its elapsed clock")
+	running.pause()
+	hud.flash_damage(1.0, Vector2.DOWN)
+	_check(is_equal_approx(flash.color.a, GameHUD.REDUCED_DAMAGE_FLASH_ALPHA),
+		"the next new hit uses reduced intensity when reduced flash is ON")
+	# Reduced motion has separate hold semantics, which this setter must retain.
+	hud.set_reduced_motion(true)
+	var held := hud.get("_damage_tween") as Tween
+	held.pause()
+	held.custom_step(0.10)
+	var held_colour := flash.color
+	var held_modulate := flash.modulate
+	var held_direction := direction.modulate
+	var held_time := held.get_total_elapsed_time()
+	hud.set_reduced_flash(false)
+	hud.set_reduced_flash(true)
+	_check(hud.get("_damage_tween") == held and not held.is_running()
+		and is_equal_approx(held.get_total_elapsed_time(), held_time)
+		and flash.color == held_colour and flash.modulate == held_modulate and direction.modulate == held_direction,
+		"reduced flash leaves a reduced-motion held cue and its remaining lifetime unchanged")
+	held.custom_step(0.36)
+	_check(not direction.visible and is_zero_approx(flash.modulate.a),
+		"the reduced-motion held cue still clears at its original hold deadline")
 	hud.queue_free()
 	await process_frame
 	await process_frame
