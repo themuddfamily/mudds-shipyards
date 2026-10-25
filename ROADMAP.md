@@ -49,12 +49,12 @@ not a project percentage inferred from rows, tests or commits.
 ### Small execution queue
 
 Only one implementation card may be active. Each row below is a bounded step
-within the existing goal, not a replacement for its full acceptance. No implementation is currently selected. The transport prerequisite is delivered;
-Torpedo remains parked after its source-review stop.
+within the existing goal, not a replacement for its full acceptance. One bounded passenger readmission capability is selected below. The transport
+prerequisite is delivered; Torpedo remains parked after its source-review stop.
 
 | Existing goal | Next bounded result | Proof / stop | State and owner |
 | --- | --- | --- | --- |
-| SERVER-BASELINE-PASSENGER-RECONNECT | Host transport-disconnect publication prerequisite delivered on4afd529 | Five actual network suites/180 assertions, three strict startups, identical1527-entry payloads; verified fresh Windows EXE+ZIP+notes. Full original passenger journey still required | PASS for transport repair only; full goal OPEN. Next prerequisite needs a real completed landing, not merely a reserved berth |
+| SERVER-BASELINE-PASSENGER-RECONNECT | Rejoined unclaimed supported Halyard cabin: physical passenger chair offers JOIN CABIN; first E requests a fresh standing berth, without pilot/chair takeover | One actual-Main/ENet semantic-RED then fixed regression with real assist-completed strict docking; exact fresh grant/body, retained Player/adapter/other pilot; existing role checks, clean paired checkpoint. Staged fixture does not close full ordinary journey | ACTIVE — root GameFlow, one test implementer, one reviewer;8min fixture+10runtime+8checks+10package+5closure, hard60min/first unexpected failure. Prior260.731s guarded retained; full journey OPEN |
 | PLAN-ASSIGN | Replace the chronological working page with this queue; audit every canonical goal for a finite result or explicit blocking input | Preserve all337 IDs/order,36 parents/ten gates; review changed acceptance and local links. Finish after this pass; no automatic new definition task | PASS — Codex; documentation only |
 | PLAY-TORPEDO | Cancelled request accounting must survive unread queued neutral samples across actual OS release | Source review BLOCK: output dispatch does not establish which engine samples postdate release. Candidate archived; no tests/export/trial, no gameplay completion | PARKED — Codex;67.453min cumulative at stop, no automatic retry |
 | SPEC-TITAN / VORTEX / PARADOX / KATANA / PREDATOR / DYNAMIC / UTOPIA / SALYUT | One explicit approval or field-level revision for each existing craft proposal | All required geometry/handling/functions/roles/save fields fixed in the corresponding proposal; no repeat proposal preparation | WAITING — user chooses interpretation/design; Codex implements approved fields |
