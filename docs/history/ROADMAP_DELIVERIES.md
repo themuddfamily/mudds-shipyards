@@ -25490,3 +25490,71 @@ their exact sizes/hashes and final Git/cumulative closure. No task worktree or
 remote task branch; accepted source integrates to pushed main and local working
 branch is removed at exact tip. Original13:39:23Z→14:14:23Z/35min clock includes
 mapping, implementation, run, inspection and closure. First run passes; no retry.
+
+
+<a id="caption-combined-hud-overflow-measured-20261025"></a>
+### Maximum combined caption — actual HUD overflow measured2026-10-25
+
+Existing ACCESS-CAPTIONS/ART-FINDINGS gains one concrete **failed containment**
+case and an owner overflow-presentation dependency. No runtime repair or completed
+caption acceptance is delivered. Historicald750 notes left combined64-source/
+512-body narrow composition unqualified. Bounded current-source review confirmed
+separate full-width512-body, narrow long-source/short-body and64-source resize
+coverage; those accepted scopes remain. No unchanged registered Forward+ capture
+or parked production-renderer trial is repeated.
+
+The old500px/scale1.6 component fixture is not literal current HUD geometry.
+The single new check uses the actual GameHUD scene in1280×720 SubViewport, normal
+piloting, requested scale1.6 and production effective scale1.0434782609. No runtime
+foreground card, bomber card, transcript panel or toast is visible. A real
+CaptionPresentationService accepts Radio source`S`×64 and the existing512-character
+maximum-text fixture; the actual public HUD ingress preserves its detached
+snapshot. It does not establish Main/ordinary-input/event-producer/device behavior.
+
+One opt-in diagnostic in the existing layout test, candidate80625c36b, runs once
+under guarded headless/Dummy at original120s cap. Actual2.388699096s, driverOS1,
+success marker0. First five predicates pass: valid full payload, selected normal
+composition, production scale, frozen fonts/framing/reservation and convergence.
+The first failure is panel/channel containment in the existing safe rectangle.
+Later assertions are NOT_RUN. Before/after source, index, tree and cache identical.
+There is one assertion diagnostic; its duplicate in the Godot file log is not a
+second trial or an unrelated engine failure. No retry or further probe follows.
+
+| Actual measured quantity | Value |
+| --- | --- |
+| Host | x394.43478 / width530.7826 / height720 |
+| Safe rectangle | x427.82608,y25.043478,width463.99997,height411.13043 |
+| Intrinsic/actual panel | height650; actual x427.8261,y−213.82608,width464,height650 |
+| Excess above safe height |238.869565px |
+| Body |512characters,16lines,512px content height |
+| Source |64payload characters/73with prefix;3label lines |
+| Category/source/body font sizes |16/19/23px, unchanged |
+| Margins and reservation | left/right29px, top/bottom8px; host bottom283.826087px |
+| Layout | token12stable, identical detached geometry across settles |
+
+PanelContainer's intrinsic minimum exceeds the411.130435px safe budget; the
+wrapped body alone exceeds that entire height. `text_clipped=false` on the grown
+512px body control does not prove viewport containment: the panel starts above
+the screen. Independent medium review reproduces width/safe-height arithmetic and
+confirms that repositioning/remeasurement cannot honor simultaneous full text,
+font sizes, wrapping width and reservation. No silent shrinking, truncation,
+clipping, hiding surrounding HUD or transcript substitution is selected.
+
+Owner question queued: current-caption pagination, scrolling, or wider/recomposed
+HUD. After choice, freeze its timing/input/full-text/safe-area behavior before a
+bounded runtime implementation/regression/checkpoint. Existing standalone proofs,
+rendered captures, ordinary gameplay, hardware and final gates remain separate.
+
+The diagnostic source is unmerged and preserved in a verified bundle/patch/source
+archive; production presenter, HUD and default layout test remain unchanged on
+main. The only accepted caption-doc maintenance corrects the existing rendered
+command to include Dummy audio, records its actual output-directory behavior and
+removes stale claims that production wiring is still deferred.
+One supervisor and two observed descendant identities are absent. All20 regular
+files/one symlink byte/mode/link-match the archive before owned helpers/results/
+profile cleanup. Retained only
+`/srv/mudds-work/caption-combined-hud-20261025/records.tar.gz` (2449501bytes,
+SHA256`105ecdee3ea79456428a9c48ba6e27761d298e321e7134e8ea62209f5e0f4387`)
+and closeout. Final pushed main and exact diagnostic-ref accounting are recorded in adjacent
+closeout; no worktree or remote task branch was created. Original13:49Z→14:24Z/
+35min clock includes source investigation, measurement and closure; no reset.

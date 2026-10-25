@@ -3,8 +3,9 @@
 `scenes/ui/caption_presenter.tscn` is a reusable, presentation-only Control. It
 accepts only detached dictionaries from
 `CaptionPresentationService.get_presentation_snapshot()`. It does not retain the
-service, caption events, Nodes, Resources or Callables, and this slice does not
-edit GameHUD, GameFlow or an audio director.
+service, caption events, Nodes, Resources or Callables. Production GameFlow owns
+the service and GameHUD hosts this authored presenter; the component retains no
+gameplay or queue authority.
 
 The component renders three independent textual channels: a bracketed category
 such as `[ RADIO ]`, the speaker, and wrapped caption text. Category meaning is
@@ -45,8 +46,8 @@ creates no Tween. State, presentation and audit snapshots remain deeply
 detached.
 
 The deterministic audit denies gameplay, activity, reward, audio, ship, berth,
-save and network authority. Production wiring remains intentionally deferred to
-the separate timed-race HUD/GameFlow integration owner.
+save and network authority. Production wiring belongs to GameFlow and the request-only GameHUD integration.
+A component layout check does not establish ordinary gameplay or device acceptance.
 
 Run only the focused layout suite:
 
@@ -59,8 +60,33 @@ The single 1600×900 Forward+ review frame is produced with:
 
 ```sh
 xvfb-run -a -s "-screen 0 1600x900x24" godot --path . \
-  --display-driver x11 --rendering-driver vulkan \
+  --display-driver x11 --audio-driver Dummy --rendering-driver vulkan \
   --script res://tests/caption_presenter_forward_render.gd
 ```
 
-It writes exactly one file: `/tmp/caption-presenter-forward-plus.png`.
+It writes exactly one file, `caption-presenter-forward-plus.png`, inside
+`MUDDS_CAPTION_CAPTURE_DIR` when supplied, otherwise in the application user-data
+`captures/` directory. Automated callers must supply their owned private profile
+and output directory.
+
+
+## Open maximum-payload overflow policy
+
+One actual GameHUD composition at1280×720/requested scale1.6 exposes an unresolved
+valid-payload overflow. Effective scale1.043478 yields a530.783px host,464px panel
+width and411.130435px safe height. A real service-accepted64-character source plus
+512-character body has650px intrinsic height; the body alone needs512px. Original
+16/19/23px fonts, margins and normal bottom reservation are intact. Layout token
+and geometry converge, but PanelContainer minimum size grows the panel upward to
+y−213.826px. `text_clipped=false` on the expanded body does not establish viewport
+or safe-area containment.
+
+This is a failed headless actual-HUD layout check, not a rendered image/Main or
+ordinary-play qualification. The failed diagnostic is retained; no runtime repair
+or altered font/scale/width/safe-area rule is delivered. An owner choice between
+current-caption pagination, scrolling, or a wider/recomposed HUD is pending.
+Chosen timing/input/full-text/reservation behavior must be fixed before its
+bounded implementation and regression. Do not silently truncate/shrink text or
+substitute transcript history for current-caption acceptance. Existing standalone
+512-character/full-width and long-source/short-body results remain accepted only
+for their recorded cases. [Exact case and records](history/ROADMAP_DELIVERIES.md#caption-combined-hud-overflow-measured-20261025).
