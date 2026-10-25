@@ -26195,3 +26195,91 @@ task ref existed; registered worktree ownership/current tips were checked before
 exact-tip local branch deletion. Archive/cleanup took 58.544 cumulative minutes
 from the original17:58Z start; final closure push time is in closeout. This final
 documentation-only commit changes no production code from checkpoint4968cf1.
+
+
+<a id="perimeter-ordinary-route-input-stop-20261025"></a>
+### Ordinary Perimeter Hold — input boundary stopped; not accepted (2026-10-25)
+
+Frozen full result: fresh title, same original Main/Player/Arrow/input producer,
+board/director/core; physical E arms/departs four sorties. First three genuinely
+launch then withdraw through ordinary L, each with strict home/OFFLINE90/physical
+exit/walk. Fourth uses real weapons on an actual Hold actor and survives actual90s
+with core strictly >35%, then strict home/exit/usable walk and normal UI OS0.
+Actual-file postings1→2→3→0, no credit/debt, unchanged ledger; no staged offer index,
+conclusion, actor damage, time or tuning. Global CAP300 includes all four journeys.
+Original18:57Z→20:12Z/75min includes readiness, implementation, checks, both trials,
+nonqualifying diagnosis and closure. No cap or cumulative clock was reset.
+
+The uncovered seam was an executable ordinary release route, implemented in the
+existing native-sortie driver/test plus read-only observer and exact private
+X11/Dummy admission. One implementer and independent high-risk review, disjoint
+ownership, root integration; no recursive agents or new validator family. Review
+corrected Heavy's actual two-member roster and permitted only the existing bounded
+monotonic tutorial-prompts-seen writer alongside exact protected file fields.
+
+First source eb1e00d90f798a436c1afbb86b96d5e587269b42:211 Python checks pass12.218s;
+import/privacy/parser/export/strict startup and actual payload comparison pass.
+The real trial stops at109.148s (wrapper109.557s), second boarding wait. First
+Heavy live roster/L withdrawal/home/OFFLINE90/exit/walk and actual saved Torpedo
+posting pass. Second E genuinely arrives4554 after request4551, but fresh station
+selection then takes priority; it does not enter boarding. Overshoot braking had
+turned the Player sharply4550 while the cached boarding indication was stale.
+No specific competing station identity was recorded; none is invented.
+
+A single source-reviewed correction settles inside the unchanged waypoint radius,
+aims at the real hatch, and requires same-frame/actor fresh pure selection plus
+existing eligibility before one E. Source0705a0dbe202c83ec724b10e4eb59454ca9ebdc7:
+213 Python checks pass12.227s; fresh readiness/export/startup/payload checks pass.
+The corrected trial boards the second Arrow and actually launches Torpedo, then
+stops117.237s (wrapper117.727s) after the sole L request5042 never starts landing.
+Native held landing is false through5163, while current default command sampling
+continues. Immutable landing-command/consumer receipts were absent in this failed
+record; a brief received edge or an actual rejection cannot be excluded. No
+runtime landing defect is established. Both trials stop with inputs released,
+all owned actors reaped and zero engine diagnostics; neither reaches Wing or Hold.
+
+Independent review permits one diagnostic, explicitly not a third qualifying
+trial. Source317c3b44fad8960197d0b44c24de0d623f716201 keeps0705 controls/taps/.15s+
+6-frame release/120-frame wait/CAP300 unchanged. Actual XTest code/result/held-key
+transitions, XSync and parent timestamps are recorded, together with physical/
+action L, immutable ShipCommand, existing lifecycle cursor and nonmutating landing
+report. It stops at the second L's complete handoff or120-frame window, before a
+third sortie, with bounded UI/owned-abort cleanup.219 Python checks pass12.156s;
+focused24 pass.025s, import/parser/export/strict startup and payload checks pass.
+
+The diagnostic completes134.516s with normal UI exit0, all inputs/children reaped,
+zero diagnostics, qualification=false and success=false. Nineteen acknowledged
+helper calls include exactly two real L downs/ups, physical keycode46/XTest1.
+Second request4950 → physical/action4951 → immutable stream9/sequence128 at4952 →
+matching consumer128 and accepted active Arrow landing4959. Both landings work;
+the earlier missing L is NOT_REPRODUCED. Its absent historical OS/command receipts
+cannot be recovered from this successful run. Product root cause remains unproven.
+
+The outer check remains FAIL: stage exit0/135.099s, only marker-count failure.
+Root configured an unindented completion field, while the existing anchored
+marker matcher requires an exact line and stdout JSON has indentation/comma.
+Independent review verifies the structured result/audit separately; original
+wrapper failure is preserved unchanged, with no engine rerun or manufactured
+Hold marker. Diagnostic completion does not qualify Hold or any parent milestone.
+
+All unaccepted source is archived, not merged. Source bundles/patch, complete raw
+records, test logs, actual save copies and package hashes/inventories are retained.
+Temporary unaccepted ELF/tar payload copies are removed after source/raw/archive
+verification; the existing eleven4968cf1 public artifacts retain their hashes.
+No new checkpoint is published. Wing/Hold actual weapons/survival/home, failure/
+recovery definitions, repeats/network/native Windows/GPU/human gates remain open.
+No further qualifying trial is selected: first bind a source-supported delivery
+correction or capture a new failure with actual OS/native/command/consumer receipts.
+Cleanup metadata and cumulative final push time follow below and in case closeout.
+
+Cleanup verified: retained archive 146,605,996 bytes, SHA256
+`9211b516e4dd420d801c3022a3a6c54724c9915d89ae89007d98993faeb10ea4`; 288 regular files and 20 symlinks verified.
+Six temporary unaccepted ELF/tar payloads are discarded after complete source/raw/
+metadata verification; retained package hashes/inventories identify every tested
+candidate. All twenty supervisors and142 observed PID/start identities are absent.
+Only archive and closeout remain; owned Python bytecode and external test scratch
+are removed. All eleven accepted4968cf1 artifacts retain their hashes. Current
+remote tips and registered worktree ownership were checked before exact-tip local
+branch deletion; no remote task ref existed. Source317c3b44f and its predecessors
+remain recoverable from verified bundles; no unaccepted code is merged to main.
+Retention/cleanup elapsed53.497 cumulative minutes; final push cost is in closeout.

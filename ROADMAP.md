@@ -151,8 +151,21 @@ This closes posting durability only. Ordinary Hold 90s/>35%/real weapons/home,
 active-combat restore, native Windows/GPU and final qualification remain open.
 [Exact result, prior failures and cleanup](docs/history/ROADMAP_DELIVERIES.md#combat-terminal-posting-persistence-accepted-20261025).
 
-No implementation card is active. Accepted comfort episodes stay closed within
-their scopes. Missing craft remain gated on their named specification decisions.
+**Perimeter ordinary route: PARKED / not accepted.** The first real Heavy
+withdrawal/home/OFFLINE90/exit/walk and saved Torpedo posting pass. A reviewed
+fresh-selection boarding correction permits the second Arrow boarding and Torpedo
+launch; the corrected trial then stops after its sole L does not start landing.
+One bounded diagnostic records both L sends, native input, immutable commands and
+consumer handoffs successfully, so the earlier failure is NOT_REPRODUCED and no
+product cause is established. Wing, actual Hold90s/>35%/weapons/home remain NOT_RUN.
+Both trials, diagnostic and sources are archived; unaccepted code is not merged.
+Reopening requires a source-supported input-delivery correction or a newly observed
+failure retaining actual send/native/command/consumer receipts. No unchanged
+qualifying rerun is selected; CAP300 and original18:57Z→20:12Z clock are retained.
+[Exact stops, diagnostic limits and cleanup](docs/history/ROADMAP_DELIVERIES.md#perimeter-ordinary-route-input-stop-20261025).
+
+No implementation card is active. Accepted comfort/save scopes stay closed;
+missing craft remain gated on their named specification decisions.
 
 The Torrent destruction/recovery attempt remains **PARKED / not accepted**.
 A reviewed resolver correction accounted for all100 actual damage, including
