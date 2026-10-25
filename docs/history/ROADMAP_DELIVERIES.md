@@ -26035,3 +26035,15 @@ in `/srv/mudds-work/reduced-motion-active-toast-20261025/records.tar.gz`; adjace
 closeout records archive verification/hash, absent owned process identities,
 published hashes and actual cumulative elapsed cost. Completed branch/private
 scratch are removed after verified integration/push; playable build files remain.
+
+Cleanup verified: archive 45,486,268 bytes, SHA256
+`1e229c4170eff3e6237512ecff389ee5e4cdc6d013eb88f5507da8cf2fceb65f`;
+all regular bytes/modes and symlinks verified before private scratch deletion.
+All 13 stage supervisors and 53 observed owned process identities are absent.
+Only archive and closeout remain; all eleven public artifacts retain their
+verified hashes. Accepted task tip 53535c8e3b65b8c9cd5dedb5c252df487cc7335f is in
+verified pushed main. No remote task ref existed; registered worktree ownership
+was checked and the local ref deleted with that exact expected tip. Elapsed
+21.033 minutes through archive/cleanup; final push cost is in closeout. This
+closure changes documentation only, with no production diff from checkpoint
+4ca2d16; it selects no duplicate build or unchanged test rerun.
