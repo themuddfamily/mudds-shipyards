@@ -24564,3 +24564,55 @@ All Godot uses Dummy audio and headless/private Xvfb with explicit x11; no deskt
 input or hosted CI. All 337 canonical IDs/order/Done means, 36 parents,ten phase
 gates and 17-craft scope remain; broader packages, device/native/endurance/capacity
 and final-candidate requirements remain open.
+
+
+## Browser disconnect rejoin parked — 2026-10-25
+
+BROWSER-DISCONNECT is PARKED / NOT ACCEPTED. Original two-Main ordinary route
+and caps remain: normal first admission/connected walks, guest normal Disconnect,
+complete retirement, solo walk while original host stays available, actual LAN
+Refresh/fresh admission, same Players/second connected walks, second retirement,
+final solo/host stop and actual two OS exits0. Outer300/work230/Main60/UI5/
+discovery10/admission20/handoffs20/guest100/host30/cleanup10 seconds; walks>=1m,
+walk+settle<=5s and12neutral ticks/.02m drift. No acceptance or cap relaxation.
+
+Candidate c4080b4 default7 passes16.379434s. First whole run fails86.090787s:
+guest retirement invokes a host-only body simulator helper, which is absent on a
+client. Actual native closed/offline API/offer/admission/body-intent/on-foot
+predicates already pass. Work stops. Independent source review supports one
+inactive-client-specific helper that scans the actual lifecycle/ship/seat/crew/
+boarding ledgers, permits absent host-only simulation and requires zero bodies
+if present. Existing host helpers remain strict. Explicit priority review permits
+one default and one full recheck on the same75min clock from08:15:10Z, hard stop
+09:30:10Z. Candidate78d5432 contains that sole correction.
+
+Corrected default7 passes15.885875s. Whole recheck fails87.608754s: both initial
+connected walks1.002774m, first guest retirement all predicates true, original host
+native/session/responder retained at occupancy0, guest solo walk1.002774m, actual
+Refresh advances directory1→2 and fresh native/authenticated tuple are observed.
+The next assertion compares an in-memory Player dictionary with a JSON-parsed
+dictionary. Godot's dictionary comparison is type-sensitive; in-memory integer PID
+versus parsed float causes this caller failure. The actual second identity is not
+written before assertion, so post-rejoin Player continuity is unproven. No Player
+replacement is established. Second connected walks, final retirement/return and
+successful OS exits are NOT_RUN; actual host1582588/guest1582737 exit1 on failed
+assertions. Independent source diagnosis confirms the caller defect. No further
+repair or run is authorized. Reopening requires explicit normalized PID/object-ID/
+path comparison and retained actual identity before assertion, independent source
+GO and cumulative priority review; entire original journey remains required.
+
+Production files remain unchanged from checkpoint8cda303; no identical-game build.
+Both failed runs and unique unaccepted test source are retained in a verified Git
+bundle (tip78d5432a7983e99125072bf3bf9369396997fa93, prerequisite
+b3cc0d5aef7b2e5072cb8a3437785e6f3873f121) within the case archive. Main restored;
+candidate is not merged merely for cleanup. Four owners terminal/32 observed child
+identities absent. All242 owned entries verified before removal. Retained only
+/srv/mudds-work/browser-disconnect-rejoin-20261025/results/case-records.tar.gz,
+9711868bytes/SHA25644eb91717e4dfd4038da1392a6592d3f0cd6f4e37097dd1c0b87836a1c771ad2,
+and adjacent closeout.json. Cumulative20.408218min through archive08:35:34.493101Z;
+final push/branch cleanup cost recorded in closeout. Branch removed only after
+current remote/worktree ownership checks and source archive verification. No
+remote task branch/worktree created. Godot uses Dummy audio/headless/private Xvfb
+explicitx11, no desktop input or hosted CI. All337 canonical IDs/order/Done means,
+36 parents/ten phase gates/17craft scope remain. LAN stale expiry remains blocked
+on the pending user lifetime choice; no fallback clock policy invented.
