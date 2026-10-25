@@ -26601,3 +26601,67 @@ Two supervisors/seven observed identities are absent. Earlier305e2c6b archive is
 byte-identical and retained separately, not rewritten. Original clock55.437min
 through archive verification; final closure push/elapsed is in closeout.json,
 within the unchanged21:11 deadline. No detached unrelated worktree was changed.
+
+<a id="final-approach-live-captions-delivered-20261025"></a>
+
+## Planetary final approach — four live captions delivered
+
+COMFORT-CAPTIONS parent29, original accessibility/caption and understandable
+flight-feedback clauses. Clean source4aa8b64ec7aca9768b450db098c58a8461910c68:
+four registry rows only in semantic_audio_cue_presenter.gd. GameFlow already
+supplies the actual planetary_cruise_binding to OptionalSemanticAudioComposition;
+its production final-approach adapter maps engagement/tick/completion through the
+existing planetary router/AudioDirector/GameFlow callback. Four emitted IDs were
+unregistered at the semantic HUD presenter, losing their caption feedback.
+
+Audio cue captions ON now displays “Final approach armed”, “Final approach
+alignment ready”, “Final approach handoff ready” and “Final approach rejected”.
+These describe authored states, not achieved physical landing/handoff. Defaults
+medium/medium/medium/high follow existing conventions; actual source intensity1.0
+still promotes all to high under the unchanged resolver. Original queue, lifetime,
+priority, sound, flight/landing/settings authority and Loadmaster definitions stay.
+
+One bounded implementer owned the presenter and existing presenter/planetary
+production tests; independent reviewer checked source, actual visible-HUD setup,
+all raw validation and packages; root owns integration/build/push/cleanup. Frozen
+old422d67024 import PASS6.677s; presenter OS1 in2.103s isolates exactly four planned
+missing-caption errors with all prior/Loadmaster assertions passing. No unexpected
+failure or automatic retry occurred. Fixed import6.714s and seven focused checks
+pass first attempt: presenter1.952s/53 checks, production16.277s/27, binding0.631s,
+optional17.329s, Main composition16.118s, HUD layout11.969s and Loadmaster16.239s.
+
+All ten original production-test assertions remain verbatim. Test setup now uses
+the AudioDirector-owned actual router, real GameFlow forwarding callback and one
+Flow-owned CaptionPresentationService. Actual Begin button/reduced-motion intro
+reveals the gameplay HUD; its tree-visible RichTextLabel and service view must
+show each exact caption. Source intensity1.0/high/priority90, FIFO queue promotion/
+original expiry, duplicate completion/rejection, generic rejection isolation,
+stale incoming generation0, router detach/adapter re-entry and OFF/no replay/fresh
+current ON delivery pass. Cruise signals and service-time advances are synthetic;
+this is component production composition, not a whole Main/ordinary planet trip
+or rendered pixel review. Incoming stale-event refusal does not qualify all
+context-switch/pending-caption retirement or full comfort behavior.
+
+Clean Windows export10.635s/Linux25.672s; direct Linux startup22.825s, extracted
+archive25.206s and Windows embedded PCK through Linux Godot26.369s each actually
+exit0/exactly one STARTUP_MENU_READY_OK. Artifact audit6.666s verifies1,527 matching
+actual PE/ELF entries, unchanged path membership and only compiled
+scripts/ui/semantic_audio_cue_presenter.gdc changed from19336f3. Tests/tools/
+artifacts/builds excluded; stock PE .text/architecture, Linux architecture/export
+identity/hashes, archive binary/icon/Python installer bytes, modes/owners/source
+epoch and generated desktop source/Exec fields pass. Generated launcher checks
+are the declared fields/modes, not independent whole-file byte comparison.
+All14 fixed stages pass with empty standard-matrix diagnostics/issues and retained
+source/index/tree/relevant cache guards. All Godot automation is headless/Dummy;
+no audible/desktop or hosted-CI test was invoked.
+
+Fresh Windows EXE/checkpoint ZIP/notes and matching Linux binary/archive/notes
+are under builds/windows and builds/linux. This closes the live-caption
+implementation for four existing semantic IDs. Ordinary planetary travel/physical
+alignment/landing/handoff, full comfort transition/restart/Reset and final
+qualification remain open. Rendered/native/device/audio measurements were not
+performed; no new mandatory native-Windows/human gate is imposed. Existing
+Loadmaster and Interact source qualifications are retained in their scopes.
+Original21:08Z→22:08Z/60min includes readiness, implementation, checks, build and
+closure without reset. Private raw/source/build identities and cleanup live under
+`/srv/mudds-work/final-approach-captions-20261025`; verified archive/ref closure follows.
