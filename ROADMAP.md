@@ -29,20 +29,30 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**PLAY-RACE is PARKED / NOT ACCEPTED after two whole-package trials.**
-Both genuine Guided/reboard/countdown/five-gate race routes earn one actual
-payment (16.066667s and16.05s race times). The first stops at a caller reward-result
-shape mismatch; the reviewed correction stops at unrelated-file preservation:
-`tutorial_prompts_seen` gains Threading and Hulk entries during flight. Reward
-stability, strict home return, supported exit/walk and normal UI quit remain
-unproven. The full original300s journey is still required.
+**Selected: PLAY-RACE — bounded tutorial-preservation correction, same clock.**
+The two failed package trials and original full finish remain in
+[history](docs/history/ROADMAP_DELIVERIES.md#race-first-play-package-attempts-20261025).
+Independent source/raw review resolves the reopening condition: GameFlow's
+accepted streaming physics sample automatically publishes resident Hulk/Belt
+briefings within250m, intentionally adding those IDs to tutorial_prompts_seen.
+Existing approach/persistence tests require that behavior; no game fix is implied.
 
-Candidate56df45bc2 is preserved in a verified source bundle and case archive;
-accepted main restored, owned processes/build duplicates/profiles cleaned.
-Reopen only after source/raw-supported tutorial publication ownership and the
-exact permitted save delta justify a reviewed correction, retaining unrelated
-file protection and the whole route under its original limits. No retry selected.
-[Exact failures, scope and cleanup](docs/history/ROADMAP_DELIVERIES.md#race-first-play-package-attempts-20261025).
+Restore verified candidate56df45bc2 source into an isolated detached candidate.
+One implementer owns existing runner/tests/passive observer. Validate the exact
+sorted/schema1/no-removal tutorial set against actual accepted actor samples and
+resident marker proximity; reject extra IDs, wrong schema/keys and every other
+unrelated payload change. No blanket mutable-namespace exemption. Preserve the
+normal menu/Guided/physical exit/actual>7m clear/reboard/departure/2s countdown/
+five32m gates within120s/once payment/strict home/OFFLINE/physical exit/supported
+walk/normal UI OS0 journey, CAP300/outer360, and existing inputs/geometry/tuning.
+
+Root owns guards, clean export/strict startup, one full package continuation,
+review/integration/cleanup. Relevant source/test checks plus archived-pair and
+rejection checks precede the full route on owned Xvfb/x11/Dummy audio/dummy
+renderer with actual OS XTest. Estimate15min correction+20checks/route+10closure;
+original90min clock started2026-10-25T02:18:24Z and already used25.3min at
+selection. First unexpected failure stops for cumulative review or parking;
+no budget reset, native/device/endurance/final-parent claim or new framework.
 
 **Latest closed: BROWSER-JOIN — actual LAN join and usable solo return.**
 Source `80abab3b1`: the existing ordinary two-Main route now checks both players
