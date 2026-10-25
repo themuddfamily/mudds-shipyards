@@ -29,6 +29,26 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Selected: HELM-THROTTLE-REVERSE — complete ordinary handback.**
+Starting clean source3a49596de. One implementer owns only the existing reverse
+test: reuse the accepted shared handback route and insert unchanged reverse
+checks after both original yaw turns, before ordinary Interact handback. Root
+owns selection/records/integration/checks; one independent source/raw reviewer.
+Full result: real three-process physical boarding/departure/brake, both yaw,
+sampled reverse moves host≥1m within2s, fresh neutral≤1s, ordinary brake/actual
+both replicas, then owner0/generation+1, current PASSENGER HUD, supported former-
+pilot walk and retired source/capture. No new test copy/framework/production edit.
+
+Estimate10min source plus15min review/checks; hard stop45min from selection with
+all attempts/cleanup counted. Original300s profile/360s outer and every existing
+route deadline/pass condition remain. Import/check-only then ONE silent isolated
+full route; stop at first unexpected failure. A correction needs demonstrated
+cause and bounded cumulative review. Success requires actual3peer exits0, one
+existing suite marker/no runtime diagnostics plus reviewed raw host/client/
+handback facts. No input-provider/command/pose/authority staging or physical-
+device/native/endurance/full-parent claim; no identical playable rebuild.
+
+
 **Delivered: HELM-PITCH and HELM-ROLL-RATE complete ordinary handback.**
 Source d8c160f12 passes one full ordinary three-process route per goal:
 pitch138.248s, roll137.012s. Both preserve physical boarding/departure/brake,
