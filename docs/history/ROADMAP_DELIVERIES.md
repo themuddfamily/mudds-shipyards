@@ -25558,3 +25558,66 @@ SHA256`105ecdee3ea79456428a9c48ba6e27761d298e321e7134e8ea62209f5e0f4387`)
 and closeout. Final pushed main and exact diagnostic-ref accounting are recorded in adjacent
 closeout; no worktree or remote task branch was created. Original13:49Z→14:24Z/
 35min clock includes source investigation, measurement and closure; no reset.
+
+
+<a id="torrent-return-reuse-capability-accepted-20261025"></a>
+## Torrent return and reuse — accepted executable route
+
+CRAFT-ACCEPT-TORRENT gains one executable release-driver capability on clean
+source `5d2c58dbad633d05a1f7da9243040a45512de39e`, not full-craft acceptance.
+The existing native runner now supports `--route torrent-return-reuse`; the
+read-only observer and exact startup admission selector are integrated. No ship,
+physics, weapon, placement, control tuning or ordinary startup behavior changed.
+One high implementer and one high independent reviewer; no nested delegation.
+
+Actual private Linux package/native OS-XTest→X11→Godot Input→default sampler
+passes in85.267s (guarded stage85.737765923s), unchanged CAP300. Genuine Guided
+walk/boarding/launch/four drones/defender/home/physical exit is retained. Same
+Main/world/Player/Torrent/input/seat/berth identities throughout3,549consecutive
+observations. First physical exit frame2315 follows90consecutive neutral/OFFLINE
+ticks and63.360902m excursion. Supported clear walk reaches7.785m and releases
+the reboard block; fresh native E2442 completes seating2586. Second lease-free
+FREE_FLIGHT departure receipt2956 reaches63.359675m excursion. Strict home3554
+uses fresh lease serial3 versus firstserial2; that token stays current through
+OFFLINE3738, physical exit3872 and supported walk3906. Second shutdown also has
+90consecutive neutral/OFFLINE ticks; second exit walk covers0.854959m/34frames.
+Focused enabled Exit to Desktop produces actual gameOS0. Zero diagnostics;
+inputs released and game/helper/Xvfb reaped, independent survivor lists empty.
+The Guided result shares phase/stage lists with the suffix; the chronological
+first exit and enforced prefix gate establish Guided, not a prefix-only snapshot.
+
+Retained failures: first Python gate11.826330638s/188tests fails on a new mock's
+two-argument signature versus explicit `Pilot.update(self,state,now)`. Independent
+review approves only the fixture correction; corrected188tests pass11.605038094s
+(wrapper; unittest11.092s). First native admission trial1.720s/wrapper2.074281078s
+rejects before boot: the loader's exact selector allowlist omitted the new mode.
+No gameplay observation occurred. Independent cumulative-priority review approves
+one exact selector addition plus existing privacy matrix extension, preserving
+single-selector/x11/Dummy/private-owner/conflicting-mode guards. Corrected privacy
+passes1.152093833s; fresh export25.798896612s and strict startup22.696496025s pass.
+Earlier import6.780672846s/observer parse15.853076454s also pass. No caps or clock
+reset; original14:25:47Z→15:25:47Z/60min includes both failures and closure.
+
+The corrected149,028,880-byte ELF SHA256 is
+`f4079d4628b123f94357c88566f380612a8e301d447f45efcdfe5366c8df14ed`.
+Its1,527payload paths match the first candidate; only compiled startup_loader
+changes. Observer payload unchanged, no tests/tools/artifacts shipped; stock
+engine/release-template pins unchanged. Strict startup requires OS0 plus exactly
+one STARTUP_MENU_READY_OK. The run uses isolated Xvfb/explicitx11/Dummy/dummy
+renderer. Native Windows/GPU/devices/human and full craft damage/repair/loss,
+cross-craft/Main/art/final-candidate qualification remain NOT_RUN/open.
+Gameplay and graphics are unchanged; the existing Windows playable checkpoint remains current.
+
+Verified archive `/srv/mudds-work/torrent-return-reuse-20261025/records.tar.gz`:
+224,895,886bytes, SHA256
+`58913a7a92904c5f35d7713fa01859a87c887cf1bf60a2a80d7d72cfcedb0e5b`;
+165regular files/11symlinks verified. Both candidates, source bundles/patches,
+raw results/failures/reviews and private profiles are recoverable. Direct ELF
+mode0755 differs from retained package-member0700: each exact member was
+reconstructed privately, chmod0755 and checked against the original hash/mode
+before deleting the redundant direct file. Original package bytes/modes remain
+unchanged; the manifest records both modes and the verified restoration.
+All11supervisors and their observed identities are absent; all10owned build
+copies and task scratch removed. Case retains only archive and closeout JSON.
+Accepted source is integrated/pushed and the owned branch removed at Git closure;
+exact main/branch tips and final elapsed time are recorded in that closeout.

@@ -77,26 +77,15 @@ Only one implementation card may be active. Completed results are linked under
 [accepted work](#accepted-work--source-limits-retained), and failed attempts under
 [parked work](#parked-failures-and-dependent-work). They are not next tasks.
 The table below contains actual missing decisions.
-One executable release-driver card is active: Torrent return and reuse
-(2026-10-25 14:25:47Z→15:25:47Z,60min total). Preserve the genuine Guided prefix,
-strict first home/90neutral OFFLINE ticks/physical exit; then supported walking,
-fresh native boarding, same-Torrent departure>8m, strict second home/90neutral
-ticks/physical exit/walk and normal UI OS0. Same Main/Player/Torrent, unchanged
-controls and whole-process300s cap; no stale Guided authorization or targets.
-Owned files: existing native driver, its Python checks and read-only observer.
-Independent source review, focused Python checks, clean private Linux export,
-strict startup and one guarded private-Xvfb/x11/Dummy route are required.
-First unexpected failure stops. This supplies an executable part of the full
-craft acceptance route; damage/repair/cross-craft/Main qualification stays open.
-No user-desktop/audio run or parked Sandbox/Race replay is selected.
-The actual HUD maximum-caption case exposed
-a650px/411px space conflict and now waits for an overflow-presentation choice.
-Six Settings extreme-scale/scroll views remain accepted; REPEAT-RACE stays parked.
-Torrent's bounded source-binding pass is complete: the [existing checks and
-literal missing route fields](docs/ROADMAP_BACKLOG.md#torrent-finite-acceptance-coverage-and-missing-ordinary-route)
-are now listed. The full solo loop remains open on Codex-owned ordinary driver
-work, not a missing craft design decision. No new run or gameplay repair was
-selected by that definition; do not repeat the source inventory.
+No implementation card is active. Torrent return/reuse is accepted on5d2c58dba:
+actual packaged Guided, two strict home returns with90consecutive neutral/OFFLINE
+ticks each, fresh boarding/departure/second lease, supported exits/walking and
+normal UI OS0 in85.267s under the unchanged300s cap. This is an executable part
+of CRAFT-ACCEPT-TORRENT; ordinary damage/repair/loss, cross-craft and required Main
+coverage remain open. [Exact scope, failures and cleanup](docs/history/ROADMAP_DELIVERIES.md#torrent-return-reuse-capability-accepted-20261025).
+The caption overflow choice remains pending; six Settings extreme-scale/scroll
+views stay accepted and REPEAT-RACE stays parked. Torrent's source inventory is
+already bound; do not repeat it or replay the accepted reuse route unchanged.
 
 **Not every inventory row is ready to execute.** Craft full-journey routes,
 comfort episodes, remaining recovery cuts and final installed-package cases still
@@ -210,6 +199,7 @@ charged; a new card/branch/folder cannot restart that budget. No Torpedo continu
 ## Accepted work — source limits retained
 
 Recent accepted child outcomes include
+[Torrent packaged return/reuse](docs/history/ROADMAP_DELIVERIES.md#torrent-return-reuse-capability-accepted-20261025),
 [six Settings extreme-scale/scroll component views](docs/history/ROADMAP_DELIVERIES.md#settings-4x3-extreme-views-inspected-20261025),
 [corrupt-primary read-only fallback and continuation](docs/history/ROADMAP_DELIVERIES.md#corrupt-backup-read-only-fallback-accepted-20261025),
 [Central walking/launch/home](docs/history/ROADMAP_DELIVERIES.md#central-station-accepted-proof-reused-20261025),
