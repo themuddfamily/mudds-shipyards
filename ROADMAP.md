@@ -29,302 +29,146 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Selected: PLAY-TORPEDO — correct boat identity and fire/steering scheduling.**
-Baseece4e40f1. Port only the unaccepted d8eece4 Torpedo driver/observer extension
-onto current source, preserving all accepted Hauler/Race/Patrol/Heavy paths.
-Source/raw establishes actual seekers were misclassified as boat hull and each
-boat request also changed mouse aim before delayed consumption. No production
-combat defect is established. One implementer owns existing runner/tests/passive
-observer; root owns private startup/privacy/docs/checks/integration/cleanup.
+**Roadmap correction complete: remaining work is either bounded or explicitly
+blocked.** This is a planning result, not gameplay completion. The canonical inventory remains
+[the existing backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes); no parallel
+list of promises or new evidence framework is being introduced.
 
-Require actual boat-owned hull contacts, not seeker descendants; separate observed
-camera steering acknowledgement from normal boat fire/consumption and cancel
-stale unconsumed readiness. Preserve actual Heavy/seeker controls, all actor/weapon
-physics and existing default fire behavior outside this bounded boat correction.
-No guessed lead, target position, damage, weapon timing or longer deadline.
+There are **337 tracked records**, including accepted work, definitions and
+containers. They are not 337 remaining tasks. All **36 parent outcomes**, **ten
+phase gates** and **17 promised craft** remain in scope; nine craft currently
+exist. A reliable remaining-task count or finish estimate needs the unresolved
+specifications below. We will report accepted player outcomes and exact blockers,
+not a project percentage inferred from rows, tests or commits.
 
-Full pass remains ordinary Heavy clear/payment/home→actual Torpedo posting/
-reboard/departure→real seeker evasion+interception/70HP boat destruction/separate
-payment→strict original home/OFFLINE exit/usable Paired Wing posting/UIOS0, with
-original real-file/ledger/sibling proof. Preserve150each/shared300/outer360.
-Focused existing Python/import/parser/privacy, clean Linux export/strict startup/
-PCK inventory and ONE full owned Xvfb/x11/Dummy-audio OS-input route plus independent
-source/raw review; first unexpected failure stops with no automatic correction.
+### Small execution queue
 
-Prior47.646347min and473.178648 guarded seconds remain charged. New mapping starts
-at previous closeout05:23:22UTC; cumulative hard90min deadline06:05:43UTC. Estimate
-10implementation+8checks/export+5wholetrial+5closure; latest full launch05:55UTC.
-A new folder/name does not reset the old cost. Preserve failed source/raw and
-perform process/build/profile/ref cleanup. No new validator/schema/framework,
-CI launch or identical public checkpoint; normal gameplay remains unchanged.
+Only one implementation card may be active. Each row below is a bounded step
+within the existing goal, not a replacement for its full acceptance. No gameplay
+implementation is currently selected.
 
-**Accepted proof reused: WALK-CENTRAL — complete station launch and return.**
-The existing accepted7997b2b37 Race package already proves every Central predicate:
-same supported Player walking/boarding, marked Guided launch, actual landing
-assist/exact Central dock/neutral OFFLINE/physical exit/supported return/UIOS0.
-The canonical row now records that existing Linux/Xvfb OS-input result; no new
-engine run or gameplay implementation was needed. Other station branches/art,
-native devices/hardware and final candidate stay open.
-[Exact reused records](docs/history/ROADMAP_DELIVERIES.md#central-station-accepted-proof-reused-20261025).
+| Existing goal | Next bounded result | Proof / stop | State and owner |
+| --- | --- | --- | --- |
+| PLAN-ASSIGN | Replace the chronological working page with this queue; audit every canonical goal for a finite result or explicit blocking input | Preserve all337 IDs/order,36 parents/ten gates; review changed acceptance and local links. Finish after this pass; no automatic new definition task | PASS — Codex; documentation only |
+| PLAY-TORPEDO | Preserve the unfinished control candidate and its concrete review blocker | Reapplicable patch retained outside repo; no source merged, no package pass claimed. Blocker: cancellation must retain a request until later actual shot consumption or acknowledged release is accounted for | PARKED — Codex; cumulative review required before any continuation |
+| SPEC-TITAN / VORTEX / PARADOX / KATANA / PREDATOR / DYNAMIC / UTOPIA / SALYUT | One explicit approval or field-level revision for each existing craft proposal | All required geometry/handling/functions/roles/save fields fixed in the corresponding proposal; no repeat proposal preparation | WAITING — user chooses interpretation/design; Codex implements approved fields |
+| BOMBER-ROLE-DECISION | Record additional physical roles, each action and seat/access arrangement | Exact role count and actions recorded once; pilot-only runtime does not close this promise | WAITING — user |
+| SCOPE-LIMIT / SCOPE-DESKTOP | Fix supported guest/host/role capacity and exact desktop targets | Concrete values in the existing decision register; settings maxima/export presets do not establish support | WAITING — user |
+| RECOVERY-POLICY-CINDER-SUPPLY / DEFENSE / BREACH / TORPEDO | For each active context, choose retained fields, safe recovery or resume, debt and reset/refusal behavior | Four complete policy answers; implementations/cold restarts remain separate required work | WAITING — user chooses policy; Codex supplies exact restart checks |
+| CARGO-REPLENISH-JOVIAN / CINDER | Fix a legitimate stock/refill/turnover policy | Conserved counts, trigger/capacity/refusal and normal ten-delivery route defined; tests cannot mint cargo to pass | WAITING — user |
 
-**Delivered: HAULER-CARGO-DELIVERY — complete conserved supply journey.**
-Source99f2717ee passes the complete packaged ordinary-input route in193.312s
-underCAP300: normal menu/18 supported station goals/actual Hauler pilot/departure,
-strict Cinder contact/normal supply Select+Start/load/gate/redock, ten-point
-terminal walk/one conserved crate/one durable payment/duplicate refusal,
-reverse walk/reboard/strict original home/OFFLINE exit/1.797m grounded supported
-settled apron walk and normal UI OS exit0. No runtime diagnostics; independent
-source/raw review GO. Five actual-file captures preserve the paid result and all
-protected siblings (generations5→21→23→23→26).
+The [decision register](docs/ROADMAP_BACKLOG.md#blocking-decisions-and-resources)
+contains exact answer fields, prepared craft proposals and external release/device
+inputs. These are recorded blockers, not permission to keep researching them.
+Already accepted freight/stock/rejection/Beacon/Bomber-refill/Defense-arm decisions
+remain settled. Do not ask them again.
 
-The existing release runner now provides `--route hauler-supply`. It observes
-actual capsule support using the player's unchanged physical snap/margin, and
-walks the returning pilot to the same apron point reached before boarding.
-Prior failures, one invalid physics fixture and all bounded corrections remain
-recorded on the original90min clock; no gameplay geometry, tuning, inventory,
-reward, control provider or deadline was changed.
-[Exact result, earlier failures and cleanup](docs/history/ROADMAP_DELIVERIES.md#hauler-supply-first-play-accepted-20261025).
+### Work order after this correction
 
-This closes only the named ordinary Hauler delivery. Cold inventory/repeats,
-whole-craft/crew/art, native/device and final-candidate gates remain open.
-Normal gameplay is unchanged; playable checkpoint0d77125 remains current.
-No next implementation is selected by this closeout.
-
-**PARKED: PLAY-PATROL[platform_sweep] — final normal quit did not finish.**
-Candidate `ff3fbab08` passed focused checks and reached all five real platform
-holds, payment, strict home, shutdown, physical exit and supported walking.
-The original300s deadline expired at `quit_wait`; actual normal UI process exit0
-and orderly-close save proof are missing. The complete journey therefore FAILS.
-Driver304.890s includes cleanup; no longer cap or retry is selected. Unaccepted
-source and raw results are preserved outside the repository; accepted relay code
-and playable checkpoint0d77125 remain current.
-[Failure and reopening condition](docs/history/ROADMAP_DELIVERIES.md#patrol-platform-first-play-parked-20261025).
-
-**Delivered: fixed task boundaries and explicit acceptance blockers.**
-Every named goal must have a literal pass condition or an exact missing input and
-owner. Required scenario membership is fixed before execution; one passing case
-cannot close a family. The remaining comfort/UI coverage, capacity-journey and
-travel-leg definition gaps are explicit blockers in the existing inventory.
-The documentation review is complete; it delivers no gameplay completion and
-selects no new run.
-
-**Delivered: PLAY-PATROL[relay_sweep] — full ordinary relay branch.**
-Sourcec3d369e0f passes the complete packaged journey in227.070s under original
-CAP300: genuine Guided, actual pause-board Patrol/Relay selection, supported
-reboard clearance/same-Torrent departure, safe low-header crossing, five ordered
-holds of120 continuous occupied60Hz ticks each, one durable relay payment,
-strict Central dock/90neutral OFFLINE ticks/physical exit/supported.969m walk and
-normal UI exit0. Five actual-file captures preserve the paid terminal/ledger,
-justified tutorial additions and all other protected siblings. Independent
-source/raw review GO; runtime diagnostics0.
-
-The first300s attempt remains recorded: its outbound caller path contacted the
-range header before checkpoint1. One source/raw-supported correction uses the
-existing low-clearance waypoints; no geometry/tuning/timer/phase change. Full
-route and cleanup stay on the original90min task clock.
-[Exact proof, first failure and cleanup](docs/history/ROADMAP_DELIVERIES.md#patrol-relay-first-play-accepted-20261025).
-
-This closes the relay instance only. Platform sweep remains required and
-parked after its failed full journey, so PLAY-PATROL stays open. Repeat/cold-recovery, parked
-thirty-Main Patrol suite, UI-BOARD-FOCUS, native/device and final-candidate gates
-remain open. No new implementation is selected by this closeout. Normal gameplay
-is unchanged; playable checkpoint0d77125 remains current.
-
-**Delivered: PLAY-RACE — complete ordinary packaged race and home return.**
-Source7997b2b37 passes the full original journey in276.690s underCAP300:
-normal menu/Guided/physical exit/actual reboard clearance/same-Torrent departure,
-production2s countdown/five ordered32m gates in16.116667s, one durable payment,
-safe approach/strict Central dock/90 neutral OFFLINE ticks/physical exit,
-supported0.969m walk over25frames and normal UI exit0. No runtime diagnostics;
-root and independent source/raw review GO.
-
-The existing release runner now offers `--route race-home` for an exact exported
-Linux binary. Tutorial preservation checks only the two
-approach-driven IDs justified by actual accepted samples/resident markers within
-250m; all other save data stays protected. Five actual-file captures retain the
-once-only payment/terminal through orderly close. Earlier failed stages remain
-recorded on the original90min clock; no deadline or gameplay rule was relaxed.
-[Full proof, earlier failures and cleanup](docs/history/ROADMAP_DELIVERIES.md#race-first-play-accepted-20261025).
-
-Normal gameplay is unchanged; playable checkpoint0d77125 remains current.
-This accepts the named Linux/Xvfb OS-input first-play route only. Race ten-run
-repeat/recovery, physical devices/native GPU and full activity/final gates stay
-open. No new implementation is selected by this closeout.
-
-**Previously closed: BROWSER-JOIN — actual LAN join and usable solo return.**
-Source `80abab3b1`: the existing ordinary two-Main route now checks both players
-walking while connected and again after normal Disconnect/Refresh/Back/Resume.
-The full route passed294 assertions in86.310s, actual peer exits0, no diagnostics;
-each of four supported walks covered1.002774m with twelve fresh neutral ticks and
-zero drift. This is source input automation with real ENet under isolated Xvfb,
-not package/device/native GPU/endurance or whole multiplayer acceptance.
-[Full result, first failure and cleanup](docs/history/ROADMAP_DELIVERIES.md#browser-join-supported-walking-20261025).
-
-**Roadmap task breakdown is recorded in the existing canonical inventory.**
-All337 IDs retain their Done means, dependencies and original proof limits;
-all36 parent outcomes and ten phase gates remain. Each next assignment must use
-the [execution card](#turning-a-goal-into-one-assignment) below. Family containers
-are not runnable jobs; missing values/decisions keep their rows blocked. Decision
-approval, a single audio case and a source inventory cannot close their respective
-implementation, whole-roster or visual acceptance goals. This documentation work
-adds no gameplay completion or new implementation assignment.
-
-**Prepared: concrete modern proposals for all eight missing craft — owner choices pending.**
-
-| Craft | Fixed proposed function | Bounded draft cards |
-| --- | --- | --- |
-| [Titan](docs/design/TITAN_IMPLEMENTATION_PROPOSAL.md) | Pilot, two physical passengers, four conserved inert parcels, defensive cannon | 13 |
-| [Vortex](docs/design/VORTEX_IMPLEMENTATION_PROPOSAL.md) | Pilot, four physical passengers, defensive cannon | 14 |
-| [Paradox](docs/design/PARADOX_IMPLEMENTATION_PROPOSAL.md) | Pilot cannon, independent physical gunner, one passenger | 16 |
-| [Katana](docs/design/KATANA_IMPLEMENTATION_PROPOSAL.md) | Single-pilot braking fighter | 13 |
-| [Predator](docs/design/PREDATOR_IMPLEMENTATION_PROPOSAL.md) | Unarmed pilot/guard/voluntary-detainee transport with a real cell | 15 |
-| [Dynamic](docs/design/DYNAMIC_IMPLEMENTATION_PROPOSAL.md) | Compact single-pilot short-range gunship | 13 |
-| [Utopia](docs/design/UTOPIA_IMPLEMENTATION_PROPOSAL.md) | Conserved supply dropship with finite live hostile approach and two chairs | 18 |
-| [Salyut](docs/design/SALYUT_IMPLEMENTATION_PROPOSAL.md) | Unarmed pilot/two-passenger transport | 15 |
-
-Each fixes numeric hull/access/berth, all16 tuning fields, actual functions and
-ownership, component/service/reset/save/reuse, production files/visible results/
-proof/stops, early checkpoint and full craft acceptance. Titan's older missing
-geometry/tuning and unsupported existing-cargo assumption are corrected in place;
-Vortex's proposed drag1.8→1.85 resolves its13-axis Bomber overlap. Root source
-comparison now finds all17 numeric profiles/136 pairs meet≥14 differences and
-existing extrema/non-dominance; this is arithmetic, **not runtime qualification**.
-
-All eight are explicitly UNAPPROVED modern interpretations, not authenticated
-historical models. The [decision register](docs/ROADMAP_BACKLOG.md#blocking-decisions-and-resources)
-assigns interpretation/design choices to the owner. Approve a named baseline,
-revise exact fields, or retain historical freeze; do not infer an answer from
-continuation or repeat completed proposal preparation. This delivers no craft,
-approved SPEC/build split, capacity or phase. Actual fleet remains9/17; all
-original historical/rights/device/final gates remain. No engine/runtime/export/
-CI work was performed. [Preparation and limits](docs/history/ROADMAP_DELIVERIES.md#remaining-craft-proposals-and-titan-completion--2026-10-25).
-
-Recent shipped results and failed attempts are recorded in the existing
-[delivery history](docs/history/ROADMAP_DELIVERIES.md), with their source/build,
-actual proof and remaining limits. Completed child checks stay accepted for their
-recorded scope; they are not automatically rerun or counted as finished parents.
-
-| Parked goal | Required evidence before selecting another attempt |
-| --- | --- |
-| WALK-AFT | Source/raw-supported collision-clear route and bounded arrival strategy; retain the full door/board/stairs/Zenith/home journey and original limits. [Failed trial](docs/history/ROADMAP_DELIVERIES.md#aft-station-journey--first-package-trial-not-accepted--2026-10-25). |
-| PLAY-TORPEDO | Demonstrated gameplay/control cause for the failed boat engagement and bounded correction; retain full Heavy→Torpedo→usable Paired Wing journey. [Three unaccepted trials](docs/history/ROADMAP_DELIVERIES.md#torpedo-second-boarding-readiness--whole-journey-not-accepted--2026-10-25). |
-| PLAY-DEFENSE | Demonstrated cause and bounded correction for two remaining hostiles at the unchanged34s limit; require four actual kills/payment/home/Reset/next Deploy. [Failed trial](docs/history/ROADMAP_DELIVERIES.md#defense-consumed-fire-qualification--not-accepted--2026-10-24). |
-| UI-BOARD-FOCUS | Actual offending popup/removal identity and causal evidence; existing raw does not establish it. Mining/Threading remain dependent. |
-
-These are reopening conditions, not active assignments. The canonical inventory
-retains all other parked outcomes and their original proof limits. No unchanged
-retry or longer timer is selected by this summary.
-
-<a id="next-three-production-deliveries"></a>
-## Work order
-
-One implementation at a time. Select the earliest **ready product outcome** below;
-if blocked, name the missing input and use the next ready one. Do not select an
-unrelated test just because its harness is convenient.
-
-1. **Close finite scope decisions.** Eight missing craft specifications, Bomber
-   extra roles, final guest/host capacity and desktop list; four active-recovery
-   policies; legitimate cargo replenishment/turnover. Each has named answer fields
-   and a completion artifact in the [decision register](docs/ROADMAP_BACKLOG.md#blocking-decisions-and-resources).
-2. **Complete playable outcomes.** Finish the open core/station/craft and first-play
-   activity/world goals. A failure selects its demonstrated gameplay/build/driver
-   repair; retain the complete original journey as the finish line. Prioritize
-   full combat/activity completion and missing craft over extra Halyard edge cases.
-3. **Close lifecycle and durability.** Remaining repeats, cargo cold reload/Hulk
-   revisit, recovery, shared-world and multiplayer cases follow their real baseline
-   dependencies. Reuse accepted results; fix actual defects, not evidence formats.
-4. **Qualify and ship the stable integrated candidate.** Device/audio/performance,
-   final captures, full matrix, install/rights/sign/distribution use the exact final
-   bytes. Relevant runtime changes invalidate only affected results.
-
-This order is not a claim that unknown specifications are already estimated.
-[Concrete blocked inputs](docs/ROADMAP_BACKLOG.md#blocking-decisions-and-resources)
-are resolved once; they do not authorize an endless research or definition loop.
+1. Select one ready **player-visible capability** from the canonical inventory.
+   Prefer missing gameplay/content and observed defects over extending a test
+   harness. If a specification is blocked, use the next genuinely ready outcome.
+2. Split its production implementation into capabilities estimated at no more
+   than90 minutes each. Name each capability's files, observable result and focused
+   check before editing. A fleet, world, activity family or final matrix is a
+   milestone/container, never one implementation assignment.
+3. Deliver and close that capability, then run its retained complete journey when
+   its prerequisites hold. A short regression can prove the repair; it cannot
+   replace the original full journey, repeat count or deadline.
+4. Qualify the stable integrated candidate through the existing release gates.
+   Reuse accepted results within their recorded scope. Re-run affected checks when
+   code changes invalidate them; do not restart every completed journey by default.
 
 ## Turning a goal into one assignment
 
-Every selected task must be small enough to finish or fail in one bounded
-assignment. A broad delivery heading is never a runnable task.
+A goal is **READY only when every field below has a literal answer**. Otherwise
+mark it BLOCKED and record the missing value/list plus the owner who can supply it.
+“Works”, “usable”, “polished”, “all applicable” and “specified” alone are not pass
+conditions. A link is sufficient only if its target fixes the actual cases/values.
 
-Before work starts, copy its existing ID, **Done means**, dependencies and protected
-scope into a short execution card. Add exact production files/owner, action or
-command, expected visible result, implementation/check estimate and time budget.
-No card may say only “finish”, “polish”, “improve” or “support” a family.
-
-Freeze the complete required case list before the first case runs. Missing
-criteria or membership make the goal GATED, with the exact input and its owner
-recorded in the existing row. New cases require an identified uncovered original
-requirement. Report the first failed predicate and cumulative time; never extend
-the finish line or reset the budget after seeing a result.
-
-Use this compact card for every selected task; fill each field before editing:
-
-| Field | Required content |
+| Field | Required answer before work starts |
 | --- | --- |
-| Goal and boundary | One existing goal ID plus this bounded capability; list what remains in its parent. |
-| Starting state | Exact source/package, normal player/session state and satisfied dependencies. |
-| Visible result | What the player can do after this change, or the exact finite answer for a decision task. |
-| Pass condition | Literal action → expected state/value for every required endpoint; fixed numeric limits/tolerances/counts and exact existing check/ordinary route. No unresolved “works”, “usable” or “specified” wording. |
-| Proof and blockers | Exact command/route, source/package, participants/device, expected output/file/visible result; list each missing input and who supplies it. Missing inputs keep the assignment GATED/WAITING. |
-| Ownership and budget | Exact production files, implementer, estimate and hard stop; split implementation before90min, include prior attempts in the same cumulative clock, retain the original full acceptance gate. |
-| Closure | PASS with proof, FAIL with first unmet predicate, GATED/WAITING with exact input, or PARKED with reopening condition; actual cumulative time, remaining work, pushed source/build where required and process/worktree/branch cleanup. |
+| Goal | One existing ID and one bounded production result. Name the parent work that remains. |
+| Starting point | Source/package, normal player/session state, satisfied prerequisites and exact owned files. |
+| Player result | Literal action → observable state/value; for a decision, the exact finite fields to record. |
+| Acceptance | Fixed complete case list, expected endpoints/counts/tolerances and original deadlines. No criteria chosen after observing results. |
+| Proof | Existing focused command or ordinary route and expected output/file/state. Identify physical-device/hardware/external input separately. |
+| Owner and estimate | Implementer/reviewer, implementation/check/closure estimates, hard stop and cumulative cost of earlier attempts. |
+| Closure | PASS, FAIL, BLOCKED or PARKED; proof or first failed predicate; remaining work; commit/push/build and owned cleanup. |
 
-Do not silently expand a failed card into a new project. At the hard stop,
-record the failed predicate or missing input and leave the parent open. A further
-attempt needs a concrete cause, bounded correction and cumulative priority review;
-renaming a task or creating a new branch never resets its budget. Before selecting
-a different task, close or explicitly park the current card with its unique work
-accounted for. Definitions already finished are reused, not recreated.
-Each cumulative review must record total elapsed cost and choose either
-**park/switch** or **one bounded continuation** with new causal evidence and an
-explicit next stop. A review alone never authorizes an indefinite retry loop.
+For example, the next **possible** Torpedo repair would be one control-accounting
+change: an unready/no-command sample followed by a real consumed-command sample
+must record consumption without requesting fire again, including a terminal boat.
+A focused existing driver fixture would prove that correction. It would **not**
+close PLAY-TORPEDO. That still requires the entire Heavy→Torpedo→usable Paired Wing
+journey, actual seeker evasion/interception,70HP boat destruction, separate
+payments, strict home/OFFLINE/physical exit and normal UI exit0, with150s per leg,
+shared300s and outer360s. The failed47.646347min plus continuation cost remain
+charged; a new card/branch/folder cannot restart that budget. This example selects
+no new repair or trial.
 
-- Codex owns implementation/checks/integration; the user owns product decisions,
-  external credentials and access. Each selected risky lifecycle change gets one
-  independent reviewer. The exact file owner is set before editing.
-- Decision/handoff preparation: normally 15–30 minutes, ending in the named answer
-  or exact missing input. Do not repeat a completed definition. Missing original
-  craft build estimates wait for their specifications; do not invent finish dates.
-- Implementation: name one runtime/content/build result and an estimate before
-  editing. Split before 90 minutes if it cannot yield a reviewable capability;
-  preserve the original parent result and cumulative clock across attempts.
-- Qualification: use the existing full route and original duration. The first
-  unexpected failure stops execution. One proposed correction needs causal proof;
-  failed work plus one attempted repair requires cumulative priority review.
-- Close with actual result, relevant evidence, remaining limits, merged/pushed
-  source, required playable checkpoint, owned-process/scratch cleanup and deletion
-  of contained task branches. Failed/unaccepted source is preserved, not merged
-  merely to delete it.
+### Stop rules that prevent another loop
 
-A parent closes only when **all** its required named instances pass. Definition,
-assertion count, validator files and number of commits are not gameplay progress.
+- Freeze acceptance before editing. Add a case only for an identified uncovered
+  original requirement; record why, rather than silently moving the finish line.
+- Stop the selected check at its first unexpected failure. Preserve the result
+  and source. Diagnose the actual owner; do not build another validator or extend
+  the deadline to convert failure into success.
+- One attempted repair followed by failure requires a cumulative priority review:
+  park/switch, or justify one bounded continuation with a demonstrated cause and
+  explicit stop. There is no automatic retry chain.
+- Close or park the active card before switching tasks. Preserve unfinished unique
+  source. Merge accepted work into main, push, remove completed owned branches and
+  worktrees, and release owned processes/scratch. Cleanup is part of completion.
+- A meaningful working gameplay/graphics result gets a fresh Windows checkpoint
+  through the existing clean-commit workflow. Include actual checks and player
+  changes. Documentation/private diagnostics alone do not require an identical build.
+- In progress reports state: **goal; player result; accepted/failed/blocked;
+  first remaining blocker; elapsed cost; next bounded action**. At closure report
+  completed named outcomes and the remaining named milestones. Do not substitute
+  assertion counts, evidence versions or commit totals for product progress.
 
 ## Accepted work — source limits retained
 
-Recent completed cases include occupied-chair requester feedback (`bcd268c75`),
-chair contention/transfer (`99c9fc1af`) and airborne late join/normal docking/crew
-boarding (`437fe903d`). Their exact scopes and earlier failures are in
-[delivery history](docs/history/ROADMAP_DELIVERIES.md). They do not close the full
-multiplayer baseline or any original phase.
+Recent accepted child outcomes include
+[Central walking/launch/home](docs/history/ROADMAP_DELIVERIES.md#central-station-accepted-proof-reused-20261025),
+[Hauler conserved delivery](docs/history/ROADMAP_DELIVERIES.md#hauler-supply-first-play-accepted-20261025),
+[Race and home](docs/history/ROADMAP_DELIVERIES.md#race-first-play-accepted-20261025),
+[Patrol relay](docs/history/ROADMAP_DELIVERIES.md#patrol-relay-first-play-accepted-20261025)
+and [browser join/solo walking](docs/history/ROADMAP_DELIVERIES.md#browser-join-supported-walking-20261025).
+They stay accepted for their recorded source/route. Their cold/repeat/device/final
+candidate requirements remain separate; no automatic unchanged rerun is selected.
+Full chronological results belong in the existing
+[delivery history](docs/history/ROADMAP_DELIVERIES.md), not the execution queue.
 
 ## Parked failures and dependent work
 
-The inventory retains each failed route, original cap and specific reopening
-condition. No unchanged retries, arbitrary longer caps, substituted short routes
-or renamed copies. Observation/VIP, Sandbox, KIT-RELOAD, Hulk revisit, shared Rime,
-browser timeout and registered capture blockers remain explicit dependencies.
-An old failure does not become a new task merely because another definition ended.
+| Existing goal | Specific reopening requirement |
+| --- | --- |
+| WALK-AFT | Source/raw-supported collision-clear route; retain full door/board/stairs/Zenith/home journey and original limits |
+| PLAY-TORPEDO | Resolve the recorded batch-accounting review blocker; source GO and cumulative priority review before checks; retain full Heavy/Torpedo/Wing finish |
+| PLAY-PATROL[platform_sweep] | Localize normal quit failure; five holds/payment/home/exit already observed but UI exit0/save closure missing. Original300s remains |
+| PLAY-DEFENSE | Demonstrated control/gameplay correction for the recorded two-of-four clear; no arbitrary longer fight |
+| COMBAT-WING | Demonstrated cause/correction for eight shots causing zero damage; no unsupported aim tuning |
+| SERVER-BASELINE-PASSENGER-RECONNECT | Localized setup/transport-send cause before retrying actual fresh cabin admission |
+| Other parked rows | Their exact recorded cause, original case list/cap and reopening predicate in the canonical backlog; no unchanged retry |
+
+Unaccepted Torpedo source is retained at
+`/srv/mudds-work/torpedo-boat-control-20261025/results/unfinished-source.patch`
+with base/hash/blocker/timing in the adjacent `paused-for-roadmap.json`. No engine
+or package checks were run for it. This retained exception is not completed work.
 
 ## Validation and final release
 
-Automated Godot uses Dummy audio and headless/private Xvfb with explicit x11.
-Audible tests need explicit authorization. GitHub Actions stays disabled.
-Native Windows execution and mandatory human review are already owner-excluded;
-unperformed facts remain NOT_RUN. Applicable native GPU/device/audio and Linux
-requirements remain. No simulated or headless pass supplies those measurements.
+Automated Godot always uses Dummy audio, headless or private Xvfb with explicit
+x11. Audible output requires authorization. GitHub Actions remains disabled.
+Native Windows execution and mandatory human review remain owner-excluded;
+unperformed facts stay NOT_RUN. Applicable Linux/native GPU/device/audio gates
+remain; simulated checks cannot supply physical measurements.
 
-The final exit is one accepted candidate with zero P0/P1 defects, reviewed P2
-outcomes, the required complete ordinary journeys and unfiltered local matrix,
-matching installable artifacts, settled rights/signatures and verified downloaded
-bytes. The [ten phase exit contracts](docs/ROADMAP_BACKLOG.md#original-phase-gates-and-completion)
-remain binding; none is silently reduced to this alpha.
+The final exit is one accepted candidate with zeroP0/P1, explicitP2 dispositions,
+required complete ordinary journeys and unfiltered local matrix, matching
+installable artifacts, settled rights/signatures and authorized downloaded-byte
+identity. All [ten phase exits](docs/ROADMAP_BACKLOG.md#original-phase-gates-and-completion)
+remain binding. Missing design decisions or hardware access stay named blockers;
+they do not become indefinite implementation tasks.
