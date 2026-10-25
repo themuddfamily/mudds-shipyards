@@ -53,12 +53,13 @@ not a project percentage inferred from rows, tests or commits.
 ### Small execution queue
 
 Only one implementation card may be active. Each row below is a bounded step
-within the existing goal, not a replacement for its full acceptance. No implementation is currently selected. The complete named reconnect case is
+within the existing goal, not a replacement for its full acceptance. One implementation is selected below. The complete named reconnect case is
 accepted for its recorded Linux-source ordinary-input scope. Torpedo remains
 parked; broader multiplayer and final-candidate requirements remain separate.
 
 | Existing goal | Next bounded result | Proof / stop | State and owner |
 | --- | --- | --- | --- |
+| NET-ACTOR[projectile/native disconnect] | Skip closed native recipients before projectile delivery-budget work; preserve connected flying/terminal updates and canonical state | Existing real ENet snapshot-stream close-window fixture plus existing projectile replication/canonical/consumer suites; immediate and pending-window paths, unchanged caps; stop on first unexpected failure | ACTIVE — Codex implementation, independent lifecycle reviewer; 60–75min estimate,90min hard stop; selected 2026-10-25T07:06:56+00:00; no earlier projectile-specific attempt. Files: session adapter and existing snapshot-stream test; Windows checkpoint/cleanup included. Full actor/Torpedo/Picket journeys remain open |
 | SERVER-BASELINE-PASSENGER-RECONNECT | Complete original ordinary reconnect journey delivered on109aca0 | 397 checks/171.747s, all three peers exit0, zero diagnostics; original seven moving stages/loss/UI rejoin/home/fresh berth+later chair/renewed flight verified, original caps retained; fresh verified Windows EXE+ZIP+notes | DONE in Linux-source ordinary-input scope; package/device/endurance/capacity/final gates remain separate |
 | PLAN-ASSIGN | Replace the chronological working page with this queue; audit every canonical goal for a finite result or explicit blocking input | Preserve all337 IDs/order,36 parents/ten gates; review changed acceptance and local links. Finish after this pass; no automatic new definition task | PASS — Codex; documentation only |
 | PLAY-TORPEDO | Cancelled request accounting must survive unread queued neutral samples across actual OS release | Source review BLOCK: output dispatch does not establish which engine samples postdate release. Candidate archived; no tests/export/trial, no gameplay completion | PARKED — Codex;67.453min cumulative at stop, no automatic retry |
