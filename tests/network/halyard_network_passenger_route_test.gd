@@ -87,6 +87,8 @@ var _ordinary_destruction_retained: Dictionary = {}
 var _ordinary_two_client_sleep := false
 var _ordinary_sleep_stage := ""
 var _ordinary_sleep_retained: Dictionary = {}
+var _ordinary_two_client_passenger_reconnect := false
+var _ordinary_reconnect_stage := ""
 var _ordinary_two_client_passenger_loss := false
 var _ordinary_passenger_loss_retained: Dictionary = {}
 var _ordinary_two_client_pilot_loss := false
@@ -142,7 +144,8 @@ func _run() -> void:
 	args.erase("--network-bunk-refusal-only")
 	_ordinary_two_client_destruction_recovery = "--ordinary-two-client-destruction-recovery" in args
 	_ordinary_two_client_sleep = "--ordinary-two-client-sleep" in args
-	_ordinary_two_client_passenger_loss = "--ordinary-two-client-passenger-loss" in args
+	_ordinary_two_client_passenger_reconnect = "--ordinary-two-client-passenger-reconnect" in args
+	_ordinary_two_client_passenger_loss = "--ordinary-two-client-passenger-loss" in args or _ordinary_two_client_passenger_reconnect
 	_ordinary_two_client_pilot_loss = "--ordinary-two-client-pilot-loss" in args
 	_ordinary_two_client_authority_stop = "--ordinary-two-client-authority-stop" in args
 	_ordinary_two_client_seat_race = "--ordinary-two-client-seat-race" in args
@@ -154,6 +157,7 @@ func _run() -> void:
 		args.erase("--ordinary-two-client-moving")
 		args.erase("--ordinary-two-client-authority-stop")
 		args.erase("--ordinary-two-client-pilot-loss")
+		args.erase("--ordinary-two-client-passenger-reconnect")
 		args.erase("--ordinary-two-client-passenger-loss")
 		args.erase("--ordinary-two-client-sleep")
 		args.erase("--ordinary-two-client-destruction-recovery")
@@ -407,6 +411,8 @@ func _print_peer_success() -> void:
 		print("HALYARD_ORDINARY_TWO_CLIENT_DESTRUCTION_RECOVERY_OK checks=%d" % _checks)
 	elif _ordinary_two_client_sleep:
 		print("HALYARD_ORDINARY_TWO_CLIENT_SLEEP_OK checks=%d" % _checks)
+	elif _ordinary_two_client_passenger_reconnect:
+		print("HALYARD_ORDINARY_TWO_CLIENT_PASSENGER_RECONNECT_OK checks=%d" % _checks)
 	elif _ordinary_two_client_passenger_loss:
 		print("HALYARD_ORDINARY_TWO_CLIENT_PASSENGER_LOSS_OK checks=%d" % _checks)
 	elif _ordinary_two_client_pilot_loss:
@@ -476,6 +482,8 @@ func _peer_arguments(role: String, display: PackedStringArray) -> PackedStringAr
 		args.append("--ordinary-two-client-destruction-recovery")
 	elif _ordinary_two_client_sleep:
 		args.append("--ordinary-two-client-sleep")
+	elif _ordinary_two_client_passenger_reconnect:
+		args.append("--ordinary-two-client-passenger-reconnect")
 	elif _ordinary_two_client_passenger_loss:
 		args.append("--ordinary-two-client-passenger-loss")
 	elif _ordinary_two_client_pilot_loss:
@@ -2640,7 +2648,7 @@ func _ordinary_passenger_is_current(peer: int) -> bool:
 		return false
 	var assignment: Dictionary = owner.get_assignment(peer, avatar)
 	var seat := simulation.get_body_crew_seat(avatar)
-	var identity := _read("client_b.cabin")
+	var identity := _ordinary_cabin_identity("client_b")
 	var publication := _ordinary_publication(avatar)
 	return body.is_seated_at(_station_anchor()) \
 		and seat != null and seat.get_seat_anchor() == _station_anchor() \
@@ -2748,6 +2756,8 @@ func _ordinary_walk_to(target: Vector3, cabin: bool, absolute_deadline: int = 0)
 					and latest.get("parent_frame_id") == StringName("frame_%s" % _craft.get_ship_id())
 				var pose := latest.get("frame_local_transform", Transform3D.IDENTITY) as Transform3D
 				authoritative_delta = (target - _craft.to_global(pose.origin)).slide(Vector3.UP)
+			elif _ordinary_two_client_passenger_reconnect and _ordinary_reconnect_unclaimed_cabin():
+				current = true
 		if delta.length() <= 0.30 and current and authoritative_delta.length() <= 0.30:
 			_ordinary_release_walk()
 			await _ticks(1)
@@ -3552,7 +3562,7 @@ func _ordinary_late_received_dock() -> Dictionary:
 		"boarding": _ordinary_fields(_game.get("_network_client_boarding_claim") as Dictionary, ["ship_id", "seat_id", "role"])}
 
 func _ordinary_late_consumed_dock(docked: Dictionary) -> bool:
-	if not (_ordinary_local_pilot_is_current() if _role == "client" else _ordinary_late_unclaimed_station()):
+	if not (_ordinary_local_pilot_is_current() if _role == "client" else (_ordinary_reconnect_unclaimed_cabin() if _ordinary_two_client_passenger_reconnect else _ordinary_late_unclaimed_station())):
 		return false
 	var sample := _game._network_craft_pose_stream.latest_sample(_craft.get_ship_id())
 	var operation := sample.get("operation_presentation", {}) as Dictionary
@@ -4531,6 +4541,13 @@ func _ordinary_passenger_loss_host(baseline: Dictionary) -> bool:
 		"all original actors arm transport observation after the complete moving prefix with both exact seated claims intact"):
 		return false
 	_write("host.passenger_loss_go", {})
+	if _ordinary_two_client_passenger_reconnect:
+		if not _ordinary_require(_craft.velocity.length() > 0.1 and not bool(_craft.get_telemetry().get("landed", true)) \
+			and _craft.get_telemetry().get("engine_state") == HeroShip.ENGINE_ONLINE \
+			and _ordinary_passenger_is_current(passenger) and _craft.get_command_source() == helm,
+			"native B transport cut occurs during actual authoritative flight with its original current chair and A's retained helm"):
+			return false
+		(_game.network_session.get("_peer") as ENetMultiplayerPeer).disconnect_peer(passenger)
 	if not await _ordinary_boundary(func(): return _ordinary_passenger_loss_host_current(final_manifest), 8.0,
 		"actual passenger disconnect retires body, frame, seat, claim and commands once while retaining the connected original pilot and ownership"):
 		return false
@@ -4553,7 +4570,11 @@ func _ordinary_passenger_loss_host(baseline: Dictionary) -> bool:
 		"departing passenger's usable solo walk and UI preserve exactly one release and the surviving authority, pilot and helm grants"):
 		return false
 	_write("host.passenger_loss_complete", {"events": _ordinary_pilot_loss_events.duplicate(true)})
-	return await _wait_file("client.passenger_loss_complete", 8.0) and await _wait_file("client_b.passenger_loss_complete", 8.0)
+	if not await _wait_file("client.passenger_loss_complete", 8.0) or not await _wait_file("client_b.passenger_loss_complete", 8.0):
+		return false
+	if _ordinary_two_client_passenger_reconnect:
+		return await _ordinary_passenger_reconnect_host(final_manifest)
+	return true
 
 
 func _ordinary_passenger_loss_pilot_current(manifest: Dictionary) -> bool:
@@ -4589,6 +4610,9 @@ func _ordinary_passenger_loss_client() -> bool:
 		"original clients arm passenger departure only after consuming the complete BOARD and seven moving stages"):
 		return false
 	_ordinary_passenger_loss_retained = {"source": source, "helm_grant": saved_helm}
+	if _ordinary_two_client_passenger_reconnect:
+		_ordinary_passenger_loss_retained["old_body_entity"] = body_source.get_entity_id()
+		_ordinary_passenger_loss_retained["old_body_stream"] = int(body_source.get_audit().get("stream_id", -1))
 	var prediction := (frame.get("_occupants") as Dictionary).get(_player.get_instance_id(), {}) as Dictionary
 	var old_prediction: Callable = prediction.get("prediction_admission", Callable())
 	if _role == "client" and not _ordinary_require(saved_helm.get("source") == source
@@ -4603,12 +4627,19 @@ func _ordinary_passenger_loss_client() -> bool:
 	if not await _wait_file("host.passenger_loss_ready", 8.0) or not await _wait_file("host.passenger_loss_go", 8.0):
 		return false
 	if _role == "client_b":
-		var stopped := _game.shutdown_network_session(&"halyard_ordinary_passenger_loss")
-		if not _ordinary_require(bool(stopped.get("accepted", false)) and int(_ordinary_pilot_loss_events.session_stopped) == 1
-			and int(_ordinary_pilot_loss_events.server_disconnected) == 0
-			and _ordinary_pilot_loss_events.reason == "halyard_ordinary_passenger_loss",
-			"original passenger intentionally closes its public production session once without a server-loss event"):
-			return false
+		if _ordinary_two_client_passenger_reconnect:
+			if not await _ordinary_boundary(func(): return int(_ordinary_pilot_loss_events.server_disconnected) == 1
+				and int(_ordinary_pilot_loss_events.session_stopped) == 1
+				and _ordinary_pilot_loss_events.reason == "server_disconnected", 8.0,
+				"actual host ENet cut emits the original passenger's real transport loss and production stop once"):
+				return false
+		else:
+			var stopped := _game.shutdown_network_session(&"halyard_ordinary_passenger_loss")
+			if not _ordinary_require(bool(stopped.get("accepted", false)) and int(_ordinary_pilot_loss_events.session_stopped) == 1
+				and int(_ordinary_pilot_loss_events.server_disconnected) == 0
+				and _ordinary_pilot_loss_events.reason == "halyard_ordinary_passenger_loss",
+				"original passenger intentionally closes its public production session once without a server-loss event"):
+				return false
 		if not await _wait_file("host.passenger_loss_released", 8.0):
 			return false
 		if not await _ordinary_boundary(func(): return (_player.get_instance_id() == _ordinary_player_id
@@ -4628,9 +4659,9 @@ func _ordinary_passenger_loss_client() -> bool:
 		if not await _ordinary_boundary(func(): return _ordinary_solo_passenger_supported(frame), 8.0,
 			"same departing Player becomes a supported awake solo cabin walker through production cleanup"):
 			return false
-		if not await _ordinary_authority_solo_walk(frame) or not await _ordinary_authority_solo_ui("Session closed: halyard_ordinary_passenger_loss"):
+		if not await _ordinary_authority_solo_walk(frame) or not await _ordinary_authority_solo_ui("Connection to the session host was lost." if _ordinary_two_client_passenger_reconnect else "Session closed: halyard_ordinary_passenger_loss"):
 			return false
-		if not _ordinary_require(int(_ordinary_pilot_loss_events.session_stopped) == 1 and int(_ordinary_pilot_loss_events.server_disconnected) == 0
+		if not _ordinary_require(int(_ordinary_pilot_loss_events.session_stopped) == 1 and int(_ordinary_pilot_loss_events.server_disconnected) == (1 if _ordinary_two_client_passenger_reconnect else 0)
 			and not body_source.is_bound() and not frame._local_prediction_is_current(_player),
 			"departing passenger's ordinary solo walk and pause Resume cannot revive its retired network grants"):
 			return false
@@ -4650,6 +4681,8 @@ func _ordinary_passenger_loss_client() -> bool:
 		if not throttle_checked or not _ordinary_require(_ordinary_passenger_loss_pilot_current(final_manifest),
 			"ordinary throttle leaves surviving pilot's original connected controls and command grant current"):
 			return false
+		if _ordinary_two_client_passenger_reconnect:
+			_ordinary_action(&"brake", true)
 		_write("client.passenger_loss_controls", {})
 	if not await _wait_file("host.passenger_loss_complete", 30.0):
 		return false
@@ -4657,6 +4690,8 @@ func _ordinary_passenger_loss_client() -> bool:
 		"surviving original pilot remains connected with its controls after the former passenger's solo input and UI"):
 		return false
 	_write(_role + ".passenger_loss_complete", {"events": _ordinary_pilot_loss_events.duplicate(true)})
+	if _ordinary_two_client_passenger_reconnect:
+		return await _ordinary_passenger_reconnect_client()
 	return true
 
 
@@ -4934,7 +4969,7 @@ func _ordinary_manifest_current(manifest: Dictionary) -> bool:
 	for kind in ["pilot_body", "passenger_body"]:
 		var expected_peer := pilot if kind == "pilot_body" else passenger
 		var wire := manifest.get(kind, {}) as Dictionary
-		var initial := _read("client.cabin" if kind == "pilot_body" else "client_b.cabin")
+		var initial := _ordinary_cabin_identity("client" if kind == "pilot_body" else "client_b")
 		if str(wire.get("entity_id", "")) != str(GameFlow.network_client_boarding_avatar_id(expected_peer)) \
 			or int(wire.get("entity_generation", 0)) != int(initial.get("entity_generation", -1)) \
 			or int(wire.get("entity_generation", 0)) <= 0 \
@@ -5053,6 +5088,10 @@ func _ordinary_failure_snapshot(description: String) -> Dictionary:
 		"original_player_id": str(_ordinary_player_id), "walking_identity": _ordinary_walking_identity,
 		"moving_selected": _ordinary_two_client_moving,
 		"shared_abort": _ordinary_fields(_read("abort"), ["role", "description", "snapshot"])}
+	if _ordinary_two_client_passenger_reconnect:
+		snapshot["passenger_reconnect"] = {"stage": _ordinary_reconnect_stage,
+			"joined": _read("client_b.reconnect_joined"), "capture": _read("host.reconnect_capture"),
+			"docked": _read("host.late_docked"), "fresh": _read("client_b.reconnect_cabin")}
 	if _ordinary_two_client_late_join:
 		snapshot["late_join"] = {"stage": _ordinary_late_join_stage,
 			"departure": _read("host.late_departed"), "spawn": _read("coordinator.late_spawn"),
@@ -6470,3 +6509,352 @@ func _ordinary_destruction_client() -> bool:
 		return false
 	_ordinary_destruction_stage = "complete"
 	return true
+
+
+# Full ordinary reconnect extends the unchanged BOARD + seven MOVING barriers.
+# Only the host's native ENet cut is staged; return, join, landing and seating
+# are driven by the original actors' real input and production HUD buttons.
+func _ordinary_cabin_identity(role: String) -> Dictionary:
+	if _ordinary_two_client_passenger_reconnect and role == "client_b" \
+		and FileAccess.file_exists(_directory.path_join("client_b.reconnect_cabin")):
+		return _read("client_b.reconnect_cabin")
+	return _read(role + ".cabin")
+
+
+func _ordinary_reconnect_unclaimed_cabin() -> bool:
+	var source := _game.get_network_remote_body_intent_source()
+	var frame := _craft.get_moving_interior_component()
+	return _ordinary_same_identity() and _game.network_session == _ordinary_authority_adapter \
+		and _player.get_instance_id() == _ordinary_player_id and not _player.is_seated() \
+		and _player.is_on_floor() and _player.is_control_enabled() and not _game.get("_transition_busy") \
+		and _game.phase == GameFlow.Phase.IN_FLIGHT_CABIN and _game.get("_cabin_ship") == _craft \
+		and frame.is_occupant_registered(_player) and not frame._local_prediction_is_current(_player) \
+		and (source == null or not source.is_bound()) and not _game.get("_piloting") \
+		and (_game.get("_network_client_boarding_claim") as Dictionary).is_empty() \
+		and _game.get("_network_engineer_client_seat") == null and _game.get("_network_engineer_pending_seat") == null
+
+
+func _ordinary_reconnect_pilot_controls_current() -> bool:
+	var source := _craft.get_local_input_source()
+	var saved := _ordinary_passenger_loss_retained.helm_grant as Dictionary
+	return _ordinary_local_pilot_is_current() and _game.network_session == _ordinary_authority_adapter \
+		and source == _ordinary_passenger_loss_retained.source and source.command_produced.is_connected(saved.capture) \
+		and (_game.get("_network_client_helm_input_sources") as Dictionary).get(_craft.get_instance_id(), {}) == saved \
+		and int(_ordinary_pilot_loss_events.session_stopped) == 0 and int(_ordinary_pilot_loss_events.server_disconnected) == 0
+
+
+func _ordinary_reconnect_accept_admission() -> bool:
+	if not _ordinary_require(_ordinary_authenticated() and _game.network_session == _ordinary_authority_adapter \
+		and _player.get_instance_id() == _ordinary_player_id,
+		"normal Manual Join reauthenticates the retained original Player and adapter"):
+		return false
+	var admission := (_game.network_session.get_server_offer().get("admission", {}) as Dictionary).get("peer", {}) as Dictionary
+	# These are harness expectations for a new admitted identity, never runtime
+	# grants. Preserve every original .admitted/.cabin prefix receipt unchanged.
+	_ordinary_peer_id = _game.network_session.multiplayer.get_unique_id()
+	_ordinary_initial_peer_generation = int(admission.get("peer_generation", 0))
+	return _ordinary_require(_ordinary_reconnect_unclaimed_cabin(),
+		"fresh admission grants no body, pilot or chair to the supported recovered cabin Player")
+
+
+func _ordinary_passenger_reconnect_host(old: Dictionary) -> bool:
+	_ordinary_reconnect_stage = "normal_browser_join"
+	if not await _wait_file("client_b.reconnect_join_started", 8.0) \
+		or not await _wait_file("client_b.reconnect_joined", 20.0) \
+		or not await _wait_file("client_b.reconnect_resumed", 8.0):
+		return false
+	var joined := _read("client_b.reconnect_joined")
+	var pilot := int(old.pilot_peer)
+	var passenger := int(joined.peer_id)
+	var avatar := GameFlow.network_client_boarding_avatar_id(passenger)
+	var simulation := _game.get_network_remote_body_simulation()
+	var helm := _ordinary_passenger_loss_retained.helm as NetworkRemotePilotCommandSource
+	var berth := _game.call(&"_resolve_berth_node", _craft.get_home_berth_id()) as ShipBerth
+	var admitted := _game.network_session.get_admitted_peer_ids()
+	var unclaimed := true
+	for held: Dictionary in _game.network_session.get_boarding_snapshot().get("occupancies", []):
+		if int(held.get("peer_id", 0)) == passenger:
+			unclaimed = false
+	if not _ordinary_require(passenger > 1 and passenger != pilot and admitted.size() == 2 \
+		and admitted.has(pilot) and admitted.has(passenger) and _ordinary_peer_generation(passenger) == int(joined.peer_generation) \
+		and _ordinary_pilot_is_current(pilot) and _craft.get_command_source() == helm \
+		and _ordinary_fields(_ordinary_late_pilot_fields(pilot).ownership, ["ship_id", "ship_generation", "owner_peer_id", "ownership_generation"]) == old.ownership \
+		and unclaimed and simulation.get_body(avatar) == null \
+		and (_ordinary_passenger_loss_retained.body as WeakRef).get_ref() == null \
+		and int(simulation.get_audit().released) == int(_ordinary_passenger_loss_retained.body_releases) + 1 \
+		and berth != null and berth.get_occupant() == null,
+		"same surviving authority admits original B anew without reviving any old body or stealing A's exact helm"):
+		return false
+	_ordinary_late_join_retained = {"peer": pilot, "peer_generation": int(old.pilot_peer_generation),
+		"session": _game.network_session, "helm": helm, "berth": berth,
+		"fields": _ordinary_late_pilot_fields(pilot), "landing_generation": 0,
+		"landing_request_before": int(helm.get_roll_receipt().get("landing_request", 0))}
+	_ordinary_reconnect_stage = "actual_input_return"
+	_write("host.reconnect_return_go", {})
+	if not await _ordinary_boundary(func():
+		var report: Dictionary = _game.call(&"_get_landing_assist_report_for_ship", _craft)
+		return _ordinary_late_host_pilot_current() and _craft.velocity.length() <= 0.1 \
+			and bool(report.get("valid", false)) and bool(report.get("assist_capture_accepted", false)) \
+			and report.get("selected_berth_id") == berth.berth_id and berth.get_reservation_owner() == null \
+			and not bool(_craft.get_telemetry().get("landed", true)) and not _craft.is_landing_active()
+	, 20.0, "original pilot's actual reverse/brake inputs return the authoritative hull to its unchanged home capture within twenty seconds"):
+		return false
+	_write("host.reconnect_capture", {"report": _game.call(&"_get_landing_assist_report_for_ship", _craft),
+		"sample": _ordinary_hull_sample()})
+	var dock_deadline := Time.get_ticks_msec() + 24000
+	_ordinary_reconnect_stage = "sole_landing_edge"
+	_write("host.late_landing_go", {"dock_deadline_unix": Time.get_unix_time_from_system() + 24.0})
+	if not await _ordinary_boundary(func():
+		var remote := (_game.get("_network_remote_pilots") as Dictionary).get(_craft.get_ship_id(), {}) as Dictionary
+		var handoff := (_game.get("_network_landing_handoffs") as Dictionary).get(_craft.get_ship_id(), {}) as Dictionary
+		return _ordinary_late_host_pilot_current() and _craft.is_landing_active() \
+			and bool((remote.get("landing_result", {}) as Dictionary).get("accepted", false)) \
+			and int(helm.get_roll_receipt().get("landing_request", 0)) == int(_ordinary_late_join_retained.landing_request_before) + 1 \
+			and handoff.get("state") == &"landing_pending" and int(handoff.get("entity_generation", 0)) > 0
+	, 8.0, "A's sole physical landing edge starts the real current home handoff"):
+		return false
+	var handoff := (_game.get("_network_landing_handoffs") as Dictionary).get(_craft.get_ship_id(), {}) as Dictionary
+	_ordinary_late_join_retained.landing_generation = int(handoff.entity_generation)
+	_write("host.late_landing_accepted", {})
+	if not await _ordinary_boundary(_ordinary_late_host_docked,
+		maxf(0.0, float(dock_deadline - Time.get_ticks_msec()) / 1000.0),
+		"original home berth strictly docks the actual returned hull and commits its current lease within twenty-four seconds"):
+		return false
+	var position := _craft.global_position - _game.world.global_position
+	_write("host.late_docked", {"fields": _ordinary_late_pilot_fields(pilot),
+		"landing_generation": int(handoff.entity_generation), "target_id": berth.berth_id,
+		"station_position": [position.x, position.y, position.z],
+		"world_position": [_craft.global_position.x, _craft.global_position.y, _craft.global_position.z],
+		"pose_tick": int(_game.get("_network_boarding_server_tick"))})
+	for role: String in ["client", "client_b"]:
+		if not await _wait_file(role + ".late_dock_consumed", 8.0):
+			return false
+	_write("host.reconnect_dock_consumed", {})
+	_ordinary_reconnect_stage = "physical_join_cabin"
+	if not await _wait_file("client_b.reconnect_chair_approached", 15.0) \
+		or not await _wait_file("client_b.reconnect_cabin", 8.0):
+		return false
+	var fresh_identity := _read("client_b.reconnect_cabin")
+	var fresh_body := simulation.get_body(avatar) as PlayerController
+	if not await _ordinary_boundary(func(): return _ordinary_moving_walker_current(passenger) \
+		and _ordinary_late_host_docked() and fresh_body != null \
+		and int(simulation.get_body_record(avatar).get("entity_generation", 0)) == int(fresh_identity.entity_generation) \
+		and (_ordinary_passenger_loss_retained.body as WeakRef).get_ref() == null \
+		and (_craft.get_crew_role_authority().get_snapshot().get("assignments", []) as Array).is_empty(),
+		8.0, "physical first E grants exactly a fresh authoritative standing berth/body, retaining A and leaving the chair free"):
+		return false
+	var standing_claim := _ordinary_manifest(pilot, passenger).passenger_boarding as Dictionary
+	var actual_cabin_berth := false
+	for index in GameFlow.NETWORK_CABIN_BERTH_COUNT:
+		if str(standing_claim.get("seat_id", "")) == str(GameFlow.network_cabin_berth_seat_id(_craft.get_ship_id(), index + 1)):
+			actual_cabin_berth = true
+	if not _ordinary_require(actual_cabin_berth and standing_claim.get("role") == "passenger" \
+		and int(standing_claim.get("peer_id", 0)) == passenger and standing_claim.get("avatar_id") == str(avatar) \
+		and int(standing_claim.get("seat_generation", 0)) > 0 and int(standing_claim.get("claim_sequence", 0)) > 0,
+		"first E's actual authoritative claim is a cabin berth for fresh B, never the physical chair or pilot seat"):
+		return false
+	var body_start := _craft.to_local(fresh_body.global_position)
+	_write("host.reconnect_standing_checked", {})
+	if not await _wait_file("client_b.reconnect_walked", 15.0):
+		return false
+	if not _ordinary_require(_ordinary_moving_walker_current(passenger) \
+		and _craft.to_local(fresh_body.global_position).distance_to(body_start) > 0.6,
+		"fresh standing client input walks the actual new authoritative body over point six metres"):
+		return false
+	_write("host.reconnect_walk_checked", {})
+	if not await _wait_file("client_b.reconnect_chair_returned", 15.0) \
+		or not await _wait_file("client_b.reconnect_seated", 8.0):
+		return false
+	if not await _ordinary_boundary(func(): return _ordinary_passenger_is_current(passenger) \
+		and _ordinary_late_host_docked(), 8.0, "later distinct physical E grants the fresh real passenger chair while A keeps its helm"):
+		return false
+	var fresh := _ordinary_manifest(pilot, passenger)
+	if not _ordinary_require(_ordinary_manifest_current(fresh), "fresh exact seats/body/frame/admission and ownership agree after ordinary rejoin and chair claim"):
+		return false
+	_write("host.reconnect_fresh_seats", fresh)
+	for role: String in ["client", "client_b"]:
+		if not await _wait_file(role + ".reconnect_fresh_retained", 8.0):
+			return false
+	_ordinary_reconnect_stage = "renewed_flight"
+	var delivered := int(helm.get_audit().get("delivered", 0))
+	var start := _craft.global_position
+	_write("host.reconnect_flight_go", {})
+	if not await _ordinary_boundary(func(): return _ordinary_pilot_is_current(pilot) \
+		and _ordinary_passenger_is_current(passenger) and _craft.get_command_source() == helm \
+		and _ordinary_manifest(pilot, passenger) == fresh and _craft.global_position.distance_to(start) > 5.0 \
+		and _craft.velocity.length() > 0.1 and not bool(_craft.get_telemetry().get("landed", true)) \
+		and int(helm.get_audit().get("delivered", 0)) > delivered and _craft.get_last_ship_command().throttle > 0.0,
+		8.0, "original A's real input flies the actual host hull again with original B's fresh current passenger role"):
+		return false
+	_write("host.reconnect_flown", {})
+	for role: String in ["client", "client_b"]:
+		if not await _wait_file(role + ".reconnect_complete", 8.0):
+			return false
+	_write("host.reconnect_complete", {})
+	return true
+
+
+func _ordinary_reconnect_return_inputs() -> bool:
+	var berth := _game.call(&"_resolve_berth_node", _craft.get_home_berth_id()) as ShipBerth
+	if not _ordinary_require(berth != null and _ordinary_reconnect_pilot_controls_current(), "same ordinary pilot has the authored berth geometry for return"):
+		return false
+	var deadline := Time.get_ticks_msec() + 20000
+	while Time.get_ticks_msec() < deadline and not _ordinary_aborted():
+		if FileAccess.file_exists(_directory.path_join("host.reconnect_capture")):
+			_ordinary_release_walk()
+			_ordinary_action(&"brake", true)
+			return true
+		var forward := -_craft.global_basis.z.normalized()
+		var delta := berth.get_assist_capture_transform().origin - _craft.global_position
+		var remaining := delta.dot(forward)
+		var speed := _craft.velocity.dot(forward)
+		# Derived from this actual craft's authored brake and helm cadence. The
+		# original prefix has no turn: reverse thrust follows the same home axis.
+		var brake_power := maxf(0.01, _craft.brake_acceleration)
+		var cadence := float(NetworkRemotePilotCommandSource.SEND_INTERVAL_TICKS + 2) / float(Engine.physics_ticks_per_second)
+		var stopping := speed * speed / (2.0 * brake_power) + absf(speed) * cadence
+		var report: Dictionary = _game.call(&"_get_landing_assist_report_for_ship", _craft)
+		var accepted := bool(report.get("assist_capture_accepted", false)) and report.get("selected_berth_id") == berth.berth_id
+		var braking := accepted or (signf(speed) == signf(remaining) and absf(remaining) <= stopping)
+		_ordinary_release_walk()
+		_ordinary_action(&"brake", braking)
+		if not braking:
+			_ordinary_action(&"move_forward" if remaining > 0.0 else &"move_back", true)
+		await _ticks(1)
+	_ordinary_release_walk()
+	_ordinary_action(&"brake", true)
+	return _ordinary_require(false, "actual reverse/brake return reaches accepted home capture within unchanged twenty seconds")
+
+
+func _ordinary_passenger_reconnect_client() -> bool:
+	_ordinary_reconnect_stage = "normal_browser_join"
+	var body_source := _game.get_network_remote_body_intent_source()
+	var old_stream := int(_ordinary_passenger_loss_retained.old_body_stream)
+	var old_avatar := StringName(_ordinary_passenger_loss_retained.old_body_entity)
+	if _role == "client_b":
+		await _ordinary_press(&"pause")
+		if not await _ordinary_boundary(func(): return paused, 8.0, "recovered B opens normal pause through actual input") \
+			or not await _ordinary_button("ServerBrowserButton"):
+			return false
+		(_game.hud.get("_server_browser_address") as LineEdit).text = "127.0.0.1"
+		(_game.hud.get("_server_browser_port") as LineEdit).text = str(_port)
+		_write("client_b.reconnect_join_started", {})
+		if not await _ordinary_button("ServerBrowserManualJoinButton") \
+			or not await _ordinary_boundary(_ordinary_authenticated, 20.0, "normal browser Manual Join admits the same recovered passenger process") \
+			or not _ordinary_reconnect_accept_admission():
+			return false
+		_write("client_b.reconnect_joined", {"peer_id": _ordinary_peer_id,
+			"peer_generation": _ordinary_initial_peer_generation, "player_id": str(_ordinary_player_id), "pid": OS.get_process_id()})
+		if not await _ordinary_button("ServerBrowserBackButton") or not await _ordinary_button("ResumeButton") \
+			or not await _ordinary_boundary(func(): return not paused and _ordinary_reconnect_unclaimed_cabin(),
+			8.0, "normal browser Back and Resume retain same supported unclaimed Player after rejoin"):
+			return false
+		_write("client_b.reconnect_resumed", {})
+	else:
+		if not await _wait_file("client_b.reconnect_join_started", 8.0) \
+			or not await _wait_file("client_b.reconnect_joined", 20.0) \
+			or not await _wait_file("client_b.reconnect_resumed", 8.0):
+			return false
+	if not await _wait_file("host.reconnect_return_go", 8.0):
+		return false
+	_ordinary_reconnect_stage = "actual_input_return"
+	if _role == "client" and not await _ordinary_reconnect_return_inputs():
+		return false
+	if _role == "client_b" and not await _wait_file("host.reconnect_capture", 20.0):
+		return false
+	if not await _wait_file("host.late_landing_go", 8.0):
+		return false
+	var go := _read("host.late_landing_go")
+	if _role == "client":
+		await _ordinary_press(&"landing_assist")
+		_write("client.late_landing_sent", {"helm": _ordinary_fields(_game.get("_network_remote_helm"), ["landing_request_id", "sequence", "stream_id"])})
+	if not await _wait_file("host.late_landing_accepted", 8.0):
+		return false
+	if _role == "client":
+		_ordinary_action(&"brake", false)
+	if not await _wait_file("host.late_docked", maxf(0.0, float(go.dock_deadline_unix) - Time.get_unix_time_from_system())):
+		return false
+	var docked := _read("host.late_docked")
+	if not await _ordinary_boundary(func(): return _ordinary_late_consumed_dock(docked) \
+		and (_role == "client" or _craft.get_network_operation_telemetry_presentation().get("engine_state") == HeroShip.ENGINE_OFFLINE),
+		8.0, "both original clients consume the actual strict home dock; recovered passenger consumes native OFFLINE"):
+		return false
+	_write(_role + ".late_dock_consumed", _ordinary_late_received_dock())
+	if not await _wait_file("host.reconnect_dock_consumed", 8.0):
+		return false
+	if _role == "client_b":
+		if not await _ordinary_walk_to((_station_contract().entry_transform as Transform3D).origin, true):
+			return false
+		await _ordinary_look(_station_anchor().global_position + Vector3.UP * 1.2)
+		if not await _ordinary_boundary(func(): return _game.station_interaction_candidate is ShipCrewSeat \
+			and (_game.station_interaction_candidate as ShipCrewSeat).get_seat_anchor() == _station_anchor() \
+			and str(_game.hud.get("_interaction_source_text")).contains("JOIN CABIN"),
+			8.0, "rejoined supported B physically approaches the genuine passenger chair JOIN CABIN prompt"):
+			return false
+		_write("client_b.reconnect_chair_approached", {})
+		var requests := int(_game.get_network_client_boarding_audit().get("requests", 0))
+		await _ordinary_press(&"interact")
+		if not await _ordinary_boundary(func(): return _ordinary_supported_cabin() and not _player.is_seated() \
+			and _game.get("_network_engineer_pending_seat") == null and _game.get("_network_engineer_client_seat") == null \
+			and not _game.get("_piloting") and (_game.get("_network_client_boarding_claim") as Dictionary).get("role") == GameFlow.NETWORK_CABIN_BERTH_ROLE,
+			8.0, "first genuine E confirms only a fresh supported standing berth/body, without chair or pilot takeover"):
+			return false
+		if not _ordinary_require(int(_game.get_network_client_boarding_audit().get("requests", 0)) == requests + 1 \
+			and body_source.get_entity_id() == GameFlow.network_client_boarding_avatar_id(_ordinary_peer_id) \
+			and body_source.get_entity_generation() > 0 \
+			and (body_source.get_entity_id() != old_avatar or int(body_source.get_audit().get("stream_id", -1)) > old_stream),
+			"physical first E sends one request and binds a fresh admitted body stream"):
+			return false
+		_ordinary_walking_identity = {"peer_id": _ordinary_peer_id, "entity_id": str(body_source.get_entity_id()),
+			"entity_generation": body_source.get_entity_generation(), "player_id": str(_ordinary_player_id)}
+		_write("client_b.reconnect_cabin", _ordinary_walking_identity)
+		if not await _wait_file("host.reconnect_standing_checked", 8.0):
+			return false
+		var start := _craft.to_local(_player.global_position)
+		if not await _ordinary_walk_to(_craft.to_global(Vector3(0.0, 0.52, -6.80)), true) \
+			or not _ordinary_require(_craft.to_local(_player.global_position).distance_to(start) > 0.6,
+			"fresh standing B walks over point six metres through actual cabin input"):
+			return false
+		_write("client_b.reconnect_walked", {})
+		if not await _wait_file("host.reconnect_walk_checked", 8.0) \
+			or not await _ordinary_walk_to((_station_contract().entry_transform as Transform3D).origin, true):
+			return false
+		await _ordinary_look(_station_anchor().global_position + Vector3.UP * 1.2)
+		if not await _ordinary_boundary(func(): return _game.station_interaction_candidate is ShipCrewSeat \
+			and (_game.station_interaction_candidate as ShipCrewSeat).get_seat_anchor() == _station_anchor(),
+			8.0, "fresh admitted walker physically returns to the same real passenger chair"):
+			return false
+		_write("client_b.reconnect_chair_returned", {})
+		await _ordinary_press(&"interact")
+		if not await _ordinary_boundary(_ordinary_local_passenger_is_current, 8.0,
+			"a later distinct ordinary E seats original B at the real chair with fresh confirmed passenger role"):
+			return false
+		_write("client_b.reconnect_seated", {})
+	else:
+		if not await _wait_file("client_b.reconnect_chair_approached", 15.0) \
+			or not await _wait_file("client_b.reconnect_cabin", 8.0) \
+			or not await _wait_file("client_b.reconnect_walked", 15.0) \
+			or not await _wait_file("client_b.reconnect_chair_returned", 15.0) \
+			or not await _wait_file("client_b.reconnect_seated", 8.0):
+			return false
+	if not await _wait_file("host.reconnect_fresh_seats", 8.0):
+		return false
+	var fresh := _read("host.reconnect_fresh_seats")
+	if not await _ordinary_boundary(func(): return _ordinary_consumed_manifest_current(fresh), 8.0,
+		"both original clients consume fresh current body/frame/seat/ownership grants and honest pilot/passenger HUD roles"):
+		return false
+	_write(_role + ".reconnect_fresh_retained", {})
+	if not await _wait_file("host.reconnect_flight_go", 8.0):
+		return false
+	if _role == "client":
+		_ordinary_action(&"move_forward", true, 0.35)
+	if not await _wait_file("host.reconnect_flown", 8.0):
+		return false
+	if not await _ordinary_boundary(func(): return _craft.velocity.length() > 0.1 and _ordinary_moving_engine_online() \
+		and _ordinary_consumed_manifest_current(fresh) \
+		and (_ordinary_reconnect_pilot_controls_current() if _role == "client" else (int(_ordinary_pilot_loss_events.server_disconnected) == 1 and int(_ordinary_pilot_loss_events.session_stopped) == 1)), 8.0, "original clients consume renewed actual flight with their current honest roles"):
+		return false
+	if _role == "client":
+		_ordinary_action(&"move_forward", false)
+	_write(_role + ".reconnect_complete", {})
+	return await _wait_file("host.reconnect_complete", 8.0)
