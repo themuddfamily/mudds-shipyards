@@ -13,6 +13,11 @@ features. There is no evidence-backed project percentage or completion date.
 
 ## How we will work from this roadmap
 
+Every work report must name **one goal and its pass/fail result**. A broad heading
+such as “finish the fleet” groups work; it cannot be assigned or reported as a
+completed task. An unresolved contract stays blocked until its missing values
+are recorded. Writing a more detailed plan does not close its product goal.
+
 Only a goal with a frozen result and proof can enter the work queue. Every selected
 assignment must fit this sentence:
 
@@ -72,22 +77,20 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Delivered: live engine-transition captions.** Checkpoint46bae53 displays
-Engine degraded, Engine critical and Engine recovered for the rig's existing
-component-damage transitions. Three old-registry caption assertions fail exactly;
-fixed actual Hero ledger/automatic rig binding/router/Director/GameFlow/visible
-HUD and shared-service checks pass, including all five new/existing alarm captions,
-priority/FIFO expiry, unchanged-band silence, OFF/no replay and unbound sources.
-Emission thresholds, audio mix, damage, controls and severity policy are unchanged.
+**Current assignment: correct the roadmap's finish conditions.** No gameplay
+qualification is running. This documentation change replaces shared repeat-goal
+boilerplate with the twelve actual objectives, makes the final Guided command
+and 3/3 result explicit, names the four missing original Settings artifacts,
+removes the implied extra all-game lifecycle loop and fixes the four historical
+identity propositions. Proof: all337 canonical IDs/names/parent links remain in
+their original order; changed links resolve; independent review finds no changed
+scope or acceptance limits. No gameplay outcome is claimed by this assignment.
 
-All focused checks, paired exports, three strict startups and actual1527-entry
-payload audit pass; only the compiled semantic caption presenter differs from391.
-This is a production caption capability with disclosed component-fixture proof,
-not physical collision/ordinary flight/listening/rendered/native/full comfort
-acceptance. Accepted work is merged/pushed; records are verified/archived,
-owned scratch is removed and the completed branch is deleted. The original
-23:14:33→00:14:33UTC/60min is retained; no successor is active.
-[Exact delivery and limits](docs/history/ROADMAP_DELIVERIES.md#engine-transition-live-captions-delivered-20261025).
+The pending Ember caption implementation is paused at its source handoff while
+this correction is made. Its three modified source/test files are preserved;
+no engine, qualification or export has run for it. It remains unaccepted. The
+bounded result below documents what its eventual check must establish; it does
+not start another trial or reset its original budget.
 
 The [ship-rig caption membership](docs/ROADMAP_BACKLOG.md#ship-rig-caption-membership)
 is now fixed:21possible semantic IDs,19mapped and2unmapped load IDs whose method
@@ -95,50 +98,52 @@ has no demonstrated production caller. This closes that source definition only;
 no additional live repair is selected. Reuse this result rather than surveying
 the same producer again. Wider caption/play/device gates remain unchanged.
 
-**Jovian solo ordinary engineer route: PARKED / not accepted.** Two source
-trials reach all17 outward walking goals and the real engineer chair. The second
-proves matching accepted repair, integrity improvement and kits6→5 in437ms,
-then stops at the new test's stand-retirement assertion. That assertion contradicts
-the existing detach-on-stand authority contract; its individual runtime values
-were not logged. The first combined repair/HUD failure's actual member remains
-unknown; the later run's immediate HUD already shows5, so no sole first cause is
-claimed. Full reverse path/hub/normal Exit0 remain NOT_RUN.
+### Concrete pending capability: Ember surface-loop captions
 
-No third run or further correction is selected. Future work must bind the test
-to the existing detach contract and capture each post-stand value before checking,
-with independent source/cumulative review and the full original finish/caps.
-Both failed sources/raw/STOPs are verified in archive; unaccepted code is excluded
-from main and its branch is deleted. Current checkpoint39157e8 is unchanged.
-[Exact failed predicates and cleanup](docs/history/ROADMAP_DELIVERIES.md#jovian-ordinary-engineer-two-stops-20261025).
+Existing goal: **COMFORT-CAPTIONS**, one production capability. For each base ID
+below, both existing `_interior` and `_exterior` emissions must display the exact
+caption through the shared HUD caption service: exactly18 registry entries.
 
-**Qualified: Tritanopia survives cold restart and normal Reset.**
-Source `1f2260f69` passes three real-file OS processes: actual settings-control
-selection/Save → cold Tritanopia in the HUD/minimap → normal Reset/Save → third
-cold `none`. The visible ON FOOT text/minimap shape cues, naturally supported
-raw-input walking, all other bindings/options and unrelated data remain exact.
-Every actual HUD Exit yields OS0 and both durable clean states. Existing full
-persistence/palette/minimap checks also pass. This closes one missing source
-consumer endpoint; rendered/device/full comfort and original Settings return
-remain open. Runtime and playable checkpoint39157e8 are unchanged. Accepted work
-is merged/pushed, records are verified/archived, owned scratch is removed and
-the completed branch is deleted; no successor is active.
-[Exact proof and scope](docs/history/ROADMAP_DELIVERIES.md#colour-preset-cold-process-qualified-20261025).
+| Existing cue base | Exact caption | Default severity |
+| --- | --- | --- |
+| `ember_surface_descent` | Ember descent | medium |
+| `ember_surface_landed` | Ember landing complete | low |
+| `ember_surface_on_foot` | On foot on Ember | medium |
+| `ember_surface_reboard` | Ember craft reboarded | medium |
+| `ember_surface_takeoff` | Ember takeoff | medium |
+| `ember_surface_ascent` | Ember ascent | medium |
+| `ember_surface_orbit_return` | Returning to Ember orbit | medium |
+| `ember_surface_abort` | Ember surface journey aborted | high |
+| `ember_relay_survey_reward_confirmed` | Ember relay survey reward confirmed | low |
 
-**Accepted: Guided normal HUD Exit prerequisite.** Source `39157e8ca` passes
-all 211 native-driver tests, import/privacy checks, paired exports, three strict
-package startups, actual payload audit and one clean installed direct-ELF sortie.
-The original full flight/home/OFFLINE/physical exit is followed by OS-key pause,
-focused EXIT TO DESKTOP and actual exit 0 in 55.826 seconds under unchanged CAP300.
-Actual post-exit data records both clean shutdown states. All owned inputs and
-game/helper/Xvfb processes are released/reaped; installed/archive bytes remain exact.
+Owned files: `scripts/ui/semantic_audio_cue_presenter.gd`,
+`tests/semantic_audio_cue_presenter_test.gd` and
+`tests/audio/ember_surface_loop_audio_composition_test.gd`.
+The existing production binding supplies these IDs; the repair adds captions,
+without new emissions or changes to phase/reward authority or replay policy.
+Existing intensity1.0 promotion to high remains; registry-default checks must
+use an intensity that does not promote severity.
 
-This closes the missing executable normal-exit prerequisite. It is one run under
-private Xvfb/x11/Dummy/dummy rendering, not rendered desktop-entry acceptance,
-Guided final 3/3, native GPU qualification or a new gameplay feature. The original
-22:00–23:15 UTC assignment clock is retained. Accepted work is merged/pushed;
-the owned install/scratch is removed, records are verified and archived, and the
-completed branch is deleted. No successor is active.
-[Actual proof and limits](docs/history/ROADMAP_DELIVERIES.md#guided-installed-normal-exit-accepted-20261025).
+Pass requires all18 literal caption/default assertions, followed by all18 actual
+composition→Director→GameFlow→visible-HUD deliveries and expiry through one
+shared service. Repeated/unauthorized/refused/replayed/stale/detached observations
+stay silent; captions OFF suppresses display and re-enabling does not replay.
+The old registry must fail exactly the18 new caption assertions. The repaired
+source must pass the focused checks, paired exports, strict package startups
+and payload audit, then receive a checkpoint and independent acceptance review.
+
+The integration uses the existing `EmberSnapshotFixture` owner and controlled
+reward observations with real production audio/HUD components and a manual
+caption clock. It proves this caption capability; it does not prove a physical
+surface journey, real durable reward, listening, rendered/device or full comfort
+acceptance. Those existing gates remain open. Original assignment window:
+2026-10-25 23:44:40→2026-10-26 00:44:40UTC, including review/build/closure;
+deferral does not create a fresh budget. No continuation is selected here.
+
+Accepted checkpoints and qualifications are listed under [accepted work](#accepted-work--source-limits-retained).
+Failed journeys and their exact reopening conditions are under
+[parked work](#parked-failures-and-dependent-work). Their retained delivery
+history supplies the full proof; neither list automatically schedules a rerun.
 
 ### Small execution queue
 
