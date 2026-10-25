@@ -715,24 +715,15 @@ before adding ordinary-route telemetry. No new validator/evidence family.
 
 ### Remaining unmerged work
 
-The [earlier 20-branch inventory](history/ROADMAP_DELIVERIES.md#remaining-branch-status-after-duplicate-closeouts--2026-10-20)
-distinguishes three withheld gameplay fixes from 17 automation/diagnostic-only
-candidates at that point and records each acceptance blocker. The older Breach probe and Jovian
-syntax branch have verified exact-source successors and archived original histories;
-their branches are removed. The retained Breach successor is now merged on c78e0ac
-after full earned-debt interruption acceptance, leaving 19 remote candidates
-(three gameplay fixes/16 automation at that point). Halyard BOARD is now
-accepted and its branch removed too, leaving 18 non-main candidates (three gameplay
-fixes/15 automation at that point). The superseded original Jovian exit caller
-is now archived under a pushed tag and removed, leaving 17 non-main remote
-candidates (three gameplay fixes/14 automation). Full Jovian exit remains OPEN.
-Fifteen already-integrated local branches and their clean worktrees are also
-removed. The five local-only exceptions are now accounted for and removed too:
-cargo capture and durable supervision are integrated; original native/Sandbox
-route tooling is superseded and archived. The failed settle-facing guard remains
-withheld, with exact history under an archive tag; full Sandbox/recovery/reuse
-remains FAILED/open. No local-only branch exception remains.
-No new gameplay or release qualification follows from deleting those duplicate refs.
+Current verified HTTPS heads on2026-10-25 contain **only main** at1c06e5d05;
+local branches also contain only main. The earlier20/19/18/17 branch counts below
+in [delivery history](history/ROADMAP_DELIVERIES.md#remaining-branch-status-after-duplicate-closeouts--2026-10-20)
+are historical checkpoints, not current unfinished working branches. Unique
+withheld diagnostic/gameplay attempts retain their documented archives/tags and
+reopening conditions; removing a branch did not accept a failed candidate.
+Pre-existing detached worktree/archive registrations remain protected until
+ownership and unique changes are accounted for; none is silently pruned. Current
+work creates no branch/worktree. This correction supplies no gameplay qualification.
 
 ### Perimeter Hold — missing production integration
 

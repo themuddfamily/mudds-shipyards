@@ -29,6 +29,35 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Selected: BROWSER-JOIN — ordinary LAN admission with usable controls.**
+Source1c06e5d05. Extend only the existing independent two-Main D3 menu route with
+opt-in `--live-menu-one-guest-gameplay`; defaults/D4/cancel remain intact. Retain
+normal host/Refresh/actual advertised row/actual authenticated admission, ordinary
+Begin Shift, normal Disconnect/Refresh/Back/Resume and actual peer OS0/cleanup.
+Add actual same-Player walking for BOTH host/guest while connected and again
+while solo after disconnect; no teleport/provider/phase/ownership/RPC shortcut.
+
+One implementer owns `tests/network/game_flow_server_browser_integration_test.gd`;
+root owns docs/guard/locks/checks/integration/cleanup. Existing receipts expose
+actual per-walk positions/velocity/support, actor identity, stable authenticated
+identity and unchanged ship/seat/crew grants. Coordinator requires all four walks
+and all original route endpoints. Per walk: ≥1m in≤5s, standard settle≤5s, fresh
+12-physics-tick neutral drift≤.02m, grounded/collider support, on-foot/local controls
+and same actor throughout; every exit releases input. Existing outer300s/work230s/
+actor100s/Main60s/UI5s/admission20s/handoffs remain, no deadline widening.
+
+Proof: current default fixture/parser, one full opt-in route under independent
+ownedXvfb/x11/dummy renderer/Dummy audio with real ENet and LAN responder,
+source/raw independent review, exact exit/diagnostic/process checks and cleanup.
+This delivers an executable browser gameplay qualification capability/source
+result; source-only input automation is not physical controller/OS-native/package/
+endurance/final acceptance. No identical playable rebuild for test-only work;
+any demonstrated runtime fix needs separate focused checks/fresh checkpoint.
+Estimate20min source+20checks+10review/cleanup; hard stop60min including failures.
+First unexpected failure stops; one causal bounded correction requires cumulative
+review. UI-BOARD-FOCUS remains parked: existing raw lacks offending popup identity.
+
+
 **Delivered: ACCESS-NEARBY — ten scrolling rows, fixed footer and honest arm feedback.**
 Source0d77125b3/checkpoint0d77125: Cinder Activity Status now bounds its ten rows
 inside the authored page while keeping heading/feedback/Save/Load/Back fixed.
