@@ -29,6 +29,32 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Selected: ACCESS-DESTINATIONS — fit and scroll the actual five-card board.**
+Source27b4f1d31; actual three worlds/two sector sites at1024x768, requested1.6
+(the authored maximum; effective pause clamp remains unchanged). Source shows
+rows directly expanding a fixed720x580 page without a scroll region; existing
+layout fixture contains only two worlds. First measure the actual five-card
+content; if no defect is reproduced, stop without speculative runtime changes.
+
+One implementer owns `scripts/ui/hud.gd` and the existing focused destination/
+HUD layout tests; root owns selection, guarded checks, integration/export and
+cleanup in the shared checkout. One code owner avoids another branch/worktree;
+independent reviewer handles acceptance. Expected visible result: all five cards
+can be read through bounded scrolling, heading/Back stay in bounds, enabled
+Travel/briefing controls are revealed by focus, disabled rows stay skipped and
+live status refresh retains card identity/chosen Back focus. Opening/scrolling
+must not request travel or alter catalog/route admission.
+
+Proof: existing focused layout regression with full production catalog, actual
+Main console interaction test, relevant existing scale/focus checks, same-view
+isolated capture inspection, fresh clean-commit Windows/Linux checkpoint exports,
+strict menu readiness exit0+sentinel and exact package identity. Dummy audio/
+headless or ownedXvfb x11 only; native GPU/device/full expedition/parent gates
+remain open. Estimate20min source+25checks/export+10review/cleanup; hard stop60min
+including failures. Stop first unexpected failure; one causal correction then
+cumulative priority review. No new UI matrix, validator or test framework.
+
+
 **Delivered: tighter, bounded acceptance contracts.**
 The existing337 named records retain all36 parent promises/ten phase gates.
 Their **Done means** and dependencies in the [canonical inventory](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes)
