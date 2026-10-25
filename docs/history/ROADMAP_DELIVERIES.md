@@ -25861,3 +25861,58 @@ checks and the exact package. Corrected bundle independently verifies and names
 All owned process identities are absent; five private build files and unpacked
 scratch removed. Only archive and closeout remain. Exact Git cleanup and original
 elapsed cost are recorded in that closeout; accepted runtime source remains main.
+
+
+<a id="torrent-loss-recovery-third-attempt-stop-20261025"></a>
+## Torrent loss/recovery third-attempt stop —2026-10-25
+
+The original required full destruction/recovery result remains PARKED/not accepted.
+Independent source/cumulative review permitted one resolver correction under the
+original16:12Z→17:12Z/60min clock, retaining both earlier failures and CAP300.
+Candidate dbd44c3b587c5fb178950d93f6354b0d33a95626 counts incoming hits once through
+CombatResolver.shot_resolved; exact2101/11 and2102/22 source/profile/adapter/contact/
+sequence checks preserve genuine applied damage. Fatal acceptance stays2101;
+victory retains its separate post-coordinator authority callback. No runtime
+flight/combat/AI/placement change. This candidate is preserved unmerged.
+
+209 Python tests12.929s, import6.607s, privacy1.142s, observer parser15.826s,
+clean Linux export25.796s and strict startup22.928s pass with guarded source/index/
+cache/process ownership and zero runtime diagnostics. Startup is actual exit0 and
+exactly one STARTUP_MENU_READY_OK. New executable SHA256
+`59fce1b26197b373a50bc168cd96195054100b066edcc9dfd92dccceb3c4d0ef`.
+Same1527 payload paths; only native_sortie_observer.gdc differs from actual791
+predecessor. An initial comparison mistakenly selected the older6fe baseline;
+that expectation failure and corrected artifact choice are retained, including
+its cost in the original task clock. It did not authorize a gameplay change.
+Independent final pretrial GO17:00:02 precedes the fixed17:01 gate.
+
+The sole third native trial FAILS71.859s (wrapper72.359s), zero diagnostics,
+all input/helper/game/Xvfb cleanup true. Eight real incoming receipts account for
+100 hull loss; required defender2101 supplies the final clamped1-point hit.
+Production recall releases pilot/seat/reservation, restores control/capsule/player
+camera and creates the real pending identity/deadline. First post-recall frame3260
+has Player[-8.5,.18,11], supported CentralJunction, grounded=false,
+now68311ms<ready70257ms. Frames3261–3263 descend.175→.15 while supported and not
+grounded. The immediate require_foot predicate fails; no later settling is observed.
+
+Independent source review finds force_recovery_to_on_foot places the Player and
+clears velocity/claims but does not establish is_on_floor; ordinary gravity and
+move_and_slide establish that collision state later. This explains the premature
+first-frame driver expectation; it does not prove eventual settling or establish
+a production defect/fix. Settled recall, regeneration/new generation, fresh native
+boarding/retry victory, strict home/exit/walk/normal UI remain NOT_RUN. No fourth
+trial, cap increase, new budget or narrower acceptance is selected. Reopening must
+first bind actual completed-motion grounding within the retained full journey,
+with a separate cumulative-priority decision; preserve immediate recall authority
+checks and supported walking, not an arbitrary grace or waived floor requirement.
+
+Verified continuation archive
+`/srv/mudds-work/torrent-loss-recovery-20261025/resolver-records.tar.gz`,
+119,979,498bytes, SHA256
+`b814945adabf0a6b26b322f8a49588e131964b2bfbe8166c74dc712cb5e6e221`,
+101regular files/7symlinks, retains source bundle/patch, all checks, raw trial and
+exact package. Earlier records.tar.gz remains byte-identical. All owned identities
+are absent; five continuation build files/unpacked scratch removed. Source bundle
+is verified against retained main2dd958f26. Only the two verified archives and
+closeout remain; exact branch deletion/push/end-time/cumulative cost are recorded
+in closeout. Main gameplay/checkpoints remain unchanged.

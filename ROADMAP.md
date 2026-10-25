@@ -118,11 +118,16 @@ hardware/access remain BLOCKED input. This records the remaining planning work;
 it does not claim every goal is executable or deliver gameplay. No implementation
 card or new trial is active. Select no blocked row until its named fields are fixed.
 
-The Torrent destruction/recovery attempt is **PARKED**, after two failed native
-trials. The second reached hull 56 with only 22 damage accounted for; its missing
-projectile receipt prevents acceptance. Fatal recall/regeneration/retry remain
-unproved. Source, package and raw results are archived; no third attempt is
-selected. [Exact stop and reopening condition](docs/history/ROADMAP_DELIVERIES.md#torrent-loss-recovery-two-attempt-stop-20261025).
+The Torrent destruction/recovery attempt remains **PARKED / not accepted**.
+A reviewed resolver correction accounted for all100 actual damage, including
+picket side hits; the third trial recorded the required defender's final1-point
+hit, production recall/retired claims and real pending regeneration deadline.
+It stopped at71.859s because the first post-recall physics sample had floor support
+but `grounded=false`. Source confirms recall places the Player before normal
+collision processing establishes grounding; no gameplay defect or eventual
+settling is proved. Regeneration/new generation, fresh reboard/retry and home/UI
+remain NOT_RUN. No fourth trial or budget reset is selected; original16:12Z→17:12Z
+clock and CAP300 retained. [Exact third stop and cleanup](docs/history/ROADMAP_DELIVERIES.md#torrent-loss-recovery-third-attempt-stop-20261025).
 
 The existing shared Main resource/combat
 lifecycle check is accepted on79dc473a5: three retained subtree re-entry cycles,
