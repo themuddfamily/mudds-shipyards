@@ -348,12 +348,20 @@ func _live_full_row_state(session_id: StringName) -> Dictionary:
 	var visible_rect := row.get_global_rect().intersection(scroll.get_global_rect()).intersection(root.get_visible_rect()) if row != null else Rect2()
 	var endpoint: Dictionary = _live_game.get_lan_discovery().get_endpoint(session_id)
 	var hosted := _live_read("host.ready")
+	var logical_point := visible_rect.get_center()
+	var viewport_to_window := root.get_final_transform()
+	var window_point := viewport_to_window * logical_point
+	var viewport_rect := root.get_visible_rect()
 	var valid := row != null and row.is_visible_in_tree() and row.disabled and row.focus_mode == Control.FOCUS_NONE and row.text.contains("1/1 guests") and row.text.contains("FULL") and visible_rect.has_area() and int(listing.get("player_count", -1)) == 1 and int(listing.get("max_players", -1)) == 1 and int(listing.get("available_slots", -1)) == 0 and bool(listing.get("is_full", false)) and (hud.get("_server_browser_title") as Label).text == "ALL SESSIONS FULL" and detail.contains("The only session is full.") and detail.contains("NEXT ACTION // REFRESH SERVER LIST OR RETURN") and not detail.contains("SELECT A SESSION") and refresh != null and not refresh.disabled and refresh.focus_mode == Control.FOCUS_ALL and root.gui_get_focus_owner() == refresh and int(endpoint.get("port", 0)) == int(hosted.get("port", -1)) and not str(endpoint.get("address", "")).is_empty()
 	return {"valid": valid, "session_id": str(session_id), "endpoint": endpoint, "listing": listing,
 		"row_text": row.text if row != null else "", "disabled": row.disabled if row != null else false,
 		"focus_mode": row.focus_mode if row != null else -1, "detail": detail,
 		"directory_generation": int(_live_game.get("_lan_directory_generation")),
-		"pointer_position": [visible_rect.get_center().x, visible_rect.get_center().y]}
+		"pointer_position": [logical_point.x, logical_point.y],
+		"pointer_window_position": [window_point.x, window_point.y],
+		"viewport_visible_rect": [viewport_rect.position.x, viewport_rect.position.y, viewport_rect.size.x, viewport_rect.size.y],
+		"viewport_size": [root.size.x, root.size.y],
+		"viewport_to_window": {"x": [viewport_to_window.x.x, viewport_to_window.x.y], "y": [viewport_to_window.y.x, viewport_to_window.y.y], "origin": [viewport_to_window.origin.x, viewport_to_window.origin.y]}}
 
 
 func _live_full_candidate() -> void:
@@ -384,7 +392,9 @@ func _live_full_candidate() -> void:
 		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 			(_live_full_observation.pointer_events as Array).append(event.pressed)
 	)
-	var point_values: Array = first.pointer_position
+	# Input.parse_input_event receives window-local coordinates; Viewport input
+	# applies the inverse final transform before hit testing logical GUI rects.
+	var point_values: Array = first.pointer_window_position
 	var point := Vector2(float(point_values[0]), float(point_values[1]))
 	# Actual GUI delivery to the visible disabled row; no signal emission,
 	# handler call, focus override or fabricated network attempt is permitted.
