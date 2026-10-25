@@ -25126,3 +25126,89 @@ SHA256 `c7c44bc2879cdc5d493854443cd5db3067e54d0bf3f44f8fe17a9270a1082dc0`;
 `closeout.json` alongside records final Git closure/time. No task worktree or
 remote branch was created; old parked source/results and unrelated worktrees
 remain untouched.
+
+
+<a id="settings-schema10-migration-parked-20261025"></a>
+## Settings schema-10 migration caller parked — 2026-10-25
+
+**SAVE-MIGRATION remains unaccepted.** Candidate
+`75c6fe53d3c877ff5eb633f412c5410c1801a4d0` is not merged. Main is restored to
+accepted `80431e61f`. No game code, checkpoint or migration outcome changed.
+This selects one actually supported typed settings schema 10→11 case, rather
+than inventing an older UserDataStore outer version or automatic disk migration.
+
+The existing production persistence test's new opt-in writer/reader uses normal
+Main and one actual private disk store, without authority injection. Fixture is
+explicitly a NEW clean envelope: complete valid schema-10 settings with the
+existing nondefault values/profile, plus exactly two paid gameplay namespaces
+copied from accepted Race `7997b2b37`. It is not a modified whole player profile;
+no copied recovery metadata was removed. Paid fields come from
+`results/ordinary-route-tutorial/orderly-close.json` in the retained Race archive,
+SHA256 `e9ca95cb8f42a93afe7845bf37d669cbfb14068b765b4f0425f85f181a417c59`.
+The prior complete Race and exactly one reward receipt remain the protected input.
+
+**Frozen result:** writer normal Main loads 10 once before apply; in-memory 11
+adds only high_contrast_hud=false/reticle_style=standard, retaining all values and
+profile. Startup leaves stored settings 10. After ordinary STABLE, the visible
+Save must publish exactly one successor: entire payload equals immediately prior
+payload with only the independently expected settings 11 section replaced; exact
+parent generation/ID and .bak bytes/mode. Distinct normal reader reloads settings 11
+and the complete profile/InputMap plus paid Race/reward, starts normally and walks
+supported ≥1 m under 5 s, settles ≤0.05 m/s under 5 s, 12 neutral ticks/drift ≤0.02 m. Ordinary
+Main metadata writes remain enabled outside the synchronous Save boundary.
+Initial invented global generation 1–8 counts were rejected in source review:
+diagnostics, recovery and ordinary Begin Shift also write. This correction was
+frozen before code/engines; the original task clock was never reset.
+
+Independent source review also added actual valid-backup checksum/envelope and
+immediate predecessor generation/ID checks at read boundaries; ordinary primary
+load alone does not prove a valid backup. Input comparisons preserve full-double
+precision and normalize JSON numeric/StringName representation. No new validator,
+schema family or production migration policy.
+
+**First execution STOP:** launch guard fails in 17.043913 s before fixture/Main.
+Actual command has Dummy/x11, but the new guard searches OS.get_cmdline_args for
+consumed engine switches. Same-version retained FIRE_RESTART_BEGIN raw logs and
+source prove those switches are absent there. One independent/cumulative-reviewed
+correction checks actual AudioServer Dummy/DisplayServer X11 plus the unchanged
+private-root/mode conditions and records those components before asserting.
+
+**Corrected writer STOP/PARK:** 31.629479 s, isolation/complete fixture/generation 1 pass,
+then compound normal-Main load/memory-migration assertion fails. The actual
+report/current-settings members were not recorded, so no particular raw failed
+member or runtime migration defect is claimed. Source proves readiness ordering:
+SceneTree invokes the virtual script `_initialize()` before attaching its root;
+this caller adds Main and reads its report without yielding. Main readiness/
+startup therefore has not run at that sampling point. Local witnesses are
+`scene/main/scene_tree.cpp:586–590`, `core/os/main_loop.cpp:57–58` and
+`scene/main/node.cpp:3354–3371` under the retained RPC-template source cache.
+All three are byte-identical to the source archive pinned by SHA256
+`0230d490846467c4fd772cc70b08dc56cb3adfedd55d039de0af74ddfdba00eb`;
+file hashes and source path are in the closeout. Cleanup's later frame
+allows startup, consistent with retained generation 5 diagnostic commits and
+settings still 10. The existing restart caller waits process/physics/process
+frames before reading Main. No Save, reader, reload, walk or clean-close result is
+accepted. Reader NOT_RUN. Independent closeout review PARK; no further run selected.
+
+Both writers exit 1; both owners and all 10 observed descendant identities are
+absent. Source/index/cache guards match for both. Retained real-file generation 5
+has settings 10 plus paid Race/reward, crash/safe-start/session-diagnostics; both
+paid gameplay subdocuments remain exactly equal to the frozen input.
+Original 300 s per-process/5 s UI/walk/settle/12-neutral limits remain. Stage cost
+48.673392 s includes both failures; original 90-minute clock starts 11:15:39Z, hard
+stop 12:45:39Z, 28.735 minutes through archive/scratch cleanup. Reopening requires
+normal Main readiness/startup, individual report/settings observations before the
+assertion, independent GO and a newly recorded cumulative priority decision.
+No unchanged retry, fresh budget or changed migration invariant is authorized.
+
+Three unique commits, exact test source and binary patch are preserved in a
+verified Git bundle before restoring main. All 41 raw files hash-match archive
+members before deleting owned helpers/results/inputs/profiles/shared data/lock.
+Retained `/srv/mudds-work/settings-schema10-migration-20261025/records.tar.gz`,
+4,876,576 bytes, SHA256
+`c4ef22772f4d48a6435db15da493a0bc8315d2ff847687503b92bd8208e56b82`;
+`closeout.json` alongside records final Git closure/time. Candidate bundle SHA256
+`f70697d7502bc48f6f30e68e198df4b0547004536b575850b0fdf6ae31a43cbc`.
+No task worktree or remote branch was created. Unrelated parked worktrees and
+accepted checkpoints remain untouched. Titan's prepared design question is
+pending; no dependent craft implementation has begun.
