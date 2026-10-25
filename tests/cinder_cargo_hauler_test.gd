@@ -331,7 +331,7 @@ func _initialize() -> void:
 
 
 ## Fixed test fixtures reproduce the observed home-walk pose, without moving
-## production actors or changing the observer's original 0.6 m ray reach.
+## production actors or changing the player's authored capsule, snap or margin.
 func _test_actual_home_ramp_support_observation() -> void:
 	var craft := Hauler.new()
 	craft.transform = Transform3D(Basis(Vector3.UP, PI / 2.0), Vector3(7.0, 5.81, 84.7000046))
@@ -378,7 +378,8 @@ func _test_actual_home_ramp_support_observation() -> void:
 	floor_body.collision_mask = 0
 	var floor_shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
-	box.size = Vector3(4.0, 0.1, 4.0)
+	# Keep distant end caps outside the capsule sweep when tilted steeply.
+	box.size = Vector3(20.0, 0.1, 20.0)
 	floor_shape.shape = box
 	floor_body.add_child(floor_shape)
 	root.add_child(floor_body)
@@ -454,6 +455,31 @@ func _test_home_berth_approach_lane_is_flyable() -> void:
 		world.queue_free()
 		await process_frame
 		return
+
+	# Reuse this live world for the observed Aft lip: the center ray meets the
+	# steep ramp end face while the physical capsule also has walkable support.
+	var lip_player := PLAYER_SCENE.instantiate() as PlayerController
+	lip_player.position = Vector3(-5.687118, 4.303276, 60.766380)
+	world.add_child(lip_player)
+	lip_player.set_process(false)
+	lip_player.set_physics_process(false)
+	await physics_frame
+	await process_frame
+	var lip_pose := lip_player.global_transform
+	var lip_ray := SortieObserver.query_cinder_supply_support(lip_player, craft, false)
+	var ray_body := lip_ray.get("collider") as PhysicsBody3D
+	_check(is_instance_valid(ray_body) and world.is_ancestor_of(ray_body)
+		and (lip_ray.get("normal", Vector3.ZERO) as Vector3).dot(lip_player.up_direction) < cos(lip_player.floor_max_angle),
+		"actual Aft lip reproduces the legacy ray's floor-incompatible end-face hit")
+	var lip_support := SortieObserver.query_cinder_supply_support(lip_player, craft, true)
+	var support_body := lip_support.get("collider") as PhysicsBody3D
+	_check(is_instance_valid(support_body) and support_body.is_inside_tree()
+		and not support_body.is_queued_for_deletion() and world.is_ancestor_of(support_body)
+		and (lip_support.get("normal", Vector3.ZERO) as Vector3).dot(lip_player.up_direction) >= cos(lip_player.floor_max_angle)
+		and lip_player.global_transform == lip_pose,
+		"actual capsule observes floor-compatible Aft lip support without committing player motion")
+	lip_player.queue_free()
+	await process_frame
 
 	# The flight lane checks the exact hull after the production boarding ramp
 	# retracts through its pilot owner, just as an ordinary departure does.

@@ -1755,28 +1755,26 @@ func _arrow_observation() -> Dictionary:
 	return result
 
 
-## Read-only contact observation. Hauler walking can rest on a SHIP-layer ramp;
-## use the pilot's physical mask and exceptions without extending the probe.
+## Read-only contact observation. Hauler support uses the actual capsule and
+## authored floor snap, so a ramp end face cannot hide a simultaneous floor.
 static func query_cinder_supply_support(player: CharacterBody3D, ship: PhysicsBody3D, hauler: bool) -> Dictionary:
-	var excluded: Array[RID] = [player.get_rid()]
-	var mask := PhysicsLayers.WORLD
 	if hauler:
-		mask = player.collision_mask & (PhysicsLayers.WORLD | PhysicsLayers.SHIP)
-		for exception: PhysicsBody3D in player.get_collision_exceptions():
-			if is_instance_valid(exception):
-				excluded.append(exception.get_rid())
-	else:
-		excluded.append(ship.get_rid())
-	var ray := PhysicsRayQueryParameters3D.create(player.global_position + Vector3.UP * 0.2,
-		player.global_position - Vector3.UP * 0.4, mask, excluded)
-	var hit := player.get_world_3d().direct_space_state.intersect_ray(ray)
-	if hauler and not hit.is_empty():
-		var body := hit.get("collider") as PhysicsBody3D
-		var normal: Vector3 = hit.get("normal", Vector3.ZERO)
-		if not is_instance_valid(body) or not body.is_inside_tree() or body.is_queued_for_deletion() \
-			or normal.dot(player.up_direction) < cos(player.floor_max_angle):
+		var contact := KinematicCollision3D.new()
+		if not player.test_move(player.global_transform, -player.up_direction * player.floor_snap_length,
+			contact, player.safe_margin, true, 4):
 			return {}
-	return hit
+		for index in range(contact.get_collision_count()):
+			var body := contact.get_collider(index) as PhysicsBody3D
+			var normal := contact.get_normal(index)
+			if is_instance_valid(body) and body.is_inside_tree() and not body.is_queued_for_deletion() \
+				and (body.collision_layer & (PhysicsLayers.WORLD | PhysicsLayers.SHIP)) != 0 \
+				and normal.dot(player.up_direction) >= cos(player.floor_max_angle):
+				return {"collider": body, "normal": normal, "position": contact.get_position(index),
+					"shape": contact.get_collider_shape_index(index), "rid": contact.get_collider_rid(index)}
+		return {}
+	var ray := PhysicsRayQueryParameters3D.create(player.global_position + Vector3.UP * 0.2,
+		player.global_position - Vector3.UP * 0.4, PhysicsLayers.WORLD, [player.get_rid(), ship.get_rid()])
+	return player.get_world_3d().direct_space_state.intersect_ray(ray)
 
 
 ## Current records only: streaming accessors/audits can reconcile ownership, so

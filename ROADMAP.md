@@ -61,6 +61,16 @@ active, disable controller callbacks and perform the manual move in a physics
 frame. All assertions remain; no export/whole route ran. Next fixture failure
 parks without another correction; original case clock and full result unchanged.
 
+Fixture85/85 then passes; first package support run stops33.172s at Aft stair
+sample1071 before boarding. The center ray sees the ramp's steep end face and
+rejects it while UpperFloor lies underneath. Root/independent cumulative review
+permits ONE Hauler-only physical capsule probe using existing Player.test_move,
+authored0.35m snap/margin/mask/exceptions, live floor-compatible body/contact;
+no committed move or grounded-alone acceptance. Jovian ray unchanged. Require
+actual ramp+Aft-lip and all negative physics cases, then one complete original
+trip. Estimate10implementation+15checks/route+5closure; original90min clock,
+next fixture/route failure parks without another automatic correction.
+
 **PARKED: HAULER-CARGO-DELIVERY — home walk support check failed.**
 Unaccepted candidatesc0c5ff2b7/70de2ea83 complete ordinary station walking,
 Hauler boarding/departure, actual Cinder load/gate/redock, ten-point terminal walk,
