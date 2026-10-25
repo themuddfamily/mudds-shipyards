@@ -146,8 +146,11 @@ func _check_nearby_small_viewport(hud: GameHUD) -> void:
 	var previous_scale := hud.get_ui_scale()
 	var previous_snapshot := (hud.get_nearby_activity_report().get("snapshot", {}) as Dictionary).duplicate(true)
 	var requests: Array[Dictionary] = []
+	var briefings: Array[StringName] = []
 	var on_request := func(intent: Dictionary) -> void: requests.append(intent.duplicate(true))
+	var on_briefing := func(site_id: StringName) -> void: briefings.append(site_id)
 	hud.nearby_activity_intent_requested.connect(on_request)
+	hud.sector_site_briefing_requested.connect(on_briefing)
 	root.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
 	root.content_scale_size = Vector2i(1024, 768)
 	root.size = Vector2i(1024, 768)
@@ -235,8 +238,8 @@ func _check_nearby_small_viewport(hud: GameHUD) -> void:
 	_check(cargo.get_index() == 0 and root.gui_get_focus_owner() == focused,
 		"Nearby priority refresh starts with focused active cargo at list top")
 	# Retain focus while active cargo moves from first to its authored standard
-	# position. ScrollContainer.follow_focus alone does not handle a retained
-	# focused node moving during container layout.
+	# position. The new scroll region must reveal that retained focused row
+	# after container layout, without another focus-entered event.
 	for cargo_state in [_cargo_snapshot(2, 3), _cargo_snapshot(1, 1, &"", 84.5),
 		_cargo_snapshot(1, 2, &"", 43.0), _cargo_snapshot(3, 1, &"embodied_transfer_aborted", 0.0)]:
 		snapshot["cargo"] = cargo_state
@@ -265,15 +268,28 @@ func _check_nearby_small_viewport(hud: GameHUD) -> void:
 			and safe.grow(0.75).encloses(button.get_global_rect()),
 			"Nearby footer retains enabled visible focus: %s" % button_name)
 	var back := page.find_child("NearbyActivityBackButton", true, false) as Button
+	# Queue a real priority refresh, then leave in the same frame. A deferred
+	# reveal must respect the newer Back transition and leave the hidden list alone.
+	focused.grab_focus()
+	snapshot["cargo"] = _cargo_snapshot(2, 3)
+	hud.set_nearby_activity_snapshot(snapshot)
+	var scroll_before_back := scroll.scroll_vertical if scroll != null else 0
 	back.emit_signal("pressed")
+	await process_frame
+	await process_frame
 	await process_frame
 	var selection := hud.get("_activity_selection_page") as Control
 	var opener := selection.find_child("NearbyActivityOpenButton", true, false) as Button
 	_check(selection.visible and not page.visible and root.gui_get_focus_owner() == opener,
 		"Nearby Back restores the Activity Board and exact opener focus in the selected cell")
+	_check((scroll == null or scroll.scroll_vertical == scroll_before_back)
+		and root.gui_get_focus_owner() == opener,
+		"Nearby queued refresh respects newer Back focus and leaves hidden-page scrolling unchanged")
 	hud.show_nearby_activity_page()
-	_check(requests.is_empty(), "Nearby layout, scrolling, focus and snapshot refresh emit no activity or persistence intent")
+	_check(requests.is_empty() and briefings.is_empty(),
+		"Nearby layout, scrolling, focus and snapshot refresh emit no activity, persistence or site briefing intent")
 	hud.nearby_activity_intent_requested.disconnect(on_request)
+	hud.sector_site_briefing_requested.disconnect(on_briefing)
 	hud.set_nearby_activity_snapshot(previous_snapshot)
 	root.content_scale_aspect = previous_aspect
 	root.content_scale_size = previous_content_size

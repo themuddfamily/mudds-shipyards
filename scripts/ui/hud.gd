@@ -501,7 +501,9 @@ var _activity_selection_status_reason: StringName = &""
 var _nearby_activity_presenter: RefCounted
 var _bomber_payload_presenter: RefCounted
 var _nearby_activity_page: Control
+var _nearby_activity_scroll: ScrollContainer
 var _nearby_activity_rows: VBoxContainer
+var _nearby_activity_focus_reveal_pending := false
 var _nearby_activity_feedback: Label
 var _nearby_activity_snapshot: Dictionary = {}
 var _last_nearby_convoy_semantic_transition := ""
@@ -6137,9 +6139,18 @@ func _build_nearby_activity_page() -> void:
 	)
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	stack.add_child(subtitle)
+	# Keep status and persistence actions fixed while the ten retained activity
+	# rows scroll within the authored page height.
+	_nearby_activity_scroll = ScrollContainer.new()
+	_nearby_activity_scroll.name = "NearbyActivityScroll"
+	_nearby_activity_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_nearby_activity_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_nearby_activity_scroll.follow_focus = true
+	stack.add_child(_nearby_activity_scroll)
 	_nearby_activity_rows = VBoxContainer.new()
 	_nearby_activity_rows.add_theme_constant_override("separation", 4)
-	stack.add_child(_nearby_activity_rows)
+	_nearby_activity_rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_nearby_activity_scroll.add_child(_nearby_activity_rows)
 	_nearby_activity_feedback = _label("No progress result received.", 10, MUTED)
 	_nearby_activity_feedback.name = "NearbyActivityPersistenceFeedback"
 	_nearby_activity_feedback.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -6840,6 +6851,45 @@ func _render_nearby_activity_view(view: Dictionary) -> void:
 				(retained_rows[retained_id] as Control).queue_free()
 	if _nearby_activity_feedback != null:
 		_nearby_activity_feedback.text = str((view.get("persistence_feedback", {}) as Dictionary).get("text", ""))
+	_request_nearby_activity_focus_reveal()
+
+
+func _request_nearby_activity_focus_reveal() -> void:
+	if _nearby_activity_focus_reveal_pending or not is_inside_tree() or is_queued_for_deletion() \
+			or not is_instance_valid(_nearby_activity_page) \
+			or _nearby_activity_page.is_queued_for_deletion() \
+			or not _nearby_activity_page.is_visible_in_tree():
+		return
+	_nearby_activity_focus_reveal_pending = true
+	# A retained focused button emits no focus-entered signal when its row moves.
+	# Wait for container sorting, then inspect the current focus rather than
+	# capturing a node that the player may already have left.
+	get_tree().process_frame.connect(_reveal_nearby_activity_focus, CONNECT_ONE_SHOT)
+
+
+func _reveal_nearby_activity_focus() -> void:
+	_nearby_activity_focus_reveal_pending = false
+	if not is_inside_tree() or is_queued_for_deletion() \
+			or not is_instance_valid(_nearby_activity_page) \
+			or _nearby_activity_page.is_queued_for_deletion() \
+			or not _nearby_activity_page.is_visible_in_tree() \
+			or not is_instance_valid(_nearby_activity_rows) \
+			or _nearby_activity_rows.is_queued_for_deletion() \
+			or not _nearby_activity_rows.is_visible_in_tree() \
+			or not is_instance_valid(_nearby_activity_scroll) \
+			or _nearby_activity_scroll.is_queued_for_deletion() \
+			or not _nearby_activity_scroll.is_visible_in_tree():
+		return
+	var focused := get_viewport().gui_get_focus_owner()
+	if not is_instance_valid(focused) or focused.is_queued_for_deletion() \
+			or not focused.is_visible_in_tree() or not _nearby_activity_rows.is_ancestor_of(focused):
+		return
+	var row := focused
+	while row.get_parent() != _nearby_activity_rows:
+		row = row.get_parent() as Control
+		if row == null or row.is_queued_for_deletion():
+			return
+	_nearby_activity_scroll.ensure_control_visible(row)
 
 
 func clear_nearby_activity_snapshot() -> void:
@@ -6868,6 +6918,7 @@ func show_nearby_activity_page() -> void:
 	var first := _first_nearby_activity_focus_target()
 	if first != null:
 		first.grab_focus()
+	_request_nearby_activity_focus_reveal()
 
 
 func _first_nearby_activity_focus_target() -> Control:
@@ -6966,6 +7017,7 @@ func _add_nearby_activity_row(card: Dictionary) -> void:
 		button.focus_mode = Control.FOCUS_ALL
 		button.disabled = not bool(card.get("actions_enabled", true))
 		button.pressed.connect(_forward_nearby_activity_intent.bind(action, activity_id))
+		button.focus_entered.connect(_request_nearby_activity_focus_reveal)
 		row.add_child(button)
 	if activity_id == &"cinder_hulk_power_restoration":
 		var briefing := _menu_button("BRIEFING", MUTED)
@@ -6973,6 +7025,7 @@ func _add_nearby_activity_row(card: Dictionary) -> void:
 		briefing.disabled = not bool(card.get("briefing_available", false))
 		briefing.tooltip_text = "Show the hulk's existing destination briefing."
 		briefing.pressed.connect(_request_hulk_activity_briefing)
+		briefing.focus_entered.connect(_request_nearby_activity_focus_reveal)
 		row.add_child(briefing)
 	_nearby_activity_rows.add_child(row)
 
