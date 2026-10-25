@@ -592,8 +592,40 @@ func _live_open_pause_browser() -> bool:
 
 func _live_browser_after_leave() -> bool:
 	var disconnect := _live_game.hud.find_child("ServerBrowserDisconnectButton", true, false) as Button
-	_check(disconnect != null and disconnect.is_visible_in_tree() and disconnect.disabled and disconnect.focus_mode == Control.FOCUS_NONE, "browser Disconnect is disabled after UI leave")
+	var session: NetworkEnetSessionAdapter = _live_game.network_session
+	var presentation: Dictionary = _live_game.hud.get("_network_status_presenter").get_snapshot()
+	var selected_action: Dictionary = _live_game.hud.call("_server_browser_session_action", presentation)
+	var observation := {
+		"state": str(presentation.get("state", "")), "retryable": bool(presentation.get("retryable", false)), "has_error": presentation.has("error"),
+		"source_session_id": str(presentation.get("session_id", "")),
+		"source_generation": int(presentation.get("source_generation", -1)), "source_sequence": int(presentation.get("source_sequence", -1)),
+		"game_flow_session_id": "game-flow-%d" % _live_game.get_instance_id(),
+		"game_flow_generation": int(_live_game.get("_network_hud_session_epoch")), "game_flow_sequence": int(_live_game.get("_network_hud_snapshot_generation")),
+		"selected_action": str(selected_action.get("id", "")), "action_focusable": bool(selected_action.get("focusable", false)),
+		"button_visible": disconnect != null and disconnect.is_visible_in_tree(), "button_enabled": disconnect != null and not disconnect.disabled,
+		"button_text": disconnect.text if disconnect != null else "", "button_focus_mode": disconnect.focus_mode if disconnect != null else Control.FOCUS_NONE,
+		"session_active": session.is_session_active(), "offer_empty": session.get_server_offer().is_empty(), "admissions_empty": session.get_admitted_peer_ids().is_empty(),
+	}
+	if _live_gameplay:
+		_live_walks["after_leave"] = observation
+	var ready := _live_browser_retry_ready(observation)
+	_check(ready, "ordinary UI leave presents own current fenced disconnected Retry Connection with cleared session")
+	if not ready or not _failures.is_empty():
+		return false
 	return await _live_button("ServerBrowserRefreshButton") and await _live_button("ServerBrowserBackButton") and await _live_button("ResumeButton")
+
+
+func _live_browser_retry_ready(observation: Dictionary) -> bool:
+	return (
+		observation.get("state", "") == "disconnected" and bool(observation.get("retryable", false)) and not bool(observation.get("has_error", true))
+		and observation.get("source_session_id", "") == observation.get("game_flow_session_id", "missing")
+		and int(observation.get("source_generation", -1)) == int(observation.get("game_flow_generation", -2)) and int(observation.get("source_generation", 0)) > 0
+		and int(observation.get("source_sequence", -1)) == int(observation.get("game_flow_sequence", -2)) and int(observation.get("source_sequence", 0)) > 0
+		and observation.get("selected_action", "") == "retry" and bool(observation.get("action_focusable", false))
+		and bool(observation.get("button_visible", false)) and bool(observation.get("button_enabled", false))
+		and observation.get("button_text", "") == "RETRY CONNECTION" and int(observation.get("button_focus_mode", -1)) == Control.FOCUS_ALL
+		and not bool(observation.get("session_active", true)) and bool(observation.get("offer_empty", false)) and bool(observation.get("admissions_empty", false))
+	)
 
 
 func _live_release_movement() -> void:
@@ -797,6 +829,11 @@ func _live_check_gameplay_receipts() -> void:
 	for role: String in ["host", "guest"]:
 		var admitted: Dictionary = _live_read(role + ".admitted")
 		var walks: Dictionary = _live_read(role + ".done").get("gameplay", {})
+		var after_leave: Dictionary = walks.get("after_leave", {})
+		var connected_walk: Dictionary = walks.get("connected", {})
+		var connected_start: Dictionary = connected_walk.get("start", {})
+		var connected_authority: Dictionary = connected_start.get("authority", {})
+		_check(_live_browser_retry_ready(after_leave) and str(after_leave.get("source_session_id", "")) == "game-flow-" + str(connected_authority.get("main_id", "")), role + " ordinary leave receipt proves current own fenced retry action before Refresh/Back/Resume")
 		for name: String in ["connected", "solo"]:
 			var walk: Dictionary = walks.get(name, {})
 			var start: Dictionary = walk.get("start", {})
