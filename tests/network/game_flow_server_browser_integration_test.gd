@@ -593,14 +593,18 @@ func _live_open_pause_browser() -> bool:
 func _live_browser_after_leave() -> bool:
 	var disconnect := _live_game.hud.find_child("ServerBrowserDisconnectButton", true, false) as Button
 	var session: NetworkEnetSessionAdapter = _live_game.network_session
-	var presentation: Dictionary = _live_game.hud.get("_network_status_presenter").get_snapshot()
+	var presenter := _live_game.hud.get("_network_status_presenter") as NetworkSessionStatusPresenter
+	var presentation: Dictionary = presenter.get_snapshot()
 	var selected_action: Dictionary = _live_game.hud.call("_server_browser_session_action", presentation)
 	var observation := {
 		"state": str(presentation.get("state", "")), "retryable": bool(presentation.get("retryable", false)), "has_error": presentation.has("error"),
 		"source_session_id": str(presentation.get("session_id", "")),
 		"source_generation": int(presentation.get("source_generation", -1)), "source_sequence": int(presentation.get("source_sequence", -1)),
+		"retired_session_id": str(presenter.get("_retired_session_id")), "retired_generation": int(presenter.get("_retired_generation")), "retired_sequence": int(presenter.get("_retired_sequence")),
+		"active_session_id": str(presenter.get("_source_session_id")), "active_generation": int(presenter.get("_source_generation")), "active_sequence": int(presenter.get("_source_sequence")),
 		"game_flow_session_id": "game-flow-%d" % _live_game.get_instance_id(),
 		"game_flow_generation": int(_live_game.get("_network_hud_session_epoch")), "game_flow_sequence": int(_live_game.get("_network_hud_snapshot_generation")),
+		"game_flow_retired": bool(_live_game.get("_network_hud_session_retired")),
 		"selected_action": str(selected_action.get("id", "")), "action_focusable": bool(selected_action.get("focusable", false)),
 		"button_visible": disconnect != null and disconnect.is_visible_in_tree(), "button_enabled": disconnect != null and not disconnect.disabled,
 		"button_text": disconnect.text if disconnect != null else "", "button_focus_mode": disconnect.focus_mode if disconnect != null else Control.FOCUS_NONE,
@@ -619,8 +623,15 @@ func _live_browser_retry_ready(observation: Dictionary) -> bool:
 	return (
 		observation.get("state", "") == "disconnected" and bool(observation.get("retryable", false)) and not bool(observation.get("has_error", true))
 		and observation.get("source_session_id", "") == observation.get("game_flow_session_id", "missing")
+		and observation.get("source_session_id", "") == observation.get("retired_session_id", "missing")
 		and int(observation.get("source_generation", -1)) == int(observation.get("game_flow_generation", -2)) and int(observation.get("source_generation", 0)) > 0
-		and int(observation.get("source_sequence", -1)) == int(observation.get("game_flow_sequence", -2)) and int(observation.get("source_sequence", 0)) > 0
+		and int(observation.get("source_generation", -1)) == int(observation.get("retired_generation", -2))
+		and int(observation.get("source_sequence", -1)) == int(observation.get("retired_sequence", -2)) and int(observation.get("source_sequence", 0)) > 0
+		# Adapter session_stopped publishes and retires the accepted tuple; the
+		# explicit GameFlow shutdown then publishes one rejected terminal update.
+		and int(observation.get("game_flow_sequence", -1)) == int(observation.get("retired_sequence", -3)) + 1
+		and bool(observation.get("game_flow_retired", false))
+		and observation.get("active_session_id", "missing") == "" and int(observation.get("active_generation", 0)) == -1 and int(observation.get("active_sequence", 0)) == -1
 		and observation.get("selected_action", "") == "retry" and bool(observation.get("action_focusable", false))
 		and bool(observation.get("button_visible", false)) and bool(observation.get("button_enabled", false))
 		and observation.get("button_text", "") == "RETRY CONNECTION" and int(observation.get("button_focus_mode", -1)) == Control.FOCUS_ALL
