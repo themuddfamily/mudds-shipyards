@@ -26450,3 +26450,71 @@ absent. Verified candidate bundle/patch retains exactf3a5d0bb0 history; current
 remote has no candidate branch and registered worktrees do not own it. Local
 branch deleted with exact expected tip after archive verification. Original
 20:11Z clock is retained; closure elapsed is recorded with the pushed commit.
+
+<a id="loadmaster-live-captions-delivered-20261025"></a>
+
+## Cinder Loadmaster — live caption capability delivered
+
+COMFORT-CAPTIONS parent29, existing authored remote-crew/feedback caption coverage
+from the preserved accessibility/audio requirements. Clean source
+19336f3a8935a156d4a9f1fdf92c4a68ff845166; five production registry entries only in
+semantic_audio_cue_presenter.gd. Existing CinderLoadmasterAudioBinding emitted
+seat_occupied/manifest_ready/route_ready/rejected/released IDs; production adapter,
+crew router, AudioDirector and GameFlow already forwarded them. The semantic
+presenter rejected all five as unregistered, losing caption feedback.
+
+With Audio cue captions ON, the five existing IDs now map to “Loadmaster seat
+occupied”, “Loadmaster manifest ready”, “Loadmaster route ready”, “Loadmaster
+request rejected” and “Loadmaster released”. Default severity follows existing
+low/low/medium/high/low conventions; real intensity1.0 still promotes to high under
+the unchanged global resolver. Existing queue, lifetime, priority, transcript,
+settings and sound/role/cargo authority are retained. No new options or schema.
+
+One bounded implementation agent owned the existing presenter and its two tests;
+root owned source selection, integration/build/cleanup; one independent reviewer
+checked source, visible-HUD setup and final raw/package evidence. Before engines,
+review caught a fixture hidden-HUD ancestor: the test now presses actual intro
+Begin with reduced motion, waits bounded8 frames for gameplay tree visibility,
+and reads the actual tree-visible caption label. This is a preflight correction,
+not a run failure or a relaxed predicate. Cursor is released on teardown.
+
+Frozen old-source85d7182f8 import PASS6.653s. Presenter regression returns OS1 in
+1.829s with exactly the five planned missing-caption errors; every prior assertion
+passes. Fixed source19336f3a8 import6.611s and all seven focused checks pass on
+first attempt: presenter2.121s, routed HUD16.088s/28 assertions, binding3.775s,
+real-Cinder adapter3.629s, optional composition17.365s, GameFlow composition16.083s,
+HUD layout11.794s. Every original router assertion is retained.
+
+The extended route uses synthetic craft signals through the production adapter,
+AudioDirector, real GameFlow forwarding callback and exactly one Flow-owned
+CaptionPresentationService into an actual visible gameplay HUD. It verifies all
+five exact texts, current/pending promotion and expiry, original high-at-intensity1
+priority90 behavior, foreign receipt silence, duplicate receipt/rejection/release,
+detach silence, OFF no submission/no replay after ON and fresh post-ON ingress.
+Caption time is advanced manually through the real service. This is headless
+component production composition, not rendered pixel inspection, a physical
+Loadmaster or whole ordinary Main/network journey.
+
+Clean Windows export10.692s/Linux25.660s; direct Linux menu startup22.748s,
+extracted archive24.153s and Windows embedded PCK through Linux Godot26.492s all
+PASS/actualOS0/exactly one STARTUP_MENU_READY_OK. Artifact audit6.233s verifies
+1,527 matching actual PE/ELF PCK entries, unchanged path membership and exactly
+one changed compiled entry from1a948d9: scripts/ui/semantic_audio_cue_presenter.gdc.
+Tests/tools/artifacts/builds are excluded. Stock PE .text/architecture, Linux
+architecture/export identity/hashes, actual archive binary/icon/Python installer
+bytes, modes/owners/source epoch and generated desktop source/Exec fields pass.
+All14 fixed stages pass first attempt with no standard-matrix error diagnostics;
+source/index/tree and relevant cache guards remain intact. All Godot invocations
+are headless/Dummy; no hosted CI or audible/desktop test is invoked.
+
+Fresh Windows EXE/checkpoint ZIP/build notes are in builds/windows, with matching
+Linux binary/archive/notes in builds/linux. Notes include actual validation and
+source/artifact identities. This closes the live-caption implementation for these
+five existing semantic IDs, not complete comfort episodes. Ordinary transitions,
+distinct restart/Reset, physical crew/network/device/native hardware/audible
+output and final-candidate/full-parent acceptance remain open. Other missing
+COMFORT-CAPTIONS memberships keep their exact definition blockers.
+Original20:39Z→21:39Z/60min includes readiness, implementation, tests, build and
+closure; no deadline reset or unexpected trial retry. Source/records, publication
+hashes and final cleanup are retained in the private case
+`/srv/mudds-work/loadmaster-captions-20261025`; verified archive/ref closure follows.

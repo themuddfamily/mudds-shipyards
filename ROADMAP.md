@@ -1,10 +1,10 @@
 # Development roadmap
 
 **Playable alpha; full original scope remains unfinished.** Latest Windows build:
-[1a948d9 checkpoint](builds/windows/MuddsShipyards-1a948d9-checkpoint.zip)
-([changes and validation](builds/windows/MuddsShipyards-1a948d9-notes.txt)).
-Matching [Linux checkpoint 1a948d9](builds/linux/MuddsShipyards-1a948d9-linux-x86_64.tar.gz)
-([Linux validation](builds/linux/MuddsShipyards-1a948d9-linux-notes.txt)) is available.
+[19336f3 checkpoint](builds/windows/MuddsShipyards-19336f3-checkpoint.zip)
+([changes and validation](builds/windows/MuddsShipyards-19336f3-notes.txt)).
+Matching [Linux checkpoint 19336f3](builds/linux/MuddsShipyards-19336f3-linux-x86_64.tar.gz)
+([Linux validation](builds/linux/MuddsShipyards-19336f3-linux-notes.txt)) is available.
 Nine of the promised 17 craft exist. All 36 original parent outcomes and ten phase
 exit gates remain open; completed child results are retained, not counted as whole
 features. There is no evidence-backed project percentage or completion date.
@@ -70,40 +70,16 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Active capability: COMFORT-CAPTIONS[Cinder Loadmaster feedback].** Candidate
-8c40af203, existing production Hauler→Loadmaster adapter→crew router→AudioDirector
-→HUD semantic presenter/shared caption service. Five emitted semantic IDs are
-currently unregistered, so their feedback has no caption. Add only their existing
-caption definitions: seat occupied → “Loadmaster seat occupied”; manifest ready →
-“Loadmaster manifest ready”; route ready → “Loadmaster route ready”; rejected →
-“Loadmaster request rejected”; released → “Loadmaster released”. Use existing
-severity conventions: routine low, route-ready medium, rejected high. Existing
-source/intensity/context and shared priority/queue/lifetime/transcript remain.
-
-Acceptance: all five existing IDs produce their exact caption; accepted current
-manifest/route receipts and rejection/release traverse the existing production
-adapter/router/director into actual HUD ingress and one real shared caption
-service. Show the current caption in the actual HUD; retain any queued cue under
-existing policy. Duplicate/foreign receipts, duplicate rejection/release and
-emissions after detach add no caption; OFF remains silent and turning ON cannot
-replay the OFF event. Preserve every prior router assertion. This is component
-production composition with synthetic craft signals, not physical crew/network,
-audible-output, full comfort restart/Reset or final-candidate acceptance.
-
-One implementer owns semantic_audio_cue_presenter.gd and the existing presenter/
-Loadmaster-router integration tests; root owns docs, orchestration, checkpoints,
-push and cleanup; independent caption/lifecycle reviewer. First old-source focused
-check must fail only the five missing caption contracts; fixed focused presenter,
-existing Loadmaster router/production adapter/optional composition and HUD layout
-checks must pass. Freeze exact commands and old expected errors before execution.
-Use headless/Dummy, isolated rendering only if needed. Fresh Windows/Linux paired
-checkpoints from clean accepted source, strict startups (OS0 plus one menu-ready
-marker) and actual package audit follow. No new sound mapping/options/schema or
-validator family. Original20:39Z→21:39Z/60min includes readiness, implementation,
-checks, build, review and closure; first unexpected failure stops for causal and
-cumulative-priority review, no automatic retry/deadline reset. This closes only
-these five live-caption episodes; remaining COMFORT-CAPTIONS membership stays
-blocked on its exact contract fields.
+**Delivered: live captions for five existing Cinder Loadmaster cues.**
+Checkpoint19336f3 displays seat occupied, manifest ready, route ready, request
+rejected and released feedback through the existing shared caption service.
+Queued captions retain their original priority/expiry; duplicate/foreign receipts,
+detached emissions and OFF receipts cannot replay. The old registry fails exactly
+five missing-caption contracts; fixed visible-HUD composition and compatibility
+checks, paired exports/strict startups and package audit pass. Only the compiled
+caption presenter differs from1a948d9. This delivers the live-caption capability;
+ordinary crew/network routes, per-episode restart/Reset and full COMFORT-CAPTIONS
+acceptance remain open. [Exact delivery and scope](docs/history/ROADMAP_DELIVERIES.md#loadmaster-live-captions-delivered-20261025).
 
 **Delivered: Reduced flash dims the damage flash already on screen.**
 Checkpoint 1a948d9 immediately caps its effective alpha at the existing .07
@@ -233,8 +209,8 @@ unreached settings-envelope access error. No third run is selected. Reopening
 requires the two specific fixture corrections, causal-state receipts, independent
 cumulative-priority review and the same full contract/limits, not an unchanged
 replay. Original20:11Z→21:11Z/60min budget retained. Candidate source and both
-failures are archived; unfinished test code is excluded from main. Current
-checkpoint1a948d9 and original SETTINGS-RETURN/GateC remain unchanged.
+failures are archived; unfinished test code is excluded from main. The then-current
+checkpoint1a948d9 and original SETTINGS-RETURN/GateC were unchanged.
 [Exact stop and retained proof](docs/history/ROADMAP_DELIVERIES.md#interact-remap-restart-two-fixture-stops-20261025).
 
 The Torrent destruction/recovery attempt remains **PARKED / not accepted**.
