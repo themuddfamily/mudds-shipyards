@@ -70,6 +70,47 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Active qualification: INPUT-REMAP[Sprint/boost option across OS restart].**
+Candidatecf69af559. The acceptedbd4e15d saved/live/reset/HOLD/manual-physics scope
+explicitly excludes distinct OS processes; Fire/Interact qualify bindings, not
+the option-to-Player transformation. No runtime defect is alleged. Use the
+existing real-file production test family and unchanged actual Main/Player.
+
+Frozen case: fresh private writer uses normal Begin Shift, visible focused
+SprintBoostHoldModeControl to select TOGGLE, actual Apply + Save and HUD Exit.
+Fresh reader/same file restores visible/profile TOGGLE before first apply. Natural
+Player physics on the authored spawn floor consumes raw S/Shift: first Shift
+press reaches actual sprint_speed, release retains it for three complete ticks,
+second fresh press returns to actual walk_speed; neutral release stops movement.
+A visible confirmed Reset Defaults/Save precedes normal Exit. Third cold process
+restores HOLD: held Shift reaches sprint_speed; release while S remains held
+returns to walk_speed; neutral release stops. No provider/pose/velocity/physics
+injection or direct Player sampling. Existingbindings/controllers/otheroptions and
+all unrelated settings/sentinel remain exact. Each worker requires actual HUD
+Exit/OS0 and both clean durable markers; three unique real PID/start identities,
+sequential reap, same profile directory and exact prior file hashes.
+
+Natural movement begins at authored PlayerSpawn(-8.5,.18,11), normal yaw-14;
+raw S moves back along CentralJunction (world x[-12.5,12.5], z[berth-edge,23]).
+Use one segment per walking reader, ≤5m from its natural start, floor support and
+normal control/on-foot/unpaused at every observation. Actual authored speeds5.8/
+9.2, acceleration34/deceleration42 are unchanged; existing speed tolerance<.01,
+maximum30 scheduled physics ticks per speed/neutral endpoint, three steady ticks
+after relevant release. Log actual pose/velocity/input/options/tick; first failed
+predicate stops, no rescue/reposition or retrospective route adjustment.
+
+One implementer owns the existing production persistence test, reusing its
+isolation/visible-control/Save/Exit helpers rather than duplicating a worker
+family. Root owns orchestration/records/docs/push/cleanup, independent input/
+lifecycle review. Preserve old modes/markers/defaults. New import, default/HUD
+compatibility, full old Interact case (if shared helpers change), and complete
+three-process Sprint case must pass with original300s/worker and660s outer.
+Headless/Dummy synthetic raw source composition only, not actual device/native
+focus, ship boost/planetary routes or full SETTINGS-RETURN/GateC. No new export for
+test-only work; currentcheckpoint4aa8b64 stays playable. Original21:35Z→22:35Z/60min
+includes readiness/implementation/checks/closure; first unexpected failure stops
+for causal/cumulative review, no automatic retry or deadline reset.
+
 **Delivered: live planetary final-approach captions.** Checkpoint4aa8b64 captions
 the existing armed, alignment-ready, handoff-ready and rejected cues through the
 shared service. Exact visible-HUD text/queue/expiry, duplicate/stale-event refusal,
