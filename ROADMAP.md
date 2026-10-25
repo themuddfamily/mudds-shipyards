@@ -92,8 +92,9 @@ and both durable clean states. No settings/profile seeding; unrelated sentinel o
 Focused checks: existing full default production-persistence, accessibility-preset
 and minimap suites plus import, then the three-worker real-file case. Existing
 300s per-process caps remain; first unexpected failure stops without automatic
-retry/reset. Natural walking retains existing ≤30s observation and ≤5m excursion
-bounds. No new validator or standalone harness family; use the existing opt-in
+retry/reset. Natural walking has a monotonic ≤30s ceiling and ≤5m excursion;
+12 pressed physics observations must move 0.25–3m, then release must return to
+speed≤0.05 within 30 further observations. Support/control/identity remain valid. No new validator or standalone harness family; use the existing opt-in
 production composition test and shared Save/focus/release/exit helpers.
 
 This qualifies one explicitly missing cold-process enum→actual-consumer endpoint.

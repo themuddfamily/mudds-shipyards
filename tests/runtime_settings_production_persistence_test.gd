@@ -336,8 +336,6 @@ func _fire_restart_stage(writer: bool) -> void:
 		"normal startup and settings save preserve exact unrelated seeded disk data")
 
 
-# Sprint option qualification: three separate real-file processes; natural
-# Player physics and synthetic raw S/Shift only, never physical-device proof.
 # COMFORT-COLOUR: opt-in distinct-process qualification of the existing runtime.
 # No settings/pose/provider seeding; only the unrelated writer sentinel is seeded.
 const COLOUR_RESTART_SENTINEL := "colour_restart_fixture"
@@ -538,6 +536,7 @@ func _colour_live_cue(hud: GameHUD) -> bool:
 
 
 func _colour_walk(game: GameFlow, hud: GameHUD, palette_id: StringName) -> bool:
+	var started_msec := Time.get_ticks_msec()
 	var original_player := game.player
 	_sprint_origin = original_player.global_position
 	_sprint_release_keys()
@@ -545,7 +544,13 @@ func _colour_walk(game: GameFlow, hud: GameHUD, palette_id: StringName) -> bool:
 	Input.flush_buffered_events()
 	for tick in 12:
 		await physics_frame
+		if not _migration_check(Time.get_ticks_msec() - started_msec <= 30000, "Colour pressed-walk physics observation stays within thirty seconds"):
+			_sprint_release_keys()
+			return false
 		await process_frame
+		if not _migration_check(Time.get_ticks_msec() - started_msec <= 30000, "Colour pressed-walk completed observation stays within thirty seconds"):
+			_sprint_release_keys()
+			return false
 		if not _migration_check(game.player == original_player and _sprint_state(game)
 				and Input.is_action_pressed(&"move_back"), "Colour raw S walk retains supported original Player tick %d" % tick):
 			_sprint_release_keys()
@@ -556,7 +561,11 @@ func _colour_walk(game: GameFlow, hud: GameHUD, palette_id: StringName) -> bool:
 		return false
 	for tick in 30:
 		await physics_frame
+		if not _migration_check(Time.get_ticks_msec() - started_msec <= 30000, "Colour released-walk physics observation stays within thirty seconds"):
+			return false
 		await process_frame
+		if not _migration_check(Time.get_ticks_msec() - started_msec <= 30000, "Colour released-walk completed observation stays within thirty seconds"):
+			return false
 		if not _migration_check(game.player == original_player and _sprint_state(game), "Colour released walk keeps natural support"):
 			return false
 		if original_player.velocity.slide(Vector3.UP).length() <= 0.05:
@@ -564,9 +573,12 @@ func _colour_walk(game: GameFlow, hud: GameHUD, palette_id: StringName) -> bool:
 	if not _migration_check(not Input.is_action_pressed(&"move_back") and original_player.velocity.slide(Vector3.UP).length() <= 0.05,
 			"Colour raw S release returns to neutral without a provider or manual physics step"):
 		return false
-	return _colour_palette_state(game, hud, palette_id, "after real raw-input walk") and _colour_live_cue(hud)
+	var consumers_ok := _colour_palette_state(game, hud, palette_id, "after real raw-input walk") and _colour_live_cue(hud)
+	return _migration_check(Time.get_ticks_msec() - started_msec <= 30000, "Colour natural-walk observation completes within thirty seconds") and consumers_ok
 
 
+# Sprint option qualification: three separate real-file processes; natural
+# Player physics and synthetic raw S/Shift only, never physical-device proof.
 const SPRINT_RESTART_SENTINEL := "sprint_restart_fixture"
 var _sprint_origin := Vector3.ZERO
 
