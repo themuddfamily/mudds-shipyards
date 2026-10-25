@@ -29,37 +29,29 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Selected: WALK-AFT — complete ordinary lower/upper station journey.**
-Starting clean source1b7b5e867. One implementer owns existing native-sortie
-driver, read-only observer, startup selector/privacy and focused existing tests;
-root owns records/integration/export/checks, one independent reviewer source/raw.
-Exact route: fresh normal Begin Shift/same Player → lower OperationsEntrance
-actual Interact/open → actual Bay02 Activity Board open/close through normal UI
-→ supported door return → real stairs/upper floor → original LIFE-ARM Zenith
-approach → board original parked/OFFLINE Zenith → normal physical exit → existing
-wing-clear return → reverse physical stairs/route → retained hub spawn → normal
-UI Exit/actual OS0. No flight or boarding-console proxy substitutes for these.
+**Delivered: tighter, bounded acceptance contracts.**
+The existing337 named records retain all36 parent promises/ten phase gates.
+Their **Done means** and dependencies in the [canonical inventory](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes)
+are binding. Every runnable assignment must name one player-visible/build result,
+its exact action → expected state, proof, estimate and hard stop. Missing scenario,
+expected value, resource or owner decision means GATED/WAITING; it cannot be
+filled in after a test. [Readiness rules](docs/ROADMAP_BACKLOG.md#ready-means-every-acceptance-input-is-fixed).
 
-No literal BoardingConsole node exists: retain both actual ActivityBoard use and
-real craft boarding. Reuse existing canonical Zenith wing-clear points, not a
-straight reversed approach through the wing. Preserve same actor/capsule/tuning,
-support/motion continuity, actual door/console/HUD/craft identities and old route
-contracts. New walk-aft selector uses only minimal read-only facts for this real
-consumer; no diagnostic framework/schema/version/provenance layer. No geometry/
-GameFlow behavior fix without an independently demonstrated defect.
+This pass corrects browser outcomes, the real four-posting combat repeat cycle,
+shared-world scenario prerequisites, bounded art views, actual device/action
+coverage, observable comfort behavior, recovery fixtures, workload membership and
+historical-identity acceptance. Planning completion delivers no new gameplay.
+No new engine test, export, framework or task branch is needed for these edits.
 
-Estimate25min source plus25min focused checks/private clean-commit Linux export/
-strict startup/ONE actual-package route and cleanup; hard stop60min including
-failed attempts. CAP300/outer360 and existing native per-leg bounds remain.
-Stop first unexpected failure; a correction needs causal proof/bounded cumulative
-review. Success: focused checks, actual-package readiness exit0+sentinel, full
-physical route/input facts, normal UI quit/OS0, no runtime diagnostics and owned
-process/profile/package-replica cleanup. Private Linux build enables this route;
-no identical public Windows rebuild for observer-only work. A meaningful runtime
-repair requires its own focused checks/fresh Windows checkpoint. Native GPU,
-rendered presentation review, parked UI-BOARD-FOCUS and full station/final gates
-remain open; no source-only/proxy route can close the whole journey.
-
+**WALK-AFT is PARKED / NOT ACCEPTED.** The first actual-package trial49.861s
+opens and crosses the Operations door, then hits the unchanged15s walking-goal
+limit on the route through coordinator furniture. Board/stairs/Zenith/return/UI
+exit remain unproven. Independent review establishes an obstructed caller route,
+not a production defect or a verified replacement path. Candidate27fbcc1ea is
+preserved outside main in a verified source bundle; accepted main is restored.
+Reopen only with a source/raw-supported collision-clear path/arrival strategy,
+independent review and an explicit cumulative-cost selection. No retry selected.
+[Failure and preserved work](docs/history/ROADMAP_DELIVERIES.md#aft-station-journey--first-package-trial-not-accepted--2026-10-25).
 
 **Prepared: concrete modern proposals for all eight missing craft — owner choices pending.**
 
@@ -264,9 +256,10 @@ Use this compact card for every selected task; fill each field before editing:
 | Goal and boundary | One existing goal ID plus this bounded capability; list what remains in its parent. |
 | Starting state | Exact source/package, normal player/session state and satisfied dependencies. |
 | Visible result | What the player can do after this change, or the exact finite answer for a decision task. |
-| Pass condition | Actual action → observable result, numeric limits where applicable, and relevant existing check/ordinary route. |
-| Ownership and budget | Exact production files, implementer, estimate and hard stop; include prior attempts in the same cumulative clock. |
-| Closure | Actual PASS/FAIL/BLOCKED result, remaining work, integrated source/build where required, and process/worktree/branch cleanup. |
+| Pass condition | Literal action → expected state/value for every required endpoint; fixed numeric limits/tolerances/counts and exact existing check/ordinary route. No unresolved “works”, “usable” or “specified” wording. |
+| Proof and blockers | Exact command/route, source/package, participants/device, expected output/file/visible result; list each missing input and who supplies it. Missing inputs keep the assignment GATED/WAITING. |
+| Ownership and budget | Exact production files, implementer, estimate and hard stop; split implementation before90min, include prior attempts in the same cumulative clock, retain the original full acceptance gate. |
+| Closure | PASS with proof, FAIL with first unmet predicate, GATED/WAITING with exact input, or PARKED with reopening condition; actual cumulative time, remaining work, pushed source/build where required and process/worktree/branch cleanup. |
 
 Do not silently expand a failed card into a new project. At the hard stop,
 record the failed predicate or missing input and leave the parent open. A further

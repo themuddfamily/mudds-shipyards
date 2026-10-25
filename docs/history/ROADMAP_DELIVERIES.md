@@ -23282,3 +23282,61 @@ detached worktrees untouched. Final reviewed artifact SHA256 values:
 - VORTEX: feb4f593929b1b1d38803eb5d231a241a48c8dba800e97b77ce3cc2e2c698c78
 
 Preparation/integration reached final review in9.44min from original selection, within60min; scope correction did not reset the clock.
+
+
+## Aft station journey — first package trial not accepted — 2026-10-25
+
+Selectiond03fb964e required the whole ordinary door/ActivityBoard/stairs/Zenith/
+physical exit/wing-clear/home/UI-quit journey; no shorter route closes WALK-AFT.
+Candidate27fbcc1ea remains unaccepted. Focused157 Python tests, startup privacy,
+actual-Main observer checks, clean private Linux export, binary/archive startup
+(exit0 and one STARTUP_MENU_READY_OK each) and payload audit passed. The ONE
+full ordinary package run failed49.860533s: door Interact opens the actual door,
+same supported Player crosses to OperationsFloor, then the next authored goal
+(2.2,0,60.5) times out at15s. Player stops at(2.058538,.001872,58.973644).
+Actual coordinator chair/desk footprints obstruct this caller path. Independent
+raw/source review confirms the obstruction but cannot name the single contacted
+collider or qualify a corrected full path. No production defect established.
+
+No retry selected. All four driver input/helper/game/Xvfb cleanup flags pass,
+no runtime diagnostics; later route endpoints and normal UI exit are NOT_RUN.
+Original300/360s caps/per-leg limits and first failure remain retained; no budget
+reset. Root restored main without merging the candidate. Reopen only with a
+source/raw-supported collision-clear path and bounded arrival strategy,
+independent review and cumulative priority selection; no guessed waypoint retry.
+
+Case records: `/srv/mudds-work/aft-ordinary-journey-20261025/`.
+Candidate source preserved in verified Git bundle (requires accepted d03fb964e):
+archived member `case/results/unaccepted-source.bundle`, SHA256
+`b0ea7de6f190a973223d609f2efdd7bf552a88705b0de691aaeda1707995cc5c`.
+No task branch/worktree was created. All nine process owners are terminal and43 recorded process identities absent.
+Owned profiles/helpers/loose records and seven private package replicas removed
+after byte/mode verification. The case now retains only `results/closeout.json`
+and `results/case-records.tar.gz` (125 verified members, including source bundle,
+raw failure and actual package), SHA256
+`a7fb6c1143c85df3a98ddea7e83f79fa0d27ab644cdc1aef05a79ef3dd090358`.
+This archive is intentionally retained as unaccepted work; no other pre-existing
+worktree was changed. Public Windows checkpointfb396ab is unchanged.
+
+## Concrete roadmap acceptance corrections — 2026-10-25
+
+Preserved all337 named IDs,36 parent outcomes, ten phase gates and accepted
+source/scenario limits. Tightened existing contracts rather than adding a new
+tracker or validator: seven browser outcomes now require their particular
+admission/refusal/cancel/retry result; combat repeats use the real four-posting
+cycle;21 shared-world cases explicitly gate missing scenario bindings; art views
+cannot expand without an uncovered original requirement; physical input uses
+actual production action lists; four comfort cases require an observable episode
+and saved/restart/reset outcome; migration/corrupt recovery require fixed real-file
+fixtures/expected states; performance workloads map to original requirements;
+historical acceptance cannot pass merely by documenting unavailable evidence.
+Accepted boost/hover/handback scope is reflected in the parent/proof summary.
+
+Every selected task must fix its exact result/proof, dependency owner, estimate,
+hard stop and closure before editing. Missing values remain explicit blockers;
+implementation splits preserve full original journey gates and cumulative cost.
+This is planning completion only, not craft delivery, native/device qualification,
+phase completion, or an evidence-backed completion date. No engine or hosted CI
+was run for these documentation changes. Local checks cover unchanged inventory
+membership, Markdown link anchors and whitespace; independent review checks the
+changed acceptance semantics.
