@@ -23493,3 +23493,49 @@ All automation Dummy/headless or ownedXvfb x11. Native Windows/GPU, physical
 input/listening and human qualification remain NOT_RUN. Other viewport/state,
 full ordinary activity/launch, parked UI-BOARD-FOCUS, original parent/phase/final
 release requirements remain open. GitHub Actions remains disabled.
+
+
+<a id="browser-join-supported-walking-20261025"></a>
+## Ordinary browser join and supported solo return — accepted — 2026-10-25
+
+BROWSER-JOIN source `80abab3b1b4d69000678f4a53fafcbac2d3e0851` extends only the
+existing independent two-Main D3 route with opt-in
+`--live-menu-one-guest-gameplay`. Actual host, LAN responder, guest Refresh and
+advertised-row selection produce authenticated ENet admission. Both use ordinary
+Begin Shift and the same supported Player for connected forward walking, normal
+Disconnect/Refresh/Back/Resume, then solo reverse walking. Defaults/D4/cancel,
+production code, identities, grants and all original route deadlines remain.
+
+Full corrected route PASS294 assertions/86.309938s, one
+GAME_FLOW_LIVE_MENU_ONE_GUEST_GAMEPLAY_TEST_OK, no runtime diagnostics. Host guest
+counts0→1→0. Host connected/solo walking .236/.183s; guest .226/.179s. All four
+cover1.002774m, each15 consecutive movement+9 settling+12 neutral physics ticks,
+zero neutral drift, same actor and exact authority throughout, actual floor/ray
+support, local controls/camera/capsule and on-foot processing. Actual peer PIDs
+1477842/1478051 exit0 and are absent. Root and independent source/raw review GO.
+
+The first full trial failed87.033s after successful admission and both connected
+walks because the old fixture expected disabled Disconnect. Production correctly
+shows enabled RETRY CONNECTION after shutdown. A bounded caller-only correction
+requires the exact owned retired presenter tuple and cleared active cursor,
+actual visible/enabled/focusable Retry action and cleared transport/admissions.
+GameFlow's synchronous stop publication is accepted/retired; the single subsequent
+same-generation publication is rejected. Exact accepted/latest sequence is3/4
+for host,4/5 for guest. The strict assertion was refined before the one corrected
+whole-route replay; no runtime or cap change. Default fixture checks pass7 each
+in15.618/15.814/15.856s across the frozen source stages. Original failure retained.
+
+Five stage owners terminal;41 observed process identities absent. Case records,
+helpers and profiles archived and every261 member's bytes/mode/link verified
+before owned loose data removal. Retained only archive+closeout under
+`/srv/mudds-work/browser-join-gameplay-20261025/results/`;
+archive SHA256 `9834c3a513c8ef40f1d8be87061649dcf7814e76cee09f6785f23119bb81c6ed`.
+No task branch/worktree created. Existing detached worktree registrations are
+retained; their unrelated work is outside this task. Actual elapsed cost remains
+on the original60min selection clock, with the final push recorded in closeout.
+
+This is source InputEventAction automation under owned Xvfb/x11/dummy renderer
+and Dummy audio, with real ENet/LAN. Physical devices, exported-game route,
+native GPU, endurance, chosen capacity and full network/final gates remain open.
+Runtime is unchanged; public playable checkpoint0d77125 is retained rather than
+publishing identical game bytes. GitHub Actions remains disabled.

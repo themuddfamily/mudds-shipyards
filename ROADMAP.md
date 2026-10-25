@@ -29,114 +29,23 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Selected: BROWSER-JOIN — ordinary LAN admission with usable controls.**
-Source1c06e5d05. Extend only the existing independent two-Main D3 menu route with
-opt-in `--live-menu-one-guest-gameplay`; defaults/D4/cancel remain intact. Retain
-normal host/Refresh/actual advertised row/actual authenticated admission, ordinary
-Begin Shift, normal Disconnect/Refresh/Back/Resume and actual peer OS0/cleanup.
-Add actual same-Player walking for BOTH host/guest while connected and again
-while solo after disconnect; no teleport/provider/phase/ownership/RPC shortcut.
+**Latest closed: BROWSER-JOIN — actual LAN join and usable solo return.**
+Source `80abab3b1`: the existing ordinary two-Main route now checks both players
+walking while connected and again after normal Disconnect/Refresh/Back/Resume.
+The full route passed294 assertions in86.310s, actual peer exits0, no diagnostics;
+each of four supported walks covered1.002774m with twelve fresh neutral ticks and
+zero drift. This is source input automation with real ENet under isolated Xvfb,
+not package/device/native GPU/endurance or whole multiplayer acceptance.
+[Full result, first failure and cleanup](docs/history/ROADMAP_DELIVERIES.md#browser-join-supported-walking-20261025).
 
-One implementer owns `tests/network/game_flow_server_browser_integration_test.gd`;
-root owns docs/guard/locks/checks/integration/cleanup. Existing receipts expose
-actual per-walk positions/velocity/support, actor identity, stable authenticated
-identity and unchanged ship/seat/crew grants. Coordinator requires all four walks
-and all original route endpoints. Per walk: ≥1m in≤5s, standard settle≤5s, fresh
-12-physics-tick neutral drift≤.02m, grounded/collider support, on-foot/local controls
-and same actor throughout; every exit releases input. Existing outer300s/work230s/
-actor100s/Main60s/UI5s/admission20s/handoffs remain, no deadline widening.
-
-Proof: current default fixture/parser, one full opt-in route under independent
-ownedXvfb/x11/dummy renderer/Dummy audio with real ENet and LAN responder,
-source/raw independent review, exact exit/diagnostic/process checks and cleanup.
-This delivers an executable browser gameplay qualification capability/source
-result; source-only input automation is not physical controller/OS-native/package/
-endurance/final acceptance. No identical playable rebuild for test-only work;
-any demonstrated runtime fix needs separate focused checks/fresh checkpoint.
-Estimate20min source+20checks+10review/cleanup; hard stop60min including failures.
-First unexpected failure stops; one causal bounded correction requires cumulative
-review. UI-BOARD-FOCUS remains parked: existing raw lacks offending popup identity.
-
-
-**BROWSER-JOIN bounded caller correction, same clock.** First full attempt87.033s
-admits both actual peers and each walks1.002774m supported with15 movement/9settle/
-12neutral samples/drift0, then stops at the legacy disabled-Disconnect assertion.
-Current shipped shutdown publishes retryable disconnected status and that button
-correctly becomes enabled RETRY CONNECTION. Independently reviewed source/raw
-supports replacing the old expectation with exact own fenced disconnected/current
-Retry action+actual visible enabled button+cleared transport/admission checks;
-fail immediately on mismatch, retain normal Refresh/Back/Resume and all four
-walks/full300s route. No runtime or deadline changes; one whole-route continuation,
-first new unexpected failure returns to cumulative review/park.
-
-**Delivered: ACCESS-NEARBY — ten scrolling rows, fixed footer and honest arm feedback.**
-Source0d77125b3/checkpoint0d77125: Cinder Activity Status now bounds its ten rows
-inside the authored page while keeping heading/feedback/Save/Load/Back fixed.
-Focus reveals the whole row and follows retained priority/progress updates;
-queued updates respect a newer Back transition. Accepted defense arm receipts
-now say ARMED/board-and-depart, matching the settled Deploy-arms behavior.
-
-Selected1024x768/requested1.6 view passes124 HUD assertions/3.080s; actual-Main
-streaming/physical gate/arm/current-contract active-reset/Back route16/32.795s
-passes. Existing persistence4/reset-focus8/priority-focus8/layout552 checks retained
-for their unchanged consumers. Independent source/raw/two-view Forward+ component
-review GO. Fresh clean paired exports, three strict menu-ready startups and
-matching1527 actual PCK entries/stock Windows code/exact Linux archive pass.
-
-All four failed stages remain recorded, including the old safe-margin failure,
-a focus-stimulus correction, obsolete immediate-combat test and parse-only type
-correction. Nineteen owners terminal/87 process identities absent;604 archive
-members verified before owned loose records/helpers/profiles removal. Source
-integrated; no task branch/worktree created. The Main active-reset encounter is
-an explicit owner fixture, not physical launch. Other cells/full activities/
-parked UI-BOARD-FOCUS/native/device/phase gates stay open.
-[Exact results and cleanup](docs/history/ROADMAP_DELIVERIES.md#nearby-activities-bounded-list-and-armed-feedback--shipped-on-0d77125--2026-10-25).
-
-**Delivered: ACCESS-DESTINATIONS — bounded five-card Destination Board.**
-Source9477a89ee/checkpoint9477a89: all three worlds/two sector sites scroll inside
-the page; heading/Back remain fixed and enabled travel/briefing focus reveals its
-action. At1024x768/requested1.6, the page now fits the original readable margins
-at unchanged effective1.010526 scale. Catalog, travel admission, current status,
-retained row identity and refresh/Back behavior stay unchanged.
-
-Actual-Main console91 assertions pass34.079s, including enabled final-site focus
-from scroll top, disabled guidance and no travel/site dispatch. Existing HUD
-layout552/accessibility1979 checks and inspected same-view Forward+ component
-captures pass; independent source/raw/image review GO. Fresh clean paired exports,
-three strict menu-ready startups and matching1527 actual PCK entries/stock Windows
-code/exact Linux archive pass. EXE/ZIP/notes are in `builds/windows/`.
-
-The old-runtime seven geometry failures and one rejected capture-driver launch
-remain retained. Fourteen owners terminal/74 process identities absent;658
-archive members verified before owned loose records/helpers/profiles removal.
-No task branch/worktree created; accepted source integrated. This closes the
-selected view/capability only: staged UI states/software component captures do
-not close ordinary travel, physical devices, native Windows/GPU or full parents.
-[Exact result, retained failures and cleanup](docs/history/ROADMAP_DELIVERIES.md#destination-board-bounded-cards-and-focus--shipped-on-9477a89--2026-10-25).
-
-**Delivered: tighter, bounded acceptance contracts.**
-The existing337 named records retain all36 parent promises/ten phase gates.
-Their **Done means** and dependencies in the [canonical inventory](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes)
-are binding. Every runnable assignment must name one player-visible/build result,
-its exact action → expected state, proof, estimate and hard stop. Missing scenario,
-expected value, resource or owner decision means GATED/WAITING; it cannot be
-filled in after a test. [Readiness rules](docs/ROADMAP_BACKLOG.md#ready-means-every-acceptance-input-is-fixed).
-
-This pass corrects browser outcomes, the real four-posting combat repeat cycle,
-shared-world scenario prerequisites, bounded art views, actual device/action
-coverage, observable comfort behavior, recovery fixtures, workload membership and
-historical-identity acceptance. Planning completion delivers no new gameplay.
-No new engine test, export, framework or task branch is needed for these edits.
-
-**WALK-AFT is PARKED / NOT ACCEPTED.** The first actual-package trial49.861s
-opens and crosses the Operations door, then hits the unchanged15s walking-goal
-limit on the route through coordinator furniture. Board/stairs/Zenith/return/UI
-exit remain unproven. Independent review establishes an obstructed caller route,
-not a production defect or a verified replacement path. Candidate27fbcc1ea is
-preserved outside main in a verified source bundle; accepted main is restored.
-Reopen only with a source/raw-supported collision-clear path/arrival strategy,
-independent review and an explicit cumulative-cost selection. No retry selected.
-[Failure and preserved work](docs/history/ROADMAP_DELIVERIES.md#aft-station-journey--first-package-trial-not-accepted--2026-10-25).
+**Roadmap task breakdown is recorded in the existing canonical inventory.**
+All337 IDs retain their Done means, dependencies and original proof limits;
+all36 parent outcomes and ten phase gates remain. Each next assignment must use
+the [execution card](#turning-a-goal-into-one-assignment) below. Family containers
+are not runnable jobs; missing values/decisions keep their rows blocked. Decision
+approval, a single audio case and a source inventory cannot close their respective
+implementation, whole-roster or visual acceptance goals. This documentation work
+adds no gameplay completion or new implementation assignment.
 
 **Prepared: concrete modern proposals for all eight missing craft — owner choices pending.**
 
@@ -168,138 +77,21 @@ approved SPEC/build split, capacity or phase. Actual fleet remains9/17; all
 original historical/rights/device/final gates remain. No engine/runtime/export/
 CI work was performed. [Preparation and limits](docs/history/ROADMAP_DELIVERIES.md#remaining-craft-proposals-and-titan-completion--2026-10-25).
 
-**Delivered: HELM-THROTTLE-REVERSE — full ordinary handback.**
-Corrected source102704512 passes142.607s: physical3process boarding/departure,
-both yaw turns, actual1.342m reverse in755ms, fresh neutral434ms, ordinary brake/
-both actual replicas, then Interact handback/owner0gen+1/current PASSENGER HUD/
-retired source-capture and supported host/client walk1.777/1.844m. All3newpeer
-OSexits0/one marker/no runtime diagnostics; independent source/raw GO.
-[First failure, bounded correction and cleanup](docs/history/ROADMAP_DELIVERIES.md#reverse-thrust--full-ordinary-handback-accepted-after-caller-correction--2026-10-25).
+Recent shipped results and failed attempts are recorded in the existing
+[delivery history](docs/history/ROADMAP_DELIVERIES.md), with their source/build,
+actual proof and remaining limits. Completed child checks stay accepted for their
+recorded scope; they are not automatically rerun or counted as finished parents.
 
-The first154.514s run failed because local prediction crossed the caller's
-safety cutoff while the host was1.7mm short of chair clearance. One supported
-caller-only strength0.35→0.25 correction preserves exact clearance/collision/
-walk/15s/global deadlines; full route then passes. Failed source/raw remain
-retained on the original45min clock. No production defect/tuning/framework or
-new test files; checkpointfb396ab was retained for that caller-only work.
-Physical device/native/endurance/capacity/final-parent gates stay open. Accepted
-source integrated; no task branch/worktree, owned scratch archived/cleaned.
+| Parked goal | Required evidence before selecting another attempt |
+| --- | --- |
+| WALK-AFT | Source/raw-supported collision-clear route and bounded arrival strategy; retain the full door/board/stairs/Zenith/home journey and original limits. [Failed trial](docs/history/ROADMAP_DELIVERIES.md#aft-station-journey--first-package-trial-not-accepted--2026-10-25). |
+| PLAY-TORPEDO | Demonstrated gameplay/control cause for the failed boat engagement and bounded correction; retain full Heavy→Torpedo→usable Paired Wing journey. [Three unaccepted trials](docs/history/ROADMAP_DELIVERIES.md#torpedo-second-boarding-readiness--whole-journey-not-accepted--2026-10-25). |
+| PLAY-DEFENSE | Demonstrated cause and bounded correction for two remaining hostiles at the unchanged34s limit; require four actual kills/payment/home/Reset/next Deploy. [Failed trial](docs/history/ROADMAP_DELIVERIES.md#defense-consumed-fire-qualification--not-accepted--2026-10-24). |
+| UI-BOARD-FOCUS | Actual offending popup/removal identity and causal evidence; existing raw does not establish it. Mining/Threading remain dependent. |
 
-**Delivered: HELM-PITCH and HELM-ROLL-RATE complete ordinary handback.**
-Source d8c160f12 passes one full ordinary three-process route per goal:
-pitch138.248s, roll137.012s. Both preserve physical boarding/departure/brake,
-both signed sampled turns, fresh neutral/zero drift, both actual replicas and
-ordinary Interact handback/supported walking/source-capture retirement. Pitch
-+4.800/−4.200°, roll−5.867/+5.133°; each reaches owner0/generation+1 with current
-PASSENGER HUD and supported controls. Roll's separate barrel/fire/landing fences
-remain. Root and independent source/raw GO, import/both parsers PASS, all6actual
-peer exits0/no runtime diagnostics. [Exact proof and cleanup](docs/history/ROADMAP_DELIVERIES.md#pitch-and-roll-rate--full-ordinary-handback-accepted--2026-10-25).
-
-Two22line profiles reuse the shared route; one captured actual right vector
-supports pitch handback drift measurement. No production code/tuning, no new
-framework or identical playable rebuild. That observer-only work retained checkpointfb396ab.
-Device/native/endurance/capacity/final-parent scope
-remain open. No task branch/worktree created; owned scratch archived/cleaned.
-
-**Delivered: HELM-HOVER — actual correction, release and full handback.**
-Clean source524606903 passes the full ordinary three-process route157.438s,
-including physical boarding/departure/brake, both yaw and boost checks, real
-pitch/forward climb, measured hover, fresh release, both actual replicas and
-ordinary Interact handback/supported walk/source retirement. Over30ticks/.5s,
-actual host tilt16.7403→6.1584° and upward speed13.5390→1.0482m/s match authored
-uprighting/damping; fresh hover release arrives313ms, client hull errors≤0.5m.
-Root/independent source and raw review GO; import/check-only PASS, all3OSexits0,
-zero runtime diagnostics. [Exact result and cleanup](docs/history/ROADMAP_DELIVERIES.md#sampled-remote-hover--full-handback-accepted--2026-10-25).
-
-This qualifies existing normal-yard hover on isolated sampled synthetic input;
-no runtime change, planetary-hover/device/native/capacity/endurance/final-parent
-completion. That caller-only work retained checkpointfb396ab; no identical rebuild. Source is
-integrated, no task branch/worktree created; owned scratch is archived/cleaned.
-
-**Delivered: HELM-BOOST — actual host acceleration, release and full handback.**
-Clean source70c8a65e5 passes the complete ordinary three-process Jovian route in
-147.183s: physical boarding/departure/brake, both yaw turns, equal30tick/.5s
-baseline/boost windows, fresh release, both real client replicas and ordinary
-Interact handback/supported walk/source retirement. Actual host acceleration
-14.6500→19.4500m/s² matches authored thrust/boost/drag; release reaches host in
-under0.36s and both client hull errors stay≤0.5m. Owner changes to0/generation+1,
-old source/capture retire and no boosted demand remains. Root and independent
-source/raw review GO; import/check-only PASS, all3 peer OS exits0/no runtime
-diagnostics. [Exact scope and cleanup](docs/history/ROADMAP_DELIVERIES.md#sampled-remote-boost--full-handback-accepted--2026-10-25).
-
-This qualifies existing gameplay on isolated synthetic-action/loopback input;
-no runtime tuning/feature change, physical device or native-hardware pass.
-No identical playable rebuild is needed; checkpointfb396ab was retained for that observer-only work.
-Full network/endurance/capacity/final gates stay
-open. No task branch/worktree was created.
-
-**PLAY-TORPEDO remains OPEN; three full trials stopped/unaccepted.**
-The latest run genuinely reboarded after sampled view/selection settling, then
-proved real pitch/boost evasion and a distinct seeker shoot-down. Three later
-boat shots missed; two real incoming seekers destroyed Arrow. No Torpedo boat
-kill, distinct payment, home return, next posting or normal UI exit. The two
-earlier failures and supported caller corrections remain recorded on one clock.
-[Exact outcomes, cause limits and cleanup](docs/history/ROADMAP_DELIVERIES.md#torpedo-second-boarding-readiness--whole-journey-not-accepted--2026-10-25).
-
-Full finish remains same-process genuine Heavy clear/payment/home/physical
-Torpedo posting, real evasion AND distinct seeker interception before actual
-boat kill/CLEARED, distinct same-generation durable credit (ledger2/one each),
-strict home/OFFLINE physical exit, physical usable Paired Wing posting and UI
-OS0. Original150s encounters/sharedCAP300/outer360 unchanged. Reopen only after
-a source/raw-supported gameplay/control cause for the failed boat engagement
-and a bounded correction preserving that entire journey. No unchanged retry,
-arbitrary point/aim/physics/timer change or extra qualifier layer is selected.
-Failed source/bundles/results archived, accepted main restored, owned processes/
-profiles/package replicas cleaned. Current playable checkpoint remainsfb396ab;
-no full Torpedo/parent/native/hardware completion is claimed.
-
-**Delivered: PLAY-BREACH first complete ordinary sortie, checkpointfb396ab.**
-Fixed the real late-CombatAuthority Picket damage-adapter gap. The unchanged full
-ordinary journey passes90.112s: physical Heavy arm/Arrow takeoff, actual lance
-charge, real player hits24+22 destroy the46-health picket/CLEARED, exactly one
-same-generation Heavy credit in actual primary data through orderly close,
-strict home/OFFLINE physical exit, physical usable Torpedo posting and UI OS0.
-Independent source/raw review GO; focused lifecycle/encounter/Heavy checks, fresh
-paired exports/three strict startups/actual1527-entry package audit pass.
-[Exact result, prior failures and limits](docs/history/ROADMAP_DELIVERIES.md#picket-damage-admission-and-full-heavy-breach--accepted--2026-10-25).
-
-Accepted source merged/pushed; EXE/ZIP/notes in builds/windows. Owned processes/
-profiles cleaned and records consolidated; no task branch/worktree was created.
-Both earlier failures and the caller-only angle correction remain recorded on
-the same Heavy clock. Repeat/Torpedo/recovery/broader combat/native/device/final
-requirements stay open; no original parent or phase closes.
-
-PLAY-TORPEDO is a dependent activity, **not a ready assignment** while its
-reopening condition above is unmet. Use the next ready product outcome in the
-work order; do not reopen it merely because its harness exists.
-
-**PLAY-DEFENSE remains OPEN; consumed-fire qualification stopped.**
-The one full ordinary trial destroyed Alpha and Beta, then reached the original
-34s timeout with two hostiles remaining. Payment/home/Reset/UI exit were not
-reached. Input consumption worked; it did not prove encounter completion or an
-engine defect. Failed source/results are archived, accepted main restored, owned
-processes/profiles/private package duplicates cleaned. No retry is selected.
-[Exact result and reopening condition](docs/history/ROADMAP_DELIVERIES.md#defense-consumed-fire-qualification--not-accepted--2026-10-24).
-
-The finish line remains physical Deploy/real Arrow takeoff, all four genuine
-player-weapon kills in waves1–2–1 within unchanged34s, once-only actual-file
-payment, strict home/OFFLINE physical exit, physical board Reset/usable next
-Deploy and normal UI game exit0, originalCAP300/outer360. Reopen only for a
-source/raw-supported cause and bounded correction that preserves that whole
-journey. No speculative firing-point/aim/timer changes or unchanged rerun.
-
-**Roadmap contract rewrite completed2026-10-24.**
-Every existing named goal has an explicit **Done means** column in the
-[canonical inventory](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes). It identifies
-the observable result or finite decision artifact. The row's existing dependency
-and original limits still apply. Completed source/scenario evidence stays accepted;
-final-candidate qualification is performed once through the final release goals.
-
-The reconnect investigation is **NOT ACCEPTED**. Its focused setup failed before
-the intended JOIN CABIN assertion and emitted nine ENet send errors. No runtime
-repair was made. Unique test source and failed results are archived; accepted
-`main` is restored and owned scratch/processes are cleaned. It is not an active
-engine task or a completed capability. [Exact closeout](docs/history/ROADMAP_DELIVERIES.md#passenger-readmission-investigation--not-accepted--2026-10-24).
+These are reopening conditions, not active assignments. The canonical inventory
+retains all other parked outcomes and their original proof limits. No unchanged
+retry or longer timer is selected by this summary.
 
 <a id="next-three-production-deliveries"></a>
 ## Work order
@@ -328,6 +120,9 @@ This order is not a claim that unknown specifications are already estimated.
 are resolved once; they do not authorize an endless research or definition loop.
 
 ## Turning a goal into one assignment
+
+Every selected task must be small enough to finish or fail in one bounded
+assignment. A broad delivery heading is never a runnable task.
 
 Before work starts, copy its existing ID, **Done means**, dependencies and protected
 scope into a short execution card. Add exact production files/owner, action or
