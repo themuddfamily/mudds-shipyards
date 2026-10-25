@@ -523,9 +523,34 @@ func _migration_stage(writer: bool, private_root: String) -> void:
 		if not _migration_check(begin != null and begin.is_visible_in_tree(), "reader exposes ordinary Begin Shift"):
 			return
 		var original_player: PlayerController = _migration_game.player
+		var intro: Control = hud.get("_intro") as Control
+		var entry_started: int = Time.get_ticks_msec()
+		var entry_deadline: int = entry_started + 5000
+		print("SETTINGS_MIGRATION_ENTRY_BEFORE ", JSON.stringify({
+			"phase": int(_migration_game.phase), "player_id": original_player.get_instance_id(),
+			"control_enabled": original_player.is_control_enabled(), "on_floor": original_player.is_on_floor(),
+			"seated": original_player.is_seated(), "intro_visible": intro != null and intro.is_visible_in_tree(),
+			"begin_visible": begin.is_visible_in_tree(), "ticks_msec": entry_started,
+			"physics_frame": Engine.get_physics_frames()}))
+		# The ordinary HUD begins with its authored transition tween. Observe its
+		# real start_requested/phase completion within the existing UI cap.
 		begin.pressed.emit()
+		while _migration_game.phase != GameFlow.Phase.APPROACH_SHIP and Time.get_ticks_msec() < entry_deadline:
+			await process_frame
+		var entry_completed: int = Time.get_ticks_msec()
+		var entry_in_cap: bool = _migration_game.phase == GameFlow.Phase.APPROACH_SHIP and entry_completed <= entry_deadline
+		# physics_frame precedes the step; process_frame observes its completion.
 		await physics_frame
-		if not _migration_check(_migration_game.phase == GameFlow.Phase.APPROACH_SHIP
+		await process_frame
+		print("SETTINGS_MIGRATION_ENTRY_AFTER ", JSON.stringify({
+			"phase": int(_migration_game.phase), "player_id": _migration_game.player.get_instance_id(),
+			"same_player": _migration_game.player == original_player,
+			"control_enabled": original_player.is_control_enabled(), "on_floor": original_player.is_on_floor(),
+			"seated": original_player.is_seated(), "intro_visible": intro != null and intro.is_visible_in_tree(),
+			"entry_completed_within_cap": entry_in_cap, "entry_elapsed_msec": entry_completed - entry_started,
+			"observed_elapsed_msec": Time.get_ticks_msec() - entry_started,
+			"physics_frame": Engine.get_physics_frames()}))
+		if not _migration_check(entry_in_cap and _migration_game.phase == GameFlow.Phase.APPROACH_SHIP
 				and _migration_game.player == original_player and original_player.is_control_enabled()
 				and not original_player.is_seated() and original_player.is_on_floor(),
 				"ordinary Begin Shift admits the same supported on-foot Player"):
