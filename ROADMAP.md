@@ -29,6 +29,33 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Selected: PLAY-PATROL[relay_sweep] — ordinary relay patrol and home.**
+Startad9857949. One implementer owns existing native runner/tests/passive observer
+and startup selector; root owns privacy tests/docs/guard/checks/integration/cleanup.
+Add `--route patrol-relay-home` / `NATIVE_PATROL_RELAY_HOME_OK`. Normal menu/genuine
+Guided/physical exit → actual pause ActivitySelection/relay Patrol selection →
+supported reboard clearance/same-Torrent departure → Main Patrol's five ordered
+32m volumes,2 continuous physics seconds each at60Hz/time_scale1 → exactly one
+relay-generation payment → strict Central dock/90neutral OFFLINE ticks/physical
+exit/original supported walk/normal UI exit0. No nearby START or physical board.
+
+WholeCAP300/outer360 unchanged; no invented separate Patrol timeout/speed gate,
+pose/phase/provider/claim/tuning/geometry/reward shortcut or new framework. Reuse
+approach-justified tutorial save protection and preserve every unrelated field.
+If needed, ordinary brake/hover alignment before return uses actual H/Prior only,
+upright>=.94/speed<=.35 within15s; no runtime physics change or timing extension.
+Proof: relevant existing Python/privacy/parser checks, clean private Linux export,
+strict menu readiness/inventory and one complete package route on owned Xvfb/x11/
+dummy renderer/Dummy audio/actual OS XTest, independent source/raw review and
+actual process/scratch/build cleanup. Retained Q4 thirty-Main failure/UI-BOARD-FOCUS
+are not resolved by this route; any runtime diagnostic stops the attempt.
+
+Estimate5min mapping+35implementation+25checks/export/route+15review/cleanup;
+hard90min includes the mapping interval from the previous closeout timestamp.
+First unexpected failure stops for cumulative review or parking. Platform sweep
+remains a separate required branch; no full PLAY-PATROL/parent, device/native,
+repeat/recovery or final-candidate closure follows from relay alone.
+
 **Delivered: PLAY-RACE — complete ordinary packaged race and home return.**
 Source7997b2b37 passes the full original journey in276.690s underCAP300:
 normal menu/Guided/physical exit/actual reboard clearance/same-Torrent departure,
