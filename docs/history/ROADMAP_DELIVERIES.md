@@ -26367,3 +26367,86 @@ verified pushed main. No remote task ref existed; current tips and registered
 worktree ownership were checked before exact-tip local branch deletion. Cleanup
 elapsed18.435 cumulative minutes; final push cost is in closeout. This final
 documentation-only closure changes no production code from checkpoint1a948d9.
+
+<a id="interact-remap-restart-two-fixture-stops-20261025"></a>
+
+## Interact remap restart — two fixture stops, no qualification accepted
+
+INPUT-REMAP[Interact E→F13], parents8/29, automated Linux-source composition
+only. This was qualification of existing production behavior, not a runtime fix.
+Candidate381bfdd714198a736874d3c5f9f270cc55b50ef0; one reviewed fixture correction
+f3a5d0bb0828ea144875f43bfe2302bdc9aff30c. Normal Main/default real-file authority,
+fresh private XDG directories, headless/Dummy; synthetic raw events, no authored
+settings profile, pose/provider injection or direct interaction-signal emission.
+One bounded implementer, independent lifecycle review and root orchestration.
+
+Frozen contract: visible Interact captures F13 and retains authored controller X;
+Jump attempts the same key, Cancel preserves the entire profile/InputMap/deadzones
+and Space binding; real Apply + Save; ordinary Begin Shift admits supported
+on-foot Player. Actual physics must emit E0/F131 per press, with no added requests
+on hold/release. Distinct second process/same file repeats this, then actual
+per-action Reset/Save restores E1/F130. Third cold process retains Reset. Each
+success requires actual HUD Exit/OS0 and both durable clean-shutdown records;
+markers alone are insufficient. Root requires three unique actual PIDs/start
+identities and sequential reaps, unchanged disk between workers, exact unrelated
+sentinel/settings preservation. Original300s per worker/shared660s, independent
+owned abort; original20:11Z→21:11Z/60min includes all work and closure.
+
+Initial import PASS6.619s, default production persistence PASS34.789s/45 assertions,
+HUD rebind PASS2.652s/27 assertions; no standard-matrix error diagnostics, source
+and relevant cache boundaries preserved. Default suite's expected fallback
+warnings remain in raw logs. First roundtrip FAIL16.797s (writer16.563s/OS1), at
+aggregate isolation precondition before store/Main. The captured actual command
+has explicit --headless --audio-driver Dummy/private paths. New argv guard had
+assumed retention of consumed driver switches, contrary to the existing
+migration-worker backend check. Exact original failed conjunct was not logged.
+Failure and STOP record retained unchanged; no expected-negative relabel.
+
+Independent causal/cumulative review selected one guard-only continuation on a
+fresh profile. Actual Dummy/headless backends, exclusive selection/private paths
+and all guard inputs logged; original consumer/Reset/proof predicates unchanged.
+Corrected import PASS6.718s. Corrected roundtrip FAIL33.002s (writer32.763s/OS1):
+visible E→F13/InputMap/profile/X, Jump conflict/Cancel/full-state preservation,
+Apply + Save and ordinary supported Begin Shift pass. E emits zero requests,
+including held/released frames. The next F13 assertion fails before any held-frame
+observation. Actual failed counter, input state and scheduled tick were not logged.
+Both cold readers/Reset/real UI close and complete qualification remain NOT_RUN.
+Failed writer store contains saved F13/X, but its running shutdown state is not
+successful restart proof. Worker/process identities are reaped before cleanup.
+
+Pinned enginea13da4feb assigns a raw press's physics edge to current+1 in
+[Input source](https://raw.githubusercontent.com/godotengine/godot/a13da4feb/core/input/input.cpp)
+(lines960–964; physics equality at414–415).
+[SceneTree source](https://raw.githubusercontent.com/godotengine/godot/a13da4feb/scene/main/scene_tree.cpp)
+emits physics_frame before processing physics (605–610). The helper injected in
+that signal then checked at process_frame, which can precede the scheduled next
+physics tick. This supports an early-observation fixture explanation; it does not
+prove the sole cause or a production input defect. Player's interaction path has
+no native-focus prerequisite; Fire-specific focus notifications are not a repair.
+
+Root also found an unreached wrapper error: the actual adapter envelope is
+payload.runtime_settings.values.input_binding_profile. Both unrelated-settings
+comparison and row finalization incorrectly bypassed values. No such wrapper
+failure occurred because the writer exited earlier. No schema change is needed.
+
+Decision: PARK, no third run, unchanged replay or budget reset. Reopening needs
+one explicitly selected correction crossing a complete post-injection physics
+tick before observation, retaining exact once/hold/release predicates and logging
+actual counter/tick/input/handoff state; the existing values envelope must also be
+used in both root checks. Independent cumulative-priority review precedes any run.
+Do not substitute direct InputMap queries or manual interaction emission for the
+actual Player consumer. All original cases and300s/660s limits remain binding.
+
+Unaccepted source is preserved in a verified Git bundle/patch with raw results,
+logs, failed private profile and launch/cleanup helpers under the private case
+`/srv/mudds-work/interact-remap-restart-20261025`. Only this stop documentation is
+integrated into main; no failed test, runtime change or identical new export.
+Checkpoint1a948d9 remains current. Physical input, whole original SETTINGS-RETURN/
+GateC and final-candidate acceptance remain open. Archive and cleanup verified: records.tar.gz21,041,204 bytes, SHA256
+305e2c6bae228f94a065cfd37d5c92bee72f31a43f7f7181d83169bce1f4eaa5;
+94 regular files/six symlinks verified byte-for-byte/modes/link targets before
+removing owned scratch. Six supervisors and14 observed process identities are
+absent. Verified candidate bundle/patch retains exactf3a5d0bb0 history; current
+remote has no candidate branch and registered worktrees do not own it. Local
+branch deleted with exact expected tip after archive verification. Original
+20:11Z clock is retained; closure elapsed is recorded with the pushed commit.

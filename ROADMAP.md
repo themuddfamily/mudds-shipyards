@@ -183,35 +183,24 @@ failure retaining actual send/native/command/consumer receipts. No unchanged
 qualifying rerun is selected; CAP300 and original18:57Z→20:12Z clock are retained.
 [Exact stops, diagnostic limits and cleanup](docs/history/ROADMAP_DELIVERIES.md#perimeter-ordinary-route-input-stop-20261025).
 
-**Active qualification: INPUT-REMAP[Interact E→F13]** (parents8/29, automated
-persistence instance). Candidate992fb0e46, fresh normal Main and isolated real
-user-data profile; existing production settings worker gains opt-in Interact
-writer/reader modes. Visible Settings Interact row captures raw F13 and Apply +
-Save commits it. Retain authored controller X. Jump attempts F13 while Interact
-owns it; choose Cancel, leaving the complete accepted profile/InputMap unchanged.
-After normal Begin Shift/Resume, actual on-foot Player physics must emit zero
-interaction requests for former E and exactly one per raw F13 press/release;
-menus retain enabled visible focus. No source/input-provider injection, direct
-interaction emission, pose assignment or profile seeding; unrelated sentinel only.
+**PARKED: INPUT-REMAP[Interact E→F13] — not accepted.** Existing persistence
+and HUD rebind checks passed. The first new worker stopped at an incorrect
+argv-based isolation guard before disk/Main. One reviewed correction used actual
+Dummy/headless backends. That worker then passed visible F13 remap, controller-X
+preservation, Jump conflict Cancel, real Apply + Save and ordinary Begin Shift,
+but failed the actual Player F13 interaction assertion. No cold reader, Reset,
+clean UI shutdown or full roundtrip is accepted.
 
-Distinct normal Main process, same actual file: F13 row/InputMap/controller X and
-Player consumption persist; E remains inactive. Per-action Interact Reset restores
-E/X, removes F13 and commits through Apply + Save. Actual Player then emits once
-for E, none for F13. A final cold reader confirms the saved reset. Each worker
-releases synthetic keys/cursor, uses actual HUD Exit intent/OS0 and clean durable
-shutdown. Original300s per process/660s outer retained. Existing Fire modes/default
-suite remain in their recorded scopes; no replacement SETTINGS-RETURN/GateC.
-
-This is one automated source-composition qualification, not a demonstrated runtime
-repair or physical keyboard/controller/whole ordinary station journey. Use the
-existing test/production owners, no new validator family. One implementer owns the
-existing settings-production test; root owns private orchestration/records/push/
-cleanup, independent persistence/lifecycle review. Original20:11Z→21:11Z/60min
-includes definition, implementation, focused checks, three real processes and
-closure; first unexpected validation failure stops for causal review, no automatic
-retry or cap reset. No gameplay/graphics change is planned; current checkpoint
-1a948d9 stays playable. Existing comfort/save scopes remain accepted, Perimeter
-stays parked, missing craft remain gated on their named specs.
+Pinned-engine review shows the test can observe before the next physics tick
+consumes the injected edge; actual failed counter/tick state was not logged, so
+this is not a demonstrated gameplay defect. The root wrapper also has an
+unreached settings-envelope access error. No third run is selected. Reopening
+requires the two specific fixture corrections, causal-state receipts, independent
+cumulative-priority review and the same full contract/limits, not an unchanged
+replay. Original20:11Z→21:11Z/60min budget retained. Candidate source and both
+failures are archived; unfinished test code is excluded from main. Current
+checkpoint1a948d9 and original SETTINGS-RETURN/GateC remain unchanged.
+[Exact stop and retained proof](docs/history/ROADMAP_DELIVERIES.md#interact-remap-restart-two-fixture-stops-20261025).
 
 The Torrent destruction/recovery attempt remains **PARKED / not accepted**.
 A reviewed resolver correction accounted for all100 actual damage, including
