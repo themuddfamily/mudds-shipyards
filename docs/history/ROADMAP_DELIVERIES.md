@@ -26665,3 +26665,14 @@ Loadmaster and Interact source qualifications are retained in their scopes.
 Original21:08Z→22:08Z/60min includes readiness, implementation, checks, build and
 closure without reset. Private raw/source/build identities and cleanup live under
 `/srv/mudds-work/final-approach-captions-20261025`; verified archive/ref closure follows.
+
+Verified closeout: source integrated/pushed ate78ebc8b0, completed local branch
+removed with exact expected tip after current remote/pushed-main ancestry and
+registered-worktree checks; remote task branch absent. Only records.tar.gz plus
+closeout.json remain in the owned case: 52,336,799 bytes, SHA256
+52e4c1b5a5b916705b2a135be2323bdf784ddee785a4984803a4f3f6202e8765.
+All202 regular bytes/modes and16 symlink targets were verified before
+scratch removal; all16 supervisors/57 observed process identities are absent.
+Engine/template pins and all11 public build hashes are unchanged. Original clock
+16.912min through archive verification; final closure-push cost is recorded in
+closeout.json. Pre-existing detached worktrees are retained unchanged.
