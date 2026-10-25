@@ -20,6 +20,12 @@ extends SceneTree
 ## --sprint-reset-reader with --sprint-restart-private-root="$CASE". Require
 ## SPRINT_RESTART_WRITER_OK / SPRINT_RESTART_READER_OK / SPRINT_RESET_READER_OK,
 ## actual OS exit 0 and orderly shutdown for each separate process.
+## Colour uses --colour-restart-writer, --colour-restart-reader, then
+## --colour-reset-reader with --colour-restart-private-root="$CASE". Require
+## COLOUR_RESTART_WRITER_OK / COLOUR_RESTART_READER_OK / COLOUR_RESET_READER_OK,
+## actual HUD Exit / OS0 and external clean markers in three separate processes.
+## This proves source composition, synthetic raw walking and actual palette
+## consumers; rendered readability/device input/original Gate C remain NOT_RUN.
 ## Reap writer (exit 0 + FIRE_RESTART_WRITER_OK), then repeat with reader flag;
 ## require exit 0 + FIRE_RESTART_READER_OK. Never run these modes in parallel.
 ## Raw key/mouse events and the reader's focus-in lifecycle notification are
@@ -105,6 +111,9 @@ class MutableInputProvider:
 
 func _initialize() -> void:
 	var args := OS.get_cmdline_user_args()
+	if args.has("--colour-restart-writer") or args.has("--colour-restart-reader") or args.has("--colour-reset-reader"):
+		_run_colour_restart(args)
+		return
 	if args.has("--sprint-restart-writer") or args.has("--sprint-restart-reader") or args.has("--sprint-reset-reader"):
 		_run_sprint_restart(args)
 		return
@@ -329,6 +338,235 @@ func _fire_restart_stage(writer: bool) -> void:
 
 # Sprint option qualification: three separate real-file processes; natural
 # Player physics and synthetic raw S/Shift only, never physical-device proof.
+# COMFORT-COLOUR: opt-in distinct-process qualification of the existing runtime.
+# No settings/pose/provider seeding; only the unrelated writer sentinel is seeded.
+const COLOUR_RESTART_SENTINEL := "colour_restart_fixture"
+
+
+func _run_colour_restart(args: PackedStringArray) -> void:
+	var modes := ["--colour-restart-writer", "--colour-restart-reader", "--colour-reset-reader"]
+	var selected := PackedStringArray()
+	var private_root := ""
+	var root_count := 0
+	var other_mode := false
+	for arg: String in args:
+		if arg in modes:
+			selected.append(arg)
+		elif arg.begins_with("--colour-restart-private-root="):
+			root_count += 1
+			private_root = arg.trim_prefix("--colour-restart-private-root=").simplify_path()
+		elif arg.begins_with("--colour-") or arg.begins_with("--sprint-") or arg.begins_with("--interact-") or arg.begins_with("--fire-restart-") or arg.begins_with("--settings-migration-") or arg.begins_with("--settings-corrupt-"):
+			other_mode = true
+	var isolated := private_root.is_absolute_path() and private_root != "/"
+	for variable: String in ["XDG_DATA_HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME"]:
+		isolated = isolated and OS.get_environment(variable).simplify_path().begins_with(private_root + "/")
+	isolated = isolated and OS.get_user_data_dir().simplify_path().begins_with(private_root + "/")
+	print("COLOUR_RESTART_LAUNCH ", JSON.stringify({"selected": selected, "private_root": private_root,
+		"isolated": isolated, "other_mode": other_mode, "pid": OS.get_process_id(),
+		"audio_driver": AudioServer.get_driver_name(), "display_driver": DisplayServer.get_name(),
+		"user_data_dir": OS.get_user_data_dir(), "engine_argv": OS.get_cmdline_args(), "user_argv": args}))
+	if _migration_check(selected.size() == 1 and root_count == 1 and not other_mode and isolated
+			and AudioServer.get_driver_name() == "Dummy" and DisplayServer.get_name() == "headless",
+			"one exclusive Colour worker owns actual Dummy/headless and explicit private user data"):
+		await _colour_restart_stage(selected[0])
+	if _interact_exit_requested:
+		return
+	_sprint_release_keys()
+	paused = false
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	if is_instance_valid(_interact_restart_game):
+		_interact_restart_game.queue_free()
+		await process_frame
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	_finish()
+
+
+func _colour_restart_stage(mode: String) -> void:
+	var writer := mode == "--colour-restart-writer"
+	var reset_reader := mode == "--colour-reset-reader"
+	root.content_scale_size = Vector2i(1280, 720)
+	var disk := Store.new(Adapter.DEFAULT_STORE_PATH)
+	if not _migration_check(bool(disk.load().accepted), "Colour private production store opens"):
+		return
+	if writer:
+		if not _migration_check(disk.get_generation() == 0 and disk.get_snapshot().is_empty()
+				and not FileAccess.file_exists(Settings.DEFAULT_CONFIG_PATH), "Colour writer requires fresh unseeded settings"):
+			return
+		if not _migration_check(bool(disk.commit({COLOUR_RESTART_SENTINEL: {
+				"writer_pid": OS.get_process_id(), "unrelated_data": {"keep_me": "colour-restart", "progress": 42},
+			}}, 0, "colour-restart-unrelated-seed").accepted), "Colour seeds unrelated sentinel only"):
+			return
+	var sentinel: Dictionary = disk.get_snapshot().get(COLOUR_RESTART_SENTINEL, {})
+	if not _migration_check(int(sentinel.get("writer_pid", 0)) > 0
+			and (writer or int(sentinel.writer_pid) != OS.get_process_id()), "Colour reader has a distinct writer PID witness"):
+		return
+	var game := MAIN_SCENE.instantiate() as GameFlow
+	_interact_restart_game = game
+	root.add_child(game)
+	await process_frame
+	await physics_frame
+	await process_frame
+	var report := game.get_runtime_settings_persistence_report()
+	if not _migration_check(not bool(report.injected_authority) and report.identity_scope == &"process_lifetime"
+			and int(report.load_attempt_count) == 1 and bool(report.load_status.accepted)
+			and bool(report.load_before_first_apply) and (writer or report.load_status.reason == &"loaded"),
+			"Colour normal Main loads real disk authority once before first apply"):
+		return
+	var hud := game.get_node_or_null(^"HUD") as GameHUD
+	if not _migration_check(hud != null and is_instance_valid(game.player), "Colour actual Main owns HUD and Player"):
+		return
+	var defaults := Settings.new().to_dictionary()
+	var expected := defaults.duplicate(true)
+	var expected_index := 0 if writer or reset_reader else 3
+	if expected_index == 3:
+		expected.colorblind_palette = Settings.ColorblindPalette.TRITANOPIA
+	if not _migration_check(Settings.ColorblindPalette.TRITANOPIA == 3 and Settings.ColorblindPalette.NONE == 0
+			and game.get_runtime_settings().to_dictionary() == expected,
+			"cold Colour full settings preserve every authored binding and unrelated option"):
+		return
+	hud.set_paused(true)
+	hud._show_settings_page()
+	await process_frame
+	var control := hud.find_child("ColorblindPaletteControl", true, false) as OptionButton
+	if not await _interact_visible_button(hud, control, "Colour-vision preset row"):
+		return
+	if not _migration_check(control.item_count == 4 and control.get_item_text(3) == "Tritanopia"
+			and control.get_item_text(0) == "Off" and control.selected == expected_index,
+			"cold visible Colour OptionButton agrees with exact authored preset"):
+		return
+	if writer:
+		control.select(3)
+		control.item_selected.emit(3)
+		await process_frame
+		expected.colorblind_palette = Settings.ColorblindPalette.TRITANOPIA
+		if not _migration_check(game.get_runtime_settings().to_dictionary() == expected and control.selected == 3,
+				"visible Tritanopia callback changes only the colour preset") or not await _interact_save(game, hud, "Tritanopia colour preset"):
+			return
+	var palette_id: StringName = &"none" if reset_reader else &"tritanopia"
+	if not _colour_palette_state(game, hud, palette_id, "saved writer or cold reader"):
+		return
+	hud.set_paused(false)
+	var begin := hud.find_child("IntroBeginShiftButton", true, false) as Button
+	if not _migration_check(begin != null and begin.is_visible_in_tree() and not begin.disabled,
+			"Colour normal Begin Shift is visible enabled"):
+		return
+	var original_player := game.player
+	begin.pressed.emit()
+	var deadline := Time.get_ticks_msec() + 5000
+	while (game.phase != GameFlow.Phase.APPROACH_SHIP or not original_player.is_on_floor()) and Time.get_ticks_msec() < deadline:
+		await physics_frame
+		await process_frame
+	if not _migration_check(game.phase == GameFlow.Phase.APPROACH_SHIP and game.player == original_player
+			and original_player.is_on_floor() and original_player.is_control_enabled() and not original_player.is_seated(),
+			"Colour normal Begin admits the same naturally supported on-foot Player"):
+		return
+	if not await _colour_walk(game, hud, palette_id):
+		return
+	if not writer and not reset_reader:
+		hud.set_paused(true)
+		hud._show_settings_page()
+		await process_frame
+		var reset := hud.find_child("SettingsResetButton", true, false) as Button
+		if not await _interact_visible_button(hud, reset, "Colour Reset Defaults"):
+			return
+		reset.pressed.emit()
+		await process_frame
+		var confirm := hud.find_child("ConfirmSettingsResetButton", true, false) as Button
+		if confirm != null and confirm.is_visible_in_tree():
+			if not await _interact_visible_button(hud, confirm, "Confirm Colour Reset Defaults"):
+				return
+			confirm.pressed.emit()
+			await process_frame
+		expected = defaults.duplicate(true)
+		if not _migration_check(game.get_runtime_settings().to_dictionary() == expected and control.selected == 0,
+				"ordinary Reset Defaults restores exact full authored settings and Off") or not await _interact_save(game, hud, "Colour reset"):
+			return
+		hud.set_paused(false)
+		await physics_frame
+		await process_frame
+		if not _colour_palette_state(game, hud, &"none", "after normal Reset Defaults and Save") or not _colour_live_cue(hud):
+			return
+	var verified := Store.new(Adapter.DEFAULT_STORE_PATH)
+	if not _migration_check(bool(verified.load().accepted) and verified.get_loaded_source() == &"primary"
+			and verified.get_snapshot().get(COLOUR_RESTART_SENTINEL, {}) == sentinel
+			and game.get_runtime_settings().to_dictionary() == expected
+			and _migration_equal(verified.get_snapshot().get(Adapter.SETTINGS_PAYLOAD_KEY, {}), game.get_runtime_settings().to_user_data_payload()),
+			"Colour actual primary retains exact sentinel and complete expected settings including all bindings"):
+		return
+	_sprint_release_keys()
+	hud.set_paused(true)
+	var exit_button := hud.find_child("ExitButton", true, false) as Button
+	if not _migration_check(exit_button != null and exit_button.is_visible_in_tree() and not exit_button.disabled,
+			"Colour ordinary HUD Exit is visible enabled"):
+		return
+	exit_button.grab_focus()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	var marker := "COLOUR_RESET_READER_OK" if reset_reader else ("COLOUR_RESTART_WRITER_OK" if writer else "COLOUR_RESTART_READER_OK")
+	print("%s pid=%d generation=%d sha256=%s assertions=%d synthetic_raw_events=true physical_input=NOT_RUN rendered_readability=NOT_RUN" % [
+		marker, OS.get_process_id(), verified.get_generation(), FileAccess.get_sha256(Adapter.DEFAULT_STORE_PATH), _assertions])
+	_interact_exit_requested = true
+	exit_button.pressed.emit()
+
+
+func _colour_palette_state(game: GameFlow, hud: GameHUD, palette_id: StringName, stage: String) -> bool:
+	var palette: Dictionary = GameHUD.PaletteType.get_palette(palette_id, false)
+	var minimap := hud.get("_minimap") as Minimap
+	var good := game.get_runtime_settings().get_colorblind_palette_id() == palette_id 		and hud.get_hud_palette_id() == palette_id and not hud.is_high_contrast_hud() 		and minimap != null and (hud.get("_palette") as Dictionary) == palette
+	if good:
+		for role: String in ["nominal", "caution", "danger", "muted"]:
+			good = good and minimap.get("_" + role + "_color") == palette[StringName(role)]
+	print("COLOUR_RESTART_PALETTE ", JSON.stringify({"stage": stage, "pid": OS.get_process_id(),
+		"settings_id": str(game.get_runtime_settings().get_colorblind_palette_id()), "hud_id": str(hud.get_hud_palette_id()),
+		"enum": game.get_runtime_settings().colorblind_palette, "minimap_id": minimap.get_instance_id() if minimap != null else 0,
+		"same_semantic_colours": good, "high_contrast": hud.is_high_contrast_hud()}))
+	return _migration_check(good, stage + ": real settings/HUD/minimap retain the exact semantic palette")
+
+
+func _colour_live_cue(hud: GameHUD) -> bool:
+	var mode := hud.get("_mode_label") as Label
+	var audit := hud.get_minimap_report()
+	print("COLOUR_RESTART_CUE ", JSON.stringify({"pid": OS.get_process_id(),
+		"text": mode.text if mode != null else "MISSING", "minimap": audit}))
+	return _migration_check(mode != null and mode.is_visible_in_tree() and mode.text.begins_with("ON FOOT")
+		and mode.get_theme_color("font_color") == (hud.get("_palette") as Dictionary)[&"nominal"]
+		and bool(audit.get("valid", false)) and bool(audit.get("has_snapshot", false))
+		and bool(audit.get("visible_in_tree", false)) and bool(audit.get("player_visible", false))
+		and bool(audit.get("contact_state_has_shape_cue", false))
+		and (audit.get("contact_glyphs", {}) as Dictionary).get("friendly") == &"circle_cross"
+		and (audit.get("contact_glyphs", {}) as Dictionary).get("hostile") == &"diamond",
+		"actual visible ON FOOT text and live minimap retain their text/shape discriminators")
+
+
+func _colour_walk(game: GameFlow, hud: GameHUD, palette_id: StringName) -> bool:
+	var original_player := game.player
+	_sprint_origin = original_player.global_position
+	_sprint_release_keys()
+	_fire_restart_key(KEY_S, true)
+	Input.flush_buffered_events()
+	for tick in 12:
+		await physics_frame
+		await process_frame
+		if not _migration_check(game.player == original_player and _sprint_state(game)
+				and Input.is_action_pressed(&"move_back"), "Colour raw S walk retains supported original Player tick %d" % tick):
+			_sprint_release_keys()
+			return false
+	_sprint_release_keys()
+	var distance := original_player.global_position.distance_to(_sprint_origin)
+	if not _migration_check(distance >= 0.25 and distance <= 3.0, "Colour raw S produces actual bounded on-foot movement"):
+		return false
+	for tick in 30:
+		await physics_frame
+		await process_frame
+		if not _migration_check(game.player == original_player and _sprint_state(game), "Colour released walk keeps natural support"):
+			return false
+		if original_player.velocity.slide(Vector3.UP).length() <= 0.05:
+			break
+	if not _migration_check(not Input.is_action_pressed(&"move_back") and original_player.velocity.slide(Vector3.UP).length() <= 0.05,
+			"Colour raw S release returns to neutral without a provider or manual physics step"):
+		return false
+	return _colour_palette_state(game, hud, palette_id, "after real raw-input walk") and _colour_live_cue(hud)
+
+
 const SPRINT_RESTART_SENTINEL := "sprint_restart_fixture"
 var _sprint_origin := Vector3.ZERO
 
