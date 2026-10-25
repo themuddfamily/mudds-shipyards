@@ -77,24 +77,19 @@ Only one implementation card may be active. Completed results are linked under
 [accepted work](#accepted-work--source-limits-retained), and failed attempts under
 [parked work](#parked-failures-and-dependent-work). They are not next tasks.
 The table below contains actual missing decisions.
-Active card: Torrent incoming damage and landed repair,14:48Z→15:48Z/60min
-including source binding, checks, integration and cleanup. New native route must
-observe a real defender11-damage hit on the pristine100-hull Torrent, actual
-component attribution, at least90airborne frames without component repair, then
-strict home landing and actual passive repair to all five nominal components
-within the existing<180physics-frame bound. Preserve same identities/generation,
-real kill, two strict homes/90neutral-OFFLINE ticks/exits/walk/normal UI OS0,
-unchanged controls and CAP300. Private Xvfb/x11/Dummy only; first unexpected
-failure stops. Independent review, focused Python/privacy/parser checks, clean
-private Linux export/strict startup and one new guarded route are required.
-All-component consequences, destruction/recovery and cross-craft/Main stay open.
+No implementation card is active. Torrent's real incoming core-damage/passive
+repair route is accepted ona1de3363f: hull100→89, core integrity.56 and targeting
+power.62,617consecutive airborne observations without repair, then43strict landed
+passive commits restore core1/all five nominal/modifiers1/zero effects while hull
+stays89. Both home returns, fresh boarding/departure/exits/walking and normal UI
+OS0 pass in88.168s under CAP300. [Exact scope and cleanup](docs/history/ROADMAP_DELIVERIES.md#torrent-core-damage-passive-repair-accepted-20261025).
 
 Torrent return/reuse is accepted on5d2c58dba:
 actual packaged Guided, two strict home returns with90consecutive neutral/OFFLINE
 ticks each, fresh boarding/departure/second lease, supported exits/walking and
 normal UI OS0 in85.267s under the unchanged300s cap. This is an executable part
-of CRAFT-ACCEPT-TORRENT; ordinary damage/repair/loss, cross-craft and required Main
-coverage remain open. [Exact scope, failures and cleanup](docs/history/ROADMAP_DELIVERIES.md#torrent-return-reuse-capability-accepted-20261025).
+of CRAFT-ACCEPT-TORRENT; broader applicable damage/recovery, cross-craft and required
+Main coverage remain open. [Exact scope, failures and cleanup](docs/history/ROADMAP_DELIVERIES.md#torrent-return-reuse-capability-accepted-20261025).
 The caption overflow choice remains pending; six Settings extreme-scale/scroll
 views stay accepted and REPEAT-RACE stays parked. Torrent's source inventory is
 already bound; do not repeat it or replay the accepted reuse route unchanged.
@@ -211,6 +206,7 @@ charged; a new card/branch/folder cannot restart that budget. No Torpedo continu
 ## Accepted work — source limits retained
 
 Recent accepted child outcomes include
+[Torrent incoming core damage/passive repair](docs/history/ROADMAP_DELIVERIES.md#torrent-core-damage-passive-repair-accepted-20261025),
 [Torrent packaged return/reuse](docs/history/ROADMAP_DELIVERIES.md#torrent-return-reuse-capability-accepted-20261025),
 [six Settings extreme-scale/scroll component views](docs/history/ROADMAP_DELIVERIES.md#settings-4x3-extreme-views-inspected-20261025),
 [corrupt-primary read-only fallback and continuation](docs/history/ROADMAP_DELIVERIES.md#corrupt-backup-read-only-fallback-accepted-20261025),

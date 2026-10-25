@@ -25621,3 +25621,73 @@ All11supervisors and their observed identities are absent; all10owned build
 copies and task scratch removed. Case retains only archive and closeout JSON.
 Accepted source is integrated/pushed and the owned branch removed at Git closure;
 exact main/branch tips and final elapsed time are recorded in that closeout.
+
+
+<a id="torrent-core-damage-passive-repair-accepted-20261025"></a>
+## Torrent incoming core damage and passive repair — accepted
+
+CRAFT-ACCEPT-TORRENT gains the executable `--route torrent-damaged-return` on
+clean source `a1de3363f6bb453338aceb952ee7faee010ad80f`. It preserves the accepted
+ordinary Guided/two-home reuse journey and releases player fire at the genuine
+interceptor encounter until a real defender hit, then resumes normal kill/home
+controls immediately. Mode-fenced read-only observation records authority and
+adapter context, five component scalars, model identity/generation and bounded
+first/last/count repair witnesses. The exact selector retains private x11/Dummy,
+single-mode and conflicting-CLI guards. No ship/control/weapon/placement tuning
+or production repair behavior changed. One high implementer/high reviewer.
+
+One native OS-XTest→X11→Godot Input→default sampler trial passes first attempt:
+88.168s, guarded stage88.521572440s, unchanged CAP300. Real current defender
+289859963718/source2101/defence_pulse_cannon/sequence0 resolves finite contact
+against retained Torrent287007836829/current damageable. Frame1402 commits11
+hull damage100→89; actual attributed core_systems integrity1→.56 and targeting
+power1→.62. No damaged region was forced. The other four components stay nominal.
+617uninterrupted airborne observations show no integrity increase or passive
+repair. Actual passive_berth strict-current-home commits2019…2061 restore the
+same model767691856186/generation1; later full observation2062 has core1/all five
+nominal, all operational multipliers1/disabledfalse and zero localized/repair/
+pending/impact effects.43commits/43elapsed physics ticks satisfy the original
+<180integration bound. Hull stays89 through component repair and continuation.
+The last airborne observation and first landed commit share globalframe2019
+because the observer runs before that tick's landing update; the actual commit
+snapshot is landed/inactive/strict-home, and completion uses a later full sample.
+
+Genuine defender retirement/full Guided completion, both strict home returns,
+90consecutive neutral/OFFLINE ticks per home, fresh native boarding/lease-free
+second departure/fresh second lease/physical exits/supported walking and focused
+Exit to Desktop→actual OS0 all pass.3,539consecutive observations preserve
+Main/world/Player/Torrent/input/seat/berth identities. Excursions63.360703m and
+63.385381m; no telemetry, kit, damage, transform or shot was fabricated.
+Zero diagnostics; inputs released, game/helper/Xvfb reaped and independent
+survivor list empty.
+
+Focused Python196tests pass11.944529280s (unittest11.415s); import6.584274708,
+privacy1.147570510, observer parse15.848619417, clean private Linux export25.840070600
+and strict startup23.182434985s pass. Strict startup requires exit0 plus exactly
+one STARTUP_MENU_READY_OK.1,527payload paths match accepted parent; only startup
+loader and observer compiled payloads differ, no tests/tools/artifacts shipped.
+Stock engine/template pins and guarded source/index/cache remain unchanged
+except the explicitly allowed import/export caches. The149,034,704-byte ELF
+SHA256 is `3a36d49f886c7ab02b2e18fe4ee3cd20e480b1e9fc83eccdcf72238fbff84ae6`.
+
+Independent pre-execution review corrected two unsupported assumptions: a
+single-hit-only budget and accumulated rather than uninterrupted airborne time.
+First-hit exactness remains; subsequent genuine hits carry actual cumulative
+loss, and repair starts from the real pre-repair ledger. No engine/check failure
+or retry occurred. Original14:48Z→15:48Z/60min includes source binding, checks and
+closure; earlier accepted return/reuse cost22.101min is recorded separately.
+This accepts one actual core impairment/passive repair case, not every component
+stage, destruction/recovery, cross-craft/Main, art/device/final candidate gate.
+Isolated Linux x11/dummy renderer only; native Windows/GPU/devices/human remain
+NOT_RUN. Gameplay/graphics are unchanged; current Windows checkpoint is retained.
+
+Verified `/srv/mudds-work/torrent-damaged-return-20261025/records.tar.gz`:
+120,044,349bytes, SHA256
+`a7e578a4804d3c409860a74dfb2964753c9bf156f7ed8c5a45e7928bfca4c260`,
+106regular files/7symlinks verified. Source bundle/patch, exact tested package,
+raw observations/results/reviews and profiles are retained. Direct ELF0755 is
+recoverable from the original unchanged tar member0700 plus explicit mode
+restoration; a private reconstruction matched original hash/mode before deletion.
+All7supervisors and observed identities are absent; all5private build files and
+owned scratch removed. Case keeps only archive and closeout JSON. Git closure
+records pushed main, exact contained-branch deletion and final elapsed time.
