@@ -745,7 +745,7 @@ func _live_no_answer_pending_observation(native: ENetMultiplayerPeer, endpoint_p
 	var observed := Time.get_ticks_msec()
 	var deadline := int(session.get("_pending_join_deadline_milliseconds"))
 	var endpoint := {"address": str(_live_game.get("_network_session_address")), "port": int(_live_game.get("_network_session_port"))}
-	var valid := native != null and native == session.get("_pending_join_peer") and native.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTING and session.get_admitted_peer_ids().is_empty() and session.get_server_offer().is_empty() and deadline > observed and session.is_processing() and paused and str(endpoint.address) == "127.0.0.1" and int(endpoint.port) == endpoint_port
+	var valid: bool = native != null and native == session.get("_pending_join_peer") and native.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTING and session.get_admitted_peer_ids().is_empty() and session.get_server_offer().is_empty() and deadline > observed and session.is_processing() and paused and str(endpoint.address) == "127.0.0.1" and int(endpoint.port) == endpoint_port
 	return {"valid": valid, "native_id": str(native.get_instance_id()) if native != null else "", "observed_at_milliseconds": observed, "deadline_milliseconds": deadline, "started_at_milliseconds": deadline - SessionType.HANDSHAKE_DEFAULT_TIMEOUT_MILLISECONDS, "paused": paused, "address": str(endpoint.get("address", "")), "port": int(endpoint.get("port", 0)), "expected_port": endpoint_port}
 
 
