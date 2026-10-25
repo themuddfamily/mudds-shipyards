@@ -29,6 +29,31 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Selected continuation: HAULER-CARGO-DELIVERY — observe genuine ramp support.**
+Original case/budget retained:30min prior closeout; original start04:00:25UTC,
+hard90min including this causal review/implementation/checks/closure. Exact five
+candidate files70de2ea83 restored for one continuation. Root/independent source
+and raw geometry prove the failed home walk is on BoardingRampSupport: capsule
+ramp gap1.660mm within2mm margin, slope30.54° below50° floor limit. The WORLD-only
+ray misses this SHIP-layer floor; the actual ramp hit is inside its unchanged reach.
+
+One implementer owns passive observer and existing Hauler physics tests. Query
+Hauler's actual physical WORLD/SHIP mask and collision exceptions, exclude Player,
+require current PhysicsBody/floor-compatible normal; preserve default Jovian query.
+Keep actual grounding, control, motion continuity, strict home lease/contract,
+≥1m supported walk and normal UI OS0. No geometry/pose/provider/policy mutation,
+longer ray, new validator/schema/framework or replacement route.
+
+Proof: focused real-ramp physics case plus grounded/normal/self/mask refusals,
+existing Python/import/parser/privacy, fresh clean Linux export/strict startup/
+PCK inventory and ONE unchanged full ordinary package journey underCAP300/
+outer360/cargo120. Estimate10implementation+15checks/route+10closure, original
+90min cumulative hard stop. First unexpected failure stops without another
+automatic correction. Accepted source only may merge/push; preserve unaccepted
+work, release/reap owned inputs/processes and consolidate scratch at closure.
+Normal gameplay unchanged means public0d77125 stays current. All prior failures
+remain below and in the original archive; no whole-goal completion assumed.
+
 **PARKED: HAULER-CARGO-DELIVERY — home walk support check failed.**
 Unaccepted candidatesc0c5ff2b7/70de2ea83 complete ordinary station walking,
 Hauler boarding/departure, actual Cinder load/gate/redock, ten-point terminal walk,
