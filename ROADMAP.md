@@ -1,10 +1,10 @@
 # Development roadmap
 
 **Playable alpha; full original scope remains unfinished.** Latest Windows build:
-[4968cf1 checkpoint](builds/windows/MuddsShipyards-4968cf1-checkpoint.zip)
-([changes and validation](builds/windows/MuddsShipyards-4968cf1-notes.txt)).
-Matching [Linux checkpoint 4968cf1](builds/linux/MuddsShipyards-4968cf1-linux-x86_64.tar.gz)
-([Linux validation](builds/linux/MuddsShipyards-4968cf1-linux-notes.txt)) is available.
+[1a948d9 checkpoint](builds/windows/MuddsShipyards-1a948d9-checkpoint.zip)
+([changes and validation](builds/windows/MuddsShipyards-1a948d9-notes.txt)).
+Matching [Linux checkpoint 1a948d9](builds/linux/MuddsShipyards-1a948d9-linux-x86_64.tar.gz)
+([Linux validation](builds/linux/MuddsShipyards-1a948d9-linux-notes.txt)) is available.
 Nine of the promised 17 craft exist. All 36 original parent outcomes and ten phase
 exit gates remain open; completed child results are retained, not counted as whole
 features. There is no evidence-backed project percentage or completion date.
@@ -61,6 +61,17 @@ share the damage work. Breach/Torpedo combat and activity journeys are reused,
 not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMAP_BACKLOG.md#coverage-of-the-original-remaining-outcomes).
 
 ## Execution now
+
+**Delivered: Reduced flash dims the damage flash already on screen.**
+Checkpoint 1a948d9 immediately caps its effective alpha at the existing .07
+ceiling without brightening an already dim cue. The same fade, arrow and original
+expiry continue; OFF/repeated toggles cannot relight or extend it. New hits and
+Reduced motion retain their existing behavior. The old HUD fails exactly the two
+cap assertions; fixed accessibility/navigation/layout, actual three-frame readback,
+paired exports/strict startups and package audit pass. Fresh builds and notes are
+above. This closes the active-damage COMFORT-FLASH episode only; other consumers,
+ordinary settings/restart/Reset and native/final gates remain open.
+[Exact scope and cleanup](docs/history/ROADMAP_DELIVERIES.md#current-damage-reduced-flash-accepted-20261025).
 
 **Delivered: Reduced motion applies to the notification already on screen.**
 Checkpoint 4ca2d16 immediately makes the same toast fully opaque and steady,
@@ -164,29 +175,9 @@ failure retaining actual send/native/command/consumer receipts. No unchanged
 qualifying rerun is selected; CAP300 and original18:57Z→20:12Z clock are retained.
 [Exact stops, diagnostic limits and cleanup](docs/history/ROADMAP_DELIVERIES.md#perimeter-ordinary-route-input-stop-20261025).
 
-**Active: Reduced flash applies to the damage flash already on screen**
-(COMFORT-FLASH/parent29). Existing option promises to suppress bright damage
-flashes while retaining directional/text cues. On the current full-strength normal
-flash, ON must immediately cap effective alpha to the existing .07 ceiling,
-without brightening an already dimmer flash. Preserve the same Tween object,
-elapsed/progress, running/paused state, original .42s flash/.62s arrow timeline,
-arrow geometry/modulation and eventual clear. OFF cannot relight/replay it;
-repeated ON/OFF→ON cannot extend it. New hits keep the existing selected-mode
-behavior; already Reduced-motion-held cues retain their accepted hold. Public
-setters before HUD _ready must remain safe. No new value, option or schema.
-
-Freeze: existing accessibility regression must fail the exact old-current-flash
-predicates before runtime correction. Then focused checks and actual1280×720
-private-X11 software readback must show alpha capped/never raised with the same
-arrow/timeline; fresh clean Windows/Linux exports, strict menu startups and actual
-payload audit must pass. One implementer owns HUD+existing accessibility test;
-root owns capture/build/integration/cleanup, independent cue-lifecycle review.
-Original19:52Z→20:52Z/60min includes readiness, baseline, implementation, checks,
-publication and cleanup. First unexpected validation failure stops for causal
-review; no automatic retry or cap reset. This closes the current-flash episode
-only; remaining comfort consumers, ordinary settings/restart/Reset, native devices
-and full parent/final gates stay open. Accepted motion/toast/save results remain
-closed. Perimeter stays parked; missing craft remain gated on their specs.
+No implementation card is active. Accepted comfort/save episodes stay closed
+within their scopes. Perimeter remains parked; missing craft remain gated on
+their named specification decisions.
 
 The Torrent destruction/recovery attempt remains **PARKED / not accepted**.
 A reviewed resolver correction accounted for all100 actual damage, including

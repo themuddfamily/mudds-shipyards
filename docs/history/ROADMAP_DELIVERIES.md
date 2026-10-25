@@ -26283,3 +26283,76 @@ remote tips and registered worktree ownership were checked before exact-tip loca
 branch deletion; no remote task ref existed. Source317c3b44f and its predecessors
 remain recoverable from verified bundles; no unaccepted code is merged to main.
 Retention/cleanup elapsed53.497 cumulative minutes; final push cost is in closeout.
+
+
+<a id="current-damage-reduced-flash-accepted-20261025"></a>
+### Current damage Reduced flash — accepted episode (2026-10-25)
+
+COMFORT-FLASH/parent29: enabling the existing option immediately dims the actual
+on-screen damage flash to effective alpha≤existing .07, preserving already-dimmer
+cues. Same Tween object, elapsed/running-or-paused state and clock, original .42s
+flash/.62s direction fades/expiry and arrow position/rotation/opacity remain.
+OFF/repeated ON/OFF→ON cannot relight/replay/extend it; new hits follow selected
+mode. Existing Reduced-motion hold and pre-ready setter behavior are retained.
+The existing option help explicitly promises bright-damage-flash suppression
+with directional/text cues retained; this adds no option, threshold or schema.
+
+Source 1a948d9ac58ce95ecdd6c3aee32e9f3fd71a3c24: nine added/one removed HUD lines extract the exact existing motion
+colour-cap math into a guarded helper. Flash ON calls it; OFF keeps the active
+cue unchanged and the existing Bomber-help refresh remains. Motion's remaining
+lifetime/min(.45,remaining) hold is unchanged. No tween/direction/modulation or
+clock operations are introduced by the flash setter. One implementer owns HUD
+and the existing accessibility regression, independent cue-lifecycle review and
+root integration; no new test/validator family or recursive agents.
+
+Controlled old source d3ab89e076713aa860d23a500940be77988a2ed4 fails exactly the two
+frozen current-flash cap assertions in82.068s. All other assertions pass; planned
+negative proof, not an unexpected failure. Fixed existing accessibility suite
+passes 2025 assertions in82.504s,
+including early/late/running/paused/pre-ready, continued fade, original clear,
+repeated toggles/new hits and motion hold. Navigation
+3.217s and layout
+12.044s pass. Import before6.686s and after
+6.712s pass.
+
+Actual capture 8.163s: root inspected all
+three1280×720 private-X11/Forward+/llvmpipe PNGs. Flash effective alpha
+0.182857128→0.069999997
+at the SAME elapsed .10s; arrow alpha remains
+0.838709712 with unchanged geometry. Advancing the
+same tween to .30s gives flash 0.026249993 and
+arrow 0.516129017, proving continued fades.
+Production HUD component/manually stepped paused Tween only, not full Main or
+native GPU. Actual expected .42/.62 timelines are also checked at expiry.
+
+Clean Windows export 10.537s and
+Linux export 26.357s pass. Direct Linux
+22.573s, extracted archive
+24.036s and Windows embedded payload
+through Linux Godot 26.470s
+each exit0 with exactly one STARTUP_MENU_READY_OK. Actual package audit
+5.611s matches 1527
+PE/ELF paths, excludes tests/tools/artifacts/builds, verifies stock Windows code
+and exact Linux archive bytes/modes/source epoch/metadata. All eleven post-fix
+stages pass first attempt without diagnostics and with guarded source/index/cache
+and owned process boundaries. Godot always uses Dummy audio; rendered work uses
+private Xvfb/explicitx11, independent abort/reaping and cursor release.
+
+Fresh EXE/ZIP/notes are in builds/windows/MuddsShipyards-1a948d9*; matching Linux binary/archive/
+notes and startup records are in builds/linux/. Eleven publication hashes and
+ZIP member bytes verified. Windows ZIP 103,331,664 bytes, SHA256
+`ec5a3dc337c7e466d44c81951b603430cb78d752f175aee0f315c0352204f604`. No Downloads/external checkpoint publication.
+
+Original19:52Z→20:52Z/60min includes readiness, baseline, implementation, all
+checks/builds/publication/integration and cleanup. No unexpected validation-stage
+failure or budget reset. This closes only the current-damage flash episode;
+remaining consumers, ordinary settings/transition/restart/Reset, native Windows/
+GPU/devices/audio/human and complete comfort/final matrix remain NOT_RUN/open.
+Accepted motion/toast/save scopes stay closed; Perimeter remains parked.
+Unique source/raw/helpers/profiles/images are consolidated in
+/srv/mudds-work/reduced-flash-active-damage-20261025/records.tar.gz; adjacent
+closeout holds actual archive verification/hash, publication hashes, owned
+identity absence, ref cleanup and cumulative final push cost. Details follow.
+
+Actual payload comparison against accepted4968cf1 changes only
+`scripts/ui/hud.gdc`; all other payload paths/hashes are retained.
