@@ -79,8 +79,9 @@ raw-input walking, all other bindings/options and unrelated data remain exact.
 Every actual HUD Exit yields OS0 and both durable clean states. Existing full
 persistence/palette/minimap checks also pass. This closes one missing source
 consumer endpoint; rendered/device/full comfort and original Settings return
-remain open. Runtime and playable checkpoint39157e8 are unchanged. Integration
-and owned archive/branch closure remain on this card; no successor is active.
+remain open. Runtime and playable checkpoint39157e8 are unchanged. Accepted work
+is merged/pushed, records are verified/archived, owned scratch is removed and
+the completed branch is deleted; no successor is active.
 [Exact proof and scope](docs/history/ROADMAP_DELIVERIES.md#colour-preset-cold-process-qualified-20261025).
 
 **Accepted: Guided normal HUD Exit prerequisite.** Source `39157e8ca` passes

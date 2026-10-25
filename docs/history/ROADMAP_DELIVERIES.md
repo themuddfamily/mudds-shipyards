@@ -26979,3 +26979,25 @@ processes/review/integration/cleanup. Existing300s per worker/900s shared maximu
 and23:29:44Z absolute engine abort are retained; no automatic retry/deadline reset.
 Owned raw/source records are in /srv/mudds-work/colour-preset-restart-20261025;
 verified archive and exact Git closure follow below.
+
+### Colour preset — integration and owned cleanup
+
+Accepted branch tipdae8856704dda8a80480d6442c19ab5de39d9494 is fast-forwarded
+into main and pushed. Fresh actual remote tips, source ancestry and registered
+worktree ownership precede CAS deletion of local qual/colour-preset-restart-20261025
+at that exact tip; no remote task branch exists. Unrelated retained worktrees/
+prunable registrations are untouched.
+
+Verified /srv/mudds-work/colour-preset-restart-20261025/records.tar.gz:
+15407426bytes; SHA25683e2f0f8bff90b2501b61ba327faa3b30aeed5f81ea6fe7440b264d54f9f2c02.
+All82regular file bytes/modes and5symlink targets are verified before removing
+loose profiles/helpers; accepted source bundle/patch, five stage results, actual
+three-worker logs and post-exit primaries remain archived. All5 supervisors/
+13 observed owned identities are absent by PID+start ticks. Tool pins and all11
+retained public checkpoint39157e8 artifact identities are unchanged; no new build.
+Only records.tar.gz and closeout.json remain in the private case.
+
+Archive cleanup ends22:46:58.783UTC,15.246min into the original22:31:44→23:31:44
+clock; exact branch/final-push timestamp and final cost are recorded in adjacent
+closeout.json. No retry/budget reset. The source cold-palette endpoint is closed;
+full rendered/device/comfort/Settings/final release requirements remain open.
