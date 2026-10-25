@@ -135,17 +135,36 @@ func _run() -> void:
 		Basis.IDENTITY,
 		defense_board.global_position + Vector3(0.0, 0.0, 1.0),
 	))
+	var content := game.world.get_station_defense_content()
+	var before_arm_generation := content.get_generation()
 	(defense_row.get_child(2) as Button).emit_signal("pressed")
+	var arm := defense_board.call(&"get_launch_arm_snapshot") as Dictionary
+	var arm_result := defense_board.call(&"get_last_result") as Dictionary
+	var armed_snapshot := content.get_snapshot()
 	_check(
-		StringName((
-			game.world.get_station_defense_content().get_snapshot().host.activity
-			as Dictionary
-		).get("state_id", &"")) == &"active"
-		and "STATION DEFENSE  //  STARTED" in str(
+		bool(arm_result.get("accepted", false)) and StringName(arm_result.get("reason", &"")) == &"launch_armed"
+		and bool(arm.get("armed", false)) and int(arm.get("arm_id", 0)) > 0
+		and int(arm.get("actor_instance_id", 0)) == game.player.get_instance_id()
+		and int(arm.get("content_instance_id", 0)) == content.get_instance_id()
+		and int(arm.get("generation", -1)) == before_arm_generation
+		and content.get_generation() == before_arm_generation
+		and StringName(armed_snapshot.host.activity.get("state_id", &"")) == &"idle"
+		and int(armed_snapshot.host.active_entity_count) == 0
+		and "STATION DEFENSE  //  ARMED  //  BOARD A CRAFT AND DEPART" in str(
 			(hud.get("_nearby_activity_feedback") as Label).text
 		),
-		"the same route starts defense after the real on-foot board gate is satisfied"
+		"the same route arms defense after the real on-foot board gate without starting enemies or advancing generation"
 	)
+	# Disclosed content-owner fixture for the existing active/reset UI checks.
+	# This does not exercise or qualify ordinary physical boarding and launch.
+	var owner_start := content.start(content.get_generation())
+	var active_snapshot := content.get_snapshot()
+	_check(bool(owner_start.get("accepted", false))
+		and StringName(active_snapshot.host.activity.get("state_id", &"")) == &"active"
+		and int(active_snapshot.host.active_entity_count) == 1
+		and not bool((defense_board.call(&"get_launch_arm_snapshot") as Dictionary).get("armed", true)),
+		"the disclosed content-owner fixture starts the first active wave and retires the earlier launch arm")
+	game.call(&"_sync_activity_hud")
 	var reset := defense_row.get_child(3) as Button
 	reset.emit_signal("pressed")
 	_check(

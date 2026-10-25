@@ -47,6 +47,12 @@ func _initialize() -> void:
 		"a rejected remote station-defense start gives physical recovery guidance"
 	)
 	_check_status_palette(hud, &"_nearby_activity_feedback", feedback_identity, &"caution", "station defense recovery")
+	hud.apply_nearby_activity_action_result(&"start_requested", &"station_defense", {
+		"accepted": true, "reason": &"launch_armed",
+	})
+	_check(feedback.text == "STATION DEFENSE  //  ARMED  //  BOARD A CRAFT AND DEPART",
+		"accepted station-defense arm explains boarding and departure before combat starts")
+	_check_status_palette(hud, &"_nearby_activity_feedback", feedback_identity, &"nominal_soft", "station defense armed")
 	hud.apply_nearby_activity_action_result(&"start_requested", &"cinder_relay_patrol", {"accepted": true})
 	_check(feedback.text == "RELAY PATROL  //  STARTED", "accepted activity start remains explicit")
 	_check_status_palette(hud, &"_nearby_activity_feedback", feedback_identity, &"nominal_soft", "activity started")

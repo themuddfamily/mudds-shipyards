@@ -6973,6 +6973,9 @@ func apply_nearby_activity_action_result(
 	):
 		_nearby_activity_feedback.text = "%s  //  REWARD FILED" % title
 		_set_label_palette_role(_nearby_activity_feedback, NOMINAL_SOFT)
+	elif accepted and activity_id == &"station_defense" and reason == &"launch_armed":
+		_nearby_activity_feedback.text = "STATION DEFENSE  //  ARMED  //  BOARD A CRAFT AND DEPART"
+		_set_label_palette_role(_nearby_activity_feedback, NOMINAL_SOFT)
 	elif accepted:
 		_nearby_activity_feedback.text = "%s  //  %s" % [
 			title,
