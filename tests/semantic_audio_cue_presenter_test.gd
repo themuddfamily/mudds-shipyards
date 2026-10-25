@@ -108,6 +108,35 @@ func _run() -> void:
 			and caption.get("severity", &"") == contract[1],
 			"%s has its truthful Loadmaster caption and authored severity" % cue_id
 		)
+	var ember_captions := {
+		&"ember_surface_descent_interior": ["Ember descent", &"medium"],
+		&"ember_surface_descent_exterior": ["Ember descent", &"medium"],
+		&"ember_surface_landed_interior": ["Ember landing complete", &"low"],
+		&"ember_surface_landed_exterior": ["Ember landing complete", &"low"],
+		&"ember_surface_on_foot_interior": ["On foot on Ember", &"medium"],
+		&"ember_surface_on_foot_exterior": ["On foot on Ember", &"medium"],
+		&"ember_surface_reboard_interior": ["Ember craft reboarded", &"medium"],
+		&"ember_surface_reboard_exterior": ["Ember craft reboarded", &"medium"],
+		&"ember_surface_takeoff_interior": ["Ember takeoff", &"medium"],
+		&"ember_surface_takeoff_exterior": ["Ember takeoff", &"medium"],
+		&"ember_surface_ascent_interior": ["Ember ascent", &"medium"],
+		&"ember_surface_ascent_exterior": ["Ember ascent", &"medium"],
+		&"ember_surface_orbit_return_interior": ["Returning to Ember orbit", &"medium"],
+		&"ember_surface_orbit_return_exterior": ["Returning to Ember orbit", &"medium"],
+		&"ember_surface_abort_interior": ["Ember surface journey aborted", &"high"],
+		&"ember_surface_abort_exterior": ["Ember surface journey aborted", &"high"],
+		&"ember_relay_survey_reward_confirmed_interior": ["Ember relay survey reward confirmed", &"low"],
+		&"ember_relay_survey_reward_confirmed_exterior": ["Ember relay survey reward confirmed", &"low"],
+	}
+	for cue_id: StringName in ember_captions:
+		var contract := ember_captions[cue_id] as Array
+		var caption := presenter.present_cue(cue_id, &"planetary", 0.5, position)
+		_check(
+			bool(caption.get("accepted", false))
+			and caption.get("caption", "") == contract[0]
+			and caption.get("severity", &"") == contract[1],
+			"%s has its literal Ember caption and default severity" % cue_id
+		)
 	var final_approach_captions := {
 		&"planetary_final_approach_armed": ["Final approach armed", &"medium"],
 		&"planetary_final_approach_alignment_ready": ["Final approach alignment ready", &"medium"],

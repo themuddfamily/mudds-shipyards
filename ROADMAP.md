@@ -77,20 +77,12 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Current assignment: correct the roadmap's finish conditions.** No gameplay
-qualification is running. This documentation change replaces shared repeat-goal
-boilerplate with the twelve actual objectives, makes the final Guided command
-and 3/3 result explicit, names the four missing original Settings artifacts,
-removes the implied extra all-game lifecycle loop and fixes the four historical
-identity propositions. Proof: all337 canonical IDs/names/parent links remain in
-their original order; changed links resolve; independent review finds no changed
-scope or acceptance limits. No gameplay outcome is claimed by this assignment.
-
-The pending Ember caption implementation is paused at its source handoff while
-this correction is made. Its three modified source/test files are preserved;
-no engine, qualification or export has run for it. It remains unaccepted. The
-bounded result below documents what its eventual check must establish; it does
-not start another trial or reset its original budget.
+**Active: COMFORT-CAPTIONS[Ember surface-loop captions].** The contract below
+is frozen before any engine launch. Source handoff is under independent review;
+no acceptance result or checkpoint exists yet. Original assignment window remains
+2026-10-25 23:44:40→2026-10-26 00:44:40UTC/60min, including the roadmap correction,
+review, checks, builds, integration and cleanup. First unexpected failure stops;
+no automatic retry or deadline reset.
 
 The [ship-rig caption membership](docs/ROADMAP_BACKLOG.md#ship-rig-caption-membership)
 is now fixed:21possible semantic IDs,19mapped and2unmapped load IDs whose method
@@ -138,7 +130,7 @@ caption clock. It proves this caption capability; it does not prove a physical
 surface journey, real durable reward, listening, rendered/device or full comfort
 acceptance. Those existing gates remain open. Original assignment window:
 2026-10-25 23:44:40→2026-10-26 00:44:40UTC, including review/build/closure;
-deferral does not create a fresh budget. No continuation is selected here.
+deferral does not create a fresh budget. This capability is selected under that original window.
 
 Accepted checkpoints and qualifications are listed under [accepted work](#accepted-work--source-limits-retained).
 Failed journeys and their exact reopening conditions are under
