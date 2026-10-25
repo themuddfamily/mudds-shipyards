@@ -29,6 +29,38 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Selected: WALK-AFT — complete ordinary lower/upper station journey.**
+Starting clean source1b7b5e867. One implementer owns existing native-sortie
+driver, read-only observer, startup selector/privacy and focused existing tests;
+root owns records/integration/export/checks, one independent reviewer source/raw.
+Exact route: fresh normal Begin Shift/same Player → lower OperationsEntrance
+actual Interact/open → actual Bay02 Activity Board open/close through normal UI
+→ supported door return → real stairs/upper floor → original LIFE-ARM Zenith
+approach → board original parked/OFFLINE Zenith → normal physical exit → existing
+wing-clear return → reverse physical stairs/route → retained hub spawn → normal
+UI Exit/actual OS0. No flight or boarding-console proxy substitutes for these.
+
+No literal BoardingConsole node exists: retain both actual ActivityBoard use and
+real craft boarding. Reuse existing canonical Zenith wing-clear points, not a
+straight reversed approach through the wing. Preserve same actor/capsule/tuning,
+support/motion continuity, actual door/console/HUD/craft identities and old route
+contracts. New walk-aft selector uses only minimal read-only facts for this real
+consumer; no diagnostic framework/schema/version/provenance layer. No geometry/
+GameFlow behavior fix without an independently demonstrated defect.
+
+Estimate25min source plus25min focused checks/private clean-commit Linux export/
+strict startup/ONE actual-package route and cleanup; hard stop60min including
+failed attempts. CAP300/outer360 and existing native per-leg bounds remain.
+Stop first unexpected failure; a correction needs causal proof/bounded cumulative
+review. Success: focused checks, actual-package readiness exit0+sentinel, full
+physical route/input facts, normal UI quit/OS0, no runtime diagnostics and owned
+process/profile/package-replica cleanup. Private Linux build enables this route;
+no identical public Windows rebuild for observer-only work. A meaningful runtime
+repair requires its own focused checks/fresh Windows checkpoint. Native GPU,
+rendered presentation review, parked UI-BOARD-FOCUS and full station/final gates
+remain open; no source-only/proxy route can close the whole journey.
+
+
 **Prepared: concrete modern proposals for all eight missing craft — owner choices pending.**
 
 | Craft | Fixed proposed function | Bounded draft cards |
