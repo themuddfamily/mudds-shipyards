@@ -91,9 +91,35 @@ func _initialize() -> void:
 	_check(_client.get_authoritative_snapshot().revision == 27, "late join keeps receiving deltas across periodic full snapshots")
 	await _pump(func() -> bool: return int(another_client.get_authoritative_snapshot().revision) == 27)
 	_check(another_client.get_authoritative_snapshot().revision == 27, "per-peer bootstrap preserves both recipients subsequent deltas")
-	another_client.shutdown()
 	_check(_canonical.size() == 23, "every publication since the bootstrap applies exactly once")
 	_check(_client.get_snapshot_jitter_state().pending_revisions.is_empty(), "late join leaves no stranded canonical revisions")
+	# The native link can disappear before SceneMultiplayer delivers its queued
+	# peer-disconnected callback. Publications in that window must still reach
+	# the other client, without trying an RPC on the retired native channel.
+	var lost_peer := _client.multiplayer.get_unique_id()
+	var live_peer := another_client.multiplayer.get_unique_id()
+	var native_peer := _server.multiplayer.multiplayer_peer as ENetMultiplayerPeer
+	var lost_revision := int(_server._moving_recipient_revisions.get(lost_peer, 0))
+	native_peer.disconnect_peer(lost_peer, true)
+	_check(_server._peer_generations.has(lost_peer), "native disconnect precedes queued admission cleanup")
+	_check(_server.publish_snapshot(28, [], [], []).accepted, "authority publication continues during native disconnect window")
+	var moving_packet := {"relationship": _relationship(1), "server_tick": 1, "migration_generation": 1}
+	_server._send_moving_interior_packet(lost_peer, moving_packet)
+	_server._send_moving_interior_packet(lost_peer, {
+		"authority_peer_id": 1, "recipient_peer_id": lost_peer,
+		"migration_generation": 1, "revision": 1, "relationships": [],
+	})
+	_check(int(_server._moving_recipient_revisions.get(lost_peer, 0)) == lost_revision,
+		"disconnected recipient cannot advance an undelivered moving revision")
+	_server._send_moving_interior_packet(live_peer, moving_packet)
+	await _pump(func() -> bool:
+		return int(another_client.get_authoritative_snapshot().revision) == 28 \
+			and int((another_client._moving_replica_samples.get(&"crew", {}) as Dictionary).get("server_tick", -1)) == 1)
+	_check(another_client.get_authoritative_snapshot().revision == 28,
+		"connected peer receives next canonical snapshot while the other native link is gone")
+	_check(int((another_client._moving_replica_samples.get(&"crew", {}) as Dictionary).get("server_tick", -1)) == 1,
+		"connected peer receives moving snapshot while the other native link is gone")
+	another_client.shutdown()
 	_client.shutdown()
 	_server.shutdown()
 	for branch in branches:
