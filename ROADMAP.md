@@ -29,6 +29,32 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Selected: ACCESS-NEARBY — bounded ten-row activity list and fixed footer.**
+Source348a0cabb; actual Nearby page1024x768/requestedMAX1.6/effective pause
+clamp unchanged. Source directly stacks ten rows, each at least48px, with wrapped
+progress/refusal copy and feedback/Save/Load/Back inside a fixed780x660 page.
+First reproduce geometry on the production presenter's ten-row view; if no defect,
+stop without speculative edits. Preserve all actual row/actions/priority/reset/
+refusal/save/load/Back authority and existing child-button order.
+
+One implementer owns `scripts/ui/hud.gd` and the existing nearby HUD integration
+regression; root owns records/checks/export/integration/cleanup in this shared
+checkout. Expected visible result: all ten rows readable through bounded scrolling,
+feedback/Save/Load/Back remain in bounds, focused enabled actions are revealed,
+and retained focus/row identity survive priority/progress/terminal refresh. Back
+returns to its actual opener. Scrolling/focus sends no activity/save/load intent.
+
+Proof: existing HUD integration regression with actual presenter/content/cargo
+states, existing persistence/reset/priority focus tests, actual-Main board route,
+same-view isolated Forward+ captures, fresh clean Windows/Linux checkpoint,
+strict startup exit0+menu-ready marker and exact package audit. Preserve scale,
+original caps and parked UI-BOARD-FOCUS/ordinary activity failures. Dummy/headless
+or ownedXvfb x11 only; other cells/full journeys/native/device gates remain open.
+Estimate20min source+25checks/capture/export+10review/cleanup; hard stop60min
+including failed attempts. First unexpected failure stops; a causal correction
+requires bounded cumulative review. No new matrix, validator or UI framework.
+
+
 **Delivered: ACCESS-DESTINATIONS — bounded five-card Destination Board.**
 Source9477a89ee/checkpoint9477a89: all three worlds/two sector sites scroll inside
 the page; heading/Back remain fixed and enabled travel/briefing focus reveals its
