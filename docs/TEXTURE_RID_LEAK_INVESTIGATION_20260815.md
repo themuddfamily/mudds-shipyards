@@ -247,11 +247,42 @@ replacement, global editor/template install, new patch or quality change.
 python3 tools/release/build_godot_reflection_fix.py --build --jobs 4 --timeout 3600   --cache-root /srv/mudds-work/combat-reflection-capture-20261025/toolchain-build
 ```
 
-This is the selected private rebuild command, not a completed build/capture claim.
-Actual resulting binary bytes/version/receipt must be checked before selecting it.
-The next possible qualification is ONE unchanged `capture_combat_visuals.gd` run
-at its original300s/Forward+/Vulkan/2560x1440/seven-frame contract, private Xvfb,
-explicitx11/Dummy and pinned lavapipe. The patch resolves the documented atlas
-teardown cause; no claim is made that it fixes the separate cold shader-compilation
-stalls. Stop on the first unexpected failure. Published stock checkpoints/default
-engine/template pins remain unchanged and do not inherit custom-editor results.
+The explicit-cache capability in `342ace33a` passes the existing 27 focused tests
+(0.503 s supervised). The actual editor build exits 0 in 2,203.899 s, including
+2,171.643 s SCons and the headless/Dummy version check. Archive, wheel, guarded
+patch, patched target and editor-only options match the pinned contract. The
+177,083,960-byte editor SHA256 is
+`7b46e60fa1d4ddc979d35698a96d6cb16f79d03019ee5c84aaf24c98434c5f7d`.
+It reports `4.7.1.stable.mudds_reflection_atlas_a2917e5_guarded.a13da4feb`.
+The compiler emits the optional missing-msgfmt/.po fallback warning; no compiler
+failure occurs. Host compiler binaries remain unpinned, so the historical binary
+hash is not required to match. Independent receipt review GO.
+
+ONE unchanged `capture_combat_visuals.gd` run uses its original 300 s limit,
+Forward+/Vulkan/2560x1440, private authenticated Xvfb, explicit x11/Dummy and pinned
+lavapipe. It **fails exit 124 after 300.846699 s**, zero images and zero completion
+markers. Last checkpoint: Main instantiation. Code next attaches Main, settles
+render frames, awaits physics and reconfigures the viewport before the next
+logged check. The log cannot distinguish where time was spent or establish a
+shader/gameplay cause. The only matched diagnostic is the supervisor timeout.
+Forced termination does not qualify reflection shutdown, prove the RID warning
+resolved, or permit pixel inspection. No retry, longer cap or quality downgrade.
+Reopening requires an identified startup/render-delay cause, actionable correction
+and independent/cumulative review. The old seven-frame evidence/warning remains.
+
+Before/after source/index/cache match; capture cache has 651 entries unchanged.
+Driver manifest and actual Vulkan library hashes also match. All three detached
+owners are terminal and absent, with 2/10,548/5 observed descendant identities
+absent for focused checks/build/capture. The accepted build capability is separate
+from the failed capture; default editor and Linux template pins remain unchanged.
+No default engine/template is installed or checkpoint regenerated.
+
+The reusable editor, original receipt/build log and qualification limits are
+intentionally retained in
+`/srv/mudds-work/toolchains/godot-4.7.1-reflection-atlas-7b46e60/` (`godot`).
+Original receipt paths describe the build location, subsequently removed.
+Raw logs, frozen source/cache records, commands and results are byte-verified in
+`/srv/mudds-work/combat-reflection-capture-20261025/records.tar.gz`;
+source/object/private-profile scratch is removed. [Closeout](history/ROADMAP_DELIVERIES.md#reflection-editor-cache-and-combat-stop-20261025).
+Published stock checkpoints, native GPU/Windows/human and full combined-source
+acceptance do not inherit a custom-editor build result.

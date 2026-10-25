@@ -24943,3 +24943,55 @@ new image/capture, test, fixture, archive, branch/worktree or build created.
 Existing artifacts remain intact. This is roadmap correction/reuse of prior
 results, not new gameplay delivery or common-final-candidate qualification.
 Endurance proposal remains awaiting owner values; no dependent work was begun.
+
+
+<a id="reflection-editor-cache-and-combat-stop-20261025"></a>
+## Reflection editor cache delivered; combat capture parked — 2026-10-25
+
+**Accepted build capability:** `342ace33a` permits the existing reflection builder's
+`--cache-root` on an owned data volume. Existing path guards, default cache,
+RPC platform separation, mode exclusions and source/patch/options pins remain.
+No new validator, patch, game change or global engine/template install.
+27 focused tests pass once (0.503168 s supervised). Actual pinned editor build
+passes in 2,203.899282 s, exit 0; SCons2,171.643 s, silent version 0.113 s, all commands exit 0.
+Optional msgfmt is missing and .po translations are used; no compiler failure.
+Actual 177,083,960-byte binary SHA256
+`7b46e60fa1d4ddc979d35698a96d6cb16f79d03019ee5c84aaf24c98434c5f7d`;
+version `4.7.1.stable.mudds_reflection_atlas_a2917e5_guarded.a13da4feb`.
+Independent source/receipt/capture-launch reviews GO. Host compiler is unpinned.
+
+**First unexpected failure — STOP:** ONE original `capture_combat_visuals.gd`
+300 s/Forward+/Vulkan 2560x1440/seven-frame run, private Xvfb/x11/Dummy and pinned
+lavapipe, exits 124 in 300.846699 s. Zero images, zero markers; only matched diagnostic
+is supervisor timeout. Last checkpoint Main instantiation; the unobserved interval
+includes attachment/startup/render settling/physics/viewport setup. Cause is not
+localized by these logs. No shader-cause assertion, new pixel inspection,
+clean-shutdown/RID-fix claim, unchanged retry, longer cap or lower quality.
+Independent closeout review GO for accepting CLI and PARKING capture. Reopen
+only with causal diagnosis/actionable correction and cumulative independent review.
+The historical seven images and post-sentinel RID warning remain unchanged.
+
+Source/index/cache match before/after; capture cache 651 entries unchanged.
+Vulkan manifest/library SHA match before/after. Initial metadata setup incorrectly
+resolved a bare library SONAME relative to the manifest; corrected via loader
+cache without an engine rerun or cap change. All three owners finished and their
+recorded PID/start identities are absent, with 2/10,548/5 observed descendants
+absent. The existing default editor/Linux template pins match; no Windows/native
+GPU/human/package qualification or replacement checkpoint is claimed.
+
+Intentional reusable toolchain:
+`/srv/mudds-work/toolchains/godot-4.7.1-reflection-atlas-7b46e60/` contains `godot`,
+original receipt/log and a qualification-limits README. All 42 raw helper/result
+files were hashed against archive members before deleting owned source/object/
+profile/helper/result scratch. Retained case archive:
+`/srv/mudds-work/combat-reflection-capture-20261025/records.tar.gz`, 7,699,614 bytes,
+SHA256 `33f38137d747dfb84b4b6a39325f6a76e242a710a0f3394bdea3cae93f234f48`;
+`closeout.json` remains alongside it. No task worktree or remote branch was created.
+
+Original task clock starts 09:45:49Z, with a 90-minute hard stop at 11:15:49Z. Historical editor
+932.533 s/station 313.472 s/template 605.258 s/export 20.491 s/startups 9.373+9.281 s,
+failed loader and original 300 s rendered-package failure remain charged history;
+no historical overall cap was recorded. Current focused/build/capture stage total
+2,505.249150 s includes the failed capture. Wall cost through final review and scratch cleanup is 56.461 minutes
+from the original start. Final Git closure/time is retained in the case closeout.
+No successor budget or capture continuation is selected.

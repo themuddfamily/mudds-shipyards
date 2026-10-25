@@ -181,7 +181,15 @@ missing images or an unimplemented capture harness.
 Combat's retained seven2560x1440 PNGs and transactional manifest are published,
 but its raw log prints `WARNING: 7 RIDs of type "Texture" were leaked.` at1483,
 after its success sentinel, plus a prior superuser warning. This is not a
-strict zero-diagnostic PASS. Historical Zenith also records the seven-texture
+strict zero-diagnostic PASS. On 2026-10-25 the exact pinned guarded editor was
+rebuilt successfully in an owned data-volume cache. Its ONE unchanged combat
+capture fails the original 300 s limit (exit 124/300.847 s), 0/7 images and no marker.
+The last checkpoint is Main instantiation; attachment/startup/render settling
+before the next viewport check is not further localized. No new pixel review
+or orderly reflection-cleanup qualification occurred. Capture stays PARKED
+until a causal correction and bounded review; no longer cap or unchanged retry.
+[Actual build, failed capture and cleanup](history/ROADMAP_DELIVERIES.md#reflection-editor-cache-and-combat-stop-20261025).
+Historical Zenith also records the seven-texture
 post-sentinel warning. Caption-production and station-operations retain their
 original300s environment failures and0-images outcomes; no unchanged rerun or
 quality/deadline reduction is justified. Actual diagnostic resolution requires
