@@ -945,8 +945,16 @@ func _live_guest_rejoin(session: NetworkEnetSessionAdapter, session_id: StringNa
 	var peer := (session.get_server_offer().get("admission", {}) as Dictionary).get("peer", {}) as Dictionary
 	var new_native := session.get("_peer") as ENetMultiplayerPeer
 	var rejoined := {"pid": OS.get_process_id(), "peer_id": session.multiplayer.get_unique_id(), "peer_generation": int(peer.get("peer_generation", 0)), "player": _live_player_identity(), "session_id": str(session_id), "native_peer_id": str(new_native.get_instance_id()) if new_native != null else "", "old_native_closed": _live_original_native_peer != null and _live_original_native_peer.get_connection_status() == MultiplayerPeer.CONNECTION_DISCONNECTED}
+	# Preserve the actual observation even if validation rejects readmission.
+	_live_write("guest.rejoin_observed", rejoined)
 	_check(session == _live_game.network_session and _live_rejoin_tuple_fresh(_live_read("guest.admitted"), rejoined) and new_native != null and new_native != _live_original_native_peer and bool(rejoined.old_native_closed), "same guest adapter obtains fresh native transport and tuple while old peer remains closed")
-	_check(rejoined.player == _live_read("guest.admitted").get("player", {}), "readmission preserves the original runtime Player")
+	# JSON decodes the admitted PID as a float; compare explicit identity fields.
+	var original_player: Dictionary = _live_read("guest.admitted").get("player", {})
+	var rejoined_player: Dictionary = rejoined.player
+	var original_pid := int(original_player.get("pid", 0))
+	var original_object_id := str(original_player.get("object_id", ""))
+	var original_path := str(original_player.get("path", ""))
+	_check(original_pid > 0 and original_object_id.is_valid_int() and int(original_object_id) > 0 and not original_path.is_empty() and int(rejoined_player.get("pid", 0)) == original_pid and str(rejoined_player.get("object_id", "")) == original_object_id and str(rejoined_player.get("path", "")) == original_path, "readmission preserves the original runtime Player")
 	if not _failures.is_empty():
 		return false
 	_live_write("guest.rejoined", rejoined)
