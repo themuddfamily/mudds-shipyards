@@ -29,37 +29,22 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Selected: HELM-THROTTLE-REVERSE — complete ordinary handback.**
-One full trial FAILED154.514s at the final chair-clearance/walk, after actual
-reverse/neutral/replicas and helm release. Local x−1.159084 crossed the safety
-cutoff−1.10 while actual host x−0.798321 remained short of required−0.80; the
-caller then withheld all strafe input. Both supported bodies and retired helm
-remain valid. Root/independent source+raw causal review GO for ONE caller-only
-strength0.35→0.25 correction: authored0.18 input deadzone/preserved strength
-reduce predicted lag distance from observed0.361m to about0.149m within the
-existing0.30m margin. No game defect, collider/threshold/deadline change inferred.
-Record the failed run and continue once with the whole route; same original
-45min clock. A second failure stops for cumulative park/switch review, not more
-tuning. Prior import/check-only/reverse flight acceptance remains scoped.
+**Delivered: HELM-THROTTLE-REVERSE — full ordinary handback.**
+Corrected source102704512 passes142.607s: physical3process boarding/departure,
+both yaw turns, actual1.342m reverse in755ms, fresh neutral434ms, ordinary brake/
+both actual replicas, then Interact handback/owner0gen+1/current PASSENGER HUD/
+retired source-capture and supported host/client walk1.777/1.844m. All3newpeer
+OSexits0/one marker/no runtime diagnostics; independent source/raw GO.
+[First failure, bounded correction and cleanup](docs/history/ROADMAP_DELIVERIES.md#reverse-thrust--full-ordinary-handback-accepted-after-caller-correction--2026-10-25).
 
-Starting clean source3a49596de. One implementer owns only the existing reverse
-test: reuse the accepted shared handback route and insert unchanged reverse
-checks after both original yaw turns, before ordinary Interact handback. Root
-owns selection/records/integration/checks; one independent source/raw reviewer.
-Full result: real three-process physical boarding/departure/brake, both yaw,
-sampled reverse moves host≥1m within2s, fresh neutral≤1s, ordinary brake/actual
-both replicas, then owner0/generation+1, current PASSENGER HUD, supported former-
-pilot walk and retired source/capture. No new test copy/framework/production edit.
-
-Estimate10min source plus15min review/checks; hard stop45min from selection with
-all attempts/cleanup counted. Original300s profile/360s outer and every existing
-route deadline/pass condition remain. Import/check-only then ONE silent isolated
-full route; stop at first unexpected failure. A correction needs demonstrated
-cause and bounded cumulative review. Success requires actual3peer exits0, one
-existing suite marker/no runtime diagnostics plus reviewed raw host/client/
-handback facts. No input-provider/command/pose/authority staging or physical-
-device/native/endurance/full-parent claim; no identical playable rebuild.
-
+The first154.514s run failed because local prediction crossed the caller's
+safety cutoff while the host was1.7mm short of chair clearance. One supported
+caller-only strength0.35→0.25 correction preserves exact clearance/collision/
+walk/15s/global deadlines; full route then passes. Failed source/raw remain
+retained on the original45min clock. No production defect/tuning/framework or
+new test files; checkpointfb396ab remains current, with no identical rebuild.
+Physical device/native/endurance/capacity/final-parent gates stay open. Accepted
+source integrated; no task branch/worktree, owned scratch archived/cleaned.
 
 **Delivered: HELM-PITCH and HELM-ROLL-RATE complete ordinary handback.**
 Source d8c160f12 passes one full ordinary three-process route per goal:
@@ -74,7 +59,7 @@ peer exits0/no runtime diagnostics. [Exact proof and cleanup](docs/history/ROADM
 Two22line profiles reuse the shared route; one captured actual right vector
 supports pitch handback drift measurement. No production code/tuning, no new
 framework or identical playable rebuild. Checkpointfb396ab remains current.
-Reverse-specific handback, device/native/endurance/capacity/final-parent scope
+Device/native/endurance/capacity/final-parent scope
 remain open. No task branch/worktree created; owned scratch archived/cleaned.
 
 **Delivered: HELM-HOVER — actual correction, release and full handback.**

@@ -23135,3 +23135,67 @@ ace1885bc408e50052c897a199615e7d63ac37a53e4d7960e24f3509bdabf62c.
 Owned profiles/helpers removed; case retains only case-records.tar.gz and
 closeout.json. Main remains sole local branch; pre-existing detached worktrees
 were left untouched. No owned task branch, worktree or process remains.
+
+
+## Reverse thrust — full ordinary handback accepted after caller correction — 2026-10-25
+
+HELM-THROTTLE-REVERSE/parent18, accepted isolated source102704512. Selection
+fa9f9da06 fixed one45min cumulative task. Medium implementer changed existing
+reverse test inheritance/hooks to reuse full shared handback; no new files,
+copied route/framework, production behavior or tuning changes. Root and one
+independent high reviewer checked source and actual raw facts.
+
+First clean candidatef7a7d893b: import6.708s/check-only17.091s PASS; one whole
+ordinary trial FAIL154.514s. Real boarding/departure/both yaw, reverse/neutral/
+brake/replicas and actual helm release all succeed. Final strafe stalls: local
+x−1.159084 crossed safety cutoff−1.10, host body/wirex−0.798321 remained1.679mm
+short of required−0.80. Controller then held input released forever; move_back
+never began. Both bodies supported, source/capture retired, owner0/gen2. No
+runtime/_travel_sign/camera defect established; diagnostic errors are failed
+acceptance predicates. Actual snapshots/logs/PIDs/failure remain retained.
+
+Root/independent causal review selected ONE continuation on the same clock:
+ordinary strafe action strength0.35→0.25 only. Authored deadzone0.18 and preserved
+input strength mean a gentler movement command reduces prediction lead before
+the host acknowledges clearance, fitting the existing0.30m threshold margin.
+The projected lag calculation is a proposal, not hardware/timing qualification.
+Actual collider/capsule, both-bodyx≤−0.80, local cutoff−1.10, subsequent0.6m
+backward walk and original15s/global300/360s gates are unchanged. First STOP was
+preserved; no blind rerun or second correction. Same existing classes/UIDs need
+no repeated editor import; corrected script check-onlyPASS17.230s.
+
+Corrected ONE full ordinary trial PASS142.607s. Full physical3process station
+boarding/departure/brake/both yaw, sampled LocalShipInputSource/capture/ENet
+reverse moves actual host1.34229m with negative velocity in755ms. Fresh neutral
+434ms/brake release306ms; same source/localstream2/wire0, authenticated original
+crew/seat/entity/owner identities, advancing sample/wire/delivery. Actual pilot/
+co-pilot replicas consume newer owner poses, position errors0.48761/0m, anchors0m.
+
+Actual chair clearance hostx−0.808662/clientx−1.080963 (both≤−0.80, local before
+cutoff). Subsequent actual backward movement after clearance host1.529m/client
+1.620m; total walk1.777/1.844m. Host walk authorization→complete2.820s within15s.
+Handback owner962610010/gen1→owner0/gen2, current PASSENGER HUD, retired remote
+source/disconnected and removed capture, supported bodies and neutral throttle0.
+All3 corrected raw done failure[]/actual OS exits0; one coordinator marker/zero
+runtime diagnostics. Independent reviewer read these actual receipts, not only
+summary/guard verdict. No staged command/pose/velocity/engine/authority/provider.
+
+Five stages retain both failure and correction; total338.150s engine-stage time,
+original45min budget never reset. Corrected source integrated on main only after
+full raw GO. No identical playable rebuild for test-only qualification; latest
+checkpointfb396ab unchanged. Physical keyboard/controller/native hardware,
+endurance/capacity/exact-final-source and full parent18 remain open.
+
+Records: /srv/mudds-work/jovian-reverse-handback-20261025/results/. Both attempts,
+causal decision, helpers/profiles/raw archived with byte/mode/link verification
+before owned scratch removal; exact archive/terminal-owner/process accounting in
+closeout.json. No task branch/worktree created; existing detached worktrees left.
+
+Cleanup13.29min from original selection within45min, including first failure,
+causal review/one correction and full retry; no budget reset. All5 stage owners
+terminal, all39 sampled process identities absent. Verified442 archive members,
+15,408,259bytes, SHA256
+0d956b0d5cd392992bad3350b2aa5420b674d77f2ae6c885a2c20b2ef7098dd6.
+Both failed/corrected profiles and helper sources archived before removal; case
+retains only case-records.tar.gz/closeout.json. Main is sole local branch; no
+owned task worktree/process remains, pre-existing detached worktrees untouched.
