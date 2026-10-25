@@ -95,8 +95,65 @@ func _run() -> void:
 	host.queue_free()
 	browser.queue_free()
 	await process_frame
+	_run_expiry_boundaries()
 	await _run_paused_round_trip()
 	_finish()
+
+
+## Keep the production 30-second policy intact while testing exact boundaries
+## from explicit monotonic packet observations, without sleeping for each case.
+func _run_expiry_boundaries() -> void:
+	var browser := Discovery.new() as NetworkServerBrowserLanDiscovery
+	browser.set_process(false)
+	browser.probe_targets = PackedStringArray()
+	var expirations: Array = []
+	browser.listings_expired.connect(func(request_id: int, session_ids: Array) -> void:
+		expirations.append({"request_id": request_id, "session_ids": session_ids})
+	)
+	var request_id := browser.begin_refresh(0.5)
+	var base_usec := Time.get_ticks_usec()
+	var old_packet := _expiry_announce(browser._probe_nonce, "lan_older")
+	var newer_packet := _expiry_announce(browser._probe_nonce, "lan_newer")
+	browser._accept_reply(old_packet, "127.0.0.1", base_usec)
+	# A later valid duplicate is a real observation; malformed duplicates cannot
+	# extend the deadline simply because their nonce/session id matches.
+	browser._accept_reply(old_packet, "127.0.0.1", base_usec + 1_000_000)
+	browser._accept_reply(newer_packet, "127.0.0.2", base_usec + 5_000_000)
+	var malformed: Dictionary = JSON.parse_string(old_packet.get_string_from_utf8())
+	malformed["game_port"] = 0
+	browser._accept_reply(JSON.stringify(malformed).to_utf8_buffer(), "127.0.0.1", base_usec + 8_000_000)
+	browser._finish_refresh(request_id)
+	_check(browser.expire_stale(base_usec + 30_999_999).is_empty(), "LAN reply remains fresh one microsecond before its 30-second deadline")
+	var expired := browser.expire_stale(base_usec + 31_000_000)
+	_check(expired == [&"lan_older"] and browser.get_endpoint(&"lan_older").is_empty(), "LAN endpoint expires exactly 30 seconds after its last valid reply")
+	_check(not browser.get_endpoint(&"lan_newer").is_empty(), "expiring an older endpoint preserves a separately observed fresh host")
+	_check(browser.is_discovered_session(&"lan_older"), "expired LAN identity remains recognized for delayed join refusal")
+	_check(expirations.size() == 1 and int(expirations[0].request_id) == request_id
+		and expirations[0].session_ids == [&"lan_older"], "expiry reports only the affected host with its completed refresh generation")
+	browser.expire_stale(base_usec + 31_000_000)
+	_check(expirations.size() == 1, "an expired endpoint is retired once")
+	var refreshed_request := browser.begin_refresh(0.5)
+	var fresh_packet := _expiry_announce(browser._probe_nonce, "lan_older")
+	browser._accept_reply(fresh_packet, "127.0.0.1", base_usec + 32_000_000)
+	browser._finish_refresh(refreshed_request)
+	browser._finish_refresh(request_id)
+	_check(not browser.get_endpoint(&"lan_older").is_empty()
+		and browser.get_endpoint(&"lan_newer").is_empty(), "a new refresh restores the live endpoint and an old completion cannot resurrect its rows")
+	_check(browser.expire_stale(base_usec + 61_999_999).is_empty(), "a fresh reply starts its own full 30-second lifetime")
+	_check(browser.expire_stale(base_usec + 62_000_000) == [&"lan_older"]
+		and int(expirations.back().request_id) == refreshed_request, "renewed listing expires at its new deadline under the new refresh generation")
+	browser.free()
+
+
+func _expiry_announce(nonce: String, session_id: String) -> PackedByteArray:
+	return JSON.stringify({
+		"magic": Discovery.PROTOCOL_MAGIC,
+		"revision": Discovery.PROTOCOL_REVISION,
+		"type": "announce", "nonce": nonce, "session_id": session_id,
+		"title": "Expiry boundary host", "game_port": TEST_GAME_PORT,
+		"player_count": 1, "max_players": 4,
+		"protocol_version": 1, "build_version": 1,
+	}).to_utf8_buffer()
 
 
 ## Exercise the production automatic clock, including both paused responder and

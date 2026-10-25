@@ -8224,6 +8224,13 @@ func _handle_activity_tutorial_intent(payload: Dictionary) -> void:
 
 
 func _on_server_browser_result(result: Dictionary) -> void:
+	if bool(result.get("accepted", false)) and result.has("snapshot_sequence"):
+		_server_browser_directory_generation = int(result.get(
+			"directory_generation", _server_browser_directory_generation
+		))
+		_server_browser_snapshot_sequence = int(result.snapshot_sequence)
+	if _lan_expiry_publication:
+		return
 	if not is_instance_valid(hud) or not hud.has_method(&"apply_server_browser_result"):
 		return
 	var presentation := result.duplicate(true)
@@ -8269,6 +8276,19 @@ func _handle_server_browser_intent(payload: Dictionary) -> void:
 			_on_server_browser_result(refresh_result)
 		&"join":
 			var session_id := StringName(str(payload.get("session_id", &"")))
+			var lan_endpoint: Dictionary = {}
+			var lan_row := _owns_lan_directory() and is_instance_valid(_lan_discovery) \
+				and _lan_discovery.is_discovered_session(session_id)
+			if lan_row:
+				lan_endpoint = _lan_discovery.get_endpoint(session_id)
+			# A delayed row intent must not fall back to a configured endpoint or
+			# rewrite the role after its LAN observation has expired.
+			if lan_row and lan_endpoint.is_empty():
+				_publish_server_browser_feedback({
+					"accepted": false, "status": &"directory_expired",
+					"message": "Server list expired. Refresh to see current servers.",
+				})
+				return
 			var intent := session.create_join_intent(session_id)
 			if not bool(intent.get("accepted", false)):
 				_publish_network_session_snapshot(
@@ -8279,7 +8299,9 @@ func _handle_server_browser_intent(payload: Dictionary) -> void:
 			_network_session_retry_mode = &"client"
 			_set_torpedo_boat_network_presentation_only(true)
 			_set_standoff_picket_network_presentation_only(true)
-			_apply_lan_endpoint_for_join(session_id)
+			if not lan_endpoint.is_empty():
+				_network_session_address = str(lan_endpoint.address)
+				_network_session_port = int(lan_endpoint.port)
 			var started := session.consume_join_intent(
 				intent.get("intent", {}) as Dictionary,
 				_network_session_address,
@@ -8323,6 +8345,13 @@ var _lan_discovery: NetworkLanDiscoveryType
 var _lan_refresh_request_generation := 0
 var _lan_directory_generation := 0
 var _lan_directory_tick := 0
+var _lan_published_request_id := 0
+var _lan_directory_session_id := 0
+var _lan_published_generation := 0
+var _lan_published_sequence := 0
+var _server_browser_directory_generation := 0
+var _server_browser_snapshot_sequence := 0
+var _lan_expiry_publication := false
 
 
 func get_lan_discovery() -> NetworkLanDiscoveryType:
@@ -8338,6 +8367,7 @@ func _ensure_lan_discovery() -> NetworkLanDiscoveryType:
 	_lan_discovery.name = LAN_DISCOVERY_NODE_NAME
 	add_child(_lan_discovery)
 	_lan_discovery.discovery_completed.connect(_on_lan_discovery_completed)
+	_lan_discovery.listings_expired.connect(_on_lan_listings_expired)
 	return _lan_discovery
 
 
@@ -8368,7 +8398,12 @@ func _on_lan_discovery_completed(request_id: int, entries: Array) -> void:
 	var published: Dictionary = network_session.apply_server_directory_snapshot(
 		_lan_directory_generation, _lan_directory_tick, entries
 	)
-	if not bool(published.get("accepted", false)):
+	if bool(published.get("accepted", false)):
+		_lan_published_request_id = request_id
+		_lan_directory_session_id = network_session.get_instance_id()
+		_lan_published_generation = int(published.get("directory_generation", 0))
+		_lan_published_sequence = int(published.get("snapshot_sequence", 0))
+	else:
 		result = {
 			"accepted": false,
 			"reason": &"directory_unavailable",
@@ -8380,15 +8415,48 @@ func _on_lan_discovery_completed(request_id: int, entries: Array) -> void:
 	_on_server_browser_result(result)
 
 
-## Joining a LAN row connects to the address the host answered from.
-func _apply_lan_endpoint_for_join(session_id: StringName) -> void:
-	if not is_instance_valid(_lan_discovery):
+func _on_lan_listings_expired(request_id: int, session_ids: Array) -> void:
+	# A later manual directory publication or adapter replacement owns its own
+	# records. Cached LAN endpoints cannot remove that newer source's rows.
+	if not _owns_lan_directory() or network_session.is_server() \
+			or request_id != _lan_published_request_id:
 		return
-	var endpoint := _lan_discovery.get_endpoint(session_id)
-	if endpoint.is_empty():
+	var remaining: Array = []
+	var removed := false
+	for entry: Dictionary in network_session.query_server_directory():
+		if StringName(str(entry.get("session_id", &""))) in session_ids:
+			removed = true
+		else:
+			remaining.append(entry)
+	if not removed:
 		return
-	_network_session_address = str(endpoint.get("address", _network_session_address))
-	_network_session_port = int(endpoint.get("port", _network_session_port))
+	_lan_directory_generation += 1
+	_lan_directory_tick += 1
+	# The adapter emits synchronously. Present one terminal result after the
+	# atomic removal, without interrupting a refresh or an active admission.
+	_lan_expiry_publication = true
+	var published: Dictionary = network_session.apply_server_directory_snapshot(
+		_lan_directory_generation, _lan_directory_tick, remaining
+	)
+	_lan_expiry_publication = false
+	if not bool(published.get("accepted", false)):
+		return
+	_lan_published_generation = int(published.get("directory_generation", 0))
+	_lan_published_sequence = int(published.get("snapshot_sequence", 0))
+	if network_session.is_session_active() or _lan_discovery.is_refreshing():
+		return
+	if remaining.is_empty():
+		published["status"] = &"expired"
+		published["reason"] = &"directory_expired"
+		published["retryable"] = true
+	_on_server_browser_result(published)
+
+
+func _owns_lan_directory() -> bool:
+	return is_instance_valid(network_session) and _lan_published_request_id > 0 \
+		and network_session.get_instance_id() == _lan_directory_session_id \
+		and _server_browser_directory_generation == _lan_published_generation \
+		and _server_browser_snapshot_sequence == _lan_published_sequence
 
 
 func _sync_lan_discovery_responder(mode: StringName) -> void:

@@ -15,6 +15,7 @@ extends Node
 ## a malformed reply is dropped without affecting any other host's row.
 
 signal discovery_completed(request_id: int, entries: Array)
+signal listings_expired(request_id: int, session_ids: Array)
 
 const DISCOVERY_PORT := 27102
 const PROTOCOL_MAGIC := "MUDDS_LAN_DISCOVERY"
@@ -30,6 +31,9 @@ const BROADCAST_ADDRESS := "255.255.255.255"
 const LOOPBACK_ADDRESS := "127.0.0.1"
 const REGION_ID := "LAN"
 const HOST_PEER_ID := 1
+## Engineering default for LAN replies, independent of the detached directory's
+## abstract tick clock. Refresh is the only operation that renews a listing.
+const STALE_AFTER_USEC := 30_000_000
 
 ## Overridable for tests; production uses the fixed port and both targets.
 var discovery_port := DISCOVERY_PORT
@@ -48,6 +52,10 @@ var _window_remaining := 0.0
 var _replies: Dictionary = {}
 var _endpoints: Dictionary = {}
 var _last_endpoints: Dictionary = {}
+var _reply_seen_usec: Dictionary = {}
+var _last_seen_usec: Dictionary = {}
+var _last_session_ids: Dictionary = {}
+var _completed_request_id := 0
 
 
 func _init() -> void:
@@ -123,6 +131,7 @@ func begin_refresh(window_seconds: float = DEFAULT_WINDOW_SECONDS) -> int:
 	_probe_nonce = "%08x%08x" % [randi(), randi()]
 	_replies.clear()
 	_endpoints.clear()
+	_reply_seen_usec.clear()
 	_window_remaining = clampf(window_seconds, MIN_WINDOW_SECONDS, MAX_WINDOW_SECONDS)
 	var probe := JSON.stringify({
 		"magic": PROTOCOL_MAGIC,
@@ -147,6 +156,7 @@ func cancel_refresh() -> void:
 	_window_remaining = 0.0
 	_replies.clear()
 	_endpoints.clear()
+	_reply_seen_usec.clear()
 
 
 func is_refreshing() -> bool:
@@ -159,14 +169,39 @@ func get_request_id() -> int:
 
 ## {address, port} for a session found by the latest completed refresh, or {}.
 func get_endpoint(session_id: StringName) -> Dictionary:
+	expire_stale()
 	var endpoint: Variant = _last_endpoints.get(String(session_id))
 	return (endpoint as Dictionary).duplicate(true) if endpoint is Dictionary else {}
+
+
+## Includes expired rows from the last completed search so a delayed UI join
+## cannot fall back to the manually configured address after its endpoint dies.
+func is_discovered_session(session_id: StringName) -> bool:
+	return _last_session_ids.has(String(session_id))
+
+
+## Explicit monotonic observation seam for focused boundary tests. Runtime
+## callers use Time.get_ticks_usec(), including when the scene tree is paused.
+func expire_stale(now_usec: int = -1) -> Array:
+	if now_usec < 0:
+		now_usec = Time.get_ticks_usec()
+	var expired: Array = []
+	for session_id: String in _last_seen_usec.keys():
+		if now_usec - int(_last_seen_usec[session_id]) >= STALE_AFTER_USEC:
+			_last_seen_usec.erase(session_id)
+			_last_endpoints.erase(session_id)
+			expired.append(StringName(session_id))
+	expired.sort()
+	if not expired.is_empty():
+		listings_expired.emit(_completed_request_id, expired)
+	return expired
 
 
 ## Drives both roles. Called every frame from `_process`; tests may call it
 ## directly with a synthetic delta.
 func poll(delta: float = 0.0) -> void:
 	_poll_responder()
+	expire_stale()
 	if _prober == null:
 		return
 	while _prober != null and _prober.get_available_packet_count() > 0:
@@ -226,8 +261,8 @@ func _build_announce(nonce: String) -> Dictionary:
 	}
 
 
-func _accept_reply(packet: PackedByteArray, sender_ip: String) -> void:
-	if _replies.size() >= MAX_HOSTS or sender_ip.is_empty():
+func _accept_reply(packet: PackedByteArray, sender_ip: String, observed_usec: int = -1) -> void:
+	if sender_ip.is_empty():
 		return
 	var message := _parse(packet)
 	if message.is_empty() or str(message.get("type", "")) != "announce":
@@ -237,7 +272,7 @@ func _accept_reply(packet: PackedByteArray, sender_ip: String) -> void:
 	var session_id := str(message.get("session_id", ""))
 	if session_id.is_empty() or session_id.length() > 64 or not session_id.is_valid_identifier():
 		return
-	if _replies.has(session_id):
+	if not _replies.has(session_id) and _replies.size() >= MAX_HOSTS:
 		return
 	var title := _clean_title(message.get("title", ""))
 	var game_port := _as_int(message.get("game_port"))
@@ -251,7 +286,9 @@ func _accept_reply(packet: PackedByteArray, sender_ip: String) -> void:
 		return
 	if protocol_version < 0 or build_version < 0:
 		return
-	var ping_ms := clampi(int((Time.get_ticks_usec() - _probe_sent_usec) / 1000), 0, 60_000)
+	if observed_usec < 0:
+		observed_usec = Time.get_ticks_usec()
+	var ping_ms := clampi(int((observed_usec - _probe_sent_usec) / 1000), 0, 60_000)
 	_replies[session_id] = {
 		"session_id": session_id,
 		"host_peer_id": HOST_PEER_ID,
@@ -266,6 +303,7 @@ func _accept_reply(packet: PackedByteArray, sender_ip: String) -> void:
 		"build_version": build_version,
 	}
 	_endpoints[session_id] = {"address": sender_ip, "port": game_port}
+	_reply_seen_usec[session_id] = observed_usec
 
 
 func _finish_refresh(request_id: int) -> void:
@@ -277,6 +315,11 @@ func _finish_refresh(request_id: int) -> void:
 	for session_id in ids:
 		entries.append((_replies[session_id] as Dictionary).duplicate(true))
 	_last_endpoints = _endpoints.duplicate(true)
+	_last_seen_usec = _reply_seen_usec.duplicate(true)
+	_last_session_ids.clear()
+	for session_id in ids:
+		_last_session_ids[session_id] = true
+	_completed_request_id = request_id
 	if _prober != null:
 		_prober.close()
 	_prober = null
@@ -284,6 +327,7 @@ func _finish_refresh(request_id: int) -> void:
 	_window_remaining = 0.0
 	_replies.clear()
 	_endpoints.clear()
+	_reply_seen_usec.clear()
 	discovery_completed.emit(request_id, entries)
 
 
