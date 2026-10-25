@@ -6533,6 +6533,13 @@ class CinderSupplyPilot(BeaconEntryPilot):
         self.stop_since = None
         self.mouse_pending = None
 
+    def initial_walk_route(self, s):
+        return [target[:] if target is not None else ([-42, .38, s['boarding'][2]] if name == 'freight_boarding_z' else s['boarding'][:]) for name, target in LifeTowPilot.GANTRY_GOALS]
+
+    def reboard_walk_route(self, s):
+        route = s['cargo']['route']
+        return [route[1], route[2], route[1], route[0], s['boarding'][:]]
+
     def require_stock(self, s, source, destination):
         manifests = s['cargo']['inventory']['manifests']
         quantities = {m['owner_entity_id']: sum(e['quantity'] for e in m['entries']
@@ -6760,7 +6767,7 @@ class CinderSupplyPilot(BeaconEntryPilot):
         if self.stage == 'boot' and s['menu_ready']:
             self.request('e', 'begin_shift', s, now)
         elif self.stage == 'begin_shift' and s['phase'] == 'APPROACH_SHIP' and s['grounded'] and s['supported']:
-            self.route = [target[:] if target is not None else ([-42, .38, s['boarding'][2]] if name == 'freight_boarding_z' else s['boarding'][:]) for name, target in LifeTowPilot.GANTRY_GOALS]
+            self.route = self.initial_walk_route(s)
             self.enter('walk', s)
         elif self.stage == 'walk':
             dx, reached = self.walk_to(s, self.route[self.walk_index], keys, now)
@@ -6872,8 +6879,7 @@ class CinderSupplyPilot(BeaconEntryPilot):
                 if self.walk_index == len(self.route):
                     # Retrace the physical connector far enough to clear the
                     # production seven-metre reboard guard, then return to hatch.
-                    exit_point, clear = c['route'][0], c['route'][2]
-                    self.route = [c['route'][1], clear, c['route'][1], exit_point, s['boarding'][:]]; self.walk_index = 0
+                    self.route = self.reboard_walk_route(s); self.walk_index = 0
                     self.enter('reboard_walk', s)
         elif self.stage == 'reboard_walk':
             dx, reached = self.walk_to(s, self.route[self.walk_index], keys, now)
@@ -6929,6 +6935,86 @@ class CinderSupplyPilot(BeaconEntryPilot):
         require(self.phase_seen == [0, 1, 2, 3], 'all three real supply phases observed in order')
 
 
+class CinderHaulerSupplyPilot(CinderSupplyPilot):
+    """Same funded supply contract, flown by the production Dock04 Hauler."""
+    MODE = 'hauler-supply'
+    MARKER = 'NATIVE_HAULER_SUPPLY_OK'
+    SHIP = 'cinder_cargo_hauler'
+    MANIFEST = 'cinder_hauler_source_manifest'
+    INITIAL_GOALS = tuple(point for _, point in LifeTowPilot.ARM_GOALS[:12]) + (
+        [25.4, 4.2, 68.3], [25.4, 4.2, 70.6], [23, 4.18, 72.8],
+        [22.2, 4.18, 75.2], [22.2, 4.18, 90], [8.8, 4.18, 90])
+    CARGO_LOCAL_POINTS = (
+        [-21, 2.9, 0], [-21, 2.9, 10], [-24.3, 2.9, 13.75],
+        [-24.3, 3.8, 17.8], [-14.15, 3.8, 18], [-4, 3.8, 18],
+        [-2.4, 3.8, 16.7], [-1.6, 4.05, 16.166667],
+        [-.8, 4.30, 15.633333], [0, 4.65, 15.1])
+
+    def __init__(self):
+        super().__init__()
+        self.home_alignment_started = None
+
+    def flight(self, s, target, keys):
+        if self.stage == 'home_flight':
+            now = time.monotonic()
+            if self.home_alignment_started is not None:
+                require(now-self.home_alignment_started <= 15,
+                        'ordinary Hauler home brake/hover alignment within 15 seconds')
+            if norm(sub(target, s['position'])) <= 2 and norm(s['ship_velocity']) <= .5:
+                if self.home_alignment_started is None:
+                    self.home_alignment_started = now
+                # The vertical clearance descent leaves the nose down. Hold
+                # normal brake/hover to upright without aiming back down at the
+                # nearby capture root. The caller still requires live capture.
+                keys.update({'Prior', 'h'})
+                return 0, 0, True
+        return super().flight(s, target, keys)
+
+    def initial_walk_route(self, s):
+        # Stop on the supported apron and aim at the actual boarding marker.
+        return [point[:] for point in self.INITIAL_GOALS]
+
+    def reboard_walk_route(self, s):
+        # The ten-point outbound/reverse walk already clears the reboard guard.
+        return [s['boarding'][:]]
+
+    @staticmethod
+    def station_clearance_targets(s, reverse=False):
+        capture = s['home']['capture_position']
+        points = [capture[:], [capture[0], capture[1]+60, capture[2]]]
+        return list(reversed(points)) if reverse else points
+
+    def require_stock(self, s, source, destination):
+        manifests = s['cargo']['inventory']['manifests']
+        owners = {m['owner_entity_id']: m for m in manifests}
+        require(len(owners) == len(manifests) and self.SHIP in owners
+                and owners[self.SHIP]['manifest_id'] == self.MANIFEST,
+                'actual Hauler owns its exact shared-stock source manifest')
+        quantity = lambda m: sum(e['quantity'] for e in m['entries'] if e['item_id'] == 'cinder_supply_crates')
+        target = s['cargo']['destination_handle']
+        require(set(owners) == {self.SHIP, target['entity_id']}
+                and owners[target['entity_id']]['manifest_id'] == target['manifest_id']
+                and quantity(owners[self.SHIP]) == source
+                and quantity(owners[target['entity_id']]) == destination
+                and 'jovian_provisional' not in owners,
+                'Hauler alone carries shared mission stock; no Jovian source custody')
+
+    def validate_observation(self, s):
+        require(s['ship_definition_id'] == self.SHIP and s['production_hauler']
+                and s['home']['id'] == 'dock_04_cargo',
+                'actual original production Dock04 Hauler, never another craft')
+        c = s['cargo']
+        if c['available']:
+            require(len(c['route_local']) == len(self.CARGO_LOCAL_POINTS)
+                    and all(norm(sub(actual, expected)) <= .00001
+                            for actual, expected in zip(c['route_local'], self.CARGO_LOCAL_POINTS)),
+                    'exact supported ten-point Hauler terminal path')
+            if c['lease']:
+                require(norm(sub(c['dock_local'], [-29, 4.25, 0])) <= .00001
+                        and c['dock_yaw_pi'], 'actual occupied Hauler contact and authored PI yaw')
+        super().validate_observation(s)
+
+
 class CinderSupplyFiles(HabitatRestartFiles):
     MUTABLE = HabitatRestartFiles.MUTABLE | {'cinder_cargo_delivery', 'game_flow_reward_store'}
 
@@ -6972,7 +7058,7 @@ class CinderSupplyFiles(HabitatRestartFiles):
                 else: pilot.file_home = True
 
 def run(binary, output, route="guided", qualify_beacon_outbound=False):
-    require(route in ("patrol-relay-home", "race-home", "heavy-breach", "bomber-rearm", "cinder-supply", "arrow-return-reuse", "guided", "courier-intercept", "courier-escape", "courier-withdraw-phase", "courier-withdraw-distance", "beacon-entry", "beacon-settlement", "beacon-home", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
+    require(route in ("patrol-relay-home", "race-home", "heavy-breach", "bomber-rearm", "cinder-supply", "hauler-supply", "arrow-return-reuse", "guided", "courier-intercept", "courier-escape", "courier-withdraw-phase", "courier-withdraw-distance", "beacon-entry", "beacon-settlement", "beacon-home", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
     require(not qualify_beacon_outbound or route == 'beacon-home',
             'outbound timing qualification requires the full beacon-home route')
     output.mkdir(parents=True, exist_ok=False)
@@ -7037,7 +7123,7 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False):
                 breach_files = HeavyBreachFiles(profile, output) if route == 'heavy-breach' else None
                 settlement_files = (PatrolRelayHomeFiles(profile, output) if route == 'patrol-relay-home' else
                                     RaceHomeFiles(profile, output) if route == 'race-home' else
-                                    CinderSupplyFiles(profile, output) if route == 'cinder-supply' else
+                                    CinderSupplyFiles(profile, output) if route in ('cinder-supply', 'hauler-supply') else
                                     BeaconSettlementFiles(profile, output) if route in ('beacon-settlement', 'beacon-home') else None)
                 restart_files = HabitatRestartFiles(profile, output) if route == 'habitat-restart' else None
                 result['game_legs'] = []
@@ -7071,7 +7157,7 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False):
                     leg_result['window'] = hex(window)
                     desktop.focus(window)
                     pilot = HabitatRestartPilot(cold=bool(leg)) if restart_files else {
-                        "patrol-relay-home": PatrolRelayHomePilot, "race-home": RaceHomePilot, "heavy-breach": HeavyBreachPilot, "bomber-rearm": BomberRearmPilot, "cinder-supply": CinderSupplyPilot, "arrow-return-reuse": ArrowReturnReusePilot, "guided": Pilot, "courier-intercept": CourierPilot, "courier-escape": CourierEscapePilot, "courier-withdraw-phase": CourierWithdrawPhasePilot, "courier-withdraw-distance": CourierWithdrawDistancePilot, "beacon-entry": BeaconEntryPilot, "beacon-settlement": BeaconSettlementPilot, "beacon-home": BeaconHomePilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
+                        "patrol-relay-home": PatrolRelayHomePilot, "race-home": RaceHomePilot, "heavy-breach": HeavyBreachPilot, "bomber-rearm": BomberRearmPilot, "cinder-supply": CinderSupplyPilot, "hauler-supply": CinderHaulerSupplyPilot, "arrow-return-reuse": ArrowReturnReusePilot, "guided": Pilot, "courier-intercept": CourierPilot, "courier-escape": CourierEscapePilot, "courier-withdraw-phase": CourierWithdrawPhasePilot, "courier-withdraw-distance": CourierWithdrawDistancePilot, "beacon-entry": BeaconEntryPilot, "beacon-settlement": BeaconSettlementPilot, "beacon-home": BeaconHomePilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
                         "hulk-arrival": HulkArrivalPilot, "hulk-breaker": HulkBreakerPilot,
                         "hulk-home": HulkHomePilot, "habitat-loop": HabitatLoopPilot, "life-tow": LifeTowPilot, "life-gantry": lambda: LifeTowPilot("life-gantry"), "life-arm": lambda: LifeTowPilot("life-arm"), "life-patrol": lambda: LifeTowPilot("life-patrol")}[route]()
                     if isinstance(pilot, BeaconHomePilot): pilot.file_snapshots = settlement_files.snapshots
@@ -7296,8 +7382,8 @@ def main():
     parser.add_argument('--output',required=True,type=Path)
     parser.add_argument('--qualify-beacon-outbound', action='store_true',
                         help='qualify the fixed 60.0s outbound monotonic maximum within the unchanged full beacon-home route')
-    parser.add_argument('--route', choices=('patrol-relay-home', 'race-home', 'heavy-breach', 'bomber-rearm', 'cinder-supply', 'arrow-return-reuse', 'guided', 'courier-intercept', 'courier-escape', 'courier-withdraw-phase', 'courier-withdraw-distance', 'beacon-entry', 'beacon-settlement', 'beacon-home', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
-                        help='patrol-relay-home completes genuine Guided, actual pause-board relay selection, five continuous two-second holds, exact durable payment, strict home and normal UI exit; race-home completes the genuine Guided prerequisite then same-Torrent timed race, exact durable reward, strict home and normal UI exit; heavy-breach completes real posted Heavy/picket kill/payment/home/next posting/UI exit; courier-withdraw-distance flies beyond all actual contacts for real seven-second grace withdrawal before original defender and home; courier-withdraw-phase kills the original defender after actual first courier dispatch and verifies phase withdrawal/standdown through home; courier-escape lets the actual first live runner escape and verifies standdown through home; courier-intercept destroys the actual first courier before escape then returns home; beacon-home retains payment through genuine Guided combat, home docking and usable exterior walking; cinder-supply flies the full funded Jovian/Cinder terminal/home journey; beacon-settlement continues the accepted entry through four physical beacons and durable reward; beacon-entry departs normally and physically reaches/starts the first Beacon through actual pause controls; life-patrol walks Habitat through the real door beside patrol drones and boards Torrent; life-arm walks Aft stairs past the live service arm and boards Zenith; life-gantry walks Freight past the live gantry and boards Jovian; life-tow walks Central beside live tow service and boards Torrent; hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
+    parser.add_argument('--route', choices=('patrol-relay-home', 'race-home', 'heavy-breach', 'bomber-rearm', 'cinder-supply', 'hauler-supply', 'arrow-return-reuse', 'guided', 'courier-intercept', 'courier-escape', 'courier-withdraw-phase', 'courier-withdraw-distance', 'beacon-entry', 'beacon-settlement', 'beacon-home', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
+                        help='patrol-relay-home completes genuine Guided, actual pause-board relay selection, five continuous two-second holds, exact durable payment, strict home and normal UI exit; race-home completes the genuine Guided prerequisite then same-Torrent timed race, exact durable reward, strict home and normal UI exit; heavy-breach completes real posted Heavy/picket kill/payment/home/next posting/UI exit; courier-withdraw-distance flies beyond all actual contacts for real seven-second grace withdrawal before original defender and home; courier-withdraw-phase kills the original defender after actual first courier dispatch and verifies phase withdrawal/standdown through home; courier-escape lets the actual first live runner escape and verifies standdown through home; courier-intercept destroys the actual first courier before escape then returns home; beacon-home retains payment through genuine Guided combat, home docking and usable exterior walking; hauler-supply flies the actual Dock04 Hauler through the funded Cinder terminal/home journey; cinder-supply flies the full funded Jovian/Cinder terminal/home journey; beacon-settlement continues the accepted entry through four physical beacons and durable reward; beacon-entry departs normally and physically reaches/starts the first Beacon through actual pause controls; life-patrol walks Habitat through the real door beside patrol drones and boards Torrent; life-arm walks Aft stairs past the live service arm and boards Zenith; life-gantry walks Freight past the live gantry and boards Jovian; life-tow walks Central beside live tow service and boards Torrent; hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
     args=parser.parse_args()
     if args.qualify_beacon_outbound and args.route != 'beacon-home':
         parser.error('--qualify-beacon-outbound requires --route beacon-home')

@@ -2,6 +2,8 @@ extends SceneTree
 
 const Hauler := preload("res://scripts/ships/cinder_cargo_hauler.gd")
 const WORLD_SCENE := preload("res://scenes/world/shipyard_world.tscn")
+const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
+const SortieObserver := preload("res://scripts/diagnostics/native_sortie_observer.gd")
 ## Sample pitch of the published-lane sweep below, in metres. The hauler's
 ## thinnest root shape is 0.3 m, so a quarter-metre pitch cannot step over a
 ## mullion, a header or a comb tooth standing in the lane.
@@ -317,6 +319,7 @@ func _initialize() -> void:
 	)
 	rebuilt.queue_free()
 	await process_frame
+	await _test_actual_home_ramp_support_observation()
 	await _test_home_berth_approach_lane_is_flyable()
 	if _failures.is_empty():
 		print("PASS cinder_cargo_hauler_test (%d assertions)" % _assertions)
@@ -325,6 +328,91 @@ func _initialize() -> void:
 		for failure in _failures:
 			push_error(failure)
 		quit(1)
+
+
+## Fixed test fixtures reproduce the observed home-walk pose, without moving
+## production actors or changing the observer's original 0.6 m ray reach.
+func _test_actual_home_ramp_support_observation() -> void:
+	var craft := Hauler.new()
+	craft.process_mode = Node.PROCESS_MODE_DISABLED
+	root.add_child(craft)
+	craft.global_transform = Transform3D(Basis(Vector3.UP, PI / 2.0), Vector3(7.0, 5.81, 84.7000046))
+	var player := PLAYER_SCENE.instantiate() as PlayerController
+	player.process_mode = Node.PROCESS_MODE_DISABLED
+	root.add_child(player)
+	player.global_position = Vector3(7.384242, 4.596060, 88.907806)
+	await physics_frame
+	await process_frame
+	var ramp := craft.get_node("CinderCargoVisual/BoardingRampSupport") as StaticBody3D
+	var hit := SortieObserver.query_cinder_supply_support(player, craft, true)
+	_check(hit.get("collider") == ramp, "Hauler support query identifies the actual deployed boarding ramp at the failed home-walk pose")
+	if not hit.is_empty():
+		var normal: Vector3 = hit.get("normal", Vector3.ZERO)
+		var capsule_node := player.get_node("PlayerCollision") as CollisionShape3D
+		var capsule := capsule_node.shape as CapsuleShape3D
+		var lower_center := capsule_node.global_position - player.up_direction * (capsule.height * 0.5 - capsule.radius)
+		var plane_gap := normal.dot(lower_center - (hit.position as Vector3)) - capsule.radius
+		_check(normal.dot(player.up_direction) >= cos(player.floor_max_angle)
+			and absf(plane_gap) <= player.safe_margin + 0.00001,
+			"actual ramp hit is floor-compatible and within the unchanged physical capsule margin")
+	_check(SortieObserver.query_cinder_supply_support(player, craft, false).is_empty(),
+		"the original WORLD-only query misses this SHIP-layer ramp")
+	var original_mask := player.collision_mask
+	player.collision_mask = original_mask & ~PhysicsLayers.SHIP
+	_check(SortieObserver.query_cinder_supply_support(player, craft, true).is_empty(),
+		"removing SHIP from the player's physical mask removes ramp support")
+	player.collision_mask = original_mask
+	player.add_collision_exception_with(ramp)
+	_check(SortieObserver.query_cinder_supply_support(player, craft, true).is_empty(),
+		"the observer respects the player's actual physical collision exception")
+	player.remove_collision_exception_with(ramp)
+	_check(SortieObserver.query_cinder_supply_support(player, craft, true).get("collider") == ramp,
+		"removing the physical exception restores ramp observation")
+
+	# A separate WORLD floor also tests legacy semantics and an unwalkable hit.
+	var floor_body := StaticBody3D.new()
+	floor_body.collision_layer = PhysicsLayers.WORLD
+	floor_body.collision_mask = 0
+	var floor_shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(4.0, 0.1, 4.0)
+	floor_shape.shape = box
+	floor_body.add_child(floor_shape)
+	root.add_child(floor_body)
+	floor_body.position = Vector3(40.0, -0.05, 0.0)
+	player.global_position = Vector3(40.0, 0.1, 0.0)
+	# Put the player's own collider in the query mask: it must remain excluded.
+	player.collision_layer = PhysicsLayers.WORLD | PhysicsLayers.SHIP
+	await physics_frame
+	await process_frame
+	_check(SortieObserver.query_cinder_supply_support(player, craft, true).get("collider") == floor_body,
+		"Hauler query still observes WORLD floors and excludes the actual player body")
+	_check(SortieObserver.query_cinder_supply_support(player, craft, false).get("collider") == floor_body,
+		"non-Hauler WORLD-floor observation retains its original behavior")
+	floor_body.rotation.z = deg_to_rad(70.0)
+	await physics_frame
+	await process_frame
+	var steep := SortieObserver.query_cinder_supply_support(player, craft, false)
+	_check(steep.get("collider") == floor_body
+		and (steep.get("normal", Vector3.ZERO) as Vector3).dot(player.up_direction) < cos(player.floor_max_angle)
+		and SortieObserver.query_cinder_supply_support(player, craft, true).is_empty(),
+		"Hauler query refuses an actual steep normal while legacy hit semantics remain unchanged")
+	floor_body.rotation = Vector3.ZERO
+	await physics_frame
+	await process_frame
+	player.global_position = Vector3(40.0, 0.001, 0.0)
+	player.velocity = Vector3.DOWN
+	player.move_and_slide()
+	_check(player.is_on_floor(), "actual WORLD floor establishes native grounded state for the no-hit regression")
+	floor_body.collision_layer = 0
+	await physics_frame
+	await process_frame
+	_check(player.is_on_floor() and SortieObserver.query_cinder_supply_support(player, craft, true).is_empty(),
+		"native grounded state cannot promote a missing support hit")
+	floor_body.queue_free()
+	player.queue_free()
+	craft.queue_free()
+	await process_frame
 
 
 ## This craft's own half of the Dock 04 defect. The long-session soak flew the

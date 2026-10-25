@@ -211,6 +211,142 @@ class NativeSortieSafetyTests(unittest.TestCase):
         self.assertEqual(keys, {'w'})
         self.assertIs(pilot.receipts['home_clearance_ready'], corrected)
 
+    def hauler_supply_observation(self):
+        return dict(ship_definition_id='cinder_cargo_hauler', production_hauler=True,
+                    home={'id': 'dock_04_cargo'}, cargo=dict(
+                        available=True, lease=True,
+                        route_local=[p[:] for p in native.CinderHaulerSupplyPilot.CARGO_LOCAL_POINTS],
+                        dock_local=[-29, 4.25, 0], dock_yaw_pi=True))
+
+    def test_hauler_supply_requires_actual_production_craft_and_contact(self):
+        pilot = native.CinderHaulerSupplyPilot()
+        with patch.object(native.CinderSupplyPilot, 'validate_observation') as baseline:
+            s = self.hauler_supply_observation()
+            pilot.validate_observation(s)
+            baseline.assert_called_once_with(s)
+            for field, value in [('ship_definition_id', 'jovian_provisional'),
+                                 ('production_hauler', False), ('home', {'id': 'freight_berth'})]:
+                bad = copy.deepcopy(s); bad[field] = value
+                with self.subTest(field=field):
+                    with self.assertRaises(AssertionError): pilot.validate_observation(bad)
+            for field, value in [('dock_local', [-29, 4.15, 0]), ('dock_yaw_pi', False)]:
+                bad = copy.deepcopy(s); bad['cargo'][field] = value
+                with self.subTest(field=field):
+                    with self.assertRaises(AssertionError): pilot.validate_observation(bad)
+
+    def test_hauler_supply_freezes_ten_point_walk_and_initial_supported_apron(self):
+        pilot = native.CinderHaulerSupplyPilot()
+        expected = [[-21, 2.9, 0], [-21, 2.9, 10], [-24.3, 2.9, 13.75],
+                    [-24.3, 3.8, 17.8], [-14.15, 3.8, 18], [-4, 3.8, 18],
+                    [-2.4, 3.8, 16.7], [-1.6, 4.05, 16.166667],
+                    [-.8, 4.30, 15.633333], [0, 4.65, 15.1]]
+        self.assertEqual(list(pilot.CARGO_LOCAL_POINTS), expected)
+        route = pilot.initial_walk_route({'boarding': [7, 5, 83]})
+        self.assertEqual(route[:12], [p for _, p in native.LifeTowPilot.ARM_GOALS[:12]])
+        self.assertEqual(route[12:], [[25.4, 4.2, 68.3], [25.4, 4.2, 70.6], [23, 4.18, 72.8],
+                                      [22.2, 4.18, 75.2], [22.2, 4.18, 90], [8.8, 4.18, 90]])
+        self.assertEqual(pilot.reboard_walk_route({'boarding': [7, 5, 83]}), [[7, 5, 83]])
+        with patch.object(native.CinderSupplyPilot, 'validate_observation'):
+            for mutation in ('short', 'shift', 'reverse'):
+                bad = self.hauler_supply_observation()
+                if mutation == 'short': bad['cargo']['route_local'].pop()
+                elif mutation == 'shift': bad['cargo']['route_local'][2][0] += .1
+                else: bad['cargo']['route_local'].reverse()
+                with self.subTest(mutation=mutation):
+                    with self.assertRaises(AssertionError): pilot.validate_observation(bad)
+
+    def test_hauler_supply_home_clearance_uses_live_capture_world_up_and_exact_reverse(self):
+        pilot = native.CinderHaulerSupplyPilot()
+        s = {'home': {'capture_position': [31, 13.8, 83.4]}}
+        self.assertEqual(pilot.station_clearance_targets(s), [[31, 13.8, 83.4], [31, 73.8, 83.4]])
+        self.assertEqual(pilot.station_clearance_targets(s, True), [[31, 73.8, 83.4], [31, 13.8, 83.4]])
+        self.assertEqual(s['home']['capture_position'], [31, 13.8, 83.4])
+        jovian = native.CinderSupplyPilot.station_clearance_targets(s)
+        offsets = ([0, 0, 0], [0, 0, 26.7], [0, 66.37, 66.7], [84, 66.37, -308.3])
+        self.assertEqual(jovian, [[p+d for p, d in zip(s['home']['capture_position'], off)] for off in offsets])
+
+    def test_hauler_supply_settled_home_uprights_without_aim_or_premature_landing(self):
+        pilot = native.CinderHaulerSupplyPilot()
+        pilot.stage = 'home_flight'
+        s = dict(frame=12000, phase='FREE_FLIGHT', player=[31, 15, 83],
+                 position=[31, 15.793295, 83.4], ship_velocity=[0, 0, 0],
+                 up=[0, .030437, .999537], cargo={},
+                 home=dict(capture=False, capture_position=[31, 13.8, 83.4]))
+        pilot.last_state = s
+        with patch.object(native.time, 'monotonic', return_value=100), \
+             patch.object(native.CinderSupplyPilot, 'flight') as baseline:
+            self.assertEqual(pilot.update(s, 100), ({'Prior', 'h'}, 0, 0, False))
+            baseline.assert_not_called()
+        self.assertEqual(pilot.stage, 'home_flight')
+        self.assertEqual(pilot.home_alignment_started, 100)
+        with patch.object(native.time, 'monotonic', return_value=114):
+            self.assertEqual(pilot.update(s, 114), ({'Prior', 'h'}, 0, 0, False))
+        self.assertEqual(pilot.home_alignment_started, 100)
+        fresh = copy.deepcopy(s)
+        fresh['frame'] += 1; fresh['home']['capture'] = True
+        pilot.last_state = fresh
+        with patch.object(native.time, 'monotonic', return_value=114.5):
+            self.assertEqual(pilot.update(fresh, 114.5), ({'Prior', 'h', 'l'}, 0, 0, False))
+        self.assertEqual(pilot.stage, 'home_land')
+        self.assertIs(pilot.receipts['home_land'], fresh)
+
+    def test_hauler_supply_alignment_budget_never_resets_or_changes_other_flight(self):
+        pilot = native.CinderHaulerSupplyPilot()
+        pilot.stage = 'home_flight'
+        s = dict(position=[0, 1.99, 0], ship_velocity=[0, 0, 0])
+        with patch.object(native.time, 'monotonic', return_value=100):
+            self.assertEqual(pilot.flight(s, [0, 0, 0], set()), (0, 0, True))
+        # Losing the settled predicate does not restart the bounded hold.
+        moving = dict(position=[0, 3, 0], ship_velocity=[0, 0, 1])
+        with patch.object(native.time, 'monotonic', return_value=110), \
+             patch.object(native.CinderSupplyPilot, 'flight', return_value=(7, 8, False)) as baseline:
+            self.assertEqual(pilot.flight(moving, [0, 0, 0], set()), (7, 8, False))
+            baseline.assert_called_once()
+        self.assertEqual(pilot.home_alignment_started, 100)
+        with patch.object(native.time, 'monotonic', return_value=115.001):
+            with self.assertRaisesRegex(AssertionError, '15 seconds'):
+                pilot.flight(s, [0, 0, 0], set())
+        for stage in ('outbound_clearance', 'outbound', 'gate_return', 'home_clearance'):
+            pilot.stage = stage
+            with self.subTest(stage=stage), \
+                 patch.object(native.CinderSupplyPilot, 'flight', return_value=(7, 8, False)) as baseline:
+                self.assertEqual(pilot.flight(s, [0, 0, 0], set()), (7, 8, False))
+                baseline.assert_called_once_with(s, [0, 0, 0], set())
+        jovian = native.CinderSupplyPilot()
+        jovian.stage = 'home_flight'
+        self.assertFalse(hasattr(jovian, 'home_alignment_started'))
+        original = dict(s, camera=[0, 5, 0], right=[1, 0, 0], up=[0, 0, 1],
+                        tuning={'brake': 48})
+        keys = set()
+        with patch.object(jovian, 'aim', return_value=(27, 42, .95)) as aim:
+            self.assertEqual(jovian.flight(original, [0, 0, 0], keys), (27, 42, True))
+            aim.assert_called_once()
+        self.assertEqual(keys, {'Prior'})
+
+    def test_hauler_supply_exact_source_manifest_cannot_spend_or_aggregate_jovian_stock(self):
+        pilot = native.CinderHaulerSupplyPilot()
+        for source, destination in ((2, 0), (1, 1)):
+            s = {'cargo': {'destination_handle': {'entity_id': 'cinder_destination', 'manifest_id': 'destination'},
+                           'inventory': {'manifests': [
+                {'owner_entity_id': pilot.SHIP, 'manifest_id': pilot.MANIFEST,
+                 'entries': [{'item_id': 'cinder_supply_crates', 'quantity': source}]},
+                {'owner_entity_id': 'cinder_destination', 'manifest_id': 'destination',
+                 'entries': [{'item_id': 'cinder_supply_crates', 'quantity': destination}]}]}}}
+            pilot.require_stock(s, source, destination)
+            # The accepted Jovian pilot still requires its own source custody.
+            with self.assertRaises(AssertionError): native.CinderSupplyPilot().require_stock(s, source, destination)
+            for field, value in [('owner_entity_id', 'jovian_provisional'),
+                                 ('manifest_id', 'cinder_jovian_source_manifest')]:
+                bad = copy.deepcopy(s); bad['cargo']['inventory']['manifests'][0][field] = value
+                with self.subTest(source=source, field=field):
+                    with self.assertRaises(AssertionError): pilot.require_stock(bad, source, destination)
+            bad = copy.deepcopy(s)
+            bad['cargo']['inventory']['manifests'].append(dict(owner_entity_id='jovian_provisional', entries=[]))
+            with self.assertRaises(AssertionError): pilot.require_stock(bad, source, destination)
+        self.assertEqual(native.CinderSupplyPilot.MODE, 'cinder-supply')
+        self.assertEqual(native.CinderSupplyPilot.MARKER, 'NATIVE_CINDER_SUPPLY_OK')
+        self.assertEqual(pilot.MARKER, 'NATIVE_HAULER_SUPPLY_OK')
+
     def supply_paid_observation(self):
         reward = native.CinderSupplyPilot.REWARD
         return {'paid_slot': {'delivery': {'contract_id': 'cinder_platform_supply_run', 'quantity': 1,

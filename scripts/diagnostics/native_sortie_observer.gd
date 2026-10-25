@@ -21,6 +21,7 @@ const LIFE_ROUTES := {
 		"door": ^"HabitatSpine/MainAccess"},
 }
 var _cinder_supply := false
+var _hauler_supply := false
 var _supply_sequence := 0
 var _arrow := false
 var _heavy_breach := false
@@ -85,9 +86,15 @@ func on_startup_completed(main: Node) -> void:
 	_game = main as GameFlow
 	_player = _game.get_node("Player") as PlayerController
 	_spawn = _player.global_position
-	_cinder_supply = "--native-sortie-observer=cinder-supply" in OS.get_cmdline_args()
+	_hauler_supply = "--native-sortie-observer=hauler-supply" in OS.get_cmdline_args()
+	_cinder_supply = "--native-sortie-observer=cinder-supply" in OS.get_cmdline_args() or _hauler_supply
 	if _cinder_supply:
-		_ship = _game.get_node(^"JovianLightFreighter") as HeroShip
+		if _hauler_supply:
+			for craft: HeroShip in _game.get_flyable_ships():
+				if craft is CinderCargoHauler and craft.get_ship_id() == &"cinder_cargo_hauler":
+					_ship = craft
+		else:
+			_ship = _game.get_node(^"JovianLightFreighter") as HeroShip
 		_parked = _ship.global_transform
 		_tuning = _sortie_tuning()
 		process_mode = Node.PROCESS_MODE_ALWAYS
@@ -1748,6 +1755,30 @@ func _arrow_observation() -> Dictionary:
 	return result
 
 
+## Read-only contact observation. Hauler walking can rest on a SHIP-layer ramp;
+## use the pilot's physical mask and exceptions without extending the probe.
+static func query_cinder_supply_support(player: CharacterBody3D, ship: PhysicsBody3D, hauler: bool) -> Dictionary:
+	var excluded: Array[RID] = [player.get_rid()]
+	var mask := PhysicsLayers.WORLD
+	if hauler:
+		mask = player.collision_mask & (PhysicsLayers.WORLD | PhysicsLayers.SHIP)
+		for exception: PhysicsBody3D in player.get_collision_exceptions():
+			if is_instance_valid(exception):
+				excluded.append(exception.get_rid())
+	else:
+		excluded.append(ship.get_rid())
+	var ray := PhysicsRayQueryParameters3D.create(player.global_position + Vector3.UP * 0.2,
+		player.global_position - Vector3.UP * 0.4, mask, excluded)
+	var hit := player.get_world_3d().direct_space_state.intersect_ray(ray)
+	if hauler and not hit.is_empty():
+		var body := hit.get("collider") as PhysicsBody3D
+		var normal: Vector3 = hit.get("normal", Vector3.ZERO)
+		if not is_instance_valid(body) or not body.is_inside_tree() or body.is_queued_for_deletion() \
+			or normal.dot(player.up_direction) < cos(player.floor_max_angle):
+			return {}
+	return hit
+
+
 ## Current records only: streaming accessors/audits can reconcile ownership, so
 ## this observer reads the coordinator's retained record and pure cargo copies.
 func _cinder_supply_observation() -> Dictionary:
@@ -1757,9 +1788,7 @@ func _cinder_supply_observation() -> Dictionary:
 	var capsule := _player.get_node(^"PlayerCollision") as CollisionShape3D
 	var support: Dictionary = {}
 	if not _player.is_seated() and not bool(_game.get("_transition_busy")):
-		var ray := PhysicsRayQueryParameters3D.create(_player.global_position + Vector3.UP * 0.2,
-			_player.global_position - Vector3.UP * 0.4, PhysicsLayers.WORLD, [_player.get_rid(), _ship.get_rid()])
-		support = _player.get_world_3d().direct_space_state.intersect_ray(ray)
+		support = query_cinder_supply_support(_player, _ship, _hauler_supply)
 	var collider := support.get("collider") as Node
 	var bootstrap := _game.cinder_streaming_bootstrap
 	var cluster: NearbySectorCluster
@@ -1774,7 +1803,7 @@ func _cinder_supply_observation() -> Dictionary:
 				cluster = candidate
 				generation = current_generation
 	var authored_capture := CinderCargoAccess.RECOMMENDED_CLUSTER_TRANSFORM * (
-		CinderCargoAccess.BERTH_DOCK_LOCAL * CinderCargoAccess.ASSIST_CAPTURE_CENTER)
+		(CinderCargoAccess.HAULER_DOCK_LOCAL if _hauler_supply else CinderCargoAccess.BERTH_DOCK_LOCAL) * CinderCargoAccess.ASSIST_CAPTURE_CENTER)
 	var outbound_target: Vector3 = _game._cinder_authored_frame_to_world(authored_capture)
 	var cargo := {"available": false}
 	if cluster != null:
@@ -1787,8 +1816,19 @@ func _cinder_supply_observation() -> Dictionary:
 			var authority := binding.get("_cargo_authority") as CargoTransferAuthority
 			if _ember_node_current(berth) and berth.get_parent() == access:
 				var route: Array = []
-				for point: Vector3 in access.get_route_local_points():
+				var local_points := access.get_route_local_points()
+				if _hauler_supply:
+					local_points = PackedVector3Array([
+						Vector3(-21, 2.9, 0), Vector3(-21, 2.9, 10), Vector3(-24.3, 2.9, 13.75),
+						Vector3(-24.3, 3.8, 17.8), Vector3(-14.15, 3.8, 18), Vector3(-4, 3.8, 18),
+						Vector3(-2.4, 3.8, 16.7), Vector3(-1.6, 4.05, 16.166667),
+						Vector3(-0.8, 4.30, 15.633333), Vector3(0, 4.65, 15.1)])
+				var route_local: Array = []
+				for point: Vector3 in local_points:
+					route_local.append(_v(point))
 					route.append(_v(access.to_global(point)))
+				var live_dock := berth.get_dock_transform()
+				var dock_local := access.global_transform.affine_inverse() * live_dock
 				cargo = {"available": true, "cluster_id": cluster.get_instance_id(), "generation": generation,
 					"access_id": access.get_instance_id(), "attachment": access.get_attachment_generation(),
 					"berth_id": berth.get_instance_id(), "terminal_id": terminal.get_instance_id(),
@@ -1796,7 +1836,10 @@ func _cinder_supply_observation() -> Dictionary:
 					"source_entity_id": (binding.get("_cargo_source_entity") as Node).get_instance_id() if is_instance_valid(binding.get("_cargo_source_entity")) else 0,
 					"activity": activity.get_snapshot() if activity != null else {},
 					"inventory": authority.to_dictionary() if authority != null else {},
+					"destination_handle": (binding.get("_cargo_destination_handle") as Dictionary).duplicate(true),
 					"last_request": (binding.get("_last_cargo_terminal_request") as Dictionary).duplicate(true),
+					"route_local": route_local, "dock_local": _v(dock_local.origin),
+					"dock_yaw_pi": dock_local.basis.is_equal_approx(Basis(Vector3.UP, PI)),
 					"route": route, "terminal": _v(terminal.global_position + Vector3(0.0, 0.85, 0.25)),
 					"terminal_candidate": _game.station_interaction_candidate == terminal,
 					"actor_authorized": (access.get("_terminal_actor") as WeakRef) != null and (access.get("_terminal_actor") as WeakRef).get_ref() == _player,
@@ -1842,14 +1885,18 @@ func _cinder_supply_observation() -> Dictionary:
 			actual.append(event.as_text())
 		default_controls = default_controls and expected == actual
 	var command := _ship.get_last_ship_command()
-	return {"mode": "cinder-supply", "sequence": _supply_sequence, "pid": OS.get_process_id(),
+	return {"mode": "hauler-supply" if _hauler_supply else "cinder-supply", "sequence": _supply_sequence, "pid": OS.get_process_id(),
 		"frame": Engine.get_physics_frames(), "main_id": _game.get_instance_id(), "player_id": _player.get_instance_id(), "ship_id": _ship.get_instance_id(),
+		"ship_definition_id": str(_ship.get_ship_id()),
+		"production_hauler": _ship is CinderCargoHauler and _ship in _game.get_flyable_ships(),
 		"source_id": source.get_instance_id() if source != null else 0, "phase": GameFlow.Phase.keys()[_game.phase], "paused": get_tree().paused,
 		"menu_ready": StartupLoader.is_title_menu_ready(_game) and not is_instance_valid(get_parent().call("get_loading_screen")),
 		"player": _v(_player.global_position), "spawn": _v(_spawn), "velocity": _v(_player.velocity),
 		"walk_forward": _v(-yaw.global_basis.z), "walk_right": _v(yaw.global_basis.x),
 		"walk_tuning": {"walk": _player.walk_speed, "sprint": _player.sprint_speed, "deceleration": _player.ground_deceleration, "mouse": _player.mouse_sensitivity},
 		"grounded": _player.is_on_floor(), "supported": _ember_node_current(collider), "support_collider": str(collider.get_path()) if _ember_node_current(collider) else "",
+		"support_hit_normal": _v(support.get("normal", Vector3.ZERO)), "support_hit_position": _v(support.get("position", Vector3.ZERO)),
+		"support_body_id": collider.get_instance_id() if is_instance_valid(collider) else 0, "support_shape": support.get("shape", -1),
 		"capsule_id": capsule.get_instance_id(), "shape_id": capsule.shape.get_instance_id(), "completed_motion": _life_completed_motion(),
 		"capsule_geometry": [(capsule.shape as CapsuleShape3D).radius, (capsule.shape as CapsuleShape3D).height], "capsule_enabled": not capsule.disabled,
 		"default_controls": default_controls, "mouse_captured": Input.mouse_mode == Input.MOUSE_MODE_CAPTURED,
