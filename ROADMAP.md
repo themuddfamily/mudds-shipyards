@@ -71,6 +71,39 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Active production capability: live engine-transition captions.**
+Original23:14:33UTC2026-10-25→00:14:33UTC2026-10-26/60min includes bounded
+source readiness, implementation, old-source regression, focused checks, fresh
+paired checkpoints/strict startups/payload audit, review/integration/owned cleanup.
+Actual ship component damage already reaches its automatic audio rig binding,
+which emits engine_degraded(≥.25), engine_critical(≥.75), engine_recovered(return
+below.25). The GameFlow/router/AudioDirector path reaches HUD, whose presenter
+rejects these three unregistered cues. Existing MockHUD coverage hides the drop.
+
+Deliver exactly three canonical presenter mappings: Engine degraded/default
+medium, Engine critical/high, Engine recovered/low. Preserve actual emission
+thresholds, mix/damage/flight/gameplay and existing intensity/severity resolver;
+no duplicate legacy registry or new cue/binding/validator family. Implementer
+owns only semantic_audio_cue_presenter.gd and existing presenter/audio-GameFlow
+integration tests; root owns orchestration/docs/builds/push/cleanup. Reviewer
+checks the exact composed source path and final observed results.
+
+Acceptance frozen before engines: three exact caption/default-severity unit
+assertions fail on the old registry. Fixed actual ship/component ledger→automatic
+rig binding→router/AudioDirector/GameFlow→tree-visible real HUD/one shared service
+shows each degradation/critical/recovery caption once with existing queue/expiry.
+Unchanged bands/repeated facts, detached emissions and OFF/no replay add none;
+old MockHUD assertions and existing damage/alarm/caption behavior remain intact.
+Source/manual caption clock and controlled component damage are disclosed;
+no ordinary flight, physical device, audible mix, rendered/native or full comfort
+qualification is inferred. No playback/gameplay/timing authority changes.
+
+Use clean source pins, Dummy audio and headless or owned isolated x11 checks.
+First unexpected failure stops for causal/cumulative review; no automatic retry,
+new criteria, cap increase or deadline reset. Fresh Windows EXE/ZIP/notes and
+matching Linux artifacts stay in builds/ after accepted focused checks, three
+actual exit0+STARTUP_MENU_READY_OK startups and compiled-payload comparison.
+
 **Jovian solo ordinary engineer route: PARKED / not accepted.** Two source
 trials reach all17 outward walking goals and the real engineer chair. The second
 proves matching accepted repair, integrity improvement and kits6→5 in437ms,
