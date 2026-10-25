@@ -25212,3 +25212,86 @@ Retained `/srv/mudds-work/settings-schema10-migration-20261025/records.tar.gz`,
 No task worktree or remote branch was created. Unrelated parked worktrees and
 accepted checkpoints remain untouched. Titan's prepared design question is
 pending; no dependent craft implementation has begun.
+
+
+<a id="settings-schema10-migration-accepted-20261025"></a>
+## Settings schema-10 migration and distinct usable reload accepted — 2026-10-25
+
+**SAVE-MIGRATION supported settings 10→11 source case DONE** on caller
+`4d1ba6944` / actual run pin `2e8ef51493b1d050910a03d5d0b5e5f4a4854c84`.
+The original complete fixture, exact Save/payload/backup/profile/paid-state,
+distinct normal Main and usable walking criteria all pass. This qualifies the
+existing production behavior, with no game code or schema change and no identical
+checkpoint export. Other formats, final installed/native/device and full recovery/
+release requirements remain open. The [earlier park](#settings-schema10-migration-parked-20261025)
+and its two failed writers remain unchanged historical results.
+
+**One retained clock and causal corrections.** At 33.099 minutes cumulative,
+root selected one readiness-only continuation after independently verifying the
+engine's root/readiness ordering. `59dd956a1` enters the normal main loop and
+awaits actual Main readiness before reading; it logs the load report and both
+complete full-precision settings payloads before asserting. No fixed delay,
+injected authority or startup shortcut. Original writer then passes 37.120736 s,
+91 checks; distinct reader passes reload/profile/paid-state checks but fails
+37.540854 s at its early Begin Shift compound assertion. No full result is
+accepted from that pair; individual failed entry fields were not recorded.
+
+Independent source review identifies HUD's normal 0.45 s intro tween before
+`start_requested`/GameFlow enables controls. With reduced_motion=false, one
+physics signal cannot establish completion. At 41.182 minutes cumulative, root
+selects ONE further correction and fresh writer/reader pair under the SAME
+11:15:39Z start/12:45:39Z hard stop/90-minute clock. `4d1ba6944` observes actual
+Begin Shift completion under the original UI 5 s limit, then a completed physics
+step, and records individual phase/identity/control/floor/timing fields BEFORE
+the unchanged support assertion. No tween/setting/deadline or walk relaxation.
+Previous profiles/results are preserved; the new owned fixture has the same
+frozen initial three namespaces and does not overwrite or resume failed data.
+
+**Final complete pair:** writer 37.188786 s/91 checks and reader 38.543848 s/153,
+each actual OS exit 0, exactly one expected marker and zero diagnostics. Actual
+Godot writer PID 1644617/start 35968995 and reader PID 1645005/start 35977279 are
+distinct and absent after normal exits. Independent source/raw review GO.
+
+Normal writer loads once before first apply without injection. Settings 10 stays
+on disk through STARTING generation 5 and STABLE generation 6. Visible Save is the
+sole generation 6→7 transaction: independently expected complete settings 11,
+entire other payload unchanged, exact parent generation/ID, prior primary equals
+.bak bytes and mode 0600. Both newly absent fields take only the defined defaults;
+all other settings and the complete input profile remain exact. Ordinary metadata
+commits stay enabled. Clean writer retires at generation 10, SHA256
+`c7194edd6617721e695d47b0f08712f03b7d347b194e40e6cfbaaa26288af100`.
+
+Distinct reader verifies that exact writer handoff/PID/SHA before Main, loads 11
+once, validates every keyboard/mouse/gamepad binding/deadzone and actual restored
+paid Race/reward owners. Reward receipt/count remains 1 and both original gameplay
+subdocuments stay exact. Begin Shift completion is observed after 475 ms (under
+5000); after a completed physics step at 532 ms, phase 1, control/floor true, intro
+hidden and the SAME Player are recorded. Ordinary Input movement reaches ≥1 m
+within 5 s, releases, settles ≤0.05 m/s within 5 s, and all 12 consecutive neutral ticks
+retain support/control/identity with drift ≤0.02 m. No transform/control shortcut.
+SafeStart has zero failures/no recommendation, correct starting/stable/clean
+record/startup counters across both normal processes. Every read boundary checks
+primary/backup envelope/checksum and exact predecessor. Final generation 19, mode
+0600, settings 11, exact paid Race/reward and valid backup; primary SHA256
+`f38ed3e089593586da50d54dfd10e6f059278a5795c2016cdff7206b8c7b2aed`.
+
+All six task owners and 30 observed descendant identities are absent; source,
+index/cache and original installed editor/Linux-template pins match. Original
+300 s per process, UI/walk/settle 5 s and 12 neutral ticks remain. Final complete
+pair total 75.732634 s; all six stages total 199.067616 s includes THREE failures
+and the intermediate writer pass. Wall cost is 48.072 minutes through continuation
+archive/cleanup, all measured from original 11:15:39Z; final Git closure/time is
+in closeout. No runtime defect or broader package/hardware acceptance is inferred.
+
+All 68 continuation files hash-match archive members before owned helpers/inputs/
+results/profiles/both private fixture trees/lock removal. Retained case has original
+`records.tar.gz` (4,876,576 bytes, SHA256
+`c4ef22772f4d48a6435db15da493a0bc8315d2ff847687503b92bd8208e56b82`) plus
+`readiness-records.tar.gz` (9,711,311 bytes, SHA256
+`696be1e834a41a7ff5f0a15ef0a1a96648eb63c553531e8e0b94d22031f6daed`)
+and `closeout.json` under
+`/srv/mudds-work/settings-schema10-migration-20261025/`.
+The original candidate bundle/patch/source remain retained; their accepted
+changes are integrated through the successor caller plus the causal fixes.
+No task worktree or remote branch was created. Unrelated parked worktrees remain
+untouched. Titan design input remains pending; no dependent implementation.
