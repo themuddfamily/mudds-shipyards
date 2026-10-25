@@ -54,6 +54,13 @@ work, release/reap owned inputs/processes and consolidate scratch at closure.
 Normal gameplay unchanged means public0d77125 stays current. All prior failures
 remain below and in the original archive; no whole-goal completion assumed.
 
+Focused fixture stopped on five errors: PROCESS_MODE_DISABLED removed the test
+Player/ramp from physics. The initial log-tail assessment was withdrawn. One
+root/independent cumulative review permits a fixture-only correction: keep bodies
+active, disable controller callbacks and perform the manual move in a physics
+frame. All assertions remain; no export/whole route ran. Next fixture failure
+parks without another correction; original case clock and full result unchanged.
+
 **PARKED: HAULER-CARGO-DELIVERY — home walk support check failed.**
 Unaccepted candidatesc0c5ff2b7/70de2ea83 complete ordinary station walking,
 Hauler boarding/departure, actual Cinder load/gate/redock, ten-point terminal walk,

@@ -334,13 +334,16 @@ func _initialize() -> void:
 ## production actors or changing the observer's original 0.6 m ray reach.
 func _test_actual_home_ramp_support_observation() -> void:
 	var craft := Hauler.new()
-	craft.process_mode = Node.PROCESS_MODE_DISABLED
+	craft.transform = Transform3D(Basis(Vector3.UP, PI / 2.0), Vector3(7.0, 5.81, 84.7000046))
 	root.add_child(craft)
-	craft.global_transform = Transform3D(Basis(Vector3.UP, PI / 2.0), Vector3(7.0, 5.81, 84.7000046))
+	# Keep CollisionObject3D bodies in space; freeze only controller callbacks.
+	craft.set_process(false)
+	craft.set_physics_process(false)
 	var player := PLAYER_SCENE.instantiate() as PlayerController
-	player.process_mode = Node.PROCESS_MODE_DISABLED
+	player.position = Vector3(7.384242, 4.596060, 88.907806)
 	root.add_child(player)
-	player.global_position = Vector3(7.384242, 4.596060, 88.907806)
+	player.set_process(false)
+	player.set_physics_process(false)
 	await physics_frame
 	await process_frame
 	var ramp := craft.get_node("CinderCargoVisual/BoardingRampSupport") as StaticBody3D
@@ -402,6 +405,7 @@ func _test_actual_home_ramp_support_observation() -> void:
 	await process_frame
 	player.global_position = Vector3(40.0, 0.001, 0.0)
 	player.velocity = Vector3.DOWN
+	await physics_frame
 	player.move_and_slide()
 	_check(player.is_on_floor(), "actual WORLD floor establishes native grounded state for the no-hit regression")
 	floor_body.collision_layer = 0
