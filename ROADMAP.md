@@ -70,6 +70,46 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Active release capability: LINUX-DESKTOP[Guided normal-exit prerequisite].**
+Candidate95391f403. Existing default Guided driver completes one genuine sortie
+then force-terminates its process; it cannot prove normal HUD Exit/OS0. Preserve
+all original walk/board/launch/four-target/interceptor/home/automatic-OFFLINE/
+physical-exit predicates and original300s cap. Finish that same default route by
+real OS pause/focus/EXIT TO DESKTOP activation, require actual process exit0,
+release all inputs/cursor and reap game/helper/private Xvfb. Forced cleanup or
+exit1 must never pass. Existing nested Guided prefixes/other routes stay intact.
+
+Use only the existing private observer's read-only default-Guided pause/UI/sequence
+facts needed by this real consumer. It must run while paused without claiming a
+fresh Player motion tick. No actor/pose/control/state injection, gameplay tuning,
+new probe family/version or timer increase. Reuse existing normal-exit controls
+where sound; preserve all old unit assertions and startup privacy/fences. One
+implementer owns native runner/test, private observer and existing startup privacy
+test; root owns install/payload/build orchestration/docs/push/cleanup, independent
+lifecycle/input reviewer. Stop implementation discovery once this seam is fixed.
+
+Acceptance: default Guided cannot declare success at COMPLETE; after a valid full
+prefix it requests the actual enabled/focused Exit control, observes realOS0 and
+records exact-PID window/actor identities, original completion and cleanup. Wrong
+exit/early process death/timeout rejects. Extend existing focused tests to
+separate old early-success from the new required endpoint, then run one complete
+unchanged Guided flight prefix plus new UI tail from a clean per-user installed
+Linux candidate with exact archive/installed ELF/manifest/desktop identity. Use
+shipped manager; no real user paths. Preserve archive/source/install bytes across
+launch. Silent isolated package startups and relevant source/privacy checks precede
+one actual native run; first unexpected failure stops for causal/cumulative review.
+
+The existing run uses private Xvfb/explicitx11/Dummy and dummy renderer; retain
+that source-composition environment and label it honestly. This task delivers the
+missing normal-exit executable capability, NOT rendered desktop-entry/full
+LINUX-DESKTOP, final installer/GUIDED-FINAL3/3 or native GPU acceptance. Installed
+direct-ELF mode is separate from desktop-entry launch; one sortie is not3/3.
+Original22:00Z→23:15Z/75min includes readiness/code/checks/build/install/one300s
+trial/review/push/cleanup; no automatic retry or deadline reset. Fresh source
+candidate exports are needed for the observer consumer; publish paired checkpoint
+only after accepted checks/strict startups/actual payload audit. Normal gameplay
+is unchanged; build notes must describe release automation, not a new game feature.
+
 **Qualified: Sprint/boost option survives cold restart and Reset into Player physics.**
 Source7570edf7c passes three real-file processes: normal UI saves TOGGLE; a cold
 reader naturally walks at9.2 after a Shift press and retains it for three released
