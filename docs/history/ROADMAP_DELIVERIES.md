@@ -24382,3 +24382,74 @@ were verified against one archive before removal. Retained records:
 23040698bytes, SHA256 0ce95c3e5bf39c3f1c261e874dd4c6d1096863b20461a3c234f9ac43c130ae43, plus adjacent closeout.json.
 Pre-existing detached registrations and unrelated parked archives remain untouched.
 All 337 canonical records, 36 parent outcomes,ten phase gates and 17-craft scope remain.
+
+
+<a id="aft-furniture-route-resume-receipt-parked-20261025"></a>
+## Aft furniture-clear caller — complete journey not accepted — 2026-10-25
+
+WALK-AFT continuation selected 1a78f5d50 against the retained full original
+Begin Shift/door/Activity Board/stairs/parked OFFLINE Zenith board 90ticks/physical
+exit/wing-clear/reverse stairs/hub/normal UI OS0 journey. Original 300s/outer360s,
+15s per goal/stage, 15 settled frames and all identity/normal-input/physical-motion
+checks remain. Original task budget is 60min, not a new 90min assignment. Prior
+selection00:31:41Z through closure commit00:55:39Z costs 23.966667min conservatively;
+all current mapping/review/implementation/check/package/cleanup time since
+07:15:04.012459Z remains charged. Cumulative 50.915383min
+through cleanup 07:42:00.935451Z; adjacent closeout records final-push cost.
+
+Original 27fbcc1 failed at coordinator furniture. A bounded source calculation
+used 34 oriented rectangles/nine circles and the actual .38m capsule to select
+seven world-XZ room points: (2.2,55.5),(2.2,58),(3.45,58.25),(3.675,58.45),
+(4.525,61.075),(4.575,62.575),(6,62.575), reversed after Board use. Continuous
+conservative center clearance is at least .504m. Aft-only arrival≤.05m and observed
+segment tube≤.10m strengthen the original .30m arrival; original console endpoint
+fence remains .30m. No authored collision, movement tuning or gameplay state changed.
+Source 5c7cfee restores the complete six-file production observer/loader/driver
+capability from the archived candidate while retaining later routes.
+
+Driver 187 tests, CLI privacy, actual-Main observer 31.871s, fresh clean Linux export,
+binary/archive strict startups and exact package audit pass. ONE complete
+ordinary-input trial fails 39.469142s after all eleven lower walking goals and
+actual Board UI: first unpaused observation 1407 holds old completed epoch 1387 at
+exact unchanged pose/zero velocity; actual 1408 holds fresh 1407. No engine diagnostic.
+The first stopped raw result remains retained.
+
+Independent source/raw review authorized one narrowly bounded driver-only
+continuation on the same 60min clock at 42.069min cumulative: allow one exact
+quiescent retained receipt with neutral controls, then demand a fresh receipt on
+the next sample. Source 06ce015 changes only the driver/existing test; all 188 tests
+pass, game GDScript is unchanged, and its existing privacy/observer results are
+reused. Fresh matching Linux export/two strict startups/artifact audit pass.
+The sole complete recheck launches before frozen 07:38Z and FAILS in 39.134679s at
+`sole quiescent resume fence retains exact pre-pause motion and UI pose`.
+
+The final raw establishes the missing owner: last unpaused observation 1395 held
+completed epoch 1394; first paused 1396 retained the exact pose, while Player had
+completed epoch 1395 before pause. First resumed 1413 correctly exposes that frozen
+1395, and 1414 exposes fresh 1413. Paused WALK-AFT samples omit completed-motion;
+copying the last unpaused observer sample cannot prove the actual frozen owner.
+A future opening needs the actual paused receipt through the existing
+NativeSortieObserver._life_completed_motion() owner, independent source review
+and explicit cumulative-budget selection. Do not relax freshness again or rerun
+unchanged. No further repair/check/export/trial selected. Source and stopping
+review were independently confirmed; complete stairs/Zenith/home/UI OS0 remain
+NOT_RUN, and WALK-AFT remains unaccepted.
+
+Both trial driver cleanups release input and reap helper/game/Xvfb; zero game
+diagnostics. Fourteen owners terminal/82 observed identities absent. Unaccepted
+source commits 5c7cfee/06ce015 are preserved in verified Git bundle, both actual
+Linux packages plus metadata/startup records retained inside one archive. Main
+restored to accepted 1a78f5d50; exact-tip local task branch deleted after remote-tip/
+worktree checks, no remote task branch/worktree created. Fourteen owned loose
+build files and 388 verified scratch entries removed. No new Windows export or
+public checkpoint; accepted 8cda303 remains latest.
+
+Retained case: /srv/mudds-work/aft-ordinary-journey-20261025/continuation/results/
+case-records.tar.gz, 225852760bytes, SHA256
+24b1370dc0d33982fd823502f5c87de4c91aaa5ccf5044a203c1d4495ab58ab7, plus adjacent closeout.json. Source bundle member
+results/unaccepted-source.bundle SHA256 893a5eae0087c9398549de9f9f659c9793b77ecf01c07ea35ada0bb075d89f3f,
+tip 06ce01531d7141ad50b008b2ec01c664f2440fcd, prerequisite 1a78f5d50.
+Original 27fbcc1 case archive and unrelated worktrees remain untouched. All 337
+canonical IDs/order/Done means, 36 parents,ten phase gates and 17-craft scope remain;
+no gameplay/whole-project completion is claimed. All automation uses Dummy audio
+and headless/privateXvfb with explicit x11; hosted CI remains disabled.

@@ -53,13 +53,13 @@ not a project percentage inferred from rows, tests or commits.
 ### Small execution queue
 
 Only one implementation card may be active. Each row below is a bounded step
-within the existing goal, not a replacement for its full acceptance. One implementation is selected below. The complete named reconnect case is
+within the existing goal, not a replacement for its full acceptance. No implementation is currently selected. The complete named reconnect case is
 accepted for its recorded Linux-source ordinary-input scope. Torpedo remains
 parked; broader multiplayer and final-candidate requirements remain separate.
 
 | Existing goal | Next bounded result | Proof / stop | State and owner |
 | --- | --- | --- | --- |
-| WALK-AFT | Complete original physical Operations door/Board/stairs/Zenith/exit/reverse/hub/UI OS0 journey using a source-proven furniture-clear caller path | Retain300s/outer360s/15s legs and15 settled frames; Operations arrival≤.05m, observed path tube≤.10m; six source-bounded segments clear capsule by≥.124m before tube; one full packaged ordinary trial only | ACTIVE — Codex implementer and root review; original60min includes prior23.966667min through closure commit plus this continuation from07:15:04.012459Z; hard deadline07:51:06Z. Estimate10min implementation+8min checks/packages+6min full trial/closure. Six existing observer/loader/test/driver files only; full route and original failed run retained |
+| WALK-AFT | Furniture-clear Operations path exercised; complete original journey remains unaccepted | Both ordinary trials stop after actual Board UI at resumed-motion receipt comparison; no stairs/Zenith/home/UI-exit completion. Actual frozen Player receipt is newer than the last unpaused observer sample | PARKED — candidate 06ce015 unmerged/archived; original 60min, 50.915min through cleanup. Reopen only after actual paused `_life_completed_motion()` receipt binding, independent source GO and cumulative review; no unchanged retry or freshness relaxation |
 | NET-ACTOR[projectile/native disconnect] | Closed native recipients skipped before budget work; connected deferred/flying/terminal updates retained | Existing real ENet close-window regression (66), projectile replication (49), canonical (17), consumer (8); all exit0/zero diagnostics, caps unchanged; verified Windows EXE/ZIP/notes | DONE 8cda303 in focused production transport scope — independent review GO; 10.733 minutes through cleanup including conservative mapping cost; full actor/Picket/Torpedo journeys remain open |
 | SERVER-BASELINE-PASSENGER-RECONNECT | Complete original ordinary reconnect journey delivered on109aca0 | 397 checks/171.747s, all three peers exit0, zero diagnostics; original seven moving stages/loss/UI rejoin/home/fresh berth+later chair/renewed flight verified, original caps retained; fresh verified Windows EXE+ZIP+notes | DONE in Linux-source ordinary-input scope; package/device/endurance/capacity/final gates remain separate |
 | PLAN-ASSIGN | Replace the chronological working page with this queue; audit every canonical goal for a finite result or explicit blocking input | Preserve all337 IDs/order,36 parents/ten gates; review changed acceptance and local links. Finish after this pass; no automatic new definition task | PASS — Codex; documentation only |
@@ -157,7 +157,7 @@ Full chronological results belong in the existing
 
 | Existing goal | Specific reopening requirement |
 | --- | --- |
-| WALK-AFT | Source mapping now supports one bounded continuation above; original60min cumulative clock and full journey remain binding |
+| WALK-AFT | Bind the actual frozen Player completed-motion receipt in paused observation; last unpaused observation can lag one tick. Preserve full journey/original 60min cumulative clock/300s and360s caps; independent source GO and priority review before any new trial |
 | PLAY-TORPEDO | Retain cancelled request debt across unread queued neutral samples after OS release; source GO and cumulative priority review before checks; full Heavy/Torpedo/Wing finish unchanged |
 | PLAY-PATROL[platform_sweep] | Localize normal quit failure; five holds/payment/home/exit already observed but UI exit0/save closure missing. Original300s remains |
 | PLAY-DEFENSE | Demonstrated control/gameplay correction for the recorded two-of-four clear; no arbitrary longer fight |
