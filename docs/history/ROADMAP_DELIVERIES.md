@@ -24669,3 +24669,61 @@ before cleanup. Retained only
 and closeout.json. Same60min task cap from08:38:10.728882Z; cumulative3.548690min
 through archive08:41:43.650272Z, final push cost recorded in closeout. No changes
 to337 canonical IDs/order/Done means,36 parent outcomes,ten gates or17craft scope.
+
+
+## Browser disconnect rejoin accepted — 2026-10-25
+
+BROWSER-DISCONNECT is accepted in Linux-source InputEvent/LAN ordinary-route
+scope on test source035fa2f731a9442302271e8abe8bb9a17bcb015d, clean run pin
+fdbd6bed4. The earlier PARKED boundary is superseded only by this whole result;
+both failed runs and unique old source remain retained. No runtime change.
+
+Independent source review demonstrates that the second failure was the sole
+mixed in-memory/JSON dictionary comparison on this route: integer PID versus
+parsed float. A new cumulative priority review permits one correction, default
+and ONE whole run. Actual second identity is written to guest.rejoin_observed
+before validation; positive PID/object-ID and nonempty path compare explicitly.
+Accepted guest.rejoined remains behind all identity/fresh-transport checks.
+No lifecycle, walking, authority, retirement, UI or deadline condition changes.
+
+Default7 passes15.813283s. Complete ordinary route passes510 coordinator
+checks/88.887644s, one GAME_FLOW_LIVE_MENU_DISCONNECT_REJOIN_TEST_OK and zero
+diagnostics. First matched admission659889361/generation1 retires completely;
+the same guest Main/Player walks solo, performs actual Pause→Browser→Refresh
+(directory1→2), selects the original live host row and obtains a different native
+peer and matched fresh tuple514425711/generation2. Old native peer stays closed.
+Both original Players then perform connected walks using that second authority.
+Guest normal second Disconnect retires native/API/offer/admissions/body/seat/ship/
+crew/boarding state. Current retired HUD cursor generation2/sequence9 (first1/4)
+exposes enabled visible focusable Retry, cleared active cursor and no error.
+Guest final solo walk and host normal Disconnect/solo return complete.
+
+All seven walks measure1.002774m, retain supported original Players on every
+consecutive physics step, meet original5s walk/settle bounds and contain12 neutral
+ticks with zero drift. Original host native peer/LAN session/responder stay
+available throughout rejoin (133 independent guard samples); capacity counts
+[0,1,0,1,0]. Actual hostPID1587049/start34817063 and guestPID1587179/start34820219
+each exit0 and are absent. Independent source and raw review GO.
+
+Original outer300/work230/Main60/UI5/discovery10/admission20/handoffs20/guest100/
+host30/cleanup10 seconds remain. Same75min task clock from08:15:10Z, hard09:30:10Z,
+charges all elapsed time including the intervening Linux package delivery;
+33.364938min through archive08:48:31.896251Z, final push cost in closeout. No
+unchanged retry, timing extension or automatic next repair. Production files
+remain identical to Windows/Linux checkpoint8cda303; no identical-game export.
+This does not qualify packaged/physical-device/native/endurance/supported-capacity
+or final-candidate gates. LAN stale expiry still awaits the lifetime decision.
+
+Accepted test changes integrated into pushed main; archived old candidate changes
+are verified byte-identical to their accepted cherry-picks before normalization.
+Exact-tip local branch removed after current remote/worktree checks; no remote
+task branch/worktree created. Six total owners terminal/48 observed child
+identities absent (continuation2/16). All131 continuation records/profile/helper
+entries verified before removal. Retained only the existing prior failure archive
+/srv/mudds-work/browser-disconnect-rejoin-20261025/results/case-records.tar.gz
+(9711868bytes/SHA25644eb91717e4dfd4038da1392a6592d3f0cd6f4e37097dd1c0b87836a1c771ad2),
+new raw identity-continuation.tar.gz
+(4871158bytes/SHA2565b8ac4d987f70a71010e9ea750f7ba556d4058efb90fce5d84639f171a01cf3c)
+and closeout.json in that directory. Dummy audio/headless/private Xvfb explicitx11;
+no physical input or hosted CI. All337 canonical IDs/order/Done means,36 parents,
+ten phase gates and17craft scope remain unchanged.
