@@ -213,6 +213,20 @@ failures are archived; unfinished test code is excluded from main. The then-curr
 checkpoint1a948d9 and original SETTINGS-RETURN/GateC were unchanged.
 [Exact stop and retained proof](docs/history/ROADMAP_DELIVERIES.md#interact-remap-restart-two-fixture-stops-20261025).
 
+**Selected continuation of the same Interact contract, no new budget.** Independent
+cumulative-priority review permits one correction of the known fixture timing and
+both root values-envelope accesses. Raw presses must cross the next complete
+physics tick before exact1/0 observation, with read-only counter/input/tick/handoff
+receipts. Keep every original conflict/profile/controller/hold/release/Save/cold
+Reset/Exit/clean-file predicate and300s/660s maxima. Fresh shared profile/three
+actual processes; reuse unaffected passed default/HUD checks. Original20:11Z→21:11Z
+is absolute; independent engine abort at21:09Z reserves cleanup. Launch only if
+frozen source/runner review leaves enough time. First unexpected failure stops;
+no further continuation, no new export for qualification-only code. Root owns
+existing test plus orchestration/closure; one bounded implementer and independent
+reviewer. Earlier archives and parked chronology stay intact.
+
+
 The Torrent destruction/recovery attempt remains **PARKED / not accepted**.
 A reviewed resolver correction accounted for all100 actual damage, including
 picket side hits; the third trial recorded the required defender's final1-point
