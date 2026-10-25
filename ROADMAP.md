@@ -29,6 +29,28 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Selected: final three missing-craft proposals — SPEC-DYNAMIC/UTOPIA/SALYUT.**
+Starting clean source5aba30cd0. Three independent authors own one new proposal
+file each under docs/design/; root owns source/seam review and shared references.
+One fixed explicitly modern UNAPPROVED design per craft: Dynamic small powerful
+gunship, Utopia actual conserved frontline supply dropship, Salyut transport.
+Registered written names/roles remain distinct from unknown historical models.
+
+Each artifact fixes hull/scale/access/collision/own deployed-envelope berth,
+all16 handling/system fields, physical roles and actual functions, weapons or
+absence, cargo/navigation, component/service/reset/save/reuse, and finite
+production cards with exact files/visible results/focused checks/stops. Preserve
+full two-sortie/cross-craft/Main/network/recovery and early checkpoint requirements.
+No cargo framework/automatic refill/hidden authority/capacity or historical waiver.
+
+Estimate25–30min per author concurrently plus15min root review/integration;
+shared hard stop60min from selection. No engine/export/GitHub CI or runtime edit.
+Finish at reviewed concrete artifacts and named pending owner choices, not craft
+construction or approved SPEC/build split. Earlier five prepared proposals are
+reused; do not repeat their definitions or infer approval from continuation.
+All17 craft and original historical/device/rights/final gates stay in scope.
+
+
 **Delivered: HELM-THROTTLE-REVERSE — full ordinary handback.**
 Corrected source102704512 passes142.607s: physical3process boarding/departure,
 both yaw turns, actual1.342m reverse in755ms, fresh neutral434ms, ordinary brake/
