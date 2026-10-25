@@ -33,13 +33,23 @@ complete `InputBindingProfile`, is therefore installed before InputMap and the
 Player, registered fleet, tow tractor, audio buses, window, world-quality owner, and
 HUD consume the snapshot.
 
-An empty settings authority leaves authored defaults live; safe-start then owns
-the store's first generation for its startup marker. Corrupt, unsupported/newer,
-recovery-only, or failed settings loads still leave defaults live. Corrupt or
-newer settings also block the lifecycle write so those bytes remain exact;
-backup recovery may be inspected but cannot be advanced. The adapter's existing
-generation-zero legacy import remains the only migration policy; GameFlow adds
-no repair or delete behavior.
+For a genuinely empty authority without legacy data, normal Main first persists
+authored default settings; recovery/tutorial owners commit afterward. An invalid
+or unsupported settings section leaves defaults live. A corrupt primary with a valid backup is
+different: the adapter applies that backup's validated settings and complete input
+profile read-only. Normal Main creates a `.recovery` copy of the damaged primary;
+the primary and backup stay byte-identical. Settings Save refuses with
+`store_recovery_required` and visible UNSAVED feedback until the separate explicit
+repair action is confirmed. Durable safe-start startup/close writes also refuse;
+that refusal is not a successful clean-shutdown publication. Ordinary Begin Shift,
+supported walking and Settings Back/Resume remain usable.
+
+Generation-zero legacy import remains limited to a genuinely empty authority;
+it does not bypass corruption protection. Supported typed migrations above remain
+in force. Main startup does not silently repair, promote or delete the backup.
+The two-normal-process source case is [qualified here](history/ROADMAP_DELIVERIES.md#corrupt-backup-read-only-fallback-accepted-20261025);
+explicit repair, other corruption arrangements and installed/native-device checks
+remain separate.
 
 At the recovery threshold, an exact validated two-key recommendation may merge
 `graphics_profile = low` and `window_mode = windowed` through the same adapter

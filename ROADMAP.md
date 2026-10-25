@@ -76,8 +76,10 @@ not a project percentage inferred from rows, tests or commits.
 Only one implementation card may be active. Completed results are linked under
 [accepted work](#accepted-work--source-limits-retained), and failed attempts under
 [parked work](#parked-failures-and-dependent-work). They are not next tasks.
-The table below contains the prepared next case and actual missing decisions.
-The roadmap revision is complete. SAVE-CORRUPT is the single active case.
+The table below contains actual missing decisions.
+No implementation card is active. The prepared SAVE-CORRUPT source case has
+passed and is retained under accepted work; choose the next concrete production
+result rather than extending this completed case.
 
 **Not every inventory row is ready to execute.** Craft full-journey routes,
 comfort episodes, remaining recovery cuts and final installed-package cases still
@@ -90,7 +92,6 @@ and ten phase gates are completion containers; select a concrete child result.
 | Existing goal | Next bounded result | Proof / stop | State and owner |
 | --- | --- | --- | --- |
 | NET-ENDURANCE-DEFINE | Fix the missing numeric lab profile and pass/fail limits before implementing the original30-minute100msRTT/2%loss independent two-client route | One [literal proposal](docs/MOVING_INTERIOR_LATENCY.md#endurance-execution-handoff--proposed-limits-2026-10-25), existing limits separated from proposed values; safe namespace/netem availability verified without game/traffic. No old stream shim or command-injection pass substitutes | WAITING — owner adopts/replaces genuinely unspecified limits. Actual whole-link shaping/1800s ordinary driver still unimplemented; no endurance run selected. Bounded source handoff only; startup profiling remains parked with no unaddressed measured hotspot |
-| SAVE-CORRUPT[primary/bak] | Real corrupt primary selects valid settings backup, protects data, refuses unconfirmed Save and permits on-foot continuation in two normal processes | Exact primary/bak/.tmp/.recovery bytes/names/modes; backup profile/InputMap and ledger; visible recovery/refusal feedback; normal Begin Shift/walk/neutral ticks; original 300 s per process | ACTIVE — unchanged caller 782045005 rebased onto docs-only main; source review GO, no execution or product acceptance yet. Existing read-only policy; repair/promotion and paid-Race actor restoration excluded from this case. Original start12:07:02Z/hard stop13:22:02Z retained; no new clock. Root reviewed at12:23Z: ~59min remain, sufficient for the original two-process case and closure; first unexpected failure stops |
 | SPEC-TITAN / VORTEX / PARADOX / KATANA / PREDATOR / DYNAMIC / UTOPIA / SALYUT | One explicit approval or field-level revision for each existing craft proposal | All required geometry/handling/functions/roles/save fields fixed in the corresponding proposal; no repeat proposal preparation | WAITING — user chooses interpretation/design; Codex implements approved fields |
 | BOMBER-ROLE-DECISION | Record additional physical roles, each action and seat/access arrangement | Exact role count and actions recorded once; pilot-only runtime does not close this promise | WAITING — user |
 | SCOPE-LIMIT / SCOPE-DESKTOP | Fix supported guest/host/role capacity and exact desktop targets | Concrete values in the existing decision register; settings maxima/export presets do not establish support | WAITING — user |
@@ -170,6 +171,7 @@ charged; a new card/branch/folder cannot restart that budget. No Torpedo continu
 ## Accepted work — source limits retained
 
 Recent accepted child outcomes include
+[corrupt-primary read-only fallback and continuation](docs/history/ROADMAP_DELIVERIES.md#corrupt-backup-read-only-fallback-accepted-20261025),
 [Central walking/launch/home](docs/history/ROADMAP_DELIVERIES.md#central-station-accepted-proof-reused-20261025),
 [Hauler conserved delivery](docs/history/ROADMAP_DELIVERIES.md#hauler-supply-first-play-accepted-20261025),
 [Race and home](docs/history/ROADMAP_DELIVERIES.md#race-first-play-accepted-20261025),

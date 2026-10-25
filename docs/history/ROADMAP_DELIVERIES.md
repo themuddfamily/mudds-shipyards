@@ -25295,3 +25295,66 @@ The original candidate bundle/patch/source remain retained; their accepted
 changes are integrated through the successor caller plus the causal fixes.
 No task worktree or remote branch was created. Unrelated parked worktrees remain
 untouched. Titan design input remains pending; no dependent implementation.
+
+
+<a id="corrupt-backup-read-only-fallback-accepted-20261025"></a>
+### Corrupt-primary backup read-only fallback accepted2026-10-25
+
+**SAVE-CORRUPT, one source case accepted.** Unchanged existing production behavior;
+no automatic repair or recovery promotion. Run pin
+`3380961fbca5df9f0cd48a71adfee75623de4798`; caller originally `782045005`, rebased
+byte-identically over documentation-only main. Existing production persistence
+caller gains two opt-in modes and shares the accepted bounded Begin Shift/walk
+helper. No runtime code changed and no identical checkpoint export is required.
+
+A new owned private real-file store commits generation1 with schema11 custom
+settings (FOV96/F13/full input profile) and the authentic paid Race/reward
+namespaces used by the accepted migration case. Generation2 with FOV83 produces
+an authentic generation1 backup. Only primary is then overwritten with the exact
+eight UTF-8 bytes `{corrupt`; primary/backup mode0600, no tmp/recovery/legacy file.
+No Store load occurs after corruption before normal Main: Main itself creates
+`.recovery` with exactly those damaged bytes. Direct envelope validation does not
+perform recovery. Exact names, bytes and modes are checked at every boundary.
+
+The first normal Main loads backup generation1 once before first settings apply,
+restores the complete profile/InputMap and paid ledger receipt/count1. Race
+restoration intentionally refuses `race_session_store_recovery_required` and
+stays idle; its paid subdocument remains exact on disk. Durable SafeStart startup
+and close writes refuse `store_recovery_required`, with no successful transition
+or invented clean-shutdown claim. This is the settled read-only fallback policy.
+
+Normal Begin Shift completes within the existing UI5s. The same supported Player
+walks≥1m within5s, releases input, settles≤0.05m/s within5s, and passes12 neutral
+ticks with drift≤0.02m. Pause→Settings displays SETTINGS BACKUP RECOVERY AVAILABLE
+and its enabled confirmation control. Confirmation is NOT activated. Actual
+Settings Save refuses without incrementing success count and displays
+`UNSAVED  //  STORE_RECOVERY_REQUIRED`; Back→Resume returns to supported gameplay.
+All protected files stay identical through load, walk, Save refusal, Resume,
+close and retired Main. No unexpected prefixed artifact or legacy/tmp file appears.
+
+A distinct second normal process consumes the exact writer PID/artifact/SHA
+handoff and repeats the full read-only result without reseeding. Writer PID1650876,
+reader1651204; both actual OS exits0, one expected marker each, zero diagnostics,
+unchanged source/index/cache guards. Writer33.084511720s/114 assertions;
+reader33.150769998s/108; first complete pair passes, no failed trial or retry.
+Original300s/process, UI/walk/settle5s and12 neutral ticks unchanged. Both run on
+private Xvfb/x11 with Dummy renderer/audio, not the user's desktop. UI visibility
+and feedback assertions are source behavior coverage, not pixel/device review.
+Independent source and full raw-result review: GO.
+
+Primary and recovery SHA256:
+`98e8e66d98f45504a80923203572020d15c102340a21a5201c92c598a7e34b69`.
+Backup SHA256:
+`259205dd44724eb9bf1aecfeac587d37fd85969ff288bbc6379c7647a331bf74`.
+Two supervisors and all10 observed descendant identities are absent; installed
+stock editor/Linux release template pins unchanged. Inputs/cursor release is
+unconditional. All38 regular files and two symlinks hash/mode/link-match the
+archive before owned helpers/results/profiles/private fixture/lock removal.
+Retained `/srv/mudds-work/corrupt-backup-fallback-20261025/records.tar.gz` is
+4,933,845bytes, SHA256
+`948d5ec11b4324f5a39583fa13e30e7fd211256afb67394d6e8aea93b4f098c8`;
+verified candidate bundle/source/patch and raw logs are inside. Adjacent closeout
+records final Git closure and cumulative time from original12:07:02Z, including
+the intervening roadmap revision; original hard stop13:22:02Z never restarted.
+No task worktree or remote task branch was created. Other corruption arrangements,
+explicit repair/promotion, installed/native/device and final gates remain open.
