@@ -23340,3 +23340,74 @@ phase completion, or an evidence-backed completion date. No engine or hosted CI
 was run for these documentation changes. Local checks cover unchanged inventory
 membership, Markdown link anchors and whitespace; independent review checks the
 changed acceptance semantics.
+
+
+## Destination Board bounded cards and focus — shipped on 9477a89 — 2026-10-25
+
+ACCESS-DESTINATIONS, parents12/29; selected85f1d1a50 after concrete roadmap
+contract corrections. Production source9477a89ee3c48b4919b429e9132b8a659739b800,
+checkpoint9477a89. The actual three worlds/two nearby-site cards now scroll in a
+bounded region while heading/subtitle/Back remain fixed. Enabled world/briefing
+focus follows the existing chain into view. Only page construction changed:
+local vertical ScrollContainer, horizontal scrolling disabled, focus following,
+retained rows horizontally filled. No scale/page size/catalog/admission/request/
+status/identity/authority behavior changed.
+
+Regression source0a6e09432 ran actual Main/physical console setup with the real
+five-card catalog at1024x768/requestedMAX1.6/effective1.010526. It failed35.035s
+on exactly seven new geometry assertions: page/Back outside original readable
+bounds and each card's shared readable region outside those bounds. All labels,
+old interaction/refusal/re-entry/identity and no-dispatch checks passed. These
+shared-region failures do not imply all five cards were individually clipped.
+The raw before image shows the page consuming743.747px, leaving too little safe
+margin. After the bounded production fix6854b2341 it is586.105px high, centered at
+y90.947; header/Back remain identical between top/bottom views and scroll0→156
+reveals all five cards.
+
+Final existing console test9477a89 passes91 assertions/34.079s: actual ordinary
+on-foot refusal preserved, all essential labels/actions enclosed and untruncated,
+full cards accessible through scrolling, ready Ember plus final Bore briefing
+presentation follows Ember→Bore→Back with complete final action revealed from
+top, disabled actions skipped, live row/status/button identities and chosen Back
+focus retained on restore, no travel/site request and unchanged catalog/cruise.
+The physical console placement and ready/reachable UI states are explicit staged
+fixtures; no full ordinary walk or actual reached-sector admission is claimed.
+Reviewer identified the initially missing enabled-site case; it was added to the
+same test before closure. The production file was unchanged by that extension.
+
+Existing HUD layout552/12.528s and accessibility1979/82.768s pass. Earlier actual
+Main87/35.563s and final component capture22.834s remain applicable by exact
+production-byte comparison:6854→9477 changes only the existing test file. Initial
+render launch19.455s was rejected for Vulkan diagnostics: caller omitted the
+software ICD pin, triggering fallback. One bounded environment correction reuses
+the existing pinned llvmpipe Forward+ driver, passes23.142s, and preserves the
+original90s capture cap. Both attempts remain archived. Actual1024x768 before/top
+and after/top/bottom originals inspected by root and independent reviewer; no
+footer overlap, readable card copy/disabled guidance, visible scrollbar. These
+are component captures from the production catalog builder; actual Main behavior
+is verified separately. Independent source, raw91 and finite-image review GO.
+
+Clean Windows/Linux exports11.706/25.830s pass. Strict Linux binary24.878s,
+archive26.773s and Windows embedded game data under Linux Godot29.565s each exit0
+and produce exactly one STARTUP_MENU_READY_OK. Exact audit5.603s verifies matching
+1527 PCK entries (tests/tools excluded), compiled HUD, stock Windows code and
+all six Linux archive members/bytes/modes/source timestamps/launcher identity.
+Windows EXE/ZIP/notes are in `builds/windows/`; ZIP exact two members verified.
+EXE SHA256 `d36b354da2023e098a5a65a0b99fd4f4874752c0403dbc141c94b445abfbd500`;
+checkpoint ZIP SHA256
+`5b6c0c136bd27b3473b00b3aa1cb2f71e395b5b9ce5f460bd08b1d9362c845b7`.
+
+Owned case cleanup:14 owners terminal,74 recorded owner/child process identities
+absent;658 archived members byte/mode/link verified before loose records/helpers/
+private profiles were removed. Only case `results/case-records.tar.gz` and
+`results/closeout.json` remain under
+`/srv/mudds-work/destination-board-layout-20261025/`.
+Archive SHA256 `5ea4818120187946e7f2ce2f60593e00ef9aa02cb669a3faa04f6daafb21fdb8`.
+This intentionally retains both failures, raw checks and capture originals.
+Cleanup clock933.503s, original60min cap retained. Accepted source integrated;
+no task branch/worktree created and no pre-existing worktree changed.
+
+All automation silent Dummy/headless or ownedXvfb x11. Native Windows/GPU,
+physical devices/listening and wider viewport/state/ordinary journey/final gates
+remain NOT_RUN/open. GitHub Actions remains disabled. This delivers the named
+view/capability; no original parent/phase or full project completion is claimed.

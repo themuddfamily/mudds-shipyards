@@ -1,8 +1,8 @@
 # Development roadmap
 
 **Playable alpha; full original scope remains unfinished.** Latest playable build:
-[fb396ab Windows checkpoint](builds/windows/MuddsShipyards-fb396ab-checkpoint.zip)
-([changes and validation](builds/windows/MuddsShipyards-fb396ab-notes.txt)).
+[9477a89 Windows checkpoint](builds/windows/MuddsShipyards-9477a89-checkpoint.zip)
+([changes and validation](builds/windows/MuddsShipyards-9477a89-notes.txt)).
 Nine of the promised 17 craft exist. All 36 original parent outcomes and ten phase
 exit gates remain open; completed child results are retained, not counted as whole
 features. There is no evidence-backed project percentage or completion date.
@@ -29,31 +29,27 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Selected: ACCESS-DESTINATIONS — fit and scroll the actual five-card board.**
-Source27b4f1d31; actual three worlds/two sector sites at1024x768, requested1.6
-(the authored maximum; effective pause clamp remains unchanged). Source shows
-rows directly expanding a fixed720x580 page without a scroll region; existing
-layout fixture contains only two worlds. First measure the actual five-card
-content; if no defect is reproduced, stop without speculative runtime changes.
+**Delivered: ACCESS-DESTINATIONS — bounded five-card Destination Board.**
+Source9477a89ee/checkpoint9477a89: all three worlds/two sector sites scroll inside
+the page; heading/Back remain fixed and enabled travel/briefing focus reveals its
+action. At1024x768/requested1.6, the page now fits the original readable margins
+at unchanged effective1.010526 scale. Catalog, travel admission, current status,
+retained row identity and refresh/Back behavior stay unchanged.
 
-One implementer owns `scripts/ui/hud.gd` and the existing focused destination/
-HUD layout tests; root owns selection, guarded checks, integration/export and
-cleanup in the shared checkout. One code owner avoids another branch/worktree;
-independent reviewer handles acceptance. Expected visible result: all five cards
-can be read through bounded scrolling, heading/Back stay in bounds, enabled
-Travel/briefing controls are revealed by focus, disabled rows stay skipped and
-live status refresh retains card identity/chosen Back focus. Opening/scrolling
-must not request travel or alter catalog/route admission.
+Actual-Main console91 assertions pass34.079s, including enabled final-site focus
+from scroll top, disabled guidance and no travel/site dispatch. Existing HUD
+layout552/accessibility1979 checks and inspected same-view Forward+ component
+captures pass; independent source/raw/image review GO. Fresh clean paired exports,
+three strict menu-ready startups and matching1527 actual PCK entries/stock Windows
+code/exact Linux archive pass. EXE/ZIP/notes are in `builds/windows/`.
 
-Proof: existing focused layout regression with full production catalog, actual
-Main console interaction test, relevant existing scale/focus checks, same-view
-isolated capture inspection, fresh clean-commit Windows/Linux checkpoint exports,
-strict menu readiness exit0+sentinel and exact package identity. Dummy audio/
-headless or ownedXvfb x11 only; native GPU/device/full expedition/parent gates
-remain open. Estimate20min source+25checks/export+10review/cleanup; hard stop60min
-including failures. Stop first unexpected failure; one causal correction then
-cumulative priority review. No new UI matrix, validator or test framework.
-
+The old-runtime seven geometry failures and one rejected capture-driver launch
+remain retained. Fourteen owners terminal/74 process identities absent;658
+archive members verified before owned loose records/helpers/profiles removal.
+No task branch/worktree created; accepted source integrated. This closes the
+selected view/capability only: staged UI states/software component captures do
+not close ordinary travel, physical devices, native Windows/GPU or full parents.
+[Exact result, retained failures and cleanup](docs/history/ROADMAP_DELIVERIES.md#destination-board-bounded-cards-and-focus--shipped-on-9477a89--2026-10-25).
 
 **Delivered: tighter, bounded acceptance contracts.**
 The existing337 named records retain all36 parent promises/ten phase gates.
@@ -122,7 +118,7 @@ safety cutoff while the host was1.7mm short of chair clearance. One supported
 caller-only strength0.35→0.25 correction preserves exact clearance/collision/
 walk/15s/global deadlines; full route then passes. Failed source/raw remain
 retained on the original45min clock. No production defect/tuning/framework or
-new test files; checkpointfb396ab remains current, with no identical rebuild.
+new test files; checkpointfb396ab was retained for that caller-only work.
 Physical device/native/endurance/capacity/final-parent gates stay open. Accepted
 source integrated; no task branch/worktree, owned scratch archived/cleaned.
 
@@ -138,7 +134,7 @@ peer exits0/no runtime diagnostics. [Exact proof and cleanup](docs/history/ROADM
 
 Two22line profiles reuse the shared route; one captured actual right vector
 supports pitch handback drift measurement. No production code/tuning, no new
-framework or identical playable rebuild. Checkpointfb396ab remains current.
+framework or identical playable rebuild. That observer-only work retained checkpointfb396ab.
 Device/native/endurance/capacity/final-parent scope
 remain open. No task branch/worktree created; owned scratch archived/cleaned.
 
@@ -154,7 +150,7 @@ zero runtime diagnostics. [Exact result and cleanup](docs/history/ROADMAP_DELIVE
 
 This qualifies existing normal-yard hover on isolated sampled synthetic input;
 no runtime change, planetary-hover/device/native/capacity/endurance/final-parent
-completion. Checkpointfb396ab remains current; no identical rebuild. Source is
+completion. That caller-only work retained checkpointfb396ab; no identical rebuild. Source is
 integrated, no task branch/worktree created; owned scratch is archived/cleaned.
 
 **Delivered: HELM-BOOST — actual host acceleration, release and full handback.**
@@ -170,7 +166,7 @@ diagnostics. [Exact scope and cleanup](docs/history/ROADMAP_DELIVERIES.md#sample
 
 This qualifies existing gameplay on isolated synthetic-action/loopback input;
 no runtime tuning/feature change, physical device or native-hardware pass.
-No identical playable rebuild is needed; checkpointfb396ab remains current.
+No identical playable rebuild is needed; checkpointfb396ab was retained for that observer-only work.
 Full network/endurance/capacity/final gates stay
 open. No task branch/worktree was created.
 
