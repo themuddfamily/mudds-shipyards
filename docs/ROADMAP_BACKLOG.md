@@ -973,7 +973,7 @@ test is an owner/regression anchor, not a runnable ordinary route.
 | BOOT-BREACH-OWNERS | Physical Heavy Breach board has exact production owners before gameplay | 9,11,13 | DONE packagede3d1ada; two exact old owner failures, final full startup/48-check production route and strict paired checkpoint pass; earned-debt interruption transaction DONE c78e0ac | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | BREACH-INTERRUPTION | Exported Heavy Breach real-file earned debt/kill/recovery/paid replay | 13,31,32 | DONE c78e0ac: source and exact archived Linux executable each complete genuine earned unpaid terminal, actual owned kill/reap, distinct normal Resume/real pilot/production exit/physical payment, exact same-document atomic receipt+ack and third cold paid replay. Privacy/compile/paired exports/strict startups/audit PASS; branch merged/deleted. All original 249.405s failures retained; ordinary combat/active-combat restore/native scope separate. [Delivery](history/ROADMAP_DELIVERIES.md#breach-interruption-branch-finished--2026-10-20) | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | ACT-REPEAT-DEFINE | Exact applicable ten-run activity scenarios | 13 | DONE definition: all twelve activities classified below; two cargo routes retain explicit stock-policy gates, Heavy/Torpedo preserve alternating physical board. Measurement/deadline freeze and first-play gates remain; no execution accepted | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
-| REPEAT-RACE | Ten same-world Checkpoint Race completions through actual ordered checkpoints, payment and accepted reset; next run starts usable | 13 | BLOCKED definition — Codex must freeze the existing ten-same-world-success route, unchanged per-run deadlines, finite equivalent-phase resource counters/baselines and legitimate receipt/generation growth. Pass requires zero growth in those retained resource counts after equivalent cleanup phases; Codex binds the counters and baseline, without inventing a leak allowance or asking the user for one. Estimate total execution from ten measured complete cycles plus travel/cleanup; no new whole-route deadline. Only this activity’s named PLAY, cargo-policy or rotation prerequisites apply. Prerequisites/retained scope: PLAY-RACE prerequisite DONE packaged7997b2b37; remains GATED on a frozen resource-baseline/deadline contract for ten legitimate same-world completions; existing source passes retained | [Activity repeat](#proof-activity): ten actual Race successes in one retained world, payment/reset/usable next start and no equivalent-phase resource growth; cargo policy and Heavy/Torpedo alternation apply. |
+| REPEAT-RACE | Ten same-world Checkpoint Race completions through actual ordered checkpoints, payment and accepted reset; next run starts usable | 13 | PARKED after two full attempts; [literal retained contract](#race-repetition--selected-ordinary-input-capability). First735.603s attempt has3completehome/census cycles and4payments; fourthhome hits original300s. Python-only gantry-lane correction source49cba86e3 then firstcycle times out312.126s before inner/outerlane/home/census; payment1 only. Fullten-cycle result FAILEDtwice; idle20/nextstart/UIclose NOT_RUN. Candidate/exports unaccepted, verified archived before owned branch/scratch cleanup. First-play7997b2b37 remains accepted. Reopen only demonstrated corrected first-lane failure cause and independent cumulative-priority review under retained original clock/caps; no renamed/unchanged retry. [Full stop](history/ROADMAP_DELIVERIES.md#race-repetition-two-attempt-stop-20261025). | [Activity repeat](#proof-activity): ten actual Race successes in one retained world, payment/reset/usable next start and no equivalent-phase resource growth; cargo policy and Heavy/Torpedo alternation apply. |
 | REPEAT-BEACON | Ten same-world traversals of all four authored beacons in order, accepted payment/reset and usable next run | 13 | BLOCKED definition — Codex must freeze the existing ten-same-world-success route, unchanged per-run deadlines, finite equivalent-phase resource counters/baselines and legitimate receipt/generation growth. Pass requires zero growth in those retained resource counts after equivalent cleanup phases; Codex binds the counters and baseline, without inventing a leak allowance or asking the user for one. Estimate total execution from ten measured complete cycles plus travel/cleanup; no new whole-route deadline. Only this activity’s named PLAY, cargo-policy or rotation prerequisites apply. Prerequisites/retained scope: PLAY-BEACON and frozen resource-baseline/deadline contract; no synthetic beacon submission as ordinary-route proof | [Activity repeat](#proof-activity): ten actual Beacon successes in one retained world, payment/reset/usable next start and no equivalent-phase resource growth; cargo policy and Heavy/Torpedo alternation apply. |
 | REPEAT-SCAN | Ten same-world scans from actual approach, full four-second physics scan, existing payment/discovery/reset and usable next run | 13 | BLOCKED definition — Codex must freeze the existing ten-same-world-success route, unchanged per-run deadlines, finite equivalent-phase resource counters/baselines and legitimate receipt/generation growth. Pass requires zero growth in those retained resource counts after equivalent cleanup phases; Codex binds the counters and baseline, without inventing a leak allowance or asking the user for one. Estimate total execution from ten measured complete cycles plus travel/cleanup; no new whole-route deadline. Only this activity’s named PLAY, cargo-policy or rotation prerequisites apply. Prerequisites/retained scope: PLAY-SCAN and frozen resource-baseline/deadline contract; existing full Scan failure remains PARKED, no retry selected | [Activity repeat](#proof-activity): ten actual Scan successes in one retained world, payment/reset/usable next start and no equivalent-phase resource growth; cargo policy and Heavy/Torpedo alternation apply. |
 | REPEAT-THREADING | Ten five-gate Asteroid Threading completions with accepted payment/reset | 13 | BLOCKED definition — Codex must freeze the existing ten-same-world-success route, unchanged per-run deadlines, finite equivalent-phase resource counters/baselines and legitimate receipt/generation growth. Pass requires zero growth in those retained resource counts after equivalent cleanup phases; Codex binds the counters and baseline, without inventing a leak allowance or asking the user for one. Estimate total execution from ten measured complete cycles plus travel/cleanup; no new whole-route deadline. Only this activity’s named PLAY, cargo-policy or rotation prerequisites apply. Prerequisites/retained scope: PLAY-THREADING and measurement/deadline freeze; source reset/save coverage retained | [Activity repeat](#proof-activity): ten actual Threading successes in one retained world, payment/reset/usable next start and no equivalent-phase resource growth; cargo policy and Heavy/Torpedo alternation apply. |
@@ -1822,6 +1822,69 @@ defect; retain any failure before separately selecting a repair. Scan's previous
 full-suite failure stays parked with its existing budget/reopen condition.
 The remaining nine source classifications are now defined below; their gameplay
 and resource acceptance remain unperformed.
+
+### Race repetition — selected ordinary-input capability
+
+REPEAT-RACE, selected2026-10-25, now **PARKED after two failed full attempts**.
+The accepted first-play7997b2b37 satisfies its prerequisite. The unaccepted
+candidate implements an opt-in `race-repeat` mode in the existing
+native-sortie driver/read-only observer, not another validator or evidence format.
+One original world/Main/Player/Torrent is retained; one genuine Guided prelude is
+followed by **ten** normal timed-race sorties. Every sortie preserves the actual
+2s countdown, five physical ordered gates,120s race limit/zero penalties, exact
+once-only durable reward, strict occupied home landing, original≥90 neutral
+OFFLINE ticks, physical exit and supported walking. Normal reboarding invokes the
+existing persisted terminal reset; run generations are1,3,…19 with reward counts
+1,…10. Tenth reboarding proves durable idle generation20, unchanged ledger10 and
+occupied OFFLINE dock with a usable next start, without an eleventh departure or
+payment. End through normal UI quit/actual OS0 and exact orderly-close files.
+No transform, checkpoint, kill, payment, reset or gameplay-timing injection.
+
+Compare equivalent eligible completed homes after the existing shutdown/exit and
+supported-on-foot checks. The full original walk still must finish before the
+cycle is accepted; census collection does not replace its displacement/duration.
+Baseline is first completed race home; cycles2–10 must show zero positive
+growth in the Main subtree node census by built-in class and script path, flyable
+ship group count, GameFlow `ships` count, combat target `_registrations_by_instance`
+and resolver `_source_registry` sizes, ActivityDirector `_definitions`/`_activities`
+sizes and active objective IDs. Main/world/Player and registered fleet identities
+stay fixed; streamed residency state must match at comparison. Node census covers
+retained actor/checkpoint/objective/observer/projectile/effect descendants. Record
+a census once per eligible completed cycle, without creating Nodes or calling
+registry-pruning getters. Legitimate durable receipt/generation/history advances
+are excluded from resource counts, not accepted as duplicate awards. Any uncovered
+resource owner or unmatched state blocks the claim rather than gaining a tolerance.
+
+Existing single-sortie CAP300 and all its sublimits remain unchanged. Each repeat
+cycle retains300s, including initial Guided/startup in the first cycle. The new
+repeat driver has an independent aggregate abort at3000s (ten existing caps), not
+an increased deadline for old `race-home`. There was no original whole-repeat
+clock. Root's task clock is12:29Z→13:59Z/90min, including selection/implementation,
+checks/export/run/integration/cleanup; do not restart it. Estimates45min code,
+15min checks/export,20min route and10min closure. Stop on first unexpected failure;
+no automatic repair/retry. Exact clean source/package/command binds before launch.
+
+One high implementer owns `run_native_sortie.py`, its existing Python tests and
+`native_sortie_observer.gd`; root owns exact startup mode/privacy admission,
+docs/process/package/integration; an independent high reviewer checks source/raw
+results. Tests do not replace the ten real cycles. No gameplay change is assumed;
+no identical Windows checkpoint is needed for private diagnostic-mode work alone.
+Actual installed/native-device/GPU/audio/endurance/final-candidate gates remain.
+
+**Stop, not delivery:** first whole attempt735.602507876s fails the fourth home
+CAP300 after three complete cycles and four payments. Recorded hull pose/source
+geometry reproduces gantry portpost/header margin contacts; a reviewed Python-only
+correction inserts published approach-lane40/170 staging before every old waypoint.
+On a fresh profile, the corrected whole attempt fails312.126038933s at first home
+CAP300, with one payment and neither lane receipt. Ten-cycle acceptance failed
+twice; final idle20/next-start/normal UI close remain NOT_RUN. Three original
+censuses are exactly equal (10007nodes/9fleet/13combat registrations+sources/
+1observer/0projectileflights), but cannot replace ten successes. Guards and native
+input/process cleanup pass; no engine diagnostics. Keep both separate attempts,
+1047.728546809s failed-route cost and the original wall clock. Candidate49cba86e3
+is archived/unmerged; its source prechecks are not runtime delivery. The later
+first-lane failure's actual control/slide-collider cause is unresolved. No further
+investigation, correction or replay is selected. [Exact records/cleanup](history/ROADMAP_DELIVERIES.md#race-repetition-two-attempt-stop-20261025).
 
 ### Activity repetition — remaining nine definitions
 

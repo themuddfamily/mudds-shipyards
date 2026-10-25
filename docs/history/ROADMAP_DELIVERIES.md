@@ -25358,3 +25358,79 @@ records final Git closure and cumulative time from original12:07:02Z, including
 the intervening roadmap revision; original hard stop13:22:02Z never restarted.
 No task worktree or remote task branch was created. Other corruption arrangements,
 explicit repair/promotion, installed/native/device and final gates remain open.
+
+
+<a id="race-repetition-two-attempt-stop-20261025"></a>
+### Race repetition — two full attempts stopped2026-10-25
+
+**REPEAT-RACE remains PARKED, not delivered.** A bounded source pass found no
+new control/UI production defect; already shipped look/rebind/comfort work was
+retained. The selected missing capability was a ten-cycle opt-in ordinary-input
+route in the existing release driver/read-only observer. Source49cba86e3 and its
+predecessors remain unaccepted and archived; none of that candidate's code is
+merged into main. No ten-run or whole-parent completion is claimed.
+
+The frozen result remains one retained Main/world/Player/Torrent, one genuine
+Guided prelude, ten actual2s-countdown/five-gate/120s races and once-only payments,
+strict home/OFFLINE/physical exits/supported walks, transactional normal reboard
+resets, tenth idle20/ledger10 readiness and normal UI quit/actual OS0. Concrete
+node/registry/objective/fleet/residency checks compare equivalent home states;
+receipt/history advancement is not resource growth. Existing300s per-cycle and
+all sublimits were retained; old single-race CAP300 was never increased. The
+original12:29Z→13:59Z/90min task clock includes all selection, implementation,
+checks, both attempts, diagnosis, archive and closure. No successor clock began.
+
+Preflight onbcd5f7a: guarded import6.582s, observer parser16.008s, CLI privacy1.272s,
+188 Python tests11.364s, clean Linux export25.710s, strict startup22.746s and
+1527-entry inventory1.281s all pass OS0/no diagnostics/unchanged source guards.
+Strict menu startup requires exit0 and exactly one readiness sentinel. Private
+ELF149032800bytes SHA256
+`76fbd1c45deb6eb86cd59cb409d4dc1c686d9969cfbe6f51a3b426a794034e85`.
+These are preflight passes for that candidate, not gameplay acceptance.
+
+**First full attempt:** driver OS1/marker0,735.602507876s (native735.128s), original
+cycle4 CAP300 at home clearance. Four genuine races gen1/3/5/7 complete all five
+physical gates, zero penalties and exactly four durable payments; only three
+complete home/walk/resource cycles. Their three node/registry censuses are exactly
+equal:10007nodes,9fleet,13combat registrations/sources,1observer,0projectileflights,
+empty active-objective IDs and matching residency. All40003 raw samples preserve
+one process/Main/world/Player/Torrent and nine-fleet identity map. Actual-file
+hashes/documents and protected siblings match their captured states. Those partial
+observations cannot be concatenated into ten-run acceptance.
+
+Recorded rolled hull pose atseq25532/frame26000 and frozen authored geometry
+reproduce near-simultaneous GantryFrame2 portpost/header contacts within default
+collision margin. Source contact-velocity shedding explains the persistent pin;
+actual slide-collider identity and throttle/brake were not recorded, so no lost-
+input claim is made. Independent review selected ONE Python-only correction:
+settle through existing published approach-lane40/170 points, then retain every
+old home waypoint/finish guard. No geometry, physics, tuning, deadline or census
+was changed. Exact unchanged packaged game reused: inventory contains no Python
+payload and the diff changes only driver/tests. Corrected190 Python tests pass
+11.224s under guards; final source review GO.
+
+**Fresh corrected full attempt:** OS1/marker0,312.126038933s (native311.686s),
+original first-cycle CAP300 during home clearance. One genuine payment/gen1;
+ZERO inner/outer lane receipts, completed homes or resource censuses. Last pose
+(47.494904,-64.022499,-690.053040), velocity(9.944769,-1.828202,23.913742).
+The later first-lane failure's control/slide-collider cause remains unresolved.
+Final idle20/next-start and normal UI/orderly close remain NOT_RUN. Independent
+terminal/cumulative review chooses PARK: no third attempt, new probe, further
+source investigation, cap increase or renamed retry. Reopening requires an actual
+cause for this later boundary and independent cumulative-priority review.
+Both failed route stages total1047.728546809s/17min27.729s; preflight, diagnosis
+and closure also remain charged to the original task clock.
+
+Both owned native games (PID1658925 and1663672) release synthetic input and reap
+input helpers/game/Xvfb. All10 supervisors and49 observed process/start identities
+are absent. No engine diagnostics; source/index/tree/cache guards unchanged in
+both attempts; installed stock editor/Linux template pins unchanged. All163
+regular files and10 symlinks byte/mode/link-match the verified archive, including
+unique candidate bundles/patch/source, causal witness, raw logs, snapshots and
+five private export/startup artifacts. Owned helpers/profiles/results scratch and
+all five duplicate private build files are removed. Only
+`/srv/mudds-work/race-repeat-20261025/records.tar.gz` (229414354bytes, SHA256
+`16e55cdfba7c62482c9ecc5948def3384641e8c448c2c30d6b067d147d5e0d15`)
+and adjacent closeout remain. Exact branch deletion follows verified source
+accounting and pushed docs-only main; no task worktree or remote task branch was
+created. No new accepted checkpoint or native GPU/device/audio/final qualification.
