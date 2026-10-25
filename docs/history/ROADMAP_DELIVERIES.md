@@ -25434,3 +25434,59 @@ all five duplicate private build files are removed. Only
 and adjacent closeout remain. Exact branch deletion follows verified source
 accounting and pushed docs-only main; no task worktree or remote task branch was
 created. No new accepted checkpoint or native GPU/device/audio/final qualification.
+
+
+<a id="settings-4x3-extreme-views-inspected-20261025"></a>
+### Settings4:3 extreme scales and scroll — six component views inspected2026-10-25
+
+ACCESS-PAUSE-4X3 gains exactly six required component-image observations:
+requested0.75 and1.6, each normal Settings top/middle/bottom at actual1024x768.
+Accepted sourceMain geometryece9a0253 and earlier rendered top1.0/1.4 remain in
+scope; no unchanged old image is recaptured. Whole32-state/Main/ordinary/device
+acceptance is not inferred from these six views. Original13 capture sets/143
+registered PNG requirements are neither expanded nor closed here.
+
+The existing `tests/capture_accessibility_presets.gd` gains one opt-in
+`ACCESSIBILITY_CAPTURE_SET=settings-extremes` mode. Existing default/presentation
+paths remain unchanged. The actual standalone GameHUD opens paused Settings via
+its authored button; source guards require heading/two-column scroll/fixed footer
+contained, production scale ceiling and settled scroll endpoints. Capture returns
+save/blank status for this mode without changing existing callers' behavior.
+No runtime UI/gameplay code or policy changed; no identical checkpoint export.
+
+One guarded run on clean sourcecac78d22bd02ae5fdb53aa7f6459c39662946523 uses private
+Xvfb1024x768, explicitx11/Dummy and Forward+/pinned lavapipe ICD/library. Actual log:
+Vulkan1.4.305, llvmpipe LLVM19.1.7/256bits. Existing120s cap retained; actual
+8.859796610s/OS0, one CAPTURE_ACCESSIBILITY_PRESETS_OK, zero diagnostics. Source/
+index guards unchanged; only authorized render-cache updates allowed. All six
+PNG headers are1024x768, savesOK and sampled distinct colours45–119.
+
+| Requested scale | Actual production pause scale | Actual scroll values; max/page |
+| --- | --- | --- |
+| 0.75 | 0.75 | top0 / middle1234 / bottom2469; max2953, page484 |
+| 1.6 | 1.010526 | top0 / middle1234 / bottom2469; max2953, page484 |
+
+The max request reaches the authored min(1024/880,768/760) ceiling; these images
+prove a literal1.6 request, not literal1.6 effective enlargement. Root inspected
+all six originals at original resolution: fixed heading/subtitle/footer and
+visible flight/camera/audio/accessibility, binding, display/multiplayer labels
+are contained/readable; no clipping/overlap finding. Cut rows at scroll edges are
+authored clipping. Shorter right-column content leaves blank space at middle/
+bottom, not missing controls. Intermediate unseen rows and other popup states
+remain uninspected. This fixture sets presentation scale directly; displayed
+setting values remain authored snapshot defaults (scale control100%), so it
+proves no ordinary slider/value synchronization, Save/reset or focus transaction.
+Native GPU/device/audio/human-review facts and full/final qualification remain
+unperformed in their existing scopes.
+
+One supervisor and four observed descendant identities are absent. Renderer
+ICD/library pins unchanged. All189 regular files/one symlink byte/mode/link-match
+`/srv/mudds-work/settings-extreme-views-20261025/records.tar.gz` before owned
+helpers/results/profile removal. Archive3759916bytes, SHA256
+`1d3029d821e12eb6f23464f132cabcc172ee45693d0de4e2f1781d83757637dd`.
+Six original PNGs deliberately retained in adjacent `images/`, names
+`settings_panel_scale_{075,160}_{top,middle,bottom}.png`, and closeout contains
+their exact sizes/hashes and final Git/cumulative closure. No task worktree or
+remote task branch; accepted source integrates to pushed main and local working
+branch is removed at exact tip. Original13:39:23Z→14:14:23Z/35min clock includes
+mapping, implementation, run, inspection and closure. First run passes; no retry.
