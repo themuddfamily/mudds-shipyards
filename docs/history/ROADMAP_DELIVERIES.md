@@ -25823,3 +25823,41 @@ SHA256 `d7a206d2921f1bd9d850f55cd30216b2a9d12fbfd9c56db8fc2ea87d118dbd07`,
 branch or build artifacts were created; documentation commits/push and elapsed
 cost are recorded in closeout. Original16:02Z→16:22Z/20min includes binding,
 execution, integration and cleanup; no failures/retries or deadline changes.
+
+
+<a id="torrent-loss-recovery-two-attempt-stop-20261025"></a>
+## Torrent loss/recovery two-attempt stop —2026-10-25
+
+Required original craft destruction/recovery remains open. Unaccepted candidate
+791e92b5826cf4f988cb58d13cd38e2203306211 and Python-only correction
+8616e9a4a7cbadafeeff32e17bafb5ced22bf0ad were preserved, not merged. This was an
+executable release-driver attempt; production gameplay was unchanged.
+
+First native trial stopped after36.989s at lingering native/consumed fire after
+the fourth range target. One reviewed correction waits for actual release
+acknowledgment;208 Python tests pass. The unchanged package then stopped after
+44.723s: frame1741 hull78 and two incoming11-point receipts; frame1742 hull56
+with the captured total still22. Fire was released and the live defender retained
+85HP. No fatal receipt, recall, regeneration, retry victory or home acceptance.
+Both trials have zero runtime diagnostics and complete owned input/process cleanup.
+
+Source review identifies an observer blind spot: travelling projectile arrival
+uses CombatResolver.shot_resolved and deliberately omits the authority submission
+signal. The production StandoffPicket source2102 has a22-point travelling lance;
+this is a possible explanation, not a proven receipt for frame1742. No unexplained
+hull loss is accepted. Reopening requires actual resolver/profile receipt coverage,
+independent causal review and cumulative-priority approval before correction or
+trial. Keep the complete intended destruction/recall/monotonic2s regeneration,
+same-object/new-generation home lease, physical reboard/retry victory/home/exit/UI
+journey and original CAP300. Do not reset the16:12Z→17:12Z/60min task clock.
+The user's concrete-roadmap request takes priority; no third trial is selected.
+
+Verified archive `/srv/mudds-work/torrent-loss-recovery-20261025/records.tar.gz`,
+124,789,073bytes, SHA256
+`0b6143af19521a1e58ba64b36fe9a28e3d9ee115880f733ad5e7669a6abc565b`,
+139regular files/9symlinks. It retains both source bundles/patches, raw failures,
+checks and the exact package. Corrected bundle independently verifies and names
+8616e9a4a7cbadafeeff32e17bafb5ced22bf0ad with retained main prerequisitea5a243b42.
+All owned process identities are absent; five private build files and unpacked
+scratch removed. Only archive and closeout remain. Exact Git cleanup and original
+elapsed cost are recorded in that closeout; accepted runtime source remains main.

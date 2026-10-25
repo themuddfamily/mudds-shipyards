@@ -9,6 +9,37 @@ Nine of the promised 17 craft exist. All 36 original parent outcomes and ten pha
 exit gates remain open; completed child results are retained, not counted as whole
 features. There is no evidence-backed project percentage or completion date.
 
+## How we will work from this roadmap
+
+Only a goal with a frozen result and proof can enter the work queue. Every selected
+assignment must fit this sentence:
+
+> On **[candidate and starting state]**, the player performs **[finite actions]**;
+> **[observable values/endpoints]** must follow within **[existing limits]**,
+> proved by **[command or ordinary route]**. This closes **[named child result]**;
+> **[remaining parent gates]** stay open.
+
+An implementation delivers one behavior or executable release operation, estimated
+at no more than 90 minutes including focused checks and closure. Longer complete
+journeys remain separate qualification gates with their original durations.
+A milestone groups named children; it is never assigned as one coding task.
+A decision ends with the exact recorded answer. A hardware check ends with the
+actual measurement on the named device. These are different kinds of work.
+
+Missing acceptance details mean **BLOCKED definition**, with the exact missing
+fields and Codex as owner; missing product choices or access mean **BLOCKED input**,
+with the responsible owner. Neither label permits speculative implementation or
+another research chain. A single bounded definition pass must return the answer
+or that explicit blocker. Accepted results remain closed within their recorded
+scope. A failed trial returns its first failed predicate and cumulative cost;
+it does not silently grow the goal or restart its budget.
+
+The tables below are finish lines and scheduling controls. The existing
+[canonical child inventory](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes)
+retains every original promise and identifies the missing bindings. It is not a
+list of 337 executable tasks. We cannot honestly give a remaining-task count or
+completion date until those finite memberships and owner choices are fixed.
+
 ## What finishing means
 
 The full original scope is retained. A smaller release would require an explicit
@@ -77,7 +108,23 @@ Only one implementation card may be active. Completed results are linked under
 [accepted work](#accepted-work--source-limits-retained), and failed attempts under
 [parked work](#parked-failures-and-dependent-work). They are not next tasks.
 The table below contains actual missing decisions.
-No implementation card is active. The existing shared Main resource/combat
+
+**Contract cleanup: bounded definition pass completed.** The existing backlog
+retains all 337 IDs/order, 36 original parents, ten gates and accepted scopes.
+Runnable work requires the literal result/proof card above. Incomplete craft
+journeys, visual view lists, interruption cuts and installed-package routes stay
+BLOCKED definition with their missing fields and owner; product decisions and
+hardware/access remain BLOCKED input. This records the remaining planning work;
+it does not claim every goal is executable or deliver gameplay. No implementation
+card or new trial is active. Select no blocked row until its named fields are fixed.
+
+The Torrent destruction/recovery attempt is **PARKED**, after two failed native
+trials. The second reached hull 56 with only 22 damage accounted for; its missing
+projectile receipt prevents acceptance. Fatal recall/regeneration/retry remain
+unproved. Source, package and raw results are archived; no third attempt is
+selected. [Exact stop and reopening condition](docs/history/ROADMAP_DELIVERIES.md#torrent-loss-recovery-two-attempt-stop-20261025).
+
+The existing shared Main resource/combat
 lifecycle check is accepted on79dc473a5: three retained subtree re-entry cycles,
 72assertions/70.113s/OS0/zero diagnostics, including Torrent hull/source1101,
 stale-shot rejection, retained nodes, queues and audio. [Exact source scope](docs/history/ROADMAP_DELIVERIES.md#shared-main-source-lifecycle-accepted-20261025).
