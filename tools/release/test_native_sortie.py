@@ -5502,5 +5502,194 @@ class TorrentArrowHandoffTests(unittest.TestCase):
         with self.assertRaisesRegex(AssertionError,'fresh current producer epoch'): p.update(s,1)
 
 
+
+class GuidedExitTests(unittest.TestCase):
+    PHASES = ['APPROACH_SHIP', 'START_ENGINES', 'LAUNCH', 'TARGET_PRACTICE',
+              'INTERCEPTOR_ENGAGEMENT', 'RETURN_TO_YARD', 'SHUT_DOWN', 'COMPLETE']
+
+    def observation(self):
+        s = {key: index+1 for index, key in enumerate(native.GuidedExitPilot.IDS)}
+        s.update(mode='guided', sequence=1, frame=100, phase='COMPLETE', paused=False,
+                 gameplay_snapshot_fresh=True, window_focused=True,
+                 player=[12, 0, 0], spawn=[0, 0, 0], position=[0, 1.15, -10],
+                 parked=[0, 1.15, -10], velocity=[0, 0, 0],
+                 default_sampler=True, tuning_unchanged=True, destroyed=False,
+                 shot_accepted=True, command_fire=False, piloted=False, seated=False,
+                 control_enabled=True, guided_complete=True, active_ship=True,
+                 exit_error=.17, lease=True, lease_free=False, home_lease_token='actual-home-token',
+                 parked_exact=True, contract=True, landed=True,
+                 telemetry={'engine': 'OFFLINE', 'hull': 80}, tuning={'mouse': .002, 'brake': 20},
+                 native_keys={'escape': False, 'tab': False, 'return': False},
+                 ui={'main_visible': True, 'exit_visible': True, 'exit_enabled': True,
+                     'exit_text': 'EXIT TO DESKTOP', 'exit_path': '/Main/HUD/Pause/ExitButton',
+                     'focus_path': '/Main/HUD/Pause/ResumeButton', 'focus_is_exit': False})
+        return s
+
+    def ready(self, pilot_type=native.GuidedExitPilot):
+        p, s = pilot_type(), self.observation()
+        p.stage = 'exit'
+        p.identities = (s['player_id'], s['ship_id'])
+        p.phases = self.PHASES.copy()
+        p.max_walk = 12; p.max_excursion = 100
+        p.shot = p.fired = True
+        # The original physical disembarkation press may still be down.
+        p.tap_key = 'e'; p.tap_frame = 99; p.tap_until = 2
+        snapshot = copy.deepcopy(s)
+        if isinstance(p, native.GuidedExitPilot):
+            p.expected_pid = s['pid']
+            p.validate_observation(snapshot)
+        controls = p.update(snapshot, 1)
+        return p, s, controls
+
+    def tick(self, p, s, now, **changes):
+        s.update(changes)
+        s['sequence'] += 1
+        if not s['paused']: s['frame'] += 1
+        s['gameplay_snapshot_fresh'] = not s['paused']
+        snapshot = copy.deepcopy(s)
+        p.validate_observation(snapshot)
+        return p.update(snapshot, now)
+
+    def request_exit(self):
+        p, s, _ = self.ready()
+        self.assertEqual(self.tick(p, s, 1.11)[0], {'Escape'})
+        self.assertEqual(self.tick(p, s, 1.15, paused=True)[0], {'Escape'})
+        self.assertEqual(self.tick(p, s, 1.20)[0], set())
+        self.assertEqual(self.tick(p, s, 1.31)[0], {'Tab'})
+        self.assertEqual(self.tick(p, s, 1.40)[0], set())
+        s['ui']['focus_is_exit'] = True
+        s['ui']['focus_path'] = s['ui']['exit_path']
+        s['native_keys']['tab'] = True
+        self.assertEqual(self.tick(p, s, 1.51)[0], set())
+        s['native_keys']['tab'] = False
+        self.assertEqual(self.tick(p, s, 1.52)[0], {'Return'})
+        return p, s
+
+    def test_default_guided_complete_releases_e_and_requires_os0_instead_of_early_success(self):
+        old, _, old_controls = self.ready(native.Pilot)
+        self.assertIsNotNone(old.result)
+        self.assertIn('e', old_controls[0])
+        p, s, controls = self.ready()
+        self.assertEqual(controls, (set(), 0, 0, False))
+        self.assertIsNone(p.result)
+        self.assertIsNone(p.tap_key)
+        self.assertEqual(p.stage, 'pause')
+        self.assertEqual(p.guided_result, old.result)
+        self.assertEqual(p.receipts['complete'], s)
+        with self.assertRaisesRegex(AssertionError, 'normal UI OS0'):
+            p.finish(0)
+        self.assertIsNone(p.result)
+
+    def test_guided_flight_prefix_keeps_original_brake_and_thrust_commands(self):
+        guided, original = native.GuidedExitPilot(), native.Pilot()
+        s = self.observation()
+        s.update(phase='TARGET_PRACTICE', camera=[0, 8, -69],
+                 right=[1, 0, 0], up=[0, 1, 0], back=[0, 0, 1],
+                 targets=[], upright=1, lease_free=True, landed=False)
+        guided.expected_pid = s['pid']
+        for p in (guided, original):
+            p.stage = 'launch'; p.identities = (s['player_id'], s['ship_id'])
+        for frame, position, velocity in [(100, [0, 7.5, -72.5], [0, 0, 0]),
+                                           (101, [0, 7.5, -72.5], [0, 0, -20]),
+                                           (102, [0, 8, -74], [0, 0, 0])]:
+            s.update(frame=frame, sequence=frame, position=position, velocity=velocity)
+            snapshot = copy.deepcopy(s)
+            guided.validate_observation(snapshot)
+            expected = original.update(snapshot, frame/60)
+            self.assertEqual(guided.update(snapshot, frame/60), expected)
+            self.assertEqual(guided.stage, original.stage)
+            self.assertIsNone(guided.result)
+
+    def test_ui_focus_press_release_and_real_zero_exit_complete_same_guided_sortie(self):
+        p, s = self.request_exit()
+        self.assertTrue(p.quit_requested)
+        self.assertEqual(p.stage, 'quit_wait')
+        self.assertTrue(p.receipts['exit_ui']['ui']['focus_is_exit'])
+        self.assertIsNone(p.result)
+        self.assertEqual(self.tick(p, s, 1.62)[0], set())
+        self.assertEqual(self.tick(p, s, 2)[0], set())
+        result = p.finish(0)
+        self.assertTrue(result['normal_ui_exit'])
+        self.assertEqual(result['exit_code'], 0)
+        self.assertEqual(result['phases'], self.PHASES)
+        self.assertEqual(result['same_actor_identities'], {k: s[k] for k in p.IDS})
+        self.assertEqual(result['receipts']['complete']['home_lease_token'], s['home_lease_token'])
+        self.assertNotIn('pause', [row['stage'] for row in p.guided_result['stages']])
+
+    def test_early_death_and_wrong_exit_never_complete(self):
+        p = native.GuidedExitPilot()
+        for code in (0, 1, -9, -15):
+            with self.subTest(stage='boot', code=code), self.assertRaises(AssertionError):
+                p.finish(code)
+        p, _ = self.request_exit()
+        for code in (1, -9, -15):
+            with self.subTest(stage='quit_wait', code=code), self.assertRaises(AssertionError):
+                p.finish(code)
+        self.assertIsNone(p.result)
+
+    def test_ui_cannot_use_disabled_unfocused_or_unreleased_controls(self):
+        p, s, _ = self.ready()
+        s['native_keys']['return'] = True
+        self.assertEqual(self.tick(p, s, 1.11)[0], set())
+        self.assertFalse(p.quit_requested)
+        for change in ({'exit_enabled': False}, {'exit_visible': False},
+                       {'exit_text': 'OTHER'}, {'focus_path': ''}):
+            p, s, _ = self.ready()
+            s['ui'].update(change)
+            with self.subTest(change=change), self.assertRaises(AssertionError):
+                self.tick(p, s, 1.11, paused=True)
+        p, s, _ = self.ready()
+        with self.assertRaisesRegex(AssertionError, 'window retains keyboard focus'):
+            self.tick(p, s, 1.11, window_focused=False)
+
+    def test_ui_tail_rejects_identity_lease_dock_control_or_offline_changes(self):
+        changes = [{key: 999} for key in native.GuidedExitPilot.IDS]
+        changes += [{'home_lease_token': 'substituted'}, {'lease': False}, {'contract': False},
+                    {'parked_exact': False}, {'control_enabled': False}, {'guided_complete': False},
+                    {'seated': True}, {'piloted': True}, {'active_ship': False}, {'exit_error': .25},
+                    {'landed': False}, {'telemetry': {'engine': 'ONLINE', 'hull': 80}},
+                    {'default_sampler': False}, {'tuning_unchanged': False}, {'destroyed': True}]
+        for change in changes:
+            p, s, _ = self.ready()
+            with self.subTest(change=change), self.assertRaises(AssertionError):
+                self.tick(p, s, 1.11, **change)
+            self.assertIsNone(p.result)
+
+    def test_paused_snapshot_keeps_gameplay_frame_stale_and_sequence_advances(self):
+        p, s, _ = self.ready()
+        frame = s['frame']
+        self.tick(p, s, 1.11, paused=True)
+        self.assertEqual(p.last_state['frame'], frame)
+        self.assertGreater(p.last_state['sequence'], p.receipts['complete']['sequence'])
+        self.assertFalse(p.last_state['gameplay_snapshot_fresh'])
+        with self.assertRaisesRegex(AssertionError, 'ordered Guided'):
+            p.validate_observation(copy.deepcopy(p.last_state))
+        p, s, _ = self.ready()
+        s.update(paused=True, sequence=2, gameplay_snapshot_fresh=True)
+        with self.assertRaisesRegex(AssertionError, 'never claims fresh Player motion'):
+            p.validate_observation(s)
+        p = native.GuidedExitPilot(); s = self.observation()
+        p.expected_pid = s['pid']; s.update(paused=True, gameplay_snapshot_fresh=False)
+        with self.assertRaisesRegex(AssertionError, 'remains unpaused'):
+            p.validate_observation(s)
+
+    def test_shutdown_capture_preserves_actual_raw_file_and_reports_clean_markers(self):
+        with tempfile.TemporaryDirectory() as root:
+            profile, output = Path(root)/'profile', Path(root)/'output'
+            path = profile/'data'/'godot'/'app_userdata'/'Mudds'/'mudds_user_data.json'
+            path.parent.mkdir(parents=True); output.mkdir()
+            document = {'schema_version': 1, 'generation': 4, 'commit': {'id': 'actual-commit'},
+                        'payload': {'crash_recovery': {'state': 'clean'},
+                                    'safe_start_recovery': {'state': 'clean_shutdown'}}}
+            raw = (json.dumps(document, indent=3)+'\n').encode()
+            path.write_bytes(raw)
+            captured = native.capture_guided_shutdown(profile, output)
+            self.assertTrue(captured['captured'])
+            self.assertEqual(captured['crash_recovery_state'], 'clean')
+            self.assertEqual(captured['safe_start_recovery_state'], 'clean_shutdown')
+            self.assertEqual((output/captured['artifact']).read_bytes(), raw)
+            self.assertEqual(path.read_bytes(), raw)
+
+
 if __name__ == '__main__':
     unittest.main()

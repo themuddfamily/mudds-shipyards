@@ -27,7 +27,7 @@ Use --route life-arm for Aft service-arm coexistence and original Zenith boardin
 Use --route life-tow for Central service coexistence during real walking/boarding.
 Use --route habitat-loop for fresh hub/door/bunk sleep-wake/common-room/hub walking.
 Use --route habitat-restart for real bunk sleep, normal UI quit, and cold awake controls.
-The default is Guided.
+The default is Guided through normal HUD Exit and actual process exit zero.
 No source/pack overrides. 300 seconds is the fixed whole-process sortie cap.
 This establishes Linux/Xvfb OS-input behavior, not native GPU or human acceptance.
 """
@@ -5273,6 +5273,81 @@ class ArrowReturnReusePilot(Pilot):
         return self.result
 
 
+class GuidedExitPilot(Pilot):
+    """Unchanged Guided flight, followed by ordinary pause controls and OS0."""
+    IDS = ('pid', 'main_id', 'world_id', 'player_id', 'ship_id', 'source_id',
+           'berth_id', 'opponent_id')
+
+    def __init__(self):
+        super().__init__()
+        self.expected_pid = None
+        self.initial = self.last_state = None
+        self.guided_result = None
+        self.receipts = {}
+        self.ui_key = None
+        self.ui_until = self.ui_release_until = 0
+        self.quit_requested = False
+
+    def validate_observation(self, s):
+        require(s['mode'] == 'guided' and s['pid'] == self.expected_pid
+                and all(s[k] > 0 for k in self.IDS), 'exact Guided process and actor identities')
+        if self.initial is None:
+            self.initial = copy.deepcopy(s)
+        require(all(s[k] == self.initial[k] for k in self.IDS),
+                'same Guided process world Player ship input home and opponent')
+        if self.last_state is not None:
+            require(s['sequence'] > self.last_state['sequence']
+                    and s['frame'] >= self.last_state['frame'], 'ordered Guided observations')
+        require(s['default_sampler'] and s['tuning_unchanged'] and not s['destroyed']
+                and s['phase'] not in ('FAILED', 'RECOVERING'), 'live authored Guided sortie')
+        if self.guided_result is None:
+            require(not s['paused'] and s['gameplay_snapshot_fresh'], 'Guided gameplay remains unpaused')
+        else:
+            self.require_home(s)
+            if s['paused']:
+                require(not s['gameplay_snapshot_fresh'], 'paused UI snapshot never claims fresh Player motion')
+        self.last_state = s
+
+    def require_home(self, s):
+        complete = self.receipts['complete']
+        require(s['phase'] == 'COMPLETE' and s['guided_complete'] and not s['piloted']
+                and not s['seated'] and s['control_enabled'] and s['active_ship']
+                and s['exit_error'] < .25 and s['lease'] and s['parked_exact'] and s['contract']
+                and s['landed'] and s['telemetry']['engine'] == 'OFFLINE'
+                and s['home_lease_token'] and s['home_lease_token'] == complete['home_lease_token']
+                and s['position'] == complete['position'],
+                'original physical Guided exit strict home lease and automatic OFFLINE retained through UI exit')
+
+    # This method uses only the shared UI pulse/focus fields initialized above.
+    ui_update = ArrowReturnReusePilot.ui_update
+
+    def update(self, s, now):
+        require(self.last_state is s, 'latest validated Guided observation')
+        if self.guided_result is not None:
+            require(s['window_focused'], 'actual Guided window retains keyboard focus for UI controls')
+            return self.ui_update(s, now)
+        controls = super().update(s, now)
+        if self.result is not None:
+            self.guided_result, self.result = copy.deepcopy(self.result), None
+            self.receipts['complete'] = copy.deepcopy(s)
+            self.require_home(s)
+            self.enter('pause', s)
+            # Release the original disembarkation pulse before any UI key.
+            self.tap_key = None
+            self.ui_release_until = now+.10
+            return set(), 0, 0, False
+        return controls
+
+    def finish(self, exit_code):
+        require(exit_code == 0 and self.quit_requested and self.stage == 'quit_wait'
+                and self.guided_result is not None and 'exit_ui' in self.receipts,
+                'full original Guided sortie and actual normal UI OS0 before success')
+        self.require_home(self.last_state)
+        self.result = dict(self.guided_result, normal_ui_exit=True, exit_code=exit_code,
+                           receipts=self.receipts, same_actor_identities={k: self.initial[k] for k in self.IDS})
+        return self.result
+
+
 class TorrentReturnReusePilot(ArrowReturnReusePilot):
     """Full Guided sortie, then one ordinary same-Torrent home return and UI exit."""
     MODE = 'torrent-return-reuse'
@@ -7837,6 +7912,22 @@ class CinderSupplyFiles(HabitatRestartFiles):
                 if label == 'repeat': pilot.file_repeat = True
                 else: pilot.file_home = True
 
+def capture_guided_shutdown(profile, output):
+    """Retain the real post-exit file before private-profile cleanup; no writes to it."""
+    candidates = list((profile/'data').rglob('mudds_user_data.json'))
+    if len(candidates) != 1:
+        return {'captured': False, 'reason': 'expected one actual private-profile primary',
+                'primary_count': len(candidates)}
+    files = HabitatRestartFiles(profile, output)
+    document = files.capture('guided-post-exit-user-data',
+                             {'path': str(candidates[0].resolve()), 'source': 'primary', 'generation': 0})
+    snapshot = files.snapshots['guided-post-exit-user-data']
+    payload = document['payload']
+    return dict(snapshot, captured=True, artifact='guided-post-exit-user-data.json',
+                crash_recovery_state=payload.get('crash_recovery', {}).get('state'),
+                safe_start_recovery_state=payload.get('safe_start_recovery', {}).get('state'))
+
+
 def run(binary, output, route="guided", qualify_beacon_outbound=False):
     require(route in ("patrol-relay-home", "race-home", "heavy-breach", "bomber-rearm", "cinder-supply", "hauler-supply", "arrow-return-reuse", "torrent-return-reuse", "torrent-damaged-return", "torrent-arrow-handoff", "guided", "courier-intercept", "courier-escape", "courier-withdraw-phase", "courier-withdraw-distance", "beacon-entry", "beacon-settlement", "beacon-home", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
     require(not qualify_beacon_outbound or route == 'beacon-home',
@@ -7937,19 +8028,21 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False):
                     leg_result['window'] = hex(window)
                     desktop.focus(window)
                     pilot = HabitatRestartPilot(cold=bool(leg)) if restart_files else {
-                        "patrol-relay-home": PatrolRelayHomePilot, "race-home": RaceHomePilot, "heavy-breach": HeavyBreachPilot, "bomber-rearm": BomberRearmPilot, "cinder-supply": CinderSupplyPilot, "hauler-supply": CinderHaulerSupplyPilot, "arrow-return-reuse": ArrowReturnReusePilot, "torrent-return-reuse": TorrentReturnReusePilot, "torrent-damaged-return": TorrentDamagedReturnPilot, "torrent-arrow-handoff": TorrentArrowHandoffPilot, "guided": Pilot, "courier-intercept": CourierPilot, "courier-escape": CourierEscapePilot, "courier-withdraw-phase": CourierWithdrawPhasePilot, "courier-withdraw-distance": CourierWithdrawDistancePilot, "beacon-entry": BeaconEntryPilot, "beacon-settlement": BeaconSettlementPilot, "beacon-home": BeaconHomePilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
+                        "patrol-relay-home": PatrolRelayHomePilot, "race-home": RaceHomePilot, "heavy-breach": HeavyBreachPilot, "bomber-rearm": BomberRearmPilot, "cinder-supply": CinderSupplyPilot, "hauler-supply": CinderHaulerSupplyPilot, "arrow-return-reuse": ArrowReturnReusePilot, "torrent-return-reuse": TorrentReturnReusePilot, "torrent-damaged-return": TorrentDamagedReturnPilot, "torrent-arrow-handoff": TorrentArrowHandoffPilot, "guided": GuidedExitPilot, "courier-intercept": CourierPilot, "courier-escape": CourierEscapePilot, "courier-withdraw-phase": CourierWithdrawPhasePilot, "courier-withdraw-distance": CourierWithdrawDistancePilot, "beacon-entry": BeaconEntryPilot, "beacon-settlement": BeaconSettlementPilot, "beacon-home": BeaconHomePilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
                         "hulk-arrival": HulkArrivalPilot, "hulk-breaker": HulkBreakerPilot,
                         "hulk-home": HulkHomePilot, "habitat-loop": HabitatLoopPilot, "life-tow": LifeTowPilot, "life-gantry": lambda: LifeTowPilot("life-gantry"), "life-arm": lambda: LifeTowPilot("life-arm"), "life-patrol": lambda: LifeTowPilot("life-patrol")}[route]()
                     if isinstance(pilot, BeaconHomePilot): pilot.file_snapshots = settlement_files.snapshots
                     if qualify_beacon_outbound: outbound_timing = BeaconOutboundTiming(game.pid)
-                    if isinstance(pilot, BomberRearmPilot): pilot.expected_pid = game.pid
+                    if isinstance(pilot, (BomberRearmPilot, GuidedExitPilot)): pilot.expected_pid = game.pid
                     with selectors.DefaultSelector() as selector:
                         selector.register(game.stdout,selectors.EVENT_READ)
                         pending = b''
                         with (output/'game.log').open('ab') as log:
                             while pilot.result is None:
                                 if game.poll() is not None:
-                                    if isinstance(pilot, (ArrowReturnReusePilot, CinderSupplyPilot, HeavyBreachPilot, RaceHomePilot)):
+                                    if isinstance(pilot, (GuidedExitPilot, ArrowReturnReusePilot, CinderSupplyPilot, HeavyBreachPilot, RaceHomePilot)):
+                                        if isinstance(pilot, GuidedExitPilot):
+                                            leg_result.update(exit_code=game.returncode, reaped=True)
                                         require(pilot.quit_requested, 'native process exits only after normal UI request')
                                         drain_game_output(game, output/'game.log')
                                         tail = (output/'game.log').read_bytes().splitlines()
@@ -7961,6 +8054,9 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False):
                                         if isinstance(pilot, RaceHomePilot): settlement_files.finish(pilot.last_state, pilot)
                                         if breach_files: breach_files.finish()
                                         leg_result.update(exit_code=0, reaped=True, normal_ui_exit=True)
+                                        if isinstance(pilot, GuidedExitPilot):
+                                            leg_result['exit_ui'] = pilot.receipts['exit_ui']
+                                            result['post_exit_user_data'] = capture_guided_shutdown(profile, output)
                                         break
                                     if not restart_files: raise RuntimeError(f'game exited during {pilot.stage}: {game.returncode}')
                                     require(pilot.quit_requested and pilot.stage == 'restart_exit_wait',
@@ -7985,7 +8081,7 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False):
                                             received_at = time.monotonic()
                                             for observation in observations:
                                                 outbound_timing.observe(observation, received_at)
-                                        if isinstance(pilot, (BomberRearmPilot, LifeTowPilot, ArrowReturnReusePilot, CinderSupplyPilot, HeavyBreachPilot, RaceHomePilot)):
+                                        if isinstance(pilot, (GuidedExitPilot, BomberRearmPilot, LifeTowPilot, ArrowReturnReusePilot, CinderSupplyPilot, HeavyBreachPilot, RaceHomePilot)):
                                             for observation in observations:
                                                 pilot.validate_observation(observation)
                                                 if breach_files: breach_files.observe(observation, pilot)
@@ -8065,6 +8161,9 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False):
             result['actual_file_snapshots'] = restart_files.snapshots
         if pilot is not None:
             result['partial_sortie'] = {'stage': pilot.stage, 'stages': pilot.stages, 'phases': pilot.phases}
+            if isinstance(pilot, GuidedExitPilot):
+                result['partial_sortie'].update(last_state=pilot.last_state, receipts=pilot.receipts,
+                                               guided_prerequisite=pilot.guided_result)
             if isinstance(pilot, ArrowReturnReusePilot):
                 result['partial_sortie'].update(last_state=pilot.last_state, receipts=pilot.receipts, trips=pilot.trips, weapon=pilot.weapon)
             if isinstance(pilot, CourierPilot):

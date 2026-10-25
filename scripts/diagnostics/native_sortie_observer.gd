@@ -3,6 +3,9 @@ extends Node
 ## Read-only exported-game telemetry. No input, actor writes, gameplay actions,
 ## timing overrides, or process shutdown: the external OS-input driver owns those.
 var _game: GameFlow
+var _guided := false
+var _guided_sequence := 0
+var _guided_last_gameplay: Dictionary = {}
 const LIFE_ROUTES := {
 	"life-tow": {"ship": ^"TorrentInterceptor",
 		"activity": ^"OperationalLattice/Activities/CentralTowServiceActivity",
@@ -100,6 +103,9 @@ func on_startup_completed(main: Node) -> void:
 	if _game != null or not main is GameFlow or get_parent().call("get_main") != main:
 		return
 	_game = main as GameFlow
+	_guided = "--native-sortie-observer" in OS.get_cmdline_args()
+	if _guided:
+		process_mode = Node.PROCESS_MODE_ALWAYS
 	_player = _game.get_node("Player") as PlayerController
 	_spawn = _player.global_position
 	_hauler_supply = "--native-sortie-observer=hauler-supply" in OS.get_cmdline_args()
@@ -736,6 +742,14 @@ func _physics_process(delta: float) -> void:
 		return
 	if _game == null:
 		return
+	if _guided and get_tree().paused:
+		# Keep the last gameplay frame explicitly stale. Only UI/identity/retained
+		# home facts refresh while production Player and ship physics are paused.
+		var paused_guided := _guided_last_gameplay.duplicate(true)
+		_guided_sequence += 1
+		paused_guided.merge(_guided_exit_observation(), true)
+		print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(paused_guided))
+		return
 	if _cinder_supply:
 		_supply_sequence += 1
 		print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(_cinder_supply_observation(), "", true, true))
@@ -862,7 +876,55 @@ func _physics_process(delta: float) -> void:
 			observation["damage"] = damage
 		if _torrent_handoff:
 			observation["handoff"] = _handoff_observation()
+	if _guided:
+		_guided_sequence += 1
+		# Preserve every original unpaused Guided field and predicate verbatim.
+		observation.merge(_guided_exit_observation())
+		_guided_last_gameplay = observation.duplicate(true)
 	print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(observation))
+
+
+## Default Guided's actual UI consumer needs no support queries or completed
+## Player-motion receipt while paused. All fields below read retained owners.
+func _guided_exit_observation() -> Dictionary:
+	var source := _ship.get("_default_local_command_source") as LocalShipInputSource
+	var berth := _game.world.get_berth_node(_ship.get_home_berth_id()) as ShipBerth
+	var focus := get_viewport().gui_get_focus_owner()
+	var page := _game.hud.get("_pause_main_page") as Control
+	var exit_button := page.find_child("ExitButton", true, false) as Button if is_instance_valid(page) else null
+	var contract := _ship.get("_landing_contract") as Dictionary
+	return {"mode": "guided", "sequence": _guided_sequence, "pid": OS.get_process_id(),
+		"paused": get_tree().paused, "gameplay_snapshot_fresh": not get_tree().paused,
+		"main_id": _game.get_instance_id(), "world_id": _game.world.get_instance_id(),
+		"player_id": _player.get_instance_id(), "ship_id": _ship.get_instance_id(),
+		"source_id": source.get_instance_id() if source != null else 0,
+		"berth_id": berth.get_instance_id(), "opponent_id": _opponent.get_instance_id(),
+		"home_lease_token": str(berth.get("_reservation_token")),
+		"window_focused": _game.get_window().has_focus(),
+		"phase": GameFlow.Phase.keys()[_game.phase], "guided_complete": _game.is_guided_activity_complete(),
+		"piloted": _ship.is_piloted(), "seated": _player.is_seated(),
+		"control_enabled": _player.is_control_enabled(), "active_ship": _game.get_active_ship() == _ship,
+		"player": _v(_player.global_position), "position": _v(_ship.global_position),
+		"exit_error": _player.global_position.distance_to(_ship.get_exit_transform().origin),
+		"parked_exact": _ship.global_transform.is_equal_approx(_parked),
+		"lease": berth.get_occupant() == _ship and berth.get_reservation_owner() == _ship
+			and berth.get("_reserved_ship_id") == _ship.get_ship_id(),
+		"contract": bool(contract.get("contract_accepted", false)) and bool(contract.get("strict_dock_acceptance", false))
+			and _ship.get("_landing_berth_id") == _ship.get_home_berth_id(),
+		"landed": bool(_ship.get("_landed")),
+		"telemetry": {"engine": str(_ship.get("_engine_state")), "hull": float(_ship.get("_hull"))},
+		"destroyed": _ship.is_destroyed(),
+		"default_sampler": source != null and _ship.get("_command_source") == source and source.get_input_provider() == null,
+		"tuning_unchanged": _sortie_tuning() == _tuning,
+		"native_keys": {"escape": Input.is_physical_key_pressed(KEY_ESCAPE),
+			"tab": Input.is_physical_key_pressed(KEY_TAB), "return": Input.is_physical_key_pressed(KEY_ENTER)},
+		"ui": {"main_visible": is_instance_valid(page) and page.is_visible_in_tree(),
+			"focus_path": str(focus.get_path()) if is_instance_valid(focus) else "",
+			"focus_is_exit": is_instance_valid(exit_button) and focus == exit_button,
+			"exit_path": str(exit_button.get_path()) if is_instance_valid(exit_button) else "",
+			"exit_visible": is_instance_valid(exit_button) and exit_button.is_visible_in_tree(),
+			"exit_enabled": is_instance_valid(exit_button) and not exit_button.disabled,
+			"exit_text": exit_button.text if is_instance_valid(exit_button) else ""}}
 
 
 ## Observe Main's race or patrol owner, never a streamed activity fixture.
