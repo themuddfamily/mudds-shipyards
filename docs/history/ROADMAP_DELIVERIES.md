@@ -26518,3 +26518,14 @@ Original20:39Z→21:39Z/60min includes readiness, implementation, tests, build a
 closure; no deadline reset or unexpected trial retry. Source/records, publication
 hashes and final cleanup are retained in the private case
 `/srv/mudds-work/loadmaster-captions-20261025`; verified archive/ref closure follows.
+
+Verified closeout: source integrated/pushed atd4c4fbe15. All11 public build files
+retain their recorded hashes. Only records.tar.gz plus closeout.json remain in
+the owned private case:52,337,251 bytes, SHA256
+2336c8ec20b7c53242787ec83728e833ab9bf059cfda20a82f7dbed21bf34e88.
+All202 regular bytes/modes and16 symlink targets were verified before removing
+scratch. All16 supervisors/57 observed process identities are absent; engine and
+template pins unchanged. Completed local branch deleted with exact expected tip
+after pushed-main ancestry/current remote/worktree checks; no remote task branch.
+Original clock18.588min through archive verification; final closure-push cost is
+recorded in closeout.json. Pre-existing detached worktrees are retained unchanged.
