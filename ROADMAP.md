@@ -1,11 +1,12 @@
 # Development roadmap
 
 **Playable alpha; full original scope remains unfinished.** Latest Windows build:
-[39157e8 checkpoint](builds/windows/MuddsShipyards-39157e8-checkpoint.zip)
-([changes and validation](builds/windows/MuddsShipyards-39157e8-notes.txt)).
-Matching [Linux checkpoint 39157e8](builds/linux/MuddsShipyards-39157e8-linux-x86_64.tar.gz)
-([Linux validation](builds/linux/MuddsShipyards-39157e8-linux-notes.txt)) is available.
-This checkpoint adds release automation; gameplay retains the prior 4aa8b64 fixes.
+[46bae53 checkpoint](builds/windows/MuddsShipyards-46bae53-checkpoint.zip)
+([changes and validation](builds/windows/MuddsShipyards-46bae53-notes.txt)).
+Matching [Linux checkpoint 46bae53](builds/linux/MuddsShipyards-46bae53-linux-x86_64.tar.gz)
+([Linux validation](builds/linux/MuddsShipyards-46bae53-linux-notes.txt)) is available.
+This checkpoint adds live engine degradation/critical/recovery captions through
+the existing shared service; earlier gameplay and accessibility fixes are retained.
 Nine of the promised 17 craft exist. All 36 original parent outcomes and ten phase
 exit gates remain open; completed child results are retained, not counted as whole
 features. There is no evidence-backed project percentage or completion date.
@@ -71,40 +72,21 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Active production capability: live engine-transition captions.**
-Original23:14:33UTC2026-10-25→00:14:33UTC2026-10-26/60min includes bounded
-source readiness, implementation, old-source regression, focused checks, fresh
-paired checkpoints/strict startups/payload audit, review/integration/owned cleanup.
-Actual ship component damage already reaches its automatic audio rig binding,
-which emits engine_degraded(≥.25), engine_critical(≥.75), engine_recovered(return
-below.25). The GameFlow/router/AudioDirector path reaches HUD, whose presenter
-rejects these three unregistered cues. Existing MockHUD coverage hides the drop.
+**Delivered: live engine-transition captions.** Checkpoint46bae53 displays
+Engine degraded, Engine critical and Engine recovered for the rig's existing
+component-damage transitions. Three old-registry caption assertions fail exactly;
+fixed actual Hero ledger/automatic rig binding/router/Director/GameFlow/visible
+HUD and shared-service checks pass, including all five new/existing alarm captions,
+priority/FIFO expiry, unchanged-band silence, OFF/no replay and unbound sources.
+Emission thresholds, audio mix, damage, controls and severity policy are unchanged.
 
-Deliver exactly three canonical presenter mappings: Engine degraded/default
-medium, Engine critical/high, Engine recovered/low. Preserve actual emission
-thresholds, mix/damage/flight/gameplay and existing intensity/severity resolver;
-no duplicate legacy registry or new cue/binding/validator family. Implementer
-owns only semantic_audio_cue_presenter.gd and existing presenter/audio-GameFlow
-integration tests; root owns orchestration/docs/builds/push/cleanup. Reviewer
-checks the exact composed source path and final observed results.
-
-Acceptance frozen before engines: three exact caption/default-severity unit
-assertions fail on the old registry. Fixed actual ship/component ledger→automatic
-rig binding→router/AudioDirector/GameFlow→tree-visible real HUD/one shared service
-shows each degradation/critical/recovery caption once with existing queue/expiry.
-Unchanged bands/repeated facts, detached emissions and OFF/no replay add none;
-old MockHUD assertions and existing damage/alarm/caption behavior remain intact.
-Detached GameFlow/manual service clock, disabled Hero physics and controlled
-resolved-ledger damage/repair are disclosed component-fixture setup; actual HUD
-uses normal Begin/reduced-motion transition and retained presenter identity.
-No ordinary flight, physical device, audible mix, rendered/native or full comfort
-qualification is inferred. No production playback/gameplay/timing authority changes.
-
-Use clean source pins, Dummy audio and headless or owned isolated x11 checks.
-First unexpected failure stops for causal/cumulative review; no automatic retry,
-new criteria, cap increase or deadline reset. Fresh Windows EXE/ZIP/notes and
-matching Linux artifacts stay in builds/ after accepted focused checks, three
-actual exit0+STARTUP_MENU_READY_OK startups and compiled-payload comparison.
+All focused checks, paired exports, three strict startups and actual1527-entry
+payload audit pass; only the compiled semantic caption presenter differs from391.
+This is a production caption capability with disclosed component-fixture proof,
+not physical collision/ordinary flight/listening/rendered/native/full comfort
+acceptance. Integration and owned archive/branch cleanup remain on this card;
+original23:14:33→00:14:33UTC/60min is retained. No successor is active.
+[Exact delivery and limits](docs/history/ROADMAP_DELIVERIES.md#engine-transition-live-captions-delivered-20261025).
 
 **Jovian solo ordinary engineer route: PARKED / not accepted.** Two source
 trials reach all17 outward walking goals and the real engineer chair. The second
@@ -283,6 +265,7 @@ Recent packaged changes and source qualifications are recorded separately:
 
 | Accepted outcome | Proof and retained limit |
 | --- | --- |
+| Three live engine-transition captions | [Checkpoint46bae53](docs/history/ROADMAP_DELIVERIES.md#engine-transition-live-captions-delivered-20261025); actual ledger/rig/visible HUD composition, ordinary flight/full comfort remain open |
 | Guided installed normal-exit prerequisite | [Checkpoint 39157e8](docs/history/ROADMAP_DELIVERIES.md#guided-installed-normal-exit-accepted-20261025); one actual direct-ELF flight/normal Exit/OS0, rendered desktop/final 3/3 remain open |
 | Sprint/boost option cold restart and Reset | [Three-process proof](docs/history/ROADMAP_DELIVERIES.md#sprint-toggle-cold-process-qualified-20261025); source composition, physical devices/boost flight/original Settings return remain open |
 | Interact remap, conflict Cancel and cold Reset | [Three-process proof](docs/history/ROADMAP_DELIVERIES.md#interact-remap-restart-qualified-20261025); synthetic raw input, not physical devices or original Gate C |

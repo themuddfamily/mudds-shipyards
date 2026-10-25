@@ -27090,3 +27090,89 @@ push. No candidate is merged merely for deletion. Unrelated retained worktrees/
 prunable registrations remain untouched. Archive cleanup ends23:11:54.162UTC,
 23.636min into the original clock; adjacent closeout.json records exact branch/
 final-push timestamp and final cost. No third trial or clock reset.
+
+
+<a id="engine-transition-live-captions-delivered-20261025"></a>
+
+## Live engine-transition captions delivered — 2026-10-25
+
+Production source46bae53c86a7f51040f40d56742839c915d4bf11 adds exactly3rows
+to the canonical SemanticAudioCuePresenter registry:
+
+| Existing emitted cue | Caption | Default severity |
+| --- | --- | --- |
+| engine_degraded | Engine degraded | medium |
+| engine_critical | Engine critical | high |
+| engine_recovered | Engine recovered | low |
+
+These existing rig cues reached GameFlow's HUD but returned unregistered_cue;
+the old integration's accepting MockHUD hid that consumer gap. Actual normal
+path remains HeroShip component ledger/signal→automatically attached rig fleet/
+component binding→ShipAudioRig.set_engine_degradation→registered rig/router→
+AudioDirector→GameFlow→HUD/shared service. Existing authored .25/.75 band gates,
+recovery, same-band silence, resident audio mix, damage, flight/control and
+intensity/severity resolver are unchanged. No duplicate legacy map, new audio
+cue/producer or validator/schema family is added.
+
+Tests-only source68dcc2027c97484e1c7afe054dbadb92a695bd76 reproduces exactly
+three literal caption/default-severity failures on the old registry, actualOS1/
+1.957738s, no unrelated errors. Expected diagnostics are preserved, not counted
+as an unexpected failure. Fixed source passes all13frozen stages first time:
+import6.590s; presenter1.962s; audio/GameFlow/realHUD17.344s; shared service.880s;
+full caption production39.907s; semantic router.753s; component audio binding1.022s;
+Windows export10.652s/payload startup26.291s; Linux export26.001s/direct startup
+22.890s/archive-extracted startup24.353s; actual payload audit6.354s.
+Every fixed stage exits0 with required unique marker and no detected diagnostics;
+source/index/cache guards hold (import/export cache updates explicitly allowed).
+
+The new source composition retains the old3MockHUD assertions and adds actual
+Torrent component ledger damage, automatic parent rig binding, real router/
+AudioDirector, GameFlow's one shared caption service and attached real GameHUD.
+Resolved component-local .12/.01/.10×maximum_hull records (authored attribution×4)
+produce degraded/same-band/critical; existing ledger repair produces recovery.
+The real rig also emits existing damage alarm/clear, so all5caption entries must
+display/expire once in existing nonpreemptive priority/FIFO order: mediumdegraded,
+highcritical/alarm and lowrecovery/clear. Exact text/default-severity rows are
+asserted independently of the unchanged resolver. Repeated unchanged ledger
+facts add none; OFF preserves producer emissions but queues/replays none; unbound
+source changes remain silent at the director/consumer. The same service identity
+and actual tree-visible presenter are checked throughout.
+
+Fixture limits are explicit: detached GameFlow avoids world/persistence startup;
+Hero physics is disabled; damage is already-resolved ledger input and repair is
+controlled; only the caption-service clock advances manually. HUD normal Begin
+with reduced motion reveals its actual gameplay tree before caption checks.
+Source review catches/corrects the initial hidden-parent/direct-presenter-path
+assumption BEFORE any engine; retained presenter lookup and cursor release are
+used. No actual physical collision, ordinary flight, physical device, listening,
+rendered readability or native GPU behavior is inferred. Full COMFORT-CAPTIONS,
+per-episode ordinary transition/restart/Reset and final acceptance remain open.
+
+Paired clean candidate exports have matching actual1527PE/ELF PCK entries;
+only scripts/ui/semantic_audio_cue_presenter.gdc differs from checkpoint39157e8.
+StockWindowsPE.text, x86_64 architecture, exact archive members/ELF/icon/shipped
+installer bytes/modes/commit epoch and source metadata all verify. Windows embedded
+PCK startup through pinned Linux Godot and both actual Linux direct/archive
+startups each exit0 with exactly one STARTUP_MENU_READY_OK and zero detected
+diagnostics. Every automated invocation uses Dummy audio/headless isolation.
+NativeWindows/nativeGPU/device/audible checks stay NOT_RUN with original owner
+exclusions; no Actions, Downloads or external checkpoint publication.
+
+Independent source/runtime/final-artifact review GO precedes local publication
+of Windows EXE/ZIP/notes and matching Linux ELF/archive/metadata/startup records/
+notes in builds/. Actual identities:
+
+- `builds/windows/MuddsShipyards-46bae53.exe`: 184804448 bytes; SHA256 `d37cd340c8ad7d9d1d688d6f57cca8cf1f090bb89957e9cd1cd4ccdc3bf58b05`.
+
+- `builds/linux/MuddsShipyards-46bae53.x86_64`: 149046160 bytes; SHA256 `3bf99dd8a27686529b4b91c80ce5cd12a7990526bef90a9b20de8d33e59e8287`.
+
+- `builds/linux/MuddsShipyards-46bae53-linux-x86_64.tar.gz`: 95453733 bytes; SHA256 `666ed773d782a8e6735d552a043ec2a68a61613a169573539e020e6205d5c9dc`.
+
+- `builds/windows/MuddsShipyards-46bae53-checkpoint.zip`: 103333650 bytes; SHA256 `57ee3dcec61e3c7d5ecca31a7c30010e5e533aabcd7a274db524e5ef29fe37b2`.
+
+Original23:14:33Z2026-10-25→00:14:33Z2026-10-26/60min includes readiness,
+implementation/red-green/checks/build/review/integration/cleanup. No unexpected
+failure, retry or cap/deadline reset. Original36parents/ten exits/17craft scope
+remains; this closes only the named3caption production capability.
+Owned raw/source records: /srv/mudds-work/engine-transition-captions-20261025;
+verified archive and exact Git closure follow below.
