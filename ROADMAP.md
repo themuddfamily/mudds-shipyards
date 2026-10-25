@@ -30,6 +30,13 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 ## Execution now
 
 **Selected: final three missing-craft proposals — SPEC-DYNAMIC/UTOPIA/SALYUT.**
+Preflight found Titan's older draft still lacks numeric hull/access/berth and
+seven tuning fields. Its author now owns a separate15min completion of those
+holes in the existing Titan proposal; original pilot/two-passenger/four-unit
+cargo/weapon choices stay. This is an explicit scope correction, not a duplicate
+proposal or restarted clock. Root reviews all four artifacts on the same60min
+budget; no owner decision or runtime authorization is inferred.
+
 Starting clean source5aba30cd0. Three independent authors own one new proposal
 file each under docs/design/; root owns source/seam review and shared references.
 One fixed explicitly modern UNAPPROVED design per craft: Dynamic small powerful
