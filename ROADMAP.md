@@ -55,6 +55,17 @@ including failed attempts. First unexpected failure stops; a causal correction
 requires bounded cumulative review. No new matrix, validator or UI framework.
 
 
+**Bounded continuation within the same ACCESS-NEARBY clock.** The existing Main
+route still demands instant-active Deploy, contrary to the accepted Deploy-arms
+choice. Retain its streaming/physical gate/Back and active-reset assertions: first
+assert real armed/idle/zero-enemy state, then use the already-established disclosed
+content-owner fixture for active-reset UI coverage. Real launch remains separate.
+Also correct the actual nearby footer's `launch_armed` receipt from STARTED to
+ARMED/board-and-depart guidance. Add `tests/nearby_activity_board_production_route_test.gd`
+to the same implementer's ownership; no GameFlow/board/presenter changes or new
+framework. Estimate5–10min source, preserve both failures and original60min cap;
+first new unexpected failure stops for cumulative review/park.
+
 **Delivered: ACCESS-DESTINATIONS — bounded five-card Destination Board.**
 Source9477a89ee/checkpoint9477a89: all three worlds/two sector sites scroll inside
 the page; heading/Back remain fixed and enabled travel/briefing focus reveals its
