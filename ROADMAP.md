@@ -71,6 +71,37 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Active qualification: COMFORT-COLOUR[Tritanopia cold restart and Reset].**
+Start22:31:44UTC; hard stop23:31:44UTC/60min includes the one bounded source
+review, test extension, checks, three OS processes, independent review and Git/
+owned cleanup. No runtime defect was demonstrated; existing colour capability
+is retained. Source/test implementer owns only the opt-in path in
+`tests/runtime_settings_production_persistence_test.gd`; root owns orchestration,
+docs/integration/cleanup, with independent lifecycle review before acceptance.
+
+Freeze three sequential workers on one fresh private real-file profile: writer
+selects actual visible Colour-vision preset Tritanopia(enum3/stable idtritanopia),
+uses Apply+Save, and verifies actual HUD/current ON FOOT cue and minimap. A distinct
+cold reader must load that same setting/control/palette, then use normal Reset
+Defaults and Save to restore authored none(enum0). A third process must cold-load
+none. Each uses normal Begin Shift and a short naturally supported raw-input walk
+(no pose/provider/manual physics); all bindings/other options and unrelated data
+remain exact. Each actual HUD Exit must yield OS0, its unique COLOUR_*_OK marker
+and both durable clean states. No settings/profile seeding; unrelated sentinel only.
+
+Focused checks: existing full default production-persistence, accessibility-preset
+and minimap suites plus import, then the three-worker real-file case. Existing
+300s per-process caps remain; first unexpected failure stops without automatic
+retry/reset. Natural walking retains existing ≤30s observation and ≤5m excursion
+bounds. No new validator or standalone harness family; use the existing opt-in
+production composition test and shared Save/focus/release/exit helpers.
+
+This qualifies one explicitly missing cold-process enum→actual-consumer endpoint.
+Existing live32-state/six-family/four-palette/two-contrast and minimap shape proof
+is reused, not reimplemented. It does not close physical-device/rendered/current-
+package comfort, original SETTINGS-RETURN/GateC or every COMFORT-COLOUR episode.
+Tests/docs only: gameplay/checkpoint39157e8 remains unchanged; no identical build.
+
 **Accepted: Guided normal HUD Exit prerequisite.** Source `39157e8ca` passes
 all 211 native-driver tests, import/privacy checks, paired exports, three strict
 package startups, actual payload audit and one clean installed direct-ELF sortie.
