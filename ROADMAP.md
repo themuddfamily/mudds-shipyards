@@ -115,7 +115,7 @@ close PLAY-TORPEDO. That still requires the entire Heavy→Torpedo→usable Pair
 journey, actual seeker evasion/interception,70HP boat destruction, separate
 payments, strict home/OFFLINE/physical exit and normal UI exit0, with150s per leg,
 shared300s and outer360s. The failed47.646347min plus continuation cost remain
-charged; a new card/branch/folder cannot restart that budget. The active continuation selects only this correction and one complete trial.
+charged; a new card/branch/folder cannot restart that budget. No Torpedo continuation is active; any reopening must satisfy the recorded source-review and cumulative-priority conditions.
 
 ### Stop rules that prevent another loop
 
@@ -160,7 +160,6 @@ Full chronological results belong in the existing
 | PLAY-PATROL[platform_sweep] | Localize normal quit failure; five holds/payment/home/exit already observed but UI exit0/save closure missing. Original300s remains |
 | PLAY-DEFENSE | Demonstrated control/gameplay correction for the recorded two-of-four clear; no arbitrary longer fight |
 | COMBAT-WING | Demonstrated cause/correction for eight shots causing zero damage; no unsupported aim tuning |
-| SERVER-BASELINE-PASSENGER-RECONNECT | Localized setup/transport-send cause before retrying actual fresh cabin admission |
 | Other parked rows | Their exact recorded cause, original case list/cap and reopening predicate in the canonical backlog; no unchanged retry |
 
 Unaccepted Torpedo source and helpers are consolidated in
