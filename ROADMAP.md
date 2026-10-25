@@ -58,6 +58,17 @@ First unexpected failure stops; one causal bounded correction requires cumulativ
 review. UI-BOARD-FOCUS remains parked: existing raw lacks offending popup identity.
 
 
+**BROWSER-JOIN bounded caller correction, same clock.** First full attempt87.033s
+admits both actual peers and each walks1.002774m supported with15 movement/9settle/
+12neutral samples/drift0, then stops at the legacy disabled-Disconnect assertion.
+Current shipped shutdown publishes retryable disconnected status and that button
+correctly becomes enabled RETRY CONNECTION. Independently reviewed source/raw
+supports replacing the old expectation with exact own fenced disconnected/current
+Retry action+actual visible enabled button+cleared transport/admission checks;
+fail immediately on mismatch, retain normal Refresh/Back/Resume and all four
+walks/full300s route. No runtime or deadline changes; one whole-route continuation,
+first new unexpected failure returns to cumulative review/park.
+
 **Delivered: ACCESS-NEARBY — ten scrolling rows, fixed footer and honest arm feedback.**
 Source0d77125b3/checkpoint0d77125: Cinder Activity Status now bounds its ten rows
 inside the authored page while keeping heading/feedback/Save/Load/Back fixed.
