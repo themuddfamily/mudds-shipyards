@@ -164,8 +164,29 @@ failure retaining actual send/native/command/consumer receipts. No unchanged
 qualifying rerun is selected; CAP300 and original18:57Z→20:12Z clock are retained.
 [Exact stops, diagnostic limits and cleanup](docs/history/ROADMAP_DELIVERIES.md#perimeter-ordinary-route-input-stop-20261025).
 
-No implementation card is active. Accepted comfort/save scopes stay closed;
-missing craft remain gated on their named specification decisions.
+**Active: Reduced flash applies to the damage flash already on screen**
+(COMFORT-FLASH/parent29). Existing option promises to suppress bright damage
+flashes while retaining directional/text cues. On the current full-strength normal
+flash, ON must immediately cap effective alpha to the existing .07 ceiling,
+without brightening an already dimmer flash. Preserve the same Tween object,
+elapsed/progress, running/paused state, original .42s flash/.62s arrow timeline,
+arrow geometry/modulation and eventual clear. OFF cannot relight/replay it;
+repeated ON/OFF→ON cannot extend it. New hits keep the existing selected-mode
+behavior; already Reduced-motion-held cues retain their accepted hold. Public
+setters before HUD _ready must remain safe. No new value, option or schema.
+
+Freeze: existing accessibility regression must fail the exact old-current-flash
+predicates before runtime correction. Then focused checks and actual1280×720
+private-X11 software readback must show alpha capped/never raised with the same
+arrow/timeline; fresh clean Windows/Linux exports, strict menu startups and actual
+payload audit must pass. One implementer owns HUD+existing accessibility test;
+root owns capture/build/integration/cleanup, independent cue-lifecycle review.
+Original19:52Z→20:52Z/60min includes readiness, baseline, implementation, checks,
+publication and cleanup. First unexpected validation failure stops for causal
+review; no automatic retry or cap reset. This closes the current-flash episode
+only; remaining comfort consumers, ordinary settings/restart/Reset, native devices
+and full parent/final gates stay open. Accepted motion/toast/save results remain
+closed. Perimeter stays parked; missing craft remain gated on their specs.
 
 The Torrent destruction/recovery attempt remains **PARKED / not accepted**.
 A reviewed resolver correction accounted for all100 actual damage, including
