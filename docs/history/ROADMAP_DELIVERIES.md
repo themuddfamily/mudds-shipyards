@@ -26047,3 +26047,62 @@ was checked and the local ref deleted with that exact expected tip. Elapsed
 21.033 minutes through archive/cleanup; final push cost is in closeout. This
 closure changes documentation only, with no production diff from checkpoint
 4ca2d16; it selects no duplicate build or unchanged test rerun.
+
+
+<a id="combat-terminal-posting-persistence-stop-20261025"></a>
+### Combat terminal-posting persistence — stopped, not accepted (2026-10-25)
+
+Frozen production result: an authentic non-reward combat-board conclusion posts
+its next encounter durably. A distinct production reader must restore that posting
+from a real file, preserving completion, generation floor, paid/unpaid debt,
+reward ledger and foreign payload. Refusal retains the next posting in RAM,
+shows a separate pending-save/retry prompt and fences new launches until saved.
+No new credit, schema or active-combat restoration; ordinary Hold remains open.
+The implementer owned only the existing board and production test, with independent
+lifecycle review and root integration. The original 17:58Z→18:58Z/60-minute clock
+includes readiness, baseline, all attempts, review and closure; it was not reset.
+
+Base main 0a1af780d7f36ca46f2b5029e8ea088636214af3 loses the non-reward posting.
+The controlled regression at a4cbf9b4703065cd3ffbf081c5f849ec0e3b48c6 reproduces
+exactly the two frozen cold-reader failures in 50.299s. Producers use authentic
+board conclusions without assigning the offer index; actor damage is staged,
+so this is not ordinary-play proof or an ordinarily earned Hold checkpoint.
+
+First candidate ec38f840a0b4310394dba0bd66033139b169ae8c passes the cold readers,
+but its full board suite fails in 60.598s on exactly three published-write
+reconciliation assertions. The sequence stopped. Independent review permitted
+one focused JSON-wire probe: 0.751s confirms integer RAM versus float wire values
+break nested equality while normalized records agree. A one-line JSON roundtrip
+at desired-record capture yields candidate 3e892bb3dc2da62db5b5e8fa79b3f201342d98a6;
+assertions and caps remain unchanged. Review allowed exactly one corrected sequence.
+
+Corrected import passes in 6.605s; full board passes in 60.694s, including actual
+file/distinct-reader restoration and absent/paid/unpaid publication reconciliation
+fixtures. Reward authority passes in 16.320s. Owed-reward integration then times
+out at 90.337s, exit124, no success marker, after 24 passing assertions ending
+with staged paid-receipt roll-forward/reset. No subsequent check or export ran.
+No further correction/retry was authorized. The log does not distinguish cleanup,
+new Main creation or Beacon entry and establishes no causal runtime defect.
+
+The candidate is PARKED, not merged or published. Latest accepted checkpoint
+4ca2d16 stays current. Ordinary Hold 90s/>35%/actual weapons/home, remaining
+integration checks, packages and native Windows/GPU/human gates remain NOT_RUN.
+All automated Godot processes used Dummy audio and isolated headless execution.
+A later selection needs a bounded discriminating check at the unresolved boundary;
+it must retain these failures and the original cumulative cost.
+
+Unique source, patch, raw records, profiles and helpers are preserved in
+`/srv/mudds-work/combat-posting-persistence-20261025/records.tar.gz`, with adjacent
+closeout recording verified contents, actual owned PID/start identities absent,
+branch disposition and cumulative elapsed time. Cleanup details follow below.
+
+Cleanup verified: archive 33,578,556 bytes, SHA256
+`7ec68b9b4fddbda2dc67db64a1f4e26caf36533d120b4f6d62ef0b612e0ccfbd`;
+144 regular files and nine symlinks verified before scratch deletion. All nine
+supervisors and 42 observed PID/start identities are absent. Only archive and
+closeout remain. No task remote ref existed; current tips and registered worktree
+ownership were checked before exact-tip local branch deletion. Unaccepted source
+is recoverable from the verified bundle and was not merged merely for cleanup.
+Archive/cleanup elapsed 41.407 minutes; final documentation push cost is retained
+in closeout. All 337 canonical IDs/names/parents/order are unchanged. No new build
+or gameplay acceptance is claimed by this documentation-only closure.

@@ -139,10 +139,21 @@ hardware/access remain BLOCKED input. This records the remaining planning work;
 it does not claim every goal is executable or deliver gameplay. No implementation
 card or new trial is active. Select no blocked row until its named fields are fixed.
 
+**Combat terminal-posting persistence: PARKED / not accepted.** Actual-file cold
+readers and the corrected board suite pass, as does reward authority. The next
+owed-reward integration check times out at 90.337s before its Beacon assertion
+and final marker. The single corrected sequence stopped; no export, merge or
+publication followed. Candidate 3e892bb is preserved in a verified archive.
+A future bounded definition must identify the exact unresolved cleanup/new-Main/
+Beacon-entry boundary and a discriminating check before another trial; timeout
+alone proves no runtime cause. Original 17:58Z→18:58Z clock and failures are
+retained, with no automatic retry or reset. This does not qualify ordinary
+Perimeter Hold or close terminal-write recovery.
+[Exact stopped goal, results and cleanup](docs/history/ROADMAP_DELIVERIES.md#combat-terminal-posting-persistence-stop-20261025).
+
 No implementation card is active. COMFORT-MOTION's active damage and current
-notification episodes are accepted in their recorded scopes; do not call them
-completion of the wider comfort milestone. The next missing craft remains gated
-on its named specification decision.
+notification episodes stay accepted within their recorded scopes. Missing craft
+remain gated on their named specification decisions.
 
 The Torrent destruction/recovery attempt remains **PARKED / not accepted**.
 A reviewed resolver correction accounted for all100 actual damage, including
