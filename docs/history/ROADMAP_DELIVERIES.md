@@ -24048,3 +24048,33 @@ Normal game behavior is unchanged, so public checkpoint0d77125 remains current;
 no identical normal-game Windows checkpoint is published for the controller/
 passive-observation capability. GitHub Actions stays disabled. All337 canonical
 IDs,36 original parents and ten phase gates remain; full roadmap goal stays active.
+
+<a id="central-station-accepted-proof-reused-20261025"></a>
+## Central station — existing accepted journey reused — 2026-10-25
+
+WALK-CENTRAL's literal same-Player walk/board/marked launch/home assist/strict
+dock/OFFLINE exit/return contract is fully covered by already accepted packaged
+source7997b2b373752dc06b93fe81620f725764d83c74. Root and one independent read-only
+review checked the original archive, not just its summary. Archive member
+`results/ordinary-route-tutorial/result.json` plus `game.log`, in
+`/srv/mudds-work/race-first-play-20261025/results/case-records.tar.gz`, retains the
+[accepted full Race journey](#race-first-play-accepted-20261025).
+
+One PID1490166/Main290447165886/Player293634837102/Torrent294406589084 and same
+capsule/shape persist. Initial supported walk517–644 covers17.691114m to the real
+berth; actual boarding reaches START_ENGINES788. Guided launch crosses the real
+LaunchGate z=-64 plane924–925 and production LAUNCH→TARGET_PRACTICE follows.
+Normal home L13597/landing-active13600 precedes exact Central dock13805 at
+[0,1.15,-10], current central_berth lease/token/parked transform. Ninety consecutive
+neutral OFFLINE samples13897–13986 precede actual E13987/physical exit14119.
+Supported same-capsule exterior return14119–14144 covers0.969437m over25frames,
+final speed0.2m/s; actual focused Exit and normal OS0/owned cleanup pass.
+
+The whole accepted route276.690s remains under its original300s; diagnostics0.
+This closes only WALK-CENTRAL in that recorded Linux/Xvfb/x11/OS-XTest/
+dummy-renderer/Dummy-audio scope. Existing wider station presentation/native/
+device/final-candidate gates remain unchanged. No invented extra-neutral-walk
+gate, engine/test/export, temporary files, branch or worktree was needed.
+The already completed gameplay is recorded accurately, not counted as a new
+implementation or project percentage. All337 canonical IDs/order,36 parents and
+ten phase gates remain; broader project goal remains active.

@@ -29,6 +29,15 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Accepted proof reused: WALK-CENTRAL — complete station launch and return.**
+The existing accepted7997b2b37 Race package already proves every Central predicate:
+same supported Player walking/boarding, marked Guided launch, actual landing
+assist/exact Central dock/neutral OFFLINE/physical exit/supported return/UIOS0.
+The canonical row now records that existing Linux/Xvfb OS-input result; no new
+engine run or gameplay implementation was needed. Other station branches/art,
+native devices/hardware and final candidate stay open.
+[Exact reused records](docs/history/ROADMAP_DELIVERIES.md#central-station-accepted-proof-reused-20261025).
+
 **Delivered: HAULER-CARGO-DELIVERY — complete conserved supply journey.**
 Source99f2717ee passes the complete packaged ordinary-input route in193.312s
 underCAP300: normal menu/18 supported station goals/actual Hauler pilot/departure,
