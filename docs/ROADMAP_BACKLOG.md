@@ -557,7 +557,7 @@ Finish means the named existing route passes on its frozen candidate, or the nam
 | PLAN-NEXT | Assign the next bounded queue | 5 | Definition DONE2026-10-24: original36 promises/ten exits and all327 prior goal IDs preserved, every named row has explicit Done means; ten real blocking decision/resource outcomes now named. Shared world/matrix/damage/Breach-Torpedo proofs counted once. Work order and exact execution-card requirements replace stale Freight/Hauler/navigator next-task prose; those deliveries remain accepted in history. No gameplay completion or project date implied. | Every original promise maps to named result/proof/dependency; one selected card has exact owner/files/action/budget; this rewrite does not deliver gameplay. |
 | GUIDED-FINAL | Final-package Guided ordinary-input sortie, original 3/3 | 7 | GATED on final package; checkpoint3d92b91 ordinary3/3 DONE, earlier f676c50 retained. Do not repeat current accepted package unchanged or transfer it to a different final candidate | [Core](#proof-core): final package, original complete ordinary sortie3/3, real combat/home/OFFLINE physical exit. |
 | SANDBOX-RECOVERY | Original all-nine/54-waypoint recovery walk and reuse | 7 | PARKED; supported changed input/runtime cause required | [Core](#proof-core): original all-nine/54-waypoint/eight-excursion crash/recall/regeneration/reuse route1/1 under300s. |
-| SETTINGS-INPUT | Recover original runner, profile and logs | 7,8,29 | WAITING; original artifacts, no substitute Gate C | Recover the exact original runner/arguments, source/package/profile/input map, logs and failed return boundary; no replacement route. |
+| SETTINGS-INPUT | Recover original runner, profile and logs | 7,8,29 | PARTIAL source recovery; WAITING original execution artifacts. Writer accessibility_reentry_integration_test.gd --settings-process-write and reader controller_physical_sortie_test.gd --settings-reentry-input-route recovered exactly at9a89b3763; same isolated XDG_DATA_HOME/user://mudds_user_data.json, original300s. Exact final orchestration/launch receipts, durable profile and final source/package timeout logs still missing; old cache root absent. Earlier Begin-failure trace is explicitly not the final timeout. [Recovered originals and exact missing fields](#original-settings-artifacts--bounded-recovery). No replacement Gate C or run selected. | Recover the exact original runner/arguments, source/package/profile/input map, logs and failed return boundary; no replacement route. |
 | SETTINGS-RETURN | Original Settings/re-entry route, including gamepad return | 7,8,29 | GATED; SETTINGS-INPUT and supported correction | [Core](#proof-core): original apply/return/re-entry1/1 including actual gamepad-return and persisted controls. |
 | LIFE-VISIBLE | Four-cycle source phantom-geometry qualification | 7 | DONE; d7be01487, staged/headless source scope | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | LIFE-REUSE | Twelve-cycle source all-nine reuse qualification | 7 | DONE; d7be01487, staged/headless source scope | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
@@ -1432,6 +1432,40 @@ The last full matrix's eleven failed suites are below. `BASE-DIAG` selects **one
 | `game_flow_rime_client_pad_controls_test.gd` | On3e39ed8da corrected headless run first scenario completes, return17.099s; second held-edge starts264.733s and still progresses at291.862s before original 300s timeout. Diagnosis above; preserve180 edge waits/1,440-tick exposure and100 jump waits. Next: reduce a measured production hotpath, then affected original checks; no unchanged rerun or timing relaxation. |
 | `network_emberline_bolt_test.gd` | Retained failure waits on later dead-peer baseline before reset; pending-generation errors follow. Q1 isolated `e026cf620` instrumented probe passes 154 under original limits, so no repair/root cause is proven. Retain old matrix FAIL; cover next combined matrix without another unchanged isolated run. |
 | `station_light_overlap_census_test.gd` | Historical expected rows/environment unresolved; mismatch repeats on its own freeze. Recover measurement basis before changing expectations; never replace hashes just to pass. |
+
+### Original Settings artifacts — bounded recovery
+
+SETTINGS-INPUT, one read-only pass2026-10-25: **source identity recovered; original
+execution artifacts still WAITING**. This does not close SETTINGS-RETURN or
+qualify a replacement route. No tests, Godot, exports or probes were run.
+
+| Recovered original | Exact identity / retained limit |
+| --- | --- |
+| Writer | `tests/accessibility_reentry_integration_test.gd --settings-process-write` at9a89b3763ce4b4c760c547e59296bc086a856fe3 |
+| Distinct restart reader | `tests/controller_physical_sortie_test.gd --settings-reentry-input-route`, optional `--sortie-diagnostics`, same source. Reader introduced byeadc1503414425665f63669f684bbbd99ee238f5 |
+| Original pairing | Writer must exit0; distinct restart shares SAME isolated `XDG_DATA_HOME` and existing `user://mudds_user_data.json`; private rendered display/Dummy audio and unchanged outer300s. Source synthetic events do not establish physical hardware |
+| Final failure summary | Tracked ROADMAP at064f573b2f83b517a722a7d7fd856573535e2885 records successful writer, source KBM sortie/gamepad outbound probes then gamepad-return cap; earlier Windows payload separately reaches gamepad flight before same cap. This summary is not the missing raw log |
+| Earlier Windows package | d750f76d92036d37b98712b83891c4cff1ac3b2a; SHA256e32506fbbc61fac4a87f633438f8831557b7530406d58c918fe50f76246b18b7,1513entries, historical notes available in064f573b2. Older notes record an earlier KBM-return failure; do not confuse that earlier run with the later summary |
+
+Still missing: actual FINAL writer/restart orchestration command and launch/status
+receipts, isolated durable profile, final source gamepad-return timeout log and
+later packaged gamepad-flight timeout log. The historical artifact neighborhood
+`/root/.cache/mudds-shipyards/roadmap-validation/aurora-client-hud-retirement/stable-custom-full/`
+is absent. Documented old member
+`settings-reentry-reader-walk-trace/settings-reentry-input-route.log`, SHA256
+`6416d846eb0591cba88e0ccac4a546d5e47765341ee9e2fa89539e1e03ae2389`,
+belongs to an EARLIER Begin failure, not the final300s timeout.
+
+Search covered relevant Git history/source, repository artifacts and the existing
+`/srv/mudds-work` relocation/archive/closeout indexes and retained inventories.
+No matching relocation was found within that bounded scope; this is not an
+all-filesystem absence claim. Do not repeat this same search without new artifacts
+or a concrete location. Original execution-data recovery is the remaining external
+dependency, not permission to fabricate a profile/command or rerun a substitute.
+Seven original-source/notes/identity files byte-match the retained archive:
+`/srv/mudds-work/settings-original-artifacts-20261025/records.tar.gz`,40382bytes,
+SHA256`d284da31b1ed3f370045012ac1a5cb26e02a7a2603eaab5c1d4b5cb6f3378cc3`.
+Only archive and closeout remain; no branch/worktree/process/build was created.
 
 ### Packaged ordinary lifecycle — LIFE-PACKAGE-DEFINE
 
