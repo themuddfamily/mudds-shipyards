@@ -25776,3 +25776,50 @@ identities are absent; all5private build files and scratch removed. Case retains
 only archive and closeout JSON. Git closure records pushed main, exact contained
 branch deletion and elapsed time within the original60min; unrelated worktrees
 are preserved.
+
+
+<a id="shared-main-source-lifecycle-accepted-20261025"></a>
+## Shared Main source lifecycle — existing case accepted
+
+CRAFT-ACCEPT-TORRENT's shared Main resource/combat lifecycle binding is qualified
+on clean source `79dc473a50274ee193fc751836d52da6dc2a80c9`. One bounded source
+pass matched the already-defined requirement to retained whole-Main detach/add,
+not process restart; no new craft×Main matrix or driver was introduced. The
+unchanged `tests/main_reentry_quality_test.gd` SHA256 is
+`81877947ea6ef170465f7ad69ac69ec00ab979c77ca0d8a776e76e62001c0cb8`.
+No exact historical result/runtime pairing sufficient for current-source reuse
+was located in that bounded pass, so this one existing qualification was selected.
+
+One headless/Dummy isolated-profile invocation passes70.113284646s under the
+original300s cap, actualOS0/exactly one MAIN_REENTRY_QUALITY_TEST_OK/72assertions,
+zero diagnostics. Three retained subtree cycles retire/restore the exact settled
+thirteen-source roster including Torrent1101; preserve its staged hull loss and
+all retained Main node identities; reject captured shot replay without duplicate
+damage; empty hero/opponent/world/coordinator deferred queues; preserve startup/
+world-build sentinels, fixed audio nodes, rebuild resources in fresh generations
+and retain exactly one authority/pulse/audio connection. Queued stale Main/world
+restore and deferred receipt cases in the unchanged suite also pass. Arrow's
+active-ship sentinel detects accidental `_ready` replay; it is not an Arrow-only
+re-entry test. One bounded source review established the binding; root executed
+and verified the unchanged suite.
+
+This is staged/direct source lifecycle qualification, not ordinary input, normal
+process restart, installed/package acceptance or final matrix. Component-node
+identity is retained; ledger integrity/generation and explicit seat/berth claims
+are not asserted by this suite and must not be inferred. The separate combat
+lifecycle suite's destroyed source is Arrow1102, so it was not selected or
+relabeled as Torrent destruction. Current-source shared Main resource/combat
+case is complete in this scope; do not replay unchanged or invent new matrix axes.
+Native hardware/devices/audio/human and broader craft/final gates remain open.
+No gameplay/graphics change or duplicate checkpoint export was made.
+
+Existing owned supervisor/guard helper used a private first-diagnostic abort
+watcher; it never fired. Source/index/cache and stock-engine guards pass. Actual
+supervisor and two observed child identities are absent; private profile/scratch
+cleaned. Verified archive
+`/srv/mudds-work/main-reentry-current-20261025/records.tar.gz`,2,661,800bytes,
+SHA256 `d7a206d2921f1bd9d850f55cd30216b2a9d12fbfd9c56db8fc2ea87d118dbd07`,
+22regular files/1symlink verified. Only archive and closeout JSON remain. No task
+branch or build artifacts were created; documentation commits/push and elapsed
+cost are recorded in closeout. Original16:02Z→16:22Z/20min includes binding,
+execution, integration and cleanup; no failures/retries or deadline changes.

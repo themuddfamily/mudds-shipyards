@@ -77,14 +77,21 @@ Only one implementation card may be active. Completed results are linked under
 [accepted work](#accepted-work--source-limits-retained), and failed attempts under
 [parked work](#parked-failures-and-dependent-work). They are not next tasks.
 The table below contains actual missing decisions.
-No implementation card is active. Physical Torrent→Arrow→Torrent handoff is
+No implementation card is active. The existing shared Main resource/combat
+lifecycle check is accepted on79dc473a5: three retained subtree re-entry cycles,
+72assertions/70.113s/OS0/zero diagnostics, including Torrent hull/source1101,
+stale-shot rejection, retained nodes, queues and audio. [Exact source scope](docs/history/ROADMAP_DELIVERIES.md#shared-main-source-lifecycle-accepted-20261025).
+This is staged source qualification; it does not replace ordinary play, component
+ledger/seat-specific contracts, packaged/final-candidate gates or destruction.
+
+Physical Torrent→Arrow→Torrent handoff is
 accepted: driveraf38de143/package6fe51dca4,131.708s under unchanged CAP300.
 The real damage/two-home prerequisite is followed by supported deck walking,
 Arrow boarding/90neutral-OFFLINE ticks/current-stream E exit, return walking,
 fresh Torrent stream/reclaim/90neutral ticks/E exit/walk and normal UI OS0.
 Both hulls remain parked/OFFLINE during handoff; old sources remain neutral and
 non-producing. [Exact result, two failed approaches and cleanup](docs/history/ROADMAP_DELIVERIES.md#torrent-arrow-physical-handoff-accepted-20261025).
-Arrow flight/weapons, broader damage/destruction, Main re-entry and final craft
+Arrow flight/weapons, broader damage/destruction and final integrated craft
 qualification remain open; do not replay this accepted case unchanged.
 
 Torrent's real incoming core-damage/passive
@@ -216,6 +223,7 @@ charged; a new card/branch/folder cannot restart that budget. No Torpedo continu
 ## Accepted work — source limits retained
 
 Recent accepted child outcomes include
+[shared Main source lifecycle](docs/history/ROADMAP_DELIVERIES.md#shared-main-source-lifecycle-accepted-20261025),
 [physical Torrent–Arrow handoff/reclaim](docs/history/ROADMAP_DELIVERIES.md#torrent-arrow-physical-handoff-accepted-20261025),
 [Torrent incoming core damage/passive repair](docs/history/ROADMAP_DELIVERIES.md#torrent-core-damage-passive-repair-accepted-20261025),
 [Torrent packaged return/reuse](docs/history/ROADMAP_DELIVERIES.md#torrent-return-reuse-capability-accepted-20261025),
