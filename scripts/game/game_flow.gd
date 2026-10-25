@@ -8720,6 +8720,8 @@ func _update_on_foot_flow() -> void:
 		if station_interaction_candidate is ShipCrewSeat:
 			var seat := station_interaction_candidate as ShipCrewSeat
 			var prompt := seat.get_interaction_prompt()
+			if _can_request_network_halyard_cabin_berth(seat):
+				prompt = "[ E ] JOIN CABIN // %s" % seat.get_ship().get_display_name().to_upper()
 			if prompt.is_empty() and _can_reseat_host_remote_crew_seat(seat):
 				prompt = "[ E ] SIT // %s %s" % [seat.get_ship().get_display_name().to_upper(), seat.get_role_label().to_upper()]
 				var owner: CrewSeatRoleAuthority = seat.get_ship().call(&"get_crew_role_authority")
@@ -9997,6 +9999,9 @@ func _on_interact_requested() -> void:
 			hud.toast("Shared %s arrival" % ("Rime" if _network_planetary_journey.get_world_id() == RimeExpeditionType.WORLD_ID else "Aurora"), "Aurora landing-pad walking and reboarding are available; shared return to Mudds is unavailable" if _network_planetary_journey.get_world_id() == AuroraExpeditionType.WORLD_ID else "Surface exploration and return are unavailable; cabin walking and chairs remain available", 3.0)
 			return
 		if station_interaction_candidate is ShipCrewSeat:
+			if _can_request_network_halyard_cabin_berth(station_interaction_candidate as ShipCrewSeat):
+				_request_network_halyard_cabin_berth(station_interaction_candidate as ShipCrewSeat)
+				return
 			if _network_session_mode == &"client":
 				_request_network_engineer_seat(station_interaction_candidate as ShipCrewSeat)
 				return
@@ -18562,7 +18567,8 @@ func _find_station_interaction_candidate() -> Node3D:
 		if candidate is ShipCrewSeat and _network_session_is_live() \
 				and not (_network_physical_crew_seat_is_wired(candidate) \
 					and ((_network_session_mode == &"server" and _network_engineer_binding != null) \
-						or (_network_session_mode == &"client" and _network_client_boarding_holds(candidate.get_ship())))):
+						or (_network_session_mode == &"client" and (_network_client_boarding_holds(candidate.get_ship()) \
+							or _can_request_network_halyard_cabin_berth(candidate))))):
 			continue
 		if candidate is ShipBoardingArea:
 			continue
@@ -26599,6 +26605,69 @@ func _submit_confirmed_cinder_navigator_ping(peer: int, avatar: StringName, gene
 func _release_confirmed_cinder_navigator_ping(peer: int) -> void:
 	if _network_composition_ship is CinderCargoHauler and _network_ship_authority_composition != null:
 		_network_ship_authority_composition.release_peer(peer)
+
+
+## A recovered cabin does not retain its old network grant. At the passenger
+## chair, a current unclaimed client can ask for a new standing berth first.
+## The host ledger still decides; this predicate only offers the interaction.
+func _can_request_network_halyard_cabin_berth(seat: ShipCrewSeat) -> bool:
+	if not _network_client_boarding_is_live() or not network_session.is_session_active() \
+			or phase != Phase.IN_FLIGHT_CABIN or _piloting or _driving or _station_seated or _transition_busy \
+			or not is_instance_valid(player) or not player.is_inside_tree() or player.is_queued_for_deletion() \
+			or not player.is_control_enabled() or player.is_seated() or not player.is_on_floor() \
+			or not _network_client_boarding_claim.is_empty() or not _network_client_boarding_request.is_empty() \
+			or (_network_remote_body_intent_source != null and _network_remote_body_intent_source.is_bound()) \
+			or is_instance_valid(_network_engineer_pending_seat) or is_instance_valid(_network_engineer_client_seat) \
+			or not is_instance_valid(seat) or not seat.is_inside_tree() or seat.is_queued_for_deletion() \
+			or not _network_physical_crew_seat_is_wired(seat) or seat.get_role() != &"passenger" \
+			or seat.get_seat_id() != HalyardCrewTransport.LOADMASTER_STATION_SEAT_ID:
+		return false
+	var craft := seat.get_ship() as HalyardCrewTransport
+	if not is_instance_valid(craft) or craft != _cabin_ship or not ships.has(craft) \
+			or not craft.is_inside_tree() or craft.is_queued_for_deletion() or craft.is_destroyed():
+		return false
+	var admission := network_session.get_server_offer().get("admission", {}) as Dictionary
+	var peer := admission.get("peer", {}) as Dictionary
+	if admission.get("accepted") != true or int(peer.get("peer_id", 0)) != _network_client_peer_id() \
+			or int(peer.get("peer_generation", 0)) <= 0:
+		return false
+	var contract := seat.get_role_contract()
+	var cabin := craft.get_in_flight_cabin_report()
+	var frame := cabin.get("frame") as MovingInteriorFrame
+	var area := craft.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
+	if contract.is_empty() or not bool(cabin.get("supported", false)) \
+			or not is_instance_valid(frame) or not frame.is_inside_tree() or frame.is_queued_for_deletion() \
+			or frame.get_moving_frame() != craft or not frame.is_occupant_registered(player) \
+			or not (cabin.get("local_bounds", AABB()) as AABB).has_point(craft.to_local(player.global_position)) \
+			or player.get_interaction_origin().distance_to(seat.get_entry_transform().origin) > STATION_SEAT_MAX_REACH \
+			or not is_instance_valid(area) or not area.is_inside_tree() or area.is_queued_for_deletion() \
+			or not area.boarding_enabled or area.get_ship() != craft:
+		return false
+	# Use accepted host facts, not this presentation replica's local flight flags.
+	var sample := _network_craft_pose_stream.latest_sample(craft.get_ship_id())
+	var operation := sample.get("operation_presentation", {}) as Dictionary
+	if sample.get("ship_id") != craft.get_ship_id() or bool(sample.get("destroyed", true)) \
+			or not bool(operation.get("landed", false)) or not bool(operation.get("docked", false)) \
+			or bool(operation.get("landing", true)) or operation.get("engine") != HeroShip.ENGINE_OFFLINE:
+		return false
+	var sections := network_session.get_authoritative_snapshot().get("sections", {}) as Dictionary
+	for landing: Dictionary in sections.get("landing", []):
+		if landing.get("entity_id") == craft.get_ship_id():
+			return landing.get("state") == &"landed" and int(landing.get("entity_generation", 0)) > 0 \
+				and int(landing.get("landing_revision", 0)) > 0
+	return false
+
+
+func _request_network_halyard_cabin_berth(seat: ShipCrewSeat) -> Dictionary:
+	if not _can_request_network_halyard_cabin_berth(seat):
+		return {"accepted": false, "status": &"cabin_readmission_unavailable"}
+	var craft := seat.get_ship() as HalyardCrewTransport
+	var area := craft.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
+	var berths: Array[StringName] = [network_cabin_berth_seat_id(craft.get_ship_id(), 1)]
+	# Generic cabin boarding means the cockpit. This chair asks only for a berth;
+	# the confirming answer binds a fresh body, never the retired grant or chair.
+	return _begin_network_client_boarding_request(craft, area,
+		NetworkBoardingIntentType.ACTION_BOARD_ANY, NETWORK_CABIN_BERTH_ROLE, berths)
 
 
 func _request_network_engineer_seat(seat: ShipCrewSeat) -> void:
