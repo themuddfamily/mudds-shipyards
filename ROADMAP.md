@@ -29,6 +29,34 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Selected: PLAY-PATROL[platform_sweep] — finish the second patrol branch.**
+Startebcf5a064; relay first-play remains accepted on its cited source. One
+implementer owns existing runner/tests/passive observer/startup selector; root
+owns privacy/docs/guards/checks/integration/cleanup. Add `--route patrol-platform-home`
+/ `NATIVE_PATROL_PLATFORM_HOME_OK` by reusing the qualified patrol journey.
+
+Normal menu/Guided/physical exit → actual pause Patrol selection → actual Platform
+button changes fresh idle defaultrelay toplatform without advancing generation →
+resume/supported reboard clearance/same-Torrent departure/safe low header lane →
+five actual ordered platform32m volumes,2 continuous physics seconds/120 occupied
+60Hz ticks each → one genuine cinder_platform_patrol payment/generation1 → strict
+home/90neutral OFFLINE/physical exit/original supported walk/normal UI OS0.
+Platform order is[32,-26,-372]→[16,-9,-240]→[30,-46,-600]→[46,-44,-498]→[60,-70,-700].
+Freeze the actual branch/route/points before start; reject wrong/default branch,
+synthetic progress, skipped/reset dwell, replayed payment and unrelated save change.
+
+Preserve CAP300/outer360, existing controls/geometry/tuning and actual normal UI.
+No invented Patrol timeout/speed gate, direct state/claim/provider mutation or
+new framework/validator/schema. Proof: focused existing Python/privacy/import/
+parser, clean private Linux export/strict menu readiness/PCK inventory and one
+full owned Xvfb/x11/Dummy-audio/dummy-renderer OS-XTest package route, independent
+source/raw review, actual process/build/profile/branch cleanup. Estimate3min
+mapping+20implementation+25checks/route+15closure; hard90min includes mapping from
+prior closeout. First unexpected failure stops for cumulative review/parking.
+Both branch passes close only first-play; repeats/cold/native/final/full-save-suite
+and parked UI-BOARD-FOCUS gates remain separate. No identical public rebuild for
+caller-only work; actual runtime changes require a separately proved checkpoint.
+
 **Delivered: PLAY-PATROL[relay_sweep] — full ordinary relay branch.**
 Sourcec3d369e0f passes the complete packaged journey in227.070s under original
 CAP300: genuine Guided, actual pause-board Patrol/Relay selection, supported
