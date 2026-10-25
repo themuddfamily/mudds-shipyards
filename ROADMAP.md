@@ -118,6 +118,25 @@ hardware/access remain BLOCKED input. This records the remaining planning work;
 it does not claim every goal is executable or deliver gameplay. No implementation
 card or new trial is active. Select no blocked row until its named fields are fixed.
 
+**Active capability: COMFORT-MOTION — apply to the current damage cue.**
+Source1bfb86ee3: `set_reduced_motion(true)` currently leaves an already-running
+normal damage tween and its full flash alpha unchanged. Change only HUD feedback
+and its existing accessibility regression. Enabling the setting during a hit must
+immediately cap actual screen-flash opacity at REDUCED_DAMAGE_FLASH_ALPHA, stop
+its luminance/direction fades, retain the same directional cue and clear it within
+the lesser of the existing reduced hold(.45s) or remaining original cue lifetime
+(.62s minus elapsed). Reapplying ON must not extend it; OFF must not replay it;
+subsequent hits retain their authored mode. No flight/damage/network change.
+
+Freeze before editing: reproduce on the old HUD via the existing accessibility
+suite, then test mid-fade application, steady interval, expiry, repeat ON/OFF and
+new-hit behavior. Root owns safe checks, actual component readback, clean paired
+Windows/Linux checkpoint export, strict startup and package audits, push/cleanup;
+implementer owns `scripts/ui/hud.gd` and `tests/accessibility_presets_test.gd`.
+Original17:09Z→18:09Z/60min includes this source selection, checks/build/closure.
+First unexpected failure stops. Other comfort consumers, devices and final
+candidate acceptance remain open; no new comfort matrix or validator.
+
 The Torrent destruction/recovery attempt remains **PARKED / not accepted**.
 A reviewed resolver correction accounted for all100 actual damage, including
 picket side hits; the third trial recorded the required defender's final1-point

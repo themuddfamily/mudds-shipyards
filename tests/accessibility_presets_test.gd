@@ -30,6 +30,7 @@ func _run() -> void:
 	await _test_menu_button_text_contrast()
 	await _test_hud_reticle_styles()
 	await _test_hud_scale_and_motion()
+	await _test_active_damage_reduced_motion_transition()
 	await _test_hud_captions()
 	_finish()
 
@@ -989,6 +990,81 @@ func _test_hud_scale_and_motion() -> void:
 		"a reduced-motion toast is fully legible on the first frame instead of fading in"
 	)
 
+	hud.queue_free()
+	await process_frame
+	await process_frame
+
+
+## Step the actual damage tween without sleeping so enabling the preference is
+## tested during a live hit, rather than only on the next flash_damage() call.
+func _test_active_damage_reduced_motion_transition() -> void:
+	var hud := GameHUD.new()
+	hud.name = "AccessibilityActiveDamageHUD"
+	root.add_child(hud)
+	await process_frame
+	var flash := hud.get("_damage_flash") as ColorRect
+	var direction := hud.get("_damage_direction") as Label
+	hud.flash_damage(1.0, Vector2.RIGHT)
+	var normal := hud.get("_damage_tween") as Tween
+	normal.pause()
+	normal.custom_step(0.10)
+	var before_alpha := flash.color.a * flash.modulate.a
+	var cue_position := direction.position
+	var cue_rotation := direction.rotation
+	_check(before_alpha > GameHUD.REDUCED_DAMAGE_FLASH_ALPHA,
+		"the active-transition fixture observes a real authored flash above the reduced ceiling")
+	hud.set_reduced_motion(true)
+	var held_flash := flash.modulate
+	var held_colour := flash.color
+	var held_direction := direction.modulate
+	_check(flash.color.a * flash.modulate.a <= GameHUD.REDUCED_DAMAGE_FLASH_ALPHA + 0.00001
+		and flash.color.a * flash.modulate.a <= before_alpha,
+		"enabling reduced motion immediately caps the already-active effective damage flash without brightening")
+	_check(direction.visible and direction.position == cue_position and is_equal_approx(direction.rotation, cue_rotation)
+		and direction.modulate.a > 0.0,
+		"enabling reduced motion retains the same active direction cue and geometry")
+	var held := hud.get("_damage_tween") as Tween
+	held.pause()
+	held.custom_step(0.20)
+	_check(flash.modulate == held_flash and flash.color == held_colour and direction.modulate == held_direction,
+		"the converted damage cue holds constant luminance and direction opacity instead of continuing either fade")
+	hud.set_reduced_motion(true)
+	var repeated := hud.get("_damage_tween") as Tween
+	repeated.pause()
+	repeated.custom_step(0.24)
+	_check(direction.visible, "the converted cue remains legible just before its authored reduced hold expires")
+	repeated.custom_step(0.02)
+	_check(not direction.visible and is_zero_approx(flash.modulate.a) and is_zero_approx(direction.modulate.a),
+		"repeated reduced-motion ON cannot extend the original converted cue deadline")
+	hud.set_reduced_motion(false)
+	_check(not direction.visible and is_zero_approx(flash.modulate.a),
+		"turning reduced motion OFF does not replay a cleared damage cue")
+	# A late conversion has only .12s of the original .62s direction lifetime.
+	hud.flash_damage(1.0, Vector2.LEFT)
+	var late_normal := hud.get("_damage_tween") as Tween
+	late_normal.pause()
+	late_normal.custom_step(0.50)
+	var late_alpha := flash.color.a * flash.modulate.a
+	var late_direction := direction.modulate
+	hud.set_reduced_motion(true)
+	_check(flash.color.a * flash.modulate.a <= late_alpha + 0.00001,
+		"a late reduced-motion conversion does not revive an already-faded flash")
+	var late_hold := hud.get("_damage_tween") as Tween
+	late_hold.pause()
+	late_hold.custom_step(0.10)
+	_check(direction.visible and direction.modulate == late_direction,
+		"a late conversion preserves its remaining direction information without fading")
+	hud.set_reduced_motion(false)
+	hud.set_reduced_motion(true)
+	var late_repeated := hud.get("_damage_tween") as Tween
+	late_repeated.pause()
+	late_repeated.custom_step(0.03)
+	_check(not direction.visible and is_zero_approx(flash.modulate.a),
+		"OFF then ON cannot extend a late cue beyond the original direction lifetime")
+	hud.set_reduced_motion(false)
+	hud.flash_damage(1.0, Vector2.UP)
+	_check(is_equal_approx(flash.color.a, GameHUD.DAMAGE_FLASH_ALPHA) and direction.visible,
+		"the next new hit follows the newly selected authored motion mode")
 	hud.queue_free()
 	await process_frame
 	await process_frame
