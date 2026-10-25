@@ -40,6 +40,14 @@ retains every original promise and identifies the missing bindings. It is not a
 list of 337 executable tasks. We cannot honestly give a remaining-task count or
 completion date until those finite memberships and owner choices are fixed.
 
+**The breakdown is not complete yet.** Full-craft journeys, shared-world case
+bindings, remaining comfort episodes, installed recovery cuts, Linux installation
+transactions and performance workload membership still have definition gaps.
+Their existing backlog rows name the missing fields and responsible owner.
+These are blocked contracts, not ready implementation tasks. Close each gap in
+its existing row; do not create another inventory or count a definition as a
+delivered feature. Older family labels cannot override a blocked child contract.
+
 ## What finishing means
 
 The full original scope is retained. A smaller release would require an explicit
