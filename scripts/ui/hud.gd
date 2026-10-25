@@ -3836,17 +3836,25 @@ func _hold_active_damage_cue() -> void:
 			or not _damage_tween.is_valid() or not _damage_direction.visible:
 		return
 	var remaining := maxf(0.0, _damage_cue_duration - _damage_tween.get_total_elapsed_time())
+	_cap_active_damage_flash()
+	_hold_damage_cue(minf(REDUCED_MOTION_HOLD_SECONDS, remaining))
+
+
+func _cap_active_damage_flash() -> void:
+	if not is_instance_valid(_damage_flash):
+		return
 	# Preserve the current modulation, including an already-faded flash. Lowering
 	# only its colour alpha cannot brighten it or restart either animated fade.
 	var colour := _damage_flash.color
 	if _damage_flash.modulate.a > 0.0:
 		colour.a = minf(colour.a, REDUCED_DAMAGE_FLASH_ALPHA / _damage_flash.modulate.a)
 	_damage_flash.color = colour
-	_hold_damage_cue(minf(REDUCED_MOTION_HOLD_SECONDS, remaining))
 
 
 func set_reduced_flash(enabled: bool) -> void:
 	_reduced_flash = enabled
+	if enabled:
+		_cap_active_damage_flash()
 	_refresh_bomber_payload_help()
 
 
