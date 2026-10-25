@@ -42,6 +42,13 @@ extends SceneTree
 ## limits and coordinator230s work deadline remain; no external host is needed.
 ## Success: GAME_FLOW_LIVE_MENU_CANCEL_TEST_OK, cancel.reusable attempts=2 and
 ## cancelled=2, plus zero actual actor exit and reaped actor/wrapper/display.
+## BROWSER-JOIN gameplay: use the D3 invocation/environment/locks above with
+## --live-menu-one-guest-gameplay. Both real Main players walk >=1m forward
+## while admitted, then >=1m back after normal Disconnect/Refresh/Back/Resume.
+## Each walk uses production movement actions, <=5s walking/settling boundaries,
+## and 12 neutral physics ticks with <=.02m drift. All original D3 caps remain.
+## Success: GAME_FLOW_LIVE_MENU_ONE_GUEST_GAMEPLAY_TEST_OK; existing .done
+## receipts contain both actual walks, and actual actor OS exits must be zero.
 
 
 const GameFlowType := preload("res://scripts/game/game_flow.gd")
@@ -58,6 +65,16 @@ class HudProbe extends CanvasLayer:
 		network_results.append(snapshot.duplicate(true))
 
 
+# A test-local consumer runs after Main (-100), Player (0) and ship camera (100).
+# Production producers keep their authored order. Rendering may skip frames;
+# this node still observes every completed physics step, including paused faults.
+class LiveWalkSampler extends Node:
+	var observe: Callable
+
+	func _physics_process(_delta: float) -> void:
+		observe.call()
+
+
 var _assertions := 0
 var _failures: PackedStringArray = []
 
@@ -67,7 +84,7 @@ func _init() -> void:
 
 
 func _run() -> void:
-	if "--live-menu-one-guest" in OS.get_cmdline_user_args() or "--live-menu-two-guests" in OS.get_cmdline_user_args() or "--live-menu-cancel" in OS.get_cmdline_user_args():
+	if "--live-menu-one-guest" in OS.get_cmdline_user_args() or "--live-menu-one-guest-gameplay" in OS.get_cmdline_user_args() or "--live-menu-two-guests" in OS.get_cmdline_user_args() or "--live-menu-cancel" in OS.get_cmdline_user_args():
 		await _live_run()
 		return
 	var flow := GameFlowType.new()
@@ -145,6 +162,8 @@ var _live_peers: Dictionary = {}
 var _live_deadline := 0
 var _live_two_guests := false
 var _live_cancel := false
+var _live_gameplay := false
+var _live_walks: Dictionary = {}
 var _live_pending_endpoint: PacketPeerUDP
 
 
@@ -152,6 +171,7 @@ func _live_run() -> void:
 	var args := OS.get_cmdline_user_args()
 	_live_two_guests = "--live-menu-two-guests" in args
 	_live_cancel = "--live-menu-cancel" in args
+	_live_gameplay = "--live-menu-one-guest-gameplay" in args
 	var peer_index := args.find("--live-peer")
 	if peer_index >= 0 and peer_index + 3 < args.size():
 		_live_role = args[peer_index + 1]
@@ -224,6 +244,8 @@ func _live_run() -> void:
 		else:
 			_check(counts.size() == 3 and counts[0] == 0 and counts[1] == 1 and counts[2] == 0,
 				"real host guest counts reconcile 0 → 1 → 0")
+			if _live_gameplay:
+				_live_check_gameplay_receipts()
 	if _live_pending_endpoint != null:
 		_live_pending_endpoint.close()
 	_live_finish()
@@ -333,6 +355,8 @@ func _live_spawn(role: String) -> int:
 		_check(OS.execute("/bin/chmod", PackedStringArray(["700", profile.path_join(folder)])) == 0, "private profile directory permissions: " + folder)
 	_check(OS.execute("/bin/chmod", PackedStringArray(["700", profile])) == 0, "private peer profile root permissions")
 	var args := PackedStringArray(["--display-driver", "x11", "--disable-render-loop", "--rendering-driver", "dummy", "--audio-driver", "Dummy", "--path", ProjectSettings.globalize_path("res://"), "--script", "res://tests/network/game_flow_server_browser_integration_test.gd", "--", "--live-menu-cancel" if _live_cancel else ("--live-menu-two-guests" if _live_two_guests else "--live-menu-one-guest"), "--live-peer", role, _live_directory, str(_live_port)])
+	if _live_gameplay:
+		args[args.find("--live-menu-one-guest")] = "--live-menu-one-guest-gameplay"
 	# Positional argv protects path text from shell evaluation. The shell waits
 	# for the actual Godot child; a .done receipt is never treated as OS exit.
 	var command := 'trap \'kill "$child" 2>/dev/null; wait "$child"; exit 143\' TERM INT HUP; /usr/bin/env -i DISPLAY="$DISPLAY" XAUTHORITY="$XAUTHORITY" "$@" > "$0.log" 2>&1 & child=$!; printf "%s" "$child" > "$0.pid"; wait "$child"; status=$?; printf "%s" "$status" > "$0.exit"; exit "$status"'
@@ -363,9 +387,11 @@ func _live_actor() -> void:
 			await _live_host()
 		else:
 			await _live_guest()
-	if (_live_two_guests or _live_cancel) and not _failures.is_empty():
+	if (_live_two_guests or _live_cancel or _live_gameplay) and not _failures.is_empty():
 		_live_write("abort", {"reason": "first_failed_boundary", "role": _live_role})
 	# Cleanup is independent of menu success, focus, pause state or input capture.
+	if _live_gameplay:
+		_live_release_movement()
 	var release := InputEventAction.new()
 	release.action = &"ui_accept"
 	release.pressed = false
@@ -377,6 +403,8 @@ func _live_actor() -> void:
 	await process_frame
 	await process_frame
 	var done := {"assertions": _assertions, "failures": Array(_failures), "pid": OS.get_process_id()}
+	if _live_gameplay:
+		done["gameplay"] = _live_walks
 	if _live_role == "host":
 		done["guest_counts"] = _live_counts
 	_live_write(_live_role + ".done", done)
@@ -418,6 +446,8 @@ func _live_host() -> void:
 	else:
 		if not await _live_begin_shift():
 			return
+		if _live_gameplay and not await _live_walk("connected", &"move_forward", true):
+			return
 		_live_write("host.allow_leave", {})
 	if not await _live_boundary(func(): return session.get_admitted_peer_ids().is_empty() and int(session.get_session_capacity_snapshot().occupancy) == 0, 20.0, "guest UI disconnect returns real host guest count to zero"):
 		return
@@ -431,7 +461,10 @@ func _live_host() -> void:
 	if not await _live_button("ServerBrowserDisconnectButton"):
 		return
 	_check(not session.is_session_active() and not discovery.is_responding(), "host UI disconnect closes session and LAN responder")
-	await _live_browser_after_leave()
+	if not await _live_browser_after_leave():
+		return
+	if _live_gameplay:
+		await _live_walk("solo", &"move_back", false)
 
 
 func _live_host_second_guest(session: NetworkEnetSessionAdapter, first_id: int) -> bool:
@@ -516,11 +549,17 @@ func _live_guest() -> void:
 			_live_write("guest2.remaining", {"pid": OS.get_process_id(), "peer_id": guest_id, "peer_generation": int(peer.get("peer_generation", 0)), "authenticated": true})
 	if not await _live_wait_file("host.allow_second_leave" if _live_role == "guest2" else "host.allow_leave", 20.0):
 		return
-	if not await _live_begin_shift() or not await _live_open_pause_browser() or not await _live_button("ServerBrowserDisconnectButton"):
+	if not await _live_begin_shift():
+		return
+	if _live_gameplay and not await _live_walk("connected", &"move_forward", true):
+		return
+	if not await _live_open_pause_browser() or not await _live_button("ServerBrowserDisconnectButton"):
 		return
 	_check(not session.is_session_active() and session.get_server_offer().is_empty() and session.get_admitted_peer_ids().is_empty(), "guest UI disconnect clears transport and admission")
 	_check(_live_game.get_network_remote_body_intent_source() == null and not (_live_game.get_node("Player") as PlayerController).is_seated(), "menu guest has no retained body or chair ownership")
 	if not await _live_browser_after_leave():
+		return
+	if _live_gameplay and not await _live_walk("solo", &"move_back", false):
 		return
 	await _live_wait_file("host.first_cleared" if _live_two_guests and _live_role == "guest" else "host.cleared", 20.0)
 
@@ -555,6 +594,258 @@ func _live_browser_after_leave() -> bool:
 	var disconnect := _live_game.hud.find_child("ServerBrowserDisconnectButton", true, false) as Button
 	_check(disconnect != null and disconnect.is_visible_in_tree() and disconnect.disabled and disconnect.focus_mode == Control.FOCUS_NONE, "browser Disconnect is disabled after UI leave")
 	return await _live_button("ServerBrowserRefreshButton") and await _live_button("ServerBrowserBackButton") and await _live_button("ResumeButton")
+
+
+func _live_release_movement() -> void:
+	for action: StringName in [&"move_forward", &"move_back", &"move_left", &"move_right", &"sprint_boost", &"jump", &"pause", &"ui_accept"]:
+		var release := InputEventAction.new()
+		release.action = action
+		release.pressed = false
+		Input.parse_input_event(release)
+		Input.action_release(action)
+
+
+func _live_walk_network_ready(connected: bool) -> bool:
+	var session: NetworkEnetSessionAdapter = _live_game.network_session
+	if not is_instance_valid(session):
+		return false
+	if not connected:
+		return not session.is_session_active() and session.get_server_offer().is_empty() and session.get_admitted_peer_ids().is_empty() and _live_game.get_network_remote_body_intent_source() == null
+	var admitted: Dictionary = _live_read(_live_role + ".admitted")
+	if _live_role == "host":
+		var guest_id := int(admitted.get("guest_peer_id", 0))
+		return session.is_session_active() and session.is_server() and session.multiplayer.get_unique_id() == 1 and session.get_admitted_peer_ids().size() == 1 and _live_host_peer_generation(session, guest_id) == int(admitted.get("guest_generation", -1))
+	var peer: Dictionary = (session.get_server_offer().get("admission", {}) as Dictionary).get("peer", {}) as Dictionary
+	return _live_authenticated() and session.multiplayer.get_unique_id() == int(admitted.get("peer_id", 0)) and int(peer.get("peer_generation", 0)) == int(admitted.get("peer_generation", -1))
+
+
+func _live_walk_snapshot(player: PlayerController) -> Dictionary:
+	var session: NetworkEnetSessionAdapter = _live_game.network_session
+	var peer: Dictionary = (session.get_server_offer().get("admission", {}) as Dictionary).get("peer", {}) as Dictionary
+	var ships: Dictionary = session.get("_ship_ownership").get_snapshot()
+	var seats: Dictionary = session.get("_seat_authority").get_snapshot()
+	var crew: Dictionary = session.get_crew_role_snapshot()
+	var support_query := PhysicsRayQueryParameters3D.create(player.global_position + player.up_direction * 0.15, player.global_position - player.up_direction * 0.5, 1, [player.get_rid()])
+	var support: Dictionary = player.get_world_3d().direct_space_state.intersect_ray(support_query)
+	var collider: Object = support.get("collider") as Object
+	var normal: Vector3 = support.get("normal", Vector3.ZERO)
+	var collision := player.get_node("PlayerCollision") as CollisionShape3D
+	var audit: Dictionary = player.get_remote_drive_audit()
+	var host_admitted: Dictionary = _live_read("host.admitted")
+	var host_guest_id := int(host_admitted.get("guest_peer_id", 0))
+	return {"player": _live_player_identity(), "frame": Engine.get_physics_frames(),
+		"position": _live_walk_vector(player.global_position), "velocity": _live_walk_vector(player.velocity),
+		"basis": [_live_walk_vector(player.global_basis.x), _live_walk_vector(player.global_basis.y), _live_walk_vector(player.global_basis.z)],
+		"grounded": player.is_on_floor(), "collider": str((collider as Node).get_path()) if collider is Node else "",
+		"support_normal": _live_walk_vector(normal), "support_position": _live_walk_vector(support.get("position", Vector3.ZERO)),
+		"supported": collider is CollisionObject3D and normal.dot(player.up_direction) >= cos(player.floor_max_angle),
+		"paused": paused, "phase": int(_live_game.phase), "on_foot": int(player.get("_embodiment_state")) == PlayerController.EmbodimentState.ON_FOOT,
+		"control_enabled": player.is_control_enabled(), "camera_active": bool(audit.get("camera_active", false)), "remote_driven": bool(audit.get("remote_driven", true)),
+		"capsule_enabled": not collision.disabled, "processing": player.can_process() and player.is_physics_processing(),
+		"input": [Input.get_axis("move_left", "move_right"), Input.get_axis("move_forward", "move_back")],
+		"authority": {"main_id": str(_live_game.get_instance_id()), "session_id": str(session.get_instance_id()),
+			"player_authority": player.get_multiplayer_authority(), "active_ship": str(_live_game.active_ship.get_instance_id()), "piloting": bool(_live_game.get("_piloting")),
+			"network_active": session.is_session_active(), "server": session.is_server(), "peer_id": session.multiplayer.get_unique_id(),
+			"peer_generation": int(peer.get("peer_generation", 0)), "admitted": Array(session.get_admitted_peer_ids()),
+			"authenticated": _live_walk_network_ready(true), "host_guest_id": host_guest_id,
+			"host_guest_generation": _live_host_peer_generation(session, host_guest_id) if _live_role == "host" else 0,
+			"ships": ships.get("ships", []), "seats": seats.get("assignments", []), "crew": crew.get("roles", {})}}
+
+
+func _live_walk_vector(value: Vector3) -> Array:
+	return [value.x, value.y, value.z]
+
+
+func _live_walk_vector_from(value: Array) -> Vector3:
+	return Vector3(float(value[0]), float(value[1]), float(value[2])) if value.size() == 3 else Vector3.ZERO
+
+
+func _live_walk_sample_valid(sample: Dictionary, identity: Dictionary, authority: Dictionary) -> bool:
+	return (
+		sample.get("player", {}) == identity and sample.get("authority", {}) == authority
+		and bool(sample.get("grounded", false)) and bool(sample.get("supported", false))
+		and not str(sample.get("collider", "")).is_empty() and not bool(sample.get("paused", true))
+		and int(sample.get("phase", GameFlow.Phase.INTRO)) != GameFlow.Phase.INTRO
+		and bool(sample.get("on_foot", false)) and bool(sample.get("control_enabled", false))
+		and bool(sample.get("camera_active", false)) and not bool(sample.get("remote_driven", true))
+		and bool(sample.get("capsule_enabled", false)) and bool(sample.get("processing", false))
+	)
+
+
+func _live_walk(name: String, action: StringName, connected: bool) -> bool:
+	# Only input changes here. The same Main/player/session keep their production
+	# physics, controls, collision, authority and authored spawn throughout.
+	_live_release_movement()
+	var player := _live_game.get_node("Player") as PlayerController
+	var identity: Dictionary = _live_player_identity()
+	var admitted_identity: Dictionary = _live_read(_live_role + ".admitted").get("player", {})
+	_check(int(identity.pid) == int(admitted_identity.get("pid", 0)) and str(identity.object_id) == str(admitted_identity.get("object_id", "")) and str(identity.path) == str(admitted_identity.get("path", "")), name + " walk retains the admitted runtime Player identity")
+	if not _failures.is_empty():
+		return false
+	if not await _live_boundary(func():
+		var sample: Dictionary = _live_walk_snapshot(player)
+		return _live_walk_sample_valid(sample, identity, sample.authority) and _live_walk_network_ready(connected) and player.velocity.length() <= 0.05 and Input.get_vector("move_left", "move_right", "move_forward", "move_back").is_zero_approx(), 5.0, name + " walking starts supported with neutral local controls"):
+		_live_release_movement()
+		return false
+	var start: Dictionary = _live_walk_snapshot(player)
+	var authority: Dictionary = start.authority
+	var origin := player.global_position
+	var camera_yaw := player.get_node("CameraRig/CameraYaw") as Node3D
+	var direction: Vector3 = -camera_yaw.global_basis.z if action == &"move_forward" else camera_yaw.global_basis.z
+	direction = direction.slide(player.up_direction).normalized()
+	var receipt := {"action": str(action), "connected": connected, "start": start,
+		"samples": [], "settle": [], "neutral": [], "direction": _live_walk_vector(direction)}
+	_live_walks[name] = receipt
+	var state := {"phase": "walk", "done": false, "valid": true, "receipt": receipt,
+		"identity": identity, "authority": authority, "origin": origin, "direction": direction,
+		"action": action, "connected": connected, "last_frame": int(start.frame),
+		"started": Time.get_ticks_msec(), "deadline": Time.get_ticks_msec() + 5_000}
+	var sampler := LiveWalkSampler.new()
+	sampler.process_mode = Node.PROCESS_MODE_ALWAYS
+	sampler.process_physics_priority = 1_000_000
+	sampler.observe = _live_walk_step.bind(state, player)
+	root.add_child(sampler)
+	var press := InputEventAction.new()
+	press.action = action
+	press.pressed = true
+	Input.parse_input_event(press)
+	while not bool(state.done):
+		# This clock/abort path is independent of physics and the pause menu.
+		if Time.get_ticks_msec() >= int(state.deadline) or FileAccess.file_exists(_live_directory.path_join("abort")):
+			_live_walk_stop(state, false)
+			break
+		await process_frame
+	_live_release_movement()
+	sampler.queue_free()
+	_check(bool(state.valid) and (receipt.neutral as Array).size() == 12,
+		name + " actual supported one-metre walk, continuous settle and twelve consecutive neutral physics ticks")
+	return _failures.is_empty()
+
+
+func _live_walk_stop(state: Dictionary, valid: bool) -> void:
+	state["valid"] = valid
+	state["done"] = true
+	_live_release_movement()
+
+
+func _live_walk_step(state: Dictionary, player: PlayerController) -> void:
+	if bool(state.done):
+		return
+	if not is_instance_valid(player):
+		_live_walk_stop(state, false)
+		return
+	var sample: Dictionary = _live_walk_snapshot(player)
+	var receipt: Dictionary = state.receipt
+	var phase: String = state.phase
+	var samples: Array = receipt["samples" if phase == "walk" else phase]
+	samples.append(sample)
+	var consecutive := int(sample.frame) == int(state.last_frame) + 1
+	state["last_frame"] = int(sample.frame)
+	var valid := (
+		consecutive and _live_walk_sample_valid(sample, state.identity, state.authority)
+		and _live_walk_network_ready(bool(state.connected))
+		and Time.get_ticks_msec() < int(state.deadline)
+		and not FileAccess.file_exists(_live_directory.path_join("abort"))
+	)
+	if not valid:
+		_live_walk_stop(state, false)
+		return
+	if phase == "walk":
+		var action: StringName = state.action
+		var origin: Vector3 = state.origin
+		var direction: Vector3 = state.direction
+		var distance := (player.global_position - origin).slide(player.up_direction).dot(direction)
+		var peak_speed := maxf(float(receipt.get("peak_speed_mps", 0.0)), player.velocity.slide(player.up_direction).length())
+		receipt["end"] = sample
+		receipt["distance_m"] = distance
+		receipt["peak_speed_mps"] = peak_speed
+		receipt["walk_seconds"] = float(Time.get_ticks_msec() - int(state.started)) / 1000.0
+		if not Input.is_action_pressed(action):
+			_live_walk_stop(state, false)
+		elif distance >= 1.0:
+			_live_release_movement()
+			if peak_speed <= 0.1:
+				_live_walk_stop(state, false)
+				return
+			state["phase"] = "settle"
+			state["settle_started"] = Time.get_ticks_msec()
+			state["deadline"] = Time.get_ticks_msec() + 5_000
+		return
+	# Once input releases, support/control/auth/identity failures never recover
+	# inside a wait predicate: the first bad completed physics step stops here.
+	if not Input.get_vector("move_left", "move_right", "move_forward", "move_back").is_zero_approx():
+		_live_walk_stop(state, false)
+		return
+	if phase == "settle":
+		receipt["settle_seconds"] = float(Time.get_ticks_msec() - int(state.settle_started)) / 1000.0
+		if player.velocity.length() <= 0.05:
+			receipt["neutral_start"] = sample
+			state["neutral_origin"] = player.global_position
+			state["phase"] = "neutral"
+			state["deadline"] = Time.get_ticks_msec() + 5_000
+		return
+	var neutral_origin: Vector3 = state.neutral_origin
+	var drift := maxf(float(receipt.get("neutral_drift_m", 0.0)), player.global_position.distance_to(neutral_origin))
+	receipt["neutral_drift_m"] = drift
+	if player.velocity.length() > 0.05 or drift > 0.02:
+		_live_walk_stop(state, false)
+	elif samples.size() == 12:
+		_live_walk_stop(state, true)
+
+
+func _live_check_gameplay_receipts() -> void:
+	for role: String in ["host", "guest"]:
+		var admitted: Dictionary = _live_read(role + ".admitted")
+		var walks: Dictionary = _live_read(role + ".done").get("gameplay", {})
+		for name: String in ["connected", "solo"]:
+			var walk: Dictionary = walks.get(name, {})
+			var start: Dictionary = walk.get("start", {})
+			var end: Dictionary = walk.get("end", {})
+			var authority: Dictionary = start.get("authority", {})
+			var direction := _live_walk_vector_from(walk.get("direction", []))
+			var displacement := _live_walk_vector_from(end.get("position", [])) - _live_walk_vector_from(start.get("position", []))
+			var connected := name == "connected"
+			_check(
+				walk.get("action", "") == ("move_forward" if connected else "move_back")
+				and bool(walk.get("connected", not connected)) == connected
+				and bool(authority.get("network_active", not connected)) == connected
+				and float(walk.get("walk_seconds", 6.0)) <= 5.0
+				and direction.is_finite() and is_equal_approx(direction.length(), 1.0)
+				and displacement.is_finite() and displacement.dot(direction) >= 1.0
+				and float(walk.get("peak_speed_mps", 0.0)) > 0.1,
+				role + " " + name + " receipt proves ordinary one-metre input walk in its original boundary")
+			var generation_valid: bool = (
+				int(authority.get("host_guest_id", 0)) == int(admitted.get("guest_peer_id", -1))
+				and int(authority.get("host_guest_generation", 0)) == int(admitted.get("guest_generation", -1))
+				if role == "host" else int(authority.get("peer_generation", 0)) == int(admitted.get("peer_generation", -1))
+			)
+			_check(
+				bool(authority.get("authenticated", not connected)) == connected
+				and not bool(authority.get("piloting", true))
+				and (not connected or (generation_valid and int(authority.get("peer_id", 0)) == int(admitted.get("host_peer_id" if role == "host" else "peer_id", -1)))),
+				role + " " + name + " preserves the actual admitted identity or cleared solo session")
+			_check(_live_walk_sample_valid(start, admitted.get("player", {}), authority) and _live_walk_sample_valid(end, admitted.get("player", {}), authority), role + " " + name + " start and end retain the same supported actor and grants")
+			var samples: Array = walk.get("samples", [])
+			var settle: Array = walk.get("settle", [])
+			var neutral: Array = walk.get("neutral", [])
+			_check(not samples.is_empty() and not settle.is_empty() and neutral.size() == 12 and float(walk.get("settle_seconds", 6.0)) <= 5.0, role + " " + name + " contains actual movement, bounded continuous settling and twelve neutral observations")
+			var previous_frame := int(start.get("frame", -1))
+			var observed_peak := 0.0
+			for sample: Dictionary in samples:
+				_check(_live_walk_sample_valid(sample, admitted.get("player", {}), authority) and int(sample.get("frame", -1)) == previous_frame + 1 and sample.get("input", []) == [0.0, -1.0 if connected else 1.0] and _live_walk_vector_from(sample.get("velocity", [])).is_finite(), role + " " + name + " movement preserves every physics step's actual support/player/control/auth/grants")
+				observed_peak = maxf(observed_peak, _live_walk_vector_from(sample.get("velocity", [])).length())
+				previous_frame = int(sample.get("frame", -1))
+			_check(observed_peak > 0.1, role + " " + name + " has measured movement velocity")
+			_check(not samples.is_empty() and end == samples.back(), role + " " + name + " end is the last actual held-input physics sample")
+			for sample: Dictionary in settle:
+				_check(_live_walk_sample_valid(sample, admitted.get("player", {}), authority) and int(sample.get("frame", -1)) == previous_frame + 1 and sample.get("input", []) == [0.0, 0.0] and _live_walk_vector_from(sample.get("velocity", [])).is_finite(), role + " " + name + " settling preserves support/control/auth/identity/grants on every physics step")
+				previous_frame = int(sample.get("frame", -1))
+			var neutral_start: Dictionary = walk.get("neutral_start", {})
+			_check(not settle.is_empty() and neutral_start == settle.back() and _live_walk_sample_valid(neutral_start, admitted.get("player", {}), authority) and _live_walk_vector_from(neutral_start.get("velocity", [])).length() <= 0.05, role + " " + name + " last settle sample starts neutral with original actor and ownership")
+			var neutral_origin := _live_walk_vector_from(neutral_start.get("position", []))
+			for sample: Dictionary in neutral:
+				_check(_live_walk_sample_valid(sample, admitted.get("player", {}), authority) and int(sample.get("frame", -1)) == previous_frame + 1 and sample.get("input", []) == [0.0, 0.0] and _live_walk_vector_from(sample.get("velocity", [])).length() <= 0.05 and _live_walk_vector_from(sample.get("position", [])).distance_to(neutral_origin) <= 0.02, role + " " + name + " neutral sample retains every fresh physics step's released supported pose without drift")
+				previous_frame = int(sample.get("frame", -1))
 
 
 func _live_player_identity() -> Dictionary:
@@ -725,6 +1016,8 @@ func _live_finish() -> void:
 		push_error(failure)
 	print("LIVE_MENU_ARTIFACTS: ", _live_directory)
 	var label := "GAME_FLOW_LIVE_MENU_CANCEL" if _live_cancel else ("GAME_FLOW_LIVE_MENU_TWO_GUESTS" if _live_two_guests else "GAME_FLOW_LIVE_MENU_ONE_GUEST")
+	if _live_gameplay:
+		label = "GAME_FLOW_LIVE_MENU_ONE_GUEST_GAMEPLAY"
 	print(label + ": %d assertions, %d failures" % [_assertions, _failures.size()])
 	if _failures.is_empty() and _live_role == "coordinator":
 		print(label + "_TEST_OK")
