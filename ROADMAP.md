@@ -40,7 +40,7 @@ retains every original promise and identifies the missing bindings. It is not a
 list of 337 executable tasks. We cannot honestly give a remaining-task count or
 completion date until those finite memberships and owner choices are fixed.
 
-**The breakdown is not complete yet.** Full-craft journeys, shared-world case
+**Not every gameplay contract is ready to execute.** Full-craft journeys, shared-world case
 bindings, remaining comfort episodes, installed recovery cuts, Linux installation
 transactions and performance workload membership still have definition gaps.
 Their existing backlog rows name the missing fields and responsible owner.
@@ -70,283 +70,61 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Active release capability: LINUX-DESKTOP[Guided normal-exit prerequisite].**
-Candidate95391f403. Existing default Guided driver completes one genuine sortie
-then force-terminates its process; it cannot prove normal HUD Exit/OS0. Preserve
-all original walk/board/launch/four-target/interceptor/home/automatic-OFFLINE/
-physical-exit predicates and original300s cap. Finish that same default route by
-real OS pause/focus/EXIT TO DESKTOP activation, require actual process exit0,
-release all inputs/cursor and reap game/helper/private Xvfb. Forced cleanup or
-exit1 must never pass. Existing nested Guided prefixes/other routes stay intact.
-
-Use only the existing private observer's read-only default-Guided pause/UI/sequence
-facts needed by this real consumer. It must run while paused without claiming a
-fresh Player motion tick. No actor/pose/control/state injection, gameplay tuning,
-new probe family/version or timer increase. Reuse existing normal-exit controls
-where sound; preserve all old unit assertions and startup privacy/fences. One
-implementer owns native runner/test, private observer and existing startup privacy
-test; root owns install/payload/build orchestration/docs/push/cleanup, independent
-lifecycle/input reviewer. Stop implementation discovery once this seam is fixed.
-
-Acceptance: default Guided cannot declare success at COMPLETE; after a valid full
-prefix it requests the actual enabled/focused Exit control, observes realOS0 and
-records exact-PID window/actor identities, original completion and cleanup. Wrong
-exit/early process death/timeout rejects. Extend existing focused tests to
-separate old early-success from the new required endpoint, then run one complete
-unchanged Guided flight prefix plus new UI tail from a clean per-user installed
-Linux candidate with exact archive/installed ELF/manifest/desktop identity. Use
-shipped manager; no real user paths. Preserve archive/source/install bytes across
-launch. Silent isolated package startups and relevant source/privacy checks precede
-one actual native run; first unexpected failure stops for causal/cumulative review.
-
-The existing run uses private Xvfb/explicitx11/Dummy and dummy renderer; retain
-that source-composition environment and label it honestly. This task delivers the
-missing normal-exit executable capability, NOT rendered desktop-entry/full
-LINUX-DESKTOP, final installer/GUIDED-FINAL3/3 or native GPU acceptance. Installed
-direct-ELF mode is separate from desktop-entry launch; one sortie is not3/3.
-Original22:00Z→23:15Z/75min includes readiness/code/checks/build/install/one300s
-trial/review/push/cleanup; no automatic retry or deadline reset. Fresh source
-candidate exports are needed for the observer consumer; publish paired checkpoint
-only after accepted checks/strict startups/actual payload audit. Normal gameplay
-is unchanged; build notes must describe release automation, not a new game feature.
-
-**Qualified: Sprint/boost option survives cold restart and Reset into Player physics.**
-Source7570edf7c passes three real-file processes: normal UI saves TOGGLE; a cold
-reader naturally walks at9.2 after a Shift press and retains it for three released
-Shift ticks, then a second press restores5.8. Real Reset Defaults/Save precedes
-another cold reader, where HOLD release restores5.8. Neutral stops at0. All motion
-stays supported/on-foot/controlled within three metres of the authored spawn;
-all authored bindings/other options and unrelated data remain exact. Each actual
-HUD Exit yields OS0 and both durable clean markers. Existing default/HUD and full
-Interact checks also pass. This closes the explicitly missing distinct-process
-option-to-runtime source endpoint; priorbd4e15d scope remains unchanged. Physical
-input, boost/flight and original SETTINGS-RETURN/GateC remain open; current build
-4aa8b64 is unchanged. [Exact proof and scope](docs/history/ROADMAP_DELIVERIES.md#sprint-toggle-cold-process-qualified-20261025).
-
-**Delivered: live planetary final-approach captions.** Checkpoint4aa8b64 captions
-the existing armed, alignment-ready, handoff-ready and rejected cues through the
-shared service. Exact visible-HUD text/queue/expiry, duplicate/stale-event refusal,
-detach/re-entry and OFF/no replay pass; existing Loadmaster captions remain green.
-Old source fails exactly four missing-map assertions. All focused checks, paired
-exports, three strict startups and actual payload audit pass; only the compiled
-caption presenter changes from19336f3. This delivers four live caption definitions;
-ordinary planetary flight/landing/handoff and full comfort transition/restart/Reset
-remain open. [Exact scope and delivery](docs/history/ROADMAP_DELIVERIES.md#final-approach-live-captions-delivered-20261025).
-
-**Delivered: five Cinder Loadmaster caption definitions and composed cue path.**
-Checkpoint19336f3 displays seat occupied, manifest ready, route ready, request
-rejected and released feedback through the existing shared caption service.
-Queued captions retain their original priority/expiry; duplicate/foreign receipts,
-detached emissions and OFF receipts cannot replay. The old registry fails exactly
-five missing-caption contracts; fixed visible-HUD composition and compatibility
-checks, paired exports/strict startups and package audit pass. Only the compiled
-caption presenter differs from1a948d9. This delivers the live-caption capability;
-ordinary crew/network routes, per-episode restart/Reset and full COMFORT-CAPTIONS
-acceptance remain open. [Exact delivery and scope](docs/history/ROADMAP_DELIVERIES.md#loadmaster-live-captions-delivered-20261025).
-The rejection cue has component proof only. Source review finds the generic crew
-callback supplies status without the reason/sequence expected by this audio
-binding; physical Loadmaster uses engineer intents, and its validated synchronous
-consumer has no demonstrated reachable refusal. No requester-refusal feature is
-selected without that concrete episode; this adds no mandatory release gate.
-[Bounded source finding](docs/history/ROADMAP_DELIVERIES.md#loadmaster-refusal-readiness-not-selected-20261025).
-
-
-**Delivered: Reduced flash dims the damage flash already on screen.**
-Checkpoint 1a948d9 immediately caps its effective alpha at the existing .07
-ceiling without brightening an already dim cue. The same fade, arrow and original
-expiry continue; OFF/repeated toggles cannot relight or extend it. New hits and
-Reduced motion retain their existing behavior. The old HUD fails exactly the two
-cap assertions; fixed accessibility/navigation/layout, actual three-frame readback,
-paired exports/strict startups and package audit pass. Fresh builds and notes are
-above. This closes the active-damage COMFORT-FLASH episode only; other consumers,
-ordinary settings/restart/Reset and native/final gates remain open.
-[Exact scope and cleanup](docs/history/ROADMAP_DELIVERIES.md#current-damage-reduced-flash-accepted-20261025).
-
-**Delivered: Reduced motion applies to the notification already on screen.**
-Checkpoint 4ca2d16 immediately makes the same toast fully opaque and steady,
-without restarting its deadline, changing its priority or losing its queued
-routine update. Early/late conversion, repeated toggles, expiry and replacement
-pass in the existing accessibility suite; prior active-damage behavior is retained.
-Actual 1280×720 readback, paired exports, three strict startups and package audit
-pass. Fresh builds and notes are above. This closes the current-toast episode
-under COMFORT-MOTION, with broader comfort/device/final gates still open.
-[Exact scope, proof and cleanup](docs/history/ROADMAP_DELIVERIES.md#current-toast-reduced-motion-accepted-20261025).
-
-**Delivered: Reduced motion applies to the damage cue already on screen.**
-Checkpointb5fa554 immediately caps the existing flash and stops its fade while
-preserving the hit-direction arrow without extending its original lifetime. Repeated ON/OFF does
-not extend or replay it; new hits use the current mode. The old HUD fails the
-five controlled regression predicates; the fixed1990-assertion accessibility
-suite, navigation/layout, actual1280×720 readback, paired exports/three strict
-startups and package audit pass. Both playable checkpoints and notes are above.
-This closes the active-damage episode under COMFORT-MOTION; other comfort
-consumers/devices/full final acceptance remain open.
-[Exact behavior, proof and cleanup](docs/history/ROADMAP_DELIVERIES.md#active-damage-reduced-motion-accepted-20261025).
-
-**Delivered: LAN listings expire safely while paused.** Checkpointca149d6 retires
-rows and endpoints30 seconds after the last valid reply and refuses stale joins
-before creating intent or changing roles. The paused ordinary route observes
-expiry at30.003631s, accurate expired feedback/Retry focus and zero stale
-admissions. Actual Retry finds the same live host; fresh admission, original
-Players' connected/solo walks and both normal exits pass. Fresh Windows EXE/ZIP and matching Linux ELF/archive, with notes, are available. [Exact validation and cleanup](docs/history/ROADMAP_DELIVERIES.md#lan-browser-expiry-accepted-20261025).
-
-Earlier ordinary disconnect/rejoin, full-session UI refusal, Halyard reconnect
-and projectile native-link results remain accepted in their recorded scopes.
-The complete browser cancellation/reuse route is also accepted: two actual
-pending attempts are cancelled, then the same guest Main/Player discovers and
-joins a live host, walks connected, leaves and walks solo. Both actors exit
-normally. This qualifies existing behaviour; game code and checkpoints are
-unchanged. [Exact result and first failed assertion](docs/history/ROADMAP_DELIVERIES.md#browser-cancel-reuse-accepted-20261025).
-
-The separate no-answer case also passes: a silent endpoint naturally times out
-at 5,005 ms while paused; cleanup, ordinary Retry/Cancel and fresh live-host join
-remain usable. The packaged connected-but-nonadmitting case remains parked, so
-BROWSER-UNREACHABLE stays open as a whole. [Exact source-case proof](docs/history/ROADMAP_DELIVERIES.md#browser-no-answer-source-accepted-20261025).
-
-The settings 10→11 real-file migration/reload case is also accepted. Explicit
-Save produces the exact current settings section and backup; a distinct normal
-Main reload preserves the complete profile and paid Race/reward, then permits
-normal Begin Shift and supported walking. The original failures remain retained.
-[Exact source-case proof](docs/history/ROADMAP_DELIVERIES.md#settings-schema10-migration-accepted-20261025).
-
-This30s duration is an engineering default, not a claimed user approval. Wider
-packaged journeys/device/capacity/endurance and final gates remain open.
-
-The canonical inventory remains
-[the existing backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes); no parallel
-list of promises or new evidence framework is being introduced.
-
-There are **337 tracked records**, including accepted work, definitions and
-containers. They are not 337 remaining tasks. All **36 parent outcomes**, **ten
-phase gates** and **17 promised craft** remain in scope; nine craft currently
-exist. A reliable remaining-task count or finish estimate needs the unresolved
-specifications below. We will report accepted player outcomes and exact blockers,
-not a project percentage inferred from rows, tests or commits.
+**Active release capability: Guided normal HUD Exit.** The roadmap correction
+is committed and pushed on `e861ce360`; implementation now resumes under its
+original frozen contract. Code from `4f0717d02` is committed on
+`feat/guided-normal-ui-exit-20261025` but remains unaccepted until focused checks,
+independent review, exports and the installed sortie pass. No gameplay outcome
+is credited merely for writing the driver. The original 300-second route
+cap and 22:00–23:15 UTC assignment clock remain binding; this roadmap correction
+does not restart either. Resolve that assignment before starting another gameplay
+implementation. Its intended result is the same full Guided flight followed by
+real pause-menu Exit and actual process exit 0; forced termination cannot pass.
+This remains a prerequisite for installed direct-ELF qualification, not final
+Guided 3/3, rendered desktop-entry launch or native GPU proof.
 
 ### Small execution queue
 
-Only one implementation card may be active. Completed results are linked under
-[accepted work](#accepted-work--source-limits-retained), and failed attempts under
-[parked work](#parked-failures-and-dependent-work). They are not next tasks.
-The table below contains actual missing decisions.
+There is one active assignment. A broad milestone never enters this queue.
+Use the existing backlog row for each result; do not create another tracker.
 
-**Contract cleanup: bounded definition pass completed.** The existing backlog
-retains all 337 IDs/order, 36 original parents, ten gates and accepted scopes.
-Runnable work requires the literal result/proof card above. Incomplete craft
-journeys, visual view lists, interruption cuts and installed-package routes stay
-BLOCKED definition with their missing fields and owner; product decisions and
-hardware/access remain BLOCKED input. This records the remaining planning work;
-it does not claim every goal is executable or deliver gameplay. No implementation
-card or new trial is active. Select no blocked row until its named fields are fixed.
+The following are **finite definition outputs**, not promises to implement whole
+features. Codex owns source-resolvable fields. Each selected definition gets one
+15–30 minute pass, then stops with the literal answer or an exact missing input
+and owner in that same row. Do not repeat completed source surveys or run games
+to discover what acceptance should have been.
 
-**Delivered: combat terminal postings survive restart.** A failed, withdrawn
-or no-credit sortie now saves the board's genuine next posting. Cold-reader
-checks restore failed Heavy→Torpedo and paid Torpedo→Wing→Hold without changing
-completion, paid/unpaid debt, generation floor, ledger or unrelated settings.
-A refused save shows POSTING SAVE PENDING with interaction retry and prevents a
-new sortie until saved; reward debt remains separate. The existing atomic credit
-path and no-store components retain their behavior. Focused integration, paired
-exports, strict startups and package audit pass; builds and notes are above.
-This closes posting durability only. Ordinary Hold 90s/>35%/real weapons/home,
-active-combat restore, native Windows/GPU and final qualification remain open.
-[Exact result, prior failures and cleanup](docs/history/ROADMAP_DELIVERIES.md#combat-terminal-posting-persistence-accepted-20261025).
+| Existing outcome | Output required before implementation or qualification | Proof that the definition is finished |
+| --- | --- | --- |
+| CRAFT-ACCEPT, one named craft | Ordered uncovered physical/function/damage/recovery/home/reuse/switch/Main steps; each mapped to retained proof or an existing route, expected endpoint and original limit | Every required step has a proof reference or a named unavailable route/input. Accepted Torrent/Arrow steps remain closed; parked failures keep their reopening conditions. One craft per assignment. |
+| STATION-FINDINGS, one existing branch/view | One supported camera position/height, source, renderer/quality/resolution/scale and the exact text/access/clearance checks | A frozen view can receive either an inspected no-finding result or one reproducible defect. Use the nine-branch/four-service roster; do not reopen parked captures. |
+| ART-FINDINGS | Map the existing 13 capture sets/143 images and original fleet/world/character/effect/UI obligations to accepted coverage or literal missing views | Each uncovered view names its original promise, subject/state and comparison conditions; the station subset is referenced once. No new art obligation inferred from an empty area. |
+| SHARED-EMBER-BASELINE | One craft, actual peer roles, outward/surface/home route, survey/result/payment/save endpoints and original limits | One complete ordinary baseline command/route with expected durable data, or the exact missing caller/participant/input. This defines one of the existing 21 cases, not a new shared-world matrix. |
+| COMFORT-MOTION / FLASH / COLOUR / CAPTIONS, one family | Closed list of original-required consumers; each has literal live ON/OFF, cold restart and Reset behavior | Every listed consumer has an authored expected value/discriminator and retained proof or a named missing behavior/decision. Accepted cue episodes remain accepted. No option is invented to fill a blank. |
+| CREW-RECOVERY-ORDINARY | One existing craft/physical seat, ordinary admission, exact durable commit/kill cut, restart and awake-cabin continuation | Exact protected file delta, fresh-claim/control endpoints, kill/restart commands and original cap. The settled safe-home policy is reused; pose restoration is not reconsidered. |
+| RECOVERY-CUTS-DEFINE | Only uncovered installed cuts in the existing on-foot/pilot/cabin/bunk/crew/docking/activity/world contracts | Each cut has its committed boundary, expected debt/payment/data, owned kill/restart, supported continuation and original cap; accepted cuts are reused. Four unresolved active-run policies stay owner decisions. |
+| INSTALL-LINUX, one existing transaction | Exact prior/candidate package where needed, owned prefix, fixture, protected files, expected bytes/modes and installed usability route | Clean, upgrade, rollback, retained-data, corrupt-data and uninstall remain six distinct existing goals; one transaction per assignment. Unknown package versions block execution, not definition of the required operation. |
+| PERF-ROUTES-DEFINE / PERF-CELLS-DEFINE | Bind the seven existing selectors and original world-endurance workload to minimum/target machines and existing measurement budgets | Workload membership, commands and numeric ceilings are literal; missing device access or genuinely unspecified ceilings have a named owner. No extra craft×world×device axes. |
 
-**Perimeter ordinary route: PARKED / not accepted.** The first real Heavy
-withdrawal/home/OFFLINE90/exit/walk and saved Torpedo posting pass. A reviewed
-fresh-selection boarding correction permits the second Arrow boarding and Torpedo
-launch; the corrected trial then stops after its sole L does not start landing.
-One bounded diagnostic records both L sends, native input, immutable commands and
-consumer handoffs successfully, so the earlier failure is NOT_REPRODUCED and no
-product cause is established. Wing, actual Hold90s/>35%/weapons/home remain NOT_RUN.
-Both trials, diagnostic and sources are archived; unaccepted code is not merged.
-Reopening requires a source-supported input-delivery correction or a newly observed
-failure retaining actual send/native/command/consumer receipts. No unchanged
-qualifying rerun is selected; CAP300 and original18:57Z→20:12Z clock are retained.
-[Exact stops, diagnostic limits and cleanup](docs/history/ROADMAP_DELIVERIES.md#perimeter-ordinary-route-input-stop-20261025).
+A definition is allowed to resolve a blocked contract. A blocked capability or
+qualification is **not** allowed to execute before that contract is fixed.
+Repeatedly recording the same unresolved fields is not another completed goal.
+If a source-resolvable definition ends blocked, retain the exact missing artifact
+and search boundary; reopening needs new information, not a renamed task.
 
-**Qualified: Interact remap, conflict Cancel and cold-process Reset.**
-Sourcecfa6199fb passes the complete bounded three-process case on one real private
-save file: visible F13 remap/authored controller X, Jump conflict Cancel preserving
-full profile/InputMap, real Save and actual Player E0/F131 consumption. A cold
-reader retains this, performs per-action Reset/Save to E/X and proves E1/F130;
-a third cold reader retains Reset. Hold/release add no requests. All three use
-normal HUD Exit/OS0 and both durable clean markers; unrelated settings/sentinel
-are unchanged. Prior fixture failures remain recorded; the reviewed next-tick/
-wire-envelope corrections completed within the original20:11Z→21:11Z clock.
-This is synthetic-raw source composition, not physical devices, actual station
-endpoint activation or original SETTINGS-RETURN/GateC. The then-current checkpoint19336f3
-was unchanged. [Exact qualification](docs/history/ROADMAP_DELIVERIES.md#interact-remap-restart-qualified-20261025).
+The complete [decision and resource register](docs/ROADMAP_BACKLOG.md#blocking-decisions-and-resources)
+is the source for user-owned blockers: eight craft specifications, additional
+Bomber roles, capacity/desktop scope, four active-recovery policies, two cargo
+replenishment policies, caption overflow, physical hardware/audio access and
+release rights/signing/distribution. Each ends with its recorded answer or
+artifact; approval does not count as implementation. Already accepted automatic
+freight/shared stock/rejection feedback/Beacon 60s/Bomber seat-refill/Defense arm
+choices remain settled and must not be asked again.
 
-The Torrent destruction/recovery attempt remains **PARKED / not accepted**.
-A reviewed resolver correction accounted for all100 actual damage, including
-picket side hits; the third trial recorded the required defender's final1-point
-hit, production recall/retired claims and real pending regeneration deadline.
-It stopped at71.859s because the first post-recall physics sample had floor support
-but `grounded=false`. Source confirms recall places the Player before normal
-collision processing establishes grounding; no gameplay defect or eventual
-settling is proved. Regeneration/new generation, fresh reboard/retry and home/UI
-remain NOT_RUN. No fourth trial or budget reset is selected; original16:12Z→17:12Z
-clock and CAP300 retained. [Exact third stop and cleanup](docs/history/ROADMAP_DELIVERIES.md#torrent-loss-recovery-third-attempt-stop-20261025).
-
-The existing shared Main resource/combat
-lifecycle check is accepted on79dc473a5: three retained subtree re-entry cycles,
-72assertions/70.113s/OS0/zero diagnostics, including Torrent hull/source1101,
-stale-shot rejection, retained nodes, queues and audio. [Exact source scope](docs/history/ROADMAP_DELIVERIES.md#shared-main-source-lifecycle-accepted-20261025).
-This is staged source qualification; it does not replace ordinary play, component
-ledger/seat-specific contracts, packaged/final-candidate gates or destruction.
-
-Physical Torrent→Arrow→Torrent handoff is
-accepted: driveraf38de143/package6fe51dca4,131.708s under unchanged CAP300.
-The real damage/two-home prerequisite is followed by supported deck walking,
-Arrow boarding/90neutral-OFFLINE ticks/current-stream E exit, return walking,
-fresh Torrent stream/reclaim/90neutral ticks/E exit/walk and normal UI OS0.
-Both hulls remain parked/OFFLINE during handoff; old sources remain neutral and
-non-producing. [Exact result, two failed approaches and cleanup](docs/history/ROADMAP_DELIVERIES.md#torrent-arrow-physical-handoff-accepted-20261025).
-Arrow flight/weapons, broader damage/destruction and final integrated craft
-qualification remain open; do not replay this accepted case unchanged.
-
-Torrent's real incoming core-damage/passive
-repair route is accepted ona1de3363f: hull100→89, core integrity.56 and targeting
-power.62,617consecutive airborne observations without repair, then43strict landed
-passive commits restore core1/all five nominal/modifiers1/zero effects while hull
-stays89. Both home returns, fresh boarding/departure/exits/walking and normal UI
-OS0 pass in88.168s under CAP300. [Exact scope and cleanup](docs/history/ROADMAP_DELIVERIES.md#torrent-core-damage-passive-repair-accepted-20261025).
-
-Torrent return/reuse is accepted on5d2c58dba:
-actual packaged Guided, two strict home returns with90consecutive neutral/OFFLINE
-ticks each, fresh boarding/departure/second lease, supported exits/walking and
-normal UI OS0 in85.267s under the unchanged300s cap. This is an executable part
-of CRAFT-ACCEPT-TORRENT; broader applicable damage/recovery, cross-craft and required
-Main coverage remain open. [Exact scope, failures and cleanup](docs/history/ROADMAP_DELIVERIES.md#torrent-return-reuse-capability-accepted-20261025).
-The caption overflow choice remains pending; six Settings extreme-scale/scroll
-views stay accepted and REPEAT-RACE stays parked. Torrent's source inventory is
-already bound; do not repeat it or replay the accepted reuse route unchanged.
-
-**Not every inventory row is ready to execute.** Craft full-journey routes,
-comfort episodes, remaining recovery cuts and final installed-package cases still
-have explicitly missing case/route bindings in the backlog. Codex owns resolving
-those from the existing contracts in one bounded pass; genuinely missing product
-choices stay with their named decision owner. A missing binding is not an active
-implementation task, and “all applicable cases” cannot close it. The 36 parents
-and ten phase gates are completion containers; select a concrete child result.
-
-| Existing goal | Next bounded result | Proof / stop | State and owner |
-| --- | --- | --- | --- |
-| ACCESS-CAPTIONS[overflow policy] | Choose how the current caption presents oversized valid text | Actual1280×720 HUD/request1.6/effective1.043478:64-source/512-body accepted, intrinsic650px exceeds411.130px safe height; bodyalone512px. Choose pagination, scrolling or wider/recomposedHUD; preserve full text/readable fonts and fix timing/input/reservation behavior before implementation. [Measured boundary](docs/history/ROADMAP_DELIVERIES.md#caption-combined-hud-overflow-measured-20261025) | WAITING ownerpolicy — one headlesscheck failed safe containment, source/geometrystable; no retry/render/repair. Diagnostic source archived; owned process/scratch cleanup complete, Git closure recorded in adjacent closeout; no runtime delivery |
-| REPEAT-RACE | Ten genuine same-world Race completions/payments, strict home exits, normal resets/reuse and usable next start | Same Main/world/Player/Torrent; actual five gates/2s countdown/120s race; exact ledger1→10 and run generations1,3,…19; tenth normal reboard idle20; original home/OFFLINE/walk/normal UI OS0. Fixed quiescent node/registry/objective counters: zero positive growth cycle1→2…10, legitimate receipts excluded. Existing per-cycle300s/subcaps retained; derived aggregate abort3000s. First failure stops | PARKED — first735.603s trial: 3completehome/resource cycles, fourthpaid but home CAP300. One reviewed gantry-lane correction then fails312.126s at firsthome CAP300, before either lane receipt. No ten-cycle acceptance, finalidle20/nextstart/UIclose NOT_RUN. Both failures/source/export retained; allowned processes/scratch cleaned, unaccepted branch accounted then removed. Original12:29Z→13:59Z/90min clock/cumulativecost retained. Reopen only after demonstrated cause of the corrected first-lane failure plus independent cumulative-priority review; no unchanged replay, cap increase or budget reset. [Exact stop](docs/history/ROADMAP_DELIVERIES.md#race-repetition-two-attempt-stop-20261025) |
-| SETTINGS-INPUT | Recover the original Settings failure inputs before resuming its unchanged return route | Exact writer/reader scripts and9a89b3763 source recovered. Missing FINAL orchestration/launch receipts, isolated durable profile and source/package300s timeout logs; historical cache root absent. [Literal fields and retained originals](docs/ROADMAP_BACKLOG.md#original-settings-artifacts--bounded-recovery) | WAITING execution artifacts — bounded source/archive search completed; no replacement test or run selected. SETTINGS-RETURN remains open |
-| NET-ENDURANCE-DEFINE | Fix the missing numeric lab profile and pass/fail limits before implementing the original30-minute100msRTT/2%loss independent two-client route | One [literal proposal](docs/MOVING_INTERIOR_LATENCY.md#endurance-execution-handoff--proposed-limits-2026-10-25), existing limits separated from proposed values; safe namespace/netem availability verified without game/traffic. No old stream shim or command-injection pass substitutes | WAITING — owner adopts/replaces genuinely unspecified limits. Actual whole-link shaping/1800s ordinary driver still unimplemented; no endurance run selected. Bounded source handoff only; startup profiling remains parked with no unaddressed measured hotspot |
-| SPEC-TITAN / VORTEX / PARADOX / KATANA / PREDATOR / DYNAMIC / UTOPIA / SALYUT | One explicit approval or field-level revision for each existing craft proposal | All required geometry/handling/functions/roles/save fields fixed in the corresponding proposal; no repeat proposal preparation | WAITING — user chooses interpretation/design; Codex implements approved fields |
-| BOMBER-ROLE-DECISION | Record additional physical roles, each action and seat/access arrangement | Exact role count and actions recorded once; pilot-only runtime does not close this promise | WAITING — user |
-| SCOPE-LIMIT / SCOPE-DESKTOP | Fix supported guest/host/role capacity and exact desktop targets | Concrete values in the existing decision register; settings maxima/export presets do not establish support | WAITING — user |
-| RECOVERY-POLICY-CINDER-SUPPLY / DEFENSE / BREACH / TORPEDO | For each active context, choose retained fields, safe recovery or resume, debt and reset/refusal behavior | Four complete policy answers; implementations/cold restarts remain separate required work | WAITING — user chooses policy; Codex supplies exact restart checks |
-| CARGO-REPLENISH-JOVIAN / CINDER | Fix a legitimate stock/refill/turnover policy | Conserved counts, trigger/capacity/refusal and normal ten-delivery route defined; tests cannot mint cargo to pass | WAITING — user |
-
-The [decision register](docs/ROADMAP_BACKLOG.md#blocking-decisions-and-resources)
-contains exact answer fields, prepared craft proposals and external release/device
-inputs. These are recorded blockers, not permission to keep researching them.
-Already accepted freight/stock/rejection/Beacon/Bomber-refill/Defense-arm decisions
-remain settled. Do not ask them again.
+Completed source qualifications and checkpoint changes belong under
+[accepted work](#accepted-work--source-limits-retained), with exact limits.
+Failed trials belong under [parked work](#parked-failures-and-dependent-work),
+with their first failure and causal reopening condition. Neither is a next task.
 
 ### Work order after this correction
 
@@ -433,7 +211,20 @@ charged; a new card/branch/folder cannot restart that budget. No Torpedo continu
 
 ## Accepted work — source limits retained
 
-Recent accepted child outcomes include
+Recent packaged changes and source qualifications are recorded separately:
+
+| Accepted outcome | Proof and retained limit |
+| --- | --- |
+| Sprint/boost option cold restart and Reset | [Three-process proof](docs/history/ROADMAP_DELIVERIES.md#sprint-toggle-cold-process-qualified-20261025); source composition, physical devices/boost flight/original Settings return remain open |
+| Interact remap, conflict Cancel and cold Reset | [Three-process proof](docs/history/ROADMAP_DELIVERIES.md#interact-remap-restart-qualified-20261025); synthetic raw input, not physical devices or original Gate C |
+| Four final-approach captions | [Checkpoint 4aa8b64](docs/history/ROADMAP_DELIVERIES.md#final-approach-live-captions-delivered-20261025); composed visible HUD, ordinary planetary flight and full comfort acceptance remain open |
+| Five Loadmaster captions | [Checkpoint 19336f3](docs/history/ROADMAP_DELIVERIES.md#loadmaster-live-captions-delivered-20261025); rejection has component proof only, with [no demonstrated reachable requester refusal](docs/history/ROADMAP_DELIVERIES.md#loadmaster-refusal-readiness-not-selected-20261025) |
+| Current damage Reduced flash | [Checkpoint 1a948d9](docs/history/ROADMAP_DELIVERIES.md#current-damage-reduced-flash-accepted-20261025); accepted active-cue episode, broader comfort/restart/Reset remain open |
+| Current toast and damage Reduced motion | [Toast](docs/history/ROADMAP_DELIVERIES.md#current-toast-reduced-motion-accepted-20261025), [damage](docs/history/ROADMAP_DELIVERIES.md#active-damage-reduced-motion-accepted-20261025); accepted episodes, not all consumers/device/final gates |
+| Combat terminal posting durability | [Exact delivered behavior](docs/history/ROADMAP_DELIVERIES.md#combat-terminal-posting-persistence-accepted-20261025); preserves genuine next posting and pending-write refusal, ordinary complete combat journeys remain open |
+| LAN expiry and retry | [Checkpoint ca149d6](docs/history/ROADMAP_DELIVERIES.md#lan-browser-expiry-accepted--2026-10-25); paused monotonic 30-second expiry/fresh admission, not full network/endurance acceptance |
+
+Other accepted child outcomes include
 [shared Main source lifecycle](docs/history/ROADMAP_DELIVERIES.md#shared-main-source-lifecycle-accepted-20261025),
 [physical Torrent–Arrow handoff/reclaim](docs/history/ROADMAP_DELIVERIES.md#torrent-arrow-physical-handoff-accepted-20261025),
 [Torrent incoming core damage/passive repair](docs/history/ROADMAP_DELIVERIES.md#torrent-core-damage-passive-repair-accepted-20261025),
