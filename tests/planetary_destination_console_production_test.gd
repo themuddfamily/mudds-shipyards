@@ -202,6 +202,7 @@ func _run() -> void:
 			as PackedStringArray).is_empty(),
 		"asking about a place never streams a sector in or makes it reachable",
 	)
+	await _test_destination_board_small_viewport(game, hud)
 
 	hud.set_paused(false)
 	root.remove_child(game)
@@ -225,6 +226,159 @@ func _run() -> void:
 	await process_frame
 	await process_frame
 	_finish()
+
+
+## One actual production roster/cell. Keep this beside the real console route:
+## the detached panel test's two-world fixture cannot protect the five-card board.
+func _test_destination_board_small_viewport(game: GameFlow, hud: GameHUD) -> void:
+	var previous_size := root.size
+	var previous_content_size := root.content_scale_size
+	var previous_aspect := root.content_scale_aspect
+	var previous_scale := hud.get_ui_scale()
+	var was_processing := game.is_processing()
+	var was_physics_processing := game.is_physics_processing()
+	game.set_process(false)
+	game.set_physics_process(false)
+	var original := game.get_planetary_destination_catalog_snapshot()
+	var cruise_before := game.planetary_cruise_binding.get_snapshot().duplicate(true)
+	var requests: Array[StringName] = []
+	var on_travel := func(destination_id: StringName, _serial: int) -> void:
+		requests.append(destination_id)
+	var on_site := func(site_id: StringName) -> void: requests.append(site_id)
+	hud.planetary_destination_requested.connect(on_travel)
+	hud.sector_site_briefing_requested.connect(on_site)
+	root.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
+	root.content_scale_size = Vector2i(1024, 768)
+	root.size = Vector2i(1024, 768)
+	hud.set_ui_scale(GameHUD.MAX_UI_SCALE)
+	await process_frame
+	await process_frame
+	var page := hud.get("_planetary_destination_page") as Control
+	var rows := hud.get("_planetary_destination_rows") as VBoxContainer
+	var back := hud.get("_planetary_destination_back_button") as Button
+	var effective := GameHUD.compute_effective_pause_ui_scale(
+		GameHUD.MAX_UI_SCALE, Vector2(1024, 768))
+	var safe := preload("res://scripts/ui/ultrawide_safe_area_contract.gd").safe_rect(
+		Vector2(1024, 768), effective)
+	print("MEASURED: actual five-card Destination Board 1024x768 request %.2f -> effective %.6f page %s"
+		% [GameHUD.MAX_UI_SCALE, effective, page.get_global_rect()])
+	_check(root.get_visible_rect().size == Vector2(1024, 768)
+		and is_equal_approx(hud.get_ui_scale(), GameHUD.MAX_UI_SCALE),
+		"Destination Board cell uses actual 1024x768 and the authored maximum request")
+	_check(rows.get_child_count() == 5,
+		"Destination Board cell retains all three production worlds and both sector sites")
+	_check(safe.grow(0.75).encloses(page.get_global_rect()),
+		"Destination Board five-card page fits the 1024x768 readable bounds")
+	_check(safe.grow(0.75).encloses(back.get_global_rect()),
+		"Destination Board Back remains wholly inside the readable bounds")
+	# Header/subtitle belong outside the row region and must remain visible.
+	for candidate: Node in page.find_children("*", "Label", true, false):
+		if not rows.is_ancestor_of(candidate):
+			var label := candidate as Label
+			_check(safe.grow(0.75).encloses(label.get_global_rect()),
+				"Destination Board header copy remains wholly visible: %s" % label.text)
+			_check_destination_label_fits(label)
+	for child: Node in rows.get_children():
+		var card := child as Control
+		var scroll: ScrollContainer
+		var ancestor := card.get_parent()
+		while ancestor != null and ancestor != page:
+			if ancestor is ScrollContainer:
+				scroll = ancestor as ScrollContainer
+				break
+			ancestor = ancestor.get_parent()
+		if scroll != null:
+			scroll.ensure_control_visible(card)
+			await process_frame
+			await process_frame
+		var readable := page.get_global_rect() if scroll == null else scroll.get_global_rect()
+		_check(safe.grow(0.75).encloses(readable)
+			and readable.grow(0.75).encloses(card.get_global_rect())
+			and not card.get_global_rect().intersects(back.get_global_rect()),
+			"Destination Board card is completely readable through authored scrolling: %s" % card.name)
+		for candidate: Node in card.find_children("*", "Label", true, false):
+			var label := candidate as Label
+			_check(card.get_global_rect().grow(0.75).encloses(label.get_global_rect()),
+				"Destination Board card contains essential copy: %s/%s" % [card.name, label.name])
+			_check_destination_label_fits(label)
+	# Obtain a ready Ember row through the same catalog/presentation bridge used
+	# by Main. Do not forge a synthetic roster or trigger the travel action.
+	var ready := game.call(&"_make_planetary_destination_catalog_snapshot", {
+		"status_id": &"ready", "status_text": "READY — EMBER MOON",
+		"toggle_enabled": true, "engagement_requested": false,
+	}) as Dictionary
+	var ember := rows.find_child("PlanetaryDestinationAction_ember_moon", true, false) as Button
+	var retained_card := ember.get_parent().get_parent().get_parent()
+	var retained_status := retained_card.find_child("PlanetaryDestinationStatus", true, false)
+	_check(hud.set_planetary_destination_snapshot(ready),
+		"Destination Board accepts the real production catalog's ready presentation")
+	await process_frame
+	await process_frame
+	var ordered: Array[Button] = []
+	for child: Node in rows.get_children():
+		var action := child.find_child("PlanetaryDestinationAction_*", true, false) as Button
+		if action.disabled:
+			_check(action.focus_mode == Control.FOCUS_NONE,
+				"Destination Board skips disabled action focus: %s" % action.name)
+		else:
+			ordered.append(action)
+			_check(action.focus_mode == Control.FOCUS_ALL,
+				"Destination Board retains enabled action focus: %s" % action.name)
+			# Exercise focus-follow itself, without ensure_control_visible here.
+			action.grab_focus()
+			await process_frame
+			await process_frame
+			var ancestor := action.get_parent()
+			var readable := safe
+			while ancestor != null and ancestor != page:
+				if ancestor is ScrollContainer:
+					readable = (ancestor as Control).get_global_rect()
+					break
+				ancestor = ancestor.get_parent()
+			_check(root.gui_get_focus_owner() == action
+				and readable.grow(0.75).encloses(action.get_global_rect())
+				and action.size.x + 0.75 >= action.get_minimum_size().x,
+				"Destination Board enabled focus reveals the complete action: %s" % action.name)
+	_check(ordered.has(ember), "Destination Board ready cell exercises enabled Ember travel focus")
+	ordered.append(back)
+	for index in ordered.size():
+		var action := ordered[index]
+		_check(action.get_node_or_null(action.focus_neighbor_top) == ordered[maxi(0, index - 1)]
+			and action.get_node_or_null(action.focus_neighbor_bottom) == ordered[mini(ordered.size() - 1, index + 1)],
+			"Destination Board focus chain includes only enabled actions and Back: %s" % action.name)
+	back.grab_focus()
+	_check(hud.set_planetary_destination_snapshot(original),
+		"Destination Board restores the ordinary on-foot production presentation")
+	await process_frame
+	await process_frame
+	_check(rows.find_child("PlanetaryDestinationAction_ember_moon", true, false) == ember
+		and retained_card.find_child("PlanetaryDestinationStatus", true, false) == retained_status
+		and root.gui_get_focus_owner() == back and ember.disabled,
+		"Destination Board refresh retains row/status identity and chosen Back focus")
+	_check(requests.is_empty()
+		and game.planetary_cruise_binding.get_snapshot() == cruise_before
+		and game.get_planetary_destination_catalog_snapshot() == original,
+		"Destination Board layout, scrolling and focus dispatch no travel or site request")
+	hud.planetary_destination_requested.disconnect(on_travel)
+	hud.sector_site_briefing_requested.disconnect(on_site)
+	root.content_scale_aspect = previous_aspect
+	root.content_scale_size = previous_content_size
+	root.size = previous_size
+	hud.set_ui_scale(previous_scale)
+	game.set_process(was_processing)
+	game.set_physics_process(was_physics_processing)
+	await process_frame
+	await process_frame
+
+
+func _check_destination_label_fits(label: Label) -> void:
+	var fits := label.get_visible_line_count() == label.get_line_count()
+	if label.autowrap_mode == TextServer.AUTOWRAP_OFF:
+		var font := label.get_theme_font("font")
+		fits = fits and font.get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT,
+			-1, label.get_theme_font_size("font_size")).x <= label.size.x + 0.75
+	_check(fits and not label.clip_text,
+		"Destination Board essential label is untruncated: %s" % label.text)
 
 
 func _check(condition: bool, message: String) -> void:
