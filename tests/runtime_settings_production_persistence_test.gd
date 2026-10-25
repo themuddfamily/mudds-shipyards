@@ -96,6 +96,9 @@ class MutableInputProvider:
 
 func _initialize() -> void:
 	var args := OS.get_cmdline_user_args()
+	if args.has("--settings-corrupt-writer") or args.has("--settings-corrupt-reader"):
+		_run_settings_corrupt(args)
+		return
 	if args.has("--settings-migration-writer") or args.has("--settings-migration-reader"):
 		_run_settings_migration(args)
 		return
@@ -309,6 +312,263 @@ func _fire_restart_stage(writer: bool) -> void:
 		"normal startup and settings save preserve exact unrelated seeded disk data")
 
 
+# SAVE-CORRUPT: run these two opt-in modes sequentially, each under the original
+# 300-second external cap, with Dummy audio and isolated X11/private XDG roots.
+# This qualifies fallback presentation and walking, never backup promotion.
+const SETTINGS_CORRUPT_BYTES := "{corrupt"
+var _corrupt_expected_artifacts: Dictionary = {}
+
+
+func _run_settings_corrupt(args: PackedStringArray) -> void:
+	var writer: bool = args.has("--settings-corrupt-writer")
+	var reader: bool = args.has("--settings-corrupt-reader")
+	var private_root: String = ""
+	for arg: String in args:
+		if arg.begins_with("--settings-corrupt-private-root="):
+			private_root = arg.trim_prefix("--settings-corrupt-private-root=").simplify_path()
+	var isolated: bool = private_root.is_absolute_path() and private_root != "/"
+	for variable: String in ["XDG_DATA_HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME"]:
+		isolated = isolated and OS.get_environment(variable).simplify_path().begins_with(private_root + "/")
+	isolated = isolated and OS.get_user_data_dir().simplify_path().begins_with(private_root + "/")
+	print("SETTINGS_CORRUPT_LAUNCH ", JSON.stringify({"writer": writer, "reader": reader,
+		"private_root": private_root, "isolated": isolated, "pid": OS.get_process_id(),
+		"user_data_dir": OS.get_user_data_dir(), "audio_driver": AudioServer.get_driver_name(),
+		"display_driver": DisplayServer.get_name()}))
+	if _migration_check(writer != reader and isolated and AudioServer.get_driver_name() == "Dummy"
+			and DisplayServer.get_name() == "X11", "corrupt owns silent isolated X11 and private user data"):
+		if _migration_fixture():
+			await _corrupt_stage(writer, private_root)
+	Input.action_release(&"move_forward")
+	Input.action_release(&"move_back")
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	paused = false
+	if is_instance_valid(_migration_game):
+		_migration_game.queue_free()
+		await process_frame
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	if _failures.is_empty():
+		_corrupt_boundary("retired Main")
+	if _failures.is_empty():
+		print("SETTINGS_CORRUPT_%s_OK pid=%d primary_sha256=%s backup_sha256=%s" % [
+			"WRITER" if writer else "READER", OS.get_process_id(),
+			FileAccess.get_sha256(Adapter.DEFAULT_STORE_PATH),
+			FileAccess.get_sha256(Adapter.DEFAULT_STORE_PATH + ".bak")])
+	_finish()
+
+
+func _corrupt_artifacts() -> Dictionary:
+	var result: Dictionary = {}
+	var directory: DirAccess = DirAccess.open(OS.get_user_data_dir())
+	if directory == null:
+		return {"unreadable_directory": true}
+	var basename: String = Adapter.DEFAULT_STORE_PATH.get_file()
+	for filename: String in directory.get_files():
+		if filename.begins_with(basename):
+			var path: String = OS.get_user_data_dir().path_join(filename)
+			result[filename] = {"bytes_hex": FileAccess.get_file_as_bytes(path).hex_encode(),
+				"mode": FileAccess.get_unix_permissions(path), "sha256": FileAccess.get_sha256(path)}
+	for dirname: String in directory.get_directories():
+		if dirname.begins_with(basename):
+			result[dirname] = {"unexpected_directory": true}
+	return result
+
+
+func _corrupt_boundary(label: String) -> bool:
+	var artifacts: Dictionary = _corrupt_artifacts()
+	var backup_value: Variant = JSON.parse_string(FileAccess.get_file_as_string(Adapter.DEFAULT_STORE_PATH + ".bak"))
+	if not _migration_check(_migration_equal(artifacts, _corrupt_expected_artifacts)
+			and not FileAccess.file_exists(Adapter.DEFAULT_STORE_PATH + ".tmp")
+			and not FileAccess.file_exists(Settings.DEFAULT_CONFIG_PATH)
+			and not FileAccess.file_exists(Settings.DEFAULT_CONFIG_PATH + ".tmp")
+			and not FileAccess.file_exists(Settings.DEFAULT_CONFIG_PATH + ".bak")
+			and backup_value is Dictionary, label + ": exact artifact names bytes and modes; no staged or legacy file"):
+		return false
+	var expected_payload: Dictionary = _migration_paid.duplicate(true)
+	expected_payload[Adapter.SETTINGS_PAYLOAD_KEY] = _migration_current.duplicate(true)
+	var backup: Dictionary = backup_value as Dictionary
+	if not _migration_check(Store.validate_envelope(backup).is_empty() and int(backup.generation) == 1
+			and _migration_equal(backup.payload, expected_payload),
+			label + ": valid generation1 backup protects exact settings11 and authentic paid Race/reward"):
+		return false
+	print("SETTINGS_CORRUPT_BOUNDARY ", JSON.stringify({"label": label, "pid": OS.get_process_id(),
+		"artifacts": artifacts}, "", true, true))
+	return true
+
+
+func _corrupt_stage(writer: bool, private_root: String) -> void:
+	await process_frame
+	root.content_scale_size = Vector2i(1280, 720)
+	var handoff_path: String = private_root.path_join("settings-corrupt-writer.json")
+	if writer:
+		var disk: UserDataStore = Store.new(Adapter.DEFAULT_STORE_PATH)
+		if not _migration_check(bool(disk.load().accepted) and disk.get_generation() == 0
+				and disk.get_snapshot().is_empty() and _corrupt_artifacts().is_empty()
+				and not FileAccess.file_exists(Settings.DEFAULT_CONFIG_PATH)
+				and not FileAccess.file_exists(handoff_path), "corrupt writer requires untouched private authority"):
+			return
+		var seed: Dictionary = _migration_paid.duplicate(true)
+		seed[Adapter.SETTINGS_PAYLOAD_KEY] = _migration_current.duplicate(true)
+		if not _migration_check(bool(disk.commit(seed, 0, "settings-corrupt-good-save").accepted),
+				"corrupt publishes authentic generation1 settings96 and paid namespaces"):
+			return
+		var successor: Dictionary = seed.duplicate(true)
+		successor[Adapter.SETTINGS_PAYLOAD_KEY].values.camera_fov = 83.0
+		if not _migration_check(bool(disk.commit(successor, 1, "settings-corrupt-latest-save").accepted)
+				and disk.get_generation() == 2, "corrupt publishes generation2 settings83 and verified backup1"):
+			return
+		# From here until normal Main, never load through Store or an adapter.
+		var damaged: FileAccess = FileAccess.open(Adapter.DEFAULT_STORE_PATH, FileAccess.WRITE)
+		if not _migration_check(damaged != null, "corrupt opens only the owned primary"):
+			return
+		damaged.store_buffer(SETTINGS_CORRUPT_BYTES.to_utf8_buffer())
+		damaged.flush()
+		var damage_error: Error = damaged.get_error()
+		damaged.close()
+		if not _migration_check(damage_error == OK, "corrupt flushes exact eight-byte damaged primary"):
+			return
+		_corrupt_expected_artifacts = _corrupt_artifacts()
+		var basename: String = Adapter.DEFAULT_STORE_PATH.get_file()
+		if not _migration_check(_corrupt_expected_artifacts.size() == 2
+				and _corrupt_expected_artifacts.has(basename) and _corrupt_expected_artifacts.has(basename + ".bak")
+				and FileAccess.get_file_as_bytes(Adapter.DEFAULT_STORE_PATH) == SETTINGS_CORRUPT_BYTES.to_utf8_buffer()
+				and FileAccess.get_unix_permissions(Adapter.DEFAULT_STORE_PATH) == 384
+				and FileAccess.get_unix_permissions(Adapter.DEFAULT_STORE_PATH + ".bak") == 384,
+				"corrupt starts with exactly primary and backup at mode0600; no recovery exists"):
+			return
+	else:
+		var handoff_value: Variant = JSON.parse_string(FileAccess.get_file_as_string(handoff_path))
+		if not _migration_check(handoff_value is Dictionary, "corrupt reader has writer process handoff"):
+			return
+		var handoff: Dictionary = handoff_value as Dictionary
+		if not _migration_check(int(handoff.get("writer_pid", 0)) > 0
+				and int(handoff.writer_pid) != OS.get_process_id()
+				and handoff.get("artifacts") is Dictionary,
+				"corrupt reader is a distinct process retaining exact writer artifact handoff"):
+			return
+		_corrupt_expected_artifacts = (handoff.artifacts as Dictionary).duplicate(true)
+	if not _corrupt_boundary("before normal Main"):
+		return
+	if writer:
+		# This is the only permitted startup addition. Main owns its creation.
+		_corrupt_expected_artifacts[Adapter.DEFAULT_STORE_PATH.get_file() + ".recovery"] = \
+			(_corrupt_expected_artifacts[Adapter.DEFAULT_STORE_PATH.get_file()] as Dictionary).duplicate(true)
+	_migration_game = MAIN_SCENE.instantiate() as GameFlow
+	root.add_child(_migration_game)
+	if not _migration_game.is_node_ready():
+		await _migration_game.ready
+	var report: Dictionary = _migration_game.get_runtime_settings_persistence_report()
+	var load_status: Dictionary = report.load_status as Dictionary
+	print("SETTINGS_CORRUPT_LOAD_REPORT ", JSON.stringify(report, "", true, true))
+	if not _migration_check(not bool(report.injected_authority) and report.identity_scope == &"process_lifetime"
+			and int(report.load_attempt_count) == 1 and bool(report.load_before_first_apply)
+			and bool(load_status.accepted) and bool(load_status.applied) and load_status.reason == &"loaded"
+			and load_status.store_reason == &"primary_invalid_backup_loaded" and int(load_status.generation) == 1
+			and load_status.store_status.source == &"backup"
+			and _migration_equal(_migration_game.get_runtime_settings().to_user_data_payload(), _migration_current),
+			"normal Main applies exact backup settings96/profile once before first apply"):
+		return
+	if not _migration_input_map() or not _migration_check(_input_map_has_key(&"fire", KEY_F13)
+			and not _input_map_has_key(&"fire", KEY_F), "corrupt backup retains F13 and removes former F"):
+		return
+	if not _corrupt_live_owners() or not _corrupt_boundary("normal Main loaded"):
+		return
+	var hud: GameHUD = _migration_game.get_node_or_null(^"HUD") as GameHUD
+	if not _migration_check(hud != null, "corrupt normal Main owns authored HUD"):
+		return
+	# Begin Shift precedes pause Settings, so Back/Resume return to the same
+	# actual gameplay phase instead of manufacturing an intro/pause transition.
+	if not await _migration_begin_and_walk(hud):
+		return
+	if not _corrupt_boundary("normal Begin Shift and supported walking"):
+		return
+	if not await _corrupt_settings_save(hud):
+		return
+	if not _corrupt_live_owners() or not _corrupt_boundary("ordinary Settings Save refusal and Resume"):
+		return
+	var closed: Dictionary = _migration_game.mark_orderly_shutdown()
+	print("SETTINGS_CORRUPT_ORDERLY_CLOSE ", JSON.stringify(closed, "", true, true))
+	if not _migration_check(not bool(closed.accepted)
+			and not bool(closed.safe_start.accepted) and closed.safe_start.reason == &"store_recovery_required",
+			"ordinary close preserves backup write blocking without claiming a durable clean shutdown"):
+		return
+	if not _corrupt_boundary("ordinary close refused"):
+		return
+	if writer:
+		var handoff_file: FileAccess = FileAccess.open(handoff_path, FileAccess.WRITE)
+		if not _migration_check(handoff_file != null, "corrupt opens private writer handoff"):
+			return
+		handoff_file.store_string(JSON.stringify({"writer_pid": OS.get_process_id(),
+			"artifacts": _corrupt_expected_artifacts}, "", true, true))
+		handoff_file.flush()
+		var handoff_error: Error = handoff_file.get_error()
+		handoff_file.close()
+		_migration_check(handoff_error == OK, "corrupt flushes exact artifact/SHA writer handoff")
+
+
+func _corrupt_live_owners() -> bool:
+	var race: Dictionary = _migration_game.get_cinder_race_session_persistence_report()
+	var reward: Dictionary = _migration_game.get_activity_reward_report()
+	var safe_start: Dictionary = _migration_game.get_safe_start_recovery_report()
+	print("SETTINGS_CORRUPT_OWNERS ", JSON.stringify({"race": race, "reward": reward,
+		"safe_start": safe_start}, "", true, true))
+	return _migration_check(bool(race.restore_attempted) and not bool(race.restore_status.accepted)
+		and race.restore_status.reason == &"race_session_store_recovery_required"
+		and _migration_game.cinder_race_session != null
+		and _migration_game.cinder_race_session.get_presentation_snapshot().state_id == &"idle"
+		and _migration_equal(reward.authority.record, _migration_paid.game_flow_reward_store)
+		and not bool(safe_start.begin_status.accepted) and safe_start.begin_status.reason == &"store_recovery_required"
+		and int(safe_start.transition_success_count) == 0
+		and _migration_equal(_migration_game.get_runtime_settings().to_user_data_payload(), _migration_current),
+		"backup paid ledger stays exact with one receipt; Race restore and startup writes remain blocked")
+
+
+func _corrupt_settings_save(hud: GameHUD) -> bool:
+	var original_player: PlayerController = _migration_game.player
+	hud.set_paused(true)
+	var open: Button = hud.find_child("SettingsOpenButton", true, false) as Button
+	if not _migration_check(open != null and open.is_visible_in_tree(), "ordinary paused Settings control is visible"):
+		return false
+	open.pressed.emit()
+	var deadline: int = Time.get_ticks_msec() + 5000
+	var save: Button = hud.find_child("SettingsSaveButton", true, false) as Button
+	while (save == null or not save.is_visible_in_tree()) and Time.get_ticks_msec() < deadline:
+		await process_frame
+		save = hud.find_child("SettingsSaveButton", true, false) as Button
+	var title: Label = hud.find_child("SettingsRepairTitle", true, false) as Label
+	var confirm: Button = hud.find_child("SettingsRepairConfirmButton", true, false) as Button
+	if not _migration_check(save != null and save.is_visible_in_tree() and title != null
+			and title.is_visible_in_tree() and title.text == "SETTINGS BACKUP RECOVERY AVAILABLE"
+			and confirm != null and confirm.is_visible_in_tree() and not confirm.disabled,
+			"Settings shows existing backup recovery and explicit confirmation without activating repair"):
+		return false
+	var before: Dictionary = _migration_game.get_runtime_settings_persistence_report()
+	save.pressed.emit()
+	var after: Dictionary = _migration_game.get_runtime_settings_persistence_report()
+	var status: Label = hud.get("_settings_status_label") as Label
+	if not _migration_check(int(after.save_attempt_count) == int(before.save_attempt_count) + 1
+			and int(after.save_success_count) == int(before.save_success_count)
+			and not bool(after.last_save_status.accepted) and after.last_save_status.reason == &"store_recovery_required"
+			and status != null and status.is_visible_in_tree() and status.text == "UNSAVED  //  STORE_RECOVERY_REQUIRED",
+			"actual visible Settings Save refuses backup writes with the existing UNSAVED feedback"):
+		return false
+	if not _corrupt_boundary("actual Settings Save refused"):
+		return false
+	var back: Button = hud.find_child("SettingsBackButton", true, false) as Button
+	if not _migration_check(back != null and back.is_visible_in_tree(), "ordinary Settings Back is visible"):
+		return false
+	back.pressed.emit()
+	var resume: Button = hud.find_child("ResumeButton", true, false) as Button
+	if not _migration_check(resume != null and resume.is_visible_in_tree(), "Back returns to ordinary pause Resume"):
+		return false
+	resume.pressed.emit()
+	await physics_frame
+	await process_frame
+	return _migration_check(not paused and _migration_game.phase == GameFlow.Phase.APPROACH_SHIP
+		and _migration_game.player == original_player and not original_player.is_seated()
+		and _migration_game.player.is_on_floor() and _migration_game.player.is_control_enabled(),
+		"ordinary Resume returns to supported gameplay after the refused Save")
+
+
 # SAVE-MIGRATION: run writer then reader in separate processes with the same
 # guarded private XDG roots, --audio-driver Dummy and isolated --display-driver
 # x11. The external process owner retains the existing 300-second cap per mode.
@@ -519,72 +779,8 @@ func _migration_stage(writer: bool, private_root: String) -> void:
 			return
 		hud.set_paused(false)
 	else:
-		var begin: Button = hud.find_child("IntroBeginShiftButton", true, false) as Button
-		if not _migration_check(begin != null and begin.is_visible_in_tree(), "reader exposes ordinary Begin Shift"):
+		if not await _migration_begin_and_walk(hud):
 			return
-		var original_player: PlayerController = _migration_game.player
-		var intro: Control = hud.get("_intro") as Control
-		var entry_started: int = Time.get_ticks_msec()
-		var entry_deadline: int = entry_started + 5000
-		print("SETTINGS_MIGRATION_ENTRY_BEFORE ", JSON.stringify({
-			"phase": int(_migration_game.phase), "player_id": original_player.get_instance_id(),
-			"control_enabled": original_player.is_control_enabled(), "on_floor": original_player.is_on_floor(),
-			"seated": original_player.is_seated(), "intro_visible": intro != null and intro.is_visible_in_tree(),
-			"begin_visible": begin.is_visible_in_tree(), "ticks_msec": entry_started,
-			"physics_frame": Engine.get_physics_frames()}))
-		# The ordinary HUD begins with its authored transition tween. Observe its
-		# real start_requested/phase completion within the existing UI cap.
-		begin.pressed.emit()
-		while _migration_game.phase != GameFlow.Phase.APPROACH_SHIP and Time.get_ticks_msec() < entry_deadline:
-			await process_frame
-		var entry_completed: int = Time.get_ticks_msec()
-		var entry_in_cap: bool = _migration_game.phase == GameFlow.Phase.APPROACH_SHIP and entry_completed <= entry_deadline
-		# physics_frame precedes the step; process_frame observes its completion.
-		await physics_frame
-		await process_frame
-		print("SETTINGS_MIGRATION_ENTRY_AFTER ", JSON.stringify({
-			"phase": int(_migration_game.phase), "player_id": _migration_game.player.get_instance_id(),
-			"same_player": _migration_game.player == original_player,
-			"control_enabled": original_player.is_control_enabled(), "on_floor": original_player.is_on_floor(),
-			"seated": original_player.is_seated(), "intro_visible": intro != null and intro.is_visible_in_tree(),
-			"entry_completed_within_cap": entry_in_cap, "entry_elapsed_msec": entry_completed - entry_started,
-			"observed_elapsed_msec": Time.get_ticks_msec() - entry_started,
-			"physics_frame": Engine.get_physics_frames()}))
-		if not _migration_check(entry_in_cap and _migration_game.phase == GameFlow.Phase.APPROACH_SHIP
-				and _migration_game.player == original_player and original_player.is_control_enabled()
-				and not original_player.is_seated() and original_player.is_on_floor(),
-				"ordinary Begin Shift admits the same supported on-foot Player"):
-			return
-		var origin: Vector3 = original_player.global_position
-		var walk_deadline: int = Time.get_ticks_msec() + 5000
-		Input.action_press(&"move_forward")
-		while original_player.global_position.distance_to(origin) < 1.0 and Time.get_ticks_msec() < walk_deadline:
-			await physics_frame
-			if not _migration_walk_owner(original_player):
-				Input.action_release(&"move_forward")
-				return
-		Input.action_release(&"move_forward")
-		if not _migration_check(original_player.global_position.distance_to(origin) >= 1.0,
-				"same supported Player walks at least one metre within the original five-second cap"):
-			return
-		var settle_deadline: int = Time.get_ticks_msec() + 5000
-		while original_player.velocity.length() > 0.05 and Time.get_ticks_msec() < settle_deadline:
-			await physics_frame
-			if not _migration_walk_owner(original_player):
-				return
-		if not _migration_check(original_player.velocity.length() <= 0.05,
-				"released ordinary walk settles within the original five-second cap"):
-			return
-		var neutral_origin: Vector3 = original_player.global_position
-		for _tick: int in 12:
-			await physics_frame
-			if not _migration_walk_owner(original_player):
-				return
-			if not _migration_check(not Input.is_action_pressed(&"move_forward")
-					and original_player.velocity.length() <= 0.05
-					and original_player.global_position.distance_to(neutral_origin) <= 0.02,
-					"reader remains supported and neutral without drift at tick %d" % (_tick + 1)):
-				return
 		if not _migration_boundary(11, "ordinary reader walk"):
 			return
 	var closed: Dictionary = _migration_game.mark_orderly_shutdown()
@@ -605,6 +801,76 @@ func _migration_stage(writer: bool, private_root: String) -> void:
 		var handoff_error: Error = handoff_file.get_error()
 		handoff_file.close()
 		_migration_check(handoff_error == OK, "writer flushes the exact clean process handoff")
+
+
+func _migration_begin_and_walk(hud: GameHUD) -> bool:
+	var begin: Button = hud.find_child("IntroBeginShiftButton", true, false) as Button
+	if not _migration_check(begin != null and begin.is_visible_in_tree(), "reader exposes ordinary Begin Shift"):
+		return false
+	var original_player: PlayerController = _migration_game.player
+	var intro: Control = hud.get("_intro") as Control
+	var entry_started: int = Time.get_ticks_msec()
+	var entry_deadline: int = entry_started + 5000
+	print("SETTINGS_MIGRATION_ENTRY_BEFORE ", JSON.stringify({
+		"phase": int(_migration_game.phase), "player_id": original_player.get_instance_id(),
+		"control_enabled": original_player.is_control_enabled(), "on_floor": original_player.is_on_floor(),
+		"seated": original_player.is_seated(), "intro_visible": intro != null and intro.is_visible_in_tree(),
+		"begin_visible": begin.is_visible_in_tree(), "ticks_msec": entry_started,
+		"physics_frame": Engine.get_physics_frames()}))
+	# The ordinary HUD begins with its authored transition tween. Observe its
+	# real start_requested/phase completion within the existing UI cap.
+	begin.pressed.emit()
+	while _migration_game.phase != GameFlow.Phase.APPROACH_SHIP and Time.get_ticks_msec() < entry_deadline:
+		await process_frame
+	var entry_completed: int = Time.get_ticks_msec()
+	var entry_in_cap: bool = _migration_game.phase == GameFlow.Phase.APPROACH_SHIP and entry_completed <= entry_deadline
+	# physics_frame precedes the step; process_frame observes its completion.
+	await physics_frame
+	await process_frame
+	print("SETTINGS_MIGRATION_ENTRY_AFTER ", JSON.stringify({
+		"phase": int(_migration_game.phase), "player_id": _migration_game.player.get_instance_id(),
+		"same_player": _migration_game.player == original_player,
+		"control_enabled": original_player.is_control_enabled(), "on_floor": original_player.is_on_floor(),
+		"seated": original_player.is_seated(), "intro_visible": intro != null and intro.is_visible_in_tree(),
+		"entry_completed_within_cap": entry_in_cap, "entry_elapsed_msec": entry_completed - entry_started,
+		"observed_elapsed_msec": Time.get_ticks_msec() - entry_started,
+		"physics_frame": Engine.get_physics_frames()}))
+	if not _migration_check(entry_in_cap and _migration_game.phase == GameFlow.Phase.APPROACH_SHIP
+			and _migration_game.player == original_player and original_player.is_control_enabled()
+			and not original_player.is_seated() and original_player.is_on_floor(),
+			"ordinary Begin Shift admits the same supported on-foot Player"):
+		return false
+	var origin: Vector3 = original_player.global_position
+	var walk_deadline: int = Time.get_ticks_msec() + 5000
+	Input.action_press(&"move_forward")
+	while original_player.global_position.distance_to(origin) < 1.0 and Time.get_ticks_msec() < walk_deadline:
+		await physics_frame
+		if not _migration_walk_owner(original_player):
+			Input.action_release(&"move_forward")
+			return false
+	Input.action_release(&"move_forward")
+	if not _migration_check(original_player.global_position.distance_to(origin) >= 1.0,
+			"same supported Player walks at least one metre within the original five-second cap"):
+		return false
+	var settle_deadline: int = Time.get_ticks_msec() + 5000
+	while original_player.velocity.length() > 0.05 and Time.get_ticks_msec() < settle_deadline:
+		await physics_frame
+		if not _migration_walk_owner(original_player):
+			return false
+	if not _migration_check(original_player.velocity.length() <= 0.05,
+			"released ordinary walk settles within the original five-second cap"):
+		return false
+	var neutral_origin: Vector3 = original_player.global_position
+	for _tick: int in 12:
+		await physics_frame
+		if not _migration_walk_owner(original_player):
+			return false
+		if not _migration_check(not Input.is_action_pressed(&"move_forward")
+				and original_player.velocity.length() <= 0.05
+				and original_player.global_position.distance_to(neutral_origin) <= 0.02,
+				"reader remains supported and neutral without drift at tick %d" % (_tick + 1)):
+			return false
+	return true
 
 
 func _migration_walk_owner(original_player: PlayerController) -> bool:
