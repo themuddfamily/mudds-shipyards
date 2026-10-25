@@ -29,44 +29,27 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Selected: PLAY-PATROL[relay_sweep] — ordinary relay patrol and home.**
-Startad9857949. One implementer owns existing native runner/tests/passive observer
-and startup selector; root owns privacy tests/docs/guard/checks/integration/cleanup.
-Add `--route patrol-relay-home` / `NATIVE_PATROL_RELAY_HOME_OK`. Normal menu/genuine
-Guided/physical exit → actual pause ActivitySelection/relay Patrol selection →
-supported reboard clearance/same-Torrent departure → Main Patrol's five ordered
-32m volumes,2 continuous physics seconds each at60Hz/time_scale1 → exactly one
-relay-generation payment → strict Central dock/90neutral OFFLINE ticks/physical
-exit/original supported walk/normal UI exit0. No nearby START or physical board.
+**Delivered: PLAY-PATROL[relay_sweep] — full ordinary relay branch.**
+Sourcec3d369e0f passes the complete packaged journey in227.070s under original
+CAP300: genuine Guided, actual pause-board Patrol/Relay selection, supported
+reboard clearance/same-Torrent departure, safe low-header crossing, five ordered
+holds of120 continuous occupied60Hz ticks each, one durable relay payment,
+strict Central dock/90neutral OFFLINE ticks/physical exit/supported.969m walk and
+normal UI exit0. Five actual-file captures preserve the paid terminal/ledger,
+justified tutorial additions and all other protected siblings. Independent
+source/raw review GO; runtime diagnostics0.
 
-WholeCAP300/outer360 unchanged; no invented separate Patrol timeout/speed gate,
-pose/phase/provider/claim/tuning/geometry/reward shortcut or new framework. Reuse
-approach-justified tutorial save protection and preserve every unrelated field.
-If needed, ordinary brake/hover alignment before return uses actual H/Prior only,
-upright>=.94/speed<=.35 within15s; no runtime physics change or timing extension.
-Proof: relevant existing Python/privacy/parser checks, clean private Linux export,
-strict menu readiness/inventory and one complete package route on owned Xvfb/x11/
-dummy renderer/Dummy audio/actual OS XTest, independent source/raw review and
-actual process/scratch/build cleanup. Retained Q4 thirty-Main failure/UI-BOARD-FOCUS
-are not resolved by this route; any runtime diagnostic stops the attempt.
+The first300s attempt remains recorded: its outbound caller path contacted the
+range header before checkpoint1. One source/raw-supported correction uses the
+existing low-clearance waypoints; no geometry/tuning/timer/phase change. Full
+route and cleanup stay on the original90min task clock.
+[Exact proof, first failure and cleanup](docs/history/ROADMAP_DELIVERIES.md#patrol-relay-first-play-accepted-20261025).
 
-Estimate5min mapping+35implementation+25checks/export/route+15review/cleanup;
-hard90min includes the mapping interval from the previous closeout timestamp.
-First unexpected failure stops for cumulative review or parking. Platform sweep
-remains a separate required branch; no full PLAY-PATROL/parent, device/native,
-repeat/recovery or final-candidate closure follows from relay alone.
-
-**PLAY-PATROL[relay_sweep] causal continuation — original clock retained.**
-First full package attempt hits original300s work cap (309.758s with cleanup),
-0/5 holds/zero reward/baseline only. Actual UI selection/reboard/departure pass.
-Source/raw and independent oriented-box calculations support HullCollision at
-RangeHeader: frozen posey8.5917/z-114.4403 is0.000845m from that collider; no runtime
-collider-owner receipt was captured. One bounded caller correction uses the
-existing near/far low-header waypoints in reverse: settle[0,2.7,-100], brake/hover/
-align/upright>=.94/speed<=.01, cross to[0,2.7,-150] with actualy1.4..3.8 samples,
-then retain all five holds/payment/home/UI. No geometry/tuning/timer change;
-repeat the whole originalCAP300 once. First new failure stops for cumulative
-review/parking. Failure and elapsed cost remain part of this same selection.
+This closes the relay instance only. Platform sweep remains required and
+unselected, so PLAY-PATROL as a whole stays open. Repeat/cold-recovery, parked
+thirty-Main Patrol suite, UI-BOARD-FOCUS, native/device and final-candidate gates
+remain open. No new implementation is selected by this closeout. Normal gameplay
+is unchanged; playable checkpoint0d77125 remains current.
 
 **Delivered: PLAY-RACE — complete ordinary packaged race and home return.**
 Source7997b2b37 passes the full original journey in276.690s underCAP300:

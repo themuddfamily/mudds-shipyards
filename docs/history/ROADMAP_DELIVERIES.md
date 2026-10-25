@@ -23689,3 +23689,91 @@ native GPU, final-candidate and all broader parent/phase requirements stay open.
 Normal gameplay is unchanged, so the public playable checkpoint remains0d77125;
 no identical normal-game Windows checkpoint was published for this release-driver
 capability. GitHub Actions remains disabled. Original goal scope remains active.
+
+
+<a id="patrol-relay-first-play-accepted-20261025"></a>
+## Relay Patrol — complete ordinary branch accepted — 2026-10-25
+
+PLAY-PATROL[relay_sweep], selected6dee56c24 fromad9857949. Accepted source
+`c3d369e0fb7ec2c4c8a5d53f68f472e0e7251fa5` adds the existing release runner's
+`--route patrol-relay-home` / NATIVE_PATROL_RELAY_HOME_OK. It preserves normal menu,
+genuine Guided combat/home/physical exit, actual Escape→ActivityBoardButton→
+PatrolActivityButton→RelaySweepPatrolBranchButton→Back→Resume, supported clearance
+of the actual7m reboard block and normal same-Torrent departure. Main starts its
+real PatrolActivity; no direct activity call, phase/pose/provider/claim/reward
+injection or new production rule. Relay is one required instance; platform remains
+unqualified and PLAY-PATROL as a whole remains open.
+
+Independent source review caught default Patrol detachment before selection and
+required both the exact consumed Main sample and current physical pose inside32m
+at each commit. Fresh Patrol is attached only after actual Patrol selection.
+First existing Python171 testsPASS11.528889s, import6.731239s, parser15.814298s,
+startup privacy1.151742s, clean Linux export25.614645s, strict startup22.974662s
+(exit0+STARTUP_MENU_READY_OK) and actual1,527-entry PCK inventory pass.
+
+First whole package trial NOT_ACCEPTED: original300s work deadline fired, driver
+309.758s including bounded cleanup/guard310.130212s. Actual UI selection/resume,
+physical reboard/departure and generation1 start pass, but0/5 holds/zero receipts;
+baseline file only. Source/raw supports HullCollision against the solid RangeHeader
+at[0,9,-120]/size[63,1,1]. Hull pose clips from z-velocity-47.207 to-.07198 at
+frames2890–2891; independent oriented-box separation reduces .323831→.002164→
+.000800m, then freezes .000844845m from the header at[11.06037,8.59174,-114.44026]
+through frame17099. No runtime get_collider identity was captured; attribution is
+source/raw geometry evidence, not a claimed collision-owner receipt. Inputs,
+helper/game/Xvfb reaped; diagnostics0. The failed source/raw is retained.
+
+One cumulative reviewed caller-only correction uses the existing safe home lane
+outbound: near waypoint[0,2.7,-100], normal brake/hover with upright>=.94/speed<=.01/
+alignment>=.9999/pitch error<=.5°, then far waypoint[0,2.7,-150]. Every raw crossing
+sample must remain in y1.4..3.8, move continuously at authored limits, preserve hull
+and precede all original holds. No geometry, tuning, phase, clock, actor or full
+CAP300/outer360 change. Three focused cases added; full174 testsPASS11.488475s.
+Godot/privacy source is byte-unchanged, so prior relevant proofs retained. Fresh
+clean export25.914491s, strict startup22.778154s and PCK1,527 pass. Both exercised
+ELFs are byte-identical SHA256
+`3a1ec7ebe9f0c146c8edaa74658e1a2f22555a96a0cdfd952c716ddda6eecc6a`;
+only the external Python controller changed.
+
+Corrected original full journey PASS227.070s (guard227.516960s), under300s. Actual
+outbound alignmentframe3161 is.9999989/upright.9999646/speed0;36 crossing samples
+frames3215–3250 stay y3.081..3.177 with hull100. Five ordered holds each contain120
+continuous occupied60Hz ticks, with exact source2s timer progression and tracked
+original actor:3435–3554,3717–3836,3992–4111,4249–4368,4536–4655. Completion current
+physical distances1.248/2.778/1.032/1.927/21.871m are all inside32m. Actual Patrol
+duration33.833333s, state2/branchrelay_sweep/generation1/completed5. One authentic
+cinder_relay_patrol receipt grants return_patrol_log_to_shipyard, label "Patrol log
+accepted", and the schema2 patrol_state terminal atomically acknowledges payment.
+No invented Patrol timeout or station-keeping speed predicate was added.
+
+Five independent actual-file captures baseline→paid→stable→home→orderly-close
+have generations18→31→31→34→37. Exact ledger/terminal remain unchanged in all four
+post-payment files, every other protected sibling is equal. Only the two tutorial
+additions derive from actual resident/accepted samples: Belt frame3434 at245.123m
+and Hulk frame3468 at249.887m; every post-payment seen set is the exact baseline
+union with those IDs. No blanket tutorial exemption, cold-interruption or ten-run
+repeat claim. Root and independent source/raw review GO.
+
+Original safe return/header path is retained:40 home crossing samples6184–6223,
+y2.697..2.710. The craft returns alive at84.2403 hull; no undamaged-return claim.
+Strict Central dock/lease/token,90 fresh neutral/OFFLINE ticks7458–7547, physical
+exit7680 and supported0.969435m walk over25frames pass original bounds. Actual
+focused/visible/enabled EXIT TO DESKTOP leads to gamePID1499456 OS exit0 and reaping;
+helper/Xvfb/input release pass, all recorded identities absent, runtime diagnostics0.
+
+Accepted code integrated, no task branch/worktree created. Thirteen stage owners
+terminal/79 observed process identities absent. All354 case members' bytes/modes/
+links verified before owned loose records/helpers/profiles removal. Ten owned build
+files and redundant archive removed; the exact byte-identical failed/successful
+ELF remains in the retained package archive. Only archive+closeout remain at
+`/srv/mudds-work/patrol-relay-first-play-20261025/results/`;
+archive SHA256 `0a34951f79786f95b518812d290bc22a38e33bf5dc8ccd60fe2ea5fefdd21964`,
+133,659,882bytes. Final pushed source/cumulative time are in closeout; the original
+90min clock includes mapping from previous task closeout, failure, correction and
+cleanup. Pre-existing detached registrations remain protected/outside this task.
+
+This accepts only the relay first-play packaged Linux/owned Xvfb/x11/OS-XTest/
+dummy-renderer/Dummy-audio instance. Platform sweep, repeats/cold recovery, parked
+thirty-Main Patrol suite/UI-BOARD-FOCUS, native/device and final gates stay open.
+Normal gameplay is unchanged, so public playable checkpoint remains0d77125; no
+identical normal-game Windows checkpoint was published for the driver capability.
+GitHub Actions remains disabled. Full original roadmap goal remains active.
