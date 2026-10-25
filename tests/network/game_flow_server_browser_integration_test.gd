@@ -601,8 +601,17 @@ func _live_cancel_guest(endpoint_port: int = 0) -> void:
 			return
 		if not await _live_boundary(_live_cancelled_join, 5.0, "ui_accept Cancel closes transport and presents disconnected"):
 			return
-		_check(cancel.disabled and cancel.focus_mode == Control.FOCUS_NONE and root.gui_get_focus_owner() == back,
-			"cancel completion restores browser focus to Back")
+		if _live_cancel_rejoin:
+			var feedback := _live_browser_retry_observation()
+			feedback["action_focused"] = root.gui_get_focus_owner() == cancel
+			feedback["manual_to_action"] = manual.focus_neighbor_right == manual.get_path_to(cancel)
+			feedback["action_to_back"] = cancel.focus_neighbor_right == cancel.get_path_to(back)
+			_live_write("cancel.feedback%d" % attempt, feedback)
+			_check(_live_browser_retry_ready(feedback) and bool(feedback.action_focused) and bool(feedback.manual_to_action) and bool(feedback.action_to_back),
+				"ordinary Cancel retains current fenced Retry Connection and usable action navigation")
+		else:
+			_check(cancel.disabled and cancel.focus_mode == Control.FOCUS_NONE and root.gui_get_focus_owner() == back,
+				"cancel completion restores browser focus to Back")
 		if not _failures.is_empty():
 			return
 		if _live_cancel_rejoin:
@@ -1237,13 +1246,13 @@ func _live_open_pause_browser() -> bool:
 	return await _live_button("ServerBrowserButton")
 
 
-func _live_browser_after_leave() -> bool:
+func _live_browser_retry_observation() -> Dictionary:
 	var disconnect := _live_game.hud.find_child("ServerBrowserDisconnectButton", true, false) as Button
 	var session: NetworkEnetSessionAdapter = _live_game.network_session
 	var presenter := _live_game.hud.get("_network_status_presenter") as NetworkSessionStatusPresenter
 	var presentation: Dictionary = presenter.get_snapshot()
 	var selected_action: Dictionary = _live_game.hud.call("_server_browser_session_action", presentation)
-	var observation := {
+	return {
 		"state": str(presentation.get("state", "")), "retryable": bool(presentation.get("retryable", false)), "has_error": presentation.has("error"),
 		"source_session_id": str(presentation.get("session_id", "")),
 		"source_generation": int(presentation.get("source_generation", -1)), "source_sequence": int(presentation.get("source_sequence", -1)),
@@ -1257,6 +1266,10 @@ func _live_browser_after_leave() -> bool:
 		"button_text": disconnect.text if disconnect != null else "", "button_focus_mode": disconnect.focus_mode if disconnect != null else Control.FOCUS_NONE,
 		"session_active": session.is_session_active(), "offer_empty": session.get_server_offer().is_empty(), "admissions_empty": session.get_admitted_peer_ids().is_empty(),
 	}
+
+
+func _live_browser_after_leave() -> bool:
+	var observation := _live_browser_retry_observation()
 	if _live_gameplay:
 		_live_walks["after_rejoined_leave" if _live_rejoin and _live_rejoined and _live_role == "guest" else "after_leave"] = observation
 	var ready := _live_browser_retry_ready(observation)
