@@ -29,6 +29,28 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Selected: PLAY-RACE — complete ordinary checkpoint-race sortie.**
+Start6a095bbc0. One implementer owns the existing native-sortie runner/test,
+passive observer and startup selector; root owns docs, isolated checks, integration
+and cleanup. Add `--route race-home` to the existing executable release runner.
+Normal menu/same Player/Torrent boarding/departure → actual production2s countdown
+→ five authored32m gates in order within unchanged120s → exactly one durable
+race reward → ordinary Guided combat where required for home → original Central
+strict dock/neutral OFFLINE/physical exit/supported walk → normal UI exit0.
+Full route CAP300/independent outer360, no teleport/phase/provider/claim/reward/
+tuning/geometry shortcut. Existing defaults/routes unchanged.
+
+Proof: focused existing Python runner tests and Godot parser/import; clean private
+Linux export/strict startup; one whole actual-package route on owned Xvfb/x11,
+dummy renderer/Dummy audio and real OS XTest input; source/raw independent review,
+actual game/wrapper/display reaping and scratch cleanup. No native GPU/device/
+endurance/final-parent claim. This is executable release capability for a named
+first-play outcome; no identical public game rebuild for observer-only changes.
+Any actual runtime fix requires separately frozen proof and fresh checkpoint.
+Estimate40min implementation+25checks/export/route+15review/cleanup, hard90min
+including failures. First unexpected failure stops; any bounded correction needs
+causal evidence and cumulative review, retaining the full original journey.
+
 **Latest closed: BROWSER-JOIN — actual LAN join and usable solo return.**
 Source `80abab3b1`: the existing ordinary two-Main route now checks both players
 walking while connected and again after normal Disconnect/Refresh/Back/Resume.
