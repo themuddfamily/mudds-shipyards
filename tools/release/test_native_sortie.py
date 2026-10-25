@@ -4796,6 +4796,66 @@ class PatrolRelayHomeCallerTests(unittest.TestCase):
                     with self.assertRaisesRegex(AssertionError, 'actual fresh default'):
                         pilot.patrol_ui_update(sample, 1)
 
+    def test_patrol_outbound_brakes_hovers_and_aligns_at_original_low_near_endpoint(self):
+        for unsafe in (None, 'speed', 'upright', 'pitch'):
+            with self.subTest(unsafe=unsafe):
+                pilot = native.PatrolRelayHomePilot()
+                sample = self.sample(3, 'active', position=[0, 2.7, -100])
+                sample.update(camera=sample['position'][:], velocity=[0,0,0], upright=1,
+                    right=[1,0,0], up=[0,1,0], back=[0,0,1],
+                    tuning=dict(brake=14, maximum_speed=60, mouse=.002))
+                if unsafe == 'speed': sample['velocity'][0] = .02
+                elif unsafe == 'upright': sample['upright'] = .93
+                elif unsafe == 'pitch': sample['back'][1] = .1
+                pilot.receipts['patrol_outbound_near'] = sample
+                pilot.stage = 'patrol_outbound_align'; pilot.last_state = sample
+                keys, *_ = pilot.update(sample, 1)
+                self.assertEqual(keys, {'Prior', 'h'})
+                self.assertEqual(pilot.stage, 'patrol_outbound_far' if unsafe is None else 'patrol_outbound_align')
+                if unsafe is None:
+                    self.assertIs(pilot.receipts['patrol_outbound_ready'], sample)
+
+    def test_reverse_header_crossing_retains_every_actual_low_lane_sample(self):
+        pilot = native.PatrolRelayHomePilot()
+        def sample(frame, z):
+            s = self.sample(frame, 'active', position=[0,2.7,z])
+            s['telemetry']['hull'] = 100
+            s['tuning'] = dict(maximum_speed=60)
+            return s
+        initial = sample(1, -100)
+        pilot.home_initial = copy.deepcopy(initial['home'])
+        pilot.receipts.update(patrol_outbound_near=initial, patrol_outbound_ready=initial)
+        pilot.raw_previous = sample(2, -109)
+        for frame, z in enumerate(range(-110, -131, -1), 3):
+            current = sample(frame, z)
+            pilot.observe_patrol_outbound_header(current)
+            if z > -130: self.assertIsNone(pilot.patrol_outbound_header_crossing)
+            pilot.raw_previous = current
+        crossing = pilot.patrol_outbound_header_crossing
+        self.assertEqual(crossing['origin_z_interval'], [-130,-110])
+        self.assertEqual([s['position'][2] for s in crossing['samples']], list(range(-109,-131,-1)))
+        self.assertEqual([s['frame'] for s in crossing['samples']], list(range(2,24)))
+
+    def test_reverse_header_rejects_changed_endpoints_unsafe_clearance_or_unphysical_motion(self):
+        for mutation in ('near', 'far', 'height', 'damage', 'gap', 'jump', 'not_ready'):
+            with self.subTest(mutation=mutation):
+                pilot = native.PatrolRelayHomePilot()
+                previous = self.sample(2, 'active', position=[0,2.7,-109])
+                current = self.sample(3, 'active', position=[0,2.7,-110])
+                for s in (previous, current):
+                    s['telemetry']['hull'] = 100; s['tuning'] = dict(maximum_speed=60)
+                pilot.home_initial = copy.deepcopy(previous['home'])
+                pilot.receipts.update(patrol_outbound_near=previous, patrol_outbound_ready=previous)
+                pilot.raw_previous = previous
+                if mutation == 'near': current['home']['range_clearance_exit'][2] += 1
+                elif mutation == 'far': current['home']['range_clearance'][2] += 1
+                elif mutation == 'height': current['position'][1] = 4
+                elif mutation == 'damage': current['telemetry']['hull'] = 99
+                elif mutation == 'gap': current['frame'] += 1
+                elif mutation == 'jump': current['position'][2] = -131
+                else: del pilot.receipts['patrol_outbound_ready']
+                with self.assertRaises(AssertionError): pilot.observe_patrol_outbound_header(current)
+
 
 if __name__ == '__main__':
     unittest.main()

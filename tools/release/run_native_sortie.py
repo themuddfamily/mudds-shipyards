@@ -2478,6 +2478,36 @@ class PatrolRelayHomePilot(RaceHomePilot):
         self.dwell_ticks = 0
         self.dwell_start = None
         self.patrol_alignment_started = None
+        self.patrol_outbound_header_samples = []
+        self.patrol_outbound_header_crossing = None
+
+    def observe_patrol_outbound_header(self, s):
+        previous = self.raw_previous
+        home = s['home']
+        require(all(home[key] == self.home_initial[key]
+                    for key in ('range_clearance_exit', 'range_clearance')),
+                'unchanged original near and far outbound clearance endpoints')
+        clearance = home['range_clearance']
+        near_z, far_z = clearance[2]+20, clearance[2]+40
+        if max(previous['position'][2], s['position'][2]) < near_z \
+                or min(previous['position'][2], s['position'][2]) > far_z:
+            return
+        require('patrol_outbound_near' in self.receipts and 'patrol_outbound_ready' in self.receipts,
+                'actual settled low near waypoint and brake/hover alignment precede outbound header crossing')
+        require(s['frame']-previous['frame'] == 1
+                and norm(sub(s['position'], previous['position'])) <= s['tuning']['maximum_speed']/60*1.25+.02,
+                'every reverse header sample has continuous ordinary physical motion')
+        for sample in (previous, s):
+            require(clearance[1]-1.3 <= sample['position'][1] <= clearance[1]+1.1,
+                    'actual reverse RangeHeader crossing stays within the y1.4..3.8 clearance band')
+            require(sample['telemetry']['hull'] >= self.receipts['patrol_outbound_near']['telemetry']['hull'],
+                    'no additional hull loss during actual reverse RangeHeader crossing')
+            if not self.patrol_outbound_header_samples or self.patrol_outbound_header_samples[-1]['frame'] != sample['frame']:
+                self.patrol_outbound_header_samples.append({'frame':sample['frame'],
+                    'position':sample['position'], 'hull':sample['telemetry']['hull']})
+        if previous['position'][2] >= near_z >= s['position'][2]:
+            self.patrol_outbound_header_crossing = {'frame':s['frame'],
+                'origin_z_interval':[near_z, far_z], 'samples':self.patrol_outbound_header_samples}
 
     @classmethod
     def require_terminal_paid(cls, s, entry):
@@ -2535,6 +2565,7 @@ class PatrolRelayHomePilot(RaceHomePilot):
             self.observe_home_identity(s)
             if previous is not None:
                 require(s['frame'] > previous['frame'], 'advancing actual unpaused patrol physics')
+            if self.stage == 'patrol_outbound_far': self.observe_patrol_outbound_header(s)
             if self.stage == 'race_reboard_clear':
                 home = s['home']
                 require(home['grounded'] and home['supported'] and home['support_collider']
@@ -2686,7 +2717,9 @@ class PatrolRelayHomePilot(RaceHomePilot):
                         'genuine Guided physical exterior exit precedes actual patrol selection')
                 self.beacon_stage('patrol_ui_pause', s)
             return controls
-        if self.settlement_result is not None or self.stage not in ('race_launch', 'patrol_flight', 'patrol_align'):
+        if self.settlement_result is not None or self.stage not in (
+                'race_launch', 'patrol_outbound_near', 'patrol_outbound_align',
+                'patrol_outbound_far', 'patrol_flight', 'patrol_align'):
             controls = super().update(s, now)
             if self.home_result is not None:
                 self.home_result['scope'] = 'genuine Guided, actual pause-board relay selection, five continuous patrol holds, durable payment, strict home and normal UI exit'
@@ -2700,6 +2733,36 @@ class PatrolRelayHomePilot(RaceHomePilot):
             if reached:
                 require(s['phase'] == 'FREE_FLIGHT' and self.patrol_active is not None,
                         'ordinary physical same-Torrent departure starts selected Main patrol')
+                self.receipts['patrol_range_staging'] = s
+                self.home_braking = False
+                self.enter('patrol_outbound_near', s)
+        elif self.stage == 'patrol_outbound_near':
+            dx, dy, reached = self.home_fly_to(s, s['home']['range_clearance_exit'], keys)
+            if reached:
+                self.receipts['patrol_outbound_near'] = s
+                self.enter('patrol_outbound_align', s)
+        elif self.stage == 'patrol_outbound_align':
+            target = s['home']['range_clearance']
+            dx, dy, _ = self.home_fly_to(s, target, keys, ready=False)
+            keys.add('h')
+            direction = unit(sub(target, s['position']))
+            _, _, align = self.aim(s, [s['camera'][i]+target[i]-s['position'][i] for i in range(3)])
+            nose_pitch = math.degrees(math.asin(max(-1, min(1, -s['back'][1]))))
+            target_pitch = math.degrees(math.asin(max(-1, min(1, direction[1]))))
+            if align >= .9999 and abs(nose_pitch-target_pitch) <= .5 and s['upright'] >= .94 and norm(s['velocity']) <= .01:
+                require('patrol_outbound_near' in self.receipts
+                        and norm(sub(s['position'], s['home']['range_clearance_exit'])) <= .75,
+                        'settled actual original low near waypoint before reverse header departure')
+                self.receipts['patrol_outbound_ready'] = s
+                self.home_braking = False
+                self.enter('patrol_outbound_far', s)
+        elif self.stage == 'patrol_outbound_far':
+            dx, dy, reached = self.home_fly_to(s, s['home']['range_clearance'], keys)
+            if reached:
+                require(self.patrol_outbound_header_crossing is not None,
+                        'actual safely sampled reverse RangeHeader crossing before original patrol holds')
+                self.receipts['patrol_outbound_far'] = s
+                self.home_braking = False
                 self.enter('patrol_flight', s)
         elif self.stage == 'patrol_flight':
             if s['patrol']['snapshot']['state_id'] == 'completed':
@@ -2718,6 +2781,7 @@ class PatrolRelayHomePilot(RaceHomePilot):
                 self.settlement_result = {'guided_prerequisite': self.guided_result,
                     'selection': {k:v for k,v in self.receipts.items() if k.startswith('patrol_ui_')},
                     'active': self.patrol_active, 'physical_holds': self.gates, 'paid': self.paid_state,
+                    'outbound_header_crossing': self.patrol_outbound_header_crossing,
                     'return_alignment': s}
                 self.home_previous = s
                 self.home_native_previous = {'l':s['home']['native_land'], 'e':s['home']['native_interact']}
