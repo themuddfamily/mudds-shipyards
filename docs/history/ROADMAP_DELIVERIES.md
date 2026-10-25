@@ -26786,3 +26786,14 @@ playable; test-only work needs no identical export. Original21:35Z→22:35Z/60mi
 includes readiness, implementation, checks and closure; independent22:33 engine
 abort reserves cleanup, no budget reset. Raw/source/profile records and verified
 cleanup live under `/srv/mudds-work/sprint-toggle-restart-20261025`.
+
+Verified closeout: source integrated/pushed04f694c06; completed local branch
+removed with exact expected tip after current remote/pushed-main ancestry and
+registered-worktree checks; no remote task branch. Owned case retains only
+records.tar.gz/closeout.json: 15,400,439 bytes, SHA256
+6b84f7106fe9e2450b30506b5e0347f0e7581622d2daa1a3024fb63d8fbb4d03.
+All95 regular bytes/modes and5 symlink targets verified before removing
+scratch; five supervisors/16 observed identities absent. Accepted source bundle/
+patch retains all changes. Original clock23.507min through archive verification;
+final closure push/elapsed is recorded in closeout.json. Current4aa8b64 builds
+and pre-existing detached worktrees are unchanged.
