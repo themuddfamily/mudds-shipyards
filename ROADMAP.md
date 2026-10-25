@@ -77,7 +77,20 @@ Only one implementation card may be active. Completed results are linked under
 [accepted work](#accepted-work--source-limits-retained), and failed attempts under
 [parked work](#parked-failures-and-dependent-work). They are not next tasks.
 The table below contains actual missing decisions.
-No implementation card is active. Torrent's real incoming core-damage/passive
+Active card: physical Torrent→Arrow→Torrent handoff,15:11Z→16:11Z/60min,
+including planning, checks and closure. Preserve the accepted damage/two-home
+prerequisite, then actual supported deck walking, fresh native Arrow boarding,
+90neutral/OFFLINE ticks, Arrow's own E exit and supported walk, physical return,
+fresh Torrent stream/boarding/90neutral ticks/E exit/walk and normal UI OS0.
+Both hulls stay exactly parked/landed/OFFLINE without flight demand during this
+handoff; old craft remains unpiloted with neutral, non-producing input. Same
+Main/Player/two ships/default sources; original CAP300/goal15s/clear12s remain.
+Mode-fenced read-only observation, independent review, existing focused checks,
+clean private Linux export/strict startup and one isolated x11/Dummy trial.
+First unexpected failure stops. This is physical switching, not Arrow flight or
+full craft/destruction/Main acceptance; no direct gameplay calls or rescue.
+
+Torrent's real incoming core-damage/passive
 repair route is accepted ona1de3363f: hull100→89, core integrity.56 and targeting
 power.62,617consecutive airborne observations without repair, then43strict landed
 passive commits restore core1/all five nominal/modifiers1/zero effects while hull

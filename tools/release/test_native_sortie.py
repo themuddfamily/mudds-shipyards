@@ -5344,5 +5344,147 @@ class TorrentDamagedReturnTests(unittest.TestCase):
                 self.assertIsNone(p.repaired)
 
 
+class TorrentArrowHandoffTests(unittest.TestCase):
+    """Actor/epoch/consumer regressions; only packaged OS input can qualify the route."""
+    def state(self):
+        damage_tests = TorrentDamagedReturnTests()
+        base, s = damage_tests.start(); damage_tests.incoming(base, s); base.validate_damage(s)
+        damage_tests.airborne(base, s); damage_tests.berth(base, s)
+        d = s['damage']; s['frame'] += 43; d.update(revision=46, repair_count=43)
+        for row in d['components']: row.update(integrity=1., state_id='nominal')
+        d['modifiers']['fire_multiplier'] = 1.
+        d['repair_last'] = dict(frame=s['frame'], origin='passive_berth', generation=1,
+                               revision=46, strict_home=True, snapshot=copy.deepcopy(d))
+        base.validate_damage(s)
+        p = native.TorrentArrowHandoffPilot(); p.__dict__.update(base.__dict__)
+        s.update(mode=p.MODE, phase='COMPLETE', guided_complete=True, targets=[], destroyed_targets=4,
+            guided_return_authorized=False, opponent_active=False, paused=False, seated=False,
+            piloted=False, active_ship=True, transition_busy=False, control_enabled=True,
+            capsule_enabled=True, player_camera=True, grounded=True, supported=True,
+            support_collider='/Main/World/Deck', engine='OFFLINE', flight_demand=False,
+            player_velocity=[0,0,0], native_interact=False)
+        p.guided_result = {'phases': ['COMPLETE']}; p.trips = [
+            dict(flight=i, excursion_m=75, neutral_frames=90) for i in (1,2)]
+        p.receipts['walked_2'] = {'frame': s['frame']-1}
+        def craft(key, ids, stream):
+            return dict(zip(p.HULL_IDS, ids), definition_id=key,
+                home_id='central_berth' if key == p.TORRENT else 'arrow_recon_berth',
+                actors_current=True, active=key == p.TORRENT, piloted=False, remote_piloted=False,
+                seated=False, camera=False, reserved=False, player_reservation=False, candidate=False,
+                reboard_blocked=False, boarding_distance=8, boarding=[-5,0,-6] if key == p.TORRENT else [-39,0,14],
+                exit=[-5,0,-6] if key == p.TORRENT else [-39,0,14], parked_exact=True,
+                position=[0,1.15,-10] if key == p.TORRENT else [-43,1.17,15], velocity=[0,0,0],
+                landed=True, landing_active=False, lease=True, lease_token=key+'-lease', contract=key == p.TORRENT,
+                physical_strict=True, main_lease_token=key+'-lease',
+                main_berth_id='central_berth' if key == p.TORRENT else 'arrow_recon_berth',
+                occupant_id=ids[0], reservation_owner_id=ids[0], reserved_ship_id=key,
+                hull=89 if key == p.TORRENT else 100, destroyed=False, engine='OFFLINE', flight_demand=False,
+                default_sampler=True, tuning_unchanged=True, tuning={'default': True}, stream=stream,
+                next_sequence=0, pending=0, delivery_generation=stream, source_enabled=True,
+                command_valid=True, command_neutral=True, command_stream=0, command_sequence=0, interact={})
+        s['handoff'] = dict(actors_current=True, fleet={
+            p.TORRENT: craft(p.TORRENT, (s['ship_id'],s['source_id'],s['seat_id'],98,s['berth_id']),8),
+            p.ARROW: craft(p.ARROW, (101,102,103,104,105),0)},
+            active_ship_id=s['ship_id'], piloting=False, consumed_ship_id=0, consumed_stream=-1, consumed_sequence=-1)
+        p.handoff_started=True; p.stage='handoff_release'
+        p.handoff_initial=copy.deepcopy(s['handoff']); p.initial=copy.deepcopy(s)
+        p.observed_previous=copy.deepcopy(s); p.handoff_previous=copy.deepcopy(s)
+        p.remember_retired(p.TORRENT,s); p.remember_retired(p.ARROW,s)
+        return p,s
+
+    def tick(self,p,s):
+        s['frame']+=1; s['sequence']+=1
+        p.validate_observation(copy.deepcopy(s))
+
+    def exit_state(self):
+        p,s=self.state(); p.stage='handoff_arrow_exit'; p.retired.pop(p.ARROW)
+        a=s['handoff']['fleet'][p.ARROW]
+        a.update(stream=10,next_sequence=5,delivery_generation=10,piloted=True,seated=True,camera=True,
+                 reserved=True,player_reservation=True,active=True,command_stream=10,command_sequence=4)
+        s['handoff']['fleet'][p.TORRENT]['active']=False
+        s['handoff'].update(active_ship_id=a['ship_id'],piloting=True,consumed_ship_id=a['ship_id'],
+                            consumed_stream=10,consumed_sequence=4)
+        p.handoff_receipts['arrow_exit_press']=p.handoff_receipt(s)
+        s['frame']+=1; s['phase']='DISEMBARKING'; s['transition_busy']=True; s['native_interact']=True
+        a['interact']=dict(frame=s['frame'],ship_id=a['ship_id'],source_id=a['source_id'],stream=10,
+                           sequence=4,native=True,valid=True,current=True)
+        p.handoff_edges=[dict(frame=s['frame'],stage=p.stage)]
+        return p,s
+
+    def test_exit_witness_requires_exact_actor_epoch_and_current_consumer(self):
+        p,s=self.exit_state(); p.require_exit_consumer(p.ARROW,'arrow_exit',s)
+        self.assertIn('arrow_exit_transition',p.handoff_receipts)
+        for mutation in ('old_stream','wrong_source','wrong_actor','stale_consumer','not_native'):
+            with self.subTest(mutation=mutation):
+                p,s=self.exit_state(); a=s['handoff']['fleet'][p.ARROW]
+                if mutation=='old_stream': a['interact']['stream']=9
+                elif mutation=='wrong_source': a['interact']['source_id']=999
+                elif mutation=='wrong_actor': s['handoff']['consumed_ship_id']=s['ship_id']
+                elif mutation=='stale_consumer': s['handoff']['consumed_sequence']=3
+                else: a['interact']['native']=False
+                with self.assertRaises(AssertionError): p.require_exit_consumer(p.ARROW,'arrow_exit',s)
+
+    def test_retired_source_can_remain_enabled_but_cannot_consume_or_keep_claims(self):
+        p,s=self.state(); self.tick(p,s)
+        self.assertTrue(s['handoff']['fleet'][p.TORRENT]['source_enabled'])
+        for mutation in ('cursor','pending','seat','camera','reservation','command'):
+            with self.subTest(mutation=mutation):
+                p,s=self.state(); t=s['handoff']['fleet'][p.TORRENT]
+                if mutation=='cursor': t['next_sequence']+=1
+                elif mutation=='pending': t['pending']=1
+                elif mutation=='seat': t['seated']=True
+                elif mutation=='camera': t['camera']=True
+                elif mutation=='reservation': t['reserved']=True
+                else: t['command_neutral']=False
+                with self.assertRaises(AssertionError): self.tick(p,s)
+
+    def test_actor_replacement_or_departure_during_handoff_fails(self):
+        for mutation in ('actor','lease','position','engine','demand'):
+            with self.subTest(mutation=mutation):
+                p,s=self.state(); a=s['handoff']['fleet'][p.ARROW]
+                if mutation=='actor': a['ship_id']=999
+                elif mutation=='lease': a['lease']=False
+                elif mutation=='position': a['parked_exact']=False
+                elif mutation=='engine': a['engine']='ONLINE'
+                else: a['flight_demand']=True
+                with self.assertRaises(AssertionError): self.tick(p,s)
+
+    def test_false_exit_and_premature_normal_quit_cannot_complete(self):
+        p,s=self.state(); p.stage='handoff_arrow_exit'; p.last_state=s
+        # On-foot flags alone do not prove the Arrow command consumer exited it.
+        s['player']=s['handoff']['fleet'][p.ARROW]['exit'][:]
+        with self.assertRaises(AssertionError): p.update(s,1)
+        p,s=self.state(); p.stage='quit_wait'; p.quit_requested=True
+        with self.assertRaises(AssertionError): p.finish(0)
+        s['paused']=True; p.stage='pause'
+        with self.assertRaises(AssertionError): self.tick(p,s)
+
+    def test_stationary_arrow_exit_uses_physical_lease_without_landing_history(self):
+        p,s=self.state(); a=s['handoff']['fleet'][p.ARROW]
+        self.assertFalse(a['contract'])
+        p.require_handoff_exit_home(p.ARROW,a)
+        for mutation in ('token','occupant','owner','registry_berth','ship','acceptance'):
+            with self.subTest(mutation=mutation):
+                p,s=self.state(); a=s['handoff']['fleet'][p.ARROW]
+                if mutation=='token': a['main_lease_token']='foreign-token'
+                elif mutation=='occupant': a['occupant_id']=s['ship_id']
+                elif mutation=='owner': a['reservation_owner_id']=s['ship_id']
+                elif mutation=='registry_berth': a['main_berth_id']='central_berth'
+                elif mutation=='ship': a['reserved_ship_id']=p.TORRENT
+                else: a['physical_strict']=False
+                with self.assertRaises(AssertionError): p.require_handoff_exit_home(p.ARROW,a)
+        p,s=self.state(); t=s['handoff']['fleet'][p.TORRENT]; t['contract']=False
+        with self.assertRaises(AssertionError): p.require_handoff_exit_home(p.TORRENT,t)
+
+    def test_reclaim_requires_fresh_torrent_stream(self):
+        p,s=self.state(); p.stage='handoff_torrent_board'; p.last_state=s
+        t=s['handoff']['fleet'][p.TORRENT]
+        p.handoff_receipts['torrent_board_press']=p.handoff_receipt(s)
+        s.update(phase='START_ENGINES',transition_busy=False)
+        t.update(piloted=True,seated=True,camera=True,reserved=True,player_reservation=True,
+                 command_stream=t['stream'],command_sequence=1,next_sequence=2)
+        with self.assertRaisesRegex(AssertionError,'fresh current producer epoch'): p.update(s,1)
+
+
 if __name__ == '__main__':
     unittest.main()

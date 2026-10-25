@@ -26,6 +26,10 @@ var _supply_sequence := 0
 var _arrow := false
 var _torrent_reuse := false
 var _torrent_damaged := false
+var _torrent_handoff := false
+var _handoff_arrow: HeroShip
+var _handoff_initial: Dictionary = {}
+var _handoff_interacts: Dictionary = {}
 var _torrent_damage_authority: Node
 var _torrent_incoming: Dictionary = {}
 var _torrent_incoming_count := 0
@@ -125,7 +129,8 @@ func on_startup_completed(main: Node) -> void:
 		_tuning = _sortie_tuning()
 		process_mode = Node.PROCESS_MODE_ALWAYS
 		return
-	_torrent_damaged = "--native-sortie-observer=torrent-damaged-return" in OS.get_cmdline_args()
+	_torrent_handoff = "--native-sortie-observer=torrent-arrow-handoff" in OS.get_cmdline_args()
+	_torrent_damaged = "--native-sortie-observer=torrent-damaged-return" in OS.get_cmdline_args() or _torrent_handoff
 	_torrent_reuse = "--native-sortie-observer=torrent-return-reuse" in OS.get_cmdline_args() or _torrent_damaged
 	if _torrent_reuse:
 		process_mode = Node.PROCESS_MODE_ALWAYS
@@ -154,6 +159,14 @@ func on_startup_completed(main: Node) -> void:
 		_tuning = _sortie_tuning()
 		return
 	_opponent = _game.get_node("RangeOpponent") as RangeOpponent
+	if _torrent_handoff:
+		_handoff_arrow = _game.get_node(^"ArrowReconShip") as HeroShip
+		for craft: HeroShip in [_ship, _handoff_arrow]:
+			var key := str(craft.get_ship_id())
+			_handoff_initial[key] = {"pose": craft.global_transform, "tuning": _craft_tuning(craft)}
+			var source := craft.get("_default_local_command_source") as LocalShipInputSource
+			source.command_produced.connect(_capture_handoff_interact.bind(craft))
+		_game.tree_exiting.connect(_disconnect_handoff)
 	if _torrent_damaged:
 		_torrent_damage_authority = _game.combat_authority
 		_torrent_damage_authority.connect(&"authoritative_shot_submitted", _capture_torrent_incoming)
@@ -228,6 +241,7 @@ func _disconnect_courier_withdraw() -> void:
 func _exit_tree() -> void:
 	_disconnect_courier_withdraw()
 	_disconnect_torrent_damage()
+	_disconnect_handoff()
 
 
 ## Retain only scalar production receipts, before the output cadence gate.
@@ -846,6 +860,8 @@ func _physics_process(delta: float) -> void:
 				"repair_first": _torrent_repair_first.duplicate(true), "repair_last": _torrent_repair_last.duplicate(true),
 				"repair_count": _torrent_repair_count, "repair_violation": _torrent_repair_violation})
 			observation["damage"] = damage
+		if _torrent_handoff:
+			observation["handoff"] = _handoff_observation()
 	print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(observation))
 
 
@@ -1058,6 +1074,105 @@ func _beacon_home_observation(capture: Dictionary = {}) -> Dictionary:
 		"walk_target": _v(exit_position - _game.world.global_basis.x.normalized()),
 		"native_land": Input.is_physical_key_pressed(KEY_L),
 		"native_interact": Input.is_physical_key_pressed(KEY_E)}
+
+
+## Two physical actors only, sampled fresh without creating/ensuring a source
+## or reusing the Sandbox inactive-detail cache. Source.enabled is not seat ownership.
+func _handoff_observation() -> Dictionary:
+	var rows: Dictionary = {}
+	for craft: HeroShip in [_ship, _handoff_arrow]:
+		if not _ember_node_current(craft):
+			return {"actors_current": false}
+		var key := str(craft.get_ship_id())
+		var source := craft.get("_default_local_command_source") as LocalShipInputSource
+		var area := craft.get_node_or_null(^"ShipBoardingArea") as ShipBoardingArea
+		var seat := craft.get("_pilot_seat_anchor") as Node3D
+		var berth := _game.world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
+		if not _ember_node_current(source) or not _ember_node_current(area) or not _ember_node_current(seat) or not _ember_node_current(berth):
+			return {"actors_current": false}
+		var initial := _handoff_initial[key] as Dictionary
+		var token := StringName(berth.get("_reservation_token"))
+		var reserved_id := StringName(berth.get("_reserved_ship_id"))
+		var contract := craft.get("_landing_contract") as Dictionary
+		var command := craft.get_last_ship_command()
+		var pending := source.get("_pending_commands") as Array
+		var main_tokens := _game.get("_berth_tokens") as Dictionary
+		var main_berths := _game.get("_reserved_berth_ids") as Dictionary
+		var collision := craft.get_landing_collision_report()
+		var acceptance := berth.evaluate_landing_candidate(craft.global_transform,
+			collision.get("local_bounds", AABB()) as AABB, craft.velocity, craft.landing_maximum_speed)
+		var main_token := StringName(main_tokens.get(craft.get_instance_id(), &""))
+		var main_berth_id := StringName(main_berths.get(craft.get_instance_id(), &""))
+		var occupant := berth.get_occupant()
+		var reservation_owner := berth.get_reservation_owner()
+		var physical_strict: bool = bool(collision.get("valid", false)) and bool(acceptance.get("strict_dock_acceptance", false)) \
+			and craft.global_transform.is_equal_approx(berth.get_dock_transform()) \
+			and occupant == craft and reservation_owner == craft and token != &"" \
+			and main_token == token and main_berth_id == berth.get_berth_id() and reserved_id == craft.get_ship_id()
+		var token_bound := token != &"" and token == StringName(craft.get("_landing_reservation_token")) \
+			and reserved_id == StringName(craft.get("_landing_reserved_ship_id")) and berth.get_reservation_owner() == craft
+		rows[key] = {"ship_id": craft.get_instance_id(), "definition_id": key,
+			"source_id": source.get_instance_id(), "seat_id": seat.get_instance_id(), "area_id": area.get_instance_id(),
+			"berth_id": berth.get_instance_id(), "home_id": str(craft.get_home_berth_id()),
+			"actors_current": craft.get_parent() == _game and source.is_inside_tree(),
+			"active": _game.get_active_ship() == craft, "piloted": craft.is_piloted(), "remote_piloted": craft.is_remote_piloted(),
+			"seated": _player.is_seated_at(seat), "camera": craft.get_camera().current,
+			"reserved": bool(area.get("_has_reservation")), "player_reservation": area.get("_reservation_token") == _player,
+			"candidate": _game.boarding_candidate == craft, "reboard_blocked": _game.get("_reboard_blocked_ship") == craft,
+			"boarding_distance": _player.get_interaction_origin().distance_to(craft.get_boarding_position()),
+			"boarding": _v(craft.get_boarding_position()), "exit": _v(craft.get_exit_transform().origin),
+			"parked_exact": craft.global_transform.is_equal_approx(initial.pose), "position": _v(craft.global_position),
+			"velocity": _v(craft.velocity), "landed": bool(craft.get("_landed")), "landing_active": craft.is_landing_active(),
+			"lease": berth.get_occupant() == craft and berth.get_reservation_owner() == craft and token != &"" and reserved_id == craft.get_ship_id(),
+			"physical_strict": physical_strict, "main_lease_token": str(main_token), "main_berth_id": str(main_berth_id),
+			"occupant_id": occupant.get_instance_id() if is_instance_valid(occupant) else 0,
+			"reservation_owner_id": reservation_owner.get_instance_id() if is_instance_valid(reservation_owner) else 0,
+			"reserved_ship_id": str(reserved_id),
+			"lease_token": str(token), "contract": bool(contract.get("contract_accepted", false)) and bool(contract.get("strict_dock_acceptance", false)) \
+				and token_bound and StringName(craft.get("_landing_berth_id")) == berth.get_berth_id() \
+				and int(craft.get("_landing_berth_instance_id")) == berth.get_instance_id(),
+			"hull": float(craft.get("_hull")), "destroyed": craft.is_destroyed(), "engine": str(craft.get("_engine_state")),
+			"flight_demand": craft.has_manual_flight_intent(), "default_sampler": craft.get("_command_source") == source and source.get_input_provider() == null,
+			"tuning_unchanged": _craft_tuning(craft) == initial.tuning, "tuning": initial.tuning,
+			"stream": source.get_stream_id(), "next_sequence": source.get_next_sequence(), "pending": pending.size(),
+			"delivery_generation": source.get_delivery_generation(), "source_enabled": source.is_enabled_owner(),
+			"command_valid": command != null and command.is_valid(), "command_neutral": command != null and command.is_neutral(),
+			"command_stream": command.stream_id if command != null else -1,
+			"command_sequence": command.sequence if command != null else -1,
+			"interact": (_handoff_interacts.get(key, {}) as Dictionary).duplicate(true)}
+	return {"actors_current": true, "fleet": rows,
+		"active_ship_id": _game.get_active_ship().get_instance_id() if is_instance_valid(_game.get_active_ship()) else 0,
+		"piloting": bool(_game.get("_piloting")),
+		"consumed_ship_id": int(_game.get("_last_lifecycle_command_ship_instance_id")),
+		"consumed_stream": int(_game.get("_last_lifecycle_command_stream_id")),
+		"consumed_sequence": int(_game.get("_last_lifecycle_command_sequence"))}
+
+
+func _capture_handoff_interact(command: ShipCommand, authority_peer_id: int, craft: HeroShip) -> void:
+	if not _torrent_handoff or not command.interact or not is_instance_valid(_game):
+		return
+	var source := craft.get("_default_local_command_source") as LocalShipInputSource
+	var seat := craft.get("_pilot_seat_anchor") as Node3D
+	_handoff_interacts[str(craft.get_ship_id())] = {"frame": Engine.get_physics_frames(),
+		"ship_id": craft.get_instance_id(), "source_id": source.get_instance_id(),
+		"stream": command.stream_id, "sequence": command.sequence,
+		"native": Input.is_action_pressed("interact"), "valid": command.is_valid(),
+		"current": craft.get("_command_source") == source and source.is_enabled_owner() and authority_peer_id == source.get_authority_peer_id() \
+			and _game.get_active_ship() == craft and craft.is_piloted() and _ember_node_current(seat) and _player.is_seated_at(seat)}
+
+
+func _disconnect_handoff() -> void:
+	if not _torrent_handoff:
+		return
+	for craft: HeroShip in [_ship, _handoff_arrow]:
+		if not is_instance_valid(craft):
+			continue
+		var source := craft.get("_default_local_command_source") as LocalShipInputSource
+		var callback := _capture_handoff_interact.bind(craft)
+		if is_instance_valid(source) and source.command_produced.is_connected(callback):
+			source.command_produced.disconnect(callback)
+	if is_instance_valid(_game) and _game.tree_exiting.is_connected(_disconnect_handoff):
+		_game.tree_exiting.disconnect(_disconnect_handoff)
 
 
 func _sandbox_observation() -> Dictionary:
@@ -1755,7 +1870,7 @@ func _arrow_observation(torrent: bool = false) -> Dictionary:
 		and _ember_node_current(_player) and _game.player == _player \
 		and _ember_node_current(_game.world) and _ember_node_current(_ship) \
 		and _game.get_node_or_null(^"TorrentInterceptor" if torrent else ^"ArrowReconShip") == _ship
-	var result := {"mode": ("torrent-damaged-return" if _torrent_damaged else "torrent-return-reuse") if torrent else "arrow-return-reuse", "sequence": _arrow_sequence,
+	var result := {"mode": ("torrent-arrow-handoff" if _torrent_handoff else ("torrent-damaged-return" if _torrent_damaged else "torrent-return-reuse")) if torrent else "arrow-return-reuse", "sequence": _arrow_sequence,
 		"pid": OS.get_process_id(), "frame": Engine.get_physics_frames(), "actors_current": current}
 	if not current:
 		return result
