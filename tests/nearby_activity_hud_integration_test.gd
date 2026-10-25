@@ -118,6 +118,7 @@ func _initialize() -> void:
 	if start != null:
 		start.emit_signal("pressed")
 	_check(_intent.get("reason", &"") == &"start_requested", "HUD forwards a start intent without invoking activity authority")
+	await _check_nearby_small_viewport(hud)
 	hud.clear_nearby_activity_snapshot()
 	_check(hud.get_nearby_activity_report().get("snapshot", {}) == {}, "detaching/clearing removes retained activity snapshot")
 	hud.set_paused(false)
@@ -136,6 +137,166 @@ func _check(condition: bool, message: String) -> void:
 	_assertions += 1
 	if not condition:
 		_failures.append(message)
+
+
+func _check_nearby_small_viewport(hud: GameHUD) -> void:
+	var previous_size := root.size
+	var previous_content_size := root.content_scale_size
+	var previous_aspect := root.content_scale_aspect
+	var previous_scale := hud.get_ui_scale()
+	var previous_snapshot := (hud.get_nearby_activity_report().get("snapshot", {}) as Dictionary).duplicate(true)
+	var requests: Array[Dictionary] = []
+	var on_request := func(intent: Dictionary) -> void: requests.append(intent.duplicate(true))
+	hud.nearby_activity_intent_requested.connect(on_request)
+	root.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
+	root.content_scale_size = Vector2i(1024, 768)
+	root.size = Vector2i(1024, 768)
+	hud.set_ui_scale(GameHUD.MAX_UI_SCALE)
+	# Use the existing cargo progress payload and the production hulk briefing
+	# state. The presenter supplies its ordinary other eight activity rows.
+	var snapshot := {"cargo": _cargo_snapshot(1, 0), "hulk_power": {"hulk_loaded": true}}
+	hud.set_nearby_activity_snapshot(snapshot)
+	hud.show_nearby_activity_page()
+	await process_frame
+	await process_frame
+	var page := hud.get("_nearby_activity_page") as Control
+	var rows := hud.get("_nearby_activity_rows") as VBoxContainer
+	var feedback := hud.get("_nearby_activity_feedback") as Label
+	var effective := GameHUD.compute_effective_pause_ui_scale(GameHUD.MAX_UI_SCALE, Vector2(1024, 768))
+	var safe := preload("res://scripts/ui/ultrawide_safe_area_contract.gd").safe_rect(Vector2(1024, 768), effective)
+	var scroll: ScrollContainer
+	var ancestor := rows.get_parent()
+	while ancestor != null and ancestor != page:
+		if ancestor is ScrollContainer:
+			scroll = ancestor as ScrollContainer
+			break
+		ancestor = ancestor.get_parent()
+	print("MEASURED: ten-row NearbyActivityPage 1024x768 request %.2f -> effective %.6f page %s"
+		% [GameHUD.MAX_UI_SCALE, effective, page.get_global_rect()])
+	_check(root.get_visible_rect().size == Vector2(1024, 768)
+		and is_equal_approx(hud.get_ui_scale(), GameHUD.MAX_UI_SCALE),
+		"Nearby cell uses actual 1024x768 and the authored maximum request")
+	_check(rows.get_child_count() == 10, "Nearby cell retains all ten production presenter rows")
+	_check(safe.grow(0.75).encloses(page.get_global_rect()),
+		"Nearby ten-row page fits the 1024x768 readable bounds")
+	_check(scroll != null, "Nearby ten-row list supplies bounded authored scrolling")
+	for candidate: Node in page.find_children("*", "Label", true, false):
+		if not rows.is_ancestor_of(candidate):
+			var label := candidate as Label
+			_check(safe.grow(0.75).encloses(label.get_global_rect()),
+				"Nearby fixed header or feedback stays inside readable bounds: %s" % label.text)
+			_check_nearby_label_fits(label)
+	for button_name in ["NearbyActivitySaveButton", "NearbyActivityLoadButton", "NearbyActivityBackButton"]:
+		var button := page.find_child(button_name, true, false) as Button
+		_check(button != null and not button.disabled
+			and safe.grow(0.75).encloses(button.get_global_rect())
+			and button.size.x + 0.75 >= button.get_minimum_size().x,
+			"Nearby fixed footer action stays completely readable: %s" % button_name)
+	for child: Node in rows.get_children():
+		var row := child as Control
+		if scroll != null:
+			scroll.ensure_control_visible(row)
+			await process_frame
+			await process_frame
+		var readable := safe if scroll == null else scroll.get_global_rect()
+		_check(safe.grow(0.75).encloses(readable)
+			and readable.grow(0.75).encloses(row.get_global_rect())
+			and not row.get_global_rect().intersects(feedback.get_global_rect()),
+			"Nearby complete row is readable through scrolling: %s" % row.name)
+		var label := row.get_child(0) as Label
+		_check(row.get_global_rect().grow(0.75).encloses(label.get_global_rect()),
+			"Nearby row contains its essential copy: %s" % row.name)
+		_check_nearby_label_fits(label)
+		for action: Node in row.get_children():
+			if action is Button:
+				var button := action as Button
+				_check(row.get_global_rect().grow(0.75).encloses(button.get_global_rect())
+					and button.size.x + 0.75 >= button.get_minimum_size().x,
+					"Nearby row contains its complete action: %s/%s" % [row.name, button.text])
+	# Focus-follow itself must reveal enabled top, middle and bottom actions.
+	# Do not manually scroll to the target in this loop.
+	for index in [0, 4, 9]:
+		var row := rows.get_child(index) as Control
+		for action: Node in row.get_children():
+			if action is Button and not (action as Button).disabled:
+				var button := action as Button
+				button.grab_focus()
+				await process_frame
+				await process_frame
+				_check(root.gui_get_focus_owner() == button
+					and _nearby_readable_region(rows, safe).grow(0.75).encloses(row.get_global_rect()),
+					"Nearby enabled focus reveals the complete row: %s/%s" % [row.name, button.text])
+	var cargo := _cargo_row(hud)
+	var cargo_identity := cargo.get_instance_id()
+	var focused := cargo.get_child(2) as Button
+	focused.grab_focus()
+	await process_frame
+	await process_frame
+	_check(cargo.get_index() == 0 and root.gui_get_focus_owner() == focused,
+		"Nearby priority refresh starts with focused active cargo at list top")
+	# Retain focus while active cargo moves from first to its authored standard
+	# position. ScrollContainer.follow_focus alone does not handle a retained
+	# focused node moving during container layout.
+	for cargo_state in [_cargo_snapshot(2, 3), _cargo_snapshot(1, 1, &"", 84.5),
+		_cargo_snapshot(1, 2, &"", 43.0), _cargo_snapshot(3, 1, &"embodied_transfer_aborted", 0.0)]:
+		snapshot["cargo"] = cargo_state
+		hud.set_nearby_activity_snapshot(snapshot)
+		await process_frame
+		await process_frame
+		await process_frame
+		cargo = _cargo_row(hud)
+		_check(cargo.get_instance_id() == cargo_identity and root.gui_get_focus_owner() == focused
+			and _nearby_readable_region(rows, safe).grow(0.75).encloses(cargo.get_global_rect()),
+			"Nearby retained cargo focus stays visible after priority/progress/terminal refresh: state %d phase %d"
+			% [int(cargo_state.state), int(cargo_state.next_phase_index)])
+		_check_nearby_label_fits(cargo.get_child(0) as Label)
+	hud.apply_nearby_activity_action_result(&"start_requested", &"station_defense", {"accepted": false, "reason": &"out_of_range"})
+	await process_frame
+	await process_frame
+	_check(safe.grow(0.75).encloses(feedback.get_global_rect())
+		and "REPORT ON FOOT TO THE MARKED DECK BOARD" in feedback.text,
+		"Nearby rejected-start recovery guidance stays completely inside readable bounds")
+	_check_nearby_label_fits(feedback)
+	for button_name in ["NearbyActivitySaveButton", "NearbyActivityLoadButton", "NearbyActivityBackButton"]:
+		var button := page.find_child(button_name, true, false) as Button
+		button.grab_focus()
+		await process_frame
+		_check(root.gui_get_focus_owner() == button
+			and safe.grow(0.75).encloses(button.get_global_rect()),
+			"Nearby footer retains enabled visible focus: %s" % button_name)
+	var back := page.find_child("NearbyActivityBackButton", true, false) as Button
+	back.emit_signal("pressed")
+	await process_frame
+	var selection := hud.get("_activity_selection_page") as Control
+	var opener := selection.find_child("NearbyActivityOpenButton", true, false) as Button
+	_check(selection.visible and not page.visible and root.gui_get_focus_owner() == opener,
+		"Nearby Back restores the Activity Board and exact opener focus in the selected cell")
+	hud.show_nearby_activity_page()
+	_check(requests.is_empty(), "Nearby layout, scrolling, focus and snapshot refresh emit no activity or persistence intent")
+	hud.nearby_activity_intent_requested.disconnect(on_request)
+	hud.set_nearby_activity_snapshot(previous_snapshot)
+	root.content_scale_aspect = previous_aspect
+	root.content_scale_size = previous_content_size
+	root.size = previous_size
+	hud.set_ui_scale(previous_scale)
+	await process_frame
+	await process_frame
+
+
+func _nearby_readable_region(rows: Control, fallback: Rect2) -> Rect2:
+	var ancestor := rows.get_parent()
+	while ancestor != null:
+		if ancestor is ScrollContainer:
+			return (ancestor as Control).get_global_rect()
+		ancestor = ancestor.get_parent()
+	return fallback
+
+
+func _check_nearby_label_fits(label: Label) -> void:
+	var fits := label.get_visible_line_count() == label.get_line_count()
+	if label.autowrap_mode == TextServer.AUTOWRAP_OFF:
+		fits = fits and label.size.x + 0.75 >= label.get_minimum_size().x
+	_check(fits, "Nearby essential text is not clipped: %s" % label.text)
 
 
 func _cargo_snapshot(
