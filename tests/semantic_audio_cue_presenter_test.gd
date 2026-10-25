@@ -78,6 +78,22 @@ func _run() -> void:
 				and repair_caption.get("caption", "") == engineer_repair_captions[cue_id],
 			"%s has a truthful semantic repair caption" % cue_id
 		)
+	var loadmaster_captions := {
+		&"cinder_loadmaster_seat_occupied": ["Loadmaster seat occupied", &"low"],
+		&"cinder_loadmaster_manifest_ready": ["Loadmaster manifest ready", &"low"],
+		&"cinder_loadmaster_route_ready": ["Loadmaster route ready", &"medium"],
+		&"cinder_loadmaster_rejected": ["Loadmaster request rejected", &"high"],
+		&"cinder_loadmaster_released": ["Loadmaster released", &"low"],
+	}
+	for cue_id: StringName in loadmaster_captions:
+		var contract := loadmaster_captions[cue_id] as Array
+		var caption := presenter.present_cue(cue_id, &"crew", 0.5, position)
+		_check(
+			bool(caption.get("accepted", false))
+			and caption.get("caption", "") == contract[0]
+			and caption.get("severity", &"") == contract[1],
+			"%s has its truthful Loadmaster caption and authored severity" % cue_id
+		)
 	for cue_id in [
 		&"station_defense_wave_started", &"station_defense_asset_danger", &"station_defense_asset_critical",
 		&"station_defense_completed", &"station_defense_aborted", &"cargo_transfer_pickup_accepted",
