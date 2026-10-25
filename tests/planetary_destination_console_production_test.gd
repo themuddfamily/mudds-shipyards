@@ -352,14 +352,52 @@ func _test_destination_board_small_viewport(game: GameFlow, hud: GameHUD) -> voi
 		_check(action.get_node_or_null(action.focus_neighbor_top) == ordered[maxi(0, index - 1)]
 			and action.get_node_or_null(action.focus_neighbor_bottom) == ordered[mini(ordered.size() - 1, index + 1)],
 			"Destination Board focus chain includes only enabled actions and Back: %s" % action.name)
+	# Exercise the last site's ordinary briefing affordance as a presentation
+	# state. The actual on-foot refusal above remains the gameplay authority.
+	var world_states: Dictionary = {}
+	for row: Dictionary in ready.get("destinations", []):
+		world_states[row.destination_id] = {
+			"status_id": row.status_id, "status_text": row.status_text,
+			"action_enabled": row.action_enabled,
+			"engagement_requested": row.engagement_requested,
+		}
+	var catalog := game.get("_planetary_destination_catalog") as RefCounted
+	var nearby := catalog.call(&"get_presentation_snapshot", world_states, {
+		&"cinder_belt_bore_site": {"reachable": true},
+	}) as Dictionary
+	var bore := rows.find_child(
+		"PlanetaryDestinationAction_cinder_belt_bore_site", true, false) as Button
+	_check(hud.set_planetary_destination_snapshot(nearby)
+		and not bore.disabled and bore.text == "SHOW BRIEFING",
+		"Destination Board accepts the retained production catalog's reachable Bore briefing state")
+	var scroll := rows.get_parent() as ScrollContainer
+	_check(scroll != null, "Destination Board supplies authored scrolling for enabled site focus")
+	if scroll != null:
+		scroll.scroll_vertical = 0
+		ember.grab_focus()
+		await process_frame
+		await process_frame
+		var next := ember.get_node_or_null(ember.focus_neighbor_bottom) as Button
+		_check(next == bore and bore.get_node_or_null(bore.focus_neighbor_bottom) == back
+			and back.get_node_or_null(back.focus_neighbor_top) == bore,
+			"Destination Board enabled briefing joins the travel-to-Back focus chain")
+		if next != null:
+			next.grab_focus()
+			await process_frame
+			await process_frame
+		_check(root.gui_get_focus_owner() == bore and scroll.scroll_vertical > 0
+			and scroll.get_global_rect().grow(0.75).encloses(bore.get_global_rect())
+			and bore.size.x + 0.75 >= bore.get_minimum_size().x,
+			"Destination Board focus-follow reveals the complete final site briefing action from scroll top")
 	back.grab_focus()
 	_check(hud.set_planetary_destination_snapshot(original),
 		"Destination Board restores the ordinary on-foot production presentation")
 	await process_frame
 	await process_frame
 	_check(rows.find_child("PlanetaryDestinationAction_ember_moon", true, false) == ember
+		and rows.find_child("PlanetaryDestinationAction_cinder_belt_bore_site", true, false) == bore
 		and retained_card.find_child("PlanetaryDestinationStatus", true, false) == retained_status
-		and root.gui_get_focus_owner() == back and ember.disabled,
+		and root.gui_get_focus_owner() == back and ember.disabled and bore.disabled,
 		"Destination Board refresh retains row/status identity and chosen Back focus")
 	_check(requests.is_empty()
 		and game.planetary_cruise_binding.get_snapshot() == cruise_before
