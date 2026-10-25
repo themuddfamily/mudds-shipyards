@@ -10,6 +10,7 @@ Default: print the plan, without writes or network access.
 --rpc-cache-teardown: separate, unqualified callback identity candidate; requires
   --target template_release and an absolute owned --cache-root.
 --platform: linuxbsd (default) or windows (RPC mode only; cross-compiled, never run).
+--cache-root: absolute owned private engine cache; optional outside RPC mode.
 
 Neither target changes installed engines/templates. This recipe pins inputs and
 options, not host compiler binaries. Template results stay separate from editor
@@ -109,14 +110,14 @@ RPC_TARGETS = {
 def owned_cache_root(value):
     """Check without creating anything, including during a dry plan."""
     root = Path(value)
-    require(root.is_absolute() and ".." not in root.parts, "RPC cache root must be absolute without '..'")
-    require(root != Path(root.anchor), "RPC cache root must be a private directory")
+    require(root.is_absolute() and ".." not in root.parts, "Engine cache root must be absolute without '..'")
+    require(root != Path(root.anchor), "Engine cache root must be a private directory")
     for path in (root, *root.parents):
-        require(not path.is_symlink(), "RPC cache root must not traverse symlinks")
+        require(not path.is_symlink(), "Engine cache root must not traverse symlinks")
         if path.exists():
-            require(path.is_dir(), "RPC cache root ancestor is not a directory")
+            require(path.is_dir(), "Engine cache root ancestor is not a directory")
     owner = next(path for path in (root, *root.parents) if path.exists())
-    require(owner.stat().st_uid == os.getuid(), "RPC cache root must be owned by the current user")
+    require(owner.stat().st_uid == os.getuid(), "Engine cache root must be owned by the current user")
     return root
 
 
@@ -325,7 +326,7 @@ def main():
     parser.add_argument("--retained-probe-lifecycle", action="store_true")
     parser.add_argument("--rpc-cache-teardown", action="store_true")
     parser.add_argument("--platform", choices=("linuxbsd", "windows"), default="linuxbsd")
-    parser.add_argument("--cache-root", help="Absolute owned private cache root, required for RPC mode")
+    parser.add_argument("--cache-root", help="Absolute owned private engine cache root (required for RPC mode)")
     parser.add_argument("--jobs", type=int, choices=range(1, 5), default=2)
     parser.add_argument("--timeout", type=int, default=3600, help="Compile wall cap, at most 3600s")
     args = parser.parse_args()
@@ -335,11 +336,10 @@ def main():
             "RPC cache mode is mutually exclusive with rendering patch modes")
     require(not rpc or args.target == "template_release", "RPC cache mode requires template_release")
     require(rpc or args.platform == "linuxbsd", "Windows platform requires RPC cache mode")
-    require(rpc or args.cache_root is None, "--cache-root requires RPC cache mode")
     require(not rpc or args.cache_root is not None, "RPC cache mode requires --cache-root")
-    cache = owned_cache_root(args.cache_root) / args.platform if rpc else CACHE
+    cache = owned_cache_root(args.cache_root) if args.cache_root is not None else CACHE
     if rpc:
-        owned_cache_root(str(cache))
+        cache = owned_cache_root(str(cache / args.platform))
     source = cache / SOURCE_NAME
     suffix = MESH_SUFFIX if args.mesh_content_revision else SUFFIX
     build_name = MESH_BUILD_NAME if args.mesh_content_revision else BUILD_NAME

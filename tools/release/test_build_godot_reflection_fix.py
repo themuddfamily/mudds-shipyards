@@ -87,6 +87,62 @@ class BuildTargets(unittest.TestCase):
         self.assertTrue(p["binary"].endswith("godot.linuxbsd.template_release.x86_64.mudds_reflection_atlas"))
         self.assertEqual(p["release_template"], str(self.cache / "export_templates/4.7.1.stable/linux_release.x86_64"))
 
+    def test_explicit_reflection_cache_relocates_only_artifact_paths_without_writes(self):
+        explicit = Path(self.tmp.name) / "private-engine-cache"
+        for target in ("editor", "template_release"):
+            for mesh in (False, True):
+                for probe in (False, True):
+                    args = ["--target", target]
+                    if mesh:
+                        args.append("--mesh-content-revision")
+                    if probe:
+                        args.append("--retained-probe-lifecycle")
+                    with self.subTest(target=target, mesh=mesh, probe=probe):
+                        default = self.plan(*args)
+                        with patch.object(builder, "download") as download, \
+                                patch.object(builder, "source_tree") as source_tree, \
+                                patch.object(builder.shutil, "which") as which:
+                            relocated = self.plan(*args, "--cache-root", str(explicit))
+                            download.assert_not_called()
+                            source_tree.assert_not_called()
+                            which.assert_not_called()
+                        expected = dict(default)
+                        for key in ("cache", "binary", "log", "result", "release_template"):
+                            if default[key] is not None:
+                                expected[key] = str(explicit / Path(default[key]).relative_to(self.cache))
+                        self.assertEqual(relocated, expected)
+                        self.assertFalse(explicit.exists())
+
+    def test_reflection_rejects_invalid_explicit_cache_before_tools_or_writes(self):
+        for root in ("relative", "/", str(self.cache / ".." / "escape")):
+            for action in ((), ("--prepare",), ("--build",)):
+                with self.subTest(root=root, action=action), \
+                        patch.object(sys, "argv", [str(SCRIPT), *action, "--cache-root", root]), \
+                        patch.object(builder, "download") as download, \
+                        patch.object(builder, "run") as run, \
+                        patch.object(builder.shutil, "which") as which:
+                    with self.assertRaisesRegex(RuntimeError, "Engine cache root"):
+                        builder.main()
+                    download.assert_not_called()
+                    run.assert_not_called()
+                    which.assert_not_called()
+                    self.assertFalse(self.cache.exists())
+        self.assertEqual(list(Path(self.tmp.name).iterdir()), [])
+
+    def test_reflection_rejects_symlink_unowned_and_file_cache_roots(self):
+        self.cache.symlink_to(Path(self.tmp.name), target_is_directory=True)
+        for root in (self.cache, self.cache / "nested"):
+            with self.subTest(root=root), self.assertRaisesRegex(RuntimeError, "symlinks"):
+                self.plan("--cache-root", str(root))
+        self.cache.unlink()
+        with patch.object(builder.os, "getuid", return_value=os.getuid() + 1):
+            with self.assertRaisesRegex(RuntimeError, "owned"):
+                self.plan("--cache-root", str(self.cache))
+        self.cache.write_text("not a directory")
+        with self.assertRaisesRegex(RuntimeError, "not a directory"):
+            self.plan("--cache-root", str(self.cache / "nested"))
+        self.assertEqual(self.cache.read_text(), "not a directory")
+
     def test_mesh_feature_requires_explicit_opt_in_and_separate_artifacts(self):
         for target in ("editor", "template_release"):
             with self.subTest(target=target):
@@ -365,7 +421,7 @@ class RPCCacheTargets(unittest.TestCase):
                     ["--rpc-cache-teardown", "--target", "template_release"],
                     self.rpc_args() + ["--cache-root", "relative"],
                     self.rpc_args() + ["--cache-root", "/"],
-                    ["--platform", "windows"], ["--cache-root", str(self.cache)]]
+                    ["--platform", "windows"]]
         for args in invalid:
             with self.subTest(args=args), patch.object(sys, "argv", [str(SCRIPT), *args]), \
                     patch.object(builder, "download") as download, patch.object(builder, "run") as run:
