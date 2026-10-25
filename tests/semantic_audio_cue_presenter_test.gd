@@ -21,6 +21,20 @@ func _run() -> void:
 	_check(accepted.get("world_position") == position, "world position is preserved for caller layout")
 	var duplicate := presenter.present_cue(&"hull_impact_heavy", &"defender", 0.9, position)
 	_check(duplicate.get("reason") == &"duplicate_cue", "identical cue is deduplicated")
+	var engine_captions := {
+		&"engine_degraded": ["Engine degraded", &"medium"],
+		&"engine_critical": ["Engine critical", &"high"],
+		&"engine_recovered": ["Engine recovered", &"low"],
+	}
+	for cue_id: StringName in engine_captions:
+		var contract := engine_captions[cue_id] as Array
+		var caption := presenter.present_cue(cue_id, &"ship", 0.5, position)
+		_check(
+			bool(caption.get("accepted", false))
+			and caption.get("caption", "") == contract[0]
+			and caption.get("severity", &"") == contract[1],
+			"%s has its literal engine caption and default severity" % cue_id
+		)
 	var weapon_caption_contracts := {
 		&"siege_lance_fire_heavy": ["Siege lance discharge", &"high"],
 		&"siege_lance_impact_heavy": ["Siege lance impact", &"high"],

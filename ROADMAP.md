@@ -94,9 +94,11 @@ rig binding→router/AudioDirector/GameFlow→tree-visible real HUD/one shared s
 shows each degradation/critical/recovery caption once with existing queue/expiry.
 Unchanged bands/repeated facts, detached emissions and OFF/no replay add none;
 old MockHUD assertions and existing damage/alarm/caption behavior remain intact.
-Source/manual caption clock and controlled component damage are disclosed;
-no ordinary flight, physical device, audible mix, rendered/native or full comfort
-qualification is inferred. No playback/gameplay/timing authority changes.
+Detached GameFlow/manual service clock, disabled Hero physics and controlled
+resolved-ledger damage/repair are disclosed component-fixture setup; actual HUD
+uses normal Begin/reduced-motion transition and retained presenter identity.
+No ordinary flight, physical device, audible mix, rendered/native or full comfort
+qualification is inferred. No production playback/gameplay/timing authority changes.
 
 Use clean source pins, Dummy audio and headless or owned isolated x11 checks.
 First unexpected failure stops for causal/cumulative review; no automatic retry,
