@@ -1,8 +1,8 @@
 # Development roadmap
 
 **Playable alpha; full original scope remains unfinished.** Latest playable build:
-[4afd529 Windows checkpoint](builds/windows/MuddsShipyards-4afd529-checkpoint.zip)
-([changes and validation](builds/windows/MuddsShipyards-4afd529-notes.txt)).
+[9c736d7 Windows checkpoint](builds/windows/MuddsShipyards-9c736d7-checkpoint.zip)
+([changes and validation](builds/windows/MuddsShipyards-9c736d7-notes.txt)).
 Nine of the promised 17 craft exist. All 36 original parent outcomes and ten phase
 exit gates remain open; completed child results are retained, not counted as whole
 features. There is no evidence-backed project percentage or completion date.
@@ -29,11 +29,14 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Delivered: host snapshot streams skip retired native connections.** A real
-server/two-client disconnect-window regression passes; the connected peer keeps
-receiving canonical and moving-interior snapshots without engine diagnostics.
-Checkpoint4afd529 contains the repair. Full passenger readmission remains open.
-[Exact delivery and limits](docs/history/ROADMAP_DELIVERIES.md#passenger-native-disconnect-publication-repair-20261025).
+**Delivered: fresh physical Halyard cabin admission after rejoining.** A current
+unclaimed passenger at the reachable chair sees JOIN CABIN after strict completed
+docking/OFFLINE. First Interact obtains a fresh standing berth/body stream while
+retaining Player/adapter and the other pilot; it does not claim the chair or helm.
+Focused regression34 and existing boarding66/independent passenger route pass,
+with a fresh verified checkpoint9c736d7. Full ordinary moving loss/Manual Join/
+return/readmission/chair/renewed-flight acceptance remains OPEN.
+[Exact delivery and limits](docs/history/ROADMAP_DELIVERIES.md#halyard-fresh-standing-readmission-delivered-20261025).
 
 The canonical inventory remains
 [the existing backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes); no parallel
@@ -49,12 +52,13 @@ not a project percentage inferred from rows, tests or commits.
 ### Small execution queue
 
 Only one implementation card may be active. Each row below is a bounded step
-within the existing goal, not a replacement for its full acceptance. One bounded passenger readmission capability is selected below. The transport
-prerequisite is delivered; Torpedo remains parked after its source-review stop.
+within the existing goal, not a replacement for its full acceptance. No implementation is currently selected. The passenger interaction and transport
+prerequisites are delivered; the complete ordinary reconnect journey is still
+required. Torpedo remains parked after its source-review stop.
 
 | Existing goal | Next bounded result | Proof / stop | State and owner |
 | --- | --- | --- | --- |
-| SERVER-BASELINE-PASSENGER-RECONNECT | Rejoined unclaimed supported Halyard cabin: physical passenger chair offers JOIN CABIN; first E requests a fresh standing berth, without pilot/chair takeover | One actual-Main/ENet semantic-RED then fixed regression with real assist-completed strict docking; exact fresh grant/body, retained Player/adapter/other pilot; existing role checks, clean paired checkpoint. Staged fixture does not close full ordinary journey | ACTIVE — root GameFlow, one test implementer, one reviewer;8min fixture+10runtime+8checks+10package+5closure, hard60min/first unexpected failure. Prior260.731s guarded retained; full journey OPEN |
+| SERVER-BASELINE-PASSENGER-RECONNECT | Fresh standing-berth request at the recovered Halyard passenger chair delivered on9c736d7 | Old runtime failed only missing JOIN CABIN after real setup; fixed34 and existing boarding66/independent chair route pass. Clean paired export/three strict startups/identical1527payload/verified Windows EXE+ZIP+notes | PASS for scoped interaction; full journey OPEN. Next full caller must retain BOARD+7MOVING/forced loss/normal Manual Join/actual20s return/strict dock/fresh berth+later chair/renewed flight/3OS0 under original caps |
 | PLAN-ASSIGN | Replace the chronological working page with this queue; audit every canonical goal for a finite result or explicit blocking input | Preserve all337 IDs/order,36 parents/ten gates; review changed acceptance and local links. Finish after this pass; no automatic new definition task | PASS — Codex; documentation only |
 | PLAY-TORPEDO | Cancelled request accounting must survive unread queued neutral samples across actual OS release | Source review BLOCK: output dispatch does not establish which engine samples postdate release. Candidate archived; no tests/export/trial, no gameplay completion | PARKED — Codex;67.453min cumulative at stop, no automatic retry |
 | SPEC-TITAN / VORTEX / PARADOX / KATANA / PREDATOR / DYNAMIC / UTOPIA / SALYUT | One explicit approval or field-level revision for each existing craft proposal | All required geometry/handling/functions/roles/save fields fixed in the corresponding proposal; no repeat proposal preparation | WAITING — user chooses interpretation/design; Codex implements approved fields |

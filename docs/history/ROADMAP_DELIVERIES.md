@@ -24186,3 +24186,72 @@ of the retained results container; the archive stayed intact and final layout wa
 verified. Native Windows/GPU/device/human/final-release gates remain NOT_RUN/open;
 all automation headless/Dummy, GitHub Actions disabled.337 IDs/36 parents/ten phase
 gates and the complete17-craft scope remain; no full parent completion claimed.
+
+
+<a id="halyard-fresh-standing-readmission-delivered-20261025"></a>
+## Halyard fresh standing readmission delivered — 2026-10-25
+
+**Production interaction delivered on9c736d7; full ordinary passenger reconnect
+OPEN.** A current rejoined, unclaimed, supported Halyard cabin passenger can use
+the existing reachable passenger chair after accepted strict completed dock/OFFLINE.
+JOIN CABIN first requests only BOARD_ANY/standing cabin berth through the existing
+host ledger. Its confirming answer binds a fresh body/stream to the same Player
+and adapter. No old grant or chair/pilot claim is restored by that press; the other
+pilot keeps its exact helm and ledger seat. Generic pilot/hatch selection and
+later existing chair authority remain unchanged.
+
+Source9c736d787279ec56cad42ccb0636ae854894dc5a shares one eligibility predicate across discovery, HUD and action:
+current accepted client admission, empty claim/request, unbound old body, no
+pending chair/transition, same owned live Halyard/physical passenger chair,
+supported registered standing Player inside its real cabin and within reach,
+accepted host non-destroyed landed/docked/not-landing/OFFLINE plus committed
+positive-generation/revision landing record. The request revalidates and returns
+before the ordinary chair path. Existing timeout/abandonment/session and authority
+owners remain; no sample-age policy, packet schema, role count or tuning added.
+
+Focused regression8d2b2546d fixes the impossible old initial-lease fixture by staging
+HeroShip.request_berth_landing on its actual occupied home lease, starting the
+normal handoff and awaiting real physical completion/strict acceptance/lease/
+OFFLINE and current published landing facts. It does not write a dock latch or
+substitute logical reservation for physical docking. Actual ENet loss retires
+old body/grant/stream, same adapter API-joins the surviving host. Old runtime
+passes31 setup assertions, then fails only JOIN CABIN (1/32) in77.260343s, no
+ENet errors. The planned semantic RED is retained verbatim.
+
+Fixed runtime passes34 assertions in77.624629s, including one actual Interact,
+fresh authoritative body/seat/source identity and unchanged other pilot. Existing
+boarding baseline66 passes99.460806s, covering normal hatch/promotion/refusal/
+timeout/expiry. Independent passenger route passes104.469594s: host32/client24/
+coordinator70 checks, actual peer exits0 and no diagnostics, including ordinary
+chair/walk/stand/reseat/migration/disconnect behavior. Source/raw review GO; all14
+stage guards pass on exact clean pins, with no unexpected failure or unchanged
+retry. This is staged initial-hatch/assist-request plus APIjoin proof; original
+ordinary BOARD+7MOVING/forced airborne loss/normal browser Manual Join/actual
+pilot20s return/strict dock/physical fresh berth+later chair/renewed flight/three
+OS0 remains required under original300global/360outer/20join/8transition/15walk/
+24dock/8consumer/10abort-exit caps. No next implementation/trial selected.
+
+Clean paired exports and three strict startups pass exit0/sentinel1 (Windows
+embedded data under Linux Godot, Linux ELF, archive-extracted ELF). Identical1527
+path/size/hash payloads exclude tests/tools. Stock Windows .text, Linux archive
+ELF bytes/mode/source timestamp, ZIP EXE/notes byte identity and standalone prose
+notes verified; independent package review GO. Public EXE/ZIP/notes in
+builds/windows/, Linux archive in builds/linux/; ZIP SHA256
+`e6d82c7437842d6f4c52c8e5724e7e691896c17a701f9565cbbf7540715b5967`.
+No native Windows execution or mandatory human review performed: both remain
+owner-excluded/NOT_RUN. Applicable GPU/device/Linux/final gates stay open;
+all automation Dummy/headless/privateXvfb/x11, GitHub Actions disabled.
+
+Accepted code/test integrated into pushed main; no task branch/worktree created.
+Fourteen owners terminal and78 observed identities absent.452 verified owned
+entries consolidated and removed; six redundant loose Linux files removed after
+public archive identity, public playable artifacts retained, pre-existing refs/
+registrations untouched. Exact records in
+`/srv/mudds-work/halyard-passenger-reconnect-20261024/readmission/results/case-records.tar.gz`
+(40,681,270bytes; SHA256
+`3ff26ecd7738678ae06601832a2cd8309a2281ce656bb721d5afc6864c5bbdfa`), closeout.json alongside.
+New guarded511.813939s; new20.089786min and cumulative known50.050580min through
+cleanup. Earlier elapsed recovered from original archived task-card/closeout
+(14.139974min) and transport selection→verified push (15.820820min), not reset;
+new60min subcap keeps cumulative≤89.960795min under original90. Final push timing
+remains in closeout.337 IDs/36 parent outcomes/ten gates/17-craft scope unchanged.
