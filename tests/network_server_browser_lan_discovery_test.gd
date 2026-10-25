@@ -7,6 +7,7 @@ extends SceneTree
 
 const Discovery := preload("res://scripts/network/network_server_browser_lan_discovery.gd")
 const ServerBrowser := preload("res://scripts/network/network_server_browser.gd")
+const GameFlowType := preload("res://scripts/game/game_flow.gd")
 
 ## Off the production port so a running game on this machine cannot interfere.
 const TEST_DISCOVERY_PORT := 27192
@@ -21,6 +22,33 @@ class PauseHeartbeat extends Node:
 
 	func _process(_delta: float) -> void:
 		ticks += 1
+
+
+class ClockedDiscovery extends NetworkServerBrowserLanDiscovery:
+	var observation_usec := 0
+
+	func expire_stale(now_usec: int = -1) -> Array:
+		return super.expire_stale(observation_usec if now_usec < 0 else now_usec)
+
+
+class JoinProbe extends NetworkEnetSessionAdapter:
+	var create_calls := 0
+
+	func create_join_intent(session_id: StringName) -> Dictionary:
+		create_calls += 1
+		return super.create_join_intent(session_id)
+
+
+class BrowserHudProbe extends CanvasLayer:
+	var results: Array[Dictionary] = []
+	var feedback: Array[Dictionary] = []
+
+	func apply_server_browser_result(result: Dictionary) -> void:
+		results.append(result.duplicate(true))
+
+	func apply_server_browser_feedback(result: Dictionary) -> void:
+		feedback.append(result.duplicate(true))
+
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -96,6 +124,7 @@ func _run() -> void:
 	browser.queue_free()
 	await process_frame
 	_run_expiry_boundaries()
+	_run_expired_join_preflight()
 	await _run_paused_round_trip()
 	_finish()
 
@@ -154,6 +183,58 @@ func _expiry_announce(nonce: String, session_id: String) -> PackedByteArray:
 		"player_count": 1, "max_players": 4,
 		"protocol_version": 1, "build_version": 1,
 	}).to_utf8_buffer()
+
+
+## Invoke the actual GameFlow join handler at the exact expiry boundary before
+## any discovery poll. Only the clock observation is supplied by the fixture;
+## adapter publication, ownership fences, expiry signal and guard are real.
+func _run_expired_join_preflight() -> void:
+	var flow := GameFlowType.new()
+	var session := JoinProbe.new()
+	var browser := ClockedDiscovery.new()
+	var hud := BrowserHudProbe.new()
+	root.add_child(session)
+	flow.network_session = session
+	flow.hud = hud
+	flow._lan_discovery = browser
+	session.server_browser_result.connect(flow._on_server_browser_result)
+	browser.discovery_completed.connect(flow._on_lan_discovery_completed)
+	browser.listings_expired.connect(flow._on_lan_listings_expired)
+	browser.probe_targets = PackedStringArray()
+	browser.observation_usec = Time.get_ticks_usec()
+	var request_id := browser.begin_refresh(0.5)
+	browser._accept_reply(_expiry_announce(browser._probe_nonce, "lan_preflight"),
+		"127.0.0.1", browser.observation_usec)
+	browser._finish_refresh(request_id)
+	_check(flow._owns_lan_directory() and session.query_server_directory().size() == 1,
+		"join preflight fixture uses a genuinely published LAN-owned adapter directory")
+	var initial_role: StringName = flow._network_session_mode
+	var initial_retry_role: StringName = flow._network_session_retry_mode
+	var initial_address: String = flow._network_session_address
+	var initial_port: int = flow._network_session_port
+	var initial_sequence: int = session._next_join_intent_sequence
+	browser.observation_usec += Discovery.STALE_AFTER_USEC
+	flow._handle_server_browser_intent({"action": &"join", "session_id": &"lan_preflight"})
+	_check(session.create_calls == 0 and session._next_join_intent_sequence == initial_sequence,
+		"synchronous expired LAN join is refused before creating any join intent")
+	_check(session._peer == null and not session.is_session_active(),
+		"expired LAN join never creates a native peer or configures a connection")
+	_check(flow._network_session_mode == initial_role
+		and flow._network_session_retry_mode == initial_retry_role
+		and flow._network_session_address == initial_address
+		and flow._network_session_port == initial_port,
+		"expired LAN join preserves role, retry role and configured endpoint")
+	_check(session.query_server_directory().is_empty()
+		and browser.get_endpoint(&"lan_preflight").is_empty(),
+		"join preflight synchronously removes the expired directory record and endpoint")
+	_check(not hud.results.is_empty() and hud.results.back().get("status") == &"expired"
+		and hud.results.back().get("reason") == &"directory_expired"
+		and not hud.feedback.is_empty() and hud.feedback.back().get("status") == &"directory_expired",
+		"join preflight supplies the existing terminal expiry result and refresh feedback")
+	flow.free()
+	browser.free()
+	session.free()
+	hud.free()
 
 
 ## Exercise the production automatic clock, including both paused responder and
