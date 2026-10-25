@@ -29,6 +29,36 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Selected: HAULER-CARGO-DELIVERY — one complete conserved Hauler transfer.**
+Start526974058. Existing access/shared-stock/manifest/remote-reboard capabilities
+are retained. One implementer owns runner/tests/passive observer; root owns
+private startup/privacy/docs/checks/integration/cleanup. Reuse CinderSupplyPilot
+through constants/hooks and a small Hauler specialization; preserve Jovian behavior.
+
+Normal menu → supported ARM first12 walking points, then eastern apron
+[25.4,4.2,68.3]→[25.4,4.2,70.6]→[23,4.18,72.8]→[22.2,4.18,75.2]→
+[22.2,4.18,90]→[8.8,4.18,90] → actual Hauler pilot boarding/departure → live
+Cinder capture/strict Hauler contact → OFFLINE/actual pause supply Select+Start →
+load/clear_gate/redock → physical exit/existing10point Hauler terminal walk →
+real one-crate transfer/one durable payment/duplicate refusal → reverse walk/
+reboard/depart → strict original home/OFFLINE/physical exit/supported walk/UIOS0.
+Hauler home clearance uses its live capture then capture+worldUP60, reversed
+on return; this new route is unqualified. Actual Cinder lease/contact and live
+transformed accepted Hauler path replace Jovian-specific values only.
+
+Freeze CAP300/outer360, cargo120s, walking waypoint15s, boarding12s, landing120s,
+physical exit10s and transfer/duplicate8s. No geometry/tuning/inventory/phase/pose/
+provider/reward shortcuts or extra cold/repeat/crew requirements. Proof is focused
+existing Python/import/parser/privacy, clean private Linux export, strict startup,
+PCK inventory and one full Xvfb/x11/Dummy-audio OS-input route with source/raw review.
+Estimate10mapping+30implementation+25checks+15closure; hard90min includes mapping
+from previous closeout. First unexpected failure stops; a correction requires
+causal evidence and cumulative review. No new validator/schema/framework. Only
+accepted source is integrated/pushed; owned records/builds/processes are cleaned.
+Normal gameplay unchanged means public0d77125 stays current; actual runtime changes
+require a separately proved Windows checkpoint. Whole craft/cold/repeat/native/
+final acceptance remains open.
+
 **PARKED: PLAY-PATROL[platform_sweep] — final normal quit did not finish.**
 Candidate `ff3fbab08` passed focused checks and reached all five real platform
 holds, payment, strict home, shutdown, physical exit and supported walking.
