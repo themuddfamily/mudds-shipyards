@@ -24616,3 +24616,56 @@ remote task branch/worktree created. Godot uses Dummy audio/headless/private Xvf
 explicitx11, no desktop input or hosted CI. All337 canonical IDs/order/Done means,
 36 parents/ten phase gates/17craft scope remain. LAN stale expiry remains blocked
 on the pending user lifetime choice; no fallback clock policy invented.
+
+
+## Linux matching checkpoint accepted — 2026-10-25
+
+PACKAGE-LINUX checkpoint8cda303 delivery is accepted. Exact source
+8cda303af445cae5f09baf1f89b0b167bbc0c327 is already integrated into main and
+matches the existing accepted Windows checkpoint. The newest Linux archive9c736d7
+predated the accepted full passenger reconnect and native projectile-disconnect
+repair. This step ships those existing production changes for Linux, without new
+runtime code or a repeated Windows export. It does not close PACKAGE-FINAL.
+
+A clean detached source worktree uses the existing safe Linux exporter, pinned
+Godot4.7.1 and stock Linux template SHA256
+2cb27aee3f7fdf763d0ae16972f6975606959a071f4cd33f6ef1429eb8385049.
+Export passes34.240927s. Direct menu startup22.353s (supervised stage23.167769s)
+and actual archive-extracted startup22.470s (stage24.611926s) each exit0, print
+exactly one STARTUP_MENU_READY_OK and produce zero diagnostics. Existing900s
+export/300s startup limits retained; no retry or relaxed predicates. Fresh private
+XDG/TMP profiles, headless display and Dummy audio throughout; no desktop input,
+audible output or GitHub Actions. The export record intentionally keeps its own
+startup_check=NOT_RUN; the separate actual startup records prove these two runs.
+
+Existing package inventory and independent direct-offset byte review establish
+all1527 entry paths/sizes/flags/SHA256 match actual accepted Windows8c EXE. Tar
+inspection establishes exactly six standard entries, executable/manager/icon
+bytes, generated launchers/source tag, modes755 (icon644), uid/gid0 and commit
+mtime1792912139. Launcher bytes equal the accepted0d package after explicit
+basename/source substitution; exporter and managed installer sources are unchanged
+between0d and8c. Existing140 focused production assertions at exact8c source are
+retained without rerun. These checks do not establish a complete packaged ordinary
+multiplayer journey, installation transaction, physical device, native GPU,
+real audio, endurance or final release; all those gates retain their status.
+
+Public repository-local files:
+
+- builds/linux/MuddsShipyards-8cda303.x86_64:149025824bytes,
+  SHA2564bcf2dbf0a2f0cca7a7d0b3d9f661ec6221f4c5d99f6972c4e8fc334416643f7;
+- builds/linux/MuddsShipyards-8cda303-linux-x86_64.tar.gz:95434513bytes,
+  SHA256a20c4fc520c7d305dd096e4d28a72a8654c1ed398b38d68e08bb159bb8a2131b;
+- builds/linux/MuddsShipyards-8cda303-linux-notes.txt:2031bytes,
+  SHA256dc9f4dc8b1e6f581aec50eeddb2f755a482c67e883ddd4e4d0f821f121abad83.
+
+Public bytes/modes verified after copying. Build artifacts remain repository-local
+under the existing ignore policy; documentation/source changes are pushed to main.
+Independent reviewer runtime_selection_0838 GO. Three owners terminal/30 observed
+process identities absent, detached worktree removed, no task branch created.
+All86 remaining owned record/profile/helper entries verified against one archive
+before cleanup. Retained only
+/srv/mudds-work/linux-checkpoint-8cda303-20261025/results/case-records.tar.gz,
+6203298bytes/SHA25619b7dd4bc701f751584f1629bbca6b55e93bcf15b410207a6a2cc4e83938707b,
+and closeout.json. Same60min task cap from08:38:10.728882Z; cumulative3.548690min
+through archive08:41:43.650272Z, final push cost recorded in closeout. No changes
+to337 canonical IDs/order/Done means,36 parent outcomes,ten gates or17craft scope.

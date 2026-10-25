@@ -2,7 +2,8 @@
 
 **Playable alpha; full original scope remains unfinished.** Latest playable build:
 [8cda303 Windows checkpoint](builds/windows/MuddsShipyards-8cda303-checkpoint.zip)
-([changes and validation](builds/windows/MuddsShipyards-8cda303-notes.txt)).
+([changes and validation](builds/windows/MuddsShipyards-8cda303-notes.txt)). Matching [Linux checkpoint](builds/linux/MuddsShipyards-8cda303-linux-x86_64.tar.gz) is now available
+([Linux validation](builds/linux/MuddsShipyards-8cda303-linux-notes.txt)).
 Nine of the promised 17 craft exist. All 36 original parent outcomes and ten phase
 exit gates remain open; completed child results are retained, not counted as whole
 features. There is no evidence-backed project percentage or completion date.
@@ -55,13 +56,13 @@ not a project percentage inferred from rows, tests or commits.
 ### Small execution queue
 
 Only one implementation card may be active. Each row below is a bounded step
-within the existing goal, not a replacement for its full acceptance. The bounded disconnect/rejoin qualification is parked below. One package-delivery card is active. The complete named reconnect case is
+within the existing goal, not a replacement for its full acceptance. The bounded disconnect/rejoin qualification is parked below. No implementation card is active. The complete named reconnect case is
 accepted for its recorded Linux-source ordinary-input scope. Torpedo remains
 parked; broader multiplayer and final-candidate requirements remain separate.
 
 | Existing goal | Next bounded result | Proof / stop | State and owner |
 | --- | --- | --- | --- |
-| PACKAGE-LINUX[8cda303] | Deliver the missing Linux checkpoint for the already accepted Windows8c gameplay: executable, installable launcher archive and player notes | Exact clean8cda303 safe export; original900s export/300s each strict direct+archive menu startup; embedded payload parity, exact tar bytes/modes/metadata; no diagnostics and owned cleanup; first unexpected failure stops | ACTIVE — root packaging/integration, independent read-only review;60min total from08:38:10Z including selection/export/checks/closure, estimated5–15min export+10–20checks+10closure. Focused140 checks on exact runtime retained; full install/ordinary/native/final gates remain open |
+| PACKAGE-LINUX[8cda303] | Deliver the missing Linux checkpoint for the already accepted Windows8c gameplay: executable, installable launcher archive and player notes | Exact clean8cda303 safe export; original900s export/300s each strict direct+archive menu startup; embedded payload parity, exact tar bytes/modes/metadata; no diagnostics and owned cleanup; first unexpected failure stops | DONE — exact8cda303 Linux ELF/archive/notes delivered; direct22.353s/archive22.470s menu startups each exit0/sentinel1/zero diagnostics; all1527 actual payload entries match Windows; archive bytes/modes/metadata and independent review pass. Owned checkout/process/profile cleanup complete; full install/ordinary/native/final gates remain open |
 | BROWSER-DISCONNECT | Normal LAN join/connected walking → guest ordinary Disconnect/complete old authority retirement/solo walk while original host stays available → actual Refresh/fresh join/new matching admission tuple → same-Player connected walk → second normal Disconnect/host stop/usable return | Existing independent two-Main caller opt-in only; original300s outer/230s work/Main60s/UI5s/discovery10s/admission20s/handoffs20s/guest100s/host30s/cleanup10s,≥1m/5s walking+settle/12neutral ticks; immutable first and second receipts, both actual OS exits0/clean logs | PARKED / NOT ACCEPTED — candidate78d5432 archived unmerged. First86.091s run misused host-only helper; sole corrected87.609s run reached fresh authentication then failed integer-vs-JSON-float Player dictionary comparison. Post-rejoin identity was not retained; continuity and remaining journey unproven. Normalize identity/retain actual receipt, independent source GO and cumulative review before reopening; original75min from08:15:10Z unchanged; no automatic retry |
 | BROWSER-STALE | Real elapsed-time LAN freshness owner and stale selection preflight are missing | User must choose lifetime; abstract30ticks has no duration. No unchanged stopped-host/unreachable retry or invented clock mapping | WAITING — user lifetime answer; monotonic expiry continues through paused menus, runtime implementation/complete ordinary proof still required |
 | BROWSER-FULL | Genuine full host/occupant, disabled-row pointer refusal, real Refresh and same-Player usable solo return completed | 209 coordinator checks/125.781s; actual GUI press+release, zero activation/join/admission, fresh full directory1→2,1.002774m supported walk, host counts0→1→0, three actual OS exits0/zero diagnostics; original caps retained | DONE e39653cf in source InputEvent/LAN UI-refusal scope — independent review GO;18.696min through cleanup plus final push; package/device/native/endurance/capacity/final gates separate |

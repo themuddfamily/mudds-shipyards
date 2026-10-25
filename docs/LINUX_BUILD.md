@@ -4,7 +4,32 @@ Linux x86_64 is a supported desktop export target alongside Windows. This page
 covers how a Linux candidate is exported, packaged and startup-checked, and
 what has been validated so far.
 
-## Latest development checkpoint: `1cf1022` — 2026-10-18
+## Latest development checkpoint: `8cda303` — 2026-10-25
+
+The [Linux executable](../builds/linux/MuddsShipyards-8cda303.x86_64),
+[archive](../builds/linux/MuddsShipyards-8cda303-linux-x86_64.tar.gz) and
+[notes](../builds/linux/MuddsShipyards-8cda303-linux-notes.txt) use accepted clean
+source `8cda303af445cae5f09baf1f89b0b167bbc0c327`, matching the existing Windows
+checkpoint. This delivers its passenger reconnect and closed-native-recipient
+projectile repairs to the Linux package; no new gameplay change is introduced.
+
+Safe export passes with the pinned stock Linux template. All 1,527 actual embedded
+entry paths, sizes, flags and SHA-256 hashes match the accepted Windows executable.
+All six archive members have exact executable/launcher/installer/icon bytes,
+expected modes, root ownership metadata and source-commit timestamp. Direct startup
+22.353s and archive-extracted startup 22.470s each exit 0, print exactly one
+`STARTUP_MENU_READY_OK` and produce zero diagnostics. These are headless menu
+checks with Dummy audio and fresh private profiles, not performance qualification.
+Original 900s export and 300s startup limits remain unchanged. Existing focused
+140-assertion results at this exact production source are retained without rerun.
+
+Independent actual-byte/archive/log review passes. Only the executable, archive
+and notes remain public; disposable checkout, duplicate artifacts and private
+profiles are removed. [Delivery and cleanup](history/ROADMAP_DELIVERIES.md#linux-matching-checkpoint-accepted-20261025).
+Full packaged ordinary multiplayer journeys, installed transactions, physical
+devices, native GPU, real audio, endurance and final-release gates remain open.
+
+## Earlier development checkpoint: `1cf1022` — 2026-10-18
 
 The [ELF](../builds/linux/MuddsShipyards-1cf1022.x86_64),
 [archive](../builds/linux/MuddsShipyards-1cf1022-linux-x86_64.tar.gz) and
