@@ -534,6 +534,26 @@ func _live_cancel_coordinator() -> bool:
 func _live_cancel_guest(endpoint_port: int = 0) -> void:
 	if not await _live_button("IntroServerBrowserButton"):
 		return
+	if _live_cancel_rejoin:
+		# Opening the page only presents HUD controls. Ordinary Refresh creates
+		# the adapter through GameFlow's server-browser intent boundary.
+		if not await _live_button("ServerBrowserRefreshButton"):
+			return
+		_check(is_instance_valid(_live_game.network_session), "ordinary browser Refresh creates the real session adapter before observation")
+		if not _failures.is_empty():
+			return
+		_live_game.network_session.peer_admitted.connect(func(_peer_id: int, _receipt: Dictionary):
+			_live_cancel_observation.fresh_admissions = int(_live_cancel_observation.fresh_admissions) + 1
+			_check(_live_cancel_fresh_requested, "no cancelled request admits before fresh live-row activation"))
+		_live_start_full_guard(func():
+			if _live_player_identity() != _live_cancel_observation.player:
+				return false
+			for old: ENetMultiplayerPeer in _live_cancelled_native_peers:
+				if old.get_connection_status() != MultiplayerPeer.CONNECTION_DISCONNECTED or _live_game.network_session.get("_peer") == old:
+					return false
+			var session := _live_game.network_session
+			return _live_cancel_fresh_requested or (session.get_admitted_peer_ids().is_empty() and session.get_server_offer().is_empty()),
+			"cancelled native peers stay closed and original Player survives fresh join and leave")
 	var hud := _live_game.hud as GameHUD
 	var address := hud.get("_server_browser_address") as LineEdit
 	var port := hud.get("_server_browser_port") as LineEdit
@@ -626,18 +646,6 @@ func _live_cancel_retirement(native: ENetMultiplayerPeer) -> Dictionary:
 
 func _live_cancel_then_join() -> void:
 	_live_cancel_observation = {"player": _live_player_identity(), "retired": [], "old_native_ids": [], "fresh_admissions": 0}
-	_live_game.network_session.peer_admitted.connect(func(_peer_id: int, _receipt: Dictionary):
-		_live_cancel_observation.fresh_admissions = int(_live_cancel_observation.fresh_admissions) + 1
-		_check(_live_cancel_fresh_requested, "no cancelled request admits before fresh live-row activation"))
-	_live_start_full_guard(func():
-		if _live_player_identity() != _live_cancel_observation.player:
-			return false
-		for old: ENetMultiplayerPeer in _live_cancelled_native_peers:
-			if old.get_connection_status() != MultiplayerPeer.CONNECTION_DISCONNECTED or _live_game.network_session.get("_peer") == old:
-				return false
-		var session := _live_game.network_session
-		return _live_cancel_fresh_requested or (session.get_admitted_peer_ids().is_empty() and session.get_server_offer().is_empty()),
-		"cancelled native peers stay closed and original Player survives fresh join and leave")
 	var endpoint_port := int(_live_read("cancel_endpoint.ready").get("port", 0))
 	_check(endpoint_port > 0 and endpoint_port != _live_port, "pending fixture is separate from the actual live Main host port")
 	if not _failures.is_empty():
