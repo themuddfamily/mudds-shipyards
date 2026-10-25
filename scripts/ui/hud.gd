@@ -608,6 +608,10 @@ var _enemy_status_label: Label
 var _damage_flash: ColorRect
 var _damage_direction: Label
 var _damage_tween: Tween
+var _damage_cue_duration := 0.0
+## A converted cue keeps its one existing hold even if the preference is toggled
+## off and on again. Only a new hit starts a new lifetime.
+var _damage_cue_holding := false
 var _toast_panel: PanelContainer
 var _toast_title: Label
 var _toast_detail: Label
@@ -2685,6 +2689,7 @@ func flash_damage(intensity: float = 1.0, direction: Vector2 = Vector2.ZERO) -> 
 	var strength := clampf(intensity, 0.2, 1.0)
 	if is_instance_valid(_damage_tween):
 		_damage_tween.kill()
+	_damage_tween = null
 	_damage_flash.color = Color(0.95, 0.08, 0.035, get_damage_flash_alpha() * strength)
 	_damage_flash.modulate = Color.WHITE
 	var normalized_direction := direction.normalized() if not direction.is_zero_approx() else Vector2.UP
@@ -2702,25 +2707,41 @@ func flash_damage(intensity: float = 1.0, direction: Vector2 = Vector2.ZERO) -> 
 	_damage_direction.rotation = normalized_direction.angle() + PI * 0.5
 	_damage_direction.modulate = Color(1.0, 1.0, 1.0, strength)
 	_damage_direction.visible = true
-	_damage_tween = create_tween()
 	if _reduced_motion:
-		# Reduced motion keeps the direction of the hit legible but removes the
-		# animated full-screen luminance sweep: the cue simply holds, then clears.
-		_damage_tween.tween_interval(REDUCED_MOTION_HOLD_SECONDS)
-		_damage_tween.tween_callback(func() -> void:
-			_damage_flash.modulate = Color.TRANSPARENT
-			_damage_direction.modulate = Color.TRANSPARENT
-			_damage_direction.visible = false
-			_damage_tween = null
-		)
+		_hold_damage_cue(REDUCED_MOTION_HOLD_SECONDS)
 		return
+	_damage_cue_holding = false
+	_damage_cue_duration = DAMAGE_DIRECTION_FADE_SECONDS
+	_damage_tween = create_tween()
 	_damage_tween.set_parallel(true)
 	_damage_tween.tween_property(_damage_flash, "modulate", Color.TRANSPARENT, DAMAGE_FLASH_FADE_SECONDS)
 	_damage_tween.tween_property(_damage_direction, "modulate", Color.TRANSPARENT, DAMAGE_DIRECTION_FADE_SECONDS)
-	_damage_tween.chain().tween_callback(func() -> void:
-		_damage_direction.visible = false
-		_damage_tween = null
-	)
+	_damage_tween.chain().tween_callback(_clear_damage_cue)
+
+
+func _clear_damage_cue() -> void:
+	_damage_flash.modulate = Color.TRANSPARENT
+	_damage_direction.modulate = Color.TRANSPARENT
+	_damage_direction.visible = false
+	_damage_tween = null
+	_damage_cue_duration = 0.0
+	_damage_cue_holding = false
+
+
+func _hold_damage_cue(seconds: float) -> void:
+	if is_instance_valid(_damage_tween):
+		_damage_tween.kill()
+	_damage_tween = null
+	_damage_cue_duration = seconds
+	_damage_cue_holding = true
+	if seconds <= 0.0:
+		_clear_damage_cue()
+		return
+	# Keep the current flash modulation and directional information unchanged.
+	# There is no luminance/opacity animation during this bounded hold.
+	_damage_tween = create_tween()
+	_damage_tween.tween_interval(seconds)
+	_damage_tween.tween_callback(_clear_damage_cue)
 
 
 ## An `important` toast (a reward receipt or failure the player must read) holds
@@ -3773,6 +3794,17 @@ func get_effective_ui_scale() -> float:
 
 func set_reduced_motion(enabled: bool) -> void:
 	_reduced_motion = enabled
+	if not enabled or _damage_cue_holding or not is_instance_valid(_damage_tween) \
+			or not _damage_tween.is_valid() or not _damage_direction.visible:
+		return
+	var remaining := maxf(0.0, _damage_cue_duration - _damage_tween.get_total_elapsed_time())
+	# Preserve the current modulation, including an already-faded flash. Lowering
+	# only its colour alpha cannot brighten it or restart either animated fade.
+	var colour := _damage_flash.color
+	if _damage_flash.modulate.a > 0.0:
+		colour.a = minf(colour.a, REDUCED_DAMAGE_FLASH_ALPHA / _damage_flash.modulate.a)
+	_damage_flash.color = colour
+	_hold_damage_cue(minf(REDUCED_MOTION_HOLD_SECONDS, remaining))
 
 
 func set_reduced_flash(enabled: bool) -> void:
