@@ -151,9 +151,18 @@ retained, with no automatic retry or reset. This does not qualify ordinary
 Perimeter Hold or close terminal-write recovery.
 [Exact stopped goal, results and cleanup](docs/history/ROADMAP_DELIVERIES.md#combat-terminal-posting-persistence-stop-20261025).
 
-No implementation card is active. COMFORT-MOTION's active damage and current
-notification episodes stay accepted within their recorded scopes. Missing craft
-remain gated on their named specification decisions.
+**Active: finish terminal-posting persistence integration.** Restore exactly the
+archived board/test candidate; preserve the frozen actual-file/distinct-reader
+result, pending-save launch fence, completion/debt/ledger/foreign fields and
+no-credit/schema scope. One complete focused sequence, clean paired exports,
+strict startups/audit, independent review, integration/push and cleanup must pass.
+A timestamp-only baseline diagnostic localizes the private 90s owed timeout to
+fresh Main startup before boarding; the canonical runner already allows 300s.
+Use that existing owed limit, with assertions unchanged. Both earlier failures
+and the diagnostic stay retained. Original 17:58Z→18:58Z total clock is unchanged;
+the first further unexpected failure stops, with no automatic retry. Ordinary
+Hold and all wider native/device/final gates remain open. Missing craft remain
+gated on their named specification decisions.
 
 The Torrent destruction/recovery attempt remains **PARKED / not accepted**.
 A reviewed resolver correction accounted for all100 actual damage, including

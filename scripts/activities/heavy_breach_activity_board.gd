@@ -71,6 +71,9 @@ var _highest_reward_generation := 0
 ## store could not commit). The credit stays owed and is retried on the next
 ## board interaction; the adapter's generation fence prevents a double grant.
 var _pending_reward_request: Dictionary = {}
+## A terminal posting save is independent of earned reward debt.
+var _pending_posting_save: Dictionary = {}
+var _last_posting_result: Dictionary = {}
 var _session_store: RefCounted
 var _session_refused := false
 var _reward_generation_floor := 0
@@ -293,7 +296,7 @@ static func _valid_generation(value: Variant) -> bool:
 
 
 func load_session() -> Dictionary:
-	if _session_store == null or _active_director_generation > 0 or not _pending_reward_request.is_empty():
+	if _session_store == null or _active_director_generation > 0 or not _pending_reward_request.is_empty() or not _pending_posting_save.is_empty():
 		return _result(false, &"session_load_unavailable")
 	var loaded: Dictionary = _session_store.call("load")
 	if not loaded.get("accepted", false):
@@ -369,6 +372,71 @@ func _persist_earned_request(request: Dictionary) -> Dictionary:
 		"heavy-breach-terminal-%d" % (int(_session_store.call("get_generation")) + 1))
 
 
+func _queue_posting_save(previous_index: int) -> void:
+	if _session_store == null:
+		return
+	# Capture the last accepted owned slot before loading any external changes.
+	var cached: Dictionary = _session_store.call("get_snapshot")
+	var present := cached.has(SESSION_SLOT)
+	var value: Variant = cached.get(SESSION_SLOT, {})
+	_pending_posting_save = {"expected_present": present, "expected": value, "desired": {}}
+	if present and not validate_session_record(value):
+		_session_refused = true
+		_last_posting_result = {"accepted": false, "reason": &"unsupported_session_retained"}
+		return
+	var previous: Dictionary = (value as Dictionary).duplicate(true)
+	_pending_posting_save.expected = previous
+	if (present and int(previous.session.offered_index) != previous_index) \
+			or (not present and previous_index != 0):
+		_last_posting_result = {"accepted": false, "reason": &"posting_identity_mismatch"}
+		return
+	var desired := previous.duplicate(true) if present else {
+		"schema_version": NearbySectorActivityPersistenceBinding.SCHEMA_VERSION,
+		"payload_kind": SESSION_KIND, "slot_id": SESSION_SLOT,
+		"session": {"component_id": String(COMPONENT_ID), "generation_floor": _reward_generation_floor,
+			"offered_index": previous_index, "completion": {}}}
+	desired.session.offered_index = _offered_index
+	_pending_posting_save.desired = JSON.parse_string(JSON.stringify(desired))
+	_retry_posting_save()
+
+
+func _retry_posting_save() -> void:
+	if _pending_posting_save.is_empty() or _session_store == null or _session_refused:
+		return
+	if (_pending_posting_save.desired as Dictionary).is_empty():
+		return
+	var loaded: Dictionary = _session_store.call("load")
+	if not loaded.get("accepted", false):
+		_last_posting_result = loaded
+		return
+	if _session_store.call("get_loaded_source") == &"backup":
+		_session_refused = true
+		_last_posting_result = {"accepted": false, "reason": &"session_store_recovery_required"}
+		return
+	var document: Dictionary = _session_store.call("get_snapshot")
+	var present := document.has(SESSION_SLOT)
+	var actual: Variant = document.get(SESSION_SLOT, {})
+	if present and not validate_session_record(actual):
+		_session_refused = true
+		_last_posting_result = {"accepted": false, "reason": &"unsupported_session_retained"}
+		return
+	if present and actual == _pending_posting_save.desired:
+		# Publication can succeed even when its durability acknowledgement fails.
+		_pending_posting_save.clear()
+		_last_posting_result = {"accepted": true, "reason": &"published_posting_retained"}
+		_refresh_board_label()
+		return
+	if present != bool(_pending_posting_save.expected_present) or actual != _pending_posting_save.expected:
+		_last_posting_result = {"accepted": false, "reason": &"posting_identity_mismatch"}
+		return
+	document[SESSION_SLOT] = (_pending_posting_save.desired as Dictionary).duplicate(true)
+	_last_posting_result = _session_store.call("commit", document, int(_session_store.call("get_generation")),
+		"heavy-breach-posting-%d" % (int(_session_store.call("get_generation")) + 1))
+	if bool(_last_posting_result.get("accepted", false)):
+		_pending_posting_save.clear()
+	_refresh_board_label()
+
+
 func get_generation() -> int:
 	return _generation
 
@@ -380,6 +448,8 @@ func get_generation() -> int:
 func get_interaction_prompt() -> String:
 	if _session_refused:
 		return "SAVE RECOVERY REQUIRED"
+	if not _pending_posting_save.is_empty():
+		return "[ E ]  POSTING SAVE PENDING — INTERACT TO RETRY"
 	if not _pending_reward_request.is_empty():
 		return "[ E ]  REWARD SAVE PENDING — INTERACT TO RETRY"
 	if _board_scenario_is_running():
@@ -442,6 +512,11 @@ func arm_sortie(actor: Node, expected_generation: int = 0) -> Dictionary:
 		_last_result = gate.duplicate(true)
 		interaction_resolved.emit(actor, _last_result.duplicate(true))
 		return _last_result.duplicate(true)
+	_retry_posting_save()
+	if not _pending_posting_save.is_empty():
+		_last_result = _result(false, &"posting_save_pending")
+		interaction_resolved.emit(actor, _last_result.duplicate(true))
+		return _last_result.duplicate(true)
 	_retry_pending_reward()
 	if _session_refused or (_session_store != null and not _pending_reward_request.is_empty()):
 		_last_result = _result(false, &"earned_reward_pending")
@@ -485,6 +560,8 @@ func arm_sortie(actor: Node, expected_generation: int = 0) -> Dictionary:
 ## generation and the caller-owned live flight target. A rejected launch keeps
 ## the arm so a transient departure-ordering issue can be retried safely.
 func launch_armed_sortie(target: Node3D, expected_sortie_generation: int) -> Dictionary:
+	if not _pending_posting_save.is_empty():
+		return _result(false, &"posting_save_pending")
 	if expected_sortie_generation != _sortie_generation:
 		return _result(false, &"stale_sortie_generation")
 	if not _sortie_armed:
@@ -536,6 +613,11 @@ func interact(actor: Node = null, expected_generation: int = 0) -> bool:
 	var gate := get_interaction_snapshot(actor, expected_generation)
 	if not bool(gate.get("available", false)):
 		_last_result = gate.duplicate(true)
+		interaction_resolved.emit(actor, _last_result.duplicate(true))
+		return false
+	_retry_posting_save()
+	if not _pending_posting_save.is_empty():
+		_last_result = _result(false, &"posting_save_pending")
 		interaction_resolved.emit(actor, _last_result.duplicate(true))
 		return false
 	_retry_pending_reward()
@@ -637,6 +719,8 @@ func get_snapshot() -> Dictionary:
 		"director": director_snapshot.duplicate(true),
 		"last_result": _last_result.duplicate(true),
 		"reward_handoff": get_reward_handoff_snapshot(),
+		"posting_save_pending": not _pending_posting_save.is_empty(),
+		"posting_save_result": _last_posting_result.duplicate(true),
 		"authority": {
 			"board_admission": true,
 			"combat": false,
@@ -672,6 +756,7 @@ func _on_scenario_concluded(scenario_id: StringName, outcome: StringName) -> voi
 	var generation := maxi(_active_director_generation, _reward_generation_floor + 1)
 	if _audio_binding != null:
 		_audio_binding.present_terminal(scenario_id, outcome, _active_director_generation)
+	var previous_index := _offered_index
 	_offered_index = posmod(_offered_index + 1, OFFERED_SCENARIOS.size())
 	if outcome == EncounterScenarioDirector.OUTCOME_CLEARED \
 			and scenario_id in [EncounterScenarioDirector.SCENARIO_HEAVY_BREACH, EncounterScenarioDirector.SCENARIO_TORPEDO_RUN] \
@@ -689,6 +774,8 @@ func _on_scenario_concluded(scenario_id: StringName, outcome: StringName) -> voi
 		}.duplicate(true)
 		_reward_generation_floor = generation
 		_submit_reward_request(request)
+	if not (outcome == EncounterScenarioDirector.OUTCOME_CLEARED and scenario_id in [EncounterScenarioDirector.SCENARIO_HEAVY_BREACH, EncounterScenarioDirector.SCENARIO_TORPEDO_RUN]):
+		_queue_posting_save(previous_index)
 	_active_director_generation = 0
 	_active_scenario_id = &""
 	# Post the next contract. Any concluded sortie rotates, so a failed run
@@ -793,6 +880,9 @@ func _refresh_board_label() -> void:
 		return
 	if _session_refused:
 		label.text = "%s\nSAVE RECOVERY REQUIRED" % LABEL_BASE_TEXT
+		return
+	if not _pending_posting_save.is_empty():
+		label.text = "%s\nPOSTING SAVE PENDING\nINTERACT TO RETRY" % LABEL_BASE_TEXT
 		return
 	if not _pending_reward_request.is_empty():
 		label.text = "%s\nREWARD SAVE PENDING\nINTERACT TO RETRY" % LABEL_BASE_TEXT

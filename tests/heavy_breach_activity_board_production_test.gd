@@ -61,6 +61,16 @@ class MemoryFilesystem extends UserDataFilesystem:
 		return OK
 
 
+class PostingFilesystem extends MemoryFilesystem:
+	var refuse_published_posting_once := false
+
+	func sync_directory(path: String) -> Error:
+		if refuse_published_posting_once and files.has(path):
+			refuse_published_posting_once = false
+			return ERR_CANT_CREATE
+		return super.sync_directory(path)
+
+
 var _recovery_filesystem: MemoryFilesystem
 var _recovery_store: UserDataStore
 var _recovery_authority: GameFlowRewardAuthority
@@ -77,6 +87,15 @@ func _init() -> void:
 
 
 func _run() -> void:
+	var args := OS.get_cmdline_user_args()
+	var reader_index := args.find("--posting-reader")
+	if reader_index >= 0:
+		_posting_reader(args[reader_index + 1], args[reader_index + 2])
+		return
+	await _test_terminal_posting_disk()
+	if args.has("--posting-regression"):
+		_finish()
+		return
 	var host := Node3D.new()
 	host.name = "HeavyBreachProductionRoot"
 	root.add_child(host)
@@ -420,12 +439,298 @@ func _run() -> void:
 	_check(hold_again and director.get_outcome() == EncounterScenarioDirector.OUTCOME_CLEARED
 		and _reward_requests.size() == 3 and board.get_reward_handoff_snapshot().pending_reward_generation == 0,
 		"clearing Hold never falls back to Breach credit or creates terminal reward debt")
+	await _test_posting_save_guards(_recovery_store.get_snapshot())
 	await _test_legacy_paid_floor(host)
 	_test_refused_documents(host)
 	host.queue_free()
 	for _frame in 8:
 		await process_frame
 	_finish()
+
+
+## Component/staged-actor persistence proof, not an ordinary-input sortie.
+## All offer changes come from encounters this board actually admitted.
+func _test_terminal_posting_disk() -> void:
+	var path := OS.get_temp_dir().path_join("mudds-posting-%d-%d.json" % [OS.get_process_id(), Time.get_ticks_usec()])
+	var store := UserDataStore.new(path)
+	_check(store.load().accepted and store.commit({"settings": {"ui_scale": 1.2}}, 0, "posting-protected-settings").accepted,
+		"posting regression creates an isolated actual file with protected settings")
+	var owner := GameFlowRewardAuthority.new()
+	_check(owner.configure(store).accepted, "posting regression uses the production reward authority")
+	var host := Node3D.new()
+	host.name = "TerminalPostingFixture"
+	root.add_child(host)
+	var authority := LiveCombatAuthority.new()
+	authority.name = "CombatAuthority"
+	host.add_child(authority)
+	var activity := ActivityDirector.new()
+	activity.name = "ActivityDirector"
+	host.add_child(activity)
+	var director := EncounterScenarioDirector.new()
+	director.name = "EncounterScenarios"
+	director.encounter_host_path = NodePath("..")
+	director.hud_path = NodePath("../MissingHud")
+	host.add_child(director)
+	var coordinator := WingCoordinator.new()
+	coordinator.name = "WingCoordinator"
+	director.add_child(coordinator)
+	var actors: Array[Node3D] = []
+	for scene: PackedScene in [PICKET_SCENE, SKIRMISHER_SCENE, SKIRMISHER_SCENE, TORPEDO_BOAT_SCENE]:
+		var craft := scene.instantiate() as Node3D
+		craft.name = ["StandoffPicket", "WingSkirmisherLead", "WingSkirmisherWing", "TorpedoBoat"][actors.size()]
+		if actors.size() == 2:
+			craft.set("source_id", 2104)
+		_wire(craft)
+		host.add_child(craft)
+		actors.append(craft)
+	var objective := Node3D.new()
+	objective.name = "HeavyBreachProtectedObjective"
+	host.add_child(objective)
+	var target := Node3D.new()
+	host.add_child(target)
+	var board := HeavyBreachActivityBoard.new()
+	host.add_child(board)
+	board.configure_external_owners(objective, director, authority)
+	board.configure_reward_handoff(owner.commit)
+	board.configure_session_persistence(store)
+	_check(board.load_session().accepted, "posting writer loads the initially absent owned slot")
+	await process_frame
+	await physics_frame
+	(actors[0] as StandoffPicketOpponent).set("_siege_lance_audio_binding", null)
+	target.global_position = board.global_position + Vector3(1.5, 0.0, 0.0)
+	_check(board.interact(target, board.get_generation()) and director.is_running(),
+		"posting writer admits a genuine initial Heavy encounter")
+	director.abort(EncounterScenarioDirector.OUTCOME_ABORTED)
+	_check(director.is_concluded() and board.get_offered_scenario() == EncounterScenarioDirector.SCENARIO_TORPEDO_RUN,
+		"authentic failed Heavy posts Torpedo in the live board")
+	var expected := {"settings": {"ui_scale": 1.2}, "heavy_breach_session": {
+		"schema_version": NearbySectorActivityPersistenceBinding.SCHEMA_VERSION,
+		"payload_kind": HeavyBreachActivityBoard.SESSION_KIND, "slot_id": HeavyBreachActivityBoard.SESSION_SLOT,
+		"session": {"component_id": String(HeavyBreachActivityBoard.COMPONENT_ID),
+			"generation_floor": 0, "offered_index": 1, "completion": {}}}}
+	await _read_posting_process(path, "torpedo_run", expected,
+		"a distinct reader restores the failed-Heavy next posting without inventing completion or credit")
+	_check(board.interact(target, board.get_generation()) and director.get_active_scenario() == EncounterScenarioDirector.SCENARIO_TORPEDO_RUN,
+		"the same writer genuinely admits its next Torpedo encounter")
+	var boat := actors[3] as TorpedoBoatOpponent
+	boat.apply_damage(boat.maximum_health, boat.global_position)
+	for _frame in 8:
+		await physics_frame
+		await process_frame
+	store.load()
+	var paid := store.get_snapshot()
+	_check(director.get_outcome() == EncounterScenarioDirector.OUTCOME_CLEARED
+		and paid.has("heavy_breach_session") and paid.heavy_breach_session.session.completion.reward_granted
+		and int(paid.game_flow_reward_store.total_receipts) == 1,
+		"the actual Torpedo kill produces one genuine paid completion before Wing")
+	_check(board.interact(target, board.get_generation()) and director.get_active_scenario() == EncounterScenarioDirector.SCENARIO_PAIRED_WING,
+		"the same board admits actual Wing rather than assigning an offer index")
+	director.abort(EncounterScenarioDirector.OUTCOME_WITHDRAWN)
+	_check(board.get_offered_scenario() == EncounterScenarioDirector.SCENARIO_PERIMETER_HOLD,
+		"the admitted Wing conclusion posts Hold in RAM")
+	expected = paid.duplicate(true)
+	expected.heavy_breach_session.session.offered_index = 3
+	await _read_posting_process(path, "perimeter_hold", expected,
+		"a distinct reader restores Hold and preserves the exact paid completion, floor, ledger and protected payload")
+	host.queue_free()
+	await process_frame
+	for suffix: String in ["", ".bak", ".bak.1", ".bak.2", ".bak.3", ".tmp", ".reader.json"]:
+		if FileAccess.file_exists(path + suffix):
+			DirAccess.remove_absolute(path + suffix)
+
+
+func _read_posting_process(path: String, posting: String, expected: Dictionary, description: String) -> void:
+	var report_path := path + ".reader.json"
+	if FileAccess.file_exists(report_path):
+		DirAccess.remove_absolute(report_path)
+	var args := PackedStringArray(["--headless", "--audio-driver", "Dummy", "--path", ProjectSettings.globalize_path("res://"),
+		"--script", "res://tests/heavy_breach_activity_board_production_test.gd", "--", "--posting-reader", path, report_path])
+	var child := OS.execute_with_pipe(OS.get_executable_path(), args, false)
+	var pid := int(child.get("pid", -1))
+	_check(pid > 0 and pid != OS.get_process_id(), "posting reader launches in a distinct process")
+	if pid <= 0:
+		return
+	# Reuse the existing real-file child-process timeout from the activity suite.
+	var deadline := Time.get_ticks_msec() + 70000
+	var transcript := ""
+	while OS.is_process_running(pid) and Time.get_ticks_msec() < deadline:
+		transcript += (child.stdio as FileAccess).get_buffer(65536).get_string_from_utf8()
+		transcript += (child.stderr as FileAccess).get_buffer(65536).get_string_from_utf8()
+		await process_frame
+	var timed_out := OS.is_process_running(pid)
+	if timed_out:
+		OS.kill(pid)
+		var reap_deadline := Time.get_ticks_msec() + 2000
+		while OS.is_process_running(pid) and Time.get_ticks_msec() < reap_deadline:
+			await process_frame
+	transcript += (child.stdio as FileAccess).get_buffer(65536).get_string_from_utf8()
+	transcript += (child.stderr as FileAccess).get_buffer(65536).get_string_from_utf8()
+	(child.stdio as FileAccess).close()
+	(child.stderr as FileAccess).close()
+	print(transcript)
+	_check(not timed_out and OS.get_process_exit_code(pid) == 0 and FileAccess.file_exists(report_path),
+		"posting reader finishes and writes its production load result")
+	if not FileAccess.file_exists(report_path):
+		return
+	var report: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(report_path))
+	_check(report.loaded and int(report.pid) == pid and report.posting == posting
+		and report.payload == JSON.parse_string(JSON.stringify(expected)) and int(report.pending_reward) == 0, description)
+
+
+func _posting_reader(path: String, report_path: String) -> void:
+	var store := UserDataStore.new(path)
+	var board := HeavyBreachActivityBoard.new()
+	root.add_child(board)
+	board.configure_session_persistence(store)
+	var loaded := board.load_session()
+	var report := {"loaded": bool(loaded.accepted), "pid": OS.get_process_id(),
+		"posting": String(board.get_offered_scenario()), "payload": store.get_snapshot(),
+		"pending_reward": board.get_reward_handoff_snapshot().pending_reward_generation}
+	var file := FileAccess.open(report_path, FileAccess.WRITE)
+	if file == null:
+		quit(2)
+		return
+	file.store_string(JSON.stringify(report))
+	file.close()
+	board.queue_free()
+	quit(0)
+
+
+## Focused transaction guards use owned-record fixtures; the cold regression
+## above supplies the genuine encounter/paid-completion production proof.
+func _test_posting_save_guards(genuine_paid: Dictionary) -> void:
+	var paid := genuine_paid.duplicate(true)
+	paid.heavy_breach_session.session.offered_index = 0
+	var unpaid := paid.duplicate(true)
+	unpaid.heavy_breach_session.session.completion.reward_granted = false
+	for payload: Dictionary in [{"settings": {"ui_scale": 1.2}}, paid, unpaid]:
+		var fs := PostingFilesystem.new()
+		var store := UserDataStore.new("memory://posting-guards.json", fs)
+		store.load()
+		store.commit(payload, 0, "guard-initial")
+		var board := HeavyBreachActivityBoard.new()
+		root.add_child(board)
+		board.configure_session_persistence(store)
+		board.load_session()
+		var guard_director := EncounterScenarioDirector.new()
+		board.add_child(guard_director)
+		var guard_objective := Node3D.new()
+		board.add_child(guard_objective)
+		var guard_authority := LiveCombatAuthority.new()
+		board.add_child(guard_authority)
+		var guard_actor := Node3D.new()
+		board.add_child(guard_actor)
+		board.configure_external_owners(guard_objective, guard_director, guard_authority)
+		var original := store.get_snapshot()
+		board.set("_offered_index", 1)
+		fs.reject_writes = true
+		board.call(&"_queue_posting_save", 0)
+		var reward_before := board.get_reward_handoff_snapshot()
+		_check(board.get_snapshot().posting_save_pending and board.get_offered_scenario() == &"torpedo_run"
+			and "POSTING SAVE PENDING" in board.get_interaction_prompt()
+			and store.get_snapshot() == original and not board.load_session().accepted
+			and board.launch_armed_sortie(null, 0).reason == &"posting_save_pending",
+			"refused posting retains RAM offer and blocks load/launch without overwriting accepted data")
+		_check(board.arm_sortie(guard_actor, board.get_generation()).reason == &"posting_save_pending"
+			and not board.interact(guard_actor, board.get_generation())
+			and board.get_last_result().reason == &"posting_save_pending" and not board.is_sortie_armed(),
+			"both real board admission APIs retry and refuse while posting publication remains unavailable")
+		fs.reject_writes = false
+		# An unrelated accepted update must merge without invalidating the owned slot fence.
+		var other := UserDataStore.new("memory://posting-guards.json", fs)
+		other.load()
+		var merged := other.get_snapshot()
+		merged.settings = {"ui_scale": 1.3}
+		other.commit(merged, other.get_generation(), "guard-unrelated")
+		board.call(&"_retry_posting_save")
+		var saved := store.get_snapshot()
+		_check(not board.get_snapshot().posting_save_pending and saved.settings.ui_scale == 1.3
+			and int(saved.heavy_breach_session.session.offered_index) == 1
+			and board.get_reward_handoff_snapshot().pending_reward_generation == reward_before.pending_reward_generation,
+			"posting retry merges unrelated data and never creates or consumes reward debt")
+		if original.has("heavy_breach_session"):
+			_check(saved.heavy_breach_session.session.completion == original.heavy_breach_session.session.completion
+				and saved.heavy_breach_session.session.generation_floor == original.heavy_breach_session.session.generation_floor
+				and saved.get("game_flow_reward_store") == original.get("game_flow_reward_store"),
+				"paid and unpaid completion/floor/receipt bytes survive a posting-only commit unchanged")
+		# Next transition publishes but reports a failed durability acknowledgement.
+		board.set("_offered_index", 2)
+		fs.refuse_published_posting_once = true
+		board.call(&"_queue_posting_save", 1)
+		_check(board.get_snapshot().posting_save_pending, "published-but-refused posting stays pending until a fresh read")
+		var published := UserDataStore.new("memory://posting-guards.json", fs)
+		published.load()
+		var published_generation := published.get_generation()
+		board.call(&"_retry_posting_save")
+		_check(not board.get_snapshot().posting_save_pending and store.get_generation() == published_generation
+			and int(store.get_snapshot().heavy_breach_session.session.offered_index) == 2,
+			"exact published posting reconciles without a second commit or rotation")
+		board.queue_free()
+		await process_frame
+
+	# A changed owned record, unlike unrelated settings, must never be overwritten.
+	for changed: String in ["posting", "floor", "unsupported", "backup", "newer"]:
+		var fs := PostingFilesystem.new()
+		var store := UserDataStore.new("memory://posting-fence.json", fs)
+		store.load()
+		store.commit(paid, 0, "fence-initial")
+		var board := HeavyBreachActivityBoard.new()
+		root.add_child(board)
+		board.configure_session_persistence(store)
+		board.load_session()
+		board.set("_offered_index", 1)
+		fs.reject_writes = true
+		board.call(&"_queue_posting_save", 0)
+		fs.reject_writes = false
+		var other := UserDataStore.new("memory://posting-fence.json", fs)
+		other.load()
+		var altered := other.get_snapshot()
+		if changed == "posting":
+			altered.heavy_breach_session.session.offered_index = 3
+		elif changed == "floor":
+			altered.heavy_breach_session.session.generation_floor += 1
+			altered.heavy_breach_session.session.completion.generation += 1
+		elif changed == "unsupported":
+			altered.heavy_breach_session.schema_version = 999
+		other.commit(altered, other.get_generation(), "fence-external")
+		if changed == "backup":
+			fs.files["memory://posting-fence.json"] = "invalid-primary".to_utf8_buffer()
+		elif changed == "newer":
+			var envelope: Dictionary = JSON.parse_string((fs.files["memory://posting-fence.json"] as PackedByteArray).get_string_from_utf8())
+			envelope.schema_version = 999
+			fs.files["memory://posting-fence.json"] = JSON.stringify(envelope).to_utf8_buffer()
+		var before := fs.files.duplicate(true)
+		board.call(&"_retry_posting_save")
+		_check(board.get_snapshot().posting_save_pending and board.get_offered_scenario() == &"torpedo_run"
+			and (fs.files.get("memory://posting-fence.json.bak") == before.get("memory://posting-fence.json.bak")
+				if changed == "backup" else fs.files.get("memory://posting-fence.json") == before.get("memory://posting-fence.json")),
+			"posting retry refuses a changed %s boundary without replacing its primary" % changed)
+		board.queue_free()
+		await process_frame
+	for malformed: Variant in ["unsupported-owned-slot", [1, 2]]:
+		var fs := PostingFilesystem.new()
+		var store := UserDataStore.new("memory://posting-malformed.json", fs)
+		store.load()
+		store.commit({"heavy_breach_session": malformed}, 0, "malformed-owned")
+		var board := HeavyBreachActivityBoard.new()
+		root.add_child(board)
+		board.configure_session_persistence(store)
+		var before := fs.files.duplicate(true)
+		board.set("_offered_index", 1)
+		board.call(&"_queue_posting_save", 0)
+		_check(board.get_snapshot().posting_save_pending and "SAVE RECOVERY REQUIRED" in board.get_interaction_prompt()
+			and fs.files == before and board.get_snapshot().posting_save_result.reason == &"unsupported_session_retained",
+			"a malformed cached owned slot is refused before Dictionary copying or any write")
+		board.queue_free()
+		await process_frame
+	var no_store := HeavyBreachActivityBoard.new()
+	root.add_child(no_store)
+	no_store.set("_offered_index", 1)
+	no_store.call(&"_queue_posting_save", 0)
+	_check(not no_store.get_snapshot().posting_save_pending and no_store.get_offered_scenario() == &"torpedo_run",
+		"no-store component fixtures retain their existing in-memory posting behavior")
+	no_store.queue_free()
+	await process_frame
 
 
 func _wire(craft: Node) -> void:
