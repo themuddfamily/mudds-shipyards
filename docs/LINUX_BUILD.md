@@ -4,7 +4,31 @@ Linux x86_64 is a supported desktop export target alongside Windows. This page
 covers how a Linux candidate is exported, packaged and startup-checked, and
 what has been validated so far.
 
-## Latest development checkpoint: `8cda303` — 2026-10-25
+## Latest development checkpoint: `ca149d6` — 2026-10-25
+
+The [executable](../builds/linux/MuddsShipyards-ca149d6.x86_64),
+[archive](../builds/linux/MuddsShipyards-ca149d6-linux-x86_64.tar.gz) and
+[notes](../builds/linux/MuddsShipyards-ca149d6-linux-notes.txt) use accepted clean
+source `ca149d6e8463a70f6d01fe618e1362000714bdf0`, matching the Windows checkpoint.
+LAN rows and cached endpoints now expire after30 seconds while paused; expired
+selection is refused and Retry restores current discovery. This ships the already
+accepted runtime on Linux; no new gameplay change in this packaging step.
+
+Safe export with pinned stock template passes. Independent actual-byte review
+confirms all1,527 embedded entry paths/sizes/flags/SHA256 match Windows. Exact six
+archive entries retain binary/launchers/manager/icon bytes, modes, uid/gid0 and
+commit timestamp. Direct startup21.988s and actual archive-extracted startup22.459s
+each exit0, print exactly one `STARTUP_MENU_READY_OK` and produce zero diagnostics.
+Private headless/Dummy checks retain900s export/300s startup limits; no hardware
+performance claim. Existing180 focused checks and complete source ordinary LAN
+route are reused at identical runtime, without rerun or packaged-route claim.
+
+Only the three public files remain; disposable checkout/cache/profiles and
+redundant builds are removed. [Exact delivery and cleanup](history/ROADMAP_DELIVERIES.md#linux-lan-expiry-checkpoint-accepted-20261025).
+Installed transactions, packaged ordinary play, devices, native GPU/audio,
+endurance/supported capacity and final release remain open.
+
+## Earlier development checkpoint: `8cda303` — 2026-10-25
 
 The [Linux executable](../builds/linux/MuddsShipyards-8cda303.x86_64),
 [archive](../builds/linux/MuddsShipyards-8cda303-linux-x86_64.tar.gz) and

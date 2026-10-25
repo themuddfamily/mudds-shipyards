@@ -3,8 +3,8 @@
 **Playable alpha; full original scope remains unfinished.** Latest Windows build:
 [ca149d6 checkpoint](builds/windows/MuddsShipyards-ca149d6-checkpoint.zip)
 ([changes and validation](builds/windows/MuddsShipyards-ca149d6-notes.txt)).
-Latest [Linux checkpoint8cda303](builds/linux/MuddsShipyards-8cda303-linux-x86_64.tar.gz)
-predates the LAN-expiry repair; no matching Linux export is claimed.
+Matching [Linux checkpointca149d6](builds/linux/MuddsShipyards-ca149d6-linux-x86_64.tar.gz)
+([Linux validation](builds/linux/MuddsShipyards-ca149d6-linux-notes.txt)) is available.
 Nine of the promised 17 craft exist. All 36 original parent outcomes and ten phase
 exit gates remain open; completed child results are retained, not counted as whole
 features. There is no evidence-backed project percentage or completion date.
@@ -36,8 +36,7 @@ rows and endpoints30 seconds after the last valid reply and refuses stale joins
 before creating intent or changing roles. The paused ordinary route observes
 expiry at30.003631s, accurate expired feedback/Retry focus and zero stale
 admissions. Actual Retry finds the same live host; fresh admission, original
-Players' connected/solo walks and both normal exits pass. Fresh Windows EXE,
-checkpoint ZIP and notes are available. [Exact validation and cleanup](docs/history/ROADMAP_DELIVERIES.md#lan-browser-expiry-accepted-20261025).
+Players' connected/solo walks and both normal exits pass. Fresh Windows EXE/ZIP and matching Linux ELF/archive, with notes, are available. [Exact validation and cleanup](docs/history/ROADMAP_DELIVERIES.md#lan-browser-expiry-accepted-20261025).
 
 Earlier ordinary disconnect/rejoin, full-session UI refusal, Halyard reconnect
 and projectile native-link results remain accepted in their recorded scopes.
@@ -58,13 +57,13 @@ not a project percentage inferred from rows, tests or commits.
 ### Small execution queue
 
 Only one implementation card may be active. Each row below is a bounded step
-within the existing goal, not a replacement for its full acceptance. The disconnect/rejoin and LAN-expiry runtime outcomes are accepted below. One matching Linux-package card is active. The complete named reconnect case is
+within the existing goal, not a replacement for its full acceptance. The disconnect/rejoin and LAN-expiry runtime outcomes are accepted below. No implementation card is active. The complete named reconnect case is
 accepted for its recorded Linux-source ordinary-input scope. Torpedo remains
 parked; broader multiplayer and final-candidate requirements remain separate.
 
 | Existing goal | Next bounded result | Proof / stop | State and owner |
 | --- | --- | --- | --- |
-| PACKAGE-LINUX[ca149d6] | Deliver matching Linux LAN-expiry checkpoint: executable, installable launcher archive and player notes | Exact clean ca149d6 safe export; original900s export/300s each strict direct+archive menu startup; actual embedded payload parity with Windows, exact tar bytes/modes/metadata; no diagnostics and owned cleanup; first unexpected failure stops | ACTIVE — root packaging with independent artifact reviewer. Same LAN-checkpoint90min total incl10min priorreadiness from08:52:32Z, hard10:12:32Z; parent closeout28.251min retained, no clock reset. Earlier8c Linux acceptance retained; current ordinary/runtime checks reused at identicalsource. Full install/ordinary/native/final gates remain open |
+| PACKAGE-LINUX[ca149d6] | Deliver matching Linux LAN-expiry checkpoint: executable, installable launcher archive and player notes | Exact clean ca149d6 safe export; original900s export/300s each strict direct+archive menu startup; actual embedded payload parity with Windows, exact tar bytes/modes/metadata; no diagnostics and owned cleanup; first unexpected failure stops | DONE — exactca149d6 Linux ELF/archive/notes; actualdirect21.988s/archive22.459s menu startups eachOS0/sentinel1/zero diagnostics; all1527 actual payload entries match Windows; exactsix-member archive bytes/modes/metadata and independent review pass. Owned checkout/process/profile cleanup complete; same90min parentclock inclprior10 retained. Full install/ordinary/native/final gates remain open |
 | BROWSER-DISCONNECT | Normal LAN join/connected walking → guest ordinary Disconnect/complete old authority retirement/solo walk while original host stays available → actual Refresh/fresh join/new matching admission tuple → same-Player connected walk → second normal Disconnect/host stop/usable return | Existing independent two-Main caller opt-in only; original300s outer/230s work/Main60s/UI5s/discovery10s/admission20s/handoffs20s/guest100s/host30s/cleanup10s,≥1m/5s walking+settle/12neutral ticks; immutable first and second receipts, both actual OS exits0/clean logs | DONE035fa2f in source InputEvent/LAN ordinary-route scope — whole88.888s/510checks, actual2OS exits0/zero diagnostics, both original Players and fresh matched admission tuple, all7supported walks/bothretirements/currentHUDfences/hostcounts0→1→0→1→0. Independent review GO; earlier failures retained, original75min clock includes all elapsed time from08:15:10Z. No runtime/cap change; package/device/endurance/capacity/final gates remain open |
 | BROWSER-STALE | LAN replies expire at30 real seconds while paused; retired rows/endpoints cannot create join intents; honest expired feedback and ordinary Retry/fresh live admission remain usable | Explicit30s engineering default, not an abstracttick mapping or claimed user approval. ExistingLAN/preflight/presenter/HUD checks plus ONE realtwoMain paused30s refusal/Retry/join/walk/normalleave route; originalouter300/work230/hostadmission50/guest100/exit10 caps retained; freshWindowscheckpoint | DONEca149d6 — natural paused expiry30.003631s/zero staleintents/admissions, actualRetry/samehostfreshjoin,4supportedwalks/twoactualOS0/zero diagnostics; whole314checks/116.907s plusfocused180. Independent runtime/package review GO; fresh verifiedWindowsEXE/ZIP/notes, branch/process/scratch cleanup. Explicitengineeringdefault30s; user may override. Broader package/native/device/capacity/endurance/final gates remain open |
 | BROWSER-FULL | Genuine full host/occupant, disabled-row pointer refusal, real Refresh and same-Player usable solo return completed | 209 coordinator checks/125.781s; actual GUI press+release, zero activation/join/admission, fresh full directory1→2,1.002774m supported walk, host counts0→1→0, three actual OS exits0/zero diagnostics; original caps retained | DONE e39653cf in source InputEvent/LAN UI-refusal scope — independent review GO;18.696min through cleanup plus final push; package/device/native/endurance/capacity/final gates separate |

@@ -24826,3 +24826,53 @@ scratch entries verified before removal. Retained only
 and closeout.json. Dummy audio/headless/private Xvfb explicitx11 throughout;
 no desktop input or hosted CI. All337 canonical IDs/order/Done means,36 parents,
 ten phase gates and17craft scope remain; broader browser/parent25 remains open.
+
+
+## Linux LAN expiry checkpoint accepted — 2026-10-25
+
+PACKAGE-LINUX now delivers exact accepted sourceca149d6e8463a70f6d01fe618e1362000714bdf0,
+matching the existing Windows LAN-expiry checkpoint. No new runtime edit, Windows
+rebuild or repeat of accepted180 focused/source ordinary314 checks. Safe Linux
+export34.101385s uses clean detached source, pinned stock Godot4.7.1/template,
+headless display and Dummy audio. Direct actual menu startup21.988s
+(supervisedstage22.771075s) and actual archive-extracted startup22.459s
+(stage24.711739s) each exit0/sentinel1/zero diagnostics. Original900s export/300s
+startup limits retained; no retry or timing/performance qualification claim.
+
+Independent actual-offset hashing verifies all1527 embedded paths/sizes/flags/
+SHA256 match accepted Windowsca EXE. Exactly six tar members have expected bytes,
+modes755 except icon644, uid/gid0 and commitmtime1792918808. Binary/manager/icon
+match exported/source inputs; generated launcher bytes match accepted8c after
+explicit source/basename substitution, with unchanged exporter/installer source.
+Reviewer linux_package_review_0912 GO. Public repository-local files:
+
+- builds/linux/MuddsShipyards-ca149d6.x86_64:149028608bytes,
+  SHA256ea9aff96753adb5641f083852021ac17c73cab8031bf1338b8c68a3c0ce0e737;
+- builds/linux/MuddsShipyards-ca149d6-linux-x86_64.tar.gz:95437669bytes,
+  SHA256dc6113333585ad265819ba7cce3bd149f936ddd25707e42cf7a290113cd312d9;
+- builds/linux/MuddsShipyards-ca149d6-linux-notes.txt:2173bytes,
+  SHA256954c5aade79aa5ef961a51ae4a4dc85103b8c1d8ec22cd5a1c6d455e5191cc22.
+
+Public bytes/modes verified after copy. Artifacts remain local under existing
+ignore policy; docs/source pushed. Export provenance keeps its own startup_check
+NOT_RUN; actual separate startup records establish both performed checks. No
+installed transaction, full packaged ordinary route, native GPU/device/audio,
+endurance/capacity or final release is qualified by these headless startups.
+
+Disposable detached worktree/cache/duplicate builds removed; no task branch
+created. Three owners terminal/29 observed process identities absent. All87
+remaining owned helper/profile/record entries verified before removal; only
+parent case-records.tar.gz, new linux-package-records.tar.gz and closeout.json
+remain in /srv/mudds-work/lan-browser-expiry-20261025/results/. New raw archive
+6204081bytes/SHA256b12184223c48b6576a9ea1bbf08c8229b46df9561e57258643380373ed22d0c2.
+Same parent90min budget includes priorreadiness10 from08:52:32Z, hard10:12:32Z;
+34.220029min cumulative through cleanup09:16:45.201739Z. Original Windows closeout
+28.250886min is retained; no clock reset. Final-push cost in adjacent closeout.
+No desktop input, real audio or hosted CI. Canonical337 IDs/order/Done means,
+36 parents,ten phase gates and17craft scope unchanged.
+
+Parallel bounded Wing source review produced no demonstrated cause sufficient
+to reopen its eight-shot failure; no engine/replay/repair was attempted. Retained
+receipts show6misses/2generic hits(entity0), but lack query-time target transforms
+and trigger timestamps. Aim/parallax correlation is not promoted to a fix. Original
+Wing acceptance, timers and parked reopening predicate remain unchanged.
