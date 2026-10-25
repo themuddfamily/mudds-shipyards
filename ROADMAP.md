@@ -1,10 +1,10 @@
 # Development roadmap
 
 **Playable alpha; full original scope remains unfinished.** Latest Windows build:
-[b5fa554 checkpoint](builds/windows/MuddsShipyards-b5fa554-checkpoint.zip)
-([changes and validation](builds/windows/MuddsShipyards-b5fa554-notes.txt)).
-Matching [Linux checkpoint b5fa554](builds/linux/MuddsShipyards-b5fa554-linux-x86_64.tar.gz)
-([Linux validation](builds/linux/MuddsShipyards-b5fa554-linux-notes.txt)) is available.
+[4ca2d16 checkpoint](builds/windows/MuddsShipyards-4ca2d16-checkpoint.zip)
+([changes and validation](builds/windows/MuddsShipyards-4ca2d16-notes.txt)).
+Matching [Linux checkpoint 4ca2d16](builds/linux/MuddsShipyards-4ca2d16-linux-x86_64.tar.gz)
+([Linux validation](builds/linux/MuddsShipyards-4ca2d16-linux-notes.txt)) is available.
 Nine of the promised 17 craft exist. All 36 original parent outcomes and ten phase
 exit gates remain open; completed child results are retained, not counted as whole
 features. There is no evidence-backed project percentage or completion date.
@@ -61,6 +61,16 @@ share the damage work. Breach/Torpedo combat and activity journeys are reused,
 not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMAP_BACKLOG.md#coverage-of-the-original-remaining-outcomes).
 
 ## Execution now
+
+**Delivered: Reduced motion applies to the notification already on screen.**
+Checkpoint 4ca2d16 immediately makes the same toast fully opaque and steady,
+without restarting its deadline, changing its priority or losing its queued
+routine update. Early/late conversion, repeated toggles, expiry and replacement
+pass in the existing accessibility suite; prior active-damage behavior is retained.
+Actual 1280×720 readback, paired exports, three strict startups and package audit
+pass. Fresh builds and notes are above. This closes the current-toast episode
+under COMFORT-MOTION, with broader comfort/device/final gates still open.
+[Exact scope, proof and cleanup](docs/history/ROADMAP_DELIVERIES.md#current-toast-reduced-motion-accepted-20261025).
 
 **Delivered: Reduced motion applies to the damage cue already on screen.**
 Checkpointb5fa554 immediately caps the existing flash and stops its fade while
@@ -129,26 +139,10 @@ hardware/access remain BLOCKED input. This records the remaining planning work;
 it does not claim every goal is executable or deliver gameplay. No implementation
 card or new trial is active. Select no blocked row until its named fields are fixed.
 
-**Active: COMFORT-MOTION[current toast] — apply Reduced motion to the current
-notification.** Source1d73e60d1 leaves an existing toast's fade running when the
-setting changes. Enabling ON must immediately make that same toast fully opaque
-and steady, keeping title/detail/serial/important ownership/queued routine message.
-Dismissal uses the remaining duration of its actual original normal timeline
-(two configured fades plus requested hold, minus actual elapsed), on the same
-clock/pause policy. Repeated ON or OFF→ON cannot extend it; OFF cannot replay it.
-At its deadline, the existing priority queue shows the deferred routine message
-once. A new important message retires the old callback; subsequent toasts follow
-the selected mode. Existing new-reduced-toast timer behavior stays unchanged.
-
-Implementer owns only HUD and the existing accessibility suite. Freeze early and
-late conversion/steady interval/original expiry/repeated toggles/important queue/
-new-important replacement before editing runtime. Root owns expected-old failure,
-focused checks, actual component readback, clean paired checkpoint/strict startup/
-package audit, integration and cleanup. Original17:35Z→18:35Z/60min includes
-selection through closure; first unexpected validation failure stops. The accepted
-active-damage episode remains closed and its regression must still pass. Other
-comfort consumers/devices/final qualification remain open; no new matrix or rows.
-The next missing craft remains gated on its named specification decision.
+No implementation card is active. COMFORT-MOTION's active damage and current
+notification episodes are accepted in their recorded scopes; do not call them
+completion of the wider comfort milestone. The next missing craft remains gated
+on its named specification decision.
 
 The Torrent destruction/recovery attempt remains **PARKED / not accepted**.
 A reviewed resolver correction accounted for all100 actual damage, including

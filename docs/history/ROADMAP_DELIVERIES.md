@@ -25978,3 +25978,60 @@ no remote task branch existed, ownership was rechecked, and its local ref was
 deleted with that exact expected tip.22.535min through archive/cleanup; final
 closure push cost is included in the adjacent closeout. No duplicate build or
 unchanged test rerun follows this documentation-only closure.
+
+
+<a id="current-toast-reduced-motion-accepted-20261025"></a>
+## Current toast Reduced motion — shipped on 4ca2d16 — 2026-10-25
+
+COMFORT-MOTION/parent29 has a second delivered HUD episode. Enabling Reduced motion
+makes the notification already displayed fully opaque and steady, preserving its
+text, serial, important ownership, queued routine update and original deadline.
+Repeated ON or OFF→ON cannot extend it; OFF cannot replay the fade. At the normal
+original expiry the existing priority queue displays the deferred routine once;
+a new important toast retires the old callback and chooses its current mode.
+The existing newly-created reduced-toast timer policy stays unchanged.
+
+Source 4ca2d16229bd375c626c562dcf85d687ebd50588 records the normal timeline at creation
+from both actual get_toast_fade_seconds() legs plus requested duration, before
+changing the preference can make that getter zero. Conversion reads actual elapsed,
+kills the old tween and holds only the remaining duration on the same scaled
+clock/TWEEN_PAUSE_PROCESS policy, with the original serial-fenced callback. The
+previous active-damage body moves unchanged into a local helper, allowing toast
+conversion when no damage cue exists. Only HUD and its existing accessibility
+regression change; no schema or new validation framework. One implementer and
+independent lifecycle review, root integration; no recursive agents.
+
+Controlled old source ea70211a675a07eae3cedbc9ffaef5084898503c fails exactly five frozen
+toast predicates in 82.557s; unrelated checks and the accepted damage episode pass.
+This is planned negative proof. The fixed existing accessibility suite passes
+2005 assertions in 81.360s, including early/late conversion, original expiry,
+repeat toggles, priority/deferred handoff, replacement and new-toast mode. Import
+6.598s, navigation 3.381s and layout 11.895s pass. Actual component readback 8.118s:
+inspected 1280×720 X11/Forward+/llvmpipe PNGs show opacity .2857142985→1.0, steady
+through the measured .2s interval, with identical content/serial/priority/queued
+message/geometry. Manually stepped paused tweens; full Main and native GPU are
+not qualified by this fixture. Prior damage-cue behavior remains accepted.
+
+Clean Windows 10.513s/Linux 25.857s exports pass. Direct Linux 22.795s, extracted
+archive 24.170s and Windows embedded-payload startup through Linux Godot 26.281s
+each exit 0 with exactly one STARTUP_MENU_READY_OK. Actual package audit 5.779s
+matches 1527 PE/ELF payload paths, excludes tests/tools/artifacts/builds, verifies
+stock Windows code and exact Linux archive bytes/modes/source epoch/metadata.
+All eleven post-fix stages pass first attempt with zero diagnostics and their
+guarded source/index/cache/process boundaries satisfied. Godot always used Dummy
+audio; rendered work used private Xvfb/explicit x11 with independent abort cleanup.
+Native Windows/GPU, physical input/audio, other comfort consumers and final matrix
+remain NOT_RUN/open; this does not close the wider comfort milestone.
+
+Fresh EXE/checkpoint ZIP/notes are in builds/windows/MuddsShipyards-4ca2d16*;
+matching Linux binary/archive/notes and export/startup records are in builds/linux/.
+All eleven publication files and ZIP member bytes are verified. Windows ZIP:
+103,329,303 bytes, SHA256 `43eb4358c74c1be067bec20868c1404286bfef8fc439a02d5f9a3759804a3178`.
+
+Original 17:35Z→18:35Z/60min includes selection, expected baseline, implementation,
+checks, publication, integration and owned cleanup; no budget reset or unexpected
+validation-stage failure. Unique helpers/raw/profile/source data are consolidated
+in `/srv/mudds-work/reduced-motion-active-toast-20261025/records.tar.gz`; adjacent
+closeout records archive verification/hash, absent owned process identities,
+published hashes and actual cumulative elapsed cost. Completed branch/private
+scratch are removed after verified integration/push; playable build files remain.
