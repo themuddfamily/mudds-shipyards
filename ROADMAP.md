@@ -109,9 +109,13 @@ remain settled. Do not ask them again.
 
 ### Work order after this correction
 
-1. Select one ready **player-visible capability** from the canonical inventory.
-   Prefer missing gameplay/content and observed defects over extending a test
-   harness. If a specification is blocked, use the next genuinely ready outcome.
+1. Select one ready capability, qualification or definition from the canonical
+   inventory and state its kind. A capability changes production behavior;
+   qualification closes a named original acceptance predicate on a fixed
+   candidate; definition supplies one finite missing contract. If a ready
+   production capability exists, select it unless a named dependency requires
+   other work first. If none exists, finish one bounded readiness pass with exact
+   blockers and owners; do not generate a chain of handoffs or discovery cards.
 2. Split its production implementation into capabilities estimated at no more
    than90 minutes each. Name each capability's files, observable result and focused
    check before editing. A fleet, world, activity family or final matrix is a
@@ -129,16 +133,31 @@ A goal is **READY only when every field below has a literal answer**. Otherwise
 mark it BLOCKED and record the missing value/list plus the owner who can supply it.
 “Works”, “usable”, “polished”, “all applicable” and “specified” alone are not pass
 conditions. A link is sufficient only if its target fixes the actual cases/values.
+The backlog already flags unresolved route/case bindings. Those rows are not yet
+fully specified tasks; their existence and a Done means column do not make them
+ready. Do not report the breakdown as complete while those bindings are missing.
 
 | Field | Required answer before work starts |
 | --- | --- |
-| Goal | One existing ID and one bounded production result. Name the parent work that remains. |
+| Goal | One existing ID, its kind (capability, qualification or definition) and one bounded result. Name the parent work that remains. |
 | Starting point | Source/package, normal player/session state, satisfied prerequisites and exact owned files. |
-| Player result | Literal action → observable state/value; for a decision, the exact finite fields to record. |
-| Acceptance | Fixed complete case list, expected endpoints/counts/tolerances and original deadlines. No criteria chosen after observing results. |
-| Proof | Existing focused command or ordinary route and expected output/file/state. Identify physical-device/hardware/external input separately. |
+| Player result | For implementation: current failing/missing behavior → one delivered behavior, with a literal player action and observable state/value. For qualification: the exact original acceptance predicate. For definition: the exact finite fields to record. |
+| Acceptance | Fixed complete case list, expected endpoints/counts/tolerances and original deadlines. List what this card can close and the parent acceptance that remains. No criteria chosen after observing results. |
+| Proof | Existing focused command or ordinary route and expected output/file/state; an implementation check must distinguish old behavior from delivered behavior. Identify physical-device/hardware/external input separately. |
 | Owner and estimate | Implementer/reviewer, implementation/check/closure estimates, hard stop and cumulative cost of earlier attempts. |
 | Closure | PASS, FAIL, BLOCKED or PARKED; proof or first failed predicate; remaining work; commit/push/build and owned cleanup. |
+
+Before selecting an implementation card, answer: **what will the player be able to do, or what
+required executable packaging/release operation will become possible?** A new
+test, capture, source audit or document is not an implementation answer. Label
+such work qualification or definition, explain the exact original requirement it
+serves, and retain its finite stopping point. A passing helper does not close the
+runtime outcome it is intended to exercise.
+
+Keep the selected card's original result, case list and cumulative budget visible
+when reporting progress. A discovered prerequisite is recorded against that same
+goal; it does not silently replace the result or become a fresh chain of tasks.
+At the hard stop, report the unmet result and close or park the assignment.
 
 For example, the next **possible** Torpedo repair would be one control-accounting
 change: an unready/no-command sample followed by a real consumed-command sample

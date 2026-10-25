@@ -168,8 +168,10 @@ Select one capability with one observable result. If its implementation estimate
 exceeds90 minutes, split the actual production work into separately reviewable
 capabilities before editing. Keep its original full-journey acceptance as a
 separate required gate: a smaller implementation/check does not replace it.
-Families, final matrices and long-duration qualifications remain completion
-containers with their original membership and duration, not giant coding tasks.
+Families and final matrices remain completion containers with their original
+membership, not giant coding tasks. A named long-duration qualification is
+executable once its complete cases and acceptance inputs are bound; keep its
+original duration. It is not an implementation assignment.
 
 A bounded assignment ends in exactly one of: **PASS** with the frozen result and
 proof; **FAIL** with the first unmet predicate; **GATED/WAITING** with the named
@@ -482,8 +484,12 @@ Linux/native GPU/device/audio gates remain. GitHub Actions stays disabled.
 
 ## Concrete child outcomes
 
-Reconciled on 2026-10-24: every named record now carries an explicit **Done means** contract; all original IDs and accepted scopes are retained.
-**One row is one named outcome or explicitly blocked decision.** [Family contracts](#family-contracts) define the proof;
+Reconciled on 2026-10-24: every named record carries a **Done means** column;
+all original IDs and accepted scopes are retained. This is a scope crosswalk,
+not a claim that every row has an executable acceptance contract. Rows explicitly
+marked BLOCKED definition still need their missing finite cases, routes or values
+bound before they can be selected.
+**One row identifies an outcome, container or blocked decision.** [Family contracts](#family-contracts) define the proof;
 ROADMAP.md selects one implementation with exact owners, actions and budgets;
 the retained postdock cards split the exit/reuse family into five ordered outcomes.
 These rows replace the earlier grouped “per craft/role/world” inventory.
