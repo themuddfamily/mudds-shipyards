@@ -231,3 +231,27 @@ Actual direct and archive headless startup pass in 9.373 and 9.281 seconds, each
 The single cold rendered package startup uses authenticated private Xvfb, explicit X11/Forward+/Vulkan, lavapipe and Dummy audio. It reaches `Shipyard ready` at 287.418 seconds, then hits the original 300-second watchdog without menu readiness. This **fails rendered startup acceptance**; forced termination cannot qualify orderly reflection cleanup. The missing later `Opening title menu` marker narrows investigation to texture cleanup, loading-screen updates and the intervening process-frame await. It does not establish a shader or gameplay defect. No longer deadline, unchanged retry, graphics downgrade or publication is accepted.
 
 Post-run source/index, the new 607-file cache, installed-engine/template/preset and staged/published artifact guards pass, and all recorded owned actors close. Failure receipt: `linux-export-a753ab0/native-qualification/linux-qualification.json` under the private engine cache (SHA256 `c15ec3cb030fb73c7e7e052a416589d23e64ee0e4185f919216138e7c888fed0`). Independent installation receipt SHA256: `489dd9d82af4ce26b9245cf632781f0e5600be5ef63968cadab891e2b582884f`. The package stays staged; published `3362f6f09` checkpoints remain unchanged. Rendered package acceptance, native GPU/Windows and human review remain open.
+
+
+## Reconstructing a missing editor on a data volume — 2026-10-25
+
+The previously recorded editor/build receipt is absent in the current environment;
+its historical validation is retained, not treated as a live binary. The existing
+builder now accepts `--cache-root` for reflection modes as well as RPC mode. A
+canonical absolute owned non-symlink directory can place source/objects/private
+profiles on a volume with room for compilation. The default remains unchanged;
+RPC still requires its explicit root and separate platform directory. No HOME
+replacement, global editor/template install, new patch or quality change.
+
+```sh
+python3 tools/release/build_godot_reflection_fix.py --build --jobs 4 --timeout 3600   --cache-root /srv/mudds-work/combat-reflection-capture-20261025/toolchain-build
+```
+
+This is the selected private rebuild command, not a completed build/capture claim.
+Actual resulting binary bytes/version/receipt must be checked before selecting it.
+The next possible qualification is ONE unchanged `capture_combat_visuals.gd` run
+at its original300s/Forward+/Vulkan/2560x1440/seven-frame contract, private Xvfb,
+explicitx11/Dummy and pinned lavapipe. The patch resolves the documented atlas
+teardown cause; no claim is made that it fixes the separate cold shader-compilation
+stalls. Stop on the first unexpected failure. Published stock checkpoints/default
+engine/template pins remain unchanged and do not inherit custom-editor results.
