@@ -6523,7 +6523,7 @@ func _ordinary_cabin_identity(role: String) -> Dictionary:
 
 func _ordinary_reconnect_unclaimed_cabin() -> bool:
 	var source := _game.get_network_remote_body_intent_source()
-	var frame := _craft.get_moving_interior_component()
+	var frame := _craft.get_moving_interior_component() as MovingInteriorFrame
 	return _ordinary_same_identity() and _game.network_session == _ordinary_authority_adapter \
 		and _player.get_instance_id() == _ordinary_player_id and not _player.is_seated() \
 		and _player.is_on_floor() and _player.is_control_enabled() and not _game.get("_transition_busy") \
@@ -6714,8 +6714,8 @@ func _ordinary_reconnect_return_inputs() -> bool:
 		var cadence := float(NetworkRemotePilotCommandSource.SEND_INTERVAL_TICKS + 2) / float(Engine.physics_ticks_per_second)
 		var stopping := speed * speed / (2.0 * brake_power) + absf(speed) * cadence
 		var report: Dictionary = _game.call(&"_get_landing_assist_report_for_ship", _craft)
-		var accepted := bool(report.get("assist_capture_accepted", false)) and report.get("selected_berth_id") == berth.berth_id
-		var braking := accepted or (signf(speed) == signf(remaining) and absf(remaining) <= stopping)
+		var accepted: bool = bool(report.get("assist_capture_accepted", false)) and report.get("selected_berth_id") == berth.berth_id
+		var braking: bool = accepted or (signf(speed) == signf(remaining) and absf(remaining) <= stopping)
 		_ordinary_release_walk()
 		_ordinary_action(&"brake", braking)
 		if not braking:
