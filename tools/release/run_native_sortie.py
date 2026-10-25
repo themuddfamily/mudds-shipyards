@@ -11,6 +11,7 @@ Use --route patrol-relay-home for real pause-board relay selection, five continu
 Use --route race-home for genuine Guided prerequisite, same-Torrent timed race, durable payment and home/UI exit.
 Use --route arrow-return-reuse for one Arrow precision hit, two home exits and normal UI quit.
 Use --route torrent-return-reuse for the full Guided prefix, same-Torrent reuse and normal UI quit.
+Use --route torrent-damaged-return for one real incoming hit, passive home repair and same-Torrent reuse.
 Use --route courier-withdraw-distance for actual seven-second distance withdrawal and original Guided home.
 Use --route courier-withdraw-phase for a post-dispatch defender kill and real phase withdrawal through home.
 Use --route courier-escape for the live first runner boundary, standdown and original Guided home.
@@ -5273,6 +5274,7 @@ class ArrowReturnReusePilot(Pilot):
 
 class TorrentReturnReusePilot(ArrowReturnReusePilot):
     """Full Guided sortie, then one ordinary same-Torrent home return and UI exit."""
+    MODE = 'torrent-return-reuse'
     MARKER = 'NATIVE_TORRENT_RETURN_REUSE_OK'
     IDS = ('main_id', 'world_id', 'player_id', 'capsule_id', 'shape_id',
            'ship_id', 'berth_id', 'source_id', 'seat_id', 'pid', 'opponent_id')
@@ -5304,7 +5306,7 @@ class TorrentReturnReusePilot(ArrowReturnReusePilot):
                 and not s['flight_demand'], 'ordinary supported Torrent exit and walking')
 
     def validate_observation(self, s):
-        require(s.get('mode') == 'torrent-return-reuse' and s.get('actors_current'),
+        require(s.get('mode') == self.MODE and s.get('actors_current'),
                 'current ordinary Torrent observer actors')
         previous = self.observed_previous
         self.frame = s['frame']
@@ -5534,6 +5536,189 @@ class TorrentReturnReusePilot(ArrowReturnReusePilot):
                        'normal_ui_exit': True, 'scope': 'partial CRAFT-ACCEPT-TORRENT return and reuse capability',
                        'weapons_damage_recovery_crosscraft_main_acceptance': 'NOT_RUN'}
         return self.result
+
+
+class TorrentDamagedReturnPilot(TorrentReturnReusePilot):
+    """One ordinary incoming contact, persistent airborne damage and real berth repair."""
+    MODE = 'torrent-damaged-return'
+    MARKER = 'NATIVE_TORRENT_DAMAGED_RETURN_OK'
+    COMPONENTS = ('forward_hull', 'port_wing', 'starboard_wing', 'core_systems', 'engine_bay')
+    CHANNELS = {'port_wing': 'fire', 'starboard_wing': 'fire',
+                'core_systems': 'targeting', 'engine_bay': 'mobility'}
+
+    def __init__(self):
+        super().__init__()
+        self.damage_initial = self.damage_previous = self.incoming = None
+        self.airborne_frames = self.airborne_run = 0
+        self.airborne_proof = None
+        self.repair_start = self.repaired = self.repair_baseline = None
+
+    def states(self, d):
+        rows = d['components']
+        require(len(rows) == 5 and {r['id'] for r in rows} == set(self.COMPONENTS),
+                'complete five-component scalar snapshot')
+        require(all(math.isfinite(r['integrity']) and 0 <= r['integrity'] <= 1 for r in rows),
+                'finite bounded component integrities')
+        return {r['id']: r for r in rows}
+
+    def same_model(self, d):
+        require(all(d[k] > 0 and d[k] == self.damage_initial[k]
+                    for k in ('model_id', 'generation', 'authority_id', 'damageable_id')),
+                'same live component model generation authority and damageable without reset')
+        require(d['opponent_tuning'] == self.damage_initial['opponent_tuning']
+                and d['repair_rate'] == self.damage_initial['repair_rate'] == .62,
+                'unchanged defender tuning and authored passive repair rate')
+
+    def require_channels(self, d, damaged=None):
+        modifiers = d['modifiers']
+        expected = self.CHANNELS.get(damaged)
+        for channel in ('mobility', 'fire', 'targeting'):
+            require(not modifiers[channel+'_disabled'] and modifiers[channel+'_multiplier'] > 0,
+                    'live mobility fire and targeting remain usable')
+            if damaged is not None:
+                require(math.isclose(modifiers[channel+'_multiplier'], .62 if channel == expected else 1,
+                                     abs_tol=.0001), 'actual attributed impaired component declared consequence')
+
+    def require_incoming(self, hit, s, d):
+        h = hit['snapshot']; self.same_model(h)
+        context, request = hit['context'], hit['request']
+        require(all(hit[k] for k in ('present', 'accepted', 'resolved', 'hit', 'damaged'))
+                    and not hit['destroyed'] and hit['request_matches']
+                    and hit['source_entity_id'] == request['source_entity_id'] == s['opponent_id']
+                    and hit['source_id'] == request['source_id'] == context['source_id'] == 2101
+                    and request['weapon_id'] == context['weapon_id'] == 'defence_pulse_cannon'
+                    and context['source_entity_id'] == s['opponent_id']
+                    and request['sequence'] == context['sequence']
+                    and hit['target_entity_id'] == context['target_id'] == s['ship_id']
+                    and hit['damageable_id'] == d['damageable_id'] and hit['collider_id'] > 0
+                    and hit['contact_finite'] and context['contact_finite']
+                    and hit['position'] == context['position']
+                    and hit['applied_damage'] == request['damage'] == 11 and hit['remaining_health'] == h['hull']
+                    and hit['frame'] <= s['frame']
+                    and hit['phase'] == 'INTERCEPTOR_ENGAGEMENT' and hit['opponent_active']
+                    and hit['opponent_health'] > 0 and not h['landed'] and not h['landing_active'],
+                    'genuine current defender source2101 finite-contact damageable incoming receipt')
+
+    def validate_damage(self, s):
+        d = s['damage']
+        rows = self.states(d)
+        previous = self.damage_previous
+        if self.damage_initial is None:
+            require(d['hull'] == d['maximum_hull'] == 100 and all(
+                r['integrity'] == 1 and r['state_id'] == 'nominal' for r in rows.values())
+                and not d['incoming'] and d['incoming_count'] == d['repair_count'] == 0 and d['incoming_damage'] == 0,
+                'pristine authored Torrent starts before real incoming damage')
+            self.damage_initial = copy.deepcopy(d)
+        self.same_model(d)
+        if previous:
+            require(d['repair_count'] >= previous['repair_count'] and d['incoming_count'] >= previous['incoming_count']
+                    and d['incoming_damage'] >= previous['incoming_damage']
+                    and d['revision'] >= previous['revision'], 'retained damage repair receipts and ledger never regress')
+        self.require_channels(d)
+        require(d['maximum_hull'] == 100 and d['hull'] > 0 and not d['incoming_violation']
+                and d['incoming_damage'] == d['incoming_count']*11
+                and d['hull'] == 100-d['incoming_damage'], 'only actual cumulative live defender damage without healing')
+        if not self.incoming and d['incoming']:
+            hit = d['incoming']; h = hit['snapshot']; self.same_model(h)
+            hr = self.states(h); context = hit['context']; request = hit['request']
+            self.require_incoming(hit, s, d)
+            require(h['hull'] == 89 and hit['cumulative_damage'] == 11 and hit['opponent_health'] == 85
+                    and not hit['native_fire'] and not hit['command_fire'], 'exact clean first incoming contact')
+            damaged = [k for k in self.COMPONENTS if hr[k]['integrity'] < 1]
+            require(len(damaged) == 1 and math.isclose(hr[damaged[0]]['integrity'], .56, abs_tol=.0001)
+                    and hr[damaged[0]]['state_id'] == 'impaired'
+                    and all(hr[k]['state_id'] == 'nominal' for k in self.COMPONENTS if k != damaged[0]),
+                    'first real eleven-point hit attributes exactly one impaired component')
+            self.require_channels(h, damaged[0])
+            self.incoming = copy.deepcopy(hit)
+            self.receipts['incoming_damage'] = {**copy.deepcopy(hit), 'component': damaged[0]}
+        if not self.incoming:
+            require(d['hull'] == 100 and all(r['integrity'] == 1 for r in rows.values())
+                    and d['repair_count'] == 0, 'no unattributed damage or repair before incoming receipt')
+        else:
+            self.require_incoming(d['incoming_last'], s, d)
+            require(d['incoming_last']['cumulative_damage'] == d['incoming_damage']
+                    and d['incoming_last']['remaining_health'] == d['hull'],
+                    'retained last genuine hit and cumulative hull loss')
+            if not d['landed']:
+                require(d['repair_count'] == 0 if self.repair_start is None else
+                        d['repair_count'] == previous['repair_count'], 'no passive repair while airborne')
+                if previous:
+                    prior = self.states(previous)
+                    require(all(rows[k]['integrity'] <= prior[k]['integrity']+.0001 for k in self.COMPONENTS),
+                            'no airborne component integrity increase')
+                if self.repair_start is None and s['frame'] > self.incoming['frame']:
+                    self.airborne_run += 1
+            eligible = d['landed'] and not d['landing_active']
+            if eligible and self.repair_start is None:
+                require(self.airborne_run >= 90, 'ninety consecutive damaged airborne frames before first home')
+                self.airborne_frames = self.airborne_run
+                self.airborne_proof = {'frames': self.airborne_run, 'last_airborne_frame': s['frame']-1}
+                self.repair_baseline = copy.deepcopy(previous)
+                self.require_home(s)
+                self.repair_start = min(s['frame'], d['repair_first'].get('frame', s['frame']))
+            if d['landed']:
+                self.airborne_run = 0
+            require(not d['repair_violation'], 'every passive repair commit is strictly landed and token bound')
+            if d['repair_count']:
+                require(self.repair_start is not None, 'real passive repair follows eligible strict home')
+                first, last = d['repair_first'], d['repair_last']
+                for event in (first, last):
+                    self.same_model(event['snapshot'])
+                    require(event['origin'] == 'passive_berth' and event['generation'] == d['generation']
+                            and event['strict_home'] and event['snapshot']['hull'] == d['hull'],
+                            'actual same-ledger passive berth commit without hull healing')
+                require(last['revision'] >= first['revision'] > self.incoming['snapshot']['revision'],
+                        'passive commits advance the actual damaged ledger')
+                first_rows, last_rows = self.states(first['snapshot']), self.states(last['snapshot'])
+                baseline_rows = self.states(self.repair_baseline)
+                require(any(r['integrity'] < 1 for r in baseline_rows.values())
+                        and all(math.isclose(first_rows[k]['integrity'], min(1., baseline_rows[k]['integrity']+.62/60), abs_tol=.0001)
+                                for k in self.COMPONENTS)
+                        and all(math.isclose(last_rows[k]['integrity'], rows[k]['integrity'], abs_tol=.0001)
+                                for k in self.COMPONENTS)
+                        and last['snapshot']['revision'] == d['revision'],
+                        'real passive pulses explain current restored component integrities')
+            nominal = all(r['integrity'] == 1 and r['state_id'] == 'nominal' for r in rows.values())
+            effects_clear = all(d['effects'][k] == 0 for k in ('localized', 'repair_cues', 'pending', 'impacts'))
+            if self.repair_start is not None and self.repaired is None:
+                require(s['frame']-self.repair_start < 180,
+                        'existing component integration repair and presentation bound under180 physics frames')
+                if nominal and effects_clear:
+                    self.require_home(s)
+                    require(d['repair_count'] > 0 and all(d['modifiers'][k+'_multiplier'] == 1
+                            for k in ('mobility', 'fire', 'targeting')), 'real passive repair restores all nominal channels')
+                    self.repaired = copy.deepcopy(d)
+                    self.receipts['passive_repaired'] = {'frame': s['frame'], 'eligible_frame': self.repair_start,
+                        'airborne_frames': self.airborne_frames, 'airborne_run': self.airborne_proof,
+                        'pre_repair': self.repair_baseline, 'snapshot': self.repaired}
+            if self.repaired is not None:
+                require(nominal and effects_clear, 'repaired component state and effects persist through usable continuation')
+        self.damage_previous = copy.deepcopy(d)
+
+    def validate_observation(self, s):
+        super().validate_observation(s)
+        self.validate_damage(s)
+
+    def update(self, s, now):
+        if self.guided_result is None and self.stage == 'interceptor' and self.incoming is None:
+            require(s['phase'] == 'INTERCEPTOR_ENGAGEMENT' and s['opponent_active']
+                    and s['opponent_health'] == 85 and s['seated'] and s['piloted']
+                    and s['active_ship'] and s['ship_camera'] and not s['landing_active'],
+                    'ordinary live interceptor wait with player fire released')
+            dx, dy, _ = self.aim(s, s['opponent'], .2)
+            return {'Prior'}, dx, dy, False
+        if self.guided_result is None and self.stage == 'shutdown' and self.repaired is None:
+            return set(), 0, 0, False
+        return super().update(s, now)
+
+    def finish(self, exit_code):
+        require(self.incoming is not None and self.repaired is not None and self.airborne_frames >= 90,
+                'actual incoming impairment airborne persistence and passive repair before completion')
+        result = super().finish(exit_code)
+        result.update(scope='partial CRAFT-ACCEPT-TORRENT one incoming component damage and passive repair capability',
+                      all_component_stages_destruction_crosscraft_main_acceptance='NOT_RUN')
+        return result
 
 
 class BreachFireControl:
@@ -7331,7 +7516,7 @@ class CinderSupplyFiles(HabitatRestartFiles):
                 else: pilot.file_home = True
 
 def run(binary, output, route="guided", qualify_beacon_outbound=False):
-    require(route in ("patrol-relay-home", "race-home", "heavy-breach", "bomber-rearm", "cinder-supply", "hauler-supply", "arrow-return-reuse", "torrent-return-reuse", "guided", "courier-intercept", "courier-escape", "courier-withdraw-phase", "courier-withdraw-distance", "beacon-entry", "beacon-settlement", "beacon-home", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
+    require(route in ("patrol-relay-home", "race-home", "heavy-breach", "bomber-rearm", "cinder-supply", "hauler-supply", "arrow-return-reuse", "torrent-return-reuse", "torrent-damaged-return", "guided", "courier-intercept", "courier-escape", "courier-withdraw-phase", "courier-withdraw-distance", "beacon-entry", "beacon-settlement", "beacon-home", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
     require(not qualify_beacon_outbound or route == 'beacon-home',
             'outbound timing qualification requires the full beacon-home route')
     output.mkdir(parents=True, exist_ok=False)
@@ -7430,7 +7615,7 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False):
                     leg_result['window'] = hex(window)
                     desktop.focus(window)
                     pilot = HabitatRestartPilot(cold=bool(leg)) if restart_files else {
-                        "patrol-relay-home": PatrolRelayHomePilot, "race-home": RaceHomePilot, "heavy-breach": HeavyBreachPilot, "bomber-rearm": BomberRearmPilot, "cinder-supply": CinderSupplyPilot, "hauler-supply": CinderHaulerSupplyPilot, "arrow-return-reuse": ArrowReturnReusePilot, "torrent-return-reuse": TorrentReturnReusePilot, "guided": Pilot, "courier-intercept": CourierPilot, "courier-escape": CourierEscapePilot, "courier-withdraw-phase": CourierWithdrawPhasePilot, "courier-withdraw-distance": CourierWithdrawDistancePilot, "beacon-entry": BeaconEntryPilot, "beacon-settlement": BeaconSettlementPilot, "beacon-home": BeaconHomePilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
+                        "patrol-relay-home": PatrolRelayHomePilot, "race-home": RaceHomePilot, "heavy-breach": HeavyBreachPilot, "bomber-rearm": BomberRearmPilot, "cinder-supply": CinderSupplyPilot, "hauler-supply": CinderHaulerSupplyPilot, "arrow-return-reuse": ArrowReturnReusePilot, "torrent-return-reuse": TorrentReturnReusePilot, "torrent-damaged-return": TorrentDamagedReturnPilot, "guided": Pilot, "courier-intercept": CourierPilot, "courier-escape": CourierEscapePilot, "courier-withdraw-phase": CourierWithdrawPhasePilot, "courier-withdraw-distance": CourierWithdrawDistancePilot, "beacon-entry": BeaconEntryPilot, "beacon-settlement": BeaconSettlementPilot, "beacon-home": BeaconHomePilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
                         "hulk-arrival": HulkArrivalPilot, "hulk-breaker": HulkBreakerPilot,
                         "hulk-home": HulkHomePilot, "habitat-loop": HabitatLoopPilot, "life-tow": LifeTowPilot, "life-gantry": lambda: LifeTowPilot("life-gantry"), "life-arm": lambda: LifeTowPilot("life-arm"), "life-patrol": lambda: LifeTowPilot("life-patrol")}[route]()
                     if isinstance(pilot, BeaconHomePilot): pilot.file_snapshots = settlement_files.snapshots
@@ -7655,7 +7840,7 @@ def main():
     parser.add_argument('--output',required=True,type=Path)
     parser.add_argument('--qualify-beacon-outbound', action='store_true',
                         help='qualify the fixed 60.0s outbound monotonic maximum within the unchanged full beacon-home route')
-    parser.add_argument('--route', choices=('patrol-relay-home', 'race-home', 'heavy-breach', 'bomber-rearm', 'cinder-supply', 'hauler-supply', 'arrow-return-reuse', 'torrent-return-reuse', 'guided', 'courier-intercept', 'courier-escape', 'courier-withdraw-phase', 'courier-withdraw-distance', 'beacon-entry', 'beacon-settlement', 'beacon-home', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
+    parser.add_argument('--route', choices=('patrol-relay-home', 'race-home', 'heavy-breach', 'bomber-rearm', 'cinder-supply', 'hauler-supply', 'arrow-return-reuse', 'torrent-return-reuse', 'torrent-damaged-return', 'guided', 'courier-intercept', 'courier-escape', 'courier-withdraw-phase', 'courier-withdraw-distance', 'beacon-entry', 'beacon-settlement', 'beacon-home', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
                         help='patrol-relay-home completes genuine Guided, actual pause-board relay selection, five continuous two-second holds, exact durable payment, strict home and normal UI exit; race-home completes the genuine Guided prerequisite then same-Torrent timed race, exact durable reward, strict home and normal UI exit; heavy-breach completes real posted Heavy/picket kill/payment/home/next posting/UI exit; courier-withdraw-distance flies beyond all actual contacts for real seven-second grace withdrawal before original defender and home; courier-withdraw-phase kills the original defender after actual first courier dispatch and verifies phase withdrawal/standdown through home; courier-escape lets the actual first live runner escape and verifies standdown through home; courier-intercept destroys the actual first courier before escape then returns home; beacon-home retains payment through genuine Guided combat, home docking and usable exterior walking; hauler-supply flies the actual Dock04 Hauler through the funded Cinder terminal/home journey; cinder-supply flies the full funded Jovian/Cinder terminal/home journey; beacon-settlement continues the accepted entry through four physical beacons and durable reward; beacon-entry departs normally and physically reaches/starts the first Beacon through actual pause controls; life-patrol walks Habitat through the real door beside patrol drones and boards Torrent; life-arm walks Aft stairs past the live service arm and boards Zenith; life-gantry walks Freight past the live gantry and boards Jovian; life-tow walks Central beside live tow service and boards Torrent; hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
     args=parser.parse_args()
     if args.qualify_beacon_outbound and args.route != 'beacon-home':

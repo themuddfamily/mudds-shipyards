@@ -5175,5 +5175,174 @@ class TorrentReturnReuseTests(unittest.TestCase):
         self.assertEqual(p.finish(0)['completion_marker'], native.TorrentReturnReusePilot.MARKER)
 
 
+class TorrentDamagedReturnTests(unittest.TestCase):
+    def start(self):
+        p = native.TorrentDamagedReturnPilot()
+        s = TorrentReturnReuseTests().observation()
+        s['mode'] = p.MODE
+        s['damage'] = dict(model_id=91, generation=1, revision=2, authority_id=92, damageable_id=93,
+            hull=100, maximum_hull=100, landed=True, landing_active=False, repair_rate=.62,
+            components=[dict(id=k, integrity=1., state_id='nominal') for k in p.COMPONENTS],
+            modifiers={k+suffix: value for k in ('mobility', 'fire', 'targeting')
+                       for suffix, value in (('_multiplier', 1.), ('_disabled', False))},
+            effects=dict(localized=0, repair_cues=0, pending=0, impacts=0),
+            opponent_tuning=dict(maximum_health=85, weapon_cooldown=1.55),
+            incoming={}, incoming_last={}, incoming_count=0, incoming_damage=0, incoming_violation=False,
+            repair_first={}, repair_last={}, repair_count=0, repair_violation=False)
+        p.validate_damage(s)
+        return p, s
+
+    def incoming(self, p, s, component='port_wing'):
+        d = s['damage']; s['frame'] += 1
+        s.update(phase='INTERCEPTOR_ENGAGEMENT', landed=False, contract=False, seated=True, piloted=True,
+                 active_ship=True, ship_camera=True, opponent_health=85, opponent_active=True)
+        d.update(hull=89, landed=False, revision=3)
+        for row in d['components']:
+            if row['id'] == component: row.update(integrity=.56, state_id='impaired')
+        if component in p.CHANNELS: d['modifiers'][p.CHANNELS[component]+'_multiplier'] = .62
+        hit = dict(frame=s['frame'], present=True, accepted=True, resolved=True, hit=True, damaged=True,
+            destroyed=False, request_matches=True, source_entity_id=s['opponent_id'], source_id=2101,
+            target_entity_id=s['ship_id'], damageable_id=d['damageable_id'], collider_id=s['ship_id'],
+            contact_finite=True, position=[1, 2, 3], applied_damage=11, remaining_health=89,
+            phase='INTERCEPTOR_ENGAGEMENT', opponent_active=True, opponent_health=85,
+            native_fire=False, command_fire=False, cumulative_damage=11, snapshot=copy.deepcopy(d),
+            request=dict(source_entity_id=s['opponent_id'], source_id=2101, weapon_id='defence_pulse_cannon',
+                         sequence=7, damage=11),
+            context=dict(source_entity_id=s['opponent_id'], source_id=2101, weapon_id='defence_pulse_cannon',
+                         sequence=7, target_id=s['ship_id'], contact_finite=True, position=[1, 2, 3]))
+        d.update(incoming=hit, incoming_last=copy.deepcopy(hit), incoming_count=1, incoming_damage=11)
+        return hit
+
+    def airborne(self, p, s, frames=90):
+        for _ in range(frames):
+            s['frame'] += 1
+            p.validate_damage(s)
+
+    def berth(self, p, s):
+        s['frame'] += 1
+        s.update(phase='SHUT_DOWN', landed=True, contract=True)
+        d = s['damage']; d.update(landed=True, revision=d['revision']+1, repair_count=1)
+        for row in d['components']:
+            if row['integrity'] < 1: row['integrity'] = min(1., row['integrity']+.62/60)
+        event = dict(frame=s['frame'], origin='passive_berth', generation=1, revision=d['revision'],
+                     strict_home=True, lease_token=s['lease_token'], snapshot=copy.deepcopy(d))
+        d.update(repair_first=copy.deepcopy(event), repair_last=copy.deepcopy(event))
+        p.validate_damage(s)
+
+    def test_first_hit_uses_actual_region_and_declared_channel_then_resumes_fire(self):
+        for component in native.TorrentDamagedReturnPilot.COMPONENTS:
+            with self.subTest(component=component):
+                p, s = self.start(); self.incoming(p, s, component); p.validate_damage(s)
+                self.assertEqual(p.receipts['incoming_damage']['component'], component)
+                p.stage = 'interceptor'; p.last_state = s
+                with patch.object(native.TorrentReturnReusePilot, 'update', return_value=({'Prior'}, 0, 0, True)) as update:
+                    self.assertTrue(p.update(s, 1)[3]); update.assert_called_once()
+        p, s = self.start(); s.update(phase='INTERCEPTOR_ENGAGEMENT', opponent_active=True,
+            opponent_health=85, seated=True, piloted=True, active_ship=True, ship_camera=True)
+        p.stage = 'interceptor'
+        self.assertFalse(p.update(s, 1)[3])
+
+    def test_foreign_receipt_context_or_wrong_damage_cannot_unlock_fire(self):
+        for mutation in ('source', 'context', 'damageable', 'point', 'damage', 'generation'):
+            with self.subTest(mutation=mutation):
+                p, s = self.start(); hit = self.incoming(p, s)
+                if mutation == 'source': hit['source_entity_id'] = 999
+                elif mutation == 'context': hit['context']['source_id'] = 999
+                elif mutation == 'damageable': hit['damageable_id'] = 999
+                elif mutation == 'point': hit['contact_finite'] = False
+                elif mutation == 'damage': hit['applied_damage'] = 1
+                else: hit['snapshot']['generation'] += 1
+                with self.assertRaises(AssertionError): p.validate_damage(s)
+                self.assertIsNone(p.incoming)
+
+    def test_airborne_repair_and_replaced_or_reset_model_are_rejected(self):
+        for mutation in ('increase', 'repair', 'generation', 'model'):
+            with self.subTest(mutation=mutation):
+                p, s = self.start(); self.incoming(p, s); p.validate_damage(s); s['frame'] += 1
+                d = s['damage']
+                if mutation == 'increase': d['components'][1]['integrity'] += .01
+                elif mutation == 'repair': d['repair_count'] = 1
+                elif mutation == 'generation': d['generation'] += 1
+                else: d['model_id'] += 1
+                with self.assertRaises(AssertionError): p.validate_damage(s)
+
+    def second_incoming(self, p, s):
+        d = s['damage']; s['frame'] += 1
+        d.update(hull=78, revision=d['revision']+1, incoming_count=2, incoming_damage=22)
+        for row in d['components']:
+            if row['id'] == 'core_systems': row.update(integrity=.56, state_id='impaired')
+        d['modifiers']['targeting_multiplier'] = .62
+        hit = copy.deepcopy(d['incoming'])
+        hit.update(frame=s['frame'], remaining_health=78, cumulative_damage=22, opponent_health=51,
+                   native_fire=True, command_fire=True, snapshot=copy.deepcopy(d))
+        hit['request']['sequence'] += 1; hit['context']['sequence'] += 1
+        d['incoming_last'] = hit
+        return hit
+
+    def test_multiple_genuine_hits_preserve_cumulative_loss_and_repair_all_actual_damage(self):
+        p, s = self.start(); self.incoming(p, s); p.validate_damage(s)
+        self.second_incoming(p, s); p.validate_damage(s)
+        self.assertEqual(s['damage']['hull'], 78)
+        self.airborne(p, s); self.berth(p, s)
+        d = s['damage']; s['frame'] += 43; d.update(revision=47, repair_count=43)
+        for row in d['components']: row.update(integrity=1., state_id='nominal')
+        d['modifiers'].update(fire_multiplier=1., targeting_multiplier=1.)
+        d['repair_last'] = dict(frame=s['frame'], origin='passive_berth', generation=1,
+                               revision=47, strict_home=True, snapshot=copy.deepcopy(d))
+        p.validate_damage(s)
+        self.assertIsNotNone(p.repaired)
+        self.assertEqual(d['hull'], 78)
+        self.assertEqual(p.incoming['remaining_health'], 89)
+
+    def test_later_hit_requires_provenance_cumulative_loss_and_no_airborne_heal(self):
+        for mutation in ('context', 'cumulative', 'healing', 'sticky'):
+            with self.subTest(mutation=mutation):
+                p, s = self.start(); self.incoming(p, s); p.validate_damage(s)
+                hit = self.second_incoming(p, s)
+                if mutation == 'context': hit['context']['source_entity_id'] = 999
+                elif mutation == 'cumulative': s['damage']['incoming_damage'] = 11
+                elif mutation == 'healing': s['damage']['components'][1]['integrity'] += .01
+                else: s['damage']['incoming_violation'] = True
+                with self.assertRaises(AssertionError): p.validate_damage(s)
+
+    def test_landed_transient_resets_incomplete_airborne_run(self):
+        p, s = self.start(); self.incoming(p, s); p.validate_damage(s)
+        self.airborne(p, s, 45)
+        s['frame'] += 1; s['damage'].update(landed=True, landing_active=True)
+        p.validate_damage(s)
+        self.assertEqual(p.airborne_run, 0)
+        s['damage'].update(landed=False, landing_active=False)
+        self.airborne(p, s, 45)
+        with self.assertRaisesRegex(AssertionError, 'ninety consecutive'):
+            self.berth(p, s)
+        self.assertIsNone(p.airborne_proof)
+
+    def test_real_passive_commit_restores_components_and_retains_hull_loss(self):
+        p, s = self.start(); self.incoming(p, s); p.validate_damage(s); self.airborne(p, s)
+        self.berth(p, s)
+        d = s['damage']; s['frame'] += 43; d.update(revision=46, repair_count=43)
+        for row in d['components']: row.update(integrity=1., state_id='nominal')
+        d['modifiers']['fire_multiplier'] = 1.
+        d['repair_last'] = dict(frame=s['frame'], origin='passive_berth', generation=1,
+                               revision=46, strict_home=True, snapshot=copy.deepcopy(d))
+        p.validate_damage(s)
+        self.assertIsNotNone(p.repaired); self.assertEqual(d['hull'], 89)
+        self.assertEqual(p.airborne_frames, 90)
+
+    def test_fake_or_late_or_unsecured_repair_cannot_complete(self):
+        for mutation in ('no_commit', 'fake_state', 'late', 'unsecured', 'hull_healed'):
+            with self.subTest(mutation=mutation):
+                p, s = self.start(); self.incoming(p, s); p.validate_damage(s); self.airborne(p, s)
+                self.berth(p, s); d = s['damage']; s['frame'] += 1
+                if mutation == 'no_commit': d['repair_count'] = 0
+                elif mutation == 'fake_state':
+                    for row in d['components']: row.update(integrity=1., state_id='nominal')
+                elif mutation == 'late': s['frame'] = p.repair_start+180
+                elif mutation == 'unsecured': d['repair_violation'] = True
+                else: d['hull'] = 100
+                with self.assertRaises(AssertionError): p.validate_damage(s)
+                self.assertIsNone(p.repaired)
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -77,7 +77,19 @@ Only one implementation card may be active. Completed results are linked under
 [accepted work](#accepted-work--source-limits-retained), and failed attempts under
 [parked work](#parked-failures-and-dependent-work). They are not next tasks.
 The table below contains actual missing decisions.
-No implementation card is active. Torrent return/reuse is accepted on5d2c58dba:
+Active card: Torrent incoming damage and landed repair,14:48Z→15:48Z/60min
+including source binding, checks, integration and cleanup. New native route must
+observe a real defender11-damage hit on the pristine100-hull Torrent, actual
+component attribution, at least90airborne frames without component repair, then
+strict home landing and actual passive repair to all five nominal components
+within the existing<180physics-frame bound. Preserve same identities/generation,
+real kill, two strict homes/90neutral-OFFLINE ticks/exits/walk/normal UI OS0,
+unchanged controls and CAP300. Private Xvfb/x11/Dummy only; first unexpected
+failure stops. Independent review, focused Python/privacy/parser checks, clean
+private Linux export/strict startup and one new guarded route are required.
+All-component consequences, destruction/recovery and cross-craft/Main stay open.
+
+Torrent return/reuse is accepted on5d2c58dba:
 actual packaged Guided, two strict home returns with90consecutive neutral/OFFLINE
 ticks each, fresh boarding/departure/second lease, supported exits/walking and
 normal UI OS0 in85.267s under the unchanged300s cap. This is an executable part

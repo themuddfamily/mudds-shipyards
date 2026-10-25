@@ -25,6 +25,17 @@ var _hauler_supply := false
 var _supply_sequence := 0
 var _arrow := false
 var _torrent_reuse := false
+var _torrent_damaged := false
+var _torrent_damage_authority: Node
+var _torrent_incoming: Dictionary = {}
+var _torrent_incoming_count := 0
+var _torrent_incoming_last: Dictionary = {}
+var _torrent_incoming_damage := 0.0
+var _torrent_incoming_violation := false
+var _torrent_repair_first: Dictionary = {}
+var _torrent_repair_last: Dictionary = {}
+var _torrent_repair_count := 0
+var _torrent_repair_violation := false
 var _heavy_breach := false
 var _arrow_sequence := 0
 var _race_home := false
@@ -114,7 +125,8 @@ func on_startup_completed(main: Node) -> void:
 		_tuning = _sortie_tuning()
 		process_mode = Node.PROCESS_MODE_ALWAYS
 		return
-	_torrent_reuse = "--native-sortie-observer=torrent-return-reuse" in OS.get_cmdline_args()
+	_torrent_damaged = "--native-sortie-observer=torrent-damaged-return" in OS.get_cmdline_args()
+	_torrent_reuse = "--native-sortie-observer=torrent-return-reuse" in OS.get_cmdline_args() or _torrent_damaged
 	if _torrent_reuse:
 		process_mode = Node.PROCESS_MODE_ALWAYS
 	_race_home = "--native-sortie-observer=race-home" in OS.get_cmdline_args()
@@ -142,6 +154,11 @@ func on_startup_completed(main: Node) -> void:
 		_tuning = _sortie_tuning()
 		return
 	_opponent = _game.get_node("RangeOpponent") as RangeOpponent
+	if _torrent_damaged:
+		_torrent_damage_authority = _game.combat_authority
+		_torrent_damage_authority.connect(&"authoritative_shot_submitted", _capture_torrent_incoming)
+		_ship.component_repair_progressed.connect(_capture_torrent_repair)
+		_game.tree_exiting.connect(_disconnect_torrent_damage)
 	_courier_escape_mode = "--native-sortie-observer=courier-escape" in OS.get_cmdline_args()
 	_courier_withdraw_phase_mode = "--native-sortie-observer=courier-withdraw-phase" in OS.get_cmdline_args()
 	_courier_withdraw_distance_mode = "--native-sortie-observer=courier-withdraw-distance" in OS.get_cmdline_args()
@@ -210,6 +227,7 @@ func _disconnect_courier_withdraw() -> void:
 
 func _exit_tree() -> void:
 	_disconnect_courier_withdraw()
+	_disconnect_torrent_damage()
 
 
 ## Retain only scalar production receipts, before the output cadence gate.
@@ -300,6 +318,123 @@ func _courier_observation() -> Dictionary:
 ## Reading this does not submit a shot or advance the resolver sequence.
 func _courier_prep_shot_observation() -> Dictionary:
 	return _courier_shot_observation(_game.get_last_player_shot_result())
+
+
+## Mode-fenced passive observers retain bounded scalar copies. No authority is
+## invoked here: damage, repair, targeting and presentation remain production-owned.
+func _torrent_damage_snapshot() -> Dictionary:
+	var model := _ship.get_component_damage()
+	var report := _ship.get_component_damage_report()
+	var rows: Array[Dictionary] = []
+	for row: Dictionary in report.get("components", []):
+		rows.append({"id": str(row.get("id", &"")), "integrity": float(row.get("integrity", -1.0)),
+			"state_id": str(row.get("state_id", &""))})
+	var adapter := _ship.get_node_or_null(^"AuthoritativeDamageable") as LifecycleDamageableAdapter
+	var presentation := _ship.get("_damage_presentation") as HeroDamagePresentation
+	var effects := presentation.get_component_recovery_report(model.get_ledger_generation()) if is_instance_valid(presentation) and is_instance_valid(model) else {}
+	var modifiers := _ship.get_operational_modifiers()
+	var channels: Dictionary = {}
+	for channel: String in ["mobility", "fire", "targeting"]:
+		channels[channel + "_multiplier"] = float(modifiers.get(channel + "_multiplier", -1.0))
+		channels[channel + "_disabled"] = bool(modifiers.get(channel + "_disabled", true))
+	return {"model_id": model.get_instance_id() if is_instance_valid(model) else 0,
+		"generation": int(report.get("ledger_generation", 0)), "revision": int(report.get("revision", 0)),
+		"authority_id": _torrent_damage_authority.get_instance_id() if is_instance_valid(_torrent_damage_authority) else 0,
+		"damageable_id": adapter.get_instance_id() if is_instance_valid(adapter) else 0,
+		"hull": float(_ship.get("_hull")), "maximum_hull": _ship.maximum_hull,
+		"landed": bool(_ship.get("_landed")), "landing_active": _ship.is_landing_active(),
+		"repair_rate": float(report.get("repair_rate_per_second", -1.0)), "components": rows, "modifiers": channels,
+		"effects": {"localized": int(effects.get("localized_component_effects", -1)),
+			"repair_cues": int(effects.get("component_repair_cues", -1)), "pending": int(effects.get("pending_presentations", -1)),
+			"impacts": int(effects.get("impact_effects", -1))},
+		"opponent_tuning": {"maximum_health": _opponent.maximum_health, "cruise_speed": _opponent.cruise_speed,
+			"chase_speed": _opponent.chase_speed, "acceleration": _opponent.acceleration,
+			"turn_speed_degrees": _opponent.turn_speed_degrees, "preferred_range": _opponent.preferred_range,
+			"retreat_range": _opponent.retreat_range, "engagement_range": _opponent.engagement_range,
+			"telegraph_time": _opponent.telegraph_time, "weapon_cooldown": _opponent.weapon_cooldown,
+			"projectile_speed": _opponent.projectile_speed}}
+
+
+func _capture_torrent_incoming(request: ShotRequest, result: Dictionary) -> void:
+	if not _torrent_damaged or not is_instance_valid(_game) or not _game.is_inside_tree() \
+			or get_parent().call("get_main") != _game or _game.combat_authority != _torrent_damage_authority \
+			or not bool(result.get("damaged", false)) or result.get("target_entity") != _ship:
+		return
+	_torrent_incoming_count += 1
+	var adapter := result.get("damageable") as LifecycleDamageableAdapter
+	var context := adapter.get_last_hit_context() if is_instance_valid(adapter) else {}
+	var source_context := context.get("source", {}) as Dictionary
+	var context_source := source_context.get("source_entity") as Node
+	var point: Vector3 = result.get("position", Vector3.INF)
+	var context_point: Vector3 = context.get("position", Vector3.INF)
+	var command := _ship.get_last_ship_command()
+	var event := _courier_shot_observation(result)
+	event.merge({"frame": Engine.get_physics_frames(), "request_matches": result.get("request") == request,
+		"phase": GameFlow.Phase.keys()[_game.phase], "remaining_health": float(result.get("remaining_health", -1.0)),
+		"opponent_active": _opponent.is_active(), "opponent_health": _opponent.get_health(),
+		"contact_finite": point.is_finite(), "position": _v(point) if point.is_finite() else [],
+		"native_fire": Input.is_action_pressed("fire"), "command_fire": command.fire if command != null else false,
+		"snapshot": _torrent_damage_snapshot(),
+		"context": {"source_id": int(source_context.get("source_id", 0)),
+			"source_entity_id": context_source.get_instance_id() if is_instance_valid(context_source) else 0,
+			"weapon_id": str(source_context.get("weapon_id", &"")), "sequence": int(source_context.get("sequence", -1)),
+			"target_id": adapter.get_target_entity().get_instance_id() if is_instance_valid(adapter) and is_instance_valid(adapter.get_target_entity()) else 0,
+			"contact_finite": context_point.is_finite(), "position": _v(context_point) if context_point.is_finite() else []}})
+	event.request["damage"] = request.damage
+	var expected_adapter := _ship.get_node_or_null(^"AuthoritativeDamageable") as LifecycleDamageableAdapter
+	var genuine: bool = request.source_entity == _opponent and request.source_id == 2101 \
+		and request.weapon_id == &"defence_pulse_cannon" and request.damage == 11.0 \
+		and result.get("request") == request and result.get("source_entity") == _opponent \
+		and int(result.get("source_id", 0)) == 2101 and adapter == expected_adapter \
+		and is_instance_valid(adapter) and adapter.get_target_entity() == _ship \
+		and bool(result.get("accepted", false)) and bool(result.get("resolved", false)) \
+		and bool(result.get("hit", false)) and float(result.get("applied_damage", 0.0)) == 11.0 \
+		and point.is_finite() and context_point.is_finite() and point == context_point \
+		and context_source == _opponent and int(source_context.get("source_id", 0)) == 2101 \
+		and source_context.get("weapon_id") == &"defence_pulse_cannon" \
+		and int(source_context.get("sequence", -1)) == request.sequence \
+		and _game.phase == GameFlow.Phase.INTERCEPTOR_ENGAGEMENT and _opponent.is_active()
+	_torrent_incoming_violation = _torrent_incoming_violation or not genuine
+	_torrent_incoming_damage += float(result.get("applied_damage", 0.0))
+	event["cumulative_damage"] = _torrent_incoming_damage
+	if _torrent_incoming.is_empty():
+		_torrent_incoming = event.duplicate(true)
+	_torrent_incoming_last = event
+
+
+func _capture_torrent_repair(progress: Dictionary) -> void:
+	if not _torrent_damaged or not is_instance_valid(_game) or not _game.is_inside_tree():
+		return
+	var berth := _game.world.get_berth_node(_ship.get_home_berth_id()) as ShipBerth
+	var contract := _ship.get("_landing_contract") as Dictionary
+	var token := StringName(berth.get("_reservation_token"))
+	var strict: bool = bool(_ship.get("_landed")) and not _ship.is_destroyed() and not _ship.is_landing_active() \
+		and bool(contract.get("contract_accepted", false)) and bool(contract.get("strict_dock_acceptance", false)) \
+		and contract.get("berth_id", &"") == _ship.get_home_berth_id() and _ship.global_transform.is_equal_approx(_parked) \
+		and berth.get_occupant() == _ship and berth.get_reservation_owner() == _ship \
+		and token != &"" and token == StringName(_ship.get("_landing_reservation_token")) \
+		and StringName(berth.get("_reserved_ship_id")) == _ship.get_ship_id() \
+		and StringName(_ship.get("_landing_reserved_ship_id")) == _ship.get_ship_id()
+	_torrent_repair_count += 1
+	_torrent_repair_violation = _torrent_repair_violation or not strict or progress.get("presentation_origin") != &"passive_berth"
+	# This signal precedes HeroShip's presentation synchronization. Completion
+	# and zero-effect assertions use subsequent full physics observations.
+	var event := {"frame": Engine.get_physics_frames(), "origin": str(progress.get("presentation_origin", &"")),
+		"generation": int(progress.get("generation", 0)), "revision": int(progress.get("revision", 0)),
+		"strict_home": strict, "lease_token": str(token), "snapshot": _torrent_damage_snapshot()}
+	if _torrent_repair_first.is_empty():
+		_torrent_repair_first = event.duplicate(true)
+	_torrent_repair_last = event
+
+
+func _disconnect_torrent_damage() -> void:
+	if is_instance_valid(_torrent_damage_authority) and _torrent_damage_authority.is_connected(&"authoritative_shot_submitted", _capture_torrent_incoming):
+		_torrent_damage_authority.disconnect(&"authoritative_shot_submitted", _capture_torrent_incoming)
+	if is_instance_valid(_ship) and _ship.component_repair_progressed.is_connected(_capture_torrent_repair):
+		_ship.component_repair_progressed.disconnect(_capture_torrent_repair)
+	if is_instance_valid(_game) and _game.tree_exiting.is_connected(_disconnect_torrent_damage):
+		_game.tree_exiting.disconnect(_disconnect_torrent_damage)
+	_torrent_damage_authority = null
 
 
 func _courier_shot_observation(shot: Dictionary) -> Dictionary:
@@ -703,6 +838,14 @@ func _physics_process(delta: float) -> void:
 		reuse.erase("velocity")
 		observation.merge(reuse, true)
 		observation["guided_return_authorized"] = bool(_game.get("_guided_return_ready_for_completion"))
+		if _torrent_damaged:
+			var damage := _torrent_damage_snapshot()
+			damage.merge({"incoming": _torrent_incoming.duplicate(true), "incoming_count": _torrent_incoming_count,
+				"incoming_last": _torrent_incoming_last.duplicate(true), "incoming_damage": _torrent_incoming_damage,
+				"incoming_violation": _torrent_incoming_violation,
+				"repair_first": _torrent_repair_first.duplicate(true), "repair_last": _torrent_repair_last.duplicate(true),
+				"repair_count": _torrent_repair_count, "repair_violation": _torrent_repair_violation})
+			observation["damage"] = damage
 	print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(observation))
 
 
@@ -1612,7 +1755,7 @@ func _arrow_observation(torrent: bool = false) -> Dictionary:
 		and _ember_node_current(_player) and _game.player == _player \
 		and _ember_node_current(_game.world) and _ember_node_current(_ship) \
 		and _game.get_node_or_null(^"TorrentInterceptor" if torrent else ^"ArrowReconShip") == _ship
-	var result := {"mode": "torrent-return-reuse" if torrent else "arrow-return-reuse", "sequence": _arrow_sequence,
+	var result := {"mode": ("torrent-damaged-return" if _torrent_damaged else "torrent-return-reuse") if torrent else "arrow-return-reuse", "sequence": _arrow_sequence,
 		"pid": OS.get_process_id(), "frame": Engine.get_physics_frames(), "actors_current": current}
 	if not current:
 		return result
