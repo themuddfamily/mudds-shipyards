@@ -159,6 +159,38 @@ stages remain pending and no human pixel review is claimed.
 
 On 2026-10-17, `6cf94bd39` updates the station-operations runner to the exact nine-craft/nine-berth production roster. Its one original-cap Forward+ llvmpipe attempt times out at 300 seconds before initial render settling, with no PNGs; source/index/status/import-cache guards remain unchanged. The roster assertions are not reached. The registry stays pending for this harness. Raw run: `/srv/mudds-work/station-operations-capture-20261017/`.
 
+## Canonical status reconciliation — 2026-10-25
+
+The thirteen existing capture rows in ROADMAP_BACKLOG.md now retain the actual
+stage boundary rather than uniformly saying a frozen candidate/harness is
+missing. This is reuse of recorded results, not new capture or pixel review.
+Caption-presenter06d22013a, freightere159ac3c5 and freight-berth689e2ed0e have
+verified machine stages and documented original-resolution agent inspections.
+Their current/final-candidate and excluded/unperformed human stages remain
+separate. Do not repeat those unchanged accepted source views by default.
+
+Other preserved output does not imply a current complete set: berth feedback
+has historical9 versus current18; hero cell12 versus18; scenes27 at1280x720
+versus current2560x1440; varied encounters has17of18 and lacks
+`plate_04b_scatter_fan.png`. Player-motioned359040c has a recorded source-specific
+nine-frame inspection, but the current artifact directory still needs exact
+source/run and diagnostic binding. Cinder's historical24-frame inspection also
+lacks the current registry source/image handoff. Those gaps are distinct from
+missing images or an unimplemented capture harness.
+
+Combat's retained seven2560x1440 PNGs and transactional manifest are published,
+but its raw log prints `WARNING: 7 RIDs of type "Texture" were leaked.` at1483,
+after its success sentinel, plus a prior superuser warning. This is not a
+strict zero-diagnostic PASS. Historical Zenith also records the seven-texture
+post-sentinel warning. Caption-production and station-operations retain their
+original300s environment failures and0-images outcomes; no unchanged rerun or
+quality/deadline reduction is justified. Actual diagnostic resolution requires
+its own supported source/environment cause before a new frozen run.
+
+Registry metadata is unchanged: human `ready` is not `reviewed`, and no human
+review or current-common-candidate qualification has been manufactured. All
+original13sets/143PNGs and their exact source/size/inventory requirements remain.
+
 ## Current required capture commands
 
 The current source inventory contains **13 required harnesses and 143 PNGs**.

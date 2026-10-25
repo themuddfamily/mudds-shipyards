@@ -24910,3 +24910,36 @@ readiness costs were already repaired. Q4 remains parked; no repeated profile,
 slow recovery suite or withheld candidate was run/integrated. This bounded
 handoff starts09:18:33Z with30min cap including that triage; no original parked
 attempt budget reset, engine, new test, branch/worktree or checkpoint build.
+
+
+## Required capture states reconciled from retained evidence — 2026-10-25
+
+The existing13 required capture rows/143PNG contract retain exact IDs, membership,
+resolution and Done means. Canonical State fields now identify the actual source
+stage rather than blanket missing-candidate/harness wording. Existing caption
+presenter06d22013a, freightere159ac3c5 and freight berth689e2ed0e source captures,
+zero-diagnostic logs and recorded original-resolution agent inspections remain
+accepted only in their original scopes. No unchanged recapture or repeated pixel
+inspection was performed. Registry human states remain ready/pending, not reviewed;
+owner-excluded human/native/current-common-candidate gates are not invented or
+represented as performed. Registry JSON and all runtime/test/tool files unchanged.
+
+The census distinguishes historical/current membership: berth9→18, hero12→18,
+scenes1280x720→2560x1440, varied17of18 with plate_04b_scatter_fan.png missing.
+Historical player-motion9 and Cinder24 inspections still need exact current
+source/run/diagnostic binding. Existing caption-production and station-operations
+original300s/0-image failures remain parked, with no changed quality/deadline or
+unsupported retry. Seven combat frames are published, but rawlog1483 AFTER the
+success sentinel says WARNING7TextureRIDs leaked; an earlier superuser warning is
+also present. Those frames are not strict zero-diagnostic/current-harness PASS.
+Historical Zenith's same post-sentinel warning remains explicit. Initial census
+wording machinePASS for combat was corrected from the actual full log before any
+state update. Sentinel/count alone is not accepted evidence of a clean run.
+
+Bounded independent source/log/metadata census and final delta review GO. Root
+rechecked declared13/143 counts, unchanged registry/human statuses and canonical
+ID/title/parent/Done-means invariants; local links remain unchanged. No engines,
+new image/capture, test, fixture, archive, branch/worktree or build created.
+Existing artifacts remain intact. This is roadmap correction/reuse of prior
+results, not new gameplay delivery or common-final-candidate qualification.
+Endurance proposal remains awaiting owner values; no dependent work was begun.
