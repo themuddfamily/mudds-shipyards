@@ -24995,3 +24995,67 @@ no historical overall cap was recorded. Current focused/build/capture stage tota
 2,505.249150 s includes the failed capture. Wall cost through final review and scratch cleanup is 56.461 minutes
 from the original start. Final Git closure/time is retained in the case closeout.
 No successor budget or capture continuation is selected.
+
+
+<a id="browser-cancel-reuse-accepted-20261025"></a>
+## Browser cancellation and fresh reuse accepted — 2026-10-25
+
+**BROWSER-CANCEL is DONE in the tested Linux-source ordinary InputEvent scope**
+on `ed29733c25800257b0c5b1fd42ab7e787b718086`. Existing caller opt-in
+`--live-menu-cancel-rejoin` extends the accepted pending-connection fixture to
+its missing successful reuse endpoint. No game code or renderer changed, so no
+identical replacement checkpoint was exported. Latest playable ca149d6 remains.
+
+The headless coordinator owns a real non-answering UDP endpoint and independent
+host/guest Main processes on private Xvfb displays, explicit x11/dummy renderer
+and Dummy audio. Real Manual Join sends handshake datagrams. Each of two attempts
+is observed as native ENet CONNECTING, the exact pending peer, processing enabled
+and a future deadline; ordinary Cancel closes its native peer and clears pending
+identity/deadline, returns the multiplayer API offline, and clears offer/admission
+and body/seat/ship/crew authority.
+The accepted historical tutorial redraw fixture remains disclosed; fields/focus
+and ordinary `ui_accept` drive actions, with no direct join/cancel shortcuts.
+
+The SAME guest Main/Player then refreshes LAN discovery and activates the actual
+live host row. Both peers match admission `848552394/gen1`; the fresh native peer
+is distinct from both retained closed peers. One fresh admission and 270 passive
+physics observations prove no earlier admission and continued old-peer closure.
+Both original Players complete connected and solo walks of 1.002774 m each,
+12 neutral ticks and zero drift, with normal UI Disconnect/host stop and usable
+browser return. Host guest counts are 0→1→0. Actual guest PID1629212 and host
+PID1629086 both exit 0 and are reaped; no owned actors survive. Whole route:
+**86.222785 s, 351 checks, one marker, zero diagnostics**. Independent source and
+raw-result review GO. Source/index/cache and installed editor/Linux-template pins
+remain unchanged. This is not packaged, physical-device, native GPU/Windows,
+capacity, endurance or complete-network/final-release qualification.
+
+**Preserved failures and bounded correction.** Before any engine run, source
+review caught an observer attached before ordinary Refresh creates the adapter;
+`93c5bda47` corrects setup through that actual browser action. The existing default
+integration fixture passes once: 7 checks, exit 0/no diagnostics, 15.873943 s.
+First full trial fails in 82.671052 s at the inherited disabled/FOCUS_NONE/Back
+expectation after the first cancellation. No fresh admission/walk result from
+that trial is accepted. Individual compound predicate fields were not recorded.
+Source proves the mismatch: actual cancellation publishes disconnected with
+retryable=true, so the presenter/HUD retain enabled focusable Retry Connection.
+Independent review and cumulative priority review authorize ONE caller-only
+correction, preserving route/limits. `ed29733c2` reuses the existing fenced Retry
+snapshot check, records feedback BEFORE assertion and verifies focus/navigation.
+The corrected complete route above passes; no further trial is selected.
+
+All original limits remain: outer 300 s/work 230 s, Main 60 s/UI 5 s/discovery
+10 s/admission 20 s, host admission 50 s, handoffs 20 s/guest 100 s/host completion
+30 s/cleanup 10 s; walk/settle 5 s and 12 neutral ticks. Current stage total
+184.767780 s includes the failed trial. Task clock starts 10:44:16Z, with original
+90-minute hard stop 12:14:16Z; 15.407 minutes through raw archive/scratch cleanup.
+Historical a39e93af4 estimate 60–90 minutes was not measured implementation cost;
+its accepted validation interval 92.352421 s remains retained, not reset.
+
+All three owners are terminal and absent; all 28 observed descendant identities
+are absent. Owned helpers, results, coordinator/peer profiles and locks are
+removed after hashing all 105 raw files against archive members. Retained:
+`/srv/mudds-work/browser-cancel-rejoin-20261025/records.tar.gz`, 7,287,190 bytes,
+SHA256 `266da62d57d4423025175af4dc40198ab7538c8ab3c593f781df950f7723d924`;
+`closeout.json` alongside it records final Git closure/time. Prior failed trial
+and preflight correction stay inside this same archive/clock. No task worktree
+or remote branch was created; unrelated parked worktrees remain untouched.
