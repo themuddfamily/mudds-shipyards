@@ -884,13 +884,44 @@ func _live_host_rejoin(session: NetworkEnetSessionAdapter, old_id: int) -> bool:
 
 func _live_record_guest_retirement(name: String, old_id: int, old_native: ENetMultiplayerPeer) -> bool:
 	var session: NetworkEnetSessionAdapter = _live_game.network_session
-	var retired := {"player": _live_player_identity(), "native_peer_id": str(old_native.get_instance_id()) if old_native != null else "", "native_closed": old_native != null and old_native.get_connection_status() == MultiplayerPeer.CONNECTION_DISCONNECTED, "peer_cleared": session.get("_peer") == null, "api_offline": session.multiplayer.multiplayer_peer is OfflineMultiplayerPeer, "session_inactive": not session.is_session_active(), "offer_empty": session.get_server_offer().is_empty(), "admissions_empty": session.get_admitted_peer_ids().is_empty(), "authority_clear": _live_guest_ownership_clear(session, old_id), "body_source_clear": _live_game.get_network_remote_body_intent_source() == null, "on_foot": not (_live_game.get_node("Player") as PlayerController).is_seated()}
+	var retired := {"player": _live_player_identity(), "native_peer_id": str(old_native.get_instance_id()) if old_native != null else "", "native_closed": old_native != null and old_native.get_connection_status() == MultiplayerPeer.CONNECTION_DISCONNECTED, "peer_cleared": session.get("_peer") == null, "api_offline": session.multiplayer.multiplayer_peer is OfflineMultiplayerPeer, "session_inactive": not session.is_session_active(), "offer_empty": session.get_server_offer().is_empty(), "admissions_empty": session.get_admitted_peer_ids().is_empty(), "authority_clear": _live_retired_client_ownership_clear(session, old_id), "body_source_clear": _live_game.get_network_remote_body_intent_source() == null, "on_foot": not (_live_game.get_node("Player") as PlayerController).is_seated()}
 	var clear := true
 	for key: String in ["native_closed", "peer_cleared", "api_offline", "session_inactive", "offer_empty", "admissions_empty", "authority_clear", "body_source_clear", "on_foot"]:
 		clear = clear and bool(retired.get(key, false))
 	_check(clear, name + " ordinary Disconnect retires native peer/API/offer/admissions/body/seat/ship/crew ownership")
 	_live_write(name, retired)
 	return _failures.is_empty()
+
+
+func _live_retired_client_ownership_clear(session: NetworkEnetSessionAdapter, old_id: int) -> bool:
+	if old_id <= 1 or session.is_session_active() or session.is_server() or old_id in session.get_admitted_peer_ids():
+		return false
+	# Read the client's actual ledgers. A client need not own the host-only body
+	# simulator; if one exists, retirement still requires it to contain no bodies.
+	var lifecycle: Dictionary = session.get_snapshot()["lifecycle"]
+	var ships: Dictionary = session.get("_ship_ownership").get_snapshot()
+	var seats: Dictionary = session.get("_seat_authority").get_snapshot()
+	var crew: Dictionary = session.get_crew_role_snapshot()
+	var boarding: Dictionary = session.get_boarding_snapshot()
+	for peer: Dictionary in lifecycle["peers"]:
+		if int(peer.get("peer_id", 0)) == old_id:
+			return false
+	for ship: Dictionary in ships["ships"]:
+		if int(ship.get("owner_peer_id", 0)) == old_id:
+			return false
+	for assignment: Dictionary in seats["assignments"]:
+		if int(assignment.get("occupant_peer_id", 0)) == old_id:
+			return false
+	if int(crew["admitted_peer_count"]) != 0:
+		return false
+	for assignment: Dictionary in (crew["roles"] as Dictionary).values():
+		if int(assignment.get("peer_id", 0)) == old_id:
+			return false
+	for occupancy: Dictionary in boarding["occupancies"]:
+		if int(occupancy.get("peer_id", 0)) == old_id:
+			return false
+	var simulator := _live_game._network_remote_body_simulation
+	return simulator == null or simulator.get_body_count() == 0
 
 
 func _live_guest_rejoin(session: NetworkEnetSessionAdapter, session_id: StringName) -> bool:
