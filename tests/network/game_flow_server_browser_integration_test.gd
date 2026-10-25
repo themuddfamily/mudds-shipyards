@@ -71,6 +71,15 @@ extends SceneTree
 ## handoff20s/guest100s/host30s/cleanup10s and walk/settle5s/12neutral remain.
 
 
+## BROWSER-STALE: --live-menu-stale uses actual Begin Shift/Pause/Browser and
+## real last-reply time (30 seconds) with the original D3 caps unchanged. The
+## focused LAN row retires naturally while paused, leaving expired feedback and
+## Retry focus, no join intent/native peer/admission. Ordinary Accept retries
+## discovery; the fresh host row then admits both original Players to connected
+## walking, normal Disconnect, supported solo return and both actual OS exits0.
+## The observer never calls expire_stale/get_endpoint to drive the expiry.
+
+
 const GameFlowType := preload("res://scripts/game/game_flow.gd")
 const SessionType := preload("res://scripts/network/network_enet_session_adapter.gd")
 
@@ -104,7 +113,7 @@ func _init() -> void:
 
 
 func _run() -> void:
-	if "--live-menu-one-guest" in OS.get_cmdline_user_args() or "--live-menu-one-guest-gameplay" in OS.get_cmdline_user_args() or "--live-menu-two-guests" in OS.get_cmdline_user_args() or "--live-menu-cancel" in OS.get_cmdline_user_args() or "--live-menu-full" in OS.get_cmdline_user_args() or "--live-menu-disconnect-rejoin" in OS.get_cmdline_user_args():
+	if "--live-menu-one-guest" in OS.get_cmdline_user_args() or "--live-menu-one-guest-gameplay" in OS.get_cmdline_user_args() or "--live-menu-two-guests" in OS.get_cmdline_user_args() or "--live-menu-cancel" in OS.get_cmdline_user_args() or "--live-menu-full" in OS.get_cmdline_user_args() or "--live-menu-disconnect-rejoin" in OS.get_cmdline_user_args() or "--live-menu-stale" in OS.get_cmdline_user_args():
 		await _live_run()
 		return
 	var flow := GameFlowType.new()
@@ -187,6 +196,8 @@ var _live_full_guard: Dictionary = {}
 var _live_full_sampler: LiveWalkSampler
 var _live_full_observation: Dictionary = {}
 var _live_gameplay := false
+var _live_stale := false
+var _live_stale_observation: Dictionary = {}
 var _live_rejoin := false
 var _live_rejoined := false
 var _live_original_native_peer: ENetMultiplayerPeer
@@ -199,8 +210,9 @@ func _live_run() -> void:
 	_live_two_guests = "--live-menu-two-guests" in args
 	_live_cancel = "--live-menu-cancel" in args
 	_live_full = "--live-menu-full" in args
+	_live_stale = "--live-menu-stale" in args
 	_live_rejoin = "--live-menu-disconnect-rejoin" in args
-	_live_gameplay = "--live-menu-one-guest-gameplay" in args or _live_rejoin
+	_live_gameplay = "--live-menu-one-guest-gameplay" in args or _live_rejoin or _live_stale
 	var peer_index := args.find("--live-peer")
 	if peer_index >= 0 and peer_index + 3 < args.size():
 		_live_role = args[peer_index + 1]
@@ -287,6 +299,8 @@ func _live_run() -> void:
 				_live_check_gameplay_receipts()
 			if _live_full:
 				_live_check_full_receipts(host, guest)
+			if _live_stale:
+				_live_check_stale_receipts(host, guest)
 	if _live_pending_endpoint != null:
 		_live_pending_endpoint.close()
 	_live_finish()
@@ -577,6 +591,8 @@ func _live_spawn(role: String) -> int:
 	var args := PackedStringArray(["--display-driver", "x11", "--disable-render-loop", "--rendering-driver", "dummy", "--audio-driver", "Dummy", "--path", ProjectSettings.globalize_path("res://"), "--script", "res://tests/network/game_flow_server_browser_integration_test.gd", "--", "--live-menu-cancel" if _live_cancel else ("--live-menu-two-guests" if _live_two_guests else "--live-menu-one-guest"), "--live-peer", role, _live_directory, str(_live_port)])
 	if _live_full:
 		args[args.find("--live-menu-one-guest")] = "--live-menu-full"
+	elif _live_stale:
+		args[args.find("--live-menu-one-guest")] = "--live-menu-stale"
 	elif _live_rejoin:
 		args[args.find("--live-menu-one-guest")] = "--live-menu-disconnect-rejoin"
 	elif _live_gameplay:
@@ -618,7 +634,7 @@ func _live_actor() -> void:
 	# Cleanup is independent of menu success, focus, pause state or input capture.
 	if _live_gameplay or _live_full:
 		_live_release_movement()
-	if _live_full or _live_rejoin:
+	if _live_full or _live_rejoin or _live_stale:
 		_live_stop_full_guard()
 	if _live_full:
 		var pointer_release := InputEventMouseButton.new()
@@ -641,6 +657,8 @@ func _live_actor() -> void:
 	if _live_full:
 		done["full"] = _live_full_observation
 		done["gameplay"] = _live_walks
+	if _live_stale:
+		done["stale"] = _live_stale_observation
 	if _live_role == "host":
 		done["guest_counts"] = _live_counts
 	_live_write(_live_role + ".done", done)
@@ -663,12 +681,17 @@ func _live_host() -> void:
 	if not await _live_boundary(func(): return is_instance_valid(_live_game.network_session) and _live_game.network_session.is_server() and is_instance_valid(_live_game.get_lan_discovery()) and _live_game.get_lan_discovery().is_responding(), 10.0, "host UI starts real ENet and LAN responder"):
 		return
 	var session := _live_game.network_session
-	if _live_rejoin:
+	if _live_rejoin or _live_stale:
 		_live_original_native_peer = session.get("_peer") as ENetMultiplayerPeer
 	_live_counts.append(int(session.get_session_capacity_snapshot().occupancy))
 	_check(_live_counts == [0] and session.get_admitted_peer_ids().is_empty(), "hosting excludes own player from guest capacity")
 	var discovery := _live_game.get_lan_discovery()
 	_live_write("host.ready", {"pid": OS.get_process_id(), "session_id": str(discovery.get("_responder_session_id")), "port": session.get_local_port()})
+	if _live_stale:
+		var hosted_id := str(discovery.get("_responder_session_id"))
+		_live_start_full_guard(func():
+			return _live_original_host_available(session, hosted_id) and (FileAccess.file_exists(_live_directory.path_join("guest.stale_join_ready")) or session.get_admitted_peer_ids().is_empty()),
+			"original host stays available and unadmitted throughout actual stale-row expiry")
 	if not await _live_wait_file("guest.main_ready", 60.0):
 		return
 	if not await _live_boundary(func(): return session.get_admitted_peer_ids().size() == 1, 50.0, "host observes one authenticated menu guest"):
@@ -681,6 +704,10 @@ func _live_host() -> void:
 	_live_write("host.admitted", {"pid": OS.get_process_id(), "host_peer_id": session.multiplayer.get_unique_id(), "player": _live_player_identity(), "guest_peer_id": guest_id, "guest_generation": int(peers[0].peer_generation) if peers.size() == 1 else 0})
 	if not await _live_wait_file("guest.admitted", 20.0):
 		return
+	if _live_stale:
+		_check(bool(_live_full_guard.get("valid", false)) and int(_live_full_guard.get("samples", 0)) > 0, "host independently observes no stale admission and retained original transport/responder")
+		_live_stale_observation = {"guard": _live_full_guard.duplicate(true), "native_peer_id": str(_live_original_native_peer.get_instance_id()), "session_id": str(discovery.get("_responder_session_id"))}
+		_live_stop_full_guard()
 	if _live_full:
 		if not await _live_full_hold():
 			return
@@ -765,7 +792,11 @@ func _live_host_peer_generation(session: NetworkEnetSessionAdapter, peer_id: int
 
 
 func _live_guest() -> void:
-	if not await _live_button("IntroServerBrowserButton") or not await _live_button("ServerBrowserRefreshButton"):
+	if not await _live_button("IntroServerBrowserButton"):
+		return
+	if _live_stale and (not await _live_begin_shift() or not await _live_open_pause_browser()):
+		return
+	if not await _live_button("ServerBrowserRefreshButton"):
 		return
 	var hosted := _live_read("host.ready")
 	var session_id := StringName(str(hosted.get("session_id", "")))
@@ -775,6 +806,8 @@ func _live_guest() -> void:
 	var endpoint := discovery.get_endpoint(session_id)
 	_check(not session_id.is_empty() and int(endpoint.get("port", 0)) == int(hosted.get("port", -1)) and not str(endpoint.get("address", "")).is_empty(), "selected LAN row resolves the owned live host endpoint")
 	_live_write(_live_role + ".discovered", {"session_id": str(session_id), "endpoint": endpoint})
+	if _live_stale and not await _live_stale_expiry(session_id):
+		return
 	if not _failures.is_empty() or not await _live_activate(_live_row(session_id)):
 		return
 	if not await _live_boundary(_live_authenticated, 20.0, "selected real HUD row joins and authenticates guest"):
@@ -803,7 +836,10 @@ func _live_guest() -> void:
 			_live_write("guest2.remaining", {"pid": OS.get_process_id(), "peer_id": guest_id, "peer_generation": int(peer.get("peer_generation", 0)), "authenticated": true})
 	if not await _live_wait_file("host.allow_second_leave" if _live_role == "guest2" else "host.allow_leave", 20.0):
 		return
-	if not await _live_begin_shift():
+	if _live_stale:
+		if not await _live_button("ServerBrowserBackButton") or not await _live_button("ResumeButton"):
+			return
+	elif not await _live_begin_shift():
 		return
 	if _live_gameplay and not await _live_walk("connected", &"move_forward", true):
 		return
@@ -821,6 +857,88 @@ func _live_guest() -> void:
 		await _live_guest_rejoin(session, session_id)
 		return
 	await _live_wait_file("host.first_cleared" if _live_two_guests and _live_role == "guest" else "host.cleared", 20.0)
+
+
+func _live_stale_client_clear() -> bool:
+	var session := _live_game.network_session
+	return not session.is_session_active() and session.get("_peer") == null and session.get_server_offer().is_empty() and session.get_admitted_peer_ids().is_empty() and _live_game.get_network_remote_body_intent_source() == null and int(_live_stale_observation.get("join_intents", -1)) == 0 and int(_live_stale_observation.get("admissions", -1)) == 0
+
+
+func _live_stale_ui_state(session_id: StringName) -> Dictionary:
+	var hud := _live_game.hud
+	var retry := hud.find_child("ServerBrowserRetryButton", true, false) as Button
+	var refresh := hud.find_child("ServerBrowserRefreshButton", true, false) as Button
+	var back := hud.find_child("ServerBrowserBackButton", true, false) as Button
+	var title := (hud.get("_server_browser_title") as Label).text
+	var detail := (hud.get("_server_browser_detail") as Label).text
+	# Read stored state only: polling must expire the cache while paused, without
+	# this observer calling get_endpoint/expire_stale to drive the transition.
+	var endpoints: Dictionary = _live_game.get_lan_discovery().get("_last_endpoints")
+	var ready := paused and _live_row(session_id) == null and _live_game.network_session.query_server_directory().is_empty() and not endpoints.has(str(session_id)) and title == "SERVER LIST EXPIRED" and detail.contains("Server list expired. Refresh to see current servers.") and retry != null and retry.is_visible_in_tree() and not retry.disabled and root.gui_get_focus_owner() == retry and refresh != null and refresh.is_visible_in_tree() and not refresh.disabled and back != null and back.is_visible_in_tree() and not back.disabled and _live_stale_client_clear()
+	return {"valid": ready, "paused": paused, "title": title, "detail": detail, "row_removed": _live_row(session_id) == null, "endpoint_removed": not endpoints.has(str(session_id)), "directory_empty": _live_game.network_session.query_server_directory().is_empty(), "retry_focused": retry != null and root.gui_get_focus_owner() == retry, "refresh_enabled": refresh != null and not refresh.disabled, "back_enabled": back != null and not back.disabled}
+
+
+func _live_stale_expiry(session_id: StringName) -> bool:
+	var session := _live_game.network_session
+	var discovery := _live_game.get_lan_discovery()
+	var row := _live_row(session_id)
+	var player := _live_player_identity()
+	var seen: Dictionary = discovery.get("_last_seen_usec")
+	var seen_usec := int(seen.get(str(session_id), 0))
+	_check(seen_usec > 0 and paused and row != null and row.is_visible_in_tree() and not row.disabled, "real fresh LAN row is available in the ordinary paused browser")
+	if not _failures.is_empty():
+		return false
+	row.grab_focus()
+	await process_frame
+	_check(root.gui_get_focus_owner() == row, "fresh row owns selection focus before expiry")
+	_live_stale_observation = {"join_intents": 0, "admissions": 0, "player": player, "session_id": str(session_id), "last_reply_usec": seen_usec, "fresh_generation": int(_live_game.get("_lan_directory_generation")), "focused_row_id": str(row.get_instance_id())}
+	_live_game.hud.presentation_intent_requested.connect(func(kind: StringName, payload: Dictionary):
+		if kind == &"server_browser" and StringName(payload.get("action", &"")) in [&"join", &"manual_join"]:
+			_live_stale_observation.join_intents = int(_live_stale_observation.join_intents) + 1
+	)
+	session.peer_admitted.connect(func(_peer_id: int, _receipt: Dictionary):
+		_live_stale_observation.admissions = int(_live_stale_observation.admissions) + 1
+	)
+	_live_start_full_guard(func():
+		if not paused or not _live_stale_client_clear():
+			return false
+		if Time.get_ticks_usec() < seen_usec + 30_000_000:
+			var cached: Dictionary = discovery.get("_last_endpoints")
+			return _live_row(session_id) != null and cached.has(str(session_id))
+		return true,
+		"paused client remains unadmitted and fresh listing does not expire before thirty seconds")
+	if not await _live_boundary(func(): return bool(_live_stale_ui_state(session_id).valid), 35.0, "production always-processing discovery expires actual thirty-second LAN row during paused gameplay"):
+		return false
+	var expired := _live_stale_ui_state(session_id)
+	expired["age_seconds"] = float(Time.get_ticks_usec() - seen_usec) / 1_000_000.0
+	expired["guard"] = _live_full_guard.duplicate(true)
+	_live_stale_observation["expired"] = expired
+	_check(float(expired.age_seconds) >= 30.0 and float(expired.age_seconds) <= 35.0 and bool(_live_full_guard.valid) and int(_live_full_guard.samples) > 0, "actual monotonic expiry honors frozen thirty-second boundary without early removal")
+	_live_write("guest.stale_expired", _live_stale_observation)
+	# The previously focused row has retired; ordinary Accept is now owned by
+	# the production Retry control, rather than a stale join callback.
+	var retry := _live_game.hud.find_child("ServerBrowserRetryButton", true, false) as Button
+	if not _failures.is_empty() or not await _live_activate(retry):
+		return false
+	if not await _live_boundary(func(): return _live_row(session_id) != null and int(_live_game.get("_lan_directory_generation")) > int(_live_stale_observation.fresh_generation), 10.0, "ordinary Retry refresh rediscovers the original still-live host after expiry"):
+		return false
+	_check(_live_stale_client_clear() and _live_player_identity() == player, "expired focused selection creates no join intent/transport/admission and retains the actual Player")
+	_live_stale_observation["refreshed"] = {"directory_generation": int(_live_game.get("_lan_directory_generation")), "endpoint": discovery.get_endpoint(session_id), "player": _live_player_identity(), "join_intents": int(_live_stale_observation.join_intents), "admissions": int(_live_stale_observation.admissions)}
+	_live_stop_full_guard()
+	_live_write("guest.stale_join_ready", _live_stale_observation)
+	return _failures.is_empty()
+
+
+func _live_check_stale_receipts(host: Dictionary, guest: Dictionary) -> void:
+	var ready := _live_read("guest.stale_join_ready")
+	var expired: Dictionary = ready.get("expired", {})
+	var refreshed: Dictionary = ready.get("refreshed", {})
+	var held: Dictionary = _live_read("host.done").get("stale", {})
+	var guard: Dictionary = held.get("guard", {})
+	_check(bool(expired.get("valid", false)) and bool(expired.get("paused", false)) and float(expired.get("age_seconds", 0.0)) >= 30.0 and float(expired.get("age_seconds", 36.0)) <= 35.0, "immutable expiry receipt proves actual paused monotonic thirty-second terminal refusal")
+	_check(int(refreshed.get("join_intents", -1)) == 0 and int(refreshed.get("admissions", -1)) == 0 and int(refreshed.get("directory_generation", 0)) > int(ready.get("fresh_generation", 0)) and not (refreshed.get("endpoint", {}) as Dictionary).is_empty(), "actual Retry restores current endpoint and directory without stale admission")
+	_check(ready.get("player", {}) == guest.get("player", {}) and refreshed.get("player", {}) == guest.get("player", {}), "same original guest Player proceeds from expired selection to real fresh admission")
+	_check(bool(guard.get("valid", false)) and int(guard.get("samples", 0)) > 0 and held.get("session_id", "") == ready.get("session_id", ""), "independent host remained available and unadmitted through stale refusal and refresh")
 
 
 func _live_expected_admission(role: String = "") -> Dictionary:
@@ -1517,6 +1635,8 @@ func _live_finish() -> void:
 		label = "GAME_FLOW_LIVE_MENU_ONE_GUEST_GAMEPLAY"
 	if _live_rejoin:
 		label = "GAME_FLOW_LIVE_MENU_DISCONNECT_REJOIN"
+	if _live_stale:
+		label = "GAME_FLOW_LIVE_MENU_STALE"
 	print(label + ": %d assertions, %d failures" % [_assertions, _failures.size()])
 	if _failures.is_empty() and _live_role == "coordinator":
 		print(label + "_TEST_OK")
