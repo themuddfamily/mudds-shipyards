@@ -26590,3 +26590,14 @@ checkpoint19336f3 is unchanged; test-only work needs no identical export. Prior
 archive remains at the original private case; this continuation's raw/source/
 profile/cleanup records are retained in its tick-continuation subdirectory.
 Verified archive/pushed-main/ref closure follows before original21:11 deadline.
+
+Verified closeout: accepted source integrated/pushed40c5687c7; local task branch
+removed with exact expected tip after current remote/pushed-main ancestry and
+registered-worktree checks; remote task branch absent. Continuation retains only
+records.tar.gz/closeout.json:8,130,185 bytes, SHA256
+7b86eb140f502cf4122e1419f6cc2d5f8d7794457c71845504d8a5d12e84bb59;
+all47 regular bytes/modes andtwo symlink targets verified before scratch removal.
+Two supervisors/seven observed identities are absent. Earlier305e2c6b archive is
+byte-identical and retained separately, not rewritten. Original clock55.437min
+through archive verification; final closure push/elapsed is in closeout.json,
+within the unchanged21:11 deadline. No detached unrelated worktree was changed.
