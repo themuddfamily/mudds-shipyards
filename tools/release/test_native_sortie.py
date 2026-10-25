@@ -5015,5 +5015,165 @@ class PatrolRelayHomeCallerTests(unittest.TestCase):
                 with self.assertRaises(AssertionError): pilot.observe_patrol_outbound_header(current)
 
 
+class TorrentReturnReuseTests(unittest.TestCase):
+    """Small synthetic lifecycle fixtures; the packaged route proves real input."""
+    def observation(self):
+        s = ArrowReturnReuseTests().observation()
+        s.update(mode='torrent-return-reuse', definition_id='torrent_provisional', home_id='central_berth',
+                 opponent_id=80, opponent_active=False, opponent=[0, 8, -100],
+                 targets=[{'name': str(i), 'position': [i, 8, -90]} for i in range(4)],
+                 destroyed_targets=0, guided_return_authorized=False,
+                 player_velocity=[0, 0, 0], position=[0, 1.15, -10], parked=[0, 1.15, -10],
+                 boarding=[-4.5, 0, -6.6], exit=[-4.8, 0, -6.6],
+                 right=[1, 0, 0], back=[0, 0, 1], camera=[0, 3, -10],
+                 tuning={'mouse': .002, 'brake': 20}, telemetry={'engine': 'OFFLINE', 'hull': 100},
+                 upright=1, shot_accepted=False, command_fire=False, walk_offset=[0, 0, 0], exit_error=0)
+        return s
+
+    def tick(self, p, s, update=True, **changes):
+        s.update(changes); s['frame'] += 1; s['sequence'] += 1
+        s['telemetry']['engine'] = s['engine']
+        snapshot = copy.deepcopy(s)
+        p.validate_observation(snapshot)
+        if update: return p.update(snapshot, s['frame']/60)
+
+    def after_guided(self):
+        p, s = native.TorrentReturnReusePilot(), self.observation()
+        p.validate_observation(copy.deepcopy(s))
+        # Isolate the reuse seam. Full prelude production control remains Pilot;
+        # its actual packaged run must supply all combat and home phases.
+        s.update(phase='COMPLETE', guided_complete=True, targets=[], destroyed_targets=4,
+                 contract=True, active_ship=True, player=s['exit'][:], boarding_distance=3,
+                 reboard_blocked=True)
+        p.guided_result = {'phases': ['COMPLETE']}
+        p.flight = 1; p.stage = 'reuse_release'; p.neutral_frames = 90
+        p.receipts['exited_1'] = p.receipt(s)
+        p.trips = [{'flight': 1, 'excursion_m': 75, 'neutral_frames': 90}]
+        p.observed_previous = copy.deepcopy(s)
+        self.tick(p, s)
+        self.assertEqual(p.stage, 'reuse_clear')
+        return p, s
+
+    def move_to(self, p, s, target):
+        for _ in range(200):
+            delta = native.sub(target, s['player']); distance = native.norm(delta)
+            if distance <= .01: return
+            s['player'] = [a+b*min(.1/distance, 1) for a,b in zip(s['player'], delta)]
+            distance_to_board = native.norm(native.sub(s['player'], s['boarding']))
+            self.tick(p, s, boarding_distance=distance_to_board, reboard_blocked=distance_to_board <= 7)
+        self.fail('bounded fixture walk did not finish')
+
+    def at_second_board(self):
+        p, s = self.after_guided()
+        self.move_to(p, s, p.clear_target)
+        self.tick(p, s, boarding_distance=8, reboard_blocked=False)
+        self.assertTrue(p.clear_seen)
+        self.tick(p, s, candidate=True, boarding_distance=3)
+        self.assertEqual(p.stage, 'board')
+        return p, s
+
+    def test_prefix_remains_existing_guided_and_generic_completion_cannot_succeed(self):
+        p, s = native.TorrentReturnReusePilot(), self.observation()
+        snapshot = copy.deepcopy(s); p.validate_observation(snapshot)
+        with patch.object(native.Pilot, 'update', wraps=lambda state, now: (set(), 0, 0, False)) as guided:
+            p.update(snapshot, 0)
+            guided.assert_called_once_with(snapshot, 0)
+        p.stage = 'exit'; p.identities = (s['player_id'], s['ship_id'])
+        p.phases = ['SHUT_DOWN']; p.neutral_frames = 90; p.disembarking_seen = True
+        with self.assertRaisesRegex(AssertionError, 'genuine gameplay phases'):
+            self.tick(p, s, phase='COMPLETE', guided_complete=True, targets=[], destroyed_targets=4,
+                      player=s['exit'][:], active_ship=True, contract=True)
+        self.assertIsNone(p.result)
+        self.assertIsNone(p.guided_result)
+
+    def test_wrong_identity_stale_guided_and_early_pause_fail_before_reuse(self):
+        for changes in ({'ship_id': 999}, {'main_id': 999}, {'opponent_active': True},
+                        {'guided_return_authorized': True}, {'destroyed_targets': 3},
+                        {'targets': [{'name': 'stale'}]}, {'paused': True}):
+            with self.subTest(changes=changes):
+                p, s = self.after_guided()
+                with self.assertRaises(AssertionError): self.tick(p, s, **changes)
+                self.assertIsNone(p.result)
+
+    def test_fresh_boarding_requires_clear_walk_native_edge_and_current_reservation(self):
+        p, s = self.at_second_board()
+        self.assertGreater(p.receipts['board_2']['frame'], p.receipts['walk_clear']['frame'])
+        with self.assertRaisesRegex(AssertionError, 'native E and reservation'):
+            self.tick(p, s, phase='BOARDING', transition_busy=True, boarding_reserved=True,
+                      boarding_confirmation={'adapter': {'view': {'state': 'boarding'}}})
+        p, s = self.at_second_board()
+        self.tick(p, s, phase='BOARDING', native_interact=True, transition_busy=True,
+                  boarding_reserved=True, boarding_confirmation={'adapter': {'view': {'state': 'boarding'}}})
+        self.tick(p, s, phase='START_ENGINES', seated=True, seated_at_pilot=True, piloted=True,
+                  active_ship=True, capsule_enabled=False, player_camera=False, ship_camera=True,
+                  transition_busy=False, boarding_confirmation={'adapter': {'view': {'state': 'seated'}}})
+        self.assertEqual(p.stage, 'reuse_launch')
+        self.tick(p, s, phase='FREE_FLIGHT', engine='ONLINE', native_thrust=True,
+                  flight_demand=True, landed=False, lease=False, lease_free=True,
+                  lease_token='', parked_exact=False, position=[0, 8, -78], native_interact=False)
+        self.assertTrue(p.departed)
+        self.assertIn('departed_2', p.receipts)
+        self.assertEqual(p.stage, 'reuse_return_align')
+
+    def test_exit_requires_consecutive_neutral_offline_ticks(self):
+        p, s = self.after_guided()
+        p.stage = 'reuse_shutdown'
+        s.update(phase='SHUT_DOWN', seated=True, seated_at_pilot=True, piloted=True,
+                 capsule_enabled=False, player_camera=False, ship_camera=True)
+        p.neutral_frames = 0
+        for _ in range(90): self.tick(p, s, engine='ONLINE')
+        self.assertEqual(p.neutral_frames, 0)
+        for _ in range(89): self.tick(p, s, engine='OFFLINE')
+        self.assertNotIn('exit_2', p.receipts)
+        self.tick(p, s, flight_demand=True)
+        self.assertEqual(p.neutral_frames, 0)
+        for _ in range(89): self.tick(p, s, flight_demand=False)
+        self.assertNotIn('exit_2', p.receipts)
+        self.tick(p, s)
+        self.assertEqual(p.stage, 'exit')
+        self.assertEqual(p.neutral_frames, 90)
+        self.assertIn('e', self.tick(p, s)[0])
+
+    def test_second_home_rejects_first_lease_and_preserves_new_lease(self):
+        p, s = self.after_guided()
+        p.receipts['departed_2'] = p.receipt(s)
+        with self.assertRaisesRegex(AssertionError, 'fresh lease token'):
+            p.require_home(s)
+        s['lease_token'] = 'second-home-token'
+        p.require_home(s)
+        p.receipts['docked_2'] = p.receipt(s)
+        s['lease_token'] = 'replacement-token'
+        with self.assertRaisesRegex(AssertionError, 'same newly acquired'):
+            p.require_home(s)
+
+    def test_first_guided_exit_also_waits_for_90_neutral_offline_ticks(self):
+        p, s = native.TorrentReturnReusePilot(), self.observation()
+        p.validate_observation(copy.deepcopy(s))
+        p.stage = 'shutdown'
+        s.update(phase='SHUT_DOWN', contract=True, seated=True, seated_at_pilot=True, piloted=True,
+                 active_ship=True, capsule_enabled=False, player_camera=False, ship_camera=True)
+        for _ in range(89):
+            keys, *_ = self.tick(p, s)
+            self.assertNotIn('e', keys)
+        self.assertEqual(p.stage, 'shutdown')
+        keys, *_ = self.tick(p, s)
+        self.assertIn('e', keys)
+        self.assertEqual(p.stage, 'exit')
+        self.assertEqual(p.neutral_frames, 90)
+
+    def test_quit_before_second_exit_or_usable_walk_cannot_report_success(self):
+        p, s = self.after_guided()
+        p.quit_requested = True; p.stage = 'quit_wait'; p.clear_seen = True
+        p.receipts['exit_ui'] = {'ui': {}}
+        with self.assertRaises(AssertionError): p.finish(0)
+        p.trips.append({'flight': 2, 'excursion_m': 20, 'neutral_frames': 90})
+        p.receipts.update({key: {} for key in ('walk_clear', 'board_2', 'seated_2', 'departed_2',
+                                              'docked_2', 'offline_2', 'exited_2')})
+        with self.assertRaises(AssertionError): p.finish(0)
+        p.receipts['walked_2'] = {}
+        with self.assertRaises(AssertionError): p.finish(1)
+        self.assertEqual(p.finish(0)['completion_marker'], native.TorrentReturnReusePilot.MARKER)
+
+
 if __name__ == '__main__':
     unittest.main()

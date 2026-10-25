@@ -24,6 +24,7 @@ var _cinder_supply := false
 var _hauler_supply := false
 var _supply_sequence := 0
 var _arrow := false
+var _torrent_reuse := false
 var _heavy_breach := false
 var _arrow_sequence := 0
 var _race_home := false
@@ -113,6 +114,9 @@ func on_startup_completed(main: Node) -> void:
 		_tuning = _sortie_tuning()
 		process_mode = Node.PROCESS_MODE_ALWAYS
 		return
+	_torrent_reuse = "--native-sortie-observer=torrent-return-reuse" in OS.get_cmdline_args()
+	if _torrent_reuse:
+		process_mode = Node.PROCESS_MODE_ALWAYS
 	_race_home = "--native-sortie-observer=race-home" in OS.get_cmdline_args()
 	_patrol_relay_home = "--native-sortie-observer=patrol-relay-home" in OS.get_cmdline_args()
 	_beacon_mode = "beacon-home" if "--native-sortie-observer=beacon-home" in OS.get_cmdline_args() else ("beacon-settlement" if "--native-sortie-observer=beacon-settlement" in OS.get_cmdline_args() else "beacon-entry")
@@ -628,16 +632,16 @@ func _physics_process(delta: float) -> void:
 	for target: Node in get_tree().get_nodes_in_group("shipyard_targets"):
 		if target is Node3D and not bool(target.get_meta("destroyed", false)):
 			targets.append({"name": str(target.name), "position": _v((target as Node3D).global_position)})
-	var source := (_ship.get("_default_local_command_source") as LocalShipInputSource) if _beacon_entry else _ship.get_local_input_source()
+	var source := (_ship.get("_default_local_command_source") as LocalShipInputSource) if _beacon_entry or _torrent_reuse else _ship.get_local_input_source()
 	var berth := _game.world.get_berth_node(_ship.get_home_berth_id()) as ShipBerth
 	var camera_yaw := _player.get_node("%CameraYaw") as Node3D
 	var command := _ship.get_last_ship_command()
 	var shot := _game.get_last_player_shot_result()
 	var capture: Dictionary = {} if _beacon_entry and _beacon_mode != "beacon-home" and not _race_home and not _patrol_relay_home else _game.world.get_landing_assist_report(_ship, _ship.get_home_berth_id())
-	var contract := (_ship.get("_landing_contract") as Dictionary).duplicate(true) if _beacon_entry else _ship.get_landing_contract_report()
-	if _beacon_entry:
+	var contract := (_ship.get("_landing_contract") as Dictionary).duplicate(true) if _beacon_entry or _torrent_reuse else _ship.get_landing_contract_report()
+	if _beacon_entry or _torrent_reuse:
 		contract["berth_id"] = _ship.get("_landing_berth_id")
-	var reserved_ship_id: StringName = berth.get("_reserved_ship_id") if _beacon_entry else berth.get_reserved_ship_id()
+	var reserved_ship_id: StringName = berth.get("_reserved_ship_id") if _beacon_entry or _torrent_reuse else berth.get_reserved_ship_id()
 	var telemetry: Dictionary = {"engine_state": _ship.get("_engine_state"), "hull": _ship.get("_hull"), "landed": _ship.get("_landed")} if _beacon_entry else _ship.get_telemetry()
 	var observation := {
 		"frame": Engine.get_physics_frames(), "phase": GameFlow.Phase.keys()[_game.phase],
@@ -693,6 +697,12 @@ func _physics_process(delta: float) -> void:
 		observation["sandbox"] = _sandbox_observation()
 		if _full_sandbox:
 			observation["bomber_rearm"] = _bomber_rearm_observation()
+	if _torrent_reuse:
+		var reuse := _arrow_observation(true)
+		reuse["player_velocity"] = reuse.get("velocity", [])
+		reuse.erase("velocity")
+		observation.merge(reuse, true)
+		observation["guided_return_authorized"] = bool(_game.get("_guided_return_ready_for_completion"))
 	print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(observation))
 
 
@@ -1594,19 +1604,19 @@ func _heavy_breach_fire_gate(picket: StandoffPicketOpponent) -> Dictionary:
 	return gate
 
 
-func _arrow_observation() -> Dictionary:
+func _arrow_observation(torrent: bool = false) -> Dictionary:
 	_arrow_sequence += 1
 	var owner := get_parent()
 	var current: bool = is_instance_valid(_game) and _game.is_inside_tree() and not _game.is_queued_for_deletion() \
 		and owner.call("get_main") == _game \
 		and _ember_node_current(_player) and _game.player == _player \
 		and _ember_node_current(_game.world) and _ember_node_current(_ship) \
-		and _game.get_node_or_null(^"ArrowReconShip") == _ship
-	var result := {"mode": "arrow-return-reuse", "sequence": _arrow_sequence,
+		and _game.get_node_or_null(^"TorrentInterceptor" if torrent else ^"ArrowReconShip") == _ship
+	var result := {"mode": "torrent-return-reuse" if torrent else "arrow-return-reuse", "sequence": _arrow_sequence,
 		"pid": OS.get_process_id(), "frame": Engine.get_physics_frames(), "actors_current": current}
 	if not current:
 		return result
-	var berth := _game.world.get_node_or_null(^"ArrowReconBerth") as ShipBerth
+	var berth := (_game.world.get_berth_node(_ship.get_home_berth_id()) if torrent else _game.world.get_node_or_null(^"ArrowReconBerth")) as ShipBerth
 	var capsule := _player.get_node_or_null(^"PlayerCollision") as CollisionShape3D
 	var shape := capsule.shape as CapsuleShape3D if is_instance_valid(capsule) else null
 	var seat := _ship.get("_pilot_seat_anchor") as Node3D
@@ -1616,53 +1626,54 @@ func _arrow_observation() -> Dictionary:
 			or not _ember_node_current(area) or not _ember_node_current(source):
 		result.actors_current = false
 		return result
-	var target := _game.world.get_node_or_null(^"ExteriorTargetRange/TargetDrone01") as Node3D
-	var adapter := target.get_node_or_null(^"AuthoritativeDamageable") as RangeTargetDamageableAdapter if is_instance_valid(target) else null
-	var camera := _ship.get_camera()
-	if not _ember_node_current(target) or not _ember_node_current(adapter) or not _ember_node_current(camera):
-		result.actors_current = false
-		return result
-	# Only detached, scalar/vector facts cross the JSON boundary. These getters
-	# copy retained results; no sequence ledger or combat authority is advanced.
-	var shot := _game.get_last_player_shot_result()
-	var request := shot.get("request") as ShotRequest
-	var shot_source := shot.get("source_entity") as Node
-	var shot_target := shot.get("target_entity") as Node
-	var shot_adapter := shot.get("damageable") as Node
-	var context := adapter.get_last_hit_context()
-	var hit_source := context.get("source", {}) as Dictionary
-	var hit_entity := hit_source.get("source_entity") as Node
-	var shot_facts := {"present": request != null,
-		"accepted": bool(shot.get("accepted", false)), "resolved": bool(shot.get("resolved", false)),
-		"hit": bool(shot.get("hit", false)), "damaged": bool(shot.get("damaged", false)),
-		"status": str(shot.get("status", &"")), "destroyed": bool(shot.get("destroyed", false)),
-		"source_id": int(shot.get("source_id", 0)),
-		"source_entity_id": shot_source.get_instance_id() if is_instance_valid(shot_source) else 0,
-		"target_entity_id": shot_target.get_instance_id() if is_instance_valid(shot_target) else 0,
-		"damageable_id": shot_adapter.get_instance_id() if is_instance_valid(shot_adapter) else 0,
-		"applied_damage": float(shot.get("applied_damage", 0.0)),
-		"remaining_health": float(shot.get("remaining_health", -1.0)),
-		"damage_result": (shot.get("damage_result", {}) as Dictionary).duplicate(true), "request": {}}
-	if request != null:
-		shot_facts.request = {"source_id": request.source_id,
-			"source_entity_id": request.source_entity.get_instance_id() if is_instance_valid(request.source_entity) else 0,
-			"weapon_id": str(request.weapon_id), "sequence": request.sequence,
-			"presentation_receipt_id": request.presentation_receipt_id,
-			"origin": _v(request.origin), "direction": _v(request.direction),
-			"range": request.range, "damage": request.damage}
-	result.merge({"target_instance_id": target.get_instance_id(), "target_adapter_id": adapter.get_instance_id(),
-		"camera_id": camera.get_instance_id(), "camera": _v(camera.global_position),
-		"camera_right": _v(camera.global_basis.x), "camera_up": _v(camera.global_basis.y),
-		"camera_back": _v(camera.global_basis.z), "right": _v(_ship.global_basis.x), "up": _v(_ship.global_basis.y),
-		"ship_invert_y": _ship.invert_mouse_y, "shot": shot_facts,
-		"target": {"name": str(target.name), "target_id": str(target.get_meta("target_id", &"")),
-			"base_position": _v(target.get_meta("base_position", Vector3.INF)), "position": _v(target.global_position),
-			"health": adapter.get_health(), "maximum_health": adapter.get_maximum_health(),
-			"destroyed": bool(target.get_meta("destroyed", false)), "components": adapter.get_component_snapshot(),
-			"hit_source": {"source_id": int(hit_source.get("source_id", 0)),
-				"source_entity_id": hit_entity.get_instance_id() if is_instance_valid(hit_entity) else 0,
-				"weapon_id": str(hit_source.get("weapon_id", &"")), "sequence": int(hit_source.get("sequence", -1)),
-				"presentation_receipt_id": int(hit_source.get("presentation_receipt_id", -1))}}}, true)
+	if not torrent:
+		var target := _game.world.get_node_or_null(^"ExteriorTargetRange/TargetDrone01") as Node3D
+		var adapter := target.get_node_or_null(^"AuthoritativeDamageable") as RangeTargetDamageableAdapter if is_instance_valid(target) else null
+		var camera := _ship.get_camera()
+		if not _ember_node_current(target) or not _ember_node_current(adapter) or not _ember_node_current(camera):
+			result.actors_current = false
+			return result
+		# Only detached, scalar/vector facts cross the JSON boundary. These getters
+		# copy retained results; no sequence ledger or combat authority is advanced.
+		var shot := _game.get_last_player_shot_result()
+		var request := shot.get("request") as ShotRequest
+		var shot_source := shot.get("source_entity") as Node
+		var shot_target := shot.get("target_entity") as Node
+		var shot_adapter := shot.get("damageable") as Node
+		var context := adapter.get_last_hit_context()
+		var hit_source := context.get("source", {}) as Dictionary
+		var hit_entity := hit_source.get("source_entity") as Node
+		var shot_facts := {"present": request != null,
+			"accepted": bool(shot.get("accepted", false)), "resolved": bool(shot.get("resolved", false)),
+			"hit": bool(shot.get("hit", false)), "damaged": bool(shot.get("damaged", false)),
+			"status": str(shot.get("status", &"")), "destroyed": bool(shot.get("destroyed", false)),
+			"source_id": int(shot.get("source_id", 0)),
+			"source_entity_id": shot_source.get_instance_id() if is_instance_valid(shot_source) else 0,
+			"target_entity_id": shot_target.get_instance_id() if is_instance_valid(shot_target) else 0,
+			"damageable_id": shot_adapter.get_instance_id() if is_instance_valid(shot_adapter) else 0,
+			"applied_damage": float(shot.get("applied_damage", 0.0)),
+			"remaining_health": float(shot.get("remaining_health", -1.0)),
+			"damage_result": (shot.get("damage_result", {}) as Dictionary).duplicate(true), "request": {}}
+		if request != null:
+			shot_facts.request = {"source_id": request.source_id,
+				"source_entity_id": request.source_entity.get_instance_id() if is_instance_valid(request.source_entity) else 0,
+				"weapon_id": str(request.weapon_id), "sequence": request.sequence,
+				"presentation_receipt_id": request.presentation_receipt_id,
+				"origin": _v(request.origin), "direction": _v(request.direction),
+				"range": request.range, "damage": request.damage}
+		result.merge({"target_instance_id": target.get_instance_id(), "target_adapter_id": adapter.get_instance_id(),
+			"camera_id": camera.get_instance_id(), "camera": _v(camera.global_position),
+			"camera_right": _v(camera.global_basis.x), "camera_up": _v(camera.global_basis.y),
+			"camera_back": _v(camera.global_basis.z), "right": _v(_ship.global_basis.x), "up": _v(_ship.global_basis.y),
+			"ship_invert_y": _ship.invert_mouse_y, "shot": shot_facts,
+			"target": {"name": str(target.name), "target_id": str(target.get_meta("target_id", &"")),
+				"base_position": _v(target.get_meta("base_position", Vector3.INF)), "position": _v(target.global_position),
+				"health": adapter.get_health(), "maximum_health": adapter.get_maximum_health(),
+				"destroyed": bool(target.get_meta("destroyed", false)), "components": adapter.get_component_snapshot(),
+				"hit_source": {"source_id": int(hit_source.get("source_id", 0)),
+					"source_entity_id": hit_entity.get_instance_id() if is_instance_valid(hit_entity) else 0,
+					"weapon_id": str(hit_source.get("weapon_id", &"")), "sequence": int(hit_source.get("sequence", -1)),
+					"presentation_receipt_id": int(hit_source.get("presentation_receipt_id", -1))}}}, true)
 	var yaw := _player.get_node(^"%CameraYaw") as Node3D
 	var support: Dictionary = {}
 	if not _player.is_seated() and not bool(_game.get("_transition_busy")):

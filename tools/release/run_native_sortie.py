@@ -10,6 +10,7 @@ Use --route beacon-home to retain payment through genuine Guided combat, home do
 Use --route patrol-relay-home for real pause-board relay selection, five continuous holds and home/UI exit.
 Use --route race-home for genuine Guided prerequisite, same-Torrent timed race, durable payment and home/UI exit.
 Use --route arrow-return-reuse for one Arrow precision hit, two home exits and normal UI quit.
+Use --route torrent-return-reuse for the full Guided prefix, same-Torrent reuse and normal UI quit.
 Use --route courier-withdraw-distance for actual seven-second distance withdrawal and original Guided home.
 Use --route courier-withdraw-phase for a post-dispatch defender kill and real phase withdrawal through home.
 Use --route courier-escape for the live first runner boundary, standdown and original Guided home.
@@ -5270,6 +5271,271 @@ class ArrowReturnReusePilot(Pilot):
         return self.result
 
 
+class TorrentReturnReusePilot(ArrowReturnReusePilot):
+    """Full Guided sortie, then one ordinary same-Torrent home return and UI exit."""
+    MARKER = 'NATIVE_TORRENT_RETURN_REUSE_OK'
+    IDS = ('main_id', 'world_id', 'player_id', 'capsule_id', 'shape_id',
+           'ship_id', 'berth_id', 'source_id', 'seat_id', 'pid', 'opponent_id')
+    FOOT_STAGES = ('reuse_release', 'reuse_clear', 'reuse_approach', 'reuse_walk', 'pause', 'quit_wait')
+
+    def __init__(self):
+        super().__init__()
+        self.guided_result = None
+        self.clear_target = self.walk_target = None
+        self.clear_started = None
+        self.neutral_frames = 0
+        self.return_braking = self.launch_braking = False
+
+    def require_home(self, s, contract=True):
+        require(s['landed'] and s['parked_exact'] and s['lease'] and s['lease_token']
+                and (not contract or s['contract']), 'strict current token-bound Torrent home lease')
+        if self.guided_result is not None and 'departed_2' in self.receipts:
+            require(s['lease_token'] != self.receipts['exited_1']['lease_token'],
+                    'second home requires a fresh lease token after actual departure')
+            if 'docked_2' in self.receipts:
+                require(s['lease_token'] == self.receipts['docked_2']['lease_token'],
+                        'same newly acquired second home lease through shutdown exit and walk')
+
+    def require_foot(self, s):
+        require(s['phase'] == 'COMPLETE' and s['guided_complete'] and not s['seated']
+                and not s['piloted'] and not s['transition_busy'] and s['control_enabled']
+                and s['capsule_enabled'] and s['grounded'] and s['supported']
+                and s['support_collider'] and s['player_camera'] and s['engine'] == 'OFFLINE'
+                and not s['flight_demand'], 'ordinary supported Torrent exit and walking')
+
+    def validate_observation(self, s):
+        require(s.get('mode') == 'torrent-return-reuse' and s.get('actors_current'),
+                'current ordinary Torrent observer actors')
+        previous = self.observed_previous
+        self.frame = s['frame']
+        if self.initial is None:
+            require(s['phase'] == 'INTRO' and not s['paused'] and not s['guided_complete']
+                    and len(s['targets']) == 4 and not s['destroyed_targets'],
+                    'fresh full Guided Torrent prerequisite')
+            self.require_home(s, False)
+            self.initial = s
+        require(all(s[k] and s[k] == self.initial[k] for k in self.IDS)
+                and s['capsule_geometry'] == self.initial['capsule_geometry'],
+                'same Main world Player capsule Torrent seat input home and Guided opponent')
+        require(s['definition_id'] == 'torrent_provisional' and s['home_id'] == 'central_berth'
+                and s['default_sampler'] and s['default_controls'] and s['tuning_unchanged']
+                and s['walk_tuning'] == LifeTowPilot.DEFAULT_WALK
+                and s['ship_tuning'] == self.initial['ship_tuning']
+                and s['physics_ticks'] == 60 and s['time_scale'] == 1
+                and not s['destroyed'] and not s['remote_piloted'], 'authored live Torrent and ordinary controls')
+        if previous:
+            require(s['sequence'] == previous['sequence']+1 and s['frame'] == previous['frame']+1,
+                    'every consecutive Torrent physics observation retained')
+        self.observations += 1
+        if s['paused']:
+            require(self.stage in ('pause', 'quit_wait') and len(self.trips) == 2
+                    and 'walked_2' in self.receipts, 'normal pause follows second supported exit walk')
+        if self.stage == 'shutdown' or self.stage == 'reuse_shutdown':
+            self.require_home(s)
+            self.neutral_frames = self.neutral_frames+1 if not s['flight_demand'] and s['engine'] == 'OFFLINE' else 0
+        if s['native_interact'] and not (previous and previous['native_interact']):
+            self.native_edges.append({'frame': s['frame'], 'stage': self.stage, 'flight': self.flight+1})
+        confirmation = s['boarding_confirmation'].get('adapter', {}).get('view', {}).get('state')
+        require(confirmation != 'rejected', 'production Torrent boarding confirmation must not reject')
+        if self.guided_result is not None:
+            require(s['guided_complete'] and not s['targets'] and s['destroyed_targets'] == 4
+                    and not s['opponent_active'] and not s['guided_return_authorized'],
+                    'completed Guided targets opponent and return authorization stay retired during reuse')
+            require(s['phase'] in ('COMPLETE', 'BOARDING', 'START_ENGINES', 'FREE_FLIGHT',
+                                   'SHUT_DOWN', 'DISEMBARKING'), 'ordinary post-Guided lifecycle only')
+            if self.stage in self.FOOT_STAGES:
+                self.require_foot(s); self.require_home(s)
+                if previous and not previous['transition_busy'] and not previous['seated']:
+                    step = norm(sub(s['player'], previous['player']))
+                    require(step <= LifeTowPilot.DEFAULT_WALK['sprint']/60*1.25+.02,
+                            'continuous supported Torrent walking without teleport')
+                    self.walked += step
+            if s['phase'] == 'BOARDING':
+                request = self.receipts.get('board_2')
+                require(self.stage == 'board' and request is not None
+                        and request['candidate'] and request['boarding_distance'] <= 7
+                        and not request['station_candidate'] and not request['reboard_blocked']
+                        and self.receipts['walk_clear']['frame'] < request['frame'] < s['frame']
+                        and all(request[k] == s[k] for k in self.IDS)
+                        and any(e['stage'] == 'board' and e['flight'] == 2 for e in self.native_edges)
+                        and s['transition_busy'] and s['boarding_reserved'] and confirmation == 'boarding',
+                        'fresh current candidate native E and reservation before second boarding')
+                self.boarding_seen = True
+            if s['phase'] in ('START_ENGINES', 'FREE_FLIGHT', 'SHUT_DOWN'):
+                require(s['seated'] and s['seated_at_pilot'] and s['piloted'] and s['active_ship']
+                        and s['ship_camera'] and not s['capsule_enabled'], 'same actual Torrent pilot and flight command owner')
+            if self.stage == 'reuse_launch':
+                self.thrust_seen |= s['native_thrust'] and s['flight_demand'] and s['engine'] == 'ONLINE'
+                self.excursion = max(self.excursion, norm(sub(s['position'], s['parked'])))
+                self.departed |= self.thrust_seen and s['phase'] == 'FREE_FLIGHT' and not s['landed'] and s['lease_free'] and self.excursion > 8
+            if self.stage == 'reuse_land': self.landing_seen |= s['native_landing']
+        if s['phase'] == 'DISEMBARKING':
+            self.require_home(s)
+            require(s['engine'] == 'OFFLINE' and self.neutral_frames >= 90,
+                    'strict home and automatic OFFLINE after ordinary 90-frame neutral shutdown')
+            if self.guided_result is None:
+                require(self.stage == 'exit' and confirmation == 'disembarking'
+                        and any(e['stage'] == 'exit' and e['flight'] == 1 for e in self.native_edges),
+                        'native first Guided exit and actual physical disembarkation')
+                self.disembarking_seen = True
+            else:
+                request = self.receipts.get('exit_2')
+                require(self.stage == 'exit' and request is not None and request['engine'] == 'OFFLINE'
+                        and request['contract'] and all(request[k] == s[k] for k in self.IDS)
+                        and any(e['stage'] == 'exit' and e['flight'] == 2 for e in self.native_edges)
+                        and confirmation == 'disembarking', 'distinct native E and physical second disembarkation')
+                self.disembarking_seen = True
+        if s['phase'] == 'SHUT_DOWN': self.require_home(s)
+        self.observed_previous = self.last_state = s
+
+    def walk_to(self, s, target, keys):
+        return super().walk_to({**s, 'velocity': s['player_velocity']}, target, keys)
+
+    def update(self, s, now):
+        require(self.last_state is s, 'latest already-validated Torrent observation')
+        if self.guided_result is None:
+            # Retain Pilot's full Guided route while requiring a settled
+            # neutral OFFLINE interval before its ordinary exit press.
+            if self.stage == 'shutdown' and self.neutral_frames < 90:
+                return set(), 0, 0, False
+            controls = Pilot.update(self, s, now)
+            if self.result is not None:
+                self.require_home(s); self.require_foot(s)
+                require(self.neutral_frames >= 90 and self.disembarking_seen,
+                        'first home retained automatic neutral shutdown and physical exit')
+                self.guided_result, self.result = self.result, None
+                self.receipts['exited_1'] = self.receipt(s)
+                self.trips.append({'flight': 1, 'excursion_m': self.max_excursion,
+                                   'neutral_frames': self.neutral_frames})
+                self.flight = 1
+                self.boarding_seen = self.disembarking_seen = False
+                self.enter('reuse_release', s)
+            return controls
+        self.frame = s['frame']
+        if not self.phases or self.phases[-1] != s['phase']: self.phases.append(s['phase'])
+        if self.stage in ('pause', 'quit_wait'): return self.ui_update(s, now)
+        keys, dx, dy = set(), 0, 0
+        speed = norm(s['ship_velocity'])
+        if self.stage == 'reuse_release':
+            if self.tap_key is None and not s['native_interact']:
+                off = sub(s['player'], s['boarding']); off[1] = 0
+                require(norm(off) > .1 and s['reboard_blocked'], 'actual blocked first Torrent exit')
+                self.clear_target = [p+max(4, 8-norm(off))*d for p,d in zip(s['player'], unit(off))]
+                self.clear_started = now
+                self.enter('reuse_clear', s)
+        elif self.stage == 'reuse_clear':
+            require(now-self.clear_started <= 12, 'existing 12-second supported reboard-clear budget')
+            dx, reached = self.walk_to(s, self.clear_target, keys)
+            if reached:
+                require(s['boarding_distance'] > 7 and not s['reboard_blocked'], 'physical clear walk releases ordinary reboard block')
+                self.clear_seen = True
+                self.receipts['walk_clear'] = self.receipt(s)
+                self.enter('reuse_approach', s)
+        elif self.stage == 'reuse_approach':
+            require(not s['reboard_blocked'], 'same Torrent stays ordinarily available after clear walk')
+            if s['candidate'] and not s['station_candidate'] and s['boarding_distance'] <= 7 and norm(s['player_velocity']) <= .35:
+                self.request_e('board', s, now)
+            else: dx, _ = self.walk_to(s, s['boarding'], keys)
+        elif self.stage == 'board' and s['phase'] == 'START_ENGINES' and not s['transition_busy']:
+            require(self.boarding_seen and s['boarding_confirmation'].get('adapter', {}).get('view', {}).get('state') == 'seated',
+                    'actual second Torrent boarding transition completed')
+            self.require_home(s)
+            self.receipts['seated_2'] = self.receipt(s)
+            self.departed = self.thrust_seen = self.landing_seen = False
+            self.excursion = 0
+            self.launch_braking = self.return_braking = False
+            self.enter('reuse_launch', s)
+        elif self.stage == 'reuse_launch':
+            target = [0, 8, -78]
+            off = sub(target, s['position']); distance = norm(off)
+            dx, dy, align = self.aim(s, [p+d for p,d in zip(s['camera'], off)])
+            stopping = speed*speed/(2*s['tuning']['brake'])+speed*.18
+            if distance < stopping+5.75: self.launch_braking = True
+            if speed <= .45 and distance > 5: self.launch_braking = False
+            if distance <= 5 or self.launch_braking: keys.add('Prior')
+            elif align > .72: keys.add('w')
+            if distance <= 5 and speed <= .45:
+                require(self.departed and s['phase'] == 'FREE_FLIGHT', 'actual second native-thrust lease-free Torrent departure exceeds 8m')
+                self.receipts['departed_2'] = self.receipt(s)
+                self.enter('reuse_return_align', s)
+        elif self.stage == 'reuse_return_align':
+            keys.update(('Prior', 'h'))
+            off = sub([0, 2, -18], s['position'])
+            dx, dy, align = self.aim(s, [p+d for p,d in zip(s['camera'], off)])
+            if align > .98 and s['upright'] > .94 and speed <= .8: self.enter('reuse_return', s)
+        elif self.stage == 'reuse_return':
+            off = sub([0, 2, -18], s['position']); distance = norm(off)
+            dx, dy, align = self.aim(s, [p+d for p,d in zip(s['camera'], off)])
+            stopping = speed*speed/(2*s['tuning']['brake'])+speed*.18
+            if distance < stopping+1.75: self.return_braking = True
+            if speed <= .45 and distance > 1: self.return_braking = False
+            if distance <= 1 or self.return_braking: keys.add('Prior')
+            elif align > .72: keys.add('w')
+            if distance <= 1 and speed <= .45: self.enter('reuse_align_berth', s)
+        elif self.stage == 'reuse_align_berth':
+            keys.update(('Prior', 'h'))
+            off = sub(s['parked'], s['position'])
+            dx, dy, align = self.aim(s, [p+d for p,d in zip(s['camera'], off)])
+            if align > .995 and s['upright'] > .94 and speed <= .35:
+                require(s['capture'], 'registered second Torrent home capture')
+                self.tap('l', now)
+                if self.tap_key == 'l': self.enter('reuse_land', s)
+        elif self.stage == 'reuse_land':
+            keys.add('Prior')
+            if s['phase'] == 'SHUT_DOWN' and s['landed']:
+                require(self.departed and self.landing_seen, 'second departure and native L before second home')
+                self.require_home(s)
+                self.receipts['docked_2'] = self.receipt(s)
+                self.neutral_frames = 0
+                keys.clear(); self.enter('reuse_shutdown', s)
+            elif not s['landing_active'] and s['capture']: self.tap('l', now)
+        elif self.stage == 'reuse_shutdown' and s['engine'] == 'OFFLINE' and self.neutral_frames >= 90:
+            self.receipts['offline_2'] = self.receipt(s)
+            self.request_e('exit', s, now)
+        elif self.stage == 'exit' and s['phase'] == 'COMPLETE' and not s['transition_busy']:
+            self.require_foot(s); self.require_home(s)
+            require(self.disembarking_seen and norm(sub(s['player'], s['exit'])) < .65,
+                    'actual separate native E second supported physical Torrent exit')
+            self.receipts['exited_2'] = self.receipt(s)
+            self.trips.append({'flight': 2, 'excursion_m': self.excursion, 'neutral_frames': self.neutral_frames})
+            off = sub(s['player'], s['boarding']); off[1] = 0
+            self.walk_target = [p+d for p,d in zip(s['player'], unit(off))]
+            self.enter('reuse_walk', s)
+        elif self.stage == 'reuse_walk':
+            dx, reached = self.walk_to(s, self.walk_target, keys)
+            if reached and norm(sub(s['player'], self.receipts['exited_2']['player'])) >= .5 \
+                    and self.frame-self.receipts['exited_2']['frame'] >= 20:
+                self.receipts['walked_2'] = self.receipt(s)
+                self.tap_key = None
+                self.enter('pause', s)
+        if self.tap_key is not None:
+            if now < self.tap_until or self.frame < self.tap_frame+6: keys.add(self.tap_key)
+            else:
+                self.tap_key = None; self.tap_cooldown = now+.3; self.tap_release_frame = self.frame
+        # Preserve the accepted walking mouse acknowledgement fence. Flight
+        # uses Pilot's existing bounded mouse law without this on-foot fence.
+        if self.stage in self.FOOT_STAGES:
+            if self.mouse_pending is not None:
+                if norm(sub(s['walk_forward'], self.mouse_pending)) < .00001: dx = 0
+                else: self.mouse_pending = None
+            if dx: self.mouse_pending = s['walk_forward'][:]
+        return keys, dx, dy, False
+
+    def finish(self, exit_code):
+        require(exit_code == 0 and self.quit_requested and self.stage == 'quit_wait'
+                and self.guided_result is not None and len(self.trips) == 2 and self.clear_seen
+                and all(k in self.receipts for k in ('exited_1', 'walk_clear', 'board_2', 'seated_2',
+                    'departed_2', 'docked_2', 'offline_2', 'exited_2', 'walked_2', 'exit_ui'))
+                and all(t['excursion_m'] > 8 and t['neutral_frames'] >= 90 for t in self.trips),
+                'full Guided prefix two strict returns usable second exit and actual normal UI OS0 before success')
+        self.result = {'completion_marker': self.MARKER, 'guided_prerequisite': self.guided_result,
+                       'trips': self.trips, 'receipts': self.receipts, 'walked_m': self.walked,
+                       'native_interact_edges': self.native_edges, 'physics_observations': self.observations,
+                       'normal_ui_exit': True, 'scope': 'partial CRAFT-ACCEPT-TORRENT return and reuse capability',
+                       'weapons_damage_recovery_crosscraft_main_acceptance': 'NOT_RUN'}
+        return self.result
+
+
 class BreachFireControl:
     """A consumed ordinary press/release is input evidence, never a hit."""
     def __init__(self):
@@ -7065,7 +7331,7 @@ class CinderSupplyFiles(HabitatRestartFiles):
                 else: pilot.file_home = True
 
 def run(binary, output, route="guided", qualify_beacon_outbound=False):
-    require(route in ("patrol-relay-home", "race-home", "heavy-breach", "bomber-rearm", "cinder-supply", "hauler-supply", "arrow-return-reuse", "guided", "courier-intercept", "courier-escape", "courier-withdraw-phase", "courier-withdraw-distance", "beacon-entry", "beacon-settlement", "beacon-home", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
+    require(route in ("patrol-relay-home", "race-home", "heavy-breach", "bomber-rearm", "cinder-supply", "hauler-supply", "arrow-return-reuse", "torrent-return-reuse", "guided", "courier-intercept", "courier-escape", "courier-withdraw-phase", "courier-withdraw-distance", "beacon-entry", "beacon-settlement", "beacon-home", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
     require(not qualify_beacon_outbound or route == 'beacon-home',
             'outbound timing qualification requires the full beacon-home route')
     output.mkdir(parents=True, exist_ok=False)
@@ -7164,7 +7430,7 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False):
                     leg_result['window'] = hex(window)
                     desktop.focus(window)
                     pilot = HabitatRestartPilot(cold=bool(leg)) if restart_files else {
-                        "patrol-relay-home": PatrolRelayHomePilot, "race-home": RaceHomePilot, "heavy-breach": HeavyBreachPilot, "bomber-rearm": BomberRearmPilot, "cinder-supply": CinderSupplyPilot, "hauler-supply": CinderHaulerSupplyPilot, "arrow-return-reuse": ArrowReturnReusePilot, "guided": Pilot, "courier-intercept": CourierPilot, "courier-escape": CourierEscapePilot, "courier-withdraw-phase": CourierWithdrawPhasePilot, "courier-withdraw-distance": CourierWithdrawDistancePilot, "beacon-entry": BeaconEntryPilot, "beacon-settlement": BeaconSettlementPilot, "beacon-home": BeaconHomePilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
+                        "patrol-relay-home": PatrolRelayHomePilot, "race-home": RaceHomePilot, "heavy-breach": HeavyBreachPilot, "bomber-rearm": BomberRearmPilot, "cinder-supply": CinderSupplyPilot, "hauler-supply": CinderHaulerSupplyPilot, "arrow-return-reuse": ArrowReturnReusePilot, "torrent-return-reuse": TorrentReturnReusePilot, "guided": Pilot, "courier-intercept": CourierPilot, "courier-escape": CourierEscapePilot, "courier-withdraw-phase": CourierWithdrawPhasePilot, "courier-withdraw-distance": CourierWithdrawDistancePilot, "beacon-entry": BeaconEntryPilot, "beacon-settlement": BeaconSettlementPilot, "beacon-home": BeaconHomePilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
                         "hulk-arrival": HulkArrivalPilot, "hulk-breaker": HulkBreakerPilot,
                         "hulk-home": HulkHomePilot, "habitat-loop": HabitatLoopPilot, "life-tow": LifeTowPilot, "life-gantry": lambda: LifeTowPilot("life-gantry"), "life-arm": lambda: LifeTowPilot("life-arm"), "life-patrol": lambda: LifeTowPilot("life-patrol")}[route]()
                     if isinstance(pilot, BeaconHomePilot): pilot.file_snapshots = settlement_files.snapshots
@@ -7389,7 +7655,7 @@ def main():
     parser.add_argument('--output',required=True,type=Path)
     parser.add_argument('--qualify-beacon-outbound', action='store_true',
                         help='qualify the fixed 60.0s outbound monotonic maximum within the unchanged full beacon-home route')
-    parser.add_argument('--route', choices=('patrol-relay-home', 'race-home', 'heavy-breach', 'bomber-rearm', 'cinder-supply', 'hauler-supply', 'arrow-return-reuse', 'guided', 'courier-intercept', 'courier-escape', 'courier-withdraw-phase', 'courier-withdraw-distance', 'beacon-entry', 'beacon-settlement', 'beacon-home', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
+    parser.add_argument('--route', choices=('patrol-relay-home', 'race-home', 'heavy-breach', 'bomber-rearm', 'cinder-supply', 'hauler-supply', 'arrow-return-reuse', 'torrent-return-reuse', 'guided', 'courier-intercept', 'courier-escape', 'courier-withdraw-phase', 'courier-withdraw-distance', 'beacon-entry', 'beacon-settlement', 'beacon-home', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
                         help='patrol-relay-home completes genuine Guided, actual pause-board relay selection, five continuous two-second holds, exact durable payment, strict home and normal UI exit; race-home completes the genuine Guided prerequisite then same-Torrent timed race, exact durable reward, strict home and normal UI exit; heavy-breach completes real posted Heavy/picket kill/payment/home/next posting/UI exit; courier-withdraw-distance flies beyond all actual contacts for real seven-second grace withdrawal before original defender and home; courier-withdraw-phase kills the original defender after actual first courier dispatch and verifies phase withdrawal/standdown through home; courier-escape lets the actual first live runner escape and verifies standdown through home; courier-intercept destroys the actual first courier before escape then returns home; beacon-home retains payment through genuine Guided combat, home docking and usable exterior walking; hauler-supply flies the actual Dock04 Hauler through the funded Cinder terminal/home journey; cinder-supply flies the full funded Jovian/Cinder terminal/home journey; beacon-settlement continues the accepted entry through four physical beacons and durable reward; beacon-entry departs normally and physically reaches/starts the first Beacon through actual pause controls; life-patrol walks Habitat through the real door beside patrol drones and boards Torrent; life-arm walks Aft stairs past the live service arm and boards Zenith; life-gantry walks Freight past the live gantry and boards Jovian; life-tow walks Central beside live tow service and boards Torrent; hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
     args=parser.parse_args()
     if args.qualify_beacon_outbound and args.route != 'beacon-home':

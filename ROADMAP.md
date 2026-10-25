@@ -77,7 +77,19 @@ Only one implementation card may be active. Completed results are linked under
 [accepted work](#accepted-work--source-limits-retained), and failed attempts under
 [parked work](#parked-failures-and-dependent-work). They are not next tasks.
 The table below contains actual missing decisions.
-No implementation card is active. The actual HUD maximum-caption case exposed
+One executable release-driver card is active: Torrent return and reuse
+(2026-10-25 14:25:47Z→15:25:47Z,60min total). Preserve the genuine Guided prefix,
+strict first home/90neutral OFFLINE ticks/physical exit; then supported walking,
+fresh native boarding, same-Torrent departure>8m, strict second home/90neutral
+ticks/physical exit/walk and normal UI OS0. Same Main/Player/Torrent, unchanged
+controls and whole-process300s cap; no stale Guided authorization or targets.
+Owned files: existing native driver, its Python checks and read-only observer.
+Independent source review, focused Python checks, clean private Linux export,
+strict startup and one guarded private-Xvfb/x11/Dummy route are required.
+First unexpected failure stops. This supplies an executable part of the full
+craft acceptance route; damage/repair/cross-craft/Main qualification stays open.
+No user-desktop/audio run or parked Sandbox/Race replay is selected.
+The actual HUD maximum-caption case exposed
 a650px/411px space conflict and now waits for an overflow-presentation choice.
 Six Settings extreme-scale/scroll views remain accepted; REPEAT-RACE stays parked.
 Torrent's bounded source-binding pass is complete: the [existing checks and
