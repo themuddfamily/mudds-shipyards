@@ -47,6 +47,18 @@ extends SceneTree
 ## while admitted, then >=1m back after normal Disconnect/Refresh/Back/Resume.
 ## Each walk uses production movement actions, <=5s walking/settling boundaries,
 ## and 12 neutral physics ticks with <=.02m drift. All original D3 caps remain.
+## BROWSER-FULL: same isolated invocation/locks with --live-menu-full. Three
+## actual Main peers use a deliberately configured one-guest host (not a release
+## capacity claim). Only after matching host/occupant admissions does candidate
+## cold-start, discover the actual full LAN row, attempt an ordinary pointer
+## selection, Refresh, Back, Begin Shift and walk the same supported Player.
+## Full rows are disabled by production UI; refusal must produce no join intent
+## or transport, while full feedback and Refresh remain usable. Host/occupant
+## identities are sampled continuously until candidate completes continuation.
+## Original outer300s and D4 work200s/cleanup90s apply, as do Main60s, UI5s,
+## discovery10s, admission20s, handoff20s, candidate100s, guest20s/host30s and
+## per-peer exit/reap/display10s. First failed boundary aborts, without retry.
+## Success: GAME_FLOW_LIVE_MENU_FULL_TEST_OK and all three actual OS exits0.
 ## Success: GAME_FLOW_LIVE_MENU_ONE_GUEST_GAMEPLAY_TEST_OK; existing .done
 ## receipts contain both actual walks, and actual actor OS exits must be zero.
 
@@ -84,7 +96,7 @@ func _init() -> void:
 
 
 func _run() -> void:
-	if "--live-menu-one-guest" in OS.get_cmdline_user_args() or "--live-menu-one-guest-gameplay" in OS.get_cmdline_user_args() or "--live-menu-two-guests" in OS.get_cmdline_user_args() or "--live-menu-cancel" in OS.get_cmdline_user_args():
+	if "--live-menu-one-guest" in OS.get_cmdline_user_args() or "--live-menu-one-guest-gameplay" in OS.get_cmdline_user_args() or "--live-menu-two-guests" in OS.get_cmdline_user_args() or "--live-menu-cancel" in OS.get_cmdline_user_args() or "--live-menu-full" in OS.get_cmdline_user_args():
 		await _live_run()
 		return
 	var flow := GameFlowType.new()
@@ -162,6 +174,10 @@ var _live_peers: Dictionary = {}
 var _live_deadline := 0
 var _live_two_guests := false
 var _live_cancel := false
+var _live_full := false
+var _live_full_guard: Dictionary = {}
+var _live_full_sampler: LiveWalkSampler
+var _live_full_observation: Dictionary = {}
 var _live_gameplay := false
 var _live_walks: Dictionary = {}
 var _live_pending_endpoint: PacketPeerUDP
@@ -171,6 +187,7 @@ func _live_run() -> void:
 	var args := OS.get_cmdline_user_args()
 	_live_two_guests = "--live-menu-two-guests" in args
 	_live_cancel = "--live-menu-cancel" in args
+	_live_full = "--live-menu-full" in args
 	_live_gameplay = "--live-menu-one-guest-gameplay" in args
 	var peer_index := args.find("--live-peer")
 	if peer_index >= 0 and peer_index + 3 < args.size():
@@ -179,7 +196,7 @@ func _live_run() -> void:
 		_live_port = int(args[peer_index + 3])
 		await _live_actor()
 		return
-	_live_deadline = Time.get_ticks_msec() + (200_000 if _live_two_guests else 230_000) # Reserve per-peer cleanup margin.
+	_live_deadline = Time.get_ticks_msec() + (200_000 if _live_two_guests or _live_full else 230_000) # Reserve per-peer cleanup margin.
 	var result_index := args.find("--live-results")
 	_live_directory = args[result_index + 1] if result_index >= 0 and result_index + 1 < args.size() else "/tmp/mudds-live-menu-%d" % OS.get_process_id()
 	# Refuse stale receipts rather than accepting another run's host identity.
@@ -202,16 +219,22 @@ func _live_run() -> void:
 			_live_peers.guest = _live_spawn("guest")
 			_check(int(_live_peers.guest) > 0, "independent Main guest wrapper starts")
 			reached = int(_live_peers.guest) > 0 and await _live_wait_file("guest.main_ready", 60.0)
-		if reached and _live_two_guests:
+		if reached and (_live_two_guests or _live_full):
 			reached = await _live_boundary(func(): return FileAccess.file_exists(_live_directory.path_join("host.admitted")) and FileAccess.file_exists(_live_directory.path_join("guest.admitted")), 50.0, "first guest admission is acknowledged by both independent peers before guest2 starts")
+			if reached and _live_full:
+				var hosted := _live_read("host.admitted")
+				var occupied := _live_read("guest.admitted")
+				reached = int(hosted.get("guest_peer_id", 0)) > 1 and int(hosted.get("guest_peer_id", 0)) == int(occupied.get("peer_id", -1)) and int(hosted.get("guest_generation", 0)) > 0 and int(hosted.get("guest_generation", 0)) == int(occupied.get("peer_generation", -1))
+				_check(reached, "matching actual host/occupant peer and generation precede candidate cold startup")
 			if reached:
-				_live_peers.guest2 = _live_spawn("guest2")
-				_check(int(_live_peers.guest2) > 0, "second independent Main guest wrapper starts after first admission")
-				reached = int(_live_peers.guest2) > 0 and await _live_wait_file("guest2.main_ready", 60.0)
+				var third := "candidate" if _live_full else "guest2"
+				_live_peers[third] = _live_spawn(third)
+				_check(int(_live_peers[third]) > 0, "third independent Main wrapper starts after first admission")
+				reached = int(_live_peers[third]) > 0 and await _live_wait_file(third + ".main_ready", 60.0)
 			if reached:
-				reached = await _live_wait_file("guest2.done", 100.0)
+				reached = await _live_wait_file(("candidate" if _live_full else "guest2") + ".done", 100.0)
 		if reached:
-			reached = await _live_wait_file("guest.done", 20.0 if _live_two_guests else 100.0)
+			reached = await _live_wait_file("guest.done", 20.0 if _live_two_guests or _live_full else 100.0)
 		if reached:
 			reached = await _live_wait_file("host.done", 30.0)
 	if not reached:
@@ -246,9 +269,180 @@ func _live_run() -> void:
 				"real host guest counts reconcile 0 → 1 → 0")
 			if _live_gameplay:
 				_live_check_gameplay_receipts()
+			if _live_full:
+				_live_check_full_receipts(host, guest)
 	if _live_pending_endpoint != null:
 		_live_pending_endpoint.close()
 	_live_finish()
+
+
+# Passive checks never grant identity, change the advertised capacity or invoke
+# a join handler. Their independent physics consumer survives paused menus.
+func _live_start_full_guard(predicate: Callable, description: String) -> void:
+	_live_full_guard = {"active": true, "valid": true, "samples": 0}
+	_live_full_sampler = LiveWalkSampler.new()
+	_live_full_sampler.process_mode = Node.PROCESS_MODE_ALWAYS
+	_live_full_sampler.process_physics_priority = 1_000_000
+	_live_full_sampler.observe = func() -> void:
+		if not bool(_live_full_guard.active):
+			return
+		_live_full_guard.samples = int(_live_full_guard.samples) + 1
+		if not predicate.call() and bool(_live_full_guard.valid):
+			_live_full_guard.valid = false
+			_check(false, description)
+			_live_write("abort", {"reason": description, "role": _live_role})
+	root.add_child(_live_full_sampler)
+
+
+func _live_stop_full_guard() -> void:
+	if _live_full_guard.is_empty():
+		return
+	_live_full_guard.active = false
+	_live_full_observation["guard"] = _live_full_guard.duplicate(true)
+	if is_instance_valid(_live_full_sampler):
+		_live_full_sampler.queue_free()
+		_live_full_sampler = null
+
+
+func _live_full_identity_retained() -> bool:
+	if not _live_walk_network_ready(true):
+		return false
+	if _live_role != "host":
+		return true
+	var capacity: Dictionary = _live_game.network_session.get_session_capacity_snapshot()
+	return int(capacity.occupancy) == 1 and int(capacity.max_players) == 1 and int(capacity.available_slots) == 0
+
+
+func _live_full_hold() -> bool:
+	_check(_live_full_identity_retained(), "actual configured one-guest session retains original authenticated occupant")
+	if not _failures.is_empty():
+		return false
+	_live_start_full_guard(_live_full_identity_retained, "original full-session occupant and identity remain unchanged")
+	if not await _live_wait_file("candidate.main_ready", 60.0) or not await _live_wait_file("candidate.full_selected", 20.0) or not await _live_wait_file("candidate.continued", 20.0):
+		return false
+	_check(_live_full_identity_retained() and bool(_live_full_guard.valid) and int(_live_full_guard.samples) > 0,
+		"same actual occupant remains authenticated throughout rejected selection and usable continuation")
+	_live_stop_full_guard()
+	_live_full_observation["retained"] = _live_read(_live_role + ".admitted")
+	_live_write(_live_role + ".full_retained", _live_full_observation)
+	if _live_role == "host":
+		return _failures.is_empty() and await _live_wait_file("guest.full_retained", 20.0)
+	return _failures.is_empty()
+
+
+func _live_full_candidate_clear() -> bool:
+	var session := _live_game.network_session
+	return is_instance_valid(session) and not session.is_session_active() and session.get_server_offer().is_empty() and session.get_admitted_peer_ids().is_empty() and _live_game.get_network_remote_body_intent_source() == null and int(_live_full_observation.get("join_intents", -1)) == 0 and int(_live_full_observation.get("admissions", -1)) == 0
+
+
+func _live_full_row_state(session_id: StringName) -> Dictionary:
+	var hud := _live_game.hud
+	var row := _live_row(session_id)
+	var refresh := hud.find_child("ServerBrowserRefreshButton", true, false) as Button
+	var listing: Dictionary = {}
+	for entry: Dictionary in _live_game.network_session.query_server_directory():
+		if StringName(entry.get("session_id", &"")) == session_id:
+			listing = entry
+	var detail := (hud.get("_server_browser_detail") as Label).text
+	var scroll := hud.get("_server_browser_results_scroll") as ScrollContainer
+	var visible_rect := row.get_global_rect().intersection(scroll.get_global_rect()).intersection(root.get_visible_rect()) if row != null else Rect2()
+	var endpoint: Dictionary = _live_game.get_lan_discovery().get_endpoint(session_id)
+	var hosted := _live_read("host.ready")
+	var valid := row != null and row.is_visible_in_tree() and row.disabled and row.focus_mode == Control.FOCUS_NONE and row.text.contains("1/1 guests") and row.text.contains("FULL") and visible_rect.has_area() and int(listing.get("player_count", -1)) == 1 and int(listing.get("max_players", -1)) == 1 and int(listing.get("available_slots", -1)) == 0 and bool(listing.get("is_full", false)) and (hud.get("_server_browser_title") as Label).text == "ALL SESSIONS FULL" and detail.contains("The only session is full.") and detail.contains("NEXT ACTION // REFRESH SERVER LIST OR RETURN") and not detail.contains("SELECT A SESSION") and refresh != null and not refresh.disabled and refresh.focus_mode == Control.FOCUS_ALL and root.gui_get_focus_owner() == refresh and int(endpoint.get("port", 0)) == int(hosted.get("port", -1)) and not str(endpoint.get("address", "")).is_empty()
+	return {"valid": valid, "session_id": str(session_id), "endpoint": endpoint, "listing": listing,
+		"row_text": row.text if row != null else "", "disabled": row.disabled if row != null else false,
+		"focus_mode": row.focus_mode if row != null else -1, "detail": detail,
+		"directory_generation": int(_live_game.get("_lan_directory_generation")),
+		"pointer_position": [visible_rect.get_center().x, visible_rect.get_center().y]}
+
+
+func _live_full_candidate() -> void:
+	var identity := _live_player_identity()
+	_live_full_observation = {"player": identity, "join_intents": 0, "admissions": 0, "row_activations": 0, "pointer_events": []}
+	_live_game.hud.presentation_intent_requested.connect(func(kind: StringName, payload: Dictionary) -> void:
+		if kind == &"server_browser" and StringName(payload.get("action", &"")) in [&"join", &"manual_join"]:
+			_live_full_observation.join_intents = int(_live_full_observation.join_intents) + 1
+	)
+	if not await _live_button("IntroServerBrowserButton") or not await _live_button("ServerBrowserRefreshButton"):
+		return
+	var session := _live_game.network_session
+	session.peer_admitted.connect(func(_peer_id: int, _receipt: Dictionary) -> void:
+		_live_full_observation.admissions = int(_live_full_observation.admissions) + 1
+	)
+	_live_start_full_guard(_live_full_candidate_clear, "full-row candidate never starts transport or gains admission")
+	var session_id := StringName(str(_live_read("host.ready").get("session_id", "")))
+	if not await _live_boundary(func(): return bool(_live_full_row_state(session_id).valid), 10.0, "actual LAN host advertises its real occupied one-guest full row with accurate recovery feedback"):
+		return
+	var first := _live_full_row_state(session_id)
+	_live_full_observation["first"] = first
+	_live_write("candidate.full_selected", {"pid": OS.get_process_id(), "player": identity, "row": first})
+	var row := _live_row(session_id)
+	row.pressed.connect(func() -> void:
+		_live_full_observation.row_activations = int(_live_full_observation.row_activations) + 1
+	)
+	row.gui_input.connect(func(event: InputEvent) -> void:
+		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+			(_live_full_observation.pointer_events as Array).append(event.pressed)
+	)
+	var point_values: Array = first.pointer_position
+	var point := Vector2(float(point_values[0]), float(point_values[1]))
+	# Actual GUI delivery to the visible disabled row; no signal emission,
+	# handler call, focus override or fabricated network attempt is permitted.
+	for down: bool in [true, false]:
+		var event := InputEventMouseButton.new()
+		event.button_index = MOUSE_BUTTON_LEFT
+		event.pressed = down
+		event.position = point
+		event.global_position = point
+		event.button_mask = MOUSE_BUTTON_MASK_LEFT if down else 0
+		Input.parse_input_event(event)
+		await process_frame
+	_check(_live_full_candidate_clear() and int(_live_full_observation.row_activations) == 0 and _live_full_observation.pointer_events == [true, false] and bool(_live_full_row_state(session_id).valid),
+		"ordinary pointer selection is refused by the real disabled full row without join intent, admission or misleading feedback")
+	if not _failures.is_empty() or not await _live_button("ServerBrowserRefreshButton"):
+		return
+	if not await _live_boundary(func():
+		var state := _live_full_row_state(session_id)
+		return bool(state.valid) and int(state.directory_generation) > int(first.directory_generation),
+		10.0, "ordinary Refresh obtains a new live full advertisement and retains usable accurate full feedback"):
+		return
+	_live_full_observation["refreshed"] = _live_full_row_state(session_id)
+	if not await _live_begin_shift() or not await _live_walk("full_refused_solo", &"move_forward", false, identity):
+		return
+	_check(_live_player_identity() == identity and _live_full_candidate_clear() and bool(_live_full_guard.valid),
+		"Back and Begin Shift restore usable same-player solo gameplay without full-session admission")
+	if not _failures.is_empty():
+		return
+	_live_stop_full_guard()
+	_live_write("candidate.continued", {"pid": OS.get_process_id(), "player": identity, "guard": _live_full_observation.guard})
+
+
+func _live_check_full_receipts(host: Dictionary, guest: Dictionary) -> void:
+	var candidate := _live_read("candidate.done")
+	var observation: Dictionary = candidate.get("full", {})
+	var identity: Dictionary = observation.get("player", {})
+	_check(int(identity.get("pid", 0)) == int(candidate.get("pid", -1)) and int(candidate.get("pid", 0)) != int(host.get("pid", 0)) and int(candidate.get("pid", 0)) != int(guest.get("pid", 0)), "full-row candidate is a third independent actual Main player")
+	_check(int(observation.get("join_intents", -1)) == 0 and int(observation.get("admissions", -1)) == 0 and int(observation.get("row_activations", -1)) == 0 and observation.get("pointer_events", []) == [true, false],
+		"actual full-row pointer press/release produced no join handler activation or admission")
+	for role: String in ["host", "guest", "candidate"]:
+		var full: Dictionary = _live_read(role + ".done").get("full", {})
+		var guard: Dictionary = full.get("guard", {})
+		_check(bool(guard.get("valid", false)) and int(guard.get("samples", 0)) > 0 and not bool(guard.get("active", true)), role + " continuous physics guard completed without identity/admission changes")
+		if role != "candidate":
+			_check(full.get("retained", {}) == _live_read(role + ".admitted") and not _live_read(role + ".full_retained").is_empty(), role + " retained the original admitted peer and generation until candidate continuation")
+	for stage: String in ["first", "refreshed"]:
+		var state: Dictionary = observation.get(stage, {})
+		_check(bool(state.get("valid", false)) and str(state.get("session_id", "")) == str(_live_read("host.ready").get("session_id", "")), stage + " full row belongs to exact live configured host")
+	var walk: Dictionary = (candidate.get("gameplay", {}) as Dictionary).get("full_refused_solo", {})
+	var start: Dictionary = walk.get("start", {})
+	var authority: Dictionary = start.get("authority", {})
+	_check(not bool(walk.get("connected", true)) and not bool(authority.get("network_active", true)) and float(walk.get("distance_m", 0.0)) >= 1.0 and float(walk.get("walk_seconds", 6.0)) <= 5.0 and float(walk.get("settle_seconds", 6.0)) <= 5.0 and (walk.get("neutral", []) as Array).size() == 12,
+		"refused candidate completed original bounded supported one-metre solo walk and twelve neutral ticks")
+	var previous := int(start.get("frame", -1))
+	for phase: String in ["samples", "settle", "neutral"]:
+		for sample: Dictionary in walk.get(phase, []):
+			_check(_live_walk_sample_valid(sample, identity, authority) and int(sample.get("frame", -1)) == previous + 1 and not bool((sample.get("authority", {}) as Dictionary).get("network_active", true)), "full-refused walk preserves every actual physics step's original supported local actor and cleared session")
+			previous = int(sample.get("frame", -1))
 
 
 func _live_cancel_coordinator() -> bool:
@@ -355,7 +549,9 @@ func _live_spawn(role: String) -> int:
 		_check(OS.execute("/bin/chmod", PackedStringArray(["700", profile.path_join(folder)])) == 0, "private profile directory permissions: " + folder)
 	_check(OS.execute("/bin/chmod", PackedStringArray(["700", profile])) == 0, "private peer profile root permissions")
 	var args := PackedStringArray(["--display-driver", "x11", "--disable-render-loop", "--rendering-driver", "dummy", "--audio-driver", "Dummy", "--path", ProjectSettings.globalize_path("res://"), "--script", "res://tests/network/game_flow_server_browser_integration_test.gd", "--", "--live-menu-cancel" if _live_cancel else ("--live-menu-two-guests" if _live_two_guests else "--live-menu-one-guest"), "--live-peer", role, _live_directory, str(_live_port)])
-	if _live_gameplay:
+	if _live_full:
+		args[args.find("--live-menu-one-guest")] = "--live-menu-full"
+	elif _live_gameplay:
 		args[args.find("--live-menu-one-guest")] = "--live-menu-one-guest-gameplay"
 	# Positional argv protects path text from shell evaluation. The shell waits
 	# for the actual Godot child; a .done receipt is never treated as OS exit.
@@ -383,15 +579,23 @@ func _live_actor() -> void:
 	if _failures.is_empty():
 		if _live_cancel:
 			await _live_cancel_guest()
+		elif _live_full and _live_role == "candidate":
+			await _live_full_candidate()
 		elif _live_role == "host":
 			await _live_host()
 		else:
 			await _live_guest()
-	if (_live_two_guests or _live_cancel or _live_gameplay) and not _failures.is_empty():
+	if (_live_two_guests or _live_cancel or _live_gameplay or _live_full) and not _failures.is_empty():
 		_live_write("abort", {"reason": "first_failed_boundary", "role": _live_role})
 	# Cleanup is independent of menu success, focus, pause state or input capture.
-	if _live_gameplay:
+	if _live_gameplay or _live_full:
 		_live_release_movement()
+	if _live_full:
+		_live_stop_full_guard()
+		var pointer_release := InputEventMouseButton.new()
+		pointer_release.button_index = MOUSE_BUTTON_LEFT
+		pointer_release.pressed = false
+		Input.parse_input_event(pointer_release)
 	var release := InputEventAction.new()
 	release.action = &"ui_accept"
 	release.pressed = false
@@ -404,6 +608,9 @@ func _live_actor() -> void:
 	await process_frame
 	var done := {"assertions": _assertions, "failures": Array(_failures), "pid": OS.get_process_id()}
 	if _live_gameplay:
+		done["gameplay"] = _live_walks
+	if _live_full:
+		done["full"] = _live_full_observation
 		done["gameplay"] = _live_walks
 	if _live_role == "host":
 		done["guest_counts"] = _live_counts
@@ -419,6 +626,9 @@ func _live_host() -> void:
 		return
 	var port := _live_game.hud.get("_server_browser_port") as LineEdit
 	port.text = str(_live_port)
+	if _live_full:
+		# Fixture configuration only; ordinary Host still owns all startup work.
+		_live_game.runtime_settings.multiplayer_max_players = 1
 	if not await _live_button("ServerBrowserHostButton"):
 		return
 	if not await _live_boundary(func(): return is_instance_valid(_live_game.network_session) and _live_game.network_session.is_server() and is_instance_valid(_live_game.get_lan_discovery()) and _live_game.get_lan_discovery().is_responding(), 10.0, "host UI starts real ENet and LAN responder"):
@@ -440,7 +650,13 @@ func _live_host() -> void:
 	_live_write("host.admitted", {"pid": OS.get_process_id(), "host_peer_id": session.multiplayer.get_unique_id(), "player": _live_player_identity(), "guest_peer_id": guest_id, "guest_generation": int(peers[0].peer_generation) if peers.size() == 1 else 0})
 	if not await _live_wait_file("guest.admitted", 20.0):
 		return
-	if _live_two_guests:
+	if _live_full:
+		if not await _live_full_hold():
+			return
+		if not await _live_begin_shift():
+			return
+		_live_write("host.allow_leave", {})
+	elif _live_two_guests:
 		if not await _live_host_second_guest(session, guest_id):
 			return
 	else:
@@ -534,7 +750,10 @@ func _live_guest() -> void:
 	var peer := (session.get_server_offer().get("admission", {}) as Dictionary).get("peer", {}) as Dictionary
 	var guest_id := session.multiplayer.get_unique_id()
 	_live_write(_live_role + ".admitted", {"pid": OS.get_process_id(), "peer_id": guest_id, "peer_generation": int(peer.get("peer_generation", 0)), "player": _live_player_identity()})
-	if _live_two_guests:
+	if _live_full:
+		if not await _live_full_hold():
+			return
+	elif _live_two_guests:
 		if _live_role == "guest":
 			# A second cold Main startup has its own boundary, never a wider handoff.
 			if not await _live_wait_file("guest2.main_ready", 60.0):
@@ -715,14 +934,14 @@ func _live_walk_sample_valid(sample: Dictionary, identity: Dictionary, authority
 	)
 
 
-func _live_walk(name: String, action: StringName, connected: bool) -> bool:
+func _live_walk(name: String, action: StringName, connected: bool, expected_identity: Dictionary = {}) -> bool:
 	# Only input changes here. The same Main/player/session keep their production
 	# physics, controls, collision, authority and authored spawn throughout.
 	_live_release_movement()
 	var player := _live_game.get_node("Player") as PlayerController
 	var identity: Dictionary = _live_player_identity()
-	var admitted_identity: Dictionary = _live_read(_live_role + ".admitted").get("player", {})
-	_check(int(identity.pid) == int(admitted_identity.get("pid", 0)) and str(identity.object_id) == str(admitted_identity.get("object_id", "")) and str(identity.path) == str(admitted_identity.get("path", "")), name + " walk retains the admitted runtime Player identity")
+	var admitted_identity: Dictionary = expected_identity if not expected_identity.is_empty() else _live_read(_live_role + ".admitted").get("player", {})
+	_check(int(identity.pid) == int(admitted_identity.get("pid", 0)) and str(identity.object_id) == str(admitted_identity.get("object_id", "")) and str(identity.path) == str(admitted_identity.get("path", "")), name + " walk retains the original runtime Player identity")
 	if not _failures.is_empty():
 		return false
 	if not await _live_boundary(func():
@@ -1017,7 +1236,7 @@ func _live_wait_file(name: String, seconds: float) -> bool:
 		if FileAccess.file_exists(_live_directory.path_join(name)):
 			return true
 		# A finished peer cannot reach a later gameplay boundary.
-		for role in (["cancel"] if _live_cancel else (["host", "guest", "guest2"] if _live_two_guests else ["host", "guest"])):
+		for role in (["cancel"] if _live_cancel else (["host", "guest", "candidate"] if _live_full else (["host", "guest", "guest2"] if _live_two_guests else ["host", "guest"]))):
 			if name.begins_with(role + ".") and name != role + ".done" and FileAccess.file_exists(_live_directory.path_join(role + ".done")):
 				return true
 		return false, seconds)
@@ -1064,7 +1283,9 @@ func _live_finish() -> void:
 		push_error(failure)
 	print("LIVE_MENU_ARTIFACTS: ", _live_directory)
 	var label := "GAME_FLOW_LIVE_MENU_CANCEL" if _live_cancel else ("GAME_FLOW_LIVE_MENU_TWO_GUESTS" if _live_two_guests else "GAME_FLOW_LIVE_MENU_ONE_GUEST")
-	if _live_gameplay:
+	if _live_full:
+		label = "GAME_FLOW_LIVE_MENU_FULL"
+	elif _live_gameplay:
 		label = "GAME_FLOW_LIVE_MENU_ONE_GUEST_GAMEPLAY"
 	print(label + ": %d assertions, %d failures" % [_assertions, _failures.size()])
 	if _failures.is_empty() and _live_role == "coordinator":
