@@ -83,6 +83,65 @@ No new gameplay repair is justified by this source definition. Capacity remains
 an owner decision; native-platform/device/GPU gates keep their existing status.
 Stop here: no additional profile family, schema, acceptance relaxation or run.
 
+## Endurance execution handoff — proposed limits, 2026-10-25
+
+**NET-ENDURANCE-DEFINE remains blocked on the proposed values below.** These are
+reviewable engineering proposals, not recovered original limits, owner approval
+or passing evidence. The original30 minutes/server+two clients/100ms RTT/2%loss
+remain fixed. No shorter run, command-consumer injection, synthetic clock advance
+or stream-only shim substitutes for the independent whole-session requirement.
+
+Current readiness: the original source Halyard BOARD/seven-MOVING route and named
+lifecycle cases now have accepted isolated-process results recorded in the
+[canonical backlog](ROADMAP_BACKLOG.md#multiplayer-children); the older parked
+baseline wording above describes the2026-10-18 definition only. Wider baseline
+and final-capacity requirements remain open. There is still **no executable
+endurance command**. The nearest ordinary process/physical-input seam is
+`tests/network/halyard_network_passenger_route_test.gd`; the short authority
+three-process test is a process-owner anchor, not its ordinary replacement.
+
+A read-only availability probe on2026-10-25 successfully created a disposable
+user+network namespace, enabled its private loopback and applied `netem delay
+50ms 10ms loss2%`. JSON confirmed50ms delay/10ms jitter/2%loss and zero queued
+packets; the qdisc was deleted and the child exited0. No game or traffic was run.
+This proves local isolated shaping is available, not an achieved game-link profile.
+Do not apply impairment to the user's interfaces or connection.
+
+### Literal proposed settings requiring an owner choice
+
+| Field | Proposed fixed value / action |
+| --- | --- |
+| Participants | Three independent real Main processes: host, clientA Halyard pilot, clientB physical cabin passenger; original ordinary BOARD+seven-MOVING prefix, same Players/adapters/craft, default input mappings. This is the original two-client case, not a release-capacity declaration. |
+| Continuous interval |60s moving warm-up, then **1,800 actual wall seconds** of moving-cabin play. No accelerated time/fixed-step substitute. Cabin walk/turn/sleep-wake and helm actions reuse existing ordinary consumers; no placement, damage or ownership injection. |
+| Isolated topology | Fresh outer user+network namespace; private host/A/B namespaces and virtual links. Every relevant game UDP packet crosses the impaired links; no fallback loopback shortcut. Remove all owned links/namespaces/processes on exit. |
+| Delay/jitter | Each direction nominal50ms with independent uniform±10ms jitter, giving nominal100ms RTT with±20ms total range before scheduling overhead. Seeds101/102/103 for host/A/B link scheduling. |
+| Loss/reordering |2% random packet loss **per direction**, correlation0; explicit5% reordering, correlation0. These directional semantics are proposed, not inferred from the old log label. |
+| Applied-profile measurement | Separate monotonic UDP probes and actual qdisc packet/drop counters; at least10,000 classified packets per shaped peer over the run. Proposed achieved-loss range1.5–2.5% per shaped direction; median probe RTT80–120ms and p95≤150ms. Retain measured reorder count/depth; require at least one actual reordered packet. Failure to measure is not a pass. |
+| Stream stall | Once at continuousT+900s, drop the already-published relationship stream for90 authored ticks, using its existing transport-only hook. No editing/creating packets or relationship authority. |
+| Host-physics stalls | After the full continuous interval, reuse the existing two stops of host Main/craft physics for600 continuing client steps: before fresh roll, then before landing. Network transport continues. Preserve the original2s action deadlines after recovery. Do not substitute OS-wide process suspension. |
+| Existing relationship invariants | Reconstruction≤0.0005m against the received frame/pose, extrapolation≤0.25s,8m frame-local teleport threshold, live authored cabin/floor containment, monotonic generation/cursors and exact claim/entity/authority agreement. Do not compare unaligned live world poses as if network delay were zero. |
+| Existing hard/caller limits | Preserve12,000 encoded bytes/relationship packet; movement pending≤8/entity; jitter buffer≤16 packets/8-tick gap; existing command cadence and180-behind/30-ahead boarding/helm and60-behind/6-ahead on-foot admission bounds. These are existing production limits, not new global clock tolerances. |
+| Publication and aggregate traffic | Preserve normal8 snapshots/24,000 bytes per10 ticks/recipient as coalescing thresholds. Proposed allowance: forced transition/critical excess≤64KiB per10 ticks/recipient, counted separately; total game UDP egress across all three peers≤2MiB in each1s bucket, including forced traffic. No silent critical-traffic exclusion. |
+| Backlog/drain | Proposed qdisc limit256 packets/peer; retain native/application queue byte/count observations. Existing application capacities above stay fixed. Following final ordinary shutdown, all owned pending/session/recipient queues must reach zero within2s; never reinterpret active heartbeat traffic as a failed post-shutdown drain. |
+| Mapped tick drift | Proposed p99≤6 ticks/max≤30 ticks against the current accepted host anchor outside the explicit stall/recovery windows. Never compare raw clocks from differently started processes. Existing per-action deadlines remain independent pass conditions. |
+| Equivalent-phase resources | Compare after warm-up and atT+600/1200/1800 in the same engine-online/awake/unseated-or-same-seat phase after2s neutral settling; sample every5s. Proposed zero positive live-node/object/resource/orphan-count delta after quiescence, zero duplicate/unowned gameplay entities/claims at every sample, RSS≤baseline+64MiB and≤4GiB per process. Use equivalent-phase20s median windows after settling; strictly rising RSS medians atT+600<T+1200<T+1800 fail even below the allowance. Every production pending/entity/recipient/cache store must stay within its declared bound and clear when retired. Test receipts must be streamed/bounded so the observer does not create the measured growth. |
+| Completion and cleanup | Original physical home/strict dock/OFFLINE, exit/reboard or role return as required by the existing baseline, all three actual OS exits0 and owned namespace/display/input cleanup. No disappearance of a peer counts as successful completion. |
+| Time and stop | Proposed dedicated outer2,400s command, preserving original local Main/UI/boarding/action/landing/cleanup limits. First unexpected failure stops; preserve source/profile/raw result and cumulative cost. No automatic retry, shorter interval or relaxed threshold. |
+
+The new tolerances/distributions/stall schedule/aggregate and resource ceilings
+are a **proposal**, not a change to existing production behavior or accepted
+results. Owner may adopt these exact values or specify replacements. Until then,
+NET-ENDURANCE is NOT_RUN and no acceptance result is selected. Numerical settings
+must not be selected after observing a run.
+
+After the choice, implement two bounded capabilities through existing owners:
+(1) isolated whole-link impairment around the existing independent process route;
+(2) the real-duration opt-in and continuous source/phase observations in that
+ordinary route. Only then freeze the exact executable command and run the full
+original interval. There is no new validator, schema family or parallel roadmap.
+A pass would qualify this named source/profile; required packaged/native/final
+capacity and other baseline cases remain separate.
+
 ## Immediate post-stall actions checkpoint — 2026-10-08
 
 Checkpoint `d448e3f` fixes the reproduced immediate-action gap in `d49bde8`:
@@ -443,8 +502,12 @@ snapshot is not one of a stream, it is the statement that the pilot is now in th
 pilot seat, and a busy cabin that coalesces it leaves the pilot drawn standing in
 mid-cabin on every other client until they get up again. `CRITICAL` means the
 snapshot is sent in the window it was published in instead of being parked. It
-never raises the byte ceiling, never bypasses the packet-size limit and grants no
-authority; a flood of critical snapshots is a flood of ordinary packets. The new
+may exceed the normal snapshot-count and byte thresholds for a generation
+transition or critical secured pose; those forced sends remain counted in the
+audit. It never bypasses the hard12,000-byte encoded packet-size limit or grants
+authority. The normal24,000-byte/8-snapshot window is therefore a coalescing
+threshold, not an absolute bound on all critical traffic. Aggregate wire and
+forced-excess acceptance limits must be declared separately. The new
 suite measures both halves in one busy-cabin leg: with two occupants at 60 Hz the
 budget really does coalesce (32 snapshots in one measured run), the walking body
 is the one that falls behind, and the secured body's worst observed lag is one

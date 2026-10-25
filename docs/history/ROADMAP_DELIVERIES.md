@@ -24876,3 +24876,37 @@ to reopen its eight-shot failure; no engine/replay/repair was attempted. Retaine
 receipts show6misses/2generic hits(entity0), but lack query-time target transforms
 and trigger timestamps. Aim/parallax correlation is not promoted to a fix. Original
 Wing acceptance, timers and parked reopening predicate remain unchanged.
+
+
+## Endurance handoff made literal — proposal awaiting owner choice — 2026-10-25
+
+NET-ENDURANCE-DEFINE now has one literal proposed profile/acceptance table in
+MOVING_INTERIOR_LATENCY.md. Original continuous30min/server+two independent
+clients/100msRTT/2%loss remain fixed. Source recovery confirms no complete
+independent impaired/endurance command exists. Existing stream-only sweeps and
+server command injections do not supply it. Genuinely unprovided jitter/reorder
+semantics, stall schedule, aggregate/forced-critical traffic, mapped tick drift,
+drain and equivalent-phase resource ceilings are identified and proposed once;
+none is represented as an original value, owner adoption or passing result.
+Actual namespace/link wrapper and real-duration ordinary driver remain to build.
+
+Local availability is verified without a game or traffic: disposable user+network
+namespace creation exits0; private loopback/netem50ms±10ms/loss2% configuration
+is read back as delay.05/jitter.01/loss.02, then deleted and the child exits0.
+No user interface/link, display, synthetic input, audio or hosted CI touched;
+no namespace/process/artifact retained. This proves isolation capability only.
+
+Corrected a false existing documentation claim that CRITICAL never exceeds the
+byte ceiling: actual adapter code sends/counts generation transitions and critical
+poses beyond normal8/24,000-per10ticks coalescing thresholds. Hard12,000 encoded
+packet limit remains. No runtime behavior or accepted test result changed.
+Independent source/proposal review GO; adoption/replacement required before any
+full execution. No executable/endurance pass or support-capacity claim. Original
+337 canonical IDs/order/Done means,36 parents/ten gates/17craft scope unchanged.
+
+A preceding factual recovery from the original active-scene-cost agent found no
+unaddressed measured Main-startup hotspot. Prior transform/nearby-refresh/menu
+readiness costs were already repaired. Q4 remains parked; no repeated profile,
+slow recovery suite or withheld candidate was run/integrated. This bounded
+handoff starts09:18:33Z with30min cap including that triage; no original parked
+attempt budget reset, engine, new test, branch/worktree or checkpoint build.
