@@ -25059,3 +25059,70 @@ SHA256 `266da62d57d4423025175af4dc40198ab7538c8ab3c593f781df950f7723d924`;
 `closeout.json` alongside it records final Git closure/time. Prior failed trial
 and preflight correction stay inside this same archive/clock. No task worktree
 or remote branch was created; unrelated parked worktrees remain untouched.
+
+
+<a id="browser-no-answer-source-accepted-20261025"></a>
+## Separate browser no-answer source case accepted — 2026-10-25
+
+**Separate no-answer fault DONE in Linux-source/InputEvent scope** on
+`bd61da07d4e4875b4d4121c1acd1e250b1ca1bb5`. BROWSER-UNREACHABLE remains OPEN:
+the older e944f52 reachable-ENet/non-admission packaged route retains its native
+cache diagnostic, causal reopening condition and full original acceptance.
+No runtime correction, parked-route replay, package/native/controller or full
+network/final-release qualification is claimed. Game code and checkpoints remain
+unchanged; no identical replacement export.
+
+Existing integration caller opt-in `--live-menu-no-answer` owns a real silent
+loopback UDP endpoint plus independent live host/guest Main processes. Headless
+coordinator and private Xvfb/x11/dummy-renderer/Dummy peers isolate display/audio.
+Guest uses normal Begin Shift/Pause/browser/Refresh/Manual Join. It observes the
+real native CONNECTING peer, exact pending identity, future deadline and real
+handshake datagrams; no ENet response, transport poll, forced expiry or timer
+change. The same original guest Main/Player remains throughout.
+
+The first request starts at 34,895 ms, deadline 39,895 ms. Production emits exactly
+one `connection_timeout` callback at 39,900 ms while paused: **5,005 ms elapsed**,
+never before its deadline. Actual visible copy says the host did not admit the
+connection in time and offers Retry Connection. The accepted retired tuple and
+current GameFlow sequence are both 3; natural stop has no extra terminal update.
+Native peer is closed, pending identity/deadline cleared, multiplayer API offline,
+no offer/admission or body/seat/ship/crew authority retained.
+
+Ordinary Retry Connection starts a DIFFERENT native peer to the same silent
+endpoint at 39,908 ms, deadline 44,908 ms. Ordinary Cancel emits `ui_cancel` at 39,976 ms,
+well before expiry, and completely retires that attempt too. Its explicit-stop
+presentation retains the existing extra rejected-terminal-update fence. Then
+actual Refresh/LAN-row activation admits a fresh native peer to the live Main
+host, matching `1079334082/gen1`. One fresh admission and 522 passive physics
+observations retain old-peer closure, pause before the fresh request and original
+Player identity. Both original Players complete connected/solo walks of
+1.002774 m each, 12 neutral ticks and zero drift, normal Disconnect/host stop and
+usable browser return. Actual host PID 1632917 and guest PID 1633056 both exit 0
+and are reaped; host counts 0→1→0. Full route **92.783941 s/335 checks/one marker,
+zero diagnostics**. Independent source/raw review GO. Source/index/cache and
+installed editor/Linux-template pins match before/after.
+
+First execution STOP is retained: GDScript cannot infer the helper's new `valid`
+expression type, exit 1 in 1.280132 s before endpoint/participants start. One reviewed
+explicit `bool` annotation preserves the expression and all criteria. Existing
+default integration passes 7 checks/15.844374 s/exit 0/no diagnostics; the ONE
+subsequent complete route above passes. No further run is selected. Stage total
+109.908447 s includes the parse failure; tests or stage counts do not indicate
+whole-project progress.
+
+Original D3 limits remain: outer 300 s/work 230 s, Main 60/UI 5/discovery 10/admission 20,
+host admission 50/handoffs 20/guest 100/host completion 30/cleanup 10 s, walk/settle 5 s
+and 12 neutral ticks. The production deadline stays 5,000 ms; the existing 5 s UI
+boundary begins after actual pending observation. New unrun-case clock starts
+11:01:33Z, hard stop 12:16:33Z (75 minutes), 11.405 minutes through raw archive and
+scratch cleanup. Separate old non-admission costs remain: initial 40.553592 s
+failure, 12 stages 235.879387 s/two failures; later investigation 20 stages 398.2957 s.
+Their overall elapsed cost is not known; this case does not restart their budget.
+
+All 3 owners and 20 observed descendant identities are absent. All 72 raw files
+hash-match archive members before owned helpers/results/profiles/locks are removed.
+Retained `/srv/mudds-work/browser-no-answer-20261025/records.tar.gz`, 7,272,877 bytes,
+SHA256 `c7c44bc2879cdc5d493854443cd5db3067e54d0bf3f44f8fe17a9270a1082dc0`;
+`closeout.json` alongside records final Git closure/time. No task worktree or
+remote branch was created; old parked source/results and unrelated worktrees
+remain untouched.
