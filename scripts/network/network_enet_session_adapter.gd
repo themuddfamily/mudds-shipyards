@@ -1229,6 +1229,11 @@ func publish_projectile_snapshot(
 	var coalesced := 0
 	for peer_variant in target_peers:
 		var peer_id := int(peer_variant)
+		# Native disconnect can precede logical admission cleanup. Skip before
+		# budget rollover can flush pending packets or consume delivery work.
+		# Detached adapters retain their existing budget-simulation path.
+		if _peer != null and not _native_recipient_is_connected(peer_id):
+			continue
 		var published: Dictionary = _projectile_published_generations.get(peer_id, {}) as Dictionary
 		var projectile_id := StringName(projectile.get("projectile_id", &""))
 		var transition := terminal or (initial_transition and (

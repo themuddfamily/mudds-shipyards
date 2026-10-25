@@ -181,10 +181,13 @@ func _initialize() -> void:
 	_check(not another_client._projectile_replica_samples.has(&"disconnect_fresh")
 		and int(another_client._projectile_replica_terminal_generations.get(&"disconnect_fresh", 0)) == 1,
 		"terminal retires surviving replica and retains its generation fence")
+	# Forced native closure deliberately suppresses the normal disconnect signal.
+	# Exercise its existing logical owner explicitly after all window checks.
+	_server._on_peer_disconnected(lost_peer)
 	_check(not _server._peer_generations.has(lost_peer)
 		and not _server._projectile_recipient_pending.has(lost_peer)
 		and not _server._projectile_recipient_budgets.has(lost_peer),
-		"normal queued disconnect cleanup retires old admission and projectile work")
+		"explicit logical disconnect handler retires old admission and projectile work")
 	another_client.shutdown()
 	_client.shutdown()
 	_server.shutdown()
