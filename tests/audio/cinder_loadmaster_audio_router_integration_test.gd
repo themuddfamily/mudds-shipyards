@@ -27,6 +27,17 @@ func _run() -> void:
 	_hud = Hud.new()
 	root.add_child(_hud)
 	await process_frame
+	# Enter the HUD through its existing intro action; this component fixture
+	# does not instantiate Main or claim a physical crew journey.
+	_hud.set_reduced_motion(true)
+	var begin_button := _hud.get("_intro_start_button") as Button
+	begin_button.pressed.emit()
+	var gameplay_hud := _hud.get("_hud") as Control
+	for _frame in 8:
+		if gameplay_hud.is_visible_in_tree():
+			break
+		await process_frame
+	_check(gameplay_hud.is_visible_in_tree(), "normal Begin Shift action reveals the actual gameplay HUD")
 	_flow = Flow.new()
 	_flow.hud = _hud
 	_hud.set_captions_enabled(true)
@@ -100,6 +111,7 @@ func _run() -> void:
 	adapter.queue_free()
 	craft.queue_free()
 	director.queue_free()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	await process_frame
 	for failure in _failures:
 		push_error(failure)
@@ -114,7 +126,7 @@ func _stored_count() -> int:
 
 func _visible_text() -> String:
 	var presenter := _hud.get("_caption_presenter") as CaptionPresenter
-	if not presenter.visible:
+	if not presenter.is_visible_in_tree():
 		return ""
 	return str((presenter.get("_text_label") as RichTextLabel).text)
 
