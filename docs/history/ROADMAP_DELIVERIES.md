@@ -26797,3 +26797,89 @@ scratch; five supervisors/16 observed identities absent. Accepted source bundle/
 patch retains all changes. Original clock23.507min through archive verification;
 final closure push/elapsed is recorded in closeout.json. Current4aa8b64 builds
 and pre-existing detached worktrees are unchanged.
+
+
+<a id="guided-installed-normal-exit-accepted-20261025"></a>
+
+## Guided installed normal Exit capability accepted — 2026-10-25
+
+Source39157e8ca33092a18d139d6369ed95782e8975bc delivers the missing default
+Guided release-driver endpoint. Previously `Pilot` reported success at physical
+COMPLETE and the runner terminated the game during cleanup. The default route
+now saves the unchanged complete flight result, releases its disembark pulse,
+uses actual OS Escape/Tab/Return on the enabled/focused EXIT TO DESKTOP control,
+and succeeds only after actual game process exit0. Early death, wrong exit,
+timeout or forced cleanup cannot satisfy this endpoint. BasePilot and all nested
+Guided prefixes/other routes retain their original behavior.
+
+The existing private observer adds only read-only default-Guided identity/UI/
+sequence facts. Its paused callback returns retained gameplay state before the
+original physics queries; it advances observation sequence while explicitly
+marking gameplay freshness false. There is no actor/pose/control injection,
+gameplay tuning, timer increase, new observer family or validator version.
+Startup admission/privacy and independent abort/release/reap behavior are retained.
+
+All11 frozen stages pass on their first attempt: native Python suite211tests,
+Godot import, startup CLI privacy, clean Windows export/embedded-PCK startup,
+Linux export/direct startup/archive-extracted startup, actual payload audit,
+shipped-manager clean install and ONE installed direct-ELF ordinary Guided run.
+Each startup actually exits0 with one STARTUP_MENU_READY_OK and zero detected
+diagnostics. Actual platform PCKs match1527entries; only
+scripts/diagnostics/native_sortie_observer.gdc differs from4aa8b64. Stock Windows
+PE.text, architectures, tar membership/modes/epoch and exact installer/icon/ELF
+bytes verify. Source/index/cache guards hold as authorized; no Actions run.
+
+The actual installed run takes55.826s (wrapper58.072) under originalCAP300,
+PID1806538/window0x400002. It retains supported17.691119m approach walking,
+four-target/interceptor completion,63.361585m excursion,9.034169m nose-first
+landing approach, strict home lease/parked contract/automaticOFFLINE and physical
+exit with0.169999957m error. Same Main/world/Player/ship/source/home/opponent
+identities remain throughout. Full original required phases pass before the UI
+endpoint. Raw1891 observations have increasing sequence; paused1783–1891 keep
+stale gameplayframe2263/freshfalse. Actual focused Exit receiptseq1885 precedes
+rawReturnpressed1887–1890/released1891 and actualOS0. Independently reviewed
+source/receipts cannot turn finally's forced cleanup into success.
+
+The actual post-exit primary is copied before temporary-profile cleanup. Its
+SHA256e2e2488007c3198afb56a03f69234e6995b8416ddc2c52984a399c4784334b7b matches
+the retained raw file: generation16/main-session-clean-16, crash stateclean with
+unclean count0; safe-start stateclean_shutdown/failure count0/no recommendation;
+current diagnosticssession_ended. This records actual file facts, not an added
+mandatory clean-marker gate. Source manager extracted from the actual tar installs
+the exact149046016-byte ELF/icon/manifest/desktop entry under an empty owned private
+prefix. All five owned file hashes/modes are unchanged across launch, as is the
+source archive. The desktop entry is inspected only: its ordinary Exec has no
+Dummy argument and no audible desktop launch was authorized.
+
+Inputs/cursor release and game/helper/Xvfb reaps all pass; root's process guard
+independently observes the game identity and finds all7 installed-stage owned
+identities absent by PID+start ticks. Independent reviewer accepts exact source,
+all11 stage results, actual raw input/UI tail, clean-file facts, installed bytes,
+payloads and strict startup records. The actual shipped manager then uninstalls
+only the owned test install/entry/manifest; the duplicate installed ELF is removed,
+while actual raw records and public builds are retained.
+
+Scope: executable release capability and ONE installed direct-ELF source-
+composition sortie under privateXvfb/explicitx11/Dummy/dummy renderer/disabled
+render loop. No new gameplay feature. This is NOT rendered desktop-entry/full
+LINUX-DESKTOP, GUIDED-FINAL3/3, full install/recovery transactions, nativeWindows,
+nativeGPU, physical-device, audible-mix or unfiltered final-matrix acceptance.
+Original36 parents/ten exits/17craft scope and existing owner exclusions remain.
+Original22:00Z→23:15Z/75min includes implementation, the roadmap correction,
+checks/build/install/one trial/review/integration/cleanup; no failure/retry/reset.
+
+Public artifacts are the Windows EXE/checkpoint ZIP/notes and matching Linux
+ELF/archive/metadata/strict-startup records/notes under builds/windows and
+builds/linux. Source39157e8ca is the exported candidate; later docs do not change
+its runtime bytes. Actual publication identities:
+
+- `builds/windows/MuddsShipyards-39157e8.exe`: 184804304 bytes; SHA256 `0da6c51c65778cad3fde9c67f7e6cf6b02fca2b447fb27dc5f54fd34dc0b6dd3`.
+
+- `builds/linux/MuddsShipyards-39157e8.x86_64`: 149046016 bytes; SHA256 `7803ae056cfd120d205674e61988dcdf5285fc9df16c19857a632991b3fe6c39`.
+
+- `builds/linux/MuddsShipyards-39157e8-linux-x86_64.tar.gz`: 95453819 bytes; SHA256 `c34686d85dd016db06d85b5f718fc4c44fa6ad725829b371d4c0ab5b88c24d6c`.
+
+- `builds/windows/MuddsShipyards-39157e8-checkpoint.zip`: 103333886 bytes; SHA256 `7ddb95a1e6870bcb6408a0c68db4184456826c69dd76a61e85622d17a3fcba75`.
+
+Owned records: /srv/mudds-work/installed-guided-exit-20261025.
+Verified archive, final cumulative cost and exact Git branch closure follow below.

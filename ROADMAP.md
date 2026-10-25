@@ -1,10 +1,11 @@
 # Development roadmap
 
 **Playable alpha; full original scope remains unfinished.** Latest Windows build:
-[4aa8b64 checkpoint](builds/windows/MuddsShipyards-4aa8b64-checkpoint.zip)
-([changes and validation](builds/windows/MuddsShipyards-4aa8b64-notes.txt)).
-Matching [Linux checkpoint 4aa8b64](builds/linux/MuddsShipyards-4aa8b64-linux-x86_64.tar.gz)
-([Linux validation](builds/linux/MuddsShipyards-4aa8b64-linux-notes.txt)) is available.
+[39157e8 checkpoint](builds/windows/MuddsShipyards-39157e8-checkpoint.zip)
+([changes and validation](builds/windows/MuddsShipyards-39157e8-notes.txt)).
+Matching [Linux checkpoint 39157e8](builds/linux/MuddsShipyards-39157e8-linux-x86_64.tar.gz)
+([Linux validation](builds/linux/MuddsShipyards-39157e8-linux-notes.txt)) is available.
+This checkpoint adds release automation; gameplay retains the prior 4aa8b64 fixes.
 Nine of the promised 17 craft exist. All 36 original parent outcomes and ten phase
 exit gates remain open; completed child results are retained, not counted as whole
 features. There is no evidence-backed project percentage or completion date.
@@ -70,18 +71,20 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Active release capability: Guided normal HUD Exit.** The roadmap correction
-is committed and pushed on `e861ce360`; implementation now resumes under its
-original frozen contract. Code from `4f0717d02` is committed on
-`feat/guided-normal-ui-exit-20261025` but remains unaccepted until focused checks,
-independent review, exports and the installed sortie pass. No gameplay outcome
-is credited merely for writing the driver. The original 300-second route
-cap and 22:00–23:15 UTC assignment clock remain binding; this roadmap correction
-does not restart either. Resolve that assignment before starting another gameplay
-implementation. Its intended result is the same full Guided flight followed by
-real pause-menu Exit and actual process exit 0; forced termination cannot pass.
-This remains a prerequisite for installed direct-ELF qualification, not final
-Guided 3/3, rendered desktop-entry launch or native GPU proof.
+**Accepted: Guided normal HUD Exit prerequisite.** Source `39157e8ca` passes
+all 211 native-driver tests, import/privacy checks, paired exports, three strict
+package startups, actual payload audit and one clean installed direct-ELF sortie.
+The original full flight/home/OFFLINE/physical exit is followed by OS-key pause,
+focused EXIT TO DESKTOP and actual exit 0 in 55.826 seconds under unchanged CAP300.
+Actual post-exit data records both clean shutdown states. All owned inputs and
+game/helper/Xvfb processes are released/reaped; installed/archive bytes remain exact.
+
+This closes the missing executable normal-exit prerequisite. It is one run under
+private Xvfb/x11/Dummy/dummy rendering, not rendered desktop-entry acceptance,
+Guided final 3/3, native GPU qualification or a new gameplay feature. The original
+22:00–23:15 UTC assignment clock is retained. Integration, archive and branch
+closure are the remaining work on this card; no successor is active.
+[Actual proof and limits](docs/history/ROADMAP_DELIVERIES.md#guided-installed-normal-exit-accepted-20261025).
 
 ### Small execution queue
 
@@ -215,6 +218,7 @@ Recent packaged changes and source qualifications are recorded separately:
 
 | Accepted outcome | Proof and retained limit |
 | --- | --- |
+| Guided installed normal-exit prerequisite | [Checkpoint 39157e8](docs/history/ROADMAP_DELIVERIES.md#guided-installed-normal-exit-accepted-20261025); one actual direct-ELF flight/normal Exit/OS0, rendered desktop/final 3/3 remain open |
 | Sprint/boost option cold restart and Reset | [Three-process proof](docs/history/ROADMAP_DELIVERIES.md#sprint-toggle-cold-process-qualified-20261025); source composition, physical devices/boost flight/original Settings return remain open |
 | Interact remap, conflict Cancel and cold Reset | [Three-process proof](docs/history/ROADMAP_DELIVERIES.md#interact-remap-restart-qualified-20261025); synthetic raw input, not physical devices or original Gate C |
 | Four final-approach captions | [Checkpoint 4aa8b64](docs/history/ROADMAP_DELIVERIES.md#final-approach-live-captions-delivered-20261025); composed visible HUD, ordinary planetary flight and full comfort acceptance remain open |
