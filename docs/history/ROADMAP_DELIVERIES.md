@@ -23849,3 +23849,94 @@ Independent documentation review GO. All337 canonical IDs/order retained,
 36-parent crosswalk and ten phase gates preserved; no scope reduction or invented
 scenario combinations. Completed child results remain source-specific. Local diff
 and link checks apply; documentation alone needs no engine rerun or new build.
+
+<a id="hauler-supply-first-play-parked-20261025"></a>
+## Hauler conserved supply journey — parked after home walk support failure — 2026-10-25
+
+Selected/pushed `e34a2f051` from526974058. HAULER-CARGO-DELIVERY retains actual
+shared Jovian/Hauler stock approval and completed access/manifest capabilities.
+Normal menu→same supported Player/18 station walking goals→actual Hauler pilot
+boarding/departure→Cinder occupied Hauler contact→OFFLINE/actual Activity Board
+Select+Start→load/clear gate/redock→physical exit/ten-point terminal walk→one real
+conserved transfer/payment→duplicate refusal→reverse walk/reboard/departure→
+strict original home/OFFLINE/physical exit/≥1m supported walk/normal UI OS0.
+Original runner300s/supervisor360s/cargo120s and per-stage limits were frozen.
+
+Unaccepted source `c0c5ff2b7436ead1e322ac3fbe0f8cc708fb25c6` extends the existing
+CinderSupplyPilot through two equivalent Jovian hooks and a small Hauler subclass.
+Actual craft/home/source/destination identities and correct live contact/walking
+path are observed without gameplay mutation. Existing Jovian stock assertion and
+CinderSupplyFiles remain unchanged. Independent source GO; root178 Python tests
+PASS11.465001s, import6.623656s, parser15.823804s, privacy1.288398s, clean Linux
+export25.877503s, strict startup23.013237s (exit0+STARTUP_MENU_READY_OK), PCK1,527
+entries without tests/tools. No normal runtime owner changed.
+
+First whole trial FAILS at CAP300/home_flight; driver308.462s including cleanup,
+guard308.850605s. All18 initial,10 terminal,10 reverse and one reboard walking
+goals have actual grounded collider support. Generation1 phases0→1→2→3 occur at
+frames4514/4546/4628/5063, actual cargo elapsed12.4s. Real E6242 transfers one crate,
+E6273 returns not_active. Exact Hauler source2→1/destination0→1, one genuine
+cinder_kit_cargo_run credit; pretransfer21/paid23/repeat23 files preserve protected
+siblings, paid/repeat bytes identical. Same actors/default sampler through15,937
+raw observations. Final speed0, distance1.993295m from capture, tilt88.255755°;
+ShipBerth's unchanged75° capture correctly refuses the near-vertical craft.
+
+One cumulative root/independent causal review (18.907min on original90min clock)
+authorizes one Python-only correction. Inherited point-following stops translation
+near the capture after the vertical clearance descent while still aiming downward.
+Source HeroShip command.hover applies ordinary world-upright physics. At settled
+Hauler home_flight only, normal H+brake/zero mouse now level the craft under one
+non-resetting15s budget; L remains gated by actual capture. No route, geometry,
+tuning, pose, provider, clock, inventory, reward, observer or runtime change.
+
+Corrected source `70de2ea8358edc4f0d4ba47492105ba67d4459af`:180 Python checks
+PASS11.606404s; unchanged GDS/privacy proof retained by byte comparison. Fresh
+clean export25.721181s, strict startup22.733315s and1,527-entry inventory pass.
+Both exercised ELFs are byte-identical SHA256
+`7ec3cac7a98665191bf429e29d8a070030a4a8a47402aa53fdcf79fd154d966f`.
+The first failure/STOP remains recorded; correction stages share the original
+case/clock. No budget reset or extra automatic repair.
+
+Corrected whole trial NOT_ACCEPTED184.343s/guard184.754907s, diagnostics0.
+8,701 raw observations retain actual Hauler/Player/source/capsule/shape/home IDs
+and default sampler. Full cargo/transfer/duplicate flow repeats legitimately in
+its fresh private profile. Brake/hover reduces final tilt87.3087→73.7703°;
+actual capture becomes true8504, L requested then/native L8506. Strict home dock
+error0m, hull220 undamaged, neutral OFFLINE and actual physical exit succeed.
+All five actual-file captures baseline5→pretransfer21→paid23→repeat23→home26
+preserve protected siblings and the exact paid terminal/ledger through final raw.
+
+First failed predicate is home_walk's “same original controlled walking Player
+in current physical route” at frame9169/sequence8699. Actual home_exterior9153
+is grounded/supported by dock_04_cargo, controls enabled and transition released.
+Support remains through9168; then Player stays grounded/controllable but the
+support ray reports false/no collider at[7.384242,4.596060,88.907806]. Walk reaches
+only0.416854m. No completed≥1m home walk, normal Exit request or actual OS0.
+This establishes a failed observation predicate, not a proven gameplay fall or
+runtime defect. Independent raw HOLD; the declared next-failure stop is honored.
+
+Both candidates remain unmerged, preserved in a verified bundle requiring retained
+main `e34a2f05110e1fb95bb35f736d198bdd58cfb21d`. Normal accepted main restored.
+PARKED reopening requires demonstrated source/raw support or route cause and one
+bounded correction with the entire original journey/cumulative clock. No third
+correction/run selected. Cargo access/shared stock/manifest and original Jovian
+acceptance remain; whole Hauler/cold inventory/repeats/crew/art/native/final remain
+open. Public Windows checkpoint0d77125 unchanged; GitHub Actions disabled.
+
+Thirteen stage owners terminal,82 observed process identities absent, synthetic
+inputs released, actual game/helper/Xvfb reaped and survivors empty in both trials.
+Ten owned loose build files removed after exact-byte checks; both actual exercised
+package inputs and all source/raw/private profiles/helpers retained in the verified
+case archive. No task branch/worktree created; pre-existing detached registrations
+protected. All367 archive members were verified before loose-record removal.
+Only archive+closeout remain at
+`/srv/mudds-work/hauler-supply-first-play-20261025/results/`; archive229,693,633bytes,
+SHA256 `d7860fe15b53ce4949da6e197368608b22d229be9b6f6190897bc064244f4577`.
+Final pushed source and cumulative cost are recorded in closeout.
+
+Follow-up of the separately parked platform Patrol quit: a bounded source/raw
+audit confirms actual Return press/release followed by observer silence. Source
+orders UI activation, synchronous shutdown saves and tree.quit; existing artifacts
+lack the execution boundary or stack needed to identify which did not complete.
+No defect or correction established; no retry selected. Reuse this finding rather
+than repeat unchanged source triage.

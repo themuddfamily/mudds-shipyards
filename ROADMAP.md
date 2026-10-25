@@ -29,35 +29,24 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Selected: HAULER-CARGO-DELIVERY — one complete conserved Hauler transfer.**
-Start526974058. Existing access/shared-stock/manifest/remote-reboard capabilities
-are retained. One implementer owns runner/tests/passive observer; root owns
-private startup/privacy/docs/checks/integration/cleanup. Reuse CinderSupplyPilot
-through constants/hooks and a small Hauler specialization; preserve Jovian behavior.
+**PARKED: HAULER-CARGO-DELIVERY — home walk support check failed.**
+Unaccepted candidatesc0c5ff2b7/70de2ea83 complete ordinary station walking,
+Hauler boarding/departure, actual Cinder load/gate/redock, ten-point terminal walk,
+one conserved crate/payment, duplicate refusal, reverse walk and reboard.
+First trial times out at home capture because88.255755° tilt exceeds75°.
+One independently reviewed controller correction uses normal brake/hover;
+the corrected run docks exactly at home, OFFLINE, hull220 and physical exit.
 
-Normal menu → supported ARM first12 walking points, then eastern apron
-[25.4,4.2,68.3]→[25.4,4.2,70.6]→[23,4.18,72.8]→[22.2,4.18,75.2]→
-[22.2,4.18,90]→[8.8,4.18,90] → actual Hauler pilot boarding/departure → live
-Cinder capture/strict Hauler contact → OFFLINE/actual pause supply Select+Start →
-load/clear_gate/redock → physical exit/existing10point Hauler terminal walk →
-real one-crate transfer/one durable payment/duplicate refusal → reverse walk/
-reboard/depart → strict original home/OFFLINE/physical exit/supported walk/UIOS0.
-Hauler home clearance uses its live capture then capture+worldUP60, reversed
-on return; this new route is unqualified. Actual Cinder lease/contact and live
-transformed accepted Hauler path replace Jovian-specific values only.
-
-Freeze CAP300/outer360, cargo120s, walking waypoint15s, boarding12s, landing120s,
-physical exit10s and transfer/duplicate8s. No geometry/tuning/inventory/phase/pose/
-provider/reward shortcuts or extra cold/repeat/crew requirements. Proof is focused
-existing Python/import/parser/privacy, clean private Linux export, strict startup,
-PCK inventory and one full Xvfb/x11/Dummy-audio OS-input route with source/raw review.
-Estimate10mapping+30implementation+25checks+15closure; hard90min includes mapping
-from previous closeout. First unexpected failure stops; a correction requires
-causal evidence and cumulative review. No new validator/schema/framework. Only
-accepted source is integrated/pushed; owned records/builds/processes are cleaned.
-Normal gameplay unchanged means public0d77125 stays current; actual runtime changes
-require a separately proved Windows checkpoint. Whole craft/cold/repeat/native/
-final acceptance remains open.
+The corrected run then FAILS at home_walk frame9169: groundedtrue but supportedfalse/
+empty support collider after0.416854m, before required≥1m/UI exit0. Driver184.343s,
+diagnostics0; all five actual save captures preserve the paid result/protected data.
+No further correction or retry selected. Both source/raw/package trials are archived,
+unaccepted source remains unmerged, and owned test files/processes are cleaned.
+Reopen only with a demonstrated support/route cause and bounded correction retaining
+the full journey, CAP300/outer360/cargo120 and cumulative clock.
+[Exact failures, partial results and cleanup](docs/history/ROADMAP_DELIVERIES.md#hauler-supply-first-play-parked-20261025).
+Existing shared stock/access/manifest behavior and playable0d77125 remain current.
+No new gameplay completion is claimed; no next implementation is selected.
 
 **PARKED: PLAY-PATROL[platform_sweep] — final normal quit did not finish.**
 Candidate `ff3fbab08` passed focused checks and reached all five real platform
