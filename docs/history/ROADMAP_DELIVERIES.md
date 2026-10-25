@@ -26529,3 +26529,64 @@ template pins unchanged. Completed local branch deleted with exact expected tip
 after pushed-main ancestry/current remote/worktree checks; no remote task branch.
 Original clock18.588min through archive verification; final closure-push cost is
 recorded in closeout.json. Pre-existing detached worktrees are retained unchanged.
+
+<a id="interact-remap-restart-qualified-20261025"></a>
+
+## Interact remap, conflict and cold Reset — source qualification accepted
+
+Existing INPUT-REMAP[Interact E→F13], parents8/29. Source
+cfa6199fb624703fd8f193de6f384c6a7f9592ac; original complete bounded source contract
+from the [two retained fixture stops](#interact-remap-restart-two-fixture-stops-20261025).
+This qualifies existing production behavior; it delivers no new runtime feature.
+Those failures and source/archive hashes remain unchanged. At21:00 independent
+cumulative-priority review selected one continuation because pinned-engine
+next-tick scheduling and the actual settings values envelope supplied two concrete
+fixture corrections. Original20:11Z→21:11Z/60min stayed absolute; engine abort21:09Z
+reserved cleanup. No renamed budget or relaxed predicate.
+
+The existing worker now awaits a complete next physics tick after raw key/flush,
+then checks the original exact0/1 counter. Read-only receipts log PID/time/tick,
+pressed/just-pressed, counter/delta, control/seated/paused and handoff flags; no
+mutating Player helper, manual interaction signal, provider/pose/focus injection.
+All original three-held/release/control assertions remain. Root uses the actual
+runtime_settings.values envelope for both unrelated-settings comparison and row
+finalization. Earlier failed individual counter/conjunct values remain unknown;
+this success does not rewrite the old failures or prove a gameplay defect.
+
+Fresh normal Main/default disk authority and one actual private XDG profile/file
+through three distinct workers: writer1783123/32.814s/35 checks; reader1783237/
+32.714s/39; final reader1783326/32.117s/23. Import PASS6.740s; full roundtrip
+PASS97.864s, OS0/one marker/no standard-matrix diagnostics, unchanged source/index/
+tree/cache guards. Existing passed default persistence/HUD checks are reused:
+common dispatch/default/Fire paths remain unchanged by exact source review.
+
+Writer visibly captures F13, retains authored controller X, attempts conflicting
+Jump F13 and cancels without changing any accepted profile/InputMap event/deadzone
+or Jump Space. Real Apply + Save commits. Normal Begin Shift admits supported
+on-foot Player; actual physics requests E0/F131. Cold reader loads the same saved
+F13/X and repeats actual consumption, then real per-action Reset/Save restores
+E/X and E1/F130. Final cold reader retains the reset and repeats the consumer.
+Hold/release adds no requests; actual controls remain enabled/on-foot/unpaused.
+This witnesses interaction requests, not activation of a station/ship endpoint.
+
+Each process releases synthetic inputs/cursor, uses actual HUD Exit intent and
+exits0; root verifies unique PID/start identities/reaps and exactly one own marker.
+The marker precedes shutdown, so actual file inspection independently requires
+crash_recovery clean/unclean0 and safe_start clean_shutdown/failure0/no advice.
+Post-exit generations12→21→28 have SHA256 respectively
+8a12e3b44b5fddfc8fbf8e24497df0aa7f5aaa2d2e27d36441b4f95ee67e06e1,
+da26c6a458d7465c897382113a9d07a0b432189d481c7851adbcf189f0960cb5,
+70cb500276eb330f6ddce248ada1fc4329b1055602270a232215343b65ce48d9.
+Same profile directory identity/exact prior file hash is checked before each launch;
+all unrelated settings/profile values and the exact unrelated sentinel survive.
+Writer F13/X differs from Reset E/X; both reset snapshots agree exactly.
+Independent source, runner and complete raw review GO.
+
+The entire original bounded synthetic-raw source qualification is accepted.
+Physical KBM/controller, native focus, actual endpoint activation, full original
+SETTINGS-RETURN/GateC and final integrated acceptance remain open. This is not a
+replacement Settings route or full INPUT-REMAP milestone. Current playable
+checkpoint19336f3 is unchanged; test-only work needs no identical export. Prior
+archive remains at the original private case; this continuation's raw/source/
+profile/cleanup records are retained in its tick-continuation subdirectory.
+Verified archive/pushed-main/ref closure follows before original21:11 deadline.

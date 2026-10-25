@@ -194,38 +194,18 @@ failure retaining actual send/native/command/consumer receipts. No unchanged
 qualifying rerun is selected; CAP300 and original18:57Z→20:12Z clock are retained.
 [Exact stops, diagnostic limits and cleanup](docs/history/ROADMAP_DELIVERIES.md#perimeter-ordinary-route-input-stop-20261025).
 
-**PARKED: INPUT-REMAP[Interact E→F13] — not accepted.** Existing persistence
-and HUD rebind checks passed. The first new worker stopped at an incorrect
-argv-based isolation guard before disk/Main. One reviewed correction used actual
-Dummy/headless backends. That worker then passed visible F13 remap, controller-X
-preservation, Jump conflict Cancel, real Apply + Save and ordinary Begin Shift,
-but failed the actual Player F13 interaction assertion. No cold reader, Reset,
-clean UI shutdown or full roundtrip is accepted.
-
-Pinned-engine review shows the test can observe before the next physics tick
-consumes the injected edge; actual failed counter/tick state was not logged, so
-this is not a demonstrated gameplay defect. The root wrapper also has an
-unreached settings-envelope access error. No third run is selected. Reopening
-requires the two specific fixture corrections, causal-state receipts, independent
-cumulative-priority review and the same full contract/limits, not an unchanged
-replay. Original20:11Z→21:11Z/60min budget retained. Candidate source and both
-failures are archived; unfinished test code is excluded from main. The then-current
-checkpoint1a948d9 and original SETTINGS-RETURN/GateC were unchanged.
-[Exact stop and retained proof](docs/history/ROADMAP_DELIVERIES.md#interact-remap-restart-two-fixture-stops-20261025).
-
-**Selected continuation of the same Interact contract, no new budget.** Independent
-cumulative-priority review permits one correction of the known fixture timing and
-both root values-envelope accesses. Raw presses must cross the next complete
-physics tick before exact1/0 observation, with read-only counter/input/tick/handoff
-receipts. Keep every original conflict/profile/controller/hold/release/Save/cold
-Reset/Exit/clean-file predicate and300s/660s maxima. Fresh shared profile/three
-actual processes; reuse unaffected passed default/HUD checks. Original20:11Z→21:11Z
-is absolute; independent engine abort at21:09Z reserves cleanup. Launch only if
-frozen source/runner review leaves enough time. First unexpected failure stops;
-no further continuation, no new export for qualification-only code. Root owns
-existing test plus orchestration/closure; one bounded implementer and independent
-reviewer. Earlier archives and parked chronology stay intact.
-
+**Qualified: Interact remap, conflict Cancel and cold-process Reset.**
+Sourcecfa6199fb passes the complete bounded three-process case on one real private
+save file: visible F13 remap/authored controller X, Jump conflict Cancel preserving
+full profile/InputMap, real Save and actual Player E0/F131 consumption. A cold
+reader retains this, performs per-action Reset/Save to E/X and proves E1/F130;
+a third cold reader retains Reset. Hold/release add no requests. All three use
+normal HUD Exit/OS0 and both durable clean markers; unrelated settings/sentinel
+are unchanged. Prior fixture failures remain recorded; the reviewed next-tick/
+wire-envelope corrections completed within the original20:11Z→21:11Z clock.
+This is synthetic-raw source composition, not physical devices, actual station
+endpoint activation or original SETTINGS-RETURN/GateC. Current checkpoint19336f3
+is unchanged. [Exact qualification](docs/history/ROADMAP_DELIVERIES.md#interact-remap-restart-qualified-20261025).
 
 The Torrent destruction/recovery attempt remains **PARKED / not accepted**.
 A reviewed resolver correction accounted for all100 actual damage, including
