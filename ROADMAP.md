@@ -44,11 +44,12 @@ not a project percentage inferred from rows, tests or commits.
 ### Small execution queue
 
 Only one implementation card may be active. Each row below is a bounded step
-within the existing goal, not a replacement for its full acceptance. No implementation is currently selected. The bounded Torpedo continuation stopped
-at source review as recorded below.
+within the existing goal, not a replacement for its full acceptance. One production prerequisite repair is selected: the host transport-disconnect
+publication window. Torpedo remains parked after its source-review stop.
 
 | Existing goal | Next bounded result | Proof / stop | State and owner |
 | --- | --- | --- | --- |
+| SERVER-BASELINE-PASSENGER-RECONNECT | Skip native-disconnected recipients in canonical/moving snapshots while a connected peer keeps receiving | Real server/two-client loss-window regression; exact next canonical/moving result, no diagnostics, existing stream checks; clean paired exports/strict startups/new Windows EXE+ZIP+notes | ACTIVE — root adapter/test; one reviewer;8min implementation+8checks+10package+4closure, hard40min; first unexpected failure stops. Prior127.846s guarded retained; full reconnect remains open |
 | PLAN-ASSIGN | Replace the chronological working page with this queue; audit every canonical goal for a finite result or explicit blocking input | Preserve all337 IDs/order,36 parents/ten gates; review changed acceptance and local links. Finish after this pass; no automatic new definition task | PASS — Codex; documentation only |
 | PLAY-TORPEDO | Cancelled request accounting must survive unread queued neutral samples across actual OS release | Source review BLOCK: output dispatch does not establish which engine samples postdate release. Candidate archived; no tests/export/trial, no gameplay completion | PARKED — Codex;67.453min cumulative at stop, no automatic retry |
 | SPEC-TITAN / VORTEX / PARADOX / KATANA / PREDATOR / DYNAMIC / UTOPIA / SALYUT | One explicit approval or field-level revision for each existing craft proposal | All required geometry/handling/functions/roles/save fields fixed in the corresponding proposal; no repeat proposal preparation | WAITING — user chooses interpretation/design; Codex implements approved fields |
