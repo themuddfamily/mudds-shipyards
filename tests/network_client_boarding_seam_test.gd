@@ -66,9 +66,11 @@ var _fillers: Array = []
 var _filler_peer_ids: Array[int] = []
 var _boarding_results: Array = []
 var _cockpit_reach_sampled := false
+var _recovered_cabin_readmission_only := false
 
 
 func _run() -> void:
+	_recovered_cabin_readmission_only = "--recovered-cabin-readmission-only" in OS.get_cmdline_user_args()
 	if not await _build_host():
 		await _finish_client_boarding()
 		return
@@ -76,6 +78,10 @@ func _run() -> void:
 		await _finish_client_boarding()
 		return
 	if not await _open_session():
+		await _finish_client_boarding()
+		return
+	if _recovered_cabin_readmission_only:
+		await _assert_recovered_cabin_requests_a_standing_berth()
 		await _finish_client_boarding()
 		return
 	await _assert_a_client_hatch_press_asks_the_ledger()
@@ -170,7 +176,7 @@ func _open_session() -> bool:
 	set_multiplayer(SceneMultiplayer.new(), _host.get_path())
 	for game in _client_games:
 		set_multiplayer(SceneMultiplayer.new(), game.get_path())
-	for index in FILLER_ENTITIES.size():
+	for index in (0 if _recovered_cabin_readmission_only else FILLER_ENTITIES.size()):
 		var branch := SubViewport.new()
 		branch.name = "FillerPeer%d" % index
 		root.add_child(branch)
@@ -631,6 +637,187 @@ func _assert_the_host_is_refused_a_seat_a_crewmate_holds() -> void:
 # --- helpers ----------------------------------------------------------------
 
 
+## Focused readmission fixture: normal hatch input claims the pilot and berth.
+## After actual transport loss/rejoin, stage the production berth-assist request
+## against the real home lease and wait for its physical completion. This staged
+## request does not qualify the ordinary landing-key journey or moving reconnect.
+func _assert_recovered_cabin_requests_a_standing_berth() -> void:
+	var pilot_game := _client_games[1]
+	var pilot_craft := _client_crafts[1] as HalyardCrewTransport
+	var pilot := _client_players[1] as PlayerController
+	await _press_the_hatch(pilot_game, pilot, pilot_craft)
+	var pilot_berthed := await _wait_until(func() -> bool: return _client_holds_a_berth(pilot_game), 8.0)
+	_check(pilot_berthed, "readmission fixture first admits the real retained pilot through the ordinary hatch")
+	if not pilot_berthed:
+		return
+	await _assert_a_passenger_is_promoted_to_pilot_in_place()
+	if not _failures.is_empty():
+		return
+	var pilot_peer := pilot_game.get_network_session().multiplayer.get_unique_id()
+	var helm := _host_craft.get_command_source()
+	var game := _client_games[0]
+	var craft := _client_crafts[0] as HalyardCrewTransport
+	var passenger := _client_players[0] as PlayerController
+	var session := game.get_network_session()
+	var player_id := passenger.get_instance_id()
+	await _press_the_hatch(game, passenger, craft)
+	var berthed := await _wait_until(func() -> bool: return _client_holds_a_berth(game), 8.0)
+	_check(berthed and game.phase == GameFlow.Phase.IN_FLIGHT_CABIN,
+		"readmission fixture admits the actual original passenger before transport loss")
+	if not berthed:
+		return
+	var old_peer := session.multiplayer.get_unique_id()
+	var old_avatar := GameFlow.network_client_boarding_avatar_id(old_peer)
+	var body := _host_body(old_avatar)
+	_check(body != null, "the departing passenger has its actual original host body before the transport cut")
+	if body == null:
+		return
+	var old_body: WeakRef = weakref(body)
+	var old_body_id := body.get_instance_id()
+	var old_source := game.get_network_remote_body_intent_source()
+	var old_stream := int(old_source.get_audit().get("stream_id", -1))
+	var events := {"transport": 0, "stopped": 0, "reason": &""}
+	session.multiplayer.server_disconnected.connect(func(): events.transport += 1)
+	session.session_stopped.connect(func(reason: StringName):
+		events.stopped += 1
+		events.reason = reason)
+	(_server.get("_peer") as ENetMultiplayerPeer).disconnect_peer(old_peer)
+	var recovered := await _wait_until(func() -> bool:
+		return int(events.transport) == 1 and int(events.stopped) == 1 and events.reason == &"server_disconnected" \
+			and not session.is_session_active() and _host_body(old_avatar) == null and old_body.get_ref() == null \
+			and old_source != null and not old_source.is_bound() \
+			and game.phase == GameFlow.Phase.IN_FLIGHT_CABIN and not passenger.is_seated() \
+			and passenger.is_on_floor() and passenger.is_control_enabled() \
+			and (game.get("_network_client_boarding_claim") as Dictionary).is_empty()
+	, 8.0)
+	_check(recovered, "actual ENet loss retires the original grant/body and restores the same usable cabin Player")
+	if not recovered:
+		return
+	_check(game.get_network_session() == session and passenger.get_instance_id() == player_id,
+		"transport recovery retains the actual Player and session adapter nodes")
+	var joined := game.join_network_session("127.0.0.1", _server.get_local_port())
+	_check(bool(joined.get("accepted", false)), "same adapter rejoins the real surviving host through its existing join API")
+	if not bool(joined.get("accepted", false)):
+		return
+	var readmitted := await _wait_until(func() -> bool:
+		return game.get_network_session() == session and not session.get_server_offer().is_empty() \
+			and _server._peer_generations.has(session.multiplayer.get_unique_id()) \
+			and game._network_client_boarding_is_live()
+	, 8.0)
+	_check(readmitted and passenger.get_instance_id() == player_id and not old_source.is_bound(),
+		"fresh live admission preserves Player identity without reviving the old body stream")
+	if not readmitted:
+		return
+	var berth := _host._resolve_berth_node(_host_craft.get_home_berth_id())
+	_check(berth != null and berth.get_occupant() == _host_craft,
+		"focused landing setup starts from the actual already-occupied authored home berth")
+	if berth == null or berth.get_occupant() != _host_craft:
+		return
+	var completed := {"signals": 0}
+	_host_craft.landing_completed.connect(func(): completed.signals += 1)
+	var requested := _host_craft.request_berth_landing(berth)
+	_check(requested, "focused fixture starts the actual production berth assist on its existing physical lease")
+	if not requested:
+		print("RECOVERED_CABIN_ASSIST_REFUSED: ", _host_craft.get_landing_contract_report())
+		return
+	# Match the coordinator's synchronous request -> handoff ordering. Only the
+	# craft's actual physics completion may set its dock latch and occupy again.
+	var begun := _host._begin_network_landing_handoff(_host_craft, berth)
+	_check(bool(begun.get("accepted", false)), "actual berth assist begins its authoritative pending landing handoff")
+	if not bool(begun.get("accepted", false)):
+		print("RECOVERED_CABIN_HANDOFF_REFUSED: ", begun)
+		return
+	var current := await _wait_until(func() -> bool:
+		return not _recovered_cabin_fixture_checks(game, craft, passenger, berth, helm, pilot_peer, old_source, completed).values().has(false)
+	, 8.0)
+	_check(current, "readmission positive fixture has actual completed dock/OFFLINE and current landing authority with supported unclaimed recovered cabin and retained other pilot")
+	if not current:
+		print("RECOVERED_CABIN_FIXTURE_CHECKS: ", _recovered_cabin_fixture_checks(game, craft, passenger, berth, helm, pilot_peer, old_source, completed))
+		print("RECOVERED_CABIN_FIXTURE_OBSERVED: ", {
+			"sample": game._network_craft_pose_stream.latest_sample(SHIP_ID),
+			"landing": _server.get_landing_entity(SHIP_ID),
+			"contract": _host_craft.get_landing_contract_report(),
+			"telemetry": _host_craft.get_telemetry(),
+		})
+		return
+	_only_this_player_hears_the_key(passenger)
+	passenger.set_control_enabled(true)
+	var anchor := craft.get_loadmaster_station_anchor()
+	var seat := anchor.get_node("SoloPassengerSeatInteraction") as ShipCrewSeat
+	await _look_toward_cockpit(passenger, anchor.global_position + Vector3.UP * 1.2)
+	await _drive_session(4)
+	game._refresh_interaction_targets()
+	var offered: bool = game.station_interaction_candidate == seat \
+		and str(game.hud.get("_interaction_source_text")).contains("JOIN CABIN")
+	_check(offered, "physical recovered passenger chair exposes the genuine JOIN CABIN standing-berth affordance")
+	if not offered:
+		return
+	var requests := int(game.get_network_client_boarding_audit().get("requests", 0))
+	await _press_interact()
+	var standing := await _wait_until(func() -> bool:
+		return _client_holds_role(game, GameFlow.NETWORK_CABIN_BERTH_ROLE) \
+			and game.get_network_remote_body_intent_source().is_bound() \
+			and _host_body(GameFlow.network_client_boarding_avatar_id(session.multiplayer.get_unique_id())) != null \
+			and not passenger.is_seated() and passenger.is_on_floor() and passenger.is_control_enabled()
+	, 8.0)
+	_check(standing and int(game.get_network_client_boarding_audit().get("requests", 0)) == requests + 1 \
+		and game.get("_network_engineer_pending_seat") == null and game.get("_network_engineer_client_seat") == null \
+		and not game._piloting and _host_craft.get_command_source() == helm \
+		and _ledger_holder(StringName("%s_pilot" % String(SHIP_ID))) == GameFlow.network_client_boarding_avatar_id(pilot_peer),
+		"one actual first Interact admits only a fresh standing body, with no chair or pilot claim")
+	if not standing:
+		return
+	var fresh_avatar := GameFlow.network_client_boarding_avatar_id(session.multiplayer.get_unique_id())
+	var fresh_source := game.get_network_remote_body_intent_source()
+	var fresh_claim := game.get_network_client_boarding_audit().get("claim", {}) as Dictionary
+	_check(_host_body(fresh_avatar).get_instance_id() != old_body_id \
+		and fresh_source.get_entity_id() == fresh_avatar and fresh_source.get_entity_generation() > 0 \
+		and (fresh_avatar != old_avatar or int(fresh_source.get_audit().get("stream_id", -1)) > old_stream) \
+		and _ledger_holder(StringName(fresh_claim.get("seat_id", &""))) == fresh_avatar \
+		and game.get_network_session() == session and passenger.get_instance_id() == player_id,
+		"fresh authoritative berth binds a new host body and stream to the retained Player and adapter")
+
+
+func _recovered_cabin_fixture_checks(game: GameFlow, craft: HalyardCrewTransport,
+		passenger: PlayerController, berth: ShipBerth, helm: Node, pilot_peer: int,
+		old_source: NetworkRemoteBodyIntentSource, completed: Dictionary) -> Dictionary:
+	var sample := game._network_craft_pose_stream.latest_sample(SHIP_ID)
+	var operation := sample.get("operation_presentation", {}) as Dictionary
+	var landing: Dictionary = {}
+	for row: Dictionary in (game.get_network_session().get_authoritative_snapshot().get("sections", {}) as Dictionary).get("landing", []):
+		if row.get("entity_id") == SHIP_ID:
+			landing = row
+	var contract := _host_craft.get_landing_contract_report()
+	var token := StringName(_host._berth_tokens.get(_host_craft.get_instance_id(), &""))
+	return {
+		"physical_completion_signal": int(completed.signals) == 1,
+		"host_docked_latch": _host_craft._docked_latch,
+		"host_strict_dock": bool(contract.get("strict_dock_acceptance", false)),
+		"host_physical_occupancy": berth.get_occupant() == _host_craft,
+		"host_live_lease": berth.has_valid_lease(_host_craft, token, SHIP_ID),
+		"host_engine_offline": _host_craft.get_telemetry().get("engine_state") == HeroShip.ENGINE_OFFLINE,
+		"current_ship_sample": sample.get("ship_id") == SHIP_ID,
+		"sample_not_destroyed": not bool(sample.get("destroyed", true)),
+		"sample_landed": bool(operation.get("landed", false)),
+		"sample_docked": bool(operation.get("docked", false)),
+		"sample_engine_offline": operation.get("engine") == HeroShip.ENGINE_OFFLINE,
+		"authority_landed": landing.get("state") == &"landed",
+		"authority_entity_generation": int(landing.get("entity_generation", 0)) > 0,
+		"authority_landing_revision": int(landing.get("landing_revision", 0)) > 0,
+		"player_on_floor": passenger.is_on_floor(),
+		"player_standing": not passenger.is_seated(),
+		"player_controls_enabled": passenger.is_control_enabled(),
+		"recovered_cabin_phase": game.phase == GameFlow.Phase.IN_FLIGHT_CABIN,
+		"recovered_cabin_craft": game._cabin_ship == craft,
+		"player_registered_to_frame": craft.get_moving_interior_component().is_occupant_registered(passenger),
+		"player_inside_cabin": (craft.get_in_flight_cabin_report().get("local_bounds", AABB()) as AABB).has_point(craft.to_local(passenger.global_position)),
+		"no_retired_claim": (game.get("_network_client_boarding_claim") as Dictionary).is_empty(),
+		"old_stream_retired": not old_source.is_bound(),
+		"other_pilot_keeps_source": _host_craft.get_command_source() == helm,
+		"other_pilot_keeps_ledger_seat": _ledger_holder(StringName("%s_pilot" % String(SHIP_ID))) == GameFlow.network_client_boarding_avatar_id(pilot_peer),
+	}
+
+
 func _client_holds_role(game: GameFlow, role: StringName) -> bool:
 	var claim := game.get_network_client_boarding_audit().get("claim", {}) as Dictionary
 	return StringName(claim.get("role", &"")) == role
@@ -791,7 +978,7 @@ func _on_host_boarding_result(result: Dictionary) -> void:
 
 
 func _finish_client_boarding() -> void:
-	for action in FLIGHT_CONTROL_ACTIONS:
+	for action in FLIGHT_CONTROL_ACTIONS + [&"interact"]:
 		if Input.is_action_pressed(action):
 			Input.action_release(action)
 	if is_instance_valid(_host):
@@ -804,6 +991,8 @@ func _finish_client_boarding() -> void:
 			adapter.shutdown(&"suite_complete")
 	await process_frame
 	if _failures.is_empty():
+		if _recovered_cabin_readmission_only:
+			print("NETWORK_RECOVERED_CABIN_READMISSION_OK: %d assertions" % _assertion_count)
 		print("NETWORK_CLIENT_BOARDING_SEAM_TEST_OK: %d assertions" % _assertion_count)
 		quit(0)
 		return
