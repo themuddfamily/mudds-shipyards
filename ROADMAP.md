@@ -70,6 +70,41 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Active capability: COMFORT-CAPTIONS[Cinder Loadmaster feedback].** Candidate
+8c40af203, existing production Hauler→Loadmaster adapter→crew router→AudioDirector
+→HUD semantic presenter/shared caption service. Five emitted semantic IDs are
+currently unregistered, so their feedback has no caption. Add only their existing
+caption definitions: seat occupied → “Loadmaster seat occupied”; manifest ready →
+“Loadmaster manifest ready”; route ready → “Loadmaster route ready”; rejected →
+“Loadmaster request rejected”; released → “Loadmaster released”. Use existing
+severity conventions: routine low, route-ready medium, rejected high. Existing
+source/intensity/context and shared priority/queue/lifetime/transcript remain.
+
+Acceptance: all five existing IDs produce their exact caption; accepted current
+manifest/route receipts and rejection/release traverse the existing production
+adapter/router/director into actual HUD ingress and one real shared caption
+service. Show the current caption in the actual HUD; retain any queued cue under
+existing policy. Duplicate/foreign receipts, duplicate rejection/release and
+emissions after detach add no caption; OFF remains silent and turning ON cannot
+replay the OFF event. Preserve every prior router assertion. This is component
+production composition with synthetic craft signals, not physical crew/network,
+audible-output, full comfort restart/Reset or final-candidate acceptance.
+
+One implementer owns semantic_audio_cue_presenter.gd and the existing presenter/
+Loadmaster-router integration tests; root owns docs, orchestration, checkpoints,
+push and cleanup; independent caption/lifecycle reviewer. First old-source focused
+check must fail only the five missing caption contracts; fixed focused presenter,
+existing Loadmaster router/production adapter/optional composition and HUD layout
+checks must pass. Freeze exact commands and old expected errors before execution.
+Use headless/Dummy, isolated rendering only if needed. Fresh Windows/Linux paired
+checkpoints from clean accepted source, strict startups (OS0 plus one menu-ready
+marker) and actual package audit follow. No new sound mapping/options/schema or
+validator family. Original20:39Z→21:39Z/60min includes readiness, implementation,
+checks, build, review and closure; first unexpected failure stops for causal and
+cumulative-priority review, no automatic retry/deadline reset. This closes only
+these five live-caption episodes; remaining COMFORT-CAPTIONS membership stays
+blocked on its exact contract fields.
+
 **Delivered: Reduced flash dims the damage flash already on screen.**
 Checkpoint 1a948d9 immediately caps its effective alpha at the existing .07
 ceiling without brightening an already dim cue. The same fade, arrow and original
