@@ -70,47 +70,18 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Active qualification: INPUT-REMAP[Sprint/boost option across OS restart].**
-Candidatecf69af559. The acceptedbd4e15d saved/live/reset/HOLD/manual-physics scope
-explicitly excludes distinct OS processes; Fire/Interact qualify bindings, not
-the option-to-Player transformation. No runtime defect is alleged. Use the
-existing real-file production test family and unchanged actual Main/Player.
-
-Frozen case: fresh private writer uses normal Begin Shift, visible focused
-SprintBoostHoldModeControl to select TOGGLE, actual Apply + Save and HUD Exit.
-Fresh reader/same file restores visible/profile TOGGLE before first apply. Natural
-Player physics on the authored spawn floor consumes raw S/Shift: first Shift
-press reaches actual sprint_speed, release retains it for three complete ticks,
-second fresh press returns to actual walk_speed; neutral release stops movement.
-The visible Reset Defaults button uses its real clean-reset path (confirm only
-if production opens the dialog), then Save precedes normal Exit. Third cold process
-restores HOLD: held Shift reaches sprint_speed; release while S remains held
-returns to walk_speed; neutral release stops. No provider/pose/velocity/physics
-injection or direct Player sampling. Existingbindings/controllers/otheroptions and
-all unrelated settings/sentinel remain exact. Each worker requires actual HUD
-Exit/OS0 and both clean durable markers; three unique real PID/start identities,
-sequential reap, same profile directory and exact prior file hashes.
-
-Natural movement begins at authored PlayerSpawn(-8.5,.18,11), normal yaw-14;
-raw S moves back along CentralJunction (world x[-12.5,12.5], z[berth-edge,23]).
-Use one segment per walking reader, ≤5m from its natural start, floor support and
-normal control/on-foot/unpaused at every observation. Actual authored speeds5.8/
-9.2, acceleration34/deceleration42 are unchanged; existing speed tolerance<.01,
-maximum30 scheduled physics ticks per speed/neutral endpoint, three steady ticks
-after relevant release. Log actual pose/velocity/input/options/tick; first failed
-predicate stops, no rescue/reposition or retrospective route adjustment.
-
-One implementer owns the existing production persistence test, reusing its
-isolation/visible-control/Save/Exit helpers rather than duplicating a worker
-family. Root owns orchestration/records/docs/push/cleanup, independent input/
-lifecycle review. Preserve old modes/markers/defaults. New import, default/HUD
-compatibility, full old Interact case (if shared helpers change), and complete
-three-process Sprint case must pass with original300s/worker and660s outer.
-Headless/Dummy synthetic raw source composition only, not actual device/native
-focus, ship boost/planetary routes or full SETTINGS-RETURN/GateC. No new export for
-test-only work; currentcheckpoint4aa8b64 stays playable. Original21:35Z→22:35Z/60min
-includes readiness/implementation/checks/closure; first unexpected failure stops
-for causal/cumulative review, no automatic retry or deadline reset.
+**Qualified: Sprint/boost option survives cold restart and Reset into Player physics.**
+Source7570edf7c passes three real-file processes: normal UI saves TOGGLE; a cold
+reader naturally walks at9.2 after a Shift press and retains it for three released
+Shift ticks, then a second press restores5.8. Real Reset Defaults/Save precedes
+another cold reader, where HOLD release restores5.8. Neutral stops at0. All motion
+stays supported/on-foot/controlled within three metres of the authored spawn;
+all authored bindings/other options and unrelated data remain exact. Each actual
+HUD Exit yields OS0 and both durable clean markers. Existing default/HUD and full
+Interact checks also pass. This closes the explicitly missing distinct-process
+option-to-runtime source endpoint; priorbd4e15d scope remains unchanged. Physical
+input, boost/flight and original SETTINGS-RETURN/GateC remain open; current build
+4aa8b64 is unchanged. [Exact proof and scope](docs/history/ROADMAP_DELIVERIES.md#sprint-toggle-cold-process-qualified-20261025).
 
 **Delivered: live planetary final-approach captions.** Checkpoint4aa8b64 captions
 the existing armed, alignment-ready, handoff-ready and rejected cues through the
@@ -263,8 +234,8 @@ normal HUD Exit/OS0 and both durable clean markers; unrelated settings/sentinel
 are unchanged. Prior fixture failures remain recorded; the reviewed next-tick/
 wire-envelope corrections completed within the original20:11Z→21:11Z clock.
 This is synthetic-raw source composition, not physical devices, actual station
-endpoint activation or original SETTINGS-RETURN/GateC. Current checkpoint19336f3
-is unchanged. [Exact qualification](docs/history/ROADMAP_DELIVERIES.md#interact-remap-restart-qualified-20261025).
+endpoint activation or original SETTINGS-RETURN/GateC. The then-current checkpoint19336f3
+was unchanged. [Exact qualification](docs/history/ROADMAP_DELIVERIES.md#interact-remap-restart-qualified-20261025).
 
 The Torrent destruction/recovery attempt remains **PARKED / not accepted**.
 A reviewed resolver correction accounted for all100 actual damage, including

@@ -26723,3 +26723,66 @@ was created. No audible/desktop/hosted-CI test ran. Accepted caption/Interact
 results and current checkpoint4aa8b64 remain unchanged. This closes the bounded
 readiness pass with an exact missing trigger and Codex owner; it neither delivers
 gameplay nor permits another research chain under the same candidate.
+
+<a id="sprint-toggle-cold-process-qualified-20261025"></a>
+
+## Sprint option → actual Player after cold restart — source qualification
+
+INPUT-REMAP[Sprint/boost HOLD/TOGGLE], parents8/29, clean source
+7570edf7cfa423b1ea80cb75214433cef6725604. Existing production persistence contract
+explicitly required distinct-process remap/options restoration; bd4e15d's saved/
+live/reset/manual-physics implementation proof excluded OS processes. Its accepted
+scope is retained, not rerun or relabelled as this new endpoint. No runtime defect
+or gameplay change is alleged. One implementer extended only the existing
+production persistence test; independent input/lifecycle review and root records/
+integration/cleanup. Shared Save helper's optional subject defaults preserve exact
+old Interact behavior; other old-mode change rejects mixed Sprint arguments.
+
+Frozen writer→reader→reset-reader uses one fresh actual private real file/profile,
+normal Main and actual HUD Begin/Settings/Save/Exit. Writer selects TOGGLE through
+visible SprintBoostHoldModeControl/item_selected. Cold reader loads it before
+first apply; raw S/Shift goes through natural actual Player physics on the authored
+CentralJunction floor from normal spawn(-8.5,.18,11), yaw-14. A complete released
+physics baseline precedes the first press. No input provider, store authority,
+profile/pose/velocity injection, direct Player sampler or manual physics call.
+
+Observed TOGGLE reaches9.199999809 in16 actual physics steps; three Shift-release
+samples each remain9.2 on their next complete tick with S held. Second press
+returns5.800000191 in6 ticks; neutral0 in9. Real Reset Defaults follows production's
+clean direct-reset path, confirmation only if shown, then Apply + Save and Exit.
+Final cold HOLD reader reaches9.2 in16 ticks with Shift held; Shift release while
+S stays held returns5.8 in6, neutral0 in9. Existing tolerance<.01 and30 actual-step
+ceiling are frozen; actual elapsed frame counts are checked, not merely loop
+iterations. All observations retain floor/control/on-foot/unpaused; maximum
+movement2.972778m/2.512777m stays below5m in the authored floor. No rescue/route or
+deadline adjustment. Raw logs include actual pose/velocity/options/input/tick.
+
+Import PASS6.664s; existing default45 checks/34.524s and HUD27/2.652s pass. Complete
+old Interact three-process affected-helper regression PASS98.306s with all original
+assertions/OS0/clean shutdown retained. New Sprint roundtrip PASS97.562s:
+writer1797152/31.967s, reader1797252/32.921s/93 checks, final1797344/32.418s/78;
+all actualOS0 and exactly one PID-bound marker, no standard-matrix error
+diagnostics, unchanged source/index/tree/relevant cache guards. Default's expected
+fallback warnings remain in raw logs. All automation is headless/Dummy; synthetic
+raw events remain explicitly labelled, no desktop/audible or hosted-CI invocation.
+
+Root independently verifies actual launch JSON PID/mode/backends/private root,
+three distinct PID/start identities and reaps, same XDG directory identity/exact
+prior file hash before each launch. Raw after files show toggle→hold→hold, full
+settings/profile/controller bindings equal except sprint_boost.hold_mode, exact
+unrelated sentinel, crash_recovery clean/unclean0 and safe_start clean_shutdown/
+failure0/no advice. Post-exit generations12→21→28 SHA256:
+8a081fb0405b5f3e9e19c122c91c815448d0e2eddf44b506d04134afb1ba5d85,
+b199afa6b5e570114b1cc0a6a0195d35dbfab73ec063d32eb994a6088b9e5a68,
+91fd7d86ed1d3d64dab41f15dd3bf58df74cc8f58e62841583eb8f61739db3b0.
+Independent source, runner and full raw review GO. Pre-engine review corrected a
+runner's impossible BEGIN receipt check to actual LAUNCH JSON; no failed engine
+attempt or retry occurred.
+
+Accepted only this complete cold-source option-to-Player endpoint. Physical KBM/
+controller/native focus, ship boost/flight, ordinary full Settings return/GateC,
+other remap cases and final candidate remain open. Current checkpoint4aa8b64 stays
+playable; test-only work needs no identical export. Original21:35Z→22:35Z/60min
+includes readiness, implementation, checks and closure; independent22:33 engine
+abort reserves cleanup, no budget reset. Raw/source/profile records and verified
+cleanup live under `/srv/mudds-work/sprint-toggle-restart-20261025`.

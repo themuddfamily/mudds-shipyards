@@ -184,3 +184,31 @@ live/default/HOLD/reset and lifecycle/remote boundaries. Existing rebind integra
 rebind persistence and production settings suites pass on this checkpoint.
 These synthetic/in-memory/manual-physics checks do not close the distinct-process,
 ordinary Settings-route or physical-device/full-controller gates above.
+
+### Sprint option across distinct OS processes — source qualification7570edf7c
+
+The missing option-to-runtime endpoint in the table above is now qualified for
+Sprint/boost HOLD/TOGGLE. This is separate frombd4e15d's accepted in-memory/manual
+physics coverage, which is retained unchanged. The opt-in modes in the existing
+runtime_settings_production_persistence_test.gd are --sprint-restart-writer,
+--sprint-restart-reader and --sprint-reset-reader, all with the same explicit
+--sprint-restart-private-root and actual private XDG profile, headless/Dummy.
+
+Normal Begin/visible hold-mode selection/Apply + Save writes TOGGLE. A distinct
+normal Main loads it before first apply, then raw S/Shift through naturally
+scheduled Player physics reaches9.2, retains9.2 for three completed ticks after
+Shift release, and returns5.8 on the second press. Neutral stops0. Visible Reset
+Defaults follows its existing clean-reset path (confirmation only if opened),
+then Save and normal Exit. A third cold process loads HOLD; held Shift reaches
+9.2 and release with S still held returns5.8. No provider, actor pose/velocity,
+manual physics or direct sprint sampler is used. Each endpoint has the frozen
+30-actual-physics-step limit and existing<.01 speed tolerance, support/control/
+on-foot/unpaused checks and≤5m bound; observed maxima are2.973m/2.513m.
+
+All authored bindings/controller mappings and unrelated settings remain exact;
+only the selected hold_mode differs. Each real HUD Exit is independently verified
+OS0 with both durable clean markers, unique PID/start/reap and same actual file/
+directory identity. Existing default/HUD and complete Interact worker cases pass.
+This accepts that one synthetic-raw cold-process option case, not physical devices,
+ship boost, ordinary Settings return, original GateC or the full remap family.
+[Source, raw results and cleanup](history/ROADMAP_DELIVERIES.md#sprint-toggle-cold-process-qualified-20261025).
