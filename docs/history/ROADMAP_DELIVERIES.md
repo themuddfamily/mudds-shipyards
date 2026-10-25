@@ -25916,3 +25916,54 @@ are absent; five continuation build files/unpacked scratch removed. Source bundl
 is verified against retained main2dd958f26. Only the two verified archives and
 closeout remain; exact branch deletion/push/end-time/cumulative cost are recorded
 in closeout. Main gameplay/checkpoints remain unchanged.
+
+
+<a id="active-damage-reduced-motion-accepted-20261025"></a>
+## Active damage reduced motion — shipped on b5fa554 —2026-10-25
+
+COMFORT-MOTION/parent29 has one delivered episode: enabling Reduced motion
+while a normal hit is still displayed immediately caps actual screen-flash opacity
+at.07, freezes its luminance/direction fades, preserves the same directional cue
+and clears within min(.45s, remaining original.62s lifetime). Repeated ON or OFF→ON
+cannot extend the cue; OFF cannot replay it; new hits use the current mode.
+Source b5fa5542d6037bfac04510f81611c8951bc6e596 changes only HUD damage feedback
+and the existing accessibility regression. No schema, flight/combat/network or
+other comfort-consumer change. One implementer/two owned files, independent
+lifecycle review and root integration; no recursive agents.
+
+The controlled old HUD on4e6dfb83a fails exactly five frozen predicates in80.968s:
+active effective-alpha ceiling, constant converted cue, repeated-ON expiry,
+OFF no replay and late constant direction. All unrelated checks pass; this is
+intentional negative proof, not an unexpected-failure retry. Fixed full existing
+accessibility suite passes1990 assertions81.410s; navigation3.345s and layout11.866s
+also pass. Import6.687s and actual component capture7.822s pass. Both inspected
+1280×720 X11/Forward+/llvmpipe PNGs use the real HUD and paused, manually stepped
+tweens: at.1s normal effective alpha.1828571279 becomes.0699999972, with identical
+right-hand direction/geometry/held opacity through the measured.2s interval.
+This is component readback, not a full Main/gameplay/device/native-GPU route.
+
+Clean Windows10.641s/Linux25.687s exports pass. Actual PE/ELF inventories match
+1527 paths, exclude tests/tools/artifacts/builds, retain stock Windows PE code,
+and verify exact Linux archive binary/icon/installer/launcher bytes, permissions,
+source epoch and export metadata. Direct Linux22.984s, extracted archive24.131s
+and Windows embedded-payload startup through Linux Godot26.461s each exit0 with
+exactly one STARTUP_MENU_READY_OK; artifact audit5.891s passes. All11 post-fix
+stages pass on the first attempt with zero diagnostics and clean guarded
+source/index/cache/owned-process boundaries. Automation always used Dummy audio;
+rendered work used private Xvfb/explicitx11 with independent timeout cleanup.
+Native Windows/GPU, physical devices/audio, whole comfort milestone and final
+matrix remain NOT_RUN/open; this does not close their original requirements.
+
+Fresh EXE/checkpoint ZIP/notes are in builds/windows/MuddsShipyards-b5fa554*;
+matching Linux ELF/archive/notes and startup/export records are in builds/linux/.
+All11 publication files and ZIP member bytes are verified. Windows checkpoint ZIP:
+103,328,775bytes, SHA256 `4869bc05827c0b5a5ed92514e2a5965f3291bffaf641e35037e7351f30e8ca18`.
+
+Original17:09Z→18:09Z/60min includes source selection, expected baseline, runtime
+implementation, checks, checkpoint publication, integration and cleanup; no
+budget reset or unexpected failure. Unique helper/raw/profile/source evidence is
+consolidated at `/srv/mudds-work/reduced-motion-active-damage-20261025/records.tar.gz`;
+adjacent closeout records actual archive verification/hash, absent process
+identities, published file hashes and elapsed cost. Owned private scratch and
+completed branch are removed after verified source integration/push. Current
+playable artifacts remain in repository builds; accepted other scopes stay closed.

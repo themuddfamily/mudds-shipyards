@@ -1,10 +1,10 @@
 # Development roadmap
 
 **Playable alpha; full original scope remains unfinished.** Latest Windows build:
-[ca149d6 checkpoint](builds/windows/MuddsShipyards-ca149d6-checkpoint.zip)
-([changes and validation](builds/windows/MuddsShipyards-ca149d6-notes.txt)).
-Matching [Linux checkpointca149d6](builds/linux/MuddsShipyards-ca149d6-linux-x86_64.tar.gz)
-([Linux validation](builds/linux/MuddsShipyards-ca149d6-linux-notes.txt)) is available.
+[b5fa554 checkpoint](builds/windows/MuddsShipyards-b5fa554-checkpoint.zip)
+([changes and validation](builds/windows/MuddsShipyards-b5fa554-notes.txt)).
+Matching [Linux checkpoint b5fa554](builds/linux/MuddsShipyards-b5fa554-linux-x86_64.tar.gz)
+([Linux validation](builds/linux/MuddsShipyards-b5fa554-linux-notes.txt)) is available.
 Nine of the promised 17 craft exist. All 36 original parent outcomes and ten phase
 exit gates remain open; completed child results are retained, not counted as whole
 features. There is no evidence-backed project percentage or completion date.
@@ -62,6 +62,17 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Delivered: Reduced motion applies to the damage cue already on screen.**
+Checkpointb5fa554 immediately caps the existing flash and stops its fade while
+preserving the hit-direction arrow without extending its original lifetime. Repeated ON/OFF does
+not extend or replay it; new hits use the current mode. The old HUD fails the
+five controlled regression predicates; the fixed1990-assertion accessibility
+suite, navigation/layout, actual1280×720 readback, paired exports/three strict
+startups and package audit pass. Both playable checkpoints and notes are above.
+This closes the active-damage episode under COMFORT-MOTION; other comfort
+consumers/devices/full final acceptance remain open.
+[Exact behavior, proof and cleanup](docs/history/ROADMAP_DELIVERIES.md#active-damage-reduced-motion-accepted-20261025).
+
 **Delivered: LAN listings expire safely while paused.** Checkpointca149d6 retires
 rows and endpoints30 seconds after the last valid reply and refuses stale joins
 before creating intent or changing roles. The paused ordinary route observes
@@ -118,24 +129,10 @@ hardware/access remain BLOCKED input. This records the remaining planning work;
 it does not claim every goal is executable or deliver gameplay. No implementation
 card or new trial is active. Select no blocked row until its named fields are fixed.
 
-**Active capability: COMFORT-MOTION — apply to the current damage cue.**
-Source1bfb86ee3: `set_reduced_motion(true)` currently leaves an already-running
-normal damage tween and its full flash alpha unchanged. Change only HUD feedback
-and its existing accessibility regression. Enabling the setting during a hit must
-immediately cap actual screen-flash opacity at REDUCED_DAMAGE_FLASH_ALPHA, stop
-its luminance/direction fades, retain the same directional cue and clear it within
-the lesser of the existing reduced hold(.45s) or remaining original cue lifetime
-(.62s minus elapsed). Reapplying ON must not extend it; OFF must not replay it;
-subsequent hits retain their authored mode. No flight/damage/network change.
-
-Freeze before editing: reproduce on the old HUD via the existing accessibility
-suite, then test mid-fade application, steady interval, expiry, repeat ON/OFF and
-new-hit behavior. Root owns safe checks, actual component readback, clean paired
-Windows/Linux checkpoint export, strict startup and package audits, push/cleanup;
-implementer owns `scripts/ui/hud.gd` and `tests/accessibility_presets_test.gd`.
-Original17:09Z→18:09Z/60min includes this source selection, checks/build/closure.
-First unexpected failure stops. Other comfort consumers, devices and final
-candidate acceptance remain open; no new comfort matrix or validator.
+No implementation card is active. COMFORT-MOTION's active damage-cue capability
+is accepted in checkpointb5fa554; do not repeat its unchanged checks or call it
+completion of the wider comfort milestone. The next missing craft remains gated
+on its named specification decision.
 
 The Torrent destruction/recovery attempt remains **PARKED / not accepted**.
 A reviewed resolver correction accounted for all100 actual damage, including
