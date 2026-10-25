@@ -1,8 +1,10 @@
 ## test-matrix-display: input-only
-extends "res://tests/network/jovian_network_two_client_flight_test.gd"
+extends "res://tests/network/jovian_network_pilot_handback_test.gd"
 
-## HELM-REVERSE-FLIGHT: unchanged ordinary boarding/departure, then sampled
-## reverse, delivered neutral, ordinary brake and actual stopped replicas.
+## HELM-THROTTLE-REVERSE: unchanged ordinary boarding/departure and both yaw
+## turns, then sampled reverse, delivered neutral, ordinary brake and actual
+## stopped replicas before ordinary Interact handback and supported cabin walk.
+## Inherited handback checks owner0/generation+1 and retired source/capture.
 ## The inherited coordinator owns isolation, abort and all three OS exits.
 const REVERSE_ACTIONS := [&"move_back", &"brake"]
 var _reverse_stage := "departure"
@@ -24,16 +26,16 @@ func _print_peer_success() -> void:
 	print("JOVIAN_NETWORK_TWO_CLIENT_REVERSE_OK checks=%d" % _checks)
 
 
-func _host_scenario() -> bool:
-	var result := await super._host_scenario()
+func _host_yaw() -> bool:
+	var result := await super._host_yaw()
 	if result:
 		result = await _host_reverse()
 	_release_reverse_actions()
 	return result
 
 
-func _client_scenario() -> bool:
-	var result := await super._client_scenario()
+func _client_yaw() -> bool:
+	var result := await super._client_yaw()
 	if result:
 		result = await _client_reverse()
 	_release_reverse_actions()
