@@ -94,6 +94,21 @@ func _run() -> void:
 			and caption.get("severity", &"") == contract[1],
 			"%s has its truthful Loadmaster caption and authored severity" % cue_id
 		)
+	var final_approach_captions := {
+		&"planetary_final_approach_armed": ["Final approach armed", &"medium"],
+		&"planetary_final_approach_alignment_ready": ["Final approach alignment ready", &"medium"],
+		&"planetary_final_approach_handoff_ready": ["Final approach handoff ready", &"medium"],
+		&"planetary_final_approach_rejected": ["Final approach rejected", &"high"],
+	}
+	for cue_id: StringName in final_approach_captions:
+		var contract := final_approach_captions[cue_id] as Array
+		var caption := presenter.present_cue(cue_id, &"planetary", 0.5, position)
+		_check(
+			bool(caption.get("accepted", false))
+			and caption.get("caption", "") == contract[0]
+			and caption.get("severity", &"") == contract[1],
+			"%s has its truthful final-approach caption and authored severity" % cue_id
+		)
 	for cue_id in [
 		&"station_defense_wave_started", &"station_defense_asset_danger", &"station_defense_asset_critical",
 		&"station_defense_completed", &"station_defense_aborted", &"cargo_transfer_pickup_accepted",
