@@ -29,27 +29,20 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Selected: PLAY-RACE — complete ordinary checkpoint-race sortie.**
-Start6a095bbc0. One implementer owns the existing native-sortie runner/test,
-passive observer and startup selector; root owns docs, isolated checks, integration
-and cleanup. Add `--route race-home` to the existing executable release runner.
-Normal menu/same Player/Torrent boarding/departure → actual production2s countdown
-→ five authored32m gates in order within unchanged120s → exactly one durable
-race reward → ordinary Guided combat where required for home → original Central
-strict dock/neutral OFFLINE/physical exit/supported walk → normal UI exit0.
-Full route CAP300/independent outer360, no teleport/phase/provider/claim/reward/
-tuning/geometry shortcut. Existing defaults/routes unchanged.
+**PLAY-RACE is PARKED / NOT ACCEPTED after two whole-package trials.**
+Both genuine Guided/reboard/countdown/five-gate race routes earn one actual
+payment (16.066667s and16.05s race times). The first stops at a caller reward-result
+shape mismatch; the reviewed correction stops at unrelated-file preservation:
+`tutorial_prompts_seen` gains Threading and Hulk entries during flight. Reward
+stability, strict home return, supported exit/walk and normal UI quit remain
+unproven. The full original300s journey is still required.
 
-Proof: focused existing Python runner tests and Godot parser/import; clean private
-Linux export/strict startup; one whole actual-package route on owned Xvfb/x11,
-dummy renderer/Dummy audio and real OS XTest input; source/raw independent review,
-actual game/wrapper/display reaping and scratch cleanup. No native GPU/device/
-endurance/final-parent claim. This is executable release capability for a named
-first-play outcome; no identical public game rebuild for observer-only changes.
-Any actual runtime fix requires separately frozen proof and fresh checkpoint.
-Estimate40min implementation+25checks/export/route+15review/cleanup, hard90min
-including failures. First unexpected failure stops; any bounded correction needs
-causal evidence and cumulative review, retaining the full original journey.
+Candidate56df45bc2 is preserved in a verified source bundle and case archive;
+accepted main restored, owned processes/build duplicates/profiles cleaned.
+Reopen only after source/raw-supported tutorial publication ownership and the
+exact permitted save delta justify a reviewed correction, retaining unrelated
+file protection and the whole route under its original limits. No retry selected.
+[Exact failures, scope and cleanup](docs/history/ROADMAP_DELIVERIES.md#race-first-play-package-attempts-20261025).
 
 **Latest closed: BROWSER-JOIN — actual LAN join and usable solo return.**
 Source `80abab3b1`: the existing ordinary two-Main route now checks both players

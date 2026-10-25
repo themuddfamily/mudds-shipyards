@@ -23539,3 +23539,73 @@ and Dummy audio, with real ENet/LAN. Physical devices, exported-game route,
 native GPU, endurance, chosen capacity and full network/final gates remain open.
 Runtime is unchanged; public playable checkpoint0d77125 is retained rather than
 publishing identical game bytes. GitHub Actions remains disabled.
+
+
+<a id="race-first-play-package-attempts-20261025"></a>
+## Checkpoint Race — two package trials not accepted — 2026-10-25
+
+PLAY-RACE selected from6a095bbc0, selection commit e51814fa4. Candidate
+`56df45bc2e0503794fc8f41b32f679d78a6de124` is NOT integrated. Three unique
+candidate commits/six files add an ordinary `--route race-home` to the existing
+release runner, passive observer and private startup selector, with focused
+existing tests. Normal menu/same Torrent/same Player genuine Guided completion
+and physical exit are required before ordinary reboard/departure starts the
+production2s/120s timed race. All five authored32m gates, one durable reward,
+strict Central dock/neutral OFFLINE/physical exit/supported walk and normal UI
+OS0 remain the finish. FullCAP300/outer360 unchanged; no phase/pose/authority/
+geometry/tuning/reward shortcut or new schema/framework. A source review caught
+same-craft reboard blocking before any package run: a supported4m outward walk
+must actually clear the original>7m exclusion before returning to board.
+
+First Python stageFAIL11.494935s: the new corruption fixture aliased live state.
+An independently reviewed two-deepcopy correction preserves the exact disk/live
+assertion; full160 testsPASS11.493871s. Import6.567012s, parser16.007651s and
+startup privacy1.141526s pass without diagnostics. These Godot files are unchanged
+by the later caller-only correction. First clean private Linux export25.754515s,
+strict startup22.704657s and actual1,527-entry PCK inventory pass.
+
+First whole package trialFAIL80.718s (guard81.052759s). Real Guided/exit/supported
+reboard clearance/normal reboard/departure/countdown and five actual gates pass;
+race finishes16.066666666667s and production commits generation1 receipt1. Caller
+then raises KeyError authority_result: Main retains the direct
+NearbyActivityRewardAdapter accepted/reward_request/callback result, while this
+reader expected the Beacon wrapper. No home/UI completion is proved.
+
+One causal reviewed caller/fixture correction requires the exact real request,
+committed callback/receipt/authority/store identity and positive committed store
+generation. Full161 Python testsPASS11.553272s. Fresh clean Linux export25.932013s,
+strict startup22.785684s and PCK inventory1,527 pass. The two exported ELF inputs
+are byte-identical: SHA256
+`1ed7cd28a5bf44f356b8f5ba4e0c947e7ad9f4c6f49e8c3e4923f9284b568de9`.
+
+The single corrected full trialFAIL79.965s (guard80.383700s) at race_stable after
+all five gates/16.05s and the actual once-only payment. Independent actual-file
+baseline→paid comparison fails unrelated-payload preservation: only
+`tutorial_prompts_seen` changes beyond the named race slot/reward ledger.
+Baseline seen_ids has cinder_reach_checkpoint_route; paid adds
+cinder_asteroid_field_threading_run and cinder_hulk_power_restoration. No further
+preservation allowance/correction/rerun is selected. Reward stability/home/
+usable exit/UIOS0 remain unproved; no production defect or PLAY-RACE closure is
+established. Both actual runs use OS XTest→owned X11→default input sampler,
+Dummy renderer/audio, with zero runtime diagnostics and abort cleanup rather
+than normal UI completion. Source/raw independent review HOLD retained.
+
+Final cumulative review parks this chain on its original90min clock. Reopen only
+with source/raw-supported tutorial publication ownership and exact permitted
+save delta, a reviewed bounded caller/runtime correction preserving unrelated
+file protection and the complete original route, and explicit cumulative priority
+selection. This failure does not authorize a third unchanged attempt.
+
+Unique source is retained in a verified incremental Git bundle requiring
+main e51814fa4; bundle SHA256 `b24ec22b1e02351a6b5414c78f40009557665cfbd3fffea1202c79ecb1e8460a`.
+Accepted main restored; no task branch/worktree was created. Fourteen stage
+owners terminal/83 observed process identities absent. Exact failed-game ELF
+bytes remain in the one retained corrected package archive; byte-identical
+owned ELF/archive duplicates and all10 owned build files were removed. All
+378 case members' bytes/modes/links verified before loose records/helpers/
+profiles removal. Only archive+closeout remain under
+`/srv/mudds-work/race-first-play-20261025/results/`;
+archive SHA256 `b64a4af7f84c4a59244242a55b533eaee824e3bf6e9ecb97b667c47dc56af7e6` (134,121,123bytes).
+Final pushed documentation/time is recorded in closeout. Pre-existing detached
+worktree registrations remain protected and outside this task. Public playable
+checkpoint0d77125, native/device/endurance/full-parent gates and CI hold remain.
