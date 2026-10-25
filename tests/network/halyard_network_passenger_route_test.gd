@@ -4628,8 +4628,8 @@ func _ordinary_passenger_loss_client() -> bool:
 		return false
 	if _role == "client_b":
 		if _ordinary_two_client_passenger_reconnect:
-			if not await _ordinary_boundary(func(): return int(_ordinary_pilot_loss_events.server_disconnected) == 1
-				and int(_ordinary_pilot_loss_events.session_stopped) == 1
+			if not await _ordinary_boundary(func(): return int(_ordinary_pilot_loss_events.server_disconnected) == 1 \
+				and int(_ordinary_pilot_loss_events.session_stopped) == 1 \
 				and _ordinary_pilot_loss_events.reason == "server_disconnected", 8.0,
 				"actual host ENet cut emits the original passenger's real transport loss and production stop once"):
 				return false
