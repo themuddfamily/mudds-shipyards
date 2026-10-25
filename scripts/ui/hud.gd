@@ -6194,11 +6194,20 @@ func _build_planetary_destination_page() -> void:
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	stack.add_child(subtitle)
+	# The live roster includes worlds and nearby sector sites. Keep the header
+	# and Back fixed while allowing every retained card to remain reachable.
+	var scroll := ScrollContainer.new()
+	scroll.name = "PlanetaryDestinationScroll"
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.follow_focus = true
+	stack.add_child(scroll)
 	_planetary_destination_rows = VBoxContainer.new()
 	_planetary_destination_rows.name = "PlanetaryDestinationRows"
 	_planetary_destination_rows.add_theme_constant_override("separation", 10)
+	_planetary_destination_rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_planetary_destination_rows.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	stack.add_child(_planetary_destination_rows)
+	scroll.add_child(_planetary_destination_rows)
 	var waiting := _label("NAVIGATION CATALOG OFFLINE", 12, MUTED)
 	waiting.name = "PlanetaryDestinationWaitingLabel"
 	waiting.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

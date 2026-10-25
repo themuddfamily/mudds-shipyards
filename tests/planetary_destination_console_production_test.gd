@@ -296,6 +296,12 @@ func _test_destination_board_small_viewport(game: GameFlow, hud: GameHUD) -> voi
 			and readable.grow(0.75).encloses(card.get_global_rect())
 			and not card.get_global_rect().intersects(back.get_global_rect()),
 			"Destination Board card is completely readable through authored scrolling: %s" % card.name)
+		var action := card.find_child("PlanetaryDestinationAction_*", true, false) as Button
+		_check(action != null
+			and card.get_global_rect().grow(0.75).encloses(action.get_global_rect())
+			and readable.grow(0.75).encloses(action.get_global_rect())
+			and action.size.x + 0.75 >= action.get_minimum_size().x,
+			"Destination Board contains the complete action, including disabled guidance: %s" % card.name)
 		for candidate: Node in card.find_children("*", "Label", true, false):
 			var label := candidate as Label
 			_check(card.get_global_rect().grow(0.75).encloses(label.get_global_rect()),
