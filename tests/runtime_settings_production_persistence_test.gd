@@ -11,6 +11,11 @@ extends SceneTree
 ##   --audio-driver Dummy --path "$WORKTREE" --script \
 ##   res://tests/runtime_settings_production_persistence_test.gd -- \
 ##   --fire-restart-writer --fire-restart-private-root="$CASE"
+## Interact uses --interact-restart-writer, --interact-restart-reader, then
+## --interact-reset-reader, all with --interact-restart-private-root="$CASE".
+## Require each unique INTERACT_*_OK marker, actual OS exit 0 through HUD Exit,
+## and external verification of the durable orderly-shutdown marker. The reader
+## resets Interact through its per-action Reset and Apply + Save before exiting.
 ## Reap writer (exit 0 + FIRE_RESTART_WRITER_OK), then repeat with reader flag;
 ## require exit 0 + FIRE_RESTART_READER_OK. Never run these modes in parallel.
 ## Raw key/mouse events and the reader's focus-in lifecycle notification are
@@ -96,6 +101,9 @@ class MutableInputProvider:
 
 func _initialize() -> void:
 	var args := OS.get_cmdline_user_args()
+	if args.has("--interact-restart-writer") or args.has("--interact-restart-reader") or args.has("--interact-reset-reader"):
+		_run_interact_restart(args)
+		return
 	if args.has("--settings-corrupt-writer") or args.has("--settings-corrupt-reader"):
 		_run_settings_corrupt(args)
 		return
@@ -310,6 +318,311 @@ func _fire_restart_stage(writer: bool) -> void:
 	_check(bool(verified.load().accepted)
 		and verified.get_snapshot().get(FIRE_RESTART_SENTINEL, {}) == sentinel_before,
 		"normal startup and settings save preserve exact unrelated seeded disk data")
+
+
+# Opt-in sequential three-process qualification. The wrapper must use the same
+# fresh private XDG root, Dummy audio, and headless display. These are
+# synthetic raw events consumed by actual Player physics, never physical input.
+const INTERACT_RESTART_SENTINEL := "interact_restart_fixture"
+var _interact_restart_game: GameFlow
+var _interact_requests := 0
+var _interact_exit_requested := false
+
+
+func _run_interact_restart(args: PackedStringArray) -> void:
+	var modes := ["--interact-restart-writer", "--interact-restart-reader", "--interact-reset-reader"]
+	var selected := PackedStringArray()
+	for mode: String in modes:
+		if args.has(mode):
+			selected.append(mode)
+	var private_root := ""
+	for arg: String in args:
+		if arg.begins_with("--interact-restart-private-root="):
+			private_root = arg.trim_prefix("--interact-restart-private-root=").simplify_path()
+	var isolated := private_root.is_absolute_path() and private_root != "/"
+	for variable: String in ["XDG_DATA_HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME"]:
+		isolated = isolated and OS.get_environment(variable).simplify_path().begins_with(private_root + "/")
+	isolated = isolated and OS.get_user_data_dir().simplify_path().begins_with(private_root + "/")
+	var other_mode := false
+	for arg: String in args:
+		if arg.begins_with("--fire-restart-") or arg.begins_with("--settings-migration-") or arg.begins_with("--settings-corrupt-"):
+			other_mode = true
+	# As in the existing migration worker, Godot consumes driver switches before
+	# get_cmdline_args(). Check actual backends; the wrapper records explicit flags.
+	var audio_driver := AudioServer.get_driver_name()
+	var display_driver := DisplayServer.get_name()
+	print("INTERACT_RESTART_LAUNCH ", JSON.stringify({"selected": selected,
+		"other_mode": other_mode, "isolated": isolated, "private_root": private_root,
+		"user_data_dir": OS.get_user_data_dir(), "audio_driver": audio_driver,
+		"display_driver": display_driver, "engine_argv": OS.get_cmdline_args(),
+		"user_argv": args}))
+	_check(selected.size() == 1 and not other_mode and isolated
+		and audio_driver == "Dummy" and display_driver == "headless",
+		"one exclusive Interact worker requires actual Dummy audio, headless display, and isolated user data")
+	print("INTERACT_RESTART_BEGIN pid=%d modes=%s path=%s synthetic_raw_events=true physical_input=NOT_RUN" % [
+		OS.get_process_id(), str(selected), ProjectSettings.globalize_path(Adapter.DEFAULT_STORE_PATH)])
+	if _failures.is_empty():
+		await _interact_restart_stage(selected[0])
+	if _interact_exit_requested:
+		return
+	# Successful workers exit through the real HUD intent inside the stage.
+	# Any returned stage is a failure, so release all inputs before teardown.
+	_interact_release_keys()
+	paused = false
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	if is_instance_valid(_interact_restart_game):
+		_interact_restart_game.queue_free()
+		await process_frame
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	_finish()
+
+
+func _interact_restart_stage(mode: String) -> void:
+	var writer := mode == "--interact-restart-writer"
+	var reset_reader := mode == "--interact-reset-reader"
+	root.content_scale_size = Vector2i(1280, 720)
+	var disk := Store.new(Adapter.DEFAULT_STORE_PATH)
+	if not _migration_check(bool(disk.load().accepted), "Interact private production store opens"):
+		return
+	if writer:
+		if not _migration_check(disk.get_generation() == 0 and disk.get_snapshot().is_empty()
+				and not FileAccess.file_exists(Settings.DEFAULT_CONFIG_PATH), "Interact writer requires a fresh unseeded profile"):
+			return
+		if not _migration_check(bool(disk.commit({INTERACT_RESTART_SENTINEL: {
+				"writer_pid": OS.get_process_id(), "unrelated_data": {"keep_me": "interact-restart", "progress": 42},
+			}}, 0, "interact-restart-unrelated-seed").accepted), "Interact seeds unrelated data only"):
+			return
+	var sentinel: Dictionary = disk.get_snapshot().get(INTERACT_RESTART_SENTINEL, {})
+	if not _migration_check(int(sentinel.get("writer_pid", 0)) > 0
+			and (writer or int(sentinel.writer_pid) != OS.get_process_id()), "Interact reader has a distinct writer PID witness"):
+		return
+	var game := MAIN_SCENE.instantiate() as GameFlow
+	_interact_restart_game = game
+	root.add_child(game)
+	await process_frame
+	await physics_frame
+	await process_frame
+	var report := game.get_runtime_settings_persistence_report()
+	if not _migration_check(not bool(report.injected_authority) and report.identity_scope == &"process_lifetime"
+			and int(report.load_attempt_count) == 1 and bool(report.load_status.accepted)
+			and bool(report.load_before_first_apply) and (writer or report.load_status.reason == &"loaded"),
+			"Interact normal Main loads real production authority once before apply"):
+		return
+	var hud := game.get_node_or_null(^"HUD") as GameHUD
+	if not _migration_check(hud != null and is_instance_valid(game.player), "Interact normal Main supplies actual HUD and Player"):
+		return
+	hud.set_paused(true)
+	hud._show_settings_page()
+	await process_frame
+	var buttons := hud.get("_binding_buttons") as Dictionary
+	var interact := buttons.get(&"interact") as Button
+	if not await _interact_visible_button(hud, interact, "Interact row"):
+		return
+	var defaults := game.get_runtime_settings().get_project_input_binding_defaults()
+	var pads := _fire_restart_gamepads(defaults, &"interact")
+	if not _migration_check(pads != "[]" and _interact_has_authored_x(), "authored Interact controller X is present"):
+		return
+	if writer:
+		if not _interact_binding_state(game, interact, false, pads):
+			return
+		interact.pressed.emit()
+		_fire_restart_key(KEY_F13, true)
+		Input.flush_buffered_events()
+		await process_frame
+		_fire_restart_key(KEY_F13, false)
+		Input.flush_buffered_events()
+		await process_frame
+	if not _interact_binding_state(game, interact, not reset_reader, pads):
+		return
+	if writer:
+		var accepted: Dictionary = game.get_runtime_settings().get_input_binding_profile().to_dictionary().duplicate(true)
+		var accepted_map := _interact_input_map_snapshot()
+		var jump := buttons.get(&"jump") as Button
+		if not await _interact_visible_button(hud, jump, "Jump conflict row"):
+			return
+		jump.pressed.emit()
+		_fire_restart_key(KEY_F13, true)
+		Input.flush_buffered_events()
+		await process_frame
+		_fire_restart_key(KEY_F13, false)
+		Input.flush_buffered_events()
+		await process_frame
+		var cancel := hud.find_child("InputBindingConflictCancelButton", true, false) as Button
+		if not _migration_check(bool(hud.get_input_binding_report().has_pending_conflict), "Jump F13 presents the Interact conflict"):
+			return
+		if not await _interact_visible_button(hud, cancel, "conflict Cancel"):
+			return
+		cancel.pressed.emit()
+		await process_frame
+		if not _migration_check(not bool(hud.get_input_binding_report().has_pending_conflict)
+				and game.get_runtime_settings().get_input_binding_profile().to_dictionary() == accepted
+				and _interact_input_map_snapshot() == accepted_map and _input_map_has_key(&"jump", KEY_SPACE)
+				and not _input_map_has_key(&"jump", KEY_F13), "Cancel preserves the full accepted profile/InputMap and authored Jump Space"):
+			return
+		if not await _interact_save(game, hud):
+			return
+	# Leave Settings and trigger the ordinary intro action; its tween emits the
+	# actual start intent and GameFlow enables the existing on-foot Player.
+	hud.set_paused(false)
+	var begin := hud.find_child("IntroBeginShiftButton", true, false) as Button
+	if not _migration_check(begin != null and begin.is_visible_in_tree() and not begin.disabled, "ordinary Begin Shift is visible and enabled"):
+		return
+	begin.pressed.emit()
+	var deadline := Time.get_ticks_msec() + 5000
+	while game.phase != GameFlow.Phase.APPROACH_SHIP and Time.get_ticks_msec() < deadline:
+		await process_frame
+	await physics_frame
+	await process_frame
+	if not _migration_check(game.phase == GameFlow.Phase.APPROACH_SHIP and not paused
+			and game.player.is_control_enabled() and not game.player.is_seated() and game.player.is_on_floor(),
+			"ordinary Begin Shift admits the actual supported on-foot Player"):
+		return
+	game.player.interact_requested.connect(func() -> void: _interact_requests += 1)
+	if not await _interact_consumer(game, not reset_reader):
+		return
+	if not writer and not reset_reader:
+		hud.set_paused(true)
+		hud._show_settings_page()
+		await process_frame
+		var reset := hud.find_child("InteractBindingResetButton", true, false) as Button
+		if not await _interact_visible_button(hud, reset, "per-action Interact Reset"):
+			return
+		reset.pressed.emit()
+		await process_frame
+		if not _interact_binding_state(game, interact, false, pads) or not await _interact_save(game, hud):
+			return
+		hud.set_paused(false)
+		if not await _interact_consumer(game, false):
+			return
+	var verified := Store.new(Adapter.DEFAULT_STORE_PATH)
+	if not _migration_check(bool(verified.load().accepted)
+			and verified.get_snapshot().get(INTERACT_RESTART_SENTINEL, {}) == sentinel,
+			"Interact normal startup and saves preserve the exact unrelated sentinel"):
+		return
+	_interact_release_keys()
+	hud.set_paused(true)
+	var exit_button := hud.find_child("ExitButton", true, false) as Button
+	if not _migration_check(exit_button != null and exit_button.is_visible_in_tree() and not exit_button.disabled,
+			"ordinary HUD Exit button is visible and enabled"):
+		return
+	exit_button.grab_focus()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	var marker := "INTERACT_RESET_READER_OK" if reset_reader else ("INTERACT_RESTART_WRITER_OK" if writer else "INTERACT_RESTART_READER_OK")
+	print("%s pid=%d generation=%d sha256=%s assertions=%d synthetic_raw_events=true physical_input=NOT_RUN" % [
+		marker, OS.get_process_id(), verified.get_generation(), FileAccess.get_sha256(Adapter.DEFAULT_STORE_PATH), _assertions])
+	# The wrapper requires actual OS exit 0 and the durable orderly marker too.
+	_interact_exit_requested = true
+	exit_button.pressed.emit()
+
+
+func _interact_visible_button(hud: GameHUD, button: Button, label: String) -> bool:
+	if not _migration_check(button != null and button.is_visible_in_tree() and not button.disabled
+			and button.focus_mode != Control.FOCUS_NONE, label + " is visible enabled and focusable"):
+		return false
+	button.grab_focus()
+	await process_frame
+	await process_frame
+	var scroll := (hud.get("_settings_page") as Control).find_child("SettingsScroll", true, false) as ScrollContainer
+	var visible_rect := root.get_visible_rect()
+	if scroll != null and scroll.is_ancestor_of(button):
+		visible_rect = scroll.get_global_rect()
+	return _migration_check(button.has_focus() and visible_rect.intersects(button.get_global_rect()),
+		label + " is focused inside its visible Settings viewport")
+
+
+func _interact_has_authored_x() -> bool:
+	var pads := 0
+	var has_x := false
+	for event: InputEvent in InputMap.action_get_events(&"interact"):
+		if event is InputEventJoypadButton or event is InputEventJoypadMotion:
+			pads += 1
+		if event is InputEventJoypadButton and (event as InputEventJoypadButton).button_index == JOY_BUTTON_X:
+			has_x = true
+	return has_x and pads == 1
+
+
+func _interact_binding_state(game: GameFlow, button: Button, remapped: bool, pads: String) -> bool:
+	return _migration_check(button.text.contains("F13" if remapped else "E")
+		and _input_map_has_key(&"interact", KEY_F13) == remapped
+		and _input_map_has_key(&"interact", KEY_E) != remapped and _interact_has_authored_x()
+		and _fire_restart_gamepads(game.get_runtime_settings().get_input_binding_profile(), &"interact") == pads,
+		"Interact visible label/InputMap/profile agree on %s with exact authored controller X" % ("F13" if remapped else "E"))
+
+
+func _interact_input_map_snapshot() -> Dictionary:
+	var result := {}
+	for action: StringName in InputMap.get_actions():
+		result[action] = {"deadzone": InputMap.action_get_deadzone(action), "events": var_to_str(InputMap.action_get_events(action))}
+	return result
+
+
+func _interact_save(game: GameFlow, hud: GameHUD) -> bool:
+	var save := hud.find_child("SettingsSaveButton", true, false) as Button
+	if not await _interact_visible_button(hud, save, "Apply + Save"):
+		return false
+	var before := int(game.get_runtime_settings_persistence_report().save_success_count)
+	save.pressed.emit()
+	var report := game.get_runtime_settings_persistence_report()
+	return _migration_check(int(report.save_success_count) == before + 1 and bool(report.last_save_status.accepted)
+		and not bool(report.unsaved_changes), "ordinary Apply + Save commits the Interact binding")
+
+
+func _interact_release_keys() -> void:
+	for code: Key in [KEY_E, KEY_F13, KEY_SPACE]:
+		_fire_restart_key(code, false)
+	Input.flush_buffered_events()
+
+
+func _interact_consumer(game: GameFlow, remapped: bool) -> bool:
+	for code: Key in [KEY_E, KEY_F13]:
+		var before := _interact_requests
+		var expected := 1 if (code == KEY_F13) == remapped else 0
+		var player_properties: Dictionary = {}
+		for property: Dictionary in game.player.get_property_list():
+			player_properties[StringName(property.name)] = true
+		var observe := func(stage: String) -> void:
+			print("INTERACT_RESTART_OBSERVATION ", JSON.stringify({
+				"stage": stage, "key": OS.get_keycode_string(code), "remapped": remapped,
+				"pid": OS.get_process_id(), "ticks_usec": Time.get_ticks_usec(),
+				"ticks_msec": Time.get_ticks_msec(), "physics_frame": Engine.get_physics_frames(),
+				"pressed": Input.is_action_pressed(&"interact"),
+				"just_pressed": Input.is_action_just_pressed(&"interact"),
+				"counter": _interact_requests, "before": before, "delta": _interact_requests - before,
+				"control_enabled": game.player.is_control_enabled(),
+				"seated": game.player.is_seated(), "paused": paused,
+				"handoff_blocked": game.player.get("_interact_handoff_blocked") if player_properties.has(&"_interact_handoff_blocked") else null,
+				"handoff_released": game.player.get("_interact_handoff_released") if player_properties.has(&"_interact_handoff_released") else null,
+			}))
+		# Observe an entire next physics step after delivering the raw edge.
+		await physics_frame
+		observe.call("before_press")
+		_fire_restart_key(code, true)
+		Input.flush_buffered_events()
+		observe.call("after_press")
+		await physics_frame
+		await process_frame
+		observe.call("after_observation")
+		if not _migration_check(_interact_requests == before + expected,
+				"actual Player physics emits %d request for synthetic %s press" % [expected, OS.get_keycode_string(code)]):
+			return false
+		for held_frame: int in range(3):
+			await physics_frame
+			await process_frame
+			if not _migration_check(_interact_requests == before + expected, "held synthetic Interact key adds no physics request"):
+				return false
+		await physics_frame
+		observe.call("before_release")
+		_fire_restart_key(code, false)
+		Input.flush_buffered_events()
+		observe.call("after_release")
+		await process_frame
+		observe.call("after_release_observation")
+		if not _migration_check(_interact_requests == before + expected and game.player.is_control_enabled()
+				and not game.player.is_seated() and not paused, "release adds no interaction request and the actual Player remains on foot"):
+			return false
+		print("INTERACT_RESTART_SAMPLE key=%s remapped=%s delta=%d physics_frame=%d" % [
+			OS.get_keycode_string(code), str(remapped), _interact_requests - before, Engine.get_physics_frames()])
+	return true
 
 
 # SAVE-CORRUPT: run these two opt-in modes sequentially, each under the original
@@ -965,9 +1278,9 @@ func _migration_check(condition: bool, label: String) -> bool:
 	return condition
 
 
-func _fire_restart_gamepads(profile: InputBindingProfile) -> String:
+func _fire_restart_gamepads(profile: InputBindingProfile, action: StringName = &"fire") -> String:
 	var bindings: Array[Dictionary] = []
-	for binding: Dictionary in profile.get_bindings(&"fire"):
+	for binding: Dictionary in profile.get_bindings(action):
 		if binding.device == Profile.DEVICE_GAMEPAD:
 			bindings.append(binding)
 	return JSON.stringify(bindings)
