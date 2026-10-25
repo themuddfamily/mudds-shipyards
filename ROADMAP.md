@@ -1,8 +1,8 @@
 # Development roadmap
 
 **Playable alpha; full original scope remains unfinished.** Latest playable build:
-[109aca0 Windows checkpoint](builds/windows/MuddsShipyards-109aca0-checkpoint.zip)
-([changes and validation](builds/windows/MuddsShipyards-109aca0-notes.txt)).
+[8cda303 Windows checkpoint](builds/windows/MuddsShipyards-8cda303-checkpoint.zip)
+([changes and validation](builds/windows/MuddsShipyards-8cda303-notes.txt)).
 Nine of the promised 17 craft exist. All 36 original parent outcomes and ten phase
 exit gates remain open; completed child results are retained, not counted as whole
 features. There is no evidence-backed project percentage or completion date.
@@ -29,15 +29,15 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Delivered: complete ordinary Halyard passenger reconnect journey.** Source109aca0
-passes397 checks in171.747s with zero diagnostics and all three actual OS exits0:
-original boarding/seven moving stages, forced passenger transport loss/retirement/
-solo walking, normal browser rejoin, pilot actual return/strict home dock,
-physical fresh standing berth/walk/separate chair press and renewed real flight.
-The run exposed three remaining crew snapshot sends to a closed native link;
-those publishers now use the existing native-link guard. Fresh checkpoint109aca0
-ships the repair. Other multiplayer, package/device and final gates remain open.
-[Exact proof, first failures and cleanup](docs/history/ROADMAP_DELIVERIES.md#ordinary-passenger-reconnect-accepted-20261025).
+**Delivered: travelling-projectile publication survives a recipient native disconnect.**
+Source 8cda303 skips the closed link before immediate/deferred delivery work while
+preserving actual flying/terminal delivery to the remaining client. Four focused
+suites pass with zero diagnostics; the fresh Windows checkpoint passes clean
+export, strict silent startup and package audit. This scoped repair does not
+close full actor/Picket/Torpedo journeys or wider multiplayer/release gates.
+[Exact result, initial fixture failure and cleanup](docs/history/ROADMAP_DELIVERIES.md#projectile-native-disconnect-accepted-20261025).
+The complete ordinary Halyard passenger reconnect remains accepted on 109aca0;
+[its original 397-check journey and limits are retained](docs/history/ROADMAP_DELIVERIES.md#ordinary-passenger-reconnect-accepted-20261025).
 
 The canonical inventory remains
 [the existing backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes); no parallel
@@ -53,13 +53,13 @@ not a project percentage inferred from rows, tests or commits.
 ### Small execution queue
 
 Only one implementation card may be active. Each row below is a bounded step
-within the existing goal, not a replacement for its full acceptance. One implementation is selected below. The complete named reconnect case is
+within the existing goal, not a replacement for its full acceptance. No implementation is currently selected. The complete named reconnect case is
 accepted for its recorded Linux-source ordinary-input scope. Torpedo remains
 parked; broader multiplayer and final-candidate requirements remain separate.
 
 | Existing goal | Next bounded result | Proof / stop | State and owner |
 | --- | --- | --- | --- |
-| NET-ACTOR[projectile/native disconnect] | Skip closed native recipients before projectile delivery-budget work; preserve connected flying/terminal updates and canonical state | Existing real ENet snapshot-stream close-window fixture plus existing projectile replication/canonical/consumer suites; immediate and pending-window paths, unchanged caps; stop on first unexpected failure | ACTIVE — Codex implementation, independent lifecycle reviewer; 60–75min estimate,90min hard stop; selected 2026-10-25T07:06:56+00:00; no earlier projectile-specific attempt. Files: session adapter and existing snapshot-stream test; Windows checkpoint/cleanup included. Full actor/Torpedo/Picket journeys remain open |
+| NET-ACTOR[projectile/native disconnect] | Closed native recipients skipped before budget work; connected deferred/flying/terminal updates retained | Existing real ENet close-window regression (66), projectile replication (49), canonical (17), consumer (8); all exit0/zero diagnostics, caps unchanged; verified Windows EXE/ZIP/notes | DONE 8cda303 in focused production transport scope — independent review GO; 10.733 minutes through cleanup including conservative mapping cost; full actor/Picket/Torpedo journeys remain open |
 | SERVER-BASELINE-PASSENGER-RECONNECT | Complete original ordinary reconnect journey delivered on109aca0 | 397 checks/171.747s, all three peers exit0, zero diagnostics; original seven moving stages/loss/UI rejoin/home/fresh berth+later chair/renewed flight verified, original caps retained; fresh verified Windows EXE+ZIP+notes | DONE in Linux-source ordinary-input scope; package/device/endurance/capacity/final gates remain separate |
 | PLAN-ASSIGN | Replace the chronological working page with this queue; audit every canonical goal for a finite result or explicit blocking input | Preserve all337 IDs/order,36 parents/ten gates; review changed acceptance and local links. Finish after this pass; no automatic new definition task | PASS — Codex; documentation only |
 | PLAY-TORPEDO | Cancelled request accounting must survive unread queued neutral samples across actual OS release | Source review BLOCK: output dispatch does not establish which engine samples postdate release. Candidate archived; no tests/export/trial, no gameplay completion | PARKED — Codex;67.453min cumulative at stop, no automatic retry |

@@ -24316,3 +24316,69 @@ entries archived/removed; pre-existing registrations untouched. Records:
 Cumulative86.906927min through cleanup on original90min clock; final verified push
 cost retained in closeout. All337 IDs/36 parent outcomes/ten gates/17-craft scope
 remain; this closes the one named case, not a whole multiplayer phase.
+
+
+<a id="projectile-native-disconnect-accepted-20261025"></a>
+### Travelling-projectile native disconnect — accepted 2026-10-25
+
+Existing NET-ACTOR[one channel/lifecycle], selected by b40b20118, now delivers one
+bounded production transport repair on 8cda303af445cae5f09baf1f89b0b167bbc0c327.
+The Picket lance path and other travelling-projectile owners use the shared
+publisher. A native recipient can close before its logical admission retires;
+previous immediate sends and deferred budget rollover attempted RPCs to that
+closed link and advanced its delivery bookkeeping. The publisher now skips a
+native-disconnected recipient before budget/pending/published mutation, reusing
+the existing cached-link guard. Detached budget simulations remain supported;
+canonical staging/commit, wire fields, authority and terminal fences are unchanged.
+Owned production file: scripts/network/network_enet_session_adapter.gd; regression
+extends the existing tests/network/network_enet_snapshot_streams_test.gd.
+
+Acceptance was frozen before editing: actual server/two-client native loss,
+unchanged dead-recipient budget/pending/published state, connected survivor's exact
+deferred/flying/terminal delivery, canonical terminal commitment and existing
+logical cleanup. Existing wait of 3s and focused 90s caps were retained. Estimate 60–75min,
+hard stop 90; no previous projectile-specific attempt. Conservative cumulative
+clock starts 07:03:05.145328Z, before mapping/selection, and includes all corrections,
+checks, build, review and cleanup; 10.733360min through
+cleanup 07:13:49.146917Z. Final-push cost is recorded in the adjacent closeout.
+
+Initial regression 4a5d3170d exited 1 in 1.723718s,
+reproducing three actual Invalid-target-peer errors at deferred flush and immediate
+publication plus dead delivery-state mutation. It also failed an incorrect fixture
+assumption: forced native closure suppresses the normal disconnect callback. Work
+stopped; independent review confirmed one bounded fixture correction plus the
+native guard on the same clock. The regression now invokes the existing logical
+handler explicitly after window/delivery checks; it does not claim automatic
+callback or ordinary actor-journey qualification. No deadline changed or repeat
+journey was selected.
+
+Four existing suites pass, actual exit0/no diagnostics: snapshot streams 66
+assertions/1.870147s, projectile replication 49/
+1.590045s, canonical snapshot 17/
+1.715001s and consumer 8/
+1.425866s. The real transport fixture fills 16
+updates/one deferred, force-closes one native link, preserves its exact delivery
+state and observes the survivor accept deferred/new flying/terminal in order;
+the terminal removes its replica and preserves the generation fence. Independent
+source/raw/package review GO. No unfiltered/final matrix or full Picket/Torpedo
+ordinary journey was run or closed.
+
+Fresh Windows checkpoint 8cda303 uses the safe clean-commit export. Silent Linux
+Godot over the exact Windows embedded game data exits 0 with exactly one
+STARTUP_MENU_READY_OK; payload inventory 1527 excludes tests/tools, Windows .text
+matches the stock template, and checkpoint ZIP's two members match the exact EXE
+and notes. EXE SHA256 e96e83c6d5368c79f398b4d6e5b2eeba2a9139dea490b74f1c3952d65a3c7ad7;
+ZIP SHA256 87b8d5a469e6a2503cabd042a7ea0c6d7c34c44b4beca0c71df1054bb613b068.
+Files: builds/windows/MuddsShipyards-8cda303.exe, matching checkpoint ZIP and notes.
+No fresh Linux export. Native Windows execution/mandatory human review remain
+owner-excluded NOT_RUN; applicable device/GPU/install/endurance/capacity/final gates
+remain open. All Godot uses headless/Dummy audio; GitHub Actions remains disabled.
+
+Code is integrated into pushed main. Exact-tip local task branch deleted after
+remote-tip/worktree checks; no task remote branch or worktree was created.
+Eight owners terminal/26 observed process identities absent. All 237 scratch entries
+were verified against one archive before removal. Retained records:
+/srv/mudds-work/projectile-native-disconnect-20261025/results/case-records.tar.gz,
+23040698bytes, SHA256 0ce95c3e5bf39c3f1c261e874dd4c6d1096863b20461a3c234f9ac43c130ae43, plus adjacent closeout.json.
+Pre-existing detached registrations and unrelated parked archives remain untouched.
+All 337 canonical records, 36 parent outcomes,ten phase gates and 17-craft scope remain.
