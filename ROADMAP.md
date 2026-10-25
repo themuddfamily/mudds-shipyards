@@ -56,6 +56,18 @@ First unexpected failure stops for cumulative review or parking. Platform sweep
 remains a separate required branch; no full PLAY-PATROL/parent, device/native,
 repeat/recovery or final-candidate closure follows from relay alone.
 
+**PLAY-PATROL[relay_sweep] causal continuation — original clock retained.**
+First full package attempt hits original300s work cap (309.758s with cleanup),
+0/5 holds/zero reward/baseline only. Actual UI selection/reboard/departure pass.
+Source/raw and independent oriented-box calculations support HullCollision at
+RangeHeader: frozen posey8.5917/z-114.4403 is0.000845m from that collider; no runtime
+collider-owner receipt was captured. One bounded caller correction uses the
+existing near/far low-header waypoints in reverse: settle[0,2.7,-100], brake/hover/
+align/upright>=.94/speed<=.01, cross to[0,2.7,-150] with actualy1.4..3.8 samples,
+then retain all five holds/payment/home/UI. No geometry/tuning/timer change;
+repeat the whole originalCAP300 once. First new failure stops for cumulative
+review/parking. Failure and elapsed cost remain part of this same selection.
+
 **Delivered: PLAY-RACE — complete ordinary packaged race and home return.**
 Source7997b2b37 passes the full original journey in276.690s underCAP300:
 normal menu/Guided/physical exit/actual reboard clearance/same-Torrent departure,
