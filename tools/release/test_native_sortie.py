@@ -5075,9 +5075,9 @@ class TorrentReturnReuseTests(unittest.TestCase):
     def test_prefix_remains_existing_guided_and_generic_completion_cannot_succeed(self):
         p, s = native.TorrentReturnReusePilot(), self.observation()
         snapshot = copy.deepcopy(s); p.validate_observation(snapshot)
-        with patch.object(native.Pilot, 'update', wraps=lambda state, now: (set(), 0, 0, False)) as guided:
+        with patch.object(native.Pilot, 'update', wraps=lambda pilot, state, now: (set(), 0, 0, False)) as guided:
             p.update(snapshot, 0)
-            guided.assert_called_once_with(snapshot, 0)
+            guided.assert_called_once_with(p, snapshot, 0)
         p.stage = 'exit'; p.identities = (s['player_id'], s['ship_id'])
         p.phases = ['SHUT_DOWN']; p.neutral_frames = 90; p.disembarking_seen = True
         with self.assertRaisesRegex(AssertionError, 'genuine gameplay phases'):
