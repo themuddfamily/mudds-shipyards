@@ -84,8 +84,9 @@ All focused checks, paired exports, three strict startups and actual1527-entry
 payload audit pass; only the compiled semantic caption presenter differs from391.
 This is a production caption capability with disclosed component-fixture proof,
 not physical collision/ordinary flight/listening/rendered/native/full comfort
-acceptance. Integration and owned archive/branch cleanup remain on this card;
-original23:14:33→00:14:33UTC/60min is retained. No successor is active.
+acceptance. Accepted work is merged/pushed; records are verified/archived,
+owned scratch is removed and the completed branch is deleted. The original
+23:14:33→00:14:33UTC/60min is retained; no successor is active.
 [Exact delivery and limits](docs/history/ROADMAP_DELIVERIES.md#engine-transition-live-captions-delivered-20261025).
 
 **Jovian solo ordinary engineer route: PARKED / not accepted.** Two source

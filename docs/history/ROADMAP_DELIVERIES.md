@@ -27176,3 +27176,27 @@ failure, retry or cap/deadline reset. Original36parents/ten exits/17craft scope
 remains; this closes only the named3caption production capability.
 Owned raw/source records: /srv/mudds-work/engine-transition-captions-20261025;
 verified archive and exact Git closure follow below.
+
+### Engine-transition captions — integration and owned cleanup
+
+Accepted tipa19f725b1d3eb3bdd3b3f2b64fb215415baca6b8 is fast-forwarded into
+main and pushed. Fresh actual remote tips/source ancestry/registered worktree
+ownership precede CAS deletion of local feat/engine-transition-captions-20261025
+at that exact tip; no remote task branch exists. Unrelated retained/detached/
+prunable worktree registrations are untouched.
+
+Verified records archive:
+/srv/mudds-work/engine-transition-captions-20261025/records.tar.gz,
+43802139bytes; SHA2568447473976b9ad51523a328227f3a70a9a1a6e4df6ceca3b053311589a8106c3.
+All179regular files/modes and14symlink targets verify before loose owned
+profiles/helpers are removed. Source bundle/patch, exact expectedRED diagnostics,
+all13fixed-stage raw results, both actual PCK inventories, artifact audit and
+publication identities remain archived. All14supervisors/52observed process
+records are absent by PID+startticks; tool pins and all11 public artifact identities
+are unchanged. Only records.tar.gz and closeout.json remain in the private case;
+public Windows/Linux checkpoint46bae53 files stay in builds/.
+
+Archive cleanup finishes23:38:15.938UTC,23.716min into the ORIGINAL23:14:33→
+00:14:33/60min clock. Exact branch/final-push timestamp and final cost are in
+adjacent closeout.json. No unexpected failure/retry/reset. Three caption mappings
+are delivered; original broader comfort/device/native/final gates remain open.
