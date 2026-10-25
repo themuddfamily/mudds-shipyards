@@ -4325,5 +4325,302 @@ class HeavyBreachCallerTests(unittest.TestCase):
             with self.assertRaises(AssertionError): files.observe(sample, pilot)
 
 
+class RaceHomeCallerTests(unittest.TestCase):
+    """Caller rejection fixtures; only an actual package can prove the journey."""
+    @staticmethod
+    def sample(frame=1, state='idle', cursor=0):
+        generation = int(state != 'idle')
+        snapshot = dict(activity_id=native.RaceHomePilot.ACTIVITY, attached=True, closed=False,
+            state_id=state, session_generation=generation, activity_generation=generation,
+            race_generation=generation, penalty_seconds=0, failure_reason='',
+            countdown_remaining_seconds=2 if state == 'countdown' else 0,
+            next_checkpoint_index=cursor, current_time_seconds=0,
+            last_time_seconds=-1, progress_unitless=cursor/5)
+        home = dict(berth_id='central_berth', berth_instance_id=11, berth_parent_id=12,
+            capsule_id=13, shape_id=14, range_staging=[0, 8, -78],
+            range_clearance=[0, 2.7, -150], range_clearance_exit=[0, 2.7, -100],
+            approach=[0, 2, -18], dock=[0, 0, 0], walk_tuning=dict(walk=4, sprint=7))
+        return dict(mode='race-home', sequence=frame, frame=frame, pid=1, main_id=2,
+            player_id=3, ship_id=4, paused=False, default_sampler=True, tuning_unchanged=True,
+            physics_ticks=60, time_scale=1, destroyed=False, phase='FREE_FLIGHT',
+            piloted=True, seated=True, active_ship=True, lease_free=True, landed=False,
+            flight_demand=False, telemetry=dict(engine='OFFLINE'), home=home,
+            tutorial_approach=dict(binding_id=21, tick=frame, activated=False, caller_mode=True,
+                accepted=False, sample_reason='unavailable', actor_id=0, position=[],
+                piloting=False, enabled=True, range=250, cluster_id=0, markers=[]),
+            position=copy.deepcopy(native.RaceHomePilot.POINTS[max(0, cursor-1)]),
+            race=dict(owner_id=5, clock_id=6, director_id=7, selected_kind='timed_race',
+                active_id=native.RaceHomePilot.ACTIVITY, active_generation=generation,
+                route_path='res://assets/activities/cinder_reach_checkpoint_route.tres',
+                points=copy.deepcopy(native.RaceHomePilot.POINTS), radius=32,
+                snapshot=snapshot, director=dict(generation=generation, next_checkpoint_index=cursor),
+                capture=dict(session_generation=generation, configured_laps=1, configured_countdown_seconds=2,
+                             configured_timeout_seconds=120)),
+            settlement=dict(configured=True, authority_id=8, store_id=9,
+                store=dict(source='primary', path='/tmp/profile/data/mudds_user_data.json', generation=1),
+                record=dict(receipt_serial=0, total_receipts=0, reward_counts={}, last_receipt={}),
+                terminal={}, handoff={}))
+
+    def running(self):
+        pilot = native.RaceHomePilot()
+        pilot.validate_observation(self.sample())
+        pilot.guided_result = dict(genuine_guided_prerequisite=True)
+        pilot.validate_observation(self.sample(2, 'countdown'))
+        active = self.sample(122, 'active')
+        pilot.validate_observation(active)
+        return pilot, active
+
+    @classmethod
+    def paid(cls):
+        sample = cls.sample(130, 'completed', 5)
+        snap = sample['race']['snapshot']
+        snap.update(last_time_seconds=10, current_time_seconds=10, progress_unitless=1)
+        capture = sample['race']['capture']
+        capture.update(session_generation=1, activity_state=dict(state=2, next_checkpoint_index=5),
+                       race_state=dict(state=3, last_time_seconds=10))
+        receipt = dict(receipt_id=1, activity_id=native.RaceHomePilot.ACTIVITY,
+            activity_generation=1, reward_id=native.RaceHomePilot.REWARD,
+            reward_label='Race record accepted', granted=True, replay_allowed=False)
+        sample['settlement'].update(record=dict(schema_version=1, payload_kind='game_flow_reward_store',
+            authority_id='game_flow_reward_authority', store_id='game_flow_reward_store', receipt_serial=1, total_receipts=1,
+            reward_counts={native.RaceHomePilot.REWARD: 1}, last_receipt=receipt),
+            terminal=dict(schema_version=1, activities=[dict(activity_id=native.RaceHomePilot.ACTIVITY,
+                generation=1, state=3, reward_requested=True, reward_granted=True,
+                progress=dict(session_state=copy.deepcopy(capture)))]),
+            handoff=dict(accepted=True, reason='reward_request_committed',
+                reward_request=dict(activity_id=native.RaceHomePilot.ACTIVITY, activity_generation=1,
+                    reward_id=native.RaceHomePilot.REWARD, reward_authority=False, granted=False),
+                callback=dict(accepted=True, granted=True, receipt=copy.deepcopy(receipt),
+                    reason='reward_receipt_committed', reward_authority_id='game_flow_reward_authority',
+                    reward_store_id='game_flow_reward_store', store_generation=1)))
+        return sample
+
+    def test_real_countdown_precedes_all_five_ordered_physical_gates(self):
+        pilot, _ = self.running()
+        self.assertEqual(pilot.countdown['frame'], 2)
+        self.assertEqual(pilot.active['frame'], 122)
+        for cursor in range(1, 5):
+            sample = self.sample(122+cursor, 'active', cursor)
+            pilot.validate_observation(sample)
+        pilot.validate_observation(self.paid())
+        self.assertEqual(len(pilot.gates), 5)
+        self.assertIsNone(pilot.result)  # Payment never substitutes for usable home/UI exit.
+        self.assertIsNone(pilot.home_result)
+        self.assertEqual(native.CAP, 300)
+
+    def test_shortened_countdown_skips_and_remote_crossings_are_rejected(self):
+        pilot = native.RaceHomePilot(); pilot.guided_result = dict(done=True)
+        pilot.validate_observation(self.sample(1, 'countdown'))
+        with self.assertRaisesRegex(AssertionError, 'countdown'):
+            pilot.validate_observation(self.sample(60, 'active'))
+        for cursor, remote in ((2, False), (1, True)):
+            with self.subTest(cursor=cursor, remote=remote):
+                pilot, _ = self.running(); sample = self.sample(123, 'active', cursor)
+                if remote: sample['position'] = [0, 0, 0]
+                with self.assertRaises(AssertionError): pilot.validate_observation(sample)
+        pilot, _ = self.running()
+        stale = self.sample(122, 'active')
+        with self.assertRaisesRegex(AssertionError, 'fresh'): pilot.validate_observation(stale)
+
+    def test_mutated_owner_generation_route_clock_or_controls_fail(self):
+        mutations = (lambda s: s['race'].update(owner_id=50),
+            lambda s: s['race'].update(clock_id=60),
+            lambda s: s['race'].update(selected_kind='checkpoint_route'),
+            lambda s: s['race']['snapshot'].update(race_generation=2),
+            lambda s: s['race']['capture'].update(configured_timeout_seconds=121),
+            lambda s: s['race']['capture'].update(configured_countdown_seconds=0),
+            lambda s: s['race'].update(radius=33),
+            lambda s: s['race']['points'][0].__setitem__(0, 17),
+            lambda s: s.update(default_sampler=False), lambda s: s.update(time_scale=2),
+            lambda s: s['settlement']['store'].update(source='backup'))
+        for mutate in mutations:
+            with self.subTest(mutate=mutate):
+                pilot, _ = self.running(); sample = self.sample(123, 'active'); mutate(sample)
+                with self.assertRaises(AssertionError): pilot.validate_observation(sample)
+
+    def test_exact_paid_generation_terminal_capture_and_single_reward_required(self):
+        native.RaceHomePilot.require_paid(self.paid())
+        mutations = (lambda s: s['settlement']['record'].update(total_receipts=2),
+            lambda s: s['settlement']['record']['last_receipt'].update(activity_generation=2),
+            lambda s: s['settlement']['record']['last_receipt'].update(reward_id='debris_route_navigation_data'),
+            lambda s: s['settlement']['terminal']['activities'][0].update(reward_granted=False),
+            lambda s: s['race']['capture']['race_state'].update(last_time_seconds=120),
+            lambda s: s['settlement']['handoff']['callback'].update(granted=False))
+        for mutate in mutations:
+            with self.subTest(mutate=mutate):
+                sample = self.paid(); mutate(sample)
+                with self.assertRaises(AssertionError): native.RaceHomePilot.require_paid(sample)
+
+    def test_race_handoff_requires_exact_direct_request_and_real_authority_callback(self):
+        mutations = (
+            lambda h: h.pop('callback'),
+            lambda h: h.update(callback=None),
+            lambda h: h.update(reason='reward_receipt_committed'),
+            lambda h: h['reward_request'].update(activity_generation=2),
+            lambda h: h['reward_request'].update(activity_id='cinder_debris_beacon_traversal'),
+            lambda h: h['reward_request'].update(reward_id='debris_route_navigation_data'),
+            lambda h: h['reward_request'].update(reward_authority=True),
+            lambda h: h['reward_request'].update(granted=True),
+            lambda h: h['callback'].update(accepted=False),
+            lambda h: h['callback'].update(reason='reward_generation_already_committed'),
+            lambda h: h['callback'].update(reward_authority_id='another_authority'),
+            lambda h: h['callback'].update(reward_store_id='another_store'),
+            lambda h: h['callback'].update(store_generation=0),
+            lambda h: h['callback'].update(store_generation=2),
+            lambda h: h['callback'].update(store_generation=True),
+            lambda h: h['callback']['receipt'].update(activity_generation=2))
+        for mutate in mutations:
+            with self.subTest(mutate=mutate):
+                sample = self.paid(); mutate(sample['settlement']['handoff'])
+                with self.assertRaises(AssertionError): native.RaceHomePilot.require_paid(sample)
+        sample = self.paid()
+        sample['settlement']['handoff'] = dict(accepted=True, reward_committed=True,
+            authority_result=sample['settlement']['handoff']['callback'])
+        with self.assertRaisesRegex(AssertionError, 'direct race adapter'):
+            native.RaceHomePilot.require_paid(sample)
+        # Subsequent ordinary autosaves may advance the store; the immutable
+        # successful callback still names the original committed generation.
+        sample = self.paid(); sample['settlement']['store']['generation'] = 2
+        native.RaceHomePilot.require_paid(sample)
+
+    @staticmethod
+    def approached_sample(frame=2):
+        sample = RaceHomeCallerTests.sample(frame)
+        sample['tutorial_approach'] = dict(binding_id=21, tick=frame, activated=True,
+            caller_mode=True, accepted=True, sample_reason='available', actor_id=4,
+            position=[0, 0, 0], piloting=True, enabled=True, range=250, cluster_id=22,
+            markers=[dict(family='nearby_hulk_dock', prompt_id='cinder_hulk_power_restoration',
+                          position=[250, 0, 0]),
+                     dict(family='nearby_belt_bore', prompt_id='cinder_asteroid_field_threading_run',
+                          position=[0, 0, 249])])
+        return sample
+
+    @staticmethod
+    def tutorial_pair():
+        # Exact tutorial namespaces from the archived package baseline18/paid32;
+        # unrelated siblings remain represented and protected in this fixture.
+        before = dict(generation=18, payload=dict(runtime_settings=dict(show_tutorials=True),
+            tutorial_prompts_seen=dict(schema_version=1.0, seen_ids=['cinder_reach_checkpoint_route'])))
+        after = copy.deepcopy(before); after['generation'] = 32
+        after['payload']['tutorial_prompts_seen']['seen_ids'] = [
+            'cinder_asteroid_field_threading_run', 'cinder_hulk_power_restoration',
+            'cinder_reach_checkpoint_route']
+        return before, after
+
+    def tutorial_files(self, tmp):
+        profile = Path(tmp)/'profile'; profile.mkdir()
+        files = native.RaceHomeFiles(profile, Path(tmp))
+        pilot = native.RaceHomePilot()
+        pilot.observe_tutorial_approaches(self.sample())
+        approached = self.approached_sample()
+        pilot.observe_tutorial_approaches(approached)
+        files.baseline_sequence = 1
+        files.observe(approached, pilot)
+        return files, pilot
+
+    def test_archived_tutorial_pair_preserves_exact_observed_approaches_and_all_siblings(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            files, pilot = self.tutorial_files(tmp)
+            before, after = self.tutorial_pair(); files.require_preserved(before, after)
+            self.assertEqual(len(pilot.tutorial_approaches), 2)
+            self.assertNotEqual(pilot.tutorial_approaches[0]['sample']['position'],
+                                self.approached_sample()['position'])
+            self.assertNotIn('tutorial_prompts_seen', files.MUTABLE)
+            # Repeated or stale retained data cannot create new approach evidence.
+            pilot.observe_tutorial_approaches(self.approached_sample())
+            self.assertEqual(len(pilot.tutorial_approaches), 2)
+            for mutate in (
+                lambda p: p['tutorial_prompts_seen']['seen_ids'].remove('cinder_reach_checkpoint_route'),
+                lambda p: p['tutorial_prompts_seen']['seen_ids'].append('unrelated_prompt'),
+                lambda p: p['tutorial_prompts_seen'].update(schema_version=2),
+                lambda p: p['tutorial_prompts_seen'].update(extra=True),
+                lambda p: p['tutorial_prompts_seen']['seen_ids'].reverse(),
+                lambda p: p['tutorial_prompts_seen']['seen_ids'].append('cinder_reach_checkpoint_route'),
+                lambda p: p['runtime_settings'].update(show_tutorials=False)):
+                with self.subTest(mutate=mutate):
+                    changed = copy.deepcopy(after); mutate(changed['payload'])
+                    with self.assertRaises(AssertionError): files.require_preserved(before, changed)
+
+    def test_unavailable_stale_or_out_of_range_actor_samples_cannot_justify_tutorial_additions(self):
+        mutations = (lambda s: s.update(accepted=False), lambda s: s.update(sample_reason='unavailable'),
+            lambda s: s.update(actor_id=99), lambda s: s.update(activated=False),
+            lambda s: s.update(caller_mode=False), lambda s: s.update(piloting=False),
+            lambda s: s.update(enabled=False), lambda s: s.update(cluster_id=0),
+            lambda s: s.update(tick=1), lambda s: s.update(position=[1000, 0, 0]))
+        for mutate in mutations:
+            with self.subTest(mutate=mutate), tempfile.TemporaryDirectory() as tmp:
+                profile = Path(tmp)/'profile'; profile.mkdir()
+                files = native.RaceHomeFiles(profile, Path(tmp)); pilot = native.RaceHomePilot()
+                pilot.observe_tutorial_approaches(self.sample())
+                sample = self.approached_sample(); mutate(sample['tutorial_approach'])
+                pilot.observe_tutorial_approaches(sample)
+                files.baseline_sequence = 1; files.observe(sample, pilot)
+                self.assertEqual(files.expected_tutorial_ids, set())
+                before, after = self.tutorial_pair()
+                with self.assertRaises(AssertionError): files.require_preserved(before, after)
+
+    def test_reapproach_is_rejected_until_actual_walk_clears_reboard_block(self):
+        pilot = native.RaceHomePilot(); pilot.guided_result = dict(done=True)
+        sample = self.sample(); pilot.last_state = sample; pilot.stage = 'walk'
+        sample['reboard_blocked'] = True
+        with self.assertRaisesRegex(AssertionError, 'still-blocked'):
+            pilot.update(sample, 1)
+        pilot.receipts['reboard_clear'] = dict(boarding_distance=8, reboard_blocked=False)
+        with self.assertRaisesRegex(AssertionError, 'still-blocked'):
+            pilot.update(sample, 2)
+        self.assertIsNone(pilot.result)
+
+    def test_actual_race_disk_consumer_checks_all_settlement_and_home_captures(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            profile = Path(tmp)/'profile'; data = profile/'data'; data.mkdir(parents=True)
+            output = Path(tmp)/'out'; output.mkdir()
+            path = data/'mudds_user_data.json'
+            files = native.RaceHomeFiles(profile, output)
+            pilot = native.RaceHomePilot(); pilot.process_identity = (1, 2, 3, 4)
+            pilot.entry_result = dict(guided=True)
+            baseline = self.sample(2, 'countdown')
+            baseline['settlement']['store']['path'] = str(path)
+            document = dict(schema_version=1, generation=1, commit=dict(id='fixture-baseline'), payload={})
+            path.write_text(json.dumps(document)); files.observe(baseline, pilot)
+            paid = self.paid(); paid['settlement']['store']['path'] = str(path)
+            document.update(generation=2, commit=dict(id='fixture-payment'), payload={
+                'game_flow_reward_store': copy.deepcopy(paid['settlement']['record']),
+                files.SLOT: copy.deepcopy(paid['settlement']['terminal'])})
+            path.write_text(json.dumps(document)); pilot.paid_state = paid
+            files.observe(paid, pilot)
+            pilot.settlement_result = dict(complete=True); files.observe(paid, pilot)
+            pilot.home_result = dict(complete=True); files.observe(paid, pilot)
+            self.assertTrue(pilot.file_home)
+            self.assertEqual(set(files.snapshots), {'baseline', 'paid', 'stable', 'home'})
+            del files.snapshots['home']
+            document['payload'][files.SLOT]['activities'][0]['reward_granted'] = False
+            path.write_text(json.dumps(document))
+            with self.assertRaisesRegex(AssertionError, 'independent actual file'):
+                files.observe(paid, pilot)
+
+    def test_ui_zero_exit_and_independent_home_file_are_required(self):
+        pilot = native.RaceHomePilot()
+        for code in (0, 1):
+            with self.assertRaises(AssertionError): pilot.finish(code)
+        pilot.home_result = dict(completion_marker=pilot.MARKER)
+        pilot.quit_requested = True; pilot.stage = 'quit_wait'
+        pilot.receipts['exit_ui'] = dict(sequence=999)
+        with self.assertRaises(AssertionError): pilot.finish(0)
+        pilot.file_home = True
+        with self.assertRaises(AssertionError): pilot.finish(1)
+        pilot.finish(0)
+        self.assertEqual(pilot.result['completion_marker'], 'NATIVE_RACE_HOME_OK')
+
+    def test_existing_home_behavior_defaults_and_race_prerequisite_are_preserved(self):
+        self.assertEqual(native.BeaconHomePilot.HOME_RETURN_PHASES, ('RETURN_TO_YARD',))
+        self.assertEqual(native.BeaconHomePilot.HOME_CLEARANCE_PHASE, 'TARGET_PRACTICE')
+        self.assertTrue(native.BeaconHomePilot.HOME_RANGE_REQUIRED)
+        pilot = native.RaceHomePilot()
+        with self.assertRaisesRegex(AssertionError, 'countdown'):
+            pilot.validate_observation(self.sample(1, 'countdown'))
+        self.assertEqual(native.RaceHomeFiles.SLOT, 'cinder_timed_race_session')
+        self.assertNotIn('cinder_beacon_session', native.RaceHomeFiles.MUTABLE)
+
+
 if __name__ == '__main__':
     unittest.main()

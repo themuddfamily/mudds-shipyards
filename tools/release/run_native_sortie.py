@@ -7,6 +7,7 @@ Use --route cinder-supply for the full first funded Jovian/Cinder terminal/home 
 Use --route beacon-entry for normal Torrent departure and actual first Beacon HUD start.
 Use --route beacon-settlement to continue through all four beacons and durable settlement.
 Use --route beacon-home to retain payment through genuine Guided combat, home dock and usable exit.
+Use --route race-home for genuine Guided prerequisite, same-Torrent timed race, durable payment and home/UI exit.
 Use --route arrow-return-reuse for one Arrow precision hit, two home exits and normal UI quit.
 Use --route courier-withdraw-distance for actual seven-second distance withdrawal and original Guided home.
 Use --route courier-withdraw-phase for a post-dispatch defender kill and real phase withdrawal through home.
@@ -1776,6 +1777,9 @@ class BeaconHomePilot(BeaconSettlementPilot):
     """Accepted Beacon payment followed by the ordinary Guided home journey."""
     MODE = 'beacon-home'
     HOME_MARKER = 'NATIVE_BEACON_HOME_OK'
+    HOME_RETURN_PHASES = ('RETURN_TO_YARD',)
+    HOME_CLEARANCE_PHASE = 'TARGET_PRACTICE'
+    HOME_RANGE_REQUIRED = True
     GUIDED_STAGES = frozenset(('range', 'interceptor', 'return_align', 'return'))
 
     def __init__(self):
@@ -1964,7 +1968,7 @@ class BeaconHomePilot(BeaconSettlementPilot):
         dx = dy = 0
         speed = norm(s['velocity'])
         if self.stage in ('beacon_home_clearance', 'beacon_home_clearance_exit', 'beacon_home_range_staging'):
-            require(phase == 'TARGET_PRACTICE' and s['piloted'] and s['seated']
+            require(phase == self.HOME_CLEARANCE_PHASE and s['piloted'] and s['seated']
                     and not s['landed'] and s['lease_free'], 'ordinary paid flight back to the still-live Guided range')
             target = home[{'beacon_home_clearance': 'range_clearance',
                            'beacon_home_clearance_exit': 'range_clearance_exit',
@@ -1992,12 +1996,16 @@ class BeaconHomePilot(BeaconSettlementPilot):
                     self.receipts['home_clearance_exit'] = s
                     self.enter('beacon_home_range_staging', s)
                 else:
-                    require(len(s['targets']) == 4 and s['destroyed_targets'] == 0 and not s['opponent_active'],
-                            'actual physical range staging precedes all four genuine range kills')
+                    if self.HOME_RANGE_REQUIRED:
+                        require(len(s['targets']) == 4 and s['destroyed_targets'] == 0 and not s['opponent_active'],
+                                'actual physical range staging precedes all four genuine range kills')
+                    else:
+                        require(s['guided_complete'] and s['destroyed_targets'] == 4 and not s['opponent_active'],
+                                'genuine prior Guided victory retained during safe race return')
                     self.receipts['home_range_staging'] = s
-                    self.enter('range', s)
+                    self.enter('range' if self.HOME_RANGE_REQUIRED else 'return_align', s)
         elif self.stage == 'beacon_home_align':
-            require(phase == 'RETURN_TO_YARD' and self.shot and self.fired
+            require(phase in self.HOME_RETURN_PHASES and self.shot and self.fired
                     and s['destroyed_targets'] == 4 and not s['opponent_active']
                     and s['piloted'] and s['seated'] and not s['landed'] and s['lease_free'],
                     'real Guided combat victory admits the ordinary home landing')
@@ -2096,6 +2104,351 @@ class BeaconHomePilot(BeaconSettlementPilot):
         else:
             require(False, 'known ordinary Beacon home stage')
         return keys, dx, dy, False
+
+
+class RaceHomePilot(BeaconHomePilot):
+    """Genuine Guided prerequisite, then same-Torrent timed race and strict home."""
+    MODE = 'race-home'
+    HOME_MARKER = MARKER = 'NATIVE_RACE_HOME_OK'
+    ACTIVITY = 'cinder_reach_checkpoint_route'
+    REWARD = 'return_race_record_to_shipyard'
+    HOME_RETURN_PHASES = ('FREE_FLIGHT',)
+    HOME_CLEARANCE_PHASE = 'FREE_FLIGHT'
+    HOME_RANGE_REQUIRED = False
+    POINTS = [[16, -9, -240], [32, -26, -372], [46, -44, -498],
+              [30, -46, -600], [60, -70, -700]]
+
+    def __init__(self):
+        super().__init__()
+        self.raw_sequence = -1
+        self.raw_previous = None
+        self.race_identity = None
+        self.countdown = self.active = None
+        self.gates = []
+        self.guided_result = self.home_result = None
+        self.quit_requested = False
+        self.file_home = False
+        self.race_braking = False
+        self.clear_target = self.clear_started = self.clear_previous = None
+        self.tutorial_binding = self.tutorial_tick = None
+        self.tutorial_approaches = []
+
+    @classmethod
+    def require_paid(cls, s):
+        settlement = s['settlement']
+        record, terminal = settlement['record'], settlement['terminal']
+        receipt = record['last_receipt']
+        require(record == {'schema_version': 1, 'payload_kind': 'game_flow_reward_store',
+                          'authority_id': 'game_flow_reward_authority', 'store_id': 'game_flow_reward_store',
+                          'receipt_serial': 1, 'total_receipts': 1, 'reward_counts': {cls.REWARD: 1},
+                          'last_receipt': receipt}
+                and receipt.get('reward_label') == 'Race record accepted',
+                'exact production race reward ledger namespace and player-visible record')
+        require(record['receipt_serial'] == record['total_receipts'] == 1
+                and record['reward_counts'] == {cls.REWARD: 1}
+                and receipt['receipt_id'] == 1 and receipt['activity_id'] == cls.ACTIVITY
+                and receipt['activity_generation'] == 1 and receipt['reward_id'] == cls.REWARD
+                and receipt['granted'] is True and receipt['replay_allowed'] is False,
+                'exact once-only generation-one production race receipt')
+        require(terminal['schema_version'] == 1 and len(terminal['activities']) == 1,
+                'one actual timed race persisted session')
+        entry = terminal['activities'][0]
+        state = entry['progress']['session_state']
+        require(entry['activity_id'] == cls.ACTIVITY and entry['generation'] == 1
+                and entry['state'] == 3 and entry['reward_requested'] is True
+                and entry['reward_granted'] is True
+                and state == s['race']['capture'] and state['session_generation'] == 1
+                and state['activity_state']['state'] == 2
+                and state['activity_state']['next_checkpoint_index'] == 5
+                and state['race_state']['state'] == 3
+                and 0 < state['race_state']['last_time_seconds'] < 120,
+                'actual completed five-gate race capture atomically acknowledges payment')
+        handoff = settlement['handoff']
+        require(set(handoff) == {'accepted', 'reason', 'reward_request', 'callback'}
+                and handoff['accepted'] is True and handoff['reason'] == 'reward_request_committed',
+                'actual direct race adapter handoff contains its committed request and callback')
+        request, callback = handoff['reward_request'], handoff['callback']
+        require(request == {'activity_id': cls.ACTIVITY, 'activity_generation': 1,
+                            'reward_id': cls.REWARD, 'reward_authority': False, 'granted': False}
+                and request['reward_authority'] is False and request['granted'] is False,
+                'exact generation-one race request delegates payment to the production authority')
+        require(isinstance(callback, dict)
+                and set(callback) == {'accepted', 'reason', 'reward_authority_id', 'reward_store_id',
+                                      'granted', 'store_generation', 'receipt'}
+                and callback['accepted'] is True and callback['granted'] is True
+                and callback['reason'] == 'reward_receipt_committed'
+                and callback['reward_authority_id'] == record['authority_id']
+                and callback['reward_store_id'] == record['store_id']
+                and type(callback['store_generation']) is int
+                and 0 < callback['store_generation'] <= settlement['store']['generation']
+                and callback['receipt'] == receipt,
+                'actual race authority callback committed the exact durable receipt and store identity')
+
+    def observe_tutorial_approaches(self, s):
+        sample = s['tutorial_approach']
+        tick, binding = sample['tick'], sample['binding_id']
+        previous = self.tutorial_tick
+        if self.tutorial_binding is None and binding:
+            self.tutorial_binding = binding
+        require(not binding or binding == self.tutorial_binding, 'same retained tutorial streaming sample owner')
+        if not binding: return
+        require(previous is None or tick >= previous, 'retained tutorial caller ticks never regress')
+        self.tutorial_tick = tick
+        # Early binding rejections retain old fields. Only a newly completed
+        # caller tick may authorize an approach from that retained position.
+        if previous is None or tick <= previous or s['paused']: return
+        if not (binding and sample['activated'] and sample['caller_mode'] and sample['accepted']
+                and sample['sample_reason'] == 'available' and sample['actor_id'] == s['ship_id']
+                and sample['piloting'] and sample['enabled'] and sample['cluster_id']): return
+        require(sample['range'] == 250 and len(sample['position']) == 3
+                and all(math.isfinite(v) for v in sample['position']),
+                'actual finite accepted tutorial actor sample and unchanged approach radius')
+        families = {'nearby_hulk_dock': 'cinder_hulk_power_restoration',
+                    'nearby_belt_bore': 'cinder_asteroid_field_threading_run'}
+        for marker in sample['markers']:
+            require(families.get(marker['family']) == marker['prompt_id']
+                    and len(marker['position']) == 3 and all(math.isfinite(v) for v in marker['position']),
+                    'actual first resident destination marker maps to its production briefing')
+            if (norm(sub(sample['position'], marker['position'])) <= sample['range']
+                    and marker['prompt_id'] not in {r['prompt_id'] for r in self.tutorial_approaches}):
+                self.tutorial_approaches.append({'sequence': s['sequence'], 'sample': sample,
+                                                 'marker': marker, 'prompt_id': marker['prompt_id']})
+
+    def validate_observation(self, s):
+        require(s.get('mode') == self.MODE and s['sequence'] > self.raw_sequence,
+                'every fresh race raw observation validated, including coalesced samples')
+        identity = tuple(s[k] for k in ('pid', 'main_id', 'player_id', 'ship_id'))
+        require(all(identity), 'current process Main Player and original Torrent')
+        if self.process_identity is None: self.process_identity = identity
+        require(identity == self.process_identity, 'same race process and physical actors throughout')
+        race = s['race']; snapshot = race['snapshot']; capture = race['capture']
+        owners = tuple(race[k] for k in ('owner_id', 'clock_id', 'director_id'))
+        reward_owners = tuple(s['settlement'][k] for k in ('authority_id', 'store_id'))
+        require(all(owners) and all(reward_owners), 'live Main timed race director clock and reward owners')
+        if self.race_identity is None:
+            self.race_identity = owners
+            self.settlement_identity = reward_owners
+        require(owners == self.race_identity and reward_owners == self.settlement_identity,
+                'exact original timed race and reward owners, never the streamed progress fixture')
+        require(race['selected_kind'] == 'timed_race' and snapshot['attached']
+                and not snapshot['closed'] and snapshot['activity_id'] == self.ACTIVITY
+                and race['route_path'] == 'res://assets/activities/cinder_reach_checkpoint_route.tres'
+                and race['points'] == self.POINTS and race['radius'] == 32
+                and capture['configured_laps'] == 1
+                and capture['configured_countdown_seconds'] == 2
+                and capture['configured_timeout_seconds'] == 120
+                and s['physics_ticks'] == 60 and s['time_scale'] == 1,
+                'unchanged actual authored five 32m gates and production 2s/120s clock')
+        require(s['settlement']['configured'] and s['settlement']['store']['source'] == 'primary',
+                'actual configured primary production reward store')
+        if s['paused']:
+            require(self.stage in ('pause', 'quit_wait') and self.home_result is not None,
+                    'race pauses only for normal final UI exit')
+        else:
+            require(s['default_sampler'] and s['tuning_unchanged'] and not s['destroyed']
+                    and s['phase'] not in ('FAILED', 'RECOVERING'),
+                    'ordinary unchanged live race controls without recovery')
+            self.observe_home_identity(s)
+            if self.raw_previous is not None:
+                require(s['frame'] > self.raw_previous['frame'], 'advancing actual race physics')
+            if self.stage == 'race_reboard_clear':
+                home = s['home']
+                require(home['grounded'] and home['supported'] and home['support_collider']
+                        and home['capsule_enabled'] and s['control_enabled'] and not s['seated'],
+                        'every actual clearance-walk sample has supported ordinary controls')
+                frames = s['frame']-self.raw_previous['frame']
+                require(norm(sub(s['player'], self.raw_previous['player']))
+                        <= (home['walk_tuning']['sprint']/60*1.25+.02)*frames,
+                        'every actual clearance-walk sample moves continuously')
+        state = snapshot['state_id']
+        if self.countdown is None and state == 'idle':
+            require(snapshot['session_generation'] == snapshot['activity_generation']
+                    == snapshot['race_generation'] == 0 and not self.gates,
+                    'race stays genuinely fresh throughout required Guided prerequisite')
+            self.require_zero(s)
+        else:
+            require(state in ('countdown', 'active', 'completed')
+                    and snapshot['session_generation'] == snapshot['activity_generation']
+                    == snapshot['race_generation'] == race['active_generation'] == 1
+                    and race['active_id'] == self.ACTIVITY
+                    and race['director']['generation'] == capture['session_generation'] == 1
+                    and snapshot['penalty_seconds'] == 0 and not snapshot['failure_reason'],
+                    'single actual automatic generation-one race without reset failure or penalties')
+            if self.countdown is None:
+                require(state == 'countdown' and self.guided_result is not None
+                        and 2-2/60-1e-6 <= snapshot['countdown_remaining_seconds'] <= 2,
+                        'observe actual initial production countdown after same-Torrent ordinary re-departure')
+                self.countdown = s
+                self.entry_result = self.guided_result
+                self.receipts['settlement_baseline'] = s
+            previous_snapshot = self.raw_previous['race']['snapshot'] if self.raw_previous is not None else {}
+            if previous_snapshot.get('state_id') == 'countdown' and not s['paused']:
+                remaining = max(0, previous_snapshot['countdown_remaining_seconds']
+                                - (s['frame']-self.raw_previous['frame'])/60)
+                require(math.isclose(snapshot['countdown_remaining_seconds'], remaining, abs_tol=1e-5),
+                        'actual countdown consumes only the unchanged production physics clock')
+            if state == 'countdown':
+                require(snapshot['next_checkpoint_index'] == 0 and not self.gates
+                        and snapshot['current_time_seconds'] == 0,
+                        'production countdown never consumes early checkpoint overlaps')
+            elif self.active is None:
+                require(s['frame']-self.countdown['frame'] >= 118
+                        and snapshot['countdown_remaining_seconds'] == 0,
+                        'full actual two-second physics countdown precedes active race')
+                self.active = s
+            cursor = race['director']['next_checkpoint_index']
+            require(cursor in (len(self.gates), len(self.gates)+1) and 0 <= cursor <= 5,
+                    'all five physical checkpoint transitions observed in order without skips')
+            if cursor > len(self.gates):
+                require(state in ('active', 'completed') and not s['paused']
+                        and s['phase'] == 'FREE_FLIGHT' and s['piloted'] and s['seated']
+                        and s['active_ship'] and s['lease_free'] and not s['landed']
+                        and norm(sub(s['position'], race['points'][cursor-1])) <= 32,
+                        'same actual departed Torrent physically crosses each production 32m gate')
+                self.gates.append(s)
+                self.race_braking = False
+            if state == 'completed':
+                require(len(self.gates) == 5 and snapshot['progress_unitless'] == 1
+                        and 0 < snapshot['last_time_seconds'] < 120,
+                        'all five actual timed checkpoints completed within unchanged 120s')
+                self.require_paid(s)
+            else:
+                self.require_zero(s)
+                require(snapshot['current_time_seconds'] < 120, 'original race timeout remains binding')
+        if self.paid_state is not None:
+            self.require_paid(s)
+            require(all(s['settlement'][k] == self.paid_state['settlement'][k]
+                        for k in ('record', 'terminal', 'handoff')),
+                    'exact race reward and terminal persist through usable home and UI exit')
+        self.observe_tutorial_approaches(s)
+        self.raw_sequence = s['sequence']
+        self.raw_previous = self.last_state = s
+
+    def update_home(self, s, now, frames):
+        if self.stage == 'beacon_home_shutdown' and (s['flight_demand'] or s['telemetry']['engine'] != 'OFFLINE'):
+            self.home_shutdown_frame = s['frame']
+        return super().update_home(s, now, frames)
+
+    def update(self, s, now):
+        require(self.last_state is s, 'latest race observation already independently validated')
+        self.frame = s['frame']
+        if self.stage in ('pause', 'quit_wait'):
+            return ArrowReturnReusePilot.ui_update(self, s, now)
+        if self.settlement_result is not None:
+            controls = super().update(s, now)
+            if self.result is not None:
+                self.home_result = self.result
+                self.home_result['scope'] = 'genuine Guided prerequisite, same-Torrent timed five-gate race, durable payment, strict home and supported exit walk'
+                self.result = None
+                self.enter('pause', s)
+                self.ui_key = None; self.ui_release_until = 0
+            return controls
+        if not self.phases or self.phases[-1] != s['phase']: self.phases.append(s['phase'])
+        self.sequence = s['sequence']
+        if self.guided_result is None:
+            controls = Pilot.update(self, s, now)
+            if self.result is not None:
+                self.guided_result = self.result; self.result = None
+                self.receipts['guided_exit'] = s
+                self.enter('race_reboard_release', s)
+            return controls
+        if self.stage == 'race_reboard_release':
+            # Preserve the first ordinary E's full physical release before walking/reboarding.
+            controls = Pilot.update(self, s, now)
+            if self.tap_key is None and not s['native_interact']:
+                require(s['home']['supported'] and s['home']['grounded'], 'supported Guided prerequisite exit')
+                off = sub(s['player'], s['boarding']); off[1] = 0
+                require(norm(off) > .1 and s['reboard_blocked'] and s['boarding_reach'] == 7,
+                        'actual blocked same-Torrent physical exit before walking away')
+                self.clear_target = [p+4*d for p, d in zip(s['player'], unit(off))]
+                self.clear_started = now; self.clear_previous = s
+                self.enter('race_reboard_clear', s)
+            return controls
+        if self.stage == 'race_reboard_clear':
+            keys = set()
+            frames = s['frame']-self.clear_previous['frame']
+            require(0 < frames and now-self.clear_started <= 12,
+                    'ordinary same-Torrent supported reboard-clear walk within 12 seconds')
+            home = s['home']
+            require(home['grounded'] and home['supported'] and home['support_collider']
+                    and not s['seated'] and s['control_enabled'] and not s['transition_busy'],
+                    'actual supported walking throughout reboard clearance')
+            step = norm(sub(s['player'], self.clear_previous['player']))
+            require(step <= (home['walk_tuning']['sprint']/60*1.25+.02)*frames,
+                    'continuous ordinary reboard-clear walking without placement')
+            dx, reached = HulkHomePilot.home_walk_to(self, s, self.clear_target, keys, frames, home=home)
+            self.clear_previous = s
+            if reached:
+                require(s['boarding_reach'] == 7 and s['boarding_distance'] > 7 and not s['reboard_blocked'],
+                        'ordinary walk away beyond actual 7m threshold released production reboard block')
+                self.receipts['reboard_clear'] = s
+                self.enter('walk', s)
+            if self.mouse_pending is not None:
+                if norm(sub(s['walk_forward'], self.mouse_pending)) < .00001: dx = 0
+                else: self.mouse_pending = None
+            if dx: self.mouse_pending = s['walk_forward'][:]
+            return keys, dx, 0, False
+        if self.stage in ('walk', 'board'):
+            require('reboard_clear' in self.receipts and not s['reboard_blocked'],
+                    'never walk toward or board the still-blocked same Torrent')
+            controls = Pilot.update(self, s, now)
+            if self.stage == 'launch':
+                self.enter('race_launch', s)
+                self.home_braking = False
+            return controls
+        require(not s['paused'] and s['piloted'] and s['seated'] and s['active_ship'],
+                'ordinary actual same-Torrent race pilot')
+        keys = set()
+        dx = dy = 0
+        if self.stage == 'race_launch':
+            dx, dy, reached = self.home_fly_to(s, [0, 8, -78], keys)
+            if reached:
+                require(s['phase'] == 'FREE_FLIGHT' and self.countdown is not None,
+                        'ordinary same-Torrent free-flight departure starts real timed session')
+                self.enter('race_flight', s)
+        elif self.stage == 'race_flight':
+            if s['race']['snapshot']['state_id'] == 'completed':
+                self.paid_state = s
+                self.receipts['settlement_paid'] = s
+                self.enter('race_stable', s)
+                keys.add('Prior')
+            else:
+                cursor = len(self.gates)
+                require(cursor < 5, 'next actual physical timed race gate')
+                # Reuse the accepted ordinary beacon navigation's braking law.
+                off = sub(s['race']['points'][cursor], s['position'])
+                speed, distance = norm(s['velocity']), norm(off)
+                dx, dy, align = self.aim(s, [a+b for a, b in zip(s['camera'], off)])
+                stopping = speed*speed/(2*s['tuning']['brake']) + speed*.18
+                if distance < stopping+10: self.race_braking = True
+                if speed <= .45 and distance > 10: self.race_braking = False
+                if distance <= 10 or self.race_braking: keys.add('Prior')
+                elif align > .72: keys.add('w')
+        elif self.stage == 'race_stable':
+            keys.add('Prior')
+            if s['frame']-self.paid_state['frame'] >= 60:
+                self.receipts['settlement_stable'] = s
+                self.settlement_result = {'countdown': self.countdown, 'active': self.active,
+                    'physical_gates': self.gates, 'paid': self.paid_state, 'guided_prerequisite': self.guided_result}
+                self.home_previous = s
+                self.home_native_previous = {'l': s['home']['native_land'], 'e': s['home']['native_interact']}
+                require(not any(self.home_native_previous.values()), 'released keys before strict race home')
+                self.tap_key = None; self.mouse_pending = None
+                self.enter('beacon_home_clearance', s)
+        else:
+            require(False, 'known complete ordinary race stage')
+        if self.mouse_pending is not None:
+            if norm(sub(s['back'], self.mouse_pending)) < .00001: dx = dy = 0
+            else: self.mouse_pending = None
+        if dx or dy: self.mouse_pending = s['back'][:]
+        return keys, dx, dy, False
+
+    def finish(self, code):
+        require(code == 0 and self.quit_requested and self.stage == 'quit_wait'
+                and self.home_result is not None and self.file_home,
+                'race succeeds only after supported home and actual normal UI OS exit zero')
+        self.result = self.home_result
+        self.result['normal_ui_exit'] = self.receipts['exit_ui']
 
 
 class HulkArrivalPilot(Pilot):
@@ -2648,8 +3001,8 @@ class HulkHomePilot(HulkBreakerPilot):
                 'samples': self.home_header_samples,
             }
 
-    def home_walk_to(self, s, target, keys, frames):
-        home = s['hulk_home']
+    def home_walk_to(self, s, target, keys, frames, home=None):
+        home = s['hulk_home'] if home is None else home
         tuning = home['walk_tuning']
         off = sub(target, s['player'])
         off[1] = 0
@@ -3792,6 +4145,7 @@ class HabitatRestartFiles:
 
 
 class BeaconSettlementFiles(HabitatRestartFiles):
+    SLOT = 'cinder_beacon_session'
     MUTABLE = HabitatRestartFiles.MUTABLE | {'cinder_beacon_session', 'game_flow_reward_store'}
 
     def observe(self, s, pilot):
@@ -3802,7 +4156,7 @@ class BeaconSettlementFiles(HabitatRestartFiles):
         elif pilot.paid_state is not None and 'paid' not in self.snapshots: label = 'paid'
         elif 'stable' not in self.snapshots and (pilot.result is not None
                 or getattr(pilot, 'settlement_result', None) is not None): label = 'stable'
-        elif isinstance(pilot, BeaconHomePilot) and pilot.result is not None and 'home' not in self.snapshots: label = 'home'
+        elif isinstance(pilot, BeaconHomePilot) and (pilot.result is not None or getattr(pilot, 'home_result', None) is not None) and 'home' not in self.snapshots: label = 'home'
         if label is None: return
         settlement = s['settlement']
         document = self.capture(label, settlement['store'])
@@ -3814,7 +4168,7 @@ class BeaconSettlementFiles(HabitatRestartFiles):
             pilot.require_zero(s)
             ledger_matches = True
         require(ledger_matches
-                and payload.get('cinder_beacon_session', {}) == settlement['terminal'],
+                and payload.get(self.SLOT, {}) == settlement['terminal'],
                 'independent actual file exactly matches live reward record and terminal')
         if label == 'baseline':
             pilot.require_zero(s)
@@ -3824,12 +4178,64 @@ class BeaconSettlementFiles(HabitatRestartFiles):
             if label in ('stable', 'home'):
                 paid = self.snapshots['paid']['document']['payload']
                 require(payload['game_flow_reward_store'] == paid['game_flow_reward_store']
-                        and payload['cinder_beacon_session'] == paid['cinder_beacon_session'],
+                        and payload[self.SLOT] == paid[self.SLOT],
                         'independent actual disk retains the same once-only receipt and paid terminal')
                 if label == 'home':
                     stable = self.snapshots['stable']['document']['payload']
-                    require(all(payload[key] == stable[key] for key in ('game_flow_reward_store', 'cinder_beacon_session')),
+                    require(all(payload[key] == stable[key] for key in ('game_flow_reward_store', self.SLOT)),
                             'final home file retains the independently checked stable settlement')
+
+
+class RaceHomeFiles(BeaconSettlementFiles):
+    SLOT = 'cinder_timed_race_session'
+    MUTABLE = HabitatRestartFiles.MUTABLE | {SLOT, 'game_flow_reward_store'}
+
+    def __init__(self, profile, output):
+        super().__init__(profile, output)
+        self.baseline_sequence = None
+        self.expected_tutorial_ids = set()
+
+    def observe(self, s, pilot):
+        if self.baseline_sequence is not None:
+            self.expected_tutorial_ids.update(r['prompt_id'] for r in pilot.tutorial_approaches
+                                             if r['sequence'] > self.baseline_sequence)
+        super().observe(s, pilot)
+        if self.baseline_sequence is None and 'baseline' in self.snapshots:
+            self.baseline_sequence = s['sequence']
+        pilot.file_home = 'home' in self.snapshots
+
+    def require_preserved(self, before, after):
+        key = 'tutorial_prompts_seen'
+        protected_before, protected_after = self.protected(before), self.protected(after)
+        if key not in protected_before and key not in protected_after and not self.expected_tutorial_ids:
+            return super().require_preserved(before, after)
+        def seen(payload):
+            value = payload.get(key)
+            require(isinstance(value, dict) and set(value) == {'schema_version', 'seen_ids'}
+                    and type(value['schema_version']) in (int, float) and value['schema_version'] == 1
+                    and isinstance(value['seen_ids'], list)
+                    and all(isinstance(v, str) and re.fullmatch('[a-z0-9_]{1,64}', v) for v in value['seen_ids'])
+                    and len(value['seen_ids']) <= 64
+                    and value['seen_ids'] == sorted(set(value['seen_ids'])),
+                    'exact schema-one sorted unique tutorial seen namespace')
+            return value['seen_ids']
+        before_ids, after_ids = seen(protected_before), seen(protected_after)
+        require(after_ids == sorted(set(before_ids) | self.expected_tutorial_ids),
+                'tutorial seen IDs equal preserved baseline union exact observed resident-site approaches')
+        del protected_before[key]; del protected_after[key]
+        require(protected_before == protected_after,
+                'every unrelated actual-file sibling remains unchanged beside justified tutorial additions')
+        require(after['generation'] >= before['generation'], 'actual-file generations never regress')
+
+    def finish(self, s, pilot):
+        require(pilot.file_home, 'independent actual race home file precedes UI shutdown')
+        closed = self.capture('orderly-close', s['settlement']['store'])
+        home = self.snapshots['home']['document']
+        self.require_preserved(home, closed)
+        self.require_orderly(closed, home)
+        require(all(closed['payload'][k] == home['payload'][k]
+                    for k in (self.SLOT, 'game_flow_reward_store')),
+                'normal UI shutdown preserves the actual once-only race record and acknowledged terminal')
 
 
 class HabitatRestartPilot(HabitatLoopPilot):
@@ -6217,7 +6623,7 @@ class CinderSupplyFiles(HabitatRestartFiles):
                 else: pilot.file_home = True
 
 def run(binary, output, route="guided", qualify_beacon_outbound=False):
-    require(route in ("heavy-breach", "bomber-rearm", "cinder-supply", "arrow-return-reuse", "guided", "courier-intercept", "courier-escape", "courier-withdraw-phase", "courier-withdraw-distance", "beacon-entry", "beacon-settlement", "beacon-home", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
+    require(route in ("race-home", "heavy-breach", "bomber-rearm", "cinder-supply", "arrow-return-reuse", "guided", "courier-intercept", "courier-escape", "courier-withdraw-phase", "courier-withdraw-distance", "beacon-entry", "beacon-settlement", "beacon-home", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
     require(not qualify_beacon_outbound or route == 'beacon-home',
             'outbound timing qualification requires the full beacon-home route')
     output.mkdir(parents=True, exist_ok=False)
@@ -6280,7 +6686,8 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False):
                 result.update(arguments=args, display=env['DISPLAY'], xvfb_pid=xvfb.pid,
                               binary_sha256=hashlib.file_digest(binary.open('rb'),'sha256').hexdigest())
                 breach_files = HeavyBreachFiles(profile, output) if route == 'heavy-breach' else None
-                settlement_files = (CinderSupplyFiles(profile, output) if route == 'cinder-supply' else
+                settlement_files = (RaceHomeFiles(profile, output) if route == 'race-home' else
+                                    CinderSupplyFiles(profile, output) if route == 'cinder-supply' else
                                     BeaconSettlementFiles(profile, output) if route in ('beacon-settlement', 'beacon-home') else None)
                 restart_files = HabitatRestartFiles(profile, output) if route == 'habitat-restart' else None
                 result['game_legs'] = []
@@ -6314,7 +6721,7 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False):
                     leg_result['window'] = hex(window)
                     desktop.focus(window)
                     pilot = HabitatRestartPilot(cold=bool(leg)) if restart_files else {
-                        "heavy-breach": HeavyBreachPilot, "bomber-rearm": BomberRearmPilot, "cinder-supply": CinderSupplyPilot, "arrow-return-reuse": ArrowReturnReusePilot, "guided": Pilot, "courier-intercept": CourierPilot, "courier-escape": CourierEscapePilot, "courier-withdraw-phase": CourierWithdrawPhasePilot, "courier-withdraw-distance": CourierWithdrawDistancePilot, "beacon-entry": BeaconEntryPilot, "beacon-settlement": BeaconSettlementPilot, "beacon-home": BeaconHomePilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
+                        "race-home": RaceHomePilot, "heavy-breach": HeavyBreachPilot, "bomber-rearm": BomberRearmPilot, "cinder-supply": CinderSupplyPilot, "arrow-return-reuse": ArrowReturnReusePilot, "guided": Pilot, "courier-intercept": CourierPilot, "courier-escape": CourierEscapePilot, "courier-withdraw-phase": CourierWithdrawPhasePilot, "courier-withdraw-distance": CourierWithdrawDistancePilot, "beacon-entry": BeaconEntryPilot, "beacon-settlement": BeaconSettlementPilot, "beacon-home": BeaconHomePilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
                         "hulk-arrival": HulkArrivalPilot, "hulk-breaker": HulkBreakerPilot,
                         "hulk-home": HulkHomePilot, "habitat-loop": HabitatLoopPilot, "life-tow": LifeTowPilot, "life-gantry": lambda: LifeTowPilot("life-gantry"), "life-arm": lambda: LifeTowPilot("life-arm"), "life-patrol": lambda: LifeTowPilot("life-patrol")}[route]()
                     if isinstance(pilot, BeaconHomePilot): pilot.file_snapshots = settlement_files.snapshots
@@ -6326,7 +6733,7 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False):
                         with (output/'game.log').open('ab') as log:
                             while pilot.result is None:
                                 if game.poll() is not None:
-                                    if isinstance(pilot, (ArrowReturnReusePilot, CinderSupplyPilot, HeavyBreachPilot)):
+                                    if isinstance(pilot, (ArrowReturnReusePilot, CinderSupplyPilot, HeavyBreachPilot, RaceHomePilot)):
                                         require(pilot.quit_requested, 'native process exits only after normal UI request')
                                         drain_game_output(game, output/'game.log')
                                         tail = (output/'game.log').read_bytes().splitlines()
@@ -6335,6 +6742,7 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False):
                                                 pilot.validate_observation(observation)
                                                 if breach_files: breach_files.observe(observation, pilot)
                                         pilot.finish(game.wait())
+                                        if isinstance(pilot, RaceHomePilot): settlement_files.finish(pilot.last_state, pilot)
                                         if breach_files: breach_files.finish()
                                         leg_result.update(exit_code=0, reaped=True, normal_ui_exit=True)
                                         break
@@ -6361,7 +6769,7 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False):
                                             received_at = time.monotonic()
                                             for observation in observations:
                                                 outbound_timing.observe(observation, received_at)
-                                        if isinstance(pilot, (BomberRearmPilot, LifeTowPilot, ArrowReturnReusePilot, CinderSupplyPilot, HeavyBreachPilot)):
+                                        if isinstance(pilot, (BomberRearmPilot, LifeTowPilot, ArrowReturnReusePilot, CinderSupplyPilot, HeavyBreachPilot, RaceHomePilot)):
                                             for observation in observations:
                                                 pilot.validate_observation(observation)
                                                 if breach_files: breach_files.observe(observation, pilot)
@@ -6538,8 +6946,8 @@ def main():
     parser.add_argument('--output',required=True,type=Path)
     parser.add_argument('--qualify-beacon-outbound', action='store_true',
                         help='qualify the fixed 60.0s outbound monotonic maximum within the unchanged full beacon-home route')
-    parser.add_argument('--route', choices=('heavy-breach', 'bomber-rearm', 'cinder-supply', 'arrow-return-reuse', 'guided', 'courier-intercept', 'courier-escape', 'courier-withdraw-phase', 'courier-withdraw-distance', 'beacon-entry', 'beacon-settlement', 'beacon-home', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
-                        help='heavy-breach completes real posted Heavy/picket kill/payment/home/next posting/UI exit; courier-withdraw-distance flies beyond all actual contacts for real seven-second grace withdrawal before original defender and home; courier-withdraw-phase kills the original defender after actual first courier dispatch and verifies phase withdrawal/standdown through home; courier-escape lets the actual first live runner escape and verifies standdown through home; courier-intercept destroys the actual first courier before escape then returns home; beacon-home retains payment through genuine Guided combat, home docking and usable exterior walking; cinder-supply flies the full funded Jovian/Cinder terminal/home journey; beacon-settlement continues the accepted entry through four physical beacons and durable reward; beacon-entry departs normally and physically reaches/starts the first Beacon through actual pause controls; life-patrol walks Habitat through the real door beside patrol drones and boards Torrent; life-arm walks Aft stairs past the live service arm and boards Zenith; life-gantry walks Freight past the live gantry and boards Jovian; life-tow walks Central beside live tow service and boards Torrent; hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
+    parser.add_argument('--route', choices=('race-home', 'heavy-breach', 'bomber-rearm', 'cinder-supply', 'arrow-return-reuse', 'guided', 'courier-intercept', 'courier-escape', 'courier-withdraw-phase', 'courier-withdraw-distance', 'beacon-entry', 'beacon-settlement', 'beacon-home', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
+                        help='race-home completes the genuine Guided prerequisite then same-Torrent timed race, exact durable reward, strict home and normal UI exit; heavy-breach completes real posted Heavy/picket kill/payment/home/next posting/UI exit; courier-withdraw-distance flies beyond all actual contacts for real seven-second grace withdrawal before original defender and home; courier-withdraw-phase kills the original defender after actual first courier dispatch and verifies phase withdrawal/standdown through home; courier-escape lets the actual first live runner escape and verifies standdown through home; courier-intercept destroys the actual first courier before escape then returns home; beacon-home retains payment through genuine Guided combat, home docking and usable exterior walking; cinder-supply flies the full funded Jovian/Cinder terminal/home journey; beacon-settlement continues the accepted entry through four physical beacons and durable reward; beacon-entry departs normally and physically reaches/starts the first Beacon through actual pause controls; life-patrol walks Habitat through the real door beside patrol drones and boards Torrent; life-arm walks Aft stairs past the live service arm and boards Zenith; life-gantry walks Freight past the live gantry and boards Jovian; life-tow walks Central beside live tow service and boards Torrent; hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
     args=parser.parse_args()
     if args.qualify_beacon_outbound and args.route != 'beacon-home':
         parser.error('--qualify-beacon-outbound requires --route beacon-home')
