@@ -129,10 +129,26 @@ hardware/access remain BLOCKED input. This records the remaining planning work;
 it does not claim every goal is executable or deliver gameplay. No implementation
 card or new trial is active. Select no blocked row until its named fields are fixed.
 
-No implementation card is active. COMFORT-MOTION's active damage-cue capability
-is accepted in checkpointb5fa554; do not repeat its unchanged checks or call it
-completion of the wider comfort milestone. The next missing craft remains gated
-on its named specification decision.
+**Active: COMFORT-MOTION[current toast] — apply Reduced motion to the current
+notification.** Source1d73e60d1 leaves an existing toast's fade running when the
+setting changes. Enabling ON must immediately make that same toast fully opaque
+and steady, keeping title/detail/serial/important ownership/queued routine message.
+Dismissal uses the remaining duration of its actual original normal timeline
+(two configured fades plus requested hold, minus actual elapsed), on the same
+clock/pause policy. Repeated ON or OFF→ON cannot extend it; OFF cannot replay it.
+At its deadline, the existing priority queue shows the deferred routine message
+once. A new important message retires the old callback; subsequent toasts follow
+the selected mode. Existing new-reduced-toast timer behavior stays unchanged.
+
+Implementer owns only HUD and the existing accessibility suite. Freeze early and
+late conversion/steady interval/original expiry/repeated toggles/important queue/
+new-important replacement before editing runtime. Root owns expected-old failure,
+focused checks, actual component readback, clean paired checkpoint/strict startup/
+package audit, integration and cleanup. Original17:35Z→18:35Z/60min includes
+selection through closure; first unexpected validation failure stops. The accepted
+active-damage episode remains closed and its regression must still pass. Other
+comfort consumers/devices/final qualification remain open; no new matrix or rows.
+The next missing craft remains gated on its named specification decision.
 
 The Torrent destruction/recovery attempt remains **PARKED / not accepted**.
 A reviewed resolver correction accounted for all100 actual damage, including

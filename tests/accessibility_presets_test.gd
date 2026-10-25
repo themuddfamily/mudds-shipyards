@@ -31,6 +31,7 @@ func _run() -> void:
 	await _test_hud_reticle_styles()
 	await _test_hud_scale_and_motion()
 	await _test_active_damage_reduced_motion_transition()
+	await _test_active_toast_reduced_motion_transition()
 	await _test_hud_captions()
 	_finish()
 
@@ -1065,6 +1066,116 @@ func _test_active_damage_reduced_motion_transition() -> void:
 	hud.flash_damage(1.0, Vector2.UP)
 	_check(is_equal_approx(flash.color.a, GameHUD.DAMAGE_FLASH_ALPHA) and direction.visible,
 		"the next new hit follows the newly selected authored motion mode")
+	hud.queue_free()
+	await process_frame
+	await process_frame
+
+
+func _test_active_toast_reduced_motion_transition() -> void:
+	var hud := GameHUD.new()
+	hud.name = "AccessibilityActiveToastHUD"
+	root.add_child(hud)
+	await process_frame
+	var panel := hud.get("_toast_panel") as PanelContainer
+	var title := hud.get("_toast_title") as Label
+	var detail := hud.get("_toast_detail") as Label
+	# Derive both fades before changing the setting: the authored normal toast
+	# uses get_toast_fade_seconds() for both ends of its actual timeline.
+	var duration := 1.0
+	var normal_total := hud.get_toast_fade_seconds() + duration + hud.get_toast_fade_seconds()
+	hud.toast("Important receipt", "Keep this detail", duration, true)
+	var original := hud.get("_toast_tween") as Tween
+	original.pause()
+	original.custom_step(0.10)
+	var serial := int(hud.get("_toast_serial"))
+	_check(panel.visible and panel.modulate.a > 0.0 and panel.modulate.a < 1.0,
+		"the active-toast fixture starts inside the actual normal fade-in")
+	hud.toast("Deferred routine", "Show exactly once", 0.25)
+	var deferred: Dictionary = hud.get("_toast_deferred").duplicate()
+	hud.set_reduced_motion(true)
+	_check(panel.modulate == Color.WHITE,
+		"enabling reduced motion makes the already-active toast immediately fully legible")
+	_check(title.text == "IMPORTANT RECEIPT" and detail.text == "Keep this detail"
+		and int(hud.get("_toast_serial")) == serial and int(hud.get("_toast_important_serial")) == serial
+		and hud.get("_toast_deferred") == deferred,
+		"conversion retains the same toast content, serial, priority ownership and deferred routine")
+	var held := hud.get("_toast_tween") as Tween
+	held.pause()
+	held.custom_step(0.40)
+	_check(panel.visible and panel.modulate == Color.WHITE,
+		"the converted active toast stays fully white without continuing its fade")
+	hud.set_reduced_motion(true)
+	hud.set_reduced_motion(false)
+	hud.set_reduced_motion(true)
+	var repeated := hud.get("_toast_tween") as Tween
+	repeated.pause()
+	repeated.custom_step(normal_total - 0.50 - 0.01)
+	_check(panel.visible and title.text == "IMPORTANT RECEIPT" and panel.modulate == Color.WHITE
+		and int(hud.get("_toast_serial")) == serial,
+		"repeated ON and OFF-to-ON preserve the active toast until just before its original normal deadline")
+	# Select normal mode before the queued toast starts so its own actual tween
+	# can be stepped deterministically; OFF must not replay the current fade.
+	hud.set_reduced_motion(false)
+	_check(panel.modulate == Color.WHITE,
+		"turning reduced motion OFF does not replay the converted toast animation")
+	repeated.custom_step(0.02)
+	_check(panel.visible and title.text == "DEFERRED ROUTINE" and detail.text == "Show exactly once"
+		and int(hud.get("_toast_serial")) == serial + 1 and int(hud.get("_toast_important_serial")) == 0
+		and (hud.get("_toast_deferred") as Dictionary).is_empty(),
+		"the original deadline releases important ownership and displays the deferred routine exactly once")
+	var queued := hud.get("_toast_tween") as Tween
+	queued.pause()
+	queued.custom_step(hud.get_toast_fade_seconds() * 2.0 + 0.25 + 0.01)
+	_check(not panel.visible and int(hud.get("_toast_serial")) == serial + 1,
+		"the deferred routine completes without replaying or duplicating the original toast")
+
+	hud.toast("Late receipt", "Original expiry", duration, true)
+	var late := hud.get("_toast_tween") as Tween
+	late.pause()
+	late.custom_step(normal_total - 0.10)
+	_check(panel.modulate.a > 0.0 and panel.modulate.a < 1.0,
+		"the late-toast fixture observes the actual normal fade-out")
+	hud.set_reduced_motion(true)
+	_check(panel.modulate == Color.WHITE,
+		"a late reduced-motion conversion restores full toast legibility")
+	var late_hold := hud.get("_toast_tween") as Tween
+	late_hold.pause()
+	late_hold.custom_step(0.04)
+	_check(panel.visible and panel.modulate == Color.WHITE,
+		"a late converted toast remains steady during its original remaining lifetime")
+	hud.set_reduced_motion(false)
+	hud.set_reduced_motion(true)
+	var late_repeated := hud.get("_toast_tween") as Tween
+	late_repeated.pause()
+	late_repeated.custom_step(0.07)
+	_check(not panel.visible,
+		"a late OFF-to-ON conversion cannot extend the original toast deadline")
+
+	# Replacing a converted important toast must retire its old completion;
+	# the replacement chooses the current mode independently.
+	hud.set_reduced_motion(false)
+	hud.toast("Old important", "Retire this callback", duration, true)
+	var old := hud.get("_toast_tween") as Tween
+	old.pause()
+	old.custom_step(0.10)
+	hud.set_reduced_motion(true)
+	var retired := hud.get("_toast_tween") as Tween
+	retired.pause()
+	hud.set_reduced_motion(false)
+	hud.toast("New important", "Replacement owns panel", duration, true)
+	var replacement_serial := int(hud.get("_toast_serial"))
+	var replacement := hud.get("_toast_tween") as Tween
+	replacement.pause()
+	_check(not retired.is_valid() and panel.visible and title.text == "NEW IMPORTANT" and int(hud.get("_toast_serial")) == replacement_serial
+		and int(hud.get("_toast_important_serial")) == replacement_serial,
+		"a replaced important toast cannot dismiss or steal ownership from its newer replacement")
+	replacement.custom_step(0.10)
+	_check(panel.modulate.a > 0.0 and panel.modulate.a < 1.0,
+		"a new normal-mode toast uses its authored fade after an older conversion")
+	hud.set_reduced_motion(true)
+	hud.toast("New reduced important", "Immediate current mode", duration, true)
+	_check(panel.visible and panel.modulate == Color.WHITE and title.text == "NEW REDUCED IMPORTANT",
+		"a new reduced-mode toast is fully legible immediately after replacing an active toast")
 	hud.queue_free()
 	await process_frame
 	await process_frame
