@@ -29,6 +29,35 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Selected: PLAY-TORPEDO — correct boat identity and fire/steering scheduling.**
+Baseece4e40f1. Port only the unaccepted d8eece4 Torpedo driver/observer extension
+onto current source, preserving all accepted Hauler/Race/Patrol/Heavy paths.
+Source/raw establishes actual seekers were misclassified as boat hull and each
+boat request also changed mouse aim before delayed consumption. No production
+combat defect is established. One implementer owns existing runner/tests/passive
+observer; root owns private startup/privacy/docs/checks/integration/cleanup.
+
+Require actual boat-owned hull contacts, not seeker descendants; separate observed
+camera steering acknowledgement from normal boat fire/consumption and cancel
+stale unconsumed readiness. Preserve actual Heavy/seeker controls, all actor/weapon
+physics and existing default fire behavior outside this bounded boat correction.
+No guessed lead, target position, damage, weapon timing or longer deadline.
+
+Full pass remains ordinary Heavy clear/payment/home→actual Torpedo posting/
+reboard/departure→real seeker evasion+interception/70HP boat destruction/separate
+payment→strict original home/OFFLINE exit/usable Paired Wing posting/UIOS0, with
+original real-file/ledger/sibling proof. Preserve150each/shared300/outer360.
+Focused existing Python/import/parser/privacy, clean Linux export/strict startup/
+PCK inventory and ONE full owned Xvfb/x11/Dummy-audio OS-input route plus independent
+source/raw review; first unexpected failure stops with no automatic correction.
+
+Prior47.646347min and473.178648 guarded seconds remain charged. New mapping starts
+at previous closeout05:23:22UTC; cumulative hard90min deadline06:05:43UTC. Estimate
+10implementation+8checks/export+5wholetrial+5closure; latest full launch05:55UTC.
+A new folder/name does not reset the old cost. Preserve failed source/raw and
+perform process/build/profile/ref cleanup. No new validator/schema/framework,
+CI launch or identical public checkpoint; normal gameplay remains unchanged.
+
 **Accepted proof reused: WALK-CENTRAL — complete station launch and return.**
 The existing accepted7997b2b37 Race package already proves every Central predicate:
 same supported Player walking/boarding, marked Guided launch, actual landing
