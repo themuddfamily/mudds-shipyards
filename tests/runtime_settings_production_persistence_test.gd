@@ -96,6 +96,9 @@ class MutableInputProvider:
 
 func _initialize() -> void:
 	var args := OS.get_cmdline_user_args()
+	if args.has("--settings-migration-writer") or args.has("--settings-migration-reader"):
+		_run_settings_migration(args)
+		return
 	if args.has("--fire-restart-writer") or args.has("--fire-restart-reader"):
 		_run_fire_restart(args)
 		return
@@ -304,6 +307,371 @@ func _fire_restart_stage(writer: bool) -> void:
 	_check(bool(verified.load().accepted)
 		and verified.get_snapshot().get(FIRE_RESTART_SENTINEL, {}) == sentinel_before,
 		"normal startup and settings save preserve exact unrelated seeded disk data")
+
+
+# SAVE-MIGRATION: run writer then reader in separate processes with the same
+# guarded private XDG roots, --audio-driver Dummy and isolated --display-driver
+# x11. The external process owner retains the existing 300-second cap per mode.
+# --settings-migration-writer / --settings-migration-reader
+# --settings-migration-private-root=<absolute private root>
+# This is a fresh three-namespace fixture, not a modified historical profile.
+# The two literal paid namespaces below come from accepted 7997b2b37:
+# case-records.tar.gz/results/ordinary-route-tutorial/orderly-close.json,
+# original member SHA256 e9ca95cb8f42a93afe7845bf37d669cbfb14068b765b4f0425f85f181a417c59.
+const SETTINGS_MIGRATION_PAID_JSON := '''{"cinder_timed_race_session":{"activities":[{"activity_id":"cinder_reach_checkpoint_route","generation":1.0,"progress":{"activity_id":"cinder_reach_checkpoint_route","generation":1.0,"session_state":{"activity_id":"cinder_reach_checkpoint_route","activity_state":{"activity_id":"cinder_reach_checkpoint_route","failure_reason":"","generation":1.0,"next_checkpoint_index":5.0,"schema_version":1.0,"state":2.0},"configured_countdown_seconds":2.0,"configured_laps":1.0,"configured_timeout_seconds":120.0,"presentation_reason":"","race_state":{"activity_id":"cinder_reach_checkpoint_route","best_time_seconds":16.116666666667,"countdown_remaining_seconds":0.0,"current_lap":1.0,"failure_reason":"","generation":1.0,"lap_count":1.0,"lap_started_at_seconds":16.116666666667,"last_time_seconds":16.116666666667,"next_checkpoint_index":0.0,"penalty_seconds":0.0,"race_elapsed_seconds":16.116666666667,"schema_version":1.0,"state":3.0},"schema_version":1.0,"session_generation":1.0,"session_started_once":true},"state":3.0},"reward_granted":true,"reward_requested":true,"state":3.0}],"schema_version":1.0},"game_flow_reward_store":{"authority_id":"game_flow_reward_authority","last_receipt":{"activity_generation":1.0,"activity_id":"cinder_reach_checkpoint_route","granted":true,"receipt_id":1.0,"replay_allowed":false,"reward_id":"return_race_record_to_shipyard","reward_label":"Race record accepted"},"payload_kind":"game_flow_reward_store","receipt_serial":1.0,"reward_counts":{"return_race_record_to_shipyard":1.0},"schema_version":1.0,"store_id":"game_flow_reward_store","total_receipts":1.0}}'''
+var _migration_game: GameFlow
+var _migration_current: Dictionary = {}
+var _migration_old: Dictionary = {}
+var _migration_paid: Dictionary = {}
+
+
+func _run_settings_migration(args: PackedStringArray) -> void:
+	var writer: bool = args.has("--settings-migration-writer")
+	var reader: bool = args.has("--settings-migration-reader")
+	var private_root: String = ""
+	for arg: String in args:
+		if arg.begins_with("--settings-migration-private-root="):
+			private_root = arg.trim_prefix("--settings-migration-private-root=").simplify_path()
+	var isolated: bool = private_root.is_absolute_path() and private_root != "/"
+	for variable: String in ["XDG_DATA_HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME"]:
+		isolated = isolated and OS.get_environment(variable).simplify_path().begins_with(private_root + "/")
+	isolated = isolated and OS.get_user_data_dir().simplify_path().begins_with(private_root + "/")
+	# Godot consumes driver switches before exposing get_cmdline_args(). Check
+	# the actual backends; the external launch still records explicit switches.
+	var audio_driver: String = AudioServer.get_driver_name()
+	var display_driver: String = DisplayServer.get_name()
+	print("SETTINGS_MIGRATION_LAUNCH ", JSON.stringify({"writer": writer,
+		"reader": reader, "private_root": private_root, "isolated": isolated,
+		"user_data_dir": OS.get_user_data_dir(), "audio_driver": audio_driver,
+		"display_driver": display_driver}))
+	if _migration_check(writer != reader and isolated and audio_driver == "Dummy"
+			and display_driver == "X11",
+			"migration owns private user data and an explicitly silent isolated X11 run"):
+		if _migration_fixture():
+			await _migration_stage(writer, private_root)
+	# Cleanup is unconditional, including the first failed assertion. Do not
+	# publish a clean marker for a failed stage or mutate the failed evidence.
+	Input.action_release(&"move_forward")
+	Input.action_release(&"move_back")
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	paused = false
+	if is_instance_valid(_migration_game):
+		_migration_game.queue_free()
+		await process_frame
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	if _failures.is_empty():
+		_migration_boundary(11, "retired Main")
+	if _failures.is_empty():
+		print("SETTINGS_MIGRATION_%s_OK pid=%d generation=%d sha256=%s" % [
+			"WRITER" if writer else "READER", OS.get_process_id(),
+			int(_migration_document().get("generation", -1)),
+			FileAccess.get_sha256(Adapter.DEFAULT_STORE_PATH)])
+	_finish()
+
+
+func _migration_fixture() -> bool:
+	# Expected schema11 is fixed before calling any old-section migrator.
+	# Values/profile are the existing production fixture at lines344ff; schema10
+	# removes exactly the two keys from runtime_settings_test's supported case.
+	var settings: RuntimeSettings = Settings.new(Settings.DEFAULT_CONFIG_PATH)
+	settings.ship_mouse_sensitivity = 0.0067
+	settings.on_foot_mouse_sensitivity = 0.0071
+	settings.camera_fov = 96.0
+	settings.limit_ultrawide_fov = false
+	settings.captions_enabled = true
+	settings.high_contrast_hud = false
+	settings.reticle_style = &"standard"
+	var profile: InputBindingProfile = settings.get_input_binding_profile()
+	var fire: Array[Dictionary] = []
+	for binding: Dictionary in profile.get_bindings(&"fire"):
+		if binding.device == Profile.DEVICE_GAMEPAD:
+			fire.append(binding.duplicate(true))
+	fire.append({"device": Profile.DEVICE_KEYBOARD, "type": &"key", "physical_keycode": KEY_F13})
+	if not _migration_check(profile.set_bindings(&"fire", fire)
+			and profile.set_action_options(&"move_forward", {"deadzone": 0.31,
+				"curve": Profile.CURVE_SQUARED, "hold_mode": Profile.HOLD})
+			and profile.set_action_options(&"sprint_boost", {"deadzone": 0.0,
+				"curve": Profile.CURVE_LINEAR, "hold_mode": Profile.TOGGLE})
+			and settings.set_input_binding_profile(profile), "migration freezes the complete valid custom profile"):
+		return false
+	_migration_current = settings.to_user_data_payload()
+	_migration_old = _migration_current.duplicate(true)
+	_migration_old.schema_version = 10
+	(_migration_old.values as Dictionary).erase("high_contrast_hud")
+	(_migration_old.values as Dictionary).erase("reticle_style")
+	_migration_paid = JSON.parse_string(SETTINGS_MIGRATION_PAID_JSON) as Dictionary
+	return _migration_check(int(_migration_current.schema_version) == 11
+		and _migration_paid.size() == 2, "migration freezes exactly supported schema10 to11 and two paid namespaces")
+
+
+func _migration_stage(writer: bool, private_root: String) -> void:
+	# SceneTree._initialize precedes attachment of the root. Enter the ordinary
+	# main loop before adding Main so its real ready/startup callbacks can run.
+	await process_frame
+	root.content_scale_size = Vector2i(1280, 720)
+	var handoff_path: String = private_root.path_join("settings-migration-writer.json")
+	var disk: UserDataStore = Store.new(Adapter.DEFAULT_STORE_PATH)
+	if not _migration_check(bool(disk.load().accepted), "migration opens real private atomic authority"):
+		return
+	if writer:
+		if not _migration_check(disk.get_generation() == 0 and disk.get_snapshot().is_empty()
+				and not FileAccess.file_exists(Settings.DEFAULT_CONFIG_PATH)
+				and not FileAccess.file_exists(handoff_path), "migration writer requires untouched private authority"):
+			return
+		var seed: Dictionary = _migration_paid.duplicate(true)
+		seed[Adapter.SETTINGS_PAYLOAD_KEY] = _migration_old.duplicate(true)
+		var seeded: Dictionary = disk.commit(seed, 0, "settings-migration-schema10-seed")
+		if not _migration_check(bool(seeded.accepted) and disk.get_generation() == 1
+				and _migration_equal(disk.get_snapshot(), seed), "fresh v1 generation1 contains exactly settings10 and authentic paid race/reward"):
+			return
+	else:
+		var handoff_value: Variant = JSON.parse_string(FileAccess.get_file_as_string(handoff_path))
+		if not _migration_check(handoff_value is Dictionary, "reader has the writer's private process handoff"):
+			return
+		var handoff: Dictionary = handoff_value as Dictionary
+		if not _migration_check(int(handoff.get("writer_pid", 0)) > 0
+				and int(handoff.get("writer_pid", 0)) != OS.get_process_id()
+				and handoff.get("sha256", "") == FileAccess.get_sha256(Adapter.DEFAULT_STORE_PATH)
+				and int(handoff.get("generation", -1)) == disk.get_generation(),
+				"distinct reader starts from the exact reaped writer's clean disk document"):
+			return
+		if not _migration_boundary(11, "reader before Main"):
+			return
+	_migration_game = MAIN_SCENE.instantiate() as GameFlow
+	# Ordinary production composition; no authority injection or fake provider.
+	root.add_child(_migration_game)
+	if not _migration_game.is_node_ready():
+		await _migration_game.ready
+	var report: Dictionary = _migration_game.get_runtime_settings_persistence_report()
+	var current_settings: RuntimeSettings = _migration_game.get_runtime_settings()
+	var current_payload: Dictionary = current_settings.to_user_data_payload() if current_settings != null else {}
+	# Record each detached predicate input before the compound assertion. These
+	# full-precision snapshots distinguish readiness, load and migration failures.
+	print("SETTINGS_MIGRATION_LOAD_REPORT ", JSON.stringify(report, "", true, true))
+	print("SETTINGS_MIGRATION_CURRENT_SETTINGS ", JSON.stringify(current_payload, "", true, true))
+	print("SETTINGS_MIGRATION_EXPECTED_SETTINGS ", JSON.stringify(_migration_current, "", true, true))
+	if not _migration_check(not bool(report.injected_authority)
+			and report.identity_scope == &"process_lifetime" and int(report.load_attempt_count) == 1
+			and bool(report.load_before_first_apply) and bool(report.load_status.accepted)
+			and current_settings != null and _migration_equal(current_payload, _migration_current),
+			"normal Main loads once before apply and upgrades only the two absent settings defaults"):
+		return
+	if not _migration_safe_start("starting", 1 if writer else 2, 1 if writer else 4):
+		return
+	if not _migration_boundary(10 if writer else 11, "ordinary STARTING"):
+		return
+	# Let normal engine physics cross the existing five-second STABLE window.
+	while float(_migration_game.get_safe_start_recovery_report().physics_elapsed_seconds) < 5.0:
+		await physics_frame
+	await process_frame
+	if not _migration_safe_start("stable", 1 if writer else 2, 2 if writer else 5):
+		return
+	if not _migration_boundary(10 if writer else 11, "ordinary STABLE"):
+		return
+	if not _migration_input_map():
+		return
+	if not _migration_check(_input_map_has_key(&"fire", KEY_F13)
+			and not _input_map_has_key(&"fire", KEY_F)
+			and _migration_equal(_migration_game.get_runtime_settings().to_user_data_payload(), _migration_current)
+			and int((_migration_game.get_activity_reward_report().authority.record.reward_counts as Dictionary)
+				.get("return_race_record_to_shipyard", 0)) == 1
+			and _migration_game.cinder_race_session != null
+			and _migration_equal(_migration_game.cinder_race_session.capture_persistence_state(),
+				_migration_paid.cinder_timed_race_session.activities[0].progress.session_state),
+			"loaded production profile/InputMap and actual paid race/reward owner match the protected fixture"):
+		return
+	var hud: GameHUD = _migration_game.get_node_or_null(^"HUD") as GameHUD
+	if not _migration_check(hud != null, "normal migration Main owns its HUD"):
+		return
+	if writer:
+		hud.set_paused(true)
+		hud._show_settings_page()
+		var ui_deadline: int = Time.get_ticks_msec() + 5000
+		var save: Button = hud.find_child("SettingsSaveButton", true, false) as Button
+		while (save == null or not save.is_visible_in_tree()) and Time.get_ticks_msec() < ui_deadline:
+			await process_frame
+			save = hud.find_child("SettingsSaveButton", true, false) as Button
+		if not _migration_check(save != null and save.is_visible_in_tree(), "ordinary Settings Save visible within original five-second UI cap"):
+			return
+		var before_bytes: PackedByteArray = FileAccess.get_file_as_bytes(Adapter.DEFAULT_STORE_PATH)
+		var before: Dictionary = _migration_document()
+		var before_mode: int = FileAccess.get_unix_permissions(Adapter.DEFAULT_STORE_PATH)
+		var expected_payload: Dictionary = (before.payload as Dictionary).duplicate(true)
+		expected_payload[Adapter.SETTINGS_PAYLOAD_KEY] = _migration_current.duplicate(true)
+		var successes: int = int(_migration_game.get_runtime_settings_persistence_report().save_success_count)
+		# No yield across this exact synchronous production transaction.
+		save.pressed.emit()
+		var after: Dictionary = _migration_document()
+		var saved: Dictionary = _migration_game.get_runtime_settings_persistence_report()
+		if not _migration_check(int(saved.save_success_count) == successes + 1
+				and bool(saved.last_save_status.accepted) and not bool(saved.unsaved_changes)
+				and int(after.generation) == int(before.generation) + 1
+				and int(after.commit.parent_generation) == int(before.generation)
+				and after.commit.parent_id == before.commit.id
+				and after.commit.id == "runtime-settings-%010d" % int(after.generation)
+				and _migration_equal(after.payload, expected_payload)
+				and FileAccess.get_file_as_bytes(Adapter.DEFAULT_STORE_PATH + ".bak") == before_bytes
+				and FileAccess.get_unix_permissions(Adapter.DEFAULT_STORE_PATH) == before_mode
+				and FileAccess.get_unix_permissions(Adapter.DEFAULT_STORE_PATH + ".bak") == before_mode,
+				"one visible Save publishes exact schema11 full payload, next generation/parent and exact prior backup bytes"):
+			return
+		if not _migration_boundary(11, "explicit Settings Save"):
+			return
+		hud.set_paused(false)
+	else:
+		var begin: Button = hud.find_child("IntroBeginShiftButton", true, false) as Button
+		if not _migration_check(begin != null and begin.is_visible_in_tree(), "reader exposes ordinary Begin Shift"):
+			return
+		var original_player: PlayerController = _migration_game.player
+		begin.pressed.emit()
+		await physics_frame
+		if not _migration_check(_migration_game.phase == GameFlow.Phase.APPROACH_SHIP
+				and _migration_game.player == original_player and original_player.is_control_enabled()
+				and not original_player.is_seated() and original_player.is_on_floor(),
+				"ordinary Begin Shift admits the same supported on-foot Player"):
+			return
+		var origin: Vector3 = original_player.global_position
+		var walk_deadline: int = Time.get_ticks_msec() + 5000
+		Input.action_press(&"move_forward")
+		while original_player.global_position.distance_to(origin) < 1.0 and Time.get_ticks_msec() < walk_deadline:
+			await physics_frame
+			if not _migration_walk_owner(original_player):
+				Input.action_release(&"move_forward")
+				return
+		Input.action_release(&"move_forward")
+		if not _migration_check(original_player.global_position.distance_to(origin) >= 1.0,
+				"same supported Player walks at least one metre within the original five-second cap"):
+			return
+		var settle_deadline: int = Time.get_ticks_msec() + 5000
+		while original_player.velocity.length() > 0.05 and Time.get_ticks_msec() < settle_deadline:
+			await physics_frame
+			if not _migration_walk_owner(original_player):
+				return
+		if not _migration_check(original_player.velocity.length() <= 0.05,
+				"released ordinary walk settles within the original five-second cap"):
+			return
+		var neutral_origin: Vector3 = original_player.global_position
+		for _tick: int in 12:
+			await physics_frame
+			if not _migration_walk_owner(original_player):
+				return
+			if not _migration_check(not Input.is_action_pressed(&"move_forward")
+					and original_player.velocity.length() <= 0.05
+					and original_player.global_position.distance_to(neutral_origin) <= 0.02,
+					"reader remains supported and neutral without drift at tick %d" % (_tick + 1)):
+				return
+		if not _migration_boundary(11, "ordinary reader walk"):
+			return
+	var closed: Dictionary = _migration_game.mark_orderly_shutdown()
+	if not _migration_check(bool(closed.accepted), "ordinary owner explicitly records clean shutdown"):
+		return
+	if not _migration_safe_start("clean_shutdown", 1 if writer else 2, 3 if writer else 6):
+		return
+	if not _migration_boundary(11, "explicit orderly close"):
+		return
+	if writer:
+		var handoff_file: FileAccess = FileAccess.open(handoff_path, FileAccess.WRITE)
+		if not _migration_check(handoff_file != null, "writer opens its private process handoff"):
+			return
+		handoff_file.store_string(JSON.stringify({"writer_pid": OS.get_process_id(),
+			"generation": int(_migration_document().generation),
+			"sha256": FileAccess.get_sha256(Adapter.DEFAULT_STORE_PATH)}))
+		handoff_file.flush()
+		var handoff_error: Error = handoff_file.get_error()
+		handoff_file.close()
+		_migration_check(handoff_error == OK, "writer flushes the exact clean process handoff")
+
+
+func _migration_walk_owner(original_player: PlayerController) -> bool:
+	return _migration_check(_migration_game.player == original_player
+		and _migration_game.phase == GameFlow.Phase.APPROACH_SHIP
+		and original_player.is_on_floor() and original_player.is_control_enabled()
+		and not original_player.is_seated() and not original_player.is_sleeping(),
+		"ordinary walk retains the same supported controllable on-foot Player")
+
+
+func _migration_equal(left: Variant, right: Variant) -> bool:
+	# JSON normalizes integral types/StringNames without rounding stored doubles.
+	return JSON.parse_string(JSON.stringify(left, "", true, true)) \
+		== JSON.parse_string(JSON.stringify(right, "", true, true))
+
+
+func _migration_document() -> Dictionary:
+	var decoded: Variant = JSON.parse_string(FileAccess.get_file_as_string(Adapter.DEFAULT_STORE_PATH))
+	return decoded as Dictionary if decoded is Dictionary else {}
+
+
+func _migration_boundary(schema: int, label: String) -> bool:
+	var disk: UserDataStore = Store.new(Adapter.DEFAULT_STORE_PATH)
+	if not _migration_check(bool(disk.load().accepted) and disk.get_loaded_source() == &"primary",
+			label + ": healthy primary loads without repair"):
+		return false
+	if disk.get_generation() > 1:
+		var backup_value: Variant = JSON.parse_string(FileAccess.get_file_as_string(Adapter.DEFAULT_STORE_PATH + ".bak"))
+		if not _migration_check(backup_value is Dictionary and Store.validate_envelope(backup_value).is_empty(),
+				label + ": existing backup envelope and payload checksum are valid"):
+			return false
+		var backup: Dictionary = backup_value as Dictionary
+		var commit: Dictionary = disk.get_commit_metadata()
+		if not _migration_check(int(commit.parent_generation) == int(backup.generation)
+				and commit.parent_id == backup.commit.id
+				and int(backup.generation) == disk.get_generation() - 1,
+				label + ": existing backup is the exact immediate generation and ID predecessor"):
+			return false
+	var payload: Dictionary = disk.get_snapshot()
+	var expected_settings: Dictionary = _migration_old if schema == 10 else _migration_current
+	if not _migration_check(_migration_equal(payload.get(Adapter.SETTINGS_PAYLOAD_KEY, {}), expected_settings)
+			and _migration_equal(payload.get("cinder_timed_race_session", {}), _migration_paid.cinder_timed_race_session)
+			and _migration_equal(payload.get("game_flow_reward_store", {}), _migration_paid.game_flow_reward_store),
+			label + ": complete settings/profile and both exact authentic paid namespaces remain protected"):
+		return false
+	for key: String in payload:
+		if not _migration_check(key in [Adapter.SETTINGS_PAYLOAD_KEY, "cinder_timed_race_session",
+				"game_flow_reward_store", "safe_start_recovery", "crash_recovery",
+				"session_diagnostics", "solo_safe_recovery", "tutorial_prompts_seen"],
+				label + ": only source-owned ordinary metadata namespace " + key):
+			return false
+	print("SETTINGS_MIGRATION_BOUNDARY ", JSON.stringify({"label": label,
+		"pid": OS.get_process_id(), "generation": disk.get_generation(),
+		"commit": disk.get_commit_metadata(), "schema": schema,
+		"primary_sha256": FileAccess.get_sha256(Adapter.DEFAULT_STORE_PATH),
+		"backup_sha256": FileAccess.get_sha256(Adapter.DEFAULT_STORE_PATH + ".bak"),
+		"primary_mode": FileAccess.get_unix_permissions(Adapter.DEFAULT_STORE_PATH),
+		"backup_mode": FileAccess.get_unix_permissions(Adapter.DEFAULT_STORE_PATH + ".bak")}))
+	return true
+
+
+func _migration_input_map() -> bool:
+	var profile: InputBindingProfile = _migration_game.get_runtime_settings().get_input_binding_profile()
+	var captured: InputBindingProfile = InputRebindService.new().capture_input_map()
+	if not _migration_check(captured != null and captured.bindings == profile.bindings,
+			"every loaded keyboard, mouse and gamepad binding reaches the real InputMap"):
+		return false
+	for action: StringName in profile.bindings:
+		if not _migration_check(is_equal_approx(InputMap.action_get_deadzone(action),
+				float(profile.get_action_options(action).deadzone)),
+				"loaded InputMap deadzone matches the protected profile: " + String(action)):
+			return false
+	return true
+
+
+func _migration_safe_start(state: String, startup: int, record_generation: int) -> bool:
+	var report: Dictionary = _migration_game.get_safe_start_recovery_report()
+	var snapshot: Dictionary = report.policy_snapshot as Dictionary
+	var expected: Dictionary = {"schema_version": 1, "record_generation": record_generation,
+		"state": state, "startup_generation": startup, "consecutive_failure_count": 0,
+		"safe_settings_recommended": false}
+	var stored: Dictionary = _migration_document().get("payload", {}) as Dictionary
+	return _migration_check(_migration_equal(stored.get("safe_start_recovery", {}), expected)
+		and snapshot.state == state and int(snapshot.startup_generation) == startup
+		and int(snapshot.record_generation) == record_generation
+		and int(snapshot.consecutive_failure_count) == 0 and not bool(snapshot.safe_settings_recommended),
+		"ordinary safe-start state/counters remain exact: " + state)
+
+
+func _migration_check(condition: bool, label: String) -> bool:
+	_check(condition, label)
+	return condition
 
 
 func _fire_restart_gamepads(profile: InputBindingProfile) -> String:
