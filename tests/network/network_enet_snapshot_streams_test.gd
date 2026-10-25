@@ -112,6 +112,15 @@ func _initialize() -> void:
 	_check(int(_server._moving_recipient_revisions.get(lost_peer, 0)) == lost_revision,
 		"disconnected recipient cannot advance an undelivered moving revision")
 	_server._send_moving_interior_packet(live_peer, moving_packet)
+	# Role presenters share the same native disconnect window as both streams.
+	for role: String in ["engineer", "gunner", "passenger"]:
+		var revision := int(_server.get("_" + role + "_snapshot_revision"))
+		var refused: Dictionary = _server.call("publish_" + role + "_snapshot", lost_peer, {})
+		_check(not refused.accepted and refused.status == &"peer_not_connected"
+			and int(_server.get("_" + role + "_snapshot_revision")) == revision,
+			"closed native link refuses " + role + " publication without consuming a revision")
+		var delivered: Dictionary = _server.call("publish_" + role + "_snapshot", live_peer, {"ship_id": &"live_role"})
+		_check(delivered.accepted, "connected recipient still accepts " + role + " publication")
 	await _pump(func() -> bool:
 		return int(another_client.get_authoritative_snapshot().revision) == 28 \
 			and int((another_client._moving_replica_samples.get(&"crew", {}) as Dictionary).get("server_tick", -1)) == 1)
@@ -119,6 +128,13 @@ func _initialize() -> void:
 		"connected peer receives next canonical snapshot while the other native link is gone")
 	_check(int((another_client._moving_replica_samples.get(&"crew", {}) as Dictionary).get("server_tick", -1)) == 1,
 		"connected peer receives moving snapshot while the other native link is gone")
+	await _pump(func() -> bool: return another_client.get_engineer_replica_snapshot().get("ship_id") == &"live_role" \
+		and another_client.get_gunner_replica_snapshot().get("ship_id") == &"live_role" \
+		and another_client.get_passenger_replica_snapshot().get("ship_id") == &"live_role")
+	_check(another_client.get_engineer_replica_snapshot().get("ship_id") == &"live_role"
+		and another_client.get_gunner_replica_snapshot().get("ship_id") == &"live_role"
+		and another_client.get_passenger_replica_snapshot().get("ship_id") == &"live_role",
+		"all three role views reach the connected client after the other native link closes")
 	another_client.shutdown()
 	_client.shutdown()
 	_server.shutdown()

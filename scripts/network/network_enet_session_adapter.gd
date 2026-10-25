@@ -2619,6 +2619,8 @@ func _consume_planetary_journey_state(packet: Dictionary) -> void:
 func publish_engineer_snapshot(peer_id: int, snapshot: Dictionary) -> Dictionary:
 	if not is_server() or not _peer_generations.has(peer_id):
 		return _result(false, &"peer_not_admitted")
+	if not _native_recipient_is_connected(peer_id):
+		return _result(false, &"peer_not_connected")
 	var packet := snapshot.duplicate(true)
 	packet["recipient_peer_id"] = peer_id
 	packet["peer_generation"] = int(_peer_generations[peer_id])
@@ -2672,6 +2674,8 @@ func send_gunner_intent(payload: Dictionary) -> Dictionary:
 func publish_gunner_snapshot(peer_id: int, snapshot: Dictionary) -> Dictionary:
 	if not is_server() or not _peer_generations.has(peer_id):
 		return _result(false, &"peer_not_admitted")
+	if not _native_recipient_is_connected(peer_id):
+		return _result(false, &"peer_not_connected")
 	var packet := snapshot.duplicate(true)
 	packet["recipient_peer_id"] = peer_id
 	packet["peer_generation"] = int(_peer_generations[peer_id])
@@ -2718,6 +2722,8 @@ func _broadcast_gunner_snapshot(packet: Dictionary) -> void:
 func publish_passenger_snapshot(peer_id: int, snapshot: Dictionary) -> Dictionary:
 	if not is_server() or not _peer_generations.has(peer_id):
 		return _result(false, &"peer_not_admitted")
+	if not _native_recipient_is_connected(peer_id):
+		return _result(false, &"peer_not_connected")
 	var packet := snapshot.duplicate(true)
 	packet["recipient_peer_id"] = peer_id
 	packet["peer_generation"] = int(_peer_generations[peer_id])
