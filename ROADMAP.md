@@ -1,9 +1,10 @@
 # Development roadmap
 
-**Playable alpha; full original scope remains unfinished.** Latest playable build:
-[8cda303 Windows checkpoint](builds/windows/MuddsShipyards-8cda303-checkpoint.zip)
-([changes and validation](builds/windows/MuddsShipyards-8cda303-notes.txt)). Matching [Linux checkpoint](builds/linux/MuddsShipyards-8cda303-linux-x86_64.tar.gz) is now available
-([Linux validation](builds/linux/MuddsShipyards-8cda303-linux-notes.txt)).
+**Playable alpha; full original scope remains unfinished.** Latest Windows build:
+[ca149d6 checkpoint](builds/windows/MuddsShipyards-ca149d6-checkpoint.zip)
+([changes and validation](builds/windows/MuddsShipyards-ca149d6-notes.txt)).
+Latest [Linux checkpoint8cda303](builds/linux/MuddsShipyards-8cda303-linux-x86_64.tar.gz)
+predates the LAN-expiry repair; no matching Linux export is claimed.
 Nine of the promised 17 craft exist. All 36 original parent outcomes and ten phase
 exit gates remain open; completed child results are retained, not counted as whole
 features. There is no evidence-backed project percentage or completion date.
@@ -30,18 +31,18 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Verified: complete ordinary browser disconnect and fresh rejoin.** The guest
-joins the live host, walks, disconnects normally and retires its old transport and
-authority, walks solo, then Refreshes and rejoins the same available host with a
-fresh matching admission. Both original Players walk under the second admission;
-second Disconnect, host stop and solo returns pass. Host counts0→1→0→1→0;
-both actual processes exit0 with zero diagnostics. Earlier caller failures are
-retained; no gameplay or deadline change. [Accepted route and cleanup](docs/history/ROADMAP_DELIVERIES.md#browser-disconnect-rejoin-accepted-20261025).
+**Delivered: LAN listings expire safely while paused.** Checkpointca149d6 retires
+rows and endpoints30 seconds after the last valid reply and refuses stale joins
+before creating intent or changing roles. The paused ordinary route observes
+expiry at30.003631s, accurate expired feedback/Retry focus and zero stale
+admissions. Actual Retry finds the same live host; fresh admission, original
+Players' connected/solo walks and both normal exits pass. Fresh Windows EXE,
+checkpoint ZIP and notes are available. [Exact validation and cleanup](docs/history/ROADMAP_DELIVERIES.md#lan-browser-expiry-accepted-20261025).
 
-Earlier full-session UI refusal, complete ordinary Halyard reconnect and projectile
-native-link repair remain accepted in their recorded scopes. Production files
-still match the Windows and Linux8cda303 checkpoints; no identical-game export.
-Wider package/device/capacity/endurance and final gates remain open.
+Earlier ordinary disconnect/rejoin, full-session UI refusal, Halyard reconnect
+and projectile native-link results remain accepted in their recorded scopes.
+This30s duration is an engineering default, not a claimed user approval. Wider
+packaged journeys/device/capacity/endurance and final gates remain open.
 
 The canonical inventory remains
 [the existing backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes); no parallel
@@ -57,7 +58,7 @@ not a project percentage inferred from rows, tests or commits.
 ### Small execution queue
 
 Only one implementation card may be active. Each row below is a bounded step
-within the existing goal, not a replacement for its full acceptance. The disconnect/rejoin qualification is accepted below. One LAN-expiry production card is active. The complete named reconnect case is
+within the existing goal, not a replacement for its full acceptance. The disconnect/rejoin and LAN-expiry outcomes are accepted below. No implementation card is active. The complete named reconnect case is
 accepted for its recorded Linux-source ordinary-input scope. Torpedo remains
 parked; broader multiplayer and final-candidate requirements remain separate.
 
@@ -65,7 +66,7 @@ parked; broader multiplayer and final-candidate requirements remain separate.
 | --- | --- | --- | --- |
 | PACKAGE-LINUX[8cda303] | Deliver the missing Linux checkpoint for the already accepted Windows8c gameplay: executable, installable launcher archive and player notes | Exact clean8cda303 safe export; original900s export/300s each strict direct+archive menu startup; embedded payload parity, exact tar bytes/modes/metadata; no diagnostics and owned cleanup; first unexpected failure stops | DONE — exact8cda303 Linux ELF/archive/notes delivered; direct22.353s/archive22.470s menu startups each exit0/sentinel1/zero diagnostics; all1527 actual payload entries match Windows; archive bytes/modes/metadata and independent review pass. Owned checkout/process/profile cleanup complete; full install/ordinary/native/final gates remain open |
 | BROWSER-DISCONNECT | Normal LAN join/connected walking → guest ordinary Disconnect/complete old authority retirement/solo walk while original host stays available → actual Refresh/fresh join/new matching admission tuple → same-Player connected walk → second normal Disconnect/host stop/usable return | Existing independent two-Main caller opt-in only; original300s outer/230s work/Main60s/UI5s/discovery10s/admission20s/handoffs20s/guest100s/host30s/cleanup10s,≥1m/5s walking+settle/12neutral ticks; immutable first and second receipts, both actual OS exits0/clean logs | DONE035fa2f in source InputEvent/LAN ordinary-route scope — whole88.888s/510checks, actual2OS exits0/zero diagnostics, both original Players and fresh matched admission tuple, all7supported walks/bothretirements/currentHUDfences/hostcounts0→1→0→1→0. Independent review GO; earlier failures retained, original75min clock includes all elapsed time from08:15:10Z. No runtime/cap change; package/device/endurance/capacity/final gates remain open |
-| BROWSER-STALE | LAN replies expire at30 real seconds while paused; retired rows/endpoints cannot create join intents; honest expired feedback and ordinary Retry/fresh live admission remain usable | Explicit30s engineering default, not an abstracttick mapping or claimed user approval. ExistingLAN/preflight/presenter/HUD checks plus ONE realtwoMain paused30s refusal/Retry/join/walk/normalleave route; originalouter300/work230/hostadmission50/guest100/exit10 caps retained; freshWindowscheckpoint | ACTIVE — one runtime implementer/root ordinaryroute and integration/independent lifecycle reviewer.90min total incl10min priorreadiness,80min from08:52:32Z hard10:12:32Z; estimate15implementation+15checks+10route+15build+15closure. Earlier optional preference question is not an authorization gate; user may override default. First unexpected failure stops |
+| BROWSER-STALE | LAN replies expire at30 real seconds while paused; retired rows/endpoints cannot create join intents; honest expired feedback and ordinary Retry/fresh live admission remain usable | Explicit30s engineering default, not an abstracttick mapping or claimed user approval. ExistingLAN/preflight/presenter/HUD checks plus ONE realtwoMain paused30s refusal/Retry/join/walk/normalleave route; originalouter300/work230/hostadmission50/guest100/exit10 caps retained; freshWindowscheckpoint | DONEca149d6 — natural paused expiry30.003631s/zero staleintents/admissions, actualRetry/samehostfreshjoin,4supportedwalks/twoactualOS0/zero diagnostics; whole314checks/116.907s plusfocused180. Independent runtime/package review GO; fresh verifiedWindowsEXE/ZIP/notes, branch/process/scratch cleanup. Explicitengineeringdefault30s; user may override. Broader package/native/device/capacity/endurance/final gates remain open |
 | BROWSER-FULL | Genuine full host/occupant, disabled-row pointer refusal, real Refresh and same-Player usable solo return completed | 209 coordinator checks/125.781s; actual GUI press+release, zero activation/join/admission, fresh full directory1→2,1.002774m supported walk, host counts0→1→0, three actual OS exits0/zero diagnostics; original caps retained | DONE e39653cf in source InputEvent/LAN UI-refusal scope — independent review GO;18.696min through cleanup plus final push; package/device/native/endurance/capacity/final gates separate |
 | ACCESS-PAUSE-4X3[normal Settings top, requests1.0/1.4] | Existing top Settings images inspected at1024×768: request1.0/effective1.0 and request1.4/effective1.010526 | Rendered original PNG: heading/visible two-column rows/scrollbar/fixed footer fit and read clearly; zero diagnostics, capture exit0; no visual finding | INSPECTED — both component top views on59117f3/lavapipe, no visible finding; request1.4 does not establish literalrequired1.6. Required0.75/1.6, other scroll positions/states/focus navigation/full-cell qualification remain open; no unchanged recapture selected |
 | WALK-AFT | Furniture-clear Operations path exercised; complete original journey remains unaccepted | Both ordinary trials stop after actual Board UI at resumed-motion receipt comparison; no stairs/Zenith/home/UI-exit completion. Actual frozen Player receipt is newer than the last unpaused observer sample | PARKED — candidate 06ce015 unmerged/archived; original 60min, 50.915min through cleanup. Reopen only after actual paused `_life_completed_motion()` receipt binding, independent source GO and cumulative review; no unchanged retry or freshness relaxation |

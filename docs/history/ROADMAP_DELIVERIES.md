@@ -24747,3 +24747,82 @@ Retained PNG alongside the prior100image/archive/closeout under
 SHA256fa9bf67124a3fcad47f8157b273f890d5b431fbda3074ec7b8635d213c9c03ad.
 Existing archive unchanged. This finite inspection starts08:50:05Z with10min bound;
 actual final cost recorded in closeout. No branch/worktree/process created.
+
+
+## LAN browser expiry accepted — 2026-10-25
+
+BROWSER-STALE is delivered on clean sourceca149d6e8463a70f6d01fe618e1362000714bdf0.
+LAN replies receive an explicit30s monotonic lifetime, continuing in paused menus.
+Discovery retires exact expired endpoints and identities; GameFlow removes their
+actual joinable directory records and presents existing expired/Retry feedback.
+A synchronous stale-row preflight runs before create_join_intent, role or address
+changes. Exact adapter/request/generation/sequence ownership prevents expiry of a
+newer manual/external directory; hosting/direct connect/active admissions remain
+protected. Abstract DEFAULT_STALE_AFTER_TICKS30 remains a detached caller clock,
+with no implicit seconds conversion. Thirty seconds is an engineering default
+within authorized implementation work, not a claimed owner decision. The earlier
+unanswered preference question is optional and no longer an authorization gate.
+
+One runtime implementer owns GameFlow/discovery and the existing standalone LAN
+test; root owns the ordinary mode in the existing integration test, integration,
+builds and cleanup. Independent lifecycle source review GO. No new validator,
+schema or test family. Five existing focused suites pass180 assertions:LAN42,
+detached expiry8, default GameFlow7, presenter83 and HUD40, all exit0/zero diagnostics.
+The LAN suite includes exact >=30s boundary, valid/malformed renewal, mixed-age
+partial expiry, refresh/supersession and actual GameFlow synchronous stale intent
+with zero create_join_intent calls/native peer/role/address mutation.
+
+ONE complete ordinary two-Main route passes314checks/116.906832s, one
+GAME_FLOW_LIVE_MENU_STALE_TEST_OK and zero diagnostics. Guest actual Begin Shift,
+Pause, Browser and Refresh expose a fresh focused host row. Natural production
+polling retires it at30.003631s with SceneTree paused, actual directory and endpoint
+empty, title SERVER LIST EXPIRED, honest terminal message and enabled focused
+Retry/Refresh/Back. The observer reads stored state and does not drive expiry via
+get_endpoint/expire_stale. Guest guard1752samples proves no early removal, transport,
+join intent or admission; immutable expired/refreshed receipts retain counters0.
+Ordinary Accept activates the replacement Retry action. A fresh real LAN reply
+restores the same live host, directory generation1→3, and the original Player
+joins with matching guest tuple654421477/generation1. Host native peer/responder
+availability guard3935samples passes, guest counts[0,1,0]. Both Players complete
+connected and normal-Disconnect solo walks: all four1.002774m, original5s bounds,
+12neutral ticks/zero drift. Current disconnected HUD retirement/usable return and
+host normal stop pass. Actual hostPID1591905/start34919125 and guestPID1592034/
+start34922281 each exit0 and are absent. Independent raw review GO.
+
+Outer300/work230/Main60/UI5/discovery10/admission20/first-host-admission50/guest100/
+host30/cleanup10 seconds unchanged. New30s aging observation has <=35s boundary
+inside those original caps. No failed checks or retries. Task90min includes a
+conservative10min charge for earlier readiness;80min remaining from08:52:32Z,
+hard10:12:32Z. Cumulative26.744687min through archive09:09:16.681210Z; final-push
+cost in closeout. No endpoint substitution, stopped-host timeout or test-clock
+mutation substitutes for ordinary expiry.
+
+Fresh Windows safe export passes10.686339s. Silent embedded-game startup under
+Linux Godot passes26.523691s, exit0/exactlyone STARTUP_MENU_READY_OK/zero diagnostics.
+Existing inventory verifies1527 entries excluding tests/tools/raw sources; actual
+83245056-byte PE.text equals stock template SHA256
+76269a403bb832599edeee4432a5b7a7e88c018eb5c9c798dfd8289359b0ec07.
+Independent actual artifact/ZIP/notes review GO. Public repository-local outputs:
+
+- builds/windows/MuddsShipyards-ca149d6.exe:184786896bytes,
+  SHA256e27fc6f819103ad120d838e9859d704f0fb9fe1e1f013ae5b1fb9ffc8e716a8d;
+- builds/windows/MuddsShipyards-ca149d6-checkpoint.zip:103115846bytes,
+  SHA25677d9c5b587bf4352ffde6ee6d3b8f22018456e5a0fe9cb2746adc5e54857fb36;
+- builds/windows/MuddsShipyards-ca149d6-notes.txt:2190bytes,
+  SHA25656ecad6630f4398c23b29f6b089fc559c8134a7dec321f055b6855ee1439ffb3.
+
+ZIP has exactly the actual EXE and these notes. Existing build ignore policy
+retains artifacts locally; source/docs are pushed to main. No fresh matching
+Linux export, full packaged ordinary route, native Windows/device/GPU/audio,
+supported capacity, endurance or final-release qualification is claimed. Those
+gates remain open; earlier source results retain their own scope.
+
+Accepted changes integrated/pushed; local task branch deleted only after exact
+current remote/worktree checks and owned cleanup. No remote branch/worktree was
+created. Nine owners terminal/38 observed process identities absent; all322 owned
+scratch entries verified before removal. Retained only
+/srv/mudds-work/lan-browser-expiry-20261025/results/case-records.tar.gz,
+25172860bytes/SHA256aa8666bb47d5e3e6823ad9809cf3c2274696d24ebc48999f57150fd12f8fe247,
+and closeout.json. Dummy audio/headless/private Xvfb explicitx11 throughout;
+no desktop input or hosted CI. All337 canonical IDs/order/Done means,36 parents,
+ten phase gates and17craft scope remain; broader browser/parent25 remains open.
