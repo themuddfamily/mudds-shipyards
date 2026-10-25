@@ -26106,3 +26106,79 @@ is recoverable from the verified bundle and was not merged merely for cleanup.
 Archive/cleanup elapsed 41.407 minutes; final documentation push cost is retained
 in closeout. All 337 canonical IDs/names/parents/order are unchanged. No new build
 or gameplay acceptance is claimed by this documentation-only closure.
+
+
+<a id="combat-terminal-posting-persistence-accepted-20261025"></a>
+### Combat terminal-posting persistence — accepted scoped capability (2026-10-25)
+
+Source 4968cf1a19ee3f667a50bd348046bf34f6b4a6be delivers the frozen terminal-posting contract: genuine non-reward
+conclusions retain their next encounter across real-file cold readers. Pending
+save/refusal retains that next posting, gives a distinct interaction retry and
+fences new arms/launches until durable. Exact completion, paid/unpaid debt,
+generation floor, reward ledger and unrelated payload fields remain protected;
+no new reward, schema or active-combat restore. Existing credit conclusions keep
+the atomic earned path, and no-store components retain RAM-only behavior.
+
+This supersedes the parked candidate's acceptance status, not its retained
+failures. Board/test are byte-equivalent to corrected archived3e892bb, independently
+reviewed against current main. The controlled old baseline's two cold-reader
+failures, first candidate's three publication-equality failures and their reviewed
+JSON normalization correction remain recorded in the preceding stop entry.
+
+The previous corrected sequence's owed90.337s timeout prompted one timestamp-only
+private baseline diagnostic on unchanged main1d87ec715: same assertions/order and
+90s cap. It also times out at90.328s during fresh Beacon Main root.add_child,
+before start_shift or boarding. Three preceding synchronous startups each take
+11.317–11.430s; awaited frames advance with paused=false and prior teardown
+finishes. This identifies the private invocation's insufficient cap, not a
+boarding defect. The canonical run_test_matrix.sh already provides300s per suite.
+Root's earlier private90s choice was an invocation error. Independent review
+approved correcting only that invocation to existing300, one coherent13stage run,
+unchanged assertions and original17:58Z→18:58Z task clock; no budget reset.
+
+Actual focused stages (seconds, all exit0, no diagnostics, markers where required):
+- import-after: 6.618
+- board: 61.203
+- reward: 16.261
+- owed: 117.227
+- perimeter: 16.733
+- wing: 33.698
+- route: 78.735
+- windows-export: 10.711
+- linux-export: 25.608
+- linux-startup: 22.761
+- archive-startup: 24.043
+- windows-payload-startup: 26.475
+- audit: 5.675
+
+Actual-file producers use authentic director/board conclusions without assigning
+the offered index. Distinct full Godot reader processes use the production load
+path and compare protected payload fields. Actor positions/direct damage are
+staged; transaction fault fixtures use explicit absent/paid/unpaid records and
+existing private/store seams. These are scoped source checks, not ordinary play
+or an ordinarily earned Hold-ready checkpoint. The default Hold fixture and
+physical admission/landing checks do not close the full ordinary Hold journey.
+
+Clean Windows and Linux exports from 4968cf1a19ee3f667a50bd348046bf34f6b4a6be pass. Direct Linux, extracted archive
+and Windows embedded-payload startup through Linux Godot each exit0 with exactly
+one STARTUP_MENU_READY_OK. Package audit matches 1527 actual PE/ELF
+payload paths, rejects test/tool/artifact/build paths, verifies stock PE code and
+exact Linux bytes/modes/source epoch/metadata. All Godot automation uses Dummy
+audio; headless or private Xvfb/explicitx11, with independent owned cleanup.
+Native Windows/GPU, devices/audio/human, ordinary Hold and wider final gates
+remain NOT_RUN/open. This does not close COMBAT-PERIMETER or all ACT-WRITES.
+
+Fresh EXE/ZIP/notes: builds/windows/MuddsShipyards-4968cf1*; matching Linux files/notes/startup
+records under builds/linux/. All eleven publication hashes and ZIP member bytes
+are verified. Windows ZIP 103,331,514 bytes, SHA256
+`c1ed6385ef4d7416f09009c7faa4732ee306aeacb9d3f1fa6d3b6db0bdbf175f`. Production source is reviewed by one independent lifecycle
+reviewer; root integrates and cleans. The source/test pair adds no new validator.
+
+Original17:58Z→18:58Z includes readiness, failed attempts, diagnostic, invocation
+correction, final checks/builds/integration/cleanup. All failures remain archived;
+no further unexpected failure or automatic retry occurs in the final sequence.
+Unique current source/raw/profiles/helpers and the baseline diagnostic are
+consolidated in /srv/mudds-work/combat-posting-integration-20261025/records.tar.gz;
+the preceding stopped-source archive remains separately retained. Adjacent
+closeout records actual owned identities absent, publication hashes, source/ref
+cleanup and cumulative time. Actual cleanup details follow below.

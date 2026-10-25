@@ -1,10 +1,10 @@
 # Development roadmap
 
 **Playable alpha; full original scope remains unfinished.** Latest Windows build:
-[4ca2d16 checkpoint](builds/windows/MuddsShipyards-4ca2d16-checkpoint.zip)
-([changes and validation](builds/windows/MuddsShipyards-4ca2d16-notes.txt)).
-Matching [Linux checkpoint 4ca2d16](builds/linux/MuddsShipyards-4ca2d16-linux-x86_64.tar.gz)
-([Linux validation](builds/linux/MuddsShipyards-4ca2d16-linux-notes.txt)) is available.
+[4968cf1 checkpoint](builds/windows/MuddsShipyards-4968cf1-checkpoint.zip)
+([changes and validation](builds/windows/MuddsShipyards-4968cf1-notes.txt)).
+Matching [Linux checkpoint 4968cf1](builds/linux/MuddsShipyards-4968cf1-linux-x86_64.tar.gz)
+([Linux validation](builds/linux/MuddsShipyards-4968cf1-linux-notes.txt)) is available.
 Nine of the promised 17 craft exist. All 36 original parent outcomes and ten phase
 exit gates remain open; completed child results are retained, not counted as whole
 features. There is no evidence-backed project percentage or completion date.
@@ -139,30 +139,20 @@ hardware/access remain BLOCKED input. This records the remaining planning work;
 it does not claim every goal is executable or deliver gameplay. No implementation
 card or new trial is active. Select no blocked row until its named fields are fixed.
 
-**Combat terminal-posting persistence: PARKED / not accepted.** Actual-file cold
-readers and the corrected board suite pass, as does reward authority. The next
-owed-reward integration check times out at 90.337s before its Beacon assertion
-and final marker. The single corrected sequence stopped; no export, merge or
-publication followed. Candidate 3e892bb is preserved in a verified archive.
-A future bounded definition must identify the exact unresolved cleanup/new-Main/
-Beacon-entry boundary and a discriminating check before another trial; timeout
-alone proves no runtime cause. Original 17:58Z→18:58Z clock and failures are
-retained, with no automatic retry or reset. This does not qualify ordinary
-Perimeter Hold or close terminal-write recovery.
-[Exact stopped goal, results and cleanup](docs/history/ROADMAP_DELIVERIES.md#combat-terminal-posting-persistence-stop-20261025).
+**Delivered: combat terminal postings survive restart.** A failed, withdrawn
+or no-credit sortie now saves the board's genuine next posting. Cold-reader
+checks restore failed Heavy→Torpedo and paid Torpedo→Wing→Hold without changing
+completion, paid/unpaid debt, generation floor, ledger or unrelated settings.
+A refused save shows POSTING SAVE PENDING with interaction retry and prevents a
+new sortie until saved; reward debt remains separate. The existing atomic credit
+path and no-store components retain their behavior. Focused integration, paired
+exports, strict startups and package audit pass; builds and notes are above.
+This closes posting durability only. Ordinary Hold 90s/>35%/real weapons/home,
+active-combat restore, native Windows/GPU and final qualification remain open.
+[Exact result, prior failures and cleanup](docs/history/ROADMAP_DELIVERIES.md#combat-terminal-posting-persistence-accepted-20261025).
 
-**Active: finish terminal-posting persistence integration.** Restore exactly the
-archived board/test candidate; preserve the frozen actual-file/distinct-reader
-result, pending-save launch fence, completion/debt/ledger/foreign fields and
-no-credit/schema scope. One complete focused sequence, clean paired exports,
-strict startups/audit, independent review, integration/push and cleanup must pass.
-A timestamp-only baseline diagnostic localizes the private 90s owed timeout to
-fresh Main startup before boarding; the canonical runner already allows 300s.
-Use that existing owed limit, with assertions unchanged. Both earlier failures
-and the diagnostic stay retained. Original 17:58Z→18:58Z total clock is unchanged;
-the first further unexpected failure stops, with no automatic retry. Ordinary
-Hold and all wider native/device/final gates remain open. Missing craft remain
-gated on their named specification decisions.
+No implementation card is active. Accepted comfort episodes stay closed within
+their scopes. Missing craft remain gated on their named specification decisions.
 
 The Torrent destruction/recovery attempt remains **PARKED / not accepted**.
 A reviewed resolver correction accounted for all100 actual damage, including
