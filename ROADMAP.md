@@ -44,13 +44,12 @@ not a project percentage inferred from rows, tests or commits.
 ### Small execution queue
 
 Only one implementation card may be active. Each row below is a bounded step
-within the existing goal, not a replacement for its full acceptance. No gameplay
-implementation is currently selected.
+within the existing goal, not a replacement for its full acceptance. One bounded PLAY-TORPEDO qualification continuation is selected below.
 
 | Existing goal | Next bounded result | Proof / stop | State and owner |
 | --- | --- | --- | --- |
 | PLAN-ASSIGN | Replace the chronological working page with this queue; audit every canonical goal for a finite result or explicit blocking input | Preserve all337 IDs/order,36 parents/ten gates; review changed acceptance and local links. Finish after this pass; no automatic new definition task | PASS — Codex; documentation only |
-| PLAY-TORPEDO | Preserve the unfinished control candidate and its concrete review blocker | Reapplicable patch retained outside repo; no source merged, no package pass claimed. Blocker: cancellation must retain a request until later actual shot consumption or acknowledged release is accounted for | PARKED — Codex; cumulative review required before any continuation |
+| PLAY-TORPEDO | Retain cancelled-shot observation identity until actual consumption or acknowledged release; then attempt the original full Heavy/Torpedo/Wing-posting journey once | Existing driver batch fixture, independent source review, Python/import/privacy, clean Linux export/strict startup/inventory and one ordinary route. Original150s each/shared300/outer360; first failure stops | ACTIVE — Codex; original90min clock/deadline06:05:43UTC, latest whole launch05:55UTC |
 | SPEC-TITAN / VORTEX / PARADOX / KATANA / PREDATOR / DYNAMIC / UTOPIA / SALYUT | One explicit approval or field-level revision for each existing craft proposal | All required geometry/handling/functions/roles/save fields fixed in the corresponding proposal; no repeat proposal preparation | WAITING — user chooses interpretation/design; Codex implements approved fields |
 | BOMBER-ROLE-DECISION | Record additional physical roles, each action and seat/access arrangement | Exact role count and actions recorded once; pilot-only runtime does not close this promise | WAITING — user |
 | SCOPE-LIMIT / SCOPE-DESKTOP | Fix supported guest/host/role capacity and exact desktop targets | Concrete values in the existing decision register; settings maxima/export presets do not establish support | WAITING — user |
@@ -104,8 +103,7 @@ close PLAY-TORPEDO. That still requires the entire Heavy→Torpedo→usable Pair
 journey, actual seeker evasion/interception,70HP boat destruction, separate
 payments, strict home/OFFLINE/physical exit and normal UI exit0, with150s per leg,
 shared300s and outer360s. The failed47.646347min plus continuation cost remain
-charged; a new card/branch/folder cannot restart that budget. This example selects
-no new repair or trial.
+charged; a new card/branch/folder cannot restart that budget. The active continuation selects only this correction and one complete trial.
 
 ### Stop rules that prevent another loop
 
@@ -155,8 +153,13 @@ Full chronological results belong in the existing
 
 Unaccepted Torpedo source is retained at
 `/srv/mudds-work/torpedo-boat-control-20261025/results/unfinished-source.patch`
-with base/hash/blocker/timing in the adjacent `paused-for-roadmap.json`. No engine
-or package checks were run for it. This retained exception is not completed work.
+with base/hash/blocker/timing in the adjacent `paused-for-roadmap.json`. The
+continuation review is in `selection.json`: prior47.646347min plus all elapsed
+time since05:23:22UTC remain charged (about66min at selection). One implementer
+owns runner/tests, root owns selector/privacy/checks/integration, one reviewer
+checks source/raw. Estimate4min repair+6min checks/export+5min route+5min closure;
+stop on the first failure or a missed launch/deadline. No normal-game tuning or
+identical public checkpoint. The full original journey remains the finish line.
 
 ## Validation and final release
 
