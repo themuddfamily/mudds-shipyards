@@ -1,8 +1,8 @@
 # Development roadmap
 
 **Playable alpha; full original scope remains unfinished.** Latest playable build:
-[9c736d7 Windows checkpoint](builds/windows/MuddsShipyards-9c736d7-checkpoint.zip)
-([changes and validation](builds/windows/MuddsShipyards-9c736d7-notes.txt)).
+[109aca0 Windows checkpoint](builds/windows/MuddsShipyards-109aca0-checkpoint.zip)
+([changes and validation](builds/windows/MuddsShipyards-109aca0-notes.txt)).
 Nine of the promised 17 craft exist. All 36 original parent outcomes and ten phase
 exit gates remain open; completed child results are retained, not counted as whole
 features. There is no evidence-backed project percentage or completion date.
@@ -29,14 +29,15 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Delivered: fresh physical Halyard cabin admission after rejoining.** A current
-unclaimed passenger at the reachable chair sees JOIN CABIN after strict completed
-docking/OFFLINE. First Interact obtains a fresh standing berth/body stream while
-retaining Player/adapter and the other pilot; it does not claim the chair or helm.
-Focused regression34 and existing boarding66/independent passenger route pass,
-with a fresh verified checkpoint9c736d7. Full ordinary moving loss/Manual Join/
-return/readmission/chair/renewed-flight acceptance remains OPEN.
-[Exact delivery and limits](docs/history/ROADMAP_DELIVERIES.md#halyard-fresh-standing-readmission-delivered-20261025).
+**Delivered: complete ordinary Halyard passenger reconnect journey.** Source109aca0
+passes397 checks in171.747s with zero diagnostics and all three actual OS exits0:
+original boarding/seven moving stages, forced passenger transport loss/retirement/
+solo walking, normal browser rejoin, pilot actual return/strict home dock,
+physical fresh standing berth/walk/separate chair press and renewed real flight.
+The run exposed three remaining crew snapshot sends to a closed native link;
+those publishers now use the existing native-link guard. Fresh checkpoint109aca0
+ships the repair. Other multiplayer, package/device and final gates remain open.
+[Exact proof, first failures and cleanup](docs/history/ROADMAP_DELIVERIES.md#ordinary-passenger-reconnect-accepted-20261025).
 
 The canonical inventory remains
 [the existing backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes); no parallel
@@ -52,13 +53,13 @@ not a project percentage inferred from rows, tests or commits.
 ### Small execution queue
 
 Only one implementation card may be active. Each row below is a bounded step
-within the existing goal, not a replacement for its full acceptance. One full ordinary passenger reconnect caller is selected. The delivered runtime
-prerequisites remain accepted; this attempt must prove the complete original
-journey under its original caps. Torpedo remains parked.
+within the existing goal, not a replacement for its full acceptance. No implementation is currently selected. The complete named reconnect case is
+accepted for its recorded Linux-source ordinary-input scope. Torpedo remains
+parked; broader multiplayer and final-candidate requirements remain separate.
 
 | Existing goal | Next bounded result | Proof / stop | State and owner |
 | --- | --- | --- | --- |
-| SERVER-BASELINE-PASSENGER-RECONNECT | Full original BOARD+7MOVING/forced passenger transport loss/solo controls/normal browser Manual Join/pilot actual return+strict dock/physical fresh berth+later chair/renewed flight/3OS0 | Existing passenger route gains one selector; source review/strict compile then ONE full ordinary native-input real-ENet trial. Preserve300global/360outer and original local caps; no placement/direct assist/provider/claims | ACTIVE — one caller implementer, one reviewer; root guards/integration/cleanup. Prior52.359230min +all elapsed since06:26:13UTC; hard07:03:52UTC, latest trial06:52UTC, sourcefreeze06:37target/06:39hard; first failure stops. Runtime/checkpoint9c736d7 unchanged |
+| SERVER-BASELINE-PASSENGER-RECONNECT | Complete original ordinary reconnect journey delivered on109aca0 | 397 checks/171.747s, all three peers exit0, zero diagnostics; original seven moving stages/loss/UI rejoin/home/fresh berth+later chair/renewed flight verified, original caps retained; fresh verified Windows EXE+ZIP+notes | DONE in Linux-source ordinary-input scope; package/device/endurance/capacity/final gates remain separate |
 | PLAN-ASSIGN | Replace the chronological working page with this queue; audit every canonical goal for a finite result or explicit blocking input | Preserve all337 IDs/order,36 parents/ten gates; review changed acceptance and local links. Finish after this pass; no automatic new definition task | PASS — Codex; documentation only |
 | PLAY-TORPEDO | Cancelled request accounting must survive unread queued neutral samples across actual OS release | Source review BLOCK: output dispatch does not establish which engine samples postdate release. Candidate archived; no tests/export/trial, no gameplay completion | PARKED — Codex;67.453min cumulative at stop, no automatic retry |
 | SPEC-TITAN / VORTEX / PARADOX / KATANA / PREDATOR / DYNAMIC / UTOPIA / SALYUT | One explicit approval or field-level revision for each existing craft proposal | All required geometry/handling/functions/roles/save fields fixed in the corresponding proposal; no repeat proposal preparation | WAITING — user chooses interpretation/design; Codex implements approved fields |

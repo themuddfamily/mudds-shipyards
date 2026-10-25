@@ -24255,3 +24255,64 @@ cleanup. Earlier elapsed recovered from original archived task-card/closeout
 (14.139974min) and transport selection→verified push (15.820820min), not reset;
 new60min subcap keeps cumulative≤89.960795min under original90. Final push timing
 remains in closeout.337 IDs/36 parent outcomes/ten gates/17-craft scope unchanged.
+
+
+<a id="ordinary-passenger-reconnect-accepted-20261025"></a>
+## Ordinary passenger reconnect accepted — 2026-10-25
+
+**SERVER-BASELINE-PASSENGER-RECONNECT DONE on109aca0, Linux-source ordinary-input
+scope.** Complete original server/two-independent-client route passes397 checks
+(host104/pilot95/passenger146 plus coordinator checks),171.746850s, zero diagnostics,
+three terminal peers/actual OS exits0. Source/raw/artifact independent review GO.
+Original300global/360outer/20join/8transition/15walk/20return/24dock/8consumer/
+10abort-exit and existing120s coordinator wait remain unchanged.
+
+Receipts preserve initial boarding/all seven moving stages with positive movement
+(2.638–27.878m per recorded stage), followed by actual host ENet disconnect of only
+B while flying. Native/adapter disconnect, old body exit/frame unregister happen
+once; A's exact helm remains. B's real solo walk covers0.6161m, then the same PID
+1554981/Player265348450916/adapter uses normal pause/browser Manual Join/back/resume.
+Old peer1651949163/gen1 becomes285368185/gen2; original .admitted/.cabin receipts
+are retained separately. Fresh admission initially holds no berth/body stream.
+
+Pilot returns through actual reverse/brake controls and live berth capture in
+7.29249s; one native landing edge produces original physical occupied home lease/
+strict dock in6.23802s. Both clients consume canonical landed generation1/revision2
+and B's accepted OFFLINE/unclaimed state. Physical JOIN CABIN first admits a new
+standing body/berth; B walks, returns and presses separately for the real chair.
+New B chair claim7 coexists with unchanged A pilot claim2/ownership1. Renewed host
+flight exceeds5m with fresh consumed throttle and current roles before complete
+three-peer exit handshakes. No placement/direct assist/claims/providers/tuning.
+
+The first compile failed on a missing Boolean lambda continuation; syntax-only
+repair exposed three inferred-type failures. Exact continuations/frame cast/bool
+annotations repaired them after explicit cumulative reviews. Strict compile then
+passes16.919730s. First full run completed397 checks/three exits0 in171.149352s,
+but was NOT_ACCEPTED because three real ENet send errors remained. Exact stacks
+localized engineer/gunner/passenger snapshot publishers; six production guard
+lines now reject a native-dead recipient before packet/revision construction.
+Existing real-ENet regression extended to dead refusal/revision conservation AND
+actual live-client delivery of all three views;39 assertions pass1.709818s. One
+reviewed bounded recheck then passes the complete unchanged route above. Every
+failure/priority review is retained, with no renamed budget or relaxed predicate.
+
+Fresh clean Windows export passes silent embedded-game-data startup under Linux
+Godot (exit0/one STARTUP_MENU_READY_OK),1527-entry inventory excluding tests/tools,
+stock Windows .text and exact ZIP EXE/notes identity. Public EXE/ZIP/notes in
+builds/windows/; ZIP SHA256
+`836031a27467fcb2eccaa4f46b7c4125ee44cb3f63cc01364745f5c4f32f9165`.
+No new Linux export this checkpoint; prior9c archive remains. Ordinary result is
+Linux source/native input, not packaged/installed/final-candidate qualification.
+Native Windows execution/mandatory human review remain owner-excluded NOT_RUN;
+applicable GPU/device/Linux/endurance/capacity/final gates remain open. All Godot
+uses Dummy/headless/privateXvfb/x11; GitHub Actions disabled.
+
+Accepted caller/repair integrated into pushed main; no task branch/worktree.
+Nine owners terminal,52 observed process identities absent,614 verified owned
+entries archived/removed; pre-existing registrations untouched. Records:
+`/srv/mudds-work/halyard-passenger-reconnect-20261024/full-ordinary/results/case-records.tar.gz`
+(27,268,875bytes; SHA256
+`f965f103bf721382d78187c8de0123395d5040379e90236b2becda62d941beda`), closeout.json alongside.
+Cumulative86.906927min through cleanup on original90min clock; final verified push
+cost retained in closeout. All337 IDs/36 parent outcomes/ten gates/17-craft scope
+remain; this closes the one named case, not a whole multiplayer phase.
