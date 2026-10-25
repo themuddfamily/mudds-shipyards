@@ -24115,3 +24115,74 @@ cost/hash/cleanup. No candidate source merged; no task process/profile/build/
 branch/worktree created. Verified archived loose helpers were removed;
 pre-existing registrations retained. Accepted gameplay/checkpoint0d77125 are
 unchanged; PLAY-TORPEDO and all parent/phase gates remain open. No gameplay delivery.
+
+
+<a id="passenger-native-disconnect-publication-repair-20261025"></a>
+## Passenger native-disconnect publication repair — 2026-10-25
+
+**Transport prerequisite delivered on4afd529; full passenger reconnect OPEN.**
+The original full BOARD+7MOVING→passenger transport loss/retirement/solo→same
+Player/adapter Manual Join→pilot actual return/strict dock→fresh physical standing
+berth/chair→renewed flight/three OS0 journey remains required. No old grant is
+restored automatically. No claim that the complete journey passed.
+
+A bounded source/raw audit localized the old nine send errors: seven canonical
+snapshot publications and two moving snapshots after native loss but before
+admission cleanup. It also found the old focused positive setup impossible:
+reserving/occupying the original home berth and publishing its logical landing
+handoff does not set HeroShip's physical dock latch. Only completed landing or
+reset-for-reuse does. Require an actual completed landing before the remaining
+JOIN CABIN case; preserve strict dock/OFFLINE/support/retained-helm predicates.
+Other conjuncts had no individual raw observations and were not declared proven.
+
+Accepted source4afd5293c9650cbb4e96f64d7136d901b8eab4d5 retains exact native links from connection callbacks,
+retires their cache at disconnect/shutdown and checks link state before native
+sends. Canonical snapshots encode/fragment once and send to connected recipients.
+Moving relationship/resync sends skip a dead link before revision/pending-work
+mutation. Existing relationship/release hooks and logical cleanup owners remain.
+No packet schema, gameplay timer, authority or crew claim policy changed.
+
+Regression source2f4de7e2c first force-closes one actual admitted ENet peer before
+queued callback cleanup, then publishes canonical/moving/resync alongside another
+connected peer. Old runtime logs three Invalid-target-peer errors at the exact
+send paths and fails undelivered revision conservation; surviving stream checks
+pass. The guard expected the archived graceful-close channel0 wording and records
+FAIL; independent raw review confirmed the same defect. That wrapper failure is
+retained, not relabelled green, and the old case was not rerun.
+
+Fixed runtime passes32 assertions/1.714s with no diagnostics. Existing delivery12,
+resync11, budget19 and adapter106 checks pass:180 actual assertions total. The
+resync wrapper initially expected a nonexistent success marker; actual suite exit0,
+source-defined marker/11 assertions, unchanged source/cache and no survivors were
+independently verified. Its wrapper FAIL remains retained; no unchanged rerun.
+Remaining guards pass; no production failure was hidden by those corrections.
+
+Clean Windows/Linux exports, three startup checks (Windows embedded data under
+Linux Godot, native Linux ELF and archive-extracted ELF) all return exit0 and
+exactly one STARTUP_MENU_READY_OK. Both payloads have identical1527 path/size/hash
+entries and exclude tests/tools; Windows .text matches the stock release template.
+Linux archive ELF bytes/mode/source timestamp and export source pin match.
+Public Windows EXE/ZIP/notes are in builds/windows/; Linux archive in builds/linux/.
+The standalone notes were accidentally overwritten by the packaging helper after
+ZIP creation; restored from the ZIP's correct prose and rechecked byte equality.
+ZIP and EXE remained unchanged; independent final notes/artifact review GO.
+
+Checkpoint ZIP SHA256:
+`e4f06a7e3792357c7b80b770a88839666db6b7a483364d2cb47e1aeeb9a98241`.
+EXE SHA256:
+`9ff18a8eda109d6927ccd2fe168dc27d0895ecee49cc9230283ab11d7615999b`.
+Source and regression commits are integrated into pushed main; no task branch or
+worktree created. Fourteen owners terminal,60 observed process identities absent;
+all owned profiles/helpers/raw records verified and consolidated into
+`/srv/mudds-work/halyard-passenger-reconnect-20261024/transport-window/results/case-records.tar.gz`
+(40,628,230bytes; SHA256
+`ded40621522b65af87400f43e407413ddf50448995bcd091e6808c1c0a233f7f`), closeout.json alongside.
+Six redundant loose Linux files were archived/removed; its redundant case ELF was
+removed after checking the retained playable archive. Public EXE/ZIP/notes/Linux
+archive remain; pre-existing registrations and earlier unaccepted source remain.
+Prior127.845740s guarded cost retained; new guarded132.885177s and14.251min elapsed
+through cleanup, under the selected40min stop. Initial cleanup attempted removal
+of the retained results container; the archive stayed intact and final layout was
+verified. Native Windows/GPU/device/human/final-release gates remain NOT_RUN/open;
+all automation headless/Dummy, GitHub Actions disabled.337 IDs/36 parents/ten phase
+gates and the complete17-craft scope remain; no full parent completion claimed.

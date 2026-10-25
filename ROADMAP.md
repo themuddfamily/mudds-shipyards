@@ -1,8 +1,8 @@
 # Development roadmap
 
 **Playable alpha; full original scope remains unfinished.** Latest playable build:
-[0d77125 Windows checkpoint](builds/windows/MuddsShipyards-0d77125-checkpoint.zip)
-([changes and validation](builds/windows/MuddsShipyards-0d77125-notes.txt)).
+[4afd529 Windows checkpoint](builds/windows/MuddsShipyards-4afd529-checkpoint.zip)
+([changes and validation](builds/windows/MuddsShipyards-4afd529-notes.txt)).
 Nine of the promised 17 craft exist. All 36 original parent outcomes and ten phase
 exit gates remain open; completed child results are retained, not counted as whole
 features. There is no evidence-backed project percentage or completion date.
@@ -29,8 +29,13 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Roadmap correction complete: remaining work is either bounded or explicitly
-blocked.** This is a planning result, not gameplay completion. The canonical inventory remains
+**Delivered: host snapshot streams skip retired native connections.** A real
+server/two-client disconnect-window regression passes; the connected peer keeps
+receiving canonical and moving-interior snapshots without engine diagnostics.
+Checkpoint4afd529 contains the repair. Full passenger readmission remains open.
+[Exact delivery and limits](docs/history/ROADMAP_DELIVERIES.md#passenger-native-disconnect-publication-repair-20261025).
+
+The canonical inventory remains
 [the existing backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes); no parallel
 list of promises or new evidence framework is being introduced.
 
@@ -44,12 +49,12 @@ not a project percentage inferred from rows, tests or commits.
 ### Small execution queue
 
 Only one implementation card may be active. Each row below is a bounded step
-within the existing goal, not a replacement for its full acceptance. One production prerequisite repair is selected: the host transport-disconnect
-publication window. Torpedo remains parked after its source-review stop.
+within the existing goal, not a replacement for its full acceptance. No implementation is currently selected. The transport prerequisite is delivered;
+Torpedo remains parked after its source-review stop.
 
 | Existing goal | Next bounded result | Proof / stop | State and owner |
 | --- | --- | --- | --- |
-| SERVER-BASELINE-PASSENGER-RECONNECT | Skip native-disconnected recipients in canonical/moving snapshots while a connected peer keeps receiving | Real server/two-client loss-window regression; exact next canonical/moving result, no diagnostics, existing stream checks; clean paired exports/strict startups/new Windows EXE+ZIP+notes | ACTIVE — root adapter/test; one reviewer;8min implementation+8checks+10package+4closure, hard40min; first unexpected failure stops. Prior127.846s guarded retained; full reconnect remains open |
+| SERVER-BASELINE-PASSENGER-RECONNECT | Host transport-disconnect publication prerequisite delivered on4afd529 | Five actual network suites/180 assertions, three strict startups, identical1527-entry payloads; verified fresh Windows EXE+ZIP+notes. Full original passenger journey still required | PASS for transport repair only; full goal OPEN. Next prerequisite needs a real completed landing, not merely a reserved berth |
 | PLAN-ASSIGN | Replace the chronological working page with this queue; audit every canonical goal for a finite result or explicit blocking input | Preserve all337 IDs/order,36 parents/ten gates; review changed acceptance and local links. Finish after this pass; no automatic new definition task | PASS — Codex; documentation only |
 | PLAY-TORPEDO | Cancelled request accounting must survive unread queued neutral samples across actual OS release | Source review BLOCK: output dispatch does not establish which engine samples postdate release. Candidate archived; no tests/export/trial, no gameplay completion | PARKED — Codex;67.453min cumulative at stop, no automatic retry |
 | SPEC-TITAN / VORTEX / PARADOX / KATANA / PREDATOR / DYNAMIC / UTOPIA / SALYUT | One explicit approval or field-level revision for each existing craft proposal | All required geometry/handling/functions/roles/save fields fixed in the corresponding proposal; no repeat proposal preparation | WAITING — user chooses interpretation/design; Codex implements approved fields |
@@ -157,8 +162,8 @@ Unaccepted Torpedo source and helpers are consolidated in
 `/srv/mudds-work/torpedo-boat-control-20261025/results/case-records.tar.gz`;
 adjacent `closeout.json` records the verified archive/hash, preserved original
 clock and cleanup. Source review stopped the sole correction before any tests,
-engine, export or whole trial. Existing accepted main/checkpoint0d77125 remain
-current. [Exact blocker and retained full journey](docs/history/ROADMAP_DELIVERIES.md#torpedo-control-continuation-stopped-at-source-review-20261025).
+engine, export or whole trial. The Torpedo candidate stays unmerged; transport checkpoint4afd529 now supersedes
+0d77125 without accepting Torpedo. [Exact blocker and retained full journey](docs/history/ROADMAP_DELIVERIES.md#torpedo-control-continuation-stopped-at-source-review-20261025).
 
 ## Validation and final release
 
