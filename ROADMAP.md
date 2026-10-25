@@ -70,6 +70,35 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Active capability: COMFORT-CAPTIONS[planetary final-approach feedback].**
+Candidate51c50476d; four existing production-bound final-approach IDs reach the
+semantic HUD presenter but are unregistered. Register “Final approach armed”,
+“Final approach alignment ready”, “Final approach handoff ready” and “Final
+approach rejected”; existing routine defaults medium, rejected high, unchanged
+intensity/severity rules (actual1.0 promotes high). No sound or flight authority
+changes. This is the existing authored planetary binding supplied by GameFlow,
+not a dormant catalog feed or a new option.
+
+Frozen acceptance: the four existing transitions reach an actual tree-visible
+HUD via production adapter/router/director/GameFlow callback and exactly one real
+shared caption service; original queue/expiry/priority retained. Preserve all old
+adapter assertions, duplicate completion suppression, stale target refusal,
+generic rejection isolation, detach/re-entry and captions OFF/no replay, with fresh
+current cues after ON. Component cruise signals are synthetic; ordinary planetary
+journeys, native/audio and full comfort transition/restart/Reset remain open.
+
+One implementer owns semantic_audio_cue_presenter.gd and its existing presenter
+and planetary final-approach production tests. Root owns docs/build/push/cleanup;
+independent caption/lifecycle review. Freeze exactly four missing-map regression
+errors before old-source run; fixed presenter, production adapter/router/service,
+final-approach binding, optional/Main composition, HUD layout and preserved
+Loadmaster caption checks must pass. Clean paired checkpoints, actual payload
+audit and three strict OS0/single-menu-marker startups follow, all headless/Dummy.
+Original21:08Z→22:08Z/60min includes readiness, implementation, checks, build and
+closure. First unexpected failure stops for causal/cumulative review; no automatic
+retry or deadline reset. Deliver only this live-caption capability; retain all
+original COMFORT-CAPTIONS acceptance and current accepted scopes.
+
 **Delivered: live captions for five existing Cinder Loadmaster cues.**
 Checkpoint19336f3 displays seat occupied, manifest ready, route ready, request
 rejected and released feedback through the existing shared caption service.
