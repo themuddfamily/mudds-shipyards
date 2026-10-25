@@ -61,6 +61,14 @@ extends SceneTree
 ## Success: GAME_FLOW_LIVE_MENU_FULL_TEST_OK and all three actual OS exits0.
 ## Success: GAME_FLOW_LIVE_MENU_ONE_GUEST_GAMEPLAY_TEST_OK; existing .done
 ## receipts contain both actual walks, and actual actor OS exits must be zero.
+## BROWSER-DISCONNECT: --live-menu-disconnect-rejoin keeps the original two-Main
+## host available through guest ordinary Disconnect, retired transport/authority,
+## same-Player solo walking, actual LAN Refresh/row selection and fresh admission.
+## Immutable .admitted/.rejoined receipts match each host/guest identity tuple;
+## both new connected walks use the second admission. Guest disconnects again,
+## then host normally stops; both retain usable browser/solo return and OS exits0.
+## Original D3 outer300s/work230s/Main60s/UI5s/discovery10s/admission20s/
+## handoff20s/guest100s/host30s/cleanup10s and walk/settle5s/12neutral remain.
 
 
 const GameFlowType := preload("res://scripts/game/game_flow.gd")
@@ -96,7 +104,7 @@ func _init() -> void:
 
 
 func _run() -> void:
-	if "--live-menu-one-guest" in OS.get_cmdline_user_args() or "--live-menu-one-guest-gameplay" in OS.get_cmdline_user_args() or "--live-menu-two-guests" in OS.get_cmdline_user_args() or "--live-menu-cancel" in OS.get_cmdline_user_args() or "--live-menu-full" in OS.get_cmdline_user_args():
+	if "--live-menu-one-guest" in OS.get_cmdline_user_args() or "--live-menu-one-guest-gameplay" in OS.get_cmdline_user_args() or "--live-menu-two-guests" in OS.get_cmdline_user_args() or "--live-menu-cancel" in OS.get_cmdline_user_args() or "--live-menu-full" in OS.get_cmdline_user_args() or "--live-menu-disconnect-rejoin" in OS.get_cmdline_user_args():
 		await _live_run()
 		return
 	var flow := GameFlowType.new()
@@ -179,6 +187,9 @@ var _live_full_guard: Dictionary = {}
 var _live_full_sampler: LiveWalkSampler
 var _live_full_observation: Dictionary = {}
 var _live_gameplay := false
+var _live_rejoin := false
+var _live_rejoined := false
+var _live_original_native_peer: ENetMultiplayerPeer
 var _live_walks: Dictionary = {}
 var _live_pending_endpoint: PacketPeerUDP
 
@@ -188,7 +199,8 @@ func _live_run() -> void:
 	_live_two_guests = "--live-menu-two-guests" in args
 	_live_cancel = "--live-menu-cancel" in args
 	_live_full = "--live-menu-full" in args
-	_live_gameplay = "--live-menu-one-guest-gameplay" in args
+	_live_rejoin = "--live-menu-disconnect-rejoin" in args
+	_live_gameplay = "--live-menu-one-guest-gameplay" in args or _live_rejoin
 	var peer_index := args.find("--live-peer")
 	if peer_index >= 0 and peer_index + 3 < args.size():
 		_live_role = args[peer_index + 1]
@@ -264,6 +276,10 @@ func _live_run() -> void:
 		var counts := _live_read("host.done").get("guest_counts", []) as Array
 		if _live_two_guests:
 			_live_check_two_guest_receipts(host, guest, counts)
+		elif _live_rejoin:
+			_check(counts.size() == 5 and counts[0] == 0 and counts[1] == 1 and counts[2] == 0 and counts[3] == 1 and counts[4] == 0, "real host guest counts reconcile both ordinary joins and disconnects 0 → 1 → 0 → 1 → 0")
+			_live_check_gameplay_receipts()
+			_live_check_rejoin_receipts(host, guest)
 		else:
 			_check(counts.size() == 3 and counts[0] == 0 and counts[1] == 1 and counts[2] == 0,
 				"real host guest counts reconcile 0 → 1 → 0")
@@ -561,6 +577,8 @@ func _live_spawn(role: String) -> int:
 	var args := PackedStringArray(["--display-driver", "x11", "--disable-render-loop", "--rendering-driver", "dummy", "--audio-driver", "Dummy", "--path", ProjectSettings.globalize_path("res://"), "--script", "res://tests/network/game_flow_server_browser_integration_test.gd", "--", "--live-menu-cancel" if _live_cancel else ("--live-menu-two-guests" if _live_two_guests else "--live-menu-one-guest"), "--live-peer", role, _live_directory, str(_live_port)])
 	if _live_full:
 		args[args.find("--live-menu-one-guest")] = "--live-menu-full"
+	elif _live_rejoin:
+		args[args.find("--live-menu-one-guest")] = "--live-menu-disconnect-rejoin"
 	elif _live_gameplay:
 		args[args.find("--live-menu-one-guest")] = "--live-menu-one-guest-gameplay"
 	# Positional argv protects path text from shell evaluation. The shell waits
@@ -600,8 +618,9 @@ func _live_actor() -> void:
 	# Cleanup is independent of menu success, focus, pause state or input capture.
 	if _live_gameplay or _live_full:
 		_live_release_movement()
-	if _live_full:
+	if _live_full or _live_rejoin:
 		_live_stop_full_guard()
+	if _live_full:
 		var pointer_release := InputEventMouseButton.new()
 		pointer_release.button_index = MOUSE_BUTTON_LEFT
 		pointer_release.pressed = false
@@ -644,6 +663,8 @@ func _live_host() -> void:
 	if not await _live_boundary(func(): return is_instance_valid(_live_game.network_session) and _live_game.network_session.is_server() and is_instance_valid(_live_game.get_lan_discovery()) and _live_game.get_lan_discovery().is_responding(), 10.0, "host UI starts real ENet and LAN responder"):
 		return
 	var session := _live_game.network_session
+	if _live_rejoin:
+		_live_original_native_peer = session.get("_peer") as ENetMultiplayerPeer
 	_live_counts.append(int(session.get_session_capacity_snapshot().occupancy))
 	_check(_live_counts == [0] and session.get_admitted_peer_ids().is_empty(), "hosting excludes own player from guest capacity")
 	var discovery := _live_game.get_lan_discovery()
@@ -679,6 +700,8 @@ func _live_host() -> void:
 		return
 	_live_counts.append(int(session.get_session_capacity_snapshot().occupancy))
 	_check(_live_guest_ownership_clear(session, guest_id), "host releases guest admissions, seat/ship/crew ownership and remote body")
+	if _live_rejoin and not await _live_host_rejoin(session, guest_id):
+		return
 	if _live_two_guests:
 		_check(_live_guest_ownership_clear(session, int(_live_read("guest2.admitted").get("peer_id", 0))), "host releases second guest admissions and all ownership")
 	if not await _live_open_pause_browser():
@@ -757,6 +780,8 @@ func _live_guest() -> void:
 	if not await _live_boundary(_live_authenticated, 20.0, "selected real HUD row joins and authenticates guest"):
 		return
 	var session := _live_game.network_session
+	if _live_rejoin:
+		_live_original_native_peer = session.get("_peer") as ENetMultiplayerPeer
 	var peer := (session.get_server_offer().get("admission", {}) as Dictionary).get("peer", {}) as Dictionary
 	var guest_id := session.multiplayer.get_unique_id()
 	_live_write(_live_role + ".admitted", {"pid": OS.get_process_id(), "peer_id": guest_id, "peer_generation": int(peer.get("peer_generation", 0)), "player": _live_player_identity()})
@@ -786,11 +811,132 @@ func _live_guest() -> void:
 		return
 	_check(not session.is_session_active() and session.get_server_offer().is_empty() and session.get_admitted_peer_ids().is_empty(), "guest UI disconnect clears transport and admission")
 	_check(_live_game.get_network_remote_body_intent_source() == null and not (_live_game.get_node("Player") as PlayerController).is_seated(), "menu guest has no retained body or chair ownership")
+	if _live_rejoin and not _live_record_guest_retirement("guest.retired", guest_id, _live_original_native_peer):
+		return
 	if not await _live_browser_after_leave():
 		return
 	if _live_gameplay and not await _live_walk("solo", &"move_back", false):
 		return
+	if _live_rejoin:
+		await _live_guest_rejoin(session, session_id)
+		return
 	await _live_wait_file("host.first_cleared" if _live_two_guests and _live_role == "guest" else "host.cleared", 20.0)
+
+
+func _live_expected_admission(role: String = "") -> Dictionary:
+	return _live_read((_live_role if role.is_empty() else role) + (".rejoined" if _live_rejoin and _live_rejoined else ".admitted"))
+
+
+func _live_rejoin_tuple_fresh(first: Dictionary, second: Dictionary, host: bool = false) -> bool:
+	var id_key := "guest_peer_id" if host else "peer_id"
+	var generation_key := "guest_generation" if host else "peer_generation"
+	var first_id := int(first.get(id_key, 0))
+	var second_id := int(second.get(id_key, 0))
+	var generation := int(second.get(generation_key, 0))
+	return first_id > 1 and second_id > 1 and generation > 0 and (second_id != first_id or generation > int(first.get(generation_key, 0)))
+
+
+func _live_original_host_available(session: NetworkEnetSessionAdapter, session_id: String) -> bool:
+	var discovery := _live_game.get_lan_discovery()
+	return is_instance_valid(session) and session == _live_game.network_session and session.is_session_active() and session.is_server() and session.get("_peer") == _live_original_native_peer and _live_original_native_peer != null and _live_original_native_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED and is_instance_valid(discovery) and discovery.is_responding() and str(discovery.get("_responder_session_id")) == session_id
+
+
+func _live_host_rejoin(session: NetworkEnetSessionAdapter, old_id: int) -> bool:
+	var hosted := _live_read("host.ready")
+	var session_id := str(hosted.get("session_id", ""))
+	_check(_live_original_host_available(session, session_id) and _live_guest_ownership_clear(session, old_id), "original host and LAN responder remain available with zero guests after ordinary Disconnect")
+	if not _failures.is_empty():
+		return false
+	# Reuse the independent passive physics guard; only the original host's
+	# continued availability is required while the guest walks and refreshes.
+	_live_start_full_guard(_live_original_host_available.bind(session, session_id), "original host native peer and LAN responder survive guest retirement, solo walking and readmission")
+	_live_write("host.first_cleared", {"guest_peer_id": old_id, "authority_clear": _live_guest_ownership_clear(session, old_id), "occupancy": int(session.get_session_capacity_snapshot().occupancy), "host_available": _live_original_host_available(session, session_id), "session_id": session_id, "native_peer_id": str(_live_original_native_peer.get_instance_id())})
+	if not await _live_wait_file("guest.rejoin_requested", 20.0):
+		return false
+	if not await _live_boundary(func(): return session.get_admitted_peer_ids().size() == 1, 20.0, "original host receives fresh authenticated admission after ordinary guest Disconnect"):
+		return false
+	var new_id := int(session.get_admitted_peer_ids()[0])
+	var rejoined := {"pid": OS.get_process_id(), "host_peer_id": session.multiplayer.get_unique_id(), "player": _live_player_identity(), "guest_peer_id": new_id, "guest_generation": _live_host_peer_generation(session, new_id), "session_id": session_id, "native_peer_id": str(_live_original_native_peer.get_instance_id())}
+	_check(_live_rejoin_tuple_fresh(_live_read("host.admitted"), rejoined, true), "host second admission has a fresh peer/generation tuple")
+	if not _failures.is_empty():
+		return false
+	_live_counts.append(int(session.get_session_capacity_snapshot().occupancy))
+	_live_write("host.rejoined", rejoined)
+	if not await _live_wait_file("guest.rejoined", 20.0):
+		return false
+	var guest := _live_read("guest.rejoined")
+	_check(int(guest.get("peer_id", 0)) == new_id and int(guest.get("peer_generation", 0)) == int(rejoined.guest_generation), "host and guest independently agree on second authenticated tuple")
+	if not _failures.is_empty():
+		return false
+	_live_rejoined = true
+	if not await _live_walk("rejoined_connected", &"move_forward", true):
+		return false
+	_live_write("host.allow_final_leave", {})
+	if not await _live_boundary(func(): return session.get_admitted_peer_ids().is_empty() and int(session.get_session_capacity_snapshot().occupancy) == 0, 20.0, "guest second ordinary Disconnect returns original host to zero guests"):
+		return false
+	_live_counts.append(int(session.get_session_capacity_snapshot().occupancy))
+	_check(_live_guest_ownership_clear(session, new_id), "host retires second admission and its body/seat/ship/crew authority")
+	_check(bool(_live_full_guard.get("valid", false)) and int(_live_full_guard.get("samples", 0)) > 0, "independent physics observations continuously retain original host availability")
+	_live_write("host.second_cleared", {"guest_peer_id": new_id, "guest_generation": int(rejoined.guest_generation), "authority_clear": _live_guest_ownership_clear(session, new_id), "host_available": _live_original_host_available(session, session_id), "guard": _live_full_guard.duplicate(true)})
+	_live_stop_full_guard()
+	return _failures.is_empty()
+
+
+func _live_record_guest_retirement(name: String, old_id: int, old_native: ENetMultiplayerPeer) -> bool:
+	var session: NetworkEnetSessionAdapter = _live_game.network_session
+	var retired := {"player": _live_player_identity(), "native_peer_id": str(old_native.get_instance_id()) if old_native != null else "", "native_closed": old_native != null and old_native.get_connection_status() == MultiplayerPeer.CONNECTION_DISCONNECTED, "peer_cleared": session.get("_peer") == null, "api_offline": session.multiplayer.multiplayer_peer is OfflineMultiplayerPeer, "session_inactive": not session.is_session_active(), "offer_empty": session.get_server_offer().is_empty(), "admissions_empty": session.get_admitted_peer_ids().is_empty(), "authority_clear": _live_guest_ownership_clear(session, old_id), "body_source_clear": _live_game.get_network_remote_body_intent_source() == null, "on_foot": not (_live_game.get_node("Player") as PlayerController).is_seated()}
+	var clear := true
+	for key: String in ["native_closed", "peer_cleared", "api_offline", "session_inactive", "offer_empty", "admissions_empty", "authority_clear", "body_source_clear", "on_foot"]:
+		clear = clear and bool(retired.get(key, false))
+	_check(clear, name + " ordinary Disconnect retires native peer/API/offer/admissions/body/seat/ship/crew ownership")
+	_live_write(name, retired)
+	return _failures.is_empty()
+
+
+func _live_guest_rejoin(session: NetworkEnetSessionAdapter, session_id: StringName) -> bool:
+	if not await _live_wait_file("host.first_cleared", 20.0):
+		return false
+	if not await _live_open_pause_browser():
+		return false
+	var previous_generation := int(_live_game.get("_lan_directory_generation"))
+	if not await _live_button("ServerBrowserRefreshButton"):
+		return false
+	if not await _live_boundary(func(): return int(_live_game.get("_lan_directory_generation")) > previous_generation and _live_row(session_id) != null, 10.0, "fresh actual Refresh rediscovers the still-available original host"):
+		return false
+	var hosted := _live_read("host.ready")
+	var endpoint := _live_game.get_lan_discovery().get_endpoint(session_id)
+	_check(int(endpoint.get("port", 0)) == int(hosted.get("port", -1)) and not str(endpoint.get("address", "")).is_empty(), "refreshed real LAN row resolves original host endpoint")
+	_live_write("guest.rejoin_requested", {"session_id": str(session_id), "endpoint": endpoint, "directory_generation": int(_live_game.get("_lan_directory_generation"))})
+	if not _failures.is_empty() or not await _live_activate(_live_row(session_id)):
+		return false
+	if not await _live_boundary(_live_authenticated, 20.0, "actual refreshed row produces fresh authenticated guest admission"):
+		return false
+	var peer := (session.get_server_offer().get("admission", {}) as Dictionary).get("peer", {}) as Dictionary
+	var new_native := session.get("_peer") as ENetMultiplayerPeer
+	var rejoined := {"pid": OS.get_process_id(), "peer_id": session.multiplayer.get_unique_id(), "peer_generation": int(peer.get("peer_generation", 0)), "player": _live_player_identity(), "session_id": str(session_id), "native_peer_id": str(new_native.get_instance_id()) if new_native != null else "", "old_native_closed": _live_original_native_peer != null and _live_original_native_peer.get_connection_status() == MultiplayerPeer.CONNECTION_DISCONNECTED}
+	_check(session == _live_game.network_session and _live_rejoin_tuple_fresh(_live_read("guest.admitted"), rejoined) and new_native != null and new_native != _live_original_native_peer and bool(rejoined.old_native_closed), "same guest adapter obtains fresh native transport and tuple while old peer remains closed")
+	_check(rejoined.player == _live_read("guest.admitted").get("player", {}), "readmission preserves the original runtime Player")
+	if not _failures.is_empty():
+		return false
+	_live_write("guest.rejoined", rejoined)
+	if not await _live_wait_file("host.rejoined", 20.0):
+		return false
+	var host := _live_read("host.rejoined")
+	_check(int(host.get("guest_peer_id", 0)) == int(rejoined.peer_id) and int(host.get("guest_generation", 0)) == int(rejoined.peer_generation), "guest independently matches host's second authenticated tuple")
+	if not _failures.is_empty():
+		return false
+	_live_rejoined = true
+	if not await _live_button("ServerBrowserBackButton") or not await _live_button("ResumeButton"):
+		return false
+	if not await _live_walk("rejoined_connected", &"move_forward", true) or not await _live_wait_file("host.allow_final_leave", 20.0):
+		return false
+	if not await _live_open_pause_browser() or not await _live_button("ServerBrowserDisconnectButton"):
+		return false
+	if not _live_record_guest_retirement("guest.second_retired", int(rejoined.peer_id), new_native):
+		return false
+	if not await _live_browser_after_leave() or not await _live_walk("final_solo", &"move_back", false):
+		return false
+	return await _live_wait_file("host.cleared", 20.0)
 
 
 func _live_begin_shift() -> bool:
@@ -840,7 +986,7 @@ func _live_browser_after_leave() -> bool:
 		"session_active": session.is_session_active(), "offer_empty": session.get_server_offer().is_empty(), "admissions_empty": session.get_admitted_peer_ids().is_empty(),
 	}
 	if _live_gameplay:
-		_live_walks["after_leave"] = observation
+		_live_walks["after_rejoined_leave" if _live_rejoin and _live_rejoined and _live_role == "guest" else "after_leave"] = observation
 	var ready := _live_browser_retry_ready(observation)
 	_check(ready, "ordinary UI leave presents own current fenced disconnected Retry Connection with cleared session")
 	if not ready or not _failures.is_empty():
@@ -883,7 +1029,7 @@ func _live_walk_network_ready(connected: bool) -> bool:
 		return false
 	if not connected:
 		return not session.is_session_active() and session.get_server_offer().is_empty() and session.get_admitted_peer_ids().is_empty() and _live_game.get_network_remote_body_intent_source() == null
-	var admitted: Dictionary = _live_read(_live_role + ".admitted")
+	var admitted: Dictionary = _live_expected_admission()
 	if _live_role == "host":
 		var guest_id := int(admitted.get("guest_peer_id", 0))
 		return session.is_session_active() and session.is_server() and session.multiplayer.get_unique_id() == 1 and session.get_admitted_peer_ids().size() == 1 and _live_host_peer_generation(session, guest_id) == int(admitted.get("guest_generation", -1))
@@ -903,7 +1049,7 @@ func _live_walk_snapshot(player: PlayerController) -> Dictionary:
 	var normal: Vector3 = support.get("normal", Vector3.ZERO)
 	var collision := player.get_node("PlayerCollision") as CollisionShape3D
 	var audit: Dictionary = player.get_remote_drive_audit()
-	var host_admitted: Dictionary = _live_read("host.admitted")
+	var host_admitted: Dictionary = _live_expected_admission("host")
 	var host_guest_id := int(host_admitted.get("guest_peer_id", 0))
 	return {"player": _live_player_identity(), "frame": Engine.get_physics_frames(),
 		"position": _live_walk_vector(player.global_position), "velocity": _live_walk_vector(player.velocity),
@@ -950,7 +1096,7 @@ func _live_walk(name: String, action: StringName, connected: bool, expected_iden
 	_live_release_movement()
 	var player := _live_game.get_node("Player") as PlayerController
 	var identity: Dictionary = _live_player_identity()
-	var admitted_identity: Dictionary = expected_identity if not expected_identity.is_empty() else _live_read(_live_role + ".admitted").get("player", {})
+	var admitted_identity: Dictionary = expected_identity if not expected_identity.is_empty() else _live_expected_admission().get("player", {})
 	_check(int(identity.pid) == int(admitted_identity.get("pid", 0)) and str(identity.object_id) == str(admitted_identity.get("object_id", "")) and str(identity.path) == str(admitted_identity.get("path", "")), name + " walk retains the original runtime Player identity")
 	if not _failures.is_empty():
 		return false
@@ -1075,54 +1221,87 @@ func _live_check_gameplay_receipts() -> void:
 		var connected_authority: Dictionary = connected_start.get("authority", {})
 		_check(_live_browser_retry_ready(after_leave) and str(after_leave.get("source_session_id", "")) == "game-flow-" + str(connected_authority.get("main_id", "")), role + " ordinary leave receipt proves current own fenced retry action before Refresh/Back/Resume")
 		for name: String in ["connected", "solo"]:
-			var walk: Dictionary = walks.get(name, {})
-			var start: Dictionary = walk.get("start", {})
-			var end: Dictionary = walk.get("end", {})
-			var authority: Dictionary = start.get("authority", {})
-			var direction := _live_walk_vector_from(walk.get("direction", []))
-			var displacement := _live_walk_vector_from(end.get("position", [])) - _live_walk_vector_from(start.get("position", []))
-			var connected := name == "connected"
-			_check(
-				walk.get("action", "") == ("move_forward" if connected else "move_back")
-				and bool(walk.get("connected", not connected)) == connected
-				and bool(authority.get("network_active", not connected)) == connected
-				and float(walk.get("walk_seconds", 6.0)) <= 5.0
-				and direction.is_finite() and is_equal_approx(direction.length(), 1.0)
-				and displacement.is_finite() and displacement.dot(direction) >= 1.0
-				and float(walk.get("peak_speed_mps", 0.0)) > 0.1,
-				role + " " + name + " receipt proves ordinary one-metre input walk in its original boundary")
-			var generation_valid: bool = (
-				int(authority.get("host_guest_id", 0)) == int(admitted.get("guest_peer_id", -1))
-				and int(authority.get("host_guest_generation", 0)) == int(admitted.get("guest_generation", -1))
-				if role == "host" else int(authority.get("peer_generation", 0)) == int(admitted.get("peer_generation", -1))
-			)
-			_check(
-				bool(authority.get("authenticated", not connected)) == connected
-				and not bool(authority.get("piloting", true))
-				and (not connected or (generation_valid and int(authority.get("peer_id", 0)) == int(admitted.get("host_peer_id" if role == "host" else "peer_id", -1)))),
-				role + " " + name + " preserves the actual admitted identity or cleared solo session")
-			_check(_live_walk_sample_valid(start, admitted.get("player", {}), authority) and _live_walk_sample_valid(end, admitted.get("player", {}), authority), role + " " + name + " start and end retain the same supported actor and grants")
-			var samples: Array = walk.get("samples", [])
-			var settle: Array = walk.get("settle", [])
-			var neutral: Array = walk.get("neutral", [])
-			_check(not samples.is_empty() and not settle.is_empty() and neutral.size() == 12 and float(walk.get("settle_seconds", 6.0)) <= 5.0, role + " " + name + " contains actual movement, bounded continuous settling and twelve neutral observations")
-			var previous_frame := int(start.get("frame", -1))
-			var observed_peak := 0.0
-			for sample: Dictionary in samples:
-				_check(_live_walk_sample_valid(sample, admitted.get("player", {}), authority) and int(sample.get("frame", -1)) == previous_frame + 1 and sample.get("input", []) == [0.0, -1.0 if connected else 1.0] and _live_walk_vector_from(sample.get("velocity", [])).is_finite(), role + " " + name + " movement preserves every physics step's actual support/player/control/auth/grants")
-				observed_peak = maxf(observed_peak, _live_walk_vector_from(sample.get("velocity", [])).length())
-				previous_frame = int(sample.get("frame", -1))
-			_check(observed_peak > 0.1, role + " " + name + " has measured movement velocity")
-			_check(not samples.is_empty() and end == samples.back(), role + " " + name + " end is the last actual held-input physics sample")
-			for sample: Dictionary in settle:
-				_check(_live_walk_sample_valid(sample, admitted.get("player", {}), authority) and int(sample.get("frame", -1)) == previous_frame + 1 and sample.get("input", []) == [0.0, 0.0] and _live_walk_vector_from(sample.get("velocity", [])).is_finite(), role + " " + name + " settling preserves support/control/auth/identity/grants on every physics step")
-				previous_frame = int(sample.get("frame", -1))
-			var neutral_start: Dictionary = walk.get("neutral_start", {})
-			_check(not settle.is_empty() and neutral_start == settle.back() and _live_walk_sample_valid(neutral_start, admitted.get("player", {}), authority) and _live_walk_vector_from(neutral_start.get("velocity", [])).length() <= 0.05, role + " " + name + " last settle sample starts neutral with original actor and ownership")
-			var neutral_origin := _live_walk_vector_from(neutral_start.get("position", []))
-			for sample: Dictionary in neutral:
-				_check(_live_walk_sample_valid(sample, admitted.get("player", {}), authority) and int(sample.get("frame", -1)) == previous_frame + 1 and sample.get("input", []) == [0.0, 0.0] and _live_walk_vector_from(sample.get("velocity", [])).length() <= 0.05 and _live_walk_vector_from(sample.get("position", [])).distance_to(neutral_origin) <= 0.02, role + " " + name + " neutral sample retains every fresh physics step's released supported pose without drift")
-				previous_frame = int(sample.get("frame", -1))
+			_live_check_walk_receipt(role, name, admitted, name == "connected")
+
+
+func _live_check_walk_receipt(role: String, name: String, admitted: Dictionary, connected: bool) -> void:
+	var walks: Dictionary = _live_read(role + ".done").get("gameplay", {})
+	var walk: Dictionary = walks.get(name, {})
+	var start: Dictionary = walk.get("start", {})
+	var end: Dictionary = walk.get("end", {})
+	var authority: Dictionary = start.get("authority", {})
+	var direction := _live_walk_vector_from(walk.get("direction", []))
+	var displacement := _live_walk_vector_from(end.get("position", [])) - _live_walk_vector_from(start.get("position", []))
+	_check(
+		walk.get("action", "") == ("move_forward" if connected else "move_back")
+		and bool(walk.get("connected", not connected)) == connected
+		and bool(authority.get("network_active", not connected)) == connected
+		and float(walk.get("walk_seconds", 6.0)) <= 5.0
+		and direction.is_finite() and is_equal_approx(direction.length(), 1.0)
+		and displacement.is_finite() and displacement.dot(direction) >= 1.0
+		and float(walk.get("peak_speed_mps", 0.0)) > 0.1,
+		role + " " + name + " receipt proves ordinary one-metre input walk in its original boundary")
+	var generation_valid: bool = (
+		int(authority.get("host_guest_id", 0)) == int(admitted.get("guest_peer_id", -1))
+		and int(authority.get("host_guest_generation", 0)) == int(admitted.get("guest_generation", -1))
+		if role == "host" else int(authority.get("peer_generation", 0)) == int(admitted.get("peer_generation", -1))
+	)
+	_check(
+		bool(authority.get("authenticated", not connected)) == connected
+		and not bool(authority.get("piloting", true))
+		and (not connected or (generation_valid and int(authority.get("peer_id", 0)) == int(admitted.get("host_peer_id" if role == "host" else "peer_id", -1)))),
+		role + " " + name + " preserves the actual admitted identity or cleared solo session")
+	_check(_live_walk_sample_valid(start, admitted.get("player", {}), authority) and _live_walk_sample_valid(end, admitted.get("player", {}), authority), role + " " + name + " start and end retain the same supported actor and grants")
+	var samples: Array = walk.get("samples", [])
+	var settle: Array = walk.get("settle", [])
+	var neutral: Array = walk.get("neutral", [])
+	_check(not samples.is_empty() and not settle.is_empty() and neutral.size() == 12 and float(walk.get("settle_seconds", 6.0)) <= 5.0, role + " " + name + " contains actual movement, bounded continuous settling and twelve neutral observations")
+	var previous_frame := int(start.get("frame", -1))
+	var observed_peak := 0.0
+	for sample: Dictionary in samples:
+		_check(_live_walk_sample_valid(sample, admitted.get("player", {}), authority) and int(sample.get("frame", -1)) == previous_frame + 1 and sample.get("input", []) == [0.0, -1.0 if connected else 1.0] and _live_walk_vector_from(sample.get("velocity", [])).is_finite(), role + " " + name + " movement preserves every physics step's actual support/player/control/auth/grants")
+		observed_peak = maxf(observed_peak, _live_walk_vector_from(sample.get("velocity", [])).length())
+		previous_frame = int(sample.get("frame", -1))
+	_check(observed_peak > 0.1, role + " " + name + " has measured movement velocity")
+	_check(not samples.is_empty() and end == samples.back(), role + " " + name + " end is the last actual held-input physics sample")
+	for sample: Dictionary in settle:
+		_check(_live_walk_sample_valid(sample, admitted.get("player", {}), authority) and int(sample.get("frame", -1)) == previous_frame + 1 and sample.get("input", []) == [0.0, 0.0] and _live_walk_vector_from(sample.get("velocity", [])).is_finite(), role + " " + name + " settling preserves support/control/auth/identity/grants on every physics step")
+		previous_frame = int(sample.get("frame", -1))
+	var neutral_start: Dictionary = walk.get("neutral_start", {})
+	_check(not settle.is_empty() and neutral_start == settle.back() and _live_walk_sample_valid(neutral_start, admitted.get("player", {}), authority) and _live_walk_vector_from(neutral_start.get("velocity", [])).length() <= 0.05, role + " " + name + " last settle sample starts neutral with original actor and ownership")
+	var neutral_origin := _live_walk_vector_from(neutral_start.get("position", []))
+	for sample: Dictionary in neutral:
+		_check(_live_walk_sample_valid(sample, admitted.get("player", {}), authority) and int(sample.get("frame", -1)) == previous_frame + 1 and sample.get("input", []) == [0.0, 0.0] and _live_walk_vector_from(sample.get("velocity", [])).length() <= 0.05 and _live_walk_vector_from(sample.get("position", [])).distance_to(neutral_origin) <= 0.02, role + " " + name + " neutral sample retains every fresh physics step's released supported pose without drift")
+		previous_frame = int(sample.get("frame", -1))
+
+
+func _live_check_rejoin_receipts(host: Dictionary, guest: Dictionary) -> void:
+	var host_second := _live_read("host.rejoined")
+	var guest_second := _live_read("guest.rejoined")
+	var first_cleared := _live_read("host.first_cleared")
+	var second_cleared := _live_read("host.second_cleared")
+	var requested := _live_read("guest.rejoin_requested")
+	var ready := _live_read("host.ready")
+	_check(_live_rejoin_tuple_fresh(host, host_second, true) and _live_rejoin_tuple_fresh(guest, guest_second), "both independent second admissions are fresh tuples without assuming generation increases for a changed peer ID")
+	_check(int(host_second.get("guest_peer_id", 0)) == int(guest_second.get("peer_id", -1)) and int(host_second.get("guest_generation", 0)) == int(guest_second.get("peer_generation", -1)), "second host/guest receipts match the actual authenticated tuple")
+	_check(host_second.get("player", {}) == host.get("player", {}) and guest_second.get("player", {}) == guest.get("player", {}) and int(host_second.get("pid", 0)) == int(host.get("pid", -1)) and int(guest_second.get("pid", 0)) == int(guest.get("pid", -1)), "both readmission actors retain original actual Main processes and Players")
+	_check(not str(ready.get("session_id", "")).is_empty() and first_cleared.get("session_id", "") == ready.get("session_id") and host_second.get("session_id", "") == ready.get("session_id") and guest_second.get("session_id", "") == ready.get("session_id") and requested.get("session_id", "") == ready.get("session_id"), "readmission comes from the same live host LAN session discovered by a fresh actual Refresh")
+	_check(bool(first_cleared.get("host_available", false)) and bool(first_cleared.get("authority_clear", false)) and int(first_cleared.get("occupancy", -1)) == 0 and int(first_cleared.get("guest_peer_id", 0)) == int(host.get("guest_peer_id", -1)) and not str(first_cleared.get("native_peer_id", "")).is_empty() and first_cleared.get("native_peer_id") == host_second.get("native_peer_id"), "first guest tuple retires completely while the original host native peer remains available")
+	_check(bool(second_cleared.get("host_available", false)) and bool(second_cleared.get("authority_clear", false)) and int(second_cleared.get("guest_peer_id", 0)) == int(host_second.get("guest_peer_id", -1)) and int(second_cleared.get("guest_generation", 0)) == int(host_second.get("guest_generation", -1)), "second ordinary Disconnect retires the second host tuple and authority before host stops")
+	var guard: Dictionary = second_cleared.get("guard", {})
+	_check(bool(guard.get("valid", false)) and int(guard.get("samples", 0)) > 0, "independent physics guard observed original host availability throughout solo walking and rejoin")
+	for receipt_name: String in ["guest.retired", "guest.second_retired"]:
+		var retired := _live_read(receipt_name)
+		_check(retired.get("player", {}) == guest.get("player", {}), receipt_name + " retains original supported Player")
+		for key: String in ["native_closed", "peer_cleared", "api_offline", "session_inactive", "offer_empty", "admissions_empty", "authority_clear", "body_source_clear", "on_foot"]:
+			_check(bool(retired.get(key, false)), receipt_name + " independently recorded " + key)
+	var original_native := str(_live_read("guest.retired").get("native_peer_id", ""))
+	_check(not original_native.is_empty() and not str(guest_second.get("native_peer_id", "")).is_empty() and original_native != str(guest_second.get("native_peer_id", "")) and bool(guest_second.get("old_native_closed", false)) and _live_read("guest.second_retired").get("native_peer_id", "") == guest_second.get("native_peer_id"), "second guest native peer differs from closed first peer and is itself closed by final ordinary Disconnect")
+	for role: String in ["host", "guest"]:
+		_live_check_walk_receipt(role, "rejoined_connected", _live_read(role + ".rejoined"), true)
+	var walks: Dictionary = _live_read("guest.done").get("gameplay", {})
+	_check(_live_browser_retry_ready(walks.get("after_rejoined_leave", {})), "second ordinary Disconnect presents its own current retired HUD cursor and usable browser retry action")
+	_live_check_walk_receipt("guest", "final_solo", guest_second, false)
 
 
 func _live_player_identity() -> Dictionary:
@@ -1297,6 +1476,8 @@ func _live_finish() -> void:
 		label = "GAME_FLOW_LIVE_MENU_FULL"
 	elif _live_gameplay:
 		label = "GAME_FLOW_LIVE_MENU_ONE_GUEST_GAMEPLAY"
+	if _live_rejoin:
+		label = "GAME_FLOW_LIVE_MENU_DISCONNECT_REJOIN"
 	print(label + ": %d assertions, %d failures" % [_assertions, _failures.size()])
 	if _failures.is_empty() and _live_role == "coordinator":
 		print(label + "_TEST_OK")
