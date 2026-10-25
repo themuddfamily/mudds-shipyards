@@ -100,8 +100,39 @@ func _initialize() -> void:
 	var live_peer := another_client.multiplayer.get_unique_id()
 	var native_peer := _server.multiplayer.multiplayer_peer as ENetMultiplayerPeer
 	var lost_revision := int(_server._moving_recipient_revisions.get(lost_peer, 0))
+	var projectile_packets: Array[Dictionary] = []
+	another_client.projectile_replica_packet.connect(func(packet: Dictionary, result: Dictionary) -> void:
+		projectile_packets.append({"packet": packet, "result": result}))
+	# Fill the existing per-recipient window, leaving one genuine deferred
+	# update on both links before one native link closes.
+	for index in range(17):
+		var publication := _server.publish_projectile_snapshot(
+			_projectile(StringName("disconnect_%02d" % index), 1),
+			[lost_peer, live_peer], false, 1, false)
+		_check(publication.accepted, "prepare bounded projectile window %d" % index)
+	_check(int(_server.get_projectile_replication_budget(lost_peer).get("pending_count", 0)) == 1
+		and int(_server.get_projectile_replication_budget(live_peer).get("pending_count", 0)) == 1,
+		"both real recipients have one deferred projectile")
+	await _pump(func() -> bool: return projectile_packets.size() == 16)
+	_check(projectile_packets.size() == 16, "connected client receives the initial projectile window")
+	var lost_budget := _server.get_projectile_replication_budget(lost_peer).duplicate(true)
+	var lost_pending: Dictionary = (_server._projectile_recipient_pending.get(lost_peer, {}) as Dictionary).duplicate(true)
+	var lost_published: Dictionary = (_server._projectile_published_generations.get(lost_peer, {}) as Dictionary).duplicate(true)
 	native_peer.disconnect_peer(lost_peer, true)
 	_check(_server._peer_generations.has(lost_peer), "native disconnect precedes queued admission cleanup")
+	_check(_server.publish_projectile_snapshot(
+		_projectile(&"disconnect_fresh", 11), [lost_peer, live_peer], false, 11, false).accepted,
+		"fresh flying publication survives another recipient native disconnect")
+	_check(_server.publish_projectile_snapshot(
+		_projectile(&"disconnect_fresh", 12, &"expired"), [lost_peer, live_peer], true, 12).accepted,
+		"terminal publication survives another recipient native disconnect")
+	# No poll until this comparison: queued logical cleanup owns final removal.
+	_check(_server.get_projectile_replication_budget(lost_peer) == lost_budget
+		and _server._projectile_recipient_pending.get(lost_peer, {}) == lost_pending
+		and _server._projectile_published_generations.get(lost_peer, {}) == lost_published,
+		"closed native link consumes no immediate or deferred projectile delivery work")
+	_check(bool((_server._projectile_authoritative_records.get(&"disconnect_fresh", {}) as Dictionary).get("terminal", false)),
+		"canonical projectile terminal commits independently of recipient transport")
 	_check(_server.publish_snapshot(28, [], [], []).accepted, "authority publication continues during native disconnect window")
 	var moving_packet := {"relationship": _relationship(1), "server_tick": 1, "migration_generation": 1}
 	_server._send_moving_interior_packet(lost_peer, moving_packet)
@@ -135,6 +166,25 @@ func _initialize() -> void:
 		and another_client.get_gunner_replica_snapshot().get("ship_id") == &"live_role"
 		and another_client.get_passenger_replica_snapshot().get("ship_id") == &"live_role",
 		"all three role views reach the connected client after the other native link closes")
+	await _pump(func() -> bool: return projectile_packets.size() == 19)
+	_check(projectile_packets.size() == 19, "survivor receives deferred update, fresh flight and terminal")
+	if projectile_packets.size() == 19:
+		var deferred := projectile_packets[16]
+		var flying := projectile_packets[17]
+		var terminal := projectile_packets[18]
+		_check(deferred.result.accepted and deferred.packet.projectile.projectile_id == &"disconnect_16"
+			and flying.result.accepted and flying.packet.projectile.projectile_id == &"disconnect_fresh"
+			and flying.packet.projectile.state == &"flying"
+			and terminal.result.accepted and terminal.packet.projectile.projectile_id == &"disconnect_fresh"
+			and terminal.packet.terminal and terminal.packet.projectile.state == &"expired",
+			"surviving real client accepts the exact deferred, flying and terminal sequence")
+	_check(not another_client._projectile_replica_samples.has(&"disconnect_fresh")
+		and int(another_client._projectile_replica_terminal_generations.get(&"disconnect_fresh", 0)) == 1,
+		"terminal retires surviving replica and retains its generation fence")
+	_check(not _server._peer_generations.has(lost_peer)
+		and not _server._projectile_recipient_pending.has(lost_peer)
+		and not _server._projectile_recipient_budgets.has(lost_peer),
+		"normal queued disconnect cleanup retires old admission and projectile work")
 	another_client.shutdown()
 	_client.shutdown()
 	_server.shutdown()
@@ -155,6 +205,15 @@ func _send_interior(revision: int, tick: int) -> void:
 		"revision": revision, "server_tick": tick, "migration_generation": 1,
 		"relationship": _relationship(tick),
 	})
+
+
+func _projectile(id: StringName, tick: int, state: StringName = &"flying") -> Dictionary:
+	return {
+		"projectile_id": id, "projectile_generation": 1,
+		"source_entity_id": &"disconnect_source", "source_generation": 1,
+		"owner_peer_id": 1, "position": Vector3.ONE, "direction": Vector3.FORWARD,
+		"last_update_tick": tick, "state": state,
+	}
 
 
 func _relationship(tick: int) -> Dictionary:
