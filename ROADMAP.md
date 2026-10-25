@@ -71,6 +71,16 @@ actual ramp+Aft-lip and all negative physics cases, then one complete original
 trip. Estimate10implementation+15checks/route+5closure; original90min clock,
 next fixture/route failure parks without another automatic correction.
 
+Capsule fixtures87/87 pass; full02a1a233f reaches home with real ramp support,
+then catches genuine airtime8983: camera-relative walking steers uphill/off the
+ramp side, deckdrop0.4883m exceeds0.35m snap. One FINAL root/independent cumulative
+review selects a Hauler-only home goal: existing proven apron[8.8,4.18,90],2.037m
+outboard/downhill. Full capsule stays inside clear Dock04 deck; initial drop≤0.3334m.
+All original support/distance/settled/UIOS0 criteria and Jovian behavior remain.
+No observer/runtime/geometry change. Estimate5implementation+8checks/route+5closure;
+latest full-run launch05:23UTC, hard original90min deadline05:30:25UTC. Next failure
+parks; no further repair or task renaming resets this cumulative budget.
+
 **PARKED: HAULER-CARGO-DELIVERY — home walk support check failed.**
 Unaccepted candidatesc0c5ff2b7/70de2ea83 complete ordinary station walking,
 Hauler boarding/departure, actual Cinder load/gate/redock, ten-point terminal walk,

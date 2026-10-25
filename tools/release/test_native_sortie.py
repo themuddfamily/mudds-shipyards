@@ -323,6 +323,28 @@ class NativeSortieSafetyTests(unittest.TestCase):
             aim.assert_called_once()
         self.assertEqual(keys, {'Prior'})
 
+    def test_supply_home_exit_uses_hauler_supported_apron_and_preserves_jovian_camera_goal(self):
+        s = dict(frame=8980, phase='SHUT_DOWN', player=[7, 4.513402, 89.046707],
+                 position=[7, 5.81, 84.7000046], walk_forward=[.8, 0, -.6], ship_velocity=[0, 0, 0], cargo={},
+                 grounded=True, supported=True, support_collider='Hauler/PilotRamp',
+                 seated=False, control_enabled=True, transition_busy=False)
+        for cls in (native.CinderSupplyPilot, native.CinderHaulerSupplyPilot):
+            with self.subTest(pilot=cls.__name__):
+                pilot = cls()
+                pilot.stage, pilot.stage_since, pilot.last_state = 'home_exit', 0, s
+                self.assertEqual(pilot.update(s, 1), (set(), 0, 0, False))
+                self.assertEqual(pilot.stage, 'home_walk')
+                self.assertIs(pilot.receipts['home_exterior'], s)
+                expected = ([[8.8, 4.18, 90]] if cls is native.CinderHaulerSupplyPilot
+                            else [[p+1.5*f for p, f in zip(s['player'], s['walk_forward'])]])
+                self.assertEqual(pilot.route, expected)
+                if cls is native.CinderHaulerSupplyPilot:
+                    self.assertEqual(pilot.route, [pilot.initial_walk_route(s)[-1]])
+                    self.assertIsNot(pilot.route[0], pilot.INITIAL_GOALS[-1])
+                    pilot.route[0][0] = -100
+                    self.assertEqual(pilot.home_walk_route(s), [[8.8, 4.18, 90]])
+        self.assertEqual(s['player'], [7, 4.513402, 89.046707])
+
     def test_hauler_supply_exact_source_manifest_cannot_spend_or_aggregate_jovian_stock(self):
         pilot = native.CinderHaulerSupplyPilot()
         for source, destination in ((2, 0), (1, 1)):

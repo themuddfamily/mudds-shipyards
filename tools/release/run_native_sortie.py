@@ -6540,6 +6540,9 @@ class CinderSupplyPilot(BeaconEntryPilot):
         route = s['cargo']['route']
         return [route[1], route[2], route[1], route[0], s['boarding'][:]]
 
+    def home_walk_route(self, s):
+        return [[p+1.5*f for p, f in zip(s['player'], s['walk_forward'])]]
+
     def require_stock(self, s, source, destination):
         manifests = s['cargo']['inventory']['manifests']
         quantities = {m['owner_entity_id']: sum(e['quantity'] for e in m['entries']
@@ -6909,7 +6912,7 @@ class CinderSupplyPilot(BeaconEntryPilot):
             require(now-self.stage_since <= 10, 'home authored physical exit10 seconds')
             if not s['seated'] and s['control_enabled'] and not s['transition_busy']:
                 self.foot(s); self.receipts['home_exterior'] = s
-                self.route = [[p+1.5*f for p, f in zip(s['player'], s['walk_forward'])]]
+                self.route = self.home_walk_route(s)
                 self.enter('home_walk', s)
         elif self.stage == 'home_walk':
             dx, reached = self.walk_to(s, self.route[0], keys, now)
@@ -6973,6 +6976,10 @@ class CinderHaulerSupplyPilot(CinderSupplyPilot):
     def initial_walk_route(self, s):
         # Stop on the supported apron and aim at the actual boarding marker.
         return [point[:] for point in self.INITIAL_GOALS]
+
+    def home_walk_route(self, s):
+        # Retrace the supported apron point already reached before boarding.
+        return [self.INITIAL_GOALS[-1][:]]
 
     def reboard_walk_route(self, s):
         # The ten-point outbound/reverse walk already clears the reboard guard.
