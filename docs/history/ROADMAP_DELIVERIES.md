@@ -27200,3 +27200,21 @@ Archive cleanup finishes23:38:15.938UTC,23.716min into the ORIGINAL23:14:33→
 00:14:33/60min clock. Exact branch/final-push timestamp and final cost are in
 adjacent closeout.json. No unexpected failure/retry/reset. Three caption mappings
 are delivered; original broader comfort/device/native/final gates remain open.
+
+
+## Ship-rig caption source membership closed — 2026-10-25
+
+Bounded read-only follow-up on af97e5f82 fixes the existing COMFORT-CAPTIONS
+ShipAudioRig producer contract at21possible semantic IDs:19canonical presenter
+definitions and2unmapped engine_load_high/engine_load_normal. The latter come only
+from set_engine_velocity; scripts/scenes inspection finds no production caller.
+Two existing tests call that method directly. Resident/profile cue_requested
+names belong to a different stream and are not extra semantic caption instances.
+The exact membership is in the existing backlog's ship-rig-caption-membership
+section; no second inventory/file or runtime repair is created.
+
+No further live caption gap is demonstrated in this producer. Its definition is
+closed; other producers and ordinary/restart/Reset/rendered/device/full-family
+acceptance remain open. No engine, test run, scratch, branch, build or evidence
+validator is created. Source membership is not gameplay progress or 19 runtime
+passes; current playable checkpoint46bae53 and full original scope remain.

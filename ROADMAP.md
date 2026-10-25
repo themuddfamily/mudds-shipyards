@@ -89,6 +89,12 @@ owned scratch is removed and the completed branch is deleted. The original
 23:14:33→00:14:33UTC/60min is retained; no successor is active.
 [Exact delivery and limits](docs/history/ROADMAP_DELIVERIES.md#engine-transition-live-captions-delivered-20261025).
 
+The [ship-rig caption membership](docs/ROADMAP_BACKLOG.md#ship-rig-caption-membership)
+is now fixed:21possible semantic IDs,19mapped and2unmapped load IDs whose method
+has no demonstrated production caller. This closes that source definition only;
+no additional live repair is selected. Reuse this result rather than surveying
+the same producer again. Wider caption/play/device gates remain unchanged.
+
 **Jovian solo ordinary engineer route: PARKED / not accepted.** Two source
 trials reach all17 outward walking goals and the real engineer chair. The second
 proves matching accepted repair, integrity improvement and kits6→5 in437ms,
