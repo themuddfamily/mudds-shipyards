@@ -23777,3 +23777,75 @@ thirty-Main Patrol suite/UI-BOARD-FOCUS, native/device and final gates stay open
 Normal gameplay is unchanged, so public playable checkpoint remains0d77125; no
 identical normal-game Windows checkpoint was published for the driver capability.
 GitHub Actions remains disabled. Full original roadmap goal remains active.
+
+<a id="patrol-platform-first-play-parked-20261025"></a>
+## Platform Patrol — full journey parked at final quit — 2026-10-25
+
+Selected `cd0b52a6b` from `ebcf5a064`; candidate
+`ff3fbab088e1098a410430db20ef52f95b145774` is **NOT ACCEPTED** and was not
+integrated. Existing release-runner extension, passive observer, private startup
+selector and focused tests passed independent source review. Root checks passed:
+179 Python tests (guard11.636184s), import6.600657s, parser16.000336s,
+privacy1.012408s, clean private Linux export25.771803s, strict startup23.088537s
+(exit0 plus STARTUP_MENU_READY_OK), and inventory1,527 entries without tests/tools.
+Exercised ELF SHA256
+`06be5e9c51ee0078e795268474d0c5316f2f1656aba25721eea6a2550c216e48`.
+
+Full ordinary package trial FAILS at the original300s deadline, stage `quit_wait`:
+Return was requested on the actual visible/enabled/focused EXIT TO DESKTOP button
+(sequence8216), but the last raw sample (sequence8222/frame8695) remained paused.
+Normal UI process exit0 and the fifth orderly-close actual-file capture were not
+established. Driver304.890s includes cleanup; guard305.264498s. No longer cap,
+correction or second trial was selected. Independent raw review HOLD.
+
+Partial observations remain diagnostic results, not a passed first-play goal:
+normal menu/Guided/physical exit; actual pause Patrol→Platform selection changes
+idle default relay/gen0 to platform/gen0 before actual start/gen1. Same production
+owners persist. Exact platform point order is[32,-26,-372]→[16,-9,-240]→
+[30,-46,-600]→[46,-44,-498]→[60,-70,-700]. Five actual32m occupied holds contain120
+continuous60Hz ticks each:3623–3742,4081–4200,4661–4780,5066–5185,5743–5862.
+Real activity duration54.133333s and one genuine generation1 cinder_platform_patrol
+receipt; four actual captures baseline18→paid31→stable31→home34 preserve exact
+ledger/terminal/protected siblings, with only two actual approach-justified tutorial
+additions. Original safe header passages, strict dock,90 neutral OFFLINE ticks
+8336–8425, physical exit and supported1.162771m walk pass their predicates.
+The craft returns alive with22.57217 hull; no undamaged-return claim.
+
+The abort releases inputs and reaps game/input helper/Xvfb; diagnostics0,
+owned-process survivors empty and all observed identities absent. Clean-source
+pin/index/tree/cache guards match. Candidate bundle verified against retained
+main `cd0b52a6bb82d8727166494d5808980210b2919c`; exact exercised package/startup
+records and complete source/raw/profile/helpers are preserved in the case archive.
+No task branch or worktree was created; pre-existing detached registrations are
+protected. Five owned loose build files were removed after byte verification.
+All8 stage owners are terminal and45 observed process identities are absent.
+All226 case members were verified before loose-record removal. Only archive and
+closeout remain at `/srv/mudds-work/patrol-platform-first-play-20261025/results/`;
+archive120,450,797bytes, SHA256
+`bf9edc6ef74404d9a67bd62389b3cd1c108df79aa6331a878024d952e3e3d58c`.
+Final pushed source and cumulative cost are recorded in closeout.
+
+PARKED reopening condition: source/raw-supported cause for the final normal-quit
+failure and one reviewed bounded correction preserving the complete journey,
+original CAP300/outer360 and cumulative original90min clock (start03:41:27UTC).
+No unchanged retry or arbitrary cap extension. Relay first-play stays accepted
+only on its recorded source; PLAY-PATROL as a whole remains OPEN. Repeat/cold,
+parked thirty-Main suite/UI-BOARD-FOCUS/native/device/final gates remain open.
+Public checkpoint0d77125 remains current. GitHub Actions stays disabled.
+
+## Roadmap boundaries tightened — 2026-10-25
+
+User requested concrete, provable goals to stop expanding loops. Existing
+ROADMAP.md assignment cards now explicitly freeze family membership before any
+case runs; absent criteria/membership identify an exact blocker and owner. First
+failure/cumulative budget remain binding. Independent read-only review found four
+remaining gaps: finite comfort episodes, required UI state/aspect/scale cells,
+capacity-specific reused baseline/endurance journeys, and remaining travel legs
+with owner-approved maxima. Existing backlog rows now name those exact missing
+inputs and closure conditions. Codex owns source-derived lists; the user owns
+unsettled product maxima/capacity decisions. Definitions add no gameplay progress.
+
+Independent documentation review GO. All337 canonical IDs/order retained,
+36-parent crosswalk and ten phase gates preserved; no scope reduction or invented
+scenario combinations. Completed child results remain source-specific. Local diff
+and link checks apply; documentation alone needs no engine rerun or new build.

@@ -29,33 +29,23 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Selected: PLAY-PATROL[platform_sweep] — finish the second patrol branch.**
-Startebcf5a064; relay first-play remains accepted on its cited source. One
-implementer owns existing runner/tests/passive observer/startup selector; root
-owns privacy/docs/guards/checks/integration/cleanup. Add `--route patrol-platform-home`
-/ `NATIVE_PATROL_PLATFORM_HOME_OK` by reusing the qualified patrol journey.
+**PARKED: PLAY-PATROL[platform_sweep] — final normal quit did not finish.**
+Candidate `ff3fbab08` passed focused checks and reached all five real platform
+holds, payment, strict home, shutdown, physical exit and supported walking.
+The original300s deadline expired at `quit_wait`; actual normal UI process exit0
+and orderly-close save proof are missing. The complete journey therefore FAILS.
+Driver304.890s includes cleanup; no longer cap or retry is selected. Unaccepted
+source and raw results are preserved outside the repository; accepted relay code
+and playable checkpoint0d77125 remain current.
+[Failure and reopening condition](docs/history/ROADMAP_DELIVERIES.md#patrol-platform-first-play-parked-20261025).
 
-Normal menu/Guided/physical exit → actual pause Patrol selection → actual Platform
-button changes fresh idle defaultrelay toplatform without advancing generation →
-resume/supported reboard clearance/same-Torrent departure/safe low header lane →
-five actual ordered platform32m volumes,2 continuous physics seconds/120 occupied
-60Hz ticks each → one genuine cinder_platform_patrol payment/generation1 → strict
-home/90neutral OFFLINE/physical exit/original supported walk/normal UI OS0.
-Platform order is[32,-26,-372]→[16,-9,-240]→[30,-46,-600]→[46,-44,-498]→[60,-70,-700].
-Freeze the actual branch/route/points before start; reject wrong/default branch,
-synthetic progress, skipped/reset dwell, replayed payment and unrelated save change.
-
-Preserve CAP300/outer360, existing controls/geometry/tuning and actual normal UI.
-No invented Patrol timeout/speed gate, direct state/claim/provider mutation or
-new framework/validator/schema. Proof: focused existing Python/privacy/import/
-parser, clean private Linux export/strict menu readiness/PCK inventory and one
-full owned Xvfb/x11/Dummy-audio/dummy-renderer OS-XTest package route, independent
-source/raw review, actual process/build/profile/branch cleanup. Estimate3min
-mapping+20implementation+25checks/route+15closure; hard90min includes mapping from
-prior closeout. First unexpected failure stops for cumulative review/parking.
-Both branch passes close only first-play; repeats/cold/native/final/full-save-suite
-and parked UI-BOARD-FOCUS gates remain separate. No identical public rebuild for
-caller-only work; actual runtime changes require a separately proved checkpoint.
+**Delivered: fixed task boundaries and explicit acceptance blockers.**
+Every named goal must have a literal pass condition or an exact missing input and
+owner. Required scenario membership is fixed before execution; one passing case
+cannot close a family. The remaining comfort/UI coverage, capacity-journey and
+travel-leg definition gaps are explicit blockers in the existing inventory.
+The documentation review is complete; it delivers no gameplay completion and
+selects no new run.
 
 **Delivered: PLAY-PATROL[relay_sweep] — full ordinary relay branch.**
 Sourcec3d369e0f passes the complete packaged journey in227.070s under original
@@ -74,7 +64,7 @@ route and cleanup stay on the original90min task clock.
 [Exact proof, first failure and cleanup](docs/history/ROADMAP_DELIVERIES.md#patrol-relay-first-play-accepted-20261025).
 
 This closes the relay instance only. Platform sweep remains required and
-unselected, so PLAY-PATROL as a whole stays open. Repeat/cold-recovery, parked
+parked after its failed full journey, so PLAY-PATROL stays open. Repeat/cold-recovery, parked
 thirty-Main Patrol suite, UI-BOARD-FOCUS, native/device and final-candidate gates
 remain open. No new implementation is selected by this closeout. Normal gameplay
 is unchanged; playable checkpoint0d77125 remains current.
@@ -199,6 +189,12 @@ Before work starts, copy its existing ID, **Done means**, dependencies and prote
 scope into a short execution card. Add exact production files/owner, action or
 command, expected visible result, implementation/check estimate and time budget.
 No card may say only “finish”, “polish”, “improve” or “support” a family.
+
+Freeze the complete required case list before the first case runs. Missing
+criteria or membership make the goal GATED, with the exact input and its owner
+recorded in the existing row. New cases require an identified uncovered original
+requirement. Report the first failed predicate and cumulative time; never extend
+the finish line or reset the budget after seeing a result.
 
 Use this compact card for every selected task; fill each field before editing:
 
