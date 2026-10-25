@@ -4622,5 +4622,180 @@ class RaceHomeCallerTests(unittest.TestCase):
         self.assertNotIn('cinder_beacon_session', native.RaceHomeFiles.MUTABLE)
 
 
+class PatrolRelayHomeCallerTests(unittest.TestCase):
+    @staticmethod
+    def sample(frame=1, state='idle', cursor=0, dwell=0, position=None):
+        sample = RaceHomeCallerTests.sample(frame)
+        sample['mode'] = 'patrol-relay-home'
+        sample.pop('race')
+        generation = int(state != 'idle')
+        position = list(position if position is not None else [0, 8, -78])
+        sample['position'] = position
+        sample['tutorial_approach'].update(accepted=True, sample_reason='available',
+            actor_id=sample['ship_id'], piloting=True, position=position[:])
+        snapshot = dict(activity_id=native.PatrolRelayHomePilot.ACTIVITY, branch_id='relay_sweep',
+            attached=True, closed=False, state_id=state, state={'idle':0,'active':1,'completed':2}[state],
+            generation=generation, activity_generation=generation, dwell_seconds=2,
+            dwell_elapsed_seconds=dwell, checkpoint_occupied=dwell>0,
+            dwell_checkpoint_index=cursor if dwell else -1, next_checkpoint_index=cursor,
+            completed_checkpoint_count=cursor, current_time_seconds=(frame-1)/60 if generation else 0,
+            patrol_actor_instance_id=sample['ship_id'] if generation else 0,
+            patrol_actor_status_id='tracked' if generation else 'unbound',
+            last_duration_seconds=(frame-1)/60 if state == 'completed' else -1,
+            failure_reason='', terminal_reason='')
+        capture = dict(schema_version=2, activity_id=native.PatrolRelayHomePilot.ACTIVITY,
+            branch_id='relay_sweep', configured_dwell_seconds=2, generation=generation,
+            activity_generation=generation, state=snapshot['state'], next_checkpoint_index=cursor,
+            completed_checkpoint_count=cursor, dwell_checkpoint_index=snapshot['dwell_checkpoint_index'],
+            dwell_elapsed_seconds=dwell, last_duration_seconds=snapshot['last_duration_seconds'],
+            activity_state=dict(state=2 if state == 'completed' else generation, next_checkpoint_index=cursor))
+        sample['patrol'] = dict(owner_id=5, director_id=7, selected_kind='patrol',
+            active_id=native.PatrolRelayHomePilot.ACTIVITY, active_generation=generation,
+            route_path='res://assets/activities/cinder_reach_checkpoint_route.tres',
+            points=copy.deepcopy(native.PatrolRelayHomePilot.POINTS), radius=32,
+            snapshot=snapshot, capture=capture,
+            director=dict(generation=generation, next_checkpoint_index=cursor,
+                          state=2 if state == 'completed' else generation))
+        return sample
+
+    @classmethod
+    def paid(cls):
+        sample = cls.sample(700, 'completed', 5)
+        settlement = copy.deepcopy(RaceHomeCallerTests.paid()['settlement'])
+        reward = native.PatrolRelayHomePilot.REWARD
+        receipt = settlement['record']['last_receipt']
+        receipt.update(activity_id='cinder_relay_patrol', reward_id=reward, reward_label='Patrol log accepted')
+        settlement['record']['reward_counts'] = {reward:1}
+        settlement['handoff']['reward_request'].update(activity_id='cinder_relay_patrol', reward_id=reward)
+        settlement['handoff']['callback']['receipt'] = copy.deepcopy(receipt)
+        settlement['terminal']['activities'] = [dict(activity_id=native.PatrolRelayHomePilot.ACTIVITY,
+            generation=1, state=2, reward_requested=True, reward_granted=True,
+            progress=dict(patrol_state=copy.deepcopy(sample['patrol']['capture'])))]
+        sample['settlement'] = settlement
+        return sample
+
+    def running(self):
+        pilot = native.PatrolRelayHomePilot()
+        initial = self.sample()
+        initial['patrol']['selected_kind'] = 'timed_race'
+        initial['patrol']['snapshot']['attached'] = False
+        pilot.validate_observation(initial)
+        pilot.guided_result = dict(genuine_guided=True)
+        pilot.patrol_selected = True
+        pilot.validate_observation(self.sample(2, 'active'))
+        return pilot
+
+    def test_default_race_keeps_original_idle_patrol_detached_until_real_selection(self):
+        pilot = native.PatrolRelayHomePilot()
+        initial = self.sample()
+        initial['patrol']['selected_kind'] = 'timed_race'
+        initial['patrol']['snapshot']['attached'] = False
+        pilot.validate_observation(initial)
+        self.assertIsNone(pilot.patrol_active)
+        selected = self.sample(2)
+        pilot.validate_observation(selected)
+        bad = self.sample(3)
+        bad['patrol']['snapshot']['attached'] = False
+        with self.assertRaises(AssertionError): pilot.validate_observation(bad)
+
+    def test_exact_120_continuous_real_ticks_precede_director_commit(self):
+        pilot = self.running()
+        point = native.PatrolRelayHomePilot.POINTS[0]
+        for tick in range(1, 120):
+            pilot.validate_observation(self.sample(tick+2, 'active', dwell=tick/60, position=point))
+        self.assertEqual(pilot.gates, [])
+        pilot.validate_observation(self.sample(122, 'active', cursor=1, position=point))
+        self.assertEqual(pilot.gates[0]['occupied_ticks'], 120)
+        self.assertEqual(pilot.dwell_ticks, 0)
+
+    def test_leaving_volume_resets_dwell_and_cannot_pay_for_accumulated_visits(self):
+        pilot = self.running(); point = native.PatrolRelayHomePilot.POINTS[0]
+        for tick in range(1, 61):
+            pilot.validate_observation(self.sample(tick+2, 'active', dwell=tick/60, position=point))
+        pilot.validate_observation(self.sample(63, 'active'))
+        self.assertEqual(pilot.dwell_ticks, 0)
+        for tick in range(1, 60):
+            pilot.validate_observation(self.sample(tick+63, 'active', dwell=tick/60, position=point))
+        with self.assertRaisesRegex(AssertionError, '120 continuous'):
+            pilot.validate_observation(self.sample(123, 'active', cursor=1, position=point))
+
+    def test_raw_tick_gap_clock_acceleration_and_unphysical_dwell_are_rejected(self):
+        for mutation in ('gap', 'clock', 'timer', 'actor', 'branch'):
+            with self.subTest(mutation=mutation):
+                pilot = self.running()
+                sample = self.sample(3, 'active')
+                if mutation == 'gap': sample['frame'] += 1
+                elif mutation == 'clock': sample['patrol']['snapshot']['current_time_seconds'] += 1/60
+                elif mutation == 'timer': sample['patrol']['snapshot']['dwell_elapsed_seconds'] = 1/60
+                elif mutation == 'actor': sample['tutorial_approach']['actor_id'] += 1
+                else: sample['patrol']['snapshot']['branch_id'] = 'platform_sweep'
+                with self.assertRaises(AssertionError): pilot.validate_observation(sample)
+
+    def test_relay_payment_requires_actual_patrol_enum_schema_branch_and_callback(self):
+        native.PatrolRelayHomePilot.require_paid(self.paid())
+        for mutation in ('state', 'schema', 'branch', 'reward', 'activity', 'callback'):
+            with self.subTest(mutation=mutation):
+                sample = self.paid(); terminal = sample['settlement']['terminal']['activities'][0]
+                if mutation == 'state': terminal['state'] = 3
+                elif mutation == 'schema': sample['patrol']['capture']['schema_version'] = 1
+                elif mutation == 'branch': sample['patrol']['capture']['branch_id'] = 'platform_sweep'
+                elif mutation == 'reward': sample['settlement']['record']['reward_counts'] = {native.RaceHomePilot.REWARD:1}
+                elif mutation == 'activity': sample['settlement']['record']['last_receipt']['activity_id'] = native.RaceHomePilot.ACTIVITY
+                else: sample['settlement']['handoff']['callback']['receipt']['reward_id'] = native.RaceHomePilot.REWARD
+                with self.assertRaises(AssertionError): native.PatrolRelayHomePilot.require_paid(sample)
+
+    def test_ui_selects_actual_patrol_and_relay_buttons_before_resuming(self):
+        pilot = native.PatrolRelayHomePilot(); pilot.guided_result = dict(genuine=True)
+        sample = self.sample(); sample['paused'] = True
+        sample['native_keys'] = dict(escape=False, tab=False, return_key=False)
+        sample['ui'] = dict(main_visible=True, activity_visible=False,
+            focus_path='/Pause/ActivityBoardButton', focus_name='ActivityBoardButton',
+            focus_enabled=True, focus_visible=True, patrol_branch='relay_sweep',
+            relay_enabled=True, relay_visible=True)
+        pilot.beacon_stage('patrol_ui_board', sample)
+        keys, *_ = pilot.patrol_ui_update(sample, 1)
+        self.assertEqual(keys, {'Return'})
+        self.assertEqual(pilot.ui_pending['kind'], 'board')
+        pilot.ui_key = pilot.ui_pending = None
+        sample['ui'].update(activity_visible=True, focus_name='PatrolActivityButton')
+        pilot.beacon_stage('patrol_ui_select', sample)
+        keys, *_ = pilot.patrol_ui_update(sample, 2)
+        self.assertEqual(keys, {'Return'})
+        self.assertEqual(pilot.ui_pending['kind'], 'select')
+        pilot.ui_key = pilot.ui_pending = None
+        sample['ui']['focus_name'] = 'RelaySweepPatrolBranchButton'
+        pilot.beacon_stage('patrol_ui_branch', sample)
+        keys, *_ = pilot.patrol_ui_update(sample, 3)
+        self.assertEqual(keys, {'Return'})
+        self.assertEqual(pilot.ui_pending['kind'], 'branch')
+        self.assertFalse(pilot.patrol_selected)
+
+    def test_patrol_file_scope_protects_unrelated_race_and_beacon_records(self):
+        self.assertEqual(native.PatrolRelayHomeFiles.SLOT, 'cinder_patrol_session')
+        self.assertNotIn('cinder_timed_race_session', native.PatrolRelayHomeFiles.MUTABLE)
+        self.assertNotIn('cinder_beacon_session', native.PatrolRelayHomeFiles.MUTABLE)
+        self.assertEqual(native.CAP, 300)
+
+    def test_disabled_relay_choice_requires_actual_matching_default_and_never_sends_start(self):
+        for branch in ('relay_sweep', 'platform_sweep'):
+            with self.subTest(branch=branch):
+                pilot = native.PatrolRelayHomePilot(); pilot.guided_result = dict(genuine=True)
+                sample = self.sample(); sample['paused'] = True
+                sample['native_keys'] = dict(escape=False, tab=False, return_key=False)
+                sample['ui'] = dict(activity_visible=True, focus_path='/Pause/PatrolActivityButton',
+                    focus_name='PatrolActivityButton', patrol_branch=branch,
+                    relay_enabled=False, relay_visible=True)
+                pilot.beacon_stage('patrol_ui_branch', sample)
+                if branch == 'relay_sweep':
+                    keys, *_ = pilot.patrol_ui_update(sample, 1)
+                    self.assertEqual(keys, set())
+                    self.assertEqual(pilot.stage, 'patrol_ui_back')
+                    self.assertIn('patrol_ui_branch_disabled_default', pilot.receipts)
+                    self.assertFalse(pilot.patrol_selected)
+                else:
+                    with self.assertRaisesRegex(AssertionError, 'actual fresh default'):
+                        pilot.patrol_ui_update(sample, 1)
+
+
 if __name__ == '__main__':
     unittest.main()

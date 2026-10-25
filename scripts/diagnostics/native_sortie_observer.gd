@@ -26,6 +26,7 @@ var _arrow := false
 var _heavy_breach := false
 var _arrow_sequence := 0
 var _race_home := false
+var _patrol_relay_home := false
 var _beacon_entry := false
 var _beacon_mode := "beacon-entry"
 var _beacon_sequence := 0
@@ -106,9 +107,10 @@ func on_startup_completed(main: Node) -> void:
 		process_mode = Node.PROCESS_MODE_ALWAYS
 		return
 	_race_home = "--native-sortie-observer=race-home" in OS.get_cmdline_args()
+	_patrol_relay_home = "--native-sortie-observer=patrol-relay-home" in OS.get_cmdline_args()
 	_beacon_mode = "beacon-home" if "--native-sortie-observer=beacon-home" in OS.get_cmdline_args() else ("beacon-settlement" if "--native-sortie-observer=beacon-settlement" in OS.get_cmdline_args() else "beacon-entry")
 	_beacon_entry = "--native-sortie-observer=" + _beacon_mode in OS.get_cmdline_args()
-	_beacon_entry = _beacon_entry or _race_home
+	_beacon_entry = _beacon_entry or _race_home or _patrol_relay_home
 	if _beacon_entry:
 		process_mode = Node.PROCESS_MODE_ALWAYS
 	_habitat_restart = "--native-sortie-observer=habitat-restart" in OS.get_cmdline_args()
@@ -584,7 +586,7 @@ func _physics_process(delta: float) -> void:
 	if _beacon_entry:
 		_beacon_sequence += 1
 		if get_tree().paused:
-			var paused_sample := _race_observation() if _race_home else _beacon_entry_observation()
+			var paused_sample := _race_observation() if _race_home or _patrol_relay_home else _beacon_entry_observation()
 			paused_sample["frame"] = Engine.get_physics_frames()
 			paused_sample["player_id"] = _player.get_instance_id()
 			paused_sample["ship_id"] = _ship.get_instance_id()
@@ -624,7 +626,7 @@ func _physics_process(delta: float) -> void:
 	var camera_yaw := _player.get_node("%CameraYaw") as Node3D
 	var command := _ship.get_last_ship_command()
 	var shot := _game.get_last_player_shot_result()
-	var capture: Dictionary = {} if _beacon_entry and _beacon_mode != "beacon-home" and not _race_home else _game.world.get_landing_assist_report(_ship, _ship.get_home_berth_id())
+	var capture: Dictionary = {} if _beacon_entry and _beacon_mode != "beacon-home" and not _race_home and not _patrol_relay_home else _game.world.get_landing_assist_report(_ship, _ship.get_home_berth_id())
 	var contract := (_ship.get("_landing_contract") as Dictionary).duplicate(true) if _beacon_entry else _ship.get_landing_contract_report()
 	if _beacon_entry:
 		contract["berth_id"] = _ship.get("_landing_berth_id")
@@ -667,7 +669,7 @@ func _physics_process(delta: float) -> void:
 	}
 	if _courier_mode:
 		observation["courier"] = _courier_observation()
-	if _race_home:
+	if _race_home or _patrol_relay_home:
 		observation.merge(_race_observation())
 		observation["home"] = _beacon_home_observation(capture)
 	elif _beacon_entry:
@@ -687,7 +689,7 @@ func _physics_process(delta: float) -> void:
 	print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(observation))
 
 
-## Observe Main's selected timed session, never the streamed untimed fixture.
+## Observe Main's race or patrol owner, never a streamed activity fixture.
 ## All getters here copy retained state; no UI presentation or persistence writes.
 func _race_tutorial_approach_observation() -> Dictionary:
 	var binding := _game.cinder_streaming_binding
@@ -721,10 +723,10 @@ func _race_tutorial_approach_observation() -> Dictionary:
 
 
 func _race_observation() -> Dictionary:
-	var session := _game.cinder_race_session
+	var session = _game.patrol_activity if _patrol_relay_home else _game.cinder_race_session
 	var director := _game.activity_director
-	var clock: RefCounted = session.get("_race") as RefCounted if session != null else null
-	var route := CinderTimedRaceSession.ROUTE
+	var clock: RefCounted = session.get("_race") as RefCounted if session != null and not _patrol_relay_home else null
+	var route: ActivityDefinition = session.definition if _patrol_relay_home and session != null else CinderTimedRaceSession.ROUTE
 	var points: Array = []
 	for point: Vector3 in route.checkpoint_positions:
 		points.append(_v(_game._cinder_authored_frame_to_world(point)))
@@ -732,11 +734,14 @@ func _race_observation() -> Dictionary:
 	var page := hud.get("_pause_main_page") as Control
 	var focus := get_viewport().gui_get_focus_owner()
 	var exit_button := page.find_child("ExitButton", true, false) as Button if is_instance_valid(page) else null
+	var activity_page := hud.get("_activity_selection_page") as Control
+	var relay_button := activity_page.find_child("RelaySweepPatrolBranchButton", true, false) as Button if is_instance_valid(activity_page) else null
 	var settlement := _beacon_settlement_observation()
 	var store := _game.get("_runtime_settings_user_data_store") as UserDataStore
-	settlement["terminal"] = (store.get_snapshot().get("cinder_timed_race_session", {}) as Dictionary).duplicate(true) if store != null else {}
+	var slot := "cinder_patrol_session" if _patrol_relay_home else "cinder_timed_race_session"
+	settlement["terminal"] = (store.get_snapshot().get(slot, {}) as Dictionary).duplicate(true) if store != null else {}
 	settlement["handoff"] = (_game.get("_last_game_flow_reward_result") as Dictionary).duplicate(true)
-	return {"mode": "race-home", "sequence": _beacon_sequence,
+	return {"mode": "patrol-relay-home" if _patrol_relay_home else "race-home", "sequence": _beacon_sequence,
 		"pid": OS.get_process_id(), "main_id": _game.get_instance_id(),
 		"paused": get_tree().paused, "physics_ticks": Engine.physics_ticks_per_second,
 		"time_scale": Engine.time_scale, "flight_demand": _ship.has_manual_flight_intent(),
@@ -744,7 +749,7 @@ func _race_observation() -> Dictionary:
 		"boarding_distance": _player.get_interaction_origin().distance_to(_ship.get_boarding_position()),
 		"boarding_reach": GameFlow.BOARDING_FALLBACK_REACH,
 		"reboard_blocked": _game.get("_reboard_blocked_ship") == _ship,
-		"race": {"owner_id": session.get_instance_id() if session != null else 0,
+		("patrol" if _patrol_relay_home else "race"): {"owner_id": session.get_instance_id() if session != null else 0,
 			"clock_id": clock.get_instance_id() if clock != null else 0,
 			"director_id": director.get_instance_id() if director != null else 0,
 			"selected_kind": str(_game.get("_selected_activity_kind")),
@@ -758,6 +763,13 @@ func _race_observation() -> Dictionary:
 		"native_keys": {"escape": Input.is_physical_key_pressed(KEY_ESCAPE),
 			"tab": Input.is_physical_key_pressed(KEY_TAB), "return": Input.is_physical_key_pressed(KEY_ENTER)},
 		"ui": {"main_visible": is_instance_valid(page) and page.is_visible_in_tree(),
+			"activity_visible": is_instance_valid(activity_page) and activity_page.is_visible_in_tree(),
+			"patrol_branch": str(hud.get("_patrol_branch_id")),
+			"relay_visible": is_instance_valid(relay_button) and relay_button.is_visible_in_tree(),
+			"relay_enabled": is_instance_valid(relay_button) and not relay_button.disabled,
+			"focus_name": str(focus.name) if is_instance_valid(focus) else "",
+			"focus_visible": is_instance_valid(focus) and focus.is_visible_in_tree(),
+			"focus_enabled": is_instance_valid(focus) and focus is Button and not (focus as Button).disabled,
 			"focus_path": str(focus.get_path()) if is_instance_valid(focus) else "",
 			"focus_is_exit": is_instance_valid(exit_button) and focus == exit_button,
 			"exit_path": str(exit_button.get_path()) if is_instance_valid(exit_button) else "",
