@@ -23940,3 +23940,111 @@ orders UI activation, synchronous shutdown saves and tree.quit; existing artifac
 lack the execution boundary or stack needed to identify which did not complete.
 No defect or correction established; no retry selected. Reuse this finding rather
 than repeat unchanged source triage.
+
+<a id="hauler-supply-first-play-accepted-20261025"></a>
+## Hauler conserved supply journey — complete ordinary route accepted — 2026-10-25
+
+Accepted source `99f2717ee9eeec55c197870d661263d60c7b2d25` adds the existing
+release runner's `--route hauler-supply` / NATIVE_HAULER_SUPPLY_OK. It reuses the
+qualified Jovian supply journey through small craft/path hooks; Jovian behavior
+and CinderSupplyFiles remain unchanged. No normal gameplay owner, geometry,
+tuning, inventory, phase, provider or reward was modified. Actual authored
+Hauler/shared-stock/access/manifest capabilities are exercised, not newly claimed
+historical reconstruction or a new cargo policy.
+
+The complete packaged journey passes193.312s under originalCAP300/outer360:
+normal menu→same Player's18 supported station goals→actual Hauler pilot boarding/
+departure→live Cinder capture/strict Hauler contact→OFFLINE→actual Activity Board/
+Nearby Select+Start→load/clear gate/redock→physical exit/ten-point terminal walk→
+one conserved crate/payment→duplicate refusal→reverse walk/reboard/departure→
+strict original home/OFFLINE/physical exit→grounded supported settled apron walk→
+actual focused ExitButton Return and normal OS exit0. Runtime diagnostics0;
+independent source/raw GO. Guard193.710180s, unchanged pin/index/tree/cache.
+
+8,834 raw samples retain original Hauler/Player/source/capsule/shape/home IDs,
+default sampler/tuning and controls. Actual Select/Start native Return4006/4029;
+generation1 phases[0,1,2,3], production cargo elapsed12.133333s<120. Occupied Cinder
+contact is exactly local[-29,4.25,0]/PI, current lease/attachment/source actor.
+Actual source cinder_hauler_source_manifest2→1 and destination
+station_cargo_destination_manifest0→1. Real terminal E6368 transfers; E6396
+returns not_active. Exactly one genuine generation1 cinder_kit_cargo_run receipt,
+return_fabrication_kits_to_shipyard granted once, replay disallowed.
+
+Five independent actual-file captures baseline5→pretransfer21→paid23→repeat23→
+home26 share the actual path/profile and recorded hash. All protected pretransfer
+siblings remain equal; exact paid terminal/ledger persist through repeat/home
+and final raw. This is one ordinary completion/duplicate refusal, not cold
+inventory, interruption recovery or ten-run replenishment qualification.
+
+Home landing is requested only after actual capture acceptance at tilt73.68°;
+strict dock error0m, neutral OFFLINE and physical exit pass. The final apron goal
+[8.8,4.18,90] is the same supported station point visited before boarding. It is
+reached at[8.543435,4.181029,89.863754], speed0.20m/s/error0.2905m. Actual home walk
+1.797002m; all47 home-walk samples retain native grounding, live physical support,
+controls/capsule, fresh completed motion and current home lease/contract.
+Actual support changes from BoardingRampSupport to dock_04_cargo deck, shape0,
+with floor-compatible normals and current collision points. GamePID1526668
+exits0 after normal UI Return sequence8828; input helper/Xvfb/game are reaped.
+
+Earlier failures and cumulative priority reviews are retained, including the
+original c0c5ff2b7 home-capture timeout and70de2ea83 ray-only support failure in
+[the earlier closeout](#hauler-supply-first-play-parked-20261025). The continued
+case fixes actual observation/control causes without waiving the full journey:
+
+- WORLD-only center ray misses the SHIP-layer deployed ramp. Static geometry
+  shows capsule gap1.660mm within2mm margin and30.54° floor normal; the original
+  ray loses the lower deck exactly at its recorded failure.
+- One focused fixture initially set PROCESS_MODE_DISABLED, removing its own
+  collision bodies and producing five errors. Root's initial log-tail-only
+  assessment was withdrawn; independent review blocked the incomplete diagnosis.
+  Keeping bodies active while disabling controller callbacks and grounding during
+  a physics frame fixes that fixture without changing any assertion. See the
+  [documented CollisionObject3D disable behavior](https://docs.godotengine.org/en/stable/classes/class_collisionobject3d.html#enum-collisionobject3d-disablemode).
+- The first corrected-ray package then fails33.172s at the Aft stair lip before
+  boarding: its ray sees a steep ramp end face obscuring the valid UpperFloor.
+  The physical capsule is the correct footprint. Hauler observation now uses
+  existing Player-style uncommitted test_move with authored0.35m snap/2mm margin,
+  actual mask/exceptions, and only a live WORLD/SHIP body with a floor-compatible
+  contact. Native grounding/control/motion are still required. No actor moves or
+  remembered normal substitute for a contact; [test_move semantics](https://docs.godotengine.org/en/stable/classes/class_physicsbody3d.html#class-physicsbody3d-method-test-move).
+- Capsule fixtures pass87 assertions, but that whole run fails181.367s after
+  correctly detecting genuine airtime: the inherited camera-relative goal walks
+  uphill/off the ramp side; deckdrop0.4883m exceeds0.35m snap. One final reviewed
+  Hauler-only caller goal uses the already-reached apron point, a longer2.037m
+  outboard/downhill path inside the clear deck. Maximum initial drop0.3334m;
+  all support, distance, settled and UIOS0 predicates remain unchanged.
+
+Focused validation:180 existing Python checks pass11.546876s, import6.776030s,
+parser15.822138s/privacy1.016570s. Invalid fixture26s failure is retained; corrected
+actual physics85 assertions pass26.099277s. Final capsule import6.620904s,
+parser15.906139s and actual ramp/Aft-lip/negative physics87 assertions26.348363s
+pass. Last caller correction adds one regression:181 Python checks11.485995s.
+GDS/physics/privacy sources are byte-unchanged across that caller correction.
+Final clean export26.694067s, strict startup22.921529s (exit0 plus
+STARTUP_MENU_READY_OK), and actual1,527-entry PCK inventory without tests/tools
+pass. Final and preceding capsule ELFs are byte-identical SHA256
+`c0b70222b2279bf2bf5b6a7134682924e0b511b4ea7310cdced73c470aa55f0a`.
+All failed stages/trials stay on the original90min clock, not reset under new IDs.
+
+Accepted source integrated into main; no task branch/worktree was created.
+Across both parts,36 stage owners are terminal and212 observed process identities
+are absent, survivors empty and synthetic inputs released.25 owned loose build
+files were removed only after their exact tested package copies were verified.
+Original archive remains229,693,633bytes/SHA256
+`d7860fe15b53ce4949da6e197368608b22d229be9b6f6190897bc064244f4577`.
+The continuation's646 members were byte/mode/link verified before scratch/profile/
+helper removal; archive355,943,595bytes/SHA256
+`bcefce41f40d9ea247c6b7b4b1659fbef9f5b712180431373d9e89b1f56dbf2c`.
+Only those two archives plus closeout remain at
+`/srv/mudds-work/hauler-supply-first-play-20261025/results/`. Source history preserves
+new attempts; the original verified bundle preserves earlier unmerged source.
+Pre-existing detached registrations remain protected. Final pushed source and
+actual cumulative cost are recorded in closeout.
+
+This closes HAULER-CARGO-DELIVERY in packaged Linux/owned Xvfb/x11/OS-XTest/
+dummy-renderer/Dummy-audio scope only. Hauler cold inventory/repeats/full craft,
+weapons/roles/art, native devices/hardware and final-source gates remain open.
+Normal game behavior is unchanged, so public checkpoint0d77125 remains current;
+no identical normal-game Windows checkpoint is published for the controller/
+passive-observation capability. GitHub Actions stays disabled. All337 canonical
+IDs,36 original parents and ten phase gates remain; full roadmap goal stays active.

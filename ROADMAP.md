@@ -29,76 +29,28 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Selected continuation: HAULER-CARGO-DELIVERY — observe genuine ramp support.**
-Original case/budget retained:30min prior closeout; original start04:00:25UTC,
-hard90min including this causal review/implementation/checks/closure. Exact five
-candidate files70de2ea83 restored for one continuation. Root/independent source
-and raw geometry prove the failed home walk is on BoardingRampSupport: capsule
-ramp gap1.660mm within2mm margin, slope30.54° below50° floor limit. The WORLD-only
-ray misses this SHIP-layer floor; the actual ramp hit is inside its unchanged reach.
+**Delivered: HAULER-CARGO-DELIVERY — complete conserved supply journey.**
+Source99f2717ee passes the complete packaged ordinary-input route in193.312s
+underCAP300: normal menu/18 supported station goals/actual Hauler pilot/departure,
+strict Cinder contact/normal supply Select+Start/load/gate/redock, ten-point
+terminal walk/one conserved crate/one durable payment/duplicate refusal,
+reverse walk/reboard/strict original home/OFFLINE exit/1.797m grounded supported
+settled apron walk and normal UI OS exit0. No runtime diagnostics; independent
+source/raw review GO. Five actual-file captures preserve the paid result and all
+protected siblings (generations5→21→23→23→26).
 
-One implementer owns passive observer and existing Hauler physics tests. Query
-Hauler's actual physical WORLD/SHIP mask and collision exceptions, exclude Player,
-require current PhysicsBody/floor-compatible normal; preserve default Jovian query.
-Keep actual grounding, control, motion continuity, strict home lease/contract,
-≥1m supported walk and normal UI OS0. No geometry/pose/provider/policy mutation,
-longer ray, new validator/schema/framework or replacement route.
+The existing release runner now provides `--route hauler-supply`. It observes
+actual capsule support using the player's unchanged physical snap/margin, and
+walks the returning pilot to the same apron point reached before boarding.
+Prior failures, one invalid physics fixture and all bounded corrections remain
+recorded on the original90min clock; no gameplay geometry, tuning, inventory,
+reward, control provider or deadline was changed.
+[Exact result, earlier failures and cleanup](docs/history/ROADMAP_DELIVERIES.md#hauler-supply-first-play-accepted-20261025).
 
-Proof: focused real-ramp physics case plus grounded/normal/self/mask refusals,
-existing Python/import/parser/privacy, fresh clean Linux export/strict startup/
-PCK inventory and ONE unchanged full ordinary package journey underCAP300/
-outer360/cargo120. Estimate10implementation+15checks/route+10closure, original
-90min cumulative hard stop. First unexpected failure stops without another
-automatic correction. Accepted source only may merge/push; preserve unaccepted
-work, release/reap owned inputs/processes and consolidate scratch at closure.
-Normal gameplay unchanged means public0d77125 stays current. All prior failures
-remain below and in the original archive; no whole-goal completion assumed.
-
-Focused fixture stopped on five errors: PROCESS_MODE_DISABLED removed the test
-Player/ramp from physics. The initial log-tail assessment was withdrawn. One
-root/independent cumulative review permits a fixture-only correction: keep bodies
-active, disable controller callbacks and perform the manual move in a physics
-frame. All assertions remain; no export/whole route ran. Next fixture failure
-parks without another correction; original case clock and full result unchanged.
-
-Fixture85/85 then passes; first package support run stops33.172s at Aft stair
-sample1071 before boarding. The center ray sees the ramp's steep end face and
-rejects it while UpperFloor lies underneath. Root/independent cumulative review
-permits ONE Hauler-only physical capsule probe using existing Player.test_move,
-authored0.35m snap/margin/mask/exceptions, live floor-compatible body/contact;
-no committed move or grounded-alone acceptance. Jovian ray unchanged. Require
-actual ramp+Aft-lip and all negative physics cases, then one complete original
-trip. Estimate10implementation+15checks/route+5closure; original90min clock,
-next fixture/route failure parks without another automatic correction.
-
-Capsule fixtures87/87 pass; full02a1a233f reaches home with real ramp support,
-then catches genuine airtime8983: camera-relative walking steers uphill/off the
-ramp side, deckdrop0.4883m exceeds0.35m snap. One FINAL root/independent cumulative
-review selects a Hauler-only home goal: existing proven apron[8.8,4.18,90],2.037m
-outboard/downhill. Full capsule stays inside clear Dock04 deck; initial drop≤0.3334m.
-All original support/distance/settled/UIOS0 criteria and Jovian behavior remain.
-No observer/runtime/geometry change. Estimate5implementation+8checks/route+5closure;
-latest full-run launch05:23UTC, hard original90min deadline05:30:25UTC. Next failure
-parks; no further repair or task renaming resets this cumulative budget.
-
-**PARKED: HAULER-CARGO-DELIVERY — home walk support check failed.**
-Unaccepted candidatesc0c5ff2b7/70de2ea83 complete ordinary station walking,
-Hauler boarding/departure, actual Cinder load/gate/redock, ten-point terminal walk,
-one conserved crate/payment, duplicate refusal, reverse walk and reboard.
-First trial times out at home capture because88.255755° tilt exceeds75°.
-One independently reviewed controller correction uses normal brake/hover;
-the corrected run docks exactly at home, OFFLINE, hull220 and physical exit.
-
-The corrected run then FAILS at home_walk frame9169: groundedtrue but supportedfalse/
-empty support collider after0.416854m, before required≥1m/UI exit0. Driver184.343s,
-diagnostics0; all five actual save captures preserve the paid result/protected data.
-No further correction or retry selected. Both source/raw/package trials are archived,
-unaccepted source remains unmerged, and owned test files/processes are cleaned.
-Reopen only with a demonstrated support/route cause and bounded correction retaining
-the full journey, CAP300/outer360/cargo120 and cumulative clock.
-[Exact failures, partial results and cleanup](docs/history/ROADMAP_DELIVERIES.md#hauler-supply-first-play-parked-20261025).
-Existing shared stock/access/manifest behavior and playable0d77125 remain current.
-No new gameplay completion is claimed; no next implementation is selected.
+This closes only the named ordinary Hauler delivery. Cold inventory/repeats,
+whole-craft/crew/art, native/device and final-candidate gates remain open.
+Normal gameplay is unchanged; playable checkpoint0d77125 remains current.
+No next implementation is selected by this closeout.
 
 **PARKED: PLAY-PATROL[platform_sweep] — final normal quit did not finish.**
 Candidate `ff3fbab08` passed focused checks and reached all five real platform
