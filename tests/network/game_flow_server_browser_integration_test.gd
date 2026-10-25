@@ -555,7 +555,7 @@ func _live_cancel_guest(endpoint_port: int = 0) -> void:
 		var native: ENetMultiplayerPeer
 		if _live_cancel_rejoin:
 			native = _live_game.network_session.get("_peer") as ENetMultiplayerPeer
-			_check(native != null and native == _live_game.network_session.get("_pending_join_peer") and native.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTING and _live_game.network_session.get_admitted_peer_ids().is_empty(), "pending Cancel attempt owns an actual unadmitted native CONNECTING peer")
+			_check(native != null and native == _live_game.network_session.get("_pending_join_peer") and native.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTING and _live_game.network_session.get_admitted_peer_ids().is_empty() and int(_live_game.network_session.get("_pending_join_deadline_milliseconds")) > Time.get_ticks_msec() and _live_game.network_session.is_processing(), "pending Cancel attempt owns an actual unadmitted native CONNECTING peer with armed deadline/process")
 			if not _failures.is_empty():
 				return
 		var pending := {"port": pending_port, "active": true, "state": "connecting"}
