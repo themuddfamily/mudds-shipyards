@@ -80,7 +80,7 @@ caption presenter changes from19336f3. This delivers four live caption definitio
 ordinary planetary flight/landing/handoff and full comfort transition/restart/Reset
 remain open. [Exact scope and delivery](docs/history/ROADMAP_DELIVERIES.md#final-approach-live-captions-delivered-20261025).
 
-**Delivered: live captions for five existing Cinder Loadmaster cues.**
+**Delivered: five Cinder Loadmaster caption definitions and composed cue path.**
 Checkpoint19336f3 displays seat occupied, manifest ready, route ready, request
 rejected and released feedback through the existing shared caption service.
 Queued captions retain their original priority/expiry; duplicate/foreign receipts,
@@ -90,6 +90,13 @@ checks, paired exports/strict startups and package audit pass. Only the compiled
 caption presenter differs from1a948d9. This delivers the live-caption capability;
 ordinary crew/network routes, per-episode restart/Reset and full COMFORT-CAPTIONS
 acceptance remain open. [Exact delivery and scope](docs/history/ROADMAP_DELIVERIES.md#loadmaster-live-captions-delivered-20261025).
+The rejection cue has component proof only. Source review finds the generic crew
+callback supplies status without the reason/sequence expected by this audio
+binding; physical Loadmaster uses engineer intents, and its validated synchronous
+consumer has no demonstrated reachable refusal. No requester-refusal feature is
+selected without that concrete episode; this adds no mandatory release gate.
+[Bounded source finding](docs/history/ROADMAP_DELIVERIES.md#loadmaster-refusal-readiness-not-selected-20261025).
+
 
 **Delivered: Reduced flash dims the damage flash already on screen.**
 Checkpoint 1a948d9 immediately caps its effective alpha at the existing .07

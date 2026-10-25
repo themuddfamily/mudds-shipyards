@@ -26676,3 +26676,50 @@ scratch removal; all16 supervisors/57 observed process identities are absent.
 Engine/template pins and all11 public build hashes are unchanged. Original clock
 16.912min through archive verification; final closure-push cost is recorded in
 closeout.json. Pre-existing detached worktrees are retained unchanged.
+
+<a id="loadmaster-refusal-readiness-not-selected-20261025"></a>
+
+## Loadmaster requester refusals — bounded readiness, no implementation selected
+
+Readiness pass on0a911f610; definition only, no engine/test/build/runtime change.
+One bounded source reader plus independent network/lifecycle review. The earlier
+19336f3 caption delivery remains accepted for its exact component route and five
+semantic mappings; it does not establish that all five have an ordinary caller.
+
+Consecutive identical cues are deduped at both SemanticAudioCueRouter and
+SemanticAudioCuePresenter. Distinct request identities would be necessary for a
+live repeated-refusal case, but changing those filters alone would improve a
+synthetic fixture instead of repairing the current production path.
+
+The sole runtime present_cinder_rejected caller is GameFlow's generic
+_on_network_crew_command_result. Its actual NetworkCrewCommandAuthority result
+contains accepted/status, not reason/request_sequence; the existing audio allowlist
+rejects that empty reason. Physical Cinder Loadmaster sends cargo_manifest_ready
+through send_engineer_intent instead. NetworkHalyardPassengerBinding.submit_readiness
+validates current host craft/body/chair/claim/epoch/tick and consumes the fresh
+client cursor, then returns the synchronous ship consumer result. Navigator alone
+has a dedicated authenticated requester terminal-result publication here.
+
+The ship consumer has defined refusal statuses, but current same-authority/live/
+seat/action/translated-sequence gates and fixed valid manifest input rule out the
+suggested ordinary failure trigger. Unlike Navigator, Loadmaster has no optional
+consumer callback whose absence establishes consumer_unavailable. No concrete
+reachable refusal after these full gates was demonstrated. Do not invent that
+status, add a callback to manufacture one, translate unrelated generic crew
+errors, or count a manually emitted rejection as ordinary requester feedback.
+
+Result: proposed refusal implementation NOT_SELECTED. Codex must identify an
+original-required, concretely reachable current refusal/status/trigger before a
+requester-refusal task becomes ready. If such a case is established, the existing
+host passenger binding, session adapter and Flow own the handoff: original request
+identity plus authoritative ship/chair, authenticated recipient/peer/session/
+migration, bounded exact-request/current-claim matching and once-only terminal
+consumption. Existing HUD transition metadata can distinguish true fresh replies;
+Navigator/global dedupe/authority need no speculative change. This is a seam,
+not an assignment or newly required release case.
+
+No new milestone/mandatory gate, row, validator, schema, branch or private scratch
+was created. No audible/desktop/hosted-CI test ran. Accepted caption/Interact
+results and current checkpoint4aa8b64 remain unchanged. This closes the bounded
+readiness pass with an exact missing trigger and Codex owner; it neither delivers
+gameplay nor permits another research chain under the same candidate.
