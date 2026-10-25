@@ -5476,6 +5476,22 @@ class TorrentArrowHandoffTests(unittest.TestCase):
         p,s=self.state(); t=s['handoff']['fleet'][p.TORRENT]; t['contract']=False
         with self.assertRaises(AssertionError): p.require_handoff_exit_home(p.TORRENT,t)
 
+    def test_final_boarding_uses_current_candidate_above_floor_and_waits_for_settle(self):
+        p,s=self.state(); p.stage='handoff_to_torrent'; p.last_state=s
+        t=s['handoff']['fleet'][p.TORRENT]
+        t.update(boarding=[-3.2,1.2,-9.35],candidate=True,boarding_distance=.86,reboard_blocked=False)
+        s.update(player=[-3.98,0,-9.33],player_velocity=[0,0,.5],station_candidate=False)
+        p.handoff_route=[t['boarding'][:]]
+        keys,dx,dy,fire=p.update(s,1)
+        self.assertEqual(keys,set()); self.assertEqual((dx,dy,fire),(0,0,False))
+        self.assertEqual(p.stage,'handoff_to_torrent')
+        self.assertEqual(len(p.handoff_route),1)
+        s['player_velocity']=[0,0,0]
+        keys,dx,dy,fire=p.update(s,1.1)
+        self.assertEqual(keys,set()); self.assertEqual(p.stage,'handoff_torrent_ready')
+        self.assertFalse(p.handoff_route)
+        self.assertNotIn('torrent_board_press',p.handoff_receipts)
+
     def test_reclaim_requires_fresh_torrent_stream(self):
         p,s=self.state(); p.stage='handoff_torrent_board'; p.last_state=s
         t=s['handoff']['fleet'][p.TORRENT]

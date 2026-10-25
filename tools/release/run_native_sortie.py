@@ -5948,7 +5948,18 @@ class TorrentArrowHandoffPilot(TorrentDamagedReturnPilot):
             require(now-self.handoff_goal_since <= 15, 'ordinary physical handoff walking goal15 seconds')
             if self.stage == 'handoff_clear':
                 require(now-self.handoff_clear_since <= 12, 'existing12-second physical reboard-clear walk')
-            dx, reached = self.walk_to(s, self.handoff_route[0], keys)
+            final_boarding_leg = self.stage in ('handoff_to_arrow', 'handoff_to_torrent') and len(self.handoff_route) == 1
+            boarding_key = self.ARROW if self.stage == 'handoff_to_arrow' else self.TORRENT
+            boarding = fleet[boarding_key]
+            current_boarding_candidate = (final_boarding_leg and boarding['candidate']
+                and boarding['boarding_distance'] <= 7 and not boarding['reboard_blocked'] and not s['station_candidate'])
+            if current_boarding_candidate:
+                # Boarding markers can be above the floor and inside the hull.
+                # Release walking at the real interaction boundary, then settle.
+                reached = norm(s['player_velocity']) <= .35
+            else:
+                dx, reached = self.walk_to(s, self.handoff_route[0], keys)
+                if final_boarding_leg: reached = False
             if reached and self.stage == 'handoff_final_walk':
                 reached = (norm(sub(s['player'], self.handoff_receipts['torrent_exited']['player'])) >= .5
                            and s['frame']-self.handoff_receipts['torrent_exited']['frame'] >= 20)
