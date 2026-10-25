@@ -16,6 +16,10 @@ extends SceneTree
 ## Require each unique INTERACT_*_OK marker, actual OS exit 0 through HUD Exit,
 ## and external verification of the durable orderly-shutdown marker. The reader
 ## resets Interact through its per-action Reset and Apply + Save before exiting.
+## Sprint uses --sprint-restart-writer, --sprint-restart-reader, then
+## --sprint-reset-reader with --sprint-restart-private-root="$CASE". Require
+## SPRINT_RESTART_WRITER_OK / SPRINT_RESTART_READER_OK / SPRINT_RESET_READER_OK,
+## actual OS exit 0 and orderly shutdown for each separate process.
 ## Reap writer (exit 0 + FIRE_RESTART_WRITER_OK), then repeat with reader flag;
 ## require exit 0 + FIRE_RESTART_READER_OK. Never run these modes in parallel.
 ## Raw key/mouse events and the reader's focus-in lifecycle notification are
@@ -101,6 +105,9 @@ class MutableInputProvider:
 
 func _initialize() -> void:
 	var args := OS.get_cmdline_user_args()
+	if args.has("--sprint-restart-writer") or args.has("--sprint-restart-reader") or args.has("--sprint-reset-reader"):
+		_run_sprint_restart(args)
+		return
 	if args.has("--interact-restart-writer") or args.has("--interact-restart-reader") or args.has("--interact-reset-reader"):
 		_run_interact_restart(args)
 		return
@@ -320,9 +327,233 @@ func _fire_restart_stage(writer: bool) -> void:
 		"normal startup and settings save preserve exact unrelated seeded disk data")
 
 
-# Opt-in sequential three-process qualification. The wrapper must use the same
-# fresh private XDG root, Dummy audio, and headless display. These are
-# synthetic raw events consumed by actual Player physics, never physical input.
+# Sprint option qualification: three separate real-file processes; natural
+# Player physics and synthetic raw S/Shift only, never physical-device proof.
+const SPRINT_RESTART_SENTINEL := "sprint_restart_fixture"
+var _sprint_origin := Vector3.ZERO
+
+
+func _run_sprint_restart(args: PackedStringArray) -> void:
+	var selected := PackedStringArray()
+	for mode: String in ["--sprint-restart-writer", "--sprint-restart-reader", "--sprint-reset-reader"]:
+		if args.has(mode):
+			selected.append(mode)
+	var private_root := ""
+	var other_mode := false
+	for arg: String in args:
+		if arg.begins_with("--sprint-restart-private-root="):
+			private_root = arg.trim_prefix("--sprint-restart-private-root=").simplify_path()
+		if arg.begins_with("--interact-") or arg.begins_with("--fire-restart-") or arg.begins_with("--settings-migration-") or arg.begins_with("--settings-corrupt-"):
+			other_mode = true
+	var isolated := private_root.is_absolute_path() and private_root != "/"
+	for variable: String in ["XDG_DATA_HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME"]:
+		isolated = isolated and OS.get_environment(variable).simplify_path().begins_with(private_root + "/")
+	isolated = isolated and OS.get_user_data_dir().simplify_path().begins_with(private_root + "/")
+	print("SPRINT_RESTART_LAUNCH ", JSON.stringify({"selected": selected, "private_root": private_root,
+		"isolated": isolated, "other_mode": other_mode, "pid": OS.get_process_id(),
+		"audio_driver": AudioServer.get_driver_name(), "display_driver": DisplayServer.get_name(),
+		"user_data_dir": OS.get_user_data_dir(), "engine_argv": OS.get_cmdline_args(), "user_argv": args}))
+	if _migration_check(selected.size() == 1 and not other_mode and isolated
+			and AudioServer.get_driver_name() == "Dummy" and DisplayServer.get_name() == "headless",
+			"one exclusive Sprint worker owns actual Dummy/headless and private user data"):
+		await _sprint_restart_stage(selected[0])
+	if _interact_exit_requested:
+		return
+	_sprint_release_keys()
+	paused = false
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	if is_instance_valid(_interact_restart_game):
+		_interact_restart_game.queue_free()
+		await process_frame
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	_finish()
+
+
+func _sprint_restart_stage(mode: String) -> void:
+	var writer := mode == "--sprint-restart-writer"
+	var reset_reader := mode == "--sprint-reset-reader"
+	root.content_scale_size = Vector2i(1280, 720)
+	var disk := Store.new(Adapter.DEFAULT_STORE_PATH)
+	if not _migration_check(bool(disk.load().accepted), "Sprint private production store opens"):
+		return
+	if writer:
+		if not _migration_check(disk.get_generation() == 0 and disk.get_snapshot().is_empty()
+				and not FileAccess.file_exists(Settings.DEFAULT_CONFIG_PATH), "Sprint writer requires fresh unseeded settings"):
+			return
+		if not _migration_check(bool(disk.commit({SPRINT_RESTART_SENTINEL: {
+				"writer_pid": OS.get_process_id(), "unrelated_data": {"keep_me": "sprint-restart", "progress": 42},
+			}}, 0, "sprint-restart-unrelated-seed").accepted), "Sprint seeds unrelated sentinel only"):
+			return
+	var sentinel: Dictionary = disk.get_snapshot().get(SPRINT_RESTART_SENTINEL, {})
+	if not _migration_check(int(sentinel.get("writer_pid", 0)) > 0
+			and (writer or int(sentinel.writer_pid) != OS.get_process_id()), "Sprint reader has a distinct writer PID witness"):
+		return
+	var game := MAIN_SCENE.instantiate() as GameFlow
+	_interact_restart_game = game
+	root.add_child(game)
+	await process_frame
+	await physics_frame
+	await process_frame
+	var report := game.get_runtime_settings_persistence_report()
+	if not _migration_check(not bool(report.injected_authority) and report.identity_scope == &"process_lifetime"
+			and int(report.load_attempt_count) == 1 and bool(report.load_status.accepted)
+			and bool(report.load_before_first_apply) and (writer or report.load_status.reason == &"loaded"),
+			"Sprint normal Main loads real authority once before first apply"):
+		return
+	var hud := game.get_node_or_null(^"HUD") as GameHUD
+	if not _migration_check(hud != null and is_instance_valid(game.player), "Sprint actual Main owns HUD and Player"):
+		return
+	var defaults := Settings.new().to_dictionary()
+	var expected := defaults.duplicate(true)
+	if not writer and not reset_reader:
+		((expected.input_binding_profile as Dictionary).action_options as Dictionary)[&"sprint_boost"]["hold_mode"] = Profile.TOGGLE
+	if not _migration_check(game.get_runtime_settings().to_dictionary() == expected, "cold Sprint full settings preserve every authored binding and unrelated option"):
+		return
+	var begin := hud.find_child("IntroBeginShiftButton", true, false) as Button
+	if not _migration_check(begin != null and begin.is_visible_in_tree() and not begin.disabled, "Sprint normal Begin Shift is visible enabled"):
+		return
+	begin.pressed.emit()
+	var deadline := Time.get_ticks_msec() + 5000
+	while game.phase != GameFlow.Phase.APPROACH_SHIP and Time.get_ticks_msec() < deadline:
+		await process_frame
+	await physics_frame
+	await process_frame
+	_sprint_origin = game.player.global_position
+	if not _migration_check(game.phase == GameFlow.Phase.APPROACH_SHIP
+			and _sprint_origin.distance_to(Vector3(-8.5, 0.18, 11.0)) < 1.0
+			and is_equal_approx(game.player.sprint_speed, 9.2) and is_equal_approx(game.player.walk_speed, 5.8)
+			and _sprint_state(game), "Sprint normal Begin admits supported original PlayerSpawn route"):
+		return
+	hud.set_paused(true)
+	hud._show_settings_page()
+	await process_frame
+	var control := hud.find_child("SprintBoostHoldModeControl", true, false) as OptionButton
+	if not await _interact_visible_button(hud, control, "Sprint / boost hold-mode row"):
+		return
+	if not _migration_check(control.selected == (0 if writer or reset_reader else 1), "cold visible Sprint mode agrees with expected HOLD/TOGGLE"):
+		return
+	if writer:
+		control.select(1)
+		control.item_selected.emit(1)
+		await process_frame
+		((expected.input_binding_profile as Dictionary).action_options as Dictionary)[&"sprint_boost"]["hold_mode"] = Profile.TOGGLE
+		if not _migration_check(game.get_runtime_settings().to_dictionary() == expected and control.selected == 1,
+				"visible Sprint callback changes only HOLD to TOGGLE") or not await _interact_save(game, hud, "Sprint option"):
+			return
+	else:
+		hud.set_paused(false)
+		if not await _sprint_consumer(game, not reset_reader):
+			return
+		if not reset_reader:
+			hud.set_paused(true)
+			hud._show_settings_page()
+			await process_frame
+			var reset := hud.find_child("SettingsResetButton", true, false) as Button
+			if not await _interact_visible_button(hud, reset, "Reset Defaults"):
+				return
+			reset.pressed.emit()
+			await process_frame
+			var confirm := hud.find_child("ConfirmSettingsResetButton", true, false) as Button
+			if confirm != null and confirm.is_visible_in_tree():
+				if not await _interact_visible_button(hud, confirm, "Confirm Reset Defaults"):
+					return
+				confirm.pressed.emit()
+				await process_frame
+			expected = defaults.duplicate(true)
+			if not _migration_check(game.get_runtime_settings().to_dictionary() == expected and control.selected == 0,
+					"ordinary Reset Defaults restores exact authored full settings and HOLD") or not await _interact_save(game, hud, "Sprint reset"):
+				return
+	var verified := Store.new(Adapter.DEFAULT_STORE_PATH)
+	if not _migration_check(bool(verified.load().accepted) and verified.get_snapshot().get(SPRINT_RESTART_SENTINEL, {}) == sentinel
+			and game.get_runtime_settings().to_dictionary() == expected,
+			"Sprint saves preserve exact unrelated sentinel and complete expected settings"):
+		return
+	_sprint_release_keys()
+	hud.set_paused(true)
+	var exit_button := hud.find_child("ExitButton", true, false) as Button
+	if not _migration_check(exit_button != null and exit_button.is_visible_in_tree() and not exit_button.disabled,
+			"Sprint ordinary HUD Exit is visible enabled"):
+		return
+	exit_button.grab_focus()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	var marker := "SPRINT_RESET_READER_OK" if reset_reader else ("SPRINT_RESTART_WRITER_OK" if writer else "SPRINT_RESTART_READER_OK")
+	print("%s pid=%d generation=%d sha256=%s assertions=%d synthetic_raw_events=true physical_input=NOT_RUN" % [
+		marker, OS.get_process_id(), verified.get_generation(), FileAccess.get_sha256(Adapter.DEFAULT_STORE_PATH), _assertions])
+	_interact_exit_requested = true
+	exit_button.pressed.emit()
+
+
+func _sprint_release_keys() -> void:
+	for code: Key in [KEY_S, KEY_W, KEY_SHIFT]:
+		_fire_restart_key(code, false)
+	Input.flush_buffered_events()
+
+
+func _sprint_state(game: GameFlow) -> bool:
+	return game.player.is_on_floor() and game.player.is_control_enabled() and not game.player.is_seated() \
+		and not paused and game.player.global_position.distance_to(_sprint_origin) <= 5.0
+
+
+func _sprint_wait_speed(game: GameFlow, speed: float, stage: String, retain_next_tick: bool = false) -> bool:
+	var started_physics_frame := Engine.get_physics_frames()
+	for tick in 30:
+		await physics_frame
+		await process_frame
+		var elapsed_physics_frames := Engine.get_physics_frames() - started_physics_frame
+		var player := game.player
+		var actual := player.velocity.slide(Vector3.UP).length()
+		print("SPRINT_RESTART_OBSERVATION ", JSON.stringify({"stage": stage, "sample": tick,
+			"pid": OS.get_process_id(), "physics_frame": Engine.get_physics_frames(), "ticks_usec": Time.get_ticks_usec(),
+			"elapsed_physics_frames": elapsed_physics_frames,
+			"position": str(player.global_position), "velocity": str(player.velocity), "speed": actual, "expected_speed": speed,
+			"distance_from_start": player.global_position.distance_to(_sprint_origin), "floor": player.is_on_floor(),
+			"control": player.is_control_enabled(), "seated": player.is_seated(), "paused": paused,
+			"move_back": Input.is_action_pressed(&"move_back"), "sprint_pressed": Input.is_action_pressed(&"sprint_boost"),
+			"sprint_just_pressed": Input.is_action_just_pressed(&"sprint_boost"),
+			"options": game.get_runtime_settings().get_input_binding_profile().get_action_options(&"sprint_boost")}))
+		if not _migration_check(_sprint_state(game), stage + " preserves supported normal on-foot route within five metres"):
+			return false
+		if not _migration_check(elapsed_physics_frames <= 30, stage + " observes at most thirty actual scheduled physics steps"):
+			return false
+		if absf(actual - speed) < 0.01:
+			return _migration_check(true, stage + " reaches authored speed within thirty scheduled physics ticks")
+		if retain_next_tick:
+			return _migration_check(false, stage + " must retain authored sprint speed on this scheduled tick")
+	return _migration_check(false, stage + " fails authored speed within thirty scheduled physics ticks")
+
+
+func _sprint_consumer(game: GameFlow, toggle: bool) -> bool:
+	_sprint_release_keys()
+	await physics_frame
+	await process_frame
+	await physics_frame
+	_fire_restart_key(KEY_S, true)
+	_fire_restart_key(KEY_SHIFT, true)
+	Input.flush_buffered_events()
+	if not await _sprint_wait_speed(game, game.player.sprint_speed, "fresh Shift press"):
+		return false
+	_fire_restart_key(KEY_SHIFT, false)
+	Input.flush_buffered_events()
+	if toggle:
+		for tick in 3:
+			if not await _sprint_wait_speed(game, game.player.sprint_speed, "TOGGLE release retention %d" % tick, true):
+				return false
+		_fire_restart_key(KEY_SHIFT, true)
+		Input.flush_buffered_events()
+		if not await _sprint_wait_speed(game, game.player.walk_speed, "second fresh Shift press"):
+			return false
+		_fire_restart_key(KEY_SHIFT, false)
+		Input.flush_buffered_events()
+	else:
+		if not await _sprint_wait_speed(game, game.player.walk_speed, "HOLD release"):
+			return false
+	_sprint_release_keys()
+	return await _sprint_wait_speed(game, 0.0, "neutral stop")
+
+
+# Opt-in sequential Interact qualification uses the same fresh private XDG
+# root, Dummy audio and headless display. Synthetic raw events are consumed by
+# actual Player physics, never physical input.
 const INTERACT_RESTART_SENTINEL := "interact_restart_fixture"
 var _interact_restart_game: GameFlow
 var _interact_requests := 0
@@ -345,7 +576,7 @@ func _run_interact_restart(args: PackedStringArray) -> void:
 	isolated = isolated and OS.get_user_data_dir().simplify_path().begins_with(private_root + "/")
 	var other_mode := false
 	for arg: String in args:
-		if arg.begins_with("--fire-restart-") or arg.begins_with("--settings-migration-") or arg.begins_with("--settings-corrupt-"):
+		if arg.begins_with("--sprint-") or arg.begins_with("--fire-restart-") or arg.begins_with("--settings-migration-") or arg.begins_with("--settings-corrupt-"):
 			other_mode = true
 	# As in the existing migration worker, Godot consumes driver switches before
 	# get_cmdline_args(). Check actual backends; the wrapper records explicit flags.
@@ -556,7 +787,7 @@ func _interact_input_map_snapshot() -> Dictionary:
 	return result
 
 
-func _interact_save(game: GameFlow, hud: GameHUD) -> bool:
+func _interact_save(game: GameFlow, hud: GameHUD, subject: String = "Interact binding") -> bool:
 	var save := hud.find_child("SettingsSaveButton", true, false) as Button
 	if not await _interact_visible_button(hud, save, "Apply + Save"):
 		return false
@@ -564,7 +795,7 @@ func _interact_save(game: GameFlow, hud: GameHUD) -> bool:
 	save.pressed.emit()
 	var report := game.get_runtime_settings_persistence_report()
 	return _migration_check(int(report.save_success_count) == before + 1 and bool(report.last_save_status.accepted)
-		and not bool(report.unsaved_changes), "ordinary Apply + Save commits the Interact binding")
+		and not bool(report.unsaved_changes), "ordinary Apply + Save commits the " + subject)
 
 
 func _interact_release_keys() -> void:

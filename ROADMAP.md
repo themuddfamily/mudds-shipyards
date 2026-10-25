@@ -82,7 +82,8 @@ Fresh reader/same file restores visible/profile TOGGLE before first apply. Natur
 Player physics on the authored spawn floor consumes raw S/Shift: first Shift
 press reaches actual sprint_speed, release retains it for three complete ticks,
 second fresh press returns to actual walk_speed; neutral release stops movement.
-A visible confirmed Reset Defaults/Save precedes normal Exit. Third cold process
+The visible Reset Defaults button uses its real clean-reset path (confirm only
+if production opens the dialog), then Save precedes normal Exit. Third cold process
 restores HOLD: held Shift reaches sprint_speed; release while S remains held
 returns to walk_speed; neutral release stops. No provider/pose/velocity/physics
 injection or direct Player sampling. Existingbindings/controllers/otheroptions and
