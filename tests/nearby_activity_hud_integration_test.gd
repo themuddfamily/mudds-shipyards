@@ -218,6 +218,12 @@ func _check_nearby_small_viewport(hud: GameHUD) -> void:
 					"Nearby row contains its complete action: %s/%s" % [row.name, button.text])
 	# Focus-follow itself must reveal enabled top, middle and bottom actions.
 	# Do not manually scroll to the target in this loop.
+	# Row inspection leaves the original opener focused while scrolling away.
+	# Depart to fixed Back so the first SELECT is a real focus transition too.
+	var focus_departure := page.find_child("NearbyActivityBackButton", true, false) as Button
+	focus_departure.grab_focus()
+	_check(root.gui_get_focus_owner() == focus_departure,
+		"Nearby focus-follow setup departs to fixed Back before row focus transitions")
 	for index in [0, 4, 9]:
 		var row := rows.get_child(index) as Control
 		for action: Node in row.get_children():
