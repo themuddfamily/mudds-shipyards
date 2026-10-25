@@ -24498,3 +24498,69 @@ Elapsed 7.236221min through cleanup including mapping;
 30min task bound, final-push cost recorded in adjacent closeout. No branch/worktree
 was created, no gameplay change/new checkpoint, and hosted CI stayed disabled.
 All 337 IDs/order/Done means, 36 parents,ten phase gates and 17-craft scope remain.
+
+
+<a id="browser-full-ui-refusal-accepted-20261025"></a>
+## Ordinary full-session browser UI refusal — accepted — 2026-10-25
+
+BROWSER-FULL selected 39d5f5c55; accepted source e39653cf45bdafe0d7cbbd27ca23b894c258756a
+extends only tests/network/game_flow_server_browser_integration_test.gd with
+--live-menu-full. Three independent actual Main processes: normal Host activation
+with an explicitly staged one-remote-guest setting, real LAN-discovered admitted
+occupant, and candidate cold startup only after matching host/occupant peer and
+generation receipts. This is a configured fixture, not chosen release capacity.
+Production files under scripts/scenes/assets/project/export settings are unchanged
+from playable checkpoint 8cda303. No new identical-game package was exported.
+
+The existing UI deliberately disables full rows with FOCUS_NONE. Attempted normal
+pointer selection is refused by that UI; no direct handler/signal invocation or
+invented ENet attempt substitutes for it. Genuine live 1/1 FULL row and accurate
+all-full/Refresh-return feedback are required before/after the actual pointer
+press+release. Passive physics guards retain the original authenticated occupant
+and keep the candidate unadmitted through real Refresh, Back, Begin Shift and
+same-Player supported solo continuation. Normal occupant Disconnect, host 1→0/
+retirement and actual process/wrapper exit are mandatory. This qualifies UI
+refusal, not transport rejection, physical device or supported release capacity.
+
+Default integration 7, capacity 7, existing presenter and HUD 40 checks pass with
+zero diagnostics. Initial ONE ordinary run on f5c6be321 fails 121.372962s at missing
+row GUI receipts: actual FULL state is correct, activation/join/admission 0, but
+pointer_events is empty. Project viewport is 1600x900 while its native window is
+1280x720; caller incorrectly passed logical (800,521) as raw window coordinates.
+Work stopped. Independent source review of Godot's inverse viewport input
+transform supports one caller-only correction via root.get_final_transform(),
+without changing window geometry, any refusal predicate or deadline. The explicit
+priority review at 12.938442min authorizes one default check and one complete
+recheck on the original 75min clock; prior failure remains retained.
+
+Corrected default 7 passes 15.962637s. The complete ordinary route passes 209
+coordinator checks/125.781064s, one GAME_FLOW_LIVE_MENU_FULL_TEST_OK, zero
+diagnostics. Actual row receives [true,false] at window (640,416.800018) derived
+from logical (800,521); root transform basis .8/.8/origin 0 is captured. Actual
+activation, join intents and admissions stay 0. Refresh advances real directory
+1→2 with the same live full host/session. Candidate's original Player walks
+1.002774m over 15 consecutive moving steps in .241s, settles in .148s, and retains
+12 neutral ticks within the original .02m drift bound. Host/occupant continuous
+guards pass 2426 samples each, candidate 184; host counts reconcile [0,1,0].
+Actual host PID 1576162/guest1576304/candidate1576490 each exit 0, are paired to
+observed OS start ticks and are absent after cleanup. Independent source/raw
+review GO; all old modes and original caps retained.
+
+Outer 300s, work 200s/cleanup reserve 90s, Main 60s/UI 5s/host 10s/discovery 10s/
+admission 20s/handoffs 20s/candidate 100s/guest 20s/host 30s, walk+settle 5s and
+per-peer exit/reap/display 10s remain unchanged. Task cap 75min includes source
+mapping from 07:53:13Z, failed trial, correction, all checks and cleanup;
+18.695540min through cleanup 08:11:54.732403Z,
+with final-push cost in adjacent closeout. No automatic retry/cap extension.
+
+Accepted test commits are integrated into pushed main. Exact-tip local task
+branch deleted after remote/worktree checks; no remote task branch/worktree was
+created. Seven owners terminal/52 observed process identities absent. All 369
+owned scratch entries verified against one archive before removal. Retained only
+/srv/mudds-work/browser-full-ordinary-20261025/results/case-records.tar.gz,
+17217731bytes/SHA256 8dbbfe9dddde995eed5c394d18def9cdbf2637afcd59d14134feebf49ba0ef5c, plus closeout.json.
+Unrelated parked archives and detached worktree registrations remain untouched.
+All Godot uses Dummy audio and headless/private Xvfb with explicit x11; no desktop
+input or hosted CI. All 337 canonical IDs/order/Done means, 36 parents,ten phase
+gates and 17-craft scope remain; broader packages, device/native/endurance/capacity
+and final-candidate requirements remain open.

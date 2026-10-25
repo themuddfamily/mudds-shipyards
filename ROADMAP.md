@@ -29,15 +29,17 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Delivered: travelling-projectile publication survives a recipient native disconnect.**
-Source 8cda303 skips the closed link before immediate/deferred delivery work while
-preserving actual flying/terminal delivery to the remaining client. Four focused
-suites pass with zero diagnostics; the fresh Windows checkpoint passes clean
-export, strict silent startup and package audit. This scoped repair does not
-close full actor/Picket/Torpedo journeys or wider multiplayer/release gates.
-[Exact result, initial fixture failure and cleanup](docs/history/ROADMAP_DELIVERIES.md#projectile-native-disconnect-accepted-20261025).
-The complete ordinary Halyard passenger reconnect remains accepted on 109aca0;
-[its original 397-check journey and limits are retained](docs/history/ROADMAP_DELIVERIES.md#ordinary-passenger-reconnect-accepted-20261025).
+**Verified: complete ordinary full-session browser refusal.** Source e39653cf
+qualifies the existing FULL-row UI with a real one-slot host and authenticated
+occupant. A third Main receives the full LAN row, attempts actual pointer
+selection without any join/admission, Refreshes, then returns to the same Player
+and walks in solo. Host occupancy returns 1→0; all three actual OS exits0 and
+zero diagnostics. The first coordinate-mapping failure and sole correction are
+retained. UI refusal is proven; this is not a transport-refusal test or supported
+release-capacity claim. Runtime production files match checkpoint 8cda303, so no
+identical-game build was exported. [Full result and cleanup](docs/history/ROADMAP_DELIVERIES.md#browser-full-ui-refusal-accepted-20261025).
+Earlier complete ordinary Halyard reconnect and projectile native-link repair
+remain accepted in their recorded scopes; wider multiplayer/final gates stay open.
 
 The canonical inventory remains
 [the existing backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes); no parallel
@@ -53,13 +55,13 @@ not a project percentage inferred from rows, tests or commits.
 ### Small execution queue
 
 Only one implementation card may be active. Each row below is a bounded step
-within the existing goal, not a replacement for its full acceptance. One bounded browser qualification is selected below. The complete named reconnect case is
+within the existing goal, not a replacement for its full acceptance. No implementation or qualification is currently selected. The complete named reconnect case is
 accepted for its recorded Linux-source ordinary-input scope. Torpedo remains
 parked; broader multiplayer and final-candidate requirements remain separate.
 
 | Existing goal | Next bounded result | Proof / stop | State and owner |
 | --- | --- | --- | --- |
-| BROWSER-FULL | Actual host with one configured guest slot + admitted occupant → independent candidate sees live1/1 FULL row → ordinary pointer attempt refused by disabled UI, no join intent/admission → Refresh/Back/Begin Shift/same-Player supported walk → occupant normal leave/host cleanup | Extend existing independent Main menu caller only; retain outer300s, work200s/90s cleanup reserve, Main60s/UI5s/discovery10s/admission20s/handshake20s/walk5s/normalexit+reap10s. Actual host occupancy1→0 and all three OS exits0/clean logs required | ACTIVE — Codex implementer/root integration + independent lifecycle review;75min hard stop including mapping from07:53:13Z; estimate25–35min caller,15–20 checks/whole route,15–20 review/closure. One existing test file owned; no runtime defect established. Source InputEvent/LAN scope, UI refusal—not a transport refusal or release-capacity claim. Stop first unexpected failure |
+| BROWSER-FULL | Genuine full host/occupant, disabled-row pointer refusal, real Refresh and same-Player usable solo return completed | 209 coordinator checks/125.781s; actual GUI press+release, zero activation/join/admission, fresh full directory1→2,1.002774m supported walk, host counts0→1→0, three actual OS exits0/zero diagnostics; original caps retained | DONE e39653cf in source InputEvent/LAN UI-refusal scope — independent review GO;18.696min through cleanup plus final push; package/device/native/endurance/capacity/final gates separate |
 | ACCESS-PAUSE-4X3[normal Settings top, scale1.0] | Existing top Settings image inspected at1024×768/requested+effective1.0 | Rendered original PNG: heading/visible two-column rows/scrollbar/fixed footer fit and read clearly; zero diagnostics, capture exit0; no visual finding | INSPECTED — component top view only on59117f3/lavapipe; other scroll positions/states/scales/focus navigation/full-cell qualification remain open; no unchanged recapture selected |
 | WALK-AFT | Furniture-clear Operations path exercised; complete original journey remains unaccepted | Both ordinary trials stop after actual Board UI at resumed-motion receipt comparison; no stairs/Zenith/home/UI-exit completion. Actual frozen Player receipt is newer than the last unpaused observer sample | PARKED — candidate 06ce015 unmerged/archived; original 60min, 50.915min through cleanup. Reopen only after actual paused `_life_completed_motion()` receipt binding, independent source GO and cumulative review; no unchanged retry or freshness relaxation |
 | NET-ACTOR[projectile/native disconnect] | Closed native recipients skipped before budget work; connected deferred/flying/terminal updates retained | Existing real ENet close-window regression (66), projectile replication (49), canonical (17), consumer (8); all exit0/zero diagnostics, caps unchanged; verified Windows EXE/ZIP/notes | DONE 8cda303 in focused production transport scope — independent review GO; 10.733 minutes through cleanup including conservative mapping cost; full actor/Picket/Torpedo journeys remain open |
