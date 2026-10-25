@@ -24727,3 +24727,23 @@ new raw identity-continuation.tar.gz
 and closeout.json in that directory. Dummy audio/headless/private Xvfb explicitx11;
 no physical input or hosted CI. All337 canonical IDs/order/Done means,36 parents,
 ten phase gates and17craft scope remain unchanged.
+
+
+## Existing Settings 1.4 top image inspected — 2026-10-25
+
+ACCESS-PAUSE-4X3 gains only this additional component-image review: existing
+settings_panel_scale_140.png from source59117f39f/1024x768, requested1.4 and
+production effective pause scale1.010526 (min1024/880,768/760). No visible finding:
+heading, visible controls, scrollbar and fixed footer are readable and contained;
+lower body clipping is the authored scroll region. HUD and capture source remain
+unchanged against59117. No engines, new captures, tests, source changes or builds.
+Initial minimum/maximum-image selection was corrected from the actual archive
+inventory before inspection: Settings has1.0/1.4 only. A1.6 request would reach
+the same fit ceiling, but this image does not prove literalrequired1.6. Required
+0.75/1.6 images, hidden rows, focus/navigation, transactions, Main/full-cell,
+device/native/final qualification remain open. No broader completion is inferred.
+Retained PNG alongside the prior100image/archive/closeout under
+/srv/mudds-work/settings-4x3-rendered-20261025/results/:123931bytes,
+SHA256fa9bf67124a3fcad47f8157b273f890d5b431fbda3074ec7b8635d213c9c03ad.
+Existing archive unchanged. This finite inspection starts08:50:05Z with10min bound;
+actual final cost recorded in closeout. No branch/worktree/process created.
