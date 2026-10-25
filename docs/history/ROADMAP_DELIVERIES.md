@@ -26909,3 +26909,73 @@ clock. Exact branch/final-push timestamps and final elapsed cost are retained in
 adjacent closeout.json; no retry or budget reset. This closes only the named
 executable Guided normalExit prerequisite. Original full rendered Linux desktop,
 Guided final3/3 and all broader roadmap requirements remain open.
+
+
+<a id="colour-preset-cold-process-qualified-20261025"></a>
+
+## Colour preset cold-process qualification — 2026-10-25
+
+Source1f2260f69fb36c03e277e3480496c8d075e717ab qualifies the missing
+COMFORT-COLOUR[Tritanopia cold restart/Reset] source endpoint. The existing live
+palette code was not changed: source review found no missing player-visible
+colour capability. It found that the old distinct-process settings route never
+selected/asserted a palette; earlier palette restart coverage recreated only
+RuntimeSettings within one OS process. Original Settings/GateC is not replaced.
+
+The actual colour control is an enum, not a boolean:0none(default/Reset),
+1deuteranopia,2protanopia,3tritanopia. Existing component32-state/six-label-family/
+four-palette/two-contrast and minimap single-hue shape coverage is retained.
+The existing production-persistence test gains only three guarded opt-in modes,
+using shared visibility/Save/input-release/normal-Exit helpers. Default assertions,
+old flags/functions and all runtime code remain unchanged. No settings/pose/
+provider/manual-physics seeding; writer seeds only unrelated sentinel data.
+
+Frozen source check sequence passes once, no failure/retrial: import6.593s,
+full existing production persistence35.082s, accessibility presets80.765s,
+minimap0.874s, three-worker wrapper98.536s (workers combined98.314s).
+Every stage exits0 with required single marker, zero issues/detected diagnostics;
+source/index/cache guards hold (import's cache update explicitly allowed).
+The pre-engine source review caught the card's missing monotonic walk ceiling;
+it was enforced before any engine/test, without a budget restart.
+
+One fresh actual profile and primary file is retained across these distinct
+workers, with directory dev/inode identity and exact prior post-exit SHA checked
+before each next launch:
+
+| Worker | Actual PID/start ticks | Actual duration/OS exit | Post-exit primary |
+| --- | --- | --- | --- |
+| Writer |1811348/39836002|32.717s/0|generation12; tritanopia; SHA2568a4868731de4cce3c6a909ac6b6af8781f003f9f0a71d5f1a7a196ae2623fa9a|
+| Reader/Reset |1811438/39839274|32.916s/0|generation21; none; SHA256cd85d96f23e1398d5287471559bc89fc4802e1e70dbf227bca32bf966da1fa81|
+| Cold Reset reader |1811539/39842566|32.668s/0|generation28; none; SHA2563886285e503715ec9e15fa9901c448d587b664dbad52d08a0586705d69f817cd|
+
+Writer selects actual visible Tritanopia item3 and Apply+Save. The cold reader's
+settings/control/HUD are already3/tritanopia before changing anything; all four
+minimap semantic colours match the authored palette. After normal Begin Shift,
+actual tree-visible ON FOOT // REGENERATION DECK text uses the nominal role,
+and current minimap report has a valid live snapshot/player, friendly circle_cross,
+hostile diamond and shape-discriminator contract. Normal Reset Defaults/Save
+restores the full authored settings/Off/none while retaining the actual minimap.
+Third cold process proves none/default control/HUD/minimap and usable walking.
+
+Each worker's synthetic raw S is consumed by naturally scheduled actual Player
+physics:12 pressed observations move0.25–3m, then release reaches speed≤0.05
+within30 further observations. SamePlayer/floor/control/on-foot/≤5m conditions
+and monotonic≤30s ceiling pass; no exact displacement beyond these asserted bounds
+is claimed. All bindings/other options and the whole unrelated sentinel remain
+exact; independent raw post-exit files confirm both clean states, zero unclean/
+failure counts, no safe-settings recommendation and exactly the expected palette.
+Success markers alone do not establish pass: root verifies actual normal HUD
+Exit/OS0, actual post-exit disk bytes and independently observed/reaped PIDs.
+
+Independent source/runner and final raw-result review accept only this endpoint.
+Actual headless/Dummy and private roots are verified in each launch receipt.
+No rendered readability, physical device, current package, audible mix, full colour family,
+original Settings return or GateC acceptance is inferred. No runtime change or
+fresh export; all11 public checkpoint39157e8 artifacts are retained unchanged.
+Original36 parents/ten exits/17craft scope and owner exclusions remain binding.
+
+Original22:31:44Z→23:31:44Z/60min includes source readiness, code/checks/three
+processes/review/integration/cleanup. Existing300s per worker/900s shared maximum
+and23:29:44Z absolute engine abort are retained; no automatic retry/deadline reset.
+Owned raw/source records are in /srv/mudds-work/colour-preset-restart-20261025;
+verified archive and exact Git closure follow below.

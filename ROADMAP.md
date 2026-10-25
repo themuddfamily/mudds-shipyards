@@ -71,37 +71,17 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Active qualification: COMFORT-COLOUR[Tritanopia cold restart and Reset].**
-Start22:31:44UTC; hard stop23:31:44UTC/60min includes the one bounded source
-review, test extension, checks, three OS processes, independent review and Git/
-owned cleanup. No runtime defect was demonstrated; existing colour capability
-is retained. Source/test implementer owns only the opt-in path in
-`tests/runtime_settings_production_persistence_test.gd`; root owns orchestration,
-docs/integration/cleanup, with independent lifecycle review before acceptance.
-
-Freeze three sequential workers on one fresh private real-file profile: writer
-selects actual visible Colour-vision preset Tritanopia(enum3/stable idtritanopia),
-uses Apply+Save, and verifies actual HUD/current ON FOOT cue and minimap. A distinct
-cold reader must load that same setting/control/palette, then use normal Reset
-Defaults and Save to restore authored none(enum0). A third process must cold-load
-none. Each uses normal Begin Shift and a short naturally supported raw-input walk
-(no pose/provider/manual physics); all bindings/other options and unrelated data
-remain exact. Each actual HUD Exit must yield OS0, its unique COLOUR_*_OK marker
-and both durable clean states. No settings/profile seeding; unrelated sentinel only.
-
-Focused checks: existing full default production-persistence, accessibility-preset
-and minimap suites plus import, then the three-worker real-file case. Existing
-300s per-process caps remain; first unexpected failure stops without automatic
-retry/reset. Natural walking has a monotonic ≤30s ceiling and ≤5m excursion;
-12 pressed physics observations must move 0.25–3m, then release must return to
-speed≤0.05 within 30 further observations. Support/control/identity remain valid. No new validator or standalone harness family; use the existing opt-in
-production composition test and shared Save/focus/release/exit helpers.
-
-This qualifies one explicitly missing cold-process enum→actual-consumer endpoint.
-Existing live32-state/six-family/four-palette/two-contrast and minimap shape proof
-is reused, not reimplemented. It does not close physical-device/rendered/current-
-package comfort, original SETTINGS-RETURN/GateC or every COMFORT-COLOUR episode.
-Tests/docs only: gameplay/checkpoint39157e8 remains unchanged; no identical build.
+**Qualified: Tritanopia survives cold restart and normal Reset.**
+Source `1f2260f69` passes three real-file OS processes: actual settings-control
+selection/Save → cold Tritanopia in the HUD/minimap → normal Reset/Save → third
+cold `none`. The visible ON FOOT text/minimap shape cues, naturally supported
+raw-input walking, all other bindings/options and unrelated data remain exact.
+Every actual HUD Exit yields OS0 and both durable clean states. Existing full
+persistence/palette/minimap checks also pass. This closes one missing source
+consumer endpoint; rendered/device/full comfort and original Settings return
+remain open. Runtime and playable checkpoint39157e8 are unchanged. Integration
+and owned archive/branch closure remain on this card; no successor is active.
+[Exact proof and scope](docs/history/ROADMAP_DELIVERIES.md#colour-preset-cold-process-qualified-20261025).
 
 **Accepted: Guided normal HUD Exit prerequisite.** Source `39157e8ca` passes
 all 211 native-driver tests, import/privacy checks, paired exports, three strict
@@ -121,7 +101,7 @@ completed branch is deleted. No successor is active.
 
 ### Small execution queue
 
-There is one active assignment. A broad milestone never enters this queue.
+At most one assignment may be active. A broad milestone never enters this queue.
 Use the existing backlog row for each result; do not create another tracker.
 
 The following are **finite definition outputs**, not promises to implement whole

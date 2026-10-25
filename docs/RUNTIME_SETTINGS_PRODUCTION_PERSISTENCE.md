@@ -212,3 +212,22 @@ directory identity. Existing default/HUD and complete Interact worker cases pass
 This accepts that one synthetic-raw cold-process option case, not physical devices,
 ship boost, ordinary Settings return, original GateC or the full remap family.
 [Source, raw results and cleanup](history/ROADMAP_DELIVERIES.md#sprint-toggle-cold-process-qualified-20261025).
+
+
+### Colour preset across distinct OS processes — source qualification1f2260f69
+
+The existing test's --colour-restart-writer / --colour-restart-reader /
+--colour-reset-reader modes use one explicit --colour-restart-private-root and
+fresh private XDG profile with actual production disk/Main, headless/Dummy.
+Actual visible Colour-vision OptionButton selection and Save choose Tritanopia.
+The cold reader loads enum3/tritanopia into real settings, HUD and minimap, uses
+normal Reset Defaults/Save, and the third process cold-loads enum0/none. Every
+other setting/binding and the unrelated sentinel remain exact. Visible ON FOOT
+text and actual minimap player/shape cues survive, with supported natural raw-S
+movement and neutral release; no actor/provider/manual physics injection.
+
+All three actual HUD Exits yield OS0, unique markers/PIDs and both durable clean
+states; post-exit generations12/21/28 have values tritanopia/none/none. This is
+one source-composition endpoint, not rendered/device/full-colour or original
+SETTINGS-RETURN/GateC qualification. Runtime/checkpoint39157e8 stays unchanged.
+[Actual records and limits](history/ROADMAP_DELIVERIES.md#colour-preset-cold-process-qualified-20261025).
