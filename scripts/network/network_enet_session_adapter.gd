@@ -173,6 +173,7 @@ const DAMAGE_COMPONENT_BOOL_FIELDS := [
 const REPAIR_PRESENTATION_STATES := [&"started", &"progress", &"completed", &"aborted"]
 
 var _peer: ENetMultiplayerPeer
+var _native_peer_links: Dictionary = {}
 var _lifecycle
 var _transport
 var _movement
@@ -582,6 +583,7 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 	_configured = false
 	_is_server = false
 	_peer_generations.clear()
+	_native_peer_links.clear()
 	_migration_captured_peers.clear()
 	_peer_admission_epoch += 1
 	_seat_moving_relationships.clear()
@@ -2350,17 +2352,31 @@ func _send_moving_interior_release_packet(peer_id: int, packet: Dictionary) -> v
 	if _moving_interior_transport_hook.is_null():
 		# Simultaneous departures can reset a native link before its queued
 		# disconnect callback removes the corresponding admission record.
-		if _peer == null or not multiplayer.get_peers().has(peer_id):
-			return
-		var link := _peer.get_peer(peer_id)
-		if link == null or link.get_state() != ENetPacketPeer.STATE_CONNECTED:
+		if not _native_recipient_is_connected(peer_id):
 			return
 		_broadcast_moving_interior_release.rpc_id(peer_id, packet)
 	else:
 		_moving_interior_transport_hook.call(peer_id, packet.duplicate(true))
 
 
+## Admission cleanup can lag native ENet disconnection by a poll. Never send
+## to that retired channel; the logical disconnect owner still retires claims.
+func _native_recipient_is_connected(peer_id: int) -> bool:
+	if _peer == null or not multiplayer.get_peers().has(peer_id):
+		return false
+	# get_peer() itself logs an error after a force-close removes its native
+	# mapping. The connection callback retained this exact link while valid.
+	var link := _native_peer_links.get(peer_id) as ENetPacketPeer
+	return link != null and link.get_state() == ENetPacketPeer.STATE_CONNECTED
+
+
 func _send_moving_interior_packet(peer_id: int, packet: Dictionary) -> void:
+	# Test transport hooks retain their existing relationship-delivery path.
+	# Resync always uses native RPC. Skip before consuming pending work or a
+	# recipient revision: nothing was delivered on a disconnected transport.
+	if (not packet.has("relationship") or _moving_interior_transport_hook.is_null()) \
+			and not _native_recipient_is_connected(peer_id):
+		return
 	var wire := packet.duplicate(true)
 	if wire.has("relationship"):
 		var revision := int(_moving_recipient_revisions.get(peer_id, 0)) + 1
@@ -4449,7 +4465,9 @@ func publish_snapshot(
 	_latest_snapshot_revision = int(packet.get("revision", 0))
 	var encoded_snapshot: Dictionary = _snapshot_delta_encoder.encode(packet)
 	for fragment in _snapshot_fragmenter.fragment(encoded_snapshot, 1, int(packet.get("revision", 0))):
-		_broadcast_snapshot_fragment.rpc(fragment)
+		for peer_id: int in multiplayer.get_peers():
+			if _native_recipient_is_connected(peer_id):
+				_broadcast_snapshot_fragment.rpc_id(peer_id, fragment)
 	snapshot_published.emit(packet.duplicate(true))
 	return _remember(_result(true, &"snapshot_published", {
 		"revision": int(packet.get("revision", 0)),
@@ -5483,6 +5501,7 @@ func _hold_peer_packet_throttle(peer_id: int) -> void:
 	var link := enet.get_peer(peer_id)
 	if link == null:
 		return
+	_native_peer_links[peer_id] = link
 	link.throttle_configure(
 		PEER_THROTTLE_INTERVAL_MSEC, PEER_THROTTLE_ACCELERATION, PEER_THROTTLE_DECELERATION
 	)
@@ -5526,6 +5545,7 @@ func _send_peer_hello() -> void:
 
 
 func _on_peer_disconnected(peer_id: int, reason: StringName = &"disconnect") -> void:
+	_native_peer_links.erase(peer_id)
 	if not is_server():
 		return
 	var peer_generation := int(_peer_generations.get(peer_id, 0))
