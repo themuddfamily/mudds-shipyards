@@ -82,8 +82,9 @@ game/helper/Xvfb processes are released/reaped; installed/archive bytes remain e
 This closes the missing executable normal-exit prerequisite. It is one run under
 private Xvfb/x11/Dummy/dummy rendering, not rendered desktop-entry acceptance,
 Guided final 3/3, native GPU qualification or a new gameplay feature. The original
-22:00–23:15 UTC assignment clock is retained. Integration, archive and branch
-closure are the remaining work on this card; no successor is active.
+22:00–23:15 UTC assignment clock is retained. Accepted work is merged/pushed;
+the owned install/scratch is removed, records are verified and archived, and the
+completed branch is deleted. No successor is active.
 [Actual proof and limits](docs/history/ROADMAP_DELIVERIES.md#guided-installed-normal-exit-accepted-20261025).
 
 ### Small execution queue

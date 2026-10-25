@@ -26883,3 +26883,29 @@ its runtime bytes. Actual publication identities:
 
 Owned records: /srv/mudds-work/installed-guided-exit-20261025.
 Verified archive, final cumulative cost and exact Git branch closure follow below.
+
+### Guided normal Exit — integration and owned cleanup
+
+Accepted branch tip662c2f4a0e3c8061d193ae427903ded1743d281a is fast-forwarded
+into main and pushed. Actual remote main is rechecked; the task branch has no
+remote ref. Fresh registered-worktree ownership and source ancestry checks precede
+CAS deletion of local feat/guided-normal-ui-exit-20261025 at that exact tip.
+Unrelated retained/detached/prunable worktree registrations are untouched.
+
+Verified records archive:
+/srv/mudds-work/installed-guided-exit-20261025/records.tar.gz,
+36436109bytes, SHA25620965ef3e0a313c5abb894bb4ca205423989e98ea59d1f52bf5f3092a22ffacb.
+All150regular files and11symlink targets/modes are verified before removing loose
+owned scratch. Accepted source bundle/patch, all raw results/UI observations,
+actual post-exit primary and installed before/after/cleanup inventories remain
+in that archive. All11 stage supervisors and53 observed process records are
+absent by exactPID+start ticks; tool pins and all11 public artifact identities
+remain unchanged. Only records.tar.gz and closeout.json remain in the private
+case. The duplicate installed ELF, owned desktop entry/manifest and all private
+profiles/helpers are removed; public Windows/Linux checkpoints remain in builds/.
+
+Archive cleanup finishes22:30:27.698UTC,30.462min into the ORIGINAL22:00Z→23:15Z
+clock. Exact branch/final-push timestamps and final elapsed cost are retained in
+adjacent closeout.json; no retry or budget reset. This closes only the named
+executable Guided normalExit prerequisite. Original full rendered Linux desktop,
+Guided final3/3 and all broader roadmap requirements remain open.
