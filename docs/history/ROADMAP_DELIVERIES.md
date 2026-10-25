@@ -23609,3 +23609,83 @@ archive SHA256 `b64a4af7f84c4a59244242a55b533eaee824e3bf6e9ecb97b667c47dc56af7e6
 Final pushed documentation/time is recorded in closeout. Pre-existing detached
 worktree registrations remain protected and outside this task. Public playable
 checkpoint0d77125, native/device/endurance/full-parent gates and CI hold remain.
+
+
+<a id="race-first-play-accepted-20261025"></a>
+## Checkpoint Race — original full package journey accepted — 2026-10-25
+
+PLAY-RACE source `7997b2b373752dc06b93fe81620f725764d83c74`, selected causal
+continuation d334c8dbe. The original90min clock began02:18:24UTC and includes the
+previous fixture failure and both failed whole-package trials above. Independent
+source review resolved their second reopening condition: GameFlow5335/5751
+intentionally publishes the resident Hulk/Belt briefing on a valid accepted
+piloting sample within250m. Publication8113 records the schema1 seen namespace;
+existing Hulk and tutorial persistence tests require those additions. No tutorial
+runtime behavior was changed.
+
+The existing release runner's `--route race-home` now validates exact tutorial
+preservation from fresh accepted retained actor samples and first resident marker
+geometry. At most two first-approach receipts authorize the sorted baseline union;
+removals, extra IDs, schema/key changes, stale/unavailable samples and unrelated
+payload mutations fail. The namespace is not excluded from mutable protection.
+The observer sees the previous completed Main physics tick; advancing binding
+counters identify a fresh accepted sample. This is passive observation, not a
+provider/position/phase/claim or persistence mutation.
+
+Full existing Python suite163 PASS11.618801s; fresh import6.638953s and observer
+parser15.747184s pass. Earlier exact unchanged startup-selector/privacy proof is
+retained. Clean Linux export26.292784s, strict binary startup22.779781s
+(exit0+STARTUP_MENU_READY_OK) and actual1,527-entry PCK inventory pass. The retained
+archive's ELF exactly matches the exercised embedded binary, SHA256
+`2ac3b30abc00813d2c42d8824c9bd122caa7c709c3ef84e88d8fedeaa7d802b9`.
+The actual command was the existing runner with this binary, `--route race-home`
+and output `ordinary-route-tutorial` under the owned case results directory.
+
+The original complete journey PASS276.690s (guard277.134259s), belowCAP300/outer360:
+normal menu, genuine Torrent Guided combat/home/physical exit, supported outward
+clearance beyond the actual7m reboard block, ordinary same-Torrent reboard and
+departure, real configured2s countdown, five ordered physical32m checkpoints in
+16.116666666667s and exactly one generation1 durable race reward. Actual gate
+frames3112/3257/3380/3479/3590 have distances31.92689/31.89574/31.92241/31.24569/
+31.38983m, all within the original radius. No tuning, geometry, clock or deadline
+was relaxed. The slow return alignment still ran within the original full cap.
+
+Actual eligible approaches independently recomputed from the raw stream:
+Belt frame3110/tick2643 at242.973698m and Hulk frame3146/tick2679 at249.733302m.
+Baseline seen set has only the race ID; paid/stable/home/orderly-close have exactly
+those two additions. All other protected siblings compare equal. The once-only
+ledger and acknowledged terminal remain identical in all four post-payment
+captures. Actual primary generations18→32→32→35→38 preserve the full record through
+normal process close; this is not a cold-interruption or ten-run repeat claim.
+
+Safe RangeHeader crossing, original Central strict dock/lease/token and original
+geometry pass. The craft reaches exact dock atframe13805; last flight demand13806,
+last ONLINE13896, then90 fresh neutral/OFFLINE ticks13897–13986 before physical
+exit. Same Player/capsule/source and actual floor support remain. Exterior walk
+frame14119→14144 covers0.969437m over25frames, target distance0.030565m and final
+speed0.2m/s: the original>=.5m/>=20frame/<=.30m/<=.35m/s home-walk bounds. No separate
+12-neutral-walk-tick gate is claimed. Actual focused enabled EXIT TO DESKTOP leads
+to real gamePID1490166 exit0; input helper1490163 and Xvfb1490156 are also reaped.
+Inputs released, zero runtime diagnostics, guard survivors empty. Root and
+independent source/raw review GO.
+
+Accepted code integrated into main under7997b2b37; no task branch/worktree was
+created. All21 stage owners terminal and124 observed process identities absent.
+The three earlier failed stages remain recorded. All original nested results
+were byte-verified unchanged before reconsolidation; prior unique-source bundle
+remains included. All573 new archive members' bytes/modes/links verified before
+owned loose records/helpers/profiles removal. All15 owned temporary build files
+across the chain removed, retaining the exact exercised package inputs in the
+archive. Only archive+closeout remain at
+`/srv/mudds-work/race-first-play-20261025/results/`.
+Current consolidated archive SHA256 `8e74e8b399478c2ff27f8d4db0ba87ddf042cef7d01e212880738548b968afb4`,
+252,462,052bytes; it supersedes the prior134,121,123-byte container recorded above
+while preserving its failed results and source. Final pushed source/time is in
+closeout. Pre-existing detached registrations remain protected/outside this task.
+
+This closes PLAY-RACE only for the named packaged Linux/owned Xvfb/x11/OS-XTest/
+dummy-renderer/Dummy-audio route. Race ten-run repeat, recovery, physical devices,
+native GPU, final-candidate and all broader parent/phase requirements stay open.
+Normal gameplay is unchanged, so the public playable checkpoint remains0d77125;
+no identical normal-game Windows checkpoint was published for this release-driver
+capability. GitHub Actions remains disabled. Original goal scope remains active.

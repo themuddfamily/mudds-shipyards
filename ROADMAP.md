@@ -29,32 +29,28 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Selected: PLAY-RACE — bounded tutorial-preservation correction, same clock.**
-The two failed package trials and original full finish remain in
-[history](docs/history/ROADMAP_DELIVERIES.md#race-first-play-package-attempts-20261025).
-Independent source/raw review resolves the reopening condition: GameFlow's
-accepted streaming physics sample automatically publishes resident Hulk/Belt
-briefings within250m, intentionally adding those IDs to tutorial_prompts_seen.
-Existing approach/persistence tests require that behavior; no game fix is implied.
+**Delivered: PLAY-RACE — complete ordinary packaged race and home return.**
+Source7997b2b37 passes the full original journey in276.690s underCAP300:
+normal menu/Guided/physical exit/actual reboard clearance/same-Torrent departure,
+production2s countdown/five ordered32m gates in16.116667s, one durable payment,
+safe approach/strict Central dock/90 neutral OFFLINE ticks/physical exit,
+supported0.969m walk over25frames and normal UI exit0. No runtime diagnostics;
+root and independent source/raw review GO.
 
-Restore verified candidate56df45bc2 source into an isolated detached candidate.
-One implementer owns existing runner/tests/passive observer. Validate the exact
-sorted/schema1/no-removal tutorial set against actual accepted actor samples and
-resident marker proximity; reject extra IDs, wrong schema/keys and every other
-unrelated payload change. No blanket mutable-namespace exemption. Preserve the
-normal menu/Guided/physical exit/actual>7m clear/reboard/departure/2s countdown/
-five32m gates within120s/once payment/strict home/OFFLINE/physical exit/supported
-walk/normal UI OS0 journey, CAP300/outer360, and existing inputs/geometry/tuning.
+The existing release runner now offers `--route race-home` for an exact exported
+Linux binary. Tutorial preservation checks only the two
+approach-driven IDs justified by actual accepted samples/resident markers within
+250m; all other save data stays protected. Five actual-file captures retain the
+once-only payment/terminal through orderly close. Earlier failed stages remain
+recorded on the original90min clock; no deadline or gameplay rule was relaxed.
+[Full proof, earlier failures and cleanup](docs/history/ROADMAP_DELIVERIES.md#race-first-play-accepted-20261025).
 
-Root owns guards, clean export/strict startup, one full package continuation,
-review/integration/cleanup. Relevant source/test checks plus archived-pair and
-rejection checks precede the full route on owned Xvfb/x11/Dummy audio/dummy
-renderer with actual OS XTest. Estimate15min correction+20checks/route+10closure;
-original90min clock started2026-10-25T02:18:24Z and already used25.3min at
-selection. First unexpected failure stops for cumulative review or parking;
-no budget reset, native/device/endurance/final-parent claim or new framework.
+Normal gameplay is unchanged; playable checkpoint0d77125 remains current.
+This accepts the named Linux/Xvfb OS-input first-play route only. Race ten-run
+repeat/recovery, physical devices/native GPU and full activity/final gates stay
+open. No new implementation is selected by this closeout.
 
-**Latest closed: BROWSER-JOIN — actual LAN join and usable solo return.**
+**Previously closed: BROWSER-JOIN — actual LAN join and usable solo return.**
 Source `80abab3b1`: the existing ordinary two-Main route now checks both players
 walking while connected and again after normal Disconnect/Refresh/Back/Resume.
 The full route passed294 assertions in86.310s, actual peer exits0, no diagnostics;
