@@ -193,7 +193,9 @@ func _client_handback() -> bool:
 			var needs_clearance: bool = local_x > -0.80 or pose.origin.x > -0.80
 			# Drive both bodies past the chair; stop locally before the port jamb
 			# even if a delayed authoritative publication has not caught up.
-			_action(clearance_action, needs_clearance and local_x > -1.10, 0.35)
+			# Gentler ordinary input keeps local prediction inside the0.30m
+			# margin while the host acknowledges the same physical clearance.
+			_action(clearance_action, needs_clearance and local_x > -1.10, 0.25)
 			return _handback_local_current(true) and local_x <= -0.80 \
 				and pose.origin.x <= -0.80 \
 				and int(relationship.get("server_tick", -1)) > int(_handback_walk_start.published_tick),

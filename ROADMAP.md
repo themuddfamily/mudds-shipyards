@@ -30,6 +30,18 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 ## Execution now
 
 **Selected: HELM-THROTTLE-REVERSE — complete ordinary handback.**
+One full trial FAILED154.514s at the final chair-clearance/walk, after actual
+reverse/neutral/replicas and helm release. Local x−1.159084 crossed the safety
+cutoff−1.10 while actual host x−0.798321 remained short of required−0.80; the
+caller then withheld all strafe input. Both supported bodies and retired helm
+remain valid. Root/independent source+raw causal review GO for ONE caller-only
+strength0.35→0.25 correction: authored0.18 input deadzone/preserved strength
+reduce predicted lag distance from observed0.361m to about0.149m within the
+existing0.30m margin. No game defect, collider/threshold/deadline change inferred.
+Record the failed run and continue once with the whole route; same original
+45min clock. A second failure stops for cumulative park/switch review, not more
+tuning. Prior import/check-only/reverse flight acceptance remains scoped.
+
 Starting clean source3a49596de. One implementer owns only the existing reverse
 test: reuse the accepted shared handback route and insert unchanged reverse
 checks after both original yaw turns, before ordinary Interact handback. Root
