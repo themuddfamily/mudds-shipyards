@@ -71,6 +71,22 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Jovian solo ordinary engineer route: PARKED / not accepted.** Two source
+trials reach all17 outward walking goals and the real engineer chair. The second
+proves matching accepted repair, integrity improvement and kits6→5 in437ms,
+then stops at the new test's stand-retirement assertion. That assertion contradicts
+the existing detach-on-stand authority contract; its individual runtime values
+were not logged. The first combined repair/HUD failure's actual member remains
+unknown; the later run's immediate HUD already shows5, so no sole first cause is
+claimed. Full reverse path/hub/normal Exit0 remain NOT_RUN.
+
+No third run or further correction is selected. Future work must bind the test
+to the existing detach contract and capture each post-stand value before checking,
+with independent source/cumulative review and the full original finish/caps.
+Both failed sources/raw/STOPs are verified in archive; unaccepted code is excluded
+from main and its branch is deleted. Current checkpoint39157e8 is unchanged.
+[Exact failed predicates and cleanup](docs/history/ROADMAP_DELIVERIES.md#jovian-ordinary-engineer-two-stops-20261025).
+
 **Qualified: Tritanopia survives cold restart and normal Reset.**
 Source `1f2260f69` passes three real-file OS processes: actual settings-control
 selection/Save → cold Tritanopia in the HUD/minimap → normal Reset/Save → third
@@ -263,6 +279,7 @@ Full chronological results belong in the existing
 
 | Existing goal | Specific reopening requirement |
 | --- | --- |
+| CRAFT-ACCEPT-JOVIAN[ordinary solo engineer] | Correct the source-contradictory still-attached authority predicate and log each post-stand member; independent source/cumulative review before any future selection. Both actual trials stop; no third under the closed card. Preserve full physical return/UI0 and original300/360/15s limits |
 | WALK-AFT | Bind the actual frozen Player completed-motion receipt in paused observation; last unpaused observation can lag one tick. Preserve full journey/original 60min cumulative clock/300s and360s caps; independent source GO and priority review before any new trial |
 | PLAY-TORPEDO | Retain cancelled request debt across unread queued neutral samples after OS release; source GO and cumulative priority review before checks; full Heavy/Torpedo/Wing finish unchanged |
 | PLAY-PATROL[platform_sweep] | Localize normal quit failure; five holds/payment/home/exit already observed but UI exit0/save closure missing. Original300s remains |

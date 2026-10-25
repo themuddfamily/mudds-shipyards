@@ -27001,3 +27001,92 @@ Archive cleanup ends22:46:58.783UTC,15.246min into the original22:31:44→23:31:
 clock; exact branch/final-push timestamp and final cost are recorded in adjacent
 closeout.json. No retry/budget reset. The source cold-palette endpoint is closed;
 full rendered/device/comfort/Settings/final release requirements remain open.
+
+
+<a id="jovian-ordinary-engineer-two-stops-20261025"></a>
+
+## Jovian ordinary solo engineer — two stops, not accepted — 2026-10-25
+
+CRAFT-ACCEPT-JOVIAN[normal spawn→engineer repair→hub return] ends PARKED;
+no third trial or additional correction. Main12194b4e9 is restored; unaccepted
+opt-in test code is archived rather than merged. Runtime/checkpoint39157e8 and
+all broader original scope remain unchanged.
+
+Original22:48:16Z→23:48:16Z/60min includes initial readiness, code/source review,
+focused checks/two actual trials, causal review and cleanup. Torpedo remained
+parked: its expired absolute window/unresolved queued-neutral accounting had no
+new current correction; no Torpedo source restoration/branch/engine/trial began.
+The Jovian path was source-bound before engines: existing11Freightconnector points,
+actual cargo-ramp toe/deck/aisle/engineer entry, then exact reverse34goals total.
+15s per goal/.30m horizontal/.8m vertical/≤.35m/s neutral and300s game/360s outer
+caps were retained. Actors/default sampler/full capsule/ground support/exact
+parked home lease/OFFLINE guards apply. No pose/provider/control/collision or
+manual-physics injection; one .65×hull failed-port damage fixture is disclosed,
+not combat proof. Only synthetic input consumers/privateXvfb/x11/Dummy/dummy
+renderer/disabled render loop; no rendered/device/native performance claim.
+
+Firstsourcef0ddeddc863d123062f851a5db7ef1615185289f passes import7.781s,
+engineer console0.749s and role presenter0.628s. ONE full route fails:
+PID1944915/start39951870, actualOS1/59.223974s (guard59.529526s).
+All17outward goals, physical engineer claim, failed-port fixture, active6kits/
+progress<1, same claim and actualrepair_committedwithin2s pass. The next combined
+receipt/resource/integrity/HUD predicate fails. Individual values were printed
+only AFTER that assertion, so the actual failed member is unknown. No stand,
+reverse path or UI0 acceptance. Raw/source/STOP remain immutable.
+
+Independent review confirms receipt fields match production and identifies a
+possible observation timing issue: parent GameFlow updates solo HUD before child
+Jovian commits repair. It explicitly does not claim an observed bad HUD value or
+a gameplay bug. Cumulative/source GO selects one bounded fixture correction
+within the same original clock: immutable immediate commit/receipt/integrity/
+units and per-member JSON BEFORE assertions; core truth must pass immediately;
+then one physics/process await barrier and separate HUD5 check, preserving same
+actors/home/claim/units/no new input and original2s repair observation. No polling
+until core truth changes, route/fixture/passive repair/tuning/limit changes, or
+budget reset. A second unexpected failure explicitly ends the card.
+
+Correctedsource1530b4fc8c775da010040f75aa19b749255191b0 passes exact source/
+wrapper review and import6.619s; unchanged console/presenter results are reused.
+ONE corrected fresh-profile full route fails:PID1946315/start39986333,
+actualOS1/60.226930s (guard60.525097s). It again reaches all17outward goals/real
+chair. Immediate raw REPAIR has all7core predicates true: accepted matching
+port_wing receipt, integrity0.0516667→0.5306667, active6→committed5kits,
+437ms/27physics frames and actualrepair_committed. Immediate HUD ALREADY shows
+KITS5/6, as does the post-barrier HUD atframe1651 versus commit1649 (Δ2, one
+await barrier). Thus the first run's failed member remains unknown; do not claim
+its cause was proved or that new runtime code fixed it.
+
+Raw E stand reaches awake supported controlled full-capsule walking/home gates.
+Next FIRST failed predicate is the aggregate “ordinary stand retires exact
+engineer claim and retains five kits”. Its current authority/old assignment/meta/
+units were not logged before failure; no actual unretired gameplay claim inferred.
+Source closeout finds a contradictory test assumption: GameFlow normalstand
+releases the claim and `_release_solo_crew_authority`; Jovian detach requires the
+exact empty ledger and sets its current authority null. The new test instead
+requires oldowner==stillattached currentowner. Normal detach is part of the
+existing contract, not a newly requested behavior. Preflight missed this.
+
+Future reopening needs the test bound to that existing detach contract and all
+post-stand member values logged BEFORE checking: current authorityID/null,
+old-ledger assignment, role meta, kit units/time. Preserve actual supported stand,
+retired claim/five kits/full17reverse/hub/UI0 and original limits/cumulative cost;
+no weaker retirement goal or new gate. This is a future source condition only,
+not third-trial authorization. Full return and normal UI0 remain NOT_RUN.
+
+Independent final review requires PARK/NOT_ACCEPTED. Both failed source bundles/
+patches, six stage results, raw game logs, failure/STOP files and private durable
+files are consolidated in verified archive:
+/srv/mudds-work/jovian-ordinary-engineer-20261025/records.tar.gz,
+21094004bytes; SHA256f56b7f4f28f99e4095e38471f8747a8589cc6cc7b1d10e63136e913750682f03.
+All106regular file bytes/modes and6symlink targets verify before loose scratch
+removal. All6supervisors/20observed owned identities are absent by PID+startticks.
+Tool pins/all11 public checkpoint files are unchanged; no build/Downloads/Actions.
+Only records.tar.gz and closeout.json remain in the owned case.
+
+Fresh actual remote/worktree ownership checks precede CAS deletion of local
+qual/jovian-ordinary-engineer-20261025 at archived unaccepted1530b4fc8; remote
+branch absent, main remains accepted12194b4e9 before this failure-documentation
+push. No candidate is merged merely for deletion. Unrelated retained worktrees/
+prunable registrations remain untouched. Archive cleanup ends23:11:54.162UTC,
+23.636min into the original clock; adjacent closeout.json records exact branch/
+final-push timestamp and final cost. No third trial or clock reset.
