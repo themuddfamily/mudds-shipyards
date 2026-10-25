@@ -52,13 +52,13 @@ not a project percentage inferred from rows, tests or commits.
 ### Small execution queue
 
 Only one implementation card may be active. Each row below is a bounded step
-within the existing goal, not a replacement for its full acceptance. No implementation is currently selected. The passenger interaction and transport
-prerequisites are delivered; the complete ordinary reconnect journey is still
-required. Torpedo remains parked after its source-review stop.
+within the existing goal, not a replacement for its full acceptance. One full ordinary passenger reconnect caller is selected. The delivered runtime
+prerequisites remain accepted; this attempt must prove the complete original
+journey under its original caps. Torpedo remains parked.
 
 | Existing goal | Next bounded result | Proof / stop | State and owner |
 | --- | --- | --- | --- |
-| SERVER-BASELINE-PASSENGER-RECONNECT | Fresh standing-berth request at the recovered Halyard passenger chair delivered on9c736d7 | Old runtime failed only missing JOIN CABIN after real setup; fixed34 and existing boarding66/independent chair route pass. Clean paired export/three strict startups/identical1527payload/verified Windows EXE+ZIP+notes | PASS for scoped interaction; full journey OPEN. Next full caller must retain BOARD+7MOVING/forced loss/normal Manual Join/actual20s return/strict dock/fresh berth+later chair/renewed flight/3OS0 under original caps |
+| SERVER-BASELINE-PASSENGER-RECONNECT | Full original BOARD+7MOVING/forced passenger transport loss/solo controls/normal browser Manual Join/pilot actual return+strict dock/physical fresh berth+later chair/renewed flight/3OS0 | Existing passenger route gains one selector; source review/strict compile then ONE full ordinary native-input real-ENet trial. Preserve300global/360outer and original local caps; no placement/direct assist/provider/claims | ACTIVE — one caller implementer, one reviewer; root guards/integration/cleanup. Prior52.359230min +all elapsed since06:26:13UTC; hard07:03:52UTC, latest trial06:52UTC, sourcefreeze06:37target/06:39hard; first failure stops. Runtime/checkpoint9c736d7 unchanged |
 | PLAN-ASSIGN | Replace the chronological working page with this queue; audit every canonical goal for a finite result or explicit blocking input | Preserve all337 IDs/order,36 parents/ten gates; review changed acceptance and local links. Finish after this pass; no automatic new definition task | PASS — Codex; documentation only |
 | PLAY-TORPEDO | Cancelled request accounting must survive unread queued neutral samples across actual OS release | Source review BLOCK: output dispatch does not establish which engine samples postdate release. Candidate archived; no tests/export/trial, no gameplay completion | PARKED — Codex;67.453min cumulative at stop, no automatic retry |
 | SPEC-TITAN / VORTEX / PARADOX / KATANA / PREDATOR / DYNAMIC / UTOPIA / SALYUT | One explicit approval or field-level revision for each existing craft proposal | All required geometry/handling/functions/roles/save fields fixed in the corresponding proposal; no repeat proposal preparation | WAITING — user chooses interpretation/design; Codex implements approved fields |
