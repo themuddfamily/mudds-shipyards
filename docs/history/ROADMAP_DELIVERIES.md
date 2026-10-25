@@ -24078,3 +24078,40 @@ gate, engine/test/export, temporary files, branch or worktree was needed.
 The already completed gameplay is recorded accurately, not counted as a new
 implementation or project percentage. All337 canonical IDs/order,36 parents and
 ten phase gates remain; broader project goal remains active.
+
+
+<a id="torpedo-control-continuation-stopped-at-source-review-20261025"></a>
+## Torpedo control continuation stopped at source review — 2026-10-25
+
+**NOT_ACCEPTED / PARKED.** One bounded correction selected on a172e2cb0 stopped
+at independent source review,05:43:10UTC/**67.453307min cumulative**, before the
+original90min/06:05:43UTC deadline. The prior47.646347min plus all elapsed time
+since05:23:22UTC remain charged. No tests, Godot, exports or whole trials ran.
+
+The candidate required exact boat collider/Damageable ownership, quiet camera
+aim and cancellation of stale boat presses. Earlier review found cancellation
+erased real consumed commands later in the retained batch. The attempted repair
+retained debt until OS-release dispatch and a newer neutral sample. Review still
+BLOCKED it: after dispatch at last-read cursor15, unread neutral16 and consumed17
+can both predate that release; neutral16 erases debt before the real shot17.
+XSync acknowledges X-server handling, not Godot command sampling. The fixture
+missed this ordering. First-failure stop applied; no automatic repair followed.
+
+Reopen only with bounded debt accounting that survives unread queued neutral
+samples and reconciles matching actual command/shot consumption, or an actual
+engine-observed release boundary tied to the emitted request; require source GO
+and cumulative priority review. The full Heavy clear/payment/home→Torpedo
+boarding/departure→real seeker evasion/interception/70HP boat destruction/separate
+payment→strict original home/OFFLINE/physical exit/usable Paired Wing posting/UI
+OS0 and real-file proof remain required,150s each/shared300/outer360 unchanged.
+
+Original/revised patches, frozen full source, selection, helpers and review stop
+are consolidated in the verified archive
+`/srv/mudds-work/torpedo-boat-control-20261025/results/case-records.tar.gz`
+(251,929bytes; SHA256
+`0f0863518b65472d50916b3805638e579eaa003d19c23e87e7e2c2b1e79e9100`).
+The revised patch reapplies to basea172e2cb0. Adjacent closeout.json records exact
+cost/hash/cleanup. No candidate source merged; no task process/profile/build/
+branch/worktree created. Verified archived loose helpers were removed;
+pre-existing registrations retained. Accepted gameplay/checkpoint0d77125 are
+unchanged; PLAY-TORPEDO and all parent/phase gates remain open. No gameplay delivery.

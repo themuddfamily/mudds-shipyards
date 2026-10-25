@@ -44,12 +44,13 @@ not a project percentage inferred from rows, tests or commits.
 ### Small execution queue
 
 Only one implementation card may be active. Each row below is a bounded step
-within the existing goal, not a replacement for its full acceptance. One bounded PLAY-TORPEDO qualification continuation is selected below.
+within the existing goal, not a replacement for its full acceptance. No implementation is currently selected. The bounded Torpedo continuation stopped
+at source review as recorded below.
 
 | Existing goal | Next bounded result | Proof / stop | State and owner |
 | --- | --- | --- | --- |
 | PLAN-ASSIGN | Replace the chronological working page with this queue; audit every canonical goal for a finite result or explicit blocking input | Preserve all337 IDs/order,36 parents/ten gates; review changed acceptance and local links. Finish after this pass; no automatic new definition task | PASS — Codex; documentation only |
-| PLAY-TORPEDO | Retain cancelled-shot observation identity until actual consumption or acknowledged release; then attempt the original full Heavy/Torpedo/Wing-posting journey once | Existing driver batch fixture, independent source review, Python/import/privacy, clean Linux export/strict startup/inventory and one ordinary route. Original150s each/shared300/outer360; first failure stops | ACTIVE — Codex; original90min clock/deadline06:05:43UTC, latest whole launch05:55UTC |
+| PLAY-TORPEDO | Cancelled request accounting must survive unread queued neutral samples across actual OS release | Source review BLOCK: output dispatch does not establish which engine samples postdate release. Candidate archived; no tests/export/trial, no gameplay completion | PARKED — Codex;67.453min cumulative at stop, no automatic retry |
 | SPEC-TITAN / VORTEX / PARADOX / KATANA / PREDATOR / DYNAMIC / UTOPIA / SALYUT | One explicit approval or field-level revision for each existing craft proposal | All required geometry/handling/functions/roles/save fields fixed in the corresponding proposal; no repeat proposal preparation | WAITING — user chooses interpretation/design; Codex implements approved fields |
 | BOMBER-ROLE-DECISION | Record additional physical roles, each action and seat/access arrangement | Exact role count and actions recorded once; pilot-only runtime does not close this promise | WAITING — user |
 | SCOPE-LIMIT / SCOPE-DESKTOP | Fix supported guest/host/role capacity and exact desktop targets | Concrete values in the existing decision register; settings maxima/export presets do not establish support | WAITING — user |
@@ -144,22 +145,19 @@ Full chronological results belong in the existing
 | Existing goal | Specific reopening requirement |
 | --- | --- |
 | WALK-AFT | Source/raw-supported collision-clear route; retain full door/board/stairs/Zenith/home journey and original limits |
-| PLAY-TORPEDO | Resolve the recorded batch-accounting review blocker; source GO and cumulative priority review before checks; retain full Heavy/Torpedo/Wing finish |
+| PLAY-TORPEDO | Retain cancelled request debt across unread queued neutral samples after OS release; source GO and cumulative priority review before checks; full Heavy/Torpedo/Wing finish unchanged |
 | PLAY-PATROL[platform_sweep] | Localize normal quit failure; five holds/payment/home/exit already observed but UI exit0/save closure missing. Original300s remains |
 | PLAY-DEFENSE | Demonstrated control/gameplay correction for the recorded two-of-four clear; no arbitrary longer fight |
 | COMBAT-WING | Demonstrated cause/correction for eight shots causing zero damage; no unsupported aim tuning |
 | SERVER-BASELINE-PASSENGER-RECONNECT | Localized setup/transport-send cause before retrying actual fresh cabin admission |
 | Other parked rows | Their exact recorded cause, original case list/cap and reopening predicate in the canonical backlog; no unchanged retry |
 
-Unaccepted Torpedo source is retained at
-`/srv/mudds-work/torpedo-boat-control-20261025/results/unfinished-source.patch`
-with base/hash/blocker/timing in the adjacent `paused-for-roadmap.json`. The
-continuation review is in `selection.json`: prior47.646347min plus all elapsed
-time since05:23:22UTC remain charged (about66min at selection). One implementer
-owns runner/tests, root owns selector/privacy/checks/integration, one reviewer
-checks source/raw. Estimate4min repair+6min checks/export+5min route+5min closure;
-stop on the first failure or a missed launch/deadline. No normal-game tuning or
-identical public checkpoint. The full original journey remains the finish line.
+Unaccepted Torpedo source and helpers are consolidated in
+`/srv/mudds-work/torpedo-boat-control-20261025/results/case-records.tar.gz`;
+adjacent `closeout.json` records the verified archive/hash, preserved original
+clock and cleanup. Source review stopped the sole correction before any tests,
+engine, export or whole trial. Existing accepted main/checkpoint0d77125 remain
+current. [Exact blocker and retained full journey](docs/history/ROADMAP_DELIVERIES.md#torpedo-control-continuation-stopped-at-source-review-20261025).
 
 ## Validation and final release
 
