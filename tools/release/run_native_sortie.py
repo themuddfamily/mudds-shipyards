@@ -29,6 +29,7 @@ Use --route life-arm for Aft service-arm coexistence and original Zenith boardin
 Use --route life-tow for Central service coexistence during real walking/boarding.
 Use --route habitat-loop for fresh hub/door/bunk sleep-wake/common-room/hub walking.
 Use --route habitat-restart for real bunk sleep, normal UI quit, and cold awake controls.
+Use --route crew-recovery for ordinary Jovian engineer admission, owned kill and cold helm continuation.
 The default is Guided through normal HUD Exit and actual process exit zero.
 No source/pack overrides. 300 seconds is the fixed whole-process sortie cap.
 This establishes Linux/Xvfb OS-input behavior, not native GPU or human acceptance.
@@ -9123,6 +9124,309 @@ class CinderSupplyFiles(HabitatRestartFiles):
                 if label == 'repeat': pilot.file_repeat = True
                 else: pilot.file_home = True
 
+class CrewRecoveryFiles(HabitatRestartFiles):
+    CONTEXT = {'location': 'mudds_home_berth', 'mode': 'crew',
+               'craft_id': 'jovian_provisional', 'berth_id': 'jovian_freight_berth'}
+
+    def observe(self, s, pilot):
+        if s['paused']: return
+        if 'title' not in self.snapshots:
+            self.capture('title', s['save'])
+        if pilot.stage == 'crew_aim' and 'before-chair' not in self.snapshots:
+            self.capture('before-chair', s['save'])
+        if pilot.stage == 'crew_commit' and not pilot.file_context_accepted:
+            if s['save']['context'] != self.CONTEXT: return
+            pilot.require_crew(s)
+            committed = self.capture('crew-committed', s['save'])
+            before = self.snapshots['before-chair']['document']
+            require(committed['payload']['solo_safe_recovery'] == self.CONTEXT
+                    and s['save']['retry_seconds'] == 0
+                    and committed['generation'] >= s['save']['context_generation'] > before['generation'],
+                    'actual accepted primary crew commit after real chair admission')
+            self.require_preserved(before, committed)
+            predecessor_raw = Path(str(self.path)+'.bak').read_bytes()
+            predecessor = json.loads(predecessor_raw)
+            require(predecessor['generation'] == committed['commit']['parent_generation']
+                    and predecessor['commit']['id'] == committed['commit']['parent_id'],
+                    'actual committed document has its real predecessor')
+            self.require_preserved(predecessor, committed)
+            self.output.joinpath('crew-predecessor.json').write_bytes(predecessor_raw)
+            pilot.file_context_accepted = True
+        if pilot.cold and 'cold-title' not in self.snapshots and s['recovery']['available']:
+            cold = self.capture('cold-title', s['save'])
+            self.require_interrupted_cold(cold, self.snapshots['crew-committed']['document'])
+            pilot.file_context_accepted = True
+        if pilot.cold and pilot.awake and 'cold-awake' not in self.snapshots:
+            awake = self.capture('cold-awake', s['save'])
+            self.require_preserved(self.snapshots['crew-committed']['document'], awake)
+
+    @classmethod
+    def require_interrupted_cold(cls, cold, cut):
+        payload, previous = cold['payload'], cut['payload']
+        crash, safe = payload['crash_recovery'], payload['safe_start_recovery']
+        require(payload['solo_safe_recovery'] == cls.CONTEXT
+                and crash['state'] == 'running' and crash['unclean_start_count'] == 1
+                and crash['session_id'] == previous['crash_recovery']['session_id']+1
+                and crash['startup_generation'] == previous['crash_recovery']['startup_generation']+1
+                and safe['startup_generation'] == previous['safe_start_recovery']['startup_generation']+1,
+                'distinct crash recovery session retains exact crew preference')
+        prior_safe = previous['safe_start_recovery']
+        failures = prior_safe['consecutive_failure_count'] + (1 if prior_safe['state'] == 'starting' else 0)
+        require(safe['state'] in ('starting', 'stable')
+                and safe['consecutive_failure_count'] == (0 if safe['state'] == 'stable' else failures)
+                and safe['safe_settings_recommended'] is False,
+                'source-defined startup marker advances; stable startup resets prior failure count')
+        events = payload['session_diagnostics']['events']
+        require(sum(e['event_code'] == 'crash_detected' for e in events) == 1,
+                'one actual crash diagnostic across owned interruption')
+        require(cls.protected(cold) == cls.protected(cut), 'cold boot preserves all unrelated actual payload')
+
+    def kill(self, process, desktop, leg_result, log_path):
+        require('crew-committed' in self.snapshots and process.poll() is None,
+                'only a live committed crew game may be interrupted')
+        desktop.keys([]); desktop.mouse(0, 0, False)
+        interrupted = self.path.read_bytes()
+        require(hashlib.sha256(interrupted).hexdigest() == self.snapshots['crew-committed']['sha256'],
+                'same independently captured committed bytes immediately before kill')
+        process.kill()
+        code = process.wait(timeout=15)
+        leg_result.update(exit_code=code, reaped=process.poll() is not None, signal='SIGKILL')
+        require(code == -9 and leg_result['reaped'], 'owned SIGKILL actually reaped as minus nine')
+        require(self.path.read_bytes() == interrupted, 'kill cannot run orderly saves or mutate committed bytes')
+        drain_game_output(process, log_path)
+
+    @staticmethod
+    def require_two_legs(legs, elapsed):
+        require(len(legs) == 2 and legs[0]['pid'] != legs[1]['pid']
+                and legs[0]['exit_code'] == -9 and legs[0]['reaped']
+                and legs[0].get('signal') == 'SIGKILL'
+                and legs[1]['exit_code'] == 0 and legs[1]['reaped'] and legs[1].get('normal_ui_exit')
+                and 0 <= elapsed < CAP, 'owned killed/reaped first leg, distinct normal OS0 restart within original whole cap')
+
+
+class CrewRecoveryPilot(LifeTowPilot):
+    MARKER = 'NATIVE_CREW_RECOVERY_OK'
+    begin_quit = HabitatRestartPilot.begin_quit
+    ui_update = HabitatRestartPilot.ui_update
+
+    def __init__(self, cold=False, expected_pid=None):
+        super().__init__('life-gantry')
+        self.MARKER = 'NATIVE_CREW_RECOVERY_OK'
+        self.cold = cold
+        self.expected_pid = expected_pid
+        self.file_context_accepted = False
+        self.awake = False
+        self.cut_ready = False
+        self.quit_requested = False
+        self.ui_key = None
+        self.ui_until = self.ui_release_until = 0
+        self.ui_last_focus = None
+        self.ui_edges = []
+        self.sequence = 0
+        self.aim_settled = 0
+        self.last_input_frame = 0
+        self.resume_pressed = False
+
+    def validate_observation(self, s):
+        require(s.get('mode') == 'crew-recovery' and s['pid'] == self.expected_pid
+                and s['sequence'] == self.sequence+1, 'exact crew process and consecutive observer stream')
+        self.sequence = s['sequence']
+        self.last_state = s
+        if s['paused']:
+            require(self.initial is not None and s['main_id'] == self.initial['main_id']
+                    and self.stage in ('restart_pause', 'restart_exit_wait'), 'only terminal normal pause UI')
+            return
+        if self.stage == 'helm_seating': self.require_helm_assignment(s)
+        require(s['actors_current'] and s['ship_definition_id'] == 'jovian_provisional'
+                and s['home_berth_id'] == 'jovian_freight_berth' and not s['destroyed']
+                and not s['remote_piloted'], 'current supported live solo Jovian and authored home')
+        fields = ('main_id', 'world_id', 'player_id', 'ship_id', 'capsule_id', 'shape_id', 'home_berth_instance_id')
+        if self.initial is None:
+            require(s['phase'] == 'INTRO' and norm(sub(s['player'], s['spawn'])) < .75,
+                    'normal fresh Boot at authored hub before ordinary Begin Shift')
+            self.initial = copy.deepcopy(s)
+        require(all(s[k] != 0 and s[k] == self.initial[k] for k in fields)
+                and s['default_sampler'] and s['default_controls'] and s['tuning_unchanged']
+                and s['walk_tuning'] == self.DEFAULT_WALK and s['ship_tuning'] == self.initial['ship_tuning']
+                and s['physics_ticks'] == 60 and s['time_scale'] == 1,
+                'unchanged actual actors, default input/tuning and physical timing throughout each leg')
+        previous = self.observed_previous
+        if previous:
+            require(s['frame'] == previous['frame']+1, 'consecutive actual crew gameplay frames')
+            if s['native_interact'] != previous['native_interact']:
+                self.native_edges.append(dict(frame=s['frame'], pressed=s['native_interact'], stage=self.stage))
+            if self.stage in ('crew_walk', 'crew_aim', 'helm_walk', 'helm_aim'):
+                self.require_walking(s)
+                motion = self.require_motion_epoch(s)
+                require(motion['start'] == previous['player'], 'continuous physical crew walking without placement')
+                if motion['step_up']: self.require_step_event(s, motion)
+                else: require(norm(sub(s['player'], previous['player'])) <= 9.2/60+.10,
+                              'bounded normal crew walking motion')
+                self.walked += norm(sub(s['player'], previous['player']))
+        self.observed_previous = copy.deepcopy(s)
+
+    @staticmethod
+    def require_crew(s):
+        crew = s['crew']
+        require(crew['seated'] and crew['current'] and crew['role'] == 'engineer'
+                and crew['seat_id'] == 'passenger_port_01' and crew['generation'] > 0
+                and crew['authority_id'] and crew['tagged'] and crew['seated_at_anchor']
+                and s['seated'] and s['station_seated'] and s['game_station_seated']
+                and s['control_enabled'] and not s['transition_busy'] and not s['sleeping']
+                and not s['piloted'] and s['cabin']['registered'] and s['cabin']['contained'],
+                'actual settled current engineer role seat authority and registered occupant')
+
+    @staticmethod
+    def require_awake_home(s):
+        c, crew = s['cabin'], s['crew']
+        require(s['phase'] == 'IN_FLIGHT_CABIN' and s['hud_mode'] == 'aboard'
+                and s['parked_exact'] and s['home_lease'] and not s['seated'] and not s['sleeping']
+                and not s['piloted'] and not s['transition_busy'] and s['control_enabled']
+                and s['grounded'] and s['supported'] and s['capsule_enabled']
+                and not crew['seated'] and not crew['current'] and not crew['tagged']
+                and crew['authority_id'] == 0 and not crew['assignment']
+                and all(c[k] for k in ('frame_id', 'registered', 'contained', 'hatch_reserved', 'owner_current')),
+                'fresh awake unseated supported home cabin and hatch without old claims')
+
+    @staticmethod
+    def require_helm_candidate(s):
+        require(s['candidate'] and not s['station_candidate'],
+                'ordinary helm Interact requires the actual ship candidate without a competing station')
+
+    @staticmethod
+    def require_helm_assignment(s):
+        require(not s['crew']['assignment'],
+                'helm Interact must not acquire any crew assignment, including an unfinished transition')
+
+    @staticmethod
+    def require_throttle(s):
+        require(s['piloted'] and s['seated_at_pilot'] and s['active_ship'] and not s['transition_busy']
+                and not s['crew']['seated'] and not s['crew']['current']
+                and s['engine_online'] and s['command_throttle'] > 0 and s['flight_demand'] and s['native_forward'],
+                'real current Jovian helm responds with ONLINE positive command and flight demand')
+
+    def goal(self, s):
+        name, target = self.route[self.index]
+        if target is None:
+            target = [-42, .38, s['access'][2]] if name == 'ramp_align' else s[name]
+        return name, target
+
+    def walk_goal(self, s, keys, frames):
+        name, target = self.goal(s)
+        precise = name in ('engineer_entry', 'helm_entry')
+        if not precise:
+            dx, reached = self.walk_to(s, target, keys, frames)
+        else:
+            dx, yaw, distance = self.yaw_to(s, target)
+            speed = math.hypot(s['velocity'][0], s['velocity'][2])
+            reached = distance <= .12 and abs(target[1]-s['player'][1]) < .8 and self.settled_frames >= 4
+            stop = speed*speed/(2*s['walk_tuning']['deceleration'])+max(speed, 5.8)*frames/60+.02
+            if abs(yaw) < .08 and distance > .12 and (speed <= .15 or distance > stop): keys.add('w')
+        if reached:
+            self.visited.append(dict(name=name, target=target, frame=s['frame'], position=s['player']))
+            self.index += 1
+            self.settled_frames = 0
+        return dx
+
+    def update(self, s, now):
+        require(self.last_state is s, 'only latest validated crew sample drives OS input')
+        if self.stage in ('restart_pause', 'restart_exit_wait'):
+            return self.ui_update(s, now)
+        self.frame = s['frame']
+        frames = max(1, self.frame-self.last_input_frame)
+        self.last_input_frame = self.frame
+        keys, dx, dy = set(), 0, 0
+        if self.stage == 'boot':
+            if self.cold:
+                recovery = s['recovery']
+                if self.file_context_accepted and recovery['resume_visible'] and recovery['resume_enabled']:
+                    if self.ui_key is None and now >= self.ui_release_until:
+                        self.ui_key = 'Return' if recovery['focus_resume'] else 'Tab'
+                        self.ui_until = now+.08
+                        if self.ui_key == 'Return': self.resume_pressed = True
+                if self.resume_pressed and not recovery['available'] and self.ui_key is None:
+                    self.enter('begin_shift', s)
+            elif s['menu_ready']:
+                self.tap('e', now); self.enter('begin_shift', s)
+        elif self.stage == 'begin_shift':
+            if self.cold and s['menu_ready'] and self.tap_key is None and not s['native_interact']:
+                self.tap('e', now)
+            if self.cold and s['phase'] == 'IN_FLIGHT_CABIN':
+                self.require_awake_home(s)
+                self.receipts['awake'] = copy.deepcopy(s)
+                self.awake = True
+                self.begin_walk('helm_walk', [('aisle_forward', None), ('helm_entry', None)], s)
+            elif not self.cold and s['phase'] == 'APPROACH_SHIP' and s['grounded']:
+                route = list(self.GANTRY_GOALS[:11])+[(name, None) for name in
+                        ('ramp_align', 'access', 'deck', 'aisle_aft', 'aisle_forward', 'engineer_entry')]
+                self.begin_walk('crew_walk', route, s)
+        elif self.stage in ('crew_walk', 'helm_walk'):
+            self.require_walking(s)
+            name, target = self.goal(s)
+            flat = sub(target, s['player']); flat[1] = 0
+            radius = .12 if name in ('engineer_entry', 'helm_entry') else .30
+            if norm(flat) <= radius and math.hypot(s['velocity'][0], s['velocity'][2]) <= .35:
+                self.settled_frames += frames
+            else: self.settled_frames = 0
+            dx = self.walk_goal(s, keys, frames)
+            if self.index == len(self.route):
+                self.enter('crew_aim' if self.stage == 'crew_walk' else 'helm_aim', s)
+        elif self.stage in ('crew_aim', 'helm_aim'):
+            engineer = self.stage == 'crew_aim'
+            target = s['crew']['aim'] if engineer else s['helm_aim']
+            dx, yaw, _distance = self.yaw_to(s, target)
+            direction = unit(sub(target, s['camera_origin']))
+            pitch = math.asin(max(-1, min(1, direction[1])))-math.asin(max(-1, min(1, s['camera_forward'][1])))
+            dy = round(max(-180, min(180, -pitch/s['walk_tuning']['mouse'])))
+            if abs(yaw) < .08 and abs(pitch) < .08 and not s['native_interact'] and (s['crew']['candidate'] if engineer else (s['candidate'] and not s['station_candidate'])):
+                if not engineer: self.require_helm_candidate(s)
+                self.tap('e', now)
+                if self.tap_key == 'e': self.enter('crew_seating' if engineer else 'helm_seating', s)
+        elif self.stage == 'crew_seating':
+            if s['crew']['seated'] and not s['transition_busy']:
+                self.require_crew(s)
+                require(any(e['pressed'] and e['stage'] == 'crew_seating' for e in self.native_edges),
+                        'actual OS engineer Interact observed before committed admission')
+                self.receipts['crew'] = copy.deepcopy(s)
+                self.enter('crew_commit', s)
+        elif self.stage == 'crew_commit':
+            self.require_crew(s)
+            if self.file_context_accepted:
+                self.tap_key = None
+                self.cut_ready = True
+        elif self.stage == 'helm_seating':
+            if s['phase'] == 'START_ENGINES' and s['seated_at_pilot'] and not s['transition_busy']:
+                require(any(e['pressed'] and e['stage'] == 'helm_seating' for e in self.native_edges),
+                        'actual fresh OS Interact acquired the real Jovian helm')
+                self.enter('helm_throttle', s)
+        elif self.stage == 'helm_throttle':
+            keys.add('w')
+            if s['engine_online'] and s['command_throttle'] > 0 and s['flight_demand']:
+                self.require_throttle(s)
+                self.receipts['throttle'] = copy.deepcopy(s)
+                keys.clear()
+                self.begin_quit(s)
+        if self.ui_key is not None:
+            if now < self.ui_until: keys.add(self.ui_key)
+            else:
+                self.ui_key = None
+                self.ui_release_until = now+.10
+        if self.tap_key is not None:
+            if now < self.tap_until or self.frame < self.tap_frame+6: keys.add(self.tap_key)
+            else:
+                self.tap_key = None; self.tap_cooldown = now+.3; self.tap_release_frame = self.frame
+        if self.mouse_pending is not None:
+            if norm(sub(s['walk_forward'], self.mouse_pending)) < .00001: dx = 0
+            else: self.mouse_pending = None
+        if dx: self.mouse_pending = s['walk_forward'][:]
+        return keys, dx, dy, False
+
+    def report(self):
+        return dict(stage=self.stage, stages=self.stages, receipts=self.receipts, visited=self.visited,
+                    walked_m=self.walked, native_edges=self.native_edges, ui_edges=self.ui_edges,
+                    last_state=self.last_state, awake=self.awake, cut_ready=self.cut_ready)
+
+
 def capture_guided_shutdown(profile, output):
     """Retain the real post-exit file before private-profile cleanup; no writes to it."""
     candidates = list((profile/'data').rglob('mudds_user_data.json'))
@@ -9140,7 +9444,7 @@ def capture_guided_shutdown(profile, output):
 
 
 def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_data=None):
-    require(route in ("zenith-torrent-handback", "zenith-return-reuse", "patrol-relay-home", "race-home", "heavy-breach", "retained-heavy", "bomber-rearm", "cinder-supply", "hauler-supply", "arrow-return-reuse", "torrent-return-reuse", "torrent-damaged-return", "torrent-arrow-handoff", "guided", "courier-intercept", "courier-escape", "courier-withdraw-phase", "courier-withdraw-distance", "beacon-entry", "beacon-settlement", "beacon-home", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
+    require(route in ("zenith-torrent-handback", "zenith-return-reuse", "patrol-relay-home", "race-home", "heavy-breach", "retained-heavy", "bomber-rearm", "cinder-supply", "hauler-supply", "arrow-return-reuse", "torrent-return-reuse", "torrent-damaged-return", "torrent-arrow-handoff", "guided", "courier-intercept", "courier-escape", "courier-withdraw-phase", "courier-withdraw-distance", "beacon-entry", "beacon-settlement", "beacon-home", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "crew-recovery", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
     require(not qualify_beacon_outbound or route == 'beacon-home',
             'outbound timing qualification requires the full beacon-home route')
     require((route == 'retained-heavy') == (retained_data is not None),
@@ -9215,7 +9519,8 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
                                     RaceHomeFiles(profile, output) if route == 'race-home' else
                                     CinderSupplyFiles(profile, output) if route in ('cinder-supply', 'hauler-supply') else
                                     BeaconSettlementFiles(profile, output) if route in ('beacon-settlement', 'beacon-home') else None)
-                restart_files = HabitatRestartFiles(profile, output) if route == 'habitat-restart' else None
+                restart_files = (CrewRecoveryFiles(profile, output) if route == 'crew-recovery' else
+                                 HabitatRestartFiles(profile, output) if route == 'habitat-restart' else None)
                 result['game_legs'] = []
                 for leg in range(2 if restart_files else 1):
                     # These are the exact same args/env/profile/display/helper.
@@ -9249,6 +9554,7 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
                     leg_result['window'] = hex(window)
                     desktop.focus(window)
                     pilot = (RetainedHeavyPilot(retained_files.expected, game.pid) if retained_files else
+                             CrewRecoveryPilot(cold=bool(leg), expected_pid=game.pid) if isinstance(restart_files, CrewRecoveryFiles) else
                              HabitatRestartPilot(cold=bool(leg)) if restart_files else {
                         "zenith-torrent-handback": ZenithTorrentHandbackPilot, "zenith-return-reuse": ZenithReturnReusePilot, "patrol-relay-home": PatrolRelayHomePilot, "race-home": RaceHomePilot, "heavy-breach": HeavyBreachPilot, "bomber-rearm": BomberRearmPilot, "cinder-supply": CinderSupplyPilot, "hauler-supply": CinderHaulerSupplyPilot, "arrow-return-reuse": ArrowReturnReusePilot, "torrent-return-reuse": TorrentReturnReusePilot, "torrent-damaged-return": TorrentDamagedReturnPilot, "torrent-arrow-handoff": TorrentArrowHandoffPilot, "guided": GuidedExitPilot, "courier-intercept": CourierPilot, "courier-escape": CourierEscapePilot, "courier-withdraw-phase": CourierWithdrawPhasePilot, "courier-withdraw-distance": CourierWithdrawDistancePilot, "beacon-entry": BeaconEntryPilot, "beacon-settlement": BeaconSettlementPilot, "beacon-home": BeaconHomePilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
                         "hulk-arrival": HulkArrivalPilot, "hulk-breaker": HulkBreakerPilot,
@@ -9317,15 +9623,16 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
                                         state = observations[-1]
                                         if restart_files:
                                             require(state['pid'] == game.pid, 'observer belongs to exact running game PID')
-                                            if leg and 'cold-title' not in restart_files.snapshots and state.get('menu_ready'):
+                                            if not isinstance(restart_files, CrewRecoveryFiles) and leg and 'cold-title' not in restart_files.snapshots and state.get('menu_ready'):
                                                 cold_title = restart_files.capture('cold-title', state['save'])
                                                 closed = restart_files.snapshots['first-orderly-close']['document']
                                                 restart_files.require_cold(cold_title, closed)
                                                 restart_files.require_preserved(closed, cold_title)
+                                        if isinstance(restart_files, CrewRecoveryFiles): restart_files.observe(state, pilot)
                                         keys,dx,dy,fire=pilot.update(state,time.monotonic())
                                         if settlement_files: settlement_files.observe(state, pilot)
                                         if zenith_files: zenith_files.observe(state, pilot)
-                                        if restart_files:
+                                        if restart_files and not isinstance(restart_files, CrewRecoveryFiles):
                                             if not leg and 'sleep_press' in pilot.receipts and 'before-sleep' not in restart_files.snapshots:
                                                 before = restart_files.capture('before-sleep', state['save'])
                                                 require(before['payload']['solo_safe_recovery']['mode'] == 'on_foot',
@@ -9351,7 +9658,25 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
                                             outbound_timing.send_input(desktop, pilot.stage, state, keys, dx, dy, fire)
                                         else:
                                             desktop.keys(keys); desktop.mouse(dx,dy,fire)
-                    if restart_files:
+                                        if isinstance(restart_files, CrewRecoveryFiles) and pilot.cut_ready:
+                                            restart_files.kill(game, desktop, leg_result, output/'game.log')
+                                            leg_result['sortie'] = pilot.report()
+                                            pilot.result = {'owned_cut_complete': True}
+                                            break
+                    if isinstance(restart_files, CrewRecoveryFiles):
+                        desktop.keys([]); desktop.mouse(0, 0, False)
+                        game.stdout.close()
+                        require(not diagnostic_lines((output/'game.log').read_bytes().splitlines()),
+                                'zero diagnostics across both actual crew processes')
+                        if leg:
+                            require(pilot.quit_requested and pilot.awake and 'throttle' in pilot.receipts,
+                                    'normal UI OS0 follows actual awake cabin and real throttle response')
+                            closed = restart_files.capture('second-orderly-close')
+                            restart_files.require_orderly(closed, restart_files.snapshots['cold-title']['document'])
+                            restart_files.require_preserved(restart_files.snapshots['crew-committed']['document'], closed)
+                            leg_result['sortie'] = pilot.report()
+                        game = None
+                    elif restart_files:
                         desktop.keys([]); desktop.mouse(0, 0, False)
                         drain_game_output(game, output/'game.log')
                         game.stdout.close()
@@ -9378,7 +9703,9 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
                 if retained_files: result['actual_file_snapshots'] = retained_files.snapshots
                 if restart_files:
                     result['actual_file_snapshots'] = restart_files.snapshots
-                    result['sortie'] = {'completion_marker': HabitatRestartPilot.MARKER,
+                    if isinstance(restart_files, CrewRecoveryFiles):
+                        restart_files.require_two_legs(result['game_legs'], time.monotonic()-start)
+                    result['sortie'] = {'completion_marker': CrewRecoveryPilot.MARKER if isinstance(restart_files, CrewRecoveryFiles) else HabitatRestartPilot.MARKER,
                                         'legs': [item['sortie'] for item in result['game_legs']],
                                         'distinct_processes': True, 'same_profile': str(profile),
                                         'same_input_helper_pid': desktop.process.pid,
@@ -9512,7 +9839,7 @@ def main():
                         help='exact accepted raw Heavy orderly-close save; required only for retained-heavy')
     parser.add_argument('--qualify-beacon-outbound', action='store_true',
                         help='qualify the fixed 60.0s outbound monotonic maximum within the unchanged full beacon-home route')
-    parser.add_argument('--route', choices=('zenith-torrent-handback', 'zenith-return-reuse', 'patrol-relay-home', 'race-home', 'heavy-breach', 'retained-heavy', 'bomber-rearm', 'cinder-supply', 'hauler-supply', 'arrow-return-reuse', 'torrent-return-reuse', 'torrent-damaged-return', 'torrent-arrow-handoff', 'guided', 'courier-intercept', 'courier-escape', 'courier-withdraw-phase', 'courier-withdraw-distance', 'beacon-entry', 'beacon-settlement', 'beacon-home', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
+    parser.add_argument('--route', choices=('zenith-torrent-handback', 'zenith-return-reuse', 'patrol-relay-home', 'race-home', 'heavy-breach', 'retained-heavy', 'bomber-rearm', 'cinder-supply', 'hauler-supply', 'arrow-return-reuse', 'torrent-return-reuse', 'torrent-damaged-return', 'torrent-arrow-handoff', 'guided', 'courier-intercept', 'courier-escape', 'courier-withdraw-phase', 'courier-withdraw-distance', 'beacon-entry', 'beacon-settlement', 'beacon-home', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'crew-recovery', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
                         help='zenith-torrent-handback walks unchanged LIFE-ARM, exits docked Zenith, completes actual Guided in Torrent, and physically reclaims the same Zenith for90 fresh neutral ticks and normal HUD OS0; zenith-return-reuse covers selected Zenith LIFE-ARM admission, pilot controls/cameras, actual28-point repeater hit, two strict home/OFFLINE/wing-clear exits and normal UI OS0; patrol-relay-home completes genuine Guided, actual pause-board relay selection, five continuous two-second holds, exact durable payment, strict home and normal UI exit; race-home completes the genuine Guided prerequisite then same-Torrent timed race, exact durable reward, strict home and normal UI exit; heavy-breach completes real posted Heavy/picket kill/payment/home/next posting/UI exit; courier-withdraw-distance flies beyond all actual contacts for real seven-second grace withdrawal before original defender and home; courier-withdraw-phase kills the original defender after actual first courier dispatch and verifies phase withdrawal/standdown through home; courier-escape lets the actual first live runner escape and verifies standdown through home; courier-intercept destroys the actual first courier before escape then returns home; beacon-home retains payment through genuine Guided combat, home docking and usable exterior walking; hauler-supply flies the actual Dock04 Hauler through the funded Cinder terminal/home journey; cinder-supply flies the full funded Jovian/Cinder terminal/home journey; beacon-settlement continues the accepted entry through four physical beacons and durable reward; beacon-entry departs normally and physically reaches/starts the first Beacon through actual pause controls; life-patrol walks Habitat through the real door beside patrol drones and boards Torrent; life-arm walks Aft stairs past the live service arm and boards Zenith; life-gantry walks Freight past the live gantry and boards Jovian; life-tow walks Central beside live tow service and boards Torrent; hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
     args=parser.parse_args()
     if args.qualify_beacon_outbound and args.route != 'beacon-home':

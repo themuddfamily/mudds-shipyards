@@ -1,10 +1,13 @@
 # Development roadmap
 
 **Playable alpha; full original scope remains unfinished.** Latest Windows build:
-[b4ff8c0 checkpoint](builds/windows/MuddsShipyards-b4ff8c0-checkpoint.zip)
-([changes and validation](builds/windows/MuddsShipyards-b4ff8c0-notes.txt)).
-Matching [Linux checkpoint](builds/linux/MuddsShipyards-b4ff8c0-linux-x86_64.tar.gz)
-([Linux validation](builds/linux/MuddsShipyards-b4ff8c0-linux-notes.txt)) is available.
+[378d99c checkpoint](builds/windows/MuddsShipyards-378d99c-checkpoint.zip)
+([changes and validation](builds/windows/MuddsShipyards-378d99c-notes.txt)).
+Matching [Linux checkpoint](builds/linux/MuddsShipyards-378d99c-linux-x86_64.tar.gz)
+([Linux validation](builds/linux/MuddsShipyards-378d99c-linux-notes.txt)) is available.
+Jovian cabin Interact now takes the aimed-at helm instead of its co-pilot chair.
+The complete ordinary engineer-save/SIGKILL/normal-recovery/cabin-walk/helm/throttle/
+normal-Quit journey passes on the exported Linux checkpoint.
 Forward projectile hits now reach the actual forward-hull ledger and local cue;
 collision routing remains unchanged. The full Zenith→Torrent Guided→same Zenith handback now passes ordinary synthetic
 keyboard input, strict home/exit/reclaim and normal HUD Quit. The lower Aft stair has a visible, collision-backed shoulder onto the landing;
@@ -107,44 +110,34 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**CREW-RECOVERY-ORDINARY explicitly reopened after its recorded PARK.**
-Independent review approved the recovered fixture with exactly four explicit
-types, unchanged captured geometry and seven assertion groups. Original
-17:01:14UTC/90min/hard18:31:14 and all prior30.639minutes remain charged.
-One old-runtime regression must isolate the captured cockpit-selection failure,
-then one guarded Jovian cockpit-priority repair and driver readiness/wrong-claim
-guards may proceed. No reach/discovery/route/data/limit change. One full retry
-only after GREEN/Python/source review/paired exports/startups/audit. Any unexpected
-failure parks again, without another fixture-edit cycle. Root owns validation,
-push/checkpoint/owned cleanup; one implementer and one independent reviewer.
-The prior selection's exact stopped result below remains historical, not erased.
+**Accepted: one ordinary Jovian engineer recovery and cockpit-priority repair.**
+CREW-RECOVERY-ORDINARY's selected checkpoint case passes on source378d99caf.
+The original full journey completes79.277s: normal hub/Freight/ramp/chair input,
+actual crew save, owned SIGKILL/reap−9, distinct normal recovery, awake supported
+cabin walk, actual helm/ONLINE positive throttle, normal UI OS0 and clean markers.
+All protected payload remains exact; this fresh profile contains settings and no
+earned activity/reward namespace, so earned-debt recovery is not claimed.
 
-**Prior selection: CREW-RECOVERY-ORDINARY PARKED.**
-The sole packaged Jovian engineer journey completed ordinary hub/ramp/chair
-admission, a genuine crew save, owned SIGKILL/reap, distinct normal recovery UI
-and an awake supported cabin walk. Helm Interact then selected the co-pilot
-passenger seat. The full helm/throttle/normal-quit goal is NOT_DELIVERED.
+Runtime repair adds Jovian to the existing guarded cockpit-versus-chair priority.
+Deliberate co-pilot/engineer selection still passes. The caller waits for actual
+helm readiness and rejects any wrong crew assignment immediately. Captured-geometry
+regression isolates the old failure then passes7/7; Python260 passes. Paired
+exports/three strict startups/actual1529-entry payload audit and independent raw
+review pass. [Exact proof, earlier failures and scope](docs/history/ROADMAP_DELIVERIES.md#ordinary-jovian-engineer-recovery-accepted-20261026).
 
-Actual pre-E receipts show the ship boarding candidate available while the
-co-pilot chair intercepts Interact. Existing solo cockpit priority excludes the
-Jovian. Independent review permitted one focused correction, but its required
-old-runtime regression failed parsing in four new fixture locals before the
-production repair was applied. The frozen next-failure stop was upheld: no
-fixture retry, runtime correction, corrected export or second gameplay attempt.
-[Exact retained failure, source and reopening condition](docs/history/ROADMAP_DELIVERIES.md#ordinary-jovian-crew-recovery-parked-20261026).
+The fresh [Windows checkpoint](builds/windows/MuddsShipyards-378d99c-checkpoint.zip)
+and [Linux package](builds/linux/MuddsShipyards-378d99c-linux-x86_64.tar.gz) are in
+this repository's builds folders. Native Windows, GPU/device/audio, other crew,
+earned-payment, installed and final-candidate gates remain open.
+Original17:01:14UTC/90min clock includes both selections, all failures, checks,
+exports, actual routes, review, archive/push/owned cleanup; archive53.971minutes,
+final closure in closeout.json. All52 pipeline identities and five preflight
+parents are absent/reaped. Source/raw retained in a verified archive; accepted
+source integrates into pushedmain before owned branch/worktree cleanup. Historical
+PARK and parse failure remain retained. No next run is selected.
 
-Unaccepted source and private builds are archived; they are not merged or
-published as a working checkpoint. All52 recorded owned process identities are
-absent. Accepted game/checkpointb4ff8c0 remains unchanged. Original17:01:14UTC/
-90min clock includes the binding, implementation, checks, exports, failed route,
-causal review, failed fixture preflight and closure; cumulative final time is in
-the retained closeout. Reopening requires a reviewed typed fixture and explicit
-independent priority selection on this same retained outcome/cost; no unchanged
-rerun, new goal ID, enlarged route cap or fresh budget. No next run is selected.
-
-Task-selection rules and all337 original records remain binding. Missing future
-contracts stay blocked in their existing rows. The last accepted checkpoint
-rollback retains its [proof and limits](docs/history/ROADMAP_DELIVERIES.md#selected-checkpoint-rollback-accepted-20261026).
+Task-selection rules and all337 original records remain binding. This closes one
+named ordinary case, not its whole craft, installed recovery or original parents.
 
 Recent accepted and parked results are references, not active assignments:
 

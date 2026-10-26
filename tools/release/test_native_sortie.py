@@ -6715,5 +6715,163 @@ class NativeProcessExitReportingTests(unittest.TestCase):
                 game.stdout.close()
 
 
+class CrewRecoverySafetyTests(unittest.TestCase):
+    def document(self, cold=False):
+        return dict(schema_version=1, generation=8 if cold else 4,
+                    commit=dict(id='cold' if cold else 'solo-safe-return-4', parent_generation=3, parent_id='before'),
+                    payload=dict(solo_safe_recovery=copy.deepcopy(native.CrewRecoveryFiles.CONTEXT),
+                        runtime_settings={'real_setting': 7},
+                        crash_recovery=dict(state='running', unclean_start_count=int(cold),
+                                            session_id=2 if cold else 1, startup_generation=2 if cold else 1),
+                        safe_start_recovery=dict(state='starting' if cold else 'stable',
+                            startup_generation=2 if cold else 1, consecutive_failure_count=0, safe_settings_recommended=False),
+                        session_diagnostics=dict(events=[{'event_code': 'crash_detected'}] if cold else [])))
+
+    def claim(self):
+        return dict(crew=dict(seated=True, current=True, role='engineer', seat_id='passenger_port_01', generation=1,
+                             authority_id=21, tagged=True, seated_at_anchor=True, assignment={'role': 'engineer'}),
+                    seated=True, station_seated=True, game_station_seated=True, control_enabled=True,
+                    transition_busy=False, sleeping=False, piloted=False,
+                    cabin=dict(frame_id=31, registered=True, contained=True, hatch_reserved=True, owner_current=True))
+
+    def awake(self):
+        s = self.claim()
+        s.update(phase='IN_FLIGHT_CABIN', hud_mode='aboard', parked_exact=True, home_lease=True,
+                 seated=False, grounded=True, supported=True, capsule_enabled=True)
+        s['crew'].update(seated=False, current=False, tagged=False, authority_id=0, assignment={})
+        return s
+
+    def test_helm_controller_waits_for_prompt_refresh_before_ordinary_interact(self):
+        pilot = native.CrewRecoveryPilot(cold=True, expected_pid=42)
+        pilot.stage = 'helm_aim'
+        s = self.awake()
+        s.update(frame=100, player=[0, 0, 0], position=[0, 0, 0],
+                 walk_forward=[0, 0, -1], walk_right=[1, 0, 0],
+                 walk_tuning=copy.deepcopy(native.LifeTowPilot.DEFAULT_WALK),
+                 camera_origin=[0, 1.5, 0], camera_forward=[0, 0, -1],
+                 helm_aim=[0, 1.5, -2], native_interact=False, candidate=True,
+                 station_candidate={'path': 'CopilotSeatAnchor/SoloPassengerSeatInteraction'})
+        # Main refreshed the prompt before Player's camera interpolation. The
+        # current camera is aligned, but that prior prompt is still visible.
+        pilot.last_state = s
+        keys, _dx, _dy, _fire = pilot.update(s, 1)
+        self.assertNotIn('e', keys)
+        self.assertEqual(pilot.stage, 'helm_aim')
+        self.assertIsNone(pilot.tap_key)
+        ready = copy.deepcopy(s); ready.update(frame=101, station_candidate={})
+        pilot.last_state = ready
+        keys, _dx, _dy, _fire = pilot.update(ready, 2)
+        self.assertIn('e', keys)
+        self.assertEqual(pilot.stage, 'helm_seating')
+
+    def test_helm_press_requires_ship_candidate_and_fails_first_unfinished_wrong_assignment(self):
+        s = self.awake()
+        s.update(candidate=True, station_candidate={})
+        native.CrewRecoveryPilot.require_helm_candidate(s)
+        native.CrewRecoveryPilot.require_helm_assignment(s)
+        for mutation in [lambda state: state.update(candidate=False),
+                         lambda state: state.update(station_candidate={'path': 'CopilotSeatAnchor/SoloPassengerSeatInteraction'})]:
+            bad = copy.deepcopy(s); mutation(bad)
+            with self.assertRaisesRegex(AssertionError, 'actual ship candidate'):
+                native.CrewRecoveryPilot.require_helm_candidate(bad)
+        # Retained cold frame615 already has the wrong assignment while
+        # current=false, seated=false and transition_busy=true. Reject it now.
+        s.update(mode='crew-recovery', pid=42, sequence=1, paused=False, transition_busy=True)
+        s['crew'].update(current=False, seated=False,
+                         assignment={'seat_id': 'co_pilot_station', 'role': 'passenger'})
+        pilot = native.CrewRecoveryPilot(cold=True, expected_pid=42)
+        pilot.stage = 'helm_seating'
+        with self.assertRaisesRegex(AssertionError, 'any crew assignment'):
+            pilot.validate_observation(s)
+
+    def test_current_claim_and_cold_home_reject_role_seat_and_restored_authority(self):
+        native.CrewRecoveryPilot.require_crew(self.claim())
+        native.CrewRecoveryPilot.require_awake_home(self.awake())
+        for field, value in [('role', 'passenger'), ('seat_id', 'wrong'), ('generation', 0), ('current', False), ('tagged', False)]:
+            s = self.claim(); s['crew'][field] = value
+            with self.subTest(field=field), self.assertRaises(AssertionError): native.CrewRecoveryPilot.require_crew(s)
+        for section, field, value in [('crew', 'authority_id', 21), ('crew', 'assignment', {'role': 'engineer'}),
+                                      ('cabin', 'hatch_reserved', False), ('cabin', 'registered', False)]:
+            s = self.awake(); s[section][field] = value
+            with self.subTest(field=field), self.assertRaises(AssertionError): native.CrewRecoveryPilot.require_awake_home(s)
+        for field, value in [('phase', 'APPROACH_SHIP'), ('hud_mode', 'on-foot'), ('grounded', False), ('piloted', True)]:
+            s = self.awake(); s[field] = value
+            with self.subTest(field=field), self.assertRaises(AssertionError): native.CrewRecoveryPilot.require_awake_home(s)
+
+    def test_cold_context_progress_and_actual_throttle_response(self):
+        native.CrewRecoveryFiles.require_interrupted_cold(self.document(True), self.document())
+        for mutation in [lambda d: d['payload']['solo_safe_recovery'].update(mode='pilot'),
+                         lambda d: d['payload']['crash_recovery'].update(session_id=1),
+                         lambda d: d['payload']['safe_start_recovery'].update(consecutive_failure_count=1),
+                         lambda d: d['payload'].update(game_flow_reward_store={'injected_receipt': 1}),
+                         lambda d: d['payload']['runtime_settings'].update(real_setting=8)]:
+            cold = self.document(True); mutation(cold)
+            with self.assertRaises(AssertionError): native.CrewRecoveryFiles.require_interrupted_cold(cold, self.document())
+        s = self.awake(); s.update(piloted=True, seated_at_pilot=True, active_ship=True, engine_online=True,
+                                  command_throttle=1, flight_demand=True, native_forward=True)
+        native.CrewRecoveryPilot.require_throttle(s)
+        for field, value in [('engine_online', False), ('command_throttle', 0), ('flight_demand', False),
+                             ('native_forward', False), ('seated_at_pilot', False)]:
+            bad = copy.deepcopy(s); bad[field] = value
+            with self.subTest(field=field), self.assertRaises(AssertionError): native.CrewRecoveryPilot.require_throttle(bad)
+
+    def test_owned_kill_reads_unchanged_actual_file_and_requires_terminal_minus_nine(self):
+        from unittest.mock import Mock
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); profile = root/'profile'; profile.mkdir()
+            output = root/'results'; output.mkdir()
+            files = native.CrewRecoveryFiles(profile, output)
+            files.path = profile/'mudds_user_data.json'
+            files.path.write_text(json.dumps(self.document()))
+            files.snapshots['crew-committed'] = {'document': self.document(), 'sha256': hashlib.sha256(files.path.read_bytes()).hexdigest()}
+            process = Mock(); process.poll.side_effect = [None, -9]; process.wait.return_value = -9
+            leg = dict(pid=42)
+            with patch.object(native, 'drain_game_output'):
+                files.kill(process, Mock(), leg, output/'game.log')
+            process.kill.assert_called_once(); process.wait.assert_called_once_with(timeout=15)
+            self.assertTrue(leg['reaped']); self.assertEqual(leg['exit_code'], -9)
+            for status, terminal, mutate in [(0, 0, False), (-9, None, False), (-9, -9, True)]:
+                process = Mock(); process.poll.side_effect = [None, terminal]; process.wait.return_value = status
+                if mutate: process.kill.side_effect = lambda: files.path.write_text('{}')
+                with patch.object(native, 'drain_game_output'), self.assertRaises(AssertionError):
+                    files.kill(process, Mock(), {}, output/'game.log')
+
+    def test_nominal_two_leg_contract_rejects_fake_kill_unreaped_same_process_and_cap_reset(self):
+        legs = [dict(pid=42, exit_code=-9, reaped=True, signal='SIGKILL'),
+                dict(pid=43, exit_code=0, reaped=True, normal_ui_exit=True)]
+        native.CrewRecoveryFiles.require_two_legs(legs, 299.9)
+        self.assertEqual(native.CAP, 300)
+        for index, field, value in [(0, 'exit_code', 0), (0, 'reaped', False), (0, 'signal', 'SIGTERM'),
+                                    (1, 'pid', 42), (1, 'reaped', False), (1, 'normal_ui_exit', False)]:
+            bad = copy.deepcopy(legs); bad[index][field] = value
+            with self.subTest(field=field), self.assertRaises(AssertionError): native.CrewRecoveryFiles.require_two_legs(bad, 100)
+        with self.assertRaises(AssertionError): native.CrewRecoveryFiles.require_two_legs(legs, 300)
+
+    def test_admission_commit_uses_real_primary_and_protects_absent_activity_reward(self):
+        from unittest.mock import Mock
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); profile=root/'profile'; (profile/'data').mkdir(parents=True)
+            output=root/'results'; output.mkdir()
+            files=native.CrewRecoveryFiles(profile, output)
+            path=profile/'data/mudds_user_data.json'
+            before=self.document(); before.update(generation=3, commit={'id': 'before'})
+            before['payload']['solo_safe_recovery']={'mode':'unavailable'}
+            path.write_text(json.dumps(before))
+            sample=dict(path=str(path), source='primary', generation=3)
+            files.capture('title', sample); files.capture('before-chair', sample)
+            path.write_text(json.dumps(self.document()))
+            Path(str(path)+'.bak').write_text(json.dumps(before))
+            s=self.claim(); s.update(paused=False, save=dict(sample, generation=4, context=native.CrewRecoveryFiles.CONTEXT,
+                                                         context_generation=4, retry_seconds=0))
+            pilot=Mock(stage='crew_commit', file_context_accepted=False, cold=False, awake=False)
+            pilot.require_crew=native.CrewRecoveryPilot.require_crew
+            files.observe(s, pilot)
+            self.assertTrue(pilot.file_context_accepted)
+            self.assertNotIn('game_flow_reward_store', files.snapshots['crew-committed']['document']['payload'])
+            changed=self.document(); changed['payload']['jovian_cargo_session']={'fake':True}
+            path.write_text(json.dumps(changed)); pilot.file_context_accepted=False
+            with self.assertRaises(AssertionError): files.observe(s, pilot)
+
+
 if __name__ == '__main__':
     unittest.main()

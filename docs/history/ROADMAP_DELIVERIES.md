@@ -4,13 +4,107 @@ Moved from ROADMAP.md on 2026-10-17. These are source-specific historical
 results, not the active queue or proof of current full-project acceptance.
 Return to the [working roadmap](../../ROADMAP.md).
 
+## Ordinary Jovian engineer recovery accepted 20261026
+
+CREW-RECOVERY-ORDINARY selected Jovian engineer checkpoint case **ACCEPTED** on
+`378d99caf38458211875d81d6bda147654badf7d`. Player-visible repair: normal Interact
+near the Jovian helm now respects deliberate cockpit aim instead of taking the
+adjacent co-pilot chair. One existing GameFlow type gate adds Jovian under all
+existing frame/containment/hatch/current-candidate/near-pilot guards. Deliberate
+co-pilot and engineer choices still work; no discovery/reach/timing/policy change.
+The existing opt-in read-only observer, loader/privacy check and native caller
+support this full ordinary interruption route. Seven source/test files total;
+no new validator, schema or evidence family.
+
+**Earlier failure retained.** The [first attempt and fixture parse stop](#ordinary-jovian-crew-recovery-parked-20261026)
+remain in archive49486…dc85. At that PARK, source d192f1e38 was unaccepted and
+kept out of main. Its later reviewed typed fixture changes exactly four local
+declarations, preserving captured geometry/seven assertion groups. Explicit
+independent priority selection reopens this same outcome with its prior30.639min
+and original17:01:14UTC/90min/hard18:31:14 intact. There is no new budget/card.
+
+**Causal proof and checks.** One silent import20.680s/OS0 precedes the old-runtime
+regression31.422s/exit1: six groups pass and only captured cockpit-selection fails.
+The one-line guarded Jovian repair gives7/7 GREEN/exit0 in31.214s. Python259 passes
+before final source review identifies a legitimate prompt-refresh lag: camera
+alignment can precede retained selector readiness. A Python-only correction waits
+for actual ship candidate/empty station prompt, retaining strict pre-E and first
+wrong-claim checks. Its real controller regression and full260 tests pass13.948s;
+pre/post hashes match. GameFlow/GDScript/fixture bytes remain those of GREEN.
+Retained loader/privacy3311/OS0 source bytes are unchanged; no duplicate rerun.
+Independent final source review GO. No further unexpected check failure occurs.
+
+Clean Windows/Linux exports27.621s/25.804s; Windows payload under Linux engine,
+direct Linux ELF and archive-extracted strict startup26.441s/22.570s/24.076s,
+each actual exit0/exactly one STARTUP_MENU_READY_OK. All1529 Windows/Linux PCK
+size/SHA maps match. Baseline b4ff8c0 differs only in three compiled scripts
+(GameFlow, observer, startup loader) beyond the exact66 known generated node_ids-only
+scenes. The unchanged strict parser proves identical remaining decoded bytes,
+array count/offset and empty id_paths for every actual pair. Stock PE engine text,
+ELF/archive/icon/installer/launcher bytes/modes/metadata pass. Initial Windows
+export generates permitted cache entries; all source/index/tree guards and native/
+post-export cache guards remain unchanged. No blanket cache-identity claim.
+
+**Sole corrected full route:** native79.277s/guard79.771403s, under original
+whole-operation300s/independent330s spanning both games. Authenticated private
+Xvfb/x11/Dummy/dummy renderer; no source/pack/script override. Actual first
+PID2238496 traverses17 goals/131.992658m with1494 supported walking receipts,
+physically enters the cargo ramp/cabin and uses OS E to seat at current engineer
+passenger_port_01/generation1. The .12m engineer endpoint error is.004656m with
+four settled samples. Primary generation10/real predecessor9 commits exactly
+{location:mudds_home_berth,mode:crew,craft_id:jovian_provisional,berth_id:jovian_freight_berth}.
+Released input, owned SIGKILL/reap−9 and exact interrupted bytes precede distinct
+PID2238694 using the same ELF/profile/helper/display through normal recovery UI.
+
+Actual documents: title5→before-chair8→crew10(parent9)→cold-title14→awake15→clean21.
+All seven documents including the predecessor retain protected payload exactly;
+this profile contains runtime_settings only, with activity/reward namespaces
+absent. Cold session/startup1→2 records one crash and unclean1. Normal Begin Shift
+returns IN_FLIGHT_CABIN/HUD aboard, awake/unseated supported current home frame/
+hatch, enabled controls and no replayed crew/pilot authority. Ordinary context
+updates correctly progress crew→cabin→pilot. Two physical cold goals/2.712233m/
+74 supported receipts reach helm within.000576m/four settled samples. Actual
+candidate=true/empty station at coldframe601 precede OS E602; frame676 has current
+pilot, native W, command throttle1, ONLINE engine and flight demand. Normal HUD
+Quit exits0/reaps, final crash stateclean/unclean0 and safe-startclean_shutdown.
+All1907 observation sequences are consecutive:1796 unpaused gameplay samples
+(1589+207) verify current actors/default60Hz/time_scale1;111 paused UI observations
+retain the same Main and normal-exit focus. The archived review's default60Hz
+shorthand applies only to unpaused samples. No wrong cold crew claim, zero
+diagnostics, inputs released and all helper/game/
+Xvfb cleanup flags true. Independent complete raw review GO; no unmet predicate.
+
+**Builds and retention.** Fresh Windows EXE/checkpoint ZIP/notes and matching
+Linux ELF/archive/notes/checks are in repository builds folders,11 canonical files
+byte-verified. [Windows checkpoint](../../builds/windows/MuddsShipyards-378d99c-checkpoint.zip),
+[build notes](../../builds/windows/MuddsShipyards-378d99c-notes.txt),
+[Linux package](../../builds/linux/MuddsShipyards-378d99c-linux-x86_64.tar.gz).
+Source bundle verifies against pushed44352fce3. Source/typed drafts/commands/raw
+proof/actual files/reviews/publication metadata/process closeout are in
+`/srv/mudds-work/crew-recovery-20261026/continuation/records.tar.gz`:21172028bytes,
+141regular files/seven symlinks, SHA256
+`65e511611bfb525618bd30dee3ec99bbc89c58d19e4020cd89bd37f3d309a66d`.
+Archive membership/bytes/modes/link targets verified before loose removal.
+All52 recorded pipeline identities are absent and five preflight parents reaped/
+absent. Original archive313788410bytes/SHA256
+`49486b62cd3b946c78bcd2f93504a2a5a66d473b1cabfdd7eba3c00b2870dc85`
+remains unchanged. Archive closure53.971 cumulative minutes; final main push and
+owned branch/worktree cleanup share the original clock in continuation/closeout.json.
+Accepted final tip integrates before exact cleanup; unrelated detached diagnostics/
+old registrations remain retained. Failed intermediate builds were never published.
+
+One fresh-profile ordinary Jovian engineer recovery/helm case is accepted. No
+earned-payment recovery, whole craft/othercrew, installed/final candidate, native
+Windows execution, GPU/device/audio or complete release qualification is inferred.
+Original parents and their remaining named requirements stay open.
+
 ## Ordinary Jovian crew recovery parked 20261026
 
 Existing CREW-RECOVERY-ORDINARY is **PARKED / NOT_DELIVERED**. Candidate
 `d192f1e38b43148470244ec60525b7adfd5bf4d0` adds one ordinary Jovian engineer
 interruption/restart caller to existing native-sortie driver, read-only observer,
-loader/privacy check and Python tests. Exactly five files/+517/−11; source is
-unaccepted and remains out of main. No product completion or final crew gate.
+loader/privacy check and Python tests. Exactly five files/+517/−11; source was
+unaccepted and kept out of main at this stop; the later [accepted continuation](#ordinary-jovian-engineer-recovery-accepted-20261026) supersedes this PARK. No product completion or final crew gate was claimed.
 The [original contract and causal correction boundary](../ROADMAP_BACKLOG.md#ordinary-jovian-engineer-recovery--selected-contract)
 retain every required route/data/limit and the explicit stopping condition.
 

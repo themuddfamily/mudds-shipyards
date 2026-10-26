@@ -57,6 +57,8 @@ var _beacon_sequence := 0
 var _life_mode := ""
 var _life_config: Dictionary = {}
 var _habitat_loop := false
+var _crew_recovery := false
+var _crew_sequence := 0
 var _habitat_restart := false
 var _restart_sequence: int = 0
 var _ember := false
@@ -112,6 +114,15 @@ func on_startup_completed(main: Node) -> void:
 		process_mode = Node.PROCESS_MODE_ALWAYS
 	_player = _game.get_node("Player") as PlayerController
 	_spawn = _player.global_position
+	_crew_recovery = "--native-sortie-observer=crew-recovery" in OS.get_cmdline_args()
+	if _crew_recovery:
+		_life_mode = "life-gantry"
+		_life_config = LIFE_ROUTES[_life_mode]
+		_ship = _game.get_node(^"JovianLightFreighter") as HeroShip
+		_parked = _ship.global_transform
+		_tuning = _sortie_tuning()
+		process_mode = Node.PROCESS_MODE_ALWAYS
+		return
 	_hauler_supply = "--native-sortie-observer=hauler-supply" in OS.get_cmdline_args()
 	_cinder_supply = "--native-sortie-observer=cinder-supply" in OS.get_cmdline_args() or _hauler_supply
 	if _cinder_supply:
@@ -752,6 +763,12 @@ func _craft_tuning(craft: HeroShip) -> Dictionary:
 
 
 func _physics_process(delta: float) -> void:
+	if _crew_recovery and _game != null:
+		_crew_sequence += 1
+		var crew_sample: Dictionary = _habitat_restart_pause_observation() if get_tree().paused else _crew_recovery_observation()
+		crew_sample.merge({"mode": "crew-recovery", "sequence": _crew_sequence, "pid": OS.get_process_id()}, true)
+		print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(crew_sample, "", true, true))
+		return
 	if _heavy_breach and _game != null:
 		print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(_heavy_breach_observation(), "", true, true))
 		return
@@ -2425,3 +2442,62 @@ func _cinder_supply_capture(berth: ShipBerth) -> bool:
 	var bounds: AABB = _ship.get_landing_collision_report().get("local_bounds", AABB())
 	return bool(berth.evaluate_assist_capture_candidate(_ship.global_transform, bounds,
 		_ship.velocity, _ship.landing_maximum_speed).get("assist_capture_accepted", false))
+
+
+## Observe only the current production Jovian owners and real recovery controls.
+func _crew_recovery_observation() -> Dictionary:
+	var result: Dictionary = _life_observation()
+	result["paused"] = false
+	if not bool(result.get("actors_current", false)):
+		return result
+	var craft := _ship as JovianLightFreighter
+	var store: UserDataStore = _game.get("_runtime_settings_user_data_store") as UserDataStore
+	var status: Dictionary = _game.get_solo_crew_seat_status()
+	var assignment: Dictionary = status.get("assignment", {})
+	var frame := craft.get_moving_interior_component()
+	var hatch := craft.get_node(^"ShipBoardingArea") as ShipBoardingArea
+	var anchor := craft.get_engineer_seat_anchor()
+	var focus: Control = get_viewport().gui_get_focus_owner()
+	var resume: Button = (_game.hud.get("_session_recovery_action_buttons") as Dictionary).get(&"continue") as Button
+	var command := craft.get_last_ship_command()
+	var support: Dictionary = {}
+	if not _player.is_seated() and not bool(_game.get("_transition_busy")):
+		var ray := PhysicsRayQueryParameters3D.create(_player.global_position + Vector3.UP * 0.2,
+			_player.global_position - Vector3.UP * 0.3, PhysicsLayers.WORLD | PhysicsLayers.SHIP, [_player.get_rid()])
+		support = _player.get_world_3d().direct_space_state.intersect_ray(ray)
+	var collider := support.get("collider") as Node
+	var supported := _ember_node_current(collider) and (_game.world.is_ancestor_of(collider) or craft.is_ancestor_of(collider) or collider == craft)
+	var candidate := _game.station_interaction_candidate as ShipCrewSeat
+	result.merge({"supported": supported, "support_collider": str(collider.get_path()) if supported else "",
+		"camera_origin": _v(_player.get_camera().global_position), "camera_forward": _v(-_player.get_camera().global_basis.z),
+		"destroyed": craft.is_destroyed(), "hud_mode": str(_game.hud.get_hud_mode()),
+		"crew": {"seated": bool(status.get("seated", false)), "role": str(assignment.get("role", "")),
+			"seat_id": str(assignment.get("seat_id", "")), "generation": int(assignment.get("seat_generation", 0)),
+			"current": _game.call("_solo_crew_claim_is_current"), "assignment": assignment.duplicate(true),
+			"authority_id": craft.get_crew_role_authority().get_instance_id() if craft.get_crew_role_authority() != null else 0,
+			"tagged": _player.has_meta(HeroShip.SOLO_CREW_ROLE_OCCUPANT_META),
+			"seated_at_anchor": _player.is_seated_at(anchor),
+			"candidate": is_instance_valid(candidate) and candidate.get_ship() == craft and candidate.get_seat_id() == craft.ENGINEER_SEAT_ID,
+			"anchor": _v(anchor.global_position), "aim": _v(anchor.global_position + craft.global_basis.y * 1.2)},
+		"cabin": {"frame_id": frame.get_instance_id(), "registered": frame.is_occupant_registered(_player),
+			"contained": _player.is_cabin_containment_active(), "hatch_reserved": hatch.get_reservation_token() == _player,
+			"owner_current": _game.get("_cabin_ship") == craft},
+		"recovery": {"available": not _game.get_recovery_available_snapshot().is_empty(),
+			"resume_visible": is_instance_valid(resume) and resume.is_visible_in_tree(),
+			"resume_enabled": is_instance_valid(resume) and not resume.disabled,
+			"focus_resume": is_instance_valid(resume) and focus == resume,
+			"focus_path": str(focus.get_path()) if is_instance_valid(focus) else ""},
+		"save": {"path": ProjectSettings.globalize_path(str(store.get("_path"))), "source": str(store.get_loaded_source()),
+			"generation": store.get_generation(), "context": (_game.get("_solo_safe_recovery_context") as Dictionary).duplicate(true),
+			"context_generation": int(_game.get("_solo_safe_recovery_observed_store_generation")),
+			"retry_seconds": float(_game.get("_solo_safe_recovery_retry_remaining_seconds"))},
+		"access": _v(craft.get_interior_access_marker().global_position), "deck": _v(craft.get_interior_deck_marker().global_position),
+		"aisle_aft": _v(craft.to_global(Vector3(0, .60, 3.2))),
+		"aisle_forward": _v(craft.to_global(Vector3(0, .60, -5.25))),
+		"engineer_entry": _v(craft.to_global(Vector3(-1.35, .60, -5.25))),
+		"helm_entry": _v(craft.to_global(Vector3(0, .60, -6.70))),
+		"helm_aim": _v(craft.get_pilot_seat_anchor().global_position + craft.global_basis.y * 1.2),
+		"engine_online": craft.get_telemetry().engine_state == HeroShip.ENGINE_ONLINE,
+		"command_throttle": command.throttle if command != null else 0.0,
+		"flight_demand": craft.has_manual_flight_intent(), "native_forward": Input.is_action_pressed("move_forward")}, true)
+	return result

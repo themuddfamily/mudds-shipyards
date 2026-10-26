@@ -17,6 +17,10 @@ func _init() -> void:
 
 
 func _run() -> void:
+	if "--cold-cockpit-precedence" in OS.get_cmdline_user_args():
+		await _cold_cockpit_precedence()
+		_finish()
+		return
 	if "--halyard-engineer" in OS.get_cmdline_user_args():
 		await _halyard_route()
 		_finish()
@@ -643,6 +647,66 @@ func _halyard_route() -> void:
 	await _key(KEY_F13, false)
 	_check(not bool(craft.get_engineer_repair_state().active) and int(craft.get_engineer_repair_state().resource_units) == 5
 		and not bool(craft.get_engineer_gameplay_state().repair_ready), "airborne Halyard FIRE preserves berth-only policy and finite kit stock")
+	game.release_mouse_capture()
+	game.queue_free()
+	await _settle(3)
+
+
+## Staged selector regression for the actual failed cold-route frame 613.
+## This places test actors/camera; the full OS-input journey remains separate.
+func _cold_cockpit_precedence() -> void:
+	var game := MAIN_SCENE.instantiate() as GameFlow
+	root.add_child(game)
+	await _settle(3)
+	var craft := game.get_node(^"JovianLightFreighter") as JovianLightFreighter
+	var actor := game.player
+	game.start_shift()
+	await _settle(3)
+	game.set("_solo_safe_recovery_context", {"location": "mudds_home_berth", "mode": "crew",
+		"craft_id": "jovian_provisional", "berth_id": "jovian_freight_berth"})
+	game.set("_solo_safe_recovery_pending", true)
+	game.call("_apply_solo_safe_recovery")
+	await _settle(5)
+	actor.teleport_to(Transform3D(actor.global_basis, Vector3(-53.00057601928711, 2.1100001335144043, 63.9999885559082)))
+	await _settle(4)
+	var camera: Camera3D = actor.get_camera()
+	camera.global_transform = Transform3D(Basis.looking_at(Vector3(0.025482458993792534, -0.3453933000564575, 0.9381120800971985), Vector3.UP),
+		Vector3(-53.05918884277344, 4.324406623840332, 61.84233474731445))
+	var frame := craft.get_moving_interior_component()
+	var hatch := craft.get_node(^"ShipBoardingArea") as ShipBoardingArea
+	var berth: ShipBerth = game.world.get_berth_node(craft.get_home_berth_id())
+	var copilot := craft.get_copilot_seat_anchor().get_node(^"SoloPassengerSeatInteraction") as ShipCrewSeat
+	var origin: Vector3 = actor.get_interaction_origin()
+	var facing: Vector3 = actor.get_interaction_direction()
+	_check(game.phase == GameFlow.Phase.IN_FLIGHT_CABIN and game.active_ship == craft
+		and actor.is_on_floor() and actor.is_control_enabled() and not actor.is_seated()
+		and not actor.is_sleeping() and not craft.is_piloted(), "captured cold geometry has an awake supported solo Jovian cabin owner")
+	_check(frame.is_occupant_registered(actor) and actor.is_cabin_containment_active()
+		and hatch.get_reservation_token() == actor and game.get("_boarding_area") == hatch
+		and berth.get_occupant() == craft and berth.get_reservation_owner() == craft,
+		"captured cold geometry retains current frame hatch and occupied home guards")
+	_check(actor.global_position.distance_to(Vector3(-53.00057601928711, 2.1100001335144043, 63.9999885559082)) < .001
+		and actor.get_nearby_interactables().has(copilot)
+		and game.call("_network_client_near_pilot_seat", craft)
+		and game.call("_find_boarding_candidate") == craft,
+		"captured cold helm geometry has the actual nearby copilot and existing pilot boarding candidate")
+	_check(game.call("_cockpit_aim_precedes_crew_seat", craft, copilot, origin, facing),
+		"captured camera direction deliberately favours the actual pilot over the copilot chair")
+	_check(game.call("_cabin_cockpit_precedes_crew_seat", copilot, origin, facing)
+		and game.call("_find_station_interaction_candidate") == null,
+		"captured cold helm aim selects cockpit instead of copilot passenger")
+	camera.global_basis = Basis.looking_at((copilot.global_position - origin).normalized(), Vector3.UP)
+	_check(not game.call("_cabin_cockpit_precedes_crew_seat", copilot, origin, actor.get_interaction_direction())
+		and game.call("_find_station_interaction_candidate") == copilot,
+		"explicit copilot aim still selects the actual passenger chair")
+	var engineer := craft.get_engineer_seat_anchor().get_node(^"SoloEngineerSeatInteraction") as ShipCrewSeat
+	actor.teleport_to(engineer.get_entry_transform())
+	await _settle(4)
+	origin = actor.get_interaction_origin()
+	camera.global_basis = Basis.looking_at((engineer.global_position - origin).normalized(), Vector3.UP)
+	_check(actor.is_on_floor() and frame.is_occupant_registered(actor)
+		and game.call("_find_station_interaction_candidate") == engineer,
+		"explicit engineer aim still selects its original physical station")
 	game.release_mouse_capture()
 	game.queue_free()
 	await _settle(3)
