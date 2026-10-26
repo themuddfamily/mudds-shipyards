@@ -93,16 +93,13 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Current assignment: PLAN-NEXT — make the remaining work assignable.**
-This is documentation work requested by the owner. It does not qualify gameplay.
-Finish this pass by preserving all337 existing IDs and original scope, exposing
-remaining missing contracts with their owner, and leaving one concrete next
-production card. Check inventory, local links and an independent review; commit
-and push the documentation. No gameplay retry, export or new validator is part
-of this pass. Unresolved contracts remain BLOCKED; this pass cannot declare the
-whole executable breakdown complete.
+**Roadmap definition pass accepted on ad958e555.** All337 canonical IDs,
+parent bindings and kinds remain intact; all31 containers have a finite gap
+index. Independent review and770 local links pass. The complete executable
+breakdown stays open at its named missing bindings; no gameplay acceptance was
+claimed by that documentation pass.
 
-**Next production card: CRAFT-ACCEPT-ZENITH — repair forward projectile attribution.**
+**Active production card: CRAFT-ACCEPT-ZENITH — repair forward projectile attribution.**
 This is one shared runtime prerequisite of Zenith's existing nonfatal-component
 member. It is not full craft acceptance or the ordinary damage/repair journey.
 

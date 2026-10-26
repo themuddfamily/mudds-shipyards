@@ -2,7 +2,9 @@ extends SceneTree
 
 ## Focused production test for the real CombatResolver -> lifecycle proxy ->
 ## HeroShip located-damage seam. Rays strike the live collision envelope of all
-## five retained craft; no fixture damageable or alternate authority is created.
+## nine retained craft; no fixture damageable or alternate authority is created.
+## Craft/source poses and source dispatch are staged by this focused fixture;
+## this proves resolved projectile attribution, not an ordinary pilot journey.
 
 const ARENA_ORIGIN := Vector3(1200.0, 420.0, -1800.0)
 ## Every craft in the production flyable rotation, by live node name. The six
@@ -22,6 +24,11 @@ const FLEET_CRAFT_NAMES := [
 	"cinder_long_range_bomber",
 ]
 const CONTACT_CASES := [
+	{
+		"name": "forward hull ray",
+		"component": ShipComponentDamage.COMPONENT_FORWARD_HULL,
+		"surface": &"forward",
+	},
 	{
 		"name": "aft engine ray",
 		"component": ShipComponentDamage.COMPONENT_ENGINE_BAY,
@@ -124,7 +131,7 @@ func _test_craft(
 		var bounds: AABB = report.get("local_bounds", AABB())
 		var target_id: StringName = contact_case.component
 		var anchor := _component_position(report, target_id)
-		var ray_setup := _find_functional_ray(
+		var ray_setup := _find_projectile_ray(
 			craft,
 			opponent,
 			report,
@@ -149,6 +156,7 @@ func _test_craft(
 		var exact_hull_spend := true
 		var resolved_target_only := true
 		var damaged := false
+		var forward_attribution_mismatch := false
 		for _shot in MAX_SHOTS_PER_REGION:
 			var hull_before := float(craft.get_telemetry().get("hull", -1.0))
 			var result := authority.submit_hitscan(
@@ -163,21 +171,45 @@ func _test_craft(
 				and bool(result.get("damaged", false)) \
 				and result.get("target_entity") == craft \
 				and hit_position.is_finite() \
-				and _nearest_functional_component(report, craft.to_local(hit_position)) == target_id
+				and _nearest_projectile_component(report, craft.to_local(hit_position)) == target_id
 			exact_hull_spend = exact_hull_spend and is_equal_approx(
 				float(craft.get_telemetry().get("hull", -1.0)),
 				hull_before - applied
 			)
 			var post_report := craft.get_component_damage_report()
-			resolved_target_only = resolved_target_only and _only_target_changed(post_report, target_id)
+			var only_target_changed := _only_target_changed(post_report, target_id)
+			resolved_target_only = resolved_target_only and only_target_changed
+			if target_id == ShipComponentDamage.COMPONENT_FORWARD_HULL:
+				var changed_components: Array[String] = []
+				for row: Dictionary in post_report.get("components", []) as Array:
+					if float(row.get("integrity", 1.0)) < 1.0:
+						changed_components.append(String(row.get("id", &"")))
+				print("FORWARD_PROJECTILE_CONTACT: " + JSON.stringify({
+					"craft": String(craft_name), "finite_hit": hit_position.is_finite(),
+					"target_is_craft": result.get("target_entity") == craft,
+					"hit": bool(result.get("hit", false)), "damaged": bool(result.get("damaged", false)),
+					"local_hit": str(craft.to_local(hit_position)) if hit_position.is_finite() else "unavailable",
+					"expected_component": String(target_id), "damaged_components": changed_components,
+					"hull_before": hull_before, "hull_after": craft.get_telemetry().get("hull", -1.0),
+					"applied_damage": applied, "ledger_generation": component_damage.get_ledger_generation(),
+					"components": post_report.get("components", []),
+				}))
+				# One known attribution regression per craft on the old runtime. The
+				# real contact/hull/model checks remain independent; do not cascade
+				# the same mismatch into impairment and Zenith cue failures.
+				if receipt_point_valid and exact_hull_spend and not only_target_changed:
+					forward_attribution_mismatch = true
+					_fail("FORWARD_PROJECTILE_ATTRIBUTION_MISMATCH: %s finite forward contact must damage only forward_hull; actual=%s" % [craft_name, changed_components])
+					break
 			damaged = component_damage.get_component_integrity(target_id) \
 				< ShipComponentDamage.IMPAIRED_THRESHOLD
 			if damaged or not bool(result.get("damaged", false)):
 				break
 
 		_check(
-			receipt_point_valid and exact_hull_spend and resolved_target_only and damaged,
-			"%s %s preserves its finite receipt and impairs only %s" % [
+			receipt_point_valid and exact_hull_spend \
+			and (forward_attribution_mismatch or (resolved_target_only and damaged)),
+			"%s %s preserves its finite receipt and exact hull spend; attribution checked separately for %s" % [
 				craft_name,
 				contact_case.name,
 				target_id,
@@ -188,6 +220,25 @@ func _test_craft(
 			and component_damage.get_ledger_generation() == generation,
 			"%s %s stays on the existing generation-fenced ledger" % [craft_name, contact_case.name]
 		)
+
+		if craft_name == &"ZenithInterceptor" and target_id == ShipComponentDamage.COMPONENT_FORWARD_HULL \
+				and not forward_attribution_mismatch and receipt_point_valid and resolved_target_only and damaged:
+			# The production physics update publishes the local cue. This landed
+			# fixture may also passively repair one tick; it is not repair proof.
+			await physics_frame
+			await process_frame
+			var presentation := craft.get_damage_presentation()
+			var cue := presentation.get_node_or_null("ComponentDamage_forward_hull") as Node3D
+			var sparks: CPUParticles3D = cue.get_node_or_null("ComponentSparks") as CPUParticles3D if cue != null else null
+			_check(
+				presentation.get_component_effect_ids() == [ShipComponentDamage.COMPONENT_FORWARD_HULL]
+				and presentation.get_component_effect_state(target_id) == ShipComponentDamage.ComponentState.IMPAIRED
+				and cue != null and cue.position.distance_to(anchor) < 0.001
+				and cue.is_visible_in_tree() and sparks != null and sparks.emitting
+				and component_damage.get_instance_id() == model_id
+				and component_damage.get_ledger_generation() == generation,
+				"Zenith resolved forward projectile reveals the existing local forward-hull cue on the same ledger"
+			)
 
 	var fallback_reset := craft.reset_for_reuse(Transform3D(Basis.IDENTITY, ARENA_ORIGIN))
 	_check(bool(fallback_reset.get("accepted", false)), "%s resets before generic fallback" % craft_name)
@@ -215,6 +266,8 @@ func _test_craft(
 
 func _ray_origin(bounds: AABB, anchor: Vector3, surface: StringName) -> Vector3:
 	match surface:
+		&"forward":
+			return Vector3(anchor.x, anchor.y, bounds.position.z - 6.0)
 		&"aft":
 			return Vector3(anchor.x, anchor.y, bounds.end.z + 6.0)
 		&"port":
@@ -226,7 +279,7 @@ func _ray_origin(bounds: AABB, anchor: Vector3, surface: StringName) -> Vector3:
 	return anchor
 
 
-func _find_functional_ray(
+func _find_projectile_ray(
 	craft: HeroShip,
 	opponent: CharacterBody3D,
 	report: Dictionary,
@@ -246,6 +299,15 @@ func _find_functional_ray(
 					anchor.x,
 					bounds.position.y + bounds.size.y * y_fraction,
 					bounds.position.z + bounds.size.z * z_fraction
+				))
+	if surface == &"forward":
+		# Retain a bounded physical nose search for thin wings and cabin shells.
+		for x_fraction in [0.50, 0.38, 0.62, 0.26, 0.74]:
+			for y_fraction in [0.12, 0.28, 0.44, 0.60, 0.76]:
+				candidates.append(Vector3(
+					bounds.position.x + bounds.size.x * x_fraction,
+					bounds.position.y + bounds.size.y * y_fraction,
+					anchor.z
 				))
 	var space_state := craft.get_world_3d().direct_space_state
 	for local_target: Vector3 in candidates:
@@ -270,7 +332,7 @@ func _find_functional_ray(
 			continue
 		var hit_position := hit.get("position", Vector3.INF) as Vector3
 		if hit_position.is_finite() \
-			and _nearest_functional_component(report, craft.to_local(hit_position)) == target_id:
+			and _nearest_projectile_component(report, craft.to_local(hit_position)) == target_id:
 			return {"origin": local_origin, "target": local_target}
 	return {}
 
@@ -282,12 +344,14 @@ func _component_position(report: Dictionary, component_id: StringName) -> Vector
 	return Vector3.INF
 
 
-func _nearest_functional_component(report: Dictionary, local_position: Vector3) -> StringName:
+func _nearest_projectile_component(report: Dictionary, local_position: Vector3) -> StringName:
 	var nearest: StringName = &""
 	var nearest_distance := INF
 	for component: Dictionary in report.get("components", []) as Array:
 		var component_id := StringName(component.get("id", &""))
-		if not ShipComponentDamage.COLLISION_FUNCTIONAL_COMPONENTS.has(component_id):
+		# Projectile geometry deliberately uses all five original component IDs.
+		# Do not share the collision-only functional filter with this oracle.
+		if not ShipComponentDamage.COMPONENT_ORDER.has(component_id):
 			continue
 		var position := component.get("local_position", Vector3.INF) as Vector3
 		var distance := position.distance_squared_to(local_position)
