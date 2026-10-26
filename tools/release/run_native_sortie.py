@@ -5637,10 +5637,14 @@ class ZenithReturnReusePilot(ArrowReturnReusePilot):
                     self.weapon_started, self.weapon_start_frame = now, s['frame']
                     self.enter('weapon_aim', s)
                 else:
-                    require(s['capture'] and not s['native_landing'], 'actual live home capture before distinct single L')
-                    self.receipts[self.key_for('landing')] = self.receipt(s)
-                    self.tap('l', now); self.landing_timeout = None; self.landing_active_seen = False
-                    self.enter('land', s)
+                    self.enter('return_align',s)
+        elif self.stage == 'return_align':
+            self.require_flight(s); keys.update(('Prior','h'))
+            if (s['up'][1] >= .94 and norm(s['ship_velocity']) <= .35 and s['capture']
+                    and not s['native_landing'] and self.tap_key is None):
+                self.receipts[self.key_for('landing')] = self.receipt(s)
+                self.tap('l', now); self.landing_timeout = None; self.landing_active_seen = False
+                self.enter('land', s)
         elif self.stage == 'boost_align':
             self.require_flight(s); keys.add('Prior')
             dx,dy,align = self.weapon_aim(s, sub(s['endpoints']['lane'],s['position']))

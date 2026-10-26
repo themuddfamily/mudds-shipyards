@@ -5953,6 +5953,22 @@ class ZenithReturnReuseTests(unittest.TestCase):
                         with self.assertRaises(AssertionError): p.validate_observation(third)
                     else: self.assertEqual(p.landing_last[1]['landing']['elapsed'],2)
 
+    def test_return_alignment_requires_upright_and_real_capture_before_single_landing_press(self):
+        p,s=self.initial(); p.stage='return_align'; p.stage_since=0
+        for frame,upright,capture in ((101,False,False),(102,True,False),(103,True,True)):
+            current=self.flight_sample(s,frame); current['capture']=capture
+            if not upright: current['up']=[1,-.00766,0]
+            p.validate_observation(current)
+            keys,*_=p.update(current,1+(frame-101)*.1)
+            if not capture:
+                self.assertEqual(p.stage,'return_align'); self.assertNotIn('l',keys)
+                self.assertTrue({'Prior','h'} <= keys)
+                self.assertNotIn('landing_1',p.receipts)
+            else:
+                self.assertEqual(p.stage,'land'); self.assertIn('l',keys)
+                self.assertEqual(p.receipts['landing_1']['frame'],103)
+        self.assertEqual(p.landing_edges,[0,0])  # Only actual native acknowledgement increments this.
+
     def test_new_phase_guards_fresh_epoch_and_both_camera_consumers(self):
         p,s=self.initial(); p.stage='climb'; p.stage_since=10
         p.stage_guard(25)
