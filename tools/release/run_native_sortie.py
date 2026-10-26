@@ -7,6 +7,7 @@ Use --route retained-heavy --retained-data FILE to load the accepted paid Heavy 
 Use --route corrupt-retained-heavy --retained-data FILE for confirmed backup repair and cold Heavy continuation.
 Use --route unsupported-save --retained-data FILE --future-artifact primary|temporary|backup
 for one canonical future-envelope placement, real Save/Reset refusal and cold ordinary continuation.
+Add --future-format settings --future-artifact primary with the source-produced nested fixture.
 Use --route cinder-supply for the full first funded Jovian/Cinder terminal/home journey.
 Use --route beacon-entry for normal Torrent departure and actual first Beacon HUD start.
 Use --route beacon-settlement to continue through all four beacons and durable settlement.
@@ -8022,6 +8023,9 @@ class UnsupportedSaveFiles(RetainedHeavyFiles):
         require(pilot.result is not None and pilot.quit_requested, 'ordinary UI exit precedes independent shutdown read')
         self.capture_preserved(f'leg-{leg+1}-orderly-close')
 
+    def make_pilot(self, pid, cold):
+        return UnsupportedSavePilot(self, pid, cold=cold)
+
     require_two_legs = staticmethod(CorruptRetainedHeavyFiles.require_two_legs)
 
 
@@ -8081,6 +8085,9 @@ class UnsupportedSavePilot(CorruptRetainedRepairPilot):
             if self.observed_previous and s['native_interact'] != self.observed_previous['native_interact']:
                 self.native_edges.append(dict(frame=s['frame'], pressed=s['native_interact'], stage=self.stage))
             self.observed_previous = copy.deepcopy(s)
+        self.validate_authority(s)
+
+    def validate_authority(self, s):
         r = s['recovery']; store = r['store']; loaded = r['load']; nested = loaded['store_status']
         require(store['source'] == 'none' and store['generation'] == 0 and store['snapshot'] == {}
                 and loaded['accepted'] is False and loaded['reason'] == 'store_load_failed'
@@ -8096,8 +8103,16 @@ class UnsupportedSavePilot(CorruptRetainedRepairPilot):
         require(r['repair']['last_status']['reason'] == 'unsupported_newer_schema'
                 and not r['ui']['confirmation_available'], 'unsupported authority never offers backup repair')
         p = r['persistence']
-        require(p['save_success_count'] == 0 and p['commit_serial'] == 0 and not p['last_commit_id'],
+        require(self.settings_commits_unchanged(p),
                 'no unsupported write becomes a successful settings commit')
+
+    def settings_commits_unchanged(self, persistence):
+        return (persistence['save_success_count'] == 0 and persistence['commit_serial'] == 0
+                and not persistence['last_commit_id'])
+
+    def refusal_status(self, status):
+        return (status['accepted'] is False and status['reason'] == 'store_load_failed'
+                and status['store_reason'] == 'newer_schema' and status['store_status']['payload'] == {})
 
     @staticmethod
     def focused(ui, action, name, text):
@@ -8110,8 +8125,7 @@ class UnsupportedSavePilot(CorruptRetainedRepairPilot):
         if p['save_attempt_count'] == self.attempt_baseline['save_attempt_count']: return False
         require(p['save_attempt_count'] == self.attempt_baseline['save_attempt_count']+1
                 and p['accepted_transaction_count'] == self.attempt_baseline['accepted_transaction_count']+1
-                and status['accepted'] is False and status['reason'] == 'store_load_failed'
-                and status['store_reason'] == 'newer_schema' and status['store_status']['payload'] == {}
+                and self.refusal_status(status)
                 and ui['settings_visible'] and ui['status_visible']
                 and ui['status_text'] == (self.SAVE_STATUS if operation == 'save' else self.RESET_STATUS),
                 'one actual GUI transaction visibly refuses unsupported settings write')
@@ -8222,8 +8236,7 @@ class UnsupportedSavePilot(CorruptRetainedRepairPilot):
         require(self.begin_attempts is not None
                 and persistence['save_attempt_count']-self.begin_attempts['save_attempt_count'] == attempts
                 and persistence['accepted_transaction_count']-self.begin_attempts['accepted_transaction_count'] == attempts
-                and persistence['save_success_count'] == persistence['commit_serial'] == 0
-                and not persistence['last_commit_id'],
+                and self.settings_commits_unchanged(persistence),
                 'exactly one Save and one confirmed Reset in first process, zero writes in cold process')
         require(exit_code == 0 and self.quit_requested and self.stage == 'quit_wait'
                 and self.file_context_accepted and 'awake' in self.receipts and 'exit_ui' in self.receipts
@@ -8231,6 +8244,203 @@ class UnsupportedSavePilot(CorruptRetainedRepairPilot):
                 'unsupported load permits normal Begin Shift and HUD OS0 in both distinct processes')
         self.result=dict(self.report(),completion_marker=self.MARKER,normal_ui_exit=True,cold=self.cold,
                          save_refused=self.save_refused,reset_refused=self.reset_refused)
+
+
+class UnsupportedSettingsFiles(UnsupportedSaveFiles):
+    """A future settings section inside a supported, normally committing store."""
+    MARKER = 'NATIVE_UNSUPPORTED_SETTINGS_OK'
+    WARNINGS = (
+        b'WARNING: Startup could not read stored settings: settings_payload_newer',
+        b'WARNING: Atomic runtime settings load retained authored defaults: settings_payload_newer / ok',
+    )
+    MUTABLE = frozenset({'crash_recovery', 'session_diagnostics'})
+    PAYLOAD = {
+        'runtime_settings': {'schema_version': 12, 'values': {}},
+        'tutorial_prompts_seen': {'schema_version': 1, 'seen_ids': ['cinder_reach_checkpoint_route']},
+        'solo_safe_recovery': {'location': 'mudds_home_berth', 'mode': 'on_foot',
+                               'craft_id': 'arrow_provisional', 'berth_id': 'arrow_recon_berth'},
+        'unrelated_future_test': {'label': 'KEEP'},
+    }
+
+    def __init__(self, profile, output, fixture, placement):
+        require(placement == 'primary', 'nested settings qualify primary placement only')
+        HabitatRestartFiles.__init__(self, profile, output)
+        fixture = Path(fixture)
+        require(fixture.is_file() and not fixture.is_symlink(), 'nested fixture is an ordinary source-produced file')
+        raw = fixture.read_bytes()
+        document = json.loads(raw)
+        self.require_envelope(document)
+        require(document['generation'] == 1 and document['payload'] == self.PAYLOAD
+                and document['commit']['id'] == 'nested-settings-fixture'
+                and document['commit']['parent_generation'] == 0 and document['commit']['parent_id'] == '',
+                'exact source-produced supported generation-one nested fixture')
+        self.expected = copy.deepcopy(document)
+        self.fixture = dict(path=str(fixture.resolve()), bytes=len(raw), sha256=hashlib.sha256(raw).hexdigest())
+        self.path = self.profile / self.RELATIVE_SAVE
+        self.path.parent.mkdir(parents=True, mode=0o700, exist_ok=False)
+        with self.path.open('xb') as stream: stream.write(raw)
+        self.path.chmod(0o600)
+        sentinel = self.path.parent/'unrelated.txt'
+        with sentinel.open('xb') as stream: stream.write(self.SENTINEL)
+        sentinel.chmod(0o640)
+        self.sentinel_identity = self.identity(sentinel)
+        self.directory_identity = self.identity(self.path.parent)
+        self.placement, self.leg, self.reset_defaults = placement, 0, None
+        self.snapshots = {}
+        self.capture_preserved('prelaunch')
+
+    @staticmethod
+    def require_envelope(document):
+        require(isinstance(document, dict) and set(document) == {'schema_version','generation','commit','payload'}
+                and document['schema_version'] == 1 and type(document['generation']) in (int, float)
+                and document['generation'] == int(document['generation']) and document['generation'] > 0
+                and isinstance(document['payload'], dict), 'supported committed outer-one envelope')
+        commit = document['commit']
+        require(isinstance(commit, dict) and set(commit) == {'id','parent_generation','parent_id','payload_sha256'}
+                and isinstance(commit['id'], str) and commit['id']
+                and type(commit['parent_generation']) in (int,float)
+                and commit['parent_generation'] == document['generation']-1
+                and isinstance(commit['parent_id'],str)
+                and isinstance(commit['payload_sha256'],str)
+                and re.fullmatch('[0-9a-f]{64}',commit['payload_sha256']), 'actual store commit identity and checksum field')
+
+    def require_payload(self, payload):
+        require(isinstance(payload,dict) and set(self.PAYLOAD) <= set(payload)
+                and set(payload) <= set(self.PAYLOAD) | self.MUTABLE
+                and all(payload[key] == value for key,value in self.PAYLOAD.items()),
+                'complete future settings and unrelated namespaces remain exact; only declared lifecycle keys may change')
+        if 'crash_recovery' in payload:
+            crash = payload['crash_recovery']
+            require(set(crash) == {'schema_version','state','session_id','startup_generation','unclean_start_count',
+                                   'last_physics_tick','last_elapsed_physics_seconds'}
+                    and crash['schema_version'] == 1 and crash['state'] in ('running','clean')
+                    and crash['session_id'] == crash['startup_generation']
+                    and crash['session_id'] in range(1,self.leg+2) and crash['unclean_start_count'] == 0,
+                    'only the two actual clean-start session lifecycles update crash markers')
+        if 'session_diagnostics' in payload:
+            record = payload['session_diagnostics']
+            require(set(record) == {'schema_version','capacity','next_sequence','dropped_event_count','events'}
+                    and record['schema_version'] == 1 and isinstance(record['events'],list)
+                    and not any(event['event_code'] in ('crash_detected','recovery_started','recovery_completed')
+                                for event in record['events']), 'normal session diagnostics never invent recovery')
+
+    def require_session(self, payload, closed=False):
+        self.require_payload(payload)
+        crash = payload['crash_recovery']; events = payload['session_diagnostics']['events']
+        require(crash['session_id'] == crash['startup_generation'] == self.leg+1
+                and crash['state'] == ('clean' if closed else 'running'), 'actual current process lifecycle marker')
+        require(any(event['session_id'] == self.leg+1 and event['event_code'] == 'session_started'
+                    and event['fields'].get('recovered') is False for event in events),
+                'actual current process owns an unrecovered startup receipt')
+        if closed:
+            require(any(event['session_id'] == self.leg+1 and event['event_code'] == 'session_ended'
+                        for event in events), 'actual normal Quit owns its durable session-ended receipt')
+
+    def capture_preserved(self, label=None):
+        require(self.identity(self.profile) == self.profile_identity
+                and self.identity(self.path.parent) == self.directory_identity, 'same original nested profile and save directory')
+        sentinel = self.path.parent/'unrelated.txt'
+        require(not sentinel.is_symlink() and self.identity(sentinel) == self.sentinel_identity
+                and sentinel.read_bytes() == self.SENTINEL and sentinel.stat().st_mode & 0o777 == 0o640,
+                'independent unrelated sentinel bytes mode and identity remain exact')
+        names = {entry.name for entry in self.path.parent.iterdir()}
+        durable = {self.path.name, self.path.name+'.bak', *(self.path.name+'.bak.'+str(i) for i in range(1,4))}
+        require(names <= durable | {'unrelated.txt','diagnostics'} and self.path.name in names,
+                'settled nested milestones allow only ordinary store history and declared diagnostics sink')
+        documents, files = {}, {}
+        for name in sorted(names & durable):
+            artifact = self.path.parent/name
+            require(artifact.is_file() and not artifact.is_symlink() and artifact.stat().st_mode & 0o777 == 0o600,
+                    'ordinary durable store artifact retains private mode')
+            before = artifact.stat(); raw = artifact.read_bytes(); after = artifact.stat()
+            require((before.st_dev,before.st_ino,before.st_size,before.st_mtime_ns) ==
+                    (after.st_dev,after.st_ino,after.st_size,after.st_mtime_ns), 'settled independent document read remains stable')
+            document = json.loads(raw); self.require_envelope(document); self.require_payload(document['payload'])
+            documents[name] = document
+            files[name] = dict(bytes=len(raw),sha256=hashlib.sha256(raw).hexdigest(),mode=oct(0o600),generation=document['generation'])
+        primary = documents[self.path.name]
+        expected_names = [self.path.name, self.path.name+'.bak',
+                          *(self.path.name+'.bak.'+str(i) for i in range(1,4))]
+        expected_names = expected_names[:min(int(primary['generation']),len(expected_names))]
+        require(set(documents) == set(expected_names), 'ordinary rotation retains exactly the bounded preceding generations')
+        for index,name in enumerate(expected_names):
+            document = documents[name]
+            require(document['generation'] == primary['generation']-index,
+                    'durable history uses the exact preceding generation in each canonical name')
+            if index:
+                successor = documents[expected_names[index-1]]
+                require(successor['commit']['parent_id'] == document['commit']['id'], 'durable generations retain actual parent identity')
+        diagnostic = self.path.parent/'diagnostics'
+        if diagnostic.exists():
+            require(diagnostic.is_dir() and not diagnostic.is_symlink(), 'declared ordinary diagnostics directory')
+            require({item.name for item in diagnostic.iterdir()} <= {'crash-log.json','crash-log.previous.json'},
+                    'settled diagnostics contain only fixed current and previous logs')
+            for item in diagnostic.iterdir():
+                require(item.is_file() and not item.is_symlink(), 'diagnostic log is an ordinary file')
+                raw = item.read_bytes(); json.loads(raw)
+                files['diagnostics/'+item.name] = dict(bytes=len(raw),sha256=hashlib.sha256(raw).hexdigest())
+        if label is not None:
+            require(label not in self.snapshots, 'nested milestone captured exactly once')
+            self.snapshots[label] = dict(files=files, document=primary)
+        return primary
+
+    def observe(self, sample, pilot):
+        store = sample['recovery']['store']
+        require(store['path'] == str(self.path) and store['source'] == 'primary', 'exact supported primary remains production authority')
+        self.require_payload(store['snapshot'])
+        # The cached production snapshot is safe during atomic publication;
+        # disk topology is inspected only at the named settled milestones.
+        label = f'leg-{self.leg+1}-title'
+        if not sample['paused'] and sample['menu_ready'] and label not in self.snapshots:
+            document = self.capture_preserved(label)
+            self.require_session(document['payload'])
+            pilot.file_context_accepted = True
+
+    def finish_leg(self, leg, pilot):
+        require(pilot.result is not None and pilot.quit_requested, 'actual normal UI exit precedes nested shutdown read')
+        document = self.capture_preserved(f'leg-{leg+1}-orderly-close')
+        self.require_session(document['payload'],closed=True)
+
+    def make_pilot(self, pid, cold):
+        return UnsupportedSettingsPilot(self,pid,cold=cold)
+
+
+class UnsupportedSettingsPilot(UnsupportedSavePilot):
+    MARKER = UnsupportedSettingsFiles.MARKER
+    SAVE_STATUS = 'UNSAVED  //  SETTINGS_PAYLOAD_NEWER'
+
+    def __init__(self, files, expected_pid, cold=False):
+        super().__init__(files,expected_pid,cold)
+        self.boot_commit_serial = None
+
+    def settings_commits_unchanged(self, persistence):
+        return (persistence['save_success_count'] == 0 and not persistence['last_commit_id']
+                and persistence['commit_serial'] == self.boot_commit_serial)
+
+    def refusal_status(self, status):
+        return (status['accepted'] is False and status['reason'] == 'settings_payload_newer'
+                and status['payload_reason'] == 'newer_schema' and status['store_reason'] == 'ok'
+                and status['store_status']['accepted'] is True and status['store_status']['source'] == 'primary'
+                and status['store_status']['reason'] == 'ok'
+                and status['store_status']['payload']['runtime_settings'] == self.files.PAYLOAD['runtime_settings'])
+
+    def validate_authority(self, sample):
+        recovery = sample['recovery']; loaded = recovery['load']; store = recovery['store']
+        require(self.refusal_status(loaded) and loaded['applied'] is False and loaded['migrated_legacy'] is False,
+                'typed schema twelve refuses settings while supported primary loads normally')
+        require(store['source'] == 'primary' and store['generation'] >= loaded['generation'] > 0,
+                'normal bookkeeping advances the supported primary without replacing settings authority')
+        self.files.require_payload(store['snapshot'])
+        safe = recovery['safe_start']
+        require(safe['restore_status']['accepted'] is True and safe['restore_status']['reason'] == 'empty'
+                and safe['begin_status']['accepted'] is False and safe['begin_status']['reason'] == 'settings_authority_blocked'
+                and safe['startup_generation'] == 0,
+                'future settings block safe-start publication without fabricating a healthy startup')
+        require(recovery['repair']['last_status']['reason'] == 'unsupported_newer_schema'
+                and not recovery['ui']['confirmation_available'], 'future settings offer no destructive repair')
+        persistence = recovery['persistence']
+        if self.boot_commit_serial is None: self.boot_commit_serial = persistence['commit_serial']
+        require(self.settings_commits_unchanged(persistence), 'refused settings requests never become successful commits')
 
 
 class SandboxWalkPilot(Pilot):
@@ -9996,7 +10206,12 @@ def game_leg_arguments(base_arguments, route, output, leg):
     return arguments
 
 
-def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_data=None, future_artifact=None):
+def game_leg_umask(route, future_format):
+    """Keep newly published nested-fixture artifacts private without changing other routes."""
+    return 0o077 if route == 'unsupported-save' and future_format == 'settings' else -1
+
+
+def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_data=None, future_artifact=None, future_format=None):
     require(route in ("zenith-torrent-handback", "zenith-return-reuse", "patrol-relay-home", "race-home", "heavy-breach", "retained-heavy", "corrupt-retained-heavy", "unsupported-save", "bomber-rearm", "cinder-supply", "hauler-supply", "arrow-return-reuse", "torrent-return-reuse", "torrent-damaged-return", "torrent-arrow-handoff", "guided", "courier-intercept", "courier-escape", "courier-withdraw-phase", "courier-withdraw-distance", "beacon-entry", "beacon-settlement", "beacon-home", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "crew-recovery", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
     require(not qualify_beacon_outbound or route == 'beacon-home',
             'outbound timing qualification requires the full beacon-home route')
@@ -10005,6 +10220,10 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
     require((route == 'unsupported-save') == (future_artifact is not None)
             and (future_artifact is None or future_artifact in UnsupportedSaveFiles.SUFFIX),
             'future-artifact is required only for unsupported-save and names one canonical placement')
+    require(future_format is None or (route == 'unsupported-save' and future_format in ('outer','settings')),
+            'future-format is valid only for the explicit unsupported-save route')
+    require(future_format != 'settings' or future_artifact == 'primary', 'nested settings qualify primary placement only')
+    unsupported_class = UnsupportedSettingsFiles if future_format == 'settings' else UnsupportedSaveFiles
     output.mkdir(parents=True, exist_ok=False)
     game = xvfb = desktop = pilot = None
     temporary_profile = None
@@ -10014,7 +10233,7 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
     retained_files = None
     corrupt_files = None
     unsupported_files = None
-    route_warnings = UnsupportedSaveFiles.WARNINGS if route == 'unsupported-save' else ()
+    route_warnings = unsupported_class.WARNINGS if route == 'unsupported-save' else ()
     zenith_files = None
     outbound_timing = None
     result = {'driver_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(), 'success': False, 'cap_seconds': CAP, 'binary': str(binary), 'native_gpu': 'NOT_RUN',
@@ -10030,9 +10249,10 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
             for name in ('data','config','cache','state','runtime','data-dirs','config-dirs','tmp'):
                 (profile/name).mkdir(mode=0o700)
             if route == 'unsupported-save':
-                unsupported_files = UnsupportedSaveFiles(profile, output, retained_data, future_artifact)
+                unsupported_files = unsupported_class(profile, output, retained_data, future_artifact)
                 result['retained_input'] = unsupported_files.fixture
                 result['future_artifact'] = future_artifact
+                result['future_format'] = future_format or 'outer'
                 result['expected_warnings_per_process'] = [warning.decode() for warning in route_warnings]
             if route == 'corrupt-retained-heavy':
                 corrupt_files = CorruptRetainedHeavyFiles(profile, output, retained_data)
@@ -10101,9 +10321,12 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
                     # The single timer above remains armed across both games.
                     desktop.keys([]); desktop.mouse(0, 0, False)
                     leg_arguments = game_leg_arguments(args, route, output, leg)
-                    game = subprocess.Popen(leg_arguments,cwd=binary.parent,env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,bufsize=0)
+                    leg_umask = game_leg_umask(route, future_format)
+                    game = subprocess.Popen(leg_arguments,cwd=binary.parent,env=env,stdout=subprocess.PIPE,
+                                            stderr=subprocess.STDOUT,bufsize=0,umask=leg_umask)
                     leg_result = {'pid': game.pid, 'leg': leg + 1, 'exit_code': None, 'reaped': False,
                                   'arguments': leg_arguments}
+                    if leg_umask != -1: leg_result['umask'] = oct(leg_umask)
                     if unsupported_files: leg_result['godot_log_path'] = leg_arguments[-1]
                     result['game_legs'].append(leg_result)
                     if leg == 0: result['game_pid'] = game.pid
@@ -10130,7 +10353,7 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
                     result['window'] = hex(window)
                     leg_result['window'] = hex(window)
                     desktop.focus(window)
-                    pilot = (UnsupportedSavePilot(unsupported_files, game.pid, cold=bool(leg)) if unsupported_files else (
+                    pilot = (unsupported_files.make_pilot(game.pid, cold=bool(leg)) if unsupported_files else (
                              (RetainedHeavyPilot(corrupt_files.expected, game.pid) if leg else
                               CorruptRetainedRepairPilot(corrupt_files.expected, game.pid)) if corrupt_files else
                              RetainedHeavyPilot(retained_files.expected, game.pid) if retained_files else
@@ -10464,9 +10687,11 @@ def main():
     parser.add_argument('binary')
     parser.add_argument('--output',required=True,type=Path)
     parser.add_argument('--retained-data', type=Path,
-                        help='exact accepted raw Heavy orderly-close save; required for retained-heavy, corrupt-retained-heavy or unsupported-save')
+                        help='raw fixture: accepted Heavy save for retained/outer routes, source-produced fixture for unsupported-save settings')
     parser.add_argument('--future-artifact', choices=('primary','temporary','backup'),
                         help='required only for unsupported-save; run exactly one canonical future-envelope placement')
+    parser.add_argument('--future-format', choices=('outer','settings'),
+                        help='unsupported-save format, default outer; settings requires primary and the source-produced fixture')
     parser.add_argument('--qualify-beacon-outbound', action='store_true',
                         help='qualify the fixed 60.0s outbound monotonic maximum within the unchanged full beacon-home route')
     parser.add_argument('--route', choices=('zenith-torrent-handback', 'zenith-return-reuse', 'patrol-relay-home', 'race-home', 'heavy-breach', 'retained-heavy', 'corrupt-retained-heavy', 'unsupported-save', 'bomber-rearm', 'cinder-supply', 'hauler-supply', 'arrow-return-reuse', 'torrent-return-reuse', 'torrent-damaged-return', 'torrent-arrow-handoff', 'guided', 'courier-intercept', 'courier-escape', 'courier-withdraw-phase', 'courier-withdraw-distance', 'beacon-entry', 'beacon-settlement', 'beacon-home', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'crew-recovery', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
@@ -10478,9 +10703,13 @@ def main():
         parser.error('--retained-data is required only for --route retained-heavy, corrupt-retained-heavy or unsupported-save')
     if (args.route == 'unsupported-save') != (args.future_artifact is not None):
         parser.error('--future-artifact is required only for --route unsupported-save')
+    if args.future_format is not None and args.route != 'unsupported-save':
+        parser.error('--future-format is valid only for --route unsupported-save')
+    if args.future_format == 'settings' and args.future_artifact != 'primary':
+        parser.error('--future-format settings requires --future-artifact primary')
     try: binary=validate_binary(args.binary)
     except ValueError as error: parser.error(str(error))
-    result=run(binary,args.output.absolute(),args.route,qualify_beacon_outbound=args.qualify_beacon_outbound,retained_data=args.retained_data,future_artifact=args.future_artifact)
+    result=run(binary,args.output.absolute(),args.route,qualify_beacon_outbound=args.qualify_beacon_outbound,retained_data=args.retained_data,future_artifact=args.future_artifact,future_format=args.future_format)
     print(json.dumps(result,indent=2))
     return 0 if result['success'] and result.get('inputs_released') and result['game_reaped'] and result['xvfb_reaped'] and result['input_helper_reaped'] else 1
 
