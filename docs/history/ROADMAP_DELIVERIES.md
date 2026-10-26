@@ -27820,3 +27820,69 @@ No owned branch exception remains; unrelated retired worktrees are untouched.
 Archive closure was39.943 cumulative minutes from05:22:30UTC including readiness,
 implementation, all checks, packaging and cleanup, within60minute estimate.
 Final Git closure cost remains recorded against that same clock in closeout.json.
+
+
+<a id="ember-pending-abandon-native-cold-restart-accepted-20261026"></a>
+## Exported Ember pending-abandon cold restart accepted — 2026-10-26
+
+Gameb30a9ea93a5fa7abbe00212e5bf8f3f668955db9, Driver7337dc543c986955890af05c337d98a3f34e1737; [Windows checkpoint](../../builds/windows/MuddsShipyards-b30a9ea-checkpoint.zip)
+and [matching Linux](../../builds/linux/MuddsShipyards-b30a9ea-linux-x86_64.tar.gz).
+Adds only pilot-context ember-abandon to the existing arm/resume runner, embedded
+probe and Boot allowlist. Existing ember first-relay resume/payment and default
+selectors retain their contracts; that accepted old case was not replayed.
+CLI privacy covers both stages/exact returned identity, contexts, display/audio,
+private input, malformed/duplicate selectors and competing early commands. Old
+Boot gate fails only the two intended positives in1.170s/OS1; final CLI passes.
+
+Actual corrected native case PASS195.383778s. Genuine held walking reaches the
+first relay and production save writes its ACTIVE checkpoint. Public Abandon
+accepts pending return and commits the existing passive decline. Driver reads
+actual .bak bytes equal to captured prewire, actual primary equal postwire,
+direct generation+1/parent_generation/parent_id chain, production outer/nested
+receipt hashes, original runtime archive and exact non-Ember payload. The paused
+cut is killed/reaped SIGKILL-9 PID2066564; both files remain byte-identical.
+Distinct Boot PID2066836 consumes the same private files, observes one crash,
+restores no old location/checkpoint, reaches supported yard control and real
+new pilot boarding. The disclosed new visit starts at relay index0, while old
+index1 remains passive; both process-local activity generations happen to be1,
+which is not treated as global freshness. Resume exits0 with one terminal
+IN_WORLD_RECOVERY_OK, no diagnostics; children are reaped. Final archive/complete
+reward ledger/foreign settings and genuine idle cargo manifest remain exact.
+Actual final active slot is absent; prospective current-zero record is validated
+without writing, so a legitimate future quit save is permitted by the protocol.
+
+First native attempt b30/driverb30 stays FAILED116.544130s before planned kill or
+restart. Only two coordinate decimal spellings differed after Godot parsed its
+full-precision wire; receipt hashes, route, parent chain and actual primary stayed
+correct. Runtime-normalized envelope comparison replaces Python prewire-number
+equality, preserving exact raw bytes and existing production receipt identities.
+No epsilon/schema/version change. Offline execution of the actual corrected AST
+accepts the captured case and refuses altered receipt/route/foreign data/backup.
+Source review and cumulative priority approved one bounded driver-only continuation.
+Game/runtime/test/assets and actual EXE/ELF/archive hashes stayed unchanged; no
+identical re-export was fabricated. First failure source/raw/status remain intact.
+
+Nine exact-game checks are retained from b30: import, CLI privacy, probe parse,
+paired exports, three strict startups and package audit. Shell/embedded Python
+and corrected native scenario rerun on driver7337. All retained/current checks
+exit0 without diagnostics; strict startups require actualOS0 and exactly one
+STARTUP_MENU_READY_OK. Actual PE/ELF inventories match1527 entries with only
+compiled in-world probe and Boot changes versus34f60da; stock PE engine code,
+source identity and exact Linux archive bytes/modes/source epoch verify.
+Independent final source/actual-document review GO. Game/driver identities remain
+explicit; native export uses its own embedded code without external overrides.
+
+Native pre-abandon SHA256 4541c1c52b7b3ef1c447546b4792fa66581132ee1740c052217b524054530f73;
+declined primary bf9d97bf6895d1000c7c38790dd9cdb28c14b94dfb887249927a03973949692d;
+final primary 6cc14b0aa7f544fd0130bae413772d34511f976e61de58d2d762cc9ea2124195.
+All automated Godot is headless/Dummy with private profiles. Initial orbital/
+corridor placement and shortened boarding are disclosed. Canonical ordinary
+outbound, standing-pose restoration, physical return home/exit/reuse, completed
+Ember earned-debt disk proof, ordinary quit-save, installed/shared/full-world/
+final gates remain open or NOT_RUN/NOT_SUPPORTED as applicable. Native Windows,
+GPU/devices/audible/rendered/player review are NOT_RUN; owner exclusions retained.
+GitHub Actions remains disabled; no Downloads publication. All cost from
+2026-10-26T06:03:21UTC includes readiness, failed native attempt/correction and
+closure against60minute estimate; no300/660 cap or task clock changed. Source/raw
+archive, process/branch/scratch closure live in
+`/srv/mudds-work/ember-abandon-cold-probe-20261026/closeout.json` after closure.

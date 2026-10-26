@@ -1,16 +1,16 @@
 # Development roadmap
 
 **Playable alpha; full original scope remains unfinished.** Latest Windows build:
-[34f60da checkpoint](builds/windows/MuddsShipyards-34f60da-checkpoint.zip)
-([changes and validation](builds/windows/MuddsShipyards-34f60da-notes.txt)).
-Matching [Linux checkpoint 34f60da](builds/linux/MuddsShipyards-34f60da-linux-x86_64.tar.gz)
-([Linux validation](builds/linux/MuddsShipyards-34f60da-linux-notes.txt)) is available.
-Explicitly abandoning a solo Ember expedition now declines its observed saved
-checkpoint before cancellation, preserving earned debt and prior data when writes fail.
-A new visit in the same or a fresh GameFlow no longer reuses the abandoned
-incomplete checkpoint. Source fixture/guard/manual-return and package checks
-pass; ordinary full travel and real-file OS restart remain unqualified. Prior
-Aurora/Rime credit, cabin-contact and Zenith results retain their recorded scope.
+[b30a9ea checkpoint](builds/windows/MuddsShipyards-b30a9ea-checkpoint.zip)
+([changes and validation](builds/windows/MuddsShipyards-b30a9ea-notes.txt)).
+Matching [Linux checkpoint b30a9ea](builds/linux/MuddsShipyards-b30a9ea-linux-x86_64.tar.gz)
+([Linux validation](builds/linux/MuddsShipyards-b30a9ea-linux-notes.txt)) is available.
+The existing package workflow now qualifies an Ember pending-abandon real-file
+kill/restart cut: the old relay checkpoint stays passive and a fresh Boot/visit
+starts at observation zero without payment. Gameplay remains from accepted34f60da;
+this is a release capability and qualification, not an ordinary full world trip.
+Physical home/exit/reuse, completed-debt disk recovery, ordinary quit-save and
+native hardware requirements remain open; prior results retain recorded scope.
 Nine of the promised 17 craft exist. All 36 original parent outcomes and ten phase
 exit gates remain open; completed child results are retained, not counted as whole
 features. There is no evidence-backed project percentage or completion date.
@@ -88,36 +88,37 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Selected release capability: exported Ember abandonment/restart probe.**
-Existing WORLD-SAVE/WORLD-ABANDON pending-abandon cut, distinct from the already
-accepted first-relay resume/payment case. Add only pilot-context `ember-abandon`
-to the existing arm/resume package workflow. The arm process genuinely walks to
-the first relay, saves through the production owner, invokes public Abandon and
-pauses at accepted pending return. Driver independently reads the preceding
-primary from actual `.bak`, verifies exact saved wire bytes and the decline's
-parent generation/commit chain, then reads the declined primary: old active slot
-absent, exact original under its passive key, zero reward and protected foreign
-payload unchanged. Owned SIGKILL must reap-9 and preserve both documents.
+**Delivered release capability: exported pending-abandon cold restart.**
+Gameb30a9ea93/driver7337dc543, checkpointb30a9ea: one exact native Linux
+ELF run passes195.384s under original300s per game/660s outer. The real first-
+relay save is declined through public Abandon while physical return is pending.
+Independent .bak/primary reads verify raw bytes, direct CAS ancestry, unchanged
+production receipt identity and foreign data. Planned SIGKILL reaps2066564/-9;
+a distinct Boot2066836 exits0 after safe-yard control, new boarding and a fresh
+admitted survey at index0. No old checkpoint/location adoption or reward occurs.
+Actual final ledger, original passive archive and foreign payload remain exact;
+no new quit checkpoint was saved in this run. All owned children are reaped.
+[Actual proof, limits and closure](docs/history/ROADMAP_DELIVERIES.md#ember-pending-abandon-native-cold-restart-accepted-20261026).
 
-A distinct Boot process uses the same files, reaches supported safe-yard play
-without old location/checkpoint adoption or automatic payment, boards again and
-uses the existing disclosed orbital/corridor placement to admit a fresh survey
-at checkpoint zero. Final primary must preserve the old passive record and zero
-ledger; any new active receipt must describe only that actual fresh zero-progress
-visit, never the abandoned first-relay progress. Existing `ember` and default
-selectors retain their original contracts. No new handshake/protocol framework,
-save schema or validator family is selected.
+First native trial stays FAILED116.544s before restart: its driver compared two
+coordinate wire decimals that Godot re-encodes after parsing, despite unchanged
+receipt hashes/route. One reviewed driver-only correction uses the already
+validated pre-abandon runtime envelope, retaining raw-file/hash/CAS/foreign-data
+fences, with no epsilon or cap change. Captured offline check and four corrupt
+controls pass. Game/runtime/test/assets and actual artifact hashes are unchanged;
+nine exact-game checks are retained, driver syntax/compile rerun and corrected
+native case passes. Three strict startups and1527-entry PE/ELF audit pass; only
+probe and Boot compiled scripts differ from34f60da. Original CLI gate rejected
+only the two new stage positives before the three-line Boot change.
 
-Implementer owns the existing runtime probe and shell driver; root owns Boot
-allowlist/CLI privacy tests, source freeze, paired export/strict startups, one
-exact native-export probe run, integration/push/archive/branch cleanup. One
-independent process/persistence reviewer checks actual documents and ownership.
-Retain original300s per process/660s outer, headless/Dummy and isolated files;
-stop at the first unexpected failure and preserve source/raw before causal review.
-Estimate60minutes including readiness/build/probe/closure, conservatively from
-previous89a738f21 commit. This qualifies a pending-return disk interruption cut,
-not physical home/exit/reuse, completed earned-debt disk recovery, ordinary full
-travel or native hardware. Those original gates remain open.
+Scenario uses real files/two OS processes with disclosed boarding timings and
+orbital/corridor placement. It is a pending-return cut, not home/exit/reuse,
+ordinary OS-input travel or completed-debt disk proof. Standing-pose restoration
+is NOT_SUPPORTED. Ordinary Ember quit capture remains an unresolved source gap;
+the protocol permits a valid future fresh-zero quit checkpoint rather than
+requiring that gap to persist. Existing ember/default case is unchanged and not
+replayed. All work includes readiness, failure/correction and closure from
+06:03:21UTC against60minute estimate; no task clock or original cap was reset.
 
 **Delivered production repair: saved Ember checkpoint abandonment.**
 Checkpoint 34f60da uses the existing Ember planner for one atomic decline of the
