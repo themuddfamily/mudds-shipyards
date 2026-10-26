@@ -112,6 +112,19 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Selected qualification/release capability: INSTALL-LINUX-CORRUPT confirmed repair and cold continuation.**
+
+| Field | Frozen assignment |
+| --- | --- |
+| Result | An actually installed checkpoint loads an earned-progress backup despite a corrupt primary, accepts explicit repair through normal keyboard Settings, then a distinct game process loads the repaired progress and remains usable. |
+| Start | Baseline8c8b89f8f; branch/worktree `roadmap/installed-corrupt-repair-20261026` at `/srv/mudds-work/installed-corrupt-repair-20261026/worktree`. Exact b4 Heavy save9296bytes/SHA256 `af2fada0a687b3a2dad6ee5c4550d4e6cd92120f2df94f6681f053e5b23ed409` as valid backup; corrupt primary literal `{corrupt`8bytes/SHA256 `98e8e66d98f45504a80923203572020d15c102340a21a5201c92c598a7e34b69`, mode0600. Caller/observer/tests only; no new recovery policy. |
+| Steps | Existing shipped installer→owned prefix/launcher/payload checks→strict installed startup→existing native-sortie caller's corrupt-retained-heavy route. First game: backup load→normal Begin Shift→Escape/Settings/CONFIRM BACKUP REPAIR through XTest keyboard→observe repaired primary and quit/reopen instruction→normal HUD Quit/OS0. Same binary/profile/display, distinct second Boot: repaired primary→normal Begin Shift→all three existing supported waypoints→actual unarmed next Torpedo posting→normal HUD Quit/OS0. Shipped uninstall preserves protected fixtures. |
+| Pass/fail | Whole two-game route keeps original300s, independent330s; installed transaction outer360s. Default60Hz/time_scale1, original walking/focus/claim/input/cleanup guards. Backup stage preserves exact primary/backup and creates exact bad-byte .recovery; startup write refusal remains truthful. One confirmed repair successor preserves entire payload/valid backup through first exit, without claiming a healthy first startup. Cold actual live ledger/paid Heavy acknowledgement/settings retain credit1; session2→3, no reward replay; final safe/crash markers clean. Bad recovery bytes persist; later valid backup rotation follows production policy. Exact installed archive bytes/modes/launcher and five unowned/save fixtures survive uninstall. |
+| Proof | Extend existing `tools/release/run_native_sortie.py BINARY --route corrupt-retained-heavy --retained-data /srv/mudds-work/installed-corrupt-repair-20261026/retained-heavy.json --output /srv/mudds-work/installed-corrupt-repair-20261026/transaction/corrupt-repair`. Existing negative Python guards, clean source import/privacy checks, paired exports/three strict startups/PCK audit, then exactly one full installed ordinary two-process route. |
+| Dependencies | Reuse source-confirmed repair/once-only startup policy and shipped2456552 quit/reopen guidance, pinned earned fixture, accepted installer/retained-heavy driver. Final-package identity/rendered desktop/native hardware gates remain open. |
+| Stop | Shared clock2026-10-26 19:31:09UTC;90min including build/review/archive/push/cleanup, hard21:01:09UTC. First unexpected failure stops; no automatic retry, weakened namespace guard or reset budget. |
+| Closure | Record exact PASS or first failed predicate; integrate/push accepted source and paired checkpoint; archive raw and protected source; verify owned process/worktree/branch/scratch cleanup. |
+
 **Accepted: backup-repair restart guidance, checkpoint2456552.**
 Confirmed backup repair now tells the player to quit and reopen the game when
 startup recovery was blocked. The actual Settings label passes at1024×768 and
