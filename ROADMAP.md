@@ -19,6 +19,11 @@ such as “finish the fleet” groups work; it cannot be assigned or reported as
 completed task. An unresolved contract stays blocked until its missing values
 are recorded. Writing a more detailed plan does not close its product goal.
 
+Report each selected goal as **result → proof → remaining work → cumulative
+time**. A closed goal stays closed unless an identified source change invalidates
+its proof. When acceptance is recorded, update both the selected card and its
+existing detailed backlog binding so stale “missing” text cannot schedule it again.
+
 Only a goal with a frozen result and proof can enter the work queue. Every selected
 assignment must fit this sentence:
 
@@ -99,21 +104,63 @@ cost charged from the same original start. The retired exact15tick procedure
 was an executor assumption; the physical predicates were fixed before trial3.
 [Actual result, failed trials and limits](docs/history/ROADMAP_DELIVERIES.md#zenith-pilot-hit-home-reuse-accepted-20261026).
 
-**Definition delivered: CRAFT-ACCEPT-BULWARK finite acceptance binding.**
-Its [13 original journey members](docs/ROADMAP_BACKLOG.md#bulwark-finite-acceptance-binding)
-now name physical actions, authoritative values, production owners, retained
-proof and exact Codex-owned route/input/candidate/limit gaps. Reuse the existing
-capability map and accepted host+one-client gunner result only in their stated
-scopes. Current solo gunner Fire already requests weapon power without helm or
-dock-latch authority; no engine-rule change or extra player is needed merely to
-fire. Separate concurrent moving pilot/gunner acceptance remains required.
+**PARKED: CRAFT-ACCEPT-BULWARK ordinary solo gunner journey.**
+No implementation or qualification retry is selected. Six ordinary-route trials
+remain FAILED. The latest candidate `96197bf` failed the frozen outward-flight
+15s bound after101.287s; it never reached gunner acceptance. The supervisor's
+final source guard also failed because a separately authorized Zenith roadmap
+edit changed the working tree during the frozen run. That provenance failure is
+retained alongside the runtime failure, not repaired by relabelling the result.
+Inputs were released and game/input helper/Xvfb reaped; all49 recorded stage
+supervisors were absent at2026-10-26T04:37:58UTC. No checkpoint was published.
+Cumulative elapsed cost was120.42minutes from the same original02:37:33UTC
+start, exceeding the90minute estimate; closure time continues against that goal.
+Unique source and raw results remain on `feat/bulwark-gunner-home-20261026` and
+`/srv/mudds-work/bulwark-gunner-home-20261026/`; this unfinished branch is a
+retained exception, not completed work eligible for deletion.
 
-This is a source definition, not a gameplay delivery. Bulwark stays open; its
-ordinary admission, pilot/gunner hit/repair/loss/home/reuse/Torrent-handback routes
-and combined executable limits still need binding. Existing Main gunner checks
-are reused; no new reload feature, speculative physical role, engine test, export
-or checkpoint was created. Original17craft/36parents/337records are preserved.
-No successor or repeated capability survey is selected by this definition.
+Reopening requires a demonstrated cause and bounded correction for the actual
+outward-flight failure, an independent cumulative-priority decision and a clean
+frozen candidate. The original complete contract and limits below remain fixed;
+the passing carried-floor regression alone does not close this journey.
+
+The [finite acceptance binding](docs/ROADMAP_BACKLOG.md#bulwark-finite-acceptance-binding)
+is retained. This selected executable release capability must start at normal
+Begin Shift, physically walk/board Dock03, fly the actual Bulwark clear, brake
+and neutral-idle to OFFLINE, then Interact into its supported carried cabin.
+Walk its real aisle and claim the gunner; native default-HOLD Fire must wake
+weapon power without helm and resolve one source1107/picket_siege_lance22-point
+hit on actual DRONE-03 (100→78), preserving560m/.45scharge/4.8scooldown and2→1ammo.
+Release, physically stand/walk/reseat with fresh claim, then stand/walk/reclaim
+pilot; return to strict own home, neutral automatic OFFLINE, exterior exit and
+supported clear walking, normal HUD Exit/OS0 and both real durable clean states.
+
+Implementer owns existing observer/native driver/Python fixtures; root owns
+startup/privacy, exact-source checks, paired checkpoint, integration/push/cleanup;
+one independent lifecycle/source reviewer. Geometry/input and receipts received
+preimplementation review GO. The selected coordinates below are engineering
+route choices, not new historical performance promises.
+
+| Boundary | Frozen route / observable result |
+| --- | --- |
+| Dock03 admission | LIFE-ARM prefix through fleet_trunk, then world `[37,4.2,68.3]→[52,4.2,68.3]→[52,6.6,58.9]→[49,6.6,58.9]` and actual boarding marker; stay on the ramp centre before the upper-deck turn |
+| Clear flight and genuine carry | Live dock-relative `[0,0,-20]→[0,20,-50]→[0,20,-140]`; upright/outward native+consumed forward input produces actual speed≥12m/s and<30, then all propulsion releases and90neutral/OFFLINE. Actual hull displacement≥.10m **during** the supported aisle walk; all tail samples retained |
+| Physical cabin | Live hull-local `[-.62,1.33,.40]→[-.62,1.33,1.80]→[1.25,1.33,1.80]→[1.25,1.33,.65]`; actual capsule/frame support, containment and current physical gunner claim |
+| Finish exterior walking | After pilot reclaim and strict home/OFFLINE/exit: world `[49,6.6,58.9]→[52,6.6,58.9]→[52,4.2,68.3]`; actual raised-deck/ramp support before normal HUD Exit |
+
+Native300s/outer360s are executor abort bounds,
+not a historical full-craft deadline; walk/cabin15s, boarding/seat12s, hit25s,
+exit10s and actual Hero landing timeout/4sstall remain. No staged poses, direct
+input injection inside the game, target/damage/timer changes, pilot shots or
+extra helm authority. Every observation and actual release tail is retained.
+
+Estimate90minutes from2026-10-26T02:37:33UTC including checks/build/closure;
+this is an engineering estimate, not a user budget. Stop the current pipeline
+on first unexpected failure and retain source/raw for causal review; any later
+continuation retains cumulative cost. Other pilot second-flight/full component
+repair/loss/Torrent handback/Main/art/network/final gates remain OPEN. No test,
+engine or export runs before completed-source review. Titan remains blocked on
+its recorded design choice; no answer is assumed.
 
 <a id="concrete-pending-capability-ember-surface-loop-captions"></a>
 ### Ember surface-loop captions: accepted capability contract
