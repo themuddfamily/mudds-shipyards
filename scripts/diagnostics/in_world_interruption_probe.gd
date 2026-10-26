@@ -88,6 +88,9 @@ func run_with_main(game: GameFlow, entry: String) -> void:
 	if activity == "ember":
 		await _run_ember(game, store, entry)
 		return
+	if activity == "ember-abandon":
+		await _run_ember_abandon(game, store, entry)
+		return
 	if activity == "hulk":
 		await _run_hulk(game, store, entry)
 		return
@@ -2696,6 +2699,238 @@ func _ember_document_text(store: UserDataStore, boundary: Dictionary) -> String:
 		and int(document.get("generation", -1)) == store.get_generation() \
 		and document.get("commit", {}) == store.get_commit_metadata(),
 		"the actual persisted Ember document matches the retained runtime boundary")
+	return text
+
+
+## Separate release scenario: cut immediately after durable explicit abandon,
+## while the real on-foot Host is still waiting for the player to board. This
+## qualifies neither the return home nor completed earned-debt recovery.
+func _run_ember_abandon(game: GameFlow, store: UserDataStore, entry: String) -> void:
+	if recovery_context != "pilot":
+		_fail("Ember abandon interruption requires the existing real pilot visit")
+		return
+	var key := "ember_relay_survey_completion"
+	var archive_key := key + "_declined"
+	var main_id := game.get_instance_id()
+	var craft := game.get_flyable_ships()[1] as HeroShip
+	var boundary: Dictionary = store.get_snapshot().get(archive_key, {}).duplicate(true)
+	var crash_events := 0
+	var safe_observation := {}
+	var boot_observation := {}
+	var boot_persistence := game.get_ember_interrupted_journey_persistence_report()
+	game.canopy_motion_time = 0.01
+	game.boarding_motion_time = 0.02
+	if stage == "arm":
+		game.call("_on_settings_save_requested")
+		# Retain the existing engineer probe's real initial-manifest boundary.
+		# Its ordinary persisted reset leaves cargo idle during the Ember visit.
+		var cargo_started := game.cargo_delivery_activity.start(game.cargo_delivery_activity.get_generation())
+		var cargo_saved := game.save_jovian_cargo_session()
+		var cargo_reset := game.cargo_delivery_activity.reset_with_persistence(
+			game.cargo_delivery_activity.get_generation(), game.save_jovian_cargo_session)
+		_check(cargo_started.accepted and cargo_saved.accepted and cargo_reset.accepted
+			and game.cargo_delivery_activity.get_state() == CargoDeliveryActivity.State.IDLE
+			and not store.get_snapshot().get("jovian_cargo_session", {}).is_empty(),
+			"Ember abandon saves an actual unrelated idle cargo manifest before the visit")
+		game.start_shift()
+		game.call("_board_ship", craft)
+		_check(await _wait_for_real_pilot(game, craft),
+			"Ember abandon arm acquires the real yard pilot before disclosed flight placement")
+	else:
+		var recovery := game.get_recovery_available_snapshot()
+		for event: Dictionary in game.get_session_recovery_diagnostic_snapshot().get("events", []):
+			if event.get("event_code") == "crash_detected":
+				crash_events += 1
+		_check(not boundary.is_empty() and not store.get_snapshot().has(key)
+			and not boundary.get("completion", {}).get("route_identity", {}).get("complete", true)
+			and not boot_persistence.get("adopted", true)
+			and not boot_persistence.get("restore_status", {}).get("checkpoint_resume", {}).get("accepted", false)
+			and _ember_receipts(game) == 0 and crash_events == 1 and not recovery.is_empty()
+			and game.ember_surface_loop_host.get_phase() == EmberSurfaceLoopHost.Phase.IDLE,
+			"a distinct Boot retains the declined incomplete receipt without adopting its location, route or reward")
+		if not _failures.is_empty():
+			_fail("cold Ember abandon recovery requires the actual declined boundary")
+			return
+		boot_observation = _interruption_runtime_observation(game)
+		var stale: Dictionary = game.call("_handle_hud_session_recovery_choice", &"normal_start",
+			int(recovery.session_id) + 1, int(recovery.startup_generation))
+		_check(not stale.get("accepted", false), "Ember abandon recovery refuses a stale Resume fence")
+		var resumed: Dictionary = game.call("_handle_hud_session_recovery_choice", &"normal_start",
+			int(recovery.session_id), int(recovery.startup_generation))
+		game.start_shift()
+		await _settle_frames(4)
+		var yard := _interruption_runtime_observation(game)
+		_check(resumed.get("accepted", false) and not game.player.is_seated()
+			and game.player.is_control_enabled() and not game.active_ship.is_piloted()
+			and game.ember_surface_loop_host.get_phase() == EmberSurfaceLoopHost.Phase.IDLE
+			and not store.get_snapshot().has(key) and store.get_snapshot().get(archive_key, {}) == boundary
+			and _ember_receipts(game) == 0,
+			"fenced Resume reaches the ordinary yard on foot with no old surface visit or payment")
+		game.call("_board_ship", craft)
+		var settled := await _wait_for_real_pilot(game, craft)
+		var area := craft.get_node("ShipBoardingArea") as ShipBoardingArea
+		var berth := game.world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
+		_check(settled and area.get_reservation_token() == game.player and berth.get_occupant() == craft
+			and berth.get_reservation_owner() == craft
+			and craft.global_position.distance_to(game.world.get_berth_transform(craft.get_home_berth_id()).origin) < 0.1,
+			"Ember abandon recovery boards the actual craft at its ordinary home berth")
+		safe_observation = _interruption_runtime_observation(game)
+		safe_observation["cold_yard_before_boarding"] = yard
+	var foreign_settings: Dictionary = store.get_snapshot().get("runtime_settings", {}).duplicate(true)
+	var foreign_cargo: Dictionary = store.get_snapshot().get("jovian_cargo_session", {}).duplicate(true)
+	if not _failures.is_empty() or not await _ember_enter_on_foot(game, craft):
+		_fail("Ember abandon requires the real cruise, landing, disembark and authored egress")
+		return
+	var host := game.ember_surface_loop_host
+	var identities := host.get_snapshot().get("identities", {}) as Dictionary
+	_check(identities.get("player_instance_id") == game.player.get_instance_id()
+		and identities.get("ship_instance_id") == craft.get_instance_id()
+		and game.player.is_on_floor() and not game.player.is_seated() and game.player.is_control_enabled(),
+		"the new process actors own the actual admitted standing survey")
+	if stage == "arm":
+		_check(await _ember_walk_axis(game, "z", -44.0, false, &"move_left", 600)
+			and await _ember_walk_axis(game, "x", 180.0, true, &"move_forward", 1800),
+			"Ember abandon reaches the first real relay by ordinary held walking")
+		var route := _ember_route(game).duplicate(true)
+		var saved := game.save_interrupted_ember_journey()
+		boundary = store.get_snapshot().get(key, {}).duplicate(true)
+		var saved_document_json := _ember_document_text(store, boundary)
+		_check(saved.get("accepted", false) and saved.get("binding_reason") == &"active_journey_saved"
+			and route.get("next_checkpoint_index") == 1 and not route.get("complete", true)
+			and _ember_receipts(game) == 0,
+			"Ember abandon starts from a real durable incomplete first-relay save")
+		if not _failures.is_empty():
+			get_tree().quit(1)
+			return
+		var saved_observation := _interruption_runtime_observation(game)
+		# No await or additional commit separates the actual save and decline.
+		# UserDataStore rotates that exact primary to .bak during the one CAS;
+		# the driver independently reads both files at the paused boundary.
+		var generation := store.get_generation()
+		var abandoned := game.abandon_ember_surface_journey()
+		get_tree().paused = true
+		var payload := store.get_snapshot()
+		_check(abandoned.get("accepted", false) and abandoned.get("reason") == &"ember_surface_abandon_pending_return"
+			and host.get_abandon_snapshot().get("requested", false)
+			and not payload.has(key) and payload.get(archive_key, {}) == boundary
+			and store.get_generation() == generation + 1
+			and _ember_receipts(game) == 0
+			and payload.get("runtime_settings", {}) == foreign_settings
+			and payload.get("jovian_cargo_session", {}) == foreign_cargo,
+			"public explicit abandon atomically declines the exact saved receipt while awaiting real reboarding")
+		var declined_document_json := _ember_abandon_document_text(store, boundary)
+		if not _failures.is_empty():
+			get_tree().quit(1)
+			return
+		print("IN_WORLD_INTERRUPTION_READY: " + JSON.stringify({"activity": activity,
+			"entry": entry, "recovery_context": recovery_context, "loaded_main_instance_id": main_id,
+			"boundary": boundary, "route": route, "receipts": 0,
+			"saved_document_json": saved_document_json, "declined_document_json": declined_document_json,
+			"abandon_result": abandoned, "abandon_state": host.get_abandon_snapshot(),
+			"runtime_observation": saved_observation, "foreign_settings": foreign_settings, "foreign_cargo": foreign_cargo,
+			"initial_flight_placements": EMBER_PROBE_PLACEMENTS, "canonical_outbound": "NOT_RUN",
+			"standing_pose_restore": "NOT_SUPPORTED", "abandon_return_home": "NOT_RUN",
+			"completed_earned_debt": "NOT_RUN"}, "", true, true))
+		return
+	var route := _ember_route(game).duplicate(true)
+	var restore := game.get_ember_interrupted_journey_persistence_report()
+	_check(route.get("next_checkpoint_index") == 0 and route.get("next_objective_id") == "ember_relay_tower"
+		and not route.get("complete", true) and not restore.get("adopted", true)
+		and not restore.get("restore_status", {}).get("checkpoint_resume", {}).get("accepted", false)
+		and not store.get_snapshot().has(key) and store.get_snapshot().get(archive_key, {}) == boundary
+		and _ember_receipts(game) == 0,
+		"a legitimate new physical arrival starts at observation zero without old progress or automatic payment")
+	_check(not foreign_settings.is_empty() and not foreign_cargo.is_empty()
+		and store.get_snapshot().get("runtime_settings", {}) == foreign_settings
+		and store.get_snapshot().get("jovian_cargo_session", {}) == foreign_cargo,
+		"the fresh survey preserves exact unrelated settings and cargo")
+	# Capture the one legitimate receipt an ordinary quit could write for THIS
+	# new visit. This uses existing production contracts without saving it, and
+	# no frame advances before the orderly-close/quit sequence below.
+	var prospective := _ember_prospective_journey_record(game, store)
+	_check(prospective.get("accepted", false),
+		"the fresh visit has a valid prospective current-zero checkpoint without a persistence write")
+	if not _failures.is_empty():
+		get_tree().quit(1)
+		return
+	var closed := game.mark_orderly_shutdown()
+	_check(closed.get("accepted", false) and game.get_instance_id() == main_id,
+		"the distinct recovered Main closes its existing recovery markers")
+	var final_document_json := _ember_abandon_document_text(store, boundary)
+	if not _failures.is_empty():
+		get_tree().quit(1)
+		return
+	print("IN_WORLD_RECOVERY_OK: " + JSON.stringify({"activity": activity, "entry": entry,
+		"recovery_context": recovery_context, "loaded_main_instance_id": main_id,
+		"boundary": boundary, "receipts_before": 0, "receipts_after": _ember_receipts(game), "crash_events": crash_events,
+		"boot_persistence": boot_persistence, "boot_observation": boot_observation,
+		"safe_recovery_observation": safe_observation, "runtime_observation": _interruption_runtime_observation(game),
+		"fresh_route": route, "fresh_persistence": restore, "final_document_json": final_document_json,
+		"prospective_fresh_record": prospective.record, "prospective_fresh_record_valid": true,
+		"foreign_settings": foreign_settings, "foreign_cargo": foreign_cargo, "assertions": _assertions,
+		"initial_flight_placements": EMBER_PROBE_PLACEMENTS,
+		"continuation_method": "explicit_abandon_pending_cut_then_cold_yard_and_legitimate_new_survey",
+		"canonical_outbound": "NOT_RUN", "standing_pose_restore": "NOT_SUPPORTED",
+		"abandon_return_home": "NOT_RUN", "completed_earned_debt": "NOT_RUN"}, "", true, true))
+	get_tree().quit(0)
+
+
+func _ember_prospective_journey_record(game: GameFlow, store: UserDataStore) -> Dictionary:
+	var generation := store.get_generation()
+	var evidence: Dictionary = game.call("_collect_ember_interrupted_journey_save_evidence")
+	if not evidence.get("accepted", false):
+		return evidence
+	var host := evidence.get("host", {}) as Dictionary
+	var route := evidence.get("route", {}) as Dictionary
+	var coordinate := evidence.get("coordinate", {}) as Dictionary
+	var contract := PlanetarySaveSessionContract.new(&"ember_moon", evidence.get("frame") as PlanetaryCoordinateFrame)
+	var begun := contract.begin_session(StringName("ember_expedition_%010d_%010d" % [
+		int(host.get("generation", 0)), int(route.get("activity_generation", 0))]),
+		int(host.get("attachment_generation", 0)), int(host.get("coordinate_frame_generation", 0)))
+	if not begun.get("accepted", false):
+		return begun
+	var checkpoint := contract.save_surface_checkpoint(int(host.get("attachment_generation", 0)),
+		int(host.get("coordinate_frame_generation", 0)), int(host.get("physics_advance_count", 0)),
+		coordinate.get("orbital_coordinate", {}) as Dictionary,
+		coordinate.get("surface_tangent_position", Vector3.ZERO) as Vector3,
+		{"activity_id": str(route.get("activity_id", "")),
+			"journey_phase_id": str(host.get("phase_id", "")),
+			"route_checkpoint_index": int(route.get("next_checkpoint_index", -1))})
+	if not checkpoint.get("accepted", false):
+		return checkpoint
+	var detached := contract.detach_session(int(host.get("attachment_generation", 0)),
+		int(host.get("coordinate_frame_generation", 0)))
+	if not detached.get("accepted", false):
+		return detached
+	var captured := PlanetaryReturnPersistenceAdapter.new().capture_interrupted_journey(contract,
+		{"route_identity": route, "optional_progress": evidence.get("optional_progress", {})})
+	if not captured.get("accepted", false):
+		return captured
+	var persistence := EmberRelaySurveyPersistenceBinding.new()
+	var configured := persistence.configure(store, &"ember_relay_survey_completion")
+	if not configured.get("accepted", false):
+		return configured
+	var recovery: Dictionary = persistence.call("_wire_copy", captured)
+	var record := {"schema_version": float(EmberRelaySurveyPersistenceBinding.SCHEMA_VERSION),
+		"payload_kind": EmberRelaySurveyPersistenceBinding.ACTIVE_JOURNEY_PAYLOAD_KIND,
+		"slot_id": "ember_relay_survey_completion", "completion": recovery,
+		"receipt_sha256": persistence.call("_digest", recovery)}
+	var validated := persistence.validate_interrupted_journey_record(record)
+	if not validated.get("accepted", false):
+		return validated
+	return {"accepted": store.get_generation() == generation,
+		"record": record, "reason": &"fresh_current_checkpoint_captured_without_write"}
+
+
+func _ember_abandon_document_text(store: UserDataStore, boundary: Dictionary) -> String:
+	var text := FileAccess.get_file_as_string(str(store.get("_path")))
+	var document: Variant = JSON.parse_string(text)
+	_check(document is Dictionary and document.get("payload") is Dictionary
+		and not document.payload.has("ember_relay_survey_completion")
+		and document.payload.get("ember_relay_survey_completion_declined", {}) == boundary
+		and int(document.get("generation", -1)) == store.get_generation()
+		and document.get("commit", {}) == store.get_commit_metadata(),
+		"the actual primary file retains the exact declined receipt with no active recovery slot")
 	return text
 
 

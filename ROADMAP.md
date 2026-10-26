@@ -88,6 +88,37 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Selected release capability: exported Ember abandonment/restart probe.**
+Existing WORLD-SAVE/WORLD-ABANDON pending-abandon cut, distinct from the already
+accepted first-relay resume/payment case. Add only pilot-context `ember-abandon`
+to the existing arm/resume package workflow. The arm process genuinely walks to
+the first relay, saves through the production owner, invokes public Abandon and
+pauses at accepted pending return. Driver independently reads the preceding
+primary from actual `.bak`, verifies exact saved wire bytes and the decline's
+parent generation/commit chain, then reads the declined primary: old active slot
+absent, exact original under its passive key, zero reward and protected foreign
+payload unchanged. Owned SIGKILL must reap-9 and preserve both documents.
+
+A distinct Boot process uses the same files, reaches supported safe-yard play
+without old location/checkpoint adoption or automatic payment, boards again and
+uses the existing disclosed orbital/corridor placement to admit a fresh survey
+at checkpoint zero. Final primary must preserve the old passive record and zero
+ledger; any new active receipt must describe only that actual fresh zero-progress
+visit, never the abandoned first-relay progress. Existing `ember` and default
+selectors retain their original contracts. No new handshake/protocol framework,
+save schema or validator family is selected.
+
+Implementer owns the existing runtime probe and shell driver; root owns Boot
+allowlist/CLI privacy tests, source freeze, paired export/strict startups, one
+exact native-export probe run, integration/push/archive/branch cleanup. One
+independent process/persistence reviewer checks actual documents and ownership.
+Retain original300s per process/660s outer, headless/Dummy and isolated files;
+stop at the first unexpected failure and preserve source/raw before causal review.
+Estimate60minutes including readiness/build/probe/closure, conservatively from
+previous89a738f21 commit. This qualifies a pending-return disk interruption cut,
+not physical home/exit/reuse, completed earned-debt disk recovery, ordinary full
+travel or native hardware. Those original gates remain open.
+
 **Delivered production repair: saved Ember checkpoint abandonment.**
 Checkpoint 34f60da uses the existing Ember planner for one atomic decline of the
 exact observed receipt before accepted explicit solo abandonment. Read-only current Host/session/

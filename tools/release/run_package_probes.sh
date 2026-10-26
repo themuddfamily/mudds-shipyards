@@ -12,6 +12,9 @@ set -o pipefail
 # selects one real Bulwark assist cut, then cold home-pilot recovery and explicit
 # reset/distinct escort continuation; it does not restore an approach pose. Ember excludes canonical outbound and
 # standing-pose restore; each necessary visit discloses initial flight placement.
+# --activity=ember-abandon cuts after a genuine first-relay save is explicitly
+# declined while awaiting reboarding; cold recovery starts a new survey at zero.
+# It does not qualify the abandon return home or completed earned-debt recovery.
 # --source selects the current project instead of PACKAGE_PATH; source
 # and PCK identities are recorded separately and neither qualifies native input.
 # --native-export runs PACKAGE_PATH's embedded Linux game directly; it cannot
@@ -52,7 +55,7 @@ RESULTS_ROOT="${PACKAGE_PROBE_RESULTS_ROOT:-$PROJECT_ROOT/artifacts/package-prob
 RUN_ID="${PACKAGE_PROBE_RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)}"
 AUDIO_DRIVER="${PACKAGE_PROBE_AUDIO_DRIVER:-Dummy}"
 RECOVERY_CONTEXT="${PACKAGE_PROBE_RECOVERY_CONTEXT:-pilot}"
-if [[ "$PROBE_ACTIVITY" != convoy && "$PROBE_ACTIVITY" != beacon && "$PROBE_ACTIVITY" != mining && "$PROBE_ACTIVITY" != stationdefense && "$PROBE_ACTIVITY" != scan && "$PROBE_ACTIVITY" != hulk && "$PROBE_ACTIVITY" != ember && "$PROBE_ACTIVITY" != breach ]]; then
+if [[ "$PROBE_ACTIVITY" != convoy && "$PROBE_ACTIVITY" != beacon && "$PROBE_ACTIVITY" != mining && "$PROBE_ACTIVITY" != stationdefense && "$PROBE_ACTIVITY" != scan && "$PROBE_ACTIVITY" != hulk && "$PROBE_ACTIVITY" != ember && "$PROBE_ACTIVITY" != ember-abandon && "$PROBE_ACTIVITY" != breach ]]; then
   echo "Invalid interruption activity" >&2
   exit 2
 fi
@@ -68,7 +71,7 @@ if [[ "$RECOVERY_CONTEXT" == docking ]] && (( IN_WORLD_INTERRUPTION == 0 )); the
   echo "Docking context requires --in-world-interruption" >&2
   exit 2
 fi
-if [[ ( "$PROBE_ACTIVITY" == beacon || "$PROBE_ACTIVITY" == mining || "$PROBE_ACTIVITY" == stationdefense || "$PROBE_ACTIVITY" == scan || "$PROBE_ACTIVITY" == hulk || "$PROBE_ACTIVITY" == ember || "$PROBE_ACTIVITY" == breach ) && "$RECOVERY_CONTEXT" != pilot ]]; then
+if [[ ( "$PROBE_ACTIVITY" == beacon || "$PROBE_ACTIVITY" == mining || "$PROBE_ACTIVITY" == stationdefense || "$PROBE_ACTIVITY" == scan || "$PROBE_ACTIVITY" == hulk || "$PROBE_ACTIVITY" == ember || "$PROBE_ACTIVITY" == ember-abandon || "$PROBE_ACTIVITY" == breach ) && "$RECOVERY_CONTEXT" != pilot ]]; then
   echo "$PROBE_ACTIVITY interruption currently requires pilot context" >&2
   exit 2
 fi
@@ -209,6 +212,15 @@ def ember_document(observation, field):
             and isinstance(document["payload"].get("ember_relay_survey_completion"), dict),
             "invalid actual Ember document text: " + field)
     return document
+def ember_abandon_document(observation, field):
+    text = observation.get(field)
+    require(isinstance(text, str) and bool(text), "missing actual Ember abandon document text: " + field)
+    document = json.loads(text)
+    require(isinstance(document, dict) and isinstance(document.get("payload"), dict)
+            and "ember_relay_survey_completion" not in document["payload"]
+            and isinstance(document["payload"].get("ember_relay_survey_completion_declined"), dict),
+            "invalid actual Ember abandon document text: " + field)
+    return document
 def diagnostics(log):
     expression = r"^\s*(?:SCRIPT\s+ERROR|ERROR:|FAIL:)|\b(?:FATAL ERROR|ObjectDB|Orphaned|Leaked)\b|Resource.*still in use"
     return [line for line in log.read_text(errors="replace").splitlines()
@@ -340,17 +352,55 @@ try:
     require(ready.get("activity", "convoy") == activity, "arm ignored the selected activity")
     before = document.read_bytes()
     saved = json.loads(before)
-    if activity == "ember":
-        ready_document = ember_document(ready, "boundary_document_json")
-        require(ready_document == saved, "Ember readiness document differs from the independently read save")
+    if activity in ("ember", "ember-abandon"):
+        if activity == "ember":
+            ready_document = ember_document(ready, "boundary_document_json")
+            require(ready_document == saved, "Ember readiness document differs from the independently read save")
+            journey_document = saved
+        else:
+            ready_document = ember_document(ready, "saved_document_json")
+            # The synchronous decline CAS rotates the exact saved primary to
+            # .bak. Read that real file, rather than trusting a logged object.
+            backup_bytes = pathlib.Path(str(document) + ".bak").read_bytes()
+            require(backup_bytes == ready["saved_document_json"].encode("utf-8"),
+                    "actual pre-decline backup differs from captured saved primary bytes")
+            journey_document = json.loads(backup_bytes)
+            require(journey_document == ready_document, "actual pre-decline backup differs from saved wire document")
+            declined_document = ember_abandon_document(ready, "declined_document_json")
+            require(before == ready["declined_document_json"].encode("utf-8") and declined_document == saved,
+                    "actual declined primary differs from captured declined wire bytes")
+            require(saved["generation"] == journey_document["generation"] + 1
+                    and saved["commit"]["parent_generation"] == journey_document["generation"]
+                    and saved["commit"]["parent_id"] == journey_document["commit"]["id"]
+                    and saved["commit"]["id"].startswith("ember-abandon-checkpoint-"),
+                    "decline is not the single direct CAS successor of the actual saved primary")
+            expected_payload = dict(journey_document["payload"])
+            expected_payload["ember_relay_survey_completion_declined"] = expected_payload.pop("ember_relay_survey_completion")
+            require(saved["payload"] == expected_payload
+                    and ready["abandon_result"].get("accepted") is True
+                    and ready["abandon_result"].get("reason") == "ember_surface_abandon_pending_return"
+                    and ready["abandon_state"].get("requested") is True,
+                    "public abandon did not atomically archive only the original saved checkpoint while pending return")
+            require(saved["payload"]["runtime_settings"] == ready["foreign_settings"]
+                    and bool(ready["foreign_settings"])
+                    and saved["payload"]["jovian_cargo_session"] == ready["foreign_cargo"]
+                    and bool(ready["foreign_cargo"]),
+                    "Ember abandon lost actual unrelated settings or cargo")
+            require(ready["abandon_return_home"] == ready["completed_earned_debt"] == "NOT_RUN",
+                    "pending abandon cut must retain its unperformed return-home and earned-debt gates")
+            (run_dir / "pre-abandon-document.json").write_bytes(backup_bytes)
+            result["pre_abandon_document_sha256"] = hashlib.sha256(backup_bytes).hexdigest()
+            result["declined_document_sha256"] = hashlib.sha256(before).hexdigest()
         ready_boundary = ready_document["payload"]["ember_relay_survey_completion"]
-        terminal = saved["payload"]["ember_relay_survey_completion"]
+        terminal = journey_document["payload"]["ember_relay_survey_completion"]
         journey = terminal["completion"]
         route = journey["route_identity"]
         require(terminal == ready_boundary and terminal["schema_version"] == 1
                 and terminal["payload_kind"] == "ember_relay_survey_active_journey"
                 and terminal["slot_id"] == "ember_relay_survey_completion",
                 "Ember readiness differs from its actual supported active-journey save")
+        if activity == "ember-abandon":
+            require(ready["boundary"] == terminal, "Ember abandon readiness changed the original saved envelope")
         require(journey["marker"] == "interrupted_planetary_journey"
                 and journey["journey_phase_id"] == "on_foot"
                 and journey["world_id"] == "ember_moon"
@@ -365,7 +415,7 @@ try:
         observed = ready["runtime_observation"]
         require(observed["player_on_floor"] is True and observed["player_control_enabled"] is True
                 and observed["player_seated"] is False and observed["craft_piloted"] is False
-                and saved["payload"]["solo_safe_recovery"] == ready["safe_context"] == {"mode": "unavailable"}
+                and saved["payload"]["solo_safe_recovery"] == (ready["safe_context"] if activity == "ember" else {"mode": "unavailable"}) == {"mode": "unavailable"}
                 and ready["receipts"] == 0
                 and saved["payload"].get("game_flow_reward_store", {}).get("reward_counts", {}).get("ember_beacon_data", 0) == 0,
                 "Ember arm lost its genuine standing actor or invented a pilot preference/payment")
@@ -573,8 +623,13 @@ try:
     arm_entry["signal"] = "SIGKILL"
     require(arm_entry["exit_code"] == -9, "owned kill did not reap as SIGKILL (-9)")
     require(document.read_bytes() == before, "kill ran an orderly repair/save")
+    if activity == "ember-abandon":
+        require(pathlib.Path(str(document) + ".bak").read_bytes() == backup_bytes,
+                "kill changed the independently observed pre-decline backup")
     result["ready"] = ready
     resume, resume_log, resume_entry = start("resume")
+    if activity == "ember-abandon":
+        require(arm.pid != resume.pid, "Ember abandon requires distinct owned OS processes")
     resume_entry["exit_code"] = resume.wait(timeout=timeout)
     recovered = token(resume_log, "IN_WORLD_RECOVERY_OK")
     require(resume_entry["exit_code"] == 0 and recovered is not None, "restart did not exit 0 with IN_WORLD_RECOVERY_OK")
@@ -583,7 +638,10 @@ try:
     require(recovered.get("entry") == "startup_completed", "restart did not use Boot's own loaded Main")
     require(recovered.get("activity", "convoy") == activity, "restart ignored the selected activity")
     require(resume_log.read_text(errors="replace").strip().splitlines()[-1].startswith("IN_WORLD_RECOVERY_OK: "), "recovery token is not terminal")
-    if activity == "ember":
+    if activity == "ember-abandon":
+        require(recovered["boundary"] == ready["boundary"] == ready_boundary,
+                "fresh process changed the original declined Ember checkpoint")
+    elif activity == "ember":
         ember_document(recovered, "boundary_document_json")
         # The probe binds each wire document to its runtime boundary. Compare
         # those boundaries exactly: Godot can re-encode a parsed JSON number
@@ -591,12 +649,74 @@ try:
         require(recovered["boundary"] == ready["boundary"], "fresh process changed durable Ember journey progress")
     else:
         require(recovered["boundary"] == ready["boundary"], "fresh process changed durable host/threat/escort/clock/progress")
-    require(recovered["receipts_before"] == ready["receipts"] and recovered["receipts_after"] == ready["receipts"] + (0 if recovery_context == "engineer" else 1),
+    require(recovered["receipts_before"] == ready["receipts"] and recovered["receipts_after"] == ready["receipts"] + (0 if recovery_context == "engineer" or activity == "ember-abandon" else 1),
             "restart lost or duplicated the activity receipt")
     require(recovered["crash_events"] == 1, "actual interruption did not publish one crash event")
     after = document.read_bytes()
     final = json.loads(after)
-    if activity == "ember":
+    if activity == "ember-abandon":
+        prequit_document = ember_abandon_document(recovered, "final_document_json")
+        fresh_record = recovered["prospective_fresh_record"]
+        require(recovered["prospective_fresh_record_valid"] is True
+                and fresh_record["schema_version"] == 1
+                and fresh_record["payload_kind"] == "ember_relay_survey_active_journey"
+                and fresh_record["slot_id"] == "ember_relay_survey_completion"
+                and fresh_record["completion"]["route_identity"] == recovered["fresh_route"]
+                and fresh_record["completion"]["journey_phase_id"] == "on_foot"
+                and fresh_record["completion"]["movement_replay_allowed"] is False
+                and fresh_record["completion"]["reward_replay_allowed"] is False,
+                "prospective new checkpoint does not describe the actually validated fresh standing survey")
+        # Cold recovery must have no active slot. A subsequent ordinary quit
+        # may save ONLY this new visit's exact independently captured receipt;
+        # it can never resurrect the declined first-relay checkpoint.
+        expected_final_payload = dict(prequit_document["payload"])
+        if "ember_relay_survey_completion" in final["payload"]:
+            require(final["payload"]["ember_relay_survey_completion"] == fresh_record,
+                    "ordinary quit wrote an active checkpoint other than the exact valid new current-zero receipt")
+            expected_final_payload["ember_relay_survey_completion"] = fresh_record
+        require(final["payload"] == expected_final_payload,
+                "ordinary quit changed payload beyond the permitted fresh current-zero checkpoint")
+        require(final["payload"].get("game_flow_reward_store", {})
+                == prequit_document["payload"].get("game_flow_reward_store", {})
+                == saved["payload"].get("game_flow_reward_store", {}),
+                "Ember abandon cold recovery changed the exact reward ledger")
+        require(final["payload"]["ember_relay_survey_completion_declined"] == ready_boundary
+                and final["payload"].get("game_flow_reward_store", {}).get("reward_counts", {}).get("ember_beacon_data", 0) == 0
+                and recovered["receipts_before"] == recovered["receipts_after"] == 0,
+                "fresh boot restored the old active checkpoint, changed its archive or automatically paid it")
+        for field in ("boot_persistence", "fresh_persistence"):
+            persistence = recovered[field]
+            require(persistence.get("adopted") is False
+                    and not persistence.get("route_identity")
+                    and not persistence.get("restore_status", {}).get("checkpoint_resume", {}).get("accepted", False),
+                    "Ember abandon " + field + " adopted the declined location/session/checkpoint")
+        fresh_route = recovered["fresh_route"]
+        require(fresh_route["activity_id"] == "ember_beacon_survey"
+                and fresh_route["next_checkpoint_index"] == 0 and fresh_route["checkpoint_count"] == 2
+                and fresh_route["next_objective_id"] == "ember_relay_tower"
+                and fresh_route["activity_generation"] > 0 and fresh_route["complete"] is False
+                and fresh_route != route,
+                "legitimate new Ember arrival did not start from its first observation")
+        safe = recovered["safe_recovery_observation"]
+        yard = safe["cold_yard_before_boarding"]
+        require(yard["player_seated"] is False and yard["player_control_enabled"] is True
+                and yard["craft_piloted"] is False and safe["player_seated"] is True
+                and safe["craft_piloted"] is True
+                and safe["craft_id"] == ready["runtime_observation"]["craft_id"],
+                "Ember abandon cold recovery did not acquire a genuine new home pilot boarding")
+        require(final["payload"]["runtime_settings"] == ready["foreign_settings"] == recovered["foreign_settings"]
+                and final["payload"]["jovian_cargo_session"] == ready["foreign_cargo"] == recovered["foreign_cargo"],
+                "Ember abandon recovery changed actual unrelated settings or cargo")
+        require(recovered["initial_flight_placements"] == ready["initial_flight_placements"]
+                and recovered["canonical_outbound"] == "NOT_RUN"
+                and recovered["standing_pose_restore"] == "NOT_SUPPORTED"
+                and recovered["abandon_return_home"] == recovered["completed_earned_debt"] == "NOT_RUN"
+                and recovered["continuation_method"] == "explicit_abandon_pending_cut_then_cold_yard_and_legitimate_new_survey",
+                "Ember abandon restart concealed its pending-cut, staging or fresh-visit limits")
+        result["final_document_sha256"] = hashlib.sha256(after).hexdigest()
+        result["prequit_document_sha256"] = hashlib.sha256(recovered["final_document_json"].encode("utf-8")).hexdigest()
+        result["fresh_checkpoint_saved_on_quit"] = "ember_relay_survey_completion" in final["payload"]
+    elif activity == "ember":
         paid_document = ember_document(recovered, "paid_document_json")
         require(paid_document == final, "Ember payment document differs from the independently read save")
         paid = final["payload"]["ember_relay_survey_completion"]

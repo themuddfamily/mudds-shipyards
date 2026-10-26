@@ -246,6 +246,43 @@ func _run() -> void:
 	]:
 		_check(not StartupLoaderType.in_world_probe_request(malformed, "headless", "Dummy").accepted,
 			"Ember refuses a missing stage or duplicate selector before Main loading")
+	for abandon_stage: String in ["arm", "resume"]:
+		var abandon_args := PackedStringArray(["--in-world-interruption-stage=" + abandon_stage,
+			"--in-world-interruption-activity=ember-abandon"])
+		var abandon_request := StartupLoaderType.in_world_probe_request(abandon_args, "headless", "Dummy")
+		_check(bool(abandon_request.get("accepted", false))
+			and abandon_request.get("activity") == "ember-abandon"
+			and abandon_request.get("stage") == abandon_stage
+			and abandon_request.get("recovery_context") == "pilot",
+			"ember-abandon %s admits only its exact silent pilot selector" % abandon_stage)
+		for abandon_context: String in ["cabin", "rest", "crew", "engineer", "on_foot", "docking"]:
+			var wrong_context := abandon_args.duplicate()
+			wrong_context.append("--in-world-interruption-context=" + abandon_context)
+			_check(not StartupLoaderType.in_world_probe_request(wrong_context, "headless", "Dummy").accepted,
+				"ember-abandon refuses unsupported context %s" % abandon_context)
+		for abandon_display: String in ["X11", "x11", "wayland", ""]:
+			_check(not StartupLoaderType.in_world_probe_request(abandon_args, abandon_display, "Dummy").accepted,
+				"ember-abandon refuses display %s" % abandon_display)
+		for abandon_audio: String in ["", "WASAPI", "PulseAudio"]:
+			_check(not StartupLoaderType.in_world_probe_request(abandon_args, "headless", abandon_audio).accepted,
+				"ember-abandon refuses non-Dummy audio %s" % abandon_audio)
+		_check(not StartupLoaderType.in_world_probe_request(abandon_args, "headless", "Dummy", true).accepted,
+			"ember-abandon cannot inherit private engineer input ownership")
+		for abandon_conflict: String in ["--startup-check", "--frame-capture", "--version", "--help", "--support-info", "--support-export"]:
+			var conflicting_abandon := abandon_args.duplicate()
+			conflicting_abandon.append(abandon_conflict)
+			_check(not StartupLoaderType.in_world_probe_request(conflicting_abandon, "headless", "Dummy").accepted,
+				"ember-abandon refuses conflicting early command %s" % abandon_conflict)
+	for malformed_abandon: PackedStringArray in [
+		PackedStringArray(["--in-world-interruption-activity=ember-abandon"]),
+		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-stage=resume", "--in-world-interruption-activity=ember-abandon"]),
+		PackedStringArray(["--in-world-interruption-stage=arm-extra", "--in-world-interruption-activity=ember-abandon"]),
+		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity=ember-abandon", "--in-world-interruption-activity=ember"]),
+		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity", "ember-abandon"]),
+		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity="]),
+	]:
+		_check(not StartupLoaderType.in_world_probe_request(malformed_abandon, "headless", "Dummy").accepted,
+			"ember-abandon refuses missing, malformed or duplicate selectors")
 	var defense_args := PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity=stationdefense"])
 	_check(StartupLoaderType.in_world_probe_request(defense_args, "headless", "Dummy").accepted,
 		"station-defense interruption admits only its supported pilot recovery")
@@ -304,7 +341,7 @@ func _run() -> void:
 		"engineer refuses unowned X11 and audible input")
 	_check(not StartupLoaderType.in_world_probe_request(probe_args, "headless", "Dummy", true).accepted,
 		"private engineer input marker cannot broaden other contexts")
-	for other_activity in ["beacon", "mining", "stationdefense", "scan", "hulk", "ember", "breach"]:
+	for other_activity in ["beacon", "mining", "stationdefense", "scan", "hulk", "ember", "ember-abandon", "breach"]:
 		var incompatible := engineer_args.duplicate()
 		incompatible.append("--in-world-interruption-activity=" + other_activity)
 		_check(not StartupLoaderType.in_world_probe_request(incompatible, "X11", "Dummy", true).accepted,
