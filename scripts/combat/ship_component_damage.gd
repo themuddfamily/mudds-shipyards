@@ -172,29 +172,32 @@ func record_damage(amount: float, local_hit_position: Vector3 = Vector3.INF) -> 
 ## invent a section from velocity alone. This remains an adapter into the same
 ## ledger and therefore cannot add hull loss or create a second health owner.
 func record_collision_damage(amount: float, local_hit_position: Vector3) -> Dictionary:
-	return _record_located_functional_damage(
+	return _record_located_component_damage(
 		amount,
 		local_hit_position,
+		COLLISION_FUNCTIONAL_COMPONENTS,
 		&"invalid_collision_contact",
 		&"collision_region_unavailable"
 	)
 
 
 ## CombatResolver preserves its physics-ray contact through the lifecycle proxy.
-## A finite ship-local point therefore selects exactly one existing functional
+## A finite ship-local point therefore selects exactly one existing component
 ## region while the same ledger continues to own integrity and generation.
 func record_projectile_damage(amount: float, local_hit_position: Vector3) -> Dictionary:
-	return _record_located_functional_damage(
+	return _record_located_component_damage(
 		amount,
 		local_hit_position,
+		COMPONENT_ORDER,
 		&"invalid_projectile_contact",
 		&"projectile_region_unavailable"
 	)
 
 
-func _record_located_functional_damage(
+func _record_located_component_damage(
 	amount: float,
 	local_hit_position: Vector3,
+	candidates: Array[StringName],
 	invalid_contact_reason: StringName,
 	unavailable_reason: StringName
 	) -> Dictionary:
@@ -207,7 +210,7 @@ func _record_located_functional_damage(
 			"revision": _revision,
 			"components": {},
 		}
-	var nearest_id := _nearest_component(local_hit_position, COLLISION_FUNCTIONAL_COMPONENTS)
+	var nearest_id := _nearest_component(local_hit_position, candidates)
 	if nearest_id == &"":
 		return {
 			"accepted": false,

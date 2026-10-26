@@ -132,6 +132,14 @@ all actual resolver checks. At12:54:04UTC cumulative elapsed is21.867minutes
 including the owner-requested roadmap interruption, against90minutes. Runtime
 edits remain gated on isolated RED; a second unexpected baseline failure stops.
 
+**Corrected baseline isolated RED.** Frozen6a1f3f542, runtime byte-for-byte
+unchanged fromad958e555:33.572s/exit1, exactly nine labelled forward→core
+mismatches and their aggregate in each contributing log; no unexpected errors.
+All nine raw contacts are finite/resolver-owned, forward integrity remains1,
+hull loses exactly11 once, and the corrected Hauler port receipt/ledger passes.
+Owned children are absent. This proves the regression, not repaired behavior;
+runtime candidate now parameterizes the shared helper: projectile passes the existing five-component order, collision passes its unchanged four-functional list. Independent source review precedes the frozen green checks; no corrected runtime result is claimed yet. Planned checks are the existing model, adapter, integration, real projectile, real collision, fleet recovery parity, Zenith feedback and sensor-reticle suites, then paired exports, three strict startups and actual payload audit.
+
 **What stays closed.** Zenith's pilot/hit/two-home/reuse, settled Main and full
 Zenith→Torrent→same Zenith handback retain their recorded acceptance. Latest
 checkpoint remains499e681; the forward repair is not yet delivered. Prior
