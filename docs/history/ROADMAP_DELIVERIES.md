@@ -27488,3 +27488,71 @@ owned source/profiles/helpers/logs removed; only archive and adjacentcloseout
 remain. Archive closed2026-10-26T01:26:59.110261+00:00 after53.552min from the
 ORIGINAL start. Final push time/cumulative cost is in adjacentcloseout. No
 successor is active; this closes the failed selection, not the craft outcome.
+
+
+<a id="zenith-pilot-hit-home-reuse-accepted-20261026"></a>
+## Zenith pilot, real hit, two homes and fresh reuse — accepted2026-10-26
+
+CRAFT-ACCEPT-ZENITH selected pilot/hit/home/reuse qualification only.
+Game/export source `4bf5e8897720807d5b3de8419526bbc6e62e4639`;
+external release driver `4870595fa7d6129fbf38320720c6b876953e88c8`.
+[Windows checkpoint](../../builds/windows/MuddsShipyards-4bf5e88-checkpoint.zip),
+[actual changes and validation](../../builds/windows/MuddsShipyards-4bf5e88-notes.txt),
+[Linux archive](../../builds/linux/MuddsShipyards-4bf5e88-linux-x86_64.tar.gz).
+
+Actual ordinary route133.691s/OS0, markerNATIVE_ZENITH_RETURN_REUSE_OK,
+zero detected diagnostics,5536 consecutive raw physics observations. Same
+Player walks15 authored goals, physically boards the sole Zenith pilot seat,
+flies with default controls and unchanged94/126 handling, reaches94.20213m/s
+under actual native/consumed boost, brakes with measured velocity reduction,
+rolls30.79999° from its captured upright basis, then actual hover restores
+up.y.94511. Both cockpit/chase transitions use their real camera consumers.
+One native Fire pulse resolves source1104/zenith_interceptor_repeater/sequence0,
+420m/28damage/.24s, against actual DRONE-01: health100→72, retained after release.
+All105boost/12roll consumed ticks and native/consumer release tails are recorded;
+there is no exact15tick pass claim or normalization.
+
+Both flights perform actual strict home contract/exact transform/occupied lease,
+one L edge each,90neutral physics ticks and authored1.5s automatic OFFLINE,
+physical Interact exit and supported wing-clear walk beyond7m. Actual second
+boarding shows cleared command0 atframe4683, matching fresh consumed stream9 at
+4684; only then do90seated observations begin. Source5→retired7→ready9 and
+unchanged actor identities fence reuse. Two departure excursions19.26667m and
+19.36028m are recorded. Actual focused HUD Exit returns OS0. Four real-file
+snapshots (baseline/home1/home2/orderlyclose), generations5→18→29→32, preserve
+protected siblings; final crash recovery is clean, safe start clean_shutdown,
+and the current session ended. All owned game/input/display processes are reaped.
+
+Full Python driver checks12.852s, native guarded stage134.124s and actual artifact
+audit7.139s pass. Seven retained runtime/package stages from exactly unchanged
+GameSource4bf5e88 include source import/privacy, both exports and three strict
+startups; each startup actual exit0/exactly1STARTUP_MENU_READY_OK. Runtime diff
+from the exported source to driver487 is exactly two external tool/test files
+and two roadmap documents. PE/ELF match1527 PCK entries; only the compiled passive
+observer and startup selector differ from acceptedb810822. StockPE.text,
+architectures, metadata and exact archive bytes/modes/source epoch verify.
+Independent source/actual-result/artifact/notes review GO.
+
+Four failed trials remain failed: support corner45.054s (8708e925), retired
+executor tick assumption58.927s (8a764b0ab), outside capture attitude80.841s
+(4bf5e889), then fresh producer before cleared-consumer admission97.124s
+(e03b23c88). Trial5 accepts the physical contract frozen beforetrial3. The last
+two driver corrections wait for actual upright capture before L and admit only
+the exact cleared neutral command at completed boarding until the fresh stream
+is consumed; all original ownership and12s boarding checks remain. No gameplay
+handling, weapons, damage, docking or authority rule changes. All source/raw
+and earlier archive references are retained. Engineering estimates overran,
+including the requested roadmap edit; cumulative cost remains from original
+2026-10-26T00:33:26Z, with no new user budget or runtime deadline.
+
+Private Xvfb/explicitx11/Dummy audio/dummy renderer establishes behavior only.
+Rendered desktop, nativeGPU, physical devices, audible output and native Windows:
+NOT_RUN. Windows payload startup used Linux Godot, not native Windows. Existing
+native Windows/mandatory-human exclusions remain; applicable external gates stay
+open. Full Zenith component consequences/repair, fatal recovery/regeneration,
+Torrent handback, retained-Main, art and final candidate acceptance remain OPEN.
+Original nativeCAP300/outer360, walking/navigation/handling15s, boarding12s,
+weapon25s, exit10s and capturedHero landing24s-or-travelbudget/4sstall remain.
+GitHub Actions stayed disabled; no Downloads publication or unrelated reruns.
+
+Publication, integration and archive/branch closure are recorded below once verified.

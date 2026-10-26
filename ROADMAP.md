@@ -1,12 +1,13 @@
 # Development roadmap
 
 **Playable alpha; full original scope remains unfinished.** Latest Windows build:
-[b810822 checkpoint](builds/windows/MuddsShipyards-b810822-checkpoint.zip)
-([changes and validation](builds/windows/MuddsShipyards-b810822-notes.txt)).
-Matching [Linux checkpoint b810822](builds/linux/MuddsShipyards-b810822-linux-x86_64.tar.gz)
-([Linux validation](builds/linux/MuddsShipyards-b810822-linux-notes.txt)) is available.
-This checkpoint adds18 live Ember surface-phase/reward captions through the
-existing shared service; earlier gameplay and accessibility fixes are retained.
+[4bf5e88 checkpoint](builds/windows/MuddsShipyards-4bf5e88-checkpoint.zip)
+([changes and validation](builds/windows/MuddsShipyards-4bf5e88-notes.txt)).
+Matching [Linux checkpoint 4bf5e88](builds/linux/MuddsShipyards-4bf5e88-linux-x86_64.tar.gz)
+([Linux validation](builds/linux/MuddsShipyards-4bf5e88-linux-notes.txt)) is available.
+This checkpoint qualifies existing Zenith pilot handling, a real repeater hit,
+two strict home returns and fresh reuse through normal controls and clean exit.
+Earlier gameplay and caption fixes are retained; full Zenith acceptance stays open.
 Nine of the promised 17 craft exist. All 36 original parent outcomes and ten phase
 exit gates remain open; completed child results are retained, not counted as whole
 features. There is no evidence-backed project percentage or completion date.
@@ -79,41 +80,28 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Current product outcome: Zenith pilot handling, real hit, home and reuse.**
-This is one qualification within CRAFT-ACCEPT-ZENITH, not completion of Zenith.
-The latest playable checkpoint remains b810822. Candidate game source4bf5e88
-and driver e03b23c88 are unaccepted; no new checkpoint has been published.
+**Delivered: Zenith pilot handling, real hit, two homes and fresh reuse.**
+Checkpoint4bf5e88, release driver4870595: one complete ordinary route passes
+in133.691s, including physical walking/boarding, boost above94m/s cruise,
+measured30.80° roll, brake/hover/both cameras, one real28-point repeater hit,
+two strict home landings/90neutral ticks/OFFLINE, physical exits and wing-clear
+walks, fresh consumed pilot stream, and normal HUD Exit/OS0 with both durable
+clean states. Full Python checks and actual payload audit pass; seven unchanged
+runtime/package checks and three strict startups are retained against exact
+GameSource4bf5e88 identity. Independent final review GO.
 
-| Required stage, in order | Observable pass condition | Latest complete trial |
-| --- | --- | --- |
-| Reach and board | Same Player physically completes the15 walking goals and boards the sole Zenith pilot seat; original berth remains occupied | Observed |
-| Fly and handle | Actual consumed boost increases speed above authored94m/s cruise; braking reduces speed; Q rotates the captured basis≥30°; hover restores upright up.y≥.94; both camera transitions occur | Observed |
-| Hit a real target | One ordinary repeater shot, source1104, resolves against DRONE-01 within420m: health100→72, preserving28damage/.24s cadence | Observed |
-| First home and exit | Actual strict home landing/exact berth lease;90 neutral physics ticks and authored1.5s shutdown produce OFFLINE; physical exit and supported wing-clear walk | Observed |
-| Reboard and repeat | Fresh pilot input stream is consumed;90 seated observations, actual second departure, strict home/OFFLINE, physical exit and wing-clear walk | **FAIL at reboard admission:** producer stream9 is visible one sample before the cleared consumed stream becomes9. Second flight and return NOT_RUN |
-| Close normally | Actual HUD Exit returns OS0; both durable clean-close states and protected files agree; all owned processes/input/display are released | NOT_RUN |
+This closes only CRAFT-ACCEPT-ZENITH's pilot/hit/home/reuse qualification and
+its executable release-driver capability. Component damage/repair, loss and
+regeneration, Torrent handback, retained-Main, art/device and final-candidate
+requirements remain OPEN in its [finite binding](docs/ROADMAP_BACKLOG.md#zenith-finite-acceptance-binding).
+The four earlier trials remain FAILED, with source/raw retained and cumulative
+cost charged from the same original start. The retired exact15tick procedure
+was an executor assumption; the physical predicates were fixed before trial3.
+[Actual result, failed trials and limits](docs/history/ROADMAP_DELIVERIES.md#zenith-pilot-hit-home-reuse-accepted-20261026).
 
-“Observed” records partial receipts from a failed trial; it is not an accepted
-stage or permission to omit that stage from the full rerun. The whole route must
-pass on one candidate, within unchanged native300s/outer360s and existing action
-guards. Do not stage transforms, shorten shutdown, inject damage or normalize
-input counts. Exact15 boost ticks was an executor assumption, not a product
-requirement; the physical handling predicates above replace that assumption.
-
-**Next bounded correction:** validate the real seat/camera/actor/source owner at
-boarding completion, permit only the demonstrated cleared neutral command while
-waiting for its fresh stream, then require matching consumption before counting
-any of the90 seated observations or departing. Retain the original12s boarding
-limit. A focused fixture must fail on premature admission and pass on the actual
-one-sample transition. Then run the full Python driver checks, entire ordinary
-route and artifact audit; reuse unchanged game exports only after exact runtime
-source and binary identity checks. No test is running during this roadmap edit.
-
-All four failed trials and their cumulative cost remain attached to this same
-outcome. No fresh branch, task name or estimate resets that history. Damage,
-repair, loss/regeneration, Torrent handback, Main re-entry, art/device and final
-candidate acceptance remain separate open Zenith requirements in its
-[finite acceptance binding](docs/ROADMAP_BACKLOG.md#zenith-finite-acceptance-binding).
+**No successor is selected yet.** Finish publication, integration and owned
+archive/branch cleanup for this accepted outcome before another assignment.
+A definition or checkpoint does not close any of the36 parent outcomes.
 
 <a id="concrete-pending-capability-ember-surface-loop-captions"></a>
 ### Ember surface-loop captions: accepted capability contract
