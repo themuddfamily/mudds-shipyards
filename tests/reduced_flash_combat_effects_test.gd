@@ -179,8 +179,84 @@ func _run() -> void:
 	_check(_engine_glow_swing(glow_ship) > 0.5,
 		"reduced flash off restores the failing engine's exhaust stutter")
 	pulse.set_auto_advance_enabled(true)
+	await _check_cargo_terminal_setting_path(game, settings)
 	await _clean_up(game)
 	_finish()
+
+
+## Normal Main settings/world/bootstrap propagation, with observer positions
+## staged through the production binding caller-sample API instead of flight.
+## Main physics is suspended to prevent a competing station-position sample.
+## The focused cargo suite separately checks all high-energy authority states.
+func _check_cargo_terminal_setting_path(game: GameFlow, settings: RuntimeSettings) -> void:
+	var streaming := game.get_node(^"CinderStreamingProductionBinding") as CinderStreamingProductionBinding
+	var bootstrap := game.get_node(^"CinderStreamingBootstrap") as CinderStreamingBootstrap
+	var was_processing := game.is_physics_processing()
+	game.set_physics_process(false)
+	_check(game.world.get_nearby_sector_cluster() == null,
+		"cargo settings integration starts before any Cinder generation is loaded")
+	settings.reduced_flash = true
+	await process_frame
+	var loaded := await _wait_cargo_streaming(game, streaming, bootstrap, true, CinderStreamingBootstrap.EXPECTED_NAVIGATION_ANCHOR)
+	_check(loaded, "the actual Main bootstrap mounts its normal Cinder generation")
+	if not loaded:
+		game.set_physics_process(was_processing)
+		return
+	var cluster := game.world.get_nearby_sector_cluster()
+	var cluster_id := cluster.get_instance_id()
+	var terminal := cluster.get_cinder_cargo_destination_terminal()
+	var terminal_id := terminal.get_instance_id()
+	var screen := terminal.get_node(^"StatusScreen") as MeshInstance3D
+	var material := screen.material_override as StandardMaterial3D
+	var original := terminal.get_cargo_presentation_state()
+	_check(settings.reduced_flash and bool(original.get("reduced_flash", false))
+		and original.state_id == &"unavailable"
+		and is_equal_approx(material.emission_energy_multiplier, 0.18),
+		"real Main settings selected before streaming reach the first terminal material without brightening unavailable state")
+	for enabled in [false, true, false]:
+		settings.reduced_flash = enabled
+		await process_frame
+		var expected := original.duplicate(true)
+		expected["reduced_flash"] = enabled
+		_check(game.world.get_nearby_sector_cluster().get_instance_id() == cluster_id
+			and terminal.get_instance_id() == terminal_id and screen.material_override == material
+			and terminal.get_cargo_presentation_state() == expected
+			and is_equal_approx(material.emission_energy_multiplier, 0.18),
+			"real Main live Reduced flash %s reaches the same terminal while preserving its complete unavailable presentation" % enabled)
+	var unloaded := await _wait_cargo_streaming(game, streaming, bootstrap, false, Vector3.ZERO)
+	_check(unloaded, "cargo settings integration retires the actual streamed generation through its bootstrap")
+	if unloaded:
+		loaded = await _wait_cargo_streaming(game, streaming, bootstrap, true, CinderStreamingBootstrap.EXPECTED_NAVIGATION_ANCHOR)
+		_check(loaded, "cargo settings integration loads a fresh Cinder generation")
+		if loaded:
+			var fresh := game.world.get_nearby_sector_cluster()
+			var fresh_terminal := fresh.get_cinder_cargo_destination_terminal()
+			var fresh_material := (fresh_terminal.get_node(^"StatusScreen") as MeshInstance3D).material_override as StandardMaterial3D
+			_check(not settings.reduced_flash and fresh.get_instance_id() != cluster_id
+				and not bool(fresh_terminal.get_cargo_presentation_state().get("reduced_flash", true))
+				and is_equal_approx(fresh_material.emission_energy_multiplier, 0.18),
+				"the actual Main retains OFF for a newly streamed terminal without brightening it")
+			_check(await _wait_cargo_streaming(game, streaming, bootstrap, false, Vector3.ZERO),
+				"cargo settings integration leaves no staged Cinder generation behind")
+	game.set_physics_process(was_processing)
+
+
+func _wait_cargo_streaming(
+		game: GameFlow, streaming: CinderStreamingProductionBinding,
+		bootstrap: CinderStreamingBootstrap, loaded: bool, position: Vector3
+	) -> bool:
+	for _frame in 180:
+		# Keep the real binding's profile forwarding and transition lifecycle;
+		# only its observer position is staged. No preference snapshot is injected.
+		streaming.physics_tick_from_caller_sample(1.0 / Engine.physics_ticks_per_second, {
+			"available": true, "position": position, "actor_kind": &"test_observer",
+			"actor_instance_id": game.player.get_instance_id(),
+		})
+		if (bootstrap.get_loaded_instance() != null) == loaded:
+			return true
+		await physics_frame
+		await process_frame
+	return (bootstrap.get_loaded_instance() != null) == loaded
 
 
 func _check_reduced(

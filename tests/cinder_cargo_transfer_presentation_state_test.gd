@@ -20,6 +20,7 @@ func _initialize() -> void:
 
 func _run() -> void:
 	var cluster := CLUSTER_SCENE.instantiate() as NearbySectorCluster
+	cluster.set_reduced_flash_enabled(true)
 	root.add_child(cluster)
 	await process_frame
 	var binding := cluster.get_node(^"ActivityBinding") as NearbySectorActivityBinding
@@ -28,11 +29,18 @@ func _run() -> void:
 	var access_counts := _presentation_counts(access)
 	var terminal_counts := _presentation_counts(terminal)
 	_check(
+		bool(terminal.get_cargo_presentation_state().get("reduced_flash", false))
+		and is_equal_approx(_screen_energy(terminal), 0.18),
+		"a preference selected before construction reaches the first terminal publication without brightening it"
+	)
+	cluster.set_reduced_flash_enabled(false)
+	_check(
 		access.get_cargo_presentation_state().state_id == &"unavailable"
 		and terminal.get_cargo_presentation_state().state_id == &"unavailable"
 		and float(access.get_cargo_presentation_state().cue_energy) < 0.2,
 		"the production route and terminal show unavailable without a correct berth occupant"
 	)
+	_check_flash_policy(cluster, binding, access, terminal, &"unavailable", 0.18)
 
 	var ship := MockJovian.new()
 	ship.name = "FocusedJovianOccupant"
@@ -50,6 +58,7 @@ func _run() -> void:
 		and bool(ready.source_available),
 		"the authority-created Jovian source makes the existing route and terminal ready"
 	)
+	_check_flash_policy(cluster, binding, access, terminal, &"ready", 1.15)
 
 	var actor := Node3D.new()
 	actor.name = "FocusedCargoActor"
@@ -65,6 +74,7 @@ func _run() -> void:
 		and terminal.get_cargo_presentation_state().state_id == &"carrying",
 		"accepted disembark and cargo start illuminate the physical carrying route"
 	)
+	_check_flash_policy(cluster, binding, access, terminal, &"carrying", 2.2)
 	for phase_id: StringName in [&"load_crate", &"clear_gate", &"dock_platform"]:
 		_check(
 			bool(binding.submit_cargo_phase(phase_id).get("accepted", false)),
@@ -77,7 +87,9 @@ func _run() -> void:
 		and float(at_terminal.cue_energy) > float(at_terminal.hazard_energy),
 		"completed approach phases brighten the terminal handoff without committing inventory"
 	)
+	_check_flash_policy(cluster, binding, access, terminal, &"at_terminal", 3.0)
 
+	cluster.set_reduced_flash_enabled(true)
 	root.remove_child(cluster)
 	await process_frame
 	_check(
@@ -94,9 +106,12 @@ func _run() -> void:
 			berth.get_dock_transform().origin
 		)
 		and int(access.get_cargo_presentation_state().attachment_generation) \
-			== access.get_attachment_generation(),
+			== access.get_attachment_generation()
+		and bool(terminal.get_cargo_presentation_state().reduced_flash)
+		and is_equal_approx(_screen_energy(terminal), 1.15),
 		"detach/re-entry republishes the current detached activity state at the new attachment generation"
 	)
+	cluster.set_reduced_flash_enabled(false)
 	actor.global_position = terminal.to_global(CargoTransferTerminal.INTERACTION_ORIGIN)
 	var wrong_actor := Node3D.new()
 	root.add_child(wrong_actor)
@@ -111,6 +126,18 @@ func _run() -> void:
 		and float(rejected.hazard_energy) > float(rejected.cue_energy),
 		"a rejected actor request shows an amber no-commit state without changing cargo"
 	)
+	_check_flash_policy(cluster, binding, access, terminal, &"stale_rejected", 3.2)
+	cluster.set_reduced_flash_enabled(true)
+	var rejected_authority := terminal.get_cargo_presentation_state().authority_record as Dictionary
+	cluster.set_cluster_enabled(false)
+	cluster.set_cluster_enabled(true)
+	_check(
+		terminal.get_cargo_presentation_state().authority_record == rejected_authority
+		and terminal.get_cargo_presentation_state().state_id == &"stale_rejected"
+		and is_equal_approx(_screen_energy(terminal), 1.15),
+		"stream visibility changes retain the selected cap and exact terminal refusal"
+	)
+	cluster.set_reduced_flash_enabled(false)
 	wrong_actor.queue_free()
 	actor.global_position = access.get_route_marker(&"berth_exit").global_position
 	var renewed_actor := access.authorize_disembarked_terminal_actor(
@@ -126,6 +153,7 @@ func _run() -> void:
 		and terminal.get_cargo_presentation_state().state_id == &"committed",
 		"the exact committed receipt resolves the existing route and terminal to committed"
 	)
+	_check_flash_policy(cluster, binding, access, terminal, &"committed", 2.7)
 	var reset_result := binding.reset_cargo_run()
 	var reset := access.get_cargo_presentation_state()
 	var terminal_allocation := terminal.get_visual_resource_allocation_audit()
@@ -146,6 +174,7 @@ func _run() -> void:
 		and int(reset.submission_delta) == 0,
 		"reset retains exact renderer, light, collision, interaction, and authority budgets"
 	)
+	_check_flash_policy(cluster, binding, access, terminal, &"reset", 0.25)
 
 	cluster.queue_free()
 	ship.queue_free()
@@ -153,6 +182,79 @@ func _run() -> void:
 	for _frame in 5:
 		await process_frame
 	_finish()
+
+
+func _check_flash_policy(
+		cluster: NearbySectorCluster,
+		binding: NearbySectorActivityBinding,
+		access: CinderCargoAccess,
+		terminal: CargoTransferTerminal,
+		state_id: StringName,
+		authored_energy: float
+	) -> void:
+	var original := terminal.get_cargo_presentation_state()
+	var original_access := access.get_cargo_presentation_state()
+	var protected := _cargo_authority_state(binding, access, terminal)
+	var screen := terminal.get_node(^"StatusScreen") as MeshInstance3D
+	var material := screen.material_override as StandardMaterial3D
+	_check(
+		original.state_id == state_id
+		and is_equal_approx(_screen_energy(terminal), authored_energy),
+		"%s starts at its authored OFF material energy" % state_id
+	)
+	cluster.set_reduced_flash_enabled(true)
+	var reduced := terminal.get_cargo_presentation_state()
+	var reduced_access := access.get_cargo_presentation_state()
+	var expected := original.duplicate(true)
+	expected["reduced_flash"] = true
+	expected["emission_energy"] = minf(authored_energy, 1.15)
+	var expected_access := original_access.duplicate(true)
+	expected_access["reduced_flash"] = true
+	_check(
+		reduced == expected and reduced_access == expected_access
+		and screen.material_override == material
+		and is_equal_approx(_screen_energy(terminal), minf(authored_energy, 1.15))
+		and _cargo_authority_state(binding, access, terminal) == protected,
+		"%s ON immediately caps the existing material while preserving exact text, data and authority" % state_id
+	)
+	cluster.set_reduced_flash_enabled(false)
+	_check(
+		terminal.get_cargo_presentation_state() == original
+		and access.get_cargo_presentation_state() == original_access
+		and screen.material_override == material
+		and is_equal_approx(_screen_energy(terminal), authored_energy)
+		and _cargo_authority_state(binding, access, terminal) == protected,
+		"%s OFF restores its current authored policy without changing cargo or presentation identity" % state_id
+	)
+
+
+func _cargo_authority_state(
+		binding: NearbySectorActivityBinding,
+		access: CinderCargoAccess,
+		terminal: CargoTransferTerminal
+	) -> Dictionary:
+	var authority := binding.get_cargo_transfer_authority()
+	var source_handle := binding.get_cargo_source_handle()
+	var destination_handle := binding.get_cargo_destination_handle()
+	return {
+		"authority_id": authority.get_instance_id(),
+		"authority": authority.audit(),
+		"source_handle": source_handle,
+		"source_manifest": authority.get_manifest_snapshot(source_handle) if not source_handle.is_empty() else {},
+		"destination_handle": destination_handle,
+		"destination_manifest": authority.get_manifest_snapshot(destination_handle),
+		"binding": binding.get_snapshot(),
+		"last_request": binding.get_last_cargo_terminal_request(),
+		"terminal": terminal.get_state_snapshot(),
+		"allocation": terminal.get_visual_resource_allocation_audit(),
+		"access_counts": _presentation_counts(access),
+		"terminal_counts": _presentation_counts(terminal),
+	}.duplicate(true)
+
+
+func _screen_energy(terminal: CargoTransferTerminal) -> float:
+	var screen := terminal.get_node(^"StatusScreen") as MeshInstance3D
+	return (screen.material_override as StandardMaterial3D).emission_energy_multiplier
 
 
 func _presentation_counts(node: Node) -> Dictionary:
