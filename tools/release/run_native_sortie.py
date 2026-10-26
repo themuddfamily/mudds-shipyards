@@ -7590,6 +7590,16 @@ class RetainedHeavyPilot(HeavyBreachPilot):
         self.expected_pid = expected_pid
         self.file_context_accepted = False
 
+    def require_loaded_board(self, s):
+        board = s['breach']['board']; handoff = board['reward_handoff']; director = board['director']
+        generation = self.expected['payload']['game_flow_reward_store']['last_receipt']['activity_generation']
+        require(board['offered_scenario'] == 'torpedo_run' and not board['sortie_armed']
+                and board['active_director_generation'] == 0 and director['state'] == 'idle'
+                and director['scenario_generation'] == 0
+                and handoff['highest_reward_generation'] == generation == 1
+                and handoff['pending_reward_generation'] == 0,
+                'loaded paid Heavy acknowledgement offers Torpedo while fresh director stays idle and unarmed')
+
     def validate_observation(self, s):
         require(s.get('mode') == 'heavy-breach' and s['pid'] == self.expected_pid
                 and (self.last_sequence < 0 or s['sequence'] == self.last_sequence + 1),
@@ -7621,14 +7631,7 @@ class RetainedHeavyPilot(HeavyBreachPilot):
         expected_ledger = self.expected['payload']['game_flow_reward_store']
         require(s['settlement']['record'] == expected_ledger,
                 'live decoded retained Heavy ledger remains exactly one original non-replayable receipt')
-        board = s['breach']['board']; handoff = board['reward_handoff']; director = board['director']
-        generation = expected_ledger['last_receipt']['activity_generation']
-        require(board['offered_scenario'] == 'torpedo_run' and not board['sortie_armed']
-                and board['active_director_generation'] == 0 and director['state'] == 'idle'
-                and director['scenario_generation'] == 0
-                and handoff['highest_reward_generation'] == generation == 1
-                and handoff['pending_reward_generation'] == 0,
-                'loaded paid Heavy acknowledgement offers Torpedo while fresh director stays idle and unarmed')
+        self.require_loaded_board(s)
         previous = self.observed_previous
         if previous:
             require(s['frame'] == previous['frame'] + 1, 'consecutive retained continuation physics frames')
@@ -7812,6 +7815,15 @@ class CorruptRetainedRepairPilot(RetainedHeavyPilot):
         super().__init__(expected, expected_pid)
         self.confirm_requested = self.repair_accepted = False
         self.ui_edges = []
+
+    def require_loaded_board(self, s):
+        board = s['breach']['board']; handoff = board['reward_handoff']; director = board['director']
+        require(board['offered_scenario'] == 'heavy_breach' and not board['sortie_armed']
+                and board['active_director_generation'] == 0 and director['state'] == 'idle'
+                and director['scenario_generation'] == 0
+                and handoff['highest_reward_generation'] == 0 and handoff['pending_reward_generation'] == 0
+                and s['breach']['prompt'] == 'SAVE RECOVERY REQUIRED',
+                'backup-loaded first board refuses terminal adoption and remains default idle unarmed Heavy until a new process')
 
     def validate_observation(self, s):
         if not s['paused']:

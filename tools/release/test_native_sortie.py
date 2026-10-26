@@ -4793,6 +4793,12 @@ class CorruptRetainedHeavyCallerTests(unittest.TestCase):
 
     def sample(self, files=None):
         s = RetainedHeavyCallerTests.sample()
+        # Production refuses a backup before adopting its paid terminal. The
+        # independent ledger still loads the earned credit, while this Main's
+        # board remains blocked/default even after the Settings repair.
+        s['breach']['board'].update(offered_scenario='heavy_breach')
+        s['breach']['board']['reward_handoff']['highest_reward_generation'] = 0
+        s['breach']['prompt'] = 'SAVE RECOVERY REQUIRED'
         path = str(files.path) if files else '/owned/mudds_user_data.json'
         s['recovery'] = dict(store=dict(path=path, source='backup', generation=19),
             settings=copy.deepcopy(self.document()['payload']['runtime_settings']['values']),
@@ -4885,6 +4891,32 @@ class CorruptRetainedHeavyCallerTests(unittest.TestCase):
             candidate = native.CorruptRetainedRepairPilot(self.document(), 1); candidate.validate_observation(self.sample())
             with self.subTest(mutate=mutate), self.assertRaises(AssertionError): candidate.validate_observation(bad)
 
+    def test_first_board_is_refused_and_unadopted_until_distinct_cold_process(self):
+        first = self.sample()
+        p = native.CorruptRetainedRepairPilot(self.document(), 1); p.validate_observation(first)
+        self.assertEqual(first['settlement']['record']['total_receipts'], 1)
+        for mutate in (lambda s: s['breach']['board'].update(offered_scenario='torpedo_run'),
+                       lambda s: s['breach']['board']['reward_handoff'].update(highest_reward_generation=1),
+                       lambda s: s['breach'].update(prompt='[ E ] ARM HEAVY BREACH SORTIE'),
+                       lambda s: s['breach']['board'].update(sortie_armed=True),
+                       lambda s: s['breach']['board'].update(active_director_generation=1),
+                       lambda s: s['breach']['board']['director'].update(state='running'),
+                       lambda s: s['breach']['board']['director'].update(scenario_generation=1),
+                       lambda s: s['breach']['board']['reward_handoff'].update(pending_reward_generation=1),
+                       lambda s: s['settlement']['record'].update(total_receipts=0)):
+            bad = copy.deepcopy(first); mutate(bad)
+            candidate = native.CorruptRetainedRepairPilot(self.document(), 1)
+            with self.subTest(mutate=mutate), self.assertRaises(AssertionError): candidate.validate_observation(bad)
+        # Same-process primary repair must not pretend to have adopted a paid
+        # board; cold continuation must independently require the real adoption.
+        repaired = copy.deepcopy(first); repaired.update(frame=2, sequence=2)
+        repaired['recovery']['store'].update(source='primary', generation=20)
+        p.validate_observation(repaired)
+        with self.assertRaises(AssertionError): native.RetainedHeavyPilot(self.document(), 1).validate_observation(first)
+        cold = RetainedHeavyCallerTests.sample()
+        native.RetainedHeavyPilot(self.document(), 1).validate_observation(cold)
+        with self.assertRaises(AssertionError): native.CorruptRetainedRepairPilot(self.document(), 1).validate_observation(cold)
+
     def test_actual_gui_confirmation_is_once_only_and_first_exit_requires_success_status(self):
         p, s = self.gui_confirm()
         self.assertIn('settings_open_ui', p.receipts); self.assertIn('repair_confirm_ui', p.receipts)
@@ -4952,6 +4984,9 @@ class CorruptRetainedHeavyCallerTests(unittest.TestCase):
             document = RetainedHeavyCallerTests().loaded_document(files)
             document['generation'] += 1
             cold = self.sample(files); cold['pid'] = 2
+            cold['breach']['board']['offered_scenario'] = 'torpedo_run'
+            cold['breach']['board']['reward_handoff']['highest_reward_generation'] = 1
+            cold['breach']['prompt'] = '[ E ] ARM TORPEDO RUN SORTIE'
             cold['settlement']['store'].update(path=str(files.path), generation=document['generation'])
             cold['recovery']['store'].update(source='primary', generation=document['generation'])
             files.path.write_text(json.dumps(document))
