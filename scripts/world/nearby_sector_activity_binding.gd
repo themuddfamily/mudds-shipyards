@@ -70,6 +70,8 @@ var _cargo_terminal: CargoTransferTerminal
 var _cargo_source_entity: Node
 var _cargo_access_attachment_generation := 0
 var _last_cargo_terminal_request: Dictionary = {}
+var _last_cargo_presentation_record: Dictionary = {}
+var _reduced_flash_enabled := false
 var _station_director: Node
 var _station_target: Node3D
 var _station_anchor: Node3D
@@ -540,6 +542,23 @@ func get_last_cargo_terminal_request() -> Dictionary:
 	return _last_cargo_terminal_request.duplicate(true)
 
 
+## A preference change repaints the exact current record: deriving a fresh
+## activity state would discard a terminal refusal or reset presentation.
+func set_reduced_flash_enabled(enabled: bool) -> void:
+	_reduced_flash_enabled = enabled
+	if _last_cargo_presentation_record.is_empty():
+		return
+	_last_cargo_presentation_record["reduced_flash"] = enabled
+	_apply_current_cargo_presentation()
+
+
+func _apply_current_cargo_presentation() -> void:
+	if not is_instance_valid(_cargo_access) or not is_instance_valid(_cargo_terminal):
+		return
+	_cargo_access.apply_cargo_presentation_snapshot(_last_cargo_presentation_record)
+	_cargo_terminal.apply_cargo_presentation_snapshot(_last_cargo_presentation_record)
+
+
 ## Produces one detached presentation record from existing cargo activity,
 ## berth/source and terminal authority outputs. The visual consumers cannot
 ## mutate any of those owners.
@@ -577,12 +596,13 @@ func _publish_cargo_presentation(authority_record: Dictionary = {}) -> void:
 		"terminal": terminal_state,
 		"authority_record": authority_record.duplicate(true),
 		"source_available": is_instance_valid(_cargo_source_entity),
+		"reduced_flash": _reduced_flash_enabled,
 		"inventory_authority": false,
 		"reward_authority": false,
 		"interaction_authority": false,
 	}.duplicate(true)
-	_cargo_access.apply_cargo_presentation_snapshot(detached)
-	_cargo_terminal.apply_cargo_presentation_snapshot(detached)
+	_last_cargo_presentation_record = detached
+	_apply_current_cargo_presentation()
 	if _cinder_cargo_terminal_audio != null:
 		_cinder_cargo_terminal_audio.present_snapshot(detached)
 

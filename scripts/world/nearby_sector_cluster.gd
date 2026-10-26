@@ -564,6 +564,7 @@ func _ready() -> void:
 		return
 	_built = true
 	_quality_level = clampi(initial_quality, DetailQuality.LOW, DetailQuality.HIGH)
+	set_reduced_flash_enabled(_reduced_flash_enabled)
 	_create_materials()
 	_build_route_beacons()
 	_activity_binding.call(
@@ -4178,11 +4179,16 @@ func get_far_visibility_range_report() -> Dictionary:
 
 
 ## Forwarded from the settings consumer (ShipyardWorld) to each loaded
-## generation. Only the belt's chevrons change; nothing in the sector pulses.
+## generation, including the cargo terminal's current detached presentation.
 func set_reduced_flash_enabled(enabled: bool) -> void:
 	_reduced_flash_enabled = enabled
 	if is_instance_valid(_asteroid_field):
 		_asteroid_field.set_reduced_flash_enabled(enabled)
+	# Resolve the authored child even before @onready fields initialize, so a
+	# lazily mounted cluster's first cargo publication inherits the preference.
+	var binding := get_node_or_null(^"ActivityBinding") as NearbySectorActivityBinding
+	if is_instance_valid(binding):
+		binding.set_reduced_flash_enabled(enabled)
 
 
 func _lens_material(color: Color) -> StandardMaterial3D:
