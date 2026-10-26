@@ -28403,3 +28403,50 @@ all576 regularfiles/27links, member names/modes/hashes and sourcebundle verified
 before deletion. Canonical11 checkpoint files retain their exact verified hashes.
 Archive closure records114.325minutes from09:51UTC against90minutes;
 final documentation/push cost continues in the same closeout clock.
+
+
+<a id="zenith-torrent-handback-accepted-20261026"></a>
+### Full Zenith/Torrent/same-Zenith handback accepted — 2026-10-26
+
+Game`499e6816f53f3e5a2b16bc74c808b447cc248661`, driver`8ba86d98efbaf8f4312276db803f77824bfd6ec6`. The fifth complete
+ordinary exported Linux/XTest/X11/Dummy attempt passes162.917s under original
+CAP300/outer360 and unchanged15s walking/12s boarding/10s initial exit/12s radial
+clear/actual24s landing+independent4s stall. Normal Boot/BeginShift; no poses,
+phase/target completion, tuning or observer-control injection. All6670 raw
+observations are consecutive/current with retained Main/Player/capsule/both hulls,
+source1104/1101, seats/cameras/berths and authored tuning. All3131 physicalwalking
+samples are grounded/supported/current with matching completed motions and no
+step receipts; max3D.167595<.211667. All42walking goals/280.899735m include every
+old destination plus four source-safe cargo-lane waypoints.
+
+Initial Zenith90neutral/OFFLINE→real Eexit→wingclear/reverse stairs/corridor→
+physicalTorrent Eboarding→actualGuided four drones+defender/strict home→
+90neutral/OFFLINE→physicalEexit/radialclear→connector/all15ARMgoals→sameZenith
+freshclaim/90neutral→normalfocusedHUDQuit. Nativeexitproducer2064/stream5/seq92
+andTorrent4969/stream5/seq1187 match actual lifecycle consumers. Reclaim90ticks
+use stream9>retired7>initial5; later observed10 follows pause/final state and is
+not the90tick stream. Both retired sources stay neutral/pending0. Actual one
+PID2156722 exits0/reaped, both real durable markers clean/clean_shutdown,
+profile file hash/document retained; inputs/helper/game/Xvfb allreaped, diag0.
+
+All10 game499 readiness/export/three-strict-startup/audit stages pass. Final242
+Python checks/reuseaudit/native pass; actual1529 PE/ELF PCK entries match,
+onlyBoot/observergdc differ from1f7dccb; stockPEtext/exactLinuxarchivebytes/modes/
+epoch verified. Game499 bytes are reused after driver-only correction8ba;
+source difference is only twoPythonfiles+ROADMAP, guarded clean before/after.
+Independent high source/cumulative/final review approves this exact scope.
+
+Priorfour runs remainFAILED: firstthree56.682/67.867/68.320s remain in the
+original verified archive. After separately accepted1f7dccb stair repair, trial4
+passesreverse0–11 but stops91.991s atreverse12's original15s limit: W+Shift/zero
+motion atx−1.649388/z15.609256 matches the real cargo crate's eastface−2.03 plus
+capsule.38/margin.002. Caller-only safez13.5 detours retain every old goal in
+both directions; no crate/game/guard/deadline change. Fourthsource/raw and the
+accepted fifth are preserved together in the continuation archive at closure.
+
+Only CRAFT-ACCEPT-ZENITH cross-craft handback closes. Full craft component damage/
+repair/loss, current art, network/physicaldevice/nativeGPU/finalrelease remain
+OPEN/NOT_RUN; nativeWindows and mandatoryhuman facts remainowner-excluded and
+unperformed. GitHubActions staysdisabled. Original09:51UTC90minute estimate
+continues, integration preparation150.511minutes; no new budget. Owned
+archive/branch/worktree/scratch cleanup: PENDING verified closure and final push.

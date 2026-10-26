@@ -1,11 +1,12 @@
 # Development roadmap
 
 **Playable alpha; full original scope remains unfinished.** Latest Windows build:
-[1f7dccb checkpoint](builds/windows/MuddsShipyards-1f7dccb-checkpoint.zip)
-([changes and validation](builds/windows/MuddsShipyards-1f7dccb-notes.txt)).
-Matching [Linux checkpoint](builds/linux/MuddsShipyards-1f7dccb-linux-x86_64.tar.gz)
-([Linux validation](builds/linux/MuddsShipyards-1f7dccb-linux-notes.txt)) is available.
-The lower Aft stair now has a visible, collision-backed shoulder onto the landing;
+[499e681 checkpoint](builds/windows/MuddsShipyards-499e681-checkpoint.zip)
+([changes and validation](builds/windows/MuddsShipyards-499e681-notes.txt)).
+Matching [Linux checkpoint](builds/linux/MuddsShipyards-499e681-linux-x86_64.tar.gz)
+([Linux validation](builds/linux/MuddsShipyards-499e681-linux-notes.txt)) is available.
+The full Zenith→Torrent Guided→same Zenith handback now passes ordinary synthetic
+keyboard input, strict home/exit/reclaim and normal HUD Quit. The lower Aft stair has a visible, collision-backed shoulder onto the landing;
 the captured lateral walk retains real floor contact. Reduced flash still updates the current/new HUD damage cue through normal Settings.
 Actual save/reset/refusal results also control the HUD unsaved state. The native
 Linux synthetic-keyboard save/three-process/Reset sequence passes. Prior cargo,
@@ -92,25 +93,21 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Selected qualification: one corrected Zenith→Torrent→same Zenith handback.**
-The fourth trial499e681 passed the repaired stairs and all reverse goals0–11,
-then stopped91.991s at the original15s limit onreverse12. HeldW+Shift/zero motion
-atx−1.649388,z15.609256 matches the east face of the actual Central cargo crate
-plus capsule radius/margin; this is a blocked caller path, not a game defect.
-All inputs/helpers/game/Xvfb were released/reaped with zero game diagnostics.
-Torrent boarding, Guided and reclaim remain unobserved; that trial stays failed.
-
-Independent causal/cumulative-priority review selects ONE Python-only correction
-and then one fifth complete trial after Python/reuse audit pass. Before original
-reverse12, insert(0,0,13.5)→(−8.5,0,13.5); keep originalreverse12/13. On return,
-keep every originalconnector0/1/2/3 goal but route from2 via(−8.5,0,13.5)→
-(0,0,13.5) before3. This uses the accepted Freight lane and preserves every old
-published destination, mandatory real Guided, fresh same-Zenith reclaim,
-90neutral ticks, all guards/caps and normal HUD exit/OS0. Exact499e681 game bytes,
-exports/startups/payload proof are reused; no observer or runtime change.
-First unexpected source/test/reuse/wholetrial failure STOP; no automatic sixth.
-Original09:51UTC clock/90minute estimate continue, now approximately135minutes;
-all failure/build/source and closure costs stay charged to that goal.
+**Accepted qualification: Zenith→Torrent Guided→same Zenith handback.**
+Game`499e681` / caller`8ba86d98e` completes the full original route in
+162.917s under unchanged300s/360s limits: physical Zenith exit, all required
+walking, Torrent boarding/actual Guided/strict home/OFFLINE/physical exit, then
+same-Zenith fresh reclaim and normal HUD Quit/actualOS0. All90/90/90neutral
+windows pass. Source5→retired7→reclaim9 proves the fresh stream;10 is observed
+after that receipt. All3131 walking samples remain grounded/supported/current,
+max3D0.167595m<0.211667m;42 goals/280.899735m, actual input/lifecycle receipts,
+both real durable clean markers, zero diagnostics and owned process cleanup pass.
+The safe cargo detour preserves every original destination and deadline.
+[Exact proof, failures and scope](docs/history/ROADMAP_DELIVERIES.md#zenith-torrent-handback-accepted-20261026).
+This closes only CRAFT-ACCEPT-ZENITH's cross-craft member. Component damage/repair,
+loss/regeneration, current art/device/network/final gates remain open. No replay
+is selected. Integration/checkpoint/archive/branch cleanup are closing on the
+original09:51UTC clock, now150.511minutes against90; no budget was reset.
 
 **Roadmap correction applied; PLAN-NEXT remains open.** This documentation pass
 preserves all337 IDs, kinds, parent bindings and accepted scopes; tightens nine
@@ -128,18 +125,16 @@ velocity. Full Player/Aft/station-surface/interior checks, isolated Forward+
 capture, paired exports, three strict startups and actual1529-entry payload audit
 pass. Only the compiled Aft module changes from3649b4b.
 [Exact result, failures and source limits](docs/history/ROADMAP_DELIVERIES.md#aft-stair-base-supported-contact-accepted-20261026).
-Full handback remains PARKED; no fourth whole route ran. Integration is pushed;
+At the stair repair closeout, full handback remained parked and no fourth route
+had run. The full handback is now accepted above. Stair integration is pushed;
 owned branch/worktree/process/scratch cleanup is complete with a verified archive.
 Archive closure records114.325minutes from the original09:51UTC start against
 the90minute estimate; final closure cost remains in closeout.json. Only `main`
 remains locally; unrelated detached diagnostics are retained.
 
-**Zenith/Torrent handback is parked and unqualified.** Three bounded native
-trials stopped before Torrent boarding, Guided or Zenith reclaim. The final run
-lost grounded contact at StairBaseLanding despite support probes below it.
-[Exact failures, reopening condition and preserved source](#zenith-torrent-handback-parked).
-The three archived trials remain unaccepted. Exactly one continuation is now
-selected above after the demonstrated stair repair and independent priority review.
+**Earlier handback failures remain failed and preserved.** The separately accepted
+stair repair and a caller-only cargo detour enable the complete fifth run above.
+[Prior failures and the accepted frozen contract](#zenith-torrent-handback-parked).
 
 
 **Accepted qualification: Zenith settled Main detach/re-entry.**
@@ -714,22 +709,26 @@ Full chronological results belong in the existing
 ## Parked failures and dependent work
 
 <a id="zenith-torrent-handback-parked"></a>
-### Zenith→Torrent→same Zenith handback — PARKED / NOT QUALIFIED
+### Zenith→Torrent→same Zenith handback — accepted continuation; failures retained
 
-Three native Linux/Xvfb OS-input trials failed; no fourth is selected. Game
-`f28f923d2d67b1f52416c7d2591b6e3bfcbd3d40`, final unaccepted driver
-`da7d5a95456d767ae341ac843bc45833c3df3df0`. Normal Zenith admission/90neutral/OFFLINE/physical exit
-and the wing-clear prefix were observed. Torrent boarding, mandatory real Guided,
-Torrent home/exit and same-Zenith reclaim were **never reached**.
+**QUALIFIED in the exact accepted scope:** Game`499e6816f53f3e5a2b16bc74c808b447cc248661`,
+caller`8ba86d98efbaf8f4312276db803f77824bfd6ec6`; full exported ordinary route162.917s/actualOS0,
+42walking goals/280.899735m, actual Guided and same-Zenith fresh reclaim. The first
+four failed runs remain failed; the accepted physical repair and caller detour
+are recorded in the [delivery](docs/history/ROADMAP_DELIVERIES.md#zenith-torrent-handback-accepted-20261026).
+No unchanged rerun or further trial is selected.
 
 | Trial | Actual elapsed | First failed predicate |
 | --- | --- | --- |
 | 1, original driver | 56.682s | Corner cut after wing-clear: both floor rays false at2307/2308; existing safe-corner steering/settling subsequently reused without changing points or checks. |
 | 2, corrected corner | 67.867s | Stair-base sprint: grounded/support true, but ~0.1552m horizontal plus0.1668m descent gives3D~0.2278m above unchanged0.21167m guard. No solver allowance was added. |
 | 3, normal authored walk | 68.320s | At2938 Player loses grounded contact while both probes still see StairBaseLanding; actual horizontal gait≈5.8m/s. Support/grounding requirements reject the run. |
+| 4, repaired stairs | 91.991s | All reverse0–11 pass; reverse12 hits the real Central cargo crate and stops at the original15s goal limit. No game defect or larger deadline accepted. |
+| 5, safe cargo detour | 162.917s | PASS full original handback, every old destination retained plus four safe lane waypoints; real Guided, strict home/OFFLINE/exit, same-Zenith90freshneutral, normalHUDOS0 and clean durable state. |
 
 Each correction received independent causal/cumulative-priority review. Exact
-prior failures remain failed. Final241 Python regressions pass, including the
+prior failures remain failed. For the first three archived trials,241 Python
+regressions pass in that old source scope, including the
 failed sprint sample still being rejected. Import/privacy/observer parse, paired
 exports, three strict startups and1,529-entry actual payload audit pass in their
 recorded scope; only Boot/observer compiled scripts differ from3649b4b. An earlier
@@ -737,16 +736,18 @@ observer-helper scope parse failure and its three-line fix are retained too.
 Driver-only corrections reused exact f28f923 game bytes and runtime checks; no
 identical re-export or accepted gameplay/handback result is inferred.
 
-**Reopening condition (Codex-owned):** reproduce and validate the production
-Player/geometry descent at the captured StairBaseLanding transition, with a
-concrete continuously grounded, supported traversal satisfying the existing3D
-motion/epoch/no-placement checks. Bind the actual locomotion owner and focused
-regression before a new independent priority decision and complete-route trial.
-Do not relax grounding/displacement or invent a solver receipt. The accepted
-1f7dccb prerequisite supplies the demonstrated physical repair; the three old
-trials did not. Any continuation retains the original09:51:00UTC clock and
-failed cost; no renamed task resets it. The original full handback remains below.
-The new route is archived and **not available in main**.
+**Previous reopening condition satisfied.** Accepted1f7dccb proves continuously
+grounded/support/current3D/epoch/no-placement traversal at the captured stair.
+After independent priority review, trial4 passed it and exposed the caller's
+horizontal shortcut into the real cargo crate. Its actual east face plus capsule
+radius/margin predicts the recordedx−1.649388 stop with W+Shift held. The Python-
+only detour uses the establishedz13.5 Freight lane, preserving every original
+goal/guard/cap; independent review and242 Python/reuse checks precede trial5.
+Exact499e681 game/export/startup/payload bytes are reused. The complete route is
+now qualified; a later source change invalidates only its affected predicates,
+not every previously accepted craft outcome. No new retry is queued.
+
+The following archive/cleanup facts describe the first three failed trials:
 
 All21 supervisors/79 observed owned process identities are absent. Inputs and
 input helper/game/Xvfb were released/reaped in every failed trial, with zero game
@@ -765,7 +766,7 @@ at its closeout;3649b4b was current then. The separately accepted Aft checkpoint
 on that clock. Full Zenith, other craft/world/network/release and external gates
 remain open; earlier accepted Zenith results stay accepted.
 
-**Frozen handback contract — one continuation selected after the accepted stair repair.**
+**Accepted frozen handback contract — original result and limits retained.**
 
 - **Goal:** existing CRAFT-ACCEPT-ZENITH cross-craft handback member, implemented
   as `run_native_sortie.py --route zenith-torrent-handback` and actually proved.
@@ -787,13 +788,14 @@ remain open; earlier accepted Zenith results stay accepted.
 - **Walking route:** from Zenith wing-clear use (x,y,z)
   `(22,4.2,68.3)→(13,4.2,68.3)→(6,4.2,68.3)→(-3.5,4.2,68.3)→`
   `(-3.5,4.2,64.2)→(-3.5,4.2,61.5)→(-5.7,4.2,61.2)→(-5.7,0,51)→`
-  `(0,0,51)→(0,0,46.3)→(0,0,39)→(0,0,15.5)→(-8.5,0,15.5)→`
+  `(0,0,51)→(0,0,46.3)→(0,0,39)→(0,0,15.5)→(0,0,13.5)→`
+  `(-8.5,0,13.5)→(-8.5,0,15.5)→`
   `(-8.5,0,13.5)→(-8.5,0,live Torrent ExitPoint.z)→live Torrent candidate`.
   After Torrent exit reuse existing radial-clear target
   `player + max(4,8-horizontal_distance_to_boarding)*unit(horizontal_player_minus_boarding)`;
   store that live target. Connect via `(-8.5,0,clear_target.z)→(-8.5,0,13.5)→`
-  `(-8.5,0,15.5)→(0,0,15.5)`, then unchanged outward ARM_GOALS. Existing Zenith
-  corner x≥20.30/z≤59.20 stays binding; no claim that reverse/connectors passed yet.
+  `(-8.5,0,15.5)→(-8.5,0,13.5)→(0,0,13.5)→(0,0,15.5)`, then unchanged outward ARM_GOALS. Existing Zenith
+  corner x≥20.30/z≤59.20 stays binding; all reverse/connector destinations pass in the accepted scope.
 - **Pass/fail:** same Main/Player/both hulls, registered1104/1101, seats/cameras/
   areas/berths and authored resources/tuning. Only current occupied craft owns
   pilot/input/camera; exited sources retire, remain neutral/pending0, and fresh
