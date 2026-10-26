@@ -27806,3 +27806,17 @@ Cost includes all readiness/old RED/implementation/checks/build/closure from
 2026-10-26T05:22:30UTC against the60minute engineering estimate. Owned archive,
 process/branch/scratch closure is recorded in
 `/srv/mudds-work/ember-abandon-checkpoint-20261026/closeout.json` after closure.
+
+Closure:16 stage supervisors/58 observed owned process identities were absent.
+Verified archive records.tar.gz is52,378,997bytes, SHA256
+`6fbf6cc4c0cca61c0ebb8504a982401c59ad18b8dbd3d7638fac6c478393d0aa`,
+204regular files/16symlinks, including verified source bundle, exact old nine-
+assertion counterexample and final source/package raw records. Verification
+preceded removal of owned loose files; task directory now contains archive and
+closeout.json only. All11 accepted checkpoint artifacts remain in builds/.
+Integrated local task branch was deleted with exact expected tip after fresh
+worktree/remote checks; remote task branch was never created and verified absent.
+No owned branch exception remains; unrelated retired worktrees are untouched.
+Archive closure was39.943 cumulative minutes from05:22:30UTC including readiness,
+implementation, all checks, packaging and cleanup, within60minute estimate.
+Final Git closure cost remains recorded against that same clock in closeout.json.

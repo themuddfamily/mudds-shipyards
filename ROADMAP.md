@@ -113,6 +113,10 @@ shared/full-world/final gates remain open. No autosave is invented: ordinary sav
 caller is tree exit; the live-save refusal control explicitly calls the public
 save seam. All cost stays cumulative from05:22:30UTC against60minute estimate,
 including readiness, old RED, implementation, validation/build and cleanup.
+The task branch is deleted; a verified archive/closeout replaces loose scratch,
+and16 supervisors/58 observed process identities are absent. Archive closure
+was39.943 cumulative minutes, within the60minute estimate; final Git closure
+remains on the same clock in closeout.json.
 
 **Delivered production repair: unpaid survey credit at visit end.**
 Checkpointf51e02a preserves Aurora/Rime genuinely completed but unpaid observations
