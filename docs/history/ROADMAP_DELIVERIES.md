@@ -27414,3 +27414,77 @@ Only archive and adjacentcloseout remain; loose owned profiles/helpers/source/
 logs removed. Archive closed2026-10-26T01:03:25.597666+00:00 after29.993min from
 original start. Final push time/cumulative cost is in adjacentcloseout. This
 closes the failed assignment only; all11Zenith members retain their stated scope.
+
+<a id="zenith-corner-correction-release-tail-stop-20261026"></a>
+## Zenith causal corner correction — consumer-release STOP — 2026-10-26
+
+Existing CRAFT-ACCEPT-ZENITH pilot/hit/home/reuse selection; still NOT_ACCEPTED.
+Original00:33:26→01:48:26UTC75min/all prior cost is retained, not reset by the
+later selection. Independent literal geometry and cumulative-priority/source
+review authorizes one additional full trial, two cumulative. First8708e925
+source/raw/actual8exports stay failed in the verified prior archive; no retro pass.
+
+Corrected source`8a764b0aba0b92460923ebd0e47408e845132bb7` changes only LifeTow
+life-arm/zenith_approach steering/settlement versus8708. Publishedgoal[20.2,4.2,
+59.2]/.30region/all15names remain; privatepoint[20.4,4.2,59.1]/.05 steering and
+x≥20.30/z≤59.20 gate are required for the SAME15consecutive settled samples
+speed<.1 before the next authored18.6/58.6 segment. All other14goals, support
+predicate, defaultphysics and caps are unchanged. Unit checks cover exact1720
+old-centre rejection, interior14vs15advance, real support rejection/original15s
+goal timeout and floor geometry. This corrects a demonstrated executor corner
+cut; it adds no floor grace or gameplay collision change.
+
+The complete original selected route/control/hit/two strict homes/reuse/normal
+HUDOS0/file contract remains. Exact15consumed boost/Q accounting still includes
+transition-tail samples and requires native AND consumer neutral, with no count
+normalization. No shorter admission-only finish is claimed. Full craft damage/
+repair/loss/Torrent handback/Main/art/device/final gates remain open.
+
+Eight current-source stages pass again on first launch: fullPython/import/
+privacy/pairedexports/3strict startups (actual0/exactly1menu-ready marker/no
+engine diagnostics). Actual payload audit is NOT_RUN after nativeSTOP. Fresh
+source-pin-specific stage profiles/reuse rejection preflight pass; no stale-profile
+reuse. Windows payload startup is Linux Godot, not native Windows/GPU proof.
+
+**Sole additional full trial STOP:** driver58.927s/guard59.404s, actualdriverOS1,
+diagnostics0, stageboost_brake. All15 LIFE-ARM support-checked goals and90seat
+frames are reached; live horizontal departure/climb and positive consumed boost
+motion receipts exist. Only baseline actual-file capture, trips[] and weapon{}
+exist. Q/hover/camera/Fhit/home/exit/reuse/normalHUDOS0/both clean states are
+NOT_RUN/unproven. The whole command still has no success marker.
+
+Exact raw timing: boost stage starts2477; native W/Shift firsttrue2479 while
+consumedcommand544 is still throttle0/boostfalse. Consumed boost starts2480/
+command545; through2494/command559 this is15ticks. Driver entersboost_brake and
+requests release after2494. First failing raw2495/obsseq2025 has native_thrust=
+false/nativeboost=false/nativebrake=true, but command560/stream5 remains throttle1/
+boosttrue/brakefalse: the16th consumed tick. Raw2496/command561 is throttle0/
+boostfalse/braketrue. Partiallast_state2494 is the last accepted state, not the
+failed sample. This proves a native-to-consumer release boundary, not a broken
+boost feature or an XSync/timestamp fence. The guard correctly rejects; counts
+are not normalized and no passing handling claim is manufactured.
+
+Top cleanup and actual PID/start checks show game1983253/helper1983251/
+Xvfb1983244 and all9stage supervisors/47observed children absent. Stale game_leg
+exitnull/reapedfalse is not normalOS0 evidence. Cumulative2actualfulltrials:
+45.054+58.927=103.981driver seconds; guard45.554+59.404=104.958s. The original
+wall window and all implementation/check/archive/cleanup time remain charged.
+NOthird/repair/continuation under this allocation. Any later proposal requires
+source-backed current-consumer-frontier/release-debt handling including queued
+samples and independent cumulative-priority/full-contract review. Do not merely
+raise/drop15, ignore the tail, borrow native release as consumer release, or
+reset the clock/goal. No other investigation or source repair selected here.
+
+Verified archive `/srv/mudds-work/zenith-corner-correction-20261026/records.tar.gz`:
+334960160bytes, SHA256`c6bb1da4dbfc67f08d43b7d46f0964f6f7e5417c718c452fbcfd67b89407e109`,
+139regular/9symlinks byte/mode/target-verified. It preserves source
+bundle/patch, current raw and executed8actualexport files/ELF identity, plus
+references to the unchanged verified prior333310423-byte archive. Unaccepted
+public export copies are removed only after byte/hash/archive verification;
+all11previous public files/tool pins unchanged. Accepted main72a1d8491/runtime
+checkpointb810822 restored; fresh remote/worktree checks precede exact local
+ref delete at8a764b0ab. Remote task ref absent; other worktrees untouched. Loose
+owned source/profiles/helpers/logs removed; only archive and adjacentcloseout
+remain. Archive closed2026-10-26T01:26:59.110261+00:00 after53.552min from the
+ORIGINAL start. Final push time/cumulative cost is in adjacentcloseout. No
+successor is active; this closes the failed selection, not the craft outcome.
