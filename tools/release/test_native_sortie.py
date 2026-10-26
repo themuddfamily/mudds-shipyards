@@ -4938,6 +4938,74 @@ class CorruptRetainedHeavyCallerTests(unittest.TestCase):
         with self.assertRaises(AssertionError): p.finish(1)
         p.finish(0); self.assertEqual(p.result['completion_marker'], p.MARKER)
 
+    def test_first_repair_entire_ui_journey_uses_actual_narrow_paused_observations(self):
+        p = native.CorruptRetainedRepairPilot(self.document(), 1); live = self.sample()
+        p.validate_observation(live); p.update(live, 100); p.file_context_accepted = True
+        self.assertEqual(self.tick(p, live, 101)[0], {'e'})
+        self.assertEqual(self.tick(p, live, 102, native_interact=True, phase='APPROACH_SHIP',
+                                   menu_ready=False, control_enabled=True)[0], {'Escape'})
+        # Exact top-level shape emitted by _habitat_restart_pause_observation
+        # plus the heavy selector/recovery reads, as retained by the failed
+        # installed trial. Pausing does not preserve gameplay fields or ticks.
+        paused = dict(frame=live['frame'], main_id=live['main_id'], mode='heavy-breach',
+            native_keys=dict(escape=False, tab=False, **{'return': False}), paused=True,
+            pid=live['pid'], recovery=copy.deepcopy(live['recovery']), rest_retained=False,
+            sequence=live['sequence'], ui=dict(main_visible=True, focus_name='SettingsOpenButton',
+                focus_path='/pause/SettingsOpenButton', focus_is_exit=False, exit_visible=True,
+                exit_enabled=True, exit_text='EXIT TO DESKTOP', exit_path='/pause/ExitButton'))
+        self.assertEqual(set(paused), {'frame', 'main_id', 'mode', 'native_keys', 'paused',
+                                      'pid', 'recovery', 'rest_retained', 'sequence', 'ui'})
+        pause_frame = paused['frame']
+        ui = paused['recovery']['ui']
+        ui.update(main_visible=True, focus_is_settings_open=True, focus_name='SettingsOpenButton',
+                  focus_path=ui['open_path'])
+
+        def paused_tick(now, **changes):
+            paused['sequence'] += 1; ui.update(changes)
+            p.validate_observation(paused)
+            self.assertEqual(paused['frame'], pause_frame)
+            return p.update(paused, now)
+
+        self.assertEqual(paused_tick(103)[0], set())  # release prior Escape
+        # The original driver fails here: Pilot.enter indexes position/phase,
+        # which the actual paused observer deliberately never publishes.
+        self.assertEqual(paused_tick(104)[0], {'Return'})
+        self.assertEqual(p.stage, 'settings_open')
+        self.assertEqual(paused_tick(105)[0], set())
+        self.assertEqual(paused_tick(106, main_visible=False, settings_visible=True,
+            focus_is_settings_open=False, focus_name='ShipMouseSensitivity',
+            focus_path='/settings/ShipMouseSensitivity', focus_enabled=False)[0], {'Tab'})
+        self.assertEqual(p.stage, 'repair_confirm')
+        self.assertEqual(paused_tick(107)[0], set())
+        self.assertEqual(paused_tick(108, focus_is_repair_confirm=True, focus_enabled=True,
+            focus_name='SettingsRepairConfirmButton', focus_path=ui['confirm_path'])[0], {'Return'})
+        self.assertEqual(p.stage, 'repair_wait'); self.assertTrue(p.confirm_requested)
+        self.assertEqual(paused_tick(109)[0], set())
+        # The real-file observer owns acceptance; the controller cannot infer
+        # success merely from activating the confirmation button.
+        self.assertEqual(paused_tick(110)[0], set()); self.assertFalse(p.repair_accepted)
+        p.repair_accepted = True
+        paused['recovery']['store'].update(source='primary', generation=20)
+        self.assertEqual(paused_tick(111, status_visible=True, status_text=p.STATUS,
+            focus_is_repair_confirm=False, focus_name='SettingsSaveButton',
+            focus_path='/settings/SettingsSaveButton')[0], {'Escape'})
+        self.assertEqual(p.stage, 'repair_back')
+        self.assertEqual(paused_tick(112)[0], set())
+        self.assertEqual(paused_tick(113, main_visible=True, settings_visible=False,
+            focus_name='SettingsOpenButton', focus_path=ui['open_path'],
+            focus_is_settings_open=True)[0], set())
+        self.assertEqual(p.stage, 'pause')
+        paused['ui'].update(focus_name='ExitButton', focus_path='/pause/ExitButton', focus_is_exit=True)
+        self.assertEqual(paused_tick(114)[0], {'Return'})
+        self.assertEqual(p.stage, 'quit_wait')
+        self.assertTrue(p.quit_requested)
+        p.finish(0); self.assertEqual(p.result['completion_marker'], p.MARKER)
+        paused_stages = p.stages[2:]
+        self.assertEqual([row['stage'] for row in paused_stages],
+            ['settings_open', 'repair_confirm', 'repair_wait', 'repair_back', 'pause'])
+        self.assertTrue(all('position' not in row and 'phase' not in row for row in paused_stages))
+        self.assertEqual(len({row['frame'] for row in paused_stages}), 1)
+
     def test_opaque_confirmation_refuses_wrong_hidden_disabled_or_impostor_gui_controls(self):
         for field, value in (('confirm_enabled', False), ('confirm_visible', False), ('focus_visible', False),
                              ('confirmation_available', False), ('focus_name', 'FakeButton'),
