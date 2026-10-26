@@ -103,6 +103,7 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Accepted qualification: Zenith settled Main detach/re-entry.**
 
 Source `a70f9397a51845c65d068047d95a5667464782a7` passes the existing suite in45.495s,
 exit0, one marker and no diagnostics. Same re-resolved identities, healthy ledger,
@@ -151,6 +152,11 @@ direction while grounded; Zenith stays still and unpiloted.
   identical checkpoint is needed for tests/docs-only qualification; a demonstrated
   runtime repair requires focused checks and a fresh playable checkpoint.
 
+
+Integrated/pushed; owned branch/worktree/processes and loose scratch are closed
+with a fully verified archive. Only `main` remains locally; unrelated detached
+diagnostic worktrees are preserved. Closure preparation records 11.478
+cumulative minutes against the original45minute estimate. Production is unchanged.
 
 **Accepted goal: shared Reduced flash save/cold/Reset caller.**
 
