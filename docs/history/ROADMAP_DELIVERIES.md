@@ -30427,3 +30427,102 @@ worktree/scratch cleanup and final cumulative time are recorded in adjacent
 Installed temporary/backup placements, nested/legacy formats, final-candidate,
 Windows/native-GPU/physical-input/audio qualification remain open. No new playable
 checkpoint, release publication, hosted CI, parent outcome or phase completion.
+
+
+<a id="installed-future-remaining-placements-accepted-20261026"></a>
+## Installed future temporary and backup placements accepted —2026-10-26
+
+**PASS: both remaining named outer-schema2 placements.** Together with the
+[accepted primary case](#installed-future-primary-refusal-accepted-20261026), all
+three placements now have actual installed-checkpoint UI/cold-continuation proof.
+No runtime/driver/test source changed, and accepted tests/import/privacy/export
+were not repeated. This is no nested-format, final-release or hardware acceptance.
+
+**Selected: the remaining installed future-envelope placements, temporary then backup.**
+This reuses the accepted SAVE-UNSUPPORTED driver and exact package; no new game
+implementation, repeated Python suite, import or export is needed.
+
+| Field | Frozen qualification |
+| --- | --- |
+| Result | Both remaining named outer-schema2 placements refuse actual Settings Save/confirmed Reset, preserve their files, and permit cold walking plus normal exits. |
+| Start | Pushed main b30c0740f; identical driver SHA0d06648d179593b890979662410eca01116a605269fe98d957f782fd6b74f99b; package source755ad605a/archive SHAd10c71cadc26d61dc3ddcf878a93112e0dbceabbfb5a2754c257f40f016fa33b. Restore verified package/fixture from the accepted primary archive; read-only canonical source with before/after guards. Owned case root `/srv/mudds-work/unsupported-save-remaining-20261026`; no task branch/worktree. |
+| Steps | One fresh owned install/prefix/startup per placement. Run the full existing `--route unsupported-save --future-artifact temporary` with the accepted9296-byte retained fixture; only after PASS run the same complete backup placement in another fresh prefix/profile. Each invocation has two distinct processes: actual Save/Reset-confirm, normal UI OS0, cold Begin Shift/all three retained points/normal UI OS0. Uninstall each prefix in finally, preserving five outer fixture files. |
+| Pass/fail | Temporary case retains valid primary/backup plus future151-byte temporary; backup case retains valid primary/future backup and absent temporary. Data files0600/unrelated sentinel0640, exact names/bytes/inodes preserved at all15 milestones. Both processes have source none/gen0/empty live authority, defaults retained; first attempts2/success0/serial0 and cold attempts0; exact visible refusal texts and all original physical walking checks. Exactly two declared refusal warnings per process, zero unexpected diagnostics; all input/game/helper/display cleanup flags true. |
+| Proof | Existing primary command/driver contract, now invoked once for EACH named placement; actual installed hashes/modes/launcher bytes, strict startup exit0/exactlyone STARTUP_MENU_READY_OK, raw UI observations and independent file snapshots, exact process identities and final-drain warnings. Reuse accepted source tests and primary result without rerunning them. |
+| Dependencies | Independent source review confirms newer-schema detection precedes both temporary recovery and valid-primary adoption; existing driver has no placement-specific gap. Same exact package/observer; only documentation changes after tested source. Physical device/native GPU/Windows/final-candidate facts remain separate. |
+| Stop | ORIGINAL SAVE-UNSUPPORTED clock20:59:20UTC2026-10-26/hard22:29:20UTC retained, prior cleanup24.87minutes charged. Estimate15 additional minutes including review/archive/push/cleanup. Original native300/independent330/transaction360 per placement unchanged; separate transactions run sequentially. Stop first unexpected failure, do not launch backup if temporary fails; no correction/retry preauthorized. |
+| Closure | Record actual accepted placements or first failure, commit/push; verified raw archive references the unchanged parent package rather than storing it again. Remove only this owned case's loose files after verification; no global prune, branch, worktree or new playable checkpoint. |
+
+
+
+### Actual operation and independent acceptance
+
+Read-only canonical source pin74943aa1d8340bcfaa77fba15ffa63d992711987 changes only
+documentation after tested b30c0740f. Driver SHA remains
+`0d06648d179593b890979662410eca01116a605269fe98d957f782fd6b74f99b`;
+observer SHA27b256955241d4d9632a5dc2aea7cf6649543a9bc7e472c40dd79830d0d879a7.
+Exact package755ad605a/ELF34b3d6ce6bfab3f18e6991a4d63a092283b14f79ba82ed9f9a3d5b6c8829d60a
+is restored from the immutable primary archive. Each case uses its own fresh
+installed prefix, strict startup and private native profile. Commands are the
+existing accepted primary command with `--future-artifact temporary`, then
+`--future-artifact backup`; source/input/default controls/caps are unchanged.
+Backup launched only after the complete temporary transaction and supervisor
+were terminal/PASS. No retry, extra probe or source correction occurred.
+
+| Placement | Actual OS PIDs, both normal UI OS0/reaped | Native duration | Cold physical walk | Transaction / outer guard |
+| --- | --- | --- | --- | --- |
+| temporary | 2296066 /2296256 | 97.802s | 51.2783395468m, all three original points | 129.054s /129.300679s PASS |
+| backup | 2296841 /2296996 | 97.434s | 51.2383237581m, all three original points | 128.468s /128.744025s PASS |
+
+Both cases show exact actual Save and confirmed Reset controls/texts. First-leg
+attempt/transaction counters0→2, successful saves/serial0; cold counts0→0. Store
+source none/generation0/snapshot{} throughout; live values at Boot, actual Reset
+and cold Boot are equal. The retained fixture's paid data is protected disk
+content, not adopted live progress. Full walking uses the same original three
+points, physical support/motion/default pacing/arrival/settle predicates.
+
+Every one of15 independent file milestones per case matches names, bytes, modes
+and inodes. Temporary has supported primary+backup9296bytes/SHAaf2fada0…0600,
+151-byte future.tmp0600 and28-byte sentinel0640. Backup has supported primary,
+151-byte future.bak and sentinel, with no temporary. No recovery/extra siblings
+appear. This proves the future temporary was not recovered/deleted and the future
+backup was not ignored in favor of the supported primary. Source review confirms
+newer-schema checks precede both ordinary temporary recovery and primary adoption.
+
+Each of the four engine processes emits exactly once EACH the frozen startup
+and GameFlow refusal warnings; four expected warnings/zero unexpected per case.
+The private-marker prefix is absent from raw stdout and both engine logs in each
+case. Each installed strict startup has exit0/exactlyone STARTUP_MENU_READY_OK;
+actual installed binary/modes/desktop-entry bytes match. Uninstall removes only
+managed files; all five outer protected fixtures per case retain hashes/modes.
+Both outer guards keep pin/index/tree/cache exact; all four native cleanup flags
+are true, no cleanup errors or surviving transaction identities. Independent
+review re-read raw observations, warnings,15 file milestones, package identity,
+protected fixtures and process identities before accepting each case.
+
+### Retention and bounded closure
+
+The ORIGINAL20:59:20UTC/hard22:29:20UTC clock includes primary work/24.87minutes
+through prior cleanup. It did not reset for these two placements. No Python-suite,
+import or export rerun and no gameplay/art change/new playable checkpoint.
+Archive completed at35.670 cumulative minutes; final closeout records cleanup cost.
+
+Raw case archive `/srv/mudds-work/unsupported-save-remaining-20261026/records.tar.gz`:
+6389400bytes/70regular files/two template links, SHA256
+`854e0d82addc71615d63d373ebc242520563648af8d86747e27fc3e288e2f5cb`.
+All member bytes/modes/link targets were verified. It references the exact parent
+archive/package member and includes metadata/fixtures/helpers/raw results, without
+storing another copy of the same package. Parent archive SHA remains
+676b87d9e26e014af4d612cd538c297a1cb153028c3eee78ea0c32b4031644c3;
+nested package SHA d10c71cadc26d61dc3ddcf878a93112e0dbceabbfb5a2754c257f40f016fa33b.
+All28 observed stage identities and both supervisors are absent at archive.
+Actual docs push and owned-scratch cleanup are recorded in adjacent closeout.json.
+No task branch/worktree was created; canonical source was guarded read-only.
+
+SAVE-UNSUPPORTED remains open for the existing nested runtime_settings typed
+payload>11 and legacy CFG meta schema>7 package contracts: Codex must bind the
+literal fixture, refusal-or-coexistence endpoint and legitimate writes outside the
+protected future data before execution. Existing source maps/tests stay closed;
+no production defect or need for another survey is inferred. Final-candidate,
+physical/native-GPU facts remain separate; Windows/human owner exclusions remain
+unchanged and unperformed facts remain NOT_RUN. No parent or phase closes here.
