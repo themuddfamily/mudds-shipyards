@@ -425,8 +425,8 @@ func _exercise_production_orderly_quit() -> void:
 		"a live production on-foot survey has current evidence and no pre-quit active checkpoint")
 	if not evidence.get("accepted", false):
 		return
-	var expected_route: Dictionary = evidence.route
-	var expected_optional: Dictionary = evidence.optional_progress
+	var expected_route: Dictionary = JSON.parse_string(JSON.stringify(evidence.route, "", true, true))
+	var expected_optional: Dictionary = JSON.parse_string(JSON.stringify(evidence.optional_progress, "", true, true))
 	game._on_orderly_shutdown_requested()
 	var saved := store.get_snapshot().get(String(SLOT), {}) as Dictionary
 	var completion := saved.get("completion", {}) as Dictionary
@@ -435,14 +435,23 @@ func _exercise_production_orderly_quit() -> void:
 	# Match the store's full-precision wire parse exactly; no rounding or epsilon.
 	var expected_tangent: Array = JSON.parse_string(JSON.stringify(
 		[tangent.x, tangent.y, tangent.z], "", true, true))
-	_check(game.is_inside_tree() and game.player.is_inside_tree()
-		and bool(game.get_ember_interrupted_journey_persistence_report().last_save_status.get("accepted", false))
-		and saved.get("payload_kind") == "ember_relay_survey_active_journey"
-		and checkpoint.get("surface_tangent_meters") == expected_tangent
-		and not tangent.is_zero_approx() and completion.get("route_identity") == expected_route
-		and not bool(expected_route.get("complete", true))
-		and completion.get("optional_progress") == expected_optional
-		and filesystem.ember_checkpoint_commits == 1 and store.get_snapshot().foreign.retained == 91,
+	var checks := {
+		"actors_live": game.is_inside_tree() and game.player.is_inside_tree(),
+		"save_accepted": bool(game.get_ember_interrupted_journey_persistence_report().last_save_status.get("accepted", false)),
+		"active_kind": saved.get("payload_kind") == "ember_relay_survey_active_journey",
+		"exact_coordinate": checkpoint.get("surface_tangent_meters") == expected_tangent,
+		"nonorigin": not tangent.is_zero_approx(),
+		"exact_route": completion.get("route_identity") == expected_route,
+		"incomplete_route": not bool(expected_route.get("complete", true)),
+		"exact_optional": completion.get("optional_progress") == expected_optional,
+		"one_checkpoint_commit": filesystem.ember_checkpoint_commits == 1,
+		"foreign_retained": store.get_snapshot().foreign.retained == 91,
+	}
+	print("EMBER_QUIT_CAPTURE_OBSERVATION: " + JSON.stringify({"checks": checks,
+		"actual_document_json": (filesystem.files.get(STORE_PATH, PackedByteArray()) as PackedByteArray).get_string_from_utf8(),
+		"expected_route": expected_route, "expected_optional": expected_optional,
+		"expected_tangent": expected_tangent}, "", true, true))
+	_check(not checks.values().has(false),
 		"ordinary application Quit captures the exact current production pose and incomplete survey once before detach")
 	var fresh_store := StoreScript.new(STORE_PATH, filesystem)
 	_check(fresh_store.load().accepted and fresh_store.get_snapshot().get(String(SLOT)) == saved,

@@ -2915,6 +2915,8 @@ func _ember_prospective_journey_record(game: GameFlow, store: UserDataStore) -> 
 		"payload_kind": EmberRelaySurveyPersistenceBinding.ACTIVE_JOURNEY_PAYLOAD_KIND,
 		"slot_id": "ember_relay_survey_completion", "completion": recovery,
 		"receipt_sha256": persistence.call("_digest", recovery)}
+	# Compare the same full-precision wire interpretation the store installs.
+	record = JSON.parse_string(JSON.stringify(record, "", true, true))
 	var validated := persistence.validate_interrupted_journey_record(record)
 	if not validated.get("accepted", false):
 		return validated
