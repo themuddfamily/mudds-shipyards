@@ -5302,6 +5302,7 @@ class UnsupportedLegacyCallerTests(unittest.TestCase):
             self.assertNotIn('reset_confirm_ui',pilot.receipts)
             files.leg=1; self.advance_document(files,stable=True,settings=True)
             cold_sample=self.sample(files,stable=True); cold=native.UnsupportedLegacyPilot(files,2,cold=True)
+            cold_sample['pid']=2
             cold.validate_observation(cold_sample); self.assertEqual(cold_sample['recovery']['persistence']['save_attempt_count'],0)
             files.require_session(self.advance_document(files,closed=True,settings=True)['payload'],closed=True)
 
