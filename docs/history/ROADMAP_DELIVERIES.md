@@ -28199,3 +28199,17 @@ disabled; no Downloads publication. Original task clock2026-10-26T08:10:00UTC an
 checks, exports and closure; original 300-second suite caps are unchanged.
 Final source/archive/process/branch/scratch closure is recorded in
 `/srv/mudds-work/cargo-terminal-flash-20261026/closeout.json`.
+
+Closure: accepted work integrated/pushed as main91dc1d098. All 11 public build
+copies were verified by byte count/SHA256 before removing the owned worktree.
+Verified archive `/srv/mudds-work/cargo-terminal-flash-20261026/records.tar.gz` retains all accepted/failed source and raw checks:
+239 regular files, 18 symlinks, 49,254,363 bytes, SHA256
+`aa7b7714cf3eaa16bd4d7074a976be8aa1f70d07fc0aa53e8fd59e80bd62b403`. All 18 stage supervisors and
+65 observed PID/start identities are absent. Owned loose scratch is removed;
+only records.tar.gz and closeout.json remain. The task branch was deleted against
+exact91dc1d098 after fresh pushed-main/worktree/ref checks; remote task ref was
+never created. Unrelated retired/prunable worktrees and earlier archives remain
+untouched. Closure documentation prepared at 35.731 cumulative minutes from
+08:10:00 UTC, including all readiness/failures/baselines/type corrections/checks/
+builds, against the original 60-minute estimate. Adjacent closeout records final
+push/time; no task clock or acceptance scope was reset.

@@ -126,6 +126,8 @@ unchanged. Original-main reproduction and the Main fixture's type-only failure
 remain preserved. Full ordinary UI/save/cold/Reset, full cargo/comfort and native
 Windows/GPU/human gates remain open. All readiness, failures, checks, builds and
 closure stay on the 08:10:00 UTC clock against a 60-minute estimate; no cap reset.
+Integrated/pushed; owned branch/worktree/scratch closed after verified archive.
+Closure documentation records 35.731 cumulative minutes.
 
 **Delivered definition: finite Reduced flash producer/episode contract.**
 The existing COMFORT-FLASH row now binds17 actual producer families to authored
