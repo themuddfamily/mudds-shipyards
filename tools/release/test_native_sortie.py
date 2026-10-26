@@ -4773,6 +4773,190 @@ class RetainedHeavyCallerTests(unittest.TestCase):
                     binary.assert_not_called(); launch.assert_not_called()
 
 
+class UnsupportedSaveCallerTests(unittest.TestCase):
+    """Executable ordinary-input route boundaries, without engine/display launches."""
+    def fixture_files(self, root, placement='primary'):
+        profile=root/'profile'; profile.mkdir(); (profile/'data').mkdir()
+        output=root/'output'; output.mkdir()
+        raw=json.dumps(CorruptRetainedHeavyCallerTests.document()).encode()
+        fixture=root/'input.json'; fixture.write_bytes(raw)
+        with patch.object(native.UnsupportedSaveFiles,'FIXTURES',{(len(raw),hashlib.sha256(raw).hexdigest())}):
+            files=native.UnsupportedSaveFiles(profile,output,fixture,placement)
+        return files,raw
+
+    def sample(self, files):
+        s=CorruptRetainedHeavyCallerTests().sample(files)
+        r=s['recovery']
+        r['store'].update(source='none',generation=0,snapshot={})
+        r['load']=dict(accepted=False,reason='store_load_failed',store_reason='newer_schema',
+            store_status=dict(accepted=False,reason='newer_schema',source='none',generation=0,payload={}))
+        r['safe_start']=dict(restore_status=dict(accepted=False,reason='store_load_unavailable'),
+            begin_status=dict(accepted=False,reason='not_attempted'))
+        r['repair']=dict(last_status=dict(accepted=False,reason='unsupported_newer_schema'))
+        r['persistence']=dict(save_attempt_count=0,save_success_count=0,accepted_transaction_count=0,
+            commit_serial=0,last_commit_id='',last_save_status={})
+        r['ui'].update(confirmation_available=False,settings_dirty=False,reset_confirmation_visible=False,
+                       focus_is_save=False,focus_is_reset=False,focus_is_reset_confirm=False)
+        for action,name,text in [('save','SettingsSaveButton','APPLY + SAVE'),
+                ('reset','SettingsResetButton','RESET DEFAULTS'),
+                ('reset_confirm','ConfirmSettingsResetButton','CONFIRM RESET')]:
+            r['ui'].update({action+'_path':'/settings/'+name,action+'_visible':True,
+                           action+'_enabled':True,action+'_text':text})
+        s['settlement']['record']=dict(receipt_serial=0,total_receipts=0,reward_counts={},last_receipt={})
+        return s
+
+    def tick(self,p,s,now,**changes):
+        s.update(sequence=s['sequence']+1,frame=s['frame']+1,**changes)
+        p.validate_observation(s); p.files.observe(s,p)
+        return p.update(s,now)
+
+    def focus(self,s,action,name):
+        ui=s['recovery']['ui']
+        for key in ('focus_is_settings_open','focus_is_save','focus_is_reset','focus_is_reset_confirm'):
+            ui[key]=False
+        ui.update(focus_name=name,focus_path=ui[action+'_path'])
+        ui['focus_is_settings_open' if action=='open' else 'focus_is_'+action]=True
+
+    def test_canonical_placements_preserve_exact_names_modes_and_opaque_bytes(self):
+        self.assertEqual(native.UnsupportedSaveFiles.FIXTURES, native.CorruptRetainedHeavyFiles.FIXTURES)
+        for placement in ('primary','temporary','backup'):
+            with self.subTest(placement=placement),tempfile.TemporaryDirectory() as tmp:
+                files,raw=self.fixture_files(Path(tmp),placement)
+                expected={files.path.name,files.path.name+'.bak','unrelated.txt'}
+                if placement=='temporary': expected.add(files.path.name+'.tmp')
+                self.assertEqual(set(files.baseline),expected)
+                for name,entry in files.baseline.items():
+                    self.assertEqual(entry[2],0o640 if name=='unrelated.txt' else 0o600)
+                    if name=='unrelated.txt': self.assertEqual(entry[3],files.SENTINEL)
+                    elif name==files.path.name+files.SUFFIX[placement]:
+                        future=json.loads(entry[3]); self.assertEqual(future['schema_version'],2)
+                        self.assertEqual(future['opaque_future_payload']['shape'],[None,True,{'future':9}])
+                        self.assertNotIn(future['opaque_future_payload']['private_marker'],json.dumps(files.snapshots))
+                    else: self.assertEqual(entry[3],raw)
+                files.capture_preserved('before-cold'); files.capture_preserved('after-cold')
+
+    def test_independent_reads_reject_bytes_modes_names_and_file_replacement(self):
+        for mutation in ('bytes','mode','extra','replace','sentinel'):
+            with self.subTest(mutation=mutation),tempfile.TemporaryDirectory() as tmp:
+                files,_=self.fixture_files(Path(tmp))
+                path=files.path
+                if mutation=='bytes': path.write_bytes(path.read_bytes()+b' ')
+                elif mutation=='mode': path.chmod(0o644)
+                elif mutation=='extra': (path.parent/'unexpected').write_bytes(b'x')
+                elif mutation=='sentinel': (path.parent/'unrelated.txt').write_bytes(b'changed')
+                else:
+                    replacement=path.parent/'replacement'; replacement.write_bytes(path.read_bytes())
+                    replacement.chmod(0o600); replacement.replace(path)
+                with self.assertRaises(AssertionError): files.capture_preserved()
+
+    def test_expected_warnings_are_exact_once_per_process_without_changing_old_routes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            files,_=self.fixture_files(Path(tmp)); warnings=list(files.WARNINGS)
+            files.require_warnings(warnings)
+            self.assertEqual(native.observations_from_lines(warnings,files.WARNINGS),[])
+            with self.assertRaises(RuntimeError): native.observations_from_lines(warnings)
+            for bad in (warnings[:1],warnings+warnings[:1],warnings+[b'WARNING: unrelated'],
+                        [warnings[0]+b' extra',warnings[1]],[b'ERROR: failure']+warnings):
+                with self.subTest(lines=bad),self.assertRaises(AssertionError): files.require_warnings(bad)
+            with self.assertRaises(RuntimeError):
+                native.observations_from_lines(warnings+[b'WARNING: unrelated'],files.WARNINGS)
+
+    def test_outer_future_refusal_has_no_inherited_paid_or_healthy_session_requirement(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            files,_=self.fixture_files(Path(tmp)); s=self.sample(files)
+            native.UnsupportedSavePilot(files,1).validate_observation(s)
+            for key,value in [('source','primary'),('generation',19),('snapshot',{'credits':1})]:
+                bad=copy.deepcopy(s); bad['recovery']['store'][key]=value
+                with self.subTest(key=key),self.assertRaises(AssertionError):
+                    native.UnsupportedSavePilot(files,1).validate_observation(bad)
+            bad=copy.deepcopy(s); bad['settlement']['record']['total_receipts']=1
+            with self.assertRaises(AssertionError): native.UnsupportedSavePilot(files,1).validate_observation(bad)
+
+    def test_real_gui_save_reset_confirmation_and_two_distinct_normal_quits_contract(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            files,_=self.fixture_files(Path(tmp)); p=native.UnsupportedSavePilot(files,1); s=self.sample(files)
+            p.validate_observation(s); files.observe(s,p)
+            self.assertEqual(p.update(s,100)[0],{'e'})
+            self.assertEqual(self.tick(p,s,101,native_interact=True,phase='APPROACH_SHIP',
+                menu_ready=False,control_enabled=True)[0],{'Escape'})
+            ui=s['recovery']['ui']; ui['main_visible']=True
+            self.focus(s,'open','SettingsOpenButton')
+            s['ui']=dict(main_visible=True,exit_visible=True,exit_enabled=True,exit_text='EXIT TO DESKTOP',
+                exit_path='/pause/ExitButton',focus_is_exit=False,focus_path=ui['open_path'])
+            self.tick(p,s,102,paused=True)
+            self.assertEqual(self.tick(p,s,103)[0],{'Return'})
+            self.tick(p,s,104)
+            ui.update(main_visible=False,settings_visible=True); self.focus(s,'save','SettingsSaveButton')
+            self.assertEqual(self.tick(p,s,105)[0],{'Return'})
+            self.tick(p,s,106)
+            persistence=s['recovery']['persistence']; persistence.update(save_attempt_count=1,
+                accepted_transaction_count=1,last_save_status=dict(accepted=False,reason='store_load_failed',
+                store_reason='newer_schema',store_status=dict(payload={})))
+            ui.update(status_visible=True,status_text=p.SAVE_STATUS,settings_dirty=True)
+            self.tick(p,s,107); self.assertTrue(p.save_refused)
+            self.focus(s,'reset','SettingsResetButton')
+            self.assertEqual(self.tick(p,s,108)[0],{'Return'})
+            self.tick(p,s,109)
+            ui['reset_confirmation_visible']=True; self.focus(s,'reset_confirm','ConfirmSettingsResetButton')
+            self.assertEqual(self.tick(p,s,110)[0],{'Return'})
+            self.tick(p,s,111)
+            persistence.update(save_attempt_count=2,accepted_transaction_count=2)
+            ui.update(status_text=p.RESET_STATUS,reset_confirmation_visible=False)
+            self.assertEqual(self.tick(p,s,112)[0],{'Escape'}); self.assertTrue(p.reset_refused)
+            self.tick(p,s,113)
+            ui.update(main_visible=True,settings_visible=False)
+            self.tick(p,s,114); self.assertEqual(p.stage,'pause')
+            s['ui']['focus_is_exit']=True
+            self.assertEqual(self.tick(p,s,115)[0],{'Return'})
+            p.finish(0); files.finish_leg(0,p)
+            legs=[dict(pid=1,exit_code=0,reaped=True,normal_ui_exit=True),
+                  dict(pid=2,exit_code=0,reaped=True,normal_ui_exit=True)]
+            files.require_two_legs(legs,299)
+            legs[1]['pid']=1
+            with self.assertRaises(AssertionError): files.require_two_legs(legs,299)
+            cold=native.UnsupportedSavePilot(files,2,cold=True)
+            cold.last_state=s; cold.begin_attempts=copy.deepcopy(s['recovery']['persistence'])
+            cold.quit_requested=True; cold.stage='quit_wait'; cold.file_context_accepted=True
+            cold.receipts.update(awake={},exit_ui={})
+            with self.assertRaises(AssertionError): cold.finish(0)
+
+    def test_final_counts_reject_extra_or_missing_transactions_in_either_process(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            files,_=self.fixture_files(Path(tmp))
+            for cold in (False,True):
+                for saves,transactions in ((0,0),(1,2),(2,1),(3,3)) if not cold else ((1,0),(0,1),(1,1)):
+                    p=native.UnsupportedSavePilot(files,1,cold=cold); s=self.sample(files)
+                    p.last_state=s; p.begin_attempts=copy.deepcopy(s['recovery']['persistence'])
+                    s['recovery']['persistence'].update(save_attempt_count=saves,accepted_transaction_count=transactions)
+                    p.quit_requested=True; p.stage='quit_wait'; p.file_context_accepted=True
+                    p.receipts.update(awake={},exit_ui={},settings_closed_ui={})
+                    p.save_refused=p.reset_refused=True; p.visited=[{}, {}, {}]; p.walked=20
+                    with self.subTest(cold=cold,saves=saves,transactions=transactions),self.assertRaises(AssertionError):
+                        p.finish(0)
+
+    def test_reset_and_cold_start_reject_runtime_default_mismatch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            files,_=self.fixture_files(Path(tmp)); p=native.UnsupportedSavePilot(files,1); s=self.sample(files)
+            p.validate_observation(s); p.attempt_baseline=copy.deepcopy(s['recovery']['persistence'])
+            p.stage='reset_wait'; s['recovery']['persistence'].update(save_attempt_count=1,
+                accepted_transaction_count=1,last_save_status=dict(accepted=False,reason='store_load_failed',
+                    store_reason='newer_schema',store_status=dict(payload={})))
+            s['recovery']['ui'].update(settings_visible=True,status_visible=True,status_text=p.RESET_STATUS)
+            s['recovery']['settings']['camera_fov']=99
+            p.last_state=s
+            with self.assertRaisesRegex(AssertionError,'actual Reset'): p.update(s,100)
+            files.reset_defaults=copy.deepcopy(p.boot_settings)
+            cold=native.UnsupportedSavePilot(files,1,cold=True)
+            with self.assertRaisesRegex(AssertionError,'same actual authored defaults'): cold.validate_observation(s)
+
+    def test_placement_and_fixture_arguments_are_required_only_for_this_route(self):
+        for kwargs in ({},{'retained_data':Path('/fixture')},{'future_artifact':'primary'}):
+            with self.subTest(kwargs=kwargs),self.assertRaises(AssertionError):
+                native.run(Path('/game'),Path('/unused'),'unsupported-save',**kwargs)
+        with self.assertRaises(AssertionError):
+            native.run(Path('/game'),Path('/unused'),'guided',future_artifact='primary')
+
+
 class CorruptRetainedHeavyCallerTests(unittest.TestCase):
     """Corrupt bytes, genuine GUI ingress, and relative cold-session boundaries."""
     @staticmethod

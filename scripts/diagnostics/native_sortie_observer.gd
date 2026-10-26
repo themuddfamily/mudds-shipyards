@@ -1965,14 +1965,19 @@ func _heavy_recovery_observation() -> Dictionary:
 	var open_button: Button = main_page.find_child("SettingsOpenButton", true, false) as Button
 	var confirm: Button = hud.get("_settings_repair_confirm_button") as Button
 	var status: Label = hud.get("_settings_status_label") as Label
+	var save: Button = settings_page.find_child("SettingsSaveButton", true, false) as Button
+	var reset: Button = settings_page.find_child("SettingsResetButton", true, false) as Button
+	var reset_confirmation: Control = hud.get("_settings_reset_confirmation") as Control
+	var reset_confirm: Button = reset_confirmation.find_child("ConfirmSettingsResetButton", true, false) as Button
 	var store: UserDataStore = _game.get("_runtime_settings_user_data_store") as UserDataStore
 	return {"store": {"path": ProjectSettings.globalize_path(str(store.get("_path"))),
-		"source": str(store.get_loaded_source()), "generation": store.get_generation()},
+		"source": str(store.get_loaded_source()), "generation": store.get_generation(), "snapshot": store.get_snapshot()},
 		"load": (_game.get("_runtime_settings_load_status") as Dictionary).duplicate(true),
 		"quarantine": store.get_recovery_receipt(),
 		"session": _game.get_session_diagnostics_snapshot(),
 		"safe_start": _game.get_safe_start_recovery_report(),
 		"repair": _game.get_runtime_settings_repair_report(),
+		"persistence": _game.get_runtime_settings_persistence_report(),
 		"settings": (_game.runtime_settings.to_user_data_payload().get("values", {}) as Dictionary).duplicate(true),
 		"ui": {"main_visible": main_page.is_visible_in_tree(),
 			"settings_visible": settings_page.is_visible_in_tree(),
@@ -1987,6 +1992,15 @@ func _heavy_recovery_observation() -> Dictionary:
 			"confirm_path": str(confirm.get_path()), "confirm_visible": confirm.is_visible_in_tree(),
 			"confirm_enabled": not confirm.disabled, "confirm_text": confirm.text,
 			"confirmation_available": bool(hud.get_runtime_settings_repair_presentation().get("confirmation_available", false)),
+			"settings_dirty": hud.has_unsaved_settings(),
+			"focus_is_save": focus == save, "save_path": str(save.get_path()),
+			"save_visible": save.is_visible_in_tree(), "save_enabled": not save.disabled, "save_text": save.text,
+			"focus_is_reset": focus == reset, "reset_path": str(reset.get_path()),
+			"reset_visible": reset.is_visible_in_tree(), "reset_enabled": not reset.disabled, "reset_text": reset.text,
+			"reset_confirmation_visible": reset_confirmation.is_visible_in_tree(),
+			"focus_is_reset_confirm": focus == reset_confirm, "reset_confirm_path": str(reset_confirm.get_path()),
+			"reset_confirm_visible": reset_confirm.is_visible_in_tree(), "reset_confirm_enabled": not reset_confirm.disabled,
+			"reset_confirm_text": reset_confirm.text,
 			"status_visible": status.is_visible_in_tree(), "status_text": status.text}}
 
 

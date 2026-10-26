@@ -5,6 +5,8 @@ Usage: run_native_sortie.py GAME.x86_64 --output NEW_RESULT_DIRECTORY
 Use --route heavy-breach for physical Heavy arm, real picket kill/payment and home/next posting.
 Use --route retained-heavy --retained-data FILE to load the accepted paid Heavy save and walk normally.
 Use --route corrupt-retained-heavy --retained-data FILE for confirmed backup repair and cold Heavy continuation.
+Use --route unsupported-save --retained-data FILE --future-artifact primary|temporary|backup
+for one canonical future-envelope placement, real Save/Reset refusal and cold ordinary continuation.
 Use --route cinder-supply for the full first funded Jovian/Cinder terminal/home journey.
 Use --route beacon-entry for normal Torrent departure and actual first Beacon HUD start.
 Use --route beacon-settlement to continue through all four beacons and durable settlement.
@@ -79,8 +81,8 @@ def diagnostic_lines(lines):
     return [line for line in normalized if not line.startswith(b'PASS:') and DIAGNOSTIC.search(line)]
 
 
-def observations_from_lines(lines):
-    diagnostics = diagnostic_lines(lines)
+def observations_from_lines(lines, allowed_warnings=()):
+    diagnostics = [line for line in diagnostic_lines(lines) if line not in allowed_warnings]
     if diagnostics:
         raise RuntimeError('native game diagnostic: ' + diagnostics[0].decode('utf-8', errors='replace'))
     return [json.loads(line[len(PREFIX):]) for line in lines if line.startswith(PREFIX)]
@@ -7939,6 +7941,298 @@ class CorruptRetainedRepairPilot(RetainedHeavyPilot):
         self.result = dict(self.report(), completion_marker=self.MARKER, normal_ui_exit=True)
 
 
+class UnsupportedSaveFiles(RetainedHeavyFiles):
+    """Prelaunch fixture ownership and independent reads; never repair a live file."""
+    FIXTURES = CorruptRetainedHeavyFiles.FIXTURES
+    MARKER = 'NATIVE_UNSUPPORTED_SAVE_OK'
+    SENTINEL = b'UNRELATED FILE MUST SURVIVE\n'
+    WARNINGS = (
+        b'WARNING: Startup could not read stored settings: store_load_failed',
+        b'WARNING: Atomic runtime settings load retained authored defaults: store_load_failed / newer_schema',
+    )
+    SUFFIX = {'primary': '', 'temporary': '.tmp', 'backup': '.bak'}
+
+    def __init__(self, profile, output, fixture, placement):
+        require(placement in self.SUFFIX, 'one declared canonical future-artifact placement')
+        super().__init__(profile, output, fixture)
+        self.placement = placement
+        self.leg = 0
+        self.reset_defaults = None
+        raw = self.path.read_bytes()
+        backup = Path(str(self.path)+'.bak')
+        with backup.open('xb') as stream: stream.write(raw)
+        if placement == 'temporary':
+            with Path(str(self.path)+'.tmp').open('xb') as stream: stream.write(raw)
+        # Opaque future bytes are deliberately never copied into logs/reports.
+        future = {'schema_version': 2, 'opaque_future_payload': {
+            'private_marker': 'unsupported-private-'+secrets.token_hex(16),
+            'shape': [None, True, {'future': 9}]}}
+        Path(str(self.path)+self.SUFFIX[placement]).write_bytes(json.dumps(future, separators=(',', ':')).encode())
+        for artifact in self.path.parent.iterdir(): artifact.chmod(0o600)
+        sentinel = self.path.parent/'unrelated.txt'
+        with sentinel.open('xb') as stream: stream.write(self.SENTINEL)
+        sentinel.chmod(0o640)
+        self.directory_identity = self.identity(self.path.parent)
+        self.baseline = self.read_files()
+        self.snapshots = {}
+        self.capture_preserved('prelaunch')
+
+    def read_files(self):
+        require(not self.path.parent.is_symlink() and self.path.parent.resolve() == self.profile.resolve()/self.RELATIVE_SAVE.parent,
+                'exact owned save directory without path redirection')
+        names = {self.path.name, self.path.name+'.bak', 'unrelated.txt'}
+        if self.placement == 'temporary': names.add(self.path.name+'.tmp')
+        require({p.name for p in self.path.parent.iterdir()} == names, 'exact canonical artifact names and sentinel; no extra recovery siblings')
+        result = {}
+        for name in sorted(names):
+            path = self.path.parent/name
+            require(path.is_file() and not path.is_symlink(), 'owned artifacts remain ordinary files')
+            before = path.stat()
+            raw = path.read_bytes()
+            after = path.stat()
+            require((before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns, before.st_mode)
+                    == (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, after.st_mode),
+                    'independent artifact read has stable identity and contents')
+            result[name] = (before.st_dev, before.st_ino, before.st_mode & 0o777, raw)
+        return result
+
+    def capture_preserved(self, label=None):
+        require(self.identity(self.path.parent) == self.directory_identity, 'same exact owned save directory')
+        current = self.read_files()
+        require(current == self.baseline, 'unsupported authority preserves exact names bytes modes and file identities')
+        if label is not None:
+            require(label not in self.snapshots, 'milestone independently read once')
+            self.snapshots[label] = {name: dict(device=item[0], inode=item[1], mode=oct(item[2]),
+                bytes=len(item[3]), sha256=hashlib.sha256(item[3]).hexdigest()) for name, item in current.items()}
+
+    def observe(self, s, pilot):
+        self.capture_preserved()
+        require(s['recovery']['store']['path'] == str(self.path), 'production store names exact owned path')
+        label = f'leg-{self.leg+1}-title'
+        if not s['paused'] and s['menu_ready'] and label not in self.snapshots:
+            self.capture_preserved(label)
+            pilot.file_context_accepted = True
+
+    def require_warnings(self, lines):
+        actual = diagnostic_lines(lines)
+        require(len(actual) == len(self.WARNINGS) and all(actual.count(warning) == 1 for warning in self.WARNINGS),
+                'exact two expected future-load production warnings occur once each per OS process; no other diagnostics')
+
+    def finish_leg(self, leg, pilot):
+        require(pilot.result is not None and pilot.quit_requested, 'ordinary UI exit precedes independent shutdown read')
+        self.capture_preserved(f'leg-{leg+1}-orderly-close')
+
+    require_two_legs = staticmethod(CorruptRetainedHeavyFiles.require_two_legs)
+
+
+class UnsupportedSavePilot(CorruptRetainedRepairPilot):
+    """Ordinary OS keyboard Save, Reset confirmation and cold Begin Shift."""
+    MARKER = UnsupportedSaveFiles.MARKER
+    SAVE_STATUS = 'UNSAVED  //  STORE_LOAD_FAILED'
+    RESET_STATUS = 'DEFAULTS ACTIVE  //  SAVE FAILED'
+
+    def __init__(self, files, expected_pid, cold=False):
+        super().__init__(files.expected, expected_pid)
+        self.files, self.cold = files, cold
+        self.save_refused = self.reset_refused = False
+        self.attempt_baseline = None
+        self.begin_attempts = None
+        self.boot_settings = None
+
+    def validate_observation(self, s):
+        require(s.get('mode') == 'heavy-breach' and s['pid'] == self.expected_pid
+                and (self.last_sequence < 0 or s['sequence'] == self.last_sequence+1),
+                'every unsupported-save observation belongs to this exact process in sequence')
+        self.last_sequence = s['sequence']; self.last_state = s
+        if s['paused']:
+            require(self.initial is not None and s['main_id'] == self.initial['main_id']
+                    and self.stage in ('repair_pause', 'settings_open', 'save_wait', 'reset_open', 'reset_confirm', 'reset_wait', 'repair_back', 'pause', 'quit_wait'),
+                    'same Main remains paused only during ordinary Settings and quit navigation')
+        else:
+            require(s['actors_current'], 'unsupported load leaves current production actors usable')
+            if self.initial is None:
+                require(s['phase'] == 'INTRO' and norm(sub(s['player'], s['spawn'])) < .75,
+                        'unsupported load boots normal title and authored spawn')
+                self.boot_settings = copy.deepcopy(s['recovery']['settings'])
+                if self.cold:
+                    require(self.files.reset_defaults is not None and self.boot_settings == self.files.reset_defaults,
+                            'cold refused load uses the same actual authored defaults as first-process Reset')
+                self.initial = copy.deepcopy(s)
+            require(all(s[k] == self.initial[k] and s[k] for k in self.IDS)
+                    and s['phase'] in ('INTRO', 'APPROACH_SHIP') and not any(s[k] for k in
+                        ('seated','piloted','remote_piloted','station_seated','game_station_seated','sleeping','transition_busy','destroyed','native_fire','command_fire')),
+                    'same original actors stay awake on foot without injected gameplay')
+            require(s['default_sampler'] and s['default_controls'] and s['tuning_unchanged']
+                    and s['physics_ticks'] == 60 and s['time_scale'] == 1 and s['walk_tuning'] == self.DEFAULT_WALK,
+                    'authored default controls and pacing remain unchanged')
+            ledger = s['settlement']['record']
+            require(ledger.get('total_receipts', 0) == ledger.get('receipt_serial', 0) == 0
+                    and not ledger.get('reward_counts') and not ledger.get('last_receipt'),
+                    'refused outer envelope cannot adopt retained Heavy credits')
+            if self.observed_previous and self.stage == 'walk_next':
+                self.require_walking(s)
+                require(s['frame']==self.observed_previous['frame']+1, 'every cold walking physics sample retained')
+                motion=self.require_motion_epoch(s)
+                require(motion['start']==self.observed_previous['player'], 'continuous actual cold Player motion')
+                if motion['step_up']: self.require_step_event(s,motion)
+                else: require(norm(sub(s['player'],self.observed_previous['player']))<=9.2/60+.10,
+                              'ordinary bounded cold walking speed')
+                self.walked+=norm(sub(s['player'],self.observed_previous['player']))
+            if self.observed_previous and s['native_interact'] != self.observed_previous['native_interact']:
+                self.native_edges.append(dict(frame=s['frame'], pressed=s['native_interact'], stage=self.stage))
+            self.observed_previous = copy.deepcopy(s)
+        r = s['recovery']; store = r['store']; loaded = r['load']; nested = loaded['store_status']
+        require(store['source'] == 'none' and store['generation'] == 0 and store['snapshot'] == {}
+                and loaded['accepted'] is False and loaded['reason'] == 'store_load_failed'
+                and loaded['store_reason'] == 'newer_schema' and nested['accepted'] is False
+                and nested['reason'] == 'newer_schema' and nested['source'] == 'none'
+                and nested['generation'] == 0 and nested['payload'] == {},
+                'exact future outer envelope refuses load with none source generation zero empty snapshot')
+        safe = r['safe_start']
+        require(safe['restore_status']['reason'] == 'store_load_unavailable'
+                and safe['restore_status']['accepted'] is False
+                and safe['begin_status']['reason'] == 'not_attempted' and safe['begin_status']['accepted'] is False,
+                'unsupported load never fabricates a healthy safe-start session')
+        require(r['repair']['last_status']['reason'] == 'unsupported_newer_schema'
+                and not r['ui']['confirmation_available'], 'unsupported authority never offers backup repair')
+        p = r['persistence']
+        require(p['save_success_count'] == 0 and p['commit_serial'] == 0 and not p['last_commit_id'],
+                'no unsupported write becomes a successful settings commit')
+
+    @staticmethod
+    def focused(ui, action, name, text):
+        return (ui['focus_is_settings_open' if action == 'open' else 'focus_is_'+action] and ui[action+'_visible'] and ui[action+'_enabled']
+                and ui['focus_visible'] and ui['focus_enabled'] and ui['focus_name'] == name
+                and ui['focus_path'] == ui[action+'_path'] and ui[action+'_text'] == text)
+
+    def refused(self, s, operation):
+        p = s['recovery']['persistence']; status = p['last_save_status']; ui = s['recovery']['ui']
+        if p['save_attempt_count'] == self.attempt_baseline['save_attempt_count']: return False
+        require(p['save_attempt_count'] == self.attempt_baseline['save_attempt_count']+1
+                and p['accepted_transaction_count'] == self.attempt_baseline['accepted_transaction_count']+1
+                and status['accepted'] is False and status['reason'] == 'store_load_failed'
+                and status['store_reason'] == 'newer_schema' and status['store_status']['payload'] == {}
+                and ui['settings_visible'] and ui['status_visible']
+                and ui['status_text'] == (self.SAVE_STATUS if operation == 'save' else self.RESET_STATUS),
+                'one actual GUI transaction visibly refuses unsupported settings write')
+        self.files.capture_preserved('after-'+operation)
+        self.receipts[operation+'_status_ui'] = copy.deepcopy(s)
+        return True
+
+    def update(self, s, now):
+        require(self.last_state is s, 'latest validated observation alone drives ordinary OS input')
+        self.frame = s['frame']
+        if self.stage in ('pause','quit_wait'): return self.ui_update(s, now)
+        if self.stage == 'boot':
+            if s['menu_ready'] and self.file_context_accepted:
+                self.begin_attempts = copy.deepcopy(s['recovery']['persistence'])
+                self.press('e','begin_shift','begin_shift_press',s,now)
+            else: return set(),0,0,False
+        if self.stage == 'begin_shift':
+            if s['phase'] == 'APPROACH_SHIP' and s['supported']:
+                require(any(e['pressed'] for e in self.native_edges) and s['control_enabled']
+                        and norm(sub(s['player'],s['spawn'])) < .75,
+                        'real observed ordinary Begin Shift enables awake authored-spawn controls')
+                self.receipts['awake'] = self.receipt(s); self.tap_key = None
+                if self.cold:
+                    self.begin_walk('walk_next', [list(point) for point in self.WAYPOINTS], s)
+                    self.walk_started=now; self.last_input_frame=self.frame
+                else: self.enter('repair_pause',s)
+            else:
+                if self.tap_key is not None and (now < self.tap_until or self.frame < self.tap_frame+6):
+                    return {self.tap_key},0,0,False
+                self.tap_key = None
+                return set(),0,0,False
+        if self.stage == 'walk_next':
+            self.require_walking(s)
+            require(now-self.walk_started <= 45, 'cold physical continuation forty-five-second deadline')
+            keys=set()
+            frames=max(1,self.frame-self.last_input_frame); self.last_input_frame=self.frame
+            if self.route:
+                dx,arrived=self.walk_to(s,self.route[0],keys,frames)
+                if arrived:
+                    self.visited.append(dict(frame=s['frame'],point=self.route.pop(0)))
+                if self.mouse_pending is not None:
+                    if norm(sub(s['walk_forward'],self.mouse_pending)) < .00001: dx=0
+                    else: self.mouse_pending=None
+                if dx: self.mouse_pending=s['walk_forward'][:]
+                return keys,dx,0,False
+            require(self.walked>10 and len(self.visited)==len(self.WAYPOINTS),
+                    'cold ordinary walking reaches all three existing retained continuation waypoints')
+            self.files.capture_preserved('cold-walk-complete'); self.enter('pause',s)
+            return self.ui_update(s,now)
+        if self.ui_key is not None:
+            if now < self.ui_until: return {self.ui_key},0,0,False
+            self.ui_edges.append(dict(sequence=s['sequence'],key=self.ui_key,pressed=False))
+            self.ui_key = None; self.ui_release_until = now+.10
+            return set(),0,0,False
+        if now < self.ui_release_until or (s['paused'] and any(s['native_keys'].values())):
+            return set(),0,0,False
+        ui = s['recovery']['ui']; key = None
+        if self.stage == 'repair_pause':
+            if not s['paused']: key='Escape'
+            elif ui['focus_is_settings_open']:
+                require(self.focused(ui,'open','SettingsOpenButton','SETTINGS'), 'focused enabled normal Settings button')
+                self.receipts['settings_open_ui']=copy.deepcopy(s); self.enter('settings_open',s); key='Return'
+            else:
+                require(ui['main_visible'] and ui['focus_path'], 'normal main pause keyboard focus')
+                key='Tab'
+        elif self.stage == 'settings_open':
+            require(s['paused'] and ui['settings_visible'] and ui['focus_path'], 'real focused Settings page')
+            if ui['focus_is_save']:
+                require(self.focused(ui,'save','SettingsSaveButton','APPLY + SAVE'), 'focused ordinary Save action')
+                self.files.capture_preserved('before-save'); self.attempt_baseline=copy.deepcopy(s['recovery']['persistence'])
+                self.receipts['save_ui']=copy.deepcopy(s); self.enter('save_wait',s); key='Return'
+            else: key='Tab'
+        elif self.stage == 'save_wait':
+            if self.refused(s,'save'):
+                self.save_refused=True; self.enter('reset_open',s)
+        elif self.stage == 'reset_open':
+            if ui['focus_is_reset']:
+                require(self.focused(ui,'reset','SettingsResetButton','RESET DEFAULTS') and ui['settings_dirty'],
+                        'failed Save makes ordinary Reset require confirmation')
+                self.files.capture_preserved('before-reset-open'); self.receipts['reset_ui']=copy.deepcopy(s)
+                self.enter('reset_confirm',s); key='Return'
+            else: key='Tab'
+        elif self.stage == 'reset_confirm':
+            require(ui['reset_confirmation_visible'], 'actual unsaved-settings Reset confirmation shown')
+            require(self.focused(ui,'reset_confirm','ConfirmSettingsResetButton','CONFIRM RESET'),
+                    'focused enabled ordinary Reset confirmation')
+            self.files.capture_preserved('before-reset-confirm'); self.attempt_baseline=copy.deepcopy(s['recovery']['persistence'])
+            self.receipts['reset_confirm_ui']=copy.deepcopy(s); self.enter('reset_wait',s); key='Return'
+        elif self.stage == 'reset_wait':
+            if self.refused(s,'reset'):
+                require(not ui['reset_confirmation_visible'], 'real Reset confirmation retires after attempted reset')
+                require(s['recovery']['settings'] == self.boot_settings,
+                        'actual Reset reapplies the initial authored runtime defaults while its write is refused')
+                self.files.reset_defaults = copy.deepcopy(s['recovery']['settings'])
+                self.reset_refused=True; self.enter('repair_back',s); key='Escape'
+        elif self.stage == 'repair_back' and ui['main_visible']:
+            require(not ui['settings_visible'], 'ordinary back closes Settings before normal HUD quit')
+            self.receipts['settings_closed_ui']=copy.deepcopy(s); self.enter('pause',s)
+        if key:
+            self.ui_key,self.ui_until=key,now+.08
+            self.ui_edges.append(dict(sequence=s['sequence'],key=key,pressed=True,focus=ui['focus_path']))
+            return {key},0,0,False
+        return set(),0,0,False
+
+    def finish(self, exit_code):
+        persistence = self.last_state['recovery']['persistence']
+        attempts = 0 if self.cold else 2
+        require(self.begin_attempts is not None
+                and persistence['save_attempt_count']-self.begin_attempts['save_attempt_count'] == attempts
+                and persistence['accepted_transaction_count']-self.begin_attempts['accepted_transaction_count'] == attempts
+                and persistence['save_success_count'] == persistence['commit_serial'] == 0
+                and not persistence['last_commit_id'],
+                'exactly one Save and one confirmed Reset in first process, zero writes in cold process')
+        require(exit_code == 0 and self.quit_requested and self.stage == 'quit_wait'
+                and self.file_context_accepted and 'awake' in self.receipts and 'exit_ui' in self.receipts
+                and ((self.cold and len(self.visited)==len(self.WAYPOINTS) and self.walked>10) or (self.save_refused and self.reset_refused and 'settings_closed_ui' in self.receipts)),
+                'unsupported load permits normal Begin Shift and HUD OS0 in both distinct processes')
+        self.result=dict(self.report(),completion_marker=self.MARKER,normal_ui_exit=True,cold=self.cold,
+                         save_refused=self.save_refused,reset_refused=self.reset_refused)
+
+
 class SandboxWalkPilot(Pilot):
     """Five station branches through ordinary controls; fleet/crash gate stays open.
 
@@ -9686,12 +9980,15 @@ def capture_guided_shutdown(profile, output):
                 safe_start_recovery_state=payload.get('safe_start_recovery', {}).get('state'))
 
 
-def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_data=None):
-    require(route in ("zenith-torrent-handback", "zenith-return-reuse", "patrol-relay-home", "race-home", "heavy-breach", "retained-heavy", "corrupt-retained-heavy", "bomber-rearm", "cinder-supply", "hauler-supply", "arrow-return-reuse", "torrent-return-reuse", "torrent-damaged-return", "torrent-arrow-handoff", "guided", "courier-intercept", "courier-escape", "courier-withdraw-phase", "courier-withdraw-distance", "beacon-entry", "beacon-settlement", "beacon-home", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "crew-recovery", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
+def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_data=None, future_artifact=None):
+    require(route in ("zenith-torrent-handback", "zenith-return-reuse", "patrol-relay-home", "race-home", "heavy-breach", "retained-heavy", "corrupt-retained-heavy", "unsupported-save", "bomber-rearm", "cinder-supply", "hauler-supply", "arrow-return-reuse", "torrent-return-reuse", "torrent-damaged-return", "torrent-arrow-handoff", "guided", "courier-intercept", "courier-escape", "courier-withdraw-phase", "courier-withdraw-distance", "beacon-entry", "beacon-settlement", "beacon-home", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "crew-recovery", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
     require(not qualify_beacon_outbound or route == 'beacon-home',
             'outbound timing qualification requires the full beacon-home route')
-    require((route in ('retained-heavy', 'corrupt-retained-heavy')) == (retained_data is not None),
-            'retained-data input is required only for retained-heavy or corrupt-retained-heavy')
+    require((route in ('retained-heavy', 'corrupt-retained-heavy', 'unsupported-save')) == (retained_data is not None),
+            'retained-data input is required only for retained-heavy, corrupt-retained-heavy or unsupported-save')
+    require((route == 'unsupported-save') == (future_artifact is not None)
+            and (future_artifact is None or future_artifact in UnsupportedSaveFiles.SUFFIX),
+            'future-artifact is required only for unsupported-save and names one canonical placement')
     output.mkdir(parents=True, exist_ok=False)
     game = xvfb = desktop = pilot = None
     temporary_profile = None
@@ -9700,6 +9997,8 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
     breach_files = None
     retained_files = None
     corrupt_files = None
+    unsupported_files = None
+    route_warnings = UnsupportedSaveFiles.WARNINGS if route == 'unsupported-save' else ()
     zenith_files = None
     outbound_timing = None
     result = {'driver_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(), 'success': False, 'cap_seconds': CAP, 'binary': str(binary), 'native_gpu': 'NOT_RUN',
@@ -9714,6 +10013,11 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
             profile = Path(temporary_profile.name)
             for name in ('data','config','cache','state','runtime','data-dirs','config-dirs','tmp'):
                 (profile/name).mkdir(mode=0o700)
+            if route == 'unsupported-save':
+                unsupported_files = UnsupportedSaveFiles(profile, output, retained_data, future_artifact)
+                result['retained_input'] = unsupported_files.fixture
+                result['future_artifact'] = future_artifact
+                result['expected_warnings_per_process'] = [warning.decode() for warning in route_warnings]
             if route == 'corrupt-retained-heavy':
                 corrupt_files = CorruptRetainedHeavyFiles(profile, output, retained_data)
                 result['retained_input'] = corrupt_files.fixture
@@ -9758,7 +10062,7 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
                 result['input_helper_pid'] = desktop.process.pid
                 args = [str(binary),'--audio-driver','Dummy','--display-driver','x11',
                         '--rendering-driver','dummy','--disable-render-loop',
-                        '--native-sortie-observer' if route == 'guided' else '--native-sortie-observer='+('sandbox' if route == 'bomber-rearm' else 'heavy-breach' if route in ('retained-heavy', 'corrupt-retained-heavy') else route)]
+                        '--native-sortie-observer' if route == 'guided' else '--native-sortie-observer='+('sandbox' if route == 'bomber-rearm' else 'heavy-breach' if route in ('retained-heavy', 'corrupt-retained-heavy', 'unsupported-save') else route)]
                 result.update(arguments=args, display=env['DISPLAY'], xvfb_pid=xvfb.pid,
                               binary_sha256=hashlib.file_digest(binary.open('rb'),'sha256').hexdigest())
                 breach_files = HeavyBreachFiles(profile, output) if route == 'heavy-breach' else None
@@ -9770,7 +10074,11 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
                 restart_files = (CrewRecoveryFiles(profile, output) if route == 'crew-recovery' else
                                  HabitatRestartFiles(profile, output) if route == 'habitat-restart' else None)
                 result['game_legs'] = []
-                for leg in range(2 if restart_files or corrupt_files else 1):
+                for leg in range(2 if restart_files or corrupt_files or unsupported_files else 1):
+                    if unsupported_files:
+                        unsupported_files.leg = leg
+                        unsupported_files.capture_preserved(f'leg-{leg+1}-before-launch')
+                    leg_log_offset = (output/'game.log').stat().st_size if (output/'game.log').exists() else 0
                     if corrupt_files: corrupt_files.leg = leg
                     # These are the exact same args/env/profile/display/helper.
                     # The single timer above remains armed across both games.
@@ -9802,14 +10110,15 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
                     result['window'] = hex(window)
                     leg_result['window'] = hex(window)
                     desktop.focus(window)
-                    pilot = ((RetainedHeavyPilot(corrupt_files.expected, game.pid) if leg else
+                    pilot = (UnsupportedSavePilot(unsupported_files, game.pid, cold=bool(leg)) if unsupported_files else (
+                             (RetainedHeavyPilot(corrupt_files.expected, game.pid) if leg else
                               CorruptRetainedRepairPilot(corrupt_files.expected, game.pid)) if corrupt_files else
                              RetainedHeavyPilot(retained_files.expected, game.pid) if retained_files else
                              CrewRecoveryPilot(cold=bool(leg), expected_pid=game.pid) if isinstance(restart_files, CrewRecoveryFiles) else
                              HabitatRestartPilot(cold=bool(leg)) if restart_files else {
                         "zenith-torrent-handback": ZenithTorrentHandbackPilot, "zenith-return-reuse": ZenithReturnReusePilot, "patrol-relay-home": PatrolRelayHomePilot, "race-home": RaceHomePilot, "heavy-breach": HeavyBreachPilot, "bomber-rearm": BomberRearmPilot, "cinder-supply": CinderSupplyPilot, "hauler-supply": CinderHaulerSupplyPilot, "arrow-return-reuse": ArrowReturnReusePilot, "torrent-return-reuse": TorrentReturnReusePilot, "torrent-damaged-return": TorrentDamagedReturnPilot, "torrent-arrow-handoff": TorrentArrowHandoffPilot, "guided": GuidedExitPilot, "courier-intercept": CourierPilot, "courier-escape": CourierEscapePilot, "courier-withdraw-phase": CourierWithdrawPhasePilot, "courier-withdraw-distance": CourierWithdrawDistancePilot, "beacon-entry": BeaconEntryPilot, "beacon-settlement": BeaconSettlementPilot, "beacon-home": BeaconHomePilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
                         "hulk-arrival": HulkArrivalPilot, "hulk-breaker": HulkBreakerPilot,
-                        "hulk-home": HulkHomePilot, "habitat-loop": HabitatLoopPilot, "life-tow": LifeTowPilot, "life-gantry": lambda: LifeTowPilot("life-gantry"), "life-arm": lambda: LifeTowPilot("life-arm"), "life-patrol": lambda: LifeTowPilot("life-patrol")}[route]())
+                        "hulk-home": HulkHomePilot, "habitat-loop": HabitatLoopPilot, "life-tow": LifeTowPilot, "life-gantry": lambda: LifeTowPilot("life-gantry"), "life-arm": lambda: LifeTowPilot("life-arm"), "life-patrol": lambda: LifeTowPilot("life-patrol")}[route]()))
                     if isinstance(pilot, BeaconHomePilot): pilot.file_snapshots = settlement_files.snapshots
                     if qualify_beacon_outbound: outbound_timing = BeaconOutboundTiming(game.pid)
                     if isinstance(pilot, (BomberRearmPilot, GuidedExitPilot, ZenithTorrentHandbackPilot)): pilot.expected_pid = game.pid
@@ -9823,19 +10132,21 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
                                     if isinstance(pilot, (ZenithTorrentHandbackPilot, GuidedExitPilot, ArrowReturnReusePilot, CinderSupplyPilot, HeavyBreachPilot, RaceHomePilot)):
                                         require(pilot.quit_requested, f'native process exits only after normal UI request (actual exit {code})')
                                         tail = (output/'game.log').read_bytes().splitlines()
-                                        for observation in observations_from_lines(tail):
-                                            if corrupt_files and observation['pid'] != game.pid: continue
+                                        for observation in observations_from_lines(tail, route_warnings):
+                                            if (corrupt_files or unsupported_files) and observation['pid'] != game.pid: continue
                                             if observation['sequence'] > pilot.last_state['sequence']:
                                                 pilot.validate_observation(observation)
                                                 if breach_files: breach_files.observe(observation, pilot)
                                                 if retained_files: retained_files.observe(observation, pilot)
                                                 if corrupt_files: corrupt_files.observe(observation, pilot)
+                                                if unsupported_files: unsupported_files.observe(observation, pilot)
                                         pilot.finish(game.wait())
                                         if isinstance(pilot, RaceHomePilot): settlement_files.finish(pilot.last_state, pilot)
                                         if zenith_files: zenith_files.finish(pilot.last_state, pilot)
                                         if breach_files: breach_files.finish()
                                         if retained_files: retained_files.finish()
                                         if corrupt_files: corrupt_files.finish_leg(leg, pilot)
+                                        if unsupported_files: unsupported_files.finish_leg(leg, pilot)
                                         leg_result.update(exit_code=0, reaped=True, normal_ui_exit=True)
                                         if isinstance(pilot, (GuidedExitPilot, ZenithTorrentHandbackPilot)):
                                             leg_result['exit_ui'] = pilot.receipts['exit_ui']
@@ -9863,7 +10174,7 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
                                     log.write(chunk); log.flush()
                                     pending += chunk
                                     lines = pending.split(b'\n'); pending=lines.pop()
-                                    observations = observations_from_lines(lines)
+                                    observations = observations_from_lines(lines, route_warnings)
                                     if observations:
                                         if outbound_timing:
                                             received_at = time.monotonic()
@@ -9875,6 +10186,7 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
                                                 if breach_files: breach_files.observe(observation, pilot)
                                                 if retained_files: retained_files.observe(observation, pilot)
                                                 if corrupt_files: corrupt_files.observe(observation, pilot)
+                                                if unsupported_files: unsupported_files.observe(observation, pilot)
                                         state = observations[-1]
                                         if restart_files:
                                             require(state['pid'] == game.pid, 'observer belongs to exact running game PID')
@@ -9918,7 +10230,16 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
                                             leg_result['sortie'] = pilot.report()
                                             pilot.result = {'owned_cut_complete': True}
                                             break
-                    if corrupt_files:
+                    if unsupported_files:
+                        desktop.keys([]); desktop.mouse(0, 0, False)
+                        drain_game_output(game, output/'game.log'); game.stdout.close()
+                        with (output/'game.log').open('rb') as stream:
+                            stream.seek(leg_log_offset)
+                            unsupported_files.require_warnings(stream.read().splitlines())
+                        unsupported_files.capture_preserved(f'leg-{leg+1}-final-drain')
+                        leg_result.update(sortie=pilot.result, expected_warning_count=2, unexpected_diagnostic_count=0)
+                        game = None
+                    elif corrupt_files:
                         desktop.keys([]); desktop.mouse(0, 0, False)
                         drain_game_output(game, output/'game.log'); game.stdout.close()
                         require(not diagnostic_lines((output/'game.log').read_bytes().splitlines()),
@@ -9963,6 +10284,13 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
                         result.update(success=True,sortie=pilot.result)
                 if breach_files: result['actual_file_snapshots'] = breach_files.snapshots
                 if retained_files: result['actual_file_snapshots'] = retained_files.snapshots
+                if unsupported_files:
+                    unsupported_files.require_two_legs(result['game_legs'], time.monotonic()-start)
+                    result['actual_file_snapshots'] = unsupported_files.snapshots
+                    result.update(success=True, sortie=dict(completion_marker=unsupported_files.MARKER,
+                        legs=[item['sortie'] for item in result['game_legs']], distinct_processes=True,
+                        same_binary=str(binary), same_profile=str(profile),
+                        same_input_helper_pid=desktop.process.pid, same_xvfb_pid=xvfb.pid))
                 if corrupt_files:
                     corrupt_files.require_two_legs(result['game_legs'], time.monotonic()-start)
                     result['actual_file_snapshots'] = corrupt_files.snapshots
@@ -9981,6 +10309,7 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
                                         'same_xvfb_pid': xvfb.pid}
                     result['success'] = True
     except Exception as error:
+        if unsupported_files is not None: result['actual_file_snapshots'] = unsupported_files.snapshots
         if breach_files is not None: result['actual_file_snapshots'] = breach_files.snapshots
         if retained_files is not None: result['actual_file_snapshots'] = retained_files.snapshots
         if corrupt_files is not None: result['actual_file_snapshots'] = corrupt_files.snapshots
@@ -10091,6 +10420,15 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
             result['success'] = False
         log_path = output/'game.log'
         diagnostics = diagnostic_lines(log_path.read_bytes().splitlines()) if log_path.exists() else []
+        if route == 'unsupported-save':
+            expected = [line for line in diagnostics if line in route_warnings]
+            diagnostics = [line for line in diagnostics if line not in route_warnings]
+            result['expected_warning_count'] = len(expected)
+            result['expected_warning_counts'] = {line.decode(): expected.count(line) for line in route_warnings}
+            result['unexpected_diagnostic_count'] = len(diagnostics)
+            if len(result.get('game_legs', [])) != 2 or any(expected.count(line) != 2 for line in route_warnings):
+                result['success'] = False
+                result.setdefault('error', 'future-load warnings must occur exactly once each in both OS processes')
         result['diagnostic_count'] = len(diagnostics)
         if diagnostics:
             result['success'] = False
@@ -10106,19 +10444,23 @@ def main():
     parser.add_argument('binary')
     parser.add_argument('--output',required=True,type=Path)
     parser.add_argument('--retained-data', type=Path,
-                        help='exact accepted raw Heavy orderly-close save; required for retained-heavy or corrupt-retained-heavy')
+                        help='exact accepted raw Heavy orderly-close save; required for retained-heavy, corrupt-retained-heavy or unsupported-save')
+    parser.add_argument('--future-artifact', choices=('primary','temporary','backup'),
+                        help='required only for unsupported-save; run exactly one canonical future-envelope placement')
     parser.add_argument('--qualify-beacon-outbound', action='store_true',
                         help='qualify the fixed 60.0s outbound monotonic maximum within the unchanged full beacon-home route')
-    parser.add_argument('--route', choices=('zenith-torrent-handback', 'zenith-return-reuse', 'patrol-relay-home', 'race-home', 'heavy-breach', 'retained-heavy', 'corrupt-retained-heavy', 'bomber-rearm', 'cinder-supply', 'hauler-supply', 'arrow-return-reuse', 'torrent-return-reuse', 'torrent-damaged-return', 'torrent-arrow-handoff', 'guided', 'courier-intercept', 'courier-escape', 'courier-withdraw-phase', 'courier-withdraw-distance', 'beacon-entry', 'beacon-settlement', 'beacon-home', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'crew-recovery', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
+    parser.add_argument('--route', choices=('zenith-torrent-handback', 'zenith-return-reuse', 'patrol-relay-home', 'race-home', 'heavy-breach', 'retained-heavy', 'corrupt-retained-heavy', 'unsupported-save', 'bomber-rearm', 'cinder-supply', 'hauler-supply', 'arrow-return-reuse', 'torrent-return-reuse', 'torrent-damaged-return', 'torrent-arrow-handoff', 'guided', 'courier-intercept', 'courier-escape', 'courier-withdraw-phase', 'courier-withdraw-distance', 'beacon-entry', 'beacon-settlement', 'beacon-home', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'crew-recovery', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
                         help='zenith-torrent-handback walks unchanged LIFE-ARM, exits docked Zenith, completes actual Guided in Torrent, and physically reclaims the same Zenith for90 fresh neutral ticks and normal HUD OS0; zenith-return-reuse covers selected Zenith LIFE-ARM admission, pilot controls/cameras, actual28-point repeater hit, two strict home/OFFLINE/wing-clear exits and normal UI OS0; patrol-relay-home completes genuine Guided, actual pause-board relay selection, five continuous two-second holds, exact durable payment, strict home and normal UI exit; race-home completes the genuine Guided prerequisite then same-Torrent timed race, exact durable reward, strict home and normal UI exit; heavy-breach completes real posted Heavy/picket kill/payment/home/next posting/UI exit; courier-withdraw-distance flies beyond all actual contacts for real seven-second grace withdrawal before original defender and home; courier-withdraw-phase kills the original defender after actual first courier dispatch and verifies phase withdrawal/standdown through home; courier-escape lets the actual first live runner escape and verifies standdown through home; courier-intercept destroys the actual first courier before escape then returns home; beacon-home retains payment through genuine Guided combat, home docking and usable exterior walking; hauler-supply flies the actual Dock04 Hauler through the funded Cinder terminal/home journey; cinder-supply flies the full funded Jovian/Cinder terminal/home journey; beacon-settlement continues the accepted entry through four physical beacons and durable reward; beacon-entry departs normally and physically reaches/starts the first Beacon through actual pause controls; life-patrol walks Habitat through the real door beside patrol drones and boards Torrent; life-arm walks Aft stairs past the live service arm and boards Zenith; life-gantry walks Freight past the live gantry and boards Jovian; life-tow walks Central beside live tow service and boards Torrent; hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
     args=parser.parse_args()
     if args.qualify_beacon_outbound and args.route != 'beacon-home':
         parser.error('--qualify-beacon-outbound requires --route beacon-home')
-    if (args.route in ('retained-heavy', 'corrupt-retained-heavy')) != (args.retained_data is not None):
-        parser.error('--retained-data is required only for --route retained-heavy or corrupt-retained-heavy')
+    if (args.route in ('retained-heavy', 'corrupt-retained-heavy', 'unsupported-save')) != (args.retained_data is not None):
+        parser.error('--retained-data is required only for --route retained-heavy, corrupt-retained-heavy or unsupported-save')
+    if (args.route == 'unsupported-save') != (args.future_artifact is not None):
+        parser.error('--future-artifact is required only for --route unsupported-save')
     try: binary=validate_binary(args.binary)
     except ValueError as error: parser.error(str(error))
-    result=run(binary,args.output.absolute(),args.route,qualify_beacon_outbound=args.qualify_beacon_outbound,retained_data=args.retained_data)
+    result=run(binary,args.output.absolute(),args.route,qualify_beacon_outbound=args.qualify_beacon_outbound,retained_data=args.retained_data,future_artifact=args.future_artifact)
     print(json.dumps(result,indent=2))
     return 0 if result['success'] and result.get('inputs_released') and result['game_reaped'] and result['xvfb_reaped'] and result['input_helper_reaped'] else 1
 
