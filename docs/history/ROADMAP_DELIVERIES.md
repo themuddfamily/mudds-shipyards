@@ -28118,3 +28118,84 @@ there was no engine failure or test result. Work from2026-10-26T07:55:00UTC is
 13.885 cumulative minutes at closure preparation against30minute estimate,
 including source pass, exact-gap review, document checks and closure. No clock
 reset, owner-decision fabrication or project-percentage claim.
+
+<a id="cargo-terminal-reduced-flash-production-binding-accepted-20261026"></a>
+## Cargo terminals follow the real Reduced flash setting — accepted 2026-10-26
+
+Production source `d4e2213beffc09f9878e9d7d69fd3c62fbf7aa01`;
+[Windows checkpoint](../../builds/windows/MuddsShipyards-d4e2213-checkpoint.zip)
+and [matching Linux](../../builds/linux/MuddsShipyards-d4e2213-linux-x86_64.tar.gz).
+Existing COMFORT-FLASH/original parent29, named cargo terminal gap in the closed
+17-family contract. Starting with a current production terminal presentation,
+the actual preference must cap its material at the existing 1.15 with ON and
+restore its current authored value with OFF. Preserve dim states, complete text/
+state/refusal/receipt, same material and all cargo stock/transfer/reward/generation/
+interaction authority. Retain the choice before construction and on later streamed
+generations. This closes production forwarding, not ordinary UI/cold/full comfort.
+
+The cluster now forwards its retained flag to its authored activity-binding child,
+including before ready, and seeds the preference before cargo construction. Each
+normal detached cargo publication includes that flag. A settings-only update
+reuses the exact last canonical record with only its flag changed, applying the
+visual consumers without invoking authority, republishing an empty result or
+replaying audio. The latter would clear rejection/reset feedback. Existing real
+source transitions, endpoint guards and fresh attachment/rebind state semantics
+remain unchanged; no stale refusal lifetime is extended. No new material, node,
+setting, schema, inventory owner or reward policy is introduced.
+
+Focused production cluster/authority fixture uses MockJovian and actual screen
+material. All seven states exercise OFF→ON→OFF: unavailable0.18, ready1.15,
+carrying2.2, at-terminal3, committed2.7, rejected3.2 and reset0.25; ON applies
+min(authored,1.15). Complete terminal/access data and text, same material,
+authority audit/manifests/handles, binding/last-request, generations, interaction
+and allocation budgets remain exact across toggles. Pre-ready ON, visibility and
+at-terminal reentry are covered. All 38 assertions pass 5.544935 s/OS0.
+
+Real Main test separately uses its real RuntimeSettings/world and public streaming
+binding caller sample API. Competing GameFlow physics is suspended, observer
+positions/time are staged at Cinder's anchor/station; normal profile forwarding,
+quality, fade/retirement and generation lifecycle remain active. No terminal
+preference snapshot or private synchronizer is injected. The actual unavailable
+terminal stays at0.18 and inherits ON before load; OFF/ON/OFF reaches the same
+cluster/terminal/material without changing its complete record. After retirement,
+a fresh identity inherits OFF; it is then retired and original processing restored.
+The 70-assertion Main suite passes 36.471236 s/OS0. This low-state setting-chain
+proof plus the focused high-state cap proof is explicitly component integration;
+it does not claim a flown cargo trip, ordinary settings UI or cold process.
+
+Retained first old-code run250fa38fe fails 5.362628 s on ten intended flash
+assertions plus three consequences of its obsolete reset fixture. Unchanged
+original main741b1eeb7 independently reproduces the reset-only failure5.356512 s:
+a completed unpaid delivery correctly refuses Reset. Reviewed fixture correction
+moves unchanged reset/material/allocation checks to genuine ACTIVE, restarts
+normally, then explicitly asserts completed-unpaid reset refusal and exact
+unchanged authority. No reward stub, paid-receipt fabrication or guard removal.
+Corrected old source51238f0ed fails exactly ten target flag assertions5.473946 s.
+The new Main fixture first fails before execution on dynamic-world type inference
+16.657517 s; an explicit ShipyardWorld cast changes only test typing. Typed old
+source3a1b8e7e6 then fails exactly two target flag-chain assertions36.353538 s,
+with all other checks passing. All original failed source/raw/status and causal
+reviews remain preserved, against the same task clock and original limits.
+
+Final exact source passes all 12 stages. Companions: readability10 assertions/
+0.890529 s, terminal68/2.268866 s and audio41/4.566178 s, OS0 and no failure
+diagnostics. Safe paired exports, Windows payload under Linux Godot26.416532 s,
+direct Linux22.643592 s and archive24.160087 s startups pass actual OS0 and exactly
+one STARTUP_MENU_READY_OK each. Actual PE/ELF inventories match1,527 entries; only
+nearby_sector_cluster.gdc and nearby_sector_activity_binding.gdc differ from9105da8.
+Stock PE engine text, exact Linux archive bytes/modes/source epoch and source/
+artifact identities verify. Independent source, actual log/result, owned-process,
+artifact-hash and build-note review GO. Eleven accepted artifacts are copied by
+verified hashes from the owned export worktree to repository builds/; ZIP contains
+the exact EXE and notes.
+
+All automated Godot calls are headless/Dummy/private-profile. Native Windows/GPU/
+devices/human visual review remain NOT_RUN. Shared ordinary UI/save/cold/Reset,
+full cargo/world/comfort/final gates remain open. Existing 17-family definition
+stays closed; only the affected cargo row is amended, so the resolved missing
+flag cannot schedule another unchanged source survey. GitHub Actions remains
+disabled; no Downloads publication. Original task clock2026-10-26T08:10:00UTC and
+60-minute estimate include source readiness, all failures/causal comparisons,
+checks, exports and closure; original 300-second suite caps are unchanged.
+Final source/archive/process/branch/scratch closure is recorded in
+`/srv/mudds-work/cargo-terminal-flash-20261026/closeout.json`.

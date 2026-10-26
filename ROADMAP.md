@@ -1,18 +1,15 @@
 # Development roadmap
 
 **Playable alpha; full original scope remains unfinished.** Latest Windows build:
-[9105da8 checkpoint](builds/windows/MuddsShipyards-9105da8-checkpoint.zip)
-([changes and validation](builds/windows/MuddsShipyards-9105da8-notes.txt)).
-Matching [Linux checkpoint9105da8](builds/linux/MuddsShipyards-9105da8-linux-x86_64.tar.gz)
-([Linux validation](builds/linux/MuddsShipyards-9105da8-linux-notes.txt)) is available.
-Reduced flash now updates already-visible torpedo terminal bursts using their
-existing material/scale policy while preserving age, lifetime and gameplay.
-Ordinary application Quit still captures the current incomplete on-foot Ember
-survey before actors detach. Actual production Quit and exported real-file proof
-pass: a fresh visit writes checkpoint0 while the abandoned checkpoint1 remains
-passive, with no reward or foreign-data change. Physical home/exit/reuse,
-completed-debt disk recovery, arbitrary Main removal/streaming and native hardware
-requirements remain open; prior results retain their recorded scope.
+[d4e2213 checkpoint](builds/windows/MuddsShipyards-d4e2213-checkpoint.zip)
+([changes and validation](builds/windows/MuddsShipyards-d4e2213-notes.txt)).
+Matching [Linux checkpoint](builds/linux/MuddsShipyards-d4e2213-linux-x86_64.tar.gz)
+([Linux validation](builds/linux/MuddsShipyards-d4e2213-linux-notes.txt)) is available.
+Cinder cargo terminal screens now follow Reduced flash using their existing
+1.15 emission cap, while preserving current text, feedback and cargo authority.
+Prior live torpedo flash and ordinary Ember Quit repairs remain accepted.
+Full cargo/comfort/world journeys, ordinary preference UI/save/cold/Reset,
+physical home/exit/reuse and applicable native hardware gates remain open.
 Nine of the promised 17 craft exist. All 36 original parent outcomes and ten phase
 exit gates remain open; completed child results are retained, not counted as whole
 features. There is no evidence-backed project percentage or completion date.
@@ -105,32 +102,30 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Selected production repair: cargo terminals follow the real Reduced flash setting.**
-Existing COMFORT-FLASH/parent29 terminal family. On a clean candidate, an actual
-Cinder cargo terminal already showing carrying/at-terminal/rejected/committed
-presentation must use its existing≤1.15 emission cap when Reduced flash turns ON;
-OFF restores the current authored state. Unavailable/ready/reset states must not
-brighten. The same screen/material, exact text/state/refusal/receipt and all
-stock/transfer/reward/interaction/attachment authority remain unchanged by toggles.
-Use the real setting→world→loaded or newly streamed cluster→binding→terminal path;
-retain ON before allocation and OFF for a later generation. Reentry retains the
-flag while existing ordinary rebind/generation/state semantics stay unchanged.
-Proof: extend existing Cinder cargo presentation suite across all seven states
-using actual material and authority snapshots, old-code RED/new-code GREEN.
-Extend existing production Main combat-effects suite to exercise real
-RuntimeSettings/world/public streaming caller path and actual terminal material;
-observer position/time is staged and Main physics suspended, not ordinary flight.
-The Main unavailable-state chain and focused high-state caps are distinct pieces
-of this component proof. Run existing terminal/readability/audio companions,
-clean paired exports, three strict startups and exact payload audit. No new
-setting, material policy, save schema or evidence validator. Files: existing
-nearby_sector_cluster.gd/nearby_sector_activity_binding.gd and the two existing
-tests; root owns docs/release/integration, one implementer plus lifecycle reviewer.
-First unexpected failure stops for causal review. Clock2026-10-26T08:10:00UTC/
-60minute estimate includes readiness, all failures/checks/build/cleanup; existing
-300s suite caps unchanged. Ordinary UI/save/cold/Reset, full cargo/comfort and
-native Windows/GPU/human gates remain open. Source-definition17-family goal stays
-closed; this is its named runtime gap, not another source survey.
+**Delivered production repair: cargo terminals follow Reduced flash.**
+Checkpoint d4e2213 forwards the real setting through loaded/new Cinder clusters
+and repaints the exact retained terminal record. Existing carrying/terminal/
+committed/rejected emission becomes at most 1.15 with ON; OFF restores the current
+state. Dim states stay dim. Text, refusal/receipt feedback, material identity,
+stock, generation, transfer, reward and interaction ownership are preserved.
+
+Focused production-cluster material/authority checks pass 38 assertions across
+all seven states; real Main setting/world/streaming-path checks pass 70, including
+ON before load, same-instance live changes and a fresh OFF generation. The Main
+terminal is unavailable (0.18); focused fixtures prove higher-energy state caps.
+Observer samples are staged through the normal streaming caller with competing
+Main physics suspended. This is component integration, not ordinary cargo travel.
+Readability 10, terminal 68 and audio 41 assertions pass. All 12 final stages,
+paired exports, three strict startups and the 1,527-entry audit pass; only the
+two intended nearby-sector scripts differ in the game payload.
+[Exact proof, preserved failures and remaining gates](docs/history/ROADMAP_DELIVERIES.md#cargo-terminal-reduced-flash-production-binding-accepted-20261026).
+
+The obsolete focused-test reset of an unpaid completed delivery was corrected
+to a genuine ACTIVE reset plus explicit completed-unpaid refusal; the guard is
+unchanged. Original-main reproduction and the Main fixture's type-only failure
+remain preserved. Full ordinary UI/save/cold/Reset, full cargo/comfort and native
+Windows/GPU/human gates remain open. All readiness, failures, checks, builds and
+closure stay on the 08:10:00 UTC clock against a 60-minute estimate; no cap reset.
 
 **Delivered definition: finite Reduced flash producer/episode contract.**
 The existing COMFORT-FLASH row now binds17 actual producer families to authored
@@ -139,9 +134,9 @@ ordinary Settings→Apply+Save→distinct Boot→Reset→third Boot endpoints ar
 [The finite contract and exact remaining owners](docs/ROADMAP_BACKLOG.md#reduced-flash-producer-and-episode-contract)
 replace an unspecified consumer list; do not repeat an unchanged source survey.
 
-One concrete runtime gap is identified: the cargo terminal's authored≤1.15 cap
-has no production setting flag/refresh. The ordinary Reduced-flash cold/reset
-caller and unbound normal effect triggers/observers remain Codex-owned gates.
+The cargo terminal production flag gap identified by this definition is now
+accepted on d4e2213 above. The ordinary Reduced-flash cold/reset caller and
+unbound normal effect triggers/observers remain Codex-owned gates.
 No new visual-policy choice is needed for these existing source behaviors.
 Accepted HUD/torpedo results remain closed. This delivers a source definition,
 not new gameplay, an ordinary episode pass or hardware/human qualification.
