@@ -194,7 +194,7 @@ func _current_cue(cue: Tween, elapsed: float, label: String) -> bool:
 	var flash := _hud.get("_damage_flash") as ColorRect
 	var direction := _hud.get("_damage_direction") as Control
 	var alpha := flash.color.a * flash.modulate.a
-	var retained := _hud.get("_damage_tween") == cue and cue.is_valid()
+	var retained: bool = _hud.get("_damage_tween") == cue and cue.is_valid()
 	var now := cue.get_total_elapsed_time() if retained else -1.0
 	_observations.append({"label": label, "reduced_flash": _game.get_runtime_settings().reduced_flash,
 		"alpha": alpha, "retained_tween": retained, "elapsed": now,
