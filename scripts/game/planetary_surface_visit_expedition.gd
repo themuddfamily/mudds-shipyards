@@ -1114,11 +1114,40 @@ func _retire_saved_visit() -> void:
 	var loaded := binding.call(&"load_interrupted_visit") as Dictionary
 	if not bool(loaded.get("accepted", false)):
 		return
-	var retired := binding.call(&"retire_interrupted_visit",
-		int(loaded.get("store_generation", -1)),
-		str(loaded.get("receipt_sha256", "")),
-		"%s-visit-ended-%010d" % [profile.reason_prefix, int(loaded.get("store_generation", 0))]
-	) as Dictionary
+	var generation := int(loaded.get("store_generation", -1))
+	var receipt := str(loaded.get("receipt_sha256", ""))
+	var commit_id := "%s-visit-ended-%010d" % [profile.reason_prefix, generation]
+	var retired: Dictionary = {}
+	var progress := (loaded.get("visit", {}) as Dictionary).get("survey", {}) as Dictionary
+	if int(progress.get("state", -1)) == CheckpointRouteActivity.State.COMPLETED:
+		# Ending a visit retires its location, not earned observations. The
+		# reward ledger records paid receipts only, so unpaid completion must
+		# move to the existing passive owner in the same retirement write.
+		var store := _flow._runtime_settings_user_data_store
+		var payload: Dictionary = store.get_snapshot() if store != null else {}
+		var slot := String((binding.call(&"get_snapshot") as Dictionary).get("slot_id", ""))
+		var current: Variant = payload.get(slot)
+		var observed: bool = store != null and store.get_generation() == generation \
+			and current is Dictionary and str(current.get("receipt_sha256", "")) == receipt \
+			and bool((binding.call(&"validate_record", current) as Dictionary).get("accepted", false))
+		if not observed:
+			retired = {"accepted": false, "reason": profile.reason("visit_receipt_mismatch")}
+		else:
+			var paid := _flow._planetary_survey_paid_state(payload)
+			if not bool(paid.get("accepted", false)):
+				retired = paid
+			elif not bool(paid.get("aurora" if profile.world_id == &"aurora_temperate_world" else "rime", false)):
+				if store.get_loaded_source() != &"primary":
+					retired = {"accepted": false, "reason": profile.reason("visit_store_untrusted")}
+				else:
+					retired = binding.call(&"plan_decline", payload, false) as Dictionary
+					if bool(retired.get("accepted", false)):
+						retired = store.commit(retired.payload, generation, commit_id)
+						if bool(retired.get("accepted", false)):
+							_flow._runtime_settings_commit_serial = maxi(_flow._runtime_settings_commit_serial, store.get_generation())
+							_flow._sync_production_runtime_settings_state()
+	if retired.is_empty():
+		retired = binding.call(&"retire_interrupted_visit", generation, receipt, commit_id) as Dictionary
 	if not bool(retired.get("accepted", false)):
 		_flow.hud.toast("Visit save could not be cleared", "Your current controls and return route remain available.", 4.0)
 
