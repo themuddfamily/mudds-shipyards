@@ -87,6 +87,17 @@ ordinary travel and durable reward acceptance remain open. Accepted work is merg
 removed and the completed branch is deleted. No successor is active.
 [Exact result and limits](docs/history/ROADMAP_DELIVERIES.md#ember-surface-live-captions-delivered-20261026).
 
+**PLAY-CONVOY ordinary driver: PARKED / not accepted.** First Python preflight
+stops on new fixture defects; the reviewed two-line fixture correction is not
+rerun because its one continuation fails in root's private profile setup before
+launch. No engine, export or full flight ran. The unaccepted source/raw are
+verified in archive; main/checkpointb810822 are restored, task branch deleted
+and owned scratch/processes removed. No third attempt is selected. Future
+selection needs fresh per-attempt profiles with reuse preflight and independent
+cumulative-priority review, preserving the full route, originalCAP300/outer360
+and00:07:44→01:22:44UTC/75min accounting.
+[Exact stops and reopening condition](docs/history/ROADMAP_DELIVERIES.md#convoy-ordinary-driver-two-stops-20261026).
+
 The [ship-rig caption membership](docs/ROADMAP_BACKLOG.md#ship-rig-caption-membership)
 is now fixed:21possible semantic IDs,19mapped and2unmapped load IDs whose method
 has no demonstrated production caller. This closes that source definition only;
@@ -307,6 +318,7 @@ Full chronological results belong in the existing
 
 | Existing goal | Specific reopening requirement |
 | --- | --- |
+| PLAY-CONVOY[ordinary packaged driver] | Source7952127 is unvalidated and archived; corrected Python suite never launched. Fresh per-attempt profile namespace plus reuse preflight, then independent cumulative-priority selection with full original route/CAP300/outer360/75min accounting; no third under the closed card. [Two stops](docs/history/ROADMAP_DELIVERIES.md#convoy-ordinary-driver-two-stops-20261026) |
 | CRAFT-ACCEPT-JOVIAN[ordinary solo engineer] | Correct the source-contradictory still-attached authority predicate and log each post-stand member; independent source/cumulative review before any future selection. Both actual trials stop; no third under the closed card. Preserve full physical return/UI0 and original300/360/15s limits |
 | WALK-AFT | Bind the actual frozen Player completed-motion receipt in paused observation; last unpaused observation can lag one tick. Preserve full journey/original 60min cumulative clock/300s and360s caps; independent source GO and priority review before any new trial |
 | PLAY-TORPEDO | Retain cancelled request debt across unread queued neutral samples after OS release; source GO and cumulative priority review before checks; full Heavy/Torpedo/Wing finish unchanged |

@@ -27280,3 +27280,64 @@ closeout remain. Archive closed at2026-10-26T00:07:01.566794+00:00 after22.359mi
 from original start, including roadmap correction, implementation, checks,
 exports, review and cleanup. Final push time/cumulative cost is recorded in
 adjacent closeout. No successor or repeated trial is selected.
+
+<a id="convoy-ordinary-driver-two-stops-20261026"></a>
+## Convoy ordinary driver — two stops, not accepted — 2026-10-26
+
+Existing PLAY-CONVOY; no gameplay or release capability accepted. Baseline CLI
+4cb5efd98 rejects convoy-home with planned argparseOS2 before engine launch.
+Candidateb70f00362 adds the ordinary OS-input driver/observer/guarded selector;
+pre-engine source review corrects the activation to live-frame[84,-48,-724],
+20m above tender start, and requires exactly two actual raider hits34+1 rather
+than any number summing35. Source61d877401 retains that exact contract.
+
+Frozen complete route remains genuine Guided/home/physical exit, normal pause
+Convoy selection, same-Torrent reboard/safe RangeHeader departure, actual4m
+rendezvous, real35HPraider destruction using existing Torrent weapon and source/
+target/native/consumed-fire receipts, retained Main tender/threat full four-point
+escort/safe arrival, existing once-only durable escort receipt, strict home/
+90neutral OFFLINE/physical exit/supported walk/normalHUDOS0/both clean states.
+Original tender speed24,90s activity,42m proximity/3s separation, CAP300/outer360
+and ONE full-flight trial remain. No stage/injection/shortened route or gameplay
+rule change is accepted. The older17Main/300s Convoy save-suite is not rerun.
+
+**First STOP:** actual Python suite216tests/OS1/12.715s on61d8774. Two new
+admission/damage cases omit tuning.maximum_speed, while actual observer supplies
+Hero's authored82. The deliberate corrupt-home unit captures protected sibling16
+and correctly rejects it, but retains that failed home snapshot after disk17 is
+restored; finish then compares the wrong cached fixture. Review missed inherited
+fixture completeness and failed-capture retention ordering. Independent causal
+review permits only2test-line corrections: supply82 in the new Convoy sample and
+remove ONLY the deliberately negative cached home before restorative observation.
+Production guards, actual capture semantics and all acceptance stay unchanged.
+Corrected source7952127e1a15f3454bb9c1674d1df67a40f72ae1 is source-reviewed, unvalidated.
+
+**Second STOP:** root prepares fresh continuation-results but reuses the original
+profile/python-driver. Existing template symlink causes FileExistsError in
+environment() before subprocess.Popen. Actual owner1968412/start40438235 exits1;
+stage.log is0bytes with no result/child receipt. The corrected Python suite and
+ALL engines/exports/full flights are NOT_RUN. This is root's private harness
+mistake, not an established Convoy runtime defect. No third attempt or further
+continuation under this closed card.
+
+Reopening requires a demonstrably fresh profile namespace for each attempt and
+preflight rejecting reuse before launch; then independent cumulative-priority
+selection preserving this complete route, original caps, original00:07:44→
+01:22:44UTC/75min window and all consumed cost. Unused arithmetic time is not a
+fresh budget or automatic retry. Existing final/repeat/recovery/network/native
+and all parent gates remain open. GitHub Actions stays disabled.
+
+Unaccepted source is NOT merged. Verified parked.bundle/patch retain all unique
+commits through7952127 and both raw stops. Main4cb5efd98/checkpointb810822 restored;
+fresh remote/worktree checks precede exact local task-ref deletion at7952127;
+remote task branch absent and unrelated worktrees untouched. Both actual
+supervisors and2observed child identities absent; tool pins and all11previous
+public files unchanged, no candidate builds produced.
+
+Verified archive `/srv/mudds-work/convoy-ordinary-route-20261026/records.tar.gz`:
+4449616bytes, SHA256`860d1a9529dc3248c29ad14bf8f9a634678d9f2b30dd01bd7d532b0499427230`,
+55regular/1symlink byte/mode/target-verified. Loose owned
+source/profiles/helpers/logs removed; only archive and adjacentcloseout remain.
+Archive closed at2026-10-26T00:25:20.258223+00:00 after17.604min from original
+start. Final push time/cumulative cost is recorded in adjacentcloseout. No
+successor selected; this record closes the failed assignment, not PLAY-CONVOY.
