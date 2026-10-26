@@ -83,8 +83,8 @@ Old-registry tests fail exactly18 planned assertions; repaired source passes all
 focused checks, paired exports, three strict startups and the actual payload audit.
 Only the compiled caption presenter differs from46bae53. Independent review GO.
 This accepts the caption capability under the fixture limits below; full comfort,
-ordinary travel and durable reward acceptance remain open. Integration and owned
-archive/branch cleanup are the remaining closure actions; no successor is active.
+ordinary travel and durable reward acceptance remain open. Accepted work is merged/pushed; records are verified/archived, owned scratch is
+removed and the completed branch is deleted. No successor is active.
 [Exact result and limits](docs/history/ROADMAP_DELIVERIES.md#ember-surface-live-captions-delivered-20261026).
 
 The [ship-rig caption membership](docs/ROADMAP_BACKLOG.md#ship-rig-caption-membership)

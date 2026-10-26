@@ -27266,5 +27266,17 @@ Linux archive SHA256`62b732056215b56a3d7d20dfa0fcb05596e1eb6fba61e9a5bfabd2c481a
 Independent source/final evidence review GO. All14supervisors and54observed
 child identities are absent by actual PID/start checks. Original assignment
 23:44:40→00:44:40UTC/60min includes the roadmap correction and all closure work;
-no retry/reset. Public11files retained. Verified archive, exact ref cleanup and
-final push are the remaining closure actions; no successor selected.
+no retry/reset. Public11files retain their published bytes. Accepted tip
+`4bd2882ce3eabe7da1601ce98d3980618a4913dd` is merged into pushed main; fresh remote
+and worktree checks precede exact local task-ref deletion at that tip. Remote
+task branch is absent; other registered worktrees remain untouched.
+
+Verified archive `/srv/mudds-work/ember-surface-captions-20261025/records.tar.gz`:
+43824019bytes, SHA256`8c18cceb8053e2665879970ea700c0ac869b06a9965132d18a58a67064f43f0c`,
+185regular files/14symlinks byte/mode/target-verified. All14stage supervisors and54observed
+child identities absent, tool pins unchanged, public11files reverified. Loose
+owned profiles/helpers/logs/source are removed; only archive and adjacent
+closeout remain. Archive closed at2026-10-26T00:07:01.566794+00:00 after22.359min
+from original start, including roadmap correction, implementation, checks,
+exports, review and cleanup. Final push time/cumulative cost is recorded in
+adjacent closeout. No successor or repeated trial is selected.
