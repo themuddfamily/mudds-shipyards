@@ -1678,7 +1678,7 @@ Recovery proof uses an owned actual OS SIGKILL, distinct restart, protected real
 | RECOVERY-CABIN-DEFINE | Cabin/rest durable-boundary/resume-or-safe-home contract | 2,31 | Definition | DONE definition only; four-field craft/home preference, fresh supported awake cabin/hatch, no saved flight/sleep pose. Earlier package passes retained; finite remaining cases below | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | RECOVERY-CREW-DEFINE | Seated crew durable-boundary/resume-or-safe-home contract | 2,31 | Definition | DONE definition only; settled solo crew saves four-field home-cabin preference; Resume wakes unseated with fresh cabin/hatch, no prior role or seat claim. Earlier ca0 crew pass retained; finite cases below | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | CREW-RECOVERY-INSTALLED | One installed crew interruption returns awake to the supported home cabin with activity/reward integrity | 2,31 | Qualification | GATED final installed candidate plus one frozen supported craft/seat/cut; use existing crew selector, original caps and owned kill/reap/distinct restart | [Recovery](#proof-recovery): exact installed candidate actual crew commit/OS kill/distinct restart→awake supported home cabin→ordinary controls/continuation, conserved debt/payment once. |
-| CREW-RECOVERY-ORDINARY | One ordinary crew admission→recovery→walk/helm-or-exit journey | 2,31 | Qualification | BLOCKED definition (Codex), one crew case only: choose one currently supported craft/physical role from the existing crew selector and bind ordinary walk/seat admission, exact committed crew-save boundary and protected file delta, owned kill/reap, distinct normal restart, awake supported home cabin and physical walk plus one named role/helm-or-exit endpoint. Record existing restart command and original cap. Reuse the settled safe-home policy; stop at these literal fields or exact missing artifact/owner, without running or redefining recovery. | One actual ordinary crew admission/commit/kill/restart/continuation on the frozen craft/role/candidate. Pass requires awake unseated supported home cabin, fresh claims, usable controls, exact protected durable delta and once-only progress/payment. A definition or staged crew placement cannot close this ordinary journey. |
+| CREW-RECOVERY-ORDINARY | One ordinary crew admission→recovery→walk/helm-or-exit journey | 2,31 | Qualification | Definition bound for one Jovian engineer case; production OS-input interruption/restart caller is missing. SELECTED under the [frozen contract](#ordinary-jovian-engineer-recovery--selected-contract): ordinary hub/ramp/chair admission, real four-field commit, owned kill/reap, same-profile distinct normal restart, awake home cabin/walk/real helm/throttle/UIOS0. Original17:01:14UTC/90min includes all closure; first-failure stop. Broader fleet/installed/final/earned-debt scope stays open. | One actual ordinary crew admission/commit/kill/restart/continuation on the frozen craft/role/candidate. Pass requires awake unseated supported home cabin, fresh claims, usable controls, exact protected durable delta and once-only progress/payment. A definition or staged crew placement cannot close this ordinary journey. |
 | RECOVERY-DOCK-DEFINE | Docking durable-boundary/resume-or-safe-home contract | 2,31 | Definition | DONE definition only; active solo assist retains home pilot preference; busy boarding/exit attempts unavailable. Fresh ownership replaces leases/pose; finite cases below | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | DOCK-RECOVERY-PROBE | Existing release driver can interrupt one actual accepted landing assist and check fresh safe-home recovery | 2,31,32 | Qualification | DONE packaged311df73; existing loader/probe/runner docking+Convoy selector, full source and archive ELF kill/restart pass at original caps with fresh home-pilot control and exact terminal/reward boundary | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | DOCK-RECOVERY-CUT | One exact installed candidate survives interruption during actual assist with conserved activity/reward and usable safe-home recovery | 2,31 | Qualification | GATED exact installed/final candidate. Source and archive-extracted 311df73 Bulwark/home/Convoy cut pass; no old lease/assist/seat identity restored. Ordinary/full installed acceptance remains distinct | Exact installed candidate interrupted during actual assist restarts at settled safe-home pilot context; no old lease/pose, actual activity/debt/reward conserved and usable controls. |
@@ -4134,6 +4134,74 @@ any broader journey promise. Unavailable-frame/refused-write source coverage is
 retained; only a concrete uncovered boundary justifies a new repair or case.
 Native/device/full release gates stay open; this definition runs no probe and
 selects no automatic successor.
+
+### Ordinary Jovian engineer recovery — selected contract
+
+Existing CREW-RECOVERY-ORDINARY, selected2026-10-26 on maina1bc1d3de.
+This delivers the missing executable ordinary-input release capability, not a new
+recovery policy or validator. One bounded implementation owns only existing
+`tools/release/run_native_sortie.py`, `tools/release/test_native_sortie.py`,
+`scripts/diagnostics/native_sortie_observer.gd`, `scripts/game/startup_loader.gd`
+and `tests/startup_cli_privacy_test.gd`. The observer stays read-only. Root owns
+plan/history, private exports/actual validation and integration/cleanup; one
+independent reviewer checks lifecycle/data/route constraints.
+
+**Result and steps.** Add existing-driver route `crew-recovery` for exactly
+Jovian `jovian_provisional`, engineer `passenger_port_01`, home
+`jovian_freight_berth`. Normal Boot/Begin Shift starts at the authored hub. Use
+LifeTowPilot.GANTRY_GOALS through freight_return, then world x=-42 aligned to
+the actual cargo-access marker z; walk to the actual access/deck markers (ship
+local(-10.05,-1.08,3.2) and(-5.05,.64,3.2)), across the physical cargo aisle via
+local(0,.60,3.2), then(0,.60,-5.25) and engineer entry(-1.35,.60,-5.25).
+No pilot-board shortcut or teleport. Face the actual engineer anchor and press/
+release OS E; require completed actual seating/current role/authority/occupant,
+controls and transition settled. Independently read actual primary and predecessor
+around seating; require committed crew preference exactly:
+`{location:mudds_home_berth, mode:crew, craft_id:jovian_provisional, berth_id:jovian_freight_berth}`.
+Protected activity/reward/settings/other siblings remain exact; session diagnostics
+are accounted for separately. The existing context commit changes no entitlement.
+
+Release synthetic inputs, SIGKILL that exact owned Popen and reap actual-9 within
+existing15s; preserve committed bytes through the interruption. Launch the same
+embedded ELF/args/private profile in a distinct process. Normal observed OS menu
+input selects Resume and Begin Shift, never an emitted signal or production-method
+call. Require actual crash/session advancement and the supported awake/unseated
+home cabin in phase IN_FLIGHT_CABIN/HUD mode cabin, registered floor/frame/hatch
+and fresh ownership; no old engineer, seat, pilot or transient authority restored.
+The saved preference remains mode crew until a later ordinary context commit.
+Walk to local(0,.60,-5.25), then
+(0,.60,-6.70), face helm and press/release OS E; require actual pilot anchor/
+authority, actual current local input command throttle>0, flight demand and engine
+ONLINE in the same current craft. A key tap or intended throttle alone cannot pass.
+Finish normal HUD Quit/actual OS0, final
+crash clean/safe-start clean_shutdown, released inputs and all children reaped.
+
+**Proof and limits.** Execute one exact clean-commit embedded Linux export with
+`python3 tools/release/run_native_sortie.py GAME.x86_64 --route crew-recovery --output NEW_DIRECTORY`.
+Whole-operation original300s/independent330s spans both games, kill/reap/restart;
+it does not reset. Expected exits are first-9 and second normal UI0, with zero
+engine/script diagnostics in both legs. Reuse existing ordinary walking .30m
+arrival/braking and supported completed-motion rules; final engineer/helm walking
+anchors retain the existing .12m/four-settled-frame criterion. Interaction still
+requires the real production reach/claim, not only proximity. Authored input/timing/physics/
+collision/motion durations remain unchanged. Private authenticated Xvfb with
+explicit x11/Dummy/dummy renderer only; no active desktop/native GPU/audio claim.
+Focused existing Python and loader/privacy checks protect selectors, input edges,
+real-file preservation and actual kill/distinct restart. Paired clean exports,
+strict exit0/one-readiness-marker startup and actual payload comparison precede
+the sole complete native attempt. No staged Convoy, scene placement, time override,
+new policy, injected entitlement or production-action call supplies acceptance.
+Preserving zero/absent progress proves no mutation; it does not prove earned-debt
+recovery. Installed/final packages and other crew instances remain open.
+
+**Stop and closure.** Conservative original17:01:14UTC/90min includes the one
+source binding pass, implementation/checks/exports/run/review/archive/integration/
+push and branch/worktree/process/scratch cleanup; hard18:31:14. First unexpected
+failure stops and retains raw state/source before any causal/cumulative-priority
+review. No automatic retry, successor definition or clock reset. Integrate only
+accepted source; preserve any unaccepted unique source in a verified archive
+before exact owned cleanup. Publish a checkpoint only if its working capability
+passes; no unaccepted observer candidate enters main for branch housekeeping.
 
 ### Settled seated-crew recovery contract
 

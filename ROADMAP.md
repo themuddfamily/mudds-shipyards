@@ -107,26 +107,28 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**No implementation is active.** The last selected goal,
-INSTALL-LINUX-ROLLBACK's checkpoint case, passed independent source/raw review.
-The shipped manager installs499→b4→499 in the same prefix and restores exact
-prior payload/modes/launcher. The restored499 game loads the actual b4-written
-save into healthy session3, retains the earned Heavy credit/settings, completes
-three supported walking points and exits through normal HUD Quit/OS0. All six
-protected files survive uninstall; all18 owned process identities are absent.
-[Actual proof, archive and remaining release limits](docs/history/ROADMAP_DELIVERIES.md#selected-checkpoint-rollback-accepted-20261026).
-This closes that checkpoint case only; final-package rollback remains gated.
+**Selected release capability: ordinary Jovian engineer interruption/recovery.**
+Existing CREW-RECOVERY-ORDINARY will gain its missing normal-controls caller.
+One fresh hub→Freight→actual Jovian ramp/cabin→engineer-seat journey commits the
+existing four-field crew preference. Kill/reap the exact owned game, restart the
+same ELF/profile as a distinct process through normal recovery UI, then walk the
+awake home cabin and acquire the real helm with ordinary positive throttle.
+Normal HUD Quit/OS0 and both clean markers finish the operation. Preserve actual
+settings/activity/reward siblings, including absent/zero; no earned-payment
+recovery claim. [Frozen one-case contract](docs/ROADMAP_BACKLOG.md#ordinary-jovian-engineer-recovery--selected-contract).
+One implementation agent owns existing Python driver/test, read-only GDScript
+observer and loader/privacy test; root owns exports, actual isolated run,
+integration/push and owned cleanup. Independent lifecycle review is required.
+Original17:01:14UTC/90min includes readiness/code/checks/paired export/one complete
+ordinary attempt/review/archive/push/cleanup; hard18:31:14. Original whole-route
+300s/independent330s and default physics/input remain. First unexpected failure
+stops; no automatic correction/retry or fresh clock. No gameplay policy/schema,
+new seat/craft or staged position/claim/reward is authorized by this task.
 
-**Task-selection correction complete.** All337 existing IDs and the original
-scope are retained. Each selected task must answer every field in the assignment
-contract above with literal values or a finite linked list. An unresolved field
-is an explicit blocked definition/input, never permission to begin implementation.
-The backlog's [remaining contract gaps](docs/ROADMAP_BACKLOG.md#remaining-contract-gaps--plan-next)
-name the finite missing bindings and owners; they remain open until supplied.
-The second-landing duplicate check and final rendered Linux launch bindings now
-name their missing inputs explicitly. This correction does not close those
-product outcomes or claim every future route is ready. No further gameplay run
-is selected by this edit.
+Task-selection rules and all337 original records remain binding. Missing future
+contracts stay blocked in their existing rows. The last selected checkpoint
+rollback passed; [proof and scope](docs/history/ROADMAP_DELIVERIES.md#selected-checkpoint-rollback-accepted-20261026)
+are retained rather than selected again.
 
 Recent accepted and parked results are references, not active assignments:
 
