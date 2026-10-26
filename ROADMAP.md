@@ -105,6 +105,33 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Selected production repair: cargo terminals follow the real Reduced flash setting.**
+Existing COMFORT-FLASH/parent29 terminal family. On a clean candidate, an actual
+Cinder cargo terminal already showing carrying/at-terminal/rejected/committed
+presentation must use its existing≤1.15 emission cap when Reduced flash turns ON;
+OFF restores the current authored state. Unavailable/ready/reset states must not
+brighten. The same screen/material, exact text/state/refusal/receipt and all
+stock/transfer/reward/interaction/attachment authority remain unchanged by toggles.
+Use the real setting→world→loaded or newly streamed cluster→binding→terminal path;
+retain ON before allocation and OFF for a later generation. Reentry retains the
+flag while existing ordinary rebind/generation/state semantics stay unchanged.
+Proof: extend existing Cinder cargo presentation suite across all seven states
+using actual material and authority snapshots, old-code RED/new-code GREEN.
+Extend existing production Main combat-effects suite to exercise real
+RuntimeSettings/world/public streaming caller path and actual terminal material;
+observer position/time is staged and Main physics suspended, not ordinary flight.
+The Main unavailable-state chain and focused high-state caps are distinct pieces
+of this component proof. Run existing terminal/readability/audio companions,
+clean paired exports, three strict startups and exact payload audit. No new
+setting, material policy, save schema or evidence validator. Files: existing
+nearby_sector_cluster.gd/nearby_sector_activity_binding.gd and the two existing
+tests; root owns docs/release/integration, one implementer plus lifecycle reviewer.
+First unexpected failure stops for causal review. Clock2026-10-26T08:10:00UTC/
+60minute estimate includes readiness, all failures/checks/build/cleanup; existing
+300s suite caps unchanged. Ordinary UI/save/cold/Reset, full cargo/comfort and
+native Windows/GPU/human gates remain open. Source-definition17-family goal stays
+closed; this is its named runtime gap, not another source survey.
+
 **Delivered definition: finite Reduced flash producer/episode contract.**
 The existing COMFORT-FLASH row now binds17 actual producer families to authored
 OFF/ON/current/new values, real forwarders and existing test anchors. Shared
