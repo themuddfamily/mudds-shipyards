@@ -42,6 +42,7 @@ func _run() -> void:
 	await _test_floor_snap_recovery_requires_headroom()
 	await _test_remote_cabin_interaction_support()
 	await _test_rejected_remote_snap_stays_rejected()
+	await _test_bulwark_captured_tangent_contact()
 	_test_rime_pad_guard_correction_fence()
 	_finish()
 
@@ -709,6 +710,140 @@ func _walk(player: PlayerController, start: Vector3, frames: int) -> Dictionary:
 		"final": player.global_position,
 		"travelled": initial.distance_to(player.global_position),
 	}
+
+
+## This is the one frozen raw 3365 -> 3366 Bulwark step, not a search for a
+## pose that fails. Establish contact through the real motor before restoring
+## the captured pose; no test writes the engine's floor flag.
+func _test_bulwark_captured_tangent_contact() -> void:
+	var rig := Node3D.new()
+	root.add_child(rig)
+	var craft := BulwarkHeavyGunship.new()
+	rig.add_child(craft)
+	craft.set_physics_process(false)
+	var captured_basis := Basis(Vector3(1.0, 0.0, 0.0),
+		Vector3(0.0, 0.956117153167725, 0.2929847240448),
+		Vector3(0.0, -0.2929847240448, 0.956117153167725))
+	craft.global_transform = Transform3D(captured_basis,
+		Vector3(52.0, 41.1015090942383, -130.257369995117))
+	var cabin := craft.get_in_flight_cabin_report()
+	var frame := craft.get_moving_interior_component()
+	frame.set_physics_process(false)
+	var player := PLAYER_SCENE.instantiate() as PlayerController
+	rig.add_child(player)
+	player.set_physics_process(false)
+	player.set_control_enabled(false)
+	player.set_camera_active(false)
+	player.global_transform = Transform3D(captured_basis,
+		Vector3(51.3810729980469, 41.8537483215332, -128.268630981445))
+	var registered := frame.register_occupant(player, {"require_inside_bounds": true})
+	var bound := player.set_cabin_containment(craft, cabin.local_bounds, cabin.stand_transform)
+	for _settle in 12:
+		await physics_frame
+		player._apply_gravity(1.0 / 60.0)
+		player._move_in_interior_collision_frame(1.0 / 60.0)
+	var ready := bool(registered.get("registered", false)) and bound and player.is_on_floor()
+	_check(ready, "NOT_REPRODUCED: captured Bulwark fixture first establishes actual prior floor contact")
+	if not ready:
+		rig.queue_free()
+		await process_frame
+		return
+	player.global_transform = Transform3D(captured_basis,
+		Vector3(51.3810729980469, 41.8537483215332, -128.268630981445))
+	frame.reset_frame_tracking(true)
+	var published: Transform3D = PhysicsServer3D.body_get_state(craft.get_rid(), PhysicsServer3D.BODY_STATE_TRANSFORM)
+	craft.global_position = Vector3(52.0, 41.1379165649414, -130.376174926758)
+	frame.step_frame(1.0 / 60.0, Engine.get_physics_frames() + 1)
+	player.velocity = Vector3(-0.00425872439518571, -1.28913176059723, 4.20691347122192)
+	var up_residue := player.velocity.dot(player.up_direction)
+	var collision_transform := frame.get_occupant_collision_transform(player)
+	ready = player.is_on_floor() and up_residue > 0.0 and is_zero_approx(up_residue) \
+		and not collision_transform.is_equal_approx(Transform3D.IDENTITY) \
+		and (collision_transform * craft.global_transform).is_equal_approx(published) \
+		and player.global_position.is_equal_approx(Vector3(51.3810729980469, 41.8901557922363, -128.387435913086)) \
+		and _bulwark_capsule_floor_contact(player, craft, frame)
+	_check(ready, "NOT_REPRODUCED: exact captured carry, positive tangent residue and full-capsule floor contact precede the sole move")
+	if not ready:
+		rig.queue_free()
+		await process_frame
+		return
+	player._move_in_interior_collision_frame(1.0 / 60.0)
+	var retained_floor := player.is_on_floor()
+	var physical_contact := _bulwark_capsule_floor_contact(player, craft, frame)
+	var containment := player.get_cabin_containment_report()
+	ready = physical_contact and containment.contained and containment.recall_count == 0 \
+		and is_equal_approx(player.floor_snap_length, 0.35) and is_equal_approx(player.safe_margin, 0.002) \
+		and is_equal_approx(player.floor_max_angle, 0.872665)
+	_check(ready, "NOT_REPRODUCED: captured result retains actual walkable full-capsule contact, clearance and original collision bounds")
+	if not ready:
+		rig.queue_free()
+		await process_frame
+		return
+	print("BULWARK_CAPTURED_TANGENT_CONTACT: floor=", retained_floor, " local=", craft.to_local(player.global_position),
+		" up_residue=", up_residue, " collision_transform=", collision_transform)
+	_check(retained_floor,
+		"BULWARK_TANGENT_CONTACT_REGRESSION: the captured supported carried capsule retains real floor contact through its positive near-zero tangent step")
+	# Existing Ember input-jump/edge cases and remote-cabin pending-jump and
+	# unsupported-residue cases remain; these exercise this local cabin too.
+	player.velocity = -player.up_direction * player.jump_velocity
+	player._move_in_interior_collision_frame(1.0 / 60.0)
+	player.velocity = player.up_direction * player.jump_velocity
+	player._move_in_interior_collision_frame(1.0 / 60.0)
+	_check(not player.is_on_floor() and not _bulwark_capsule_floor_contact(player, craft, frame),
+		"a genuine local-cabin jump remains airborne without a physical floor contact query")
+	player.global_position = craft.to_global(Vector3(-0.62,
+		BulwarkHeavyGunship.CABIN_FLOOR_Y + player.floor_snap_length + player.safe_margin, 1.0))
+	player.velocity = Vector3.ZERO
+	player._move_in_interior_collision_frame(1.0 / 60.0)
+	player.velocity = Vector3(-0.00425872439518571, -1.28913176059723, 4.20691347122192)
+	player._move_in_interior_collision_frame(1.0 / 60.0)
+	_check(not player.is_on_floor() and not _bulwark_capsule_floor_contact(player, craft, frame),
+		"an already-airborne local capsule cannot acquire floor from the same tangent residue")
+	player.global_transform = Transform3D(captured_basis,
+		craft.to_global(Vector3(-0.62, 1.33, 1.0)))
+	player.velocity = -player.up_direction * player.jump_velocity
+	player._move_in_interior_collision_frame(1.0 / 60.0)
+	var had_floor := player.is_on_floor()
+	craft.collision_layer = PhysicsLayers.NONE
+	for child in craft.find_children("*", "CollisionObject3D", true, false):
+		(child as CollisionObject3D).collision_layer = PhysicsLayers.NONE
+	await physics_frame
+	player.velocity = Vector3(-0.00425872439518571, -1.28913176059723, 4.20691347122192)
+	player._move_in_interior_collision_frame(1.0 / 60.0)
+	_check(had_floor and not player.is_on_floor() and not _bulwark_capsule_floor_contact(player, craft, frame),
+		"removing the actual Bulwark collision floor cannot retain a prior local floor flag")
+	frame.unregister_occupant(player, false, &"test_teardown")
+	rig.queue_free()
+	await process_frame
+
+
+## Query the actual body and complete authored capsule in the published hull
+## collision frame. The only contact reach/margin is Player.safe_margin.
+func _bulwark_capsule_floor_contact(player: PlayerController, craft: BulwarkHeavyGunship, frame: MovingInteriorFrame) -> bool:
+	var to_collision := frame.get_occupant_collision_transform(player)
+	var up := (to_collision.basis * player.up_direction).normalized()
+	var parameters := PhysicsTestMotionParameters3D.new()
+	parameters.from = to_collision * player.global_transform
+	parameters.motion = -up * player.safe_margin
+	parameters.margin = player.safe_margin
+	parameters.recovery_as_collision = true
+	parameters.max_collisions = 4
+	var result := PhysicsTestMotionResult3D.new()
+	PhysicsServer3D.body_test_motion(player.get_rid(), parameters, result)
+	var floor_contact := false
+	for index in result.get_collision_count():
+		if result.get_collider(index) == craft and result.get_collision_normal(index).dot(up) >= cos(player.floor_max_angle):
+			floor_contact = true
+	var capsule := player.get_node(^"PlayerCollision") as CollisionShape3D
+	var shape_query := PhysicsShapeQueryParameters3D.new()
+	shape_query.shape = capsule.shape
+	shape_query.transform = to_collision * capsule.global_transform
+	shape_query.collision_mask = player.collision_mask
+	shape_query.exclude = [player.get_rid()]
+	shape_query.margin = 0.0
+	var no_penetration := player.get_world_3d().direct_space_state.intersect_shape(shape_query).is_empty()
+	var foot_gap := craft.to_local(player.global_position).y - BulwarkHeavyGunship.CABIN_FLOOR_Y
+	return floor_contact and no_penetration and foot_gap >= 0.0 and foot_gap <= player.safe_margin
 
 
 ## Stage the observed unsupported descending capsule, then resolve contact
