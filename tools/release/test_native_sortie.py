@@ -5131,6 +5131,13 @@ class UnsupportedSettingsCallerTests(unittest.TestCase):
             closed['payload']['session_diagnostics']['events'].append(dict(event_code='crash_detected'))
             with self.assertRaises(AssertionError): files.require_session(closed['payload'],closed=True)
 
+    def test_nested_game_process_sets_private_umask_without_changing_other_routes(self):
+        self.assertEqual(native.game_leg_umask('unsupported-save','settings'),0o077)
+        for route,format_name in (('unsupported-save','outer'),('unsupported-save',None),
+                                  ('guided',None),('retained-heavy',None),('guided','settings')):
+            with self.subTest(route=route,format_name=format_name):
+                self.assertEqual(native.game_leg_umask(route,format_name),-1)
+
     def test_nested_expected_warnings_are_exact_and_do_not_accept_outer_warnings(self):
         with tempfile.TemporaryDirectory() as tmp:
             files,_=self.fixture_files(Path(tmp))

@@ -10206,6 +10206,11 @@ def game_leg_arguments(base_arguments, route, output, leg):
     return arguments
 
 
+def game_leg_umask(route, future_format):
+    """Keep newly published nested-fixture artifacts private without changing other routes."""
+    return 0o077 if route == 'unsupported-save' and future_format == 'settings' else -1
+
+
 def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_data=None, future_artifact=None, future_format=None):
     require(route in ("zenith-torrent-handback", "zenith-return-reuse", "patrol-relay-home", "race-home", "heavy-breach", "retained-heavy", "corrupt-retained-heavy", "unsupported-save", "bomber-rearm", "cinder-supply", "hauler-supply", "arrow-return-reuse", "torrent-return-reuse", "torrent-damaged-return", "torrent-arrow-handoff", "guided", "courier-intercept", "courier-escape", "courier-withdraw-phase", "courier-withdraw-distance", "beacon-entry", "beacon-settlement", "beacon-home", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "crew-recovery", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
     require(not qualify_beacon_outbound or route == 'beacon-home',
@@ -10316,9 +10321,12 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
                     # The single timer above remains armed across both games.
                     desktop.keys([]); desktop.mouse(0, 0, False)
                     leg_arguments = game_leg_arguments(args, route, output, leg)
-                    game = subprocess.Popen(leg_arguments,cwd=binary.parent,env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,bufsize=0)
+                    leg_umask = game_leg_umask(route, future_format)
+                    game = subprocess.Popen(leg_arguments,cwd=binary.parent,env=env,stdout=subprocess.PIPE,
+                                            stderr=subprocess.STDOUT,bufsize=0,umask=leg_umask)
                     leg_result = {'pid': game.pid, 'leg': leg + 1, 'exit_code': None, 'reaped': False,
                                   'arguments': leg_arguments}
+                    if leg_umask != -1: leg_result['umask'] = oct(leg_umask)
                     if unsupported_files: leg_result['godot_log_path'] = leg_arguments[-1]
                     result['game_legs'].append(leg_result)
                     if leg == 0: result['game_pid'] = game.pid
