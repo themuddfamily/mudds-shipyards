@@ -981,6 +981,8 @@ func save_to_file(path_override: String = "") -> Error:
 func load_from_file(path_override: String = "", read_only: bool = false) -> Error:
 	var target_path := _resolve_path(path_override)
 	if read_only:
+		if _has_newer_config_generation(target_path):
+			return ERR_INVALID_DATA
 		# Select the same valid legacy generation as recovery, without promoting
 		# a sibling, deleting remnants, or replacing the primary during boot.
 		for suffix in [_STAGING_SUFFIX, _BACKUP_SUFFIX]:
@@ -1721,6 +1723,8 @@ func _dispatch_pending_changes() -> void:
 
 
 func _recover_interrupted_save(target_path: String) -> Error:
+	if _has_newer_config_generation(target_path):
+		return ERR_INVALID_DATA
 	var staging_path := target_path + _STAGING_SUFFIX
 	var backup_path := target_path + _BACKUP_SUFFIX
 	var absolute_target_path := ProjectSettings.globalize_path(target_path)
@@ -1768,6 +1772,22 @@ func _recover_interrupted_save(target_path: String) -> Error:
 	if not _is_supported_config_file(target_path):
 		return ERR_INVALID_DATA
 	return OK
+
+
+## A future generation belongs to a newer writer, including transaction
+## siblings. Refuse before recovery discards it or a read selects older data.
+func _has_newer_config_generation(target_path: String) -> bool:
+	for suffix: String in ["", _STAGING_SUFFIX, _BACKUP_SUFFIX]:
+		var path := target_path + suffix
+		if not FileAccess.file_exists(path):
+			continue
+		var config := ConfigFile.new()
+		if config.load(path) != OK:
+			continue
+		var schema: Variant = config.get_value(_SECTION_META, "schema_version", null)
+		if typeof(schema) == TYPE_INT and int(schema) > SCHEMA_VERSION:
+			return true
+	return false
 
 
 func _is_supported_config_file(path: String) -> bool:
