@@ -107,7 +107,19 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**No implementation is active. CREW-RECOVERY-ORDINARY is PARKED.**
+**CREW-RECOVERY-ORDINARY explicitly reopened after its recorded PARK.**
+Independent review approved the recovered fixture with exactly four explicit
+types, unchanged captured geometry and seven assertion groups. Original
+17:01:14UTC/90min/hard18:31:14 and all prior30.639minutes remain charged.
+One old-runtime regression must isolate the captured cockpit-selection failure,
+then one guarded Jovian cockpit-priority repair and driver readiness/wrong-claim
+guards may proceed. No reach/discovery/route/data/limit change. One full retry
+only after GREEN/Python/source review/paired exports/startups/audit. Any unexpected
+failure parks again, without another fixture-edit cycle. Root owns validation,
+push/checkpoint/owned cleanup; one implementer and one independent reviewer.
+The prior selection's exact stopped result below remains historical, not erased.
+
+**Prior selection: CREW-RECOVERY-ORDINARY PARKED.**
 The sole packaged Jovian engineer journey completed ordinary hub/ramp/chair
 admission, a genuine crew save, owned SIGKILL/reap, distinct normal recovery UI
 and an awake supported cabin walk. Helm Interact then selected the co-pilot
