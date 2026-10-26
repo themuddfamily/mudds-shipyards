@@ -17,6 +17,25 @@ Failed parse attempt and failed first native writer are retained. The former nee
 The first live-cue trial and a failure-value reproduction both stop with runtime/disk ON but actual effective HUD alpha0.239999994635582. The reproduction retains the exact Tween, elapsed0, remaining.42s and duration.62: the missing GameFlow→HUD flag forwarder is the demonstrated cause. Existing source also left HUD dirty-state result handling disconnected; the same goal requires successful Save/Reset to clear it and refusal to preserve it. Two added assertions extend the existing production persistence suite for refusal/retry; the real exported caller covers live visual/save/reset/cold endpoints. Probe reset expectation follows the unchanged production `DEFAULTS RESTORED + SAVED` string. No original cue policy or duration changed.
 
 
+Closure: accepted source is integrated in verified pushed main `ab249b9a7ff7d8273c763c9ceac6405fd5e56b87`.
+Fresh remote/local tip and worktree ownership checks preceded CAS deletion of the
+completed task branch; its remote branch was absent. Exact owned worktree and
+loose scratch are removed. All 43 supervisors and
+201 observed owned process identities are absent.
+Only `main` remains as a local branch. Unrelated detached retired diagnostic,
+profiler/station worktrees and old prunable `/tmp` registrations remain preserved.
+
+Verified archive: `/srv/mudds-work/reduced-flash-restart-20261026/records.tar.gz`,
+314426079 bytes, SHA-256
+`c53335d4b434f21810ef5ace7e69685b49d6ea4a128f958421c5c088092d3a7d`; complete membership/content/modes/links verified
+(646 regular files, 43 links), including source bundle, failures,
+exact failed native binaries, raw store files, commands and actual final results.
+The task folder now contains only that archive and `closeout.json`.
+Cumulative cost through closure preparation: 52.980minutes from08:47:00UTC
+against90minute estimate; final documentation/push remain on that same clock.
+Full COMFORT-FLASH, other parent outcomes and original external gates stay open.
+
+
 ## Observation walk — caller startup failure
 
 WALK-OBSERVATION parents7/9, exact candidate

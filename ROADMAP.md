@@ -150,6 +150,11 @@ GPU/human and remaining ordinary producer episodes stay NOT_RUN/open.
   this shared executable preference proof; COMFORT-FLASH stays open.
 
 
+Integrated/pushed; owned branch/worktree/processes and loose scratch are closed
+with a fully verified archive. Only the `main` local branch remains; unrelated
+detached diagnostic worktrees are retained. Closure preparation records
+52.980 cumulative minutes against the original90-minute estimate.
+
 **Delivered production repair: cargo terminals follow Reduced flash.**
 Checkpoint d4e2213 forwards the real setting through loaded/new Cinder clusters
 and repaints the exact retained terminal record. Existing carrying/terminal/
