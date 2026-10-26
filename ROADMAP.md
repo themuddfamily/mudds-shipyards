@@ -110,6 +110,14 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Reduced-motion source definition is closed; ordinary-route binding remains blocked.**
+The [eight remaining production consumers](docs/ROADMAP_BACKLOG.md#reduced-motion--finite-production-consumers)
+now have literal OFF/ON endpoints and existing focused-suite references. No
+runtime gap was demonstrated and no gameplay check was run. Reuse this list;
+do not repeat consumer discovery or start a test-only repair. A next selection
+must bind an uncovered ordinary caller/candidate/profile/deadline. Accepted
+damage/toast/settings proof remains closed; wider rendered/device coverage is open.
+
 **Warm-cache continuation stopped at preparation cutoff; no second render.**
 The cold run's complete102-file/5400444-byte Mesa shader cache was recovered
 and copied byte-exact into a fresh private profile, with an independent conditional
@@ -178,7 +186,7 @@ definition or its product outcome.
 | STATION-FINDINGS, one existing branch/view | One supported camera position/height, source, renderer/quality/resolution/scale and the exact text/access/clearance checks | A frozen view can receive either an inspected no-finding result or one reproducible defect. Use the nine-branch/four-service roster; do not reopen parked captures. |
 | ART-FINDINGS | Map the existing 13 capture sets/143 images and original fleet/world/character/effect/UI obligations to accepted coverage or literal missing views | Each uncovered view names its original promise, subject/state and comparison conditions; the station subset is referenced once. No new art obligation inferred from an empty area. |
 | SHARED-EMBER-BASELINE | One craft, actual peer roles, outward/surface/home route, survey/result/payment/save endpoints and original limits | One complete ordinary baseline command/route with expected durable data, or the exact missing caller/participant/input. This defines one of the existing 21 cases, not a new shared-world matrix. |
-| COMFORT-MOTION / FLASH / COLOUR / CAPTIONS, one family | Flash uses its fixed17-family contract: bind only the named remaining normal trigger/caller; reuse the accepted3649b4b shared native save/three-process/Reset proof and do not redefine consumers. Other families still need their finite original-required consumers and literal ON/OFF/cold/Reset behavior. | Each missing binding ends in a frozen existing episode or a literal unavailable caller/input and owner. Flash producer/policy definition stays closed; accepted cues remain accepted. No new option or consumer matrix is invented. |
+| COMFORT-MOTION / FLASH / COLOUR / CAPTIONS, one family | Flash uses its fixed17-family contract: bind only the named remaining normal trigger/caller; reuse the accepted3649b4b shared native save/three-process/Reset proof and do not redefine consumers. Motion now reuses its [eight fixed source consumers and OFF/ON endpoints](docs/ROADMAP_BACKLOG.md#reduced-motion--finite-production-consumers); only still-unproved ordinary route/candidate/profile/deadline bindings remain. Colour/captions retain their own finite missing fields. | Each missing binding ends in a frozen existing episode or a literal unavailable caller/input and owner. Flash producer/policy definition stays closed; accepted cues remain accepted. No new option or consumer matrix is invented. |
 | RECOVERY-CUTS-DEFINE | Only uncovered installed cuts in the existing on-foot/pilot/cabin/bunk/crew/docking/activity/world contracts | Each cut has its committed boundary, expected debt/payment/data, owned kill/restart, supported continuation and original cap; accepted cuts are reused. Four unresolved active-run policies stay owner decisions. |
 | INSTALL-LINUX, one existing transaction | Exact prior/candidate package where needed, owned prefix, fixture, protected files, expected bytes/modes and installed usability route | Clean, upgrade, rollback, retained-data, corrupt-data and uninstall remain six distinct existing goals; one transaction per assignment. Unknown package versions block execution, not definition of the required operation. |
 | PERF-ROUTES-DEFINE / PERF-CELLS-DEFINE | Bind the seven existing selectors and original world-endurance workload to minimum/target machines and existing measurement budgets | Workload membership, commands and numeric ceilings are literal; missing device access or genuinely unspecified ceilings have a named owner. No extra craft×world×device axes. |
