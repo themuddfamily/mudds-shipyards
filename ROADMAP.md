@@ -103,6 +103,45 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Selected qualification: Zenith settled Main detach/re-entry.**
+
+- **Goal:** close only CRAFT-ACCEPT-ZENITH's settled retained-Main predicate.
+  Existing ordinary pilot/hit/two-home/reuse/normal Quit results stay accepted.
+- **Starting state:** clean source descended from `d59b13ee7`; exact test commit
+  recorded before execution. Existing `zenith_fleet_dock_integration_test.gd`
+  completes its unchanged staged sortie and four exit-settle ticks. Require
+  APPROACH_SHIP, unseated controlled Player, boardable/unpiloted healthy Zenith,
+  OFFLINE, strict occupied/reserved own berth, no transition or reserved boarding
+  claim, and neutral inputs. This is source/staged qualification, not ordinary flight.
+- **Actions:** snapshot identities, ledger, lease, controls and settled effects;
+  remove the same Main, wait one process frame and re-add it. Check restoration
+  within at most30 physics/process pairs. Apply real move_left for24 pairs from
+  the retained live exit pose; release and observe10 neutral pairs. No new pose,
+  velocity, health, cooldown or phase staging is added to the existing fixture.
+- **Pass/fail:** same re-resolved Main/world/Player/Zenith/berth/feedback/art,
+  ordered fleet/resources/source1104 and valid restored combat roster; same
+  component model/ledger, hull, dock transform/lease/OFFLINE and on-foot ownership.
+  Settled pulse/damage/audio effects and boarding claim remain empty; no stale
+  ownership is resurrected. The Player remains grounded and unseated/controlled,
+  moves more than0.05m in the actual move-left direction, while Zenith stays still
+  and unpiloted. Missing precondition or changed preserved state is a failure.
+- **Proof:** existing `tests/zenith_fleet_dock_integration_test.gd`, headless and
+  `--audio-driver Dummy`, actual exit0 and exactly one
+  `ZENITH_FLEET_DOCK_INTEGRATION_TEST_OK`; retain source SHA, raw logs and process
+  identities. Existing suite maximum300s and existing sortie waits stay unchanged.
+  New30/24/10-frame observations and0.05m movement are declared fixture bounds,
+  not historical whole-craft deadlines or performance claims.
+- **Dependencies/limits:** existing staged Main/Zenith fixture and public ledger,
+  claim, command/effect/roster observers; exact APIs must be reviewed before run.
+  Empty settled claims/effects prove absence of stale resurrection, not retirement
+  of populated in-flight claims. Damage/repair/loss/handback/art/native gates remain open.
+- **Stop and closure:** stop at first unexpected failure for causal review; no
+  automatic retry or enlarged cap. Original09:40:00UTC clock, estimate45minutes
+  includes definition, checks, review, integration/push and owned cleanup. No
+  identical checkpoint is needed for tests/docs-only qualification; a demonstrated
+  runtime repair requires focused checks and a fresh playable checkpoint.
+
+
 **Accepted goal: shared Reduced flash save/cold/Reset caller.**
 
 Result: checkpoint `3649b4b` passes the actual embedded native Linux sequence in
