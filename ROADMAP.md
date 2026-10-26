@@ -112,6 +112,20 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Selected continuation: the SAME installed corrupt-repair case, paused UI logging only.**
+
+| Field | Frozen continuation |
+| --- | --- |
+| Result | Complete the original installed corrupt-primary→explicit repair→distinct healthy cold continuation, correcting only first-pilot bookkeeping against actual paused UI fields. |
+| Start | Restored6b caller merged with pushedmainf95 via61ba1fa31; current branch `roadmap/installed-corrupt-repair-20261026`, owned worktree `/srv/mudds-work/installed-corrupt-repair-20261026/continuation/worktree`. Caller/test Python only; reuse exact clean a99 game exports/unchanged observer and runtime. |
+| Fixture | Exact b4 Heavy9296bytes/SHA256 af2fada0a687b3a2dad6ee5c4550d4e6cd92120f2df94f6681f053e5b23ed409, session2/credit1/paid terminal, valid backup. Primary is literal `{corrupt`8bytes/SHA256 98e8e66d98f45504a80923203572020d15c102340a21a5201c92c598a7e34b69, mode0600. |
+| Steps | Shipped install/payload/launcher/strictstartup→first backup Boot/normalBeginShift→actual keyboard Settings/confirmation→one repair successor/full payload and original backup preserved→normal HUD OS0 quit→same binary/profile/display distinct Boot from primary→healthy session3/live credit1/settings/paid acknowledgement→all3original physical waypoints/unarmed nextTorpedo→normalHUDOS0/final clean markers→owned uninstall/five fixtures retained. |
+| Pass/fail | Original300s whole route/330s independent/360s transaction, default60Hz/time_scale1 and every retained walk/control/identity/data/reward/input/cleanup guard. Paused input schema intentionally has no position or phase; no gameplay fields added. Source mapping/receipt/paid-cold predicates stay strict. |
+| Proof | Exact focused old-driver RED using real narrow paused schema, then one corrected full Python run and source/hash review; existing installed recipe at continuation/helpers/transaction.py with `--route corrupt-retained-heavy` and pinned fixture. Exactly one additional complete native trial; package and driver pins remain distinct. |
+| Dependencies | Independent cumulative-priority GO2026-10-26 after source confirms only paused logging needs correction and real repair-report fields match. Original two failed runs/raw/source archive stay immutable and unaccepted. Titan design decision remains separately owner-blocked. |
+| Stop | ORIGINAL19:31:09UTC/90min/hard21:01:09UTC includes both prior attempts and this continuation; no fresh budget. Native launch cutoff20:45UTC reserves full360s plus review/archive/push/cleanup. Any unexpected RED, Python/source or native failure returns to PARK with no further adjustment/probe/retry. |
+| Closure | Exact PASS or first failure; push accepted source/checkpoint or preserve source bundle; verify owned refs/processes/worktree/scratch cleanup. Original full journey/final-package scope remains binding. |
+
 **PARKED: installed corrupt-save repair and cold continuation.**
 Two installed attempts stop in the caller:22.646s on the transient quarantine
 receipt, then24.238s when paused-stage logging requests missing position/phase.
