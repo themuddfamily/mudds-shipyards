@@ -30312,3 +30312,118 @@ save/restore contracts already cover those seams. No runtime discrepancy was
 demonstrated. Reuse those existing source maps/tests; full ordinary PLAY-CONVOY
 and combined newly executed HUD qualification remain open. No replacement test,
 validator or runtime patch is justified by that inspection.
+
+
+<a id="installed-future-primary-refusal-accepted-20261026"></a>
+## Installed future-primary refusal and cold continuation accepted —2026-10-26
+
+**PASS: executable release capability and the installed future-outer-schema2
+PRIMARY case only.** The real Settings APPLY + SAVE and RESET DEFAULTS → CONFIRM
+RESET controls both refuse persistence. Reset still applies authored defaults
+live. Protected files remain exact; normal quit/cold reopen permits supported
+walking and another normal quit. No application save policy or gameplay changed.
+
+**Selected SAVE-UNSUPPORTED: ordinary packaged future-envelope refusal.**
+This delivers an executable release check, not a new save policy or completion
+of all unsupported-format/recovery cases.
+
+| Field | Frozen assignment |
+| --- | --- |
+| Result | Drive the actual packaged Settings Save and Reset controls against one future outer-envelope case, quit normally, cold-reopen the same data and show usable ordinary continuation without changing protected files. |
+| Start | Base9c4684133; owned branch/worktree `roadmap/unsupported-save-ui-20261026`, `/srv/mudds-work/unsupported-save-ui-20261026/worktree`. Implementer owns native-sortie Python runner, its existing tests and passive observer only; root owns docs/export/installation/checks/cleanup. Valid supported fixture is the accepted9296-byte Heavy raw save, SHA256 af2fada0a687b3a2dad6ee5c4550d4e6cd92120f2df94f6681f053e5b23ed409. It is protected file content, not loaded progress when a future envelope blocks load. |
+| Steps | Existing source-case placements are primary, temporary or backup, one per invocation. Selected native run is primary only: seed supported primary/backup, replace primary prelaunch with the source case's opaque schema2 envelope; `.tmp` remains absent. Begin Shift with real OS input; pause/open Settings; focus APPLY + SAVE and press Return; then RESET DEFAULTS and actual CONFIRM RESET; close Settings and normal HUD Quit/OS0. Distinct process/same ELF and profile cold-loads again, begins ordinarily, walks the existing retained continuation points (-8.5,.18,6), (8,.18,6), (8,.18,-24) using the unchanged support/motion/arrival/speed/settle checks, then normal HUD Quit/OS0. |
+| Pass/fail | Both loads fail closed with newer_schema, source none/generation0/empty live rewards/default live settings. Save fails store_load_failed/store_reason newer_schema, visible `UNSAVED  //  STORE_LOAD_FAILED`; confirmed Reset applies live defaults but fails persistence with visible `DEFAULTS ACTIVE  //  SAVE FAILED`. Primary/backup names, bytes and0600 modes, absent temporary, and unrelated0640 sentinel remain exact at boot, each refused action, both exits and cold load. No fake healthy startup, backup adoption, destructive repair, StartFresh or injected game state. |
+| Proof | Existing focused Python suite plus CLI/privacy checks, actual passive Main observer check if required, clean pinned Linux export, actual installed strict `--startup-check` exit0/exactlyone STARTUP_MENU_READY_OK and one full new native command. Two genuine OS processes, actual UI focus/action/results and independent disk reads; all owned game/input/display processes reaped. Native Windows/GPU/physical device facts remain NOT_RUN. |
+| Dependencies | Source4b66b3548 already proves the three placements through real-file Store APIs; reuse that fixture contract. Current nested-settings source map stays closed. Independent source review freezes exactly once EACH per OS process: `Startup could not read stored settings: store_load_failed` and `Atomic runtime settings load retained authored defaults: store_load_failed / newer_schema`. Retain both raw warnings, require exact counts after final output drain, reject every other diagnostic; old routes remain unchanged. Save attempt count rises once per Save/Reset, save success and commit serial remain0; the misleading accepted_transaction_count may increment for refused requests. |
+| Logging | Pinned engine source enables desktop file logging in `user://logs`; the new route alone redirects each leg to an owned absolute output log. Strict save-directory membership stays unchanged. Actual package source755ad605a is reused with the updated Python driver: only Python/tests/docs differ; the game/observer payload is unchanged. [Engine source](https://raw.githubusercontent.com/godotengine/godot/a13da4feb8d8aefc283c3763d33a2f170a18d541/main/main.cpp#L2312). |
+| Stop | Whole case starts20:59:20UTC2026-10-26; estimate70minutes including checks/archive/push/cleanup, hard22:29:20UTC90minutes. Existing native CAP300, independent330 and installed transaction360 retained. Stop on first unexpected failure; no correction/retry without demonstrated cause and independent cumulative-priority decision. |
+| Closure | Integrate/push accepted executable capability only on actual review/validation; do not merge failed candidates for cleanup. Archive raw/source/private diagnostic package, remove owned branch/worktree/process/helpers; latest gameplay checkpoint2456552 stays unless an actual runtime change warrants a new paired checkpoint. Record only proven placement/source/package scope; other placements and formats stay open. |
+
+
+
+### Accepted source and actual installed operation
+
+Source implementation f290ce7bcf73c756d33fecced59585103f701523 extends the existing
+native-sortie runner/tests and passive heavy-recovery observer. Python-only
+logging completion4d7eff6bc65f8ad1096b1232bfe2eccd8fdf086e routes each process's
+engine log outside the protected save directory. Frozen driver/source pin is
+49b13e7dd7d0dd23a29183922736e0554dea56df; exact Linux package source stays
+755ad605af0cbb3bb018850d67c0199321d1939b. Only excluded Python/tests and documentation
+differ after that export; game/observer bytes remain identical. Both presets
+exclude `tools/**` and `tests/**`. Actual command, using the installed ELF:
+
+```sh
+python3 -B tools/release/run_native_sortie.py /ABS/installed-runtime/MuddsShipyards-755ad60.x86_64 \
+  --route unsupported-save --future-artifact primary \
+  --retained-data /ABS/retained-heavy.json --output /ABS/new-output
+```
+
+The fixture's paid Heavy data is protected disk content, not loaded progress:
+future outer-schema rejection leaves live source none/generation0/snapshot{} and
+empty live rewards. This does not silently adopt a supported backup. Other
+placements are explicit command choices, not results of this invocation.
+
+The shipped managed installer installs the exact archive into an owned prefix;
+actual runtime bytes/modes and desktop-entry bytes match. Installed strict startup
+passes22.759s with exit0/exactlyone STARTUP_MENU_READY_OK. The single full new
+native route passes98.215s at original CAP300. Actual PIDs2292536 and2292709 share
+one ELF/private profile/Xdisplay267/input helper; each normal HUD Quit exits0 and
+is reaped. These are OS-XTest/X11/default-input results with Dummy audio and dummy
+rendering, not physical-device or native-GPU performance qualification.
+
+The2473 actual observations establish first-process Save/Reset attempted
+transaction counters0→2, success count/commit serial0; cold-process attempts stay0.
+Save displays `UNSAVED  //  STORE_LOAD_FAILED`; confirmed Reset displays
+`DEFAULTS ACTIVE  //  SAVE FAILED`. Initial settings equal actual post-Reset
+defaults and the distinct cold process's settings. Cold walking reaches all three
+existing points: (-8.5,.18,6), (8,.18,6), (8,.18,-24), covering51.5680438679m with
+the original support/motion/default-pacing/arrival/settle checks.
+
+All15 independent file milestones retain the same151-byte future primary0600,
+9296-byte valid backup0600,28-byte unrelated sentinel0640, names and inodes;
+no temporary, recovery or extra siblings appear. Both retained engine logs have
+exactly once EACH the two predeclared future-load warnings. Aggregate expected
+warning count4; unexpected diagnostics0. Opaque private-marker prefix is absent
+from raw stdout and both engine logs. Expected refusal warnings remain raw and
+counted; all other warnings/errors fail this route, and old routes are unchanged.
+
+Transaction129.371s: install3.421/startup22.759/native stage98.569/uninstall0.603.
+All five outer protected fixtures retain exact bytes/modes; uninstall removes only
+managed files. Outer guard PASS129.583s, source/index/tree/cache unchanged. All
+four native input/game/helper/Xvfb cleanup flags are true; no cleanup errors.
+Independent review re-read raw observations, warnings, files, actual installed
+hashes, guards and process identities before accepting integration.
+
+### Checks, retained failures and cleanup
+
+Initial focused Python run stopped6tests/5pass on `focus_is_open` versus actual
+`focus_is_settings_open`. One independently reviewed mapping correction and
+completion of final warning accounting passed the focused rerun; counter/default
+guards then passed8focused tests. First full driver suite281PASS14.438s;
+import20.690s, CLI privacy3311assertions/one marker1.018s and Linux export41.996s
+pass. Source review caught default desktop file logging before first native
+execution; the route-specific log redirection retains strict file membership.
+Updated focused9 and full282PASS13.979s; no redundant import/export or game replay.
+A closeout-helper parenthesis typo stopped before archive/deletion and was fixed
+once after independent review; native validation was not rerun.
+
+Exact hashes:
+
+- Installed ELF `34b3d6ce6bfab3f18e6991a4d63a092283b14f79ba82ed9f9a3d5b6c8829d60a`.
+- Linux archive `d10c71cadc26d61dc3ddcf878a93112e0dbceabbfb5a2754c257f40f016fa33b`.
+- Python driver `0d06648d179593b890979662410eca01116a605269fe98d957f782fd6b74f99b`.
+
+Case archive `/srv/mudds-work/unsupported-save-ui-20261026/records.tar.gz`:
+109166822bytes,93regular files/five template links, SHA256
+`676b87d9e26e014af4d612cd538c297a1cb153028c3eee78ea0c32b4031644c3`.
+Every member's bytes/mode/link target was verified; bundle tip49b13e7dd is retained
+against9c4684133. One exact private Linux tarball preserves the tested ELF without
+archiving a duplicate loose binary. All34 observed stage identities are absent;
+private display lock/socket are absent. Archive cost20.249minutes from the original
+20:59:20UTC clock; hard22:29:20UTC/caps were never reset. Actual integration/ref/
+worktree/scratch cleanup and final cumulative time are recorded in adjacent
+`closeout.json`; raw records and source remain recoverable before removal.
+
+Installed temporary/backup placements, nested/legacy formats, final-candidate,
+Windows/native-GPU/physical-input/audio qualification remain open. No new playable
+checkpoint, release publication, hosted CI, parent outcome or phase completion.

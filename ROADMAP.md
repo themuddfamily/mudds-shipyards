@@ -121,22 +121,16 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Selected SAVE-UNSUPPORTED: ordinary packaged future-envelope refusal.**
-This delivers an executable release check, not a new save policy or completion
-of all unsupported-format/recovery cases.
-
-| Field | Frozen assignment |
-| --- | --- |
-| Result | Drive the actual packaged Settings Save and Reset controls against one future outer-envelope case, quit normally, cold-reopen the same data and show usable ordinary continuation without changing protected files. |
-| Start | Base9c4684133; owned branch/worktree `roadmap/unsupported-save-ui-20261026`, `/srv/mudds-work/unsupported-save-ui-20261026/worktree`. Implementer owns native-sortie Python runner, its existing tests and passive observer only; root owns docs/export/installation/checks/cleanup. Valid supported fixture is the accepted9296-byte Heavy raw save, SHA256 af2fada0a687b3a2dad6ee5c4550d4e6cd92120f2df94f6681f053e5b23ed409. It is protected file content, not loaded progress when a future envelope blocks load. |
-| Steps | Existing source-case placements are primary, temporary or backup, one per invocation. Selected native run is primary only: seed supported primary/backup, replace primary prelaunch with the source case's opaque schema2 envelope; `.tmp` remains absent. Begin Shift with real OS input; pause/open Settings; focus APPLY + SAVE and press Return; then RESET DEFAULTS and actual CONFIRM RESET; close Settings and normal HUD Quit/OS0. Distinct process/same ELF and profile cold-loads again, begins ordinarily, walks the existing retained continuation points (-8.5,.18,6), (8,.18,6), (8,.18,-24) using the unchanged support/motion/arrival/speed/settle checks, then normal HUD Quit/OS0. |
-| Pass/fail | Both loads fail closed with newer_schema, source none/generation0/empty live rewards/default live settings. Save fails store_load_failed/store_reason newer_schema, visible `UNSAVED  //  STORE_LOAD_FAILED`; confirmed Reset applies live defaults but fails persistence with visible `DEFAULTS ACTIVE  //  SAVE FAILED`. Primary/backup names, bytes and0600 modes, absent temporary, and unrelated0640 sentinel remain exact at boot, each refused action, both exits and cold load. No fake healthy startup, backup adoption, destructive repair, StartFresh or injected game state. |
-| Proof | Existing focused Python suite plus CLI/privacy checks, actual passive Main observer check if required, clean pinned Linux export, actual installed strict `--startup-check` exit0/exactlyone STARTUP_MENU_READY_OK and one full new native command. Two genuine OS processes, actual UI focus/action/results and independent disk reads; all owned game/input/display processes reaped. Native Windows/GPU/physical device facts remain NOT_RUN. |
-| Dependencies | Source4b66b3548 already proves the three placements through real-file Store APIs; reuse that fixture contract. Current nested-settings source map stays closed. Independent source review freezes exactly once EACH per OS process: `Startup could not read stored settings: store_load_failed` and `Atomic runtime settings load retained authored defaults: store_load_failed / newer_schema`. Retain both raw warnings, require exact counts after final output drain, reject every other diagnostic; old routes remain unchanged. Save attempt count rises once per Save/Reset, save success and commit serial remain0; the misleading accepted_transaction_count may increment for refused requests. |
-| Logging | Pinned engine source enables desktop file logging in `user://logs`; the new route alone redirects each leg to an owned absolute output log. Strict save-directory membership stays unchanged. Actual package source755ad605a is reused with the updated Python driver: only Python/tests/docs differ; the game/observer payload is unchanged. [Engine source](https://raw.githubusercontent.com/godotengine/godot/a13da4feb8d8aefc283c3763d33a2f170a18d541/main/main.cpp#L2312). |
-| Stop | Whole case starts20:59:20UTC2026-10-26; estimate70minutes including checks/archive/push/cleanup, hard22:29:20UTC90minutes. Existing native CAP300, independent330 and installed transaction360 retained. Stop on first unexpected failure; no correction/retry without demonstrated cause and independent cumulative-priority decision. |
-| Closure | Integrate/push accepted executable capability only on actual review/validation; do not merge failed candidates for cleanup. Archive raw/source/private diagnostic package, remove owned branch/worktree/process/helpers; latest gameplay checkpoint2456552 stays unless an actual runtime change warrants a new paired checkpoint. Record only proven placement/source/package scope; other placements and formats stay open. |
-
+**Accepted: installed future-primary Save/Reset refusal and cold continuation.**
+The new executable release route drives real Settings Save and confirmed Reset
+against an unsupported outer-schema2 primary file. Both refuse persistence;
+all15 file snapshots stay identical. Two distinct installed Linux processes quit
+normally with OS0, and cold continuation walks all three points/51.568m. Exactly
+four expected refusal warnings, zero unexpected diagnostics. [Source, actual
+proof and limits](docs/history/ROADMAP_DELIVERIES.md#installed-future-primary-refusal-accepted-20261026).
+This closes the named primary case only. Temporary/backup placements and other
+formats/final-candidate/hardware gates stay open. Latest playable checkpoint2456552
+is unchanged; no gameplay policy was changed.
 
 **Completed: five retained detached worktrees cleaned up.**
 All five inactive copies are removed after preserving and verifying their local
