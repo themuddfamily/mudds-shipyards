@@ -1782,7 +1782,7 @@ func _has_newer_config_generation(target_path: String) -> bool:
 		if not FileAccess.file_exists(path):
 			continue
 		var config := ConfigFile.new()
-		if config.load(path) != OK:
+		if config.load(path) != OK or not config.has_section_key(_SECTION_META, "schema_version"):
 			continue
 		var schema: Variant = config.get_value(_SECTION_META, "schema_version", null)
 		if typeof(schema) == TYPE_INT and int(schema) > SCHEMA_VERSION:
