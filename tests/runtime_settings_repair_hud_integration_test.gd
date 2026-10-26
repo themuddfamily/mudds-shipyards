@@ -126,6 +126,7 @@ func _run() -> void:
 		and filesystem.files[PATH] == repaired_bytes,
 		"successful repair stays resolved and write-free across detach and re-entry"
 	)
+	await _check_repair_with_rejected_startup()
 
 	var failed_fixture := _backup_recovery_fixture("memory://repair-hud-failure.json")
 	var failed_store := failed_fixture.store as UserDataStore
@@ -235,6 +236,71 @@ func _run() -> void:
 	failed_flow.free()
 	await process_frame
 	_finish()
+
+
+func _check_repair_with_rejected_startup() -> void:
+	var path := "memory://repair-hud-rejected-startup.json"
+	var fixture := _backup_recovery_fixture(path)
+	var filesystem := fixture.filesystem as FakeFilesystem
+	var store := fixture.store as UserDataStore
+	var corrupt_primary := (filesystem.files[path] as PackedByteArray).duplicate()
+	var flow := GameFlowType.new()
+	flow.configure_runtime_settings_persistence(store, path + ".cfg")
+	flow.call("_initialize_runtime_settings")
+	flow.call("_initialize_safe_start_recovery")
+	var startup_report := flow.get_safe_start_recovery_report()
+	var recovered_payload := store.get_snapshot()
+	_check(
+		bool(startup_report.get("initialized", false))
+		and not bool(startup_report.begin_status.get("accepted", true))
+		and startup_report.begin_status.reason == &"store_recovery_required"
+		and store.get_generation() == 1
+		and filesystem.files[path] == corrupt_primary,
+		"real safe-start initialization retains the rejected startup without writing the corrupt save"
+	)
+	var hud := HudType.new()
+	root.add_child(hud)
+	await process_frame
+	flow.set("hud", hud)
+	flow.call("_connect_runtime_settings_repair_hud")
+	flow.call("_publish_runtime_settings_repair_to_hud")
+	hud.set_paused(true)
+	var pause_main := hud.get("_pause_main_page") as Control
+	(pause_main.find_child("SettingsOpenButton", true, false) as Button).pressed.emit()
+	var button := hud.get("_settings_repair_confirm_button") as Button
+	_check(button.is_visible_in_tree() and not button.disabled,
+		"rejected startup still offers the authentic visible backup confirmation control")
+	button.pressed.emit()
+	var repair_report := flow.get_runtime_settings_repair_report()
+	var status := hud.get("_settings_status_label") as Label
+	_check(
+		repair_report.last_status.reason == &"repair_committed"
+		and store.get_generation() == 2
+		and store.get_snapshot() == recovered_payload
+		and filesystem.files.get(path + ".recovery") == corrupt_primary
+		and flow.get_safe_start_recovery_report() == startup_report,
+		"repair preserves payload and damaged bytes with one commit while the original startup remains rejected"
+	)
+	_check(
+		status.is_visible_in_tree()
+		and status.text == "SETTINGS BACKUP REPAIRED\nQUIT AND REOPEN THE GAME TO FINISH RECOVERY",
+		"repair after rejected startup explicitly tells the player to quit and reopen the game"
+	)
+	hud.set_ui_scale(1.6)
+	hud.layout_for_viewport(Vector2(1024.0, 768.0))
+	await process_frame
+	await process_frame
+	var settings_page := hud.get("_settings_page") as Control
+	_check(
+		status.size.x >= status.get_minimum_size().x
+		and status.size.y >= status.get_minimum_size().y
+		and settings_page.get_global_rect().encloses(status.get_global_rect())
+		and Rect2(Vector2.ZERO, Vector2(1024.0, 768.0)).encloses(status.get_global_rect()),
+		"recovery guidance fits the actual Settings label at minimum window size and maximum requested scale"
+	)
+	hud.queue_free()
+	flow.free()
+	await process_frame
 
 
 func _backup_recovery_fixture(path: String) -> Dictionary:
