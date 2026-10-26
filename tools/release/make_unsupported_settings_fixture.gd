@@ -44,7 +44,7 @@ func _run() -> void:
 		return
 	var reopened := Store.new(output)
 	var verified: Dictionary = reopened.load_read_only()
-	if not verified.get("accepted", false) or reopened.get_snapshot() != PAYLOAD:
+	if not verified.get("accepted", false) or reopened.get_snapshot() != Store._canonicalize(PAYLOAD):
 		_fail("Production fixture readback failed")
 		return
 	print("UNSUPPORTED_SETTINGS_FIXTURE_OK ", JSON.stringify({
