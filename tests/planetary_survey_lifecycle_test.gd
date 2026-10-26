@@ -207,7 +207,7 @@ func _unpaid_visit_retirement_case(label: String, owner_property: StringName) ->
 		"%s: private fixture returns to its original genuine unpaid boundary" % label)
 	owner.call(&"_retire_saved_visit")
 	var retired := disk.get_snapshot()
-	var preserved := not retired.has(slot) and retired.get(archive_slot) == earned
+	var preserved: bool = not retired.has(slot) and retired.get(archive_slot) == earned
 	_check(preserved and retired.get("survey_retirement_unrelated") == unrelated
 		and (authority.call(&"get_snapshot").get("record", {}) as Dictionary) == reward_before,
 		"%s: accepted end-visit retirement preserves exact unpaid observations passively without payment" % label)
@@ -216,7 +216,7 @@ func _unpaid_visit_retirement_case(label: String, owner_property: StringName) ->
 	var fresh_owner: RefCounted = fresh.get(owner_property)
 	var fresh_survey: RefCounted = fresh_owner.get("survey")
 	var fresh_disk := fresh.get("_runtime_settings_user_data_store") as UserDataStore
-	var cold_preserved := fresh_disk.get_snapshot().get(archive_slot) == earned
+	var cold_preserved: bool = fresh_disk.get_snapshot().get(archive_slot) == earned
 	_check(cold_preserved and not fresh_disk.get_snapshot().has(slot)
 		and fresh_owner.get("state") == &"idle" and _reward_count(fresh, fresh_survey) == 0
 		and fresh_disk.get_snapshot().get("survey_retirement_unrelated") == unrelated,
