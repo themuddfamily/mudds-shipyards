@@ -135,9 +135,15 @@ Inputs were released and game/input helper/Xvfb reaped; all49 recorded stage
 supervisors were absent at2026-10-26T04:37:58UTC. No checkpoint was published.
 Cumulative elapsed cost was120.42minutes from the same original02:37:33UTC
 start, exceeding the90minute estimate; closure time continues against that goal.
-Unique source and raw results remain on `feat/bulwark-gunner-home-20261026` and
-`/srv/mudds-work/bulwark-gunner-home-20261026/`; this unfinished branch is a
-retained exception, not completed work eligible for deletion.
+Unique source, all six failures, raw results and failed build bytes are preserved
+in `/srv/mudds-work/bulwark-gunner-home-20261026/records.tar.gz` with verified
+source bundle and adjacent `closeout.json`. Both owned task branches are removed
+(the failed gunner branch remotely too), without merging its unaccepted harness.
+After full archive verification,32 unaccepted public scratch build files and
+owned private loose files were removed;58 supervisors/269 observed process
+identities were absent. The task folder now contains only archive and closeout.
+Archive closure cost was132.29minutes from02:37:33UTC; final closure is recorded
+against the same clock in closeout.json. Unrelated retained worktrees are untouched.
 
 Reopening requires a demonstrated cause and bounded correction for the actual
 outward-flight failure, an independent cumulative-priority decision and a clean

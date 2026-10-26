@@ -27658,3 +27658,14 @@ All cost and failures remain cumulative from2026-10-26T02:37:33UTC; the original
 90minute engineering estimate was exceeded, not reset by extracting the repair.
 Owned source/raw/build preservation and cleanup are recorded in
 `/srv/mudds-work/bulwark-gunner-home-20261026/closeout.json` after closure.
+
+Closure: the verified archive is1,433,678,219bytes, SHA256
+`c7a639215bde6351e94b8ab1722c0876209cf761ddbdc0c29dbd79795a6ad887`,
+786regular files/58symlinks, including verified source bundle for accepted main
+and the unaccepted gunner branch. All58 stage supervisors and269 observed owned
+process identities were absent. Archive verification preceded removal of32 failed
+public scratch build files and private loose records. The task directory now
+contains only records.tar.gz and closeout.json;11 accepted checkpoint artifacts
+remain public. Accepted fix branch and archived failed gunner branch are deleted
+locally; the latter remote branch was deleted with its exact expected tip.
+Unrelated retired worktrees/registrations remain protected.
