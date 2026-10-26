@@ -2083,6 +2083,7 @@ func _test_production_startup_transactions_and_reentry() -> void:
 		and not filesystem.files.has(STORE_PATH + ".tmp"),
 		"failed save keeps the accepted live change, marks it unsaved and preserves canonical disk"
 	)
+	_check(hud.has_unsaved_settings(), "production save refusal marks the retained HUD dirty")
 	hud.setting_change_requested.emit(&"camera_fov", 92.0)
 	var retried := game.get_runtime_settings_persistence_report()
 	commit_ids.append(str(retried.last_commit_id))
@@ -2093,6 +2094,7 @@ func _test_production_startup_transactions_and_reentry() -> void:
 		and is_equal_approx(settings.camera_fov, 92.0),
 		"a retry reuses the unconsumed deterministic ID, publishes live state and clears unsaved state"
 	)
+	_check(not hud.has_unsaved_settings(), "production successful retry clears the retained HUD dirty state")
 
 	hud.settings_reset_requested.emit()
 	var reset := game.get_runtime_settings_persistence_report()

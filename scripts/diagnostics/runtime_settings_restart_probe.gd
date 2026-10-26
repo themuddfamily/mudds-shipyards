@@ -125,7 +125,7 @@ func _begin() -> void:
 			if not _check(confirm.has_focus(), "ordinary dirty-reset prompt owns confirmation focus"):
 				return
 			_key(KEY_SPACE)
-		if not _feedback("SETTINGS RESET", saves + 1) or not _state(false, "whole Reset Defaults durable OFF") \
+		if not _feedback("DEFAULTS RESTORED + SAVED", saves + 1) or not _state(false, "whole Reset Defaults durable OFF") \
 				or not _current_cue(cue, elapsed, "Reset does not relight current ON cue") \
 				or not _new_cue(false, "new reset OFF staged HUD cue"):
 			return

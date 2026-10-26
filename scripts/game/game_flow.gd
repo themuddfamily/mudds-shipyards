@@ -26111,6 +26111,10 @@ func _on_runtime_setting_changed(setting: StringName, _value: Variant) -> void:
 	elif setting == &"reduced_dynamic_range":
 		_apply_reduced_dynamic_range_setting()
 	elif setting in [&"reduced_flash", &"payload_visual_intensity"]:
+		# The ordinary settings control changes the canonical setting without a
+		# whole-HUD snapshot refresh. Forward it to the retained live cue too.
+		if setting == &"reduced_flash" and is_instance_valid(hud) and hud.has_method(&"set_reduced_flash"):
+			hud.call(&"set_reduced_flash", runtime_settings.reduced_flash)
 		_apply_bomber_payload_presentation_profile()
 		_apply_opponent_weapon_heat_presentation_profile()
 		_apply_combat_effect_reduced_flash()
@@ -26392,6 +26396,9 @@ func _persist_runtime_settings(keep_display: bool = false) -> Dictionary:
 func _present_runtime_settings_save_status(status: Dictionary, transaction: StringName) -> void:
 	if not is_instance_valid(hud):
 		return
+	# The same production result owns both dirty-state and player feedback.
+	if hud.has_method(&"present_settings_persistence_result"):
+		hud.call(&"present_settings_persistence_result", status, &"reset" if transaction == &"reset" else &"save")
 	var accepted := bool(status.get("accepted", false))
 	var reason := str(status.get("reason", &"unknown"))
 	if accepted:
