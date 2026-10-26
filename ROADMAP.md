@@ -103,7 +103,15 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Selected qualification: Zenith settled Main detach/re-entry.**
+
+Source `a70f9397a51845c65d068047d95a5667464782a7` passes the existing suite in45.495s,
+exit0, one marker and no diagnostics. Same re-resolved identities, healthy ledger,
+lease/OFFLINE/source1104 and empty settled claims/effects survive re-entry. The
+same controlled Player physically walks3.226154m in the sampled move-left
+direction while grounded; Zenith stays still and unpiloted.
+[Exact qualification and remaining scope](docs/history/ROADMAP_DELIVERIES.md#zenith-settled-main-reentry-qualified-20261026). Production matches the existing
+3649b4b checkpoint byte-for-byte at source; no new gameplay/art or duplicate build.
+
 
 - **Goal:** close only CRAFT-ACCEPT-ZENITH's settled retained-Main predicate.
   Existing ordinary pilot/hit/two-home/reuse/normal Quit results stay accepted.
@@ -671,7 +679,7 @@ Recent packaged changes and source qualifications are recorded separately:
 | Interact remap, conflict Cancel and cold Reset | [Three-process proof](docs/history/ROADMAP_DELIVERIES.md#interact-remap-restart-qualified-20261025); synthetic raw input, not physical devices or original Gate C |
 | Four final-approach captions | [Checkpoint 4aa8b64](docs/history/ROADMAP_DELIVERIES.md#final-approach-live-captions-delivered-20261025); composed visible HUD, ordinary planetary flight and full comfort acceptance remain open |
 | Five Loadmaster captions | [Checkpoint 19336f3](docs/history/ROADMAP_DELIVERIES.md#loadmaster-live-captions-delivered-20261025); rejection has component proof only, with [no demonstrated reachable requester refusal](docs/history/ROADMAP_DELIVERIES.md#loadmaster-refusal-readiness-not-selected-20261025) |
-| Current damage Reduced flash | [Checkpoint 1a948d9](docs/history/ROADMAP_DELIVERIES.md#current-damage-reduced-flash-accepted-20261025); accepted active-cue episode, broader comfort/restart/Reset remain open |
+| Current damage Reduced flash | [Checkpoint 1a948d9](docs/history/ROADMAP_DELIVERIES.md#current-damage-reduced-flash-accepted-20261025); accepted active-cue episode; shared native save/cold/Reset now DONE3649b4b, remaining family/device/final gates open |
 | Current toast and damage Reduced motion | [Toast](docs/history/ROADMAP_DELIVERIES.md#current-toast-reduced-motion-accepted-20261025), [damage](docs/history/ROADMAP_DELIVERIES.md#active-damage-reduced-motion-accepted-20261025); accepted episodes, not all consumers/device/final gates |
 | Combat terminal posting durability | [Exact delivered behavior](docs/history/ROADMAP_DELIVERIES.md#combat-terminal-posting-persistence-accepted-20261025); preserves genuine next posting and pending-write refusal, ordinary complete combat journeys remain open |
 | LAN expiry and retry | [Checkpoint ca149d6](docs/history/ROADMAP_DELIVERIES.md#lan-browser-expiry-accepted--2026-10-25); paused monotonic 30-second expiry/fresh admission, not full network/endurance acceptance |

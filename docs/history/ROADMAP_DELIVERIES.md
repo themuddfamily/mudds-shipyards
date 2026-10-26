@@ -4,6 +4,45 @@ Moved from ROADMAP.md on 2026-10-17. These are source-specific historical
 results, not the active queue or proof of current full-project acceptance.
 Return to the [working roadmap](../../ROADMAP.md).
 
+## Zenith settled Main reentry qualified 20261026
+
+Existing CRAFT-ACCEPT-ZENITH settled retained-Main predicate; source
+`a70f9397a51845c65d068047d95a5667464782a7`. This is qualification of existing production behavior, not a new
+runtime capability. The existing `zenith_fleet_dock_integration_test.gd` now
+re-resolves the actual Main/world/Player/Zenith/berth/feedback/art objects rather
+than relying only on retained references. It checks ordered fleet/resources,
+complete combat roster/source1104, same model and exact healthy component ledger,
+hull68, dock transform and occupied/reserved lease, OFFLINE/phase/on-foot controls,
+neutral input and empty settled boarding/pulse/damage/audio receipts/voices.
+
+At the existing post-sortie/four-exit-tick boundary it removes and re-adds the same
+Main, restores bindings within30 pairs, then applies actual move_left24 pairs and
+releases for10. Actual grounded projection3.226154m is above the frozen0.05m
+threshold; controls/ownership remain current and Zenith remains unmoved/unpiloted.
+The new frame/movement bounds are declared fixture observations, not historical
+flight or performance deadlines. Existing staged approach/accelerated boarding/
+missed-fire/staged return and every original wait remain unchanged.
+
+Import and complete existing suite pass:57 assertions, OS0, exactly one
+ZENITH_FLEET_DOCK_INTEGRATION_TEST_OK, no diagnostics, tracked-source/cache mutation
+or surviving owned child; actual suite45.495s within original300s.
+Run: Godot4.7.1 `--headless --audio-driver Dummy --path <isolated worktree>
+--script res://tests/zenith_fleet_dock_integration_test.gd`; exact argv/profile/raw
+logs and process identities are retained in the task archive. Root reviewed the
+bounded source and actual pass; one medium agent owned the existing test only.
+
+Only test/docs change. Production scripts/scenes/assets/addons/art-source/project/
+exports/tools match published game3649b4bbb34742a4fd9d076576c6665fc4355a5f at source.
+Existing3649b4b checkpoint remains current; no duplicate build is produced.
+No empty-state observation is claimed as retirement of populated in-flight
+claims/effects. Ordinary Zenith pilot/hit/home/reuse/normal termination remain
+accepted separately; component contact/repair/loss, Zenith–Torrent handback,
+art/clearance and original native/device/human/final gates remain open/NOT_RUN.
+
+Original09:40:00UTC clock and45minute estimate include readiness, implementation,
+checks, source/result review, integration/push and exact owned cleanup; no cap reset.
+
+
 ## Shared Reduced flash native restart accepted 20261026
 
 Source `3649b4bbb34742a4fd9d076576c6665fc4355a5f`; checkpoint `MuddsShipyards-3649b4b`. The normal Reduced flash setting now forwards to the retained HUD immediately. Production save/reset/refusal results now drive the existing HUD dirty-state presenter, preserving existing player feedback strings. The existing COMFORT-FLASH shared preference caller executes the embedded native Linux game directly in three distinct, reaped OS processes against one owned private production profile. Normal Boot supplies actual Main; synthetic raw keyboard events traverse normal Begin Shift, Escape/Settings, ReducedFlashControl, APPLY + SAVE, RESET DEFAULTS and ordinary HUD Quit. No preference seeding, replacement store, direct control callbacks or direct success quit.
