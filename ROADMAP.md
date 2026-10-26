@@ -121,6 +121,22 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Selected SAVE-UNSUPPORTED fix: preserve newer legacy CFG generations.**
+Source identifies a destructive gap in legacy recovery, distinct from the already
+accepted atomic outer-envelope cases. This is a production repair with a checkpoint.
+
+| Field | Frozen repair |
+| --- | --- |
+| Result | A newer legacy CFG primary, staged file or backup prevents old-version recovery/save from deleting it, promoting an older copy, or loading older preferences. Return ERR_INVALID_DATA with all files and live preferences unchanged. |
+| Start | Main3c2ae5616; owned branch/worktree `roadmap/legacy-future-cfg-20261026`, `/srv/mudds-work/legacy-future-cfg-20261026/worktree`. Implementer owns runtime_settings.gd and existing runtime_settings_test.gd; root owns guards/export/checkpoint/docs/cleanup. Test-only RED4090c0ff9 is prepared; no runtime change yet. |
+| Steps | Run existing source suite on old production code with nine fresh real-file fixtures: each future TYPE_INT meta.schema_version8 placement primary/tmp/bak, other two schema7, across mutable load/read-only load/save. Reproduce the exact27 failed predicates, review the cause, then add one shared preflight before legacy recovery/rotation and read-only fallback; rerun affected suites and export a clean paired checkpoint. |
+| Pass/fail | All nine calls return ERR_INVALID_DATA; exact three filenames/bytes/modes0600/0620/0640 and directories preserved; live sensitivity.0088/FOV99 and all values/signals unchanged. Newer means existing legacy TYPE_INT semantics, not coercion of strings/floats/bools. Existing supported/missing/malformed/backup/staged recovery behavior stays green. |
+| Proof | Guarded headless/Dummy import; exact expected RED27 labels on old source; same real-file cases GREEN after fix; existing adapter/production settings checks. Fresh Windows EXE/checkpoint ZIP/notes plus matching Linux ELF/package, actual payload protection checks and silent strict startup exit0/exactlyone STARTUP_MENU_READY_OK. Compare packaged Windows/Linux payload membership/semantics and retain actual limits. |
+| Dependencies | Independent source review confirms destructive branches and first-read fallback. The atomic adapter's ordinary Save bypasses legacy save_to_file and may create JSON beside an untouched future CFG; this repair does not claim to block that separate operation or settle its coexistence policy. No blanket legacy ordinary-UI or nested typed-payload qualification is implied. |
+| Stop | ORIGINAL20:59:20UTC2026-10-26/hard22:29:20UTC retained,39.457minutes prior cleanup plus current definition/setup charged. Estimate30 further minutes including paired checkpoint/integration/archive/push/cleanup. Stop first unexpected failure; expected RED must match the exact frozen roster. No retry/cap increase/budget reset. |
+| Closure | Review actual source/proof, integrate/push accepted repair and publish new playable artifacts only in repository builds/windows and builds/linux. Archive raw/unique source; fresh remote/worktree ownership checks and exact-tip branch/worktree cleanup. Keep native hardware/Windows/device facts NOT_RUN and existing owner exclusions unchanged. |
+
+
 **Accepted: all three installed future-outer-schema2 placements.**
 Primary, temporary and backup cases each pass the actual Settings Save/confirmed
 Reset refusal, distinct cold restart, all three supported walking points and two
