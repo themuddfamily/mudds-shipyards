@@ -28955,3 +28955,128 @@ Accepted checkpoints and qualifications are listed under [accepted work](../../R
 Failed journeys and their exact reopening conditions are under
 [parked work](../../ROADMAP.md#parked-failures-and-dependent-work). Their retained delivery
 history supplies the full proof; neither list automatically schedules a rerun.
+
+## Forward hull projectile attribution accepted 20261026
+
+Game/source`b4ff8c0f4f77e0571fc03aaed17b10f3bafc0649` repairs finite projectile region selection
+in the shared ShipComponentDamage adapter. Projectile selection uses the existing
+five-component order; collision retains its original four-functional list.
+Same nearest algorithm, one ledger/generation, weights, error reasons, thresholds,
+gain, repair and hull authority remain unchanged. No schema or validator added.
+
+Actual real-resolver fixture:17forward contacts across nine craft damage only
+forward hull and debit hull11 exactly once per contact. All45 regional ledger/
+generation cases and nine uniform positionless fallbacks pass; Zenith's existing
+forward cue is visible at its reported anchor with emitting sparks. The fixture
+stages craft/source poses and source dispatch; it is not ordinary pilot input or
+rendered/native-device qualification. Existing collision routes remain accepted.
+
+Frozen8focusedchecks, paired clean-commit exports, three strict startups and
+actual payload audit pass with no diagnostics/source mutation or surviving
+observed children. Both actual PE/ELF inventories match at1529 entries; only
+`scripts/combat/ship_component_damage.gdc` differs from499e681. Stock PE engine
+text, ELF architecture, export metadata and exact archive bytes/modes/epoch pass.
+Windows payload startup was performed using Linux Godot; native Windows is
+NOT_RUN. Direct ELF and extracted archive startup each exit0 with exactly one
+`STARTUP_MENU_READY_OK`.
+
+| Frozen stage | Actual elapsed | Result |
+| --- | --- | --- |
+| import | 6.589s | PASS |
+| component-model | 0.752s | PASS |
+| component-adapter | 0.888s | PASS |
+| component-integration | 36.901s | PASS |
+| projectile-regions | 33.300s | PASS |
+| collision-regions | 31.023s | PASS |
+| fleet-recovery | 10.220s | PASS |
+| zenith-feedback | 5.735s | PASS |
+| sensor-reticle | 36.611s | PASS |
+| windows-export | 11.677s | PASS |
+| linux-export | 25.756s | PASS |
+| windows-payload-startup | 27.045s | PASS |
+| linux-startup | 22.660s | PASS |
+| archive-startup | 24.203s | PASS |
+| audit | 6.302s | PASS |
+
+[Windows checkpoint](../../builds/windows/MuddsShipyards-b4ff8c0-checkpoint.zip),
+[notes](../../builds/windows/MuddsShipyards-b4ff8c0-notes.txt), and
+[matching Linux package](../../builds/linux/MuddsShipyards-b4ff8c0-linux-x86_64.tar.gz).
+Independent high-risk review GO;11checkpoint files verified before integration.
+Integration/push and owned branch/worktree/archive cleanup are pending at this
+acceptance entry; the final closure receipt below records their actual completion.
+
+Original12:32:12UTC/90minute engineering estimate includes definition, the owner-
+requested roadmap interruption, both baseline attempts, checks, build and closure.
+Baseline1 remains FAILED (extra Hauler port-ray precondition); source-derived
+wall-target correction preserves the26-candidate limit. Corrected6a1f3f542
+baseline isolates exactly nine actual forward→core failures in33.572s/exit1.
+The private error filter validates each duplicate stdout/profile log separately;
+it never admits the extra failed precondition. No deadline enlargement or reset.
+
+This closes only the shared projectile-attribution prerequisite of the existing
+CRAFT-ACCEPT-ZENITH nonfatal-component member. Ordinary Zenith damage/repair,
+loss/regeneration, full craft/art/device/network/native GPU/final release remain
+open. Prior Torrent core-hit proof stays on its recorded source; new forward-hit
+policy cannot inherit the old core.56 consequence automatically.
+
+### Frozen assignment and retained baseline history
+
+The following card is preserved as written before final acceptance. Pending or
+active wording is historical; the accepted scope and closure above govern it.
+
+**Roadmap definition pass accepted on ad958e555.** All337 canonical IDs,
+parent bindings and kinds remain intact; all31 containers have a finite gap
+index. Independent review and770 local links pass. The complete executable
+breakdown stays open at its named missing bindings; no gameplay acceptance was
+claimed by that documentation pass.
+
+**Active production card: CRAFT-ACCEPT-ZENITH — repair forward projectile attribution.**
+This is one shared runtime prerequisite of Zenith's existing nonfatal-component
+member. It is not full craft acceptance or the ordinary damage/repair journey.
+
+| Field | Frozen assignment |
+| --- | --- |
+| Result | A real finite projectile contact in the forward region damages only `forward_hull`; Zenith displays its existing local forward damage cue. Hull health is spent exactly once. |
+| Start | Base `544e74b6a`; isolated `fix/forward-hull-projectile-20261026` worktree. Existing Main, live nine-craft roster, real RangeOpponent and CombatResolver/lifecycle damage path. The fixture stages poses and attacker dispatch; it does not represent ordinary pilot input. |
+| Ownership | Codex: `scripts/combat/ship_component_damage.gd` and existing `tests/hero_projectile_component_routing_test.gd`; root integrates, updates this card/backlog, packages and cleans up. No new damage authority, component, schema or validator. |
+| Steps | Add a forward ray to the existing test; run it against unchanged runtime and retain the actual wrong component receipt. Separate projectile selection from the collision-only selector. Run the same test and affected existing model/collision/recovery checks. |
+| Pass/fail | Projectile nearest-region selection includes exactly forward hull, port wing, starboard wing, core and engine. Existing four functional ray cases still reach their named components across the existing nine craft. Each contact is finite, affects only the expected component, retains the same ledger/generation and subtracts exactly resolved hull damage once. Positionless fallback retains uniform five-component loss; collision selection remains the original four functional components. Thresholds/gain/repair rate stay unchanged. Zenith's existing forward cue is visible, has emitting sparks and is within0.001m of its reported anchor on the same ledger. |
+| Proof | Existing `hero_projectile_component_routing_test.gd`: old runtime must produce the labelled `FORWARD_PROJECTILE_ATTRIBUTION_MISMATCH` at an actual forward receipt; corrected runtime exits0 with exactly one `Hero projectile component routing test passed` and no diagnostics. Review exact baseline failures before runtime edits; an unavailable physical ray is a failed precondition, not permission to stage ledger damage. Retain the existing suite's300s cap. |
+| Dependencies | Existing production contact/ledger/cue owners; test-only preparation is frozen57606dc8a; runtime unchanged. First baseline FAILED isolation as recorded below. Historical collision change limited only collision; projectile reuse of that filter caused this regression. Ordinary Zenith hostile activation/controls/contact ordering/return/repair endpoints and deadlines remain Codex-owned missing bindings in the backlog. |
+| Stop | Original clock2026-10-26 12:32:12UTC; estimate90minutes including source definition, checks, checkpoint and cleanup. The intervening owner-requested roadmap pass is recorded as an interruption; do not reset or hide elapsed cost. Stop on the first unexpected failure; no automatic retry. |
+| Closure | Record PASS or first failed predicate. On acceptance: focused checks, clean-commit Windows checkpoint plus actual silent isolated package startup (exit0 and `STARTUP_MENU_READY_OK`), matching Linux checkpoint, concise notes, integrate/push and remove only the completed owned branch/worktree/processes/scratch. Retain unaccepted unique source. |
+
+**Baseline1 stopped — no runtime change.** Frozen57606dc8a, import14.582s,
+actual test33.218s/exit1. All nine real forward contacts hit core only, leave
+forward integrity1 and spend hull11 exactly once (Zenith68→57). Unexpected
+Hauler port-ray precondition fails under the five-region oracle, so this mixed
+failure is not accepted as isolated RED. The private runner also counted duplicate
+stdout/profile errors twice; per-log matching is corrected without accepting the
+extra failure. Source-only geometry diagnosis and independent cumulative-priority
+review are required before one corrected baseline; no automatic retry. Original
+12:32:12UTC clock and300s cap remain unchanged.
+Independent source/priority review authorizes one corrected test-only baseline:
+the Hauler port wall ends atz−2.3; the old side grid misses the doorway or hits
+forward/engine regions. Aim only its initial candidate atz−2.4, derived from the
+actual box edge, retaining the original25 side samples/26-candidate budget and
+all actual resolver checks. At12:54:04UTC cumulative elapsed is21.867minutes
+including the owner-requested roadmap interruption, against90minutes. Runtime
+edits remain gated on isolated RED; a second unexpected baseline failure stops.
+
+**Corrected baseline isolated RED.** Frozen6a1f3f542, runtime byte-for-byte
+unchanged fromad958e555:33.572s/exit1, exactly nine labelled forward→core
+mismatches and their aggregate in each contributing log; no unexpected errors.
+All nine raw contacts are finite/resolver-owned, forward integrity remains1,
+hull loses exactly11 once, and the corrected Hauler port receipt/ledger passes.
+Owned children are absent. This proves the regression, not repaired behavior;
+runtime candidate now parameterizes the shared helper: projectile passes the existing five-component order, collision passes its unchanged four-functional list. Independent source review precedes the frozen green checks; no corrected runtime result is claimed yet. Planned checks are the existing model, adapter, integration, real projectile, real collision, fleet recovery parity, Zenith feedback and sensor-reticle suites, then paired exports, three strict startups and actual payload audit.
+
+**What stays closed.** Zenith's pilot/hit/two-home/reuse, settled Main and full
+Zenith→Torrent→same Zenith handback retain their recorded acceptance. Latest
+checkpoint remains499e681; the forward repair is not yet delivered. Prior
+Torrent incoming core-hit proof is valid on its recorded source; the changed
+front-hit policy must be assessed before reusing that proof on a new candidate.
+[Accepted results](../../ROADMAP.md#accepted-work--source-limits-retained),
+[parked failures](../../ROADMAP.md#parked-failures-and-dependent-work) and
+[preserved full contracts](ROADMAP_DELIVERIES.md#working-roadmap-contracts-retired-from-the-queue-20261026)
+are references, not additional active tasks.
