@@ -94,24 +94,29 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Selected release capability / qualification: REPEAT-BEACON.**
-One retained Main/world/Player/Torrent performs ten real four-Beacon completions,
-accepted ordinary resets and exactly ten durable payments, with strict home,
-OFFLINE/physical exit/supported walk after each. Final unpaid readiness sortie
-proves actual RESET10→START11→confirmed RESET11 while paused near Beacon1,
-ledger10 unchanged, then original home/normal HUD Quit/OS0. No injected positions,
-progress, payments, resets or clock changes. Existing single-run behavior remains.
-[Literal route and resource contract](docs/ROADMAP_BACKLOG.md#beacon-repetition--selected-ordinary-input-capability).
-Codex owns the existing driver/tests, read-only observer and isolated CLI admission;
-root owns integration/package checks and cleanup, one independent reviewer.
-Conservative original clock14:58:50UTC/90minutes includes the readiness pass;
-hard stop16:28:50UTC. Estimate34min implementation,15min checks/exports,21min
-ordinary route and14min closure plus the6min readiness already spent. Each cycle
-and final readiness leg keeps300s; every outbound keeps60s. Derived3300s aggregate
-abort adds no time to a single leg. Stop at first unexpected failure; no automatic
-retry or added acceptance. Reserve execution/closure time before the full attempt.
-No parked race/Core/UI failure is reopened. Missing later-craft approval choices
-remain pending. The full project and original gates remain open.
+**Parked: REPEAT-BEACON ordinary ten-run caller.**
+Two full attempts failed; ten-run acceptance is NOT_DELIVERED. The first
+425.713s native attempt completed one paid home/census, then hit leg2's
+original300s cap after three Beacons. Source/evidence review found a queued mouse
+sweep discarded for pause UI but retained on Resume. One driver-only correction
+passes253 Python checks and independent review; the unchanged packaged game was
+reused. Its sole corrected attempt335.727s completes two paid homes/two matching
+resource censuses, then fails the original12s reboard-clear walk entering leg3.
+The cause of that later walk boundary is NOT_ESTABLISHED. No third attempt,
+additional investigation, correction, widened cap or renamed retry is selected.
+[Exact frozen result, failures and reopening condition](docs/history/ROADMAP_DELIVERIES.md#beacon-repetition-two-attempt-stop-20261026).
+Candidate driver0029b8daf/game da6d539 remain unmerged; no new checkpoint is
+published. The earlier generated-scene-ID audit failure and its narrow correction
+are also retained. Unique source, all eight private export artifacts and raw
+results are in one verified archive; exact owned branch/worktree and loose
+scratch are removed. All12 supervisors/57 observed identities are absent.
+Only main remains locally; unrelated detached diagnostics/old registrations are
+retained. Original14:58:50UTC/90minute clock includes both attempts and closure;
+archive closure57.711minutes, final push time in closeout.json. Accepted b4ff8c0
+build/gameplay and the installed-checkpoint result below remain unchanged.
+Reopen only with a demonstrated cause at the later physical reboard-clear
+boundary and independent cumulative-priority review, preserving every original
+route/support/distance/time predicate. No next run selected.
 
 **Accepted qualification: installed Linux checkpoint b4ff8c0.**
 The shipped manager installs exact archive bytes/modes and a correct menu entry.

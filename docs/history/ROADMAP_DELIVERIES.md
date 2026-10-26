@@ -4,6 +4,102 @@ Moved from ROADMAP.md on 2026-10-17. These are source-specific historical
 results, not the active queue or proof of current full-project acceptance.
 Return to the [working roadmap](../../ROADMAP.md).
 
+## Beacon repetition two attempt stop 20261026
+
+**REPEAT-BEACON remains PARKED, not delivered.** Source definition and missing
+ordinary caller were bounded to ten successful full homes plus one unpaid
+next-start/reset readiness home, using existing production UI/physics/persistence.
+Candidate game `da6d53905d8b9350753ba33219532e5fc0b8b471` and corrected external
+driver `0029b8daf029d54e31aff66806f5105d8e9a05a8` are unaccepted and remain
+out of main. Accepted PLAY-BEACON and checkpointb4ff8c0 retain their own scopes.
+No ten-run or parent13 completion is claimed.
+
+The [frozen full route/resource contract](../ROADMAP_BACKLOG.md#beacon-repetition--selected-ordinary-input-capability)
+retains one Main/world/Player/Torrent/fleet, ten physical four-Beacon traversals,
+generations1…10 and once-only durable payments. Every cycle requires unchanged
+strict home/OFFLINE/native exit/supported walk, original300s cap and outbound60s.
+Normal Convoy selection remains idle outside its actual4m rendezvous to prevent
+an incidental race. Reapproach Beacon1 for actual paid-session RESET/START;
+home is outside stream range. Final unpaid readiness RESET10→START11→confirmed
+RESET11 must preserve ledger10 and finish original home/normal HUD OS0. Original
+3300s aggregate is only eleven unchanged300s caps. No transform, checkpoint,
+reward/reset, encounter, timing, geometry, damage or handling injection.
+
+**Preflight.** First clean source has252 failfast Python passes; corrected driver
+has253 passes14.069s test/14.515s wall. All five source hashes remain unchanged
+during each suite. Guarded import20.794s, CLI privacy1.135s, observer parse15.889s,
+Windows export26.723s, Linux export25.915s, strict Linux ELF22.542s/archive24.118s/
+Windows-payload26.943s pass; all source guards/reaps/no diagnostics. Native Windows
+execution is not claimed. All startup probes require actual exit0 and one
+STARTUP_MENU_READY_OK, never fixed quit frames.
+
+The initial private payload audit FAILED1.970s: it expected only two compiled
+script changes versus b4, but a fresh cache also regenerates internal
+`PackedScene._bundled.node_ids` in62 exported/four imported scenes. Independent
+read-only comparison proves all66 resources equal after masking only those exact
+typed array elements, with unchanged count/offset and empty typed id_paths;
+every other decoded byte is identical. No production script uses scene-unique
+IDs. One recorded priority review permitted the private audit's narrow correction,
+not arbitrary scene-hash acceptance or a re-export. Corrected audit passes6.696s:
+actual Windows/Linux1529-entry payload maps equal, exact two code changes
+(observer/startup loader),66 node-ID-only differences, stock Windows engine text,
+Linux metadata/archive bytes/modes/epoch. No source/engine/export changed for this
+correction. Original audit/config/log and strict failure are preserved.
+
+**First full attempt:**425.713s native/426.152992s wrapper, actual error
+`original 300-second Beacon repeat leg cap`. One complete paid home/resource
+census; generation2 crosses three Beacons then stops37.139m from Beacon4.
+Source `fly_beacon` can cache mouse movement whose controls the arrival branch
+discards for pause UI; successful Resume originally retained that pending value,
+suppressing later steering. Generation2 keeps one heading; stationary aim needs
+(-35,-31), alignment.203 prevents forward thrust. Neutral demand atframe7572
+becomes OFFLINE at7662, exactly the normal90tick/1.5s idle timeout. Hull100→89 at
+4131 and89→78 at4407 belongs to first-cycle Guided combat; no generation2 drop.
+No collision/failed-engine diagnosis is supported. The internal cache/dropped OS
+event was not directly logged: source control flow and matching raw evidence
+justify the correction, rather than an invented witnessed event.
+
+Independent cumulative-priority review permits ONE Python-only change: clear
+pending mouse on actual normal Resume into later Beacon flight. Its deterministic
+regression covers the discarded-arrival steering and requires fresh next-Beacon
+mouse output; original route/limits/modes stay intact. No GDScript or package
+bytes change, so the exact guarded da6 package is reused without engine/export
+repetition. Earlier failed attempt stays failed; new world evidence is not
+concatenated with it.
+
+**Sole corrected full attempt:**335.727s native/336.133794s wrapper. Two full
+NATIVE_BEACON_HOME_OK homes and matching censuses (legs1/2), exactly two real
+payments, then `original 12-second ordinary reboard-clear walk`, leg3/clear.
+Final durable generation2 COMPLETE/cursor4/acknowledged reward and ledger2 match
+actual leg-02-home.json. Final COMPLETE/OFFLINE, supported player position
+(-8.762774,-.020000,-9.249784), boarding distance5.247545m, reboard block still true.
+No third traversal, ten-run, unpaid readiness11 or normal UI/actual OS0 acceptance.
+Cleanup terminates the failed game; game-leg OS exit is not represented as0.
+Zero diagnostics and all input/helper/game/Xvfb release/reap flags pass.
+The later clear-walk cause is NOT_ESTABLISHED. Per the frozen stop, PARK:
+no third attempt, additional source investigation, repair, wider cap or renamed
+retry. Reopening requires a demonstrated later-walk cause and independent
+cumulative-priority review preserving original>7m/12s/support/route requirements.
+
+**Ownership closure.** All12 supervisors and57 observed PID/starttick identities
+are absent. Source tip0029 is verified in a Git bundle with retained prerequisite
+903b568a5; patch, frozen contract, both source/test receipts, raw/native saves,
+scene-ID comparison and all eight private export artifacts are preserved in
+`/srv/mudds-work/beacon-repeat-20261026/records.tar.gz`:327461440bytes,
+195regular files/12symlinks, SHA256
+`63fa33e2a08897bb53c5f2d0323d02117f70ba9a80ec39c457d02a73ca4af70b`.
+Every archived byte/mode/link target was verified before loose records and exact
+owned worktree/ref removal. Working remote branch was never created; local ref
+was removed with expected tip0029. Only archive and closeout remain in the owned
+folder. Unrelated detached diagnostics/old registrations are retained untouched.
+No source merge or public checkpoint publication occurred.
+
+Conservative original14:58:50UTC/90minute clock includes definition, implementation,
+checks, both attempts, corrections, diagnosis, archive and cleanup. Archive
+closure57.711minutes; final docs/push are charged on that same clock in closeout.
+The source map/frozen contract is retained, so an unchanged survey is not a next
+task. Full original roadmap scope and external gates remain open.
+
 ## Linux installed checkpoint Guided qualification accepted 20261026
 
 INSTALL-LINUX[clean b4ff8c0 checkpoint], parent32: accepted checkpoint transaction,
