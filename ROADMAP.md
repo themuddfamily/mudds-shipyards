@@ -1,16 +1,16 @@
 # Development roadmap
 
 **Playable alpha; full original scope remains unfinished.** Latest Windows build:
-[b30a9ea checkpoint](builds/windows/MuddsShipyards-b30a9ea-checkpoint.zip)
-([changes and validation](builds/windows/MuddsShipyards-b30a9ea-notes.txt)).
-Matching [Linux checkpoint b30a9ea](builds/linux/MuddsShipyards-b30a9ea-linux-x86_64.tar.gz)
-([Linux validation](builds/linux/MuddsShipyards-b30a9ea-linux-notes.txt)) is available.
-The existing package workflow now qualifies an Ember pending-abandon real-file
-kill/restart cut: the old relay checkpoint stays passive and a fresh Boot/visit
-starts at observation zero without payment. Gameplay remains from accepted34f60da;
-this is a release capability and qualification, not an ordinary full world trip.
-Physical home/exit/reuse, completed-debt disk recovery, ordinary quit-save and
-native hardware requirements remain open; prior results retain recorded scope.
+[8e74c40 checkpoint](builds/windows/MuddsShipyards-8e74c40-checkpoint.zip)
+([changes and validation](builds/windows/MuddsShipyards-8e74c40-notes.txt)).
+Matching [Linux checkpoint8e74c40](builds/linux/MuddsShipyards-8e74c40-linux-x86_64.tar.gz)
+([Linux validation](builds/linux/MuddsShipyards-8e74c40-linux-notes.txt)) is available.
+Ordinary application Quit now captures the current incomplete on-foot Ember
+survey before actors detach. Actual production Quit and exported real-file proof
+pass: a fresh visit writes checkpoint0 while the abandoned checkpoint1 remains
+passive, with no reward or foreign-data change. Physical home/exit/reuse,
+completed-debt disk recovery, arbitrary Main removal/streaming and native hardware
+requirements remain open; prior results retain their recorded scope.
 Nine of the promised 17 craft exist. All 36 original parent outcomes and ten phase
 exit gates remain open; completed child results are retained, not counted as whole
 features. There is no evidence-backed project percentage or completion date.
@@ -103,28 +103,25 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Selected production repair: Ember checkpoint on ordinary application quit.**
-Existing WORLD-SAVE-DEFINE, original parents14/31. On a clean candidate with a
-real production Main, live on-foot Ember actors, an incomplete survey and no
-active saved checkpoint, request ordinary application quit. Before teardown,
-the existing quit owner must atomically save the current route and nonorigin
-coordinate through the unchanged production collector. Preserve unrelated user
-data, passive abandonment receipts and completed reward debt; detached actors
-must still be refused. Shutdown markers and the actual quit must still work.
-Proof: extend the existing Ember lifecycle test with actual Main/Host/frame/
-actors and the real quit handler (no explicit checkpoint save), demonstrate the
-old failure and new pass, and run focused persistence/shutdown regressions.
-Then produce clean-commit Windows/Linux checkpoints, require three strict
-startup passes and an exact payload audit. Run the existing exported
-ember-abandon disk/restart scenario unchanged and require its final ordinary
-quit to leave a valid fresh index0 checkpoint, preserving the old passive
-index1 archive and foreign data. Use existing300s suite/game and660s probe caps.
-Initial visit positioning/boarding staging is disclosed; ordinary full travel,
-arbitrary Main removal, completed-debt restart and native Windows/GPU/human gates
-stay open. Files: game_flow.gd and the existing Ember lifecycle suite; root owns
-roadmap/build integration. Estimate90minutes including readiness, checks, build
-and closure, clock2026-10-26T07:01:00UTC. First unexpected failure stops the
-pipeline for causal review; no clock reset or automatic enlarged acceptance.
+**Delivered production repair: Ember checkpoint on ordinary application quit.**
+Checkpoint8e74c40 saves through the existing production collector in the existing
+quit owner, before actor/lease teardown. The actual Main Quit test passes157
+assertions: live actors, current nonorigin coordinate, incomplete route/optional
+progress, exactly one Ember commit, retained foreign data and fresh-store read.
+The unchanged detached-actor guard prevents the late teardown from overwriting it.
+Existing checkpoint resume, safe-start shutdown and session diagnostics pass.
+Actual exported disk/restart case passes196.033s: final ordinary Quit writes the
+exact new checkpoint0; original passive checkpoint1, whole ledger/settings/cargo
+remain exact. Planned arm2076894/-9 and distinct resume2077238/0 are reaped.
+All14 final checks, three strict startups and1527-entry package audit pass.
+[Proof, failures and exact remaining scope](docs/history/ROADMAP_DELIVERIES.md#ember-ordinary-quit-checkpoint-capture-accepted-20261026).
+
+This closes automatic capture for the tested incomplete on-foot application-Quit
+path. Staged outbound/corridor/boarding setup is disclosed. Arbitrary Main
+removal/streaming, full ordinary travel/home/exit/reuse, completed-debt disk
+restart and native Windows/GPU/human gates remain open. Test syntax and wire-type
+comparison failures are retained; neither reset the task clock. All readiness,
+failures, checks, builds and cleanup run from07:01:00UTC against90minute estimate.
 
 **Delivered release capability: exported pending-abandon cold restart.**
 Gameb30a9ea93/driver7337dc543, checkpointb30a9ea: one exact native Linux
@@ -152,9 +149,9 @@ only the two new stage positives before the three-line Boot change.
 Scenario uses real files/two OS processes with disclosed boarding timings and
 orbital/corridor placement. It is a pending-return cut, not home/exit/reuse,
 ordinary OS-input travel or completed-debt disk proof. Standing-pose restoration
-is NOT_SUPPORTED. Ordinary Ember quit capture remains an unresolved source gap;
-the protocol permits a valid future fresh-zero quit checkpoint rather than
-requiring that gap to persist. Existing ember/default case is unchanged and not
+is NOT_SUPPORTED. At b30a9ea ordinary Ember quit capture was unresolved;
+application-Quit capture is now accepted in8e74c40 above. Arbitrary scene removal
+remains open. The protocol requires the new visit's exact fresh-zero receipt. Existing ember/default case is unchanged and not
 replayed. All work includes readiness, failure/correction and closure from
 06:03:21UTC against60minute estimate; no task clock or original cap was reset.
 

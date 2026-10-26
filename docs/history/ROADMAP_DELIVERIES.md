@@ -27899,3 +27899,80 @@ artifacts are retained with verified hashes. Closure documentation prepared at
 57.632 cumulative minutes from the original06:03:21UTC clock, including
 both native attempts and driver correction against the original60minute estimate.
 The adjacent closeout records final push time and cumulative elapsed duration.
+
+<a id="ember-ordinary-quit-checkpoint-capture-accepted-20261026"></a>
+## Ember checkpoint on ordinary application Quit accepted — 2026-10-26
+
+Production source and package driver `8e74c40b7f116df406106eb027000849e69bb7d2`;
+[Windows checkpoint](../../builds/windows/MuddsShipyards-8e74c40-checkpoint.zip)
+and [Linux checkpoint](../../builds/linux/MuddsShipyards-8e74c40-linux-x86_64.tar.gz).
+Existing WORLD-SAVE-DEFINE/original parents14,31. Starting with actual production
+Main, live on-foot Ember actors, an incomplete survey and no active saved slot,
+request ordinary application Quit. The expected result is one automatic current
+route/optional-progress/nonorigin-coordinate checkpoint before teardown, exact
+foreign data, durable new-store read and working shutdown markers. This closes
+that application-Quit capture result; it does not close every world save boundary.
+
+Source bug: the sole automatic Ember save ran in Main._exit_tree after descendant
+actors detached, so its valid guard refused the capture. The existing
+mark_orderly_shutdown owner now saves Ember before clean-marker writes and returns
+the existing persistence result. Actual Quit/HUD and window-close owners use this
+seam. Detached guard, store/receipt formats, debt and abandonment guards stay
+unchanged. Arbitrary Main removal/streaming remains unqualified; no fragile child
+ordering hook or new recovery policy was introduced.
+
+Existing lifecycle suite now ends with real production Main/Host/frame/berth/
+player setup and the real _on_orderly_shutdown_requested. No explicit checkpoint
+save or evidence override precedes it. Disclosed orbital/corridor placement and
+shortened boarding establish the visit; actual Host owns touchdown/berth/exit,
+held movement performs pad egress. Its ten named capture predicates all pass:
+exact wire coordinate, route and optional data, incomplete/nonorigin/live state,
+one Ember commit and foreign91; a fresh store reads the same receipt. Actual
+coordinate is[42.54620742797851,0,-0.1966698616743088], route0/relay tower. The
+157 assertions pass93.089s/OS0. Checkpoint-resume42 assertions pass16.661s;
+safe-start/shutdown35 pass40.082s; session diagnostics15 pass0.884s. No test cap
+was increased. Full-precision JSON expectations match the store's actual parsed
+wire types; no epsilon or new validator is used.
+
+Preserved first failure: new test syntax error0.750539s/OS1, before any gameplay
+claim. Reviewed parentheses-only correction leaves original record intact.
+Corrected old runtime b10ed2f10 fails exactly two target checkpoint/durable-read
+assertions92.255045s/OS1; all setup and other assertions pass. First integrated
+42e191e then writes a readable receipt but fails the raw-versus-parsed expected
+value comparison91.863832s/OS1. One reviewed comparison-only continuation converts
+expected route/optional values and prospective record using the store's exact
+full-precision wire interpretation; GameFlow repair and all original predicates/
+limits stay unchanged. Old RED and both unexpected failures remain recorded.
+
+Actual exported Linux case PASS196.032533s: genuine first-relay checkpoint1,
+public Abandon pending return, independently read raw backup/primary and direct
+CAS ancestry, planned SIGKILL2076894/-9/reap, distinct Boot2077238/exit0. Cold safe
+yard/reboarding/new visit adopts no old pose/checkpoint and pays nothing. Final
+ordinary Quit now writes the independently captured fresh checkpoint0. Actual
+final primary15476bytes SHA256
+`9e32913c3f7a1fc61288b3d9cb9523c282b38ce76bf6e1f8038e4d78540b397a`.
+Fresh outer receipt`e2e847cd37faf8324002f5b16384da4441c36c4c5375ba4ccb0e362eefe6e8bc`;
+original passive`afbf1ec07e544ef948f7dee2e53e57eee58aaccef98a633c50b70c7002585983`.
+Exact final file equals captured post-marker primary; original passive archive,
+whole zero-payment ledger, settings and actual idle cargo manifest remain exact.
+Driver reports fresh_checkpoint_saved_on_quit=true and owned_children_reaped=true;
+one terminal marker per process, no unexpected diagnostics, source/cache stable.
+
+All14 final stages pass on this exact clean commit. Windows EXE and matching ELF
+export safely; Windows payload under Linux Godot, direct Linux and archive Linux
+startups each require actualOS0 and exactly one STARTUP_MENU_READY_OK. Actual
+PE/ELF inventories match1527 entries; only GameFlow and in-world probe differ
+fromb30a9ea. Stock PE engine text and exact Linux archive bytes/modes/source epoch
+verify. Independent actual-source/document/log/build-note review GO. Eleven
+accepted artifacts are copied by verified hashes from the owned export worktree
+to repository builds/; Windows ZIP contains the exact EXE and notes.
+
+Full ordinary outbound/home/exit/reuse, arbitrary Main removal/streaming,
+completed-earned-debt OS restart, installed/shared/full-world/final acceptance
+remain open. Native Windows/GPU/devices/audible output/human review are NOT_RUN;
+owner exclusions retained. All Godot calls are headless/Dummy/private-profile.
+GitHub Actions remains disabled; no Downloads publication. Original task clock
+2026-10-26T07:01:00UTC/90minute engineering estimate includes readiness, all
+failures/comparison corrections, checks, export and closure;300s suite/game and
+660s probe limits remain unchanged. Final process/source/branch/archive closure
+is recorded in `/srv/mudds-work/ember-quit-save-20261026/closeout.json`.
