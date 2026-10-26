@@ -64,8 +64,8 @@ Report **goal → player result → PASS/FAIL/BLOCKED/PARKED → proof → remai
 blocker → cumulative time → next bounded action**. Definitions, tests, commits
 and evidence files are not gameplay progress.
 
-The inventory contains **337 records: 40 capabilities, 176 qualifications,
-73 definitions, 12 decisions, five resources and 31 containers**. These are record
+The inventory contains **337 records: 38 capabilities, 177 qualifications,
+74 definitions, 12 decisions, five resources and 31 containers**. These are record
 kinds, not a remaining-task count or completion percentage. Full craft journeys,
 shared-world cases, comfort episodes, recovery cuts, installation transactions
 and performance workloads still have missing bindings. Their exact missing
