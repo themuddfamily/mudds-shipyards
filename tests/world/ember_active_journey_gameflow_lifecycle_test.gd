@@ -20,6 +20,7 @@ const SLOT: StringName = &"ember_relay_survey_completion"
 
 class MemoryFilesystem extends FilesystemScript:
 	var files: Dictionary = {}
+	var ember_checkpoint_commits := 0
 	var reject_writes := false
 	var writes_until_refusal := -1
 	func file_exists(path: String) -> bool: return files.has(path)
@@ -48,6 +49,10 @@ class MemoryFilesystem extends FilesystemScript:
 		if not files.has(from_path): return ERR_FILE_NOT_FOUND
 		files[to_path] = (files[from_path] as PackedByteArray).duplicate()
 		files.erase(from_path)
+		if to_path == STORE_PATH:
+			var document: Dictionary = JSON.parse_string(files[to_path].get_string_from_utf8())
+			if str(document.get("commit", {}).get("id", "")).begins_with("ember-active-journey-"):
+				ember_checkpoint_commits += 1
 		return OK
 
 
@@ -376,6 +381,9 @@ func _run() -> void:
 	await _exercise_completed_debt()
 	await _exercise_active_payment()
 	await _exercise_explicit_abandon()
+	# Last: the actual production quit handler requests SceneTree shutdown. All
+	# assertions after that request are synchronous, before natural tree teardown.
+	await _exercise_production_orderly_quit()
 
 	for failure in _failures:
 		push_error(failure)
@@ -385,6 +393,154 @@ func _run() -> void:
 		"%s: %d assertions" % [result_marker, _assertions]
 	)
 	quit(0 if _failures.is_empty() else 1)
+
+
+func _exercise_production_orderly_quit() -> void:
+	var filesystem := MemoryFilesystem.new()
+	var store := StoreScript.new(STORE_PATH, filesystem)
+	store.load()
+	store.commit({"foreign": {"retained": 91}}, 0, "quit-seed")
+	var game := (load("res://scenes/main.tscn") as PackedScene).instantiate() as GameFlow
+	_check(game.configure_runtime_settings_persistence(store),
+		"production Main uses the test's real atomic store before startup")
+	root.add_child(game)
+	if not await _wait_production(func(): return bool(game.get("_initialized")), 240):
+		_check(false, "production Main completes startup before the quit regression")
+		return
+	var craft := game.get_flyable_ships()[1] as HeroShip
+	game.canopy_motion_time = 0.01
+	game.boarding_motion_time = 0.02
+	game.start_shift()
+	game._board_ship(craft)
+	var piloting := await _wait_production(func(): return game.phase == GameFlow.Phase.START_ENGINES
+		and game.player.is_seated_at(craft.get_pilot_seat_anchor()) and craft.is_piloted(), 240)
+	_check(piloting, "the quit regression boards the actual Ember-capable yard craft")
+	if not piloting or not await _enter_production_ember_survey(game, craft):
+		_check(false, "production approach, touchdown, disembark and egress reach the on-foot survey")
+		return
+	# Inspect only. Neither the test nor the staging recipe explicitly saves.
+	var evidence := game._collect_ember_interrupted_journey_save_evidence()
+	_check(bool(evidence.get("accepted", false)) and not store.get_snapshot().has(String(SLOT))
+		and filesystem.ember_checkpoint_commits == 0,
+		"a live production on-foot survey has current evidence and no pre-quit active checkpoint")
+	if not evidence.get("accepted", false):
+		return
+	var expected_route: Dictionary = evidence.route
+	var expected_optional: Dictionary = evidence.optional_progress
+	game._on_orderly_shutdown_requested()
+	var saved := store.get_snapshot().get(String(SLOT), {}) as Dictionary
+	var completion := saved.get("completion", {}) as Dictionary
+	var checkpoint := (completion.get("detached_session", {}) as Dictionary).get("checkpoint", {}) as Dictionary
+	var tangent: Vector3 = evidence.coordinate.surface_tangent_position
+	# Match the store's full-precision wire parse exactly; no rounding or epsilon.
+	var expected_tangent: Array = JSON.parse_string(JSON.stringify(
+		[tangent.x, tangent.y, tangent.z], "", true, true))
+	_check(game.is_inside_tree() and game.player.is_inside_tree()
+		and bool(game.get_ember_interrupted_journey_persistence_report().last_save_status.get("accepted", false))
+		and saved.get("payload_kind") == "ember_relay_survey_active_journey"
+		and checkpoint.get("surface_tangent_meters") == expected_tangent
+		and not tangent.is_zero_approx() and completion.get("route_identity") == expected_route
+		and not bool(expected_route.get("complete", true))
+		and completion.get("optional_progress") == expected_optional
+		and filesystem.ember_checkpoint_commits == 1 and store.get_snapshot().foreign.retained == 91,
+		"ordinary application Quit captures the exact current production pose and incomplete survey once before detach")
+	var fresh_store := StoreScript.new(STORE_PATH, filesystem)
+	_check(fresh_store.load().accepted and fresh_store.get_snapshot().get(String(SLOT)) == saved,
+		"a new store reads the same durable active journey written by the production quit handler")
+	# Natural process teardown follows when this final case returns to _run.
+
+
+func _wait_production(predicate: Callable, frame_budget: int) -> bool:
+	for _tick in frame_budget:
+		if predicate.call():
+			return true
+		await physics_frame
+		await process_frame
+	return bool(predicate.call())
+
+
+func _enter_production_ember_survey(game: GameFlow, craft: HeroShip) -> bool:
+	# Existing interruption probe's bounded setup recipe: outbound cruise is
+	# staged near navigation and then in the authored approach envelope. Actual
+	# Host physics owns landing, its berth lease, disembarkation and normal walking.
+	if not game.select_activity_kind(GameFlow.ACTIVITY_KIND_CONVOY_ESCORT).get("accepted", false):
+		return false
+	Input.action_press(&"hover")
+	Input.action_press(&"move_forward")
+	var departed := await _wait_production(func(): return game.phase == GameFlow.Phase.FREE_FLIGHT, 240)
+	for _tick in 24:
+		await physics_frame
+	Input.action_release(&"hover")
+	Input.action_release(&"move_forward")
+	if not departed or not game._begin_player_ember_surface_journey(1).get("accepted", false):
+		return false
+	var cruise := game.planetary_cruise_binding
+	var frame := game.ember_streaming_bootstrap.get_coordinate_frame_for_session()
+	var canonical := cruise.get_snapshot().get("canonical_destination_orbital", {}) as Dictionary
+	var approach_ready := false
+	for _tick in 420:
+		var decoded := frame.orbital_to_world_streaming_position(canonical, frame.get_generation())
+		var navigation: Vector3 = decoded.get("position", Vector3.INF)
+		if not navigation.is_finite():
+			return false
+		craft.global_position = navigation + Vector3.BACK * 500.0
+		craft.global_basis = Basis.IDENTITY
+		craft.velocity = (navigation - craft.global_position).normalized() * 8.0
+		await physics_frame
+		if cruise.get_snapshot().get("controller", {}).get("final_approach", {}).get("state_id") == &"final_approach":
+			approach_ready = true
+			break
+	if not approach_ready:
+		return false
+	var host := game.ember_surface_loop_host
+	var loaded := game.ember_streaming_bootstrap.get_loaded_instance()
+	if not is_instance_valid(loaded):
+		return false
+	var region := loaded.get_node("LandingRegion") as Node3D
+	var corridor: Transform3D = host.get_snapshot().get("approach_entry", {}).get("envelope", {}).get(
+		"corridor_transform_region_local_m", Transform3D.IDENTITY)
+	craft.global_transform = region.global_transform * corridor
+	craft.velocity = Vector3.ZERO
+	if not await _wait_production(func(): return host.get_phase() == EmberSurfaceLoopHost.Phase.LANDED, 3000):
+		return false
+	_check(game.ember_surface_berth.get_occupant() == craft
+		and not game.ember_surface_berth.get_reservation_token(craft).is_empty(),
+		"the production Host holds the actual craft's occupied Ember berth lease")
+	if not await _wait_production(func(): return host.get_phase() == EmberSurfaceLoopHost.Phase.SURFACE_OUTBOUND, 600):
+		return false
+	for leg: Array in [["x", -9.0, false, &"move_back", 90],
+		["z", 8.0, true, &"move_right", 120], ["x", 17.5, true, &"move_forward", 150],
+		["z", 0.5, false, &"move_left", 120], ["x", 41.5, true, &"move_forward", 150]]:
+		if not await _walk_production_surface(game, region, leg):
+			return false
+	return await _wait_production(func(): return host.get_phase() == EmberSurfaceLoopHost.Phase.ON_FOOT
+		and game._collect_ember_interrupted_journey_save_evidence().get("accepted", false), 180)
+
+
+func _walk_production_surface(game: GameFlow, region: Node3D, leg: Array) -> bool:
+	var initial := region.to_local(game.player.global_position)
+	var initial_axis: float = initial.x if leg[0] == "x" else initial.z
+	var distance := maxf(float(leg[1]) - initial_axis if leg[2] else initial_axis - float(leg[1]), 0.0)
+	var budget := int(ceil(distance / game.player.walk_speed * Engine.physics_ticks_per_second)) + int(leg[4])
+	var started_frame := Engine.get_physics_frames()
+	var reached := false
+	Input.action_press(leg[3])
+	while Engine.get_physics_frames() - started_frame <= budget:
+		var local := region.to_local(game.player.global_position)
+		var value: float = local.x if leg[0] == "x" else local.z
+		if (value >= float(leg[1]) if leg[2] else value <= float(leg[1])):
+			reached = true
+			break
+		if not game.player.is_control_enabled() or game.player.is_seated() \
+				or game.ember_surface_loop_host.get_phase() == EmberSurfaceLoopHost.Phase.FAILED:
+			break
+		await physics_frame
+		await process_frame
+	Input.action_release(leg[3])
+	for _tick in 4:
+		await physics_frame
+		await process_frame
+	return reached and game.player.is_on_floor()
 
 
 func _exercise_start_fresh(saved_files: Dictionary) -> void:
