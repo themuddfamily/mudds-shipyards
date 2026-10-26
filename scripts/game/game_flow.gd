@@ -24425,7 +24425,11 @@ func _present_runtime_settings_repair_result(result: Dictionary) -> void:
 		if hud.has_method(&"clear_runtime_settings_repair_report"):
 			hud.clear_runtime_settings_repair_report()
 		if hud.has_method(&"set_settings_status"):
-			hud.set_settings_status("SETTINGS BACKUP REPAIRED", true)
+			var begin_status: Dictionary = get_safe_start_recovery_report().get("begin_status", {})
+			var message := "SETTINGS BACKUP REPAIRED"
+			if begin_status.get("reason", &"") == &"store_recovery_required":
+				message += "\nQUIT AND REOPEN THE GAME TO FINISH RECOVERY"
+			hud.set_settings_status(message, true)
 		return
 	if hud.has_method(&"present_runtime_settings_repair_report"):
 		hud.present_runtime_settings_repair_report(get_runtime_settings_repair_report())
