@@ -77,6 +77,20 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Zenith ordinary pilot/hit/home/reuse: PARKED / not accepted.** Candidate8708e925
+passes focused checks, paired exports and three strict startups, but its sole
+ordinary trial stops after45.054s during physical admission. First failed raw
+frame1720 remains grounded while the centre support ray misses the Rung01/
+DockSlab01 inside corner. No falling or production floor bug is established.
+Boarding, flight, controls, hit, home/reuse and normal OS0 are NOT_RUN/unproven.
+No repair/retry/continuation under this card. Future selection needs source-backed
+steering/settling around that exact corner with all15goals/support/caps retained,
+or independently justified original-contract support measurement, then independent
+cumulative-priority review preserving00:33:26→01:48:26UTC/75min and consumed cost.
+Unaccepted source/build bytes/raw are verified in archive; accepted main and
+checkpointb810822 are restored, owned scratch/branch removed. No successor active.
+[Exact failure and cleanup](docs/history/ROADMAP_DELIVERIES.md#zenith-return-reuse-support-corner-stop-20261026).
+
 **Definition complete: CRAFT-ACCEPT-ZENITH.** Its [finite acceptance table](docs/ROADMAP_BACKLOG.md#zenith-finite-acceptance-binding)
 now names11 original journey members with concrete actions, observable results,
 production owners, retained proof and exact missing route/input/limit fields.
@@ -333,6 +347,7 @@ Full chronological results belong in the existing
 
 | Existing goal | Specific reopening requirement |
 | --- | --- |
+| CRAFT-ACCEPT-ZENITH[pilot hit/home/reuse] | Actual first failure is the Rung01/DockSlab01 centre-ray corner miss; establish steering/settling through it while retaining all15goals/support/caps, or independently justified original support measurement; cumulative-priority/full-route/original75min review before later selection. No continuation under closed card. [Source/raw scope](docs/history/ROADMAP_DELIVERIES.md#zenith-return-reuse-support-corner-stop-20261026) |
 | PLAY-CONVOY[ordinary packaged driver] | Source7952127 is unvalidated and archived; corrected Python suite never launched. Fresh per-attempt profile namespace plus reuse preflight, then independent cumulative-priority selection with full original route/CAP300/outer360/75min accounting; no third under the closed card. [Two stops](docs/history/ROADMAP_DELIVERIES.md#convoy-ordinary-driver-two-stops-20261026) |
 | CRAFT-ACCEPT-JOVIAN[ordinary solo engineer] | Correct the source-contradictory still-attached authority predicate and log each post-stand member; independent source/cumulative review before any future selection. Both actual trials stop; no third under the closed card. Preserve full physical return/UI0 and original300/360/15s limits |
 | WALK-AFT | Bind the actual frozen Player completed-motion receipt in paused observation; last unpaused observation can lag one tick. Preserve full journey/original 60min cumulative clock/300s and360s caps; independent source GO and priority review before any new trial |

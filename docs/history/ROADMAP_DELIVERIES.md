@@ -27341,3 +27341,76 @@ source/profiles/helpers/logs removed; only archive and adjacentcloseout remain.
 Archive closed at2026-10-26T00:25:20.258223+00:00 after17.604min from original
 start. Final push time/cumulative cost is recorded in adjacentcloseout. No
 successor selected; this record closes the failed assignment, not PLAY-CONVOY.
+
+<a id="zenith-return-reuse-support-corner-stop-20261026"></a>
+## Zenith ordinary pilot/hit/home/reuse — support corner STOP — 2026-10-26
+
+Existing CRAFT-ACCEPT-ZENITH selected pilot subset; no capability or journey
+accepted. Source`8708e9254de40ac5f163c6f8ba16d3d056e16bcb` is unmerged and
+archived. Baseline121753ca8 rejects the new selector before game launch.
+Prototype adds zenith-return-reuse to existing driver/observer/guarded selector;
+no runtime physics/weapon/authority or historical/art changes. The source
+review corrects pulse counting before tests: count consumed boost/throttle/Q
+through stage changes and queued tails, require both native and consumer release
+with exactly15ticks; a queued16th fails even after native release. Full-shaped
+fixtures cover that transition. Source-enabled on foot is not mistaken for pilot
+ownership: retirement uses neutral consumption/unseated state/fresh epochs.
+
+Frozen complete command remains LifeArm15-goal admission/90seatframes, live
+berth-relative departure(0,0,-20) then(0,20,-38)/(0,20,-78), default pilot controls/
+15tickboost andQ/brake-hover/twoV cameras, one actual DRONE-01 100→72 hit by
+source1104/repeater420m/28/.24s, live assist(0,10,-18)/oneL/strict lease/dock,
+90neutral/own1.5s OFFLINE, oneE/physical wing-clear walk, fresh reboard and second
+flight/home/exit/walk, normalHUDOS0 and both real-file clean states. Original
+15s walking/12s board/25s weapon/10s exit guards retained; new15s navigation/
+handling bounds were declared engineering executor guards before testing.
+Landing retains own capturedHero24s-or-travel budget/4s stall. CAP300/outer360
+is an executor abort, not a new full-craft completion deadline. All remaining
+component/loss/switch/Main/art/device/final gates stay open; no parked trial is
+reopened. Private environment function preflight proves fresh profile creation
+and rejection of reused namespace beforePopen; stages use source-pin paths.
+
+Eight first-pass stages pass: full Python driver, import, privacy, Windows/Linux
+exports and3strict startups (actual0/exactly1STARTUP_MENU_READY_OK/no detected
+diagnostics). Windows payload runs through Linux Godot, not native Windows.
+Actual payload audit is NOT_RUN after the native stop; do not infer a PCK match.
+
+**Sole full trial STOP:** driver45.054s/guard45.554s, actual driverOS1/no engine
+diagnostics, stageadmission. Last accepted raw1719/seq1243 has Rung01 support;
+first failed raw1720/seq1244 in game.log has groundedtrue but supportedfalse/
+empty support collider, Player[20.197271347,4.201893330,59.318538666]. The partial
+last_state is1719 and must not be presented as the failed sample. Completed
+motion1719 ends at the failed position, with no step/teleport/epoch mismatch.
+Outer and embedded admission observations agree.
+
+FleetDockComb yaw+90 at[12,4.2,68.3] puts Rung01 top at worldx20.2..23.8/
+z59.3..66.3 and DockSlab01 top atx13..28/z47.3..59.3. The failed centre is just
+outside both rectangles at the inside corner; the.38radius capsule can still
+overlap support. The.30goal radius can accept the approach before a diagonal
+turn clips that corner. This proves the centre-ray predicate failure, not
+falling, a production floor bug or permission for grace/relaxation.
+
+Admission remains incomplete. Boarding, flight,15tickcontrols/cameras/Fhit,
+landing/home/reuse and normalHUDOS0/both clean-close states are NOT_RUN/unproven.
+Only baseline actual-file capture exists. game_legs exit_code=null/reapedfalse
+is stale; it cannot prove normal termination. Top cleanup and actual PID/start
+checks confirm game1977304/helper1977300/Xvfb1977294 and all9supervisors/
+47observed child identities gone. No repair or second trial under this card.
+Future selection needs source-backed ordinary steering/settling around this exact
+corner with all15goals/full support/caps preserved, or an independently justified
+original support measurement; then independent cumulative-priority selection
+retaining original00:33:26→01:48:26UTC/75min and consumed cost. No budget reset.
+
+Verified archive `/srv/mudds-work/zenith-return-reuse-20261026/records.tar.gz`:
+333310423bytes, SHA256`91f8d2520fd4651e572dcb1764a48a31d88cec969058146f656328c315ea2b25`,
+138regular/9symlinks byte/mode/target-verified. It includes complete
+parked source bundle/patch, raw records and actual8unaccepted export files with
+verified executed-ELF identity. Unaccepted export bytes are removed only after
+archive verification and exact original byte/hash recheck. All11previous public
+checkpoint files and tool pins remain unchanged. Accepted main121753ca8/runtime
+checkpointb810822 restored; fresh remote/worktree checks precede exact task-ref
+delete at8708e925. Remote task branch absent; unrelated worktrees untouched.
+Only archive and adjacentcloseout remain; loose owned profiles/helpers/source/
+logs removed. Archive closed2026-10-26T01:03:25.597666+00:00 after29.993min from
+original start. Final push time/cumulative cost is in adjacentcloseout. This
+closes the failed assignment only; all11Zenith members retain their stated scope.
