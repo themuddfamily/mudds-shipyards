@@ -7823,6 +7823,18 @@ class CorruptRetainedRepairPilot(RetainedHeavyPilot):
         self.confirm_requested = self.repair_accepted = False
         self.ui_edges = []
 
+    def enter(self, stage, s):
+        if not s['paused']:
+            return super().enter(stage, s)
+        # Paused observations carry UI identity and sequence, without querying
+        # gameplay position/phase or advancing a physics owner for bookkeeping.
+        self.stage = stage
+        ui = s['recovery']['ui']
+        event = dict(stage=stage, frame=s['frame'], sequence=s['sequence'], main_id=s['main_id'],
+                     focus_path=ui['focus_path'], focus_name=ui['focus_name'])
+        self.stages.append(event)
+        print(json.dumps(event), flush=True)
+
     def require_loaded_board(self, s):
         board = s['breach']['board']; handoff = board['reward_handoff']; director = board['director']
         require(board['offered_scenario'] == 'heavy_breach' and not board['sortie_armed']
