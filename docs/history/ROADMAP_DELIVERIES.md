@@ -30019,6 +30019,8 @@ requirements remain open; no original parent or phase gate closes.
 <a id="installed-corrupt-repair-two-stops-20261026"></a>
 ## Installed corrupt repair — two caller stops —2026-10-26
 
+This records the original559193eab closure. A later [bounded continuation](#corrupt-repair-caller-accepted-shutdown-gate-open-20261026) accepts the corrected executable caller while the full qualification still fails; original raw attempts below remain failed.
+
 INSTALL-LINUX-CORRUPT's checkpoint caller is **PARKED, unmerged and unaccepted**.
 Package sourcea99c9cfd12bd281d7d4677eec8411eaa1c7c987a and final caller source
 6b7f025389e47ec6438a5c1b37aed37e52eec55c are preserved with raw results/eight
@@ -30110,3 +30112,74 @@ process used those paths as CWD. Removed only those three registrations, without
 global pruning. Main and five existing detached worktrees remain; those five
 were retained because their unique source/process ownership was not audited by
 this cleanup. This is housekeeping, not gameplay or roadmap completion.
+
+
+<a id="corrupt-repair-caller-accepted-shutdown-gate-open-20261026"></a>
+## Corrupt-repair caller accepted; shutdown qualification gate open —2026-10-26
+
+**Accepted implementation:** release caller source
+`26257272ffa549369b8353a6e3698bf4e0e5bd30` and its read-only observer support.
+**Full INSTALL-LINUX-CORRUPT qualification: FAIL/PARK.** Independent source/raw
+review explicitly accepts the working release capability because it now drives
+real repair/cold retained continuation and correctly rejects a real game diagnostic;
+this is not source merged merely for cleanup or a replacement for the full journey.
+No error suppression, weaker gate, another run or production UI/engine fix is selected.
+
+Independent cumulative-priority review permits exactly one bounded continuation
+of the SAME19:31:09UTC/90min/hard21:01:09UTC case, including original attempts and
+all closure cost. The actual paused shape intentionally omits gameplay position/
+phase. Focused old-driver RED reproduces exactly KeyError position0.516s; a12-line
+first-pilot logging override records existing frame/sequence/Main/focus fields and
+delegates unpaused samples to the unchanged parent. One full273-test run passes
+14.627s; it starts at precommit e3c11c5e4 with modified driver, whose three hashes
+match the committed262source. The narrow regression covers all first-leg UI stages
+through normal quit without inventing paused gameplay fields. No new observer or
+runtime change is made by this continuation.
+
+All eight exact clean game/export files from package source
+`a99c9cfd12bd281d7d4677eec8411eaa1c7c987a` are restored and byte/mode verified from
+the original archive. Current differences are docs and two excluded Python files;
+all runtime/assets/presets/exporter/installer inputs remain identical. Package and
+caller pins remain separate. No game reexport or import is repeated; the original
+three strict startups and1529-entry PCK audit retain their exact artifact scope.
+
+The actual installed transaction runs132.833s (outer guard133.132s): install3.621s,
+installed strict startup22.562s, ordinary route101.89s (stage102.207s), owned
+uninstall0.603s. First process2277529 selects the verified backup with exact bad
+quarantine bytes, normal Begin Shift and real keyboard Settings confirmation.
+Actual primary27→28 has runtime-settings-repair-0000000028, original parent and
+entire original payload unchanged; backup stays exact. Visible Settings shows the
+2456552 quit/reopen instruction. Normal HUD Quit exits0/reaped; the independently
+read repair-orderly-close document is exactly the committed28document. No fake
+healthy first startup is claimed.
+
+Distinct process2277837 loads repaired primary28; loaded-title snapshot32 records
+healthy session3/startup3/unclean0. Next-posting snapshot33 retains exact settings/reward ledger/
+paid Heavy completion, credit1/highest acknowledgement1/pending0, idle director
+and unarmed Torpedo posting. All3original goals pass through52.593295835m of real
+supported walking with default controls/pacing. It then requests normal HUD Exit
+and reaches quit_wait. Godot emits two nonexistent-connection errors for root
+Window#25048384904, focus_entered/tree_exited, core/object/object.cpp:1644.
+The unchanged diagnostic guard aborts. No independently captured second OS0 or
+final clean document exists; raw second exit_code=null/reaped=false is not
+retrofilled from later cleanup. The whole qualification remains FAILED.
+
+These messages match the earlier UI-BOARD-FOCUS pair, but a shared cause, popup
+producer or connection-removal owner is NOT established. Reopening requires that
+actual production owner/cause and independent cumulative-priority review with
+original caps/cost; no additional diagnostic probe is authorized by this record.
+All17 observed stage/transaction PID/start identities are absent, four native
+cleanup flags true, no cleanup_errors, display lock/socket absent. Owned uninstall
+preserves all five exact fixture bytes/modes. This proves bounded cleanup, not
+second normal shutdown acceptance.
+
+Verified continuation archive:
+`/srv/mudds-work/installed-corrupt-repair-20261026/continuation/records.tar.gz`,
+5928165bytes/53regular files/one link, SHA256
+`e7dc4bc37e8c89c8904b864340eac5241aa722e0292a9bd9533b9068294ae6e0`.
+The immutable parent archive retains original failed attempts and eight private
+exports; continuation references their exact identity without duplicate binaries.
+Closeout records final cumulative time, pushed integration and owned cleanup.
+No new playable checkpoint is published: accepted game behavior remains2456552.
+Full final-package, desktop launch, native hardware/device/audio and whole-family
+acceptance remain open. No original parent or phase gate closes.
