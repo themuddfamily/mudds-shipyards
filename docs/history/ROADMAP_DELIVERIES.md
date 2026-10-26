@@ -28351,3 +28351,46 @@ untouched. Closure documentation prepared at 35.731 cumulative minutes from
 08:10:00 UTC, including all readiness/failures/baselines/type corrections/checks/
 builds, against the original 60-minute estimate. Adjacent closeout records final
 push/time; no task clock or acceptance scope was reset.
+
+
+<a id="aft-stair-base-supported-contact-accepted-20261026"></a>
+### Aft stair-base supported contact accepted — 2026-10-26
+
+Game/checkpoint `1f7dccbf3555761ed02276c95411e54ab08b8c89`; final test source `170acfba86670847d78e6fa3b02de0cf4911878e` differs only in
+existing interior-census literals/comments. Accepted source/runtime is the real
+Aft module plus existing Player, not a proxy floor. The added visible convex
+shoulder belongs to the existing StairBaseLanding, with three walkable roof
+facets and flush south/east/north edges. Original ramp/landing box/Player and
+5.8/9.2 gait, gravity18, snap0.35, capsule0.38×1.94 remain unchanged.
+
+Corrected single-callback old source58d8d384b reproduces sole floor loss52.422s.
+The side-effect-free835a576d7 capsule sweep proves the actual ramp is the first
+obstruction: normal.y0.595963<cos45 before the landing; state is unchanged.
+No generic Player snap fallback, synthetic floor flag or enlarged guard is used.
+Final existing Player suite52.709s passes74 consecutive actual samples
+(1settle/61W/12neutral): grounded/support/current receipts/IDs/empty-step alltrue,
+max3D0.11120513m<0.21166667m, all3 original floor owners visited, finalvelocityZERO.
+Existing jump/void/headroom/slope/moving/remote negatives pass. Aft27.488s,
+full station-surface37.854s, existing interior2.402s pass. Forward+1280×720
+module capture65.730s on isolated Xvfb/x11/llvmpipe/Dummy passes and is inspected.
+Both clean exports and three strict startups pass actual exit0+one menu marker.
+Actual PE/ELF PCKs match all1529 entries; only Aftgdc changes from3649b4b,
+no added/forbidden payload, stockPEtext and exact Linux archive bytes/modes/epoch.
+
+Preserved failures: initial baseline double-stepped and is not qualified;
+first shape's full Player pass then three stale Aft census assertions27.325s;
+corrected-census source's station integration37.890s exposed sibling renderer
+batching into the landing primaryMesh. The local renderer is now under its own
+identity collision node, preserving the original box/mesh bounds. Final interior
+addendum2.412s exposed an unrelated pre-existing266-shape Habitat expectation;
+accepted221f523 already requires272 including six bunk discovery shapes. Only
+that test literal/comment changes; Habitat/runtime/ceilings do not. All failures
+and original limits remain retained, with independent causal/priority review.
+
+This accepts only the physical contact repair. Full Zenith→Torrent→Zenith
+handback stays PARKED/NOT_QUALIFIED; no fourth whole route ran. NativeGPU,
+physical input and full-release facts remain NOT_RUN; native Windows execution
+is NOT_RUN/owner-excluded. GitHub Actions stays disabled. Original09:51UTC
+clock/90minute estimate continue; integration preparation is112.258minutes,
+with closure charged to the same clock. Owned cleanup: PENDING verified archive,
+exact branch/worktree removal and final closure push.

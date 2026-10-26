@@ -14,6 +14,7 @@ extends SceneTree
 ## Nothing is teleported during a walk.
 
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
+const AFT_SCENE := preload("res://scenes/world/modules/aft_junction_stack.tscn")
 const MovingFrame := preload("res://scripts/physics/moving_interior_frame.gd")
 const WORLD_LAYER := PhysicsLayers.WORLD
 
@@ -39,6 +40,7 @@ func _run() -> void:
 	await _test_ember_pad_floor_contact()
 	await _test_ember_pad_snap_penetration()
 	await _test_floor_snap_descends_walkable_slope()
+	await _test_aft_stair_base_lateral_floor_contact()
 	await _test_floor_snap_recovery_requires_headroom()
 	await _test_remote_cabin_interaction_support()
 	await _test_rejected_remote_snap_stays_rejected()
@@ -555,6 +557,173 @@ func _test_floor_snap_descends_walkable_slope() -> void:
 		"floor snap keeps real contact while descending a walkable slope")
 	rig.queue_free()
 	await process_frame
+
+
+## The native handback lost floor contact walking east off the ramp's side,
+## above the real landing. Keep the authored module and its world coordinates:
+## a flat-floor proxy does not contain this curved capsule/box-edge transition.
+func _test_aft_stair_base_lateral_floor_contact() -> void:
+	var rig := Node3D.new()
+	root.add_child(rig)
+	var aft := AFT_SCENE.instantiate() as Node3D
+	aft.position = Vector3(0.0, 0.0, 48.0)
+	rig.add_child(aft)
+	var player := PLAYER_SCENE.instantiate() as PlayerController
+	player.position = Vector3(-5.69329977035522, 0.270108997821808, 51.2723426818848)
+	player.velocity = Vector3.ZERO
+	rig.add_child(player)
+	player.set_physics_process(false)
+	_check(not player.is_physics_processing(), "Aft fixture disables automatic physics after the Player enters the tree")
+	player.set_camera_active(false)
+	for action in [&"move_forward", &"move_back", &"move_left", &"move_right", &"sprint_boost", &"jump"]:
+		Input.action_release(action)
+	var capsule := player.get_node(^"PlayerCollision") as CollisionShape3D
+	var source_ids := [aft.get_instance_id(), player.get_instance_id(),
+		capsule.get_instance_id(), capsule.shape.get_instance_id()]
+	var tick := 1.0 / 60.0
+	var previous_end := player.global_position
+	var previous_engine_frame := Engine.get_physics_frames()
+	var audit := player.get_step_up_assist_audit()
+	var authored := Engine.physics_ticks_per_second == 60 and is_equal_approx(Engine.time_scale, 1.0) \
+		and is_equal_approx(player.walk_speed, 5.8) and is_equal_approx(player.sprint_speed, 9.2) \
+		and is_equal_approx(float(ProjectSettings.get_setting("physics/3d/default_gravity")), 18.0) \
+		and is_equal_approx(player.gravity_multiplier, 1.0) and is_equal_approx(player.floor_snap_length, 0.35) \
+		and is_equal_approx(float(audit.capsule_radius), 0.38) and is_equal_approx(float(audit.capsule_height), 1.94)
+	_check(authored, "Aft crossing retains authored physics rate, gait, gravity, floor snap and capsule")
+	var ready := false
+	for settle in 20:
+		await physics_frame
+		var before := player.global_position
+		player._physics_process(tick)
+		var sample := _aft_stair_base_sample(player, aft, "settle", settle, before, source_ids, previous_end, previous_engine_frame)
+		previous_end = player.global_position
+		previous_engine_frame = Engine.get_physics_frames()
+		print("AFT_STAIR_BASE_TICK: ", JSON.stringify(sample))
+		if not bool(sample.consecutive_motion):
+			_check(false, "NOT_REPRODUCED: unobserved movement or automatic physics between Aft settle samples")
+			rig.queue_free()
+			await process_frame
+			return
+		ready = bool(sample.grounded) and bool(sample.supported) \
+			and String(sample.support_collider).ends_with("/Circulation/ContinuousStairRamp") \
+			and bool(sample.capsule_contact) and bool(sample.motion_current) and bool(sample.sources_current)
+		if ready:
+			break
+	_check(ready, "NOT_REPRODUCED: captured Aft resting pose establishes real current ramp floor contact within twenty neutral ticks")
+	if not authored or not ready:
+		rig.queue_free()
+		await process_frame
+		return
+	var camera_yaw := player.get_node(^"CameraRig/CameraYaw") as Node3D
+	camera_yaw.rotation.y = atan2(-0.99879664, 0.04879136)
+	var guard := player.sprint_speed / 60.0 * 1.25 + 0.02
+	var first_failure: Dictionary = {}
+	var visited: Dictionary = {}
+	var reached := false
+	Input.action_press(&"move_forward")
+	for frame in 70:
+		await physics_frame
+		var before := player.global_position
+		player._physics_process(tick)
+		var sample := _aft_stair_base_sample(player, aft, "walk", frame, before, source_ids, previous_end, previous_engine_frame)
+		previous_end = player.global_position
+		previous_engine_frame = Engine.get_physics_frames()
+		print("AFT_STAIR_BASE_TICK: ", JSON.stringify(sample))
+		visited[sample.support_collider] = true
+		if not bool(sample.grounded) or not bool(sample.supported) \
+				or float(sample.distance) > guard or not bool(sample.motion_current) \
+				or not bool(sample.sources_current) or not bool(sample.step_up_empty) or not bool(sample.consecutive_motion):
+			first_failure = sample
+			break
+		if player.global_position.x >= -0.3:
+			reached = true
+			break
+	Input.action_release(&"move_forward")
+	for frame in 12:
+		await physics_frame
+		var before := player.global_position
+		player._physics_process(tick)
+		var sample := _aft_stair_base_sample(player, aft, "neutral", frame, before, source_ids, previous_end, previous_engine_frame)
+		previous_end = player.global_position
+		previous_engine_frame = Engine.get_physics_frames()
+		print("AFT_STAIR_BASE_TICK: ", JSON.stringify(sample))
+		if not bool(sample.consecutive_motion):
+			first_failure = sample
+		if first_failure.is_empty() and (not bool(sample.grounded) or not bool(sample.supported) \
+				or float(sample.distance) > guard or not bool(sample.motion_current) \
+				or not bool(sample.sources_current) or not bool(sample.step_up_empty)):
+			first_failure = sample
+	if not first_failure.is_empty():
+		print("AFT_STAIR_BASE_FIRST_FAILURE: ", JSON.stringify(first_failure))
+		var captured_loss := bool(first_failure.consecutive_motion) \
+			and bool(first_failure.motion_current) and bool(first_failure.sources_current) \
+			and bool(first_failure.step_up_empty) and float(first_failure.distance) <= guard \
+			and not bool(first_failure.grounded) and bool(first_failure.supported) \
+			and String(first_failure.support_collider).ends_with("/LowerOpenDeck/StairBaseLanding") \
+			and float(first_failure.position[0]) > -4.5 and float(first_failure.position[0]) < -3.5 \
+			and float(first_failure.position[1]) > 0.1 and float(first_failure.position[1]) < 0.3 \
+			and float(first_failure.position[2]) > 51.0 and float(first_failure.position[2]) < 51.5
+		_check(false, "AFT_STAIR_BASE_GROUND_CONTACT_LOSS" if captured_loss \
+			else "NOT_REPRODUCED: Aft crossing failed outside the captured supported landing transition")
+	else:
+		var route_current := visited.has(String(aft.get_path()) + "/Structure/Circulation/ContinuousStairRamp") \
+			and visited.has(String(aft.get_path()) + "/Structure/LowerOpenDeck/StairBaseLanding") \
+			and visited.has(String(aft.get_path()) + "/Structure/LowerOpenDeck/ConnectionDeck")
+		_check(reached and route_current and player.velocity.is_zero_approx(),
+			"AFT_STAIR_BASE_CONTACT_OK: real ramp-to-landing-to-deck walk and twelve neutral ticks retain floor, support, motion bounds and identities")
+	rig.queue_free()
+	await process_frame
+
+
+## Sample the current query/collider and current completed tick, never a saved
+## support flag. The short capsule contact probe is diagnostic; the independent
+## downward support ray also records the landing below the failed native pose.
+func _aft_stair_base_sample(player: PlayerController, aft: Node3D, phase: String,
+		index: int, before: Vector3, source_ids: Array, previous_end: Vector3, previous_frame: int) -> Dictionary:
+	var query := PhysicsRayQueryParameters3D.create(player.global_position + Vector3.UP * 0.2,
+		player.global_position + Vector3.DOWN * 0.3, player.collision_mask)
+	query.exclude = [player.get_rid()]
+	query.collide_with_areas = false
+	var hit := player.get_world_3d().direct_space_state.intersect_ray(query)
+	var collider := hit.get("collider") as Node3D
+	var supported := is_instance_valid(collider) and aft.is_ancestor_of(collider) \
+		and not collider.is_queued_for_deletion() \
+		and (hit.get("normal", Vector3.ZERO) as Vector3).dot(player.up_direction) >= cos(player.floor_max_angle)
+	var contact := KinematicCollision3D.new()
+	var capsule_contact := player.test_move(player.global_transform, Vector3.DOWN * 0.01,
+		contact, player.safe_margin, true)
+	var contact_collider: Node = contact.get_collider() as Node if capsule_contact else null
+	var capsule := player.get_node(^"PlayerCollision") as CollisionShape3D
+	var motion: Dictionary = player.get_step_up_assist_audit().completed_motion
+	var current_ids := [aft.get_instance_id(), player.get_instance_id(),
+		capsule.get_instance_id(), capsule.shape.get_instance_id()]
+	var delta := player.global_position - before
+	var slides: Array = []
+	for slide_index in player.get_slide_collision_count():
+		var slide := player.get_slide_collision(slide_index)
+		var slide_collider := slide.get_collider() as Node
+		slides.append({"collider": String(slide_collider.get_path()) if is_instance_valid(slide_collider) else "",
+			"normal": slide.get_normal(), "travel": slide.get_travel()})
+	return {"phase": phase, "index": index, "frame": Engine.get_physics_frames(),
+		"previous_frame": previous_frame,
+		"previous_end": [previous_end.x, previous_end.y, previous_end.z],
+		"before": [before.x, before.y, before.z],
+		"consecutive_motion": before == previous_end and not player.is_physics_processing() \
+			and Engine.get_physics_frames() == previous_frame + 1,
+		"position": [player.global_position.x, player.global_position.y, player.global_position.z],
+		"velocity": [player.velocity.x, player.velocity.y, player.velocity.z],
+		"delta": [delta.x, delta.y, delta.z], "distance": delta.length(),
+		"grounded": player.is_on_floor(), "floor_normal": player.get_floor_normal(),
+		"supported": supported, "support_collider": String(collider.get_path()) if is_instance_valid(collider) else "",
+		"support_collider_id": collider.get_instance_id() if is_instance_valid(collider) else 0,
+		"support_position": hit.get("position", Vector3.INF), "support_normal": hit.get("normal", Vector3.ZERO),
+		"capsule_contact": capsule_contact, "capsule_contact_normal": contact.get_normal() if capsule_contact else Vector3.ZERO,
+		"capsule_contact_collider": String(contact_collider.get_path()) if is_instance_valid(contact_collider) else "",
+		"slides": slides, "completed_motion": motion, "source_ids": current_ids,
+		"sources_current": source_ids == current_ids and aft.is_inside_tree() and player.is_inside_tree() and not capsule.disabled,
+		"motion_current": int(motion.get("frame", -1)) == Engine.get_physics_frames() \
+			and motion.get("start", Vector3.INF) == before and motion.get("end", Vector3.INF) == player.global_position,
+		"step_up_empty": (motion.get("step_up", {}) as Dictionary).is_empty()}
 
 
 func _test_floor_snap_recovery_requires_headroom() -> void:

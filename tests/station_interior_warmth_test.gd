@@ -202,8 +202,9 @@ func _test_exact_scene_contracts(aft: AftJunctionStack, habitat: HabitatSpine) -
 		# the two Ship Services TextMeshes to exact glyph-atlas display slots:
 		# 725 explicit meshes + two labels, with the combined 843-slot ceiling.
 		# 77ff2dc8f batched twenty rack knobs and e0e654107 batched two roof
-		# collars: 725 - 20 - 2 = 703 ordinary meshes; budgets stay unchanged.
-		and int(aft_performance.mesh_instances) == 703
+		# collars: 725 - 20 - 2 = 703 ordinary meshes. The physical stair
+		# shoulder adds one mesh and one shape; all budgets remain unchanged.
+		and int(aft_performance.mesh_instances) == 704
 		and int(aft_performance.labels) == 2
 		and int(aft_performance.budgets.mesh_instances) == 837
 		and int(aft_performance.budgets.labels) == 6
@@ -236,9 +237,10 @@ func _test_exact_scene_contracts(aft: AftJunctionStack, habitat: HabitatSpine) -
 		# f37514724 made the six upper transfer-gate ribs solid: +6 bodies/shapes.
 		# The fifteen drawn stair treads' FootSupport shapes: +1 body/+15 shapes.
 		int(aft.get_collision_contract().body_count) == 113
-		and int(aft.get_collision_contract().shape_count) == 140
+		and int(aft.get_collision_contract().shape_count) == 141
 		and int(habitat.get_collision_contract().body_count) == 245
-		and int(habitat.get_collision_contract().shape_count) == 266,
+		# Six existing bunk discovery shapes are part of the accepted Habitat roster.
+		and int(habitat.get_collision_contract().shape_count) == 272,
 		"collision, layout, and navigation-facing scene bodies remain at their exact existing counts"
 	)
 

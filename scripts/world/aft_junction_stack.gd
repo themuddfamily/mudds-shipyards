@@ -303,7 +303,9 @@ const APPROACH_EDGE_COLLAR_COPY_COUNT := 6
 # each (+12 nodes, both rosters). They are physics, not render: no renderer,
 # copy, submission, mesh or material moves, and the ribs still draw as the same
 # two batched submissions.
-const BASELINE_RENDER_DESCENDANT_NODE_COUNT := 1204
+# The collision-backed stair shoulder adds two nodes and one mesh, renderer,
+# copy and submission to both rosters; its existing deck material is shared.
+const BASELINE_RENDER_DESCENDANT_NODE_COUNT := 1206
 # The stair handoff cue's rear face (two chevron strokes and a second header,
 # so the southern approach no longer reads the plate's back) adds three nodes,
 # renderers, copies and submissions, and one TextMesh resource.
@@ -313,23 +315,23 @@ const BASELINE_RENDER_DESCENDANT_NODE_COUNT := 1204
 # census falls by sixty-five while actual triangle totals remain unchanged.
 # Twenty decorative rack knobs now share one bank-local renderer. All twenty
 # copies keep the exact turned-stock recipe and poses; nineteen nodes vanish.
-const RENDER_DESCENDANT_NODE_COUNT := 1139
-const BASELINE_RENDERER_NODE_COUNT := 868
+const RENDER_DESCENDANT_NODE_COUNT := 1141
+const BASELINE_RENDERER_NODE_COUNT := 869
 # Two Ship Services displays now use engine-managed glyph atlases. Keep their
 # authored display slots separate from explicit mesh submissions/resources.
 const SHIP_SERVICE_ATLAS_DISPLAY_COUNT := 2
-const AUTHORED_DISPLAY_NODE_COUNT := 724
+const AUTHORED_DISPLAY_NODE_COUNT := 725
 const RENDERER_NODE_COUNT := AUTHORED_DISPLAY_NODE_COUNT - SHIP_SERVICE_ATLAS_DISPLAY_COUNT
-const BASELINE_DRAWN_COPY_COUNT := 878
-const AUTHORED_DISPLAY_COPY_COUNT := 832
+const BASELINE_DRAWN_COPY_COUNT := 879
+const AUTHORED_DISPLAY_COPY_COUNT := 833
 const DRAWN_COPY_COUNT := AUTHORED_DISPLAY_COPY_COUNT - SHIP_SERVICE_ATLAS_DISPLAY_COUNT
-const BASELINE_SURFACE_SUBMISSION_COUNT := 868
-const SURFACE_SUBMISSION_COUNT := 724 - SHIP_SERVICE_ATLAS_DISPLAY_COUNT
-const BASELINE_MESH_RESOURCE_COUNT := 332
+const BASELINE_SURFACE_SUBMISSION_COUNT := 869
+const SURFACE_SUBMISSION_COUNT := 725 - SHIP_SERVICE_ATLAS_DISPLAY_COUNT
+const BASELINE_MESH_RESOURCE_COUNT := 333
 # The former header and status each owned one unique TextMesh. The former
 # cyan material was private to the header; the amber material remains on the
 # locator underline. Label3D internal atlas resources are not mesh allocations.
-const MESH_RESOURCE_COUNT := 303 - SHIP_SERVICE_ATLAS_DISPLAY_COUNT
+const MESH_RESOURCE_COUNT := 304 - SHIP_SERVICE_ATLAS_DISPLAY_COUNT
 const BASELINE_MATERIAL_RESOURCE_COUNT := 39
 const MATERIAL_RESOURCE_COUNT := 39 - 1
 
@@ -3616,6 +3618,10 @@ func _build_stair_and_upper_structure(structure: Node3D) -> void:
 	ramp_shape.size = ramp_size
 	ramp_collision.shape = ramp_shape
 	ramp.add_child(ramp_collision)
+	_build_stair_base_shoulder(
+		structure.get_node(^"LowerOpenDeck/StairBaseLanding") as StaticBody3D,
+		ramp, ramp_size
+	)
 
 	var tread_transforms := _stair_tread_transforms()
 	for index in STAIR_STEP_COUNT:
@@ -5780,6 +5786,77 @@ func _transparent_material(color: Color, metallic: float, roughness: float) -> S
 	result.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
 	result.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY
 	return result
+
+
+## Three planar roof facets feather the sharp ramp side into the existing
+## landing. Their minimum is a convex roof: no bilinear saddle or hidden
+## collider replaces the visible surface. North, south and east landing edges
+## end flush; the small exposed west toe face remains visible.
+func _build_stair_base_shoulder(landing: StaticBody3D, ramp: StaticBody3D, ramp_size: Vector3) -> void:
+	var top_normal := ramp.basis.y.normalized()
+	var top_point := ramp.position + ramp.basis.y * ramp_size.y * 0.5
+	var plane_distance := top_normal.dot(top_point)
+	var west := ramp.position.x + ramp_size.x * 0.5
+	var east := -3.5
+	var south := plane_distance / top_normal.z
+	var north := 4.75
+	var peak_z := 3.75
+	var peak_y := (plane_distance - top_normal.z * peak_z) / top_normal.y
+	var points := PackedVector3Array([
+		Vector3(west, 0.0, south), Vector3(east, 0.0, south),
+		Vector3(east, 0.0, north), Vector3(west, 0.0, north),
+		Vector3(west, peak_y, peak_z),
+		Vector3(west, -0.02, south), Vector3(east, -0.02, south),
+		Vector3(east, -0.02, north), Vector3(west, -0.02, north),
+	])
+	var centre := Vector3.ZERO
+	for index in points.size():
+		points[index] -= landing.position
+		centre += points[index] / float(points.size())
+	var shape := ConvexPolygonShape3D.new()
+	shape.points = points
+	var collision := CollisionShape3D.new()
+	collision.name = "StairSideShoulderCollision"
+	collision.shape = shape
+	landing.add_child(collision)
+	# Roof, exposed west face, three buried perimeter skirts and buried base.
+	# Keep the complete visible solid identical to the convex collision hull.
+	var triangles := PackedInt32Array([
+		0, 4, 1, 4, 2, 1, 4, 3, 2,
+		4, 3, 8, 4, 8, 5, 4, 5, 0,
+		0, 1, 6, 0, 6, 5, 1, 2, 7, 1, 7, 6,
+		2, 3, 8, 2, 8, 7, 5, 6, 7, 5, 7, 8,
+	])
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for triangle in range(0, triangles.size(), 3):
+		var a := points[triangles[triangle]]
+		var b := points[triangles[triangle + 1]]
+		var c := points[triangles[triangle + 2]]
+		# Godot front faces wind clockwise from outside. Orient every facet
+		# against an interior point, including the visible west toe triangle.
+		if (b - a).cross(c - a).dot((a + b + c) / 3.0 - centre) > 0.0:
+			var swapped := b
+			b = c
+			c = swapped
+		var normal := (c - a).cross(b - a).normalized()
+		for vertex: Vector3 in [a, b, c]:
+			surface.set_normal(normal)
+			var uv := Vector2(vertex.x, vertex.z)
+			if absf(normal.x) > absf(normal.y) and absf(normal.x) > absf(normal.z):
+				uv = Vector2(vertex.z, vertex.y)
+			elif absf(normal.z) > absf(normal.y):
+				uv = Vector2(vertex.x, vertex.y)
+			surface.set_uv(uv)
+			surface.add_vertex(vertex)
+	surface.generate_tangents()
+	var mesh := MeshInstance3D.new()
+	mesh.name = "StairSideShoulderMesh"
+	mesh.mesh = surface.commit()
+	mesh.material_override = _materials["mid_grey_floor"]
+	# Keep this renderer with its own shape so sibling dressing consolidation
+	# preserves the landing's primary Mesh and its original box bounds.
+	collision.add_child(mesh)
 
 
 func _box(

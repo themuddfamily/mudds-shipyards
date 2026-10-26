@@ -52,6 +52,7 @@ func _run() -> void:
 	await _test_route_stripe_readability(module)
 	await _test_collision_backed_surfaces(module)
 	await _test_stair_circulation(module)
+	await _test_stair_base_shoulder(module)
 	await _test_upper_transfer_gate(module)
 	_test_stair_tread_batch(module)
 	_test_low_route_light_batch(module)
@@ -502,6 +503,67 @@ func _test_stair_circulation(module: AftJunctionStack) -> void:
 		and (bevel_report.errors as PackedStringArray).is_empty(),
 		"the exposed continuous-ramp skin is chamfered at the station rule without moving its collision-backed route envelope"
 	)
+
+
+func _test_stair_base_shoulder(module: AftJunctionStack) -> void:
+	var landing := module.get_node(^"Structure/LowerOpenDeck/StairBaseLanding") as StaticBody3D
+	var collision := landing.get_node_or_null(^"StairSideShoulderCollision") as CollisionShape3D
+	var visual := landing.get_node_or_null(^"StairSideShoulderCollision/StairSideShoulderMesh") as MeshInstance3D
+	var shape := collision.shape as ConvexPolygonShape3D if collision != null else null
+	var original_collision := landing.get_node(^"Collision") as CollisionShape3D
+	_check(shape != null and visual != null and visual.mesh != null
+		and original_collision.shape is BoxShape3D,
+		"the existing stair landing retains its box and owns the visible convex shoulder")
+	if shape == null or visual == null or visual.mesh == null:
+		return
+	var points := shape.points
+	var arrays := visual.mesh.surface_get_arrays(0)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var solid_agrees := points.size() == 9 and vertices.size() == 42 \
+		and collision.transform == Transform3D.IDENTITY and visual.transform == Transform3D.IDENTITY
+	var all_points_drawn := true
+	for point: Vector3 in points:
+		all_points_drawn = all_points_drawn and vertices.has(point)
+	for vertex: Vector3 in vertices:
+		solid_agrees = solid_agrees and points.has(vertex)
+	var roof_walkable := true
+	var winding_agrees := true
+	var actual_roof_agrees := true
+	for index in range(0, vertices.size(), 3):
+		var normal := (vertices[index + 2] - vertices[index]).cross(vertices[index + 1] - vertices[index]).normalized()
+		winding_agrees = winding_agrees and normal.dot(normals[index]) > 0.999
+		if index < 9:
+			roof_walkable = roof_walkable and normal.y > cos(deg_to_rad(45.0))
+			var sample := landing.position + (vertices[index] + vertices[index + 1] + vertices[index + 2]) / 3.0
+			var hit := await _ray_down(module, sample + Vector3.UP, sample - Vector3.UP)
+			actual_roof_agrees = actual_roof_agrees and not hit.is_empty() \
+				and hit.get("collider") == landing \
+				and module.to_local(hit.get("position", Vector3.INF)).distance_to(sample) < 0.002 \
+				and (module.global_basis.inverse() * (hit.get("normal", Vector3.ZERO) as Vector3)).dot(normal) > 0.999
+	_check(solid_agrees and all_points_drawn and winding_agrees,
+		"the shoulder's complete clockwise closed mesh and outward normals use exactly the convex collision points")
+	_check(roof_walkable and actual_roof_agrees,
+		"all three visible shoulder roof facets are physically present and walkable below forty-five degrees")
+	var ramp := module.get_node(^"Structure/Circulation/ContinuousStairRamp") as StaticBody3D
+	var ramp_shape := (ramp.get_node(^"RampCollision") as CollisionShape3D).shape as BoxShape3D
+	var ramp_normal := ramp.basis.y.normalized()
+	var ramp_top := ramp.position + ramp.basis.y * ramp_shape.size.y * 0.5
+	var plane_distance := ramp_normal.dot(ramp_top)
+	var inside_landing := true
+	for point: Vector3 in points:
+		inside_landing = inside_landing and absf(point.x) <= AftJunctionStack.STAIR_BASE_LANDING_SIZE.x * 0.5 \
+			and absf(point.z) <= AftJunctionStack.STAIR_BASE_LANDING_SIZE.z * 0.5
+	var south := landing.position + points[0]
+	var east := landing.position + points[1]
+	var north := landing.position + points[3]
+	var peak := landing.position + points[4]
+	_check(inside_landing and is_zero_approx(south.y) and is_zero_approx(east.y) and is_zero_approx(north.y) \
+		and is_equal_approx(peak.z, 3.75) and is_equal_approx(north.z, 4.75) \
+		and is_equal_approx(peak.x, ramp.position.x + ramp_shape.size.x * 0.5) \
+		and absf(ramp_normal.dot(south) - plane_distance) < 0.00001 \
+		and absf(ramp_normal.dot(peak) - plane_distance) < 0.00001,
+		"the shoulder meets the actual ramp plane and feathers to the existing landing at south, east and north without an exposed north wall")
 
 
 func _test_upper_transfer_gate(module: AftJunctionStack) -> void:
@@ -1167,11 +1229,11 @@ func _test_pod_corner_collar_visual_resource_sharing(
 		bool(report.valid)
 		and StringName(report.selected_family) == &"pod_corner_collars"
 		and report.legacy == {
-			"descendant_nodes": 1204,
-			"renderer_nodes": 868,
-			"drawn_copies": 878,
-			"surface_submissions": 868,
-			"mesh_resource_allocations": 332,
+			"descendant_nodes": 1206,
+			"renderer_nodes": 869,
+			"drawn_copies": 879,
+			"surface_submissions": 869,
+			"mesh_resource_allocations": 333,
 			"material_resource_allocations": 39,
 			"family_visual_nodes": 4,
 			"family_visible_copies": 4,
@@ -1179,21 +1241,21 @@ func _test_pod_corner_collar_visual_resource_sharing(
 			"family_mesh_resource_allocations": 4,
 		}
 		and report.current == {
-			"descendant_nodes": 1139,
-			"renderer_nodes": 722,
-			"drawn_copies": 830,
+			"descendant_nodes": 1141,
+			"renderer_nodes": 723,
+			"drawn_copies": 831,
 			"atlas_display_nodes": 2,
-			"authored_display_nodes": 724,
-			"authored_display_copies": 832,
-			"surface_submissions": 722,
-			"mesh_resource_allocations": 301,
+			"authored_display_nodes": 725,
+			"authored_display_copies": 833,
+			"surface_submissions": 723,
+			"mesh_resource_allocations": 302,
 			"material_resource_allocations": 38,
 			"family_visual_nodes": 4,
 			"family_visible_copies": 4,
 			"family_surface_submissions": 4,
 			"family_mesh_resource_allocations": 1,
 		},
-		"static knob batching freezes 1139 descendants, 724 display slots (722 mesh submissions + two atlas labels), 832 displayed copies, and 301 mesh allocations"
+		"the physical stair shoulder adds two descendants and one shared-material mesh to both allocation comparison rosters"
 	)
 	_check(
 		report.reductions == {
@@ -1339,7 +1401,7 @@ func _test_pod_corner_collar_visual_resource_sharing(
 	(report.behavior_rows as Array).clear()
 	var detached := module.get_pod_corner_collar_visual_allocation_audit()
 	_check(
-		int(detached.current.mesh_resource_allocations) == 301
+		int(detached.current.mesh_resource_allocations) == 302
 		and (detached.behavior_rows as Array).size() == 4,
 		"component-local allocation and transform evidence is deeply detached"
 	)
@@ -1381,7 +1443,7 @@ func _test_pod_corner_collar_visual_resource_sharing(
 		and (identity_red.errors as PackedStringArray).has(
 			"pod_corner_collar_mesh_identity_not_shared"
 		)
-		and int(identity_red.current.mesh_resource_allocations) == 302
+		and int(identity_red.current.mesh_resource_allocations) == 303
 		and int(identity_red.current.family_mesh_resource_allocations) == 2,
 		"RED identity mutation rejects an exact-looking private collar mesh allocation"
 	)
@@ -2788,7 +2850,7 @@ func _test_vip_facade_column_trim_batch(module: AftJunctionStack) -> void:
 		and int(authority.spawn_authority_count) == 0
 		and str(authority.network_authority_role) == "none"
 		and int(collision.body_count) == 113
-		and int(collision.shape_count) == 140
+		and int(collision.shape_count) == 141
 		and module.get_operations_entrance() != null
 		and module.get_vip_access() != null
 		and vip != null

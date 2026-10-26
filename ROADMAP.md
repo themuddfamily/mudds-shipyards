@@ -1,11 +1,12 @@
 # Development roadmap
 
 **Playable alpha; full original scope remains unfinished.** Latest Windows build:
-[3649b4b checkpoint](builds/windows/MuddsShipyards-3649b4b-checkpoint.zip)
-([changes and validation](builds/windows/MuddsShipyards-3649b4b-notes.txt)).
-Matching [Linux checkpoint](builds/linux/MuddsShipyards-3649b4b-linux-x86_64.tar.gz)
-([Linux validation](builds/linux/MuddsShipyards-3649b4b-linux-notes.txt)) is available.
-Reduced flash now updates the current/new HUD damage cue through normal Settings.
+[1f7dccb checkpoint](builds/windows/MuddsShipyards-1f7dccb-checkpoint.zip)
+([changes and validation](builds/windows/MuddsShipyards-1f7dccb-notes.txt)).
+Matching [Linux checkpoint](builds/linux/MuddsShipyards-1f7dccb-linux-x86_64.tar.gz)
+([Linux validation](builds/linux/MuddsShipyards-1f7dccb-linux-notes.txt)) is available.
+The lower Aft stair now has a visible, collision-backed shoulder onto the landing;
+the captured lateral walk retains real floor contact. Reduced flash still updates the current/new HUD damage cue through normal Settings.
 Actual save/reset/refusal results also control the HUD unsaved state. The native
 Linux synthetic-keyboard save/three-process/Reset sequence passes. Prior cargo,
 torpedo and ordinary Ember Quit repairs remain accepted. Full cargo/comfort/world
@@ -94,15 +95,22 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 **Roadmap correction applied; PLAN-NEXT remains open.** This documentation pass
 preserves all337 IDs, kinds, parent bindings and accepted scopes; tightens nine
 existing contracts; and removes duplicate assignment instructions. Inventory,
-section-anchor and local-link checks pass. No gameplay run, export or parked-route
-retry is selected. Remaining missing routes, member lists and owner inputs keep
+section-anchor and local-link checks pass. That documentation pass selected no gameplay run, export or parked-route
+retry. Remaining missing routes, member lists and owner inputs keep
 the executable breakdown open; blocked records cannot enter implementation.
 
-**Paused prerequisite:** the isolated Aft stair-base reproduction has unmerged
-test-only work. Its first baseline double-stepped the Player and cannot qualify
-once-per-tick behavior. The reviewed fixture correction is not yet run. Runtime
-is unchanged; preserve this work and the original handback clock. Resume only
-with the corrected unchanged-runtime check, before considering any repair.
+**Accepted capability: supported Aft stair-base lateral crossing.** Checkpoint
+`1f7dccb` adds a visible, tapered shoulder to the existing landing; original ramp,
+landing box and Player remain unchanged. Actual old capsule sweep hits the ramp's
+steep edge. The corrected fixture now retains floor/support for all74 samples,
+max3D movement0.111205m against the original0.211667m guard, then stops at zero
+velocity. Full Player/Aft/station-surface/interior checks, isolated Forward+
+capture, paired exports, three strict startups and actual1529-entry payload audit
+pass. Only the compiled Aft module changes from3649b4b.
+[Exact result, failures and source limits](docs/history/ROADMAP_DELIVERIES.md#aft-stair-base-supported-contact-accepted-20261026).
+Full handback remains PARKED; no fourth whole route ran. Integration and owned
+archive/branch/worktree cleanup are being closed on the original09:51UTC clock;
+this task has exceeded its90minute engineering estimate.
 
 **Zenith/Torrent handback is parked and unqualified.** Three bounded native
 trials stopped before Torrent boarding, Guided or Zenith reclaim. The final run
