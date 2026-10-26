@@ -111,18 +111,25 @@ against the original90minute estimate, including the roadmap interruption;
 final closure cost is retained in closeout.json. Only `main` remains locally;
 unrelated detached diagnostics/old registrations are retained. No next run selected.
 
-**Next missing contract: ordinary Zenith incoming damage and passive repair.**
-The component model and registered hostile are already mapped; do not repeat that
-survey. Codex still owns the actual ordinary hostile activation/boarding/flight
-inputs, ordered physical component contacts with a nonfatal hull budget, real
-return/repair/restored-function endpoints and original per-leg/whole-route limits.
-Starter-only activation and boarding retarget alone do not prove a reachable
-Zenith attack. Bind those literal fields or record the exact unavailable caller;
-no staged damage or speculative route replay may substitute. A required gameplay
-change needs its own concrete production result and acceptance card.
-[Existing member and retained source facts](docs/ROADMAP_BACKLOG.md#zenith-finite-acceptance-binding).
-Full craft acceptance stays open. PLAN-NEXT likewise stays open at its
-[named contract gaps](docs/ROADMAP_BACKLOG.md#remaining-contract-gaps--plan-next).
+**Zenith encounter definition stopped at its exact execution gap.**
+Source3ba8f2aa4 confirms an existing legal route: physically arm Heavy Breach,
+board/depart in Zenith, receive authorized WingSkirmisherLead fire, then request
+normal landing from its live home capture. Accepted landing withdraws the
+encounter and retires its roster; the normal berth repair owner remains available.
+Independent source review passes. No game run, runtime change or new actor policy.
+[Literal source contract and stop](docs/ROADMAP_BACKLOG.md#zenith-heavy-breach-incoming-route--source-definition).
+
+**BLOCKED definition — Codex:** freeze the ordinary contact pose/input/order,
+nonfatal total damage budget including other hostiles, affected component and
+actual impaired/failed consumer endpoint, return controls and per-leg/whole-route
+limits. The scatter weapon can miss or contact1–3 components; its first trigger does not
+guarantee operational impairment or a safe return. Existing native recorders are
+Torrent-defender/Arrow-Breach-specific and need the named caller implementation
+once that contract exists. Do not run a speculative route or re-survey activation.
+This one source pass began13:11:52UTC with15minutes allocated and ends at the
+missing contact contract. Independent changed-contract review GO; closure
+preparation is10.696minutes on that same clock. No discovery successor selected. Full Zenith and
+PLAN-NEXT remain open. The source answer is planning progress, not gameplay delivery.
 
 ### Blocked definition work — not an execution queue
 
