@@ -30097,3 +30097,16 @@ phase, plus independent cumulative-priority review preserving the original full
 journey, caps and cost. No consumer/policy survey is missing. Final package,
 rendered desktop launch, native Windows/GPU/device/audio and whole recovery-family
 acceptance remain open; no original parent or phase gate closes.
+
+
+<a id="stale-temporary-worktree-registration-cleanup-20261026"></a>
+## Stale temporary worktree registrations removed —2026-10-26
+
+Completed the requested housekeeping for missing `/tmp/mudds-full-7f9627e`,
+`/tmp/mudds-qualification` and `/tmp/mudds-rime-walk-red`. Before targeted removal,
+all three HEADs were ancestors of freshly verified pushed main559193eab, all
+indexes matched their HEADs, none was locked, no folder existed and no live
+process used those paths as CWD. Removed only those three registrations, without
+global pruning. Main and five existing detached worktrees remain; those five
+were retained because their unique source/process ownership was not audited by
+this cleanup. This is housekeeping, not gameplay or roadmap completion.
