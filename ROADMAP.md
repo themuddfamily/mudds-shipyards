@@ -104,7 +104,12 @@ shared ledger/recovery and positionless fallback checks pass.
 All eight focused suites, paired exports, three strict startup checks and actual
 1529-entry payload audit pass. Only the compiled damage adapter differs from499e681.
 [Exact proof, retained baseline failure and scope](docs/history/ROADMAP_DELIVERIES.md#forward-hull-projectile-attribution-accepted-20261026).
-Integration, push and owned cleanup are being completed; no next run is selected.
+Integration is pushed; owned branch/worktree and loose scratch are removed.
+All18 supervisors/62 observed process identities are absent. Source and raw results
+are preserved in one verified archive. Archive closure records37.892minutes
+against the original90minute estimate, including the roadmap interruption;
+final closure cost is retained in closeout.json. Only `main` remains locally;
+unrelated detached diagnostics/old registrations are retained. No next run selected.
 
 **Next missing contract: ordinary Zenith incoming damage and passive repair.**
 The component model and registered hostile are already mapped; do not repeat that

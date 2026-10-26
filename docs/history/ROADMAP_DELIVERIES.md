@@ -29002,8 +29002,7 @@ NOT_RUN. Direct ELF and extracted archive startup each exit0 with exactly one
 [notes](../../builds/windows/MuddsShipyards-b4ff8c0-notes.txt), and
 [matching Linux package](../../builds/linux/MuddsShipyards-b4ff8c0-linux-x86_64.tar.gz).
 Independent high-risk review GO;11checkpoint files verified before integration.
-Integration/push and owned branch/worktree/archive cleanup are pending at this
-acceptance entry; the final closure receipt below records their actual completion.
+Integration/push and owned cleanup are complete as recorded in the closure receipt below.
 
 Original12:32:12UTC/90minute engineering estimate includes definition, the owner-
 requested roadmap interruption, both baseline attempts, checks, build and closure.
@@ -29080,3 +29079,26 @@ front-hit policy must be assessed before reusing that proof on a new candidate.
 [parked failures](../../ROADMAP.md#parked-failures-and-dependent-work) and
 [preserved full contracts](ROADMAP_DELIVERIES.md#working-roadmap-contracts-retired-from-the-queue-20261026)
 are references, not additional active tasks.
+
+
+### Forward projectile repair closure 20261026
+
+Accepted source integrated and pushed asdefb693e7. Exact owned branch
+`fix/forward-hull-projectile-20261026` was contained in pushed main and deleted
+with its expected tip after its sole registered worktree was removed. Current
+remote task branch was absent. All11 canonical checkpoint files match the
+accepted publication hashes; all18 supervisors/62 observed process identities
+are absent. Onlymain remains locally. Unrelated detached diagnostic worktrees
+and old prunable registrations were preserved.
+
+Source bundle, retained failed baseline, corrected RED, all15 green stages,
+actual inventories, build notes, independent GO and exact git cleanup receipt
+are preserved in `/srv/mudds-work/forward-hull-projectile-20261026/records.tar.gz`:
+48,815,786bytes; SHA-256
+`99256b5cab851984a43022c0d5a1d8860592943d87c47a9f70b491caecf6ab76`.
+All264regular files/18links were verified for full membership, bytes, modes and
+link targets before loose scratch removal. Only archive and closeout.json remain.
+Archive closure37.892minutes from the original12:32:12UTC against90minutes;
+final documentation/push remain on that same clock in closeout.json.
+No full-craft, ordinary Zenith damage/repair, loss/regeneration, device, native
+hardware, network or final release acceptance is supplied by this repair.
