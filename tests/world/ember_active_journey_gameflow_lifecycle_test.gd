@@ -145,14 +145,21 @@ class SurfaceHost extends EmberSurfaceLoopHost:
 	var craft_id := 0
 	var run_generation := 31
 	var attachment := 7
+	var staged_phase := EmberSurfaceLoopHost.Phase.ON_FOOT
 	func get_generation() -> int: return run_generation
 	func get_attachment_generation() -> int: return attachment
-	func get_phase() -> int: return EmberSurfaceLoopHost.Phase.ON_FOOT
+	func get_phase() -> int: return staged_phase
 	func get_travel_session_observation_source() -> Object: return session
 	func get_return_status_snapshot() -> Dictionary: return get_snapshot()
 	func get_snapshot() -> Dictionary:
+		var phase_id: StringName = &"on_foot"
+		if staged_phase == EmberSurfaceLoopHost.Phase.LANDED:
+			phase_id = &"landed"
+		elif staged_phase == EmberSurfaceLoopHost.Phase.IDLE:
+			phase_id = &"idle"
 		return {"host_id": &"ember_surface_loop", "attached": true,
-			"generation": run_generation, "attachment_generation": attachment, "phase_id": &"on_foot",
+			"generation": run_generation, "attachment_generation": attachment,
+			"phase_id": phase_id,
 			"identities": {"world_id": &"ember_moon",
 				"player_instance_id": actor_id, "ship_instance_id": craft_id}}
 
@@ -368,12 +375,14 @@ func _run() -> void:
 	await _exercise_paid_start_fresh()
 	await _exercise_completed_debt()
 	await _exercise_active_payment()
+	await _exercise_explicit_abandon()
 
 	for failure in _failures:
 		push_error(failure)
+	var result_marker: String = "EMBER_ACTIVE_JOURNEY_GAMEFLOW_LIFECYCLE_TEST_OK" \
+		if _failures.is_empty() else "EMBER_ACTIVE_JOURNEY_GAMEFLOW_LIFECYCLE_TEST_FAILED"
 	print(
-		"EMBER_ACTIVE_JOURNEY_GAMEFLOW_LIFECYCLE_TEST_OK: %d assertions"
-		% _assertions
+		"%s: %d assertions" % [result_marker, _assertions]
 	)
 	quit(0 if _failures.is_empty() else 1)
 
@@ -616,6 +625,175 @@ func _exercise_active_payment() -> void:
 		and not admission.get("checkpoint_resume", {}).get("accepted", false),
 		"a cold admission cannot replay the stale incomplete autosave of an already-paid survey")
 	await _retire_surface(cold)
+
+
+func _exercise_explicit_abandon() -> void:
+	# Memory persistence and staged Host admission keep this focused on the real
+	# GameFlow/coordinator/Host abandon boundary, rather than flying the approach.
+	# The route, save, passive cold admission and runtime abort are production.
+	for completed: bool in [false, true]:
+		var filesystem := MemoryFilesystem.new()
+		var store := StoreScript.new(STORE_PATH, filesystem)
+		store.load()
+		store.commit({"foreign": {"retained": 91}}, 0, "abandon-seed")
+		var source := await _make_surface(store, true)
+		var binding: Node = source.binding
+		var started: Dictionary = binding.call(&"start_relay_survey")
+		var relay: Dictionary = binding.call(&"submit_relay_survey_position", Vector3(180.0, 120009.0, -44.0))
+		var returned := {"accepted": true}
+		if completed:
+			returned = binding.call(&"submit_relay_survey_position", Vector3(540.0, 120030.0, -210.0))
+		var saved := _save_surface_progress(source)
+		_check(started.accepted and relay.accepted and returned.accepted and saved.accepted,
+			"explicit-abandon fixture saves actual incomplete or completed Director progress")
+		if not saved.get("accepted", false):
+			await _retire_surface(source)
+			continue
+		var saved_files: Dictionary = filesystem.files.duplicate(true)
+		await _retire_surface(source)
+		var cold := await _make_surface(StoreScript.new(STORE_PATH, filesystem), true)
+		var flow: GameFlow = cold.flow
+		store = flow.get("_runtime_settings_user_data_store")
+		var admission: Dictionary = flow._restore_ember_surface_persistence_for_admission()
+		_check(admission.accepted and admission.get("checkpoint_resume", {}).get("accepted", false)
+			and store.get_snapshot().has(String(SLOT)),
+			"the existing saved receipt is staged before survey resume and remains durable")
+		_stage_explicit_abandon(cold)
+		var abandoned: Dictionary = flow.abandon_ember_surface_journey(&"player_abandoned")
+		_check(abandoned.accepted and cold.host.get_abandon_snapshot().requested,
+			"actual GameFlow and Host admit explicit abandon while landed before survey resume")
+		_check(not store.get_snapshot().has(String(SLOT))
+			and store.get_snapshot().foreign.retained == 91,
+			"accepted explicit abandon removes the resumable slot and preserves unrelated data")
+		await _retire_surface(cold)
+		var next := await _make_surface(StoreScript.new(STORE_PATH, filesystem), true)
+		var next_admission: Dictionary = (next.flow as GameFlow)._restore_ember_surface_persistence_for_admission()
+		var next_start: Dictionary = next.binding.call(&"start_relay_survey")
+		var next_route: Dictionary = next.binding.get_snapshot().relay_survey.mandatory_route
+		_check(not (next.flow as GameFlow).get_ember_interrupted_journey_persistence_report().adopted,
+			"a fresh Main never passively adopts the explicitly abandoned location or session")
+		if completed:
+			_check(next_admission.get("persistence_kind") == &"declined_completion"
+				and not next_admission.get("location_resumed", true) and next_start.accepted
+				and next.binding.get_activity_reward_snapshot().state == &"awaiting_reward"
+				and store.get_snapshot().has(String(SLOT) + "_declined"),
+				"explicit abandon preserves completed earned debt through its existing declined owner")
+		else:
+			_check(not next_admission.get("checkpoint_resume", {}).get("accepted", false)
+				and next_start.accepted and int(next_route.next_checkpoint_index) == 0,
+				"a fresh Main after explicit abandon starts the survey at its first observation")
+		await _retire_surface(next)
+		if not completed:
+			await _exercise_approach_abandon(saved_files)
+			await _exercise_explicit_abandon_failures(saved_files)
+			await _exercise_retired_receipt_abandon(saved_files)
+
+
+func _stage_explicit_abandon(surface: Dictionary, phase := EmberSurfaceLoopHost.Phase.LANDED) -> void:
+	var host: SurfaceHost = surface.host
+	host.staged_phase = phase
+	# The actual Host's guards and abandon() run unchanged against these tokens.
+	host.set("_phase", phase)
+	host.set("_attached", true)
+	host.set("_generation", host.run_generation)
+	host.set("_attachment_generation", host.attachment)
+	var flow: GameFlow = surface.flow
+	flow.ember_surface_loop_host = host
+	flow.ember_surface_loop_production_binding = surface.wrapper
+	flow.set("_ember_surface_journey_active", true)
+
+
+func _exercise_approach_abandon(saved_files: Dictionary) -> void:
+	var filesystem := MemoryFilesystem.new()
+	filesystem.files = saved_files.duplicate(true)
+	var surface := await _make_surface(StoreScript.new(STORE_PATH, filesystem), true)
+	var flow: GameFlow = surface.flow
+	var store: RefCounted = flow.get("_runtime_settings_user_data_store")
+	var admission: Dictionary = flow._restore_ember_surface_persistence_for_admission()
+	_check(admission.accepted and admission.get("checkpoint_resume", {}).get("accepted", false)
+		and store.get_snapshot().has(String(SLOT)),
+		"approach-abandon control stages the saved ACTIVE checkpoint before Host start")
+	if not admission.get("accepted", false):
+		await _retire_surface(surface)
+		return
+	# Only the admitted coordinator and idle Host are staged here. No physical
+	# cruise or flight is simulated; the public abandon takes the real cancel branch.
+	_stage_explicit_abandon(surface, EmberSurfaceLoopHost.Phase.IDLE)
+	var abandoned: Dictionary = flow.abandon_ember_surface_journey(&"player_abandoned")
+	_check(abandoned.accepted and abandoned.reason == &"ember_surface_request_cancelled"
+		and not flow.get("_ember_surface_journey_active"),
+		"explicit abandon before Host start uses the existing approach cancellation")
+	_check(not store.get_snapshot().has(String(SLOT)) and store.get_snapshot().foreign.retained == 91,
+		"accepted approach abandon removes the resumable slot and preserves unrelated data")
+	await _retire_surface(surface)
+	var next := await _make_surface(StoreScript.new(STORE_PATH, filesystem), true)
+	var next_admission: Dictionary = (next.flow as GameFlow)._restore_ember_surface_persistence_for_admission()
+	var started: Dictionary = next.binding.call(&"start_relay_survey")
+	var route: Dictionary = next.binding.get_snapshot().relay_survey.mandatory_route
+	_check(not (next.flow as GameFlow).get_ember_interrupted_journey_persistence_report().adopted
+		and not next_admission.get("checkpoint_resume", {}).get("accepted", false)
+		and started.accepted and int(route.next_checkpoint_index) == 0,
+		"a fresh Main after approach abandon starts at the first observation without passive adoption")
+	await _retire_surface(next)
+
+
+func _exercise_explicit_abandon_failures(saved_files: Dictionary) -> void:
+	var filesystem := MemoryFilesystem.new()
+	filesystem.files = saved_files.duplicate(true)
+	var surface := await _make_surface(StoreScript.new(STORE_PATH, filesystem), true)
+	var flow: GameFlow = surface.flow
+	var store: RefCounted = flow.get("_runtime_settings_user_data_store")
+	var admission: Dictionary = flow._restore_ember_surface_persistence_for_admission()
+	var resumed: Dictionary = surface.binding.call(&"start_relay_survey")
+	# Exercise a newly saved live checkpoint separately from the receipt already
+	# retired by resume. This calls the existing save seam; it is not an autosave.
+	var saved := _save_surface_progress(surface)
+	_check(admission.accepted and resumed.accepted and saved.accepted
+		and store.get_snapshot().has(String(SLOT)),
+		"failure control explicitly saves a new checkpoint after successful resume")
+	_stage_explicit_abandon(surface, EmberSurfaceLoopHost.Phase.ON_FOOT)
+	var before: Dictionary = store.get_snapshot()
+	var bytes: PackedByteArray = filesystem.files[STORE_PATH].duplicate()
+	var generation: int = store.get_generation()
+	var runtime: Dictionary = surface.binding.get_activity_reward_snapshot()
+	filesystem.reject_writes = true
+	var refused: Dictionary = flow.abandon_ember_surface_journey(&"player_abandoned")
+	filesystem.reject_writes = false
+	_check(not refused.accepted and filesystem.files[STORE_PATH] == bytes
+		and store.get_snapshot() == before and store.get_generation() == generation
+		and not surface.host.get_abandon_snapshot().requested
+		and not flow.get("_planetary_journey").get("_ember_surface_abandon_pending")
+		and surface.binding.get_activity_reward_snapshot() == runtime,
+		"failed explicit-abandon persistence leaves primary bytes and the live visit unchanged")
+	# The public getter alone cannot authorize discarding a receipt: the actual
+	# Host refuses this stale internal generation before any abandon mutation.
+	surface.host.set("_generation", surface.host.run_generation - 1)
+	var stale: Dictionary = flow.abandon_ember_surface_journey(&"player_abandoned")
+	_check(not stale.accepted and filesystem.files[STORE_PATH] == bytes
+		and store.get_snapshot() == before and store.get_generation() == generation,
+		"a stale Host rejection cannot discard the saved checkpoint")
+	await _retire_surface(surface)
+
+
+func _exercise_retired_receipt_abandon(saved_files: Dictionary) -> void:
+	var filesystem := MemoryFilesystem.new()
+	filesystem.files = saved_files.duplicate(true)
+	var surface := await _make_surface(StoreScript.new(STORE_PATH, filesystem), true)
+	var flow: GameFlow = surface.flow
+	var store: RefCounted = flow.get("_runtime_settings_user_data_store")
+	var admission: Dictionary = flow._restore_ember_surface_persistence_for_admission()
+	var resumed: Dictionary = surface.binding.call(&"start_relay_survey")
+	_check(admission.accepted and resumed.accepted and not store.get_snapshot().has(String(SLOT)),
+		"the already-resumed control really retires its original saved receipt")
+	_stage_explicit_abandon(surface, EmberSurfaceLoopHost.Phase.ON_FOOT)
+	var bytes: PackedByteArray = filesystem.files[STORE_PATH].duplicate()
+	var generation: int = store.get_generation()
+	var abandoned: Dictionary = flow.abandon_ember_surface_journey(&"player_abandoned")
+	_check(abandoned.accepted and filesystem.files[STORE_PATH] == bytes
+		and store.get_generation() == generation
+		and surface.binding.get_activity_reward_snapshot().state == &"failed",
+		"abandon after successful receipt retirement aborts the runtime without another durable write")
+	await _retire_surface(surface)
 
 
 func _save_surface_progress(surface: Dictionary) -> Dictionary:

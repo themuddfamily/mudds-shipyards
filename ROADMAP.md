@@ -87,6 +87,35 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Selected production repair: saved Ember progress after explicit abandonment.**
+Existing WORLD-ABANDON saved-checkpoint boundary. A prior successful interrupted
+ACTIVE checkpoint is passively staged on the next visit; explicit abandonment
+during approach or LANDED-before-survey-resume must not leave it eligible for a
+later game instance to stage again. An already successfully resumed/retired
+receipt is not this counterexample. The only ordinary save caller found is
+tree exit; do not invent a player autosave to explain this behavior.
+
+Reproduce through the existing GameFlow lifecycle fixture, actual coordinator
+and controlled Host admission before changing runtime. Accepted explicit
+abandonment must atomically decline incomplete progress through the existing
+Ember persistence owner, preserve completed earned debt/unrelated data, and
+permit a fresh visit without old progress. Persistence failure or rejected Host
+must preserve prior state and must not acknowledge successful abandonment.
+Ordinary quit/resume and manual abandoned-return controls keep their contracts.
+Memory/filesystem and Host/admission staging must remain disclosed; this check
+does not qualify ordinary full travel, real-file OS restart or packaged world
+abandonment.
+
+Implementer owns GameFlow/coordinator and the existing Ember lifecycle test;
+minimal read-only Host preflight may be needed for safe ordering. Root owns
+freeze, exact old RED/new GREEN, unchanged checkpoint-resume/real-abandon focused
+checks, paired checkpoint, integration/push/cleanup. One independent persistence
+reviewer checks rejection/commit ordering before execution. Estimate60minutes
+including source readiness/checks/build/closure, conservatively charged from
+the previous8f8feddf9 commit. First unexpected failure stops its pipeline and
+retains source/raw for causal review; no new save schema, evidence validator or
+automatic retry chain is selected. Full world/recovery gates remain open.
+
 **Delivered production repair: unpaid survey credit at visit end.**
 Checkpointf51e02a preserves Aurora/Rime genuinely completed but unpaid observations
 through the existing passive owner in one atomic end-visit retirement write.
