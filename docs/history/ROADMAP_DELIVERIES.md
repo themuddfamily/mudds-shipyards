@@ -4,6 +4,63 @@ Moved from ROADMAP.md on 2026-10-17. These are source-specific historical
 results, not the active queue or proof of current full-project acceptance.
 Return to the [working roadmap](../../ROADMAP.md).
 
+## Hero warm-cache preparation cutoff 20261026
+
+Existing capture-hero-cell stays **PARKED; NO SECOND RENDER**. The
+[original cold300s failure](#torrent-hero-cell-original-cap-timeout-20261026)
+remains source2f333b0e4/exit124/0PNG. Read-only archive inspection identifies a
+complete owned Mesa shader-cache DB subtree:102files/5400444bytes, including
+index/marker/all parts. This is concrete reusable input, not proof of the timeout
+cause or cache effectiveness. The unrelated import Godot cache is not seeded.
+
+An explicit independent cumulative-priority decision conditionally permits ONE
+warm-cache environment continuation of the SAME18-frame goal, identical source/
+art/guarded7b editor/ICD/library/Forward+/TAA/2×MSAA/2560×1440/cameras/waits/
+300s. Only complete owned Mesa cache is copied to fresh private XDG_CACHE_HOME;
+no saves/settings. Every input file's bytes/SHA/mode are retained; destination
+copies match all102 source hashes. Cache manifestSHA256
+`f5185564912b81636e7c24a262ccd9e751a632f735fcc11fe65159e0bcded625`.
+Fresh user data/output/auth/display/processes remain independent. Conditional
+launch-by18:30UTC reserves inspection+closure under the original18:01:07UTC/
+45min/hard18:46:07; prior24.457min is retained, not reset. No serial warming,
+quality reduction, newgoal or third capture is authorized.
+
+**Actual preparation only.** Restored clean detached2f333b0e4; exact source/art
+are unchanged. Owned cache inputs are ready18:29:44UTC. One private headless/Dummy
+import passes20.944328s/exit0/no diagnostics. By renderer wrapper setup at
+18:30:18.864UTC, the reviewed launch cutoff has elapsed. Its assertion stops
+BEFORE `subprocess.Popen`: no timeout_pid, no renderer exit_code, no output
+directory/PNG/success marker. Wrapper0.833732s/guard1.702980s; guard exits1 for
+nonzero wrapper/missing marker, not another300s engine timeout. The planned-command
+`OWNED_HERO_CAPTURE_LAUNCH` print precedes the cutoff assertion and does not prove
+execution. `game_reaped=false` means game=None/never started; display is reaped,
+its X lock removed and dependency pins match. All six recorded prep PID/start
+identities are absent. Import Godot did run; a second *rendered* Godot did not.
+
+Root requested one final timing review after preparation completed. Independent
+review upheld PARK: a full300s capture could leave insufficient assured time for
+all18 original inspections plus complete closure. No changed window, renderer
+launch, probe, another import or further request follows. Cache effect stays
+NOT_TESTED and original timeout cause remains unlocalized; no visual/engine/
+reflection/native/performance acceptance is claimed. Registry stays unchanged
+pending; accepted378d99c gameplay/builds remain untouched.
+
+Prepared inputs, both exact cache copies, hashes, helper/guard/source/profiles,
+planned command/cutoff error and review are preserved in
+`/srv/mudds-work/hero-cell-capture-20261026/warm/records.tar.gz`:14778288bytes,
+238regular files/two symlinks,SHA256
+`787c9c6c7d00531d68651ab604807ab00fbe5472c8aede130c7efaac96e6837c`.
+Archive membership/bytes/modes/link targets verified before loose deletion. The
+original cold archive741be…4145 remains unchanged. No task branch was created;
+owned detached checkout is removed after main closure push; only archive/closeout
+remain in this preparation directory. Shared toolchains/unrelated diagnostics
+remain retained. Archive18:35:30UTC/34.385 cumulative minutes; final pushed main,
+cleanup and total on the original clock are in warm/closeout.json.
+
+This is a preparation/cutoff outcome, not product or capture acceptance. The
+existing18-frame requirement remains open; no new validation/version family,
+source mutation, canonical image publication or replacement checkpoint.
+
 ## Torrent hero-cell original-cap timeout 20261026
 
 Existing capture-hero-cell is **PARKED / NOT_DELIVERED**, source

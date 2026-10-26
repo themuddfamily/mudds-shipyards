@@ -221,6 +221,15 @@ selected. A supported cause/correction or environment change and independent
 cumulative-priority review must precede reopening this same18-frame goal.
 This failure does not authorize another heavy capture as a substitute.
 
+A later controlled warm-cache continuation was selected conditionally, using
+only the exact102-file/5400444-byte Mesa cache from that failed run. Its private
+import passed20.944s, but setup missed the reviewed18:30UTC renderer-launch cutoff.
+The wrapper refused before Godot Popen; no second rendering invocation occurred.
+The cache effect remains NOT_TESTED, all18 images/inspection remain missing and
+registry stages stay pending unchanged. Independent timing review upheld PARK
+under the same18:01:07UTC/45min/hard18:46:07; no further window/retry is selected.
+[Exact preparation and retained input](history/ROADMAP_DELIVERIES.md#hero-warm-cache-preparation-cutoff-20261026).
+
 ## Current required capture commands
 
 The current source inventory contains **13 required harnesses and 143 PNGs**.

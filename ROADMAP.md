@@ -110,6 +110,17 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Warm-cache continuation stopped at preparation cutoff; no second render.**
+The cold run's complete102-file/5400444-byte Mesa shader cache was recovered
+and copied byte-exact into a fresh private profile, with an independent conditional
+priority decision. Import passed20.944s. Setup missed the reviewed18:30UTC launch
+cutoff; the wrapper refused before Godot Popen. A final timing review upheld
+PARK rather than shorten18-original inspection/closure. Cache effect is NOT_TESTED;
+no new capture, images, art change or accepted build. Six preparation identities
+are absent and its inputs/raw are archived. [Exact preparation record](docs/history/ROADMAP_DELIVERIES.md#hero-warm-cache-preparation-cutoff-20261026).
+The original18:01:07UTC/45min/hard18:46:07 and prior cost remain charged. No
+further launch window, warm-up, probe, retry or quality/cap change is selected.
+
 **PARKED: full18-frame Torrent hero-cell capture.** One unchanged capture on
 frozen2f333b0e4 reaches world/berth/Torrent/pilot instantiation, then its original
 300s engine cap expires: exit124, zero PNGs and zero success markers. The interval
