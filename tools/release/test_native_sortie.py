@@ -4949,6 +4949,32 @@ class UnsupportedSaveCallerTests(unittest.TestCase):
             cold=native.UnsupportedSavePilot(files,1,cold=True)
             with self.assertRaisesRegex(AssertionError,'same actual authored defaults'): cold.validate_observation(s)
 
+    def test_engine_log_arguments_are_fresh_owned_per_leg_and_preserve_old_routes(self):
+        base=['/owned/game','--audio-driver','Dummy','--display-driver','x11',
+              '--native-sortie-observer=heavy-breach']
+        original=base[:]
+        with tempfile.TemporaryDirectory() as tmp:
+            output=Path(tmp).resolve()
+            first=native.game_leg_arguments(base,'unsupported-save',output,0)
+            second=native.game_leg_arguments(base,'unsupported-save',output,1)
+            self.assertEqual(base,original)
+            self.assertEqual(first,base+['--log-file',str(output/'godot-leg-1.log')])
+            self.assertEqual(second,base+['--log-file',str(output/'godot-leg-2.log')])
+            self.assertEqual(first.count('--log-file'),1); self.assertEqual(second.count('--log-file'),1)
+            self.assertTrue(Path(first[-1]).is_absolute()); self.assertEqual(Path(first[-1]).parent,output)
+            for route in ('guided','retained-heavy','corrupt-retained-heavy','habitat-restart'):
+                old=native.game_leg_arguments(base,route,Path('/unused'),0)
+                self.assertEqual(old,base); self.assertIsNot(old,base)
+            for bad in (first,base+['--log-file=/another/log']):
+                with self.assertRaises(AssertionError):
+                    native.game_leg_arguments(bad,'unsupported-save',output,1)
+            with self.assertRaises(AssertionError):
+                native.game_leg_arguments(base,'unsupported-save',Path('relative'),0)
+            (output/'godot-leg-1.log').write_bytes(b'preserved raw engine log')
+            with self.assertRaises(AssertionError): native.game_leg_arguments(base,'unsupported-save',output,0)
+            self.assertEqual((output/'godot-leg-1.log').read_bytes(),b'preserved raw engine log')
+            self.assertEqual(base,original)
+
     def test_placement_and_fixture_arguments_are_required_only_for_this_route(self):
         for kwargs in ({},{'retained_data':Path('/fixture')},{'future_artifact':'primary'}):
             with self.subTest(kwargs=kwargs),self.assertRaises(AssertionError):

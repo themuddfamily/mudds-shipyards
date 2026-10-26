@@ -9980,6 +9980,22 @@ def capture_guided_shutdown(profile, output):
                 safe_start_recovery_state=payload.get('safe_start_recovery', {}).get('state'))
 
 
+def game_leg_arguments(base_arguments, route, output, leg):
+    """Keep desktop engine logs outside the unsupported save directory."""
+    arguments = list(base_arguments)
+    if route != 'unsupported-save': return arguments
+    output = Path(output)
+    require(leg in (0, 1) and output.is_absolute() and output.is_dir()
+            and not output.is_symlink() and output.resolve() == output,
+            'future-save engine log uses the exact owned absolute output directory')
+    require(not any(argument == '--log-file' or argument.startswith('--log-file=') for argument in arguments),
+            'fresh per-leg engine arguments cannot accumulate log-file flags')
+    log_path = output / f'godot-leg-{leg+1}.log'
+    require(not log_path.exists() and not log_path.is_symlink(), 'fresh owned per-leg engine log path')
+    arguments.extend(('--log-file', str(log_path)))
+    return arguments
+
+
 def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_data=None, future_artifact=None):
     require(route in ("zenith-torrent-handback", "zenith-return-reuse", "patrol-relay-home", "race-home", "heavy-breach", "retained-heavy", "corrupt-retained-heavy", "unsupported-save", "bomber-rearm", "cinder-supply", "hauler-supply", "arrow-return-reuse", "torrent-return-reuse", "torrent-damaged-return", "torrent-arrow-handoff", "guided", "courier-intercept", "courier-escape", "courier-withdraw-phase", "courier-withdraw-distance", "beacon-entry", "beacon-settlement", "beacon-home", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "crew-recovery", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
     require(not qualify_beacon_outbound or route == 'beacon-home',
@@ -10080,11 +10096,15 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
                         unsupported_files.capture_preserved(f'leg-{leg+1}-before-launch')
                     leg_log_offset = (output/'game.log').stat().st_size if (output/'game.log').exists() else 0
                     if corrupt_files: corrupt_files.leg = leg
-                    # These are the exact same args/env/profile/display/helper.
+                    # Same base args/env/profile/display/helper; this route redirects
+                    # each engine log into its own retained output file.
                     # The single timer above remains armed across both games.
                     desktop.keys([]); desktop.mouse(0, 0, False)
-                    game = subprocess.Popen(args,cwd=binary.parent,env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,bufsize=0)
-                    leg_result = {'pid': game.pid, 'leg': leg + 1, 'exit_code': None, 'reaped': False}
+                    leg_arguments = game_leg_arguments(args, route, output, leg)
+                    game = subprocess.Popen(leg_arguments,cwd=binary.parent,env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,bufsize=0)
+                    leg_result = {'pid': game.pid, 'leg': leg + 1, 'exit_code': None, 'reaped': False,
+                                  'arguments': leg_arguments}
+                    if unsupported_files: leg_result['godot_log_path'] = leg_arguments[-1]
                     result['game_legs'].append(leg_result)
                     if leg == 0: result['game_pid'] = game.pid
                     else:
