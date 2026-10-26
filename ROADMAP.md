@@ -94,6 +94,26 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Selected release capability / qualification: checkpoint selected rollback.**
+Install499e681→upgradeb4ff8c0→explicitly install499 again in the same owned prefix;
+restore exact prior payload/modes/launcher, preserve user data and unowned files,
+then prove the restored499 game loads a save actually written by b4. Input is
+9296bytes/SHA256af2fada0a687b3a2dad6ee5c4550d4e6cd92120f2df94f6681f053e5b23ed409,
+actual generation27/clean session2 with the earned Heavy credit and settings.
+Extend only the existing retained-heavy driver/test to admit this second declared
+fixture and require real next-session advancement(2→3); original fixture1→2 proof
+and all strict data/physics/UI/private-profile checks remain intact. No schema,
+gameplay, observer/GDScript or export change. Both actual packages have identical
+observer/game-flow/persistence code; only damage adapter differs.
+[Exact selected rollback contract](docs/ROADMAP_BACKLOG.md#selected-checkpoint-rollback--retained-save-contract).
+One implementer owns two Python files; root owns transaction/actual validation,
+integration/push and owned cleanup; one independent reviewer. Conservative
+original16:42:43UTC/45min clock includes readiness; hard17:27:43. Estimate15 code,
+5 checks/review,5 actual,10 closure plus4 readiness. Stop first unexpected failure;
+no automatic retry. This is one selected rollback, not injected failed-update,
+power-loss, arbitrary downgrade compatibility, final-package or rendered-desktop
+acceptance. Code and accepted checkpoints remain unchanged until qualification.
+
 **Accepted release capability / qualification: installed retained Heavy load.**
 New Python-only `retained-heavy --retained-data FILE` route loads the pinned
 actual earned save in a fresh private profile using the unchanged b4 observer.
