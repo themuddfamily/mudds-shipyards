@@ -121,6 +121,12 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Completed: five retained detached worktrees cleaned up.**
+All five inactive copies are removed after preserving and verifying their local
+source changes. Only the main worktree remains registered; sibling diagnostics
+and earlier archives are retained. [Exact paths, preservation and checks](docs/history/ROADMAP_DELIVERIES.md#five-retained-worktrees-closed-20261026).
+This is repository housekeeping, not gameplay or release qualification.
+
 **Accepted executable recovery caller; full installed qualification PARKED.**
 The paused-schema correction now drives actual keyboard Settings repair, normal
 first OS0, cold session3 with Heavy credit1/settings/paid posting and all three

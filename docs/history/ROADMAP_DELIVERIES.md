@@ -30247,3 +30247,68 @@ Only the archive and closeout remain. Five unrelated detached worktrees remain
 untouched because their ownership/unique changes are outside this cleanup.
 The installed qualification stays FAIL/PARKED, concrete popup identity/order stays
 unknown, and latest playable checkpoint remains2456552.
+
+
+<a id="five-retained-worktrees-closed-20261026"></a>
+## Five retained detached worktrees closed —2026-10-26
+
+Result: **PASS cleanup**. The user-requested source/worktree housekeeping removed
+five inactive detached worktrees, approximately1.2GiB of redundant working copies.
+Their commits are ancestors of freshly verified pushed main808350433; none of the
+dirty diagnostic source was accepted or merged into production for cleanup.
+
+**Selected: finish cleanup of the five retained detached worktrees.**
+This is the user's requested repository housekeeping, not gameplay progress.
+
+| Field | Frozen cleanup contract |
+| --- | --- |
+| Result | Remove the five inactive detached worktrees below after every local source change is recoverable; preserve their sibling raw records and existing archives. |
+| Start | Main808350433; `/srv/mudds-work/retired-worktrees/` annex-contact, cargo-transition-cpu and disembark-floor worktrees dated20261017; `/srv/mudds-work/shared-flow-profiler-20261017/worktree`; `/srv/mudds-work/station-batch-startup-20261017/worktree`. |
+| Steps | Verify current remote main and exact detached HEADs, ancestry, unlocked registration, no live CWD/command-line owner and no untracked source. Archive binary/index diffs and every modified file's exact bytes/mode with its base HEAD. Re-read/verify archive, recheck source/ownership, then remove only these five registrations/directories. |
+| Pass/fail | All five source states recoverable from retained main plus verified archive; all five registrations/directories absent; original sibling records unchanged. Ignored files may be removed only if Godot/Python caches. Any unknown file, live owner, changed tip/source, lock or failed archive check stops deletion. |
+| Proof | Independent inventory plus archive byte/mode/hash checks, fresh ownership/remote checks and final worktree census. No engine invocation or production qualification. |
+| Dependencies | Exact baseline commits reachable from pushed main; unique dirty source retained before removal. No design decision required. |
+| Stop | 20 minutes including inventory/archive/docs/push; first unexpected failure stops the affected removal. No global prune or unrelated folder cleanup. |
+| Closure | Commit/push the actual archive reference, removal count and retained exceptions; keep runtime outcomes and latest playable checkpoint unchanged. |
+
+
+
+The independent census found no locks, untracked source or live CWD/command-line
+owners. Every worktree was dirty. Annex/cargo diffs already matched retained
+patches; station source matched its sibling instrumentation copy. Shared-flow and
+disembark changes still needed preservation. One source archive now binds every
+modified file's exact bytes/mode, full HEAD binary diff, index diff, ignored-cache
+inventory and baseline commit for all five. `git apply --reverse --check` accepted
+each full diff against its original working copy. The archive was re-read and
+all17 members verified byte-for-byte/mode-for-mode before any removal. Ignored
+files were only disposable Godot cache/Python bytecode; no ignored source removed.
+
+Archive: `/srv/mudds-work/retained/20261026/worktree-closeout/source-records.tar.gz`,
+122105bytes/17regular members, SHA256
+`45bd83cb4c7b961c8fc647edcea2636ef7304d8310f4d8c0bac817defbbd9e13`.
+Adjacent `closeout.json` records each exact removed path and baseline:
+
+| Removed path under `/srv/mudds-work/` | Retained base commit |
+| --- | --- |
+| retired-worktrees/mudds-annex-contact-20261017 | b655abf4526cd3ed15d88648e6cbebdbaee9e32d |
+| retired-worktrees/mudds-cargo-transition-cpu-7f9627e | 7f9627e5ce4a551e20a9528415521bfb9eb3ab28 |
+| retired-worktrees/mudds-disembark-floor-896732380 | 896732380da8cdac3517fd9e6f65fa2a6906c9d6 |
+| shared-flow-profiler-20261017/worktree | b9a29d6f7aa623d418ff7e23a685374ac06d6a39 |
+| station-batch-startup-20261017/worktree | ca0afc449efc547de0d6049ac94ea2c876d14e2d |
+
+Immediately before each removal, remote main/ancestry, detached tip/registration,
+locks, process ownership, source diffs and file hashes/modes were rechecked.
+Only those five directories/registrations were removed through `git worktree
+remove --force`; no global prune. The final worktree census contains only main.
+Independent closeout review also verified all six source members, ten patch
+hashes, five baseline ancestries and twelve original sibling records.
+Original sibling raw results/status/patch archives remain unchanged. There are
+no retained worktree exceptions from this five-item set. No engine, gameplay
+change, qualification or new checkpoint; latest playable checkpoint stays2456552.
+
+The same bounded selection pass inspected HUD-CONVOY source without running its
+parked save suite: existing reset/selection/start/fresh-Main production and
+save/restore contracts already cover those seams. No runtime discrepancy was
+demonstrated. Reuse those existing source maps/tests; full ordinary PLAY-CONVOY
+and combined newly executed HUD qualification remain open. No replacement test,
+validator or runtime patch is justified by that inspection.
