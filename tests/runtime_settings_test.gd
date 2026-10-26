@@ -25,6 +25,7 @@ func _run() -> void:
 	_test_round_trip_and_stable_storage()
 	_test_hud_presentation_round_trip()
 	_test_safe_loading()
+	_test_future_legacy_siblings_are_preserved()
 	_test_explicit_audio_application()
 	_test_window_application_contract()
 	_cleanup_temp_files()
@@ -641,6 +642,72 @@ func _test_window_application_contract() -> void:
 			and DisplayServer.window_get_flag(DisplayServer.WINDOW_FLAG_BORDERLESS) == original_borderless,
 			"graphical window test restores the runner's original state"
 		)
+
+
+## Every operation gets three fresh real files. A future legacy generation is
+## protected even when another generation could otherwise be recovered or read.
+func _test_future_legacy_siblings_are_preserved() -> void:
+	var suffixes := ["", ".tmp", ".bak"]
+	var placements := ["primary", "temporary", "backup"]
+	for future_index in range(suffixes.size()):
+		for operation: String in ["load", "read_only", "save"]:
+			var label := "future legacy %s / %s" % [placements[future_index], operation]
+			var directory := _temp_path + ".future_mixed_%s_%s" % [placements[future_index], operation]
+			var absolute_directory := ProjectSettings.globalize_path(directory)
+			_check(DirAccess.make_dir_absolute(absolute_directory) == OK, label + ": isolated directory created")
+			var path := directory.path_join("settings.cfg")
+			for index in range(suffixes.size()):
+				# Literal schema versions keep this regression bound to legacy7/8.
+				var schema := 8 if index == future_index else 7
+				var raw := ("[meta]\nschema_version=%d\n\n[controls]\nship_mouse_sensitivity=0.004%d\n\n[future_data]\nmarker=\"generation-%d\"\n" % [schema, index + 1, index]).to_utf8_buffer()
+				var artifact := path + str(suffixes[index])
+				var file := FileAccess.open(artifact, FileAccess.WRITE)
+				_check(file != null, label + ": fixture file opens " + str(index))
+				if file != null:
+					file.store_buffer(raw)
+					file.close()
+				if not OS.has_feature("windows"):
+					_check(FileAccess.set_unix_permissions(artifact, 384 + index * 16) == OK,
+						label + ": fixture mode set " + str(index))
+			var before_files := _future_legacy_directory_snapshot(directory)
+			var settings := Settings.new(path)
+			settings.ship_mouse_sensitivity = 0.0088
+			settings.camera_fov = 99.0
+			var before_live := settings.to_dictionary()
+			settings.setting_changed.connect(_on_setting_changed)
+			settings.settings_changed.connect(_on_settings_changed)
+			settings.changed.connect(_on_resource_changed)
+			_clear_signal_log()
+			var result: Error
+			match operation:
+				"load":
+					result = settings.load_from_file()
+				"read_only":
+					result = settings.load_from_file("", true)
+				_:
+					result = settings.save_to_file()
+			_check(result == ERR_INVALID_DATA, label + ": refuses unsupported generation")
+			_check(_future_legacy_directory_snapshot(directory) == before_files,
+				label + ": preserves exact filenames bytes and Unix modes")
+			_check(settings.to_dictionary() == before_live, label + ": preserves live values")
+			_check(_setting_events.is_empty() and _batch_events.is_empty() and _resource_changed_count == 0,
+				label + ": emits no change signals")
+			for entry: String in DirAccess.get_files_at(directory):
+				_check(DirAccess.remove_absolute(absolute_directory.path_join(entry)) == OK,
+					label + ": fixture file removed " + entry)
+			_check(DirAccess.remove_absolute(absolute_directory) == OK, label + ": isolated directory removed")
+
+
+func _future_legacy_directory_snapshot(directory: String) -> Dictionary:
+	var snapshot := {}
+	for entry: String in DirAccess.get_files_at(directory):
+		var path := directory.path_join(entry)
+		snapshot[entry] = {
+			"bytes": FileAccess.get_file_as_bytes(path),
+			"mode": null if OS.has_feature("windows") else FileAccess.get_unix_permissions(path),
+		}
+	# Include directories so an unexpected transaction artifact cannot hide.
+	return {"files": snapshot, "directories": DirAccess.get_directories_at(directory)}
 
 
 func _snapshot_audio_buses() -> Dictionary:
