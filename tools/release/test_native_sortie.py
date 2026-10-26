@@ -6045,5 +6045,340 @@ class ZenithReturnReuseTests(unittest.TestCase):
             self.assertEqual(native.ZenithReturnReusePilot.WEAPON_CAP,25)
 
 
+class ZenithTorrentHandbackTests(unittest.TestCase):
+    """Reuse literal craft/claim fixtures; packaged OS input supplies qualification."""
+    @staticmethod
+    def observation():
+        s=ZenithReturnReuseTests.observation()
+        t=TorrentReturnReuseTests().observation()
+        _, pair=TorrentArrowHandoffTests().state()
+        z=copy.deepcopy(pair['handoff']['fleet'][native.TorrentArrowHandoffPilot.ARROW])
+        r=copy.deepcopy(pair['handoff']['fleet'][native.TorrentArrowHandoffPilot.TORRENT])
+        s['mode']=native.ZenithTorrentHandbackPilot.MODE
+        for k in ('main_id','world_id','player_id','capsule_id','shape_id','pid'):
+            t[k]=s[k]
+        t.update(ship_id=601,source_id=602,seat_id=603,berth_id=604,
+                 capsule_geometry=s['capsule_geometry'][:],application_focused=True)
+        for row,craft,key,source,cameras in ((z,s,'zenith_b7_observed',1104,(114,115)),
+                                           (r,t,'torrent_provisional',1101,(605,606))):
+            row.update({k:craft[k] for k in ('ship_id','source_id','seat_id','berth_id','position','boarding','exit','hull')})
+            row.update(definition_id=key,home_id=craft['home_id'],combat_source=source,
+                chase_camera_id=cameras[0],cockpit_camera_id=cameras[1],active=key=='torrent_provisional',
+                stream=1,next_sequence=0,delivery_generation=1,command_stream=0,
+                tuning=copy.deepcopy(craft['ship_tuning']),hull=68 if key=='zenith_b7_observed' else 100,
+                physical_strict=True,contract=False,lease_token=key+'-initial',main_lease_token=key+'-initial',
+                main_berth_id=craft['home_id'],occupant_id=craft['ship_id'],reservation_owner_id=craft['ship_id'],
+                reserved_ship_id=key)
+        s['handoff']=dict(actors_current=True,fleet={'zenith_b7_observed':z,'torrent_provisional':r},
+            active_ship_id=t['ship_id'],piloting=False,consumed_ship_id=0,consumed_stream=-1,consumed_sequence=-1)
+        s['torrent']=t
+        ZenithTorrentHandbackTests.sync(s)
+        return s
+
+    @staticmethod
+    def sync(s):
+        for craft,key in ((s,'zenith_b7_observed'),(s['torrent'],'torrent_provisional')):
+            row=s['handoff']['fleet'][key]
+            craft.update(piloted=row['piloted'],seated_at_pilot=row['seated'],active_ship=row['active'],
+                         ship_camera=row['camera'],boarding_reserved=row['reserved'])
+        for k in ('frame','player','phase','seated','transition_busy','control_enabled','capsule_enabled','player_camera','native_interact'):
+            s['torrent'][k]=copy.deepcopy(s[k])
+        a=s['admission']
+        for k in ('frame','player','phase','seated','transition_busy','control_enabled','capsule_enabled','native_interact',
+                  'grounded','supported','mouse_captured'):
+            a[k]=copy.deepcopy(s[k])
+        a['position']=s['player'][:]
+
+    def initial(self):
+        p=native.ZenithTorrentHandbackPilot(); s=self.observation()
+        p.validate_observation(copy.deepcopy(s))
+        return p,s
+
+    def tick(self,p,s,**changes):
+        s.update(changes); s['frame']+=1; s['sequence']+=1
+        self.sync(s)
+        NativeSortieSafetyTests.arm_motion(s['admission'],p.observed_previous['admission'])
+        sample=copy.deepcopy(s)
+        p.validate_observation(sample)
+        return sample
+
+    def test_admission_uses_existing_fifteen_goals_and_retains_two_literal_craft(self):
+        p,s=self.initial()
+        self.assertIs(type(p.admission),native.LifeTowPilot)
+        self.assertIs(type(p.guided),native.Pilot)
+        self.assertEqual(p.admission.config['goals'],native.LifeTowPilot.ARM_GOALS)
+        self.assertEqual(len(p.admission.config['goals']),15)
+        self.assertEqual(set(p.handoff_initial['fleet']),{p.ZENITH,p.TORRENT})
+        self.assertEqual(native.CAP,300)
+
+    def test_replaced_primary_or_detached_actor_and_registered_source_fail(self):
+        for target,field in [('top','main_id'),('top','player_id'),('top','capsule_id'),
+                             ('top','chase_camera_id'),('torrent','opponent_id'),('torrent','ship_id'),
+                             ('zenith_row','source_id'),('zenith_row','seat_id'),('torrent_row','area_id'),
+                             ('torrent_row','berth_id'),('torrent_row','combat_source')]:
+            with self.subTest(target=target,field=field):
+                p,s=self.initial(); p.stage='initial_release'
+                row=s if target=='top' else s['torrent'] if target=='torrent' else s['handoff']['fleet'][p.ZENITH if target=='zenith_row' else p.TORRENT]
+                row[field]+=900
+                with self.assertRaises(AssertionError): self.tick(p,s)
+
+    def test_guided_cannot_be_completed_or_zenith_flown_before_real_torrent_suffix(self):
+        for change in ('guided','zenith_flight','missing_drone'):
+            p,s=self.initial(); p.stage='initial_release'
+            if change=='guided': s['torrent']['guided_complete']=True
+            elif change=='zenith_flight': s['handoff']['fleet'][p.ZENITH]['parked_exact']=False
+            else: s['torrent']['targets'].pop()
+            with self.subTest(change=change), self.assertRaises(AssertionError): self.tick(p,s)
+
+    def exit_state(self):
+        p,s=self.initial(); p.stage='handoff_zenith_exit'
+        p.admission_result={'seated_physics_frames':90}; p.admission_neutral=90
+        row=s['handoff']['fleet'][p.ZENITH]
+        row.update(active=True,piloted=True,seated=True,camera=True,reserved=True,player_reservation=True,
+                   stream=3,next_sequence=9,command_stream=3,command_sequence=8,command_neutral=False)
+        s['handoff']['fleet'][p.TORRENT]['active']=False
+        s['handoff'].update(active_ship_id=row['ship_id'],piloting=True)
+        p.handoff_receipts['zenith_exit_press']=p.handoff_receipt(s)
+        s.update(phase='DISEMBARKING',transition_busy=True,seated=True,capsule_enabled=False,
+                 player_camera=False,native_interact=True)
+        row['interact']=dict(frame=s['frame']+1,ship_id=row['ship_id'],source_id=row['source_id'],
+            stream=3,sequence=8,native=True,valid=True,current=True)
+        s['handoff'].update(consumed_ship_id=row['ship_id'],consumed_stream=3,consumed_sequence=8)
+        s['boarding_confirmation']['adapter']['view']['state']='disembarking'
+        return p,s
+
+    def test_queued_exit_producer_and_lifecycle_consumer_survive_latest_foot_sample(self):
+        p,s=self.exit_state()
+        edge=self.tick(p,s)
+        retained=copy.deepcopy(p.handoff_receipts['zenith_exit_transition'])
+        row=s['handoff']['fleet'][p.ZENITH]
+        row.update(piloted=False,seated=False,camera=False,reserved=False,player_reservation=False,
+                   stream=4,next_sequence=0,delivery_generation=4,command_stream=0,command_sequence=0,command_neutral=True)
+        s['handoff']['piloting']=False
+        self.tick(p,s,phase='APPROACH_SHIP',transition_busy=False,seated=False,capsule_enabled=True,
+                  player_camera=True,native_interact=False)
+        self.assertEqual(p.handoff_receipts['zenith_exit_transition'],retained)
+        self.assertEqual(retained['frame'],edge['frame'])
+        self.assertEqual(retained['handoff']['consumed_stream'],3)
+        self.assertEqual(len(p.handoff_edges),1)
+
+    def test_exit_rejects_wrong_current_source_epoch_or_consumer(self):
+        for failure in ('wrong_source','stale_epoch','wrong_consumer','no_native'):
+            p,s=self.exit_state(); row=s['handoff']['fleet'][p.ZENITH]
+            if failure=='wrong_source': row['interact']['source_id']+=1
+            elif failure=='stale_epoch': row['interact']['stream']-=1
+            elif failure=='wrong_consumer': s['handoff']['consumed_ship_id']=s['torrent']['ship_id']
+            else: row['interact']['native']=False
+            with self.subTest(failure=failure), self.assertRaises(AssertionError): self.tick(p,s)
+            self.assertNotIn('zenith_exit_transition',p.handoff_receipts)
+
+    def test_retired_source_pending_cursor_and_claims_cannot_reactivate(self):
+        for field,value in (('pending',1),('next_sequence',8),('stream',9),('delivery_generation',9),
+                            ('piloted',True),('camera',True),('reserved',True),('command_neutral',False)):
+            p,s=self.initial(); p.stage='initial_release'
+            p.remember_retired(p.ZENITH,s)
+            s['handoff']['fleet'][p.ZENITH][field]=value
+            with self.subTest(field=field), self.assertRaises(AssertionError): self.tick(p,s)
+
+    def test_observation_gap_and_walk_board_exit_clear_deadlines_are_binding(self):
+        p,s=self.initial(); s['frame']+=1
+        with self.assertRaisesRegex(AssertionError,'every raw'): self.tick(p,s)
+        cases=(('to_torrent','goal_since',15.001,'fifteen'),
+               ('torrent_ready','board_since',12.001,'twelve'),
+               ('handoff_zenith_exit','stage_since',10.001,'exit10'),
+               ('torrent_clear','clear_since',12.001,'radial-clear'))
+        for stage,timer,now,message in cases:
+            p,s=self.initial(); p.stage=stage; p.last_state=s
+            p.route=[('fixture',[0,0,15.5])]; p.goal_since=0
+            setattr(p,timer,0)
+            with self.subTest(stage=stage), self.assertRaisesRegex(AssertionError,message): p.update(s,now)
+
+    def test_live_torrent_candidate_stops_before_inside_hull_marker(self):
+        p,s=self.initial(); p.stage='to_torrent'; p.last_state=s; p.goal_since=0
+        row=s['handoff']['fleet'][p.TORRENT]
+        row.update(candidate=True,boarding_distance=6.5,reboard_blocked=False)
+        p.route=[('torrent_candidate',[500,0,500])]
+        keys,dx,dy,fire=p.update(s,1)
+        self.assertEqual((keys,dx,dy,fire),(set(),0,0,False))
+        self.assertEqual(p.stage,'torrent_ready')
+        self.assertNotIn('torrent_board_press',p.handoff_receipts)
+
+    def test_real_guided_suffix_uses_original_pilot_and_has_no_added_nonlanding_deadline(self):
+        p,s=self.initial(); p.stage='guided'; p.last_state=s
+        p.guided.stage='board'
+        t=s['torrent']; t.update(phase='START_ENGINES',piloted=True,seated=True,active_ship=True)
+        p.update(s,299)
+        self.assertEqual(p.guided.stage,'launch')
+        self.assertEqual(p.stage,'guided')
+        self.assertEqual(p.guided.identities,(t['player_id'],t['ship_id']))
+        self.assertFalse(p.guided_result)
+
+    def test_guided_prefix_is_derived_from_observed_torrent_candidate_and_boarding(self):
+        p,s=self.initial(); p.stage='torrent_ready'; p.board_since=0
+        r=s['handoff']['fleet'][p.TORRENT]
+        r.update(candidate=True,boarding_distance=6.5,reboard_blocked=False)
+        approach=self.tick(p,s,phase='APPROACH_SHIP')
+        self.assertEqual(p.handoff_receipts['torrent_approach']['frame'],approach['frame'])
+        p.update(approach,1)
+        self.assertEqual(p.stage,'handoff_torrent_board')
+        r.update(reserved=True,player_reservation=True)
+        s['boarding_confirmation']['adapter']['view']['state']='boarding'
+        self.tick(p,s,phase='BOARDING',transition_busy=True,native_interact=True,control_enabled=False)
+        r.update(piloted=True,seated=True,camera=True,stream=3,command_stream=3,
+                 command_sequence=1,next_sequence=2)
+        s['handoff']['piloting']=True
+        s['boarding_confirmation']['adapter']['view']['state']='seated'
+        seated=self.tick(p,s,phase='START_ENGINES',transition_busy=False,native_interact=False,
+                         seated=True,capsule_enabled=False,player_camera=False)
+        p.update(seated,2)
+        self.assertEqual(p.stage,'guided')
+        self.assertEqual(p.guided.phases,[approach['phase'],'BOARDING'])
+        self.assertIsNone(p.guided.identities)  # Original Pilot initializes from the actual seated snapshot next.
+        p.update(seated,2.1)
+        self.assertEqual(p.guided.identities,(seated['torrent']['player_id'],seated['torrent']['ship_id']))
+        self.assertEqual(p.guided.parked_forward,[-v for v in seated['torrent']['back']])
+
+    def test_fresh_zenith_neutral_count_requires_current_consumed_stream(self):
+        p,s=self.initial(); p.stage='final_neutral'
+        p.first_stream=2; p.retired_zenith_stream=3; p.guided_result={'phases':['COMPLETE']}
+        s['torrent'].update(guided_complete=True,targets=[],destroyed_targets=4,opponent_active=False)
+        s['handoff']['fleet'][p.TORRENT].update(active=False,contract=True)
+        r=s['handoff']['fleet'][p.ZENITH]
+        r.update(active=True,piloted=True,seated=True,camera=True,reserved=True,player_reservation=True,
+                 stream=4,command_stream=4,command_sequence=1,next_sequence=2)
+        s['handoff'].update(active_ship_id=r['ship_id'],piloting=True)
+        p.handoff_receipts['zenith_seated']=p.handoff_receipt(s)
+        self.tick(p,s,phase='START_ENGINES',seated=True,capsule_enabled=False,player_camera=False)
+        self.assertEqual(p.final_neutral,1)
+        r['command_stream']=3
+        with self.assertRaisesRegex(AssertionError,'fresh current fenced neutral'): self.tick(p,s)
+        self.assertEqual(p.final_neutral,1)
+
+    def test_outward_arm_reuses_existing_corner_guard(self):
+        p,s=self.initial(); p.stage='outward_arm'; p.last_state=s; p.goal_since=0
+        p.route=[('zenith_approach',[20.2,4.2,59.2])]
+        p.walker.stage='walk_service'; p.walker.route=p.route; p.walker.index=0
+        s.update(player=[20.2,4.2,59.2],walk_forward=[0,0,-1],walk_right=[1,0,0])
+        p.walker.settled_frames=15
+        p.update(s,1)
+        self.assertFalse(p.walker.zenith_corner_safe(s))
+        self.assertEqual(p.stage,'outward_arm')
+        self.assertEqual(len(p.route),1)
+
+    def wing_clear_fixture(self, point):
+        p,s=self.initial()
+        direction=native.unit([20.4-point[0],0,59.1-point[2]])
+        s.update(phase='APPROACH_SHIP',player=list(point),velocity=[0,0,0],
+                 walk_forward=direction,walk_right=[-direction[2],0,direction[0]])
+        s['handoff']['fleet'][p.ZENITH].update(boarding_distance=8,reboard_blocked=False)
+        self.sync(s); NativeSortieSafetyTests.arm_motion(s['admission'])
+        p.observed_previous=p.last_state=copy.deepcopy(s)
+        p.begin_walk('wing_clear',[('wing_clear',s['endpoints']['wing_clear'])],s)
+        p.goal_since=0
+        return p,s
+
+    def test_wing_clear_actual_failed_point_steers_into_existing_corner_instead_of_departing(self):
+        point=[20.1391,4.20165,59.1174]
+        p,s=self.wing_clear_fixture(point)
+        published=s['endpoints']['wing_clear'][:]
+        self.assertLess(math.hypot(point[0]-published[0],point[2]-published[2]),.30)
+        p.walker.settled_frames=15
+        sample=self.tick(p,s)
+        keys,_,_,_=p.update(sample,1)
+        self.assertIn('w',keys)
+        self.assertEqual(p.stage,'wing_clear')
+        self.assertEqual(p.route,[('wing_clear',published)])
+        self.assertTrue(p.walker.zenith_corner_required())
+        self.assertFalse(p.walker.zenith_corner_safe(sample))
+        self.assertEqual(p.walker.settled_frames,0)
+        self.assertNotIn('zenith_clear',p.handoff_receipts)
+        self.assertEqual(p.visited,[])
+
+    def test_wing_clear_safe_boundary_settles_fifteen_current_samples_before_unchanged_reverse(self):
+        p,s=self.wing_clear_fixture([20.30,4.2,59.20])
+        published=s['endpoints']['wing_clear'][:]
+        for _ in range(14):
+            sample=self.tick(p,s); p.update(sample,1)
+        self.assertEqual(p.stage,'wing_clear')
+        self.assertEqual(p.walker.settled_frames,14)
+        sample=self.tick(p,s); keys,_,_,_=p.update(sample,1)
+        self.assertEqual(keys,set())
+        self.assertEqual(p.stage,'to_torrent')
+        self.assertEqual(p.visited[-1]['target'],published)
+        self.assertEqual(p.visited[-1]['goal'],'wing_clear')
+        self.assertEqual([target for _,target in p.route[:-2]],list(p.REVERSE_ARM))
+        self.assertEqual(p.handoff_receipts['zenith_clear']['player'],[20.30,4.2,59.20])
+        for point in ([20.299999,4.2,59.20],[20.30,4.2,59.200001]):
+            p,s=self.wing_clear_fixture(point); p.walker.settled_frames=14
+            sample=self.tick(p,s); p.update(sample,1)
+            self.assertEqual(p.stage,'wing_clear')
+            self.assertEqual(p.walker.settled_frames,0)
+
+    def test_wing_clear_preserves_actual_support_and_fifteen_second_deadline(self):
+        p,s=self.wing_clear_fixture([20.4,4.2,59.1])
+        with self.assertRaisesRegex(AssertionError,'actual physical station floor support'):
+            self.tick(p,s,supported=False)
+        p,s=self.wing_clear_fixture([20.4,4.2,59.1])
+        sample=self.tick(p,s)
+        with self.assertRaisesRegex(AssertionError,'fifteen-second per-goal deadline'):
+            p.update(sample,15.001)
+        self.assertEqual(native.CAP,300)
+
+    def test_reverse_stair_base_leg_uses_walk_input_while_other_legs_keep_existing_sprint(self):
+        cases=(('to_torrent','reverse_8',[-5.7,.1673,51],[0,0,51],False),
+               ('to_torrent','reverse_9',[0,0,51],[0,0,46.3],True),
+               ('connector','0',[0,0,51],[-8.5,0,51],True))
+        for stage,name,point,target,sprint in cases:
+            with self.subTest(stage=stage,goal=name):
+                p,s=self.initial(); p.stage=stage; p.last_state=s; p.goal_since=0
+                direction=native.unit([target[0]-point[0],0,target[2]-point[2]])
+                s.update(player=point,velocity=[0,0,0],walk_forward=direction,
+                         walk_right=[-direction[2],0,direction[0]])
+                p.route=[(name,target),('next',[0,0,39])]
+                keys,dx,dy,fire=p.update(s,1)
+                self.assertIn('w',keys)
+                self.assertEqual('Shift_L' in keys,sprint)
+                self.assertEqual((dx,dy,fire),(0,0,False))
+                self.assertEqual(p.stage,stage)
+                self.assertEqual(p.route[0],(name,target))
+                self.assertEqual(s['walk_tuning'],native.LifeTowPilot.DEFAULT_WALK)
+
+    def test_actual_sprint_stair_base_downsnap_remains_rejected_by_unchanged_3d_guard(self):
+        before=[-4.10339736938477,.167291432619095,51.178337097168]
+        after=[-3.94836783409119,.00049455463886261,51.1717338562012]
+        velocity=[9.19166946411133,0,-.391436964273453]
+        p,s=self.initial(); p.stage='to_torrent'
+        s.update(frame=2920,phase='APPROACH_SHIP',player=before,velocity=velocity,
+                 support_collider='/root/Boot/Main/ShipyardWorld/AftJunctionStack/Structure/LowerOpenDeck/StairBaseLanding')
+        self.sync(s); NativeSortieSafetyTests.arm_motion(s['admission'])
+        s['admission']['support_collider']=s['support_collider']
+        p.observed_previous=p.last_state=copy.deepcopy(s)
+        p.route=[('reverse_8',[0,0,51]),('reverse_9',[0,0,46.3])]
+        self.assertTrue(s['grounded'] and s['supported'])
+        self.assertGreater(native.norm(native.sub(after,before)),native.LifeTowPilot.DEFAULT_WALK['sprint']/60*1.25+.02)
+        with self.assertRaisesRegex(AssertionError,'continuous physically supported handback walking without placement'):
+            self.tick(p,s,player=after)
+        self.assertTrue(s['grounded'] and s['supported'])
+        self.assertEqual(s['admission']['completed_motion']['step_up'],{})
+        self.assertEqual(s['admission']['completed_motion']['start'],before)
+        self.assertEqual(s['admission']['completed_motion']['end'],after)
+        self.assertEqual(p.last_state['frame'],2920)
+        self.assertEqual(native.CAP,300)
+
+    def test_runner_selector_all_snapshot_dispatch_and_actual_disk_marker_gate(self):
+        source=Path(native.__file__).read_text()
+        self.assertIn('"zenith-torrent-handback": ZenithTorrentHandbackPilot',source)
+        self.assertIn('choices=(\'zenith-torrent-handback\'',source)
+        self.assertIn('(ZenithTorrentHandbackPilot, GuidedExitPilot, BomberRearmPilot',source)
+        self.assertIn("closed.get('crash_recovery_state') == 'clean'",source)
+        self.assertIn("closed.get('safe_start_recovery_state') == 'clean_shutdown'",source)
+        observer=Path(native.__file__).resolve().parents[2]/'scripts/diagnostics/native_sortie_observer.gd'
+        text=observer.read_text()
+        self.assertIn('"--native-sortie-observer=zenith-torrent-handback"',text)
+        self.assertIn('_arrow_observation(true, false, _handback_torrent)',text)
+        self.assertIn('_zenith_observation(true)',text)
+        self.assertNotIn('_ship = _handback_torrent',text)
+
+
 if __name__ == '__main__':
     unittest.main()

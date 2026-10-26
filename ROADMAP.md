@@ -92,6 +92,19 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Selected qualification: one Zenith→Torrent→same Zenith handback.**
+Independent cumulative-priority review selects exactly one continuation after the
+accepted1f7dccb stair repair satisfies the archived reopening condition. Current
+main4e80ef20 is the base; restore only the five final archived caller/observer/
+privacy files fromda7d5a954, preserving the accepted Aft and Player source. The
+complete frozen route below remains binding, including mandatory actual Guided,
+90neutral/current-epoch admission/reclaim, original movement/support/no-placement
+checks and300s game/360s outer abort. Exact candidate/package pins precede checks.
+Readiness/parse/Python/privacy/export/startup/payload checks precede one route.
+Stop at the first unexpected failure; no automatic fifth trial or speculative
+repair is selected. Original09:51UTC clock and90minute estimate continue, already
+approximately120minutes; archive/cleanup/push remain charged to that goal.
+
 **Roadmap correction applied; PLAN-NEXT remains open.** This documentation pass
 preserves all337 IDs, kinds, parent bindings and accepted scopes; tightens nine
 existing contracts; and removes duplicate assignment instructions. Inventory,
@@ -118,7 +131,8 @@ remains locally; unrelated detached diagnostics are retained.
 trials stopped before Torrent boarding, Guided or Zenith reclaim. The final run
 lost grounded contact at StairBaseLanding despite support probes below it.
 [Exact failures, reopening condition and preserved source](#zenith-torrent-handback-parked).
-No further trial is selected; no code/checkpoint from this candidate is accepted.
+The three archived trials remain unaccepted. Exactly one continuation is now
+selected above after the demonstrated stair repair and independent priority review.
 
 
 **Accepted qualification: Zenith settled Main detach/re-entry.**
@@ -721,8 +735,9 @@ Player/geometry descent at the captured StairBaseLanding transition, with a
 concrete continuously grounded, supported traversal satisfying the existing3D
 motion/epoch/no-placement checks. Bind the actual locomotion owner and focused
 regression before a new independent priority decision and complete-route trial.
-Do not relax grounding/displacement, invent a solver receipt or call a runtime
-repair delivered. Any continuation retains the original09:51:00UTC clock and
+Do not relax grounding/displacement or invent a solver receipt. The accepted
+1f7dccb prerequisite supplies the demonstrated physical repair; the three old
+trials did not. Any continuation retains the original09:51:00UTC clock and
 failed cost; no renamed task resets it. The original full handback remains below.
 The new route is archived and **not available in main**.
 
@@ -736,13 +751,14 @@ SHA-256 `3b0f4c10bc8c47bd89d2df19abe1ae26c89b23a2138159e24a62b6f2c7e8692c`;
 Owned branch/worktree and loose scratch are removed after exact ownership/tip
 checks and archive verification; the remote task branch was absent. Only `main`
 remains locally. Unrelated detached diagnostic/profiler/station worktrees and old
-prunable `/tmp` registrations are retained. No candidate code was merged and no
-checkpoint was published;3649b4b remains current. Closure preparation cost
+prunable `/tmp` registrations are retained. No code from that archived candidate was merged and no checkpoint was published
+at its closeout;3649b4b was current then. The separately accepted Aft checkpoint
+1f7dccb is current above. Closure preparation cost
 59.632minutes from09:51:00UTC against90minute estimate; final docs/push stay
 on that clock. Full Zenith, other craft/world/network/release and external gates
 remain open; earlier accepted Zenith results stay accepted.
 
-**Frozen handback contract — unaccepted archived caller, no rerun selected.**
+**Frozen handback contract — one continuation selected after the accepted stair repair.**
 
 - **Goal:** existing CRAFT-ACCEPT-ZENITH cross-craft handback member, implemented
   as `run_native_sortie.py --route zenith-torrent-handback` and actually proved.
