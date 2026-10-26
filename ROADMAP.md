@@ -94,6 +94,22 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Accepted qualification: installed Linux checkpoint b4ff8c0.**
+The shipped manager installs exact archive bytes/modes and a correct menu entry.
+Installed strict startup passes(exit0/one readiness marker); the full ordinary
+Guided route passes55.720s at the original300s cap, including combat, strict home,
+automatic OFFLINE, physical exit and normal HUD Quit/actual OS0. Uninstall removes
+only managed files; five unrelated fixtures retain exact bytes/modes. Zero
+diagnostics, released inputs and all16 observed process identities absent.
+[Actual route, two retained wrapper failures and scope](docs/history/ROADMAP_DELIVERIES.md#linux-installed-checkpoint-guided-qualification-accepted-20261026).
+Original14:51:07UTC/30minute clock includes corrections/review/closure;
+archive closure6.290minutes, with final push recorded in closeout.json. Only one
+startup and one Guided game launch occurred. Source/results are verified in one
+archive; loose owned files removed, no branch/worktree created. Game code and
+playable checkpoint are unchanged; no duplicate export. Final-package installation,
+graphical Desktop Entry launch and native hardware remain unqualified. No next
+run selected; this checkpoint result must not be promoted to those gates.
+
 **Station capture binding pass ended: BLOCKED definition — Codex.**
 On source0383848bf one source-only pass mapped all nine branches and four service
 views to existing declared frames or exact absent fields. The

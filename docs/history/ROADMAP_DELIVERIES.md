@@ -4,6 +4,78 @@ Moved from ROADMAP.md on 2026-10-17. These are source-specific historical
 results, not the active queue or proof of current full-project acceptance.
 Return to the [working roadmap](../../ROADMAP.md).
 
+## Linux installed checkpoint Guided qualification accepted 20261026
+
+INSTALL-LINUX[clean b4ff8c0 checkpoint], parent32: accepted checkpoint transaction,
+not final INSTALL-LINUX-CLEAN or graphical Desktop Entry qualification. Game
+source `b4ff8c0f4f77e0571fc03aaed17b10f3bafc0649`; repository/driver source
+`d3ceca4bc` (driver unchanged by the documentation commits). Package
+`builds/linux/MuddsShipyards-b4ff8c0-linux-x86_64.tar.gz`,SHA256
+`6c93c752a631aacee8e698d8fa2ffb3cd3cbd4418526ba555df6607ea7f5b375`.
+Shipped manager SHA256
+`f0bc2779bd918513f276e9527f5e956e7e75ccd376e192130d036e542a25f467`
+matches the existing production manager. No runtime/release-tool edits, fresh
+export, branch or worktree was needed.
+
+**Frozen route and actual result.** The shipped manager installs into the owned
+`/srv/mudds-work/linux-clean-b4ff8c0-20261026/installed game` and `applications`
+prefixes. Resolve the ELF from the generated ownership manifest, not a loose
+build. Exact owner/keys/files, generated desktop bytes (Exec/Path/Icon), runtime
+and ELF0755/icon0644/manifest0644/desktop0644 all pass. ELF SHA256
+`c2e0653cd5f97fe3acc75a5eaef7323b25c5d123996a74fe274e274b68babb2e`
+and icon SHA256
+`08f8427bd4cc74c8109150ede9df87feec181a1bdb97fc762853db8bf497d473`
+match the independently fixed archive bytes.
+
+One installed strict startup uses the existing
+`tools/release/run_linux_startup_check.sh`: headless/Dummy, private XDG, actual
+exit0/exactly one readiness sentinel,21.530s helper wall time. One full
+`tools/release/run_native_sortie.py INSTALLED_ELF --route guided --output NEW_DIR`
+then passes in55.720s, original300s cap/independent330s supervisor. Eleven actual
+phases run INTRO through COMPLETE: supported physical walk/boarding, four target
+drones, live interceptor, strict occupied-home landing, automatic OFFLINE,
+physical exit, normal HUD EXIT TO DESKTOP and actual gamePID2195657 exit0.
+Same eight actor/source identities and default sampler/authored tuning persist;
+walking17.691119m, maximum excursion63.359197m, exit error0.170000m. Both complete
+and exit_ui receipts are present. Zero diagnostics, inputs released and all
+helper/game/Xvfb reap flags true. The desktop entry itself was never launched.
+
+The shipped uninstall exits0, removes ELF/icon/ownership manifest/journals/menu
+entry and preserves all five unrelated file fixtures with exact bytes/modes:
+prefix note0640, unrelated desktop0600, private-XDG saved-data fixture0640,
+original runtime note0600 and continuation runtime note0600. The private-XDG
+fixture proves installer noninterference only; Guided uses its own new profile,
+so this is not retained-save reload acceptance. An unowned runtime note correctly
+keeps its directory. All six original and ten continuation PID/starttick pairs
+are independently absent. Independent raw/source review GO.
+
+**Both temporary-wrapper failures stay failed.** The first install/startup
+passed, but the wrapper incorrectly demanded a marker-only log line instead of
+`STARTUP_MENU_READY_OK: JSON`; it stopped29.626s before Guided and successfully
+uninstalled. The reviewed continuation's setup then rejected its intentionally
+retained private-XDG directory before any subprocess. Both sources/results are
+retained. Causal/cumulative-priority reviews permitted only a wrapper sentinel
+correction and owned-directory reuse; the completed startup record remains bound
+to its original generation/hash and was reused without another startup launch.
+A fresh installation was hash/mode/ownership-checked before the sole Guided run.
+Final continuation including install/Guided/uninstall took63.507s. No game failure,
+second Guided attempt, altered route/tuning or raised deadline is represented.
+
+Original clock2026-10-26T14:51:07Z/30minute estimate includes those failures,
+reviews, reporting/push and cleanup. Archive closure is6.290 cumulative minutes;
+final push time is in closeout.json. Verified archive:
+`/srv/mudds-work/linux-clean-b4ff8c0-20261026/records.tar.gz`,341601bytes,
+31regular files, SHA256
+`6d6111a09983b9c15b98e3d3db11ffc7e123903c0c44db77beabd4af8e778e02`.
+Every archived file's bytes/mode were verified before removing loose task files;
+only the archive and closeout remain. No duplicate game binary was retained.
+
+The checkpoint's installed direct-executable route is qualified. Final-package
+INSTALL-LINUX-CLEAN, Guided3/3 final-candidate gate, graphical desktop launch,
+upgrade/rollback/retained/corrupt-data transactions, native GPU/devices/audio,
+and other original release gates remain open. No source change invalidates or
+reopens the accepted earlier installer interruption boundaries.
+
 ## Zenith Torrent handback parked unqualified 20261026
 
 Three native Linux/Xvfb OS-input trials failed; no fourth is selected. Game
