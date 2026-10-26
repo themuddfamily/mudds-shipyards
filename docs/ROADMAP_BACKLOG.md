@@ -1220,7 +1220,7 @@ test is an owner/regression anchor, not a runnable ordinary route.
 | EMBER-OBSERVER | Native package observer production capability | 1 | Capability | DONE; 4270d71 source capability and startup-qualified checkpoint | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | EMBER-NATIVE-SMOKE | Native observer normal-window-close smoke | 1 | Qualification | PARKED; failed fixture/repair and priority review retained | Original frozen observer/window-close route exits normally with exact fixture/cleanup and zero diagnostics; failed fixture not retried unchanged. |
 | EMBER-PACKAGE-ABANDON | Packaged ordinary physical abandonment/home return | 1,14 | Qualification | GATED; supported OS-input route, old external-driver path UNSUPPORTED | [World](#proof-world): supported packaged OS-input outbound/physical abandonment/reboard/ascent/home dock/exit/reuse; source/memory-store pass insufficient. |
-| WORLD-ABANDON-DEFINE | Applicable Aurora/Rime abandonment and Ember reuse/durability cases | 1,14 | Definition | Finite source cases bound in the [abandonment and next-visit contract](#world-abandonment-and-next-visit-binding). Aurora/Rime survey abort, airborne approach abort, ordinary surface return and lifecycle rescue are distinct; tree-detach interruption is separate. Ember same-Main next visit and real-file retirement/restart remain unqualified. Execution GATED on the named ordinary/package callers and exact original route/kill/restart limits; Codex owns these missing executable bindings. Earned-but-unpaid debt must be traced through its separate reward owner before any cold-retirement pass or defect claim. One source pass complete; no unchanged survey or new matrix. | Finite list of applicable Aurora/Rime abandonment and uncovered Ember reuse/durable cuts, each phase/caller/reboard-or-safe-return/debt/next-visit endpoint fixed. |
+| WORLD-ABANDON-DEFINE | Applicable Aurora/Rime abandonment and Ember reuse/durability cases | 1,14 | Definition | Finite source cases bound in the [abandonment and next-visit contract](#world-abandonment-and-next-visit-binding). Aurora/Rime survey abort, airborne approach abort, ordinary surface return and lifecycle rescue are distinct; tree-detach interruption is separate. Ember same-Main next visit and real-file retirement/restart remain unqualified. Execution GATED on the named ordinary/package callers and exact original route/kill/restart limits; Codex owns these missing executable bindings. Earned-but-unpaid end-visit loss is reproduced and fixed in checkpointf51e02a: [real-file/fresh-Main and once-only retry proof](history/ROADMAP_DELIVERIES.md#surface-survey-unpaid-retirement-accepted-20261026); ordinary physical return/distinct OS restart/full-world qualification remain open. One source pass complete; no unchanged survey or new matrix. | Finite list of applicable Aurora/Rime abandonment and uncovered Ember reuse/durable cuts, each phase/caller/reboard-or-safe-return/debt/next-visit endpoint fixed. |
 | WORLD-SAVE-DEFINE | Uncovered world survey/reward/reboard/visit disk boundaries | 14,31 | Definition | BLOCKED definition (Codex): list only uncovered Ember/Aurora/Rime disk boundaries with exact phase/craft, committed survey/earned-unpaid/payment fields, accepted/refused-write or owned kill cut, distinct-process command, supported reboard/home endpoint and original limits. [Planetary contracts](#planetary-recovery-boundaries) govern the result; accepted WORLD-SAVE-EMBER-FIRST-RELAY923d7b326/6112944d0 is reused, not reopened. | List actual uncovered per-world survey/earned-unpaid/paid/reboard/visit disk boundaries; expected recovery/protected state/real-file action fixed, no blanket grid. |
 | WORLD-SAVE-EMBER-FIRST-RELAY | Cold safe-yard recovery retains first-relay progress and later pays the original survey once | 14,31 | Qualification | DONE on exact archive923d7b326/caller6112944d0: saved unpaid relay, real SIGKILL/reap-9, distinct Boot Resume0, exact runtime boundary, safe yard/fresh boarding/attachment1→2/original completion and once-only receipt0→1, zero diagnostics. Correctly staged external metadata; no gameplay/predicate change/tolerance. Original300s/game/660s outer and317.447268s failed costs retained; new wall interval308.992s. [Accepted result](history/ROADMAP_DELIVERIES.md#ember-first-relay-cold-recovery--exact-package-accepted--2026-10-20). Canonical outbound/normal controls/native GPU NOT_RUN, standing-pose restore NOT_SUPPORTED; current/final-package and broader world gates remain open. | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | WORLD-EDGE-DEFINE | Applicable solo cancellation/refusal/failure/repeat cases | 14 | Definition | BLOCKED definition — Codex must bind original solo cancellation/refusal/failure/revisit cuts to world, caller, phase and expected actor/lease/reward/usable-return state; missing product outcome goes to the user. This is a finite list decision, not gameplay acceptance. | List original solo cancellation/refusal/failure/repeat cuts per world, with specific caller/phase, usable return and reward/actor/lease cleanup. |
@@ -3751,21 +3751,26 @@ surface cancellation, aurora_visit_loop_test and rime_visit_loop_test. These
 are source locations, not new passing executions. Existing activity-content and
 once-only reward contracts remain authoritative.
 
-**Exact outstanding debt cut, not a defect assertion.** Start with a genuinely
-COMPLETED survey whose reward publication was refused, with its valid earned
-entitlement and actual store document recorded. End the visit through the
-applicable existing return/cancel boundary: separately retain accepted retirement
-and refused retirement results. Then cold restart and reach the same world's
-next visit. Original earned-debt/once-only policy requires preserved valid
-entitlement, no payment from an incomplete/aborted survey, one payment after a
-successful legitimate retry and none on repeat; unrelated data stays intact.
-The visit binding's retire_interrupted_visit erases only its exact observed
-visit slot after generation/receipt checks, while refusal preserves the prior
-record. That slot contains survey data. Trace the **separate reward/debt owner**
-and its durable document before claiming loss or survival: same-Main unpaid
-retention alone proves neither. Exact fixture, reward-refusal seam, independent
-kill/restart command and original limits are still Codex-owned execution inputs.
-No new product-policy approval is inferred for the already-required earned debt.
+**Unpaid end-visit debt: runtime repair accepted, broader qualification open.**
+The original source pass identified the exact cut: genuine COMPLETED survey,
+refused reward write but successful visit save, accepted/refused end-visit
+retirement, then fresh store/Main and next surface retry. Sourcefc2b33f reproduces
+exactly eight loss failures across Aurora/Rime; there is no separate pending
+survey entitlement in the paid-receipt reward store. The saved active visit was
+the only durable unpaid completion when no passive archive existed.
+Checkpointf51e02a repairs only _retire_saved_visit: validate primary authority,
+observed generation/receipt and paid state, then move unpaid completion to the
+existing passive declined owner with one atomic commit. Refusal/conflict/invalid
+paid state preserves records; incomplete/paid normal retirement and universal
+resume retirement are unchanged. The existing real-file lifecycle fixture now
+proves both worlds' passive debt at Mudds, disclosed staged current arrival and
+legitimate final-anchor payment once; the original quit/resume suite also passes.
+[Actual proof and limits](history/ROADMAP_DELIVERIES.md#surface-survey-unpaid-retirement-accepted-20261026).
+This is fresh Main/store in one OS process with disclosed observation/arrival
+staging, not ordinary outbound/return or independent OS kill/restart proof.
+Those original command/profile/cut/limits remain Codex-owned execution gaps;
+no new policy approval or completed-world claim is inferred. Ember cases below
+are not covered by this Aurora/Rime repair.
 
 **Ember: reuse and durable retirement after the retained source ABANDON.**
 GameFlow.abandon_ember_surface_journey forwards to PlanetaryJourneyCoordinator;

@@ -1,15 +1,15 @@
 # Development roadmap
 
 **Playable alpha; full original scope remains unfinished.** Latest Windows build:
-[30534f5 checkpoint](builds/windows/MuddsShipyards-30534f5-checkpoint.zip)
-([changes and validation](builds/windows/MuddsShipyards-30534f5-notes.txt)).
-Matching [Linux checkpoint30534f5](builds/linux/MuddsShipyards-30534f5-linux-x86_64.tar.gz)
-([Linux validation](builds/linux/MuddsShipyards-30534f5-linux-notes.txt)) is available.
-This checkpoint repairs collision floor-contact loss while walking inside a
-moving cabin across tiny floating-point tangent residue. The captured regression,
-jump/airborne/missing-support cases and strict package startups pass. Prior Zenith
-pilot/hit/two-home/reuse qualification retains its original4bf5e88 source scope;
-this repair does not qualify the parked Bulwark gunner journey or full craft.
+[f51e02a checkpoint](builds/windows/MuddsShipyards-f51e02a-checkpoint.zip)
+([changes and validation](builds/windows/MuddsShipyards-f51e02a-notes.txt)).
+Matching [Linux checkpointf51e02a](builds/linux/MuddsShipyards-f51e02a-linux-x86_64.tar.gz)
+([Linux validation](builds/linux/MuddsShipyards-f51e02a-linux-notes.txt)) is available.
+Ending an Aurora or Rime visit now preserves completed unpaid survey credit for
+a legitimate later surface retry. Private real files/fresh Main, refusal/conflict
+and once-only payment checks pass. Ordinary physical world travel and a distinct
+OS restart remain unqualified. Earlier cabin-contact and Zenith qualifications
+retain their recorded source/scope; full world and craft gates remain open.
 Nine of the promised 17 craft exist. All 36 original parent outcomes and ten phase
 exit gates remain open; completed child results are retained, not counted as whole
 features. There is no evidence-backed project percentage or completion date.
@@ -87,32 +87,25 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Selected production repair: unpaid surface-survey credit at visit end.**
-Existing WORLD-ABANDON/WORLD-SAVE earned-debt boundary, Aurora and Rime only.
-Complete each real survey through its existing interaction fixture, refuse only
-the reward write while its visit checkpoint saves, then end the visit through
-the actual expedition retirement seam. The old runtime must reproduce loss of
-the saved unpaid completion. Repair only end-of-visit retirement to retain that
-completion through the existing passive declined-visit owner atomically; the
-universal interrupted-resume retirement path remains independent.
-
-Pass requires fresh store/Main objects to retain passive COMPLETED unpaid data,
-no active visit/automatic admission/payment at Mudds, and legitimate final-anchor
-retry after current surface admission to pay once with repeat suppression.
-Refused publication and conflicting existing unpaid archives preserve prior
-bytes; incomplete and already-paid retirement retain existing behavior. The
-existing focused fixture may stage surface admission/actor positions and use
-in-process fresh Main; disclose those limits. Ordinary physical return, exported
-world journey, actual OS interruption and full world gates remain open.
-
-Implementer owns the shared expedition and one existing lifecycle test; root
-owns source freeze, old RED/new GREEN, focused checks, checkpoint, integration,
-push and cleanup. Independent persistence review precedes execution. Estimate
-60minutes including checks/build/closure; accounting includes the preceding
-world-definition/source pass, conservatively from the prior ef95885a8 commit.
-Stop on the first unexpected fixture/runtime failure; preserve source/raw and
-review the actual cause before continuation. No new save schema, validator,
-debt queue or inferred product-choice approval is selected.
+**Delivered production repair: unpaid survey credit at visit end.**
+Checkpointf51e02a preserves Aurora/Rime genuinely completed but unpaid observations
+through the existing passive owner in one atomic end-visit retirement write.
+Primary/receipt/generation/paid validation, publication refusal and conflicting
+unpaid archives preserve prior data. Incomplete/paid retirement and universal
+interrupted-resume retirement retain their existing paths.
+The old runtime fails exactly eight loss assertions in93.101s; repaired lifecycle
+suite passes96.617s and existing
+quit/resume suite passes250.040s,
+both OS0/one success marker/no diagnostics. Real files/fresh Main/staged current
+surface arrival prove passive debt and legitimate once-only retry; this is not
+ordinary physical return or a distinct OS restart. Clean paired exports, three
+strict menu startups and actual PE/ELF/archive audit pass; only compiled shared
+surface expedition differs from accepted30534f5. Independent final review GO.
+[Actual source/proof/limits](docs/history/ROADMAP_DELIVERIES.md#surface-survey-unpaid-retirement-accepted-20261026).
+The initial test-only parse failure remains FAILED. All cost includes the prior
+world-definition/source pass from04:50:31UTC against the60minute estimate;
+owned branch/archive/scratch closure is recorded with the delivery. Full
+WORLD-ABANDON/WORLD-SAVE, ordinary package and final gates remain open.
 
 **Delivered: Zenith pilot handling, real hit, two homes and fresh reuse.**
 Checkpoint4bf5e88, release driver4870595: one complete ordinary route passes
@@ -137,8 +130,8 @@ was an executor assumption; the physical predicates were fixed before trial3.
 The [finite abandonment/next-visit binding](docs/ROADMAP_BACKLOG.md#world-abandonment-and-next-visit-binding)
 now separates Aurora/Rime survey abort, airborne approach abort, physical return
 and lifecycle rescue; it fixes the uncovered Ember next-visit and real-file
-abandonment/restart endpoints. The exact unpaid-debt retirement/cold-restart cut
-is named without asserting a runtime defect or a pass. One bounded source pass
+abandonment/restart endpoints. The unpaid-debt end-visit loss is now reproduced and repaired above with
+real-file/fresh-Main proof; distinct OS restart remains unqualified. One bounded source pass
 ended with the missing ordinary/package commands, fixtures and original limits
 assigned to Codex. No engine or qualification ran; no product goal closed.
 Do not repeat this source survey or use staged Ember interruption as ordinary

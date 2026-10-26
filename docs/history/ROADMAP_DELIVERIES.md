@@ -27669,3 +27669,58 @@ contains only records.tar.gz and closeout.json;11 accepted checkpoint artifacts
 remain public. Accepted fix branch and archived failed gunner branch are deleted
 locally; the latter remote branch was deleted with its exact expected tip.
 Unrelated retired worktrees/registrations remain protected.
+
+
+<a id="surface-survey-unpaid-retirement-accepted-20261026"></a>
+## Aurora/Rime unpaid survey retirement repair accepted — 2026-10-26
+
+Game/sourcef51e02aa8a8729e08f76590963999f4cb8583bc4, [Windows checkpoint](../../builds/windows/MuddsShipyards-f51e02a-checkpoint.zip)
+and [matching Linux](../../builds/linux/MuddsShipyards-f51e02a-linux-x86_64.tar.gz).
+Ending a visit previously erased its only saved completed unpaid survey. The
+surveys' direct reward adapter bypasses the generic owed queue; reward store
+holds granted receipts only. The narrow shared expedition repair archives only
+unpaid COMPLETED observations through existing plan_decline plus one store commit,
+with primary/generation/receipt/validated paid authority fences. Failed writes,
+invalid authority and conflicting unpaid archives preserve prior data. Universal
+resume retirement, incomplete/paid path and save schemas remain unchanged.
+
+Regression observations are genuinely earned by interactions on disclosed
+stand-in surfaces; only reward publication is refused while UserDataStore saves
+the terminal visit. Existing end-visit retirement is called directly, fresh
+Main/store reads the same private actual files, and disclosed staged production
+streaming admission precedes final-anchor interaction. Passive data does not
+admit a world or pay at Mudds. Retry pays once and repeated interaction cannot
+pay twice; unrelated data and old passive observations survive.
+Initial frozen94b89b5 failed test parsing and remains FAILED. Exactly two bool
+annotations corrected it; typed oldfc2b33f exits1 in93.101s with precisely eight
+expected debt-loss failures, no setup failures. Unchanged repaired regression
+and existing quit/resume suite pass at their original300/600s caps. Source and
+final actual-result independent review GO. No unchanged retry or deadline change.
+
+Actual stage elapsed seconds (guard/review/closure overhead additional):
+
+- import: 6.741s / exit0
+- survey-lifecycle: 96.617s / exit0
+- visit-quit-resume: 250.040s / exit0
+- windows-export: 10.610s / exit0
+- windows-payload-startup: 26.301s / exit0
+- linux-export: 25.976s / exit0
+- linux-startup: 22.821s / exit0
+- archive-startup: 24.050s / exit0
+- audit: 6.151s / exit0
+
+All three strict startups require actualOS0 and exactly one STARTUP_MENU_READY_OK;
+Windows PCK runs under Linux Godot, not native Windows. Actual PE/ELF inventories
+match1527 entries; only compiled shared expedition
+changes from accepted30534f5. Stock PE engine code, source metadata and exact
+Linux archive bytes/modes/source epoch verify. All automated Godot is headless/
+Dummy with private profiles. Native Windows/GPU/devices/audible/rendered review
+remain NOT_RUN. GitHub Actions remains disabled; no Downloads publication.
+
+This accepts the runtime debt repair and disclosed real-file/fresh-Main proof
+only. Ordinary physical world journeys, exported world recovery/return, distinct
+OS interruption/restart, installed/final and complete world milestones stay open.
+The Ember abandonment/reuse/durability cases are separate. Cost includes preceding
+world-definition/source work from2026-10-26T04:50:31UTC against60minute estimate.
+Owned cleanup and source/raw preservation are recorded in
+`/srv/mudds-work/surface-survey-retirement-20261026/closeout.json` after closure.
