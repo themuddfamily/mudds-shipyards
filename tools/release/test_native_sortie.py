@@ -6741,6 +6741,29 @@ class CrewRecoverySafetyTests(unittest.TestCase):
         s['crew'].update(seated=False, current=False, tagged=False, authority_id=0, assignment={})
         return s
 
+    def test_helm_controller_waits_for_prompt_refresh_before_ordinary_interact(self):
+        pilot = native.CrewRecoveryPilot(cold=True, expected_pid=42)
+        pilot.stage = 'helm_aim'
+        s = self.awake()
+        s.update(frame=100, player=[0, 0, 0], position=[0, 0, 0],
+                 walk_forward=[0, 0, -1], walk_right=[1, 0, 0],
+                 walk_tuning=copy.deepcopy(native.LifeTowPilot.DEFAULT_WALK),
+                 camera_origin=[0, 1.5, 0], camera_forward=[0, 0, -1],
+                 helm_aim=[0, 1.5, -2], native_interact=False, candidate=True,
+                 station_candidate={'path': 'CopilotSeatAnchor/SoloPassengerSeatInteraction'})
+        # Main refreshed the prompt before Player's camera interpolation. The
+        # current camera is aligned, but that prior prompt is still visible.
+        pilot.last_state = s
+        keys, _dx, _dy, _fire = pilot.update(s, 1)
+        self.assertNotIn('e', keys)
+        self.assertEqual(pilot.stage, 'helm_aim')
+        self.assertIsNone(pilot.tap_key)
+        ready = copy.deepcopy(s); ready.update(frame=101, station_candidate={})
+        pilot.last_state = ready
+        keys, _dx, _dy, _fire = pilot.update(ready, 2)
+        self.assertIn('e', keys)
+        self.assertEqual(pilot.stage, 'helm_seating')
+
     def test_helm_press_requires_ship_candidate_and_fails_first_unfinished_wrong_assignment(self):
         s = self.awake()
         s.update(candidate=True, station_candidate={})

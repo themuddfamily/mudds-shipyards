@@ -9378,7 +9378,7 @@ class CrewRecoveryPilot(LifeTowPilot):
             direction = unit(sub(target, s['camera_origin']))
             pitch = math.asin(max(-1, min(1, direction[1])))-math.asin(max(-1, min(1, s['camera_forward'][1])))
             dy = round(max(-180, min(180, -pitch/s['walk_tuning']['mouse'])))
-            if abs(yaw) < .08 and abs(pitch) < .08 and not s['native_interact'] and (s['crew']['candidate'] if engineer else True):
+            if abs(yaw) < .08 and abs(pitch) < .08 and not s['native_interact'] and (s['crew']['candidate'] if engineer else (s['candidate'] and not s['station_candidate'])):
                 if not engineer: self.require_helm_candidate(s)
                 self.tap('e', now)
                 if self.tap_key == 'e': self.enter('crew_seating' if engineer else 'helm_seating', s)
