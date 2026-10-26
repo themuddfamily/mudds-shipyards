@@ -103,6 +103,29 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Selected production repair: Reduced flash updates an already-visible torpedo burst.**
+COMFORT-FLASH/original parent29, one existing authored effect. On the clean
+candidate, intercept an actual SeekerTorpedoProjectile and let its still-visible
+terminal burst reach nonzero age. Toggle the existing Reduced flash setting
+OFF→ON→OFF. The same mesh must immediately use authored emission4.0→1.2→4.0 and
+its current-age normal/reduced scale. Repeated toggles must preserve the exact
+remaining0.55s lifetime budget, position, visibility, projectile/authority counts,
+damage and released hurtbox state. Expired bursts must stay hidden; newly created
+bursts must still follow the selected mode. No new visual policy is introduced.
+Proof: extend existing seeker_torpedo_projectile_test using actual burst material/
+mesh and original interception/physics, old-code RED then repaired-code GREEN;
+existing reduced_flash_combat_effects and torpedo_boat_opponent regressions cover
+production settings propagation/other effects. Root reviews actual material and
+unchanged gameplay/lifetime ownership. Fresh clean-commit Windows/Linux exports,
+three strict menu-readiness checks and exact package audit precede acceptance.
+Files: seeker_torpedo_projectile.gd and existing projectile test; root owns docs/
+checks/checkpoint/integration. Existing300s suite limits stay unchanged. Stop at
+first unexpected failure for causal review. Clock2026-10-26T07:32:00UTC and
+45minute estimate include readiness, all checks, build and branch/scratch cleanup.
+This closes only live terminal-burst reconfiguration. Ordinary UI/Reset/cold-
+restart episodes, full combat/comfort-family and native GPU/human gates remain
+open; accepted HUD damage-flash scope is not rerun or reopened.
+
 **Delivered production repair: Ember checkpoint on ordinary application quit.**
 Checkpoint8e74c40 saves through the existing production collector in the existing
 quit owner, before actor/lease teardown. The actual Main Quit test passes157
