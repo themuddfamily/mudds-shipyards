@@ -110,6 +110,15 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**PARKED: retained Heavy data through ordinary Jovian crew recovery.**
+The sole new candidate reaches the full chair/forced-stop/cold walk/helm/normal
+OS0 journey, but its final protected-namespace check fails: a default race and
+its tutorial were added without a live transition receipt. Original settings,
+Heavy credit1 and paid terminal remain intact. Independent review upholds PARK;
+no second run or blanket data exception. [Failure and exact reopening condition](docs/history/ROADMAP_DELIVERIES.md#retained-heavy-crew-recovery-parked-20261026).
+Candidate source/raw/private exports are archived, not merged or published as an
+accepted checkpoint. Fresh378d99c crew acceptance stays closed.
+
 **Reduced-motion source definition is closed; ordinary-route binding remains blocked.**
 The [eight remaining production consumers](docs/ROADMAP_BACKLOG.md#reduced-motion--finite-production-consumers)
 now have literal OFF/ON endpoints and existing focused-suite references. No

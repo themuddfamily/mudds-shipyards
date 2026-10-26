@@ -29898,3 +29898,64 @@ remains in the prior verified Core archive; its duplicate copy was removed.
 All four observed identities absent; only archive/closeout remain privately.
 Closure preparation88.695minutes from the original13:11:52UTC against90;
 final push retains that same clock. Main gameplay and checkpointb4ff8c0 unchanged.
+
+
+<a id="retained-heavy-crew-recovery-parked-20261026"></a>
+## Retained Heavy crew recovery — final namespace predicate failed — 2026-10-26
+
+CREW-RECOVERY-ORDINARY's accepted fresh378d99c case stays closed. The new
+retained-progress candidatef5e6caceea81978c4ba752ed03b07d0163d94382 remains
+**PARKED and unmerged**, with its source bundle and eight private export/check
+files preserved in `/srv/mudds-work/crew-retained-20261026/records.tar.gz`.
+Verified archive:317739266bytes,143regular files/nine links, SHA256
+`09d4f3c6979d2ae484aa3b09a11b74f9665b22d0f2af1f91a48c24c6b8344dca`.
+No new canonical checkpoint is published. Original source baseline1b528980c,
+clock18:50:39UTC/90min/hard20:20:39UTC and full300s/independent330s caps remain
+charged; archival closeout records the final cumulative time.
+
+The exact b4-earned9296-byte fixture/SHA256
+`af2fada0a687b3a2dad6ee5c4550d4e6cd92120f2df94f6681f053e5b23ed409`
+contains session2, Heavy credit1, its paid terminal and real settings. The
+candidate extends only the existing observer/caller/tests: optional pinned input,
+relative session/startup checks, protected file namespaces and actual live
+settings/reward/Heavy-board projections, including paused observations.
+
+First Python run263tests/14.046s fails one new synthetic fixture: its file
+advanced to28 while its live sample incorrectly retained generation20 below
+fixture27. Independent review authorizes exactly one test-line correction, not a
+production guard change. Corrected263tests pass13.705s/14.032s wall; both logs and
+the reconstructed first-candidate patch remain archived. Clean import20.737s,
+CLI/privacy3311assertions1.150s, Windows/Linux exports26.773/25.907s and three
+strict startups26.711/22.654/24.314s pass. Each startup requires actual OS0 and
+exactly one STARTUP_MENU_READY_OK. Actual1529 Windows/Linux entries match;
+only compiled observer semantics change against378d99c, plus the exact66 known
+node_ids-only scene entries accepted by the unchanged strict parser (same node
+count/offset, empty id_paths, every other decoded byte exact). Stock PE code,
+Linux archive bytes/modes/epoch, source/index and post-export cache guards pass.
+
+The sole full ordinary route runs84.357s (independent guard84.836s): hub walk,
+real Jovian engineer admission/crew commit, owned SIGKILL/reap−9, distinct normal
+Resume/Begin Shift into awake supported cabin, two physical goals, actual helm,
+ONLINE/Wcommand1 and normal HUD Quit/OS0. Actual processes2256379→2256531 are
+reaped. Final validation FAILS, so these steps do not qualify the retained case.
+Settings, reward ledger and paid Heavy terminal remain exact, but final generation48
+adds `cinder_timed_race_session` and the seen tutorial
+`cinder_reach_checkpoint_route`. Source explains a possible ordinary departure
+path through default free-flight activity start/briefing publication; the caller
+never observes that live race/tutorial transition. A tutorial-only allowance
+would also miss the new race namespace. Independent review upholds PARK: no
+acceptance rewrite, source correction, second run or new deadline is selected.
+
+The first failed predicate is “all actual retained settings reward activity and
+tutorial namespaces remain canonically exact.” Secondary cleanup reports an
+already-closed stdout double-drain after OS0; it does not indicate a live process.
+All48 observed stage identities are absent, synthetic inputs released, game/input
+helper/Xvfb reaped and display288 socket/lock removed. Zero engine diagnostics.
+Raw flags retain the cleanup error rather than retroactively clearing it.
+
+Reopening requires actual live race owner/director/acknowledged-state and matching
+GameFlow/HUD tutorial provenance for any permitted new ordinary progress, exact
+preservation of the original settings/Heavy credit/terminal and a fresh independent
+cumulative-priority decision. A blanket namespace exception, tutorial subset check
+or unchanged replay cannot close the failed contract. No unpaid-debt, installed,
+full-family, rendered, native hardware, audio or final-release acceptance is claimed.
