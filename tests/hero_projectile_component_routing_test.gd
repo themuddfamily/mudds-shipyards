@@ -289,6 +289,18 @@ func _find_projectile_ray(
 	surface: StringName
 	) -> Dictionary:
 	var candidates: Array[Vector3] = [anchor]
+	if surface == &"port":
+		var doorway_wall := craft.find_child("CargoHullPortWallForward", true, false) as CollisionShape3D
+		if doorway_wall != null and doorway_wall.shape is BoxShape3D:
+			# The cargo shell's central port aperture lets an anchor ray pass
+			# through to starboard. Its old outer grid samples belong to fore/aft
+			# regions under the five-component oracle. Replace only the initial
+			# candidate with a point 10 cm inside this real wall's doorway edge;
+			# retain all 25 grid samples and the 26-candidate side-ray ceiling.
+			# Convert through the collider so nesting does not change the point.
+			var wall_local_target := doorway_wall.to_local(craft.to_global(anchor))
+			wall_local_target.z = (doorway_wall.shape as BoxShape3D).size.z * 0.5 - 0.10
+			candidates[0] = craft.to_local(doorway_wall.to_global(wall_local_target))
 	if surface in [&"port", &"starboard"]:
 		# Some retained wing collision is much thinner than the overall fuselage
 		# envelope. Probe a bounded static grid to find a real side ray whose

@@ -111,9 +111,26 @@ member. It is not full craft acceptance or the ordinary damage/repair journey.
 | Steps | Add a forward ray to the existing test; run it against unchanged runtime and retain the actual wrong component receipt. Separate projectile selection from the collision-only selector. Run the same test and affected existing model/collision/recovery checks. |
 | Pass/fail | Projectile nearest-region selection includes exactly forward hull, port wing, starboard wing, core and engine. Existing four functional ray cases still reach their named components across the existing nine craft. Each contact is finite, affects only the expected component, retains the same ledger/generation and subtracts exactly resolved hull damage once. Positionless fallback retains uniform five-component loss; collision selection remains the original four functional components. Thresholds/gain/repair rate stay unchanged. Zenith's existing forward cue is visible, has emitting sparks and is within0.001m of its reported anchor on the same ledger. |
 | Proof | Existing `hero_projectile_component_routing_test.gd`: old runtime must produce the labelled `FORWARD_PROJECTILE_ATTRIBUTION_MISMATCH` at an actual forward receipt; corrected runtime exits0 with exactly one `Hero projectile component routing test passed` and no diagnostics. Review exact baseline failures before runtime edits; an unavailable physical ray is a failed precondition, not permission to stage ledger damage. Retain the existing suite's300s cap. |
-| Dependencies | Existing production contact/ledger/cue owners; test-only preparation is present, runtime unchanged and checks NOT_RUN. Historical collision change limited only collision; projectile reuse of that filter caused this regression. Ordinary Zenith hostile activation/controls/contact ordering/return/repair endpoints and deadlines remain Codex-owned missing bindings in the backlog. |
+| Dependencies | Existing production contact/ledger/cue owners; test-only preparation is frozen57606dc8a; runtime unchanged. First baseline FAILED isolation as recorded below. Historical collision change limited only collision; projectile reuse of that filter caused this regression. Ordinary Zenith hostile activation/controls/contact ordering/return/repair endpoints and deadlines remain Codex-owned missing bindings in the backlog. |
 | Stop | Original clock2026-10-26 12:32:12UTC; estimate90minutes including source definition, checks, checkpoint and cleanup. The intervening owner-requested roadmap pass is recorded as an interruption; do not reset or hide elapsed cost. Stop on the first unexpected failure; no automatic retry. |
 | Closure | Record PASS or first failed predicate. On acceptance: focused checks, clean-commit Windows checkpoint plus actual silent isolated package startup (exit0 and `STARTUP_MENU_READY_OK`), matching Linux checkpoint, concise notes, integrate/push and remove only the completed owned branch/worktree/processes/scratch. Retain unaccepted unique source. |
+
+**Baseline1 stopped — no runtime change.** Frozen57606dc8a, import14.582s,
+actual test33.218s/exit1. All nine real forward contacts hit core only, leave
+forward integrity1 and spend hull11 exactly once (Zenith68→57). Unexpected
+Hauler port-ray precondition fails under the five-region oracle, so this mixed
+failure is not accepted as isolated RED. The private runner also counted duplicate
+stdout/profile errors twice; per-log matching is corrected without accepting the
+extra failure. Source-only geometry diagnosis and independent cumulative-priority
+review are required before one corrected baseline; no automatic retry. Original
+12:32:12UTC clock and300s cap remain unchanged.
+Independent source/priority review authorizes one corrected test-only baseline:
+the Hauler port wall ends atz−2.3; the old side grid misses the doorway or hits
+forward/engine regions. Aim only its initial candidate atz−2.4, derived from the
+actual box edge, retaining the original25 side samples/26-candidate budget and
+all actual resolver checks. At12:54:04UTC cumulative elapsed is21.867minutes
+including the owner-requested roadmap interruption, against90minutes. Runtime
+edits remain gated on isolated RED; a second unexpected baseline failure stops.
 
 **What stays closed.** Zenith's pilot/hit/two-home/reuse, settled Main and full
 Zenith→Torrent→same Zenith handback retain their recorded acceptance. Latest
