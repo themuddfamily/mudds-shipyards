@@ -27886,3 +27886,16 @@ GitHub Actions remains disabled; no Downloads publication. All cost from
 closure against60minute estimate; no300/660 cap or task clock changed. Source/raw
 archive, process/branch/scratch closure live in
 `/srv/mudds-work/ember-abandon-cold-probe-20261026/closeout.json` after closure.
+
+Closure: accepted source is integrated in pushed main e2c5ccf55. Verified archive
+`/srv/mudds-work/ember-abandon-cold-probe-20261026/records.tar.gz` contains 238 regular files/16 symlinks,
+55,427,075 bytes, SHA256 `0526363e02e415d2b67b761a59da5caa93b3889106c0d66488d8d3f84d554a3f`.
+All 16 stage supervisors and 71 observed PID/start identities are absent.
+Owned loose scratch is removed; only the archive and adjacent closeout remain.
+The task branch was deleted against exact e2c5ccf55 after verifying pushed main
+contains it, no registered worktree owns it and its remote ref is absent.
+Unrelated worktrees and prior archives are untouched; all eleven published build
+artifacts are retained with verified hashes. Closure documentation prepared at
+57.632 cumulative minutes from the original06:03:21UTC clock, including
+both native attempts and driver correction against the original60minute estimate.
+The adjacent closeout records final push time and cumulative elapsed duration.

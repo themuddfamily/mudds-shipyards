@@ -27,8 +27,23 @@ time**. A closed goal stays closed unless an identified source change invalidate
 its proof. When acceptance is recorded, update both the selected card and its
 existing detailed backlog binding so stale “missing” text cannot schedule it again.
 
-Only a goal with a frozen result and proof can enter the work queue. Every selected
-assignment must fit this sentence:
+Only a goal with a frozen result and proof can enter the work queue. This applies
+to every remaining roadmap outcome, including follow-up fixes. Before assignment,
+its existing card must contain all of these fields:
+
+| Required field | Concrete content |
+| --- | --- |
+| Goal | One named behavior or acceptance result; broad milestones remain containers. |
+| Starting state | Exact candidate, save/profile, location and participants needed to reproduce it. |
+| Actions | A finite ordered route or command; no open-ended “improve”, “polish” or “investigate”. |
+| Pass/fail | Observable values and endpoint, including required preserved data and existing limits. |
+| Proof | The exact check or ordinary player route and the result to retain; a plan or passing unrelated test does not qualify. |
+| Dependencies | Named prerequisites; a missing choice, value, route or device is a blocker with an owner. |
+| Stop and closure | Stop at acceptance or first unexpected failure; retain cumulative cost, checkpoint requirement and branch/scratch cleanup. |
+
+A missing field blocks assignment. Resolve it in that same card; do not create a
+new planning chain. A finished child never implies that its parent is finished.
+Every selected assignment must fit this sentence:
 
 > On **[candidate and starting state]**, the player performs **[finite actions]**;
 > **[observable values/endpoints]** must follow within **[existing limits]**,
