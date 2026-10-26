@@ -247,8 +247,8 @@ func _test_scenario_contract(
 	board.call(&"_on_scenario_concluded", EncounterScenarioDirector.SCENARIO_TORPEDO_RUN, EncounterScenarioDirector.OUTCOME_CLEARED)
 	_check(_reward_requests.size() == 1, "a duplicate conclusion cannot pay the run twice")
 	_check(
-		board.get_offered_scenario() == EncounterScenarioDirector.SCENARIO_HEAVY_BREACH,
-		"a concluded Torpedo Run rotates the board back to Heavy Breach"
+		board.get_offered_scenario() == EncounterScenarioDirector.SCENARIO_PAIRED_WING,
+		"a concluded Torpedo Run posts the next Paired Wing contract"
 	)
 
 	# Abandon: a cancelled run stands the boat down cleanly and pays nothing.
