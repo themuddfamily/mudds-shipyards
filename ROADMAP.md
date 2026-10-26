@@ -109,6 +109,12 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 **Selected release capability: ordinary Jovian engineer interruption/recovery.**
 Existing CREW-RECOVERY-ORDINARY will gain its missing normal-controls caller.
+First packaged attempt reached real engineer commit/kill/recovery/cabin walk,
+but co-pilot priority intercepted helm Interact. One source/raw-supported runtime
+correction is selected: add Jovian to the existing guarded cockpit priority and
+make the caller reject a wrong claim immediately. The captured-geometry source
+regression must distinguish old/new selection before one full retry; a further
+failure parks the attempt. Original clock and every route/data limit stay fixed.
 One fresh hub→Freight→actual Jovian ramp/cabin→engineer-seat journey commits the
 existing four-field crew preference. Kill/reap the exact owned game, restart the
 same ELF/profile as a distinct process through normal recovery UI, then walk the

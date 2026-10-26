@@ -4137,6 +4137,26 @@ selects no automatic successor.
 
 ### Ordinary Jovian engineer recovery — selected contract
 
+**First trial stopped; one causal correction selected, same clock.** Candidate
+d192f1e38 passed258 Python/privacy3311/import, paired exports, three strict
+startups and1529-entry audit. Native157.728s completes actual engineer commit,
+owned kill-9 and distinct normal recovery/cabin walk, then E takes co-pilot
+passenger instead of helm. Root aborts/reaps rather than waits the remaining cap;
+inputs/all child cleanup pass, diagnostics0. Actual coldPID2230282 frames613/614
+have top-level Jovian boarding candidate true and co-pilot station candidate;
+no boarding discovery/reach defect is established. Existing solo cockpit aim
+precedence excludes Jovian while the station chair wins Interact.
+Independent causal/cumulative review permits ONE correction: include Jovian in
+that existing guarded precedence; add actual-candidate/no-station pre-E and
+immediate wrong-crew-claim driver assertions. Extend ownership only to existing
+`scripts/game/game_flow.gd` and `tests/jovian_solo_engineer_route_test.gd`.
+Before the sole retry, a focused captured-geometry regression must distinguish
+old co-pilot selection from corrected cockpit selection, with real chair aim
+still selecting its chair. No reach/discovery/path/threshold/time/policy change.
+The first failure/source/bundle/export bytes remain retained. Any further
+unexpected check or full-route failure parks this attempt under the same original
+17:01:14UTC/90min/hard18:31:14; no automatic third trial or fresh clock.
+
 Existing CREW-RECOVERY-ORDINARY, selected2026-10-26 on maina1bc1d3de.
 This delivers the missing executable ordinary-input release capability, not a new
 recovery policy or validator. One bounded implementation owns only existing
@@ -4165,8 +4185,10 @@ Release synthetic inputs, SIGKILL that exact owned Popen and reap actual-9 withi
 existing15s; preserve committed bytes through the interruption. Launch the same
 embedded ELF/args/private profile in a distinct process. Normal observed OS menu
 input selects Resume and Begin Shift, never an emitted signal or production-method
-call. Require actual crash/session advancement and the supported awake/unseated
-home cabin in phase IN_FLIGHT_CABIN/HUD mode cabin, registered floor/frame/hatch
+call. Require session/startup1→2, unclean_start_count1 and exactly one actual
+crash_detected event, and the supported awake/unseated
+home cabin in phase IN_FLIGHT_CABIN/actual HUD mode aboard (GameFlow requests
+cabin; GameHUD resolves it to MODE_ABOARD), registered floor/frame/hatch
 and fresh ownership; no old engineer, seat, pilot or transient authority restored.
 The saved preference remains mode crew until a later ordinary context commit.
 Walk to local(0,.60,-5.25), then
