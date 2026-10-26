@@ -10444,6 +10444,13 @@ def game_leg_arguments(base_arguments, route, output, leg):
     return arguments
 
 
+def game_leg_output_lines(log_path, leg_log_offset):
+    """Replay only this process's retained output before applying its warning policy."""
+    with log_path.open('rb') as stream:
+        stream.seek(leg_log_offset)
+        return stream.read().splitlines()
+
+
 def game_leg_umask(route, future_format):
     """Keep newly published dedicated-fixture artifacts private without changing other routes."""
     return 0o077 if route == 'unsupported-save' and future_format in ('settings','legacy') else -1
@@ -10617,7 +10624,8 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
                                     code = record_terminal_game_exit(game, leg_result, output/'game.log')
                                     if isinstance(pilot, (ZenithTorrentHandbackPilot, GuidedExitPilot, ArrowReturnReusePilot, CinderSupplyPilot, HeavyBreachPilot, RaceHomePilot)):
                                         require(pilot.quit_requested, f'native process exits only after normal UI request (actual exit {code})')
-                                        tail = (output/'game.log').read_bytes().splitlines()
+                                        tail = (game_leg_output_lines(output/'game.log',leg_log_offset) if unsupported_files else
+                                                (output/'game.log').read_bytes().splitlines())
                                         for observation in observations_from_lines(tail, leg_warnings):
                                             if (corrupt_files or unsupported_files) and observation['pid'] != game.pid: continue
                                             if observation['sequence'] > pilot.last_state['sequence']:

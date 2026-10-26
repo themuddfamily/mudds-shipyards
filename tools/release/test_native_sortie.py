@@ -5326,6 +5326,21 @@ class UnsupportedLegacyCallerTests(unittest.TestCase):
             self.assertEqual(pilot.update(sample,100)[0],set())
             with self.assertRaisesRegex(AssertionError,'actual process reaches'): pilot.finish(0)
 
+    def test_terminal_replay_uses_current_leg_bytes_before_applying_cold_warning_policy(self):
+        first=native.UnsupportedLegacyFiles.WARNINGS
+        old=native.PREFIX+json.dumps(dict(pid=101,sequence=7)).encode()
+        current=native.PREFIX+json.dumps(dict(pid=202,sequence=1)).encode()
+        first_segment=b'\n'.join([*first,old])+b'\n'
+        with tempfile.TemporaryDirectory() as tmp:
+            path=Path(tmp)/'game.log'; path.write_bytes(first_segment+current+b'\n')
+            replay=native.game_leg_output_lines(path,len(first_segment))
+            self.assertEqual(native.observations_from_lines(replay,()),[dict(pid=202,sequence=1)])
+            self.assertEqual(native.observations_from_lines(native.game_leg_output_lines(path,0),first),
+                             [dict(pid=101,sequence=7),dict(pid=202,sequence=1)])
+            with path.open('ab') as stream: stream.write(first[0]+b'\n')
+            with self.assertRaises(RuntimeError):
+                native.observations_from_lines(native.game_leg_output_lines(path,len(first_segment)),())
+
     def test_first_only_warning_roster_rejects_any_cold_warning(self):
         with tempfile.TemporaryDirectory() as tmp:
             files=self.fixture_files(Path(tmp)); files.require_warnings(list(files.WARNINGS))
