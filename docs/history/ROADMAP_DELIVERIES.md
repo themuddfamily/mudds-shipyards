@@ -28449,4 +28449,13 @@ repair/loss, current art, network/physicaldevice/nativeGPU/finalrelease remain
 OPEN/NOT_RUN; nativeWindows and mandatoryhuman facts remainowner-excluded and
 unperformed. GitHubActions staysdisabled. Original09:51UTC90minute estimate
 continues, integration preparation150.511minutes; no new budget. Owned
-archive/branch/worktree/scratch cleanup: PENDING verified closure and final push.
+archive/branch/worktree/scratch cleanup is complete: all14 supervisors/62 observed
+owned identities absent; only main remains locally. Unrelated detached diagnostic
+worktrees and old registrations are retained. All11 canonical checkpoint files
+retain verified hashes. Verified sourcebundle/raw records are preserved in
+`/srv/mudds-work/zenith-torrent-handback-resume-20261026/records.tar.gz` (65057196bytes;
+SHA256`475aeac6430301f19aa19e24c6321d6134ebb61b097c9a5178ce66b653087bc2`),
+all185regularfiles/14links with exact names/modes/content hashes checked before
+owned loose scratch deletion. Task folder contains only archive and closeout.
+Archive closure records155.378minutes against the same09:51UTC/90minute
+estimate; final documentation/push cost continues in closeout.json.

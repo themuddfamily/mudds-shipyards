@@ -106,8 +106,11 @@ The safe cargo detour preserves every original destination and deadline.
 [Exact proof, failures and scope](docs/history/ROADMAP_DELIVERIES.md#zenith-torrent-handback-accepted-20261026).
 This closes only CRAFT-ACCEPT-ZENITH's cross-craft member. Component damage/repair,
 loss/regeneration, current art/device/network/final gates remain open. No replay
-is selected. Integration/checkpoint/archive/branch cleanup are closing on the
-original09:51UTC clock, now150.511minutes against90; no budget was reset.
+is selected. Integration and checkpoint are pushed; source/raw archive verified,
+owned worktree/branch/scratch removed and all14 supervisors/62 observed process
+identities absent. Archive closure records155.378minutes from09:51UTC against
+90minutes; final closure remains on the same clock in closeout.json. Only`main`
+remains locally; unrelated detached diagnostics/old registrations are retained.
 
 **Roadmap correction applied; PLAN-NEXT remains open.** This documentation pass
 preserves all337 IDs, kinds, parent bindings and accepted scopes; tightens nine
