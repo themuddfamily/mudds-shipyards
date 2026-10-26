@@ -111,25 +111,36 @@ against the original90minute estimate, including the roadmap interruption;
 final closure cost is retained in closeout.json. Only `main` remains locally;
 unrelated detached diagnostics/old registrations are retained. No next run selected.
 
-**Zenith encounter definition stopped at its exact execution gap.**
-Source3ba8f2aa4 confirms an existing legal route: physically arm Heavy Breach,
-board/depart in Zenith, receive authorized WingSkirmisherLead fire, then request
-normal landing from its live home capture. Accepted landing withdraws the
-encounter and retires its roster; the normal berth repair owner remains available.
-Independent source review passes. No game run, runtime change or new actor policy.
-[Literal source contract and stop](docs/ROADMAP_BACKLOG.md#zenith-heavy-breach-incoming-route--source-definition).
+**Parked: ordinary Zenith core impairment/repair caller.** A concrete controller
+and receipt contract was implemented on an isolated candidate5171119; it passed
+250Python checks, CLI privacy/parse, paired exports, three strict startups and
+actual1529-entry payload audit. Its sole approved ordinary attempt stopped at
+startup:22.929s runner/23.410s wrapper, zero observer states, actual gamePID2185497
+has a matching kernel SIGSEGV record. No contact, flight or repair was reached;
+source crash cause remains NOT_ESTABLISHED. No second attempt is authorized.
+The Core observer/Boot/selector changes are unaccepted and stay out of main.
+[Exact failure, frozen scope and reopening condition](docs/history/ROADMAP_DELIVERIES.md#zenith-core-repair-startup-failure-parked-20261026).
 
-**BLOCKED definition — Codex:** freeze the ordinary contact pose/input/order,
-nonfatal total damage budget including other hostiles, affected component and
-actual impaired/failed consumer endpoint, return controls and per-leg/whole-route
-limits. The scatter weapon can miss or contact1–3 components; its first trigger does not
-guarantee operational impairment or a safe return. Existing native recorders are
-Torrent-defender/Arrow-Breach-specific and need the named caller implementation
-once that contract exists. Do not run a speculative route or re-survey activation.
-This one source pass began13:11:52UTC with15minutes allocated and ends at the
-missing contact contract. Independent changed-contract review GO; closure
-preparation is10.696minutes on that same clock. No discovery successor selected. Full Zenith and
-PLAN-NEXT remain open. The source answer is planning progress, not gameplay delivery.
+**Accepted release-tool repair: preserve premature process exits.** Source
+d0cbd2016 records actual OS exit code/reaped state and trailing output before
+pre-window or normal-UI rejection. Real exit17, SIGTERM and live-child tests plus
+the full existing suite pass245/245; no success predicate is relaxed. The prior
+Core run's missing Popen status remains missing; its SIGSEGV is independently
+proved by kernel/PID, not reconstructed as a recorded return code. Game code and
+checkpointb4ff8c0 remain unchanged; no duplicate export is needed for this tool fix.
+
+Original13:11:52UTC/90minute clock includes source definition, geometry/caller,
+both preflights, failed trial, diagnosis, isolated reporting fix and cleanup.
+Archive is verified; the unmerged candidate's exact branch/worktree and loose
+scratch are removed. All 13 supervisors and 56 observed process identities are absent.
+Only `main` remains locally; unrelated detached diagnostics/old registrations are
+retained. Archive closure records 75.659 minutes against 90, with final docs/push on
+the same clock in closeout.json. Only the tested exit-reporting fix enters main.
+Full Zenith/five-component/stage/repair and all other original project gates stay
+open. Reopen the parked caller only with a demonstrated startup cause and bounded
+correction/independent cumulative-priority review; do not retune contacts, damage,
+AI or deadlines to hide a pre-gameplay crash. Eight missing-craft proposal choices
+remain pending owner input; no construction approval is assumed.
 
 ### Blocked definition work — not an execution queue
 

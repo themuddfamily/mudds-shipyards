@@ -29088,7 +29088,7 @@ Accepted source integrated and pushed asdefb693e7. Exact owned branch
 with its expected tip after its sole registered worktree was removed. Current
 remote task branch was absent. All11 canonical checkpoint files match the
 accepted publication hashes; all18 supervisors/62 observed process identities
-are absent. Onlymain remains locally. Unrelated detached diagnostic worktrees
+are absent. Only `main` remains locally. Unrelated detached diagnostic worktrees
 and old prunable registrations were preserved.
 
 Source bundle, retained failed baseline, corrected RED, all15 green stages,
@@ -29102,3 +29102,70 @@ Archive closure37.892minutes from the original12:32:12UTC against90minutes;
 final documentation/push remain on that same clock in closeout.json.
 No full-craft, ordinary Zenith damage/repair, loss/regeneration, device, native
 hardware, network or final release acceptance is supplied by this repair.
+
+
+## Zenith core repair startup failure parked 20261026
+
+Existing CRAFT-ACCEPT-ZENITH, one fixed core-impaired/passive-home-repair case.
+Original clock2026-10-26 13:11:52UTC, estimate90minutes including the preceding
+source definition, geometry, implementation, all failures/checks and closure.
+Full five-component/both-stage/craft scope remains required; no acceptance narrowed.
+
+Frozen contract2dec2128e / initial implementation5dad7de56 / corrected CLI-order
+candidate5171119d53a3d317c824bddc56aafe3ede19450c remained isolated. It adds a
+real Heavy board/Zenith pilot caller, adapter/fan journals, actual734/1000m
+emitted-shot discrimination,24-physics-frame accepted landing, strict passive
+repair, two90-neutral/OFFLINE windows, physical exit and normal HUD OS0. No
+HeroShip, model, actor, flight, damage, repair or AI policy was changed. The
+complete frozen card and source are preserved in the verified source bundle.
+
+First preflight: import14.637s PASS; Python250tests13.703s failed only the old
+literal assertion requiring handback first in CLI choices. All eight new core
+checks passed. One independently reviewed ordering-only correction retains all
+old choices/default Guided and raw validation/assertions. Failed source/raw/STOP
+is retained; accepted import cache reused on byte-identical production source.
+Corrected preflight PASS: Python250/14.335s, privacy1.146s, observer parse15.930s,
+Windows/Linux exports10.648/25.782s, strict startups26.324/23.332/24.334s and
+actual payload audit6.810s. PE/ELF maps match at1529entries; only observer and
+Boot compiled scripts differ fromb4ff8c0. These checks do not prove the native route.
+
+The sole approved native attempt FAILED22.929s runner/23.409879s wrapper, no game
+diagnostics, no observer states/controller stillboot. GamePID2185497 reaches
+Opening title menu, then exits before normal UI request. Kernel dmesg identifies
+that exact PID with SIGSEGV at8/IP0x2e57c13; stripped addr2line has no symbol.
+The source-level crash cause is NOT_ESTABLISHED. The old caller rejected the exit
+before storing Popen returncode, so its actual recorded process status remains
+missing; do not manufacture−11 in the result. Game/input helper/Xvfb and all
+observed children are reaped; synthetic inputs released. No second engine or
+native trial, contact tuning, staged damage or new actor rule was selected.
+
+**Separate accepted release-tool repair:** d0cbd2016990c573ef91ed920e7b75e5b57019f5
+changes only existing native runner/tests on clean main. Both pre-window and
+common terminal branches now record actual poll() exit code/reaped state and
+drain trailing stdout before any family/UI rejection. Existing normal Quit/OS0/
+actual-file conditions still control success; cleanup termination cannot become
+normal_ui_exit. Real Python children prove exit17, negative SIGTERM, retained
+trailing output and rejection of a live child. Full original242+3 suite passes245,
+13.991s suite/14.614609534s guarded stage/exit0/no diagnostics/source or cache
+mutation/surviving observed processes. Independent source and final review GO.
+No Godot or duplicate gameplay export is needed for this Python-only tool change.
+
+The Core observer/Boot/CLI and all eight candidate export files are UNACCEPTED,
+archived rather than merged or published. Checkpointb4ff8c0 remains current.
+Reopen only after a demonstrated startup cause, bounded correction and independent
+cumulative-priority review on the retained original clock. A debugger/stack/actual
+exit investigation must remain isolated with explicitDummy/x11 when applicable;
+no healthy contact or repair claim can follow from this startup failure.
+Verified archive: `/srv/mudds-work/zenith-core-repair-20261026/records.tar.gz`,
+336237588bytes; SHA-256
+`fbc4500043c9034cdd8d268c7264d249b17de177a77b5396d565abb021da799e`.
+All 201 regular files and 13 links verified for membership, bytes, modes and targets.
+Unaccepted sourcebundle head5171119/prerequisite13e3e6f0f verifies; all eight
+unpublished exports match their retained hashes. Only after full archive verification,
+owned worktree and branch`qualify/zenith-core-repair-20261026` were removed with
+expected tip5171119; remote task branch absent. No Core code merged to main.
+All 13 supervisors and 56 observed process identities are absent. Only archive and
+closeout.json remain privately; unrelated detached diagnostics/old registrations
+retained. Archive closure 75.659 minutes against the original 90 minute estimate;
+final docs/push remain charged to13:11:52UTC in closeout.json. Only the independently
+accepted two-file exit-reporting fix is integrated; no new gameplay checkpoint.
