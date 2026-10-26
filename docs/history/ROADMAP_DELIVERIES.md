@@ -27218,3 +27218,53 @@ closed; other producers and ordinary/restart/Reset/rendered/device/full-family
 acceptance remain open. No engine, test run, scratch, branch, build or evidence
 validator is created. Source membership is not gameplay progress or 19 runtime
 passes; current playable checkpoint46bae53 and full original scope remain.
+
+<a id="ember-surface-live-captions-delivered-20261026"></a>
+## Ember surface-loop live captions delivered — 2026-10-26
+
+Source `b81082277fb081ded9f89e4dd53a4f0b4b3f5d7c`; parentCOMFORT-CAPTIONS remains open.
+Added18 canonical mappings: interior/exterior variants for descent, landed,
+on_foot, reboard, takeoff, ascent, orbit_return, abort and relay-survey reward.
+Exact caption/default table remains in [the frozen card](../../ROADMAP.md#concrete-pending-capability-ember-surface-loop-captions).
+No phase/reward authority, replay policy, sound, intensity/severity resolver or
+gameplay change. Existing intensity1 promotes actual emitted captions to high;
+registry default assertions use0.5.
+
+Tests-only source `646ca75552d6a294ecf3641b2a3d8170a1e8c2ca`
+exits1 in1.951s with exactly18 planned missing-caption/default failures and no
+unrelated errors. A pre-engine fixture correction inserts a distinct OFF phase
+before reward to respect existing consecutive-tuple router dedupe; no trial or
+production-dedupe change preceded that correction. Fixed source passes all13
+frozen stages on first launch, including presenter and existing Ember
+composition/production, shared service, caption production and router checks.
+All18 cues display and expire once through the same GameFlow service and actual
+normal-Begin/reduced-motion tree-visible HUD. Repeats, missing authority,
+refused persistence, reward replay, stale owners, OFF/no replay and detach retain
+their expected suppression. Original composition assertions are retained.
+
+**Proof scope:** existing EmberSnapshotFixture owner and controlled accepted
+receipt-shaped observations, real production audio composition/Director/HUD,
+detached GameFlow and manual caption time. This is no proof of physical surface
+travel, real durable reward/save, rendered readability, physical devices or
+listening; those/fullCOMFORT gates stay open. All automation uses Dummy/headless.
+
+Paired clean exports and all3strict startup checks pass with actual exit0 and
+exactly1STARTUP_MENU_READY_OK/no detected diagnostics. Windows PCK ran through
+Linux Godot, not native Windows. Actual PE/ELF PCKs match1527entries; only
+`scripts/ui/semantic_audio_cue_presenter.gdc` changes from46bae53. Stock PE.text,
+architectures and exact archive members/bytes/modes/commit epoch verify.
+Native Windows/nativeGPU/device/audible/ordinary journey: NOT_RUN; existing
+owner exclusions remain. GitHub Actions stays disabled.
+
+Windows [EXE](../../builds/windows/MuddsShipyards-b810822.exe),
+[checkpoint ZIP](../../builds/windows/MuddsShipyards-b810822-checkpoint.zip),
+[notes](../../builds/windows/MuddsShipyards-b810822-notes.txt);
+[Linux archive](../../builds/linux/MuddsShipyards-b810822-linux-x86_64.tar.gz)
+and [notes](../../builds/linux/MuddsShipyards-b810822-linux-notes.txt).
+EXE SHA256`7a5e9ce07f5fa527f6502ea94f1d50b4fac2c05baacc2a7571660cc7f94bc324`;
+Linux archive SHA256`62b732056215b56a3d7d20dfa0fcb05596e1eb6fba61e9a5bfabd2c481acad5a`.
+Independent source/final evidence review GO. All14supervisors and54observed
+child identities are absent by actual PID/start checks. Original assignment
+23:44:40→00:44:40UTC/60min includes the roadmap correction and all closure work;
+no retry/reset. Public11files retained. Verified archive, exact ref cleanup and
+final push are the remaining closure actions; no successor selected.

@@ -1,12 +1,12 @@
 # Development roadmap
 
 **Playable alpha; full original scope remains unfinished.** Latest Windows build:
-[46bae53 checkpoint](builds/windows/MuddsShipyards-46bae53-checkpoint.zip)
-([changes and validation](builds/windows/MuddsShipyards-46bae53-notes.txt)).
-Matching [Linux checkpoint 46bae53](builds/linux/MuddsShipyards-46bae53-linux-x86_64.tar.gz)
-([Linux validation](builds/linux/MuddsShipyards-46bae53-linux-notes.txt)) is available.
-This checkpoint adds live engine degradation/critical/recovery captions through
-the existing shared service; earlier gameplay and accessibility fixes are retained.
+[b810822 checkpoint](builds/windows/MuddsShipyards-b810822-checkpoint.zip)
+([changes and validation](builds/windows/MuddsShipyards-b810822-notes.txt)).
+Matching [Linux checkpoint b810822](builds/linux/MuddsShipyards-b810822-linux-x86_64.tar.gz)
+([Linux validation](builds/linux/MuddsShipyards-b810822-linux-notes.txt)) is available.
+This checkpoint adds18 live Ember surface-phase/reward captions through the
+existing shared service; earlier gameplay and accessibility fixes are retained.
 Nine of the promised 17 craft exist. All 36 original parent outcomes and ten phase
 exit gates remain open; completed child results are retained, not counted as whole
 features. There is no evidence-backed project percentage or completion date.
@@ -77,12 +77,15 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Active: COMFORT-CAPTIONS[Ember surface-loop captions].** The contract below
-is frozen before any engine launch. Source handoff is under independent review;
-no acceptance result or checkpoint exists yet. Original assignment window remains
-2026-10-25 23:44:40→2026-10-26 00:44:40UTC/60min, including the roadmap correction,
-review, checks, builds, integration and cleanup. First unexpected failure stops;
-no automatic retry or deadline reset.
+**Delivered: COMFORT-CAPTIONS[Ember surface-loop captions], checkpointb810822.**
+All18 existing interior/exterior phase and reward cues now have exact captions.
+Old-registry tests fail exactly18 planned assertions; repaired source passes all
+focused checks, paired exports, three strict startups and the actual payload audit.
+Only the compiled caption presenter differs from46bae53. Independent review GO.
+This accepts the caption capability under the fixture limits below; full comfort,
+ordinary travel and durable reward acceptance remain open. Integration and owned
+archive/branch cleanup are the remaining closure actions; no successor is active.
+[Exact result and limits](docs/history/ROADMAP_DELIVERIES.md#ember-surface-live-captions-delivered-20261026).
 
 The [ship-rig caption membership](docs/ROADMAP_BACKLOG.md#ship-rig-caption-membership)
 is now fixed:21possible semantic IDs,19mapped and2unmapped load IDs whose method
@@ -90,7 +93,8 @@ has no demonstrated production caller. This closes that source definition only;
 no additional live repair is selected. Reuse this result rather than surveying
 the same producer again. Wider caption/play/device gates remain unchanged.
 
-### Concrete pending capability: Ember surface-loop captions
+<a id="concrete-pending-capability-ember-surface-loop-captions"></a>
+### Ember surface-loop captions: accepted capability contract
 
 Existing goal: **COMFORT-CAPTIONS**, one production capability. For each base ID
 below, both existing `_interior` and `_exterior` emissions must display the exact
@@ -130,7 +134,8 @@ caption clock. It proves this caption capability; it does not prove a physical
 surface journey, real durable reward, listening, rendered/device or full comfort
 acceptance. Those existing gates remain open. Original assignment window:
 2026-10-25 23:44:40→2026-10-26 00:44:40UTC, including review/build/closure;
-deferral does not create a fresh budget. This capability is selected under that original window.
+the original budget includes the roadmap correction and all closure work. No
+new task or repeat is selected by this delivery.
 
 Accepted checkpoints and qualifications are listed under [accepted work](#accepted-work--source-limits-retained).
 Failed journeys and their exact reopening conditions are under
@@ -269,6 +274,7 @@ Recent packaged changes and source qualifications are recorded separately:
 
 | Accepted outcome | Proof and retained limit |
 | --- | --- |
+| Eighteen live Ember surface-loop captions | [Checkpointb810822](docs/history/ROADMAP_DELIVERIES.md#ember-surface-live-captions-delivered-20261026); controlled owner/reward observations through actual visible HUD, ordinary journey/durable reward/full comfort remain open |
 | Three live engine-transition captions | [Checkpoint46bae53](docs/history/ROADMAP_DELIVERIES.md#engine-transition-live-captions-delivered-20261025); actual ledger/rig/visible HUD composition, ordinary flight/full comfort remain open |
 | Guided installed normal-exit prerequisite | [Checkpoint 39157e8](docs/history/ROADMAP_DELIVERIES.md#guided-installed-normal-exit-accepted-20261025); one actual direct-ELF flight/normal Exit/OS0, rendered desktop/final 3/3 remain open |
 | Sprint/boost option cold restart and Reset | [Three-process proof](docs/history/ROADMAP_DELIVERIES.md#sprint-toggle-cold-process-qualified-20261025); source composition, physical devices/boost flight/original Settings return remain open |
