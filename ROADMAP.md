@@ -41,6 +41,19 @@ specified” cannot stand alone as acceptance. Replace them with the actual acti
 value or finite member list in the same card. A container closes only when its
 complete named membership passes; a missing member list blocks it.
 
+A task must say **what the player can do afterward**, or the exact build/release
+operation that succeeds. For example: “Roll back499→b4→499, load the b4-earned
+save in499 as session3, retain credit1/settings, walk the three named points and
+Quit with OS0.” “Improve save compatibility” is not an assignment. A definition
+instead names the exact unanswered fields it will supply; a decision names the
+exact choice and who makes it. A family label never supplies either result.
+
+The selected card must be self-contained enough for another person to judge its
+outcome without reconstructing chat history. Link the exact command, fixture,
+expected state and original limits; do not link only a broad feature document.
+Record one terminal result and the first unmet predicate. Failure never silently
+adds another objective or turns a completed child back into an endless task.
+
 Missing acceptance fields mean **BLOCKED definition — Codex**, listing exactly
 which fields are absent. Missing design choices or external access mean
 **BLOCKED input — named owner**, listing the exact answer/artifact required.
@@ -94,169 +107,36 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Selected release capability / qualification: checkpoint selected rollback.**
-Install499e681→upgradeb4ff8c0→explicitly install499 again in the same owned prefix;
-restore exact prior payload/modes/launcher, preserve user data and unowned files,
-then prove the restored499 game loads a save actually written by b4. Input is
-9296bytes/SHA256af2fada0a687b3a2dad6ee5c4550d4e6cd92120f2df94f6681f053e5b23ed409,
-actual generation27/clean session2 with the earned Heavy credit and settings.
-Extend only the existing retained-heavy driver/test to admit this second declared
-fixture and require real next-session advancement(2→3); original fixture1→2 proof
-and all strict data/physics/UI/private-profile checks remain intact. No schema,
-gameplay, observer/GDScript or export change. Both actual packages have identical
-observer/game-flow/persistence code; only damage adapter differs.
-[Exact selected rollback contract](docs/ROADMAP_BACKLOG.md#selected-checkpoint-rollback--retained-save-contract).
-One implementer owns two Python files; root owns transaction/actual validation,
-integration/push and owned cleanup; one independent reviewer. Conservative
-original16:42:43UTC/45min clock includes readiness; hard17:27:43. Estimate15 code,
-5 checks/review,5 actual,10 closure plus4 readiness. Stop first unexpected failure;
-no automatic retry. This is one selected rollback, not injected failed-update,
-power-loss, arbitrary downgrade compatibility, final-package or rendered-desktop
-acceptance. Code and accepted checkpoints remain unchanged until qualification.
+**No implementation is active.** The last selected goal,
+INSTALL-LINUX-ROLLBACK's checkpoint case, passed independent source/raw review.
+The shipped manager installs499→b4→499 in the same prefix and restores exact
+prior payload/modes/launcher. The restored499 game loads the actual b4-written
+save into healthy session3, retains the earned Heavy credit/settings, completes
+three supported walking points and exits through normal HUD Quit/OS0. All six
+protected files survive uninstall; all18 owned process identities are absent.
+[Actual proof, archive and remaining release limits](docs/history/ROADMAP_DELIVERIES.md#selected-checkpoint-rollback-accepted-20261026).
+This closes that checkpoint case only; final-package rollback remains gated.
 
-**Accepted release capability / qualification: installed retained Heavy load.**
-New Python-only `retained-heavy --retained-data FILE` route loads the pinned
-actual earned save in a fresh private profile using the unchanged b4 observer.
-The installed499→b4 transaction's sole fixture load passes33.683s: live ledger1,
-paid terminal/settings preserved, healthy session/startup2, three supported
-waypoints/51.262m to the unarmed Torpedo posting, normal HUD Quit/actual OS0 and
-both final clean markers with no regrant. [Exact inputs, actual proof and scope](docs/history/ROADMAP_DELIVERIES.md#installed-retained-heavy-load-accepted-20261026).
-Driver a716c4d8e passes251 failfast Python checks after one recorded test-fixture
-correction. The first wrapper setup inherited private umask077 and stopped before
-upgrade/game; its installer-only022 correction preserves strict modes. Both
-failures remain archived. Actual game bytes are unchanged; no new export.
-All2 supervisors/19 observed identities absent; source/raw records verified in
-one archive. Original16:11UTC/90min clock includes readiness/corrections/closure;
-archive27.680min, final push and branch/worktree cleanup in closeout.json.
-Exact stored settings and existing applied input tuning are checked; full comfort
-settings, rendered desktop, native hardware and final-package qualification remain
-open. No next run selected; broader recovery policies remain unchanged.
+**Task-selection correction complete.** All337 existing IDs and the original
+scope are retained. Each selected task must answer every field in the assignment
+contract above with literal values or a finite linked list. An unresolved field
+is an explicit blocked definition/input, never permission to begin implementation.
+The backlog's [remaining contract gaps](docs/ROADMAP_BACKLOG.md#remaining-contract-gaps--plan-next)
+name the finite missing bindings and owners; they remain open until supplied.
+The second-landing duplicate check and final rendered Linux launch bindings now
+name their missing inputs explicitly. This correction does not close those
+product outcomes or claim every future route is ready. No further gameplay run
+is selected by this edit.
 
-**Accepted qualification: Linux checkpoint upgrade499e681→b4ff8c0.**
-The shipped manager upgrades one existing installation to a fresh runtime,
-removes old owned payload, and points the launcher to exact new bytes/modes.
-Strict installed startup passes(exit0/one readiness marker); full ordinary
-Guided passes55.707s/normal HUD Quit/actual OS0 under the original300s cap.
-Uninstall removes only managed artifacts. Five unrelated files retain bytes/modes,
-including an actual8655byte saved record with one earned Heavy credit/settings.
-The fixture is protected outside the fresh Guided profile; its gameplay reload
-is not qualified. All15 observed identities absent, zero diagnostics, input and
-process cleanup complete. [Frozen route and actual proof](docs/history/ROADMAP_DELIVERIES.md#linux-checkpoint-upgrade-499e681-to-b4ff8c0-accepted-20261026).
-Original16:00:18UTC/20min clock includes readiness/checks/closure;
-archive closure8.921minutes, final push in closeout.json. Only verified archive
-and closeout remain; no branch/worktree/new export. Game code and accepted builds
-are unchanged. Final INSTALL-LINUX-UPGRADE and rendered desktop launch remain
-open; no next run selected.
+Recent accepted and parked results are references, not active assignments:
 
-**Parked: REPEAT-BEACON ordinary ten-run caller.**
-Two full attempts failed; ten-run acceptance is NOT_DELIVERED. The first
-425.713s native attempt completed one paid home/census, then hit leg2's
-original300s cap after three Beacons. Source/evidence review found a queued mouse
-sweep discarded for pause UI but retained on Resume. One driver-only correction
-passes253 Python checks and independent review; the unchanged packaged game was
-reused. Its sole corrected attempt335.727s completes two paid homes/two matching
-resource censuses, then fails the original12s reboard-clear walk entering leg3.
-The cause of that later walk boundary is NOT_ESTABLISHED. No third attempt,
-additional investigation, correction, widened cap or renamed retry is selected.
-[Exact frozen result, failures and reopening condition](docs/history/ROADMAP_DELIVERIES.md#beacon-repetition-two-attempt-stop-20261026).
-Candidate driver0029b8daf/game da6d539 remain unmerged; no new checkpoint is
-published. The earlier generated-scene-ID audit failure and its narrow correction
-are also retained. Unique source, all eight private export artifacts and raw
-results are in one verified archive; exact owned branch/worktree and loose
-scratch are removed. All12 supervisors/57 observed identities are absent.
-Only main remains locally; unrelated detached diagnostics/old registrations are
-retained. Original14:58:50UTC/90minute clock includes both attempts and closure;
-archive closure57.711minutes, final push time in closeout.json. Accepted b4ff8c0
-build/gameplay and the installed-checkpoint result below remain unchanged.
-Reopen only with a demonstrated cause at the later physical reboard-clear
-boundary and independent cumulative-priority review, preserving every original
-route/support/distance/time predicate. No next run selected.
-
-**Accepted qualification: installed Linux checkpoint b4ff8c0.**
-The shipped manager installs exact archive bytes/modes and a correct menu entry.
-Installed strict startup passes(exit0/one readiness marker); the full ordinary
-Guided route passes55.720s at the original300s cap, including combat, strict home,
-automatic OFFLINE, physical exit and normal HUD Quit/actual OS0. Uninstall removes
-only managed files; five unrelated fixtures retain exact bytes/modes. Zero
-diagnostics, released inputs and all16 observed process identities absent.
-[Actual route, two retained wrapper failures and scope](docs/history/ROADMAP_DELIVERIES.md#linux-installed-checkpoint-guided-qualification-accepted-20261026).
-Original14:51:07UTC/30minute clock includes corrections/review/closure;
-archive closure6.290minutes, with final push recorded in closeout.json. Only one
-startup and one Guided game launch occurred. Source/results are verified in one
-archive; loose owned files removed, no branch/worktree created. Game code and
-playable checkpoint are unchanged; no duplicate export. Final-package installation,
-graphical Desktop Entry launch and native hardware remain unqualified. No next
-run selected; this checkpoint result must not be promoted to those gates.
-
-**Station capture binding pass ended: BLOCKED definition — Codex.**
-On source0383848bf one source-only pass mapped all nine branches and four service
-views to existing declared frames or exact absent fields. The
-[existing station contract](docs/ROADMAP_BACKLOG.md#station-presentation--finite-review-boundaries)
-now separates accepted standalone Freight images, declared overview recipes and
-missing supported player views. Scenes/Operations source/image stages remain
-pending despite `reviewed_current` labels; no visual acceptance is inferred.
-Missing fields are literal view/state/eye-pose/text/access/clearance comparisons,
-with Codex as owner. The container stays BLOCKED; the source map is retained and
-must not be surveyed again unchanged. Original15–30minute definition budget
-includes review, commit/push and cleanup. No engine/capture/validator, new branch,
-worktree or scratch artifact was created; no gameplay outcome is claimed.
-Parked views retain their causal reopening conditions. No next run selected.
-
-**Accepted capability: forward projectile attribution — checkpoint b4ff8c0.**
-Real projectile contacts now damage the forward hull instead of core systems when
-the actual contact is nearest the forward region.17 recorded forward hits across
-all nine existing craft spend hull health exactly once; Zenith's existing local
-forward cue appears. All five projectile regions, unchanged collision routing,
-shared ledger/recovery and positionless fallback checks pass.
-
-All eight focused suites, paired exports, three strict startup checks and actual
-1529-entry payload audit pass. Only the compiled damage adapter differs from499e681.
-[Exact proof, retained baseline failure and scope](docs/history/ROADMAP_DELIVERIES.md#forward-hull-projectile-attribution-accepted-20261026).
-Integration is pushed; owned branch/worktree and loose scratch are removed.
-All18 supervisors/62 observed process identities are absent. Source and raw results
-are preserved in one verified archive. Archive closure records37.892minutes
-against the original90minute estimate, including the roadmap interruption;
-final closure cost is retained in closeout.json. Only `main` remains locally;
-unrelated detached diagnostics/old registrations are retained. No next run selected.
-
-**Parked: ordinary Zenith core impairment/repair caller.** A concrete controller
-and receipt contract was implemented on an isolated candidate5171119; it passed
-250Python checks, CLI privacy/parse, paired exports, three strict startups and
-actual1529-entry payload audit. Its sole approved ordinary attempt stopped at
-startup:22.929s runner/23.410s wrapper, zero observer states, actual gamePID2185497
-has a matching kernel SIGSEGV record. No contact, flight or repair was reached;
-source crash cause remains NOT_ESTABLISHED. No second gameplay attempt is authorized.
-One separately reviewed startup-only debugger capture reproduced the same instruction
-in21.952s, with no input/privateXvfb/x11/Dummy and the exact archived ELF. The
-stack/registers/mappings are retained but unsymbolized; no source fix can be
-justified from them. All four observed identities are absent; duplicate binary
-and loose diagnostic scratch removed after archive verification. Stop further
-launches/symbol acquisition/builds under this attempt. Closure preparation is
-88.695 cumulative minutes on the original90minute clock; final push is recorded
-in the diagnostic closeout.
-The Core observer/Boot/selector changes are unaccepted and stay out of main.
-[Exact failure, frozen scope and reopening condition](docs/history/ROADMAP_DELIVERIES.md#zenith-core-repair-startup-failure-parked-20261026).
-
-**Accepted release-tool repair: preserve premature process exits.** Source
-d0cbd2016 records actual OS exit code/reaped state and trailing output before
-pre-window or normal-UI rejection. Real exit17, SIGTERM and live-child tests plus
-the full existing suite pass245/245; no success predicate is relaxed. The prior
-Core run's missing Popen status remains missing; its SIGSEGV is independently
-proved by kernel/PID, not reconstructed as a recorded return code. Game code and
-checkpointb4ff8c0 remain unchanged; no duplicate export is needed for this tool fix.
-
-Original13:11:52UTC/90minute clock includes source definition, geometry/caller,
-both preflights, failed trial, diagnosis, isolated reporting fix and cleanup.
-Archive is verified; the unmerged candidate's exact branch/worktree and loose
-scratch are removed. All 13 supervisors and 56 observed process identities are absent.
-Only `main` remains locally; unrelated detached diagnostics/old registrations are
-retained. Archive closure records 75.659 minutes against 90, with final docs/push on
-the same clock in closeout.json. Only the tested exit-reporting fix enters main.
-Full Zenith/five-component/stage/repair and all other original project gates stay
-open. Reopen the parked caller only with a demonstrated startup cause and bounded
-correction/independent cumulative-priority review; do not retune contacts, damage,
-AI or deadlines to hide a pre-gameplay crash. Eight missing-craft proposal choices
-remain pending owner input; no construction approval is assumed.
+- [Installed retained-save continuation](docs/history/ROADMAP_DELIVERIES.md#installed-retained-heavy-load-accepted-20261026)
+- [Checkpoint upgrade](docs/history/ROADMAP_DELIVERIES.md#linux-checkpoint-upgrade-499e681-to-b4ff8c0-accepted-20261026)
+- [Installed checkpoint Guided route](docs/history/ROADMAP_DELIVERIES.md#linux-installed-checkpoint-guided-qualification-accepted-20261026)
+- [Forward projectile attribution](docs/history/ROADMAP_DELIVERIES.md#forward-hull-projectile-attribution-accepted-20261026)
+- [Parked Beacon repetition and causal reopening condition](docs/history/ROADMAP_DELIVERIES.md#beacon-repetition-two-attempt-stop-20261026)
+- [Parked Zenith startup failure and causal reopening condition](docs/history/ROADMAP_DELIVERIES.md#zenith-core-repair-startup-failure-parked-20261026)
+- [Station view definitions and exact blockers](docs/ROADMAP_BACKLOG.md#station-presentation--finite-review-boundaries)
 
 ### Blocked definition work — not an execution queue
 

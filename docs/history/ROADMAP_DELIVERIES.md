@@ -4,6 +4,69 @@ Moved from ROADMAP.md on 2026-10-17. These are source-specific historical
 results, not the active queue or proof of current full-project acceptance.
 Return to the [working roadmap](../../ROADMAP.md).
 
+## Selected checkpoint rollback accepted 20261026
+
+Existing INSTALL-LINUX-ROLLBACK checkpoint selected-rollback case **ACCEPTED**
+on driver `503dbf6f6cd76d279890c72a6f29f6106f70dda4`. Existing native-sortie
+Python driver/test admit exactly one additional pinned raw save and validate
+healthy session/startup relative to the input. Both declared fixtures seed
+byte-exact;253 failfast Python tests pass13.879s. No GDScript, schema, game,
+observer or exported package change. No unexpected failure or retry in this case.
+
+Shipped manager installs499e681→b4ff8c0→selected499e681 in one owned prefix:
+3.421s/4.429s/4.428s, all exit0. Archive hashes remain those in the
+[frozen contract](../ROADMAP_BACKLOG.md#selected-checkpoint-rollback--retained-save-contract).
+The fresh restored generation has exactly the prior ELF SHA256
+`8802ba25e2dadf56665f39697d48ddb19b340f6cab70f4a7bec42e41c52ff678`
+and icon bytes; ELF0755/icon-manifest-launcher0644, literal Exec/Path/Icon all
+match. Fresh directory UUID differs from both prior generations. b4 managed
+files are removed; unowned files are retained. Strict restored installed startup
+passes22.778s/exit0/exactly one STARTUP_MENU_READY_OK.
+
+Actual b4-written input comes from retained-heavy-20261026/records.tar.gz,
+`transaction-corrected/retained-load/orderly-close.json`:9296bytes/SHA256
+`af2fada0a687b3a2dad6ee5c4550d4e6cd92120f2df94f6681f053e5b23ed409`,
+generation27/clean session2. Those exact post-rollback protected bytes seed a
+fresh private game profile; restored499's production reader loads them as primary.
+Raw captures advance27→31(title)→32(posting)→35(close), session/startup2→3,
+healthy/failure0, matching new session diagnostic, no recovered mode. Live ledger
+retains exactly one Heavy credit, exact settings/paid terminal/protected siblings
+and safe home. Torpedo offered/unarmed/floor1/pending0, director IDLE/active0:
+no arming, shot or regrant. The original8655byte fixture remains supported.
+
+Sole native load34.017s under original300s/independent330s: normal BEGIN SHIFT,
+three existing supported waypoints,413 walking receipts/51.26164m, actual next
+candidate/available prompt, normal HUD Quit/actual OS0 and final crash clean plus
+safe-start clean_shutdown.564 consecutive observations/456 unpaused current-actor
+samples preserve the ledger/board constraints. Diagnostics0; released inputs and
+helper/game/Xvfb reap flags all true. Authenticated private Xvfb/x11/Dummy, dummy
+renderer/disabled render loop only; no rendered desktop or native GPU claim.
+
+Shipped uninstall exits0/.703s and removes managed payload/manifest/launcher only.
+All six protected fixtures retain exact bytes/modes, including newer saved data0600.
+Full transaction76.699s/guard76.953488s; source/index/cache guards unchanged.
+Independent source and raw review GO with no unmet checkpoint predicate.
+All17 observed process identities plus owner are absent,18 total.
+
+Source bundle verified against parentf69da8e38; patch, raw files, commands,
+reviews and process closeout preserved in one verified archive:
+`/srv/mudds-work/selected-rollback-20261026/records.tar.gz`,2125889bytes,
+50regular files/one symlink, SHA256
+`77956d883f3061b4e78241983736826e5ec62dd7d22f0aad3552cb8a5404ab32`.
+Archive membership/bytes/modes/link target verified before loose scratch removal.
+Original16:42:43.643976UTC/45min clock includes definition/code/checks/run/review/
+archive/integration/push/owned cleanup; archive16:58:13UTC, final closure in
+closeout.json. Accepted source integrates into pushedmain before exact owned
+branch/worktree deletion. Unrelated detached diagnostics/old registrations remain
+retained; no broad worktree pruning.
+
+This establishes this selected checkpoint rollback and newer-save continuation.
+Failed-update interruption, power loss, arbitrary future-schema downgrade,
+full runtime settings, rendered desktop, native hardware and final-package
+acceptance remain unclaimed in their existing gates. Stored settings and existing
+applied input tuning only are verified. No new playable export is required for
+this Python-only release-driver change.
+
 ## Installed retained Heavy load accepted 20261026
 
 Existing INSTALL-LINUX-RETAINED checkpoint case **ACCEPTED** on release driver

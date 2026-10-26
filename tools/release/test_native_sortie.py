@@ -4674,12 +4674,16 @@ class RetainedHeavyCallerTests(unittest.TestCase):
         s.update(frame=s['frame']+1, sequence=s['sequence']+2)
         with self.assertRaises(AssertionError): p.validate_observation(s)
 
-    def fixture_files(self, root):
+    def fixture_files(self, root, session=1):
         profile = root/'profile'; profile.mkdir(); (profile/'data').mkdir()
         output = root/'output'; output.mkdir()
-        fixture = root/'input.json'; raw = json.dumps(self.document()).encode(); fixture.write_bytes(raw)
-        with patch.object(native.RetainedHeavyFiles, 'FIXTURE_BYTES', len(raw)), \
-                patch.object(native.RetainedHeavyFiles, 'FIXTURE_SHA256', hashlib.sha256(raw).hexdigest()):
+        document = self.document()
+        document['generation'] = 19 if session == 1 else 27
+        document['payload']['crash_recovery'].update(session_id=session, startup_generation=session)
+        document['payload']['safe_start_recovery']['startup_generation'] = session
+        document['payload']['session_diagnostics']['events'][0]['session_id'] = session
+        fixture = root/'input.json'; raw = json.dumps(document).encode(); fixture.write_bytes(raw)
+        with patch.object(native.RetainedHeavyFiles, 'FIXTURES', {(len(raw), hashlib.sha256(raw).hexdigest())}):
             files = native.RetainedHeavyFiles(profile, output, fixture)
         return files, fixture, raw
 
@@ -4694,13 +4698,40 @@ class RetainedHeavyCallerTests(unittest.TestCase):
                 native.RetainedHeavyFiles(files.profile, files.output, fixture)
 
     def loaded_document(self, files):
-        document = copy.deepcopy(files.expected); document['generation'] = 20
+        document = copy.deepcopy(files.expected); document['generation'] += 1
+        session = files.expected['payload']['crash_recovery']['session_id'] + 1
         document['commit'] = dict(id='production-startup')
-        document['payload']['crash_recovery'].update(state='running', session_id=2, startup_generation=2)
-        document['payload']['safe_start_recovery'].update(state='starting', startup_generation=2)
+        document['payload']['crash_recovery'].update(state='running', session_id=session, startup_generation=session)
+        document['payload']['safe_start_recovery'].update(state='starting', startup_generation=session)
         document['payload']['session_diagnostics']['events'].append(
-            dict(event_code='session_started', session_id=2, fields=dict(recovered=False)))
+            dict(event_code='session_started', session_id=session, fields=dict(recovered=False)))
         return document
+
+    def test_retained_inputs_are_exactly_the_two_declared_raw_fixture_identities(self):
+        self.assertEqual(native.RetainedHeavyFiles.FIXTURES, {
+            (8655, '25f9ccfe03b22018eae2cffcb52841ed5fbcff3f4a51a6c020e6c7495701aa73'),
+            (9296, 'af2fada0a687b3a2dad6ee5c4550d4e6cd92120f2df94f6681f053e5b23ed409'),
+        })
+
+    def test_retained_both_inputs_require_exact_next_session_startup_and_matching_diagnostic(self):
+        for session in (1, 2):
+            with self.subTest(input_session=session), tempfile.TemporaryDirectory() as tmp:
+                files, _, _ = self.fixture_files(Path(tmp), session)
+                document = self.loaded_document(files); sample = self.sample()
+                sample['settlement']['store']['generation'] = document['generation']
+                files.require_loaded(document, sample)
+                self.assertEqual(document['payload']['crash_recovery']['session_id'], session + 1)
+                for counter in (session, session + 2):
+                    for section, field in (('crash_recovery', 'session_id'),
+                                           ('crash_recovery', 'startup_generation'),
+                                           ('safe_start_recovery', 'startup_generation')):
+                        bad = copy.deepcopy(document); bad['payload'][section][field] = counter
+                        with self.subTest(section=section, field=field, counter=counter), self.assertRaises(AssertionError):
+                            files.require_loaded(bad, sample)
+                    bad = copy.deepcopy(document)
+                    bad['payload']['session_diagnostics']['events'][-1]['session_id'] = counter
+                    with self.subTest(diagnostic_session=counter), self.assertRaises(AssertionError):
+                        files.require_loaded(bad, sample)
 
     def test_retained_actual_primary_loaded_state_and_clean_shutdown_preserve_all_protected_siblings(self):
         with tempfile.TemporaryDirectory() as tmp:
