@@ -121,6 +121,22 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Selected: the remaining installed future-envelope placements, temporary then backup.**
+This reuses the accepted SAVE-UNSUPPORTED driver and exact package; no new game
+implementation, repeated Python suite, import or export is needed.
+
+| Field | Frozen qualification |
+| --- | --- |
+| Result | Both remaining named outer-schema2 placements refuse actual Settings Save/confirmed Reset, preserve their files, and permit cold walking plus normal exits. |
+| Start | Pushed main b30c0740f; identical driver SHA0d06648d179593b890979662410eca01116a605269fe98d957f782fd6b74f99b; package source755ad605a/archive SHAd10c71cadc26d61dc3ddcf878a93112e0dbceabbfb5a2754c257f40f016fa33b. Restore verified package/fixture from the accepted primary archive; read-only canonical source with before/after guards. Owned case root `/srv/mudds-work/unsupported-save-remaining-20261026`; no task branch/worktree. |
+| Steps | One fresh owned install/prefix/startup per placement. Run the full existing `--route unsupported-save --future-artifact temporary` with the accepted9296-byte retained fixture; only after PASS run the same complete backup placement in another fresh prefix/profile. Each invocation has two distinct processes: actual Save/Reset-confirm, normal UI OS0, cold Begin Shift/all three retained points/normal UI OS0. Uninstall each prefix in finally, preserving five outer fixture files. |
+| Pass/fail | Temporary case retains valid primary/backup plus future151-byte temporary; backup case retains valid primary/future backup and absent temporary. Data files0600/unrelated sentinel0640, exact names/bytes/inodes preserved at all15 milestones. Both processes have source none/gen0/empty live authority, defaults retained; first attempts2/success0/serial0 and cold attempts0; exact visible refusal texts and all original physical walking checks. Exactly two declared refusal warnings per process, zero unexpected diagnostics; all input/game/helper/display cleanup flags true. |
+| Proof | Existing primary command/driver contract, now invoked once for EACH named placement; actual installed hashes/modes/launcher bytes, strict startup exit0/exactlyone STARTUP_MENU_READY_OK, raw UI observations and independent file snapshots, exact process identities and final-drain warnings. Reuse accepted source tests and primary result without rerunning them. |
+| Dependencies | Independent source review confirms newer-schema detection precedes both temporary recovery and valid-primary adoption; existing driver has no placement-specific gap. Same exact package/observer; only documentation changes after tested source. Physical device/native GPU/Windows/final-candidate facts remain separate. |
+| Stop | ORIGINAL SAVE-UNSUPPORTED clock20:59:20UTC2026-10-26/hard22:29:20UTC retained, prior cleanup24.87minutes charged. Estimate15 additional minutes including review/archive/push/cleanup. Original native300/independent330/transaction360 per placement unchanged; separate transactions run sequentially. Stop first unexpected failure, do not launch backup if temporary fails; no correction/retry preauthorized. |
+| Closure | Record actual accepted placements or first failure, commit/push; verified raw archive references the unchanged parent package rather than storing it again. Remove only this owned case's loose files after verification; no global prune, branch, worktree or new playable checkpoint. |
+
+
 **Accepted: installed future-primary Save/Reset refusal and cold continuation.**
 The new executable release route drives real Settings Save and confirmed Reset
 against an unsupported outer-schema2 primary file. Both refuse persistence;
