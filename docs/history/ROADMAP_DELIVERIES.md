@@ -27989,3 +27989,71 @@ created. Unrelated retired/prunable worktrees and previous archives are untouche
 Closure documentation prepared at31.014 cumulative minutes from the original
 07:01:00UTC clock, including both unexpected failures and the expected old RED,
 against90minute estimate. The adjacent closeout records final pushed main/time.
+
+<a id="live-torpedo-burst-reduced-flash-accepted-20261026"></a>
+## Live torpedo terminal bursts adopt Reduced flash — accepted 2026-10-26
+
+Production source `9105da88e72dc82a2d436d0851bd5b0ff95bcf26`;
+[Windows checkpoint](../../builds/windows/MuddsShipyards-9105da8-checkpoint.zip)
+and [matching Linux](../../builds/linux/MuddsShipyards-9105da8-linux-x86_64.tar.gz).
+Existing COMFORT-FLASH/original parent29. Start with a genuine terminal torpedo
+burst at nonzero age; toggle the existing Reduced flash OFF→ON→OFF, including
+repeated same-mode changes. The same mesh must immediately adopt the authored
+emission4.0→1.2→4.0 and current-age scale while preserving remaining lifetime,
+position, visibility, authority flights, damage and collision. Expired effects
+stay hidden, and a new effect follows its preconfigured mode. This closes that
+production capability, not every comfort episode or ordinary full combat route.
+
+Source defect: the existing setter refreshed flight holders only. Terminal
+bursts outlive released slots, so their start-time material stayed active and
+their scale only changed on a later physics tick. The shared burst refresh now
+updates material/current-age scale from the same existing0.55s envelope. It writes
+no position, visibility, lifetime, flight or gameplay state; expired bursts return.
+Identical material assignment is guarded because the actual engine setter
+otherwise disconnects/reconnects material signals and republishes to RenderingServer.
+Existing normal/reduced emission4.0/1.2 and peak scale4.2/2.6 are untouched.
+RuntimeSettings→GameFlow→TorpedoBoatOpponent→pool wiring and cold initialization
+already exist; no new setting, policy, damage or persistence format was added.
+
+The existing projectile suite now checks actual material/mesh through confirmed
+hit, interception and both launcher-loss fizzles at nonzero age. Repeated toggles
+preserve the exact slot dictionary, position, mesh identity/visibility, authority
+flight count, statistics, own/target health and hurtbox enable/layer. Preconfigured
+ON and expiry remain covered. Old c8a6dfc61 run exits1 in21.608091s with exactly18
+intended visual failures: hit6, interception4, fizzles8; other gameplay/lifetime
+assertions pass. Its original helper record remains FAILED: expected diagnostics
+omitted the test's existing FAIL: prefix. Exact raw-log review accounts for all
+six distinct messages/18 occurrences, zero unrelated failures, clean source/cache
+and reaped children; no repeated old projectile run or overwritten record was used.
+
+First repaired projectile check passes21.807717s. Companion test then stops the
+pipeline16.109918s on its obsolete claim that Torpedo Run rotates directly to
+Heavy Breach. Unchanged main6985f21a5 reproduces exactly this assertion16.016662s.
+The shipped four-contract roster, original live-Wing delivery and existing
+heavy_breach_activity_board_production_test at362 require Paired Wing next.
+Only that companion expectation/message changes; no board or encounter behavior
+changes. Original failed records and both causal reviews are preserved. All
+continuation stays within the same frozen capability,45minute estimate and
+original300s suite caps; no acceptance relaxation or task-clock reset.
+
+Final exact source passes all10 stages. Projectile106 assertions21.645631s,
+opponent35/16.061597s and production Main reduced-flash combat-effects60/33.505289s
+pass without failure diagnostics. Windows/Linux safe exports and Windows-payload
+under Linux Godot, direct Linux and Linux archive startups pass. Each startup
+requires actualOS0 and exactly one STARTUP_MENU_READY_OK; frame-count shortcuts
+are not used. Actual PE/ELF inventories match1527 entries; only
+scripts/combat/seeker_torpedo_projectile.gdc differs from8e74c40. Stock PE text,
+source/artifact identity and exact Linux archive bytes/modes/source epoch verify.
+Eleven accepted artifacts are copied by verified hashes from the owned export
+worktree into repository builds/; checkpoint ZIP contains the exact EXE/notes.
+
+All automated Godot calls are headless/Dummy with private profiles. This proves
+component/material behavior and release startup, not rendered pixels or native
+GPU performance. Ordinary UI/Reset/distinct-process comfort episodes, complete
+comfort-family/full combat/final gates remain open; native Windows/GPU/devices/
+human visual review are NOT_RUN. Accepted HUD damage-flash scope remains closed.
+GitHub Actions stays disabled; no Downloads publication. Original task clock
+2026-10-26T07:32:00UTC/45minute estimate includes initial readiness, failed harness
+classification, baseline reproduction, companion correction, checks, builds and
+closure. Final archive/process/branch/source closure lives at
+`/srv/mudds-work/seeker-live-flash-20261026/closeout.json`.

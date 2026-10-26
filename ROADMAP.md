@@ -1,11 +1,13 @@
 # Development roadmap
 
 **Playable alpha; full original scope remains unfinished.** Latest Windows build:
-[8e74c40 checkpoint](builds/windows/MuddsShipyards-8e74c40-checkpoint.zip)
-([changes and validation](builds/windows/MuddsShipyards-8e74c40-notes.txt)).
-Matching [Linux checkpoint8e74c40](builds/linux/MuddsShipyards-8e74c40-linux-x86_64.tar.gz)
-([Linux validation](builds/linux/MuddsShipyards-8e74c40-linux-notes.txt)) is available.
-Ordinary application Quit now captures the current incomplete on-foot Ember
+[9105da8 checkpoint](builds/windows/MuddsShipyards-9105da8-checkpoint.zip)
+([changes and validation](builds/windows/MuddsShipyards-9105da8-notes.txt)).
+Matching [Linux checkpoint9105da8](builds/linux/MuddsShipyards-9105da8-linux-x86_64.tar.gz)
+([Linux validation](builds/linux/MuddsShipyards-9105da8-linux-notes.txt)) is available.
+Reduced flash now updates already-visible torpedo terminal bursts using their
+existing material/scale policy while preserving age, lifetime and gameplay.
+Ordinary application Quit still captures the current incomplete on-foot Ember
 survey before actors detach. Actual production Quit and exported real-file proof
 pass: a fresh visit writes checkpoint0 while the abandoned checkpoint1 remains
 passive, with no reward or foreign-data change. Physical home/exit/reuse,
@@ -103,28 +105,24 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Selected production repair: Reduced flash updates an already-visible torpedo burst.**
-COMFORT-FLASH/original parent29, one existing authored effect. On the clean
-candidate, intercept an actual SeekerTorpedoProjectile and let its still-visible
-terminal burst reach nonzero age. Toggle the existing Reduced flash setting
-OFF→ON→OFF. The same mesh must immediately use authored emission4.0→1.2→4.0 and
-its current-age normal/reduced scale. Repeated toggles must preserve the exact
-remaining0.55s lifetime budget, position, visibility, projectile/authority counts,
-damage and released hurtbox state. Expired bursts must stay hidden; newly created
-bursts must still follow the selected mode. No new visual policy is introduced.
-Proof: extend existing seeker_torpedo_projectile_test using actual burst material/
-mesh and original interception/physics, old-code RED then repaired-code GREEN;
-existing reduced_flash_combat_effects and torpedo_boat_opponent regressions cover
-production settings propagation/other effects. Root reviews actual material and
-unchanged gameplay/lifetime ownership. Fresh clean-commit Windows/Linux exports,
-three strict menu-readiness checks and exact package audit precede acceptance.
-Files: seeker_torpedo_projectile.gd and existing projectile test; root owns docs/
-checks/checkpoint/integration. Existing300s suite limits stay unchanged. Stop at
-first unexpected failure for causal review. Clock2026-10-26T07:32:00UTC and
-45minute estimate include readiness, all checks, build and branch/scratch cleanup.
-This closes only live terminal-burst reconfiguration. Ordinary UI/Reset/cold-
-restart episodes, full combat/comfort-family and native GPU/human gates remain
-open; accepted HUD damage-flash scope is not rerun or reopened.
+**Delivered production repair: live torpedo bursts adopt Reduced flash.**
+Checkpoint9105da8 updates the same existing burst's material and current-age
+scale immediately. Authored normal/reduced emission4.0/1.2, peak scale4.2/2.6
+and0.55s envelope are unchanged. Actual mesh tests cover hit, interception and
+both launcher-loss bursts, repeated toggles, exact position/lifetime/slot/
+flight/damage/collision preservation and expired effects staying hidden.
+Projectile106, opponent35 and production Main combat-effects60 assertions pass;
+all10 final checks, paired exports, three strict startups and actual1527-entry
+package audit pass. Only the Seeker projectile differs in the game payload.
+[Proof, retained failures and scope](docs/history/ROADMAP_DELIVERIES.md#live-torpedo-burst-reduced-flash-accepted-20261026).
+
+This closes the live terminal-burst capability. Ordinary settings UI/Reset/cold
+comfort episodes, full combat/family and native GPU/human review remain open.
+The companion's obsolete two-contract rotation expectation was corrected to the
+shipped Paired Wing next contract after unchanged-main reproduction; no board
+behavior changed. The first old-run expected-label mismatch and companion
+failure remain preserved. All readiness/checks/build/closure cost runs from
+07:32:00UTC against45minute estimate, without a clock reset or enlarged cap.
 
 **Delivered production repair: Ember checkpoint on ordinary application quit.**
 Checkpoint8e74c40 saves through the existing production collector in the existing
