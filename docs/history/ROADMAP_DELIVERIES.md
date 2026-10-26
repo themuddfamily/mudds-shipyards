@@ -4,6 +4,85 @@ Moved from ROADMAP.md on 2026-10-17. These are source-specific historical
 results, not the active queue or proof of current full-project acceptance.
 Return to the [working roadmap](../../ROADMAP.md).
 
+## Torrent hero-cell original-cap timeout 20261026
+
+Existing capture-hero-cell is **PARKED / NOT_DELIVERED**, source
+`2f333b0e49f6e3bb654383836a2d2d039dd3ab5e`. One unchanged full18-frame Torrent
+capture was selected to replace insufficient historical12-frame coverage. The
+[frozen contract](../ROADMAP_BACKLOG.md#torrent-hero-cell--full18-capture-contract)
+retains all18 filenames/2560×1440, authored camera/waits, Forward+/TAA/2×MSAA,
+source/art semantics, numeric gates and original300s engine cap. A bounded recipe
+mapper and independent preflight/wrapper/terminal reviewer were used. No new
+validator/schema, art defect assumption, runtime or authored-art change.
+
+**Pinned environment.** Debian13, actual OS/kernel/CPU/memory in source.json;
+existing reusable177083960-byte guarded editor
+`7b46e60fa1d4ddc979d35698a96d6cb16f79d03019ee5c84aaf24c98434c5f7d`,
+version4.7.1.stable.mudds_reflection_atlas_a2917e5_guarded.a13da4feb. The accepted
+build was reused, without rebuilding/global/template changes; its intended
+reflection cleanup was not previously qualified. Vulkan ICD
+`/usr/share/vulkan/icd.d/lvp_icd.json`,SHA256
+`9a6a0d616f3f2efc2d227f89653047e5330ff634b0519ffbf1b2c60dc1c0e0e7`,
+library `/lib/x86_64-linux-gnu/libvulkan_lvp.so` (resolved
+`/usr/lib/x86_64-linux-gnu/libvulkan_lvp.so`),SHA256
+`0004262f4dc95585492d55925face67a79a7c869ad8760b42ae01bd0bdb807a2`.
+llvmpipe is a declared deviation from the docs' prepared DZN context, with no
+render quality/cap reduction and no native GPU/performance claim. Independent GO
+requires this run's own zero-diagnostic success/shutdown, not presumed engine fix.
+
+One clean detached checkout/private-profile silent headless/Dummy import passes
+20.806720s/exit0/zero diagnostics. Capture uses its separate private profile,
+cleared parse/staging/wayfinding/Wayland flags, explicitx11/Dummy, authenticated
+owned Xvfb2560×1440 and fresh external images directory. Client connects via
+127.0.0.1; '-listen tcp' does not prove a loopback-only server bind. No XTest or
+synthetic desktop focus/input. Exact timeout300s with5s teardown escalation and
+independent owned330s supervisor preserve original engine acceptance deadline.
+Actual engine reports Forward+/Vulkan1.4.305/llvmpipe(LLVM19.1.7,256bits)/X11,
+correct native window and viewport2560×1440.
+
+**First unexpected failure:** timeout command exits124 at original300s;
+wrapper301.322925281s, guard302.135269540s. The underlying Godot return code
+was not separately recorded. Zero success markers, zero PNGs and
+no published source/evidence manifests; only a fresh empty transaction output
+was created. Unexpected engine diagnostics=[]; guard issues are nonzero exit and
+missing marker. Last logged PASS is production pilot instantiation after world,
+central berth/contract and Torrent instantiation. Subsequent pilot transform,
+stage attachment/lifecycle, frame/physics waits, control setup and source-component
+preparation occur before the next printed gate; this interval is NOT localized.
+No later art/pixel/ROI assertion failure was observed or inspected. Do not infer
+shader compilation as the cause from other harnesses' prior diagnostics.
+
+Independent terminal review upholds PARK/STOP. No retry, timing probe, source
+patch, larger wait/cap, reduced quality, alternate set or engine rebuild follows.
+No original-resolution inspection is possible with0images. No clean Godot
+capture shutdown, reflection/RID correction, native GPU/performance, physical
+controls, human or final-common-candidate qualification is established. Registry
+source/image/human stages remain pending unchanged despite legacy reviewed_current
+labels. Existing accepted source-specific sets and the full13set/143PNG roster
+retain their original scope; this is no promoted inventory count.
+
+**Guards and retention.** Complete source/index/tree/cache are identical around
+capture; import alone generates its owned cache. Engine/ICD/library pins match
+after, timeout/game and Xvfb are reaped; owned X lock is absent. All nine recorded
+PID/start identities across two owners are absent, no process cwd remains in the
+owned checkout. Raw commands, wrapper/environment/source snapshots, driver cache,
+logs, timed-out state and independent review are preserved in one verified archive:
+`/srv/mudds-work/hero-cell-capture-20261026/records.tar.gz`,34586648bytes,
+294regular files/two symlinks,SHA256
+`741be2629ebc51a078b6ff6d0c051a06934a64f14396aa98376fa83fcee74145`.
+Exact archive membership/bytes/modes/link targets verified before loose removal.
+Only archive/closeout remain after owned detached-worktree cleanup; no task branch
+or canonical image publication. Shared guarded editor and unrelated detached
+worktrees/old registrations remain retained. Existing playable378d99c is unchanged;
+no duplicate export is made for this failed qualification.
+
+Original18:01:07UTC/45min/hard18:46:07 includes binding, wrappers/import,
+one300s capture, review, archive/push and owned cleanup. Archive18:21:50UTC /
+20.727 cumulative minutes; final total and pushed main are in closeout.json.
+Reopen only with a supported causal correction/environment change and independent
+cumulative-priority review on this same retained goal/cost, preserving original
+18frames/2560×1440/Forward+quality/300s. No unchanged retry or renamed budget.
+
 ## Ordinary Jovian engineer recovery accepted 20261026
 
 CREW-RECOVERY-ORDINARY selected Jovian engineer checkpoint case **ACCEPTED** on

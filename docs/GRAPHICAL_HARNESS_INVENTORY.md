@@ -199,6 +199,28 @@ Registry metadata is unchanged: human `ready` is not `reviewed`, and no human
 review or current-common-candidate qualification has been manufactured. All
 original13sets/143PNGs and their exact source/size/inventory requirements remain.
 
+## Torrent hero-cell original-cap stop — 2026-10-26
+
+The current18-frame hero-cell set remains pending/PARKED after its first unchanged
+attempt on frozen2f333b0e4. Exact retained guarded editor7b46e60…34c5f7d,
+authenticated owned Xvfb with loopback client, Dummy audio, Forward+ Vulkan,
+2560×1440/TAA/2×MSAA and pinned llvmpipe retain the original300s cap. The engine
+reports Vulkan1.4.305/llvmpipe(LLVM19.1.7,256bits)/X11 and correct window/viewport.
+It exits124 at the cap: wrapper301.322925s/guard302.135270s, no marker and0/18PNG.
+The last log checkpoint is pilot instantiation; the later attachment/lifecycle/
+frame/physics/control/source-component interval remains unlocalized. No art,
+pixel, ROI, shader-cause, clean-shutdown/reflection-fix, human or native-performance
+result is established. No original-resolution inspection was possible.
+
+Source/index/tree/complete cache and engine/ICD/library pins match before/after;
+all nine recorded owned identities are absent and owned X lock is removed.
+Registry fields remain unchanged pending; no canonical images or replacement
+playable build is published. [Raw records, frozen contract and exact reopening](history/ROADMAP_DELIVERIES.md#torrent-hero-cell-original-cap-timeout-20261026).
+No unchanged retry, probe, patch, deadline increase or quality reduction is
+selected. A supported cause/correction or environment change and independent
+cumulative-priority review must precede reopening this same18-frame goal.
+This failure does not authorize another heavy capture as a substitute.
+
 ## Current required capture commands
 
 The current source inventory contains **13 required harnesses and 143 PNGs**.

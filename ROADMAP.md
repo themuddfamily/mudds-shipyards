@@ -110,52 +110,32 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Selected qualification: capture-hero-cell, one full18-frame Torrent set.**
-Freeze unchanged source/art, run the existing Forward+2560×1440/TAA/2×MSAA
-harness once in authenticated private Xvfb/x11/Dummy, then inspect every original.
-Use the exact retained guarded editor7b46e60…34c5f7d and pinned llvmpipe; its
-build is accepted but reflection cleanup still requires this run's zero-diagnostic
-shutdown. Original engine cap300s remains; no parse/staging substitute, lower
-quality or retry. [Frozen result/steps/proof/stop](docs/ROADMAP_BACKLOG.md#torrent-hero-cell--full18-capture-contract).
-Root owns isolated execution, images/decisions, canonical handoff if accepted,
-commit/push and owned cleanup; one bounded recipe mapper and one independent
-reviewer. Original18:01:07UTC/45min includes binding/import/ONEcapture/all18
-original-resolution inspection/metadata/archive/push/cleanup; hard18:46:07.
-First unexpected failure stops and is retained. No runtime/art change or duplicate
-playable export is planned; an actual finding needs a named bounded repair.
-This qualifies recorded source/rendered output only, not native GPU/performance,
-physical controls, human review or one final common candidate.
+**PARKED: full18-frame Torrent hero-cell capture.** One unchanged capture on
+frozen2f333b0e4 reaches world/berth/Torrent/pilot instantiation, then its original
+300s engine cap expires: exit124, zero PNGs and zero success markers. The interval
+after pilot instantiation remains unlocalized; no art/pixel/ROI failure or shader
+cause is established. No original-resolution inspection was possible.
+[Exact failure and reopening condition](docs/history/ROADMAP_DELIVERIES.md#torrent-hero-cell-original-cap-timeout-20261026).
 
-The prior completed result remains a reference:
+Forward+/X11/2560×1440 were actually reported with guarded editor7b46e60 and
+llvmpipe LLVM19.1.7/Vulkan1.4.305. Source/index/tree/cache and engine/Vulkan pins
+remain unchanged; all nine recorded owned identities are absent. This proves
+no clean capture shutdown/reflection repair, native GPU/performance or human
+review. Existing registry source/image/human stages remain pending unchanged.
+No retry, probe, patch, larger cap or lower quality is selected.
 
-**Accepted: one ordinary Jovian engineer recovery and cockpit-priority repair.**
-CREW-RECOVERY-ORDINARY's selected checkpoint case passes on source378d99caf.
-The original full journey completes79.277s: normal hub/Freight/ramp/chair input,
-actual crew save, owned SIGKILL/reap−9, distinct normal recovery, awake supported
-cabin walk, actual helm/ONLINE positive throttle, normal UI OS0 and clean markers.
-All protected payload remains exact; this fresh profile contains settings and no
-earned activity/reward namespace, so earned-debt recovery is not claimed.
+Raw commands/environment/cache/diagnostics and the stopped state are in one
+verified archive; loose owned records and the detached worktree are cleaned at
+closure. No task branch, runtime/art edit, canonical image publication or duplicate
+playable build. Original18:01:07UTC/45min includes binding/import/one capture/
+review/archive/push/cleanup; archive20.727minutes, final closeout retains total.
+Reopen only with a supported causal correction/environment change and independent
+cumulative-priority review preserving the original outcome/count/quality/300s.
+Do not run another heavy capture as a substitute for this unlocalized failure.
 
-Runtime repair adds Jovian to the existing guarded cockpit-versus-chair priority.
-Deliberate co-pilot/engineer selection still passes. The caller waits for actual
-helm readiness and rejects any wrong crew assignment immediately. Captured-geometry
-regression isolates the old failure then passes7/7; Python260 passes. Paired
-exports/three strict startups/actual1529-entry payload audit and independent raw
-review pass. [Exact proof, earlier failures and scope](docs/history/ROADMAP_DELIVERIES.md#ordinary-jovian-engineer-recovery-accepted-20261026).
-
-The fresh [Windows checkpoint](builds/windows/MuddsShipyards-378d99c-checkpoint.zip)
-and [Linux package](builds/linux/MuddsShipyards-378d99c-linux-x86_64.tar.gz) are in
-this repository's builds folders. Native Windows, GPU/device/audio, other crew,
-earned-payment, installed and final-candidate gates remain open.
-Original17:01:14UTC/90min clock includes both selections, all failures, checks,
-exports, actual routes, review, archive/push/owned cleanup; archive53.971minutes,
-final closure in closeout.json. All52 pipeline identities and five preflight
-parents are absent/reaped. Source/raw retained in a verified archive; accepted
-source integrates into pushedmain before owned branch/worktree cleanup. Historical
-PARK and parse failure remain retained. No next run is selected.
-
-Task-selection rules and all337 original records remain binding. This closes one
-named ordinary case, not its whole craft, installed recovery or original parents.
+Last accepted gameplay remains the [Jovian cockpit/recovery repair](docs/history/ROADMAP_DELIVERIES.md#ordinary-jovian-engineer-recovery-accepted-20261026)
+and checkpoint378d99c. Task-selection rules and all337 original records remain
+binding; no next run is selected.
 
 Recent accepted and parked results are references, not active assignments:
 
