@@ -27615,3 +27615,46 @@ and worktree ownership verification. No remote task branch, private worktree,
 loose scratch or engine/test process was created. No checkpoint is implied by
 this documentation result. The existing RPC Windows compile remains parked at
 its recorded cold+one-incremental timeout; no third compile was selected.
+
+
+<a id="carried-cabin-floor-contact-accepted-20261026"></a>
+## Carried-cabin floor contact repair accepted — 2026-10-26
+
+Game/source30534f548b33c2ff579cab922cfef16d40da9f14, checkpoint
+[Windows30534f5](../../builds/windows/MuddsShipyards-30534f5-checkpoint.zip) and
+[matching Linux](../../builds/linux/MuddsShipyards-30534f5-linux-x86_64.tar.gz).
+Selective integration of regressione10dad247 and production456a0d8ea changes
+only PlayerController and the existing step-up suite, alongside the task card.
+A previously grounded on-foot occupant of a live cabin with positive
+approximately-zero upward tangent residue now receives an ordinary gravity step
+before the existing sole collision move. Snap, collision margin and penetration
+recovery are unchanged; no floor flag or ray substitutes for real contact.
+
+The exact captured Bulwark capsule step reproduced old floor=false as the sole
+expected regression failure at50.350s/OS1. Identical controller/fixture bytes on
+the repaired source passed50.278s/OS0. On the clean integrated source, the full
+existing Player step-up suite passes50.208s/OS0/one success marker/no diagnostics,
+including genuine jump, airborne residue, removed support, slopes, headroom and
+pad-edge cases. The existing Bulwark cabin contract passes6.877s/OS0.
+This is a collision regression fixture using captured transforms, not an ordinary
+full-craft journey.
+
+Clean Windows/Linux exports and Windows embedded-PCK-on-Linux, Linux direct and
+Linux archive startups all pass; each startup requires actualOS0 and exactly one
+STARTUP_MENU_READY_OK. Actual PE/ELF inventories match1527 entries, with only
+compiled PlayerController changed from accepted4bf5e88. Stock Windows engine
+code, source metadata and exact archive bytes/modes/source epoch verify.
+Independent source and final actual-result review GO. Build notes contain actual
+stage timings. Every automated Godot invocation was headless/Dummy with isolated
+profiles. Native Windows, GPU performance, physical devices, audible output and
+rendered/player review remain NOT_RUN; owner-excluded gates remain excluded.
+
+All six ordinary Bulwark gunner trials remain FAILED and parked, including the
+latest outward15s failure after101.287s and its separate final source-guard
+failure after an authorized concurrent documentation edit. The gunner driver,
+observer and startup-selector candidate is unaccepted. No full gunner hit/home/
+exit/reuse, normal UI OS0 or full-craft claim is supplied by this repair.
+All cost and failures remain cumulative from2026-10-26T02:37:33UTC; the original
+90minute engineering estimate was exceeded, not reset by extracting the repair.
+Owned source/raw/build preservation and cleanup are recorded in
+`/srv/mudds-work/bulwark-gunner-home-20261026/closeout.json` after closure.

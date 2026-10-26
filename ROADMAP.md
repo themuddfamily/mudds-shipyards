@@ -1,13 +1,15 @@
 # Development roadmap
 
 **Playable alpha; full original scope remains unfinished.** Latest Windows build:
-[4bf5e88 checkpoint](builds/windows/MuddsShipyards-4bf5e88-checkpoint.zip)
-([changes and validation](builds/windows/MuddsShipyards-4bf5e88-notes.txt)).
-Matching [Linux checkpoint 4bf5e88](builds/linux/MuddsShipyards-4bf5e88-linux-x86_64.tar.gz)
-([Linux validation](builds/linux/MuddsShipyards-4bf5e88-linux-notes.txt)) is available.
-This checkpoint qualifies existing Zenith pilot handling, a real repeater hit,
-two strict home returns and fresh reuse through normal controls and clean exit.
-Earlier gameplay and caption fixes are retained; full Zenith acceptance stays open.
+[30534f5 checkpoint](builds/windows/MuddsShipyards-30534f5-checkpoint.zip)
+([changes and validation](builds/windows/MuddsShipyards-30534f5-notes.txt)).
+Matching [Linux checkpoint30534f5](builds/linux/MuddsShipyards-30534f5-linux-x86_64.tar.gz)
+([Linux validation](builds/linux/MuddsShipyards-30534f5-linux-notes.txt)) is available.
+This checkpoint repairs collision floor-contact loss while walking inside a
+moving cabin across tiny floating-point tangent residue. The captured regression,
+jump/airborne/missing-support cases and strict package startups pass. Prior Zenith
+pilot/hit/two-home/reuse qualification retains its original4bf5e88 source scope;
+this repair does not qualify the parked Bulwark gunner journey or full craft.
 Nine of the promised 17 craft exist. All 36 original parent outcomes and ten phase
 exit gates remain open; completed child results are retained, not counted as whole
 features. There is no evidence-backed project percentage or completion date.
@@ -104,29 +106,23 @@ cost charged from the same original start. The retired exact15tick procedure
 was an executor assumption; the physical predicates were fixed before trial3.
 [Actual result, failed trials and limits](docs/history/ROADMAP_DELIVERIES.md#zenith-pilot-hit-home-reuse-accepted-20261026).
 
-**Selected production repair: carried-cabin floor contact.**
-This is the demonstrated PlayerController defect discovered under
-CRAFT-ACCEPT-BULWARK, not a reopening of its parked ordinary gunner journey.
-Integrate only the captured regression and runtime correction from
-`e10dad247`/`456a0d8ea`: an already grounded, on-foot Player in a live moving
-cabin retains actual collision floor contact across a positive approximately-zero
-upward tangent residue. The original sole move, gravity, snap, margins and
-penetration recovery remain; genuine jumps, airborne motion and removed support
-must keep their existing behavior.
+**Delivered production repair: carried-cabin floor contact.**
+Checkpoint30534f5 integrates the reproduced PlayerController repair and unchanged
+captured regression. An on-foot, previously grounded Player in a live moving
+cabin now retains actual floor contact across positive approximately-zero upward
+tangent residue, through the original gravity/move/snap/recovery path. Genuine
+jumps, airborne motion, missing support and original margins remain covered.
+The integrated Player suite passes50.208s/OS0/one marker/no diagnostics; existing
+Bulwark floor contract passes6.877s. Clean paired exports, three strict menu
+startups and exact1527-entry PE/ELF/archive audit pass; only compiled
+PlayerController differs from accepted4bf5e88. Independent final review GO.
+[Source, actual proof and retained limits](docs/history/ROADMAP_DELIVERIES.md#carried-cabin-floor-contact-accepted-20261026).
 
-Root owns `scripts/player/player_controller.gd`,
-`tests/player_step_up_assist_test.gd`, integration and packaging; one independent
-physics reviewer checks extraction and actual proof. Old runtime RED and repaired
-GREEN are retained, with exact controller/fixture dependency comparison to main.
-Pass requires the existing `player_step_up_assist_test.gd` suite to exit0 with
-exactly one `PLAYER_STEP_UP_ASSIST_TEST_OK`, the existing Bulwark floor contract,
-clean paired exports, strict package startups (exit0 plus one
-`STARTUP_MENU_READY_OK`) and actual payload/archive audit. All Godot checks are
-headless with Dummy audio. Publish a fresh Windows EXE/ZIP/notes and matching Linux
-checkpoint after review. Stop at the first unexpected failure; no full gunner-route
-retry or acceptance is selected. Estimate15–30minutes for extraction/checks/build/
-closure; retain all cumulative cost from02:37:33UTC, including the overrun already
-recorded below. Full craft, ordinary gunner journey and hardware gates stay open.
+This closes only the demonstrated collision repair found under
+CRAFT-ACCEPT-BULWARK. All six ordinary gunner trials below remain FAILED and
+parked; no route retry or broader craft acceptance is selected. Extraction/check/
+build/closure cost remains cumulative from02:37:33UTC, including the recorded
+90minute estimate overrun. Actual hardware and final-candidate gates stay open.
 
 **PARKED: CRAFT-ACCEPT-BULWARK ordinary solo gunner journey.**
 No implementation or qualification retry is selected. Six ordinary-route trials
