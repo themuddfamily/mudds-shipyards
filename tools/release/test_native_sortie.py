@@ -6306,7 +6306,11 @@ class ZenithTorrentHandbackTests(unittest.TestCase):
         self.assertEqual(p.stage,'to_torrent')
         self.assertEqual(p.visited[-1]['target'],published)
         self.assertEqual(p.visited[-1]['goal'],'wing_clear')
-        self.assertEqual([target for _,target in p.route[:-2]],list(p.REVERSE_ARM))
+        self.assertEqual([(name,target) for name,target in p.route if name.startswith('reverse_')],
+                         [('reverse_'+str(i),target) for i,target in enumerate(p.REVERSE_ARM)])
+        self.assertEqual(p.route[11:16],[('reverse_11',[0,0,15.5]),
+                         ('cargo_south',[0,0,13.5]),('cargo_port',[-8.5,0,13.5]),
+                         ('reverse_12',[-8.5,0,15.5]),('reverse_13',[-8.5,0,13.5])])
         self.assertEqual(p.handoff_receipts['zenith_clear']['player'],[20.30,4.2,59.20])
         for point in ([20.299999,4.2,59.20],[20.30,4.2,59.200001]):
             p,s=self.wing_clear_fixture(point); p.walker.settled_frames=14
@@ -6322,6 +6326,49 @@ class ZenithTorrentHandbackTests(unittest.TestCase):
         sample=self.tick(p,s)
         with self.assertRaisesRegex(AssertionError,'fifteen-second per-goal deadline'):
             p.update(sample,15.001)
+        self.assertEqual(native.CAP,300)
+
+    def test_central_cargo_detour_avoids_recorded_capsule_block_without_dropping_old_goals(self):
+        root=Path(native.__file__).resolve().parents[2]
+        world=(root/'scripts/world/shipyard_world.gd').read_text()
+        activity=(root/'scripts/world/station_operations_activity.gd').read_text()
+        self.assertIn('Transform3D(Basis.IDENTITY, Vector3(-6.0, 0.0, 17.9))',world)
+        self.assertIn('"name": "CrateOutboundSmall", "position": Vector3(3.62, 0.44, -1.9), "size": Vector3(0.7, 0.52, 0.8)',activity)
+        # Expand the real fixed crate by the unchanged production capsule and
+        # contact margin. The former horizontal leg crosses this forbidden box.
+        radius,margin=.38,.002
+        centre=(-6+3.62,17.9-1.9)
+        minimum=(centre[0]-.7/2-radius-margin,centre[1]-.8/2-radius-margin)
+        maximum=(centre[0]+.7/2+radius+margin,centre[1]+.8/2+radius+margin)
+        self.assertLessEqual(minimum[1],15.6092557907104)
+        self.assertGreaterEqual(maximum[1],15.6092557907104)
+        self.assertTrue(-8.5<minimum[0]<maximum[0]<0)
+        self.assertAlmostEqual(maximum[0],-1.64938831329346,delta=.002)
+        p,s=self.wing_clear_fixture([20.30,4.2,59.20])
+        p.walker.settled_frames=14
+        sample=self.tick(p,s);p.update(sample,1)
+        outbound=[target for _,target in p.route[11:15]]
+        self.assertEqual(outbound,[[0,0,15.5],[0,0,13.5],[-8.5,0,13.5],[-8.5,0,15.5]])
+        p,s=self.initial();p.stage='torrent_clear';p.last_state=s
+        p.goal_since=p.clear_since=0
+        point=[-7.6,0,-9.25]
+        s.update(player=point,velocity=[0,0,0])
+        p.route=[('clear',point)];p.clear_target=point
+        s['handoff']['fleet'][p.TORRENT]['boarding_distance']=8
+        p.update(s,1)
+        self.assertEqual(p.stage,'connector')
+        self.assertEqual(p.route,[('0',[-8.5,0,-9.25]),('1',[-8.5,0,13.5]),
+                         ('2',[-8.5,0,15.5]),('cargo_south',[-8.5,0,13.5]),
+                         ('cargo_east',[0,0,13.5]),('3',[0,0,15.5])])
+        returning=[target for _,target in p.route[2:]]
+        for route in (outbound,returning):
+            for start,end in zip(route,route[1:]):
+                with self.subTest(start=start,end=end):
+                    self.assertTrue(max(start[0],end[0])<minimum[0]
+                                    or min(start[0],end[0])>maximum[0]
+                                    or max(start[2],end[2])<minimum[1]
+                                    or min(start[2],end[2])>maximum[1])
+        self.assertIn(('hub_forward',[0,0,13.5]),native.LifeTowPilot.GANTRY_GOALS)
         self.assertEqual(native.CAP,300)
 
     def test_reverse_stair_base_leg_uses_walk_input_while_other_legs_keep_existing_sprint(self):

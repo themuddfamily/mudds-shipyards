@@ -92,18 +92,25 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Selected qualification: one Zenith→Torrent→same Zenith handback.**
-Independent cumulative-priority review selects exactly one continuation after the
-accepted1f7dccb stair repair satisfies the archived reopening condition. Current
-main4e80ef20 is the base; restore only the five final archived caller/observer/
-privacy files fromda7d5a954, preserving the accepted Aft and Player source. The
-complete frozen route below remains binding, including mandatory actual Guided,
-90neutral/current-epoch admission/reclaim, original movement/support/no-placement
-checks and300s game/360s outer abort. Exact candidate/package pins precede checks.
-Readiness/parse/Python/privacy/export/startup/payload checks precede one route.
-Stop at the first unexpected failure; no automatic fifth trial or speculative
-repair is selected. Original09:51UTC clock and90minute estimate continue, already
-approximately120minutes; archive/cleanup/push remain charged to that goal.
+**Selected qualification: one corrected Zenith→Torrent→same Zenith handback.**
+The fourth trial499e681 passed the repaired stairs and all reverse goals0–11,
+then stopped91.991s at the original15s limit onreverse12. HeldW+Shift/zero motion
+atx−1.649388,z15.609256 matches the east face of the actual Central cargo crate
+plus capsule radius/margin; this is a blocked caller path, not a game defect.
+All inputs/helpers/game/Xvfb were released/reaped with zero game diagnostics.
+Torrent boarding, Guided and reclaim remain unobserved; that trial stays failed.
+
+Independent causal/cumulative-priority review selects ONE Python-only correction
+and then one fifth complete trial after Python/reuse audit pass. Before original
+reverse12, insert(0,0,13.5)→(−8.5,0,13.5); keep originalreverse12/13. On return,
+keep every originalconnector0/1/2/3 goal but route from2 via(−8.5,0,13.5)→
+(0,0,13.5) before3. This uses the accepted Freight lane and preserves every old
+published destination, mandatory real Guided, fresh same-Zenith reclaim,
+90neutral ticks, all guards/caps and normal HUD exit/OS0. Exact499e681 game bytes,
+exports/startups/payload proof are reused; no observer or runtime change.
+First unexpected source/test/reuse/wholetrial failure STOP; no automatic sixth.
+Original09:51UTC clock/90minute estimate continue, now approximately135minutes;
+all failure/build/source and closure costs stay charged to that goal.
 
 **Roadmap correction applied; PLAN-NEXT remains open.** This documentation pass
 preserves all337 IDs, kinds, parent bindings and accepted scopes; tightens nine

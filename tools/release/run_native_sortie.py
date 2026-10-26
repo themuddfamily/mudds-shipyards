@@ -7040,13 +7040,19 @@ class ZenithTorrentHandbackPilot(Pilot):
                                 'live wing-clear point physically clears Zenith reboard block')
                         self.handoff_receipts['zenith_clear']=self.handoff_receipt(s)
                         goals=[('reverse_'+str(i),p) for i,p in enumerate(self.REVERSE_ARM)]
+                        # Cross the accepted Freight lane south of the fixed
+                        # central cargo crates, then retain both old goals.
+                        goals[12:12]=[('cargo_south',[0,0,13.5]),('cargo_port',[-8.5,0,13.5])]
                         goals += [('torrent_exit_z',[-8.5,0,fleet[self.TORRENT]['exit'][2]]),('torrent_candidate',fleet[self.TORRENT]['boarding'])]
                         self.begin_walk('to_torrent',goals,s)
                     elif self.stage=='to_torrent': self.board_since=now; self.enter('torrent_ready',s)
                     elif self.stage=='torrent_clear':
                         require(row['boarding_distance']>7 and not row['reboard_blocked'],'actual Torrent radial walk clears seven-metre reboard block')
                         self.handoff_receipts['torrent_clear']=self.handoff_receipt(s)
-                        self.begin_walk('connector',[(str(i),p) for i,p in enumerate(([-8.5,0,self.clear_target[2]],[-8.5,0,13.5],[-8.5,0,15.5],[0,0,15.5]))],s)
+                        self.begin_walk('connector',[
+                            ('0',[-8.5,0,self.clear_target[2]]),('1',[-8.5,0,13.5]),
+                            ('2',[-8.5,0,15.5]),('cargo_south',[-8.5,0,13.5]),
+                            ('cargo_east',[0,0,13.5]),('3',[0,0,15.5])],s)
                     elif self.stage=='connector': self.begin_walk('outward_arm',LifeTowPilot.ARM_GOALS,s)
                     elif self.stage=='outward_arm': self.board_since=now; self.enter('zenith_ready',s)
         elif self.stage in ('torrent_ready','zenith_ready'):
