@@ -94,6 +94,20 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Station capture binding pass ended: BLOCKED definition — Codex.**
+On source0383848bf one source-only pass mapped all nine branches and four service
+views to existing declared frames or exact absent fields. The
+[existing station contract](docs/ROADMAP_BACKLOG.md#station-presentation--finite-review-boundaries)
+now separates accepted standalone Freight images, declared overview recipes and
+missing supported player views. Scenes/Operations source/image stages remain
+pending despite `reviewed_current` labels; no visual acceptance is inferred.
+Missing fields are literal view/state/eye-pose/text/access/clearance comparisons,
+with Codex as owner. The container stays BLOCKED; the source map is retained and
+must not be surveyed again unchanged. Original15–30minute definition budget
+includes review, commit/push and cleanup. No engine/capture/validator, new branch,
+worktree or scratch artifact was created; no gameplay outcome is claimed.
+Parked views retain their causal reopening conditions. No next run selected.
+
 **Accepted capability: forward projectile attribution — checkpoint b4ff8c0.**
 Real projectile contacts now damage the forward hull instead of core systems when
 the actual contact is nearest the forward region.17 recorded forward hits across

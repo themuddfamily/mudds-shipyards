@@ -953,7 +953,7 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | LIFE-PATROL | Habitat patrol during nearby walking/boarding | 9 | Qualification | DONE packaged ea8fe43:22 settled goals/171.602m,17.302m local/max9.944m origin distance, actual same-door candidate/E/OPEN-clear/return and distinct Torrent E→BOARDING/90seated. Same two actual drone roots/seed/defaults/home/OFFLINE/parked,2428 consecutive samples; all77Python/package/startups/audit/ONEroute PASS first attempt. [Frozen contract/full result](history/ROADMAP_DELIVERIES.md#habitat-patrol--ordinary-door-walking-and-torrent-boarding-accepted). Rendered/hardware/full station separate | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | STATION-RELATIONS | Name unresolved historical adjacency/elevation/ladder relationships | 9,36 | Definition | BLOCKED input — Codex records source anchors for only the existing adjacency/elevation/scale/version/ladder claims; the user supplies missing evidence/access or approves explicit interpretation. No new topology claim is implied. | One finite record of unresolved adjacency/elevation/scale/version/ladder claims, each with source anchors or exact missing evidence/interpretation decision. |
 | STATION-CENTRAL-VIEW | One fixed current Central operational-view review and any resulting repair | 9,12 | Qualification | PARKED capture prerequisite remains. Before selection Codex binds one player-height view/source and its visibility/clearance criteria from the existing station roster. No assumed defect or unchanged capture retry. | Inspect that one frozen view: close as explicit inspected no-finding, or name and repair its actual defect with same-view before/after and unchanged walk/flight/collision clearance. Either result closes this view only; no capture-timeout exemption or new sweep. |
-| STATION-FINDINGS | Finite remaining presentation/living-station findings | 9,12 | Container | BLOCKED definition (Codex). One selected existing branch/view per 15–30 minute definition: fix the exact Fleet berth or Observation pad where relevant, supported camera pose/height, renderer/quality/resolution/scale, image size and literal text/access/clearance predicates. Reuse accepted views; Habitat and other parked captures require their existing causal reopening conditions. | Definition finished: closed required-view list for Central/Aft/Habitat/Freight/Fleet/Annex/Observation/Salvage/VIP and tow/gantry/arm/patrol, referencing existing capture inventory once; each view has the listed literal pose/render/text/access/clearance fields. Outcome accepted: every listed view is inspected with no finding or its named defect is repaired/dispositioned with same-view proof. A missing-input record leaves definition and outcome BLOCKED; it ends only the current bounded attempt. One reviewed view cannot close the container. |
+| STATION-FINDINGS | Finite remaining presentation/living-station findings | 9,12 | Container | BLOCKED definition (Codex). One selected existing branch/view per 15–30 minute definition: fix the exact Fleet berth or Observation pad where relevant, supported camera pose/height, renderer/quality/resolution/scale, image size and literal text/access/clearance predicates. Reuse accepted views; Habitat and other parked captures require their existing causal reopening conditions. The [2026-10-26 capture binding pass](#station-presentation--finite-review-boundaries) maps all13 subjects and records exact absent fields; reuse it, with no automatic successor survey or capture. | Definition finished: closed required-view list for Central/Aft/Habitat/Freight/Fleet/Annex/Observation/Salvage/VIP and tow/gantry/arm/patrol, referencing existing capture inventory once; each view has the listed literal pose/render/text/access/clearance fields. Outcome accepted: every listed view is inspected with no finding or its named defect is repaired/dispositioned with same-view proof. A missing-input record leaves definition and outcome BLOCKED; it ends only the current bounded attempt. One reviewed view cannot close the container. |
 | BOMBER-ROLES-DEFINE | Bomber promised crew/navigation versus actual supported roles | 4,10,16 | Definition | DONE; pilot/payload implemented, additional crew/Nav semantics missing | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | BOMBER-ROLE-DECISION | Choose additional Bomber role/count, action and physical access | 4,10,16 | Decision | WAITING; precise interpretation needed, no approved scope reduction | Recorded exact additional role/count/action/physical-access contract; pilot-only runtime is not scope reduction. |
 | CRAFT-GAPS-TORRENT | Torrent remaining authored components/roles | 10,11 | Definition | Definition DONE: no concrete required missing implementation found in bounded owners; craft acceptance OPEN, supported finding needed for implementation | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
@@ -1903,6 +1903,69 @@ Python checks. No new route, engine run, gameplay repair or checkpoint was
 selected by this handoff; overview/native/player-height review remains open.
 
 ### Station presentation — finite review boundaries
+
+**Capture binding pass, 2026-10-26, source0383848bf: BLOCKED definition — Codex.**
+The existing13 subjects below are now mapped once to declared harness frames;
+this is neither a visual review nor a new capture requirement. Reuse this map
+instead of repeating the source survey. Registry:
+`tools/release/graphical_harness_registry.json` (existing13 sets/143 PNGs).
+`tools/validate_visual_capture_set.py` checks a supplied manifest's integrity;
+it is not the registry and cannot establish readability or physical access.
+
+In the table, **Scenes** means `tests/capture_scenes.gd` / `capture-scenes`;
+**Operations** means `tests/capture_station_operations.gd` /
+`capture-station-operations`; **Freight** means
+`tests/capture_jovian_freight_berth.gd` / `capture-jovian-freight-berth`.
+Names are declared frames, not evidence that an image exists or passed review.
+
+| Existing subject | Declared frame binding | Exact remaining binding / retained boundary |
+| --- | --- | --- |
+| Central | Operations `02_central_berth_operations.png`; Scenes `station.png` | Supported standing-spawn-directory pose/eye height, literal destination text and berth-access comparison. Elevated station overview is not this view; CENTRAL-VIEW stays parked. |
+| Aft | Operations `03_aft_operations_route.png`; Scenes `aft_junction.png`, `operations_room.png` | Lower-console doorway pose and literal Activity/Destination text/door clearance; separate upper stair/workpost view. The120s/no-image console attempt stays parked. |
+| Habitat | Operations `04_habitat_service_access.png`; Scenes `habitat_exterior.png`, `habitat_common_room.png` | Measured-eye common-entry image/metadata and exact bunk/wake/doorway comparisons. Existing local camera y2.55 does not qualify standing arrival;180.842s/no-image attempt stays parked. |
+| Freight | Operations `05_jovian_freight_operations.png`; Scenes `freight_dock_approach.png`; Freight `freight_berth_overview.png`, `freight_control_room.png` | Bind integrated service entrance/boarding approach, literal service/boarding text and unlocked-door/clearance comparisons. Accepted689e2ed0e standalone pair remains accepted only in its custom capture environment. |
+| Fleet | Scenes `fleet_overview.png` is overview context only | Name one actual berth/craft threshold and supported approach pose, literal destination and boarding/landing clearance predicates. Overview does not bind this member. |
+| Annex | No explicit frame in the required13 sets | Restock console from supported central aisle: image binding, pose/eye height/FOV, literal service text, interaction and aisle-clearance comparison. Unfinished south gate remains excluded. |
+| Observation | No explicit frame in the required13 sets | Name one actual Observation/Logistics pad, cross-landing pose, image binding, literal destination and supported return comparison. |
+| Salvage | No explicit frame in the required13 sets | Supported-arrival inspection-pad image/pose, literal three-component presentation and access comparison. Parked/gated physical access/revisit remains parked/gated. |
+| VIP | No explicit frame in the required13 sets | Supported reception-arrival image/pose, literal evidence-permitted text and access comparison. Parked VIP walk remains parked. |
+| Tow | Operations `02_central_berth_operations.png` | `CentralTowServiceActivity`: ordinary nearby walking/boarding view, exact presentation phase, text if present and service/route clearance comparison. Paused tableau is not ordinary acceptance. |
+| Gantry | Operations `05_jovian_freight_operations.png`; Scenes `freight_dock_approach.png` | `FreightApproachGantry`: ordinary nearby walking/boarding view and exact operating phase/clearance comparison. Operations includes the real gantry envelope but does not prove that route. |
+| Arm | Operations `03_aft_operations_route.png` | `AftOperationsActivity`: dedicated service-arm phase/player pose and ordinary nearby walking/clearance comparison. Existing Aft failure boundary remains. |
+| Patrol | Operations `04_habitat_service_access.png` | `HabitatServicePatrol`: patrol phase/player-eye pose and ordinary access/clearance comparison. Existing Habitat failure boundary remains. |
+
+**Known comparison settings, not player-pose proof.** Operations uses full Main,
+Forward+, High (`apply_visual_quality(2)`),2560×1440,TAA/MSAA2X and content-scale
+size zero. `_frame_points` dynamically fits a camera around semantic anchors;
+`_prepare_deterministic_activity` pauses activities; `_seek_activity_tableau`
+sets their clocks to base time plus activity index×1.37.
+Central/Aft/Habitat/Freight base times are7.25/10/12.75/15.5s, respectively.
+These are reproducible source recipes, not recorded standing-eye measurements.
+Scenes also declares2560×1440/TAA/MSAA2X; its room cameras are module-local
+Aft(5.6,2.35,10.15)→(5.6,1.35,15.4),FOV60 and
+Habitat(0,2.55,18.8)→(0,1.75,27.2),FOV56. Both scripts stage capture state.
+Freight declares1400×900 with its own lights/environment; its interior camera
+is(17.8,1.9,31.8)→(20,1.55,28.8),FOV70 after the real service door opens.
+
+At this pass the two accepted Freight PNGs exist under
+`artifacts/jovian-freight-berth-689e2ed0e/captures/`. The default Scenes
+`gameplay_evidence_manifest.json`, `gameplay_source_manifest.sha256` and
+`station.png`, and Operations `02_central_berth_operations.png`, are absent at
+their declared local paths. This bounded check makes no archive-wide absence
+claim. Scenes/Operations registry source and image stages remain pending;
+`reviewed_current` alone is not accepted proof. Optional Operations
+`08_wayfinding_pylon_player_eye.png` is outside required143 and cannot replace
+the parked Central view.
+
+Codex owns the missing view bindings above: supported player pose/eye height,
+exact state and readable strings, source-bound renderer/quality/scale/image
+conditions, and literal access/clearance endpoints. Existing settings can be
+reused where valid; do not infer measured clearance or readable text from source
+anchors. The definition and product container remain BLOCKED until these fields
+are supplied. This pass ends here; no automatic successor survey or capture.
+Parked views require their recorded causal reopening evidence first. Review of
+required minimum/ultrawide/comfort cells retains the original scope and cannot
+be replaced by these overview mappings.
 
 STATION-FINDINGS source slice2026-10-18 on df3e71d4e: root inspected the living
 service owners; one medium read-only mapper inspected wayfinding and branch
