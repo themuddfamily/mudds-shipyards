@@ -30221,3 +30221,29 @@ runtime-owner capture requires its own explicit bounded selection and cumulative
 priority decision. Current installed qualification stays FAIL/PARK; all original
 outcomes, caps and prior cost remain open and retained. Titan design approval is
 still owner-pending; no construction is authorized by this source pass.
+
+
+<a id="popup-owner-preparation-cutoff-20261026"></a>
+## Popup owner capture stopped before execution —2026-10-26
+
+Terminal result: **PARKED preparation cutoff**, not a runtime observation or repair.
+Temporary observer source537d7bb46aa8b736826bbc7d743405f68ed0982c
+(base385c5d6caf3ddb42939382462d4bd74b58138913) attached passive receiver-owned
+Popup callbacks and guarded detached snapshots; independent source review accepted
+only one preparation/full-route attempt before the absolute20:51UTC native launch
+cutoff. That cutoff passed without launching the pipeline. No import, export,
+startup, native game, popup event or new qualification result exists. Original
+19:31:09UTC cumulative clock and21:01:09UTC hard stop remain; archive cost81.838min.
+No new launch window, deadline exception or automatic successor is selected.
+
+Unique diagnostic source bundle, frozen contract, helpers and fixture are retained
+in `/srv/mudds-work/popup-owner-capture-20261026/records.tar.gz`:14940bytes,
+10regular members, SHA256
+`f94e4b533a19031c78a14da8e88e8fdc35e934888898d9f3b48aca43f8b7e564`.
+Bundle ancestry/tip and every archive member's bytes/mode were verified. No results
+directory or owned process existed. Fresh remote/worktree ownership was checked;
+the exact owned branch and worktree were removed without merging instrumentation.
+Only the archive and closeout remain. Five unrelated detached worktrees remain
+untouched because their ownership/unique changes are outside this cleanup.
+The installed qualification stays FAIL/PARKED, concrete popup identity/order stays
+unknown, and latest playable checkpoint remains2456552.

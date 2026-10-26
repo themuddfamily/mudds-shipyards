@@ -59,6 +59,15 @@ expected state and original limits; do not link only a broad feature document.
 Record one terminal result and the first unmet predicate. Failure never silently
 adds another objective or turns a completed child back into an endless task.
 
+A goal is ready only if a reviewer can follow those steps and decide PASS or FAIL
+from the frozen expected results without choosing another value or reconstructing
+chat history. List unresolved fields literally under BLOCKED; do not schedule the
+run. Proof must name its scope: source check, packaged automated route, physical
+device or native-hardware measurement. One scope cannot silently satisfy another.
+A dependency names an existing outcome and the exact result needed from it; a
+family name alone is insufficient. These rules apply to every existing backlog row,
+including final release and owner-dependent goals.
+
 Missing acceptance fields mean **BLOCKED definition — Codex**, listing exactly
 which fields are absent. Missing design choices or external access mean
 **BLOCKED input — named owner**, listing the exact answer/artifact required.
@@ -124,6 +133,10 @@ INSTALL-LINUX-CORRUPT remains open. Latest accepted playable build stays2456552.
 A [bounded source pass](docs/history/ROADMAP_DELIVERIES.md#popup-parent-connection-source-boundary-20261026) identifies the matching native Popup cleanup pair;
 the concrete runtime popup and cleanup order remain missing. No engine/application
 patch or additional trial is selected from that source pattern alone.
+The subsequent passive owner-capture preparation missed its20:51UTC launch
+cutoff. No import/export/game run occurred; the unmerged diagnostic source and
+inputs are archived and its owned branch/worktree/helpers removed.
+[Preparation stop and retained source](docs/history/ROADMAP_DELIVERIES.md#popup-owner-preparation-cutoff-20261026).
 
 **Accepted: backup-repair restart guidance, checkpoint2456552.**
 Confirmed backup repair now tells the player to quit and reopen the game when
@@ -184,9 +197,9 @@ Reopen only with a supported causal correction/environment change and independen
 cumulative-priority review preserving the original outcome/count/quality/300s.
 Do not run another heavy capture as a substitute for this unlocalized failure.
 
-Last accepted gameplay remains the [Jovian cockpit/recovery repair](docs/history/ROADMAP_DELIVERIES.md#ordinary-jovian-engineer-recovery-accepted-20261026)
-and checkpoint378d99c. Task-selection rules and all337 original records remain
-binding; no next run is selected.
+Latest accepted playable checkpoint is2456552, including the [backup-repair restart guidance](docs/history/ROADMAP_DELIVERIES.md#backup-repair-reopen-guidance-accepted-20261026).
+The earlier [Jovian cockpit/recovery repair](docs/history/ROADMAP_DELIVERIES.md#ordinary-jovian-engineer-recovery-accepted-20261026) remains accepted within its recorded scope.
+Task-selection rules and all337 original records remain binding; no next run is selected.
 
 Recent accepted and parked results are references, not active assignments:
 
