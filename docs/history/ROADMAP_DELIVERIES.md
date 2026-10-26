@@ -29959,3 +29959,58 @@ preservation of the original settings/Heavy credit/terminal and a fresh independ
 cumulative-priority decision. A blanket namespace exception, tutorial subset check
 or unchanged replay cannot close the failed contract. No unpaid-debt, installed,
 full-family, rendered, native hardware, audio or final-release acceptance is claimed.
+
+
+<a id="backup-repair-reopen-guidance-accepted-20261026"></a>
+## Backup repair reopen guidance — shipped on2456552 —2026-10-26
+
+SAVE-CORRUPT/parents31,32 has one player-visible guidance repair. After actual
+backup confirmation succeeds, retained safe-start begin reason
+`store_recovery_required` now produces:
+
+> SETTINGS BACKUP REPAIRED
+> QUIT AND REOPEN THE GAME TO FINISH RECOVERY
+
+The existing recovery owners initialize once; repair does not retry their failed
+startup, and Restart Shift retains the process-lifetime owner. Normal settings
+commits can work after repair, so this message does not say all saving is blocked.
+GameFlow reads the existing detached report to choose success copy. No recovery
+state/schema, commit path or automatic restart is added. Build source is clean
+`2456552bd88b81e2f9b2e13e3066101cff9bd917`; checkpoint EXE/ZIP/notes and matching
+Linux ELF/archive/metadata/startup records are in this repository's builds folders.
+
+The existing HUD integration fixture now proves actual safe-start rejection,
+visible Settings confirmation, one repair commit, unchanged recovered payload and
+corrupt recovery bytes, unchanged original startup report, exact two-line copy
+and actual1024×768/requested UI1.6 bounds. A separate explicitly presentation-only
+uninitialized flow retains generic success text; it does not fake a recovery owner.
+The old production code fails exactly the copy predicate17.220s; fixed HUD passes
+all16assertions16.960s. Existing GameFlow18/15.945s, binding11/1.147s and safe-start
+35/39.775s pass:80source assertions. Actual Windows PCK HUD passes16/11.367s.
+Independent source and final raw-result review approve this precise scope.
+
+Clean import20.766s; paired exports26.864/25.798s; Windows-payload/Linux-ELF/Linux-
+archive strict startups26.666/22.875/24.212s each exit0 and exactly one
+STARTUP_MENU_READY_OK. Actual1529Windows/Linux entries match; the only compiled
+semantic change against378d99c is GameFlow. Exact66known generated node_ids-only
+scene changes pass the existing strict parser (same count/offset, empty id_paths,
+all other decoded bytes exact). Stock PE code, archive bytes/modes/epoch and
+source/index/cache guards pass; import/export cache generation is explicitly
+allowed. No unexpected diagnostic or check failure. All55 observed stage process
+identities are absent. Checkpoint ZIP entries and all11canonical copied artifacts
+are independently byte/mode verified.
+
+Raw results are archived at
+`/srv/mudds-work/backup-repair-guidance-20261026/records.tar.gz`:32526925bytes,
+161regular files/13links, SHA256
+`c9d7992af0eaf758850a01e47715346d326c87b2d1165b8f5e432e4c0a0af300`.
+Archival closeout records integration and cleanup. Original conservative
+clock19:08:19UTC includes the preceding corrupt-install source pass;90min/hard
+20:38:19UTC includes build/archive/push/cleanup, with final elapsed in closeout.
+No repeated validator, new harness or hosted CI run is added.
+
+This is headless HUD component acceptance using an in-memory corrupt/backup
+fixture and a Linux-hosted Windows payload, not an ordinary OS-input corrupted
+installation/confirmed repair/distinct-process continuation. Those journeys,
+full recovery-family/final candidate and applicable native hardware/device/audio
+requirements remain open; no original parent or phase gate closes.

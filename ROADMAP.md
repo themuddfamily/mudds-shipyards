@@ -1,10 +1,12 @@
 # Development roadmap
 
 **Playable alpha; full original scope remains unfinished.** Latest Windows build:
-[378d99c checkpoint](builds/windows/MuddsShipyards-378d99c-checkpoint.zip)
-([changes and validation](builds/windows/MuddsShipyards-378d99c-notes.txt)).
-Matching [Linux checkpoint](builds/linux/MuddsShipyards-378d99c-linux-x86_64.tar.gz)
-([Linux validation](builds/linux/MuddsShipyards-378d99c-linux-notes.txt)) is available.
+[2456552 checkpoint](builds/windows/MuddsShipyards-2456552-checkpoint.zip)
+([changes and validation](builds/windows/MuddsShipyards-2456552-notes.txt)).
+Matching [Linux checkpoint](builds/linux/MuddsShipyards-2456552-linux-x86_64.tar.gz)
+([Linux validation](builds/linux/MuddsShipyards-2456552-linux-notes.txt)) is available.
+Confirmed settings backup repair now explains when to quit and reopen the game
+to finish recovery; the existing startup owners supply that condition.
 Jovian cabin Interact now takes the aimed-at helm instead of its co-pilot chair.
 The complete ordinary engineer-save/SIGKILL/normal-recovery/cabin-walk/helm/throttle/
 normal-Quit journey passes on the exported Linux checkpoint.
@@ -110,18 +112,13 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Selected capability: SAVE-CORRUPT backup-repair restart guidance.**
-
-| Field | Frozen assignment |
-| --- | --- |
-| Result | After confirming backup repair, Settings tells the player to quit and reopen the game if startup recovery was blocked; ordinary success remains unchanged when that condition is absent. |
-| Start | Baselinef3752a922; owned branch/worktree `roadmap/backup-repair-guidance-20261026`, `/srv/mudds-work/backup-repair-guidance-20261026/worktree`. Existing HUD integration fixture uses corrupt primary `{corrupt`, verified backup and foreign payload; real safe-start owner initializes from the retained startup load status. Own only GameFlow and the existing repair HUD test. |
-| Steps | Initialize actual settings/safe-start owners from backup; open the existing repair surface; confirm through its actual HUD button; inspect final status and preserved store. |
-| Pass/fail | If existing safe-start begin_status.reason is store_recovery_required, exact two-line status is SETTINGS BACKUP REPAIRED / QUIT AND REOPEN THE GAME TO FINISH RECOVERY. Without that rejected startup, keep SETTINGS BACKUP REPAIRED. Existing opaque confirmation/generation fences, one repair commit, unrelated payload and corrupt recovery bytes remain intact; no automatic restart or new recovery writes. Actual minimum1024×768/UI1.6 status fits its presentation. |
-| Proof | Existing `tests/runtime_settings_repair_hud_integration_test.gd`: one expected old-copy failure then corrected full pass; related GameFlow/settings/safe-start checks, paired clean exports, actual Windows payload regression and three strict menu startups. Source-backed HUD component acceptance; ordinary corrupt install/restart and full-family qualification remain open. |
-| Dependencies | Existing source confirms repair does not retry rejected safe-start/crash startup; distinct OS process is required. No new product decision or changed recovery policy. |
-| Stop | Shared conservative clock19:08:19UTC includes preceding installed-corrupt source pass;90min including checks/build/archive/push/cleanup, hard20:38:19UTC. First unexpected failure stops; no automatic retries or reset budget. |
-| Closure | Record exact accepted/failed predicate; merge/push accepted source, fresh Windows/Linux checkpoint and notes, archive raw, remove owned branch/worktree/processes/scratch. |
+**Accepted: backup-repair restart guidance, checkpoint2456552.**
+Confirmed backup repair now tells the player to quit and reopen the game when
+startup recovery was blocked. The actual Settings label passes at1024×768 and
+requested UI1.6;80source assertions,16actual Windows-payload assertions, paired
+exports/three strict startups and actual1529-entry payload audit pass. [Result and scope](docs/history/ROADMAP_DELIVERIES.md#backup-repair-reopen-guidance-accepted-20261026).
+Ordinary installed corrupt-data repair/restart and wider recovery qualification
+remain open; this closes only the named guidance capability. No next run selected.
 
 **PARKED: retained Heavy data through ordinary Jovian crew recovery.**
 The sole new candidate reaches the full chair/forced-stop/cold walk/helm/normal
