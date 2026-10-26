@@ -4,6 +4,19 @@ Moved from ROADMAP.md on 2026-10-17. These are source-specific historical
 results, not the active queue or proof of current full-project acceptance.
 Return to the [working roadmap](../../ROADMAP.md).
 
+## Shared Reduced flash native restart accepted 20261026
+
+Source `3649b4bbb34742a4fd9d076576c6665fc4355a5f`; checkpoint `MuddsShipyards-3649b4b`. The normal Reduced flash setting now forwards to the retained HUD immediately. Production save/reset/refusal results now drive the existing HUD dirty-state presenter, preserving existing player feedback strings. The existing COMFORT-FLASH shared preference caller executes the embedded native Linux game directly in three distinct, reaped OS processes against one owned private production profile. Normal Boot supplies actual Main; synthetic raw keyboard events traverse normal Begin Shift, Escape/Settings, ReducedFlashControl, APPLY + SAVE, RESET DEFAULTS and ordinary HUD Quit. No preference seeding, replacement store, direct control callbacks or direct success quit.
+
+Writer OFF→ON→OFF→ON checks checkbox/runtime/real current and new HUD cues; explicit Apply + Save increments actual successful commit count and clears dirty state. Second process cold-loads ON, whole Reset persists defaults; third cold-loads OFF/all authored defaults. Real HUD damage cues are staged components, not combat triggers. Same live Tween/positive remaining lifetime/no-relight and existing .42/.62s envelopes remain checked. Reduced motion OFF and payload intensity2/high isolate this option. Real primary/latest backup preserve the nontrivial unrelated namespace; actual final crash/safe-start clean markers and exact before/after bytes are retained independently.
+
+Validation: all 14 final stages pass. Native three-process case79.507s: actual writer2113652/0, reader2113725/0 and reset-reader2113810/0, all reaped. Production persistence47, Main effects70, resetUI10 and feedbackUI11 assertions pass, plus CLI privacy/parse/import, paired exports, three strict startups and actual matching1529-entry audit. Existing changed payloads are only GameFlow, Boot and UID cache; exactly one compiled probe/remap is added; old UID mappings and all other assets stay exact. Native Windows runtime, physical input, rendered visibility/human review and native GPU performance remain NOT_RUN; all remaining producer gameplay episodes and full COMFORT-FLASH remain open.
+
+Failed parse attempt and failed first native writer are retained. The former needed one explicit bool annotation. The latter compared JSON float42.0 with literal int42 despite exact saved values; a focused engine reproduction proves that mismatch, exact JSON-normalized equality and wrong-number refusal. Only two expected wire dictionaries were normalized; complete key/value equality, raw-file fences and independent Python checks stay intact. Both corrections received independent causal review. No production settings/persistence policy or caps changed. Original clock 08:47:00UTC, estimate90minutes includes all readiness/failures/checks/build/closure; max300s per process unchanged.
+
+The first live-cue trial and a failure-value reproduction both stop with runtime/disk ON but actual effective HUD alpha0.239999994635582. The reproduction retains the exact Tween, elapsed0, remaining.42s and duration.62: the missing GameFlow→HUD flag forwarder is the demonstrated cause. Existing source also left HUD dirty-state result handling disconnected; the same goal requires successful Save/Reset to clear it and refusal to preserve it. Two added assertions extend the existing production persistence suite for refusal/retry; the real exported caller covers live visual/save/reset/cold endpoints. Probe reset expectation follows the unchanged production `DEFAULTS RESTORED + SAVED` string. No original cue policy or duration changed.
+
+
 ## Observation walk — caller startup failure
 
 WALK-OBSERVATION parents7/9, exact candidate

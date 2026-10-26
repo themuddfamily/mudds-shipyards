@@ -1,15 +1,16 @@
 # Development roadmap
 
 **Playable alpha; full original scope remains unfinished.** Latest Windows build:
-[d4e2213 checkpoint](builds/windows/MuddsShipyards-d4e2213-checkpoint.zip)
-([changes and validation](builds/windows/MuddsShipyards-d4e2213-notes.txt)).
-Matching [Linux checkpoint](builds/linux/MuddsShipyards-d4e2213-linux-x86_64.tar.gz)
-([Linux validation](builds/linux/MuddsShipyards-d4e2213-linux-notes.txt)) is available.
-Cinder cargo terminal screens now follow Reduced flash using their existing
-1.15 emission cap, while preserving current text, feedback and cargo authority.
-Prior live torpedo flash and ordinary Ember Quit repairs remain accepted.
-Full cargo/comfort/world journeys, ordinary preference UI/save/cold/Reset,
-physical home/exit/reuse and applicable native hardware gates remain open.
+[3649b4b checkpoint](builds/windows/MuddsShipyards-3649b4b-checkpoint.zip)
+([changes and validation](builds/windows/MuddsShipyards-3649b4b-notes.txt)).
+Matching [Linux checkpoint](builds/linux/MuddsShipyards-3649b4b-linux-x86_64.tar.gz)
+([Linux validation](builds/linux/MuddsShipyards-3649b4b-linux-notes.txt)) is available.
+Reduced flash now updates the current/new HUD damage cue through normal Settings.
+Actual save/reset/refusal results also control the HUD unsaved state. The native
+Linux synthetic-keyboard save/three-process/Reset sequence passes. Prior cargo,
+torpedo and ordinary Ember Quit repairs remain accepted. Full cargo/comfort/world
+journeys, remaining producer episodes, physical input and native hardware gates
+remain open.
 Nine of the promised 17 craft exist. All 36 original parent outcomes and ten phase
 exit gates remain open; completed child results are retained, not counted as whole
 features. There is no evidence-backed project percentage or completion date.
@@ -102,9 +103,26 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Selected goal: shared Reduced flash save/cold/Reset caller.**
+**Accepted goal: shared Reduced flash save/cold/Reset caller.**
 
-- **Starting state:** base `3ebae8bac`, clean exported native Linux game, one new
+Result: checkpoint `3649b4b` passes the actual embedded native Linux sequence in
+79.507s: three distinct processes exit0 and are reaped; live/new cue, disk values,
+whole Reset/defaults, saved feedback, dirty state and both clean markers agree.
+Production persistence 47, Main effects 70, reset UI 10/feedback UI 11 assertions pass.
+All 14 final stages, three strict startups and actual 1,529-entry PE/ELF audit pass.
+Only existing GameFlow/Boot/UID-cache entries change; one probe/remap is added.
+[Exact proof, retained failures and scope](docs/history/ROADMAP_DELIVERIES.md#shared-reduced-flash-native-restart-accepted-20261026).
+
+The check demonstrated and repaired a missing canonical setting→HUD forwarder:
+runtime/disk ON previously left the same live flash at 0.24. The same production
+result now reaches the existing HUD dirty-state presenter. Existing feedback
+strings, settings authority and 0.42/0.62s cue policy remain unchanged. This is
+synthetic-keyboard UI/component proof; physical input/rendered/native Windows/
+GPU/human and remaining ordinary producer episodes stay NOT_RUN/open.
+
+
+- **Starting state:** base `3ebae8bac`, accepted game `3649b4b`, clean native Linux
+  export, one new
   owned private profile; normal Boot creates Main and authored settings. Reduced
   motion remains OFF and payload intensity remains authored default2/high.
 - **Actions:** raw keyboard input starts normal gameplay, opens Escape→Settings,
@@ -116,12 +134,12 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
   live cues retain their existing duration and no-relight policy; Save/Reset
   feedback and dirty state agree. All three distinct processes exit0, are reaped,
   preserve an unrelated production-store namespace and write both orderly markers.
-- **Proof:** `PACKAGE_PATH=<exact embedded Linux ELF>
-  PACKAGE_PROBE_RESULTS_ROOT=<owned results> PACKAGE_PROBE_RUN_ID=<unique run>
-  bash tools/release/run_package_probes.sh --settings-restart --native-export`;
-  retain source/package identity, raw stage logs, actual primary/backup bytes and
-  process identities. Existing maximum300s per process remains unchanged.
-- **Dependencies:** new embedded Boot-owned caller and early private-profile/CLI
+- **Proof:** `tools/release/run_package_probes.sh --settings-restart --native-export`
+  against `builds/linux/MuddsShipyards-3649b4b.x86_64` from source
+  `3649b4bbb34742a4fd9d076576c6665fc4355a5f`. Exact accepted command/profile/result
+  lives in the closure archive's `green/configs/native-preferences.json` and
+  `green/native-probe/shared-reduced-flash/`; maximum300s per process unchanged.
+- **Dependencies fulfilled:** embedded Boot-owned caller and early private-profile/CLI
   admission; no seeded preference file or replacement persistence authority.
   Physical input, rendered visibility, native Windows/GPU and ordinary producer
   episodes remain NOT_RUN/open and cannot be closed by this probe.
@@ -153,8 +171,8 @@ two intended nearby-sector scripts differ in the game payload.
 The obsolete focused-test reset of an unpaid completed delivery was corrected
 to a genuine ACTIVE reset plus explicit completed-unpaid refusal; the guard is
 unchanged. Original-main reproduction and the Main fixture's type-only failure
-remain preserved. Full ordinary UI/save/cold/Reset, full cargo/comfort and native
-Windows/GPU/human gates remain open. All readiness, failures, checks, builds and
+remain preserved. The shared preference path is now accepted in3649b4b above; full cargo/comfort,
+physical input and native Windows/GPU/human gates remain open. All readiness, failures, checks, builds and
 closure stay on the 08:10:00 UTC clock against a 60-minute estimate; no cap reset.
 Integrated/pushed; owned branch/worktree/scratch closed after verified archive.
 Closure documentation records 35.731 cumulative minutes.
@@ -167,8 +185,9 @@ ordinary Settings→Apply+Save→distinct Boot→Reset→third Boot endpoints ar
 replace an unspecified consumer list; do not repeat an unchanged source survey.
 
 The cargo terminal production flag gap identified by this definition is now
-accepted on d4e2213 above. The ordinary Reduced-flash cold/reset caller and
-unbound normal effect triggers/observers remain Codex-owned gates.
+accepted on d4e2213 above. The shared Reduced-flash native cold/reset caller
+is now accepted in3649b4b; unbound normal effect triggers/observers remain
+Codex-owned gates.
 No new visual-policy choice is needed for these existing source behaviors.
 Accepted HUD/torpedo results remain closed. This delivers a source definition,
 not new gameplay, an ordinary episode pass or hardware/human qualification.
@@ -208,7 +227,7 @@ Existing checkpoint resume, safe-start shutdown and session diagnostics pass.
 Actual exported disk/restart case passes196.033s: final ordinary Quit writes the
 exact new checkpoint0; original passive checkpoint1, whole ledger/settings/cargo
 remain exact. Planned arm2076894/-9 and distinct resume2077238/0 are reaped.
-All14 final checks, three strict startups and1527-entry package audit pass.
+All 14 final checks, three strict startups and1527-entry package audit pass.
 [Proof, failures and exact remaining scope](docs/history/ROADMAP_DELIVERIES.md#ember-ordinary-quit-checkpoint-capture-accepted-20261026).
 
 This closes automatic capture for the tested incomplete on-foot application-Quit
