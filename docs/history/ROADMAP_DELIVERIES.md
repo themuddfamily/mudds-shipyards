@@ -4,6 +4,144 @@ Moved from ROADMAP.md on 2026-10-17. These are source-specific historical
 results, not the active queue or proof of current full-project acceptance.
 Return to the [working roadmap](../../ROADMAP.md).
 
+## Installed legacy CFG coexistence accepted 20261026
+
+**SAVE-UNSUPPORTED — existing release runner extended; lone future-CFG primary
+case accepted on the unchanged7876ebc Linux package.** Future user://settings.cfg
+schema8 is never imported, rotated, overwritten or deleted. Explicit normal Save
+and clean Reset can nevertheless write supported schema11 JSON preferences;
+the next process loads those preferences. This qualifies existing production
+coexistence behavior, not a new refusal/persistence policy or gameplay repair.
+
+The source card is frozen in4bde2bfc4, with its literal warning roster clarified
+before checks inb1d5fe5cd. Original start2026-10-26 23:15UTC/hard2026-10-27
+00:45UTC includes all definition/implementation/checks/review/push/cleanup.
+Implementation705abefe8 changes only the existing native runner/caller tests:
+`--future-format legacy --future-artifact primary --retained-data FIXTURE`,
+strict CFG bytes/mode/identity checks, five declared JSON namespaces, successful
+Save/direct Reset, observed physics stability, per-process warnings and existing
+cold walking/process cleanup. No observer, runtime, generator or package change.
+
+Independent pre-execution review finds a real caller defect: cold terminal
+replay applied zero-warning policy to the entire combined log, including the
+legitimate first-process warnings. Correction4e73425be reads only current-leg
+bytes using the existing byte offset before parsing; other routes retain their
+old replay behavior. A two-process regression rejects actual cold warnings;
+global diagnostic checks/final drain stay strict. No engine/test had run before
+this source correction; no error allowance is added.
+
+**First actual check failure retained.** Full Python suite on4e runs299 tests
+in14.229s (guard14.832116s):298pass/one new GUI fixture fails at the existing
+production PID guard. Its simulated cold observation still has inheritedPID1
+while its cold controller explicitly expectsPID2. No legacy predicate or engine
+is reached. Independent causal review authorizes ONE test-fixture-only correction
+at15.781 cumulative minutes, preserving the failed log/STOP/source and original
+clock. Commit`2fe5d91d72bb0d765b7b09982839cab2e04cad07` adds only
+`cold_sample['pid']=2`; all production guards/acceptance fields remain unchanged.
+A fresh pin/stage/profile reruns the full suite once:299PASS/14.237s,
+guard14.834284s/zero diagnostics. No further correction or flight retry selected.
+
+**One full actual route passes.** Driver SHA256
+`f32db854d1cc430bada90956bd89219edca6542d246cb0460f2073f9c832ac0b`;
+source/scene/project bytes unchanged from actual exported Linux source
+`7876ebc8da434987700f128483d4e67098cd7319`. ELF149088952bytes/SHA256
+`cf4c81d383bb0c3d6690646314f0c77d93a5d62c05f4d6883506a3ab3a713bf6`.
+Existing exact-package strict startup PASS/exit0/oneSTARTUP_MENU_READY_OK is
+reused after hash verification; no redundant export/import/startup run or new
+checkpoint. Actual native114.604s/outer115.069785s, unchanged300/360s caps and
+45s cold-walk cap. Isolated owned Xvfb/X11, Dummy audio/render driver; no user
+desktop/input/audio, native GPU, rendered visual or native Windows qualification.
+
+- FirstPID2454428: initial read-only/Main loads reject future legacy import with
+  legacy_load_failed/error30/store_reasonempty/cached generation0, while real
+  supported Store bookkeeping advances independently. Defaults remain complete
+  and exact (FOV72/ship sensitivity.0022), never future99/.01. Actual Begin Shift
+  and neutral unpaused wait reach physics_elapsed5.0/startup_stable before Pause.
+  Focused APPLY + SAVE displays `SETTINGS SAVED`, then clean direct RESET DEFAULTS
+  displays `DEFAULTS RESTORED + SAVED` without a confirmation dialog. Successful
+  JSON generations7 and8 have their actual runtime-settings IDs; counters2/2/2,
+  lastIDruntime-settings-0000000008/serial8/unsavedfalse. Normal UI Quit/actualOS0.
+- Distinct coldPID2454598, same profile/ELF: accepted JSON loaded/ok/primary at
+  generation11, no legacy migration, zero warnings. Full authored defaults
+  equal boot/Save/Reset values. Actual Begin Shift/supported walk reaches
+  (-8.5,.18,6),(8,.18,6),(8,.18,-24),53.464682294m. Its own startup2 reaches actual
+  physics_elapsed5.0/startup_stable before normal UI Quit/OS0. Counters0/0/0,
+  serial11/empty current-process successful settings ID.
+- Independent raw review parses all2874 observations: exact future-CFG guards,
+  complete live defaults, cached-versus-current authority, no runtime_settings
+  before actual Save, only the five named JSON namespaces and actual on-foot
+  Torrent/central_berth home. Fourteen settled disk milestones pass. CFG stays
+ 83bytes/mode0600/SHA256
+  `8daaf485e55319c84f205a3f80021b007fd046a2951045c186312593ae53832a`;
+  its inode/filename/no-sibling checks and sentinel/mode/directory checks run
+  during observations/captures. JSON topology follows normal bounded backup
+  rotation at0600; no tutorial/race/activity/reward data is introduced.
+- JSON milestones: initially absent → title4 → stable6 → Save7 → Reset8 →
+  firstclosed11 → coldtitle15 → stable16 → coldclosed19. Both actual safe-start
+  lifecycles end clean_shutdown(record generations3/6), crash sessions1/2 end
+  clean/unclean0; actual session-started/ended receipts retained. Each OS process
+  records explicit umask077. Final drains are stable; raw per-leg Godot logs
+  contain exactly first2/cold0 declared warnings and zero other diagnostics.
+- Source/index/cache before/after guards pass, driver and ELF hashes match;
+  input-release/game/helper/Xvfb cleanup flags alltrue/no cleanup errors. Both
+  real games OS0/reaped; seven native and2+2 Python observed identities are
+  absent, X230 removed. No failed product route is converted to a partial pass.
+
+This accepts only the frozen packaged Linux lone-CFG primary case and release
+capability. Prior direct legacy APIs/three future placements and outer/nested
+package cases retain their own exact scopes. Other placements, native/physical/
+human and final-candidate proof remain open or NOT_RUN under existing exclusions.
+History copies have protected-content/topology/lineage/hash-format checks; actual
+store validation of primary/backup is not independent cryptographic validation
+of every history entry. No new unsupported-format matrix or repeat source survey
+is inferred from these qualifications.
+
+Source bundle(tip2fe/base872), exact fixture, commands/guards, first failing
+unit run, correction decision/full green rerun and raw native route are retained
+in `/srv/mudds-work/legacy-settings-ui-20261026/records.tar.gz`:
+15382904bytes/43regular files,SHA256
+`e5222b4fe491d3052d5a96ec70d72b7ec5db13e3c980c643396e0054010d8254`.
+Every archive member's bytes/mode verified before loose deletion; canonical
+package/binary stays under builds/linux without an archived duplicate. Archive
+cost21.491083minutes on original clock; adjacent closeout.json records the final
+push/owned branch/worktree/process/scratch cleanup and cumulative total.
+Source integration08f288cfa; no further run selected.
+
+Frozen assignment:
+
+**Frozen assignment — SAVE-UNSUPPORTED: ordinary legacy CFG8 preservation and JSON coexistence.**
+Kind: executable release capability plus one packaged Linux qualification of
+existing behavior; no save-policy or gameplay change. Selection2026-10-26
+23:15UTC; hard stop2026-10-27 00:45UTC,90minutes including all work/closure.
+
+| Field | Frozen assignment |
+| --- | --- |
+| Result | Ordinary Settings Save and clean Reset create supported JSON preferences while a newer legacy settings.cfg remains untouched; a distinct launch loads the new JSON, permits walking and quits normally. This case does not promise refusal of separate supported persistence. |
+| Start | Base87272c607; unchanged7876ebc Linux ELF/SHA256cf4c81d383bb0c3d6690646314f0c77d93a5d62c05f4d6883506a3ab3a713bf6. Fresh owned XDG/display; only83-byte settings.cfg mode0600 plus existing unrelated sentinel0640. No CFG siblings, JSON/history, tutorial or diagnostics initially. |
+| Steps | Existing runner `--route unsupported-save --future-format legacy --future-artifact primary --retained-data FIXTURE`. First: Boot/Main → ordinary Begin Shift → remain neutral/unpaused until the original five-physics-second startup_stable → paused Settings/APPLY + SAVE → clean RESET DEFAULTS directly, with no confirmation → normal HUD Quit/OS0. Same profile/distinct process: Boot/Main → Begin Shift → original three walking points → observed startup_stable → normal HUD Quit/OS0. |
+| Pass/fail | First cached load refuses legacy import: legacy_load_failed/legacy_error30/store_reasonempty/generation0, while actual supported Store bookkeeping may advance independently. Live defaults sensitivity.0022/FOV72 ignore future.01/99. Actual Save and Reset each succeed saved/committed; visible SETTINGS SAVED and DEFAULTS RESTORED + SAVED, counters2attempts/2transactions/2successes and actual generation-bound runtime-settings IDs. Cold load accepted loaded/ok/primary/no migration; counters0/0/0 and empty current-process successful settings ID. Both real OS exits0; exact CFG bytes/mode/identity and absent CFG siblings throughout. |
+| Proof | One actual OS keyboard/XTest journey on owned Xvfb/X11 with Dummy audio. First process exactly two frozen legacy-load warnings, cold zero; no unexpected diagnostics after drain. Independently read settled JSON primary/history and exact protected CFG/sentinel; compare all live/default/JSON values. Both actual physics stability transitions and clean crash/safe-start/session receipts required. Original300s native/360s outer/45s cold walking limits retained. |
+| Dependencies/ownership | Codex owns only existing native runner and its existing caller test; no observer, generator or runtime change. Current source supplies coexistence semantics; no missing user policy/device decision for this case. Native/final-package gates remain separate. |
+| Stop | First unexpected failure stops; no automatic correction/retry or budget reset. Do not launch the route after00:29UTC, leaving16minutes for original cap/closure. Same23:15UTC clock charges definition, implementation, checks, review, push and cleanup. |
+| Closure | Independent source/raw review; integrate and push accepted result, or park/archive failed source unmerged. Verify owned process cleanup; remove completed branch/worktree/loose scratch after source is accounted for. No playable rebuild for Python release tooling alone. |
+
+Exact CFG bytes (LF/final newline) are
+`[meta]\nschema_version=8\n\n[controls]\nship_mouse_sensitivity=0.01\n\n[camera]\nfov=99.0\n`,
+SHA256`8daaf485e55319c84f205a3f80021b007fd046a2951045c186312593ae53832a`.
+Unrelated sentinel stays `UNRELATED FILE MUST SURVIVE\n`,mode0640. JSON permits
+only runtime_settings(absent until actual Save, then full authored schema11
+values), safe_start_recovery(startup1→2/failures0/no recommendation/stable/clean),
+crash_recovery(session1→2/running→clean/unclean0), actual session_diagnostics and
+solo_safe_recovery(exact on-foot torrent_provisional/central_berth home after
+Begin Shift). Tutorial/race/activity/reward namespaces remain absent. Settled
+JSON may rotate only through the existing backup/.bak.3 chain and fixed current/
+previous diagnostic logs; no staging/quarantine remains. The legacy file is
+never reinterpreted as JSON. The first-process warning roster is exactly
+`WARNING: Startup could not read stored settings: legacy_load_failed` and
+`WARNING: Atomic runtime settings load retained authored defaults: legacy_load_failed / empty`,
+once each; the cold roster is empty. Existing source/API and nested/outer
+acceptances stay closed within their own scope.
+
 ## Installed nested-settings refusal accepted 20261026
 
 **SAVE-UNSUPPORTED — release capability and one packaged Linux primary case
