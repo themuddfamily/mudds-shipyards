@@ -5528,7 +5528,7 @@ class ZenithReturnReusePilot(ArrowReturnReusePilot):
                         and norm(s['ship_velocity']) > norm(previous['ship_velocity'])+1e-6):
                     self.handling.setdefault('boost', dict(self.receipt(s), speed=norm(s['ship_velocity']),
                         cruise=s['ship_tuning']['maximum_speed'], boost_limit=s['ship_tuning']['boost_speed']))
-            if native['brake'] and command['brake'] and norm(s['ship_velocity']) < norm(previous['ship_velocity'])-1e-6:
+            if self.stage == 'boost_brake' and native['brake'] and command['brake'] and norm(s['ship_velocity']) < norm(previous['ship_velocity'])-1e-6:
                 self.handling.setdefault('brake', self.receipt(s))
             if self.stage == 'roll' and native['roll'] and command['roll'] < 0:
                 baseline=self.control_pulses['roll']['baseline']
