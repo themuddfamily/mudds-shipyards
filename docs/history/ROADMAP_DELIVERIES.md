@@ -30526,3 +30526,123 @@ protected future data before execution. Existing source maps/tests stay closed;
 no production defect or need for another survey is inferred. Final-candidate,
 physical/native-GPU facts remain separate; Windows/human owner exclusions remain
 unchanged and unperformed facts remain NOT_RUN. No parent or phase closes here.
+
+
+<a id="legacy-future-cfg-preservation-accepted-20261026"></a>
+## Newer legacy CFG generations preserved —checkpoint7876ebc —2026-10-26
+
+**PASS production repair and paired playable checkpoint.** An older build could
+remove a newer legacy CFG primary while promoting an older backup/stage, delete
+newer siblings when the primary was supported, or load an older copy through the
+read-only fallback. RuntimeSettings now checks all three original paths for a
+parseable newer integer schema before any of those operations. It returns
+ERR_INVALID_DATA, preserving files and the current live preferences/signals.
+
+**Selected SAVE-UNSUPPORTED fix: preserve newer legacy CFG generations.**
+Source identifies a destructive gap in legacy recovery, distinct from the already
+accepted atomic outer-envelope cases. This is a production repair with a checkpoint.
+
+| Field | Frozen repair |
+| --- | --- |
+| Result | A newer legacy CFG primary, staged file or backup prevents old-version recovery/save from deleting it, promoting an older copy, or loading older preferences. Return ERR_INVALID_DATA with all files and live preferences unchanged. |
+| Start | Main3c2ae5616; owned branch/worktree `roadmap/legacy-future-cfg-20261026`, `/srv/mudds-work/legacy-future-cfg-20261026/worktree`. Implementer owns runtime_settings.gd and existing runtime_settings_test.gd; root owns guards/export/checkpoint/docs/cleanup. Test-only RED4090c0ff9 is prepared; no runtime change yet. |
+| Steps | Run existing source suite on old production code with nine fresh real-file fixtures: each future TYPE_INT meta.schema_version8 placement primary/tmp/bak, other two schema7, across mutable load/read-only load/save. Reproduce the exact27 failed predicates, review the cause, then add one shared preflight before legacy recovery/rotation and read-only fallback; rerun affected suites and export a clean paired checkpoint. |
+| Pass/fail | All nine calls return ERR_INVALID_DATA; exact three filenames/bytes/modes0600/0620/0640 and directories preserved; live sensitivity.0088/FOV99 and all values/signals unchanged. Newer means existing legacy TYPE_INT semantics, not coercion of strings/floats/bools. Existing supported/missing/malformed/backup/staged recovery behavior stays green. |
+| Proof | Guarded headless/Dummy import; exact expected RED27 labels on old source; same real-file cases GREEN after fix; existing adapter/production settings checks. Fresh Windows EXE/checkpoint ZIP/notes plus matching Linux ELF/package, actual payload protection checks and silent strict startup exit0/exactlyone STARTUP_MENU_READY_OK. Compare packaged Windows/Linux payload membership/semantics and retain actual limits. |
+| Dependencies | Independent source review confirms destructive branches and first-read fallback. The atomic adapter's ordinary Save bypasses legacy save_to_file and may create JSON beside an untouched future CFG; this repair does not claim to block that separate operation or settle its coexistence policy. No blanket legacy ordinary-UI or nested typed-payload qualification is implied. |
+| Stop | ORIGINAL20:59:20UTC2026-10-26/hard22:29:20UTC retained,39.457minutes prior cleanup plus current definition/setup charged. Estimate30 further minutes including paired checkpoint/integration/archive/push/cleanup. Stop first unexpected failure; expected RED must match the exact frozen roster. No retry/cap increase/budget reset. |
+| Closure | Review actual source/proof, integrate/push accepted repair and publish new playable artifacts only in repository builds/windows and builds/linux. Archive raw/unique source; fresh remote/worktree ownership checks and exact-tip branch/worktree cleanup. Keep native hardware/Windows/device facts NOT_RUN and existing owner exclusions unchanged. |
+
+
+
+### Exact source and before/after result
+
+Test-only4090c0ff9 adds nine real FileAccess cases to the existing runtime settings
+suite; frozen RED source169a19b0b retains old production code. Each future TYPE_INT
+CFG8 placement primary/tmp/bak has two supported CFG7 siblings, with distinct
+0600/0620/0640 Unix modes. Mutable load, read-only load and direct legacy save each
+start from fresh files and nondefault live sensitivity.0088/FOV99. Assertions
+check ERR_INVALID_DATA, exact filenames/bytes/modes/directories, unchanged full
+live snapshot and zero individual/batch/Resource change signals.
+
+Guarded import20.621s passes. The old runtime reproduces exactly27 frozen failed
+predicates in1.016s/exit1: per placement mutable load4/read-only3/save2; no unrelated
+error or leak. Read-only already preserves files but incorrectly adopts old values.
+The test file remains byte-identical through both production commits.
+
+Initial production5663341fb adds the shared preflight. Its first GREEN reaches
+all assertions/OK/exit0 but strict diagnostics reject a missing-meta ConfigFile
+lookup error; no export starts. Independent source/backtrace review authorizes
+one correction7876ebc8da434987700f128483d4e67098cd7319: check has_section_key before
+get_value, preserving existing missing-schema behavior without suppressing logs.
+Corrected GREEN passes291 assertions/one marker/exit0 in1.006s with zero warnings,
+errors or leaks. Related adapter53/1.139s, production47/34.737s and safe-start35/
+39.266s pass. Production/safe-start retain their four/three intentional invalid/
+future/corrupt fixture warnings; no unexpected error/leak gate is waived.
+
+The production diff adds20 lines in runtime_settings.gd. Only parseable TYPE_INT
+meta.schema_version>7 is protected as newer; string/bool/float/missing/malformed
+metadata retains existing handling. Read-only checks before rewriting the target
+path to fallback; mutable load and legacy save check before recovery/deletion/
+rotation. Current/schema1–7, normal interrupted recovery and ordinary saves remain
+green. No adapter/migration/coexistence policy, schema version or live-setting
+application is changed.
+
+### Playable checkpoint and actual package validation
+
+Clean source7876ebc produces Windows EXE26.704s and Linux ELF/package27.346s.
+The actual Windows embedded PCK runs the unchanged runtime settings suite under
+the stock Linux engine:291 assertions/exit0/one marker1.013s, zero diagnostics.
+Linux executable22.886s, Linux archive24.079s and actual Windows payload26.456s
+startup checks each exit0 with exactlyone STARTUP_MENU_READY_OK. No external-script
+override of an export template or fixed quit-after readiness claim is used.
+
+Actual1529 Windows/Linux PCK entries match. Only compiled RuntimeSettings and the
+previously accepted read-only save-test observer change from2456552. Exactly66
+known generated scenes differ only in node_ids; strict decoded comparison keeps
+counts/offsets/empty id_paths and every other byte equal. No entries added/removed.
+Stock PE native code, embedded payloads, tar bytes/modes/source epoch and metadata
+pass the existing inventory/audit. Tracked source/index/tree remain unchanged;
+disposable cache population is allowed only for import/export stages.
+
+All eleven checkpoint files are copied byte/mode-verified into repository
+builds/windows and builds/linux. Windows ZIP contains the exact EXE and notes.
+
+- [Windows checkpoint ZIP](../../builds/windows/MuddsShipyards-7876ebc-checkpoint.zip)
+- [Windows EXE](../../builds/windows/MuddsShipyards-7876ebc.exe)
+- [Build notes](../../builds/windows/MuddsShipyards-7876ebc-notes.txt)
+- [Matching Linux archive](../../builds/linux/MuddsShipyards-7876ebc-linux-x86_64.tar.gz)
+
+Windows EXE SHA256
+`c7971980c02da0f5527615acdb5c58a9fd58dca27dafbb1d05a30787e84f89df`;
+Linux ELF
+`cf4c81d383bb0c3d6690646314f0c77d93a5d62c05f4d6883506a3ab3a713bf6`.
+Independent source/raw/payload review accepts this API repair and checkpoint.
+Native Windows execution/GPU/physical input/audio/rendered/human facts stay
+NOT_RUN with owner exclusions unchanged; the Windows-payload test uses Linux
+Godot and does not claim native Windows behavior.
+
+### Scope, archive and closure
+
+Atomic adapter Save does not call legacy save_to_file; it may publish independent
+JSON preferences while a newer legacy CFG remains intact. This repair does not
+claim to block that separate call, qualify normal legacy UI/coexistence, or settle
+its missing contract. Nested typed-settings package cases and full SAVE-UNSUPPORTED/
+final-release acceptance remain open. The accepted outer-envelope tests retain
+package755ad605a scope; no unchanged run or newer-package promotion is implied.
+
+Original SAVE-UNSUPPORTED20:59:20UTC/hard22:29:20UTC budget includes previous
+39.457minutes plus this definition/RED/failure/correction/build/closure. It never
+resets at the new branch or source pin. Archive completed at61.181 cumulative
+minutes; final cleanup cost is recorded in adjacent closeout.json.
+
+Raw archive `/srv/mudds-work/legacy-future-cfg-20261026/records.tar.gz`:
+34113581bytes/174regular files/14template links, SHA256
+`3b6566adedb4d509e178065361d4edfa6bea9378976972d4e534a542e745bc6b`.
+All member bytes/modes/link targets were verified; source bundle retains actual
+7876ebc against pushed3c2ae5616. It preserves the exact old RED and first failed
+GREEN, helpers/configuration/guards/audits/checkpoint manifest; canonical builds
+retain the playable bytes without another archived binary copy. All57 observed
+stage identities and14supervisors are absent. Actual source push, exact-tip owned
+branch/worktree and loose-scratch cleanup are recorded in adjacent closeout.json.
+No Downloads, hosted CI, release publication, original parent or phase closure.

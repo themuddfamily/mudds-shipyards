@@ -1,10 +1,13 @@
 # Development roadmap
 
 **Playable alpha; full original scope remains unfinished.** Latest Windows build:
-[2456552 checkpoint](builds/windows/MuddsShipyards-2456552-checkpoint.zip)
-([changes and validation](builds/windows/MuddsShipyards-2456552-notes.txt)).
-Matching [Linux checkpoint](builds/linux/MuddsShipyards-2456552-linux-x86_64.tar.gz)
-([Linux validation](builds/linux/MuddsShipyards-2456552-linux-notes.txt)) is available.
+[7876ebc checkpoint](builds/windows/MuddsShipyards-7876ebc-checkpoint.zip)
+([changes and validation](builds/windows/MuddsShipyards-7876ebc-notes.txt)).
+Matching [Linux checkpoint](builds/linux/MuddsShipyards-7876ebc-linux-x86_64.tar.gz)
+([Linux validation](builds/linux/MuddsShipyards-7876ebc-linux-notes.txt)) is available.
+Legacy CFG recovery, read-only loading and direct legacy saves now preserve a
+newer primary, temporary or backup generation instead of selecting older data
+or deleting the newer file. All three files and live preferences stay unchanged.
 Confirmed settings backup repair now explains when to quit and reopen the game
 to finish recovery; the existing startup owners supply that condition.
 Jovian cabin Interact now takes the aimed-at helm instead of its co-pilot chair.
@@ -121,21 +124,14 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Selected SAVE-UNSUPPORTED fix: preserve newer legacy CFG generations.**
-Source identifies a destructive gap in legacy recovery, distinct from the already
-accepted atomic outer-envelope cases. This is a production repair with a checkpoint.
-
-| Field | Frozen repair |
-| --- | --- |
-| Result | A newer legacy CFG primary, staged file or backup prevents old-version recovery/save from deleting it, promoting an older copy, or loading older preferences. Return ERR_INVALID_DATA with all files and live preferences unchanged. |
-| Start | Main3c2ae5616; owned branch/worktree `roadmap/legacy-future-cfg-20261026`, `/srv/mudds-work/legacy-future-cfg-20261026/worktree`. Implementer owns runtime_settings.gd and existing runtime_settings_test.gd; root owns guards/export/checkpoint/docs/cleanup. Test-only RED4090c0ff9 is prepared; no runtime change yet. |
-| Steps | Run existing source suite on old production code with nine fresh real-file fixtures: each future TYPE_INT meta.schema_version8 placement primary/tmp/bak, other two schema7, across mutable load/read-only load/save. Reproduce the exact27 failed predicates, review the cause, then add one shared preflight before legacy recovery/rotation and read-only fallback; rerun affected suites and export a clean paired checkpoint. |
-| Pass/fail | All nine calls return ERR_INVALID_DATA; exact three filenames/bytes/modes0600/0620/0640 and directories preserved; live sensitivity.0088/FOV99 and all values/signals unchanged. Newer means existing legacy TYPE_INT semantics, not coercion of strings/floats/bools. Existing supported/missing/malformed/backup/staged recovery behavior stays green. |
-| Proof | Guarded headless/Dummy import; exact expected RED27 labels on old source; same real-file cases GREEN after fix; existing adapter/production settings checks. Fresh Windows EXE/checkpoint ZIP/notes plus matching Linux ELF/package, actual payload protection checks and silent strict startup exit0/exactlyone STARTUP_MENU_READY_OK. Compare packaged Windows/Linux payload membership/semantics and retain actual limits. |
-| Dependencies | Independent source review confirms destructive branches and first-read fallback. The atomic adapter's ordinary Save bypasses legacy save_to_file and may create JSON beside an untouched future CFG; this repair does not claim to block that separate operation or settle its coexistence policy. No blanket legacy ordinary-UI or nested typed-payload qualification is implied. |
-| Stop | ORIGINAL20:59:20UTC2026-10-26/hard22:29:20UTC retained,39.457minutes prior cleanup plus current definition/setup charged. Estimate30 further minutes including paired checkpoint/integration/archive/push/cleanup. Stop first unexpected failure; expected RED must match the exact frozen roster. No retry/cap increase/budget reset. |
-| Closure | Review actual source/proof, integrate/push accepted repair and publish new playable artifacts only in repository builds/windows and builds/linux. Archive raw/unique source; fresh remote/worktree ownership checks and exact-tip branch/worktree cleanup. Keep native hardware/Windows/device facts NOT_RUN and existing owner exclusions unchanged. |
-
+**Accepted: newer legacy CFG generations protected, checkpoint7876ebc.**
+Real-file tests first reproduce27 failed predicates, then all nine future-placement/
+operation cases pass with exact files/modes/live preferences/signals preserved.
+The unchanged full suite passes291 assertions in source and actual Windows PCK;
+related adapter/production/safe-start checks, paired exports, three strict startups
+and exact payload audit pass. [Repair, checkpoint and scope](docs/history/ROADMAP_DELIVERIES.md#legacy-future-cfg-preservation-accepted-20261026).
+This repairs legacy APIs; ordinary legacy UI and atomic-adapter Save/coexistence
+remain separate. The nested typed-settings package contract is still blocked.
 
 **Accepted: all three installed future-outer-schema2 placements.**
 Primary, temporary and backup cases each pass the actual Settings Save/confirmed
@@ -145,8 +141,8 @@ expected refusal warnings and zero unexpected diagnostics. [Primary result](docs
 [temporary and backup results](docs/history/ROADMAP_DELIVERIES.md#installed-future-remaining-placements-accepted-20261026).
 This closes these three installed checkpoint cases only. Nested typed settings,
 legacy CFG and final-candidate contracts remain open; physical/native-hardware
-facts remain NOT_RUN with owner exclusions unchanged. Latest playable
-checkpoint2456552 is unchanged; no save policy or gameplay was changed.
+facts remain NOT_RUN with owner exclusions unchanged. These checks retain their
+exact755ad605a package scope; no newer-package acceptance is inherited.
 
 **Completed: five retained detached worktrees cleaned up.**
 All five inactive copies are removed after preserving and verifying their local
@@ -162,7 +158,7 @@ errors during second shutdown; final OS0/clean-file acceptance remains unproven.
 [Implementation acceptance and exact failed qualification](docs/history/ROADMAP_DELIVERIES.md#corrupt-repair-caller-accepted-shutdown-gate-open-20261026).
 The corrected caller/read-only observer are integrated as a release capability;
 no runtime error is suppressed and no further trial/fix/probe is selected. Full
-INSTALL-LINUX-CORRUPT remains open. Latest accepted playable build stays2456552.
+INSTALL-LINUX-CORRUPT remains open; caller acceptance itself created no new playable build.
 A [bounded source pass](docs/history/ROADMAP_DELIVERIES.md#popup-parent-connection-source-boundary-20261026) identifies the matching native Popup cleanup pair;
 the concrete runtime popup and cleanup order remain missing. No engine/application
 patch or additional trial is selected from that source pattern alone.
@@ -230,7 +226,7 @@ Reopen only with a supported causal correction/environment change and independen
 cumulative-priority review preserving the original outcome/count/quality/300s.
 Do not run another heavy capture as a substitute for this unlocalized failure.
 
-Latest accepted playable checkpoint is2456552, including the [backup-repair restart guidance](docs/history/ROADMAP_DELIVERIES.md#backup-repair-reopen-guidance-accepted-20261026).
+Latest accepted playable checkpoint is7876ebc. The [backup-repair restart guidance](docs/history/ROADMAP_DELIVERIES.md#backup-repair-reopen-guidance-accepted-20261026) remains accepted in its recorded scope.
 The earlier [Jovian cockpit/recovery repair](docs/history/ROADMAP_DELIVERIES.md#ordinary-jovian-engineer-recovery-accepted-20261026) remains accepted within its recorded scope.
 Task-selection rules and all337 original records remain binding; no next run is selected.
 
