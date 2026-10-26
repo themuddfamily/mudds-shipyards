@@ -5385,12 +5385,33 @@ class ZenithReturnReusePilot(ArrowReturnReusePilot):
         require(s['landed'] and s['parked_exact'] and s['lease'] and s['lease_token']
                 and (not contract or s['contract']), 'actual strict exact occupied Zenith home lease')
 
-    def require_pilot(self, s):
+    def require_pilot_owner(self, s):
         require(s['piloted'] and s['seated'] and s['seated_at_pilot'] and s['active_ship']
                 and s['ship_camera'] and not s['capsule_enabled'] and not s['transition_busy']
-                and s['source_enabled'] and s['application_focused']
-                and s['command']['stream_id'] == s['input_stream'],
-                'same actual local Zenith seat camera and fresh default command owner')
+                and s['source_enabled'] and s['application_focused'],
+                'same actual local Zenith seat camera and default command owner')
+
+    def require_pilot(self, s):
+        self.require_pilot_owner(s)
+        require(s['command']['stream_id'] == s['input_stream'],
+                'actual consumed Zenith command matches its fresh pilot stream')
+
+    def reuse_pilot_ready(self, s):
+        self.require_pilot_owner(s)
+        require(s['phase'] == 'START_ENGINES' and self.first_stream is not None
+                and self.retired_stream is not None and s['input_stream'] > self.retired_stream > self.first_stream,
+                'same default source starts a fresh fenced pilot stream after real exit/reboard')
+        if s['command']['stream_id'] == s['input_stream']:
+            return True
+        # GameFlow seats synchronously before Hero's next physics sample. Only
+        # its exact cleared neutral command may bridge that bounded admission.
+        cleared = dict(schema_version=4, sequence=0, timestamp_usec=0, stream_id=0,
+            throttle=0, yaw=0, pitch=0, roll=0, look_yaw_delta=0, look_pitch_delta=0,
+            camera_distance_delta=0, boost=False, brake=False, hover=False, fire=False,
+            barrel_roll=False, engine_start=False, engine_stop=False, landing=False,
+            interact=False, camera_toggle=False, fire_pressed=False)
+        require(s['command'] == cleared, 'reboard waits only for a cleared neutral consumed command, never a stale or active stream')
+        return False
 
     def require_flight(self, s):
         self.require_pilot(s)
@@ -5487,7 +5508,9 @@ class ZenithReturnReusePilot(ArrowReturnReusePilot):
                     'accepted LIFE-ARM prefix belongs to these exact current Zenith actors and resources')
             self.admission.validate_observation(s['admission'])
         else:
-            if s['seated'] and not s['transition_busy']: self.require_pilot(s)
+            if s['seated'] and not s['transition_busy']:
+                if self.stage == 'board': self.reuse_pilot_ready(s)
+                else: self.require_pilot(s)
             if self.stage in self.FOOT_STAGES:
                 self.require_foot(s); self.require_home(s)
                 if previous is not None:
@@ -5760,11 +5783,12 @@ class ZenithReturnReusePilot(ArrowReturnReusePilot):
                         dx,_,_ = self.admission.yaw_to(s['admission'], away)
         elif self.stage == 'board':
             if s['phase'] == 'START_ENGINES' and not s['transition_busy']:
-                self.require_pilot(s); self.require_home(s)
-                require(s['input_stream'] > self.retired_stream > self.first_stream,
-                        'same default source starts a fresh fenced pilot stream after real exit/reboard')
-                self.board_streams.append(s['input_stream']); self.receipts['seated_2'] = self.receipt(s)
-                self.flight = 1; self.neutral_frame = None; self.enter('reuse_seated',s)
+                self.require_home(s)
+                if self.reuse_pilot_ready(s):
+                    self.board_streams.append(s['input_stream']); self.receipts['seated_2'] = self.receipt(s)
+                    self.flight = 1; self.neutral_frame = None; self.enter('reuse_seated',s)
+                else:
+                    self.receipts.setdefault('reboard_pending_consumption',self.receipt(s))
         elif self.stage == 'reuse_seated':
             self.require_pilot(s); self.require_home(s)
             if s['frame']-self.stage_frame >= 90: self.enter('depart',s)

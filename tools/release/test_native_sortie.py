@@ -5969,6 +5969,36 @@ class ZenithReturnReuseTests(unittest.TestCase):
                 self.assertEqual(p.receipts['landing_1']['frame'],103)
         self.assertEqual(p.landing_edges,[0,0])  # Only actual native acknowledgement increments this.
 
+    def test_reboard_waits_for_first_matching_consumed_stream_with_full_pilot_ownership(self):
+        def boundary():
+            p,s=self.initial(); p.stage='board'; p.stage_since=0
+            p.first_stream=3; p.retired_stream=7; p.board_streams=[3]
+            current=self.flight_sample(s)
+            current.update(phase='START_ENGINES',landed=True,parked_exact=True,lease=True,
+                lease_free=False,lease_token='reboard-home',contract=True,input_stream=9,position=s['parked'][:])
+            current['command']=copy.deepcopy(s['command'])  # Actual frame4593: cleared stream0/sequence0.
+            return p,current
+        p,current=boundary(); p.validate_observation(current); p.update(current,1)
+        self.assertEqual(p.stage,'board'); self.assertNotIn('seated_2',p.receipts)
+        self.assertEqual(p.board_streams,[3])
+        ready=copy.deepcopy(current); ready.update(frame=102,sequence=3)
+        ready['command'].update(stream_id=9,sequence=0,timestamp_usec=90352411)
+        p.validate_observation(ready); p.update(ready,1.1)
+        self.assertEqual(p.stage,'reuse_seated'); self.assertEqual(p.stage_frame,102)
+        self.assertEqual(p.board_streams,[3,9])
+        self.assertEqual(p.receipts['seated_2']['command']['stream_id'],9)
+        for fault in ('stale','nonzero_sequence','active','wrong_owner','wrong_camera'):
+            with self.subTest(fault=fault):
+                p,current=boundary()
+                if fault=='stale': current['command']['stream_id']=7
+                elif fault=='nonzero_sequence': current['command']['sequence']=1
+                elif fault=='active': current['command']['throttle']=1
+                elif fault=='wrong_owner': current['active_ship']=False
+                else: current['ship_camera']=False
+                with self.assertRaises(AssertionError): p.validate_observation(current)
+        p,current=boundary(); p.validate_observation(current)
+        with self.assertRaisesRegex(AssertionError,'executor phase bound 12s'): p.update(current,12.001)
+
     def test_new_phase_guards_fresh_epoch_and_both_camera_consumers(self):
         p,s=self.initial(); p.stage='climb'; p.stage_since=10
         p.stage_guard(25)
