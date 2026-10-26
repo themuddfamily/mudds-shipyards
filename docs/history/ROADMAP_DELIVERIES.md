@@ -4,6 +4,65 @@ Moved from ROADMAP.md on 2026-10-17. These are source-specific historical
 results, not the active queue or proof of current full-project acceptance.
 Return to the [working roadmap](../../ROADMAP.md).
 
+## Linux checkpoint upgrade 499e681 to b4ff8c0 accepted 20261026
+
+INSTALL-LINUX[one upgrade transaction], parent32: **checkpoint scope accepted**,
+not final INSTALL-LINUX-UPGRADE, rendered Desktop Entry or retained-data gameplay
+reload. No game/source/installer edit, branch/worktree or new export.
+
+Use actual499e681 archive SHA256
+`994457c9a15fe3b0b9b4d72bccf8df427f17adba540cc8fb6289acae612bf8ea`
+then b4ff8c0 archive SHA256
+`6c93c752a631aacee8e698d8fa2ffb3cd3cbd4418526ba555df6607ea7f5b375`.
+Both ship identical19713byte manager SHA256
+`f0bc2779bd918513f276e9527f5e956e7e75ccd376e192130d036e542a25f467`.
+Run its ordinary `install --archive OLD --install-dir PREFIX --applications-dir APPS`,
+then the same command/paths with NEW. Exclusively owned root is
+`/srv/mudds-work/linux-upgrade-499-b4-20261026/`; explicit `installed game`,
+`applications` and `private-xdg` paths never touch the user's installation.
+
+Actual old/new ELF hashes match their respective export manifests
+(old8802ba25e2dadf56665f39697d48ddb19b340f6cab70f4a7bec42e41c52ff678;
+newc2e0653cd5f97fe3acc75a5eaef7323b25c5d123996a74fe274e274b68babb2e).
+Both icon hashes08f8427bd4cc74c8109150ede9df87feec181a1bdb97fc762853db8bf497d473.
+Ownership token/manifest keys/files and exact generated Desktop Entry pass;
+independent literal Exec/Path/Icon checks point to the resolved runtime in each
+case. Both old/new runtime/ELF0755, icon/manifest/launcher0644 are checked. Upgrade
+publishes a different generation, removes old owned ELF/icon, preserves its
+unowned note/directory and leaves exact new payload. No OS UID/GID claim.
+
+Installed strict startup passes22.573s stage/actual exit0/one readiness marker.
+Existing complete `run_native_sortie.py INSTALLED_ELF --route guided --output NEW_DIR`
+passes55.707s at original300s/independent330s: all eleven actual phases, real
+combat, strict occupied home/automatic OFFLINE/physical exit and normal HUD
+EXIT TO DESKTOP/actual game OS0. Authenticated private Xvfb/x11/Dummy/dummy renderer,
+disabled render loop and fresh private profile retain their actual scope.
+Zero diagnostics and all input/helper/game/Xvfb cleanup flags pass.
+
+Five protected fixtures remain byte/mode-identical before upgrade, after upgrade,
+after gameplay and after shipped uninstall: prefix note0640, unrelated desktop0600,
+old/new runtime notes0600 and actual saved data0644. Save fixture is raw
+`ordinary-sortie/orderly-close.json` from accepted Heavy source records
+`/srv/mudds-work/heavy-picket-damage-admission-20261025/results/case-records.tar.gz`:
+8655bytes, SHA256
+`25f9ccfe03b22018eae2cffcb52841ed5fbcff3f4a51a6c020e6c7495701aa73`.
+It contains one earned Heavy credit, runtime settings and actual clean markers.
+It is outside Guided's new disposable profile: this proves installer byte/mode
+preservation, not checksum validation by Godot or gameplay reload of that save.
+Uninstall removes both generations' managed payload, manifest/journals/launcher;
+only named unowned files remain. All15 observed PID/starttick pairs absent;
+independent input/raw review GO. Whole transaction92.183s, no failures/retries.
+
+Original16:00:18UTC/20minute clock includes readiness, checks, reporting/push and
+cleanup. Archive closure8.921minutes; final push is charged in closeout.json.
+Verified25regular-file archive
+`/srv/mudds-work/linux-upgrade-499-b4-20261026/records.tar.gz`,333181bytes,
+SHA256`83fb15e6e0230a05506c904a5dadc3daf6b7da6b01d5ba5199056881ee9819f8`.
+Every archived byte/mode verified before loose-file removal; only archive/closeout
+remain. No duplicated binaries retained. Final-package qualification, actual
+rendered desktop launch, retained-data gameplay reload, native hardware/devices/
+listening and remaining installation transactions retain their original gates.
+
 ## Beacon repetition two attempt stop 20261026
 
 **REPEAT-BEACON remains PARKED, not delivered.** Source definition and missing

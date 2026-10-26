@@ -94,6 +94,22 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Accepted qualification: Linux checkpoint upgrade499e681→b4ff8c0.**
+The shipped manager upgrades one existing installation to a fresh runtime,
+removes old owned payload, and points the launcher to exact new bytes/modes.
+Strict installed startup passes(exit0/one readiness marker); full ordinary
+Guided passes55.707s/normal HUD Quit/actual OS0 under the original300s cap.
+Uninstall removes only managed artifacts. Five unrelated files retain bytes/modes,
+including an actual8655byte saved record with one earned Heavy credit/settings.
+The fixture is protected outside the fresh Guided profile; its gameplay reload
+is not qualified. All15 observed identities absent, zero diagnostics, input and
+process cleanup complete. [Frozen route and actual proof](docs/history/ROADMAP_DELIVERIES.md#linux-checkpoint-upgrade-499e681-to-b4ff8c0-accepted-20261026).
+Original16:00:18UTC/20min clock includes readiness/checks/closure;
+archive closure8.921minutes, final push in closeout.json. Only verified archive
+and closeout remain; no branch/worktree/new export. Game code and accepted builds
+are unchanged. Final INSTALL-LINUX-UPGRADE and rendered desktop launch remain
+open; no next run selected.
+
 **Parked: REPEAT-BEACON ordinary ten-run caller.**
 Two full attempts failed; ten-run acceptance is NOT_DELIVERED. The first
 425.713s native attempt completed one paid home/census, then hit leg2's
