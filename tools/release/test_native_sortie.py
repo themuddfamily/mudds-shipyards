@@ -4983,6 +4983,171 @@ class UnsupportedSaveCallerTests(unittest.TestCase):
             native.run(Path('/game'),Path('/unused'),'guided',future_artifact='primary')
 
 
+class UnsupportedSettingsCallerTests(unittest.TestCase):
+    """Exercise the settings variant's real caller and independent file boundary."""
+    tick = UnsupportedSaveCallerTests.tick
+    focus = UnsupportedSaveCallerTests.focus
+
+    def fixture_files(self, root):
+        profile=root/'profile'; profile.mkdir(); (profile/'data').mkdir()
+        output=root/'output'; output.mkdir()
+        document = dict(schema_version=1, generation=1,
+            commit=dict(id='nested-settings-fixture',parent_generation=0,parent_id='',payload_sha256='0'*64),
+            payload=copy.deepcopy(native.UnsupportedSettingsFiles.PAYLOAD))
+        raw=json.dumps(document).encode(); fixture=root/'input.json'; fixture.write_bytes(raw)
+        return native.UnsupportedSettingsFiles(profile,output,fixture,'primary'),raw
+
+    def advance_document(self, files, closed=False):
+        document=json.loads(files.path.read_bytes()); old=copy.deepcopy(document)
+        document['generation']+=1
+        document['commit'].update(id='test-'+str(document['generation']),parent_generation=old['generation'],
+                                  parent_id=old['commit']['id'])
+        session=files.leg+1
+        document['payload']['crash_recovery']=dict(schema_version=1,state='clean' if closed else 'running',
+            session_id=session,startup_generation=session,unclean_start_count=0,last_physics_tick=60,
+            last_elapsed_physics_seconds=1)
+        events=[dict(session_id=session,event_code='session_started',fields=dict(recovered=False))]
+        if closed: events.append(dict(session_id=session,event_code='session_ended',fields={}))
+        document['payload']['session_diagnostics']=dict(schema_version=1,capacity=64,next_sequence=len(events)+1,
+            dropped_event_count=0,events=events)
+        backup=Path(str(files.path)+'.bak')
+        for index in range(3,0,-1):
+            source=backup if index==1 else Path(str(backup)+'.'+str(index-1))
+            destination=Path(str(backup)+'.'+str(index))
+            if source.exists(): destination.write_bytes(source.read_bytes()); destination.chmod(0o600)
+        backup.write_text(json.dumps(old)); backup.chmod(0o600)
+        files.path.write_text(json.dumps(document)); files.path.chmod(0o600)
+        return document
+
+    def sample(self, files):
+        sample=UnsupportedSaveCallerTests().sample(files)
+        recovery=sample['recovery']; document=json.loads(files.path.read_bytes())
+        recovery['store'].update(source='primary',generation=document['generation'],snapshot=copy.deepcopy(document['payload']))
+        recovery['load']=dict(accepted=False,reason='settings_payload_newer',payload_reason='newer_schema',
+            store_reason='ok',generation=1,applied=False,migrated_legacy=False,
+            store_status=dict(accepted=True,reason='ok',source='primary',generation=1,
+                              payload=copy.deepcopy(files.PAYLOAD)))
+        recovery['safe_start']=dict(startup_generation=0,restore_status=dict(accepted=True,reason='empty'),
+            begin_status=dict(accepted=False,reason='settings_authority_blocked'))
+        recovery['persistence']['commit_serial']=1
+        return sample
+
+    @staticmethod
+    def refusal(files):
+        return dict(accepted=False,reason='settings_payload_newer',payload_reason='newer_schema',store_reason='ok',
+            store_status=dict(accepted=True,reason='ok',source='primary',payload=copy.deepcopy(files.PAYLOAD)))
+
+    def test_primary_only_fixture_is_exact_and_records_actual_input_identity(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            files,raw=self.fixture_files(Path(tmp))
+            self.assertEqual(files.fixture['sha256'],hashlib.sha256(raw).hexdigest())
+            self.assertEqual({p.name for p in files.path.parent.iterdir()},{files.path.name,'unrelated.txt'})
+            self.assertEqual(json.loads(files.path.read_bytes())['payload'],files.PAYLOAD)
+            self.assertEqual(files.path.stat().st_mode & 0o777,0o600)
+            for key in ('runtime_settings','tutorial_prompts_seen','solo_safe_recovery','unrelated_future_test'):
+                with self.subTest(key=key):
+                    bad=copy.deepcopy(files.PAYLOAD); bad[key]={'changed':True}
+                    with self.assertRaises(AssertionError): files.require_payload(bad)
+            for key in ('safe_start_recovery','cinder_timed_race_session','game_flow_reward_store'):
+                with self.subTest(key=key),self.assertRaises(AssertionError):
+                    files.require_payload(dict(files.PAYLOAD,**{key:{}}))
+
+    def test_settled_reads_preserve_history_lineage_and_all_protected_copies(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            files,_=self.fixture_files(Path(tmp)); self.advance_document(files)
+            files.capture_preserved('running'); files.require_session(json.loads(files.path.read_bytes())['payload'])
+            backup=Path(str(files.path)+'.bak'); before=backup.read_bytes()
+            bad=json.loads(before); bad['payload']['runtime_settings']['schema_version']=11
+            backup.write_text(json.dumps(bad))
+            with self.assertRaises(AssertionError): files.capture_preserved()
+            backup.write_bytes(before)
+            bad=json.loads(files.path.read_bytes()); bad['commit']['parent_id']='unrelated-parent'
+            files.path.write_text(json.dumps(bad))
+            with self.assertRaisesRegex(AssertionError,'parent identity'): files.capture_preserved()
+
+    def test_cached_observations_allow_inflight_stage_but_settled_milestones_refuse_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            files,_=self.fixture_files(Path(tmp)); self.advance_document(files)
+            sample=self.sample(files); pilot=native.UnsupportedSettingsPilot(files,1)
+            pilot.validate_observation(sample); files.observe(sample,pilot)
+            Path(str(files.path)+'.tmp').write_bytes(b'inflight')
+            sample.update(sequence=2,frame=2)
+            pilot.validate_observation(sample); files.observe(sample,pilot)
+            with self.assertRaisesRegex(AssertionError,'settled nested milestones'): files.capture_preserved('unsafe')
+
+    def test_typed_refusal_accepts_supported_store_and_rejects_false_success_or_bookkeeping(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            files,_=self.fixture_files(Path(tmp)); self.advance_document(files); sample=self.sample(files)
+            native.UnsupportedSettingsPilot(files,1).validate_observation(sample)
+            for mutate in (lambda r:r['load'].update(accepted=True),
+                lambda r:r['load'].update(payload_reason='payload_fields_invalid'),
+                lambda r:r['store'].update(source='backup'),
+                lambda r:r['safe_start']['begin_status'].update(accepted=True),
+                lambda r:r['safe_start'].update(startup_generation=1),
+                lambda r:r['persistence'].update(save_success_count=1),
+                lambda r:r['store']['snapshot'].update(cinder_timed_race_session={})):
+                bad=copy.deepcopy(sample); mutate(bad['recovery'])
+                with self.subTest(mutate=mutate),self.assertRaises(AssertionError):
+                    native.UnsupportedSettingsPilot(files,1).validate_observation(bad)
+            pilot=native.UnsupportedSettingsPilot(files,1)
+            self.assertTrue(pilot.refusal_status(self.refusal(files)))
+            bad=self.refusal(files); bad['accepted']=True
+            self.assertFalse(pilot.refusal_status(bad))
+
+    def test_shared_gui_controller_refuses_save_and_confirmed_reset_without_settings_commit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            files,_=self.fixture_files(Path(tmp)); self.advance_document(files)
+            sample=self.sample(files); pilot=native.UnsupportedSettingsPilot(files,1)
+            pilot.validate_observation(sample); files.observe(sample,pilot)
+            self.assertEqual(pilot.update(sample,100)[0],{'e'})
+            self.assertEqual(self.tick(pilot,sample,101,native_interact=True,phase='APPROACH_SHIP',
+                menu_ready=False,control_enabled=True)[0],{'Escape'})
+            ui=sample['recovery']['ui']; ui['main_visible']=True; self.focus(sample,'open','SettingsOpenButton')
+            sample['ui']=dict(main_visible=True,exit_visible=True,exit_enabled=True,exit_text='EXIT TO DESKTOP',
+                exit_path='/pause/ExitButton',focus_is_exit=False,focus_path=ui['open_path'])
+            self.tick(pilot,sample,102,paused=True); self.assertEqual(self.tick(pilot,sample,103)[0],{'Return'})
+            self.tick(pilot,sample,104); ui.update(main_visible=False,settings_visible=True)
+            self.focus(sample,'save','SettingsSaveButton'); self.assertEqual(self.tick(pilot,sample,105)[0],{'Return'})
+            self.tick(pilot,sample,106)
+            persistence=sample['recovery']['persistence']; persistence.update(save_attempt_count=1,
+                accepted_transaction_count=1,last_save_status=self.refusal(files))
+            ui.update(status_visible=True,status_text=pilot.SAVE_STATUS,settings_dirty=True)
+            self.tick(pilot,sample,107); self.assertTrue(pilot.save_refused)
+            self.focus(sample,'reset','SettingsResetButton'); self.assertEqual(self.tick(pilot,sample,108)[0],{'Return'})
+            self.tick(pilot,sample,109); ui['reset_confirmation_visible']=True
+            self.focus(sample,'reset_confirm','ConfirmSettingsResetButton')
+            self.assertEqual(self.tick(pilot,sample,110)[0],{'Return'}); self.tick(pilot,sample,111)
+            persistence.update(save_attempt_count=2,accepted_transaction_count=2)
+            ui.update(status_text=pilot.RESET_STATUS,reset_confirmation_visible=False)
+            self.assertEqual(self.tick(pilot,sample,112)[0],{'Escape'}); self.assertTrue(pilot.reset_refused)
+            self.tick(pilot,sample,113); ui.update(main_visible=True,settings_visible=False)
+            self.tick(pilot,sample,114); sample['ui']['focus_is_exit']=True
+            self.assertEqual(self.tick(pilot,sample,115)[0],{'Return'})
+            pilot.finish(0); self.advance_document(files,closed=True); files.finish_leg(0,pilot)
+            self.assertEqual(persistence['commit_serial'],1); self.assertEqual(persistence['save_success_count'],0)
+            files.leg=1; self.advance_document(files)
+            files.require_session(json.loads(files.path.read_bytes())['payload'])
+            closed=self.advance_document(files,closed=True); files.require_session(closed['payload'],closed=True)
+            closed['payload']['session_diagnostics']['events'].append(dict(event_code='crash_detected'))
+            with self.assertRaises(AssertionError): files.require_session(closed['payload'],closed=True)
+
+    def test_nested_expected_warnings_are_exact_and_do_not_accept_outer_warnings(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            files,_=self.fixture_files(Path(tmp))
+            files.require_warnings(list(files.WARNINGS))
+            for lines in (list(native.UnsupportedSaveFiles.WARNINGS),list(files.WARNINGS)*2,
+                          list(files.WARNINGS)+[b'ERROR: unrelated']):
+                with self.subTest(lines=lines),self.assertRaises(AssertionError): files.require_warnings(lines)
+
+    def test_format_cli_rejects_unrelated_routes_and_nonprimary_before_launch(self):
+        for kwargs in (dict(future_format='settings'),dict(future_format='unknown')):
+            with self.assertRaises(AssertionError): native.run(Path('/game'),Path('/unused'),'guided',**kwargs)
+        for placement in ('temporary','backup'):
+            with self.assertRaises(AssertionError):
+                native.run(Path('/game'),Path('/unused'),'unsupported-save',retained_data=Path('/fixture'),
+                           future_artifact=placement,future_format='settings')
+
+
 class CorruptRetainedHeavyCallerTests(unittest.TestCase):
     """Corrupt bytes, genuine GUI ingress, and relative cold-session boundaries."""
     @staticmethod
