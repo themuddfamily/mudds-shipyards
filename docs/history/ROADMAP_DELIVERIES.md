@@ -28070,3 +28070,51 @@ created. Unrelated retired/prunable worktrees and older archives are untouched.
 Closure documentation prepared at22.220 cumulative minutes from original
 07:32:00UTC, including readiness/runner-label accounting/companion baseline and
 all builds/checks against45minute estimate. Adjacent closeout records final push/time.
+
+<a id="reduced-flash-finite-producer-contract-20261026"></a>
+## Reduced flash finite producer contract — source definition, 2026-10-26
+
+Existing COMFORT-FLASH/original parent29; source baseline67a026991. The
+[existing backlog contract](../ROADMAP_BACKLOG.md#reduced-flash-producer-and-episode-contract)
+now fixes17 producer families, authored normal/reduced values, current/new-effect
+update timing, real setting receivers and existing coverage anchors. Shared
+implementations are counted once: no craft/world/peer/profile Cartesian matrix,
+new goal IDs, visual policy or validator family. Independent source review GO;
+root verifies17 rows, linked source/test existence and unchanged337 canonical
+ID/name/parent/Kind tuples. Source constants and file references are definition
+proof, not new runtime or ordinary-route results.
+
+Actual source gap: CargoTransferTerminal supports a steady≤1.15 emission cap,
+but the sole nearby_sector_activity_binding publisher omits reduced_flash and
+has no settings-driven refresh. Direct injection tests cannot prove production
+forwarding. Codex owns that concrete capability. Caption service receives a
+misnamed Reduced-motion-derived metadata flag, but its renderer is permanently
+steady; no visual repair or added obligation is inferred. Detached contracts
+and declared-safe steady nonconsumers are explicitly excluded.
+
+The common proof sequence names actual SettingsOpenButton/ReducedFlashControl,
+APPLY + SAVE, successful feedback/dirty/disk state, normal shutdown/reap, distinct
+Boot with the same private files, RESET DEFAULTS/conditional confirmation, and
+third Boot with authored OFF. Reduced motion is held OFF and payload intensity
+at default2/high to isolate the existing flag. HUD current-cue no-relight and
+observation-driven update timing remain authored exceptions. Existing general
+save/refusal/reset ownership is reused once, not multiplied per producer.
+
+Remaining executable gaps are literal: no Reduced-flash cold writer/reader/reset
+mode exists in the current production-persistence harness; other-option modes
+cannot substitute. Each unqualified family also needs its normal effect trigger/
+observer bound to its existing combat/cargo/world/network route and original
+limits. Where that route/participant is gated, it stays gated. The producer/
+policy definition is closed; it does not make every qualification runnable or
+close the full COMFORT-FLASH container. Accepted HUD1a948d9ac/seeker9105da8 scopes
+stay closed, and applicable native/human/external gates retain NOT_RUN/exclusions.
+
+No runtime/content, test, engine, capture, package or release artifact changed
+for this definition. Existing checkpoint9105da8 remains current. Documentation
+only on main; no task branch/worktree/private scratch or owned test processes
+were created, so no temporary branch/archive cleanup is outstanding. A local
+inline documentation checker typo was corrected before its successful run;
+there was no engine failure or test result. Work from2026-10-26T07:55:00UTC is
+13.885 cumulative minutes at closure preparation against30minute estimate,
+including source pass, exact-gap review, document checks and closure. No clock
+reset, owner-decision fabrication or project-percentage claim.

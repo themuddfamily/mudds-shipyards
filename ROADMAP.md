@@ -105,23 +105,23 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Selected definition: finite Reduced flash producer/episode contract.**
-Existing COMFORT-FLASH/original parent29. Source-only pass on main67a026991:
-record every existing production receiver family once, authored OFF/ON values,
-current-live/new-effect behavior, real setting forwarder and existing test proof
-anchors. Separate direct effects, shared forwarders, steady safe nonconsumers,
-test-only contracts and missing production wiring. Define one common ordinary
-Settings→Apply+Save→distinct Boot→Reset sequence and literal remaining proof
-fields. Finish with a closed family roster, explicit accepted scopes and exact
-unavailable trigger/caller/input owners; no generic “all applicable” placeholder.
-Source review supplies the proof of this definition; it supplies no new gameplay,
-rendered/device or full-family qualification. Existing HUD/torpedo fixes stay
-accepted. Do not start games, create validators, change effect policies or patch
-the newly observed cargo flag gap during this definition. Files: existing
-ROADMAP_BACKLOG.md family contract and canonical COMFORT-FLASH state, ROADMAP.md;
-root integrates/checks/commits/pushes, one bounded source agent supplies effects.
-Clock2026-10-26T07:55:00UTC/30minute estimate includes source pass and closure.
-No implementation branch/worktree or checkpoint is needed for this docs-only goal.
+**Delivered definition: finite Reduced flash producer/episode contract.**
+The existing COMFORT-FLASH row now binds17 actual producer families to authored
+OFF/ON/current/new values, real forwarders and existing test anchors. Shared
+ordinary Settings→Apply+Save→distinct Boot→Reset→third Boot endpoints are literal.
+[The finite contract and exact remaining owners](docs/ROADMAP_BACKLOG.md#reduced-flash-producer-and-episode-contract)
+replace an unspecified consumer list; do not repeat an unchanged source survey.
+
+One concrete runtime gap is identified: the cargo terminal's authored≤1.15 cap
+has no production setting flag/refresh. The ordinary Reduced-flash cold/reset
+caller and unbound normal effect triggers/observers remain Codex-owned gates.
+No new visual-policy choice is needed for these existing source behaviors.
+Accepted HUD/torpedo results remain closed. This delivers a source definition,
+not new gameplay, an ordinary episode pass or hardware/human qualification.
+Source review and linked-file/17-family/337-identity checks pass; no engine,
+new test, package, implementation branch/worktree or scratch folder was created.
+Cumulative definition work from07:55:00UTC is13.885minutes at closure
+preparation against30minute estimate, including review and documentation.
 
 **Delivered production repair: live torpedo bursts adopt Reduced flash.**
 Checkpoint9105da8 updates the same existing burst's material and current-age
@@ -430,7 +430,7 @@ to discover what acceptance should have been.
 | STATION-FINDINGS, one existing branch/view | One supported camera position/height, source, renderer/quality/resolution/scale and the exact text/access/clearance checks | A frozen view can receive either an inspected no-finding result or one reproducible defect. Use the nine-branch/four-service roster; do not reopen parked captures. |
 | ART-FINDINGS | Map the existing 13 capture sets/143 images and original fleet/world/character/effect/UI obligations to accepted coverage or literal missing views | Each uncovered view names its original promise, subject/state and comparison conditions; the station subset is referenced once. No new art obligation inferred from an empty area. |
 | SHARED-EMBER-BASELINE | One craft, actual peer roles, outward/surface/home route, survey/result/payment/save endpoints and original limits | One complete ordinary baseline command/route with expected durable data, or the exact missing caller/participant/input. This defines one of the existing 21 cases, not a new shared-world matrix. |
-| COMFORT-MOTION / FLASH / COLOUR / CAPTIONS, one family | Closed list of original-required consumers; each has literal live ON/OFF, cold restart and Reset behavior | Every listed consumer has an authored expected value/discriminator and retained proof or a named missing behavior/decision. Accepted cue episodes remain accepted. No option is invented to fill a blank. |
+| COMFORT-MOTION / FLASH / COLOUR / CAPTIONS, one family | Flash uses its fixed17-family contract: bind only the named remaining normal trigger/caller and shared ordinary preference proof; do not redefine consumers. Other families still need their finite original-required consumers and literal ON/OFF/cold/Reset behavior. | Each missing binding ends in a frozen existing episode or a literal unavailable caller/input and owner. Flash producer/policy definition stays closed; accepted cues remain accepted. No new option or consumer matrix is invented. |
 | CREW-RECOVERY-ORDINARY | One existing craft/physical seat, ordinary admission, exact durable commit/kill cut, restart and awake-cabin continuation | Exact protected file delta, fresh-claim/control endpoints, kill/restart commands and original cap. The settled safe-home policy is reused; pose restoration is not reconsidered. |
 | RECOVERY-CUTS-DEFINE | Only uncovered installed cuts in the existing on-foot/pilot/cabin/bunk/crew/docking/activity/world contracts | Each cut has its committed boundary, expected debt/payment/data, owned kill/restart, supported continuation and original cap; accepted cuts are reused. Four unresolved active-run policies stay owner decisions. |
 | INSTALL-LINUX, one existing transaction | Exact prior/candidate package where needed, owned prefix, fixture, protected files, expected bytes/modes and installed usability route | Clean, upgrade, rollback, retained-data, corrupt-data and uninstall remain six distinct existing goals; one transaction per assignment. Unknown package versions block execution, not definition of the required operation. |
