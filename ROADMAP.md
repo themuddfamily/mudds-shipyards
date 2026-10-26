@@ -105,6 +105,24 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Selected definition: finite Reduced flash producer/episode contract.**
+Existing COMFORT-FLASH/original parent29. Source-only pass on main67a026991:
+record every existing production receiver family once, authored OFF/ON values,
+current-live/new-effect behavior, real setting forwarder and existing test proof
+anchors. Separate direct effects, shared forwarders, steady safe nonconsumers,
+test-only contracts and missing production wiring. Define one common ordinary
+Settings→Apply+Save→distinct Boot→Reset sequence and literal remaining proof
+fields. Finish with a closed family roster, explicit accepted scopes and exact
+unavailable trigger/caller/input owners; no generic “all applicable” placeholder.
+Source review supplies the proof of this definition; it supplies no new gameplay,
+rendered/device or full-family qualification. Existing HUD/torpedo fixes stay
+accepted. Do not start games, create validators, change effect policies or patch
+the newly observed cargo flag gap during this definition. Files: existing
+ROADMAP_BACKLOG.md family contract and canonical COMFORT-FLASH state, ROADMAP.md;
+root integrates/checks/commits/pushes, one bounded source agent supplies effects.
+Clock2026-10-26T07:55:00UTC/30minute estimate includes source pass and closure.
+No implementation branch/worktree or checkpoint is needed for this docs-only goal.
+
 **Delivered production repair: live torpedo bursts adopt Reduced flash.**
 Checkpoint9105da8 updates the same existing burst's material and current-age
 scale immediately. Authored normal/reduced emission4.0/1.2, peak scale4.2/2.6
