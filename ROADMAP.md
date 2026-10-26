@@ -87,6 +87,33 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Selected production repair: unpaid surface-survey credit at visit end.**
+Existing WORLD-ABANDON/WORLD-SAVE earned-debt boundary, Aurora and Rime only.
+Complete each real survey through its existing interaction fixture, refuse only
+the reward write while its visit checkpoint saves, then end the visit through
+the actual expedition retirement seam. The old runtime must reproduce loss of
+the saved unpaid completion. Repair only end-of-visit retirement to retain that
+completion through the existing passive declined-visit owner atomically; the
+universal interrupted-resume retirement path remains independent.
+
+Pass requires fresh store/Main objects to retain passive COMPLETED unpaid data,
+no active visit/automatic admission/payment at Mudds, and legitimate final-anchor
+retry after current surface admission to pay once with repeat suppression.
+Refused publication and conflicting existing unpaid archives preserve prior
+bytes; incomplete and already-paid retirement retain existing behavior. The
+existing focused fixture may stage surface admission/actor positions and use
+in-process fresh Main; disclose those limits. Ordinary physical return, exported
+world journey, actual OS interruption and full world gates remain open.
+
+Implementer owns the shared expedition and one existing lifecycle test; root
+owns source freeze, old RED/new GREEN, focused checks, checkpoint, integration,
+push and cleanup. Independent persistence review precedes execution. Estimate
+60minutes including checks/build/closure; accounting includes the preceding
+world-definition/source pass, conservatively from the prior ef95885a8 commit.
+Stop on the first unexpected fixture/runtime failure; preserve source/raw and
+review the actual cause before continuation. No new save schema, validator,
+debt queue or inferred product-choice approval is selected.
+
 **Delivered: Zenith pilot handling, real hit, two homes and fresh reuse.**
 Checkpoint4bf5e88, release driver4870595: one complete ordinary route passes
 in133.691s, including physical walking/boarding, boost above94m/s cruise,

@@ -53,6 +53,14 @@ class RejectingStore:
 		return inner.call(&"commit", payload, generation, transaction_id) as Dictionary
 
 
+class RejectWritesFilesystem extends UserDataFilesystem:
+	var attempts := 0
+
+	func write_bytes_and_flush(_path: String, _bytes: PackedByteArray) -> Error:
+		attempts += 1
+		return ERR_CANT_CREATE
+
+
 func _init() -> void:
 	call_deferred(&"_run")
 
@@ -82,7 +90,219 @@ func _run() -> void:
 	authority.set("_store", store)
 	await _survey_case(game, store, AURORA_SURVEY, "Aurora", Vector3(4000, 600, 4000))
 	await _survey_case(game, store, RIME_SURVEY, "Rime", Vector3(-4000, 600, 4000))
-	await _finish(game)
+	game.queue_free()
+	await process_frame
+	await process_frame
+	await _unpaid_visit_retirement_case("Aurora", &"_aurora_expedition")
+	await _unpaid_visit_retirement_case("Rime", &"_rime_expedition")
+	await _finish(null)
+
+
+## A private real-file profile, fresh Main/store objects and production end-visit
+## retirement. Observations use this file's disclosed stand-in surface and
+## direct interact calls; the next arrival uses production staged recovery.
+## This does not qualify physical outbound/return or an OS-process restart.
+func _unpaid_visit_retirement_case(label: String, owner_property: StringName) -> void:
+	var path := "user://survey-retirement-%s-%d.json" % [label.to_lower(), Time.get_ticks_usec()]
+	var game := await _boot_retirement_profile(path)
+	var owner: RefCounted = game.get(owner_property)
+	var survey: RefCounted = owner.get("survey")
+	var profile: RefCounted = owner.get("profile")
+	var binding: RefCounted = game.get(profile.persistence_binding_property)
+	var disk := game.get("_runtime_settings_user_data_store") as UserDataStore
+	var craft := game.get_node("HalyardCrewTransport") as HeroShip
+	var slot := String((binding.call(&"get_snapshot") as Dictionary).slot_id)
+	var archive_slot := String(binding.call(&"get_declined_slot_id"))
+	var unrelated := {"note": "retain actual unrelated payload", "world": label}
+	var initial := disk.get_snapshot()
+	initial["survey_retirement_unrelated"] = unrelated
+	_check(bool(disk.commit(initial, disk.get_generation(), "survey-retirement-initialize").get("accepted", false)),
+		"%s: retirement fixture creates its private real-file primary" % label)
+	# The owner/craft association is staged; all observations below are earned
+	# through the existing survey interaction on supported stand-in collision.
+	game.active_ship = craft
+	owner.set("_ship", craft)
+	owner.set("state", &"surface")
+	var surface := _make_surface(Vector3(4000, 600, 4000))
+	survey.call(&"attach", surface)
+	var authority: RefCounted = game.get("_game_flow_reward_authority")
+	var rejecting_reward := RejectingStore.new()
+	rejecting_reward.inner = authority.get("_store")
+	authority.set("_store", rejecting_reward)
+	await _stand_at(game, surface, 0)
+	var started: bool = survey.call(&"interact")
+	await _stand_at(game, surface, 1)
+	var observed: bool = survey.call(&"interact")
+	var incomplete := disk.get_snapshot().get(slot, {}) as Dictionary
+	var incomplete_ready := started and observed and not incomplete.is_empty() \
+		and int(incomplete.visit.survey.state) == CheckpointRouteActivity.State.ACTIVE \
+		and int(incomplete.visit.survey.next_checkpoint_index) == 1
+	_check(incomplete_ready, "%s: actual first observation saves an incomplete visit before retirement" % label)
+	if not incomplete_ready:
+		await _close_retirement_profile(game, owner, surface)
+		return
+	owner.call(&"_retire_saved_visit")
+	_check(not disk.get_snapshot().has(slot) and not disk.get_snapshot().has(archive_slot)
+		and disk.get_snapshot().get("survey_retirement_unrelated") == unrelated,
+		"%s: incomplete visit retirement clears location without creating earned debt" % label)
+	await _stand_at(game, surface, 2)
+	rejecting_reward.reject = true
+	var completed: bool = survey.call(&"interact")
+	rejecting_reward.reject = false
+	var earned := (disk.get_snapshot().get(slot, {}) as Dictionary).duplicate(true)
+	var earned_ready := completed and rejecting_reward.rejected > 0 and not earned.is_empty() \
+		and int(earned.visit.survey.state) == CheckpointRouteActivity.State.COMPLETED \
+		and int(earned.visit.survey.next_checkpoint_index) == 2 \
+		and not bool(survey.call(&"reward_recorded")) and _reward_count(game, survey) == 0
+	_check(earned_ready, "%s: genuine final observation refuses reward publication but saves exact unpaid completion" % label)
+	if not earned_ready:
+		await _close_retirement_profile(game, owner, surface)
+		return
+	var reward_before := (authority.call(&"get_snapshot").get("record", {}) as Dictionary).duplicate(true)
+	var before_refusal := disk.get_snapshot()
+	var generation_before := disk.get_generation()
+	var bytes_before := FileAccess.get_file_as_bytes(path)
+	var filesystem: RefCounted = disk.get("_filesystem")
+	var rejecting_disk := RejectWritesFilesystem.new()
+	disk.set("_filesystem", rejecting_disk)
+	owner.call(&"_retire_saved_visit")
+	disk.set("_filesystem", filesystem)
+	_check(rejecting_disk.attempts == 1 and disk.get_snapshot() == before_refusal
+		and disk.get_generation() == generation_before and FileAccess.get_file_as_bytes(path) == bytes_before,
+		"%s: refused end-visit retirement preserves actual bytes, generation and unpaid completion" % label)
+	var invalid_paid := disk.get_snapshot()
+	invalid_paid[String(GameFlowRewardAuthority.SLOT_ID)] = {"corrupt": true}
+	_check(bool(disk.commit(invalid_paid, disk.get_generation(), "survey-retirement-invalid-paid").get("accepted", false)),
+		"%s: private fixture stages an invalid paid authority without changing earned observations" % label)
+	var invalid_before := disk.get_snapshot()
+	var invalid_bytes := FileAccess.get_file_as_bytes(path)
+	var invalid_generation := disk.get_generation()
+	owner.call(&"_retire_saved_visit")
+	_check(disk.get_snapshot() == invalid_before and disk.get_generation() == invalid_generation
+		and FileAccess.get_file_as_bytes(path) == invalid_bytes,
+		"%s: invalid paid authority cannot retire the only saved unpaid completion" % label)
+	_check(bool(disk.commit(before_refusal, disk.get_generation(), "survey-retirement-restore-authority").get("accepted", false)),
+		"%s: private fixture restores its exact earned payload after invalid-authority refusal" % label)
+	# An earlier passive descriptor for these genuinely earned observations may
+	# differ in saved location metadata. It must not be silently overwritten.
+	var conflict := earned.duplicate(true)
+	conflict.visit.on_foot = not bool(conflict.visit.on_foot)
+	conflict.receipt_sha256 = binding.call(&"digest_visit", conflict.visit)
+	var conflicting_payload := disk.get_snapshot()
+	conflicting_payload[archive_slot] = conflict
+	var conflict_saved := disk.commit(conflicting_payload, disk.get_generation(), "survey-retirement-conflict")
+	_check(bool(conflict_saved.get("accepted", false)), "%s: conflicting passive descriptor is durably staged from genuine observations" % label)
+	var before_conflict := disk.get_snapshot()
+	var conflict_generation := disk.get_generation()
+	var conflict_bytes := FileAccess.get_file_as_bytes(path)
+	owner.call(&"_retire_saved_visit")
+	_check(disk.get_snapshot() == before_conflict and disk.get_generation() == conflict_generation
+		and FileAccess.get_file_as_bytes(path) == conflict_bytes,
+		"%s: end-visit retirement refuses conflicting unpaid archive without losing either saved record" % label)
+	# Restore only this private fixture to the exact earned pre-retirement cut.
+	var restored_fixture := disk.get_snapshot()
+	restored_fixture.erase(archive_slot)
+	restored_fixture[slot] = earned.duplicate(true)
+	_check(bool(disk.commit(restored_fixture, disk.get_generation(), "survey-retirement-remove-conflict").get("accepted", false)),
+		"%s: private fixture returns to its original genuine unpaid boundary" % label)
+	owner.call(&"_retire_saved_visit")
+	var retired := disk.get_snapshot()
+	var preserved := not retired.has(slot) and retired.get(archive_slot) == earned
+	_check(preserved and retired.get("survey_retirement_unrelated") == unrelated
+		and (authority.call(&"get_snapshot").get("record", {}) as Dictionary) == reward_before,
+		"%s: accepted end-visit retirement preserves exact unpaid observations passively without payment" % label)
+	await _close_retirement_profile(game, owner, surface)
+	var fresh := await _boot_retirement_profile(path)
+	var fresh_owner: RefCounted = fresh.get(owner_property)
+	var fresh_survey: RefCounted = fresh_owner.get("survey")
+	var fresh_disk := fresh.get("_runtime_settings_user_data_store") as UserDataStore
+	var cold_preserved := fresh_disk.get_snapshot().get(archive_slot) == earned
+	_check(cold_preserved and not fresh_disk.get_snapshot().has(slot)
+		and fresh_owner.get("state") == &"idle" and _reward_count(fresh, fresh_survey) == 0
+		and fresh_disk.get_snapshot().get("survey_retirement_unrelated") == unrelated,
+		"%s: fresh Main and real-file store retain retired unpaid debt at Mudds without world resume or payment" % label)
+	if not preserved or not cold_preserved:
+		# The old runtime reaches these loss assertions. Missing debt is the
+		# regression, so do not report downstream admission/retry setup failures.
+		await _close_retirement_profile(fresh, fresh_owner)
+		return
+	var fresh_craft := fresh.get_node("HalyardCrewTransport") as HeroShip
+	var admission: Dictionary = fresh_owner.call(&"restore_interrupted_visit", {
+		"visit_state": "surface", "craft_home_berth_id": String(fresh_craft.get_home_berth_id()),
+		"on_foot": true, "survey": {},
+	})
+	_check(bool(admission.get("accepted", false)), "%s: disclosed staged next admission uses production craft and streaming owner" % label)
+	var deadline := Time.get_ticks_msec() + 30_000
+	while bool(admission.get("accepted", false)) and Time.get_ticks_msec() < deadline:
+		await process_frame
+		await physics_frame
+		if bool(fresh_owner.call(&"settled_surface_is_current")) and fresh.player.is_on_floor() \
+				and _state(fresh_survey) == CheckpointRouteActivity.State.COMPLETED:
+			break
+	var current := bool(fresh_owner.call(&"settled_surface_is_current")) and fresh.player.is_on_floor()
+	_check(current and _state(fresh_survey) == CheckpointRouteActivity.State.COMPLETED
+		and int((fresh_survey.call(&"snapshot") as Dictionary).get("generation", -1)) == int(earned.visit.survey.generation)
+		and _reward_count(fresh, fresh_survey) == 0,
+		"%s: current next surface adopts exact earned generation without automatic payment" % label)
+	if not current or _state(fresh_survey) != CheckpointRouteActivity.State.COMPLETED:
+		await _close_retirement_profile(fresh, fresh_owner)
+		return
+	var anchors: Array = fresh_survey.get("_anchors")
+	var anchor := anchors[2] as Node3D
+	fresh.player.teleport_to(Transform3D(Basis.IDENTITY, anchor.global_position + Vector3(0.6, 0.1, 0)))
+	for _frame in 90:
+		await physics_frame
+		await process_frame
+		if _frame >= 6 and fresh.player.is_on_floor():
+			break
+	var legitimate_retry: bool = fresh_survey.call(&"interact")
+	_check(legitimate_retry and bool(fresh_survey.call(&"reward_recorded")) and _reward_count(fresh, fresh_survey) == 1,
+		"%s: legitimate final-anchor interaction pays the preserved original completion once" % label)
+	var paid: Dictionary = fresh.get_activity_reward_report().get("authority", {}).get("record", {}).duplicate(true)
+	fresh_survey.call(&"interact")
+	_check(fresh.get_activity_reward_report().get("authority", {}).get("record", {}) == paid
+		and _reward_count(fresh, fresh_survey) == 1,
+		"%s: repeated interaction cannot pay the retired completion twice" % label)
+	# Save the paid current visit, then finish it through the same owner. Paid
+	# progress must not replace the already retained passive descriptor.
+	var paid_saved: Dictionary = fresh.call(&"save_interrupted_aurora_visit" if label == "Aurora" else &"save_interrupted_rime_visit")
+	_check(bool(paid_saved.get("accepted", false)) and fresh_disk.get_snapshot().has(slot),
+		"%s: paid current visit is saved before normal retirement" % label)
+	fresh_owner.call(&"_retire_saved_visit")
+	_check(not fresh_disk.get_snapshot().has(slot) and fresh_disk.get_snapshot().get(archive_slot) == earned
+		and _reward_count(fresh, fresh_survey) == 1,
+		"%s: paid visit retires normally without replacing old passive observations or paying again" % label)
+	await _close_retirement_profile(fresh, fresh_owner)
+
+
+func _boot_retirement_profile(path: String) -> GameFlow:
+	var game := MAIN.instantiate() as GameFlow
+	_check(game.configure_runtime_settings_persistence(UserDataStore.new(path), path + ".cfg"),
+		"retirement Main binds its isolated real-file store before startup")
+	root.add_child(game)
+	await process_frame
+	await physics_frame
+	game.start_shift()
+	for _frame in 4:
+		await process_frame
+		await physics_frame
+	return game
+
+
+func _close_retirement_profile(game: GameFlow, owner: RefCounted, surface: Node3D = null) -> void:
+	# This fixture calls the end-visit seam directly. Avoid a tree-detach save
+	# reintroducing the intentionally retired active location on teardown.
+	owner.set("state", &"idle")
+	owner.set("_ship", null)
+	if is_instance_valid(surface):
+		if (owner.get("survey") as RefCounted).has_method(&"detach"):
+			(owner.get("survey") as RefCounted).call(&"detach")
+		surface.queue_free()
+	game.mark_orderly_shutdown()
+	game.queue_free()
+	for _frame in 6:
+		await process_frame
+		await physics_frame
 
 
 func _survey_case(game: GameFlow, store: RejectingStore, script: GDScript, label: String,
