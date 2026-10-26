@@ -112,6 +112,16 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**PARKED: installed corrupt-save repair and cold continuation.**
+Two installed attempts stop in the caller:22.646s on the transient quarantine
+receipt, then24.238s when paused-stage logging requests missing position/phase.
+The corrected attempt reaches the focused Settings button but fails before
+Return, so Settings never opens. No repair/restart/continuation acceptance.
+Install/startup/uninstall pass in both cases; protected files and cleanup verify.
+[Exact failures, frozen scope and reopening condition](docs/history/ROADMAP_DELIVERIES.md#installed-corrupt-repair-two-stops-20261026).
+Candidate source/raw/eight private export files are archived unmerged; no third
+trial or new checkpoint selected. Last accepted checkpoint remains2456552.
+
 **Accepted: backup-repair restart guidance, checkpoint2456552.**
 Confirmed backup repair now tells the player to quit and reopen the game when
 startup recovery was blocked. The actual Settings label passes at1024×768 and

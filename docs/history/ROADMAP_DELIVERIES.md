@@ -30014,3 +30014,86 @@ fixture and a Linux-hosted Windows payload, not an ordinary OS-input corrupted
 installation/confirmed repair/distinct-process continuation. Those journeys,
 full recovery-family/final candidate and applicable native hardware/device/audio
 requirements remain open; no original parent or phase gate closes.
+
+
+<a id="installed-corrupt-repair-two-stops-20261026"></a>
+## Installed corrupt repair — two caller stops —2026-10-26
+
+INSTALL-LINUX-CORRUPT's checkpoint caller is **PARKED, unmerged and unaccepted**.
+Package sourcea99c9cfd12bd281d7d4677eec8411eaa1c7c987a and final caller source
+6b7f025389e47ec6438a5c1b37aed37e52eec55c are preserved with raw results/eight
+private export files in `/srv/mudds-work/installed-corrupt-repair-20261026/records.tar.gz`.
+Verified archive:319288598bytes,193regular files/ten links, SHA256
+`cdf3da10285d5601e061fd371aad2090bdc5bcdfd55803c97ee8e750b420a4ab`.
+No new canonical checkpoint is published;2456552 remains accepted. Original
+clock19:31:09UTC/90min/hard21:01:09UTC includes all definition, implementation,
+checks, attempts, review, archive, push and cleanup; closeout records elapsed.
+
+The frozen full result remains: shipped installer/owned prefix/launcher and
+payload → exact backup fallback → normal Begin Shift and keyboard Settings
+confirmation → one repair successor preserving the entire payload → normal HUD
+OS0 quit → same binary/profile/display but distinct process → healthy session2→3,
+live Heavy credit1/paid acknowledgement/settings → all three original retained
+waypoints/unarmed next Torpedo posting → normal UI OS0/final clean markers →
+uninstall protects five named unowned/save fixtures. Original300s whole-route,
+330s independent and360s installed-transaction limits remain unchanged.
+
+Valid backup is the exact9296-byte b4-earned fixture/SHA256
+`af2fada0a687b3a2dad6ee5c4550d4e6cd92120f2df94f6681f053e5b23ed409`;
+primary is the existing test literal `{corrupt`,8bytes/SHA256
+`98e8e66d98f45504a80923203572020d15c102340a21a5201c92c598a7e34b69`, mode0600.
+Installer fixtures include prefix note0640, unrelated desktop0600, corrupt
+primary0600, valid backup0600 and runtime note0600. Actual game uses a fresh owned
+profile cloned from those declared bytes; original inputs stay protected separately.
+The caller/observer extend existing classes and private heavy observer admission;
+no gameplay, recovery policy, startup owner or selector behavior changes.
+
+Initial271Python checks pass but source review catches the inherited paid-board
+predicate incorrectly required before repair. Production refuses backup terminal
+adoption. One reviewed Python-only correction adds explicit default Heavy/refusal
+validation for the first leg and retains exact paid Torpedo checks for cold;272
+checks pass. Clean import20.566s/privacy3311assertions1.142s, paired exports26.717/
+25.826s, three strict startups26.505/22.959/24.403s and actual1529-entry Windows/
+Linux PCK audit pass. Only compiled observer changes against2456552; exact66known
+node_ids-only scenes pass the unchanged strict parser, with every other decoded
+byte fixed. No export was repeated: corrected Python files are excluded from the
+package, and all runtime/assets/exporter/preset/installer inputs are identical.
+Package and caller pins remain separate, not relabelled.
+
+**First installed attempt:** install3.419s/startup22.867s pass; native22.646s stops
+at sequence1 on “actual production quarantine receipt names the exact retained
+bad bytes.” The actual bad-copy byte guard passes, but the caller reads a transient
+receipt cleared by shared read-only reloads and expects an absolute path. The
+retained startup report instead has accepted backup/gen27 plus an available8-byte
+receipt at `user://mudds_user_data.json.recovery`. Independent source/raw review
+authorizes one caller-only correction using that immutable receipt, exact URI and
+unchanged independent file/profile proof. Corrected272Python checks pass14.493s.
+First complete installer transaction53.934s includes successful owned uninstall.
+
+**Corrected and final installed attempt:** install3.522s/startup22.566s pass;
+native24.238s fails `KeyError: 'position'`. `CorruptRetainedRepairPilot.update`
+calls inherited `Pilot.enter('settings_open', s)` on a paused observation. That
+helper sets the internal stage then indexes missing `position` and `phase` before
+sending Return. Raw UI proves Pause main visible, Settings page hidden, focused
+enabled SettingsOpenButton; GUI edge receipts contain Escape/Tab and no Return.
+**Settings never opens.** Synthetic
+Python paused fixtures retained unpaused fields and missed this schema mismatch.
+No confirmation, repair commit, normal first exit, second process, retained walk
+or healthy final markers are demonstrated. Full transaction55.345s includes
+successful owned uninstall. Independent review upholds PARK; no further fix,
+diagnostic probe, run, new deadline or softened condition is selected.
+
+Both attempts have zero engine diagnostics and actual outer cleanup flags true;
+all72 observed PID/start identities are absent, both display locks/sockets gone,
+and all five protected fixture bytes/modes verify in each transaction. Raw leg
+exit_code=null/reaped=false remains incomplete normal-exit evidence, not
+retrofilled from later cleanup. All original source commits, logs, authorizations,
+private exports and source bundle remain in the verified archive. No source is
+merged merely to delete its branch.
+
+Reopening requires caller UI-stage bookkeeping and a focused regression against
+the actual narrow paused schema, which intentionally omits gameplay position and
+phase, plus independent cumulative-priority review preserving the original full
+journey, caps and cost. No consumer/policy survey is missing. Final package,
+rendered desktop launch, native Windows/GPU/device/audio and whole recovery-family
+acceptance remain open; no original parent or phase gate closes.
