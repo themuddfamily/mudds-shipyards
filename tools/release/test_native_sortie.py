@@ -4773,6 +4773,226 @@ class RetainedHeavyCallerTests(unittest.TestCase):
                     binary.assert_not_called(); launch.assert_not_called()
 
 
+class CorruptRetainedHeavyCallerTests(unittest.TestCase):
+    """Corrupt bytes, genuine GUI ingress, and relative cold-session boundaries."""
+    @staticmethod
+    def document():
+        document = RetainedHeavyCallerTests.document()
+        document['payload']['crash_recovery'].update(session_id=2, startup_generation=2)
+        document['payload']['safe_start_recovery']['startup_generation'] = 2
+        document['payload']['session_diagnostics']['events'][0]['session_id'] = 2
+        return document
+
+    def fixture_files(self, root):
+        profile = root/'profile'; profile.mkdir(); (profile/'data').mkdir()
+        output = root/'output'; output.mkdir()
+        raw = json.dumps(self.document()).encode(); fixture = root/'input.json'; fixture.write_bytes(raw)
+        with patch.object(native.CorruptRetainedHeavyFiles, 'FIXTURES', {(len(raw), hashlib.sha256(raw).hexdigest())}):
+            files = native.CorruptRetainedHeavyFiles(profile, output, fixture)
+        return files, fixture, raw
+
+    def sample(self, files=None):
+        s = RetainedHeavyCallerTests.sample()
+        path = str(files.path) if files else '/owned/mudds_user_data.json'
+        s['recovery'] = dict(store=dict(path=path, source='backup', generation=19),
+            settings=copy.deepcopy(self.document()['payload']['runtime_settings']['values']),
+            load=dict(store_reason='primary_invalid_backup_loaded'),
+            quarantine=dict(available=True, path=path+'.recovery', bytes=8),
+            safe_start=dict(begin_status=dict(accepted=False, reason='store_recovery_required')),
+            session=dict(last_status=dict(accepted=False, reason='begin_failed',
+                coordinator_status=dict(accepted=False, reason='store_recovery_required'))),
+            repair=dict(last_status=dict(accepted=True, reason='repair_available')),
+            ui=dict(main_visible=False, settings_visible=False, focus_path='', focus_name='',
+                focus_visible=True, focus_enabled=True, focus_is_settings_open=False,
+                open_visible=True, open_enabled=True, open_text='SETTINGS', open_path='/pause/SettingsOpenButton',
+                focus_is_repair_confirm=False, confirm_path='/settings/SettingsRepairConfirmButton',
+                confirm_visible=True, confirm_enabled=True, confirm_text='CONFIRM BACKUP REPAIR',
+                confirmation_available=True, status_visible=False, status_text=''))
+        return s
+
+    def tick(self, pilot, sample, now, **changes):
+        sample.update(sequence=sample['sequence']+1, frame=sample['frame']+1, **changes)
+        pilot.validate_observation(sample)
+        return pilot.update(sample, now)
+
+    def gui_confirm(self, files=None):
+        p = native.CorruptRetainedRepairPilot(self.document(), 1); s = self.sample(files)
+        p.validate_observation(s); self.assertEqual(p.update(s, 100)[0], set())
+        if files:
+            files.recovery.write_bytes(files.CORRUPT); files.observe(s, p)
+        else: p.file_context_accepted = True
+        self.assertEqual(self.tick(p, s, 101)[0], {'e'})
+        self.assertEqual(self.tick(p, s, 102, native_interact=True, phase='APPROACH_SHIP',
+                                   menu_ready=False, control_enabled=True)[0], {'Escape'})
+        ui = s['recovery']['ui']; ui.update(main_visible=True,
+            focus_path=ui['open_path'], focus_name='SettingsOpenButton', focus_is_settings_open=True)
+        s['ui'] = dict(main_visible=True, exit_visible=True, exit_enabled=True,
+            exit_text='EXIT TO DESKTOP', exit_path='/pause/ExitButton',
+            focus_is_exit=False, focus_path=ui['open_path'])
+        self.tick(p, s, 103, paused=True)
+        self.assertEqual(self.tick(p, s, 104)[0], {'Return'})
+        self.tick(p, s, 105)
+        ui.update(main_visible=False, settings_visible=True, focus_is_settings_open=False,
+                  focus_is_repair_confirm=True, focus_name='SettingsRepairConfirmButton', focus_path=ui['confirm_path'])
+        self.assertEqual(self.tick(p, s, 106)[0], {'Return'})
+        self.assertEqual(p.stage, 'repair_wait'); self.assertTrue(p.confirm_requested)
+        return p, s
+
+    def repair_document(self, files):
+        document = copy.deepcopy(files.expected); document['generation'] += 1
+        document['commit'] = dict(id=f"runtime-settings-repair-{document['generation']:010d}",
+            parent_id=files.expected['commit']['id'], parent_generation=files.expected['generation'])
+        return document
+
+    def promote(self, files, p, s, document=None):
+        document = self.repair_document(files) if document is None else document
+        files.path.write_text(json.dumps(document))
+        s['recovery']['store'].update(source='primary', generation=document['generation'])
+        s['recovery']['repair'] = dict(last_status=dict(accepted=True, reason='repair_committed'),
+            confirmation_consumed=True, prepared=False, observed_generation=files.expected['generation'])
+        s['recovery']['ui'].update(status_visible=True, status_text=p.STATUS)
+        files.observe(s, p)
+
+    def test_exact_corrupt_fixture_and_seed_bytes_modes(self):
+        self.assertEqual(native.CorruptRetainedHeavyFiles.FIXTURES, {
+            (9296, 'af2fada0a687b3a2dad6ee5c4550d4e6cd92120f2df94f6681f053e5b23ed409')})
+        self.assertEqual(native.CorruptRetainedHeavyFiles.CORRUPT, b'{corrupt')
+        self.assertEqual(hashlib.sha256(b'{corrupt').hexdigest(), native.CorruptRetainedHeavyFiles.CORRUPT_SHA256)
+        with tempfile.TemporaryDirectory() as tmp:
+            files, fixture, raw = self.fixture_files(Path(tmp))
+            self.assertEqual(files.path.read_bytes(), b'{corrupt'); self.assertEqual(files.backup.read_bytes(), raw)
+            self.assertEqual(fixture.read_bytes(), raw)
+            self.assertFalse(files.recovery.exists())
+            for path in (files.path, files.backup): self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+
+    def test_corrupt_route_rejects_old_fixture_or_any_undeclared_bytes_before_process_launch(self):
+        for raw in (b'{}', b'{corrupt', b' ' * 8655):
+            with tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp); fixture = root/'input'; fixture.write_bytes(raw)
+                profile = root/'profile'; profile.mkdir(); output = root/'output'; output.mkdir()
+                with patch.object(native.subprocess, 'Popen') as launch:
+                    with self.assertRaisesRegex(AssertionError, 'exact accepted'):
+                        native.CorruptRetainedHeavyFiles(profile, output, fixture)
+                    launch.assert_not_called()
+
+    def test_startup_refusal_does_not_require_or_manufacture_a_healthy_first_session(self):
+        p = native.CorruptRetainedRepairPilot(self.document(), 1); s = self.sample(); p.validate_observation(s)
+        for mutate in (lambda x: x['recovery']['safe_start']['begin_status'].update(accepted=True),
+                       lambda x: x['recovery']['safe_start']['begin_status'].update(reason='startup_begun'),
+                       lambda x: x['recovery']['session']['last_status']['coordinator_status'].update(reason='started'),
+                       lambda x: x['recovery']['settings'].update(camera_fov=90)):
+            bad = copy.deepcopy(s); bad.update(frame=2, sequence=2); mutate(bad)
+            candidate = native.CorruptRetainedRepairPilot(self.document(), 1); candidate.validate_observation(self.sample())
+            with self.subTest(mutate=mutate), self.assertRaises(AssertionError): candidate.validate_observation(bad)
+
+    def test_actual_gui_confirmation_is_once_only_and_first_exit_requires_success_status(self):
+        p, s = self.gui_confirm()
+        self.assertIn('settings_open_ui', p.receipts); self.assertIn('repair_confirm_ui', p.receipts)
+        self.assertEqual([e['key'] for e in p.ui_edges if e['pressed']], ['Escape', 'Return', 'Return'])
+        with self.assertRaises(AssertionError): p.finish(0)
+        self.tick(p, s, 107); self.assertEqual(self.tick(p, s, 108)[0], set())
+        self.assertEqual(p.stage, 'repair_wait')
+        p.repair_accepted = True; s['recovery']['ui'].update(status_visible=True, status_text=p.STATUS)
+        self.assertEqual(self.tick(p, s, 109)[0], {'Escape'})
+        self.tick(p, s, 110)
+        s['recovery']['ui'].update(main_visible=True, settings_visible=False)
+        self.tick(p, s, 111); self.assertEqual(p.stage, 'pause')
+        s['ui'].update(focus_is_exit=True, focus_path='/pause/ExitButton')
+        self.assertEqual(self.tick(p, s, 112)[0], {'Return'})
+        with self.assertRaises(AssertionError): p.finish(1)
+        p.finish(0); self.assertEqual(p.result['completion_marker'], p.MARKER)
+
+    def test_opaque_confirmation_refuses_wrong_hidden_disabled_or_impostor_gui_controls(self):
+        for field, value in (('confirm_enabled', False), ('confirm_visible', False), ('focus_visible', False),
+                             ('confirmation_available', False), ('focus_name', 'FakeButton'),
+                             ('focus_path', '/wrong'), ('confirm_text', 'REPAIR')):
+            p, s = self.gui_confirm(); p.confirm_requested = False; p.stage = 'repair_confirm'; p.ui_key = None
+            s['recovery']['ui'][field] = value
+            with self.subTest(field=field), self.assertRaises(AssertionError): self.tick(p, s, 200)
+
+    def test_real_file_promotion_preserves_entire_payload_backup_and_bad_bytes_through_first_exit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            files, fixture, raw = self.fixture_files(Path(tmp)); p, s = self.gui_confirm(files)
+            self.promote(files, p, s)
+            self.assertTrue(p.repair_accepted); files.finish_leg(0, p)
+            self.assertEqual(files.snapshots['repair-orderly-close']['document']['payload'], files.expected['payload'])
+            self.assertEqual(files.backup.read_bytes(), raw); self.assertEqual(files.recovery.read_bytes(), b'{corrupt')
+            self.assertEqual(fixture.read_bytes(), raw)
+
+    def test_first_repair_refuses_extra_write_changed_payload_backup_or_unconfirmed_ingress(self):
+        for mutation in ('extra-generation', 'settings', 'diagnostics', 'backup', 'unconfirmed', 'wrong-status'):
+            with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as tmp:
+                files, _, _ = self.fixture_files(Path(tmp)); p, s = self.gui_confirm(files)
+                document = self.repair_document(files)
+                if mutation == 'extra-generation': document['generation'] += 1
+                if mutation == 'settings': document['payload']['runtime_settings']['values']['camera_fov'] = 90
+                if mutation == 'diagnostics': document['payload']['crash_recovery']['session_id'] = 3
+                if mutation == 'backup': files.backup.write_bytes(b'changed')
+                if mutation == 'unconfirmed': p.confirm_requested = False
+                if mutation == 'wrong-status':
+                    s['recovery']['ui']['settings_visible'] = False
+                with self.assertRaises(AssertionError): self.promote(files, p, s, document)
+
+    def test_backup_boot_requires_preserved_primary_backup_and_exact_production_quarantine(self):
+        for mutation in ('primary', 'backup', 'recovery', 'source-generation', 'receipt'):
+            with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as tmp:
+                files, _, _ = self.fixture_files(Path(tmp)); p = native.CorruptRetainedRepairPilot(files.expected, 1)
+                s = self.sample(files); p.validate_observation(s); files.recovery.write_bytes(b'{corrupt')
+                if mutation == 'primary': files.path.write_bytes(b'different')
+                if mutation == 'backup': files.backup.write_bytes(b'different')
+                if mutation == 'recovery': files.recovery.write_bytes(b'different')
+                if mutation == 'source-generation': s['recovery']['store']['generation'] += 1
+                if mutation == 'receipt': s['recovery']['quarantine']['path'] = '/wrong'
+                with self.assertRaises(AssertionError): files.observe(s, p)
+
+    def test_cold_second_session_is_exactly_original_two_plus_one_and_all_retained_walk_goals_remain(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            files, _, _ = self.fixture_files(Path(tmp)); p, s = self.gui_confirm(files); self.promote(files, p, s)
+            files.finish_leg(0, p); files.leg = 1
+            document = RetainedHeavyCallerTests().loaded_document(files)
+            document['generation'] += 1
+            cold = self.sample(files); cold['pid'] = 2
+            cold['settlement']['store'].update(path=str(files.path), generation=document['generation'])
+            cold['recovery']['store'].update(source='primary', generation=document['generation'])
+            files.path.write_text(json.dumps(document))
+            cold_pilot = native.RetainedHeavyPilot(files.expected, 2)
+            cold_pilot.validate_observation(cold); files.observe(cold, cold_pilot)
+            self.assertTrue(cold_pilot.file_context_accepted)
+            self.assertEqual(document['payload']['crash_recovery']['session_id'], 3)
+            self.assertEqual(cold_pilot.WAYPOINTS, ((-8.5, .18, 6), (8, .18, 6), (8, .18, -24)))
+            self.assertGreater(sum(native.norm(native.sub(a, b)) for a, b in zip(
+                [cold['spawn'], *cold_pilot.WAYPOINTS], cold_pilot.WAYPOINTS)), 51)
+            # Production rotates later backups; only the bad-byte quarantine remains immutable.
+            files.backup.write_text(json.dumps(document)); files.require_quarantine()
+            for counter in (2, 4):
+                bad = copy.deepcopy(document); bad['payload']['crash_recovery']['session_id'] = counter
+                with self.assertRaises(AssertionError): files.require_loaded(bad, cold)
+            files.recovery.write_bytes(b'lost')
+            with self.assertRaises(AssertionError): files.observe(cold, cold_pilot)
+
+    def test_two_leg_exit_and_whole_cap_contract(self):
+        legs = [dict(pid=n, exit_code=0, reaped=True, normal_ui_exit=True) for n in (1, 2)]
+        native.CorruptRetainedHeavyFiles.require_two_legs(legs, 299)
+        for mutation in ('same-pid', 'not-reaped', 'nonzero', 'no-ui', 'missing-leg', 'cap'):
+            bad = copy.deepcopy(legs); elapsed = 299
+            if mutation == 'same-pid': bad[1]['pid'] = 1
+            if mutation == 'not-reaped': bad[1]['reaped'] = False
+            if mutation == 'nonzero': bad[0]['exit_code'] = 1
+            if mutation == 'no-ui': bad[0]['normal_ui_exit'] = False
+            if mutation == 'missing-leg': bad.pop()
+            if mutation == 'cap': elapsed = 300
+            with self.subTest(mutation=mutation), self.assertRaises(AssertionError):
+                native.CorruptRetainedHeavyFiles.require_two_legs(bad, elapsed)
+
+    def test_corrupt_retained_flag_is_required_at_cli_and_direct_api(self):
+        with self.assertRaises(AssertionError): native.run(Path('/game'), Path('/unused'), 'corrupt-retained-heavy')
+        argv = ['run_native_sortie.py', '/game', '--output', '/unused', '--route', 'corrupt-retained-heavy']
+        with patch.object(sys, 'argv', argv), patch.object(native, 'validate_binary') as binary, \
+                patch.object(native.subprocess, 'Popen') as launch:
+            with self.assertRaises(SystemExit) as error: native.main()
+            self.assertEqual(error.exception.code, 2); binary.assert_not_called(); launch.assert_not_called()
+
+
 class RaceHomeCallerTests(unittest.TestCase):
     """Caller rejection fixtures; only an actual package can prove the journey."""
     @staticmethod

@@ -1895,11 +1895,13 @@ func _heavy_breach_observation() -> Dictionary:
 		_arrow_sequence += 1
 		var pause: Dictionary = _habitat_restart_pause_observation()
 		pause.merge({"mode": "heavy-breach", "sequence": _arrow_sequence, "pid": OS.get_process_id()}, true)
+		pause["recovery"] = _heavy_recovery_observation()
 		return pause
 	var result: Dictionary = _arrow_observation()
 	result["mode"] = "heavy-breach"
 	if not bool(result.get("actors_current", false)):
 		return result
+	result["recovery"] = _heavy_recovery_observation()
 	var board: HeavyBreachActivityBoard = _game.world.get_heavy_breach_activity_board() as HeavyBreachActivityBoard
 	var objective: Node3D = _game.world.get_heavy_breach_protected_objective()
 	var director: EncounterScenarioDirector = _game.get_node_or_null(^"EncounterScenarios") as EncounterScenarioDirector
@@ -1951,6 +1953,41 @@ func _heavy_breach_observation() -> Dictionary:
 				"source": str(store.get_loaded_source()), "generation": store.get_generation()}}}, true)
 	result["fire_gate"] = _heavy_breach_fire_gate(picket)
 	return result
+
+
+## Detached reads of the production startup/repair owners and actual focused UI.
+## Never inspect/prepare/commit repair or manufacture the HUD's opaque token here.
+func _heavy_recovery_observation() -> Dictionary:
+	var hud: GameHUD = _game.hud
+	var focus: Control = get_viewport().gui_get_focus_owner()
+	var main_page: Control = hud.get("_pause_main_page") as Control
+	var settings_page: Control = hud.get("_settings_page") as Control
+	var open_button: Button = main_page.find_child("SettingsOpenButton", true, false) as Button
+	var confirm: Button = hud.get("_settings_repair_confirm_button") as Button
+	var status: Label = hud.get("_settings_status_label") as Label
+	var store: UserDataStore = _game.get("_runtime_settings_user_data_store") as UserDataStore
+	return {"store": {"path": ProjectSettings.globalize_path(str(store.get("_path"))),
+		"source": str(store.get_loaded_source()), "generation": store.get_generation()},
+		"load": (_game.get("_runtime_settings_load_status") as Dictionary).duplicate(true),
+		"quarantine": store.get_recovery_receipt(),
+		"session": _game.get_session_diagnostics_snapshot(),
+		"safe_start": _game.get_safe_start_recovery_report(),
+		"repair": _game.get_runtime_settings_repair_report(),
+		"settings": (_game.runtime_settings.to_user_data_payload().get("values", {}) as Dictionary).duplicate(true),
+		"ui": {"main_visible": main_page.is_visible_in_tree(),
+			"settings_visible": settings_page.is_visible_in_tree(),
+			"focus_path": str(focus.get_path()) if is_instance_valid(focus) else "",
+			"focus_name": str(focus.name) if is_instance_valid(focus) else "",
+			"focus_visible": is_instance_valid(focus) and focus.is_visible_in_tree(),
+			"focus_enabled": focus is BaseButton and not (focus as BaseButton).disabled,
+			"focus_is_settings_open": focus == open_button,
+			"open_path": str(open_button.get_path()), "open_visible": open_button.is_visible_in_tree(),
+			"open_enabled": not open_button.disabled, "open_text": open_button.text,
+			"focus_is_repair_confirm": focus == confirm,
+			"confirm_path": str(confirm.get_path()), "confirm_visible": confirm.is_visible_in_tree(),
+			"confirm_enabled": not confirm.disabled, "confirm_text": confirm.text,
+			"confirmation_available": bool(hud.get_runtime_settings_repair_presentation().get("confirmation_available", false)),
+			"status_visible": status.is_visible_in_tree(), "status_text": status.text}}
 
 
 ## Actual current camera/next-muzzle first contacts, never a submitted shot.
