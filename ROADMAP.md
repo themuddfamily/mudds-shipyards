@@ -124,6 +124,32 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Selected — SAVE-UNSUPPORTED: packaged nested-settings refusal.**
+Kind: release capability plus one packaged qualification; no gameplay change.
+Conservative selection start2026-10-26 22:48UTC; hard stop2026-10-27 00:18UTC
+(90minutes including definition, implementation, checks, push and cleanup).
+
+| Field | Frozen assignment |
+| --- | --- |
+| Result | The existing release runner can exercise future typed settings in a supported save envelope through ordinary Save/confirmed Reset, distinct cold restart and usable walking, without overwriting those settings. |
+| Start | Base4ad91a538; unchanged accepted7876ebc Linux ELF (SHA256cf4c81d383bb0c3d6690646314f0c77d93a5d62c05f4d6883506a3ab3a713bf6). Fresh owned XDG/profile/display. Actual UserDataStore.commit creates one outer1/generation1 primary; no initial backup, stage, history or legacy CFG. Fixture bytes/hash recorded before the package starts. |
+| Steps | Produce the fixture with the actual store; run existing Python caller checks; invoke the existing native runner with `--route unsupported-save --future-format settings --future-artifact primary --retained-data FIXTURE`. Process1: title/Begin Shift → Settings → APPLY + SAVE → RESET DEFAULTS → CONFIRM RESET → normal HUD Quit. Process2: same profile, distinct PID → Begin Shift → original three walking points → normal HUD Quit. |
+| Pass/fail | Both loads and both writes refuse `settings_payload_newer`/`payload_reason=newer_schema` while outer authority stays accepted/`ok`/primary. Save displays `UNSAVED  //  SETTINGS_PAYLOAD_NEWER`; Reset displays `DEFAULTS ACTIVE  //  SAVE FAILED`. Two attempts/zero successes first process, zero attempts cold; live defaults agree across boot/Reset/cold. Both actual OS exits0. Original300s native/360s outer cap and45s cold walking remain. |
+| Proof and protected data | Actual OS keyboard/XTest route on isolated X11, silent Dummy audio. Exact fixture subtrees remain equal at independent settled milestones and in the observer: future settings, tutorial seen list, on-foot Arrow home and unrelated marker. Only declared crash/session bookkeeping may change; crash state running→clean/session IDs1→2/unclean0 and actual diagnostic events required. Safe-start and race namespaces stay absent. Exact two declared warnings once per process; zero other diagnostics after drain. |
+| Dependencies and ownership | Codex owns `tools/release/run_native_sortie.py`, its existing test, one actual-store fixture producer and integration. The existing passive observer already supplies the fields. No user policy/device input is missing. Full final-candidate and other unsupported-format contracts remain separate. |
+| Stop | First unexpected check/engine/route failure stops this attempt, with no automatic fix/retry. No flight launch after00:02UTC, retaining16minutes for the original route cap and closure. Source definition/implementation/checks stay charged to the same22:48UTC start. |
+| Closure | Independently review the source and actual result; integrate/push accepted release capability and qualification, or park/archive the failed candidate unmerged. Verify owned process cleanup; remove owned branch/worktree/loose scratch after source is accounted for. No new playable checkpoint for Python release tooling alone. |
+
+Exact fixture payload: `runtime_settings={schema_version:12,values:{}}`;
+`tutorial_prompts_seen={schema_version:1,seen_ids:[cinder_reach_checkpoint_route]}`;
+`solo_safe_recovery={location:mudds_home_berth,mode:on_foot,craft_id:arrow_provisional,berth_id:arrow_recon_berth}`;
+`unrelated_future_test={label:KEEP}`. Unrelated sentinel bytes are
+`UNRELATED FILE MUST SURVIVE\n`, mode0640; fixture save mode0600. Settled reads
+allow only production primary/backup/history rotation through `.bak.3` and the
+existing diagnostics current/previous crash logs; no stage/quarantine remains.
+Do not claim unchanged envelope bytes/inode while legitimate bookkeeping commits.
+This is a dedicated nested-format fixture, not retained Heavy-progress qualification.
+
 **PARKED: Convoy paid escort/home passes; shutdown gate fails.**
 The sole full ordinary run completes genuine Guided, exact34+1 raider damage,
 four escort legs/safe arrival, one durable payment, strict home/90neutral OFFLINE
