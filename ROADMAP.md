@@ -124,6 +124,36 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Selected — SAVE-UNSUPPORTED: ordinary legacy CFG8 preservation and JSON coexistence.**
+Kind: executable release capability plus one packaged Linux qualification of
+existing behavior; no save-policy or gameplay change. Selection2026-10-26
+23:15UTC; hard stop2026-10-27 00:45UTC,90minutes including all work/closure.
+
+| Field | Frozen assignment |
+| --- | --- |
+| Result | Ordinary Settings Save and clean Reset create supported JSON preferences while a newer legacy settings.cfg remains untouched; a distinct launch loads the new JSON, permits walking and quits normally. This case does not promise refusal of separate supported persistence. |
+| Start | Base87272c607; unchanged7876ebc Linux ELF/SHA256cf4c81d383bb0c3d6690646314f0c77d93a5d62c05f4d6883506a3ab3a713bf6. Fresh owned XDG/display; only83-byte settings.cfg mode0600 plus existing unrelated sentinel0640. No CFG siblings, JSON/history, tutorial or diagnostics initially. |
+| Steps | Existing runner `--route unsupported-save --future-format legacy --future-artifact primary --retained-data FIXTURE`. First: Boot/Main → ordinary Begin Shift → remain neutral/unpaused until the original five-physics-second startup_stable → paused Settings/APPLY + SAVE → clean RESET DEFAULTS directly, with no confirmation → normal HUD Quit/OS0. Same profile/distinct process: Boot/Main → Begin Shift → original three walking points → observed startup_stable → normal HUD Quit/OS0. |
+| Pass/fail | First cached load refuses legacy import: legacy_load_failed/legacy_error30/store_reasonempty/generation0, while actual supported Store bookkeeping may advance independently. Live defaults sensitivity.0022/FOV72 ignore future.01/99. Actual Save and Reset each succeed saved/committed; visible SETTINGS SAVED and DEFAULTS RESTORED + SAVED, counters2attempts/2transactions/2successes and actual generation-bound runtime-settings IDs. Cold load accepted loaded/ok/primary/no migration; counters0/0/0 and empty current-process successful settings ID. Both real OS exits0; exact CFG bytes/mode/identity and absent CFG siblings throughout. |
+| Proof | One actual OS keyboard/XTest journey on owned Xvfb/X11 with Dummy audio. First process exactly two frozen legacy-load warnings, cold zero; no unexpected diagnostics after drain. Independently read settled JSON primary/history and exact protected CFG/sentinel; compare all live/default/JSON values. Both actual physics stability transitions and clean crash/safe-start/session receipts required. Original300s native/360s outer/45s cold walking limits retained. |
+| Dependencies/ownership | Codex owns only existing native runner and its existing caller test; no observer, generator or runtime change. Current source supplies coexistence semantics; no missing user policy/device decision for this case. Native/final-package gates remain separate. |
+| Stop | First unexpected failure stops; no automatic correction/retry or budget reset. Do not launch the route after00:29UTC, leaving16minutes for original cap/closure. Same23:15UTC clock charges definition, implementation, checks, review, push and cleanup. |
+| Closure | Independent source/raw review; integrate and push accepted result, or park/archive failed source unmerged. Verify owned process cleanup; remove completed branch/worktree/loose scratch after source is accounted for. No playable rebuild for Python release tooling alone. |
+
+Exact CFG bytes (LF/final newline) are
+`[meta]\nschema_version=8\n\n[controls]\nship_mouse_sensitivity=0.01\n\n[camera]\nfov=99.0\n`,
+SHA256`8daaf485e55319c84f205a3f80021b007fd046a2951045c186312593ae53832a`.
+Unrelated sentinel stays `UNRELATED FILE MUST SURVIVE\n`,mode0640. JSON permits
+only runtime_settings(absent until actual Save, then full authored schema11
+values), safe_start_recovery(startup1→2/failures0/no recommendation/stable/clean),
+crash_recovery(session1→2/running→clean/unclean0), actual session_diagnostics and
+solo_safe_recovery(exact on-foot torrent_provisional/central_berth home after
+Begin Shift). Tutorial/race/activity/reward namespaces remain absent. Settled
+JSON may rotate only through the existing backup/.bak.3 chain and fixed current/
+previous diagnostic logs; no staging/quarantine remains. The legacy file is
+never reinterpreted as JSON. Existing source/API and nested/outer acceptances
+stay closed within their own scope.
+
 **Accepted — packaged future nested-settings refusal.**
 The existing runner now covers settings schema12 inside supported outer1.
 Actual Save/confirmed Reset refuse the overwrite, distinct cold restart retains
