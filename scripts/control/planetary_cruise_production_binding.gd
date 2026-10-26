@@ -235,6 +235,24 @@ func request_engage(
 
 ## Ends the request and asks HeroShip to perform its already bounded brake. A
 ## stale controller/ship attachment is reconciled locally rather than retried.
+## Read-only acceptance for the existing approach cancellation. GameFlow uses
+## it before committing the saved visit's decline, then performs the same
+## synchronous cancellation through the ordinary mutators.
+func get_cancel_rejection(expected_generation: int) -> StringName:
+	if not _engagement_requested and _final_approach_completion_receipt.is_empty():
+		return &""
+	var rejection := _mutation_rejection(expected_generation)
+	if not rejection.is_empty():
+		return rejection
+	if _engagement_requested:
+		return _engagement_retirement_rejection()
+	if not _final_approach_completion_receipt.is_empty():
+		return _final_approach_completion_discard_rejection(
+			int(_final_approach_completion_receipt.get("target_generation", 0))
+		)
+	return &""
+
+
 func request_disengage(
 		expected_generation: int,
 		brake_to_stop: bool = true,
@@ -534,14 +552,9 @@ func discard_final_approach_completion(
 	var preflight := _mutation_preflight(expected_generation)
 	if not preflight.is_empty():
 		return _result(false, preflight)
-	if _approach_kind != _ControllerType.FINAL_APPROACH_KIND:
-		return _result(false, &"final_approach_completion_unavailable")
-	if _final_approach_completion_receipt.is_empty():
-		return _result(false, &"final_approach_completion_unavailable")
-	if expected_target_generation != int(
-		_final_approach_completion_receipt.get("target_generation", 0)
-	):
-		return _result(false, &"final_approach_generation_mismatch")
+	var rejection := _final_approach_completion_discard_rejection(expected_target_generation)
+	if not rejection.is_empty():
+		return _result(false, rejection)
 	_mutation_active = true
 	_final_approach_completion_receipt.clear()
 	_final_approach_completion_consumed = true
@@ -563,6 +576,18 @@ func discard_final_approach_completion(
 	_mutation_active = false
 	_emit_engagement_changed()
 	return _last_result.duplicate(true)
+
+
+func _final_approach_completion_discard_rejection(expected_target_generation: int) -> StringName:
+	if _approach_kind != _ControllerType.FINAL_APPROACH_KIND:
+		return &"final_approach_completion_unavailable"
+	if _final_approach_completion_receipt.is_empty():
+		return &"final_approach_completion_unavailable"
+	if expected_target_generation != int(
+		_final_approach_completion_receipt.get("target_generation", 0)
+	):
+		return &"final_approach_generation_mismatch"
+	return &""
 
 
 func discard_return_approach_completion(
@@ -1403,6 +1428,18 @@ func _ensure_current_frame_binding(
 ## Internal atomic retirement. The public transaction guard must already be
 ## held. State and generation commit only after the controller is proven
 ## detached/reconciled; a rejected release preserves the complete binding.
+func _engagement_retirement_rejection() -> StringName:
+	if _generation >= MAX_SAFE_INTEGER:
+		return &"generation_exhausted"
+	if not _controller_is_valid():
+		var ship := _resolve_engaged_ship_even_if_detached()
+		if ship != null and int(ship.get_planetary_cruise_attachment_report().get("controller_instance_id", 0)) == _controller_instance_id:
+			return &"controller_release_rejected"
+		return &""
+	var rejection := _controller.get_release_rejection(_controller.get_generation())
+	return &"controller_release_rejected" if not rejection.is_empty() else &""
+
+
 func _retire_engagement_guarded(
 		reason: StringName,
 		brake_to_stop: bool,
@@ -1530,15 +1567,21 @@ func _fail_tick_guarded(
 	return _last_result.duplicate(true)
 
 
-func _mutation_preflight(expected_generation: int) -> StringName:
+func _mutation_rejection(expected_generation: int) -> StringName:
 	if _mutation_active or _signal_dispatch_active:
-		_reentrant_rejection_count += 1
 		return &"reentrant_call"
 	if expected_generation != _generation:
 		return &"generation_mismatch"
 	if not _binding_is_live():
 		return &"binding_unavailable"
 	return &""
+
+
+func _mutation_preflight(expected_generation: int) -> StringName:
+	var rejection := _mutation_rejection(expected_generation)
+	if rejection == &"reentrant_call":
+		_reentrant_rejection_count += 1
+	return rejection
 
 
 func _identity_preflight() -> StringName:

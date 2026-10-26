@@ -2346,18 +2346,29 @@ func retarget_planetary_cruise_coordinate_frame(
 
 ## Explicitly retires the bound controller and any pending/active envelope. The
 ## body begins a bounded HeroShip-owned brake when that is physically allowed.
+func get_planetary_cruise_disengage_rejection(
+	controller_instance_id: int, expected_attachment_generation: int
+) -> StringName:
+	if _reset_for_reuse_mutation_blocked() \
+			or _planetary_cruise_mutation_active or _planetary_cruise_signal_dispatch_active:
+		return &"reentrant_call"
+	if controller_instance_id != _planetary_cruise_controller_instance_id:
+		return &"controller_identity_mismatch"
+	if expected_attachment_generation != _planetary_cruise_attachment_generation:
+		return &"attachment_generation_mismatch"
+	return &""
+
+
 func disengage_planetary_cruise(
 	controller_instance_id: int,
 	expected_attachment_generation: int,
 	brake_to_stop: bool = true
 ) -> Dictionary:
-	if _reset_for_reuse_mutation_blocked() \
-			or _planetary_cruise_mutation_active or _planetary_cruise_signal_dispatch_active:
-		return _planetary_cruise_receipt(false, &"reentrant_call")
-	if controller_instance_id != _planetary_cruise_controller_instance_id:
-		return _planetary_cruise_receipt(false, &"controller_identity_mismatch")
-	if expected_attachment_generation != _planetary_cruise_attachment_generation:
-		return _planetary_cruise_receipt(false, &"attachment_generation_mismatch")
+	var rejection := get_planetary_cruise_disengage_rejection(
+		controller_instance_id, expected_attachment_generation
+	)
+	if not rejection.is_empty():
+		return _planetary_cruise_receipt(false, rejection)
 	_planetary_cruise_pending_envelope.clear()
 	_planetary_cruise_pending_clearance_proof.clear()
 	_planetary_cruise_proof_self_exclusions.clear()

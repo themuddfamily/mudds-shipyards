@@ -106,8 +106,15 @@ Memory/filesystem and Host/admission staging must remain disclosed; this check
 does not qualify ordinary full travel, real-file OS restart or packaged world
 abandonment.
 
-Implementer owns GameFlow/coordinator and the existing Ember lifecycle test;
-minimal read-only Host preflight may be needed for safe ordering. Root owns
+Implementer owns GameFlow/coordinator, Host/session and the existing cruise
+binding/controller/HeroShip rejection guards, plus the existing Ember lifecycle
+test and one physical-controller assertion. The shared read-only guards validate
+the actual cancellation before its persistence CAS; no general transaction
+framework or new persistent state is added. Source review also found a retained
+same-Main composition after approach cancellation: existing retirement now clears
+that staged resume, with two added lifecycle assertions. The nine original
+old-runtime loss assertions remain unchanged; record the new test delta explicitly.
+Root owns
 freeze, exact old RED/new GREEN, unchanged checkpoint-resume/real-abandon focused
 checks, paired checkpoint, integration/push/cleanup. One independent persistence
 reviewer checks rejection/commit ordering before execution. Estimate60minutes

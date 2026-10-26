@@ -16718,6 +16718,49 @@ func _restore_ember_surface_persistence_for_admission() -> Dictionary:
 	return terminal.duplicate(true)
 
 
+## Explicit abandonment declines only this Main's observed Ember receipt.
+## The existing planner preserves earned debt while making unfinished work
+## passive. Ordinary cancellation, shutdown and other worlds never use this.
+func _decline_saved_ember_journey_for_abandon() -> Dictionary:
+	var store := _runtime_settings_user_data_store
+	if store == null:
+		return {"accepted": true, "reason": &"ember_abandon_no_saved_checkpoint"}
+	var payload := store.get_snapshot()
+	var key := String(EMBER_RELAY_SURVEY_PERSISTENCE_SLOT)
+	if not payload.has(key):
+		return {"accepted": true, "reason": &"ember_abandon_no_saved_checkpoint"}
+	if store.get_loaded_source() != &"primary":
+		return {"accepted": false, "reason": &"ember_abandon_store_recovery_required"}
+	var persistence := EmberRelaySurveyPersistenceBinding.new()
+	persistence.configure(store, EMBER_RELAY_SURVEY_PERSISTENCE_SLOT)
+	var planned := persistence.plan_decline(payload)
+	if not bool(planned.get("accepted", false)):
+		return planned
+	var next := planned.get("payload", {}) as Dictionary
+	if next == payload:
+		return {"accepted": true, "reason": &"ember_abandon_no_saved_checkpoint"}
+	var expected_receipt := ""
+	if bool(_ember_interrupted_journey_save_status.get("accepted", false)):
+		expected_receipt = str(_ember_interrupted_journey_save_status.get("receipt_sha256", ""))
+	if expected_receipt.is_empty() and bool(_ember_interrupted_journey_restore_status.get("accepted", false)):
+		expected_receipt = str((_ember_interrupted_journey_restore_status.get("recovery", {}) as Dictionary).get("receipt_sha256", ""))
+	var recovery := (payload[key] as Dictionary).get("completion", {}) as Dictionary
+	if expected_receipt.is_empty() or str(recovery.get("receipt_sha256", "")) != expected_receipt:
+		return {"accepted": false, "reason": &"ember_abandon_checkpoint_changed"}
+	var rejection := _planetary_journey.get_explicit_ember_abandon_rejection()
+	if not rejection.is_empty():
+		return {"accepted": false, "reason": rejection}
+	# UserDataStore's CAS is synchronous and emits no runtime callbacks. The
+	# probed Host/cancel owners therefore remain current until their mutation.
+	var generation := store.get_generation()
+	var committed := store.commit(next, generation, "ember-abandon-checkpoint-%010d" % (generation + 1))
+	committed["ember_checkpoint_declined"] = bool(committed.get("accepted", false))
+	if bool(committed.get("accepted", false)):
+		_runtime_settings_commit_serial = maxi(_runtime_settings_commit_serial, store.get_generation())
+		_sync_production_runtime_settings_state()
+	return committed
+
+
 func get_ember_interrupted_journey_persistence_report() -> Dictionary:
 	return {
 		"schema_version": 1,

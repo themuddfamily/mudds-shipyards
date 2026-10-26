@@ -2294,16 +2294,44 @@ func _complete_planetary_return_physical_arrival(
 ## their craft and boards it, and the Host's own takeoff carries the abandon
 ## until the craft is physically off the pad and climbing, where it commits.
 ## Until then the pilot keeps control and the craft keeps its pad lease.
+func get_explicit_ember_abandon_rejection() -> StringName:
+	var host := _flow.ember_surface_loop_host
+	if not is_instance_valid(host):
+		return &"ember_surface_abandon_host_unavailable"
+	if host.get_phase() != EmberSurfaceLoopHost.Phase.IDLE:
+		return host.get_abandon_rejection(host.get_generation(), host.get_attachment_generation())
+	var rejection := host.get_cancel_rejection(host.get_generation(), host.get_attachment_generation())
+	if not rejection.is_empty():
+		return rejection
+	if is_instance_valid(_flow.planetary_cruise_binding):
+		var cruise := _flow.planetary_cruise_binding
+		return cruise.get_cancel_rejection(cruise.get_generation())
+	return &""
+
+
 func abandon_ember_surface_journey(
 	reason: StringName = &"player_abandoned"
 ) -> Dictionary:
 	if _pending_ember_surface_request.is_empty() \
 			and not _ember_surface_journey_active:
 		return {"accepted": false, "reason": &"ember_surface_request_not_pending"}
+	var declined: Dictionary = {}
+	if reason == &"player_abandoned" and not _shared_ember_landing_active:
+		declined = _flow._decline_saved_ember_journey_for_abandon()
+		if not bool(declined.get("accepted", false)):
+			return declined
 	var host := _flow.ember_surface_loop_host
 	if not is_instance_valid(host) \
 			or host.get_phase() == EmberSurfaceLoopHost.Phase.IDLE:
-		return cancel_ember_surface_journey()
+		var cancelled := cancel_ember_surface_journey()
+		if bool(cancelled.get("accepted", false)) \
+				and bool(declined.get("ember_checkpoint_declined", false)) \
+				and is_instance_valid(_flow.ember_surface_loop_production_binding):
+			# This admitted approach held a staged resume in its composition.
+			# Retire it with the declined receipt so the retained Main can create
+			# a fresh composition on its next ordinary visit.
+			cancelled["surface_retirement"] = _flow.ember_surface_loop_production_binding.abandon_planetary_surface(reason)
+		return cancelled
 	var abandoned: Dictionary = host.abandon(
 		host.get_generation(), host.get_attachment_generation(), reason
 	)

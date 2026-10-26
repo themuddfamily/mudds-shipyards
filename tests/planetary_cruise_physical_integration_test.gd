@@ -659,6 +659,12 @@ func _run() -> void:
 			> before_detach_attachment,
 		"ship detach freezes physics and tombstones the attached controller"
 	)
+	var detached_controller_snapshot := detach_controller.get_snapshot()
+	_check(
+		detach_controller.get_release_rejection(detach_generation) == &"controller_release_rejected"
+		and detach_controller.get_snapshot() == detached_controller_snapshot,
+		"missing-ship release preflight refuses without changing the attached controller"
+	)
 	stage.add_child(ship)
 	await physics_frame
 	await process_frame

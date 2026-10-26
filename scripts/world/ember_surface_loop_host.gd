@@ -767,6 +767,44 @@ func start(
 ##
 ## A visit that already terminalized releases here too: the teardown has already
 ## happened, so only the reset for the next visit remains.
+## Pure acceptance probe before GameFlow commits an explicit abandonment.
+## A pending surface departure needs no reset yet. Immediate release and the
+## FAILED cleanup must prove their existing session reset can succeed first.
+func get_cancel_rejection(
+	expected_generation: int, expected_attachment_generation: int
+) -> StringName:
+	if _mutation_active:
+		return &"reentrant_call"
+	var rejection := _simple_token_rejection(expected_generation, expected_attachment_generation)
+	if not rejection.is_empty():
+		return rejection
+	return &"ember_surface_journey_already_started" if _phase != Phase.IDLE else &""
+
+
+func get_abandon_rejection(
+	expected_generation: int, expected_attachment_generation: int
+) -> StringName:
+	if _mutation_active:
+		return &"reentrant_call"
+	var rejection := _simple_token_rejection(expected_generation, expected_attachment_generation)
+	if not rejection.is_empty():
+		return rejection
+	if _phase in [Phase.IDLE, Phase.COMPLETED]:
+		return &"ember_surface_abandon_out_of_order"
+	var landing_will_end := _node_is_current(_ship) and _ship.is_landing_active() \
+		and _phase in [Phase.SURFACE_APPROACH, Phase.LANDING_APPROACH]
+	if _phase == Phase.FAILED or _abandon_commit_ready(landing_will_end):
+		if _session == null:
+			return &"travel_session_unavailable"
+		if _session.get_state() != PlanetaryTravelSession.State.IDLE:
+			var reset_rejection := _session.get_reset_rejection(
+				_generation, _session.get_attachment_generation()
+			)
+			if not reset_rejection.is_empty():
+				return &"abandon_session_reset_rejected"
+	return &""
+
+
 func abandon(
 	expected_generation: int,
 	expected_attachment_generation: int,
@@ -774,16 +812,12 @@ func abandon(
 ) -> Dictionary:
 	if _mutation_active:
 		return _result(false, &"reentrant_call")
-	_mutation_active = true
-	var rejection := _simple_token_rejection(
+	var rejection := get_abandon_rejection(
 		expected_generation, expected_attachment_generation
 	)
+	_mutation_active = true
 	if not rejection.is_empty():
 		return _finish(false, rejection)
-	if not _attached:
-		return _finish(false, &"not_attached")
-	if _phase in [Phase.IDLE, Phase.COMPLETED]:
-		return _finish(false, &"ember_surface_abandon_out_of_order")
 	if _phase == Phase.FAILED:
 		var released := _rebuild_for_next_visit(reason)
 		if not bool(released.get("accepted", false)):
@@ -832,7 +866,7 @@ func get_abandon_snapshot() -> Dictionary:
 ## contract in flight. A pending abandon additionally rides the Host's own
 ## takeoff until the ascent has committed its surface-clear evidence, so the
 ## craft is physically off the pad and climbing before the abandon hands it back.
-func _abandon_commit_ready() -> bool:
+func _abandon_commit_ready(landing_will_end: bool = false) -> bool:
 	if _phase not in [
 		Phase.ORBIT_APPROACH, Phase.DESCENT, Phase.SURFACE_APPROACH,
 		Phase.LANDING_APPROACH, Phase.ASCENT, Phase.ORBIT_RETURN,
@@ -842,7 +876,7 @@ func _abandon_commit_ready() -> bool:
 		return false
 	if not _node_is_current(_ship) or not _node_is_current(_player):
 		return false
-	if _ship.is_destroyed() or _ship.is_landing_active() \
+	if _ship.is_destroyed() or (_ship.is_landing_active() and not landing_will_end) \
 			or bool(_ship.get_telemetry().get("landed", true)):
 		return false
 	return _player.is_seated() and _ship.is_piloted()

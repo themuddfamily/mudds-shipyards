@@ -725,6 +725,26 @@ func _exercise_approach_abandon(saved_files: Dictionary) -> void:
 		"explicit abandon before Host start uses the existing approach cancellation")
 	_check(not store.get_snapshot().has(String(SLOT)) and store.get_snapshot().foreign.retained == 91,
 		"accepted approach abandon removes the resumable slot and preserves unrelated data")
+	_check(surface.wrapper.get_planetary_surface_snapshot().is_empty()
+		and surface.binding.is_queued_for_deletion(),
+		"accepted approach abandon retires the staged composition in the retained Main")
+	# Stage the next composition in the same Main/Director, using the normal
+	# production configuration, persistence admission and survey-start seams.
+	var fresh_binding := SurfaceBindingScript.new()
+	root.add_child(fresh_binding)
+	surface.host.staged_phase = EmberSurfaceLoopHost.Phase.ON_FOOT
+	surface.host.set("_phase", EmberSurfaceLoopHost.Phase.ON_FOOT)
+	var configured: Dictionary = fresh_binding.configure(surface.host, surface.director,
+		Callable(surface.wrapper, "_commit_relay_reward_through_authority"), surface.host.run_generation)
+	var bound: Dictionary = flow.bind_ember_relay_survey_persistence(fresh_binding)
+	var current_admission: Dictionary = flow._restore_ember_surface_persistence_for_admission()
+	var current_start: Dictionary = fresh_binding.start_relay_survey()
+	_check(configured.accepted and bound.accepted and current_start.accepted
+		and not current_admission.get("checkpoint_resume", {}).get("accepted", false)
+		and int(fresh_binding.get_snapshot().relay_survey.mandatory_route.next_checkpoint_index) == 0,
+		"the retained Main admits a fresh composition and starts at the first observation")
+	surface.binding = fresh_binding
+	surface.wrapper.set("_planetary_composition", fresh_binding)
 	await _retire_surface(surface)
 	var next := await _make_surface(StoreScript.new(STORE_PATH, filesystem), true)
 	var next_admission: Dictionary = (next.flow as GameFlow)._restore_ember_surface_persistence_for_admission()

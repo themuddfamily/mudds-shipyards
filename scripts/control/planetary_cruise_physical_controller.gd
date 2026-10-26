@@ -829,13 +829,40 @@ func rebind_coordinate_frame(
 	return receipt
 
 
-func disengage(expected_generation: int, brake_to_stop: bool = true) -> Dictionary:
+func _disengage_rejection(expected_generation: int) -> StringName:
 	if _mutation_active or _signal_dispatch_active:
-		return _receipt(false, &"reentrant_call")
+		return &"reentrant_call"
 	if expected_generation != _generation:
-		return _receipt(false, &"generation_mismatch")
+		return &"generation_mismatch"
 	if not _attached:
-		return _receipt(false, &"not_attached")
+		return &"not_attached"
+	return &""
+
+
+## Mirrors the binding's disengage-or-reconcile release without changing either
+## actor. The actual mutators below use the same guards.
+func get_release_rejection(expected_generation: int) -> StringName:
+	if not _attached:
+		return &""
+	var rejection := _disengage_rejection(expected_generation)
+	var ship := _resolve_ship()
+	# disengage clears a lost ship binding and advances this generation before
+	# returning failure; the caller's old-generation reconciliation then refuses.
+	if rejection.is_empty() and ship == null:
+		return &"controller_release_rejected"
+	if rejection.is_empty() and ship != null:
+		rejection = ship.get_planetary_cruise_disengage_rejection(
+			get_instance_id(), _ship_attachment_generation
+		)
+		if rejection.is_empty():
+			return &""
+	return _retired_ship_binding_rejection(expected_generation)
+
+
+func disengage(expected_generation: int, brake_to_stop: bool = true) -> Dictionary:
+	var rejection := _disengage_rejection(expected_generation)
+	if not rejection.is_empty():
+		return _receipt(false, rejection)
 	var ship := _resolve_ship()
 	if ship == null:
 		_clear_binding(&"ship_unavailable", true)
@@ -863,15 +890,15 @@ func disengage(expected_generation: int, brake_to_stop: bool = true) -> Dictiona
 ## In that case an ordinary disengage is intentionally stale; this method only
 ## clears the controller's local binding after proving that the exact prior
 ## attachment is no longer current. It never asks the ship to move or brake.
-func reconcile_retired_ship_binding(expected_generation: int) -> Dictionary:
+func _retired_ship_binding_rejection(expected_generation: int) -> StringName:
 	if _mutation_active or _signal_dispatch_active:
-		return _receipt(false, &"reentrant_call")
+		return &"reentrant_call"
 	if expected_generation != _generation:
-		return _receipt(false, &"generation_mismatch")
+		return &"generation_mismatch"
 	if not _attached:
-		return _receipt(true, &"already_detached")
+		return &""
 	if not _controller_is_live():
-		return _receipt(false, &"controller_unavailable")
+		return &"controller_unavailable"
 	var ship := _resolve_ship()
 	if ship != null:
 		var report := ship.get_planetary_cruise_attachment_report()
@@ -881,7 +908,16 @@ func reconcile_retired_ship_binding(expected_generation: int) -> Dictionary:
 				== _ship_attachment_generation
 			and int(report.get("controller_instance_id", 0)) == get_instance_id()
 		):
-			return _receipt(false, &"ship_binding_still_current")
+			return &"ship_binding_still_current"
+	return &""
+
+
+func reconcile_retired_ship_binding(expected_generation: int) -> Dictionary:
+	var rejection := _retired_ship_binding_rejection(expected_generation)
+	if not rejection.is_empty():
+		return _receipt(false, rejection)
+	if not _attached:
+		return _receipt(true, &"already_detached")
 	_mutation_active = true
 	_clear_binding(&"ship_binding_retired", true)
 	_mutation_active = false

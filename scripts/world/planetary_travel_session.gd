@@ -1023,6 +1023,33 @@ func fail(
 	)
 
 
+## Read-only readiness for the Host's explicit-abandon persistence boundary.
+## reset() uses the same state guards before advancing this session.
+func get_reset_rejection(
+		expected_generation: int,
+		expected_attachment_generation: int
+	) -> StringName:
+	if _is_reentrant():
+		return &"reentrant_call"
+	return _reset_state_rejection(expected_generation, expected_attachment_generation)
+
+
+func _reset_state_rejection(
+		expected_generation: int,
+		expected_attachment_generation: int
+	) -> StringName:
+	var rejection := _attachment_rejection(expected_generation, expected_attachment_generation)
+	if not rejection.is_empty():
+		return rejection
+	if not _started_once:
+		return &"not_started"
+	if _state == State.IDLE:
+		return &"already_idle"
+	if _generation >= MAX_SAFE_GENERATION:
+		return &"generation_exhausted"
+	return &""
+
+
 func reset(
 		expected_generation: int,
 		expected_attachment_generation: int
@@ -1030,18 +1057,12 @@ func reset(
 	if _is_reentrant():
 		return _result(false, &"reentrant_call")
 	_mutation_active = true
-	var rejection := _attachment_rejection(
+	var rejection := _reset_state_rejection(
 		expected_generation,
 		expected_attachment_generation
 	)
 	if not rejection.is_empty():
 		return _finish(false, rejection)
-	if not _started_once:
-		return _finish(false, &"not_started")
-	if _state == State.IDLE:
-		return _finish(false, &"already_idle")
-	if _generation >= MAX_SAFE_GENERATION:
-		return _finish(false, &"generation_exhausted")
 	_generation += 1
 	_state = State.IDLE
 	_elapsed_seconds = 0.0
