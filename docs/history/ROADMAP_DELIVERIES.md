@@ -30646,3 +30646,102 @@ retain the playable bytes without another archived binary copy. All57 observed
 stage identities and14supervisors are absent. Actual source push, exact-tip owned
 branch/worktree and loose-scratch cleanup are recorded in adjacent closeout.json.
 No Downloads, hosted CI, release publication, original parent or phase closure.
+
+
+<a id="convoy-full-route-shutdown-parked-20261026"></a>
+## Full Convoy route —paid/home proved, shutdown FAIL/PARK —2026-10-26
+
+**FAIL/PARK; no gameplay or release capability accepted.** The sole full ordinary
+run completes objective/payment/home/exterior walking, but two engine errors after
+normal Quit request prevent zero-diagnostic, normal OS0 and final clean-file
+acceptance. No retry, error allowance or source-only substitute. Five candidate
+source/test files stay unmerged; playable checkpoint7876ebc remains unchanged.
+
+**Selected: one reviewed PLAY-CONVOY resumption, full ordinary convoy-home.**
+The old75-minute wall window00:07:44→01:22:44UTC is closed. Independent review
+explicitly permits one resumption after the demonstrated fresh-profile correction;
+this is not another unaccounted attempt or a new75-minute allowance.
+
+| Field | Frozen engine/full-flight contract |
+| --- | --- |
+| Result | Complete the genuine Guided prelude, physically select/reboard and finish the real Convoy escort/raider/payment, then strict home, supported exit/walk and normal HUD Quit/OS0 on one exported candidate. |
+| Start | Base main aaf0d2738/checkpoint7876ebc. Semantic port of archived7952127 to current source in owned `/srv/mudds-work/convoy-resumption-20261026/worktree`, branch `roadmap/convoy-resumption-20261026`. Implementer owns only native runner/tests, read-only observer, startup selector and privacy test; root owns guards/docs/private export/full route/cleanup. Historical docs are not replayed. |
+| Steps | Fresh-namespace rejection preflight; full current Python suite; independent source GO; one silent import/privacy/private Linux export/strict startup. Then ONE `--route convoy-home` full OS-XTest route: Guided/home/exterior exit → normal pause Convoy selection → same Torrent reboard/safe RangeHeader departure → actual4m rendezvous at live [84,-48,-724] → real raider hits34+1 → retained tender's four authored legs/safe arrival → once-only durable escort payment → strict home/90neutral OFFLINE ticks → physical exit/supported walk → normal HUD OS0 and both durable clean states. |
+| Pass/fail | Same process/Main/Player/Torrent and actual host/threat/source/target/collider identities. Tender24m/s, activity90s, proximity42m/separation3s, native/default consumed-fire receipts; no staged actors/teleport/injected kill/terminal state, shortened route or changed gameplay limits. Exact existing data/debt/payment/actor/landing/home/cleanup checks pass with zero game diagnostics. NativeCAP300/outer360 unchanged. |
+| Proof | Current287-test suite including5ported Convoy cases; actual private observer/CLI admission, clean export/startup exit0/exactlyone STARTUP_MENU_READY_OK, complete raw flight and independent disk/OS-exit/cleanup receipts. Prior216-test result and old no-flight attempts are not proof. Old17Main save suite stays parked. |
+| Dependencies | Current base classes/test fixtures are AST-equal to archived corrected source; current retained/future/drain paths remain intact. Fresh guard uses ROOT/profile/pin/stage and rejects reuse BEFORE launch; explicitly demonstrate denial before any engine. Root source acceptance and at least360s+10min closure time at game Popen are required. |
+| Stop | Prior actual cost19.0684411167min retained. Charge ALL resumed work conservatively from22:07:45UTC2026-10-26 against the remaining55.9315588833min: HARD23:03:40.893533UTC, implementation due22:31:07UTC. Native wrapper launch requires20min remaining (latest22:43:40.893533UTC), leaving setup reserve beyond the16min Popen requirement. One in-memory help-anchor drift was corrected before writes; first full Python failed current route-order assertion. Explicit independent review authorized one last source-only append correction without test changes:287PASS14.127s. Any NEXT unexpected Python/import/export/native failure => PARK, no automatic correction/retry or larger cap/window. |
+| Closure | Integrate/push accepted route/result only after actual validation; failed candidate stays unmerged in verified raw/source archive. Fresh remote/tip/worktree/process checks, exact owned branch/worktree/scratch cleanup. Driver-only work does not imply gameplay change/new public checkpoint; keep latest7876ebc and native/device/final gates unchanged. |
+
+This written engine card records the actual preflight state: the semantic-port
+contract and cumulative decision preceded code work in delegation; first Python
+failure/raw source and the reviewed correction are retained. No engine or flight
+has yet run under this resumption.
+
+
+
+### Actual preparation and one flight
+
+The [original two preengine stops](#convoy-ordinary-driver-two-stops-20261026)
+consumed19.0684411167minutes through final push, not17.604archive minutes. Original
+00:07:44→01:22:44UTC stays closed. Independent review explicitly permits the
+resumption after a demonstrated fresh ROOT/profile/pin/stage guard. All readiness
+from conservative22:07:45 is charged to remaining55.9315588833minutes, yielding
+HARD23:03:40.893533; no new75min or Save-family extension.
+
+Five-file source7952127 is ported semantically, excluding historical docs and
+preserving current retained/future/drain behavior. A zero-write help-anchor drift
+is corrected in memory. First actual287-test Python run fails the existing CLI
+ordered-prefix assertion. Explicit independent review permits one last source-only
+append correction without changing tests;287PASS14.127s. Both failed raw/source
+are retained. Sourceb8d63babf/frozen candidate84222cbea hashes match tested files.
+
+Reuse denial exits1 on the exact before-Popen assertion, profile inode/template
+link unchanged/no child marker/stage/owner. Fresh import20.634/privacy1.147/private
+Linux export43.034s pass. Binary22.938/package24.564 strict startups exit0 with
+exactlyone STARTUP_MENU_READY_OK. Old216tests are not acceptance; no17Main suite.
+
+One gamePID2311073/same Main/Player/Torrent/tender/raider throughout6431observations.
+Actual4m rendezvous4049; tender legs4049/4164/4326/4477; safe arrival7.15s/429ticks/
+171.6m, health75/separation0, original24m/s/90s/42m/3s rules intact. Actual native/
+consumed Torrent requests13/14 damage same raider1072718438208 for34+1 at frames
+4231/4245; threat retires/bolts0. Actual paid/stable generation27 and home30 files
+retain credit1 and terminal acknowledgement. Baseline/paid/stable/home are captured;
+no orderly-close file copy exists.
+
+Strict home dock6449/[0,1.15,-10], exact parked/occupied lease. OFFLINE+neutral90
+consecutive frames6542–6631, real Interact6632→6648, supported physical exit6768
+then0.969435654m walk through6795. Pause6795, final partial quit_wait6908/sequence
+6431. Focused enabled EXIT6425, Return6426–6430/release6431 prove normal Quit
+REQUESTED, not normal OS exit.
+
+First unmet predicate: zero engine diagnostics. Two core/object/object.cpp1644
+errors disconnect nonexistent root Window25014830472 focus_entered/tree_exited,
+callable ''. Exact raw text remains in the archive. Recorded RuntimeError is NOT
+TimeoutError: native302.438/outer303.016 include finally cleanup, with timer disabled
+on finally entry.293.813s observed game liveness does not establish precise error/
+cap order. Do not infer CAP300 expiry, increase its cap or add a diagnostic exception.
+Raw leg exit_code=null/reaped=false/no normal_ui_exit stay raw. Outer game_reaped
+true proves later cleanup only; normal OS0 and both final clean markers cannot be
+retrofilled. Matching older recovery/Activity Board strings do not prove the same
+Popup instance or source cause. Independent raw review upholds FAIL/PARK.
+
+### Preservation and closure
+
+All four native cleanup flags true/no errors; six full-flight identities absent,
+private display254 lock/socket gone. Native source/index/tree/cache unchanged.
+All37 observed stage identities/six supervisors absent at archive. Five-file
+candidate is NOT merged for cleanup. Reopening requires actual connection owner/
+removal order plus supported correction and independent cumulative-priority review,
+preserving whole route, limits, data, OS0 and clean markers. No further probe/run.
+
+Verified `/srv/mudds-work/convoy-resumption-20261026/records.tar.gz`:
+112611959bytes/95regular files/seven template links, SHA256
+`0162786cc2d71398e072bfc0ee569f61dc0a2c9e886a68ef5e3584b078e24696`.
+Every member's bytes/mode/link target checked; bundle84222cbea against pushed
+aaf0d2738, exact private package retained without duplicate loose ELF. Original
+archive860d1a9529dc3248c29ad14bf8f9a634678d9f2b30dd01bd7d532b0499427230
+and its original source/raw remain unchanged. Archive closes at32.896014 resumed/
+51.964455 cumulative minutes; adjacent closeout.json records docs-only push and
+exact owned archived-branch/worktree/scratch cleanup. No public build, parent/
+phase or broader device/hardware/final qualification; hosted CI stays disabled.

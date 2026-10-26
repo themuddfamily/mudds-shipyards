@@ -124,6 +124,18 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**PARKED: Convoy paid escort/home passes; shutdown gate fails.**
+The sole full ordinary run completes genuine Guided, exact34+1 raider damage,
+four escort legs/safe arrival, one durable payment, strict home/90neutral OFFLINE
+frames and physical exit/0.969m walking. Normal Quit is requested, then two root-
+window signal-disconnection errors stop acceptance. OS0 and final clean-file proof
+remain unproven. [Actual route, failure and retained source](docs/history/ROADMAP_DELIVERIES.md#convoy-full-route-shutdown-parked-20261026).
+No retry, error allowance or source-only completion. The five-file candidate stays
+unmerged in a verified archive; gameplay build7876ebc remains unchanged. Reopening
+requires the actual connection-owner/removal-order cause, supported correction and
+independent cumulative-priority review; matching older error text is insufficient.
+
+
 **Accepted: newer legacy CFG generations protected, checkpoint7876ebc.**
 Real-file tests first reproduce27 failed predicates, then all nine future-placement/
 operation cases pass with exact files/modes/live preferences/signals preserved.
