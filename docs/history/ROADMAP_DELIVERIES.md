@@ -27574,3 +27574,44 @@ and adjacent closeout.json remain in owned scratch. Cumulative time through
 archive closure110.921minutes from original00:33:26UTC, plus final ref/docs push;
 adjacent closeout records final elapsed time. No successor or unchanged rerun is
 selected. This accepts only the named pilot/hit/home/reuse outcome.
+
+
+<a id="bulwark-finite-acceptance-bound-20261026"></a>
+## Bulwark full-craft acceptance — finite source binding2026-10-26
+
+CRAFT-ACCEPT-BULWARK, source`2b34ef71a`; definition only, not gameplay acceptance.
+One bounded reader/implementer and root source review. The existing
+[acceptance binding](../ROADMAP_BACKLOG.md#bulwark-finite-acceptance-binding)
+records13 original journey members: literal player/crew actions and endpoints,
+authoritative source/weapon/component values, retained proof boundaries and
+exact Codex-owned native route/input/candidate/receipt/deadline gaps. All337IDs,
+parent links,17craft/36parents/ten phase exits and accepted/parked scopes remain.
+No new task IDs, matrices, validators, engine runs, tests, captures or packages.
+
+Source finding: GameFlow `_try_exit_ship` requires OFFLINE before supported
+unlanded cabin standing; the discharge consumer requires ONLINE. Looking only
+at those gates incorrectly suggests solo gunner fire needs another pilot.
+The actual GameFlow `_submit_solo_gunner_fire` first calls HeroShip
+`request_solo_crew_weapon_power`: seated actor/claim/frame validation wakes
+weapon demand without helm/dock release. Existing crew gameplay tests already
+exercise the wake, real target damage and retained-Main release/reacquire.
+The binding reuses those source/staged anchors; it does not invent a missing
+power feature, autonomous piloting or a fresh Main implementation. Separate
+concurrent moving pilot/gunner scope stays required; f676c5016 remains accepted
+only for its120-check host+one-client/staged hatch/target/lease result.
+
+Source-resolvable routes/inputs remain Codex work, not an owner design choice.
+No combined ordinary full-craft command/cap was found or invented. No extra
+physical engineer/passenger chair is inferred from policy identities. Existing
+editable runtime generators are retained without inventing a Blender requirement.
+Native Windows/mandatory-human exclusions remain; unperformed actual device,
+output and native GPU facts stay NOT_RUN. Next implementation or qualification
+must select an uncovered member with frozen input/endpoint/original-limit proof;
+it must not repeat this source survey or relabel it as product delivery.
+
+Definition closure: source-only changes integrated into main and pushed; the
+completed local documentation branch is removed by exact-tip check after remote
+and worktree ownership verification. No remote task branch, private worktree,
+loose scratch or engine/test process was created. No checkpoint is implied by
+this documentation result. The existing RPC Windows compile remains parked at
+its recorded cold+one-incremental timeout; no third compile was selected.

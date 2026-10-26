@@ -99,10 +99,21 @@ cost charged from the same original start. The retired exact15tick procedure
 was an executor assumption; the physical predicates were fixed before trial3.
 [Actual result, failed trials and limits](docs/history/ROADMAP_DELIVERIES.md#zenith-pilot-hit-home-reuse-accepted-20261026).
 
-**Closure complete; no successor selected yet.** Accepted work is merged/pushed,
-all11 checkpoint files are verified, source/raw records are archived, owned
-processes and loose scratch are removed, and the completed branch is deleted.
-A definition or checkpoint does not close any of the36 parent outcomes.
+**Definition delivered: CRAFT-ACCEPT-BULWARK finite acceptance binding.**
+Its [13 original journey members](docs/ROADMAP_BACKLOG.md#bulwark-finite-acceptance-binding)
+now name physical actions, authoritative values, production owners, retained
+proof and exact Codex-owned route/input/candidate/limit gaps. Reuse the existing
+capability map and accepted host+one-client gunner result only in their stated
+scopes. Current solo gunner Fire already requests weapon power without helm or
+dock-latch authority; no engine-rule change or extra player is needed merely to
+fire. Separate concurrent moving pilot/gunner acceptance remains required.
+
+This is a source definition, not a gameplay delivery. Bulwark stays open; its
+ordinary admission, pilot/gunner hit/repair/loss/home/reuse/Torrent-handback routes
+and combined executable limits still need binding. Existing Main gunner checks
+are reused; no new reload feature, speculative physical role, engine test, export
+or checkpoint was created. Original17craft/36parents/337records are preserved.
+No successor or repeated capability survey is selected by this definition.
 
 <a id="concrete-pending-capability-ember-surface-loop-captions"></a>
 ### Ember surface-loop captions: accepted capability contract
