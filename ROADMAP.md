@@ -151,8 +151,11 @@ solo_safe_recovery(exact on-foot torrent_provisional/central_berth home after
 Begin Shift). Tutorial/race/activity/reward namespaces remain absent. Settled
 JSON may rotate only through the existing backup/.bak.3 chain and fixed current/
 previous diagnostic logs; no staging/quarantine remains. The legacy file is
-never reinterpreted as JSON. Existing source/API and nested/outer acceptances
-stay closed within their own scope.
+never reinterpreted as JSON. The first-process warning roster is exactly
+`WARNING: Startup could not read stored settings: legacy_load_failed` and
+`WARNING: Atomic runtime settings load retained authored defaults: legacy_load_failed / empty`,
+once each; the cold roster is empty. Existing source/API and nested/outer
+acceptances stay closed within their own scope.
 
 **Accepted — packaged future nested-settings refusal.**
 The existing runner now covers settings schema12 inside supported outer1.
