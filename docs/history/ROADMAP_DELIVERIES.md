@@ -4,6 +4,57 @@ Moved from ROADMAP.md on 2026-10-17. These are source-specific historical
 results, not the active queue or proof of current full-project acceptance.
 Return to the [working roadmap](../../ROADMAP.md).
 
+## Zenith Torrent handback parked unqualified 20261026
+
+Three native Linux/Xvfb OS-input trials failed; no fourth is selected. Game
+`f28f923d2d67b1f52416c7d2591b6e3bfcbd3d40`, final unaccepted driver
+`da7d5a95456d767ae341ac843bc45833c3df3df0`. Normal Zenith admission/90neutral/OFFLINE/physical exit
+and the wing-clear prefix were observed. Torrent boarding, mandatory real Guided,
+Torrent home/exit and same-Zenith reclaim were **never reached**.
+
+| Trial | Actual elapsed | First failed predicate |
+| --- | --- | --- |
+| 1, original driver | 56.682s | Corner cut after wing-clear: both floor rays false at2307/2308; existing safe-corner steering/settling subsequently reused without changing points or checks. |
+| 2, corrected corner | 67.867s | Stair-base sprint: grounded/support true, but ~0.1552m horizontal plus0.1668m descent gives3D~0.2278m above unchanged0.21167m guard. No solver allowance was added. |
+| 3, normal authored walk | 68.320s | At2938 Player loses grounded contact while both probes still see StairBaseLanding; actual horizontal gait≈5.8m/s. Support/grounding requirements reject the run. |
+
+Each correction received independent causal/cumulative-priority review. Exact
+prior failures remain failed. Final241 Python regressions pass, including the
+failed sprint sample still being rejected. Import/privacy/observer parse, paired
+exports, three strict startups and1,529-entry actual payload audit pass in their
+recorded scope; only Boot/observer compiled scripts differ from3649b4b. An earlier
+observer-helper scope parse failure and its three-line fix are retained too.
+Driver-only corrections reused exact f28f923 game bytes and runtime checks; no
+identical re-export or accepted gameplay/handback result is inferred.
+
+**Reopening condition (Codex-owned):** reproduce and validate the production
+Player/geometry descent at the captured StairBaseLanding transition, with a
+concrete continuously grounded, supported traversal satisfying the existing3D
+motion/epoch/no-placement checks. Bind the actual locomotion owner and focused
+regression before a new independent priority decision and complete-route trial.
+Do not relax grounding/displacement, invent a solver receipt or call a runtime
+repair delivered. Any continuation retains the original09:51:00UTC clock and
+failed cost; no renamed task resets it. The original full handback remains below.
+The new route is archived and **not available in main**.
+
+All21 supervisors/79 observed owned process identities are absent. Inputs and
+input helper/game/Xvfb were released/reaped in every failed trial, with zero game
+diagnostics. Verified source bundle, all failures/raw observations and8 exact
+unaccepted build files are preserved in
+`/srv/mudds-work/zenith-torrent-handback-20261026/records.tar.gz` (374057008bytes;
+SHA-256 `3b0f4c10bc8c47bd89d2df19abe1ae26c89b23a2138159e24a62b6f2c7e8692c`;
+295regular files/21links, complete content/mode/link/membership verification).
+Owned branch/worktree and loose scratch are removed after exact ownership/tip
+checks and archive verification; the remote task branch was absent. Only `main`
+remains locally. Unrelated detached diagnostic/profiler/station worktrees and old
+prunable `/tmp` registrations are retained. No candidate code was merged and no
+checkpoint was published;3649b4b remains current. Closure preparation cost
+59.632minutes from09:51:00UTC against90minute estimate; final docs/push stay
+on that clock. Full Zenith, other craft/world/network/release and external gates
+remain open; earlier accepted Zenith results stay accepted.
+
+
+
 ## Zenith settled Main reentry qualified 20261026
 
 Existing CRAFT-ACCEPT-ZENITH settled retained-Main predicate; source

@@ -103,6 +103,13 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Zenith/Torrent handback is parked and unqualified.** Three bounded native
+trials stopped before Torrent boarding, Guided or Zenith reclaim. The final run
+lost grounded contact at StairBaseLanding despite support probes below it.
+[Exact failures, reopening condition and preserved source](#zenith-torrent-handback-parked).
+No further trial is selected; no code/checkpoint from this candidate is accepted.
+
+
 **Accepted qualification: Zenith settled Main detach/re-entry.**
 
 Source `a70f9397a51845c65d068047d95a5667464782a7` passes the existing suite in45.495s,
@@ -708,6 +715,120 @@ Full chronological results belong in the existing
 [delivery history](docs/history/ROADMAP_DELIVERIES.md), not the execution queue.
 
 ## Parked failures and dependent work
+
+<a id="zenith-torrent-handback-parked"></a>
+### Zenith→Torrent→same Zenith handback — PARKED / NOT QUALIFIED
+
+Three native Linux/Xvfb OS-input trials failed; no fourth is selected. Game
+`f28f923d2d67b1f52416c7d2591b6e3bfcbd3d40`, final unaccepted driver
+`da7d5a95456d767ae341ac843bc45833c3df3df0`. Normal Zenith admission/90neutral/OFFLINE/physical exit
+and the wing-clear prefix were observed. Torrent boarding, mandatory real Guided,
+Torrent home/exit and same-Zenith reclaim were **never reached**.
+
+| Trial | Actual elapsed | First failed predicate |
+| --- | --- | --- |
+| 1, original driver | 56.682s | Corner cut after wing-clear: both floor rays false at2307/2308; existing safe-corner steering/settling subsequently reused without changing points or checks. |
+| 2, corrected corner | 67.867s | Stair-base sprint: grounded/support true, but ~0.1552m horizontal plus0.1668m descent gives3D~0.2278m above unchanged0.21167m guard. No solver allowance was added. |
+| 3, normal authored walk | 68.320s | At2938 Player loses grounded contact while both probes still see StairBaseLanding; actual horizontal gait≈5.8m/s. Support/grounding requirements reject the run. |
+
+Each correction received independent causal/cumulative-priority review. Exact
+prior failures remain failed. Final241 Python regressions pass, including the
+failed sprint sample still being rejected. Import/privacy/observer parse, paired
+exports, three strict startups and1,529-entry actual payload audit pass in their
+recorded scope; only Boot/observer compiled scripts differ from3649b4b. An earlier
+observer-helper scope parse failure and its three-line fix are retained too.
+Driver-only corrections reused exact f28f923 game bytes and runtime checks; no
+identical re-export or accepted gameplay/handback result is inferred.
+
+**Reopening condition (Codex-owned):** reproduce and validate the production
+Player/geometry descent at the captured StairBaseLanding transition, with a
+concrete continuously grounded, supported traversal satisfying the existing3D
+motion/epoch/no-placement checks. Bind the actual locomotion owner and focused
+regression before a new independent priority decision and complete-route trial.
+Do not relax grounding/displacement, invent a solver receipt or call a runtime
+repair delivered. Any continuation retains the original09:51:00UTC clock and
+failed cost; no renamed task resets it. The original full handback remains below.
+The new route is archived and **not available in main**.
+
+All21 supervisors/79 observed owned process identities are absent. Inputs and
+input helper/game/Xvfb were released/reaped in every failed trial, with zero game
+diagnostics. Verified source bundle, all failures/raw observations and8 exact
+unaccepted build files are preserved in
+`/srv/mudds-work/zenith-torrent-handback-20261026/records.tar.gz` (374057008bytes;
+SHA-256 `3b0f4c10bc8c47bd89d2df19abe1ae26c89b23a2138159e24a62b6f2c7e8692c`;
+295regular files/21links, complete content/mode/link/membership verification).
+Owned branch/worktree and loose scratch are removed after exact ownership/tip
+checks and archive verification; the remote task branch was absent. Only `main`
+remains locally. Unrelated detached diagnostic/profiler/station worktrees and old
+prunable `/tmp` registrations are retained. No candidate code was merged and no
+checkpoint was published;3649b4b remains current. Closure preparation cost
+59.632minutes from09:51:00UTC against90minute estimate; final docs/push stay
+on that clock. Full Zenith, other craft/world/network/release and external gates
+remain open; earlier accepted Zenith results stay accepted.
+
+**Frozen handback contract — unaccepted archived caller, no rerun selected.**
+
+- **Goal:** existing CRAFT-ACCEPT-ZENITH cross-craft handback member, implemented
+  as `run_native_sortie.py --route zenith-torrent-handback` and actually proved.
+  Existing Zenith flight/hit/two-home/reuse/settled-Main results stay closed.
+- **Starting state:** clean integrated candidate descended from `433a9ded7`,
+  exact source and embedded native Linux package recorded before execution;
+  fresh owned profile, normal Boot/Begin Shift, nine real craft and authored
+  tuning/default command samplers. No source/pack/script override or staged poses.
+- **Actions:** reuse LIFE-ARM's fifteen goals/physical canopy boarding/90 seated
+  observations; Zenith stays home/OFFLINE. Release then ordinary E exits the
+  docked Zenith without flying it. Walk live-home-relative port(-7.2,-1.08,3.9)
+  and clear(-1.6,-1.08,5.9) points, >7m/cleared reboard block. Reverse the known
+  path below; board Torrent through its live current candidate. Complete actual
+  Guided launch→four range drones→defender→return→L/strict home, 90 consecutive
+  neutral/OFFLINE observations and physical exit, exactly once. Clear Torrent's
+  reboard block radially, reverse the central connector, repeat the fifteen
+  outward ARM goals and physically reclaim the same original Zenith. Observe
+  90 fresh neutral seated ticks, then normal HUD Exit/actual OS0.
+- **Walking route:** from Zenith wing-clear use (x,y,z)
+  `(22,4.2,68.3)→(13,4.2,68.3)→(6,4.2,68.3)→(-3.5,4.2,68.3)→`
+  `(-3.5,4.2,64.2)→(-3.5,4.2,61.5)→(-5.7,4.2,61.2)→(-5.7,0,51)→`
+  `(0,0,51)→(0,0,46.3)→(0,0,39)→(0,0,15.5)→(-8.5,0,15.5)→`
+  `(-8.5,0,13.5)→(-8.5,0,live Torrent ExitPoint.z)→live Torrent candidate`.
+  After Torrent exit reuse existing radial-clear target
+  `player + max(4,8-horizontal_distance_to_boarding)*unit(horizontal_player_minus_boarding)`;
+  store that live target. Connect via `(-8.5,0,clear_target.z)→(-8.5,0,13.5)→`
+  `(-8.5,0,15.5)→(0,0,15.5)`, then unchanged outward ARM_GOALS. Existing Zenith
+  corner x≥20.30/z≤59.20 stays binding; no claim that reverse/connectors passed yet.
+- **Pass/fail:** same Main/Player/both hulls, registered1104/1101, seats/cameras/
+  areas/berths and authored resources/tuning. Only current occupied craft owns
+  pilot/input/camera; exited sources retire, remain neutral/pending0, and fresh
+  Zenith stream is greater than its retired epoch, with actual E producer and
+  lifecycle-consumer receipts. Zenith remains intact/home/OFFLINE throughout;
+  Torrent genuinely releases lease, completes required Guided, restores exact
+  strict home lease/OFFLINE and physically exits. All walking is supported and
+  actor-current; fresh Zenith claim consumes a new current neutral stream.
+  Require normal HUD Quit exit0, both durable clean markers, real files and no
+  diagnostics, tracked-source mutation, input capture or surviving owned children.
+- **Proof:** exact embedded exported ELF on owned Xvfb, explicit x11 and Dummy,
+  OS XTest input into default production samplers; existing native runner records
+  raw observations/commands/source/package hashes, actual file/identity/claim
+  endpoints and `NATIVE_ZENITH_TORRENT_HANDBACK_OK`, after actual OS0/reap. Focused
+  existing Python driver/privacy/observer checks, paired exports, three strict
+  startups and actual payload audit precede one whole-route trial.
+- **Dependencies and limits:** implement exact selector/orchestrator/observer and
+  reviewed fixtures. Guided is mandatory; never force phase/complete flags or
+  skip targets. Existing Guided Pilot uses the whole CAP300, with no additional
+  per-phase deadline; retain it. Walking15s/goal, boarding12s, initial Zenith
+  exit10s, Torrent radial clear12s, real Hero landing timeout/independent4s stall,
+  whole-game300s/outer360s remain. Admission's90 neutral observations count once;
+  add no duplicate stable wait if they already prove the same consumer condition.
+  Native GPU/physical devices/rendered/human/full-craft/final gates stay NOT_RUN.
+- **Stop and closure:** estimate90minutes from2026-10-26 09:51:00UTC, including
+  readiness, implementation, checks, failures, checkpoint, push and exact owned
+  cleanup. Stop at first unexpected failure; no automatic retry or cap/clock
+  reset. A later trial needs demonstrated cause and independent cumulative-
+  priority review. Failed unaccepted source/binaries are archived, not merged to
+  delete a branch. Successful caller/actual journey gets a fresh checkpoint,
+  accepted card/backlog update, regular push and branch/worktree/scratch cleanup.
+
+
+
 
 | Existing goal | Specific reopening requirement |
 | --- | --- |
