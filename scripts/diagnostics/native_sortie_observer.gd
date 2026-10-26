@@ -26,6 +26,7 @@ const LIFE_ROUTES := {
 var _cinder_supply := false
 var _hauler_supply := false
 var _supply_sequence := 0
+var _zenith_reuse := false
 var _arrow := false
 var _torrent_reuse := false
 var _torrent_damaged := false
@@ -124,6 +125,15 @@ func on_startup_completed(main: Node) -> void:
 	_heavy_breach = "--native-sortie-observer=heavy-breach" in OS.get_cmdline_args()
 	if _heavy_breach:
 		_ship = _game.get_node(^"ArrowReconShip") as HeroShip
+		_parked = _ship.global_transform
+		_tuning = _sortie_tuning()
+		process_mode = Node.PROCESS_MODE_ALWAYS
+		return
+	_zenith_reuse = "--native-sortie-observer=zenith-return-reuse" in OS.get_cmdline_args()
+	if _zenith_reuse:
+		_life_mode = "life-arm"
+		_life_config = LIFE_ROUTES[_life_mode]
+		_ship = _game.get_node(^"ZenithInterceptor") as HeroShip
 		_parked = _ship.global_transform
 		_tuning = _sortie_tuning()
 		process_mode = Node.PROCESS_MODE_ALWAYS
@@ -753,6 +763,9 @@ func _physics_process(delta: float) -> void:
 	if _cinder_supply:
 		_supply_sequence += 1
 		print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(_cinder_supply_observation(), "", true, true))
+		return
+	if _zenith_reuse:
+		print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(_zenith_observation()))
 		return
 	if _arrow:
 		print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(_arrow_observation()))
@@ -1924,19 +1937,60 @@ func _heavy_breach_fire_gate(picket: StandoffPicketOpponent) -> Dictionary:
 	return gate
 
 
-func _arrow_observation(torrent: bool = false) -> Dictionary:
+## The accepted LIFE-ARM admission and this live Zenith share the same actors.
+## All flight, source, target, landing and persistence fields are detached reads.
+func _zenith_observation() -> Dictionary:
+	var result := _arrow_observation(false, true)
+	result["mode"] = "zenith-return-reuse"
+	if not bool(result.get("actors_current", false)):
+		return result
+	var berth := _game.world.get_berth_node(_ship.get_home_berth_id()) as ShipBerth
+	var dock := berth.get_dock_transform()
+	var source := _ship.get("_default_local_command_source") as LocalShipInputSource
+	var command := _ship.get_last_ship_command()
+	var store := _game.get("_runtime_settings_user_data_store") as UserDataStore
+	var endpoints: Dictionary = {}
+	for spec: Array in [["clear", Vector3(0, 0, -20)], ["climb", Vector3(0, 20, -38)],
+		["lane", Vector3(0, 20, -78)], ["wing_port", Vector3(-7.2, -1.08, 3.9)],
+		["wing_clear", Vector3(-1.6, -1.08, 5.9)], ["reapproach", Vector3(-3.8, -1.08, 4.9)]]:
+		endpoints[spec[0]] = _v(dock * (spec[1] as Vector3))
+	result.merge({"admission": _life_observation(), "endpoints": endpoints,
+		"input_stream": source.get_stream_id(), "source_enabled": source.is_enabled_owner(),
+		"application_focused": bool(source.get("_application_focused")),
+		"command": command.to_dictionary() if command != null else {},
+		"camera_view": str(_ship.get_camera_view()),
+		"chase_camera_id": (_ship.get("_camera") as Camera3D).get_instance_id(),
+		"cockpit_camera_id": (_ship.get("_cockpit_camera") as Camera3D).get_instance_id(),
+		"native_control": {"boost": Input.is_action_pressed("sprint_boost"),
+			"roll": Input.is_action_pressed("roll_left"), "brake": Input.is_action_pressed("brake"),
+			"hover": Input.is_action_pressed("hover"), "camera": Input.is_action_pressed("toggle_ship_camera_view")},
+		"landing": {"active": _ship.is_landing_active(),
+			"elapsed": float(_ship.get("_landing_elapsed")),
+			"timeout_seconds": float(_ship.get("_landing_timeout_seconds")),
+			"stall_elapsed": float(_ship.get("_landing_stall_elapsed")),
+			"stall_timeout_seconds": HeroShip.LANDING_STALL_TIMEOUT_SECONDS,
+			"last_abort_reason": str(_ship.get("_landing_last_abort_reason"))},
+		"weapon_source": _game.combat_authority.get_source_id(_ship),
+		"weapon": _game.combat_authority.get_weapon_profile(_ship, &"zenith_interceptor_repeater"),
+		"save": {"path": ProjectSettings.globalize_path(str(store.get("_path"))),
+			"source": str(store.get_loaded_source()), "generation": store.get_generation(),
+			"payload": store.get_snapshot()}}, true)
+	return result
+
+
+func _arrow_observation(torrent: bool = false, zenith: bool = false) -> Dictionary:
 	_arrow_sequence += 1
 	var owner := get_parent()
 	var current: bool = is_instance_valid(_game) and _game.is_inside_tree() and not _game.is_queued_for_deletion() \
 		and owner.call("get_main") == _game \
 		and _ember_node_current(_player) and _game.player == _player \
 		and _ember_node_current(_game.world) and _ember_node_current(_ship) \
-		and _game.get_node_or_null(^"TorrentInterceptor" if torrent else ^"ArrowReconShip") == _ship
+		and _game.get_node_or_null(^"ZenithInterceptor" if zenith else (^"TorrentInterceptor" if torrent else ^"ArrowReconShip")) == _ship
 	var result := {"mode": ("torrent-arrow-handoff" if _torrent_handoff else ("torrent-damaged-return" if _torrent_damaged else "torrent-return-reuse")) if torrent else "arrow-return-reuse", "sequence": _arrow_sequence,
 		"pid": OS.get_process_id(), "frame": Engine.get_physics_frames(), "actors_current": current}
 	if not current:
 		return result
-	var berth := (_game.world.get_berth_node(_ship.get_home_berth_id()) if torrent else _game.world.get_node_or_null(^"ArrowReconBerth")) as ShipBerth
+	var berth := (_game.world.get_berth_node(_ship.get_home_berth_id()) if torrent or zenith else _game.world.get_node_or_null(^"ArrowReconBerth")) as ShipBerth
 	var capsule := _player.get_node_or_null(^"PlayerCollision") as CollisionShape3D
 	var shape := capsule.shape as CapsuleShape3D if is_instance_valid(capsule) else null
 	var seat := _ship.get("_pilot_seat_anchor") as Node3D
@@ -2023,6 +2077,17 @@ func _arrow_observation(torrent: bool = false) -> Dictionary:
 			actual.append(event.as_text())
 		default_controls = default_controls and expected == actual \
 			and is_equal_approx(InputMap.action_get_deadzone(action), float(authored.get("deadzone", -1.0)))
+	if zenith:
+		var camera_action: StringName = &"toggle_ship_camera_view"
+		var authored_camera: Dictionary = ProjectSettings.get_setting("input/" + str(camera_action), {})
+		var expected_camera: Array = []
+		var actual_camera: Array = []
+		for event: InputEvent in authored_camera.get("events", []):
+			expected_camera.append(event.as_text())
+		for event: InputEvent in InputMap.action_get_events(camera_action):
+			actual_camera.append(event.as_text())
+		default_controls = default_controls and expected_camera == actual_camera \
+			and is_equal_approx(InputMap.action_get_deadzone(camera_action), float(authored_camera.get("deadzone", -1.0)))
 	var focus: Control = get_viewport().gui_get_focus_owner()
 	var page := _game.hud.get("_pause_main_page") as Control
 	var exit_button := page.find_child("ExitButton", true, false) as Button if is_instance_valid(page) else null
