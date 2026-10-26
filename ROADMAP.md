@@ -123,6 +123,8 @@ shipped Paired Wing next contract after unchanged-main reproduction; no board
 behavior changed. The first old-run expected-label mismatch and companion
 failure remain preserved. All readiness/checks/build/closure cost runs from
 07:32:00UTC against45minute estimate, without a clock reset or enlarged cap.
+Integrated/pushed; owned branch/worktree/scratch cleaned after verified archive.
+Closure documentation records22.220 cumulative minutes.
 
 **Delivered production repair: Ember checkpoint on ordinary application quit.**
 Checkpoint8e74c40 saves through the existing production collector in the existing

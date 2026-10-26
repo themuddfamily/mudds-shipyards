@@ -28057,3 +28057,16 @@ GitHub Actions stays disabled; no Downloads publication. Original task clock
 classification, baseline reproduction, companion correction, checks, builds and
 closure. Final archive/process/branch/source closure lives at
 `/srv/mudds-work/seeker-live-flash-20261026/closeout.json`.
+
+Closure: integrated/pushed main06abd4649, all11 public build copies verified by
+byte count/SHA256, owned worktree removed. Verified archive
+`/srv/mudds-work/seeker-live-flash-20261026/records.tar.gz` retains accepted/failed source and raw checks:
+224 regular files/16 symlinks, 48,231,265bytes, SHA256
+`bbec3959aed2e940b4281b6a84f22636f10a950988d725ba127af0a0b2003010`. All 16 stage supervisors and
+58 observed PID/start identities are absent. Owned loose scratch is removed;
+only records.tar.gz and closeout.json remain. Task branch deleted against exact
+06abd4649 after fresh pushed-main/worktree/ref checks; remote task ref was never
+created. Unrelated retired/prunable worktrees and older archives are untouched.
+Closure documentation prepared at22.220 cumulative minutes from original
+07:32:00UTC, including readiness/runner-label accounting/companion baseline and
+all builds/checks against45minute estimate. Adjacent closeout records final push/time.
