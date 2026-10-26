@@ -90,6 +90,11 @@ func _run() -> void:
 				< SeekerTorpedoProjectile.TRAIL_LENGTH_METERS,
 		"reduced flash keeps torpedoes drawn, drops their light and trail, and nothing flickers"
 	)
+	for slot in pool.get("_slots"):
+		_check(
+			float(slot.burst_remaining) == 0.0 and not (slot.burst as MeshInstance3D).visible,
+			"a later reduced-flash toggle does not resurrect an expired burst"
+		)
 	_check(bool(pool.get_audit_report().get("valid", false)), "the torpedo pool audit is green after every case")
 	host.queue_free()
 	await process_frame
@@ -106,6 +111,7 @@ func _test_hit_and_bounded_turn(
 	) -> void:
 	target.global_position = Vector3(18.0, 0.0, -60.0)
 	await physics_frame
+	pool.set_reduced_flash_enabled(true)
 	var origin := launcher.global_position + Vector3(0.0, 0.0, -5.0)
 	var launch := pool.launch(launcher, WEAPON_ID, origin, Vector3.FORWARD, target)
 	_check(
@@ -149,6 +155,7 @@ func _test_hit_and_bounded_turn(
 			and pool.get_active_torpedo_count() == 0,
 		"a torpedo that reaches the target commits exactly one 34-point hit"
 	)
+	_check_live_burst_toggle(pool, int(launch.get("slot_index", -1)), "confirmed hit", target_health)
 	target_health.reset_health()
 
 
@@ -221,6 +228,7 @@ func _test_shoot_down(
 			and int(pool.get_statistics().get("intercepted", 0)) == 1,
 		"destroying the torpedo abandons its authority flight"
 	)
+	_check_live_burst_toggle(pool, slot_index, "interception", target_health)
 	for _index in 300:
 		await physics_frame
 	_check(
@@ -412,9 +420,76 @@ func _test_launcher_loss(
 			and pool.get_active_burst_count() == 2,
 		"losing the launcher fizzles every torpedo it fired and leaves no flight behind"
 	)
+	for slot_index in 2:
+		_check_live_burst_toggle(pool, slot_index, "launcher-loss fizzle")
 	for _index in 60:
 		await physics_frame
 	_check(pool.get_active_burst_count() == 0 and not pool.is_physics_processing(), "the fizzle bursts clear and the idle pool stops processing")
+
+
+## All terminal paths release the flight before their mesh finishes. A live
+## setting change must repaint that same mesh without touching the flight clock.
+func _check_live_burst_toggle(
+		pool: SeekerTorpedoProjectile,
+		slot_index: int,
+		context: String,
+		target_health: Damageable = null
+	) -> void:
+	var slots: Array = pool.get("_slots")
+	_check(slot_index >= 0 and slot_index < slots.size(), context + ": the terminal slot exists")
+	if slot_index < 0 or slot_index >= slots.size():
+		return
+	var slot: Dictionary = slots[slot_index]
+	var burst := slot.get("burst") as MeshInstance3D
+	_check(is_instance_valid(burst) and burst.visible and float(slot.burst_remaining) > 0.0,
+		context + ": a visible burst survives its released flight")
+	if not is_instance_valid(burst) or not burst.visible or float(slot.burst_remaining) <= 0.0:
+		return
+	var initial_material := burst.material_override as StandardMaterial3D
+	var initial_energy := (
+		SeekerTorpedoProjectile.REDUCED_FLASH_BURST_EMISSION_ENERGY
+		if pool.is_reduced_flash_enabled() else SeekerTorpedoProjectile.BURST_EMISSION_ENERGY
+	)
+	_check(initial_material != null and is_equal_approx(initial_material.emission_energy_multiplier, initial_energy),
+		context + ": a new burst uses the setting already configured at creation")
+	# Exercise a visible, nonzero scale difference. Toggles below are synchronous
+	# so physics cannot consume the sampled lifetime between assertions.
+	pool.step(0.1)
+	var before := slot.duplicate(true)
+	var burst_position := burst.global_position
+	var statistics := pool.get_statistics()
+	var authority := pool.get_bound_authority()
+	var flights := authority.get_active_projectile_flight_count()
+	var health := pool.get_torpedo_damageable(slot_index).get_health()
+	var damage_enabled := pool.get_torpedo_damageable(slot_index).damage_enabled
+	var collision_layer := pool.get_torpedo_hurtbox(slot_index).collision_layer
+	var target_before := target_health.get_health() if target_health != null else 0.0
+	for enabled in [false, true, true, false, false]:
+		pool.set_reduced_flash_enabled(enabled)
+		var material := burst.material_override as StandardMaterial3D
+		var energy := (
+			SeekerTorpedoProjectile.REDUCED_FLASH_BURST_EMISSION_ENERGY
+			if enabled else SeekerTorpedoProjectile.BURST_EMISSION_ENERGY
+		)
+		var peak := (
+			SeekerTorpedoProjectile.REDUCED_FLASH_BURST_MAX_SCALE
+			if enabled else SeekerTorpedoProjectile.BURST_MAX_SCALE
+		)
+		var progress := 1.0 - float(before.burst_remaining) / SeekerTorpedoProjectile.INTERCEPT_BURST_SECONDS
+		var expected_scale := Vector3.ONE * lerpf(1.0, peak, sin(progress * PI))
+		_check(material != null and is_equal_approx(material.emission_energy_multiplier, energy),
+			context + ": the existing burst receives the authored emission for reduced flash %s" % enabled)
+		_check(burst.scale.is_equal_approx(expected_scale),
+			context + ": the existing burst immediately receives its current-age authored scale")
+		_check(slot == before and slot.burst == burst and burst.visible
+				and burst.global_position == burst_position
+				and pool.get_statistics() == statistics
+				and authority.get_active_projectile_flight_count() == flights
+				and pool.get_torpedo_damageable(slot_index).get_health() == health
+				and pool.get_torpedo_damageable(slot_index).damage_enabled == damage_enabled
+				and pool.get_torpedo_hurtbox(slot_index).collision_layer == collision_layer
+				and (target_health == null or target_health.get_health() == target_before),
+			context + ": repeated toggles preserve the same visible mesh, lifetime, flights, damage and collision")
 
 
 func _make_body(host: Node3D, body_name: String, position: Vector3, size: Vector3, layer: int) -> CharacterBody3D:
