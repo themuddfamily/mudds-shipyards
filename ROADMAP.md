@@ -107,34 +107,32 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Selected release capability: ordinary Jovian engineer interruption/recovery.**
-Existing CREW-RECOVERY-ORDINARY will gain its missing normal-controls caller.
-First packaged attempt reached real engineer commit/kill/recovery/cabin walk,
-but co-pilot priority intercepted helm Interact. One source/raw-supported runtime
-correction is selected: add Jovian to the existing guarded cockpit priority and
-make the caller reject a wrong claim immediately. The captured-geometry source
-regression must distinguish old/new selection before one full retry; a further
-failure parks the attempt. Original clock and every route/data limit stay fixed.
-One fresh hub→Freight→actual Jovian ramp/cabin→engineer-seat journey commits the
-existing four-field crew preference. Kill/reap the exact owned game, restart the
-same ELF/profile as a distinct process through normal recovery UI, then walk the
-awake home cabin and acquire the real helm with ordinary positive throttle.
-Normal HUD Quit/OS0 and both clean markers finish the operation. Preserve actual
-settings/activity/reward siblings, including absent/zero; no earned-payment
-recovery claim. [Frozen one-case contract](docs/ROADMAP_BACKLOG.md#ordinary-jovian-engineer-recovery--selected-contract).
-One implementation agent owns existing Python driver/test, read-only GDScript
-observer and loader/privacy test; root owns exports, actual isolated run,
-integration/push and owned cleanup. Independent lifecycle review is required.
-Original17:01:14UTC/90min includes readiness/code/checks/paired export/one complete
-ordinary attempt/review/archive/push/cleanup; hard18:31:14. Original whole-route
-300s/independent330s and default physics/input remain. First unexpected failure
-stops; no automatic correction/retry or fresh clock. No gameplay policy/schema,
-new seat/craft or staged position/claim/reward is authorized by this task.
+**No implementation is active. CREW-RECOVERY-ORDINARY is PARKED.**
+The sole packaged Jovian engineer journey completed ordinary hub/ramp/chair
+admission, a genuine crew save, owned SIGKILL/reap, distinct normal recovery UI
+and an awake supported cabin walk. Helm Interact then selected the co-pilot
+passenger seat. The full helm/throttle/normal-quit goal is NOT_DELIVERED.
+
+Actual pre-E receipts show the ship boarding candidate available while the
+co-pilot chair intercepts Interact. Existing solo cockpit priority excludes the
+Jovian. Independent review permitted one focused correction, but its required
+old-runtime regression failed parsing in four new fixture locals before the
+production repair was applied. The frozen next-failure stop was upheld: no
+fixture retry, runtime correction, corrected export or second gameplay attempt.
+[Exact retained failure, source and reopening condition](docs/history/ROADMAP_DELIVERIES.md#ordinary-jovian-crew-recovery-parked-20261026).
+
+Unaccepted source and private builds are archived; they are not merged or
+published as a working checkpoint. All52 recorded owned process identities are
+absent. Accepted game/checkpointb4ff8c0 remains unchanged. Original17:01:14UTC/
+90min clock includes the binding, implementation, checks, exports, failed route,
+causal review, failed fixture preflight and closure; cumulative final time is in
+the retained closeout. Reopening requires a reviewed typed fixture and explicit
+independent priority selection on this same retained outcome/cost; no unchanged
+rerun, new goal ID, enlarged route cap or fresh budget. No next run is selected.
 
 Task-selection rules and all337 original records remain binding. Missing future
-contracts stay blocked in their existing rows. The last selected checkpoint
-rollback passed; [proof and scope](docs/history/ROADMAP_DELIVERIES.md#selected-checkpoint-rollback-accepted-20261026)
-are retained rather than selected again.
+contracts stay blocked in their existing rows. The last accepted checkpoint
+rollback retains its [proof and limits](docs/history/ROADMAP_DELIVERIES.md#selected-checkpoint-rollback-accepted-20261026).
 
 Recent accepted and parked results are references, not active assignments:
 

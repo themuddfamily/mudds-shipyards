@@ -4,6 +4,97 @@ Moved from ROADMAP.md on 2026-10-17. These are source-specific historical
 results, not the active queue or proof of current full-project acceptance.
 Return to the [working roadmap](../../ROADMAP.md).
 
+## Ordinary Jovian crew recovery parked 20261026
+
+Existing CREW-RECOVERY-ORDINARY is **PARKED / NOT_DELIVERED**. Candidate
+`d192f1e38b43148470244ec60525b7adfd5bf4d0` adds one ordinary Jovian engineer
+interruption/restart caller to existing native-sortie driver, read-only observer,
+loader/privacy check and Python tests. Exactly five files/+517/−11; source is
+unaccepted and remains out of main. No product completion or final crew gate.
+The [original contract and causal correction boundary](../ROADMAP_BACKLOG.md#ordinary-jovian-engineer-recovery--selected-contract)
+retain every required route/data/limit and the explicit stopping condition.
+
+**Preflight.** Full existing Python258 tests PASS13.941s; one isolated silent
+import exit0/20.624s and privacy3311 assertions/one marker/exit0/1.018s. The
+source-before map is preimplementation, not pretest. No separate pretest digest
+was recorded for that initial suite: actual final edits occurred17:10:38.167/.171
+UTC immediately before its log creation17:10:38.179 in the same execution; no
+later code edits occurred, and post-check hashes match d192. This limitation is
+retained; no fabricated before/after identity claim. Independent source review GO.
+
+Clean paired exports pass26.777s/25.815s; Windows payload under Linux engine,
+direct Linux ELF and archive-extracted strict startup pass26.607s/22.896s/24.028s,
+each exit0/exactly one STARTUP_MENU_READY_OK. All1529 actual Windows/Linux PCK
+entries match in size/SHA. Compared with b4ff8c0, only observer/loader compiled
+scripts change beyond the exact66 previously demonstrated generated node_ids-only
+scene entries. The unchanged strict parser proves equal typed array count/offset,
+empty id_paths and every other decoded byte exact for each actual pair. This is
+not blanket scene tolerance. Stock PE text, exact ELF/package/icon/installer/
+launcher modes and metadata pass; all preflight diagnostics0. GameFlow is unchanged.
+
+**Sole complete ordinary attempt:** native157.728s, guard158.159843s. Fresh
+normal BEGIN SHIFT and original Freight/ramp/cargo-aisle walking reach actual
+Jovian engineer `passenger_port_01`; settled current role/authority and actual
+primary/predecessor commit protect unrelated siblings. Released input, exact
+first gamePID2230128 SIGKILL/reap−9 and unchanged committed bytes precede distinct
+same-profile/ELF gamePID2230282. Actual normal recovery UI/BEGIN SHIFT restore
+awake unseated supported home cabin, no prior engineer/pilot authority, and real
+walking reaches the frozen helm point within its .12m endpoint.
+
+The first unmet gameplay predicate is helm acquisition. ColdPID2230282
+frames613/614 show top-level Jovian boarding candidate=true AND the actual
+co-pilot station candidate; E614 creates `co_pilot_station` passenger at615.
+No local pilot/throttle endpoint or normal final UI exit occurs. Root observes
+the wrong claim and deliberately aborts exact owned driver2230116/startticks46520336;
+the retained driver error is independent-abort, not a natural300s deadline.
+Initial safe abort identification matched supervisor+driver and asserted without
+signalling; exact argv refinement signals only the driver. Outer cleanup records
+all inputs released/helper/game/Xvfb reaped and diagnostics0. Second leg's
+per-leg exit_code=None/reaped=false remains incomplete abort accounting; it is
+not retroactively filled. Actual process absence is independently checked.
+
+**Cause and attempted correction preflight.** Station interactions precede
+boarding; the existing solo cockpit-versus-chair aim override explicitly covers
+Hauler/Halyard and excludes Jovian. Both causal readers initially conflated
+post-claim candidatefalse with pre-E; exact PID/frame extraction corrected this.
+No reach/discovery defect or enlarged reach is justified. Independent cumulative
+review allowed ONE existing-guarded Jovian cockpit-priority repair, actual pilot
+candidate/no-station-before-E guards and immediate wrong-role failure, keeping
+all waypoints/reach/timing/data and full300s/330s limits unchanged.
+
+No production or driver correction was applied. Its required focused old-runtime
+regression in existing `jovian_solo_engineer_route_test.gd` failed parsing before
+any intended RED assertion: inferred camera/berth/origin/facing at lines672/677/
+679/680, exit1/16.617s. Exact command, raw error log and actual pre/post-test hashes
+are retained. Only the uncommitted64-line fixture selector differs from d192.
+Independent review upheld the frozen next-unexpected-check PARK boundary. No
+annotation fix, RED rerun, GREEN, corrected export or second native trial followed.
+
+**Retention and closure.** Candidate bundle verifies against pushed44352fce3;
+complete withheld fixture bytes/patch, all original export files, commands,
+profiles, logs, raw documents/receipts, reviews and process closeout are preserved
+in `/srv/mudds-work/crew-recovery-20261026/records.tar.gz`:313788410bytes,
+132regular files/seven symlinks, SHA256
+`49486b62cd3b946c78bcd2f93504a2a5a66d473b1cabfdd7eba3c00b2870dc85`.
+Exact archive membership/bytes/modes/link targets verified before loose removal.
+All52 recorded owned identities are absent; no process cwd remains in the owned
+worktree. Pretest process identities were not separately recorded; commands are
+terminal. Original17:01:14UTC/90min/hard18:31:14 includes source binding, code,
+all checks/exports, failed journey, causal review, failed regression preflight,
+archive/push/owned cleanup. Archive17:29:02UTC; final cumulative time and main
+push/cleanup are in closeout.json. Only documentation closure enters main;
+unique unaccepted source is archived before exact branch/worktree removal.
+Unrelated detached diagnostics and old registrations remain retained.
+
+Accepted b4ff8c0 game/checkpoint stays unchanged; no failed candidate is published.
+The concrete Jovian cockpit-priority defect and full ordinary crew goal remain
+open. Reopen only with a reviewed typed fixture and independent priority choice
+on the same retained outcome/cumulative cost. No unchanged run, new goal ID,
+new budget, wider cap or substitution of staged/source proof for the whole
+ordinary interruption/helm/throttle/UI journey. Earned-payment recovery,
+installed/final-candidate, other crew, native hardware/device/audio gates remain
+outside this unaccepted attempt.
+
 ## Selected checkpoint rollback accepted 20261026
 
 Existing INSTALL-LINUX-ROLLBACK checkpoint selected-rollback case **ACCEPTED**
