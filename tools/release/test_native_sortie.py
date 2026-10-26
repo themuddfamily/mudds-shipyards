@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Focused native-driver safety regressions; no Godot or display is launched."""
 import copy
+import hashlib
 import importlib.util
 import json
 import math
@@ -4544,6 +4545,201 @@ class HeavyBreachCallerTests(unittest.TestCase):
             document['payload']['heavy_breach_session']['session']['completion']['generation'] = 9
             path.write_text(json.dumps(document)); files = native.HeavyBreachFiles(profile, output)
             with self.assertRaises(AssertionError): files.observe(sample, pilot)
+
+
+class RetainedHeavyCallerTests(unittest.TestCase):
+    """Retained reader/ordinary-input boundaries; no engine or display launch."""
+    @staticmethod
+    def document():
+        return dict(schema_version=1, generation=19, commit=dict(id='actual-fixture'), payload=dict(
+            runtime_settings=dict(schema_version=11, values=dict(camera_fov=72)),
+            game_flow_reward_store=dict(receipt_serial=1, total_receipts=1,
+                reward_counts={'return_heavy_breach_credit': 1}, last_receipt=dict(receipt_id=1,
+                    activity_id='shipyard_heavy_breach', reward_id='return_heavy_breach_credit',
+                    activity_generation=1, granted=True, replay_allowed=False)),
+            heavy_breach_session=dict(session=dict(generation_floor=1, offered_index=1,
+                completion=dict(activity_id='shipyard_heavy_breach', scenario='heavy_breach',
+                    state_id='concluded', outcome='cleared', generation=1, reward_granted=True))),
+            solo_safe_recovery=dict(mode='on_foot', craft_id='arrow_provisional',
+                berth_id='arrow_recon_berth', location='mudds_home_berth'),
+            crash_recovery=dict(state='clean', session_id=1, startup_generation=1, unclean_start_count=0),
+            safe_start_recovery=dict(state='clean_shutdown', startup_generation=1,
+                consecutive_failure_count=0, safe_settings_recommended=False),
+            session_diagnostics=dict(events=[dict(event_code='session_ended', session_id=1)]),
+            tutorial_prompts_seen=dict(schema_version=1, seen_ids=['shipyard_heavy_breach'])))
+
+    @classmethod
+    def sample(cls, n=1):
+        s = HeavyBreachCallerTests.sample(n)
+        s.update(pid=1, main_id=2, world_id=3, player_id=4, capsule_id=5, shape_id=6,
+            ship_id=7, berth_id=8, seat_id=9, source_id=10, phase='INTRO', menu_ready=True,
+            spawn=[-8.5, .18, 11], player=[-8.5, .18, 11], velocity=[0, 0, 0],
+            piloted=False, seated=False, seated_at_pilot=False, active_ship=False, remote_piloted=False,
+            station_seated=False, game_station_seated=False, sleeping=False, control_enabled=False,
+            capsule_enabled=True, grounded=True, supported=True, support_collider='/actual-floor',
+            native_fire=False, command_fire=False, guided_complete=False, default_controls=True,
+            tuning_unchanged=True, ship_tuning=dict(mouse=.001),
+            walk_tuning=copy.deepcopy(native.RetainedHeavyPilot.DEFAULT_WALK), physics_ticks=60, time_scale=1,
+            walk_forward=[0, 0, -1], walk_right=[1, 0, 0],
+            native_keys=dict(escape=False, tab=False, **{'return': False}))
+        s['completed_motion'] = dict(frame=n, start=s['player'][:], end=s['player'][:], step_up={})
+        s['settlement'] = dict(record=cls.document()['payload']['game_flow_reward_store'],
+                              store=dict(path='/owned/mudds_user_data.json', source='primary', generation=20))
+        s['breach'].update(position=[8, 1, -26], objective_position=[24, 1, -26],
+                           candidate=True, distance=2.1, facing=1,
+                           available=dict(available=True), prompt='[ E ] ARM TORPEDO RUN SORTIE')
+        s['breach']['board'].update(offered_scenario='torpedo_run', sortie_armed=False, active_director_generation=0)
+        s['breach']['board']['director'].update(state='idle', scenario_generation=0)
+        s['breach']['board']['reward_handoff'].update(highest_reward_generation=1, pending_reward_generation=0)
+        return s
+
+    def pilot(self):
+        p = native.RetainedHeavyPilot(self.document(), 1); s = self.sample()
+        p.validate_observation(s)
+        return p, s
+
+    @staticmethod
+    def tick(p, s, **changes):
+        start = s['player'][:]
+        s.update(frame=s['frame']+1, sequence=s['sequence']+1, **changes)
+        s['completed_motion'] = dict(frame=s['frame'], start=start, end=s['player'][:], step_up={})
+        p.validate_observation(s)
+        return p.update(s, 100+s['frame']/60)
+
+    def walking(self):
+        p, s = self.pilot()
+        self.assertEqual(p.update(s, 100), (set(), 0, 0, False))
+        p.file_context_accepted = True
+        self.assertIn('e', self.tick(p, s)[0])
+        self.tick(p, s, phase='APPROACH_SHIP', menu_ready=False, native_interact=True, control_enabled=True)
+        self.assertEqual(p.stage, 'walk_next')
+        return p, s
+
+    def at_posting(self):
+        p, s = self.walking()
+        while p.route:
+            target = p.route[0]
+            off = native.sub(target, s['player']); distance = native.norm(off)
+            point = [a+b*min(1, .15/distance) for a,b in zip(s['player'], off)] if distance else target[:]
+            direction = native.unit([off[0], 0, off[2]]) if distance else [0, 0, -1]
+            self.tick(p, s, player=point, native_interact=False, walk_forward=direction,
+                      walk_right=[-direction[2], 0, direction[0]])
+        self.tick(p, s, native_interact=False, walk_forward=[0, 0, -1], walk_right=[1, 0, 0])
+        self.assertEqual(p.stage, 'pause')
+        return p, s
+
+    def test_retained_cold_director_and_decoded_ledger_are_independent_of_old_combat_generation(self):
+        p, s = self.pilot()
+        self.assertEqual(s['breach']['board']['director']['scenario_generation'], 0)
+        self.assertEqual(s['settlement']['record']['last_receipt']['activity_generation'], 1)
+        for mutate in (lambda x: x.update(pid=999), lambda x: x.update(player_id=999),
+                       lambda x: x['settlement']['record'].update(total_receipts=2),
+                       lambda x: x['settlement']['record']['last_receipt'].update(replay_allowed=True),
+                       lambda x: x['breach']['board'].update(sortie_armed=True),
+                       lambda x: x['breach']['board'].update(offered_scenario='heavy_breach'),
+                       lambda x: x['breach']['board']['director'].update(state='running'),
+                       lambda x: x['breach']['board']['reward_handoff'].update(pending_reward_generation=1)):
+            with self.subTest(mutate=mutate):
+                p, s = self.pilot(); bad = copy.deepcopy(s)
+                bad.update(frame=2, sequence=2); mutate(bad)
+                with self.assertRaises(AssertionError): p.validate_observation(bad)
+
+    def test_retained_route_uses_three_supported_waypoints_without_arming_and_requires_ui_os0(self):
+        p, s = self.at_posting()
+        self.assertEqual([v['point'] for v in p.visited], [list(v) for v in p.WAYPOINTS])
+        self.assertGreater(p.walked, 10)
+        self.assertEqual(len([e for e in p.native_edges if e['pressed']]), 1)
+        with self.assertRaises(AssertionError): p.finish(0)
+        self.assertEqual(self.tick(p, s)[0], {'Escape'})
+        ui = dict(main_visible=True, exit_visible=True, exit_enabled=True,
+                  exit_text='EXIT TO DESKTOP', exit_path='/pause/ExitButton', focus_is_exit=True,
+                  focus_path='/pause/ExitButton')
+        # Let the existing UI key hold and release finish before actual Return.
+        self.tick(p, s, paused=True, ui=ui)
+        for _ in range(20): self.tick(p, s)
+        self.assertTrue(p.quit_requested)
+        self.assertIn('exit_ui', p.receipts)
+        with self.assertRaises(AssertionError): p.finish(1)
+        p.finish(0)
+        self.assertEqual(p.result['completion_marker'], 'NATIVE_RETAINED_HEAVY_OK')
+
+    def test_retained_walk_refuses_missing_support_motion_gap_and_nonordinary_controls(self):
+        for change in (dict(supported=False), dict(capsule_enabled=False), dict(control_enabled=False),
+                       dict(default_controls=False), dict(native_fire=True), dict(piloted=True),
+                       dict(player=[0, 20, 0])):
+            with self.subTest(change=change):
+                p, s = self.walking()
+                with self.assertRaises(AssertionError): self.tick(p, s, **change)
+        p, s = self.walking()
+        s.update(frame=s['frame']+1, sequence=s['sequence']+2)
+        with self.assertRaises(AssertionError): p.validate_observation(s)
+
+    def fixture_files(self, root):
+        profile = root/'profile'; profile.mkdir(); (profile/'data').mkdir()
+        output = root/'output'; output.mkdir()
+        fixture = root/'input.json'; raw = json.dumps(self.document()).encode(); fixture.write_bytes(raw)
+        with patch.object(native.RetainedHeavyFiles, 'FIXTURE_BYTES', len(raw)), \
+                patch.object(native.RetainedHeavyFiles, 'FIXTURE_SHA256', hashlib.sha256(raw).hexdigest()):
+            files = native.RetainedHeavyFiles(profile, output, fixture)
+        return files, fixture, raw
+
+    def test_retained_seed_is_exact_private_input_and_invalid_fixture_is_refused_before_launch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            files, fixture, raw = self.fixture_files(Path(tmp))
+            self.assertEqual(files.path, files.profile/native.RetainedHeavyFiles.RELATIVE_SAVE)
+            self.assertEqual(files.path.read_bytes(), raw)
+            self.assertEqual(fixture.read_bytes(), raw)
+            self.assertEqual(files.path.stat().st_mode & 0o777, 0o644)
+            with self.assertRaisesRegex(AssertionError, 'exact accepted'):
+                native.RetainedHeavyFiles(files.profile, files.output, fixture)
+
+    def loaded_document(self, files):
+        document = copy.deepcopy(files.expected); document['generation'] = 20
+        document['commit'] = dict(id='production-startup')
+        document['payload']['crash_recovery'].update(state='running', session_id=2, startup_generation=2)
+        document['payload']['safe_start_recovery'].update(state='starting', startup_generation=2)
+        document['payload']['session_diagnostics']['events'].append(
+            dict(event_code='session_started', session_id=2, fields=dict(recovered=False)))
+        return document
+
+    def test_retained_actual_primary_loaded_state_and_clean_shutdown_preserve_all_protected_siblings(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            files, fixture, raw = self.fixture_files(Path(tmp)); document = self.loaded_document(files)
+            p = native.RetainedHeavyPilot(files.expected, 1); s = self.sample()
+            s['settlement']['store']['path'] = str(files.path)
+            files.path.write_text(json.dumps(document)); files.observe(s, p)
+            self.assertTrue(p.file_context_accepted)
+            p.next_posting = dict(frame=10); s['menu_ready'] = False; files.observe(s, p)
+            for key in ('runtime_settings', 'game_flow_reward_store', 'heavy_breach_session', 'tutorial_prompts_seen'):
+                bad = copy.deepcopy(document); bad['payload'][key] = {}
+                with self.subTest(key=key), self.assertRaises(AssertionError): files.require_retained(bad)
+            for mutate in (lambda d: d['payload']['crash_recovery'].update(unclean_start_count=1),
+                           lambda d: d['payload']['crash_recovery'].update(session_id=1),
+                           lambda d: d['payload']['safe_start_recovery'].update(safe_settings_recommended=True),
+                           lambda d: d.update(generation=19)):
+                bad = copy.deepcopy(document); mutate(bad)
+                with self.subTest(mutate=mutate), self.assertRaises(AssertionError): files.require_loaded(bad, s)
+            bad = copy.deepcopy(s); bad['settlement']['store']['source'] = 'backup'
+            with self.assertRaises(AssertionError): files.capture('refused-backup', bad['settlement']['store'])
+            document['generation'] = 21; document['payload']['crash_recovery']['state'] = 'clean'
+            document['payload']['safe_start_recovery']['state'] = 'clean_shutdown'
+            document['payload']['session_diagnostics']['events'].append(dict(event_code='session_ended', session_id=2))
+            files.path.write_text(json.dumps(document)); files.finish()
+            self.assertEqual(fixture.read_bytes(), raw)
+            self.assertEqual(files.snapshots['orderly-close']['document']['payload']['runtime_settings'],
+                             files.expected['payload']['runtime_settings'])
+
+    def test_retained_data_flag_is_route_exclusive_at_cli_and_direct_api(self):
+        for route, fixture in [('guided', Path('/input')), ('retained-heavy', None)]:
+            with self.subTest(route=route):
+                with self.assertRaises(AssertionError): native.run(Path('/game'), Path('/unused'), route, retained_data=fixture)
+                argv = ['run_native_sortie.py', '/game', '--output', '/unused', '--route', route]
+                if fixture is not None: argv.extend(['--retained-data', str(fixture)])
+                with patch.object(sys, 'argv', argv), patch.object(native, 'validate_binary') as binary, \
+                        patch.object(native.subprocess, 'Popen') as launch:
+                    with self.assertRaises(SystemExit) as error: native.main()
+                    self.assertEqual(error.exception.code, 2)
+                    binary.assert_not_called(); launch.assert_not_called()
 
 
 class RaceHomeCallerTests(unittest.TestCase):

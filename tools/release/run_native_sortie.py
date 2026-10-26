@@ -3,6 +3,7 @@
 
 Usage: run_native_sortie.py GAME.x86_64 --output NEW_RESULT_DIRECTORY
 Use --route heavy-breach for physical Heavy arm, real picket kill/payment and home/next posting.
+Use --route retained-heavy --retained-data FILE to load the accepted paid Heavy save and walk normally.
 Use --route cinder-supply for the full first funded Jovian/Cinder terminal/home journey.
 Use --route beacon-entry for normal Torrent departure and actual first Beacon HUD start.
 Use --route beacon-settlement to continue through all four beacons and durable settlement.
@@ -7505,6 +7506,193 @@ class HeavyBreachFiles(HabitatRestartFiles):
                 'actual clean UI shutdown preserves same once-only receipt/terminal after next posting')
 
 
+class RetainedHeavyFiles(HabitatRestartFiles):
+    """Seed one declared real save, then read only the game's own primary."""
+    FIXTURE_BYTES = 8655
+    FIXTURE_SHA256 = '25f9ccfe03b22018eae2cffcb52841ed5fbcff3f4a51a6c020e6c7495701aa73'
+    RELATIVE_SAVE = Path('data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json')
+
+    def __init__(self, profile, output, fixture):
+        super().__init__(profile, output)
+        fixture = Path(fixture)
+        require(fixture.is_file() and not fixture.is_symlink(), 'retained input is a regular raw save fixture')
+        with fixture.open('rb') as stream:
+            raw = stream.read(self.FIXTURE_BYTES + 1)
+        require(len(raw) == self.FIXTURE_BYTES
+                and hashlib.sha256(raw).hexdigest() == self.FIXTURE_SHA256,
+                'exact accepted earned Heavy orderly-close fixture bytes')
+        self.expected = json.loads(raw)
+        self.path = self.profile / self.RELATIVE_SAVE
+        self.path.parent.mkdir(parents=True, mode=0o700, exist_ok=False)
+        with self.path.open('xb') as stream:
+            stream.write(raw)
+        self.path.chmod(0o644)
+        self.fixture = {'path': str(fixture.resolve()), 'bytes': len(raw), 'sha256': self.FIXTURE_SHA256}
+        require(self.capture('retained-input') == self.expected, 'fresh private profile contains only the exact retained input')
+
+    def require_retained(self, document):
+        self.require_preserved(self.expected, document)
+        require(document['payload']['solo_safe_recovery'] == self.expected['payload']['solo_safe_recovery'],
+                'actual on-foot Arrow safe-home preference retained')
+
+    def require_loaded(self, document, sample):
+        self.require_retained(document)
+        payload, previous = document['payload'], self.expected['payload']
+        crash, safe = payload['crash_recovery'], payload['safe_start_recovery']
+        require(document['generation'] > self.expected['generation']
+                and sample['settlement']['store']['generation'] > self.expected['generation'],
+                'production reader advanced the actual retained primary generation')
+        require(crash['state'] == 'running' and crash['unclean_start_count'] == 0
+                and crash['session_id'] == previous['crash_recovery']['session_id'] + 1 == 2
+                and crash['startup_generation'] == previous['crash_recovery']['startup_generation'] + 1 == 2,
+                'retained clean save starts healthy distinct session and startup2')
+        require(safe['startup_generation'] == previous['safe_start_recovery']['startup_generation'] + 1 == 2
+                and safe['state'] in ('starting', 'stable') and safe['consecutive_failure_count'] == 0
+                and not safe['safe_settings_recommended'], 'retained clean save has no safe-start recovery recommendation')
+        events = payload['session_diagnostics']['events']
+        require(not any(e['event_code'] == 'crash_detected' for e in events)
+                and any(e['event_code'] == 'session_started' and e['session_id'] == 2
+                        and e['fields'].get('recovered') is False for e in events),
+                'actual current session starts without crash recovery')
+        require(payload['game_flow_reward_store'] == sample['settlement']['record'],
+                'actual retained primary and live decoded reward authority agree')
+
+    def observe(self, sample, pilot):
+        if sample['paused']: return
+        if sample['menu_ready'] and 'loaded-title' not in self.snapshots:
+            document = self.capture('loaded-title', sample['settlement']['store'])
+            self.require_loaded(document, sample)
+            pilot.file_context_accepted = True
+        if pilot.next_posting is not None and 'next-posting' not in self.snapshots:
+            document = self.capture('next-posting', sample['settlement']['store'])
+            self.require_loaded(document, sample)
+
+    def finish(self):
+        require('loaded-title' in self.snapshots and 'next-posting' in self.snapshots,
+                'actual primary observed at normal title and physical next posting')
+        final = self.capture('orderly-close')
+        self.require_orderly(final, self.snapshots['loaded-title']['document'])
+        self.require_retained(final)
+
+
+class RetainedHeavyPilot(HeavyBreachPilot):
+    """Ordinary title/load/walk/quit using a previously earned Heavy save."""
+    MARKER = 'NATIVE_RETAINED_HEAVY_OK'
+    WAYPOINTS = ((-8.5, .18, 6), (8, .18, 6), (8, .18, -24))
+
+    def __init__(self, expected, expected_pid):
+        super().__init__()
+        self.expected = copy.deepcopy(expected)
+        self.expected_pid = expected_pid
+        self.file_context_accepted = False
+
+    def validate_observation(self, s):
+        require(s.get('mode') == 'heavy-breach' and s['pid'] == self.expected_pid
+                and (self.last_sequence < 0 or s['sequence'] == self.last_sequence + 1),
+                'every retained Heavy observation belongs to this exact process in sequence')
+        self.last_sequence = s['sequence']; self.last_state = s
+        if s['paused']:
+            require(self.initial is not None and s['main_id'] == self.initial['main_id']
+                    and self.stage in ('pause', 'quit_wait') and self.next_posting is not None,
+                    'retained load pauses only after physical next-posting continuation')
+            return
+        require(s['actors_current'], 'retained load current production actors')
+        if self.initial is None:
+            require(s['phase'] == 'INTRO' and norm(sub(s['player'], s['spawn'])) < .75,
+                    'retained clean save starts at normal title and authored spawn')
+            self.initial = copy.deepcopy(s)
+        require(all(s[k] == self.initial[k] and s[k] for k in self.IDS)
+                and all(s['breach'][k] == self.initial['breach'][k]
+                        for k in ('board_id', 'director_id', 'objective_id', 'objective_position')),
+                'same current Player Arrow board director and objective during retained continuation')
+        require(s['phase'] in ('INTRO', 'APPROACH_SHIP') and not s['seated'] and not s['piloted']
+                and not s['remote_piloted'] and not s['station_seated'] and not s['game_station_seated']
+                and not s['sleeping'] and not s['transition_busy'] and not s['destroyed']
+                and not s['guided_complete'] and not s['native_fire'] and not s['command_fire'],
+                'retained continuation stays awake on foot without activity combat or pilot admission')
+        require(s['default_sampler'] and s['default_controls'] and s['tuning_unchanged']
+                and s['ship_tuning'] == self.initial['ship_tuning'] and s['walk_tuning'] == self.DEFAULT_WALK
+                and s['physics_ticks'] == 60 and s['time_scale'] == 1,
+                'retained continuation uses original walking controls tuning and pacing')
+        expected_ledger = self.expected['payload']['game_flow_reward_store']
+        require(s['settlement']['record'] == expected_ledger,
+                'live decoded retained Heavy ledger remains exactly one original non-replayable receipt')
+        board = s['breach']['board']; handoff = board['reward_handoff']; director = board['director']
+        generation = expected_ledger['last_receipt']['activity_generation']
+        require(board['offered_scenario'] == 'torpedo_run' and not board['sortie_armed']
+                and board['active_director_generation'] == 0 and director['state'] == 'idle'
+                and director['scenario_generation'] == 0
+                and handoff['highest_reward_generation'] == generation == 1
+                and handoff['pending_reward_generation'] == 0,
+                'loaded paid Heavy acknowledgement offers Torpedo while fresh director stays idle and unarmed')
+        previous = self.observed_previous
+        if previous:
+            require(s['frame'] == previous['frame'] + 1, 'consecutive retained continuation physics frames')
+            if s['native_interact'] != previous['native_interact']:
+                self.native_edges.append(dict(frame=s['frame'], pressed=s['native_interact'], stage=self.stage))
+            if self.stage == 'walk_next':
+                self.require_walking(s)
+                motion = self.require_motion_epoch(s)
+                require(motion['start'] == previous['player'], 'continuous retained Player motion')
+                if motion['step_up']: self.require_step_event(s, motion)
+                else: require(norm(sub(s['player'], previous['player'])) <= 9.2/60 + .10,
+                              'ordinary bounded retained walking')
+                self.walked += norm(sub(s['player'], previous['player']))
+        self.observed_previous = copy.deepcopy(s)
+
+    def update(self, s, now):
+        require(self.last_state is s, 'latest validated retained observation alone drives OS input')
+        self.frame = s['frame']
+        if self.stage in ('pause', 'quit_wait'): return self.ui_update(s, now)
+        keys, dx = set(), 0
+        frames = max(1, self.frame - self.last_input_frame); self.last_input_frame = self.frame
+        if self.stage == 'boot' and s['menu_ready'] and self.file_context_accepted:
+            self.press('e', 'begin_shift', 'begin_shift_press', s, now)
+        elif self.stage == 'begin_shift' and s['phase'] == 'APPROACH_SHIP' and s['supported']:
+            require(norm(sub(s['player'], s['spawn'])) < .75,
+                    'ordinary Begin Shift admits the authored fresh spawn after clean quit')
+            require(any(edge['pressed'] for edge in self.native_edges), 'ordinary Begin Shift E was observed')
+            self.receipts['awake'] = self.receipt(s)
+            self.begin_walk('walk_next', [list(point) for point in self.WAYPOINTS], s)
+        elif self.stage == 'walk_next':
+            self.require_walking(s)
+            if self.route:
+                dx, arrived = self.walk_to(s, self.route[0], keys, frames)
+                if arrived:
+                    self.visited.append(dict(stage=self.stage, frame=s['frame'], point=self.route.pop(0)))
+            else:
+                breach = s['breach']
+                dx, yaw, _ = self.yaw_to(s, breach['position'])
+                if breach['candidate'] and breach['distance'] <= 2.55 and breach['facing'] >= .05 and abs(yaw) < .08:
+                    require(breach['available'].get('available') and 'TORPEDO RUN' in breach['prompt'],
+                            'physical retained board offers usable next Torpedo posting without arming')
+                    require(self.walked > 10 and len(self.visited) == len(self.WAYPOINTS),
+                            'all retained continuation waypoints reached by actual physical walking')
+                    self.next_posting = self.receipt(s); self.receipts['next_posting'] = self.next_posting
+                    self.tap_key = None; self.enter('pause', s)
+        if self.tap_key is not None:
+            if now < self.tap_until or self.frame < self.tap_frame + 6: keys.add(self.tap_key)
+            else:
+                self.tap_key = None; self.tap_cooldown = now + .3; self.tap_release_frame = self.frame
+        facing = s['walk_forward']
+        if self.mouse_pending is not None:
+            if norm(sub(facing, self.mouse_pending)) < .00001: dx = 0
+            else: self.mouse_pending = None
+        if dx: self.mouse_pending = facing[:]
+        return keys, dx, 0, False
+
+    def report(self):
+        return dict(stage=self.stage, stages=self.stages, receipts=self.receipts, visited=self.visited,
+                    walked_m=self.walked, native_edges=self.native_edges, last_state=self.last_state)
+
+    def finish(self, exit_code):
+        require(exit_code == 0 and self.quit_requested and self.stage == 'quit_wait'
+                and self.file_context_accepted and self.next_posting is not None
+                and 'awake' in self.receipts and 'exit_ui' in self.receipts,
+                'retained Heavy load physical continuation and normal UI actual OS exit0')
+        self.result = dict(self.report(), completion_marker=self.MARKER, normal_ui_exit=True)
+
+
 class SandboxWalkPilot(Pilot):
     """Five station branches through ordinary controls; fleet/crash gate stays open.
 
@@ -8949,16 +9137,19 @@ def capture_guided_shutdown(profile, output):
                 safe_start_recovery_state=payload.get('safe_start_recovery', {}).get('state'))
 
 
-def run(binary, output, route="guided", qualify_beacon_outbound=False):
-    require(route in ("zenith-torrent-handback", "zenith-return-reuse", "patrol-relay-home", "race-home", "heavy-breach", "bomber-rearm", "cinder-supply", "hauler-supply", "arrow-return-reuse", "torrent-return-reuse", "torrent-damaged-return", "torrent-arrow-handoff", "guided", "courier-intercept", "courier-escape", "courier-withdraw-phase", "courier-withdraw-distance", "beacon-entry", "beacon-settlement", "beacon-home", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
+def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_data=None):
+    require(route in ("zenith-torrent-handback", "zenith-return-reuse", "patrol-relay-home", "race-home", "heavy-breach", "retained-heavy", "bomber-rearm", "cinder-supply", "hauler-supply", "arrow-return-reuse", "torrent-return-reuse", "torrent-damaged-return", "torrent-arrow-handoff", "guided", "courier-intercept", "courier-escape", "courier-withdraw-phase", "courier-withdraw-distance", "beacon-entry", "beacon-settlement", "beacon-home", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
     require(not qualify_beacon_outbound or route == 'beacon-home',
             'outbound timing qualification requires the full beacon-home route')
+    require((route == 'retained-heavy') == (retained_data is not None),
+            'retained-data input is required only for the retained-heavy route')
     output.mkdir(parents=True, exist_ok=False)
     game = xvfb = desktop = pilot = None
     temporary_profile = None
     restart_files = None
     settlement_files = None
     breach_files = None
+    retained_files = None
     zenith_files = None
     outbound_timing = None
     result = {'driver_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(), 'success': False, 'cap_seconds': CAP, 'binary': str(binary), 'native_gpu': 'NOT_RUN',
@@ -8973,6 +9164,9 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False):
             profile = Path(temporary_profile.name)
             for name in ('data','config','cache','state','runtime','data-dirs','config-dirs','tmp'):
                 (profile/name).mkdir(mode=0o700)
+            if route == 'retained-heavy':
+                retained_files = RetainedHeavyFiles(profile, output, retained_data)
+                result['retained_input'] = retained_files.fixture
             env = {'PATH':'/usr/local/bin:/usr/bin:/bin', 'HOME':os.environ.get('HOME','/tmp'),
                    'MUDDS_PRIVATE_PROBE_INPUT':'native-sortie-x11', 'GODOT_SILENCE_ROOT_WARNING':'1'}
             for key, name in [('XDG_DATA_HOME','data'),('XDG_CONFIG_HOME','config'),('XDG_CACHE_HOME','cache'),
@@ -9010,7 +9204,7 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False):
                 result['input_helper_pid'] = desktop.process.pid
                 args = [str(binary),'--audio-driver','Dummy','--display-driver','x11',
                         '--rendering-driver','dummy','--disable-render-loop',
-                        '--native-sortie-observer' if route == 'guided' else '--native-sortie-observer='+('sandbox' if route == 'bomber-rearm' else route)]
+                        '--native-sortie-observer' if route == 'guided' else '--native-sortie-observer='+('sandbox' if route == 'bomber-rearm' else 'heavy-breach' if route == 'retained-heavy' else route)]
                 result.update(arguments=args, display=env['DISPLAY'], xvfb_pid=xvfb.pid,
                               binary_sha256=hashlib.file_digest(binary.open('rb'),'sha256').hexdigest())
                 breach_files = HeavyBreachFiles(profile, output) if route == 'heavy-breach' else None
@@ -9052,10 +9246,11 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False):
                     result['window'] = hex(window)
                     leg_result['window'] = hex(window)
                     desktop.focus(window)
-                    pilot = HabitatRestartPilot(cold=bool(leg)) if restart_files else {
+                    pilot = (RetainedHeavyPilot(retained_files.expected, game.pid) if retained_files else
+                             HabitatRestartPilot(cold=bool(leg)) if restart_files else {
                         "zenith-torrent-handback": ZenithTorrentHandbackPilot, "zenith-return-reuse": ZenithReturnReusePilot, "patrol-relay-home": PatrolRelayHomePilot, "race-home": RaceHomePilot, "heavy-breach": HeavyBreachPilot, "bomber-rearm": BomberRearmPilot, "cinder-supply": CinderSupplyPilot, "hauler-supply": CinderHaulerSupplyPilot, "arrow-return-reuse": ArrowReturnReusePilot, "torrent-return-reuse": TorrentReturnReusePilot, "torrent-damaged-return": TorrentDamagedReturnPilot, "torrent-arrow-handoff": TorrentArrowHandoffPilot, "guided": GuidedExitPilot, "courier-intercept": CourierPilot, "courier-escape": CourierEscapePilot, "courier-withdraw-phase": CourierWithdrawPhasePilot, "courier-withdraw-distance": CourierWithdrawDistancePilot, "beacon-entry": BeaconEntryPilot, "beacon-settlement": BeaconSettlementPilot, "beacon-home": BeaconHomePilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
                         "hulk-arrival": HulkArrivalPilot, "hulk-breaker": HulkBreakerPilot,
-                        "hulk-home": HulkHomePilot, "habitat-loop": HabitatLoopPilot, "life-tow": LifeTowPilot, "life-gantry": lambda: LifeTowPilot("life-gantry"), "life-arm": lambda: LifeTowPilot("life-arm"), "life-patrol": lambda: LifeTowPilot("life-patrol")}[route]()
+                        "hulk-home": HulkHomePilot, "habitat-loop": HabitatLoopPilot, "life-tow": LifeTowPilot, "life-gantry": lambda: LifeTowPilot("life-gantry"), "life-arm": lambda: LifeTowPilot("life-arm"), "life-patrol": lambda: LifeTowPilot("life-patrol")}[route]())
                     if isinstance(pilot, BeaconHomePilot): pilot.file_snapshots = settlement_files.snapshots
                     if qualify_beacon_outbound: outbound_timing = BeaconOutboundTiming(game.pid)
                     if isinstance(pilot, (BomberRearmPilot, GuidedExitPilot, ZenithTorrentHandbackPilot)): pilot.expected_pid = game.pid
@@ -9073,10 +9268,12 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False):
                                             if observation['sequence'] > pilot.last_state['sequence']:
                                                 pilot.validate_observation(observation)
                                                 if breach_files: breach_files.observe(observation, pilot)
+                                                if retained_files: retained_files.observe(observation, pilot)
                                         pilot.finish(game.wait())
                                         if isinstance(pilot, RaceHomePilot): settlement_files.finish(pilot.last_state, pilot)
                                         if zenith_files: zenith_files.finish(pilot.last_state, pilot)
                                         if breach_files: breach_files.finish()
+                                        if retained_files: retained_files.finish()
                                         leg_result.update(exit_code=0, reaped=True, normal_ui_exit=True)
                                         if isinstance(pilot, (GuidedExitPilot, ZenithTorrentHandbackPilot)):
                                             leg_result['exit_ui'] = pilot.receipts['exit_ui']
@@ -9114,6 +9311,7 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False):
                                             for observation in observations:
                                                 pilot.validate_observation(observation)
                                                 if breach_files: breach_files.observe(observation, pilot)
+                                                if retained_files: retained_files.observe(observation, pilot)
                                         state = observations[-1]
                                         if restart_files:
                                             require(state['pid'] == game.pid, 'observer belongs to exact running game PID')
@@ -9175,6 +9373,7 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False):
                                     'full Beacon home completion also requires qualified outbound timing')
                         result.update(success=True,sortie=pilot.result)
                 if breach_files: result['actual_file_snapshots'] = breach_files.snapshots
+                if retained_files: result['actual_file_snapshots'] = retained_files.snapshots
                 if restart_files:
                     result['actual_file_snapshots'] = restart_files.snapshots
                     result['sortie'] = {'completion_marker': HabitatRestartPilot.MARKER,
@@ -9185,6 +9384,7 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False):
                     result['success'] = True
     except Exception as error:
         if breach_files is not None: result['actual_file_snapshots'] = breach_files.snapshots
+        if retained_files is not None: result['actual_file_snapshots'] = retained_files.snapshots
         if zenith_files is not None:
             result['actual_file_snapshots'] = zenith_files.snapshots
         if settlement_files is not None:
@@ -9306,16 +9506,20 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('binary')
     parser.add_argument('--output',required=True,type=Path)
+    parser.add_argument('--retained-data', type=Path,
+                        help='exact accepted raw Heavy orderly-close save; required only for retained-heavy')
     parser.add_argument('--qualify-beacon-outbound', action='store_true',
                         help='qualify the fixed 60.0s outbound monotonic maximum within the unchanged full beacon-home route')
-    parser.add_argument('--route', choices=('zenith-torrent-handback', 'zenith-return-reuse', 'patrol-relay-home', 'race-home', 'heavy-breach', 'bomber-rearm', 'cinder-supply', 'hauler-supply', 'arrow-return-reuse', 'torrent-return-reuse', 'torrent-damaged-return', 'torrent-arrow-handoff', 'guided', 'courier-intercept', 'courier-escape', 'courier-withdraw-phase', 'courier-withdraw-distance', 'beacon-entry', 'beacon-settlement', 'beacon-home', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
+    parser.add_argument('--route', choices=('zenith-torrent-handback', 'zenith-return-reuse', 'patrol-relay-home', 'race-home', 'heavy-breach', 'retained-heavy', 'bomber-rearm', 'cinder-supply', 'hauler-supply', 'arrow-return-reuse', 'torrent-return-reuse', 'torrent-damaged-return', 'torrent-arrow-handoff', 'guided', 'courier-intercept', 'courier-escape', 'courier-withdraw-phase', 'courier-withdraw-distance', 'beacon-entry', 'beacon-settlement', 'beacon-home', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
                         help='zenith-torrent-handback walks unchanged LIFE-ARM, exits docked Zenith, completes actual Guided in Torrent, and physically reclaims the same Zenith for90 fresh neutral ticks and normal HUD OS0; zenith-return-reuse covers selected Zenith LIFE-ARM admission, pilot controls/cameras, actual28-point repeater hit, two strict home/OFFLINE/wing-clear exits and normal UI OS0; patrol-relay-home completes genuine Guided, actual pause-board relay selection, five continuous two-second holds, exact durable payment, strict home and normal UI exit; race-home completes the genuine Guided prerequisite then same-Torrent timed race, exact durable reward, strict home and normal UI exit; heavy-breach completes real posted Heavy/picket kill/payment/home/next posting/UI exit; courier-withdraw-distance flies beyond all actual contacts for real seven-second grace withdrawal before original defender and home; courier-withdraw-phase kills the original defender after actual first courier dispatch and verifies phase withdrawal/standdown through home; courier-escape lets the actual first live runner escape and verifies standdown through home; courier-intercept destroys the actual first courier before escape then returns home; beacon-home retains payment through genuine Guided combat, home docking and usable exterior walking; hauler-supply flies the actual Dock04 Hauler through the funded Cinder terminal/home journey; cinder-supply flies the full funded Jovian/Cinder terminal/home journey; beacon-settlement continues the accepted entry through four physical beacons and durable reward; beacon-entry departs normally and physically reaches/starts the first Beacon through actual pause controls; life-patrol walks Habitat through the real door beside patrol drones and boards Torrent; life-arm walks Aft stairs past the live service arm and boards Zenith; life-gantry walks Freight past the live gantry and boards Jovian; life-tow walks Central beside live tow service and boards Torrent; hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
     args=parser.parse_args()
     if args.qualify_beacon_outbound and args.route != 'beacon-home':
         parser.error('--qualify-beacon-outbound requires --route beacon-home')
+    if (args.route == 'retained-heavy') != (args.retained_data is not None):
+        parser.error('--retained-data is required only for --route retained-heavy')
     try: binary=validate_binary(args.binary)
     except ValueError as error: parser.error(str(error))
-    result=run(binary,args.output.absolute(),args.route,qualify_beacon_outbound=args.qualify_beacon_outbound)
+    result=run(binary,args.output.absolute(),args.route,qualify_beacon_outbound=args.qualify_beacon_outbound,retained_data=args.retained_data)
     print(json.dumps(result,indent=2))
     return 0 if result['success'] and result.get('inputs_released') and result['game_reaped'] and result['xvfb_reaped'] and result['input_helper_reaped'] else 1
 
