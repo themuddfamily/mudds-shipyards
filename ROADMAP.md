@@ -124,6 +124,58 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Selected — WEAPON-JOVIAN: actual cannon hit and two-flight home/reuse.**
+This existing weapon-binding selector belongs to CRAFT-ACCEPT-JOVIAN; the full
+craft remains open. Kind: executable release capability plus packaged functional
+qualification, with no demonstrated missing runtime behavior. Conservative start
+2026-10-26 23:40UTC; hard stop2026-10-27 01:10UTC,90minutes including all work.
+
+| Field | Frozen assignment |
+| --- | --- |
+| Result | The actual Jovian pilot cannon hits Main DRONE-01 once for70 (100→30), followed by two complete ordinary flights/strict home/OFFLINE exits, supported walking and fresh same-craft reboarding, then normal UI OS0 and durable clean close. No activity completion or full-craft acceptance is implied. |
+| Start | Clean basef55c6cb54, fresh private source worktree/XDG/display. Source1103/jovian_provisional/pilot_station/jovian_freight_berth; authored hull260. Main target World/ExteriorTargetRange/TargetDrone01, DRONE-01/base[-13,7,-95]/100HP/range_target faction. Weapon jovian_heavy_defensive_cannon, hitscan650m/70/.62s/origin tolerance32m, shipyard_flight_test faction. Observe real alternating selected root muzzle (initialLeft[-5.15,3.76,-6.95], Right[5.15,3.76,-6.95]) and actual request origin. |
+| Steps | `python3 -B tools/release/run_native_sortie.py EXPORTED_ELF --output FRESH_OUTPUT --route jovian-return-reuse`. Normal Begin Shift; all13 existing LifeGantry walking goals/physical Jovian pilot boarding/90seated samples. Ordinary CinderSupply four-point full-body clearance route below. At final point brake/aim: passive camera and next-muzzle rays must identify actual registered target before exactly one native F pulse. Restore attitude, reverse existing clearance route, strict home/OFFLINE90neutral samples/Eexit. Retrace existing gantry tail out/back beyond7m reboard guard; physical fresh pilot stream/90seated samples. Repeat complete clearance/home loop with no further Fire, final physical exit/supported walk, focused HUD Exit. |
+| Pass/fail | Native and consumed current Fire/source1103/current Jovian instance/fresh command sequence/actual70-damage profile/presentation receipt/adapter context identify the same registered DRONE-01; actual HP100→30 exactly once and remains30. Authored tuning/hull260 and Main/world/Player/capsule/shape/craft/source/seat/berth/camera/target/adapter identities remain current; contiguous frame/sequence checks, legitimate ownership retirement/new stream on reuse. Both strict homes require captured landing result/actual parked lease, automatic neutral OFFLINE90ticks, physical supported exterior and walking. Final actual OS0 plus independently read crash clean/safe clean_shutdown/current-session ended receipts. |
+| Proof | Extend existing native runner/passive observer and focused caller/privacy checks, clean private Linux export with strict package --startup-check(exit0/oneSTARTUP_MENU_READY_OK), then ONE complete OS XTest→X11→default sampler route with Dummy audio/private Xvfb. No observer pose/health/phase/settings/progression writes. Actual counters/protected files/writer receipts below and zero unexpected diagnostics after drain. OriginalCAP300/outer360/walk15/board12/exit10/weapon25/landing120 and actual Hero landing timeout/stall4 retained. Cinder large-hull flight has no15s Zenith stage bound; do not add one. |
+| Dependencies/ownership | Codex owns existing runner/test, passive observer, and only necessary startup mode whitelist/privacy test. Reuse LifeGantry/Cinder/Zenith source contracts; do not reopen parked engineer, Convoy or other UI/craft cards. Physics sightline/hull movement remain actual acceptance gates. No new weapon/design choice or user hardware input is needed for this isolated package case. |
+| Stop | Implementation due00:15UTC; export launch no later00:25UTC, strict archive startup no later00:49UTC, native launch no later00:54UTC. Keep original export900/startup300/native300/outer360 caps; first unexpected failure stops, no automatic correction/retry or reset of23:40UTC cumulative cost. |
+| Closure | Independent source/raw review, integrate/push accepted release support and exact case or archive failed source unmerged. Verify all owned process/input/display cleanup; exact-tip branch/worktree/scratch cleanup. Read-only qualification does not require a duplicate public build; any demonstrated runtime repair needs a separate focused regression and fresh Windows checkpoint contract before implementation. |
+
+CinderSupply clearance offsets from actual home capture are exactly
+`[0,0,0]`, `[0,0,26.7]`, `[0,66.37,66.7]`, `[84,66.37,-308.3]`;
+authored world points `[-53,13.63,83.3]`, `[-53,13.63,110]`, `[-53,80,150]`,
+`[31,80,-225]`. Retrace for each home. Existing reuse walk is live boarding
+marker→`[-42,.38,boarding.z]`→`[-42,.38,40]`, then reverse to the same marker;
+last point is about26m from the hatch. Do not invent a replacement waypoint.
+
+**Finite automatic persistence contract.** Default selection is timed_race/
+cinder_reach_checkpoint_route. Title: idle0, no race/tutorial namespace. First
+departure auto-start1 and the exact tutorial schema1/seen_ids containing only
+cinder_reach_checkpoint_route. First home retains failed1; physical home reboard
+resets to idle2; second departure starts3; second home retains failed3. No other
+epoch is allowed. Home failure is returned_to_shipyard while running; a prior
+actual timeout at authored elapsed≥120 retains that same terminal at arrival.
+This incidental producer adds no new per-flight deadline or PLAY-RACE result.
+Require checkpoint index0, penalty0, no completion/best/lap/reward; the high
+clearance stays outside the first32m checkpoint sphere at[16,-9,-240]. The one
+seen record remains unchanged through reset/restart. Capture the actual race
+writer/status/generation and terminal saved state, not an arbitrary file allowance.
+
+Cargo remains unselected/idle/gen0: Jovian fabrication_kits6/destination0, zero
+transfers, no jovian_cargo_session/cinder_cargo_delivery namespace. Separate
+Cinder crate manifests and all baseline payload members/presence bits stay exact.
+Nonlethal target damage must add no destruction score, credit/receipt or owed
+reward; game_flow_reward_store stays absent or baseline-identical/live zero.
+Only ordinary runtime_settings baseline and actual solo_safe_recovery,
+crash_recovery,safe_start_recovery,session_diagnostics may change besides the
+named race/tutorial owners. Settled Jovian pilot context is exactly home
+location mudds_home_berth/modepilot/craftjovian_provisional/berthjovian_freight_berth;
+both supported exterior homes/final close require modeon_foot. Transitional
+modeunavailable and initial default Torrent on-foot context are bound to their
+actual phases. Use the same actual primary/profile/store; monotonic generations,
+actual race/tutorial/solo writer receipts, both home-file captures and final
+clean markers; no fixed aggregate commit count/prefix for interleaved owners.
+
 **Accepted — ordinary future-CFG preservation with supported JSON preferences.**
 The lone schema8 legacy settings.cfg stays byte-for-byte unchanged while ordinary
 Save and clean direct Reset successfully store schema11 JSON preferences. A
