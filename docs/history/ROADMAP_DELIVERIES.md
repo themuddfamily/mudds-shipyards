@@ -4,6 +4,126 @@ Moved from ROADMAP.md on 2026-10-17. These are source-specific historical
 results, not the active queue or proof of current full-project acceptance.
 Return to the [working roadmap](../../ROADMAP.md).
 
+## Installed nested-settings refusal accepted 20261026
+
+**SAVE-UNSUPPORTED — release capability and one packaged Linux primary case
+accepted.** Game/observer/scene/project source remains unchanged from checkpoint
+7876ebc. The existing native runner gains `--future-format settings` for the
+unsupported-save route; omitted/outer mode retains the accepted outer-envelope
+behavior. Nested mode requires primary placement, creates private game writes
+with explicit umask077 and uses the existing OS keyboard sequence, per-leg logs,
+warning drain, process ownership, cold walking, deadlines and cleanup. The source
+fixture producer uses actual UserDataStore.commit/readback and is excluded by
+the existing tools/** package filter. No gameplay repair or new checkpoint.
+
+Source base4ad91a538; implementationb3640b183; pre-execution review completes
+standalone nested-only permissions18d8e0082; actual tested driver SHA256
+`2d624becb3115532d1a49e2bf30d17ee2946084f813b4ab384bdb8d88556eea3`.
+Python caller suite passes290 tests/14.529s (guard15.132336s) on18d8; clean silent
+import20.599303s/zero diagnostics. No other source/test/runtime change follows
+except the one-line fixture comparison below; unchanged checks are reused.
+
+**First unexpected failure retained.** Actual fixture generation exits1 in
+0.879263s with `ERROR: Production fixture readback failed`, zero success marker.
+No packaged game had launched. The actual production commit produced the exact
+530-byte/mode0600/generation1 intended document, but parsed JSON schema numbers
+12.0/1.0 fail a type-strict nested Dictionary comparison with constant integers.
+Independent review binds this to the pinned Godot Dictionary recursive equality
+and Variant hash comparison and the production store's existing int→float
+canonicalization/numeric regression. One causal comparison-only correction is
+approved at19.509 cumulative minutes under the same original clock; no new budget.
+[Dictionary source](https://raw.githubusercontent.com/godotengine/godot/a13da4feb8d8aefc283c3763d33a2f170a18d541/core/variant/dictionary.cpp),
+[Variant source](https://raw.githubusercontent.com/godotengine/godot/a13da4feb8d8aefc283c3763d33a2f170a18d541/core/variant/variant.cpp).
+
+Corrected source pin`ddfa82789932223af84b05dfe39dfbedf2c27132` compares the complete
+readback with `Store._canonicalize(PAYLOAD)`, retaining actual load acceptance,
+all fields, generation and permissions. A fresh stage/output passes0.883915s,
+exit0/oneUNSUPPORTED_SETTINGS_FIXTURE_OK/zero diagnostics. Its bytes are IDENTICAL
+to the retained first failed-comparison fixture:530bytes/SHA256
+`24dc8c35c80dd07186cb5b37c0efb8e29602810a9632ed31d8d5644bf8e40a47`.
+The original STOP/logs/profile logs/fixture remain retained. No fixture weakening,
+error allowance, additional format or unchanged full-suite rerun.
+
+**One actual full route passes.** Driverddfa uses unchanged exported Linux ELF
+source`7876ebc8da434987700f128483d4e67098cd7319`,149088952bytes/SHA256
+`cf4c81d383bb0c3d6690646314f0c77d93a5d62c05f4d6883506a3ab3a713bf6`.
+Its existing strict startup evidence is retained after byte-identity verification:
+PASS/exit0/exactlyoneSTARTUP_MENU_READY_OK. No redundant export/startup run is
+claimed. Route101.102s/outer guard101.595556s, unchanged300/360s caps.
+
+- PID2448127: actual ordinary Begin Shift, paused Settings, APPLY + SAVE,
+  RESET DEFAULTS/CONFIRM RESET, normal focused EXIT TO DESKTOP and actual OS0.
+  Visible statuses exactly `UNSAVED  //  SETTINGS_PAYLOAD_NEWER` and
+  `DEFAULTS ACTIVE  //  SAVE FAILED`. Both writes/load refuse
+  `settings_payload_newer`/`payload_reason=newer_schema` with accepted outer
+  primary authority/`store_reason=ok`. Counters2attempts/2transactions/0successes,
+  serial1/empty successful commit ID.
+- Distinct PID2448335, same owned profile/ELF: ordinary Begin Shift, supported
+  walk through(-8.5,.18,6),(8,.18,6),(8,.18,-24),51.334985518m total, normal
+  focused UI Quit and actual OS0. Counters0/0/0, serial6/empty commit ID.
+- Independent review parses all2462 raw observations: live settings match across
+  Boot/Reset/cold, future/tutorial/home/unrelated subtrees stay exact; only named
+  crash_recovery/session_diagnostics additions occur. All15 disk milestones pass;
+  primary generations1→4→6→9→11, sessions1/2 running→clean with actual started/ended
+  receipts/unclean0. Safe-start/race keys remain absent; Save/Reset change no files;
+  final drains stable. Sentinel bytes/mode/identity and directory identity retained.
+- Each raw Godot leg log contains the exact two declared warnings once, four
+  total; zero other warnings/errors after drain. Both game legs OS0/reaped and
+  umask077; input release/game/helper/Xvfb cleanup flags alltrue, no cleanup errors.
+  The nine observed native-stage process identities are absent; X256 is removed.
+  Every stage's before/after source/index/cache guard passes; import alone allows
+  its declared disposable cache changes.
+
+This accepts the dedicated nested12 primary case on this exact Linux package,
+plus executable release support. All retained copies are checked for exact
+protected payload, bounded names/generations/parent IDs and hash-field format;
+the actual store validates primary/backup checksums. Do not claim independent
+cryptographic verification of every history copy. Race generation0 is a source
+binding plus observed absent namespace, not a new live generation observation.
+Other formats/placements, ordinary legacy atomic-JSON coexistence, final candidate,
+physical devices/native GPU/native Windows/human facts remain separate/open or
+NOT_RUN under existing owner exclusions. No Heavy paid-progress inheritance.
+
+Source bundle(tipddfa/base4ad), commands, guards, raw first failure/correction,
+fixtures, logs and actual native route are in
+`/srv/mudds-work/nested-settings-refusal-20261026/records.tar.gz`:
+11015958bytes/68regular files, SHA256
+`a8d67d0170cd46072c2965f41dd5a6fe778d8c386028c31c4cf1f455fd848d29`.
+Every archive member's bytes/mode is verified before loose deletion. The unchanged
+canonical ELF/package remains under builds/linux; no duplicate binary is archived.
+Archive cost23.995479minutes from original22:48UTC, before hard00:18UTC; final
+push/owned branch/worktree/process/scratch cleanup and total cost are retained in
+adjacent closeout.json. Source integration5ab1d9c8a; final documentation/push is
+recorded there. No further run selected.
+
+The acceptance was frozen before editing/execution:
+
+**Frozen assignment — SAVE-UNSUPPORTED: packaged nested-settings refusal.**
+Kind: release capability plus one packaged qualification; no gameplay change.
+Conservative selection start2026-10-26 22:48UTC; hard stop2026-10-27 00:18UTC
+(90minutes including definition, implementation, checks, push and cleanup).
+
+| Field | Frozen assignment |
+| --- | --- |
+| Result | The existing release runner can exercise future typed settings in a supported save envelope through ordinary Save/confirmed Reset, distinct cold restart and usable walking, without overwriting those settings. |
+| Start | Base4ad91a538; unchanged accepted7876ebc Linux ELF (SHA256cf4c81d383bb0c3d6690646314f0c77d93a5d62c05f4d6883506a3ab3a713bf6). Fresh owned XDG/profile/display. Actual UserDataStore.commit creates one outer1/generation1 primary; no initial backup, stage, history or legacy CFG. Fixture bytes/hash recorded before the package starts. |
+| Steps | Produce the fixture with the actual store; run existing Python caller checks; invoke the existing native runner with `--route unsupported-save --future-format settings --future-artifact primary --retained-data FIXTURE`. Process1: title/Begin Shift → Settings → APPLY + SAVE → RESET DEFAULTS → CONFIRM RESET → normal HUD Quit. Process2: same profile, distinct PID → Begin Shift → original three walking points → normal HUD Quit. |
+| Pass/fail | Both loads and both writes refuse `settings_payload_newer`/`payload_reason=newer_schema` while outer authority stays accepted/`ok`/primary. Save displays `UNSAVED  //  SETTINGS_PAYLOAD_NEWER`; Reset displays `DEFAULTS ACTIVE  //  SAVE FAILED`. Two attempts/zero successes first process, zero attempts cold; live defaults agree across boot/Reset/cold. Both actual OS exits0. Original300s native/360s outer cap and45s cold walking remain. |
+| Proof and protected data | Actual OS keyboard/XTest route on isolated X11, silent Dummy audio. Exact fixture subtrees remain equal at independent settled milestones and in the observer: future settings, tutorial seen list, on-foot Arrow home and unrelated marker. Only declared crash/session bookkeeping may change; crash state running→clean/session IDs1→2/unclean0 and actual diagnostic events required. Safe-start and race namespaces stay absent. Exact two declared warnings once per process; zero other diagnostics after drain. |
+| Dependencies and ownership | Codex owns `tools/release/run_native_sortie.py`, its existing test, one actual-store fixture producer and integration. The existing passive observer already supplies the fields. No user policy/device input is missing. Full final-candidate and other unsupported-format contracts remain separate. |
+| Stop | First unexpected check/engine/route failure stops this attempt, with no automatic fix/retry. No flight launch after00:02UTC, retaining16minutes for the original route cap and closure. Source definition/implementation/checks stay charged to the same22:48UTC start. |
+| Closure | Independently review the source and actual result; integrate/push accepted release capability and qualification, or park/archive the failed candidate unmerged. Verify owned process cleanup; remove owned branch/worktree/loose scratch after source is accounted for. No new playable checkpoint for Python release tooling alone. |
+
+Exact fixture payload: `runtime_settings={schema_version:12,values:{}}`;
+`tutorial_prompts_seen={schema_version:1,seen_ids:[cinder_reach_checkpoint_route]}`;
+`solo_safe_recovery={location:mudds_home_berth,mode:on_foot,craft_id:arrow_provisional,berth_id:arrow_recon_berth}`;
+`unrelated_future_test={label:KEEP}`. Unrelated sentinel bytes are
+`UNRELATED FILE MUST SURVIVE\n`, mode0640; fixture save mode0600. Settled reads
+allow only production primary/backup/history rotation through `.bak.3` and the
+existing diagnostics current/previous crash logs; no stage/quarantine remains.
+Do not claim unchanged envelope bytes/inode while legitimate bookkeeping commits.
+This is a dedicated nested-format fixture, not retained Heavy-progress qualification.
+
 ## Hero warm-cache preparation cutoff 20261026
 
 Existing capture-hero-cell stays **PARKED; NO SECOND RENDER**. The
