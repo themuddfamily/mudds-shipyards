@@ -110,6 +110,24 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Selected qualification: capture-hero-cell, one full18-frame Torrent set.**
+Freeze unchanged source/art, run the existing Forward+2560×1440/TAA/2×MSAA
+harness once in authenticated private Xvfb/x11/Dummy, then inspect every original.
+Use the exact retained guarded editor7b46e60…34c5f7d and pinned llvmpipe; its
+build is accepted but reflection cleanup still requires this run's zero-diagnostic
+shutdown. Original engine cap300s remains; no parse/staging substitute, lower
+quality or retry. [Frozen result/steps/proof/stop](docs/ROADMAP_BACKLOG.md#torrent-hero-cell--full18-capture-contract).
+Root owns isolated execution, images/decisions, canonical handoff if accepted,
+commit/push and owned cleanup; one bounded recipe mapper and one independent
+reviewer. Original18:01:07UTC/45min includes binding/import/ONEcapture/all18
+original-resolution inspection/metadata/archive/push/cleanup; hard18:46:07.
+First unexpected failure stops and is retained. No runtime/art change or duplicate
+playable export is planned; an actual finding needs a named bounded repair.
+This qualifies recorded source/rendered output only, not native GPU/performance,
+physical controls, human review or one final common candidate.
+
+The prior completed result remains a reference:
+
 **Accepted: one ordinary Jovian engineer recovery and cockpit-priority repair.**
 CREW-RECOVERY-ORDINARY's selected checkpoint case passes on source378d99caf.
 The original full journey completes79.277s: normal hub/Freight/ramp/chair input,

@@ -1707,7 +1707,7 @@ Recovery proof uses an owned actual OS SIGKILL, distinct restart, protected real
 | cinder-streaming-transition-render | Registered capture set, 24 PNGs | 12,33 | Qualification | GATED current source/image binding: historical24-frame production capture and root inspection recorded, one-frame pop repaired and HIGH temporal-settling residual retained. Exact current source/24-image declarations remain pending; recover/bind retained frames before choosing a new capture. No historical/human/current-candidate transfer. | [Registered capture](#proof-quality): exact 24 PNGs for THIS existing set/source/declared sizes; inspect originals and resolve/disposition actual findings; no substitutions. |
 | capture-berth-feedback | Registered capture set, 18 PNGs | 12,33 | Qualification | GATED full current18-frame2560x1440 set/source. Historical v0.10 nine-frame capture/representative inspection is not this expanded18 contract. Occupied-cue finding/disposition retained; no repeated inspection promoted to current/full acceptance. | [Registered capture](#proof-quality): exact 18 PNGs for THIS existing set/source/declared sizes; inspect originals and resolve/disposition actual findings; no substitutions. |
 | capture-combat-visuals | Registered capture set, 7 PNGs | 12,33 | Qualification | PARKED clean-capture qualification: seven exact2560x1440 source-frozen published frames exist under artifacts/combat_visuals, manifest aggregate4f9a6a38670e6b8ffc8b313caebe36b6972cbdebdff3f8b3af56c17b6b0c81e4. Green sentinel is followed by WARNING7TextureRIDs leaked (capture log1483), with earlier superuser warning; not zero-diagnostic PASS. Original inspection unresolved, current harness differs. Required diagnostic resolution/new frozen capture remains open. On 2026-10-25 rebuilt pinned guarded editor successfully, but ONE original 300 s capture times out (exit 124/300.847 s) before images (0/7); last checkpoint Main instantiation, startup/render delay cause unresolved. No pixel inspection or clean-shutdown/RID-fix inference; reopen only after causal correction/review, no unchanged rerun, longer cap or sentinel-only promotion. | [Registered capture](#proof-quality): exact 7 PNGs for THIS existing set/source/declared sizes; inspect originals and resolve/disposition actual findings; no substitutions. |
-| capture-hero-cell | Registered capture set, 18 PNGs | 12,33 | Qualification | GATED full current18-frame2560x1440 set/source. Historical v0.10 twelve-frame capture/representative inspection cannot substitute for expanded18; current machine declarations and original-resolution findings remain open. | [Registered capture](#proof-quality): exact 18 PNGs for THIS existing set/source/declared sizes; inspect originals and resolve/disposition actual findings; no substitutions. |
+| capture-hero-cell | Registered capture set, 18 PNGs | 12,33 | Qualification | SELECTED one unchanged full18-frame2560×1440 capture and original-resolution agent inspection under the [frozen contract](#torrent-hero-cell--full18-capture-contract). Historical12frames remain insufficient. Source/art frozen cleancommit; retained guardededitor7b46e60…34c5f7d/pinnedllvmpipe/authenticatedprivateXvfb/x11/Dummy, fullForward+/TAA/2×MSAA, original300senginecap. Original18:01:07UTC/45min/hard18:46:07 includes all closure; firstunexpectedfailureSTOP/no retry. NativeGPU/performance/human/final-commoncandidate remain NOT_RUN. | [Registered capture](#proof-quality): exact 18 PNGs for THIS existing set/source/declared sizes; inspect originals and resolve/disposition actual findings; no substitutions. |
 | capture-jovian-freight-berth | Registered capture set, 2 PNGs | 12,33 | Qualification | Source capture and recorded inspection of both originals accepted on689e2ed0e: exact2 PNG1400x900/exit0/one marker/zero diagnostics, source/import/registry unchanged. Supplemental sign pair establishes repaired legend; it is not a replacement canonical frame. Human/native/current/final-source qualification remains separate; current runtime/material dependencies differ. Retain artifacts/jovian-freight-berth-689e2ed0e; no unchanged recapture/reinspection. | [Registered capture](#proof-quality): exact 2 PNGs for THIS existing set/source/declared sizes; inspect originals and resolve/disposition actual findings; no substitutions. |
 | capture-jovian-freighter | Registered capture set, 4 PNGs | 12,33 | Qualification | Source capture and original-resolution agent inspection accepted on e159ac3c5: exact4 PNG1280x720/exit0/one marker/zero diagnostics; readable cabin, coherent cargo lids/cooling, scoped JOVIAN-ROOF-001 resolved. Earlier obstructed5c76d images remain unaccepted. Human/native/temporal/current/final-source gates remain separate; retain artifacts/jovian-freighter-e159ac3c5, no unchanged recapture. | [Registered capture](#proof-quality): exact 4 PNGs for THIS existing set/source/declared sizes; inspect originals and resolve/disposition actual findings; no substitutions. |
 | capture-player-motion | Registered capture set, 9 PNGs | 12,33 | Qualification | GATED retained-source binding/current qualification. Historicaled359040c has recorded nine2560x1440 frames, stable source/imports and original-resolution agent no-finding inspection. Existing artifacts/player_motion nine-image manifest is not yet proven to be that source/run; first recover binding and full diagnostic disposition. Human/current/final gates remain unperformed; no automatic unchanged recapture. | [Registered capture](#proof-quality): exact 9 PNGs for THIS existing set/source/declared sizes; inspect originals and resolve/disposition actual findings; no substitutions. |
@@ -4766,6 +4766,70 @@ CAPTURE instances (13 required sets, **143 PNGs** total):
 | `capture-zenith-visuals` | 7 |
 
 Registry/commands: [graphical harness inventory](../docs/GRAPHICAL_HARNESS_INVENTORY.md) and `tools/release/graphical_harness_registry.json`. Earlier 3/13 source/image declarations are source-specific, not a current-candidate pass. **Caption production and station operations are blocked on this software-Vulkan environment:** original-cap cold compilation stalls in Godot's built-in Forward+ clustered COLOR_PASS ubershader. Bounded native stack/SPIR-V diagnosis is complete; material owner remains unknown. No custom-shader rewrite, quality/deadline reduction, unchanged cold rerun or registry promotion is justified. A concrete changed environment or supported mitigation is needed before another probe. Preserve RENDER-001 and original failures.
+
+### Torrent hero cell — full18 capture contract
+
+Existing capture-hero-cell, selected2026-10-26 on mainaecb384f2. This is ONE
+source/rendered-output qualification, not a new art obligation, validator or
+runtime implementation. Declare current source/art stable for this capture; all
+captured source, authored art and imported cache must be frozen before/after.
+No source change is authorized by a speculative finding. Root owns execution,
+output/image inspection, existing registry/docs handoff and owned cleanup; one
+recipe mapper and one independent reviewer. Original ID/parents/count remain.
+
+**Result and exact membership.** The unchanged `tests/capture_hero_cell.gd`
+CAPTURE_FILES is the complete ordered18PNG roster, all2560×1440, with its existing
+source/evidence manifests and every numeric/semantic gate unchanged. This covers
+Torrent/world/pilot berth, hull/profile/dorsal/clamps/access/canopy/seat, near/far
+LOD, fixed aft OFFLINE/ONLINE, powered chase25m/50m, neutral UV/material crop and
+fixed cockpit OFFLINE/ONLINE/critical. Historical12frames do not substitute.
+Use the original [complete filename/command contract](GRAPHICAL_HARNESS_INVENTORY.md#current-required-capture-commands).
+
+**Start/environment.** One clean imported isolated checkout at its exact plan
+commit; same tracked source/art/registry and complete cache before/after. Pinned
+retained editor `/srv/mudds-work/toolchains/godot-4.7.1-reflection-atlas-7b46e60/godot`,
+SHA2567b46e60fa1d4ddc979d35698a96d6cb16f79d03019ee5c84aaf24c98434c5f7d,
+177083960bytes/version4.7.1.stable.mudds_reflection_atlas_a2917e5_guarded.a13da4feb.
+Its build is accepted; its intended reflection cleanup is NOT yet qualified.
+No new engine build/patch/global install/template change. Pin Vulkan ICD
+`/usr/share/vulkan/icd.d/lvp_icd.json`,SHA256
+9a6a0d616f3f2efc2d227f89653047e5330ff634b0519ffbf1b2c60dc1c0e0e7,
+and resolved `/lib/x86_64-linux-gnu/libvulkan_lvp.so`,SHA256
+0004262f4dc95585492d55925face67a79a7c869ad8760b42ae01bd0bdb807a2.
+Record actual OS/kernel/CPU/memory, log-reported adapter/version and invocation.
+Explicit llvmpipe replaces the docs' prepared DZN context, not Forward+ quality;
+only that recorded environment is qualified. Native GPU/performance stays NOT_RUN.
+
+**Steps/proof.** One silent headless/Dummy import into owned cache/profile, then
+one authenticated private Xvfb2560×1440 session, private user data, explicitx11,
+Dummy, Forward+/Vulkan, TAA/2×MSAA/fulloriginal camera/waits. Clear inherited
+parse-only/staging-only/wayfinding capture flags. Fresh canonical output is
+`/srv/mudds-work/hero-cell-capture-20261026/images`, outside checkout/old outputs.
+Exact invocation: `timeout 300s GODOT --path CHECKOUT --display-driver x11 --audio-driver Dummy --rendering-method forward_plus --rendering-driver vulkan --resolution 2560x1440 --script res://tests/capture_hero_cell.gd`,
+with `MUDDS_CAPTURE_OUTPUT_DIR` bound to that fresh absolute output. Independent
+supervision owns abort/reap and display/profile cleanup; no active desktop,
+synthetic global focus or audible output. Require actual exit0/full
+HERO_CELL_CAPTURE_OK18marker, no unexpected diagnostics through shutdown, complete
+18image sizes/SHA/manifests and source/cache/registry identity. A sentinel alone,
+parse/staging check or historical inspection is insufficient.
+
+Inspect ALL18 originals. In particular08helmet/≥60%crimson-seat silhouette;
+07continuous canopy/glass/frame/hinge without clipping;11/12four nested engine
+layers per side;15UV/material continuity and correct concave/convex relief;
+02/04/06/08/15motif handedness;16–18continuous20×12degree exterior corridor.
+Record inspected no-finding or an actual named defect; do not invent art changes.
+Only accepted output may be copied to a unique repo artifacts directory and
+advance existing registry source/image fields; human review remains NOT_RUN.
+No schema/validator version, automatic recapture or duplicate playable build.
+
+**Stop/closure.** Original18:01:07UTC/45min/hard18:46:07 includes recipe/import/
+ONE300s capture/inspection/metadata/archive/push/process/worktree/scratch cleanup.
+First unexpected failure stops and retains source/raw/output before any causal
+priority review. No cap/wait/quality reduction or unchanged retry. Missing shader/
+hardware support is an exact environment blocker, not visual acceptance. Accepted
+source-specific capture does not close final/common-candidate, whole-art/whole-
+fleet, native hardware or human gates. Preserve prior capture failures for other
+sets and do not run them under this selection.
 
 ## Retained source-specific context
 
