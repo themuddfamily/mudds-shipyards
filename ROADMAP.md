@@ -106,6 +106,17 @@ cost charged from the same original start. The retired exact15tick procedure
 was an executor assumption; the physical predicates were fixed before trial3.
 [Actual result, failed trials and limits](docs/history/ROADMAP_DELIVERIES.md#zenith-pilot-hit-home-reuse-accepted-20261026).
 
+**Definition recorded: WORLD-ABANDON-DEFINE.**
+The [finite abandonment/next-visit binding](docs/ROADMAP_BACKLOG.md#world-abandonment-and-next-visit-binding)
+now separates Aurora/Rime survey abort, airborne approach abort, physical return
+and lifecycle rescue; it fixes the uncovered Ember next-visit and real-file
+abandonment/restart endpoints. The exact unpaid-debt retirement/cold-restart cut
+is named without asserting a runtime defect or a pass. One bounded source pass
+ended with the missing ordinary/package commands, fixtures and original limits
+assigned to Codex. No engine or qualification ran; no product goal closed.
+Do not repeat this source survey or use staged Ember interruption as ordinary
+packaged ABANDON proof. Existing full-world and durability gates remain open.
+
 **Delivered production repair: carried-cabin floor contact.**
 Checkpoint30534f5 integrates the reproduced PlayerController repair and unchanged
 captured regression. An on-foot, previously grounded Player in a live moving

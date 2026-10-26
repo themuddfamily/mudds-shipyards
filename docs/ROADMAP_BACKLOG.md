@@ -1220,7 +1220,7 @@ test is an owner/regression anchor, not a runnable ordinary route.
 | EMBER-OBSERVER | Native package observer production capability | 1 | Capability | DONE; 4270d71 source capability and startup-qualified checkpoint | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | EMBER-NATIVE-SMOKE | Native observer normal-window-close smoke | 1 | Qualification | PARKED; failed fixture/repair and priority review retained | Original frozen observer/window-close route exits normally with exact fixture/cleanup and zero diagnostics; failed fixture not retried unchanged. |
 | EMBER-PACKAGE-ABANDON | Packaged ordinary physical abandonment/home return | 1,14 | Qualification | GATED; supported OS-input route, old external-driver path UNSUPPORTED | [World](#proof-world): supported packaged OS-input outbound/physical abandonment/reboard/ascent/home dock/exit/reuse; source/memory-store pass insufficient. |
-| WORLD-ABANDON-DEFINE | Applicable Aurora/Rime abandonment and Ember reuse/durability cases | 1,14 | Definition | BLOCKED definition — Codex must identify applicable Aurora/Rime abandonment and uncovered Ember reuse/durable cuts from the existing world owners, fixing phase/caller, reboard-or-safe-home endpoint, debt and next-visit result. Missing design behavior is an exact user input; no blanket case grid. | Finite list of applicable Aurora/Rime abandonment and uncovered Ember reuse/durable cuts, each phase/caller/reboard-or-safe-return/debt/next-visit endpoint fixed. |
+| WORLD-ABANDON-DEFINE | Applicable Aurora/Rime abandonment and Ember reuse/durability cases | 1,14 | Definition | Finite source cases bound in the [abandonment and next-visit contract](#world-abandonment-and-next-visit-binding). Aurora/Rime survey abort, airborne approach abort, ordinary surface return and lifecycle rescue are distinct; tree-detach interruption is separate. Ember same-Main next visit and real-file retirement/restart remain unqualified. Execution GATED on the named ordinary/package callers and exact original route/kill/restart limits; Codex owns these missing executable bindings. Earned-but-unpaid debt must be traced through its separate reward owner before any cold-retirement pass or defect claim. One source pass complete; no unchanged survey or new matrix. | Finite list of applicable Aurora/Rime abandonment and uncovered Ember reuse/durable cuts, each phase/caller/reboard-or-safe-return/debt/next-visit endpoint fixed. |
 | WORLD-SAVE-DEFINE | Uncovered world survey/reward/reboard/visit disk boundaries | 14,31 | Definition | BLOCKED definition (Codex): list only uncovered Ember/Aurora/Rime disk boundaries with exact phase/craft, committed survey/earned-unpaid/payment fields, accepted/refused-write or owned kill cut, distinct-process command, supported reboard/home endpoint and original limits. [Planetary contracts](#planetary-recovery-boundaries) govern the result; accepted WORLD-SAVE-EMBER-FIRST-RELAY923d7b326/6112944d0 is reused, not reopened. | List actual uncovered per-world survey/earned-unpaid/paid/reboard/visit disk boundaries; expected recovery/protected state/real-file action fixed, no blanket grid. |
 | WORLD-SAVE-EMBER-FIRST-RELAY | Cold safe-yard recovery retains first-relay progress and later pays the original survey once | 14,31 | Qualification | DONE on exact archive923d7b326/caller6112944d0: saved unpaid relay, real SIGKILL/reap-9, distinct Boot Resume0, exact runtime boundary, safe yard/fresh boarding/attachment1→2/original completion and once-only receipt0→1, zero diagnostics. Correctly staged external metadata; no gameplay/predicate change/tolerance. Original300s/game/660s outer and317.447268s failed costs retained; new wall interval308.992s. [Accepted result](history/ROADMAP_DELIVERIES.md#ember-first-relay-cold-recovery--exact-package-accepted--2026-10-20). Canonical outbound/normal controls/native GPU NOT_RUN, standing-pose restore NOT_SUPPORTED; current/final-package and broader world gates remain open. | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | WORLD-EDGE-DEFINE | Applicable solo cancellation/refusal/failure/repeat cases | 14 | Definition | BLOCKED definition — Codex must bind original solo cancellation/refusal/failure/revisit cuts to world, caller, phase and expected actor/lease/reward/usable-return state; missing product outcome goes to the user. This is a finite list decision, not gameplay acceptance. | List original solo cancellation/refusal/failure/repeat cuts per world, with specific caller/phase, usable return and reward/actor/lease cleanup. |
@@ -3206,7 +3206,7 @@ new test results. No engine, capture or physical input was used for this definit
 
 | Child family / visible states | Actual owner | Existing coverage / what a new cell must establish |
 | --- | --- | --- |
-| ACCESS-TITLE: ordinary startup menu and return from browser/credits | GameHUD intro layer / `show_intro`, `_focus_intro_start_button` | `startup_loading_screen_test.gd` proves menu readiness; `controller_pause_navigation_prompt_test.gd` covers browser return and `credits_page_test.gd` covers credits return. A selected cell checks title text, Begin Shift/browser/credits buttons and retained enabled focus. Unresolved recovery choices use ACCESS-RECOVERY below.  Overflow fix DONE checkpoint19e7990: actual default1024x768 before/after component capture plus eight-viewport title/control regression; focus/credits remain. ACCESS-TITLE-FOCUS light-on-cyan finding is separate; no full-Main, other state/scale/device acceptance. |
+| ACCESS-TITLE: ordinary startup menu and return from browser/credits | GameHUD intro layer / `show_intro`, `_focus_intro_start_button` | `startup_loading_screen_test.gd` proves menu readiness; `controller_pause_navigation_prompt_test.gd` covers browser return and `credits_page_test.gd` covers credits return. A selected cell checks title text, Begin Shift/browser/credits buttons and retained enabled focus. Unresolved recovery choices use ACCESS-RECOVERY below.  Overflow fix DONE checkpoint19e7990: actual default1024x768 before/after component capture plus eight-viewport title/control regression; focus/credits remain. ACCESS-TITLE-FOCUS is DONE checkpoint923d7b3 within its recorded palette/state scope; do not reopen the old light-on-cyan finding. No full-Main, other state/scale/device acceptance. |
 | ACCESS-GAMEPLAY: approach, boarding confirmation, first-sortie tutorial, activity briefing/objective, weapon readiness, component damage, fleet registry | GameHUD interaction/tutorial/objective/weapon/component/registry panels; boarding confirmation adapter | `ultrawide_layout_test.gd` names these states and checks production Controls. Retain actual simultaneous telemetry/minimap/help/toast/interaction/status composition; one selected state/cell must preserve readable labels and nonoverlap rather than fabricate every possible card combination. |
 | ACCESS-HELP: on_foot, aboard, driving, piloting; each reachable help page, plus published copilot/loadmaster context rows | `_help_rows_for_mode`, `_help_rows_with_role_context`, `_refresh_help_page`; five rows per page | `help_overlay_accessibility_test.gd` checks paging and enabled boundary focus; `runtime_input_glyph_hud_integration_test.gd` checks device text. A cell checks all pages of one named mode/context, labels and Previous/Next/Close focus. Aircraft-specific text uses the existing selected craft; new control semantics are not implied. GAMEPAD-LOOK repairs the found camera-input gap in checkpoint99e79c3. |
 | ACCESS-ACTIVITY: selection page, current selection/status/reward summary, return from nearby page | ActivitySelectionPage / `open_activity_board`, `_show_activity_selection_page` | Existing ultrawide `activity_board` calls `open_activity_board`: this is the selection page. It does not cover NearbyActivityPage. Check visible rows/footer and return focus in one cell; preserve authored selection behavior. |
@@ -3723,6 +3723,75 @@ Quit/return/repeat remain WORLD-EDGE, canonical journeys WORLD-SOLO and shared
 interruptions the existing SHARED-* rows. Aurora missing-original waits and Rime
 parked arrival remain unchanged. All original promises/phase gates stay open;
 no surface-location waiver, automatic probe or parked-route retry is selected.
+
+<a id="world-abandonment-and-next-visit-binding"></a>
+### World abandonment and next-visit binding
+
+WORLD-ABANDON-DEFINE / original parents1,14. One bounded source-definition
+pass on integrated sourceef95885a8; no engine, probe, capture or qualification ran.
+This supplies finite existing behaviors, not new child IDs or gameplay passes.
+All337 canonical identities and the original world/recovery promises remain.
+
+**Aurora and Rime each have these four distinct existing boundaries.** Both use
+[PlanetarySurfaceVisitExpedition](../scripts/game/planetary_surface_visit_expedition.gd)
+through their existing Aurora/Rime wrappers. An internal cancellation API is not
+proof of an ordinary surface-abandon control.
+
+| Boundary and actual caller | Observable endpoint fixed by the existing owner | Retained source/test anchor and exact remaining proof |
+| --- | --- | --- |
+| ACTIVE optional survey; ordinary Interact at the Aurora trail sign or Rime orange beacon | Survey becomes FAILED with player_abandoned; same player/craft/surface lease and movement remain usable, no reward for the aborted survey; restart at that marker or reboard/return remains available. Rime heater resets to full. | Survey interact/abandon owners; existing aurora_visit_loop_test and rime_visit_loop_test component cases. Their staged scope is retained; bind ordinary candidate/input/route before qualification. |
+| Outbound/corridor; enabled Destination Board ABANDON APPROACH | request→cancel releases autopilot at the same live seated pilot/craft pose and velocity; direct flight control remains, lane/visit retire and later admission remains possible; no survey entitlement is created. | Expedition board_action_text/request/cancel and aurora_expedition_production_test outbound case. Do not replace it with surface rescue or auto re-engagement. Remaining command/profile/original phase limits must be fixed before execution. |
+| Landed/surface; reboard, then enabled RETURN TO MUDDS | Ordinary request enters _begin_return; pilot seat is required, followed by manual takeoff/clearance, home approach, real registered-berth docking and physical exit. No rescue placement supplies this physical return. Fresh arrival resets ACTIVE/FAILED survey; same-Main COMPLETED-unpaid remains retryable and paid rewards stay once-only. | _begin_return/_arrive_home and each survey _clear_previous_visit_run; bind to the existing WORLD-SOLO canonical journey. Missing ordinary/package route stays GATED, not a newly shortened abandon check. |
+| Surface/disembarking/boarding lifecycle cancel() | Existing rescue clears transition/seat/reservations/surface lease, returns controllable unseated explorer and live craft to Mudds, then streamer wind-down/home touchdown/lane idle permits readmission. | Direct cancel component cases in both visit-loop tests; this is an internal lifecycle case, not an exposed ordinary surface-abandon interaction. Tree detach saves then cancel(true), preserving interrupted restoration, and belongs to WORLD-SAVE rather than abandonment. |
+
+Shared anchors: expedition board text/request at159/225, _begin_return1046,
+_arrive_home1063, _retire_saved_visit1110, cancel1126 and _advance_retiring1215
+on this source; tests aurora_expedition_production_test outbound and direct
+surface cancellation, aurora_visit_loop_test and rime_visit_loop_test. These
+are source locations, not new passing executions. Existing activity-content and
+once-only reward contracts remain authoritative.
+
+**Exact outstanding debt cut, not a defect assertion.** Start with a genuinely
+COMPLETED survey whose reward publication was refused, with its valid earned
+entitlement and actual store document recorded. End the visit through the
+applicable existing return/cancel boundary: separately retain accepted retirement
+and refused retirement results. Then cold restart and reach the same world's
+next visit. Original earned-debt/once-only policy requires preserved valid
+entitlement, no payment from an incomplete/aborted survey, one payment after a
+successful legitimate retry and none on repeat; unrelated data stays intact.
+The visit binding's retire_interrupted_visit erases only its exact observed
+visit slot after generation/receipt checks, while refusal preserves the prior
+record. That slot contains survey data. Trace the **separate reward/debt owner**
+and its durable document before claiming loss or survival: same-Main unpaid
+retention alone proves neither. Exact fixture, reward-refusal seam, independent
+kill/restart command and original limits are still Codex-owned execution inputs.
+No new product-policy approval is inferred for the already-required earned debt.
+
+**Ember: reuse and durable retirement after the retained source ABANDON.**
+GameFlow.abandon_ember_surface_journey forwards to PlanetaryJourneyCoordinator;
+EmberSurfaceLoopHost.abandon waits while on foot/landed, lifting the survey gate
+so the same player can physically reboard. Its own takeoff must submit
+surface-clear before one commit releases leases and returns pilot command.
+Coordinator completion cancels active survey work and arms the existing Mudds
+return. Aborted work earns no survey reward. Preserve sourcee85157b4d's exact31
+physical return proof once; it uses MemoryFilesystem, fixture admission/timing
+shortcuts and original7200s source cap, not ordinary packaged durability/reuse.
+
+| Uncovered original boundary | Literal endpoint and stop boundary |
+| --- | --- |
+| Same-Main next visit after physical abandon/home/exit | Same retained host/player/craft can accept a new expedition after the first one's real surface-clear, home dock and supported exit. New visit/session/command generations replace retired ones; no old lease, abandoned route or reward is replayed. Host _rebuild_for_next_visit and existing ember_surface_loop_host_test air/surface cases plus ember_loop_soak_evidence are source/staged anchors. The soak uses MemoryFilesystem and disclosed orbital/corridor placement; it is not ordinary package proof. Missing supported OS-input second-visit command and its original complete-route limits remain GATED; do not replay accepted source ABANDON unchanged. |
+| Saved active checkpoint→abandon→home/exit→cold next visit | Record a genuine successful save_interrupted_ember_journey document, abandon the incomplete survey through the physical pending/reboard/surface-clear return, then restart using the same actual files and admit a fresh visit. Prove retired/abandoned progress cannot re-open work or earn a reward, while unrelated data and separately earned unpaid debt remain protected and eventual valid payment stays once-only. Read actual records through the existing persistence owners; in-memory host reset is insufficient. Supported ordinary/package input and exact real-file cut/restart route/limits are still missing, assigned to Codex. Do not substitute the separately accepted first-relay safe-yard recovery cut, which has no intervening abandonment. |
+
+Ember anchors: GameFlow begin/save/abandon seams, coordinator
+abandon_ember_surface_journey/_complete_ember_surface_abandon, host
+_abandon_commit_ready/_commit_abandon/_rebuild_for_next_visit,
+EmberSurfaceLoopProductionBinding abort_planetary_relay_survey and
+abandon_planetary_surface, and the existing Ember persistence tests.
+No phase/craft/device cross product or numeric deadline is invented here.
+Stop this definition pass here. A next assignment must choose one literal
+uncovered executable boundary above and fix its missing command/fixture/limits;
+no repeat source inventory is selected. WORLD-ABANDON, WORLD-SOLO, WORLD-SAVE and
+EMBER-PACKAGE-ABANDON remain open in their original complete scopes.
 
 ### Ember first-relay cold recovery — bounded contract
 
