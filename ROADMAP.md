@@ -104,6 +104,30 @@ cost charged from the same original start. The retired exact15tick procedure
 was an executor assumption; the physical predicates were fixed before trial3.
 [Actual result, failed trials and limits](docs/history/ROADMAP_DELIVERIES.md#zenith-pilot-hit-home-reuse-accepted-20261026).
 
+**Selected production repair: carried-cabin floor contact.**
+This is the demonstrated PlayerController defect discovered under
+CRAFT-ACCEPT-BULWARK, not a reopening of its parked ordinary gunner journey.
+Integrate only the captured regression and runtime correction from
+`e10dad247`/`456a0d8ea`: an already grounded, on-foot Player in a live moving
+cabin retains actual collision floor contact across a positive approximately-zero
+upward tangent residue. The original sole move, gravity, snap, margins and
+penetration recovery remain; genuine jumps, airborne motion and removed support
+must keep their existing behavior.
+
+Root owns `scripts/player/player_controller.gd`,
+`tests/player_step_up_assist_test.gd`, integration and packaging; one independent
+physics reviewer checks extraction and actual proof. Old runtime RED and repaired
+GREEN are retained, with exact controller/fixture dependency comparison to main.
+Pass requires the existing `player_step_up_assist_test.gd` suite to exit0 with
+exactly one `PLAYER_STEP_UP_ASSIST_TEST_OK`, the existing Bulwark floor contract,
+clean paired exports, strict package startups (exit0 plus one
+`STARTUP_MENU_READY_OK`) and actual payload/archive audit. All Godot checks are
+headless with Dummy audio. Publish a fresh Windows EXE/ZIP/notes and matching Linux
+checkpoint after review. Stop at the first unexpected failure; no full gunner-route
+retry or acceptance is selected. Estimate15–30minutes for extraction/checks/build/
+closure; retain all cumulative cost from02:37:33UTC, including the overrun already
+recorded below. Full craft, ordinary gunner journey and hardware gates stay open.
+
 **PARKED: CRAFT-ACCEPT-BULWARK ordinary solo gunner journey.**
 No implementation or qualification retry is selected. Six ordinary-route trials
 remain FAILED. The latest candidate `96197bf` failed the frozen outward-flight
