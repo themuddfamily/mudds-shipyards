@@ -27,7 +27,9 @@ assignment must fit this sentence:
 > **[remaining parent gates]** stay open.
 
 An implementation delivers one behavior or executable release operation, estimated
-at no more than 90 minutes including focused checks and closure. Longer complete
+at no more than 90 minutes including focused checks and closure. An estimate is
+a planning bound, not a newly invented gameplay deadline. If it is wrong, report
+the overrun against the same goal; do not manufacture another task or reset cost. Longer complete
 journeys remain separate qualification gates with their original durations.
 A milestone groups named children; it is never assigned as one coding task.
 A decision ends with the exact recorded answer. A hardware check ends with the
@@ -77,80 +79,41 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Active: Zenith original physical-handling outcome, with contract corrected.**
-The original finite craft requirement asks for working steering/roll/brake/hover/
-boost/cameras; exact15consumed ticks was Codex's candidate executor procedure,
-not an owner requirement. Independent source/scope review retires that brittle
-procedure. Both old trials and their raw/source/builds remain FAILED in archives;
-the old16tick trace (~13.23m/s) does not pass the new speed>94 observation.
+**Current product outcome: Zenith pilot handling, real hit, home and reuse.**
+This is one qualification within CRAFT-ACCEPT-ZENITH, not completion of Zenith.
+The latest playable checkpoint remains b810822. Candidate game source4bf5e88
+and driver e03b23c88 are unaccepted; no new checkpoint has been published.
 
-Before tests, bind physical outcomes: from upright controlled low-speed flight,
-current native+consumed forward/boost must produce actual speed>authored94m/s
-cruise with unchanged94/126tuning; actual consumed braking reduces velocity and
-native+consumer release is observed. Q must produce at least30deg measured
-roll/basis change from its captured upright baseline while consumed, without
-pitch/yaw/mouse confounding; after release, actual hover restores upright≥.94
-and controlled low speed. Both actual camera transitions remain. Record ALL held
-and queued-tail samples/ticks; no exact-duration claim or count normalization.
-These are declared engineering observations, not new historical/performance
-promises or whole-craft gates. No success from merely sending input.
+| Required stage, in order | Observable pass condition | Latest complete trial |
+| --- | --- | --- |
+| Reach and board | Same Player physically completes the15 walking goals and boards the sole Zenith pilot seat; original berth remains occupied | Observed |
+| Fly and handle | Actual consumed boost increases speed above authored94m/s cruise; braking reduces speed; Q rotates the captured basis≥30°; hover restores upright up.y≥.94; both camera transitions occur | Observed |
+| Hit a real target | One ordinary repeater shot, source1104, resolves against DRONE-01 within420m: health100→72, preserving28damage/.24s cadence | Observed |
+| First home and exit | Actual strict home landing/exact berth lease;90 neutral physics ticks and authored1.5s shutdown produce OFFLINE; physical exit and supported wing-clear walk | Observed |
+| Reboard and repeat | Fresh pilot input stream is consumed;90 seated observations, actual second departure, strict home/OFFLINE, physical exit and wing-clear walk | **FAIL at reboard admission:** producer stream9 is visible one sample before the cleared consumed stream becomes9. Second flight and return NOT_RUN |
+| Close normally | Actual HUD Exit returns OS0; both durable clean-close states and protected files agree; all owned processes/input/display are released | NOT_RUN |
 
-Keep SAME15goal corrected corner/admission/90seat, one genuine28hit/source1104/
-420m/.24s, two actual strict homes/oneL/ownHero timeout/4s stall/90neutral OFFLINE,
-physical exits/wing-clear walks/fresh reuse, normalHUDOS0 and both durable clean
-states. Existing15s phase/existing action guards and nativeCAP300/outer360 remain.
-Other full-craft/damage/loss/switch/Main/art/hardware/final gates stay open.
+“Observed” records partial receipts from a failed trial; it is not an accepted
+stage or permission to omit that stage from the full rerun. The whole route must
+pass on one candidate, within unchanged native300s/outer360s and existing action
+guards. Do not stage transforms, shorten shutdown, inject damage or normalize
+input counts. Exact15 boost ticks was an executor assumption, not a product
+requirement; the physical handling predicates above replace that assumption.
 
-Old75min/two-trial allocation is closed/failed. One new original-outcome candidate
-is explicitly selected after cumulative-priority review: total engineering
-estimate90min from SAME00:33:26→02:03:26UTC, a transparent15min extension with
-all prior cost retained, not a new t0 or changed owner/run budget. At most one
-new fulltrial, three cumulative; first unexpected failure ends this selection.
-Implementer owns driver/Python, root restores verified observer/selector/privacy
-and owns fresh profiles/checks/paired checkpoint/review/push/cleanup. Exact source
-GO required before tests; no new test or native trial has run yet.
+**Next bounded correction:** validate the real seat/camera/actor/source owner at
+boarding completion, permit only the demonstrated cleared neutral command while
+waiting for its fresh stream, then require matching consumption before counting
+any of the90 seated observations or departing. Retain the original12s boarding
+limit. A focused fixture must fail on premature admission and pass on the actual
+one-sample transition. Then run the full Python driver checks, entire ordinary
+route and artifact audit; reuse unchanged game exports only after exact runtime
+source and binary identity checks. No test is running during this roadmap edit.
 
-**Definition complete: CRAFT-ACCEPT-ZENITH.** Its [finite acceptance table](docs/ROADMAP_BACKLOG.md#zenith-finite-acceptance-binding)
-now names11 original journey members with concrete actions, observable results,
-production owners, retained proof and exact missing route/input/limit fields.
-Accepted LIFE-ARM walking/boarding stays closed in its recorded scope; the
-existing authored-capability map is reused. Same-subtree Main re-entry is kept
-separate from normal OS termination; no new reload feature or restart promise.
-
-Zenith itself remains open. Codex still needs executable ordinary flight/hit/
-damage/loss/home/reuse/Torrent-handback/normal-exit routes and their bound limits;
-there is no honest combined command/cap yet. This is one source definition,
-not gameplay delivery. No game, test, capture, export, checkpoint or parked retry
-ran. Existing337IDs/parent links, original17craft and accepted/parked scopes are
-preserved. No successor or repeated source survey is selected. Original
-00:27:14→00:57:14UTC/30min includes review and push; the source pass ends here.
-
-**Delivered: COMFORT-CAPTIONS[Ember surface-loop captions], checkpointb810822.**
-All18 existing interior/exterior phase and reward cues now have exact captions.
-Old-registry tests fail exactly18 planned assertions; repaired source passes all
-focused checks, paired exports, three strict startups and the actual payload audit.
-Only the compiled caption presenter differs from46bae53. Independent review GO.
-This accepts the caption capability under the fixture limits below; full comfort,
-ordinary travel and durable reward acceptance remain open. Accepted work is merged/pushed; records are verified/archived, owned scratch is
-removed and the completed branch is deleted. No successor is active.
-[Exact result and limits](docs/history/ROADMAP_DELIVERIES.md#ember-surface-live-captions-delivered-20261026).
-
-**PLAY-CONVOY ordinary driver: PARKED / not accepted.** First Python preflight
-stops on new fixture defects; the reviewed two-line fixture correction is not
-rerun because its one continuation fails in root's private profile setup before
-launch. No engine, export or full flight ran. The unaccepted source/raw are
-verified in archive; main/checkpointb810822 are restored, task branch deleted
-and owned scratch/processes removed. No third attempt is selected. Future
-selection needs fresh per-attempt profiles with reuse preflight and independent
-cumulative-priority review, preserving the full route, originalCAP300/outer360
-and00:07:44→01:22:44UTC/75min accounting.
-[Exact stops and reopening condition](docs/history/ROADMAP_DELIVERIES.md#convoy-ordinary-driver-two-stops-20261026).
-
-The [ship-rig caption membership](docs/ROADMAP_BACKLOG.md#ship-rig-caption-membership)
-is now fixed:21possible semantic IDs,19mapped and2unmapped load IDs whose method
-has no demonstrated production caller. This closes that source definition only;
-no additional live repair is selected. Reuse this result rather than surveying
-the same producer again. Wider caption/play/device gates remain unchanged.
+All four failed trials and their cumulative cost remain attached to this same
+outcome. No fresh branch, task name or estimate resets that history. Damage,
+repair, loss/regeneration, Torrent handback, Main re-entry, art/device and final
+candidate acceptance remain separate open Zenith requirements in its
+[finite acceptance binding](docs/ROADMAP_BACKLOG.md#zenith-finite-acceptance-binding).
 
 <a id="concrete-pending-capability-ember-surface-loop-captions"></a>
 ### Ember surface-loop captions: accepted capability contract
@@ -201,9 +164,10 @@ Failed journeys and their exact reopening conditions are under
 [parked work](#parked-failures-and-dependent-work). Their retained delivery
 history supplies the full proof; neither list automatically schedules a rerun.
 
-### Small execution queue
+### Blocked definition work — not an execution queue
 
-At most one assignment may be active. A broad milestone never enters this queue.
+At most one implementation assignment may be active. The following rows are
+blocked preparation work, not a backlog of runnable implementation tasks.
 Use the existing backlog row for each result; do not create another tracker.
 
 The following are **finite definition outputs**, not promises to implement whole
@@ -366,7 +330,6 @@ Full chronological results belong in the existing
 
 | Existing goal | Specific reopening requirement |
 | --- | --- |
-| CRAFT-ACCEPT-ZENITH[pilot hit/home/reuse] | Corrected corner/admission/depart/climb observed in candidate8a764b0ab; remaining blocker is the16th consumed boost tick after native release. No third under the original two-trial allocation. Later proposal needs source-backed consumer-frontier/release-debt accounting and independent cumulative-priority/full-contract/original75min review; no count normalization. [Exact second stop](docs/history/ROADMAP_DELIVERIES.md#zenith-corner-correction-release-tail-stop-20261026) |
 | PLAY-CONVOY[ordinary packaged driver] | Source7952127 is unvalidated and archived; corrected Python suite never launched. Fresh per-attempt profile namespace plus reuse preflight, then independent cumulative-priority selection with full original route/CAP300/outer360/75min accounting; no third under the closed card. [Two stops](docs/history/ROADMAP_DELIVERIES.md#convoy-ordinary-driver-two-stops-20261026) |
 | CRAFT-ACCEPT-JOVIAN[ordinary solo engineer] | Correct the source-contradictory still-attached authority predicate and log each post-stand member; independent source/cumulative review before any future selection. Both actual trials stop; no third under the closed card. Preserve full physical return/UI0 and original300/360/15s limits |
 | WALK-AFT | Bind the actual frozen Player completed-motion receipt in paused observation; last unpaused observation can lag one tick. Preserve full journey/original 60min cumulative clock/300s and360s caps; independent source GO and priority review before any new trial |
