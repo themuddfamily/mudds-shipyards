@@ -198,7 +198,10 @@ func _current_cue(cue: Tween, elapsed: float, label: String) -> bool:
 	var now := cue.get_total_elapsed_time() if retained else -1.0
 	_observations.append({"label": label, "reduced_flash": _game.get_runtime_settings().reduced_flash,
 		"alpha": alpha, "retained_tween": retained, "elapsed": now,
-		"remaining_flash_seconds": GameHUD.DAMAGE_FLASH_FADE_SECONDS - now})
+		"remaining_flash_seconds": GameHUD.DAMAGE_FLASH_FADE_SECONDS - now,
+		"baseline_elapsed": elapsed, "direction_visible": direction.is_visible_in_tree(),
+		"cue_duration": _hud.get("_damage_cue_duration"),
+		"expected_duration": GameHUD.DAMAGE_DIRECTION_FADE_SECONDS})
 	return _check(retained and direction.is_visible_in_tree() and alpha > 0.0
 		and alpha <= GameHUD.REDUCED_DAMAGE_FLASH_ALPHA + 0.000001 and now >= elapsed
 		and now < GameHUD.DAMAGE_FLASH_FADE_SECONDS
@@ -270,6 +273,7 @@ func _fail(description: String) -> void:
 	_release_keys()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	print("SETTINGS_RESTART_FAILED: ", description)
+	print("SETTINGS_RESTART_FAILURE_OBSERVATIONS: ", JSON.stringify(_observations))
 	get_tree().quit(1)
 
 
