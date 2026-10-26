@@ -94,6 +94,27 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Selected release capability / qualification: INSTALL-LINUX-RETAINED checkpoint.**
+One actual499e681→b4ff8c0 installed upgrade must load the existing earned Heavy
+save through the production reader, retain ledger1/paid terminal/settings, allow
+supported ordinary walking to the next Torpedo posting without arming it, and
+normal HUD Quit/actual OS0. Use the real8655byte orderly-close fixture
+SHA25625f9ccfe03b22018eae2cffcb52841ed5fbcff3f4a51a6c020e6c7495701aa73;
+no invented progress or in-memory actor/store mutation. New Python-only
+`retained-heavy` driver route accepts `--retained-data` only for this case,
+copies it into the existing fresh owned private profile before launch and uses
+the already shipped `heavy-breach` read-only observer. Default routes/profile
+safety, original300s/independent330s, private Xvfb/x11/Dummy remain unchanged.
+[Literal loaded-state/control contract](docs/ROADMAP_BACKLOG.md#installed-retained-heavy-load--selected-checkpoint-contract).
+Codex owns existing driver/tests only; root owns fixture/upgrade/actual checks,
+integration/push and owned branch/worktree/process/scratch cleanup; one independent
+reviewer. Conservative original16:11:00UTC/90min clock includes readiness;
+hard17:41:00. Estimate30min code,10 focused checks/review,5 actual transaction,
+10 closure, plus7 readiness already spent. Stop first unexpected failure; no
+automatic retry. No GDScript, gameplay, fresh export, discarded-game candidate or
+parked Beacon/Core/UI work is selected. Final-package/rendered-desktop/native
+hardware and broader recovery gates remain open.
+
 **Accepted qualification: Linux checkpoint upgrade499e681→b4ff8c0.**
 The shipped manager upgrades one existing installation to a fresh runtime,
 removes old owned payload, and points the launcher to exact new bytes/modes.

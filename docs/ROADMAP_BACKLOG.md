@@ -1697,7 +1697,7 @@ Recovery proof uses an owned actual OS SIGKILL, distinct restart, protected real
 | INSTALL-LINUX-CLEAN | Clean install on final Linux package | 32 | Qualification | Execution GATED on frozen final Linux package identity/export; the [accepted b4ff8c0 installed checkpoint recipe](history/ROADMAP_DELIVERIES.md#linux-installed-checkpoint-guided-qualification-accepted-20261026) supplies concrete owned paths, byte/mode/launcher checks and full Guided direct-executable command, without graphical desktop or final-candidate acceptance; final package acceptance remains PACKAGE-FINAL. Transaction definition (Codex) binds the final package to an empty isolated prefix, exact expected files/modes/version and installed launch/ordinary-usability command at original limits; no old package required; Definition finishes with fixture/prefix/XDG paths, commands, exact owned/protected files and expected modes/data/usability endpoint; it does not require a final SHA. Before execution, bind the chosen package SHA256 and resolve expected package-file bytes from its actual manifest. Missing fixture/command/endpoint fields remain BLOCKED definition. | [Final Linux installation](#proof-release): clean isolated installation with expected files/modes/version and usable installed launch; exact candidate bytes and ordinary usability, no headless-desktop substitution. |
 | INSTALL-LINUX-UPGRADE | Upgrade on final Linux package | 32 | Qualification | Execution GATED on frozen final Linux package identity/export; the [accepted499e681→b4ff8c0 checkpoint transaction](history/ROADMAP_DELIVERIES.md#linux-checkpoint-upgrade-499e681-to-b4ff8c0-accepted-20261026) supplies actual prior/candidate paths, saved-progress/settings fixture, expected payload/modes/launcher checks and installed full Guided command; final-package/rendered-desktop/retained-save gameplay reload are not accepted; final package acceptance remains PACKAGE-FINAL. Transaction definition (Codex) binds exact supported old→final packages, existing progress/settings/unowned-file fixtures, expected updated bytes/modes and usable installed launch at original limits; Definition finishes with fixture/prefix/XDG paths, commands, exact owned/protected files and expected modes/data/usability endpoint; it does not require a final SHA. Before execution, bind the chosen package SHA256 and resolve expected package-file bytes from its actual manifest. Missing fixture/command/endpoint fields remain BLOCKED definition. | [Final Linux installation](#proof-release): old→new installation updates intended bytes while preserving specified user progress/settings; exact candidate bytes and ordinary usability, no headless-desktop substitution. |
 | INSTALL-LINUX-ROLLBACK | Rollback on final Linux package | 32 | Qualification | Execution GATED on frozen final Linux package identity/export; final package acceptance remains PACKAGE-FINAL. Transaction definition (Codex) binds exact prior/candidate packages, the failed-update or selected-rollback trigger, expected restored bytes/protected data and usable prior launch at original limits; Definition finishes with fixture/prefix/XDG paths, commands, exact owned/protected files and expected modes/data/usability endpoint; it does not require a final SHA. Before execution, bind the chosen package SHA256 and resolve expected package-file bytes from its actual manifest. Missing fixture/command/endpoint fields remain BLOCKED definition. | [Final Linux installation](#proof-release): failed/selected rollback restores specified prior installed bytes and protected data, then usable launch; exact candidate bytes and ordinary usability, no headless-desktop substitution. |
-| INSTALL-LINUX-RETAINED | Retained-data handling on final Linux package | 32 | Qualification | Execution GATED on frozen final Linux package identity/export; final package acceptance remains PACKAGE-FINAL. Transaction definition (Codex) binds the final package, existing valid user-data fixture, exact preserved progress/settings and installed reload/ordinary-usability command at original limits; Definition finishes with fixture/prefix/XDG paths, commands, exact owned/protected files and expected modes/data/usability endpoint; it does not require a final SHA. Before execution, bind the chosen package SHA256 and resolve expected package-file bytes from its actual manifest. Missing fixture/command/endpoint fields remain BLOCKED definition. | [Final Linux installation](#proof-release): install/update with existing valid user data preserves required progress/settings and loads correctly; exact candidate bytes and ordinary usability, no headless-desktop substitution. |
+| INSTALL-LINUX-RETAINED | Retained-data handling on final Linux package | 32 | Qualification | Final execution GATED on final Linux package identity/export; existing checkpoint [retained Heavy load contract](#installed-retained-heavy-load--selected-checkpoint-contract) is selected for its missing ordinary release caller and actual b4 load after499→b4 upgrade. It freezes real fixture/protected fields, normal E/load/walk/nextposting/UIOS0 and ownership; no final/rendered/native claim. Python-only implementation owns existing driver/test, unchanged packaged heavy observer. Original16:11UTC/90min/hard17:41 includes readiness/checks/closure; first-failure stop. | [Final Linux installation](#proof-release): install/update with existing valid user data preserves required progress/settings and loads correctly; exact candidate bytes and ordinary usability, no headless-desktop substitution. |
 | INSTALL-LINUX-CORRUPT | Corrupt-data handling on final Linux package | 32 | Qualification | Execution GATED on frozen final Linux package identity/export; final package acceptance remains PACKAGE-FINAL. Transaction definition (Codex) binds the final package, exact corrupt-data/recovery-copy fixture, expected safe fallback/protected copies and installed ordinary-usability command at original limits; Definition finishes with fixture/prefix/XDG paths, commands, exact owned/protected files and expected modes/data/usability endpoint; it does not require a final SHA. Before execution, bind the chosen package SHA256 and resolve expected package-file bytes from its actual manifest. Missing fixture/command/endpoint fields remain BLOCKED definition. | [Final Linux installation](#proof-release): install/update with named corrupt data selects specified safe fallback while protecting valid recovery copies; exact candidate bytes and ordinary usability, no headless-desktop substitution. |
 | INSTALL-LINUX-UNINSTALL | Uninstall on final Linux package | 32 | Qualification | Execution GATED on frozen final Linux package identity/export; final package acceptance remains PACKAGE-FINAL. Transaction definition (Codex) binds the installed final package ownership manifest, protected saves/unowned-file fixtures and exact post-uninstall/reinstall results at original limits. Accepted named interruption cuts remain retained; Definition finishes with fixture/prefix/XDG paths, commands, exact owned/protected files and expected modes/data/usability endpoint; it does not require a final SHA. Before execution, bind the chosen package SHA256 and resolve expected package-file bytes from its actual manifest. Missing fixture/command/endpoint fields remain BLOCKED definition. | [Final Linux installation](#proof-release): uninstall removes only managed package/entry files, preserves saves/unowned files and permits correct reinstall; exact candidate bytes and ordinary usability, no headless-desktop substitution. |
 | LINUX-LAUNCH-DESKTOP | Installed desktop entry ordinary graphical play | 32 | Qualification | WAITING; clean isolated graphical Linux session | Actual final installed desktop entry launches and completes frozen ordinary route in clean isolated graphical Linux session; headless menu insufficient. |
@@ -3739,6 +3739,60 @@ Scope: original §6 and retained installed-interruption milestone. Final-candida
 | MATRIX[one frozen integrated candidate] | GATED on targeted repairs/integration | Clean import and existing unfiltered `--mode all` matrix at original suite/long caps, no exclusions, including isolated graphics. Stop at complete result; failures become named child fixes. Do not rerun whole matrix for every small change. |
 | FINAL-RECONCILE[one candidate] | GATED on required content, matrix and applicable platform/device/performance/audio/endurance/install/capture/signing results | Reconcile all original promises and exact candidate results with existing `release_candidate.py`, candidate record and `SHA256SUMS`. Zero open P0/P1, explicit reviewed P2/residual-risk dispositions including RENDER-001 where applicable. Changed source invalidates affected qualification; owner exclusions stay excluded. Stop at actual complete or named unmet gates, never a new evidence layer. |
 | DISTRIBUTE[accepted candidate] | GATED on FINAL-RECONCILE and authorized destination/publication | Publish exact qualified artifacts/checksums and concise player-facing notes using existing release flow. Stop after byte identity and download checks. No Downloads copy or public publication implied by local checkpoints. |
+
+### Installed retained Heavy load — selected checkpoint contract
+
+Existing INSTALL-LINUX-RETAINED, checkpoint case selected2026-10-26/source103ca4593.
+Prior499e681→b4ff8c0 transaction proves bytes/modes only. This assignment adds the
+missing ordinary production-load release caller, not another save validator.
+Own only `tools/release/run_native_sortie.py` and its existing Python test. Reuse
+existing b4 exported `heavy-breach` observer; no game/GDScript/export change.
+
+Input is actual `ordinary-sortie/orderly-close.json` from accepted
+`/srv/mudds-work/heavy-picket-damage-admission-20261025/results/case-records.tar.gz`:
+8655bytes/SHA25625f9ccfe03b22018eae2cffcb52841ed5fbcff3f4a51a6c020e6c7495701aa73,
+generation19, clean crash/session1/startup1/unclean0 and clean safe-start1/failures0.
+It contains exactly one non-replayable generation1 Heavy credit, acknowledged
+terminal generation floor1/offered index1, schema11 settings, on-foot Arrow home
+preference and seen tutorial `shipyard_heavy_breach`. This is a declared valid
+fixture; do not synthesize its entitlement or mutate live authority state.
+
+Use the existing shipped manager to install499 and upgrade the same owned prefix
+to b4, preserving that fixture and unowned files/bytes/modes; resolve installed
+ELF from manifest and compare fixed archive/export bytes/modes/launcher. The
+new opt-in route `retained-heavy --retained-data FILE` seeds only
+`PROFILE/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json` inside the
+existing new TemporaryDirectory, before launching. Reject this input flag on
+all other routes. Keep private XDG ownership, bounded input/abort/process cleanup
+and300s single-route cap; do not accept an arbitrary reusable user profile.
+
+At normal menu_ready, independently read actual primary save at the observer's
+owned profile path: require source primary, generation advancement and healthy
+session/startup2/no unclean start or recovery recommendation. The live decoded
+reward authority must equal fixture ledger1, runtime settings and paid Heavy
+terminal stay exact. The cold director is deliberately IDLE/active generation0,
+while the board restores `torpedo_run`, highest paid generation1, pending0,
+unarmed. Do not misuse the combat-era require_paid generation equality.
+
+Press ordinary E on BEGIN SHIFT, enter APPROACH_SHIP at authored spawn; clean
+quit retains safe home preference, not former actor position. With current stable
+actors/awake supported controls, follow existing Heavy outbound waypoints
+(-8.5,.18,6)→(8,.18,6)→(8,.18,-24), using existing bounded walking/steering and
+completed-motion/support predicates. Require the actual board candidate/available
+TORPEDO RUN prompt; do not arm, shoot, start an activity or award again. Pause and
+use observed Escape/Tab/Return controls on EXIT TO DESKTOP; require actual OS0,
+released inputs and all helper/game/Xvfb reaped. Independent final primary capture
+must contain both clean markers and unchanged ledger, terminal, settings and
+other protected siblings. Permit only the existing named ordinary session/safety
+updates; no unlisted progress loss or additional receipt is allowed.
+
+Conservative original16:11:00UTC/90min includes readiness/code/253-style existing
+focused suite/review, one actual installed continuation, checks, integration/push
+and branch/worktree/process/scratch cleanup; hard17:41:00. Stop first unexpected
+failure and retain source/result; no automatic correction/retry. No duplicate
+export is needed for Python-only driver work. This can close only this checkpoint
+retained-load case; final INSTALL-LINUX-RETAINED, rendered desktop/device/native
+hardware and other recovery/active-run cases retain their original gates.
 
 ### Rights families and missing documents — RIGHTS-DEFINE
 
