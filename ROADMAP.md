@@ -108,9 +108,11 @@ velocity. Full Player/Aft/station-surface/interior checks, isolated Forward+
 capture, paired exports, three strict startups and actual1529-entry payload audit
 pass. Only the compiled Aft module changes from3649b4b.
 [Exact result, failures and source limits](docs/history/ROADMAP_DELIVERIES.md#aft-stair-base-supported-contact-accepted-20261026).
-Full handback remains PARKED; no fourth whole route ran. Integration and owned
-archive/branch/worktree cleanup are being closed on the original09:51UTC clock;
-this task has exceeded its90minute engineering estimate.
+Full handback remains PARKED; no fourth whole route ran. Integration is pushed;
+owned branch/worktree/process/scratch cleanup is complete with a verified archive.
+Archive closure records114.325minutes from the original09:51UTC start against
+the90minute estimate; final closure cost remains in closeout.json. Only `main`
+remains locally; unrelated detached diagnostics are retained.
 
 **Zenith/Torrent handback is parked and unqualified.** Three bounded native
 trials stopped before Torrent boarding, Guided or Zenith reclaim. The final run

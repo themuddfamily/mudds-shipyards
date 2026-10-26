@@ -28392,5 +28392,14 @@ handback stays PARKED/NOT_QUALIFIED; no fourth whole route ran. NativeGPU,
 physical input and full-release facts remain NOT_RUN; native Windows execution
 is NOT_RUN/owner-excluded. GitHub Actions stays disabled. Original09:51UTC
 clock/90minute estimate continue; integration preparation is112.258minutes,
-with closure charged to the same clock. Owned cleanup: PENDING verified archive,
-exact branch/worktree removal and final closure push.
+with closure charged to the same clock. Owned cleanup is complete: verified source bundle and full raw archive,
+exact branch/worktree removal, and all27 supervisors/81 observed process
+identities absent. Only main remains locally; unrelated detached diagnostic
+worktrees/old registrations are preserved. Task scratch contains only
+`/srv/mudds-work/aft-stair-base-contact-20261026/records.tar.gz` and closeout.json.
+Archive is90,860,288bytes, SHA256
+`f4a5c6d6dcff2396ca07b441c1c5cf89df7d80183b9a3f40a454c8e6e9cebde9`;
+all576 regularfiles/27links, member names/modes/hashes and sourcebundle verified
+before deletion. Canonical11 checkpoint files retain their exact verified hashes.
+Archive closure records114.325minutes from09:51UTC against90minutes;
+final documentation/push cost continues in the same closeout clock.
