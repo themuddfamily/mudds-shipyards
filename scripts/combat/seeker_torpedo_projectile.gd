@@ -299,6 +299,9 @@ func set_reduced_flash_enabled(enabled: bool) -> Dictionary:
 	_reduced_flash = enabled
 	for slot_index in _slots.size():
 		_refresh_slot_visual(slot_index)
+		# Terminal bursts outlive their released flight slots. Restyle those
+		# separately, without restarting or advancing their remaining lifetime.
+		_refresh_burst_visual(slot_index)
 	return get_presentation_profile_snapshot()
 
 
@@ -757,6 +760,21 @@ func _advance_burst(slot_index: int, delta: float) -> void:
 	if remaining <= 0.0:
 		burst.visible = false
 		return
+	_refresh_burst_visual(slot_index)
+
+
+## Repaint an existing burst at its current age; a settings change owns no time.
+func _refresh_burst_visual(slot_index: int) -> void:
+	var slot: Dictionary = _slots[slot_index]
+	var remaining := float(slot.get("burst_remaining", 0.0))
+	var burst := slot.get("burst") as MeshInstance3D
+	if remaining <= 0.0 or not is_instance_valid(burst):
+		return
+	var material := (
+		_materials.reduced_burst if _reduced_flash else _materials.burst
+	) as Material
+	if burst.material_override != material:
+		burst.material_override = material
 	var progress := 1.0 - remaining / INTERCEPT_BURST_SECONDS
 	var peak := REDUCED_FLASH_BURST_MAX_SCALE if _reduced_flash else BURST_MAX_SCALE
 	burst.scale = Vector3.ONE * lerpf(1.0, peak, sin(progress * PI))
