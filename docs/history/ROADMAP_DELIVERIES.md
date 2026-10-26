@@ -21,7 +21,8 @@ releases for10. Actual grounded projection3.226154m is above the frozen0.05m
 threshold; controls/ownership remain current and Zenith remains unmoved/unpiloted.
 The new frame/movement bounds are declared fixture observations, not historical
 flight or performance deadlines. Existing staged approach/accelerated boarding/
-missed-fire/staged return and every original wait remain unchanged.
+missed-fire/staged return and every original sortie wait remain unchanged; the declared reentry observation
+window is the new30-pair bound.
 
 Import and complete existing suite pass:57 assertions, OS0, exactly one
 ZENITH_FLEET_DOCK_INTEGRATION_TEST_OK, no diagnostics, tracked-source/cache mutation
@@ -41,6 +42,21 @@ art/clearance and original native/device/human/final gates remain open/NOT_RUN.
 
 Original09:40:00UTC clock and45minute estimate include readiness, implementation,
 checks, source/result review, integration/push and exact owned cleanup; no cap reset.
+
+
+Closure: accepted work integrated in verified pushed main `f26cf2d48cab5e0f00be38384bc5353ecebbda47`.
+Exact owned worktree/loose scratch removed; both supervisors and all4 observed
+process identities absent. Fresh remote tips/worktree ownership verified before
+CAS deletion of the completed local branch; its remote branch was absent. Only
+`main` remains locally. Unrelated detached retired diagnostic/profiler/station
+worktrees and old prunable `/tmp` registrations are retained unchanged.
+
+Verified `/srv/mudds-work/zenith-retained-main-20261026/records.tar.gz`:
+7588662bytes, SHA-256 `d633ef01ecb2182252dadbc31d8b5dcfdbc0853eb8a20cece251008c83f9a770`,
+38regular files/2links; complete membership/content/modes/links and source bundle
+verified. Task folder contains only archive and `closeout.json`. Cumulative cost
+through closure preparation11.084minutes from09:40:00UTC against45minute
+estimate; final docs/push stay on the same clock. Full original scope remains open.
 
 
 ## Shared Reduced flash native restart accepted 20261026
