@@ -612,35 +612,194 @@ func _test_physical_sortie(
 		"complete Zenith sortie leaves the Torrent guide and every range contact untouched"
 	)
 
+	# This is the existing staged, healthy, on-foot settled boundary only.
+	# Empty claims/effects prove absence of resurrection, not active teardown.
+	var area := zenith.get_node("ShipBoardingArea") as ShipBoardingArea
+	var model := zenith.get_component_damage()
+	var state_before: Dictionary = _settled_reentry_state(game, player, zenith, berth, area)
+	_check(
+		bool(state_before.get("settled", false)),
+		"retained-Main starts at the healthy neutral on-foot boundary: %s" % state_before
+	)
+	if not bool(state_before.get("settled", false)):
+		return
 	var fleet_before_reentry := game.get_flyable_ships()
 	var game_id := game.get_instance_id()
+	var world_id := world.get_instance_id()
 	var player_id := player.get_instance_id()
 	var zenith_id := zenith.get_instance_id()
 	var berth_id := berth.get_instance_id()
 	var feedback_id := feedback.get_instance_id()
 	var presentation_id := zenith.get_zenith_authored_presentation().get_instance_id()
 	var identity_before := zenith.get_zenith_runtime_identity_report().current as Dictionary
+	var ledger_before: Dictionary = model.get_ledger_snapshot()
+	var player_pose_before: Transform3D = player.global_transform
+	var dock_pose_before: Transform3D = zenith.global_transform
+	var active_ship_before := game.get_active_ship()
 	root.remove_child(game)
 	await process_frame
 	root.add_child(game)
-	await process_frame
-	await physics_frame
-	_check(
-		game.get_instance_id() == game_id and player.get_instance_id() == player_id
-		and zenith.get_instance_id() == zenith_id and berth.get_instance_id() == berth_id
-		and feedback.get_instance_id() == feedback_id
-		and zenith.get_zenith_authored_presentation().get_instance_id() == presentation_id,
-		"whole-Main detach/re-entry preserves world, player, Zenith, berth, feedback and authored-art identities"
+	var roster: Dictionary = {}
+	var restored := false
+	for _restore_tick in 30:
+		await physics_frame
+		await process_frame
+		roster = game.get_live_combat_source_roster_audit()
+		if bool(roster.get("valid", false)):
+			restored = true
+			break
+	_check(restored, "retained-Main restores its complete combat roster within 30 pairs: %s" % roster)
+	if not restored:
+		return
+	var retained_game := root.get_node_or_null(NodePath(str(game.name))) as GameFlow
+	var retained_world := game.get_node_or_null("ShipyardWorld") as ShipyardWorld
+	var retained_player := game.get_node_or_null("Player") as PlayerController
+	var retained_zenith := game.get_node_or_null("ZenithInterceptor") as ZenithInterceptor
+	var retained_berth: ShipBerth = (
+		retained_world.get_berth_node(ZENITH_BERTH_ID) if retained_world != null else null
 	)
+	var retained_feedback: ShipBerthFeedback = (
+		retained_berth.get_node_or_null("BerthFeedback") as ShipBerthFeedback
+		if retained_berth != null else null
+	)
+	var identities_present := (
+		retained_game != null and retained_world != null and retained_player != null
+		and retained_zenith != null and retained_berth != null and retained_feedback != null
+	)
+	_check(identities_present, "retained-Main resolves all original live nodes after re-entry")
+	if not identities_present:
+		return
+	_check(
+		retained_game.get_instance_id() == game_id
+		and retained_world.get_instance_id() == world_id
+		and retained_player.get_instance_id() == player_id
+		and retained_zenith.get_instance_id() == zenith_id
+		and retained_berth.get_instance_id() == berth_id
+		and retained_feedback.get_instance_id() == feedback_id
+		and retained_zenith.get_zenith_authored_presentation().get_instance_id() == presentation_id,
+		"whole-Main detach/re-entry preserves re-resolved Main, world, player, Zenith, berth, feedback and authored-art identities"
+	)
+	if not _failures.is_empty():
+		return
 	_check(
 		game.get_flyable_ships() == fleet_before_reentry
-		and int(authority.call("get_source_id", zenith)) == 1104
-		and (zenith.get_zenith_runtime_identity_report().current as Dictionary) == identity_before
-		and bool(zenith.get_zenith_runtime_identity_report().stable)
-		and bool(zenith.get_zenith_audit_report().get("valid", false))
-		and bool(world.get_fleet_dock_comb_integration_audit_report().get("valid", false)),
+		and game.get_combat_authority() == authority
+		and int(authority.call("get_source_id", retained_zenith)) == 1104
+		and (retained_zenith.get_zenith_runtime_identity_report().current as Dictionary) == identity_before
+		and bool(retained_zenith.get_zenith_runtime_identity_report().stable)
+		and bool(retained_zenith.get_zenith_audit_report().get("valid", false))
+		and bool(retained_world.get_fleet_dock_comb_integration_audit_report().get("valid", false)),
 		"re-entry retains the nine-craft registry, source 1104 and all Zenith/Fleet Dock audits without rebuilding"
 	)
+	if not _failures.is_empty():
+		return
+	var state_after: Dictionary = _settled_reentry_state(
+		game, retained_player, retained_zenith, retained_berth,
+		retained_zenith.get_node("ShipBoardingArea") as ShipBoardingArea
+	)
+	_check(
+		state_after == state_before and retained_zenith.get_component_damage() == model
+		and model.get_ledger_snapshot() == ledger_before
+		and retained_player.global_transform.is_equal_approx(player_pose_before)
+		and retained_zenith.global_transform.is_equal_approx(dock_pose_before)
+		and game.get_active_ship() == active_ship_before,
+		"re-entry preserves healthy ledger, poses, lease, OFFLINE, settled claims/effects and on-foot ownership: before=%s after=%s ledger_before=%s ledger_after=%s player_before=%s player_after=%s"
+		% [state_before, state_after, ledger_before, model.get_ledger_snapshot(),
+			player_pose_before, retained_player.global_transform]
+	)
+	if not _failures.is_empty():
+		return
+	# Mirror PlayerController's public-camera-relative on-foot move_left direction.
+	# Camera pitch is removed as in the production movement sampler; no pose is staged.
+	var camera_forward: Vector3 = (
+		-retained_player.get_camera().global_basis.z
+	).slide(Vector3.UP).normalized()
+	var move_left_direction: Vector3 = -camera_forward.cross(Vector3.UP).normalized()
+	var walk_origin: Vector3 = retained_player.global_position
+	var supported := retained_player.is_on_floor()
+	var ownership_preserved := true
+	var ship_immobile := true
+	Input.action_press(&"move_left")
+	for _walk_tick in 24:
+		await physics_frame
+		await process_frame
+		supported = supported and retained_player.is_on_floor()
+		ownership_preserved = ownership_preserved and (
+			not retained_player.is_seated() and retained_player.is_control_enabled()
+			and not retained_player.is_remote_driven() and not retained_zenith.is_piloted()
+			and game.phase == GameFlow.Phase.APPROACH_SHIP
+			and game.get_active_ship() == active_ship_before
+			and not bool(game.get("_transition_busy"))
+		)
+		ship_immobile = ship_immobile and retained_zenith.global_transform.is_equal_approx(dock_pose_before)
+	Input.action_release(&"move_left")
+	var walk_projection: float = (retained_player.global_position - walk_origin).dot(move_left_direction)
+	for _neutral_tick in 10:
+		await physics_frame
+		await process_frame
+		supported = supported and retained_player.is_on_floor()
+		ownership_preserved = ownership_preserved and (
+			not retained_player.is_seated() and retained_player.is_control_enabled()
+			and not retained_player.is_remote_driven() and not retained_zenith.is_piloted()
+			and game.phase == GameFlow.Phase.APPROACH_SHIP
+			and game.get_active_ship() == active_ship_before
+			and not bool(game.get("_transition_busy"))
+		)
+		ship_immobile = ship_immobile and retained_zenith.global_transform.is_equal_approx(dock_pose_before)
+	_check(
+		supported and ownership_preserved and ship_immobile and walk_projection > 0.05
+		and _settled_reentry_state(game, retained_player, retained_zenith, retained_berth, area) == state_before
+		and model.get_ledger_snapshot() == ledger_before,
+		"retained Player consumes move_left for 24 pairs and remains supported through 10 neutral pairs: origin=%s end=%s direction=%s projection=%f grounded=%s ownership=%s ship_immobile=%s ship_before=%s ship_after=%s state=%s ledger_before=%s ledger_after=%s"
+		% [walk_origin, retained_player.global_position, move_left_direction, walk_projection,
+			supported, ownership_preserved, ship_immobile, dock_pose_before,
+			retained_zenith.global_transform,
+			_settled_reentry_state(game, retained_player, retained_zenith, retained_berth, area),
+			ledger_before, model.get_ledger_snapshot()]
+	)
+
+
+func _settled_reentry_state(
+	game: GameFlow, player: PlayerController, zenith: ZenithInterceptor,
+	berth: ShipBerth, area: ShipBoardingArea
+	) -> Dictionary:
+	var telemetry: Dictionary = zenith.get_telemetry()
+	var hull: float = float(telemetry.get("hull", -1.0))
+	var healthy: bool = (
+		not zenith.is_destroyed() and is_equal_approx(hull, zenith.maximum_hull)
+		and is_equal_approx(zenith.get_component_damage().get_worst_integrity(), 1.0)
+	)
+	var neutral := true
+	for action in [&"interact", &"move_forward", &"move_back", &"move_left", &"move_right", &"fire", &"landing_assist"]:
+		neutral = neutral and not Input.is_action_pressed(action)
+	var state: Dictionary = {
+		"phase": game.phase,
+		"transition_busy": bool(game.get("_transition_busy")),
+		"player_seated": player.is_seated(), "player_controlled": player.is_control_enabled(),
+		"player_remote_driven": player.is_remote_driven(),
+		"piloted": zenith.is_piloted(), "boardable": zenith.is_boardable(),
+		"healthy": healthy, "hull": hull,
+		"engine_state": str(telemetry.get("engine_state", &"")).to_upper(),
+		"landed": bool(telemetry.get("landed", false)),
+		"berth_occupant": berth.get_occupant(), "berth_reservation": berth.get_reservation_owner(),
+		"boarding_reserved": area.is_reserved(), "boarding_token": area.get_reservation_token(),
+		"pulse_effects": game.pulse_presentation.get_active_effect_count(),
+		"damage_presentations": zenith.get_pending_damage_presentation_count(),
+		"combat_receipts": game.get_pending_combat_presentation_receipt_count(),
+		"audio_voices": game.get_combat_audio_presentation().get_state_snapshot().get("active_voice_names", PackedStringArray()),
+		"neutral": neutral,
+	}
+	state["settled"] = (
+		game.phase == GameFlow.Phase.APPROACH_SHIP and not bool(state.transition_busy)
+		and not player.is_seated() and player.is_control_enabled() and not player.is_remote_driven()
+		and not zenith.is_piloted() and zenith.is_boardable() and healthy and neutral
+		and state.engine_state == "OFFLINE" and bool(state.landed)
+		and berth.get_occupant() == zenith and berth.get_reservation_owner() == zenith
+		and not area.is_reserved() and area.get_reservation_token() == null
+		and int(state.pulse_effects) == 0 and int(state.damage_presentations) == 0
+		and int(state.combat_receipts) == 0 and (state.audio_voices as PackedStringArray).is_empty()
+	)
+	return state
 
 
 ## The comb now assigns more than one dock, so rows are selected by their stable

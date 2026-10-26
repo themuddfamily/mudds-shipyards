@@ -132,7 +132,9 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
   New30/24/10-frame observations and0.05m movement are declared fixture bounds,
   not historical whole-craft deadlines or performance claims.
 - **Dependencies/limits:** existing staged Main/Zenith fixture and public ledger,
-  claim, command/effect/roster observers; exact APIs must be reviewed before run.
+  claim, command/effect/roster observers plus read-only `_transition_busy` for the
+  exact no-transition predicate. Movement follows the actual camera-relative
+  Player move-left direction sampled before the walk; no pose staging.
   Empty settled claims/effects prove absence of stale resurrection, not retirement
   of populated in-flight claims. Damage/repair/loss/handback/art/native gates remain open.
 - **Stop and closure:** stop at first unexpected failure for causal review; no
