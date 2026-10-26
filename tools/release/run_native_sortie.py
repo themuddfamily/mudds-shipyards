@@ -9236,6 +9236,7 @@ class CrewRecoveryPilot(LifeTowPilot):
             require(self.initial is not None and s['main_id'] == self.initial['main_id']
                     and self.stage in ('restart_pause', 'restart_exit_wait'), 'only terminal normal pause UI')
             return
+        if self.stage == 'helm_seating': self.require_helm_assignment(s)
         require(s['actors_current'] and s['ship_definition_id'] == 'jovian_provisional'
                 and s['home_berth_id'] == 'jovian_freight_berth' and not s['destroyed']
                 and not s['remote_piloted'], 'current supported live solo Jovian and authored home')
@@ -9286,6 +9287,16 @@ class CrewRecoveryPilot(LifeTowPilot):
                 and crew['authority_id'] == 0 and not crew['assignment']
                 and all(c[k] for k in ('frame_id', 'registered', 'contained', 'hatch_reserved', 'owner_current')),
                 'fresh awake unseated supported home cabin and hatch without old claims')
+
+    @staticmethod
+    def require_helm_candidate(s):
+        require(s['candidate'] and not s['station_candidate'],
+                'ordinary helm Interact requires the actual ship candidate without a competing station')
+
+    @staticmethod
+    def require_helm_assignment(s):
+        require(not s['crew']['assignment'],
+                'helm Interact must not acquire any crew assignment, including an unfinished transition')
 
     @staticmethod
     def require_throttle(s):
@@ -9368,6 +9379,7 @@ class CrewRecoveryPilot(LifeTowPilot):
             pitch = math.asin(max(-1, min(1, direction[1])))-math.asin(max(-1, min(1, s['camera_forward'][1])))
             dy = round(max(-180, min(180, -pitch/s['walk_tuning']['mouse'])))
             if abs(yaw) < .08 and abs(pitch) < .08 and not s['native_interact'] and (s['crew']['candidate'] if engineer else True):
+                if not engineer: self.require_helm_candidate(s)
                 self.tap('e', now)
                 if self.tap_key == 'e': self.enter('crew_seating' if engineer else 'helm_seating', s)
         elif self.stage == 'crew_seating':

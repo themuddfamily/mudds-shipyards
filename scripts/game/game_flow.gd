@@ -18760,7 +18760,7 @@ func _cabin_cockpit_precedes_crew_seat(seat: ShipCrewSeat, origin: Vector3, faci
 	else:
 		var frame := _cabin_ship.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
 		var containment: Dictionary = player.get_cabin_containment_report()
-		if _network_session_is_live() or (_cabin_ship is not CinderCargoHauler and _cabin_ship is not HalyardCrewTransport) \
+		if _network_session_is_live() or (_cabin_ship is not CinderCargoHauler and _cabin_ship is not HalyardCrewTransport and _cabin_ship is not JovianLightFreighter) \
 				or not is_instance_valid(frame) or not frame.is_occupant_registered(player) \
 				or not bool(containment.get("active", false)) or containment.get("frame") != _cabin_ship \
 				or not is_instance_valid(_boarding_area) or _boarding_area.get_ship() != _cabin_ship \

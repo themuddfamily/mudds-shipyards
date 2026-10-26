@@ -6741,6 +6741,26 @@ class CrewRecoverySafetyTests(unittest.TestCase):
         s['crew'].update(seated=False, current=False, tagged=False, authority_id=0, assignment={})
         return s
 
+    def test_helm_press_requires_ship_candidate_and_fails_first_unfinished_wrong_assignment(self):
+        s = self.awake()
+        s.update(candidate=True, station_candidate={})
+        native.CrewRecoveryPilot.require_helm_candidate(s)
+        native.CrewRecoveryPilot.require_helm_assignment(s)
+        for mutation in [lambda state: state.update(candidate=False),
+                         lambda state: state.update(station_candidate={'path': 'CopilotSeatAnchor/SoloPassengerSeatInteraction'})]:
+            bad = copy.deepcopy(s); mutation(bad)
+            with self.assertRaisesRegex(AssertionError, 'actual ship candidate'):
+                native.CrewRecoveryPilot.require_helm_candidate(bad)
+        # Retained cold frame615 already has the wrong assignment while
+        # current=false, seated=false and transition_busy=true. Reject it now.
+        s.update(mode='crew-recovery', pid=42, sequence=1, paused=False, transition_busy=True)
+        s['crew'].update(current=False, seated=False,
+                         assignment={'seat_id': 'co_pilot_station', 'role': 'passenger'})
+        pilot = native.CrewRecoveryPilot(cold=True, expected_pid=42)
+        pilot.stage = 'helm_seating'
+        with self.assertRaisesRegex(AssertionError, 'any crew assignment'):
+            pilot.validate_observation(s)
+
     def test_current_claim_and_cold_home_reject_role_seat_and_restored_authority(self):
         native.CrewRecoveryPilot.require_crew(self.claim())
         native.CrewRecoveryPilot.require_awake_home(self.awake())
