@@ -189,11 +189,12 @@ func _run() -> void:
 ## Main physics is suspended to prevent a competing station-position sample.
 ## The focused cargo suite separately checks all high-energy authority states.
 func _check_cargo_terminal_setting_path(game: GameFlow, settings: RuntimeSettings) -> void:
+	var world := game.world as ShipyardWorld
 	var streaming := game.get_node(^"CinderStreamingProductionBinding") as CinderStreamingProductionBinding
 	var bootstrap := game.get_node(^"CinderStreamingBootstrap") as CinderStreamingBootstrap
 	var was_processing := game.is_physics_processing()
 	game.set_physics_process(false)
-	_check(game.world.get_nearby_sector_cluster() == null,
+	_check(world.get_nearby_sector_cluster() == null,
 		"cargo settings integration starts before any Cinder generation is loaded")
 	settings.reduced_flash = true
 	await process_frame
@@ -202,7 +203,7 @@ func _check_cargo_terminal_setting_path(game: GameFlow, settings: RuntimeSetting
 	if not loaded:
 		game.set_physics_process(was_processing)
 		return
-	var cluster := game.world.get_nearby_sector_cluster()
+	var cluster := world.get_nearby_sector_cluster()
 	var cluster_id := cluster.get_instance_id()
 	var terminal := cluster.get_cinder_cargo_destination_terminal()
 	var terminal_id := terminal.get_instance_id()
@@ -218,7 +219,7 @@ func _check_cargo_terminal_setting_path(game: GameFlow, settings: RuntimeSetting
 		await process_frame
 		var expected := original.duplicate(true)
 		expected["reduced_flash"] = enabled
-		_check(game.world.get_nearby_sector_cluster().get_instance_id() == cluster_id
+		_check(world.get_nearby_sector_cluster().get_instance_id() == cluster_id
 			and terminal.get_instance_id() == terminal_id and screen.material_override == material
 			and terminal.get_cargo_presentation_state() == expected
 			and is_equal_approx(material.emission_energy_multiplier, 0.18),
@@ -229,7 +230,7 @@ func _check_cargo_terminal_setting_path(game: GameFlow, settings: RuntimeSetting
 		loaded = await _wait_cargo_streaming(game, streaming, bootstrap, true, CinderStreamingBootstrap.EXPECTED_NAVIGATION_ANCHOR)
 		_check(loaded, "cargo settings integration loads a fresh Cinder generation")
 		if loaded:
-			var fresh := game.world.get_nearby_sector_cluster()
+			var fresh := world.get_nearby_sector_cluster()
 			var fresh_terminal := fresh.get_cinder_cargo_destination_terminal()
 			var fresh_material := (fresh_terminal.get_node(^"StatusScreen") as MeshInstance3D).material_override as StandardMaterial3D
 			_check(not settings.reduced_flash and fresh.get_instance_id() != cluster_id
