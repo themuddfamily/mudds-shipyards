@@ -1,15 +1,16 @@
 # Development roadmap
 
 **Playable alpha; full original scope remains unfinished.** Latest Windows build:
-[f51e02a checkpoint](builds/windows/MuddsShipyards-f51e02a-checkpoint.zip)
-([changes and validation](builds/windows/MuddsShipyards-f51e02a-notes.txt)).
-Matching [Linux checkpointf51e02a](builds/linux/MuddsShipyards-f51e02a-linux-x86_64.tar.gz)
-([Linux validation](builds/linux/MuddsShipyards-f51e02a-linux-notes.txt)) is available.
-Ending an Aurora or Rime visit now preserves completed unpaid survey credit for
-a legitimate later surface retry. Private real files/fresh Main, refusal/conflict
-and once-only payment checks pass. Ordinary physical world travel and a distinct
-OS restart remain unqualified. Earlier cabin-contact and Zenith qualifications
-retain their recorded source/scope; full world and craft gates remain open.
+[34f60da checkpoint](builds/windows/MuddsShipyards-34f60da-checkpoint.zip)
+([changes and validation](builds/windows/MuddsShipyards-34f60da-notes.txt)).
+Matching [Linux checkpoint 34f60da](builds/linux/MuddsShipyards-34f60da-linux-x86_64.tar.gz)
+([Linux validation](builds/linux/MuddsShipyards-34f60da-linux-notes.txt)) is available.
+Explicitly abandoning a solo Ember expedition now declines its observed saved
+checkpoint before cancellation, preserving earned debt and prior data when writes fail.
+A new visit in the same or a fresh GameFlow no longer reuses the abandoned
+incomplete checkpoint. Source fixture/guard/manual-return and package checks
+pass; ordinary full travel and real-file OS restart remain unqualified. Prior
+Aurora/Rime credit, cabin-contact and Zenith results retain their recorded scope.
 Nine of the promised 17 craft exist. All 36 original parent outcomes and ten phase
 exit gates remain open; completed child results are retained, not counted as whole
 features. There is no evidence-backed project percentage or completion date.
@@ -87,41 +88,31 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Selected production repair: saved Ember progress after explicit abandonment.**
-Existing WORLD-ABANDON saved-checkpoint boundary. A prior successful interrupted
-ACTIVE checkpoint is passively staged on the next visit; explicit abandonment
-during approach or LANDED-before-survey-resume must not leave it eligible for a
-later game instance to stage again. An already successfully resumed/retired
-receipt is not this counterexample. The only ordinary save caller found is
-tree exit; do not invent a player autosave to explain this behavior.
+**Delivered production repair: saved Ember checkpoint abandonment.**
+Checkpoint 34f60da uses the existing Ember planner for one atomic decline of the
+exact observed receipt before accepted explicit solo abandonment. Read-only current Host/session/
+cruise/controller/ship guards reject before storage or live survey flags change.
+Completed earned debt survives; ordinary shutdown/resume, no-saved-receipt and
+manual return keep their existing paths. Accepted approach cancellation retires
+its staged composition so a retained GameFlow can start a fresh visit too.
 
-Reproduce through the existing GameFlow lifecycle fixture, actual coordinator
-and controlled Host admission before changing runtime. Accepted explicit
-abandonment must atomically decline incomplete progress through the existing
-Ember persistence owner, preserve completed earned debt/unrelated data, and
-permit a fresh visit without old progress. Persistence failure or rejected Host
-must preserve prior state and must not acknowledge successful abandonment.
-Ordinary quit/resume and manual abandoned-return controls keep their contracts.
-Memory/filesystem and Host/admission staging must remain disclosed; this check
-does not qualify ordinary full travel, real-file OS restart or packaged world
-abandonment.
+Old source050094284 fails exactly nine original loss/refusal assertions in17.614s;
+repaired lifecycle passes17.614s.
+Two added same-instance assertions and one existing missing-ship probe assertion
+cover concrete source-review regressions. All seven selected source suites pass
+at original300/900s caps, including manual return
+130.592s. Clean paired exports, three strict
+menu startups and actual PE/ELF/archive audit pass; exactly the seven expected
+compiled runtime scripts change from acceptedf51e02a. Independent final review GO.
+[Actual proof/limits/closure](docs/history/ROADMAP_DELIVERIES.md#ember-explicit-abandon-checkpoint-accepted-20261026).
 
-Implementer owns GameFlow/coordinator, Host/session and the existing cruise
-binding/controller/HeroShip rejection guards, plus the existing Ember lifecycle
-test and one physical-controller assertion. The shared read-only guards validate
-the actual cancellation before its persistence CAS; no general transaction
-framework or new persistent state is added. Source review also found a retained
-same-Main composition after approach cancellation: existing retirement now clears
-that staged resume, with two added lifecycle assertions. The nine original
-old-runtime loss assertions remain unchanged; record the new test delta explicitly.
-Root owns
-freeze, exact old RED/new GREEN, unchanged checkpoint-resume/real-abandon focused
-checks, paired checkpoint, integration/push/cleanup. One independent persistence
-reviewer checks rejection/commit ordering before execution. Estimate60minutes
-including source readiness/checks/build/closure, conservatively charged from
-the previous8f8feddf9 commit. First unexpected failure stops its pipeline and
-retains source/raw for causal review; no new save schema, evidence validator or
-automatic retry chain is selected. Full world/recovery gates remain open.
+Lifecycle proof uses MemoryFilesystem, staged Host admission and fresh GameFlow/
+store objects; the manual-return fixture discloses orbital/corridor staging.
+Ordinary OS-input packaged world abandonment, actual-disk interruption/restart,
+shared/full-world/final gates remain open. No autosave is invented: ordinary save
+caller is tree exit; the live-save refusal control explicitly calls the public
+save seam. All cost stays cumulative from05:22:30UTC against60minute estimate,
+including readiness, old RED, implementation, validation/build and cleanup.
 
 **Delivered production repair: unpaid survey credit at visit end.**
 Checkpointf51e02a preserves Aurora/Rime genuinely completed but unpaid observations

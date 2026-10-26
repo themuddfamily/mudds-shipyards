@@ -27737,3 +27737,72 @@ expected tip after fresh worktree/remote checks; no remote task branch was creat
 No owned branch exception remains; unrelated retired worktrees are untouched.
 Archive closure took31.115 cumulative minutes from04:50:31UTC, including the
 preceding definition/source pass; final Git closure time remains in closeout.json.
+
+
+<a id="ember-explicit-abandon-checkpoint-accepted-20261026"></a>
+## Ember explicit-abandon saved-checkpoint repair accepted — 2026-10-26
+
+Game/source34f60daaca6d44c93959c6fd1fafb3d260a165de, [Windows checkpoint](../../builds/windows/MuddsShipyards-34f60da-checkpoint.zip)
+and [matching Linux](../../builds/linux/MuddsShipyards-34f60da-linux-x86_64.tar.gz).
+A prior interrupted ACTIVE checkpoint could be passively staged on approach or
+while landed before on-foot survey resume. Explicit abandonment aborted live work
+but left that receipt resumable; a later GameFlow could restore its old progress.
+Already successfully resumed/retired receipts are not this counterexample. The
+only ordinary save caller identified is tree exit; the new live-save failure
+control deliberately invokes the existing public seam, not an invented autosave.
+
+The narrow Ember-only existing plan_decline transaction checks primary authority,
+exact observed receipt and current generation, preserving completed earned debt
+and unrelated data. Shared read-only Host/session/cruise/controller/ship rejection
+guards run before its synchronous CAS and before live survey flags. Failed writes
+and rejected owners preserve previous state. Accepted approach cancellation also
+retires its staged composition through the existing wrapper, allowing a retained
+GameFlow/Director to configure a fresh visit. Other cancel/shutdown/manual-return
+paths stay separate; no save schema or generic transaction framework is added.
+
+Old050094284 exits1 in17.614s with precisely nine expected assertions, including
+the two duplicated loss labels; no setup/script/runtime errors. Original loss
+assertions remain; source review added two same-instance lifecycle assertions and
+one missing-ship read-only probe assertion in the existing physical suite, so the
+final test blob is explicitly different. All seven selected existing suites and
+package checks below pass at their original limits. Source and final actual-result
+review GO. No new duration or unchanged repeat was used to obtain a pass.
+
+Actual stage elapsed seconds (guard/review/closure overhead additional):
+
+- import: 7.617s / exit0
+- ember-lifecycle: 17.614s / exit0
+- checkpoint-resume: 16.729s / exit0
+- travel-session: 1.149s / exit0
+- surface-host: 263.625s / exit0
+- cruise-production: 68.324s / exit0
+- cruise-physical: 28.084s / exit0
+- manual-return: 130.592s / exit0
+- windows-export: 11.752s / exit0
+- windows-payload-startup: 26.468s / exit0
+- linux-export: 25.610s / exit0
+- linux-startup: 22.944s / exit0
+- archive-startup: 24.277s / exit0
+- audit: 6.169s / exit0
+
+Three strict startups require actualOS0 and exactly one STARTUP_MENU_READY_OK.
+Windows embedded PCK runs under Linux Godot; native Windows is NOT_RUN.
+Actual PE/ELF inventories match1527 entries;
+only the seven predeclared runtime scripts differ from acceptedf51e02a. Stock
+PE engine code, exact Linux archive bytes/modes/source epoch and source metadata
+verify. Every Godot invocation is headless/Dummy with private profiles.
+
+Lifecycle uses MemoryFilesystem, real Director progression and the actual
+GameFlow/coordinator/base Host with explicitly staged admission, then fresh
+GameFlow/store objects. Same-instance proof rebuilds the production composition
+on retained Flow/Director. Existing manual return discloses orbital/corridor
+staging before descent/landing/abandon/reboarding/departure/return-control checks.
+This accepts the runtime repair and those exact component/integration scopes;
+ordinary full OS-input travel, exported world recovery, actual-disk OS kill/restart,
+installed/shared/full-world/final acceptance remain open. Native GPU/devices,
+audible output and rendered/player review are NOT_RUN. Owner-excluded gates stay
+excluded; GitHub Actions stays disabled and no Downloads publication occurs.
+Cost includes all readiness/old RED/implementation/checks/build/closure from
+2026-10-26T05:22:30UTC against the60minute engineering estimate. Owned archive,
+process/branch/scratch closure is recorded in
+`/srv/mudds-work/ember-abandon-checkpoint-20261026/closeout.json` after closure.
