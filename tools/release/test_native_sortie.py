@@ -5155,6 +5155,193 @@ class UnsupportedSettingsCallerTests(unittest.TestCase):
                            future_artifact=placement,future_format='settings')
 
 
+class UnsupportedLegacyCallerTests(unittest.TestCase):
+    """Ordinary successful JSON saves must preserve the unrelated future CFG."""
+    tick=UnsupportedSaveCallerTests.tick
+    focus=UnsupportedSaveCallerTests.focus
+
+    def fixture_files(self, root):
+        profile=root/'profile'; profile.mkdir(); (profile/'data').mkdir()
+        output=root/'output'; output.mkdir(); fixture=root/'future-settings.cfg'
+        fixture.write_bytes(native.UnsupportedLegacyFiles.RAW)
+        return native.UnsupportedLegacyFiles(profile,output,fixture,'primary')
+
+    def advance_document(self, files, stable=False, closed=False, settings=False):
+        previous=json.loads(files.path.read_bytes()) if files.path.exists() else dict(generation=0,commit=dict(id=''),payload={})
+        document=copy.deepcopy(previous); document['schema_version']=1; document['generation']+=1
+        document['commit']=dict(id='test-'+str(document['generation']),parent_generation=previous['generation'],
+                                parent_id=previous['commit']['id'],payload_sha256='0'*64)
+        session=files.leg+1
+        document['payload']['safe_start_recovery']=dict(schema_version=1,startup_generation=session,
+            record_generation=3*files.leg+(3 if closed else 2 if stable else 1),state='clean_shutdown' if closed else 'stable' if stable else 'starting',
+            consecutive_failure_count=0,safe_settings_recommended=False)
+        document['payload']['crash_recovery']=dict(schema_version=1,state='clean' if closed else 'running',
+            session_id=session,startup_generation=session,unclean_start_count=0,last_physics_tick=300,
+            last_elapsed_physics_seconds=5)
+        events=[dict(session_id=session,event_code='session_started',fields=dict(recovered=False))]
+        if closed: events.append(dict(session_id=session,event_code='session_ended',fields={}))
+        document['payload']['session_diagnostics']=dict(schema_version=1,capacity=64,next_sequence=len(events)+1,
+            dropped_event_count=0,events=events)
+        document['payload']['solo_safe_recovery']=copy.deepcopy(files.HOME)
+        if settings: document['payload']['runtime_settings']=dict(schema_version=11,values=copy.deepcopy(files.defaults))
+        if previous['generation']:
+            backup=Path(str(files.path)+'.bak')
+            for index in range(3,0,-1):
+                source=backup if index==1 else Path(str(backup)+'.'+str(index-1))
+                destination=Path(str(backup)+'.'+str(index))
+                if source.exists(): destination.write_bytes(source.read_bytes()); destination.chmod(0o600)
+            backup.write_text(json.dumps(previous)); backup.chmod(0o600)
+        files.path.write_text(json.dumps(document)); files.path.chmod(0o600)
+        return document
+
+    def sample(self, files, stable=False):
+        sample=UnsupportedSaveCallerTests().sample(files); recovery=sample['recovery']
+        recovery['settings']['ship_mouse_sensitivity']=0.0022
+        document=json.loads(files.path.read_bytes()); cold=bool(files.leg)
+        recovery['store'].update(source='primary',generation=document['generation'],snapshot=copy.deepcopy(document['payload']))
+        recovery['load']=dict(accepted=cold,reason='loaded' if cold else 'legacy_load_failed',generation=document['generation'] if cold else 0,
+            migrated_legacy=False,applied=cold,store_reason='ok' if cold else 'empty',legacy_error=30,
+            store_status=dict(accepted=True,reason='ok' if cold else 'empty',source='primary' if cold else 'empty'))
+        recovery['safe_start']=dict(startup_generation=files.leg+1,restore_status=dict(accepted=True,reason='restored' if cold else 'empty'),
+            begin_status=dict(accepted=True,reason='startup_begun'),policy_snapshot=copy.deepcopy(document['payload']['safe_start_recovery']),
+            stable_status=dict(accepted=stable,reason='startup_stable' if stable else 'not_attempted'),
+            physics_stability_seconds=5,physics_elapsed_seconds=5 if stable else 0)
+        recovery['repair']['last_status']['reason']='no_repair_available' if cold else 'load_not_repairable'
+        recovery['persistence'].update(commit_serial=document['generation'] if cold else 0,unsaved_changes=False)
+        return sample
+
+    def accepted(self, files, pilot, sample, count):
+        document=self.advance_document(files,stable=True,settings=True)
+        sample['recovery']['store'].update(generation=document['generation'],snapshot=copy.deepcopy(document['payload']))
+        identity='runtime-settings-%010d' % document['generation']
+        sample['recovery']['persistence'].update(save_attempt_count=count,accepted_transaction_count=count,
+            save_success_count=count,commit_serial=document['generation'],last_commit_id=identity,unsaved_changes=False,
+            last_save_status=dict(accepted=True,reason='saved',store_reason='committed',commit_id=identity))
+        sample['recovery']['ui'].update(settings_dirty=False,status_visible=True,
+            status_text=pilot.SAVE_STATUS if count==1 else pilot.RESET_STATUS)
+
+    def test_exact_lone_cfg_and_sentinel_survive_initial_and_live_file_boundaries(self):
+        for mutation in ('bytes','mode','replacement','sibling'):
+            with self.subTest(mutation=mutation),tempfile.TemporaryDirectory() as tmp:
+                files=self.fixture_files(Path(tmp))
+                self.assertFalse(files.path.exists()); self.assertEqual(len(files.cfg.read_bytes()),83)
+                self.assertEqual(hashlib.sha256(files.cfg.read_bytes()).hexdigest(),files.RAW_SHA256)
+                if mutation=='bytes': files.cfg.write_bytes(files.RAW+b' ')
+                elif mutation=='mode': files.cfg.chmod(0o644)
+                elif mutation=='sibling': Path(str(files.cfg)+'.bak').write_bytes(b'older')
+                else:
+                    replacement=files.path.parent/'replacement'; replacement.write_bytes(files.RAW)
+                    replacement.chmod(0o600); replacement.replace(files.cfg)
+                with self.assertRaises(AssertionError): files.require_cfg()
+
+    def test_only_five_named_json_namespaces_and_full_authored_preferences_are_permitted(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            files=self.fixture_files(Path(tmp)); document=self.advance_document(files); sample=self.sample(files)
+            pilot=native.UnsupportedLegacyPilot(files,1); pilot.validate_observation(sample)
+            self.assertNotIn('runtime_settings',document['payload'])
+            for key in ('tutorial_prompts_seen','cinder_timed_race_session','game_flow_reward_store'):
+                with self.subTest(key=key),self.assertRaises(AssertionError):
+                    files.require_payload(dict(document['payload'],**{key:{}}))
+            bad=copy.deepcopy(document['payload']); bad['solo_safe_recovery']['craft_id']='arrow_provisional'
+            with self.assertRaises(AssertionError): files.require_payload(bad)
+            bad=copy.deepcopy(document['payload']); bad['runtime_settings']=dict(schema_version=11,values=dict(camera_fov=99))
+            with self.assertRaises(AssertionError): files.require_payload(bad)
+
+    def test_first_cached_failure_and_cold_json_success_remain_distinct(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            files=self.fixture_files(Path(tmp)); self.advance_document(files); sample=self.sample(files)
+            native.UnsupportedLegacyPilot(files,1).validate_observation(sample)
+            for mutate in (lambda r:r['load'].update(accepted=True),lambda r:r['load'].update(migrated_legacy=True),
+                           lambda r:r['load'].update(legacy_error=0),lambda r:r['store'].update(source='backup'),
+                           lambda r:r['store']['snapshot'].update(runtime_settings=dict(schema_version=11,values=files.defaults))):
+                bad=copy.deepcopy(sample); mutate(bad['recovery'])
+                with self.subTest(mutate=mutate),self.assertRaises(AssertionError):
+                    native.UnsupportedLegacyPilot(files,1).validate_observation(bad)
+
+    def test_first_pause_waits_for_actual_five_second_physics_transition_not_wall_time(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            files=self.fixture_files(Path(tmp)); self.advance_document(files); sample=self.sample(files)
+            pilot=native.UnsupportedLegacyPilot(files,1); pilot.validate_observation(sample); files.observe(sample,pilot)
+            self.assertEqual(pilot.update(sample,100)[0],{'e'})
+            self.assertEqual(self.tick(pilot,sample,101,native_interact=True,phase='APPROACH_SHIP',menu_ready=False,control_enabled=True)[0],set())
+            self.assertEqual(pilot.stage,'startup_stability')
+            safe=sample['recovery']['safe_start']; safe['physics_elapsed_seconds']=4.999
+            self.assertEqual(self.tick(pilot,sample,10000)[0],set())
+            document=self.advance_document(files,stable=True)
+            sample['recovery']['store'].update(generation=document['generation'],snapshot=copy.deepcopy(document['payload']))
+            safe.update(physics_elapsed_seconds=5,stable_status=dict(accepted=True,reason='startup_stable'),
+                        policy_snapshot=copy.deepcopy(document['payload']['safe_start_recovery']))
+            self.assertEqual(self.tick(pilot,sample,10001)[0],{'Escape'})
+            self.assertIn('startup_stable',pilot.receipts)
+
+    def test_shared_gui_save_and_clean_direct_reset_report_two_successes_without_refusal_fields(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            files=self.fixture_files(Path(tmp)); self.advance_document(files,stable=True); sample=self.sample(files,stable=True)
+            pilot=native.UnsupportedLegacyPilot(files,1); pilot.validate_observation(sample); files.observe(sample,pilot)
+            self.assertEqual(pilot.update(sample,100)[0],{'e'})
+            self.assertEqual(self.tick(pilot,sample,101,native_interact=True,phase='APPROACH_SHIP',menu_ready=False,control_enabled=True)[0],{'Escape'})
+            ui=sample['recovery']['ui']; ui['main_visible']=True; self.focus(sample,'open','SettingsOpenButton')
+            sample['ui']=dict(main_visible=True,exit_visible=True,exit_enabled=True,exit_text='EXIT TO DESKTOP',
+                exit_path='/pause/ExitButton',focus_is_exit=False,focus_path=ui['open_path'])
+            self.tick(pilot,sample,102,paused=True); self.assertEqual(self.tick(pilot,sample,103)[0],{'Return'})
+            self.tick(pilot,sample,104); ui.update(main_visible=False,settings_visible=True)
+            self.focus(sample,'save','SettingsSaveButton'); self.assertEqual(self.tick(pilot,sample,105)[0],{'Return'})
+            self.tick(pilot,sample,106); self.accepted(files,pilot,sample,1)
+            self.tick(pilot,sample,107); self.assertTrue(pilot.save_accepted); self.assertFalse(pilot.save_refused)
+            self.focus(sample,'reset','SettingsResetButton')
+            self.assertEqual(self.tick(pilot,sample,108)[0],{'Return'}); self.assertEqual(pilot.stage,'reset_wait')
+            self.assertFalse(ui['reset_confirmation_visible']); self.tick(pilot,sample,109)
+            self.accepted(files,pilot,sample,2)
+            self.assertEqual(self.tick(pilot,sample,110)[0],{'Escape'}); self.assertTrue(pilot.reset_accepted)
+            self.tick(pilot,sample,111); ui.update(main_visible=True,settings_visible=False)
+            self.tick(pilot,sample,112); sample['ui']['focus_is_exit']=True
+            self.assertEqual(self.tick(pilot,sample,113)[0],{'Return'})
+            pilot.finish(0); self.advance_document(files,closed=True,settings=True); files.finish_leg(0,pilot)
+            self.assertTrue(pilot.result['save_accepted']); self.assertTrue(pilot.result['reset_accepted'])
+            self.assertNotIn('save_refused',pilot.result); self.assertNotIn('reset_refused',pilot.result)
+            self.assertNotIn('reset_confirm_ui',pilot.receipts)
+            files.leg=1; self.advance_document(files,stable=True,settings=True)
+            cold_sample=self.sample(files,stable=True); cold=native.UnsupportedLegacyPilot(files,2,cold=True)
+            cold.validate_observation(cold_sample); self.assertEqual(cold_sample['recovery']['persistence']['save_attempt_count'],0)
+            files.require_session(self.advance_document(files,closed=True,settings=True)['payload'],closed=True)
+
+    def test_success_result_rejects_refused_status_and_dirty_hud(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            files=self.fixture_files(Path(tmp)); self.advance_document(files,stable=True); sample=self.sample(files,stable=True)
+            pilot=native.UnsupportedLegacyPilot(files,1); pilot.validate_observation(sample)
+            pilot.attempt_baseline=copy.deepcopy(sample['recovery']['persistence'])
+            self.accepted(files,pilot,sample,1); sample['recovery']['ui']['settings_visible']=True
+            for mutate in (lambda r:r['persistence']['last_save_status'].update(accepted=False),
+                           lambda r:r['persistence'].update(save_success_count=0),lambda r:r['ui'].update(settings_dirty=True)):
+                bad=copy.deepcopy(sample); mutate(bad['recovery'])
+                with self.subTest(mutate=mutate),self.assertRaises(AssertionError):
+                    pilot.settings_action_completed(bad,'save')
+
+    def test_cold_neutral_wait_requires_stability_before_quit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            files=self.fixture_files(Path(tmp)); self.advance_document(files); sample=self.sample(files)
+            pilot=native.UnsupportedLegacyPilot(files,1); pilot.validate_observation(sample)
+            pilot.stage='cold_stability'; sample.update(phase='APPROACH_SHIP',control_enabled=True)
+            pilot.last_state=sample
+            self.assertEqual(pilot.update(sample,100)[0],set())
+            with self.assertRaisesRegex(AssertionError,'actual process reaches'): pilot.finish(0)
+
+    def test_first_only_warning_roster_rejects_any_cold_warning(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            files=self.fixture_files(Path(tmp)); files.require_warnings(list(files.WARNINGS))
+            self.assertEqual(files.warnings_for_leg(0),files.WARNINGS); self.assertEqual(files.warnings_for_leg(1),())
+            files.leg=1; files.require_warnings([])
+            with self.assertRaises(AssertionError): files.require_warnings(list(files.WARNINGS))
+            with self.assertRaises(RuntimeError): native.observations_from_lines(list(files.WARNINGS),files.warnings_for_leg(1))
+            self.assertEqual(native.UnsupportedSaveFiles.WARNING_LEGS,(1,1))
+            self.assertEqual(native.UnsupportedSettingsFiles.WARNING_LEGS,(1,1))
+            self.assertEqual(native.game_leg_umask('unsupported-save','legacy'),0o077)
+            for placement in ('temporary','backup'):
+                with self.subTest(placement=placement),self.assertRaises(AssertionError):
+                    native.run(Path('/game'),Path('/unused'),'unsupported-save',retained_data=Path('/cfg'),
+                               future_artifact=placement,future_format='legacy')
+
+
 class CorruptRetainedHeavyCallerTests(unittest.TestCase):
     """Corrupt bytes, genuine GUI ingress, and relative cold-session boundaries."""
     @staticmethod
