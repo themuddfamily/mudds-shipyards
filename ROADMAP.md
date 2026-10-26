@@ -77,6 +77,21 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Definition complete: CRAFT-ACCEPT-ZENITH.** Its [finite acceptance table](docs/ROADMAP_BACKLOG.md#zenith-finite-acceptance-binding)
+now names11 original journey members with concrete actions, observable results,
+production owners, retained proof and exact missing route/input/limit fields.
+Accepted LIFE-ARM walking/boarding stays closed in its recorded scope; the
+existing authored-capability map is reused. Same-subtree Main re-entry is kept
+separate from normal OS termination; no new reload feature or restart promise.
+
+Zenith itself remains open. Codex still needs executable ordinary flight/hit/
+damage/loss/home/reuse/Torrent-handback/normal-exit routes and their bound limits;
+there is no honest combined command/cap yet. This is one source definition,
+not gameplay delivery. No game, test, capture, export, checkpoint or parked retry
+ran. Existing337IDs/parent links, original17craft and accepted/parked scopes are
+preserved. No successor or repeated source survey is selected. Original
+00:27:14→00:57:14UTC/30min includes review and push; the source pass ends here.
+
 **Delivered: COMFORT-CAPTIONS[Ember surface-loop captions], checkpointb810822.**
 All18 existing interior/exterior phase and reward cues now have exact captions.
 Old-registry tests fail exactly18 planned assertions; repaired source passes all
