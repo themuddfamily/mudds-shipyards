@@ -362,6 +362,8 @@ try:
             # The synchronous decline CAS rotates the exact saved primary to
             # .bak. Read that real file, rather than trusting a logged object.
             backup_bytes = pathlib.Path(str(document) + ".bak").read_bytes()
+            (run_dir / "pre-abandon-document.json").write_bytes(backup_bytes)
+            result["pre_abandon_document_sha256"] = hashlib.sha256(backup_bytes).hexdigest()
             require(backup_bytes == ready["saved_document_json"].encode("utf-8"),
                     "actual pre-decline backup differs from captured saved primary bytes")
             journey_document = json.loads(backup_bytes)
@@ -375,7 +377,12 @@ try:
                     and saved["commit"]["id"].startswith("ember-abandon-checkpoint-"),
                     "decline is not the single direct CAS successor of the actual saved primary")
             expected_payload = dict(journey_document["payload"])
-            expected_payload["ember_relay_survey_completion_declined"] = expected_payload.pop("ember_relay_survey_completion")
+            expected_payload.pop("ember_relay_survey_completion")
+            # The probe binds this pre-abandon runtime envelope to the actual
+            # saved wire text. UserDataStore installs parsed wire numbers, so
+            # the next commit can spell a coordinate differently; its existing
+            # outer and nested receipt identities are checked below.
+            expected_payload["ember_relay_survey_completion_declined"] = ready["boundary"]
             require(saved["payload"] == expected_payload
                     and ready["abandon_result"].get("accepted") is True
                     and ready["abandon_result"].get("reason") == "ember_surface_abandon_pending_return"
@@ -388,19 +395,20 @@ try:
                     "Ember abandon lost actual unrelated settings or cargo")
             require(ready["abandon_return_home"] == ready["completed_earned_debt"] == "NOT_RUN",
                     "pending abandon cut must retain its unperformed return-home and earned-debt gates")
-            (run_dir / "pre-abandon-document.json").write_bytes(backup_bytes)
-            result["pre_abandon_document_sha256"] = hashlib.sha256(backup_bytes).hexdigest()
             result["declined_document_sha256"] = hashlib.sha256(before).hexdigest()
-        ready_boundary = ready_document["payload"]["ember_relay_survey_completion"]
+        ready_boundary = ready["boundary"] if activity == "ember-abandon" else ready_document["payload"]["ember_relay_survey_completion"]
         terminal = journey_document["payload"]["ember_relay_survey_completion"]
         journey = terminal["completion"]
         route = journey["route_identity"]
-        require(terminal == ready_boundary and terminal["schema_version"] == 1
+        require(terminal == ready_document["payload"]["ember_relay_survey_completion"] and terminal["schema_version"] == 1
                 and terminal["payload_kind"] == "ember_relay_survey_active_journey"
                 and terminal["slot_id"] == "ember_relay_survey_completion",
                 "Ember readiness differs from its actual supported active-journey save")
         if activity == "ember-abandon":
-            require(ready["boundary"] == terminal, "Ember abandon readiness changed the original saved envelope")
+            require(terminal["receipt_sha256"] == ready_boundary["receipt_sha256"]
+                    and terminal["completion"]["receipt_sha256"] == ready_boundary["completion"]["receipt_sha256"]
+                    and terminal["completion"]["route_identity"] == ready_boundary["completion"]["route_identity"],
+                    "Ember abandon changed the original outer/nested receipt or route identity")
         require(journey["marker"] == "interrupted_planetary_journey"
                 and journey["journey_phase_id"] == "on_foot"
                 and journey["world_id"] == "ember_moon"
