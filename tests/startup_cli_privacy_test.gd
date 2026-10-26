@@ -13,6 +13,7 @@ func _init() -> void:
 
 
 func _run() -> void:
+	_test_settings_restart_admission()
 	for route: String in ["zenith-return-reuse", "hauler-supply", "patrol-relay-home", "race-home", "heavy-breach", "courier-withdraw-distance", "courier-withdraw-phase", "courier-escape", "courier-intercept", "arrow-return-reuse", "torrent-return-reuse", "torrent-damaged-return", "torrent-arrow-handoff", "life-tow", "life-gantry", "life-arm", "life-patrol", "beacon-entry", "beacon-settlement", "beacon-home"]:
 		var life_args := PackedStringArray(["--native-sortie-observer=" + route])
 		_check(StartupLoaderType.native_sortie_request(life_args, "X11", "Dummy", true).accepted,
@@ -144,6 +145,7 @@ func _run() -> void:
 	_check(not StartupLoaderType.native_sortie_request(PackedStringArray(["--native-sortie-observer=wrong"]), "X11", "Dummy", true).accepted,
 		"native observer rejects malformed selector")
 	for script_path in [
+		"res://scripts/diagnostics/runtime_settings_restart_probe.gd",
 		"res://scripts/diagnostics/native_sortie_observer.gd",
 		"res://scripts/game/game_flow.gd",
 		"res://scripts/world/shipyard_world.gd",
@@ -486,6 +488,83 @@ func _run() -> void:
 		return
 	print("STARTUP_CLI_PRIVACY_TEST_FAILED: ", "; ".join(_failures))
 	quit(1)
+
+
+func _test_settings_restart_admission() -> void:
+	var profile := "/tmp/mudds-settings-restart-private"
+	var root_flag := "--settings-restart-private-root=" + profile
+	_check(not StartupLoaderType.settings_restart_probe_request(PackedStringArray(), "headless", "Dummy", true).requested,
+		"ordinary Boot leaves the settings restart caller unloaded")
+	for stage: String in ["writer", "reader", "reset-reader"]:
+		var args := PackedStringArray(["--settings-restart-stage=" + stage, root_flag])
+		var admitted := StartupLoaderType.settings_restart_probe_request(args, "headless", "Dummy", true)
+		_check(admitted.requested and admitted.accepted and admitted.stage == stage and admitted.private_root == profile,
+			"settings restart admits exact owned headless/Dummy " + stage)
+		_check(not StartupLoaderType.settings_restart_probe_request(args, "headless", "Dummy").accepted,
+			"settings restart defaults to refusing an unproved private profile")
+		for actual: Array in [["headless", "Dummy", false], ["X11", "Dummy", true],
+			["wayland", "Dummy", true], ["headless", "PulseAudio", true]]:
+			_check(not StartupLoaderType.settings_restart_probe_request(args, actual[0], actual[1], actual[2]).accepted,
+				"settings restart requires actual silent headless owned inputs for " + stage)
+		for conflict: String in ["--startup-check", "--version", "--support-info", "--support-export",
+			"--support-export=/tmp/support", "--help", "--frame-capture", "--reflection-reentry-check",
+			"--in-world-interruption-stage=arm", "--in-world-interruption-context=pilot",
+			"--native-sortie-observer", "--native-sortie-observer=sandbox",
+			"--script", "--script=res://tests/other.gd", "-s", "-s=res://tests/other.gd",
+			"--path", "--path=/tmp/other", "--main-pack", "--main-pack=/tmp/other.pck"]:
+			var conflicting := args.duplicate()
+			conflicting.append(conflict)
+			_check(not StartupLoaderType.settings_restart_probe_request(conflicting, "headless", "Dummy", true).accepted,
+				"settings restart rejects competing mode or external override " + conflict)
+	var valid := PackedStringArray(["--settings-restart-stage=writer", root_flag])
+	for malformed: PackedStringArray in [
+		PackedStringArray(["--settings-restart-stage=writer"]),
+		PackedStringArray([root_flag]),
+		PackedStringArray(["--settings-restart-stage=writer", "--settings-restart-stage=writer", root_flag]),
+		PackedStringArray(["--settings-restart-stage=writer", "--settings-restart-stage=reader", root_flag]),
+		PackedStringArray(["--settings-restart-stage=writer", root_flag, root_flag]),
+		PackedStringArray(["--settings-restart-stage=", root_flag]),
+		PackedStringArray(["--settings-restart-stage=Writer", root_flag]),
+		PackedStringArray(["--settings-restart-stage=writer-extra", root_flag]),
+		PackedStringArray(["--settings-restart-stage writer", root_flag]),
+		PackedStringArray(["--settings-restart-stage", "writer", root_flag]),
+		PackedStringArray(["--settings-restart-stage=writer", "--settings-restart-private-root"]),
+		PackedStringArray(["--settings-restart-stage=writer", "--settings-restart-private-root="]),
+		PackedStringArray(["--settings-restart-stage=writer", root_flag, "--settings-restart"]),
+		PackedStringArray(["--settings-restart-stage=writer", root_flag, "--settings-restart-unknown=writer"]),
+	]:
+		var rejected := StartupLoaderType.settings_restart_probe_request(malformed, "headless", "Dummy", true)
+		_check(rejected.requested and not rejected.accepted,
+			"settings restart refuses missing, duplicate or malformed owned namespace " + str(malformed))
+	for unsafe_root: String in ["/", "relative/profile", "/tmp/profile/", "/tmp/../profile", "/tmp//profile", "/tmp/./profile"]:
+		var unsafe := PackedStringArray(["--settings-restart-stage=writer", "--settings-restart-private-root=" + unsafe_root])
+		_check(not StartupLoaderType.settings_restart_probe_request(unsafe, "headless", "Dummy", true).accepted,
+			"settings restart refuses an unnormalised or unsafe root " + unsafe_root)
+	var observer := valid.duplicate()
+	observer.append("--native-sortie-observer")
+	_check(not StartupLoaderType.native_sortie_request(observer, "X11", "Dummy", true).accepted,
+		"existing native observer reciprocally rejects settings restart mode")
+	var interruption := valid.duplicate()
+	interruption.append("--in-world-interruption-stage=arm")
+	_check(not StartupLoaderType.in_world_probe_request(interruption, "headless", "Dummy").accepted,
+		"existing interruption caller reciprocally rejects settings restart mode")
+	var reflection := valid.duplicate()
+	reflection.append("--reflection-reentry-check")
+	_check(not StartupLoaderType.reflection_reentry_probe_request(reflection, "X11", "Dummy", "forward_plus", true, 4096).accepted,
+		"existing reflection caller reciprocally rejects settings restart mode")
+	# The mismatch fails before directory inspection or any Main/tree/file work.
+	var environment_name := "MUDDS_PRIVATE_SETTINGS_RESTART_ROOT"
+	var had_environment := OS.has_environment(environment_name)
+	var previous_environment := OS.get_environment(environment_name)
+	OS.set_environment(environment_name, profile + "-other")
+	var loader := StartupLoaderType.new()
+	_check(not bool(loader.call("_has_private_settings_restart_profile", valid)),
+		"runtime settings restart ownership rejects CLI/environment-root mismatch before startup")
+	loader.free()
+	if had_environment:
+		OS.set_environment(environment_name, previous_environment)
+	else:
+		OS.unset_environment(environment_name)
 
 
 func _check(condition: bool, description: String) -> void:

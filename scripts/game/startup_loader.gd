@@ -52,6 +52,8 @@ const CLI_REFLECTION_REENTRY := &"--reflection-reentry-check"
 const CLI_IN_WORLD_STAGE := "--in-world-interruption-stage="
 const CLI_IN_WORLD_CONTEXT := "--in-world-interruption-context="
 const CLI_IN_WORLD_ACTIVITY := "--in-world-interruption-activity="
+const CLI_SETTINGS_STAGE := "--settings-restart-stage="
+const CLI_SETTINGS_ROOT := "--settings-restart-private-root="
 
 ## Frames to present before any expensive work starts. Two, because the first
 ## one is where the loading screen's Controls take their layout.
@@ -102,6 +104,22 @@ var _startup_textures: Array[Texture2D] = []
 
 func _ready() -> void:
 	var command_line := OS.get_cmdline_args()
+	var preferences := settings_restart_probe_request(command_line, DisplayServer.get_name(),
+		AudioServer.get_driver_name(), _has_private_settings_restart_profile(command_line))
+	if bool(preferences.requested):
+		if not bool(preferences.accepted):
+			print("SETTINGS_RESTART_REJECTED: " + str(preferences.reason))
+			_early_cli_exit_code = 2
+			call_deferred("_quit_after_cli_output")
+			return
+		# Admit before any normal Boot/Main settings load or persistence. The
+		# native game executes its own packaged probe; no external script is used.
+		var preferences_probe := load("res://scripts/diagnostics/runtime_settings_restart_probe.gd").new() as Node
+		preferences_probe.name = "RuntimeSettingsRestartProbe"
+		preferences_probe.set("stage", preferences.stage)
+		preferences_probe.set("private_root", preferences.private_root)
+		add_child(preferences_probe)
+		startup_completed.connect(preferences_probe.on_startup_completed)
 	var reflection := reflection_reentry_probe_request(command_line, DisplayServer.get_name(),
 		AudioServer.get_driver_name(), RenderingServer.get_current_rendering_method(),
 		_has_private_reflection_profile(), int(ProjectSettings.get_setting_with_override("debug/settings/profiler/max_timestamp_query_elements")))
@@ -210,6 +228,92 @@ static func cli_mode(args: PackedStringArray) -> StringName:
 
 
 ## Read-only telemetry is lazy and available only to the owned silent X11 driver.
+## Shared preference qualification is an opt-in native release capability.
+## The parser is pure; the runtime caller supplies the checked private profile.
+static func settings_restart_probe_request(
+		args: PackedStringArray, display_name: String, audio_name: String,
+		private_profile: bool = false
+	) -> Dictionary:
+	var requested := false
+	var stages: Array[String] = []
+	var roots: Array[String] = []
+	var malformed := false
+	for argument in args:
+		if not argument.begins_with("--settings-restart"):
+			continue
+		requested = true
+		if argument.begins_with(CLI_SETTINGS_STAGE):
+			stages.append(argument.trim_prefix(CLI_SETTINGS_STAGE))
+		elif argument.begins_with(CLI_SETTINGS_ROOT):
+			roots.append(argument.trim_prefix(CLI_SETTINGS_ROOT))
+		else:
+			malformed = true
+	if not requested:
+		return {"requested": false, "accepted": false}
+	var rejected := {"requested": true, "accepted": false, "reason": &"unsafe_settings_restart_probe"}
+	if (
+		malformed or stages.size() != 1 or roots.size() != 1
+		or stages[0] not in ["writer", "reader", "reset-reader"]
+		or display_name != "headless" or audio_name != "Dummy" or not private_profile
+	):
+		return rejected
+	var profile := roots[0]
+	if (
+		not profile.is_absolute_path() or profile == "/" or profile.ends_with("/")
+		or profile.simplify_path() != profile
+	):
+		return rejected
+	for argument in args:
+		if (
+			argument in [CLI_STARTUP_CHECK, CLI_VERSION, CLI_SUPPORT_INFO, CLI_SUPPORT_EXPORT,
+				CLI_REFLECTION_REENTRY, "--frame-capture", "--help", "--script", "-s", "--path", "--main-pack"]
+			or argument.begins_with("--support-export=")
+			or argument.begins_with("--in-world-interruption")
+			or argument.begins_with("--native-sortie-observer")
+			or argument.begins_with("--script=") or argument.begins_with("-s=")
+			or argument.begins_with("--path=") or argument.begins_with("--main-pack=")
+		):
+			return rejected
+	return {"requested": true, "accepted": true, "stage": stages[0], "private_root": profile}
+
+
+func _has_private_settings_restart_profile(args: PackedStringArray) -> bool:
+	var profile := OS.get_environment("MUDDS_PRIVATE_SETTINGS_RESTART_ROOT")
+	var requested_roots: Array[String] = []
+	for argument in args:
+		if argument.begins_with(CLI_SETTINGS_ROOT):
+			requested_roots.append(argument.trim_prefix(CLI_SETTINGS_ROOT))
+	if requested_roots.size() != 1 or requested_roots[0] != profile:
+		return false
+	if (
+		profile.is_empty() or not profile.is_absolute_path() or profile == "/"
+		or profile.ends_with("/") or profile.simplify_path() != profile
+	):
+		return false
+	# Directory access never creates a path. Reject symlinks before normal Boot
+	# can load or initialize player data; the driver independently verifies uid,
+	# mode0700 and canonical descendants when creating this owned profile.
+	var paths: Array[String] = [profile, OS.get_user_data_dir()]
+	for variable in ["XDG_DATA_HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_STATE_HOME", "XDG_RUNTIME_DIR", "TMPDIR"]:
+		var path := OS.get_environment(variable)
+		if (
+			not path.is_absolute_path() or path.simplify_path() != path
+			or not path.begins_with(profile + "/")
+		):
+			return false
+		paths.append(path)
+	if not OS.get_user_data_dir().simplify_path().begins_with(profile + "/"):
+		return false
+	for path in paths:
+		var parent := "/"
+		for component in path.trim_prefix("/").split("/", false):
+			var directory := DirAccess.open(parent)
+			if directory == null or directory.is_link(component):
+				return false
+			parent = parent.path_join(component)
+	return true
+
+
 static func native_sortie_request(args: PackedStringArray, display_name: String, audio_driver_name: String, private_input_owned: bool = false) -> Dictionary:
 	var count := 0
 	for argument in args:
@@ -221,7 +325,8 @@ static func native_sortie_request(args: PackedStringArray, display_name: String,
 		and display_name.to_lower() == "x11" and audio_driver_name == "Dummy" and private_input_owned
 	for argument in args:
 		if argument in ["--version", "--help", "--support-info", "--support-export", "--startup-check", "--frame-capture", "--reflection-reentry-check"] \
-				or argument.begins_with("--in-world-interruption-"):
+				or argument.begins_with("--in-world-interruption-") \
+			or argument.begins_with("--settings-restart"):
 			accepted = false
 	return {"requested": true, "accepted": accepted}
 
@@ -261,6 +366,9 @@ static func in_world_probe_request(args: PackedStringArray, display_name: String
 	# actual driver rather than accepting a user argument claiming Dummy audio.
 	if audio_driver_name != "Dummy" or CLI_STARTUP_CHECK in args or "--frame-capture" in args or "--help" in args or not cli_mode(args).is_empty():
 		return rejected
+	for argument in args:
+		if argument.begins_with("--settings-restart"):
+			return rejected
 	return {"requested": true, "accepted": true, "stage": stages[0], "recovery_context": context, "activity": activity}
 
 
@@ -272,7 +380,8 @@ static func reflection_reentry_probe_request(args: PackedStringArray, display_na
 		and audio_name == "Dummy" and renderer == "forward_plus" and private_profile and capacity == 4096
 	for argument in args:
 		if argument in [CLI_STARTUP_CHECK, "--frame-capture", CLI_VERSION, CLI_SUPPORT_INFO, CLI_SUPPORT_EXPORT] \
-			or argument.begins_with("--in-world-interruption-"):
+			or argument.begins_with("--in-world-interruption-") \
+			or argument.begins_with("--settings-restart"):
 			accepted = false
 	return {"requested": true, "accepted": accepted}
 

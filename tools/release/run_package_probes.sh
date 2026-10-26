@@ -22,6 +22,7 @@ set -o pipefail
 IN_WORLD_INTERRUPTION=0
 SOURCE_MODE=0
 NATIVE_EXPORT=0
+SETTINGS_RESTART=0
 PROBE_ACTIVITY="${PACKAGE_PROBE_ACTIVITY:-convoy}"
 ACTIVITY_FLAG_SEEN=0
 for argument in "$@"; do
@@ -29,6 +30,9 @@ for argument in "$@"; do
     --in-world-interruption) IN_WORLD_INTERRUPTION=1 ;;
     --source) SOURCE_MODE=1 ;;
     --native-export) NATIVE_EXPORT=1 ;;
+    --settings-restart)
+      if (( SETTINGS_RESTART == 1 )); then echo "Duplicate settings restart selector" >&2; exit 2; fi
+      SETTINGS_RESTART=1 ;;
     --activity=*)
       if (( ACTIVITY_FLAG_SEEN == 1 )); then echo "Duplicate interruption activity selector" >&2; exit 2; fi
       ACTIVITY_FLAG_SEEN=1
@@ -36,12 +40,16 @@ for argument in "$@"; do
     *) echo "Unknown package probe option: $argument" >&2; exit 2 ;;
   esac
 done
+if (( SETTINGS_RESTART == 1 && (NATIVE_EXPORT == 0 || SOURCE_MODE == 1 || IN_WORLD_INTERRUPTION == 1 || ACTIVITY_FLAG_SEEN == 1) )); then
+  echo "--settings-restart requires --native-export and forbids source/interruption/activity modes" >&2
+  exit 2
+fi
 if (( SOURCE_MODE == 1 && IN_WORLD_INTERRUPTION == 0 )); then
   echo "--source requires --in-world-interruption" >&2
   exit 2
 fi
-if (( NATIVE_EXPORT == 1 && (IN_WORLD_INTERRUPTION == 0 || SOURCE_MODE == 1) )); then
-  echo "--native-export requires --in-world-interruption and forbids --source" >&2
+if (( NATIVE_EXPORT == 1 && ((IN_WORLD_INTERRUPTION == 0 && SETTINGS_RESTART == 0) || SOURCE_MODE == 1) )); then
+  echo "--native-export requires --in-world-interruption or --settings-restart and forbids --source" >&2
   exit 2
 fi
 
@@ -78,6 +86,11 @@ fi
 
 if [[ "$AUDIO_DRIVER" != Dummy ]]; then
   echo "Automated package probe audio requires --audio-driver Dummy"
+  exit 2
+fi
+
+if (( SETTINGS_RESTART == 1 )) && { [[ "$PROBE_ACTIVITY" != convoy || "$RECOVERY_CONTEXT" != pilot ]] || ! [[ "$TIMEOUT_SECONDS" =~ ^[0-9]+$ ]] || (( 10#$TIMEOUT_SECONDS < 1 || 10#$TIMEOUT_SECONDS > 300 )); }; then
+  echo "Settings restart requires default activity/context and a process timeout of 1..300 seconds" >&2
   exit 2
 fi
 
@@ -126,6 +139,267 @@ mkdir -p "$LOG_DIR"
 # Scratch remains outside the published results, matching the source matrix.
 PROBE_WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/package-probes-XXXXXX")"
 trap 'rm -rf -- "$PROBE_WORK_DIR"' EXIT
+
+# One ordinary shared preference transaction, using only the embedded Linux
+# executable. Three cold Boot processes share this driver's empty private files.
+if (( SETTINGS_RESTART == 1 )); then
+  settings_driver_pid=""
+  settings_cancel_status=0
+  forward_settings_cancel() {
+    trap '' INT TERM HUP
+    settings_cancel_status="$1"
+    if [[ -n "$settings_driver_pid" ]]; then kill -TERM "$settings_driver_pid" 2>/dev/null || true; fi
+  }
+  cleanup_settings_restart() {
+    local status=$?
+    trap - EXIT
+    trap '' INT TERM HUP
+    if [[ -n "$settings_driver_pid" ]]; then
+      kill -TERM "$settings_driver_pid" 2>/dev/null || true
+      wait "$settings_driver_pid" 2>/dev/null || true
+    fi
+    rm -rf -- "$PROBE_WORK_DIR"
+    exit "$status"
+  }
+  trap cleanup_settings_restart EXIT
+  trap 'forward_settings_cancel 130' INT
+  trap 'forward_settings_cancel 143' TERM
+  trap 'forward_settings_cancel 129' HUP
+  env -u DISPLAY -u WAYLAND_DISPLAY PYTHONDONTWRITEBYTECODE=1 python3 - "$PROJECT_ROOT" "$PACKAGE_PATH" "$TIMEOUT_SECONDS" "$RUN_DIR" "$PROBE_WORK_DIR" <<'PYSETTINGS' &
+import hashlib, json, os, pathlib, re, signal, subprocess, sys, time
+root, package, cap, run_dir, profile = sys.argv[1:]
+root, run_dir, profile = map(pathlib.Path, (root, run_dir, profile))
+profile = profile.resolve()
+cap = int(cap)
+result_path = run_dir / "settings-restart.json"
+if result_path.exists():
+    raise SystemExit("refusing to overwrite an earlier settings restart result")
+result = {"status": "FAIL", "mode": "native_export_settings_restart", "private_profile": str(profile),
+          "process_cap_seconds": cap, "processes": [], "physical_input": "NOT_RUN", "native_gpu": "NOT_RUN",
+          "rendered_readability": "NOT_RUN", "ordinary_combat": "NOT_RUN",
+          "cue_trigger": "staged_real_HUD_flash_damage_component"}
+children = []
+cancelled = None
+def cancel(signum, _frame):
+    # Flag only: cancellation cannot throw between Popen and exact registration.
+    global cancelled
+    cancelled = cancelled or signum
+for signum in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
+    signal.signal(signum, cancel)
+def require(condition, message):
+    if not condition:
+        raise RuntimeError(message)
+def digest(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+def manifest(name, scope):
+    path = run_dir / name
+    subprocess.run([sys.executable, str(root / "tools/release/source_manifest.py"),
+                    "--root", str(root), "--output", str(path), *scope], check=True)
+    return digest(path)
+def starttick(pid):
+    try:
+        return pathlib.Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[19]
+    except FileNotFoundError:
+        return None
+def stop_owned(process, entry):
+    if process.poll() is None:
+        if starttick(process.pid) == entry["start_tick"] and os.getpgid(process.pid) == process.pid:
+            os.killpg(process.pid, signal.SIGTERM)
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            require(starttick(process.pid) == entry["start_tick"], "owned process identity changed during cleanup")
+            os.killpg(process.pid, signal.SIGKILL)
+            process.wait(timeout=5)
+        entry["cleanup_terminated"] = True
+    entry["exit_code"] = process.returncode
+    entry["reaped"] = True
+def snapshot(stage, boundary):
+    destination = run_dir / "documents" / stage / boundary
+    destination.mkdir(parents=True, exist_ok=True)
+    records = []
+    if document.parent.exists():
+        for source in sorted(document.parent.glob("mudds_user_data.json*")):
+            require(source.is_file() and not source.is_symlink(), "unexpected production-store file kind")
+            target = destination / source.name
+            target.write_bytes(source.read_bytes())
+            records.append({"name": source.name, "bytes": source.stat().st_size,
+                            "sha256": digest(target), "artifact": str(target)})
+    return records
+def read_document():
+    value = json.loads(document.read_bytes())
+    require(isinstance(value, dict) and isinstance(value.get("payload"), dict), "invalid real primary document")
+    return value
+def foreign(payload):
+    # These are the existing owners exercised by normal Boot, Begin and Quit.
+    allowed = {"runtime_settings", "safe_start_recovery", "crash_recovery", "session_diagnostics", "solo_safe_recovery"}
+    return {key: value for key, value in payload.items() if key not in allowed}
+def diagnostics(log):
+    pattern = r"^\s*(?:SCRIPT\s+ERROR|ERROR:|FAIL:)|\b(?:FATAL ERROR|ObjectDB|Orphaned|Leaked)\b|Resource.*still in use|SETTINGS_RESTART_FAILED"
+    return [line for line in log.splitlines() if re.search(pattern, line, re.I)]
+scope = ["project.godot", "export_presets.cfg", "default_bus_layout.tres", "scripts", "scenes", "tests", "assets", "tools", "art_source"]
+document = profile / "data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json"
+source_before = cache_before = metadata_path = binary = package_hash = metadata_hash = None
+try:
+    require(sys.platform.startswith("linux"), "settings restart requires a Linux host")
+    require(1 <= cap <= 300, "original per-process cap must remain 1..300 seconds")
+    require(profile.is_dir() and not any(profile.iterdir()) and profile.stat().st_mode & 0o777 == 0o700,
+            "settings restart requires this driver's empty private 0700 root")
+    binary = pathlib.Path(package).resolve()
+    package_data = binary.read_bytes()
+    header = package_data[:20]
+    require(header[:6] == b"\x7fELF\x02\x01" and int.from_bytes(header[18:20], "little") == 62
+            and os.access(binary, os.X_OK), "settings restart requires executable embedded Linux x86_64 ELF")
+    for sidecar in (binary.with_suffix(".pck"), pathlib.Path(str(binary) + ".pck")):
+        require(not os.path.lexists(sidecar), "settings restart forbids adjacent PCK sidecars: " + str(sidecar))
+    sys.path.insert(0, str(root / "tools/release"))
+    from package_inventory import find_pck, parse
+    pack_base, pack_end = find_pck(package_data)
+    inventory = parse(package_data, pack_base, pack_end)
+    embedded_paths = {entry["path"] for entry in inventory["entries"]}
+    require({"scripts/diagnostics/runtime_settings_restart_probe.gdc", "scripts/game/startup_loader.gdc"} <= embedded_paths,
+            "embedded PCK must contain the compiled Boot and actual settings restart probe")
+    result["embedded_pck"] = inventory["pck"]
+    package_hash = hashlib.sha256(package_data).hexdigest()
+    del package_data, inventory
+    metadata_path = pathlib.Path(str(binary) + ".export-result.json")
+    metadata = json.loads(metadata_path.read_text())
+    require(metadata.get("schema_version") == 1 and metadata.get("platform") == "linux"
+            and metadata.get("binary", {}).get("sha256") == package_hash
+            and metadata.get("binary", {}).get("bytes") == binary.stat().st_size
+            and re.fullmatch(r"[0-9a-f]{40}", metadata.get("source_commit", "")),
+            "Linux export metadata must identify these exact compiled bytes")
+    metadata_hash = digest(metadata_path)
+    result.update({"package": str(binary), "package_sha256": package_hash,
+                   "source_commit": metadata["source_commit"], "export_metadata_sha256": metadata_hash,
+                   "driver_source_commit": subprocess.check_output(["git", "-C", str(root), "rev-parse", "HEAD"], text=True).strip()})
+    source_before = manifest("source-before.csv", scope)
+    cache_before = manifest("cache-before.csv", [".godot"])
+    environment = os.environ.copy()
+    for key in ("DISPLAY", "WAYLAND_DISPLAY", "MUDDS_PRIVATE_PROBE_INPUT"):
+        environment.pop(key, None)
+    for key, name in {"XDG_DATA_HOME": "data", "XDG_CONFIG_HOME": "config", "XDG_CACHE_HOME": "cache",
+                      "XDG_STATE_HOME": "state", "XDG_RUNTIME_DIR": "runtime", "TMPDIR": "tmp",
+                      "XDG_DATA_DIRS": "data-dirs", "XDG_CONFIG_DIRS": "config-dirs"}.items():
+        directory = profile / name
+        directory.mkdir(mode=0o700)
+        environment[key] = str(directory)
+    environment["MUDDS_PRIVATE_SETTINGS_RESTART_ROOT"] = str(profile)
+    baseline_settings = expected_on = foreign_baseline = None
+    previous_bytes = None
+    guard = None
+    for stage in ("writer", "reader", "reset-reader"):
+        require(cancelled is None, "settings restart cancelled before process launch")
+        require(not document.exists() if stage == "writer" else document.read_bytes() == previous_bytes,
+                "stage does not start from the previous reaped process's exact primary bytes")
+        entry = {"stage": stage, "before_files": snapshot(stage, "before")}
+        command = [str(binary), "--headless", "--audio-driver", "Dummy",
+                   "--settings-restart-stage=" + stage, "--settings-restart-private-root=" + str(profile)]
+        log_path = run_dir / "logs" / ("settings-" + stage + ".log")
+        entry.update({"arguments": command, "log": str(log_path)})
+        with log_path.open("w") as output:
+            process = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=output, stderr=subprocess.STDOUT,
+                                       env=environment, start_new_session=True)
+            # No signal handler can raise before this handle is registered.
+            children.append((process, entry))
+            entry.update({"pid": process.pid, "start_tick": starttick(process.pid)})
+            result["processes"].append(entry)
+        deadline = time.monotonic() + cap
+        while process.poll() is None:
+            require(cancelled is None, "settings restart cancelled by " + str(cancelled))
+            require(time.monotonic() < deadline, "settings " + stage + " exceeded original process cap")
+            time.sleep(0.05)
+        entry.update({"exit_code": process.wait(), "reaped": True, "after_files": snapshot(stage, "after")})
+        log = log_path.read_text(errors="replace")
+        observations = [json.loads(line.removeprefix("SETTINGS_RESTART_READY: "))
+                        for line in log.splitlines(keepends=True)
+                        if line.startswith("SETTINGS_RESTART_READY: ") and line.endswith("\n")]
+        require(entry["exit_code"] == 0 and len(observations) == 1 and not diagnostics(log),
+                "settings " + stage + " requires OS exit 0, exactly one readiness record, and no diagnostics")
+        witness = observations[0]
+        require(witness["stage"] == stage and witness["pid"] == process.pid and witness["boot_main"] is True
+                and witness["audio_driver"] == "Dummy" and witness["display_driver"] == "headless"
+                and witness["private_root"] == str(profile) and witness["raw_event_count"] > 0
+                and witness["quit_owner"] == "focused_normal_HUD_ExitButton_raw_Space"
+                and witness["cue_trigger"] == result["cue_trigger"], "wrong actual Boot/control witness")
+        final = read_document()
+        if stage == "writer":
+            guard = {"writer_pid": process.pid, "unrelated": {"progress": 42, "keep": "flash-restart"}}
+        require(final["payload"].get("settings_restart_probe_guard") == guard
+                == witness["startup_payload"].get("settings_restart_probe_guard")
+                == witness["before_quit_document"]["payload"].get("settings_restart_probe_guard")
+                and (stage == "writer" or guard["writer_pid"] != process.pid),
+                "unrelated nontrivial guard or distinct-reader writer PID changed")
+        backup = json.loads(pathlib.Path(str(document) + ".bak").read_bytes())
+        require(backup.get("payload", {}).get("settings_restart_probe_guard") == guard,
+                "latest real production backup lost the unrelated guard")
+        require(final["payload"]["crash_recovery"]["state"] == "clean"
+                and final["payload"]["safe_start_recovery"]["state"] == "clean_shutdown",
+                "normal HUD Quit did not durably close both independent real marker owners")
+        require(any(row["name"] == "mudds_user_data.json.bak" for row in entry["after_files"]),
+                "missing actual production backup bytes")
+        settings = final["payload"]["runtime_settings"]
+        if stage == "writer":
+            expected_on = settings
+            baseline_settings = json.loads(json.dumps(settings))
+            baseline_settings["values"]["reduced_flash"] = False
+            foreign_baseline = foreign(witness["startup_payload"])
+        require(settings == (expected_on if stage == "writer" else baseline_settings)
+                and settings == witness["settings"] and settings["values"]["reduced_flash"] is (stage == "writer")
+                and settings["values"]["reduced_motion"] is False and settings["values"]["payload_visual_intensity"] == 2,
+                "whole settings/default payload changed beyond selected Reduced flash/reset")
+        require(foreign(final["payload"]) == foreign_baseline == foreign(witness["startup_payload"])
+                == foreign(witness["before_quit_document"]["payload"]), "unrelated production namespace changed")
+        entry["witness"] = witness
+        previous_bytes = document.read_bytes()
+    require(len({entry["pid"] for entry in result["processes"]}) == 3,
+            "writer, cold ON reader and cold OFF reset-reader must be three distinct OS processes")
+    result["status"] = "PASS"
+except Exception as error:
+    result["failure"] = str(error)
+finally:
+    for process, entry in children:
+        try:
+            stop_owned(process, entry)
+        except Exception as error:
+            result["status"] = "FAIL"
+            result["cleanup_failure"] = str(error)
+        if pathlib.Path(entry["log"]).exists():
+            entry["log_sha256"] = digest(pathlib.Path(entry["log"]))
+        entry["at_cleanup_files"] = snapshot(entry["stage"], "at-cleanup")
+    result["owned_children_reaped"] = all(process.poll() is not None for process, _ in children)
+    if not result["owned_children_reaped"]:
+        result["status"] = "FAIL"
+    if source_before is not None:
+        result["source_before_sha256"] = source_before
+        result["source_after_sha256"] = manifest("source-after.csv", scope)
+        result["cache_before_sha256"] = cache_before
+        result["cache_after_sha256"] = manifest("cache-after.csv", [".godot"])
+        if source_before != result["source_after_sha256"] or cache_before != result["cache_after_sha256"]:
+            result.update(status="FAIL", failure="source/import cache changed during settings restart")
+    if package_hash is not None and digest(binary) != package_hash:
+        result.update(status="FAIL", failure="package changed during settings restart")
+    if metadata_hash is not None and digest(metadata_path) != metadata_hash:
+        result.update(status="FAIL", failure="export metadata changed during settings restart")
+    if cancelled is not None:
+        result.update(status="FAIL", cancelled_by=signal.Signals(cancelled).name)
+    result_path.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
+print("SETTINGS_RESTART_CHECK_" + result["status"] + ": " + str(result_path))
+sys.exit(0 if result["status"] == "PASS" else 1)
+PYSETTINGS
+  settings_driver_pid=$!
+  if (( settings_cancel_status != 0 )); then forward_settings_cancel "$settings_cancel_status"; fi
+  set +e
+  wait "$settings_driver_pid"
+  settings_status=$?
+  if (( settings_cancel_status != 0 )); then
+    wait "$settings_driver_pid" 2>/dev/null
+    settings_status="$settings_cancel_status"
+  fi
+  settings_driver_pid=""
+  set -e
+  exit "$settings_status"
+fi
 
 if (( IN_WORLD_INTERRUPTION == 1 )); then
   interruption_driver_pid=""
