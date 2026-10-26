@@ -94,6 +94,25 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Selected release capability / qualification: REPEAT-BEACON.**
+One retained Main/world/Player/Torrent performs ten real four-Beacon completions,
+accepted ordinary resets and exactly ten durable payments, with strict home,
+OFFLINE/physical exit/supported walk after each. Final unpaid readiness sortie
+proves actual RESET10→START11→confirmed RESET11 while paused near Beacon1,
+ledger10 unchanged, then original home/normal HUD Quit/OS0. No injected positions,
+progress, payments, resets or clock changes. Existing single-run behavior remains.
+[Literal route and resource contract](docs/ROADMAP_BACKLOG.md#beacon-repetition--selected-ordinary-input-capability).
+Codex owns the existing driver/tests, read-only observer and isolated CLI admission;
+root owns integration/package checks and cleanup, one independent reviewer.
+Conservative original clock14:58:50UTC/90minutes includes the readiness pass;
+hard stop16:28:50UTC. Estimate34min implementation,15min checks/exports,21min
+ordinary route and14min closure plus the6min readiness already spent. Each cycle
+and final readiness leg keeps300s; every outbound keeps60s. Derived3300s aggregate
+abort adds no time to a single leg. Stop at first unexpected failure; no automatic
+retry or added acceptance. Reserve execution/closure time before the full attempt.
+No parked race/Core/UI failure is reopened. Missing later-craft approval choices
+remain pending. The full project and original gates remain open.
+
 **Accepted qualification: installed Linux checkpoint b4ff8c0.**
 The shipped manager installs exact archive bytes/modes and a correct menu entry.
 Installed strict startup passes(exit0/one readiness marker); the full ordinary
