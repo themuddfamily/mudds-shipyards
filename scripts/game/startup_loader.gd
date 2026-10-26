@@ -244,11 +244,11 @@ static func in_world_probe_request(args: PackedStringArray, display_name: String
 	var rejected := {"requested": true, "accepted": false, "reason": &"unsafe_in_world_probe"}
 	if stages.size() != 1 or stages[0] not in ["arm", "resume"] \
 			or contexts.size() > 1 or (not contexts.is_empty() and contexts[0] not in ["pilot", "cabin", "rest", "crew", "engineer", "on_foot", "docking"]) \
-			or activities.size() > 1 or (not activities.is_empty() and activities[0] not in ["convoy", "beacon", "mining", "stationdefense", "scan", "hulk", "ember", "breach"]):
+			or activities.size() > 1 or (not activities.is_empty() and activities[0] not in ["convoy", "beacon", "mining", "stationdefense", "scan", "hulk", "ember", "ember-abandon", "breach"]):
 		return rejected
 	var activity := activities[0] if not activities.is_empty() else "convoy"
 	var context := contexts[0] if not contexts.is_empty() else "pilot"
-	if activity in ["beacon", "mining", "stationdefense", "scan", "hulk", "ember", "breach"] and context != "pilot":
+	if activity in ["beacon", "mining", "stationdefense", "scan", "hulk", "ember", "ember-abandon", "breach"] and context != "pilot":
 		return rejected
 	if context == "engineer":
 		if display_name != "X11" and display_name != "x11":
@@ -259,7 +259,7 @@ static func in_world_probe_request(args: PackedStringArray, display_name: String
 		return rejected
 	# Engine options are consumed before OS.get_cmdline_args(). Inspect the
 	# actual driver rather than accepting a user argument claiming Dummy audio.
-	if audio_driver_name != "Dummy" or CLI_STARTUP_CHECK in args or "--frame-capture" in args or not cli_mode(args).is_empty():
+	if audio_driver_name != "Dummy" or CLI_STARTUP_CHECK in args or "--frame-capture" in args or "--help" in args or not cli_mode(args).is_empty():
 		return rejected
 	return {"requested": true, "accepted": true, "stage": stages[0], "recovery_context": context, "activity": activity}
 
