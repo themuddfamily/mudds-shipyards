@@ -99,8 +99,9 @@ cost charged from the same original start. The retired exact15tick procedure
 was an executor assumption; the physical predicates were fixed before trial3.
 [Actual result, failed trials and limits](docs/history/ROADMAP_DELIVERIES.md#zenith-pilot-hit-home-reuse-accepted-20261026).
 
-**No successor is selected yet.** Finish publication, integration and owned
-archive/branch cleanup for this accepted outcome before another assignment.
+**Closure complete; no successor selected yet.** Accepted work is merged/pushed,
+all11 checkpoint files are verified, source/raw records are archived, owned
+processes and loose scratch are removed, and the completed branch is deleted.
 A definition or checkpoint does not close any of the36 parent outcomes.
 
 <a id="concrete-pending-capability-ember-surface-loop-captions"></a>

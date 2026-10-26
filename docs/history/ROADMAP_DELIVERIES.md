@@ -27555,4 +27555,22 @@ Original nativeCAP300/outer360, walking/navigation/handling15s, boarding12s,
 weapon25s, exit10s and capturedHero landing24s-or-travelbudget/4sstall remain.
 GitHub Actions stayed disabled; no Downloads publication or unrelated reruns.
 
-Publication, integration and archive/branch closure are recorded below once verified.
+Closure verified: all11 public checkpoint files (EXE/ZIP/notes and matching
+Linux artifacts) match publication bytes/SHA256; accepted feature tip
+`9c39ee34ac89970b6bd9d9dcf34c2fc8c376bfd7` is contained in pushed main merge
+`6a8b4b2cab756cd7cf87c7fad51a8129c428d307`. Fresh remote/worktree ownership
+checks confirm the remote task branch is absent and no worktree owns its local
+ref; local branch deleted with exact expected tip. Unrelated worktrees preserved.
+
+Records: `/srv/mudds-work/zenith-handling-outcomes-20261026/records.tar.gz`,
+73790811bytes, SHA256
+`b3c1fa4c6e52f998ab6d1f5b40aba3841ce3dd88b4e81da5b8c8fd3647fd84bb`.
+All213regular files/14symlinks verify content/modes/targets before loose scratch
+removal. Source bundle verifies and retains all accepted unique commits. Four
+old failures remain failed (first two in their earlier verified archives; latest
+two and the passing trial in this archive). All14stage supervisors and66unique
+observed child PID/start identities are absent; tool pins unchanged. Only archive
+and adjacent closeout.json remain in owned scratch. Cumulative time through
+archive closure110.921minutes from original00:33:26UTC, plus final ref/docs push;
+adjacent closeout records final elapsed time. No successor or unchanged rerun is
+selected. This accepts only the named pilot/hit/home/reuse outcome.
