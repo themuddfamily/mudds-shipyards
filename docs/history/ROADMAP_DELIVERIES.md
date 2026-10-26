@@ -27724,3 +27724,16 @@ The Ember abandonment/reuse/durability cases are separate. Cost includes precedi
 world-definition/source work from2026-10-26T04:50:31UTC against60minute estimate.
 Owned cleanup and source/raw preservation are recorded in
 `/srv/mudds-work/surface-survey-retirement-20261026/closeout.json` after closure.
+
+Closure:12 stage supervisors/50 observed owned process identities were absent.
+Verified archive records.tar.gz is41,861,230bytes, SHA256
+`55beded34e58c9dc3f22064bb652b54a1e3bbc625017c4965a03261973d7bc74`,
+197regular files/12symlinks, including verified accepted source bundle, initial
+parse failure, exact old-runtime counterexample and repaired-source/package raw
+records. Verification preceded removal of owned loose files; the task directory
+now contains only archive and closeout.json. All11 accepted checkpoint artifacts
+remain in builds/. The integrated local task branch was deleted with exact
+expected tip after fresh worktree/remote checks; no remote task branch was created.
+No owned branch exception remains; unrelated retired worktrees are untouched.
+Archive closure took31.115 cumulative minutes from04:50:31UTC, including the
+preceding definition/source pass; final Git closure time remains in closeout.json.

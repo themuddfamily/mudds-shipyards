@@ -104,7 +104,10 @@ surface expedition differs from accepted30534f5. Independent final review GO.
 [Actual source/proof/limits](docs/history/ROADMAP_DELIVERIES.md#surface-survey-unpaid-retirement-accepted-20261026).
 The initial test-only parse failure remains FAILED. All cost includes the prior
 world-definition/source pass from04:50:31UTC against the60minute estimate;
-owned branch/archive/scratch closure is recorded with the delivery. Full
+the task branch is deleted and loose scratch consolidated into a verified
+archive/closeout;12 supervisors/50 observed owned process identities are absent.
+Archive closure was31.115 cumulative minutes, including the preceding definition
+pass; [closure details](docs/history/ROADMAP_DELIVERIES.md#surface-survey-unpaid-retirement-accepted-20261026). Full
 WORLD-ABANDON/WORLD-SAVE, ordinary package and final gates remain open.
 
 **Delivered: Zenith pilot handling, real hit, two homes and fresh reuse.**
