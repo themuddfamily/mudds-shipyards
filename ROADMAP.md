@@ -103,6 +103,29 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Selected production repair: Ember checkpoint on ordinary application quit.**
+Existing WORLD-SAVE-DEFINE, original parents14/31. On a clean candidate with a
+real production Main, live on-foot Ember actors, an incomplete survey and no
+active saved checkpoint, request ordinary application quit. Before teardown,
+the existing quit owner must atomically save the current route and nonorigin
+coordinate through the unchanged production collector. Preserve unrelated user
+data, passive abandonment receipts and completed reward debt; detached actors
+must still be refused. Shutdown markers and the actual quit must still work.
+Proof: extend the existing Ember lifecycle test with actual Main/Host/frame/
+actors and the real quit handler (no explicit checkpoint save), demonstrate the
+old failure and new pass, and run focused persistence/shutdown regressions.
+Then produce clean-commit Windows/Linux checkpoints, require three strict
+startup passes and an exact payload audit. Run the existing exported
+ember-abandon disk/restart scenario unchanged and require its final ordinary
+quit to leave a valid fresh index0 checkpoint, preserving the old passive
+index1 archive and foreign data. Use existing300s suite/game and660s probe caps.
+Initial visit positioning/boarding staging is disclosed; ordinary full travel,
+arbitrary Main removal, completed-debt restart and native Windows/GPU/human gates
+stay open. Files: game_flow.gd and the existing Ember lifecycle suite; root owns
+roadmap/build integration. Estimate90minutes including readiness, checks, build
+and closure, clock2026-10-26T07:01:00UTC. First unexpected failure stops the
+pipeline for causal review; no clock reset or automatic enlarged acceptance.
+
 **Delivered release capability: exported pending-abandon cold restart.**
 Gameb30a9ea93/driver7337dc543, checkpointb30a9ea: one exact native Linux
 ELF run passes195.384s under original300s per game/660s outer. The real first-
