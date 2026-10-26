@@ -94,26 +94,23 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Selected release capability / qualification: INSTALL-LINUX-RETAINED checkpoint.**
-One actual499e681→b4ff8c0 installed upgrade must load the existing earned Heavy
-save through the production reader, retain ledger1/paid terminal/settings, allow
-supported ordinary walking to the next Torpedo posting without arming it, and
-normal HUD Quit/actual OS0. Use the real8655byte orderly-close fixture
-SHA25625f9ccfe03b22018eae2cffcb52841ed5fbcff3f4a51a6c020e6c7495701aa73;
-no invented progress or in-memory actor/store mutation. New Python-only
-`retained-heavy` driver route accepts `--retained-data` only for this case,
-copies it into the existing fresh owned private profile before launch and uses
-the already shipped `heavy-breach` read-only observer. Default routes/profile
-safety, original300s/independent330s, private Xvfb/x11/Dummy remain unchanged.
-[Literal loaded-state/control contract](docs/ROADMAP_BACKLOG.md#installed-retained-heavy-load--selected-checkpoint-contract).
-Codex owns existing driver/tests only; root owns fixture/upgrade/actual checks,
-integration/push and owned branch/worktree/process/scratch cleanup; one independent
-reviewer. Conservative original16:11:00UTC/90min clock includes readiness;
-hard17:41:00. Estimate30min code,10 focused checks/review,5 actual transaction,
-10 closure, plus7 readiness already spent. Stop first unexpected failure; no
-automatic retry. No GDScript, gameplay, fresh export, discarded-game candidate or
-parked Beacon/Core/UI work is selected. Final-package/rendered-desktop/native
-hardware and broader recovery gates remain open.
+**Accepted release capability / qualification: installed retained Heavy load.**
+New Python-only `retained-heavy --retained-data FILE` route loads the pinned
+actual earned save in a fresh private profile using the unchanged b4 observer.
+The installed499→b4 transaction's sole fixture load passes33.683s: live ledger1,
+paid terminal/settings preserved, healthy session/startup2, three supported
+waypoints/51.262m to the unarmed Torpedo posting, normal HUD Quit/actual OS0 and
+both final clean markers with no regrant. [Exact inputs, actual proof and scope](docs/history/ROADMAP_DELIVERIES.md#installed-retained-heavy-load-accepted-20261026).
+Driver a716c4d8e passes251 failfast Python checks after one recorded test-fixture
+correction. The first wrapper setup inherited private umask077 and stopped before
+upgrade/game; its installer-only022 correction preserves strict modes. Both
+failures remain archived. Actual game bytes are unchanged; no new export.
+All2 supervisors/19 observed identities absent; source/raw records verified in
+one archive. Original16:11UTC/90min clock includes readiness/corrections/closure;
+archive27.680min, final push and branch/worktree cleanup in closeout.json.
+Exact stored settings and existing applied input tuning are checked; full comfort
+settings, rendered desktop, native hardware and final-package qualification remain
+open. No next run selected; broader recovery policies remain unchanged.
 
 **Accepted qualification: Linux checkpoint upgrade499e681→b4ff8c0.**
 The shipped manager upgrades one existing installation to a fresh runtime,

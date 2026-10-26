@@ -4,6 +4,99 @@ Moved from ROADMAP.md on 2026-10-17. These are source-specific historical
 results, not the active queue or proof of current full-project acceptance.
 Return to the [working roadmap](../../ROADMAP.md).
 
+## Installed retained Heavy load accepted 20261026
+
+Existing INSTALL-LINUX-RETAINED checkpoint case **ACCEPTED** on release driver
+`a716c4d8efa792d1ae7efc299e9c36460446716d`. Only existing native-sortie Python
+runner/test change. Added route `retained-heavy --retained-data FILE` is exclusive
+to a pinned actual-save input; every normal route keeps fresh-profile behavior.
+The route seeds bytes only inside its new owned private TemporaryDirectory before
+launch, then checks actual production-reader/live state and ordinary OS input.
+Unchanged shipped `heavy-breach` observer and b4 game package are reused. No
+GDScript, default player flow, gameplay, scene, settings policy or export changes.
+
+**Input and installed transaction.** Actual earned fixture from accepted
+`/srv/mudds-work/heavy-picket-damage-admission-20261025/results/case-records.tar.gz`,
+member `ordinary-sortie/orderly-close.json`:8655bytes/SHA256
+`25f9ccfe03b22018eae2cffcb52841ed5fbcff3f4a51a6c020e6c7495701aa73`,generation19.
+It contains one non-replayable Heavy generation1 credit, paid terminal/floor1,
+offered index1, schema11 settings, clean session/startup1 and Arrow home preference.
+The same shipped manager installs499e681 then upgrades the same owned prefix to
+b4ff8c0; fixed archive/ELF/icon hashes, both generations' modes/launcher ownership
+and old-owned-file removal pass. Strict installed startup passes22.876s/OS0/one
+readiness marker. No package rebuild or prior accepted test replay is substituted
+for the missing load proof.
+
+**Sole actual fixture load:**33.683s under original300s/independent330s. Root
+controlled transaction71.160s/guard71.364510s. Source guard before/after exactly
+equal, no cache mutation or diagnostics. Authenticated private Xvfb/x11/Dummy,
+dummy renderer and disabled render loop scope only. No path/pack/script override.
+
+The production reader accepts the exact copied fixture as primary. Independent
+actual file captures: input generation19; loaded-title23 before ordinary E;
+next-posting24; orderly-close27. All live decoded reward records equal fixture
+ledger1. Session/startup2 has unclean/failure counts0 and no safe-settings
+recommendation. Final crash marker is clean and safe-start clean_shutdown.
+Stored settings, acknowledged paid Heavy terminal and all other protected
+siblings/home preference remain exact. The board intentionally restores
+Torpedo/unarmed/highest paid1/pending0 while fresh director remains IDLE/active0;
+no old combat-generation equality is imposed. No second credit, fire, shot,
+arming, encounter or activity start occurs.
+
+Normal E on BEGIN SHIFT enters APPROACH_SHIP at authored spawn. Existing points
+(-8.5,.18,6)→(8,.18,6)→(8,.18,-24) are actually traversed:51.261651m supported
+walking with current fixed actor identities, normal tuning/controls and completed
+motion checks. Actual next Torpedo board candidate/available/prompt is observed;
+it is not armed.566 raw receipts are consecutive,455 unpaused observations remain
+current with the exact retained ledger/board constraints. Ordinary observed
+Escape/Tab/Return selects EXIT TO DESKTOP; gamePID2218501 exits0 normally and is
+reaped. Input released; helper/game/Xvfb reap flags true.
+
+Independent review checks raw frames/documents and all five protected outer
+fixtures after shipped uninstall. Both owned generations, manifest/journals/
+launcher are removed; unowned notes and the post-upgrade input file retain their
+bytes/modes. The seeded game-profile primary is a byte-identical copy of that
+protected post-upgrade fixture, then normal game writes advance only named
+session/safety state. This proves actual semantic reload; full comfort/settings
+application is not inferred from stored equality. Existing actual mouse/walk/
+default-control observables are checked, not all UI/rendered settings.
+
+**Both earlier failures remain failures.** First failfast Python run stops after
+196 tests/11.105s because the new positive sample omitted existing observer field
+`breach.objective_position`. Independent review permits one test-fixture-only
+literal addition; strict runtime identity predicate unchanged. Corrected full
+suite251PASS13.823s/14.320s wall with both source hashes unchanged.
+First private wrapper stops8.436s before upgrade/game: supervisor umask077 makes
+runtime mkdir0755 produce0700. Installer correctly respects its caller; strict
+0755 assertion stops. Uninstall exits0 but an early-path cleanup report then
+references uninitialized `binary`. Independent raw check proves old-owned files
+removed/all three then-existing sentinels intact/no processes. One wrapper-only
+correction gives installer subprocesses umask022 (all other privacy077), derives
+cleanup paths from actual ownership manifest and uses a fresh output. No source
+or game change/test replay. Only one actual native fixture load ran.
+The copied setup metadata still says `fixture.runtime_reload: NOT_RUN` because it
+was initialized before launch; that stale literal is preserved. Actual load
+result/frames/primary captures establish PASS; no raw flag was rewritten or game
+rerun to manufacture it.
+
+**Closure.** All2 stage supervisors/19 combined observed PID-starttick identities
+are absent. Exact source tip is verified in a Git bundle; source, both failed
+checks, modes, fixture snapshots, native frames, file captures and raw review are
+in `/srv/mudds-work/retained-heavy-20261026/records.tar.gz`:4052606bytes,
+67regular files/2links, SHA256
+`8ee6f6457777c316f8a21fae1fa45246941b19a83fb9493a914fc3c49ce8f45c`.
+Every archived byte/mode/link target verified before loose-record removal.
+Conservative16:11:00UTC/90minute clock includes readiness, both corrections,
+checks, actual transaction, integration/push and exact owned branch/worktree
+cleanup; archive27.680minutes, final closure recorded on same clock.
+Only archive/closeout remain after owned cleanup. Unrelated detached diagnostics
+and old registrations are retained. No duplicate binaries/export artifacts.
+
+This closes one installed checkpoint retained-load case and its executable
+release caller. Final-package INSTALL-LINUX-RETAINED, full settings runtime,
+rendered Desktop Entry/Linux graphics, actual hardware/devices/audio, other
+recovery contexts and unresolved active-run policies retain their original gates.
+
 ## Linux checkpoint upgrade 499e681 to b4ff8c0 accepted 20261026
 
 INSTALL-LINUX[one upgrade transaction], parent32: **checkpoint scope accepted**,
