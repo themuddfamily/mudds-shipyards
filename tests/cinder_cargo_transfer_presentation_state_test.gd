@@ -75,6 +75,33 @@ func _run() -> void:
 		"accepted disembark and cargo start illuminate the physical carrying route"
 	)
 	_check_flash_policy(cluster, binding, access, terminal, &"carrying", 2.2)
+	# Reset is valid before any transfer completes; an unpaid completion remains protected.
+	var reset_result := binding.reset_cargo_run()
+	var reset := access.get_cargo_presentation_state()
+	var terminal_allocation := terminal.get_visual_resource_allocation_audit()
+	_check(
+		bool(reset_result.get("accepted", false))
+		and reset.state_id == &"reset"
+		and terminal.get_cargo_presentation_state().state_id == &"reset"
+		and _presentation_counts(access) == access_counts
+		and _presentation_counts(terminal) == terminal_counts
+		and bool(access.audit().valid)
+		and int(terminal_allocation.visible_copies) == 4
+		and int(terminal_allocation.renderer_submissions) == 4
+		and int(terminal_allocation.mesh_resource_allocations) == 4
+		and int(terminal_allocation.material_resource_allocations) == 3
+		and int(terminal_allocation.collision_nodes) == 3
+		and int(reset.node_delta) == 0
+		and int(reset.light_delta) == 0
+		and int(reset.submission_delta) == 0,
+		"reset retains exact renderer, light, collision, interaction, and authority budgets"
+	)
+	_check_flash_policy(cluster, binding, access, terminal, &"reset", 0.25)
+
+	var restarted := binding.start_cargo_run()
+	_check(bool(restarted.get("accepted", false))
+		and terminal.get_cargo_presentation_state().state_id == &"carrying",
+		"the genuine active reset permits the next cargo generation before completion")
 	for phase_id: StringName in [&"load_crate", &"clear_gate", &"dock_platform"]:
 		_check(
 			bool(binding.submit_cargo_phase(phase_id).get("accepted", false)),
@@ -154,27 +181,11 @@ func _run() -> void:
 		"the exact committed receipt resolves the existing route and terminal to committed"
 	)
 	_check_flash_policy(cluster, binding, access, terminal, &"committed", 2.7)
-	var reset_result := binding.reset_cargo_run()
-	var reset := access.get_cargo_presentation_state()
-	var terminal_allocation := terminal.get_visual_resource_allocation_audit()
-	_check(
-		bool(reset_result.get("accepted", false))
-		and reset.state_id == &"reset"
-		and terminal.get_cargo_presentation_state().state_id == &"reset"
-		and _presentation_counts(access) == access_counts
-		and _presentation_counts(terminal) == terminal_counts
-		and bool(access.audit().valid)
-		and int(terminal_allocation.visible_copies) == 4
-		and int(terminal_allocation.renderer_submissions) == 4
-		and int(terminal_allocation.mesh_resource_allocations) == 4
-		and int(terminal_allocation.material_resource_allocations) == 3
-		and int(terminal_allocation.collision_nodes) == 3
-		and int(reset.node_delta) == 0
-		and int(reset.light_delta) == 0
-		and int(reset.submission_delta) == 0,
-		"reset retains exact renderer, light, collision, interaction, and authority budgets"
-	)
-	_check_flash_policy(cluster, binding, access, terminal, &"reset", 0.25)
+	var completed_before_reset := _cargo_authority_state(binding, access, terminal)
+	var unpaid_reset := binding.reset_cargo_run()
+	_check(not bool(unpaid_reset.get("accepted", false)) and unpaid_reset.get("reason") == &"cargo_reward_pending"
+		and _cargo_authority_state(binding, access, terminal) == completed_before_reset,
+		"a completed unpaid delivery keeps its existing reset guard and exact authority state")
 
 	cluster.queue_free()
 	ship.queue_free()
