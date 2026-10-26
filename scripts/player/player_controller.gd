@@ -744,9 +744,20 @@ func _move_in_interior_collision_frame(delta: float) -> void:
 		global_transform = collision_transform * global_transform
 		velocity = collision_transform.basis * velocity
 		up_direction = collision_transform.basis * up_direction
+	var was_on_floor := is_on_floor()
+	if _embodiment_state == EmbodimentState.ON_FOOT and was_on_floor \
+			and is_instance_valid(_cabin_frame) and _cabin_frame.is_inside_tree() \
+			and not _cabin_frame.is_queued_for_deletion():
+		var movement_up := _get_movement_up_direction()
+		var up_speed := velocity.dot(movement_up)
+		if up_speed > 0.0 and is_zero_approx(up_speed):
+			# A carried tangent can retain a positive float residue. Resolve it
+			# through the ordinary gravity/contact path, including snap recovery.
+			var gravity_step := _get_effective_gravity().length() * gravity_multiplier * delta
+			if gravity_step > 0.0:
+				velocity -= movement_up * (up_speed + gravity_step)
 	var pre_move_transform := global_transform
 	var pre_move_velocity := velocity
-	var was_on_floor := is_on_floor()
 	if _discard_recovery_platform_motion:
 		_discard_recovery_platform_motion = false
 		var saved_floor_layers := platform_floor_layers
