@@ -27976,3 +27976,16 @@ GitHub Actions remains disabled; no Downloads publication. Original task clock
 failures/comparison corrections, checks, export and closure;300s suite/game and
 660s probe limits remain unchanged. Final process/source/branch/archive closure
 is recorded in `/srv/mudds-work/ember-quit-save-20261026/closeout.json`.
+
+Closure: integrated/pushed main8c8804658; owned task worktree removed after all
+11 accepted public build copies were verified by byte count/SHA256. Verified
+archive `/srv/mudds-work/ember-quit-save-20261026/records.tar.gz` retains all failed and accepted source/raw checks:
+267 regular files/19 symlinks, 55,805,886bytes, SHA256
+`55f8eb4c8312f0a48282d7c3bfef1c27b56c438144901ef6a0668e0354797341`. All 19 stage supervisors and
+71 observed PID/start identities are absent. Owned loose scratch is removed;
+only records.tar.gz and closeout.json remain. Task branch deleted against exact
+8c8804658 after fresh pushed-main/worktree/ref checks; remote task ref never
+created. Unrelated retired/prunable worktrees and previous archives are untouched.
+Closure documentation prepared at31.014 cumulative minutes from the original
+07:01:00UTC clock, including both unexpected failures and the expected old RED,
+against90minute estimate. The adjacent closeout records final pushed main/time.

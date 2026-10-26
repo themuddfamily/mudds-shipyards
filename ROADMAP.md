@@ -122,6 +122,8 @@ removal/streaming, full ordinary travel/home/exit/reuse, completed-debt disk
 restart and native Windows/GPU/human gates remain open. Test syntax and wire-type
 comparison failures are retained; neither reset the task clock. All readiness,
 failures, checks, builds and cleanup run from07:01:00UTC against90minute estimate.
+Integrated/pushed; owned branch/worktree/scratch closed after verified preservation.
+Closure documentation records31.014 cumulative minutes; no task clock reset.
 
 **Delivered release capability: exported pending-abandon cold restart.**
 Gameb30a9ea93/driver7337dc543, checkpointb30a9ea: one exact native Linux
