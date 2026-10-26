@@ -121,6 +121,9 @@ errors during second shutdown; final OS0/clean-file acceptance remains unproven.
 The corrected caller/read-only observer are integrated as a release capability;
 no runtime error is suppressed and no further trial/fix/probe is selected. Full
 INSTALL-LINUX-CORRUPT remains open. Latest accepted playable build stays2456552.
+A [bounded source pass](docs/history/ROADMAP_DELIVERIES.md#popup-parent-connection-source-boundary-20261026) identifies the matching native Popup cleanup pair;
+the concrete runtime popup and cleanup order remain missing. No engine/application
+patch or additional trial is selected from that source pattern alone.
 
 **Accepted: backup-repair restart guidance, checkpoint2456552.**
 Confirmed backup repair now tells the player to quit and reopen the game when

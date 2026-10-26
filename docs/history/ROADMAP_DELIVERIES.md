@@ -30183,3 +30183,41 @@ Closeout records final cumulative time, pushed integration and owned cleanup.
 No new playable checkpoint is published: accepted game behavior remains2456552.
 Full final-package, desktop launch, native hardware/device/audio and whole-family
 acceptance remain open. No original parent or phase gate closes.
+
+
+<a id="popup-parent-connection-source-boundary-20261026"></a>
+## Shutdown Popup connection source boundary —2026-10-26
+
+One bounded source pass supplies the native caller pattern for the retained
+UI-BOARD-FOCUS / installed-recovery shutdown messages. It delivers no runtime
+repair or qualification, and starts no engine, diagnostic probe, build or replay.
+Pinned public commit a13da4feb8d8aefc283c3763d33a2f170a18d541 reports
+[Godot4.7.1](https://github.com/godotengine/godot/blob/a13da4feb8d8aefc283c3763d33a2f170a18d541/version.py).
+
+[Popup::_initialize_visible_parents / _deinitialize_visible_parents](https://github.com/godotengine/godot/blob/a13da4feb8d8aefc283c3763d33a2f170a18d541/scene/gui/popup.cpp#L49)
+connect and disconnect the exact ancestor-Window pair: focus_entered→_parent_focused,
+tree_exited→_deinitialize_visible_parents. Deinitialization disconnects retained
+parents without is_connected checks, then clears the list. Hide, exit, unparent,
+close and ancestor-exit paths can reach this cleanup. These methods require
+current embedded status; [visible-parent traversal](https://github.com/godotengine/godot/blob/a13da4feb8d8aefc283c3763d33a2f170a18d541/scene/main/window.cpp#L1382)
+can include the root Window. This establishes a matching native lifecycle seam,
+not the identity or failing order of the game's actual Popup.
+
+**Empty callable text is not proof of a dead target.** Native method-pointer
+[formatting returns an empty string without DEBUG_ENABLED](https://github.com/godotengine/godot/blob/a13da4feb8d8aefc283c3763d33a2f170a18d541/core/object/callable_mp.h#L36).
+[Object::disconnect](https://github.com/godotengine/godot/blob/a13da4feb8d8aefc283c3763d33a2f170a18d541/core/object/object.cpp#L1524)
+rejects a missing signal connection entry or callable slot. Public source line
+rendering does not establish a one-to-one map to the captured binary's1644 line;
+no exact native stack or producer has been recovered from that number.
+
+Terminal result: **BLOCKED runtime owner/order — Codex**. Missing facts are the
+concrete Popup instance/path, which cleanup path ran, and when its root-parent
+connection entries disappeared relative to its retained parent list. Existing
+GDScript search finds Button focus bindings, not this ancestor pair; that search
+alone cannot exclude indirect script involvement. Do not repeat this source
+survey, infer TooltipPanel identity from the strings, guard/suppress all disconnect
+errors, or patch engine/application lifecycle from this pattern alone. A future
+runtime-owner capture requires its own explicit bounded selection and cumulative
+priority decision. Current installed qualification stays FAIL/PARK; all original
+outcomes, caps and prior cost remain open and retained. Titan design approval is
+still owner-pending; no construction is authorized by this source pass.
