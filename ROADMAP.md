@@ -110,6 +110,19 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Selected capability: SAVE-CORRUPT backup-repair restart guidance.**
+
+| Field | Frozen assignment |
+| --- | --- |
+| Result | After confirming backup repair, Settings tells the player to quit and reopen the game if startup recovery was blocked; ordinary success remains unchanged when that condition is absent. |
+| Start | Baselinef3752a922; owned branch/worktree `roadmap/backup-repair-guidance-20261026`, `/srv/mudds-work/backup-repair-guidance-20261026/worktree`. Existing HUD integration fixture uses corrupt primary `{corrupt`, verified backup and foreign payload; real safe-start owner initializes from the retained startup load status. Own only GameFlow and the existing repair HUD test. |
+| Steps | Initialize actual settings/safe-start owners from backup; open the existing repair surface; confirm through its actual HUD button; inspect final status and preserved store. |
+| Pass/fail | If existing safe-start begin_status.reason is store_recovery_required, exact two-line status is SETTINGS BACKUP REPAIRED / QUIT AND REOPEN THE GAME TO FINISH RECOVERY. Without that rejected startup, keep SETTINGS BACKUP REPAIRED. Existing opaque confirmation/generation fences, one repair commit, unrelated payload and corrupt recovery bytes remain intact; no automatic restart or new recovery writes. Actual minimum1024×768/UI1.6 status fits its presentation. |
+| Proof | Existing `tests/runtime_settings_repair_hud_integration_test.gd`: one expected old-copy failure then corrected full pass; related GameFlow/settings/safe-start checks, paired clean exports, actual Windows payload regression and three strict menu startups. Source-backed HUD component acceptance; ordinary corrupt install/restart and full-family qualification remain open. |
+| Dependencies | Existing source confirms repair does not retry rejected safe-start/crash startup; distinct OS process is required. No new product decision or changed recovery policy. |
+| Stop | Shared conservative clock19:08:19UTC includes preceding installed-corrupt source pass;90min including checks/build/archive/push/cleanup, hard20:38:19UTC. First unexpected failure stops; no automatic retries or reset budget. |
+| Closure | Record exact accepted/failed predicate; merge/push accepted source, fresh Windows/Linux checkpoint and notes, archive raw, remove owned branch/worktree/processes/scratch. |
+
 **PARKED: retained Heavy data through ordinary Jovian crew recovery.**
 The sole new candidate reaches the full chair/forced-stop/cold walk/helm/normal
 OS0 journey, but its final protected-namespace check fails: a default race and
