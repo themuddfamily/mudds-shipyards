@@ -7507,9 +7507,11 @@ class HeavyBreachFiles(HabitatRestartFiles):
 
 
 class RetainedHeavyFiles(HabitatRestartFiles):
-    """Seed one declared real save, then read only the game's own primary."""
-    FIXTURE_BYTES = 8655
-    FIXTURE_SHA256 = '25f9ccfe03b22018eae2cffcb52841ed5fbcff3f4a51a6c020e6c7495701aa73'
+    """Seed either declared real save, then read only the game's own primary."""
+    FIXTURES = frozenset({
+        (8655, '25f9ccfe03b22018eae2cffcb52841ed5fbcff3f4a51a6c020e6c7495701aa73'),
+        (9296, 'af2fada0a687b3a2dad6ee5c4550d4e6cd92120f2df94f6681f053e5b23ed409'),
+    })
     RELATIVE_SAVE = Path('data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json')
 
     def __init__(self, profile, output, fixture):
@@ -7517,9 +7519,9 @@ class RetainedHeavyFiles(HabitatRestartFiles):
         fixture = Path(fixture)
         require(fixture.is_file() and not fixture.is_symlink(), 'retained input is a regular raw save fixture')
         with fixture.open('rb') as stream:
-            raw = stream.read(self.FIXTURE_BYTES + 1)
-        require(len(raw) == self.FIXTURE_BYTES
-                and hashlib.sha256(raw).hexdigest() == self.FIXTURE_SHA256,
+            raw = stream.read(max(size for size, _ in self.FIXTURES) + 1)
+        digest = hashlib.sha256(raw).hexdigest()
+        require((len(raw), digest) in self.FIXTURES,
                 'exact accepted earned Heavy orderly-close fixture bytes')
         self.expected = json.loads(raw)
         self.path = self.profile / self.RELATIVE_SAVE
@@ -7527,7 +7529,7 @@ class RetainedHeavyFiles(HabitatRestartFiles):
         with self.path.open('xb') as stream:
             stream.write(raw)
         self.path.chmod(0o644)
-        self.fixture = {'path': str(fixture.resolve()), 'bytes': len(raw), 'sha256': self.FIXTURE_SHA256}
+        self.fixture = {'path': str(fixture.resolve()), 'bytes': len(raw), 'sha256': digest}
         require(self.capture('retained-input') == self.expected, 'fresh private profile contains only the exact retained input')
 
     def require_retained(self, document):
@@ -7543,15 +7545,15 @@ class RetainedHeavyFiles(HabitatRestartFiles):
                 and sample['settlement']['store']['generation'] > self.expected['generation'],
                 'production reader advanced the actual retained primary generation')
         require(crash['state'] == 'running' and crash['unclean_start_count'] == 0
-                and crash['session_id'] == previous['crash_recovery']['session_id'] + 1 == 2
-                and crash['startup_generation'] == previous['crash_recovery']['startup_generation'] + 1 == 2,
-                'retained clean save starts healthy distinct session and startup2')
-        require(safe['startup_generation'] == previous['safe_start_recovery']['startup_generation'] + 1 == 2
+                and crash['session_id'] == previous['crash_recovery']['session_id'] + 1
+                and crash['startup_generation'] == previous['crash_recovery']['startup_generation'] + 1,
+                'retained clean save starts healthy next session and startup')
+        require(safe['startup_generation'] == previous['safe_start_recovery']['startup_generation'] + 1
                 and safe['state'] in ('starting', 'stable') and safe['consecutive_failure_count'] == 0
                 and not safe['safe_settings_recommended'], 'retained clean save has no safe-start recovery recommendation')
         events = payload['session_diagnostics']['events']
         require(not any(e['event_code'] == 'crash_detected' for e in events)
-                and any(e['event_code'] == 'session_started' and e['session_id'] == 2
+                and any(e['event_code'] == 'session_started' and e['session_id'] == crash['session_id']
                         and e['fields'].get('recovered') is False for e in events),
                 'actual current session starts without crash recovery')
         require(payload['game_flow_reward_store'] == sample['settlement']['record'],
