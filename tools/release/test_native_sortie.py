@@ -5,6 +5,7 @@ import importlib.util
 import json
 import math
 import os
+import signal
 from pathlib import Path
 import subprocess
 import sys
@@ -6425,6 +6426,66 @@ class ZenithTorrentHandbackTests(unittest.TestCase):
         self.assertIn('_arrow_observation(true, false, _handback_torrent)',text)
         self.assertIn('_zenith_observation(true)',text)
         self.assertNotIn('_ship = _handback_torrent',text)
+
+
+class NativeProcessExitReportingTests(unittest.TestCase):
+    def test_nonzero_exit_and_trailing_output_survive_ui_rejection(self):
+        with tempfile.TemporaryDirectory() as folder:
+            log = Path(folder)/'game.log'
+            game = subprocess.Popen([sys.executable, '-c',
+                "import os; os.write(1,b'trailing-exit-17\\n'); raise SystemExit(17)"],
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=0)
+            try:
+                self.assertEqual(game.wait(timeout=5), 17)
+                leg = dict(exit_code=None, reaped=False)
+                with self.assertRaisesRegex(AssertionError, 'normal UI'):
+                    code = native.record_terminal_game_exit(game, leg, log)
+                    native.require(False, f'normal UI required (actual exit {code})')
+                self.assertEqual(leg, dict(exit_code=17, reaped=True))
+                self.assertEqual(log.read_bytes(), b'trailing-exit-17\n')
+                self.assertEqual(game.poll(), 17)
+            finally:
+                if game.poll() is None:
+                    game.kill(); game.wait(timeout=5)
+                game.stdout.close()
+
+    def test_signal_exit_is_retained_before_ui_rejection(self):
+        with tempfile.TemporaryDirectory() as folder:
+            log = Path(folder)/'game.log'
+            game = subprocess.Popen([sys.executable, '-c',
+                "import os,time; os.write(1,b'ready\\ntrailing-signal\\n'); time.sleep(30)"],
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=0)
+            try:
+                self.assertEqual(game.stdout.readline(), b'ready\n')
+                game.terminate()
+                self.assertEqual(game.wait(timeout=5), -signal.SIGTERM)
+                leg = dict(exit_code=None, reaped=False)
+                with self.assertRaisesRegex(AssertionError, 'normal UI'):
+                    code = native.record_terminal_game_exit(game, leg, log)
+                    native.require(False, f'normal UI required (actual exit {code})')
+                self.assertEqual(leg, dict(exit_code=-signal.SIGTERM, reaped=True))
+                self.assertEqual(log.read_bytes(), b'trailing-signal\n')
+            finally:
+                if game.poll() is None:
+                    game.kill(); game.wait(timeout=5)
+                game.stdout.close()
+
+    def test_live_process_cannot_be_recorded_as_reaped(self):
+        with tempfile.TemporaryDirectory() as folder:
+            log = Path(folder)/'game.log'
+            game = subprocess.Popen([sys.executable, '-c',
+                "import os,time; os.write(1,b'ready\\n'); time.sleep(30)"],
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=0)
+            try:
+                self.assertEqual(game.stdout.readline(), b'ready\n')
+                leg = dict(exit_code=None, reaped=False)
+                with self.assertRaisesRegex(AssertionError, 'only after'):
+                    native.record_terminal_game_exit(game, leg, log)
+                self.assertEqual(leg, dict(exit_code=None, reaped=False))
+                self.assertFalse(log.exists())
+            finally:
+                game.terminate(); game.wait(timeout=5)
+                game.stdout.close()
 
 
 if __name__ == '__main__':

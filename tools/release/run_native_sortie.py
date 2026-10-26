@@ -97,6 +97,16 @@ def drain_game_output(process, log_path):
     raise RuntimeError('game output did not drain within cleanup deadline')
 
 
+def record_terminal_game_exit(process, leg_result, log_path):
+    code = process.poll()
+    require(code is not None, 'game exit is recorded only after the process is terminal')
+    # poll() has reaped this direct child. Retain its actual status even when a
+    # later output, UI or normal-shutdown assertion rejects the run.
+    leg_result.update(exit_code=code, reaped=True)
+    drain_game_output(process, log_path)
+    return code
+
+
 def validate_binary(path):
     path = Path(path).absolute()
     if path.is_symlink() or not path.is_file() or not os.access(path, os.X_OK):
@@ -9025,7 +9035,9 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False):
                     deadline = time.monotonic()+15
                     window = None
                     while time.monotonic()<deadline:
-                        if game.poll() is not None: raise RuntimeError('exported game exited before X window')
+                        if game.poll() is not None:
+                            code = record_terminal_game_exit(game, leg_result, output/'game.log')
+                            raise RuntimeError(f'exported game exited before X window: {code}')
                         tree = subprocess.run(['xwininfo','-root','-tree'],env=env,capture_output=True,text=True,timeout=2).stdout
                         for candidate in re.findall(r'^\s*(0x[0-9a-f]+)',tree,re.M):
                             prop = subprocess.run(['xprop','-id',candidate,'_NET_WM_PID'],env=env,capture_output=True,text=True,timeout=2).stdout
@@ -9053,11 +9065,9 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False):
                         with (output/'game.log').open('ab') as log:
                             while pilot.result is None:
                                 if game.poll() is not None:
+                                    code = record_terminal_game_exit(game, leg_result, output/'game.log')
                                     if isinstance(pilot, (ZenithTorrentHandbackPilot, GuidedExitPilot, ArrowReturnReusePilot, CinderSupplyPilot, HeavyBreachPilot, RaceHomePilot)):
-                                        if isinstance(pilot, GuidedExitPilot):
-                                            leg_result.update(exit_code=game.returncode, reaped=True)
-                                        require(pilot.quit_requested, 'native process exits only after normal UI request')
-                                        drain_game_output(game, output/'game.log')
+                                        require(pilot.quit_requested, f'native process exits only after normal UI request (actual exit {code})')
                                         tail = (output/'game.log').read_bytes().splitlines()
                                         for observation in observations_from_lines(tail):
                                             if observation['sequence'] > pilot.last_state['sequence']:
