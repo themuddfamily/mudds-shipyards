@@ -117,7 +117,15 @@ and receipt contract was implemented on an isolated candidate5171119; it passed
 actual1529-entry payload audit. Its sole approved ordinary attempt stopped at
 startup:22.929s runner/23.410s wrapper, zero observer states, actual gamePID2185497
 has a matching kernel SIGSEGV record. No contact, flight or repair was reached;
-source crash cause remains NOT_ESTABLISHED. No second attempt is authorized.
+source crash cause remains NOT_ESTABLISHED. No second gameplay attempt is authorized.
+One separately reviewed startup-only debugger capture reproduced the same instruction
+in21.952s, with no input/privateXvfb/x11/Dummy and the exact archived ELF. The
+stack/registers/mappings are retained but unsymbolized; no source fix can be
+justified from them. All four observed identities are absent; duplicate binary
+and loose diagnostic scratch removed after archive verification. Stop further
+launches/symbol acquisition/builds under this attempt. Closure preparation is
+88.695 cumulative minutes on the original90minute clock; final push is recorded
+in the diagnostic closeout.
 The Core observer/Boot/selector changes are unaccepted and stay out of main.
 [Exact failure, frozen scope and reopening condition](docs/history/ROADMAP_DELIVERIES.md#zenith-core-repair-startup-failure-parked-20261026).
 

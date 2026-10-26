@@ -29169,3 +29169,28 @@ closeout.json remain privately; unrelated detached diagnostics/old registrations
 retained. Archive closure 75.659 minutes against the original 90 minute estimate;
 final docs/push remain charged to13:11:52UTC in closeout.json. Only the independently
 accepted two-file exit-reporting fix is integrated; no new gameplay checkpoint.
+
+
+### Zenith startup-only debugger capture 20261026
+
+One separately reviewed45s diagnostic, no gameplay qualification/input or full
+journey retry. Exact archived5171119 ELF SHA-256
+`19a8003be0cf6e785fc932aef8d5e5c225da63c1565b2e089d5ee6d5d020e605`
+reproduces startup SIGSEGV at0x2e57c13 under gdb in21.952043584s. InferiorPID2191114;
+all-thread backtrace, registers and mappings retained. Relevant frames are?? and
+rax0; source cause remains NOT_ESTABLISHED. Debugger exit0 means completed
+capture only; SIGSEGV was stopped/nopass, then debugger-directed termination.
+The unhandled inferior OS exit status was NOT_MEASURED, never reported as0.
+Private owned Xvfb, explicitx11/Dummy/dummy renderer/disabled render loop, fresh
+private profile, no input. gdb obtained within60s;0 packages upgraded/eight new
+debugger dependencies, install log retained. No further launch/symbol download/
+engine build selected. The parked Core/gameplay gates remain open.
+
+Capture archive `/srv/mudds-work/zenith-core-startup-stack-20261026/records.tar.gz`:
+18,667bytes; SHA-256
+`38ff70475970d76089a5a7162d5e752fc7abce710ea9855436579819b3f39b40`.
+All15regular files verified for membership/bytes/modes. Exact subject already
+remains in the prior verified Core archive; its duplicate copy was removed.
+All four observed identities absent; only archive/closeout remain privately.
+Closure preparation88.695minutes from the original13:11:52UTC against90;
+final push retains that same clock. Main gameplay and checkpointb4ff8c0 unchanged.

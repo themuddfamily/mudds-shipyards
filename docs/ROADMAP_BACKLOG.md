@@ -442,7 +442,11 @@ ordinary attempt crashed before the first observer state; no gameplay predicate
 was reached. [Actual failure and reopening condition](history/ROADMAP_DELIVERIES.md#zenith-core-repair-startup-failure-parked-20261026).
 The unaccepted observer/Boot/caller is archived, not merged. Current main retains
 only the separately tested premature-exit reporting fixd0cbd2016. No second trial
-or contact retuning; startup cause remains NOT_ESTABLISHED. All five components,
+or contact retuning; startup cause remains NOT_ESTABLISHED. One approved startup-
+only debugger capture reproduced exact5171119 ELF/SIGSEGV at the same0x2e57c13,
+but relevant frames remain unsymbolized. The missing artifact is an actionable
+symbolized engine/script callsite, owned by Codex; this attempt stops without
+another launch, symbol download or rebuild. All five components,
 both stages, passive repair and full Zenith remain open. The following missing-
 field record describes the earlier source pass and does not schedule a repeated
 activation survey. **Original stop — BLOCKED definition, Codex.** Missing: ordinary pose/input/contact
