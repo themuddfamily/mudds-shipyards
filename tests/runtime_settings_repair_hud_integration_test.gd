@@ -239,6 +239,9 @@ func _run() -> void:
 
 
 func _check_repair_with_rejected_startup() -> void:
+	var previous_size := root.size
+	var previous_content_size := root.content_scale_size
+	var previous_aspect := root.content_scale_aspect
 	var path := "memory://repair-hud-rejected-startup.json"
 	var fixture := _backup_recovery_fixture(path)
 	var filesystem := fixture.filesystem as FakeFilesystem
@@ -286,13 +289,18 @@ func _check_repair_with_rejected_startup() -> void:
 		and status.text == "SETTINGS BACKUP REPAIRED\nQUIT AND REOPEN THE GAME TO FINISH RECOVERY",
 		"repair after rejected startup explicitly tells the player to quit and reopen the game"
 	)
+	root.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
+	root.content_scale_size = Vector2i(1024, 768)
+	root.size = Vector2i(1024, 768)
+	await process_frame
+	await process_frame
 	hud.set_ui_scale(1.6)
-	hud.layout_for_viewport(Vector2(1024.0, 768.0))
 	await process_frame
 	await process_frame
 	var settings_page := hud.get("_settings_page") as Control
 	_check(
-		status.size.x >= status.get_minimum_size().x
+		root.get_visible_rect().size == Vector2(1024.0, 768.0)
+		and status.size.x >= status.get_minimum_size().x
 		and status.size.y >= status.get_minimum_size().y
 		and settings_page.get_global_rect().encloses(status.get_global_rect())
 		and Rect2(Vector2.ZERO, Vector2(1024.0, 768.0)).encloses(status.get_global_rect()),
@@ -300,6 +308,11 @@ func _check_repair_with_rejected_startup() -> void:
 	)
 	hud.queue_free()
 	flow.free()
+	await process_frame
+	root.content_scale_aspect = previous_aspect
+	root.content_scale_size = previous_content_size
+	root.size = previous_size
+	await process_frame
 	await process_frame
 
 
