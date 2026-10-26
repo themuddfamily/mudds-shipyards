@@ -77,23 +77,38 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
-**Zenith pilot/hit/home/reuse: PARKED after two trials / not accepted.**
-The source-backed corner correction8a764b0ab retains all15goals/support/caps and
-clears admission/90seated frames, physical departure and climb in the additional
-trial. It then stops58.927s at the frozen15tick boost executor guard: raw2495
-shows native keys released but the16th consumed boost command still active;
-consumer neutrality arrives2496. No broken boost feature is established.
+**Active: Zenith original physical-handling outcome, with contract corrected.**
+The original finite craft requirement asks for working steering/roll/brake/hover/
+boost/cameras; exact15consumed ticks was Codex's candidate executor procedure,
+not an owner requirement. Independent source/scope review retires that brittle
+procedure. Both old trials and their raw/source/builds remain FAILED in archives;
+the old16tick trace (~13.23m/s) does not pass the new speed>94 observation.
 
-Q/hover/cameras/Fhit, home/exit/reuse and normalOS0/clean-close remain unproven.
-No third trial/repair/continuation under the two-trial allocation. Any later
-proposal needs a source-backed consumer-frontier/release-debt executor and
-independent cumulative-priority/full-contract review; do not normalize/raise
-counts, treat native release as an engine fence, or reset the original
-00:33:26→01:48:26UTC/75min accounting. Both actual failed sources/raw/builds are
-verified in archives; accepted main/checkpointb810822 restored, loose unaccepted
-exports/source/profiles and task branch removed. No successor active.
-[Exact release-tail failure and cleanup](docs/history/ROADMAP_DELIVERIES.md#zenith-corner-correction-release-tail-stop-20261026);
-[first corner failure retained](docs/history/ROADMAP_DELIVERIES.md#zenith-return-reuse-support-corner-stop-20261026).
+Before tests, bind physical outcomes: from upright controlled low-speed flight,
+current native+consumed forward/boost must produce actual speed>authored94m/s
+cruise with unchanged94/126tuning; actual consumed braking reduces velocity and
+native+consumer release is observed. Q must produce at least30deg measured
+roll/basis change from its captured upright baseline while consumed, without
+pitch/yaw/mouse confounding; after release, actual hover restores upright≥.94
+and controlled low speed. Both actual camera transitions remain. Record ALL held
+and queued-tail samples/ticks; no exact-duration claim or count normalization.
+These are declared engineering observations, not new historical/performance
+promises or whole-craft gates. No success from merely sending input.
+
+Keep SAME15goal corrected corner/admission/90seat, one genuine28hit/source1104/
+420m/.24s, two actual strict homes/oneL/ownHero timeout/4s stall/90neutral OFFLINE,
+physical exits/wing-clear walks/fresh reuse, normalHUDOS0 and both durable clean
+states. Existing15s phase/existing action guards and nativeCAP300/outer360 remain.
+Other full-craft/damage/loss/switch/Main/art/hardware/final gates stay open.
+
+Old75min/two-trial allocation is closed/failed. One new original-outcome candidate
+is explicitly selected after cumulative-priority review: total engineering
+estimate90min from SAME00:33:26→02:03:26UTC, a transparent15min extension with
+all prior cost retained, not a new t0 or changed owner/run budget. At most one
+new fulltrial, three cumulative; first unexpected failure ends this selection.
+Implementer owns driver/Python, root restores verified observer/selector/privacy
+and owns fresh profiles/checks/paired checkpoint/review/push/cleanup. Exact source
+GO required before tests; no new test or native trial has run yet.
 
 **Definition complete: CRAFT-ACCEPT-ZENITH.** Its [finite acceptance table](docs/ROADMAP_BACKLOG.md#zenith-finite-acceptance-binding)
 now names11 original journey members with concrete actions, observable results,

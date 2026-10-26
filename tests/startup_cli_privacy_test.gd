@@ -13,7 +13,7 @@ func _init() -> void:
 
 
 func _run() -> void:
-	for route: String in ["hauler-supply", "patrol-relay-home", "race-home", "heavy-breach", "courier-withdraw-distance", "courier-withdraw-phase", "courier-escape", "courier-intercept", "arrow-return-reuse", "torrent-return-reuse", "torrent-damaged-return", "torrent-arrow-handoff", "life-tow", "life-gantry", "life-arm", "life-patrol", "beacon-entry", "beacon-settlement", "beacon-home"]:
+	for route: String in ["zenith-return-reuse", "hauler-supply", "patrol-relay-home", "race-home", "heavy-breach", "courier-withdraw-distance", "courier-withdraw-phase", "courier-escape", "courier-intercept", "arrow-return-reuse", "torrent-return-reuse", "torrent-damaged-return", "torrent-arrow-handoff", "life-tow", "life-gantry", "life-arm", "life-patrol", "beacon-entry", "beacon-settlement", "beacon-home"]:
 		var life_args := PackedStringArray(["--native-sortie-observer=" + route])
 		_check(StartupLoaderType.native_sortie_request(life_args, "X11", "Dummy", true).accepted,
 			"%s explicitly admits only the silent private X11 observer" % route)

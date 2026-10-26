@@ -928,6 +928,8 @@ class NativeSortieSafetyTests(unittest.TestCase):
 
     def gantry_finish_goal(self, pilot, s):
         name, target = pilot.route[pilot.index]
+        if pilot.mode == 'life-arm' and name == 'zenith_approach':
+            target = [20.4,4.2,59.1]  # Same published goal region; safe corner fixture endpoint.
         while native.norm(native.sub(target, s['player'])) > .09:
             delta = native.sub(target, s['player'])
             step = [v*.09/native.norm(delta) for v in delta]
@@ -1427,6 +1429,66 @@ class NativeSortieSafetyTests(unittest.TestCase):
             pilot, s = native.LifeTowPilot('life-arm'), self.arm_observation()
             mutate(s)
             with self.assertRaises(AssertionError): pilot.validate_observation(s)
+
+    def zenith_corner_fixture(self, point):
+        pilot, sample = self.life_walking_pilot('life-arm')
+        sample.update(player=list(point), position=list(point), velocity=[0,0,0], native_interact=False)
+        self.arm_motion(sample)
+        pilot.observed_previous = copy.deepcopy(sample)
+        pilot.previous = copy.deepcopy(sample)
+        pilot.tap_key = None
+        pilot.stage = 'walk_service'
+        pilot.route = [pilot.ARM_GOALS[12]]
+        pilot.index = 0
+        pilot.visited = [{'waypoint':name} for name,_point in pilot.ARM_GOALS[:12]]
+        pilot.goal_started = sample['frame']/60
+        pilot.settled_frames = 0
+        return pilot, sample
+
+    def test_zenith_corner_old_failure_cannot_advance_and_safe_interior_uses_same_fifteen_samples(self):
+        point = [20.197271347,4.20189333,59.318538666]
+        pilot,sample = self.zenith_corner_fixture(point)
+        published = pilot.route[0][1][:]
+        self.assertLess(math.hypot(point[0]-published[0],point[2]-published[2]),.30)
+        self.assertLess(point[0],20.2); self.assertGreater(point[2],59.3)
+        pilot.settled_frames = 15
+        direction = native.unit(native.sub([20.4,point[1],59.1],point))
+        sample['walk_forward'] = direction
+        sample['walk_right'] = [-direction[2],0,direction[0]]
+        keys=set(); _dx,reached=pilot.walk_to(sample,published,keys,1)
+        self.assertFalse(reached); self.assertIn('w',keys)
+        self.life_tick(pilot,sample)
+        self.assertEqual(pilot.settled_frames,0)
+        self.assertEqual(len(pilot.visited),12)
+        self.assertEqual(pilot.route[0],('zenith_approach',published))
+        pilot,sample = self.zenith_corner_fixture([20.4,4.2,59.1])
+        for _ in range(14): self.life_tick(pilot,sample)
+        self.assertEqual(pilot.settled_frames,14); self.assertEqual(len(pilot.visited),12)
+        self.life_tick(pilot,sample)
+        self.assertEqual(pilot.visited[-1]['waypoint'],'zenith_approach')
+        self.assertEqual(pilot.route[0][0],'zenith_clearance')
+        self.assertEqual(len(pilot.ARM_GOALS),15)
+        self.assertEqual(pilot.ARM_GOALS[12],('zenith_approach',[20.2,4.2,59.2]))
+        self.assertEqual(pilot.ARM_GOALS[13:],(('zenith_clearance',[18.6,4.2,58.6]),
+                                              ('zenith_candidate',[18.2,4.2,58.2])))
+
+    def test_zenith_corner_keeps_real_support_and_original_goal_time_guard(self):
+        pilot,sample=self.zenith_corner_fixture([20.4,4.2,59.1])
+        sample['supported']=False
+        with self.assertRaisesRegex(AssertionError,'actual physical station floor support'): self.life_tick(pilot,sample)
+        pilot,sample=self.zenith_corner_fixture([20.4,4.2,59.1])
+        sample['frame'] += 1; sample['service']['clock'] += 1/60
+        self.arm_motion(sample,pilot.observed_previous)
+        with self.assertRaisesRegex(AssertionError,'15-second authored Zenith goal deadline'):
+            pilot.update(copy.deepcopy(sample),pilot.goal_started+15.001)
+        control=[20.4,59.1]; goal=[20.2,59.2]
+        self.assertLess(math.hypot(control[0]-goal[0],control[1]-goal[1])+.05,.30)
+        crossing_x=22+(20.4-22)*(59.3-68.3)/(59.1-68.3)
+        self.assertAlmostEqual(crossing_x,20.4347826087)
+        for fraction in (0,.25,.5,.75,1):
+            x=20.3+(18.6-20.3)*fraction
+            z=59.2+(58.6-59.2)*fraction
+            self.assertTrue(13 <= x <= 28 and 47.3 <= z <= 59.3)
 
     def test_life_arm_all_three_movers_change_in_each_acceptance_interval(self):
         start = self.arm_observation()['service']
@@ -5689,6 +5751,252 @@ class GuidedExitTests(unittest.TestCase):
             self.assertEqual(captured['safe_start_recovery_state'], 'clean_shutdown')
             self.assertEqual((output/captured['artifact']).read_bytes(), raw)
             self.assertEqual(path.read_bytes(), raw)
+
+
+class ZenithReturnReuseTests(unittest.TestCase):
+    """Fresh literal combined-observer shape; no engine or display is launched."""
+    @staticmethod
+    def observation():
+        admission = NativeSortieSafetyTests().arm_observation()
+        tuning = dict(canopy=1, boarding=1, exit=1, cooldown=.24, maximum_speed=94,
+            thrust=42, brake=54, drag=3.8, response=14, yaw=94, assist=7.2, mouse=.0022,
+            boost_speed=126, boost_multiplier=1.42, maximum_hull=68, impact_threshold=34,
+            impact_scale=1.8, impact_cooldown=.5)
+        admission['ship_tuning'] = copy.deepcopy(tuning)
+        admission['boarding'] = [14.35,4.73,53.85]
+        sample = dict(mode='zenith-return-reuse', actors_current=True, frame=100, sequence=1, pid=700,
+            main_id=admission['main_id'], world_id=admission['world_id'], player_id=admission['player_id'],
+            capsule_id=admission['capsule_id'], shape_id=admission['shape_id'], ship_id=admission['ship_id'],
+            berth_id=admission['home_berth_instance_id'], source_id=110, seat_id=111,
+            target_instance_id=112, target_adapter_id=113, camera_id=114, chase_camera_id=114, cockpit_camera_id=115,
+            phase='INTRO', paused=False, menu_ready=True, guided_complete=False,
+            definition_id='zenith_b7_observed', home_id='zenith_fleet_dock_berth',
+            player=[-8.5,.18,11], spawn=[-8.5,.18,11], position=[22,5.28,53.3], parked=[22,5.28,53.3],
+            boarding=[14.35,4.73,53.85], exit=[14.15,4.73,54.15], capture_position=[22,15.28,35.3],
+            right=[1,0,0], up=[0,1,0], back=[0,0,1], camera=[22,9,68],
+            camera_right=[1,0,0], camera_up=[0,1,0], camera_back=[0,0,1], camera_view='CHASE',
+            ship_invert_y=False, velocity=[0,0,0], ship_velocity=[0,0,0],
+            walk_forward=[0,0,-1], walk_right=[1,0,0], capsule_geometry=[.38,1.94], capsule_enabled=True,
+            walk_tuning=copy.deepcopy(native.LifeTowPilot.DEFAULT_WALK), ship_tuning=tuning,
+            default_controls=True, default_sampler=True, tuning_unchanged=True, physics_ticks=60, time_scale=1,
+            destroyed=False, hull=68, remote_piloted=False, control_enabled=True, seated=False,
+            seated_at_pilot=False, piloted=False, active_ship=False, player_camera=True, ship_camera=False,
+            transition_busy=False, grounded=True, supported=True, support_collider='/Main/ShipyardWorld/Deck',
+            mouse_captured=True, candidate=False, station_candidate=False, boarding_distance=70,
+            reboard_blocked=False, boarding_reserved=False, native_interact=False, native_landing=False,
+            native_thrust=False, native_fire=False, flight_demand=False, engine='OFFLINE', landed=True,
+            landing_active=False, capture=False, parked_exact=True, lease=True, lease_free=False,
+            lease_token='zenith-initial', contract=False, input_stream=1, source_enabled=True,
+            application_focused=True, admission=admission,
+            endpoints=dict(clear=[22,5.28,33.3], climb=[22,25.28,15.3], lane=[22,25.28,-24.7],
+                wing_port=[14.8,4.2,57.2], wing_clear=[20.4,4.2,59.2], reapproach=[18.2,4.2,58.2]),
+            command=dict(schema_version=4, sequence=0, timestamp_usec=0, stream_id=0,
+                throttle=0, yaw=0, pitch=0, roll=0, look_yaw_delta=0, look_pitch_delta=0,
+                camera_distance_delta=0, boost=False, brake=False, hover=False, fire=False,
+                barrel_roll=False, engine_start=False, engine_stop=False, landing=False,
+                interact=False, camera_toggle=False, fire_pressed=False),
+            native_control=dict(boost=False, roll=False, brake=False, hover=False, camera=False),
+            landing=dict(active=False, elapsed=0, timeout_seconds=24, stall_elapsed=0,
+                         stall_timeout_seconds=4, last_abort_reason=''),
+            weapon_source=1104, weapon=dict(range=420, damage=28), shot=dict(present=False, request={}),
+            target=dict(name='TargetDrone01', target_id='DRONE-01', base_position=[-13,7,-95],
+                position=[-12,7,-95], health=100, maximum_health=100, destroyed=False, components={},
+                hit_source=dict(source_id=0, source_entity_id=0, weapon_id='', sequence=-1, presentation_receipt_id=-1)),
+            boarding_confirmation=dict(adapter=dict(view=dict(state='approach'))),
+            native_keys=dict(escape=False, tab=False, **{'return':False}),
+            ui=dict(main_visible=True, exit_visible=True, exit_enabled=True, exit_text='EXIT TO DESKTOP',
+                exit_path='/Main/HUD/Exit', focus_path='/Main/HUD/Exit', focus_is_exit=True),
+            save=dict(path='/tmp/private/data/mudds_user_data.json', source='primary', generation=1, payload={}))
+        return sample
+
+    def initial(self):
+        pilot = native.ZenithReturnReusePilot(); sample = self.observation()
+        pilot.validate_observation(sample)
+        return pilot, sample
+
+    @staticmethod
+    def flight_sample(sample, frame=101):
+        s = copy.deepcopy(sample); s.update(frame=frame, sequence=frame-99, phase='FREE_FLIGHT',
+            piloted=True, seated=True, seated_at_pilot=True, active_ship=True, ship_camera=True,
+            capsule_enabled=False, player_camera=False, grounded=False, supported=False,
+            landed=False, lease=False, lease_free=True, lease_token='', parked_exact=False,
+            engine='ONLINE', input_stream=3, position=[22,25.28,15.3])
+        s['command']['stream_id'] = 3; s['command']['sequence'] = frame
+        return s
+
+    def test_full_literal_shape_initial_prefix_and_each_owned_identity(self):
+        pilot,sample = self.initial()
+        self.assertEqual(pilot.admission.mode, 'life-arm')
+        self.assertEqual(len(pilot.admission.config['goals']), 15)
+        self.assertEqual(set(pilot.IDS)-set(sample), set())
+        for key in ('main_id','world_id','player_id','ship_id','source_id','chase_camera_id','cockpit_camera_id'):
+            p,s = self.initial(); p.stage='depart'; bad=self.flight_sample(s)
+            bad[key] += 900
+            with self.subTest(key=key), self.assertRaises(AssertionError): p.validate_observation(bad)
+        p,s=self.initial(); p.stage='depart'; bad=self.flight_sample(s)
+        bad['endpoints']['clear'][2] -= 1
+        with self.assertRaises(AssertionError): p.validate_observation(bad)
+
+    def test_boost_requires_speed_above_authored_cruise_and_records_every_release_tail(self):
+        p,s=self.initial(); p.enter('boost',s)
+        for index in range(1,17):
+            current=self.flight_sample(s,100+index)
+            current['command'].update(boost=True,throttle=1)
+            current['native_control']['boost']=True; current['native_thrust']=True
+            current['ship_velocity']=[0,0,-13.23*index/16]
+            p.validate_observation(current)
+        self.assertNotIn('boost',p.handling)  # Prior16tick/13.23m/s attempt does not qualify.
+        p.update(current,1); self.assertEqual(p.stage,'boost')
+        fast=self.flight_sample(s,117); fast['command'].update(boost=True,throttle=1)
+        fast['native_control']['boost']=True; fast['native_thrust']=True
+        fast['ship_velocity']=[0,0,-95]; p.validate_observation(fast); p.update(fast,1.1)
+        self.assertEqual(p.stage,'boost_brake')
+        self.assertGreater(p.handling['boost']['speed'],94)
+        self.assertEqual(p.control_pulses['boost']['release_request']['count'],17)
+        tail=self.flight_sample(s,118); tail['command'].update(boost=True,throttle=1)
+        tail['ship_velocity']=[0,0,-96]; p.validate_observation(tail)
+        self.assertEqual(p.control_ticks['boost'],18)
+        self.assertIsNone(p.control_pulses['boost']['released'])
+        neutral=self.flight_sample(s,119); neutral['command']['brake']=True
+        neutral['native_control']['brake']=True; neutral['ship_velocity']=[0,0,-80]
+        p.validate_observation(neutral)
+        self.assertEqual(p.control_pulses['boost']['released']['count'],18)
+        self.assertEqual(len(p.control_pulses['boost']['samples']),19)
+        self.assertIn('brake',p.handling)
+
+    def test_roll_requires_thirty_degrees_from_captured_upright_baseline_then_neutral_release(self):
+        p,s=self.initial(); p.enter('roll',s)
+        for index,angle in enumerate((10,20,31),start=1):
+            current=self.flight_sample(s,100+index); radians=math.radians(angle)
+            current['up']=[math.sin(radians),math.cos(radians),0]
+            current['right']=[math.cos(radians),-math.sin(radians),0]
+            current['command']['roll']=-1; current['native_control']['roll']=True
+            p.validate_observation(current)
+            if angle<30: self.assertNotIn('roll',p.handling)
+        self.assertGreaterEqual(p.handling['roll']['roll_degrees'],30)
+        p.update(current,1); self.assertEqual(p.stage,'hover')
+        tail=self.flight_sample(s,104); tail['command']['roll']=-1
+        tail['up']=current['up'][:]; tail['right']=current['right'][:]
+        p.validate_observation(tail)
+        keys,*_=p.update(tail,1.1); self.assertNotIn('h',keys)
+        self.assertEqual(p.control_ticks['roll'],4)
+        neutral=self.flight_sample(s,105); neutral['up']=current['up'][:]; neutral['right']=current['right'][:]
+        p.validate_observation(neutral)
+        self.assertEqual(p.control_pulses['roll']['released']['count'],4)
+        restored=self.flight_sample(s,106); angle=math.radians(15)
+        restored['up']=[math.sin(angle),math.cos(angle),0]
+        restored['command']['hover']=True; restored['native_control']['hover']=True
+        p.validate_observation(restored); self.assertIn('hover',p.handling)
+
+    def test_handling_rejects_preexisting_tilt_or_concurrent_roll_steering(self):
+        p,s=self.initial(); tilted=copy.deepcopy(s); tilted['up']=[.8,.6,0]
+        with self.assertRaises(AssertionError): p.enter('roll',tilted)
+        p,s=self.initial(); moving=copy.deepcopy(s); moving['ship_velocity']=[0,0,-1]
+        with self.assertRaises(AssertionError): p.enter('boost',moving)
+        for key in ('yaw','pitch','look_yaw_delta','look_pitch_delta'):
+            with self.subTest(key=key):
+                p,s=self.initial(); p.enter('roll',s); current=self.flight_sample(s)
+                current['command'].update(roll=-1); current['command'][key]=.01
+                current['native_control']['roll']=True
+                with self.assertRaises(AssertionError): p.validate_observation(current)
+
+    def test_one_actual_repeater_hit_and_retained_receipt_reject_replay_or_other_target(self):
+        for fault in (None,'source','target','damage','sequence','native'):
+            with self.subTest(fault=fault):
+                p,s=self.initial(); p.stage='weapon_fire'; p.first_stream=3
+                baseline=self.flight_sample(s)
+                p.weapon['pre_fire']=p.weapon_receipt(baseline)
+                hit=self.flight_sample(s,102); hit['native_fire']=True; hit['command']['fire']=True
+                request=dict(source_id=1104, source_entity_id=hit['ship_id'], weapon_id='zenith_interceptor_repeater',
+                    sequence=0,presentation_receipt_id=9,range=420,damage=28)
+                hit['target']['health']=72
+                hit['target']['hit_source']={k:request[k] for k in
+                    ('source_id','source_entity_id','weapon_id','sequence','presentation_receipt_id')}
+                hit['shot']=dict(present=True,accepted=True,resolved=True,hit=True,damaged=True,status='damaged',destroyed=False,
+                    source_id=1104,source_entity_id=hit['ship_id'],target_entity_id=hit['target_instance_id'],
+                    damageable_id=hit['target_adapter_id'],applied_damage=28,remaining_health=72,request=request,
+                    damage_result=dict(accepted=True,applied_damage=28,health=72,maximum_health=100,destroyed=False))
+                if fault=='source': hit['shot']['source_id']=1103
+                elif fault=='target': hit['shot']['target_entity_id']+=1
+                elif fault=='damage': hit['shot']['applied_damage']=27
+                elif fault=='sequence': request['sequence']=1
+                elif fault=='native': hit['native_fire']=False
+                if fault:
+                    with self.assertRaises(AssertionError): p.validate_weapon(hit)
+                else:
+                    p.validate_weapon(hit); first=p.weapon['hit']
+                    hit['native_fire']=False; hit['command']['fire']=False
+                    p.stage='return_capture'; p.validate_weapon(hit)
+                    self.assertIs(p.weapon['hit'],first)
+                    self.assertEqual(p.weapon['hit']['target']['health'],72)
+
+    def test_dynamic_landing_timeout_stall_and_single_l_press_remain_binding(self):
+        for fault in (None,'timeout','stall','changed_budget','second_press'):
+            with self.subTest(fault=fault):
+                p,s=self.initial(); p.stage='land'; p.receipts['landing_1']=p.receipt(s)
+                active=self.flight_sample(s); active.update(landing_active=True,native_landing=True)
+                active['landing'].update(active=True,elapsed=1,timeout_seconds=30)
+                p.validate_observation(active)
+                self.assertEqual(p.landing_edges,[1,0]); self.assertEqual(p.landing_timeout,30)
+                second=self.flight_sample(s,102); second.update(landing_active=True,native_landing=False)
+                second['landing'].update(active=True,elapsed=2,timeout_seconds=30)
+                if fault=='timeout': second['landing']['elapsed']=30.01
+                elif fault=='stall': second['landing']['stall_elapsed']=4.01
+                elif fault=='changed_budget': second['landing']['timeout_seconds']=31
+                if fault in ('timeout','stall','changed_budget'):
+                    with self.assertRaises(AssertionError): p.validate_observation(second)
+                else:
+                    p.validate_observation(second)
+                    if fault=='second_press':
+                        third=self.flight_sample(s,103); third.update(landing_active=True,native_landing=True)
+                        third['landing'].update(active=True,elapsed=3,timeout_seconds=30)
+                        with self.assertRaises(AssertionError): p.validate_observation(third)
+                    else: self.assertEqual(p.landing_last[1]['landing']['elapsed'],2)
+
+    def test_new_phase_guards_fresh_epoch_and_both_camera_consumers(self):
+        p,s=self.initial(); p.stage='climb'; p.stage_since=10
+        p.stage_guard(25)
+        with self.assertRaises(AssertionError): p.stage_guard(25.001)
+        p,s=self.initial(); p.stage='camera_cockpit'
+        cockpit=self.flight_sample(s); cockpit.update(camera_view='COCKPIT',camera_id=cockpit['cockpit_camera_id'])
+        cockpit['native_control']['camera']=True; cockpit['command']['camera_toggle']=True
+        p.validate_observation(cockpit)
+        p.stage='camera_chase'; chase=self.flight_sample(s,102)
+        chase['native_control']['camera']=True; chase['command']['camera_toggle']=True
+        p.validate_observation(chase)
+        self.assertIn('camera_cockpit',p.handling); self.assertIn('camera_chase',p.handling)
+        p.stage='board'; p.stage_since=0; p.first_stream=3; p.retired_stream=5; p.now=1
+        seated=copy.deepcopy(chase); seated.update(phase='START_ENGINES',landed=True,parked_exact=True,
+            lease=True,lease_token='fresh-home',contract=True,input_stream=5)
+        seated['command']['stream_id']=5; p.last_state=seated
+        with self.assertRaises(AssertionError): p.update(seated,1)
+
+    def test_actual_file_both_home_captures_and_clean_close_preserve_unrelated_slots(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory); profile=root/'profile'; output=root/'results'
+            (profile/'data').mkdir(parents=True); output.mkdir(); path=profile/'data'/'mudds_user_data.json'
+            files=native.ZenithReturnReuseFiles(profile,output); p=native.ZenithReturnReusePilot()
+            s=self.observation(); s['save']['path']=str(path)
+            payload=dict(protected_inventory=dict(quantity=7),
+                crash_recovery=dict(state='running',unclean_start_count=0,session_id=1,startup_generation=1),
+                safe_start_recovery=dict(state='stable',consecutive_failure_count=0,safe_settings_recommended=False,startup_generation=1),
+                session_diagnostics=dict(events=[]))
+            doc=dict(schema_version=1,generation=1,commit=dict(id='baseline-fixture'),payload=payload)
+            path.write_text(json.dumps(doc)); s['save']['payload']=copy.deepcopy(payload); files.observe(s,p)
+            p.receipts['wing_clear_1']={}; doc['generation']=2
+            path.write_text(json.dumps(doc)); files.observe(s,p)
+            p.trips=[dict(flight=1),dict(flight=2)]; doc['generation']=3
+            path.write_text(json.dumps(doc)); files.observe(s,p)
+            self.assertTrue(p.file_home)
+            doc['generation']=4; doc['commit']['id']='clean-fixture'
+            payload['crash_recovery']['state']='clean'; payload['safe_start_recovery']['state']='clean_shutdown'
+            payload['session_diagnostics']['events']=[dict(event_code='session_ended',session_id=1)]
+            path.write_text(json.dumps(doc)); files.finish(s,p)
+            self.assertEqual(set(files.snapshots),{'baseline','home-1','home-2','orderly-close'})
+            broken=copy.deepcopy(doc); broken['payload']['protected_inventory']['quantity']=6
+            with self.assertRaises(AssertionError): files.require_preserved(doc,broken)
+            self.assertEqual(native.CAP,300)
+            self.assertEqual(native.ZenithReturnReusePilot.WEAPON_CAP,25)
 
 
 if __name__ == '__main__':
