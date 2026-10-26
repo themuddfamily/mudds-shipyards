@@ -412,8 +412,8 @@ func _exercise_production_orderly_quit() -> void:
 	game.boarding_motion_time = 0.02
 	game.start_shift()
 	game._board_ship(craft)
-	var piloting := await _wait_production(func(): return game.phase == GameFlow.Phase.START_ENGINES
-		and game.player.is_seated_at(craft.get_pilot_seat_anchor()) and craft.is_piloted(), 240)
+	var piloting := await _wait_production(func(): return (game.phase == GameFlow.Phase.START_ENGINES
+		and game.player.is_seated_at(craft.get_pilot_seat_anchor()) and craft.is_piloted()), 240)
 	_check(piloting, "the quit regression boards the actual Ember-capable yard craft")
 	if not piloting or not await _enter_production_ember_survey(game, craft):
 		_check(false, "production approach, touchdown, disembark and egress reach the on-foot survey")
@@ -513,8 +513,8 @@ func _enter_production_ember_survey(game: GameFlow, craft: HeroShip) -> bool:
 		["z", 0.5, false, &"move_left", 120], ["x", 41.5, true, &"move_forward", 150]]:
 		if not await _walk_production_surface(game, region, leg):
 			return false
-	return await _wait_production(func(): return host.get_phase() == EmberSurfaceLoopHost.Phase.ON_FOOT
-		and game._collect_ember_interrupted_journey_save_evidence().get("accepted", false), 180)
+	return await _wait_production(func(): return (host.get_phase() == EmberSurfaceLoopHost.Phase.ON_FOOT
+		and game._collect_ember_interrupted_journey_save_evidence().get("accepted", false)), 180)
 
 
 func _walk_production_surface(game: GameFlow, region: Node3D, leg: Array) -> bool:
