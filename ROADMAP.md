@@ -102,6 +102,36 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**Selected goal: shared Reduced flash save/cold/Reset caller.**
+
+- **Starting state:** base `3ebae8bac`, clean exported native Linux game, one new
+  owned private profile; normal Boot creates Main and authored settings. Reduced
+  motion remains OFF and payload intensity remains authored default2/high.
+- **Actions:** raw keyboard input starts normal gameplay, opens Escape→Settings,
+  toggles Reduced flash OFF→ON→OFF→ON, presses APPLY + SAVE and normal Quit.
+  A distinct process loads ON, uses RESET DEFAULTS and normal Quit; a third loads
+  OFF and all authored defaults, then quits. Actual HUD damage cues are staged
+  presentation components, not a combat route.
+- **Pass/fail:** visible checkbox/runtime/actual cue/durable primary agree;
+  live cues retain their existing duration and no-relight policy; Save/Reset
+  feedback and dirty state agree. All three distinct processes exit0, are reaped,
+  preserve an unrelated production-store namespace and write both orderly markers.
+- **Proof:** `PACKAGE_PATH=<exact embedded Linux ELF>
+  PACKAGE_PROBE_RESULTS_ROOT=<owned results> PACKAGE_PROBE_RUN_ID=<unique run>
+  bash tools/release/run_package_probes.sh --settings-restart --native-export`;
+  retain source/package identity, raw stage logs, actual primary/backup bytes and
+  process identities. Existing maximum300s per process remains unchanged.
+- **Dependencies:** new embedded Boot-owned caller and early private-profile/CLI
+  admission; no seeded preference file or replacement persistence authority.
+  Physical input, rendered visibility, native Windows/GPU and ordinary producer
+  episodes remain NOT_RUN/open and cannot be closed by this probe.
+- **Stop and closure:** first unexpected failure stops the attempt for causal
+  review; no timeout growth or clock reset. Estimate90minutes from
+  2026-10-26 08:47:00UTC includes readiness, failures, checks, paired checkpoint,
+  integration/push and exact owned branch/worktree/scratch cleanup. Close only
+  this shared executable preference proof; COMFORT-FLASH stays open.
+
+
 **Delivered production repair: cargo terminals follow Reduced flash.**
 Checkpoint d4e2213 forwards the real setting through loaded/new Cinder clusters
 and repaints the exact retained terminal record. Existing carrying/terminal/
