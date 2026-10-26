@@ -69,7 +69,7 @@ func _begin() -> void:
 		if not _check(bool(committed.accepted), "real production store commits only the unrelated guard after Boot"):
 			return
 	_guard = _document().get("payload", {}).get("settings_restart_probe_guard", {})
-	if not _check(_guard.get("unrelated", {}) == {"progress": 42, "keep": "flash-restart"}
+	if not _check(_guard.get("unrelated", {}) == JSON.parse_string(JSON.stringify({"progress": 42, "keep": "flash-restart"}))
 			and int(_guard.get("writer_pid", 0)) > 0
 			and (int(_guard.writer_pid) == OS.get_process_id() if stage == "writer" else int(_guard.writer_pid) != OS.get_process_id()),
 			"exact unrelated guard and distinct cold-reader writer PID"):
@@ -163,7 +163,7 @@ func _state(enabled: bool, label: String) -> bool:
 		and _game.get_runtime_settings().payload_visual_intensity == 2
 		and control != null and control.button_pressed == enabled
 		and document.get("payload", {}).get("settings_restart_probe_guard", {}) == _guard
-		and disk == _game.get_runtime_settings().to_user_data_payload(), label + ": full defaults except selected Reduced flash and real primary agree")
+		and disk == JSON.parse_string(JSON.stringify(_game.get_runtime_settings().to_user_data_payload())), label + ": full defaults except selected Reduced flash and real primary agree")
 
 
 func _feedback(text: String, successes: int) -> bool:
