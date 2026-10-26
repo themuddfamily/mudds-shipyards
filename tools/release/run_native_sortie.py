@@ -7753,10 +7753,17 @@ class CorruptRetainedHeavyFiles(RetainedHeavyFiles):
                     and store['generation'] == self.expected['generation'],
                     'backup Boot preserves actual corrupt primary and exact valid backup without ordinary writes')
             self.require_quarantine()
-            quarantine = recovery['quarantine']
-            require(quarantine.get('available') is True and quarantine.get('path') == str(self.recovery)
+            # Later read-only users of the shared store clear its transient
+            # receipt. Startup's detached load result retains the authority.
+            loaded = recovery['load'].get('store_status', {})
+            quarantine = loaded.get('recovery_receipt', {})
+            require(loaded.get('accepted') is True and loaded.get('source') == 'backup'
+                    and loaded.get('reason') == 'primary_invalid_backup_loaded'
+                    and loaded.get('generation') == self.expected['generation']
+                    and quarantine.get('available') is True
+                    and quarantine.get('path') == 'user://mudds_user_data.json.recovery'
                     and quarantine.get('bytes') == len(self.CORRUPT),
-                    'actual production quarantine receipt names the exact retained bad bytes')
+                    'retained authentic startup backup-load receipt names the exact game-relative recovery sibling')
             if sample.get('menu_ready') and 'backup-title' not in self.snapshots:
                 require(recovery['load'].get('store_reason') == 'primary_invalid_backup_loaded',
                         'actual startup loader selected the valid backup')

@@ -4802,8 +4802,12 @@ class CorruptRetainedHeavyCallerTests(unittest.TestCase):
         path = str(files.path) if files else '/owned/mudds_user_data.json'
         s['recovery'] = dict(store=dict(path=path, source='backup', generation=19),
             settings=copy.deepcopy(self.document()['payload']['runtime_settings']['values']),
-            load=dict(store_reason='primary_invalid_backup_loaded'),
-            quarantine=dict(available=True, path=path+'.recovery', bytes=8),
+            load=dict(accepted=True, reason='loaded', generation=19,
+                store_reason='primary_invalid_backup_loaded',
+                store_status=dict(accepted=True, source='backup', generation=19,
+                    reason='primary_invalid_backup_loaded', recovery_receipt=dict(
+                        available=True, path='user://mudds_user_data.json.recovery', bytes=8))),
+            quarantine={},
             safe_start=dict(begin_status=dict(accepted=False, reason='store_recovery_required')),
             session=dict(last_status=dict(accepted=False, reason='begin_failed',
                 coordinator_status=dict(accepted=False, reason='store_recovery_required'))),
@@ -4966,7 +4970,9 @@ class CorruptRetainedHeavyCallerTests(unittest.TestCase):
                 with self.assertRaises(AssertionError): self.promote(files, p, s, document)
 
     def test_backup_boot_requires_preserved_primary_backup_and_exact_production_quarantine(self):
-        for mutation in ('primary', 'backup', 'recovery', 'source-generation', 'receipt'):
+        for mutation in ('primary', 'backup', 'recovery', 'source-generation', 'receipt-missing',
+                         'receipt-uri', 'receipt-bytes', 'receipt-unavailable', 'load-source',
+                         'load-generation', 'load-rejected', 'load-reason'):
             with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as tmp:
                 files, _, _ = self.fixture_files(Path(tmp)); p = native.CorruptRetainedRepairPilot(files.expected, 1)
                 s = self.sample(files); p.validate_observation(s); files.recovery.write_bytes(b'{corrupt')
@@ -4974,7 +4980,19 @@ class CorruptRetainedHeavyCallerTests(unittest.TestCase):
                 if mutation == 'backup': files.backup.write_bytes(b'different')
                 if mutation == 'recovery': files.recovery.write_bytes(b'different')
                 if mutation == 'source-generation': s['recovery']['store']['generation'] += 1
-                if mutation == 'receipt': s['recovery']['quarantine']['path'] = '/wrong'
+                loaded = s['recovery']['load']['store_status']; receipt = loaded['recovery_receipt']
+                if mutation == 'receipt-missing':
+                    loaded.pop('recovery_receipt')
+                    # A live getter receipt, even if convincing, is never a
+                    # fallback authority for the detached startup result.
+                    s['recovery']['quarantine'] = dict(available=True, path=str(files.recovery), bytes=8)
+                if mutation == 'receipt-uri': receipt['path'] = str(files.recovery)
+                if mutation == 'receipt-bytes': receipt['bytes'] = 7
+                if mutation == 'receipt-unavailable': receipt['available'] = False
+                if mutation == 'load-source': loaded['source'] = 'primary'
+                if mutation == 'load-generation': loaded['generation'] += 1
+                if mutation == 'load-rejected': loaded['accepted'] = False
+                if mutation == 'load-reason': loaded['reason'] = 'ok'
                 with self.assertRaises(AssertionError): files.observe(s, p)
 
     def test_cold_second_session_is_exactly_original_two_plus_one_and_all_retained_walk_goals_remain(self):
