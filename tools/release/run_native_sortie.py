@@ -7,7 +7,7 @@ Use --route retained-heavy --retained-data FILE to load the accepted paid Heavy 
 Use --route corrupt-retained-heavy --retained-data FILE for confirmed backup repair and cold Heavy continuation.
 Use --route unsupported-save --retained-data FILE --future-artifact primary|temporary|backup
 for one canonical future-envelope placement, real Save/Reset refusal and cold ordinary continuation.
-Add --future-format settings --future-artifact primary with the source-produced nested fixture.
+Add --future-format settings|legacy --future-artifact primary with the corresponding dedicated fixture.
 Use --route cinder-supply for the full first funded Jovian/Cinder terminal/home journey.
 Use --route beacon-entry for normal Torrent departure and actual first Beacon HUD start.
 Use --route beacon-settlement to continue through all four beacons and durable settlement.
@@ -7951,6 +7951,7 @@ class UnsupportedSaveFiles(RetainedHeavyFiles):
         b'WARNING: Startup could not read stored settings: store_load_failed',
         b'WARNING: Atomic runtime settings load retained authored defaults: store_load_failed / newer_schema',
     )
+    WARNING_LEGS = (1, 1)
     SUFFIX = {'primary': '', 'temporary': '.tmp', 'backup': '.bak'}
 
     def __init__(self, profile, output, fixture, placement):
@@ -8014,10 +8015,13 @@ class UnsupportedSaveFiles(RetainedHeavyFiles):
             self.capture_preserved(label)
             pilot.file_context_accepted = True
 
+    def warnings_for_leg(self, leg):
+        return self.WARNINGS if self.WARNING_LEGS[leg] else ()
+
     def require_warnings(self, lines):
-        actual = diagnostic_lines(lines)
-        require(len(actual) == len(self.WARNINGS) and all(actual.count(warning) == 1 for warning in self.WARNINGS),
-                'exact two expected future-load production warnings occur once each per OS process; no other diagnostics')
+        actual = diagnostic_lines(lines); expected = self.warnings_for_leg(self.leg)
+        require(len(actual) == len(expected) and all(actual.count(warning) == 1 for warning in expected),
+                'exact declared future-load warnings occur once in the declared process; no other diagnostics')
 
     def finish_leg(self, leg, pilot):
         require(pilot.result is not None and pilot.quit_requested, 'ordinary UI exit precedes independent shutdown read')
@@ -8114,6 +8118,27 @@ class UnsupportedSavePilot(CorruptRetainedRepairPilot):
         return (status['accepted'] is False and status['reason'] == 'store_load_failed'
                 and status['store_reason'] == 'newer_schema' and status['store_status']['payload'] == {})
 
+    def needs_startup_stability(self):
+        return False
+
+    def startup_stable(self, sample):
+        return True
+
+    def reset_requires_confirmation(self):
+        return True
+
+    def settings_action_completed(self, sample, operation):
+        return self.refused(sample, operation)
+
+    def record_settings_action(self, operation):
+        setattr(self,operation+'_refused',True)
+
+    def settings_actions_complete(self):
+        return self.save_refused and self.reset_refused
+
+    def settings_result_fields(self):
+        return dict(save_refused=self.save_refused,reset_refused=self.reset_refused)
+
     @staticmethod
     def focused(ui, action, name, text):
         return (ui['focus_is_settings_open' if action == 'open' else 'focus_is_'+action] and ui[action+'_visible'] and ui[action+'_enabled']
@@ -8151,12 +8176,20 @@ class UnsupportedSavePilot(CorruptRetainedRepairPilot):
                 if self.cold:
                     self.begin_walk('walk_next', [list(point) for point in self.WAYPOINTS], s)
                     self.walk_started=now; self.last_input_frame=self.frame
+                elif self.needs_startup_stability(): self.enter('startup_stability',s)
                 else: self.enter('repair_pause',s)
             else:
                 if self.tap_key is not None and (now < self.tap_until or self.frame < self.tap_frame+6):
                     return {self.tap_key},0,0,False
                 self.tap_key = None
                 return set(),0,0,False
+        if self.stage in ('startup_stability','cold_stability'):
+            require(not s['paused'] and s['supported'] and s['control_enabled'],
+                    'startup stability waits neutrally in the actual unpaused on-foot simulation')
+            if not self.startup_stable(s): return set(),0,0,False
+            self.receipts['startup_stable'] = copy.deepcopy(s['recovery']['safe_start'])
+            self.enter('pause' if self.stage == 'cold_stability' else 'repair_pause',s)
+            if self.stage == 'pause': return self.ui_update(s,now)
         if self.stage == 'walk_next':
             self.require_walking(s)
             require(now-self.walk_started <= 45, 'cold physical continuation forty-five-second deadline')
@@ -8173,7 +8206,12 @@ class UnsupportedSavePilot(CorruptRetainedRepairPilot):
                 return keys,dx,0,False
             require(self.walked>10 and len(self.visited)==len(self.WAYPOINTS),
                     'cold ordinary walking reaches all three existing retained continuation waypoints')
-            self.files.capture_preserved('cold-walk-complete'); self.enter('pause',s)
+            self.files.capture_preserved('cold-walk-complete')
+            if self.needs_startup_stability():
+                self.enter('cold_stability',s)
+                if not self.startup_stable(s): return set(),0,0,False
+                self.receipts['startup_stable'] = copy.deepcopy(s['recovery']['safe_start'])
+            self.enter('pause',s)
             return self.ui_update(s,now)
         if self.ui_key is not None:
             if now < self.ui_until: return {self.ui_key},0,0,False
@@ -8199,14 +8237,20 @@ class UnsupportedSavePilot(CorruptRetainedRepairPilot):
                 self.receipts['save_ui']=copy.deepcopy(s); self.enter('save_wait',s); key='Return'
             else: key='Tab'
         elif self.stage == 'save_wait':
-            if self.refused(s,'save'):
-                self.save_refused=True; self.enter('reset_open',s)
+            if self.settings_action_completed(s,'save'):
+                self.record_settings_action('save'); self.enter('reset_open',s)
         elif self.stage == 'reset_open':
             if ui['focus_is_reset']:
-                require(self.focused(ui,'reset','SettingsResetButton','RESET DEFAULTS') and ui['settings_dirty'],
-                        'failed Save makes ordinary Reset require confirmation')
+                require(self.focused(ui,'reset','SettingsResetButton','RESET DEFAULTS')
+                        and ui['settings_dirty'] == self.reset_requires_confirmation(),
+                        'ordinary Reset follows the actual saved or unsaved HUD state')
                 self.files.capture_preserved('before-reset-open'); self.receipts['reset_ui']=copy.deepcopy(s)
-                self.enter('reset_confirm',s); key='Return'
+                if self.reset_requires_confirmation(): self.enter('reset_confirm',s)
+                else:
+                    require(not ui['reset_confirmation_visible'], 'clean Reset has no confirmation dialog')
+                    self.attempt_baseline=copy.deepcopy(s['recovery']['persistence'])
+                    self.enter('reset_wait',s)
+                key='Return'
             else: key='Tab'
         elif self.stage == 'reset_confirm':
             require(ui['reset_confirmation_visible'], 'actual unsaved-settings Reset confirmation shown')
@@ -8215,12 +8259,12 @@ class UnsupportedSavePilot(CorruptRetainedRepairPilot):
             self.files.capture_preserved('before-reset-confirm'); self.attempt_baseline=copy.deepcopy(s['recovery']['persistence'])
             self.receipts['reset_confirm_ui']=copy.deepcopy(s); self.enter('reset_wait',s); key='Return'
         elif self.stage == 'reset_wait':
-            if self.refused(s,'reset'):
+            if self.settings_action_completed(s,'reset'):
                 require(not ui['reset_confirmation_visible'], 'real Reset confirmation retires after attempted reset')
                 require(s['recovery']['settings'] == self.boot_settings,
-                        'actual Reset reapplies the initial authored runtime defaults while its write is refused')
+                        'actual Reset reapplies the initial authored runtime defaults')
                 self.files.reset_defaults = copy.deepcopy(s['recovery']['settings'])
-                self.reset_refused=True; self.enter('repair_back',s); key='Escape'
+                self.record_settings_action('reset'); self.enter('repair_back',s); key='Escape'
         elif self.stage == 'repair_back' and ui['main_visible']:
             require(not ui['settings_visible'], 'ordinary back closes Settings before normal HUD quit')
             self.receipts['settings_closed_ui']=copy.deepcopy(s); self.enter('pause',s)
@@ -8237,13 +8281,13 @@ class UnsupportedSavePilot(CorruptRetainedRepairPilot):
                 and persistence['save_attempt_count']-self.begin_attempts['save_attempt_count'] == attempts
                 and persistence['accepted_transaction_count']-self.begin_attempts['accepted_transaction_count'] == attempts
                 and self.settings_commits_unchanged(persistence),
-                'exactly one Save and one confirmed Reset in first process, zero writes in cold process')
+                'exactly one Save and one ordinary Reset in first process, zero settings writes in cold process')
         require(exit_code == 0 and self.quit_requested and self.stage == 'quit_wait'
                 and self.file_context_accepted and 'awake' in self.receipts and 'exit_ui' in self.receipts
-                and ((self.cold and len(self.visited)==len(self.WAYPOINTS) and self.walked>10) or (self.save_refused and self.reset_refused and 'settings_closed_ui' in self.receipts)),
+                and ((self.cold and len(self.visited)==len(self.WAYPOINTS) and self.walked>10) or (self.settings_actions_complete() and 'settings_closed_ui' in self.receipts)),
                 'unsupported load permits normal Begin Shift and HUD OS0 in both distinct processes')
         self.result=dict(self.report(),completion_marker=self.MARKER,normal_ui_exit=True,cold=self.cold,
-                         save_refused=self.save_refused,reset_refused=self.reset_refused)
+                         **self.settings_result_fields())
 
 
 class UnsupportedSettingsFiles(UnsupportedSaveFiles):
@@ -8253,6 +8297,7 @@ class UnsupportedSettingsFiles(UnsupportedSaveFiles):
         b'WARNING: Startup could not read stored settings: settings_payload_newer',
         b'WARNING: Atomic runtime settings load retained authored defaults: settings_payload_newer / ok',
     )
+    EXTRA_NAMES = frozenset()
     MUTABLE = frozenset({'crash_recovery', 'session_diagnostics'})
     PAYLOAD = {
         'runtime_settings': {'schema_version': 12, 'values': {}},
@@ -8345,7 +8390,7 @@ class UnsupportedSettingsFiles(UnsupportedSaveFiles):
                 'independent unrelated sentinel bytes mode and identity remain exact')
         names = {entry.name for entry in self.path.parent.iterdir()}
         durable = {self.path.name, self.path.name+'.bak', *(self.path.name+'.bak.'+str(i) for i in range(1,4))}
-        require(names <= durable | {'unrelated.txt','diagnostics'} and self.path.name in names,
+        require(names <= durable | {'unrelated.txt','diagnostics'} | self.EXTRA_NAMES and self.path.name in names,
                 'settled nested milestones allow only ordinary store history and declared diagnostics sink')
         documents, files = {}, {}
         for name in sorted(names & durable):
@@ -8441,6 +8486,199 @@ class UnsupportedSettingsPilot(UnsupportedSavePilot):
         persistence = recovery['persistence']
         if self.boot_commit_serial is None: self.boot_commit_serial = persistence['commit_serial']
         require(self.settings_commits_unchanged(persistence), 'refused settings requests never become successful commits')
+
+
+class UnsupportedLegacyFiles(UnsupportedSettingsFiles):
+    """Keep the future CFG exact while ordinary current JSON preferences succeed."""
+    MARKER = 'NATIVE_UNSUPPORTED_LEGACY_COEXISTENCE_OK'
+    WARNINGS = (
+        b'WARNING: Startup could not read stored settings: legacy_load_failed',
+        b'WARNING: Atomic runtime settings load retained authored defaults: legacy_load_failed / empty',
+    )
+    WARNING_LEGS = (1, 0)
+    RAW = b'[meta]\nschema_version=8\n\n[controls]\nship_mouse_sensitivity=0.01\n\n[camera]\nfov=99.0\n'
+    RAW_SHA256 = '8daaf485e55319c84f205a3f80021b007fd046a2951045c186312593ae53832a'
+    EXTRA_NAMES = frozenset({'settings.cfg'})
+    PAYLOAD = {}
+    MUTABLE = frozenset({'runtime_settings','safe_start_recovery','crash_recovery','session_diagnostics','solo_safe_recovery'})
+    HOME = dict(location='mudds_home_berth',mode='on_foot',craft_id='torrent_provisional',berth_id='central_berth')
+
+    def __init__(self, profile, output, fixture, placement):
+        require(placement == 'primary', 'legacy coexistence qualifies the lone primary CFG only')
+        HabitatRestartFiles.__init__(self,profile,output)
+        fixture=Path(fixture)
+        require(fixture.is_file() and not fixture.is_symlink(), 'legacy input is an ordinary literal fixture')
+        raw=fixture.read_bytes()
+        require(raw == self.RAW and hashlib.sha256(raw).hexdigest() == self.RAW_SHA256,
+                'exact 83-byte future legacy schema-eight fixture')
+        self.fixture=dict(path=str(fixture.resolve()),bytes=len(raw),sha256=self.RAW_SHA256)
+        self.expected={}; self.defaults=None; self.reset_defaults=None; self.leg=0; self.placement=placement
+        self.path=self.profile/self.RELATIVE_SAVE
+        self.path.parent.mkdir(parents=True,mode=0o700,exist_ok=False)
+        self.cfg=self.path.parent/'settings.cfg'
+        with self.cfg.open('xb') as stream: stream.write(raw)
+        self.cfg.chmod(0o600); self.cfg_identity=self.identity(self.cfg)
+        sentinel=self.path.parent/'unrelated.txt'
+        with sentinel.open('xb') as stream: stream.write(self.SENTINEL)
+        sentinel.chmod(0o640); self.sentinel_identity=self.identity(sentinel)
+        self.directory_identity=self.identity(self.path.parent); self.snapshots={}
+        self.capture_preserved('prelaunch')
+
+    def require_cfg(self):
+        require(self.cfg.is_file() and not self.cfg.is_symlink() and self.identity(self.cfg)==self.cfg_identity
+                and self.cfg.read_bytes()==self.RAW and self.cfg.stat().st_mode & 0o777 == 0o600,
+                'future CFG retains exact filename bytes mode and file identity')
+        require(not any(item.name.startswith('settings.cfg.') for item in self.path.parent.iterdir()),
+                'future CFG has no staged backup or alternate siblings')
+
+    def require_payload(self, payload):
+        super().require_payload(payload)
+        if 'runtime_settings' in payload:
+            require(self.defaults is not None and payload['runtime_settings']==dict(schema_version=11,values=self.defaults),
+                    'current JSON settings are the complete authored defaults, never future CFG values')
+        if 'solo_safe_recovery' in payload:
+            require(payload['solo_safe_recovery']==self.HOME, 'only the ordinary on-foot Torrent home preference is published')
+        if 'safe_start_recovery' in payload:
+            safe=payload['safe_start_recovery']
+            require(set(safe)=={'schema_version','record_generation','state','startup_generation',
+                                'consecutive_failure_count','safe_settings_recommended'}
+                    and safe['schema_version']==1 and safe['startup_generation'] in range(1,self.leg+2)
+                    and safe['state'] in ('starting','stable','clean_shutdown')
+                    and safe['consecutive_failure_count']==0 and safe['safe_settings_recommended'] is False,
+                    'only healthy actual startup lifecycles may publish safe-start records')
+
+    def require_session(self, payload, closed=False):
+        super().require_session(payload,closed)
+        safe=payload['safe_start_recovery']
+        require(safe['startup_generation']==self.leg+1
+                and safe['state'] in (('clean_shutdown',) if closed else ('starting','stable')),
+                'current process owns its actual safe-start lifecycle')
+        if closed:
+            require(safe['record_generation']==3*(self.leg+1), 'each observed stable startup ends in one durable clean transition')
+
+    def capture_preserved(self, label=None):
+        self.require_cfg()
+        if not self.path.exists():
+            require(label in ('prelaunch','leg-1-before-launch')
+                    and {item.name for item in self.path.parent.iterdir()}=={'settings.cfg','unrelated.txt'},
+                    'only the initial lone CFG fixture may lack current JSON')
+            sentinel=self.path.parent/'unrelated.txt'
+            require(self.identity(self.profile)==self.profile_identity and self.identity(self.path.parent)==self.directory_identity
+                    and not sentinel.is_symlink() and self.identity(sentinel)==self.sentinel_identity
+                    and sentinel.read_bytes()==self.SENTINEL and sentinel.stat().st_mode & 0o777 == 0o640,
+                    'initial CFG-only directory and unrelated sentinel bytes modes and identities remain exact')
+            self.snapshots[label]=dict(cfg_sha256=self.RAW_SHA256,json_absent=True)
+            return None
+        document=super().capture_preserved(label)
+        if label is not None: self.snapshots[label]['cfg_sha256']=self.RAW_SHA256
+        return document
+
+    def observe(self, sample, pilot):
+        self.require_cfg()
+        super().observe(sample,pilot)
+
+    def finish_leg(self, leg, pilot):
+        super().finish_leg(leg,pilot)
+        require('runtime_settings' in self.snapshots[f'leg-{leg+1}-orderly-close']['document']['payload'],
+                'successful Save and Reset remain durable through both normal process exits')
+
+    def make_pilot(self, pid, cold):
+        return UnsupportedLegacyPilot(self,pid,cold=cold)
+
+
+class UnsupportedLegacyPilot(UnsupportedSavePilot):
+    MARKER = UnsupportedLegacyFiles.MARKER
+    SAVE_STATUS = 'SETTINGS SAVED'
+    RESET_STATUS = 'DEFAULTS RESTORED + SAVED'
+
+    def __init__(self, files, expected_pid, cold=False):
+        super().__init__(files,expected_pid,cold)
+        self.save_accepted=self.reset_accepted=False
+        self.boot_commit_serial=None
+
+    def needs_startup_stability(self):
+        return True
+
+    def startup_stable(self, sample):
+        safe=sample['recovery']['safe_start']
+        return (safe['stable_status'].get('accepted') is True and safe['stable_status'].get('reason')=='startup_stable'
+                and safe['physics_stability_seconds']==5 and safe['physics_elapsed_seconds']>=5
+                and safe['policy_snapshot']['state']=='stable')
+
+    def reset_requires_confirmation(self):
+        return False
+
+    def record_settings_action(self, operation):
+        setattr(self,operation+'_accepted',True)
+
+    def settings_actions_complete(self):
+        return self.save_accepted and self.reset_accepted
+
+    def settings_result_fields(self):
+        return dict(save_accepted=self.save_accepted,reset_accepted=self.reset_accepted,
+                    clean_reset_without_confirmation=True,startup_stable_observed='startup_stable' in self.receipts)
+
+    def settings_commits_unchanged(self, persistence):
+        expected=0 if self.cold else 2
+        return (persistence['save_success_count']==expected
+                and (not persistence['last_commit_id'] if self.cold else
+                     persistence['last_commit_id']=='runtime-settings-%010d' % persistence['commit_serial'])
+                and (not self.cold or persistence['commit_serial']==self.boot_commit_serial))
+
+    def validate_authority(self, sample):
+        recovery=sample['recovery']; loaded=recovery['load']; store=recovery['store']
+        require(loaded['migrated_legacy'] is False, 'future legacy file is never imported or marked migrated')
+        if self.cold:
+            require(loaded['accepted'] is True and loaded['reason']=='loaded' and loaded['store_reason']=='ok'
+                    and loaded['store_status']['source']=='primary' and loaded['generation']>0,
+                    'cold startup loads the accepted current JSON settings')
+        else:
+            require(loaded['accepted'] is False and loaded['reason']=='legacy_load_failed'
+                    and loaded['legacy_error']==30 and loaded['store_reason']=='empty' and loaded['generation']==0
+                    and loaded['store_status']['accepted'] is True and loaded['store_status']['reason']=='empty',
+                    'first cached load rejects future CFG while its initial atomic store was empty')
+        require(store['source']=='primary' and store['generation']>0,
+                'normal current JSON bookkeeping is separate from the failed cached legacy import')
+        if self.files.defaults is None:
+            self.files.defaults=copy.deepcopy(self.boot_settings)
+            require(self.files.defaults['camera_fov']==72 and self.files.defaults['ship_mouse_sensitivity']==0.0022,
+                    'authored defaults visibly differ from future CFG preferences')
+        require(recovery['settings']==self.files.defaults, 'live preferences remain the complete authored defaults')
+        self.files.require_payload(store['snapshot'])
+        persistence=recovery['persistence']
+        if self.boot_commit_serial is None: self.boot_commit_serial=persistence['commit_serial']
+        if not self.cold and persistence['save_attempt_count']==0:
+            require('runtime_settings' not in store['snapshot'] and persistence['save_success_count']==0,
+                    'ordinary startup publishes no current settings before the actual Save')
+        if self.cold: require('runtime_settings' in store['snapshot'], 'cold process retains the accepted current settings')
+        safe=recovery['safe_start']
+        require(safe['restore_status']['accepted'] is True and safe['restore_status']['reason']==('restored' if self.cold else 'empty')
+                and safe['begin_status']['accepted'] is True and safe['begin_status']['reason']=='startup_begun'
+                and safe['startup_generation']==self.files.leg+1 and safe['policy_snapshot']['consecutive_failure_count']==0
+                and not safe['policy_snapshot']['safe_settings_recommended'], 'actual clean startup is neither blocked nor a recovery fiction')
+        require(recovery['repair']['last_status']['reason']==('no_repair_available' if self.cold else 'load_not_repairable')
+                and not recovery['ui']['confirmation_available'], 'ordinary coexistence never offers destructive legacy repair')
+
+    def settings_action_completed(self, sample, operation):
+        persistence=sample['recovery']['persistence']; ui=sample['recovery']['ui']; status=persistence['last_save_status']
+        if persistence['save_attempt_count']==self.attempt_baseline['save_attempt_count']: return False
+        require(persistence['save_attempt_count']==self.attempt_baseline['save_attempt_count']+1
+                and persistence['accepted_transaction_count']==self.attempt_baseline['accepted_transaction_count']+1
+                and persistence['save_success_count']==self.attempt_baseline['save_success_count']+1
+                and status['accepted'] is True and status['reason']=='saved' and status['store_reason']=='committed'
+                and status['commit_id']==persistence['last_commit_id']=='runtime-settings-%010d' % persistence['commit_serial']
+                and not persistence['unsaved_changes'] and not ui['settings_dirty'] and ui['settings_visible']
+                and ui['status_visible'] and ui['status_text']==(self.SAVE_STATUS if operation=='save' else self.RESET_STATUS),
+                'one actual ordinary settings action successfully publishes current JSON and reports its success')
+        document=self.files.capture_preserved('after-'+operation)
+        require(document['payload']['runtime_settings']==dict(schema_version=11,values=self.files.defaults),
+                'independent current JSON contains the full accepted authored settings')
+        self.receipts[operation+'_status_ui']=copy.deepcopy(sample)
+        return True
+
+    def finish(self, exit_code):
+        require('startup_stable' in self.receipts, 'each actual process reaches the existing five-physics-second stable transition')
+        super().finish(exit_code)
 
 
 class SandboxWalkPilot(Pilot):
@@ -10206,9 +10444,16 @@ def game_leg_arguments(base_arguments, route, output, leg):
     return arguments
 
 
+def game_leg_output_lines(log_path, leg_log_offset):
+    """Replay only this process's retained output before applying its warning policy."""
+    with log_path.open('rb') as stream:
+        stream.seek(leg_log_offset)
+        return stream.read().splitlines()
+
+
 def game_leg_umask(route, future_format):
-    """Keep newly published nested-fixture artifacts private without changing other routes."""
-    return 0o077 if route == 'unsupported-save' and future_format == 'settings' else -1
+    """Keep newly published dedicated-fixture artifacts private without changing other routes."""
+    return 0o077 if route == 'unsupported-save' and future_format in ('settings','legacy') else -1
 
 
 def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_data=None, future_artifact=None, future_format=None):
@@ -10220,10 +10465,11 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
     require((route == 'unsupported-save') == (future_artifact is not None)
             and (future_artifact is None or future_artifact in UnsupportedSaveFiles.SUFFIX),
             'future-artifact is required only for unsupported-save and names one canonical placement')
-    require(future_format is None or (route == 'unsupported-save' and future_format in ('outer','settings')),
+    require(future_format is None or (route == 'unsupported-save' and future_format in ('outer','settings','legacy')),
             'future-format is valid only for the explicit unsupported-save route')
-    require(future_format != 'settings' or future_artifact == 'primary', 'nested settings qualify primary placement only')
-    unsupported_class = UnsupportedSettingsFiles if future_format == 'settings' else UnsupportedSaveFiles
+    require(future_format not in ('settings','legacy') or future_artifact == 'primary', 'nested settings and legacy qualify primary placement only')
+    unsupported_class = (UnsupportedLegacyFiles if future_format == 'legacy' else
+                         UnsupportedSettingsFiles if future_format == 'settings' else UnsupportedSaveFiles)
     output.mkdir(parents=True, exist_ok=False)
     game = xvfb = desktop = pilot = None
     temporary_profile = None
@@ -10254,6 +10500,9 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
                 result['future_artifact'] = future_artifact
                 result['future_format'] = future_format or 'outer'
                 result['expected_warnings_per_process'] = [warning.decode() for warning in route_warnings]
+                if future_format == 'legacy':
+                    result['expected_warnings_by_leg'] = [[line.decode() for line in unsupported_files.warnings_for_leg(leg)] for leg in range(2)]
+                    del result['expected_warnings_per_process']
             if route == 'corrupt-retained-heavy':
                 corrupt_files = CorruptRetainedHeavyFiles(profile, output, retained_data)
                 result['retained_input'] = corrupt_files.fixture
@@ -10311,6 +10560,7 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
                                  HabitatRestartFiles(profile, output) if route == 'habitat-restart' else None)
                 result['game_legs'] = []
                 for leg in range(2 if restart_files or corrupt_files or unsupported_files else 1):
+                    leg_warnings = unsupported_files.warnings_for_leg(leg) if unsupported_files else route_warnings
                     if unsupported_files:
                         unsupported_files.leg = leg
                         unsupported_files.capture_preserved(f'leg-{leg+1}-before-launch')
@@ -10374,8 +10624,9 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
                                     code = record_terminal_game_exit(game, leg_result, output/'game.log')
                                     if isinstance(pilot, (ZenithTorrentHandbackPilot, GuidedExitPilot, ArrowReturnReusePilot, CinderSupplyPilot, HeavyBreachPilot, RaceHomePilot)):
                                         require(pilot.quit_requested, f'native process exits only after normal UI request (actual exit {code})')
-                                        tail = (output/'game.log').read_bytes().splitlines()
-                                        for observation in observations_from_lines(tail, route_warnings):
+                                        tail = (game_leg_output_lines(output/'game.log',leg_log_offset) if unsupported_files else
+                                                (output/'game.log').read_bytes().splitlines())
+                                        for observation in observations_from_lines(tail, leg_warnings):
                                             if (corrupt_files or unsupported_files) and observation['pid'] != game.pid: continue
                                             if observation['sequence'] > pilot.last_state['sequence']:
                                                 pilot.validate_observation(observation)
@@ -10417,7 +10668,7 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
                                     log.write(chunk); log.flush()
                                     pending += chunk
                                     lines = pending.split(b'\n'); pending=lines.pop()
-                                    observations = observations_from_lines(lines, route_warnings)
+                                    observations = observations_from_lines(lines, leg_warnings)
                                     if observations:
                                         if outbound_timing:
                                             received_at = time.monotonic()
@@ -10480,7 +10731,7 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
                             stream.seek(leg_log_offset)
                             unsupported_files.require_warnings(stream.read().splitlines())
                         unsupported_files.capture_preserved(f'leg-{leg+1}-final-drain')
-                        leg_result.update(sortie=pilot.result, expected_warning_count=2, unexpected_diagnostic_count=0)
+                        leg_result.update(sortie=pilot.result, expected_warning_count=len(leg_warnings), unexpected_diagnostic_count=0)
                         game = None
                     elif corrupt_files:
                         desktop.keys([]); desktop.mouse(0, 0, False)
@@ -10669,9 +10920,9 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
             result['expected_warning_count'] = len(expected)
             result['expected_warning_counts'] = {line.decode(): expected.count(line) for line in route_warnings}
             result['unexpected_diagnostic_count'] = len(diagnostics)
-            if len(result.get('game_legs', [])) != 2 or any(expected.count(line) != 2 for line in route_warnings):
+            if len(result.get('game_legs', [])) != 2 or any(expected.count(line) != sum(unsupported_class.WARNING_LEGS) for line in route_warnings):
                 result['success'] = False
-                result.setdefault('error', 'future-load warnings must occur exactly once each in both OS processes')
+                result.setdefault('error', 'future-load warnings must match the exact declared per-process roster')
         result['diagnostic_count'] = len(diagnostics)
         if diagnostics:
             result['success'] = False
@@ -10687,11 +10938,11 @@ def main():
     parser.add_argument('binary')
     parser.add_argument('--output',required=True,type=Path)
     parser.add_argument('--retained-data', type=Path,
-                        help='raw fixture: accepted Heavy save for retained/outer routes, source-produced fixture for unsupported-save settings')
+                        help='raw fixture: accepted Heavy save for retained/outer routes, dedicated JSON/CFG fixture for unsupported-save settings/legacy')
     parser.add_argument('--future-artifact', choices=('primary','temporary','backup'),
                         help='required only for unsupported-save; run exactly one canonical future-envelope placement')
-    parser.add_argument('--future-format', choices=('outer','settings'),
-                        help='unsupported-save format, default outer; settings requires primary and the source-produced fixture')
+    parser.add_argument('--future-format', choices=('outer','settings','legacy'),
+                        help='unsupported-save format, default outer; settings/legacy require primary and their dedicated fixture')
     parser.add_argument('--qualify-beacon-outbound', action='store_true',
                         help='qualify the fixed 60.0s outbound monotonic maximum within the unchanged full beacon-home route')
     parser.add_argument('--route', choices=('zenith-torrent-handback', 'zenith-return-reuse', 'patrol-relay-home', 'race-home', 'heavy-breach', 'retained-heavy', 'corrupt-retained-heavy', 'unsupported-save', 'bomber-rearm', 'cinder-supply', 'hauler-supply', 'arrow-return-reuse', 'torrent-return-reuse', 'torrent-damaged-return', 'torrent-arrow-handoff', 'guided', 'courier-intercept', 'courier-escape', 'courier-withdraw-phase', 'courier-withdraw-distance', 'beacon-entry', 'beacon-settlement', 'beacon-home', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'crew-recovery', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
@@ -10705,8 +10956,8 @@ def main():
         parser.error('--future-artifact is required only for --route unsupported-save')
     if args.future_format is not None and args.route != 'unsupported-save':
         parser.error('--future-format is valid only for --route unsupported-save')
-    if args.future_format == 'settings' and args.future_artifact != 'primary':
-        parser.error('--future-format settings requires --future-artifact primary')
+    if args.future_format in ('settings','legacy') and args.future_artifact != 'primary':
+        parser.error('--future-format settings/legacy requires --future-artifact primary')
     try: binary=validate_binary(args.binary)
     except ValueError as error: parser.error(str(error))
     result=run(binary,args.output.absolute(),args.route,qualify_beacon_outbound=args.qualify_beacon_outbound,retained_data=args.retained_data,future_artifact=args.future_artifact,future_format=args.future_format)
