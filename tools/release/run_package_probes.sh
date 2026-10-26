@@ -212,12 +212,14 @@ def ember_document(observation, field):
             and isinstance(document["payload"].get("ember_relay_survey_completion"), dict),
             "invalid actual Ember document text: " + field)
     return document
-def ember_abandon_document(observation, field):
+def ember_abandon_document(observation, field, expected_fresh_record=None):
     text = observation.get(field)
     require(isinstance(text, str) and bool(text), "missing actual Ember abandon document text: " + field)
     document = json.loads(text)
     require(isinstance(document, dict) and isinstance(document.get("payload"), dict)
-            and "ember_relay_survey_completion" not in document["payload"]
+            and (("ember_relay_survey_completion" not in document["payload"])
+                 if expected_fresh_record is None else
+                 document["payload"].get("ember_relay_survey_completion") == expected_fresh_record)
             and isinstance(document["payload"].get("ember_relay_survey_completion_declined"), dict),
             "invalid actual Ember abandon document text: " + field)
     return document
@@ -663,7 +665,8 @@ try:
     after = document.read_bytes()
     final = json.loads(after)
     if activity == "ember-abandon":
-        prequit_document = ember_abandon_document(recovered, "final_document_json")
+        prequit_document = ember_abandon_document(recovered, "final_document_json",
+                                                  recovered["prospective_fresh_record"])
         fresh_record = recovered["prospective_fresh_record"]
         require(recovered["prospective_fresh_record_valid"] is True
                 and fresh_record["schema_version"] == 1

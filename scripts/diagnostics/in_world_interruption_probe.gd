@@ -2856,7 +2856,7 @@ func _run_ember_abandon(game: GameFlow, store: UserDataStore, entry: String) -> 
 	var closed := game.mark_orderly_shutdown()
 	_check(closed.get("accepted", false) and game.get_instance_id() == main_id,
 		"the distinct recovered Main closes its existing recovery markers")
-	var final_document_json := _ember_abandon_document_text(store, boundary)
+	var final_document_json := _ember_abandon_document_text(store, boundary, prospective.record)
 	if not _failures.is_empty():
 		get_tree().quit(1)
 		return
@@ -2922,15 +2922,19 @@ func _ember_prospective_journey_record(game: GameFlow, store: UserDataStore) -> 
 		"record": record, "reason": &"fresh_current_checkpoint_captured_without_write"}
 
 
-func _ember_abandon_document_text(store: UserDataStore, boundary: Dictionary) -> String:
+func _ember_abandon_document_text(
+		store: UserDataStore, boundary: Dictionary, expected_fresh_record: Dictionary = {}
+	) -> String:
 	var text := FileAccess.get_file_as_string(str(store.get("_path")))
 	var document: Variant = JSON.parse_string(text)
 	_check(document is Dictionary and document.get("payload") is Dictionary
-		and not document.payload.has("ember_relay_survey_completion")
+		and (not document.payload.has("ember_relay_survey_completion")
+			if expected_fresh_record.is_empty()
+			else document.payload.get("ember_relay_survey_completion", {}) == expected_fresh_record)
 		and document.payload.get("ember_relay_survey_completion_declined", {}) == boundary
 		and int(document.get("generation", -1)) == store.get_generation()
 		and document.get("commit", {}) == store.get_commit_metadata(),
-		"the actual primary file retains the exact declined receipt with no active recovery slot")
+		"the actual primary file retains the exact decline and only the expected fresh checkpoint")
 	return text
 
 

@@ -24587,6 +24587,9 @@ func mark_orderly_shutdown() -> Dictionary:
 	var race_session_status := save_cinder_race_session()
 	var patrol_session_status := save_cinder_patrol_session()
 	var convoy_session_status := save_cinder_convoy_session()
+	# Capture the on-foot checkpoint before quit detaches the actors and retires
+	# their live leases. `_exit_tree()` can only refuse detached actor evidence.
+	var ember_journey_status := save_interrupted_ember_journey()
 	var safe_start_status := (
 		_safe_start_production_recovery.mark_orderly_shutdown()
 		if _safe_start_production_recovery != null
@@ -24611,6 +24614,7 @@ func mark_orderly_shutdown() -> Dictionary:
 		"cinder_race_session": race_session_status.duplicate(true),
 		"cinder_patrol_session": patrol_session_status.duplicate(true),
 		"cinder_convoy_session": convoy_session_status.duplicate(true),
+		"ember_journey": ember_journey_status.duplicate(true),
 	}.duplicate(true)
 
 
