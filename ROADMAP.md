@@ -17,69 +17,57 @@ features. There is no evidence-backed project percentage or completion date.
 
 ## How we will work from this roadmap
 
-Every work report must name **one goal and its pass/fail result**. A broad heading
-such as “finish the fleet” groups work; it cannot be assigned or reported as a
-completed task. An unresolved contract stays blocked until its missing values
-are recorded. Writing a more detailed plan does not close its product goal.
+**One active delivery, with acceptance written before work starts.** Broad
+milestones below group work; they cannot be assigned as coding tasks. Use the
+existing ID in the [canonical backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes).
+Every selected goal must have these literal answers in its existing card:
 
-Report each selected goal as **result → proof → remaining work → cumulative
-time**. A closed goal stays closed unless an identified source change invalidates
-its proof. When acceptance is recorded, update both the selected card and its
-existing detailed backlog binding so stale “missing” text cannot schedule it again.
-
-Only a goal with a frozen result and proof can enter the work queue. This applies
-to every remaining roadmap outcome, including follow-up fixes. Before assignment,
-its existing card must contain all of these fields:
-
-| Required field | Concrete content |
+| Field | Required answer |
 | --- | --- |
-| Goal | One named behavior or acceptance result; broad milestones remain containers. |
-| Starting state | Exact candidate, save/profile, location and participants needed to reproduce it. |
-| Actions | A finite ordered route or command; no open-ended “improve”, “polish” or “investigate”. |
-| Pass/fail | Observable values and endpoint, including required preserved data and existing limits. |
-| Proof | The exact check or ordinary player route and the result to retain; a plan or passing unrelated test does not qualify. |
-| Dependencies | Named prerequisites; a missing choice, value, route or device is a blocker with an owner. |
-| Stop and closure | Stop at acceptance or first unexpected failure; retain cumulative cost, checkpoint requirement and branch/scratch cleanup. |
+| Result | Capability/qualification: one player action and resulting behavior, or one release operation. Definition/decision/resource: the exact finite answer, choice or artifact; no product completion implied. |
+| Start | Source/package, profile/save, location, participants and exact owned files. |
+| Steps | Finite ordered actions or an executable command. |
+| Pass/fail | Expected state, count/value/tolerance and endpoint; preserved data; original gameplay limits. |
+| Proof | Exact focused check or complete ordinary route, with expected output/state. A repair must distinguish the old failure from the corrected behavior. |
+| Dependencies | Existing prerequisite IDs; each missing choice, artifact or device has a named owner. |
+| Stop | Estimate including checks/build/cleanup; first-failure stop; cumulative cost of prior attempts. |
+| Closure | Accepted result or first failed predicate; commit/push; playable checkpoint for runtime changes; owned branch/worktree/process/scratch cleanup. |
 
-A missing field blocks assignment. Resolve it in that same card; do not create a
-new planning chain. A finished child never implies that its parent is finished.
-Every selected assignment must fit this sentence:
+“Improve”, “polish”, “finish”, “works”, “usable”, “all applicable” and “as
+specified” cannot stand alone as acceptance. Replace them with the actual action,
+value or finite member list in the same card. A container closes only when its
+complete named membership passes; a missing member list blocks it.
 
-> On **[candidate and starting state]**, the player performs **[finite actions]**;
-> **[observable values/endpoints]** must follow within **[existing limits]**,
-> proved by **[command or ordinary route]**. This closes **[named child result]**;
-> **[remaining parent gates]** stay open.
+Missing acceptance fields mean **BLOCKED definition — Codex**, listing exactly
+which fields are absent. Missing design choices or external access mean
+**BLOCKED input — named owner**, listing the exact answer/artifact required.
+Neither is an executable task. One definition pass gets 15–30 minutes to fill the
+fields or return that exact blocker; it cannot schedule another discovery chain.
 
-An implementation delivers one behavior or executable release operation, estimated
-at no more than 90 minutes including focused checks and closure. An estimate is
-a planning bound, not a newly invented gameplay deadline. If it is wrong, report
-the overrun against the same goal; do not manufacture another task or reset cost. Longer complete
-journeys remain separate qualification gates with their original durations.
-A milestone groups named children; it is never assigned as one coding task.
-A decision ends with the exact recorded answer. A hardware check ends with the
-actual measurement on the named device. These are different kinds of work.
+An implementation is estimated at **90 minutes or less including closure**;
+split larger production changes before starting. Complete journeys/soaks retain
+their original durations. A failed estimate is reported as an overrun against
+the same goal. A discovered prerequisite stays charged to that goal; a new
+branch, card or agent never resets its elapsed cost.
 
-Missing acceptance details mean **BLOCKED definition**, with the exact missing
-fields and Codex as owner; missing product choices or access mean **BLOCKED input**,
-with the responsible owner. Neither label permits speculative implementation or
-another research chain. A single bounded definition pass must return the answer
-or that explicit blocker. Accepted results remain closed within their recorded
-scope. A failed trial returns its first failed predicate and cumulative cost;
-it does not silently grow the goal or restart its budget.
+Stop at the first unexpected failure. One failed repair requires a recorded
+cumulative-priority decision before continuation: park/switch, or one correction
+supported by a demonstrated cause and an explicit next stop. No automatic retry.
+Accepted work remains closed within its recorded scope; reopen only the affected
+predicate when an identified source change invalidates its proof. Update the
+card and backlog together so stale text cannot schedule completed work again.
 
-The tables below are finish lines and scheduling controls. The existing
-[canonical child inventory](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes)
-retains every original promise and identifies the missing bindings. It is not a
-list of 337 executable tasks. We cannot honestly give a remaining-task count or
-completion date until those finite memberships and owner choices are fixed.
+Report **goal → player result → PASS/FAIL/BLOCKED/PARKED → proof → remaining
+blocker → cumulative time → next bounded action**. Definitions, tests, commits
+and evidence files are not gameplay progress.
 
-**Not every gameplay contract is ready to execute.** Full-craft journeys, shared-world case
-bindings, remaining comfort episodes, installed recovery cuts, Linux installation
-transactions and performance workload membership still have definition gaps.
-Their existing backlog rows name the missing fields and responsible owner.
-These are blocked contracts, not ready implementation tasks. Close each gap in
-its existing row; do not create another inventory or count a definition as a
-delivered feature. Older family labels cannot override a blocked child contract.
+The inventory contains **337 records: 40 capabilities, 176 qualifications,
+73 definitions, 12 decisions, five resources and 31 containers**. These are record
+kinds, not a remaining-task count or completion percentage. Full craft journeys,
+shared-world cases, comfort episodes, recovery cuts, installation transactions
+and performance workloads still have missing bindings. Their exact missing
+fields stay blocked in the existing rows; this rewrite does not invent answers
+or mark those product outcomes complete.
 
 ## What finishing means
 
@@ -102,6 +90,19 @@ share the damage work. Breach/Torpedo combat and activity journeys are reused,
 not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMAP_BACKLOG.md#coverage-of-the-original-remaining-outcomes).
 
 ## Execution now
+
+**Roadmap correction applied; PLAN-NEXT remains open.** This documentation pass
+preserves all337 IDs, kinds, parent bindings and accepted scopes; tightens nine
+existing contracts; and removes duplicate assignment instructions. Inventory,
+section-anchor and local-link checks pass. No gameplay run, export or parked-route
+retry is selected. Remaining missing routes, member lists and owner inputs keep
+the executable breakdown open; blocked records cannot enter implementation.
+
+**Paused prerequisite:** the isolated Aft stair-base reproduction has unmerged
+test-only work. Its first baseline double-stepped the Player and cannot qualify
+once-per-tick behavior. The reviewed fixture correction is not yet run. Runtime
+is unchanged; preserve this work and the original handback clock. Resume only
+with the corrected unchanged-runtime check, before considering any repair.
 
 **Zenith/Torrent handback is parked and unqualified.** Three bounded native
 trials stopped before Torrent boarding, Guided or Zenith reclaim. The final run
@@ -618,45 +619,10 @@ with their first failure and causal reopening condition. Neither is a next task.
 
 ## Turning a goal into one assignment
 
-A goal is **READY only when every field below has a literal answer**. Otherwise
-mark it BLOCKED and record the missing value/list plus the owner who can supply it.
-“Works”, “usable”, “polished”, “all applicable” and “specified” alone are not pass
-conditions. A link is sufficient only if its target fixes the actual cases/values.
-The backlog already flags unresolved route/case bindings. Those rows are not yet
-fully specified tasks; their existence and a Done means column do not make them
-ready. Do not report the breakdown as complete while those bindings are missing.
-
-| Field | Required answer before work starts |
-| --- | --- |
-| Goal | One existing ID, its kind (capability, qualification or definition) and one bounded result. Name the parent work that remains. |
-| Starting point | Source/package, normal player/session state, satisfied prerequisites and exact owned files. |
-| Player result | For implementation: current failing/missing behavior → one delivered behavior, with a literal player action and observable state/value. For qualification: the exact original acceptance predicate. For definition: the exact finite fields to record. |
-| Acceptance | Fixed complete case list, expected endpoints/counts/tolerances and original deadlines. List what this card can close and the parent acceptance that remains. No criteria chosen after observing results. |
-| Proof | Existing focused command or ordinary route and expected output/file/state; an implementation check must distinguish old behavior from delivered behavior. Identify physical-device/hardware/external input separately. |
-| Owner and estimate | Implementer/reviewer, implementation/check/closure estimates, hard stop and cumulative cost of earlier attempts. |
-| Closure | PASS, FAIL, BLOCKED or PARKED; proof or first failed predicate; remaining work; commit/push/build and owned cleanup. |
-
-Before selecting an implementation card, answer: **what will the player be able to do, or what
-required executable packaging/release operation will become possible?** A new
-test, capture, source audit or document is not an implementation answer. Label
-such work qualification or definition, explain the exact original requirement it
-serves, and retain its finite stopping point. A passing helper does not close the
-runtime outcome it is intended to exercise.
-
-Keep the selected card's original result, case list and cumulative budget visible
-when reporting progress. A discovered prerequisite is recorded against that same
-goal; it does not silently replace the result or become a fresh chain of tasks.
-At the hard stop, report the unmet result and close or park the assignment.
-
-For example, the next **possible** Torpedo repair would be one control-accounting
-change: an unready/no-command sample followed by a real consumed-command sample
-must record consumption without requesting fire again, including a terminal boat.
-A focused existing driver fixture would prove that correction. It would **not**
-close PLAY-TORPEDO. That still requires the entire Heavy→Torpedo→usable Paired Wing
-journey, actual seeker evasion/interception,70HP boat destruction, separate
-payments, strict home/OFFLINE/physical exit and normal UI exit0, with150s per leg,
-shared300s and outer360s. The failed47.646347min plus continuation cost remain
-charged; a new card/branch/folder cannot restart that budget. No Torpedo continuation is active; any reopening must satisfy the recorded source-review and cumulative-priority conditions.
+Use the single [assignment contract above](#how-we-will-work-from-this-roadmap).
+Keep one selected card in Execution now; retain accepted and parked contracts
+below as references. A smaller regression closes only its named repair. Original
+full journeys, repeat counts and deadlines remain separate required outcomes.
 
 ### Stop rules that prevent another loop
 
