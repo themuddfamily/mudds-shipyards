@@ -162,17 +162,18 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Current work and next selection
 
-**PARKED — ordinary Ember outbound driver stops at a scaled UI click.**
-One native37d6ae5bf attempt stops28.841s before boarding/flight: Activity Board
-click is unacknowledged. Source/raw review proves canvas deltas were sent as
-physical X11 pixels (1.25 scaling); no Ember gameplay or old focus-error cause
-is inferred. All focused checks/export/strict archive startup pass first.
-Source remains unmerged in a verified archive; owned branch/worktree/process/
-profiles/build scratch cleaned34.429minutes from original03:30UTC start, plus
-final notes/push. No further correction/run selected under this continuation.
-[Exact failed predicate, source cause and cleanup](docs/history/ROADMAP_DELIVERIES.md#ordinary-ember-outbound-driver-parked-at-ui-coordinate-mismatch-20261027).
-Canonical distance/landing/exit/full SOLO remain unqualified; original1800s route
-limit and03:30→05:00UTC clock retain the first Python stop and all closure cost.
+**PARKED — Ember reaches its production surface-command handoff.**
+Corrected UI conversion passes actual menus/Arrow admission and one native8219
+flight:8,010,865m continuous travel,776 consecutive rebases, same pilot/seat,
+60Hz/time_scale1/authored controls. The driver then rejects its unconditional
+retained-default command-source check at Host orbit_approach. Source review shows
+the Host installs its owned approach source before exposing that phase; actual
+current-source identity was not separately logged. No gameplay defect inferred.
+Landing/surface exit/normal UI OS0 remain unproven; source stays unmerged.
+[Exact raw boundary, both prior stops and cleanup](docs/history/ROADMAP_DELIVERIES.md#ember-corrected-native-flight-parked-at-approach-command-handoff-20261027).
+Owned branch/worktree/process/profile/build cleanup complete71.160minutes from
+original03:30UTC, plus final notes/push. No further correction/run selected;
+original05:00 hard stop and all costs remain. Full SOLO remains unfinished.
 
 **Accepted — busy exterior-exit release interruption support.**
 Existing runner now tests accepted/refused publication during a real busy exit,

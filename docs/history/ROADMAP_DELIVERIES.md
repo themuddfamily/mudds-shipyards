@@ -7,6 +7,71 @@ Return to the [working roadmap](../../ROADMAP.md).
 
 
 
+
+## Ember corrected native flight parked at approach command handoff 20261027
+
+Existing SOLO-EMBER outbound member remains **PARKED/unaccepted**, corrected
+source8219fa013a2957ef46e77ace17522f21cec6b880 unmerged. Prior37d6 UI miss and
+16.008s selector-test stop remain charged. Independent cumulative decision
+recordeda983808a4 before restore permits actual viewport/window conversion and
+two-scale regression, no fixedratio or acceptance/runtime/cap change. Corrected
+source reviewed before checks. Python16.050s/import22.224s/observer parse17.469s/
+privacy2.518s/export43.083s all pass/no diagnostics/source drift. Actual TAR startup
+25.515s exits0/one STARTUP_MENU_READY_OK; exact ELF149101384bytes,SHA256
+`0f780df59ed847b984932cfe0e93d2d65d754cbd41c56771889e36974a5dc6bd`;
+TAR95509811bytes,SHA256
+`423ee8f0068dce2b32137d9c66e63925a40d12919e7debbbc695d3aef2d1f4fb`.
+
+**Preparation admission stop retained:** startup ends04:14:09.780933; helper
+refuses04:14:11.164477 before Popen because full1860s cannot end before04:45.
+No corrected native launched then. Root orchestration overran this engineering
+window. Explicit independent final cumulative decision4433668e2 before launch
+revises only launch04:19/outercomplete04:50/closure10minutes, retaining original
+03:30→05:00 hard envelope, all46.8minutes then spent and every flight predicate/
+1800/1860 limit. This preserves the failure rather than treating it as readiness.
+
+One corrected native launches04:18:22.351687 with fresh private profile, owned
+Xvfb/x11/Dummy/dummy renderer, exact embedded ELF/no external overrides. Real
+Activity/idleConvoy UI now acknowledges the measured0.8 physical/logical mapping;
+ordinary Arrow walk/boarding/current seat+reservation/90neutral frames1278→1368,
+actual departure/climb/alignment and destination admission pass. Same actors and
+default sampler/controls persist through space cruise. Independent raw audit31369
+observations proves8,010,865.433m seated physical movement and776consecutive
+committed receipts covering the sameArrow/Player, maxsteps333.32709/333.32715m,
+no identity/receipt/translation-continuity error, unchanged60Hz/time_scale1/tuning.
+This is positive candidate transit evidence only, not whole outbound acceptance.
+
+**Terminal FAIL/PARK1027.569374s wrapper/1025.558s driver**, ended04:35:29.922443.
+First predicate: `default sampler and unchanged authored 60Hz Arrow controls`.
+Frame31833: retaineddefault source/HostIDLE generation0/cruisehandoffready;
+31834: same actors/seated/piloted/controls/60Hz/time_scale1, HostORBIT_APPROACH
+generation1 and default_samplerfalse. Source Host.bind606 retains default source,
+617 constructs EmberSurfaceLoopCommandSource; start740 installs it,741–749 checks
+exact pointer and Player reservation,750–753 setsAPPROACH thenORBIT_APPROACH.
+Thus the unconditional retaineddefault-source assertion conflicts with the
+production approach handoff; terrain/physics sampler injection or gameplay failure
+is not established. Actual current pointer ID was not separately published, so
+named new-owner attribution is source/phase-transaction supported, not an extra
+raw identity proof. Future contract must verify the exact legitimate source per
+phase, not waive ownership checking. Caldera lease/strict/exactfalse/occupant0,
+no landing/OFFLINE/surface exit/normalUIOS0. No further correction/test/run.
+
+Global inputs/helper/game/Xvfb cleanuptrue/zero diagnostics; raw game_leg exitnull/
+reapedfalse remains unaltered. All seven supervisors and six recorded native-tree
+PID/start identities absent/reused, no cwd holders. Five full source files/patch/
+five commits and bundle8219 (prerequisite6d9f97e2e in fresh pushed main4433668e2),
+actual single TAR (no duplicate149MB ELF), preparation stops/raw controls/entire
+flight/profile/cache are byte/mode/link verified in
+`/srv/mudds-work/ember-outbound-20261027/scale/records.tar.gz`,168545764bytes,
+SHA256 `d17c2d98408d7cff96f8484066cc4c68cb060453655c56c693d3c0b500d86009`.
+Original108185881-byte archive SHA1c73…28af unchanged. Owned worktree removed,
+local exact8219tip CAS-deleted after verified archive, remote task branch absent/
+never created. Only archive/closeout remain in scale. Cleanup04:41:09.628998UTC/
+71.160483 cumulative minutes from03:30 including all stops; final notes/push in
+closeout. No public checkpoint, whole SOLO/return/save/repeat/installed/native
+GPU/device/Windows/human/final-release qualification.
+
+
 ## Ordinary Ember outbound driver parked at UI coordinate mismatch 20261027
 
 Existing SOLO-EMBER selected a missing ordinary packaged outbound input command,
