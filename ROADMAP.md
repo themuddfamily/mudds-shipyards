@@ -89,6 +89,10 @@ pellet counts. Actual callers and gameplay qualification remain open.
 now fix one counterpart per current craft,physical control/reclaim endpoints and
 the missing component/claim/home assertions in the existing Main fixture.
 Accepted routes retain their original scope;new callers and assertions are open.
+[Halyard engineer movement/return](docs/ROADMAP_BACKLOG.md#halyard-engineer-moving-return)
+now has explicit peer/flight/repair limits. Its ordinary exterior handback needs
+a concrete runtime repair:current cleanup recalls its passenger to spawn
+instead of using its hatch/airstair. Implementation and proof remain open.
 
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings
