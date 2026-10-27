@@ -1024,6 +1024,39 @@ or private build was published; playable7876ebc and existing accepted caption/
 flash component results remain unchanged. Full COMFORT-CAPTIONS/Settings-return/
 rendered/device/final gates remain open; no automatic retry or source survey.
 
+**One typing-only reopening selected06:25UTC — same COMFORT-CAPTIONS goal.**
+Independent priority review supports completing the already-defined release caller
+rather than switching work. The new evidence is the exact Variant inference
+chain above; the old syntax continuation remains closed/PARKED. Restore only the
+verified archived5cea9ac53 source; add explicit Vector3 types to `flat`/`desired`
+and float to `reach`, retaining their expressions and every route/control/timer.
+Root makes this deterministic three-line edit directly; independent review owns
+its diff and actual result review. No second implementation committee/source
+survey or new goal/branch label resets cost.
+
+Original05:38:34 start,45.076minutes through prior final notes, both source
+failures and archived PARK stay charged. The original07:08:34 hard deadline
+cannot now admit both full groups plus closure. Explicitly amend hard stop to
+07:23:34UTC:105minute ceiling against the failed90minute estimate, not a fresh
+90minute budget. Expected remaining work~20minutes including restore/correction/
+checks/runs/integration/cleanup, cumulative active work~65minutes; report any
+actual overrun honestly. Closure reserve15minutes begins07:08:34; first caller
+must admit BOTH full960s groups by06:36:34. No case/cap or required check removed.
+
+Use the original branch name/worktree ownership within the same goal's owned
+`typing/` continuation directory. Original records.tar.gz/closeout remain
+immutable. New typing/worktree restores from the verified source bundle; root
+owns edits/checks and all original301Python/import/probeparse/privacy/private
+clean export/strict archive startup, caption group and default-flash group.
+Pinned engine/template, selectors/private-profile guards, foreign-data/backup/
+three distinct PID/OS0/clean-marker/input/source/cache checks are unchanged.
+Record actual package hash after export; no public Windows checkpoint for this
+release-driver-only source. Any next failed predicate or missed full-cap
+admission is terminal PARK/cleanup with NO further reopening this run. Accept
+and integrate only after the full result, then push/delete owned branch/worktree
+and consolidate this interval's verified archive/closeout. All broader caption/
+Settings-return/render/device/native/final gates remain open.
+
 The remaining overflow input remains exactly the existing owner choice:
 pagination, scrolling or wider/recomposed HUD, including timing/input/full-text
 and reservation behaviour. It does not block this settled boolean Reset contract.

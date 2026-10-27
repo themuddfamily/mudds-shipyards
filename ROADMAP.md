@@ -174,22 +174,19 @@ finishes14.696minutes from05:20:33UTC, plus final notes/push on the same clock.
 Owned branch/worktree/scratch are removed; one small verified archive remains.
 No game/engine/public checkpoint change; final release/player/native gates stay open.
 
-**PARKED — COMFORT-CAPTIONS normal Save/Reset/cold caller.**
-The one syntax correction preserves its predicates/timers, then Godot rejects
-three inferred walker types. Source typing cause is known; no export/startup or
-actual caption/default-flash group ran.301Python/import/privacy source checks do
-not prove the caller. [Both stops, exact source, reopening condition and cleanup](docs/ROADMAP_BACKLOG.md#caption-episodes--ingress-and-reset-boundary).
-Candidate5cea9ac53 and its predecessor are archived unmerged; owned branch/
-worktree/profile/cache/scratch are removed. Cleanup40.994minutes from original
-05:38:34, plus final notes/push. Current main/default flash and playable7876ebc
-remain unchanged. No further repair or run is selected under this closed attempt.
+**Active — one typing-only caption caller reopening.**
+Restore the archived candidate and explicitly type three walker locals; keep
+all normal-input, source/package and both three-process caller checks.
+[Source cause, prior PARK and amended budget](docs/ROADMAP_BACKLOG.md#caption-episodes--ingress-and-reset-boundary).
+Original05:38:34 start and45.076minutes stay charged. Hard stop is explicitly
+amended07:08:34→07:23:34UTC, a105minute ceiling against the original90minute
+estimate; expected cumulative active work~65minutes. Both full960s groups must
+be admitted by06:36:34;15minute cleanup reserve is preserved. Any next failure
+ends this reopening. Nothing is qualified or merged by this selection.
 
-**PLAN-NEXT remains OPEN; next implementation is unselected.**
-Remaining routes/view/observer bindings and owner inputs stay in the
-[existing definition list](docs/ROADMAP_BACKLOG.md#remaining-contract-gaps--plan-next).
-The caption caller remains unfinished, with a precise typing correction and
-complete package/runtime proof still owed. No source survey or automatic retry
-is selected by closure; original results, costs and full scope are retained.
+**PLAN-NEXT remains OPEN; one implementation is active.**
+The original source/archive/failure records and all broader product gates stay
+binding. No scope/cap reduction, source survey or new-budget successor is allowed.
 
 For each listed gap, supply the finite answer in its existing row/contract:
 the named members, action/trigger, expected endpoint, preserved state, proof
