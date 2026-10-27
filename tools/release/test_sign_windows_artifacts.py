@@ -155,6 +155,7 @@ class InstallerIntegrationContract(unittest.TestCase):
         self.assertIn("-DUNINSTALL_SIGN_COMMAND=", text)
         self.assertIn('--result "$signing_result" "$output"', text)
         self.assertIn('--verify-only --result "$source_signing_result" "$source_exe"', text)
+        self.assertIn('--verify-only --result "$uninstaller_signing_result" "$uninstaller"', text)
         self.assertIn('signing_label="dev-self-signed-UNTRUSTED"', text)
         self.assertIn('record["trusted_signing_claimed"] = False', text)
         # Unsigned remains the default label.
@@ -165,6 +166,9 @@ class InstallerIntegrationContract(unittest.TestCase):
         self.assertIn("!ifdef UNINSTALL_SIGN_COMMAND", text)
         self.assertIn("!uninstfinalize '${UNINSTALL_SIGN_COMMAND} \"%1\"' = 0", text)
         self.assertIn("signing=unsigned", text)
+        copy_hook = "!uninstfinalize 'cp -- \"%1\" \"$MUDDS_INSTALLER_UNINSTALLER_OUTPUT\"' = 0"
+        self.assertIn(copy_hook, text)
+        self.assertLess(text.index("!ifdef UNINSTALL_SIGN_COMMAND"), text.index(copy_hook))
 
 
 if __name__ == "__main__":

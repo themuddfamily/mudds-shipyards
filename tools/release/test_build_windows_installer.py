@@ -1094,6 +1094,99 @@ class BuildScript(unittest.TestCase):
                     self.assertFalse(Path(str(output) + ".makensis.log").exists())
                     self.assertEqual(source.read_bytes(), b"payload")
 
+    def test_refuses_existing_uninstaller_before_mutating_inputs(self):
+        full = _head_commit()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / f"MuddsShipyards-{full[:7]}.exe"
+            source.write_bytes(b"original payload")
+            output = root / f"MuddsShipyards-{full[:7]}-setup.exe"
+            sidecar = Path(str(output) + ".uninstall.exe")
+            protected = root / "unrelated.exe"
+            protected.write_bytes(b"keep this")
+            for symlink in (False, True):
+                with self.subTest(symlink=symlink):
+                    if symlink:
+                        sidecar.symlink_to(protected)
+                    else:
+                        sidecar.write_bytes(b"previous uninstaller")
+                    proc = self._run(str(source), str(output))
+                    self.assertNotEqual(proc.returncode, 0)
+                    self.assertIn("uninstaller output already exists", proc.stderr)
+                    self.assertEqual(source.read_bytes(), b"original payload")
+                    self.assertEqual(sidecar.read_bytes(), b"keep this" if symlink else b"previous uninstaller")
+                    self.assertFalse(output.exists())
+                    self.assertFalse(Path(str(output) + ".makensis.log").exists())
+                    sidecar.unlink()
+
+    @unittest.skipUnless(HAVE_MAKENSIS, "makensis not installed")
+    def test_uninstaller_copy_failure_does_not_publish_success(self):
+        full = _head_commit()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / f"MuddsShipyards-{full[:7]}.exe"
+            source.write_bytes(b"payload")
+            output = root / f"MuddsShipyards-{full[:7]}-setup.exe"
+            bin_dir = root / "bin"
+            bin_dir.mkdir()
+            fake_copy = bin_dir / "cp"
+            fake_copy.write_text("#!/bin/sh\necho TEST_FINALIZER_COPY_FAILED >&2\nexit 17\n")
+            fake_copy.chmod(0o755)
+            proc = self._run(str(source), str(output), env={"PATH": str(bin_dir) + os.pathsep + os.environ["PATH"]})
+            self.assertNotEqual(proc.returncode, 0)
+            self.assertIn("makensis failed", proc.stderr)
+            self.assertIn("TEST_FINALIZER_COPY_FAILED", Path(str(output) + ".makensis.log").read_text())
+            self.assertFalse(Path(str(output) + ".uninstall.exe").exists())
+            self.assertFalse(Path(str(output) + ".installer-result.json").exists())
+            self.assertFalse(list(root.glob(".mudds-uninstaller.*")))
+            self.assertEqual(source.read_bytes(), b"payload")
+
+    @unittest.skipUnless(HAVE_MAKENSIS, "makensis not installed")
+    def test_export_captures_finalized_bytes_after_optional_signing(self):
+        # Exercise real NSIS ordering with a mock signer that appends a visible
+        # marker; this is not an Authenticode/trust qualification.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repo, script, commit = self._version_fixture(root)
+            signer = script.parent / "sign_windows_artifacts.sh"
+            signer.write_text("""#!/usr/bin/env python3
+import json, os, sys
+from pathlib import Path
+args = sys.argv[1:]
+artifact = Path(args[-1])
+log = Path(os.environ['MUDDS_TEST_SIGN_CALLS'])
+calls = json.loads(log.read_text()) if log.exists() else []
+calls.append(args)
+log.write_text(json.dumps(calls))
+if '--verify-only' not in args:
+    with artifact.open('ab') as output:
+        output.write(b'UNTRUSTED_TEST_FINALIZER_MARKER')
+if '--result' in args:
+    Path(args[args.index('--result') + 1]).write_text('{}')
+""")
+            signer.chmod(0o755)
+            source = root / f"MuddsShipyards-{commit[:7]}.exe"
+            source.write_bytes(b"MZmock exported game")
+            output = root / f"MuddsShipyards-{commit[:7]}-setup.exe"
+            calls = root / "sign-calls.json"
+            env = dict(os.environ, MUDDS_INSTALLER_SIGN="dev-self-signed", MUDDS_TEST_SIGN_CALLS=str(calls))
+            env.pop("MUDDS_INSTALLER_FULL_COMMIT", None)
+            proc = subprocess.run([str(script), str(source), str(output)], capture_output=True,
+                                  text=True, env=env, timeout=30)
+            self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+            record = json.loads(Path(str(output) + ".installer-result.json").read_text())
+            sidecar = Path(record["uninstaller"])
+            data = sidecar.read_bytes()
+            self.assertTrue(data.endswith(b"UNTRUSTED_TEST_FINALIZER_MARKER"))
+            self.assertEqual(data.count(b"UNTRUSTED_TEST_FINALIZER_MARKER"), 1)
+            self.assertEqual(record["uninstaller_sha256"], hashlib.sha256(data).hexdigest())
+            self.assertTrue(Path(record["uninstaller_signing_result"]).is_file())
+            self.assertFalse(record["trusted_signing_claimed"])
+            self.assertEqual(record["native_verification"], "NOT_RUN")
+            verification = [args for args in json.loads(calls.read_text()) if args[-1] == str(sidecar)]
+            self.assertEqual(len(verification), 1)
+            self.assertIn("--verify-only", verification[0])
+
     @unittest.skipUnless(HAVE_MAKENSIS, "makensis not installed")
     def test_compiles_installer_and_records_provenance(self):
         full = _head_commit()
@@ -1117,6 +1210,13 @@ class BuildScript(unittest.TestCase):
             self.assertEqual(record["installer_bytes"], output.stat().st_size)
             self.assertEqual(record["signing"], "unsigned")
             self.assertEqual(record["native_verification"], "NOT_RUN")
+            uninstaller = Path(str(output) + ".uninstall.exe")
+            self.assertTrue(uninstaller.is_file(), "compiler-generated uninstaller must be exported")
+            self.assertEqual(record["uninstaller"], str(uninstaller))
+            self.assertEqual(record["uninstaller_bytes"], uninstaller.stat().st_size)
+            self.assertEqual(record["uninstaller_sha256"], hashlib.sha256(uninstaller.read_bytes()).hexdigest())
+            self.assertEqual(uninstaller.read_bytes()[:2], b"MZ")
+            self.assertIn((record["product_version"] + ".0").encode("utf-16le"), uninstaller.read_bytes())
             self.assertRegex(record["build_label"], rf"^\d+\.\d+\.\d+\+{short}$")
             digest_line = (Path(tmp) / f"MuddsShipyards-{short}-setup.exe.sha256").read_text().split()
             self.assertEqual(digest_line, [record["installer_sha256"], output.name])

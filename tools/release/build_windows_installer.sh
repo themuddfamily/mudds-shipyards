@@ -7,7 +7,8 @@
 # (its name carries the seven-character source revision). The full commit is
 # resolved from the repository this script lives in; the product version is
 # read from that commit's project.godot. Writes <output>, <output>.sha256 and
-# <output>.installer-result.json (schema_version 1). Compiling never needs a
+# <output>.installer-result.json (schema_version 1), and the exact compiler
+# uninstaller as <output>.uninstall.exe. Compiling never needs a
 # clean worktree because it only consumes an already exported artifact.
 #
 # Optional Authenticode signing (see docs/WINDOWS_CODE_SIGNING.md):
@@ -74,6 +75,9 @@ esac
 output="$output_dir/$(basename -- "$output")"
 [[ "$output" == *.exe ]] || die "output must end in .exe"
 [[ "$output" != "$source_exe" ]] || die "output must differ from the source executable"
+uninstaller="$output.uninstall.exe"
+[[ ! -e "$uninstaller" && ! -L "$uninstaller" ]] \
+	|| die "uninstaller output already exists: $uninstaller"
 
 sign_mode="${MUDDS_INSTALLER_SIGN:-}"
 signing_label="unsigned"
@@ -92,6 +96,18 @@ esac
 # input errors remain actionable on machines without NSIS. Check before signing
 # the payload to avoid modifying it when compilation cannot proceed.
 command -v makensis >/dev/null 2>&1 || die "makensis (NSIS 3) is not installed"
+# The hook runs through a shell. Keep its compiler-created input under a safe,
+# private temporary path; pass the arbitrary destination only via environment.
+nsis_tmp="$(mktemp -d /tmp/mudds-nsis.XXXXXXXX)" || die "cannot create NSIS temporary directory"
+uninstaller_stage=""
+cleanup() {
+	[[ -z "$uninstaller_stage" ]] || rm -f -- "$uninstaller_stage"
+	rm -rf -- "$nsis_tmp"
+}
+trap cleanup EXIT
+uninstaller_stage="$(mktemp "$output_dir/.mudds-uninstaller.XXXXXXXX")" \
+	|| die "cannot stage uninstaller in $output_dir"
+export MUDDS_INSTALLER_UNINSTALLER_OUTPUT="$uninstaller_stage"
 if [[ -n "$sign_mode" ]]; then
 	[[ -x "$SIGN_SCRIPT" ]] || die "signing requested but $SIGN_SCRIPT is missing"
 	case "$SIGN_SCRIPT" in
@@ -108,18 +124,25 @@ if [[ -n "$sign_mode" ]]; then
 fi
 
 log="$output.makensis.log"
-makensis -V2 -WX \
+TMPDIR="$nsis_tmp" makensis -V2 -WX \
 	"-DSOURCE_EXE=$source_exe" \
 	"-DSHORT_COMMIT=$short_commit" \
 	"-DFULL_COMMIT=$full_commit" \
 	"-DPRODUCT_VERSION=$product_version" \
 	"-DOUTPUT_FILE=$output" \
+	-DEXPORT_UNINSTALLER \
 	"${signing_defines[@]}" \
 	"$NSI" > "$log" 2>&1 || { cat "$log" >&2; die "makensis failed (log: $log)"; }
 [[ -s "$output" ]] || die "makensis produced no output at $output"
+[[ -s "$uninstaller_stage" && "$(head -c 2 -- "$uninstaller_stage")" == MZ ]] \
+	|| die "makensis produced no exported PE uninstaller"
+chmod 644 -- "$uninstaller_stage"
+# Same-filesystem exclusive publication cannot overwrite another build's file.
+ln -- "$uninstaller_stage" "$uninstaller" || die "cannot publish uninstaller: $uninstaller"
 
 signing_result=""
 source_signing_result=""
+uninstaller_signing_result=""
 if [[ -n "$sign_mode" ]]; then
 	signing_result="$output.signing-result.json"
 	source_signing_result="$source_exe.signing-result.json"
@@ -127,23 +150,30 @@ if [[ -n "$sign_mode" ]]; then
 		|| die "signing or verifying the installer failed (see $signing_result)"
 	"$SIGN_SCRIPT" "${sign_flags[@]}" --verify-only --result "$source_signing_result" "$source_exe" \
 		|| die "verifying the signed executable failed (see $source_signing_result)"
+	uninstaller_signing_result="$uninstaller.signing-result.json"
+	"$SIGN_SCRIPT" "${sign_flags[@]}" --verify-only --result "$uninstaller_signing_result" "$uninstaller" \
+		|| die "verifying the signed uninstaller failed (see $uninstaller_signing_result)"
 fi
 
 source_sha256="$(sha256sum "$source_exe" | cut -d' ' -f1)"
 installer_sha256="$(sha256sum "$output" | cut -d' ' -f1)"
 installer_bytes="$(stat -c %s "$output")"
 source_bytes="$(stat -c %s "$source_exe")"
+uninstaller_sha256="$(sha256sum "$uninstaller" | cut -d' ' -f1)"
+uninstaller_bytes="$(stat -c %s "$uninstaller")"
 makensis_version="$(makensis -VERSION 2>/dev/null | tr -d '\r\n')"
 printf '%s  %s\n' "$installer_sha256" "$(basename -- "$output")" > "$output.sha256"
 python3 - "$output.installer-result.json" \
 	"$source_exe" "$source_sha256" "$source_bytes" "$short_commit" "$full_commit" \
 	"$product_version" "$output" "$installer_sha256" "$installer_bytes" "$makensis_version" \
-	"$signing_label" "$signing_result" "$source_signing_result" <<'PY'
+	"$signing_label" "$signing_result" "$source_signing_result" \
+	"$uninstaller" "$uninstaller_sha256" "$uninstaller_bytes" "$uninstaller_signing_result" <<'PY'
 import json, sys
 (
     path, source_exe, source_sha256, source_bytes, short_commit, full_commit,
     product_version, output, installer_sha256, installer_bytes, makensis_version,
     signing_label, signing_result, source_signing_result,
+    uninstaller, uninstaller_sha256, uninstaller_bytes, uninstaller_signing_result,
 ) = sys.argv[1:]
 record = {
     "schema_version": 1,
@@ -159,11 +189,15 @@ record = {
     "installer_bytes": int(installer_bytes),
     "installer_sha256": installer_sha256,
     "makensis_version": makensis_version,
+    "uninstaller": uninstaller,
+    "uninstaller_bytes": int(uninstaller_bytes),
+    "uninstaller_sha256": uninstaller_sha256,
     "native_verification": "NOT_RUN",
 }
 if signing_result:
     record["signing_result"] = signing_result
     record["source_signing_result"] = source_signing_result
+    record["uninstaller_signing_result"] = uninstaller_signing_result
     # A signature from a certificate Windows has not been shown to trust is
     # never reported as trusted signing.
     record["trusted_signing_claimed"] = False

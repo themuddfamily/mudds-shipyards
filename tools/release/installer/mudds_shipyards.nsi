@@ -54,6 +54,12 @@ ShowUninstDetails show
   ; password come from the environment makensis inherits.
   !uninstfinalize '${UNINSTALL_SIGN_COMMAND} "%1"' = 0
 !endif
+!ifdef EXPORT_UNINSTALLER
+  ; Finalizers run in declaration order. Copy after signing; no later hook may
+  ; mutate %1. NSIS embeds this exact complete file after the finalizers finish.
+  ; Environment expansion keeps destination shell metacharacters out of code.
+  !uninstfinalize 'cp -- "%1" "$MUDDS_INSTALLER_UNINSTALLER_OUTPUT"' = 0
+!endif
 
 VIProductVersion "${PRODUCT_VERSION}.0"
 VIAddVersionKey "ProductName" "${PRODUCT_NAME}"

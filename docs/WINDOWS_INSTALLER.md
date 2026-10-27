@@ -826,7 +826,7 @@ verification result below is no longer a publication destination.
 tools/release/build_windows_installer.sh builds/windows/MuddsShipyards-<sha7>.exe
 ```
 
-Requirements: `makensis` (NSIS 3; `apt-get install nsis` on the WSL side), a
+Requirements: `makensis` (NSIS 3.08 or newer; `apt-get install nsis` on the WSL side), a
 source executable named by `export_windows_candidate.sh`, and a repository
 whose history contains the seven-character revision in that name (the full
 commit is resolved from it; `MUDDS_INSTALLER_FULL_COMMIT` overrides the lookup
@@ -846,6 +846,11 @@ Outputs beside the source executable (or at the optional second argument):
   source and installer SHA-256/bytes, build label `<version>+<sha7>`, source
   commit, `signing: unsigned`, `native_verification: NOT_RUN`).
 - `…-setup.exe.makensis.log`.
+- `…-setup.exe.uninstall.exe`: the exact complete compiler-generated uninstaller,
+  copied after optional signing and before embedding; its path, size and SHA256
+  are `uninstaller`, `uninstaller_bytes` and `uninstaller_sha256` in the same
+  schema1 installer result. A pre-existing file or symlink is refused before
+  signing/compilation. Copy failure prevents a successful build result.
 
 `makensis` runs with `-WX`, so its insecure-filename warning is fatal: a bare
 `setup.exe` output name is refused because Windows loads compatibility shims
@@ -873,7 +878,8 @@ bound to those absolute paths:
 env -u MUDDS_INSTALLER_SIGN -u MUDDS_INSTALLER_FULL_COMMIT \
   timeout 600 tools/release/build_windows_installer.sh "$GAME_EXE" "$INSTALLER"
 7z x -y "-o$EXTRACT" "$INSTALLER"
-sha256sum "$GAME_EXE" "$EXTRACT/MuddsShipyards.exe.pending" "$INSTALLER"
+sha256sum "$GAME_EXE" "$EXTRACT/MuddsShipyards.exe.pending" "$INSTALLER" \
+  "$INSTALLER.uninstall.exe"
 ```
 
 Pass requires compilation exit0/no warnings; `.installer-result.json` has
@@ -890,17 +896,30 @@ The installed runtime paths authored by the NSI are `MuddsShipyards.exe`,
 metadata use those same defines. Script source alone does not prove native
 installation or uninstaller execution.
 
-**Standalone uninstaller identity remains an explicit limitation.** Existing
-7-Zip extraction exposes the game but not the standalone uninstaller and reports
-`BadCmd=13` on the historical candidate. Record the actual current extraction
-output/membership; never claim its uninstaller hash from the parent installer
-hash. Codex must supply a supported extraction method and exact standalone
-uninstaller bytes/hash, or retain that predicate as NOT_RUN. Do not restore
-native execution as a prerequisite to bypass the owner's exclusion. Trusted
-publisher/certificate verification and all resulting signed-byte identity remain
-under SIGN-FINAL. Missing final candidate or standalone artifact prevents full
-INSTALL-WIN-FINAL closure; compilation/game extraction alone proves its named
-packaging subpredicate only.
+**Standalone uninstaller identity uses the compiler export.** The builder now
+retains `<setup>.uninstall.exe`; compare its actual size/SHA256 and PE version
+against the existing result and committed product version. The optional signing
+hook runs first; the final export hook copies the complete resulting file. No
+subsequent finalizer may mutate that input. NSIS rereads that file for embedding,
+and this complete-file mode writes its decompressed bytes during installation.
+This is the supported [NSIS export mechanism](https://nsis.sourceforge.io/Signing_an_Uninstaller_externally),
+with final-byte handling confirmed in the pinned
+[3.11 compiler](https://raw.githubusercontent.com/kichik/nsis/v311/Source/build.cpp),
+[hook registration](https://raw.githubusercontent.com/kichik/nsis/v311/Source/scriptpp.cpp)
+and [runtime writer](https://raw.githubusercontent.com/kichik/nsis/v311/Source/exehead/exec.c).
+
+The destination is supplied through inherited environment, staged privately and
+published exclusively after successful compilation. Existing result schema1 gains
+only the three actual artifact fields; signed builds also verify the exported
+sidecar and retain `uninstaller_signing_result`. This adds no trust claim.
+
+7-Zip still cannot expose the standalone uninstaller from the historical setup
+and reports `BadCmd=13`; the new compiler export resolves identity for newly
+built packages without pretending extraction succeeded. Earlier setups with no
+retained sidecar keep that limitation. Native install/uninstall execution remains
+owner-excluded/NOT_RUN, while actual signatures/trust and final signed bytes
+remain SIGN-FINAL. Missing final candidate or missing/mismatched new sidecar
+prevents full INSTALL-WIN-FINAL closure. No Windows executable is run to export it.
 
 ## What the installer does
 
