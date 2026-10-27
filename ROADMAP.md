@@ -85,6 +85,10 @@ the unsupported critical-hull ram candidate is withdrawn.
 [Halyard/Bomber sibling members](docs/ROADMAP_BACKLOG.md#halyard-bomber-contact-actions)
 now bind their distinct contact geometry,real weapon/payload gates and fatal
 pellet counts. Actual callers and gameplay qualification remain open.
+[Handback and retained-Main fields](docs/ROADMAP_BACKLOG.md#current-craft-handback-and-main)
+now fix one counterpart per current craft,physical control/reclaim endpoints and
+the missing component/claim/home assertions in the existing Main fixture.
+Accepted routes retain their original scope;new callers and assertions are open.
 
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings
