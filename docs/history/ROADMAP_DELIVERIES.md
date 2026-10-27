@@ -4,6 +4,92 @@ Moved from ROADMAP.md on 2026-10-17. These are source-specific historical
 results, not the active queue or proof of current full-project acceptance.
 Return to the [working roadmap](../../ROADMAP.md).
 
+## Windows installer exported-source version repair accepted 20261027
+
+**INSTALL-WIN-FINAL builder prerequisite accepted; full final gate remains open.**
+Production source770f5b522 now validates the exported commit and reads its
+`project.godot` version instead of the mutable builder checkout. Real old-builder
+fixture compiles record9.8.7 instead of committed1.2.3 both with/without the full
+commit override; missing/blob overrides reach the compiler. These four expected
+RED predicates reproduce in1.476s. The corrected existing suite runs18 tests in
+2.927s:17PASS/one PowerShell-only skip. Both real corrected fixture compiles
+preserve1.2.3 in JSON/build label/actual PE strings and leave input/config intact;
+invalid overrides stop before compiler/signing/output.
+
+One actual unsigned NSIS3.11-1 setup build packages the unchanged accepted game
+7876ebc8da434987700f128483d4e67098cd7319. Builder770f5b522 is a different source
+pin; doc/result closeoutf4e725e40 changes no builder/game bytes. Supervisor
+FINISHED/exit0 in82.201124786s under the existing600s, compiler log0bytes.
+Setup88,194,974bytes/SHA256
+`dc7f6347fe24cfb7c74bc57bf36dfcf2b95a52e6ec3d058ee4b19056cdd5061a`.
+Actual result and PE fixed/string versions are0.12.0.0/0.12.0+7876ebc; certificate
+directory0/0. Existing game EXE184,847,240bytes/SHA
+`c7971980c02da0f5527615acdb5c58a9fd58dca27dafbb1d05a30787e84f89df`
+and ZIP SHA`152101e7706814781b21393422bbd19f2d6c56621d866cefc0519abfeb29d627`
+remain unchanged. Extracted staged payload matches the complete source EXE bytes.
+
+One draft-command error is retained: it named installed MuddsShipyards.exe rather
+than the actual archived MuddsShipyards.exe.pending. Independent source review
+binds NSI File/oname and runtime MoveFileEx rename; one documentation-only
+correction inspects the SAME artifact, with no compiler retry, source change or
+weakened equality. 7-Zip exits0/retains historicalBadCmd13 and exposes four files,
+not standalone uninstall.exe. Its identity/native execution remainNOT_RUN;
+trusted signing and final candidate remainGATED. No Godot invocation or new game
+checkpoint is needed for this packaging repair. Setup and actual notes/checksum/
+result stay under builds/windows; no Downloads or external publication.
+Independent source and raw/artifact review GO; accepted branch integrated into
+main. Original01:04:38→02:04:38UTC/60minute cumulative task clock includes the
+preceding diagnosis, expected RED, documentation correction, build/review/push/
+cleanup; no reset or extra attempt.
+
+Owned cleanup completes2026-10-27 01:14:34.826473UTC,9.947108minutes from the
+frozen start before final notes/push. Accepted tipf4e725e40 is contained in fresh
+pushed main; remote task branch is absent, clean owned worktree removed and local
+branch deleted with exact expected tip. Supervisor identity is absent; no owned
+process/cwd/cmdline holders remain. Extracted duplicate payload and loose raw
+files are removed after verification. Only records.tar.gz and closeout.json
+remain under `/srv/mudds-work/windows-installer-source-version-20261027/`.
+Archive3,270bytes/12regular files/SHA256
+`972a88eb65c5102ad2baf6047f4b6c492152c884574b49826251d8efde7fb26b`,
+every byte/mode verified; no duplicate game or setup is archived. Accepted source
+stays reachable through pushed main. No retained task branch/worktree exception.
+
+### Frozen assignment
+
+**Selected — INSTALL-WIN-FINAL, exported-source version repair.**
+Start2026-10-27 01:04:38UTC; conservative60minutes including the preceding
+contract/source diagnosis, tests, actual installer build, review, push and cleanup;
+hard02:04:38UTC. This is an unattempted packaging defect, not a Jovian retry.
+
+- **Result:** compiling an already exported checkpoint labels the installer with
+  that checkpoint commit's `config/version`, even from a newer/dirty checkout.
+- **Ownership:** Codex owns only `build_windows_installer.sh`, its existing
+  Python test, WINDOWS_INSTALLER.md and roadmap/history notes; one independent
+  reviewer checks source/results. No game runtime, signing or native execution.
+- **Start/steps:** base731d905e8; one owned branch/worktree. In an isolated Git
+  fixture commit version1.2.3, then alter checkout version9.8.7; compile the
+  commit-named stub EXE. First demonstrate existing builder records9.8.7 instead
+  of1.2.3. Resolve the real exported source commit before reading its version.
+  Run existing installer tests, then build one unsigned installer from the
+  unchanged accepted `builds/windows/MuddsShipyards-7876ebc.exe` under the
+  existing600s compilation limit. The original game/ZIP must remain unchanged.
+- **Pass/fail/proof:** the fixture installer record/PE metadata use1.2.3 despite
+  the mutable9.8.7; valid matching full-commit override works; nonexistent and
+  noncommit overrides fail before compiler/signing/output. Existing installer
+  tests pass. Actual installer result source=7876ebc's full commit/version,
+  its extracted game bytes equal the accepted source EXE, compiler exit0 and
+  warning-free. Original standalone-uninstaller extraction limitation remains
+  recorded; no native uninstall or trusted-signature claim.
+- **Dependencies:** accepted checkpoint7876ebc and existing NSIS script/compiler;
+  Codex supplies compiler locally if absent. This closes the named builder
+  prerequisite only; PACKAGE-FINAL/final installed/native/signing gates stay open.
+- **Stop/closure:** stop on first unexpected failure; the intentional old-version
+  RED reproduction is expected. No automatic retry or fresh budget. Record
+  accepted source/results or exact first failure, retain source before cleanup,
+  merge/push accepted work and remove the exact owned branch/worktree/scratch.
+  Installer plus concise actual build notes belong in builds/windows/.
+
+
 ## Jovian cannon departure parked and Linux archive modes fixed 20261027
 
 **One causal continuation, terminal FAIL/PARK on2026-10-27.** The ordinary

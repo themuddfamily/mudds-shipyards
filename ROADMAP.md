@@ -124,38 +124,18 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Current work and next selection
 
-**Selected — INSTALL-WIN-FINAL, exported-source version repair.**
-Start2026-10-27 01:04:38UTC; conservative60minutes including the preceding
-contract/source diagnosis, tests, actual installer build, review, push and cleanup;
-hard02:04:38UTC. This is an unattempted packaging defect, not a Jovian retry.
-
-- **Result:** compiling an already exported checkpoint labels the installer with
-  that checkpoint commit's `config/version`, even from a newer/dirty checkout.
-- **Ownership:** Codex owns only `build_windows_installer.sh`, its existing
-  Python test, WINDOWS_INSTALLER.md and roadmap/history notes; one independent
-  reviewer checks source/results. No game runtime, signing or native execution.
-- **Start/steps:** base731d905e8; one owned branch/worktree. In an isolated Git
-  fixture commit version1.2.3, then alter checkout version9.8.7; compile the
-  commit-named stub EXE. First demonstrate existing builder records9.8.7 instead
-  of1.2.3. Resolve the real exported source commit before reading its version.
-  Run existing installer tests, then build one unsigned installer from the
-  unchanged accepted `builds/windows/MuddsShipyards-7876ebc.exe` under the
-  existing600s compilation limit. The original game/ZIP must remain unchanged.
-- **Pass/fail/proof:** the fixture installer record/PE metadata use1.2.3 despite
-  the mutable9.8.7; valid matching full-commit override works; nonexistent and
-  noncommit overrides fail before compiler/signing/output. Existing installer
-  tests pass. Actual installer result source=7876ebc's full commit/version,
-  its extracted game bytes equal the accepted source EXE, compiler exit0 and
-  warning-free. Original standalone-uninstaller extraction limitation remains
-  recorded; no native uninstall or trusted-signature claim.
-- **Dependencies:** accepted checkpoint7876ebc and existing NSIS script/compiler;
-  Codex supplies compiler locally if absent. This closes the named builder
-  prerequisite only; PACKAGE-FINAL/final installed/native/signing gates stay open.
-- **Stop/closure:** stop on first unexpected failure; the intentional old-version
-  RED reproduction is expected. No automatic retry or fresh budget. Record
-  accepted source/results or exact first failure, retain source before cleanup,
-  merge/push accepted work and remove the exact owned branch/worktree/scratch.
-  Installer plus concise actual build notes belong in builds/windows/.
+**Accepted — INSTALL-WIN-FINAL exported-source version prerequisite.**
+Builder770f5b522 reads the exported commit's version and rejects unknown/noncommit
+overrides before compilation/signing. Expected old-builder regressions reproduce;
+17 executable tests pass/one PowerShell check is skipped. One actual unsigned
+[7876ebc installer](builds/windows/MuddsShipyards-7876ebc-setup.exe)
+([actual validation](builds/windows/MuddsShipyards-7876ebc-installer-notes.txt))
+compiles82.201s under600s; extracted game bytes equal the accepted EXE, and the
+original EXE/ZIP stay unchanged. Native Windows, standalone uninstaller identity,
+trusted signing and full final-package qualification remain unperformed/open.
+[Finite result, retained correction and original clock](docs/history/ROADMAP_DELIVERIES.md#windows-installer-exported-source-version-repair-accepted-20261027).
+Accepted source is pushed; owned branch/worktree/process/scratch cleanup is
+complete. The next task remains unselected until its literal acceptance is ready.
 
 **Completed this pass: inventory-wide acceptance review.** This is planning
 work, with no gameplay completion implied. All 337 rows were reviewed; 12 existing
