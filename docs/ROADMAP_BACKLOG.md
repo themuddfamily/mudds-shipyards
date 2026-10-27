@@ -965,6 +965,26 @@ results/unique source to one verified archive/closeout; no public checkpoint for
 this release-driver-only change. Full captions/Settings-return/render/device/
 final source gates remain open. No gameplay run has occurred at selection.
 
+**First caption source failure — one syntax-only continuation06:04UTC.**
+Candidate277aa82b9dbc13a574307bac78695b3e082058a4: baseline299PythonPASS14.758518s,
+new301PythonPASS16.313095s, cleanimport20.485184s/zero diagnostics, simultaneous
+privacy1.268264s/exit0/exactone STARTUP_CLI_PRIVACY_TEST_OK. Probeparse fails
+0.665994s/exit1 atline496, before any export/startup/gameplay run.
+
+Root and independent review identify two inline lambdas (496–497,504–506) whose
+bare newline before `and` terminates GDScript's inline return. Existing controller
+source uses explicit continuation. Select one syntax-only correction now: join
+each entire return predicate onto its lambda line, retaining every condition,
+actor/ownership check and exact timeout. No other logic/files/caps change.
+Reviewer source GO missed this parser defect; the failed raw check is retained.
+At06:03:36 cumulative25.033minutes from05:38:34, still on the original clock.
+Corrected source/review by06:08:34, repeat affected import/parse/privacy; prior
+301test result applies only to unchanged predicates. Both full actual groups
+still require first launch by06:19:34 and the original closure/hard deadlines.
+Independent cumulative-priority GO supports this local cause; any next unexpected
+failure is terminal PARK for this continuation, source/raw preserved and owned
+cleanup, with no further repair/run selected. No new task label or budget reset.
+
 The remaining overflow input remains exactly the existing owner choice:
 pagination, scrolling or wider/recomposed HUD, including timing/input/full-text
 and reservation behaviour. It does not block this settled boolean Reset contract.

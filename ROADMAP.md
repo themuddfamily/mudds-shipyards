@@ -180,6 +180,9 @@ on05:38:34–07:08:34UTC, including the source binding already spent. Three norm
 processes use actual Torrent walking/boarding/canopy caption and on-foot exit,
 normal Settings Reset and durable cold OFF; default flash caller regression and
 one silent private package are required. No full-family or device pass implied.
+First parse stops before export at two inline-lambda continuation errors; one
+syntax-only correction is selected under the same clock.301Python/import/privacy
+checks pass in their recorded scope; no package/gameplay result yet.
 
 **PLAN-NEXT remains OPEN; one implementation is active.**
 Definitions still need their remaining source-resolvable fields; accepted results
