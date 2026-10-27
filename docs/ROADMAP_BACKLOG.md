@@ -4801,6 +4801,175 @@ the old roster. All337 canonical identities/order, seven selector mappings/three
 journey owners, source links, command shell syntax and original timing constants
 check correctly; no benchmark, hardware/engine probe or performance acceptance.
 
+<a id="physical-input-device-contract"></a>
+
+### Physical keyboard/mouse and controller — finite operator goals
+
+INPUT-KBM / INPUT-CONTROLLER source66b65dc1c. Definition16:53:55UTC2026-10-27,
+20minutes through17:13:55UTC includes one bounded controller-source review,
+root keyboard/context binding, docs/checks/commit/push/cleanup. No device,
+display, input, engine or physical test is opened by this definition.
+
+**Inputs versus missing code.** User binds actual keyboard+mouse or one standard
+controller (manufacturer/model, hardware/device path, backend, GUID/VID/PID where
+applicable), exact source/package and dedicated session/display/authorization.
+Values are UNBOUND, not evidence that hardware is absent. Codex owns the passive
+local operator caller/action readback; it is not an unavailable external artifact.
+Reuse/extract common identity/session/prompt code from
+[physical browser guest](../tests/network/physical_browser_guest_driver.gd),
+whose current executable qualifies only BROWSER-CONTROLLER. Its SDL3/linux-evdev
+binding verifies actual physical event node/sysfs/FD, one selected pad, dedicated
+X11 and Dummy. Do not copy a second device/provenance contract or silently claim
+another backend. KBM binds native X11 keyboard/pointer and its actual physical
+evdev devices under the dedicated Xorg session; add device/server readback where
+missing. A remote/synthetic pointer/key feed is not that physical-device proof.
+
+The existing controller [production-input sortie](../tests/controller_physical_sortie_test.gd)
+uses Boot/authored tuning/default sampler and47assertions, but still synthesizes
+Joypad events. Default/lifecycle/planetary variants also inject providers,
+accelerate or stage actors. Retain their scopes; none proves physical input.
+Every physical step below is operator input→production action/consumed command→
+actual UI/body/camera/weapon effect→neutral release. No Input.parse_input_event,
+provider injection, XTest, direct UI signal/gameplay call, teleport or tuning
+change may supply a physical step. Observers only read/prompt/record.
+
+**Closed action roster.** Defaults below come from project InputMap and current
+consumers; freeze the actual saved profile before each case. Context selects the
+consumer: identical buttons do not grant simultaneous menu/jump/hover authority.
+
+| Context/action | Keyboard/mouse default | Standard pad default | Literal observed effect |
+| --- | --- | --- | --- |
+| Menu accept/back/navigation | Enter/Space, Escape, Tab/Shift-Tab/arrows/mouse click | South0/East1, D-pad/navigation | Enabled focus moves; accept activates intended control; Back restores live opener. |
+| Walk forward/back/left/right | W/S/A/D | Left Y1−/+,X0−/+ | Same supported Player moves in correct direction; neutral stops demand. |
+| Walk/cabin look | Mouse motion | Right X2/Y3 | Current camera yaw/pitch changes continuously with requested sign; no foreign camera owner. |
+| Sprint/jump | Shift/Space | L3button7/South0 | Actual faster walking under selected HOLD/TOGGLE; leaves and regains floor support. |
+| Interact | E | West/X2 | Real candidate claims/releases boarding/seat/console once; fresh edge after handoff. |
+| On-foot camera | C | D-pad Right14 | Actual first/third-person view switches and restores. |
+| Ship thrust/reverse/yaw | W/S,A/D | Left Y1−/+,X0−/+ | Actual forward/reverse velocity and hull yaw, authored automatic engine wake. |
+| Ship pitch/roll | Up/Down,Q/R | Right Y3−/+,X2−/+ | Actual signed hull pitch/roll-rate response, not a command field alone. |
+| Ship boost/brake | Shift; PageUp or right mouse | L3button7; LTaxis4+ | Increased actual acceleration; actual deceleration. |
+| Fire | F or left mouse | RTaxis5+ | Current valid production weapon shot/hit in the combat route; no requested-only claim. |
+| Hover/barrel roll | H/G | South0/East1 | Authored vertical/upright assistance; actual roll begins and finishes once. |
+| Ship camera/distance | V; mouse wheel | North/Y3; LB9/RB10 | Cockpit/chase switches/restores; actual chase distance changes in/out by authored steps. |
+| Landing/exit | L; neutral then E | D-pad Left13; neutral then West2 | Real compatible landing→strict dock→1.5neutral physics seconds/OFFLINE→supported exterior. |
+| Pause/Help | Escape/F1 | Start6/Back4 | Actual pause/resume and Help open/close, usable focus and gameplay return. |
+| Screenshot, keyboard case only | F2 | No default | Actual nonempty screenshot in owned user-data/output path; no new pad binding required. |
+| Tractor drive/steer/brake/exit | W/S,A/D, Space or right mouse,E | Left stick,South0 or LT4,West2 | Real movement/steering/deceleration; exit only supported and speed≤.75m/s. |
+| Tractor look/inversion | Mouse | Right stick | Current tractor camera responds; shared invert-Y reverses pitch sign and restores. |
+| Selected Navigator role | Move/look/Interact/Fire above | Same contextual controls | Current seat submits one sensor ping; no cargo/reward/helm mutation; release restores cabin control. |
+
+Mouse wheel is the existing raw camera-distance consumer; keyboard camera-in/out
+InputMap actions have no authored keys. Standard-pad names mean actual indices
+on the declared backend, not assumed glyph/device compatibility. Capture actual
+navigation mappings supplied by engine/backend rather than claiming project
+InputMap explicitly defines every inherited ui_* event.
+
+**Exactly four case members per declared device family; one result per member:**
+
+1. **Core ordinary Torrent loop,1/1.** Actual Boot→Begin Shift→walk>8m from spawn→
+   physical Torrent boarding→launch through aperture→range targets/interceptor→
+   compatible home capture/nose alignment dot>.995→actual strict own-berth dock→
+   OFFLINE→physical exit within.25m of authored exit and>8m from spawn→usable
+   walking/look/Help/Pause→normal HUD Quit/actual OS0. Exercise every applicable
+   core roster row with actual effects while preserving original player/craft/
+   authority/tuning. This follows the existing production-input route's intended
+   endpoints, without its event synthesis. GUIDED-FINAL retains original3/3 and
+   its own300s cap; this single physical run cannot silently replace that gate.
+2. **One remap/three real processes.** Writer uses normal Pause/Settings raw
+   capture. KBM: Interact E→F must show conflict with Fire; CANCEL leaves both
+   unchanged, then E→unused K commits. Controller: Interact West2→North3 must show
+   camera-view conflict; CANCEL preserves both, then West2→R3button8 commits.
+   The declared standard pad must actually expose that input; otherwise bind a
+   literal unused supported replacement before selection, never mid-run.
+   Apply/Save must reach actual InputMap/profile and file; old raw Interact stops
+   boarding, new raw input physically boards/exits the same parked Torrent.
+   Preserve counterpart device-family bindings/unrelated actions. Normal Quit.
+   Distinct reader on same files confirms remap and actual consumer, uses visible
+   RESET ALL BINDINGS→Apply/Save, demonstrates restored old input/new input inert,
+   then quits. Third process confirms defaults and real interaction after cold
+   load, then normal Quit. Require all3OS0/clean markers; profile UI alone fails.
+3. **One tractor plus one supported role context.** From actual spawn, walk to
+   registered TowTractor at authored(2.5,.45,15.6), physically board, drive≥2m
+   forward and reverse, steer both ways, brake/stop; test camera/invert-Y live
+   setting and restore, then physical supported exit at≤.75m/s. Walk through
+   current station access to Cinder Cargo Hauler, not a relocated actor. Enter
+   its cabin and physically claim `cinder_navigator_station` (Navigator); one
+   fresh FIRE press followed by release must produce current sensor ping marker
+   `cinder_navigator_console`/sequence advance exactly once. Snapshot cargo,
+   rewards and helm ownership unchanged; E/West releases seat, same Player walks
+   ≥1m supported in cabin and can look/menu/exit normally. This reuses existing
+   ROLE-CINDER-NAVIGATOR scope, not all roles/craft acceptance.
+4. **One canonical Ember round trip,1/1.** Actual spawn/physical Arrow board→
+   ordinary departure into FREE_FLIGHT with berth released→normal Destination
+   Board Ember selection/Engage→canonical outbound/rebases→actual caldera
+   landing→physical exit/relay survey/disk reward→
+   ordinary reboard/takeoff→Return to Mudds→strict home/OFFLINE/exterior walking/
+   normal Quit. KBM or selected pad supplies every gameplay/menu action, including
+   orbital/surface look/jump/Interact and navigation focus/back. No initial yard,
+   flight/corridor/trailhead/hull placement, direct Host call or forced activity
+   state. Require actual ordinary launch/board activity eligibility; a disabled
+   Engage or conflicting Guided/activity gate cannot be bypassed by setting phase.
+   Existing WORLD-SOLO/Ember assertions and earned-state/no-double-reward proof remain; a matched physical result may serve both owners once.
+
+Core/environment failures stop their case; never silently accept provider,
+synthetic or staged fallback. Additional craft/device/world permutations are not
+members. Original Settings-return historical-artifact gate stays separate.
+For GAMEPAD-LOOK/TRACTOR-LOOK-INVERSION retain delivered capabilities: observe
+selected physical right axes, radial deadzone.2/capped2.5rad/s, inversion and
+current-camera handoff. During normal menu/pause/owner changes, record neutral
+raw state/cleared held look and no stale replay after returning. These physical
+checks do not reopen accepted source fixtures or claim an unrelated owner.
+
+**Caller implementation OPEN.** Own `tools/release/run_native_sortie.py` and
+`tools/release/test_native_sortie.py` for explicit passive physical-review mode,
+which never instantiates its XTest/automatic pilot. Own the passive branch in
+`scripts/diagnostics/native_sortie_observer.gd`, exact private-mode admission in
+`scripts/game/startup_loader.gd` and existing `tests/startup_cli_privacy_test.gd`.
+Reuse/extract browser identity/session code from its existing driver; if a shared
+helper is necessary, own only `scripts/diagnostics/physical_input_session.gd` and
+focused checks in the existing browser/input suites. Do not fork independent
+device contracts. Read actual menu/raw-input/action/command/body/camera/role/store
+state; physical keyboard/mouse server readback is part of this capability.
+Production bindings/physics remain authoritative. This is Codex-owned operator
+support, not a source/device survey or new validator family.
+
+Proposed interface (not executable today):
+
+```sh
+python3 tools/release/run_native_sortie.py /ABS/FROZEN/CANDIDATE.x86_64 --route physical-controls --physical-session /ABS/BOUND/session.json --device-family kbm --physical-case core --output /ABS/EXCLUSIVE/results
+```
+
+Future families are exactly kbm/controller; cases core/remap/contexts/ember.
+The remap case owns writer/reset-reader/default-reader as three distinct actual
+processes on the same profile. No physical session/display/device is selected
+implicitly. Current browser command, controller test and this proposed interface
+cannot be reported as a local physical PASS until that implementation exists.
+
+**Engineering operator limits, explicitly selected here (not recovered original
+suite caps):** core1200s; contexts900s; Ember1800s; remap writer/reset-reader/
+default-reader600s each. They include startup/operator prompts and preserve
+existing source physics/travel/transition constraints; original Settings300s,
+planetary fixture900s and browser300s are not repurposed. Synthetic fixture
+nominal5/14s simulation waits are not new human-response deadlines. Freeze one case/device/
+candidate/session/profile/absolute deadline at a time; implementation/checks/
+selected qualification/cleanup≤90min, one correction/first-unexpected-failure
+stop. Keep independent abort outside game menu, release input/cursor and reap
+only owned game/helpers; never launch on active desktop. Every invocation uses
+explicit x11/Dummy in the dedicated session; audible mix is not tested here.
+
+PASS requires all applicable listed actions and endpoints, actual physical
+readback, correct family/profile persistence, real OS0/zero diagnostics/clean
+markers and owned cleanup. Proposed coordinator markers
+`PHYSICAL_INPUT_CORE_OK`, `PHYSICAL_INPUT_REMAP_OK`, `PHYSICAL_INPUT_CONTEXTS_OK`,
+`PHYSICAL_INPUT_EMBER_OK` require those full gates and bound device family; they
+are not current results. Missing hardware/session remains UNBOUND input; missing
+caller/readback remains implementation. Both INPUT goals stay unqualified until
+all four named members actually pass on their bound device/candidate.
+Controller-source review GO after correcting Navigator press and Ember departure
+order. Root verified default bindings, unused R3, look/tractor/Navigator source
+constants, all337 identities/order, source links and proposed shell syntax.
+No device availability, physical run or hardware acceptance is claimed.
+
 ### Hardware, accessibility and audio children
 
 Native performance proof retains ≥60s/3,600-frame warmup and ≥600s/18,000-frame measurement, 1080p High p95≤16.7ms/p99≤33.3ms/no post-warm frame>100ms/working set≤4GiB and original GPU/VRAM/streaming budgets. Each missing benchmark route, measured hotspot, remap case, readability cell, cue and mix scenario becomes a named child only when the corresponding finite list is resolved. Software/VM/Dummy tests do not qualify actual hardware or audible mix.
@@ -4811,8 +4980,8 @@ Native performance proof retains ≥60s/3,600-frame warmup and ≥600s/18,000-fr
 | PERF-TARGET | Bind actual target-spec machine/profile | 28 | Resource | WAITING; representative isolated hardware | Record actual target machine/OS/CPU/RAM/GPU/driver/resolution/quality, isolated access and intended workloads; this resource/profile goal does not claim a measurement pass. |
 | PERF-ROUTES-DEFINE | Required representative workloads beyond the seven existing selectors, with whole-expedition repetition mapped to world endurance | 28 | Definition | Source roster DONE in [seven workloads and three canonical repeat owners](#performance-workload-contract). No eighth selector or craft×world matrix. Exact whole-expedition minimum completed-cycle count/elapsed interval remains user input; repeat implementation is Codex-owned. Existing staged/diagnostic scopes preserved; no performance acceptance. | One closed workload list binds all seven existing selectors and existing world-endurance journeys to original performance requirements. It fixes the uncovered Phase10.4 whole-expedition craft/world/cycle or records the precise owner choice still required. Machine identities are exclusively PERF-CELLS-DEFINE dependencies; unavailable hardware does not block naming workloads. Additional craft/cabin/combat workload requires an identified uncovered original requirement. Every original workload is covered or dependency-blocked; then PERF-CELLS-DEFINE binds commands/numeric budgets. Do not reopen the roster without a demonstrated gap. |
 | PERF-CELLS-DEFINE | Applicable machine/route measurements | 28 | Definition | Source binding DONE in [machine/command/metric contract](#performance-machine-cells); actual PERF-MINIMUM/TARGET hardware/access and named missing GPU/VRAM/streaming/count/duration values remain input-gated. Native collection/repeated journey capability remains Codex work. Original windows/frame/RAM/geometry caps retained; no run or budget acceptance. | One literal machine/workload/command/metric/ceiling/abort list. Each required field has a source-backed value or an explicitly named unavailable input and owner. A blocked answer ends this definition attempt and cannot mark PERF measurement accepted. Existing floors remain ≥60s/3600 warmup frames, ≥600s/18000 measured frames, 1080p High p95≤16.7ms/p99≤33.3ms, no post-warm frame>100ms, working set≤4GiB. |
-| INPUT-KBM | Physical keyboard/mouse ordinary full route | 8,18,29 | Qualification | BLOCKED definition—Codex: finite action→effect roster, ordinary route, run count, original caps and termination/proof; BLOCKED input—user: actual physical device/backend and isolated-session access. Supplying hardware does not complete the route definition; synthetic coverage does not satisfy physical acceptance | Actual physical keyboard/mouse: bind the existing production InputMap/help actions for menus, walking, boarding, piloting and supported role interaction to one named ordinary route/device/backend. Record each action→expected effect; actual remap/apply/conflict/reset and distinct-restart persistence, enabled menu focus and usable gameplay return must pass. Existing sampled HELM proof is retained; synthetic input is insufficient. |
-| INPUT-CONTROLLER | Physical controller ordinary full route | 8,18,29 | Qualification | BLOCKED definition—Codex: finite action→effect roster, ordinary route, run count, original caps and termination/proof; BLOCKED input—user: actual physical device/backend and isolated-session access. Supplying hardware does not complete the route definition; synthetic coverage does not satisfy physical acceptance | Actual physical supported controller: bind the existing production InputMap/help actions for menus, walking, boarding, piloting and supported role interaction to one named ordinary route/device/backend. Record each action→expected effect; actual remap/apply/conflict/reset and distinct-restart persistence, enabled menu focus and usable gameplay return must pass. Existing sampled HELM proof is retained; synthetic input is insufficient. |
+| INPUT-KBM | Physical keyboard/mouse ordinary full route | 8,18,29 | Qualification | [Finite physical action/route contract](#physical-input-device-contract) binds core Torrent, three-process remap, tractor+Navigator context and canonical Ember members, literal effects/inputs/limits/proof. Caller/readback is Codex implementation; actual device/backend/dedicated session/candidate remains UNBOUND input. Existing synthetic/source proofs retain scope; no physical PASS. | Actual physical keyboard/mouse: bind the existing production InputMap/help actions for menus, walking, boarding, piloting and supported role interaction to one named ordinary route/device/backend. Record each action→expected effect; actual remap/apply/conflict/reset and distinct-restart persistence, enabled menu focus and usable gameplay return must pass. Existing sampled HELM proof is retained; synthetic input is insufficient. |
+| INPUT-CONTROLLER | Physical controller ordinary full route | 8,18,29 | Qualification | [Finite physical action/route contract](#physical-input-device-contract) binds core Torrent, three-process remap, tractor+Navigator context and canonical Ember members, literal effects/inputs/limits/proof. Caller/readback is Codex implementation; actual device/backend/dedicated session/candidate remains UNBOUND input. Existing synthetic/source proofs retain scope; no physical PASS. | Actual physical supported controller: bind the existing production InputMap/help actions for menus, walking, boarding, piloting and supported role interaction to one named ordinary route/device/backend. Record each action→expected effect; actual remap/apply/conflict/reset and distinct-restart persistence, enabled menu focus and usable gameplay return must pass. Existing sampled HELM proof is retained; synthetic input is insufficient. |
 | MIXED-CONTROL-PROMPTS | Grouped help retains mixed button/stick labels independent of action order | 8,29 | Capability | DONEb86264f; actual MOVE/default shorthand, glyph40/camera27/help20 and paired checkpoint; no physical device/whole apply-flight claim | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | CAMERA-DISTANCE-PROMPTS | Piloting help exposes both live remapped distance directions | 8,29 | Capability | DONE7718a5a; HUD keyboard/controller labels/reset, focused27/help20 and paired checkpoint. No whole apply/restart/device claim | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | REMAP-DEFINE | Uncovered binding/apply/restart/conflict/recovery cases | 8,29 | Definition | Definition DONE onc1fc23871; original missing on-foot sprint consumer deliveredbd4e15d; its distinct-process option→natural Player endpoint now qualified7570edf7c ([scope](history/ROADMAP_DELIVERIES.md#sprint-toggle-cold-process-qualified-20261025)). Other exact remap/physical/Settings requirements remain open | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
@@ -7672,7 +7841,7 @@ Scope: original §5, Phases 9 and 10.2–10.3. Software rendering, VM and remote
 | PERF-ROUTE[one missing benchmark route] | Seven-selector roster CLOSED; [canonical repetition capability](#performance-workload-contract) remains input/implementation-gated | The uncovered workload extends three existing canonical journey owners, not an eighth selector or another runner. Preserve default/diagnostic scopes and original travel/measurement limits; bind exact cycle/elapsed input before repeat implementation. No source resurvey or duplicate world-endurance requirement. |
 | PERF-RUN[one machine/scenario] | GATED on machine and executable route | Original warmup at least 3,600 frames/60s; measurement at least 18,000 frames/600s. At 1080p High, p95 ≤16.7ms, p99 ≤33.3ms, no post-warm frame >100ms, peak working set ≤4GiB, plus required actual GPU/VRAM and streaming/transient budgets. Stop at that measured scenario; retain failure. |
 | PERF-FIX[one measured hotspot] | GATED on demonstrated production cost | Fix the identified runtime/rendering owner; repeat the affected measurement and behavior check. Stop at measured effect and checkpoint; no census-only progress. |
-| INPUT-DEVICE[one device/route] | WAITING on physical device if absent | Ordinary full selected route with actual keyboard/mouse or controller, including lifecycle/planetary control as applicable. Existing physical-sortie, lifecycle and controller-only expedition tests guide scenario. Stop at selected route; synthetic events cannot qualify physical hardware. |
+| INPUT-DEVICE[one device/route] | [Four-member physical contract](#physical-input-device-contract); actual device/session UNBOUND, passive local caller/readback missing | Core Torrent, remap/restart, tractor+Navigator and canonical Ember have literal inputs/effects/endpoints/engineering limits. Select one bounded member and actual family; preserve original other-owner caps and synthetic disclosure. Missing code is Codex work; source inspection does not establish hardware absence. |
 | INPUT-REMAP[one setting/binding] | GATED until one existing binding case has a frozen contract; physical confirmation separately | Name the action, old/new raw input, preserved controller bindings, conflicting action and chosen conflict response, exact Apply/Save and Reset values, distinct-process restart checks and actual gameplay consumer. Bind source/profile/command, limits and clean exits before running. Reuse existing remapping/persistence tests. Interact source case DONEcfa6199fb: [complete remap/conflict/three-process Reset qualification](history/ROADMAP_DELIVERIES.md#interact-remap-restart-qualified-20261025); earlier fixture stops remain recorded. Sprint TOGGLE/Reset/HOLD cold option→natural Player source case DONE7570edf7c ([scope](history/ROADMAP_DELIVERIES.md#sprint-toggle-cold-process-qualified-20261025)); full authored bindings/options retained. Fire remains accepted below. Stop at the selected case; neither closes the original Settings return route or physical-device acceptance. |
 | FIRE-RESTART | DONE3a45c4d79 in original Linux-source real-file/distinct-process composition | Visible Fire row captures rawF13; actualApplySave/defaultfile; distinctsame-filereader row/InputMap/production LocalShipInputSource agrees onpress/release/formerF+leftmouseoff, gamepadbindings/unrelatedsentinel retained. Writer17checks/31.188s andreader19checks/31.012s, bothOS0/cleanlogs/original300s. Enginebuffer flushedbeforeobservation; originalkeys/predicates/flags/defaultsuite unchanged. Reviewed/merged/pushed/ownedscratchcleaned; previousfailures+source retained. Physicaldevice/fullSettings/native/final qualification separate. [Acceptance](history/ROADMAP_DELIVERIES.md#existing-fire-restart--full-raw-dispatch-and-separate-process-contract-qualified--2026-10-20) |
 | ACCESS-VIEW[one view/scale/aspect] | GATED on one named required view and literal inspection criteria; relevant hardware separately | Bind existing view/route, source, pixel dimensions, requested/effective scale, renderer and visible text/focus/clipping criteria before capture. Select one required cell from existing minimum/default/maximum and aspect coverage; preserve accepted cells. Use existing accessibility tests. Stop at that view/cell's pass or first finding; no blanket readiness or full-view-family closure. |
