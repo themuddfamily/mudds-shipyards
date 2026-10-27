@@ -124,19 +124,20 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Current work and next selection
 
-**Selected — WEAPON-CINDER-LIGHT two-pulse hit and full return/reuse.**
-One existing Cinder Light member, not the whole craft. Normal Begin Shift and
-15-point supported Dock06 admission; actual12m lift; frozen raised flight lane;
-exactly two native F/registered18damage hits100→82→64 with real cooldown/heat;
-strict home/OFFLINE/physical clear/reboard and second full flight/home/exit;
-normal HUD Quit/actual OS0/clean real file. Default actors/tuning/data stay bound.
-[Self-contained actors, route points, data, commands and pass/fail](docs/ROADMAP_BACKLOG.md#cinder-light-two-pulse-weapon-and-returnreuse--frozen2026-10-27).
-Original90minute clock2026-10-27 01:33:55→03:03:55UTC includes source binding,
-implementation/checks/export/one trial/review/push/cleanup; readiness before02:10,
-native launch before02:15. First unexpected failure or missed cutoff PARKS;
-no automatic retry or clock reset. Transit clearance is unproven until the run.
-No runtime gameplay/graphics change is assumed; one private Linux observer export
-is required, with strict archive startup. Device/native/final scopes stay open.
+**PARKED — Cinder Light route stops at caller save comparison.**
+The one ordinary attempt passes15 supported walking goals, real boarding,
+90 seated ticks and the actual12m departure lift. The first active race tick
+then exposes a caller representation mismatch: canonical saved elapsed
+0.0166666666666667 versus full-precision live acknowledgement0.016666666666666666.
+The production writer accepted the save; no gameplay/save-write defect is shown.
+No shot, first lane arrival, home/reuse or normal UI OS0 passes. [Exact first
+predicate, source cause and full retained goal](docs/history/ROADMAP_DELIVERIES.md#cinder-light-weapon-route-parked-at-canonical-race-comparison-20261027).
+313 Python tests/source checks/export/strict startup pass but do not close the
+ordinary qualification. Five candidate files stay unmerged in a verified
+archive; owned branch/worktree/process/display/scratch cleanup completes.
+No retry or numeric tolerance is selected. A future correction needs the actual
+production canonical-codec boundary and independent cumulative-priority review,
+retaining the full original route/caps and cumulative clock.
 
 **Accepted — INSTALL-WIN-FINAL compiler-generated uninstaller export.**
 Builder17a11183a exports the finalized standalone uninstaller and records its

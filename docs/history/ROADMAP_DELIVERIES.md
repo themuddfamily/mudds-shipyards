@@ -4,6 +4,81 @@ Moved from ROADMAP.md on 2026-10-17. These are source-specific historical
 results, not the active queue or proof of current full-project acceptance.
 Return to the [working roadmap](../../ROADMAP.md).
 
+## Cinder Light weapon route parked at canonical race comparison 20261027
+
+**WEAPON-CINDER-LIGHT / selected CRAFT-ACCEPT-CINDER-LIGHT member FAIL/PARK.**
+The first and only full ordinary attempt stops on the caller's race-record/
+acknowledgement assertion. No gameplay weapon/physics/persistence defect is
+established. All five candidate files remain unmerged; no public checkpoint or
+whole-craft/weapon completion is claimed. [Full frozen actors/route/data/caps](../ROADMAP_BACKLOG.md#cinder-light-two-pulse-weapon-and-returnreuse--frozen2026-10-27)
+remain binding, including unproved firing/two-flight/home/reuse/normal OS0.
+
+**Exact first predicate/source cause.** At frame2516/sequence2031 only
+`activity.progress.session_state == race_acknowledged` is false. The canonical
+save payload has race_elapsed_seconds `0.0166666666666667`; full-precision live
+acknowledgement has `0.016666666666666666`. Activity ID/reward flags/configured/
+shared store/last-save-accepted conjuncts are true; reported Store generation14.
+Production `CinderRaceSessionPersistence._canonical_state` round-trips through
+ordinary JSON.stringify before publication; `CinderTimedRaceSession` compares
+that wire representation, then retains the original live acknowledgement.
+The new observer exposes both faithfully. Raw Python equality incorrectly treats
+the normal representation boundary as rejected persistence. Only baseline has
+an independent physical-file capture; no final clean-file proof is inferred.
+
+**Actual achieved boundary.** All15 ordered supported walking goals, real E/
+reservation-backed Cinder boarding and90 neutral seated frames2302→2392 pass.
+Actual powered Dock06 lift runs2396→2488 with height12/upY/current positive
+throttle/ONLINE/free lease, completesframe2489 at rise12.00000048m. Hull110 is
+retained.2,033 raw observations through2518; first A navigation begins but has
+no arrival receipt. No Fire/weapon stage/hit: target100. No completed flight,
+home, exterior exit/reuse or normal UI OS0. Default race0→1countdown→active;
+seven allowed live namespaces/no reward flags observed, not a complete data gate.
+
+**Checks/artifact before the run.** Source-only review corrects CLI prefix,
+causal race terminal/reset guards and second-F tap gating before checks.
+Initiald340 Python312/14.282s (guard14.969148), import20.648207,
+privacy1.281133/one marker and Cinder combat31.299860/one marker all PASS with
+zero diagnostics. A pre-native source check then catches moving boarding
+endpoints incorrectly compared to their parked locations. Caller-only97d9 fixes
+that invariant while retaining fixed lane/capture/home checks; one new fixture
+and full313 Python suite PASS14.691s (guard15.355059). All runtime/export inputs
+are byte-identical tod340, so its engine checks are reused without another run.
+Final candidate `97d9f9b3bc8ec88257ce1bda3609e00d778429c6` is clean at execution.
+
+One private Linux export passes43.384519s; ELF149,093,000bytes/SHA256
+`36a0a6d8ff3650c80cb77b521badcd2a2c17bdbc96baa2dfb562bea582678677`.
+Archive95,500,933bytes/SHA256
+`b99daddeca80056b07ce62cd00fb80d5ad923dd01ae84b26c55af2dcc3294672`
+contains the exact0755 ELF. Actual archive startup passes exit0/oneReady/
+zero diagnostics (guard25.148470s). Readiness and native selection observed
+02:05:13.302358UTC, before02:10/02:15 cutoffs; one actual launch follows.
+
+Actual native60.791s/wrapper61.220640s ends by assertion, not CAP300. Recorded
+legPID2492287 remains exitnull/reapedfalse; later global input/helper/game/Xvfb
+cleanup flags alltrue, observed owned identities absent and X156 gone. Native
+before/after source/index/cache guards match; diagnostics0. Independent raw/source
+review confirms PARK. No runtime correction, suppressed diagnostic or retry.
+Future reopening requires an exact regression for this actual float pair and
+comparison at the production canonical-codec boundary, retaining complete
+writer/receipt/field equality without epsilon or game mutation, plus an explicit
+cumulative-priority decision. No continuation is selected here; original clock,
+expired preparation/launch cutoffs and full route/caps remain recorded.
+
+**Preservation/closure.** Verified archive
+`/srv/mudds-work/cinder-light-weapon-return-20261027/records.tar.gz`,
+115,983,581bytes/246members/SHA256
+`d850e5fa1cd9c19fc2602ab5e42972bd924e400a883352d4392d7f452284af23`.
+Every member byte/mode/link target verified; source.bundle preserves unique97d9
+history with reachable374ef799e prerequisite, full five files/diff/commits and all
+raw/check/guard/profile/log records. Private Linux TAR retained exactly once;
+no duplicate149MB ELF. Fresh remote/registered-owner checks establish absent
+remote task branch and exact owned clean97d9 tip. Worktree removed/local branch
+CAS-deleted only after verified source preservation. Owned stage/process/input/
+display/scratch cleanup completes02:13:09.575UTC,39m14.575s cumulatively from the
+original01:33:55UTC start, before original03:03:55 hard stop. Only archive and
+adjacent closeout.json remain. Final notes/push cost stays charged to that clock.
+Main receives only the truthful card/backlog/history state, not the failed caller.
+
 ## Compiler-generated Windows uninstaller export accepted 20261027
 
 **INSTALL-WIN-FINAL standalone artifact prerequisite accepted on17a11183a.**
