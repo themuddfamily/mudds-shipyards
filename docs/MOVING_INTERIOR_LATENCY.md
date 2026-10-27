@@ -142,6 +142,125 @@ original interval. There is no new validator, schema family or parallel roadmap.
 A pass would qualify this named source/profile; required packaged/native/final
 capacity and other baseline cases remain separate.
 
+<a id="impaired-independent-baseline-capability"></a>
+
+## Isolated whole-link baseline — concrete missing capability
+
+**Shared owner: NET-ENDURANCE-DEFINE; first consumer: SERVER-BASELINE.** Source
+6b6a144e7. This binds the missing launcher/ordinary short-case fields without
+reopening the completed five-profile source survey. Original full300s Jovian
+route/360s supervisor and original1800s endurance remain separate. No impaired
+launcher/caller or shaped gameplay result exists today.
+Definition selection16:18:14UTC2026-10-27,20minutes through16:38:14UTC including
+one bounded launch-source review, two-document edits/checks/commit/push/cleanup;
+no engine, namespace, network probe, branch/worktree or parked retry selected.
+
+**Required input.** User adopts or replaces the existing proposal's shared
+isolated-topology, delay/jitter, directional-loss/reordering, applied-measurement,
+aggregate-traffic, backlog/drain and mapped-tick limits. Record literal values
+beside that existing table; an unanswered row stays BLOCKED input. Baseline uses
+those accepted shared rows, original two-client Jovian actors and existing hard
+production limits. It does not depend on completion of NET-ENDURANCE, its60s
+warm-up/1800s duration/T+900 stream stall/post-interval600-step stalls or T+600/
+1200/1800 resource comparisons. Those remain endurance obligations. Capacity
+choice is separate. No substitute baseline profile/default is silently adopted.
+
+**One short baseline case.** Reuse the entire accepted Jovian return/redepart
+source path with ordinary inputs: physical boarding, departure, strict home,
+passenger exit/reboard, pilot exit/reclaim, retired-stream refusal and renewed
+flight/brake. Same headless authority and original two independent clients/
+Players/craft, all original assertions/local limits. Apply shaping from the
+first relevant network packet through terminal session traffic; do not multiply
+other lifecycle cases by the impairment profile.
+
+**Missing implementation and ownership.** New executable
+`tools/release/run_impaired_jovian_baseline.py` plus its one focused Python test;
+existing Halyard passenger route `_spawn_peer`/explicit option propagation and
+Jovian boarding caller endpoint parsing/real HUD Manual Join. The return and
+flight actions stay the existing consumers. Reuse `suite_process.py` unchanged
+as outer independent owner/subreaper; no new validator, versioned record family
+or unrelated production networking redesign.
+
+Current actor boundary is Halyard `_spawn_peer`: its complete Xvfb/shell wrapper
+owns actual Godot PID/exit and uses private XDG/TMP with `env -i`. Roles are
+host/client/client_b, shared receipt directory, port26000+coordinatorPID%15000.
+All currently inherit one network namespace; Jovian Manual Join hardcodes
+127.0.0.1. An external wrapper around the coordinator alone cannot shape separate
+peers. Add explicit argv for the owned role launcher/run directory and nonloopback
+host endpoint; parse/remove options before positional role arguments. No shell
+command string or inherited environment hook may supply the actor launcher.
+Preserve default loopback routes and the existing actual-exit receipts.
+
+The new launcher owns a fresh outer user+network namespace/router and three
+inner role namespaces with three veth pairs, private addresses/routes and no
+host-network attachment. Keep namespace lifetime process/FD-owned; do not create
+persistent namespace handles under the host's `/run/netns`. One egress qdisc per role endpoint shapes each game
+packet exactly once in its direction. Applying50ms at both ends of a veth would
+not implement50ms one-way. Enter the role namespace before its complete existing
+wrapper, including private Xvfb; keep filesystem receipt barriers and profiles
+owned, with actual headless/Dummy host and x11/Dummy clients.
+
+**Observable PASS.** Actual actor PIDs occupy three distinct network namespaces,
+separate from router/coordinator and original host; source/endpoint/port/routes/
+interfaces establish the intended nonloopback path. Every relevant ENet UDP
+packet, including handshake/retransmission traffic, crosses the appropriate
+private qdisc; no loopback shortcut. Independent monotonic UDP probes and actual
+qdisc packet/drop counters plus independently measured reorder count/depth
+satisfy the adopted applied-measurement rows
+(including their sample minimum/tolerances), inside unchanged300/360s limits.
+Probe/game traffic is classified separately; probe sequence/timing establishes
+reorder count/depth, not qdisc requeues. An ENet RTT getter or configured
+command alone is insufficient. Retain raw counts/timing and baseline game logs,
+not a second synthetic “latency pass.”
+
+Observe existing moving-interior budget snapshots/replication counters, jitter/
+queue and session-quality state alongside actor/claim/source receipts. Preserve
+12,000-byte packet, movement pending8/entity, jitter16/8-tick limits and normal
+8-snapshot/24,000-byte per10tick/recipient coalescing behavior; account for forced
+critical traffic separately under adopted aggregate limits. Map clocks to the
+accepted host anchor for adopted drift; do not compare raw actor frame numbers.
+Final pending/session/recipient drain must meet the adopted limit. Long-interval
+resource-growth qualification stays with endurance; this case preserves source
+store capacities and exact retirement instead of inventing short-soak medians.
+
+PASS requires every original Jovian endpoint, terminal handshake, all three
+actual OS0 and zero diagnostics. On success, failure, timeout and interruption,
+release input, reap actors/displays and remove all owned links/namespaces/FDs;
+retain actual exit statuses even when nonzero. Cleanup must not modify host
+interfaces/routes or personal profiles. Require exactly one proposed
+`IMPAIRED_JOVIAN_BASELINE_OK` only after all those gates; it is not a present marker.
+Wrong namespace/path, unmeasured profile, missed original endpoint, over-budget
+queue/traffic/drift, diagnostic, nonzero exit or failed cleanup/deadline fails.
+
+**Proposed interface, not executable today:**
+
+```sh
+python3 tools/release/run_impaired_jovian_baseline.py --godot /tmp/mudds-tools/godot-4.7.1/godot --source /ABS/FROZEN/SOURCE --profile /ABS/ADOPTED-PARAMETERS.json --output /ABS/EXCLUSIVE/results
+```
+
+The profile is literal adopted input with explicit units/directions; the future
+consumer validates required fields and refuses partial/ambiguous parameters.
+No generated approval/provenance layer is needed. The wrapper invokes existing
+return script with `--postdock-redepart --dedicated-headless-authority`, carrying
+only explicit role/endpoint options through the inherited launcher. Its360s
+outer budget includes topology setup/teardown around the300s route; no deadline
+resets or larger cap. Freeze clean source/imported cache, approved parameter
+values, exclusive output root, exact commands and absolute deadline before any
+qualification attempt. No game or namespace is launched by this definition.
+
+One implementation selection owns code/focused checks/review/one selected
+qualification/cleanup within≤90min, with one correction and first-unexpected-
+failure stop. Meaningful focused checks cover rejected/malformed profile or
+role/address options, correct namespace/argv construction and failure/interruption
+cleanup. A private UDP path test can prove launcher behavior in its stated test
+parameters; it cannot approve the proposed game profile. Actual baseline run
+remains gated on the shared owner input; missing source code remains Codex work.
+The later1800s ordinary driver consumes this same launcher rather than cloning it.
+Source review GO after preserving the accepted ordinary caller and separating
+reorder measurement from qdisc counters. All337 roadmap identities/order, four
+owner links, actual launch/endpoint seams, fixed source limits and whitespace
+checks pass; no implementation, engine, network setup or qualification occurred.
+
 ## Immediate post-stall actions checkpoint — 2026-10-08
 
 Checkpoint `d448e3f` fixes the reproduced immediate-action gap in `d49bde8`:
