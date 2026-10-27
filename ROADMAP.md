@@ -168,11 +168,14 @@ missing route, member list or expected value. Those gaps remain in the existing
 [finite definition list](docs/ROADMAP_BACKLOG.md#remaining-contract-gaps--plan-next).
 Do not report that review as a completed executable roadmap.
 
-The current bounded pass fixes Courier/Torpedo combat endpoint membership and
-[one installed Halyard crew cut](docs/ROADMAP_BACKLOG.md#installed-halyard-crew-cut--fixed-scope-and-runner-gap).
-The remaining work is explicit: ordinary encounter input/observer routes and
-installed runner support for external export metadata plus protected crew state.
-These source bindings do not pass the gameplay journeys or close PLAN-NEXT.
+The current bounded pass binds [package members/counts](docs/ROADMAP_BACKLOG.md#package-final--existing-members-and-counts),
+[shared seat-ledger cases](docs/ROADMAP_BACKLOG.md#final-seat-ledger--fixed-case-ownership)
+and [remaining colour proof ownership](docs/ROADMAP_BACKLOG.md#colour-cues--remaining-proof-ownership).
+Seat membership/commands are fixed, gated on the final candidate. Package audit
+invocation/expected manifests and colour ordinary/rendered-view assertions remain
+Codex work; missing Settings artifacts/device access retain their exact owners.
+The earlier Courier/Torpedo/installed-crew bindings remain in their existing
+contracts. No source definition passes a player journey or closes PLAN-NEXT.
 
 For each listed gap, supply the finite answer in its existing row/contract:
 the named members, action/trigger, expected endpoint, preserved state, proof
