@@ -162,6 +162,12 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Current work and next selection
 
+**Selected — ordinary packaged Ember outbound input driver.**
+Use normal Arrow access and Destination Board controls to fly the actual canonical
+outward leg, land at caldera and exit on foot. Existing1800s route cap is specific
+to this new command; other routes retain300s. Full survey/errands/return stay open.
+[Exact acceptance and original03:30→05:00UTC clock](docs/ROADMAP_BACKLOG.md#ordinary-packaged-ember-outbound-driver--frozen-2026-10-27).
+
 **Accepted — busy exterior-exit release interruption support.**
 Existing runner now tests accepted/refused publication during a real busy exit,
 owned kill and distinct cold recovery. Both source pairs and both embedded Linux

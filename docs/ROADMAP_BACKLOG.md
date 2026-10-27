@@ -4973,6 +4973,82 @@ uncovered executable boundary above and fix its missing command/fixture/limits;
 no repeat source inventory is selected. WORLD-ABANDON, WORLD-SOLO, WORLD-SAVE and
 EMBER-PACKAGE-ABANDON remain open in their original complete scopes.
 
+### Ordinary packaged Ember outbound driver — frozen 2026-10-27
+
+Selected SOLO-EMBER member: implement the missing ordinary packaged outbound
+input command, not another content survey. Full SOLO still requires relay,
+lava-tube/wreck errands, durable reward, reboard/ascent/home/exit/reuse; none is
+waived or closed by this capability. Existing source outbound/manual/cancel/
+re-entry checks retain their own scope and are not rerun unchanged.
+
+- Result: existing `run_native_sortie.py BINARY --output NEW_DIR --route
+  ember-outbound` drives one normal Arrow departure and actual Ember destination
+  admission, canonical physical outward flight, caldera landing and surface exit,
+  then normal HUD Quit/OS0. No direct GameFlow calls or pose/lease/progress injection.
+- Start: clean candidate in owned worktree under
+  `/srv/mudds-work/ember-outbound-20261027/`, fresh private HOME/XDG profile;
+  standard pinned4.7.1 engine/template, actual embedded Linux export. Existing
+  owned Xvfb/x11/Dummy/dummy-renderer native input workflow; no user desktop/audio.
+- Ownership: `tools/release/run_native_sortie.py`, existing
+  `tools/release/test_native_sortie.py`,
+  `scripts/diagnostics/native_sortie_observer.gd`,
+  `scripts/game/startup_loader.gd`, `tests/startup_cli_privacy_test.gd` only.
+  Root owns roadmap/history/integration/build/cleanup. No default runtime policy,
+  graphics quality, authored handling/speed/physics or historical claim change.
+- Actions: normal Begin Shift; on-foot Activity Board selects idle Convoy before
+  departure, avoiding a live default race; supported Arrow access/boarding uses
+  the accepted Arrow ordinary path, current reservation-backed pilot and original
+  walk/board/lift limits. Neutral seated admission and actual W thrust clear home.
+  Pause→DESTINATION BOARD→actual `PlanetaryDestinationAction_ember_moon` by native
+  click; consume the production briefing if shown, close pause, follow production
+  cruise/approach controls and actual caldera landing/exit. Use real controls only.
+- Frozen geometry: craft `arrow_provisional`; canonical station datum(0,0,0),
+  Ember body(0,0,-8000000)m, body-local orbital navigation(0,130000,0)m,
+  airless radius120000m; actual region `ember_caldera`, authored `caldera_pad`.
+  Existing registered stream/frame/generation and berth owners resolve live poses;
+  no staged orbital/corridor placement or mutable substitute sampler.
+- PASS: same current Arrow/Player/seat source through flight; default production
+  sampler,60Hz/time_scale1/authored rates, >7800000m physical transit and >700
+  committed origin shifts, continuity reconciled only with actual rebase receipts.
+  Real actual matching caldera berth occupied by that Arrow, strict landing
+  completes, automatic OFFLINE, one actual E exits through original transition;
+  same awake unseated control-enabled Player on genuine surface support, no
+  boarding/cabin/crew claim. Observe actual main/host/loaded world identities.
+  No survey/errand reward or checkpoint completion is manufactured; this endpoint
+  precedes the survey. Normal pause HUD Quit yields actual OS0 and existing clean
+  markers. Ordinary quit may save only its actual production checkpoint through
+  the existing owner; no save schema or additional namespace entitlement is added.
+- Observer: extend existing read-only mode/fields only as needed for real visible
+  button geometry, cruise/landing/current actors/origin receipts. Preserve old
+  `ember` and all existing modes; no observer-driven input, setters, leases,
+  transforms, pause changes, saves/rewards or physics queries while paused.
+- Proof: focused existing Python driver tests include new control/identity/
+  rebase/route-deadline failure cases; existing startup privacy safely gates actual
+  x11/Dummy/private-input selectors. Fresh import; clean private Linux export,
+  strict actual archive startup exit0/exactone STARTUP_MENU_READY_OK, then ONE
+  ordinary native outbound command with full raw controls/observations and
+  independent source review/raw review. Old Arrow/other route caps stay300s.
+- Limits: inherit existing1800s outbound cap only for ember-outbound, independent
+  outer1860s abort/owned process reap; unchanged per-action and original landing
+  limits. No global CAP increase, fixed-fps/time-scale/speed change, shortened
+  distance, extra placement, bypassed collision/support, direct activity calls
+  or accepted source-journey substitution. This is not the unsupported old
+  external-script9be5c83 attempt or a renamed parked native smoke.
+- Dependencies: existing Arrow admission and authored canonical physical Ember
+  runtime are accepted in their cited scopes; new ordinary input driver is the
+  missing implementation. No new product/design owner choice is required.
+- Budget: charged from03:30UTC2026-10-27, estimate80minutes including focused
+  checks/export/one flight/integration/cleanup, hard05:00UTC. Source ready04:05,
+  native launch by04:15, reserve final15minutes for closure; original1800s journey
+  allowance is retained. First unexpected failure stops; no automatic retry or
+  correction. Any continuation requires demonstrated cause and independent
+  cumulative-priority decision on this same clock, never a fresh task budget.
+- Closure: integrate/push only accepted executable capability, archive rejected
+  unique source if any, remove owned branch/worktree/process/profile/scratch.
+  No duplicate public gameplay build for read-only diagnostic/input-driver work;
+  actual private export proves support. Full ordinary SOLO/return/save/repeat/
+  installed/native GPU/physical-device/final gates remain open.
+
 ### Ember first-relay cold recovery — bounded contract
 
 WORLD-SAVE-EMBER-FIRST-RELAY / parents14,31, defined on2026-10-20.
