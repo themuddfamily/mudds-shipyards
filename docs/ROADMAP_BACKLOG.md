@@ -3152,7 +3152,7 @@ feature. Do not reopen completed surveys or create successor planning IDs.
 | CRAFT-ACCEPT-TORRENT, CRAFT-ACCEPT-ARROW, CRAFT-ACCEPT-JOVIAN, CRAFT-ACCEPT-ZENITH, CRAFT-ACCEPT-HALYARD, CRAFT-ACCEPT-BULWARK, CRAFT-ACCEPT-CINDER-LIGHT, CRAFT-ACCEPT-CINDER-HAULER, CRAFT-ACCEPT-CINDER-BOMBER | Eleven acceptance boundaries listed below; each craft's existing distinctive functions remain in its row. For one unaccepted named member, Codex implements ordinary input/observer support in the existing native-sortie runner and observer, using that craft's live seat/berth/muzzle markers and production receipts. Reuse accepted members. Missing nonfatal contact geometry/damage budget, fatal contact and aggregate full-craft cap remain literal Codex-owned contract fields; subset300s caps cannot supply a whole-craft limit. Missing ordinary driver code is implementation, not an external-access blocker. Bomber's additional crew alone depends on BOMBER-ROLE-DECISION. |
 | CRAFT-ACCEPT-TITAN, CRAFT-ACCEPT-VORTEX, CRAFT-ACCEPT-PARADOX, CRAFT-ACCEPT-KATANA, CRAFT-ACCEPT-PREDATOR, CRAFT-ACCEPT-DYNAMIC, CRAFT-ACCEPT-UTOPIA, CRAFT-ACCEPT-SALYUT | User accepts/amends each existing SPEC proposal; Codex then adopts its existing BUILD-SPLIT cards and binds the same eleven integrated acceptance boundaries. Do not survey or write the prepared proposals again. |
 | COMBAT-COURIER | Ordinary escorted withdrawal/home is accepted on7f23a808c in its [exact packaged scope](history/ROADMAP_DELIVERIES.md#ordinary-escorted-courier-withdrawal-accepted-20261027). Accepted clear/escape/phase/distance withdrawals stay closed. Remaining [runtime loss and cyclic re-admission](#courier-intercept--bounded-outcomes) retain their missing ordinary commands. Cold safe recovery candidate229bfa6c9 is PARKED/unmerged at its recorded preparation-damage failure; no interruption/cold proof or retry. Reuse the exact terminal/cumulative-cost boundary below. No new escort×terminal matrix, repeat count or user policy. |
-| COMBAT-PERIMETER | Terminal/reset membership is fixed in the [Hold contract](#perimeter-hold--missing-production-integration): explicit abort, integrity/core loss, player/craft loss, distance/phase/network/teardown withdrawal, actor retirement and generation-safe renewal. Ordinary survival/home remains PARKED; ordinary failure/home/re-admission caller and command remain BLOCKED definition — Codex. Do not survey membership again. |
+| COMBAT-PERIMETER | Terminal/reset membership is fixed in the [Hold contract](#perimeter-hold--missing-production-integration): explicit abort, integrity/core loss, player/craft loss, distance/phase/network/teardown withdrawal, actor retirement and generation-safe renewal. Ordinary survival/home remains PARKED; [Core-LOST/home/Heavy arm-cancel-rearm goal](#perimeter-core-loss-home-admission) now binds ordinary controls/observations, caller files and CAP300; implementation remains OPEN behind the original parked genuine-Hold-entry prerequisite. Do not survey membership again. |
 | COMBAT-TORPEDO | [Combat triggers/terminal outcomes](#torpedo-combat-outcomes--fixed-source-boundary) and existing ten TORPEDO-AUTH children fix membership. PLAY-TORPEDO owns clear/home once and stays PARKED. Codex still supplies absent ordinary evade/intercept/expiry/withdrawal callers, exact lifecycle cuts/commands and original budgets; no repeat source survey or live board-abort assumption. |
 | NET-SEATS-FINAL | [Five existing proof owners](#final-seat-ledger--fixed-case-ownership) bind transaction refusals, ENet swap/host occupancy, actual Halyard client promotion/hatch handback, helm-release handback and SERVER-BASELINE-SEAT-RACE. Source matrix plus the existing ordinary race command/caps are fixed; exact final candidate remains gated. Eight ROLE journeys retain their own movement/action/loss scope; no new role matrix. |
 | SERVER-BASELINE | [Fixed ordinary/lifecycle/adverse membership](#server-baseline-contract). Full Jovian ordinary reuse caller is acceptedbc7f9f9c4/e899cc9e0; Halyard accepted cases are mapped once. [Five real-client RPC observations](#server-command-proof-binding) and [one B Restart Shift/rejoin/physical-reboard journey](#server-main-reentry-binding) now have literal implementation goals; callers remain OPEN. [Boarding/landing-loss callers](#server-disconnect-cuts) now have exact cuts and usable continuations. [Initial pilot/landing-target contention](#server-initial-contention) now has bounded implementation goals. [Isolated-link impairment](MOVING_INTERIOR_LATENCY.md#impaired-independent-baseline-capability) binds shared profile inputs and the missing launcher/endpoint/measurement capability; no craft×role×phase matrix or duplicate happy path. |
@@ -3398,7 +3398,7 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | COMBAT-COURIER | Courier Intercept | 11 | Container | OPEN container — accepted clear/escape/phase/distance withdrawals retained. Ordinary escorted withdrawal/home member DONE7f23a808c/checkpoint7f23a80: real one-shot78→44 runner wound, paired registered escorts after2.4s, actual defender kill, all three retired through strict home/OFFLINE/physical exit; first native route59.024s/original300,303 driver tests/privacy/paired audit and independent review pass. [Proof](history/ROADMAP_DELIVERIES.md#ordinary-escorted-courier-withdrawal-accepted-20261027). Cold recovery driver229bfa6c9 is PARKED/unmerged after its one source correction: source/package checks pass, actual42.371s prefix leaves defender85/no wounds at first Courier dispatch; no interruption/cold proof, cause unknown, no retry. [Exact terminal boundary](#courier-intercept--bounded-outcomes). Runtime loss/reuse and cyclic re-admission retain their existing missing ordinary drivers and parked gates. No escort×terminal matrix or automatic rerun; full parent11 remains open. | [Combat](#proof-combat): retain clear/escape/withdrawal passes; finish only named remaining escorted/recovery/repeat outcomes, real terminal result and usable home. |
 | COMBAT-WING | Paired Wing Break | 11 | Qualification | FAILED/open ordinary two actual player-weapon kills plus complete home/OFFLINE physical exit/UIquit. Latest9a68aa01f trial102.037s:8shots,0Wingdamagehits/kills, both opponents38health; prerequisite Heavy/Torpedo home journeys pass. Unique diagnostic source archived under pushed tag `archive/diagnostics/wing-ordinary-route-20261020`; branch/worktree removed, observer/selector/driver excluded from main. Independently accepted board-landing withdrawal fix shipped9e9d1be; it does not complete Wing combat. [Closeout](history/ROADMAP_DELIVERIES.md#wing-branch-accounted-landing-fix-shipped--2026-10-20) | Two real live Wing opponents destroyed by ordinary player weapons, then strict home/OFFLINE physical exit/normal UI completion; admission alone insufficient. |
 | COMBAT-WING-ADMISSION | Existing Wing becomes a genuine third solo board contract | 11 | Capability | DONE checkpointf671da9: on-foot arm/cancel, physical departure/registered source gate, real suppression/flank pair, solo/network refusal, both-destroyed objective with healthy-retirement abort, correct HUD/audio/no-credit lifecycle. Actual Main28/director151/board59/HUD8/audio11 checks, paired exports/startups/audit PASS. Component simulated clear disclosed; no full ordinary kills/home. [Result](history/ROADMAP_DELIVERIES.md#paired-wing-board-admission--shipped-on-f671da9) | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
-| COMBAT-PERIMETER | Perimeter Hold | 11 | Container | NON-EXECUTABLE container — ordinary90s/>35% survival/home is one finite case; [finite terminal/reset membership](#perimeter-hold--missing-production-integration) is now source-bound. BLOCKED definition — Codex: supply the ordinary failure/home/re-admission driver, ordered inputs and observable endpoints at original CAP300; staged actor removal/time advancement cannot supply this proof. Existing delivered runtime/admission stays accepted. Ordinary-driver attempt PARKED317c3b44f: first Heavy withdrawal/home and actual saved Torpedo posting pass; fresh-selection E correction reaches second Arrow/Torpedo, then sole L fails to start landing. Nonqualifying diagnostic successfully traces both landing inputs; prior failure NOT_REPRODUCED, product cause unproven. No third qualifying trial selected; both failures/source/data retained, CAP300/original clock unchanged. [Exact stop](history/ROADMAP_DELIVERIES.md#perimeter-ordinary-route-input-stop-20261025). PERIMETER-LIVE runtime/admission DONE fdae1cb: physical fourth-board contract, protected core/three live attackers,90s/>35%, HUD and lifecycle. Actual-Main admission, retained Breach recovery, staged objective and paired packages PASS; branch merged/deleted. Full ordinary weapon/home, failure/recovery, repeats/network/native remain OPEN. [Delivery](history/ROADMAP_DELIVERIES.md#perimeter-live-branch-finished--2026-10-20) | Real protected core survives90s with >35% through ordinary live combat, no Hold credit, strict home/OFFLINE/physical exit; the linked finite terminal/retirement/reset cases pass in their declared scope. Ordinary failure/home/re-admission still needs its explicit caller/endpoints before execution. |
+| COMBAT-PERIMETER | Perimeter Hold | 11 | Container | NON-EXECUTABLE container — ordinary90s/>35% survival/home is one finite case; [finite terminal/reset membership](#perimeter-hold--missing-production-integration) is now source-bound. [Concrete core-LOST/home/next-Heavy/reset goal](#perimeter-core-loss-home-admission) binds exact ordinary actions/pass criteria and caller ownership at CAP300. Caller implementation remains OPEN; authentic earned Hold entry/save is a prerequisite gated by the original parked prefix, not fabricated posting3. Staged actor removal/time advancement cannot substitute. Existing delivered runtime/admission stays accepted. Ordinary-driver attempt PARKED317c3b44f: first Heavy withdrawal/home and actual saved Torpedo posting pass; fresh-selection E correction reaches second Arrow/Torpedo, then sole L fails to start landing. Nonqualifying diagnostic successfully traces both landing inputs; prior failure NOT_REPRODUCED, product cause unproven. No third qualifying trial selected; both failures/source/data retained, CAP300/original clock unchanged. [Exact stop](history/ROADMAP_DELIVERIES.md#perimeter-ordinary-route-input-stop-20261025). PERIMETER-LIVE runtime/admission DONE fdae1cb: physical fourth-board contract, protected core/three live attackers,90s/>35%, HUD and lifecycle. Actual-Main admission, retained Breach recovery, staged objective and paired packages PASS; branch merged/deleted. Full ordinary weapon/home, failure/recovery, repeats/network/native remain OPEN. [Delivery](history/ROADMAP_DELIVERIES.md#perimeter-live-branch-finished--2026-10-20) | Real protected core survives90s with >35% through ordinary live combat, no Hold credit, strict home/OFFLINE/physical exit; the linked finite terminal/retirement/reset cases pass in their declared scope. The linked ordinary failure/home/next-Heavy/reset caller remains unimplemented and entry-gated; its exact endpoints are now bound. |
 | COMBAT-BREACH | Heavy Breach | 11 | Qualification | First full ordinary charged-picket kill/payment/home sortie DONEfb396ab13, exactly the PLAY-BREACH proof below, counted once. Remaining craft journeys belong to the 17 CRAFT-ACCEPT rows; replicated hull/component outcomes belong to NET-DAMAGE; active Breach restart policy belongs to RECOVERY-POLICY-BREACH and its implementation to the Breach owner in the [existing activity-write roster](#activity-write-boundary-roster--act-writes-define). These do not create additional unnamed COMBAT-BREACH cases. BREACH-INTERRUPTION earned-debt case DONEc78e0ac. No full combat-parent closure. | Same actual full sortie as PLAY-BREACH; one proof serves both parents, no duplicate job. |
 | COMBAT-TORPEDO | Torpedo Run evade/intercept/destroy/fail/abort | 11,23 | Container | NON-EXECUTABLE container — [finite combat endpoints](#torpedo-combat-outcomes--fixed-source-boundary) are source-bound; solo/peer/pilot/target restoration reuses the ten existing TORPEDO-AUTH children. PLAY-TORPEDO owns clear/home once and remains PARKED. BLOCKED definition/implementation — Codex: missing ordinary evade/intercept/150s-expiry/withdrawal drivers and each remaining authority case’s exact participant/input/transport cut, executable command and original budget. Live board abort has only an API fixture; ordinary E cancels prelaunch arming only. No implicit successor attempt or active-crash policy approval. | Actual evade/intercept/boat destruction plus each named fail/abort/restoration outcome; PLAY-TORPEDO supplies its clear/home proof once. |
 
@@ -3655,12 +3655,104 @@ and exit0 with `PERIMETER_HOLD_PRODUCTION_ROUTE_TEST_OK`. These are retained
 staged source checks; objective time is manually advanced. No check was rerun
 for this definition edit. They do not prove an ordinary90s combat/home journey.
 
-**Remaining exact definition gap — Codex:** ordinary failure→strict home/OFFLINE/
-physical exit→fresh board admission needs its actual driver/ordered inputs and
-observable endpoints at original CAP300. That driver is not supplied by the
-staged check. The existing ordinary survival/home attempt stays PARKED at its
-recorded input failure; neither a new source survey nor a retry is selected.
-The terminal membership definition is closed; the full container is unfinished.
+<a id="perimeter-core-loss-home-admission"></a>
+
+**Concrete remaining ordinary goal — core LOST, home, next Heavy admission.**
+Source5b1e7b686. Definition selection16:26:22UTC2026-10-27,20minutes through
+16:46:22UTC including one bounded lifecycle review, source/doc checks, commit/
+push/cleanup. No engine, archive extraction, runtime change or parked retry.
+Terminal membership above is closed; this supplies the missing ordinary caller
+contract rather than another terminal survey.
+
+**Prerequisite is not available yet.** A real clean save must have actually
+reached Hold posting3 through genuine Heavy/Torpedo/Wing conclusions, with
+`payload.heavy_breach_session.session.offered_index=3`. Record exact source/
+package, raw save path/bytes/SHA, earned transition receipts, reward/terminal/
+settings baseline and clean-shutdown markers before selection. Load those exact
+bytes through production persistence in an exclusive private profile at
+`data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json`; do not manufacture
+posting3 or payment. Neither trial nor the nonqualifying diagnostic in the
+[parked original entry](history/ROADMAP_DELIVERIES.md#perimeter-ordinary-route-input-stop-20261025)
+reaches Wing/Hold. Existing retained saves establish no Hold-start fixture.
+Codex owns obtaining the genuine entry/fixture; this is a parked prerequisite,
+not a new request for the user to provide data or a renamed qualifying attempt.
+Preserve original CAP300/75min clock, both failures and required causal reopening
+condition. A future failure-case allocation cannot reset that earlier cost.
+
+**Missing capability/files.** Extend existing `tools/release/run_native_sortie.py`
+and `tools/release/test_native_sortie.py`; add only read-only Hold observations
+in `scripts/diagnostics/native_sortie_observer.gd`, exact private-mode admission
+in `scripts/game/startup_loader.gd` and its existing `tests/startup_cli_privacy_test.gd`.
+The current Heavy projection names StandoffPicket and its unhealth-bearing Heavy
+marker; it cannot observe Hold by renaming a mode. Observe the actual protected
+core/Damageable and PerimeterPicket2131/Scatter2132/Press2133, their registration/
+fire authority and real hit/terminal/generation receipts. No observer may arm,
+renew, damage, place, conclude or mutate production actors.
+
+**Ordered normal-control case, once the prerequisite passes:**
+
+1. Production Begin Shift; supported walk uses the existing Heavy board approach
+   (−8.5,.18,6)→(8,.18,6)→(8,.18,−24), actual board candidate≤2.8m and a released E
+   edge arms the saved Hold for this Player. Follow the existing physical Arrow
+   approach/boarding route; ordinary thrust consumes that exact arm on departure.
+   Retain Main/Player/Arrow/input/board/core/Damageable IDs; record stage-specific
+   director/asset/sortie generations and require three authorized actors/core240.
+2. Reuse Heavy's ordinary departure beyond16m from Arrow's original parked
+   position, then Prior brake until speed≤.35. Aim using actual camera/next-muzzle
+   forecast and normal fire exclusively at live Scatter2132 while Hold is running.
+   Accepted player hits, if any, must resolve to that actor; never target core,
+   Picket or Press. Stop fire when Scatter is destroyed or Hold concludes; if
+   Scatter dies first, continue brake with Picket/Press still attacking the core.
+   Maintain local seated control/FREE_FLIGHT and distance≤700m from encounter
+   origin. Simultaneous live survival/clear hits are unqualified and must be
+   demonstrated by this caller; no source statement declares the pose safe.
+3. Actual authorized core hits must produce health≤84/240 and director `LOST`
+   before90 actual seconds. Require original Player/Arrow alive, no recovery,
+   network/phase/distance withdrawal, unchanged game speed/tuning and no injected
+   damage/time. Core loss can precede a Scatter kill; that kill is not an added
+   objective. A different terminal, dead player/craft, missed deadline or wrong
+   hit authority fails. Preserve actual core damage and terminal receipts.
+4. Require empty retained roster; all three actors inactive/unregistered/no fire
+   authority. Allow the completion receipt of the same terminal-causing dispatch
+   after its synchronous health callback; no subsequent request/core damage may
+   occur through home. Hold earns no credit/debt; reward store and prior paid completion stay
+   exact. Real board posting rotates3→0 (Heavy), not another Hold.
+5. Reuse actual Arrow home controls: Prior plus ordinary attitude restoration,
+   real compatible home capture/speed≤.35, sole L with native/immutable-command/
+   consumer and active-assist observations, actual `SHUT_DOWN`, strict original
+   berth occupant/current lease/pose and90 consecutive neutral OFFLINE ticks.
+   E must produce supported physical exit within existing10s; follow the existing
+   bounded ground route back to the board. No direct landing or forced state.
+6. At the real board, require Heavy prompt/availability. A released E arms Heavy
+   for the same Player with newer sortie generation and unchanged board generation.
+   Released E cancels through production physical reset: board/sortie generations
+   advance and armed admission clears. Released E arms Heavy again with the new
+   generation; no launch is needed. Finish via normal HUD Quit, actual OS0,
+   zero diagnostics, both durable clean markers and complete input/process cleanup.
+
+**Limits/proof.** Proposed `--route perimeter-core-loss` plus explicit pinned
+`--retained-data` input and `NATIVE_PERIMETER_CORE_LOSS_HOME_OK` do not exist today.
+The caller must refuse absent/wrong fixture rather than silently start fresh.
+Retain original single CAP300,15s walking legs, one-shot arm/boarding/landing/
+exit bounds and independent owned Xvfb/x11/Dummy abort/reap; no clocks reset at
+loss or re-admission. Use exclusive `/srv/mudds-work/perimeter-core-loss-<source>/`
+for actual frame/OS input/command/consumer/core/actor/posting/save results.
+After prerequisite resolution, freeze an implementation/check/private package/
+qualification/cleanup allocation≤90min and absolute deadline, default one total
+correction/first-unexpected-failure stop. Privacy/observer compilation and focused
+existing Python checks precede the clean-source package; stage/checkpoint tests
+cannot substitute for the actual ordinary route. The real entry prerequisite
+and original parked boundary must pass before any such qualifying run is selected.
+
+**Renewal boundary.** This goal proves next-Heavy admission and physical arm/
+cancel/rearm reset. A second Hold requires another genuine Heavy/Torpedo/Wing
+cycle; only then can ordinary production renew the same core/Damageable to240,
+advance asset/director generations and reject old dispatch grants. Existing
+staged renewal proof retains its scope; no ordinary second-Hold gate or extra
+cycle is silently added to this case. COMBAT-PERIMETER remains unfinished.
+Lifecycle review GO; source/caller/history links, unchanged terminal membership,
+337 canonical identities/order and whitespace checks pass. No runtime proof or
+new source/fixture acceptance is claimed.
 
 Definition DONE: the detached catalog had no production caller. Its90s/>35%
 protect-asset objective differs from the director's two-guard `station_defense`
