@@ -2689,6 +2689,102 @@ existing measured capacity;all tighter source stages remain in force. Each
 future production/caller selection keeps≤90min all-in/stop/correction/checkpoint.
 Baseline/artifact/parked/final-package gates remain OPEN;all new execution NOT_RUN.
 
+<a id="shared-world-repeat-visit"></a>
+#### Three repeat-visit cases: two physical voyages in one live session
+
+Definition2026-10-27 23:49:55→2026-10-28 00:14:55UTC including source review,
+checks,commit/push and cleanup. Root owns documents;two read-only source agents
+bind Ember and Aurora/Rime. No engine,profile preparation or parked retry.
+Literal prerequisite:the matching SHARED-*-BASELINE genuinely qualified,including
+ordinary three-peer admission and physical Halyard home egress. Aurora's original
+47ffce740 artifact and Rime's parked landing reopening gates remain unchanged.
+These are exactly the existing three REVISIT rows,not a new endurance workload.
+
+**Fixed start and two endpoints.** Normal Boot/Begin Shift starts one host pilot,
+client and client_b in three independent processes/private profiles. Retain all
+three Main/Player instances,the same host Halyard halyard_new_design,registered
+halyard_fleet_dock_berth and live ENet session through both complete voyages.
+Ember host surveys;Aurora/Rime client surveys,client_b is companion. Visit one
+performs its complete baseline outward route,landing,physical survey,durable
+reward,reboard,ascent,canonical home,strict occupied home/current token,OFFLINE,
+all three physical exits and supported controllable walking>.25m. Record actual
+first paid generation/receipt and real-file ledger;no preloaded fabricated reward.
+
+From those actual home exit poses,ordinary walking/hatch/pilot/cabin controls
+reboard all three and depart through normal controls. Ember uses actual pause
+PlanetaryCruiseToggleButton/EMBER CRUISE→engage_planetary_cruise→bridge.begin;
+Aurora/Rime use actual PlanetaryDestinationAction_aurora_temperate_world or
+_rime_glacial_world→owner.request→bridge.begin. Require new epoch E+1 and
+fresh peer readiness acknowledgements before the next shared arrival.
+No new Main,session stop,reconnect,save reload,station recall,actor placement or
+six-metre yard fixture between visits. Halyard generic home-egress repair remains
+a prerequisite;the existing _walk_and_board helper always stages its initial
+pose and must not supply second boarding unchanged. Visit two repeats full
+canonical outward distance/rebases,actual pad/OFFLINE,all-crew physical surface
+exit and authored route walking,physical reboard/ascent and canonical home.
+Finish again at the strict occupied original home/OFFLINE/all three supported
+walk endpoints,with same retained actors and usable ordinary controls.
+
+| World | Exact second-visit progress/payment observation |
+| --- | --- |
+| Ember | Preserve first ember_beacon_survey completed generation G and its durable ember_beacon_data receipt. Normal new admission begins a genuine repeat activity G2=G+1;actual mandatory route checkpoints0→1→COMPLETED2 earn its distinct current receipt once. Reward count0→1 on first voyage and1→2 only after second actual completion;total_receipts increases exactly2 across the two surveys,with matching distinct generations,granted=true/replay_allowed=false. Repeated interactions/save/home do not add a third grant or replay G. This activity is repeatable,not an Aurora/Rime one-time discovery. |
+| Aurora | Preserve COMPLETED/index2/same survey generation and the original aurora_coastal_survey_data count1/matching paid receipt. Walk sign→lookout→stones in the fresh actual surface;paid interactions do not restart or pay. Reward count/receipt count remain unchanged throughout visit two. |
+| Rime | Preserve COMPLETED/index2/same survey generation and original rime_ice_core_record count1/matching paid receipt. Physically walk beacon→drill→gauge using the baseline supported route;paid interactions do not restart or pay. Reward count/receipt count remain unchanged throughout visit two. Do not require a new active heat/survey generation for already completed work. |
+
+**Production ownership and exact missing caller — Codex.** Extend the existing
+independent-peer tests/network/halyard_network_shared_planetary_cruise_test.gd
+and its peer owners with this ordinary two-visit continuation;no such executable
+mode currently exists. Preserve first-visit proof and add the second physical
+readmission/route/home endpoints to the same retained actors. Existing arrival
+fixtures/direct button signals and a second fresh process cannot qualify it.
+
+Ember's retire_completed_planetary_return→_retire_completed_journey_for_repeat
+in scripts/world/ember_surface_loop_production_binding.gd releases old composition,
+return manifests,receipt/caller fences,presentation/audio and advances binding
+generation. Retained Host bind_dependencies permits completed/runtime-returned
+or legitimately released-detached idle rebind;do not force-free the Host. New
+shared admission must obtain fresh valid journey/attachment/scene/location
+identities. The newly rebuilt READY composition normally starts the retained Director at
+G+1;the explicit repeat_activity branch serves a retained COMPLETED adapter.
+Observe the actual start/earned-generation reward path,not restoration of the
+first paid route. Preserve the first receipt in the run output;legitimate second
+completion replaces last_receipt/the current completion slot,not the old grant
+history.
+
+Aurora/Rime scripts/game/planetary_surface_visit_expedition.gd::_arrive_home
+releases visit ownership and returns idle;network_planetary_journey_bridge.gd
+_home_dock_is_current→cancel(home_docked) clears old visit/context while retaining
+its epoch counter. Normal next destination owner.request→bridge.begin yields a
+new epoch. Survey attach retains COMPLETED state;GameFlowRewardAuthority's
+ONE_TIME_DISCOVERY_ACTIVITY_IDS includes Aurora/Rime,not Ember. A new journey
+epoch is not a new paid survey generation. Check current body/entity/seat/frame
+claims and source handoffs,actual old surface/approach retirement and streamed
+world unload/deferred weakrefs before fresh admission. Loaded-world residency
+is owned by streaming,not merely by clearing expedition references. Do not
+require renewed home/surface lease tokens to equal obsolete tokens.
+
+**Finite limits and proof.** No existing two-voyage aggregate caller/cap was
+found in these source owners. New first-engineering target:4500s internal,
+4560s independent outer supervisor,from first process launch through all three
+normal OS exits/cleanup. This is a new REVISIT target,not a recovered historic
+allowance or permission to rerun a parked baseline. Retain original constituent
+bounds concurrently:Ember3000s/3060s per full voyage,Rime2400s whole/120s landing/
+48k outbound and72k return ticks per voyage,and all tighter UI/input/local guards.
+Aurora cannot execute until its exact original artifact/caps are supplied;the
+current two-peer2400s component is not that missing artifact. No clock reset
+between visits. Implement/review/build capabilities in assignments≤90min all-in;
+qualify the already-built two-visit caller separately inside its frozen deadline.
+First unexpected failure stops;one correction only after cumulative-cost GO,
+then further failure or deadline means PARKED and owned cleanup.
+
+Run silent isolated Xvfb/x11 with Dummy audio,private real profiles and independent
+abort/input release. Preserve raw three-peer stage/identity/route/source/lease/
+streaming/progress/real-file operands under the existing selected run's output
+directory,actual all-three OS0 and zero diagnostics,owned process/display closure.
+This does not set native endurance cycle counts,elapsed intervals,GPU/VRAM limits
+or qualify final packages. All three new executions and full product gates stay
+OPEN/NOT_RUN;source definition is not a gameplay pass.
+
 <a id="shared-aurora-baseline-contract"></a>
 #### Shared Aurora baseline: three peers,remote survey and durable home return
 
@@ -7434,21 +7530,21 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | SHARED-EMBER-PILOT-LOSS | Ember shared pilot loss | 3,27 | Qualification | GATED on EMBER genuine baseline. [Fixed host pilot/authority-loss contract](#shared-world-pilot-loss-safe-return):normal host UI DISCONNECT at real landed/OFFLINE/index1/unpaid,all original processes alive,old authorities retired and all same local Players/Halyards safely recover home/usable control with protected progress. Missing pre-stop save/recovery/caller capability;no automatic migration. Ember needs exact Host detach/composition retirement plus same-craft home transaction;3000s/3060s whole target. No run/retry/qualification. | EMBER/PILOT-LOSS: pilot loss transfers or safely retires authority and completes the bound return. Preserve this row’s recorded artifacts and world prerequisites; parents3/27 share this one result. |
 | SHARED-EMBER-CANCEL | Ember shared cancellation | 3,27 | Qualification | GATED on EMBER genuine baseline. [Fixed outbound cancellation contract](#shared-world-outbound-cancel) binds actual ordinary cut/control,live crew/current-pose retirement,stranded canonical home/strict OFFLINE/physical exits,protected genuine earned records and newer-epoch rearm. Full ordinary caller/observations and shared Halyard home egress remain missing. Ember uses FLIGHT DISENGAGE before Host start;3000s/3060s whole target. No run/retry/qualification. | EMBER/CANCEL: real cancellation retires visit/actors/claims and preserves protected progress on return. Preserve this row’s recorded artifacts and world prerequisites; parents3/27 share this one result. |
 | SHARED-EMBER-INTERRUPT | Ember shared actual OS interruption | 3,27 | Qualification | GATED on EMBER genuine baseline. [Fixed actual OS-interruption contract](#shared-world-os-interrupt) binds committed ACTIVE/index1/unpaid primary/backup,ownedhost SIGKILL/reap,distinct same-profile normalBoot and exact shared continuation/one payment/full home. Surviving-client recovery and full supervisor/caller remain implementation. Ember needs ordinary Save Progress plus authenticated shared passive-route adoption after genuine new outward;3000s/3060s clock spans restart. No run/retry/qualification. | EMBER/INTERRUPT: owned kill/reap and distinct normal restart preserve the fixed durable state once. Preserve this row’s recorded artifacts and world prerequisites; parents3/27 share this one result. |
-| SHARED-EMBER-REVISIT | Ember shared repeat visit | 3,27 | Qualification | GATED; EMBER genuine baseline and exact original case command. BLOCKED definition (Codex): EMBER/REVISIT still needs legitimate normal readmission trigger and first/second-visit endpoints/progress; bind its existing caller/route/limits in [the seven-case world contract](#proof-world). | EMBER/REVISIT: physical second admission preserves once-only progress/reward and full home return. Preserve this row’s recorded artifacts and world prerequisites; parents3/27 share this one result. |
+| SHARED-EMBER-REVISIT | Ember shared repeat visit | 3,27 | Qualification | GATED; matching SHARED-EMBER-BASELINE and original world artifact/parked gates. Source-bound [two physical voyages](#shared-world-repeat-visit):same three Main/Players/live session,ordinary home reboarding,fresh visit ownership,world-specific earned progress/payment and second canonical home/OFFLINE/exits. Codex must implement the ordinary independent-peer continuation;no REVISIT mode exists. New4500s/4560s aggregate retains each original constituent bound;Aurora original caps remain artifact-gated. NOT_RUN. | EMBER/REVISIT: physical second admission preserves once-only progress/reward and full home return. Preserve this row’s recorded artifacts and world prerequisites; parents3/27 share this one result. |
 | SHARED-AURORA-BASELINE | Aurora shared canonical outbound/physical survey/reward/save/home return | 3,27 | Qualification | WAITING;original47ffce740 invocation/build/profile/participants/raw bundle and exact original aggregate remain unavailable at the completed bounded search. [Aurora baseline fields](#shared-aurora-baseline-contract) now bind full target Halyard hostpilot/client-surveyor/client_b,canonical travel,actual shared saved/payment result and all-crew home. Current two-peer components are narrower;ordinary three-peer caller/durable observers/home-egress integration remain missing. No reproduction or accepted baseline. | AURORA/BASELINE: ordinary outward/surface activity/durable result/save and full physical home/exit. Preserve this row’s recorded artifacts and world prerequisites; parents3/27 share this one result. |
 | SHARED-AURORA-LATE-JOIN | Aurora shared late join | 3,27 | Qualification | GATED on AURORA genuine baseline. [Fixed landed checkpoint-one late cut](#shared-world-landed-late-join):fresh client_b companion joins host/client after actual ACTIVE/index1/unpaid,consumes current visit/progress,obtains legitimate standing body and completes actual surface/reboard/paid/home endpoints. Missing production live late-berth admission and full ordinary caller;current world progress publication already exists. Original47ffce bundle/whole deadline remains artifact-WAITING;no reproduction. | AURORA/LATE-JOIN: current actors/progress consumed without launch or reward replay. Preserve this row’s recorded artifacts and world prerequisites; parents3/27 share this one result. |
 | SHARED-AURORA-RECONNECT | Aurora shared disconnect/reconnect | 3,27 | Qualification | GATED on AURORA genuine baseline. [Fixed surface reconnect contract](#shared-world-surface-reconnect) binds client role at ACTIVE/index1/unpaid,actual default ENet transport cut,same-Player supported recovery,current fresh crew admission and conserved world result/full home. Missing production safe exterior session-loss recovery,live landed admission and full caller. Aurora original47ffce aggregate/bundle remains WAITING. No run/retry/qualification. | AURORA/RECONNECT: drop/rejoin restores the supported role or its settled handback without duplicate claims. Preserve this row’s recorded artifacts and world prerequisites; parents3/27 share this one result. |
 | SHARED-AURORA-PILOT-LOSS | Aurora shared pilot loss | 3,27 | Qualification | GATED on AURORA genuine baseline. [Fixed host pilot/authority-loss contract](#shared-world-pilot-loss-safe-return):normal host UI DISCONNECT at real landed/OFFLINE/index1/unpaid,all original processes alive,old authorities retired and all same local Players/Halyards safely recover home/usable control with protected progress. Missing pre-stop save/recovery/caller capability;no automatic migration. Aurora host cancel(true) is partial seam;original47ffce aggregate/bundle stays WAITING. No run/retry/qualification. | AURORA/PILOT-LOSS: pilot loss transfers or safely retires authority and completes the bound return. Preserve this row’s recorded artifacts and world prerequisites; parents3/27 share this one result. |
 | SHARED-AURORA-CANCEL | Aurora shared cancellation | 3,27 | Qualification | GATED on AURORA genuine baseline. [Fixed outbound cancellation contract](#shared-world-outbound-cancel) binds actual ordinary cut/control,live crew/current-pose retirement,stranded canonical home/strict OFFLINE/physical exits,protected genuine earned records and newer-epoch rearm. Full ordinary caller/observations and shared Halyard home egress remain missing. Aurora loaded-world retirement cadence remains production integration;47ffce original aggregate/bundle stays WAITING. No run/retry/qualification. | AURORA/CANCEL: real cancellation retires visit/actors/claims and preserves protected progress on return. Preserve this row’s recorded artifacts and world prerequisites; parents3/27 share this one result. |
 | SHARED-AURORA-INTERRUPT | Aurora shared actual OS interruption | 3,27 | Qualification | GATED on AURORA genuine baseline. [Fixed actual OS-interruption contract](#shared-world-os-interrupt) binds committed ACTIVE/index1/unpaid primary/backup,ownedhost SIGKILL/reap,distinct same-profile normalBoot and exact shared continuation/one payment/full home. Surviving-client recovery and full supervisor/caller remain implementation. Aurora cold restore/backend exists;ordinary restored-crew intake UI/caller missing;47ffce original aggregate/bundle WAITING. No run/retry/qualification. | AURORA/INTERRUPT: owned kill/reap and distinct normal restart preserve the fixed durable state once. Preserve this row’s recorded artifacts and world prerequisites; parents3/27 share this one result. |
-| SHARED-AURORA-REVISIT | Aurora shared repeat visit | 3,27 | Qualification | GATED; AURORA genuine baseline and exact original case command. BLOCKED definition (Codex): AURORA/REVISIT still needs legitimate normal readmission trigger and first/second-visit endpoints/progress; bind its existing caller/route/limits in [the seven-case world contract](#proof-world). | AURORA/REVISIT: physical second admission preserves once-only progress/reward and full home return. Preserve this row’s recorded artifacts and world prerequisites; parents3/27 share this one result. |
+| SHARED-AURORA-REVISIT | Aurora shared repeat visit | 3,27 | Qualification | GATED; matching SHARED-AURORA-BASELINE and original world artifact/parked gates. Source-bound [two physical voyages](#shared-world-repeat-visit):same three Main/Players/live session,ordinary home reboarding,fresh visit ownership,world-specific earned progress/payment and second canonical home/OFFLINE/exits. Codex must implement the ordinary independent-peer continuation;no REVISIT mode exists. New4500s/4560s aggregate retains each original constituent bound;Aurora original caps remain artifact-gated. NOT_RUN. | AURORA/REVISIT: physical second admission preserves once-only progress/reward and full home return. Preserve this row’s recorded artifacts and world prerequisites; parents3/27 share this one result. |
 | SHARED-RIME-BASELINE | Rime shared canonical outbound/physical survey/reward/save/home return | 3,27 | Qualification | PARKED/open. Original58.083simulation-seconds/120s wall failure retained. Full restored two-crew cost captured9a073c98 stillFAIL1624.422s at peer host.landed gate.105 usable sampled script frames, noEND/ACCUMULATED; Halyard/native attribution unresolved and controllerleg=-1 unavailable. No supported repair/retry or cap change. Source bundled, both owners terminal/19 identities absent/64 scratch entries archived verified removed. Original120s/2400s and full scope preserved. [Original Rime baseline fields](#shared-rime-baseline-contract) now bind host Halyard pilot/client-surveyor/client_b,canonical travel,natural heat/hut,actual durable shared survey/payment and all-crew home under original120s/2400s. Ordinary three-peer caller/disk observers/home integration and truthful Rime arrival HUD remain missing;current two-peer staged component is narrower/stale. Parked landing cause/priority gate is unchanged;no retry or baseline PASS. | RIME/BASELINE: ordinary outward/surface activity/durable result/save and full physical home/exit. Preserve this row’s recorded artifacts and world prerequisites; parents3/27 share this one result. |
 | SHARED-RIME-LATE-JOIN | Rime shared late join | 3,27 | Qualification | GATED on RIME genuine baseline. [Fixed landed checkpoint-one late cut](#shared-world-landed-late-join):fresh client_b companion joins host/client after actual ACTIVE/index1/unpaid,consumes current visit/progress,obtains legitimate standing body and completes actual surface/reboard/paid/home endpoints. Missing production live late-berth admission and full ordinary caller;current world progress publication already exists. Original120s/2400s parked landing cause/priority gate is unchanged;no retry. | RIME/LATE-JOIN: current actors/progress consumed without launch or reward replay. Preserve this row’s recorded artifacts and world prerequisites; parents3/27 share this one result. |
 | SHARED-RIME-RECONNECT | Rime shared disconnect/reconnect | 3,27 | Qualification | GATED on RIME genuine baseline. [Fixed surface reconnect contract](#shared-world-surface-reconnect) binds client role at ACTIVE/index1/unpaid,actual default ENet transport cut,same-Player supported recovery,current fresh crew admission and conserved world result/full home. Missing production safe exterior session-loss recovery,live landed admission and full caller. Rime old G must remain terminal;trusted checkpoint1 needs real new-generation live resume,not index0 restart. Original120s/2400s parked gate retained. No run/retry/qualification. | RIME/RECONNECT: drop/rejoin restores the supported role or its settled handback without duplicate claims. Preserve this row’s recorded artifacts and world prerequisites; parents3/27 share this one result. |
 | SHARED-RIME-PILOT-LOSS | Rime shared pilot loss | 3,27 | Qualification | GATED on RIME genuine baseline. [Fixed host pilot/authority-loss contract](#shared-world-pilot-loss-safe-return):normal host UI DISCONNECT at real landed/OFFLINE/index1/unpaid,all original processes alive,old authorities retired and all same local Players/Halyards safely recover home/usable control with protected progress. Missing pre-stop save/recovery/caller capability;no automatic migration. Rime host cancel(true) preserves committed record;original120s/2400s parked cause/priority gate remains. No run/retry/qualification. | RIME/PILOT-LOSS: pilot loss transfers or safely retires authority and completes the bound return. Preserve this row’s recorded artifacts and world prerequisites; parents3/27 share this one result. |
 | SHARED-RIME-CANCEL | Rime shared cancellation | 3,27 | Qualification | GATED on RIME genuine baseline. [Fixed outbound cancellation contract](#shared-world-outbound-cancel) binds actual ordinary cut/control,live crew/current-pose retirement,stranded canonical home/strict OFFLINE/physical exits,protected genuine earned records and newer-epoch rearm. Full ordinary caller/observations and shared Halyard home egress remain missing. Rime loaded-world retirement cadence remains production integration;original120s/2400s parked causal gate remains. No run/retry/qualification. | RIME/CANCEL: real cancellation retires visit/actors/claims and preserves protected progress on return. Preserve this row’s recorded artifacts and world prerequisites; parents3/27 share this one result. |
 | SHARED-RIME-INTERRUPT | Rime shared actual OS interruption | 3,27 | Qualification | GATED on RIME genuine baseline. [Fixed actual OS-interruption contract](#shared-world-os-interrupt) binds committed ACTIVE/index1/unpaid primary/backup,ownedhost SIGKILL/reap,distinct same-profile normalBoot and exact shared continuation/one payment/full home. Surviving-client recovery and full supervisor/caller remain implementation. Rime uses genuine restored PAUSED→remaining gauge E,not beacon/live reconnect resume;original120s/2400s parked gate remains. No run/retry/qualification. | RIME/INTERRUPT: owned kill/reap and distinct normal restart preserve the fixed durable state once. Preserve this row’s recorded artifacts and world prerequisites; parents3/27 share this one result. |
-| SHARED-RIME-REVISIT | Rime shared repeat visit | 3,27 | Qualification | GATED; RIME genuine baseline and exact original case command. BLOCKED definition (Codex): RIME/REVISIT still needs legitimate normal readmission trigger and first/second-visit endpoints/progress; bind its existing caller/route/limits in [the seven-case world contract](#proof-world). | RIME/REVISIT: physical second admission preserves once-only progress/reward and full home return. Preserve this row’s recorded artifacts and world prerequisites; parents3/27 share this one result. |
+| SHARED-RIME-REVISIT | Rime shared repeat visit | 3,27 | Qualification | GATED; matching SHARED-RIME-BASELINE and original world artifact/parked gates. Source-bound [two physical voyages](#shared-world-repeat-visit):same three Main/Players/live session,ordinary home reboarding,fresh visit ownership,world-specific earned progress/payment and second canonical home/OFFLINE/exits. Codex must implement the ordinary independent-peer continuation;no REVISIT mode exists. New4500s/4560s aggregate retains each original constituent bound;Aurora original caps remain artifact-gated. NOT_RUN. | RIME/REVISIT: physical second admission preserves once-only progress/reward and full home return. Preserve this row’s recorded artifacts and world prerequisites; parents3/27 share this one result. |
 
 ### Final seat ledger — fixed case ownership
 

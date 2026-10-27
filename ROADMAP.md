@@ -156,6 +156,11 @@ full ordinary callers remain unimplemented;no cancellation case has run.
 now fix committed saves,owned kill/fresh Boot and one-payment shared continuation.
 Ember's in-tree save/shared resume and ordinary restored-crew intake remain
 production gaps;existing solo/same-process fixtures are not shared acceptance.
+[Three repeat-visit cases](docs/ROADMAP_BACKLOG.md#shared-world-repeat-visit)
+now bind two complete voyages in the same live three-peer session,ordinary
+home reboarding and fresh visit ownership. Ember earns a distinct repeat-survey
+reward;Aurora/Rime retain their one-time paid surveys. The ordinary two-visit
+caller and full qualification remain open.
 
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings
