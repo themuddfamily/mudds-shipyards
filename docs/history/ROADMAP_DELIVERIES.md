@@ -32983,3 +32983,84 @@ source was merged just to delete it. Only archive+closeout.json remain. Reopenin
 requires exact current failed operands/cause and explicit cumulative-priority
 reprioritization, retaining all original costs/caps and the exhausted correction;
 this record does not authorize another attempt. Broader roadmap work stays active.
+
+
+<a id="landing-target-transport-accepted-20261027"></a>
+### Real-client landing-target contention — accepted 2026-10-27
+
+**Selected landing-target transport capability2026-10-27 18:46:59UTC.**
+One high implementation agent owns the same two authority harness files; root
+owns exact local detached-landing +three-process suites,docs/integration/cleanup;
+one independent reviewer checks early stage barrier,actual sends/results,
+winner-relative lease/generation/sequence continuation and unchanged clocks.
+Reuse the accepted5c5868645 child exit/diagnostic guards and five movement RPC
+cases; no second status layer,production protocol change,physical docking claim
+or ordinary Jovian replay. Gate both clients before their existing loops,not
+merely a delayed observer after the original stage has already advanced.
+
+Clean base91bf96a855628173dbc315023c389434d1fc8691; owned root
+`/srv/mudds-work/landing-target-race-20261027`,one task worktree/branch,private
+0700 HOME/XDG/tmp and external raw matrix/peer records. Pinned4.7.1Godot actual
+SHA256`32f8d7596c4b41185512b1c49d69f2da3be018fd784a53e349fa92a98a97bcde`
+and exact existing scopes/UDP29140 availability are checked before execution.
+Every import/coordinator/peer runs headless/Dummy. Retain24s inner/300s suite;
+local matrix runs only detached landing authority and the changed three-process
+harness (which includes the five accepted command cases as direct regression).
+No unchanged240s moving-body sweep or hosted CI is selected.
+
+Estimate45min all-in,hard19:31:59UTC,execution cutoff19:21:59/10min closure.
+Includes source/review/import,the actual scoped matrix,full raw review,
+integration/push,verified archive and exact-tip branch/worktree/process/scratch
+cleanup. First unexpected failure stops; one correction total only after cause,
+remaining time and independent cumulative-priority review. Failed correction/
+deadline parks the same attempt with source/raw preserved; no cap increase,
+forced winner,scene reset,changed entity assignment or replacement clock.
+No gameplay/graphics changed,so no equivalent game checkpoint export is required;
+final/native/ordinary pilot-seat contention and other baseline owners stay open.
+
+**First actual matrix stop; sole two-line correction selected.** Candidate
+420fe4069 runs both suites with actualOS0/zero diagnostics; detached landing28
+assertions pass,and all three peers exit0 after actual reserve/occupied/abort/
+retry/commit/retirement and preserved five command cases. Matrix nevertheless
+FAILS: the new source-declared NETWORK_LANDING_TARGET_RACE_OK is penultimate,
+followed by old generic OK summary; the catalog requires that token terminal.
+Exact initial source/raw/result is retained. Independent review confirms this
+sole reason and selects only swapping those two print statements,old summary
+first/new token last. No guard,packet,fixture,timing or expectation changes.
+Original18:46:59/45min clock retains≥37min closure allowance; correction now0.
+Any corrected validation failure parks the same attempt; no additional adjustment
+or cap increase. No initial first-pass matrix acceptance is claimed.
+
+**Accepted landing-target transport capability — 50cb617bd,2026-10-27.**
+The sole print-order correction passes the same two local suites: coordinator
+21.183s,exactly one terminal NETWORK_LANDING_TARGET_RACE_OK,actual exit0/zero
+diagnostics; detached landing28assertions/.786s/exit0/zero diagnostics. Source/
+cache manifests remain stable with isolated user data. All three actual engine
+exits0,complete outputs clean and owned PIDs absent. Independent review confirms
+the corrected run chose the opposite winner: fighter_b reserved,fighter_a was
+refused; exact winner abort then original loser sequence1 retry reserved and
+committed. Synchronous real-RPC packet/result and before/after assertions pass,
+with all five accepted movement cases and fixture retirement. Raw binary records
+retained; independent review checked their existence and source assertions,
+without claiming an independent binary decode.
+Initial marker-order failure remains failed and preserved; allowance0. No broader
+baseline,ordinary pilot-seat race,physical docking,native hardware or final
+package gate closes. Latest playable remainsf0d6796; no gameplay/graphics change.
+Raw matrix/peer/failed+corrected source retention belongs to the selected root
+above; cleanup/archive identity is recorded at closure below.
+
+**Landing capability closure2026-10-27 19:01UTC.** Accepted code/docs
+fast-forwarded into maina21ecf562 and actual remote tip verified. Task branch
+and owned worktree removed after exact-tip/reachability/ownership checks; all
+owned engine/wrapper/coordinator PIDs absent. Verified archive
+`/srv/mudds-work/landing-target-race-20261027/records.tar.gz` retains111regular
+files/5537219bytes,SHA256
+`38dd2189cf5a7eed416fb6e04c9782af709efae6f74676bb43a887f890f06f3a`,
+all original raw files and private-profile state matching its manifest,plus a
+verified incremental source bundle retaining both candidates against91bf96a85.
+Only archive+closeout.json remain in the owned root; derived import cache removed
+with worktree after stable-cache proof. Cleanup reached14.61min of original45min
+allocation; final documentation/push remains charged to the same19:31:59deadline.
+A read-only closeout helper initially demanded exact equality for the detached
+suite's descriptive terminal (which appends28assertions); corrected prefix read
+matches the catalog. No source adjustment or engine rerun followed that helper.

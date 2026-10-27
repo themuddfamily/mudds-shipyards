@@ -900,7 +900,7 @@ cannot establish physical output or device measurements.
 
 | Original member / literal physical action and authoritative finish | Production owner and retained proof, reused only in its scope | Exact remaining executable fields and owner |
 | --- | --- | --- |
-| **Walk, canopy admission and launch.** Begin Shift; walk the station/Aft/Fleet bridge and raised Dock03 approach to this live boarding marker. Ordinary Interact boards the same Player into the physical pilot anchor; forward thrust wakes the engine, releases this occupied home lease and reaches FREE_FLIGHT. | Bulwark/ShipBoardingArea/Player/GameFlow; world-owned Dock03 and HeroShip. `bulwark_production_integration_test.gd` verifies identity, berth bounds/lease and supported exit but teleports the player/ship and uses zero-duration transitions. `SandboxPilot.begin_craft()` has Bulwark walking goals`[52,4.2,68.3]→[50.2,6.6,59.2]→[49,6.6,59.2]`; these are a route reference within the parked all-nine selector, not accepted admission. | Codex: bind live markers to an ordered supported Begin Shift→Dock03 path, actual canopy/boarding inputs and unshortened transitions, fresh pilot/source identity and lease-release receipts, departure endpoint and per-walk/boarding/startup/departure deadlines on one named source/package. No unchanged Sandbox replay is selected. |
+| **Walk, canopy admission and launch.** Begin Shift; walk the station/Aft/Fleet bridge and raised Dock03 approach to this live boarding marker. Ordinary Interact boards the same Player into the physical pilot anchor; forward thrust wakes the engine, releases this occupied home lease and reaches FREE_FLIGHT. | Bulwark/ShipBoardingArea/Player/GameFlow; world-owned Dock03 and HeroShip. `bulwark_production_integration_test.gd` verifies identity, berth bounds/lease and supported exit but teleports the player/ship and uses zero-duration transitions. `SandboxPilot.begin_craft()` has Bulwark walking goals`[52,4.2,68.3]→[50.2,6.6,59.2]→[49,6.6,59.2]`; these are a route reference within the parked all-nine selector, not accepted admission. | [Exact access/admission/launch definition](#bulwark-access-launch-definition) now binds fresh spawn,ordinary west/Aft/Fleet path,live ramp/area/seat identities,real transitions,immediate automatic propulsion and lease-release endpoint within retained limits. Codex still owns the passive ordinary caller integration under the existing parked reopening conditions; proposed physical passage remains NOT_RUN. No unchanged Sandbox replay is selected. |
 | **Heavy pilot handling, cameras and actual pulse hit.** In controlled flight exercise thrust/steering/roll, brake, hover, boost and cockpit/chase; aim/fire the pilot cannon at a named real eligible target. Observe accepted/resolved source1107/`bulwark_sustained_pulse_cannon`/sequence/target and actual50-point health loss within360m at the authored.30s cadence. | HeroShip, Bulwark resource, `bulwark_combat_pulse.tres`, GameFlow `_get_player_weapon_profiles` and LiveCombatAuthority/resolver. GameFlow registers both pilot pulse and crew lance for the same source1107; attaching gunner authority must not erase the pilot profile. Existing ship/fleet differentiation and weapon migration checks are source/staged anchors. | Codex: outbound/turn/brake/hover/boost/return poses, exact native actions and neutral intervals, real target identity/starting health/aim geometry, one fresh press/release and hit/replay observation boundaries; bind original per-action/flight limits and candidate. No direct damage, moved target or cooldown override supplies the ordinary hit. |
 | **Pilot→supported moving cabin→physical gunner.** Release controls until actual engine OFFLINE; while unlanded, ordinary exit invokes `_leave_seat_into_cabin`, disembarks relative to the live frame, sets piloted=false and registers the same controlled standing Player. Walk the supported local aisle`(-.62,1.33,.40)→(-.62,1.33,1.80)→(1.25,1.33,1.80)→(1.25,1.33,.65)` and Interact at the actual gunner approach/anchor. Retain frame registration, containment, floor support and exclusive gunner seat generation through movement. | GameFlow `_try_exit_ship`/`_leave_seat_into_cabin`, MovingInteriorFrame, ShipCrewSeat and Bulwark cabin/role contract; `bulwark_heavy_gunship_test.gd::_test_walkable_cabin_contract` casts a full standing capsule through those local legs and checks floor/skin support. Local points must be transformed through the current hull. The existing crew gameplay test also flies/brakes/idles the actual hull, then uses ordinary aft/right/forward walking and gunner Interact after teleporting only the initial exterior admission. Leaving the pilot seat retires active flight activity; it does not preserve a solo helm or create autonomous piloting. | Codex: exact ordinary OFFLINE stand input/start-stop, safe live drift/carry segment and observation duration, physical aisle input/reach/seat-admission path and per-leg/claim deadlines; bind body/frame/seat/command receipts and selected candidate. OFFLINE standing alone does not satisfy the gunner ONLINE discharge gate. Bind the real seated weapon-demand wake below for solo fire; bind concurrent pilot ownership separately for powered moving-crew flight. |
 | **Charged gunner damage, depletion and release/reseat/reclaim.** From a current physical gunner claim, select/aim at a real eligible target; ordinary Fire first requests weapon power and must reach ONLINE without acquiring helm/releasing the dock latch, then holds through.45s base charge; dispatch accepted hitscan`picket_siege_lance` within560m for22 actual damage, with4.8s base cooldown. A fresh actor starts with2 rounds, cap8; accepted resolver submission debits one even on a miss. Release input/claim, stand at the live gunner exit, walk/reseat and verify current generation; stand again and physically return to the pilot anchor before reclaiming helm. | Bulwark `_crew_lance_definition`, `_consume_gunner_fire_intent`, charge revalidation, GameFlow `_submit_solo_gunner_fire` and HeroShip `request_solo_crew_weapon_power` precede LiveCombatAuthority. The latter validates the seated actor/claim/frame, records only power it woke and calls `_wake_engine_for_automatic_demand(false)`; the discharge consumer still requires ONLINE. Role release stops only its owned power without a pilot. Existing crew gameplay test holds actual Fire against DRONE-03 with no pilot shots/helm after staged initial admission; this source anchor is not the missing final-package full journey. The crew definition deliberately clears Picket travel fields and registers hitscan; no travelling bolt/reload is inferred. **Reuse f676c5016 once:**120 checks,133.997s, host+one-client; remote and moving-host hits each100→78, stand/reseat, stale-RPC/generation cancellation and pilot-disconnect cleanup. Retained report`/srv/mudds-work/bulwark-gunner-candidate-results-20261017/report.txt`; hatch/target/lease changes were staged. | Codex: exact solo target identity/selection/aim and ordinary raw hold/release sequence, witnessed OFFLINE→ONLINE weapon-demand ownership/no-helm/no-latch-release, ammo-before/after/cooldown/charge receipts, stand→approach→reseat→pilot-return walking/interaction sequence, source/claim retirement observations and each deadline. Bind retained network proof to its original candidate/caps without replay; two clients, actual host termination, hull loss, endurance and full ordinary admission remain outside it. No extra physical engineer/passenger route. |
@@ -927,6 +927,89 @@ retained proof once. This definition selects no engine run, gameplay repair,
 new evidence family or checkpoint and does not invent an aggregate deadline.
 All ordinary journey, art, role-network and final external gates retain their
 original scope; nothing here marks Bulwark gameplay DONE.
+
+<a id="bulwark-access-launch-definition"></a>
+##### Bulwark access and launch — concrete intermediate endpoint
+
+Definition slice2026-10-27 19:01:35–19:16:35UTC,sourcea21ecf562; Codex owns
+this existing CRAFT-ACCEPT-BULWARK member,not a new goal or gameplay attempt.
+One read-only agent binds geometry/admission; root binds limits,passive proof and
+edits/reviews/checks/commit/push. Prerequisite IDs:none for this source definition;
+all prior PLAN-NEXT costs remain. No engine/export/CI or parked retry selected.
+The existing full gunner member remains PARKED at its recorded causes below.
+
+**Start and ordinary walk.** Fresh private default profile,actual Begin Shift,
+one current Main/ShipyardWorld/Player/BulwarkHeavyGunship,healthy300hull,occupied
+home`bulwark_fleet_dock_berth`,source1107 and all other craft parked. Fresh spawn
+is the actual PlayerSpawn global transform,authored(-8.5,.18,11),not the separate
+(-8.5,.18,6) walking goal. Sources: `scenes/world/shipyard_world.tscn`PlayerSpawn,
+GameFlow `_start_up_persisted_state`/`start_shift`. Retain the original western
+connector to(0,0,13.5),then the first12 `LifeTowPilot.ARM_GOALS` through
+fleet_trunk_forward,then existing Sandbox goals(37,4.2,68.3)→(52,4.2,68.3).
+These literal arrays are in `tools/release/run_native_sortie.py`,not a tour
+membership resurvey. They are ordinary W/Shift/mouse walking goals,not writes to
+Player pose. Require actual support and same Player at every leg; waypoint
+arrival retains horizontal≤.30m,vertical≤.65m and settled speed≤.35m/s.
+
+**Raised-deck binding,not a passed route.** Resolve the current FleetDockComb
+`get_route_marker` identities vertical-base→vertical-top→dock-03-threshold,
+then existing Bulwark approach(50.2,6.6,59.2)→(49,6.6,59.2). Marker local Y
+includes a.15m cue lift; follow actual supported foot elevation and current global
+transforms. The real ramp is `Rung03Vertical` and deck `DockSlab03Upper`,built
+by `scripts/world/fleet_dock_comb.gd::_build_structure`. This proposed explicit
+suffix is NOT_RUN. It does not replace the frozen parked route,diagnose its
+failure or establish clearance. The original coordinates/results remain below.
+A later implementation must resolve any route change under that parked goal's
+causal reopening decision before running; a definition grants no retry.
+
+**Admission pass.** Require current boarding_candidate==same Bulwark and no
+station interaction candidate; stop walking,then one fresh ordinary E down/up.
+Reserve the actual child ShipBoardingArea for the same Player (not the separate
+metadata-only BulwarkBoardingArea). Use live boarding/entry/pilot-anchor identities.
+GameFlow `_board_ship`→`_board_ship_locally` must complete real canopy open.65s,
+boarding1.1s and canopy close.65s; no zero-duration override. Within the existing
+4s E/claim bound require same Player seated at the actual pilot anchor,current
+reservation,canopy closed,piloting=true,phase START_ENGINES and a fresh enabled
+default LocalShipInputSource stream. Normal fallback reach7m is allowed; do not
+require feet to coincide with the boarding marker or invent a tighter reach.
+
+**Launch pass.** Actual W must produce a current consumed positive-throttle
+command from that source,engine ONLINE,landed=false,phase FREE_FLIGHT and the
+same exact home lease released: occupant/reservation owner null,old token retired
+and corresponding GameFlow berth/token mappings removed. HeroShip automatic
+demand wakes ONLINE immediately; authored2.75s is a legacy timed-start value,
+not a required ordinary STARTING interval. Require unchanged hull/components,
+same Player/ship/source1107/seat,and unrelated craft identities/parked leases.
+This is an intermediate endpoint only: it does not prove the original110m
+outward endpoint,gunner action,home return or complete craft.
+
+**Limits and missing executable proof.** Existing exterior15s/goal and E/claim4s
+stay unchanged. FREE_FLIGHT is observed inside the existing outward15s window
+from its original launch start; the original110m endpoint still owes that same
+window,without a new timer. The selected gunner member450s/outer480s and older
+parked limits remain unchanged; no standalone access selector exists today.
+Codex owns implementing ordinary input plus passive phase-bound identity/claim/
+consumed-command/lease observations in the existing native-sortie runner and
+observer. Inactive cached fleet details cannot prove current admission; bind
+current active craft details after boarding. Read retained owner/token/command
+fields without calling a lease-reconciling getter or writing state. Bind clean
+candidate/package hashes and one fresh external results directory before any
+later authorized run,retain raw input/game/observer/result/real-exit records and
+normal completion of the original member. First unexpected failure stops; its
+original correction allowance/deadline/reopening rule governs. Source inspection
+closes these definition fields only; caller integration,physical passage and
+all parked outcomes remain OPEN/PARKED,not externally blocked.
+
+**Definition result.** Source geometry/admission review and independent contract
+review GO;337canonical identities/order,new anchors/source paths and whitespace
+checks pass. The review caught a stale “both unimplemented” contention intro;
+corrected to distinguish accepted landing fixture from open ordinary pilot race.
+No runtime/package/device/human qualification or parked replay occurred.
+Definition fields above are supplied; remaining implementation/physical/other
+craft fields keep CRAFT-ACCEPT-BULWARK and PLAN-NEXT OPEN. Completed execution
+history moved to its existing delivery-history file so the current contract
+retains concise scope and proof links. Commit/push/cleanup stays within this
+same19:16:35deadline; no task worktree or scratch was created for this definition.
 
 <a id="bulwark-ordinary-gunner-member"></a>
 
@@ -981,7 +1064,9 @@ From the first accepted power request allow at most169 observed
 physics frames (the preselected ceil(2.75s×60)+4 conservative observation ceiling).
 Actual solo weapon demand calls `_wake_engine_for_automatic_demand(false)`,
 which sets ONLINE immediately; do not require STARTING or insert a spool wait.
-The authored2.75s is pilot startup, not this crew-power transition. First hit
+The authored2.75s belongs to the legacy timed-start seam; ordinary pilot
+thrust also bypasses it through automatic demand. Neither ordinary input path
+requires STARTING or an inserted spool wait. First hit
 remains within the existing3s post-ONLINE window. No pilot shots,
 third-party damage or manually invoked demand. Release Fire≥12frames, E stand,
 physical supported reseat/fresh gunner generation, stand again; reverse the same
@@ -1799,11 +1884,13 @@ none supplies a new whole-baseline final-candidate PASS by reference alone.
 Source1da60627f. Original Phase7 playbook5/6 requires initial Jovian pilot-seat
 contention and a three-process seat/berth harness. Reuse accepted Halyard moving
 chair transfer99c9fc1af and Jovian retired-stream refusal in their existing scopes;
-neither proves initial pilot contention. These two missing callers add no
-winner-order permutations or all-craft/shared-berth journey. Definition starts
+neither proves initial pilot contention. These two bounded capabilities add no
+winner-order permutations or all-craft/shared-berth journey. Original definition started
 2026-10-27 16:10:58UTC;20minutes through16:30:58UTC includes disjoint source
 reviews, docs/checks/commit/push/cleanup. Root owns this file; no engine/runtime
-edit, branch/worktree or parked retry. Both goals below are **unimplemented**.
+edit, branch/worktree or parked retry was selected by that definition. Current
+status: ordinary initial pilot race remains unimplemented; landing-target
+transport fixture is ACCEPTED50cb617bd in the source-only scope recorded below.
 
 **Initial Jovian pilot race, ordinary inputs and winner-relative continuation.**
 Own the existing [boarding](../tests/network/jovian_network_two_client_boarding_test.gd),
@@ -1856,82 +1943,13 @@ barrier8, forward10/brake10/convergence5/exit10 and all original return bounds.
 A missed readiness/race, duplicate owner, changed loser berth, missing refusal,
 wrong selected actor or missing original journey endpoint fails; no forced winner.
 
-**Selected landing-target transport capability2026-10-27 18:46:59UTC.**
-One high implementation agent owns the same two authority harness files; root
-owns exact local detached-landing +three-process suites,docs/integration/cleanup;
-one independent reviewer checks early stage barrier,actual sends/results,
-winner-relative lease/generation/sequence continuation and unchanged clocks.
-Reuse the accepted5c5868645 child exit/diagnostic guards and five movement RPC
-cases; no second status layer,production protocol change,physical docking claim
-or ordinary Jovian replay. Gate both clients before their existing loops,not
-merely a delayed observer after the original stage has already advanced.
-
-Clean base91bf96a855628173dbc315023c389434d1fc8691; owned root
-`/srv/mudds-work/landing-target-race-20261027`,one task worktree/branch,private
-0700 HOME/XDG/tmp and external raw matrix/peer records. Pinned4.7.1Godot actual
-SHA256`32f8d7596c4b41185512b1c49d69f2da3be018fd784a53e349fa92a98a97bcde`
-and exact existing scopes/UDP29140 availability are checked before execution.
-Every import/coordinator/peer runs headless/Dummy. Retain24s inner/300s suite;
-local matrix runs only detached landing authority and the changed three-process
-harness (which includes the five accepted command cases as direct regression).
-No unchanged240s moving-body sweep or hosted CI is selected.
-
-Estimate45min all-in,hard19:31:59UTC,execution cutoff19:21:59/10min closure.
-Includes source/review/import,the actual scoped matrix,full raw review,
-integration/push,verified archive and exact-tip branch/worktree/process/scratch
-cleanup. First unexpected failure stops; one correction total only after cause,
-remaining time and independent cumulative-priority review. Failed correction/
-deadline parks the same attempt with source/raw preserved; no cap increase,
-forced winner,scene reset,changed entity assignment or replacement clock.
-No gameplay/graphics changed,so no equivalent game checkpoint export is required;
-final/native/ordinary pilot-seat contention and other baseline owners stay open.
-
-**First actual matrix stop; sole two-line correction selected.** Candidate
-420fe4069 runs both suites with actualOS0/zero diagnostics; detached landing28
-assertions pass,and all three peers exit0 after actual reserve/occupied/abort/
-retry/commit/retirement and preserved five command cases. Matrix nevertheless
-FAILS: the new source-declared NETWORK_LANDING_TARGET_RACE_OK is penultimate,
-followed by old generic OK summary; the catalog requires that token terminal.
-Exact initial source/raw/result is retained. Independent review confirms this
-sole reason and selects only swapping those two print statements,old summary
-first/new token last. No guard,packet,fixture,timing or expectation changes.
-Original18:46:59/45min clock retains≥37min closure allowance; correction now0.
-Any corrected validation failure parks the same attempt; no additional adjustment
-or cap increase. No initial first-pass matrix acceptance is claimed.
-
-**Accepted landing-target transport capability — 50cb617bd,2026-10-27.**
-The sole print-order correction passes the same two local suites: coordinator
-21.183s,exactly one terminal NETWORK_LANDING_TARGET_RACE_OK,actual exit0/zero
-diagnostics; detached landing28assertions/.786s/exit0/zero diagnostics. Source/
-cache manifests remain stable with isolated user data. All three actual engine
-exits0,complete outputs clean and owned PIDs absent. Independent review confirms
-the corrected run chose the opposite winner: fighter_b reserved,fighter_a was
-refused; exact winner abort then original loser sequence1 retry reserved and
-committed. Synchronous real-RPC packet/result and before/after assertions pass,
-with all five accepted movement cases and fixture retirement. Raw binary records
-retained; independent review checked their existence and source assertions,
-without claiming an independent binary decode.
-Initial marker-order failure remains failed and preserved; allowance0. No broader
-baseline,ordinary pilot-seat race,physical docking,native hardware or final
-package gate closes. Latest playable remainsf0d6796; no gameplay/graphics change.
-Raw matrix/peer/failed+corrected source retention belongs to the selected root
-above; cleanup/archive identity is recorded at closure below.
-
-**Landing capability closure2026-10-27 19:01UTC.** Accepted code/docs
-fast-forwarded into maina21ecf562 and actual remote tip verified. Task branch
-and owned worktree removed after exact-tip/reachability/ownership checks; all
-owned engine/wrapper/coordinator PIDs absent. Verified archive
-`/srv/mudds-work/landing-target-race-20261027/records.tar.gz` retains111regular
-files/5537219bytes,SHA256
-`38dd2189cf5a7eed416fb6e04c9782af709efae6f74676bb43a887f890f06f3a`,
-all original raw files and private-profile state matching its manifest,plus a
-verified incremental source bundle retaining both candidates against91bf96a85.
-Only archive+closeout.json remain in the owned root; derived import cache removed
-with worktree after stable-cache proof. Cleanup reached14.61min of original45min
-allocation; final documentation/push remains charged to the same19:31:59deadline.
-A read-only closeout helper initially demanded exact equality for the detached
-suite's descriptive terminal (which appends28assertions); corrected prefix read
-matches the catalog. No source adjustment or engine rerun followed that helper.
+**Landing-target transport fixture ACCEPTED50cb617bd.** Two actual clients
+contend; either winner reserves,loser is refused; exact winner abort lets original
+loser retry sequence1 and commit. Same two local suites pass28assertions with
+three actual peer exits0/zero diagnostics. Physical docking and ordinary initial
+pilot-seat race remain open. [Failed/corrected runs,review,budget and verified
+branch/archive cleanup](history/ROADMAP_DELIVERIES.md#landing-target-transport-accepted-20261027)
+retain the full attempt; no unchanged replay is selected.
 
 **Landing-target race over actual ENet; fixture-level admission.** Own only
 existing [authority peer](../tests/network/network_authority_peer.gd#L95) and
@@ -3849,7 +3867,7 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | CRAFT-ACCEPT-JOVIAN | Jovian full solo craft loop | 7,10,11 | Container | [Integrated ordinary timing](#craft-integrated-journey-budget):900s/outer960s; existing member limits preserved. WEAPON-JOVIAN PARKED after one authorized caller correction:13Gantrygoals/90seat and first actual8.22285m/free-lease departure pass; frame2210 moves1.753796m above original1.603333m bound. No clearance waypoint/shot/home/reuse/UIOS0. Driverc148/game7af source pins differ; failed source stays unmerged. Motion owner/cause unknown; no next correction or retry selected. Original23:40→01:10UTC/90min cumulative clock retained. [Frozen contract and both attempts](history/ROADMAP_DELIVERIES.md#jovian-cannon-departure-parked-and-linux-archive-modes-fixed-20261027). Separate engineer journey remains parked. Ordinary solo spawn→engineer repair→hub attempt PARKED/NOT_ACCEPTED2026-10-25 after2actual trials. Corrected1530b4fc8 reaches17outbound physical goals/chair, acceptedportrepair/integrityimprovement/6→5/437ms/HUD5, then fails stand-retirement aggregate. Candidate incorrectly requires empty released authority still attached; production detaches it. Actual post-stand members unlogged. Fullreverse/hub/normalUI0NOT_RUN; no third under this card. Both sources/raw/STOP archived, candidate excluded from main/branch removed. Future selection needs predicate bound to existing detach contract+preassertmember receipts, independent source/cumulative review, originalfullroute/limits retained. Full craft remains a qualification container; other ordered role/function/damage/recovery/switch/Main route bindings still required. [Exact stops](history/ROADMAP_DELIVERIES.md#jovian-ordinary-engineer-two-stops-20261025). | Jovian completion container for the listed physical steps plus the complete craft contract. The next definition ends with proof/route/limit for every step or the exact missing artifact/decision and owner. A future bounded implementation changes one demonstrated missing behavior; this row closes only when the whole required journey is accepted. |
 | CRAFT-ACCEPT-ZENITH | Zenith full solo craft loop | 7,10,11 | Container | [Integrated ordinary timing](#craft-integrated-journey-budget):900s/outer960s; existing member limits preserved. OPEN container; [finite11member binding](#zenith-finite-acceptance-binding); [damage source fields](#arrow-zenith-damage-contact-contract), ordinary route unbound. Retain DONE ordinary pilot/real28hit/two strict homes/fresh reuse/normalOS0 Game4bf5e889/Driver4870595fa in the [accepted scope](history/ROADMAP_DELIVERIES.md#zenith-pilot-hit-home-reuse-accepted-20261026). Settled retained-Main DONEa70f9397a in its [staged scope](history/ROADMAP_DELIVERIES.md#zenith-settled-main-reentry-qualified-20261026). Full physical cross-craft handback DONE Game499e681/Driver8ba86d98e:162.917s/42walkinggoals/mandatoryactualGuided/strictTorrenthome/OFFLINE/exit/sameZenithfresh90neutral/normalHUDOS0/bothrealcleanmarkers/diag0. Stream5→retired7→reclaim9; later10afterreceipt. [Exact proof/fourfailedtrials/limits](history/ROADMAP_DELIVERIES.md#zenith-torrent-handback-accepted-20261026). Focused physical stair repair1f7dccb remains accepted in its [recorded scope](history/ROADMAP_DELIVERIES.md#aft-stair-base-supported-contact-accepted-20261026). Remaining original component consequences/passive repair, loss/regeneration and current art/device/final bindings stay OPEN/BLOCKED definition as listed above; no missing handback or Main selector and no unchanged replay. Full craft is not DONE. | All members of the [finite binding](#zenith-finite-acceptance-binding) satisfy the [complete craft journey](#proof-craft) on the bound candidate, with original limits and retained failures. No extra crew, invented historical handling, craft×case matrix or unchanged parked replay. |
 | CRAFT-ACCEPT-HALYARD | Halyard full solo craft loop | 7,10,11 | Container | [Integrated ordinary timing](#craft-integrated-journey-budget):900s/outer960s; existing member limits preserved. Qualification container; BLOCKED definition (Codex): exact ordered role/function, nonfatal/failed-component/repair, fatal-recovery, switch partner/handback and retained-Main members; ordinary driver/route/start-stop/original limits and accepted proof reused per member. No craft×case matrix. | [Complete craft journey](#proof-craft), plus this craft-specific result: Qualification container: pilot plus physical passenger/gunner/engineer/Loadmaster claim/action/stand/reseat; retain the accepted52damage gunner case. |
-| CRAFT-ACCEPT-BULWARK | Bulwark full solo craft loop | 7,10,11 | Container | [Integrated ordinary timing](#craft-integrated-journey-budget):900s/outer960s; existing member limits preserved. Source acceptance binding recorded below; full journey BLOCKED definition (Codex) on the listed exact inputs/routes/candidate/limits: ordinary Dock03 access/pilot flight, OFFLINE cabin stand→seated weapon-power wake→gunner hit/release/reseat→pilot reclaim, concurrent moving-crew ownership handback, five-component consequences/passive repair, loss/regeneration, strict home/exit/reuse, Torrent handback and retained Main. Exact missing native inputs/routes/candidate/receipts/deadlines are assigned per member; f676c5016 reused only for its recorded host+one-client/staged scope. No new run, whole-loop pass or extra physical role. Selected member: [ordinary solo gunner journey](../ROADMAP.md#execution-now) — physical Dock03 admission/actual outward drift/carried aisle/real22-hit/fresh gunner reseat/pilot reclaim/strict home/normalOS0 and real clean files. PARKED after six failed ordinary trials; latest96197bf failed the outward15s bound after101.287s, and its final wrapper source guard also failed after a concurrent documentation edit. No accepted gunner journey or new checkpoint. Reopening requires the demonstrated outward-failure cause, bounded correction, independent cumulative-priority decision and clean frozen source; see the selected card for cumulative cost and retained source/raw. Separately, the reproduced carried-floor runtime repair is accepted in checkpoint30534f5: [actual captured regression and package proof](history/ROADMAP_DELIVERIES.md#carried-cabin-floor-contact-accepted-20261026); this does not close the parked journey. All remaining full-craft bindings stay open. [Empty-magazine source repair and ordinary-member stop](#bulwark-ordinary-gunner-member): combined driver1b5649cc2 PARKED at CLI-order regression, no ordinary run/export accepted. Isolated3file runtime repair1d095ad93/checkpoint1d095ad is accepted:13 component/303 existing Python/3627 privacy, paired exports/three strict startups/full1529-entry/nine-predicate audit and independent review. Component ammo is staged; full ordinary gunner remains PARKED, no direct physical-fire qualification inferred. No full gunner or craft PASS inferred. | [Bulwark finite acceptance binding](#bulwark-finite-acceptance-binding) preserves every [complete craft journey](#proof-craft) member and the physical gunner real-damage/release/reseat requirement. |
+| CRAFT-ACCEPT-BULWARK | Bulwark full solo craft loop | 7,10,11 | Container | [Integrated ordinary timing](#craft-integrated-journey-budget):900s/outer960s; existing member limits preserved. Source acceptance binding recorded below; [Dock03 access/launch fields](#bulwark-access-launch-definition) are now source-bound,with ordinary caller/physical passage still open behind parked conditions. Full journey BLOCKED definition (Codex) on remaining inputs/routes/candidate/limits: pilot handling/combat, OFFLINE cabin stand→seated weapon-power wake→gunner hit/release/reseat→pilot reclaim, concurrent moving-crew ownership handback, five-component consequences/passive repair, loss/regeneration, strict home/exit/reuse, Torrent handback and retained Main. Exact missing native inputs/routes/candidate/receipts/deadlines are assigned per member; f676c5016 reused only for its recorded host+one-client/staged scope. No new run, whole-loop pass or extra physical role. Selected member: [ordinary solo gunner journey](#bulwark-ordinary-gunner-member) — physical Dock03 admission/actual outward drift/carried aisle/real22-hit/fresh gunner reseat/pilot reclaim/strict home/normalOS0 and real clean files. PARKED after six failed ordinary trials; latest96197bf failed the outward15s bound after101.287s, and its final wrapper source guard also failed after a concurrent documentation edit. No accepted gunner journey or new checkpoint. Reopening requires the demonstrated outward-failure cause, bounded correction, independent cumulative-priority decision and clean frozen source; see the selected card for cumulative cost and retained source/raw. Separately, the reproduced carried-floor runtime repair is accepted in checkpoint30534f5: [actual captured regression and package proof](history/ROADMAP_DELIVERIES.md#carried-cabin-floor-contact-accepted-20261026); this does not close the parked journey. All remaining full-craft bindings stay open. [Empty-magazine source repair and ordinary-member stop](#bulwark-ordinary-gunner-member): combined driver1b5649cc2 PARKED at CLI-order regression, no ordinary run/export accepted. Isolated3file runtime repair1d095ad93/checkpoint1d095ad is accepted:13 component/303 existing Python/3627 privacy, paired exports/three strict startups/full1529-entry/nine-predicate audit and independent review. Component ammo is staged; full ordinary gunner remains PARKED, no direct physical-fire qualification inferred. No full gunner or craft PASS inferred. | [Bulwark finite acceptance binding](#bulwark-finite-acceptance-binding) preserves every [complete craft journey](#proof-craft) member and the physical gunner real-damage/release/reseat requirement. |
 | CRAFT-ACCEPT-CINDER-LIGHT | Cinder Light Interceptor full solo craft loop | 7,10,11 | Container | [Engine impairment/repair source contract](#light-engine-damage-repair-contract) binds legal Heavy activation,actual aft-face target,three-pellet14damage/27-of-55 integrity,live mobility/beacon/passive repair and bounded stop; ordinary control/return caller remains missing,no run selected. [Integrated ordinary timing](#craft-integrated-journey-budget):900s/outer960s; existing member limits preserved. WEAPON-CINDER-LIGHT member PARKED: first full run canonical-race comparison fails after15walk/90seat/12mlift; one exact-codec correction then fails its component float-pair assertion before export/second native. No firing/home/reuse/UIOS0. [Both stops/full retained contract](#cinder-light-two-pulse-weapon-and-returnreuse--frozen2026-10-27). Six candidate files remain unmerged/verified archived; owned branch/worktree/process/scratch cleaned. No third attempt or further correction selected; exact fixture values/representation proof remains missing. Qualification container; BLOCKED definition (Codex): exact ordered role/function, nonfatal/failed-component/repair, fatal-recovery, switch partner/handback and retained-Main members; ordinary driver/route/start-stop/original limits and accepted proof reused per member. No craft×case matrix. | [Complete craft journey](#proof-craft), plus this craft-specific result: Qualification container: pilot specialist handling, actual repeater cadence/cooldown and component consequences. |
 | CRAFT-ACCEPT-CINDER-HAULER | Cinder Cargo Hauler full solo craft loop | 7,10,11 | Container | [Integrated ordinary timing](#craft-integrated-journey-budget):900s/outer960s; existing member limits preserved. Conserved cargo delivery DONE99f2717ee; full craft remains GATED on remaining actual weapon/role/damage/recovery/reuse/cross-craft/Main/art and final-source acceptance. One delivery does not close this journey. Qualification container; BLOCKED definition (Codex): exact ordered role/function, nonfatal/failed-component/repair, fatal-recovery, switch partner/handback and retained-Main members; ordinary driver/route/start-stop/original limits and accepted proof reused per member. No craft×case matrix. | [Complete craft journey](#proof-craft), plus this craft-specific result: Qualification container: pilot/ramp, conserved shared-stock delivery, travelling mass-driver impact and physical Loadmaster/Navigator actions. |
 | CRAFT-ACCEPT-CINDER-BOMBER | Cinder Long-Range Bomber full solo craft loop | 7,10,11 | Container | [Integrated ordinary timing](#craft-integrated-journey-budget):900s/outer960s; existing member limits preserved. Qualification container; BLOCKED definition (Codex): exact ordered role/function, nonfatal/failed-component/repair, fatal-recovery, switch partner/handback and retained-Main members; ordinary driver/route/start-stop/original limits and accepted proof reused per member. No craft×case matrix. | [Complete craft journey](#proof-craft), plus this craft-specific result: Qualification container: pilot four-round payload hit/miss/depletion, refusal while empty and refill4 on physical pilot retake; extra crew waits on BOMBER-ROLE-DECISION. |
@@ -5051,7 +5069,7 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | HALYARD-NETWORK-SEAT-REJECTION | Current remote occupied-chair refusal shows one accurate request-bound toast and permits fresh retry | 16,26 | Qualification | DONEbcd268c75/checkpointbcd268c. Actual host delegated seat_occupied verdict retains body/stream/request/seat/epoch and original binding lifetime; current requester-only passenger snapshot yields one accurate toast, supported controls, fresh refusal and release/retry. Full original host/client route107 checks/107.305s/bothactualOS0/cleanlogs, focused101/36/66/6/40/privacy PASS; expected RED/nullnumeric strictfailure/parser failure retained, exact source reuse verified. Fresh paired exports/three strict startups/1527-entry package audit/review pass; four commits merged/pushed, owned scratch/results cleanup complete. Full two-client moving seat race/transfer, other reasons/roles, native/fullbaseline remain open. [Delivery](history/ROADMAP_DELIVERIES.md#halyard-occupied-chair-feedback--accepted--2026-10-24). | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 
 
-| SERVER-BASELINE | Dedicated-server/two-client ordinary flight/recovery acceptance | 26 | Container | NON-EXECUTABLE [finite baseline contract](#server-baseline-contract). Complete ordinary Jovian happy path already acceptedbc7f9f9c4; opt-in true-headless authority accepted e899cc9e0/7362checks/all3OS0/clean; Halyard board/moving/stop, pilot/passenger loss, sleep, chair race, late join, reconnect and destruction receipts retain exact scopes. No new happy-path caller or unchanged repeat is needed. [Invalid-command RPC](#server-command-proof-binding) caller ACCEPTED5c5868645: actual five client RPC cases,exact refusal invariants,three actual OS0/clean and4focused suites313assertions. [Fresh-Main re-entry](#server-main-reentry-binding) caller remains OPEN. [Boarding/landing-loss goals](#server-disconnect-cuts) now bind exact cuts and usable continuations; callers remain OPEN. [Initial contention goals](#server-initial-contention) now bind literal actors/actions/results/caps; callers remain OPEN. [Impaired baseline capability](MOVING_INTERIOR_LATENCY.md#impaired-independent-baseline-capability) now binds one whole Jovian300/360s route, private topology/launch/endpoint and actual profile/budget observations. Missing callers remain Codex implementation; exact shared profile choices stay with the existing NET-ENDURANCE-DEFINE owner. | [Fixed baseline membership](#server-baseline-contract): original authority/two-client ordinary flight/dock/physical exit/reuse plus each explicitly named lifecycle/adverse terminal, accepted receipts reused once and final candidate qualified. Capacity/endurance are separate gates; source slices do not establish the whole parent. |
+| SERVER-BASELINE | Dedicated-server/two-client ordinary flight/recovery acceptance | 26 | Container | NON-EXECUTABLE [finite baseline contract](#server-baseline-contract). Complete ordinary Jovian happy path already acceptedbc7f9f9c4; opt-in true-headless authority accepted e899cc9e0/7362checks/all3OS0/clean; Halyard board/moving/stop, pilot/passenger loss, sleep, chair race, late join, reconnect and destruction receipts retain exact scopes. No new happy-path caller or unchanged repeat is needed. [Invalid-command RPC](#server-command-proof-binding) caller ACCEPTED5c5868645: actual five client RPC cases,exact refusal invariants,three actual OS0/clean and4focused suites313assertions. [Fresh-Main re-entry](#server-main-reentry-binding) caller remains OPEN. [Boarding/landing-loss goals](#server-disconnect-cuts) now bind exact cuts and usable continuations; callers remain OPEN. [Initial contention](#server-initial-contention): landing-target real-client fixture ACCEPTED50cb617bd,2focused suites28assertions/three actual OS0/clean; ordinary initial pilot-seat race caller remains OPEN. [Impaired baseline capability](MOVING_INTERIOR_LATENCY.md#impaired-independent-baseline-capability) now binds one whole Jovian300/360s route, private topology/launch/endpoint and actual profile/budget observations. Missing callers remain Codex implementation; exact shared profile choices stay with the existing NET-ENDURANCE-DEFINE owner. | [Fixed baseline membership](#server-baseline-contract): original authority/two-client ordinary flight/dock/physical exit/reuse plus each explicitly named lifecycle/adverse terminal, accepted receipts reused once and final candidate qualified. Capacity/endurance are separate gates; source slices do not establish the whole parent. |
 | SERVER-BASELINE-SEAT-RACE | Original two moving occupants contend for one chair, transfer it, restore roles and fly again | 16,26 | Qualification | DONE99c9fc1af. Full original BOARD+seven MOVING; ordinary brake/accepted OFFLINE/helm release, supported contenders, same ready/go real Interact, one claimed winner/one seat_occupied loser and exact once-only toast. Ordinary winner stand/clear, original loser same-chair claim7→10/gen1, original pilot ownership1→3/claim2→5 and passengerclaim12, fresh consumed roles/renewed host>5m flight, complete handshake/all3actualOS0. Full451checks/170.190s/cleanlogs; independent source/raw review GO. Three caller failures retained; readiness/path/JSON corrections preserve all caps/goals/predicates. Four commits merged/pushed,66processidentities absent/811scratch entries verifiedremoved/resultsconsolidated; no taskbranch/worktree. Runtime unchanged/checkpointbcd268c retained; sourceLinux/privateXvfb only. Fullbaseline/endurance/exported/native/device/human and broader parents remain open. [Delivery](history/ROADMAP_DELIVERIES.md#server-baseline-seat-race--accepted--2026-10-24). | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | SERVER-BASELINE-LATE-JOIN | Join after real departure, consume airborne state, board after actual docking and fly as crew | 26 | Qualification | DONE437fe903d. A ordinary authored pilotboarding/5.019m actualdeparture before Bprocess starts(+.158s); B HUDjoin/freshairborne craft/owner/pilotbody while unclaimed stationPlayer. Sole sampledlanding/strict actualhomeberth+lease+committeddock consumed byboth; originalpilotclaim2/gen1/bodyframe1/ownership1 preserved. B full17-waypoint authored walk/hatch/chair, fulltwo-seatBOARD+sevenMOVING/completehandshake/3actualOS0.303checks/225.667s/cleanlogs; independent source/rawGO. Two earlier callerfailures retained: soleowner noecho publication assumption and absentlandingtarget_id. Existingsolepilothelper beforeB/strictbroadcast after, realcanonicalentity/gen/landed/revision/tick/globalposition plusauthoredberth replace impossiblewirefield; no runtime/endpoint/capchange. Three commits merged/pushed;47ownedprocessidentitiesabsent/380scratch entriesverifiedremoved/resultsconsolidated; no taskbranch/worktree. SourceLinux/privateXvfb only, unchangedcheckpointbcd268c. Fullbaseline/endurance/othercontexts/exported/native/device/human remainopen. [Delivery](history/ROADMAP_DELIVERIES.md#server-baseline-late-join--accepted--2026-10-24). | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | SERVER-BASELINE-PASSENGER-RECONNECT | Rejoined Halyard passenger physically obtains a fresh cabin berth/chair and flies again | 16,26 | Qualification | DONE109aca01f, Linux-source ordinary-input scope. Full original BOARD+7MOVING/actual native B loss/retirement/solo walk/same Player+adapter normal browser Manual Join/pilot actual return+strict original home dock/physical fresh berth+walk+separate chair/renewed real flight/3OS0 passes397 checks in171.746850s, zero diagnostics. Return7.29249s/dock6.23802s within original20/24; all original global/local caps unchanged. First171.149352s functional397 run rejected for3crew-role send errors; native-recipient guards repair exact engineer/gunner/passenger send paths,39real-ENet regression/fresh Windows checkpoint109aca0/strict startup1527inventory/review GO. Earlier compile failures and d2 unaccepted source remain archived; no clock reset. Package/native-device/endurance/capacity/final scope separate, no whole-parent closure. [Full result](history/ROADMAP_DELIVERIES.md#ordinary-passenger-reconnect-accepted-20261025). | Original BOARD+7MOVING→actual B transport loss/retirement/usable solo→same Player/adapter normal Manual Join→A actual input return/strict dock→physical standing-berth request/later chair→renewed flight/three OS0. No automatic old grant restore. |
