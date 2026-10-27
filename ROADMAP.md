@@ -174,23 +174,22 @@ finishes14.696minutes from05:20:33UTC, plus final notes/push on the same clock.
 Owned branch/worktree/scratch are removed; one small verified archive remains.
 No game/engine/public checkpoint change; final release/player/native gates stay open.
 
-**Active — COMFORT-CAPTIONS normal Save/Reset/cold caller.**
-One existing caller extension is [frozen](docs/ROADMAP_BACKLOG.md#caption-episodes--ingress-and-reset-boundary)
-on05:38:34–07:08:34UTC, including the source binding already spent. Three normal
-processes use actual Torrent walking/boarding/canopy caption and on-foot exit,
-normal Settings Reset and durable cold OFF; default flash caller regression and
-one silent private package are required. No full-family or device pass implied.
-First parse stops before export at two inline-lambda continuation errors; one
-syntax-only correction is selected under the same clock.301Python/import/privacy
-checks pass in their recorded scope; no package/gameplay result yet.
+**PARKED — COMFORT-CAPTIONS normal Save/Reset/cold caller.**
+The one syntax correction preserves its predicates/timers, then Godot rejects
+three inferred walker types. Source typing cause is known; no export/startup or
+actual caption/default-flash group ran.301Python/import/privacy source checks do
+not prove the caller. [Both stops, exact source, reopening condition and cleanup](docs/ROADMAP_BACKLOG.md#caption-episodes--ingress-and-reset-boundary).
+Candidate5cea9ac53 and its predecessor are archived unmerged; owned branch/
+worktree/profile/cache/scratch are removed. Cleanup40.994minutes from original
+05:38:34, plus final notes/push. Current main/default flash and playable7876ebc
+remain unchanged. No further repair or run is selected under this closed attempt.
 
-**PLAN-NEXT remains OPEN; one implementation is active.**
-Definitions still need their remaining source-resolvable fields; accepted results
-stay closed. [Remaining definition gaps](docs/ROADMAP_BACKLOG.md#remaining-contract-gaps--plan-next)
-name the unfinished routes, view/observer bindings and owner inputs. The caption
-normal Save/Reset/cold caller is a named missing capability; station player-eye
-camera/image-readback still needs actual execution evidence. No inventory survey
-or parked retry is selected by this closure.
+**PLAN-NEXT remains OPEN; next implementation is unselected.**
+Remaining routes/view/observer bindings and owner inputs stay in the
+[existing definition list](docs/ROADMAP_BACKLOG.md#remaining-contract-gaps--plan-next).
+The caption caller remains unfinished, with a precise typing correction and
+complete package/runtime proof still owed. No source survey or automatic retry
+is selected by closure; original results, costs and full scope are retained.
 
 For each listed gap, supply the finite answer in its existing row/contract:
 the named members, action/trigger, expected endpoint, preserved state, proof
