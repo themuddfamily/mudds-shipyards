@@ -839,6 +839,73 @@ survey. Other audio producers, ordinary transition/restart/Reset, rendered/devic
 and full COMFORT-CAPTIONS acceptance retain their existing open scope. No runtime
 change, engine run, new validator, build or extra release gate is introduced.
 
+#### Caption episodes — ingress and Reset boundary
+
+COMFORT-CAPTIONS binding2026-10-27; no producer map or component pass reopened.
+Use the existing craft/activity/shared selectors in the
+[finite audio episode roster](COMPLETION_SCOPE.md#real-output-mix-roster--audio-mix-define)
+for applicable ordinary observations. That roster does not require captions
+for every sound or create a palette×craft×activity matrix. Current ingresses:
+
+| Actual production ingress | Literal endpoint / boundary |
+| --- | --- |
+| GameFlow `_on_audio_cue_started`, `_on_combat_audio_cue_started` → HUD `caption_cue` | Existing `GameHUD.CAPTION_CUES` fixes bracketed text/category/speaker/priority for the actual ID; do not replace it with semantic text. |
+| GameFlow `_on_semantic_audio_cue_emitted` → `present_semantic_audio_cue` | `SemanticAudioCuePresenter.REGISTERED_CUES` fixes literal text/default severity; intensity≥0.8 resolves HIGH, otherwise its authored resolution applies. Severity marker ○/△/! and display-priority label are distinct: priority≥80 HIGH,≥60 MED,else LOW. HUD defaults severity priorities45/70/90 unless supplied. |
+| HeroComponentHUDBinding passive-berth repair and HUD Convoy transition | Real repair start/completion or Convoy critical/formation-secured/lost transition supplies the cue. Convoy carries source `Cinder convoy`, intensity1.0, priority95 and current transition identity; a direct ledger setter is component proof only. |
+| Board/crew/flight/surface/activity normal routes | Observe actual applicable caption IDs at existing ordinary actions and their HUD/service result; keep that route's original actor/limit/return contract. Missing per-ID normal input/observer remains Codex work. Reuse accepted Loadmaster/approach/engine/Ember components without redoing their maps. |
+
+**Exact lifetime/ON/OFF semantics.** Each admitted request gets a fresh
+`caption:%08d`; once-only is the emitting producer's transition/receipt fence,
+not a ban on later legitimate repeats of that cue ID. Active captions last3.4
+caller-physics seconds under the existing FIFO/priority/nonpreemptive policy.
+Pause freezes that physics clock. Settings preview uses a separate four-second
+UI timer and does not enqueue or prove ordinary service output.
+
+OFF rejects fresh requests before enqueue and hides existing accepted content.
+Gameplay physics still ages accepted content: expired cues cannot reappear,
+while a still-live active/queued cue may legitimately show again on ON. Do not
+write a blanket “ON must never show existing content” assertion. Retained Main
+preserves service identity/remaining physics time; ordinary transition observers
+for Pause/camera/interior/exterior/reentry remain to be bound in their existing
+journeys, without inventing another transition count.
+
+**Concrete missing shared capability — normal caption Save/Reset/cold caller.**
+The existing embedded `runtime_settings_restart_probe.gd` and
+`run_package_probes.sh --settings-restart` exercise reduced flash only. They
+cannot satisfy captions by renaming that result. Extend those existing owners
+and the native input observer, without another validator or persistence family:
+
+1. Normal Boot, actual `Audio cue captions` toggle/Save and normal HUD Quit:
+   persist `captions_enabled=true` through production controls.
+2. Distinct normal process/profile reuse: actual toggle/runtime/HUD are ON.
+   Ordinary supported boarding opens the real canopy: AudioDirector
+   `play_canopy(true)` emits semantic source `audio_director`, ID
+   `boarding_confirmed`, intensity1.0. Require that event's actual admitted
+   caption `! Boarding confirmed`, severity HIGH/priority90, through the single
+   HUD/service; its concurrent legacy canopy cue is a different legitimate event.
+   A Settings preview or direct cue method call cannot supply this proof.
+   Use normal Reset and confirmation, Save and HUD Quit; authored caption default
+   is false. Reset's other authored setting changes are intentional, not corruption.
+3. Third distinct normal process/same durable data: toggle/runtime/HUD remain
+   false; another real boarding/canopy event is observed at the producer, but no
+   fresh caption request/view is admitted while OFF. Normal HUD Quit exits0.
+
+For all three stages, compare actual protected data/settings at their proper
+pre/post-Save/Reset boundaries, require actual OS0/clean markers and release/reap
+all owned input/game/display processes. Original SETTINGS-RETURN/gamepad-return
+and full ordinary episode/device/rendered gates stay separate; their exact
+historical artifact blocker is unchanged. Before selecting this capability, freeze its files/candidate/profile, normal
+boarding inputs, caller caps and exact private export/startup/three-process
+acceptance commands. Run those checks only in the separately selected
+implementation; the missing caller cannot pass before it is built.
+No runtime/engine/image/device check was run for this binding.
+
+The remaining overflow input remains exactly the existing owner choice:
+pagination, scrolling or wider/recomposed HUD, including timing/input/full-text
+and reservation behaviour. It does not block this settled boolean Reset contract.
+`play_target_destroyed`, generic `caption_activity_cue` and `show_caption` fixture
+or API presence alone is not a demonstrated ordinary caller or new requirement.
+
 <a id="proof-release"></a>
 ### Exact final release proof
 
@@ -902,16 +969,75 @@ Before execution the selected card binds actual frozen commit, pinned engine/
 templates, clean checkout, files/profile/results and independent abort. Startups
 require actual completion, not fixed-frame quits. No command ran for this edit.
 
-**Exact remaining Codex binding:** the retained working audit/checkpoint helpers
-are in `/srv/mudds-work/legacy-future-cfg-20261026/records.tar.gz`, members
+**Concrete missing release capability — reusable paired-artifact audit.**
+The retained helpers are in
+`/srv/mudds-work/legacy-future-cfg-20261026/records.tar.gz`, members
 `helpers/audit.py`, `helpers/checkpoint.py` and
-`configs/windows-payload-startup.json` ([accepted package record](history/ROADMAP_DELIVERIES.md#legacy-future-cfg-preservation-accepted-20261026)).
-They contain old literal paths/count1529/prior2456552/expected changed entries.
-Supply the candidate-bound invocation and complete source-expected entry map,
-ZIP/tar members/bytes/modes and PE checks in this existing contract before
-selection; do not run those old literals as a final generic audit or create a
-new validator family. That command binding remains unfinished Codex work, not an
-external artifact blocker. Final SHA is recorded only when actual bytes exist.
+`configs/windows-payload-startup.json` ([accepted record](history/ROADMAP_DELIVERIES.md#legacy-future-cfg-preservation-accepted-20261026)).
+Root read their actual source2026-10-27. They are task-specific: audit hardcodes
+1529/prior2456552/no added entries/expected legacy-script changes; checkpoint
+requires that repair's RED/sequence results and writes its particular notes.
+Changing paths alone cannot make these final-release commands. This is a missing
+executable packaging capability, not an unavailable historical artifact or a
+reason to survey those helpers again.
+
+Keep this member inside PACKAGE-FINAL. Extend the existing
+[package inventory tool](../tools/release/package_inventory.py) and its
+[existing test suite](../tools/release/test_package_inventory.py), reusing its
+PCK parser and `release_candidate.inspect_pe`; do not create another validator,
+schema/version family or legacy-specific audit copy. Required new mode, **not
+implemented or selected for execution by this definition**:
+
+```text
+python3 tools/release/package_inventory.py EXE --compare-linux ELF --linux-archive TAR --linux-export-result EXPORT_RESULT --windows-template TEMPLATE --windows-template-sha256 TEMPLATE_SHA --source-repository REPOSITORY --source-commit SOURCE --expected-inventory EXPECTED_INVENTORY --windows-zip ZIP --windows-notes NOTES -o AUDIT_RESULT
+```
+
+The original positional inventory command/output remains compatible. Pair-mode
+inputs name actual paths and the exact compiled source; reject partial options.
+Require SOURCE to exist in REPOSITORY. Read its commit epoch and exact
+`assets/keth-icon.png`, `tools/release/install_linux_desktop.py` and
+`tools/release/export_linux_candidate.sh` from Git objects at SOURCE, independent
+of the newer audit-driver HEAD. Construct expected desktop/shell helper bytes
+from that source exporter's literal templates and declared release values;
+reject unsupported template expressions rather than use current-checkout files
+or launch the exporter/engine. Record the declared template hash separately
+from the observed hash and require equality before comparing PE code.
+The expected inventory uses the existing entry format and comes from an explicitly
+approved frozen-candidate manifest, not a count derived from whichever live pair
+is being tested. Audit every `(path,size,sha256)` entry, not a sampled subset.
+
+| Required PASS predicate | Tamper/failure predicate |
+| --- | --- |
+| Windows/Linux complete inventories equal the approved expected map; parser bounds/digests/forbidden/raw-source checks retained | Missing/extra/changed entry, invalid PCK or missing/malformed expected manifest fails; expected-map approval/source binding belongs to the frozen input selection |
+| PE x86_64 metadata valid; complete PE `.text` matches the explicitly pinned stock template; ELF64 little-endian x86_64 | Wrong machine/header or modified template/game code fails |
+| Existing Linux export result has platform/source and exact ELF/tar size/SHA; source equals declared compiled commit | Wrong source/platform/size/SHA fails; newer audit-driver commit is separately recorded, not substituted for compiled source |
+| Tar has exactly its one named root/five regular payload files; ELF/desktop/shell/Python manager0755,icon0644; uid/gid0/source epoch; exact ELF/icon/manager and expected generated helper bytes | Duplicate/unsafe/link/extra/missing member, wrong required file mode/owner/epoch or changed payload fails; no new fixed root-directory mode is invented |
+| Windows ZIP has exactly EXE+notes, valid CRC and complete byte equality | Duplicate/extra/missing entry or changed EXE/notes fails |
+| All artifact/template/expected-input bytes/modes remain unchanged; result records actual source/input hashes and PASS/first failed predicate | Audit never repairs or rewrites an input; any failed predicate returns nonzero, with no PASS |
+
+Focused proof is the existing `python3 -m unittest tools.release.test_package_inventory`
+with behavior-specific valid-pair and tampered-artifact cases. Then use actual
+immutable checkpoint7876ebc8da434987700f128483d4e67098cd7319 EXE/ZIP/notes and
+ELF/tar/export-result under `builds/`, the pinned Windows template, and the
+verified archive's `results/exe-inventory.json` as the approved full-map fixture.
+The existing Windows template's measured SHA256 is
+`76269a403bb832599edeee4432a5b7a7e88c018eb5c9c798dfd8289359b0ec07`;
+freeze this reference and every other fixture hash before implementation/tests.
+Those artifact files were verified present05:14UTC; no audit or engine ran.
+Compare their complete hashes/modes before/after; do not create another playable
+build for this tool-only change or call the checkpoint a final release.
+
+This is one bounded production release-tool assignment: owned files are the
+existing tool/test only, with root updating these two roadmap documents.
+Estimate≤60minutes implementation/review,15minutes focused/actual-artifact checks,
+15minutes integration/push/owned cleanup; split before exceeding90minutes.
+Before editing, select a clean tool-source commit/worktree, record actual pinned
+input/output paths/hashes, start time/absolute hard stop and independent abort.
+Stop at the first unexpected failure; any correction retains that goal's cost
+and needs demonstrated cause/cumulative-priority review. No task branch or
+implementation process is started by this planning edit. Once delivered, the
+same mode qualifies the final frozen artifacts; final source/expected manifest
+binding is then an actual release input, not another code-design task.
 
 MATRIX-FINAL remains its single unfiltered source gate. Existing
 `release_candidate.py` consumes accepted matrix/probe/inventory inputs and writes
@@ -1058,7 +1184,40 @@ result; definitions, smaller cards and tests are not new gameplay deliverables.
 
 ### Remaining contract gaps — PLAN-NEXT
 
-Current definition selection2026-10-27,04:57–05:17UTC: PACKAGE-FINAL's
+Current definition selection2026-10-27,05:07–05:27UTC: resolve PACKAGE-FINAL's
+archived audit seam into one finite release-tool capability; fill only missing
+station literal/member fields in its existing13-subject table; bind caption
+request/expiry/ON/OFF and the missing normal Reset/cold caller. Codex owns the
+two roadmap documents; two read-only agents bind disjoint station/caption inputs.
+No new survey inventory, runtime/engine/capture/CI run or parked retry is selected.
+Estimate20minutes including source review/checks/commit/push/cleanup; hard
+stop05:27UTC. Retain all prior PLAN-NEXT results/costs, IDs and original scope;
+this slice does not reset the whole goal's budget. An unfilled source/caller/
+image field stays blocked; a missing executable tool is named implementation,
+not a historical-artifact excuse or a passing release gate.
+
+Terminal definition result05:20UTC: package audit is now an explicitly bounded
+missing release-tool capability with proposed CLI, fixed source/template trust
+inputs, tamper predicates and actual immutable7876 fixture proof; its implementation
+has not started. Station text/Zenith/service fields were filled in the existing
+13-subject table; actual camera/image/phase/readback fields remain blocked.
+Caption ingress/lifetime/ON/OFF semantics and a concrete normal three-process
+caption Save/Reset/cold endpoint are fixed; caller/observer implementation and
+remaining ordinary episode/view/device bindings remain open. Three read-only
+source reviews pass after correcting stale station clauses, anchor placement
+and compiled-source expectations. One auxiliary inline doc check first failed
+because it searched “no fixed root-directory mode” rather than the actual
+“no new fixed root-directory mode”; source inspection/review confirmed no
+contract defect. The corrected check passes in this same pass, with its first
+failure retained here; no runtime correction or fresh budget was created.
+All337 canonical IDs/names/parents/kinds/order, new local links/anchors and
+`git diff --check` pass. Approximately13minutes through review/checks; commit/
+push/cleanup remain inside05:27. No engine, actual pair audit, image, hardware,
+CI or gameplay run. No branch/worktree/scratch created. PLAN-NEXT and all
+product/phase gates remain open; no parked retry or production implementation
+is selected by this closure.
+
+Prior definition selection2026-10-27,04:57–05:17UTC: PACKAGE-FINAL's
 existing members/counts/commands, NET-SEATS-FINAL's exact shared-ledger and
 physical-case ownership, and COMFORT-COLOUR's remaining ordinary/rendered/device
 boundaries. Codex owns ROADMAP.md and this file; two read-only agents bind package
@@ -1122,7 +1281,7 @@ feature. Do not reopen completed surveys or create successor planning IDs.
 | Existing container IDs | Fixed boundary; exact remaining definition/input |
 | --- | --- |
 | WALK-FLEET | Exactly the nine existing craft's access/home-exit/reuse members under CRAFT-ACCEPT below. Bind each live berth/approach/clearance route and existing driver; reuse the craft receipt rather than add a Fleet loop. |
-| STATION-FINDINGS | Central, Aft, Habitat, Freight, Fleet, Annex, Observation, Salvage, VIP; tow, gantry, arm and patrol service views. Codex maps each to its existing capture or names the missing subject/state/camera/render/text/access/clearance fields. A reviewed view closes that view; retained parked captures require their recorded reopening cause. |
+| STATION-FINDINGS | Central, Aft, Habitat, Freight, Fleet, Annex, Observation, Salvage, VIP; tow, gantry, arm and patrol service views. Existing capture membership and literal text/Zenith berth/service contracts are fixed in the [station table](#station-presentation--finite-review-boundaries). Missing supported player-eye camera/phase/image-readback capability is explicit; do not resurvey the13 subjects. A reviewed view closes that view; parked views retain their reopening cause. |
 | ART-FINDINGS | Existing13 capture sets/143 images plus original fleet/world/character/effect/UI obligations. Codex maps each original obligation to a named existing image/view or exact missing view specification; reference STATION-FINDINGS once. No new obligation inferred from an empty area. |
 | CRAFT-ACCEPT-TORRENT, CRAFT-ACCEPT-ARROW, CRAFT-ACCEPT-JOVIAN, CRAFT-ACCEPT-ZENITH, CRAFT-ACCEPT-HALYARD, CRAFT-ACCEPT-BULWARK, CRAFT-ACCEPT-CINDER-LIGHT, CRAFT-ACCEPT-CINDER-HAULER, CRAFT-ACCEPT-CINDER-BOMBER | Eleven acceptance boundaries listed below; each craft's existing distinctive functions remain in its row. Codex binds the unproved member's actual caller/input/contact/route/endpoints/limits and reuses accepted members. Missing ordinary driver code is implementation, not an external-access blocker. Bomber's additional crew alone depends on BOMBER-ROLE-DECISION. |
 | CRAFT-ACCEPT-TITAN, CRAFT-ACCEPT-VORTEX, CRAFT-ACCEPT-PARADOX, CRAFT-ACCEPT-KATANA, CRAFT-ACCEPT-PREDATOR, CRAFT-ACCEPT-DYNAMIC, CRAFT-ACCEPT-UTOPIA, CRAFT-ACCEPT-SALYUT | User accepts/amends each existing SPEC proposal; Codex then adopts its existing BUILD-SPLIT cards and binds the same eleven integrated acceptance boundaries. Do not survey or write the prepared proposals again. |
@@ -1134,8 +1293,8 @@ feature. Do not reopen completed surveys or create successor planning IDs.
 | COMFORT-MOTION | Reuse accepted toast/damage episodes and the [eight fixed remaining source consumers/OFF–ON endpoints](#reduced-motion--finite-production-consumers). Codex binds only still-unproved ordinary callers/candidate/profile/deadline and retained transition/cold/Reset endpoints. Source roster discovery is closed; missing intended behavior must be an explicit choice, not another survey. |
 | COMFORT-FLASH | Existing17-family membership/policy is fixed; shared native save/three-process/Reset is accepted. Codex binds only each remaining normal trigger/caller/ordinary route and its existing effect endpoints; no new producer survey. |
 | COMFORT-COLOUR | [Finite remaining colour boundaries](#colour-cues--remaining-proof-ownership) bind live state changes, Pause/camera/Main transitions, original Settings return, rendered readability and physical-device observations. Accepted Tritanopia cold/Reset endpoint stays closed. Codex still binds ordinary assertions/selected rendered views; actual device access is separate. The available22-frame component capture is not a new registered capture gate or a new mandatory image count. |
-| COMFORT-CAPTIONS | Existing accepted Loadmaster/approach/engine/Ember and fixed ship-rig membership remain closed. Codex lists remaining original-required ordinary episode IDs/callers/text/severity/expiry/retirement/cold/Reset cases. User owns only the already-recorded maximum-payload overflow policy and actual audible/device access where required. |
-| PACKAGE-FINAL | [Existing package members/counts](#package-final--existing-members-and-counts) are fixed: two exports, three startup checks, two complete inventories/full archive parity, four default probes, Guided3/3+Sandbox1/1+Settings1/1. Codex still binds the retained audit helper to final paths/manifests; SETTINGS-INPUT names unavailable historical artifacts; Sandbox stays PARKED. Six installation transactions/matrix/signing retain their owners. |
+| COMFORT-CAPTIONS | [Caption ingress/expiry/OFF and three-process Reset contract](#caption-episodes--ingress-and-reset-boundary) is fixed; reuse existing audio episode selectors only for actual caption callers. Shared caption-specific normal Reset/cold input/observer is missing implementation; reduced-flash restart cannot supply it. Per-ID ordinary route/assertion and rendered/device bindings remain Codex work; only recorded overflow policy/device access remain external. |
+| PACKAGE-FINAL | [Existing package members/counts](#package-final--existing-members-and-counts) are fixed: two exports, three startup checks, two complete inventories/full archive parity, four default probes, Guided3/3+Sandbox1/1+Settings1/1. Codex implements the specified reusable paired-artifact mode; approved final paths/manifests bind at selection; SETTINGS-INPUT names unavailable historical artifacts; Sandbox stays PARKED. Six installation transactions/matrix/signing retain their owners. |
 | FINAL-RECONCILE | Existing36 parents/ten phase exits, shared outcomes counted once. Codex maps each to its complete existing members and accepted source/candidate scopes; every still-open child stays named. ZeroP0/P1, explicitP2 dispositions, final checksums, rights/signing and authorized publication remain actual release gates. |
 
 **The eleven craft boundaries**, retained from the existing complete craft
@@ -2361,7 +2520,7 @@ Native performance proof retains ≥60s/3,600-frame warmup and ≥600s/18,000-fr
 | COMFORT-MOTION | Reduced motion route and retained setting | 29 | Container | OPEN — accepted HUD episodes: [active damage cue, checkpoint b5fa554](history/ROADMAP_DELIVERIES.md#active-damage-reduced-motion-accepted-20261025), with exact alpha/hold/original-lifetime limits retained; [current toast, checkpoint 4ca2d16](history/ROADMAP_DELIVERIES.md#current-toast-reduced-motion-accepted-20261025), fully opaque/steady on ON with unchanged content/serial/priority/queue and original normal expiry. Repeated toggles cannot extend/replay either cue; new cues follow the selected mode. Existing 2005-assertion suite, actual readback and paired checkpoints pass. The [eight remaining behavior-changing source families](#reduced-motion--finite-production-consumers) and literal OFF/ON endpoints are now bound on e76fdbc80. Wider goal remains BLOCKED ordinary-route binding—Codex: name each still-unproved normal caller/candidate/profile/deadline; rendered/device acceptance stays open. Do not repeat the consumer survey. Reuse accepted scopes; no unchanged rerun. | Container closes only when every member of its recorded finite episode list passes its literal current/new behavior, ordinary transition, saved setting after distinct restart, authored Reset and preserved objective/control predicates. Existing damage/toast proof is reused. Reuse the linked finite consumer contract and accepted settings proof; remaining normal commands/routes, candidate/profile and original limits must be frozen before selection. Missing ordinary callers remain BLOCKED definition. A genuinely unspecified product behavior is an exact user-owned decision. Selecting one episode cannot close the container. |
 | COMFORT-FLASH | Reduced flash route and retained setting | 29 | Container | OPEN — current damage flash episode DONE 1a948d9ac: ON caps effective active alpha≤.07 without brightening dim cues; same Tween/elapsed/running-paused state, .42 flash/.62 arrow fade and expiry. OFF/repeated toggles cannot relight or extend; new hits, pre-ready setters and existing motion hold retained. Existing accessibility suite, actual three-frame readback and paired packages/strict startups/audit pass. [Exact scope](history/ROADMAP_DELIVERIES.md#current-damage-reduced-flash-accepted-20261025). Producer/policy definition DONE2026-10-26: [finite17-family contract](#reduced-flash-producer-and-episode-contract) fixes authored OFF/ON/current/new behavior and common ordinary save/cold/Reset endpoints. Cargo terminal production forwarding is DONE d4e2213 ([proof](history/ROADMAP_DELIVERIES.md#cargo-terminal-reduced-flash-production-binding-accepted-20261026)), with exact retained-record visual refresh and unchanged cargo authority. The shared ordinary cold/reset caller is DONE3649b4b and reused across all17 families. Codex still owns remaining normal effect trigger/observer/candidate/original-limit bindings; only those unbound qualifications remain BLOCKED definition. Do not schedule another storage/restart caller. No new visual-policy owner decision is required by this source roster. Accepted episode stays closed, no unchanged rerun.  Live torpedo terminal-burst capability DONE9105da8 ([proof](history/ROADMAP_DELIVERIES.md#live-torpedo-burst-reduced-flash-accepted-20261026)): active hit/intercept/fizzle meshes immediately adopt existing emission4.0/1.2 and current-age scale4.2/2.6 policy, preserving0.55s lifetime, position, flights/damage/collision; repeated toggles and expired effects protected. Actual material/mesh component proof; ordinary per-family effect-trigger qualification/full-family/native GPU/human gates remain open. Shared preference persistence is reused below.  Shared native Boot/raw-key Save→cold ON→Reset→third cold OFF/defaults DONE3649b4b; live HUD forwarding and production HUD dirty-state result binding repaired. [Accepted scope](history/ROADMAP_DELIVERIES.md#shared-reduced-flash-native-restart-accepted-20261026); physical/rendered/native Windows/GPU/human and ordinary family episodes stay open. | Select one of the finite17 producer families and its literal policy/accepted scope in the linked contract. Bind exact normal trigger/caller/candidate/limits before execution; prove actual current/new effect behavior, reuse the shared ordinary save/three-process/Reset result, and retain applicable original external gates. Source-defined values or one component pass cannot close the full container. |
 | COMFORT-COLOUR | Colour-safe cues route and retained setting | 29 | Container | Finite source contract bound2026-10-25: enum0:none/default/Reset,1:deuteranopia,2:protanopia,3:tritanopia. Existing six core label families/32states×4palettes×2contrast and minimap single-hue shape scopes retained. No missing runtime consumer demonstrated. Tritanopia distinct-process endpoint DONE1f2260f69: actual visible choice/Save→cold realHUD/minimap→normalResetSave→thirdcoldnone, supported raw walking/text/shape, fullotherbindings/options/sentinel and3actualHUDExitOS0/bothclean states. All5checks firstpass, no runtimechange/export; checkpoint39157e8 unchanged. Full rendered/device/other required ordinary episode coverage remains open under the [finite remaining proof ownership](#colour-cues--remaining-proof-ownership). Codex still supplies ordinary palette observations and selected rendered-view source/size/cap; actual physical-device access is separate. Do not repeat the accepted cold/Reset route or invent another palette×device matrix. [Exact qualification](history/ROADMAP_DELIVERIES.md#colour-preset-cold-process-qualified-20261025). | Existing mode/engine/throttle/hull/component-recovery/target-lock labels retain literal text; enemy health retains percentage/status; minimap retains hostile diamond, friendly ring/cross and objective glyph/label; captions retain text/severity markers. Palette selection changes actual registered HUD/minimap colours without removing those discriminators. Default/Reset is none, not an invented ON/OFF option. One cold-process case requires exact saved enum/control/HUD/minimap→Reset→cold default with protected settings/data and usable controls; it closes only that selected source endpoint. Full parent acceptance retains original actual-device/rendered/transition requirements. |
-| COMFORT-CAPTIONS | Captions route and retained setting | 29 | Container | OPEN — live Loadmaster caption capability DONE19336f3a8 ([delivery](history/ROADMAP_DELIVERIES.md#loadmaster-live-captions-delivered-20261025)); live planetary final-approach captions DONE4aa8b64ec ([delivery](history/ROADMAP_DELIVERIES.md#final-approach-live-captions-delivered-20261025)). Existing five Loadmaster/four approach IDs have actual visible-HUD/shared-service component proof; Loadmaster rejection is not qualified as live requester feedback ([source finding](history/ROADMAP_DELIVERIES.md#loadmaster-refusal-readiness-not-selected-20261025)); queue/expiry/duplicate/stale/detach/OFF and companion checks pass, paired checkpoints/strict startups/PCK audits pass. This is component capability delivery; ordinary crew/network/world play and per-episode transition/restart/Reset remain open. Wider goal remains BLOCKED definition — Codex records finite remaining original-required consumers and literal ON/OFF/Reset/restart outcomes; genuinely unspecified product behavior stays with the user. Engine-transition capability DONE46bae53c8/checkpoint46bae53: existing engine_degraded/engine_critical/engine_recovered have exact captions/defaultmedium/high/low; realHeroledger→automaticrigbinding→router/Director/GameFlow→visibleHUD/oneservice proof, five new/retainedalarm FIFO/expiry/OFF/noreplay/unbound checks pass. Oldregistry exactly3fails; allfixed/pairedexports/3strictstartups/actualPCKaudit pass. No emission/mix/gameplay/severity change; componentfixture/manualcaptionclock only, ordinaryflight/listening/rendered/native/fullfamily acceptance remain open. [Exact result](history/ROADMAP_DELIVERIES.md#engine-transition-live-captions-delivered-20261025). Ship-rig source membership now fixed:21possible IDs,19mapped,2unmapped velocity/load IDs with no demonstrated production caller. [Finite producer boundary](#ship-rig-caption-membership) is DONE definition only; no additional live gap or new implementation selected.  Ember surface-loop capability DONEb81082277:18 canonical interior/exterior phase/reward captions, literal unit assertions and actual composition/Director/GameFlow/visibleHUD/oneservice display/expiry pass; oldregistry exactly18 planned fails;13 fixed stages/paired exports/3strict startups/1527-entry payload audit firstpass. Existing owner/controlled receipt fixture and manualclock only; no physical journey/real durable reward/listening/rendered/native/fullCOMFORT acceptance. [Exact delivery](history/ROADMAP_DELIVERIES.md#ember-surface-live-captions-delivered-20261026). | Accepted five Loadmaster/four approach/three engine-transition/eighteen Ember component results remain closed. Codex records in this existing row the finite remaining original-required ordinary episode IDs, each actual caller/action, literal caption/severity, once-only display/expiry/retirement, saved choice after distinct restart and authored Reset endpoint. Reuse the fixed [ship-rig membership](#ship-rig-caption-membership); callerless velocity/load IDs create no live work. The container closes only after those named episodes and the existing device/rendered/transition requirements pass. Missing episode membership or route/value is BLOCKED definition; overflow remains the separate recorded owner-policy dependency. |
+| COMFORT-CAPTIONS | Captions route and retained setting | 29 | Container | OPEN — live Loadmaster caption capability DONE19336f3a8 ([delivery](history/ROADMAP_DELIVERIES.md#loadmaster-live-captions-delivered-20261025)); live planetary final-approach captions DONE4aa8b64ec ([delivery](history/ROADMAP_DELIVERIES.md#final-approach-live-captions-delivered-20261025)). Existing five Loadmaster/four approach IDs have actual visible-HUD/shared-service component proof; Loadmaster rejection is not qualified as live requester feedback ([source finding](history/ROADMAP_DELIVERIES.md#loadmaster-refusal-readiness-not-selected-20261025)); queue/expiry/duplicate/stale/detach/OFF and companion checks pass, paired checkpoints/strict startups/PCK audits pass. This is component capability delivery; ordinary crew/network/world play and per-episode transition/restart/Reset remain open. Wider goal remains BLOCKED definition — Codex records finite remaining original-required consumers and literal ON/OFF/Reset/restart outcomes; genuinely unspecified product behavior stays with the user. Engine-transition capability DONE46bae53c8/checkpoint46bae53: existing engine_degraded/engine_critical/engine_recovered have exact captions/defaultmedium/high/low; realHeroledger→automaticrigbinding→router/Director/GameFlow→visibleHUD/oneservice proof, five new/retainedalarm FIFO/expiry/OFF/noreplay/unbound checks pass. Oldregistry exactly3fails; allfixed/pairedexports/3strictstartups/actualPCKaudit pass. No emission/mix/gameplay/severity change; componentfixture/manualcaptionclock only, ordinaryflight/listening/rendered/native/fullfamily acceptance remain open. [Exact result](history/ROADMAP_DELIVERIES.md#engine-transition-live-captions-delivered-20261025). Ship-rig source membership now fixed:21possible IDs,19mapped,2unmapped velocity/load IDs with no demonstrated production caller. [Finite producer boundary](#ship-rig-caption-membership) is DONE definition only; no additional live gap or new implementation selected.  Ember surface-loop capability DONEb81082277:18 canonical interior/exterior phase/reward captions, literal unit assertions and actual composition/Director/GameFlow/visibleHUD/oneservice display/expiry pass; oldregistry exactly18 planned fails;13 fixed stages/paired exports/3strict startups/1527-entry payload audit firstpass. Existing owner/controlled receipt fixture and manualclock only; no physical journey/real durable reward/listening/rendered/native/fullCOMFORT acceptance. [Exact delivery](history/ROADMAP_DELIVERIES.md#ember-surface-live-captions-delivered-20261026). | Accepted five Loadmaster/four approach/three engine/eighteen Ember component results and fixed ship-rig map stay closed. [Remaining ordinary/persistence boundaries](#caption-episodes--ingress-and-reset-boundary) use the existing finite audio episode roster only where actual caption callers exist. Bind each still-required ID/action/driver at actual HUD/service, literal authored text/severity and original journey cap. Once-only belongs to the producer transition/receipt, not a cue-ID lifetime ban; active lifetime3.4physics seconds, existing queue/expiry policy preserved. Retained-Main preserves selected setting/service/remaining time; distinct-process ON and normal Reset→cold OFF are separate. Ordinary observer/route/render/device fields still missing are Codex-owned BLOCKED definition/implementation; maximum-payload overflow remains the separate owner choice. Callerless/silent music or unmapped semantics do not create new captions. |
 | AUDIO-CONTENT-DEFINE | Finite actually missing cues and broken transitions | 30 | Definition | Definition DONE on8a6e7dfe6; existing COMPLETION_SCOPE audio map separates real playback, two transition outcomes and dormant Ember feed definition; no missing new theme inferred | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | AUDIO-ACTIVITY-LIFECYCLE | Current activity music survives normal updates and same-run completion | 30 | Capability | DONEf1f35d137, packaged. Same-run completion/base updates, terminal fences, combat/landing resume, reset/context/lifecycle/PCM/clock scopes pass; five focused suites, paired exports/three strict startups. Audible mix OPEN | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | AUDIO-SURFACE-MUSIC | Aurora/Rime surface visit selects existing surface bed | 30 | Capability | DONE packaged4ff7a08; actual visit-state projection, controlled phase150/activity26/retained bed checks and strict paired checkpoint pass; ordinary journeys/listening remain open | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
@@ -2399,7 +2558,7 @@ Recovery proof uses an owned actual OS SIGKILL, distinct restart, protected real
 | SAVE-CORRUPT | Corrupt-data fallback and usable recovery | 31,32 | Capability | DONE for the frozen primary/valid-backup read-only source case on3380961fb: two distinct normal Main processes restore backup schema11/FOV96/full profile and paid ledger1, preserve primary/bak/recovery bytes/names/modes0600, refuse unconfirmed Save with UNSAVED feedback, complete normal Begin Shift/supported walking/12 neutral ticks and exit0. Main alone creates recovery; Race restore and durable startup/close writes intentionally refuse. First pair passes33.085s/114 and33.151s/108 with marker1/no diagnostics, unchanged source/cache/editor/template guards and independent review GO. No repair confirmation or paid Race actor restoration claim. Owned processes/scratch cleaned; [exact result](history/ROADMAP_DELIVERIES.md#corrupt-backup-read-only-fallback-accepted-20261025). Backup-repair guidance child DONE2456552bd/checkpoint2456552: after authentic rejected startup and explicit confirmation, actual Settings gives quit/reopen instruction; generic no-owner success remains unchanged. Old copy exactlyoneRED, fixedHUD16/total80source/WindowsPCK16 assertions and actual1024×768/requested1.6 fit, pairedexports/3strictstartups/1529PCKaudit pass. [Exact scope](history/ROADMAP_DELIVERIES.md#backup-repair-reopen-guidance-accepted-20261026). Other corruption arrangements/ordinary explicit repair/distinct-restart/installed/native scope remain unqualified. | Freeze one actual corrupt primary/tmp/bak arrangement and exact production fallback/expected protected file bytes and fields. Distinct normal restart selects that fallback, preserves valid recovery copies and permits ordinary continuation without duplicate rewards. Missing corruption case or expected fallback keeps this GATED. |
 | SAVE-UNSUPPORTED | Unsupported data refuses destructive overwrite | 31,32 | Capability | Outer-envelope source case4b66b3548 and installed schema2 primary/tmp/bak cases remain accepted on package755ad605a/driver0d06648d; [primary](history/ROADMAP_DELIVERIES.md#installed-future-primary-refusal-accepted-20261026), [temporary/backup](history/ROADMAP_DELIVERIES.md#installed-future-remaining-placements-accepted-20261026). Legacy mixed CFG8/CFG7 destructive recovery and read-only fallback repaired7876ebc8d/checkpoint7876ebc: all three future placements × mutable load/read-only load/direct legacy save refuse ERR_INVALID_DATA; files/Unix modes/live values/signals remain exact. Same frozen test goes27 RED predicates→291-assertion GREEN; actual Windows PCK291 plus paired startup/payload audit pass. [Repair and exact scope](history/ROADMAP_DELIVERIES.md#legacy-future-cfg-preservation-accepted-20261026). Nested typed payload12 primary-only supported-outer1 case DONE on exact7876ebc Linux package/driverddfa82789: ordinary Save/confirmed Reset refuse, four fixture subtrees preserved through15 disk milestones, only actual session1/2 crash/diagnostic additions, distinct cold three-point51.335m walk and two normal OS0 exits; four declared warnings/zero unexpected diagnostics. Existing runner extended without gameplay/observer changes; [exact acceptance and limits](history/ROADMAP_DELIVERIES.md#installed-nested-settings-refusal-accepted-20261026). No other nested format/placement or final-candidate inheritance. Ordinary lone-CFG8/atomic-JSON coexistence DONE on exact7876ebc Linux package/driver2fe5d91d7: all2874 observations retain the future CFG guards, Save/clean direct Reset succeed with exact current defaults, cold JSON loads without migration/warnings, three walking points53.465m/two normal OS0 exits and both actual5physics-second stable/clean lifecycles pass. Fourteen disk milestones/five declared JSON namespaces; first2/cold0 warnings/zero unexpected diagnostics. [Exact case and first unit-fixture failure](history/ROADMAP_DELIVERIES.md#installed-legacy-cfg-coexistence-accepted-20261026). No gameplay/policy change; other placements/native/final-candidate scopes remain separate. The named legacy-UI definition is closed; reuse the accepted source/API/outer/nested/legacy cases, with no automatic successor survey or unsupported-format matrix. Do not repeat closed source surveys/API cases; no new runtime gap inferred there. Final-candidate/device/native-GPU/native-Windows scope remains separate; owner exclusions unchanged. | Named unsupported envelope/format refuses destructive overwrite; primary/tmp/bak names/bytes/modes and loaded authority preserved across fresh processes; accepted outer-envelope scope retained. |
 | CHECKPOINT-HELM-EDGE | Fresh paired playable command-delivery checkpoint | 6,32 | Qualification | DONE; 2c73494, both exports/three startups/exact payload and archive checks | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
-| PACKAGE-FINAL | Exact final Windows/Linux package qualification | 6,32 | Container | Export prerequisite FIXED6b667235b: real private077 exports now package ELF0755, matching existing contract;23 exporter checks and corrected actual tar/strict startup pass. [Exact repair and scope](history/ROADMAP_DELIVERIES.md#jovian-cannon-departure-parked-and-linux-archive-modes-fixed-20261027). [Existing package membership/counts](#package-final--existing-members-and-counts) FIXED: two exports; Windows-payload/Linux-direct/Linux-archive startup1/1 each; two complete inventories/full parity/archive checks; four unfiltered probes300s each; GUIDED-FINAL3/3, SANDBOX-RECOVERY1/1, SETTINGS-RETURN1/1 at original caps. Final candidate/bytes remain GATED. Codex still supplies literal candidate-bound audit invocation/manifests from the retained helper (checkpoint1529 is not a permanent final count). SETTINGS-INPUT retains its exact missing historical execution artifacts/completed search; Sandbox remains PARKED pending supported changed cause. Other gameplay/installation/matrix/signing/distribution owners are preserved; no unchanged run selected. Native Windows/human facts remain NOT_RUN. | The frozen source commit and actual Windows/Linux exports agree with the production payload manifests and SHA256SUMS; each declared package startup exits0 with STARTUP_MENU_READY_OK; every member of the recorded package/ordinary-route list passes its original counts/caps. Missing member/command/count prevents container closure. Installer transactions, signing and distribution retain their own named goals. |
+| PACKAGE-FINAL | Exact final Windows/Linux package qualification | 6,32 | Container | Export prerequisite FIXED6b667235b: real private077 exports now package ELF0755, matching existing contract;23 exporter checks and corrected actual tar/strict startup pass. [Exact repair and scope](history/ROADMAP_DELIVERIES.md#jovian-cannon-departure-parked-and-linux-archive-modes-fixed-20261027). [Existing package membership/counts](#package-final--existing-members-and-counts) FIXED: two exports; Windows-payload/Linux-direct/Linux-archive startup1/1 each; two complete inventories/full parity/archive checks; four unfiltered probes300s each; GUIDED-FINAL3/3, SANDBOX-RECOVERY1/1, SETTINGS-RETURN1/1 at original caps. Final candidate/bytes remain GATED. BLOCKED implementation — Codex delivers the linked finite paired-artifact audit mode in the existing inventory tool; old task-specific helpers are not generic final commands. Approved final manifest/source paths bind at selection; checkpoint1529 is not a permanent final count. SETTINGS-INPUT retains its exact missing historical execution artifacts/completed search; Sandbox remains PARKED pending supported changed cause. Other gameplay/installation/matrix/signing/distribution owners are preserved; no unchanged run selected. Native Windows/human facts remain NOT_RUN. | The frozen source commit and actual Windows/Linux exports agree with the production payload manifests and SHA256SUMS; each declared package startup exits0 with STARTUP_MENU_READY_OK; every member of the recorded package/ordinary-route list passes its original counts/caps. Missing member/command/count prevents container closure. Installer transactions, signing and distribution retain their own named goals. |
 | INSTALL-WIN-FINAL | Matching NSIS installer artifact/extraction identity | 32 | Qualification | Source-version prerequisite770f5b522 remains accepted. Standalone artifact prerequisite DONE17a11183a: compiler exports complete finalized uninstaller after optional signing, records actual path/bytes/SHA in existing schema1; staged exclusive publication/collision/copy-failure/mock-sign-order tests pass. Both existing suites34tests33PASS/1PowerShellskip; actual7876 setup81.969s under600/log0, standalone117593bytes/actualPEversion/hash and unchanged six prior files/extracted game verified independently. [Literal final handoff](WINDOWS_INSTALLER.md#final-installer-identity--install-win-final). GATED on PACKAGE-FINAL actual candidate and SIGN-FINAL trusted artifact checks. Earlier setups without sidecars retain their extraction limit. Native Windows execution remains owner-excluded/NOT_RUN; no missing standalone-export implementation remains. | On the frozen final Windows candidate execute linked NSIS build/extraction/identity commands: exact source/version, setup/result/checksum, extracted staged game and exported standalone uninstaller bytes/size/hash/actual PE version match. Optional signing precedes uninstaller capture; actual trust and signed-byte proof belong to SIGN-FINAL. Close only on that final candidate, not a checkpoint subset. Native Windows execution remains owner-excluded. |
 | INSTALL-LINUX-CLEAN | Clean install on final Linux package | 32 | Qualification | Execution GATED on frozen final Linux package identity/export; the [accepted b4ff8c0 installed checkpoint recipe](history/ROADMAP_DELIVERIES.md#linux-installed-checkpoint-guided-qualification-accepted-20261026) supplies concrete owned paths, byte/mode/launcher checks and full Guided direct-executable command, without graphical desktop or final-candidate acceptance; final package acceptance remains PACKAGE-FINAL. Transaction definition (Codex) binds the final package to an empty isolated prefix, exact expected files/modes/version and installed launch/ordinary-usability command at original limits; no old package required; Definition finishes with fixture/prefix/XDG paths, commands, exact owned/protected files and expected modes/data/usability endpoint; it does not require a final SHA. Before execution, bind the chosen package SHA256 and resolve expected package-file bytes from its actual manifest. Missing fixture/command/endpoint fields remain BLOCKED definition. | [Final Linux installation](#proof-release): clean isolated installation with expected files/modes/version and usable installed launch; exact candidate bytes and ordinary usability, no headless-desktop substitution. |
 | INSTALL-LINUX-UPGRADE | Upgrade on final Linux package | 32 | Qualification | Execution GATED on frozen final Linux package identity/export; the [accepted499e681→b4ff8c0 checkpoint transaction](history/ROADMAP_DELIVERIES.md#linux-checkpoint-upgrade-499e681-to-b4ff8c0-accepted-20261026) supplies actual prior/candidate paths, saved-progress/settings fixture, expected payload/modes/launcher checks and installed full Guided command; final-package/rendered-desktop/retained-save gameplay reload are not accepted; final package acceptance remains PACKAGE-FINAL. Transaction definition (Codex) binds exact supported old→final packages, existing progress/settings/unowned-file fixtures, expected updated bytes/modes and usable installed launch at original limits; Definition finishes with fixture/prefix/XDG paths, commands, exact owned/protected files and expected modes/data/usability endpoint; it does not require a final SHA. Before execution, bind the chosen package SHA256 and resolve expected package-file bytes from its actual manifest. Missing fixture/command/endpoint fields remain BLOCKED definition. | [Final Linux installation](#proof-release): old→new installation updates intended bytes while preserving specified user progress/settings; exact candidate bytes and ordinary usability, no headless-desktop substitution. |
@@ -2627,19 +2786,42 @@ Names are declared frames, not evidence that an image exists or passed review.
 
 | Existing subject | Declared frame binding | Exact remaining binding / retained boundary |
 | --- | --- | --- |
-| Central | Operations `02_central_berth_operations.png`; Scenes `station.png` | Supported standing-spawn-directory pose/eye height, literal destination text and berth-access comparison. Elevated station overview is not this view; CENTRAL-VIEW stays parked. |
-| Aft | Operations `03_aft_operations_route.png`; Scenes `aft_junction.png`, `operations_room.png` | Lower-console doorway pose and literal Activity/Destination text/door clearance; separate upper stair/workpost view. The120s/no-image console attempt stays parked. |
-| Habitat | Operations `04_habitat_service_access.png`; Scenes `habitat_exterior.png`, `habitat_common_room.png` | Measured-eye common-entry image/metadata and exact bunk/wake/doorway comparisons. Existing local camera y2.55 does not qualify standing arrival;180.842s/no-image attempt stays parked. |
-| Freight | Operations `05_jovian_freight_operations.png`; Scenes `freight_dock_approach.png`; Freight `freight_berth_overview.png`, `freight_control_room.png` | Bind integrated service entrance/boarding approach, literal service/boarding text and unlocked-door/clearance comparisons. Accepted689e2ed0e standalone pair remains accepted only in its custom capture environment. |
-| Fleet | Scenes `fleet_overview.png` is overview context only | Name one actual berth/craft threshold and supported approach pose, literal destination and boarding/landing clearance predicates. Overview does not bind this member. |
-| Annex | No explicit frame in the required13 sets | Restock console from supported central aisle: image binding, pose/eye height/FOV, literal service text, interaction and aisle-clearance comparison. Unfinished south gate remains excluded. |
-| Observation | No explicit frame in the required13 sets | Name one actual Observation/Logistics pad, cross-landing pose, image binding, literal destination and supported return comparison. |
-| Salvage | No explicit frame in the required13 sets | Supported-arrival inspection-pad image/pose, literal three-component presentation and access comparison. Parked/gated physical access/revisit remains parked/gated. |
-| VIP | No explicit frame in the required13 sets | Supported reception-arrival image/pose, literal evidence-permitted text and access comparison. Parked VIP walk remains parked. |
+| Central | Operations `02_central_berth_operations.png`; Scenes `station.png` | Literal destination `CENTRAL BERTH` is fixed. Still missing supported standing-spawn-directory camera transform/eye height/FOV, image/metadata and berth-access comparison. Elevated station overview is not this view; CENTRAL-VIEW stays parked. |
+| Aft | Operations `03_aft_operations_route.png`; Scenes `aft_junction.png`, `operations_room.png` | Literal lower-console labels `ACTIVITY BOARD` / `DESTINATION BOARD` and upper `UPPER DECK` are fixed. Still missing supported doorway camera/eye height/FOV/image and door-clearance comparison; keep separate upper stair/workpost view. The120s/no-image console attempt stays parked. |
+| Habitat | Operations `04_habitat_service_access.png`; Scenes `habitat_exterior.png`, `habitat_common_room.png` | Literal `OBSERVATION DECK` / `GARDEN CUPOLA` are fixed. Still missing measured-eye common-entry camera/FOV/image/metadata and exact bunk/wake/doorway comparisons. Existing local camera y2.55 does not qualify standing arrival;180.842s/no-image attempt stays parked. |
+| Freight | Operations `05_jovian_freight_operations.png`; Scenes `freight_dock_approach.png`; Freight `freight_berth_overview.png`, `freight_control_room.png` | Literal `FREIGHT SERVICE` / `FREIGHT BOARDING`, `JOVIAN FREIGHT BERTH F-01\nBOARDING + TERMINAL >>` and `SERVICE AHEAD\nCARGO + BOARDING BEHIND\nKEEP TRANSFER LANE CLEAR` are fixed. Still bind integrated service/boarding camera/eye height/FOV/image and unlocked-door/clearance comparisons. Accepted689e2ed0e standalone pair remains accepted only in its custom capture environment. |
+| Fleet | Scenes `fleet_overview.png` is overview context only | Threshold member fixed to Zenith / `zenith_fleet_dock_berth`, destination `DOCK 01 ZENITH`. Existing LIFE-ARM approach→clearance→candidate walking goals `(20.2,4.2,59.2)→(18.6,4.2,58.6)→(18.2,4.2,58.2)` are not camera poses. Still supply supported player-eye transform/FOV/image and boarding/landing clearance proof. Overview does not bind this member. |
+| Annex | No explicit frame in the required13 sets | Console literals fixed: `SHIP SERVICES`, initial `READY // LAND & EXIT ENGINEER CRAFT`, `[ E ]  RESTOCK ACTIVE SHIP REPAIR KITS`. Still supply central-aisle arrival image/camera/eye height/FOV and interaction/clearance comparison. Unfinished south gate remains excluded. |
+| Observation | No explicit frame in the required13 sets | Member fixed to `observation-pad`; literals `OBSERVATION PAD`, `OBSERVATION  //  SURVEY ARRAY`, `←  LOGISTICS    \|    OBSERVATION  →`. Existing connector/threshold openings3.44m/5.66m remain. Still supply supported cross-landing camera/eye height/FOV/image and return comparison. |
+| Salvage | No explicit frame in the required13 sets | Literals fixed: `INSPECTION PAD`; `FIELD COIL`, `RELAY BOARD`, `CRACKED COUPLING`; `GRADE A // USABLE`, `GRADE B // USABLE`, `GRADE D // RECYCLE`. Reuse accepted WALK-SALVAGE access/inspection/revisit scopes. Still supply supported arrival camera/eye height/FOV/image/access comparison; native/final gates remain separate. |
+| VIP | No explicit frame in the required13 sets | Literals fixed: `VIP RECEPTION`, `MODERN INTERPRETATION`, `NO SOURCE DESCRIBES THIS ROOM`. Still supply supported reception-arrival camera/eye height/FOV/image and access comparison. Parked VIP walk remains parked. |
 | Tow | Operations `02_central_berth_operations.png` | `CentralTowServiceActivity`: ordinary nearby walking/boarding view, exact presentation phase, text if present and service/route clearance comparison. Paused tableau is not ordinary acceptance. |
 | Gantry | Operations `05_jovian_freight_operations.png`; Scenes `freight_dock_approach.png` | `FreightApproachGantry`: ordinary nearby walking/boarding view and exact operating phase/clearance comparison. Operations includes the real gantry envelope but does not prove that route. |
 | Arm | Operations `03_aft_operations_route.png` | `AftOperationsActivity`: dedicated service-arm phase/player pose and ordinary nearby walking/clearance comparison. Existing Aft failure boundary remains. |
 | Patrol | Operations `04_habitat_service_access.png` | `HabitatServicePatrol`: patrol phase/player-eye pose and ordinary access/clearance comparison. Existing Habitat failure boundary remains. |
+
+Literal bindings above were filled from existing production owners2026-10-27:
+`station_wayfinding_signage.gd`, `jovian_freight_berth.gd`,
+`observation_logistics_spur.gd`, `salvage_inspection_station.gd`,
+`vip_reception_suite.gd`, `scripts/interaction/ship_service_console.gd` and the accepted LIFE-ARM
+route. Keep the listed literal punctuation/line breaks/spacing; `\n` denotes an actual
+line break in the owner string. No sign, geometry or image changed.
+
+For the four service rows reuse accepted `life-tow`, `life-gantry`, `life-arm`,
+`life-patrol` drivers/packages9162fac/2df8c31/f2bf35a/ea8fe43. Their CAP300/outer360,
+real enabled advancing service identity/drawn pose and mover counts7/2/3/2 stay
+fixed. Gantry/arm/patrol retain15s per walking goal,12s boarding,90seated frames,
+>11m nearby walk and every local sample≤12m from its activity origin; tow retains
+its>10m nearby walk. Those accepted access/coexistence results are not rendered
+player-eye evidence. What is still missing for each service is the ordinary-view
+phase/time interval, supported camera metadata and actual matching image/readback.
+
+Further source surveying cannot supply the missing measured arrival cameras or
+rendered artifacts. The next capture capability must use the existing ordinary
+arrival endpoint, publish its actual player-eye camera/viewport metadata, and
+finish image readback under that view's original quality/deadline/reopening
+condition. Elevated optional station-integration cameras and staged VIP probes
+cannot replace these views. No capture or parked retry is selected here.
 
 **Known comparison settings, not player-pose proof.** Operations uses full Main,
 Forward+, High (`apply_visual_quality(2)`),2560×1440,TAA/MSAA2X and content-scale
@@ -2695,10 +2877,10 @@ part of original parent acceptance; schedule each actual uncovered cell explicit
 | Aft | Lower operations-room console line from its actual doorway; separate upper stair/workpost view remains uncovered | `aft_junction_stack.gd`, world Aft activities; consoles are downstairs, not visible through the upper floor. Isolated console image attempt PARKED120s/no image; preserve stair/door clearance and distinct Activity/Destination controls |
 | Habitat | Bunk/common-room arrival and garden/observation doorway | `habitat_spine.gd`, world patrol/skywatch; preserve accepted ordinary loop, usable bunks and wake controls |
 | Freight | Service-room entrance and gantry beside the actual boarding approach | `jovian_freight_berth.gd`, world Freight activities; readable service/boarding destinations and operable unlocked door |
-| Fleet Dock | One named berth threshold from its actual approach | `fleet_dock_comb.gd`, `fleet_expansion_berths.gd`; correct craft destination and boarding/landing clearance; choose berth before reviewing |
+| Fleet Dock | One named berth threshold from its actual approach | `fleet_dock_comb.gd`, `fleet_expansion_berths.gd`; fixed Zenith / `zenith_fleet_dock_berth` / `DOCK 01 ZENITH` destination and boarding/landing clearance; supported camera/image still missing |
 | Annex | Restock console from the supported central aisle | `fabrication_annex.gd` geometry and `shipyard_world.gd` console owner; existing service text/control and clear aisle; unfinished south gate is not a promised destination |
 | Observation | Cross-landing view toward one named Observation/Logistics pad | `observation_logistics_spur.gd`; correct pad destination and supported return |
-| Salvage | One inspection-pad view after supported arrival | `salvage_terrace.gd`, `salvage_inspection_station.gd`; three-component contract retained; physical access/revisit remains parked/gated |
+| Salvage | One inspection-pad view after supported arrival | `salvage_terrace.gd`, `salvage_inspection_station.gd`; three-component contract and accepted WALK-SALVAGE access/inspection/revisit scopes retained; rendered/native/final gates remain open |
 | VIP | Reception arrival view after supported access | `vip_reception_suite.gd`; existing route/evidence boundary retained; parked VIP walk is not reopened by this list |
 
 **Habitat common-entry view: PARKED, not reviewed.** Source8a6339b91 fresh
@@ -2712,7 +2894,8 @@ other-room replacement or no-finding claim. A supported capture-boundary change
 must precede a separately frozen attempt; same full-Main path under another room
 name does not reset this failure. [Actual result/cleanup](history/ROADMAP_DELIVERIES.md#habitat-arrival-view--readback-timed-out-before-image).
 
-All file basenames above resolve under `scripts/world/`. This roster reuses the
+Station-module basenames above resolve under `scripts/world/`; the console owner
+is `scripts/interaction/ship_service_console.gd`. This roster reuses the
 nine existing WALK branches; it adds no station rooms, historical claims or
 unbounded art multiplicities. The full remaining-job count is still unknown
 until actual findings and original scope dependencies are resolved.

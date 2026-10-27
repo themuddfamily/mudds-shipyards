@@ -168,14 +168,15 @@ missing route, member list or expected value. Those gaps remain in the existing
 [finite definition list](docs/ROADMAP_BACKLOG.md#remaining-contract-gaps--plan-next).
 Do not report that review as a completed executable roadmap.
 
-The current bounded pass binds [package members/counts](docs/ROADMAP_BACKLOG.md#package-final--existing-members-and-counts),
-[shared seat-ledger cases](docs/ROADMAP_BACKLOG.md#final-seat-ledger--fixed-case-ownership)
-and [remaining colour proof ownership](docs/ROADMAP_BACKLOG.md#colour-cues--remaining-proof-ownership).
-Seat membership/commands are fixed, gated on the final candidate. Package audit
-invocation/expected manifests and colour ordinary/rendered-view assertions remain
-Codex work; missing Settings artifacts/device access retain their exact owners.
-The earlier Courier/Torpedo/installed-crew bindings remain in their existing
-contracts. No source definition passes a player journey or closes PLAN-NEXT.
+The current pass defines one [paired-artifact audit capability](docs/ROADMAP_BACKLOG.md#package-final--existing-members-and-counts),
+fills literal station/member fields in the existing
+[13-subject view contract](docs/ROADMAP_BACKLOG.md#station-presentation--finite-review-boundaries),
+and fixes [caption ingress/expiry/Reset acceptance](docs/ROADMAP_BACKLOG.md#caption-episodes--ingress-and-reset-boundary).
+The audit and caption callers still need implementation. Station player-eye
+camera/image-readback and remaining ordinary episode observers remain Codex work.
+These definitions select no runtime retry and close no player journey or phase.
+Earlier seat/colour/combat/crew bindings remain in their existing contracts;
+PLAN-NEXT stays OPEN until its remaining source-resolvable fields are supplied.
 
 For each listed gap, supply the finite answer in its existing row/contract:
 the named members, action/trigger, expected endpoint, preserved state, proof
