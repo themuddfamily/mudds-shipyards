@@ -1,0 +1,33 @@
+Mudd's Shipyards checkpoint 5010203
+Source: 50102032a44afb31e516ad89bc87fe26e22c9f48
+
+Player-visible change
+After repeated unfinished startups trigger graphics recovery, the recovery card
+now offers Use Safe Audio. Choosing it saves master volume50% and music0 while
+preserving the rest of your preferences. It remains available after this startup
+becomes stable while its graphics fallback is active. Existing Restore can return
+the previous graphics/audio profiles once stable; later audio edits are retained.
+Automatic graphics recovery continues preserving audio unless you choose this action.
+
+Actual validation
+- Four focused source suites pass121 assertions: actual Main/HUD button/settings
+  adapter and running audio buses, including refusal rollback, full preference/
+  foreign-data preservation, stale/replayed requests, stable Restore and user edits.
+- Begin Shift completes normally; all three recovery actions are visible,
+  focusable and within the actual panel/viewport in the source fixture.
+- Clean paired exports use pinned Godot4.7.1/templates and unchanged source.
+- Windows embedded PCK (under Linux Godot), Linux ELF and Linux archive each
+  exit0 with exactly one STARTUP_MENU_READY_OK and zero diagnostics.
+- All1529 complete Windows/Linux payload entries match, with no raw source/tests/tools.
+- Initial typed-versus-JSON test failures and one test-only repair are retained.
+  A packaging status/output filename collision was also recorded; the read-only
+  inventory was regenerated under a distinct name, with source/binaries unchanged.
+  No failed result is promoted to a pass. Hosted CI stays disabled.
+
+Scope
+Recovery integration uses injected-filesystem source tests; package smoke checks
+establish menu readiness. Native Windows execution, actual OS-crash/audio-device
+recovery, audible output, physical devices, rendered readability and full release
+qualification remain NOT_RUN/open. This is an unsigned development checkpoint.
+
+Windows EXE SHA256: 54220d3fc524e7b23392fd04b752fd9c99aaccf06392b7d22125e55a6bc4afa5

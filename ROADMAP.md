@@ -1,10 +1,13 @@
 # Development roadmap
 
 **Playable alpha; full original scope remains unfinished.** Latest Windows build:
-[7876ebc checkpoint](builds/windows/MuddsShipyards-7876ebc-checkpoint.zip)
-([changes and validation](builds/windows/MuddsShipyards-7876ebc-notes.txt)).
-Matching [Linux checkpoint](builds/linux/MuddsShipyards-7876ebc-linux-x86_64.tar.gz)
-([Linux validation](builds/linux/MuddsShipyards-7876ebc-linux-notes.txt)) is available.
+[7876ebc checkpoint](builds/windows/MuddsShipyards-5010203-checkpoint.zip)
+([changes and validation](builds/windows/MuddsShipyards-5010203-notes.txt)).
+Matching [Linux checkpoint](builds/linux/MuddsShipyards-5010203-linux-x86_64.tar.gz)
+([Linux validation](builds/linux/MuddsShipyards-5010203-linux-notes.txt)) is available.
+The recovery card now offers **Use Safe Audio** after repeated unfinished
+startups. It saves master50%/music0 through the existing adapter, preserves other
+preferences and retains the existing stable Restore/user-edit protections.
 Legacy CFG recovery, read-only loading and direct legacy saves now preserve a
 newer primary, temporary or backup generation instead of selecting older data
 or deleting the newer file. All three files and live preferences stay unchanged.
@@ -296,34 +299,32 @@ bound, including review/checks/commit/push. Only these two docs changed; no bran
 worktree/scratch/engine/CI/checkpoint created. Craft approval remains pending;
 no production implementation is active.
 
-**Active — Phase9/FINAL-RECONCILE production Safe Audio recovery action.**
-Original source-binding start2026-10-27 07:37:14UTC ataba3be017 stays charged.
-Source proves the audio fallback API/binding has no normal production apply caller;
-graphics recovery and stable Restore already exist. Deliver an explicit Use Safe
-Audio action on the existing recovery card, using current startup/revision fences
-and the existing settings adapter: master0.5/music0, other settings/foreign data
-preserved. Automatic graphics recovery must continue preserving audio. Availability
-uses the current recommendation, or this startup's still-active unconsumed graphics
-fallback after STABLE; never a new unrestricted volume setter. User can act after
-the5-physics-second stability window; existing Restore returns both saved profiles
-once only, and intervening user edits must not be overwritten. Keep Safe, stale/
-replayed actions, refused/corrupt/newer writes retain their existing safeguards.
-One implementation agent owns recovery/presenter/GameFlow plus existing relevant
-tests; root owns docs/checks/export/integration/checkpoint/cleanup. No parked retry.
-Proof: clean source import/parsing and four focused existing recovery/presenter/HUD/
-audio-binding suites at original300s each; actual Main + real HUD action + actual
-adapter persistence/refusal/preserved settings; fresh paired clean exports, strict
-Windows-payload/Linux direct/archive startups (actual0 + one ready marker), complete
-payload parity/source/archive checks. All automated Godot uses Dummy/headless or
-owned Xvfb/x11. Audible/native/device/full release remain NOT_RUN. PASS delivers
-player-visible action and fresh EXE/checkpointZIP/notes in builds/windows/.
-Estimate45minutes including checks/build/integration/cleanup; hard stop09:07:14UTC
-(90minutes from original source binding), last15minutes reserved for closure.
-Total correction allowance one across source/review/test/build; after its validation,
-any further failure is terminal PARK, no same-run reopening/deadline extension.
-Before each launch, its full original cap plus closure must fit. Missing required
-proof means no acceptance; preserve unique unmerged source and exact ownership
-before cleanup. Commit/push accepted work, remove owned branch/worktree/scratch.
+**Delivered — production Safe Audio recovery action; technical PASS, process deviation.**
+Source50102032a integrates the missing normal HUD→GameFlow→adapter audio apply
+caller. It is explicit, master0.5/music0, current-startup/revision fenced, available
+after STABLE only while this startup's unconsumed graphics fallback remains active.
+Automatic graphics recovery preserves audio; ordinary Restore, later user edits,
+Keep Safe and refused/corrupt/newer-write protections remain. Four source suites
+pass121 assertions, including actual Main/HUD/buses, typed/wire persistence,
+rollback, one-shot Restore and three visible/focusable/in-bounds controls.
+Fresh paired5010203 exports/three strict startups/all1529 payloads/nine artifact
+audit predicates pass. EXE/checkpointZIP/notes are in builds/windows; matching
+Linux files are in builds/linux. Native Windows/audible/devices/full release remain
+NOT_RUN/open; source integration uses an injected filesystem, not an OS-crash run.
+
+The first test's mixed typed/JSON number comparisons failed and are retained;
+one test-only correction passed. **The frozen process card was not followed
+exactly:** root later used the same filename for Linux inventory and runner status,
+overwriting a passed inventory, then hit KeyError during private package preparation.
+Root regenerated that read-only map with distinct names and added an orchestrator
+alias guard; source, binaries, expectations/caps stayed unchanged. First actual
+paired audit then passed. Independent review gives technical GO but explicitly
+retains this procedural concern; root accepts the verified delivery under the
+existing task authorization, not as process-contract compliance or a blanket
+future retry exception. Original07:37:14 clock/45minute estimate/09:07:14 hard
+stop and all failed records stay charged. No further production repair occurred.
+[Exact source/proof boundary](docs/ROADMAP_BACKLOG.md#safe-start-graphicsaudio--production-action-and-proof-scope).
+Owned archive/branch/worktree closure is required before this delivery closes.
 
 **PLAN-NEXT remains OPEN.** A remaining row with an unresolved Codex-owned
 acceptance field is unfinished planning, not an executable task. No runtime trial

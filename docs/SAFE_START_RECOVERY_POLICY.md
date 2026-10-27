@@ -88,3 +88,17 @@ godot --headless --audio-driver Dummy --path . \
 godot --headless --audio-driver Dummy --path . \
   --script res://tests/safe_start_production_recovery_test.gd
 ```
+
+## Explicit Safe Audio action
+
+After repeated unfinished startups trigger recovery, the existing recovery card
+offers **Use Safe Audio**. It sets master volume to50% and music to0 through the
+normal settings adapter, preserving other preferences. Automatic graphics recovery
+continues preserving audio unless this action is chosen.
+
+The action remains available after this startup becomes STABLE while its graphics
+fallback is still active and unconsumed. Existing Restore can return the previous
+graphics/audio profiles after five positive finite physics seconds of stability.
+The audio receipt is one-shot, later audio edits are retained, and Keep Safe or
+a stale startup/report action cannot bypass the normal recovery fences. Source
+integration and checkpoint scope are recorded in the [roadmap contract](ROADMAP_BACKLOG.md#safe-start-graphicsaudio--production-action-and-proof-scope); native/audio-device recovery is not claimed.
