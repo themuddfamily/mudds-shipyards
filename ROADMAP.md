@@ -165,6 +165,10 @@ caller and full qualification remain open.
 the existing cancellation,refusal,cold-failure and repeat actions and their
 conserved outcomes. Native callers and safe lifecycle-rescue settlement remain
 production work;durable/repeat aggregate inputs stay with their existing owners.
+[Exact world-save boundaries](docs/ROADMAP_BACKLOG.md#world-save-exact-boundaries)
+now bind saved records,exit/restart cuts,owed/paid outcomes and physical home.
+Ember terminal-write retry and crash-safe Aurora/Rime restore settlement are
+explicit production gaps;normal Quit evidence cannot qualify an OS kill.
 
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings

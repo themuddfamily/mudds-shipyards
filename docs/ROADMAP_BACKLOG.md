@@ -7328,7 +7328,7 @@ test is an owner/regression anchor, not a runnable ordinary route.
 | EMBER-NATIVE-SMOKE | Native observer normal-window-close smoke | 1 | Qualification | PARKED; failed fixture/repair and priority review retained | Original frozen observer/window-close route exits normally with exact fixture/cleanup and zero diagnostics; failed fixture not retried unchanged. |
 | EMBER-PACKAGE-ABANDON | Packaged ordinary physical abandonment/home return | 1,14 | Qualification | GATED; supported OS-input route, old external-driver path UNSUPPORTED. The [ordinary outbound driver member](#ordinary-packaged-ember-outbound-driver--frozen-2026-10-27) is PARKED at the approach-command handoff after corrected UI and8,010km actual transit; its unmerged candidate supplies no accepted complete outward/landing caller. Do not rename that failed owner check as a fresh abandonment trial. BLOCKED definition — Codex: bind supported packaged OS-input caller/command, craft/profile, exact physical abandonment trigger, protected survey/progress/debt fields and complete reboard/ascent/strict-home/exit/reuse endpoints with original limits. The unsupported old external-driver path supplies no command. Reuse pending-abandon cold-restart/ordinary-Quit component proofs only in their recorded scope; record an unavailable caller/artifact before selection. | [World](#proof-world): supported packaged OS-input outbound/physical abandonment/reboard/ascent/home dock/exit/reuse; source/memory-store pass insufficient. |
 | WORLD-ABANDON-DEFINE | Applicable Aurora/Rime abandonment and Ember reuse/durability cases | 1,14 | Definition | Finite source cases bound in the [abandonment and next-visit contract](#world-abandonment-and-next-visit-binding). Aurora/Rime survey abort, airborne approach abort, ordinary surface return and lifecycle rescue are distinct; tree-detach interruption is separate. Full physical Ember return/home/exit/reuse and remaining disk-restart boundaries remain unqualified; accepted component and pending-abandon cuts are listed below. Execution GATED on the named ordinary/package callers and exact original route/kill/restart limits; Codex owns these missing executable bindings. Earned-but-unpaid end-visit loss is reproduced and fixed in checkpointf51e02a: [real-file/fresh-Main and once-only retry proof](history/ROADMAP_DELIVERIES.md#surface-survey-unpaid-retirement-accepted-20261026); ordinary physical return/distinct OS restart/full-world qualification remain open. One source pass complete; no unchanged survey or new matrix.  Ember explicit-abandon saved-checkpoint component is accepted in34f60da, with controlled-Host/MemoryFilesystem and staged return proof; remaining disk boundaries and full ordinary journeys remain open.  Exact pending-abandon exported real-file kill/cold-restart cut accepted on Gameb30a9ea93/Driver7337dc543 ([proof](history/ROADMAP_DELIVERIES.md#ember-pending-abandon-native-cold-restart-accepted-20261026)); full physical return/debt and other quit/detach cases remain open.  Ordinary application-Quit capture accepted on8e74c40 ([proof](history/ROADMAP_DELIVERIES.md#ember-ordinary-quit-checkpoint-capture-accepted-20261026)): actual Main/production collector saves current incomplete on-foot route/pose once; exported final real file has fresh index0 and passive original index1. Arbitrary Main removal/streaming and untested phases remain open. | Finite list of applicable Aurora/Rime abandonment and uncovered Ember reuse/durable cuts, each phase/caller/reboard-or-safe-return/debt/next-visit endpoint fixed. |
-| WORLD-SAVE-DEFINE | Uncovered world survey/reward/reboard/visit disk boundaries | 14,31 | Definition | BLOCKED definition (Codex): list only uncovered Ember/Aurora/Rime disk boundaries with exact phase/craft, committed survey/earned-unpaid/payment fields, accepted/refused-write or owned kill cut, distinct-process command, supported reboard/home endpoint and original limits. [Planetary contracts](#planetary-recovery-boundaries) govern the result; accepted WORLD-SAVE-EMBER-FIRST-RELAY923d7b326/6112944d0 is reused, not reopened.  Exact pending-abandon exported real-file kill/cold-restart cut accepted on Gameb30a9ea93/Driver7337dc543 ([proof](history/ROADMAP_DELIVERIES.md#ember-pending-abandon-native-cold-restart-accepted-20261026)); full physical return/debt and other quit/detach cases remain open.  Ordinary application-Quit capture accepted on8e74c40 ([proof](history/ROADMAP_DELIVERIES.md#ember-ordinary-quit-checkpoint-capture-accepted-20261026)): actual Main/production collector saves current incomplete on-foot route/pose once; exported final real file has fresh index0 and passive original index1. Arbitrary Main removal/streaming and untested phases remain open. | List actual uncovered per-world survey/earned-unpaid/paid/reboard/visit disk boundaries; expected recovery/protected state/real-file action fixed, no blanket grid. |
+| WORLD-SAVE-DEFINE | Uncovered world survey/reward/reboard/visit disk boundaries | 14,31 | Definition | Source-bound [finite exact disk boundaries](#world-save-exact-boundaries):Ember unpaid completion,paid-CAS/terminal failure,unsupported paid reboard/return,physical-home retirement and cold declined next visit;Aurora/Rime active,unpaid retirement,paid reboard,Quit/kill while restoring and accepted/refused Start Fresh. Exact records/cuts/recovery/payment/home outcomes and new4500/4560 complete-group target fixed;original constituent caps and accepted923/611,b30/733,8e74,f51 scopes preserved. Codex still implements normal save/native caller,Ember terminal-write retry/return continuation and crash-safe Aurora/Rime restore retirement;NOT_RUN beyond accepted scopes. | List actual uncovered per-world survey/earned-unpaid/paid/reboard/visit disk boundaries; expected recovery/protected state/real-file action fixed, no blanket grid. |
 | WORLD-SAVE-EMBER-FIRST-RELAY | Cold safe-yard recovery retains first-relay progress and later pays the original survey once | 14,31 | Qualification | DONE on exact archive923d7b326/caller6112944d0: saved unpaid relay, real SIGKILL/reap-9, distinct Boot Resume0, exact runtime boundary, safe yard/fresh boarding/attachment1→2/original completion and once-only receipt0→1, zero diagnostics. Correctly staged external metadata; no gameplay/predicate change/tolerance. Original300s/game/660s outer and317.447268s failed costs retained; new wall interval308.992s. [Accepted result](history/ROADMAP_DELIVERIES.md#ember-first-relay-cold-recovery--exact-package-accepted--2026-10-20). Canonical outbound/normal controls/native GPU NOT_RUN, standing-pose restore NOT_SUPPORTED; current/final-package and broader world gates remain open. | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | WORLD-EDGE-DEFINE | Applicable solo cancellation/refusal/failure/repeat cases | 14 | Definition | Source-bound [finite solo edge goals](#solo-world-edge-cases):Ember pre/start/surface abandonment,optional errand abandonment and repeat;Aurora/Rime approach/survey/queued-return cancellation,three refusal observations,paid repeat and internal rescue;Rime natural cold failure. Existing durable cuts are owned once by WORLD-SAVE/WORLD-ABANDON. Exact ordinary action/actor/lease/progress/reward/home endpoints and single-voyage2700/2760 limits are fixed;native edge/repeat callers,preflight-safe rescue and linked multi-voyage aggregate/owner count inputs remain OPEN. No new gameplay qualification or parked retry. | List original solo cancellation/refusal/failure/repeat cuts per world, with specific caller/phase, usable return and reward/actor/lease cleanup. |
 | SOLO-EMBER | Ember canonical physical survey round trip | 14 | Qualification | Ordinary outbound driver member PARKED8219fa013: corrected UI/actualArrow/90neutral/default-control flight reaches production Host orbit_approach, then unconditionally requiring retaineddefault command source rejects the authored approach-owner handoff. Raw8,010,865.433m/776consecutive rebases/continuous same pilot proven in candidate scope; actual new-source pointer not separately logged. No caldera landing/exit/normalOS0 proof; full capability unaccepted/unmerged. [Original contract/all stops/known source cause](#ordinary-packaged-ember-outbound-driver--frozen-2026-10-27). Source/bundle/privateTAR/raw verified archived, owned branch/worktree/process/scratch cleaned; no further correction/run selected. Original03:30→05:00 clock and71.160minutes through cleanup plus notes/push retained. Future contract must bind exact default-space/Host-approach owners; no unchecked source exemption or fresh budget. [Concrete surface/save/return contract](#solo-ember-surface-return-contract) now binds all3objectives,typed Host ownership/handback,normal saves/rewards/home/Exit and first full2700/2760s engineering cap; original parked outbound1800/1860 remains concurrent/unchanged. [Save Progress/paid-errand runtime gap](#ember-ordinary-save-paid-errands) explicitly needs normal button routing and acknowledged completion from validated durable reward counts. Missing native/actual-save integration is Codex implementation; whole journey stays OPEN/PARKED at the recorded prerequisite. | [Canonical physical round trip](#proof-world), Ember: caldera relay/ember_beacon_data plus lava-tube/wreck errands; actual save/reward/reboard/ascent/strict yard dock/exit/usable walk. |
@@ -14648,18 +14648,116 @@ The [df86280 Rime checkpoint](LINUX_BUILD.md#earlier-gameplay-checkpoint-df86280
 records78 staged/in-process real-ENet assertions/147.288s on exact source
 `df86280b5b3985770be527af71c6c247f311aae7`, not canonical travel or OS interruption.
 
-Reuse existing finite families rather than add a duplicate planetary queue:
+<a id="world-save-exact-boundaries"></a>
+#### Remaining disk boundaries: precise saves,exits and restart outcomes
 
-| Existing family instance | Remaining bounded finish |
+WORLD-SAVE-DEFINE source binding2026-10-27 23:56:47→2026-10-28 00:21:47UTC
+including source review,checks,commit/push and cleanup. Root owns documents;
+two read-only agents bind Ember and Aurora/Rime. No engine,kill,write-fault trial
+or parked retry. This replaces the generic “one disk boundary” instruction with
+the finite existing cuts below;no craft×phase×fault matrix or new canonical IDs.
+Prerequisites:matching SOLO-EMBER/SOLO-AURORA/SOLO-RIME ordinary route,
+RECOVERY-PLANET-DEFINE source semantics and the normal save/reward capability
+named in that world's row. Ember additionally requires its ordinary Save Progress
+integration already specified above. SOLO-EMBER's parked cause and Aurora/Rime
+original shared-case gates are not reopened by this definition.
+
+**Actual data,not restored authority.** Solo crafts remain Arrow/Ember,
+Halyard/Aurora,Arrow/Rime with their original registered homes. All disk cases
+use the actual authority UserDataStore file and .bak,independently read committed
+schema_version/generation/commit(id,parent_generation,parent_id,payload_sha256)
+and payload. Record pre/post actual bytes and record digests;backup is the prior
+primary,not required to equal the newest primary. Observe current live actor/
+craft/owner/lease separately. No receipt restores a seat,pose,velocity,lease,
+actor grant or command authority. Protect unrelated payload/settings and actual
+paid game_flow_reward_store reward_counts,total_receipts,receipt_serial,last_receipt.
+Later legitimate commits may advance journal headers;compare protected values,
+not permanent whole-file equality across normal writes.
+
+| Existing boundary | Exact committed cut and required playable continuation |
 | --- | --- |
-| WORLD-SAVE[Ember first relay/cold process] | Contract explicitly defined below as existing safe-yard/passive progress. Qualify one exact package/real-file kill/restart and once-only continuation; broader cold-location requirements, if separately promised, remain distinct. No extra owner approval gate is inferred. |
-| WORLD-SAVE[Aurora or Rime/one disk boundary] | Freeze one eligible phase/craft/progress/payment boundary; real-file fresh-process recovery/reboard and once-only reward. |
-| RECOVERY-KILL[planet/one installed package] | Own actual kill/reap and distinct restart for the frozen contract; use existing driver where supported or select one concrete missing executable capability. |
+| Ember first relay and pending-abandon already accepted | Reuse923d7b326/6112944d0 first-relay safe-yard/passive resume,b30a9ea93/7337dc543 pending-abandon owned-kill/cold-next-visit and8e74c40 ordinary Quit capture in their exact recorded staging/file/process scopes. Do not run them again to populate this table. They do not prove complete canonical home/exit/reuse,all phases or saved surface-pose restoration. |
+| Ember earned-but-unpaid terminal route | Genuine mandatory G completes index2 while reward write is refused;actual active-journey save must commit complete route_identity and detached recovery/optional_progress with reward0. After actual normal Quit,or the separately selected owned kill only after independent committed-debt proof,and distinct Boot,stay safe at Mudds with passive debt until genuine new physical admission adopts the owed G/index2. One normal retry pays exactly once,then physical reboard/ascent/canonical home/OFFLINE/exit/walk. Refused save/payment retains prior committed record/debt and live supported actors;never mark failed save as durable. Existing MemoryFilesystem/fresh-Main tests are narrower. |
+| Ember paid-CAS→terminal-record failure window | Observe actual reward CAS accepted:count0→1,matching G receipt,total+1 and same-G active/declined debt removed atomically. Refuse the following completion-slot publication only. A selected owned kill in this same real CAS→terminal-write interval must preserve the same result on fresh Boot/admission:paid1,old debt absent,no stale incomplete G autosave and no new payment for G;separately,the same live supported session must offer a retry of terminal publication and regain physical return/home. Production currently has no demonstrated live retry after runtime becomes completed,and return requires the persisted commit receipt. Codex must supply that retry using the existing committed payment,not redo reward authority or hide failure with restart. |
+| Ember paid reboard/return-phase interruption | Actual paid G/count1/valid terminal record,then complete physical reboard through the original route to REBOARDED on the occupied pad,before takeoff. Freeze actual current actor/craft/lease and independently read paid disk records,then owned kill/reap and distinct normal Boot. Require supported safe Mudds controls/walking/ordinary boarding and paid G/count1/protected-data conservation. This is not continuation of the old surface seat or ascent. Current save_interrupted_ember_journey is ON_FOOT active/awaiting_reward only. No current saved return itinerary/seat/ascent restore exists. Codex must implement the original supported continuation/location contract or retain this exact missing capability OPEN;safe Mudds payment conservation alone cannot pass the broader location/reboard requirement. Never synthesize a return receipt from paid data. |
+| Ember physical-home receipt retirement | Only genuine typed return handback and strict occupied home/current token can publish actual ember_planetary_return. Observe its accepted committed file,then actual OFFLINE/physical exit and owned kill before cold retirement. Distinct normal Boot must passively observe then CAS-retire that exact digest/run/store generation,leaving paid G/foreign data and supported usable home walking/boarding. Refused publication leaves prior files intact and cannot count return consumed;refused retirement retains the exact receipt for later fresh-process retry. No placement/berth/reward authority replays. Existing staged return adapter tests do not prove real-file packaged home. |
+| Ember saved-active→abandon→home→cold new visit | Reuse WORLD-ABANDON-DEFINE's exact uncovered physical sequence:actual committed incomplete G/index1,normal explicit decline/physical reboard/surface-clear/home/OFFLINE/exit,distinct normal Boot on same files and genuine next admission. Abandoned G must not resume/pay;foreign data and separately earned unpaid debt survive. This adds the missing physical home interval to the accepted pending-abandon cut;it is not a retry of that accepted source scenario. |
+| Aurora and Rime ACTIVE/index1 committed interruption | Genuine surface survey G/index1/unpaid0,solo on_foot=true;actual lookout/core E saves active visit. Observe accepted disk before one normal Quit,or in the separately selected owned-kill variant before writer-process SIGKILL/reap. Distinct Boot→Resume Last Save→Begin Shift reacquires same registered craft/world/pad under fresh ownership and supported standing controls. Restore G/index1;Rime heat follows only actual eligible cold/warm deltas. Walk remaining stones/gauge,pay once,physical reboard/ascent/canonical home/OFFLINE/exit/walk. No nearby Save Progress claim:that handler is not these visits' producer. |
+| Aurora and Rime earned-unpaid end-visit retirement | Genuine COMPLETED G/index2,refused reward write but successful active-visit save. Actual accepted end-visit retirement moves that exact unpaid record to *_declined atomically,not deletion. Selected refused retirement instead preserves prior record/generation/digest/debt. Distinct Boot at Mudds retains debt without automatic world/payment;genuine later admission/final-anchor E pays exactly once and retires debt,then physical home. f51e02a real-file/fresh-Main300s source acceptance remains closed;ordinary journey/distinct OS/package scope is still missing. |
+| Aurora and Rime paid completion and reboard | Genuine completed G/reward1,physically reboard actual pad. Boarding itself does not save;normal Quit/detach must publish actual landed/on_foot=false visit with completed survey/heat before OS0. Distinct Resume reacquires fresh supported standing embodiment beside the ramp,not the old seat. Paid count/receipt stay1;normal physical reboard/ascent/home retires active location without a second payment. Do not kill after boarding and claim an unobserved newer save. |
+| Aurora and Rime normal Quit while restoring | After distinct Resume accepts saved visit but before streaming settles,normal Quit must recapture that same eligible visit/progress/debt. Next distinct Boot must still resume it. Existing surface_visit_quit_during_resume_test covers fresh Main/sameOS,not this actual normal-Quit/distinct-process route. |
+| Aurora and Rime kill while restoring | Current code retires the active receipt on restore acceptance,before physical world/lease/embodiment settlement. Owned SIGKILL in that exact interval bypasses graceful recapture;retryability is NOT established. Codex must retain or transactionally hand off the recoverable receipt until actual settled admission,then prove this exact kill/restart cannot lose visit/progress/debt or grant stale authority. Normal Quit recapture cannot substitute for the crash cut. |
+| Aurora and Rime Start Fresh accepted/refused | Normal fenced Start Fresh choice atomically moves both actual active world slots and pending shared Aurora checkpoint to their passive declined owners,protecting observations/heat/unpaid debt/foreign data. Accepted distinct next Boot stays at Mudds,no automatic surface;genuine later admission can settle owed completion once. A selected refused atomic write preserves both locations,passive archives/disk/generation/recovery choice and rearms the SAME visible choice/fence. Existing600s fixture seeds data/fresh Main and is narrower;no separate per-field fault matrix. |
 
-Quit/return/repeat remain WORLD-EDGE, canonical journeys WORLD-SOLO and shared
-interruptions the existing SHARED-* rows. Aurora missing-original waits and Rime
-parked arrival remain unchanged. All original promises/phase gates stay open;
-no surface-location waiver, automatic probe or parked-route retry is selected.
+**Literal records and production owners.** Ember legacy slot
+ember_relay_survey_completion has schema_version1,payload_kind
+ember_relay_survey_active_journey for incomplete/earned-unpaid captures,slot_id,
+receipt_sha256 and completion recovery with interrupted_planetary_journey,
+actual detached frame/session/route_identity(activity_id=ember_beacon_survey,
+activity_generation=G,next_checkpoint_index,checkpoint_count2,next objective,
+complete) and optional_progress. A paid terminal publication uses payload_kind
+ember_relay_survey_completion and current completion/G;it legitimately replaces
+the active record. Reward CAS and terminal publication are distinct writes.
+Use existing ember_relay_survey_persistence_binding,GameFlowRewardAuthority,
+EmberSurfaceLoopProductionBinding and EmberPlanetarySurfaceProductionBinding;
+no parallel debt/seat/return namespace or invented replay authority.
+Actual ember_planetary_return has schema_version,payload_kind,slot_id,
+binding_generation,run_generation,receipt_sha256,session;session contains detached
+terminal travel/return/arrival evidence,inactive surface attachment,fresh-station
+berth state and replay=false. Physical publication uses
+planetary-return-<actor>-<craft>;normal startup retirement uses
+planetary-return-retire-%010d with observed store generation. Publication and
+cold retirement are different boundaries;ordinary startup must perform the latter.
+
+Aurora slot aurora_expedition_active_visit and Rime rime_expedition_active_visit
+use schema_version,payload_kind,slot_id,visit,receipt_sha256. visit names
+visit_state=landed/surface,craft_home_berth_id,on_foot,survey;survey has
+schema_version1,activity_id,state,generation,next_checkpoint_index,failure_reason,
+plus Rime heat_s. Aurora may also have actual aurora_shared_coastal_survey passive
+checkpoint;paid ledger remains separate. *_declined holds validated passive debt,
+not active location authority. Existing PlanetarySurfaceVisitPersistenceBinding,
+PlanetarySurfaceVisitExpedition/_retire_saved_visit and GameFlow recovery choice/
+start-shift owners perform writes/settlement. Unsettled saved transitions normalize
+to the supported settled phase;do not assert replay of motion or ownership.
+
+**Missing executable capability — Codex.** Extend existing native-sortie/arm-resume
+runner and observer with one selected real-file writer/exit/restart continuation;
+current world kill selectors are Ember-only and no complete ordinary Aurora/Rime
+save selector exists. Native runner's --output directory retains raw writer/
+reader phase-separated logs,actual profile paths/committed files/record operands,
+current owner/route/payment/home observations and actual OS exits. Writer kill
+must target the verified owned Godot PID only;expected signal9/reap-9 is separate
+from reader's mandatory normal OS0/zero diagnostics. Never count a stale writer
+ready/done receipt as fresh Boot. Graceful variants require actual writer OS0.
+
+Refused-write source checks extend existing lifecycle/quit-resume tests through
+their controlled filesystem adapter and explicitly report that scope. They do
+not establish an actual packaged filesystem-fault run;ordinary/package refusal
+requires the selected existing store fault seam bound to the real file operation
+and observed prior disk bytes. Do not manufacture payment/debt through runner
+writes or invoke a production private restore as the user action.
+
+**Finite execution ceilings.** New first-engineering multi-process save group:
+4500s internal/4560s independent outer,including initial Boot/genuine writer
+journey,selected cut,restart(s),all required continued physical journey/home,
+normal final Exit and owned cleanup. This is a new missing complete-case bound,
+not a recovered historic cap or extension of an old mode. Preserve each constituent
+SOLO2700/2760 native trip,parked Ember outbound1800/1860 and all original tighter
+component/tick/UI limits. Rime's already-defined natural-cold group keeps its own
+1800/1860;do not duplicate it here. Existing source suites remain300s unpaid
+retirement/component,600s quit-during-resume,900s Aurora/Rime loops,3600s
+Ember completed-return and7200s source abandonment;all other original declared
+limits remain.
+No clock reset at save,payment,kill,restart or return;separate independent
+implementation assignments≤90min all-in from full already-built group execution.
+
+Before selection freeze actual package/profile/member,cut/fault operation and
+absolute deadline. First unexpected failure stops;one correction only after
+cumulative-cost GO,then failure/deadline PARKED and cleanup. Run silent headless
+or private Xvfb/x11,Dummy audio,independent abort/input release. No native-hardware,
+installed-package,full-world or final-release gate closes from these definitions;
+all new ordinary/OS qualifications remain OPEN/NOT_RUN. Original world location
+promises and source-specific accepted/parked boundaries stay attached.
 
 <a id="solo-world-edge-cases"></a>
 ### Solo-world edge goals: actual controls and conserved outcomes
