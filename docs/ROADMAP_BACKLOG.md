@@ -573,6 +573,106 @@ ordinary activation/input/contact-order/return/restored-consumer/deadline bindin
 remain Codex work in the two existing member cells; staged90/180-frame fixtures
 are not newly invented ordinary deadlines. Reuse this source map.
 
+<a id="arrow-zenith-damage-contact-contract"></a>
+
+### Arrow and Zenith damage contacts — source fields for their existing goals
+
+**CRAFT-ACCEPT-ARROW / CRAFT-ACCEPT-ZENITH; ordinary damage routes OPEN.**
+Source binding is to39623aef1. This fills collision geometry and damage-budget
+fields, reusing [the shared damage contract](#torrent-damage-contact-contract)
+and DONE DAMAGE-DEFINE; it creates no new cases or gameplay acceptance.
+Definition allocation:2026-10-27 15:51:21UTC through16:11:21UTC,20minutes including
+independent per-craft source review, arithmetic/link/identity checks, commit/push
+and cleanup. Root owns documentation; read-only reviewers own one craft each.
+No engine, runtime edits, trial, new branch/worktree or parked-route reopening.
+Final per-craft reviews GO; root recomputed all40 patch-corner attributions and
+damage bands. All337 canonical identities/order and source links are unchanged
+or resolve correctly; whitespace check passes. No gameplay gate is closed.
+
+| Source value | Arrow | Zenith |
+| --- | --- | --- |
+| Fresh hull H; normal/boost speed | 82;94/132m/s | 68;94/126m/s |
+| Collision threshold T; scale S; cooldown | 38m/s;1.5;.35s | 34m/s;1.8;.35s |
+| Root collision shapes | 5 boxes +4 cylinders | 18 convex hulls +3 cylinders +3 boxes |
+| Body-local collision union min;max | (−5.55,−1.17,−6.45);(5.55,1.675,6.93) | (−7.21,−1.05,−5.35);(7.21,3.2255,5.1) |
+| Union centre;half-extents | (0,.2525,.24);(5.55,1.4225,6.69) | (0,1.08775,−.125);(7.21,2.13775,5.225) |
+
+These are authored gameplay collision bounds, not visual bounds. Arrow's
+cylinders rotate about X byπ/2 (their axes are Z); their AABB corners are not
+cylinder skin. Zenith convex points are already body-local; the three struts
+and three feet have their authored translations and zero rotation. Sources:
+[Arrow definition](../assets/ships/arrow_provisional.tres),
+[Arrow scene override](../scenes/ships/arrow_recon_ship.tscn#L25),
+[Arrow shapes](../scripts/ships/arrow_recon_ship.gd#L2177),
+[Zenith definition](../assets/ships/zenith_b7_observed.tres),
+[Zenith scene overrides](../scenes/ships/zenith_interceptor.tscn#L29),
+[Zenith shapes](../scripts/ships/zenith_interceptor.gd#L4734).
+
+For strongest finite normalized contact closing speed c, no damage at c≤T;
+otherwise D=S(c−T), hull=max(0,hull_before−D). Existing landing/destroyed/cooldown
+exclusions and velocity shedding apply. The original D reaches the component
+ledger even when hull clamps to0; do not clamp D to remaining hull here. Fresh
+component integrity is max(0,1−4D/H), impaired at≤.62, failed at≤.24 and zero
+at D=H/4. Forward hull has attribution/presentation only; weaker wing controls
+fire, core targeting and engine bay mobility. The following interior bands
+avoid stage-boundary equality. Every row assumes a fresh selected component,
+one isolated contact and no other damage; it is not a promised ordinary outcome.
+
+| Craft / target | Damage D | Closing speed c (m/s) | Integrity; remaining hull |
+| --- | --- | --- | --- |
+| Arrow impaired | 7.995…9.84 | 43.33…44.56 | .52… .61;72.16…74.005 |
+| Arrow failed, positive integrity | 15.99…17.22 | 48.66…49.48 | .16… .22;64.78…66.01 |
+| Zenith impaired | 6.63…8.16 | 37.683333…38.533333 | .52… .61;59.84…61.37 |
+| Zenith failed, positive integrity | 13.26…14.28 | 41.366667…41.933333 | .16… .22;53.72…54.74 |
+
+Displayed repeating speeds are rounded; D=S(c−T) defines exact endpoints.
+Arrow impairment/failure/zero begin at D=7.79/15.58/20.5; Zenith at6.46/12.92/17.
+Nonfatal requires0<D<hull_before. Fresh fatal speed is92⅔m/s for Arrow and
+71.777777…m/s for Zenith. Fresh normal94 can therefore be fatal for either
+(D=84/108 respectively); fresh boost ceilings give D=141/165.6. These are source
+ceilings, not measured contacts. Retain the existing damaged-power speed reduction.
+
+All patches below are in ship-local coordinates; endpoint combinations define
+four corners, with the stated roof formula supplying Zenith core y. Each lies
+on an exposed production collision surface and all20 corners per craft select
+the listed nearest anchor. Projectile attribution uses all five anchors;
+collision excludes forward_hull and maps the forward patch to core_systems.
+Nearest-distance ties retain existing candidate order; splash radii do not gate
+these located hits. Anchors follow the existing layout formula, without new
+per-craft constants.
+
+| Craft / intended region | Derived anchor | Exposed physical patch |
+| --- | --- | --- |
+| Arrow forward_hull | (0,.56545,−4.443) | Hull nose z=−6.45;x±.2;y .36545… .76545 |
+| Arrow port_wing | (−4.329,.4232,.24) | Wing side x=−5.55;y .78… .98;z .04… .44 |
+| Arrow starboard_wing | (4.329,.4232,.24) | Wing side x=5.55;y .78… .98;z .04… .44 |
+| Arrow core_systems | (0,.84995,.24) | Hull roof y=1.675;x±.2;z .04… .44 |
+| Arrow engine_bay | (0,.537,5.1906) | Hull rear z=5.75;x±.2;y .337… .737 |
+| Zenith forward_hull | (0,1.558055,−3.7825) | CentralWedgeRaised20mm nose z=−5.35;x±.02;y .08… .18 |
+| Zenith port_wing | (−5.6238,1.34428,−.125) | PortMainWing roof y=.28;x −6.1…−5.9;z .8…1 |
+| Zenith starboard_wing | (5.6238,1.34428,−.125) | StarboardMainWing roof y=.28;x5.9…6.1;z .8…1 |
+| Zenith core_systems | (0,1.985605,−.125) | CentralWedgeRaised20mm sloped roof;x±.2;z .85…1.05;y=3.2255−.24275(z−.65) |
+| Zenith engine_bay | (0,1.5153,3.7415) | CentralWedgeRaised20mm rear z=4.62;x±.2;y .6…1 |
+
+**Proof boundary and remaining implementation.** Existing collision-routing
+fixtures directly call the resolved seam with D=.12H (Arrow9.84/Zenith8.16),
+not ordinary flight or slide contacts. In particular Arrow fixture envelope
+side points sit below its physical wing and its aft centre lies between the
+nozzles; those attribution assertions cannot prove physical contact there.
+Coasting fixtures stage a wall and velocity. Neither fixture ran for this
+source definition; retain their existing300s cap/markers from the shared contract.
+
+Codex still owns the real world obstacle/opponent and exact pose, unobstructed
+contact/ray, ordinary steering/fire schedule, measured contact/normal/speed,
+same-ledger hull/component/consequence/repair endpoints and original whole-route
+limits before an ordinary attempt can be selected. Pass requires those observed
+endpoints; missing contact, wrong region, wrong hull delta or missing live
+consequence fails. Source arithmetic alone passes none of them. Reuse accepted
+Arrow precision/two-flight and Zenith pilot/handback/Main scopes in their existing
+contracts. The Heavy Breach source definition and parked5171119 startup failure
+below retain their original caller, limits, costs and reopening condition.
+This binding neither resumes them nor completes either craft or PLAN-NEXT.
+
 ### Zenith Heavy Breach incoming route — source definition
 
 Bounded source-only pass2026-10-26, source3ba8f2aa4, start13:11:52UTC,
@@ -2878,9 +2978,9 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | DAMAGE-DEFINE | Uncovered craft/role component-damage/recovery cells | 11,21 | Definition | Definition DONE on82a7564cb; COMPONENT_DAMAGE_MODEL_CONTRACT.md maps five IDs/all nine craft, real role exceptions, repair/reset owners and concrete remote row gap; no gameplay pass | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | ART-FINDINGS | Finite actual UI/animation/effect/lighting/terrain/weather defects | 12,15 | Container | BLOCKED definition (Codex): reconcile the existing 13 capture sets/143 images and original fleet/world/character/effect/UI obligations against accepted coverage. Name each uncovered original clause and subject/state; bind source, camera, renderer/quality/resolution/scale and same-view comparison criteria. The station roster is only a referenced subset, not the contract for non-station art. Stop after this finite coverage answer or a field-level missing-input record; no capture or runtime change is selected. | Definition finished: one closed coverage list of the existing13 capture sets/143 images and original fleet/world/character/effect/UI views, each mapped to accepted proof or literal missing subject/state/pose/render/inspection fields. Outcome accepted: every listed view has inspection and disposition, with each real defect repaired under the stated same-view and gameplay/clearance conditions. A missing field keeps the definition BLOCKED; recording it ends only that attempt. One review closes one view; one repair closes one defect. Empty areas or unavailable pictures do not authorize new art requirements. |
 | CRAFT-ACCEPT-TORRENT | Torrent full solo craft loop | 7,10,11 | Container | Return/reuse capability DONE5d2c58dba: packaged ordinary Guided plus fresh same-Torrent boarding/departure/two strict homes/90neutral-OFFLINE ticks each/physical exits/supported walks/normal UI OS0,85.267s under300s. [Accepted scope](history/ROADMAP_DELIVERIES.md#torrent-return-reuse-capability-accepted-20261025). Incoming core-damage/passive repair also DONEa1de3363f: real source2101 hit/hull89/core.56/targeting.62,617airborne observations,43strict passive commits/all nominal/hull89 retained and full two-home continuation88.168s/OS0. [Exact scope](history/ROADMAP_DELIVERIES.md#torrent-core-damage-passive-repair-accepted-20261025). Physical Torrent→Arrow→Torrent handoff/reclaim also DONEdriveraf38de143/package6fe51dca4: actual current-source E consumers,90neutral-OFFLINE ticks per seat,supported walks,fresh Torrent stream/normal UI OS0 in131.708s. [Scope](history/ROADMAP_DELIVERIES.md#torrent-arrow-physical-handoff-accepted-20261025). Shared retained Main source resource/combat lifecycle also DONE79dc473a5: unchanged existing three-cycle72-assertion check passes70.113s/OS0/zero diagnostics, including Torrent1101/hull/replay/queues/node/resource identity. [Exact staged scope](history/ROADMAP_DELIVERIES.md#shared-main-source-lifecycle-accepted-20261025). Full craft OPEN: [remaining fields](#torrent-finite-acceptance-coverage-and-missing-ordinary-route) for applicable damage/destruction/recovery and full-route/final-candidate command/limits; Arrow flight/weapons and explicit component/seat contracts are not supplied by these scoped checks. No new matrix or unchanged replay selected. Qualification container; BLOCKED definition (Codex): exact ordered role/function, nonfatal/failed-component/repair, fatal-recovery, switch partner/handback and retained-Main members; ordinary driver/route/start-stop/original limits and accepted proof reused per member. No craft×case matrix. Source contact geometry/damage budgets now fixed in the [Torrent contact contract](#torrent-damage-contact-contract): seven physical boxes, exact located-hit patches, four collision-selectable regions versus five projectile regions, nonfatal/fatal speed formulas and finite hull budgets. No engine/ordinary contact PASS; live world encounter/input schedule and full-craft command/aggregate cap remain Codex gaps. The parked three-attempt recovery boundary is unchanged. | [Complete craft journey](#proof-craft), plus this craft-specific result: Retain the exact accepted return/reuse, core.56→1 passive repair, physical Torrent→Arrow→Torrent and shared retained-Main cases in [Torrent’s finite binding](#torrent-finite-acceptance-coverage-and-missing-ordinary-route). Remaining original-required component stages/loss and final candidate cases need the exact actor/trigger/expected consequence/ordinary route/source/cap stated above; one repair case does not prove every component or fatal recovery. |
-| CRAFT-ACCEPT-ARROW | Arrow full solo craft loop | 7,10,11 | Container | Ordinary return/reuse DONEed1167b; named pilot precision-hit plus preserved two-flight home/OFFLINE exits/clear/reboard/UIquit DONE51257b3, actual archive120.991s. [Accepted scope](history/ROADMAP_DELIVERIES.md#arrow-precision-hit-and-return--shipped-on-51257b3). Broader combat/damage/recovery/crosscraft/Main/art/device/final acceptance remains GATED; no Sandbox/Defense closure. Qualification container; BLOCKED definition (Codex): exact ordered role/function, nonfatal/failed-component/repair, fatal-recovery, switch partner/handback and retained-Main members; ordinary driver/route/start-stop/original limits and accepted proof reused per member. No craft×case matrix. | [Complete craft journey](#proof-craft), plus this craft-specific result: Qualification container: pilot precision/recon handling and the existing single24damage hit; preserve the accepted two-flight returns. |
+| CRAFT-ACCEPT-ARROW | Arrow full solo craft loop | 7,10,11 | Container | Ordinary return/reuse DONEed1167b; named pilot precision-hit plus preserved two-flight home/OFFLINE exits/clear/reboard/UIquit DONE51257b3, actual archive120.991s. [Accepted scope](history/ROADMAP_DELIVERIES.md#arrow-precision-hit-and-return--shipped-on-51257b3). Broader combat/damage/recovery/crosscraft/Main/art/device/final acceptance remains GATED; no Sandbox/Defense closure. Qualification container; [damage source fields](#arrow-zenith-damage-contact-contract) fixed, ordinary route unbound. BLOCKED definition (Codex): exact ordered role/function, nonfatal/failed-component/repair, fatal-recovery, switch partner/handback and retained-Main members; ordinary driver/route/start-stop/original limits and accepted proof reused per member. No craft×case matrix. | [Complete craft journey](#proof-craft), plus this craft-specific result: Qualification container: pilot precision/recon handling and the existing single24damage hit; preserve the accepted two-flight returns. |
 | CRAFT-ACCEPT-JOVIAN | Jovian full solo craft loop | 7,10,11 | Container | WEAPON-JOVIAN PARKED after one authorized caller correction:13Gantrygoals/90seat and first actual8.22285m/free-lease departure pass; frame2210 moves1.753796m above original1.603333m bound. No clearance waypoint/shot/home/reuse/UIOS0. Driverc148/game7af source pins differ; failed source stays unmerged. Motion owner/cause unknown; no next correction or retry selected. Original23:40→01:10UTC/90min cumulative clock retained. [Frozen contract and both attempts](history/ROADMAP_DELIVERIES.md#jovian-cannon-departure-parked-and-linux-archive-modes-fixed-20261027). Separate engineer journey remains parked. Ordinary solo spawn→engineer repair→hub attempt PARKED/NOT_ACCEPTED2026-10-25 after2actual trials. Corrected1530b4fc8 reaches17outbound physical goals/chair, acceptedportrepair/integrityimprovement/6→5/437ms/HUD5, then fails stand-retirement aggregate. Candidate incorrectly requires empty released authority still attached; production detaches it. Actual post-stand members unlogged. Fullreverse/hub/normalUI0NOT_RUN; no third under this card. Both sources/raw/STOP archived, candidate excluded from main/branch removed. Future selection needs predicate bound to existing detach contract+preassertmember receipts, independent source/cumulative review, originalfullroute/limits retained. Full craft remains a qualification container; other ordered role/function/damage/recovery/switch/Main route bindings still required. [Exact stops](history/ROADMAP_DELIVERIES.md#jovian-ordinary-engineer-two-stops-20261025). | Jovian completion container for the listed physical steps plus the complete craft contract. The next definition ends with proof/route/limit for every step or the exact missing artifact/decision and owner. A future bounded implementation changes one demonstrated missing behavior; this row closes only when the whole required journey is accepted. |
-| CRAFT-ACCEPT-ZENITH | Zenith full solo craft loop | 7,10,11 | Container | OPEN container; [finite11member binding](#zenith-finite-acceptance-binding). Retain DONE ordinary pilot/real28hit/two strict homes/fresh reuse/normalOS0 Game4bf5e889/Driver4870595fa in the [accepted scope](history/ROADMAP_DELIVERIES.md#zenith-pilot-hit-home-reuse-accepted-20261026). Settled retained-Main DONEa70f9397a in its [staged scope](history/ROADMAP_DELIVERIES.md#zenith-settled-main-reentry-qualified-20261026). Full physical cross-craft handback DONE Game499e681/Driver8ba86d98e:162.917s/42walkinggoals/mandatoryactualGuided/strictTorrenthome/OFFLINE/exit/sameZenithfresh90neutral/normalHUDOS0/bothrealcleanmarkers/diag0. Stream5→retired7→reclaim9; later10afterreceipt. [Exact proof/fourfailedtrials/limits](history/ROADMAP_DELIVERIES.md#zenith-torrent-handback-accepted-20261026). Focused physical stair repair1f7dccb remains accepted in its [recorded scope](history/ROADMAP_DELIVERIES.md#aft-stair-base-supported-contact-accepted-20261026). Remaining original component consequences/passive repair, loss/regeneration and current art/device/final bindings stay OPEN/BLOCKED definition as listed above; no missing handback or Main selector and no unchanged replay. Full craft is not DONE. | All members of the [finite binding](#zenith-finite-acceptance-binding) satisfy the [complete craft journey](#proof-craft) on the bound candidate, with original limits and retained failures. No extra crew, invented historical handling, craft×case matrix or unchanged parked replay. |
+| CRAFT-ACCEPT-ZENITH | Zenith full solo craft loop | 7,10,11 | Container | OPEN container; [finite11member binding](#zenith-finite-acceptance-binding); [damage source fields](#arrow-zenith-damage-contact-contract), ordinary route unbound. Retain DONE ordinary pilot/real28hit/two strict homes/fresh reuse/normalOS0 Game4bf5e889/Driver4870595fa in the [accepted scope](history/ROADMAP_DELIVERIES.md#zenith-pilot-hit-home-reuse-accepted-20261026). Settled retained-Main DONEa70f9397a in its [staged scope](history/ROADMAP_DELIVERIES.md#zenith-settled-main-reentry-qualified-20261026). Full physical cross-craft handback DONE Game499e681/Driver8ba86d98e:162.917s/42walkinggoals/mandatoryactualGuided/strictTorrenthome/OFFLINE/exit/sameZenithfresh90neutral/normalHUDOS0/bothrealcleanmarkers/diag0. Stream5→retired7→reclaim9; later10afterreceipt. [Exact proof/fourfailedtrials/limits](history/ROADMAP_DELIVERIES.md#zenith-torrent-handback-accepted-20261026). Focused physical stair repair1f7dccb remains accepted in its [recorded scope](history/ROADMAP_DELIVERIES.md#aft-stair-base-supported-contact-accepted-20261026). Remaining original component consequences/passive repair, loss/regeneration and current art/device/final bindings stay OPEN/BLOCKED definition as listed above; no missing handback or Main selector and no unchanged replay. Full craft is not DONE. | All members of the [finite binding](#zenith-finite-acceptance-binding) satisfy the [complete craft journey](#proof-craft) on the bound candidate, with original limits and retained failures. No extra crew, invented historical handling, craft×case matrix or unchanged parked replay. |
 | CRAFT-ACCEPT-HALYARD | Halyard full solo craft loop | 7,10,11 | Container | Qualification container; BLOCKED definition (Codex): exact ordered role/function, nonfatal/failed-component/repair, fatal-recovery, switch partner/handback and retained-Main members; ordinary driver/route/start-stop/original limits and accepted proof reused per member. No craft×case matrix. | [Complete craft journey](#proof-craft), plus this craft-specific result: Qualification container: pilot plus physical passenger/gunner/engineer/Loadmaster claim/action/stand/reseat; retain the accepted52damage gunner case. |
 | CRAFT-ACCEPT-BULWARK | Bulwark full solo craft loop | 7,10,11 | Container | Source acceptance binding recorded below; full journey BLOCKED definition (Codex) on the listed exact inputs/routes/candidate/limits: ordinary Dock03 access/pilot flight, OFFLINE cabin stand→seated weapon-power wake→gunner hit/release/reseat→pilot reclaim, concurrent moving-crew ownership handback, five-component consequences/passive repair, loss/regeneration, strict home/exit/reuse, Torrent handback and retained Main. Exact missing native inputs/routes/candidate/receipts/deadlines are assigned per member; f676c5016 reused only for its recorded host+one-client/staged scope. No new run, whole-loop pass or extra physical role. Selected member: [ordinary solo gunner journey](../ROADMAP.md#execution-now) — physical Dock03 admission/actual outward drift/carried aisle/real22-hit/fresh gunner reseat/pilot reclaim/strict home/normalOS0 and real clean files. PARKED after six failed ordinary trials; latest96197bf failed the outward15s bound after101.287s, and its final wrapper source guard also failed after a concurrent documentation edit. No accepted gunner journey or new checkpoint. Reopening requires the demonstrated outward-failure cause, bounded correction, independent cumulative-priority decision and clean frozen source; see the selected card for cumulative cost and retained source/raw. Separately, the reproduced carried-floor runtime repair is accepted in checkpoint30534f5: [actual captured regression and package proof](history/ROADMAP_DELIVERIES.md#carried-cabin-floor-contact-accepted-20261026); this does not close the parked journey. All remaining full-craft bindings stay open. [Empty-magazine source repair and ordinary-member stop](#bulwark-ordinary-gunner-member): combined driver1b5649cc2 PARKED at CLI-order regression, no ordinary run/export accepted. Isolated3file runtime repair1d095ad93/checkpoint1d095ad is accepted:13 component/303 existing Python/3627 privacy, paired exports/three strict startups/full1529-entry/nine-predicate audit and independent review. Component ammo is staged; full ordinary gunner remains PARKED, no direct physical-fire qualification inferred. No full gunner or craft PASS inferred. | [Bulwark finite acceptance binding](#bulwark-finite-acceptance-binding) preserves every [complete craft journey](#proof-craft) member and the physical gunner real-damage/release/reseat requirement. |
 | CRAFT-ACCEPT-CINDER-LIGHT | Cinder Light Interceptor full solo craft loop | 7,10,11 | Container | WEAPON-CINDER-LIGHT member PARKED: first full run canonical-race comparison fails after15walk/90seat/12mlift; one exact-codec correction then fails its component float-pair assertion before export/second native. No firing/home/reuse/UIOS0. [Both stops/full retained contract](#cinder-light-two-pulse-weapon-and-returnreuse--frozen2026-10-27). Six candidate files remain unmerged/verified archived; owned branch/worktree/process/scratch cleaned. No third attempt or further correction selected; exact fixture values/representation proof remains missing. Qualification container; BLOCKED definition (Codex): exact ordered role/function, nonfatal/failed-component/repair, fatal-recovery, switch partner/handback and retained-Main members; ordinary driver/route/start-stop/original limits and accepted proof reused per member. No craft×case matrix. | [Complete craft journey](#proof-craft), plus this craft-specific result: Qualification container: pilot specialist handling, actual repeater cadence/cooldown and component consequences. |
