@@ -53,10 +53,12 @@ session is this requested breakdown; it does not reopen parked gameplay trials.
 Titan and the other missing-craft proposals still require their recorded design
 choices before implementation.
 
-The [Bulwark access and launch definition](docs/ROADMAP_BACKLOG.md#bulwark-access-launch-definition)
-now fixes its starting spawn,physical route,ordinary boarding transitions and
-actual propulsion/lease-release endpoint. Caller integration and physical passage
-remain open; its failed gunner journeys retain their original reopening conditions.
+Recent concrete definitions: [Bulwark access and launch](docs/ROADMAP_BACKLOG.md#bulwark-access-launch-definition)
+binds spawn,route,boarding and propulsion/lease release; [reduced-motion loading,
+Begin Shift and chase](docs/ROADMAP_BACKLOG.md#motion-loading-intro-chase-caller)
+binds ordinary Save/cold/Reset stages,animation/camera observations and retained
+limits. Their missing callers and actual qualification remain open; parked
+journeys retain their original reopening conditions.
 
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings
