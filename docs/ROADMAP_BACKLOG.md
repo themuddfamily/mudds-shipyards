@@ -1415,8 +1415,9 @@ Base59b66e32f; clean implementation commit and exact package/hash bind before an
 engine. Fresh private profile/default settings, normal Boot title/Begin Shift,
 Main/World/Player; no saved cargo/activity/reward fixture, injected poses or states.
 
-**Actual actors/defaults.** Read the live nested
-`World/FleetExpansionProductionBinding/cinder_light_interceptor`, canonical
+**Actual actors/defaults.** `World` below means the live `GameFlow.world`
+node, actually `Main/ShipyardWorld`, not an invented sibling. Read its nested
+`FleetExpansionProductionBinding/cinder_light_interceptor`, canonical
 `cinder_light_interceptor`, home `dock_06_interceptor`. Source-derived nominal
 parked root[64,5.26,85.3]/yaw+90°; capture[94,13.26,85.3]; live boarding/exit
 [64,4.18,88.15]. Assert actual markers/transform/current berth, never assign them.
@@ -1491,7 +1492,7 @@ cinder_timed_race_session and tutorial_prompts_seen. Require each actual live
 writer/payload/receipt. Fresh race starts idle0/no saved race/tutorial; first
 departure starts1, first home fails1, physical reboard resets terminal1→idle2,
 second departure starts3, second home fails3. Home reason returned_to_shipyard;
-if genuine timeout already occurred at elapsed>=120, preserve that same timed_out
+if genuine timeout already occurred at elapsed>=120, preserve that same state `failed`/failure_reason `timeout`
 terminal without a new generation. No new120s per-flight limit is introduced.
 Tutorial schema1 adds only cinder_reach_checkpoint_route once. No checkpoint/lap/
 best/penalty/reward; no cargo selection/transfer/inventory change or other namespace.
