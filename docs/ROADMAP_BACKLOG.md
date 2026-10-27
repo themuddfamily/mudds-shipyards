@@ -1578,6 +1578,43 @@ literal reused Jovian IDs, unique anchor/three links, history targets, source
 selector and command shell/whitespace checks pass. No new qualification run or
 playable source change; closure remains within the original15:05:44 deadline.
 
+**Selected implementation — opt-in headless Jovian authority,2026-10-27.**
+Existing SERVER-BASELINE source caller capability, base590a87f8e; root clock
+14:51:47UTC includes discovery, estimate60minutes/hard stop15:51:47UTC,
+execution end15:41:47 with final10minutes reserved for preservation/integration/
+push/cleanup. One high-effort implementer owns only the shared passenger process
+launcher and Jovian boarding-profile source; one independent high lifecycle
+reviewer checks environment/ownership/default behavior and final raw results.
+Private worktree `work/jovian-headless-authority-20261027` at
+`/srv/mudds-work/jovian-headless-authority-20261027/source`; root owns this
+document, validation/results and integration. No recursive agents.
+
+Add only opt-in `--dedicated-headless-authority` to existing whole Jovian
+`--postdock-redepart`, without changing that route or its predicates. Authority
+uses actual DisplayServer headless, Dummy audio, private profile and no inherited
+DISPLAY/XAUTHORITY/Wayland or Xvfb wrapper. Two original clients keep independent
+private Xvfb/x11/Dummy-audio input-only displays and normal controls. Default
+selector/argv behavior remains unchanged. Require actual runtime driver/private
+environment receipts for host and both clients; distinct final mode marker only
+after original whole-route success, actual OS0 and owned-process retirement.
+No source clock/window/input/pose/seat/weapon/save mutation or new journey.
+
+Frozen validation: independent source/environment/abort review; one clean
+headless Dummy import and inherited-script semantic check; one complete opted-in
+original route with300s internal/360s outer and all original stage limits.
+Pin Godot4.7.1 SHA256
+`32f8d7596c4b41185512b1c49d69f2da3be018fd784a53e349fa92a98a97bcde`.
+Record fresh exact source/cache/profile/launch/result paths before each engine
+stage under `/srv/mudds-work/jovian-headless-authority-20261027/results/`.
+Stop at the first unexpected failure; default **one total correction**, only
+after demonstrated cause and root cumulative-cost decision within this clock.
+Failure after that correction or deadline parks this same attempt; labels do
+not reset its allowance. No unchanged default full-journey rerun, hosted CI,
+device/native-GPU or release claim. Source caller changes do not change playable
+game content/graphics, so no duplicate checkpoint export is selected. Preserve
+unique source/raw results before owned cleanup; merge/push accepted work and
+delete exact contained task branch only after current-tip/worktree checks.
+
 A new defect must map to one of these promised outcomes. No new network validator
 or extra Halyard edge case is created merely because its harness already works.
 
