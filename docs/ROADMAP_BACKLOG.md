@@ -1653,6 +1653,207 @@ Aurora47ffce740 runner/arguments/candidate/profile/participants/raw records befo
 reproduction. Shared Rime keeps its actual landed-boundary failure and causal
 reopening condition. No staged arrival, renamed selector or longer cap substitutes.
 
+<a id="solo-ember-surface-return-contract"></a>
+#### Ember solo: surface objectives,save and complete home return
+
+Definition2026-10-27 19:40:51–20:05:51UTC,source32e3d9674. One read-only agent
+binds relay/two errands/persistence; root owns exact command handoff/ordinary
+Save Progress/return/limits,review/checks/commit/push. Prerequisite IDs:none for
+definition. Existing SOLO-EMBER keeps canonical flight AND all three objectives;
+CONTENT-EMBER's source roster stays closed. No engine,test-suite,export,archived
+source restore or parked retry selected. Prior PLAN-NEXT/Ember costs remain.
+
+**Outward prerequisite stays PARKED.** Reuse the original [ordinary outbound
+card](#ordinary-packaged-ember-outbound-driver--frozen-2026-10-27): actual Arrow,
+fresh Boot/physical admission/default settings/idle convoy selected through UI,
+canonical body(0,0,−8000000),radius120000m,navigation(0,130000,0),real Ember
+caldera landing and automatic disembark. Existing8219fa013 failed at the default-
+source assertion after Host orbit_approach; actual replacement pointer was not
+separately logged. Source explains a real takeover; it does not retroactively
+pass that run. No unchanged replay,new allowance or native whole-loop command
+is authorized here. Actual full native caller remains absent from main.
+
+**Exact Ember ownership contract.** In default space flight record original
+LocalShipInputSource instance/provider/stream and actual pilot/boarding token.
+`EmberSurfaceLoopHost.start` verifies current session/actor/landing composition,
+attaches its gravity ingress,then installs its OWN attached child
+EmberSurfaceLoopCommandSource in APPROACH mode before publishing ORBIT_APPROACH.
+Only `_ship.get_command_source()==that exact Host child`,matching source/Host/
+attachment/frame generations and retained original Player reservation qualifies.
+Do not accept an arbitrary nondefault source or copy Aurora/Rime's invariant
+here; their approach Nodes do not replace ShipCommandSource. Surface automatic
+exit is Host-owned after real LANDED+OFFLINE,with its normal0.6s disembark;
+no competing E or test-side duration changes. Host remains ON_FOOT while
+observing surface return; there is no Host SURFACE_RETURN enum.
+
+**Actual surface route and objectives.** Same supported Player/current Arrow/
+Host/loaded LandingRegion and occupied surface berth throughout. Reuse
+`ember_transit_movement_soak.gd` surface egress geometry: x−9→z8→x17.5→z.5→x41.5
+(region-local,other coordinate retained),then actual ON_FOOT/positive relay
+activity generation. Steer normal OS walking from actual camera axes toward
+these transformed route points; never write a basis/position to make old fixed-
+axis inputs work. Perform both errands BEFORE the relay route finishes,so all
+starts are observed in this same ordinary on-foot visit.
+
+| Required member | Actual input/ordered geometry | Literal runtime/reward pass |
+| --- | --- | --- |
+| ember_lava_tube_sounding | Walk to live trailhead(18,0,−3),within its actual1.4m offer sphere; fresh E. Source route x18→z−38→x−32→z16→x−74 reaches ordered(-32,0,−38),(-74,0,16),radius8m. Reverse these source legs to its trailhead after completion. | Same Host/attachment/Player; available→active; active_activity_id matches; sibling busy/noninteractive. Actual sound_collapsed_lava_tube outcome completes offer,reward_committed=true,clears active ID and retires its press; ember_lava_tube_sounding_data commits once. |
+| ember_lander_wreck_survey | Return through source staging corridor to live trailhead(40,0,−4),within1.4m; fresh E. Source geometry x56 at z.5→z46→x52 reaches ordered(56,0,18),(52,0,46),radius8m; reverse source legs to staging afterward. | Actual survey_wrecked_lander outcome completes the same way; ember_lander_wreck_salvage_log commits once. No direct offer.interact,position submission,progress advance or reward call from driver. |
+| ember_beacon_survey | From staging walk z−44→x180→z−210→x540. Ordered real body-local checkpoints(180,120009,−44),(540,120030,−210),radius32m. First relay pauses for the ordinary SAVE PROGRESS case below,then continue. | source=activity_director_checkpoint_result; same positive activity_generation,checkpoint_count2,index0→1→2,objective ember_relay_tower→ember_return_beacon→empty,complete false→true. Actual ember_beacon_data commits once and completion.mandatory_route.complete=true. |
+
+Resolve all points through current region/body/frame and committed rebases;
+errand checkpoint body coordinates add(0,120000,0). Keep actual support/capsule/
+Host identities,default authored locomotion and unchanged craft/home route.
+Abandon via an active errand offer leaves Host/craft/berth viable; other named
+abandonment/revisit cases retain their own owners,not a new all-outcome matrix.
+
+**Disk/payment observations,not memory-only success.** With fresh baseline data,
+all three named reward counts start0. Both errands complete first: counts1/1,
+mandatory relay count0. First relay index1 stays incomplete/unpaid; normal Save
+Progress must publish the actual active checkpoint. Completing relay yields
+`ember_relay_survey_completion.payload_kind=ember_relay_survey_completion`,same
+completion.activity_generation,mandatory_route.complete=true and three named
+reward counts1 each (total_receipts3 in this fresh combined case). The old relay-
+ONLY source's total_receipts1 assertion cannot be copied to this combined loop.
+Independently read actual primary/backup,accepted reward-authority record and
+live progress after every relevant commit,after home exit and actual normal Quit.
+Repeated completed-offer E/normal saves and automatic runtime reward retries
+must preserve the accepted paid records/counts; driver must not call retry helpers.
+
+<a id="ember-ordinary-save-paid-errands"></a>
+##### Missing production capability: ordinary Ember Save Progress and paid errands
+
+Current actual gaps: HUD set_nearby_activity_snapshot disables Save AND Load
+when Cinder binding_available=false,including the normal out-of-range feedback.
+The persistence handler is Cinder-only. The presenter emits reason=save_requested
+and action=save_progress (Load analogous),while GameFlow currently reads reason
+and checks save_progress/load_progress. Thus normal UI emission/dispatch needs
+explicit reconciliation as well as Ember routing; neither an enabled test button
+nor a hand-built intent proves the real path. `save_interrupted_ember_journey` can save
+relay route_identity/optional_progress,including the genuine first-relay
+checkpoint,but is not routed by that player button. Caldera completed IDs exist
+in composition-session snapshot.caldera_expeditions; no production disk consumer
+of get_planetary_surface_session_snapshot was found. Partial errand checkpoint
+counters are not in that persistence snapshot. This is missing integration,not
+missing authored content or a passing disk/relaunch test.
+
+**One bounded runtime assignment — Codex.** Extend existing GameFlow normal
+save-context/intent routing,HUD Save availability and feedback,Ember surface/
+composition and caldera completion application; use the existing UserDataStore/
+relay persistence/reward authority. Owned runtime files are
+`scripts/game/game_flow.gd`, `scripts/ui/hud.gd`,
+`scripts/world/ember_surface_loop_production_binding.gd` and
+`scripts/world/ember_planetary_surface_production_binding.gd`; reuse the caldera
+activity's existing completion-restore method. Extend existing
+`nearby_activity_persistence_hud_integration_test.gd`,
+`game_flow_nearby_activity_persistence_test.gd` and relevant existing Ember
+integration tests,not a new family. Deliver:
+
+- Publish an actual current Ember Save context from GameFlow to the existing HUD
+  at settled ON_FOOT. Enable NearbyActivitySaveButton for that context even when
+  Cinder is out of range; do not enable/redirect Ember Load or fake Cinder
+  binding_available. Bind current Host/attachment/Player and reject stale context.
+  Keep ordinary Cinder storage/Load ownership. Normalize the existing presenter
+  action/reason boundary so actual button emissions reach their intended handlers;
+  preserve supported existing intents rather than add a second protocol. Actual
+  Save-button dispatch regression must cover this path,not directly call handler.
+- At settled Ember ON_FOOT with no unfinished active caldera errand,normal
+  Escape→ActivityBoardButton→NearbyActivityOpenButton→NearbyActivitySaveButton
+  invokes the actual existing active-journey save. Require accepted/
+  binding_reason=active_journey_saved,feedback `Progress saved.`,independent
+  primary read with incomplete index1/same generation/unpaid mandatory count0.
+  Preserve already-paid errand counts,other payload/settings,current actors and
+  leases. Existing Cinder saving/default behavior stays under its present owner.
+- A focused refused-write-before-publication case reports
+  `Progress could not be saved.`,retains actual prior primary/backup/live progress/
+  claims and paid authority,grants nothing. Other named interrupted atomic-write
+  cuts retain their existing recovery owners; this is not qualification of all cuts.
+  Never report whole Ember progress saved while silently dropping an active
+  unpaid errand's unsupported partial counters; that unsupported boundary must
+  refuse visibly until its own persistence contract is implemented.
+- On normal fresh Ember surface composition/legitimate re-entry,derive already-
+  paid errand IDs from VALIDATED existing game_flow_reward_store.reward_counts
+  for the two exact reward IDs above,and apply only completion acknowledgement
+  through the existing caldera restore seam. Paid tube alone freezes only tube;
+  both paid freezes both; zero paid freezes neither. Do not recreate active
+  checkpoint/run/pending-reward/actor/lease authority. Repeated composition or
+  offer E cannot pay again for the same already-recorded completed objectives.
+  Invalid/unavailable authority data fails closed,never invents a paid ID.
+
+This requires no parallel errand save namespace or evidence/schema family:
+the authoritative payment record is already durable through the production
+reward sink. Deriving completion from that committed record also protects a
+reward accepted just BEFORE an unrelated Save Progress write fails; a scene-
+only flag or delayed explicit save cannot supply replay protection. Preserve
+existing completed-session source reader compatibility and accepted relay cold
+recovery. Do not serialize live caldera generation/ownership as restored authority.
+Focused existing tests should cover actual Cinder/Ember Save emission/availability,
+real file checkpoint,
+rejected write,paid subset/both/none and repeated restoration; extend existing
+families instead of adding a new validator. A future selection estimates75min
+all-in,absolute deadline/one correction/first-failure stop frozen before editing;
+include relevant focused checks,clean source Windows checkpoint/strict silent
+isolated startup,integration/push and owned cleanup. Actual ordinary caldera
+execution stays behind the recorded outbound prerequisite; staged source/UI
+coverage must retain its narrower label. No implementation or build occurred here.
+
+##### Ember physical reboard,ascent and home endpoint
+
+After paid relay,reverse the existing SURFACE_RETURN_LEGS geometry:
+x180→z−44→x41.5→z.5→x18.5→z8→x−9→z.5. Require actual
+surface_route.return_complete and live ShipBoardingArea nearby,current ON_FOOT.
+Fresh normal E must reserve the same Player and complete Host's real0.6s
+boarding to the actual pilot anchor; observe REBOARDED with exact reservation.
+Host owns normal TAKEOFF/ASCENT/ORBIT_RETURN,not a scripted position change.
+Within source240simulation seconds require genuine return cruise,then >7800000m
+physical return/>700rebases/unloaded Ember and actual
+return_approach_handed_to_station_lifecycle. Same actors and per-tick continuity
+as outward; no recovery placement or artificial return flag.
+
+At COMPLETED the production binding invokes Host.return_runtime_ownership.
+Require its authenticated runtime_ownership_returned receipt matching actual
+Host/Player/ship/boarding area,retired/current attachment generations,Host source
+ID and restored ORIGINAL input source ID,retained reservation,seated/piloted,
+Host detached. Source/provider identity must match the captured original and its
+current enabled stream; stream retirement/renewal is legitimate,not a constant-
+sequence requirement. Then actual default commands fly original Arrow berth:
+ordinary approach/capture/L,strict occupied home/token/exact parked transform,
+90fresh neutral ticks/automatic OFFLINE,E physical exit and source20tick supported
+walk(.25m<distance<5m). Actual physical-arrival receipt accepted/consumed,
+Ember unloaded/Host retired; all three paid records remain1. Normal HUD Pause/
+Exit→actualOS0,both clean marker owners,zero unexpected diagnostics,input and
+owned process/Xvfb cleanup. SceneTree.quit/staged source teardown is narrower.
+
+**First full native engineering ceiling2700s/outer2760s.** This covers the whole
+three-objective ordinary baseline,including all UI/walking/real saves/normal Quit.
+It does NOT extend the parked outbound's original1800s/1860s: that local boundary
+still runs from the original process start,concurrently,with no timer reset or
+new retry. Preserve original source outbound36000ticks/landing3000,30s genuine
+egress/3s survey-start,each walked relay leg
+ceil(distance/walk_speed×physics_hz)+original allowance600/1800/2100/4200ticks,
+10s reboard,240s ascent,42000return ticks,48000home ticks,900exit+20walk ticks.
+Errand fixture's900frames at12Hz/time_scale5 is not a native deadline; use new
+ordinary per-leg ceiling ceil(actual leg distance/authored walk_speed)+15s and
+existing10s interaction/UI limit,inside the whole clock. Keep all authored
+physics/collision/speeds and any tighter original member cap. Existing native
+CAP300 and source commands stay unchanged; no old failed mode runs under a
+larger wrapper. Missing whole-loop native input/observer/real-save integration
+belongs to Codex; every later member assignment≤90min all-in with its absolute
+stop/one total correction. Full SOLO-EMBER/parent14/15 remain OPEN; neither this
+contract nor a future narrow Save Progress repair qualifies the whole journey.
+
+**Definition result.** Surface source binding and independent lifecycle/save
+review GO. Review found the actual HUD Cinder-only availability guard; ownership
+now includes a separate Ember Save context. Root also traced the existing
+presenter action/reason mismatch through the unmodified emitted dictionary;
+review confirms actual-button normalization/regression belongs in the runtime
+capability. No handler-only or forced-enabled-button proof is accepted. All337
+canonical identities/order,new anchors/source paths/whitespace checks pass.
+No runtime/test-suite/export/physical qualification occurred. Full journey stays
+behind the same parked prerequisite; Save/paid completion/native caller work is
+explicitly unimplemented. No branch/worktree/scratch created; closure/push stays
+within20:05:51,with prior definition/failed-attempt costs retained.
+
 <a id="solo-aurora-rime-ordinary-contracts"></a>
 #### Aurora and Rime — ordinary solo journey contracts
 
@@ -5329,7 +5530,7 @@ test is an owner/regression anchor, not a runnable ordinary route.
 | WORLD-SAVE-DEFINE | Uncovered world survey/reward/reboard/visit disk boundaries | 14,31 | Definition | BLOCKED definition (Codex): list only uncovered Ember/Aurora/Rime disk boundaries with exact phase/craft, committed survey/earned-unpaid/payment fields, accepted/refused-write or owned kill cut, distinct-process command, supported reboard/home endpoint and original limits. [Planetary contracts](#planetary-recovery-boundaries) govern the result; accepted WORLD-SAVE-EMBER-FIRST-RELAY923d7b326/6112944d0 is reused, not reopened.  Exact pending-abandon exported real-file kill/cold-restart cut accepted on Gameb30a9ea93/Driver7337dc543 ([proof](history/ROADMAP_DELIVERIES.md#ember-pending-abandon-native-cold-restart-accepted-20261026)); full physical return/debt and other quit/detach cases remain open.  Ordinary application-Quit capture accepted on8e74c40 ([proof](history/ROADMAP_DELIVERIES.md#ember-ordinary-quit-checkpoint-capture-accepted-20261026)): actual Main/production collector saves current incomplete on-foot route/pose once; exported final real file has fresh index0 and passive original index1. Arbitrary Main removal/streaming and untested phases remain open. | List actual uncovered per-world survey/earned-unpaid/paid/reboard/visit disk boundaries; expected recovery/protected state/real-file action fixed, no blanket grid. |
 | WORLD-SAVE-EMBER-FIRST-RELAY | Cold safe-yard recovery retains first-relay progress and later pays the original survey once | 14,31 | Qualification | DONE on exact archive923d7b326/caller6112944d0: saved unpaid relay, real SIGKILL/reap-9, distinct Boot Resume0, exact runtime boundary, safe yard/fresh boarding/attachment1→2/original completion and once-only receipt0→1, zero diagnostics. Correctly staged external metadata; no gameplay/predicate change/tolerance. Original300s/game/660s outer and317.447268s failed costs retained; new wall interval308.992s. [Accepted result](history/ROADMAP_DELIVERIES.md#ember-first-relay-cold-recovery--exact-package-accepted--2026-10-20). Canonical outbound/normal controls/native GPU NOT_RUN, standing-pose restore NOT_SUPPORTED; current/final-package and broader world gates remain open. | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | WORLD-EDGE-DEFINE | Applicable solo cancellation/refusal/failure/repeat cases | 14 | Definition | BLOCKED definition — Codex must bind original solo cancellation/refusal/failure/revisit cuts to world, caller, phase and expected actor/lease/reward/usable-return state; missing product outcome goes to the user. This is a finite list decision, not gameplay acceptance. | List original solo cancellation/refusal/failure/repeat cuts per world, with specific caller/phase, usable return and reward/actor/lease cleanup. |
-| SOLO-EMBER | Ember canonical physical survey round trip | 14 | Qualification | Ordinary outbound driver member PARKED8219fa013: corrected UI/actualArrow/90neutral/default-control flight reaches production Host orbit_approach, then unconditionally requiring retaineddefault command source rejects the authored approach-owner handoff. Raw8,010,865.433m/776consecutive rebases/continuous same pilot proven in candidate scope; actual new-source pointer not separately logged. No caldera landing/exit/normalOS0 proof; full capability unaccepted/unmerged. [Original contract/all stops/known source cause](#ordinary-packaged-ember-outbound-driver--frozen-2026-10-27). Source/bundle/privateTAR/raw verified archived, owned branch/worktree/process/scratch cleaned; no further correction/run selected. Original03:30→05:00 clock and71.160minutes through cleanup plus notes/push retained. Future contract must bind exact default-space/Host-approach owners; no unchecked source exemption or fresh budget. Full SOLO remains GATED; freeze uncovered candidate/scenario, prior source passes retained. BLOCKED definition — Codex: bind this world's existing canonical-distance route to actual craft, ordinary control sequence/command and original segment/whole-route limits. For each objective in Done means, name its literal completion/progress/reward/save fields, physical landing/reboard/ascent/home endpoints and normal-exit proof. Reuse accepted source cases only within their recorded scope; no substitute short journey. | [Canonical physical round trip](#proof-world), Ember: caldera relay/ember_beacon_data plus lava-tube/wreck errands; actual save/reward/reboard/ascent/strict yard dock/exit/usable walk. |
+| SOLO-EMBER | Ember canonical physical survey round trip | 14 | Qualification | Ordinary outbound driver member PARKED8219fa013: corrected UI/actualArrow/90neutral/default-control flight reaches production Host orbit_approach, then unconditionally requiring retaineddefault command source rejects the authored approach-owner handoff. Raw8,010,865.433m/776consecutive rebases/continuous same pilot proven in candidate scope; actual new-source pointer not separately logged. No caldera landing/exit/normalOS0 proof; full capability unaccepted/unmerged. [Original contract/all stops/known source cause](#ordinary-packaged-ember-outbound-driver--frozen-2026-10-27). Source/bundle/privateTAR/raw verified archived, owned branch/worktree/process/scratch cleaned; no further correction/run selected. Original03:30→05:00 clock and71.160minutes through cleanup plus notes/push retained. Future contract must bind exact default-space/Host-approach owners; no unchecked source exemption or fresh budget. [Concrete surface/save/return contract](#solo-ember-surface-return-contract) now binds all3objectives,typed Host ownership/handback,normal saves/rewards/home/Exit and first full2700/2760s engineering cap; original parked outbound1800/1860 remains concurrent/unchanged. [Save Progress/paid-errand runtime gap](#ember-ordinary-save-paid-errands) explicitly needs normal button routing and acknowledged completion from validated durable reward counts. Missing native/actual-save integration is Codex implementation; whole journey stays OPEN/PARKED at the recorded prerequisite. | [Canonical physical round trip](#proof-world), Ember: caldera relay/ember_beacon_data plus lava-tube/wreck errands; actual save/reward/reboard/ascent/strict yard dock/exit/usable walk. |
 | CONTENT-EMBER | Ember finite remaining authored content/presentation findings | 15 | Definition | Definition DONE on 7c0bc2967: no missing implementation identified in the inspected authored-content scope; see boundary below. Full ordinary/repeat/shared/hardware qualification remains open | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | SOLO-AURORA | Aurora canonical physical survey round trip | 14 | Qualification | [Concrete Halyard contract](#solo-aurora-rime-ordinary-contracts) binds12Mm route,normal UI/boarding,physical observations/once-only disk reward/return/strict home/normal Quit and first native2700/2760s engineering limits. Existing source setup/tick limits retain their disclosed scope. Missing native caller/readback is Codex implementation; freeze source/package/profile at selection. No ordinary/final qualification claimed. | [Canonical physical round trip](#proof-world), Aurora: actual lookout/standing-stones observations and durable reward; actual save/reward/reboard/ascent/strict yard dock/exit/usable walk. |
 | CONTENT-AURORA | Aurora finite remaining authored content/presentation findings | 15 | Definition | Definition DONE on 9d2d467e0: no missing implementation identified within inspected authored-content scope; see boundary below. Qualitative adequacy and existing journey/visual/hardware acceptance unproven | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |

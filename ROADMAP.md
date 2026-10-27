@@ -61,8 +61,11 @@ limits. [Rest,remote and planetary motion](docs/ROADMAP_BACKLOG.md#motion-rest-r
 now has finite actions/seams/pass observations; three planetary executions still
 need actual SOLO caller/handoff prerequisites. [Aurora/Rime solo contracts](docs/ROADMAP_BACKLOG.md#solo-aurora-rime-ordinary-contracts)
 now bind canonical crafts/routes/objectives/rewards/home returns and explicit
-first native limits; Rime has a separate natural cold/restart member. Missing
-callers and actual qualification remain open; parked journeys keep their
+first native limits; Rime has a separate natural cold/restart member.
+[Ember surface/save/return](docs/ROADMAP_BACKLOG.md#solo-ember-surface-return-contract)
+now binds all three objectives and exact Host ownership. Its [Save Progress gap](docs/ROADMAP_BACKLOG.md#ember-ordinary-save-paid-errands)
+names the missing button availability/dispatch and paid-errand completion
+integration. Callers and qualification remain open; parked journeys keep their
 reopening conditions.
 
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
