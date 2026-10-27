@@ -8,10 +8,48 @@ const LiveCombatAuthority := preload("res://scripts/combat/live_combat_authority
 const BomberPayloadCombatAdapter := preload("res://scripts/combat/bomber_payload_combat_adapter.gd")
 const LifecycleDamageableAdapter := preload("res://scripts/combat/lifecycle_damageable_adapter.gd")
 
+# Keep production RPC validation unchanged while observing the actual sender and
+# exact secure packet during the synchronous movement_intent_result callback.
+class ObservedAdapter extends Adapter:
+	var rpc_sender := 0
+	var rpc_wire: Dictionary = {}
+	var rpc_before: Dictionary = {}
+	var sent_movement_packet: Dictionary = {}
+
+	@rpc("any_peer", "reliable")
+	func _receive_movement_intent(wire: Dictionary) -> void:
+		rpc_sender = multiplayer.get_remote_sender_id()
+		rpc_wire = wire.duplicate(true)
+		rpc_before = command_proof_state()
+		super._receive_movement_intent(wire)
+		rpc_sender = 0
+		rpc_wire.clear()
+		rpc_before.clear()
+
+	func _make_secure_rpc_packet(stream_id: StringName, payload: Dictionary) -> Dictionary:
+		var packet := super._make_secure_rpc_packet(stream_id, payload)
+		if stream_id == &"movement":
+			sent_movement_packet = packet.duplicate(true)
+		return packet
+
+	func command_proof_state() -> Dictionary:
+		return {
+			"registered": _remote_ship_commands._registered.duplicate(true),
+			"avatars": _remote_ship_commands._authority._avatars.duplicate(true),
+			"server_tick": _remote_ship_commands._authority.get_server_tick(),
+			"boarding": get_boarding_snapshot(),
+			"seats": _seat_authority.get_snapshot(),
+			"ships": _ship_ownership.get_snapshot(),
+			"frames": _moving_interior.get_snapshot(),
+			"damage_entities": _damage_entities.duplicate(true),
+			"damage_records": _damage_authoritative_records.duplicate(true),
+		}
+
+
 var _role := ""
 var _port := 29140
 var _log_path := ""
-var _adapter: Adapter
+var _adapter: ObservedAdapter
 var _jovian: Node3D
 var _halyard: Node3D
 var _player: Node3D
@@ -31,11 +69,13 @@ var _cargo_completed_seen := false
 var _handshake_retry_started := false
 var _handshake_wait_frames := 0
 var _direct_mismatch_checked := false
+var _command_rpc_stage := false
+var _command_rpc_observations: Array[Dictionary] = []
 
 
 func _init() -> void:
 	_parse_args()
-	_adapter = Adapter.new()
+	_adapter = ObservedAdapter.new()
 	root.add_child(_adapter)
 	# Compose scene resources after script dependencies finish loading.
 	# Preloading these scenes beside the adapter retains script resources at exit.
@@ -61,6 +101,7 @@ func _init() -> void:
 	_combat_authority = LiveCombatAuthority.new()
 	_combat_authority.name = &"AuthoritativeCombat"
 	root.add_child(_combat_authority)
+	_adapter.movement_intent_result.connect(_on_command_rpc_result)
 	_adapter.moving_interior_result.connect(_on_moving_interior_result)
 	_adapter.damage_respawn_result.connect(_on_damage_respawn_result)
 	_adapter.projectile_replica_result.connect(_on_projectile_replica_result)
@@ -89,6 +130,7 @@ func _start() -> void:
 		if _role == "client_b":
 			_handshake_retry_started = true
 		_log("JOIN_%s" % ("STARTED" if joined.get("accepted", false) else "FAILED"))
+		call_deferred(&"_client_command_rpc_probe")
 		call_deferred(&"_client_loop")
 
 
@@ -332,6 +374,9 @@ func _server_loop() -> void:
 			_log("STALE_REJECTIONS_%d" % stale_count)
 			_log("QUEUE_MAX_%d" % max_queue_depth)
 			_log("CORRECTION_BOUNDED")
+			if not await _server_command_rpc_probe(pilot_peer, passenger_peer):
+				call_deferred(&"_finish", 1)
+				return
 			_adapter.reset_remote_ship_pilot(&"jovian_authority_craft", &"disconnect")
 			_log("PILOT_A_RELEASED")
 			var transfer := _adapter.register_remote_ship_pilot(
@@ -754,6 +799,139 @@ func _movement_command(
 		"move_axis": [0.5, 0.0], "board_request": false,
 		"boarding_target_id": &"", "disembark_request": false,
 }
+
+
+func _on_command_rpc_result(result: Dictionary) -> void:
+	if not _command_rpc_stage:
+		return
+	_command_rpc_observations.append({
+		"sender": _adapter.rpc_sender,
+		"wire": _adapter.rpc_wire.duplicate(true),
+		"result": result.duplicate(true),
+		"before": _adapter.rpc_before.duplicate(true),
+		"after": _adapter.command_proof_state(),
+	})
+
+
+func _server_command_rpc_probe(pilot_peer: int, other_peer: int) -> bool:
+	var clock := _adapter.advance_remote_ship_command_tick(50)
+	if not bool(clock.get("accepted", false)):
+		return _command_rpc_failure("server clock could not reach 50")
+	_command_rpc_stage = true
+	var cases := [
+		{"name": "pilot50", "sender": pilot_peer, "wire": _movement_command(pilot_peer, 50), "status": &"accepted"},
+		{"name": "duplicate50", "sender": pilot_peer, "wire": _movement_command(pilot_peer, 50), "status": &"stale_sequence"},
+		{"name": "late49", "sender": pilot_peer, "wire": _movement_command(pilot_peer, 49), "status": &"stale_sequence"},
+		{"name": "other_owner", "sender": other_peer, "wire": _movement_command(other_peer, 51, 1, 0, 50), "status": &"pilot_owner_mismatch"},
+		{"name": "false_peer", "sender": pilot_peer, "wire": _movement_command(other_peer, 51, 1, 0, 50), "status": &"spoofed_peer"},
+	]
+	var secure_sequences: Dictionary = {}
+	for index in cases.size():
+		var request := cases[index] as Dictionary
+		if not _write_probe_file("command_request_%d" % index, request):
+			return _command_rpc_failure("request write failed")
+		var deadline := Time.get_ticks_msec() + 1000
+		var sent: Dictionary = {}
+		while Time.get_ticks_msec() < deadline:
+			sent = _read_probe_file("command_sent_%d" % index)
+			if _command_rpc_observations.size() > index and not sent.is_empty():
+				break
+			await create_timer(0.01).timeout
+		if _command_rpc_observations.size() != index + 1 or sent.is_empty():
+			return _command_rpc_failure("missing or extra actual RPC result: %s" % request.name)
+		var observed := _command_rpc_observations[index]
+		var packet := observed.wire as Dictionary
+		var result := observed.result as Dictionary
+		var source := int(request.sender)
+		if int(observed.sender) != source or int(sent.get("sender", 0)) != source \
+			or packet != sent.get("packet", {}) or packet.get("payload", {}) != request.wire \
+			or int(packet.get("peer_id", 0)) != source or packet.get("stream_id") != &"movement" \
+			or int(packet.get("sequence", -1)) <= int(secure_sequences.get(source, -1)) \
+			or not bool(sent.get("queued", false)):
+			return _command_rpc_failure("actual sender/exact fresh packet mismatch: %s" % request.name)
+		secure_sequences[source] = int(packet.sequence)
+		if result.get("status") != request.status or bool(result.get("accepted", false)) != (index == 0):
+			return _command_rpc_failure("unexpected result for %s: %s" % [request.name, result])
+		if not _write_probe_file("command_observed_%d" % index, observed):
+			return _command_rpc_failure("observation write failed")
+		if index == 0:
+			var avatar := (observed.after.avatars as Dictionary).get(&"jovian_authority_craft", {}) as Dictionary
+			if int(avatar.get("last_sequence", -1)) != 50 or int(avatar.get("last_client_tick", -1)) != 50 \
+				or int(avatar.get("stream_id", -1)) != 0 or int(avatar.get("entity_generation", 0)) != 1 \
+				or int(avatar.get("owner_peer_id", 0)) != pilot_peer or (avatar.get("pending", []) as Array).size() != 1:
+				return _command_rpc_failure("accepted command did not queue once at generation1/stream0/tick50")
+			var ownership_before := (observed.before as Dictionary).duplicate(true)
+			var ownership_after := (observed.after as Dictionary).duplicate(true)
+			ownership_before.erase("avatars")
+			ownership_after.erase("avatars")
+			if ownership_before != ownership_after:
+				return _command_rpc_failure("accepted movement changed ownership")
+		else:
+			if observed.before != observed.after:
+				return _command_rpc_failure("refusal mutated command or ownership state: %s" % request.name)
+		_log("COMMAND_RPC_%s sender=%d status=%s secure_sequence=%d" % [request.name, source, result.status, packet.sequence])
+	# The four refusals must leave the accepted packet queued. Delivery is then
+	# verified once, including repeat-tick and next-tick attempts.
+	var delivered := _adapter.consume_remote_ship_command(&"jovian_authority_craft", 50)
+	var repeat := _adapter.consume_remote_ship_command(&"jovian_authority_craft", 50)
+	var next := _adapter.consume_remote_ship_command(&"jovian_authority_craft", 51)
+	if not bool(delivered.get("accepted", false)) or delivered.get("intent", {}) != cases[0].wire \
+		or bool(repeat.get("accepted", false)) or repeat.get("status") != &"already_consumed_tick" \
+		or bool(next.get("accepted", false)) or next.get("status") != &"no_intent":
+		return _command_rpc_failure("accepted command was not consumed exactly once")
+	_command_rpc_stage = false
+	_log("COMMAND_RPC_CONSUMED_ONCE")
+	return true
+
+
+func _command_rpc_failure(reason: String) -> bool:
+	_log("COMMAND_RPC_FAILED %s" % reason)
+	return false
+
+
+func _client_command_rpc_probe() -> void:
+	# Independent of _client_loop's existing admission/reconnect timers.
+	var deadline := Time.get_ticks_msec() + 8500
+	var handled: Dictionary = {}
+	while Time.get_ticks_msec() < deadline:
+		if not _adapter._server_offer.is_empty():
+			for index in 5:
+				if handled.has(index):
+					continue
+				var request := _read_probe_file("command_request_%d" % index)
+				if request.is_empty() or int(request.get("sender", 0)) != _adapter.multiplayer.get_unique_id():
+					continue
+				handled[index] = true
+				var queued := _adapter.send_movement_intent(request.wire as Dictionary)
+				_write_probe_file("command_sent_%d" % index, {
+					"sender": _adapter.multiplayer.get_unique_id(),
+					"queued": bool(queued.get("accepted", false)),
+					"packet": _adapter.sent_movement_packet.duplicate(true),
+				})
+		await create_timer(0.01).timeout
+
+
+func _write_probe_file(name: String, value: Dictionary) -> bool:
+	var path := _log_path.get_base_dir().path_join(name + ".bin")
+	var temporary_path := path + ".tmp"
+	var file := FileAccess.open(temporary_path, FileAccess.WRITE)
+	if file == null:
+		return false
+	file.store_var(value)
+	file.close()
+	return DirAccess.rename_absolute(temporary_path, path) == OK
+
+
+func _read_probe_file(name: String) -> Dictionary:
+	var path := _log_path.get_base_dir().path_join(name + ".bin")
+	if not FileAccess.file_exists(path):
+		return {}
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		return {}
+	var value: Variant = file.get_var()
+	file.close()
+	return value as Dictionary if value is Dictionary else {}
 
 
 func _resync_relationship_snapshot(snapshot: Dictionary) -> Dictionary:

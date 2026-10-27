@@ -6,6 +6,7 @@ const PEER_SCRIPT := "res://tests/network/network_authority_peer.gd"
 var _pids: Array[int] = []
 var _logs: Array[String] = []
 var _log_root := ""
+var _roles: Array[String] = []
 
 
 func _init() -> void:
@@ -18,7 +19,6 @@ func _run() -> void:
 		directory_base = OS.get_user_data_dir()
 	_log_root = directory_base.path_join("mudds-network-authority-%d" % OS.get_process_id())
 	DirAccess.make_dir_recursive_absolute(_log_root)
-	var executable := OS.get_executable_path()
 	var script_path := ProjectSettings.globalize_path(PEER_SCRIPT)
 	for role in ["server", "client_a", "client_b"]:
 		var log_path := _log_root.path_join("%s.log" % role)
@@ -30,33 +30,69 @@ func _run() -> void:
 			"--script", script_path, "--", "--role",
 			role, "--port", str(PORT), "--log", log_path,
 		])
-		var pid := OS.create_process(executable, args)
+		var pid := _spawn_peer(role, args)
 		if pid <= 0:
-			_cleanup()
+			await _cleanup()
 			push_error("failed to spawn %s" % role)
 			quit(1)
 			return
 		_pids.append(pid)
+		_roles.append(role)
 		_logs.append(log_path)
 		print("SPAWN %s pid=%d" % [role, pid])
 	var deadline := Time.get_ticks_msec() + 24000
 	while Time.get_ticks_msec() < deadline:
 		await create_timer(0.1).timeout
-		if _evidence_complete():
-			# Let all child destructors run so their diagnostics remain part of this gate.
-			await create_timer(0.25).timeout
-			var still_running := false
-			for child_pid in _pids:
-				still_running = still_running or OS.is_process_running(child_pid)
-			if still_running:
-				continue
+		var all_exited_zero := _all_exited_zero()
+		var failure := _process_failure()
+		if not failure.is_empty():
+			await _cleanup()
+			push_error("three-process child failure: %s\n%s" % [failure, _read_logs()])
+			quit(1)
+			return
+		if _evidence_complete() and all_exited_zero:
+			# Exit receipts are written only after wait reaps the actual engines;
+			# their redirected output includes all teardown diagnostics.
 			_pids.clear()
-			print("OK: three-process network authority harness")
+			print("OK: three-process network authority harness; all three OS exits=0; diagnostics=0")
 			quit(0)
 			return
-	_cleanup()
+	await _cleanup()
 	push_error("three-process harness timed out\n%s" % _read_logs())
 	quit(1)
+
+
+func _spawn_peer(role: String, args: PackedStringArray) -> int:
+	# Every path is a positional argument, never shell source. The wrapper owns
+	# an independent abort path and records the engine's real wait status.
+	var command := '"$@" > "$0.output" 2>&1 & child=$!; printf "%s" "$child" > "$0.pid"; trap \'kill "$child" 2>/dev/null; wait "$child"; exit 143\' TERM INT HUP; wait "$child"; status=$?; printf "%s" "$status" > "$0.exit"; exit "$status"'
+	var wrapper := PackedStringArray(["-c", command, _log_root.path_join(role), OS.get_executable_path()])
+	wrapper.append_array(args)
+	return OS.create_process("/bin/sh", wrapper)
+
+
+func _all_exited_zero() -> bool:
+	for role in _roles:
+		var path := _log_root.path_join(role + ".exit")
+		if not FileAccess.file_exists(path) or FileAccess.get_file_as_string(path).strip_edges() != "0":
+			return false
+	return _roles.size() == 3
+
+
+func _process_failure() -> String:
+	for role in _roles:
+		var exit_path := _log_root.path_join(role + ".exit")
+		if FileAccess.file_exists(exit_path):
+			var status := FileAccess.get_file_as_string(exit_path).strip_edges()
+			if not status.is_empty() and status != "0":
+				return "%s actual OS exit=%s" % [role, status]
+		var output_path := _log_root.path_join(role + ".output")
+		if FileAccess.file_exists(output_path):
+			var output := FileAccess.get_file_as_string(output_path)
+			for diagnostic in ["ERROR:", "WARNING:", "SCRIPT ERROR:", "SCRIPT WARNING:"]:
+				if output.contains(diagnostic):
+					return "%s emitted %s" % [role, diagnostic]
+	return ""
 
 
 func _evidence_complete() -> bool:
@@ -88,6 +124,8 @@ func _evidence_complete() -> bool:
 		"LOADMASTER_STALE_GENERATION_REJECTED", "LOADMASTER_REORDER_REJECTED",
 		"LOADMASTER_STALE_OCCUPANT_REJECTED", "LOADMASTER_DISCONNECT_CLEAN",
 		"RECONNECT_OLD_COMMAND_REJECTED", "RECONNECT_RESYNC_PUBLISHED", "RECONNECT_GENERATION_FRESH",
+		"COMMAND_RPC_pilot50", "COMMAND_RPC_duplicate50", "COMMAND_RPC_late49",
+		"COMMAND_RPC_other_owner", "COMMAND_RPC_false_peer", "COMMAND_RPC_CONSUMED_ONCE",
 	]:
 		if not server_log.contains(marker):
 			return false
@@ -158,17 +196,32 @@ func _read_log(role: String) -> String:
 
 func _read_logs() -> String:
 	var output := ""
-	for path in _logs:
-		if FileAccess.file_exists(path):
-			var file := FileAccess.open(path, FileAccess.READ)
-			if file != null:
-				output += file.get_as_text() + "\n"
-				file.close()
+	for role in _roles:
+		for extension in [".log", ".output", ".exit", ".pid"]:
+			var path := _log_root.path_join(role + extension)
+			if FileAccess.file_exists(path):
+				output += path + "\n" + FileAccess.get_file_as_string(path) + "\n"
 	return output
 
 
 func _cleanup() -> void:
+	# Kill owned engines first, leaving their wrappers alive to wait/reap them.
+	for role in _roles:
+		var pid_path := _log_root.path_join(role + ".pid")
+		var exit_path := _log_root.path_join(role + ".exit")
+		if FileAccess.file_exists(pid_path) and not FileAccess.file_exists(exit_path):
+			var child_pid := int(FileAccess.get_file_as_string(pid_path))
+			if child_pid > 0 and OS.is_process_running(child_pid):
+				OS.kill(child_pid)
+	var deadline := Time.get_ticks_msec() + 1000
+	while Time.get_ticks_msec() < deadline:
+		var wrappers_running := false
+		for pid in _pids:
+			wrappers_running = wrappers_running or OS.is_process_running(pid)
+		if not wrappers_running:
+			break
+		await create_timer(0.02).timeout
 	for pid in _pids:
-		if pid > 0:
+		if pid > 0 and OS.is_process_running(pid):
 			OS.kill(pid)
 	_pids.clear()
