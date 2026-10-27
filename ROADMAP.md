@@ -168,6 +168,12 @@ missing route, member list or expected value. Those gaps remain in the existing
 [finite definition list](docs/ROADMAP_BACKLOG.md#remaining-contract-gaps--plan-next).
 Do not report that review as a completed executable roadmap.
 
+The current bounded pass fixes Courier/Torpedo combat endpoint membership and
+[one installed Halyard crew cut](docs/ROADMAP_BACKLOG.md#installed-halyard-crew-cut--fixed-scope-and-runner-gap).
+The remaining work is explicit: ordinary encounter input/observer routes and
+installed runner support for external export metadata plus protected crew state.
+These source bindings do not pass the gameplay journeys or close PLAN-NEXT.
+
 For each listed gap, supply the finite answer in its existing row/contract:
 the named members, action/trigger, expected endpoint, preserved state, proof
 and original limits. Reuse accepted results. If an answer needs a design decision

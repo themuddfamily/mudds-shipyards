@@ -947,6 +947,32 @@ result; definitions, smaller cards and tests are not new gameplay deliverables.
 
 ### Remaining contract gaps — PLAN-NEXT
 
+Selected definition pass2026-10-27,04:50–05:15UTC: bind the existing
+COMBAT-COURIER and COMBAT-TORPEDO remaining terminal/reuse membership, plus
+CREW-RECOVERY-INSTALLED's actual craft/seat/cut/runner boundary. Codex owns edits
+to this file and ROADMAP.md; two independent readers own disjoint Courier and
+Torpedo source bindings. No engine run, production change or new goal ID is
+selected. PASS for this slice requires source/check references for each recovered
+trigger/endpoint, explicit remaining ordinary-driver or owner-input gaps, and
+unchanged canonical IDs/parents/kinds/order. This does not close PLAN-NEXT.
+Estimate25minutes including review, documentation checks, commit/push and cleanup;
+hard stop05:15UTC. Prior definition work remains attached to PLAN-NEXT at
+acf748653 and its ancestors; no whole-goal cumulative-time or fresh-budget claim
+is made from this slice's clock. First contradictory source predicate stops the
+affected definition; it does not schedule a repair or runtime trial.
+
+Terminal result04:56UTC: this source-binding slice is CLOSED, not a completed
+executable breakdown. Courier/Torpedo triggers, retirement/reuse and proof scopes
+are supplied below; Halyard craft/chair/cut/cold endpoint and the exact metadata/
+protected-state runner gap are fixed. Two bounded source reviews and root checks
+pass after correcting production loss ordering, generation/function ownership
+and fixture/ordinary distinctions. All337 canonical IDs/names/parents/kinds/order,
+new contract anchors and existing local file-link baseline are preserved;
+`git diff --check` passes. No engine, package, gameplay or hosted CI run.
+Approximately6minutes through source review/checks, with commit/push charged to
+this same pass before05:15. PLAN-NEXT remains OPEN on its other listed fields;
+this closure selects no production implementation or parked retry.
+
 This is the finite disposition of the **31 existing containers**, not another
 work queue. Each row below names exactly what must be resolved in its existing
 contract before it can be assigned. Codex owns these bindings unless an explicit
@@ -960,9 +986,9 @@ feature. Do not reopen completed surveys or create successor planning IDs.
 | ART-FINDINGS | Existing13 capture sets/143 images plus original fleet/world/character/effect/UI obligations. Codex maps each original obligation to a named existing image/view or exact missing view specification; reference STATION-FINDINGS once. No new obligation inferred from an empty area. |
 | CRAFT-ACCEPT-TORRENT, CRAFT-ACCEPT-ARROW, CRAFT-ACCEPT-JOVIAN, CRAFT-ACCEPT-ZENITH, CRAFT-ACCEPT-HALYARD, CRAFT-ACCEPT-BULWARK, CRAFT-ACCEPT-CINDER-LIGHT, CRAFT-ACCEPT-CINDER-HAULER, CRAFT-ACCEPT-CINDER-BOMBER | Eleven acceptance boundaries listed below; each craft's existing distinctive functions remain in its row. Codex binds the unproved member's actual caller/input/contact/route/endpoints/limits and reuses accepted members. Missing ordinary driver code is implementation, not an external-access blocker. Bomber's additional crew alone depends on BOMBER-ROLE-DECISION. |
 | CRAFT-ACCEPT-TITAN, CRAFT-ACCEPT-VORTEX, CRAFT-ACCEPT-PARADOX, CRAFT-ACCEPT-KATANA, CRAFT-ACCEPT-PREDATOR, CRAFT-ACCEPT-DYNAMIC, CRAFT-ACCEPT-UTOPIA, CRAFT-ACCEPT-SALYUT | User accepts/amends each existing SPEC proposal; Codex then adopts its existing BUILD-SPLIT cards and binds the same eleven integrated acceptance boundaries. Do not survey or write the prepared proposals again. |
-| COMBAT-COURIER | Retain accepted clear/escape/withdrawal. Codex names the still-required escorted/recovery/repeat outcomes from original scope and their exact actor/terminal/home endpoints; unresolved membership keeps this container blocked. |
+| COMBAT-COURIER | [Escorted encounter, runtime loss, cyclic re-admission and cold safe recovery](#courier-intercept--bounded-outcomes) now have source-bound triggers/endpoints and retained proof scopes. Accepted clear/escape/withdrawals stay closed. Codex still supplies the missing ordinary escorted/loss/re-admission/cold-cut inputs, driver and observations; no escort×terminal matrix, repeat count or new user policy is invented. |
 | COMBAT-PERIMETER | Terminal/reset membership is fixed in the [Hold contract](#perimeter-hold--missing-production-integration): explicit abort, integrity/core loss, player/craft loss, distance/phase/network/teardown withdrawal, actor retirement and generation-safe renewal. Ordinary survival/home remains PARKED; ordinary failure/home/re-admission caller and command remain BLOCKED definition — Codex. Do not survey membership again. |
-| COMBAT-TORPEDO | PLAY-TORPEDO owns actual clear/home once. Codex binds the original evade/intercept/fail/abort/solo-restoration cases to their actor/contact/terminal/retirement endpoints; parked clear work keeps its causal reopening gate. |
+| COMBAT-TORPEDO | [Combat triggers/terminal outcomes](#torpedo-combat-outcomes--fixed-source-boundary) and existing ten TORPEDO-AUTH children fix membership. PLAY-TORPEDO owns clear/home once and stays PARKED. Codex still supplies absent ordinary evade/intercept/expiry/withdrawal callers, exact lifecycle cuts/commands and original budgets; no repeat source survey or live board-abort assumption. |
 | NET-SEATS-FINAL | Existing promotion, seat-ledger, berth handback, contention and stale/duplicate/foreign-refusal cases. Codex names the literal existing goal/role/participant/caller receipts and candidate for each; no new role matrix. |
 | SERVER-BASELINE | Original server/two-independent-client ordinary flight/dock/exit/reuse and lifecycle/adverse cases. Codex names exact reused SERVER-BASELINE child receipts and remaining route/cut/endpoints; short accepted slices cannot close the original complete journey. |
 | COMFORT-MOTION | Reuse accepted toast/damage episodes and the [eight fixed remaining source consumers/OFF–ON endpoints](#reduced-motion--finite-production-consumers). Codex binds only still-unproved ordinary callers/candidate/profile/deadline and retained transition/cold/Reset endpoints. Source roster discovery is closed; missing intended behavior must be an explicit choice, not another survey. |
@@ -1204,12 +1230,12 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | BUILD-SPLIT-SALYUT | Salyut named hull/handling/access/role/recovery build cards | 10,36 | Definition | BLOCKED input — user approval of the named SPEC; then Codex adopts/amends its already finite linked capability cards against that answer. This row ends at that finite plan; it is not executable ship construction. GATED on accepted SPEC-SALYUT; 15 bounded [draft production/package cards](design/SALYUT_IMPLEMENTATION_PROPOSAL.md) prepared, not approved or executed. Adopt against actual owner choice; do not repeat definition. | Salyut: accepted SPEC expanded into named hull/access, handling, actual functions/weapons, damage/recovery/save/reuse capabilities with files/owner/visible result/proof/estimates; construction still required. |
 | CRAFT-ACCEPT-SALYUT | Salyut full craft loop | 7,10,11,36 | Container | WAITING input (user): accept/amend [SPEC-SALYUT](design/SALYUT_IMPLEMENTATION_PROPOSAL.md), including roles/actions, functions/armed-or-unarmed, geometry/access/berth and handling. Codex then binds the actual build and ordered journey/cases/limits; prepared cards are not implementation. | Accepted SPEC-SALYUT → implemented BUILD-SPLIT-SALYUT capabilities → [complete physical craft journey](#proof-craft). Missing product values remain with the user; concrete route/case/driver binding remains with Codex. |
 | COMBAT-INTERCEPTOR | Initial interceptor pressure encounter | 11 | Qualification | DONE in checkpoint3d92b91 Guided starter-Torrent scope: same original3/3 ordinary route proves actual player fire/defender destruction, physical home landing/shutdown/exit and usable controls. [One shared proof, no duplicate delivery](history/ROADMAP_DELIVERIES.md#guided-checkpoint3d92b91--original-ordinary-route-accepted3of3). Other craft/encounter/damage/recovery requirements remain in their named owners | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
-| COMBAT-COURIER | Courier Intercept | 11 | Container | NON-EXECUTABLE container — accepted clear/escape/withdrawals retained. Remaining escorted/recovery/repeat membership is BLOCKED definition: Codex must enumerate only the uncovered original cases with trigger/result/route/cap; a generic remaining-case label cannot schedule play. COURIER-WITHDRAW-DISTANCE first full ordinary journey DONE719fe364a; see bounded outcomes. COURIER-ESCAPE also DONE393733212: full103.179s/actualfirstunhurt1400m escape/all-actorstanddown/realdefenderkill/strict home, defaults/caps retained; see bounded outcomes. COURIER-CLEAR first full original journey DONE4196ad0: ordinary route55.973s under300, initial defender alive through actual Courier kill/CLEARED before1400m, then defender defeat and strict home dock/OFFLINE/physical exit. Runtime damage-admission431aae retained; ordinary nonlethal preparation/readiness changes no combat rules. Paired checkpoint/strict startups/1525-entry audit/review GO; merged/pushed/owned cleanup done. [Separate bounded outcomes](#courier-intercept--bounded-outcomes) retain escorted instances/recovery/repeats/native requirements OPEN; clear, escape and first unhurt phase/distance withdrawals keep their recorded scopes, full parent not closed | [Combat](#proof-combat): retain clear/escape/withdrawal passes; finish only named remaining escorted/recovery/repeat outcomes, real terminal result and usable home. |
+| COMBAT-COURIER | Courier Intercept | 11 | Container | NON-EXECUTABLE container — accepted clear/escape/withdrawals retained. [Finite escorted/loss/re-admission/cold-safe-recovery endpoints](#courier-intercept--bounded-outcomes) are source-bound. BLOCKED definition/implementation — Codex: actual ordinary inputs, observer and driver for those remaining results; exact phase/cold committed cut and continuation command under retained CAP300/outer330. No inferred escort cross-product/repeat count or new owner policy; source maps are not rerun permissions. COURIER-WITHDRAW-DISTANCE first full ordinary journey DONE719fe364a; see bounded outcomes. COURIER-ESCAPE also DONE393733212: full103.179s/actualfirstunhurt1400m escape/all-actorstanddown/realdefenderkill/strict home, defaults/caps retained; see bounded outcomes. COURIER-CLEAR first full original journey DONE4196ad0: ordinary route55.973s under300, initial defender alive through actual Courier kill/CLEARED before1400m, then defender defeat and strict home dock/OFFLINE/physical exit. Runtime damage-admission431aae retained; ordinary nonlethal preparation/readiness changes no combat rules. Paired checkpoint/strict startups/1525-entry audit/review GO; merged/pushed/owned cleanup done. [Separate bounded outcomes](#courier-intercept--bounded-outcomes) retain escorted instances/recovery/repeats/native requirements OPEN; clear, escape and first unhurt phase/distance withdrawals keep their recorded scopes, full parent not closed | [Combat](#proof-combat): retain clear/escape/withdrawal passes; finish only named remaining escorted/recovery/repeat outcomes, real terminal result and usable home. |
 | COMBAT-WING | Paired Wing Break | 11 | Qualification | FAILED/open ordinary two actual player-weapon kills plus complete home/OFFLINE physical exit/UIquit. Latest9a68aa01f trial102.037s:8shots,0Wingdamagehits/kills, both opponents38health; prerequisite Heavy/Torpedo home journeys pass. Unique diagnostic source archived under pushed tag `archive/diagnostics/wing-ordinary-route-20261020`; branch/worktree removed, observer/selector/driver excluded from main. Independently accepted board-landing withdrawal fix shipped9e9d1be; it does not complete Wing combat. [Closeout](history/ROADMAP_DELIVERIES.md#wing-branch-accounted-landing-fix-shipped--2026-10-20) | Two real live Wing opponents destroyed by ordinary player weapons, then strict home/OFFLINE physical exit/normal UI completion; admission alone insufficient. |
 | COMBAT-WING-ADMISSION | Existing Wing becomes a genuine third solo board contract | 11 | Capability | DONE checkpointf671da9: on-foot arm/cancel, physical departure/registered source gate, real suppression/flank pair, solo/network refusal, both-destroyed objective with healthy-retirement abort, correct HUD/audio/no-credit lifecycle. Actual Main28/director151/board59/HUD8/audio11 checks, paired exports/startups/audit PASS. Component simulated clear disclosed; no full ordinary kills/home. [Result](history/ROADMAP_DELIVERIES.md#paired-wing-board-admission--shipped-on-f671da9) | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | COMBAT-PERIMETER | Perimeter Hold | 11 | Container | NON-EXECUTABLE container — ordinary90s/>35% survival/home is one finite case; [finite terminal/reset membership](#perimeter-hold--missing-production-integration) is now source-bound. BLOCKED definition — Codex: supply the ordinary failure/home/re-admission driver, ordered inputs and observable endpoints at original CAP300; staged actor removal/time advancement cannot supply this proof. Existing delivered runtime/admission stays accepted. Ordinary-driver attempt PARKED317c3b44f: first Heavy withdrawal/home and actual saved Torpedo posting pass; fresh-selection E correction reaches second Arrow/Torpedo, then sole L fails to start landing. Nonqualifying diagnostic successfully traces both landing inputs; prior failure NOT_REPRODUCED, product cause unproven. No third qualifying trial selected; both failures/source/data retained, CAP300/original clock unchanged. [Exact stop](history/ROADMAP_DELIVERIES.md#perimeter-ordinary-route-input-stop-20261025). PERIMETER-LIVE runtime/admission DONE fdae1cb: physical fourth-board contract, protected core/three live attackers,90s/>35%, HUD and lifecycle. Actual-Main admission, retained Breach recovery, staged objective and paired packages PASS; branch merged/deleted. Full ordinary weapon/home, failure/recovery, repeats/network/native remain OPEN. [Delivery](history/ROADMAP_DELIVERIES.md#perimeter-live-branch-finished--2026-10-20) | Real protected core survives90s with >35% through ordinary live combat, no Hold credit, strict home/OFFLINE/physical exit; the linked finite terminal/retirement/reset cases pass in their declared scope. Ordinary failure/home/re-admission still needs its explicit caller/endpoints before execution. |
 | COMBAT-BREACH | Heavy Breach | 11 | Qualification | First full ordinary charged-picket kill/payment/home sortie DONEfb396ab13, exactly the PLAY-BREACH proof below, counted once. Remaining craft journeys belong to the 17 CRAFT-ACCEPT rows; replicated hull/component outcomes belong to NET-DAMAGE; active Breach restart policy belongs to RECOVERY-POLICY-BREACH and its implementation to the Breach owner in the [existing activity-write roster](#activity-write-boundary-roster--act-writes-define). These do not create additional unnamed COMBAT-BREACH cases. BREACH-INTERRUPTION earned-debt case DONEc78e0ac. No full combat-parent closure. | Same actual full sortie as PLAY-BREACH; one proof serves both parents, no duplicate job. |
-| COMBAT-TORPEDO | Torpedo Run evade/intercept/destroy/fail/abort | 11,23 | Container | NON-EXECUTABLE container — PLAY-TORPEDO owns clear/home once; remaining evade/intercept/fail/abort/solo-restoration cases require Codex to bind the existing ten-case TORPEDO-AUTH contract to exact ordinary routes, triggers and results. Missing routes/values are BLOCKED definition; no implicit successor attempt. | Actual evade/intercept/boat destruction plus each named fail/abort/restoration outcome; PLAY-TORPEDO supplies its clear/home proof once. |
+| COMBAT-TORPEDO | Torpedo Run evade/intercept/destroy/fail/abort | 11,23 | Container | NON-EXECUTABLE container — [finite combat endpoints](#torpedo-combat-outcomes--fixed-source-boundary) are source-bound; solo/peer/pilot/target restoration reuses the ten existing TORPEDO-AUTH children. PLAY-TORPEDO owns clear/home once and remains PARKED. BLOCKED definition/implementation — Codex: missing ordinary evade/intercept/150s-expiry/withdrawal drivers and each remaining authority case’s exact participant/input/transport cut, executable command and original budget. Live board abort has only an API fixture; ordinary E cancels prelaunch arming only. No implicit successor attempt or active-crash policy approval. | Actual evade/intercept/boat destruction plus each named fail/abort/restoration outcome; PLAY-TORPEDO supplies its clear/home proof once. |
 
 ### Courier Intercept — bounded outcomes
 
@@ -1227,7 +1253,32 @@ same actors, live weapons and the original home landing/shutdown/physical exit.
 | COURIER-ESCAPE | Actual live runner reaches original boundary with positive hull; director ESCAPED stands down all dispatched actors, then player clears defender and completes home. | DONE393733212: complete packaged103.179s/original300/330, actual85→51→17 preparation (one authenticated harmless-miss retry), firstgen1/unhurt78 courier at1,400.066m/ESCAPED, every actually dispatched actor inactive/unauthorized/no furtherfire through home. Fixed ordinary waitflight max358.837m from actualorigin; physical saved-attack return<=1m/speed.05444 precedes real lethal17 and originalstrict home/lease/OFFLINE/Eexit/error.17/hull59. Actual source/defaults preserved; all game logs clean/owned cleanup complete. Final134 Python/observer/privacy/package/startup/payload audit/review pass; four commits merged/pushed. Initial unconfirmed preparation shot, later disabled-weapon timeout, exact component diagnostic and arrival test failure retained. Full escort/repeat/withdraw/recovery/native/parent gates remain. [Acceptance](history/ROADMAP_DELIVERIES.md#courier-escape--accepted-ordinary-flight-and-home--2026-10-24). |
 | COURIER-WITHDRAW-PHASE | With courier actually running, destroy initial defender through real fire; normal RETURN_TO_YARD causes WITHDRAWN and stops courier/escort fire, then complete home. | DONEccfaa63b8 for first unhurt courier instance: full56.522s/original300/330; observedlivegen1 courier1595, actual authoritative player request12 lethal17 at1597 while runnerstillrunning/pending/unhurt78 and phaseRETURN, then WITHDRAWN1598. All actually dispatched1actor inactive/unauthorized/pending0/no furtherfire for865frames through strict occupiedhome/OFFLINE/DISEMBARKING/physicalCOMPLETE/error.17/hull89; max actual-origin radius63.412 rulesout distance. Frozen game081/driverccfaa pair verified; final141 Python and package/startup/payload/review pass. Initial omitted-disembark caller failure retained, two commits merged/pushed and owned cleanup complete. Distance withdrawal is qualified in its own card; escorted instances/recovery/repeats/native/fullparent remain open. [Acceptance](history/ROADMAP_DELIVERIES.md#courier-phase-withdrawal--accepted-live-dispatch-and-home--2026-10-24). |
 | COURIER-WITHDRAW-DISTANCE | Remain more than700m from the actual scenario origin and every active roster craft for7 physics seconds while authorized; WITHDRAWN stands down courier/escort, then clear defender and complete home. | DONE719fe364a: first packaged attempt 92.585s/original300/330. Actual origin AND every active craft >700m for 420 consecutive pending physics samples; actual terminal grace7.016667s, WITHDRAWN while authorized with original defender17 and unhurt Courier78/progress59.83%. All actually dispatched actors inactive/unauthorized/pending0/no further fire through 60-frame hold, physical attack return, fresh authoritative defender kill and strict home/OFFLINE/DISEMBARKING/physical COMPLETE/error0.17. Final144 tests, observer/privacy, clean private package/startup/payload audit and independent review PASS; source merged/pushed, owned cleanup complete. Escorted instances/recovery/repeats/native/fullparent remain open. [Acceptance](history/ROADMAP_DELIVERIES.md#courier-distance-withdrawal--accepted-ordinary-flight-and-home--2026-10-24). |
-| COURIER-RECOVERY | One specifically named interruption/cold continuation preserves the intended safe context without stale courier/escort authority or duplicate outcome. | DEFINE before selection: name interruption boundary and existing save/recovery expectation; retain broader recovery ownership. No invented active-encounter resume guarantee. |
+| COURIER-RECOVERY | One actual running-Courier committed-pilot cut, owned kill/reap and distinct normal startup/Resume returns the same craft to its home berth with fresh pilot claims/usable continuation and preserved saved progress. No stale Courier/escort authority or duplicate terminal; no airborne/active-encounter restore claim. | Existing pilot safe-home policy applies; no new user choice is required. Codex still supplies exact committed cut, ordinary Resume inputs, retirement/context observations and continuation command; see finite remaining members below. No run selected. |
+
+**Remaining finite source bindings2026-10-27 — not gameplay passes.**
+
+| Member | Trigger and observable endpoint | Existing proof / exact missing implementation |
+| --- | --- | --- |
+| Escorted encounter | Real player fire leaves the runner alive with health<82% of maximum. Distress then dispatches both `WingSkirmisherLead` and `WingSkirmisherWing` after2.4physics seconds. The existing complete example kills the initial defender AFTER both escorts launch; RETURN_TO_YARD concludes WITHDRAWN. Runner/both escorts are inactive/unregistered/unauthorized, pending shots cleared, roster/coordinator empty and no later fire. Surviving player completes strict occupied home berth/lease, OFFLINE and physical exit. | `_test_production_encounter` in the existing varied-encounter test covers distress/both identities/real scatter/phase retirement with staged damage/placement. Missing ordinary driver and observer assertions use existing native-sortie owners; staged proof does not close this route. No additional escort×clear/escape/withdrawal matrix is required by the recovered scope. |
+| Runtime loss and reuse | Actual Guided Torrent hull loss during automatic Courier dispatch changes GameFlow to RECOVERING then APPROACH_SHIP. Director checks phase before target on its next tick, so this production cut concludes WITHDRAWN; ABORTED belongs to isolated target-evaluation fixtures. Same Player recalls to `world.get_player_spawn()`, awake/on foot/controllable/supported after settling, with old seat/boarding/landing authority released. Same Torrent regenerates no earlier than2000ms, after successful preflight/home lease; physical walk/reboard then operates its fresh life. All old Courier/escort authority stays retired. | Existing destruction/recovery and Torrent completion tests stage their damage/boarding. No ordinary Courier-loss driver is supplied. The parked Torrent loss trial retains its causal reopening gate; this definition cannot restart it. The2000ms minimum is not a promised upper regeneration deadline. |
+| Cyclic re-admission | A concluded scenario cannot rearm inside the same authorized phase entry. A later legitimate entry waits4.5physics seconds, advances scenario generation and resets elapsed/distress/escort/disengagement state. Authored default sequence is Courier→Paired Wing→Torpedo→Courier; each terminal increments its outcome count once. Old actors/charges/grants stay retired and the fresh generation owns newly admitted actors. Complete the selected actual outcome and physical home. | Ordinary repeat admission inputs/driver remain missing. Guided completion blocks another Guided encounter in the same Main; loss clears its defender-spawn latch. Direct `begin_scenario()` and a fresh process's first generation do not prove repeat. No Courier ten-run count is specified or inferred. |
+| Cold safe recovery | At one named running-Courier cut AFTER settled pilot context commits, owned SIGKILL/reap then distinct normal startup with the same data and actual Resume. Existing pilot policy returns the same registered craft to its home berth with fresh seated pilot/source/boarding claims, preserves independently saved progress, and permits actual helm or exit continuation. Old Courier/escorts/flight position are not restored; no stale source, duplicated terminal count or unrelated reward change. | Existing pilot recovery policy already applies to a settled combat pilot; no external design decision is established. Codex must supply precise cut/durable document, ordinary Resume inputs, fresh context/retired-source observations and continuation driver. This is missing binding/implementation, not permission to invent active encounter persistence. |
+
+Source owners: [director](../scripts/combat/encounter_scenario_director.gd)
+`_update_arming`, `_evaluate_termination`, `_update_courier_scenario`, `_conclude`,
+`_stand_down`, `_reset_run_state`; [GameFlow](../scripts/game/game_flow.gd)
+`_recover_from_destroyed_ship`, `_recall_pilot_to_deck`,
+`_capture_solo_safe_recovery_context`, `_apply_solo_safe_recovery`.
+Existing fixture anchors:
+[varied encounter](../tests/varied_encounter_integration_test.gd),
+[destruction lifecycle](../tests/combat_destruction_recovery_lifecycle_test.gd),
+[Torrent completion](../tests/torrent_sortie_completion_test.gd) and
+[cold pilot recovery](../tests/session_recovery_resume_offer_test.gd).
+No checks were run for these source bindings. Courier has no activity reward ID
+or adapter; its conclusion counter is not a payment. Preserve the existing150s
+backstop and all six director terminal conditions, within their declared fixture
+or player scope; the generic2.5s substituted backstop check is not an ordinary
+150s Courier qualification.
 
 Only a separately selected card becomes executable: freeze clean source/package,
 exact owners/commands, one ordinary CAP300/outer330 attempt and first-failure
@@ -1978,6 +2029,64 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 
 ### Torpedo authority and restoration — finite remaining cases
 
+#### Torpedo combat outcomes — fixed source boundary
+
+COMBAT-TORPEDO definition2026-10-27: these are the existing runtime endpoints,
+not new gameplay passes or a new craft×case matrix. PLAY-TORPEDO retains the full
+ordinary posted evade/intercept/boat-clear/durable-payment/home journey once.
+
+| Member / actual trigger | Required endpoint and retained proof scope |
+| --- | --- |
+| Dodge a live seeker | After its0.45s arming period, move outside its80° nose lock cone; steering limit42°/s. The successful dodge case must resolve that flight as miss/expiry, retire the slot and apply no warhead damage. Existing projectile `_test_dodge` teleports its target; ordinary piloting remains missing. |
+| Shoot down a live seeker | Real weapon damage destroys the14-health/1.9m-radius seeker hurtbox; its authority flight is abandoned before arrival, collision disabled and intercepted count increments once. Existing `_test_shoot_down` uses resolver API fire and checks no delayed damage through300physics frames; ordinary aiming/fire route remains missing. |
+| Destroy the actual boat | Production boat hull70→0 retires its seekers and concludes CLEARED. Physical board posts Paired Wing and requests one `shipyard_torpedo_run` / `return_torpedo_run_credit` reward for that generation; duplicate conclusion cannot pay twice. API reward callback is not durable payment or physical home proof. |
+| Unresolved encounter expires | Live target/healthy boat, authorized phase, no withdrawal and unresolved objective through150 accumulated physics seconds→EXPIRED, no reward, next Paired Wing posting. Generic director test substitutes2.5s and cannot prove this150s ordinary result. |
+| Target loss | Actual invalid/destroyed/removed target→ABORTED when target evaluation runs. Production GameFlow may change phase first and synchronously conclude WITHDRAWN; bind the exact input/lifecycle cut before asserting one reason. Reuse TARGET-DESTROY/TARGET-REMOVE children, not a generic pilot-loss abort. |
+| Invalid boat after launch | Missing/out-of-tree boat, or healthy but inactive boat→ABORTED, never a kill/CLEARED. Component removal is a lifecycle fixture, not an ordinary player action. |
+| Withdraw from authorized flight | Accepted automatic landing or departure from authorized FREE_FLIGHT→WITHDRAWN. Distance withdrawal requires strictly>700m from BOTH scenario origin and every active roster actor continuously7physics seconds. No reward; board rotates once. |
+| Cancel physical-board arming | Ordinary E cancels an armed prelaunch sortie, clears armed actor and advances board/sortie generations without encounter/payment. `abort_and_reset` can withdraw a live encounter through API; normal GameFlow only exposes it while armed. A live ordinary board-abort command is not established. |
+
+Every encounter terminal retires the boat/roster and old pool flights, revokes combat/fire
+authority and clears the old target reference. Fresh admission cannot resurrect
+an old flight. Exact owners:
+[director](../scripts/combat/encounter_scenario_director.gd)
+`_evaluate_termination`, `_conclude`, `_stand_down`, `_update_arming`;
+[board](../scripts/activities/heavy_breach_activity_board.gd)
+`abort_and_reset`, `_on_scenario_concluded`;
+[projectile pool](../scripts/combat/seeker_torpedo_projectile.gd)
+`_on_torpedo_destroyed`;
+[GameFlow](../scripts/game/game_flow.gd) armed-sortie cancellation/input dispatch.
+
+Retained fixture checks:
+[seeker](../tests/seeker_torpedo_projectile_test.gd)
+`SEEKER_TORPEDO_PROJECTILE_TEST_OK`,
+[boat](../tests/torpedo_boat_opponent_test.gd)
+`TORPEDO_BOAT_OPPONENT_TEST_OK`,
+[director](../tests/encounter_scenario_director_test.gd) and
+[production terminal debt recovery](../tests/heavy_breach_game_flow_production_route_test.gd).
+Hit fixture commits34damage once. Direct damage, actor placement, substituted
+time and API reset remain disclosed; none is ordinary full-journey acceptance.
+No check was run for this definition edit.
+
+The ten existing TORPEDO-AUTH children below retain their exact membership.
+Join failure/cancel, admitted disconnect, authority loss and Main reentry restore
+the retained boat/target/hull/transform/generations/charge and resume elapsed time;
+client mode has no solo AI/collision/source/cue/launch. Prejoin flights stay dead;
+only a fresh authority flight may launch. PILOT-LOSS preserves a surviving
+craft/target: seat loss alone is not destruction. Their accepted API scopes stay
+closed; ordinary lifecycle cuts/independent peers still need their bound commands.
+
+**Remaining Codex deliverable:** extend the existing
+[native driver](../tools/release/run_native_sortie.py) and
+[observer](../scripts/diagnostics/native_sortie_observer.gd) for the uncovered
+ordinary inputs/results, retaining150s encounter/shared300s/outer360s limits from
+the original full route. The registered driver currently has no Torpedo ordinary
+qualifier. PLAY-TORPEDO's archived failure/reopening gate remains binding; this
+source definition authorizes no retry. Active-crash policy remains with the
+existing RECOVERY-POLICY-TORPEDO decision; no restored encounter entitlement is
+invented here. Each authority run still binds its candidate, participants,
+input/transport cut and original budget before selection.
+
 TORPEDO-AUTH-DEFINE is a source definition onaa1a88bef, one bounded high-effort
 reader plus root verification; no engine, gameplay implementation or fresh pass.
 Existing ownership is delivered: LiveCombatAuthority and SeekerTorpedoProjectile
@@ -2084,7 +2193,7 @@ Recovery proof uses an owned actual OS SIGKILL, distinct restart, protected real
 | RECOVERY-PILOT-DEFINE | Pilot durable-boundary/resume-or-safe-home contract | 2,31 | Definition | DONE definition only; four-field safe-home pilot preference, fresh claims, preserved activity/debt; ca0 archive pilot/Convoy pass retained; final candidate and ordinary-controls qualification remain | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | RECOVERY-CABIN-DEFINE | Cabin/rest durable-boundary/resume-or-safe-home contract | 2,31 | Definition | DONE definition only; four-field craft/home preference, fresh supported awake cabin/hatch, no saved flight/sleep pose. Earlier package passes retained; finite remaining cases below | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | RECOVERY-CREW-DEFINE | Seated crew durable-boundary/resume-or-safe-home contract | 2,31 | Definition | DONE definition only; settled solo crew saves four-field home-cabin preference; Resume wakes unseated with fresh cabin/hatch, no prior role or seat claim. Earlier ca0 crew pass retained; finite cases below | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
-| CREW-RECOVERY-INSTALLED | One installed crew interruption returns awake to the supported home cabin with activity/reward integrity | 2,31 | Qualification | GATED final installed candidate plus one frozen supported craft/seat/cut; use existing crew selector, original caps and owned kill/reap/distinct restart. BLOCKED definition — Codex: name supported craft/physical seat and existing installed selector/command; bind actual committed crew-save boundary, protected document fields/activity/debt/payment, owned kill/reap, distinct restart and ordinary awake-unseated home-cabin continuation endpoint under original limits. Exact installed candidate bytes are a separate gate. Reuse settled crew policy; settings-only crew acceptance does not prove earned-debt retention. | [Recovery](#proof-recovery): exact installed candidate actual crew commit/OS kill/distinct restart→awake supported home cabin→ordinary controls/continuation, conserved debt/payment once. |
+| CREW-RECOVERY-INSTALLED | One installed crew interruption returns awake to the supported home cabin with activity/reward integrity | 2,31 | Qualification | GATED on final installed candidate and the [fixed Halyard crew cut](#installed-halyard-crew-cut--fixed-scope-and-runner-gap). Craft/seat/durable cut/cold continuation are source-bound; do not resurvey the settled crew policy. BLOCKED implementation — Codex: existing native runner requires adjacent export metadata, but the managed install owns only ELF/icon. Supply external read-only metadata input and independent exact crew-context/protected-state checks before running installed ELF. Freeze actual package/installed bytes and private paths at selection; settings-only or archive execution cannot close this installed earned-credit cut. | [Recovery](#proof-recovery): exact installed candidate actual crew commit/OS kill/distinct restart→awake supported home cabin→ordinary controls/continuation, conserved debt/payment once. |
 | CREW-RECOVERY-ORDINARY | One ordinary crew admission→recovery→walk/helm-or-exit journey | 2,31 | Qualification | DONE one Jovian engineer checkpoint case378d99caf: ordinary hub/ramp/chair→actual4fieldcommit→owned kill/reap−9→distinct normalResume/awake supported cabin→2physicalgoals/realhelm/ONLINEcommand1→normalUIOS0/finalclean,79.277s under original300s. Protectedpayload exact across7actualdocuments; settingsonly/earnedactivity-rewardsabsent, no earned-debt qualification. Existing guardedJovian cockpit-priority repair, RED/GREEN7/Python260/pairedexports/three strictstartups/actual1529PCKaudit/rawreview pass. [Proof and retained failures](history/ROADMAP_DELIVERIES.md#ordinary-jovian-engineer-recovery-accepted-20261026). No unchanged rerun. Retained Heavy follow-on f5e6cacee PARKED: full actual route84.357s reaches normalOS0 but final protectednamespace check fails on unobserved new default race/tutorial; original settings/credit1/paidterminal exact. [Failure/reopening](history/ROADMAP_DELIVERIES.md#retained-heavy-crew-recovery-parked-20261026). Source/raw/private exports archived unmerged, no second run selected. Othercrew/installed/final/hardware stay open. | One actual ordinary crew admission/commit/kill/restart/continuation on the frozen craft/role/candidate. Pass requires awake unseated supported home cabin, fresh claims, usable controls, exact protected durable delta and once-only progress/payment. A definition or staged crew placement cannot close this ordinary journey. |
 | RECOVERY-DOCK-DEFINE | Docking durable-boundary/resume-or-safe-home contract | 2,31 | Definition | DONE definition only; active solo assist retains home pilot preference; busy boarding/exit attempts unavailable. Fresh ownership replaces leases/pose; finite cases below | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | DOCK-RECOVERY-PROBE | Existing release driver can interrupt one actual accepted landing assist and check fresh safe-home recovery | 2,31,32 | Qualification | DONE packaged311df73; existing loader/probe/runner docking+Convoy selector, full source and archive ELF kill/restart pass at original caps with fresh home-pilot control and exact terminal/reward boundary | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
@@ -4724,6 +4833,55 @@ installed cut: no new probe family or validator is required. No runtime defect
 or missing owner decision was established. All original recovery promises,
 parked failures and native/device/human/final-release gates remain open.
 No automatic qualification or repair successor is selected.
+
+#### Installed Halyard crew cut — fixed scope and runner gap
+
+CREW-RECOVERY-INSTALLED source binding2026-10-27, not a new run or PASS.
+This uses the settled safe-home policy and the existing Convoy/crew probe;
+it does not promise restoration of an airborne pose or a crew seat.
+
+| Field | Fixed result / acceptance |
+| --- | --- |
+| Craft and physical chair | `halyard_new_design`, `halyard_fleet_dock_berth`, authored `SoloPassengerSeatInteraction` / `crew_port_00`; passenger without helm/sleep authority. |
+| Initial fixture and durable cut | Existing probe's scripted Halyard pilot/escort setup earns the first Convoy credit, starts a second run, leaves helm and places the Player at the authored chair entry before actual E acquires its passenger assignment. Second Convoy is FAILED, first credit remains1. After real settings/save publication the exact context is `{location:mudds_home_berth, mode:crew, craft_id:halyard_new_design, berth_id:halyard_fleet_dock_berth}`. Stop at `IN_WORLD_INTERRUPTION_READY`; preserve actual primary bytes, host/threat/escort/progress boundary and settings at this cut. |
+| Interruption | Kill the exact owned arm process; reap exit−9. Primary bytes stay identical across the kill. Restart a distinct PID with the same private XDG data and actual installed ELF. |
+| Cold endpoint before continuation fixture | Boot-loaded Main, same saved FAILED second Convoy/first credit1/settings. The probe calls the production Resume choice handler and `start_shift()` directly; it does not click the recovery UI. Recovery returns awake/unseated/control-enabled/supported Halyard home cabin with fresh hatch/containment and no old solo-crew assignment, authority or occupant tag. Actual24-frame walking moves>0.1m on the floor; E retakes real pilot seat and releases cabin occupancy; two throttle frames produce ONLINE/positive throttle. |
+| Continuation and payment | Disclose the existing escort-motion fixture after the real safe recovery. Retake resets FAILED→IDLE without payment; distinct new Convoy completes, Convoy credit count1→2 exactly once even after two reward retries (this is not the total receipt count). Final markers are `crash_recovery.state=clean`, `safe_start_recovery.state=clean_shutdown`; one crash event; recovery process exit0 with terminal `IN_WORLD_RECOVERY_OK`. No unpaid-terminal-debt or whole ordinary sortie claim. |
+| Files and cleanup | Independently compare the four-field context, pre-continuation host/threat/progress/credit/settings and final distinct payment. Preserve every unrelated payload namespace through the cut/restart; list permitted recovery/continuation changes before execution. Installed ELF/icon, ownership manifest and desktop entry retain exact bytes/modes; all owned children are reaped; source/cache guards agree. Remove only owned install/profile/results scratch after preservation. |
+| Original limits | Existing runner300s per process; actual readiness and cold continuation retain their authored frame bounds. Selected outer supervisor must admit both full process caps plus existing teardown allowance and closure time; do not shrink the route to fit a90minute implementation estimate. |
+
+Source/check seams are the existing
+[interruption probe](../scripts/diagnostics/in_world_interruption_probe.gd)
+(`_settle_real_crew_seat`, `_wait_for_awake_cabin`, Convoy arm/resume branch),
+[package runner](../tools/release/run_package_probes.sh),
+[Halyard scene](../scenes/ships/halyard_crew_transport.tscn) and
+[managed installer](../tools/release/install_linux_desktop.py).
+The accepted ca0 archive case remains source-specific; this installed cut has
+not run. All setup placement and final escort fixture remain disclosed.
+
+**Concrete runner capability still missing — Codex.** `--native-export` currently
+reads `<PACKAGE_PATH>.export-result.json` before launching. The manager installs
+only ELF/icon in its owned runtime generation; its manifest's finite file set
+contains no sidecar. Thus pointing `PACKAGE_PATH` at the real installed ELF does
+not yet make this an executable installed command. Do not copy an unowned
+sidecar into the managed installation or run an archive copy instead.
+
+Extend the existing runner with an optional explicit external metadata path
+(e.g. `PACKAGE_PROBE_EXPORT_METADATA`), retaining adjacent metadata as the default.
+Read/hash the supplied existing export result without writing it or the install;
+require its existing schema/platform/compiled-source/ELF-size/SHA checks and
+unchanged identity after cleanup. Add an explicit distinct arm/resume PID check for crew (currently asserted only
+for other selectors), independent crew four-field context, exact reward-ledger
+and protected-namespace checks using the actual cut/recovered documents, reusing the
+existing assertions rather than another validator. Before any game launch,
+missing/malformed/wrong-platform/wrong-size/wrong-hash metadata must fail; a
+matching external record must resolve to the unchanged actual installed ELF.
+That is one bounded release-runner implementation within this existing outcome;
+it needs its own frozen files, focused checks, estimate and stop before editing.
+The installed execution card then binds actual candidate/install/profile paths
+and uses existing `PACKAGE_PROBE_RECOVERY_CONTEXT=crew`, `--native-export`,
+`--in-world-interruption`, `--activity=convoy` and300s process limits. No exact
+final-candidate SHA or successful installed execution is claimed by this definition.
 
 ### Busy exterior exit interruption — frozen 2026-10-27
 
