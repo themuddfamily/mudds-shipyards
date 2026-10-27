@@ -5427,6 +5427,48 @@ schema, canonical337 identities/order and whitespace checks pass. No engine,
 implementation or new runtime qualification; commit/push closes inside the
 original15:39:24 deadline without another survey or attempt-budget reset.
 
+**Selected implementation — local normal-input readiness,2026-10-27.**
+ROLE-HALYARD-LOADMASTER source baseaa0af7052; root start15:25:18UTC includes
+discovery, total90minutes/hard stop16:55:18, execution end16:40:18 with15minutes
+reserved for publication/archive/integration/push/cleanup. One high implementer
+owns Halyard/GameFlow, existing role-gameplay test and one new real-Main local
+input regression/UID; independent high lifecycle/input reviewer; root owns all
+engine runs, source/cache freezes, paired checkpoint and closure. Private branch
+`work/halyard-loadmaster-local-20261027` under
+`/srv/mudds-work/halyard-loadmaster-local-20261027/source`.
+
+Player-visible result: solo player physically claims crew_port_00, remappable
+FIRE marks the bound station-readiness receipt and actual sign/HUD, held/repeated
+FIRE after visible readiness leaves it unchanged; ordinary stand clears the
+claim/receipt and restores supported controls/source, then real reseat can mark
+fresh readiness. Recheck exact source/claim/craft after synchronous publication
+before HUD/readback. Preserve Cinder/other passenger/network fences, existing
+cargo/reward/helm authority and arbitrary manifest API fixtures. This slice is
+local/solo only; full remote/moving/exit qualification stays with the same goal.
+
+Freeze acceptance before execution: new Main/remapped-F13 input test transplanted
+alone onto oldaa0 must compile and fail exactly at first missing normal-FIRE
+readiness, then cleanly release/free. One initial exterior approach placement
+is a disclosed fixture; chair, actions, stand/reseat must use actual inputs.
+Then fixed candidate passes that full test, existing Halyard role/presentation/
+readability, Cinder Loadmaster interaction/gameplay, Halyard role bridge and
+startup privacy checks. Input test total300s, chair/stand8s, ready3s and walking
+waypoint15s bounds; no diagnostic filtering or timeout relaxation. All engines
+use Dummy audio, headless or private Xvfb with explicit x11/input-only renderer.
+Pin the existing Godot4.7.1 and release-template hashes; no hosted CI.
+
+Meaningful gameplay requires fresh paired clean-commit Windows EXE/ZIP/notes and
+Linux binary/TAR/notes in repository builds/. Existing safe exporters, strict
+startup (actual exit0/exactly one STARTUP_MENU_READY_OK/zero diagnostics) for
+Windows payload under pinned Linux Godot, Linux executable and actual TAR,
+plus existing complete paired artifact/inventory audit. Player notes distinguish
+actual source/package checks from unperformed native/GPU/full-role gates.
+One total correction only after demonstrated cause and root cumulative-priority
+decision inside this original clock; first unexpected failure stops, failed
+final correction/deadline parks this attempt. No labels/branches reset limits.
+Preserve failed/accepted source/raw before owned cleanup; integrate/push accepted
+work and delete exact contained branch after current remote/worktree checks.
+
 | Existing role boundary | Literal observation required from implementation/caller |
 | --- | --- |
 | Bind real manifest producer | Field binding DONE: new producer constructs manifest_id from actual vessel+seat (halyard_new_design_crew_port_00), route_id=crew_cabin_port_row_00, ready=true; identities and source above. Producer/helper and normal local/remote controls are NOT_IMPLEMENTED. This is station-readiness design, not an existing authored manifest or transport contract. |
