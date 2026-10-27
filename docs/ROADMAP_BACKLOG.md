@@ -4359,11 +4359,67 @@ pitch/roll/brake/throttle to expose the aft patch. Player Fire stays released;
 no actor/velocity/transform setter,target replacement,synthetic hit or timing
 change. Compute predicted first physical intersections and nearest anchors from
 actual current geometry; only the authoritative receipts above count. The moving
-opponent,fan and lead prevent a promise from a static heading alone. Exact
-engine-facing flight control/accepted return inputs and all-source receipt
-wiring remain implementation/definition prerequisites; the connector above
+opponent and fan prevent a promise from a static heading alone. The
+[capture/exposure control](#light-capture-exposure-control) below now binds the
+actual target/attitude/landing input and source predicates; controller and
+all-source receipt wiring remain missing implementation. The connector above
 needs ordinary caller/observer implementation,not another route survey;
 they are not an external artifact or owner policy choice.
+
+<a id="light-capture-exposure-control"></a>
+**Aft exposure and accepted withdrawal control,source-bound2026-10-27.**
+Dock06's nominal fresh-world dock is(64,5.26,85.3),yaw+90°/nose−X. Its capture
+centre is(94,13.26,85.3),root bounds X[76,112],Y[1.26,25.26],Z[73.3,97.3]. These
+follow shipyard world binding origin(12,4.2,68.3)/yaw90,padlocal(−17,0,52),
+anchor1.06,capturelocal(0,8,30),half(12,12,18). Use the actual current berth's
+capture transform at runtime,not these nominal world coordinates after a rebase.
+The12m lift clears Light's authored launch header; it does not itself put the
+root inside the aft-offset capture volume. The controller must fly the actual
+intermediate leg and cannot declare capture from lift completion alone.
+
+Before the third damaging pellet,reach and hold the actual capture centre using
+ordinary native steering/throttle/reverse/brake. Keep same live Light/source and
+intact Heavy generation; all incoming contacts since launch remain counted.
+Once capture-hold begins,require actual root inside capture,speed≤32,ship-up versus
+dock-up≤75°,valid final docked hull fit and no incompatible occupant/reservation.
+Position-control error is current capture-centre minus actual ship root; yaw/
+pitch/roll commands use actual ship basis,while forward/reverse demand and brake
+control motion along the current physical nose. No direct pose/velocity setter,
+scripted landing-helper call or motion-authority substitution. Actual transit/clearance
+and input scheduling remain implementation and runtime proof,not guaranteed by
+this geometric target. A wrong/extra early hit still stops the same member.
+
+While holding that legal return region,aim the actual aft face toward the live
+Lead muzzle,so ship-back approaches normalized(muzzle−ship-root); keep up within
+the capture tilt limit. `ResolverBackedOpponent._fire_at_target` uses current
+selected shape centre Light-local(0,.1,0) and actual muzzle local(0,−.3,−3.98),
+**without velocity lead**. Its hitscan fan has centre and horizontal±5° rays.
+Compute those actual rays/first physical intersections in the hit-tick frame;
+update native attitude controls from the error rather than a fixed world yaw.
+At ordinary ranges side pellets can miss; three landed pellets may span three
+triggers. No assumption that one emitted trigger necessarily deals14 is allowed.
+
+After authoritative pellet3 and its actual engine response,send one fresh
+ordinaryL edge while capture remains accepted. Permit only a short native demand
+pulse of at most six consumed physics ticks to observe impaired engine response,
+then release demand and request landing; all actual contacts remain fenced.
+The normal capture predicate compares **up vectors only**: yaw is diagnostic,
+`heading_unrestricted=true`/maximum180°. Do not turn to dock heading beforeL or
+borrow the legacy full-basis landing veto. Current oriented-hull containment in
+the broad capture is diagnostic; current root containment and narrow final
+parked hull fit are acceptance gates. Require the actual new reservation/current
+lease and successful `request_berth_landing`,not just the keypress/report.
+
+Accepted `landing_active` immediately revokes Director dispatch authorization;
+its next outcome becomes WITHDRAWN and stands down the current roster. Preserve
+third-hit→consumed demand→L→accepted landing/phase/outcome ordering in the actual
+observations,with no later damaging contact; any fourth pellet fails this strict
+member even if from the same trigger. Nominal.4s cooldown+.28s telegraph is not
+an input/observer reaction guarantee or permission to waive a late hit. No extra
+yaw reversal,conditional hull reset or artificial fire suspension is needed by
+the source contract. Landing still must complete collision-safe at exact Dock06
+through ordinary production phases. Repair and the second departure/return below
+remain required; this is a source-feasible control contract,not a measured route.
 
 **Live consequence and repair pass.** At third accepted pellet,mobility multiplier
 is.62 and its disabled flagfalse. Hero's effective engine power is
@@ -4417,8 +4473,9 @@ reservation/occupation/reset commit; elapsed time alone cannot prove it.
 Existing failed Sandbox Light loss/recovery remains PARKED with no renamed retry.
 Cross-craft and retained-Main/art/device cases keep their existing owners.
 
-One later bounded implementation assignment must first supply the named missing
-route/control fields,then own only current native driver/observer/private admission
+One later bounded implementation assignment supplies the ordinary controller/
+observer capability for these fixed walking/exposure/return contracts,owning only
+current native driver/observer/private admission
 and focused checks,≤90min all-in/one correction/first-failure stop,including fresh
 clean-source playable checkpoint,isolated package checks,integration/cleanup.
 Full-craft900s/outer960s remains a separate integrated scope,not extra time for
