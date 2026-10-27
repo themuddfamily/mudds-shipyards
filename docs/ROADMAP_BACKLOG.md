@@ -3153,7 +3153,7 @@ feature. Do not reopen completed surveys or create successor planning IDs.
 | CRAFT-ACCEPT-TITAN, CRAFT-ACCEPT-VORTEX, CRAFT-ACCEPT-PARADOX, CRAFT-ACCEPT-KATANA, CRAFT-ACCEPT-PREDATOR, CRAFT-ACCEPT-DYNAMIC, CRAFT-ACCEPT-UTOPIA, CRAFT-ACCEPT-SALYUT | User accepts/amends each existing SPEC proposal; Codex then adopts its existing BUILD-SPLIT cards and binds the same eleven integrated acceptance boundaries. Do not survey or write the prepared proposals again. |
 | COMBAT-COURIER | Ordinary escorted withdrawal/home is accepted on7f23a808c in its [exact packaged scope](history/ROADMAP_DELIVERIES.md#ordinary-escorted-courier-withdrawal-accepted-20261027). Accepted clear/escape/phase/distance withdrawals stay closed. Remaining [runtime loss and cyclic re-admission](#courier-intercept--bounded-outcomes) retain their missing ordinary commands. Cold safe recovery candidate229bfa6c9 is PARKED/unmerged at its recorded preparation-damage failure; no interruption/cold proof or retry. Reuse the exact terminal/cumulative-cost boundary below. No new escort×terminal matrix, repeat count or user policy. |
 | COMBAT-PERIMETER | Terminal/reset membership is fixed in the [Hold contract](#perimeter-hold--missing-production-integration): explicit abort, integrity/core loss, player/craft loss, distance/phase/network/teardown withdrawal, actor retirement and generation-safe renewal. Ordinary survival/home remains PARKED; [Core-LOST/home/Heavy arm-cancel-rearm goal](#perimeter-core-loss-home-admission) now binds ordinary controls/observations, caller files and CAP300; implementation remains OPEN behind the original parked genuine-Hold-entry prerequisite. Do not survey membership again. |
-| COMBAT-TORPEDO | [Combat triggers/terminal outcomes](#torpedo-combat-outcomes--fixed-source-boundary) and existing ten TORPEDO-AUTH children fix membership. PLAY-TORPEDO owns clear/home once and stays PARKED. Codex still supplies absent ordinary evade/intercept/expiry/withdrawal callers, exact lifecycle cuts/commands and original budgets; no repeat source survey or live board-abort assumption. |
+| COMBAT-TORPEDO | [Combat triggers/terminal outcomes](#torpedo-combat-outcomes--fixed-source-boundary) and existing ten TORPEDO-AUTH children fix membership. PLAY-TORPEDO owns clear/home once and stays PARKED. [Expiry and landing-withdrawal callers](#torpedo-expiry-withdraw-callers) now have pinned earned fixture, inputs/terminal/home/observer/file/cap contracts. [PLAY control-accounting repair](#torpedo-play-control-accounting) remains attached to the original parked evade/intercept/clear journey. Ten authority lifecycle cuts retain their existing field gaps; no repeat survey or live board-abort assumption. |
 | NET-SEATS-FINAL | [Five existing proof owners](#final-seat-ledger--fixed-case-ownership) bind transaction refusals, ENet swap/host occupancy, actual Halyard client promotion/hatch handback, helm-release handback and SERVER-BASELINE-SEAT-RACE. Source matrix plus the existing ordinary race command/caps are fixed; exact final candidate remains gated. Eight ROLE journeys retain their own movement/action/loss scope; no new role matrix. |
 | SERVER-BASELINE | [Fixed ordinary/lifecycle/adverse membership](#server-baseline-contract). Full Jovian ordinary reuse caller is acceptedbc7f9f9c4/e899cc9e0; Halyard accepted cases are mapped once. [Five real-client RPC observations](#server-command-proof-binding) and [one B Restart Shift/rejoin/physical-reboard journey](#server-main-reentry-binding) now have literal implementation goals; callers remain OPEN. [Boarding/landing-loss callers](#server-disconnect-cuts) now have exact cuts and usable continuations. [Initial pilot/landing-target contention](#server-initial-contention) now has bounded implementation goals. [Isolated-link impairment](MOVING_INTERIOR_LATENCY.md#impaired-independent-baseline-capability) binds shared profile inputs and the missing launcher/endpoint/measurement capability; no craft×role×phase matrix or duplicate happy path. |
 | COMFORT-MOTION | Reuse accepted toast/damage episodes and the [eight fixed remaining source consumers/OFF–ON endpoints](#reduced-motion--finite-production-consumers). Codex implements ordinary input and observer support for one named uncovered consumer in the existing native-sortie owners, comparing that consumer's already-listed OFF/ON effects and retained transition/cold/Reset endpoints. Candidate/profile/absolute execution deadline freeze at selection. Source roster discovery is closed; missing intended behavior must be an explicit choice, not another survey. |
@@ -3400,7 +3400,7 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | COMBAT-WING-ADMISSION | Existing Wing becomes a genuine third solo board contract | 11 | Capability | DONE checkpointf671da9: on-foot arm/cancel, physical departure/registered source gate, real suppression/flank pair, solo/network refusal, both-destroyed objective with healthy-retirement abort, correct HUD/audio/no-credit lifecycle. Actual Main28/director151/board59/HUD8/audio11 checks, paired exports/startups/audit PASS. Component simulated clear disclosed; no full ordinary kills/home. [Result](history/ROADMAP_DELIVERIES.md#paired-wing-board-admission--shipped-on-f671da9) | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | COMBAT-PERIMETER | Perimeter Hold | 11 | Container | NON-EXECUTABLE container — ordinary90s/>35% survival/home is one finite case; [finite terminal/reset membership](#perimeter-hold--missing-production-integration) is now source-bound. [Concrete core-LOST/home/next-Heavy/reset goal](#perimeter-core-loss-home-admission) binds exact ordinary actions/pass criteria and caller ownership at CAP300. Caller implementation remains OPEN; authentic earned Hold entry/save is a prerequisite gated by the original parked prefix, not fabricated posting3. Staged actor removal/time advancement cannot substitute. Existing delivered runtime/admission stays accepted. Ordinary-driver attempt PARKED317c3b44f: first Heavy withdrawal/home and actual saved Torpedo posting pass; fresh-selection E correction reaches second Arrow/Torpedo, then sole L fails to start landing. Nonqualifying diagnostic successfully traces both landing inputs; prior failure NOT_REPRODUCED, product cause unproven. No third qualifying trial selected; both failures/source/data retained, CAP300/original clock unchanged. [Exact stop](history/ROADMAP_DELIVERIES.md#perimeter-ordinary-route-input-stop-20261025). PERIMETER-LIVE runtime/admission DONE fdae1cb: physical fourth-board contract, protected core/three live attackers,90s/>35%, HUD and lifecycle. Actual-Main admission, retained Breach recovery, staged objective and paired packages PASS; branch merged/deleted. Full ordinary weapon/home, failure/recovery, repeats/network/native remain OPEN. [Delivery](history/ROADMAP_DELIVERIES.md#perimeter-live-branch-finished--2026-10-20) | Real protected core survives90s with >35% through ordinary live combat, no Hold credit, strict home/OFFLINE/physical exit; the linked finite terminal/retirement/reset cases pass in their declared scope. The linked ordinary failure/home/next-Heavy/reset caller remains unimplemented and entry-gated; its exact endpoints are now bound. |
 | COMBAT-BREACH | Heavy Breach | 11 | Qualification | First full ordinary charged-picket kill/payment/home sortie DONEfb396ab13, exactly the PLAY-BREACH proof below, counted once. Remaining craft journeys belong to the 17 CRAFT-ACCEPT rows; replicated hull/component outcomes belong to NET-DAMAGE; active Breach restart policy belongs to RECOVERY-POLICY-BREACH and its implementation to the Breach owner in the [existing activity-write roster](#activity-write-boundary-roster--act-writes-define). These do not create additional unnamed COMBAT-BREACH cases. BREACH-INTERRUPTION earned-debt case DONEc78e0ac. No full combat-parent closure. | Same actual full sortie as PLAY-BREACH; one proof serves both parents, no duplicate job. |
-| COMBAT-TORPEDO | Torpedo Run evade/intercept/destroy/fail/abort | 11,23 | Container | NON-EXECUTABLE container — [finite combat endpoints](#torpedo-combat-outcomes--fixed-source-boundary) are source-bound; solo/peer/pilot/target restoration reuses the ten existing TORPEDO-AUTH children. PLAY-TORPEDO owns clear/home once and remains PARKED. BLOCKED definition/implementation — Codex: missing ordinary evade/intercept/150s-expiry/withdrawal drivers and each remaining authority case’s exact participant/input/transport cut, executable command and original budget. Live board abort has only an API fixture; ordinary E cancels prelaunch arming only. No implicit successor attempt or active-crash policy approval. | Actual evade/intercept/boat destruction plus each named fail/abort/restoration outcome; PLAY-TORPEDO supplies its clear/home proof once. |
+| COMBAT-TORPEDO | Torpedo Run evade/intercept/destroy/fail/abort | 11,23 | Container | NON-EXECUTABLE container — [finite combat endpoints](#torpedo-combat-outcomes--fixed-source-boundary) are source-bound; solo/peer/pilot/target restoration reuses the ten existing TORPEDO-AUTH children. PLAY-TORPEDO owns clear/home once and remains PARKED. [Concrete expiry/landing-withdrawal caller goals](#torpedo-expiry-withdraw-callers) bind genuine earned fixture, normal inputs, terminal/home proof, shared files and150/300/360s limits; implementation OPEN. Evade/intercept/clear remains PARKED PLAY-TORPEDO with its [specific control-accounting prerequisite](#torpedo-play-control-accounting). Codex still binds each remaining authority case’s participant/input/transport cut/command/budget. Live board abort has only an API fixture; ordinary E cancels prelaunch arming only. No implicit successor attempt or active-crash policy approval. | Actual evade/intercept/boat destruction plus each named fail/abort/restoration outcome; PLAY-TORPEDO supplies its clear/home proof once. |
 
 ### Courier Intercept — bounded outcomes
 
@@ -4124,7 +4124,7 @@ test is an owner/regression anchor, not a runnable ordinary route.
 | PLAY-DEFENSE | Station Defense first full ordinary play | 13 | Qualification | OPEN. Deploy-arm/actual-launch start9af48515a delivered. Latest consumed-fire candidate787daded0 NOT_ACCEPTED: one full ordinary trial104.968s, genuine Alpha/Beta kills at20.150s/28.0167s, original activity timed_out34.0167s with2/4 remaining; zero payment, no home/Reset/UIquit. Fresh input consumption worked; no engine defect established. Focused checks/private package passed, but cannot close activity. Original failures retained, unique five-file qualification source archived/unmerged, accepted main restored and owned cleanup complete. No retry selected: reopen only for source/raw-supported cause and one bounded correction preserving full original journey/34s/CAP300/outer360. [Exact closeout](history/ROADMAP_DELIVERIES.md#defense-consumed-fire-qualification--not-accepted--2026-10-24). | [Complete ordinary activity journey](#proof-activity): physical Deploy/real waves1–2–1/actual four kills/payment/home/Reset/usable next Deploy;34s activity semantics; real durable result and strict home/OFFLINE physical exit/usable walking. |
 | DEFENSE-PHYSICAL-INTERACTION | Physical board E Deploy/status/reward-retry/terminal Reset | 13 | Capability | DONE checkpointa59127c: actual Main15/full placement62, paired exports/three strict startups/actual PCK audit PASS. Existing owners, debt/refusal/separatepress/range/facing/armed gates and whole34s preserved. Original test parse16.381s + one explicit-int correction retained, cumulative334.765s. Staged pose/terminal/refusal fixtures disclosed; full ordinary combat/home separate. [Result](history/ROADMAP_DELIVERIES.md#station-defense-physical-interaction--shipped-on-a59127c) | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | PLAY-BREACH | Heavy Breach first full ordinary play | 13 | Qualification | DONE scoped first full ordinary journey fb396ab13/checkpointfb396ab. Actual physical Heavy arm/Arrow takeoff/observed lance charge/player hits24+22 kill46-health Picket/CLEARED at3.05s, exactly one generation1 actual-file Heavy credit retained through orderly close, strict home/OFFLINE physical exit/physical usable Torpedo posting/normal UI actualOS0; full90.112s under150/300/360 and clean logs. Real late-authority damage adapter attached idempotently; staged live-ray/Picket/encounter/Heavy checks, fresh paired exports/3menus/1527-entry audit and independent source/raw review pass. Both earlier failures/caller-angle correction preserved, same cumulative clock; merged/pushed/owned cleanup/records consolidated, no taskbranch/worktree. Isolated Linux/default-input/Dummy scope; repeats/other lifecycle/craft/native/device/full parents remain open. [Delivery](history/ROADMAP_DELIVERIES.md#picket-damage-admission-and-full-heavy-breach--accepted--2026-10-25). | [Complete ordinary activity journey](#proof-activity): on-foot posted Heavy/real picket/protected objective/payment/home/normal next posting; real durable result and strict home/OFFLINE physical exit/usable walking. |
-| PLAY-TORPEDO | Torpedo Run first full ordinary play | 13 | Qualification | PARKED/NOT_ACCEPTED latest continuation: source review BLOCK at67.453min cumulative; unread queued neutral samples after OS release can erase later actual consumption. No tests/engine/export/whole trial. Candidate and original patch verified in case-records.tar.gz/closeout.json outside repo; main restored, owned helpers consolidated. Reopen only with accounting that survives queued release ambiguity, source GO and cumulative review; full journey/limits unchanged. [Review stop](history/ROADMAP_DELIVERIES.md#torpedo-control-continuation-stopped-at-source-review-20261025). PARKED after3fullordinaryFAILs, latestd8eece4/game2de. First121.849s run proves real evasion/interceptions/boat24damage but stops pooled-flight receipt bookkeeping; supported correction retry104.452s stopssecondboarding. Source/raw-proved sampledreadiness continuation133.075s reboards correctly (soleE4604/BOARDING4607), provespitchboostevasion/distinctseeker14kill, then3boatshotsmiss and2incomingseekers destroyArrow; boat70/70/noTorppayment/home/posting/UI0. FirstHeavyprefix/receipt remains actual. Both caller fixes/fixturefailure and all3runs retained on sameoriginalclock; no source merged merely for cleanup. Unique source/bundles/results archived, ownedprocess/profile/packagecleanup complete/mainrestored. Reopen only demonstrated source/raw-supported gameplay/control correction preserving full150each/shared300/outer360 goal; no unchanged retries/newqualifierlayers/point-aim-timer guesses. Publicfb396ab unchanged. [Closeout](history/ROADMAP_DELIVERIES.md#torpedo-second-boarding-readiness--whole-journey-not-accepted--2026-10-25). | [Complete ordinary activity journey](#proof-activity): ordinary posting rotation/real evade/interception/boat destruction/distinct payment/home; real durable result and strict home/OFFLINE physical exit/usable walking. |
+| PLAY-TORPEDO | Torpedo Run first full ordinary play | 13 | Qualification | PARKED/NOT_ACCEPTED; [literal accounting repair and original route](#torpedo-play-control-accounting). Latest continuation: source review BLOCK at67.453min cumulative; unread queued neutral samples after OS release can erase later actual consumption. No tests/engine/export/whole trial. Candidate and original patch verified in case-records.tar.gz/closeout.json outside repo; main restored, owned helpers consolidated. Reopen only with accounting that survives queued release ambiguity, source GO and cumulative review; full journey/limits unchanged. [Review stop](history/ROADMAP_DELIVERIES.md#torpedo-control-continuation-stopped-at-source-review-20261025). PARKED after3fullordinaryFAILs, latestd8eece4/game2de. First121.849s run proves real evasion/interceptions/boat24damage but stops pooled-flight receipt bookkeeping; supported correction retry104.452s stopssecondboarding. Source/raw-proved sampledreadiness continuation133.075s reboards correctly (soleE4604/BOARDING4607), provespitchboostevasion/distinctseeker14kill, then3boatshotsmiss and2incomingseekers destroyArrow; boat70/70/noTorppayment/home/posting/UI0. FirstHeavyprefix/receipt remains actual. Both caller fixes/fixturefailure and all3runs retained on sameoriginalclock; no source merged merely for cleanup. Unique source/bundles/results archived, ownedprocess/profile/packagecleanup complete/mainrestored. Reopen only demonstrated source/raw-supported gameplay/control correction preserving full150each/shared300/outer360 goal; no unchanged retries/newqualifierlayers/point-aim-timer guesses. Publicfb396ab unchanged. [Closeout](history/ROADMAP_DELIVERIES.md#torpedo-second-boarding-readiness--whole-journey-not-accepted--2026-10-25). | [Complete ordinary activity journey](#proof-activity): ordinary posting rotation/real evade/interception/boat destruction/distinct payment/home; real durable result and strict home/OFFLINE physical exit/usable walking. |
 | HUD-RACE | Race durable reset/select/start/fresh-Main UI | 13 | Qualification | Source review already found no concrete discrepancy; no edits/runs or ordinary acceptance. Do not repeat unchanged source triage; full qualification remains unscheduled. BLOCKED definition — Codex binds the literal saved activity/debt fields, expected enabled actions after each reset/select/start/fresh-Main step, existing command and original limits. No implementation is selected without a demonstrated runtime defect. | Race: actual reset→selection→start→distinct fresh Main shows authoritative saved state and correct enabled actions; protect real data/debt and retain accepted repairs. |
 | HUD-PATROL | Patrol durable reset/select/start/fresh-Main UI | 13 | Qualification | Source field/action binding fixed0e3b58a25 through the [literal reset/branch/cold contract](#hud-patrol-contract): exact codec/reward fields, g→g+1→g+2, HUD labels/enable rules, physical home-reboard Reset and free-flight Start callers. No runtime discrepancy or qualification PASS claimed; no engines run. BLOCKED ordinary-driver/limit binding—Codex: actual normal sequence command/route/original whole-sequence cap and cold-Main UI/state observations remain missing. Existing component selector and original300s fixture limit are explicit; parked30-Main/platform journeys remain closed. Do not repeat source triage or invent new UI; runtime repair needs a demonstrated defect. | [Literal contract](#hud-patrol-contract): actual reset→selection→start→distinct fresh Main shows the exact authoritative saved state and enabled actions; protect real data/debt and retain accepted scopes. |
 | HUD-CARGO | Cargo durable reset/select/start/fresh-Main UI | 13 | Capability | Supply-status child DONE0c2dc2e retained. [Literal cargo contract](#hud-cargo-contract) now fixes typed saved lifecycle/inventory/reward fields, funded g1→reset g2→start g3, depleted0/6 refusal, exact HUD labels/locks, cold owner versus family selection, debt/refused-reset protection and existing graphical source-fixture command/original300s cap. Source binding only; no runtime discrepancy, engine run or qualification PASS. BLOCKED ordinary-driver/limit binding—Codex: actual funded physical two-delivery reset/select/start command/route/original whole-sequence cap and distinct-process cold state/UI observations remain missing. KIT-RELOAD stays PARKED at its original30s including preload. Reuse this field binding; do not repeat the completed source survey or infer a successful next start from depleted refusal. | [Literal cargo contract](#hud-cargo-contract): actual funded reset→family selection→Start→distinct fresh Main restores the exact authoritative lifecycle/inventory/reward state and enabled actions; depleted refusal and debt preserve data and accepted scopes. |
@@ -4470,16 +4470,140 @@ only a fresh authority flight may launch. PILOT-LOSS preserves a surviving
 craft/target: seat loss alone is not destruction. Their accepted API scopes stay
 closed; ordinary lifecycle cuts/independent peers still need their bound commands.
 
-**Remaining Codex deliverable:** extend the existing
-[native driver](../tools/release/run_native_sortie.py) and
-[observer](../scripts/diagnostics/native_sortie_observer.gd) for the uncovered
-ordinary inputs/results, retaining150s encounter/shared300s/outer360s limits from
-the original full route. The registered driver currently has no Torpedo ordinary
-qualifier. PLAY-TORPEDO's archived failure/reopening gate remains binding; this
-source definition authorizes no retry. Active-crash policy remains with the
-existing RECOVERY-POLICY-TORPEDO decision; no restored encounter entitlement is
-invented here. Each authority run still binds its candidate, participants,
-input/transport cut and original budget before selection.
+<a id="torpedo-expiry-withdraw-callers"></a>
+
+**Two concrete missing ordinary callers — EXPIRED and landing WITHDRAWN.**
+Sourcef7049d8e7; definition16:36:08UTC2026-10-27,20minutes through16:56:08UTC
+including two disjoint source reviews, docs/checks/commit/push/cleanup. No engine,
+source changes, archive extraction, branch/worktree or parked retry selected.
+The fixed combat/authority membership is not reopened.
+
+**Actual starting fixture.** Root read the retained archive member directly:
+`/srv/mudds-work/heavy-picket-damage-admission-20261025/results/case-records.tar.gz`,
+member `ordinary-sortie/orderly-close.json`,8655bytes/SHA256
+`25f9ccfe03b22018eae2cffcb52841ed5fbcff3f4a51a6c020e6c7495701aa73`.
+Its actual `payload.heavy_breach_session.session.offered_index=1`, acknowledged
+Heavy CLEARED/reward_granted and credit generation1 legitimately offer Torpedo.
+Seed only those exact bytes into the owned private profile's
+`data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json` before normal load.
+This fixture starts these two existing terminal cases; it cannot replace
+PLAY-TORPEDO's required Heavy→Torpedo full sequence or reopen its parked trial.
+
+Both cases: production title/Begin Shift→existing supported Heavy-board walking
+route→real Torpedo prompt/available board within2.8m→released E arm→physical Arrow
+approach/sole E board→normal thrust departure. Retain original Main/Player/Arrow/
+seat/input/berth/board/director/boat/pool identities, default controls/sampler/
+tuning/60Hz/time_scale1 and current authorized Torpedo admission receipt.
+
+| Selected caller | Exact ordinary action and terminal PASS |
+| --- | --- |
+| Proposed `torpedo-expiry` | Depart beyond16m from the original Arrow parked position, Prior brake to≤.35m/s near home. Stay local/seated/FREE_FLIGHT within700m of origin, no landing. Aim/fire only at live incoming seeker hurtboxes using actual camera/next-muzzle clearance and weapon readiness; preserve boat70/70. Require uninterrupted genuine director elapsed crosses150physics seconds and first outcome EXPIRED, with Arrow alive and boat healthy/active immediately before conclusion. Any boat hit, recovery, unauthorized phase/distance withdrawal, wrong terminal or cap failure stops. No artificial clock or invulnerability. |
+| Proposed `torpedo-withdraw-landing` | After actual admission and at least one genuinely launched seeker, restore Arrow attitude in actual home capture, brake≤.35 and send one ordinary L while an identified flight is still airborne. Require actual accepted active assist and WITHDRAWN before150s with boat70/70; the old airborne flight must retire through real stand-down. If that identified flight ends before the actual accepted landing-assist/withdrawal cut, fail this case rather than claim the intended airborne cut. No live board-abort API substitutes. |
+
+[Director phase authorization](../scripts/combat/encounter_scenario_director.gd#L1590)
+rejects active automatic landing for a running board sortie even while GameFlow
+is FREE_FLIGHT. Ordinary GameFlow landing owns capture/reservation/acceptance;
+a keypress alone is insufficient. Expiry's seeker fire supports survival, not
+an extra evade/intercept qualification or a substitute for PLAY-TORPEDO.
+
+**Shared terminal/home proof.** Preserve boat/pool references independently of
+the director's cleared roster/target. Exactly one terminal; empty roster/null
+target, healthy inactive boat, revoked source/fire authority, all old flights
+retired and old hurtbox collision/damage disabled. No later launch, damage or
+resurrection through home. Inspect actual miss reasons lifetime/range and
+abandonment stood_down; never manufacture one terminal reason for all flights.
+Board rotates Torpedo1→Paired Wing2 once, no armed actor/active director generation,
+no pending Torpedo handoff. Live and final saved reward ledger keep exactly the
+input's Heavy receipt; no Torpedo credit/debt or duplicate Heavy payment.
+
+For expiry issue sole L only after that EXPIRED terminal; withdrawal retains its
+already-accepted landing. Both finish same-Arrow strict original home/occupied
+valid lease/current dock pose, observed landing→SHUT_DOWN,90 consecutive neutral
+OFFLINE ticks, sole E supported exterior exit within10s, existing supported walk
+back to the real usable Paired Wing posting and focused normal HUD Quit/actual
+OS0. Preserve settings and earned state plus both durable clean markers; only
+the ordinary named session/safety/tutorial updates may change outside posting1→2.
+No staged boarding, direct lifecycle call, injected reward/damage or rescue pose.
+
+**Missing shared capability/files.** Own `tools/release/run_native_sortie.py`,
+its existing `tools/release/test_native_sortie.py`, read-only
+`scripts/diagnostics/native_sortie_observer.gd`, private-mode whitelist in
+`scripts/game/startup_loader.gd` and `tests/startup_cli_privacy_test.gd`.
+Register the two route/observer modes, exact retained-data admission, fixture
+setup, pilot dispatch, final-save capture and terminal markers. Current registered
+commands support neither route. Reuse Arrow board/walk/home observations; Heavy's
+StandoffPicket/marker projection has no seeker state and cannot be relabelled.
+
+Project actual boat/run receipt/director state/elapsed/generations/origin, pool
+launch/resolved/intercepted/abandoned signals and the bounded two slots. Key a
+flight by pool identity+flight_id+slot generation; include actual hurtbox/shape/
+Damageable identities, health14/radius1.9, collision state, source/target, pose/
+velocity/lifetime/range/lock and real terminal. A pooled node is not a flight.
+Extend the noncommitting camera/next-muzzle forecast only to the selected live
+hurtbox. Actual input/request/consumption/shot facts must survive OS release and
+queued neutral samples; copying the archived accounting error is not acceptable.
+Existing hard caps and passive observations stay production-owned.
+
+**Proposed commands, not executable today:**
+
+```sh
+python3 tools/release/run_native_sortie.py /ABS/FROZEN/CANDIDATE.x86_64 --route torpedo-expiry --retained-data /ABS/PINNED/orderly-close.json --output /ABS/EXCLUSIVE/expiry-results
+python3 tools/release/run_native_sortie.py /ABS/FROZEN/CANDIDATE.x86_64 --route torpedo-withdraw-landing --retained-data /ABS/PINNED/orderly-close.json --output /ABS/EXCLUSIVE/withdraw-results
+```
+
+Require respectively one proposed `NATIVE_TORPEDO_EXPIRED_HOME_OK` or
+`NATIVE_TORPEDO_LANDING_WITHDRAW_HOME_OK`, all exact endpoints, actual OS0/zero
+diagnostics and released input/reaped game/display/owned-profile cleanup.
+Keep150s encounter, single300s whole process and independent360s outer owner,
+all original walking/boarding/fire/landing/exit limits; no clock reset at terminal.
+Choose one case at a time after shared caller readiness, with clean source/
+imported cache/private package/fixture/output root frozen; implementation/check/
+selected qualification/cleanup≤90min, absolute deadline, one total correction,
+first-unexpected-failure stop. Shared source is implemented once; cases are not
+parallel edits to the same files. Extend existing focused checks for150s crossing,
+healthy boat, pooled-slot reuse/delayed damage, no payment, sole accepted L,
+strict home and CLI/privacy/fixture rejection. No new validator family or game
+policy. Failure preserves source/raw results and does not reopen PLAY-TORPEDO.
+
+<a id="torpedo-play-control-accounting"></a>
+
+**PLAY-TORPEDO remains its original parked full goal.** Evade/intercept/boat clear
+already belong there; do not create duplicate qualifiers for their missing code.
+The exact Codex-owned prerequisite is request accounting that survives unread
+neutral samples after OS release. Counterexample: `note_output(last-read15)`→
+unread neutral16→actual consumed17; both observations can predate release.
+Neutral16 must not erase that request/debt before its matching shot17. XSync is
+not Godot sampling. Original request identity/requested/consumed facts stay
+immutable across cancellation/release. Preserve cancelled/emitted request and actual consumption
+through a proven engine-observed boundary, or retain bounded request debt until
+matching truth is reconciled; no particular algorithm is approved here.
+
+Match scope `(pid,main_id,player_id,ship_id,source_id,input_stream)`, cursor
+`(sequence,frame,command_sequence)`, require `command_stream == input_stream`,
+actual native_fire/command_fire, and resolver request sequence/source_id/source_entity_id/
+weapon_id/presentation_receipt_id/shot result. Requested/consumed press is not a
+hit. Source and the focused regression must cover that exact unread-neutral/
+consumed ordering. Require independent source GO and the recorded cumulative-
+priority/reopening decision before executing checks or engines. This is source repair of the same parked attempt, not a fresh90min
+allowance. Stop67.453307min/closeout67.945853min and the expired original
+2026-10-25T06:05:43.706295Z deadline remain attached.
+
+Full route remains ordinary Heavy clear/payment/home→Torpedo board/departure→
+identified pitch/boost evasion→distinct seeker interception→actual boat70→0→
+separate durable Torpedo payment→strict home/OFFLINE/physical exit→usable Wing
+posting→normal UI OS0/real-file proof,150s each/shared300/outer360. Boat hits must
+match the actual boat collider/Damageable ownership, not aim/request alone. Preserve each
+required flight by authority ID+slot generation and actual terminal; retain first
+required interception immutably while recording later ones separately. Earlier
+real evasion/interceptions/24boat damage, later correct reboarding and seeker14
+kill are partial facts only; last trial leaves boat70/70 and destroys Arrow.
+[Exact source-review stop and retained three failures](history/ROADMAP_DELIVERIES.md#torpedo-control-continuation-stopped-at-source-review-20261025)
+remain binding. No source repair, new qualification or active-crash policy is
+selected here; RECOVERY-POLICY-TORPEDO and ten authority cases keep their owners.
+Both source reviews GO with accepted-assist/immutable stream/boat-hit precision.
+Pinned earned member bytes/hash verified without extraction; original terminal
+membership,337 canonical identities/order, five owner links, source paths and
+whitespace checks pass. No engine, caller implementation or qualification run.
 
 TORPEDO-AUTH-DEFINE is a source definition onaa1a88bef, one bounded high-effort
 reader plus root verification; no engine, gameplay implementation or fresh pass.
