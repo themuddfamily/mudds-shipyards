@@ -4439,7 +4439,7 @@ feature. Do not reopen completed surveys or create successor planning IDs.
 | WALK-FLEET | [Nine home/approach/exit route owners](#fleet-nine-access-routes) are source-bound,including actual markers,current-cache rule and existing caller limits. Cabin/reverse/clear-reboard and craft-specific clearance fields remain explicit Codex work; reuse each CRAFT receipt,not another Fleet loop. Parked all-nine Sandbox remains unchanged. |
 | STATION-FINDINGS | Central, Aft, Habitat, Freight, Fleet, Annex, Observation, Salvage, VIP; tow, gantry, arm and patrol service views. Existing capture membership and literal text/Zenith berth/service contracts are fixed in the [station table](#station-presentation--finite-review-boundaries). Missing supported player-eye camera/phase/image-readback capability is explicit; do not resurvey the13 subjects. A reviewed view closes that view; parked views retain their reopening cause. |
 | ART-FINDINGS | [Finite art coverage contract](#art-view-coverage-contract) binds all13 required sets/143 PNGs, staged versus ordinary scope, current-fleet/character/effect moments and Ember/Aurora/Rime production views plus finite Low/ultrawide/comfort overlays. Membership survey is closed. Codex still owes phase-bound production-camera observation and solar/weather feed/view capability; actual inspections/repairs remain open. Station references its existing13-subject map once; parked causes/caps stay unchanged. |
-| CRAFT-ACCEPT-TORRENT, CRAFT-ACCEPT-ARROW, CRAFT-ACCEPT-JOVIAN, CRAFT-ACCEPT-ZENITH, CRAFT-ACCEPT-HALYARD, CRAFT-ACCEPT-BULWARK, CRAFT-ACCEPT-CINDER-LIGHT, CRAFT-ACCEPT-CINDER-HAULER, CRAFT-ACCEPT-CINDER-BOMBER | Eleven acceptance boundaries listed below; each craft's existing distinctive functions remain in its row. For one unaccepted named member, Codex implements ordinary input/observer support in the existing native-sortie runner and observer, using that craft's live seat/berth/muzzle markers and production receipts. Reuse accepted members. [Halyard/Hauler/Bomber contact budgets](#crew-cargo-bomber-contact-budget) now bind exposed shell targets, two-hit impairment/failure, passive repair and recovery predicates; fresh single boosted contact cannot kill these hulls. Hauler's [range-header contract](#hauler-range-header-contact-route) now supplies its intact obstacle/input stages/limits; actual input/query/contact-observer implementation is missing. Its fatal member now binds direct Hauler Heavy launch and actual source2103 scatter damage,with real station-survival/hit-count/time predicates; execution remains NOT_RUN. Halyard/Bomber still require their own obstacle/input/deadline and fatal schedule; reuse existing other-craft contact contracts. The [current-nine integrated budget](#craft-integrated-journey-budget) now supplies900s/outer960s as an engineering limit; existing300s/tighter members stay unchanged. Integrated caller remains missing; no parked route gains time. Missing ordinary driver code is implementation, not an external-access blocker. Bomber's additional crew alone depends on BOMBER-ROLE-DECISION. |
+| CRAFT-ACCEPT-TORRENT, CRAFT-ACCEPT-ARROW, CRAFT-ACCEPT-JOVIAN, CRAFT-ACCEPT-ZENITH, CRAFT-ACCEPT-HALYARD, CRAFT-ACCEPT-BULWARK, CRAFT-ACCEPT-CINDER-LIGHT, CRAFT-ACCEPT-CINDER-HAULER, CRAFT-ACCEPT-CINDER-BOMBER | Eleven acceptance boundaries listed below; each craft's existing distinctive functions remain in its row. For one unaccepted named member, Codex implements ordinary input/observer support in the existing native-sortie runner and observer, using that craft's live seat/berth/muzzle markers and production receipts. Reuse accepted members. [Halyard/Hauler/Bomber contact budgets](#crew-cargo-bomber-contact-budget) now bind exposed shell targets, two-hit impairment/failure, passive repair and recovery predicates; fresh single boosted contact cannot kill these hulls. Hauler's [range-header contract](#hauler-range-header-contact-route) now supplies its intact obstacle/input stages/limits; actual input/query/contact-observer implementation is missing. Its fatal member now binds direct Hauler Heavy launch and actual source2103 scatter damage,with real station-survival/hit-count/time predicates; execution remains NOT_RUN. [Halyard/Bomber sibling actions](#halyard-bomber-contact-actions) now bind their distinct collision targets/limits,actual consumers and source2103 fatal members. All three callers/observers remain implementation OPEN; reuse existing other-craft contact contracts. The [current-nine integrated budget](#craft-integrated-journey-budget) now supplies900s/outer960s as an engineering limit; existing300s/tighter members stay unchanged. Integrated caller remains missing; no parked route gains time. Missing ordinary driver code is implementation, not an external-access blocker. Bomber's additional crew alone depends on BOMBER-ROLE-DECISION. |
 | CRAFT-ACCEPT-TITAN, CRAFT-ACCEPT-VORTEX, CRAFT-ACCEPT-PARADOX, CRAFT-ACCEPT-KATANA, CRAFT-ACCEPT-PREDATOR, CRAFT-ACCEPT-DYNAMIC, CRAFT-ACCEPT-UTOPIA, CRAFT-ACCEPT-SALYUT | User accepts/amends each existing SPEC proposal; Codex then adopts its existing BUILD-SPLIT cards and binds the same eleven integrated acceptance boundaries. Do not survey or write the prepared proposals again. |
 | COMBAT-COURIER | Ordinary escorted withdrawal/home is accepted on7f23a808c in its [exact packaged scope](history/ROADMAP_DELIVERIES.md#ordinary-escorted-courier-withdrawal-accepted-20261027). Accepted clear/escape/phase/distance withdrawals stay closed. Remaining [runtime loss and cyclic re-admission](#courier-intercept--bounded-outcomes) retain their missing ordinary commands. Cold safe recovery candidate229bfa6c9 is PARKED/unmerged at its recorded preparation-damage failure; no interruption/cold proof or retry. Reuse the exact terminal/cumulative-cost boundary below. No new escort×terminal matrix, repeat count or user policy. |
 | COMBAT-PERIMETER | Terminal/reset membership is fixed in the [Hold contract](#perimeter-hold--missing-production-integration): explicit abort, integrity/core loss, player/craft loss, distance/phase/network/teardown withdrawal, actor retirement and generation-safe renewal. Ordinary survival/home remains PARKED; [Core-LOST/home/Heavy arm-cancel-rearm goal](#perimeter-core-loss-home-admission) now binds ordinary controls/observations, caller files and CAP300; implementation remains OPEN behind the original parked genuine-Hold-entry prerequisite. Do not survey membership again. |
@@ -4648,20 +4648,14 @@ GameFlow `_recover_from_destroyed_ship`, `_update_pending_regeneration` and
 recall pose or reset method invocation cannot pass it. Existing parked grounding
 failures remain attached to their original attempts; this definition is no retry.
 
-**Exact remaining fields — Codex.** Hauler's [range-header contract](#hauler-range-header-contact-route)
-below now supplies its intact obstacle,ordinary control stages and approach
-limits. Its fatal member uses actual Heavy Breach screen damage as defined below.
-Its actual controller/query/contact/pellet observer is missing implementation,
-not an unavailable design input. Halyard/Bomber remain BLOCKED definition: bind
-the selected craft's actual existing obstacle identity/shape/transform,
-collision-free approach/return corridor, supported normal input trajectory and
-per-contact approach limit before coding its native route. Supply the fatal
-earned-damage schedule separately; the two-contact repair budget above does not
-kill a fresh hull. No demonstrated ordinary obstacle/controller for Halyard/Bomber
-is currently supplied; Hauler has a source-defined target/caller contract below,
-not an implemented selector or passing executable command. The existing
-Light-only Sandbox crash surface/controller is not their route and its parked
-all-nine300s attempt cannot be renamed/retried.
+**Exact remaining capability — Codex.** The [Hauler header contract](#hauler-range-header-contact-route)
+and [Halyard/Bomber sibling actions](#halyard-bomber-contact-actions) now supply
+these three intact obstacle/control stages,contact bounds/limits and actual
+Heavy Breach hostile-loss triggers. Their current-craft input/query/contact/
+pellet/consumer observers and complete runtime continuations remain missing
+implementation,not external design inputs. Source geometry is not an implemented
+selector or passing journey. The Light-only Sandbox crash controller is not
+these members;its parked all-nine300s attempt cannot be renamed/retried.
 
 Use existing `native_sortie_observer.gd::_sandbox_observation` current-craft
 lease/pose/tuning/health/regeneration readbacks. Extend its existing component
@@ -4677,14 +4671,15 @@ Each capability still needs a ≤90min all-in selection/deadline/default one
 correction and independent abort. Existing300s/tighter members and parked limits
 stay fixed; the future genuinely integrated900s/outer960s clock is concurrent,
 not a larger wrapper for a failed old route. This resolves source feasibility,
-component target/budget and recovery predicates only; obstacle/input/approach
-deadline and fatal schedule remain exact named Codex fields, not external input.
+component target/budget and recovery predicates; the linked three craft
+contracts supply ordinary source stages and limits. Actual caller/observer
+implementation and gameplay/hardware qualification remain open.
 
 <a id="hauler-range-header-contact-route"></a>
 #### Hauler: range-header contact and actual hostile loss
 
-This resolves Hauler's intact obstacle/input fields above and its actual hostile fatal trigger; Halyard/Bomber keep
-their own unbound route fields. Definition2026-10-27,20:39–20:59UTC through
+This resolves Hauler's intact obstacle/input fields above and its actual hostile
+fatal trigger. Halyard/Bomber use their separate [bound sibling members](#halyard-bomber-contact-actions). Definition2026-10-27,20:39–20:59UTC through
 source review/checks/commit/push/cleanup. This is an analytical route contract,
 not an executed collision, ordinary input qualification or parked Sandbox retry.
 
@@ -4852,6 +4847,130 @@ current accepted cargo300s/home15s and all earlier stricter/parked limits.
 Use the already-defined private raw output root and record actual inputs,
 world/collider/shape identity,clearance queries,attitude,collision/ledger facts,
 member/whole elapsed time,normal exits and owned input/process cleanup.
+
+<a id="halyard-bomber-contact-actions"></a>
+#### Halyard and Bomber: actual contact,repair and hostile-loss members
+
+This fills these two existing CRAFT-ACCEPT containers' obstacle/control/fatal
+definition fields; their callers and all executions remain OPEN/NOT_RUN.
+Allocation2026-10-27,20:56–21:16UTC includes source review,checks,commit/push and
+cleanup. Root owns the two roadmap documents; disjoint read-only agents bind
+Halyard and Bomber geometry/consumers. No engine,package,parked retry or new
+crew specification is selected. Reuse the [Hauler header/control contract](#hauler-range-header-contact-route)
+for the same existing collider,station-local coordinate binding,ordinary OS
+input stages,live full-shape queries,exact contact sample and normal lifecycle
+endpoints. These are new source-defined sibling members,not copied passes or
+permission to rerun the parked all-nine Sandbox or crew-fire attempts.
+
+| Existing craft | Literal first-contact geometry at B=Rz90 | Actual footprint and nearest-component proof |
+| --- | --- | --- |
+| Halyard | Header undersidey8.5;root(0,5.78,−120);StarboardHullWallCollision localx2.72. Actual enabled-root AABB min(−4.8,−1.08,−13.85),max(4.8,4.5,14.5),not FLIGHT_COLLISION_BOUNDS. | Possible localy[.5,3.4],z[−.5,.5]. Minimum squared-distance advantage for starboard over core/engine/port is4.7817882/112.15296621/40.73472. Crown reachesx2.65,only.07m nominal clearance. Tail yoke x4.8,z[10.5,11.9] and engines x4.3,z[10.9,14.5] miss the header's final slab. Do not infer first contact from whole-craft AABB alone. |
+| Cinder Bomber | Same underside;root(0,5,−120);sole final root box size(7,2.825,15.5),centre(0,.0875,0);local contactx3.5. | Possible localy[−1.325,1.5],z[−.5,.5]. Minimum starboard squared-distance advantage over core/engine/port is10.7832215625/38.544176/38.22. No imagined inherited cannon/lens is a contact or firing consumer. |
+
+At fixed final attitude,Halyard's vertical swept hull occupies worldx[−4.5,1.08],
+z[−133.85,−105.5]; source target03 is5m clear in Z and target02 is9.22m clear
+in X,including authored animation/sphere bounds. Bomber's final sweep occupies
+x[−1.5,1.325],z[−127.75,−112.25]. Its full B*Ry(theta),theta∈[−PI/2,0],quarter
+turn extendsz[−128.503675676,−111.496324324],leaving target03 at least10.346324324m
+clear in Z and target02 at least8.975m clear in X. Trusses remain atx±31.
+Source clearances do not qualify the translational/rotational approach: the
+actual current full shapes/actors and all accepted transformations must pass
+live swept queries. A centre ray or a source-rendered mesh cannot substitute.
+
+**Finite ordinary actions and literal pass.**
+
+1. Normal Boot/Begin Shift,physical current pilot admission and home departure.
+   Halyard uses the existing WALK-FLEET Halyard approach via
+   (37,4.2,68.3)→(32.4,4.2,68.2)→(32,4.2,62.2)→(32,4.2,54.2)→live boarding
+   marker,after the existing station ARM-goal prefix. Bomber uses
+   `BomberRearmPilot`'s actual supported stair/lip approach and current marker.
+   Use actual E/90neutral admission,W automatic ONLINE and exact lease release;
+   do not invoke legacy timed start or staged actor placement. No role chair,
+   API boarding or metadata-only boarding area replaces pilot admission.
+2. Reuse rear clearance(0,120,−200),then stage300m below the selected target root:
+   Halyard(0,−294.22,−200)→(0,−294.22,−120);Bomber(0,−295,−200)→(0,−295,−120).
+   At each staging goal require distance≤2m,speed≤.5m/s and clear actual sweeps.
+   Braked ordinary mouse/Q/R reaches B0=B*Ry(−PI/2),then W/Shift upward thrust
+   and normal mouse turn seek the header target. Controllers use each craft's
+   actual response/drag/assist,not Hauler's constants or timed key durations.
+   Halyard mouse≤8°/full impulse,yaw31°/s,roll38°/s,assist3.1,thrust11,brake19;
+   Bomber mouse≤8°,yaw28°/s,roll34°/s,assist3.2,thrust18,brake28. No strafe exists.
+3. Earn exactly two isolated same-starboard contacts,each D/H∈[.099,.101],with
+   cooldown expired and no landing/repair between. Required actual normal speed
+   is Halyard[64.356522,64.686957]m/s and Bomber[60.84,61.16]m/s. Use exact
+   pre-collision velocity/contact/normal and actual collision formula; expected
+   integrity after one[.596,.604],after two[.192,.208],with actual calculated
+   hull retained. Require the selected header underside normal within1°,
+   attitude within.1° of B for Halyard and.5° for Bomber,actual starboard
+   attribution and actual local shape `StarboardHullWallCollision` for Halyard
+   or `BomberHullCollision` for Bomber,with no additional collider/component
+   contact. Halyard's crown
+   clearance makes shape/face identity a required observation,not a cosmetic
+   tolerance. Collision margin may shift root contact height; do not demand
+   literal source y instead of actual geometry. Immediately after hit two and
+   before landing,one real FIRE edge must refuse `weapon_component_failed`.
+4. Return through rear clearance to the actual own home. Require strict occupied
+   exact lease,landed/intact/not-landing passive repair to1 at.62/s,unchanged
+   damaged hull,all restored operational multipliers and cleared effects in the
+   same component generation. Normal90neutral/OFFLINE,physical exit and supported
+   walking are required. Halyard passive repair consumes no engineer tool and
+   cannot pass ROLE-HALYARD-ENGINEER; its separate physical claim/action remains.
+5. Physically reboard/depart for one repaired consumer proof. A standalone intact
+   member does not arm an activity and then makes its second strict home/exit/
+   supported walk/normal UI exit0. For integrated loss,first walk/arm the actual
+   Heavy board on foot before this reboard,then continue the same departure into
+   the hostile loss below. Require source1105 Halyard or1106 Bomber and its own
+   current generation; no Arrow/Hauler proof transfers.
+
+| Actual consumer | Failed-wing FIRE and repaired result |
+| --- | --- |
+| Halyard pilot weapon | Failed actual FIRE produces no new accepted shot;after repair,one fresh edge into queried empty space produces one accepted actual source1105 `halyard_long_range_defensive_lance` request (560m/52 nominal damage/.95s cooldown). This is pilot gating,not the separate parked co-pilot/gunner hit route or proof of crew authority/target damage. |
+| Bomber payload | `request_payload_release` checks component hold before authority consumption. Failed actual FIRE preserves ammunition,accepted release sequence and live projectile count. After repair/reboard,one actual accepted release consumes exactly one round and admits exactly one BomberPayloadProjectile. The inherited `_fire_weapon` is empty and cannot prove this result. Pilot exit/loss clears the payload session; a strictly newer reboard generation refills4 per the settled policy. Record that real entitlement,not a claim that repair minted ammunition or ordnance is conserved. Actual accepted release leaves3 in that new generation. |
+
+**Actual hostile loss,shared activation once per selected craft.** Reuse the
+Hauler contract's normal Heavy board arm→direct current craft/source admission→
+FREE_FLIGHT actual launch. GameFlow's source registration admits Halyard1105 and
+Bomber1106; director screen2103 targets the actual launch craft. No Heavy-first
+landing/switch,actor activation API or Torrent defender substitute. Keep pilot
+FIRE released after its single repaired consumer probe,and ensure that probe
+goes into queried empty space. Actual station/Picket/roster/role/aim/LOS remain
+required; critical hull power may change but cannot prevent incoming hull damage.
+
+| Selected craft after intact two-hit repair | Actual h interval | Required real damaging14/3 pellets |
+| --- | --- | --- |
+| Halyard | [151.62,152.38] | 32 pellets leave positive hull;33rd damages min(14/3,remaining hull) and destroys once.11 full fans suffice only if those33 pellets genuinely land. |
+| Bomber | [191.52,192.48] | 41 pellets leave positive hull;42nd damages min(14/3,remaining hull) and destroys once.14 full fans suffice only if those42 pellets genuinely land. |
+
+For either selected member,first engineering limits remain26 real screen
+triggers/60s actual Heavy-launch→destruction,concurrent with150s encounter,
+300s member and900s integrated/outer960s. Record each actual source2103 weapon/
+request/trigger/pellet/target and hull delta; misses/other target hits are not
+damaging pellets. Reject additional damage sources,station/Picket loss before
+victim loss,expiry,withdrawal or an extra damaging pellet. These are finite
+unexecuted pass/fail limits,not guarantees that firing/LOS/station survival pass.
+Then require actual same-Player recall/grounding,old claims/commands retirement,
+minimum2000ms pending regeneration,exact home reserve/occupy/reset commit,new
+component generation,physical fresh reboard/departure/strict home/OFFLINE/exit/
+walk/UI exit0. No Heavy clear/credit;prior unrelated durable records unchanged.
+Bomber payloads from the outgoing pilot generation must retire once without
+delayed damage or resurrection. Halyard's separate role/loss claims and Bomber's
+additional-crew decision are not satisfied or reduced by this pilot member.
+
+**Missing implementation — Codex.** Extend the existing native runner/observer
+and minimum passive HeroShip collision seam for exactly the selected craft.
+Reuse actual resolver-signal incoming records;generalize Torrent-hardcoded
+component/shot observation without changing damage authority. Required code:
+ordinary trajectory feedback,current full-shape sweeps,exact contact→component
+correlation,real failed/repaired consumer and actual hostile pellet/loss/reuse
+continuation. No executable selector or qualification exists yet. Standalone
+intact first engineering300s/outer330s;each staging/turn/withdrawal goal≤15s;
+integrated900s/outer960s with stricter existing member limits concurrent. Existing
+Bomber rearm300s/330s and all Halyard/role/crew/other parked budgets stay intact;
+these are distinct source-defined damage members,not renamed failed attempts.
+Each implementation must have its own≤90min all-in estimate/deadline/default
+one correction/independent abort;split production capabilities first if needed.
+Use the existing owned `/srv/mudds-work/craft-contact-<craft>-<source>/` raw root,
+actual input/geometry/contact/ledger/consumer/exit records and owned cleanup.
 
 <a id="craft-integrated-journey-budget"></a>
 ### Current-craft integrated journey — fixed execution budget
@@ -5133,11 +5252,11 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | CRAFT-ACCEPT-ARROW | Arrow full solo craft loop | 7,10,11 | Container | [Integrated ordinary timing](#craft-integrated-journey-budget):900s/outer960s; existing member limits preserved. Ordinary return/reuse DONEed1167b; named pilot precision-hit plus preserved two-flight home/OFFLINE exits/clear/reboard/UIquit DONE51257b3, actual archive120.991s. [Accepted scope](history/ROADMAP_DELIVERIES.md#arrow-precision-hit-and-return--shipped-on-51257b3). Broader combat/damage/recovery/crosscraft/Main/art/device/final acceptance remains GATED; no Sandbox/Defense closure. Qualification container; [damage source fields](#arrow-zenith-damage-contact-contract) fixed, ordinary route unbound. BLOCKED definition (Codex): exact ordered role/function, nonfatal/failed-component/repair, fatal-recovery, switch partner/handback and retained-Main members; ordinary driver/route/start-stop/original limits and accepted proof reused per member. No craft×case matrix. | [Complete craft journey](#proof-craft), plus this craft-specific result: Qualification container: pilot precision/recon handling and the existing single24damage hit; preserve the accepted two-flight returns. |
 | CRAFT-ACCEPT-JOVIAN | Jovian full solo craft loop | 7,10,11 | Container | [Integrated ordinary timing](#craft-integrated-journey-budget):900s/outer960s; existing member limits preserved. WEAPON-JOVIAN PARKED after one authorized caller correction:13Gantrygoals/90seat and first actual8.22285m/free-lease departure pass; frame2210 moves1.753796m above original1.603333m bound. No clearance waypoint/shot/home/reuse/UIOS0. Driverc148/game7af source pins differ; failed source stays unmerged. Motion owner/cause unknown; no next correction or retry selected. Original23:40→01:10UTC/90min cumulative clock retained. [Frozen contract and both attempts](history/ROADMAP_DELIVERIES.md#jovian-cannon-departure-parked-and-linux-archive-modes-fixed-20261027). Separate engineer journey remains parked. Ordinary solo spawn→engineer repair→hub attempt PARKED/NOT_ACCEPTED2026-10-25 after2actual trials. Corrected1530b4fc8 reaches17outbound physical goals/chair, acceptedportrepair/integrityimprovement/6→5/437ms/HUD5, then fails stand-retirement aggregate. Candidate incorrectly requires empty released authority still attached; production detaches it. Actual post-stand members unlogged. Fullreverse/hub/normalUI0NOT_RUN; no third under this card. Both sources/raw/STOP archived, candidate excluded from main/branch removed. Future selection needs predicate bound to existing detach contract+preassertmember receipts, independent source/cumulative review, originalfullroute/limits retained. Full craft remains a qualification container; other ordered role/function/damage/recovery/switch/Main route bindings still required. [Exact stops](history/ROADMAP_DELIVERIES.md#jovian-ordinary-engineer-two-stops-20261025). | Jovian completion container for the listed physical steps plus the complete craft contract. The next definition ends with proof/route/limit for every step or the exact missing artifact/decision and owner. A future bounded implementation changes one demonstrated missing behavior; this row closes only when the whole required journey is accepted. |
 | CRAFT-ACCEPT-ZENITH | Zenith full solo craft loop | 7,10,11 | Container | [Integrated ordinary timing](#craft-integrated-journey-budget):900s/outer960s; existing member limits preserved. OPEN container; [finite11member binding](#zenith-finite-acceptance-binding); [damage source fields](#arrow-zenith-damage-contact-contract), ordinary route unbound. Retain DONE ordinary pilot/real28hit/two strict homes/fresh reuse/normalOS0 Game4bf5e889/Driver4870595fa in the [accepted scope](history/ROADMAP_DELIVERIES.md#zenith-pilot-hit-home-reuse-accepted-20261026). Settled retained-Main DONEa70f9397a in its [staged scope](history/ROADMAP_DELIVERIES.md#zenith-settled-main-reentry-qualified-20261026). Full physical cross-craft handback DONE Game499e681/Driver8ba86d98e:162.917s/42walkinggoals/mandatoryactualGuided/strictTorrenthome/OFFLINE/exit/sameZenithfresh90neutral/normalHUDOS0/bothrealcleanmarkers/diag0. Stream5→retired7→reclaim9; later10afterreceipt. [Exact proof/fourfailedtrials/limits](history/ROADMAP_DELIVERIES.md#zenith-torrent-handback-accepted-20261026). Focused physical stair repair1f7dccb remains accepted in its [recorded scope](history/ROADMAP_DELIVERIES.md#aft-stair-base-supported-contact-accepted-20261026). Remaining original component consequences/passive repair, loss/regeneration and current art/device/final bindings stay OPEN/BLOCKED definition as listed above; no missing handback or Main selector and no unchanged replay. Full craft is not DONE. | All members of the [finite binding](#zenith-finite-acceptance-binding) satisfy the [complete craft journey](#proof-craft) on the bound candidate, with original limits and retained failures. No extra crew, invented historical handling, craft×case matrix or unchanged parked replay. |
-| CRAFT-ACCEPT-HALYARD | Halyard full solo craft loop | 7,10,11 | Container | [Integrated ordinary timing](#craft-integrated-journey-budget):900s/outer960s; existing member limits preserved. Qualification container; BLOCKED definition (Codex): exact ordered role/function, nonfatal/failed-component/repair, fatal-recovery, switch partner/handback and retained-Main members; ordinary driver/route/start-stop/original limits and accepted proof reused per member. No craft×case matrix.  [Contact source budget](#crew-cargo-bomber-contact-budget) now fixes starboard impairment/failure, intact repair and fatal infeasibility at fresh speed; actual obstacle/input/approach deadline and earned fatal schedule remain Codex-owned definition gaps. | [Complete craft journey](#proof-craft), plus this craft-specific result: Qualification container: pilot plus physical passenger/gunner/engineer/Loadmaster claim/action/stand/reseat; retain the accepted52damage gunner case. |
+| CRAFT-ACCEPT-HALYARD | Halyard full solo craft loop | 7,10,11 | Container | [Integrated ordinary timing](#craft-integrated-journey-budget):900s/outer960s; existing member limits preserved. Qualification container; BLOCKED definition (Codex): exact ordered role/function, nonfatal/failed-component/repair, fatal-recovery, switch partner/handback and retained-Main members; ordinary driver/route/start-stop/original limits and accepted proof reused per member. No craft×case matrix.  [Contact source budget](#crew-cargo-bomber-contact-budget) now fixes starboard impairment/failure, intact repair and fatal infeasibility at fresh speed; the linked sibling contract supplies actual obstacle/input stages/approach limits and hostile fatal member; runtime caller/observers remain missing.  [Concrete contact/loss actions](#halyard-bomber-contact-actions) now fix this craft's header face,actual failed/repaired consumer,source2103 damaging-pellet count and normal recovery endpoint. Definition only; actual controller/query/observer and execution OPEN,original parked/crew/final gates retained. | [Complete craft journey](#proof-craft), plus this craft-specific result: Qualification container: pilot plus physical passenger/gunner/engineer/Loadmaster claim/action/stand/reseat; retain the accepted52damage gunner case. |
 | CRAFT-ACCEPT-BULWARK | Bulwark full solo craft loop | 7,10,11 | Container | [Integrated ordinary timing](#craft-integrated-journey-budget):900s/outer960s; existing member limits preserved. Source acceptance binding recorded below; [Dock03 access/launch fields](#bulwark-access-launch-definition) are now source-bound,with ordinary caller/physical passage still open behind parked conditions. Full journey BLOCKED definition (Codex) on remaining inputs/routes/candidate/limits: pilot handling/combat, OFFLINE cabin stand→seated weapon-power wake→gunner hit/release/reseat→pilot reclaim, concurrent moving-crew ownership handback, five-component consequences/passive repair, loss/regeneration, strict home/exit/reuse, Torrent handback and retained Main. Exact missing native inputs/routes/candidate/receipts/deadlines are assigned per member; f676c5016 reused only for its recorded host+one-client/staged scope. No new run, whole-loop pass or extra physical role. Selected member: [ordinary solo gunner journey](#bulwark-ordinary-gunner-member) — physical Dock03 admission/actual outward drift/carried aisle/real22-hit/fresh gunner reseat/pilot reclaim/strict home/normalOS0 and real clean files. PARKED after six failed ordinary trials; latest96197bf failed the outward15s bound after101.287s, and its final wrapper source guard also failed after a concurrent documentation edit. No accepted gunner journey or new checkpoint. Reopening requires the demonstrated outward-failure cause, bounded correction, independent cumulative-priority decision and clean frozen source; see the selected card for cumulative cost and retained source/raw. Separately, the reproduced carried-floor runtime repair is accepted in checkpoint30534f5: [actual captured regression and package proof](history/ROADMAP_DELIVERIES.md#carried-cabin-floor-contact-accepted-20261026); this does not close the parked journey. All remaining full-craft bindings stay open. [Empty-magazine source repair and ordinary-member stop](#bulwark-ordinary-gunner-member): combined driver1b5649cc2 PARKED at CLI-order regression, no ordinary run/export accepted. Isolated3file runtime repair1d095ad93/checkpoint1d095ad is accepted:13 component/303 existing Python/3627 privacy, paired exports/three strict startups/full1529-entry/nine-predicate audit and independent review. Component ammo is staged; full ordinary gunner remains PARKED, no direct physical-fire qualification inferred. No full gunner or craft PASS inferred. | [Bulwark finite acceptance binding](#bulwark-finite-acceptance-binding) preserves every [complete craft journey](#proof-craft) member and the physical gunner real-damage/release/reseat requirement. |
 | CRAFT-ACCEPT-CINDER-LIGHT | Cinder Light Interceptor full solo craft loop | 7,10,11 | Container | [Engine impairment/repair source contract](#light-engine-damage-repair-contract) binds legal Heavy activation,actual aft-face target,three-pellet14damage/27-of-55 integrity,live mobility/beacon/passive repair and bounded stop; ordinary control/return caller remains missing,no run selected. [Integrated ordinary timing](#craft-integrated-journey-budget):900s/outer960s; existing member limits preserved. WEAPON-CINDER-LIGHT member PARKED: first full run canonical-race comparison fails after15walk/90seat/12mlift; one exact-codec correction then fails its component float-pair assertion before export/second native. No firing/home/reuse/UIOS0. [Both stops/full retained contract](#cinder-light-two-pulse-weapon-and-returnreuse--frozen2026-10-27). Six candidate files remain unmerged/verified archived; owned branch/worktree/process/scratch cleaned. No third attempt or further correction selected; exact fixture values/representation proof remains missing. Qualification container; BLOCKED definition (Codex): exact ordered role/function, nonfatal/failed-component/repair, fatal-recovery, switch partner/handback and retained-Main members; ordinary driver/route/start-stop/original limits and accepted proof reused per member. No craft×case matrix. | [Complete craft journey](#proof-craft), plus this craft-specific result: Qualification container: pilot specialist handling, actual repeater cadence/cooldown and component consequences. |
 | CRAFT-ACCEPT-CINDER-HAULER | Cinder Cargo Hauler full solo craft loop | 7,10,11 | Container | [Integrated ordinary timing](#craft-integrated-journey-budget):900s/outer960s; existing member limits preserved. Conserved cargo delivery DONE99f2717ee; full craft remains GATED on remaining actual weapon/role/damage/recovery/reuse/cross-craft/Main/art and final-source acceptance. One delivery does not close this journey. Qualification container; BLOCKED definition (Codex): exact ordered role/function, nonfatal/failed-component/repair, fatal-recovery, switch partner/handback and retained-Main members; ordinary driver/route/start-stop/original limits and accepted proof reused per member. No craft×case matrix.  [Contact source budget](#crew-cargo-bomber-contact-budget) now fixes starboard impairment/failure, intact repair and fatal infeasibility at fresh speed; the linked Hauler header contract below supplies intact obstacle/input stages/approach limit; actual runtime caller remains open; fatal trigger is the real Heavy Breach screen,not critical-hull ramming.  [Hauler header route](#hauler-range-header-contact-route) binds the existing underside collider,normal input stages/limits and two-hit repair; fatal loss now binds direct Heavy Breach launch/source2103 and38 real damaging pellets after the intact repair. The unselected ten-ram arithmetic is withdrawn for its unsupported total-power premise. Actual controller/query/contact observer is implementation OPEN,all executions NOT_RUN. | [Complete craft journey](#proof-craft), plus this craft-specific result: Qualification container: pilot/ramp, conserved shared-stock delivery, travelling mass-driver impact and physical Loadmaster/Navigator actions. |
-| CRAFT-ACCEPT-CINDER-BOMBER | Cinder Long-Range Bomber full solo craft loop | 7,10,11 | Container | [Integrated ordinary timing](#craft-integrated-journey-budget):900s/outer960s; existing member limits preserved. Qualification container; BLOCKED definition (Codex): exact ordered role/function, nonfatal/failed-component/repair, fatal-recovery, switch partner/handback and retained-Main members; ordinary driver/route/start-stop/original limits and accepted proof reused per member. No craft×case matrix.  [Contact source budget](#crew-cargo-bomber-contact-budget) now fixes starboard impairment/failure, intact repair and fatal infeasibility at fresh speed; actual obstacle/input/approach deadline and earned fatal schedule remain Codex-owned definition gaps. | [Complete craft journey](#proof-craft), plus this craft-specific result: Qualification container: pilot four-round payload hit/miss/depletion, refusal while empty and refill4 on physical pilot retake; extra crew waits on BOMBER-ROLE-DECISION. |
+| CRAFT-ACCEPT-CINDER-BOMBER | Cinder Long-Range Bomber full solo craft loop | 7,10,11 | Container | [Integrated ordinary timing](#craft-integrated-journey-budget):900s/outer960s; existing member limits preserved. Qualification container; BLOCKED definition (Codex): exact ordered role/function, nonfatal/failed-component/repair, fatal-recovery, switch partner/handback and retained-Main members; ordinary driver/route/start-stop/original limits and accepted proof reused per member. No craft×case matrix.  [Contact source budget](#crew-cargo-bomber-contact-budget) now fixes starboard impairment/failure, intact repair and fatal infeasibility at fresh speed; the linked sibling contract supplies actual obstacle/input stages/approach limits and hostile fatal member; runtime caller/observers remain missing.  [Concrete contact/loss actions](#halyard-bomber-contact-actions) now fix this craft's header face,actual failed/repaired consumer,source2103 damaging-pellet count and normal recovery endpoint. Definition only; actual controller/query/observer and execution OPEN,original parked/crew/final gates retained. | [Complete craft journey](#proof-craft), plus this craft-specific result: Qualification container: pilot four-round payload hit/miss/depletion, refusal while empty and refill4 on physical pilot retake; extra crew waits on BOMBER-ROLE-DECISION. |
 | SPEC-TITAN | Titan evidence-bounded identity/capability specification | 10,36 | Definition | BLOCKED input — user accepts/amends the linked explicit interpretation/design proposal and its fixed specification fields; no research or runtime execution pending that answer. PREPARED/unapproved [modern pilot/two-passenger/four-inert-parcel utility transport proposal](design/TITAN_IMPLEMENTATION_PROPOSAL.md); numeric geometry/16fields/functions/custody-recovery fixed, owner interpretation/design choice pending. No runtime or craft delivered. | Titan: all fixed [specification fields](#proof-craft), honest evidence label and explicit interpretation/design decision; no ship-completion claim. |
 | BUILD-SPLIT-TITAN | Titan named hull/handling/access/role/recovery build cards | 10,36 | Definition | BLOCKED input — user approval of the named SPEC; then Codex adopts/amends its already finite linked capability cards against that answer. This row ends at that finite plan; it is not executable ship construction. GATED on accepted SPEC-TITAN; 13 bounded [draft production/package cards](design/TITAN_IMPLEMENTATION_PROPOSAL.md) prepared, not approved or executed. Adopt against actual owner choice; do not repeat definition. | Titan: accepted SPEC expanded into named hull/access, handling, actual functions/weapons, damage/recovery/save/reuse capabilities with files/owner/visible result/proof/estimates; construction still required. |
 | CRAFT-ACCEPT-TITAN | Titan full craft loop | 7,10,11,36 | Container | WAITING input (user): accept/amend [SPEC-TITAN](design/TITAN_IMPLEMENTATION_PROPOSAL.md), including roles/actions, functions/armed-or-unarmed, geometry/access/berth and handling. Codex then binds the actual build and ordered journey/cases/limits; prepared cards are not implementation. | Accepted SPEC-TITAN → implemented BUILD-SPLIT-TITAN capabilities → [complete physical craft journey](#proof-craft). Missing product values remain with the user; concrete route/case/driver binding remains with Codex. |

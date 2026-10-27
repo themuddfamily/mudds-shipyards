@@ -81,7 +81,10 @@ now have explicit component/hull budgets and recovery predicates. The
 [Hauler range-header route](docs/ROADMAP_BACKLOG.md#hauler-range-header-contact-route)
 also binds an existing obstacle,intact input stages and real Heavy Breach
 skirmisher damage for fatal recovery. Its controller/observer remain unimplemented;
-the unsupported critical-hull ram candidate is withdrawn. Halyard/Bomber obstacle/control/fatal fields remain open.
+the unsupported critical-hull ram candidate is withdrawn.
+[Halyard/Bomber sibling members](docs/ROADMAP_BACKLOG.md#halyard-bomber-contact-actions)
+now bind their distinct contact geometry,real weapon/payload gates and fatal
+pellet counts. Actual callers and gameplay qualification remain open.
 
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings
