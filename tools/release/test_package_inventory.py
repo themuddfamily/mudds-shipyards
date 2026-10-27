@@ -5,6 +5,7 @@ import hashlib
 import io
 import json
 import os
+import stat
 import struct
 import subprocess
 import sys
@@ -530,6 +531,26 @@ INSTALLER
         self.run_pair(failure="compiled_source")
         self.assertFalse((self.root / "SHOULD_NOT_EXIST").exists())
         self.assertFalse((self.repository / "SHOULD_NOT_EXIST").exists())
+
+    def test_zip_rejects_explicit_special_files_and_accepts_regular_metadata(self):
+        cases = (
+            (stat.S_IFLNK, 0, "windows_zip"),
+            (stat.S_IFCHR, 0, "windows_zip"),
+            (stat.S_IFDIR, 0, "windows_zip"),
+            (0, 0x10, "windows_zip"),
+            (stat.S_IFREG, 0, None),
+            (0, 0, None),
+        )
+        for file_type, dos_attributes, failure in cases:
+            with self.subTest(file_type=file_type, dos_attributes=dos_attributes):
+                with zipfile.ZipFile(self.files["windows_zip"], "w") as archive:
+                    member = zipfile.ZipInfo(self.files["executable"].name)
+                    member.create_system = 3 if file_type else 0
+                    member.external_attr = ((file_type | 0o644) << 16) | dos_attributes
+                    archive.writestr(member, self.windows_data)
+                    archive.writestr(self.files["windows_notes"].name,
+                                     self.files["windows_notes"].read_bytes())
+                self.run_pair(failure=failure)
 
     def test_template_expansion_rejects_unknown_shell_expressions(self):
         for expression in ("$unknown", "${commit:0:7}", "$(false)", "`false`"):

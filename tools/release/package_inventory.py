@@ -590,6 +590,9 @@ def _audit_zip(path, payloads):
                  "Windows ZIP must contain exactly the named EXE and notes")
         for member in members:
             _require(not member.is_dir(), "Windows ZIP payload must be a file")
+            file_type = stat.S_IFMT(member.external_attr >> 16)
+            _require(file_type in (0, stat.S_IFREG) and not member.external_attr & 0x10,
+                     f"Windows ZIP payload must be regular: {member.filename}")
             _require(member.file_size == len(payloads[member.filename]),
                      f"wrong Windows ZIP payload size: {member.filename}")
             # ZipExtFile checks the CRC when the complete member is read.
