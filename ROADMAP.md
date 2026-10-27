@@ -162,28 +162,25 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Current work and next selection
 
-**Current implementation: PACKAGE-FINAL paired-artifact audit.**
-One bounded release-tool capability is selected in its [frozen card](docs/ROADMAP_BACKLOG.md#package-final--existing-members-and-counts),
-05:20:33–06:50:33UTC. Extend the existing inventory tool, retain its positional
-CLI, pass valid/tampered artifact checks and audit unchanged checkpoint7876ebc.
-No engine/gameplay/checkpoint change is selected. PLAN-NEXT remains unfinished.
-First focused suite passes27 tests; source review stops on missing ZIP regular-file
-type enforcement. One minimal correction is selected in the same frozen budget;
-no actual checkpoint audit has run.
-The breakdown is still OPEN. Reviewing all337 records did not supply every
-missing route, member list or expected value. Those gaps remain in the existing
-[finite definition list](docs/ROADMAP_BACKLOG.md#remaining-contract-gaps--plan-next).
-Do not report that review as a completed executable roadmap.
+**Accepted — PACKAGE-FINAL paired-artifact audit capability.**
+The existing inventory tool now checks complete Windows/Linux payload parity,
+hash-pinned PE code, compiled-source bundle files, tar/ZIP contents and unchanged
+inputs. Corrected28-test suite and one real7876ebc audit pass; all1529 entries and
+nine predicates agree. Source d70231901 is integrated/pushed27d1e70e8.
+[Exact command, first review stop, actual proof and cleanup](docs/ROADMAP_BACKLOG.md#package-final--existing-members-and-counts).
+Original13-test baseline and first27-test PASS are retained; review caught ZIP
+special-file metadata, and its one source-proven correction is accepted. Cleanup
+finishes14.696minutes from05:20:33UTC, plus final notes/push on the same clock.
+Owned branch/worktree/scratch are removed; one small verified archive remains.
+No game/engine/public checkpoint change; final release/player/native gates stay open.
 
-The current pass defines one [paired-artifact audit capability](docs/ROADMAP_BACKLOG.md#package-final--existing-members-and-counts),
-fills literal station/member fields in the existing
-[13-subject view contract](docs/ROADMAP_BACKLOG.md#station-presentation--finite-review-boundaries),
-and fixes [caption ingress/expiry/Reset acceptance](docs/ROADMAP_BACKLOG.md#caption-episodes--ingress-and-reset-boundary).
-The audit and caption callers still need implementation. Station player-eye
-camera/image-readback and remaining ordinary episode observers remain Codex work.
-These definitions select no runtime retry and close no player journey or phase.
-Earlier seat/colour/combat/crew bindings remain in their existing contracts;
-PLAN-NEXT stays OPEN until its remaining source-resolvable fields are supplied.
+**PLAN-NEXT remains OPEN; next implementation is unselected.**
+Definitions still need their remaining source-resolvable fields; accepted results
+stay closed. [Remaining definition gaps](docs/ROADMAP_BACKLOG.md#remaining-contract-gaps--plan-next)
+name the unfinished routes, view/observer bindings and owner inputs. The caption
+normal Save/Reset/cold caller is a named missing capability; station player-eye
+camera/image-readback still needs actual execution evidence. No inventory survey
+or parked retry is selected by this closure.
 
 For each listed gap, supply the finite answer in its existing row/contract:
 the named members, action/trigger, expected endpoint, preserved state, proof
@@ -201,7 +198,7 @@ Preserve all337 IDs, their kinds/order,36 parent outcomes and ten phase exits.
 This is planning completion only. Runtime completion still needs the named
 player journeys and release gates.
 
-**One implementation active.** Choose another existing capability only after
+**Select one implementation at a time.** Choose another existing capability only after
 its literal acceptance card is complete. Freeze the result before editing;
 include checks, checkpoint, integration and cleanup in its estimate of at most
 90minutes. Full journeys and soaks retain their original durations. A failed

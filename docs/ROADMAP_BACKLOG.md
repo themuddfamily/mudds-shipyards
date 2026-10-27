@@ -969,7 +969,7 @@ Before execution the selected card binds actual frozen commit, pinned engine/
 templates, clean checkout, files/profile/results and independent abort. Startups
 require actual completion, not fixed-frame quits. No command ran for this edit.
 
-**Concrete missing release capability — reusable paired-artifact audit.**
+**Paired-artifact audit capability — delivered2026-10-27.**
 The retained helpers are in
 `/srv/mudds-work/legacy-future-cfg-20261026/records.tar.gz`, members
 `helpers/audit.py`, `helpers/checkpoint.py` and
@@ -977,20 +977,43 @@ The retained helpers are in
 Root read their actual source2026-10-27. They are task-specific: audit hardcodes
 1529/prior2456552/no added entries/expected legacy-script changes; checkpoint
 requires that repair's RED/sequence results and writes its particular notes.
-Changing paths alone cannot make these final-release commands. This is a missing
-executable packaging capability, not an unavailable historical artifact or a
-reason to survey those helpers again.
+Changing paths alone could not make these final-release commands. The reusable
+mode below now replaces that missing packaging capability; do not survey those
+helpers again or restore their repair-specific predicates.
 
-Keep this member inside PACKAGE-FINAL. Extend the existing
+This member remains inside PACKAGE-FINAL. The existing
 [package inventory tool](../tools/release/package_inventory.py) and its
-[existing test suite](../tools/release/test_package_inventory.py), reusing its
-PCK parser and `release_candidate.inspect_pe`; do not create another validator,
-schema/version family or legacy-specific audit copy. Required new mode, **not
-implemented or selected for execution by this definition**:
+[existing test suite](../tools/release/test_package_inventory.py) now provide the
+mode using its PCK parser and `release_candidate.inspect_pe`. Source d70231901
+is integrated/pushed by27d1e70e8. No new validator/schema/version family was added.
+The delivered command is:
 
 ```text
 python3 tools/release/package_inventory.py EXE --compare-linux ELF --linux-archive TAR --linux-export-result EXPORT_RESULT --windows-template TEMPLATE --windows-template-sha256 TEMPLATE_SHA --source-repository REPOSITORY --source-commit SOURCE --expected-inventory EXPECTED_INVENTORY --windows-zip ZIP --windows-notes NOTES -o AUDIT_RESULT
 ```
+
+**Accepted capability scope.** Corrected existing suite28/28/exit0 in10.845894s;
+one actual immutable7876 audit exits0 in10.338517s under120s. All nine named
+predicates pass, all1529 complete payload entries match, compiled source is7876
+and audit driver d70231901 is separately recorded. Root and independent reviewer
+confirm every frozen input's bytes/SHA/size/mode unchanged. The first27-test PASS
+and subsequent source-review ZIP-type stop/correction remain retained below.
+This is executable release capability and artifact proof, not a final-candidate
+package/player/native pass. No Godot, startup or public checkpoint was run/created;
+existing playable7876ebc bytes stay unchanged.
+
+Source+records are accounted for: both implementation commits are contained in
+pushed main27d1e70e8; reviewed/tested file hashes match integrated files. Fresh
+remote tip/worktree ownership checked before exact-tip branch deletion. Owned
+branch/worktree/process/scratch cleanup completes05:35:14UTC,14.696minutes from
+original05:20:33 start; final notes/push remain on that clock, before06:50:33.
+Only `records.tar.gz` and `closeout.json` remain under
+`/srv/mudds-work/package-artifact-audit-20261027/`. Archive131318bytes/19members,
+SHA256`527a05dca2d8b0b35ae8b88b22a6f7a1580d8788905f97c59308464903f574ac`;
+every member's bytes/mode verified. It retains baseline/first/corrected checks,
+actual command/result, trusted inventory, input hashes, review and cleanup gates;
+it duplicates no playable binary. Final PACKAGE-FINAL/Settings/Sandbox/matrix/
+installation/signing/distribution gates remain open with their original owners.
 
 The original positional inventory command/output remains compatible. Pair-mode
 inputs name actual paths and the exact compiled source; reject partial options.
@@ -1023,11 +1046,12 @@ verified archive's `results/exe-inventory.json` as the approved full-map fixture
 The existing Windows template's measured SHA256 is
 `76269a403bb832599edeee4432a5b7a7e88c018eb5c9c798dfd8289359b0ec07`;
 freeze this reference and every other fixture hash before implementation/tests.
-Those artifact files were verified present05:14UTC; no audit or engine ran.
+Those artifact files were verified present05:14UTC; the actual audit above
+subsequently passed without any engine invocation.
 Compare their complete hashes/modes before/after; do not create another playable
 build for this tool-only change or call the checkpoint a final release.
 
-**Selected implementation2026-10-27,05:20:33UTC — PACKAGE-FINAL audit member.**
+**Completed original selection2026-10-27,05:20:33UTC — PACKAGE-FINAL audit member.**
 Tool source8b4d0db46d2c456325733ef31232d62554e85a22; one owned branch
 `roadmap/package-artifact-audit-20261027`, worktree
 `/srv/mudds-work/package-artifact-audit-20261027/worktree`. One implementation
@@ -1076,24 +1100,25 @@ Independent bounded review finds no other contract blocker and recommends one
 source-proven correction at the same cumulative cost (8.6minutes at05:29:07):
 require absent UNIX type bits or S_IFREG, reject explicit nonregular member kinds,
 retain normal Windows ZIP metadata and every existing check; add its focused
-regression in the existing suite. Same two files/branch/goal only. Root selects
-that correction now, source/review by05:45UTC, then one corrected focused suite
+regression in the existing suite. Same two files/branch/goal only. Root selected
+that correction, source/review by05:45UTC, then one corrected focused suite
 and one actual immutable-artifact audit under the original120s supervisors.
 Original05:20:33 start,06:20:33 source/06:35:33 checks and06:50:33 hard stop stay;
 no new budget. Any next unexpected failure is terminal PARK for this continuation,
 with raw/source preserved and owned cleanup; no further repair/run is selected.
 
-This is one bounded production release-tool assignment: owned files are the
-existing tool/test only, with root updating these two roadmap documents.
-Estimate≤60minutes implementation/review,15minutes focused/actual-artifact checks,
-15minutes integration/push/owned cleanup; split before exceeding90minutes.
-Before editing, select a clean tool-source commit/worktree, record actual pinned
-input/output paths/hashes, start time/absolute hard stop and independent abort.
-Stop at the first unexpected failure; any correction retains that goal's cost
-and needs demonstrated cause/cumulative-priority review. No task branch or
-implementation process is started by this planning edit. Once delivered, the
-same mode qualifies the final frozen artifacts; final source/expected manifest
-binding is then an actual release input, not another code-design task.
+The completed bounded assignment changed only the existing tool/test; root
+updated these two roadmap documents. Original90minute budget included source,
+review, focused/actual checks and closure; the only source stop/correction retained
+its same clock and complete acceptance. No unaccepted candidate or diagnostic-only
+source was merged for cleanup. The branch history is reachable through the
+accepted successor and pushed integration.
+
+For final use, bind the actual frozen compiled-source commit, complete approved
+expected map, pinned template and current artifact/output paths to this delivered
+mode. Final source/expected manifest are release inputs, not another tool-design
+or inventory-survey assignment. Preserve full original package/member counts and
+first-failure stop; a reused historical7876 result cannot qualify new final bytes.
 
 MATRIX-FINAL remains its single unfiltered source gate. Existing
 `release_candidate.py` consumes accepted matrix/probe/inventory inputs and writes
@@ -1240,7 +1265,7 @@ result; definitions, smaller cards and tests are not new gameplay deliverables.
 
 ### Remaining contract gaps — PLAN-NEXT
 
-Current definition selection2026-10-27,05:07–05:27UTC: resolve PACKAGE-FINAL's
+Completed definition selection2026-10-27,05:07–05:27UTC: resolve PACKAGE-FINAL's
 archived audit seam into one finite release-tool capability; fill only missing
 station literal/member fields in its existing13-subject table; bind caption
 request/expiry/ON/OFF and the missing normal Reset/cold caller. Codex owns the
@@ -1350,7 +1375,7 @@ feature. Do not reopen completed surveys or create successor planning IDs.
 | COMFORT-FLASH | Existing17-family membership/policy is fixed; shared native save/three-process/Reset is accepted. Codex binds only each remaining normal trigger/caller/ordinary route and its existing effect endpoints; no new producer survey. |
 | COMFORT-COLOUR | [Finite remaining colour boundaries](#colour-cues--remaining-proof-ownership) bind live state changes, Pause/camera/Main transitions, original Settings return, rendered readability and physical-device observations. Accepted Tritanopia cold/Reset endpoint stays closed. Codex still binds ordinary assertions/selected rendered views; actual device access is separate. The available22-frame component capture is not a new registered capture gate or a new mandatory image count. |
 | COMFORT-CAPTIONS | [Caption ingress/expiry/OFF and three-process Reset contract](#caption-episodes--ingress-and-reset-boundary) is fixed; reuse existing audio episode selectors only for actual caption callers. Shared caption-specific normal Reset/cold input/observer is missing implementation; reduced-flash restart cannot supply it. Per-ID ordinary route/assertion and rendered/device bindings remain Codex work; only recorded overflow policy/device access remain external. |
-| PACKAGE-FINAL | [Existing package members/counts](#package-final--existing-members-and-counts) are fixed: two exports, three startup checks, two complete inventories/full archive parity, four default probes, Guided3/3+Sandbox1/1+Settings1/1. Codex implements the specified reusable paired-artifact mode; approved final paths/manifests bind at selection; SETTINGS-INPUT names unavailable historical artifacts; Sandbox stays PARKED. Six installation transactions/matrix/signing retain their owners. |
+| PACKAGE-FINAL | [Existing package members/counts](#package-final--existing-members-and-counts) are fixed: two exports, three startup checks, two complete inventories/full archive parity, four default probes, Guided3/3+Sandbox1/1+Settings1/1. Paired-artifact mode DONEd70231901/integrated27d1e70e8,28tests/actual7876all9predicates/unchangedinputs. Approved final paths/manifests bind at selection; SETTINGS-INPUT names unavailable historical artifacts; Sandbox stays PARKED. Six installation transactions/matrix/signing retain their owners. |
 | FINAL-RECONCILE | Existing36 parents/ten phase exits, shared outcomes counted once. Codex maps each to its complete existing members and accepted source/candidate scopes; every still-open child stays named. ZeroP0/P1, explicitP2 dispositions, final checksums, rights/signing and authorized publication remain actual release gates. |
 
 **The eleven craft boundaries**, retained from the existing complete craft
@@ -2614,7 +2639,7 @@ Recovery proof uses an owned actual OS SIGKILL, distinct restart, protected real
 | SAVE-CORRUPT | Corrupt-data fallback and usable recovery | 31,32 | Capability | DONE for the frozen primary/valid-backup read-only source case on3380961fb: two distinct normal Main processes restore backup schema11/FOV96/full profile and paid ledger1, preserve primary/bak/recovery bytes/names/modes0600, refuse unconfirmed Save with UNSAVED feedback, complete normal Begin Shift/supported walking/12 neutral ticks and exit0. Main alone creates recovery; Race restore and durable startup/close writes intentionally refuse. First pair passes33.085s/114 and33.151s/108 with marker1/no diagnostics, unchanged source/cache/editor/template guards and independent review GO. No repair confirmation or paid Race actor restoration claim. Owned processes/scratch cleaned; [exact result](history/ROADMAP_DELIVERIES.md#corrupt-backup-read-only-fallback-accepted-20261025). Backup-repair guidance child DONE2456552bd/checkpoint2456552: after authentic rejected startup and explicit confirmation, actual Settings gives quit/reopen instruction; generic no-owner success remains unchanged. Old copy exactlyoneRED, fixedHUD16/total80source/WindowsPCK16 assertions and actual1024×768/requested1.6 fit, pairedexports/3strictstartups/1529PCKaudit pass. [Exact scope](history/ROADMAP_DELIVERIES.md#backup-repair-reopen-guidance-accepted-20261026). Other corruption arrangements/ordinary explicit repair/distinct-restart/installed/native scope remain unqualified. | Freeze one actual corrupt primary/tmp/bak arrangement and exact production fallback/expected protected file bytes and fields. Distinct normal restart selects that fallback, preserves valid recovery copies and permits ordinary continuation without duplicate rewards. Missing corruption case or expected fallback keeps this GATED. |
 | SAVE-UNSUPPORTED | Unsupported data refuses destructive overwrite | 31,32 | Capability | Outer-envelope source case4b66b3548 and installed schema2 primary/tmp/bak cases remain accepted on package755ad605a/driver0d06648d; [primary](history/ROADMAP_DELIVERIES.md#installed-future-primary-refusal-accepted-20261026), [temporary/backup](history/ROADMAP_DELIVERIES.md#installed-future-remaining-placements-accepted-20261026). Legacy mixed CFG8/CFG7 destructive recovery and read-only fallback repaired7876ebc8d/checkpoint7876ebc: all three future placements × mutable load/read-only load/direct legacy save refuse ERR_INVALID_DATA; files/Unix modes/live values/signals remain exact. Same frozen test goes27 RED predicates→291-assertion GREEN; actual Windows PCK291 plus paired startup/payload audit pass. [Repair and exact scope](history/ROADMAP_DELIVERIES.md#legacy-future-cfg-preservation-accepted-20261026). Nested typed payload12 primary-only supported-outer1 case DONE on exact7876ebc Linux package/driverddfa82789: ordinary Save/confirmed Reset refuse, four fixture subtrees preserved through15 disk milestones, only actual session1/2 crash/diagnostic additions, distinct cold three-point51.335m walk and two normal OS0 exits; four declared warnings/zero unexpected diagnostics. Existing runner extended without gameplay/observer changes; [exact acceptance and limits](history/ROADMAP_DELIVERIES.md#installed-nested-settings-refusal-accepted-20261026). No other nested format/placement or final-candidate inheritance. Ordinary lone-CFG8/atomic-JSON coexistence DONE on exact7876ebc Linux package/driver2fe5d91d7: all2874 observations retain the future CFG guards, Save/clean direct Reset succeed with exact current defaults, cold JSON loads without migration/warnings, three walking points53.465m/two normal OS0 exits and both actual5physics-second stable/clean lifecycles pass. Fourteen disk milestones/five declared JSON namespaces; first2/cold0 warnings/zero unexpected diagnostics. [Exact case and first unit-fixture failure](history/ROADMAP_DELIVERIES.md#installed-legacy-cfg-coexistence-accepted-20261026). No gameplay/policy change; other placements/native/final-candidate scopes remain separate. The named legacy-UI definition is closed; reuse the accepted source/API/outer/nested/legacy cases, with no automatic successor survey or unsupported-format matrix. Do not repeat closed source surveys/API cases; no new runtime gap inferred there. Final-candidate/device/native-GPU/native-Windows scope remains separate; owner exclusions unchanged. | Named unsupported envelope/format refuses destructive overwrite; primary/tmp/bak names/bytes/modes and loaded authority preserved across fresh processes; accepted outer-envelope scope retained. |
 | CHECKPOINT-HELM-EDGE | Fresh paired playable command-delivery checkpoint | 6,32 | Qualification | DONE; 2c73494, both exports/three startups/exact payload and archive checks | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
-| PACKAGE-FINAL | Exact final Windows/Linux package qualification | 6,32 | Container | Export prerequisite FIXED6b667235b: real private077 exports now package ELF0755, matching existing contract;23 exporter checks and corrected actual tar/strict startup pass. [Exact repair and scope](history/ROADMAP_DELIVERIES.md#jovian-cannon-departure-parked-and-linux-archive-modes-fixed-20261027). [Existing package membership/counts](#package-final--existing-members-and-counts) FIXED: two exports; Windows-payload/Linux-direct/Linux-archive startup1/1 each; two complete inventories/full parity/archive checks; four unfiltered probes300s each; GUIDED-FINAL3/3, SANDBOX-RECOVERY1/1, SETTINGS-RETURN1/1 at original caps. Final candidate/bytes remain GATED. BLOCKED implementation — Codex delivers the linked finite paired-artifact audit mode in the existing inventory tool; old task-specific helpers are not generic final commands. Approved final manifest/source paths bind at selection; checkpoint1529 is not a permanent final count. SETTINGS-INPUT retains its exact missing historical execution artifacts/completed search; Sandbox remains PARKED pending supported changed cause. Other gameplay/installation/matrix/signing/distribution owners are preserved; no unchanged run selected. Native Windows/human facts remain NOT_RUN. | The frozen source commit and actual Windows/Linux exports agree with the production payload manifests and SHA256SUMS; each declared package startup exits0 with STARTUP_MENU_READY_OK; every member of the recorded package/ordinary-route list passes its original counts/caps. Missing member/command/count prevents container closure. Installer transactions, signing and distribution retain their own named goals. |
+| PACKAGE-FINAL | Exact final Windows/Linux package qualification | 6,32 | Container | Export prerequisite FIXED6b667235b: real private077 exports now package ELF0755, matching existing contract;23 exporter checks and corrected actual tar/strict startup pass. [Exact repair and scope](history/ROADMAP_DELIVERIES.md#jovian-cannon-departure-parked-and-linux-archive-modes-fixed-20261027). [Existing package membership/counts](#package-final--existing-members-and-counts) FIXED: two exports; Windows-payload/Linux-direct/Linux-archive startup1/1 each; two complete inventories/full parity/archive checks; four unfiltered probes300s each; GUIDED-FINAL3/3, SANDBOX-RECOVERY1/1, SETTINGS-RETURN1/1 at original caps. Final candidate/bytes remain GATED. Paired-artifact capability DONEd70231901/integrated27d1e70e8:28tests and actual7876 audit9predicates/1529fullentries/unchangedinputs pass. Final approved manifest/source paths remain a release gate; old repair-specific helpers are not generic final commands and1529 is not a permanent count. SETTINGS-INPUT retains its exact missing historical execution artifacts/completed search; Sandbox remains PARKED pending supported changed cause. Other gameplay/installation/matrix/signing/distribution owners are preserved; no unchanged run selected. Native Windows/human facts remain NOT_RUN. | The frozen source commit and actual Windows/Linux exports agree with the production payload manifests and SHA256SUMS; each declared package startup exits0 with STARTUP_MENU_READY_OK; every member of the recorded package/ordinary-route list passes its original counts/caps. Missing member/command/count prevents container closure. Installer transactions, signing and distribution retain their own named goals. |
 | INSTALL-WIN-FINAL | Matching NSIS installer artifact/extraction identity | 32 | Qualification | Source-version prerequisite770f5b522 remains accepted. Standalone artifact prerequisite DONE17a11183a: compiler exports complete finalized uninstaller after optional signing, records actual path/bytes/SHA in existing schema1; staged exclusive publication/collision/copy-failure/mock-sign-order tests pass. Both existing suites34tests33PASS/1PowerShellskip; actual7876 setup81.969s under600/log0, standalone117593bytes/actualPEversion/hash and unchanged six prior files/extracted game verified independently. [Literal final handoff](WINDOWS_INSTALLER.md#final-installer-identity--install-win-final). GATED on PACKAGE-FINAL actual candidate and SIGN-FINAL trusted artifact checks. Earlier setups without sidecars retain their extraction limit. Native Windows execution remains owner-excluded/NOT_RUN; no missing standalone-export implementation remains. | On the frozen final Windows candidate execute linked NSIS build/extraction/identity commands: exact source/version, setup/result/checksum, extracted staged game and exported standalone uninstaller bytes/size/hash/actual PE version match. Optional signing precedes uninstaller capture; actual trust and signed-byte proof belong to SIGN-FINAL. Close only on that final candidate, not a checkpoint subset. Native Windows execution remains owner-excluded. |
 | INSTALL-LINUX-CLEAN | Clean install on final Linux package | 32 | Qualification | Execution GATED on frozen final Linux package identity/export; the [accepted b4ff8c0 installed checkpoint recipe](history/ROADMAP_DELIVERIES.md#linux-installed-checkpoint-guided-qualification-accepted-20261026) supplies concrete owned paths, byte/mode/launcher checks and full Guided direct-executable command, without graphical desktop or final-candidate acceptance; final package acceptance remains PACKAGE-FINAL. Transaction definition (Codex) binds the final package to an empty isolated prefix, exact expected files/modes/version and installed launch/ordinary-usability command at original limits; no old package required; Definition finishes with fixture/prefix/XDG paths, commands, exact owned/protected files and expected modes/data/usability endpoint; it does not require a final SHA. Before execution, bind the chosen package SHA256 and resolve expected package-file bytes from its actual manifest. Missing fixture/command/endpoint fields remain BLOCKED definition. | [Final Linux installation](#proof-release): clean isolated installation with expected files/modes/version and usable installed launch; exact candidate bytes and ordinary usability, no headless-desktop substitution. |
 | INSTALL-LINUX-UPGRADE | Upgrade on final Linux package | 32 | Qualification | Execution GATED on frozen final Linux package identity/export; the [accepted499e681→b4ff8c0 checkpoint transaction](history/ROADMAP_DELIVERIES.md#linux-checkpoint-upgrade-499e681-to-b4ff8c0-accepted-20261026) supplies actual prior/candidate paths, saved-progress/settings fixture, expected payload/modes/launcher checks and installed full Guided command; final-package/rendered-desktop/retained-save gameplay reload are not accepted; final package acceptance remains PACKAGE-FINAL. Transaction definition (Codex) binds exact supported old→final packages, existing progress/settings/unowned-file fixtures, expected updated bytes/modes and usable installed launch at original limits; Definition finishes with fixture/prefix/XDG paths, commands, exact owned/protected files and expected modes/data/usability endpoint; it does not require a final SHA. Before execution, bind the chosen package SHA256 and resolve expected package-file bytes from its actual manifest. Missing fixture/command/endpoint fields remain BLOCKED definition. | [Final Linux installation](#proof-release): old→new installation updates intended bytes while preserving specified user progress/settings; exact candidate bytes and ordinary usability, no headless-desktop substitution. |
