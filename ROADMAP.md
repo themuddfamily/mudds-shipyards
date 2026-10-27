@@ -69,6 +69,10 @@ integration. [Colour paint/view requirements](docs/ROADMAP_BACKLOG.md#colour-ord
 now distinguish actual gameplay states from256 component cases and bind one
 ordinary rendered cell. Callers and qualification remain open; parked journeys
 keep their reopening conditions.
+[Caption episode/service contracts](docs/ROADMAP_BACKLOG.md#caption-ordinary-episode-contract)
+now bind normal producer actions,queue/expiry and actual single-service output.
+The [Cinder receipt repair](docs/ROADMAP_BACKLOG.md#cinder-loadmaster-caption-receipt-contract)
+is a specific runtime gap; the failed shared writer and overflow choice stay open.
 
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings

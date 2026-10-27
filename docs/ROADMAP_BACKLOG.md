@@ -3525,6 +3525,212 @@ preserves service identity/remaining physics time; ordinary transition observers
 for Pause/camera/interior/exterior/reentry remain to be bound in their existing
 journeys, without inventing another transition count.
 
+<a id="caption-ordinary-episode-contract"></a>
+##### Captions: actual ordinary episodes and single-service observations
+
+Definition2026-10-27 20:07:12–20:32:12UTC,source3970fffe4. Two read-only agents
+bind disjoint accepted crew/approach and18Ember families; root owns service/
+engine/normal observer/limits/docs/review/checks/commit/push. Prerequisite IDs:
+none for source definition. Producer membership stays closed; no new caption for
+callerless velocity/music or a new craft×cue×view matrix. No engine,test-suite,
+capture,export or parked retry selected. Prior PLAN-NEXT costs remain attached.
+
+**Actual event→view proof for any selected existing episode.** Use normal
+captions ON through production controls or the named accepted real setting
+fixture. Bind actual producer/action/actor/attachment/generation/receipt and
+physics frame to emitted cue ID/source/intensity/position,router acceptance,
+GameFlow/HUD request,admitted caption stable ID and actual visible presenter.
+Use `get_caption_integration_report`: service_count1,actual service_instance_id/
+generation/revision/request/accepted/rejected counts,presenter_count1 and bound
+HUD sink. Read the actual service state AND HUD presentation report; do not
+construct a second sample or infer display from an AudioDirector/producer log.
+Scalar semantic signals do not transport producer generations/receipts; take a
+passive snapshot at that producer's actual callback and correlate it honestly.
+Current route/native observers lack that complete association: Codex owns adding
+it to existing observer/route owners,not a new service/protocol/validator.
+
+Semantic text/default severity comes from the exact registered IDs below;
+intensity≥.8 resolves HIGH regardless of default,otherwise authored default.
+Marker low○/medium△/high! differs from display priority LOW(<60)/MED(60–79)/HIGH
+(≥80). Default semantic priorities45/70/90 apply unless the actual producer
+supplies another. Legacy GameHUD.CAPTION_CUES uses its own bracketed text/source/
+priority; do not replace `[ canopy opening ]` with `! Boarding confirmed`.
+Actual boarding may legitimately emit BOTH. Settings preview's separate4s UI
+timer is not an ordinary service event.
+
+**Bounded queue and lifetime.** Service capacity8 INCLUDES active; active is
+nonpreemptive. Pending order is priority descending/FIFO within equal priority;
+at capacity only a strictly higher priority may replace newest lowest-priority
+PENDING entry. Never clear or bypass queue to make a caption appear. Each
+accepted event has3.4caller-physics seconds when active; expire/promote through
+actual deltas,including a large delta crossing multiple events. Within a quiet
+selected phase,record the actual predecessors and admission/promotion/expiry;
+a nonreplaced selected event needs visible output before its actual turn ends,
+inside the existing journey cap. An evicted/refused event does not pass a
+visible-output case; record the exact reason rather than retrying/staging it.
+Do not introduce arbitrary immediate-display deadlines or a longer route clock.
+
+OFF rejects fresh requests at HUD ingress/hides current accepted content. Real
+unpaused physics still ages that content; ON may show a still-live accepted cue,
+never an expired one. Actual Pause freezes physics time; resume continues same
+stable ID/remaining time/service,not a replay. Camera/interior/exterior and
+ordinary world transitions retain the same Main/service and selected flag unless
+the actual owner lifecycle replaces them. Actual fresh Main retires old service/
+producer bindings and has new identities; stable IDs are scoped to service
+lifetime,not globally unique or persisted gameplay authority. Shared real
+Save/cold/Reset remains the separate parked caller below; these observations
+cannot turn its failed writer into a pass.
+
+| Existing ordinary owner/action | Exact cue/text and resolved presentation |
+| --- | --- |
+| Genuine ship damage/passive repair via existing CRAFT damage member and current rig binding | engine_degraded→Engine degraded (defaultmedium); rig degradation[.25,.75) yields△/70. engine_critical→Engine critical (defaulthigh) on band≥.75 yields!/90. engine_recovered→Engine recovered (defaultlow) after previously degraded band falls<.25 yields○/45. Use actual audio degradation input,bands and ledger/repair receipts,not raw hull ratio or a direct rig setter. Existing Light engine-degradation and ordinary damage/repair owners supply only states they genuinely exercise; no extra fire/damage is added to a frozen route to force critical. Uncovered critical physical trigger remains with its named craft/DAMAGE-DEFINE owner,not a caption-emission defect. |
+| Cinder current physical Loadmaster FIRE accepted ready=true; later ordinary stand/release | cinder_loadmaster_seat_occupied→Loadmaster seat occupied (low),cinder_loadmaster_manifest_ready→Loadmaster manifest ready (low),cinder_loadmaster_released→Loadmaster released (low). Actual producer intensity1.0 means!/90 for all3. Seat-occupied caption is on accepted manifest,not simply sitting. Normalized source is crew,not cinder_loadmaster. Current receipt integration gap below must be repaired before this normal success path qualifies. |
+| Existing producer API-only/unbound Loadmaster outcomes | cinder_loadmaster_route_ready→Loadmaster route ready (medium) requires accepted ready=false; normal FIRE currently sends true and no normal false control is demonstrated. cinder_loadmaster_rejected→Loadmaster request rejected (high) requires actual current rejection. Both emit1.0→!/90 if genuinely emitted. Preserve existing NOT_SELECTED refusal/ROLE-CINDER-LOADMASTER trigger ownership; no fabricated packet or new player control merely for caption coverage. Their accepted component cases do not supply ordinary proof. |
+| Genuine world final approach | planetary_final_approach_armed→Final approach armed,alignment_ready→Final approach alignment ready,handoff_ready→Final approach handoff ready (allmedium); full IDs share planetary_final_approach_ prefix. Actual producer1.0→!/90,source planetary. Require actual armed target generation,real controller final_approach/active and guarded final_approach_completed receipt respectively,not generic cruise state or a staged snapshot. Use the bound SOLO-EMBER/AURORA/RIME route and actual approach-node/command ownership. |
+| Existing world refusal/failure owner | planetary_final_approach_rejected→Final approach rejected (high),actual1.0→!/90. Requires actual failed target-generation tick or accepted aborted/failed snapshot; generic cruise refusal/cancel is not automatically this cue. Its reachable normal failure/cancel action remains with WORLD-ABANDON-DEFINE/WORLD-EDGE-DEFINE,not a new forced failure in a successful baseline. |
+
+The remaining already-mapped ship-rig operations use these SAME ordinary owners,
+not more cue-discovery work or another craft matrix:
+
+| Existing action/boundary | Literal additional source condition/observation |
+| --- | --- |
+| Real flight demand/automatic shutdown | engine_started /Engine started (defaultlow),actual intensity1→!/90; engine_stopped /Engine stopped (defaultmedium),intensity0→△/70. Observe current rig running transition from W/home neutral shutdown,not a direct state setter or a forced legacy STARTING delay. |
+| Actual manual thrust/boost in existing craft/input handling member | set_thrust_state clamps actual throttle to[0,1]; crossing.02 emits thrust_load_engaged /Thrust load engaged (medium),intensity=current safe throttle; crossing below emits thrust_load_released /Thrust load released (low),intensity0. Actual boost edge emits boost_engaged /Boost engaged (medium),1→!/90; release boost_released /Boost released (low),0→○/45. Do not infer these from cruise velocity or add boost to a route that explicitly forbids it. |
+| Real engine alarm start/clear under existing damage owner | engine_damage_alarm /Engine damage alarm (high),active edge1→!/90; engine_damage_alarm_cleared /Engine damage alarm cleared (low),clear edge0→○/45. Clearing a stopped alarm is not itself proof that the component repaired. |
+| Genuine component contact | Use the five exact impact IDs in the closed ship-rig table and the actual collided component/intensity from the existing named damage member. Bind real resolver/contact→rig semantic event→same service; defaults/severity follow the consolidated registry. No five new artificial impacts to fill a palette or sound matrix. |
+| Actual strict landing/loss | ship_landing_contact /Landing contact (medium) only after accepted real contact cue; ship_destroyed /Ship destroyed (high) only from genuine existing loss/recovery owner. Read actual clamped intensity. Frozen Sandbox/loss gates remain parked; no death or cue call is manufactured for caption coverage. |
+| Supported API-only recovery cue | ship_audio_recovery_ready /Ship audio recovery ready is emitted on set_rig_enabled false→true; no normal production caller of that setter is demonstrated in current scripts/scenes. Keep its component scope,do not invent an audio switch/recovery action merely for this ID. Callerless engine_load_high/normal remain excluded as already mapped. |
+
+Legacy passive_component_repair_started/completed remains the actual bound berth
+repair start/completion `[ berth component repair started ]` /`[ berth component
+repair complete ]`,speaker Berth service,priority45. Same real damage/eligible
+home repair,not an injected HUD cue; its legacy entry and a semantic engine event
+may both legitimately queue. All original normal input/actor/return limits stay.
+
+Producer fences remain exact: Loadmaster accepted key=manifest generation/request
+sequence/manifest ID/route ID; rejection=binding generation/sequence/reason;
+release=binding generation/reason. Approach snapshot key=target generation/state/
+reason,receipt key=target generation/reason/caller_tick; stale input generations
+refuse. Router/presenter also suppress consecutive equal tuples; actual producer
+emission alone cannot prove downstream admission. Observe these existing filters,
+do not remove them or impose a lifetime ban on repeating a cue ID.
+
+<a id="cinder-loadmaster-caption-receipt-contract"></a>
+##### Missing runtime capability: actual accepted Loadmaster receipt reaches captions
+
+Source-backed defect: CinderCargoHauler.submit_crew_intent constructs/emits its
+accepted manifest receipt without seat_id. CinderLoadmasterAudioBinding requires
+seat_id=cinder_loadmaster_station and the production adapter forwards unchanged,
+so this path returns foreign_receipt before its two readiness cues. Existing
+five-ID component proof supplied a synthetic receipt and stays accepted only
+in that scope. This is not the cause of the unrelated parked caption writer,
+which failed before gameplay with operands unlogged.
+
+One bounded production repair owns `scripts/ships/cinder_cargo_hauler.gd` and
+existing `tests/audio/cinder_loadmaster_audio_production_test.gd`,
+`tests/audio/cinder_loadmaster_audio_router_integration_test.gd` and existing
+`tests/caption_production_integration_test.gd` for the full service chain; an
+adapter change,if required,stays in
+`scripts/audio/cinder_loadmaster_audio_production_binding.gd`. Publish the consumer's exact current
+seat_id from the AUTHORITATIVE admitted assignment,not a client-supplied seat or
+hardcoded receipt bypass. Exercise actual submit_crew_intent in the production
+adapter test,not emit a hand-built accepted signal. Pass: accepted current
+Loadmaster assignment/manifest/source sequence emits both real IDs through the
+same adapter/router/Director/GameFlow/HUD/service,correct text/!/90 and a fresh
+admitted caption for each; duplicate SAME receipt adds none. Normal release emits
+released once. Preserve cargo/reward/movement/helm authority=false,current actor/
+role/claim/sequence/refusal semantics and existing network receipt compatibility.
+Do not create a ready=false control/reachable rejection merely to fill the map.
+Native ordinary FIRE and seat-release observation remain in the existing
+ROLE-CINDER-LOADMASTER/Hauler input owner,with original physical access/return
+bounds and parked prerequisites. Source/native/device qualifications stay distinct.
+
+Future selection estimates60min all-in with absolute deadline/one correction/
+first-failure stop; relevant focused checks,clean-source Windows checkpoint,
+strict silent isolated startup,integration/push and cleanup are included. No
+code/build/normal request or branch is selected by this definition. Missing
+adapter/ordinary readback is Codex work,not external audio access.
+
+**Ember18 IDs are nine existing interior/exterior pairs,not18 new journeys.**
+The full ID is the listed stem followed by _interior or _exterior. Real cockpit
+uses interior,other actual view exterior. Phase payloads1.0 resolve!/90 even
+when their registered defaults are lower. The following literal text/defaults
+and actual owner boundaries replace no existing source component tests:
+
+| Existing stem | Exact caption/default | Actual owner event |
+| --- | --- | --- |
+| ember_surface_descent | Ember descent /medium | Host DESCENT after actual ORBIT_APPROACH observation; merely reaching parked orbit_approach does not qualify. |
+| ember_surface_landed | Ember landing complete /low | Actual landing-completed/current public landing+session acceptance→LANDED. |
+| ember_surface_on_foot | On foot on Ember /medium | Physical automatic disembark AND supported egress/staging→Host ON_FOOT; earlier session on_foot alone is insufficient. |
+| ember_surface_reboard | Ember craft reboarded /medium | Normal0.6s same Player/anchor/reservation boarding and accepted return evidence→REBOARDED. |
+| ember_surface_takeoff | Ember takeoff /medium | Actual takeoff request→TAKEOFF_ROTATE/Host TAKEOFF; this precedes lift. |
+| ember_surface_ascent | Ember ascent /medium | Actual unlanded/lease release/accepted takeoff→ASCENT; surface-clear still separately required. |
+| ember_surface_orbit_return | Returning to Ember orbit /medium | Actual ascent≥20000m/accepted orbit-return observation→ORBIT_RETURN; physical yard flight still required. |
+| ember_surface_abort | Ember surface journey aborted /high | Actual Host FAILED or accepted fallback failure only; belongs existing failure owner,not a successful SOLO requirement. Successful abandon may reset Host IDLE without FAILED and need not emit this cue. |
+| ember_relay_survey_reward_confirmed | Ember relay survey reward confirmed /low | Actual second relay completion,positive activity generation,authority receipt AND accepted persistence. Default dynamic range intensity1.0→!/90; reduced dynamic range.75→○/45. No synthetic reward receipt or direct retry call. |
+
+Actual get_host_phase overrides fallback aliases; start_pending/running→descent
+and handoff_pending→orbit_return are not extra production phases. Unmapped Host
+phase returns invalid_phase before terminal-reason fallback. Phase fence is
+(owner_generation,phase,perspective) within current binding attachment. Setting
+perspective updates presentation only; a later real owner invalidation may emit
+an unseen phase/perspective,not replay a reward. Reward fence=(owner,Host,Host
+attachment,activity generations),EXCLUDES perspective and requires committed
+receipt/persistence counts. Camera switching cannot produce both reward variants
+from one paid completion. Observe only actual variants in one genuine baseline;
+accepted source tests retain other variants/abort cases in their original scope.
+
+All Ember scalar sources normalize to planetary with Vector3.ZERO position;
+producer generations are not present in that transported signal. Snapshot the
+actual binding/Host/current actors/frame/receipt at its event callback and
+correlate accepted router/HUD/service result. Reuse [the actual full Ember
+contract](#solo-ember-surface-return-contract),including total3 paid objectives;
+old relay-only total1 is not a combined-loop expectation. No ordinary surface
+caption observer exists yet. Exact outward8219 parked ownership condition,
+concurrent1800/1860outbound and2700/2760whole caps,normal home/Exit and Save/paid-
+errand prerequisites stay unchanged; these captions do not authorize a retry.
+
+**Image/lifecycle proof remains scoped.** Existing required
+caption-presenter-forward-render (one1600×900 SubViewport frame/ui scale1.15)
+retains its accepted source-only inspection. caption-production-forward-render
+(one actual Main/HUD frame,project viewport declaration1600×900/ui scale1.15)
+remains PARKED at its original300s pre-draw/no-post-draw failure. Preserve actual
+viewport/window/image sizes and isolated Forward+/x11/Dummy; no smaller-presenter
+substitution,registry-count change or new lower-renderer/longer-cap retry.
+Neither component frame proves normal player boarding or perception/listening.
+ACCESS-CAPTIONS owns actual visible presenter/history/context views; its measured
+1280×720/request1.6/64-source+512-body overflow policy remains the named user
+choice. Do not shrink fonts/payload or fabricate a500px band to pass it. All
+physical device/audible/human/native/final gates stay unperformed in their scope.
+
+**Missing ordinary implementation — same owners.** Extend existing native
+observer/normal route with producer callback context,actual service/HUD view/
+visible text and physics lifetime,keeping one service. No standalone caption
+validator/new cue/controller. Select one existing episode with its own≤90min
+all-in estimate/absolute stop,default one correction and raw output under
+`/srv/mudds-work/caption-<episode>-<source>/`; pin source/package/profile/current
+caption flag and all actual inputs/owner/service/view/exit facts before execution.
+Keep each underlying route's original cap (ordinary local300/330,network300/360,
+worlds their existing declared limits); no timeout reset to wait for a cue.
+The shared cold caption99658edda writer below remains FAILED/PARKED with its
+exhausted correction and unknown compound operands. Do not merge/retry it,
+rename the default flash result or treat the separate Cinder receipt fix as its
+cause. Ordinary per-ID observer/route and named unbound triggers remain Codex
+implementation/definition respectively; source membership/render/device/overflow
+limitations stay explicit. No ordinary caption family or PLAN-NEXT completion
+is claimed here.
+
+**Definition result.** Disjoint source bindings and independent service/receipt/
+phase/rendered-scope review GO. Existing queue/lifetimes and actual Cinder receipt
+mismatch were checked directly. Source-only/API-only and unknown normal rejection
+triggers remain labelled; no ordinary producer/image/audio/device qualification
+occurred. The maximum-payload display preference was requested asynchronously;
+no answer is presumed and current timing/layout remains unchanged. All337 IDs/
+names/parents/kinds/order,new anchors/source paths and whitespace checks pass.
+No branch/worktree/scratch created; commit/push stays within20:32:12 and prior
+failed/definition costs remain attached. Shared writer/rendered failures remain
+parked; this is not full COMFORT-CAPTIONS or PLAN-NEXT acceptance.
+
 **Concrete missing shared capability — normal caption Save/Reset/cold caller.**
 The existing embedded `runtime_settings_restart_probe.gd` and
 `run_package_probes.sh --settings-restart` exercise reduced flash only. They
@@ -4243,7 +4449,7 @@ feature. Do not reopen completed surveys or create successor planning IDs.
 | COMFORT-MOTION | Reuse accepted toast/damage episodes and the [eight fixed remaining source consumers/OFF–ON endpoints](#reduced-motion--finite-production-consumers). [Loading/intro/chase](#motion-loading-intro-chase-caller) now has exact ordinary three-stage/endpoint/caller/limit bindings; implementation OPEN. [Rest/remote/world binding](#motion-rest-remote-world-callers) fixes the other five source/ordinary seams; three planetary executions retain actual SOLO caller/parked-handoff prerequisites; [Aurora/Rime route and native ceilings](#solo-aurora-rime-ordinary-contracts) are now defined. All missing callers remain Codex work. Codex implements ordinary input and observer support for one named uncovered consumer in the existing native-sortie owners, comparing that consumer's already-listed OFF/ON effects and retained transition/cold/Reset endpoints. Candidate/profile/absolute execution deadline freeze at selection. Source roster discovery is closed; missing intended behavior must be an explicit choice, not another survey. |
 | COMFORT-FLASH | Existing17-family membership/policy is fixed; shared native save/three-process/Reset is accepted. Codex implements one uncovered producer's normal input trigger and actual service/HUD observation through the existing native-sortie owners, comparing the already-listed effect endpoints; no new producer survey. |
 | COMFORT-COLOUR | [Finite remaining colour boundaries](#colour-cues--remaining-proof-ownership) bind live state changes, Pause/camera/Main transitions, original Settings return, rendered readability and physical-device observations. Accepted Tritanopia cold/Reset endpoint stays closed. Ordinary Guided caller7caea1fbb is PARKED unmerged after one typing correction: full flight/gameOS0/zero diagnostics but required STARTING endpoint absent (11/12); default regression NOT_RUN, no further correction/reopen selected. Source/private TAR/results verified archived and branch/worktree removed. [Literal ordinary paint/one view cell](#colour-ordinary-paint-and-view-contract) now binds the6families/component-versus-normal scope,enemy bar/text distinction,actual route owners/transition observations and1920×1080/default-scale rendered moments. Passive ordinary readback/capture remains Codex implementation behind existing parked conditions; other view membership remains with ACCESS/ART and actual device access is separate. The available22-frame component capture is not a new registered capture gate or a new mandatory image count. |
-| COMFORT-CAPTIONS | [Caption ingress/expiry/OFF and three-process Reset contract](#caption-episodes--ingress-and-reset-boundary) is fixed; reuse existing audio episode selectors only for actual caption callers. Shared caption caller99658edda is PARKED after its typing correction passed source/export/strict startup checks: the actual writer fails its initial compound service/presenter assertion before gameplay/settings; operands unlogged, no owner defect established. Three commits/five files/private TAR are verified archived unmerged; writer reaped, readers/default regression NOT_RUN. Current main has default flash only; no retry selected. Reduced-flash restart cannot supply the missing caption result. Per-ID ordinary route/assertion and rendered/device bindings remain Codex work; only recorded overflow policy/device access remain external. |
+| COMFORT-CAPTIONS | [Caption ingress/expiry/OFF and three-process Reset contract](#caption-episodes--ingress-and-reset-boundary) is fixed; reuse existing audio episode selectors only for actual caption callers. Shared caption caller99658edda is PARKED after its typing correction passed source/export/strict startup checks: the actual writer fails its initial compound service/presenter assertion before gameplay/settings; operands unlogged, no owner defect established. Three commits/five files/private TAR are verified archived unmerged; writer reaped, readers/default regression NOT_RUN. Current main has default flash only; no retry selected. Reduced-flash restart cannot supply the missing caption result. [Literal ordinary episode/service contract](#caption-ordinary-episode-contract) now binds actual crew/approach/engine/18Ember events,text/severity/fences/queue/view/limits. [Real Cinder receipt gap](#cinder-loadmaster-caption-receipt-contract) is a bounded runtime repair: authoritative accepted receipt omits required seat_id. Ordinary passive caller integration remains Codex work; ready=false/rejection/failure triggers retain named role/world definition owners. Shared cold/rendered failures remain parked; overflow policy/device inputs stay separate. |
 | PACKAGE-FINAL | [Existing package members/counts](#package-final--existing-members-and-counts) are fixed: two exports, three startup checks, two complete inventories/full archive parity, four default probes, Guided3/3+Sandbox1/1+Settings1/1. Paired-artifact mode DONEd70231901/integrated27d1e70e8,28tests/actual7876all9predicates/unchangedinputs. Approved final paths/manifests bind at selection; SETTINGS-INPUT names unavailable historical artifacts; Sandbox stays PARKED. Six installation transactions/matrix/signing retain their owners. |
 | FINAL-RECONCILE | Existing36 parents now enumerate their direct canonical child IDs in the [parent crosswalk](#coverage-of-the-original-remaining-outcomes), with self/publication ordering fixed; shared outcomes counted once. Ten-phase predicate ownership is now [explicitly disposed](#original-phase-gates-and-completion), with literal missing fields retained; exact accepted source/candidate scopes and candidate defect inventory remain Codex-owned definition work. The [production diagnostics/retry source proof](SESSION_DIAGNOSTIC_RECORD.md#production-ownership-and-acceptance) is now bound on52b7b6e3b; real-OS/final-candidate privacy/recovery qualification remains open; Safe Audio production action/source proof is [delivered in its explicit scope](#safe-start-graphicsaudio--production-action-and-proof-scope), while final-candidate/real-OS/device recovery remains open. Any uncovered original clause stays open. ZeroP0/P1, explicitP2 dispositions, final checksums, rights/signing and authorized publication remain actual release gates. |
 
@@ -6628,7 +6834,7 @@ Native performance proof retains ≥60s/3,600-frame warmup and ≥600s/18,000-fr
 | COMFORT-MOTION | Reduced motion route and retained setting | 29 | Container | OPEN — accepted HUD episodes: [active damage cue, checkpoint b5fa554](history/ROADMAP_DELIVERIES.md#active-damage-reduced-motion-accepted-20261025), with exact alpha/hold/original-lifetime limits retained; [current toast, checkpoint 4ca2d16](history/ROADMAP_DELIVERIES.md#current-toast-reduced-motion-accepted-20261025), fully opaque/steady on ON with unchanged content/serial/priority/queue and original normal expiry. Repeated toggles cannot extend/replay either cue; new cues follow the selected mode. Existing 2005-assertion suite, actual readback and paired checkpoints pass. The [eight remaining behavior-changing source families](#reduced-motion--finite-production-consumers) and literal OFF/ON endpoints are now bound on e76fdbc80. The [loading/intro/chase ordinary caller](#motion-loading-intro-chase-caller) now has concrete stage/actions/observations/limits; implementation remains OPEN. [Rest/remote/planetary bindings](#motion-rest-remote-world-callers) fix the other five production seams/actions/observations; rest/remote callers remain missing,while the three planetary ordinary cases are gated on the now-bound Aurora/Rime native caller implementation and the parked Ember handoff. Those dependencies remain Codex work; rendered/device acceptance stays open. Do not repeat the consumer survey. Reuse accepted scopes; no unchanged rerun. | Container closes only when every member of its recorded finite episode list passes its literal current/new behavior, ordinary transition, saved setting after distinct restart, authored Reset and preserved objective/control predicates. Existing damage/toast proof is reused. Reuse the linked finite consumer contract and accepted settings proof; remaining normal commands/routes, candidate/profile and original limits must be frozen before selection. Supplied caller contracts remain OPEN implementation; Aurora/Rime ordinary callers remain OPEN implementation and Ember retains its parked reopening condition. A genuinely unspecified product behavior is an exact user-owned decision. Selecting one episode cannot close the container. |
 | COMFORT-FLASH | Reduced flash route and retained setting | 29 | Container | OPEN — current damage flash episode DONE 1a948d9ac: ON caps effective active alpha≤.07 without brightening dim cues; same Tween/elapsed/running-paused state, .42 flash/.62 arrow fade and expiry. OFF/repeated toggles cannot relight or extend; new hits, pre-ready setters and existing motion hold retained. Existing accessibility suite, actual three-frame readback and paired packages/strict startups/audit pass. [Exact scope](history/ROADMAP_DELIVERIES.md#current-damage-reduced-flash-accepted-20261025). Producer/policy definition DONE2026-10-26: [finite17-family contract](#reduced-flash-producer-and-episode-contract) fixes authored OFF/ON/current/new behavior and common ordinary save/cold/Reset endpoints. Cargo terminal production forwarding is DONE d4e2213 ([proof](history/ROADMAP_DELIVERIES.md#cargo-terminal-reduced-flash-production-binding-accepted-20261026)), with exact retained-record visual refresh and unchanged cargo authority. The shared ordinary cold/reset caller is DONE3649b4b and reused across all17 families. Codex still owns remaining normal effect trigger/observer/candidate/original-limit bindings; only those unbound qualifications remain BLOCKED definition. Do not schedule another storage/restart caller. No new visual-policy owner decision is required by this source roster. Accepted episode stays closed, no unchanged rerun.  Live torpedo terminal-burst capability DONE9105da8 ([proof](history/ROADMAP_DELIVERIES.md#live-torpedo-burst-reduced-flash-accepted-20261026)): active hit/intercept/fizzle meshes immediately adopt existing emission4.0/1.2 and current-age scale4.2/2.6 policy, preserving0.55s lifetime, position, flights/damage/collision; repeated toggles and expired effects protected. Actual material/mesh component proof; ordinary per-family effect-trigger qualification/full-family/native GPU/human gates remain open. Shared preference persistence is reused below.  Shared native Boot/raw-key Save→cold ON→Reset→third cold OFF/defaults DONE3649b4b; live HUD forwarding and production HUD dirty-state result binding repaired. [Accepted scope](history/ROADMAP_DELIVERIES.md#shared-reduced-flash-native-restart-accepted-20261026); physical/rendered/native Windows/GPU/human and ordinary family episodes stay open. | Select one of the finite17 producer families and its literal policy/accepted scope in the linked contract. Bind exact normal trigger/caller/candidate/limits before execution; prove actual current/new effect behavior, reuse the shared ordinary save/three-process/Reset result, and retain applicable original external gates. Source-defined values or one component pass cannot close the full container. |
 | COMFORT-COLOUR | Colour-safe cues route and retained setting | 29 | Container | Finite source contract bound2026-10-25: enum0:none/default/Reset,1:deuteranopia,2:protanopia,3:tritanopia. Existing six core label families/32states×4palettes×2contrast and minimap single-hue shape scopes retained. No missing runtime consumer demonstrated. Tritanopia distinct-process endpoint DONE1f2260f69: actual visible choice/Save→cold realHUD/minimap→normalResetSave→thirdcoldnone, supported raw walking/text/shape, fullotherbindings/options/sentinel and3actualHUDExitOS0/bothclean states. All5checks firstpass, no runtimechange/export; checkpoint39157e8 unchanged. Full rendered/device/other required ordinary episode coverage remains open under the [finite remaining proof ownership](#colour-cues--remaining-proof-ownership). [Ordinary paint/view contract](#colour-ordinary-paint-and-view-contract) now fixes actual state→text/role/readback,existing journey/transition owners and one1920×1080/default-scale rendered cell with original300/330s route cap. Missing passive caller/image support is Codex implementation; frozen failed Guided and rendered-launch gates retain their reopening conditions. Other view membership/device qualification stays with its existing owners. Do not repeat the accepted cold/Reset route or invent another palette×device matrix. [Exact qualification](history/ROADMAP_DELIVERIES.md#colour-preset-cold-process-qualified-20261025). | Existing mode/engine/throttle/hull/component-recovery/target-lock labels retain literal text; enemy health retains percentage/status; minimap retains hostile diamond, friendly ring/cross and objective glyph/label; captions retain text/severity markers. Palette selection changes actual registered HUD/minimap colours without removing those discriminators. Default/Reset is none, not an invented ON/OFF option. One cold-process case requires exact saved enum/control/HUD/minimap→Reset→cold default with protected settings/data and usable controls; it closes only that selected source endpoint. Full parent acceptance retains original actual-device/rendered/transition requirements. |
-| COMFORT-CAPTIONS | Captions route and retained setting | 29 | Container | OPEN; [shared normal caption restart candidate](#caption-episodes--ingress-and-reset-boundary)99658edda remains PARKED: its typing correction/import/export/strict startup pass, but the actual writer exits1 at its initial service/presenter compound assertion before Begin Shift/toggle/Save. Operands are unlogged and the failed operand is unknown; no production defect is established. Readers/reset-reader/default regression NOT_RUN. Reopening requires the recorded actual service/presenter validity/identity observations, causal evidence and cumulative-priority decision; original checks/caps and archived unmerged source/costs remain binding. No retry selected. Current main retains only the default-flash caller; accepted component results stay closed. — live Loadmaster caption capability DONE19336f3a8 ([delivery](history/ROADMAP_DELIVERIES.md#loadmaster-live-captions-delivered-20261025)); live planetary final-approach captions DONE4aa8b64ec ([delivery](history/ROADMAP_DELIVERIES.md#final-approach-live-captions-delivered-20261025)). Existing five Loadmaster/four approach IDs have actual visible-HUD/shared-service component proof; Loadmaster rejection is not qualified as live requester feedback ([source finding](history/ROADMAP_DELIVERIES.md#loadmaster-refusal-readiness-not-selected-20261025)); queue/expiry/duplicate/stale/detach/OFF and companion checks pass, paired checkpoints/strict startups/PCK audits pass. This is component capability delivery; ordinary crew/network/world play and per-episode transition/restart/Reset remain open. Wider goal remains BLOCKED definition — Codex records finite remaining original-required consumers and literal ON/OFF/Reset/restart outcomes; genuinely unspecified product behavior stays with the user. Engine-transition capability DONE46bae53c8/checkpoint46bae53: existing engine_degraded/engine_critical/engine_recovered have exact captions/defaultmedium/high/low; realHeroledger→automaticrigbinding→router/Director/GameFlow→visibleHUD/oneservice proof, five new/retainedalarm FIFO/expiry/OFF/noreplay/unbound checks pass. Oldregistry exactly3fails; allfixed/pairedexports/3strictstartups/actualPCKaudit pass. No emission/mix/gameplay/severity change; componentfixture/manualcaptionclock only, ordinaryflight/listening/rendered/native/fullfamily acceptance remain open. [Exact result](history/ROADMAP_DELIVERIES.md#engine-transition-live-captions-delivered-20261025). Ship-rig source membership now fixed:21possible IDs,19mapped,2unmapped velocity/load IDs with no demonstrated production caller. [Finite producer boundary](#ship-rig-caption-membership) is DONE definition only; no additional live gap or new implementation selected.  Ember surface-loop capability DONEb81082277:18 canonical interior/exterior phase/reward captions, literal unit assertions and actual composition/Director/GameFlow/visibleHUD/oneservice display/expiry pass; oldregistry exactly18 planned fails;13 fixed stages/paired exports/3strict startups/1527-entry payload audit firstpass. Existing owner/controlled receipt fixture and manualclock only; no physical journey/real durable reward/listening/rendered/native/fullCOMFORT acceptance. [Exact delivery](history/ROADMAP_DELIVERIES.md#ember-surface-live-captions-delivered-20261026). | Accepted five Loadmaster/four approach/three engine/eighteen Ember component results and fixed ship-rig map stay closed. [Remaining ordinary/persistence boundaries](#caption-episodes--ingress-and-reset-boundary) use the existing finite audio episode roster only where actual caption callers exist. Bind each still-required ID/action/driver at actual HUD/service, literal authored text/severity and original journey cap. Once-only belongs to the producer transition/receipt, not a cue-ID lifetime ban; active lifetime3.4physics seconds, existing queue/expiry policy preserved. Retained-Main preserves selected setting/service/remaining time; distinct-process ON and normal Reset→cold OFF are separate. Ordinary observer/route/render/device fields still missing are Codex-owned BLOCKED definition/implementation; maximum-payload overflow remains the separate owner choice. Callerless/silent music or unmapped semantics do not create new captions. |
+| COMFORT-CAPTIONS | Captions route and retained setting | 29 | Container | OPEN; [shared normal caption restart candidate](#caption-episodes--ingress-and-reset-boundary)99658edda remains PARKED: its typing correction/import/export/strict startup pass, but the actual writer exits1 at its initial service/presenter compound assertion before Begin Shift/toggle/Save. Operands are unlogged and the failed operand is unknown; no production defect is established. Readers/reset-reader/default regression NOT_RUN. Reopening requires the recorded actual service/presenter validity/identity observations, causal evidence and cumulative-priority decision; original checks/caps and archived unmerged source/costs remain binding. No retry selected. Current main retains only the default-flash caller; accepted component results stay closed. — live Loadmaster caption capability DONE19336f3a8 ([delivery](history/ROADMAP_DELIVERIES.md#loadmaster-live-captions-delivered-20261025)); live planetary final-approach captions DONE4aa8b64ec ([delivery](history/ROADMAP_DELIVERIES.md#final-approach-live-captions-delivered-20261025)). Existing five Loadmaster/four approach IDs have actual visible-HUD/shared-service component proof; Loadmaster rejection is not qualified as live requester feedback ([source finding](history/ROADMAP_DELIVERIES.md#loadmaster-refusal-readiness-not-selected-20261025)); queue/expiry/duplicate/stale/detach/OFF and companion checks pass, paired checkpoints/strict startups/PCK audits pass. This is component capability delivery; ordinary crew/network/world play and per-episode transition/restart/Reset remain open. Wider goal remains BLOCKED definition — Codex records finite remaining original-required consumers and literal ON/OFF/Reset/restart outcomes; genuinely unspecified product behavior stays with the user. Engine-transition capability DONE46bae53c8/checkpoint46bae53: existing engine_degraded/engine_critical/engine_recovered have exact captions/defaultmedium/high/low; realHeroledger→automaticrigbinding→router/Director/GameFlow→visibleHUD/oneservice proof, five new/retainedalarm FIFO/expiry/OFF/noreplay/unbound checks pass. Oldregistry exactly3fails; allfixed/pairedexports/3strictstartups/actualPCKaudit pass. No emission/mix/gameplay/severity change; componentfixture/manualcaptionclock only, ordinaryflight/listening/rendered/native/fullfamily acceptance remain open. [Exact result](history/ROADMAP_DELIVERIES.md#engine-transition-live-captions-delivered-20261025). Ship-rig source membership now fixed:21possible IDs,19mapped,2unmapped velocity/load IDs with no demonstrated production caller. [Finite producer boundary](#ship-rig-caption-membership) is DONE definition only; no additional live gap or new implementation selected.  Ember surface-loop capability DONEb81082277:18 canonical interior/exterior phase/reward captions, literal unit assertions and actual composition/Director/GameFlow/visibleHUD/oneservice display/expiry pass; oldregistry exactly18 planned fails;13 fixed stages/paired exports/3strict startups/1527-entry payload audit firstpass. Existing owner/controlled receipt fixture and manualclock only; no physical journey/real durable reward/listening/rendered/native/fullCOMFORT acceptance. [Exact delivery](history/ROADMAP_DELIVERIES.md#ember-surface-live-captions-delivered-20261026). | Accepted five Loadmaster/four approach/three engine/eighteen Ember component results and fixed ship-rig map stay closed. [Remaining ordinary/persistence boundaries](#caption-episodes--ingress-and-reset-boundary) use the existing finite audio episode roster only where actual caption callers exist. Bind each still-required ID/action/driver at actual HUD/service, literal authored text/severity and original journey cap. Once-only belongs to the producer transition/receipt, not a cue-ID lifetime ban; active lifetime3.4physics seconds, existing queue/expiry policy preserved. Retained-Main preserves selected setting/service/remaining time; distinct-process ON and normal Reset→cold OFF are separate. [Episode/service/readback contract](#caption-ordinary-episode-contract) now supplies the named ordinary fields; passive caller integration and authoritative Cinder seat receipt are Codex implementation,unbound genuine rejection/failure actions remain with their role/world owners; maximum-payload overflow remains the separate owner choice. Callerless/silent music or unmapped semantics do not create new captions. |
 | AUDIO-CONTENT-DEFINE | Finite actually missing cues and broken transitions | 30 | Definition | Definition DONE on8a6e7dfe6; existing COMPLETION_SCOPE audio map separates real playback, two transition outcomes and dormant Ember feed definition; no missing new theme inferred | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | AUDIO-ACTIVITY-LIFECYCLE | Current activity music survives normal updates and same-run completion | 30 | Capability | DONEf1f35d137, packaged. Same-run completion/base updates, terminal fences, combat/landing resume, reset/context/lifecycle/PCM/clock scopes pass; five focused suites, paired exports/three strict startups. Audible mix OPEN | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | AUDIO-SURFACE-MUSIC | Aurora/Rime surface visit selects existing surface bed | 30 | Capability | DONE packaged4ff7a08; actual visit-state projection, controlled phase150/activity26/retained bed checks and strict paired checkpoint pass; ordinary journeys/listening remain open | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
