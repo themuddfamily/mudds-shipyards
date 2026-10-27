@@ -32841,3 +32841,77 @@ remain open.
 Nine of the promised 17 craft exist. All 36 original parent outcomes and ten phase
 exit gates remain open; completed child results are retained, not counted as whole
 features. There is no evidence-backed project percentage or completion date.
+
+
+<a id="jovian-headless-authority-accepted-20261027"></a>
+## Jovian full ordinary journey with headless authority — accepted — 2026-10-27
+
+Existing SERVER-BASELINE source caller, accepted
+`e899cc9e03be3ddbaf9afd39c9c44cd36d718527`, integrated by merge `af1d7ed66`.
+The original ordinary Jovian route existed and was already accepted on
+bc7f9f9c4, but its authority used X11/dummy rendering. The optional
+`--dedicated-headless-authority` now runs the same `--postdock-redepart`
+journey with a genuinely headless authority and two isolated graphical clients.
+
+Only `tests/network/halyard_network_passenger_route_test.gd` and
+`tests/network/jovian_network_two_client_boarding_test.gd` change. Opt-in requires
+the complete existing return/reclaim/redepart selector. Authority launches by
+owned direct shell/env-i without Xvfb or display variables; clients retain their
+original private Xvfb/x11/dummy-renderer launch. Actual DisplayServer and
+AudioServer drivers, private environment and distinct actor/wrapper identities
+are checked after the original done/actual OS exits/actor-absence gates.
+Default launch arguments, game inputs, predicates, clocks and cleanup stay intact.
+No production gameplay, graphics, wire format or validators change.
+
+Root selected14:51:47UTC including discovery, estimated60minutes, hard
+15:51:47/execution end15:41:47 with10minutes closure reserve. One high implementer
+and one independent high lifecycle/source/raw reviewer; root owns frozen engine
+stages, integration and cleanup. Godot4.7.1 is pinned to SHA256
+32f8d7596c4b41185512b1c49d69f2da3be018fd784a53e349fa92a98a97bcde.
+Original300s internal/360s outer and every original prefix/stage cap are retained.
+
+Initial447feb6f3 passes import20.587s/compile17.173s, zero diagnostics, then its
+full route fails at coordinator after169.491s: all three gameplay peers complete
+with no failures/OS0/clean logs, but six new argv-derived receipt checks fail.
+Actual runtime already reports headless authority and X11 clients. The precise
+cause is Godot consuming engine options before OS.get_cmdline_args exposes its
+retained script arguments. No gameplay or authority defect is inferred.
+
+Root authorizes the single correction within the same clock: record the exact
+OS.create_process launch arguments and returned owned wrapper PID, then bind
+those to the original actor receipts; independently require actual AudioServer
+Dummy. Corrected e899 changes only that reader/proof seam. Initial source,
+launches, failed coordinator/raw peers and cumulative decision remain preserved;
+remaining correction allowance0, no budget/cap reset or unchanged default run.
+
+Corrected import6.584s and semantic compile17.155s pass; original full opted-in
+route passes168.131s, **7362 checks/zero failures**, one original success marker
+and one JOVIAN_NETWORK_TWO_CLIENT_REDEPART_HEADLESS_AUTHORITY_OK. Intervals are
+recorded launch-to-terminal wall times, not target-hardware benchmarks. Actual
+host2680393/client2680659/client_b2680678 exit0 with empty failures; coordinator
+and all three peer raw logs have zero diagnostics. Full ordinary strict home
+lease/dock, physical passenger/pilot exits, reclaim/retired-stream refusal,
+second departure/braking, both consumed poses and retained/leaving handshake
+remain required and pass. Runtime headless/Dummy host has no DISPLAY,
+WAYLAND_DISPLAY or XAUTHORITY; clients report X11/Dummy on distinct :99/:100.
+Root independently reads each live OS argv and matches it exactly to its owned
+launch receipt. Tracked source and full compile/route caches stay unchanged;
+all24 recorded initial/corrected route process identities are absent.
+Independent final source/raw/receipt/default/cleanup review GO.
+
+Verified archive before scratch removal:
+`/srv/mudds-work/jovian-headless-authority-20261027/records.tar.gz`,
+14035218bytes/359 regular members, every member compared to its original,
+SHA256 `1d87f9cdba01b81a77f64a76e9d5d749751412956b031a1d2485deb22ffae2df`.
+It preserves both exact candidates, patches, all six engine stages, source/cache
+manifests, actual OS arguments, peer profiles/raw logs and independent review.
+The sibling closeout.json records final pushed-main containment and owned cleanup.
+After archive verification and pushed-main containment/current-tip/worktree checks,
+the exact e899 task branch, private worktree/cache/profiles and raw scratch were
+removed. Only records.tar.gz and closeout.json remain; no retained exception.
+
+This closes the executable source headless-authority caller and its complete
+Jovian scenario only. No exported/native server deployment, GPU, release
+capacity, shaped-network/endurance, whole SERVER-BASELINE or parent/phase PASS.
+Playable f0d6796 remains current because only test/release-caller source changed;
+no duplicate gameplay checkpoint, audible/active-desktop test or hosted CI run.

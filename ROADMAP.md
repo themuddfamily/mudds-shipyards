@@ -53,14 +53,13 @@ session is this requested breakdown; it does not reopen parked gameplay trials.
 Titan and the other missing-craft proposals still require their recorded design
 choices before implementation.
 
-**Delivered source capability — physical browser guest caller.** The
-[controller command](docs/ROADMAP_BACKLOG.md#browser-controller-contract) now
-supports a bound rendered guest that observes actual pad/focus/network/walk
-results while its host stays isolated. Source/config checks, real semantic import,
-prelaunch missing-binding rejection and the original private-display synthetic
-journey pass (294 assertions,86.192s,both peersOS0,clean logs). One prompt-order
-correction was accepted within the frozen budget. Actual hardware and native
-package physical qualification remain NOT_RUN; f0d6796 stays the playable build.
+**Delivered source capability — headless multiplayer authority.** The full
+ordinary Jovian return/reclaim/redepart journey now supports an actual headless
+server with two isolated graphical clients:7362 checks, zero failures, all three
+OS exits0 and clean logs after one receipt-reader correction. Actual drivers and
+OS launch arguments are verified. [Accepted scope and preserved failed run](docs/history/ROADMAP_DELIVERIES.md#jovian-headless-authority-accepted-20261027).
+Playable checkpointf0d6796 is unchanged; complete baseline, endurance and final
+release qualification remain open.
 
 ## How we will work from this roadmap
 
