@@ -3712,7 +3712,7 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | ROLE-HALYARD-PASSENGER | Halyard passenger ordinary moving-crew lifecycle | 16,24 | Qualification | [Passenger field contract](#halyard-passenger-contract) binds the exact three-process admission, moving seven-stage chair cycle, real host-stop solo handback and destruction/reuse receipts. Reuse accepted BOARD/MOVING/AUTHORITY-STOP/DESTRUCTION sources once; no unchanged rerun. BLOCKED definition/implementation (Codex): ordinary landed hatch exit/reentry and its actual caller/whole-route limit remain absent. Final candidate qualification remains open. | [Exact passenger contract](#halyard-passenger-contract): same authenticated supported passenger, no helm authority, real moving stand/walk/reseat and old ownership retirement with usable continuation. Destruction recall is not an ordinary hatch exit. |
 | ROLE-HALYARD-ENGINEER | Halyard engineer ordinary moving-crew lifecycle | 16,24 | Qualification | [Engineer field contract](#halyard-engineer-contract) binds the existing two-peer berthed repair, input/stock/readout and release/migration/disconnect endpoints. Accepted ce2329a82 remains functional PASS_WITH_ENVIRONMENT_WARNING, strict NOT_CLEAN. BLOCKED definition/implementation (Codex): engineer moving/return, active-work interruption/owner-loss, exterior exit and exact whole-route caller/deadline are absent; passenger receipts do not fill these fields. No new role/craft combination or retry selected. | [Exact role contract](#halyard-engineer-contract): host-authorized engine repair with one conserved kit and observed progress; finite supported claim release/reseat and the explicitly uncovered moving/interruption/handback endpoints. Berth-only repair must not be counted as in-flight repair. |
 | ROLE-HALYARD-GUNNER | Halyard gunner ordinary moving-crew lifecycle | 16,24 | Qualification | [Gunner field contract](#halyard-gunner-contract) binds co_pilot_station/current host projectiles, stationary remote role and separate moving-host/remote-pilot source. Local52damage DONEc28f7ffa3 retains its local scope. BLOCKED definition/implementation (Codex): moving remote gunner with actual target damage, exact loss/physical handback/exterior endpoint, whole caller/limit and selected candidate. Existing runtime remote binding is present; no defect or new retry inferred. | [Literal gunner endpoint](#halyard-gunner-contract): current authenticated chair causes actual registered target damage without local projectile/helm authority, then supported release/reseat and the bound moving/loss/exit cases. Preserve local52damage proof; emitted shots alone do not establish remote damage. |
-| ROLE-HALYARD-LOADMASTER | Halyard loadmaster ordinary moving-crew lifecycle | 16,24 | Qualification | [Loadmaster contract](#halyard-loadmaster-contract) binds crew_port_00/passenger, exact manifest API/receipt/clear fields and missing production input/remote handling. BLOCKED implementation (Codex), not just missing proof: current local/remote normal input and authenticated readiness consumer are Cinder-only. Ordinary Halyard manifest producer/payload, action/moving/loss observer and whole-route limits still require binding. Reuse passenger admission/carry only in its exact scope; no new cargo-transfer authority inferred. | [Exact role contract](#halyard-loadmaster-contract): actual normal-input manifest/readiness proposal reaches host current chair authority, truthful panel and requester view; cargo/inventory/reward/helm remain unchanged. Then current claim release, physical stand/exit/reseat and explicitly bound moving/loss/handback cases; direct API fixtures do not qualify the journey. |
+| ROLE-HALYARD-LOADMASTER | Halyard loadmaster ordinary moving-crew lifecycle | 16,24 | Qualification | [Loadmaster contract](#halyard-loadmaster-contract) binds crew_port_00/passenger, exact manifest API/receipt/clear fields and missing production input/remote handling. BLOCKED implementation (Codex), not just missing proof: current local/remote normal input and authenticated readiness consumer are Cinder-only. Ordinary producer payload is now fixed to vessel/chair-derived manifest and authored cabin-row identity below; normal input/remote implementation, action/moving/loss observer and whole-route limits remain open. Reuse passenger admission/carry only in its exact scope; no new cargo-transfer authority inferred. | [Exact role contract](#halyard-loadmaster-contract): actual normal-input manifest/readiness proposal reaches host current chair authority, truthful panel and requester view; cargo/inventory/reward/helm remain unchanged. Then current claim release, physical stand/exit/reseat and explicitly bound moving/loss/handback cases; direct API fixtures do not qualify the journey. |
 | ROLE-BULWARK-GUNNER | Bulwark gunner ordinary moving-crew lifecycle | 16,24 | Qualification | [Bulwark field contract](#bulwark-gunner-contract) binds gunner_station, real22damage/staged target, power/charge cleanup, migration and separate moving-host/remote-pilot source. Reuse f676c5016/eea66d74f120-check package scope. Full ordinary solo gunner trials and combined1b5649cc2 remain PARKED; no reopening selected. BLOCKED definition/implementation (Codex): actual moving remote-role/return/exterior/loss caller, whole limit and final candidate, retaining all parked requirements/costs. | [Literal gunner endpoint](#bulwark-gunner-contract): actual siege-lance target damage from current chair without helm, supported stand/reseat and exact charge/power retirement; complete the original applicable ordinary/moving/loss/exit scope. Staged package proof cannot pass the parked full journey. |
 | ROLE-CINDER-LOADMASTER | Cinder loadmaster ordinary moving-crew lifecycle | 16,24 | Qualification | [Shared Cinder role contract](#cinder-crew-contract) binds exact chair/actors, ready manifest, unchanged cargo, stand/reseat/migration/disconnect and separate host-flight selector. BLOCKED definition/implementation (Codex): ordinary exterior entry/exit, remote-role moving/return/loss caller and aggregate limit; readiness plus actual conserved transfer integration remains unqualified. Shared-stock policy is settled; no new cargo authority inferred. | [Literal Loadmaster endpoint](#cinder-crew-contract): normal FIRE marks cinder_cabin_manifest/cinder_cargo_port_aperture ready on current host chair; unchanged finite stock during readiness, actual transfer through existing cargo owner, supported release/reseat and bound moving/loss recovery. Manifest-only proof cannot close cargo play. |
 | ROLE-CINDER-NAVIGATOR | Cinder navigator ordinary moving-crew lifecycle | 16,24 | Qualification | [Shared Cinder role contract](#cinder-crew-contract) binds exact chair/actors, remapped FIRE sensor hint, authenticated request feedback, clear/reseat/migration/disconnect and in-process recovery. Reuse accepted c2c72a223 refusal journey, not another unchanged run. BLOCKED definition/implementation (Codex): ordinary exterior entry/exit, remote-role moving/return/loss caller and aggregate limit. No additional role/craft combination. | [Literal Navigator endpoint](#cinder-crew-contract): current authenticated chair FIRE produces cinder_navigator_console sensor hint, requester-only feedback for every fresh authenticated rejection, clear on release and usable handback. Navigation hints confer no movement/cargo/combat authority; bind remaining ordinary moving/exit/recovery cases before execution. |
@@ -5381,9 +5381,55 @@ FIRE at this exact Halyard chair to the existing manifest consumer, in local
 and authenticated remote play, with truthful prompt/display and current-claim
 retirement. Other passenger seats must retain their ordinary behavior.
 
+**Normal producer payload — bound design, implementation still missing.**
+The authored Loadmaster sign pairs `seat_id=crew_port_00` with
+`route_id=crew_cabin_port_row_00` in Halyard's station builder; sign positioning
+resolves that same real chair. Use this cabin-row identity for the new station
+readiness proposal. It is not a freight destination or navigation authorization;
+the existing sign metadata is presentation-only, not a gameplay authority.
+
+Freeze the new producer's values:
+
+- `manifest_id = StringName("%s_%s" % [get_ship_id(), LOADMASTER_STATION_SEAT_ID])`,
+  currently `halyard_new_design_crew_port_00` (31 characters).
+- `route_id = crew_cabin_port_row_00` (22 characters), shared as one script
+  constant between the new producer and existing sign metadata. Do not read a
+  mutable Label3D's metadata to authorize or choose a gameplay request.
+- `ready = true`. This marks this station's readiness proposal; UI must not
+  claim cargo loaded, delivery paid, all crew ready, a berth lease or pilot action.
+
+This vessel+chair manifest naming is a new bounded producer choice, not a claim
+that an authored manifest already exists. Both IDs satisfy the existing1–64
+ASCII identifier contract. Generation/occupant/seat/request fields remain owned
+by the existing authority/receipt, not embedded into another identifier chain.
+An ordinary helper `submit_loadmaster_readiness(peer, avatar, sequence)` should
+construct this payload on the authoritative ship, like the existing Cinder seam;
+normal local/remote callers submit readiness, not caller-chosen manifest strings.
+
+Normal remappable FIRE uses the current physical claim and produces this ready
+receipt; once that current receipt is visibly ready, held/repeated FIRE must not
+change it. Interact still stands/releases; a genuinely new claim can mark its
+own fresh readiness after existing generation/clear fences. Preserve arbitrary
+caller-proposal API fixtures as their own existing scope; do not mistake their
+manifest_alpha/dock_04_cargo payloads for the new normal control's defaults.
+The legacy Main publication's quantity1 is a proposal envelope field, not proof
+of one cargo item; observer/HUD text must preserve the same readiness meaning.
+
+Producer-field selection2026-10-27 began15:19:24UTC, estimate20minutes including
+source review/docs/checks/commit/push/cleanup; hard stop15:39:24UTC. Root owns
+this document; one bounded read-only agent verifies chair/row/schema identity.
+No engine, implementation, branch/worktree/scratch or gameplay PASS selected.
+This resolves the producer-ID field only; prior PLAN-NEXT costs and the complete
+ROLE-HALYARD-LOADMASTER moving/remote/exit requirements remain attached.
+
+Independent bounded source/design review GO; exact source-derived IDs, lengths/
+schema, canonical337 identities/order and whitespace checks pass. No engine,
+implementation or new runtime qualification; commit/push closes inside the
+original15:39:24 deadline without another survey or attempt-budget reset.
+
 | Existing role boundary | Literal observation required from implementation/caller |
 | --- | --- |
-| Bind real manifest producer | Before implementation selection, name the production source of both manifest_id and route_id and freeze their exact expected values for the selected real route. No fabricated transfer or test ID may substitute. This Codex-owned field remains unresolved. |
+| Bind real manifest producer | Field binding DONE: new producer constructs manifest_id from actual vessel+seat (halyard_new_design_crew_port_00), route_id=crew_cabin_port_row_00, ready=true; identities and source above. Producer/helper and normal local/remote controls are NOT_IMPLEMENTED. This is station-readiness design, not an existing authored manifest or transport contract. |
 | Normal seated action | Same physical chair/body/claim submits the proposal through sampled remappable FIRE. Host receipt matches actor, current seat/manifest generations and chosen manifest/route IDs; ready=true is observed at the chair and intended requester. Underlying inventory, rewards and helm ownership remain unchanged. No accepted ordinary Halyard caller exists yet. |
 | Authenticate remote action | Extend the existing transport/dispatch rather than add a parallel channel. Keep admitted peer, body entity/generation, actual seated chair and assignment, seat/claim, binding/migration, bounded server tick and increasing request-sequence guards. Current Cinder-only dispatch is a seam, not a passing Halyard result. |
 | Replay/wrong chair/release | Replayed authority sequence returns stale_request_sequence and cannot consume again. Other passenger chair cannot publish the Loadmaster proposal. Matching actor release/handoff empties receipt, clears display and advances manifest_generation; retired actor cannot restore it. Bind observed normal stand/reseat and one exact loss cut before running. |
