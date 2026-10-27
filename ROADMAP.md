@@ -45,16 +45,23 @@ Player/build result: [action -> observable outcome]
 Included: [finite behavior/case list]; excluded: [adjacent work deferred]
 Start: [commit/package, profile, location, participants/device, owned files]
 Actions: [ordered steps or exact command]
-PASS only if: [all expected values/counts/tolerances and preserved state]
+PASS only if: [each predicate -> actual observation -> expected value/tolerance; preserved state]
 Proof: [check/route and expected output; source/package/device scope]
 Dependencies: [existing IDs and exact required result; or none]
 Missing inputs: [field -> owner -> artifact/answer; or none]
 Budget: [estimate including checks/build/integration/cleanup]
-Stop: [absolute deadline, original run limits, independent abort]
+Stop: [absolute deadline including closure, original run limits, independent abort]
+Corrections: [total allowance for this selection; default one, never replenished]
 Prior attempts: [total time, first failure, retained source/results; or none]
 Close: [PASS/FAIL/BLOCKED/PARKED, proof, commit/push, checkpoint if needed,
         owned branch/worktree/process/scratch cleanup]
 ```
+
+Every predicate names its actual observation and expected value before execution.
+On failure, retain the observed values, including operands of compound assertions.
+A prerequisite must actually succeed before a dependent command launches; issuing
+commands in sequence alone is insufficient. Missing observations cannot establish
+a runtime cause or qualify a result.
 
 All listed PASS predicates must hold. On PASS, close this goal within that scope;
 leave broader release/device gates with their existing owners. A newly found
@@ -84,6 +91,20 @@ Every selected goal must have these literal answers in its existing card:
 specified” cannot stand alone as acceptance. Replace them with the actual action,
 value or finite member list in the same card. A container closes only when its
 complete named membership passes; a missing member list blocks it.
+
+**Reviewable completion is mandatory.** Each ready capability or qualification
+must name the exact command or player steps, expected output/state and proof
+location. Another person must be able to decide the result without asking the
+implementer what “done” meant. If those details cannot yet be supplied, record
+BLOCKED definition with the literal missing fields; do not start implementation.
+For a container, enumerate its existing child IDs and close only when each is
+accepted. A link to a broad family, a passing helper test or a new document is
+not proof of the promised running-game result.
+
+The next selection resolves one existing missing acceptance field or delivers one
+ready production result. It must not repeat a whole-roadmap inventory or create
+another planning/evidence layer. Keep completed scopes closed. Report remaining
+work as named unfinished outcomes and blockers, never as document/test/commit counts.
 
 A task must say **what the player can do afterward**, or the exact build/release
 operation that succeeds. For example: “Roll back499→b4→499, load the b4-earned
@@ -121,9 +142,19 @@ Complete journeys/soaks retain their original durations. A failed estimate is
 reported as an overrun against the same goal. A discovered prerequisite stays charged to that goal; a new
 branch, card or agent never resets its elapsed cost.
 
-Stop at the first unexpected failure. One failed repair requires a recorded
-cumulative-priority decision before continuation: park/switch, or one correction
-supported by a demonstrated cause and an explicit next stop. No automatic retry.
+Freeze the total correction allowance before implementation (default one) and
+an absolute deadline including closure. A correction consumes that allowance;
+a new cause, branch, card or review never replenishes it. Validate the final
+allowed correction; any further failed predicate then means FAIL/PARKED and
+cleanup. Reaching the absolute deadline is also terminal. No additional correction,
+same-run reopening or deadline extension is allowed. A later explicit user
+reprioritization must name the terminal boundary being superseded and retain all
+prior costs/results; it does not retroactively make the failed attempt pass.
+
+Stop at the first unexpected failure. Before spending any remaining correction
+allowance, record a cumulative-priority decision: park/switch, or one correction
+supported by a demonstrated cause and an explicit next stop. A failed correction
+ends the selection when its allowance is exhausted. No automatic retry.
 Accepted work remains closed within its recorded scope; reopen only the affected
 predicate when an identified source change invalidates its proof. Update the
 card and backlog together so stale text cannot schedule completed work again.
@@ -174,19 +205,23 @@ finishes14.696minutes from05:20:33UTC, plus final notes/push on the same clock.
 Owned branch/worktree/scratch are removed; one small verified archive remains.
 No game/engine/public checkpoint change; final release/player/native gates stay open.
 
-**Active — one typing-only caption caller reopening.**
-Restore the archived candidate and explicitly type three walker locals; keep
-all normal-input, source/package and both three-process caller checks.
-[Source cause, prior PARK and amended budget](docs/ROADMAP_BACKLOG.md#caption-episodes--ingress-and-reset-boundary).
-Original05:38:34 start and45.076minutes stay charged. Hard stop is explicitly
-amended07:08:34→07:23:34UTC, a105minute ceiling against the original90minute
-estimate; expected cumulative active work~65minutes. Both full960s groups must
-be admitted by06:36:34;15minute cleanup reserve is preserved. Any next failure
-ends this reopening. Nothing is qualified or merged by this selection.
+**PARKED — caption Save/Reset/cold caller; no implementation active.**
+The three-local typing correction99658edda passes301 Python tests, import,
+probe parse, privacy, private Linux export and strict actual-archive startup.
+The packaged writer then exits1 at its initial caption-service/presenter assertion,
+before Begin Shift or settings changes. Its operand values were not logged;
+no missing runtime owner or gameplay defect is established. Writer reaped;
+reader, reset-reader and default-flash regression NOT_RUN. No further correction
+or reopening is selected. Candidate code remains unmerged.
+[Exact failure, archive and limits](docs/ROADMAP_BACKLOG.md#caption-episodes--ingress-and-reset-boundary).
+The original05:38:34 start and45.076 prior minutes stay charged; the explicit
+90→105minute budget amendment is retained. Verified archive/branch/worktree/
+scratch cleanup completes at70.748 cumulative wall minutes; final notes/push
+remain charged to the same clock. The public playable checkpoint is unchanged.
 
-**PLAN-NEXT remains OPEN; one implementation is active.**
-The original source/archive/failure records and all broader product gates stay
-binding. No scope/cap reduction, source survey or new-budget successor is allowed.
+**PLAN-NEXT remains OPEN.** A remaining row with an unresolved Codex-owned
+acceptance field is unfinished planning, not an executable task. No runtime trial
+is selected by this documentation update.
 
 For each listed gap, supply the finite answer in its existing row/contract:
 the named members, action/trigger, expected endpoint, preserved state, proof

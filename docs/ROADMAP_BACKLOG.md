@@ -149,11 +149,22 @@ participants/device/profile, action/command, all required endpoints, expected
 state/reward/data, original deadlines, independent abort, and cleanup. Once that
 handoff exists, execute or implement its named result; do not create another
 handoff/evidence version. Stop at the first unexpected failure and record which
-predicate failed. A supported correction preserves the whole result; after one
-attempted repair, review cumulative cost before any further attempt.
-That review records total elapsed cost and chooses park/switch or one bounded
-continuation supported by new causal evidence and an explicit next stop. Renamed
-or split cards retain cumulative cost; review is not automatic permission to retry.
+predicate failed. A supported correction preserves the whole result; before spending any correction allowance, review cumulative cost.
+That review records total elapsed cost and chooses park/switch or one correction
+within the frozen allowance, supported by new causal evidence and an explicit
+next stop. Renamed or split cards retain cumulative cost; review neither
+replenishes the allowance nor authorizes automatic retry.
+
+The selected card fixes its total correction allowance (default one) and absolute
+deadline including closure before editing. Neither replenishes when a new cause
+or branch is found. Validate the final allowed correction; any further failed
+predicate then means FAIL/PARKED and cleanup. Reaching the absolute deadline is
+also terminal. No additional correction or same-run reopening/deadline extension.
+A later explicit user
+reprioritization retains prior cost and names the superseded terminal boundary.
+Each PASS predicate binds an actual observation and expected value; failed
+compound assertions retain operand values. Dependent commands launch only after
+their prerequisite exit/results pass. Missing observations leave the cause unknown.
 
 ### Ready means every acceptance input is fixed
 
@@ -1057,6 +1068,44 @@ and integrate only after the full result, then push/delete owned branch/worktree
 and consolidate this interval's verified archive/closeout. All broader caption/
 Settings-return/render/device/native/final gates remain open.
 
+**Typing reopening terminal result — PARKED.** Candidate99658edda contains
+only the three-local typing correction after the two retained commits. Fresh301
+Python tests, import, probe parse, privacy, private Linux export and strict startup
+of the actual archive pass. ELF SHA256
+`50e939b162a25ee9cf095a496d1c30b703256b6bc9715724d189b0467aa1e3eb`;
+private TAR SHA256`414925b858e92339b56beb73118b44174e1c23544430ed260a4f9c6b47203634`.
+The caption group admits both full960s groups at06:35:53UTC, then fails27.348s
+later in its only writer: `actual Main owns caption service and HUD presenter`.
+Actual OS exit1, PID2557156 reaped; source/cache and packaged ELF unchanged.
+The compound assertion checks service non-null and two IDs positive. All three
+values are unlogged; getter field names match source. Positivity of opaque IDs
+is an unjustified caller assumption, but the actual false operand is unknown.
+Do not infer a missing owner or gameplay defect. Failure precedes Begin Shift,
+caption toggle or Save. Reader/reset-reader/default-flash regression NOT_RUN.
+No further repair or reopening is selected; all broader gates remain open.
+
+The standard startup helper passed exit0, one readiness marker and the frozen
+ELF hash. A separate root inspection mistakenly expected a bare marker rather
+than its JSON suffix; root then failed to condition the next tool launch on that
+auxiliary check's exit code. Both errors are retained separately; they do not
+turn the normative startup PASS into a failure or the caption failure into a PASS.
+
+Three commits/five full source files, patch, named-tip bundle, raw commands/logs/
+profiles/results and the one actual private TAR are verified in
+`/srv/mudds-work/caption-settings-restart-20261027/typing/records.tar.gz`:
+96748687bytes/104members, SHA256
+`b8828c3759ebb0c66a4d0349c65cde25d321598e3732a91c6a096c86dd7ed91a`.
+Its baseedb629df3 is reachable in pushed main; unique candidate source is archived
+unmerged. Fresh remote-tip and registered-worktree checks precede exact-tip local
+branch deletion; no owned remote branch exists. Owned worktree/scratch removed;
+only records.tar.gz/closeout.json remain. Original parent archive is unchanged.
+Cleanup at06:49:18UTC is70.748 cumulative wall minutes from05:38:34; prior45.076,
+original90minute estimate and explicit105minute amendment remain recorded. Final
+notes/push stay on the same clock. A future selection must first bind actual
+service/presenter validity/identity observations and causal evidence, preserve all
+original checks/caps and make a cumulative-priority decision. This is no permission
+to run again. Current main still has only the default-flash caller.
+
 The remaining overflow input remains exactly the existing owner choice:
 pagination, scrolling or wider/recomposed HUD, including timing/input/full-text
 and reservation behaviour. It does not block this settled boolean Reset contract.
@@ -1531,7 +1580,7 @@ feature. Do not reopen completed surveys or create successor planning IDs.
 | COMFORT-MOTION | Reuse accepted toast/damage episodes and the [eight fixed remaining source consumers/OFF–ON endpoints](#reduced-motion--finite-production-consumers). Codex binds only still-unproved ordinary callers/candidate/profile/deadline and retained transition/cold/Reset endpoints. Source roster discovery is closed; missing intended behavior must be an explicit choice, not another survey. |
 | COMFORT-FLASH | Existing17-family membership/policy is fixed; shared native save/three-process/Reset is accepted. Codex binds only each remaining normal trigger/caller/ordinary route and its existing effect endpoints; no new producer survey. |
 | COMFORT-COLOUR | [Finite remaining colour boundaries](#colour-cues--remaining-proof-ownership) bind live state changes, Pause/camera/Main transitions, original Settings return, rendered readability and physical-device observations. Accepted Tritanopia cold/Reset endpoint stays closed. Codex still binds ordinary assertions/selected rendered views; actual device access is separate. The available22-frame component capture is not a new registered capture gate or a new mandatory image count. |
-| COMFORT-CAPTIONS | [Caption ingress/expiry/OFF and three-process Reset contract](#caption-episodes--ingress-and-reset-boundary) is fixed; reuse existing audio episode selectors only for actual caption callers. Shared caption caller candidate5cea9ac53 is PARKED at three static type errors after one syntax correction; both commits/five files are verified archived unmerged, all package/runtime groups NOT_RUN. Current main has default flash only; no retry selected. Reduced-flash restart cannot supply the missing caption result. Per-ID ordinary route/assertion and rendered/device bindings remain Codex work; only recorded overflow policy/device access remain external. |
+| COMFORT-CAPTIONS | [Caption ingress/expiry/OFF and three-process Reset contract](#caption-episodes--ingress-and-reset-boundary) is fixed; reuse existing audio episode selectors only for actual caption callers. Shared caption caller99658edda is PARKED after its typing correction passed source/export/strict startup checks: the actual writer fails its initial compound service/presenter assertion before gameplay/settings; operands unlogged, no owner defect established. Three commits/five files/private TAR are verified archived unmerged; writer reaped, readers/default regression NOT_RUN. Current main has default flash only; no retry selected. Reduced-flash restart cannot supply the missing caption result. Per-ID ordinary route/assertion and rendered/device bindings remain Codex work; only recorded overflow policy/device access remain external. |
 | PACKAGE-FINAL | [Existing package members/counts](#package-final--existing-members-and-counts) are fixed: two exports, three startup checks, two complete inventories/full archive parity, four default probes, Guided3/3+Sandbox1/1+Settings1/1. Paired-artifact mode DONEd70231901/integrated27d1e70e8,28tests/actual7876all9predicates/unchangedinputs. Approved final paths/manifests bind at selection; SETTINGS-INPUT names unavailable historical artifacts; Sandbox stays PARKED. Six installation transactions/matrix/signing retain their owners. |
 | FINAL-RECONCILE | Existing36 parents/ten phase exits, shared outcomes counted once. Codex maps each to its complete existing members and accepted source/candidate scopes; every still-open child stays named. ZeroP0/P1, explicitP2 dispositions, final checksums, rights/signing and authorized publication remain actual release gates. |
 
