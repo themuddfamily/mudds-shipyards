@@ -4,6 +4,9 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 const GameFlowType := preload("res://scripts/game/game_flow.gd")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
 const Filesystem := preload("res://scripts/persistence/user_data_filesystem.gd")
+const Coordinator := preload("res://scripts/diagnostics/crash_recovery_coordinator.gd")
+const Record := preload("res://scripts/diagnostics/session_diagnostic_record.gd")
+const CRASH_LOG_PATH := "user://diagnostics/crash-log.json"
 
 var _failures: Array[String] = []
 var _assertions := 0
@@ -14,6 +17,9 @@ class MemoryFilesystem extends Filesystem:
 	var write_count := 0
 	var fail_write_number := -1
 	var fail_all_writes := false
+	var fail_diagnostic_stage := false
+	var diagnostic_stage_attempts := 0
+	var diagnostic_publications := 0
 
 	func file_exists(path: String) -> bool:
 		return files.has(path)
@@ -41,6 +47,10 @@ class MemoryFilesystem extends Filesystem:
 			files[path] = bytes.duplicate()
 			return OK
 		write_count += 1
+		if path == CRASH_LOG_PATH + ".tmp":
+			diagnostic_stage_attempts += 1
+			if fail_diagnostic_stage:
+				return ERR_FILE_CANT_WRITE
 		if fail_all_writes or write_count == fail_write_number:
 			return ERR_FILE_CANT_WRITE
 		files[path] = bytes.duplicate()
@@ -57,6 +67,8 @@ class MemoryFilesystem extends Filesystem:
 			return ERR_FILE_NOT_FOUND
 		if files.has(to_path):
 			return ERR_ALREADY_EXISTS
+		if to_path == CRASH_LOG_PATH:
+			diagnostic_publications += 1
 		files[to_path] = (files[from_path] as PackedByteArray).duplicate()
 		files.erase(from_path)
 		return OK
@@ -202,6 +214,7 @@ func _run() -> void:
 	)
 	discard_flow.mark_orderly_session_shutdown()
 	discard_flow.free()
+	_test_crash_log_publication_retry()
 	_test_persistent_diagnostic_write_failure()
 	_test_orderly_shutdown_composition()
 	await _test_detach_reentry_and_free_remain_dirty()
@@ -210,8 +223,168 @@ func _run() -> void:
 		print("MAIN_SESSION_DIAGNOSTICS_INTEGRATION_TEST_OK: %d assertions" % _assertions)
 		quit(0)
 		return
-	printerr("MAIN_SESSION_DIAGNOSTICS_INTEGRATION_TEST_FAILED: ", _failures)
+	printerr("MAIN_SESSION_DIAGNOSTICS_INTEGRATION_TEST_FAILED: ", JSON.stringify(_failures))
 	quit(1)
+
+
+## Exercises Main's production consumer with caller-provided physics deltas and
+## an injected filesystem; this does not simulate a real operating-system crash.
+func _test_crash_log_publication_retry() -> void:
+	var filesystem := MemoryFilesystem.new()
+	var path := "memory://main-crash-log-retry.json"
+	var flow := _new_pending_crash_log_flow(path, filesystem)
+	var initial := flow.get_session_diagnostics_snapshot()
+	var captured := JSON.parse_string(JSON.stringify(initial.bridge.record)) as Dictionary
+	_check(bool(initial.bridge.recovery_flush_pending)
+		and bool(initial.bridge.coordinator.recovery_event_recorded)
+		and not bool(initial.bridge.coordinator.recovery_event_published)
+		and filesystem.diagnostic_stage_attempts == 1
+		and not filesystem.file_exists(CRASH_LOG_PATH),
+		"CRASH_LOG_RETRY_EXPECTED: startup retains failed publication (pending=%s, attempts=%d, exists=%s)"
+		% [initial.bridge.recovery_flush_pending, filesystem.diagnostic_stage_attempts,
+			filesystem.file_exists(CRASH_LOG_PATH)])
+	var store := flow.get("_runtime_settings_user_data_store") as Store
+	var foreign_before := _foreign_payload_snapshot(store.get_snapshot())
+	flow._record_session_startup_completed()
+	for delta in [0.0, -1.0, NAN, INF]:
+		flow._advance_session_diagnostics_physics(delta)
+	flow._advance_session_diagnostics_physics(0.5)
+	_check(filesystem.diagnostic_stage_attempts == 1,
+		"CRASH_LOG_RETRY_EXPECTED: no publication retry before one second (attempts=%d)"
+		% filesystem.diagnostic_stage_attempts)
+	flow._advance_session_diagnostics_physics(0.5)
+	_check(filesystem.diagnostic_stage_attempts == 2
+		and bool(flow.get_session_diagnostics_snapshot().bridge.recovery_flush_pending),
+		"CRASH_LOG_RETRY_EXPECTED: first second retries once and retains refusal (attempts=%d, pending=%s)"
+		% [filesystem.diagnostic_stage_attempts,
+			flow.get_session_diagnostics_snapshot().bridge.recovery_flush_pending])
+	var bridge := flow.get("_session_diagnostics_bridge") as SessionDiagnosticLifecycleBridge
+	var stable := bridge.mark_stable(2, 1.0, "retry-current-stable")
+	_check(bool(stable.accepted) and StringName(bridge.get_snapshot().state) == &"stable",
+		"CRASH_LOG_RETRY_EXPECTED: caller stable checkpoint keeps retry eligible (status=%s)" % stable)
+	# Each mode handoff successfully persists the ordinary ring. Those saves
+	# must neither clear nor shorten the separate failed-publication interval.
+	for tick in range(8):
+		flow.set("_piloting", tick % 2 == 0)
+		flow._advance_session_diagnostics_physics(0.125)
+	_check(filesystem.diagnostic_stage_attempts == 3
+		and filesystem.diagnostic_publications == 0
+		and not filesystem.file_exists(CRASH_LOG_PATH),
+		"CRASH_LOG_RETRY_EXPECTED: repeated refusal stays throttled across ring saves (attempts=%d, publications=%d, exists=%s)"
+		% [filesystem.diagnostic_stage_attempts, filesystem.diagnostic_publications,
+			filesystem.file_exists(CRASH_LOG_PATH)])
+	filesystem.fail_diagnostic_stage = false
+	flow._advance_session_diagnostics_physics(0.5)
+	_check(filesystem.diagnostic_stage_attempts == 3,
+		"CRASH_LOG_RETRY_EXPECTED: writable storage still waits for retry boundary (attempts=%d)"
+		% filesystem.diagnostic_stage_attempts)
+	flow._advance_session_diagnostics_physics(0.5)
+	var recovered := flow.get_session_diagnostics_snapshot()
+	# An absent log is the expected old-code RED outcome, not a JSON parse error.
+	var snapshots: Array = []
+	if filesystem.file_exists(CRASH_LOG_PATH):
+		var parsed: Variant = JSON.parse_string(
+			(filesystem.files[CRASH_LOG_PATH] as PackedByteArray).get_string_from_utf8()
+		)
+		if parsed is Array:
+			snapshots = parsed as Array
+	_check(filesystem.diagnostic_stage_attempts == 4
+		and filesystem.diagnostic_publications == 1
+		and not bool(recovered.bridge.recovery_flush_pending)
+		and bool(recovered.bridge.coordinator.recovery_event_published)
+		and snapshots == [captured],
+		"CRASH_LOG_RETRY_EXPECTED: recovery publishes the exact captured snapshot once (attempts=%d, publications=%d, pending=%s, actual=%s, expected=%s)"
+		% [filesystem.diagnostic_stage_attempts, filesystem.diagnostic_publications,
+			recovered.bridge.recovery_flush_pending, snapshots, [captured]])
+	var crashes := 0
+	for event in recovered.bridge.record.events:
+		if event.event_code == "crash_detected":
+			crashes += 1
+	_check(crashes == 1 and recovered.bridge.record.events.size() > captured.events.size(),
+		"CRASH_LOG_RETRY_EXPECTED: retry preserves one crash event while live ring advances (crashes=%d, live=%d, captured=%d)"
+		% [crashes, recovered.bridge.record.events.size(), captured.events.size()])
+	var attempts_after_success := filesystem.diagnostic_stage_attempts
+	var publications_after_success := filesystem.diagnostic_publications
+	for tick in range(16):
+		flow.set("_piloting", tick % 2 == 0)
+		flow._advance_session_diagnostics_physics(0.125)
+	_check(filesystem.diagnostic_stage_attempts == attempts_after_success
+		and filesystem.diagnostic_publications == publications_after_success,
+		"CRASH_LOG_RETRY_EXPECTED: success stops further publication attempts (actual=%d/%d, expected=%d/%d)"
+		% [filesystem.diagnostic_stage_attempts, filesystem.diagnostic_publications,
+			attempts_after_success, publications_after_success])
+	var wire: Variant = JSON.parse_string(
+		(filesystem.files[path] as PackedByteArray).get_string_from_utf8()
+	)
+	var wire_foreign := _foreign_payload_snapshot((wire as Dictionary).payload)
+	_check(wire_foreign == foreign_before
+		and _foreign_payload_snapshot(store.get_snapshot()) == foreign_before,
+		"CRASH_LOG_RETRY_EXPECTED: complete foreign payload survives retry in memory and on wire (wire=%s, memory=%s, expected=%s)"
+		% [wire_foreign, _foreign_payload_snapshot(store.get_snapshot()), foreign_before])
+	flow.mark_orderly_session_shutdown()
+	var writes_after_clean := filesystem.write_count
+	flow._advance_session_diagnostics_physics(2.0)
+	flow.free()
+	_check(filesystem.write_count == writes_after_clean,
+		"CRASH_LOG_RETRY_EXPECTED: successful publication adds no writes after clean or free (actual=%d, expected=%d)"
+		% [filesystem.write_count, writes_after_clean])
+
+	var clean_filesystem := MemoryFilesystem.new()
+	var pending_at_clean := _new_pending_crash_log_flow(
+		"memory://main-crash-log-retry-clean.json", clean_filesystem
+	)
+	pending_at_clean._record_session_startup_completed()
+	var clean_status := pending_at_clean.mark_orderly_session_shutdown()
+	var clean_snapshot := pending_at_clean.get_session_diagnostics_snapshot()
+	var clean_writes := clean_filesystem.write_count
+	clean_filesystem.fail_diagnostic_stage = false
+	pending_at_clean._advance_session_diagnostics_physics(2.0)
+	pending_at_clean.free()
+	_check(bool(clean_status.accepted) and StringName(clean_snapshot.bridge.state) == &"clean"
+		and bool(clean_snapshot.bridge.recovery_flush_pending)
+		and clean_filesystem.write_count == clean_writes
+		and clean_filesystem.diagnostic_stage_attempts == 1
+		and clean_filesystem.diagnostic_publications == 0,
+		"CRASH_LOG_RETRY_EXPECTED: clean session suppresses a still-pending publication through free (status=%s, writes=%d/%d, attempts=%d, publications=%d)"
+		% [clean_status, clean_filesystem.write_count, clean_writes,
+			clean_filesystem.diagnostic_stage_attempts, clean_filesystem.diagnostic_publications])
+
+
+func _new_pending_crash_log_flow(path: String, filesystem: MemoryFilesystem) -> GameFlow:
+	var prior_store := Store.new(path, filesystem)
+	var loaded := prior_store.load()
+	var seeded := prior_store.commit({
+		"settings": {"graphics": {"quality": 2}, "accessibility": [true, false]},
+		"progress": {"credits": 73, "completed": ["alpha", "beta"]},
+		"foreign_extension": {"nested": [{"fraction": 0.25, "empty": {}}, null], "flag": true},
+	}, prior_store.get_generation(), "retry-foreign-payload")
+	var coordinator := Coordinator.new(prior_store)
+	var restored := coordinator.restore()
+	var begun := coordinator.begin_session(1, "retry-prior-start")
+	var record := Record.new(prior_store)
+	var attached := record.attach_session(1)
+	var observed := record.record_lifecycle_observation(Record.LifecycleObservation.STARTUP_COMPLETED, 1, 0, 0.0)
+	var persisted := record.persist("retry-prior-ring")
+	var current_store := Store.new(path, filesystem)
+	var reloaded := current_store.load()
+	_check(bool(loaded.accepted) and bool(seeded.accepted) and bool(restored.accepted)
+		and bool(begun.accepted) and bool(attached.accepted) and bool(observed.accepted)
+		and bool(persisted.accepted) and bool(reloaded.accepted),
+		"CRASH_LOG_RETRY_EXPECTED: fixture creates and reloads a legitimate unfinished session (loaded=%s, seeded=%s, restored=%s, begun=%s, attached=%s, observed=%s, persisted=%s, reloaded=%s)"
+		% [loaded, seeded, restored, begun, attached, observed, persisted, reloaded])
+	filesystem.fail_diagnostic_stage = true
+	var flow := GameFlowType.new()
+	flow.set("_runtime_settings_user_data_store", current_store)
+	flow.set_session_diagnostics_filesystem(filesystem)
+	flow._initialize_session_diagnostics()
+	return flow
+
+
+func _foreign_payload_snapshot(payload: Dictionary) -> Dictionary:
+	var foreign := payload.duplicate(true)
+	foreign.erase("crash_recovery")
+	foreign.erase("session_diagnostics")
+	return JSON.parse_string(JSON.stringify(foreign)) as Dictionary
 
 
 func _test_persistent_diagnostic_write_failure() -> void:
