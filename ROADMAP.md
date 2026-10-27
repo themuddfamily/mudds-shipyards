@@ -72,7 +72,10 @@ keep their reopening conditions.
 [Caption episode/service contracts](docs/ROADMAP_BACKLOG.md#caption-ordinary-episode-contract)
 now bind normal producer actions,queue/expiry and actual single-service output.
 The [Cinder receipt repair](docs/ROADMAP_BACKLOG.md#cinder-loadmaster-caption-receipt-contract)
-is a specific runtime gap; the failed shared writer and overflow choice stay open.
+remains open:its source candidate passed146checks,but checkpoint publication
+[parked on export-template discovery](docs/history/ROADMAP_DELIVERIES.md#cinder-loadmaster-receipt-checkpoint-parked-20261027)
+after the allowed correction was spent. No new playable build or runtime merge.
+The failed shared writer and overflow choice stay open.
 [Reduced-flash ordinary actions](docs/ROADMAP_BACKLOG.md#reduced-flash--ordinary-actions-and-missing-observations)
 now bind all17 existing families to real triggers/readbacks and name missing
 callers, including the atmospheric Arrow HUD feed. Execution remains open.
