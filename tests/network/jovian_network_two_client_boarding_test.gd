@@ -18,13 +18,24 @@ var _initial_player_id := 0
 var _initial_peer_id := 0
 var _initial_peer_generation := 0
 var _first_failure_captured := false
+var _dedicated_headless_authority := false
 const FAILURE_CAPTURE_GRACE_MSEC := 2000
 
 
 func _peer_profile() -> Dictionary:
-	return {"client_roles": ["client", "client_b"],
+	var profile := {"client_roles": ["client", "client_b"],
 		"script": "res://tests/network/jovian_network_two_client_boarding_test.gd",
 		"private_environment": true, "total_seconds": 300.0, "abort_exit_grace_seconds": 10.0}
+	if _dedicated_headless_authority:
+		profile["dedicated_headless_authority"] = true
+	return profile
+
+
+func _peer_arguments(role: String, display: PackedStringArray) -> PackedStringArray:
+	var args := super._peer_arguments(role, display)
+	if _dedicated_headless_authority and role == "host":
+		args.append("--dedicated-headless-authority")
+	return args
 
 
 func _print_peer_success() -> void:
@@ -35,6 +46,16 @@ func _print_peer_success() -> void:
 
 func _run() -> void:
 	var args := OS.get_cmdline_user_args()
+	_dedicated_headless_authority = "--dedicated-headless-authority" in args
+	args.erase("--dedicated-headless-authority")
+	if _dedicated_headless_authority:
+		var selected_return := str(_peer_profile().get("script", "")) == "res://tests/network/jovian_network_two_client_return_test.gd"
+		_check(selected_return and "--postdock-redepart" in args,
+			"dedicated headless authority selects only the full existing Jovian postdock redepart route")
+		if not _failures.is_empty():
+			push_error(_failures[0])
+			quit(1)
+			return
 	if args.size() < 3:
 		await _orchestrate()
 		return
@@ -46,7 +67,10 @@ func _run() -> void:
 		"data": OS.get_environment("XDG_DATA_HOME"), "config": OS.get_environment("XDG_CONFIG_HOME"),
 		"cache": OS.get_environment("XDG_CACHE_HOME"), "runtime": OS.get_environment("XDG_RUNTIME_DIR"),
 		"state": OS.get_environment("XDG_STATE_HOME"), "tmp": OS.get_environment("TMPDIR"),
-		"wayland_display": OS.get_environment("WAYLAND_DISPLAY")})
+		"data_dirs": OS.get_environment("XDG_DATA_DIRS"), "config_dirs": OS.get_environment("XDG_CONFIG_DIRS"),
+		"wayland_display": OS.get_environment("WAYLAND_DISPLAY"),
+		"has_display": OS.has_environment("DISPLAY"), "has_wayland_display": OS.has_environment("WAYLAND_DISPLAY"),
+		"display_driver": DisplayServer.get_name(), "engine_arguments": OS.get_cmdline_args()})
 	_game = Main.instantiate() as GameFlow
 	_store_path = "user://jovian-boarding-peer.json"
 	var store := UserDataStore.new(_store_path)
@@ -82,6 +106,51 @@ func _run() -> void:
 	for failure in _failures:
 		push_error(failure)
 	quit(0 if _failures.is_empty() else 1)
+
+
+func _check_peer_execution_receipts(peers: Dictionary) -> void:
+	if not _dedicated_headless_authority:
+		return
+	_check(peers.size() == 3 and peers.has("host") and peers.has("client") and peers.has("client_b"),
+		"headless authority route retains exactly its original three owned actors")
+	var displays: Array[String] = []
+	var actor_pids: Array[int] = []
+	for role in ["host", "client", "client_b"]:
+		var receipt := _read(role + ".script_ready")
+		var engine_args: Array = receipt.get("engine_arguments", [])
+		var pid := int(receipt.get("pid", 0))
+		_check(pid > 0 and pid == int(_read(role + ".done").get("pid", 0))
+			and pid == int(FileAccess.get_file_as_string(_directory.path_join(role + ".pid")))
+			and not actor_pids.has(pid), "%s execution receipt belongs to its original distinct owned actor" % role)
+		actor_pids.append(pid)
+		_check(_receipt_argument(engine_args, "--audio-driver") == "Dummy",
+			"%s actual command explicitly disables audible audio" % role)
+		_check(not bool(receipt.get("has_wayland_display", true))
+			and str(receipt.get("wayland_display", "missing")).is_empty(),
+			"%s actor inherits no Wayland desktop connection" % role)
+		var profile := _directory.path_join(role + "-profile")
+		for folder in ["data", "config", "cache", "state", "runtime", "tmp", "data-dirs", "config-dirs"]:
+			_check(str(receipt.get(folder.replace("-", "_"), "")) == profile.path_join(folder),
+				"%s actor uses its private %s environment" % [role, folder])
+		var display := str(receipt.get("display", ""))
+		if role == "host":
+			_check(str(receipt.get("display_driver", "")) == "headless" and "--headless" in engine_args
+				and _receipt_argument(engine_args, "--display-driver").is_empty()
+				and not bool(receipt.get("has_display", true)) and display.is_empty(),
+				"actual non-playing authority uses headless DisplayServer without an X11 or inherited desktop connection")
+		else:
+			_check(str(receipt.get("display_driver", "")) == "X11"
+				and _receipt_argument(engine_args, "--display-driver") == "x11" and not "--headless" in engine_args
+				and _receipt_argument(engine_args, "--rendering-driver") == "dummy" and "--disable-render-loop" in engine_args
+				and bool(receipt.get("has_display", false)) and not display.is_empty()
+				and not displays.has(display) and display != OS.get_environment("DISPLAY"),
+				"%s original graphical actor uses explicit X11, dummy rendering and its own private display" % role)
+			displays.append(display)
+
+
+func _receipt_argument(arguments: Array, option: String) -> String:
+	var index := arguments.find(option)
+	return str(arguments[index + 1]) if index >= 0 and index + 1 < arguments.size() else ""
 
 
 func _host() -> void:

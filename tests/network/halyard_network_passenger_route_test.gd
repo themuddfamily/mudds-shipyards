@@ -303,7 +303,10 @@ func _orchestrate() -> void:
 	_port = 26000 + OS.get_process_id() % 15000
 	# Preserve each peer's private input window and real physics while matching
 	# this suite's input-only renderer contract; no peer reads rendered pixels.
-	var host_args := _peer_arguments("host", PackedStringArray(["--display-driver", "x11", "--disable-render-loop", "--rendering-driver", "dummy"]))
+	var host_display := PackedStringArray(["--display-driver", "x11", "--disable-render-loop", "--rendering-driver", "dummy"])
+	if bool(profile.get("dedicated_headless_authority", false)):
+		host_display = PackedStringArray(["--headless", "--disable-render-loop", "--rendering-driver", "dummy"])
+	var host_args := _peer_arguments("host", host_display)
 	var host := _spawn_peer("host", host_args)
 	_check(host > 0, "owned independent host starts")
 	var peers := {"host": host}
@@ -388,13 +391,19 @@ func _orchestrate() -> void:
 		var pid := int(peers[role])
 		if not FileAccess.file_exists(_directory.path_join(role + ".exit")) and pid > 0 and OS.is_process_running(pid):
 			OS.kill(pid)
+	_check_peer_execution_receipts(peers)
 	for failure in _failures:
 		push_error(failure)
 	print("PASSENGER_PEER_ARTIFACTS: ", _directory)
 	print("HALYARD_NETWORK_PASSENGER_ROUTE: %d checks, %d failures" % [_checks, _failures.size()])
 	if _failures.is_empty():
 		_print_peer_success()
+		if bool(profile.get("dedicated_headless_authority", false)):
+			print("JOVIAN_NETWORK_TWO_CLIENT_REDEPART_HEADLESS_AUTHORITY_OK checks=%d" % _checks)
 	quit(0 if _failures.is_empty() else 1)
+
+func _check_peer_execution_receipts(_peers: Dictionary) -> void:
+	pass
 
 func _print_peer_success() -> void:
 	if _halyard_seat_rejection:
@@ -528,6 +537,7 @@ func _spawn_peer(role: String, args: PackedStringArray) -> int:
 	# contend on one X server. The inner shell records the actual Godot PID
 	# and exit; xvfb-run reaps its private server after that shell exits.
 	var wrapper := PackedStringArray(["-a", "--server-args=-screen 0 1280x720x24 -nolisten unix -nolisten tcp", "/bin/sh", "-c", command, _directory.path_join(role), OS.get_executable_path()])
+	var dedicated_host := role == "host" and bool(_peer_profile().get("dedicated_headless_authority", false))
 	if bool(_peer_profile().get("private_environment", false)):
 		var profile := _directory.path_join(role + "-profile")
 		for folder in ["data", "config", "cache", "state", "runtime", "tmp", "data-dirs", "config-dirs"]:
@@ -538,12 +548,18 @@ func _spawn_peer(role: String, args: PackedStringArray) -> int:
 		# are private; only this Xvfb's display is passed into its Godot actor.
 		command = 'trap \'kill "$child" 2>/dev/null; wait "$child"; exit 143\' TERM INT HUP; /usr/bin/env -i DISPLAY="$DISPLAY" XAUTHORITY="$XAUTHORITY" "$@" > "$0.log" 2>&1 & child=$!; printf "%s" "$child" > "$0.pid"; wait "$child"; status=$?; printf "%s" "$status" > "$0.exit"; exit "$status"'
 		wrapper = PackedStringArray(["-a", "--server-args=-screen 0 1280x720x24 -nolisten unix -nolisten tcp", "/bin/sh", "-c", command, _directory.path_join(role), "/usr/bin/env", "PATH=/usr/local/bin:/usr/bin:/bin", "XDG_DATA_HOME=" + profile.path_join("data"), "XDG_CONFIG_HOME=" + profile.path_join("config"), "XDG_CACHE_HOME=" + profile.path_join("cache"), "XDG_STATE_HOME=" + profile.path_join("state"), "XDG_RUNTIME_DIR=" + profile.path_join("runtime"), "XDG_DATA_DIRS=" + profile.path_join("data-dirs"), "XDG_CONFIG_DIRS=" + profile.path_join("config-dirs"), "TMPDIR=" + profile.path_join("tmp")])
+		if dedicated_host:
+			# Keep the same PID/exit owner, without starting an X server or
+			# importing either desktop display connection into the authority.
+			command = 'trap \'kill "$child" 2>/dev/null; wait "$child"; exit 143\' TERM INT HUP; /usr/bin/env -i "$@" > "$0.log" 2>&1 & child=$!; printf "%s" "$child" > "$0.pid"; wait "$child"; status=$?; printf "%s" "$status" > "$0.exit"; exit "$status"'
+			wrapper = PackedStringArray(["-c", command, _directory.path_join(role), "/usr/bin/env"])
+			wrapper.append_array(PackedStringArray(["PATH=/usr/local/bin:/usr/bin:/bin", "XDG_DATA_HOME=" + profile.path_join("data"), "XDG_CONFIG_HOME=" + profile.path_join("config"), "XDG_CACHE_HOME=" + profile.path_join("cache"), "XDG_STATE_HOME=" + profile.path_join("state"), "XDG_RUNTIME_DIR=" + profile.path_join("runtime"), "XDG_DATA_DIRS=" + profile.path_join("data-dirs"), "XDG_CONFIG_DIRS=" + profile.path_join("config-dirs"), "TMPDIR=" + profile.path_join("tmp")]))
 		for key in ["HOME", "CODEX_HOME", "GODOT_SILENCE_ROOT_WARNING"]:
 			if OS.has_environment(key):
 				wrapper.append(key + "=" + OS.get_environment(key))
 		wrapper.append(OS.get_executable_path())
 	wrapper.append_array(args)
-	return OS.create_process("xvfb-run", wrapper)
+	return OS.create_process("/bin/sh" if dedicated_host else "xvfb-run", wrapper)
 
 func _host() -> void:
 	_check(_game.host_network_session(_port).accepted, "production host starts")
