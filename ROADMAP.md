@@ -162,6 +162,12 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Current work and next selection
 
+**Selected — one reviewed varied-capture preparation correction.**
+Independent cumulative review permits synchronous supervisor logging, then one
+import and one unchanged18-frame capture. Original02:40→03:40UTC clock and
+03:00/03:05 preparation/launch cutoffs remain; next failure ends the continuation.
+[Exact limited authorization](docs/ROADMAP_BACKLOG.md#varied-encounter-complete-image-set--frozen-2026-10-27).
+
 **PARKED — varied encounter capture preparation; no engine launched.**
 The external wrapper passed log/status options without the supervisor's required
 `--detach`; argument parsing refused before import. Its subsequent missing-log

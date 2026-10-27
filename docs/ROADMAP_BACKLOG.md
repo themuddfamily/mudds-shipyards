@@ -1010,6 +1010,18 @@ of publishing its result. No import/capture/display/images. Independent review
 confirms exact cause; first-failure stop applies, no correction/retry selected.
 Reopening requires a recorded cumulative-priority decision and wrapper source GO;
 retain original02:40→03:40UTC budget and all preparation/closure cost.
+
+**One continuation approved before correction,02:50UTC.** Independent high-risk
+review chooses the exact wrapper fix over switching: parser cause demonstrated,
+zero prior engine invocations,9.862minutes already spent and about49minutes
+remaining. Remove unsupported --log/--status, use existing synchronous supervisor
+mode and redirect stdout/stderr directly to engine.log; no early detached-ready
+status can count as completion. Review corrected source before invoking it.
+Permit one90s import then one unchanged300s capture, preserving03:00 import
+readiness/03:05 launch/03:40 hard stop and all18 frames/quality/inspection.
+Next unexpected failure is terminal PARK, with no further correction or run.
+The failed original wrapper/archive remains unchanged. This explicit decision
+supersedes only the previous no-continuation selection, not its failure or cost.
 [Raw preservation and cleanup](history/ROADMAP_DELIVERIES.md#varied-encounter-preparation-refused-before-engine-20261027).
 
 - Result: all18 authored encounter frames exist and have an original-resolution
