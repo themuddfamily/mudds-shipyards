@@ -8,7 +8,34 @@ by default; optional signing is described in
 [Windows code signing](WINDOWS_CODE_SIGNING.md). A green verification does not
 grant distribution rights or replace the human gates that remain open.
 
-## Latest local installer `ca0afc4` — 2026-10-17
+## Latest local installer `7876ebc` — 2026-10-27
+
+The unsigned [setup](../builds/windows/MuddsShipyards-7876ebc-setup.exe) and
+[notes](../builds/windows/MuddsShipyards-7876ebc-installer-notes.txt) package the
+unchanged game source `7876ebc8da434987700f128483d4e67098cd7319`. Its game EXE
+and checkpoint ZIP retain their accepted bytes. Builder source is
+`770f5b522b8550a7ff95d95ff86af44bac0b63e4`; this is a packaging repair, not a
+new gameplay checkpoint.
+
+Installer version now comes from the exported commit rather than mutable
+checkout configuration. The focused regression first reproduces both wrong
+version cases and two invalid-override admissions, then the existing suite
+passes17 executable tests/one PowerShell-only skip in2.927s. One actual NSIS3.11-1
+compile finishes82.201s under600s, exit0/empty compiler log. Setup is88,194,974
+bytes/SHA256 `dc7f6347fe24cfb7c74bc57bf36dfcf2b95a52e6ec3d058ee4b19056cdd5061a`.
+
+Actual extracted staged member `MuddsShipyards.exe.pending` equals the original
+184,847,240-byte game byte-for-byte/SHA256
+`c7971980c02da0f5527615acdb5c58a9fd58dca27dafbb1d05a30787e84f89df`.
+PE fixed version0.12.0.0/ProductVersion0.12.0+7876ebc and absent certificate table
+match the actual unsigned artifact. Draft extraction command's installed basename
+was corrected once after source review to the NSIS staged basename; the same
+artifact was inspected without rebuilding. 7-Zip exits0 with its existing
+`BadCmd=13` limitation and does not expose standalone uninstall.exe. Its identity
+and native Windows execution stay NOT_RUN; trusted signing/final candidate and
+all original release gates remain open.
+
+## Earlier local installer `ca0afc4` — 2026-10-17
 
 The unsigned [setup](../builds/windows/MuddsShipyards-ca0afc4-setup.exe) and
 [notes](../builds/windows/MuddsShipyards-ca0afc4-installer-notes.txt) package exact
@@ -846,14 +873,16 @@ bound to those absolute paths:
 env -u MUDDS_INSTALLER_SIGN -u MUDDS_INSTALLER_FULL_COMMIT \
   timeout 600 tools/release/build_windows_installer.sh "$GAME_EXE" "$INSTALLER"
 7z x -y "-o$EXTRACT" "$INSTALLER"
-sha256sum "$GAME_EXE" "$EXTRACT/MuddsShipyards.exe" "$INSTALLER"
+sha256sum "$GAME_EXE" "$EXTRACT/MuddsShipyards.exe.pending" "$INSTALLER"
 ```
 
 Pass requires compilation exit0/no warnings; `.installer-result.json` has
 `installer_kind=nsis-per-user`, exact source commit, that commit's product
 version and `<version>+<sha7>` build label, actual source/installer SHA256 and
 sizes. `.sha256` must identify the actual installer. Extracted
-`MuddsShipyards.exe` must be byte-for-byte equal to the exported source; source
+`MuddsShipyards.exe.pending` must be byte-for-byte equal to the exported source;
+NSIS embeds that staged name and renames it to `MuddsShipyards.exe` only during
+actual installation. Source
 EXE and existing checkpoint ZIP remain unchanged. Inspect actual installer PE
 version strings against the committed product version, not just the result JSON.
 The installed runtime paths authored by the NSI are `MuddsShipyards.exe`,
