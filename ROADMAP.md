@@ -136,6 +136,10 @@ inputs remain with their existing owners. No endurance run is claimed.
 host pilot,two independent crew,surface survey,durable paid result and all-crew
 home endpoints. Missing ordinary callers and the original Aurora artifact/Rime
 landing-failure gates remain open;no existing two-peer component is broadened.
+[Three landed late-join cases](docs/ROADMAP_BACKLOG.md#shared-world-landed-late-join)
+now fix the late companion,checkpoint-one state and full continuation. Safe live
+late-berth admission is missing;Ember also lacks passive survey publication.
+Baseline/Aurora artifact/Rime parked gates remain intact;no late case has run.
 
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings
