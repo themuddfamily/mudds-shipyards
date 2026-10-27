@@ -1856,6 +1856,67 @@ barrier8, forward10/brake10/convergence5/exit10 and all original return bounds.
 A missed readiness/race, duplicate owner, changed loser berth, missing refusal,
 wrong selected actor or missing original journey endpoint fails; no forced winner.
 
+**Selected landing-target transport capability2026-10-27 18:46:59UTC.**
+One high implementation agent owns the same two authority harness files; root
+owns exact local detached-landing +three-process suites,docs/integration/cleanup;
+one independent reviewer checks early stage barrier,actual sends/results,
+winner-relative lease/generation/sequence continuation and unchanged clocks.
+Reuse the accepted5c5868645 child exit/diagnostic guards and five movement RPC
+cases; no second status layer,production protocol change,physical docking claim
+or ordinary Jovian replay. Gate both clients before their existing loops,not
+merely a delayed observer after the original stage has already advanced.
+
+Clean base91bf96a855628173dbc315023c389434d1fc8691; owned root
+`/srv/mudds-work/landing-target-race-20261027`,one task worktree/branch,private
+0700 HOME/XDG/tmp and external raw matrix/peer records. Pinned4.7.1Godot actual
+SHA256`32f8d7596c4b41185512b1c49d69f2da3be018fd784a53e349fa92a98a97bcde`
+and exact existing scopes/UDP29140 availability are checked before execution.
+Every import/coordinator/peer runs headless/Dummy. Retain24s inner/300s suite;
+local matrix runs only detached landing authority and the changed three-process
+harness (which includes the five accepted command cases as direct regression).
+No unchanged240s moving-body sweep or hosted CI is selected.
+
+Estimate45min all-in,hard19:31:59UTC,execution cutoff19:21:59/10min closure.
+Includes source/review/import,the actual scoped matrix,full raw review,
+integration/push,verified archive and exact-tip branch/worktree/process/scratch
+cleanup. First unexpected failure stops; one correction total only after cause,
+remaining time and independent cumulative-priority review. Failed correction/
+deadline parks the same attempt with source/raw preserved; no cap increase,
+forced winner,scene reset,changed entity assignment or replacement clock.
+No gameplay/graphics changed,so no equivalent game checkpoint export is required;
+final/native/ordinary pilot-seat contention and other baseline owners stay open.
+
+**First actual matrix stop; sole two-line correction selected.** Candidate
+420fe4069 runs both suites with actualOS0/zero diagnostics; detached landing28
+assertions pass,and all three peers exit0 after actual reserve/occupied/abort/
+retry/commit/retirement and preserved five command cases. Matrix nevertheless
+FAILS: the new source-declared NETWORK_LANDING_TARGET_RACE_OK is penultimate,
+followed by old generic OK summary; the catalog requires that token terminal.
+Exact initial source/raw/result is retained. Independent review confirms this
+sole reason and selects only swapping those two print statements,old summary
+first/new token last. No guard,packet,fixture,timing or expectation changes.
+Original18:46:59/45min clock retains≥37min closure allowance; correction now0.
+Any corrected validation failure parks the same attempt; no additional adjustment
+or cap increase. No initial first-pass matrix acceptance is claimed.
+
+**Accepted landing-target transport capability — 50cb617bd,2026-10-27.**
+The sole print-order correction passes the same two local suites: coordinator
+21.183s,exactly one terminal NETWORK_LANDING_TARGET_RACE_OK,actual exit0/zero
+diagnostics; detached landing28assertions/.786s/exit0/zero diagnostics. Source/
+cache manifests remain stable with isolated user data. All three actual engine
+exits0,complete outputs clean and owned PIDs absent. Independent review confirms
+the corrected run chose the opposite winner: fighter_b reserved,fighter_a was
+refused; exact winner abort then original loser sequence1 retry reserved and
+committed. Synchronous real-RPC packet/result and before/after assertions pass,
+with all five accepted movement cases and fixture retirement. Raw binary records
+retained; independent review checked their existence and source assertions,
+without claiming an independent binary decode.
+Initial marker-order failure remains failed and preserved; allowance0. No broader
+baseline,ordinary pilot-seat race,physical docking,native hardware or final
+package gate closes. Latest playable remainsf0d6796; no gameplay/graphics change.
+Raw matrix/peer/failed+corrected source retention belongs to the selected root
+above; cleanup/archive identity is recorded at closure below.
+
 **Landing-target race over actual ENet; fixture-level admission.** Own only
 existing [authority peer](../tests/network/network_authority_peer.gd#L95) and
 [coordinator](../tests/network/network_authority_three_process_test.gd#L15).
@@ -1889,18 +1950,18 @@ target, obtains `landing_reserved`, then authority commits that exact lease and
 observes `landing_committed`. Require these facts from results and actual entity/
 target snapshots; a marker alone fails. `release_server_landing` is unsuitable
 here because it changes owner/generation. Final shutdown retires fixture state.
-The missing stage is real-client sends/results/continuation and actual child
-exit-status+diagnostic acceptance, shared with the existing invalid-command
-capability; implement them once in these two files, not parallel status layers.
+This stage is implemented in50cb617bd: real-client sends/results/continuation
+and actual child exit-status+diagnostic acceptance reuse the existing invalid-
+command capability in these two files,without parallel status layers.
 Keep original24s inner/300s suite and existing scoped matrix command below.
 Require one coordinator `NETWORK_LANDING_TARGET_RACE_OK` after all case and
-actual3OS0/clean-log/cleanup gates. The marker is proposed, not an accepted result.
+actual3OS0/clean-log/cleanup gates. This marker is accepted only in the source-fixture scope above.
 
 ```sh
 tools/release/run_test_matrix.sh --godot /tmp/mudds-tools/godot-4.7.1/godot --audio-driver Dummy --mode headless --jobs 1 --scope tests/network/network_authority_three_process_test.gd
 ```
 
-The existing command executes the old harness, not this missing race stage.
+On50cb617bd this existing command executes the accepted early race stage.
 Ordinary hatch uses BOARD_ANY and can grant different cabin slots to two peers;
 one cabin loser is not a valid substitute. This transport/ledger goal does not
 claim physical two-craft docking; no extra ordinary shared-berth gate is added.
@@ -1913,9 +1974,10 @@ closure allocation≤90min with absolute deadline, one total correction and
 first-unexpected-failure stop. Keep existing route caps without clock resets.
 Any wrong result/state mutation, missed endpoint, diagnostic, nonzero exit or
 cleanup/deadline failure leaves the goal open; source facts are not gameplay PASS.
-Source reviews GO with winner-relative continuation and explicit early stage gate;
-337 canonical identities/order, owner links, source paths, approach arithmetic,
-landing replay-order semantics and whitespace checks pass. No engine run.
+Original definition source reviews GO with winner-relative continuation and
+explicit early stage gate;337 canonical identities/order and source bindings
+were checked without an engine. The later landing-target run above is accepted
+in its fixture scope; ordinary initial pilot-seat race stays OPEN.
 
 <a id="server-disconnect-cuts"></a>
 
@@ -3375,7 +3437,7 @@ feature. Do not reopen completed surveys or create successor planning IDs.
 | COMBAT-PERIMETER | Terminal/reset membership is fixed in the [Hold contract](#perimeter-hold--missing-production-integration): explicit abort, integrity/core loss, player/craft loss, distance/phase/network/teardown withdrawal, actor retirement and generation-safe renewal. Ordinary survival/home remains PARKED; [Core-LOST/home/Heavy arm-cancel-rearm goal](#perimeter-core-loss-home-admission) now binds ordinary controls/observations, caller files and CAP300; implementation remains OPEN behind the original parked genuine-Hold-entry prerequisite. Do not survey membership again. |
 | COMBAT-TORPEDO | [Combat triggers/terminal outcomes](#torpedo-combat-outcomes--fixed-source-boundary) and existing ten TORPEDO-AUTH children fix membership. PLAY-TORPEDO owns clear/home once and stays PARKED. [Expiry and landing-withdrawal callers](#torpedo-expiry-withdraw-callers) now have pinned earned fixture, inputs/terminal/home/observer/file/cap contracts. [PLAY control-accounting repair](#torpedo-play-control-accounting) remains attached to the original parked evade/intercept/clear journey. Ten authority lifecycle cuts retain their existing field gaps; no repeat survey or live board-abort assumption. |
 | NET-SEATS-FINAL | [Five existing proof owners](#final-seat-ledger--fixed-case-ownership) bind transaction refusals, ENet swap/host occupancy, actual Halyard client promotion/hatch handback, helm-release handback and SERVER-BASELINE-SEAT-RACE. Source matrix plus the existing ordinary race command/caps are fixed; exact final candidate remains gated. Eight ROLE journeys retain their own movement/action/loss scope; no new role matrix. |
-| SERVER-BASELINE | [Fixed ordinary/lifecycle/adverse membership](#server-baseline-contract). Full Jovian ordinary reuse caller is acceptedbc7f9f9c4/e899cc9e0; Halyard accepted cases are mapped once. [Five real-client RPC observations](#server-command-proof-binding) are ACCEPTED5c5868645: actual five packets/results/state invariants,all3childOS0/clean,4focused suites313assertions. [B Restart Shift/rejoin/physical-reboard](#server-main-reentry-binding) remains a literal implementation goal; its caller is OPEN. [Boarding/landing-loss callers](#server-disconnect-cuts) now have exact cuts and usable continuations. [Initial pilot/landing-target contention](#server-initial-contention) now has bounded implementation goals. [Isolated-link impairment](MOVING_INTERIOR_LATENCY.md#impaired-independent-baseline-capability) binds shared profile inputs and the missing launcher/endpoint/measurement capability; no craft×role×phase matrix or duplicate happy path. |
+| SERVER-BASELINE | [Fixed ordinary/lifecycle/adverse membership](#server-baseline-contract). Full Jovian ordinary reuse caller is acceptedbc7f9f9c4/e899cc9e0; Halyard accepted cases are mapped once. [Five real-client RPC observations](#server-command-proof-binding) are ACCEPTED5c5868645: actual five packets/results/state invariants,all3childOS0/clean,4focused suites313assertions. [B Restart Shift/rejoin/physical-reboard](#server-main-reentry-binding) remains a literal implementation goal; its caller is OPEN. [Boarding/landing-loss callers](#server-disconnect-cuts) now have exact cuts and usable continuations. [Initial pilot/landing-target contention](#server-initial-contention): landing-target fixture ACCEPTED50cb617bd,2focused suites28assertions/all3OS0/clean; ordinary initial pilot-seat race remains implementation OPEN. [Isolated-link impairment](MOVING_INTERIOR_LATENCY.md#impaired-independent-baseline-capability) binds shared profile inputs and the missing launcher/endpoint/measurement capability; no craft×role×phase matrix or duplicate happy path. |
 | COMFORT-MOTION | Reuse accepted toast/damage episodes and the [eight fixed remaining source consumers/OFF–ON endpoints](#reduced-motion--finite-production-consumers). Codex implements ordinary input and observer support for one named uncovered consumer in the existing native-sortie owners, comparing that consumer's already-listed OFF/ON effects and retained transition/cold/Reset endpoints. Candidate/profile/absolute execution deadline freeze at selection. Source roster discovery is closed; missing intended behavior must be an explicit choice, not another survey. |
 | COMFORT-FLASH | Existing17-family membership/policy is fixed; shared native save/three-process/Reset is accepted. Codex implements one uncovered producer's normal input trigger and actual service/HUD observation through the existing native-sortie owners, comparing the already-listed effect endpoints; no new producer survey. |
 | COMFORT-COLOUR | [Finite remaining colour boundaries](#colour-cues--remaining-proof-ownership) bind live state changes, Pause/camera/Main transitions, original Settings return, rendered readability and physical-device observations. Accepted Tritanopia cold/Reset endpoint stays closed. Ordinary Guided caller7caea1fbb is PARKED unmerged after one typing correction: full flight/gameOS0/zero diagnostics but required STARTING endpoint absent (11/12); default regression NOT_RUN, no further correction/reopen selected. Source/private TAR/results verified archived and branch/worktree removed. Other ordinary assertions/selected rendered views remain Codex work; actual device access is separate. The available22-frame component capture is not a new registered capture gate or a new mandatory image count. |

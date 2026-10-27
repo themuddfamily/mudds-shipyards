@@ -70,6 +70,10 @@ The [real-client command gate](docs/ROADMAP_BACKLOG.md#server-command-proof-bind
 is delivered on5c5868645: five authenticated RPC cases,refusal-state preservation
 and exactly-once consumption,with all three actual peer exits0/clean diagnostics.
 Four focused local suites pass313assertions; this qualifies that source capability.
+The [landing-target contention fixture](docs/ROADMAP_BACKLOG.md#server-initial-contention)
+is delivered on50cb617bd: actual two-client reserve/refusal, winner abort and
+original-loser retry/commit; two focused suites pass with all three peer exits0
+and clean logs. Physical docking and ordinary initial pilot-seat contention remain open.
 
 ## How we will work from this roadmap
 
