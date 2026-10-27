@@ -14,6 +14,7 @@ const LEGACY_PATH := "memory://safe-audio-hud.cfg"
 
 var _assertions := 0
 var _failures: PackedStringArray = []
+var _real_main_failure_context: Dictionary = {}
 
 
 class ActionFilesystem extends UserDataFilesystem:
@@ -301,9 +302,10 @@ func _new_main_fixture() -> Dictionary:
 	settings.captions_enabled = true
 	settings.graphics_profile = SettingsType.GraphicsProfile.HIGH
 	settings.window_mode = SettingsType.WindowMode.FULLSCREEN
+	var original_typed: Dictionary = settings.to_user_data_payload().duplicate(true)
 	store.load()
 	var seeded: Dictionary = store.commit({
-		AdapterType.SETTINGS_PAYLOAD_KEY: settings.to_user_data_payload(),
+		AdapterType.SETTINGS_PAYLOAD_KEY: original_typed,
 		PolicyType.PAYLOAD_NAMESPACE: {
 			"schema_version": RecordType.SCHEMA_VERSION,
 			"record_generation": 3,
@@ -316,15 +318,34 @@ func _new_main_fixture() -> Dictionary:
 		"foreign_namespace": {"keep": ["unchanged", 42]},
 	}, 0, "safe-audio-hud-fixture")
 	_check(bool(seeded.get("accepted", false)), "real Main fixture publishes valid isolated authority")
-	var original: Dictionary = (store.get_snapshot()[AdapterType.SETTINGS_PAYLOAD_KEY] as Dictionary).duplicate(true)
+	var original_wire: Dictionary = (store.get_snapshot()[AdapterType.SETTINGS_PAYLOAD_KEY] as Dictionary).duplicate(true)
+	var foreign_wire: Dictionary = (store.get_snapshot().foreign_namespace as Dictionary).duplicate(true)
 	var main: GameFlow = MainScene.instantiate() as GameFlow
+	_real_main_failure_context = {
+		"main": main, "store": store, "filesystem": filesystem,
+		"original_typed": original_typed, "original_wire": original_wire,
+		"foreign_wire": foreign_wire,
+	}
 	main.set_physics_process(false)
 	_check(main.configure_runtime_settings_persistence(store, LEGACY_PATH), "real Main accepts isolated audio-action authority")
 	root.add_child(main)
 	main.set_physics_process(false)
 	await process_frame
 	await process_frame
-	return {"main": main, "filesystem": filesystem, "store": store, "original": original}
+	var hud: GameHUD = main.hud as GameHUD
+	var begin_shift: Button = hud.find_child("IntroBeginShiftButton", true, false) as Button
+	_check(begin_shift != null and begin_shift.is_visible_in_tree(), "real Main exposes the ordinary Begin Shift button before recovery actions")
+	if begin_shift != null:
+		begin_shift.pressed.emit()
+		await hud.start_requested
+	await process_frame
+	await process_frame
+	_check(main.phase != GameFlow.Phase.INTRO and (hud.get("_hud") as Control).is_visible_in_tree(), "ordinary Begin Shift completes its original intro tween and reveals the real HUD")
+	return {
+		"main": main, "filesystem": filesystem, "store": store,
+		"original_typed": original_typed, "original_wire": original_wire,
+		"foreign_wire": foreign_wire,
+	}
 
 
 func _press_recovery_button(hud: GameHUD, label: String) -> bool:
@@ -349,13 +370,15 @@ func _test_real_main_safe_audio_action() -> void:
 	var hud: GameHUD = main.hud as GameHUD
 	var filesystem: ActionFilesystem = fixture.filesystem as ActionFilesystem
 	var store: UserDataStore = fixture.store as UserDataStore
-	var original: Dictionary = fixture.original as Dictionary
+	var original_typed: Dictionary = fixture.original_typed as Dictionary
+	var original_wire: Dictionary = fixture.original_wire as Dictionary
+	var foreign_wire: Dictionary = fixture.foreign_wire as Dictionary
 	var report: Dictionary = main.get_safe_start_recovery_report()
 	var live_before: Dictionary = main.get_runtime_settings().to_user_data_payload()
 	_check(
 		bool(report.audio_fallback_available)
-		and live_before.values.master_volume == original.values.master_volume
-		and live_before.values.music_volume == original.values.music_volume
+		and live_before.values.master_volume == original_typed.values.master_volume
+		and live_before.values.music_volume == original_typed.values.music_volume
 		and (report.audio_recovery_receipt as Dictionary).is_empty(),
 		"real Main automatic graphics recovery leaves the complete audio profile untouched"
 	)
@@ -393,19 +416,32 @@ func _test_real_main_safe_audio_action() -> void:
 	)
 	var stale_result: Dictionary = main._handle_safe_start_recovery_intent(stale_intent)
 	_check(not bool(stale_result.accepted) and stale_result.reason == &"stale_recovery_fence", "a pre-stability audio intent cannot bypass the current report fence")
+	# Use the existing source publication to foreground this card, then let the
+	# normal containers finish sorting before measuring the three real actions.
+	var stable_cards: Dictionary = hud.get("_runtime_status_cards") as Dictionary
+	var stable_card: Dictionary = stable_cards.get(&"safe_start_recovery", {}) as Dictionary
+	hud.set_runtime_status_card(&"safe_start_recovery", stable_card.get("snapshot", {}) as Dictionary)
+	await process_frame
+	await process_frame
+	var geometry: Dictionary = _recovery_action_geometry(hud)
+	_check(bool(geometry.get("usable", false)), "all three real recovery actions are visible, focusable and enclosed by their actual panel and viewport", geometry)
 	var apply_intent: Dictionary = _intent(&"use_safe_audio", int(report.startup_generation), int(report.report_revision))
 	_check(_press_recovery_button(hud, "Use Safe Audio"), "stable real HUD button invokes the existing adapter transaction")
 	var applied: Dictionary = main.get_safe_start_recovery_hud_status()
 	var expected_safe: Dictionary = live_before.duplicate(true)
 	expected_safe.values.master_volume = 0.5
 	expected_safe.values.music_volume = 0.0
+	# UserDataStore's established JSON contract canonicalizes integer Variants
+	# to floats. Keep typed RuntimeSettings and persisted-wire oracles separate.
+	var expected_safe_wire: Dictionary = JSON.parse_string(JSON.stringify(expected_safe)) as Dictionary
 	_check(
 		bool(applied.accepted) and applied.reason == &"audio_fallback_applied"
 		and main.get_runtime_settings().to_user_data_payload() == expected_safe
-		and store.get_snapshot()[AdapterType.SETTINGS_PAYLOAD_KEY] == expected_safe
-		and store.get_snapshot().foreign_namespace == {"keep": ["unchanged", 42]}
+		and store.get_snapshot()[AdapterType.SETTINGS_PAYLOAD_KEY] == expected_safe_wire
+		and store.get_snapshot().foreign_namespace == foreign_wire
 		and int(store.get_snapshot().save_slots.alpha.progress) == 19,
-		"production HUD action persists only master 0.5/music 0 and preserves all other preferences and foreign namespaces"
+		"production HUD action persists only master 0.5/music 0 and preserves all other preferences and foreign namespaces",
+		{"applied": applied, "typed_expected": expected_safe, "wire_expected": expected_safe_wire, "foreign_expected": foreign_wire}
 	)
 	var expected_buses: Dictionary = main.get_runtime_settings().get_audio_bus_levels_db()
 	var live_mix_matches: bool = true
@@ -423,17 +459,19 @@ func _test_real_main_safe_audio_action() -> void:
 	_check(_press_recovery_button(hud, "Restore Previous Graphics And Audio"), "stable existing Restore button includes both real saved profiles")
 	_check(
 		main.get_safe_start_recovery_hud_status().reason == &"restore_completed"
-		and store.get_snapshot()[AdapterType.SETTINGS_PAYLOAD_KEY] == original
-		and main.get_runtime_settings().to_user_data_payload() == original
+		and store.get_snapshot()[AdapterType.SETTINGS_PAYLOAD_KEY] == original_wire
+		and main.get_runtime_settings().to_user_data_payload() == original_typed
 		and bool(main.get_safe_start_recovery_report().audio_recovery_receipt.consumed)
 		and bool(main.get_safe_start_recovery_report().graphics_recovery_receipt.consumed),
-		"existing Restore returns both prior profiles durably and consumes both receipts"
+		"existing Restore returns both prior profiles durably and consumes both receipts",
+		{"typed_expected": original_typed, "wire_expected": original_wire}
 	)
 	report = main.get_safe_start_recovery_report()
 	var writes_after_restore: int = filesystem.write_count
 	var replay_restore: Dictionary = main._handle_safe_start_recovery_intent(_intent(&"restore", int(report.startup_generation), int(report.report_revision)))
 	var replay_audio: Dictionary = main._handle_safe_start_recovery_intent(_intent(&"use_safe_audio", int(report.startup_generation), int(report.report_revision)))
 	_check(not bool(replay_restore.accepted) and not bool(replay_audio.accepted) and filesystem.write_count == writes_after_restore, "completed recovery cannot restore or reapply audio through a fresh intent")
+	_real_main_failure_context.clear()
 	main.free()
 	await process_frame
 
@@ -472,6 +510,7 @@ func _test_real_main_audio_user_edits_and_keep_safe() -> void:
 		and not (hud.get("_runtime_status_cards") as Dictionary).has(&"safe_start_recovery"),
 		"Keep Safe remains presentation-only and fences later audio actions for this startup"
 	)
+	_real_main_failure_context.clear()
 	main.free()
 	await process_frame
 
@@ -489,13 +528,57 @@ func _intent(action: StringName, generation: int, revision: int) -> Dictionary:
 	}.duplicate(true)
 
 
-func _check(condition: bool, message: String) -> void:
+func _recovery_action_geometry(hud: GameHUD) -> Dictionary:
+	var panel: PanelContainer = hud.get("_runtime_status_panel") as PanelContainer
+	var actions: HBoxContainer = hud.get("_runtime_status_actions") as HBoxContainer
+	var panel_rect: Rect2 = panel.get_global_rect()
+	var viewport_rect: Rect2 = hud.get_viewport().get_visible_rect()
+	var usable: bool = panel.is_visible_in_tree() and actions.get_child_count() == 3
+	var buttons: Array[Dictionary] = []
+	for child: Node in actions.get_children():
+		var button: Button = child as Button
+		if button == null:
+			usable = false
+			continue
+		var rect: Rect2 = button.get_global_rect()
+		var visible: bool = button.is_visible_in_tree()
+		var focusable: bool = button.focus_mode == Control.FOCUS_ALL and not button.disabled
+		var panel_encloses: bool = panel_rect.encloses(rect)
+		var viewport_encloses: bool = viewport_rect.encloses(rect)
+		usable = usable and visible and focusable and rect.has_area() and panel_encloses and viewport_encloses
+		buttons.append({
+			"label": button.text, "rect": rect, "visible": visible,
+			"focusable": focusable, "panel_encloses": panel_encloses,
+			"viewport_encloses": viewport_encloses,
+		})
+	return {"usable": usable, "panel": panel_rect, "viewport": viewport_rect, "buttons": buttons}
+
+
+func _check(condition: bool, message: String, operands: Dictionary = {}) -> void:
 	_assertions += 1
 	if not condition:
-		_failures.append(message)
+		var actual: Dictionary = operands.duplicate(true)
+		if not _real_main_failure_context.is_empty():
+			var main: GameFlow = _real_main_failure_context.get("main") as GameFlow
+			var store: UserDataStore = _real_main_failure_context.get("store") as UserDataStore
+			if is_instance_valid(main):
+				actual["phase"] = main.phase
+				if main.get_runtime_settings() != null:
+					actual["typed_live"] = main.get_runtime_settings().to_user_data_payload()
+				actual["report"] = main.get_safe_start_recovery_report()
+				actual["hud_status"] = main.get_safe_start_recovery_hud_status()
+				if is_instance_valid(main.hud):
+					actual["geometry"] = _recovery_action_geometry(main.hud as GameHUD)
+			if store != null:
+				actual["wire_store"] = store.get_snapshot()
+			actual["original_typed"] = _real_main_failure_context.get("original_typed")
+			actual["original_wire"] = _real_main_failure_context.get("original_wire")
+			actual["foreign_wire"] = _real_main_failure_context.get("foreign_wire")
+		_failures.append(message + "\nACTUAL OPERANDS: " + var_to_str(actual))
 
 
 func _finish() -> void:
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	if _failures.is_empty():
 		print(
 			"GAME_FLOW_SAFE_START_RECOVERY_HUD_INTEGRATION_TEST_OK (%d assertions)"
