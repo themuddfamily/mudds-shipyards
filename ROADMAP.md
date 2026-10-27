@@ -296,6 +296,35 @@ bound, including review/checks/commit/push. Only these two docs changed; no bran
 worktree/scratch/engine/CI/checkpoint created. Craft approval remains pending;
 no production implementation is active.
 
+**Active — Phase9/FINAL-RECONCILE production Safe Audio recovery action.**
+Original source-binding start2026-10-27 07:37:14UTC ataba3be017 stays charged.
+Source proves the audio fallback API/binding has no normal production apply caller;
+graphics recovery and stable Restore already exist. Deliver an explicit Use Safe
+Audio action on the existing recovery card, using current startup/revision fences
+and the existing settings adapter: master0.5/music0, other settings/foreign data
+preserved. Automatic graphics recovery must continue preserving audio. Availability
+uses the current recommendation, or this startup's still-active unconsumed graphics
+fallback after STABLE; never a new unrestricted volume setter. User can act after
+the5-physics-second stability window; existing Restore returns both saved profiles
+once only, and intervening user edits must not be overwritten. Keep Safe, stale/
+replayed actions, refused/corrupt/newer writes retain their existing safeguards.
+One implementation agent owns recovery/presenter/GameFlow plus existing relevant
+tests; root owns docs/checks/export/integration/checkpoint/cleanup. No parked retry.
+Proof: clean source import/parsing and four focused existing recovery/presenter/HUD/
+audio-binding suites at original300s each; actual Main + real HUD action + actual
+adapter persistence/refusal/preserved settings; fresh paired clean exports, strict
+Windows-payload/Linux direct/archive startups (actual0 + one ready marker), complete
+payload parity/source/archive checks. All automated Godot uses Dummy/headless or
+owned Xvfb/x11. Audible/native/device/full release remain NOT_RUN. PASS delivers
+player-visible action and fresh EXE/checkpointZIP/notes in builds/windows/.
+Estimate45minutes including checks/build/integration/cleanup; hard stop09:07:14UTC
+(90minutes from original source binding), last15minutes reserved for closure.
+Total correction allowance one across source/review/test/build; after its validation,
+any further failure is terminal PARK, no same-run reopening/deadline extension.
+Before each launch, its full original cap plus closure must fit. Missing required
+proof means no acceptance; preserve unique unmerged source and exact ownership
+before cleanup. Commit/push accepted work, remove owned branch/worktree/scratch.
+
 **PLAN-NEXT remains OPEN.** A remaining row with an unresolved Codex-owned
 acceptance field is unfinished planning, not an executable task. No runtime trial
 is selected by this documentation update.
