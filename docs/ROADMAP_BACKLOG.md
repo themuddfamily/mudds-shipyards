@@ -254,6 +254,7 @@ separate and must not be marked done by the decision.
 | RECOVERY-POLICY-DEFENSE | Same fields for active wave/health/objective/timer | Same finite policy artifact; terminal-only saves are not scope approval |
 | RECOVERY-POLICY-BREACH | Same fields for active encounter/objective/timer | Same finite policy artifact |
 | RECOVERY-POLICY-TORPEDO | Same fields for active boat/seeker encounter/objective/timer | Same finite policy artifact |
+| REPEAT-PATROL | Repetition membership: ten relay_sweep successes, ten platform_sweep successes, or ten successes on EACH branch | User chooses one of those exact alternatives; question pending2026-10-27. Existing PLAY-PATROL still requires both first-play branches. [Shared reset/receipt/census/limit contract](#patrol-ten-run-contract) is fixed independently; no inferred answer, platform reopening or execution. |
 | CARGO-REPLENISH-JOVIAN | Legitimate same-world source/refill trigger, conserved source/destination counts, capacity/refusal, and a normal ten-delivery route | User settles product policy; Codex implements/proves it. Existing six kits fund only three two-kit deliveries |
 | CARGO-REPLENISH-CINDER | Legitimate shared-stock refill AND destination turnover; source/sink/trigger/conservation/capacity; normal ten-transfer route | Same. Existing two crates/destination capacity8 cannot prove ten; rebinding/reset cannot mint stock |
 | PERF-MINIMUM / PERF-TARGET / PERF-ROUTES-DEFINE / PERF-CELLS-DEFINE | Actual included machine/OS/CPU/RAM/GPU/driver/isolated-session access; per-profile GPU p95/max-ms and dedicated-process VRAM-byte ceilings; per-world loaded/resident-byte ceilings; minimum completed canonical-cycle count and elapsed interval | User supplies these exact missing resources/values in the [fixed performance contract](#performance-machine-cells). Workloads/commands/existing limits are source-bound; network values reuse NET-ENDURANCE-DEFINE. Codex owns native collection and three journey repeat implementations, not another benchmark framework. No run or source result is inferred from a resource answer. |
@@ -4456,7 +4457,7 @@ test is an owner/regression anchor, not a runnable ordinary route.
 | REPEAT-BEACON | Ten same-world traversals of all four authored beacons in order, accepted payment/reset and usable next run | 13 | Qualification | PARKED/NOT_DELIVERED after two full attempts. First425.713s native: one paid full home/census, then leg2 original300s cap/cursor3. Cause-supported external Resume mouse-pending correction0029b8daf passes253 tests; unchanged da6d539 game reused. Corrected335.727s native/336.134s wrapper: two paid complete homes/two matching censuses, then original12s reboard-clear walk entering leg3. Later cause NOT_ESTABLISHED; no third trial/investigation/repair/cap increase. [Frozen contract](#beacon-repetition--selected-ordinary-input-capability), [failure/archive/cleanup](history/ROADMAP_DELIVERIES.md#beacon-repetition-two-attempt-stop-20261026). Reopen only demonstrated later-walk cause plus independent cumulative-priority review; original14:58:50UTC/90min cost retained. Source/private exports verified archived before exact branch/worktree deletion; candidate remains unmerged. | [Activity repeat](#proof-activity): ten legitimate completions in one retained world. All four authored beacons traversed physically in order; retain the settled outbound≤60s limit. Each completion has exactly one durable payment, accepted reset and usable next start. Compare the frozen equivalent-phase actor/registration/pool/observer/objective counters with their baseline: no growth; retain legitimate receipt/generation increments separately. Freeze the exact route, counters and original limits before running; absent bindings remain BLOCKED definition. |
 | REPEAT-SCAN | Ten same-world scans from actual approach, full four-second physics scan, existing payment/discovery/reset and usable next run | 13 | Qualification | BLOCKED definition — Codex must freeze the existing ten-same-world-success route, unchanged per-run deadlines, finite equivalent-phase resource counters/baselines and legitimate receipt/generation growth. Pass requires zero growth in those retained resource counts after equivalent cleanup phases; Codex binds the counters and baseline, without inventing a leak allowance or asking the user for one. Estimate total execution from ten measured complete cycles plus travel/cleanup; no new whole-route deadline. Only this activity’s named PLAY, cargo-policy or rotation prerequisites apply. Prerequisites/retained scope: PLAY-SCAN and frozen resource-baseline/deadline contract; existing full Scan failure remains PARKED, no retry selected | [Activity repeat](#proof-activity): ten legitimate completions in one retained world. Actual approach≤24m followed by four real scan seconds. Each run preserves the existing discovery/payment authority, accepted reset and usable next start; entitled receipts settle once, with no duplicate discovery reward. Compare the frozen equivalent-phase actor/registration/pool/observer/objective counters with their baseline: no growth; retain legitimate receipt/generation increments separately. Freeze the exact route, counters and original limits before running; absent bindings remain BLOCKED definition. |
 | REPEAT-THREADING | Ten five-gate Asteroid Threading completions with accepted payment/reset | 13 | Qualification | BLOCKED definition — Codex must freeze the existing ten-same-world-success route, unchanged per-run deadlines, finite equivalent-phase resource counters/baselines and legitimate receipt/generation growth. Pass requires zero growth in those retained resource counts after equivalent cleanup phases; Codex binds the counters and baseline, without inventing a leak allowance or asking the user for one. Estimate total execution from ten measured complete cycles plus travel/cleanup; no new whole-route deadline. Only this activity’s named PLAY, cargo-policy or rotation prerequisites apply. Prerequisites/retained scope: PLAY-THREADING and measurement/deadline freeze; source reset/save coverage retained | [Activity repeat](#proof-activity): ten legitimate completions in one retained world. Actual start≤30m and five physical gates in order, preserving collision-before-progress behavior. Each completion has exactly one durable payment, accepted reset and usable next start. Compare the frozen equivalent-phase actor/registration/pool/observer/objective counters with their baseline: no growth; retain legitimate receipt/generation increments separately. Freeze the exact route, counters and original limits before running; absent bindings remain BLOCKED definition. |
-| REPEAT-PATROL | Ten ordered station-keeping patrol completions on the frozen authored branch, then usable next start | 13 | Qualification | BLOCKED definition — Codex must freeze the existing ten-same-world-success route, unchanged per-run deadlines, finite equivalent-phase resource counters/baselines and legitimate receipt/generation growth. Pass requires zero growth in those retained resource counts after equivalent cleanup phases; Codex binds the counters and baseline, without inventing a leak allowance or asking the user for one. Estimate total execution from ten measured complete cycles plus travel/cleanup; no new whole-route deadline. Only this activity’s named PLAY, cargo-policy or rotation prerequisites apply. Prerequisites/retained scope: complete PLAY-PATROL (relay DONEc3d369e0f; platform still open) and measurement/deadline freeze; record relay/platform branch explicitly; one branch does not qualify the other. Branch membership is BLOCKED definition (Codex): bind the original repeat requirement to relay_sweep/platform_sweep. If the original specification does not settle one versus both, record that exact product choice for the user before execution; do not choose from run results or invent another repeat requirement. | [Activity repeat](#proof-activity): ten legitimate completions in one retained world for each branch required by the recorded membership. Five ordered checkpoints with2s continuous holds; freeze whether relay_sweep, platform_sweep or both are required before execution. Each completion has exactly one durable payment, accepted reset and usable next start. Compare the frozen equivalent-phase actor/registration/pool/observer/objective counters with their baseline: no growth; retain legitimate receipt/generation increments separately. Freeze the exact route, counters and original limits before running; absent bindings remain BLOCKED definition. |
+| REPEAT-PATROL | Ten ordered station-keeping patrol completions on the frozen authored branch, then usable next start | 13 | Qualification | [Fixed Patrol repeat contract](#patrol-ten-run-contract) binds physical reboard reset/start,odd successful generations1…19/idle20,ten exact branch receipts,full homes/next-start/normal exit,finite raw equivalent-phase census and original300s cycles/derived3000s aggregate. Ordinary loop/observer remains missing implementation. User branch choice (relay/platform/both) is pending; PLAY-PATROL/platform causal gate remains open. No Beacon/Race/platform/UI retry or new branch membership inferred. | [Activity repeat](#proof-activity): ten legitimate completions in one retained world for each branch required by the recorded membership. Five ordered checkpoints with2s continuous holds; freeze whether relay_sweep, platform_sweep or both are required before execution. Each completion has exactly one durable payment, accepted reset and usable next start. Compare the frozen equivalent-phase actor/registration/pool/observer/objective counters with their baseline: no growth; retain legitimate receipt/generation increments separately. Freeze the exact route, counters and original limits before running; absent bindings remain BLOCKED definition. |
 | REPEAT-JOVIAN-KIT | Ten real two-kit delivery/paid reset cycles without invented stock | 13 | Qualification | BLOCKED definition — Codex must freeze the existing ten-same-world-success route, unchanged per-run deadlines, finite equivalent-phase resource counters/baselines and legitimate receipt/generation growth. Pass requires zero growth in those retained resource counts after equivalent cleanup phases; Codex binds the counters and baseline, without inventing a leak allowance or asking the user for one. Estimate total execution from ten measured complete cycles plus travel/cleanup; no new whole-route deadline. Only this activity’s named PLAY, cargo-policy or rotation prerequisites apply. Prerequisites/retained scope: legitimate stock replenishment/cycling policy and measurement/deadline freeze; initial6 kits only fund3 deliveries, KIT-RELOAD stays PARKED | [Activity repeat](#proof-activity): ten legitimate completions in one retained world. Actual departure, strict landing and transfer of exactly two kits per delivery; require the recorded CARGO-REPLENISH-JOVIAN policy and conserved source/destination counts. Each completion has exactly one durable payment, accepted reset and usable next start. Compare the frozen equivalent-phase actor/registration/pool/observer/objective counters with their baseline: no growth; retain legitimate receipt/generation increments separately. Freeze the exact route, counters and original limits before running; absent bindings remain BLOCKED definition. |
 | REPEAT-CINDER-SUPPLY | Ten real one-crate platform delivery/paid reset cycles without invented stock | 13 | Qualification | BLOCKED definition — Codex must freeze the existing ten-same-world-success route, unchanged per-run deadlines, finite equivalent-phase resource counters/baselines and legitimate receipt/generation growth. Pass requires zero growth in those retained resource counts after equivalent cleanup phases; Codex binds the counters and baseline, without inventing a leak allowance or asking the user for one. Estimate total execution from ten measured complete cycles plus travel/cleanup; no new whole-route deadline. Only this activity’s named PLAY, cargo-policy or rotation prerequisites apply. Prerequisites/retained scope: PLAY-CINDER-SUPPLY, stock/capacity policy and measurement/deadline freeze; initial source2/destination capacity8; approved shared Jovian/Hauler custody is retained; legitimate replenishment/destination turnover remains unresolved | [Activity repeat](#proof-activity): ten legitimate completions in one retained world. Actual platform terminal transfer of exactly one conserved crate per delivery; require CARGO-REPLENISH-CINDER refill/turnover policy, source/destination counts and duplicate refusal. Each completion has exactly one durable payment, accepted reset and usable next start. Compare the frozen equivalent-phase actor/registration/pool/observer/objective counters with their baseline: no growth; retain legitimate receipt/generation increments separately. Freeze the exact route, counters and original limits before running; absent bindings remain BLOCKED definition. |
 | REPEAT-MINING | Ten real six-second extractions, each acknowledged once and reset durably | 13 | Qualification | BLOCKED definition — Codex must freeze the existing ten-same-world-success route, unchanged per-run deadlines, finite equivalent-phase resource counters/baselines and legitimate receipt/generation growth. Pass requires zero growth in those retained resource counts after equivalent cleanup phases; Codex binds the counters and baseline, without inventing a leak allowance or asking the user for one. Estimate total execution from ten measured complete cycles plus travel/cleanup; no new whole-route deadline. Only this activity’s named PLAY, cargo-policy or rotation prerequisites apply. Prerequisites/retained scope: PLAY-MINING and measurement/deadline freeze; capacity receipt is not ore/currency inventory | [Activity repeat](#proof-activity): ten legitimate completions in one retained world. Actual approach≤30m and six real extraction seconds per completion; require the existing once-only capacity acknowledgement rather than invented ore/currency. Each completion has exactly one capacity acknowledgement, accepted reset and usable next start. Compare the frozen equivalent-phase actor/registration/pool/observer/objective counters with their baseline: no growth; retain legitimate receipt/generation increments separately. Freeze the exact route, counters and original limits before running; absent bindings remain BLOCKED definition. |
@@ -6383,6 +6384,118 @@ No automatic retry. Source/results of a failure remain attached to this same
 outcome and clock. Fresh accepted playable artifacts stay in builds/windows and
 builds/linux, and an opt-in diagnostic/release result must not be described as a
 new player mechanic or native-device/final-project qualification.
+
+<a id="patrol-ten-run-contract"></a>
+### Patrol repetition — fixed reset, durable result and resource comparison
+
+Definition2026-10-27, source92af089a0,17:49–18:14UTC through source review,
+checks,commit/push/cleanup. Existing REPEAT-PATROL only; no run,production repair,
+new goal or parked retry selected. Beacon/Race repeat definitions remain closed.
+**Branch input UNBOUND:** user was asked whether repetition requires relay_sweep,
+platform_sweep or both. Do not infer approval from elapsed time. If both are
+chosen,each needs its own ten-success count; ten mixed runs do not pass either.
+PLAY-PATROL still requires both first-play branches: accepted relay scope stays
+closed,platform remains PARKED at its original300s quit_wait failure and causal
+reopening gate. This definition does not waive that prerequisite.
+
+**Start/actions.** Freeze exact candidate/package,selected branch,private profile
+and fresh external result/raw-log paths before any later selection. Retain one
+Main/world/Player/Torrent and ordinary production owners across ten cycles for
+that branch. Use existing `PatrolRelayHomePilot`'s genuine Guided prelude,physical
+reboarding,Activity Board branch selection and original safe-header departure;
+platform uses its existing authored branch/retained full-route definition once
+its prerequisite is accepted. Each actual route has five ordered checkpoints
+with120 consecutive60Hz ticks/two seconds of actual station keeping each,
+real payment,full original home waypoints/strict occupied lease,90 neutral
+OFFLINE samples,physical exit and supported clear walk. Later cycles depart in
+legitimate FREE_FLIGHT without replaying Guided targets. No teleport,checkpoint/
+position submission,actor replacement,retiming,synthetic payment or reset call.
+
+**Reset/start is physical.** After each terminal home,accepted ordinary boarding
+invokes GameFlow `_reset_terminal_activity_for_next_sortie`; it crosses
+`reset_active_activity`→PatrolActivity `reset_with_persistence`. Pending payment
+must settle before reset. Next ordinary departure calls
+`_start_default_free_flight_activity`→`request_activity_start`→Patrol start.
+No fictional pause-board Reset button or direct Director start/reset is required.
+For one fresh fixed-branch session,successful generations are1,3,…19; accepted
+idle resets2,4,…20. Session and Director generations agree,cursor resets0 and
+old actor binding retires. Last physical reboard after tenth full home must leave
+idle20,cursor0,unbound activity actor,occupied dock/OFFLINE and usable next
+ordinary departure,with no eleventh launch or payment. If a genuinely retained
+starting fixture has prior generation/payment,freeze its exact baseline and
+apply idle baseline G→success G+1,G+3,…G+19→idle G+20 and exactly ten
+additional receipts; never edit it into a fresh state.
+
+**Durable pass.** Every completion adds exactly one generation-matching receipt:
+activity `cinder_relay_patrol` or `cinder_platform_patrol`,reward
+`return_patrol_log_to_shipyard`. Independent actual primary reads and live
+reward authority must agree at completion/accepted reset/home/final readiness;
+fresh branch totals1…10 and final ledger10,not duplicate acknowledgements.
+`cinder_patrol_session` has its existing schema1 session envelope/schema2 Patrol
+capture; preserve its existing paid/debt and branch fields. Global store generation
+must advance legitimately,not by a fabricated fixed increment: unrelated normal
+saves share that owner. Freeze/protect unrelated payload siblings using the
+existing PatrolRelayHomeFiles contract; admit only named actual ordinary
+session/safe-home/tutorial/selection changes. End through normal HUD Quit,
+actualOS0,zero diagnostics and both durable clean markers. Exact source/private
+profile/actor/receipt identities stay attached to the same ten-run result.
+
+**Finite equivalent-phase census.** Baseline is the first completed Patrol home
+after the existing physical clear walk and90OFFLINE samples,with the same
+streamed residency/settling. Homes2–10 compare at that exact terminal-home phase,
+before their reboard reset. Final idle20 readiness has its own idle invariants;
+do not compare unlike terminal/idle snapshots as if they were equivalent.
+Keep fixed Main/world/Player/fleet identities. After initial ordinary family/
+branch adoption,retain the same PatrolActivity,ActivityDirector,reward authority/
+store and local input-source instance IDs across all ten cycles. Reset releases
+the previous actor binding and frees temporary staging owners; it does not
+replace the live PatrolActivity. Read these raw fields without
+pruning getters,clearing arrays or scene mutation:
+
+- Main descendants and Boot-sibling diagnostic observers: counts by built-in
+  class and script path,including objective/checkpoint/effect/observer nodes.
+- `flyable_ships` group/GameFlow `ships` membership; combat authority
+  `_registrations_by_instance` and resolver `_source_registry` cardinality.
+- ActivityDirector `_definitions`/`_activities` cardinality and actual ACTIVE
+  objective IDs; completed-home has no stranded active Patrol objective.
+- TravellingBoltProjectile/SeekerTorpedoProjectile `_slots` lengths and active
+  flags; no newly retained slot or live flight after equivalent cleanup.
+- NearbySectorActivityBinding `_race_presentation_consumers`,
+  `_patrol_presentation_consumers`,`_mining_presentation_consumers`,
+  `_structure_scan_presentation_consumers`,`_beacon_traversal_presentation_consumers`,
+  `_asteroid_run_presentation_consumers` lengths.
+- Sorted location keys of `cinder_streaming_bootstrap._coordinator._loaded`.
+
+Each count must have zero positive growth relative to that baseline,with equal
+streamed location keys and correct fixed membership/identities. Legitimate
+receipt/generation/session/history advancement is separate,not a resource leak
+or permission to exempt retained nodes/registrations. Missing/unmatched census
+state blocks the claim; no invented tolerance. The archived Beacon helper at
+0029b8daf is unmerged source only,not current callable support; reuse its bounded
+readback approach without Beacon's Convoy-selection condition. It does not cover
+Picket presentation arrays; no such coverage is claimed or newly required here.
+
+**Limits and missing implementation.** Each complete cycle retains its original
+300s cap and existing stricter walking/alignment/home bounds. Cycle1 includes
+Guided/startup; cycle10 includes final readiness reboard and normal UI exit.
+Derived independent aggregate abort is3000s per selected branch: ten unchanged
+300s cycles,with one monotonic start/elapsed record and no stage retry or time
+transfer. This is not the new900s craft integration mode. Beacon's60s outbound
+limit does not apply to Patrol. Selecting both branches requires two bounded
+execution assignments,not a renamed100-minute game run inside a90-minute task.
+Existing actual first-play/correction costs and parked gates remain attached.
+
+Codex must extend only the existing native-sortie driver/file checks and focused
+Python test,read-only native-sortie observer and private startup admission/privacy
+check if needed. Current patrol-relay-home accepts only generation1/payment1/home
+once; it is not a ten-run command. Add one opt-in bounded retained-world loop,
+correct branch-specific start/reset/debt/receipt handling and the census above;
+keep default/first-play callers unchanged. Proposed selector syntax is not an
+implemented command. Implementation and actual qualification remain OPEN; branch
+membership remains the user's exact pending input. A future assignment includes
+focused checks,required clean-source playable checkpoint,isolated package checks,
+review/integration/cleanup inside≤90min with one correction/first-failure stop.
+No export,engine,hardware,hosted CI or parked UI/platform investigation ran here.
 
 ### Activity repetition — remaining nine definitions
 
