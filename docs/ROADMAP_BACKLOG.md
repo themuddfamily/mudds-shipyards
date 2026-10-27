@@ -5071,6 +5071,17 @@ Accepted source waits for this automatic SURFACE_OUTBOUND transition. Only that
 clause is corrected; all other endpoints/controls/continuity/caps remain. No
 runtime policy change, extra input or failed-test acceptance relaxation.
 
+**One coordinate continuation approved before restore/correction,04:08UTC.**
+Independent cumulative review chooses actual viewport/window mouse conversion
+and two-scale regressions over switching: exact1.25 cause proved,37.695minutes
+already charged, about52minutes remain. Revise only source preparation cutoff
+04:05→04:11; native launch still before04:14, original1800/outer1860, finish by
+04:45/final15minute closure and05:00 hard remain. No hardcoded ratio, runtime/
+acceptance change or fresh budget. Reuse archived PCK only if embedded observer
+bytes match; otherwise one clean export/startup. Review corrected source before
+focused checks/one corrected native attempt. Missed cutoff or next unexpected
+failure is terminal PARK/no further correction/run. Prior source/stops retained.
+
 **Terminal result: PARKED at native UI coordinate mismatch.** Corrected Python
 309/15.884s, import22.024s, observer parse17.422s, privacy2.687s, private export
 43.308s and actual archive startup25.431s/exit0/exactone marker all pass.
