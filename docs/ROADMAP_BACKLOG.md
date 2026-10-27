@@ -3598,7 +3598,7 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | ROLE-CINDER-LOADMASTER | Cinder loadmaster ordinary moving-crew lifecycle | 16,24 | Qualification | [Shared Cinder role contract](#cinder-crew-contract) binds exact chair/actors, ready manifest, unchanged cargo, stand/reseat/migration/disconnect and separate host-flight selector. BLOCKED definition/implementation (Codex): ordinary exterior entry/exit, remote-role moving/return/loss caller and aggregate limit; readiness plus actual conserved transfer integration remains unqualified. Shared-stock policy is settled; no new cargo authority inferred. | [Literal Loadmaster endpoint](#cinder-crew-contract): normal FIRE marks cinder_cabin_manifest/cinder_cargo_port_aperture ready on current host chair; unchanged finite stock during readiness, actual transfer through existing cargo owner, supported release/reseat and bound moving/loss recovery. Manifest-only proof cannot close cargo play. |
 | ROLE-CINDER-NAVIGATOR | Cinder navigator ordinary moving-crew lifecycle | 16,24 | Qualification | [Shared Cinder role contract](#cinder-crew-contract) binds exact chair/actors, remapped FIRE sensor hint, authenticated request feedback, clear/reseat/migration/disconnect and in-process recovery. Reuse accepted c2c72a223 refusal journey, not another unchanged run. BLOCKED definition/implementation (Codex): ordinary exterior entry/exit, remote-role moving/return/loss caller and aggregate limit. No additional role/craft combination. | [Literal Navigator endpoint](#cinder-crew-contract): current authenticated chair FIRE produces cinder_navigator_console sensor hint, requester-only feedback for every fresh authenticated rejection, clear on release and usable handback. Navigation hints confer no movement/cargo/combat authority; bind remaining ordinary moving/exit/recovery cases before execution. |
 | NET-SEATS-FINAL | Final-candidate promotion/seat ledger/berth handback/stale refusal | 16 | Container | Membership/commands FIXED by [the five existing proof owners](#final-seat-ledger--fixed-case-ownership); GATED on exact final candidate and its original source-matrix/ordinary race results. Transaction fixtures are not physical crew journeys. Reuse SERVER-BASELINE-SEAT-RACE once and preserve its300s global/360s outer plus original transition/walk/exit bounds. Eight ROLE children retain their own exact physical-action/moving/loss bindings; no additional seat permutations, unchanged retry or standalone run selected. | Final candidate actual promotion/berth/handback/contention and stale/duplicate/foreign refusals preserve one occupant and supported controls; reuse delivered authority. |
-| NET-POSE-DEFINE | Uncovered supported craft/engine/motion/landing-view cells | 17 | Definition | BLOCKED definition for remaining coverage — Codex must freeze only uncovered craft/engine/throttle/motion/landing view IDs, current/late recipient and expected consumer values; delivered Jovian instruments/projection retained. No all-craft matrix is inferred. Bounded Jovian source comparison DONE: concrete physical throttle instrument consumer gap; broader cells remain unqualified | Finite uncovered actual craft/engine/throttle/motion/landing view list with current/late-recipient expectation and production consumer; exclude delivered projection. |
+| NET-POSE-DEFINE | Uncovered supported craft/engine/motion/landing-view cells | 17 | Definition | [Presentation field contract](#remote-presentation-contract) binds the nine-craft source roster, exact HUD/instrument/renderer consumers and current/late proof scopes. Delivered projections remain closed. One named ordinary Halyard late-join presentation case reuses SERVER-BASELINE-LATE-JOIN; rendered observer/camera/receipt support and its original-cap integration remain Codex-owned implementation/definition. No nine-craft×state matrix, unchanged source rerun or invented defect selected. | [Literal remaining observations](#remote-presentation-contract): actual current pilot/late Halyard observer preserve correct eligibility/host facts during departure, strict dock and crew continuation; normal rendered exhaust/canopy/readout observation remains distinct from staged property tests. Bind missing camera/output/observer and exact original route limit before execution. |
 | NET-OPERATION-HUD | Gameplay HUD engine/throttle follows eligible accepted host operation facts; local pilot prediction/raw authority retained | 17 | Capability | DONEda1ae60; exact old3 failures, pose175/real-peer354, paired exports/three strict startups/actual1515-entry audit. No simulation/wire changes; parent 17 OPEN | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | NET-HULL-HUD | Gameplay HUD bar/frame projects existing authoritative hull/maximum/status; raw simulation telemetry remains local | 21 | Capability | DONE7be348d62; exact old2 HUD failures, fixed pose140/real-peer272, paired exports/three strict startups/actual1515-entry audit. Raw simulation authority preserved; parent21 OPEN | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | NET-HULL-INSTRUMENTS | Physical remote hull gauge reflects existing authoritative health; damage/destruction/new-life/solo-clear | 21 | Capability | DONE24430b7c1; old2 failures reproduced, pose121/real-peer250 and fresh paired24430b7 with3strict startups/actual1515-entry audit. Parent21 OPEN, no wire change | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
@@ -4824,6 +4824,114 @@ Scope: all twelve original §4 outcomes and retained ordinary-remote-crew milest
 | WORLD-SHARED[one world/case] | GATED on supported crew/profile and baseline dependencies | Ordinary independent remote crew completes the selected canonical case, including actual outbound/return, activity/reward/save and appropriate usable recovery. Preserve focused 300s/canonical 900s and physical landing 120s where specified. Stop at one matrix cell. |
 
 WORLD-SHARED instances: **Ember, Aurora, Rime**, each with **baseline full outbound/return, late join, disconnect/reconnect, pilot loss, cancellation, real interruption, repeat visit**. Each cell is a separate task and must name participants, initial state, ordinary-input route and durable reward/return criteria before execution. The baseline includes activity and save behavior; failure cases do not inherit a staged baseline. Use existing `tests/network/halyard_network_shared_planetary_cruise_test.gd` and applicable world/landing tests. Missing exact case coverage blocks the corresponding existing SHARED row until Codex records its finite case contract; it does not authorize a new child or claim that the anchor already covers it.
+
+<a id="remote-presentation-contract"></a>
+
+### Remote engine, throttle, motion and landing — remaining presentation boundary
+
+NET-POSE-DEFINE reuses NET-OPERATION-HUD, NET-THROTTLE-INSTRUMENTS and
+NET-FULL-SNAPSHOT, plus NET-HULL-HUD in its existing parent21 scope. Their
+accepted source projections are not new tasks. Current all-nine source roster,
+sorted by GameFlow `get_ship_id()`, is the finite retained fleet below. Existing
+station-frame fixture sets throttle `(0.15 + index*0.07)` with alternating sign;
+these are staged source inputs, not nine new ordinary journeys or required
+craft-specific test copies.
+
+| Actual ship ID / existing receiver | Staged throttle input | Source observation disposition |
+| --- | ---: | --- |
+| arrow_provisional | +.15 | Current/late fleet operation HUD and hull gauge checked; physical throttle uses shared HeroShip consumer. |
+| bulwark_heavy_gunship | −.22 | Same shared source boundary. |
+| cinder_cargo_hauler | +.29 | Same shared source boundary. |
+| cinder_light_interceptor | −.36 | Same shared source boundary. |
+| cinder_long_range_bomber | +.43 | Same shared source boundary. |
+| halyard_new_design | −.50 | Same fleet boundary; dedicated Halyard proxy pose/ownership and staged-approach host landing proof also exist. |
+| jovian_provisional | +.57 | Fleet boundary plus separately accepted signed physical throttle/current-late/clear proof8f17b0241. |
+| torrent_provisional | −.64 | Same shared source boundary; dedicated Torrent engine/exhaust/canopy observations also exist. |
+| zenith_b7_observed | +.71 | Same shared source boundary. |
+
+**Literal consumer values.** HeroShip's
+`get_network_operation_telemetry_presentation()` supplies eligible observer
+engine/throttle; destroyed displays OFFLINE and non-ONLINE displays throttle0.
+GameFlow's actual HUD engine label is `ENGINE  //  <engine>`, throttle bar
+`abs(throttle)*100`, direction FORWARD above.04/REVERSE below−.04/NEUTRAL otherwise.
+The physical consumer is each ship's `_cockpit_readout` child
+`LiveFlightInstruments/LiveStatusRepeaters/ThrottleReadout`, updated by
+`_update_cockpit_flight_instruments()`: signed rounded percent when live ONLINE,
+otherwise0; local pilot keeps its predicted throttle. Clear restores retained
+solo values. The source asserts this physical throttle on Jovian, not all nine;
+shared implementation and all-nine HUD proof remain reusable. That absence is
+neither a demonstrated runtime defect nor authority to create eight new gates.
+
+`_reassert_network_operation_presentation()` applies the accepted host renderer
+rows to their actual per-craft node paths: transform/visibility and applicable
+light/material/overlay/MultiMesh values, then canopy fraction and cockpit
+readout text/color. It updates instruments without replacing local engine,
+throttle, velocity, command, landing, berth or canopy authority. Physical hull
+gauges and component/power HUD have their already-delivered owners. A received
+dictionary alone cannot establish a visible renderer result or ordinary route.
+
+| Existing proof owner | Exact scope to reuse; excluded inference |
+| --- | --- |
+| `tests/network_remote_craft_pose_test.gd` | Halyard host over real ENet with current bare pilot/crewmate adapters and shapeless CraftProxy bodies: reconciliation/interpolation/ownership. Jovian HUD/instrument and Halyard power projections use controlled accepted-sample fixtures. Not independent client craft flight or a late rendered view. |
+| `tests/network_craft_pose_station_frame_test.gd` | Independent Main peers: client observes Torrent STARTING/ONLINE; operation-late joins running Torrent and reverse Jovian throttle, then Torrent held touchdown/stop; late joins destroyed/reused Torrent; fleet-late joins varied fleet. All-nine received engine/throttle/hull/components, actual operation HUD and physical hull gauges are asserted. Main/ship physics and on-foot piloting-HUD selection are staged. No actual rendered image or ordinary voyage. |
+| Accepted8f17b0241 / da1ae60 / 330a39ce3 | Preserve signed Jovian physical gauge, actual observer HUD and bounded full/live fleet output respectively. No unchanged source/budget rerun merely to populate this contract. |
+
+**One named ordinary view case, not an inferred all-craft matrix:**
+`halyard_new_design` in existing SERVER-BASELINE-LATE-JOIN,
+`tests/network/halyard_network_passenger_route_test.gd --ordinary-two-client-late-join`.
+The nonplaying host and exactly two clients retain the existing identities:
+client A is the original current pilot, client B starts after actual>5m departure,
+joins as an unclaimed station observer, consumes airborne facts, then strict
+home dock before its authored hatch/chair approach and seven-stage moving crew
+continuation. Reuse [accepted437fe903d](history/ROADMAP_DELIVERIES.md#server-baseline-late-join--accepted--2026-10-24):
+303 checks/225.667s/three OS0/clean source-Linux logs. B's arrival does not imply
+continuous hull motion during its startup/admission. At the accepted first dock
+engine was ONLINE; OFFLINE was neither required nor proved. Never rewrite that
+receipt as a shutdown/canopy qualification.
+
+| Named remaining observation in that case | Required result; exact missing implementation field |
+| --- | --- |
+| Halyard/current A, pilot operation | Existing ordinary sampled control/local prediction stays eligible; observer projection never overwrites A's raw engine/throttle/velocity/command or helm identity. Actual normal HUD/instrument observation must follow its local-pilot policy, not a forced observer override. |
+| Halyard/late B, airborne observer | Already-accepted fresh airborne pose/ownership/pilot-body record is reused. Bind passive observer readings of the actual Halyard renderer rows/canopy/readout against the current host receipt, with no forced active_ship/HUD-mode/pose/engine changes. Normal station HUD need not become a fictitious pilot HUD. |
+| Halyard/A+B, committed dock | Preserve source predicate: hull station-position error≤.5m; hull→authored berth≤.5m; authored berth versus host station position≤.05m; canonical GLOBAL landing position versus host world position≤.05m; fresh pose tick and original ownership/landing generation/revision/tick. Actual operation landed/docked matches host; compare engine, throttle, canopy, readout and exhaust to actual host state rather than requiring an invented OFFLINE transition. |
+| Halyard/B, subsequent moving crew view | Existing seven moving stages/current body/frame/claim and fresh helm consumption remain required. Add only passive actual visible-consumer observations; host-local proxy motion cannot substitute for this ordinary client craft. |
+| Actual rendered view | Neither existing pose file captures images. Codex must bind the normal player camera (`Player.get_camera()`), supported location/look target, exact stage/image/output and readable inspected consumer values through existing capture/sortie owners before implementation/execution. No spectator teleport, fabricated screenshot or headless property assertion passes rendering. These exact camera/output fields remain open; this source map does not claim a ready rendered caller. |
+
+No new execution is selected. The missing ordinary passive observer/rendered
+caller is executable capability work, not missing hardware by assumption.
+Freeze source/package, actual route command/output, original per-stage/global
+deadline, one-correction allowance and closure/checkpoint budget at selection.
+Do not add observation waits beyond the existing route allowance or rerun its
+accepted full prefix unchanged as definition evidence. Existing source suite
+selection only (no Godot invocation):
+
+```sh
+bash tools/release/run_test_matrix.sh --list --mode all \
+  --scope tests/network_remote_craft_pose_test.gd,tests/network_craft_pose_station_frame_test.gd \
+  --audio-driver Dummy --display-driver x11 --timeout 300
+```
+
+Retain the source station-frame60s per-wait bound, pose error<.5m and rebase
+<.001m; these are staged-source checks, not newly adopted ordinary/GPU budgets.
+The stream publishes every3ticks, coasts600, expires moving pose after120,
+interpolates6ticks behind and extrapolates at most15. Full/live snapshot must
+decode exactly within12000bytes,900byte fragments/max16; accepted budget proof
+is not a CPU/throughput benchmark. Thirty-minute100msRTT/2%loss endurance and
+native hardware keep their existing separate gates. No additional craft/state,
+snapshot family or hardware acceptance is inferred by this field binding.
+
+Definition selection2026-10-27 began14:37:38UTC; estimate20minutes including
+bounded read-only source review/docs/checks/commit/push/cleanup; hard stop
+14:57:38UTC. Root owns this document/consumer binding; one read-only agent maps
+the two existing tests. No engine/image/package/device/CI run, branch/worktree
+or scratch selected. All337 identities/order and prior PLAN-NEXT costs/attempt
+limits remain unchanged. NET-POSE-DEFINE and PLAN-NEXT stay open on the named
+ordinary observer/camera/output/caller/limit fields, not a fresh fleet survey.
+Independent source review passes after correcting Torrent/Halyard fixture scope
+and retaining the complete dock geometry. All337 identities/order, exact sorted
+roster/source inputs, anchors/links and shell/whitespace checks pass; no-engine
+selection resolves exactly the two existing headless suites. No new runtime or
+rendered qualification is claimed; closure remains inside the original deadline.
 
 ### Remaining engineer and gunner roles — exact source boundaries
 
