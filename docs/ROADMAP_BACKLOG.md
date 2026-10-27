@@ -924,6 +924,124 @@ is established here; that binding remains BLOCKED and qualification OPEN.
 Do not infer UI repair, another survey, parked retry or a whole-sequence cap from
 this component fixture's300s limit. PLAN-NEXT and all product/phase gates stay open.
 
+<a id="hud-cargo-contract"></a>
+
+#### Cargo HUD reset, funded start and cold-state contract
+
+**HUD-CARGO field binding, source c978c4148; ordinary qualification OPEN.**
+This resolves the existing missing data/UI/fixture fields; it introduces no
+runtime repair or qualification PASS. Definition allocation starts2026-10-27
+12:33:59UTC, estimate20minutes/hard12:53:59UTC through source review, documentation
+checks, commit/push and owned cleanup. Root owns the two roadmap documents;
+one read-only agent binds cargo persistence, root checks HUD/callers/fixture.
+No Godot, gameplay, parked KIT-RELOAD retry or hosted CI is selected.
+
+Let `A = payload.jovian_cargo_session.activities[0]` and
+`C = A.progress.cargo_session_state`. The slot is exactly schema_version1 and
+one activity. `A` has six keys: activity_id, generation, state, progress,
+reward_requested, reward_granted. Its activity_id is
+`jovian_fabrication_kit_delivery`. Progress has exactly activity_id, generation,
+state and cargo_session_state; `C` has activity_state and authority_state.
+Outer/progress/activity_state generations and states agree. The activity state
+has exactly contract, state, generation, next_phase_index, elapsed_seconds,
+failure_reason, expected_transfer_id and accepted_receipt. State integers are
+IDLE0/ACTIVE1/COMPLETED2/FAILED3/EXPIRED4.
+[Typed slot validator](../scripts/persistence/jovian_cargo_session_persistence.gd#L18)
+and [activity capture/validation](../scripts/cargo/cargo_delivery_activity.gd#L245)
+are authoritative; compare canonical saved values rather than raw float text.
+
+Authority state has schema_version, items, manifests, committed_transfer_ids,
+committed_transfers, entity_generation_cursors, manifest_generation_cursors and
+next_receipt_id. Match quantities by item_id=`fabrication_kits`; an empty
+manifest uses an empty entries array. For this production delivery pair,
+source+destination=6 and destination=2×matching committed delivery transfers.
+Do not apply that sum to unrelated manifests. Every reset/reselection retains
+the committed ledger, inventory and generation cursors; it never refills stock.
+[Authority capture and conservation](../scripts/cargo/cargo_transfer_authority.gd#L427).
+
+The funded contract below starts after the genuine first two-kit transfer,
+before stock is depleted. It is distinct from the existing empty-hold regression.
+
+| Ordered boundary | Exact cargo state, inventory and actions |
+| --- | --- |
+| First paid completion, generation g=1 | COMPLETED2; next_phase_index2; failure_reason empty; expected_transfer_id=`jovian_fabrication_kit_delivery_g1`; actual accepted12-key transfer receipt retained; source4/destination2; requested/granted=true/true; exactly one `return_fabrication_kits_to_shipyard` reward. Keep the actual completion clock, not an invented duration. Selected Cargo reads `SELECTED  //  JOVIAN KIT DELIVERY`; other families disabled; status `LOCKED  //  CURRENT SORTIE ALREADY STARTED`. Cargo does not use Patrol's terminal REPEAT shortcut. |
+| Accepted reset | IDLE0 at g+1=2; next_phase_index0/elapsed_seconds0, empty failure_reason/expected_transfer_id, accepted_receipt={}; requested/granted=false/false. Source4/destination2, prior transfer and credited receipt unchanged. All four family choices enabled; selected Cargo status `READY  //  JOVIAN KIT DELIVERY`. |
+| Select another unlocked family, then Cargo | Cargo owner/generation2, saved progress, stock4/2 and credited transfer unchanged; at most one attached route owner. Cargo again reads `SELECTED  //  JOVIAN KIT DELIVERY` and READY, all four families enabled. Selection does not start a delivery or make cargo/reward. |
+| Accepted next Cargo start | Valid current Jovian pilot, FREE_FLIGHT and ready cargo authority are required. ACTIVE1 at generation3; production departure submits phase0, so next_phase_index1; elapsed_seconds0 at that transaction; expected_transfer_id=`jovian_fabrication_kit_delivery_g3`, empty failure/accepted_receipt, flags=false/false. Stock remains4/2 until transfer. Other families disabled and the current-sortie LOCKED status shown. Capture before later physics advances the clock. |
+| Fresh Main after each accepted save | Restore the exact saved cargo generation/state/progress, manifests, transfer ledger and payment flags through the typed owners. ACTIVE cargo or explicit unpaid completed cargo has startup priority. Saved IDLE cargo can coexist with a selected saved Race/Patrol owner: assert restored cargo data first, inspect actual selection, then use the Cargo button before its next start. A globally persisted last-selected-family value is not part of this slot. |
+
+[HUD label/enabled formula](../scripts/ui/hud.gd#L9784),
+[supply status](../scripts/game/game_flow.gd#L23375),
+[selection transaction](../scripts/game/game_flow.gd#L19215),
+[start/departure](../scripts/game/game_flow.gd#L19405),
+[reset transaction](../scripts/game/game_flow.gd#L19573) and
+[cold adoption/priority](../scripts/game/game_flow.gd#L2307) bind these values.
+Normal home reboarding already calls the terminal reset owner when recovery/
+remote-continuation preservation does not apply; normal departure calls Start.
+Do not add Reset/Start buttons merely to supply an automation caller.
+
+**Debt/refusal checks.** COMPLETED with requested=true/granted=false is explicit
+debt. Transfer is durably recorded before payment. Public Reset/selection/Start
+retry payment and refuse replacement while debt remains. After successful retry,
+two further retries/cold loading cannot increment the cargo reward again.
+The reward store's receipt_serial/total_receipts/reward_counts/last_receipt and
+the cargo granted flag commit atomically; receipt activity_generation matches
+the completed generation and replay_allowed=false. Legacy completed false/false
+does not infer new debt/payment; false/true is invalid. A rejected persistence-reset transaction preserves
+actual disk bytes, live owner/generation, manifests, ledger and unpublished reset
+events; take its before-snapshot after any separately successful reward retry,
+which legitimately changes the payment record. Preserve unrelated payload keys
+and unrelated authority manifests/transfer
+namespaces. [Reward authority](../scripts/game/game_flow_reward_authority.gd#L456)
+and [existing interrupted fixture](../tests/cargo_delivery_production_integration_test.gd#L1570).
+
+**Existing source fixtures and original limits.** The default
+[cargo production suite](../tests/cargo_delivery_production_integration_test.gd#L58)
+contains both funded and depleted cases. The funded interrupted fixture resets
+g1→g2, completes g3, resets g4, restores fresh Main with stock2/4, then selects
+Cargo and completes g5 using the final two kits. Its depleted fixture restores
+the retained saved generation with stock0/6. Cargo then shows exactly
+`UNAVAILABLE  //  INSUFFICIENT FABRICATION KITS`; Start returns
+`insufficient_source_quantity`, preserving IDLE/generation/stock. The depleted
+refusal cannot prove the funded successful next Start.
+
+Existing suite command, for a future separately selected fixture run from an
+imported clean checkout with a fresh isolated profile and retained results:
+
+```bash
+xvfb-run -a -s '-screen 0 1280x720x24 -nolisten tcp' \
+  tools/release/run_test_matrix.sh --godot /tmp/mudds-tools/godot-4.7.1/godot \
+  --mode graphical --scope cargo_delivery_production_integration_test \
+  --audio-driver Dummy --display-driver x11 --timeout 300 --jobs 1 \
+  --results-dir "$FRESH_RESULTS"
+```
+
+The existing matrix supplies per-suite isolated user directories and the300s
+suite supervisor; bind the outer abort and reap its private Xvfb/helper children
+at actual selection. Require actual exit0, exactly one
+`CARGO_DELIVERY_PRODUCTION_INTEGRATION_TEST_OK`, zero diagnostics, raw suite log
+and matrix result. Do not run it for this definition. This fixture emits button
+signals, stages pilot/phase/craft positions and invokes lifecycle methods; its
+fresh Main instances share one OS process. It is not ordinary physical input or
+distinct-process proof. Existing KIT-RELOAD remains PARKED under its original
+30seconds including preload; neither the fixture300s nor a subset journey cap
+supplies a whole HUD-CARGO ordinary sequence limit.
+
+**Remaining exact gap—Codex:** implement/bind the ordinary funded two-delivery
+Reset→family selection→Start caller and read-only observations in the existing
+native-sortie owners; freeze the actual command, physical route and original
+whole-sequence limit before any run. Actual distinct-process cold state/UI
+observations remain missing. This source-field contract supplies no new runtime
+defect, repair, gameplay PASS or authorization to retry KIT-RELOAD. Reuse this
+binding rather than resurvey cargo fields; HUD-CARGO and PLAN-NEXT remain OPEN.
+
+Source-field slice accepted12:38UTC after independent source review. All337
+identities/order, new source links, command syntax, literal HUD labels and
+`git diff --check` pass. Matrix `--list` exits0/selects exactly the existing
+graphical cargo suite; no engine or fixture ran. About4.2minutes through review/
+checks; commit/push stay on the same20minute clock. No branch, worktree, game
+process or retained scratch was created. Missing ordinary/cold proof stays open.
+
 <a id="proof-world"></a>
 
 ### Three solo worlds and exactly21 shared-world proofs
@@ -2950,7 +3068,7 @@ test is an owner/regression anchor, not a runnable ordinary route.
 | PLAY-TORPEDO | Torpedo Run first full ordinary play | 13 | Qualification | PARKED/NOT_ACCEPTED latest continuation: source review BLOCK at67.453min cumulative; unread queued neutral samples after OS release can erase later actual consumption. No tests/engine/export/whole trial. Candidate and original patch verified in case-records.tar.gz/closeout.json outside repo; main restored, owned helpers consolidated. Reopen only with accounting that survives queued release ambiguity, source GO and cumulative review; full journey/limits unchanged. [Review stop](history/ROADMAP_DELIVERIES.md#torpedo-control-continuation-stopped-at-source-review-20261025). PARKED after3fullordinaryFAILs, latestd8eece4/game2de. First121.849s run proves real evasion/interceptions/boat24damage but stops pooled-flight receipt bookkeeping; supported correction retry104.452s stopssecondboarding. Source/raw-proved sampledreadiness continuation133.075s reboards correctly (soleE4604/BOARDING4607), provespitchboostevasion/distinctseeker14kill, then3boatshotsmiss and2incomingseekers destroyArrow; boat70/70/noTorppayment/home/posting/UI0. FirstHeavyprefix/receipt remains actual. Both caller fixes/fixturefailure and all3runs retained on sameoriginalclock; no source merged merely for cleanup. Unique source/bundles/results archived, ownedprocess/profile/packagecleanup complete/mainrestored. Reopen only demonstrated source/raw-supported gameplay/control correction preserving full150each/shared300/outer360 goal; no unchanged retries/newqualifierlayers/point-aim-timer guesses. Publicfb396ab unchanged. [Closeout](history/ROADMAP_DELIVERIES.md#torpedo-second-boarding-readiness--whole-journey-not-accepted--2026-10-25). | [Complete ordinary activity journey](#proof-activity): ordinary posting rotation/real evade/interception/boat destruction/distinct payment/home; real durable result and strict home/OFFLINE physical exit/usable walking. |
 | HUD-RACE | Race durable reset/select/start/fresh-Main UI | 13 | Qualification | Source review already found no concrete discrepancy; no edits/runs or ordinary acceptance. Do not repeat unchanged source triage; full qualification remains unscheduled. BLOCKED definition — Codex binds the literal saved activity/debt fields, expected enabled actions after each reset/select/start/fresh-Main step, existing command and original limits. No implementation is selected without a demonstrated runtime defect. | Race: actual reset→selection→start→distinct fresh Main shows authoritative saved state and correct enabled actions; protect real data/debt and retain accepted repairs. |
 | HUD-PATROL | Patrol durable reset/select/start/fresh-Main UI | 13 | Qualification | Source field/action binding fixed0e3b58a25 through the [literal reset/branch/cold contract](#hud-patrol-contract): exact codec/reward fields, g→g+1→g+2, HUD labels/enable rules, physical home-reboard Reset and free-flight Start callers. No runtime discrepancy or qualification PASS claimed; no engines run. BLOCKED ordinary-driver/limit binding—Codex: actual normal sequence command/route/original whole-sequence cap and cold-Main UI/state observations remain missing. Existing component selector and original300s fixture limit are explicit; parked30-Main/platform journeys remain closed. Do not repeat source triage or invent new UI; runtime repair needs a demonstrated defect. | [Literal contract](#hud-patrol-contract): actual reset→selection→start→distinct fresh Main shows the exact authoritative saved state and enabled actions; protect real data/debt and retain accepted scopes. |
-| HUD-CARGO | Cargo durable reset/select/start/fresh-Main UI | 13 | Capability | Supply-status child DONE0c2dc2e: depleted hold reports insufficient kits after reset/reselection; cargo127/nearby HUD13 and paired checkpoint pass. Broader durable UI/restart remains open; KIT-RELOAD stays parked. Remaining ordinary UI qualification is BLOCKED definition — Codex: record the exact saved activity/generation/progress/debt fields, expected displayed state and enabled actions after reset, selection, start and distinct fresh-Main reload; bind the existing fixture/command, protected payload and original limits. Reuse accepted runtime repairs and completed source maps; no repeated survey or implementation without a reproduced discrepancy. | Cargo: actual reset→selection→start→distinct fresh Main shows authoritative saved state and correct enabled actions; protect real data/debt and retain accepted repairs. |
+| HUD-CARGO | Cargo durable reset/select/start/fresh-Main UI | 13 | Capability | Supply-status child DONE0c2dc2e retained. [Literal cargo contract](#hud-cargo-contract) now fixes typed saved lifecycle/inventory/reward fields, funded g1→reset g2→start g3, depleted0/6 refusal, exact HUD labels/locks, cold owner versus family selection, debt/refused-reset protection and existing graphical source-fixture command/original300s cap. Source binding only; no runtime discrepancy, engine run or qualification PASS. BLOCKED ordinary-driver/limit binding—Codex: actual funded physical two-delivery reset/select/start command/route/original whole-sequence cap and distinct-process cold state/UI observations remain missing. KIT-RELOAD stays PARKED at its original30s including preload. Reuse this field binding; do not repeat the completed source survey or infer a successful next start from depleted refusal. | [Literal cargo contract](#hud-cargo-contract): actual funded reset→family selection→Start→distinct fresh Main restores the exact authoritative lifecycle/inventory/reward state and enabled actions; depleted refusal and debt preserve data and accepted scopes. |
 | HUD-CONVOY | Convoy durable reset/select/start/fresh-Main UI | 13 | Capability | Restored-objective discrepancy DONE on checkpoint3d92b91: cold/wrong-craft saved escort shows paused guidance, accepted craft rebind restores live progress; existing retained-feedback20 assertions pass. Bounded source check2026-10-26 found no new runtime gap: existing production integration664–762 and save/restore566–598 already exercise committed reset, HUD family switching, start and fresh-Main authority. Reuse completed470aa24c4/4fc5ef9f3 source maps; do not repeat this survey. Wider combined ordinary HUD/full Convoy qualification remains open; parked save suite not reopened. Remaining ordinary UI qualification is BLOCKED definition — Codex: record the exact saved activity/generation/progress/debt fields, expected displayed state and enabled actions after reset, selection, start and distinct fresh-Main reload; bind the existing fixture/command, protected payload and original limits. Reuse accepted runtime repairs and completed source maps; no repeated survey or implementation without a reproduced discrepancy. | Convoy: actual reset→selection→start→distinct fresh Main shows authoritative saved state and correct enabled actions; protect real data/debt and retain accepted repairs. |
 | ACT-WRITES-DEFINE | Uncovered activity/write-boundary cells | 13,31 | Definition | DONE definition only; finite durable owner/boundary map below, with terminal-only owners distinguished; exact-package/real-file/ordinary recovery acceptance remains open | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | BOOT-BREACH-OWNERS | Physical Heavy Breach board has exact production owners before gameplay | 9,11,13 | Capability | DONE packagede3d1ada; two exact old owner failures, final full startup/48-check production route and strict paired checkpoint pass; earned-debt interruption transaction DONE c78e0ac | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
