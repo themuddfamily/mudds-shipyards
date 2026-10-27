@@ -144,6 +144,10 @@ Baseline/Aurora artifact/Rime parked gates remain intact;no late case has run.
 now fix the transport cut,recovery and fresh crew handback. Safe exterior-loss
 recovery and Rime's conserved-checkpoint resume are missing production work;
 restarting the survey from zero cannot qualify progress conservation.
+[Three pilot-loss cases](docs/ROADMAP_BACKLOG.md#shared-world-pilot-loss-safe-return)
+now choose actual host authority shutdown and safe same-craft Mudds recovery,
+with durable progress protected before teardown. Preflight-safe recovery,
+client embodiment/home handoff and ordinary case callers remain production work.
 
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings
