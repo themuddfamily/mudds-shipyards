@@ -144,7 +144,7 @@ specifications remain authoritative, including any clause not yet proof-bound.
 | Phase | Observable exit; every required child must pass | Existing predicate/proof owners (exact IDs) | Required scope and literal remaining binding — all gates OPEN |
 | --- | --- | --- | --- |
 | 1 Research | Original-labelled identity/topology claims have reproducible registered anchors/confidence; unknowns and any explicit approved interpretation are recorded honestly  | `IDENTITY-TORRENT`, `IDENTITY-ARROW`, `IDENTITY-JOVIAN`, `IDENTITY-ZENITH`, `STATION-RELATIONS`, `SPEC-TITAN`, `SPEC-VORTEX`, `SPEC-PARADOX`, `SPEC-KATANA`, `SPEC-PREDATOR`, `SPEC-DYNAMIC`, `SPEC-UTOPIA`, `SPEC-SALYUT`, `RIGHTS-HISTORICAL-MEDIA` | Claim reproducibility → the four identity owners, station relationships and eight original SPECs; redistribution → rights owner. Preserve ledger source IDs/URL/access/upload/recording/build distinctions, inspected-rendition hash/metadata/frame anchors/confidence, exclusions, source-core versus modern normalization and matching shipped wording. BLOCKED definition—Codex: literal claim→evidence/spec/runtime-wording/focused-proof mapping for every original-labelled asset; exact missing higher-resolution/name-tied source or topology observation stays an external evidence dependency. No model/test/modern interpretation authenticates unknown history; all eight SPEC approvals remain pending. |
-| 2 Vertical slice | Final-package Guided3/3, original all-nine Sandbox/recovery1/1 and original Settings/re-entry1/1; actual ordinary controls/combat/home/exit/usable continuation  | `GUIDED-FINAL`, `SANDBOX-RECOVERY`, `SETTINGS-INPUT`, `SETTINGS-RETURN`, `PACKAGE-FINAL`, `MATRIX-FINAL`, `LIFE-VISIBLE`, `LIFE-REUSE`, `LIFE-PACKAGE-DEFINE`, `CRAFT-ACCEPT-TORRENT`, `CRAFT-ACCEPT-ARROW`, `CRAFT-ACCEPT-JOVIAN`, `CRAFT-ACCEPT-ZENITH`, `CRAFT-ACCEPT-HALYARD`, `CRAFT-ACCEPT-BULWARK`, `CRAFT-ACCEPT-CINDER-LIGHT`, `CRAFT-ACCEPT-CINDER-HAULER`, `CRAFT-ACCEPT-CINDER-BOMBER`, `WALK-CENTRAL`, `WALK-AFT`, `WALK-HABITAT`, `WALK-FREIGHT`, `WALK-FLEET`, `STATION-RELATIONS`, `CONTROL-FINDINGS`, `INPUT-KBM`, `INPUT-CONTROLLER`, `REMAP-DEFINE`, `STATION-FINDINGS`, `ART-FINDINGS`, `AUDIO-MIX-DEFINE`, `AUDIO-MIX`, `PERF-MINIMUM`, `PERF-TARGET`, `PERF-ROUTES-DEFINE`, `PERF-CELLS-DEFINE` | Consume original core/access/lifecycle predicates within the listed craft/station owners, not their unrelated whole-container scope. Required packaged Guided3/3, all-nine/54-waypoint/eight-excursion/crash/recall/regeneration/reuse Sandbox1/1 under300s and original Settings-return1/1 remain unchanged; production Player/collision/seat/command/combat/berth authorities, same-tick demand, occupy-before-snap docking,1.5 neutral physics seconds before automatic shutdown and usable physical exit remain required. BLOCKED definition—Codex: exact packaged mapping/sampling-rate/chase-lag/sight/flight-path/camera observations; material identity/metric mapping/UV handedness/formed surfaces and authored boarding/character animation→existing craft/art/capture proof. Bind actual device, audibility and target-budget inputs separately. Accepted baseline/subset tests do not satisfy those missing clauses. |
+| 2 Vertical slice | Final-package Guided3/3, original all-nine Sandbox/recovery1/1 and original Settings/re-entry1/1; actual ordinary controls/combat/home/exit/usable continuation  | `GUIDED-FINAL`, `SANDBOX-RECOVERY`, `SETTINGS-INPUT`, `SETTINGS-RETURN`, `PACKAGE-FINAL`, `MATRIX-FINAL`, `LIFE-VISIBLE`, `LIFE-REUSE`, `LIFE-PACKAGE-DEFINE`, `CRAFT-ACCEPT-TORRENT`, `CRAFT-ACCEPT-ARROW`, `CRAFT-ACCEPT-JOVIAN`, `CRAFT-ACCEPT-ZENITH`, `CRAFT-ACCEPT-HALYARD`, `CRAFT-ACCEPT-BULWARK`, `CRAFT-ACCEPT-CINDER-LIGHT`, `CRAFT-ACCEPT-CINDER-HAULER`, `CRAFT-ACCEPT-CINDER-BOMBER`, `WALK-CENTRAL`, `WALK-AFT`, `WALK-HABITAT`, `WALK-FREIGHT`, `WALK-FLEET`, `STATION-RELATIONS`, `CONTROL-FINDINGS`, `INPUT-KBM`, `INPUT-CONTROLLER`, `REMAP-DEFINE`, `STATION-FINDINGS`, `ART-FINDINGS`, `AUDIO-MIX-DEFINE`, `AUDIO-MIX`, `PERF-MINIMUM`, `PERF-TARGET`, `PERF-ROUTES-DEFINE`, `PERF-CELLS-DEFINE` | Consume original core/access/lifecycle predicates within the listed craft/station owners, not their unrelated whole-container scope. Required packaged Guided3/3, all-nine/54-waypoint/eight-excursion/crash/recall/regeneration/reuse Sandbox1/1 under300s and original Settings-return1/1 remain unchanged; production Player/collision/seat/command/combat/berth authorities, same-tick demand, occupy-before-snap docking,1.5 neutral physics seconds before automatic shutdown and usable physical exit remain required. [Flight observation contract](#vertical-slice-flight-observations) now binds mapping/equivalent sampling/chase/sight/flight-path/camera source cases and exact missing ordinary packaged Guided observation support; caller remains implementation OPEN. Material identity/metric mapping/UV handedness/formed surfaces and authored boarding/character animation retain existing craft/art/capture proof requirements. Bind actual device, audibility and target-budget inputs separately. Accepted baseline/subset tests do not satisfy those missing clauses. |
 | 3 Station | Nine named connected physical branches and required interactions/revisit complete; four accepted service motions retained; actual topology/art/collision/berth findings resolved  | `WALK-CENTRAL`, `WALK-AFT`, `WALK-HABITAT`, `WALK-HABITAT-LOOP`, `WALK-HABITAT-RESTART`, `HABITAT-BUNK-REST`, `WALK-FREIGHT`, `FREIGHT-TERMINAL-INTERFACE`, `WALK-FLEET`, `WALK-ANNEX`, `WALK-OBSERVATION`, `WALK-SALVAGE`, `WALK-SALVAGE-ACCESS`, `WALK-SALVAGE-INSPECT`, `WALK-SALVAGE-REVISIT`, `WALK-VIP`, `LIFE-TOW`, `LIFE-GANTRY`, `LIFE-ARM`, `LIFE-PATROL`, `STATION-RELATIONS`, `STATION-CENTRAL-VIEW`, `STATION-FINDINGS`, `ART-FINDINGS`, `capture-scenes`, `capture-station-operations`, `capture-jovian-freight-berth`, `capture-berth-feedback`, `PACKAGE-FINAL`, `MATRIX-FINAL`, `PERF-MINIMUM`, `PERF-TARGET`, `PERF-ROUTES-DEFINE`, `PERF-CELLS-DEFINE` | Consume nine physical branch/interaction/revisit members and four service motions, retaining source confidence, supported visible/collision agreement and actual berth/access clearance. WALK-FLEET retains its existing nine-current-craft membership; future eight berth/access results belong to their Phase4 craft journeys, reused without a second Fleet loop. BLOCKED definition—Codex: exact branch/module identity/bounds/connections/evidence/lifecycle proof, single world graph, negative-space probes, reviewed berth migration/overlap/envelopes, performance ceilings and Main re-entry→existing candidate/check/route. Reuse the fixed13-subject station presentation roster; do not resurvey it or infer wider acceptance from WALK/source-DONE. |
 | 4 Original fleet | All twelve original craft, including eight absent today, implemented and accepted through their full specified physical/function/damage/recovery/reuse lifecycle  | `CRAFT-ACCEPT-TORRENT`, `CRAFT-ACCEPT-ARROW`, `CRAFT-ACCEPT-JOVIAN`, `CRAFT-ACCEPT-ZENITH`, `CRAFT-ACCEPT-TITAN`, `CRAFT-ACCEPT-VORTEX`, `CRAFT-ACCEPT-PARADOX`, `CRAFT-ACCEPT-KATANA`, `CRAFT-ACCEPT-PREDATOR`, `CRAFT-ACCEPT-DYNAMIC`, `CRAFT-ACCEPT-UTOPIA`, `CRAFT-ACCEPT-SALYUT`, `SPEC-TITAN`, `SPEC-VORTEX`, `SPEC-PARADOX`, `SPEC-KATANA`, `SPEC-PREDATOR`, `SPEC-DYNAMIC`, `SPEC-UTOPIA`, `SPEC-SALYUT`, `BUILD-SPLIT-TITAN`, `BUILD-SPLIT-VORTEX`, `BUILD-SPLIT-PARADOX`, `BUILD-SPLIT-KATANA`, `BUILD-SPLIT-PREDATOR`, `BUILD-SPLIT-DYNAMIC`, `BUILD-SPLIT-UTOPIA`, `BUILD-SPLIT-SALYUT`, `CRAFT-GAPS-TORRENT`, `CRAFT-GAPS-ARROW`, `CRAFT-GAPS-JOVIAN`, `CRAFT-GAPS-ZENITH`, `IDENTITY-TORRENT`, `IDENTITY-ARROW`, `IDENTITY-JOVIAN`, `IDENTITY-ZENITH`, `WEAPONS-DEFINE`, `DAMAGE-DEFINE`, `ROLE-JOVIAN-ENGINEER`, `WALK-FLEET`, `ART-FINDINGS`, `PACKAGE-FINAL`, `MATRIX-FINAL` | Full twelve original journeys are required: Torrent/Arrow/Jovian/Zenith plus Titan/Vortex/Paradox/Katana/Predator/Dynamic/Utopia/Salyut. The latter eight require explicit owner SPEC approval and actual implementation after their finite BUILD-SPLIT definitions. Each needs editable source/import/manifest, separated historical/modern art, definition/physics/anchors, reviewed pinned bidirectional art/collision agreement, exact capsule/berth/neighbour/muzzle/camera clearance, atomic authority-free LODs and full ordinary function/damage/recovery/save/reuse/switch/re-entry. BLOCKED input—user: eight design decisions. BLOCKED definition—Codex: implemented capability and remaining journey/art/collision/LOD proof→actual source/package/command/original limits. Neither SPEC nor BUILD-SPLIT delivers a ship. |
 | 5 Expanded fleet | Five modern additions accepted through their actual distinct functions/tradeoffs/roles and full lifecycle; they do not replace the eight absent originals  | `CRAFT-ACCEPT-HALYARD`, `CRAFT-ACCEPT-BULWARK`, `CRAFT-ACCEPT-CINDER-LIGHT`, `CRAFT-ACCEPT-CINDER-HAULER`, `CRAFT-ACCEPT-CINDER-BOMBER`, `CRAFT-GAPS-HALYARD`, `CRAFT-GAPS-BULWARK`, `CRAFT-GAPS-CINDER-LIGHT`, `CRAFT-GAPS-CINDER-HAULER`, `CRAFT-GAPS-CINDER-BOMBER`, `ROLE-HALYARD-PASSENGER`, `ROLE-HALYARD-ENGINEER`, `ROLE-HALYARD-GUNNER`, `ROLE-HALYARD-LOADMASTER`, `ROLE-BULWARK-GUNNER`, `ROLE-CINDER-LOADMASTER`, `ROLE-CINDER-NAVIGATOR`, `HAULER-CARGO-DEFINE`, `BOMBER-REARM-POLICY`, `BOMBER-ROLES-DEFINE`, `BOMBER-ROLE-DECISION`, `WEAPONS-DEFINE`, `DAMAGE-DEFINE`, `PLAY-CINDER-SUPPLY`, `WALK-FLEET`, `ART-FINDINGS`, `AUDIO-MIX`, `PERF-MINIMUM`, `PERF-TARGET`, `PERF-ROUTES-DEFINE`, `PERF-CELLS-DEFINE`, `PACKAGE-FINAL`, `MATRIX-FINAL` | Full five modern journeys are required, not substitutes for originals. Halyard needs embodied passenger/gunner/engineer/Loadmaster/moving carry; Bulwark actual gunner hit/release/reseat; Light actual repeater/cooldown/component effects; Hauler ramp/conserved supply/travelling mass driver/Loadmaster/Navigator; Bomber travelling four-round payload hit/miss/depletion/refusal/refill on physical pilot retake, with extra roles subject to their recorded decision. Preserve NEW status, reusable authorities, roster/berth/audio identity and complete lifecycle. BLOCKED definition—Codex: remaining visual-grammar audio/LOD/damage/debris proof and final17-craft lateral trade-offs/normalized budgets/no-strict-upgrade/starter access. Reuse existing grammar/craft/art owners; nine-current source differentiation does not prove the future roster. |
@@ -3296,6 +3296,113 @@ feature. Do not reopen completed surveys or create successor planning IDs.
 | COMFORT-CAPTIONS | [Caption ingress/expiry/OFF and three-process Reset contract](#caption-episodes--ingress-and-reset-boundary) is fixed; reuse existing audio episode selectors only for actual caption callers. Shared caption caller99658edda is PARKED after its typing correction passed source/export/strict startup checks: the actual writer fails its initial compound service/presenter assertion before gameplay/settings; operands unlogged, no owner defect established. Three commits/five files/private TAR are verified archived unmerged; writer reaped, readers/default regression NOT_RUN. Current main has default flash only; no retry selected. Reduced-flash restart cannot supply the missing caption result. Per-ID ordinary route/assertion and rendered/device bindings remain Codex work; only recorded overflow policy/device access remain external. |
 | PACKAGE-FINAL | [Existing package members/counts](#package-final--existing-members-and-counts) are fixed: two exports, three startup checks, two complete inventories/full archive parity, four default probes, Guided3/3+Sandbox1/1+Settings1/1. Paired-artifact mode DONEd70231901/integrated27d1e70e8,28tests/actual7876all9predicates/unchangedinputs. Approved final paths/manifests bind at selection; SETTINGS-INPUT names unavailable historical artifacts; Sandbox stays PARKED. Six installation transactions/matrix/signing retain their owners. |
 | FINAL-RECONCILE | Existing36 parents now enumerate their direct canonical child IDs in the [parent crosswalk](#coverage-of-the-original-remaining-outcomes), with self/publication ordering fixed; shared outcomes counted once. Ten-phase predicate ownership is now [explicitly disposed](#original-phase-gates-and-completion), with literal missing fields retained; exact accepted source/candidate scopes and candidate defect inventory remain Codex-owned definition work. The [production diagnostics/retry source proof](SESSION_DIAGNOSTIC_RECORD.md#production-ownership-and-acceptance) is now bound on52b7b6e3b; real-OS/final-candidate privacy/recovery qualification remains open; Safe Audio production action/source proof is [delivered in its explicit scope](#safe-start-graphicsaudio--production-action-and-proof-scope), while final-candidate/real-OS/device recovery remains open. Any uncovered original clause stays open. ZeroP0/P1, explicitP2 dispositions, final checksums, rights/signing and authorized publication remain actual release gates. |
+
+<a id="vertical-slice-flight-observations"></a>
+### Vertical-slice flight — literal source and packaged observations
+
+Definition2026-10-27, source2a1ffdeed,17:45–18:10UTC through source review,
+checks,commit/push/cleanup. This binds the existing Phase2 control/sampling/
+chase/sight/flight-path clauses. CONTROL-FINDINGS remains source-review DONE;
+no new defect inventory,control scheme,physical polling requirement or route
+matrix is added. Original GUIDED-FINAL3/3,SANDBOX-RECOVERY1/1 all-nine300s and
+SETTINGS-RETURN1/1 remain unchanged and required.
+
+The source owners are `scripts/control/local_ship_input_source.gd`,
+`scripts/ships/hero_ship.gd`,GameFlow's `_decorate_flight_path_telemetry` and the
+production HUD/FlightPathCue. The following existing tests supply the exact
+algorithm cases; they stage providers,physics calls,velocities or telemetry and
+therefore are **not** ordinary packaged or physical-device acceptance.
+
+| Original clause | Existing finite source cases and literal expected result |
+| --- | --- |
+| Controls and sampling | `tests/flight_quality_closure_test.gd` production InputMap/adapter/backlog cases: Up/Down pitch,Q/R roll,W/S throttle,A/D yaw; gamepad left-stick throttle/yaw,right-stick pitch/roll,right trigger Fire,left trigger brake,left-stick press boost,South hover,East barrel roll,North view,West Interact. Shared deadzone.18±.005. Held attitude axes use physics delta; mouse commands carry per-tick angular impulse. Existing fake-provider fixtures are not actual-device proof. |
+| Equivalent mouse rates | Same test's30/60/120Hz equivalent trials: total(180,−90)px over.5s; heading/up/total-attitude differences≤.12° versus60Hz. Saturated diagonal total(360,−360)px over.1s,fixture100px/fullaxis,drain≤16 ticks,error≤.01°. Backlog fixture(250,−175) at100px/fullaxis yields yaw[1,1,.5,0],pitch[1,.75,0,0]. These are equivalent manual sampling intervals,not measured mouse hardware polling rates. |
+| Actual sensitivity/boundaries | `tests/flight_input_test.gd` plus quality test's parked/startup cases: default sensitivity.0022rad/px,max18°/axis/tick. Hero configures adapter divisor `deg_to_rad(18)/.0022`≈142.799666px,not the adapter's standalone default140. Per-axis excess is conserved across ticks; simultaneous yaw/pitch uses one rotation-vector response. Lifecycle/view/focus boundaries clear stale look as specified by existing tests. |
+| Chase/zoom | Existing quality chase case: boom rotation response7/s,cap8° (test tolerance≤8.1),optical axis nose-locked. Known120px turn at60Hz gives initial lag>.5°;45neutral ticks/.75s decay monotonically within.05° tolerance to<.25°. View switches clear lag≤.1°. `flight_input_test.gd` retains desired distance9…24m,step1.5m,easing9/s,wheel command and cockpit-ignore behavior. Desired/unobstructed spring length is distinct from collision-retracted actual camera endpoint; do not reject valid retraction as a zoom-clamp failure. |
+| Cockpit sight | Existing quality sight case: current CockpitCamera,near≤.05m,nose-forward dot>.999,zero opaque obstructions,≥5 rays across≥10m,panel area>.01m²,anti-glare/readout present,modern-interpretation label. Hero's five rays are centre/±6°yaw/±5°pitch; default eye(0,3.32,−.52). Existing art-view inspection is separately required; a getter does not inspect an image. |
+| Flight path/HUD | `tests/flight_path_cue_test.gd` actual GameFlow projection fixture: camera-forward30m/s marker within.5px of centre/alignment>.999; camera-right/up slip has correct sign; sideways clamped/nonrearward; offscreen ellipse metric≤1.0001; reverse uses lower edge/horizontal bias/alignment<−.9. Production hides speed<1.5m/s,landed,destroyed or invalid data; projects100m through actual active camera. Safe radii=(min(width×.27,height×.52),height×.18). Fixed weapon reticle stays fixed/above cue and neither consumes input; cockpit uses its current camera. |
+
+Existing source commands,each under the original/default300s suite limit:
+
+```bash
+python3 tools/release/suite_process.py --timeout 300 -- "$GODOT_BIN" --headless --audio-driver Dummy --path "$SOURCE" --script res://tests/flight_quality_closure_test.gd
+python3 tools/release/suite_process.py --timeout 300 -- "$GODOT_BIN" --headless --audio-driver Dummy --path "$SOURCE" --script res://tests/flight_input_test.gd
+python3 tools/release/suite_process.py --timeout 300 -- "$GODOT_BIN" --headless --audio-driver Dummy --path "$SOURCE" --script res://tests/flight_path_cue_test.gd
+```
+
+Bind clean candidate SOURCE,engine hash/private profile and fresh external raw
+log/status/result paths before execution. Require actual exit0,zero diagnostics
+and respective terminal FLIGHT_QUALITY_CLOSURE_TEST_OK,FLIGHT_INPUT_TEST_OK,
+FLIGHT_PATH_CUE_TEST_OK. These commands were not run for this definition. Exact
+final-package export/inventory must bind the same production implementation;
+external `--script` overrides on an exported binary cannot substitute for this.
+
+**Missing packaged observation capability — Codex.** Extend the existing
+`tools/release/run_native_sortie.py` Guided driver and
+`scripts/diagnostics/native_sortie_observer.gd`,not a separate controls validator.
+Use the first existing final Guided run's ordinary clear-departure interval,
+after current home lease release and before the first range-target shot. Retain
+its source/package/actor identities,authored tuning/default sampler and original
+300s process/330s outer bound. No new extra run or repeated three-way settings
+matrix is required; the other two Guided completions retain their original route.
+Any extension must still finish the complete original Guided journey3/3 overall.
+
+At this safe interval,require actual TARGET_PRACTICE at the existing range
+arrival within5m of(0,8,−78),z<−66,airborne/not docked/free home lease,current
+pilot/production camera,ONLINE engine,intact hull,no landing assist and no world
+obstruction in the planned maneuver. Hold Prior brake until speed≤.8m/s and
+retain it through this observation window; brake keeps power without steering.
+Record the current native bindings and actual consumed command; use a finite
+120px horizontal OS mouse impulse,then no look/yaw/pitch/roll input while brake
+stays held. Retain raw
+native event totals and consumed command sequence/backlog so coalescing cannot
+be mistaken for lost motion. Require actual hull attitude response and an initial chase lag>.5° after the
+consumed turn. Once backlog is drained,observe45attitude-neutral60Hz physics
+ticks: finite orthonormal ship/camera bases,nose-aligned optical axis,lag≤8.1°,
+monotone settling with.05° tolerance and final<.25°. If the naturally consumed
+stimulus differs or pose/support/safety predicates fail,stop; never inject a
+provider or call the private physics loop to make the package match the fixture.
+
+Use actual view keyV to enter cockpit and return to chase; each switch requires
+fresh consumed edge,current camera identity and cleared lag≤.1°. In cockpit read
+the sight predicates above once at the selected settled moment. Observe one
+actual wheel step in chase,its single sampled command and desired1.5m change
+clamped9…24; observe cockpit wheel input ignored without changing stored chase
+zoom,then return to chase. Do not confuse spring collision correction with
+stored zoom. Preserve actual final camera/zoom preference according to current
+production save behavior; no setter/restoration bypass is allowed.
+
+During the original departure above1.5m/s and the turn/attitude-neutral/chase/cockpit
+moments,read real velocity,
+physical nose,current camera,decorated flight-path telemetry and the HUD cue
+report in the same frame. Independently recompute the existing projection and
+safe-ellipse/visibility predicates above from those values; require the cue
+hidden at the braked≤.8m/s stop and visible on valid original departure above
+1.5m/s. Require HUD agrees
+and the fixed reticle is unchanged. Do not fabricate reverse/sideways velocity
+to force every fixture branch in ordinary play; their finite algorithm coverage
+stays in the existing source test. After physical home exit require both piloting
+reticle and flight-path cue hidden. Then finish normal original combat/strict
+home/OFFLINE/physical supported exit/normal UI actualOS0 with zero diagnostics.
+
+The existing observer lacks this complete event/command/backlog/camera/lag/sight/
+projection/HUD association. Add only passive phase-bound readback and bounded
+ordinary OS-input control to these owners; cue/report inspection must not write
+velocity,pose,camera transform,component state or telemetry. Require existing
+raw observer/result/game logs in one fresh selected external results directory,
+actual child exits and owned input/process/Xvfb cleanup. Numeric readback proves
+state/projection only; required image readability belongs to ART/ACCESS views,
+actual physical KBM/controller behavior to INPUT-KBM/INPUT-CONTROLLER. Do not
+report a rate fixture as either result.
+
+This contract fixes the named Phase2 acceptance observations; source/current/
+final-package execution remains NOT_RUN in this newly combined scope. Missing
+Guided observation/control support is implementation,not an unavailable owner
+artifact. Other craft/material/animation and original final-package gates stay
+open in their existing owners. No implementation or engine trial is selected.
+A later bounded implementation keeps ≤90min all-in/one correction/first-failure
+stop and required clean-source checkpoint/isolated startup validation; no cap
+increase or parked Sandbox/capture retry follows from this definition.
 
 <a id="craft-integrated-journey-budget"></a>
 ### Current-craft integrated journey — fixed execution budget
