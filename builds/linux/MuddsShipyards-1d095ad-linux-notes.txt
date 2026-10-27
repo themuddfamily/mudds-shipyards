@@ -1,0 +1,26 @@
+Mudd's Shipyards Linux checkpoint 1d095ad
+Source: 1d095ad93dd5d4407b341ef107b2fe5678099f1d
+
+Bulwark empty-ammunition feedback
+An exhausted siege-lance magazine now refuses Fire before starting a new charge
+and clears any stale charge for that actor. The gunner readout keeps its authored
+AMMUNITION EMPTY denial instead of getting stuck at CHARGING100%. Existing target,
+role, engine and cooldown gates plus positive-ammunition charge/cadence remain.
+
+Actual validation
+Old unchanged production failed exactly3of13 targeted assertions; corrected
+isolated source passes all13, including positive resolver/cooldown/stale request
+controls and the actual console text. Full existing native-driver Python suite,
+startup privacy and clean pinned Godot4.7.1 exports pass. Three strict silent menu
+checks pass actual0/exactlyone readiness marker/zero diagnostics: Windows payload
+under Linux Godot, Linux ELF and actual TAR. All1529 complete embedded payload
+path/size/hash entries match the approved Windows manifest frozen before Linux
+export; existing paired-artifact audit verifies source/template/archive/ZIP and
+unchanged inputs.
+
+Scope
+The targeted regression stages ammo/engine/cooldown in a component fixture.
+The separately drafted full ordinary Bulwark pilot/gunner/home driver is PARKED
+and excluded from this3file source; no ordinary gunner journey is claimed here.
+Native Windows/GPU/audio/physical input/human and final-release gates remainopen.
+Automated Godot uses Dummy audio and headless isolation. No hosted CI.

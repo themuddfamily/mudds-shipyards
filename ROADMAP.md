@@ -1,11 +1,16 @@
 # Development roadmap
 
 **Playable alpha; full original scope remains unfinished.** Latest Windows build:
-[7f23a80 checkpoint](builds/windows/MuddsShipyards-7f23a80-checkpoint.zip)
-([changes and validation](builds/windows/MuddsShipyards-7f23a80-notes.txt)).
-Matching [Linux checkpoint](builds/linux/MuddsShipyards-7f23a80-linux-x86_64.tar.gz)
-([Linux validation](builds/linux/MuddsShipyards-7f23a80-linux-notes.txt)) is available.
-The latest checkpoint retries refused recovery crash-log writes once per second;
+[1d095ad checkpoint](builds/windows/MuddsShipyards-1d095ad-checkpoint.zip)
+([changes and validation](builds/windows/MuddsShipyards-1d095ad-notes.txt)).
+Matching [Linux checkpoint](builds/linux/MuddsShipyards-1d095ad-linux-x86_64.tar.gz)
+([Linux validation](builds/linux/MuddsShipyards-1d095ad-linux-notes.txt)) is available.
+Bulwark now rejects empty siege-lance ammunition before starting a charge and
+clears any stale charge; its console shows AMMUNITION EMPTY instead of a stuck
+CHARGING100%. The isolated fix passes13 regression checks,303 existing Python
+checks,3627 privacy assertions and fresh paired export/startup/archive checks.
+The full ordinary pilot/gunner/home driver remains parked and unqualified.
+Recovery crash-log writes still retry once per second;
 successful ordinary store saves cannot postpone publication. Retries stop after
 success or clean shutdown. Source checks and packaged startup/parity pass; actual
 OS-crash recovery remains unqualified.
@@ -13,7 +18,7 @@ The recovery card also offers **Use Safe Audio** after repeated unfinished
 startups. It saves master50%/music0 through the existing adapter, preserves other
 preferences and retains the existing stable Restore/user-edit protections.
 Earlier journey results retain their original source/package scopes;
-they were not rerun for7f23a80.
+they were not rerun for1d095ad.
 Legacy CFG recovery, read-only loading and direct legacy saves now preserve a
 newer primary, temporary or backup generation instead of selecting older data
 or deleting the newer file. All three files and live preferences stay unchanged.
@@ -195,6 +200,27 @@ commit/push charged to the same20minute clock.
 The separate Titan design question is pending; no missing-craft build is authorized
 by elapsed time or this definition work.
 
+**Delivered — Bulwark empty-magazine charge/readout repair.**
+Source1d095ad93 contains only the runtime guard, focused test and import UID.
+Zero ammo now clears/refuses a charge and displays the authored AMMUNITION EMPTY
+warning; positive-ammo timing and authority gates remain unchanged.13 regression
+checks,303 existing driver tests,3627 privacy assertions, fresh Windows/Linux
+exports, three strict menu startups and full1529-entry/nine-predicate artifact
+audit pass. Independent source/raw/artifact review GO. New playable checkpoint
+1d095ad is available above; native Windows/GPU/audio/human gates remain open.
+
+The combined ordinary driver1b5649cc2 is PARKED at its CLI-order test failure,
+without an export/native run; no failing test was changed or waived. Its five
+private driver/observer/startup/privacy files are excluded and verified archived;
+owned branch/worktree/scratch removed. Publishing the independently tested runtime
+repair does not accept the full ordinary gunner journey or craft. [Proof and
+source separation](docs/ROADMAP_BACKLOG.md#bulwark-ordinary-gunner-member).
+Both scopes keep the original11:43UTC/90minute clock/hard13:13/execution end13:03
+and exhausted correction allowance through integration/push/cleanup. Both task
+branches/worktrees/private caches/build duplicates are removed after verified
+preservation. Shared cleanup42.885minutes versus90estimate; final notes/push
+stay on that original clock.
+
 **Selection rule:** use the latest canonical State and linked terminal result.
 Reconcile contradictions before selecting work. An already-fixed source binding
 is reused; missing executable caller support becomes a production capability,
@@ -209,7 +235,7 @@ seams visible; it does not declare every contract ready or any product gate pass
 
 Recent accepted and parked results, exact costs and cleanup records are retained
 in [delivery history](docs/history/ROADMAP_DELIVERIES.md#roadmap-status-notes-retained-from-2026-10-27).
-Completed work is not the active queue. Latest playable checkpoint is7f23a80.
+Completed work is not the active queue. Latest playable checkpoint is1d095ad.
 
 ## Validation and final release
 

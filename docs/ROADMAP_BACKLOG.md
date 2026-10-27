@@ -574,6 +574,193 @@ new evidence family or checkpoint and does not invent an aggregate deadline.
 All ordinary journey, art, role-network and final external gates retain their
 original scope; nothing here marks Bulwark gameplay DONE.
 
+<a id="bulwark-ordinary-gunner-member"></a>
+
+##### Bulwark ordinary gunner fire, depletion, seat handback and home
+
+Selected2026-10-27; conservative original clock11:43UTC includes discovery.
+Basee0e6e0b32. This is one previously unselected ordinary member of the existing
+Bulwark contract above, not a Sandbox loss/capture replay or a full-craft PASS.
+One high implementer owns existing native runner/test, read-only observer,
+startup opt-in whitelist/privacy test; independent high reviewer checks lifecycle/
+input/authority; root owns docs/checks/private package/actual run/integration/cleanup.
+Automation cannot mutate actors/poses/targets/weapon/physics/input-profile/save.
+The RED-confirmed empty-ammunition validation/charge cleanup below is the sole
+supported production repair; no positive-ammunition tuning is selected.
+
+**Start and path.** Fresh Boot/private profile/defaults, actual Main/World/Player/
+Bulwark/source1107/home bulwark_fleet_dock_berth. Supported ordered feet goals:
+[-8.5,.18,11]→[0,0,13.5]→[0,0,15.5]→[0,0,39]→[0,0,46.3]→[0,0,51]→
+[-5.7,0,51]→[-5.7,4.2,61.2]→[-3.5,4.2,61.5]→[-3.5,4.2,64.2]→
+[-3.5,4.2,68.3]→[6,4.2,68.3]→[13,4.2,68.3]→[22,4.2,68.3]→
+[37,4.2,68.3]→[52,4.2,68.3]→[50.2,6.6,59.2]→[49,6.6,59.2]→live boarding.
+These reuse station/Fleet references, without transferring parked all-nine proof.
+Ordinary E/current canopy/pilot claim,90 neutral seated frames at occupied home;
+actual W/startup/lease release/launch beyond110m from home. Brake to<30m/s within
+240physics frames, neutral automaticOFFLINE within94frames (authored1.5s+4
+observation frames), remaining unlanded. E enters actual supported cabin; retain
+same Player/body/capsule/frame registration/containment and grounded control.
+Transform these four local points through the CURRENT hull, never place actors:
+(-.62,1.33,.40)→(-.62,1.33,1.80)→(1.25,1.33,1.80)→(1.25,1.33,.65).
+Aim at live gunner anchor+up1.2 and E acquires current exclusive gunner generation.
+
+**Actual two-round depletion.** Before any focused/engine/actual validation,
+11:53:25UTC refinement includes both authored rounds and empty refusal in the same
+original member/cap/clock. Target real ExteriorTargetRange/TargetDrone03/DRONE-03,
+initial health100. Default held Fire must request solo crew weapon power from the
+actual claim while OFFLINE and without helm, reach ONLINE, charge authored.45s,
+and resolve source1107/picket_siege_lance/22damage at≤560m. Require actual positive
+current receipt/target/sequence and health100→78/ammo2→1; aim query alone cannot
+prove damage. The second fresh held-F charge must produce a distinct current
+receipt/sequence, health78→56 and ammo1→0 after≥12released input frames and
+the actual4.8s cooldown/resource-readiness. Second fresh Fire may legitimately
+rewake an idled engine; hit≤3s after that actual ONLINE. Then wait cooldown0
+(not weapon_ready, which is false at ammo0) and issue fresh empty-magazine Fire.
+Retain a fresh current consumed source command and≥.45s held-F INPUT observation;
+the corrected consumer must create NO empty charge, keep ammo0/target56/no third
+resolved event, then released Fire must retain the existing station feedback
+`denial_reason=ammunition_depleted` while ONLINE, within3s of that fresh intent/
+ONLINE and before authored idle. This is the visible functional refusal;
+GameFlow discards the consumer return, so do not claim a captured return receipt
+or add instrumentation. No manually submitted refusal. Preserve target56/no pilot shots through home.
+From the first accepted power request allow at most169 observed
+physics frames (the preselected ceil(2.75s×60)+4 conservative observation ceiling).
+Actual solo weapon demand calls `_wake_engine_for_automatic_demand(false)`,
+which sets ONLINE immediately; do not require STARTING or insert a spool wait.
+The authored2.75s is pilot startup, not this crew-power transition. First hit
+remains within the existing3s post-ONLINE window. No pilot shots,
+third-party damage or manually invoked demand. Release Fire≥12frames, E stand,
+physical supported reseat/fresh gunner generation, stand again; reverse the same
+aisle to actual pilot and E reclaims helm. Old gunner fire/charge/claim authority
+must be released; ammunition/reseat behavior follows existing production owners.
+
+**Home and finish.** Actual live Hero landing capture/contract,13m/s gate,
+original actual landing timeout≥24s/4s stall and strict final tolerances; no assist
+reset. Exact parked transform/current occupied home lease,90 neutral frames and
+OFFLINE, ordinary exterior E, then supported reverse Dock03 clear walk through
+[50.2,6.6,59.2]→[52,4.2,68.3]→[37,4.2,68.3], actual clearance>7m.
+Same actors/default sampler/tuning/60Hz/time_scale1 throughout. Finish normal
+pause/focus/keys on HUD Exit, actual OS0 and independently read actual post-exit
+primary with crash_recovery=clean/safe_start_recovery=clean_shutdown.
+Record operands/raw receipts and release/reap owned game/input/display on all exits.
+
+**Frozen limits and proof.** Per exterior walk15s/goal; each cabin leg180physics
+frames+8settle; E/claim/exit4s; brake240frames/OFFLINE94. The old physical staged
+fixture supplies these component limits, not ordinary qualification. There was
+no earlier combined ordinary aggregate cap: this selection explicitly adds
+450s native/480s independent outer for this member before testing, rather than
+borrowing Guided300 or increasing a failed bound. All old native route300s caps
+stay unchanged. Full Python/import/late observer compile/privacy, clean private
+Linux export and actual archived startup exit0/exactlyone readiness marker/zero
+diagnostics precede the one full ordinary route. Bind exact clean source/ELF/
+TAR SHA after export. Proposed command: `python3 tools/release/run_native_sortie.py EXACT_ELF --output FRESH_OWNED_OUTPUT --route bulwark-gunner`.
+All Godot calls use Dummy and headless or private authenticated Xvfb/explicitx11;
+actual input-only mode uses dummy rendering. No active desktop/audible/hosted CI.
+
+Estimate90minutes all-inclusive; original hard13:13UTC, execution end13:03UTC,
+10minute closure reserve. One initial actual run and one total correction;
+first unexpected failure stops for demonstrated cause/remaining allowance and
+cumulative-priority review. Any failed final correction/deadline parks; no cap
+extension, alternative route search, extra correction or renamed retry. Preserve
+unique source/raw before owned cleanup; merge/push only accepted capability.
+**Causal source stop and sole correction12:06UTC.** Before any native run,
+source shows zero-ammo rejection occurs only after completed charge and leaves
+that charge active. Console feedback prioritizes charge; release Fire alone does
+not clear it. Thus the frozen visible empty-denial endpoint is impossible on old
+production. Initialclean308373508 adds only the driver/observer/regression;
+7678b712c adds its generated Godot UID. Bulwark production bytes remain exactly
+basee0e6e0b32. Silent import20.751s exits0/zero diagnostics. The isolated old-code
+regression exits1 after5.215s with13checks and EXACT three failures:
+EMPTY_MAGAZINE_NO_LINGERING_CHARGE, EMPTY_MAGAZINE_FEEDBACK_DENIED,
+EMPTY_MAGAZINE_READOUT_VISIBLE. The other ten authority/positive charge/resolver/
+cooldown checks pass; no unexpected engine diagnostics. Initial log has labels,
+not raw failed state/readout operands; retain that limit, without fabricating data.
+
+Cumulative23minutes at12:06 versus original90. Independent source review supports
+one earlyzero-ammo guard AFTER existing weapon/target/selection/destroyed/ONLINE/
+trigger/cooldown checks: cancel that actor's charge and return the existing
+ammunition_depleted refusal before starting another. Positive.45s charge/4.8s
+cooldown and authority remain unchanged. Old≥.45s empty-charge behavior is the
+bug; retain≥.45s real empty Fire INPUT observation, but require no new charge.
+The regression adds raw state operands and a standard GREEN-only _TEST_OK marker.
+No new instrumentation or fabricated accepted empty intent/returned native effect.
+This spends the sole correction; remaining0, any next failed validation PARKS.
+No native run occurred yet and no old failure/clock/cap is reset.
+
+This supported runtime repair supersedes the initial qualification-only packaging
+plan: require fresh clean Windows EXE/checkpointZIP/notes and matching Linux
+ELF/TAR/notes, focused GREEN/fullPython/privacy, three strict startups and complete
+paired archive audit before the once-only450/480 ordinary journey. No audible,
+active-desktop or hosted CI. Full Bulwark craft, reload/network/art/native/device/
+human/final gates remain open.
+
+**Combined ordinary member terminal — PARKED1b5649cc2.**
+Fixed source import6.555s and the actual same component13/13 GREEN5.385s pass;
+raw operands now show charges{}, ammo0, denial_reason=ammunition_depleted,
+actual readout `◆ GUNNER [ARMED]\n! AMMUNITION EMPTY`, positive resolver/cooldown
+status preserved and no empty dispatch. Full Python suite then exits1:
+309/310 pass, existing ZenithTorrentHandbackTests selector check expects the
+literal choices tuple to begin zenith-torrent-handback; new route was prepended.
+The failing assertion dumps source in python.log; exact predicate/trace retained.
+With remaining0, no test edit, driver repair, export or native run follows.
+This full ordinary member is NOT_ACCEPTED. Its first450/480 run is NOT_RUN.
+Reopening needs explicit cumulative-priority reprioritization and the recorded
+CLI-order compatibility correction, retaining all route/input/weapon/seat/home
+requirements and failed costs; a new label does not renew its allowance.
+
+Verified failed-candidate archive:
+`/srv/mudds-work/bulwark-gunner-20261027/records.tar.gz`,6886404bytes/35members,
+SHA256`64b65dc98870373f2a388171b219587764be50f8586a60a542d14cca384f0c8f`.
+All regular members match originals; named-tip bundle against pushed e0e6e0b32
+retains every unaccepted private source change and initial/fixed test results.
+Fresh remote tips/worktree ownership checked; task remote branch absent.
+Owned unmerged worktree/exact-tip branch/profiles/scratch removed. Only archive/
+closeout remain; no native game launched. Cleanup33.322minutes on shared clock.
+
+**Independent production repair — accepted1d095ad93/checkpoint1d095ad.**
+The five-line runtime guard, focused regression and UID are exact copies of the
+GREEN component source; all five unaccepted driver/observer/ingress/privacy
+files are excluded and byte-exact e0e6e0b32. This is a three-file production patch,
+not a merge or retry of the failed harness. The original full member remains
+PARKED. It receives its own source/tree validation without resetting the original
+11:43 clock,13:13 hard stop,13:03 execution end or exhausted correction allowance.
+Any failure in this isolated validation also stops publication; no further repair.
+Clean isolated import20.597s/GREEN13 checks5.333s/full existing303Python14.538s
+(test body)/15.165s supervisor and3627 privacy assertions6.682s pass. Independent
+source review verifies exact file separation and unchanged authority/target/engine/
+trigger/cooldown precedence and positive-ammunition.45s/4.8s behavior.
+Fresh paired exports pass26.704s/25.685s. Three strict actual0/exactly-one readiness/zero-diagnostic startups pass:
+Windows payload on Linux Godot25.884s, Linux ELF22.542s and actual TAR24.227s.
+All1529 embedded entries match the Windows manifest frozen before Linux export;
+existing immutable audit passes all nine predicates/unchanged inputs in8.346s.
+Independent final source/raw/artifact review GO for this exact3file candidate.
+The root reader initially referenced old229bfa6 frozen-artifact key after actual
+Linux startup PASS and raised KeyError. Dependent steps stopped; original helper/
+error are retained, and read-only verification of the existing log against current
+frozenb006d861… passed. No engine rerun, source change or predicate waiver.
+EXE184858472bytes/SHA237c6790004a84ef7188c1cffa675adf3a8cc54c3c78b4ae3330bbe6df7c678a;
+ELF149100184bytes/SHAb006d86150900d7d75bbf6ed6871b15e54b31792dd39395ceface19576fe10b3;
+TAR95508584bytes/SHA043f1549490ff43bfb7bb2aaadd37ca1ba3dd7b9317a0c4385c308f80ef91f2b.
+Fresh paired playable checkpoint1d095ad is published in builds/windows and
+builds/linux; seven files match audited source bytes. Only the two text build
+notes are added to Git alongside source/docs; binaries stay in repository builds.
+The fixed component stages ammo/engine/cooldown and uses direct crew intents;
+it does not prove ordinary admission, real two-hit depletion, home, network or
+native hardware. Publish only that scoped player-visible empty-charge/readout fix,
+with a fresh playable checkpoint; full craft/ordinary journey gates remain open.
+Verified accepted-scope archive:
+`/srv/mudds-work/bulwark-empty-feedback-20261027/records.tar.gz`,8148227bytes/
+80members/SHA256`ac871729428d20474256a43dba135bb1d996a77b2a7b080959bed8eb853b10ee`.
+All regular members match originals; source bundle verifies, and the seven
+public artifact copies retain complete audited hashes. Source1d095ad93 is in
+pushed main. Fresh remote tips/registered ownership checked; no remote task branch
+existed. Owned accepted worktree/exact-tip branch/private profiles/cache/build
+duplicates/scratch removed; only archive/closeout remain. Both original failed
+harness and accepted UI records keep the same11:43 clock and no new allowance.
+Shared cleanup42.885minutes versus90estimate; final docs/notes/commit/push remain
+charged to that original hard13:13UTC budget. No discarded unique source/raw.
+
+
 <a id="proof-combat"></a>
 ### Combat, weapons and damage proof
 
@@ -2076,7 +2263,7 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | CRAFT-ACCEPT-JOVIAN | Jovian full solo craft loop | 7,10,11 | Container | WEAPON-JOVIAN PARKED after one authorized caller correction:13Gantrygoals/90seat and first actual8.22285m/free-lease departure pass; frame2210 moves1.753796m above original1.603333m bound. No clearance waypoint/shot/home/reuse/UIOS0. Driverc148/game7af source pins differ; failed source stays unmerged. Motion owner/cause unknown; no next correction or retry selected. Original23:40→01:10UTC/90min cumulative clock retained. [Frozen contract and both attempts](history/ROADMAP_DELIVERIES.md#jovian-cannon-departure-parked-and-linux-archive-modes-fixed-20261027). Separate engineer journey remains parked. Ordinary solo spawn→engineer repair→hub attempt PARKED/NOT_ACCEPTED2026-10-25 after2actual trials. Corrected1530b4fc8 reaches17outbound physical goals/chair, acceptedportrepair/integrityimprovement/6→5/437ms/HUD5, then fails stand-retirement aggregate. Candidate incorrectly requires empty released authority still attached; production detaches it. Actual post-stand members unlogged. Fullreverse/hub/normalUI0NOT_RUN; no third under this card. Both sources/raw/STOP archived, candidate excluded from main/branch removed. Future selection needs predicate bound to existing detach contract+preassertmember receipts, independent source/cumulative review, originalfullroute/limits retained. Full craft remains a qualification container; other ordered role/function/damage/recovery/switch/Main route bindings still required. [Exact stops](history/ROADMAP_DELIVERIES.md#jovian-ordinary-engineer-two-stops-20261025). | Jovian completion container for the listed physical steps plus the complete craft contract. The next definition ends with proof/route/limit for every step or the exact missing artifact/decision and owner. A future bounded implementation changes one demonstrated missing behavior; this row closes only when the whole required journey is accepted. |
 | CRAFT-ACCEPT-ZENITH | Zenith full solo craft loop | 7,10,11 | Container | OPEN container; [finite11member binding](#zenith-finite-acceptance-binding). Retain DONE ordinary pilot/real28hit/two strict homes/fresh reuse/normalOS0 Game4bf5e889/Driver4870595fa in the [accepted scope](history/ROADMAP_DELIVERIES.md#zenith-pilot-hit-home-reuse-accepted-20261026). Settled retained-Main DONEa70f9397a in its [staged scope](history/ROADMAP_DELIVERIES.md#zenith-settled-main-reentry-qualified-20261026). Full physical cross-craft handback DONE Game499e681/Driver8ba86d98e:162.917s/42walkinggoals/mandatoryactualGuided/strictTorrenthome/OFFLINE/exit/sameZenithfresh90neutral/normalHUDOS0/bothrealcleanmarkers/diag0. Stream5→retired7→reclaim9; later10afterreceipt. [Exact proof/fourfailedtrials/limits](history/ROADMAP_DELIVERIES.md#zenith-torrent-handback-accepted-20261026). Focused physical stair repair1f7dccb remains accepted in its [recorded scope](history/ROADMAP_DELIVERIES.md#aft-stair-base-supported-contact-accepted-20261026). Remaining original component consequences/passive repair, loss/regeneration and current art/device/final bindings stay OPEN/BLOCKED definition as listed above; no missing handback or Main selector and no unchanged replay. Full craft is not DONE. | All members of the [finite binding](#zenith-finite-acceptance-binding) satisfy the [complete craft journey](#proof-craft) on the bound candidate, with original limits and retained failures. No extra crew, invented historical handling, craft×case matrix or unchanged parked replay. |
 | CRAFT-ACCEPT-HALYARD | Halyard full solo craft loop | 7,10,11 | Container | Qualification container; BLOCKED definition (Codex): exact ordered role/function, nonfatal/failed-component/repair, fatal-recovery, switch partner/handback and retained-Main members; ordinary driver/route/start-stop/original limits and accepted proof reused per member. No craft×case matrix. | [Complete craft journey](#proof-craft), plus this craft-specific result: Qualification container: pilot plus physical passenger/gunner/engineer/Loadmaster claim/action/stand/reseat; retain the accepted52damage gunner case. |
-| CRAFT-ACCEPT-BULWARK | Bulwark full solo craft loop | 7,10,11 | Container | Source acceptance binding recorded below; full journey BLOCKED definition (Codex) on the listed exact inputs/routes/candidate/limits: ordinary Dock03 access/pilot flight, OFFLINE cabin stand→seated weapon-power wake→gunner hit/release/reseat→pilot reclaim, concurrent moving-crew ownership handback, five-component consequences/passive repair, loss/regeneration, strict home/exit/reuse, Torrent handback and retained Main. Exact missing native inputs/routes/candidate/receipts/deadlines are assigned per member; f676c5016 reused only for its recorded host+one-client/staged scope. No new run, whole-loop pass or extra physical role. Selected member: [ordinary solo gunner journey](../ROADMAP.md#execution-now) — physical Dock03 admission/actual outward drift/carried aisle/real22-hit/fresh gunner reseat/pilot reclaim/strict home/normalOS0 and real clean files. PARKED after six failed ordinary trials; latest96197bf failed the outward15s bound after101.287s, and its final wrapper source guard also failed after a concurrent documentation edit. No accepted gunner journey or new checkpoint. Reopening requires the demonstrated outward-failure cause, bounded correction, independent cumulative-priority decision and clean frozen source; see the selected card for cumulative cost and retained source/raw. Separately, the reproduced carried-floor runtime repair is accepted in checkpoint30534f5: [actual captured regression and package proof](history/ROADMAP_DELIVERIES.md#carried-cabin-floor-contact-accepted-20261026); this does not close the parked journey. All remaining full-craft bindings stay open. | [Bulwark finite acceptance binding](#bulwark-finite-acceptance-binding) preserves every [complete craft journey](#proof-craft) member and the physical gunner real-damage/release/reseat requirement. |
+| CRAFT-ACCEPT-BULWARK | Bulwark full solo craft loop | 7,10,11 | Container | Source acceptance binding recorded below; full journey BLOCKED definition (Codex) on the listed exact inputs/routes/candidate/limits: ordinary Dock03 access/pilot flight, OFFLINE cabin stand→seated weapon-power wake→gunner hit/release/reseat→pilot reclaim, concurrent moving-crew ownership handback, five-component consequences/passive repair, loss/regeneration, strict home/exit/reuse, Torrent handback and retained Main. Exact missing native inputs/routes/candidate/receipts/deadlines are assigned per member; f676c5016 reused only for its recorded host+one-client/staged scope. No new run, whole-loop pass or extra physical role. Selected member: [ordinary solo gunner journey](../ROADMAP.md#execution-now) — physical Dock03 admission/actual outward drift/carried aisle/real22-hit/fresh gunner reseat/pilot reclaim/strict home/normalOS0 and real clean files. PARKED after six failed ordinary trials; latest96197bf failed the outward15s bound after101.287s, and its final wrapper source guard also failed after a concurrent documentation edit. No accepted gunner journey or new checkpoint. Reopening requires the demonstrated outward-failure cause, bounded correction, independent cumulative-priority decision and clean frozen source; see the selected card for cumulative cost and retained source/raw. Separately, the reproduced carried-floor runtime repair is accepted in checkpoint30534f5: [actual captured regression and package proof](history/ROADMAP_DELIVERIES.md#carried-cabin-floor-contact-accepted-20261026); this does not close the parked journey. All remaining full-craft bindings stay open. [Empty-magazine source repair and ordinary-member stop](#bulwark-ordinary-gunner-member): combined driver1b5649cc2 PARKED at CLI-order regression, no ordinary run/export accepted. Isolated3file runtime repair1d095ad93/checkpoint1d095ad is accepted:13 component/303 existing Python/3627 privacy, paired exports/three strict startups/full1529-entry/nine-predicate audit and independent review. Component ammo is staged; full ordinary gunner remains PARKED, no direct physical-fire qualification inferred. No full gunner or craft PASS inferred. | [Bulwark finite acceptance binding](#bulwark-finite-acceptance-binding) preserves every [complete craft journey](#proof-craft) member and the physical gunner real-damage/release/reseat requirement. |
 | CRAFT-ACCEPT-CINDER-LIGHT | Cinder Light Interceptor full solo craft loop | 7,10,11 | Container | WEAPON-CINDER-LIGHT member PARKED: first full run canonical-race comparison fails after15walk/90seat/12mlift; one exact-codec correction then fails its component float-pair assertion before export/second native. No firing/home/reuse/UIOS0. [Both stops/full retained contract](#cinder-light-two-pulse-weapon-and-returnreuse--frozen2026-10-27). Six candidate files remain unmerged/verified archived; owned branch/worktree/process/scratch cleaned. No third attempt or further correction selected; exact fixture values/representation proof remains missing. Qualification container; BLOCKED definition (Codex): exact ordered role/function, nonfatal/failed-component/repair, fatal-recovery, switch partner/handback and retained-Main members; ordinary driver/route/start-stop/original limits and accepted proof reused per member. No craft×case matrix. | [Complete craft journey](#proof-craft), plus this craft-specific result: Qualification container: pilot specialist handling, actual repeater cadence/cooldown and component consequences. |
 | CRAFT-ACCEPT-CINDER-HAULER | Cinder Cargo Hauler full solo craft loop | 7,10,11 | Container | Conserved cargo delivery DONE99f2717ee; full craft remains GATED on remaining actual weapon/role/damage/recovery/reuse/cross-craft/Main/art and final-source acceptance. One delivery does not close this journey. Qualification container; BLOCKED definition (Codex): exact ordered role/function, nonfatal/failed-component/repair, fatal-recovery, switch partner/handback and retained-Main members; ordinary driver/route/start-stop/original limits and accepted proof reused per member. No craft×case matrix. | [Complete craft journey](#proof-craft), plus this craft-specific result: Qualification container: pilot/ramp, conserved shared-stock delivery, travelling mass-driver impact and physical Loadmaster/Navigator actions. |
 | CRAFT-ACCEPT-CINDER-BOMBER | Cinder Long-Range Bomber full solo craft loop | 7,10,11 | Container | Qualification container; BLOCKED definition (Codex): exact ordered role/function, nonfatal/failed-component/repair, fatal-recovery, switch partner/handback and retained-Main members; ordinary driver/route/start-stop/original limits and accepted proof reused per member. No craft×case matrix. | [Complete craft journey](#proof-craft), plus this craft-specific result: Qualification container: pilot four-round payload hit/miss/depletion, refusal while empty and refill4 on physical pilot retake; extra crew waits on BOMBER-ROLE-DECISION. |

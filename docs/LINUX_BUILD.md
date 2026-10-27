@@ -4,7 +4,33 @@ Linux x86_64 is a supported desktop export target alongside Windows. This page
 covers how a Linux candidate is exported, packaged and startup-checked, and
 what has been validated so far.
 
-## Latest development checkpoint: `7f23a80` — 2026-10-27
+## Latest development checkpoint: `1d095ad` — 2026-10-27
+
+[Linux archive](../builds/linux/MuddsShipyards-1d095ad-linux-x86_64.tar.gz) ·
+[build notes](../builds/linux/MuddsShipyards-1d095ad-linux-notes.txt) ·
+[Windows checkpoint](../builds/windows/MuddsShipyards-1d095ad-checkpoint.zip).
+Source `1d095ad93dd5d4407b341ef107b2fe5678099f1d` fixes Bulwark's exhausted
+siege-lance magazine: Fire refuses before creating a charge, clears stale charge
+for that actor and keeps the authored AMMUNITION EMPTY readout. Existing authority,
+target, engine and cooldown gates and positive-ammunition timing are retained.
+
+Old production fails exactly three targeted charge/denial/readout assertions;
+the fixed isolated source passes all13,303 existing driver tests and3627 privacy
+assertions. Fresh paired exports, strict Windows-payload/Linux-ELF/Linux-TAR menu
+startups and all1529 embedded entries/nine immutable audit predicates pass.
+Windows payload startup is checked under Linux Godot; native Windows remains
+NOT_RUN. Actual UI component fixture stages ammo/engine/cooldown and directly
+submits crew intents; ordinary physical gunner admission/fire/home is unqualified.
+The separately drafted full ordinary driver is parked at an existing CLI-order
+assertion and excluded from this three-file source. [Exact proof and retained
+failed candidate](ROADMAP_BACKLOG.md#bulwark-ordinary-gunner-member).
+
+The EXE/ZIP/notes and ELF/TAR/notes/export result reside in repository builds;
+no Downloads publication. Current artifact hashes match the independent audit.
+Native GPU/rendered readability/physical controls/audio/human/full-craft/final
+release gates remain open. Earlier checkpoint journeys retain their own scopes.
+
+## Earlier development checkpoint: `7f23a80` — 2026-10-27
 
 [Linux archive](../builds/linux/MuddsShipyards-7f23a80-linux-x86_64.tar.gz) ·
 [build notes](../builds/linux/MuddsShipyards-7f23a80-linux-notes.txt).
