@@ -863,6 +863,48 @@ integration only. Launching the menu entry on a real desktop, native GPU/device
 and audible tests, human review and final-release acceptance remain separate
 `NOT_RUN` gates. This manager does not qualify them.
 
+## Repeatable managed uninstall/reinstall check
+
+`tools/release/run_linux_install_lifecycle.py` executes the existing full
+INSTALL-LINUX-UNINSTALL transaction in a fresh private directory. It runs the
+archive's shipped manager to install, uninstall twice and reinstall into a fresh
+generation; checks exact ownership/payload/launcher/modes; preserves unowned
+notes, another desktop entry and the earned Heavy save; then runs strict menu
+startup and the full ordinary Guided/HUD Quit journey before final uninstall.
+All five protected files must remain byte/mode exact. The root and raw results
+are retained for review; existing installations and pre-existing roots are refused.
+
+Use absolute paths, a pinned approved archive/export result, the real8655byte
+Heavy save fixture, and an absent run root:
+
+```bash
+python3 tools/release/run_linux_install_lifecycle.py \
+  --archive "$APPROVED_TAR" --archive-sha256 "$APPROVED_TAR_SHA256" \
+  --export-result "$EXPORT_RESULT" \
+  --retained-save "$EARNED_HEAVY_SAVE" \
+  --retained-save-sha256 25f9ccfe03b22018eae2cffcb52841ed5fbcff3f4a51a6c020e6c7495701aa73 \
+  --root "$NEW_RUN_ROOT"
+```
+
+The fixture is the exact `ordinary-sortie/orderly-close.json` member of
+`/srv/mudds-work/heavy-picket-damage-admission-20261025/results/case-records.tar.gz`;
+copy it outside the absent run root and retain its original bytes. The
+[full contract](ROADMAP_BACKLOG.md#final-linux-uninstallreinstall--install-linux-uninstall)
+fixes protected paths/modes and input bindings. Each manager child has10s, the
+installer work has an independent120s timer paused only during game checks,
+startup retains300s, and Guided retains300s with330s outer supervision. Private
+profiles, explicit x11 and Dummy audio are supplied by the existing game helpers.
+There are no options to skip gameplay or reuse an existing installation.
+
+Consumer62810ebf5 passed once on exact checkpoint7f23a80: full lifecycle101.196s,
+installer work22.249s, menu21.895s, Guided55.388s with normal HUD OS0 and both
+clean markers. All five protected files/inputs stayed exact; owned processes were
+reaped.25 tests and independent raw review pass after the retained initial
+integration correction. [Proof and limits](ROADMAP_BACKLOG.md#final-linux-uninstallreinstall--install-linux-uninstall).
+The game build is unchanged. Final-candidate execution, graphical desktop launch,
+retained-save gameplay reload, native GPU/audio/devices and human review remain
+separate requirements.
+
 ## Exporting a candidate (main thread / release engineer)
 
 Prerequisites: Godot 4.7.1 on `PATH` (or `GODOT_BIN`), and the Linux templates

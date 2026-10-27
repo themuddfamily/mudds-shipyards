@@ -157,11 +157,29 @@ allowance0 means PARK with no further repair/retry. Cleanup flags pass; private
 candidate/source/results are verified archived, owned branch/worktree/profiles/
 scratch removed. No failed code merged or public checkpoint replaced.
 [Exact result and reopening boundary](docs/ROADMAP_BACKLOG.md#courier-intercept--bounded-outcomes).
-No active implementation remains after this closure; latest playable build7f23a80.
+That attempt is closed; latest playable build7f23a80 remains unchanged.
 
 Reopening the parked launch work requires causal evidence about the startup
 stall in its original environment and an explicit cumulative-cost decision;
 its exhausted correction allowance cannot be reset by another card or branch.
+
+**Delivered — INSTALL-LINUX-UNINSTALL executable lifecycle command.**
+Source62810ebf5 adds the existing full transaction as one repeatable release
+command. Its once-only checkpoint7f23a80 run passes101.196s: shipped-manager
+install/uninstall/repeat/fresh-generation reinstall, strict startup, full ordinary
+Guided55.388s/normal HUD OS0/both clean markers, then final uninstall. All five
+protected files remain byte/mode exact, including the real8655byte earned Heavy
+save; inputs stay unchanged and owned processes are reaped. Installer work22.249s
+under120; original game/child limits retained.25 tests and independent full raw
+review pass after the one retained initial correction. No gameplay or graphics
+change/new public build; latest playable checkpoint remains7f23a80.
+[Command, actual proof and retained limits](docs/ROADMAP_BACKLOG.md#final-linux-uninstallreinstall--install-linux-uninstall).
+Final-candidate, graphical desktop launch, retained-save gameplay reload and
+native/human gates remain open. Original11:12:09UTC/60minute estimate/12:12:09
+hard stop include integration/push/owned cleanup. Source is pushed; branch/
+worktree/install/profile/scratch cleaned after verified preservation. Closure
+18.007minutes through cleanup; final notes/push remain on that clock. No new
+implementation selected.
 
 **Selection rule:** use the latest canonical State and linked terminal result.
 Reconcile contradictions before selecting work. An already-fixed source binding
