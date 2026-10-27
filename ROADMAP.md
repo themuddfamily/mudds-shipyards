@@ -28,6 +28,42 @@ features. There is no evidence-backed project percentage or completion date.
 
 ## How we will work from this roadmap
 
+Every remaining item must resolve to one of three things: **a ready task with a
+fixed pass/fail check**, **a blocked task naming its exact missing input and
+owner**, or **a container listing the tasks needed to finish it**. A blocked
+item is unfinished; describing its blocker does not make it complete. The
+[remaining contract gaps](docs/ROADMAP_BACKLOG.md#remaining-contract-gaps--plan-next)
+are still blocked, not a list of ready implementation assignments.
+
+Use this short card in the existing goal's row or linked contract before
+starting. Fill the brackets with literal values; an unfilled bracket blocks work.
+Do not create a second task tracker.
+
+```text
+Goal: [existing ID and one result]
+Player/build result: [action -> observable outcome]
+Included: [finite behavior/case list]; excluded: [adjacent work deferred]
+Start: [commit/package, profile, location, participants/device, owned files]
+Actions: [ordered steps or exact command]
+PASS only if: [all expected values/counts/tolerances and preserved state]
+Proof: [check/route and expected output; source/package/device scope]
+Dependencies: [existing IDs and exact required result; or none]
+Missing inputs: [field -> owner -> artifact/answer; or none]
+Budget: [estimate including checks/build/integration/cleanup]
+Stop: [absolute deadline, original run limits, independent abort]
+Prior attempts: [total time, first failure, retained source/results; or none]
+Close: [PASS/FAIL/BLOCKED/PARKED, proof, commit/push, checkpoint if needed,
+        owned branch/worktree/process/scratch cleanup]
+```
+
+All listed PASS predicates must hold. On PASS, close this goal within that scope;
+leave broader release/device gates with their existing owners. A newly found
+unrelated defect goes to its existing goal and does not enlarge this card.
+On failure, record the first unmet predicate and stop; do not weaken acceptance
+or silently add a repair. Reopening must name the affected predicate, the new
+causal evidence or missing input received, and the cumulative-priority decision.
+A new label, branch or clearer wording is not new evidence.
+
 **One active delivery, with acceptance written before work starts.** Broad
 milestones below group work; they cannot be assigned as coding tasks. Use the
 existing ID in the [canonical backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes).
@@ -41,7 +77,7 @@ Every selected goal must have these literal answers in its existing card:
 | Pass/fail | Expected state, count/value/tolerance and endpoint; preserved data; original gameplay limits. |
 | Proof | Exact focused check or complete ordinary route, with expected output/state. A repair must distinguish the old failure from the corrected behavior. |
 | Dependencies | Existing prerequisite IDs; each missing choice, artifact or device has a named owner. |
-| Stop | Estimate including checks/build/cleanup; first-failure stop; cumulative cost of prior attempts. |
+| Stop | Estimate including checks/build/cleanup, absolute hard deadline and independent abort; first-failure stop; cumulative cost of prior attempts. |
 | Closure | Accepted result or first failed predicate; commit/push; playable checkpoint for runtime changes; owned branch/worktree/process/scratch cleanup. |
 
 “Improve”, “polish”, “finish”, “works”, “usable”, “all applicable” and “as
@@ -78,9 +114,11 @@ Neither is an executable task. One definition pass gets 15–30 minutes to fill 
 fields or return that exact blocker; it cannot schedule another discovery chain.
 
 An implementation is estimated at **90 minutes or less including closure**;
-split larger production changes before starting. Complete journeys/soaks retain
-their original durations. A failed estimate is reported as an overrun against
-the same goal. A discovered prerequisite stays charged to that goal; a new
+split larger production changes before starting. Reserve explicit time for
+integration/build/cleanup inside that budget. At the recorded hard deadline,
+stop implementation and record the unfinished result; do not silently extend it.
+Complete journeys/soaks retain their original durations. A failed estimate is
+reported as an overrun against the same goal. A discovered prerequisite stays charged to that goal; a new
 branch, card or agent never resets its elapsed cost.
 
 Stop at the first unexpected failure. One failed repair requires a recorded
