@@ -3664,6 +3664,7 @@ func _safe_start_recovery_material_projection(report: Dictionary) -> Dictionary:
 		"restore_reason": (report.get("restore_status", {}) as Dictionary).get("reason", &""),
 		"stable_reason": (report.get("stable_status", {}) as Dictionary).get("reason", &""),
 		"policy_state": policy.get("state", &""),
+		"audio_fallback_available": report.get("audio_fallback_available", false),
 		"graphics_recovery_receipt": (
 			report.get("graphics_recovery_receipt", {}) as Dictionary
 		).duplicate(true),
@@ -24477,7 +24478,7 @@ func _handle_safe_start_recovery_intent(payload: Dictionary) -> Dictionary:
 	var action := StringName(str(action_value))
 	var generation := generation_value as int
 	var revision := revision_value as int
-	if action not in [&"restore", &"keep_safe"]:
+	if action not in [&"restore", &"keep_safe", &"use_safe_audio"]:
 		return _record_safe_start_recovery_hud_status(
 			false, &"action_unavailable", action, generation, revision, {}
 		)
@@ -24511,6 +24512,20 @@ func _handle_safe_start_recovery_intent(payload: Dictionary) -> Dictionary:
 				"settings_authority": false,
 				"filesystem_authority": false,
 			}
+		)
+	if action == &"use_safe_audio":
+		var applied: Dictionary = _safe_start_production_recovery.apply_audio_recovery_fallback(
+			Callable(self, &"_persist_runtime_settings")
+		)
+		_sync_production_runtime_settings_state()
+		var audio_publication: Dictionary = _publish_safe_start_recovery_status_to_hud(true, true)
+		return _record_safe_start_recovery_hud_status(
+			bool(applied.get("accepted", false)),
+			StringName(applied.get("reason", &"audio_fallback_unavailable")),
+			action,
+			generation,
+			revision,
+			{"audio_result": applied, "publication": audio_publication}
 		)
 	var domain_results := {}
 	var attempted_domains: PackedStringArray = []

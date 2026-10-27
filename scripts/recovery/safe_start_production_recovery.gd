@@ -339,16 +339,38 @@ func restore_prior_graphics_profile(persist_settings: Callable) -> Dictionary:
 	})
 
 
-## Applies a caller-authorized device-neutral audio fallback after the policy
-## recommends safe start. The prior master/music levels become a one-shot
-## receipt for explicit post-stability restoration.
-func apply_audio_recovery_fallback(persist_settings: Callable) -> Dictionary:
+## The explicit audio choice survives the stability window only while this
+## startup still owns an active, unconsumed graphics fallback. A normal startup
+## or a completed recovery never becomes a general-purpose volume setter.
+func get_audio_fallback_availability() -> Dictionary:
 	if _policy == null or not _initialized:
 		return _local_status(false, &"policy_unavailable")
-	if not bool(_policy.get_snapshot().get("recommendation_available", false)):
-		return _local_status(false, &"audio_fallback_not_recommended")
 	if not _audio_recovery_receipt.is_empty():
 		return _local_status(false, &"audio_fallback_already_applied")
+	var snapshot: Dictionary = _policy.get_snapshot()
+	if not bool(_begin_status.get("accepted", false)) \
+			or int(snapshot.get("startup_generation", -1)) != _startup_generation:
+		return _local_status(false, &"audio_fallback_not_recommended")
+	var readiness: Dictionary = _restore_readiness_snapshot()
+	var graphics: Dictionary = readiness.get("graphics", {}) as Dictionary
+	var retained_graphics_fallback: bool = (
+		bool(readiness.get("stability_confirmed", false))
+		and bool(graphics.get("fallback_active", false))
+		and int(_graphics_recovery_receipt.get("startup_generation", -1))
+			== _startup_generation
+	)
+	if not bool(snapshot.get("recommendation_available", false)) \
+			and not retained_graphics_fallback:
+		return _local_status(false, &"audio_fallback_not_recommended")
+	return _local_status(true, &"audio_fallback_available")
+
+
+## Applies a caller-authorized device-neutral fallback. The prior master/music
+## levels become a one-shot receipt for explicit post-stability restoration.
+func apply_audio_recovery_fallback(persist_settings: Callable) -> Dictionary:
+	var availability: Dictionary = get_audio_fallback_availability()
+	if not bool(availability.get("accepted", false)):
+		return availability
 	if not persist_settings.is_valid():
 		return _local_status(false, &"settings_persistence_unavailable")
 	var before_payload := _settings.to_user_data_payload()
@@ -518,6 +540,7 @@ func get_report() -> Dictionary:
 		"recommendation_status": _recommendation_status.duplicate(true),
 		"graphics_recovery_receipt": _graphics_recovery_receipt.duplicate(true),
 		"audio_recovery_receipt": _audio_recovery_receipt.duplicate(true),
+		"audio_fallback_available": bool(get_audio_fallback_availability().get("accepted", false)),
 		"restore_readiness_snapshot": _restore_readiness_snapshot(),
 		"policy_snapshot": policy_snapshot.duplicate(true),
 		"last_commit_id": _last_commit_id,

@@ -156,6 +156,29 @@ func _run() -> void:
 		"incomplete authoritative receipts fail closed to keep-safe only"
 	)
 
+	var audio_choice_presenter := Presenter.new()
+	var audio_choice_report := _report(9, 1, "stable", false, false)
+	audio_choice_report.audio_recovery_receipt = {}
+	audio_choice_report.restore_readiness_snapshot.audio = _empty_domain_readiness()
+	audio_choice_report["audio_fallback_available"] = true
+	var audio_choice := audio_choice_presenter.present_receipt(audio_choice_report)
+	_check(
+		bool(audio_choice.details.audio_fallback_available)
+		and audio_choice.actions.size() == 3
+		and audio_choice.actions[2].label == "Use Safe Audio"
+		and audio_choice.next_action.contains("50%")
+		and bool(audio_choice_presenter.request_use_safe_audio(9, 1).accepted)
+		and audio_choice_presenter.request_use_safe_audio(9, 0).reason == &"stale_revision",
+		"the explicit safe-audio choice names its bounded result and carries the existing report fence"
+	)
+	audio_choice_report.report_revision = 2
+	audio_choice_report.audio_fallback_available = false
+	audio_choice_presenter.present_receipt(audio_choice_report)
+	_check(not bool(audio_choice_presenter.request_use_safe_audio(9, 2).accepted), "withdrawn audio availability removes the presentation intent")
+	var forged_audio_availability := audio_choice_report.duplicate(true)
+	forged_audio_availability.audio_fallback_available = true
+	_check(audio_choice_presenter.present_receipt(forged_audio_availability).reason == &"revision_conflict", "same-cursor audio availability changes cannot replace accepted presentation data")
+
 	var hud := HudType.new()
 	root.add_child(hud)
 	await process_frame
@@ -229,7 +252,7 @@ func _run() -> void:
 	)
 	hud.free()
 	if _failures.is_empty():
-		print("SAFE_START_RECOVERY_PRESENTER_TEST_OK: 27 assertions")
+		print("SAFE_START_RECOVERY_PRESENTER_TEST_OK: 30 assertions")
 	else:
 		for failure in _failures:
 			push_error(failure)

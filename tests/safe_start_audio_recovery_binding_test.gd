@@ -41,6 +41,7 @@ func _initialize() -> void:
 func _run() -> void:
 	await _test_apply_restore_and_reentry()
 	await _test_persistence_rejection_rolls_back()
+	_test_stable_audio_choice_availability()
 	_finish()
 
 
@@ -102,6 +103,22 @@ func _test_persistence_rejection_rolls_back() -> void:
 	var rejected := binding.apply_fallback()
 	_check(not bool(rejected.accepted) and rejected.reason == &"audio_fallback_save_failed", "persistence rejection fails closed")
 	_check(settings.to_user_data_payload() == before, "failed persistence rolls live audio settings back atomically")
+
+
+func _test_stable_audio_choice_availability() -> void:
+	_persist_ok = true
+	var fixture: Dictionary = _make_ready_fixture()
+	var recovery: SafeStartProductionRecovery = fixture.recovery as SafeStartProductionRecovery
+	var settings: RuntimeSettings = fixture.settings as RuntimeSettings
+	var binding := Binding.new()
+	var generation: int = int(recovery.get_report().get("startup_generation", -1))
+	binding.configure(recovery, Callable(self, &"_persist_settings"), generation)
+	recovery.advance_physics(5.0)
+	_check(bool(binding.get_recommendation().accepted), "binding shares post-STABLE audio availability while this startup's graphics fallback remains active")
+	settings.graphics_profile = Settings.GraphicsProfile.HIGH
+	_check(not bool(binding.get_recommendation().accepted) and not bool(binding.apply_fallback().accepted), "post-STABLE audio fallback cannot become an unrestricted setter after live graphics changes")
+	settings.graphics_profile = Settings.GraphicsProfile.LOW
+	_check(bool(binding.apply_fallback().accepted) and not bool(binding.get_recommendation().accepted), "binding uses the same one-shot availability as the production HUD")
 
 
 func _check(condition: bool, message: String) -> void:

@@ -5454,6 +5454,8 @@ func request_safe_start_recovery_action(
 			intent = _safe_start_status_presenter.request_restore(generation, revision)
 		&"keep_safe":
 			intent = _safe_start_status_presenter.request_keep_safe(generation, revision)
+		&"use_safe_audio":
+			intent = _safe_start_status_presenter.request_use_safe_audio(generation, revision)
 		_:
 			return {
 				"accepted": false,

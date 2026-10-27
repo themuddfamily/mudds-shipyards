@@ -117,6 +117,12 @@ func _test_startup_physics_reentry_and_explicit_shutdown() -> void:
 	await process_frame
 	var startup := game.get_safe_start_recovery_report()
 	var settings_startup := game.get_runtime_settings_persistence_report()
+	var normal_audio: Dictionary = game._handle_safe_start_recovery_intent({
+		"action": &"use_safe_audio", "generation": int(startup.startup_generation),
+		"revision": int(startup.report_revision), "presentation_only": true,
+		"settings_authority": false, "filesystem_authority": false,
+	})
+	_check(not bool(startup.audio_fallback_available) and not bool(normal_audio.accepted) and normal_audio.reason == &"audio_fallback_not_recommended", "normal startup cannot use the recovery action as an unrestricted volume setter")
 	_check(
 		int(startup.policy_count) == 1
 		and int(startup.policy_instance_id) != 0
@@ -641,6 +647,8 @@ func _test_corrupt_newer_backup_and_failed_authority() -> void:
 	invalid_flow.configure_runtime_settings_persistence(invalid_store, LEGACY_PATH)
 	invalid_flow._initialize_runtime_settings()
 	var invalid_report := invalid_flow.get_safe_start_recovery_report()
+	var invalid_audio: Dictionary = invalid_flow._safe_start_production_recovery.apply_audio_recovery_fallback(Callable(invalid_flow, &"_persist_runtime_settings"))
+	_check(not bool(invalid_audio.accepted) and not bool(invalid_report.audio_fallback_available), "corrupt settings never expose or apply the explicit audio fallback")
 	_check(
 		invalid_flow.get_runtime_settings_persistence_report().load_status.reason
 			== &"settings_payload_invalid"
@@ -665,6 +673,8 @@ func _test_corrupt_newer_backup_and_failed_authority() -> void:
 	var newer_flow := GameFlow.new()
 	newer_flow.configure_runtime_settings_persistence(newer_store, LEGACY_PATH)
 	newer_flow._initialize_runtime_settings()
+	var newer_audio: Dictionary = newer_flow._safe_start_production_recovery.apply_audio_recovery_fallback(Callable(newer_flow, &"_persist_runtime_settings"))
+	_check(not bool(newer_audio.accepted) and not bool(newer_flow.get_safe_start_recovery_report().audio_fallback_available), "newer settings never expose or apply the explicit audio fallback")
 	_check(
 		newer_flow.get_runtime_settings_persistence_report().load_status.reason
 			== &"settings_payload_newer"

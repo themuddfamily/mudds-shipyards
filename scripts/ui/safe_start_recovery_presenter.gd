@@ -89,6 +89,11 @@ func present_receipt(receipt: Dictionary) -> Dictionary:
 	var stability_confirmed := bool(readiness_snapshot.get("stability_confirmed", false))
 	var restore_available := graphics_restore_ready or audio_restore_ready
 	var blocked_reason := _blocked_reason(receipt)
+	var audio_fallback_available: bool = (
+		receipt.get("audio_fallback_available") == true
+		and audio.is_empty()
+		and blocked_reason.is_empty()
+	)
 	var fallback_active := graphics_fallback_active or audio_fallback_active
 	var actions: Array = [{
 		"id": &"keep_safe",
@@ -139,6 +144,13 @@ func present_receipt(receipt: Dictionary) -> Dictionary:
 		readiness = "[RECOVERY COMPLETE]"
 		next_action = "Continue with the current settings. Previous fallback receipts are complete."
 		explanation = "No previous graphics or audio settings remain available to restore."
+	if audio_fallback_available:
+		actions.append({
+			"id": &"use_safe_audio",
+			"label": "Use Safe Audio",
+			"focusable": true,
+		})
+		next_action += " Use Safe Audio to lower master volume to 50% and mute music."
 	_snapshot = {
 		"component_id": COMPONENT_ID,
 		"accepted": true,
@@ -160,6 +172,7 @@ func present_receipt(receipt: Dictionary) -> Dictionary:
 			"audio_fallback_active": audio_fallback_active,
 			"graphics_restore_ready": graphics_restore_ready,
 			"audio_restore_ready": audio_restore_ready,
+			"audio_fallback_available": audio_fallback_available,
 			"graphics_readiness_reason": graphics_readiness.get("reason", &""),
 			"audio_readiness_reason": audio_readiness.get("reason", &""),
 			"graphics_receipt_consumed": not graphics.is_empty() and bool(graphics.get("consumed", false)),
@@ -287,6 +300,10 @@ func request_choice(choice: StringName) -> Dictionary:
 
 func request_restore(expected_generation: int = -1, expected_revision: int = -1) -> Dictionary:
 	return _intent(&"restore", &"restore_requested", expected_generation, expected_revision)
+
+
+func request_use_safe_audio(expected_generation: int = -1, expected_revision: int = -1) -> Dictionary:
+	return _intent(&"use_safe_audio", &"use_safe_audio_requested", expected_generation, expected_revision)
 
 
 func request_keep_safe(expected_generation: int = -1, expected_revision: int = -1) -> Dictionary:
@@ -448,6 +465,7 @@ func _report_projection(receipt: Dictionary) -> Dictionary:
 		"graphics_recovery_receipt": _project_value(
 			receipt.get("graphics_recovery_receipt")
 		),
+		"audio_fallback_available": receipt.get("audio_fallback_available", false),
 		"audio_recovery_receipt": _project_value(
 			receipt.get("audio_recovery_receipt")
 		),

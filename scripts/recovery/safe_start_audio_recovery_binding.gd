@@ -42,10 +42,11 @@ func is_attached() -> bool:
 func get_recommendation() -> Dictionary:
 	if not _ready_for_call():
 		return _status(false, &"binding_unavailable")
-	var report := _recovery.get_report()
-	var snapshot := report.get("policy_snapshot", {}) as Dictionary
-	if not bool(snapshot.get("recommendation_available", false)):
-		return _status(false, &"audio_fallback_not_recommended")
+	if not _generation_matches():
+		return _status(false, &"stale_recovery_generation")
+	var availability: Dictionary = _recovery.get_audio_fallback_availability()
+	if not bool(availability.get("accepted", false)):
+		return availability
 	return _status(true, &"audio_fallback_available", {
 		"startup_generation": _expected_startup_generation,
 		"persisted": false,

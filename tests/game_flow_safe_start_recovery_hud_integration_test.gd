@@ -3,9 +3,50 @@ extends SceneTree
 const GameFlowType := preload("res://scripts/game/game_flow.gd")
 const HudType := preload("res://scripts/ui/hud.gd")
 const SafeStartType := preload("res://scripts/recovery/safe_start_production_recovery.gd")
+const MainScene := preload("res://scenes/main.tscn")
+const SettingsType := preload("res://scripts/settings/runtime_settings.gd")
+const StoreType := preload("res://scripts/persistence/user_data_store.gd")
+const AdapterType := preload("res://scripts/settings/runtime_settings_store_adapter.gd")
+const PolicyType := preload("res://scripts/recovery/safe_start_recovery_policy.gd")
+const RecordType := preload("res://scripts/recovery/safe_start_recovery_record.gd")
+const STORE_PATH := "memory://safe-audio-hud.json"
+const LEGACY_PATH := "memory://safe-audio-hud.cfg"
 
 var _assertions := 0
 var _failures: PackedStringArray = []
+
+
+class ActionFilesystem extends UserDataFilesystem:
+	var files: Dictionary = {}
+	var refuse_next_write := false
+	var write_count := 0
+
+	func file_exists(path: String) -> bool: return files.has(path)
+	func directory_exists(_path: String) -> bool: return false
+	func ensure_parent_directory(_path: String) -> Error: return OK
+	func read_bytes(path: String, maximum_bytes: int) -> Dictionary:
+		if not files.has(path):
+			return {"error": ERR_FILE_NOT_FOUND, "bytes": PackedByteArray()}
+		var bytes: PackedByteArray = (files[path] as PackedByteArray).duplicate()
+		if bytes.size() > maximum_bytes:
+			return {"error": ERR_FILE_CORRUPT, "bytes": PackedByteArray()}
+		return {"error": OK, "bytes": bytes}
+	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
+		write_count += 1
+		if refuse_next_write:
+			refuse_next_write = false
+			return ERR_FILE_CANT_WRITE
+		files[path] = bytes.duplicate()
+		return OK
+	func remove_path(path: String) -> Error:
+		if not files.has(path): return ERR_FILE_NOT_FOUND
+		files.erase(path)
+		return OK
+	func rename_path(from_path: String, to_path: String) -> Error:
+		if not files.has(from_path) or files.has(to_path): return ERR_FILE_CANT_WRITE
+		files[to_path] = (files[from_path] as PackedByteArray).duplicate()
+		files.erase(from_path)
+		return OK
 
 
 class RecoveryProbe extends SafeStartType:
@@ -236,7 +277,203 @@ func _run() -> void:
 	flow.free()
 	hud.queue_free()
 	await process_frame
+	await _test_real_main_safe_audio_action()
+	await _test_real_main_audio_user_edits_and_keep_safe()
+	var defaults: RuntimeSettings = SettingsType.new(LEGACY_PATH)
+	defaults.reset_to_defaults()
+	defaults.apply_input_bindings()
 	_finish()
+
+
+func _new_main_fixture() -> Dictionary:
+	var filesystem: ActionFilesystem = ActionFilesystem.new()
+	var store: UserDataStore = StoreType.new(STORE_PATH, filesystem)
+	var settings: RuntimeSettings = SettingsType.new(LEGACY_PATH)
+	settings.master_volume = 0.71
+	settings.music_volume = 0.26
+	settings.ambience_volume = 0.62
+	settings.engine_volume = 0.53
+	settings.weapons_volume = 0.44
+	settings.ui_volume = 0.35
+	settings.camera_fov = 89.0
+	settings.ui_scale = 1.3
+	settings.reduced_motion = true
+	settings.captions_enabled = true
+	settings.graphics_profile = SettingsType.GraphicsProfile.HIGH
+	settings.window_mode = SettingsType.WindowMode.FULLSCREEN
+	store.load()
+	var seeded: Dictionary = store.commit({
+		AdapterType.SETTINGS_PAYLOAD_KEY: settings.to_user_data_payload(),
+		PolicyType.PAYLOAD_NAMESPACE: {
+			"schema_version": RecordType.SCHEMA_VERSION,
+			"record_generation": 3,
+			"startup_generation": 3,
+			"state": RecordType.STATE_STARTING,
+			"consecutive_failure_count": RecordType.SAFE_MODE_FAILURE_THRESHOLD - 1,
+			"safe_settings_recommended": false,
+		},
+		"save_slots": {"alpha": {"progress": 19}},
+		"foreign_namespace": {"keep": ["unchanged", 42]},
+	}, 0, "safe-audio-hud-fixture")
+	_check(bool(seeded.get("accepted", false)), "real Main fixture publishes valid isolated authority")
+	var original: Dictionary = (store.get_snapshot()[AdapterType.SETTINGS_PAYLOAD_KEY] as Dictionary).duplicate(true)
+	var main: GameFlow = MainScene.instantiate() as GameFlow
+	main.set_physics_process(false)
+	_check(main.configure_runtime_settings_persistence(store, LEGACY_PATH), "real Main accepts isolated audio-action authority")
+	root.add_child(main)
+	main.set_physics_process(false)
+	await process_frame
+	await process_frame
+	return {"main": main, "filesystem": filesystem, "store": store, "original": original}
+
+
+func _press_recovery_button(hud: GameHUD, label: String) -> bool:
+	# Promote the existing source so this test exercises the actual rendered
+	# Button callback even when another normal startup card owns the foreground.
+	var cards: Dictionary = hud.get("_runtime_status_cards") as Dictionary
+	if not cards.has(&"safe_start_recovery"):
+		return false
+	var card: Dictionary = cards[&"safe_start_recovery"] as Dictionary
+	hud.set_runtime_status_card(&"safe_start_recovery", card.get("snapshot", {}) as Dictionary)
+	for child: Node in (hud.get("_runtime_status_actions") as HBoxContainer).get_children():
+		var button: Button = child as Button
+		if button != null and button.text == label:
+			button.pressed.emit()
+			return true
+	return false
+
+
+func _test_real_main_safe_audio_action() -> void:
+	var fixture: Dictionary = await _new_main_fixture()
+	var main: GameFlow = fixture.main as GameFlow
+	var hud: GameHUD = main.hud as GameHUD
+	var filesystem: ActionFilesystem = fixture.filesystem as ActionFilesystem
+	var store: UserDataStore = fixture.store as UserDataStore
+	var original: Dictionary = fixture.original as Dictionary
+	var report: Dictionary = main.get_safe_start_recovery_report()
+	var live_before: Dictionary = main.get_runtime_settings().to_user_data_payload()
+	_check(
+		bool(report.audio_fallback_available)
+		and live_before.values.master_volume == original.values.master_volume
+		and live_before.values.music_volume == original.values.music_volume
+		and (report.audio_recovery_receipt as Dictionary).is_empty(),
+		"real Main automatic graphics recovery leaves the complete audio profile untouched"
+	)
+	var stale_intent: Dictionary = _intent(&"use_safe_audio", int(report.startup_generation), int(report.report_revision))
+	var durable_before: PackedByteArray = (filesystem.files[STORE_PATH] as PackedByteArray).duplicate()
+	var generation_before: int = store.get_generation()
+	filesystem.refuse_next_write = true
+	_check(_press_recovery_button(hud, "Use Safe Audio"), "real recovery card offers an explicit Use Safe Audio button")
+	var refused: Dictionary = main.get_safe_start_recovery_hud_status()
+	_check(
+		refused.reason == &"audio_fallback_save_failed"
+		and not bool(refused.accepted)
+		and bool(refused.details.audio_result.rolled_back_live_settings)
+		and main.get_runtime_settings().to_user_data_payload() == live_before
+		and filesystem.files[STORE_PATH] == durable_before
+		and store.get_generation() == generation_before
+		and (main.get_safe_start_recovery_report().audio_recovery_receipt as Dictionary).is_empty(),
+		"actual adapter write refusal rolls live audio back and retains durable bytes without creating a receipt"
+	)
+	var rollback_buses: Dictionary = main.get_runtime_settings().get_audio_bus_levels_db()
+	var rollback_mix_matches: bool = true
+	for bus_name: StringName in rollback_buses:
+		var bus_index: int = AudioServer.get_bus_index(bus_name)
+		rollback_mix_matches = rollback_mix_matches and bus_index >= 0
+		if bus_index >= 0:
+			rollback_mix_matches = rollback_mix_matches and is_equal_approx(AudioServer.get_bus_volume_db(bus_index), float(rollback_buses[bus_name]))
+	_check(rollback_mix_matches, "refused persistence restores the running audio buses along with the live settings")
+	main._advance_safe_start_recovery_physics(5.0)
+	report = main.get_safe_start_recovery_report()
+	_check(
+		report.policy_snapshot.state == RecordType.STATE_STABLE
+		and not bool(report.policy_snapshot.recommendation_available)
+		and bool(report.audio_fallback_available),
+		"Use Safe Audio remains available after five physics seconds while this startup's graphics fallback is active"
+	)
+	var stale_result: Dictionary = main._handle_safe_start_recovery_intent(stale_intent)
+	_check(not bool(stale_result.accepted) and stale_result.reason == &"stale_recovery_fence", "a pre-stability audio intent cannot bypass the current report fence")
+	var apply_intent: Dictionary = _intent(&"use_safe_audio", int(report.startup_generation), int(report.report_revision))
+	_check(_press_recovery_button(hud, "Use Safe Audio"), "stable real HUD button invokes the existing adapter transaction")
+	var applied: Dictionary = main.get_safe_start_recovery_hud_status()
+	var expected_safe: Dictionary = live_before.duplicate(true)
+	expected_safe.values.master_volume = 0.5
+	expected_safe.values.music_volume = 0.0
+	_check(
+		bool(applied.accepted) and applied.reason == &"audio_fallback_applied"
+		and main.get_runtime_settings().to_user_data_payload() == expected_safe
+		and store.get_snapshot()[AdapterType.SETTINGS_PAYLOAD_KEY] == expected_safe
+		and store.get_snapshot().foreign_namespace == {"keep": ["unchanged", 42]}
+		and int(store.get_snapshot().save_slots.alpha.progress) == 19,
+		"production HUD action persists only master 0.5/music 0 and preserves all other preferences and foreign namespaces"
+	)
+	var expected_buses: Dictionary = main.get_runtime_settings().get_audio_bus_levels_db()
+	var live_mix_matches: bool = true
+	for bus_name: StringName in expected_buses:
+		var bus_index: int = AudioServer.get_bus_index(bus_name)
+		live_mix_matches = live_mix_matches and bus_index >= 0
+		if bus_index >= 0:
+			live_mix_matches = live_mix_matches and is_equal_approx(AudioServer.get_bus_volume_db(bus_index), float(expected_buses[bus_name]))
+	_check(live_mix_matches, "real Main's existing settings signal applies the safe levels to the running audio buses")
+	var writes_after_apply: int = filesystem.write_count
+	_check(not bool(main._handle_safe_start_recovery_intent(apply_intent).accepted), "successful audio action cannot replay its old HUD fence")
+	report = main.get_safe_start_recovery_report()
+	var second_apply: Dictionary = main._handle_safe_start_recovery_intent(_intent(&"use_safe_audio", int(report.startup_generation), int(report.report_revision)))
+	_check(not bool(second_apply.accepted) and second_apply.reason == &"audio_fallback_already_applied" and filesystem.write_count == writes_after_apply, "a fresh forged intent cannot apply the one-shot audio fallback twice")
+	_check(_press_recovery_button(hud, "Restore Previous Graphics And Audio"), "stable existing Restore button includes both real saved profiles")
+	_check(
+		main.get_safe_start_recovery_hud_status().reason == &"restore_completed"
+		and store.get_snapshot()[AdapterType.SETTINGS_PAYLOAD_KEY] == original
+		and main.get_runtime_settings().to_user_data_payload() == original
+		and bool(main.get_safe_start_recovery_report().audio_recovery_receipt.consumed)
+		and bool(main.get_safe_start_recovery_report().graphics_recovery_receipt.consumed),
+		"existing Restore returns both prior profiles durably and consumes both receipts"
+	)
+	report = main.get_safe_start_recovery_report()
+	var writes_after_restore: int = filesystem.write_count
+	var replay_restore: Dictionary = main._handle_safe_start_recovery_intent(_intent(&"restore", int(report.startup_generation), int(report.report_revision)))
+	var replay_audio: Dictionary = main._handle_safe_start_recovery_intent(_intent(&"use_safe_audio", int(report.startup_generation), int(report.report_revision)))
+	_check(not bool(replay_restore.accepted) and not bool(replay_audio.accepted) and filesystem.write_count == writes_after_restore, "completed recovery cannot restore or reapply audio through a fresh intent")
+	main.free()
+	await process_frame
+
+
+func _test_real_main_audio_user_edits_and_keep_safe() -> void:
+	var fixture: Dictionary = await _new_main_fixture()
+	var main: GameFlow = fixture.main as GameFlow
+	var hud: GameHUD = main.hud as GameHUD
+	var filesystem: ActionFilesystem = fixture.filesystem as ActionFilesystem
+	var store: UserDataStore = fixture.store as UserDataStore
+	_check(_press_recovery_button(hud, "Use Safe Audio"), "real HUD audio action is also available before stability")
+	var report: Dictionary = main.get_safe_start_recovery_report()
+	var writes_before_stable: int = filesystem.write_count
+	var early_restore: Dictionary = main._handle_safe_start_recovery_intent(_intent(&"restore", int(report.startup_generation), int(report.report_revision)))
+	_check(not bool(early_restore.accepted) and early_restore.reason == &"restore_unavailable" and filesystem.write_count == writes_before_stable, "audio action does not weaken the existing post-STABLE restoration gate")
+	main._advance_safe_start_recovery_physics(5.0)
+	main.get_runtime_settings().master_volume = 0.66
+	_check(bool(main._persist_runtime_settings().accepted), "an intervening player audio edit persists through the real adapter")
+	main._publish_safe_start_recovery_status_to_hud(true, true)
+	_check(_press_recovery_button(hud, "Restore Previous Graphics"), "player audio edits withdraw audio restore while graphics remains restorable")
+	_check(
+		is_equal_approx(main.get_runtime_settings().master_volume, 0.66)
+		and is_equal_approx(main.get_runtime_settings().music_volume, 0.0)
+		and is_equal_approx(float(store.get_snapshot()[AdapterType.SETTINGS_PAYLOAD_KEY].values.master_volume), 0.66)
+		and not bool(main.get_safe_start_recovery_report().audio_recovery_receipt.consumed),
+		"Restore preserves the intervening audio edit and retains the unconsumed audio receipt"
+	)
+	report = main.get_safe_start_recovery_report()
+	var writes_before_keep: int = filesystem.write_count
+	var before_keep: PackedByteArray = (filesystem.files[STORE_PATH] as PackedByteArray).duplicate()
+	_check(_press_recovery_button(hud, "Keep Current Settings"), "real HUD retains the existing Keep Current Settings choice after player edits")
+	var dismissed_audio: Dictionary = main._handle_safe_start_recovery_intent(_intent(&"use_safe_audio", int(report.startup_generation), int(report.report_revision)))
+	_check(
+		not bool(dismissed_audio.accepted) and dismissed_audio.reason == &"stale_recovery_fence"
+		and filesystem.write_count == writes_before_keep and filesystem.files[STORE_PATH] == before_keep
+		and not (hud.get("_runtime_status_cards") as Dictionary).has(&"safe_start_recovery"),
+		"Keep Safe remains presentation-only and fences later audio actions for this startup"
+	)
+	main.free()
+	await process_frame
 
 
 func _intent(action: StringName, generation: int, revision: int) -> Dictionary:
