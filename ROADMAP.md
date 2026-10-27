@@ -112,7 +112,10 @@ existing staged fixture. Those assertions remain unimplemented;the broader
 ordinary moving-role journey remains open.
 [Jovian moving engineer](docs/ROADMAP_BACKLOG.md#jovian-engineer-moving-handback)
 now has three-peer chair,movement,strict home and physical reuse requirements.
-Its ordinary earned-engine-damage prerequisite remains unresolved.
+Its [earned-engine action](docs/ROADMAP_BACKLOG.md#jovian-earned-engine-contact)
+now binds two forward truss contacts that preserve the second approach and
+leave the engine operable. Actual clearance,input control and timed paid-repair
+proof remain unimplemented/unrun.
 [Bulwark remote gunner loss](docs/ROADMAP_BACKLOG.md#bulwark-remote-gunner-owner-loss)
 now binds moving damage,live-charge UI disconnect and fresh ownership. Its
 return controller,combined caller and physical-egress repair remain unimplemented.
