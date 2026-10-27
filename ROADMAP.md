@@ -53,6 +53,11 @@ session is this requested breakdown; it does not reopen parked gameplay trials.
 Titan and the other missing-craft proposals still require their recorded design
 choices before implementation.
 
+The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
+names the existing capture views, ordinary gameplay gaps and finite world/settings
+comparisons. Missing production-camera observation and solar/weather feed remain
+implementation work; actual visual inspections and repairs remain open.
+
 **Delivered source capability — headless multiplayer authority.** The full
 ordinary Jovian return/reclaim/redepart journey now supports an actual headless
 server with two isolated graphical clients:7362 checks, zero failures, all three

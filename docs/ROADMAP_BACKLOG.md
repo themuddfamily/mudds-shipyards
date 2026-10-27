@@ -3148,7 +3148,7 @@ feature. Do not reopen completed surveys or create successor planning IDs.
 | --- | --- |
 | WALK-FLEET | Exactly the nine existing craft's access/home-exit/reuse members under CRAFT-ACCEPT below. Bind each live berth/approach/clearance route and existing driver; reuse the craft receipt rather than add a Fleet loop. |
 | STATION-FINDINGS | Central, Aft, Habitat, Freight, Fleet, Annex, Observation, Salvage, VIP; tow, gantry, arm and patrol service views. Existing capture membership and literal text/Zenith berth/service contracts are fixed in the [station table](#station-presentation--finite-review-boundaries). Missing supported player-eye camera/phase/image-readback capability is explicit; do not resurvey the13 subjects. A reviewed view closes that view; parked views retain their reopening cause. |
-| ART-FINDINGS | Existing13 capture sets/143 images plus original fleet/world/character/effect/UI obligations. Codex maps each original obligation to a named existing image/view or exact missing view specification; reference STATION-FINDINGS once. No new obligation inferred from an empty area. |
+| ART-FINDINGS | [Finite art coverage contract](#art-view-coverage-contract) binds all13 required sets/143 PNGs, staged versus ordinary scope, current-fleet/character/effect moments and Ember/Aurora/Rime production views plus finite Low/ultrawide/comfort overlays. Membership survey is closed. Codex still owes phase-bound production-camera observation and solar/weather feed/view capability; actual inspections/repairs remain open. Station references its existing13-subject map once; parked causes/caps stay unchanged. |
 | CRAFT-ACCEPT-TORRENT, CRAFT-ACCEPT-ARROW, CRAFT-ACCEPT-JOVIAN, CRAFT-ACCEPT-ZENITH, CRAFT-ACCEPT-HALYARD, CRAFT-ACCEPT-BULWARK, CRAFT-ACCEPT-CINDER-LIGHT, CRAFT-ACCEPT-CINDER-HAULER, CRAFT-ACCEPT-CINDER-BOMBER | Eleven acceptance boundaries listed below; each craft's existing distinctive functions remain in its row. For one unaccepted named member, Codex implements ordinary input/observer support in the existing native-sortie runner and observer, using that craft's live seat/berth/muzzle markers and production receipts. Reuse accepted members. Missing nonfatal contact geometry/damage budget, fatal contact and aggregate full-craft cap remain literal Codex-owned contract fields; subset300s caps cannot supply a whole-craft limit. Missing ordinary driver code is implementation, not an external-access blocker. Bomber's additional crew alone depends on BOMBER-ROLE-DECISION. |
 | CRAFT-ACCEPT-TITAN, CRAFT-ACCEPT-VORTEX, CRAFT-ACCEPT-PARADOX, CRAFT-ACCEPT-KATANA, CRAFT-ACCEPT-PREDATOR, CRAFT-ACCEPT-DYNAMIC, CRAFT-ACCEPT-UTOPIA, CRAFT-ACCEPT-SALYUT | User accepts/amends each existing SPEC proposal; Codex then adopts its existing BUILD-SPLIT cards and binds the same eleven integrated acceptance boundaries. Do not survey or write the prepared proposals again. |
 | COMBAT-COURIER | Ordinary escorted withdrawal/home is accepted on7f23a808c in its [exact packaged scope](history/ROADMAP_DELIVERIES.md#ordinary-escorted-courier-withdrawal-accepted-20261027). Accepted clear/escape/phase/distance withdrawals stay closed. Remaining [runtime loss and cyclic re-admission](#courier-intercept--bounded-outcomes) retain their missing ordinary commands. Cold safe recovery candidate229bfa6c9 is PARKED/unmerged at its recorded preparation-damage failure; no interruption/cold proof or retry. Reuse the exact terminal/cumulative-cost boundary below. No new escort×terminal matrix, repeat count or user policy. |
@@ -3361,7 +3361,7 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | BOMBER-REARM-POLICY | Permitted spent-payload replenishment boundary | 10,11,31 | Decision | DONE in the recorded decision/ordinary-entitlement scope; settled2026-10-21: refill4 whenever pilot retakes seat. Entitlement DONE4a0d82bff actual ordinary depletion/refusal/physical reboard newer generation4/fresh projectile3. Observed post-retake presentation refusal repaired255f8df2b/checkpoint255f8df below; no explicit-service-only change. | Already decided/proved: physical pilot retake refills4 after depletion/refusal, fresh release3; preserve4a0d82bff/255f8df scope, no redefinition. |
 | WEAPONS-DEFINE | Actual craft/role to weapon acceptance roster | 11 | Definition | Definition DONE on a0d446645; current binding map in WEAPON_DEFINITION_CONTRACT.md, finite distinctions below. No missing runtime weapon type inferred; eight originals UNKNOWN/Bomber role decision retained | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | DAMAGE-DEFINE | Uncovered craft/role component-damage/recovery cells | 11,21 | Definition | Definition DONE on82a7564cb; COMPONENT_DAMAGE_MODEL_CONTRACT.md maps five IDs/all nine craft, real role exceptions, repair/reset owners and concrete remote row gap; no gameplay pass | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
-| ART-FINDINGS | Finite actual UI/animation/effect/lighting/terrain/weather defects | 12,15 | Container | BLOCKED definition (Codex): reconcile the existing 13 capture sets/143 images and original fleet/world/character/effect/UI obligations against accepted coverage. Name each uncovered original clause and subject/state; bind source, camera, renderer/quality/resolution/scale and same-view comparison criteria. The station roster is only a referenced subset, not the contract for non-station art. Stop after this finite coverage answer or a field-level missing-input record; no capture or runtime change is selected. | Definition finished: one closed coverage list of the existing13 capture sets/143 images and original fleet/world/character/effect/UI views, each mapped to accepted proof or literal missing subject/state/pose/render/inspection fields. Outcome accepted: every listed view has inspection and disposition, with each real defect repaired under the stated same-view and gameplay/clearance conditions. A missing field keeps the definition BLOCKED; recording it ends only that attempt. One review closes one view; one repair closes one defect. Empty areas or unavailable pictures do not authorize new art requirements. |
+| ART-FINDINGS | Finite actual UI/animation/effect/lighting/terrain/weather defects | 12,15 | Container | [Finite art coverage contract](#art-view-coverage-contract) fixes original13sets/143PNGs, exact source framing/settings and ordinary fleet/world/character/effect/UI boundaries. Coverage survey CLOSED; runtime production-camera observer and solar/weather feed/view binding remain Codex-owned missing capabilities. Actual inspections/dispositions and named repairs OPEN; parked captures/world routes keep their causal gates/costs. No successor inventory, new capture matrix or automatic retry. | Definition finished: one closed coverage list of the existing13 capture sets/143 images and original fleet/world/character/effect/UI views, each mapped to accepted proof or literal missing subject/state/pose/render/inspection fields. Outcome accepted: every listed view has inspection and disposition, with each real defect repaired under the stated same-view and gameplay/clearance conditions. A missing field keeps the definition BLOCKED; recording it ends only that attempt. One review closes one view; one repair closes one defect. Empty areas or unavailable pictures do not authorize new art requirements. |
 | CRAFT-ACCEPT-TORRENT | Torrent full solo craft loop | 7,10,11 | Container | Return/reuse capability DONE5d2c58dba: packaged ordinary Guided plus fresh same-Torrent boarding/departure/two strict homes/90neutral-OFFLINE ticks each/physical exits/supported walks/normal UI OS0,85.267s under300s. [Accepted scope](history/ROADMAP_DELIVERIES.md#torrent-return-reuse-capability-accepted-20261025). Incoming core-damage/passive repair also DONEa1de3363f: real source2101 hit/hull89/core.56/targeting.62,617airborne observations,43strict passive commits/all nominal/hull89 retained and full two-home continuation88.168s/OS0. [Exact scope](history/ROADMAP_DELIVERIES.md#torrent-core-damage-passive-repair-accepted-20261025). Physical Torrent→Arrow→Torrent handoff/reclaim also DONEdriveraf38de143/package6fe51dca4: actual current-source E consumers,90neutral-OFFLINE ticks per seat,supported walks,fresh Torrent stream/normal UI OS0 in131.708s. [Scope](history/ROADMAP_DELIVERIES.md#torrent-arrow-physical-handoff-accepted-20261025). Shared retained Main source resource/combat lifecycle also DONE79dc473a5: unchanged existing three-cycle72-assertion check passes70.113s/OS0/zero diagnostics, including Torrent1101/hull/replay/queues/node/resource identity. [Exact staged scope](history/ROADMAP_DELIVERIES.md#shared-main-source-lifecycle-accepted-20261025). Full craft OPEN: [remaining fields](#torrent-finite-acceptance-coverage-and-missing-ordinary-route) for applicable damage/destruction/recovery and full-route/final-candidate command/limits; Arrow flight/weapons and explicit component/seat contracts are not supplied by these scoped checks. No new matrix or unchanged replay selected. Qualification container; BLOCKED definition (Codex): exact ordered role/function, nonfatal/failed-component/repair, fatal-recovery, switch partner/handback and retained-Main members; ordinary driver/route/start-stop/original limits and accepted proof reused per member. No craft×case matrix. Source contact geometry/damage budgets now fixed in the [Torrent contact contract](#torrent-damage-contact-contract): seven physical boxes, exact located-hit patches, four collision-selectable regions versus five projectile regions, nonfatal/fatal speed formulas and finite hull budgets. No engine/ordinary contact PASS; live world encounter/input schedule and full-craft command/aggregate cap remain Codex gaps. The parked three-attempt recovery boundary is unchanged. | [Complete craft journey](#proof-craft), plus this craft-specific result: Retain the exact accepted return/reuse, core.56→1 passive repair, physical Torrent→Arrow→Torrent and shared retained-Main cases in [Torrent’s finite binding](#torrent-finite-acceptance-coverage-and-missing-ordinary-route). Remaining original-required component stages/loss and final candidate cases need the exact actor/trigger/expected consequence/ordinary route/source/cap stated above; one repair case does not prove every component or fatal recovery. |
 | CRAFT-ACCEPT-ARROW | Arrow full solo craft loop | 7,10,11 | Container | Ordinary return/reuse DONEed1167b; named pilot precision-hit plus preserved two-flight home/OFFLINE exits/clear/reboard/UIquit DONE51257b3, actual archive120.991s. [Accepted scope](history/ROADMAP_DELIVERIES.md#arrow-precision-hit-and-return--shipped-on-51257b3). Broader combat/damage/recovery/crosscraft/Main/art/device/final acceptance remains GATED; no Sandbox/Defense closure. Qualification container; [damage source fields](#arrow-zenith-damage-contact-contract) fixed, ordinary route unbound. BLOCKED definition (Codex): exact ordered role/function, nonfatal/failed-component/repair, fatal-recovery, switch partner/handback and retained-Main members; ordinary driver/route/start-stop/original limits and accepted proof reused per member. No craft×case matrix. | [Complete craft journey](#proof-craft), plus this craft-specific result: Qualification container: pilot precision/recon handling and the existing single24damage hit; preserve the accepted two-flight returns. |
 | CRAFT-ACCEPT-JOVIAN | Jovian full solo craft loop | 7,10,11 | Container | WEAPON-JOVIAN PARKED after one authorized caller correction:13Gantrygoals/90seat and first actual8.22285m/free-lease departure pass; frame2210 moves1.753796m above original1.603333m bound. No clearance waypoint/shot/home/reuse/UIOS0. Driverc148/game7af source pins differ; failed source stays unmerged. Motion owner/cause unknown; no next correction or retry selected. Original23:40→01:10UTC/90min cumulative clock retained. [Frozen contract and both attempts](history/ROADMAP_DELIVERIES.md#jovian-cannon-departure-parked-and-linux-archive-modes-fixed-20261027). Separate engineer journey remains parked. Ordinary solo spawn→engineer repair→hub attempt PARKED/NOT_ACCEPTED2026-10-25 after2actual trials. Corrected1530b4fc8 reaches17outbound physical goals/chair, acceptedportrepair/integrityimprovement/6→5/437ms/HUD5, then fails stand-retirement aggregate. Candidate incorrectly requires empty released authority still attached; production detaches it. Actual post-stand members unlogged. Fullreverse/hub/normalUI0NOT_RUN; no third under this card. Both sources/raw/STOP archived, candidate excluded from main/branch removed. Future selection needs predicate bound to existing detach contract+preassertmember receipts, independent source/cumulative review, originalfullroute/limits retained. Full craft remains a qualification container; other ordered role/function/damage/recovery/switch/Main route bindings still required. [Exact stops](history/ROADMAP_DELIVERIES.md#jovian-ordinary-engineer-two-stops-20261025). | Jovian completion container for the listed physical steps plus the complete craft contract. The next definition ends with proof/route/limit for every step or the exact missing artifact/decision and owner. A future bounded implementation changes one demonstrated missing behavior; this row closes only when the whole required journey is accepted. |
@@ -5377,6 +5377,143 @@ If a concrete full route is selected later, extend only the existing startup
 selector guard, read-only native-sortie observer, OS-input driver and focused
 Python checks. No new route, engine run, gameplay repair or checkpoint was
 selected by this handoff; overview/native/player-height review remains open.
+
+<a id="art-view-coverage-contract"></a>
+### Whole-game art — finite views and missing production coverage
+
+Definition binding2026-10-27, sourceef25c18ec. This is the finite coverage answer
+for ART-FINDINGS, not a rendered inspection, a capture retry or gameplay delivery.
+The original13 required harnesses/143 PNGs remain unchanged. Exact source-owned
+filename sets, resolutions and isolated commands are in
+[the existing capture inventory](GRAPHICAL_HARNESS_INVENTORY.md#current-required-capture-commands).
+A registry classification or `reviewed_current` harness status does not mean an
+image passed visual inspection. Preserve previously accepted source/image scopes;
+this source pass neither supersedes them nor upgrades uninspected images.
+
+For the following table, the source is `tests/<script>.gd`; literal `CAPTURE_FILES`
+or `SCENARIOS`/`STATES` arrays identify every member without a second manifest.
+The harness's framing function/literal camera sequence is the pose contract.
+Record its effective quality, UI scale, camera transform/FOV and source commit
+when capturing; an unset quality/scale must not silently be called High/100%.
+All current required captures retain their existing resolution and settings,
+Forward+ renderer/isolated X11/Dummy workflow and original300s outer caps.
+
+| Existing required set | Exact subject/state and source framing | Inspection boundary; explicit limit |
+| --- | --- | --- |
+| caption-presenter-forward-render (1) | `caption_presenter_forward_render`: `caption-presenter-forward-plus.png`; long Traffic Control caption over synthetic station silhouette,1600×900 SubViewport,UI scale1.15,steady reduced-flash presentation. | Caption wrapping/hierarchy at original size; no whole-game UI or 3D journey claim. |
+| caption-production-forward-render (1) | `caption_production_forward_render`: `caption-production-forward-plus.png`; Main/HUD Torrent piloting,range-drone objective,hull84/ONLINE,hostile toast/combat caption; active production camera,1600×900,scale1.15,reduced motionON. | Coexisting HUD/caption legibility; no OFF/ON pair or complete Settings qualification. |
+| cinder-streaming-transition-render (24) | `cinder_streaming_transition_render`: four literal High/Low × normal/reduced-motion scenarios and six states pre_load/first_committed/load_settled/pre_unload/fade_out_complete/unload_settled. Capture camera targets route checkpoint0+4m,position from `_position_at_distance(LOAD_RADIUS_M)` plus station direction10m/up4m,FOV60,near.15/far1800,2560×1440. | Committed quality,fade/seam/pop and motion differences at exact500m load/650m unload thresholds. Deterministic binding samples and hidden ship are disclosed; not ordinary low flight or planetary arrival. |
+| capture-berth-feedback (18) | `capture_berth_feedback`: `CAPTURE_FILES`,three released/approach/occupied views each of Central/Arrow/Jovian/Zenith/Halyard/Bulwark; `_frame_berth` fits bounds at source `CAMERA_FOV`43–47,fixed pose across states/feedback time.375,High/HUD hidden,TAA+MSAA2,2560×1440. | Distinct berth state cues,shape/colour and clearance composition; not six complete ship-art reviews. |
+| capture-combat-visuals (7) | `capture_combat_visuals`: baseline/cyan muzzle/critical impact/amber midflight/hero impact/lethal cyan/lethal arrival in `CAPTURE_FILES`; `_frame_combat` centre+normalized(1,.34,0)×38m,FOV42,High/HUD hidden,TAA+MSAA2,2560×1440. | Muzzle/flight/impact/destruction identity,contrast and target visibility; staged clocks/camera do not establish combat-speed readability. |
+| capture-hero-cell (18) | `capture_hero_cell`: literal18-frame sequence: wide berth,sealed three-quarter/profile/dorsal,gear,walk-up,open boarding,seated exterior,34m/52m LOD,offline/online aft,25m/50m chase,neutral UV crop,offline/online/critical cockpit. Fixed camera pairs11/12 and16/17/18,TAA+MSAA2,2560×1440. | Torrent canopy continuity,helmet/seat fit,four engine-depth layers,UV handedness/relief and unobstructed20×12° sight corridor. Diagnostic lighting and staged chase do not establish ordinary traversal. |
+| capture-jovian-freight-berth (2) | `capture_jovian_freight_berth`: `freight_berth_overview.png`,`freight_control_room.png`,literal two-camera sequence,1400×900. | Existing station Freight view; consume the station table once. |
+| capture-jovian-freighter (4) | `capture_jovian_freighter`: exterior/ramp/interior/passenger cabin literal filenames; exterior(24.5,13.5,−25)→(0,1.35,−.5)/FOV48,ramp(−18,5.5,10)→(−4.8,1.25,3)/52,local interior(0,2.05,8.05)→(0,1.45,−2.65)/67,cabin(0,1.85,−6.9)→(0,1.5,−2.55)/68. Custom stage/environment,MSAA2,1280×720. | Hull/ramp/material/cabin composition and clipping at those views; not ordinary boarding/flight/home. |
+| capture-player-motion (9) | `capture_player_motion`: idle,walk contactsA/B,run,jump ascent/descent,boarding,seated control,disembark; authored `pilot_motion_v2.glb` fixture. `_frame_character` focusorigin+(0,1.02,0),cameraorigin+(3.85,2.25,−5.45),FOV50idle/walk,51run,49jump/ascent/descent; seated lifecycleFOV48,boarding/disembarkFOV52,TAA+MSAA2,2560×1440. | Pose/deformation,foot contact and seat clipping; fixture floor/seat/light cannot close every craft's boarding animation. |
+| capture-scenes (27) | `capture_scenes`: literal `CAPTURE_FILES` title,Jovian/Arrow,boarding/cockpit/startup/flight/dogfight/touchdown/disembark/return and station/fleet/Aft/operations/Habitat/Freight views. Use per-frame active camera/`_frame_camera` and source HUD-semantic membership,TAA+MSAA2,2560×1440; record effective quality/scale. | Broad staged composition/HUD comparison only. Direct handlers,teleports/frozen opponents remain disclosed,not ordinary input proof. Station members reference the station table. |
+| capture-station-operations (7) | `capture_station_operations`: required `CAPTURE_FILES`,literal station cameras,2560×1440; optional08 wayfinding excluded. | Existing seven station views only; consume the station table,not another subject survey. |
+| capture-varied-encounters (18) | `capture_varied_encounters`: seven played encounter frames plus eleven plates including `plate_04b_scatter_fan.png`. Played uses production ShipCamera/HUD with shortened boarding/staged engagement; plates use literal `_aim_camera` poses/FOV40,empty arena/production environment/key light,1600×900. | Roster silhouettes,role/armed-state lamps,Scatter fan and courier/skirmisher damage/destruction. Plates are not player-camera action; no Low/comfort comparison implied. |
+| capture-zenith-visuals (7) | `capture_zenith_visuals`: occupied three-quarter,dorsal,starboard,aft online,closed/open cockpit,short-flight combat in literal sequence/`_set_camera_local`; High/HUD hidden,TAA+MSAA2,2560×1440. | Broad pale width-dominant delta/arrow macroform,wedge/spine,seams/canopy/engine/navigation accents,berth/combat clipping. Last frame is a frozen combat tableau. |
+
+Station's13 supported subjects and remaining camera/readback capability are
+referenced only in [STATION-FINDINGS](#station-presentation--finite-review-boundaries).
+UI aspect/focus/contrast/scroll and caption/settings comparisons stay in their
+existing ACCESS/COMFORT owners; no new UI matrix is created here.
+
+#### Missing original ordinary fleet/character/effect coverage
+
+Reuse each existing `CRAFT-ACCEPT-*` ordinary journey, not another sortie.
+For each current craft, observe its already-required supported walk-up/boarding,
+seated control,departure/combat where applicable,landing/disembark/home moments.
+Use the actual PlayerCamera for walking/boarding and the active production
+ShipCamera/CockpitCamera for flight. Freeze the observed transform/FOV and actual
+ship/player/seat/berth state before any repair; preserve it for comparison.
+These event anchors specify supported player views rather than invented beauty
+camera coordinates. New ordinary-view baseline is Forward+ High,1920×1080,
+16:9,UI100%,HUD retained. This baseline does not override the13 harness settings.
+
+Torrent/Arrow/Jovian/Zenith have the staged sources above, not complete ordinary
+art acceptance. Halyard and Bulwark have berth-state images but no complete
+exterior/cabin/cockpit/material inspection there. Cinder Light/Hauler/Bomber
+lack that required ordinary art coverage. Their own boarding/control/departure/
+return observations must supply it; no extra craft×view capture matrix is added.
+The eight absent original craft remain behind their existing SPEC approval and
+BUILD owners; there is no current image or approved implementation to inspect.
+
+At those existing moments inspect actual silhouette/material identity,UV metric
+scale/handedness/relief,formed surfaces,LOD continuity,canopy/seat/helmet/limb
+clearance,foot support and access/exit corridor. During actual weapon use inspect
+muzzle/impact/destruction visibility against the target and HUD; staged plates
+only support the named effect's appearance. Pass requires readable actionable
+cues and no observed seam,missing face,z-fighting,clipping,unsupported footing or
+camera occlusion in the named view. A concrete finding names the object/state
+and observed defect; an empty area does not create an art assignment.
+
+Missing Codex capability: phase-bound read-only capture of the actual current
+production camera,render/settings identity and ordinary actor state in the
+existing native-sortie runner/observer. Implement only for a selected uncovered
+member. Do not substitute camera/body teleportation or add a validator family.
+Existing parked journey/capture conditions and their consumed budgets survive.
+
+#### Missing original world/transition coverage
+
+Use delivered CONTENT-EMBER/AURORA/RIME inventories and existing SOLO owners.
+No new landmark,wildlife,settlement,quest or decorative-density requirement is
+inferred from this list. The supported views below are production-camera event
+anchors; source-only content presence is not visual inspection.
+
+| Existing owner/view | Exact ordinary observation and camera | Pass criteria for original content/presentation |
+| --- | --- | --- |
+| SOLO-EMBER: orbital/approach/pad | Arrow's actual cruise handback,low-speed pad approach and supported touchdown; active ShipCamera for silhouette/approach,CockpitCamera for landed sightline. | Identifiable moon/pad and continuous terrain/silhouette; no rebase pop,occluded approach or false landing support. Airless Ember gains no atmospheric wind/heat mandate. |
+| SOLO-EMBER: egress/relay route | Actual PlayerCamera after egress and along the existing interaction route; inspect visible existing mast/lava-tube/wreck/trailhead content at its actual encounter/interaction distance. | Distinct landmark/material hierarchy,readable route cue,collision-backed support,no floating/clipping/seam. Compare reduced flash only where an existing relay/hazard cue actually plays. Component `capture_ember_surface_route_turn_cues.gd` camera is not this route. |
+| SOLO-AURORA: descent/shore/ascent | Actual CockpitCamera at atmosphere top20km/mid10km,accepted final approach immediately before touchdown,and touchdown; PlayerCamera on the existing egress/trail/lookout/standing-stones/shore encounters; active ShipCamera on ascent through20km. | Gradual sky/fog/cloud/entry visibility,continuous space/surface transition,coherent water/shore joins,readable existing trail/interaction. Standalone `capture_aurora_temperate_visuals.gd` High/Low horizon pair lacks Main/Player/journey and is reference only. |
+| SOLO-RIME: descent/egress/ascent | Actual CockpitCamera at atmosphere top14km/mid7km/pad; PlayerCamera at existing rime_egress/beacon/drill-rig/heated-hut/serac/strain-gauge encounters; active ShipCamera on ascent. | Coherent ice/horizon/weather and readable trail/heat cue,no unintended entry flash or discontinuous pop,tunnelling or floating support. Use `rime_glacial_authored_scene.gd` markers/heater radius7m,not invented placements. |
+
+At these new ordinary views use the High1920×1080/100% baseline above. Aurora's
+low-flight comparison anchor is the actual accepted final approach to its
+authored pad immediately before touchdown,using active CockpitCamera; retain
+the observed transform and phase for comparison. The
+remaining original settings obligations are finite overlays,not a world×craft
+matrix: repeat Aurora's same shore and low-flight landing sightline on Low;
+repeat that actual CockpitCamera low-flight sightline and PlayerCamera shore cue
+at3440×1440/21:9-class with HUD. Require retained navigation/target/text visibility
+without clipping/occlusion or loss of the route cue. For reduced motion/flash,
+compare one actual active atmospheric wind/entry episode at the same accepted
+flight inputs/camera/state OFF/ON; an inactive effect cannot pass. Reuse existing
+COMFORT-MOTION/FLASH consumer/save/cold/Reset owners rather than new settings
+storage work. Existing wind motion scale.35 and steady low-opacity entry flash
+behavior are source expectations,not an observed result.
+
+Actual composition seams are
+`scripts/world/planetary_surface_visit_streaming_bootstrap.gd`,
+`scripts/world/planetary_atmosphere_composition.gd` and
+`scripts/world/ember_surface_loop_production_binding.gd`. The last applies a
+retained presentation recipe only when solar/weather observations are supplied.
+Original day/night/cloud-shadow coverage therefore still needs an actual supported
+production solar/weather observation feed and its view binding under existing
+world owners. A controlled recipe in a composed fixed shore view can prove
+presentation only; it cannot prove an ordinary solar clock/weather model or
+journey. This missing runtime capability is Codex work,not an external artifact
+or permission problem. Do not close it with another capture/evidence layer.
+
+#### Acceptance and stopping rule
+
+Before repair, inspect the selected original-resolution image/continuous
+transition and record only its named findings or explicit no-finding disposition.
+For repairs retain source identity,camera pose/FOV,actor state,light/weather/time,
+renderer/quality,resolution/UI scale and effect phase; compare the same view.
+An unmatched before/after cannot prove that repair. Numeric source assertions
+support collision/state facts but cannot replace inspection. Keep original
+performance/geometry budgets and gameplay routes; one view closes one view,
+one repaired defect closes one defect,not ART-FINDINGS as a whole.
+
+Coverage membership is now fixed; do not repeat this survey. ART-FINDINGS remains
+OPEN/BLOCKED on the named missing production observer/solar-weather capabilities
+and actual view inspections/dispositions. Each selected implementation delivers
+that supported runtime observation or a named visual repair with the smallest
+focused check,within the existing all-in90min/one-correction rule. Original
+300s capture caps and ordinary-owner caps remain; parked captures and world
+journeys require their recorded causal reopening decisions. This definition
+selects no engine run,rendered capture,real audio,hardware qualification or retry.
 
 ### Station presentation — finite review boundaries
 
