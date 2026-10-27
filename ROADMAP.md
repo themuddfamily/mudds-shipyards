@@ -167,6 +167,9 @@ One bounded release-tool capability is selected in its [frozen card](docs/ROADMA
 05:20:33–06:50:33UTC. Extend the existing inventory tool, retain its positional
 CLI, pass valid/tampered artifact checks and audit unchanged checkpoint7876ebc.
 No engine/gameplay/checkpoint change is selected. PLAN-NEXT remains unfinished.
+First focused suite passes27 tests; source review stops on missing ZIP regular-file
+type enforcement. One minimal correction is selected in the same frozen budget;
+no actual checkpoint audit has run.
 The breakdown is still OPEN. Reviewing all337 records did not supply every
 missing route, member list or expected value. Those gaps remain in the existing
 [finite definition list](docs/ROADMAP_BACKLOG.md#remaining-contract-gaps--plan-next).

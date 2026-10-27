@@ -1063,6 +1063,26 @@ archive/closeout. On failure preserve unique unaccepted source before cleanup.
 No public checkpoint is required for this tool-only capability; actual7876 inputs
 and all release/native/player gates remain unchanged.
 
+**First source stop and one bounded continuation05:29UTC.** Candidate
+44c3120cf4a2d0e70cee0ad3282904350e0c5172 passes the original13 baseline and its
+first complete focused27-test suite (10.042749s/exit0). The implementer's earlier
+28-test estimate was wrong; actual counts govern. Independent review/root source
+inspection finds `_audit_zip` checks `is_dir()`/names/count/CRC/full bytes but
+never UNIX member type. Explicit symlink/device/directory metadata with matching
+payload therefore violates the frozen two-regular-file contract. No actual
+checkpoint audit ran; candidate remains unaccepted.
+
+Independent bounded review finds no other contract blocker and recommends one
+source-proven correction at the same cumulative cost (8.6minutes at05:29:07):
+require absent UNIX type bits or S_IFREG, reject explicit nonregular member kinds,
+retain normal Windows ZIP metadata and every existing check; add its focused
+regression in the existing suite. Same two files/branch/goal only. Root selects
+that correction now, source/review by05:45UTC, then one corrected focused suite
+and one actual immutable-artifact audit under the original120s supervisors.
+Original05:20:33 start,06:20:33 source/06:35:33 checks and06:50:33 hard stop stay;
+no new budget. Any next unexpected failure is terminal PARK for this continuation,
+with raw/source preserved and owned cleanup; no further repair/run is selected.
+
 This is one bounded production release-tool assignment: owned files are the
 existing tool/test only, with root updating these two roadmap documents.
 Estimate≤60minutes implementation/review,15minutes focused/actual-artifact checks,
