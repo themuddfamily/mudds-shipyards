@@ -778,6 +778,43 @@ opt-in/default full Guided runs must all pass before integration. Clock/budget/
 one-correction allowance are fixed in ROADMAP.md; no public Windows build for
 this release-diagnostic-only capability. First failure stops dependent launches.
 
+**Ordinary Guided caller terminal result — PARKED07:04:30UTC.**
+Initial87a51f41f passes304 Python checks/import but fails observer parsing at
+untyped `component`/`lock` locals (actual exit1,1.762s). Root records the causal
+source finding/cumulative8.188minutes and spends the one frozen correction:
+7caea1fbb adds only two explicit Dictionary types, expressions unchanged.
+Corrected304 Python14.917s/import6.558s/parse15.849s/privacy1.261s all pass;
+clean private export41.950s and strict actual-archive startup24.007s also pass,
+actual exit0/exactly one menu-ready marker/zero diagnostics/same frozen ELF.
+ELF SHA256`901592857207d8babc03193e421213f746e678ab592efd7d9d0c735d71908c5c`;
+TAR SHA256`e19296336834aecfeb66c867d6f4ab83f234535ad5166e2eb6d2f78bebcce605`.
+
+The actual full Guided colour run finishes55.605s with gameOS0, strict home/
+physical exit/normal HUD Quit, zero diagnostics, released input and reaped game/
+helper/Xvfb. Driver exits1 at its final coverage assertion:11 required endpoints
+present, only `starting` absent. Raw1763 samples have HUD and telemetry engine
+OFFLINE576/ONLINE1187; no STARTING. Continuous frozen colour/role/text/minimap
+assertions did not fail. This does not establish why STARTING was unobserved or
+a production defect. Full caller acceptance FAIL; default regression NOT_RUN.
+No further correction/reopening is selected; the original membership/caps remain.
+
+Independent source/correction/raw-result reviews agree with that terminal scope.
+Both source commits/three full files/patch/named-tip bundle/raw commands/logs/
+profiles/results and one actual private TAR are verified archived unmerged in
+`/srv/mudds-work/colour-guided-20261027/records.tar.gz`:
+102674594bytes/178members, SHA256
+`362788abe750b1dc55a8cea4bfd5be5d3d9a91b3d0a44c86633a65f3f2813a87`; every member's bytes/mode/link target verified.
+Baseb6f243371 is in pushed main. Fresh remote/worktree ownership checks precede
+exact-tip local branch deletion; remote branch absent, owned worktree/scratch/
+processes removed. Only archive/closeout remain. Cleanup07:06:23UTC is14.907
+cumulative wall minutes from06:51:29; final notes/push remain charged. Original
+45minute estimate/60minute ceiling and one consumed correction stay fixed.
+Current main has no colour-preset selector; no code/private build was published.
+A later explicit user reprioritization must name this terminal boundary, new
+causal evidence and cumulative cost; no unchanged retry, acceptance weakening,
+new-budget successor or further source survey is selected. Existing accepted
+colour cold/Reset scopes stay closed; other ordinary/device/rendered/full gates open.
+
 Existing source checks (later selection only):
 
 ```text
@@ -1617,7 +1654,7 @@ feature. Do not reopen completed surveys or create successor planning IDs.
 | SERVER-BASELINE | Original server/two-independent-client ordinary flight/dock/exit/reuse and lifecycle/adverse cases. Codex names exact reused SERVER-BASELINE child receipts and remaining route/cut/endpoints; short accepted slices cannot close the original complete journey. |
 | COMFORT-MOTION | Reuse accepted toast/damage episodes and the [eight fixed remaining source consumers/OFF–ON endpoints](#reduced-motion--finite-production-consumers). Codex binds only still-unproved ordinary callers/candidate/profile/deadline and retained transition/cold/Reset endpoints. Source roster discovery is closed; missing intended behavior must be an explicit choice, not another survey. |
 | COMFORT-FLASH | Existing17-family membership/policy is fixed; shared native save/three-process/Reset is accepted. Codex binds only each remaining normal trigger/caller/ordinary route and its existing effect endpoints; no new producer survey. |
-| COMFORT-COLOUR | [Finite remaining colour boundaries](#colour-cues--remaining-proof-ownership) bind live state changes, Pause/camera/Main transitions, original Settings return, rendered readability and physical-device observations. Accepted Tritanopia cold/Reset endpoint stays closed. Codex still binds ordinary assertions/selected rendered views; actual device access is separate. The available22-frame component capture is not a new registered capture gate or a new mandatory image count. |
+| COMFORT-COLOUR | [Finite remaining colour boundaries](#colour-cues--remaining-proof-ownership) bind live state changes, Pause/camera/Main transitions, original Settings return, rendered readability and physical-device observations. Accepted Tritanopia cold/Reset endpoint stays closed. Ordinary Guided caller7caea1fbb is PARKED unmerged after one typing correction: full flight/gameOS0/zero diagnostics but required STARTING endpoint absent (11/12); default regression NOT_RUN, no further correction/reopen selected. Source/private TAR/results verified archived and branch/worktree removed. Other ordinary assertions/selected rendered views remain Codex work; actual device access is separate. The available22-frame component capture is not a new registered capture gate or a new mandatory image count. |
 | COMFORT-CAPTIONS | [Caption ingress/expiry/OFF and three-process Reset contract](#caption-episodes--ingress-and-reset-boundary) is fixed; reuse existing audio episode selectors only for actual caption callers. Shared caption caller99658edda is PARKED after its typing correction passed source/export/strict startup checks: the actual writer fails its initial compound service/presenter assertion before gameplay/settings; operands unlogged, no owner defect established. Three commits/five files/private TAR are verified archived unmerged; writer reaped, readers/default regression NOT_RUN. Current main has default flash only; no retry selected. Reduced-flash restart cannot supply the missing caption result. Per-ID ordinary route/assertion and rendered/device bindings remain Codex work; only recorded overflow policy/device access remain external. |
 | PACKAGE-FINAL | [Existing package members/counts](#package-final--existing-members-and-counts) are fixed: two exports, three startup checks, two complete inventories/full archive parity, four default probes, Guided3/3+Sandbox1/1+Settings1/1. Paired-artifact mode DONEd70231901/integrated27d1e70e8,28tests/actual7876all9predicates/unchangedinputs. Approved final paths/manifests bind at selection; SETTINGS-INPUT names unavailable historical artifacts; Sandbox stays PARKED. Six installation transactions/matrix/signing retain their owners. |
 | FINAL-RECONCILE | Existing36 parents/ten phase exits, shared outcomes counted once. Codex maps each to its complete existing members and accepted source/candidate scopes; every still-open child stays named. ZeroP0/P1, explicitP2 dispositions, final checksums, rights/signing and authorized publication remain actual release gates. |
