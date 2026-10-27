@@ -148,6 +148,10 @@ restarting the survey from zero cannot qualify progress conservation.
 now choose actual host authority shutdown and safe same-craft Mudds recovery,
 with durable progress protected before teardown. Preflight-safe recovery,
 client embodiment/home handoff and ordinary case callers remain production work.
+[Three cancellation cases](docs/ROADMAP_BACKLOG.md#shared-world-outbound-cancel)
+now bind real flight/approach controls,connected home return,earned-record
+preservation and fresh admission/departure. Aurora/Rime retirement cadence and
+full ordinary callers remain unimplemented;no cancellation case has run.
 
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings
