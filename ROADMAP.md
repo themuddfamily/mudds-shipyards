@@ -77,8 +77,10 @@ is a specific runtime gap; the failed shared writer and overflow choice stay ope
 now bind all17 existing families to real triggers/readbacks and name missing
 callers, including the atmospheric Arrow HUD feed. Execution remains open.
 [Halyard/Hauler/Bomber contacts](docs/ROADMAP_BACKLOG.md#crew-cargo-bomber-contact-budget)
-now have explicit component/hull budgets and recovery predicates. Their actual
-obstacle/control routes and earned fatal-damage schedules remain unbound.
+now have explicit component/hull budgets and recovery predicates. The
+[Hauler range-header route](docs/ROADMAP_BACKLOG.md#hauler-range-header-contact-route)
+also binds an existing obstacle and intact input stages. Its controller is
+unimplemented; fatal reachability under critical-hull power remains open. Halyard/Bomber obstacle/control/fatal fields remain open.
 
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings
