@@ -559,7 +559,14 @@ func _spawn_peer(role: String, args: PackedStringArray) -> int:
 				wrapper.append(key + "=" + OS.get_environment(key))
 		wrapper.append(OS.get_executable_path())
 	wrapper.append_array(args)
-	return OS.create_process("/bin/sh" if dedicated_host else "xvfb-run", wrapper)
+	var executable := "/bin/sh" if dedicated_host else "xvfb-run"
+	var wrapper_pid := OS.create_process(executable, wrapper)
+	if bool(_peer_profile().get("dedicated_headless_authority", false)):
+		# Godot consumes engine options before exposing get_cmdline_args().
+		# Retain the exact launch request under its owned OS wrapper identity.
+		_write(role + ".launch_arguments", {"wrapper_pid": wrapper_pid,
+			"executable": executable, "wrapper_arguments": wrapper, "engine_arguments": args})
+	return wrapper_pid
 
 func _host() -> void:
 	_check(_game.host_network_session(_port).accepted, "production host starts")

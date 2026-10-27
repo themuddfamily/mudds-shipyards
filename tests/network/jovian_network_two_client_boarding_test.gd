@@ -70,7 +70,7 @@ func _run() -> void:
 		"data_dirs": OS.get_environment("XDG_DATA_DIRS"), "config_dirs": OS.get_environment("XDG_CONFIG_DIRS"),
 		"wayland_display": OS.get_environment("WAYLAND_DISPLAY"),
 		"has_display": OS.has_environment("DISPLAY"), "has_wayland_display": OS.has_environment("WAYLAND_DISPLAY"),
-		"display_driver": DisplayServer.get_name(), "engine_arguments": OS.get_cmdline_args()})
+		"display_driver": DisplayServer.get_name(), "audio_driver": AudioServer.get_driver_name()})
 	_game = Main.instantiate() as GameFlow
 	_store_path = "user://jovian-boarding-peer.json"
 	var store := UserDataStore.new(_store_path)
@@ -117,14 +117,19 @@ func _check_peer_execution_receipts(peers: Dictionary) -> void:
 	var actor_pids: Array[int] = []
 	for role in ["host", "client", "client_b"]:
 		var receipt := _read(role + ".script_ready")
-		var engine_args: Array = receipt.get("engine_arguments", [])
+		var launch := _read(role + ".launch_arguments")
+		var engine_args: Array = launch.get("engine_arguments", [])
+		_check(int(launch.get("wrapper_pid", 0)) > 0
+			and int(launch.get("wrapper_pid", 0)) == int(peers.get(role, 0)),
+			"%s exact launch arguments belong to its owned OS wrapper" % role)
 		var pid := int(receipt.get("pid", 0))
 		_check(pid > 0 and pid == int(_read(role + ".done").get("pid", 0))
 			and pid == int(FileAccess.get_file_as_string(_directory.path_join(role + ".pid")))
 			and not actor_pids.has(pid), "%s execution receipt belongs to its original distinct owned actor" % role)
 		actor_pids.append(pid)
-		_check(_receipt_argument(engine_args, "--audio-driver") == "Dummy",
-			"%s actual command explicitly disables audible audio" % role)
+		_check(_receipt_argument(engine_args, "--audio-driver") == "Dummy"
+			and str(receipt.get("audio_driver", "")) == "Dummy",
+			"%s exact launch command and actual audio driver both disable audible audio" % role)
 		_check(not bool(receipt.get("has_wayland_display", true))
 			and str(receipt.get("wayland_display", "missing")).is_empty(),
 			"%s actor inherits no Wayland desktop connection" % role)
