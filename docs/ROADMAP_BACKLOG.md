@@ -6561,7 +6561,7 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | ROLE-JOVIAN-ENGINEER | Jovian engineer ordinary moving-crew lifecycle | 16,24 | Qualification | [Jovian field contract](#jovian-engineer-contract) binds passenger_port_01, separate Jovian roster, berthed engine repair/one kit and stand/reseat/migration/disconnect. Reuse f676c5016/43111884d only in its72-check functional/warning scope; Halyard panel assertions do not qualify Jovian progress. BLOCKED definition/implementation (Codex): actual elapsed-progress observation, moving/return/refusal, active-work loss/handback, exterior route and whole caller/limit. | [Literal engineer endpoint](#jovian-engineer-contract): current host-authorized engine repair improves integrity and spends one jovian_repair_tool6→5; observe actual progress, supported release/reseat and bound moving/loss/exit cases. No in-flight repair or borrowed Halyard panel PASS. |
 | ROLE-HALYARD-PASSENGER | Halyard passenger ordinary moving-crew lifecycle | 16,24 | Qualification | [Passenger field contract](#halyard-passenger-contract) binds the exact three-process admission, moving seven-stage chair cycle, real host-stop solo handback and destruction/reuse receipts. Reuse accepted BOARD/MOVING/AUTHORITY-STOP/DESTRUCTION sources once; no unchanged rerun. BLOCKED definition/implementation (Codex): ordinary landed hatch exit/reentry and its actual caller/whole-route limit remain absent. Final candidate qualification remains open.  [Engineer moving/return and Halyard egress](#halyard-engineer-moving-return) now binds source stages/limits,real passive-versus-paid repair observations and the concrete network passenger spawn-recall defect. Ordinary controller and physical hatch/airstair production repair remain OPEN;accepted passenger/berthed/crew scopes and parked attempts are unchanged. | [Exact passenger contract](#halyard-passenger-contract): same authenticated supported passenger, no helm authority, real moving stand/walk/reseat and old ownership retirement with usable continuation. Destruction recall is not an ordinary hatch exit. |
 | ROLE-HALYARD-ENGINEER | Halyard engineer ordinary moving-crew lifecycle | 16,24 | Qualification | [Engineer field contract](#halyard-engineer-contract) binds the existing two-peer berthed repair, input/stock/readout and release/migration/disconnect endpoints. Accepted ce2329a82 remains functional PASS_WITH_ENVIRONMENT_WARNING, strict NOT_CLEAN. BLOCKED definition/implementation (Codex): engineer moving/return, active-work interruption/owner-loss, exterior exit and exact whole-route caller/deadline are absent; passenger receipts do not fill these fields. No new role/craft combination or retry selected.  [Engineer moving/return and Halyard egress](#halyard-engineer-moving-return) now binds source stages/limits,real passive-versus-paid repair observations and the concrete network passenger spawn-recall defect. Ordinary controller and physical hatch/airstair production repair remain OPEN;accepted passenger/berthed/crew scopes and parked attempts are unchanged.  [Two active cuts](#halyard-engineer-active-cuts) now fix actual E stand and B browser disconnect while a host repair token remains active,transient interruption/stock/generation receipts and supported fresh reclaim. The .4s UI timing and all ordinary cut executions remain NOT_RUN;no old finished-work disconnect is relabelled. | [Exact role contract](#halyard-engineer-contract): host-authorized engine repair with one conserved kit and observed progress; finite supported claim release/reseat and the explicitly uncovered moving/interruption/handback endpoints. Berth-only repair must not be counted as in-flight repair. |
-| ROLE-HALYARD-GUNNER | Halyard gunner ordinary moving-crew lifecycle | 16,24 | Qualification | [Gunner field contract](#halyard-gunner-contract) binds co_pilot_station/current host projectiles, stationary remote role and separate moving-host/remote-pilot source. Local52damage DONEc28f7ffa3 retains its local scope. BLOCKED definition/implementation (Codex): moving remote gunner with actual target damage, exact loss/physical handback/exterior endpoint, whole caller/limit and selected candidate. Existing runtime remote binding is present; no defect or new retry inferred. | [Literal gunner endpoint](#halyard-gunner-contract): current authenticated chair causes actual registered target damage without local projectile/helm authority, then supported release/reseat and the bound moving/loss/exit cases. Preserve local52damage proof; emitted shots alone do not establish remote damage. |
+| ROLE-HALYARD-GUNNER | Halyard gunner ordinary moving-crew lifecycle | 16,24 | Qualification | [Gunner field contract](#halyard-gunner-contract) binds co_pilot_station/current host projectiles, stationary remote role and separate moving-host/remote-pilot source. Local52damage DONEc28f7ffa3 retains its local scope. [Remote damage/loss fields](#halyard-gunner-remote-damage-loss) now bind three-peer ordinary chair/input,four actual52damage target endpoints,B browser disconnect/fresh claim,shared physical-egress dependency and900s/960s combined limits. BLOCKED implementation (Codex): combined ordinary caller,normal target acquisition/receipt observer and shared Halyard physical-egress repair remain absent;final candidate/proof OPEN. Existing remote fire binding is present;no weapon defect or parked retry inferred. | [Literal gunner endpoint](#halyard-gunner-contract): current authenticated chair causes actual registered target damage without local projectile/helm authority, then supported release/reseat and the bound moving/loss/exit cases. Preserve local52damage proof; emitted shots alone do not establish remote damage. |
 | ROLE-HALYARD-LOADMASTER | Halyard loadmaster ordinary moving-crew lifecycle | 16,24 | Qualification | [Loadmaster contract](#halyard-loadmaster-contract) binds crew_port_00/passenger, exact manifest API/receipt/clear fields and missing production input/remote handling. Local87c51558e is [PARKED unmerged](history/ROADMAP_DELIVERIES.md#halyard-local-readiness-parked-20261027) before the intended RED gate; one correction exhausted, no new checkpoint. BLOCKED implementation (Codex), not just missing proof: current local/remote normal input and authenticated readiness consumer are Cinder-only. Ordinary producer payload is now fixed to vessel/chair-derived manifest and authored cabin-row identity below; normal input/remote implementation, action/moving/loss observers remain unimplemented;remote full-route limits are now bound below. Reuse passenger admission/carry only in its exact scope; no new cargo-transfer authority inferred.  [Remote moving/loss fields](#halyard-loadmaster-remote-actions) fix both dispatch entrypoints,three-peer readiness/clear/moving/return,B actual browser disconnect/fresh join and shared physical-egress dependency,with explicit900s/960s scope and old local/member gates intact. Source definition only;no new implementation or parked retry. | [Exact role contract](#halyard-loadmaster-contract): actual normal-input manifest/readiness proposal reaches host current chair authority, truthful panel and requester view; cargo/inventory/reward/helm remain unchanged. Then current claim release, physical stand/exit/reseat and explicitly bound moving/loss/handback cases; direct API fixtures do not qualify the journey. |
 | ROLE-BULWARK-GUNNER | Bulwark gunner ordinary moving-crew lifecycle | 16,24 | Qualification | [Bulwark field contract](#bulwark-gunner-contract) binds gunner_station, real22damage/staged target, power/charge cleanup, migration and separate moving-host/remote-pilot source. Reuse f676c5016/eea66d74f120-check package scope. Full ordinary solo gunner trials and combined1b5649cc2 remain PARKED; no reopening selected. BLOCKED definition/implementation (Codex): actual moving remote-role/return/exterior/loss caller, whole limit and final candidate, retaining all parked requirements/costs. | [Literal gunner endpoint](#bulwark-gunner-contract): actual siege-lance target damage from current chair without helm, supported stand/reseat and exact charge/power retirement; complete the original applicable ordinary/moving/loss/exit scope. Staged package proof cannot pass the parked full journey. |
 | ROLE-CINDER-LOADMASTER | Cinder loadmaster ordinary moving-crew lifecycle | 16,24 | Qualification | [Shared Cinder role contract](#cinder-crew-contract) binds exact chair/actors, ready manifest, unchanged cargo, stand/reseat/migration/disconnect and separate host-flight selector. BLOCKED definition/implementation (Codex): ordinary exterior entry/exit, remote-role moving/return/loss caller and aggregate limit; readiness plus actual conserved transfer integration remains unqualified. Shared-stock policy is settled; no new cargo authority inferred. | [Literal Loadmaster endpoint](#cinder-crew-contract): normal FIRE marks cinder_cabin_manifest/cinder_cargo_port_aperture ready on current host chair; unchanged finite stock during readiness, actual transfer through existing cargo owner, supported release/reseat and bound moving/loss recovery. Manifest-only proof cannot close cargo play. |
@@ -8965,6 +8965,129 @@ Codex still binds the authenticated moving remote gunner's pilot/admission,
 actual target-hit/health result, current-owner-loss cut, usable physical
 handback/exterior route and whole caller/deadline. Do not substitute projectile
 count, host-local motion or the local52damage receipt for this combined outcome.
+
+<a id="halyard-gunner-remote-damage-loss"></a>
+#### Remote gunner: actual damage and one current-owner disconnect
+
+Definition2026-10-27,22:06–22:26UTC including source review,checks,push and
+cleanup. Root owns these documents;one read-only source agent binds weapon and
+cleanup semantics. No engine run,game-code change or parked local-trial reopening.
+This fills ROLE-HALYARD-GUNNER's remote damage/loss/handback fields;the existing
+local52damage result and stationary/moving-host subsets retain their scope.
+
+**Caller to implement — Codex.** Extend the existing
+`tests/network/halyard_network_passenger_route_test.gd` and its owned peer runner
+for one nonplaying host1,clientA actual Halyard pilot and clientB actual
+`co_pilot_station` gunner. No combined ordinary remote-gunner selector currently
+exists;the old `--halyard-gunner` command above runs its narrower two-peer scope.
+Reuse the BOARD/7MOVING admission and moving-chair stages,substituting the actual
+`get_gunner_station_role_contract()` entry/anchor rather than a passenger chair:
+actual approach local(0,.52,-10.80),yaw−PI/2,and actual co-pilot anchor.
+A alone keeps helm;B uses normal look/remapped FIRE and E stand/reclaim. Both
+must physically reach their stations through the ordinary browser/Begin Shift/
+hatch/cabin route. No host placement,forced claim,aim-payload injection or
+teleported/stationary target substitutes qualify this ordinary journey.
+
+**Finite damage observations.** On a fresh Main,keep the four production range
+drones at their authored,animated positions. Use DRONE-01 after initial moving
+claim,DRONE-02 after moving stand/walk/reseat,DRONE-03 after browser disconnect/
+fresh join/reclaim and DRONE-04 after landed physical exit/reentry/reclaim.
+Each target starts with actual adapter/metadata health100,not a copied fixture
+health;one accepted lance hit must apply52 and leave48,not destroyed. Release
+FIRE after that shot;any surplus hit fails this member. Later two hits follow
+ordinary redeparture and witness fresh-claim damage,without repeating the seven
+chair stages or claiming another complete moving qualification. The first two
+must each observe
+actual host and both replica speed>.1 and displacement>.01 across at least two
+samples bracketing the shot,with A's current helm/source intact. Retain the
+existing moving .35 throttle/>5m within8s and seven chair stages,including
+supported walk>.6m,newer reseat claim and their existing local guards.
+
+For each hit require exactly one matching host ShotRequest,resolver result
+and actual adapter damage callback:accepted/resolved/hit/damaged,source1105,weapon
+`halyard_long_range_defensive_lance`,actual range-target identity,applied_damage52,
+remaining_health48 and matching target adapter state. B's current authenticated
+peer/avatar/body/chair/seat_generation/claim_sequence and target generation must
+match the gunner selection;the selection's `target_id=free_aim` is **not** the
+hit target identity. B emits no authoritative projectile/damage and gains no
+helm/ledger authority. Observe the real result,not just a projectile counter.
+
+The existing production path is `NetworkHalyardPassengerBinding.dispatch_gunner`
+→ Halyard `_consume_gunner_fire_intent` → inherited `_fire_weapon_with_aim`
+→ GameFlow `_on_projectile_fired` → live combat resolver. Host reconstructs
+the aim ray from the actual seated body and rotates validated unit `aim_local`
+by ship basis;the inherited emitter converges its exterior muzzle ray. Client
+supplies no origin/target identity. Authored profile is560m/52damage/.95s;
+shared timer is .95/fire_power,with an additional .95s actor cooldown. Pilot and
+gunner share weapon timer/heat (+.28 per shot,normal cooling .50/s). No finite
+ammunition/refill/depletion requirement belongs to this lance. A does not FIRE during these four members. Record live range,unoccluded
+resolver ray and actual camera aim before each pulse;normal navigation/look
+must acquire that target,without pausing World animation or moving a drone.
+The normal-input acquisition/aim controller and passive receipt observer are
+missing implementation,not a demonstrated weapon defect. Once aimed,each
+FIRE→host result/client consumed view has an8s bound;acquisition cannot silently
+consume that bound or bypass the whole-route deadline.
+
+**One loss cut.** After DRONE-02 and the final seven-stage movement ACKs,
+release FIRE. A performs the normal return/strict home dock/OFFLINE below while
+B retains the current chair. Only then B opens the normal pause/browser UI and
+chooses DISCONNECT. After normal join and physical reclaim,A redeparts normally
+for DRONE-03;do not assume the berth has an unobstructed firing ray.
+Use the exact UI/session-stop,host peer-loss and supported solo/fresh Manual Join
+observations in [the Loadmaster remote loss contract](#halyard-loadmaster-remote-actions),
+with gunner state replacing manifest state. Host clears B's assignment,target
+selection/last_fire and actor cooldown through `_clear_crew_role_state`;record
+actual clear reason and target-generation advance (saturation limit retained),
+not an assumed transport-labelled reason. A's original live pilot,helm source,
+fresh command consumption and own reservation survive. B's same Player must
+stand supported,walk>.6m and regain control;old FIRE/request cursors cannot fire
+or damage another target. Shared ship heat/timer need not reset on release.
+Normal Manual Join≤20s and Back/Resume≤8s obtain the current cabin/body and a
+fresh physical gunner claim before DRONE-03 redeparture;do not assume old peer
+identity,claim or generation is automatically restored. No extra host-stop/migration/
+destruction matrix is introduced by this one disconnect member.
+
+**Physical handback and bounds.** The pre-disconnect return above uses the exact
+normal-input [Halyard return/dock contract](#halyard-engineer-moving-return),including its
+20s return,8s admission,24s strict home dock and OFFLINE predicates. Retain
+A's owned helm with fresh zero-throttle commands during B's loss/rejoin. After
+DRONE-03,release FIRE and repeat that strict normal-input home/OFFLINE return
+before B stands,walks to the actual Halyard hatch and exits by its authored airstair;the shared
+Halyard spawn-recall defect and missing physical route described there must be
+fixed first. Same Player's supported exterior walk/reentry/fresh chair claim
+must pass that contract's12s exit,15s walk and8s consumed-view gates before
+A normally redeparts for DRONE-04. After that shot release FIRE,repeat the strict
+normal-input home/OFFLINE return and stand to clear gunner ownership before
+clients quit and host closes. No spawn recall or Jovian hatch route counts as
+physical exit.
+
+For the two redepartures,the finite acquisition goal is Halyard root station-
+local(0,8,-78),identity basis,position error≤.5m/attitude≤.5°/speed≤.5m/s,then
+ordinary B camera look at the assigned live drone. This is an unrun engineering
+goal,not a verified clear pose. The missing controller must query full live
+Halyard shapes along the entire input-driven path and at the endpoint,then
+require the actual muzzle resolver ray unoccluded and live range≤560m before
+FIRE. Each new approach/alignment goal≤15s within900s;the normal launch and
+existing tighter local guards remain concurrent. If either full-shape clearance
+or target visibility fails,that goal FAILS;do not move a target,write a pose or
+silently select another goal. The already-bound moving-prefix route and its
+first two live-target acquisitions also require actual clearance/aim checks;
+existing passenger movement alone does not prove those gunner acquisitions.
+
+New combined remote caller first-engineering limit900s,outer supervisor960s,
+from profile/process start through all three actual OS exits and cleanup;
+retain the existing300s/360s BOARD/MOVING member limits and every tighter local
+wait,including10s exit. These are new combined-scope caps,not relaxed defaults
+for either existing gunner mode. All new execution is NOT_RUN. Use the existing
+isolated Xvfb/x11,Dummy audio and private profiles/output receipts above;retain
+raw three-peer logs,per-member operand values,one named combined success receipt,
+actual three exit0 receipts and diagnostic/process closure. The combined success
+receipt/selector must be implemented in that existing caller before invocation;
+no proposed command is represented as executable or passing. Split implementation
+into bounded existing-caller damage observation and ordinary loss/reclaim work,
+reusing the shared egress fix;each selected assignment retains its≤90min all-in
+stop/correction/checkpoint rules. Final candidate and full-role qualification
+remain OPEN until these literal observations actually pass.
 
 <a id="bulwark-gunner-contract"></a>
 

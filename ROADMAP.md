@@ -102,6 +102,10 @@ fresh reclaim. Actual UI timing and gameplay proof remain unrun.
 [Halyard remote Loadmaster](docs/ROADMAP_BACKLOG.md#halyard-loadmaster-remote-actions)
 now has fixed input/dispatch,moving,clear/disconnect/rejoin and full-route limits.
 Its parked local trial and missing remote implementation remain open.
+[Halyard remote gunner](docs/ROADMAP_BACKLOG.md#halyard-gunner-remote-damage-loss)
+now specifies real target damage across moving reseat,disconnect/reclaim and
+physical exit/reentry,with exact ownership and combined-route bounds. The
+ordinary caller and shared physical-egress repair remain unimplemented.
 
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings
