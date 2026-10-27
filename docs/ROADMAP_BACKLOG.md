@@ -1917,6 +1917,22 @@ package gate closes. Latest playable remainsf0d6796; no gameplay/graphics change
 Raw matrix/peer/failed+corrected source retention belongs to the selected root
 above; cleanup/archive identity is recorded at closure below.
 
+**Landing capability closure2026-10-27 19:01UTC.** Accepted code/docs
+fast-forwarded into maina21ecf562 and actual remote tip verified. Task branch
+and owned worktree removed after exact-tip/reachability/ownership checks; all
+owned engine/wrapper/coordinator PIDs absent. Verified archive
+`/srv/mudds-work/landing-target-race-20261027/records.tar.gz` retains111regular
+files/5537219bytes,SHA256
+`38dd2189cf5a7eed416fb6e04c9782af709efae6f74676bb43a887f890f06f3a`,
+all original raw files and private-profile state matching its manifest,plus a
+verified incremental source bundle retaining both candidates against91bf96a85.
+Only archive+closeout.json remain in the owned root; derived import cache removed
+with worktree after stable-cache proof. Cleanup reached14.61min of original45min
+allocation; final documentation/push remains charged to the same19:31:59deadline.
+A read-only closeout helper initially demanded exact equality for the detached
+suite's descriptive terminal (which appends28assertions); corrected prefix read
+matches the catalog. No source adjustment or engine rerun followed that helper.
+
 **Landing-target race over actual ENet; fixture-level admission.** Own only
 existing [authority peer](../tests/network/network_authority_peer.gd#L95) and
 [coordinator](../tests/network/network_authority_three_process_test.gd#L15).
