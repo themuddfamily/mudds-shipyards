@@ -9,12 +9,13 @@ const BomberPayloadCombatAdapter := preload("res://scripts/combat/bomber_payload
 const LifecycleDamageableAdapter := preload("res://scripts/combat/lifecycle_damageable_adapter.gd")
 
 # Keep production RPC validation unchanged while observing the actual sender and
-# exact secure packet during the synchronous movement_intent_result callback.
+# exact secure packet during synchronous movement and landing result callbacks.
 class ObservedAdapter extends Adapter:
 	var rpc_sender := 0
 	var rpc_wire: Dictionary = {}
 	var rpc_before: Dictionary = {}
 	var sent_movement_packet: Dictionary = {}
+	var sent_landing_packet: Dictionary = {}
 
 	@rpc("any_peer", "reliable")
 	func _receive_movement_intent(wire: Dictionary) -> void:
@@ -26,10 +27,45 @@ class ObservedAdapter extends Adapter:
 		rpc_wire.clear()
 		rpc_before.clear()
 
+	@rpc("any_peer", "reliable")
+	func _receive_landing_intent(wire: Dictionary) -> void:
+		rpc_sender = multiplayer.get_remote_sender_id()
+		rpc_wire = wire.duplicate(true)
+		rpc_before = landing_proof_state()
+		super._receive_landing_intent(wire)
+		rpc_sender = 0
+		rpc_wire.clear()
+		rpc_before.clear()
+
+	func landing_proof_state() -> Dictionary:
+		return {
+			"landing": {
+				"entities": _landing._entities.duplicate(true),
+				"targets": _landing._landing_targets.duplicate(true),
+				"respawn_targets": _landing._respawn_targets.duplicate(true),
+				"sequences": _landing._last_sequence_by_entity_stream.duplicate(true),
+				"server_tick": _landing._server_tick,
+				"event_sequence": _landing._event_sequence,
+				"next_lease_id": _landing._next_lease_id,
+			},
+			"transport": _transport._peers.duplicate(true),
+			"unrelated": {
+				"commands": command_proof_state(),
+				"lifecycle": _lifecycle.get_snapshot(),
+				"canonical": get_authoritative_snapshot(),
+				"projectiles": _projectile.get_projectiles_snapshot(),
+				"landing_registrations": _landing_entities.duplicate(true),
+				"landing_records": _landing_authoritative_records.duplicate(true),
+				"landing_revision": _landing_snapshot_revision,
+			},
+		}
+
 	func _make_secure_rpc_packet(stream_id: StringName, payload: Dictionary) -> Dictionary:
 		var packet := super._make_secure_rpc_packet(stream_id, payload)
 		if stream_id == &"movement":
 			sent_movement_packet = packet.duplicate(true)
+		if stream_id == &"landing":
+			sent_landing_packet = packet.duplicate(true)
 		return packet
 
 	func command_proof_state() -> Dictionary:
@@ -69,6 +105,9 @@ var _cargo_completed_seen := false
 var _handshake_retry_started := false
 var _handshake_wait_frames := 0
 var _direct_mismatch_checked := false
+var _landing_rpc_stage := false
+var _landing_rpc_observations: Array[Dictionary] = []
+var _landing_race_unrelated: Dictionary = {}
 var _command_rpc_stage := false
 var _command_rpc_observations: Array[Dictionary] = []
 
@@ -130,8 +169,7 @@ func _start() -> void:
 		if _role == "client_b":
 			_handshake_retry_started = true
 		_log("JOIN_%s" % ("STARTED" if joined.get("accepted", false) else "FAILED"))
-		call_deferred(&"_client_command_rpc_probe")
-		call_deferred(&"_client_loop")
+		call_deferred(&"_start_client_probes")
 
 
 func _server_loop() -> void:
@@ -144,6 +182,9 @@ func _server_loop() -> void:
 			peer_ids.sort()
 			var pilot_peer := int(peer_ids[0])
 			var passenger_peer := int(peer_ids[1])
+			if not await _server_landing_target_probe(pilot_peer, passenger_peer):
+				call_deferred(&"_finish", 1)
+				return
 			var initial_peer_generations: Dictionary = {}
 			for peer_variant in peer_ids:
 				initial_peer_generations[int(peer_variant)] = int(_adapter._peer_generations.get(int(peer_variant), 0))
@@ -689,6 +730,18 @@ func _server_loop() -> void:
 
 
 func _finish(exit_code: int) -> void:
+	if _role == "server":
+		# Retire only these detached fixtures; committed occupancy must be released
+		# without the production departure API changing owner or generation.
+		for entity_id in [&"fighter_a", &"fighter_b"]:
+			var entity := _adapter.get_landing_entity(entity_id)
+			if not entity.is_empty():
+				_adapter._landing.retire_entity(1, entity_id, int(entity.entity_generation))
+				_adapter._landing_entities.erase(entity_id)
+		if _adapter.get_landing_entity(&"fighter_a").is_empty() \
+			and _adapter.get_landing_entity(&"fighter_b").is_empty() \
+			and not bool((_adapter._landing._landing_targets.get(&"pad_alpha", {}) as Dictionary).get("occupied", false)):
+			_log("LANDING_RACE_FIXTURES_RETIRED")
 	for child in root.get_children():
 		child.process_mode = Node.PROCESS_MODE_DISABLED
 	# Close the host only after both clients finish their gameplay checks. Concurrent
@@ -799,6 +852,234 @@ func _movement_command(
 		"move_axis": [0.5, 0.0], "board_request": false,
 		"boarding_target_id": &"", "disembark_request": false,
 }
+
+
+func _landing_request(peer_id: int, entity_id: StringName, generation: int, sequence: int) -> Dictionary:
+	return {
+		"sender": peer_id,
+		"wire": {
+			"schema_version": 1, "peer_id": peer_id, "entity_id": entity_id,
+			"entity_generation": generation, "stream_id": 1, "sequence": sequence,
+			"client_tick": 10, "action": Adapter.LandingIntent.ACTION_LANDING,
+			"region_id": &"ember_caldera", "target_id": &"pad_alpha",
+		},
+	}
+
+
+func _server_landing_target_probe(first_peer: int, second_peer: int) -> bool:
+	# Run before the original command clock and landing tick53 fixtures exist.
+	var first := _adapter.register_landing_entity(first_peer, &"fighter_a", 4)
+	var second := _adapter.register_landing_entity(second_peer, &"fighter_b", 1)
+	var target := _adapter.register_landing_target(&"pad_alpha", &"ember_caldera", 1)
+	var clock := _adapter.set_landing_server_tick(10)
+	if not bool(first.get("accepted", false)) or not bool(second.get("accepted", false)) \
+		or not bool(target.get("accepted", false)) or not bool(clock.get("accepted", false)):
+		return _landing_race_failure("initial fixture registration failed")
+	var requests := [
+		_landing_request(first_peer, &"fighter_a", 4, 0),
+		_landing_request(second_peer, &"fighter_b", 1, 0),
+	]
+	_landing_race_unrelated = (_adapter.landing_proof_state().unrelated as Dictionary).duplicate(true)
+	var initial := _adapter.landing_proof_state()
+	if int(initial.landing.server_tick) != 10 \
+		or initial.landing.targets != {&"pad_alpha": {
+			"target_id": &"pad_alpha", "region_id": &"ember_caldera",
+			"target_generation": 1, "occupied": false, "active": false,
+		}}:
+		return _landing_race_failure("initial target generation/region/occupancy or landing clock mismatch")
+	for request_variant in requests:
+		var request := request_variant as Dictionary
+		var wire := request.wire as Dictionary
+		if _adapter.get_landing_entity(wire.entity_id) != {
+			"entity_id": wire.entity_id, "owner_peer_id": request.sender,
+			"entity_generation": wire.entity_generation, "state": &"flying",
+			"lease_id": &"", "target_id": &"", "stream_id": -1,
+			"last_sequence": -1, "last_client_tick": -1,
+		}:
+			return _landing_race_failure("initial owner/generation/flying entity mismatch")
+	for index in 2:
+		if not _write_probe_file("landing_request_%d" % index, requests[index]):
+			return _landing_race_failure("initial request write failed")
+	var deadline := Time.get_ticks_msec() + 1500
+	while Time.get_ticks_msec() < deadline:
+		if not _read_probe_file("landing_ready_%d" % first_peer).is_empty() \
+			and not _read_probe_file("landing_ready_%d" % second_peer).is_empty():
+			break
+		await create_timer(0.01).timeout
+	if _read_probe_file("landing_ready_%d" % first_peer).is_empty() \
+		or _read_probe_file("landing_ready_%d" % second_peer).is_empty():
+		return _landing_race_failure("both admitted clients did not reach shared ready gate")
+	_landing_rpc_stage = true
+	if not _write_probe_file("landing_go", {"go": true}):
+		return _landing_race_failure("shared go write failed")
+	while Time.get_ticks_msec() < deadline:
+		if _landing_rpc_observations.size() >= 2 \
+			and not _read_probe_file("landing_sent_0").is_empty() \
+			and not _read_probe_file("landing_sent_1").is_empty():
+			break
+		await create_timer(0.01).timeout
+	if _landing_rpc_observations.size() != 2:
+		return _landing_race_failure("expected exactly two initial actual RPC results")
+	var secure_sequences: Dictionary = {}
+	var winner: Dictionary = {}
+	var loser: Dictionary = {}
+	var previous := initial
+	for observation_index in 2:
+		var observed := _landing_rpc_observations[observation_index]
+		var source := int(observed.sender)
+		var request_index := 0 if source == first_peer else 1
+		var request := requests[request_index] as Dictionary
+		if observed.before != previous \
+			or not _verify_landing_rpc(request_index, request, observed, observation_index == 0, secure_sequences):
+			return _landing_race_failure("initial contention RPC/state mismatch")
+		previous = observed.after
+		if observation_index == 0:
+			winner = request
+		else:
+			loser = request
+	# The first arrival holds the sole lease; the refused request consumed seq0
+	# in the replay ledger while its own entity remains completely flying.
+	var winner_wire := winner.wire as Dictionary
+	var loser_wire := loser.wire as Dictionary
+	var reserved := _adapter.get_landing_entity(winner_wire.entity_id)
+	var rejected := _adapter.get_landing_entity(loser_wire.entity_id)
+	if reserved.get("state") != &"landing_pending" or StringName(reserved.get("lease_id", &"")).is_empty() \
+		or reserved.get("target_id") != &"pad_alpha" or rejected.get("state") != &"flying" \
+		or rejected.get("lease_id") != &"" or rejected.get("target_id") != &"":
+		return _landing_race_failure("contention did not leave exactly one pending lease")
+	var before_abort := _adapter.landing_proof_state()
+	var aborted := _adapter.abort_server_landing(
+		winner_wire.entity_id, int(winner_wire.entity_generation), reserved.lease_id
+	)
+	var expected_abort := before_abort.duplicate(true)
+	var aborted_entity := (expected_abort.landing.entities as Dictionary)[winner_wire.entity_id] as Dictionary
+	aborted_entity.state = &"flying"
+	aborted_entity.lease_id = &""
+	aborted_entity.target_id = &""
+	(expected_abort.landing.targets[&"pad_alpha"] as Dictionary).occupied = false
+	expected_abort.landing.event_sequence += 1
+	if not bool(aborted.get("accepted", false)) or aborted.get("status") != &"landing_aborted" \
+		or _adapter.landing_proof_state() != expected_abort:
+		return _landing_race_failure("authority abort changed owner/generation or failed to clear exact lease")
+	_log("LANDING_RACE_ABORTED sender=%d entity=%s" % [winner.sender, winner_wire.entity_id])
+	var retry := _landing_request(int(loser.sender), loser_wire.entity_id, int(loser_wire.entity_generation), 1)
+	if not _write_probe_file("landing_request_2", retry):
+		return _landing_race_failure("retry request write failed")
+	while Time.get_ticks_msec() < deadline:
+		if _landing_rpc_observations.size() >= 3 and not _read_probe_file("landing_sent_2").is_empty():
+			break
+		await create_timer(0.01).timeout
+	if _landing_rpc_observations.size() != 3:
+		return _landing_race_failure("missing or extra loser retry actual RPC result")
+	var retry_observed := _landing_rpc_observations[2]
+	if retry_observed.before != expected_abort \
+		or not _verify_landing_rpc(2, retry, retry_observed, true, secure_sequences):
+		return _landing_race_failure("original loser retry did not reserve with fresh seq1")
+	var retry_entity := _adapter.get_landing_entity(loser_wire.entity_id)
+	var before_commit := _adapter.landing_proof_state()
+	var committed := _adapter.commit_server_landing(
+		loser_wire.entity_id, int(loser_wire.entity_generation), retry_entity.lease_id
+	)
+	var expected_commit := before_commit.duplicate(true)
+	(expected_commit.landing.entities[loser_wire.entity_id] as Dictionary).state = &"landed"
+	expected_commit.landing.event_sequence += 1
+	if not bool(committed.get("accepted", false)) or committed.get("status") != &"landing_committed" \
+		or committed.get("lease_id") != retry_entity.lease_id or _adapter.landing_proof_state() != expected_commit:
+		return _landing_race_failure("exact retry lease did not commit with ownership/replay state preserved")
+	_landing_rpc_stage = false
+	if not _write_probe_file("landing_done", {"done": true}):
+		return _landing_race_failure("completion gate write failed")
+	_log("LANDING_RACE_COMMITTED sender=%d entity=%s" % [loser.sender, loser_wire.entity_id])
+	_log("LANDING_RACE_CASES_OK")
+	return true
+
+
+func _verify_landing_rpc(index: int, request: Dictionary, observed: Dictionary, accepted: bool, secure_sequences: Dictionary) -> bool:
+	var sent := _read_probe_file("landing_sent_%d" % index)
+	var source := int(request.sender)
+	var packet := observed.wire as Dictionary
+	var result := observed.result as Dictionary
+	var wire := request.wire as Dictionary
+	var before := observed.before as Dictionary
+	var after := observed.after as Dictionary
+	if int(observed.sender) != source or int(sent.get("sender", 0)) != source \
+		or not bool(sent.get("queued", false)) or packet != sent.get("packet", {}) \
+		or packet.get("payload", {}) != wire or int(packet.get("peer_id", 0)) != source \
+		or packet.get("stream_id") != &"landing" \
+		or int(packet.get("peer_generation", 0)) != int(_adapter._peer_generations.get(source, -1)) \
+		or int(packet.get("sequence", -1)) != int(secure_sequences.get(source, -1)) + 1 \
+		or result.get("status") != (&"landing_reserved" if accepted else &"landing_target_occupied") \
+		or bool(result.get("accepted", false)) != accepted:
+		return false
+	secure_sequences[source] = int(packet.sequence)
+	var expected := before.duplicate(true)
+	var landing := expected.landing as Dictionary
+	(landing.sequences as Dictionary)["%s:1" % wire.entity_id] = int(wire.sequence)
+	var transport_peer := (expected.transport as Dictionary)[source] as Dictionary
+	(transport_peer.streams as Dictionary)[&"landing"] = int(packet.sequence)
+	if accepted:
+		var lease_id := StringName(result.get("lease_id", &""))
+		if lease_id != StringName("landing_lease_%d" % int(landing.next_lease_id)) \
+			or result.get("entity_id") != wire.entity_id or result.get("target_id") != &"pad_alpha":
+			return false
+		var entity := (landing.entities as Dictionary)[wire.entity_id] as Dictionary
+		entity.state = &"landing_pending"
+		entity.lease_id = lease_id
+		entity.target_id = &"pad_alpha"
+		(landing.targets[&"pad_alpha"] as Dictionary).occupied = true
+		landing.event_sequence += 1
+		landing.next_lease_id += 1
+	if after != expected or after.unrelated != _landing_race_unrelated:
+		return false
+	if not _write_probe_file("landing_observed_%d" % index, observed):
+		return false
+	_log("LANDING_RACE_RPC_%d sender=%d status=%s secure_sequence=%d" % [index, source, result.status, packet.sequence])
+	return true
+
+
+func _landing_race_failure(reason: String) -> bool:
+	_log("LANDING_RACE_FAILED %s" % reason)
+	return false
+
+
+func _start_client_probes() -> void:
+	# Keep all original movement sends and reconnect timers behind this early gate.
+	if not await _client_landing_target_probe():
+		call_deferred(&"_finish", 1)
+		return
+	call_deferred(&"_client_command_rpc_probe")
+	call_deferred(&"_client_loop")
+
+
+func _client_landing_target_probe() -> bool:
+	var deadline := Time.get_ticks_msec() + 3000
+	var handled: Dictionary = {}
+	while Time.get_ticks_msec() < deadline:
+		if not _adapter._server_offer.is_empty():
+			var source := _adapter.multiplayer.get_unique_id()
+			for index in 3:
+				if handled.has(index):
+					continue
+				var request := _read_probe_file("landing_request_%d" % index)
+				if request.is_empty() or int(request.get("sender", 0)) != source:
+					continue
+				if index < 2:
+					if not _write_probe_file("landing_ready_%d" % source, {"sender": source}):
+						return _landing_race_failure("client ready write failed")
+					if _read_probe_file("landing_go").is_empty():
+						continue
+				handled[index] = true
+				var queued := _adapter.send_landing_intent(request.wire as Dictionary)
+				if not _write_probe_file("landing_sent_%d" % index, {
+					"sender": source, "queued": bool(queued.get("accepted", false)),
+					"packet": _adapter.sent_landing_packet.duplicate(true),
+				}):
+					return _landing_race_failure("client sent record write failed")
+			if not _read_probe_file("landing_done").is_empty():
+				_log("LANDING_RACE_CLIENT_DONE")
+				return true
+		await create_timer(0.01).timeout
+	return _landing_race_failure("client gate timed out")
 
 
 func _on_command_rpc_result(result: Dictionary) -> void:
@@ -1137,6 +1418,14 @@ func _on_seat_result(result: Dictionary) -> void:
 
 
 func _on_landing_result(result: Dictionary) -> void:
+	if _landing_rpc_stage and _adapter.rpc_sender > 1:
+		_landing_rpc_observations.append({
+			"sender": _adapter.rpc_sender,
+			"wire": _adapter.rpc_wire.duplicate(true),
+			"result": result.duplicate(true),
+			"before": _adapter.rpc_before.duplicate(true),
+			"after": _adapter.landing_proof_state(),
+		})
 	if StringName(result.get("status", &"")) != &"landing_presented":
 		return
 	var samples := result.get("samples", []) as Array

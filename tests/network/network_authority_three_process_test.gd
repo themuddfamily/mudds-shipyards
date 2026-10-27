@@ -54,6 +54,7 @@ func _run() -> void:
 			# Exit receipts are written only after wait reaps the actual engines;
 			# their redirected output includes all teardown diagnostics.
 			_pids.clear()
+			print("NETWORK_LANDING_TARGET_RACE_OK")
 			print("OK: three-process network authority harness; all three OS exits=0; diagnostics=0")
 			quit(0)
 			return
@@ -124,6 +125,9 @@ func _evidence_complete() -> bool:
 		"LOADMASTER_STALE_GENERATION_REJECTED", "LOADMASTER_REORDER_REJECTED",
 		"LOADMASTER_STALE_OCCUPANT_REJECTED", "LOADMASTER_DISCONNECT_CLEAN",
 		"RECONNECT_OLD_COMMAND_REJECTED", "RECONNECT_RESYNC_PUBLISHED", "RECONNECT_GENERATION_FRESH",
+		"LANDING_RACE_RPC_0", "LANDING_RACE_RPC_1", "LANDING_RACE_RPC_2",
+		"LANDING_RACE_ABORTED", "LANDING_RACE_COMMITTED", "LANDING_RACE_CASES_OK",
+		"LANDING_RACE_FIXTURES_RETIRED",
 		"COMMAND_RPC_pilot50", "COMMAND_RPC_duplicate50", "COMMAND_RPC_late49",
 		"COMMAND_RPC_other_owner", "COMMAND_RPC_false_peer", "COMMAND_RPC_CONSUMED_ONCE",
 	]:
@@ -162,7 +166,7 @@ func _evidence_complete() -> bool:
 	if not client_a_log.contains("CARGO_TERMINAL_RESYNC_PRESENTED"):
 		return false
 	for client_log in [client_a_log, client_b_log]:
-		if not client_log.contains("ADMITTED") or not client_log.contains("RELATIONSHIP_STABLE") \
+		if not client_log.contains("LANDING_RACE_CLIENT_DONE") or not client_log.contains("ADMITTED") or not client_log.contains("RELATIONSHIP_STABLE") \
 			or not client_log.contains("PROJECTILE_PRESENTED") \
 			or not client_log.contains("PROJECTILE_TERMINAL_PRESENTED") \
 			or not client_log.contains("CLIENT_PAYLOAD_POOL_RELEASED") \
