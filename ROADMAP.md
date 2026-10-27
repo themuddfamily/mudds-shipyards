@@ -145,7 +145,20 @@ desktop launch is NOT_RUN. Root cause is unknown. All owned process cleanup flag
 pass and installation bytes remain unchanged. The latest playable build remains
 7f23a80. [Terminal result and preservation](docs/ROADMAP_BACKLOG.md#rendered-installed-launch-capability).
 
-No gameplay implementation is selected by this roadmap-editing request.
+**PARKED — COURIER-RECOVERY cold pilot recovery capability.**
+Unmerged candidate229bfa6c9 passes source review,313 Python tests,3880 privacy/
+observer-compilation assertions, paired exports, three strict menu startups and
+full1529-entry/nine-predicate package audit. The actual once-only route fails
+42.371s into leg1: four targets destroyed/first Courier running78, but defender85
+and no confirmed wounds instead of required17/two wounds. Acknowledged fire
+caused no observed damage; why is unproven. No committed interruption/cold Resume
+was reached. Sole correction had already fixed the focused Resume-input failure;
+allowance0 means PARK with no further repair/retry. Cleanup flags pass; private
+candidate/source/results are verified archived, owned branch/worktree/profiles/
+scratch removed. No failed code merged or public checkpoint replaced.
+[Exact result and reopening boundary](docs/ROADMAP_BACKLOG.md#courier-intercept--bounded-outcomes).
+No active implementation remains after this closure; latest playable build7f23a80.
+
 Reopening the parked launch work requires causal evidence about the startup
 stall in its original environment and an explicit cumulative-cost decision;
 its exhausted correction allowance cannot be reset by another card or branch.
