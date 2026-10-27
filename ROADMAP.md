@@ -162,14 +162,17 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Current work and next selection
 
-**Selected — ordinary packaged Ember outbound input driver.**
-Use normal Arrow access and Destination Board controls to fly the actual canonical
-outward leg, land at caldera and exit on foot. Existing1800s route cap is specific
-to this new command; other routes retain300s. Full survey/errands/return stay open.
-[Exact acceptance and original03:30→05:00UTC clock](docs/ROADMAP_BACKLOG.md#ordinary-packaged-ember-outbound-driver--frozen-2026-10-27).
-First Python run stops on an existing CLI-order compatibility assertion; one
-independently reviewed prefix-preserving correction is permitted on the same
-clock. No engine or flight has run; next unexpected failure ends continuation.
+**PARKED — ordinary Ember outbound driver stops at a scaled UI click.**
+One native37d6ae5bf attempt stops28.841s before boarding/flight: Activity Board
+click is unacknowledged. Source/raw review proves canvas deltas were sent as
+physical X11 pixels (1.25 scaling); no Ember gameplay or old focus-error cause
+is inferred. All focused checks/export/strict archive startup pass first.
+Source remains unmerged in a verified archive; owned branch/worktree/process/
+profiles/build scratch cleaned34.429minutes from original03:30UTC start, plus
+final notes/push. No further correction/run selected under this continuation.
+[Exact failed predicate, source cause and cleanup](docs/history/ROADMAP_DELIVERIES.md#ordinary-ember-outbound-driver-parked-at-ui-coordinate-mismatch-20261027).
+Canonical distance/landing/exit/full SOLO remain unqualified; original1800s route
+limit and03:30→05:00UTC clock retain the first Python stop and all closure cost.
 
 **Accepted — busy exterior-exit release interruption support.**
 Existing runner now tests accepted/refused publication during a real busy exit,

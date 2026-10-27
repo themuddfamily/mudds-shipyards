@@ -6,6 +6,62 @@ Return to the [working roadmap](../../ROADMAP.md).
 
 
 
+
+## Ordinary Ember outbound driver parked at UI coordinate mismatch 20261027
+
+Existing SOLO-EMBER selected a missing ordinary packaged outbound input command,
+not new content or a replay of accepted source travel. Five-file candidate
+`37d6ae5bfe7c6c684a3d386a2b93229d79173aa3` remains **unmerged/unaccepted**.
+It attempts normal Convoy/Arrow/menu access, canonical >7800000m/>700rebases,
+strict caldera landing/automatic production exit and normal HUD Quit. Full survey,
+errands, return/save/repeat/installed/native/human/final gates stay open.
+
+Before execution, source/independent review corrected root's invented final-E
+clause to actual coordinator LANDED+OFFLINE automatic disembark (f8af37e73).
+The source candidate's paused Main-self-ancestry check,300s admission-prefix
+limit and continuous pilot ownership were corrected before verification.
+No gameplay policy/handling/sampler/geometry/speed/time-scale or old mode changed.
+First Python857e20e91 stops16.008s/one failure among309: prepended Ember selector
+violates old literal Zenith-first CLI prefix. Next tuple already matches; no
+second failure inferred. Independent cumulative GO recorded4f5ca30e1 before
+one additive prefix-preserving correction; tests/defaults/caps unchanged.
+
+Corrected focused checks: Python309/14.124s actual test time (15.884s wrapper),
+import22.024s, observer --check-only17.422s, privacy2.687s, all exit0/no diagnostics/
+source change. Private clean export43.308s. Actual TAR startup25.431s/exit0/one
+STARTUP_MENU_READY_OK/no diagnostics binds exact ELF149101272bytes,SHA256
+`1c6976633f7565a21a1c1173ed57c6c95531c8f4f173ea74ae489b08c4791445`.
+TAR95509645bytes,SHA256
+`065987738e6b5e8cb7487a372e98ee19fcf092d957c2c65f6900a99aa77dd260`.
+
+**Single native attempt FAIL28.840737s including cleanup**, before boarding/flight.
+First predicate: `ordinary Ember UI action unacknowledged: activity`; stage
+convoy_board. Last paused APPROACH_SHIP keeps timed_race/origin0, enabled Activity
+button canvas center(800,348.5), activitypagefalse. Pulse sequence66 takes canvas
+mouseY449.99997 and sends physical dy-101 unchanged. Next mouseY323.74997 moves
+126.25 logical pixels, exactly1.25×101. `project.godot`1600×900 canvas_items versus
+1280×720 window and XTestFakeRelativeMotionEvent units prove the conversion
+mismatch. Both source/raw reviewers confirm; this is not evidence of an Ember
+runtime failure or old root-Window focus-disconnection cause. No engine errors.
+No cruise/world/travel/landing/exit/OS0 qualification. Global inputs/helper/game/
+Xvfb cleanuptrue and PID2520381 absent, while raw game_leg exitnull/reapedfalse
+is retained rather than turned into normal process proof. No further correction,
+probe or run selected under the frozen next-failure stop. Actual1800/outer1860
+limits were not exhausted; all prior cost remains on03:30→05:00UTC clock.
+
+All78 record/source/profile members (including one actual TAR, no duplicate149MB
+ELF) byte/mode/link verified in
+`/srv/mudds-work/ember-outbound-20261027/records.tar.gz`,108185881bytes,
+SHA256 `1c73f640629d603eaaa9d3e6150a6ae9d2abd161045b712faa273d0f79e328af`.
+Bundle verified at exact37d6ae5bf tip with prerequisite6d9f97e2e in fresh pushed
+main4f5ca30e1; full five source files/patch/four commits retained before deletion.
+Eight supervisor identities absent/reused, native game absent/no cwd holders;
+owned worktree removed, exact local tip CAS-deleted, remote task branch absent/
+never created. Loose source/profiles/build/helper scratch removed; only archive/
+closeout remain. Cleanup04:04:25.744206UTC/34.429070minutes including initial stop;
+final docs/push time in closeout. No public checkpoint or product completion.
+
+
 ## Busy exterior exit release interruption support accepted 20261027
 
 The existing release interruption runner can now exercise actual busy exterior
