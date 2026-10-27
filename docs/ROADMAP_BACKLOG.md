@@ -3712,7 +3712,7 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | ROLE-HALYARD-PASSENGER | Halyard passenger ordinary moving-crew lifecycle | 16,24 | Qualification | [Passenger field contract](#halyard-passenger-contract) binds the exact three-process admission, moving seven-stage chair cycle, real host-stop solo handback and destruction/reuse receipts. Reuse accepted BOARD/MOVING/AUTHORITY-STOP/DESTRUCTION sources once; no unchanged rerun. BLOCKED definition/implementation (Codex): ordinary landed hatch exit/reentry and its actual caller/whole-route limit remain absent. Final candidate qualification remains open. | [Exact passenger contract](#halyard-passenger-contract): same authenticated supported passenger, no helm authority, real moving stand/walk/reseat and old ownership retirement with usable continuation. Destruction recall is not an ordinary hatch exit. |
 | ROLE-HALYARD-ENGINEER | Halyard engineer ordinary moving-crew lifecycle | 16,24 | Qualification | [Engineer field contract](#halyard-engineer-contract) binds the existing two-peer berthed repair, input/stock/readout and release/migration/disconnect endpoints. Accepted ce2329a82 remains functional PASS_WITH_ENVIRONMENT_WARNING, strict NOT_CLEAN. BLOCKED definition/implementation (Codex): engineer moving/return, active-work interruption/owner-loss, exterior exit and exact whole-route caller/deadline are absent; passenger receipts do not fill these fields. No new role/craft combination or retry selected. | [Exact role contract](#halyard-engineer-contract): host-authorized engine repair with one conserved kit and observed progress; finite supported claim release/reseat and the explicitly uncovered moving/interruption/handback endpoints. Berth-only repair must not be counted as in-flight repair. |
 | ROLE-HALYARD-GUNNER | Halyard gunner ordinary moving-crew lifecycle | 16,24 | Qualification | [Gunner field contract](#halyard-gunner-contract) binds co_pilot_station/current host projectiles, stationary remote role and separate moving-host/remote-pilot source. Local52damage DONEc28f7ffa3 retains its local scope. BLOCKED definition/implementation (Codex): moving remote gunner with actual target damage, exact loss/physical handback/exterior endpoint, whole caller/limit and selected candidate. Existing runtime remote binding is present; no defect or new retry inferred. | [Literal gunner endpoint](#halyard-gunner-contract): current authenticated chair causes actual registered target damage without local projectile/helm authority, then supported release/reseat and the bound moving/loss/exit cases. Preserve local52damage proof; emitted shots alone do not establish remote damage. |
-| ROLE-HALYARD-LOADMASTER | Halyard loadmaster ordinary moving-crew lifecycle | 16,24 | Qualification | [Loadmaster contract](#halyard-loadmaster-contract) binds crew_port_00/passenger, exact manifest API/receipt/clear fields and missing production input/remote handling. BLOCKED implementation (Codex), not just missing proof: current local/remote normal input and authenticated readiness consumer are Cinder-only. Ordinary producer payload is now fixed to vessel/chair-derived manifest and authored cabin-row identity below; normal input/remote implementation, action/moving/loss observer and whole-route limits remain open. Reuse passenger admission/carry only in its exact scope; no new cargo-transfer authority inferred. | [Exact role contract](#halyard-loadmaster-contract): actual normal-input manifest/readiness proposal reaches host current chair authority, truthful panel and requester view; cargo/inventory/reward/helm remain unchanged. Then current claim release, physical stand/exit/reseat and explicitly bound moving/loss/handback cases; direct API fixtures do not qualify the journey. |
+| ROLE-HALYARD-LOADMASTER | Halyard loadmaster ordinary moving-crew lifecycle | 16,24 | Qualification | [Loadmaster contract](#halyard-loadmaster-contract) binds crew_port_00/passenger, exact manifest API/receipt/clear fields and missing production input/remote handling. Local87c51558e is [PARKED unmerged](history/ROADMAP_DELIVERIES.md#halyard-local-readiness-parked-20261027) before the intended RED gate; one correction exhausted, no new checkpoint. BLOCKED implementation (Codex), not just missing proof: current local/remote normal input and authenticated readiness consumer are Cinder-only. Ordinary producer payload is now fixed to vessel/chair-derived manifest and authored cabin-row identity below; normal input/remote implementation, action/moving/loss observer and whole-route limits remain open. Reuse passenger admission/carry only in its exact scope; no new cargo-transfer authority inferred. | [Exact role contract](#halyard-loadmaster-contract): actual normal-input manifest/readiness proposal reaches host current chair authority, truthful panel and requester view; cargo/inventory/reward/helm remain unchanged. Then current claim release, physical stand/exit/reseat and explicitly bound moving/loss/handback cases; direct API fixtures do not qualify the journey. |
 | ROLE-BULWARK-GUNNER | Bulwark gunner ordinary moving-crew lifecycle | 16,24 | Qualification | [Bulwark field contract](#bulwark-gunner-contract) binds gunner_station, real22damage/staged target, power/charge cleanup, migration and separate moving-host/remote-pilot source. Reuse f676c5016/eea66d74f120-check package scope. Full ordinary solo gunner trials and combined1b5649cc2 remain PARKED; no reopening selected. BLOCKED definition/implementation (Codex): actual moving remote-role/return/exterior/loss caller, whole limit and final candidate, retaining all parked requirements/costs. | [Literal gunner endpoint](#bulwark-gunner-contract): actual siege-lance target damage from current chair without helm, supported stand/reseat and exact charge/power retirement; complete the original applicable ordinary/moving/loss/exit scope. Staged package proof cannot pass the parked full journey. |
 | ROLE-CINDER-LOADMASTER | Cinder loadmaster ordinary moving-crew lifecycle | 16,24 | Qualification | [Shared Cinder role contract](#cinder-crew-contract) binds exact chair/actors, ready manifest, unchanged cargo, stand/reseat/migration/disconnect and separate host-flight selector. BLOCKED definition/implementation (Codex): ordinary exterior entry/exit, remote-role moving/return/loss caller and aggregate limit; readiness plus actual conserved transfer integration remains unqualified. Shared-stock policy is settled; no new cargo authority inferred. | [Literal Loadmaster endpoint](#cinder-crew-contract): normal FIRE marks cinder_cabin_manifest/cinder_cargo_port_aperture ready on current host chair; unchanged finite stock during readiness, actual transfer through existing cargo owner, supported release/reseat and bound moving/loss recovery. Manifest-only proof cannot close cargo play. |
 | ROLE-CINDER-NAVIGATOR | Cinder navigator ordinary moving-crew lifecycle | 16,24 | Qualification | [Shared Cinder role contract](#cinder-crew-contract) binds exact chair/actors, remapped FIRE sensor hint, authenticated request feedback, clear/reseat/migration/disconnect and in-process recovery. Reuse accepted c2c72a223 refusal journey, not another unchanged run. BLOCKED definition/implementation (Codex): ordinary exterior entry/exit, remote-role moving/return/loss caller and aggregate limit. No additional role/craft combination. | [Literal Navigator endpoint](#cinder-crew-contract): current authenticated chair FIRE produces cinder_navigator_console sensor hint, requester-only feedback for every fresh authenticated rejection, clear on release and usable handback. Navigation hints confer no movement/cargo/combat authority; bind remaining ordinary moving/exit/recovery cases before execution. |
@@ -5427,47 +5427,21 @@ schema, canonical337 identities/order and whitespace checks pass. No engine,
 implementation or new runtime qualification; commit/push closes inside the
 original15:39:24 deadline without another survey or attempt-budget reset.
 
-**Selected implementation — local normal-input readiness,2026-10-27.**
-ROLE-HALYARD-LOADMASTER source baseaa0af7052; root start15:25:18UTC includes
-discovery, total90minutes/hard stop16:55:18, execution end16:40:18 with15minutes
-reserved for publication/archive/integration/push/cleanup. One high implementer
-owns Halyard/GameFlow, existing role-gameplay test and one new real-Main local
-input regression/UID; independent high lifecycle/input reviewer; root owns all
-engine runs, source/cache freezes, paired checkpoint and closure. Private branch
-`work/halyard-loadmaster-local-20261027` under
-`/srv/mudds-work/halyard-loadmaster-local-20261027/source`.
-
-Player-visible result: solo player physically claims crew_port_00, remappable
-FIRE marks the bound station-readiness receipt and actual sign/HUD, held/repeated
-FIRE after visible readiness leaves it unchanged; ordinary stand clears the
-claim/receipt and restores supported controls/source, then real reseat can mark
-fresh readiness. Recheck exact source/claim/craft after synchronous publication
-before HUD/readback. Preserve Cinder/other passenger/network fences, existing
-cargo/reward/helm authority and arbitrary manifest API fixtures. This slice is
-local/solo only; full remote/moving/exit qualification stays with the same goal.
-
-Freeze acceptance before execution: new Main/remapped-F13 input test transplanted
-alone onto oldaa0 must compile and fail exactly at first missing normal-FIRE
-readiness, then cleanly release/free. One initial exterior approach placement
-is a disclosed fixture; chair, actions, stand/reseat must use actual inputs.
-Then fixed candidate passes that full test, existing Halyard role/presentation/
-readability, Cinder Loadmaster interaction/gameplay, Halyard role bridge and
-startup privacy checks. Input test total300s, chair/stand8s, ready3s and walking
-waypoint15s bounds; no diagnostic filtering or timeout relaxation. All engines
-use Dummy audio, headless or private Xvfb with explicit x11/input-only renderer.
-Pin the existing Godot4.7.1 and release-template hashes; no hosted CI.
-
-Meaningful gameplay requires fresh paired clean-commit Windows EXE/ZIP/notes and
-Linux binary/TAR/notes in repository builds/. Existing safe exporters, strict
-startup (actual exit0/exactly one STARTUP_MENU_READY_OK/zero diagnostics) for
-Windows payload under pinned Linux Godot, Linux executable and actual TAR,
-plus existing complete paired artifact/inventory audit. Player notes distinguish
-actual source/package checks from unperformed native/GPU/full-role gates.
-One total correction only after demonstrated cause and root cumulative-priority
-decision inside this original clock; first unexpected failure stops, failed
-final correction/deadline parks this attempt. No labels/branches reset limits.
-Preserve failed/accepted source/raw before owned cleanup; integrate/push accepted
-work and delete exact contained branch after current remote/worktree checks.
+**Local normal-input candidate PARKED87c51558e, unmerged.** Old-source
+regression never reached NORMAL_FIRE_STATION_READINESS: initial and corrected
+runs stop at the compound exterior hatch setup. One passive trace proves the
+initial look was ignored while mouse mode stayed visible; the single authorized
+ordinary click-to-capture correction did not clear the whole setup predicate.
+Remaining allowance0; no further probe or same-attempt environment retry selected.
+Fixed-source GREEN, regressions, exports/startups/audit and new checkpoint are
+NOT_RUN. No readiness-consumer defect or working gameplay change is proved.
+[Preserved source, raw failures, original budget and restoration](history/ROADMAP_DELIVERIES.md#halyard-local-readiness-parked-20261027).
+Both candidate commits and all unique raw data are verified archived; owned
+worktrees/branch/profiles/scratch removed without merging the unaccepted code.
+Producer design above remains bound; normal local/remote implementation and
+full ordinary role qualification remain open. Reopening needs exact current
+failed operands/cause and explicit cumulative-priority decision with original
+90minute costs/route/caps retained, not a renamed task or automatic retry.
 
 | Existing role boundary | Literal observation required from implementation/caller |
 | --- | --- |

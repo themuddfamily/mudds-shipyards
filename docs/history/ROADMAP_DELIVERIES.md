@@ -32915,3 +32915,71 @@ Jovian scenario only. No exported/native server deployment, GPU, release
 capacity, shaped-network/endurance, whole SERVER-BASELINE or parent/phase PASS.
 Playable f0d6796 remains current because only test/release-caller source changed;
 no duplicate gameplay checkpoint, audible/active-desktop test or hosted CI run.
+
+
+<a id="halyard-local-readiness-parked-20261027"></a>
+## Halyard local Loadmaster readiness — failed setup and parked — 2026-10-27
+
+Existing ROLE-HALYARD-LOADMASTER, baseaa0af7052. Unaccepted candidate
+333e316af7bb441f43d0d9f2adcdc55e702df97c and single corrected tip
+87c51558ee170b54bdc3928c00d7950291904b43 are archived, not merged. Two production
+owners add the proposed helper/shared route constant and solo exact-chair FIRE
+path; existing role fixture and new Main/raw-input test/UID complete five files.
+Static source/lifecycle review GO does not qualify their runtime behavior.
+
+Original root clock15:25:18UTC included discovery;90minute total estimate,
+execution end16:40:18/hard16:55:18 with15minutes closure reserve. One high
+implementer and independent high lifecycle/input reviewer; root owns all engine
+stages and disposition. Initial old-source import passes with only the exact new
+input test/UID added. Engine is pinned Godot4.7.1; every call headless/Dummy.
+The first old-source input run has six preceding composition/Settings/F13
+capture PASS observations, then exits1 at the compound “grounded exterior Player
+discovers the closed physical hatch.” The intended first missing normal FIRE
+readiness predicate is not reached. Initial test logs lack failed operands;
+no consumer defect or expected RED is claimed.
+
+One root-selected passive old-prefix diagnostic changes no input, placement,
+wait or predicate. Before/after raw look: floor=true, canopy_open=false,
+control/camera enabled, mouse_mode0 visible, view direction unchanged,
+facing_dot−0.351 and candidate none. This establishes the initial ignored-look
+cause. Under the same original clock, root authorizes the sole correction:
+four new test-helper lines conditionally use ordinary left click/one tick/release
+to capture before look, matching the existing Player and ordinary route helper.
+No direct mouse-mode setter, production, fixture pose, predicate or cap changes.
+
+Corrected87 old-source run exits1 at the same compound hatch setup; it still
+never reaches NORMAL_FIRE_STATION_READINESS. Its individual failed operands
+were not captured, so no further cause is inferred. Remaining correction0:
+PARKED, no extra diagnostic, environment retry, code adjustment or renamed task.
+Independent stopped-attempt review confirms neither intended RED nor consumer
+failure is established. Fixed-source import/GREEN, all subsequent regressions,
+Windows/Linux exports, package startups and artifact audit are NOT_RUN. No new
+playable checkpoint, native/remote/full-role or completion claim. Current main
+runtime and playable checkpointf0d6796 remain unchanged.
+
+All four supervised engine stages are terminal; source stayed unchanged within
+each stage and no task Godot process remains. Verified source archive:
+`/srv/mudds-work/halyard-loadmaster-local-20261027/records.tar.gz`,
+8814946bytes/56 regular members, each compared with its original; SHA256
+`11e3bcfb9c42b3d1a37bc789a3c1e8237a520a78dc2e14b69bcdf60264648d92`.
+It preserves exact five-file source payloads, initial/corrected/passive test
+variants, patches, raw logs/actual commands/exit statuses, source/cache manifests,
+original selection/cumulative correction decision and RESTORE.txt. The Git bundle
+was verified, indexed and both333/87 commit objects confirmed inside its pack;
+it requires existing baseaa0af70525a05fd9edcb08349f381745772407f3.
+
+To restore source for an explicitly reprioritized investigation, extract
+`results/halyard-local-candidates.bundle` into an owned directory, then:
+
+```sh
+git bundle verify /ABS/RESTORE/results/halyard-local-candidates.bundle
+git fetch /ABS/RESTORE/results/halyard-local-candidates.bundle refs/heads/work/halyard-loadmaster-local-20261027:refs/heads/parked/halyard-loadmaster-local-20261027
+```
+
+After verified archival and current remote/worktree/exact-tip checks, both owned
+worktrees, the unmerged task branch, private profiles/cache/raw scratch and bundle
+verification scratch were removed. Remote task branch was absent; no unaccepted
+source was merged just to delete it. Only archive+closeout.json remain. Reopening
+requires exact current failed operands/cause and explicit cumulative-priority
+reprioritization, retaining all original costs/caps and the exhausted correction;
+this record does not authorize another attempt. Broader roadmap work stays active.
