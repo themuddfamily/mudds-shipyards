@@ -4,6 +4,103 @@ Moved from ROADMAP.md on 2026-10-17. These are source-specific historical
 results, not the active queue or proof of current full-project acceptance.
 Return to the [working roadmap](../../ROADMAP.md).
 
+## Compiler-generated Windows uninstaller export accepted 20261027
+
+**INSTALL-WIN-FINAL standalone artifact prerequisite accepted on17a11183a.**
+The existing builder retains `<setup>.uninstall.exe` and adds its actual
+path/size/SHA256 to existing schema1. Existing optional sign hook runs first;
+final copy hook follows, and NSIS embeds that complete finalized input. Its
+private safe compiler TMPDIR and environment-only destination avoid treating
+arbitrary output paths as shell code. Same-filesystem staged exclusive publication
+refuses existing files/symlinks before signing; copy failure cannot write a
+successful result or published sidecar. Signed mode verifies the copied sidecar
+without signing it again. No new schema version, validator, helper family,
+Windows execution or trusted-signing claim.
+
+Expected old-builder RED0.747s: actual compile produces no standalone sidecar.
+Both existing suites then run34 tests in4.911s:33PASS/one unavailable PowerShell
+skip. Real compile verifies PE/version/hash; collision/copy-failure cleanup and
+mock-signer sign-before-copy/one mutation/verify-only paths pass. Mock signer
+is disclosed and does not qualify actual Authenticode signatures.
+
+One exact clean17a builder compiles unchanged game
+7876ebc8da434987700f128483d4e67098cd7319 with NSISv3.11-1: supervisorFINISHED/0,
+81.969121611s under600, actual compiler diagnostic log0bytes.
+Setup88,254,367bytes/SHA256
+`a3e996b44450e7d1e6289e4d190200b4cbde1e5f48b363b009cbfc2188b07c21`;
+standalone uninstaller117,593bytes/SHA256
+`a8b290423bed44ae90b251af60b4e9571c16acb0a624157e3764158e6672ac3a`.
+Actual fixed/string versions in both PE files match0.12.0.0/0.12.0+7876ebc;
+certificate tables0/0. Six protected old files (game/ZIP/previous setup/result/
+checksum/notes) retain exact bytes. Actual extracted staged game equals the full
+184,847,240-byte accepted EXE/SHA
+`c7971980c02da0f5527615acdb5c58a9fd58dca27dafbb1d05a30787e84f89df`.
+7-Zip exits0/retainsBadCmd13 and four extracted files; it still does not expose
+uninstall.exe. The new sidecar comes from the compiler, not fabricated extraction.
+
+Embedding semantics use the supported [NSIS export hook](https://nsis.sourceforge.io/Signing_an_Uninstaller_externally).
+Pinned [3.11 compiler](https://raw.githubusercontent.com/kichik/nsis/v311/Source/build.cpp)
+reads the complete finalized file into its payload; [runtime writer](https://raw.githubusercontent.com/kichik/nsis/v311/Source/exehead/exec.c)
+writes those decompressed bytes unchanged in that mode. Independent source/raw
+review and independent actual PE/hash/protected-file/full-game comparison GO.
+Installed execution/hash was not observed. Native Windows remains owner-excluded/
+NOT_RUN; actual trusted signing and frozen final candidate remain open. Earlier
+setups without a sidecar retain their original limitation.
+
+Actual setup/sidecar/result/checksum/log/concise notes remain in builds/windows
+with unique builder17a1118 filenames, preserving the earlier accepted setup.
+Source/doc closeoutb3126cd29 adds no compiler/game changes. Original clock
+01:15:53→02:15:53UTC/60minutes includes selection/review/RED/code/checks/build/
+integration/push/cleanup; no retry or reset. Full INSTALL-WIN-FINAL remains gated
+on PACKAGE-FINAL exact candidate and SIGN-FINAL's separate trusted artifacts.
+
+Owned cleanup completes2026-10-27 01:31:42.680436UTC,15.828007minutes from the
+original start before final notes/push. Acceptedb3126cd29 is contained in fresh
+pushed main, remote task branch absent; clean owned worktree removed and local
+ref deleted with expected-tip protection. Supervisor/owned process holders are
+absent; private NSIS/public staging leftovers are zero. Extracted duplicate game
+and loose raw files are removed after preservation. Only records.tar.gz plus
+closeout.json remain under `/srv/mudds-work/windows-uninstaller-export-20261027/`.
+Archive2,974bytes/11regular files/SHA256
+`f45fb9b7ef424b44ff194831075a66e6fea5c496d4e5826e3365c22a1b3068f9`,
+every member byte/mode verified. No game/setup/uninstaller duplicate is archived;
+accepted source remains reachable through pushed main. No retained branch or
+worktree exception.
+
+### Frozen assignment
+
+**Selected — INSTALL-WIN-FINAL compiler-generated uninstaller export.**
+Start2026-10-27 01:15:53UTC, conservative60minutes including selection/source
+review, implementation/checks/build/review/push/cleanup; hard02:15:53UTC.
+
+- **Result:** the existing builder exports `<setup>.uninstall.exe` from the final
+  compiler-generated uninstaller, after optional signing, and records its exact
+  path/bytes/SHA256 in the existing schema1 result. The installer embeds those
+  same finalized bytes; no Windows executable is run.
+- **Start/ownership:** base5368a07d0. Codex owns builder, NSI, the two existing
+  installer/signing tests and docs; one high independent reviewer checks hook
+  ordering/final-byte semantics. One owned branch/worktree; no gameplay changes.
+- **Steps/proof:** extend the existing real-NSIS compile test for actual sidecar
+  PE/version/hash, first reproducing the old missing export. Check optional
+  sign-before-copy ordering, sidecar collision refusal and compiler/copy failure
+  without a successful record or published sidecar. Run the two existing suites.
+  Compile one fresh uniquely named unsigned setup from unchanged7876ebc under
+  the existing600s limit, preserving the previous accepted setup/EXE/ZIP. Inspect
+  the actual exported uninstaller and extract/compare the actual staged game.
+- **Pass/fail:** sidecar is nonempty PE with committed source version and actual
+  matching result size/hash; optional signed bytes are captured after signing;
+  later hooks cannot mutate the embedded input. Existing source/ZIP hashes stay
+  exact. Missing export/finalizer/copy/identity fails the build. Original unsigned
+  label, native/trust NOT_RUN and all final-candidate gates remain unchanged.
+- **Dependencies:** existing NSIS3.11 and accepted7876ebc; official finalizer and
+  compiler/runtime source establish complete-file embedding. Native Windows is
+  owner-excluded and is not a prerequisite. No new validator/schema version.
+- **Stop/closure:** first unexpected failure stops; the expected old missing
+  export is intentional RED. No automatic retry/budget reset. Accept only with
+  independent source/raw GO, merge/push and exact owned cleanup. Actual setup,
+  sidecar and concise validation notes stay in builds/windows; no Downloads.
+
+
 ## Windows installer exported-source version repair accepted 20261027
 
 **INSTALL-WIN-FINAL builder prerequisite accepted; full final gate remains open.**

@@ -124,49 +124,19 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Current work and next selection
 
-**Selected — INSTALL-WIN-FINAL compiler-generated uninstaller export.**
-Start2026-10-27 01:15:53UTC, conservative60minutes including selection/source
-review, implementation/checks/build/review/push/cleanup; hard02:15:53UTC.
-
-- **Result:** the existing builder exports `<setup>.uninstall.exe` from the final
-  compiler-generated uninstaller, after optional signing, and records its exact
-  path/bytes/SHA256 in the existing schema1 result. The installer embeds those
-  same finalized bytes; no Windows executable is run.
-- **Start/ownership:** base5368a07d0. Codex owns builder, NSI, the two existing
-  installer/signing tests and docs; one high independent reviewer checks hook
-  ordering/final-byte semantics. One owned branch/worktree; no gameplay changes.
-- **Steps/proof:** extend the existing real-NSIS compile test for actual sidecar
-  PE/version/hash, first reproducing the old missing export. Check optional
-  sign-before-copy ordering, sidecar collision refusal and compiler/copy failure
-  without a successful record or published sidecar. Run the two existing suites.
-  Compile one fresh uniquely named unsigned setup from unchanged7876ebc under
-  the existing600s limit, preserving the previous accepted setup/EXE/ZIP. Inspect
-  the actual exported uninstaller and extract/compare the actual staged game.
-- **Pass/fail:** sidecar is nonempty PE with committed source version and actual
-  matching result size/hash; optional signed bytes are captured after signing;
-  later hooks cannot mutate the embedded input. Existing source/ZIP hashes stay
-  exact. Missing export/finalizer/copy/identity fails the build. Original unsigned
-  label, native/trust NOT_RUN and all final-candidate gates remain unchanged.
-- **Dependencies:** existing NSIS3.11 and accepted7876ebc; official finalizer and
-  compiler/runtime source establish complete-file embedding. Native Windows is
-  owner-excluded and is not a prerequisite. No new validator/schema version.
-- **Stop/closure:** first unexpected failure stops; the expected old missing
-  export is intentional RED. No automatic retry/budget reset. Accept only with
-  independent source/raw GO, merge/push and exact owned cleanup. Actual setup,
-  sidecar and concise validation notes stay in builds/windows; no Downloads.
-
-**Accepted — INSTALL-WIN-FINAL exported-source version prerequisite.**
-Builder770f5b522 reads the exported commit's version and rejects unknown/noncommit
-overrides before compilation/signing. Expected old-builder regressions reproduce;
-17 executable tests pass/one PowerShell check is skipped. One actual unsigned
-[7876ebc installer](builds/windows/MuddsShipyards-7876ebc-setup.exe)
-([actual validation](builds/windows/MuddsShipyards-7876ebc-installer-notes.txt))
-compiles82.201s under600s; extracted game bytes equal the accepted EXE, and the
-original EXE/ZIP stay unchanged. Native Windows, standalone uninstaller identity,
-trusted signing and full final-package qualification remain unperformed/open.
-[Finite result, retained correction and original clock](docs/history/ROADMAP_DELIVERIES.md#windows-installer-exported-source-version-repair-accepted-20261027).
-Accepted source is pushed; owned branch/worktree/process/scratch cleanup is
-complete. The next task remains unselected until its literal acceptance is ready.
+**Accepted — INSTALL-WIN-FINAL compiler-generated uninstaller export.**
+Builder17a11183a exports the finalized standalone uninstaller and records its
+actual size/hash in the existing result.33 tests pass/one PowerShell check is
+skipped. One unsigned [checkpoint setup](builds/windows/MuddsShipyards-7876ebc-installer-17a1118-setup.exe)
+([actual validation](builds/windows/MuddsShipyards-7876ebc-installer-17a1118-notes.txt))
+compiles81.969s under600s; exported117,593-byte PE/version/hash and extracted game
+match their recorded identities. All six earlier artifacts stay unchanged.
+This resolves standalone artifact identity for newly compiled setups; earlier
+setups keep their limits. Native Windows, trusted signing and final-candidate
+qualification stay unperformed/open. The previous source-version repair remains
+accepted. [Finite delivery and original clock](docs/history/ROADMAP_DELIVERIES.md#compiler-generated-windows-uninstaller-export-accepted-20261027).
+Accepted work is pushed and its owned branch/worktree/process/scratch are cleaned.
+The next implementation remains unselected until its literal acceptance is ready.
 
 **Completed this pass: inventory-wide acceptance review.** This is planning
 work, with no gameplay completion implied. All 337 rows were reviewed; 12 existing
