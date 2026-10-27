@@ -642,7 +642,103 @@ stop/pause handling, agreed maximum and existing cap. Beacon outbound is already
 revisit means actual cold restore→physical bus/cell revisit→usable home return,
 no second cell/payment; keep its original failed300s boundary and reopening cause.
 
+<a id="hud-patrol-contract"></a>
+
+#### Patrol HUD reset, branch choice and cold-state contract
+
+**Source binding0e3b58a25; ordinary qualification OPEN.** This supplies the
+existing HUD-PATROL data/action fields, not a runtime repair or test PASS.
+Definition start2026-10-27 11:35:01UTC, estimate20minutes/hard11:55:01UTC
+including source review/docs/checks/commit/push. One read-only agent binds source;
+root independently checks persistence/UI/callers and writes the existing records.
+No engine, source fixture, ordinary route, capture or hosted CI is selected.
+The selected field-binding pass is complete: persistence/UI/physical caller
+checks agree with source and all337 canonical identities/order remain unchanged.
+7.606minutes through review/checks; final commit/push stay inside the
+original20minute clock. No branch/worktree/process/scratch was created. The
+ordinary driver/whole-sequence cap and cold observations below remain blocked;
+this does not close HUD-PATROL, PLAN-NEXT or a product/phase gate.
+
+Let `A = payload.cinder_patrol_session.activities[0]` and
+`P = A.progress.patrol_state`. The slot is exactly schema_version1 plus one
+activity. `A` has activity_id/generation/state/progress/reward_requested/
+reward_granted; progress has activity_id/generation/state/patrol_state. Current
+`P` has exactly these17 fields: schema_version2, activity_id, branch_id,
+configured_dwell_seconds, generation, activity_generation, started_once, state,
+next_checkpoint_index, completed_checkpoint_count, dwell_checkpoint_index,
+dwell_elapsed_seconds, elapsed_seconds, last_duration_seconds,
+checkpoint_occupied, terminal_reason, activity_state. `P.activity_state` has
+schema_version/activity_id/state/generation/next_checkpoint_index/failure_reason.
+Outer/progress/P identity, generation and state match; nested route generation
+matches P.activity_generation. Actor instance IDs are not saved. Compare the
+existing production canonical codec, not raw pre-serialization float text.
+[Capture/reset](../scripts/activities/patrol_activity.gd#L413) and
+[exact typed codec](../scripts/persistence/cinder_patrol_session_persistence.gd#L139)
+remain authority; adapter membership alone is insufficient validation.
+
+| Ordered boundary | Required durable/live value and HUD state |
+| --- | --- |
+| Genuine paid relay completion at patrol generation g | COMPLETED=2, five checkpoints, requested/granted=true; exactly one `return_patrol_log_to_shipyard` receipt. Selected Patrol is locked; both branch buttons disabled; selected family button remains enabled and reads `REPEAT  //  CINDER PATROL`. |
+| Accepted reset | IDLE=0 at g+1, relay branch/last duration/started_once=true retained; next/completed checkpoint counts0, dwell index−1, dwell/elapsed0, occupied=false, terminal_reason empty; requested/granted=false. Earlier receipt is unchanged. Both branch buttons enabled; authoritative relay reads `SELECTED  //  RELAY SWEEP`. A fresh Main must restore those fields. |
+| Accepted platform choice before departure | `PlatformSweepPatrolBranchButton` saves platform branch/route identity at unchanged g+1/IDLE and one attached route owner, with prior credit unchanged. Both branches enabled; platform reads `SELECTED  //  PLATFORM SWEEP`. Another fresh Main must restore this exact choice. |
+| Accepted Start transaction | ACTIVE=1 at g+2 and zero initial progress; selected route is `cinder_reach_platform_patrol_route`. Both branch buttons disabled. A distinct Main after that accepted save restores ACTIVE, platform selection and locked buttons; actor identity is freshly rebound, not persisted. Capture the accepted start before later physics progress rather than assuming a delayed sample still has zero elapsed. |
+
+The relay route is `cinder_reach_checkpoint_route`; branches are relay_sweep /
+platform_sweep. Literal buttons are `RelaySweepPatrolBranchButton` and
+`PlatformSweepPatrolBranchButton`. Their exact rule is disabled=selection_locked;
+family buttons use disabled=locked AND not-selected. Labels prepend
+`SELECTED  //  ` to the actual branch; selected Patrol normally reads
+`SELECTED  //  CINDER PATROL`, with REPEAT only for locked terminal repeat_ready.
+[HUD formula/report](../scripts/ui/hud.gd#L9776) exposes these actual values.
+
+Ordinary reset caller is physical home reboarding: `_board_ship_locally` calls
+`_reset_terminal_activity_for_next_sortie` when neither recovery preservation
+nor same-craft remote-sortie continuation applies. Terminal Patrol then uses
+`reset_active_activity()`. After accepted reset, pause/select platform before
+departure. START_ENGINES→not-landed→FREE_FLIGHT calls
+`_start_default_free_flight_activity` when sandbox/guided-complete/non-Torrent
+applies and Heavy Breach is unarmed. [Boarding](../scripts/game/game_flow.gd#L11281),
+[departure](../scripts/game/game_flow.gd#L9139) and
+[Start/reset gates](../scripts/game/game_flow.gd#L19408) are the existing owners.
+Start additionally requires selected route, actual valid pilot/craft, FREE_FLIGHT,
+ready authorities and no unpaid family debt. Do not invent new Reset/Start UI.
+The selected-family REPEAT action combines reset/start; it cannot itself prove a
+separate branch choice. Nearby-row START/RESET uses another Patrol owner and
+cannot substitute for this durable GameFlow lifecycle.
+
+COMPLETED/requested=true/granted=false is unpaid debt. Reset retries owed rewards
+and refuses unresolved debt before changing owners. Payment atomically changes
+`payload.game_flow_reward_store` receipt_serial/total_receipts/reward_counts/
+last_receipt and A.reward_granted. Both branches share the reward ID; receipt
+activity IDs are cinder_relay_patrol / cinder_platform_patrol. Two retries/cold
+loading must not duplicate payment. Refused reset/branch save preserves actual
+disk, both owners, generation and published events; unrelated payload stays exact.
+[Reward authority](../scripts/game/game_flow_reward_authority.gd#L361).
+
+Existing source-fixture command (not run or authorized by this definition):
+
+```text
+PATROL_HUD_PROFILE="$(mktemp -d /srv/mudds-work/patrol-hud-fixture.XXXXXX)"
+mkdir -m700 "$PATROL_HUD_PROFILE"/{data,config,cache,state,runtime,data-dirs,config-dirs,tmp}
+env -u DISPLAY -u WAYLAND_DISPLAY -u XAUTHORITY -u GODOT_LOG_FILE XDG_DATA_HOME="$PATROL_HUD_PROFILE/data" XDG_CONFIG_HOME="$PATROL_HUD_PROFILE/config" XDG_CACHE_HOME="$PATROL_HUD_PROFILE/cache" XDG_STATE_HOME="$PATROL_HUD_PROFILE/state" XDG_RUNTIME_DIR="$PATROL_HUD_PROFILE/runtime" XDG_DATA_DIRS="$PATROL_HUD_PROFILE/data-dirs" XDG_CONFIG_DIRS="$PATROL_HUD_PROFILE/config-dirs" TMPDIR="$PATROL_HUD_PROFILE/tmp" python3 tools/release/suite_process.py --timeout 300 -- /tmp/mudds-tools/godot-4.7.1/godot --headless --audio-driver Dummy --path . --script res://tests/cinder_patrol_session_save_restore_test.gd -- --genuine-write-recovery > "$PATROL_HUD_PROFILE/run.log" 2>&1
+```
+
+HOME remains inherited; the fresh0700 profile and raw log remain for preservation
+before owned cleanup. This existing selector runs genuine-write recovery AND reset/branch-choice
+fixtures; it is not a branch-only selector. Original harness cap300s, expected
+actual exit0/one `CINDER_PATROL_SESSION_SAVE_RESTORE_TEST_OK`/zero diagnostics;
+its parked full30-Main failure remains parked. The fixture uses real Main/disk,
+but direct lifecycle calls, emitted button signals, craft placement and manual
+physics. It does not prove ordinary controls or an OS-process restart.
+**Remaining exact gap—Codex:** the source caller chain is fixed; supply its
+ordinary automation command/ordered physical route and original whole-sequence
+limit, plus actual cold-Main state/UI observations. No such ordinary driver/cap
+is established here; that binding remains BLOCKED and qualification OPEN.
+Do not infer UI repair, another survey, parked retry or a whole-sequence cap from
+this component fixture's300s limit. PLAN-NEXT and all product/phase gates stay open.
+
 <a id="proof-world"></a>
+
 ### Three solo worlds and exactly21 shared-world proofs
 
 Each SOLO instance is canonical outbound→atmospheric entry where applicable→physical descent/landing/
@@ -2648,7 +2744,7 @@ test is an owner/regression anchor, not a runnable ordinary route.
 | PLAY-BREACH | Heavy Breach first full ordinary play | 13 | Qualification | DONE scoped first full ordinary journey fb396ab13/checkpointfb396ab. Actual physical Heavy arm/Arrow takeoff/observed lance charge/player hits24+22 kill46-health Picket/CLEARED at3.05s, exactly one generation1 actual-file Heavy credit retained through orderly close, strict home/OFFLINE physical exit/physical usable Torpedo posting/normal UI actualOS0; full90.112s under150/300/360 and clean logs. Real late-authority damage adapter attached idempotently; staged live-ray/Picket/encounter/Heavy checks, fresh paired exports/3menus/1527-entry audit and independent source/raw review pass. Both earlier failures/caller-angle correction preserved, same cumulative clock; merged/pushed/owned cleanup/records consolidated, no taskbranch/worktree. Isolated Linux/default-input/Dummy scope; repeats/other lifecycle/craft/native/device/full parents remain open. [Delivery](history/ROADMAP_DELIVERIES.md#picket-damage-admission-and-full-heavy-breach--accepted--2026-10-25). | [Complete ordinary activity journey](#proof-activity): on-foot posted Heavy/real picket/protected objective/payment/home/normal next posting; real durable result and strict home/OFFLINE physical exit/usable walking. |
 | PLAY-TORPEDO | Torpedo Run first full ordinary play | 13 | Qualification | PARKED/NOT_ACCEPTED latest continuation: source review BLOCK at67.453min cumulative; unread queued neutral samples after OS release can erase later actual consumption. No tests/engine/export/whole trial. Candidate and original patch verified in case-records.tar.gz/closeout.json outside repo; main restored, owned helpers consolidated. Reopen only with accounting that survives queued release ambiguity, source GO and cumulative review; full journey/limits unchanged. [Review stop](history/ROADMAP_DELIVERIES.md#torpedo-control-continuation-stopped-at-source-review-20261025). PARKED after3fullordinaryFAILs, latestd8eece4/game2de. First121.849s run proves real evasion/interceptions/boat24damage but stops pooled-flight receipt bookkeeping; supported correction retry104.452s stopssecondboarding. Source/raw-proved sampledreadiness continuation133.075s reboards correctly (soleE4604/BOARDING4607), provespitchboostevasion/distinctseeker14kill, then3boatshotsmiss and2incomingseekers destroyArrow; boat70/70/noTorppayment/home/posting/UI0. FirstHeavyprefix/receipt remains actual. Both caller fixes/fixturefailure and all3runs retained on sameoriginalclock; no source merged merely for cleanup. Unique source/bundles/results archived, ownedprocess/profile/packagecleanup complete/mainrestored. Reopen only demonstrated source/raw-supported gameplay/control correction preserving full150each/shared300/outer360 goal; no unchanged retries/newqualifierlayers/point-aim-timer guesses. Publicfb396ab unchanged. [Closeout](history/ROADMAP_DELIVERIES.md#torpedo-second-boarding-readiness--whole-journey-not-accepted--2026-10-25). | [Complete ordinary activity journey](#proof-activity): ordinary posting rotation/real evade/interception/boat destruction/distinct payment/home; real durable result and strict home/OFFLINE physical exit/usable walking. |
 | HUD-RACE | Race durable reset/select/start/fresh-Main UI | 13 | Qualification | Source review already found no concrete discrepancy; no edits/runs or ordinary acceptance. Do not repeat unchanged source triage; full qualification remains unscheduled. BLOCKED definition — Codex binds the literal saved activity/debt fields, expected enabled actions after each reset/select/start/fresh-Main step, existing command and original limits. No implementation is selected without a demonstrated runtime defect. | Race: actual reset→selection→start→distinct fresh Main shows authoritative saved state and correct enabled actions; protect real data/debt and retain accepted repairs. |
-| HUD-PATROL | Patrol durable reset/select/start/fresh-Main UI | 13 | Qualification | Source review already found no concrete discrepancy; no edits/runs or ordinary acceptance. Do not repeat unchanged source triage; full qualification remains unscheduled. BLOCKED definition — Codex binds the literal saved activity/debt fields, expected enabled actions after each reset/select/start/fresh-Main step, existing command and original limits. No implementation is selected without a demonstrated runtime defect. | Patrol: actual reset→selection→start→distinct fresh Main shows authoritative saved state and correct enabled actions; protect real data/debt and retain accepted repairs. |
+| HUD-PATROL | Patrol durable reset/select/start/fresh-Main UI | 13 | Qualification | Source field/action binding fixed0e3b58a25 through the [literal reset/branch/cold contract](#hud-patrol-contract): exact codec/reward fields, g→g+1→g+2, HUD labels/enable rules, physical home-reboard Reset and free-flight Start callers. No runtime discrepancy or qualification PASS claimed; no engines run. BLOCKED ordinary-driver/limit binding—Codex: actual normal sequence command/route/original whole-sequence cap and cold-Main UI/state observations remain missing. Existing component selector and original300s fixture limit are explicit; parked30-Main/platform journeys remain closed. Do not repeat source triage or invent new UI; runtime repair needs a demonstrated defect. | [Literal contract](#hud-patrol-contract): actual reset→selection→start→distinct fresh Main shows the exact authoritative saved state and enabled actions; protect real data/debt and retain accepted scopes. |
 | HUD-CARGO | Cargo durable reset/select/start/fresh-Main UI | 13 | Capability | Supply-status child DONE0c2dc2e: depleted hold reports insufficient kits after reset/reselection; cargo127/nearby HUD13 and paired checkpoint pass. Broader durable UI/restart remains open; KIT-RELOAD stays parked. Remaining ordinary UI qualification is BLOCKED definition — Codex: record the exact saved activity/generation/progress/debt fields, expected displayed state and enabled actions after reset, selection, start and distinct fresh-Main reload; bind the existing fixture/command, protected payload and original limits. Reuse accepted runtime repairs and completed source maps; no repeated survey or implementation without a reproduced discrepancy. | Cargo: actual reset→selection→start→distinct fresh Main shows authoritative saved state and correct enabled actions; protect real data/debt and retain accepted repairs. |
 | HUD-CONVOY | Convoy durable reset/select/start/fresh-Main UI | 13 | Capability | Restored-objective discrepancy DONE on checkpoint3d92b91: cold/wrong-craft saved escort shows paused guidance, accepted craft rebind restores live progress; existing retained-feedback20 assertions pass. Bounded source check2026-10-26 found no new runtime gap: existing production integration664–762 and save/restore566–598 already exercise committed reset, HUD family switching, start and fresh-Main authority. Reuse completed470aa24c4/4fc5ef9f3 source maps; do not repeat this survey. Wider combined ordinary HUD/full Convoy qualification remains open; parked save suite not reopened. Remaining ordinary UI qualification is BLOCKED definition — Codex: record the exact saved activity/generation/progress/debt fields, expected displayed state and enabled actions after reset, selection, start and distinct fresh-Main reload; bind the existing fixture/command, protected payload and original limits. Reuse accepted runtime repairs and completed source maps; no repeated survey or implementation without a reproduced discrepancy. | Convoy: actual reset→selection→start→distinct fresh Main shows authoritative saved state and correct enabled actions; protect real data/debt and retain accepted repairs. |
 | ACT-WRITES-DEFINE | Uncovered activity/write-boundary cells | 13,31 | Definition | DONE definition only; finite durable owner/boundary map below, with terminal-only owners distinguished; exact-package/real-file/ordinary recovery acceptance remains open | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |

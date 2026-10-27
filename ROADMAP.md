@@ -181,6 +181,20 @@ worktree/install/profile/scratch cleaned after verified preservation. Closure
 18.007minutes through cleanup; final notes/push remain on that clock. No new
 implementation selected.
 
+**Defined — HUD-PATROL durable fields and ordinary callers.**
+Frozen source0e3b58a25; original11:35:01UTC/20minute estimate/hard11:55:01UTC.
+Bound exact saved state/reward fields, reset→branch choice→start/cold-Main values,
+button rules and existing source/fixture commands. One read-only source agent;
+root owns review/docs/commit/push. No engine, parked trial, new UI or gameplay
+repair selected. Existing physical home reboarding already resets terminal Patrol;
+branch selection before departure and normal free-flight Start are production
+callers. [Literal contract](docs/ROADMAP_BACKLOG.md#hud-patrol-contract). Ordinary automation/
+whole-sequence limit/cold observations remain open. No branch/worktree/process/
+scratch created; 7.606minutes through source review/checks, with final
+commit/push charged to the same20minute clock.
+The separate Titan design question is pending; no missing-craft build is authorized
+by elapsed time or this definition work.
+
 **Selection rule:** use the latest canonical State and linked terminal result.
 Reconcile contradictions before selecting work. An already-fixed source binding
 is reused; missing executable caller support becomes a production capability,
