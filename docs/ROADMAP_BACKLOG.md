@@ -3595,8 +3595,8 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | ROLE-HALYARD-GUNNER | Halyard gunner ordinary moving-crew lifecycle | 16,24 | Qualification | Local source route and one actual52damage DONEc28f7ffa3; independent authenticated remote-role lifecycle remains GATED on supported candidate/ordinary route. Original fixtures and broader networking/native limits retained. BLOCKED definition (Codex): exact host/client identities and physical admission route, moving segment, owner-loss/disconnect cut, supported handback endpoint and existing driver/caps for this role. No additional role/craft combination. | [Physical role contract](#proof-network): actual gunner target damage, release and physical reseat; retain local52damage proof, then current claim release, physical stand/exit/reseat and the explicitly bound moving/loss/handback cases. |
 | ROLE-HALYARD-LOADMASTER | Halyard loadmaster ordinary moving-crew lifecycle | 16,24 | Qualification | [Loadmaster contract](#halyard-loadmaster-contract) binds crew_port_00/passenger, exact manifest API/receipt/clear fields and missing production input/remote handling. BLOCKED implementation (Codex), not just missing proof: current local/remote normal input and authenticated readiness consumer are Cinder-only. Ordinary Halyard manifest producer/payload, action/moving/loss observer and whole-route limits still require binding. Reuse passenger admission/carry only in its exact scope; no new cargo-transfer authority inferred. | [Exact role contract](#halyard-loadmaster-contract): actual normal-input manifest/readiness proposal reaches host current chair authority, truthful panel and requester view; cargo/inventory/reward/helm remain unchanged. Then current claim release, physical stand/exit/reseat and explicitly bound moving/loss/handback cases; direct API fixtures do not qualify the journey. |
 | ROLE-BULWARK-GUNNER | Bulwark gunner ordinary moving-crew lifecycle | 16,24 | Qualification | BLOCKED definition (Codex): exact host/client identities and physical admission route, moving segment, owner-loss/disconnect cut, supported handback endpoint and existing driver/caps for this role. No additional role/craft combination. | [Physical role contract](#proof-network): physical gunner aim/fire causing registered target damage and release/reseat, then current claim release, physical stand/exit/reseat and the explicitly bound moving/loss/handback cases. |
-| ROLE-CINDER-LOADMASTER | Cinder loadmaster ordinary moving-crew lifecycle | 16,24 | Qualification | BLOCKED definition (Codex): exact host/client identities and physical admission route, moving segment, owner-loss/disconnect cut, supported handback endpoint and existing driver/caps for this role. No additional role/craft combination. | [Physical role contract](#proof-network): actual conserved cargo action through the current Loadmaster owner, then current claim release, physical stand/exit/reseat and the explicitly bound moving/loss/handback cases. |
-| ROLE-CINDER-NAVIGATOR | Cinder navigator ordinary moving-crew lifecycle | 16,24 | Qualification | BLOCKED definition (Codex): exact host/client identities and physical admission route, moving segment, owner-loss/disconnect cut, supported handback endpoint and existing driver/caps for this role. No additional role/craft combination. | [Physical role contract](#proof-network): actual admitted navigation action/handback and current requester refusal feedback, then current claim release, physical stand/exit/reseat and the explicitly bound moving/loss/handback cases. |
+| ROLE-CINDER-LOADMASTER | Cinder loadmaster ordinary moving-crew lifecycle | 16,24 | Qualification | [Shared Cinder role contract](#cinder-crew-contract) binds exact chair/actors, ready manifest, unchanged cargo, stand/reseat/migration/disconnect and separate host-flight selector. BLOCKED definition/implementation (Codex): ordinary exterior entry/exit, remote-role moving/return/loss caller and aggregate limit; readiness plus actual conserved transfer integration remains unqualified. Shared-stock policy is settled; no new cargo authority inferred. | [Literal Loadmaster endpoint](#cinder-crew-contract): normal FIRE marks cinder_cabin_manifest/cinder_cargo_port_aperture ready on current host chair; unchanged finite stock during readiness, actual transfer through existing cargo owner, supported release/reseat and bound moving/loss recovery. Manifest-only proof cannot close cargo play. |
+| ROLE-CINDER-NAVIGATOR | Cinder navigator ordinary moving-crew lifecycle | 16,24 | Qualification | [Shared Cinder role contract](#cinder-crew-contract) binds exact chair/actors, remapped FIRE sensor hint, authenticated request feedback, clear/reseat/migration/disconnect and in-process recovery. Reuse accepted c2c72a223 refusal journey, not another unchanged run. BLOCKED definition/implementation (Codex): ordinary exterior entry/exit, remote-role moving/return/loss caller and aggregate limit. No additional role/craft combination. | [Literal Navigator endpoint](#cinder-crew-contract): current authenticated chair FIRE produces cinder_navigator_console sensor hint, requester-only feedback for every fresh authenticated rejection, clear on release and usable handback. Navigation hints confer no movement/cargo/combat authority; bind remaining ordinary moving/exit/recovery cases before execution. |
 | NET-SEATS-FINAL | Final-candidate promotion/seat ledger/berth handback/stale refusal | 16 | Container | Membership/commands FIXED by [the five existing proof owners](#final-seat-ledger--fixed-case-ownership); GATED on exact final candidate and its original source-matrix/ordinary race results. Transaction fixtures are not physical crew journeys. Reuse SERVER-BASELINE-SEAT-RACE once and preserve its300s global/360s outer plus original transition/walk/exit bounds. Eight ROLE children retain their own exact physical-action/moving/loss bindings; no additional seat permutations, unchanged retry or standalone run selected. | Final candidate actual promotion/berth/handback/contention and stale/duplicate/foreign refusals preserve one occupant and supported controls; reuse delivered authority. |
 | NET-POSE-DEFINE | Uncovered supported craft/engine/motion/landing-view cells | 17 | Definition | BLOCKED definition for remaining coverage — Codex must freeze only uncovered craft/engine/throttle/motion/landing view IDs, current/late recipient and expected consumer values; delivered Jovian instruments/projection retained. No all-craft matrix is inferred. Bounded Jovian source comparison DONE: concrete physical throttle instrument consumer gap; broader cells remain unqualified | Finite uncovered actual craft/engine/throttle/motion/landing view list with current/late-recipient expectation and production consumer; exclude delivered projection. |
 | NET-OPERATION-HUD | Gameplay HUD engine/throttle follows eligible accepted host operation facts; local pilot prediction/raw authority retained | 17 | Capability | DONEda1ae60; exact old3 failures, pose175/real-peer354, paired exports/three strict startups/actual1515-entry audit. No simulation/wire changes; parent 17 OPEN | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
@@ -4824,6 +4824,137 @@ Scope: all twelve original §4 outcomes and retained ordinary-remote-crew milest
 | WORLD-SHARED[one world/case] | GATED on supported crew/profile and baseline dependencies | Ordinary independent remote crew completes the selected canonical case, including actual outbound/return, activity/reward/save and appropriate usable recovery. Preserve focused 300s/canonical 900s and physical landing 120s where specified. Stop at one matrix cell. |
 
 WORLD-SHARED instances: **Ember, Aurora, Rime**, each with **baseline full outbound/return, late join, disconnect/reconnect, pilot loss, cancellation, real interruption, repeat visit**. Each cell is a separate task and must name participants, initial state, ordinary-input route and durable reward/return criteria before execution. The baseline includes activity and save behavior; failure cases do not inherit a staged baseline. Use existing `tests/network/halyard_network_shared_planetary_cruise_test.gd` and applicable world/landing tests. Missing exact case coverage blocks the corresponding existing SHARED row until Codex records its finite case contract; it does not authorize a new child or claim that the anchor already covers it.
+
+<a id="cinder-crew-contract"></a>
+
+### Cinder Hauler Loadmaster and Navigator — two actions, one existing route
+
+This binds ROLE-CINDER-LOADMASTER and ROLE-CINDER-NAVIGATOR without adding a
+role/craft matrix. Both are real passenger assignments on the Hauler, respectively
+`cinder_loadmaster_station` and `cinder_navigator_station`. Prerequisites are the
+existing Hauler roster/chair/body authority; cargo policy/proof reuse belongs to
+HAULER-CARGO-DEFINE and its accepted HAULER-CARGO-DELIVERY result, not invented
+Loadmaster inventory ownership. CARGO-REPLENISH-CINDER still owns the unanswered
+legitimate ten-cycle replenishment policy. MATRIX-FINAL owns final-candidate scope.
+
+**Existing actors and admission.**
+`tests/network/halyard_network_passenger_route_test.gd --cinder-loadmaster`
+and `--cinder-navigator` each run actual Main in two independent processes.
+Host is peer1/`GameFlow.SOLO_CREW_AVATAR_ID`; one admitted remote peer uses
+`GameFlow.network_client_boarding_avatar_id(peer)`. Both start Shift through
+the API and teleport to the exterior boarding position. The host walks from
+its staged Cinder position toward its chair; the client uses hatch Interact
+to admit its network walking body. Subsequent supported cabin walk/look,
+chair Interact, stand and reseat use input. Host performs the role first,
+stands and disables its own controls to
+observe the remote occupant. Current host simulation body, exact passenger
+chair, claim and authenticated session/peer/transport/package/migration
+generations must match. Exterior placement is staged, not an ordinary station
+walk. Navigator additionally stages a different host observed craft to check
+off-camera Cinder presentation; that is not a physical craft-switch journey.
+
+| Role action | Literal result and authority boundary |
+| --- | --- |
+| Loadmaster seated FIRE | `submit_loadmaster_readiness` proposes `{manifest_id:cinder_cabin_manifest,route_id:cinder_cargo_port_aperture,ready:true}`. Host current receipt has matching occupant/avatar, seat generation, request sequence and manifest generation; panel/requester readiness follows it. Snapshot denies cargo_transfer_authority, inventory_authority and reward_authority. This role readies a manifest; CargoTransferAuthority still owns actual conserved stock movement. |
+| Navigator seated FIRE | `submit_navigator_ping` proposes `{channel:sensor,marker_id:cinder_navigator_console}` through current passenger authority. Snapshot has current ping_generation/receipt and denies movement_authority, cargo_authority and combat_authority. Actual settings remap FIRE to F13; injected key edges traverse the retained input producer and objective must show NAVIGATOR, ROUTE HINT SENT and F13. This is automated source input, not physical-keyboard qualification. |
+| Readiness/ping conserve cargo | Initial finite_source equals CARGO_DELIVERY_SOURCE_INITIAL_QUANTITY and capacity8. Exact `_cargo_state()` equality after host/client/remote-host/solo actions preserves cinder_stream_loaded, complete Cinder and Jovian transfer dictionaries, finite_source and capacity. These are no-mutation assertions, not a successful cargo delivery. Loadmaster uses Input.action_press/release, two held ticks then three released. |
+
+**Executable source selection.** Freeze exact clean source, owned fresh profile,
+TMP and result paths at any future authorized run. Existing command shape below
+selects Loadmaster; replace only its final selector with `--cinder-navigator`
+for the distinct Navigator route. This definition runs neither:
+
+```sh
+env -u DISPLAY -u WAYLAND_DISPLAY \
+  XDG_CONFIG_HOME=/ABS/FRESH/profile/config XDG_DATA_HOME=/ABS/FRESH/profile/data \
+  XDG_CACHE_HOME=/ABS/FRESH/profile/cache TMPDIR=/ABS/FRESH/tmp \
+  python3 tools/release/suite_process.py --timeout 300 -- \
+  /tmp/mudds-tools/godot-4.7.1/godot \
+  --headless --audio-driver Dummy --path /srv/mudds-shipyards \
+  --script res://tests/network/halyard_network_passenger_route_test.gd \
+  -- --cinder-loadmaster
+```
+
+Peers own separate Xvfb/x11/Dummy-audio input-only displays. Baseline Cinder
+profiles have no opted-in internal whole-profile deadline: preserve the
+existing300s outer limit, host Main startup60s then host-ready60s, clientdone120s,
+hostdone60s and actual exits10s. Walk uses at most240 input iterations plus
+the existing Cinder support/velocity settle3s; ordinary chair/stand8s,
+host/client receipt3s/5s, authenticated admission60s and hatch admission12s.
+Do not import the Halyard ordinary300s-internal/360s-outer profile or borrow
+these subset waits as a complete moving/return journey cap. Retain coordinator
+log/one `HALYARD_NETWORK_PASSENGER_ROUTE_TEST_OK` marker, printed peer artifacts,
+both nonempty failure-free `.done` receipts and actual OS0/actor-absence proof,
+plus diagnostics. The supervisor independently aborts/reaps owned descendants;
+the caller releases its held input and cursor capture. No active desktop run.
+
+**Existing lifecycle observations, not an all-purpose recovery PASS.** Stand
+empties current assignment and restores supported controllable walking; reseat
+requires a newer claim. Navigator also clears visible acknowledgement/receipt
+and requires a fresh acceptance. Host explicitly revokes a peer row/publication
+as a fixture and checks tombstone/unrelated-card/replay behavior. Real migration
+rejects an overtaking rotation, retains the same cabin body/entity generation1,
+rebinds authenticated peer/stream2 and requires ordinary reseat/FIRE. Actual
+disconnect removes remote body/claim, retires Navigator callback/source, and
+host shutdown permits independent solo chair/FIRE reuse. Baseline negative
+requests cover foreign avatar/entity/seat/claim/migration/tick/action, host-peer
+impersonation and replay; they do not individually mutate binding_generation.
+
+Navigator accepted/clear audio/caption cardinalities are1/0→1/1→2/1→2/2→3/2
+across action/stand/reseat/publication retirement/migration. Its optional
+`--navigator-rejection` exercises two presses with the real consumer callback
+absent and two with its bridge detached: four distinct authenticated results
+produce four requester cues/captions, no host echo; stale/foreign/replayed
+requests/responses stay silent. Reuse [accepted source c2c72a223](history/ROADMAP_DELIVERIES.md#navigator-requester-rejection-feedback-completed--2026-10-21):
+252 checks/119.770s/both OS0/clean, exterior staging disclosed, no third-observer
+or listening claim. User's every-fresh-authenticated-rejection choice remains
+settled. Loadmaster has [no demonstrated corresponding reachable refusal trigger](history/ROADMAP_DELIVERIES.md#loadmaster-requester-refusals--bounded-readiness-no-implementation-selected);
+do not manufacture one or import Navigator's absent-consumer policy into it.
+
+Navigator's saved-home check frees/recreates Main and reads the same private
+save in the same process, then emits the actual Resume button signal and starts
+Shift. It checks awake supported home cabin, empty old claim/ping/helm, retained
+settings and ordinary pilot-seat access. This is not a cold OS-process recovery
+or ordinary menu-input proof. Loadmaster instead retires the seated craft and
+checks released controls/claim. Neither baseline selects moving flight.
+
+**Remaining Codex-owned implementation/binding.** The separate existing
+`--host-loadmaster-flight` selector carries a Cinder host-local Loadmaster (or
+Navigator when additionally selected with `--cinder-navigator`) beside a remote
+pilot. The admitted client takes the pilot chair and holds sampled throttle0.15
+before release/disconnect: moving chair/FIRE/revocation/reseat,
+remote-helm release and unchanged cargo/profile observations. Its source
+existence does not pass independent remote-role moving/return/exit qualification;
+no new execution or result is inferred here. Bind an ordinary exterior route,
+actual pilot/remote-role identities, motion/return/berth observations, voluntary
+hatch exit/reentry, one exact active-owner-loss handback cut and the whole-route
+deadline/caller before selecting the uncovered journey. Retain existing failed
+or parked route limits and reopening conditions.
+
+For Loadmaster, preserve the promised actual conserved cargo outcome: compose
+its current readiness with a real transfer by the existing cargo owner and
+exact source/hold/destination receipt. The [accepted Hauler delivery](history/ROADMAP_DELIVERIES.md#hauler-supply-first-play-accepted-20261025)
+proves its own ordinary packaged journey, not a combined remote-Loadmaster
+transfer. That missing integrated caller/stock endpoint stays open; readiness
+cannot stand in for it, and the role must not acquire inventory/reward authority.
+No new stock policy, role, repeat count or schema/evidence family is selected.
+
+Definition selection2026-10-27 began14:22:07UTC; estimate20minutes including
+read-only source review/docs/checks/commit/push/cleanup; hard stop14:42:07UTC.
+Root owns this document; one bounded read-only agent maps shared caller fields.
+No engine/package/device/CI run, branch/worktree or scratch is selected.
+All337 canonical identities/order and prior PLAN-NEXT costs/attempt limits
+remain unchanged; both ROLE goals and PLAN-NEXT stay open on the exact fields above.
+
+Definition result14:25UTC: independent source review passes after distinguishing
+the host walk from the client's hatch admission. All337 canonical identities/
+order, the four row links/unique anchor, exact selectors, history targets and
+command shell syntax pass; whitespace check passes. One inline link check first
+missed the existing explicit Hauler history anchor by examining headings only;
+inspection confirmed the anchor and the corrected heading-plus-explicit-anchor
+check passes without changing that link. No gameplay/package/device/CI run,
+branch/worktree/scratch or new playable source. Commit/push closes within the
+original14:42:07 deadline; prior PLAN-NEXT costs and parked limits are retained.
 
 <a id="halyard-loadmaster-contract"></a>
 
