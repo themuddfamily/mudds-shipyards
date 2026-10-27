@@ -174,7 +174,14 @@ finishes14.696minutes from05:20:33UTC, plus final notes/push on the same clock.
 Owned branch/worktree/scratch are removed; one small verified archive remains.
 No game/engine/public checkpoint change; final release/player/native gates stay open.
 
-**PLAN-NEXT remains OPEN; next implementation is unselected.**
+**Active — COMFORT-CAPTIONS normal Save/Reset/cold caller.**
+One existing caller extension is [frozen](docs/ROADMAP_BACKLOG.md#caption-episodes--ingress-and-reset-boundary)
+on05:38:34–07:08:34UTC, including the source binding already spent. Three normal
+processes use actual Torrent walking/boarding/canopy caption and on-foot exit,
+normal Settings Reset and durable cold OFF; default flash caller regression and
+one silent private package are required. No full-family or device pass implied.
+
+**PLAN-NEXT remains OPEN; one implementation is active.**
 Definitions still need their remaining source-resolvable fields; accepted results
 stay closed. [Remaining definition gaps](docs/ROADMAP_BACKLOG.md#remaining-contract-gaps--plan-next)
 name the unfinished routes, view/observer bindings and owner inputs. The caption

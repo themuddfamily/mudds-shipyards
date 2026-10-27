@@ -900,6 +900,71 @@ acceptance commands. Run those checks only in the separately selected
 implementation; the missing caller cannot pass before it is built.
 No runtime/engine/image/device check was run for this binding.
 
+**Selected caption caller2026-10-27,05:38:34UTC.** COMFORT-CAPTIONS shared
+Save/Reset/cold member, sourceedb629df370af9295d2cd3bf2758d8a52ce36130. Definition/
+route binding since05:38:34 remains charged to this same90minute capability;
+no reset when implementation starts. Owned branch/worktree:
+`roadmap/caption-settings-restart-20261027`,
+`/srv/mudds-work/caption-settings-restart-20261027/worktree`. One implementer owns
+existing probe/runner/startup-loader/privacy-test plus existing native-sortie
+Python tests only if needed; root owns checks/export/actual runs/review/docs.
+One independent lifecycle reviewer; no nested delegation or new validator family.
+
+Selector: `PACKAGE_PROBE_SETTINGS_FEATURE=captions` with existing
+`--native-export --settings-restart`; default remains `reduced-flash` and its
+existing body/sequence/assertions remain unchanged. Embedded admission adds
+`--settings-restart-feature=captions` only to the sealed headless/Dummy/private
+request; ordinary launch/conflicting/duplicate/malformed/private-profile refusals
+remain tested. No runtime caption policy, settings schema or gameplay change.
+
+Normal reader/reset-reader route: supported on-foot Begin Shift, no inherited
+pilot auto-boarding; existing Torrent `_walk_player_to_ship` raw joypad algorithm
+at controller_physical_sortie_test.gd:1420, original5simulated seconds+30physics
+frames/four settle pairs/reach≤3.1m. Raw physical E spans actual physics frame(s),
+real canopy/boarding then START_ENGINES/landed/OFFLINE; raw E performs normal
+physical exterior exit. Authored canopy.65/boarding1.1/disembark.9 seconds stay.
+Require actual supported/control-enabled unseated/awake on foot, craft home/
+unpiloted, no stale cabin/crew/boarding claim, exact berth occupant/reservation;
+normal saved recovery mode on_foot before Quit. No direct board/exit/caption/
+teleport, artificial clock, flight or source-provider mutation. Read-only actual
+producer/service observations prove the literal HIGH90 boarding caption ON and
+producer-without-fresh-admission/view OFF. Retained live captions on OFF are
+hidden, not forcibly deleted. No preview/staged cue supplies the selected event.
+
+Writer saves actual captions ON through normal settings; reader cold ON executes
+that route then normal Reset/confirmation/Save/Back/Quit; third cold OFF repeats
+the route then normal Quit. Existing guard/whole-settings/foreign-payload,
+primary/backup/three-distinct-PID/actual OS0/clean-marker/input/process/source/
+cache/ELF/export-metadata checks remain. Capture raw pre/post event snapshots and
+pre/post Save/Reset documents. No new foreign namespace allowance; any legitimate
+owner write must be source-bound before changing a preserved predicate.
+
+Actual proof uses one fresh clean private Linux export, pinned engine/template
+from owned selection.json and strict actual archive startup exit0/exactone
+STARTUP_MENU_READY_OK/zero diagnostics. Root runs the caption three-process case
+and the existing default flash three-process case on the same immutable ELF in
+distinct owned private profiles. Shared caller/admission/driver changed, so this
+is default-caller regression scope on new bytes, not another full flash-family
+qualification. Original controls/frames/timers/defaultsettings and result scopes
+are preserved. Source privacy/new parser and existing Python tests plus actual
+export/startup/each caller are required; no hosted/native/device/audio claims.
+
+Budget includes source binding, implementation/review, source checks/private
+build/runs/integration/push/cleanup. Source/review target06:08:34UTC; checks end
+06:51:34; absolute hard stop07:08:34UTC. Stage caps: Python120s, cleanimport120s,
+probeparse90s, privacy90s, export900s, startup300s; both actual callers retain
+300s per process and960s independent outer cap each. Each stage must admit its
+full cap before closure reserve. First caller must admit both full960s groups
+before06:51:34; no shortened route/default-regression omission to fit. If the
+window cannot admit a stage, PARK with source/raw/cumulative cost and cleanup.
+First unexpected failure stops; any correction needs demonstrated source cause
+and recorded independent cumulative-priority decision within this original
+clock. Root owns abort/reap, release of keys/joy/cursor and private profiles.
+On PASS integrate/push/delete exact owned refs/worktree, consolidate logs/commands/
+results/unique source to one verified archive/closeout; no public checkpoint for
+this release-driver-only change. Full captions/Settings-return/render/device/
+final source gates remain open. No gameplay run has occurred at selection.
+
 The remaining overflow input remains exactly the existing owner choice:
 pagination, scrolling or wider/recomposed HUD, including timing/input/full-text
 and reservation behaviour. It does not block this settled boolean Reset contract.
