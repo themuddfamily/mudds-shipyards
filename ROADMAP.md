@@ -152,6 +152,10 @@ client embodiment/home handoff and ordinary case callers remain production work.
 now bind real flight/approach controls,connected home return,earned-record
 preservation and fresh admission/departure. Aurora/Rime retirement cadence and
 full ordinary callers remain unimplemented;no cancellation case has run.
+[Three OS-interruption cases](docs/ROADMAP_BACKLOG.md#shared-world-os-interrupt)
+now fix committed saves,owned kill/fresh Boot and one-payment shared continuation.
+Ember's in-tree save/shared resume and ordinary restored-crew intake remain
+production gaps;existing solo/same-process fixtures are not shared acceptance.
 
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings
