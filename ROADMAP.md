@@ -121,7 +121,9 @@ now binds moving damage,live-charge UI disconnect and fresh ownership. Its
 return controller,combined caller and physical-egress repair remain unimplemented.
 [Jovian active-work cuts](docs/ROADMAP_BACKLOG.md#jovian-engineer-active-cuts)
 now specify E interruption and normal browser loss,including the missing safe
-standing-berth admission after reconnect. [Cinder remote crew](docs/ROADMAP_BACKLOG.md#cinder-remote-crew-moving-handback)
+standing-berth admission after reconnect. The [plain Halyard passenger](docs/ROADMAP_BACKLOG.md#halyard-passenger-contract)
+now has an explicit return/exit/reentry caller target and combined limit;it
+reuses the same missing physical-egress repair. [Cinder remote crew](docs/ROADMAP_BACKLOG.md#cinder-remote-crew-moving-handback)
 now bind movement,home,loss/ramp handback and one conserved supply outcome.
 Safe readmission,guest ramp eligibility and authenticated remote terminal
 handoff are named production gaps;their implementation remains open.
