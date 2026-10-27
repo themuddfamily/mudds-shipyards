@@ -162,6 +162,12 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Current work and next selection
 
+**Selected — capture-varied-encounters: complete18-frame visual qualification.**
+One frozen source-specific Forward+/1600x900 capture and inspection, including
+missing scatter-fan plate. Original300s cap, silent private Xvfb/llvmpipe,
+first-failure stop and owned cleanup; no parked gameplay retry or art change.
+[Exact acceptance and hard deadline](docs/ROADMAP_BACKLOG.md#varied-encounter-complete-image-set--frozen-2026-10-27).
+
 **PARKED — Cinder codec continuation stops at a component regression.**
 One independently approved correction retains the raw acknowledgement and uses
 the exact production JSON canonical form for full-state comparison.314Python,

@@ -998,6 +998,68 @@ capacity, hardware and metric-policy inputs. Neither unavailable source artifact
 nor unapproved values authorize substitute runs. These missing bindings keep
 PLAN-NEXT open; the container inventory above is now explicit.
 
+### Varied encounter complete image set — frozen 2026-10-27
+
+Selected goal: **capture-varied-encounters**; source-specific visual qualification
+only. No gameplay/art implementation or parked capture retry is selected.
+
+- Result: all18 authored encounter frames exist and have an original-resolution
+  agent inspection. Seven played frames retain HUD/contact/objective information;
+  eleven controlled plates expose opponent silhouettes, role lamps, armed/safed
+  muzzle, the three-ray scatter fan, and courier/skirmisher damage stages.
+- Start: clean commit containing this card, detached owned checkout at
+  `/srv/mudds-work/varied-encounters-20261027/worktree`; separate fresh import and
+  capture HOME/XDG profiles under that root. Source, registry and complete imported
+  resources are frozen before capture. Main and historical image sets are protected.
+- Files: no runtime/harness changes. Only this existing row/contract, ROADMAP.md,
+  delivery history and this goal's existing registry entry may record the result.
+  Accepted images go to `artifacts/varied-encounters-<source>/`; failed output stays
+  in the owned external archive. No new validator or evidence family.
+- Engine: existing guarded4.7.1 editor at
+  `/srv/mudds-work/toolchains/godot-4.7.1-reflection-atlas-7b46e60/godot`,
+  SHA256 `7b46e60fa1d4ddc979d35698a96d6cb16f79d03019ee5c84aaf24c98434c5f7d`.
+  Private authenticated Xvfb1600x900/x11/Dummy, Forward+/Vulkan/llvmpipe using
+  `/usr/share/vulkan/icd.d/lvp_icd.json`. This is a declared software-renderer
+  deviation from the inventory's prepared DZN environment, with original authored
+  quality unchanged; no native GPU/performance/physical-device qualification.
+- Actions: one silent headless/Dummy editor import (90s preparation cap),
+  then exactly one full capture using the existing command in
+  [the inventory](GRAPHICAL_HARNESS_INVENTORY.md).
+  Invoke `tests/capture_varied_encounters.gd` with `--resolution 1600x900`,
+  `--display-driver x11 --audio-driver Dummy --rendering-method forward_plus
+  --rendering-driver vulkan`, external `MUDDS_CAPTURE_OUTPUT_DIR`, cleared
+  Wayland/parse/staging/wayfinding flags. Engine cap300s; independent process-tree
+  supervisor330s; no user desktop or synthetic OS inputs. Supervisor kills/reaps
+  owned descendants independently of any game menu.
+- Exact images: `play_01_live_contact.png`, `play_02_courier_scenario_opens.png`,
+  `play_03_chasing_the_runner.png`, `play_04_runner_outcome.png`,
+  `play_05_wing_inbound.png`, `play_06_turning_into_the_flanker.png`,
+  `play_07_objective_outcome.png`, `plate_01_opponent_roster.png`,
+  `plate_02_anchor_and_flanker_lamps.png`, `plate_03_roles_traded.png`,
+  `plate_04_armed_versus_safed.png`, `plate_04b_scatter_fan.png`,
+  `plate_05_courier_calm.png`, `plate_06_courier_distress.png`,
+  `plate_07_courier_critical.png`, `plate_08_courier_destroyed.png`,
+  `plate_09_skirmisher_critical.png`, `plate_10_skirmisher_destroyed.png`.
+- PASS: actual exit0; exactly one `CAPTURE_VARIED_ENCOUNTERS_DONE` and no FAILED
+  marker/errors/warnings; exact18 nonempty PNGs, each1600x900; unchanged frozen
+  tracked inputs/registry/imported resources; all owned processes reaped.
+  Inspect every original: essential HUD text is legible and within the frame;
+  named contact/objective is visible; plate subjects are in frame, silhouette/role/
+  armed-state differences can be distinguished; scatter plate shows separated
+  rays; successive damage stages show their named change. Each actual defect
+  leaves this visual qualification open with its image/predicate; no speculative
+  runtime repair. Do not promote human-review status or final-candidate scope.
+- Dependencies: existing authored18-frame harness/registry and retained guarded
+  editor; no missing design decision. Historical17 frames are not reused as18.
+- Stop: selection/preparation charged from02:40UTC2026-10-27; estimate45minutes
+  including inspection/closure, hard03:40UTC, reserve final15minutes for closure.
+  Import readiness by03:00, capture launch by03:05. First unexpected failure ends
+  the task: no correction/retry, quality reduction or larger cap. No prior attempt
+  of this current18-frame qualification is claimed or erased; historical17 remain.
+- Closure: one terminal result with first unmet predicate, commit/push, preserve
+  raw source/logs/images and remove owned checkout/process/profile/scratch. No
+  duplicate playable checkpoint for capture-only work. Broader release gates stay open.
+
 ### Baseline, scope and planning children
 
 Finish means the named existing route passes on its frozen candidate, or the named definition ends with a finite answer/missing input. Guided, Sandbox and Settings retain their original [baseline contracts](#baseline-and-ordinary-controls).
