@@ -5051,6 +5051,18 @@ re-entry checks retain their own scope and are not rerun unchanged.
   actual private export proves support. Full ordinary SOLO/return/save/repeat/
   installed/native GPU/physical-device/final gates remain open.
 
+**First verification stop and one approved continuation,03:52UTC.** First Python
+run on857e20e91 stops16.008s: one of309 tests fails because the new selector was
+prepended to the CLI choices, violating the existing literal Zenith-first prefix.
+The next dispatch tuple already matches; no second failure is inferred. No Godot,
+export or flight ran. Independent cumulative-priority GO before correction permits
+one additive ordering repair: append the new selector/help entry, preserve every
+existing prefix/default/cap/dispatch behavior and keep tests unchanged. About22min
+is already charged on original03:30→05:00 clock; source04:05/nativebefore04:14
+cutoffs remain. Review corrected source, then one Python rerun; only if PASS run
+first remaining focused/export/startup/native stages. Next unexpected failure
+is terminal PARK/no second correction or fresh budget. Original raw failure stays.
+
 **Definition corrected before any execution,03:41UTC.** Source/independent review
 establishes that coordinator LANDED+OFFLINE queues disembark automatically; host
 requires exact occupied landing/seated/hatch state then runs actual Player exit.
