@@ -32228,3 +32228,283 @@ adjacent `closeout.json` records the verified archive/hash, preserved original
 clock and cleanup. Source review stopped the sole correction before any tests,
 engine, export or whole trial. The Torpedo candidate stays unmerged; transport checkpoint4afd529 now supersedes
 0d77125 without accepting Torpedo. [Exact blocker and retained full journey](docs/history/ROADMAP_DELIVERIES.md#torpedo-control-continuation-stopped-at-source-review-20261025).
+
+
+## Roadmap status notes retained from 2026-10-27
+
+Moved from the working roadmap to keep the next actions readable. This is a
+historical snapshot from c4cc053e7; active/selected wording below schedules no
+work. The current ROADMAP.md owns selection. Original failures, costs and proof
+limits are retained.
+
+### Retained status snapshot
+
+**Accepted — PACKAGE-FINAL paired-artifact audit capability.**
+The existing inventory tool now checks complete Windows/Linux payload parity,
+hash-pinned PE code, compiled-source bundle files, tar/ZIP contents and unchanged
+inputs. Corrected28-test suite and one real7876ebc audit pass; all1529 entries and
+nine predicates agree. Source d70231901 is integrated/pushed27d1e70e8.
+[Exact command, first review stop, actual proof and cleanup](../ROADMAP_BACKLOG.md#package-final--existing-members-and-counts).
+Original13-test baseline and first27-test PASS are retained; review caught ZIP
+special-file metadata, and its one source-proven correction is accepted. Cleanup
+finishes14.696minutes from05:20:33UTC, plus final notes/push on the same clock.
+Owned branch/worktree/scratch are removed; one small verified archive remains.
+No game/engine/public checkpoint change; final release/player/native gates stay open.
+
+**PARKED — caption Save/Reset/cold caller; no implementation active.**
+The three-local typing correction99658edda passes301 Python tests, import,
+probe parse, privacy, private Linux export and strict actual-archive startup.
+The packaged writer then exits1 at its initial caption-service/presenter assertion,
+before Begin Shift or settings changes. Its operand values were not logged;
+no missing runtime owner or gameplay defect is established. Writer reaped;
+reader, reset-reader and default-flash regression NOT_RUN. No further correction
+or reopening is selected. Candidate code remains unmerged.
+[Exact failure, archive and limits](../ROADMAP_BACKLOG.md#caption-episodes--ingress-and-reset-boundary).
+The original05:38:34 start and45.076 prior minutes stay charged; the explicit
+90→105minute budget amendment is retained. Verified archive/branch/worktree/
+scratch cleanup completes at70.748 cumulative wall minutes; final notes/push
+remain charged to the same clock. The public playable checkpoint is unchanged.
+
+**PARKED — COMFORT-COLOUR ordinary Guided caller; no implementation active.**
+Candidate87a51f41f first failed observer parsing; the one allowed correction
+7caea1fbb explicitly typed two Dictionary locals. Corrected304 Python checks,
+import/parse/privacy, private Linux export and strict archive startup pass.
+Actual Tritanopia flight completes combat/home/physical exit/normal HUD Quit
+with game OS0, zero diagnostics and all owned processes/input cleaned up.
+Its caller nevertheless fails the frozen coverage assertion:11/12 endpoints,
+required HUD STARTING never observed. All1763 samples show OFFLINE or ONLINE;
+no production cause is established. Default regression NOT_RUN. No further
+correction/reopening is selected and candidate code stays unmerged.
+[Exact terminal result and preserved source](../ROADMAP_BACKLOG.md#colour-cues--remaining-proof-ownership).
+Original06:51:29 clock, sole correction and fixed07:51:29 deadline are retained;
+archive/branch/worktree/scratch cleanup completes at14.907 cumulative minutes.
+Final notes/push remain charged. Current public checkpoint and accepted colour
+component/storage scopes stay unchanged; full comfort/device/rendered gates open.
+
+**Definition complete — INSTALL-LINUX-UNINSTALL execution contract.**
+The [existing final uninstall/reinstall goal](../ROADMAP_BACKLOG.md#final-linux-uninstallreinstall--install-linux-uninstall)
+now fixes shipped-manager commands, private prefix/XDG, exact managed files/modes,
+four then five protected fixtures, repeat-uninstall/fresh-generation reinstall,
+full installed Guided usability and original separate limits. Actual earned-save
+fixture bytes/hash verified; no engine/installation was run or final gate closed.
+Final candidate identity, graphical desktop launch and retained-save gameplay
+reload remain with their existing owners. Root owns only these two docs; no
+branch/worktree/scratch created. Start07:08:13UTC,20minute definition estimate/
+07:28:13 deadline include checks/commit/push. Source review, fixture verification,
+all337 canonical identities/order and new anchors pass; roughly7minutes through
+review/checks, with final commit/push charged to the same clock. No implementation
+is active. The eight prepared craft SPEC proposals await the explicit owner
+interpretation/design answer requested this turn; no approval has been inferred.
+
+**Definitions complete — final Linux clean install and upgrade.**
+The [existing two transaction contracts](../ROADMAP_BACKLOG.md#final-linux-clean-install-and-upgrade--transaction-contracts)
+now fix empty-prefix clean install and actual499e681→final upgrade paths/commands,
+managed/protected bytes/modes, new-generation/old-file retirement, installed full
+Guided and separate original30/300/310/330s limits. Actual prior archive/payload
+hashes and original wrapper limits were read/verified. Final archive identity and
+all actual final execution, graphical desktop and retained-save reload remain
+open; no engine/installer/export/CI run or accepted checkpoint rerun occurred.
+Root owns only these two docs; no branch/worktree/scratch created. Original
+07:14:58UTC start,15minute estimate/07:34:58 hard deadline include review/checks/
+commit/push. Independent source review, all337 identities/order and new anchors
+pass; roughly6minutes through checks, with final push charged to the same clock.
+Craft design approval remains pending; no implementation active.
+
+**Definition field complete — FINAL-RECONCILE direct parent membership.**
+The [36-parent crosswalk](../ROADMAP_BACKLOG.md#coverage-of-the-original-remaining-outcomes)
+now names each existing direct child ID instead of broad family labels. Independent
+mechanical review verifies exact source-order membership, unchanged original
+outcome/proof columns, all337 canonical identities/order and ten phase criteria.
+Self/output/publication ordering is explicit; no pre-publication gate requires
+future downloaded-byte proof. All original completion conditions remain binding.
+This does not close FINAL-RECONCILE: exact phase-predicate/source/candidate bindings,
+candidate defect inventory and actual qualification remain open. Root owns only
+these two docs; no branch/worktree/scratch/runtime/CI/checkpoint created. Original
+07:21:06 start/15minute estimate/07:41:06 hard deadline include commit/push/closure.
+Craft design approval remains pending; no implementation active.
+
+**Definition disposition complete — all ten phase predicates.**
+The [existing phase table](../ROADMAP_BACKLOG.md#original-phase-gates-and-completion)
+now links every phase to exact existing proof-owner IDs and literal missing fields.
+Three disjoint source reviews pass for phases1–5/6–8/9–10; original phase names/
+exit criteria, all337 canonical identities/order and declared13capture/21shared
+memberships are preserved. Full journeys remain explicit in phases4/5; shared
+predicate owners do not impose unrelated whole-container dependencies.
+This is not executable acceptance or phase completion. Exact ordinary/candidate/
+view/device/measurement bindings stay blocked where listed. Original production
+crash-log redaction, complete safe graphics/audio fallback and whole orbit↔surface
+repetition now have explicit missing fields under existing owners; no new task ID,
+tracker/validator or proof result was invented. FINAL-RECONCILE still needs the
+candidate defect inventory and actual required results, followed by authorized
+distribution. Original07:21:06 definition clock/direct-membership result/cost are
+retained; this phase interval starts07:26:53 and closes within the earlier07:41:06
+bound, including review/checks/commit/push. Only these two docs changed; no branch/
+worktree/scratch/engine/CI/checkpoint created. Craft approval remains pending;
+no production implementation is active.
+
+**Delivered — production Safe Audio recovery action; technical PASS, process deviation.**
+Source50102032a integrates the missing normal HUD→GameFlow→adapter audio apply
+caller. It is explicit, master0.5/music0, current-startup/revision fenced, available
+after STABLE only while this startup's unconsumed graphics fallback remains active.
+Automatic graphics recovery preserves audio; ordinary Restore, later user edits,
+Keep Safe and refused/corrupt/newer-write protections remain. Four source suites
+pass121 assertions, including actual Main/HUD/buses, typed/wire persistence,
+rollback, one-shot Restore and three visible/focusable/in-bounds controls.
+Fresh paired5010203 exports/three strict startups/all1529 payloads/nine artifact
+audit predicates pass. EXE/checkpointZIP/notes are in builds/windows; matching
+Linux files are in builds/linux. Native Windows/audible/devices/full release remain
+NOT_RUN/open; source integration uses an injected filesystem, not an OS-crash run.
+
+The first test's mixed typed/JSON number comparisons failed and are retained;
+one test-only correction passed. **The frozen process card was not followed
+exactly:** root later used the same filename for Linux inventory and runner status,
+overwriting a passed inventory, then hit KeyError during private package preparation.
+Root regenerated that read-only map with distinct names and added an orchestrator
+alias guard; source, binaries, expectations/caps stayed unchanged. First actual
+paired audit then passed. Independent review gives technical GO but explicitly
+retains this procedural concern; root accepts the verified delivery under the
+existing task authorization, not as process-contract compliance or a blanket
+future retry exception. Original07:37:14 clock/45minute estimate/09:07:14 hard
+stop and all failed records stay charged. No further production repair occurred.
+[Exact source/proof boundary](../ROADMAP_BACKLOG.md#safe-start-graphicsaudio--production-action-and-proof-scope).
+Owned closure is complete: source50102032a is contained in pushed main;
+fresh remote/worktree ownership checked before exact-tip branch deletion (remote
+branch absent), worktree/scratch removed and only archive/closeout retained.
+Verified archive12814902bytes/271members, SHA256
+`aef2f81b6f21320ab3af61f79920be2d081d804577a8dc5eeea24dfb2c375c4a`.
+Cleanup08:25:14UTC is48.011 cumulative minutes, exceeding the45minute estimate
+by3.011; final notes/push remain charged within the unchanged09:07:14 deadline.
+
+**Active — Phase9/FINAL-RECONCILE crash-log publication retry.**
+Original binding start2026-10-27 08:28:35UTC atbc0faf415 stays charged. Source
+proves Main already composes private crash diagnostics, but a failed recovery
+snapshot publication leaves the bridge pending and Main never calls its retry API.
+Deliver normal Main physics retry at the existing1.0s cadence while the diagnostic
+session is active, no per-frame hammering; success clears pending and stops retries,
+retaining the exact captured recovery snapshot and one CRASH_DETECTED event.
+Repeated failures retain data and retry only once per interval. Clean/teardown
+must not gain dirty-marker writes or independent timers; preserve record/store
+persistence, foreign data, redaction and original clean-shutdown semantics.
+One agent owns GameFlow, existing lifecycle bridge only if a cheap readiness
+query is needed, and existing Main diagnostics integration test. Root owns docs,
+validation, paired export/checkpoint/integration/cleanup. Do not wire optional
+network/threshold APIs or invent uploader/stack-capture requirements.
+Proof: commit a test-only RED on old production first: injected sink-stage failures
+leave publication pending/file absent across normal physics. Only the named new
+retry assertions may fail; source parser/other existing predicates must pass.
+Then implement consumer and run existing Main/record/lifecycle/sink suites at
+unchanged300s per-suite caps, verifying1s boundaries, repeated refusal, one event/
+one publication, no post-success or post-clean retry and preserved payload.
+RED is expected failure, not acceptance. One correction allowance applies only to
+unexpected production/test/build failures; any failed corrective validation parks.
+Read-only bookkeeping regeneration may fix lost preparation output with identical
+frozen inputs before an acceptance comparison; record it, never claim a failed
+predicate passed, never alter source/expectations/caps to hide a failure.
+Fresh paired checkpoint/three strict menu startups/full payload/archive audit
+required before accepted integration. All Godot Dummy/headless or isolated x11.
+Estimate30minutes including RED/GREEN/build/cleanup; absolute hard stop09:28:35UTC
+(60minutes from binding), final10minutes for closure. Before launch full current
+cap plus closure must fit; source/review/failed costs remain charged. Native/
+real-OS crash/device/audio/full release remain open. Push accepted work and remove
+owned branch/worktree/process/scratch after verified preservation. No parked retry.
+
+**PLAN-NEXT remains OPEN.** A remaining row with an unresolved Codex-owned
+acceptance field is unfinished planning, not an executable task. No runtime trial
+is selected by this documentation update.
+
+For each listed gap, supply the finite answer in its existing row/contract:
+the named members, action/trigger, expected endpoint, preserved state, proof
+and original limits. Reuse accepted results. If an answer needs a design decision
+or unavailable artifact, name the exact field, owner and required answer/artifact.
+Codex-owned source bindings remain unfinished until supplied; writing “Codex
+will define this” does not pass. Each definition pass ends after15–30minutes with
+the answer or the precise blocker; it cannot start a gameplay trial or a new
+research chain.
+
+**PASS for PLAN-NEXT:** every existing record has a finite result and proof or
+an exact external dependency, every container names its complete membership,
+and no unresolved Codex-owned action/endpoint/limit/proof field remains.
+Preserve all337 IDs, their kinds/order,36 parent outcomes and ten phase exits.
+This is planning completion only. Runtime completion still needs the named
+player journeys and release gates.
+
+**Select one implementation at a time.** Choose another existing capability only after
+its literal acceptance card is complete. Freeze the result before editing;
+include checks, checkpoint, integration and cleanup in its estimate of at most
+90minutes. Full journeys and soaks retain their original durations. A failed
+attempt keeps its cumulative cost and reopening condition. No runtime retry is
+authorized by this wording change.
+
+Recent terminal results are retained in their existing contracts and
+[delivery history](ROADMAP_DELIVERIES.md). They are not an active queue:
+
+| Existing outcome | Terminal result and remaining boundary |
+| --- | --- |
+| SOLO-EMBER outbound driver | PARKED8219:8,010,865m/776rebases; unconditional default-source assertion rejects the production approach handoff. Landing/surface exit/normal OS0 unproven. Candidate archived unmerged; no further run selected. [Exact stop](ROADMAP_DELIVERIES.md#ember-corrected-native-flight-parked-at-approach-command-handoff-20261027). |
+| Busy exterior-exit interruption support | Accepted24774c04 source and embedded Linux accepted/refused-save pairs; installed/full ordinary/native/final qualification stays open. [Proof](ROADMAP_DELIVERIES.md#busy-exterior-exit-release-interruption-support-accepted-20261027). |
+| Varied encounter capture | PARKED at original300s,0/18images; no demonstrated render/art cause and no retry selected. [Exact stop](ROADMAP_DELIVERIES.md#varied-encounter-preparation-refused-before-engine-20261027). |
+| Cinder Light weapon/reuse driver | PARKED at component regression; firing/home/reuse/normal OS0 remain unqualified. Source archived unmerged. [Exact stop](ROADMAP_DELIVERIES.md#cinder-codec-continuation-parked-at-component-regression-20261027). |
+| INSTALL-WIN-FINAL export capability | Accepted17a11183a finalized standalone uninstaller export; trusted signing/native execution/final-candidate qualification remain open. [Proof](ROADMAP_DELIVERIES.md#compiler-generated-windows-uninstaller-export-accepted-20261027). |
+| WEAPON-JOVIAN | PARKED at per-tick displacement bound; motion cause unknown. No Fire/home/reuse acceptance or retry selected. [Exact stop](ROADMAP_DELIVERIES.md#jovian-cannon-departure-parked-and-linux-archive-modes-fixed-20261027). |
+| Linux archive executable mode | Accepted6b667235b private-umask ELF0755 export repair; final package qualification stays open. |
+
+Latest playable checkpoint remains7876ebc. Owned temporary branches/worktrees
+for these closed attempts were cleaned after preservation. Retained failures,
+original clocks, source/package pins and proof limits live in their linked
+contracts; none receives a fresh budget through a new label. Historical
+“selected” statements do not schedule work; this section controls selection.
+
+
+## Crash-log publication retry delivered 20261027
+
+Source `52b7b6e3b1fa7bf9a085dc396d6d7d162ec44794` (test-only RED
+`eadc260708361e7e7617a417a41053a8bd9bfb99`) delivers Main's missing file-publication
+retry. Existing crash coordinator/lifecycle/sink already composed in Main;
+only its retry consumer was absent. Separate scalar countdown uses the existing
+1s cadence, survives successful ordinary ring saves, retries the frozen snapshot,
+and stops after success/clean state. No timer, repeated crash event, optional
+network/threshold wiring, schema or new validator. The diagnostic foundation doc
+now describes actual production ownership rather than its obsolete unwired state.
+
+Old source: actual exit1/34.853s, exactly four frozen retry assertion failures;
+initial attempt remains1/pendingtrue/fileabsent. All unrelated existing predicates
+pass. GREEN: import6.573s; existing four suites40.769s, Main55+record117+bridge15+
+sink26=213 assertions; each actual0/marker1/diagnostics0. RED assertions unchanged.
+Pinned clean Windows export26.628s/Linux25.753s. Windows embedded payload startup
+under Linux Godot25.903s; Linux direct22.020s and actual TAR21.916s inner game;
+all actual0/exactly one menu-ready marker/zero diagnostics, matching frozen ELF.
+Complete1529(path,size,SHA256) entries match Windows manifest frozen before Linux
+export. First normative paired-artifact audit8.169s passes all nine predicates,
+unchanged inputs/source/template/ELF/TAR/ZIP/notes. Checkpoint52b7b6e artifacts
+reside under repository builds/windows and builds/linux. No actual OS-crash,
+power-loss, native Windows, native GPU, physical-device, audible-audio or full
+release qualification. No hosted CI run.
+
+**Root orchestration exceptions, retained rather than made process PASS:**
+
+- Initial RED wrapper wrongly rejected the expected four ERROR:FAIL lines.
+  Exact-whitelist verification reread the same immutable log; no engine rerun.
+- Linux direct wrapper looked for the game sentinel in helper stdout instead of
+  its actual inner log. Original outer exit0/false classification remains;
+  unchanged inner JSON/log strictly proves exit0/marker1/no diagnostics/hash.
+- Preparatory comparison mistakenly included PE/ELF container offsets. It failed
+  before notes/ZIP/audit configuration; a dependent runner read then failed missing
+  configuration before any child launch. Same frozen maps agree on the original
+  three declared fields. First normative artifact audit then passes unchanged.
+
+Independent source/final review gives technical GO, explicitly withholds literal
+process compliance: these errors exceed the card's literal lost-output allowance.
+Root accepts the authorized production repair based on unchanged substantive
+proof; procedural exceptions remain, with no blanket waiver or retroactive
+process PASS. No source/test/build correction or engine rerun was spent. Raw
+initial classifications, STOP records, verification results and causes remain
+preserved in the owned task archive. Original08:28:35UTC start/30minute estimate/
+09:28:35 hard stop remain charged, including documentation/checkpoint/closure.
+
+Roadmap readability work accompanies this closure: the working file is shortened,
+old status narratives move into this existing history, existing Linux launch
+owners now name the actual missing rendered/desktop runner capability and process
+identity/ordinary route/clean-shutdown acceptance. Existing craft/Courier/motion/
+flash rows distinguish missing executable callers from external input. All337
+canonical identities/order are unchanged; PLAN-NEXT stays open on unresolved
+literal fields. This is documentation progress, not completion of a game phase.

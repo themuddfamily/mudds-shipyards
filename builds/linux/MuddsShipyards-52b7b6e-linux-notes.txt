@@ -1,0 +1,27 @@
+Mudd's Shipyards Linux checkpoint 52b7b6e
+Source: 52b7b6e3b1fa7bf9a085dc396d6d7d162ec44794
+
+Player-visible change
+After an unfinished prior session, a temporarily refused crash-log write is
+retried once per second while Main is active. Successful settings/store saves
+cannot postpone it. The captured recovery snapshot is published once; retries
+stop after success or clean shutdown. No new controls or audible output.
+
+Actual validation
+Old production reproduced exactly four predeclared retry failures. Fixed source
+passes four existing suites: Main55, record117, lifecycle15, sink26 assertions
+(213 total), actual exit0/one required marker/zero diagnostics per suite.
+Clean Windows/Linux exports use pinned Godot4.7.1 and release templates.
+Three silent isolated startup checks pass: Windows payload under Linux Godot,
+Linux ELF and actual TAR; each actual exit0/exactly one menu-ready marker/zero
+diagnostics. All1529 complete payload path/size/hash entries match the approved
+Windows manifest frozen before Linux export. The existing paired-artifact audit
+checks source/template identity, archive members and unchanged inputs.
+
+Scope and remaining gates
+Source/injected-filesystem retry and privacy checks plus package startup/parity;
+no actual OS-crash/power-loss, native Windows, GPU, physical-device, audible-audio
+or whole-release qualification. Other roadmap outcomes remain open.
+Wrapper classification/preparation errors were resolved by rereading unchanged
+raw logs/inventories; original failures and causes are retained. No engine rerun
+or change to the predeclared acceptance fields, source or run caps.
