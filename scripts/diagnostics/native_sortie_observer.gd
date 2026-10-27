@@ -68,6 +68,11 @@ var _ship: HeroShip
 var _opponent: RangeOpponent
 var _courier_mode := false
 var _courier_escape_mode := false
+var _courier_escorted_mode := false
+var _courier_arming_maximum := 0.0
+var _courier_dispatch: Dictionary = {}
+var _courier_distress: Dictionary = {}
+var _courier_escort_dispatch: Dictionary = {}
 var _courier_withdraw_phase_mode := false
 var _courier_withdraw_distance_mode := false
 var _courier_distance_pending: Dictionary = {}
@@ -210,7 +215,8 @@ func on_startup_completed(main: Node) -> void:
 		_ship.component_repair_progressed.connect(_capture_torrent_repair)
 		_game.tree_exiting.connect(_disconnect_torrent_damage)
 	_courier_escape_mode = "--native-sortie-observer=courier-escape" in OS.get_cmdline_args()
-	_courier_withdraw_phase_mode = "--native-sortie-observer=courier-withdraw-phase" in OS.get_cmdline_args()
+	_courier_escorted_mode = "--native-sortie-observer=courier-escorted-withdrawal" in OS.get_cmdline_args()
+	_courier_withdraw_phase_mode = "--native-sortie-observer=courier-withdraw-phase" in OS.get_cmdline_args() or _courier_escorted_mode
 	_courier_withdraw_distance_mode = "--native-sortie-observer=courier-withdraw-distance" in OS.get_cmdline_args()
 	_courier_mode = "--native-sortie-observer=courier-intercept" in OS.get_cmdline_args() or _courier_escape_mode or _courier_withdraw_phase_mode or _courier_withdraw_distance_mode
 	if _courier_mode:
@@ -357,6 +363,15 @@ func _courier_observation() -> Dictionary:
 			"authority_id": _courier_withdraw_authority.get_instance_id() if is_instance_valid(_courier_withdraw_authority) else 0,
 			"defender_kill": _courier_defender_kill.duplicate(true),
 			"maximum_withdraw_radius": _courier_withdraw_maximum_radius})
+	if _courier_escorted_mode:
+		result.merge({"completed_runs": _courier_director.get_completed_run_count(),
+			"outcome_counts": _courier_director.get_outcome_counts(),
+			"dispatch": _courier_dispatch.duplicate(true),
+			"distress": _courier_distress.duplicate(true),
+			"escort_dispatch": _courier_escort_dispatch.duplicate(true),
+			"distress_broadcast": _courier_director.is_distress_broadcast(),
+			"escort_launched": _courier_director.is_escort_launched()})
+		result.merge(_courier_coordinator_observation())
 	if _courier_withdraw_distance_mode:
 		result.merge({"escape_heading": _v(_courier.get_escape_heading()),
 			"disengaged_elapsed": float(_courier_director.get("_disengaged_elapsed")),
@@ -526,12 +541,17 @@ func _capture_courier_escape() -> void:
 		_courier_distance_violation = ""
 		_courier_standdown_violation = ""
 		_courier_withdraw_maximum_radius = 0.0
+		_courier_dispatch.clear()
+		_courier_distress.clear()
+		_courier_escort_dispatch.clear()
 	if _courier_withdraw_phase_mode and generation > 0:
 		_courier_withdraw_maximum_radius = maxf(_courier_withdraw_maximum_radius,
 			_ship.global_position.distance_to(_courier_director.get("_scenario_origin") as Vector3))
 	for member: Node3D in _courier_director.get_roster():
 		_courier_dispatched[member.get_instance_id()] = member
 	var actors := _courier_dispatched_observation()
+	if _courier_escorted_mode:
+		_capture_courier_escort_chronology(actors)
 	if _courier_withdraw_distance_mode and _courier_director.get_state() == EncounterScenarioDirector.STATE_RUNNING:
 		var roster_ids: Array = []
 		for member: Node3D in _courier_director.get_roster():
@@ -567,13 +587,21 @@ func _capture_courier_escape() -> void:
 				"outcome": str(_courier_director.get_outcome()),
 				"scenario_origin": _v(_courier_director.get("_scenario_origin")),
 				"ship_position": _v(_ship.global_position)})
+		if _courier_escorted_mode:
+			_courier_terminal.merge(_courier_coordinator_observation())
 		if _courier_withdraw_distance_mode:
 			_courier_terminal.merge({"disengaged_elapsed": float(_courier_director.get("_disengaged_elapsed")),
 				"pending": _courier_distance_pending.duplicate(true),
 				"defender_active": _opponent.is_active(), "defender_health": _opponent.get_health()})
 	if _courier_terminal.is_empty():
 		return
+	if _courier_escorted_mode:
+		var coordinator := _courier_coordinator_observation()
+		if int(coordinator.coordinator_member_count) != 0 or int(coordinator.coordinator_target_id) != 0:
+			_courier_standdown_violation = "wing coordinator retained members or target after terminal"
 	for actor: Dictionary in actors:
+		if _courier_escorted_mode and bool(actor.registered):
+			_courier_standdown_violation = "dispatched actor registered after terminal"
 		if not bool(actor.present) or bool(actor.active) or bool(actor.fire_authorized) or int(actor.pending_receipts) != 0:
 			_courier_standdown_violation = "dispatched actor absent, active, authorized or retaining shots after terminal"
 		for baseline: Dictionary in _courier_terminal.actors:
@@ -593,7 +621,48 @@ func _courier_dispatched_observation() -> Array:
 			"fire_authorized": _courier_director.is_fire_authorized(member) if present else false,
 			"shots_fired": int(member.call(&"get_shots_fired")) if present else -1,
 			"pending_receipts": int(member.call(&"get_pending_shot_receipt_count")) if present else -1})
+	if _courier_escorted_mode:
+		for actor: Dictionary in actors:
+			var member := _courier_dispatched[int(actor.id)] as Node3D
+			actor.merge({"name": str(member.name) if bool(actor.present) else "",
+				"generation": _courier_dispatched_generation,
+				"registered": bool(member.call(&"is_combat_source_registered")) if bool(actor.present) else false})
 	return actors
+
+
+func _courier_coordinator_observation() -> Dictionary:
+	var coordinator := _courier_director.get_node(_courier_director.wing_coordinator_path) as WingCoordinator
+	var target := coordinator.get_target()
+	return {"coordinator_member_count": coordinator.get_member_count(),
+		"coordinator_target_id": target.get_instance_id() if is_instance_valid(target) else 0}
+
+
+## Read the original production clocks and admitted objects; never advance them.
+func _capture_courier_escort_chronology(actors: Array) -> void:
+	var generation := _courier_director.get_scenario_generation()
+	if generation == 0:
+		_courier_arming_maximum = maxf(_courier_arming_maximum, float(_courier_director.get("_arming_elapsed")))
+		return
+	if _courier_dispatch.is_empty() and _courier.is_active():
+		_courier_dispatch = {"frame": Engine.get_physics_frames(), "generation": generation,
+			"arming_maximum_seconds": _courier_arming_maximum}
+	if _courier_distress.is_empty() and _courier_director.is_distress_broadcast():
+		_courier_distress = {"frame": Engine.get_physics_frames(), "generation": generation,
+			"elapsed_seconds": _courier_director.get_elapsed(), "health": _courier.get_health(),
+			"defender_active": _opponent.is_active(), "defender_health": _opponent.get_health()}
+	if _courier_escort_dispatch.is_empty() and _courier_director.is_escort_launched():
+		var escorts: Array = []
+		var roster_ids: Array = []
+		for member: Node3D in _courier_director.get_roster():
+			roster_ids.append(member.get_instance_id())
+		for actor: Dictionary in actors:
+			if actor.name in ["WingSkirmisherLead", "WingSkirmisherWing"] and actor.id in roster_ids:
+				escorts.append(actor.duplicate(true))
+		_courier_escort_dispatch = {"frame": Engine.get_physics_frames(), "generation": generation,
+			"elapsed_seconds": _courier_director.get_elapsed(),
+			"escort_elapsed_seconds": float(_courier_director.get("_escort_elapsed")),
+			"actors": escorts, "roster_ids": roster_ids,
+			"defender_active": _opponent.is_active(), "defender_health": _opponent.get_health()}
 
 
 func _v(value: Vector3) -> Array:

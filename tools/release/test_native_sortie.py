@@ -2894,6 +2894,166 @@ class NativeSortieSafetyTests(unittest.TestCase):
                 if mutation == 'new_kill': s['courier']['defender_kill']['frame'] += 1
                 with self.assertRaises(AssertionError): pilot.update(s, 6.1)
 
+    def escorted_running(self):
+        pilot, s = self.phase_withdraw_prepared(native.CourierEscortedWithdrawalPilot)
+        c = s['courier']
+        c.update(dispatch=dict(frame=s['frame'], generation=1, arming_maximum_seconds=4.5-1/60),
+                 distress={}, escort_dispatch={}, distress_broadcast=False, escort_launched=False,
+                 coordinator_member_count=0, coordinator_target_id=0,
+                 completed_runs=0, outcome_counts={}, position=[0, 8, -10])
+        c['actors'][0].update(name='CourierRunner', registered=True, generation=1)
+        self.assertFalse(pilot.update(copy.deepcopy(s), 5)[3])
+        self.assertIsNone(pilot.runner_fire_frame)
+        s['frame'] += 1
+        self.assertTrue(pilot.update(copy.deepcopy(s), 5.1)[3])
+        self.assertIsNone(pilot.final_fire_frame)
+        return pilot, s
+
+    def escorted_wound(self, s):
+        s.update(frame=s['frame']+1, command_fire=True)
+        c = s['courier']
+        c.update(health=44., distress_broadcast=True)
+        c['hit'] = dict(source_entity_id=2, target_id=11, sequence=11, applied_damage=34.,
+            remaining_health=44., destroyed=False, accepted=True, resolved=True,
+            scenario_generation=1, frame=s['frame'], escape_progress=.01)
+        c['distress'] = dict(frame=s['frame'], generation=1, elapsed_seconds=1.6, health=44.,
+                             defender_active=True, defender_health=17.)
+        c['actors'][0]['health'] = 44.
+
+    def escorted_admit(self, s):
+        c = s['courier']
+        s.update(frame=c['distress']['frame']+144, command_fire=False)
+        c['actors'].extend(dict(id=actor_id, name=name, present=True, active=True, health=85.,
+            registered=True, generation=1, fire_authorized=True, shots_fired=0, pending_receipts=0)
+            for actor_id, name in ((13, 'WingSkirmisherLead'), (14, 'WingSkirmisherWing')))
+        c.update(roster_ids=[11, 13, 14], escort_launched=True,
+                 coordinator_member_count=2, coordinator_target_id=2)
+        c['escort_dispatch'] = dict(frame=s['frame'], generation=1, elapsed_seconds=4.,
+            escort_elapsed_seconds=2.4, actors=copy.deepcopy(c['actors'][1:]),
+            roster_ids=[11, 13, 14], defender_active=True, defender_health=17.)
+
+    def escorted_ready(self):
+        pilot, s = self.escorted_running()
+        self.escorted_wound(s)
+        self.assertFalse(pilot.update(copy.deepcopy(s), 5.2)[3])
+        self.assertEqual(pilot.runner_fire_ack, s['frame'])
+        s.update(frame=s['frame']+1, command_fire=False)
+        self.assertFalse(pilot.update(copy.deepcopy(s), 5.3)[3])
+        self.escorted_admit(s)
+        self.assertFalse(pilot.update(copy.deepcopy(s), 8)[3])
+        self.assertIsNone(pilot.final_fire_frame)
+        s['frame'] += 1
+        self.assertTrue(pilot.update(copy.deepcopy(s), 8.1)[3])
+        return pilot, s
+
+    def escorted_terminal(self, s):
+        self.phase_withdraw_kill(s)
+        c = s['courier']
+        c['defender_kill'].update(courier_health=44., last_sequence=12)
+        c['defender_kill']['request']['sequence'] = 12
+        self.phase_withdraw_terminal(s)
+        for actor in c['actors']: actor['registered'] = False
+        c.update(completed_runs=1, outcome_counts={'withdrawn': 1}, coordinator_member_count=0,
+                 coordinator_target_id=0)
+        c['terminal'].update(health=44., actors=copy.deepcopy(c['actors']),
+                             coordinator_member_count=0, coordinator_target_id=0)
+
+    def test_escorted_real_wound_both_admissions_kill_standdown_and_strict_exit(self):
+        pilot, s = self.escorted_ready()
+        self.escorted_terminal(s)
+        self.assertFalse(pilot.update(copy.deepcopy(s), 9)[3])
+        self.assertIsNone(pilot.result)
+        self.assertEqual(pilot.dispatched_ids, {11, 13, 14})
+        s['frame'] += 60
+        pilot.update(copy.deepcopy(s), 10)
+        self.assertEqual(pilot.stage, 'return_align')
+        pilot.stage = 'exit'
+        pilot.phases = ['APPROACH_SHIP', 'START_ENGINES', 'LAUNCH', 'TARGET_PRACTICE',
+                        'INTERCEPTOR_ENGAGEMENT', 'RETURN_TO_YARD', 'SHUT_DOWN']
+        s.update(frame=s['frame']+1, phase='DISEMBARKING', piloted=True, seated=True,
+                 control_enabled=False, guided_complete=False, lease=True, parked_exact=True, contract=True)
+        s['telemetry']['engine'] = 'OFFLINE'
+        pilot.update(copy.deepcopy(s), 11)
+        self.assertIsNone(pilot.result)
+        s.update(frame=s['frame']+1, phase='COMPLETE', piloted=False, seated=False, control_enabled=True,
+                 guided_complete=True, exit_error=.17, spawn=[0, 0, 0])
+        pilot.update(copy.deepcopy(s), 12)
+        self.assertEqual(pilot.result['completion_marker'], native.CourierEscortedWithdrawalPilot.MARKER)
+        self.assertEqual(pilot.result['runner_hit']['remaining_health'], 44.)
+        self.assertEqual({a['name'] for a in pilot.result['escort_dispatch']['actors']},
+                         native.CourierEscortedWithdrawalPilot.ESCORT_NAMES)
+        self.assertNotIn('normal_ui_exit', pilot.result)
+        self.assertEqual(native.CAP, 300)
+        self.assertEqual(native.CourierEscortedWithdrawalPilot.CONFIG, native.CourierPilot.CONFIG)
+
+    def test_escorted_never_repeats_runner_pulse_or_attacks_defender_while_waiting(self):
+        pilot, s = self.escorted_running()
+        s.update(frame=s['frame']+1, command_fire=True)
+        self.assertFalse(pilot.update(copy.deepcopy(s), 6)[3])
+        s.update(frame=s['frame']+30, command_fire=False)
+        self.assertFalse(pilot.update(copy.deepcopy(s), 7)[3])
+        self.assertIsNone(pilot.final_fire_frame)
+        self.assertIsNone(pilot.result)
+        self.escorted_wound(s)
+        self.assertFalse(pilot.update(copy.deepcopy(s), 8)[3])
+        for _ in range(3):
+            s.update(frame=s['frame']+45, command_fire=False)
+            self.assertFalse(pilot.update(copy.deepcopy(s), 9)[3])
+            self.assertIsNone(pilot.final_fire_frame)
+            self.assertIsNone(pilot.result)
+
+    def test_escorted_rejects_wrong_nonlethal_receipt_and_shortened_original_clocks(self):
+        for change in ({'source_entity_id': 99}, {'target_id': 12}, {'scenario_generation': 2},
+                       {'sequence': 10}, {'destroyed': True}, {'remaining_health': 77.}, {'applied_damage': 0.}):
+            with self.subTest(receipt=change):
+                pilot, s = self.escorted_running()
+                self.escorted_wound(s)
+                s['courier']['hit'].update(change)
+                with self.assertRaises(AssertionError): pilot.update(s, 6)
+        pilot, s = self.escorted_running()
+        s['courier']['dispatch']['arming_maximum_seconds'] = 4.4
+        with self.assertRaises(AssertionError): pilot.update(s, 6)
+        for mutation in ('one_actor', 'same_identity', 'wrong_name', 'unregistered', 'short_delay', 'short_frames', 'dead_defender'):
+            with self.subTest(admission=mutation):
+                pilot, s = self.escorted_running()
+                self.escorted_wound(s)
+                pilot.update(copy.deepcopy(s), 6)
+                self.escorted_admit(s)
+                e = s['courier']['escort_dispatch']
+                if mutation == 'one_actor': e['actors'].pop()
+                if mutation == 'same_identity': e['actors'][1]['id'] = 13
+                if mutation == 'wrong_name': e['actors'][1]['name'] = 'OtherWing'
+                if mutation == 'unregistered': e['actors'][1]['registered'] = False
+                if mutation == 'short_delay': e['escort_elapsed_seconds'] = 2.39
+                if mutation == 'short_frames': e['frame'] -= 3
+                if mutation == 'dead_defender': e['defender_active'] = False
+                with self.assertRaises(AssertionError): pilot.update(s, 8)
+
+    def test_escorted_requires_real_defender_kill_and_retains_all_retirement_facts_through_home(self):
+        pilot, s = self.escorted_ready()
+        self.escorted_terminal(s)
+        s['courier']['defender_kill'] = {}
+        with self.assertRaises(AssertionError): pilot.update(s, 9)
+        for stage in ('courier_withdraw_standdown', 'return', 'exit'):
+            for mutation in ('registered', 'generation', 'active', 'fire_authorized', 'pending_receipts',
+                             'shots_fired', 'coordinator_members', 'coordinator_target', 'count', 'roster'):
+                with self.subTest(stage=stage, mutation=mutation):
+                    pilot, s = self.escorted_ready()
+                    self.escorted_terminal(s)
+                    pilot.update(copy.deepcopy(s), 9)
+                    self.assertIsNone(pilot.result)
+                    pilot.stage = stage
+                    s['frame'] += 1
+                    c = s['courier']
+                    if mutation in ('registered', 'active', 'fire_authorized'): c['actors'][2][mutation] = True
+                    if mutation in ('generation', 'pending_receipts', 'shots_fired'): c['actors'][2][mutation] = 2
+                    if mutation == 'coordinator_members': c['coordinator_member_count'] = 1
+                    if mutation == 'coordinator_target': c['coordinator_target_id'] = 2
+                    if mutation == 'count': c['outcome_counts'] = {'cleared': 1}
+                    if mutation == 'roster': c['roster_ids'] = [14]
+                    with self.assertRaises(AssertionError): pilot.update(s, 10)
+                    self.assertIsNone(pilot.result)
+
     def test_phase_withdraw_keeps_original_strict_occupied_offline_physical_exit_gate(self):
         for change in ({'lease': False}, {'parked_exact': False}, {'contract': False},
                        {'exit_error': .3}, {'piloted': True}, {'seated': True},

@@ -20,6 +20,7 @@ Use --route torrent-return-reuse for the full Guided prefix, same-Torrent reuse 
 Use --route torrent-damaged-return for one real incoming hit, passive home repair and same-Torrent reuse.
 Use --route torrent-arrow-handoff to add physical Arrow boarding/exit and original Torrent reclaim.
 Use --route courier-withdraw-distance for actual seven-second distance withdrawal and original Guided home.
+Use --route courier-escorted-withdrawal for one real runner wound, both escort admissions and phase withdrawal/home.
 Use --route courier-withdraw-phase for a post-dispatch defender kill and real phase withdrawal through home.
 Use --route courier-escape for the live first runner boundary, standdown and original Guided home.
 Use --route sandbox for the full five-branch/eight-craft/crash/reuse scenario.
@@ -987,6 +988,21 @@ class CourierWithdrawPhasePilot(CourierEscapePilot):
         self.final_fire_frame = None
         self.withdraw_context = None
 
+    def runner_health(self):
+        return self.courier_launch_health
+
+    def check_runner(self, c, s):
+        require(math.isfinite(c['health']) and c['health'] == c['maximum_health'] == self.runner_health()
+                and not c['hit'] and not c['kill'],
+                'original phase-withdrawn runner remains entirely unhurt')
+
+    def defender_attack_controls(self, s):
+        dx, dy, align = self.aim(s, s['opponent'], .2)
+        fire = align >= .997 and s['courier']['weapon_ready'] is True
+        if fire and self.final_fire_frame is None:
+            self.final_fire_frame = s['frame']
+        return {'Prior'}, dx, dy, fire
+
     def check_defender_kill(self, receipt, s):
         request = receipt.get('request', {})
         require(self.final_fire_frame is not None
@@ -1015,11 +1031,12 @@ class CourierWithdrawPhasePilot(CourierEscapePilot):
                 and receipt.get('phase') == 'RETURN_TO_YARD'
                 and receipt.get('state') == 'running' and receipt.get('outcome') == 'pending'
                 and receipt.get('courier_active') is True
-                and receipt.get('courier_health') == receipt.get('courier_maximum_health') == self.courier_launch_health
+                and receipt.get('courier_health') == self.runner_health()
+                and receipt.get('courier_maximum_health') == self.courier_launch_health
                 and math.isfinite(receipt.get('escape_progress', float('nan')))
                 and 0 <= receipt['escape_progress'] < 1
                 and receipt.get('scenario_origin') == self.scenario_origin,
-                'same live unhurt first runner before escape at normal defender-kill return transition')
+                'same live first runner before escape at normal defender-kill return transition')
         self.require_wait_radius(receipt['ship_position'], self.scenario_origin)
         require(not s['opponent_active'] and s['opponent_health'] <= 0
                 and s['phase'] in ('RETURN_TO_YARD', 'SHUT_DOWN', 'DISEMBARKING', 'COMPLETE'),
@@ -1037,9 +1054,9 @@ class CourierWithdrawPhasePilot(CourierEscapePilot):
                 and terminal['escape_origin'] == self.escape_origin
                 and terminal['scenario_origin'] == self.scenario_origin
                 and terminal['phase'] == 'RETURN_TO_YARD' and terminal['outcome'] == 'withdrawn'
-                and terminal['health'] == self.courier_launch_health
+                and terminal['health'] == self.runner_health()
                 and math.isfinite(terminal['escape_progress']) and 0 <= terminal['escape_progress'] < 1,
-                'same unhurt first runner withdrawn by normal RETURN_TO_YARD before escape')
+                'same first runner withdrawn by normal RETURN_TO_YARD before escape')
         self.require_wait_radius(terminal['ship_position'], self.scenario_origin)
         require(c['state'] == 'concluded' and c['outcome'] == 'withdrawn' and not c['active']
                 and not c['roster_ids'] and not c['standdown_violation'],
@@ -1126,10 +1143,9 @@ class CourierWithdrawPhasePilot(CourierEscapePilot):
                 and c['scenario'] == 'courier_intercept' and c['seen_alive']
                 and c['escape_origin'] == self.escape_origin and c['scenario_origin'] == self.scenario_origin,
                 'same original courier current Main authority generation and origins through home')
-        require(math.isfinite(c['health']) and c['health'] == c['maximum_health'] == self.courier_launch_health
-                and not c['hit'] and not c['kill']
-                and math.isfinite(c['escape_progress']) and 0 <= c['escape_progress'] < 1,
-                'original phase-withdrawn runner remains entirely unhurt and never escapes')
+        self.check_runner(c, s)
+        require(math.isfinite(c['escape_progress']) and 0 <= c['escape_progress'] < 1,
+                'original phase-withdrawn runner never escapes')
         self.maximum_wait_radius = max(self.maximum_wait_radius,
                                       self.require_wait_radius(s['position'], self.scenario_origin))
         require(math.isfinite(c['maximum_withdraw_radius']) and 0 <= c['maximum_withdraw_radius'] <= 450.,
@@ -1155,11 +1171,7 @@ class CourierWithdrawPhasePilot(CourierEscapePilot):
                         'authoritative weapon_component_failed; phase withdrawal has no weapon recovery route')
                 if s['frame'] == self.running_frame:
                     return controls
-                dx, dy, align = self.aim(s, s['opponent'], .2)
-                fire = align >= .997 and c['weapon_ready'] is True
-                if fire and self.final_fire_frame is None:
-                    self.final_fire_frame = s['frame']
-                return {'Prior'}, dx, dy, fire
+                return self.defender_attack_controls(s)
             if c['outcome'] == 'pending':
                 require(c['state'] == 'running' and c['active'] and not c['terminal']
                         and s['phase'] == 'RETURN_TO_YARD', 'await ordinary director phase withdrawal after actual kill')
@@ -1184,6 +1196,121 @@ class CourierWithdrawPhasePilot(CourierEscapePilot):
                                courier_home=c, defender_wounds=self.defender_wounds,
                                defender_misses=self.defender_misses, maximum_withdraw_radius_m=self.maximum_wait_radius,
                                standdown_observed_frames=s['frame'] - c['terminal']['frame'])
+        return controls
+
+
+class CourierEscortedWithdrawalPilot(CourierWithdrawPhasePilot):
+    """Wound the live runner once, wait for both escorts, then end Guided normally."""
+    MARKER = 'NATIVE_COURIER_ESCORTED_WITHDRAWAL_OK'
+    ESCORT_NAMES = {'WingSkirmisherLead', 'WingSkirmisherWing'}
+
+    def __init__(self):
+        super().__init__()
+        self.runner_fire_frame = None
+        self.runner_fire_ack = None
+        self.runner_hit = None
+        self.escort_dispatch = None
+
+    def runner_health(self):
+        return self.runner_hit['remaining_health'] if self.runner_hit else self.courier_launch_health
+
+    def check_runner(self, c, s):
+        require(c['maximum_health'] == self.courier_launch_health and not c['kill'],
+                'original runner maximum hull retained without a courier kill')
+        dispatch = c['dispatch']
+        require(dispatch['generation'] == self.courier_identity[2]
+                and dispatch['frame'] <= self.running_frame
+                and dispatch['arming_maximum_seconds'] + 1/60 + 1e-6 >= self.CONFIG['dispatch_delay'],
+                'actual first automatic dispatch retains the original 4.5 physics second arming')
+        if c['hit']:
+            hit = c['hit']
+            self.damage_receipt(hit, s)
+            require(self.runner_fire_frame is not None
+                    and self.running_frame < self.runner_fire_frame < hit['frame']
+                    and hit['sequence'] > self.dispatch_sequence
+                    and hit['destroyed'] is False and 0 < hit['remaining_health']
+                    < self.CONFIG['distress_threshold'] * self.courier_launch_health
+                    and math.isclose(self.courier_launch_health-hit['remaining_health'], hit['applied_damage'], abs_tol=1e-6),
+                    'one actual post-dispatch ordinary player hit leaves the runner alive below distress threshold')
+            if self.runner_hit is None:
+                self.runner_hit = json.loads(json.dumps(hit))
+            require(hit == self.runner_hit, 'one retained runner wound; no second courier shot')
+        require(math.isfinite(c['health']) and c['health'] == self.runner_health() > 0,
+                'same runner retains exactly the observed nonlethal wound through home')
+        distress, escorts = c['distress'], c['escort_dispatch']
+        if distress:
+            require(self.runner_hit is not None and distress['generation'] == self.courier_identity[2]
+                    and self.runner_hit['frame'] <= distress['frame'] <= s['frame']
+                    and distress['health'] == self.runner_health()
+                    and distress['defender_active'] is True and distress['defender_health'] == 17.,
+                    'actual distress follows the real nonlethal hit while original defender lives')
+        if escorts:
+            actors = {a['name']: a for a in escorts['actors']}
+            require(distress and escorts['generation'] == self.courier_identity[2]
+                    and distress['frame'] < escorts['frame'] <= s['frame']
+                    and escorts['escort_elapsed_seconds'] >= self.CONFIG['escort_delay']
+                    and escorts['elapsed_seconds']-distress['elapsed_seconds']+1/60+1e-6 >= self.CONFIG['escort_delay']
+                    and (escorts['frame']-distress['frame']+1)/60+1e-6 >= self.CONFIG['escort_delay']
+                    and escorts['defender_active'] is True and escorts['defender_health'] == 17.
+                    and set(actors) == self.ESCORT_NAMES and len(escorts['actors']) == 2
+                    and len({a['id'] for a in actors.values()}) == 2
+                    and all(a['id'] != c['actor_id'] and a['present'] is True and a['active'] is True
+                            and a['registered'] is True and a['fire_authorized'] is True
+                            and a['id'] in escorts['roster_ids'] for a in actors.values()),
+                    'both actual named registered escorts admitted only after original 2.4 physics second response')
+            if self.escort_dispatch is None:
+                self.escort_dispatch = json.loads(json.dumps(escorts))
+            require(escorts == self.escort_dispatch, 'original paired escort admission retained through home')
+        require(c['distress_broadcast'] == bool(distress) and c['escort_launched'] == bool(escorts),
+                'live director distress and escort state agree with actual captured chronology')
+
+    def defender_attack_controls(self, s):
+        c = s['courier']
+        if self.runner_fire_frame is None:
+            dx, dy, align = self.aim(s, c['position'], .2)
+            # The runner's authored hull is only 2.3m wide: settle the
+            # ordinary reticle before the single nonlethal pulse.
+            fire = align >= .99998 and c['weapon_ready'] is True
+            if fire:
+                self.runner_fire_frame = s['frame']
+            return {'Prior'}, dx, dy, fire
+        if s['command_fire'] and s['frame'] > self.runner_fire_frame and self.runner_fire_ack is None:
+            self.runner_fire_ack = s['frame']
+        if self.runner_hit is None:
+            dx, dy, _align = self.aim(s, c['position'], .2)
+            return {'Prior'}, dx, dy, (self.runner_fire_ack is None and s['frame'] < self.runner_fire_frame+6)
+        if self.escort_dispatch is None or self.runner_fire_ack is None or s['command_fire']:
+            dx, dy, _align = self.aim(s, s['opponent'], .2)
+            return {'Prior'}, dx, dy, False
+        if s['frame'] == self.escort_dispatch['frame']:
+            return {'Prior'}, 0, 0, False
+        return super().defender_attack_controls(s)
+
+    def check_defender_kill(self, receipt, s):
+        require(self.runner_hit is not None and self.escort_dispatch is not None and self.final_fire_frame is not None
+                and self.escort_dispatch['frame'] < self.final_fire_frame
+                and receipt.get('request', {}).get('sequence', -1) > self.runner_hit['sequence'],
+                'actual defender kill follows nonlethal courier hit and both live escort admissions')
+        super().check_defender_kill(receipt, s)
+
+    def check_standdown(self, c, s):
+        super().check_standdown(c, s)
+        expected = {self.courier_identity[1]} | {a['id'] for a in self.escort_dispatch['actors']}
+        require(c['completed_runs'] == 1 and c['outcome_counts'] == {'withdrawn': 1},
+                'one actual Courier withdrawal outcome counted without claiming activity reward or payment')
+        require(self.dispatched_ids == expected and c['coordinator_member_count'] == 0
+                and c['coordinator_target_id'] == 0 and c['terminal']['coordinator_member_count'] == 0
+                and c['terminal']['coordinator_target_id'] == 0,
+                'runner and both escorts retained; director roster and wing coordinator entirely retired')
+        for actors in (c['terminal']['actors'], c['actors']):
+            require(all(a['registered'] is False and a['generation'] == self.courier_identity[2] for a in actors),
+                    'all three actors remain unregistered in original generation through home')
+
+    def update(self, s, now):
+        controls = super().update(s, now)
+        if self.result is not None:
+            self.result.update(runner_hit=self.runner_hit, escort_dispatch=self.escort_dispatch,
+                               runner_fire_frame=self.runner_fire_frame, runner_fire_ack=self.runner_fire_ack)
         return controls
 
 
@@ -10457,7 +10584,7 @@ def game_leg_umask(route, future_format):
 
 
 def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_data=None, future_artifact=None, future_format=None):
-    require(route in ("zenith-torrent-handback", "zenith-return-reuse", "patrol-relay-home", "race-home", "heavy-breach", "retained-heavy", "corrupt-retained-heavy", "unsupported-save", "bomber-rearm", "cinder-supply", "hauler-supply", "arrow-return-reuse", "torrent-return-reuse", "torrent-damaged-return", "torrent-arrow-handoff", "guided", "courier-intercept", "courier-escape", "courier-withdraw-phase", "courier-withdraw-distance", "beacon-entry", "beacon-settlement", "beacon-home", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "crew-recovery", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
+    require(route in ("zenith-torrent-handback", "zenith-return-reuse", "patrol-relay-home", "race-home", "heavy-breach", "retained-heavy", "corrupt-retained-heavy", "unsupported-save", "bomber-rearm", "cinder-supply", "hauler-supply", "arrow-return-reuse", "torrent-return-reuse", "torrent-damaged-return", "torrent-arrow-handoff", "guided", "courier-intercept", "courier-escape", "courier-escorted-withdrawal", "courier-withdraw-phase", "courier-withdraw-distance", "beacon-entry", "beacon-settlement", "beacon-home", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "crew-recovery", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
     require(not qualify_beacon_outbound or route == 'beacon-home',
             'outbound timing qualification requires the full beacon-home route')
     require((route in ('retained-heavy', 'corrupt-retained-heavy', 'unsupported-save')) == (retained_data is not None),
@@ -10609,7 +10736,7 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
                              RetainedHeavyPilot(retained_files.expected, game.pid) if retained_files else
                              CrewRecoveryPilot(cold=bool(leg), expected_pid=game.pid) if isinstance(restart_files, CrewRecoveryFiles) else
                              HabitatRestartPilot(cold=bool(leg)) if restart_files else {
-                        "zenith-torrent-handback": ZenithTorrentHandbackPilot, "zenith-return-reuse": ZenithReturnReusePilot, "patrol-relay-home": PatrolRelayHomePilot, "race-home": RaceHomePilot, "heavy-breach": HeavyBreachPilot, "bomber-rearm": BomberRearmPilot, "cinder-supply": CinderSupplyPilot, "hauler-supply": CinderHaulerSupplyPilot, "arrow-return-reuse": ArrowReturnReusePilot, "torrent-return-reuse": TorrentReturnReusePilot, "torrent-damaged-return": TorrentDamagedReturnPilot, "torrent-arrow-handoff": TorrentArrowHandoffPilot, "guided": GuidedExitPilot, "courier-intercept": CourierPilot, "courier-escape": CourierEscapePilot, "courier-withdraw-phase": CourierWithdrawPhasePilot, "courier-withdraw-distance": CourierWithdrawDistancePilot, "beacon-entry": BeaconEntryPilot, "beacon-settlement": BeaconSettlementPilot, "beacon-home": BeaconHomePilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
+                        "zenith-torrent-handback": ZenithTorrentHandbackPilot, "zenith-return-reuse": ZenithReturnReusePilot, "patrol-relay-home": PatrolRelayHomePilot, "race-home": RaceHomePilot, "heavy-breach": HeavyBreachPilot, "bomber-rearm": BomberRearmPilot, "cinder-supply": CinderSupplyPilot, "hauler-supply": CinderHaulerSupplyPilot, "arrow-return-reuse": ArrowReturnReusePilot, "torrent-return-reuse": TorrentReturnReusePilot, "torrent-damaged-return": TorrentDamagedReturnPilot, "torrent-arrow-handoff": TorrentArrowHandoffPilot, "guided": GuidedExitPilot, "courier-intercept": CourierPilot, "courier-escape": CourierEscapePilot, "courier-escorted-withdrawal": CourierEscortedWithdrawalPilot, "courier-withdraw-phase": CourierWithdrawPhasePilot, "courier-withdraw-distance": CourierWithdrawDistancePilot, "beacon-entry": BeaconEntryPilot, "beacon-settlement": BeaconSettlementPilot, "beacon-home": BeaconHomePilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
                         "hulk-arrival": HulkArrivalPilot, "hulk-breaker": HulkBreakerPilot,
                         "hulk-home": HulkHomePilot, "habitat-loop": HabitatLoopPilot, "life-tow": LifeTowPilot, "life-gantry": lambda: LifeTowPilot("life-gantry"), "life-arm": lambda: LifeTowPilot("life-arm"), "life-patrol": lambda: LifeTowPilot("life-patrol")}[route]()))
                     if isinstance(pilot, BeaconHomePilot): pilot.file_snapshots = settlement_files.snapshots
@@ -10843,6 +10970,9 @@ def run(binary, output, route="guided", qualify_beacon_outbound=False, retained_
                 result['partial_sortie'].update(courier_dispatch=pilot.dispatch, defender_kill=pilot.defender_kill,
                                                courier_withdrawal=pilot.courier_withdrawal,
                                                maximum_withdraw_radius_m=pilot.maximum_wait_radius)
+            if isinstance(pilot, CourierEscortedWithdrawalPilot):
+                result['partial_sortie'].update(runner_fire_frame=pilot.runner_fire_frame,
+                    runner_fire_ack=pilot.runner_fire_ack, runner_hit=pilot.runner_hit, escort_dispatch=pilot.escort_dispatch)
             if isinstance(pilot, CourierWithdrawDistancePilot):
                 result['partial_sortie'].update(courier_dispatch=pilot.dispatch, courier_withdrawal=pilot.courier_withdrawal,
                     withdraw_waypoint=pilot.withdraw_waypoint, escape_heading=pilot.escape_heading, defender_kill=pilot.defender_kill)
@@ -10945,8 +11075,8 @@ def main():
                         help='unsupported-save format, default outer; settings/legacy require primary and their dedicated fixture')
     parser.add_argument('--qualify-beacon-outbound', action='store_true',
                         help='qualify the fixed 60.0s outbound monotonic maximum within the unchanged full beacon-home route')
-    parser.add_argument('--route', choices=('zenith-torrent-handback', 'zenith-return-reuse', 'patrol-relay-home', 'race-home', 'heavy-breach', 'retained-heavy', 'corrupt-retained-heavy', 'unsupported-save', 'bomber-rearm', 'cinder-supply', 'hauler-supply', 'arrow-return-reuse', 'torrent-return-reuse', 'torrent-damaged-return', 'torrent-arrow-handoff', 'guided', 'courier-intercept', 'courier-escape', 'courier-withdraw-phase', 'courier-withdraw-distance', 'beacon-entry', 'beacon-settlement', 'beacon-home', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'crew-recovery', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
-                        help='zenith-torrent-handback walks unchanged LIFE-ARM, exits docked Zenith, completes actual Guided in Torrent, and physically reclaims the same Zenith for90 fresh neutral ticks and normal HUD OS0; zenith-return-reuse covers selected Zenith LIFE-ARM admission, pilot controls/cameras, actual28-point repeater hit, two strict home/OFFLINE/wing-clear exits and normal UI OS0; patrol-relay-home completes genuine Guided, actual pause-board relay selection, five continuous two-second holds, exact durable payment, strict home and normal UI exit; race-home completes the genuine Guided prerequisite then same-Torrent timed race, exact durable reward, strict home and normal UI exit; heavy-breach completes real posted Heavy/picket kill/payment/home/next posting/UI exit; courier-withdraw-distance flies beyond all actual contacts for real seven-second grace withdrawal before original defender and home; courier-withdraw-phase kills the original defender after actual first courier dispatch and verifies phase withdrawal/standdown through home; courier-escape lets the actual first live runner escape and verifies standdown through home; courier-intercept destroys the actual first courier before escape then returns home; beacon-home retains payment through genuine Guided combat, home docking and usable exterior walking; hauler-supply flies the actual Dock04 Hauler through the funded Cinder terminal/home journey; cinder-supply flies the full funded Jovian/Cinder terminal/home journey; beacon-settlement continues the accepted entry through four physical beacons and durable reward; beacon-entry departs normally and physically reaches/starts the first Beacon through actual pause controls; life-patrol walks Habitat through the real door beside patrol drones and boards Torrent; life-arm walks Aft stairs past the live service arm and boards Zenith; life-gantry walks Freight past the live gantry and boards Jovian; life-tow walks Central beside live tow service and boards Torrent; hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
+    parser.add_argument('--route', choices=('zenith-torrent-handback', 'zenith-return-reuse', 'patrol-relay-home', 'race-home', 'heavy-breach', 'retained-heavy', 'corrupt-retained-heavy', 'unsupported-save', 'bomber-rearm', 'cinder-supply', 'hauler-supply', 'arrow-return-reuse', 'torrent-return-reuse', 'torrent-damaged-return', 'torrent-arrow-handoff', 'guided', 'courier-intercept', 'courier-escape', 'courier-escorted-withdrawal', 'courier-withdraw-phase', 'courier-withdraw-distance', 'beacon-entry', 'beacon-settlement', 'beacon-home', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'crew-recovery', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
+                        help='zenith-torrent-handback walks unchanged LIFE-ARM, exits docked Zenith, completes actual Guided in Torrent, and physically reclaims the same Zenith for90 fresh neutral ticks and normal HUD OS0; zenith-return-reuse covers selected Zenith LIFE-ARM admission, pilot controls/cameras, actual28-point repeater hit, two strict home/OFFLINE/wing-clear exits and normal UI OS0; patrol-relay-home completes genuine Guided, actual pause-board relay selection, five continuous two-second holds, exact durable payment, strict home and normal UI exit; race-home completes the genuine Guided prerequisite then same-Torrent timed race, exact durable reward, strict home and normal UI exit; heavy-breach completes real posted Heavy/picket kill/payment/home/next posting/UI exit; courier-withdraw-distance flies beyond all actual contacts for real seven-second grace withdrawal before original defender and home; courier-escorted-withdrawal wounds the runner once, waits for both actual escorts, kills the defender and verifies withdrawal through strict home/physical exit; courier-withdraw-phase kills the original defender after actual first courier dispatch and verifies phase withdrawal/standdown through home; courier-escape lets the actual first live runner escape and verifies standdown through home; courier-intercept destroys the actual first courier before escape then returns home; beacon-home retains payment through genuine Guided combat, home docking and usable exterior walking; hauler-supply flies the actual Dock04 Hauler through the funded Cinder terminal/home journey; cinder-supply flies the full funded Jovian/Cinder terminal/home journey; beacon-settlement continues the accepted entry through four physical beacons and durable reward; beacon-entry departs normally and physically reaches/starts the first Beacon through actual pause controls; life-patrol walks Habitat through the real door beside patrol drones and boards Torrent; life-arm walks Aft stairs past the live service arm and boards Zenith; life-gantry walks Freight past the live gantry and boards Jovian; life-tow walks Central beside live tow service and boards Torrent; hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
     args=parser.parse_args()
     if args.qualify_beacon_outbound and args.route != 'beacon-home':
         parser.error('--qualify-beacon-outbound requires --route beacon-home')
