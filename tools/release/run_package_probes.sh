@@ -20,7 +20,9 @@ set -o pipefail
 # --source selects the current project instead of PACKAGE_PATH; source
 # and PCK identities are recorded separately and neither qualifies native input.
 # --native-export runs PACKAGE_PATH's embedded Linux game directly; it cannot
-# accept external source, pack or script overrides.
+# accept external source, pack or script overrides. PACKAGE_PROBE_EXPORT_METADATA
+# optionally reads the existing export record outside a managed installation;
+# the default remains <resolved PACKAGE_PATH>.export-result.json.
 IN_WORLD_INTERRUPTION=0
 SOURCE_MODE=0
 NATIVE_EXPORT=0
@@ -264,7 +266,8 @@ try:
     result["embedded_pck"] = inventory["pck"]
     package_hash = hashlib.sha256(package_data).hexdigest()
     del package_data, inventory
-    metadata_path = pathlib.Path(str(binary) + ".export-result.json")
+    metadata_path = pathlib.Path(os.environ.get("PACKAGE_PROBE_EXPORT_METADATA")
+                                 or str(binary) + ".export-result.json").resolve()
     metadata = json.loads(metadata_path.read_text())
     require(metadata.get("schema_version") == 1 and metadata.get("platform") == "linux"
             and metadata.get("binary", {}).get("sha256") == package_hash
@@ -274,6 +277,7 @@ try:
     metadata_hash = digest(metadata_path)
     result.update({"package": str(binary), "package_sha256": package_hash,
                    "source_commit": metadata["source_commit"], "export_metadata_sha256": metadata_hash,
+                   "export_metadata_path": str(metadata_path),
                    "driver_source_commit": subprocess.check_output(["git", "-C", str(root), "rev-parse", "HEAD"], text=True).strip()})
     source_before = manifest("source-before.csv", scope)
     cache_before = manifest("cache-before.csv", [".godot"])
@@ -381,8 +385,11 @@ finally:
             result.update(status="FAIL", failure="source/import cache changed during settings restart")
     if package_hash is not None and digest(binary) != package_hash:
         result.update(status="FAIL", failure="package changed during settings restart")
-    if metadata_hash is not None and digest(metadata_path) != metadata_hash:
-        result.update(status="FAIL", failure="export metadata changed during settings restart")
+    if metadata_hash is not None:
+        try:
+            require(digest(metadata_path) == metadata_hash, "export metadata changed during settings restart")
+        except Exception as error:
+            result.update(status="FAIL", failure="export metadata unavailable or changed during settings restart: " + str(error))
     if cancelled is not None:
         result.update(status="FAIL", cancelled_by=signal.Signals(cancelled).name)
     result_path.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
@@ -599,7 +606,8 @@ try:
         require(header[:6] == b"\x7fELF\x02\x01" and int.from_bytes(header[18:20], "little") == 62,
                 "native-export requires a Linux x86_64 ELF binary")
         require(os.access(binary, os.X_OK), "native-export binary is not executable")
-        metadata_path = pathlib.Path(str(binary) + ".export-result.json")
+        metadata_path = pathlib.Path(os.environ.get("PACKAGE_PROBE_EXPORT_METADATA")
+                                 or str(binary) + ".export-result.json").resolve()
         metadata = json.loads(metadata_path.read_text())
         require(metadata.get("schema_version") == 1 and metadata.get("platform") == "linux",
                 "native-export requires the existing Linux export metadata")
@@ -611,6 +619,7 @@ try:
         # The driver can be newer than the immutable game it qualifies.
         result["source_commit"] = metadata["source_commit"]
         result["export_metadata_sha256"] = digest(metadata_path)
+        result["export_metadata_path"] = str(metadata_path)
         package = str(binary)
         result["package"] = package
     arm, arm_log, arm_entry = start("arm")
@@ -880,6 +889,19 @@ try:
     else:
         row = saved["payload"]["cinder_convoy_session"]["activities"][0]
         require(row["progress"]["convoy_session_state"] == ready["boundary"], "readiness differs from real durable document")
+        if recovery_context == "crew":
+            crew_context = {"location": "mudds_home_berth", "mode": "crew",
+                            "craft_id": "halyard_new_design", "berth_id": "halyard_fleet_dock_berth"}
+            require(saved["payload"]["solo_safe_recovery"] == ready["safe_context"] == crew_context,
+                    "crew cut does not contain the exact four-field Halyard preference")
+            require(row["state"] == 3 and row["reward_granted"] is False
+                    and ready["receipts"] == 1 and ready["boundary"]["escort_ship_id"] == crew_context["craft_id"]
+                    and saved["payload"]["game_flow_reward_store"]["reward_counts"]["return_convoy_credit_to_shipyard"] == 1,
+                    "crew cut lost the FAILED second convoy or first actual convoy credit")
+            observed = ready["runtime_observation"]
+            require(observed["craft_id"] == crew_context["craft_id"] and observed["player_seated"] is True
+                    and observed["craft_piloted"] is False and observed["player_sleeping"] is False,
+                    "crew cut has no actual awake Halyard passenger")
         if recovery_context in ("exit", "exit_refused"):
             observed = ready["exit_observation"]
             require(saved["payload"]["solo_safe_recovery"] == ready["safe_context"]
@@ -994,7 +1016,7 @@ try:
                 "kill changed the independently observed pre-decline backup")
     result["ready"] = ready
     resume, resume_log, resume_entry = start("resume")
-    if activity == "ember-abandon" or recovery_context in ("exit", "exit_refused"):
+    if activity == "ember-abandon" or recovery_context in ("exit", "exit_refused", "crew"):
         require(arm.pid != resume.pid, "interruption requires distinct owned OS processes")
     resume_entry["exit_code"] = resume.wait(timeout=timeout)
     recovered = token(resume_log, "IN_WORLD_RECOVERY_OK")
@@ -1230,6 +1252,70 @@ try:
         require(final["payload"]["game_flow_reward_store"]["reward_counts"]["debris_route_navigation_data"] == ready["receipts"] + 1,
                 "beacon retry lost or duplicated the actual saved navigation-data payment")
 
+    if recovery_context == "crew":
+        cold_text = recovered["cold_document_json"]
+        cold = json.loads(cold_text)
+        require(isinstance(cold, dict) and isinstance(cold.get("payload"), dict), "invalid actual crew cold document")
+        require(cold["payload"]["solo_safe_recovery"] == recovered["safe_context"] == crew_context
+                and cold["payload"]["cinder_convoy_session"] == saved["payload"]["cinder_convoy_session"]
+                and cold["payload"]["game_flow_reward_store"] == saved["payload"]["game_flow_reward_store"]
+                and cold["payload"]["runtime_settings"] == saved["payload"]["runtime_settings"]
+                and cold["payload"]["cinder_convoy_session"]["activities"][0]["progress"]["convoy_session_state"]
+                    == recovered["boundary"] == ready["boundary"],
+                "crew cold document changed exact context, FAILED convoy, boundary, reward ledger or settings")
+        # Before continuation, only these three existing lifecycle owners may
+        # change. Unknown and future namespaces remain protected by equality.
+        lifecycle = {"crash_recovery", "safe_start_recovery", "session_diagnostics"}
+        require({key: value for key, value in cold["payload"].items() if key not in lifecycle}
+                == {key: value for key, value in saved["payload"].items() if key not in lifecycle},
+                "crew cold recovery changed unrelated protected payload")
+        safe = recovered["safe_recovery_observation"]
+        require(safe["craft_id"] == crew_context["craft_id"] and safe["home_berth_id"] == crew_context["berth_id"]
+                and safe["craft_piloted"] is False and safe["piloting"] is False
+                and safe["player_seated"] is False and safe["player_sleeping"] is False
+                and safe["player_control_enabled"] is True and safe["player_on_floor"] is True
+                and safe["cabin_containment"] is True and safe["moving_interior_occupant"] is True
+                and safe["solo_crew_seated"] is False and safe["solo_crew_assignment_empty"] is True
+                and safe["crew_authority_absent"] is True and safe["crew_occupant_tag_absent"] is True
+                and safe["craft_at_home"] is True and safe["berth_occupied_by_craft"] is True
+                and safe["berth_reserved_by_craft"] is True and safe["berth_lease_current"] is True
+                and safe["hatch_reserved_by_player"] is True and bool(safe["berth_reservation_token"]),
+                "crew cold recovery did not acquire awake supported home cabin and fresh claim-free passenger owners")
+        walking = safe["walking"]
+        control = recovered["control_observation"]
+        require(walking["physics_ticks"] == 24 and walking["distance_m"] > 0.1
+                and walking["supported"] is True and walking["control_enabled"] is True and walking["craft_piloted"] is False
+                and control["craft_id"] == crew_context["craft_id"] and control["player_at_pilot_seat"] is True
+                and control["craft_piloted"] is True and control["piloting"] is True and control["player_seated"] is True
+                and control["cabin_containment"] is False and control["moving_interior_occupant"] is False
+                and control["engine_online"] is True and control["throttle"] > 0 and control["physics_ticks"] == 2
+                and recovered["continuation_method"] == "real_awake_home_cabin_walk_then_pilot_retake_new_convoy_escort_motion_fixture",
+                "crew recovery omitted actual floor walking, pilot retake, usable throttle or disclosed continuation fixture")
+        paid = final["payload"]["cinder_convoy_session"]
+        paid_row = paid["activities"][0]
+        require(set(paid) == set(saved["payload"]["cinder_convoy_session"])
+                and paid["schema_version"] == saved["payload"]["cinder_convoy_session"]["schema_version"]
+                and len(paid["activities"]) == 1 and set(paid_row) == set(row)
+                and paid_row["activity_id"] == row["activity_id"] and paid_row["generation"] > row["generation"]
+                and paid_row["state"] == 2 and paid_row["reward_requested"] is True and paid_row["reward_granted"] is True,
+                "crew continuation did not complete one distinct paid Convoy")
+        old_ledger = saved["payload"]["game_flow_reward_store"]
+        expected_counts = dict(old_ledger["reward_counts"], return_convoy_credit_to_shipyard=2)
+        expected_ledger = dict(old_ledger, receipt_serial=old_ledger["receipt_serial"] + 1,
+                               total_receipts=old_ledger["total_receipts"] + 1, reward_counts=expected_counts,
+                               last_receipt={"receipt_id": old_ledger["receipt_serial"] + 1,
+                                             "activity_id": row["activity_id"], "activity_generation": paid_row["generation"],
+                                             "reward_id": "return_convoy_credit_to_shipyard", "reward_label": "Emberline escort credit logged",
+                                             "granted": True, "replay_allowed": False})
+        require(final["payload"]["game_flow_reward_store"] == expected_ledger
+                and recovered["receipts_before"] == 1 and recovered["receipts_after"] == 2,
+                "crew continuation changed the exact reward ledger beyond its single distinct Convoy credit")
+        expected_context = dict(crew_context, mode="pilot")
+        require(final["payload"]["solo_safe_recovery"] == expected_context,
+                "crew continuation did not publish the actual Halyard pilot preference")
+        (run_dir / "cold-crew-document.json").write_text(cold_text)
+        result["cold_document_sha256"] = hashlib.sha256(cold_text.encode("utf-8")).hexdigest()
+
     if recovery_context in ("exit", "exit_refused"):
         safe = recovered["safe_recovery_observation"]
         control = recovered["control_observation"]
@@ -1272,6 +1358,7 @@ try:
                                 "craft_id": "torrent_provisional", "berth_id": "central_berth"}
         require(final["payload"]["solo_safe_recovery"] == expected_context,
                 "ordinary continuation did not publish exactly its actual settled preference")
+    if recovery_context in ("exit", "exit_refused", "crew"):
         # Enumerate the production lifecycle deltas rather than exempting their
         # namespaces. Every other payload field remains exactly the cut payload.
         old_crash = saved["payload"]["crash_recovery"]
@@ -1282,7 +1369,7 @@ try:
                               last_elapsed_physics_seconds=new_crash["last_elapsed_physics_seconds"])
         require(new_crash == expected_crash and new_crash["last_physics_tick"] >= 0
                 and new_crash["last_elapsed_physics_seconds"] >= 0,
-                "busy-exit changed crash marker beyond one fresh session and clean shutdown")
+                "recovery changed crash marker beyond one fresh session and clean shutdown")
         old_start = saved["payload"]["safe_start_recovery"]
         new_start = final["payload"]["safe_start_recovery"]
         expected_start = dict(old_start, state="clean_shutdown", startup_generation=old_start["startup_generation"] + 1,
@@ -1290,43 +1377,46 @@ try:
                               safe_settings_recommended=False)
         require(new_start == expected_start
                 and new_start["record_generation"] - old_start["record_generation"] in (2, 3),
-                "busy-exit changed safe-start policy beyond begin/optional stable/clean lifecycle")
+                "recovery changed safe-start policy beyond begin/optional stable/clean lifecycle")
         old_ring = saved["payload"]["session_diagnostics"]
         new_ring = final["payload"]["session_diagnostics"]
         appended = [event for event in new_ring["events"] if event["sequence"] >= old_ring["next_sequence"]]
-        require(3 <= len(appended) <= 32, "busy-exit has no finite fresh startup/crash/clean diagnostic lifecycle")
+        require(3 <= len(appended) <= 32, "recovery has no finite fresh startup/crash/clean diagnostic lifecycle")
         codes = [event["event_code"] for event in appended]
         require(codes.count("crash_detected") == codes.count("session_started") == codes.count("session_ended") == 1
                 and all(code in ("crash_detected", "session_started", "session_ended", "control_source_changed") for code in codes),
-                "busy-exit diagnostic delta is not exactly its startup/crash/control/clean vocabulary")
+                "recovery diagnostic delta is not exactly its startup/crash/control/clean vocabulary")
         for index, event in enumerate(appended):
             require(event["sequence"] == old_ring["next_sequence"] + index
                     and event["session_id"] == new_crash["session_id"] and event["redacted_field_count"] == 0
                     and event["physics_tick"] >= 0 and event["session_elapsed_physics_seconds"] >= 0,
-                    "busy-exit diagnostic event has wrong sequence, session or progress")
+                    "recovery diagnostic event has wrong sequence, session or progress")
             fields = event["fields"]
             if event["event_code"] == "crash_detected":
                 require(fields == {"attempt_count": old_crash["unclean_start_count"] + 1, "recovered": True}
-                        and event["severity"] == "error", "busy-exit crash event is not the actual once-only interruption")
+                        and event["severity"] == "error", "recovery crash event is not the actual once-only interruption")
             elif event["event_code"] == "session_started":
-                require(fields == {"recovered": False} and event["severity"] == "info", "busy-exit startup observation changed")
+                require(fields == {"recovered": False} and event["severity"] == "info", "recovery startup observation changed")
             elif event["event_code"] == "session_ended":
                 require(fields == {"duration_physics_seconds": event["session_elapsed_physics_seconds"]}
-                        and event["severity"] == "info", "busy-exit clean observation changed")
+                        and event["severity"] == "info", "recovery clean observation changed")
             else:
                 require(set(fields) == {"input_device_code"} and fields["input_device_code"] in (1, 2)
-                        and event["severity"] == "info", "busy-exit changed data beyond ordinary station/flight control handoff")
+                        and event["severity"] == "info", "recovery changed data beyond ordinary station/flight control handoff")
         combined = old_ring["events"] + appended
         dropped = max(0, len(combined) - old_ring["capacity"])
         expected_ring = dict(old_ring, events=combined[dropped:],
                              next_sequence=old_ring["next_sequence"] + len(appended),
                              dropped_event_count=old_ring["dropped_event_count"] + dropped)
-        require(new_ring == expected_ring, "busy-exit lost or rewrote retained diagnostic history")
+        require(new_ring == expected_ring, "recovery lost or rewrote retained diagnostic history")
         expected_final = dict(saved["payload"], solo_safe_recovery=expected_context,
                               crash_recovery=expected_crash, safe_start_recovery=expected_start,
                               session_diagnostics=expected_ring)
+        if recovery_context == "crew":
+            # The only additional owners changed by the disclosed new Convoy.
+            expected_final.update(cinder_convoy_session=paid, game_flow_reward_store=expected_ledger)
         require(final["payload"] == expected_final,
-                "busy-exit cold continuation changed unrelated protected payload")
+                "recovery cold continuation changed unrelated protected payload")
 
     if recovery_context == "docking":
         safe = recovered["safe_recovery_observation"]
@@ -1472,9 +1562,12 @@ finally:
     if not source_mode and digest(pathlib.Path(package)) != result["package_sha256"]:
         result["status"] = "FAIL"
         result["failure"] = "package changed during interruption check"
-    if native_export and "export_metadata_sha256" in result and digest(metadata_path) != result["export_metadata_sha256"]:
-        result["status"] = "FAIL"
-        result["failure"] = "export metadata changed during interruption check"
+    if native_export and "export_metadata_sha256" in result:
+        try:
+            require(digest(metadata_path) == result["export_metadata_sha256"],
+                    "export metadata changed during interruption check")
+        except Exception as error:
+            result.update(status="FAIL", failure="export metadata unavailable or changed during interruption check: " + str(error))
     result_path.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
 print("IN_WORLD_INTERRUPTION_CHECK_" + result["status"] + ": " + str(result_path))
 sys.exit(0 if result["status"] == "PASS" else 1)

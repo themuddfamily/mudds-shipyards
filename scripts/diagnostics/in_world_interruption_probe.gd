@@ -165,6 +165,8 @@ func run_with_main(game: GameFlow, entry: String) -> void:
 		var ready := {"boundary": boundary, "receipts": _convoy_receipts(game),
 			"runtime_observation": _interruption_runtime_observation(game),
 			"entry": entry, "loaded_main_instance_id": main_id, "recovery_context": recovery_context}
+		if recovery_context == "crew":
+			ready["safe_context"] = saved_context
 		if recovery_context == "on_foot":
 			ready["safe_context"] = saved_context
 			ready["exterior_observation"] = _exterior_observation(game, craft)
@@ -196,7 +198,12 @@ func run_with_main(game: GameFlow, entry: String) -> void:
 	_check(craft_index >= 0, "the durable escort identity resolves to its actual shipped craft")
 	var arrived := false
 	var safe_recovery_observation := {}
+	var crew_cold_document_json := ""
+	var crew_control_observation := {}
 	var exterior_safe_context: Dictionary = store.get_snapshot().get(GameFlow.SOLO_SAFE_RECOVERY_SLOT, {})
+	if recovery_context == "crew":
+		# The cold Boot disk preimage precedes Resume, start_shift and continuation.
+		crew_cold_document_json = FileAccess.get_file_as_string(str(store.get("_path")))
 	if craft_index >= 0 and _failures.is_empty():
 		var craft := ships[craft_index] as HeroShip
 		var resumed: Dictionary = game.call("_handle_hud_session_recovery_choice", &"normal_start", int(recovery.session_id), int(recovery.startup_generation))
@@ -230,6 +237,8 @@ func run_with_main(game: GameFlow, entry: String) -> void:
 			and _canonical(game.cinder_convoy_host.capture_persistence_state()) == boundary.host_state
 			and _restored_threat_boundary_matches(game, boundary),
 			"ordinary cold Resume reacquires the selected real safe home context and preserves the exact convoy before fixture positioning")
+		if recovery_context == "crew":
+			safe_recovery_observation = _crew_recovery_observation(game, craft)
 		if recovery_context == "on_foot":
 			_check(_on_foot_context_matches(store.get_snapshot().get(GameFlow.SOLO_SAFE_RECOVERY_SLOT, {}), craft)
 				and game.active_ship != craft and game.active_ship == game.ship,
@@ -254,6 +263,11 @@ func run_with_main(game: GameFlow, entry: String) -> void:
 			await _settle_frames(24)
 			Input.action_release(&"move_forward")
 			await _settle_frames()
+			if recovery_context == "crew":
+				safe_recovery_observation["walking"] = {"physics_ticks": 24,
+					"distance_m": game.player.global_position.distance_to(start),
+					"supported": game.player.is_on_floor(), "control_enabled": game.player.is_control_enabled(),
+					"craft_piloted": craft.is_piloted()}
 			_check(game.player.global_position.distance_to(start) > 0.1 and game.player.is_on_floor()
 				and not craft.is_piloted() and game.player.is_control_enabled(),
 				"the cold awake cabin passenger walks the actual floor before any convoy fixture")
@@ -266,6 +280,8 @@ func run_with_main(game: GameFlow, entry: String) -> void:
 			_check(await _wait_for_real_pilot(game, craft, 300) and not game.player.is_cabin_containment_active()
 				and not craft.get_moving_interior_component().is_occupant_registered(game.player),
 				"ordinary cabin interaction retakes a real pilot seat and releases passenger owners")
+			if recovery_context == "crew":
+				crew_control_observation = _crew_recovery_observation(game, craft)
 		if not _failures.is_empty():
 			get_tree().quit(1)
 			return
@@ -276,6 +292,10 @@ func run_with_main(game: GameFlow, entry: String) -> void:
 		_check(str(craft.get_telemetry().get("engine_state", "")).to_upper() == "ONLINE"
 			and craft.get_last_ship_command().throttle > 0.0,
 			"the cold recovered real pilot accepts an ordinary flight control")
+		if recovery_context == "crew":
+			crew_control_observation["engine_online"] = str(craft.get_telemetry().get("engine_state", "")).to_upper() == "ONLINE"
+			crew_control_observation["throttle"] = craft.get_last_ship_command().throttle
+			crew_control_observation["physics_ticks"] = 2
 		if _failures.is_empty():
 			await _position_escort_fixture(game, craft)
 			if recovery_context != "pilot":
@@ -300,6 +320,10 @@ func run_with_main(game: GameFlow, entry: String) -> void:
 		"safe_recovery_observation": safe_recovery_observation,
 		"continuation_method": "real_safe_home_berth_boarding_then_escort_motion_fixture" if recovery_context == "pilot" else "real_awake_home_cabin_walk_then_pilot_retake_new_convoy_escort_motion_fixture",
 		"entry": entry, "loaded_main_instance_id": main_id, "recovery_context": recovery_context}
+	if recovery_context == "crew":
+		outcome["safe_context"] = exterior_safe_context
+		outcome["cold_document_json"] = crew_cold_document_json
+		outcome["control_observation"] = crew_control_observation
 	if recovery_context == "on_foot":
 		outcome["safe_context"] = exterior_safe_context
 		outcome["initialization"] = ON_FOOT_INITIALIZATION
@@ -2101,6 +2125,18 @@ func _interruption_runtime_observation(game: GameFlow) -> Dictionary:
 		"cabin_containment": game.player.is_cabin_containment_active(),
 		"player_instance_id": game.player.get_instance_id(), "craft_instance_id": game.active_ship.get_instance_id(),
 		"craft_position": [game.active_ship.global_position.x, game.active_ship.global_position.y, game.active_ship.global_position.z]}
+
+
+# Read-only crew endpoint facts; admission and recovery policy stay with Main.
+func _crew_recovery_observation(game: GameFlow, craft: HeroShip) -> Dictionary:
+	var observed := _docking_observation(game, craft)
+	var crew: Dictionary = game.get_solo_crew_seat_status()
+	observed["solo_crew_seated"] = bool(crew.get("seated", false))
+	observed["solo_crew_assignment_empty"] = (crew.get("assignment", {}) as Dictionary).is_empty()
+	observed["crew_authority_absent"] = (craft as HalyardCrewTransport).get_crew_role_authority() == null
+	observed["crew_occupant_tag_absent"] = not game.player.has_meta(HalyardCrewTransport.HALYARD_CREW_ROLE_OCCUPANT_META)
+	observed["moving_interior_occupant"] = craft.get_moving_interior_component().is_occupant_registered(game.player)
+	return observed
 
 
 func _wait_for_real_pilot(game: GameFlow, craft: HeroShip, frame_budget: int = 120) -> bool:
