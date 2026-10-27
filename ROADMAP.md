@@ -118,6 +118,9 @@ correction or repeated game run. Independent full raw-chronology review GO;
 Normal UI Quit/gameOS0, post-exit walking, rendered/native GPU/physical input and
 full encounter/loss/repeat/recovery/final qualification remain open. Existing
 accepted recovery/source results remain in delivery history; no unchanged rerun.
+Source/notes are pushed; owned branch/worktree/route/profiles/scratch removed
+after verified preservation. Closure28.465minutes versus60estimated, with final
+notes/push charged to this same clock.
 
 **Next candidates name concrete capabilities.** These are existing
 owners and dependencies, not simultaneous assignments or parked-run approvals.

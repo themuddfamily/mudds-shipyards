@@ -32637,7 +32637,7 @@ root supervisor59.383s under original330s. Real OS XTest→private X11→Godot I
 default sampler, actual Boot/Begin Shift/Torrent walking/boarding/launch and four
 range kills. Original defender remains alive through dispatch and paired admission.
 Automatic Couriergeneration1/frame1599 follows the unchanged4.5s arming.
-Same player source288199019165→runner291118254922, seq13/frame1614: accepted+
+Same piloted Torrent source288199019165→runner291118254922, seq13/frame1614: accepted+
 resolved actual34 damage78→44, alive below82%; distress same frame. Lead291084700488
 and Wing291101477705 are both present/active/registered/authorized at1758, after
 144physics frames/2.4s (actual escort clock2.416667), with defender17 alive.
@@ -32678,3 +32678,13 @@ Original binding start09:33:43UTC on4a48fdd3d,60minute estimate/11:03:43 hard st
 this delivery through integration/cleanup; none consumed by product/source work.
 Canonical337 IDs/names/parents/kinds/order and original parent11 membership are
 retained. Exact cleanup/archive/push follows after verified preservation.
+
+Closure10:02:10UTC:28.465 cumulative minutes against60estimated; final notes/push
+remain charged inside11:03:43. Source is contained in pushed main4de1c3bfe. Fresh
+remote/worktree ownership and no owned cwd/process holders checked; source bundle
+verified, then exact-tip local branch/worktree/profiles/route/scratch removed.
+Remote task branch absent; canonical checkpoint files retain exact audited bytes.
+Only records.tar.gz/closeout.json remain under `/srv/mudds-work/courier-escorted-20261027/`.
+Archive8584971bytes/196members/81regular files independently reread/hash-verified;
+SHA256 `f29436a2eb1725fb9bcc538d7b4f72b529e11ca0a9b938d494944ca328b72ad3`.
+No duplicate published game binaries are archived.
