@@ -59,8 +59,11 @@ Begin Shift and chase](docs/ROADMAP_BACKLOG.md#motion-loading-intro-chase-caller
 binds ordinary Save/cold/Reset stages,animation/camera observations and retained
 limits. [Rest,remote and planetary motion](docs/ROADMAP_BACKLOG.md#motion-rest-remote-world-callers)
 now has finite actions/seams/pass observations; three planetary executions still
-need the named SOLO route/limit/handoff prerequisites. Missing callers and actual
-qualification remain open; parked journeys retain their reopening conditions.
+need actual SOLO caller/handoff prerequisites. [Aurora/Rime solo contracts](docs/ROADMAP_BACKLOG.md#solo-aurora-rime-ordinary-contracts)
+now bind canonical crafts/routes/objectives/rewards/home returns and explicit
+first native limits; Rime has a separate natural cold/restart member. Missing
+callers and actual qualification remain open; parked journeys keep their
+reopening conditions.
 
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings

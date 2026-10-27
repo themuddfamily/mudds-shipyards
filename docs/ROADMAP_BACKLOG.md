@@ -1653,6 +1653,184 @@ Aurora47ffce740 runner/arguments/candidate/profile/participants/raw records befo
 reproduction. Shared Rime keeps its actual landed-boundary failure and causal
 reopening condition. No staged arrival, renamed selector or longer cap substitutes.
 
+<a id="solo-aurora-rime-ordinary-contracts"></a>
+#### Aurora and Rime — ordinary solo journey contracts
+
+Definition2026-10-27 19:25:52–19:50:52UTC,source5ea3bacd9. Two read-only agents
+bind separate world objectives/persistence; root owns ordinary controls/limits,
+docs/review/checks/commit/push. Prerequisite IDs:none for definition. Existing
+SOLO-AURORA/SOLO-RIME retain their full scope; no new canonical/shared-world ID.
+Prior PLAN-NEXT costs/accepted/parked scopes remain. No engine,test-suite,export,
+OS kill or parked Ember retry selected.
+
+**Existing proof versus missing command.** Reuse
+`tests/aurora_physical_return_soak.gd --aurora-full-roundtrip` and
+`tests/rime_visit_loop_test.gd --rime-completed-return`. Disclose their initial
+on-foot placement,shortened boarding,programmatic start/activity/destination
+setup. Their physical travel/surface/reward/home assertions do not prove normal
+Boot,station access,full boarding,Destination Board navigation,neutral OFFLINE
+home or normal HUD Quit. Rime's bounded cold mode additionally places a Halyard
+70km outside navigation and directly advances heat121s/70s. Neither is a new
+ordinary packaged command or naturally elapsed cold qualification.
+
+**Start/action shared by both baselines.** Freeze clean source/Linux ELF/TAR
+hashes and an absent owned `/srv/mudds-work/solo-<aurora|rime>-<source>/`,private
+0700 XDG/default profile,inherited HOME unchanged. Normal Boot/Begin Shift gives
+same authored spawn(-8.5,.18,11),supported Player/default controls,nine parked
+craft,60Hz/time_scale1. No scenario/phase/Guided-complete override. Normal
+Escape→ActivityBoardButton→ConvoyEscortActivityButton selects idle convoy_escort;
+Back/Resume before launch. A live objective cannot be bypassed by state edits.
+
+| SOLO | Actual craft/access/home | Canonical destination/landing |
+| --- | --- | --- |
+| SOLO-AURORA | Halyard halyard_new_design/home halyard_fleet_dock_berth; first12 LifeTowPilot.ARM_GOALS,then(37,4.2,68.3)→(32.4,4.2,68.2)→(32,4.2,62.2)→(32,4.2,54.2)→live boarding. | aurora_temperate_world/body aurora_temperate_body,station datum centre(12000000,0,0),radius120000m,body-local navigation(0,130000,0); region aurora_foundation_landing/berth aurora_exploration_pad/pad aurora_pad. |
+| SOLO-RIME | Arrow arrow_provisional/home arrow_recon_berth; ArrowReturnReusePilot.OUTBOUND:(0,0,13.5)→(−35,0,13.5)→(−35,0,22),then its actual live boarding approach. | rime_glacial_world/body rime_glacial_body,centre(−10000000,0,0),radius120000m,navigation(0,130000,0); region rime_icefall_landing/berth rime_icefall_pad/pad rime_pad. |
+
+Actual candidate/ShipBoardingArea reservation and fresh E complete normal local
+hatch/canopy/seat transitions,with actual durations and same pilot anchor; no
+network body fixture or initial boarding placement. Record live Player/capsule/
+seat/default input source/home token and90neutral seated ticks. Ordinary W and
+steering/brake clear home/Cinder hulk and align to actual world navigation
+(Rime source dot≥.995,Aurora>.99995). Home lease must really release. Normal
+Escape→PlanetaryDestinationOpenButton→PlanetaryDestinationAction_ followed by
+the literal destination ID above emits the real fresh request serial. No direct
+request(),pressed.emit(),cruise engagement or activity-call substitute.
+
+**Outward endpoint and authority.** The production coordinator/expedition owns
+canonical travel and real streamed/frame/location generations. Keep the exact
+default LocalShipInputSource/provider identity through flight; these worlds'
+AuroraVisitApproachSource/RimeVisitApproachSource are Node readiness/frame-data
+providers,not ShipCommandSource replacements. Record their separate registered
+node/generation and the production cruise binding's accepted handoff/rebase
+receipts. Do not copy Ember's Host command-owner exemption into these worlds or
+accept an arbitrary ship input source. Distance Aurora
+>11800000m/rebases>1100,Rime>9800000m/rebases>900; continuous same pilot/craft,
+source ship/Player step<335m and no skipped physics sample,staging0. Both regions
+use body-local centre(0,120000,0),corridor(0,60,300)/half-extents(45,60,300),pad
+28×32m at origin. Resolve all through actual frames,never write poses. Real
+approach collision envelope stays half-extents(42,25,75),speed≤12m/s,attitude≤12°,
+hull margin.05. Exact approach retirement→request_berth_landing must yield
+occupied current surface lease,landed/DOCKED and final_approach_handoff_ready.
+Automatic OFFLINE and ordinary exterior E then give actual supported on-foot
+Player. No forced landing,staged region arrival or recovery teleport counts here.
+
+| World physical activity | Literal progress/durable pass |
+| --- | --- |
+| Aurora SurveyTrailSign→SurveyLookout→SurveyStones,live anchors/radius3.2m/E | aurora_coastal_observation starts ACTIVE/index0; lookout same generation/index1,Waterline observed—1/2; stones COMPLETED/index2,Coastal survey complete—2/2. Actual completed/cleared event pays aurora_coastal_survey_data once. Capture existing schema_version1/activity_id/state/generation/next_checkpoint_index/failure_reason; aurora_expedition_active_visit records visit_state/craft_home_berth_id/on_foot/survey and existing receipt. |
+| Rime beacon(−24,0,−16)→heated drill(−54,0,−46)→gauge(30,0,−62),radius3.2m/E | rime_ice_core_survey ACTIVE/index0/positive generation; drill EXTRACT records index1,repeat E remains index1/unpaid; gauge STRAIN COMPLETED/index2 pays rime_ice_core_record once. Ice core is this extraction,not an invented carryable item. Baseline heat failures0. Capture additionally heat_s; rime_expedition_active_visit contains actual visit/survey. |
+
+Reuse exact existing supported region-local route arrays,transformed live:
+Aurora `_full_aurora_surface` sign[(-7,-17),(8,-17),(20,-7),(25,2),(29,1)],
+lookout[(33,2),(43,-8),(55,-20),(60,-20),(66,-17)],stones[(60,-20),(54,-20),
+(52,-27),(52,-32)] (XZ,y0),then actual anchor reach/reverse return. Rime
+`_run_canonical` beacon[(-7,-17),(-18,-16),(-23,-16)],drill[(-40,-28),(-52,-42),
+(-54,-45.5)],gauge[(-40,-28),(-7,-17),(8,-20),(20,-40),(29,-61)],then existing
+reverse boarding path. Keep actual capsule/support/step checks at every sample.
+Ordinary E checkpoints trigger real survey `_save`; no direct time/progress/save/
+reward-helper calls. Independently load actual primary/backup after completion,
+home exit and normal Quit. Reward authority count0→1,actual last receipt activity/
+reward/generation/granted=true/replay_allowed=false; repeated completed E and
+normal save/exit preserve the accepted reward record/count1.
+
+**Physical return/usable endpoint.** Live ShipBoardingArea/fresh E/current
+reservation reboard same pilot. The same destination action now reads RETURN TO
+MUDDS; its accepted landed request arms departure-pending without moving actor,
+velocity or lease. Ordinary thrust/pitch ascends≥1200m,then release controls for
+production return cruise. Full return distance/rebases as above,typed actual
+return_handoff_ready and FREE_FLIGHT with cruise disengaged/current default
+command consumption; no Ember
+abandon flag. Ordinary steering approaches original home dock+(0,120,−200),then
+actual capture→L→strict occupied registered home/token/exact parked transform.
+90fresh neutral ticks/automatic OFFLINE→E exterior→20tick supported walking
+(.25m<distance<5m). Old surface/visit/approach/lease/active-save slot retire;
+reward1 remains. Actual Pause/Exit OS0,crash_recovery=clean and
+safe_start_recovery=clean_shutdown,zero diagnostics,inputs released/all owned
+children/Xvfb reaped. SceneTree.quit/test teardown is not this endpoint.
+
+**First explicit native engineering caps.** Before any implementation/trial,
+set2700s monotonic full ordinary roundtrip/2760s independent supervisor per world,
+including Boot/access/UI/surface/Quit,no paused-time subtraction or phase reset.
+Nominal24Mm Aurora transit at authored20000m/s already takes1200physics seconds
+before acceleration/approach/walking; default native300s is not a justified full
+bound. These are first missing native ceilings,not recovered original limits or
+increases to Rime's900s source suite,defaultCAP300,Ember1800/1860 or parked work.
+Keep existing test commands at their own limits; never run an old failed mode
+under a longer wrapper. Component/tick budgets remain concurrent: outbound48000,
+corridor12000,restore900/resume600 attempts/landing60simulation seconds; source
+full outward48000/return72000/ascent1800/home48000/home-exit900+20walk ticks.
+Rime keeps240boarding-walk/launch/hulk/alignment+4settle,1400+8 per surface goal,
+720+8boarding,400surface-exit/600reboard. Aurora keeps climb1800/alignment900,
+ceil(distance/walk_speed×physics_hz)+240surface ticks and original4s exit/reboard.
+Station/UI uses existing15s walking goal,12s boarding,10s UI action; authored
+animations unchanged. Any tighter original member cap still applies; no tick
+budget is silently presented as a recovered wall deadline.
+
+**Missing executable capability — Codex.** Extend existing native runner/observer
+with normal input and passive current owner/rebase/surface/reward/file/endpoints;
+existing Python/privacy/clean-package startup owners supply focused regression.
+No new native selector exists yet. Access/outbound,surface activity and return/
+normal Exit are bounded implementation members of these SAME SOLO IDs; each
+selection≤90min all-in including focused checks/required build/one original trial/
+integration/cleanup. Full acceptance still requires one candidate/continuous
+journey clock. DefaultCAP300 stays unchanged; world-local deadline must govern
+result,loop and independent alarm together. Freeze source/ELF/TAR/profile/raw
+inputs/readbacks/actual exits before each later selection; default one correction,
+first-failure stop. Native/rendered/device/final-package gates remain open.
+
+<a id="rime-natural-cold-restart-member"></a>
+##### Rime natural cold failure and distinct-process continuation
+
+Separate existing SOLO-RIME member; successful baseline still requires failures0.
+Prerequisite artifact: genuine unpaid ACTIVE/index0 Rime save from baseline's
+actual beacon E/production save,with exact primary/backup/package hashes/producer
+raw receipts. Protect original completed-baseline files; admit byte-identical
+copies only into a separate owned cold-case profile. No invented payload or
+reset of earned progress in the original profile. Missing fixture/caller is
+Codex work,not an owner weather/temperature choice.
+
+1. Normal Boot/Begin Shift uses existing interrupted-Rime restoration. Require
+   fresh actor/lease/frame identities,actual supported controlled on-foot Player,
+   restored generation/index0/unpaid0. Production restoration deliberately
+   places craft at its supported pad/Player at actual exit; disclose it as
+   settled recovery,never canonical staging0. Follow existing beacon polyline;
+   remain neutral at beacon,outside craft16m/hut7m warmth.
+2. Real unpaused physics drains120s heat at1s/s; warmth refills10s/s. Record actual
+   heat/deltas and warning≤30%,then FAILED/failure_reason=suit_heat_depleted,
+   unpaid0,same viable craft/lease/Player. Exhaustion≤135s monotonic from eligible
+   active neutral boundary; no manual physics_tick,time-scale or invented
+   temperature threshold. If the window/eligibility fails,stop.
+3. Fresh beacon E restarts ACTIVE/new generation/refilled heater; normal drill
+   route/E records index1. Walk back to existing(-40,0,-28),outside warmth; wait
+   naturally until75≤heat_s≤90,then normal HUD Quit. Actual saved visit/index1/
+   generation/heat/reward0,OS0/both clean markers/reaped are mandatory.
+4. Second normal Boot with exact files/Begin Shift restores that saved generation/
+   index1/heat,adjusted only by recorded eligible cold/warm deltas. Diagnostic
+   heat-failure count is not serialized and need not survive scene replacement.
+   Require60neutral supported physics ticks,current controlled capsule/no old
+   seat/process authority. From actual restored exit follow canonical entry→cyan
+   gauge waypoints; gauge E completes index2/pays once. Same physical reboard/
+   ascent/return/strict home/OFFLINE/exit/walk/normal Quit; disk count1/active slot
+   retired. No direct restore helper from the driver.
+
+First ordinary cold group ceiling1800s/outer1860 across BOTH processes,no restart
+reset; local caps and135s natural-exhaustion window stay. This does not borrow
+Ember's allowance or reopen it. A future cold assignment estimates75min all-in,
+freezes absolute deadline before editing and retains one correction/first-failure
+stop. Source definitions supply literal actions/results/limits; fixture/native
+integration and actual ordinary/final qualification remain OPEN.
+
+**Definition result.** Both world-specific source bindings and independent
+contract review GO. Root corrected approach-provider ownership against actual
+Node scripts/cruise binding; no Ember command-source exemption is copied here.
+All337 canonical identities/order,new anchors/source paths/whitespace checks
+pass. An initial inline doc edit selected a new short table row as a canonical
+row and stopped before writing; restricting edits to the actual8-column format
+fixed that helper. No runtime/source retry or changed acceptance followed.
+No native/test-suite/export/physical qualification occurred. Native caller and
+real fixture production remain Codex implementation; final candidate gates stay
+open. No branch/worktree/scratch created; commit/push/cleanup stays inside the
+original19:50:52deadline and prior definition/parked costs remain attached.
+
 <a id="shared-ember-baseline-contract"></a>
 
 #### Shared Ember baseline — crew, survey, saved result and return
@@ -2923,12 +3101,12 @@ and wash snapshots already expose generation/serial/current envelope results;
 Codex binds those actual readbacks to the native observer and UI action,without
 writing profile,clock,pose,damage,drift or effect observations to manufacture proof.
 
-**Exact remaining planetary dependency,not external access.** SOLO-AURORA and
-SOLO-RIME still lack their canonical-distance ordinary craft/input/segment/whole-
-route deadline bindings and executable native continuation. The destination
+**Exact remaining planetary dependency,not external access.** The [Aurora/Rime ordinary contracts](#solo-aurora-rime-ordinary-contracts) now
+bind canonical craft/input/objective/return and first native whole-route limits;
+their executable native continuation remains missing. The destination
 board→actual Aurora/Rime expedition request is production; its48000outbound/
 12000corridor ticks,600resume-attempt and60s landing guards are runtime guards,
-not an invented acceptance cap. The future world owner must bind its actual
+not an invented acceptance cap. The world owner must implement the now-bound actual
 ordinary route/limits before this motion execution can be selected; no component
 test or automatic cruise-only arrival proves eligible manual wind. Ember wash
 retains SOLO-EMBER's PARKED8219fa013 default-space→Host-approach owner failure,
@@ -3737,7 +3915,7 @@ feature. Do not reopen completed surveys or create successor planning IDs.
 | COMBAT-TORPEDO | [Combat triggers/terminal outcomes](#torpedo-combat-outcomes--fixed-source-boundary) and existing ten TORPEDO-AUTH children fix membership. PLAY-TORPEDO owns clear/home once and stays PARKED. [Expiry and landing-withdrawal callers](#torpedo-expiry-withdraw-callers) now have pinned earned fixture, inputs/terminal/home/observer/file/cap contracts. [PLAY control-accounting repair](#torpedo-play-control-accounting) remains attached to the original parked evade/intercept/clear journey. Ten authority lifecycle cuts retain their existing field gaps; no repeat survey or live board-abort assumption. |
 | NET-SEATS-FINAL | [Five existing proof owners](#final-seat-ledger--fixed-case-ownership) bind transaction refusals, ENet swap/host occupancy, actual Halyard client promotion/hatch handback, helm-release handback and SERVER-BASELINE-SEAT-RACE. Source matrix plus the existing ordinary race command/caps are fixed; exact final candidate remains gated. Eight ROLE journeys retain their own movement/action/loss scope; no new role matrix. |
 | SERVER-BASELINE | [Fixed ordinary/lifecycle/adverse membership](#server-baseline-contract). Full Jovian ordinary reuse caller is acceptedbc7f9f9c4/e899cc9e0; Halyard accepted cases are mapped once. [Five real-client RPC observations](#server-command-proof-binding) are ACCEPTED5c5868645: actual five packets/results/state invariants,all3childOS0/clean,4focused suites313assertions. [B Restart Shift/rejoin/physical-reboard](#server-main-reentry-binding) remains a literal implementation goal; its caller is OPEN. [Boarding/landing-loss callers](#server-disconnect-cuts) now have exact cuts and usable continuations. [Initial pilot/landing-target contention](#server-initial-contention): landing-target fixture ACCEPTED50cb617bd,2focused suites28assertions/all3OS0/clean; ordinary initial pilot-seat race remains implementation OPEN. [Isolated-link impairment](MOVING_INTERIOR_LATENCY.md#impaired-independent-baseline-capability) binds shared profile inputs and the missing launcher/endpoint/measurement capability; no craft×role×phase matrix or duplicate happy path. |
-| COMFORT-MOTION | Reuse accepted toast/damage episodes and the [eight fixed remaining source consumers/OFF–ON endpoints](#reduced-motion--finite-production-consumers). [Loading/intro/chase](#motion-loading-intro-chase-caller) now has exact ordinary three-stage/endpoint/caller/limit bindings; implementation OPEN. [Rest/remote/world binding](#motion-rest-remote-world-callers) fixes the other five source/ordinary seams; three planetary executions retain exact SOLO route/limit/parked-handoff prerequisites. All missing callers remain Codex work. Codex implements ordinary input and observer support for one named uncovered consumer in the existing native-sortie owners, comparing that consumer's already-listed OFF/ON effects and retained transition/cold/Reset endpoints. Candidate/profile/absolute execution deadline freeze at selection. Source roster discovery is closed; missing intended behavior must be an explicit choice, not another survey. |
+| COMFORT-MOTION | Reuse accepted toast/damage episodes and the [eight fixed remaining source consumers/OFF–ON endpoints](#reduced-motion--finite-production-consumers). [Loading/intro/chase](#motion-loading-intro-chase-caller) now has exact ordinary three-stage/endpoint/caller/limit bindings; implementation OPEN. [Rest/remote/world binding](#motion-rest-remote-world-callers) fixes the other five source/ordinary seams; three planetary executions retain actual SOLO caller/parked-handoff prerequisites; [Aurora/Rime route and native ceilings](#solo-aurora-rime-ordinary-contracts) are now defined. All missing callers remain Codex work. Codex implements ordinary input and observer support for one named uncovered consumer in the existing native-sortie owners, comparing that consumer's already-listed OFF/ON effects and retained transition/cold/Reset endpoints. Candidate/profile/absolute execution deadline freeze at selection. Source roster discovery is closed; missing intended behavior must be an explicit choice, not another survey. |
 | COMFORT-FLASH | Existing17-family membership/policy is fixed; shared native save/three-process/Reset is accepted. Codex implements one uncovered producer's normal input trigger and actual service/HUD observation through the existing native-sortie owners, comparing the already-listed effect endpoints; no new producer survey. |
 | COMFORT-COLOUR | [Finite remaining colour boundaries](#colour-cues--remaining-proof-ownership) bind live state changes, Pause/camera/Main transitions, original Settings return, rendered readability and physical-device observations. Accepted Tritanopia cold/Reset endpoint stays closed. Ordinary Guided caller7caea1fbb is PARKED unmerged after one typing correction: full flight/gameOS0/zero diagnostics but required STARTING endpoint absent (11/12); default regression NOT_RUN, no further correction/reopen selected. Source/private TAR/results verified archived and branch/worktree removed. Other ordinary assertions/selected rendered views remain Codex work; actual device access is separate. The available22-frame component capture is not a new registered capture gate or a new mandatory image count. |
 | COMFORT-CAPTIONS | [Caption ingress/expiry/OFF and three-process Reset contract](#caption-episodes--ingress-and-reset-boundary) is fixed; reuse existing audio episode selectors only for actual caption callers. Shared caption caller99658edda is PARKED after its typing correction passed source/export/strict startup checks: the actual writer fails its initial compound service/presenter assertion before gameplay/settings; operands unlogged, no owner defect established. Three commits/five files/private TAR are verified archived unmerged; writer reaped, readers/default regression NOT_RUN. Current main has default flash only; no retry selected. Reduced-flash restart cannot supply the missing caption result. Per-ID ordinary route/assertion and rendered/device bindings remain Codex work; only recorded overflow policy/device access remain external. |
@@ -5153,9 +5331,9 @@ test is an owner/regression anchor, not a runnable ordinary route.
 | WORLD-EDGE-DEFINE | Applicable solo cancellation/refusal/failure/repeat cases | 14 | Definition | BLOCKED definition — Codex must bind original solo cancellation/refusal/failure/revisit cuts to world, caller, phase and expected actor/lease/reward/usable-return state; missing product outcome goes to the user. This is a finite list decision, not gameplay acceptance. | List original solo cancellation/refusal/failure/repeat cuts per world, with specific caller/phase, usable return and reward/actor/lease cleanup. |
 | SOLO-EMBER | Ember canonical physical survey round trip | 14 | Qualification | Ordinary outbound driver member PARKED8219fa013: corrected UI/actualArrow/90neutral/default-control flight reaches production Host orbit_approach, then unconditionally requiring retaineddefault command source rejects the authored approach-owner handoff. Raw8,010,865.433m/776consecutive rebases/continuous same pilot proven in candidate scope; actual new-source pointer not separately logged. No caldera landing/exit/normalOS0 proof; full capability unaccepted/unmerged. [Original contract/all stops/known source cause](#ordinary-packaged-ember-outbound-driver--frozen-2026-10-27). Source/bundle/privateTAR/raw verified archived, owned branch/worktree/process/scratch cleaned; no further correction/run selected. Original03:30→05:00 clock and71.160minutes through cleanup plus notes/push retained. Future contract must bind exact default-space/Host-approach owners; no unchecked source exemption or fresh budget. Full SOLO remains GATED; freeze uncovered candidate/scenario, prior source passes retained. BLOCKED definition — Codex: bind this world's existing canonical-distance route to actual craft, ordinary control sequence/command and original segment/whole-route limits. For each objective in Done means, name its literal completion/progress/reward/save fields, physical landing/reboard/ascent/home endpoints and normal-exit proof. Reuse accepted source cases only within their recorded scope; no substitute short journey. | [Canonical physical round trip](#proof-world), Ember: caldera relay/ember_beacon_data plus lava-tube/wreck errands; actual save/reward/reboard/ascent/strict yard dock/exit/usable walk. |
 | CONTENT-EMBER | Ember finite remaining authored content/presentation findings | 15 | Definition | Definition DONE on 7c0bc2967: no missing implementation identified in the inspected authored-content scope; see boundary below. Full ordinary/repeat/shared/hardware qualification remains open | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
-| SOLO-AURORA | Aurora canonical physical survey round trip | 14 | Qualification | GATED; freeze uncovered candidate/scenario, prior source passes retained. BLOCKED definition — Codex: bind this world's existing canonical-distance route to actual craft, ordinary control sequence/command and original segment/whole-route limits. For each objective in Done means, name its literal completion/progress/reward/save fields, physical landing/reboard/ascent/home endpoints and normal-exit proof. Reuse accepted source cases only within their recorded scope; no substitute short journey. | [Canonical physical round trip](#proof-world), Aurora: actual lookout/standing-stones observations and durable reward; actual save/reward/reboard/ascent/strict yard dock/exit/usable walk. |
+| SOLO-AURORA | Aurora canonical physical survey round trip | 14 | Qualification | [Concrete Halyard contract](#solo-aurora-rime-ordinary-contracts) binds12Mm route,normal UI/boarding,physical observations/once-only disk reward/return/strict home/normal Quit and first native2700/2760s engineering limits. Existing source setup/tick limits retain their disclosed scope. Missing native caller/readback is Codex implementation; freeze source/package/profile at selection. No ordinary/final qualification claimed. | [Canonical physical round trip](#proof-world), Aurora: actual lookout/standing-stones observations and durable reward; actual save/reward/reboard/ascent/strict yard dock/exit/usable walk. |
 | CONTENT-AURORA | Aurora finite remaining authored content/presentation findings | 15 | Definition | Definition DONE on 9d2d467e0: no missing implementation identified within inspected authored-content scope; see boundary below. Qualitative adequacy and existing journey/visual/hardware acceptance unproven | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
-| SOLO-RIME | Rime canonical physical survey round trip | 14 | Qualification | GATED; freeze uncovered candidate/scenario, prior source passes retained. BLOCKED definition — Codex: bind this world's existing canonical-distance route to actual craft, ordinary control sequence/command and original segment/whole-route limits. For each objective in Done means, name its literal completion/progress/reward/save fields, physical landing/reboard/ascent/home endpoints and normal-exit proof. Reuse accepted source cases only within their recorded scope; no substitute short journey. Also bind the existing cold-failure/restart trigger and supported recovery. | [Canonical physical round trip](#proof-world), Rime: beacon/drill/gauge/ice-core and actual cold failure/restart; actual save/reward/reboard/ascent/strict yard dock/exit/usable walk. |
+| SOLO-RIME | Rime canonical physical survey round trip | 14 | Qualification | [Concrete Arrow contract](#solo-aurora-rime-ordinary-contracts) binds10Mm route/extraction+gauge/reward/physical home/normal Quit with first native2700/2760s engineering limits. [Separate natural cold/restart](#rime-natural-cold-restart-member) binds120s heat/E restart/saved index1/distinct Boot/once-only return,genuine unpaid baseline fixture and1800/1860s group. Staged/time-injected source case remains narrower. Missing ordinary caller/fixture integration is Codex implementation,not an external policy input; no ordinary/final qualification claimed. | [Canonical physical round trip](#proof-world), Rime: beacon/drill/gauge/ice-core and actual cold failure/restart; actual save/reward/reboard/ascent/strict yard dock/exit/usable walk. |
 | CONTENT-RIME | Rime finite remaining authored content/presentation findings | 15 | Definition | Definition DONE on 30968aeda: no missing implementation identified within inspected authored-content scope; see boundary below. Existing ordinary/shared/visual/hardware acceptance remains open | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 
 ### Ember authored-content boundary
@@ -6122,7 +6300,7 @@ Native performance proof retains ≥60s/3,600-frame warmup and ≥600s/18,000-fr
 | ACCESS-TITLE-FOCUS | Focused Begin Shift text on cyan uses the intended readable paint | 12,29 | Capability | DONE checkpoint923d7b3: actual baseline focus1.335/pressed1.713 contrast corrected with local INK overrides; all32 actual-HUD palette/contrast/state pairs clear4.5/7, focus/outline/navigation/layout retained, same-view reviewed and paired package checks pass. [Actual result/limits](history/ROADMAP_DELIVERIES.md#begin-shift-focus-contrast--shipped-on-923d7b3). Other views/states/native/final gates remain open. | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | ACCESS-MENU-CONTRAST | Shared menu hover/pressed text remains readable across role palettes | 12,29 | Capability | DONE checkpointd00ae72: shared darker fills/palette-aware text;160 real production menu paints minimum8.359:1, accessibility443/Help20/controller navigation and paired exports/three strict startups/PCK audit PASS first attempt. Normal/focus/layout/actions and local Help CLOSE retained. Headless theme scope; rendered/device/human/broad UI/final gates open. [Result](history/ROADMAP_DELIVERIES.md#shared-menu-contrast--shipped-on-d00ae72) | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
 | ACCESS-HELP-CLOSE-CONTRAST | Help CLOSE text remains readable while hovered/pressed | 12,29 | Capability | DONE checkpoint820cc38: local darker fills/palette-aware text;32 actual paint pairs minimum7.767:1 plus existing accessibility252/Help20, paired exports/three strict startups/PCK audit PASS first attempt. Other menu defaults and Help focus/paging/close retained. Headless paint scope; rendered/human/device/broad UI/final gates open. [Result](history/ROADMAP_DELIVERIES.md#help-close-contrast--shipped-on-820cc38) | Accepted only for the exact source/scenario cited in State. Preserve its result and limitations; no automatic rerun. Final integrated qualification belongs to MATRIX-FINAL/FINAL-RECONCILE. |
-| COMFORT-MOTION | Reduced motion route and retained setting | 29 | Container | OPEN — accepted HUD episodes: [active damage cue, checkpoint b5fa554](history/ROADMAP_DELIVERIES.md#active-damage-reduced-motion-accepted-20261025), with exact alpha/hold/original-lifetime limits retained; [current toast, checkpoint 4ca2d16](history/ROADMAP_DELIVERIES.md#current-toast-reduced-motion-accepted-20261025), fully opaque/steady on ON with unchanged content/serial/priority/queue and original normal expiry. Repeated toggles cannot extend/replay either cue; new cues follow the selected mode. Existing 2005-assertion suite, actual readback and paired checkpoints pass. The [eight remaining behavior-changing source families](#reduced-motion--finite-production-consumers) and literal OFF/ON endpoints are now bound on e76fdbc80. The [loading/intro/chase ordinary caller](#motion-loading-intro-chase-caller) now has concrete stage/actions/observations/limits; implementation remains OPEN. [Rest/remote/planetary bindings](#motion-rest-remote-world-callers) fix the other five production seams/actions/observations; rest/remote callers remain missing,while the three planetary ordinary cases are explicitly gated on unresolved SOLO route/input/limit fields and the parked Ember handoff. Those dependencies remain Codex work; rendered/device acceptance stays open. Do not repeat the consumer survey. Reuse accepted scopes; no unchanged rerun. | Container closes only when every member of its recorded finite episode list passes its literal current/new behavior, ordinary transition, saved setting after distinct restart, authored Reset and preserved objective/control predicates. Existing damage/toast proof is reused. Reuse the linked finite consumer contract and accepted settings proof; remaining normal commands/routes, candidate/profile and original limits must be frozen before selection. Supplied caller contracts remain OPEN implementation; unresolved SOLO route/input/limit fields remain BLOCKED definition. A genuinely unspecified product behavior is an exact user-owned decision. Selecting one episode cannot close the container. |
+| COMFORT-MOTION | Reduced motion route and retained setting | 29 | Container | OPEN — accepted HUD episodes: [active damage cue, checkpoint b5fa554](history/ROADMAP_DELIVERIES.md#active-damage-reduced-motion-accepted-20261025), with exact alpha/hold/original-lifetime limits retained; [current toast, checkpoint 4ca2d16](history/ROADMAP_DELIVERIES.md#current-toast-reduced-motion-accepted-20261025), fully opaque/steady on ON with unchanged content/serial/priority/queue and original normal expiry. Repeated toggles cannot extend/replay either cue; new cues follow the selected mode. Existing 2005-assertion suite, actual readback and paired checkpoints pass. The [eight remaining behavior-changing source families](#reduced-motion--finite-production-consumers) and literal OFF/ON endpoints are now bound on e76fdbc80. The [loading/intro/chase ordinary caller](#motion-loading-intro-chase-caller) now has concrete stage/actions/observations/limits; implementation remains OPEN. [Rest/remote/planetary bindings](#motion-rest-remote-world-callers) fix the other five production seams/actions/observations; rest/remote callers remain missing,while the three planetary ordinary cases are gated on the now-bound Aurora/Rime native caller implementation and the parked Ember handoff. Those dependencies remain Codex work; rendered/device acceptance stays open. Do not repeat the consumer survey. Reuse accepted scopes; no unchanged rerun. | Container closes only when every member of its recorded finite episode list passes its literal current/new behavior, ordinary transition, saved setting after distinct restart, authored Reset and preserved objective/control predicates. Existing damage/toast proof is reused. Reuse the linked finite consumer contract and accepted settings proof; remaining normal commands/routes, candidate/profile and original limits must be frozen before selection. Supplied caller contracts remain OPEN implementation; Aurora/Rime ordinary callers remain OPEN implementation and Ember retains its parked reopening condition. A genuinely unspecified product behavior is an exact user-owned decision. Selecting one episode cannot close the container. |
 | COMFORT-FLASH | Reduced flash route and retained setting | 29 | Container | OPEN — current damage flash episode DONE 1a948d9ac: ON caps effective active alpha≤.07 without brightening dim cues; same Tween/elapsed/running-paused state, .42 flash/.62 arrow fade and expiry. OFF/repeated toggles cannot relight or extend; new hits, pre-ready setters and existing motion hold retained. Existing accessibility suite, actual three-frame readback and paired packages/strict startups/audit pass. [Exact scope](history/ROADMAP_DELIVERIES.md#current-damage-reduced-flash-accepted-20261025). Producer/policy definition DONE2026-10-26: [finite17-family contract](#reduced-flash-producer-and-episode-contract) fixes authored OFF/ON/current/new behavior and common ordinary save/cold/Reset endpoints. Cargo terminal production forwarding is DONE d4e2213 ([proof](history/ROADMAP_DELIVERIES.md#cargo-terminal-reduced-flash-production-binding-accepted-20261026)), with exact retained-record visual refresh and unchanged cargo authority. The shared ordinary cold/reset caller is DONE3649b4b and reused across all17 families. Codex still owns remaining normal effect trigger/observer/candidate/original-limit bindings; only those unbound qualifications remain BLOCKED definition. Do not schedule another storage/restart caller. No new visual-policy owner decision is required by this source roster. Accepted episode stays closed, no unchanged rerun.  Live torpedo terminal-burst capability DONE9105da8 ([proof](history/ROADMAP_DELIVERIES.md#live-torpedo-burst-reduced-flash-accepted-20261026)): active hit/intercept/fizzle meshes immediately adopt existing emission4.0/1.2 and current-age scale4.2/2.6 policy, preserving0.55s lifetime, position, flights/damage/collision; repeated toggles and expired effects protected. Actual material/mesh component proof; ordinary per-family effect-trigger qualification/full-family/native GPU/human gates remain open. Shared preference persistence is reused below.  Shared native Boot/raw-key Save→cold ON→Reset→third cold OFF/defaults DONE3649b4b; live HUD forwarding and production HUD dirty-state result binding repaired. [Accepted scope](history/ROADMAP_DELIVERIES.md#shared-reduced-flash-native-restart-accepted-20261026); physical/rendered/native Windows/GPU/human and ordinary family episodes stay open. | Select one of the finite17 producer families and its literal policy/accepted scope in the linked contract. Bind exact normal trigger/caller/candidate/limits before execution; prove actual current/new effect behavior, reuse the shared ordinary save/three-process/Reset result, and retain applicable original external gates. Source-defined values or one component pass cannot close the full container. |
 | COMFORT-COLOUR | Colour-safe cues route and retained setting | 29 | Container | Finite source contract bound2026-10-25: enum0:none/default/Reset,1:deuteranopia,2:protanopia,3:tritanopia. Existing six core label families/32states×4palettes×2contrast and minimap single-hue shape scopes retained. No missing runtime consumer demonstrated. Tritanopia distinct-process endpoint DONE1f2260f69: actual visible choice/Save→cold realHUD/minimap→normalResetSave→thirdcoldnone, supported raw walking/text/shape, fullotherbindings/options/sentinel and3actualHUDExitOS0/bothclean states. All5checks firstpass, no runtimechange/export; checkpoint39157e8 unchanged. Full rendered/device/other required ordinary episode coverage remains open under the [finite remaining proof ownership](#colour-cues--remaining-proof-ownership). Codex still supplies ordinary palette observations and selected rendered-view source/size/cap; actual physical-device access is separate. Do not repeat the accepted cold/Reset route or invent another palette×device matrix. [Exact qualification](history/ROADMAP_DELIVERIES.md#colour-preset-cold-process-qualified-20261025). | Existing mode/engine/throttle/hull/component-recovery/target-lock labels retain literal text; enemy health retains percentage/status; minimap retains hostile diamond, friendly ring/cross and objective glyph/label; captions retain text/severity markers. Palette selection changes actual registered HUD/minimap colours without removing those discriminators. Default/Reset is none, not an invented ON/OFF option. One cold-process case requires exact saved enum/control/HUD/minimap→Reset→cold default with protected settings/data and usable controls; it closes only that selected source endpoint. Full parent acceptance retains original actual-device/rendered/transition requirements. |
 | COMFORT-CAPTIONS | Captions route and retained setting | 29 | Container | OPEN; [shared normal caption restart candidate](#caption-episodes--ingress-and-reset-boundary)99658edda remains PARKED: its typing correction/import/export/strict startup pass, but the actual writer exits1 at its initial service/presenter compound assertion before Begin Shift/toggle/Save. Operands are unlogged and the failed operand is unknown; no production defect is established. Readers/reset-reader/default regression NOT_RUN. Reopening requires the recorded actual service/presenter validity/identity observations, causal evidence and cumulative-priority decision; original checks/caps and archived unmerged source/costs remain binding. No retry selected. Current main retains only the default-flash caller; accepted component results stay closed. — live Loadmaster caption capability DONE19336f3a8 ([delivery](history/ROADMAP_DELIVERIES.md#loadmaster-live-captions-delivered-20261025)); live planetary final-approach captions DONE4aa8b64ec ([delivery](history/ROADMAP_DELIVERIES.md#final-approach-live-captions-delivered-20261025)). Existing five Loadmaster/four approach IDs have actual visible-HUD/shared-service component proof; Loadmaster rejection is not qualified as live requester feedback ([source finding](history/ROADMAP_DELIVERIES.md#loadmaster-refusal-readiness-not-selected-20261025)); queue/expiry/duplicate/stale/detach/OFF and companion checks pass, paired checkpoints/strict startups/PCK audits pass. This is component capability delivery; ordinary crew/network/world play and per-episode transition/restart/Reset remain open. Wider goal remains BLOCKED definition — Codex records finite remaining original-required consumers and literal ON/OFF/Reset/restart outcomes; genuinely unspecified product behavior stays with the user. Engine-transition capability DONE46bae53c8/checkpoint46bae53: existing engine_degraded/engine_critical/engine_recovered have exact captions/defaultmedium/high/low; realHeroledger→automaticrigbinding→router/Director/GameFlow→visibleHUD/oneservice proof, five new/retainedalarm FIFO/expiry/OFF/noreplay/unbound checks pass. Oldregistry exactly3fails; allfixed/pairedexports/3strictstartups/actualPCKaudit pass. No emission/mix/gameplay/severity change; componentfixture/manualcaptionclock only, ordinaryflight/listening/rendered/native/fullfamily acceptance remain open. [Exact result](history/ROADMAP_DELIVERIES.md#engine-transition-live-captions-delivered-20261025). Ship-rig source membership now fixed:21possible IDs,19mapped,2unmapped velocity/load IDs with no demonstrated production caller. [Finite producer boundary](#ship-rig-caption-membership) is DONE definition only; no additional live gap or new implementation selected.  Ember surface-loop capability DONEb81082277:18 canonical interior/exterior phase/reward captions, literal unit assertions and actual composition/Director/GameFlow/visibleHUD/oneservice display/expiry pass; oldregistry exactly18 planned fails;13 fixed stages/paired exports/3strict startups/1527-entry payload audit firstpass. Existing owner/controlled receipt fixture and manualclock only; no physical journey/real durable reward/listening/rendered/native/fullCOMFORT acceptance. [Exact delivery](history/ROADMAP_DELIVERIES.md#ember-surface-live-captions-delivered-20261026). | Accepted five Loadmaster/four approach/three engine/eighteen Ember component results and fixed ship-rig map stay closed. [Remaining ordinary/persistence boundaries](#caption-episodes--ingress-and-reset-boundary) use the existing finite audio episode roster only where actual caption callers exist. Bind each still-required ID/action/driver at actual HUD/service, literal authored text/severity and original journey cap. Once-only belongs to the producer transition/receipt, not a cue-ID lifetime ban; active lifetime3.4physics seconds, existing queue/expiry policy preserved. Retained-Main preserves selected setting/service/remaining time; distinct-process ON and normal Reset→cold OFF are separate. Ordinary observer/route/render/device fields still missing are Codex-owned BLOCKED definition/implementation; maximum-payload overflow remains the separate owner choice. Callerless/silent music or unmapped semantics do not create new captions. |
