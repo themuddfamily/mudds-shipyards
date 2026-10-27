@@ -4,6 +4,164 @@ Moved from ROADMAP.md on 2026-10-17. These are source-specific historical
 results, not the active queue or proof of current full-project acceptance.
 Return to the [working roadmap](../../ROADMAP.md).
 
+## Jovian cannon departure parked and Linux archive modes fixed 20261027
+
+Two distinct outcomes: **Linux exporter mode prerequisite repaired and accepted**;
+**WEAPON-JOVIAN full cannon/two-flight home/reuse qualification FAIL/PARK**. Only
+the exporter/test repair is integrated in main. The five-file Jovian diagnostic/
+caller candidate remains unmerged; no source-only weapon/craft completion.
+
+Original selection2026-10-26 23:40UTC/90minutes/hard2026-10-27 01:10UTC. Frozen
+cardc41103a3c retains actual one70-damage Main target hit, two complete clearance/
+home/OFFLINE/exterior walks/fresh stream reuse/normal UI OS0 and clean-file end.
+Full craft/engineer/cross-craft/damage/recovery/final gates remain separate.
+
+**Source and checks before flight.** Source basef55c6cb54; candidateb8cf6bca4
+adds explicit private Jovian observer/caller, existing gantry/Cinder route reuse,
+exact source/muzzle/target/producer/file checks and four focused caller tests.
+Independent pre-execution fixes017227a10 (literal allowed baseline namespaces,
+not a tautological baseline comparison) and92f0e59c6 (only Jovian telemetry uses
+full float precision) enforce the frozen contract. Existing modes remain unchanged.
+303 caller tests pass14.350s/guard15.039176s; silent import20.692689s; startup
+privacy1.278868s/oneSTARTUP_CLI_PRIVACY_TEST_OK. All have exit0/zero diagnostics.
+No game movement, health, phase, settings or progression is written by observer.
+
+**Real export prerequisite failure.** First clean Linux export on92f0e59c6
+passes42.985150s. Raw ELF is149093272bytes/mode0755/SHA256
+`80a4f08c9cb47242fd7ec05ff1313b7db3f2f7387439710c6b1ec2221288bcc4`.
+Its tar contains the SAME exact ELF bytes but mode0700. An additional direct
+package-content check fails before any flight. The existing exporter test already
+requires tar ELF0755; this is not a new invented mode target. Production chmods
+the staged ELF but plain cp masks the packaged copy with inherited umask077.
+Installer owner execution is possible and installed files are normalized, but
+the archive violates the existing exact exporter contract. The old tar is retained:
+95501408bytes/SHA256
+`74e038ff8ad5ffbf20be5206bff975741dc525683a85f0a2cdcfe19c0ffa92ef`.
+The already-launched strict archive startup subsequently proves PASS/exit0/
+oneReady24.172318s; its live state at audit was not separately verified.
+
+Independent causal review authorizes ONE two-file pipeline prerequisite repair
+at41.070 cumulative minutes: chmod the copied packaged ELF0755; execute the
+existing archive/checkout-free install/uninstall test under explicit umask077.
+Commit7afcedcb3 changes no Jovian/observer/driver/privacy/game source from92f.
+All23 exporter tests pass3.115s/guard3.427402s. One fresh named export under the
+original00:25 cutoff passes25.631524s. Corrected tar ELF is0755 and byte-identical
+to the original raw ELF; actual archive95501335bytes/SHA256
+`c5b65ac71923d57a685e6d9112fd32cdd87b41e89a93c4b26a265632ee53da8d`.
+Its strict archive startup passes24.162969s/exit0/exactlyoneSTARTUP_MENU_READY_OK.
+No changed frame-count substitute. No unchanged caller/privacy/import repetition.
+
+The accepted repair is cherry-picked alone as
+`6b667235b2fc10b1a67fcbf080d11d8a2887318e`; its two files match the tested7af
+bytes exactly. It fixes future exports. Existing public checkpoints are retained
+unchanged; the corrected private package contains unmerged Jovian diagnostics
+and is not published as an accepted gameplay checkpoint. No new Windows/native
+hardware/current full-candidate qualification is claimed.
+
+**One full Jovian run fails; no retry.** Actual driver SHA256
+`e3458032077ff464cf54e691f63788f0c29a20b251563f761258d0ec69ff775f`,
+private game source7afcedcb3/ELF80a4…bcc4, native PID2467333 on isolated private
+Xvfb/X11/Dummy. Same PID/stream ownership retained; all13 original Freight goals
+are physically traversed126.5855m, ordinary E admission and90 seated observations
+complete. Caller enters outbound at frame2124. It never leaves the dock.
+
+Independent raw review identifies14993 outbound samples through frame17116
+(partial result ends17114), all retaining the same parked root
+[-53,1.63,57.3]/landed lease/zero velocity/hull260. Engine becomesONLINE, but
+native thrust remainsfalse and consumed stream5 matches stream5 with throttle0,
+brakeTrue and one initial look_pitch_delta.55147 followed by zero look input.
+The caller requests aim/brake navigation while landed. Existing CinderSupplyPilot
+has a separate ordinary `launch` stage that holds W until actual non-landed/free
+lease and≥8m departure, then begins clearance; that prerequisite is missing here.
+This supports a caller departure correction, not a physics/weapon engine defect.
+No actual native Fire or accepted weapon request: DRONE-01 remains100HP, race
+remains idle0, stock6/0 and rewards/debtzero. Only baseline file capture exists.
+No70-damage hit, first flight, strict home, fresh reuse or normal UI OS0 is proven.
+
+Original300s independent abort fires with
+`TimeoutError: independent abort/deadline`. Reported326.680s includes26.680s
+post-abort cleanup; outer guard327.133435s remains under360. Do not report a
+larger flight allowance or a new timeout. Game leg retains exit_code=null and
+reaped=false/no normal_ui_exit; global cleanup later reports input release/game/
+helper/Xvfb reapedtrue/no cleanup errors. No engine diagnostics. All six native
+observed identities are absent and X275 removed; source/index/cache guards match
+(import/export alone permit declared disposable cache changes).
+
+The correction decision explicitly parks the next unexpected failure. This run
+therefore ends FAIL/PARK with no correction, second flight attempt, deadline
+increase or partial acceptance selected. Reopening needs the specific source-
+causal ordinary departure input/free-lease receipt, independent cumulative-
+priority review, the same full original outcome/caps and original charged cost.
+It cannot become a smaller hit-only or source-only delivery. Current main has
+no accepted `jovian-return-reuse` runner/observer mode.
+
+**Preservation and closure.** Unmerged five-file candidate, basef55/source tip7af
+bundle, original0700 and corrected0755 private tar artifacts/metadata, commands,
+raw checks/first failure/correction decision and full stopped flight are retained
+in `/srv/mudds-work/jovian-cannon-return-20261026/records.tar.gz`:
+212772127bytes/168regular files,SHA256
+`555cd47d0c19fb7d41a8329192fb2b8a0011fcb290cd7e1029681532f2904ed8`.
+All archive bytes/modes re-read and verified. Duplicate loose ELF copies and
+owned caches/worktree/helpers are removed only after source accounting/push;
+actual tar artifacts remain exact in the archive. Archive cost57.949744minutes
+on the original clock; adjacent closeout.json records final push/owned cleanup/
+total. Accepted exporter6b remains in main; branch tip7af is not merged merely
+to make it deletable. No further run selected; public playable build stays7876ebc.
+
+Original frozen assignment (retained unchanged):
+
+**Frozen assignment — WEAPON-JOVIAN: actual cannon hit and two-flight home/reuse.**
+This existing weapon-binding selector belongs to CRAFT-ACCEPT-JOVIAN; the full
+craft remains open. Kind: executable release capability plus packaged functional
+qualification, with no demonstrated missing runtime behavior. Conservative start
+2026-10-26 23:40UTC; hard stop2026-10-27 01:10UTC,90minutes including all work.
+
+| Field | Frozen assignment |
+| --- | --- |
+| Result | The actual Jovian pilot cannon hits Main DRONE-01 once for70 (100→30), followed by two complete ordinary flights/strict home/OFFLINE exits, supported walking and fresh same-craft reboarding, then normal UI OS0 and durable clean close. No activity completion or full-craft acceptance is implied. |
+| Start | Clean basef55c6cb54, fresh private source worktree/XDG/display. Source1103/jovian_provisional/pilot_station/jovian_freight_berth; authored hull260. Main target World/ExteriorTargetRange/TargetDrone01, DRONE-01/base[-13,7,-95]/100HP/range_target faction. Weapon jovian_heavy_defensive_cannon, hitscan650m/70/.62s/origin tolerance32m, shipyard_flight_test faction. Observe real alternating selected root muzzle (initialLeft[-5.15,3.76,-6.95], Right[5.15,3.76,-6.95]) and actual request origin. |
+| Steps | `python3 -B tools/release/run_native_sortie.py EXPORTED_ELF --output FRESH_OUTPUT --route jovian-return-reuse`. Normal Begin Shift; all13 existing LifeGantry walking goals/physical Jovian pilot boarding/90seated samples. Ordinary CinderSupply four-point full-body clearance route below. At final point brake/aim: passive camera and next-muzzle rays must identify actual registered target before exactly one native F pulse. Restore attitude, reverse existing clearance route, strict home/OFFLINE90neutral samples/Eexit. Retrace existing gantry tail out/back beyond7m reboard guard; physical fresh pilot stream/90seated samples. Repeat complete clearance/home loop with no further Fire, final physical exit/supported walk, focused HUD Exit. |
+| Pass/fail | Native and consumed current Fire/source1103/current Jovian instance/fresh command sequence/actual70-damage profile/presentation receipt/adapter context identify the same registered DRONE-01; actual HP100→30 exactly once and remains30. Authored tuning/hull260 and Main/world/Player/capsule/shape/craft/source/seat/berth/camera/target/adapter identities remain current; contiguous frame/sequence checks, legitimate ownership retirement/new stream on reuse. Both strict homes require captured landing result/actual parked lease, automatic neutral OFFLINE90ticks, physical supported exterior and walking. Final actual OS0 plus independently read crash clean/safe clean_shutdown/current-session ended receipts. |
+| Proof | Extend existing native runner/passive observer and focused caller/privacy checks, clean private Linux export with strict package --startup-check(exit0/oneSTARTUP_MENU_READY_OK), then ONE complete OS XTest→X11→default sampler route with Dummy audio/private Xvfb. No observer pose/health/phase/settings/progression writes. Actual counters/protected files/writer receipts below and zero unexpected diagnostics after drain. OriginalCAP300/outer360/walk15/board12/exit10/weapon25/landing120 and actual Hero landing timeout/stall4 retained. Cinder large-hull flight has no15s Zenith stage bound; do not add one. |
+| Dependencies/ownership | Codex owns existing runner/test, passive observer, and only necessary startup mode whitelist/privacy test. Reuse LifeGantry/Cinder/Zenith source contracts; do not reopen parked engineer, Convoy or other UI/craft cards. Physics sightline/hull movement remain actual acceptance gates. No new weapon/design choice or user hardware input is needed for this isolated package case. |
+| Stop | Implementation due00:15UTC; export launch no later00:25UTC, strict archive startup no later00:49UTC, native launch no later00:54UTC. Keep original export900/startup300/native300/outer360 caps; first unexpected failure stops, no automatic correction/retry or reset of23:40UTC cumulative cost. |
+| Closure | Independent source/raw review, integrate/push accepted release support and exact case or archive failed source unmerged. Verify all owned process/input/display cleanup; exact-tip branch/worktree/scratch cleanup. Read-only qualification does not require a duplicate public build; any demonstrated runtime repair needs a separate focused regression and fresh Windows checkpoint contract before implementation. |
+
+CinderSupply clearance offsets from actual home capture are exactly
+`[0,0,0]`, `[0,0,26.7]`, `[0,66.37,66.7]`, `[84,66.37,-308.3]`;
+authored world points `[-53,13.63,83.3]`, `[-53,13.63,110]`, `[-53,80,150]`,
+`[31,80,-225]`. Retrace for each home. Existing reuse walk is live boarding
+marker→`[-42,.38,boarding.z]`→`[-42,.38,40]`, then reverse to the same marker;
+last point is about26m from the hatch. Do not invent a replacement waypoint.
+
+**Finite automatic persistence contract.** Default selection is timed_race/
+cinder_reach_checkpoint_route. Title: idle0, no race/tutorial namespace. First
+departure auto-start1 and the exact tutorial schema1/seen_ids containing only
+cinder_reach_checkpoint_route. First home retains failed1; physical home reboard
+resets to idle2; second departure starts3; second home retains failed3. No other
+epoch is allowed. Home failure is returned_to_shipyard while running; a prior
+actual timeout at authored elapsed≥120 retains that same terminal at arrival.
+This incidental producer adds no new per-flight deadline or PLAY-RACE result.
+Require checkpoint index0, penalty0, no completion/best/lap/reward; the high
+clearance stays outside the first32m checkpoint sphere at[16,-9,-240]. The one
+seen record remains unchanged through reset/restart. Capture the actual race
+writer/status/generation and terminal saved state, not an arbitrary file allowance.
+
+Cargo remains unselected/idle/gen0: Jovian fabrication_kits6/destination0, zero
+transfers, no jovian_cargo_session/cinder_cargo_delivery namespace. Separate
+Cinder crate manifests and all baseline payload members/presence bits stay exact.
+Nonlethal target damage must add no destruction score, credit/receipt or owed
+reward; game_flow_reward_store stays absent or baseline-identical/live zero.
+Only ordinary runtime_settings baseline and actual solo_safe_recovery,
+crash_recovery,safe_start_recovery,session_diagnostics may change besides the
+named race/tutorial owners. Settled Jovian pilot context is exactly home
+location mudds_home_berth/modepilot/craftjovian_provisional/berthjovian_freight_berth;
+both supported exterior homes/final close require modeon_foot. Transitional
+modeunavailable and initial default Torrent on-foot context are bound to their
+actual phases. Use the same actual primary/profile/store; monotonic generations,
+actual race/tutorial/solo writer receipts, both home-file captures and final
+clean markers; no fixed aggregate commit count/prefix for interleaved owners.
+
 ## Installed legacy CFG coexistence accepted 20261026
 
 **SAVE-UNSUPPORTED — existing release runner extended; lone future-CFG primary
