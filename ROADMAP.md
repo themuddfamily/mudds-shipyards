@@ -99,6 +99,9 @@ instead of using its hatch/airstair. Implementation and proof remain open.
 [Engineer active-work cuts](docs/ROADMAP_BACKLOG.md#halyard-engineer-active-cuts)
 now specify E stand and normal browser disconnect,host token/stock checks and
 fresh reclaim. Actual UI timing and gameplay proof remain unrun.
+[Halyard remote Loadmaster](docs/ROADMAP_BACKLOG.md#halyard-loadmaster-remote-actions)
+now has fixed input/dispatch,moving,clear/disconnect/rejoin and full-route limits.
+Its parked local trial and missing remote implementation remain open.
 
 The [art coverage contract](docs/ROADMAP_BACKLOG.md#art-view-coverage-contract) now
 names the existing capture views, ordinary gameplay gaps and finite world/settings
