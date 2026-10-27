@@ -124,6 +124,17 @@ not counted as duplicate deliveries. [All 36 promises and ten gates](docs/ROADMA
 
 ## Execution now
 
+**One causal Jovian continuation selected under the original clock.**
+Independent cumulative-priority review explicitly reopens the parked attempt
+only to restore Cinder's ordinary W departure step before clearance on both
+flights. All original hit/two-flight/home/reuse/data/OS0 gates and300/360s caps
+remain unchanged; no new budget. Driverc1488e70b reuses the exact archived
+ELF80a4…bcc4/tarc5b6…da8d after runtime/startup/export-input byte comparison.
+Readiness must pass by00:52UTC, actual native launch by00:54UTC, closure by the
+original2026-10-27 01:10UTC (start2026-10-26 23:40UTC; prior65.059minutes charged).
+One full Python check and one full native run only; any missed cutoff or next
+unexpected failure returns PARK without another correction. [Retained original contract and failure](docs/history/ROADMAP_DELIVERIES.md#jovian-cannon-departure-parked-and-linux-archive-modes-fixed-20261027).
+
 **PARKED — Jovian cannon/home/reuse caller did not depart.**
 The one actual run reaches all13 Freight goals and90 seated observations, then
 holds brake/zero throttle at the parked berth until the original300s abort.
