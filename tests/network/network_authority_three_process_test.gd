@@ -54,8 +54,8 @@ func _run() -> void:
 			# Exit receipts are written only after wait reaps the actual engines;
 			# their redirected output includes all teardown diagnostics.
 			_pids.clear()
-			print("NETWORK_LANDING_TARGET_RACE_OK")
 			print("OK: three-process network authority harness; all three OS exits=0; diagnostics=0")
+			print("NETWORK_LANDING_TARGET_RACE_OK")
 			quit(0)
 			return
 	await _cleanup()
