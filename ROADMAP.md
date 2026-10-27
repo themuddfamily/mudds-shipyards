@@ -52,15 +52,14 @@ session is this requested breakdown; it does not reopen parked gameplay trials.
 Titan and the other missing-craft proposals still require their recorded design
 choices before implementation.
 
-**Latest resolved fields — shared Ember baseline.** The
-[baseline contract](docs/ROADMAP_BACKLOG.md#shared-ember-baseline-contract) now
-fixes the Halyard host/two-client roles, mandatory survey/save/payment result and
-all-crew reboard/home/OFFLINE/exit endpoints. Existing readiness, one-passenger
-surface and host-only return checks remain separate; none proves the whole route.
-The full ordinary caller and aggregate limit remain Codex-owned gaps. No game
-ran, parked trial reopened or capacity decision inferred. Previously bound
-[cargo](docs/ROADMAP_BACKLOG.md#hud-cargo-contract) and
-[Convoy](docs/ROADMAP_BACKLOG.md#hud-convoy-contract) fields remain reusable.
+**Latest resolved fields — Torrent damage contacts.** The
+[contact contract](docs/ROADMAP_BACKLOG.md#torrent-damage-contact-contract) fixes
+physical target patches, collision/projectile attribution, nonfatal/fatal speed
+formulas and hull budgets. Collisions cannot qualify forward_hull; the existing
+11-damage weapon cannot fail all five components in one100-hull life. A real world
+encounter/input schedule and aggregate full-craft limit remain missing. No engine
+ran or parked loss/recovery attempt reopened. Previously bound cargo, Convoy and
+shared Ember contracts remain reusable in the backlog.
 
 ## How we will work from this roadmap
 
