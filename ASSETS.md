@@ -63,6 +63,32 @@ families (occlusion on every finish, metal modulation on structural alloy and
 metal trim) on top of the existing triplanar microfinish. No new source image,
 scan or third-party input is used; it is not a ship atlas.
 
+## Cabin textile — ambientCG Fabric069
+
+- Runtime maps: `assets/materials/cabin-textile/Fabric069_1K-PNG_Color.png`,
+  `assets/materials/cabin-textile/Fabric069_1K-PNG_NormalGL.png`, and
+  `assets/materials/cabin-textile/Fabric069_1K-PNG_Roughness.png`.
+- Source: [Fabric069](https://ambientcg.com/view?id=Fabric069), by ambientCG
+  (Lennart Demes); three unmodified 1024 × 1024 photometric-stereo maps.
+- Licence: **CC0 1.0 Universal**; [provider statement](https://docs.ambientcg.com/license/)
+  and [CC0 text](https://creativecommons.org/publicdomain/zero/1.0/legalcode).
+- Existing source/download record and authored material treatment:
+  [cabin textile README](assets/materials/cabin-textile/README.md).
+  These external scan maps are distinct from the project's original artwork.
+
+## Coating scuff roughness — Poly Haven Blue Metal Plate
+
+- Runtime map: `assets/materials/coating-scuff-roughness.png`.
+- Source: [Blue Metal Plate](https://polyhaven.com/a/blue_metal_plate), by
+  Rob Tuytel / Poly Haven, **CC0 1.0** ([provider licence](https://polyhaven.com/license)).
+- Registered source: `art_source/materials/blue_metal_plate_rough_1k.png`;
+  [existing source record](art_source/materials/COATING_SOURCE.md) identifies the
+  unmodified 1K, 16-bit roughness channel and retrieval date.
+- `tools/generate_ship_finish_maps.py` crops one panel, removes boundary mismatch,
+  and remaps roughness to 0.82–1.00 for the 420 × 600 runtime derivative. This is
+  a project adaptation of an external scan, not project-original source imagery
+  or calibrated reflectance.
+
 ## Zenith B7 evidence and project-original runtime assets
 
 The B7-observed Zenith implementation adds no source media or derived historical
@@ -752,13 +778,15 @@ further without contradicting a registered source observation.
   that the bed sounds good. A human listening pass on real hardware, together with
   the final mix review, remains outstanding.
 
-All geometry, UI, effects, and audio in the current slice are original project
-work. The Torrent, pilot, and central-berth packages preserve editable Blender
+The slice combines project-authored geometry, UI, effects and audio with the
+named CC0 scan maps and derivative registered above: ambientCG Fabric069 by
+Lennart Demes and Poly Haven Blue Metal Plate by Rob Tuytel. The Torrent,
+pilot, and central-berth packages preserve editable Blender
 sources and deterministic import contracts; much of the remaining station and
 fleet still uses code-authored Godot geometry. Registered project-original
 raster textures, their locally derived material maps, and the two original
 generated PCM banks documented above — the combat one-shot library and the
-station-rest music bed — are the explicit checked-in media. No original Roblox
+station-rest music bed — are among the checked-in media. No original Roblox
 assets or scripts are bundled.
 
 ## `assets/keth-icon.png`

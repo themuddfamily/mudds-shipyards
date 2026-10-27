@@ -112,6 +112,26 @@ func _run() -> void:
 		"Godot's MIT licence notice is reproduced in full",
 	)
 	var registers := _assets_md_registers()
+	_check(
+		text.contains("Fabric069 by ambientCG (Lennart Demes)")
+		and text.contains("https://ambientcg.com/view?id=Fabric069")
+		and text.contains("assets/materials/cabin-textile/README.md")
+		and text.contains("CC0 1.0 Universal"),
+		"the shipped Fabric069 scan maps carry their creator, provider, source and CC0 notice",
+	)
+	_check(
+		text.contains("Blue Metal Plate by Rob Tuytel / Poly Haven")
+		and text.contains("coating-scuff-roughness.png")
+		and text.contains("https://polyhaven.com/a/blue_metal_plate")
+		and text.contains("art_source/materials/COATING_SOURCE.md")
+		and text.contains("CC0 1.0. https://polyhaven.com/license"),
+		"the shipped coating derivative credits its scanned source and CC0 licence",
+	)
+	_check(
+		Catalog.ORIGINAL_WORK_NOTE.contains("named CC0 scans and derivative")
+		and not text.contains("All geometry, UI, effects and audio in the game are original project work"),
+		"the overall authorship note acknowledges the external scans",
+	)
 	_check(registers.size() >= 29, "ASSETS.md register headings were parsed (%d)" % registers.size())
 	var missing: PackedStringArray = []
 	for register in registers:

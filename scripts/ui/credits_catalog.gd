@@ -22,6 +22,18 @@ const IMAGEGEN_ORIGINAL := "Project-original output of OpenAI's built-in image g
 ## there with Markdown backticks removed.
 const ASSET_ENTRIES: Array[Dictionary] = [
 	{
+		"register": "Cabin textile — ambientCG Fabric069",
+		"kind": "Textures",
+		"credit": "Fabric069 by ambientCG (Lennart Demes): unmodified color, OpenGL normal and roughness scan maps. Source: https://ambientcg.com/view?id=Fabric069 ; record: assets/materials/cabin-textile/README.md",
+		"licence": "CC0 1.0 Universal. https://docs.ambientcg.com/license/ ; https://creativecommons.org/publicdomain/zero/1.0/legalcode",
+	},
+	{
+		"register": "Coating scuff roughness — Poly Haven Blue Metal Plate",
+		"kind": "Textures",
+		"credit": "Blue Metal Plate by Rob Tuytel / Poly Haven. The coating-scuff-roughness.png runtime map adapts its roughness scan. Source: https://polyhaven.com/a/blue_metal_plate ; record: art_source/materials/COATING_SOURCE.md",
+		"licence": "CC0 1.0. https://polyhaven.com/license ; https://creativecommons.org/publicdomain/zero/1.0/legalcode",
+	},
+	{
 		"register": "assets/signage/habitat_common_room_display.svg — Habitat common-room table display",
 		"kind": "Textures",
 		"credit": "Habitat common-room lettering and chair/cup artwork, created with the project's engineering alphabet. Original modern interpretation.",
@@ -243,7 +255,7 @@ const TOOL_CREDITS: Array[Dictionary] = [
 
 const FONT_NOTE := "All interface text uses Godot Engine's built-in default font; its licence is listed in the Godot Engine third-party notices at the end of this page. The project bundles no other font."
 const ORIGINS_NOTE := "An unofficial fan remake inspired by ZolarKeth's 2009 Roblox game Keth Shipyards. No original Roblox assets or scripts are bundled."
-const ORIGINAL_WORK_NOTE := "All geometry, UI, effects and audio in the game are original project work. No original Roblox assets or scripts are bundled."
+const ORIGINAL_WORK_NOTE := "Project-authored geometry, UI, effects and audio are accompanied by the named CC0 scans and derivative: ambientCG Fabric069 by Lennart Demes and Poly Haven Blue Metal Plate by Rob Tuytel. No original Roblox assets or scripts are bundled."
 
 
 static func project_version() -> String:
