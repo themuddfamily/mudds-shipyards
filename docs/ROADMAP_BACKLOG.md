@@ -5302,7 +5302,7 @@ Recovery proof uses an owned actual OS SIGKILL, distinct restart, protected real
 | INSTALL-WIN-FINAL | Matching NSIS installer artifact/extraction identity | 32 | Qualification | Source-version prerequisite770f5b522 remains accepted. Standalone artifact prerequisite DONE17a11183a: compiler exports complete finalized uninstaller after optional signing, records actual path/bytes/SHA in existing schema1; staged exclusive publication/collision/copy-failure/mock-sign-order tests pass. Both existing suites34tests33PASS/1PowerShellskip; actual7876 setup81.969s under600/log0, standalone117593bytes/actualPEversion/hash and unchanged six prior files/extracted game verified independently. [Literal final handoff](WINDOWS_INSTALLER.md#final-installer-identity--install-win-final). GATED on PACKAGE-FINAL actual candidate and SIGN-FINAL trusted artifact checks. Earlier setups without sidecars retain their extraction limit. Native Windows execution remains owner-excluded/NOT_RUN; no missing standalone-export implementation remains. | On the frozen final Windows candidate execute linked NSIS build/extraction/identity commands: exact source/version, setup/result/checksum, extracted staged game and exported standalone uninstaller bytes/size/hash/actual PE version match. Optional signing precedes uninstaller capture; actual trust and signed-byte proof belong to SIGN-FINAL. Close only on that final candidate, not a checkpoint subset. Native Windows execution remains owner-excluded. |
 | INSTALL-LINUX-CLEAN | Clean install on final Linux package | 32 | Qualification | Execution GATED on frozen final Linux package identity/export; the [accepted b4ff8c0 installed checkpoint recipe](history/ROADMAP_DELIVERIES.md#linux-installed-checkpoint-guided-qualification-accepted-20261026) supplies concrete owned paths, byte/mode/launcher checks and full Guided direct-executable command, without graphical desktop or final-candidate acceptance; final package acceptance remains PACKAGE-FINAL. Transaction definition DONE in the [literal clean/upgrade contracts](#final-linux-clean-install-and-upgrade--transaction-contracts): absent prefix/no prior save or package, exact private paths/commands/owned payload modes, four protected fixtures and full installed Guided with original30s CLI/300s startup and310s outer/300s Guided and330s outer limits. Final archive/SHA/export/manifest bytes bind before execution. Definition does not accept final execution, graphical desktop launch or other installation transactions. | [Final Linux installation](#proof-release): clean isolated installation with expected files/modes/version and usable installed launch; exact candidate bytes and ordinary usability, no headless-desktop substitution. |
 | INSTALL-LINUX-UPGRADE | Upgrade on final Linux package | 32 | Qualification | Execution GATED on frozen final Linux package identity/export; the [accepted499e681→b4ff8c0 checkpoint transaction](history/ROADMAP_DELIVERIES.md#linux-checkpoint-upgrade-499e681-to-b4ff8c0-accepted-20261026) supplies actual prior/candidate paths, saved-progress/settings fixture, expected payload/modes/launcher checks and installed full Guided command; final-package/rendered-desktop/retained-save gameplay reload are not accepted; final package acceptance remains PACKAGE-FINAL. Transaction definition DONE in the [literal clean/upgrade contracts](#final-linux-clean-install-and-upgrade--transaction-contracts): actual499e681 prior archive/source/payload hashes verified, future frozen final binding, exact private commands/paths, four then five protected fixtures, new generation/old managed-file retirement, exact final modes and full installed Guided at original30/300/310/330s limits. Final candidate bytes bind before execution. Save preservation is separate from retained-save gameplay reload; graphical desktop/final acceptance stay open. | [Final Linux installation](#proof-release): old→new installation updates intended bytes while preserving specified user progress/settings; exact candidate bytes and ordinary usability, no headless-desktop substitution. |
-| INSTALL-LINUX-ROLLBACK | Rollback on final Linux package | 32 | Qualification | Final execution GATED on final package identity/export. Checkpoint selected rollback499→b4→499 ACCEPTED on driver503dbf6f6: exact prior bytes/modes/launcher, actual b4-produced save loaded by499 in healthy session3, credit1/settings preserved, three supported walking goals/normal HUD Quit/OS0; six protected files unchanged after uninstall. [Actual proof and limits](history/ROADMAP_DELIVERIES.md#selected-checkpoint-rollback-accepted-20261026). No failed-update/power-loss/rendered/final acceptance or unchanged checkpoint rerun. | [Final Linux installation](#proof-release): failed/selected rollback restores specified prior installed bytes and protected data, then usable launch; exact candidate bytes and ordinary usability, no headless-desktop substitution. |
+| INSTALL-LINUX-ROLLBACK | Rollback on final Linux package | 32 | Qualification | Final execution GATED on final package identity/export. [Final selected-rollback contract](#final-linux-selected-rollback-contract) now fixes499→FINAL→499, exact protected fixtures/commands/modes and actual FINAL-produced save loading. Bounded FINAL-output admission in the existing retained-heavy caller remains missing implementation; historical fixture seeding cannot substitute. No final run selected. Checkpoint selected rollback499→b4→499 ACCEPTED on driver503dbf6f6: exact prior bytes/modes/launcher, actual b4-produced save loaded by499 in healthy session3, credit1/settings preserved, three supported walking goals/normal HUD Quit/OS0; six protected files unchanged after uninstall. [Actual proof and limits](history/ROADMAP_DELIVERIES.md#selected-checkpoint-rollback-accepted-20261026). No failed-update/power-loss/rendered/final acceptance or unchanged checkpoint rerun. | [Final Linux installation](#proof-release): failed/selected rollback restores specified prior installed bytes and protected data, then usable launch; exact candidate bytes and ordinary usability, no headless-desktop substitution. |
 | INSTALL-LINUX-RETAINED | Retained-data handling on final Linux package | 32 | Qualification | Final execution GATED on final Linux package identity/export; checkpoint [retained Heavy load](#installed-retained-heavy-load--selected-checkpoint-contract) ACCEPTED a716c4d8e: source251 Python checks/one actual installed b4 load33.683s, live ledger1/paid terminal/stored settings/healthy session2, 51.262m supported walk/next Torpedo posting unarmed/normal UI OS0/final clean no regrant. [Exact raw proof and retained failures](history/ROADMAP_DELIVERIES.md#installed-retained-heavy-load-accepted-20261026). Existing recipe supplies real fixture/protected fields/private profile/command; final package, full runtime-settings/rendered desktop/native-hardware facts remain open. Original16:11/90min clock includes checks/closure; archive27.680min. | [Final Linux installation](#proof-release): install/update with existing valid user data preserves required progress/settings and loads correctly; exact candidate bytes and ordinary usability, no headless-desktop substitution. |
 | INSTALL-LINUX-CORRUPT | Corrupt-data handling on final Linux package | 32 | Qualification | Final execution GATED on frozen final package/export. Executable checkpoint recovery caller source accepted26257272f: actual keyboard confirmation commits27→28/full payload and valid backup preserved/normal first OS0; cold session3/credit1/settings/live paid Torpedo acknowledgement and all3ordinary walking goals52.593m demonstrated. FULL QUALIFICATION FAIL/PARK: second shutdown emits rootWindow focus_entered/tree_exited disconnect errors; final OS0/clean file not independently captured. [Accepted implementation and remaining gate](history/ROADMAP_DELIVERIES.md#corrupt-repair-caller-accepted-shutdown-gate-open-20261026). No diagnostic suppression, new gameplay checkpoint or additional trial selected. Original two caller stops and source archive remain historical; original19:31:09/90min clock and300/330/360caps retained. Reopening needs production popup/connection-removal ownership and independent cumulative-priority decision, not another caller or policy survey. | [Final Linux installation](#proof-release): install/update with named corrupt data selects specified safe fallback while protecting valid recovery copies; exact candidate bytes and ordinary usability, no headless-desktop substitution. |
 | INSTALL-LINUX-UNINSTALL | Uninstall on final Linux package | 32 | Qualification | Executable lifecycle command DONE62810ebf5: actual7f checkpoint101.196s/full Guided55.388s/normal OS0/both clean markers/five protected files exact;25 tests and independent review pass. [Actual command and scope](#final-linux-uninstallreinstall--install-linux-uninstall). Final execution GATED on frozen final Linux package identity/export; final package acceptance remains PACKAGE-FINAL. Transaction definition DONE in the [literal uninstall/reinstall contract](#final-linux-uninstallreinstall--install-linux-uninstall): exact private prefix/XDG, shipped-manager commands, ownership/modes, four then five protected fixtures, byte/mode preservation, fresh-generation reinstall and unchanged full installed Guided usability with original10/120/300/330s limits. The original definition verified the fixture without execution; the later checkpoint transaction above is actually performed. Before execution bind frozen final archive/SHA/export identity and actual manifest payload bytes. Graphical desktop launch/retained-save gameplay reload retain their separate owners; accepted interruption cuts remain closed. Definition does not accept final qualification. | [Final Linux installation](#proof-release): uninstall removes only managed package/entry files, preserves saves/unowned files and permits correct reinstall; exact candidate bytes and ordinary usability, no headless-desktop substitution. |
@@ -8684,6 +8684,129 @@ hard17:27:43. Stop first unexpected failure and retain it before any causal revi
 no automatic correction/retry or renamed budget. Exact final-package,
 failed-update interruption, power-loss, rendered desktop and hardware facts
 remain in their existing open gates.
+
+<a id="final-linux-selected-rollback-contract"></a>
+### Final Linux selected rollback — exact transaction and save handoff
+
+Definition2026-10-27, sourceec13f1028,17:38–18:03UTC including review/checks/
+commit/push/cleanup. INSTALL-LINUX-ROLLBACK uses the original **selected rollback**
+branch of its failed/selected requirement. The accepted499→b4→499 checkpoint
+above stays closed; this card does not select another run or general future-format
+compatibility. Final execution requires the frozen PACKAGE-LINUX archive/export.
+
+**Inputs/ownership.** Bind FINAL_TAR/hash/export result,audited root,shipped
+FINAL_MANAGER and exact final ELF/icon bytes before execution. OLD_TAR,
+OLD_MANAGER,499 source/archive/ELF/icon hashes are the literal verified inputs in
+[the clean/upgrade contract](#final-linux-clean-install-and-upgrade--transaction-contracts).
+Do not substitute a repository manager. Use absent exclusive
+ROOT=`/srv/mudds-work/linux-selected-rollback-final`, PREFIX=`$ROOT/installed game`,
+APPS=`$ROOT/applications`; private profile/XDG paths0700 and inherited HOME as
+in that contract. Managers run with explicit022 umask. Each installed generation,
+ELF/icon/manifest/launcher byte/mode/Exec/Path/Icon predicate is the existing
+[managed-install contract](#final-linux-uninstallreinstall--install-linux-uninstall).
+Resolve actual ELF from the manifest after every successful install; do not
+assume the initial generation UUID returns after rollback.
+
+**Ordered transaction; every child must exit0.** Each manager command below uses
+`python3 tools/release/suite_process.py --timeout 30 --` before `python3`,retaining
+the accepted rollback wrapper's30s child limit. Freeze all results/log paths under
+ROOT before starting; no real installation or personal profile is an input.
+
+```bash
+python3 "$OLD_MANAGER" install --archive "$OLD_TAR" --install-dir "$PREFIX" --applications-dir "$APPS"
+python3 "$FINAL_MANAGER" install --archive "$FINAL_TAR" --install-dir "$PREFIX" --applications-dir "$APPS"
+# Perform the FINAL retained-load leg and capture its actual clean-close save here.
+python3 "$FINAL_MANAGER" install --archive "$OLD_TAR" --install-dir "$PREFIX" --applications-dir "$APPS"
+# Perform the restored499 startup and actual FINAL-save load here.
+python3 "$FINAL_MANAGER" uninstall --install-dir "$PREFIX" --applications-dir "$APPS"
+```
+
+After the first install create these protected fixtures; `\n` is one real newline:
+`$PREFIX/unowned-note.txt`=`Unrelated installation notes\n`,0640;
+`$APPS/unrelated.desktop`=`[Desktop Entry]\nName=Unrelated\n`,0600;
+`$PREFIX/<first499 generation>/unowned-old-runtime-note.txt`=
+`Unowned old runtime annotation\n`,0600; outer-profile
+`$XDG_DATA_HOME/godot/app_userdata/Mudds Shipyards/mudds_user_data.json`=the
+original8655-byte earned Heavy fixture/hash in the existing retained-load contract,
+0644. After upgrade add `$PREFIX/<final generation>/unowned-final-runtime-note.txt`=
+`Unowned final runtime annotation\n`,0600. Managed publication must retire only
+old owned ELF/icon,retain these notes and exact save bytes/modes,and leave no
+journals/lockfile. Record initial and final generation identities.
+
+**FINAL leg, existing executable command.** On the installed FINAL_ELF run:
+
+```bash
+python3 tools/release/suite_process.py --timeout 330 -- python3 tools/release/run_native_sortie.py "$FINAL_ELF" --route retained-heavy --retained-data "$ORIGINAL_HEAVY" --output "$ROOT/final-retained"
+```
+
+ORIGINAL_HEAVY is the exact8655-byte fixture,not synthetic progress. The route
+uses a fresh private TemporaryDirectory and the production reader; it does not
+load the outer installation fixture in place. Require its existing full
+retained-Heavy pass: genuine one-credit generation1 ledger/paid floor1,pending0,
+Torpedo offered/unarmed,fresh director IDLE/generation0,settings and protected
+siblings preserved,healthy baseline-relative session/startup+1,three supported
+walk goals,actual next-posting prompt,normal HUD Quit/OS0/zero diagnostics and
+both durable clean markers. Preserve actual `final-retained/orderly-close.json`,
+its size/hash,and the successful existing result/raw observations identifying
+FINAL_ELF and its binary hash. Only after verifying this actual output may the
+operator replace the controlled outer save fixture with those exact bytes,mode
+0644,and freeze that new baseline. This explicit fixture handoff is not a manager
+mutation or a permission to edit live game state. All other protected files stay
+unchanged. ORIGINAL_HEAVY and the captured FINAL output remain immutable.
+
+**Rollback and usable-load endpoint.** Rollback must publish a fresh generation
+with exact prior499 ELF/icon bytes/modes and corresponding launcher,retire only
+final managed ELF/icon and preserve all five fixtures,including the actual
+FINAL-produced save. Add sixth fixture
+`$PREFIX/<restored499 generation>/unowned-rollback-runtime-note.txt`=
+`Unowned rollback runtime annotation\n`,0600. Resolve RESTORED_ELF,require its
+actual SHA equal the pinned499 ELF,and run the existing strict installed startup
+command with300s/310s outer: OS0,exactly one STARTUP_MENU_READY_OK,zero diagnostics.
+Startup uses a separate private profile and cannot consume/change the fixture.
+
+The restored499 process must then load **the captured FINAL output**,not the
+original8655-byte fixture,through the existing retained-heavy ordinary route.
+Require the same protected payload/solo-safe-home preference and live one-credit/
+paid/unarmed/IDLE state above; only crash/session-diagnostic/safe-start metadata
+may change. Generation advances; session/startup advance exactly1 relative to
+that FINAL save,with no unclean start/failure/recovered event. Complete all three
+existing supported walking goals,usable Torpedo prompt,normal UI Quit/actualOS0,
+zero diagnostics and both durable clean markers. No activity arm,shot,reward,
+actor/save setter or safe fallback can substitute for preserved progress loading.
+Use original300s route/independent330s outer,isolated Xvfb/x11/Dummy and independent
+abort/input release/process reap. Uninstall then removes only restored managed
+files/manifest/launcher/journals; all six byte/mode fixtures remain exact and
+noted generation directories remain. Do not count directory retention as failed
+uninstall when its named unowned note requires it.
+
+**Exact missing executable capability — Codex.** `RetainedHeavyFiles.__init__` in
+`tools/release/run_native_sortie.py` currently admits only8655/9296-byte historical
+hashes and reads at most9297 bytes. A newly FINAL-written document is rejected
+before old-game launch; feeding ORIGINAL_HEAVY again does not meet this card.
+Add opt-in bounded FINAL-output admission/handoff to that same retained-heavy
+caller and its existing focused tests,leaving its two default fixtures unchanged.
+Bind actual successful FINAL retained result,exact clean-close path/size/hash,
+actual FINAL binary hash and the original fixture baseline; accept only a regular
+non-symlink immutable output≤the production UserDataStore1MiB limit. Verify its
+existing committed outer-schema1 envelope and exact preserved payload/clean
+markers against that successful run,then seed those exact bytes into the fresh
+owned prior-load profile. Preserve all `require_retained`/`require_loaded` and
+RetainedHeavyPilot board/physical/normal-exit predicates. An arbitrary profile or
+operator-supplied hash without the actual successful FINAL leg is insufficient.
+No new schema,validator family or fabricated entitlement is needed. This handoff
+is missing production release automation; proposed syntax is not an existing
+command. If FINAL output is genuinely incompatible with499,stop on that concrete
+compatibility failure and leave rollback open; never reclassify a reset/new save
+as preservation or assume compatibility from the old checkpoint.
+
+This definition closes the transaction/fixture/protected-state/endpoint fields;
+FINAL-output handoff implementation and final candidate execution remain OPEN.
+A later implementation assignment owns only existing caller/tests and any actual
+transaction wrapper needed to execute this sequence,with ≤90min all-in deadline
+and one correction total. First unexpected failure stops; no unchanged retry,
+new failed-update/power-loss case or reopening of parked corrupt/rendered work.
+Final-package,graphical desktop and native-device gates retain their own owners.
+No install,export,engine,hardware or hosted CI run occurred for this definition.
 
 ### Final Linux clean install and upgrade — transaction contracts
 
