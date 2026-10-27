@@ -264,6 +264,19 @@ commit/push. Independent source review, all337 identities/order and new anchors
 pass; roughly6minutes through checks, with final push charged to the same clock.
 Craft design approval remains pending; no implementation active.
 
+**Definition field complete — FINAL-RECONCILE direct parent membership.**
+The [36-parent crosswalk](docs/ROADMAP_BACKLOG.md#coverage-of-the-original-remaining-outcomes)
+now names each existing direct child ID instead of broad family labels. Independent
+mechanical review verifies exact source-order membership, unchanged original
+outcome/proof columns, all337 canonical identities/order and ten phase criteria.
+Self/output/publication ordering is explicit; no pre-publication gate requires
+future downloaded-byte proof. All original completion conditions remain binding.
+This does not close FINAL-RECONCILE: exact phase-predicate/source/candidate bindings,
+candidate defect inventory and actual qualification remain open. Root owns only
+these two docs; no branch/worktree/scratch/runtime/CI/checkpoint created. Original
+07:21:06 start/15minute estimate/07:41:06 hard deadline include commit/push/closure.
+Craft design approval remains pending; no implementation active.
+
 **PLAN-NEXT remains OPEN.** A remaining row with an unresolved Codex-owned
 acceptance field is unfinished planning, not an executable task. No runtime trial
 is selected by this documentation update.
