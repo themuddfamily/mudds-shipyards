@@ -5071,6 +5071,19 @@ Accepted source waits for this automatic SURFACE_OUTBOUND transition. Only that
 clause is corrected; all other endpoints/controls/continuity/caps remain. No
 runtime policy change, extra input or failed-test acceptance relaxation.
 
+**Final cumulative flight decision,04:17UTC, before native launch.** Corrected
+8219fa013 focused checks/export/actual archive startup all pass; startup ends
+04:14:09, and the preparation guard refuses04:14:11 before any corrected native
+process. Preserve that STOP as a deadline miss, not gameplay evidence. Independent
+cumulative review explicitly revises that closed preparation selection: at about
+46.8minutes spent/43remaining, one full1860s outer plus10minute bounded closure
+still fits original03:30→05:00 envelope. Change only engineering launchcutoff to
+04:19 and closure reserve15→10minutes; full outer completion before04:50/hard05
+and all prior costs,1800s inner/distance/rebase/identity/landing/exit/clean checks
+remain. No source/test changes or reruns; fresh profile/one corrected flight only.
+Any failure/cutoff miss/inability to retain10minute closure is terminal PARK/no
+additional run. This is explicit budget reprioritization, not a fresh clock.
+
 **One coordinate continuation approved before restore/correction,04:08UTC.**
 Independent cumulative review chooses actual viewport/window mouse conversion
 and two-scale regressions over switching: exact1.25 cause proved,37.695minutes
